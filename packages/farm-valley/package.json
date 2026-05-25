@@ -1,0 +1,14 @@
+{
+  "name": "farm-valley",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "29.1.1",
+    "@types/jsdom": "21.1.7"
+  }
+}

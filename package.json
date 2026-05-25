@@ -1,0 +1,18 @@
+{
+  "name": "game-engine-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vitest": "4.1.7",
+    "@types/node": "25.9.1"
+  }
+}
