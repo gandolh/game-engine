@@ -2,10 +2,6 @@ import {
   FixedStepClock,
   GameLoop,
   InputLog,
-  MessageBus,
-  Scheduler,
-  World,
-  createRng,
   initWebGpu,
   loadAtlas,
   Camera2D,
@@ -13,70 +9,24 @@ import {
   DebugOverlay,
 } from "@engine/core";
 import type { AtlasManifest } from "@engine/core";
-import type { GameEntity } from "./components";
-import { setupFarmer, setupPlot, type FarmerSpec } from "./world-setup";
-import { DayClockSystem } from "./systems/day-clock";
-import { InboxDispatchSystem } from "./systems/inbox-dispatch";
-import { PerceiveSystem } from "./systems/perceive";
-import { HarvestSystem } from "./systems/harvest";
-import { DeliberateSystem } from "./systems/deliberate";
-import { ActSystem } from "./systems/act";
-import { FinishDaySystem } from "./systems/finish-day";
 import { buildSpriteFrame } from "./render-systems";
-import { setupWeatherFeature } from "./agents/weather-station";
-import { setupMarketShopFeature } from "./agents/market-wall";
+import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
 import { ObserverPanel, type ObserverSnapshot } from "./ui";
-import "./agents/conservative";
-import "./agents/aggressive";
-import "./agents/hoarder";
-import "./agents/opportunist";
+import { decorateMarketAndShop } from "./decorate";
 
 interface BootConfig {
   seed: number;
   tickRateHz: number;
   ticksPerDay: number;
+  maxDays: number;
 }
 
 const CONFIG: BootConfig = {
   seed: 0xc0ffee,
   tickRateHz: 20,
   ticksPerDay: 20,
+  maxDays: 100,
 };
-
-const FARMER_SPECS: FarmerSpec[] = [
-  {
-    name: "Cora",
-    personality: "conservative",
-    homeX: 56, homeY: 48,
-    startGold: 50,
-    riskProfile: "low", minGoldReserve: 30,
-    startSeeds: { radish: 3 },
-  },
-  {
-    name: "Atticus",
-    personality: "aggressive",
-    homeX: 120, homeY: 48,
-    startGold: 80,
-    riskProfile: "high", minGoldReserve: 10,
-    startSeeds: { radish: 1, wheat: 1, pumpkin: 1 },
-  },
-  {
-    name: "Hannah",
-    personality: "hoarder",
-    homeX: 56, homeY: 112,
-    startGold: 120,
-    riskProfile: "high", minGoldReserve: 80,
-    startSeeds: { wheat: 2, pumpkin: 1 },
-  },
-  {
-    name: "Otto",
-    personality: "opportunist",
-    homeX: 120, homeY: 112,
-    startGold: 70,
-    riskProfile: "medium", minGoldReserve: 50,
-    startSeeds: { radish: 2, wheat: 1 },
-  },
-];
 
 async function boot(): Promise<void> {
   const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
@@ -91,62 +41,43 @@ async function boot(): Promise<void> {
 
     const camera = new Camera2D({
       worldUnitsX: 320,
-      worldUnitsY: 180,
-      centerX: 88,
-      centerY: 80,
+      worldUnitsY: 192,
+      centerX: 160,
+      centerY: 96,
     });
     const renderer = new Renderer(gpu, camera);
     renderer.spriteBatch.setAtlas(atlas.view);
 
-    const rng = createRng(CONFIG.seed);
-    const world = new World<GameEntity>();
-    const bus = new MessageBus();
-    const inputLog = new InputLog();
+    const { world, scheduler, dayClock } = bootstrapSim({
+      seed: CONFIG.seed,
+      ticksPerDay: CONFIG.ticksPerDay,
+    });
 
-    const farmers: GameEntity[] = [];
-    for (const [idx, spec] of FARMER_SPECS.entries()) {
-      const farmer = setupFarmer(world, spec);
-      if (farmer.id === undefined) throw new Error(`Farmer ${spec.name} id missing`);
-      farmers.push(farmer);
-      const plotOriginX = (idx % 2) * 8 + 3;
-      const plotOriginY = Math.floor(idx / 2) * 4 + 3;
-      for (let i = 0; i < 4; i++) {
-        setupPlot(world, farmer.id, plotOriginX + (i % 2), plotOriginY + Math.floor(i / 2));
-      }
-    }
-
-    const weatherFeature = setupWeatherFeature(world, bus, rng);
-    const marketShop = setupMarketShopFeature(world, bus, rng);
-
-    const dayClock = new DayClockSystem(bus, { ticksPerDay: CONFIG.ticksPerDay });
-    const scheduler = new Scheduler()
-      .add(dayClock)
-      .add(weatherFeature.weatherSystem)
-      .add(new InboxDispatchSystem(bus, world))
-      .add(new PerceiveSystem(world))
-      .add(weatherFeature.cropGrowthSystem)
-      .add(new HarvestSystem(world))
-      .add(new DeliberateSystem(world))
-      .add(weatherFeature.apSystem)
-      .add(new ActSystem(world, bus))
-      .add(marketShop.marketSystem)
-      .add(marketShop.shopkeeperSystem)
-      .add(marketShop.auctionSystem)
-      .add(new FinishDaySystem(world));
+    decorateMarketAndShop(world);
 
     const clock = new FixedStepClock({ tickRateHz: CONFIG.tickRateHz });
     const overlay = new DebugOverlay(app);
     const observer = new ObserverPanel(app);
+    const gameOverPanel = createGameOverPanel(app);
+    const inputLog = new InputLog();
+    let gameOver = false;
+    let finalSummary: FarmerSummary[] = [];
 
     void inputLog;
 
     const loop = new GameLoop(clock, {
       onTick(tick) {
+        if (gameOver) return;
         for (const e of world.query("transform")) {
           e.transform.prevX = e.transform.x;
           e.transform.prevY = e.transform.y;
         }
         scheduler.tick({ tick });
+        if (dayClock.day >= CONFIG.maxDays) {
+          gameOver = true;
+          finalSummary = leaderboard(world);
+          renderGameOver(gameOverPanel, finalSummary, dayClock.day);
+        }
       },
       onRender(alpha) {
         const encoder = renderer.beginFrame();
@@ -164,7 +95,10 @@ async function boot(): Promise<void> {
   }
 }
 
-function buildObserverSnapshot(world: World<GameEntity>, day: number): ObserverSnapshot {
+function buildObserverSnapshot(
+  world: ReturnType<typeof bootstrapSim>["world"],
+  day: number,
+): ObserverSnapshot {
   const station = (() => {
     for (const w of world.query("weatherStation")) return w.weatherStation;
     return null;
@@ -203,7 +137,52 @@ function buildObserverSnapshot(world: World<GameEntity>, day: number): ObserverS
   };
 }
 
-function countEntities(world: World<GameEntity>): number {
+function createGameOverPanel(parent: HTMLElement): HTMLElement {
+  const panel = document.createElement("div");
+  panel.style.cssText = [
+    "position: absolute",
+    "left: 50%",
+    "top: 50%",
+    "transform: translate(-50%, -50%)",
+    "min-width: 480px",
+    "padding: 24px 32px",
+    "font: 13px/1.5 ui-monospace, monospace",
+    "color: #f5e9c8",
+    "background: rgba(20, 18, 28, 0.95)",
+    "border: 2px solid #c9a85a",
+    "border-radius: 8px",
+    "box-shadow: 0 0 60px rgba(201, 168, 90, 0.35)",
+    "z-index: 200",
+    "display: none",
+    "white-space: pre",
+  ].join(";");
+  parent.appendChild(panel);
+  return panel;
+}
+
+function renderGameOver(
+  panel: HTMLElement,
+  rows: FarmerSummary[],
+  finalDay: number,
+): void {
+  const lines: string[] = [];
+  lines.push(`╔══ FARM VALLEY — final standings after ${finalDay} days ══╗`);
+  lines.push("");
+  lines.push("  rank  name      personality      gold  unsold  total   crops");
+  lines.push("  " + "─".repeat(60));
+  rows.forEach((r, i) => {
+    const cropStr = `r${r.crops.radish} w${r.crops.wheat} p${r.crops.pumpkin}`;
+    lines.push(
+      `  ${String(i + 1).padEnd(5)} ${r.name.padEnd(9)} ${r.personality.padEnd(15)} ${String(r.gold).padStart(5)}  ${String(r.unsoldValue).padStart(5)}  ${String(r.totalValue).padStart(5)}   ${cropStr}`,
+    );
+  });
+  lines.push("");
+  lines.push(`  winner: ${rows[0]?.name ?? "—"} (${rows[0]?.totalValue ?? 0}g total value)`);
+  panel.textContent = lines.join("\n");
+  panel.style.display = "block";
+}
+
+function countEntities(world: ReturnType<typeof bootstrapSim>["world"]): number {
   let n = 0;
   for (const _ of world.query("transform")) n += 1;
   for (const _ of world.query("plot")) n += 1;

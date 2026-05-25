@@ -1,0 +1,21 @@
+{
+  "name": "world-preview",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@engine/core": "0.0.0",
+    "farm-valley": "0.0.0",
+    "pngjs": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/pngjs": "6.0.5",
+    "@webgpu/types": "0.1.70",
+    "@types/node": "25.9.1",
+    "tsx": "4.22.3"
+  }
+}

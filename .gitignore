@@ -144,3 +144,7 @@ vite.config.ts.timestamp-*
 
 # Claude Code worktrees
 .claude/
+
+# Playwright MCP working directory + debug screenshots
+.playwright-mcp/
+browser-state.png

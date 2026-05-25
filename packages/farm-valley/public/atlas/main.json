@@ -10,50 +10,74 @@
       "w": 16,
       "h": 16
     },
-    "tile/dirt": {
+    "tile/path": {
       "x": 18,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "farmer/conservative": {
+    "tile/fence-h": {
       "x": 35,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "farmer/aggressive": {
+    "structure/market-wall": {
       "x": 52,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "farmer/hoarder": {
+    "structure/shopkeeper": {
       "x": 69,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "farmer/opportunist": {
+    "tile/dirt": {
       "x": 86,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "crop/radish/seed": {
+    "farmer/conservative": {
       "x": 103,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "crop/radish/growing": {
+    "farmer/aggressive": {
       "x": 1,
       "y": 18,
       "w": 16,
       "h": 16
     },
-    "crop/radish/mature": {
+    "farmer/hoarder": {
       "x": 18,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist": {
+      "x": 35,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/seed": {
+      "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/growing": {
+      "x": 69,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/mature": {
+      "x": 86,
       "y": 18,
       "w": 16,
       "h": 16

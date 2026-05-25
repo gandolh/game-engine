@@ -12,7 +12,9 @@
     "build": "npm run build -w farm-valley",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "atlas": "npm run build -w atlas-builder"
+    "atlas": "npm run build -w atlas-builder",
+    "sim": "npm start -w run-sim",
+    "preview": "npm start -w world-preview"
   },
   "devDependencies": {
     "typescript": "6.0.3",

@@ -1,0 +1,168 @@
+import {
+  MessageBus,
+  Scheduler,
+  World,
+  createRng,
+  type Rng,
+} from "@engine/core";
+import type { GameEntity } from "./components";
+import { setupFarmer, setupPlot, type FarmerSpec } from "./world-setup";
+import { DayClockSystem } from "./systems/day-clock";
+import { InboxDispatchSystem } from "./systems/inbox-dispatch";
+import { PerceiveSystem } from "./systems/perceive";
+import { HarvestSystem } from "./systems/harvest";
+import { DeliberateSystem } from "./systems/deliberate";
+import { ActSystem } from "./systems/act";
+import { FinishDaySystem } from "./systems/finish-day";
+import { setupWeatherFeature } from "./agents/weather-station";
+import { setupMarketShopFeature } from "./agents/market-wall";
+import "./agents/conservative";
+import "./agents/aggressive";
+import "./agents/hoarder";
+import "./agents/opportunist";
+
+export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
+  {
+    name: "Cora",
+    personality: "conservative",
+    homeX: 24, homeY: 40,
+    startGold: 50,
+    riskProfile: "low", minGoldReserve: 30,
+    startSeeds: { radish: 3 },
+  },
+  {
+    name: "Atticus",
+    personality: "aggressive",
+    homeX: 296, homeY: 40,
+    startGold: 80,
+    riskProfile: "high", minGoldReserve: 10,
+    startSeeds: { radish: 1, wheat: 1, pumpkin: 1 },
+  },
+  {
+    name: "Hannah",
+    personality: "hoarder",
+    homeX: 24, homeY: 136,
+    startGold: 120,
+    riskProfile: "high", minGoldReserve: 80,
+    startSeeds: { wheat: 2, pumpkin: 1 },
+  },
+  {
+    name: "Otto",
+    personality: "opportunist",
+    homeX: 296, homeY: 136,
+    startGold: 70,
+    riskProfile: "medium", minGoldReserve: 50,
+    startSeeds: { radish: 2, wheat: 1 },
+  },
+];
+
+export interface SimBootstrapOptions {
+  seed: number;
+  ticksPerDay: number;
+  farmerSpecs?: FarmerSpec[];
+}
+
+export interface BootedSim {
+  world: World<GameEntity>;
+  bus: MessageBus;
+  scheduler: Scheduler;
+  dayClock: DayClockSystem;
+  rng: Rng;
+  farmers: GameEntity[];
+}
+
+export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
+  const rng = createRng(opts.seed);
+  const world = new World<GameEntity>();
+  const bus = new MessageBus();
+
+  const specs = opts.farmerSpecs ?? DEFAULT_FARMER_SPECS;
+  const farmers: GameEntity[] = [];
+  for (const [idx, spec] of specs.entries()) {
+    const farmer = setupFarmer(world, spec);
+    if (farmer.id === undefined) throw new Error(`Farmer ${spec.name} id missing`);
+    farmers.push(farmer);
+    const layout = farmPlotLayout(idx);
+    for (const [tx, ty] of layout) {
+      setupPlot(world, farmer.id, tx, ty);
+    }
+  }
+
+  const weatherFeature = setupWeatherFeature(world, bus, rng);
+  const marketShop = setupMarketShopFeature(world, bus, rng);
+
+  const dayClock = new DayClockSystem(bus, { ticksPerDay: opts.ticksPerDay });
+  const scheduler = new Scheduler()
+    .add(dayClock)
+    .add(weatherFeature.weatherSystem)
+    .add(new InboxDispatchSystem(bus, world))
+    .add(new PerceiveSystem(world))
+    .add(weatherFeature.cropGrowthSystem)
+    .add(new HarvestSystem(world))
+    .add(new DeliberateSystem(world))
+    .add(weatherFeature.apSystem)
+    .add(new ActSystem(world, bus))
+    .add(marketShop.marketSystem)
+    .add(marketShop.shopkeeperSystem)
+    .add(marketShop.auctionSystem)
+    .add(new FinishDaySystem(world));
+
+  return { world, bus, scheduler, dayClock, rng, farmers };
+}
+
+const FARM_ORIGINS: ReadonlyArray<readonly [number, number]> = [
+  [3, 2],
+  [15, 2],
+  [3, 8],
+  [15, 8],
+];
+
+function farmPlotLayout(idx: number): Array<[number, number]> {
+  const origin = FARM_ORIGINS[idx % FARM_ORIGINS.length]!;
+  const [ox, oy] = origin;
+  return [
+    [ox, oy],
+    [ox + 1, oy],
+    [ox, oy + 1],
+    [ox + 1, oy + 1],
+  ];
+}
+
+export interface FarmerSummary {
+  id: number;
+  name: string;
+  personality: string;
+  gold: number;
+  crops: { radish: number; wheat: number; pumpkin: number };
+  unsoldValue: number;
+  totalValue: number;
+}
+
+const SELL_PRICE = { radish: 8, wheat: 14, pumpkin: 35 };
+
+export function leaderboard(world: World<GameEntity>): FarmerSummary[] {
+  const out: FarmerSummary[] = [];
+  for (const f of world.query("farmer", "inventory", "personality")) {
+    if (f.id === undefined) continue;
+    const crops = {
+      radish: f.inventory.crops.radish,
+      wheat: f.inventory.crops.wheat,
+      pumpkin: f.inventory.crops.pumpkin,
+    };
+    const unsoldValue =
+      crops.radish * SELL_PRICE.radish +
+      crops.wheat * SELL_PRICE.wheat +
+      crops.pumpkin * SELL_PRICE.pumpkin;
+    out.push({
+      id: f.id,
+      name: f.farmer.name,
+      personality: f.personality.kind,
+      gold: f.inventory.gold,
+      crops,
+      unsoldValue,
+      totalValue: f.inventory.gold + unsoldValue,
+    });
+  }
+  out.sort((a, b) => b.totalValue - a.totalValue);
+  return out;
+}
