@@ -1,0 +1,23 @@
+{
+  "name": "game-engine-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w farm-valley",
+    "build": "npm run build -w farm-valley",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "atlas": "npm run build -w atlas-builder"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "8.0.14",
+    "vitest": "4.1.7",
+    "@types/node": "25.9.1"
+  }
+}

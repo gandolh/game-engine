@@ -1,0 +1,62 @@
+{
+  "id": "main",
+  "imageUrl": "/atlas/main.png",
+  "width": 128,
+  "height": 64,
+  "frames": {
+    "tile/grass": {
+      "x": 1,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/dirt": {
+      "x": 18,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative": {
+      "x": 35,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/aggressive": {
+      "x": 52,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/hoarder": {
+      "x": 69,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist": {
+      "x": 86,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/seed": {
+      "x": 103,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/growing": {
+      "x": 1,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/mature": {
+      "x": 18,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    }
+  }
+}

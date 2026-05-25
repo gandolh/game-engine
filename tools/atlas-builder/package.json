@@ -1,0 +1,21 @@
+{
+  "name": "atlas-builder",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "bin": {
+    "atlas-builder": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pngjs": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/pngjs": "6.0.5",
+    "tsx": "4.22.3"
+  }
+}
