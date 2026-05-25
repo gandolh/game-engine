@@ -14,7 +14,7 @@ import {
 } from "@engine/core";
 import type { AtlasManifest } from "@engine/core";
 import type { GameEntity } from "./components";
-import { setupFarmer, setupPlot } from "./world-setup";
+import { setupFarmer, setupPlot, type FarmerSpec } from "./world-setup";
 import { DayClockSystem } from "./systems/day-clock";
 import { InboxDispatchSystem } from "./systems/inbox-dispatch";
 import { PerceiveSystem } from "./systems/perceive";
@@ -23,7 +23,13 @@ import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
 import { FinishDaySystem } from "./systems/finish-day";
 import { buildSpriteFrame } from "./render-systems";
+import { setupWeatherFeature } from "./agents/weather-station";
+import { setupMarketShopFeature } from "./agents/market-wall";
+import { ObserverPanel, type ObserverSnapshot } from "./ui";
 import "./agents/conservative";
+import "./agents/aggressive";
+import "./agents/hoarder";
+import "./agents/opportunist";
 
 interface BootConfig {
   seed: number;
@@ -36,6 +42,41 @@ const CONFIG: BootConfig = {
   tickRateHz: 20,
   ticksPerDay: 20,
 };
+
+const FARMER_SPECS: FarmerSpec[] = [
+  {
+    name: "Cora",
+    personality: "conservative",
+    homeX: 56, homeY: 48,
+    startGold: 50,
+    riskProfile: "low", minGoldReserve: 30,
+    startSeeds: { radish: 3 },
+  },
+  {
+    name: "Atticus",
+    personality: "aggressive",
+    homeX: 120, homeY: 48,
+    startGold: 80,
+    riskProfile: "high", minGoldReserve: 10,
+    startSeeds: { radish: 1, wheat: 1, pumpkin: 1 },
+  },
+  {
+    name: "Hannah",
+    personality: "hoarder",
+    homeX: 56, homeY: 112,
+    startGold: 120,
+    riskProfile: "high", minGoldReserve: 80,
+    startSeeds: { wheat: 2, pumpkin: 1 },
+  },
+  {
+    name: "Otto",
+    personality: "opportunist",
+    homeX: 120, homeY: 112,
+    startGold: 70,
+    riskProfile: "medium", minGoldReserve: 50,
+    startSeeds: { radish: 2, wheat: 1 },
+  },
+];
 
 async function boot(): Promise<void> {
   const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
@@ -51,8 +92,8 @@ async function boot(): Promise<void> {
     const camera = new Camera2D({
       worldUnitsX: 320,
       worldUnitsY: 180,
-      centerX: 80,
-      centerY: 60,
+      centerX: 88,
+      centerY: 80,
     });
     const renderer = new Renderer(gpu, camera);
     renderer.spriteBatch.setAtlas(atlas.view);
@@ -62,35 +103,41 @@ async function boot(): Promise<void> {
     const bus = new MessageBus();
     const inputLog = new InputLog();
 
-    const conservative = setupFarmer(world, {
-      name: "Cora",
-      personality: "conservative",
-      homeX: 16,
-      homeY: 64,
-      startGold: 50,
-      riskProfile: "low",
-      minGoldReserve: 30,
-      startSeeds: { radish: 3 },
-    });
-    if (conservative.id === undefined) throw new Error("Farmer id missing");
-    for (let i = 0; i < 4; i++) {
-      setupPlot(world, conservative.id, 4 + i, 6);
+    const farmers: GameEntity[] = [];
+    for (const [idx, spec] of FARMER_SPECS.entries()) {
+      const farmer = setupFarmer(world, spec);
+      if (farmer.id === undefined) throw new Error(`Farmer ${spec.name} id missing`);
+      farmers.push(farmer);
+      const plotOriginX = (idx % 2) * 8 + 3;
+      const plotOriginY = Math.floor(idx / 2) * 4 + 3;
+      for (let i = 0; i < 4; i++) {
+        setupPlot(world, farmer.id, plotOriginX + (i % 2), plotOriginY + Math.floor(i / 2));
+      }
     }
+
+    const weatherFeature = setupWeatherFeature(world, bus, rng);
+    const marketShop = setupMarketShopFeature(world, bus, rng);
 
     const dayClock = new DayClockSystem(bus, { ticksPerDay: CONFIG.ticksPerDay });
     const scheduler = new Scheduler()
       .add(dayClock)
+      .add(weatherFeature.weatherSystem)
       .add(new InboxDispatchSystem(bus, world))
       .add(new PerceiveSystem(world))
+      .add(weatherFeature.cropGrowthSystem)
       .add(new HarvestSystem(world))
       .add(new DeliberateSystem(world))
-      .add(new ActSystem(world))
+      .add(weatherFeature.apSystem)
+      .add(new ActSystem(world, bus))
+      .add(marketShop.marketSystem)
+      .add(marketShop.shopkeeperSystem)
+      .add(marketShop.auctionSystem)
       .add(new FinishDaySystem(world));
 
     const clock = new FixedStepClock({ tickRateHz: CONFIG.tickRateHz });
     const overlay = new DebugOverlay(app);
+    const observer = new ObserverPanel(app);
 
-    void rng;
     void inputLog;
 
     const loop = new GameLoop(clock, {
@@ -107,6 +154,7 @@ async function boot(): Promise<void> {
         renderer.endFrame(encoder);
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });
+        observer.update(buildObserverSnapshot(world, dayClock.day));
       },
     });
     loop.start();
@@ -114,6 +162,45 @@ async function boot(): Promise<void> {
     showFatal(fatal, err);
     throw err;
   }
+}
+
+function buildObserverSnapshot(world: World<GameEntity>, day: number): ObserverSnapshot {
+  const station = (() => {
+    for (const w of world.query("weatherStation")) return w.weatherStation;
+    return null;
+  })();
+  const farmerEntries: ObserverSnapshot["farmers"] = [];
+  for (const f of world.query("farmer", "inventory", "fsm", "ap", "personality")) {
+    if (f.id === undefined) continue;
+    farmerEntries.push({
+      id: f.id,
+      name: f.farmer.name,
+      personality: f.personality.kind,
+      gold: f.inventory.gold,
+      crops: {
+        radish: f.inventory.crops.radish,
+        wheat: f.inventory.crops.wheat,
+        pumpkin: f.inventory.crops.pumpkin,
+      },
+      fsm: f.fsm.current,
+      apCurrent: f.ap.current,
+      apMax: f.ap.max,
+      apPenaltyPending: f.ap.penaltyPending,
+    });
+  }
+  farmerEntries.sort((a, b) => a.id - b.id);
+  return {
+    day,
+    weather: {
+      condition: station?.current ?? "normal",
+      multiplier: station?.multiplier ?? 1,
+    },
+    forecast: (station?.forecast ?? []).map((f) => ({
+      condition: f.condition,
+      confidence: f.confidence,
+    })),
+    farmers: farmerEntries,
+  };
 }
 
 function countEntities(world: World<GameEntity>): number {
