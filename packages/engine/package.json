@@ -22,6 +22,8 @@
     "miniplex": "2.0.0"
   },
   "devDependencies": {
-    "@webgpu/types": "0.1.70"
+    "@webgpu/types": "0.1.70",
+    "@types/jsdom": "21.1.7",
+    "jsdom": "29.1.1"
   }
 }
