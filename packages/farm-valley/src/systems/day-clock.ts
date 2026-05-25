@@ -1,5 +1,5 @@
 import type { SimContext, System, MessageBus } from "@engine/core";
-import { PERFORMATIVE, ONTOLOGY, type DayStartBody } from "../protocols";
+import { PERFORMATIVE, ONT_SIMULATION, type DayStartBody } from "../protocols";
 
 export interface DayClockConfig {
   ticksPerDay: number;
@@ -28,7 +28,7 @@ export class DayClockSystem implements System {
     this.bus.send(
       {
         performative: PERFORMATIVE.INFORM,
-        ontology: ONTOLOGY.DAY_START,
+        ontology: ONT_SIMULATION.DAY_START,
         sender: "world",
         recipient: "broadcast",
         body: body as unknown as Record<string, unknown>,

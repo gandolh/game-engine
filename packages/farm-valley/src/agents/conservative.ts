@@ -1,4 +1,5 @@
 import type { GameEntity, CropKind } from "../components";
+import { registerPersonality } from "./registry";
 
 export function deliberateConservative(farmer: GameEntity): void {
   if (!farmer.beliefs || !farmer.desires || !farmer.intentions || !farmer.inventory) return;
@@ -36,3 +37,5 @@ export function deliberateConservative(farmer: GameEntity): void {
 
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
+
+registerPersonality("conservative", deliberateConservative);

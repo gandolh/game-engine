@@ -20,13 +20,13 @@ export interface Farmer {
   name: string;
 }
 
+export type CropKind = "radish" | "wheat" | "pumpkin";
+
 export interface Inventory {
   gold: number;
   crops: Record<CropKind, number>;
   seeds: Record<CropKind, number>;
 }
-
-export type CropKind = "radish" | "wheat" | "pumpkin";
 
 export interface Plot {
   ownerId: number;
@@ -37,17 +37,55 @@ export interface Plot {
 
 export type PlotState =
   | { kind: "empty" }
-  | { kind: "planted"; crop: CropKind; daysGrowing: number; readyAtDay: number };
+  | {
+      kind: "planted";
+      crop: CropKind;
+      daysGrowing: number;
+      readyAtDay: number;
+      weatherSum: number;
+    };
 
 export interface ActionPoints {
   current: number;
   max: number;
+  penaltyPending: boolean;
+  penaltyCapacity: number;
+  away: boolean;
+}
+
+export interface MarketWallTag {
+  readonly isMarketWall: true;
+}
+
+export interface ShopkeeperTag {
+  readonly isShopkeeper: true;
+}
+
+export interface WeatherStation {
+  current: import("./protocols/weather").WeatherCondition;
+  multiplier: number;
+  forecast: ReadonlyArray<{
+    condition: import("./protocols/weather").WeatherCondition;
+    confidence: number;
+  }>;
+}
+
+export interface SpriteAnim {
+  clip: string;
+  frame: number;
+  elapsedMs: number;
+  playing: boolean;
+}
+
+export interface TrustScores {
+  byId: Map<number, number>;
 }
 
 export interface GameEntity {
   id?: number;
   transform?: Transform;
   sprite?: Sprite;
+  spriteAnim?: SpriteAnim;
   fsm?: FsmState<FarmerFsmState>;
   beliefs?: Beliefs;
   desires?: Desires;
@@ -58,5 +96,9 @@ export interface GameEntity {
   inventory?: Inventory;
   plot?: Plot;
   ap?: ActionPoints;
+  marketWall?: MarketWallTag;
+  shopkeeper?: ShopkeeperTag;
+  weatherStation?: WeatherStation;
+  trust?: TrustScores;
   [key: string]: unknown;
 }

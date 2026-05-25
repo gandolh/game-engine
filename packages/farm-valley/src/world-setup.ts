@@ -31,7 +31,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
       crops: { ...ZERO_CROPS },
       seeds: { ...ZERO_CROPS, ...spec.startSeeds },
     },
-    ap: { current: 8, max: 8 },
+    ap: { current: 8, max: 8, penaltyPending: false, penaltyCapacity: 4, away: false },
   });
   return farmer;
 }

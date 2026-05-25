@@ -23,6 +23,7 @@ import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
 import { FinishDaySystem } from "./systems/finish-day";
 import { buildSpriteFrame } from "./render-systems";
+import "./agents/conservative";
 
 interface BootConfig {
   seed: number;

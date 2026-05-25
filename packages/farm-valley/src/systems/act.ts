@@ -47,6 +47,7 @@ export class ActSystem implements System {
                 crop,
                 daysGrowing: 0,
                 readyAtDay: day + GROWTH_DAYS[crop],
+                weatherSum: 0,
               } satisfies PlotState;
             }
             break;
