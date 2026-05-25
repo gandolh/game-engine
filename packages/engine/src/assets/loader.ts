@@ -7,9 +7,22 @@ export interface LoadedAtlas {
   frameUv(frame: string): NormalizedRect;
 }
 
+export interface LoadedAtlasImage {
+  manifest: AtlasManifest;
+  bitmap: ImageBitmap;
+  frameRect(frame: string): PixelRect;
+}
+
 export interface NormalizedRect {
   u: number;
   v: number;
+  w: number;
+  h: number;
+}
+
+export interface PixelRect {
+  x: number;
+  y: number;
   w: number;
   h: number;
 }
@@ -62,5 +75,24 @@ function uvOf(frame: AtlasFrame, invW: number, invH: number): NormalizedRect {
     v: frame.y * invH,
     w: frame.w * invW,
     h: frame.h * invH,
+  };
+}
+
+export async function loadAtlasImage(manifest: AtlasManifest): Promise<LoadedAtlasImage> {
+  const response = await fetch(manifest.imageUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch atlas image at ${manifest.imageUrl}: ${response.status}`);
+  }
+  const blob = await response.blob();
+  const bitmap = await createImageBitmap(blob);
+
+  return {
+    manifest,
+    bitmap,
+    frameRect(name: string): PixelRect {
+      const frame = manifest.frames[name];
+      if (!frame) throw new Error(`Atlas frame not found: ${name} (atlas ${manifest.id})`);
+      return { x: frame.x, y: frame.y, w: frame.w, h: frame.h };
+    },
   };
 }

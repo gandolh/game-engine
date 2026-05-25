@@ -4,12 +4,14 @@ import {
   InputLog,
   initWebGpu,
   loadAtlas,
+  loadAtlasImage,
   Camera2D,
   Renderer,
+  Canvas2dRenderer,
   DebugOverlay,
 } from "@engine/core";
 import type { AtlasManifest } from "@engine/core";
-import { buildSpriteFrame } from "./render-systems";
+import { buildSpriteFrame, buildCanvasFrame } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
 import { ObserverPanel, type ObserverSnapshot } from "./ui";
 import { decorateMarketAndShop } from "./decorate";
@@ -28,6 +30,52 @@ const CONFIG: BootConfig = {
   maxDays: 100,
 };
 
+const CAMERA_CONFIG = {
+  worldUnitsX: 320,
+  worldUnitsY: 192,
+  centerX: 160,
+  centerY: 96,
+} as const;
+
+interface RenderBackend {
+  camera: Camera2D;
+  render(world: ReturnType<typeof bootstrapSim>["world"], alpha: number): void;
+}
+
+async function initRenderBackend(canvas: HTMLCanvasElement): Promise<RenderBackend> {
+  try {
+    const gpu = await initWebGpu({ canvas });
+    const manifest = await fetchAtlasManifest();
+    const atlas = await loadAtlas(gpu.device, manifest);
+    const camera = new Camera2D(CAMERA_CONFIG);
+    const renderer = new Renderer(gpu, camera);
+    renderer.spriteBatch.setAtlas(atlas.view);
+    return {
+      camera,
+      render(world, alpha) {
+        const encoder = renderer.beginFrame();
+        buildSpriteFrame(renderer, world, atlas, alpha);
+        renderer.endFrame(encoder);
+      },
+    };
+  } catch (err) {
+    console.warn("WebGPU unavailable, falling back to Canvas2D:", err);
+    const manifest = await fetchAtlasManifest();
+    const atlasImage = await loadAtlasImage(manifest);
+    const camera = new Camera2D(CAMERA_CONFIG);
+    const renderer = new Canvas2dRenderer(canvas, camera);
+    renderer.setAtlas(atlasImage);
+    return {
+      camera,
+      render(world, alpha) {
+        renderer.beginFrame();
+        buildCanvasFrame(renderer, world, alpha);
+        renderer.endFrame();
+      },
+    };
+  }
+}
+
 async function boot(): Promise<void> {
   const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
   const app = document.getElementById("app") as HTMLElement | null;
@@ -35,18 +83,7 @@ async function boot(): Promise<void> {
   if (!canvas || !app || !fatal) throw new Error("Missing #canvas/#app/#fatal");
 
   try {
-    const gpu = await initWebGpu({ canvas });
-    const manifest = await fetchAtlasManifest();
-    const atlas = await loadAtlas(gpu.device, manifest);
-
-    const camera = new Camera2D({
-      worldUnitsX: 320,
-      worldUnitsY: 192,
-      centerX: 160,
-      centerY: 96,
-    });
-    const renderer = new Renderer(gpu, camera);
-    renderer.spriteBatch.setAtlas(atlas.view);
+    const backend = await initRenderBackend(canvas);
 
     const { world, scheduler, dayClock } = bootstrapSim({
       seed: CONFIG.seed,
@@ -80,9 +117,7 @@ async function boot(): Promise<void> {
         }
       },
       onRender(alpha) {
-        const encoder = renderer.beginFrame();
-        buildSpriteFrame(renderer, world, atlas, alpha);
-        renderer.endFrame(encoder);
+        backend.render(world, alpha);
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });
         observer.update(buildObserverSnapshot(world, dayClock.day));

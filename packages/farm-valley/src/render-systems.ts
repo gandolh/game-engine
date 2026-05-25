@@ -1,4 +1,6 @@
 import type { Renderer, LoadedAtlas, World, SpriteInstance } from "@engine/core";
+import { Canvas2dRenderer } from "@engine/core";
+import type { Canvas2dSprite } from "@engine/core";
 import type { GameEntity } from "./components";
 
 const TILE = 16;
@@ -48,22 +50,87 @@ const FENCES: BgTile[] = (() => {
   return out;
 })();
 
-function pushTile(
-  push: (s: SpriteInstance) => void,
-  atlas: LoadedAtlas,
-  tile: BgTile,
-): void {
-  const uv = atlas.frameUv(tile.frame);
-  push({
-    x: tile.tx * TILE + TILE / 2,
-    y: tile.ty * TILE + TILE / 2,
-    width: TILE,
-    height: TILE,
-    uvX: uv.u, uvY: uv.v, uvW: uv.w, uvH: uv.h,
-    tintR: 1, tintG: 1, tintB: 1, tintA: 1,
-    rotation: tile.rotation,
-    layer: tile.layer,
-  });
+interface LogicalSprite {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  frame: string;
+  rotation: number;
+  layer: number;
+  tintR: number;
+  tintG: number;
+  tintB: number;
+  tintA: number;
+}
+
+function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<LogicalSprite> {
+  for (const tile of BACKGROUND) {
+    yield {
+      x: tile.tx * TILE + TILE / 2,
+      y: tile.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: tile.frame,
+      rotation: tile.rotation,
+      layer: tile.layer,
+      tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+    };
+  }
+
+  for (const fence of FENCES) {
+    yield {
+      x: fence.tx * TILE + TILE / 2,
+      y: fence.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: fence.frame,
+      rotation: fence.rotation,
+      layer: fence.layer,
+      tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+    };
+  }
+
+  for (const plot of world.query("plot")) {
+    const px = plot.plot.tileX * TILE + TILE / 2;
+    const py = plot.plot.tileY * TILE + TILE / 2;
+    yield {
+      x: px, y: py, width: TILE, height: TILE,
+      frame: "tile/dirt",
+      rotation: 0, layer: 2,
+      tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+    };
+    if (plot.plot.state.kind === "planted") {
+      const crop = plot.plot.state.crop;
+      const days = plot.plot.state.daysGrowing;
+      const ready = plot.plot.state.readyAtDay;
+      const stage = days >= ready ? "mature" : days > 0 ? "growing" : "seed";
+      yield {
+        x: px, y: py, width: TILE, height: TILE,
+        frame: `crop/${crop}/${stage}`,
+        rotation: 0, layer: 10,
+        tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+      };
+    }
+  }
+
+  for (const entity of world.query("sprite", "transform")) {
+    const t = entity.transform;
+    const x = t.prevX + (t.x - t.prevX) * alpha;
+    const y = t.prevY + (t.y - t.prevY) * alpha;
+    const s = entity.sprite;
+    const tint = s.tintRgba >>> 0;
+    yield {
+      x, y, width: TILE, height: TILE,
+      frame: s.frame,
+      rotation: t.rotation,
+      layer: s.layer,
+      tintR: ((tint >> 24) & 0xff) / 255,
+      tintG: ((tint >> 16) & 0xff) / 255,
+      tintB: ((tint >> 8) & 0xff) / 255,
+      tintA: (tint & 0xff) / 255,
+    };
+  }
 }
 
 export function buildSpriteFrame(
@@ -75,50 +142,34 @@ export function buildSpriteFrame(
   const batch = renderer.spriteBatch;
   const push = (s: SpriteInstance) => batch.push(s);
 
-  for (const tile of BACKGROUND) pushTile(push, atlas, tile);
-  for (const fence of FENCES) pushTile(push, atlas, fence);
-
-  for (const plot of world.query("plot")) {
-    const px = plot.plot.tileX * TILE + TILE / 2;
-    const py = plot.plot.tileY * TILE + TILE / 2;
-    const dirtUv = atlas.frameUv("tile/dirt");
+  for (const ls of iterSceneSprites(world, alpha)) {
+    const uv = atlas.frameUv(ls.frame);
     push({
-      x: px, y: py, width: TILE, height: TILE,
-      uvX: dirtUv.u, uvY: dirtUv.v, uvW: dirtUv.w, uvH: dirtUv.h,
-      tintR: 1, tintG: 1, tintB: 1, tintA: 1,
-      rotation: 0, layer: 2,
-    });
-    if (plot.plot.state.kind === "planted") {
-      const crop = plot.plot.state.crop;
-      const days = plot.plot.state.daysGrowing;
-      const ready = plot.plot.state.readyAtDay;
-      const stage = days >= ready ? "mature" : days > 0 ? "growing" : "seed";
-      const cuv = atlas.frameUv(`crop/${crop}/${stage}`);
-      push({
-        x: px, y: py, width: TILE, height: TILE,
-        uvX: cuv.u, uvY: cuv.v, uvW: cuv.w, uvH: cuv.h,
-        tintR: 1, tintG: 1, tintB: 1, tintA: 1,
-        rotation: 0, layer: 10,
-      });
-    }
-  }
-
-  for (const entity of world.query("sprite", "transform")) {
-    const t = entity.transform;
-    const x = t.prevX + (t.x - t.prevX) * alpha;
-    const y = t.prevY + (t.y - t.prevY) * alpha;
-    const s = entity.sprite;
-    const uv = atlas.frameUv(s.frame);
-    const tint = s.tintRgba >>> 0;
-    push({
-      x, y, width: TILE, height: TILE,
+      x: ls.x, y: ls.y, width: ls.width, height: ls.height,
       uvX: uv.u, uvY: uv.v, uvW: uv.w, uvH: uv.h,
-      tintR: ((tint >> 24) & 0xff) / 255,
-      tintG: ((tint >> 16) & 0xff) / 255,
-      tintB: ((tint >> 8) & 0xff) / 255,
-      tintA: (tint & 0xff) / 255,
-      rotation: t.rotation,
-      layer: s.layer,
+      tintR: ls.tintR, tintG: ls.tintG, tintB: ls.tintB, tintA: ls.tintA,
+      rotation: ls.rotation,
+      layer: ls.layer,
     });
+  }
+}
+
+export function buildCanvasFrame(
+  renderer: Canvas2dRenderer,
+  world: World<GameEntity>,
+  alpha: number,
+): void {
+  for (const ls of iterSceneSprites(world, alpha)) {
+    const sprite: Canvas2dSprite = {
+      x: ls.x,
+      y: ls.y,
+      width: ls.width,
+      height: ls.height,
+      frame: ls.frame,
+      rotation: ls.rotation,
+      layer: ls.layer,
+      alpha: ls.tintA,
+    };
+    renderer.push(sprite);
   }
 }

@@ -15,3 +15,5 @@ export {
 } from "./tilemap";
 export type { Aabb, TilemapOptions } from "./tilemap";
 export { TILEMAP_WGSL } from "./tilemap-shader";
+export { Canvas2dRenderer } from "./canvas2d";
+export type { Canvas2dSprite } from "./canvas2d";
