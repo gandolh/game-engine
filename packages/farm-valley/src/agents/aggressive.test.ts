@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deliberateAggressive } from "./aggressive";
 import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
+import type { RegionId } from "../world/regions";
 
 function makeFarmer(overrides: {
   gold?: number;
@@ -12,10 +13,12 @@ function makeFarmer(overrides: {
   reserve?: number;
   offers?: MarketOffer[];
   id?: number;
+  region?: RegionId;
 }): GameEntity {
   const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
   return {
     id: overrides.id ?? 1,
+    farmer: { name: "F", currentRegion: overrides.region ?? "village" },
     beliefs: {
       data: {
         currentDay: overrides.day ?? 0,
@@ -108,5 +111,22 @@ describe("deliberateAggressive", () => {
     const prios = f.intentions!.queue.map((i) => i.priority);
     const sorted = [...prios].sort((a, b) => a - b);
     expect(prios).toEqual(sorted);
+  });
+
+  it("prepends a travel intent before post-offer when not in village", () => {
+    const f = makeFarmer({
+      day: 2,
+      crops: { pumpkin: 5 },
+      region: "farm-cora",
+    });
+    deliberateAggressive(f, { tick: 2 });
+    const queue = f.intentions!.queue;
+    const postIdx = queue.findIndex((i) => i.kind === "post-offer");
+    const travelIdx = queue.findIndex(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
+    );
+    expect(postIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeLessThan(postIdx);
   });
 });

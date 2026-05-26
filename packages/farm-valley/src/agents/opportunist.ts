@@ -43,6 +43,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     | { current?: WeatherCondition; forecast?: WeatherCondition }
     | undefined;
   const forecast = weather?.forecast ?? weather?.current;
+  const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
 
@@ -72,6 +73,13 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     if (qty <= 0) continue;
     const supply = countOffersByCrop(offers, crop);
     if (supply < LOW_SUPPLY_THRESHOLD) {
+      if (!inVillage) {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetRegionId: "village" },
+          priority: 3,
+        });
+      }
       farmer.intentions.queue.push({
         kind: "post-offer",
         data: {
@@ -83,6 +91,13 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
         priority: 3,
       });
     } else {
+      if (!inVillage) {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetRegionId: "village" },
+          priority: 3,
+        });
+      }
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
         data: { crop, quantity: qty },
@@ -114,6 +129,13 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     }
   }
   if (best) {
+    if (!inVillage) {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetRegionId: "village" },
+        priority: 5,
+      });
+    }
     farmer.intentions.queue.push({
       kind: "buy-from-wall",
       data: {

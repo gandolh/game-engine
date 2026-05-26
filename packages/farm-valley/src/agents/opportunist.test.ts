@@ -3,6 +3,7 @@ import { deliberateOpportunist } from "./opportunist";
 import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
 import type { WeatherCondition } from "../protocols/weather";
+import type { RegionId } from "../world/regions";
 
 function makeFarmer(overrides: {
   gold?: number;
@@ -13,10 +14,12 @@ function makeFarmer(overrides: {
   offers?: MarketOffer[];
   trust?: Map<number, number>;
   id?: number;
+  region?: RegionId;
 }): GameEntity {
   const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
   const entity: GameEntity = {
     id: overrides.id ?? 1,
+    farmer: { name: "F", currentRegion: overrides.region ?? "village" },
     beliefs: {
       data: {
         currentDay: 0,
@@ -109,5 +112,25 @@ describe("deliberateOpportunist", () => {
     const f = makeFarmer({});
     deliberateOpportunist(f, { tick: 0 });
     expect(f.intentions!.queue.some((i) => i.kind === "read-offers")).toBe(true);
+  });
+
+  it("prepends a travel intent before a market action when not in village", () => {
+    const offers: MarketOffer[] = [
+      { offerId: "x", sellerId: 5, crop: "wheat", quantity: 1, pricePerUnit: 12, postedDay: 0 },
+    ];
+    const f = makeFarmer({
+      crops: { wheat: 4 },
+      offers,
+      region: "farm-hannah",
+    });
+    deliberateOpportunist(f, { tick: 0 });
+    const queue = f.intentions!.queue;
+    const postIdx = queue.findIndex((i) => i.kind === "post-offer");
+    const travelIdx = queue.findIndex(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
+    );
+    expect(postIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeLessThan(postIdx);
   });
 });

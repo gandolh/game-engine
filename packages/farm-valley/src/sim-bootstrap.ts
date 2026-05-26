@@ -16,6 +16,8 @@ import { HarvestSystem } from "./systems/harvest";
 import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
+import { EncounterSystem } from "./systems/encounter";
+import { ShopSlateSystem } from "./systems/shop-slate";
 import { FinishDaySystem } from "./systems/finish-day";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
@@ -101,6 +103,8 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(dayClock)
     .add(weatherFeature.weatherSystem)
     .add(new InboxDispatchSystem(bus, world))
+    .add(new ShopSlateSystem(world, bus, rng))
+    .add(new EncounterSystem(world, bus))
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new HarvestSystem(world))

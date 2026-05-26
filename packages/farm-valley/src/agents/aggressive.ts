@@ -47,6 +47,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 
   const reserve = (farmer.desires.data["minGoldReserve"] as number | undefined) ?? 10;
   const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? ctx.tick;
+  const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
 
@@ -73,6 +74,13 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     for (const crop of PROFITABILITY_ORDER) {
       const qty = farmer.inventory.crops[crop];
       if (qty > 0) {
+        if (!inVillage) {
+          farmer.intentions.queue.push({
+            kind: "travel",
+            data: { targetRegionId: "village" },
+            priority: 3,
+          });
+        }
         farmer.intentions.queue.push({
           kind: "post-offer",
           data: {
@@ -102,6 +110,13 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
         if (offer.pricePerUnit < threshold) {
           const cost = offer.pricePerUnit * offer.quantity;
           if (farmer.inventory.gold - cost >= reserve) {
+            if (!inVillage) {
+              farmer.intentions.queue.push({
+                kind: "travel",
+                data: { targetRegionId: "village" },
+                priority: 5,
+              });
+            }
             farmer.intentions.queue.push({
               kind: "buy-from-wall",
               data: {
@@ -125,6 +140,13 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     for (const crop of PROFITABILITY_ORDER) {
       const qty = farmer.inventory.crops[crop];
       if (qty > 0) {
+        if (!inVillage) {
+          farmer.intentions.queue.push({
+            kind: "travel",
+            data: { targetRegionId: "village" },
+            priority: 6,
+          });
+        }
         farmer.intentions.queue.push({
           kind: "sell-shopkeeper",
           data: { crop, quantity: qty },

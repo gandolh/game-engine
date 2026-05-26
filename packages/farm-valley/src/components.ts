@@ -67,6 +67,7 @@ export interface MarketWallTag {
 
 export interface ShopkeeperTag {
   readonly isShopkeeper: true;
+  dailySlate?: readonly import("./agents/shop-slate").ShopOffer[];
 }
 
 export interface WeatherStation {

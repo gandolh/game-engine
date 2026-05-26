@@ -25,8 +25,16 @@ export function deliberateConservative(farmer: GameEntity): void {
     });
   }
 
+  const inVillage = farmer.farmer?.currentRegion === "village";
   for (const crop of (["radish", "wheat", "pumpkin"] as const)) {
     if (farmer.inventory.crops[crop] > 0) {
+      if (!inVillage) {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetRegionId: "village" },
+          priority: 0,
+        });
+      }
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
         data: { crop, quantity: farmer.inventory.crops[crop] },
