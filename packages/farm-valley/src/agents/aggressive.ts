@@ -47,9 +47,37 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 
   const reserve = (farmer.desires.data["minGoldReserve"] as number | undefined) ?? 10;
   const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? ctx.tick;
+  const daysRemaining = farmer.beliefs.data["daysRemaining"] as number | undefined;
   const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
+
+  // End-of-sim liquidation: in the last 2 days, dump everything to the
+  // shopkeeper and skip planting / market posting / wall scanning.
+  if (daysRemaining !== undefined && daysRemaining <= 2) {
+    let anyToSell = false;
+    for (const crop of PROFITABILITY_ORDER) {
+      const qty = farmer.inventory.crops[crop];
+      if (qty > 0) {
+        anyToSell = true;
+        farmer.intentions.queue.push({
+          kind: "sell-shopkeeper",
+          data: { crop, quantity: qty },
+          priority: 0,
+        });
+      }
+    }
+    if (anyToSell && !inVillage) {
+      // Travel must precede the sells positionally; unshift so it lands first
+      // even though all liquidation intents share priority 0.
+      farmer.intentions.queue.unshift({
+        kind: "travel",
+        data: { targetRegionId: "village" },
+        priority: 0,
+      });
+    }
+    return;
+  }
 
   // 1. Plant / buy seed based on profitability + weather.
   const choice = chooseTargetCrop(farmer, reserve);

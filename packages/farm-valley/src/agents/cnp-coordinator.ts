@@ -21,6 +21,8 @@ export interface CnpTask {
   status: CnpTaskStatus;
   proposals: CnpProposal[];
   winnerId: number | null;
+  /** True once the trust system has emitted a broken-commitment delta for this task. */
+  brokenReported?: boolean;
 }
 
 export interface StartTaskInput {
@@ -136,5 +138,34 @@ export class CnpCoordinator {
     for (const [id, task] of this.tasks) {
       if (task.status === "completed") this.tasks.delete(id);
     }
+  }
+
+  /**
+   * Tasks whose winners were ACCEPTed at the deadline but never marked as
+   * completed within `commitmentWindow` ticks of the deadline. Treated as
+   * broken commitments by the trust system.
+   *
+   * Excludes:
+   *   - tasks with `winnerId === null` (no winner picked, nothing to break)
+   *   - tasks already in `completed` status (delivery happened)
+   *   - tasks already reported via `markBrokenCommitmentReported`
+   */
+  findBrokenCommitments(currentTick: number, commitmentWindow: number): readonly CnpTask[] {
+    const out: CnpTask[] = [];
+    for (const task of this.tasks.values()) {
+      if (task.status !== "awarded") continue;
+      if (task.winnerId === null) continue;
+      if (task.brokenReported) continue;
+      if (currentTick - task.deadlineTick < commitmentWindow) continue;
+      out.push(task);
+    }
+    return out;
+  }
+
+  /** Mark a task as having had its broken-commitment trust delta applied. */
+  markBrokenCommitmentReported(taskId: string): void {
+    const task = this.tasks.get(taskId);
+    if (!task) return;
+    task.brokenReported = true;
   }
 }

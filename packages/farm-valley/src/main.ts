@@ -79,6 +79,7 @@ async function startGame(
     const { world, scheduler, dayClock } = bootstrapSim({
       seed: CONFIG.seed,
       ticksPerDay: CONFIG.ticksPerDay,
+      maxDays: CONFIG.maxDays,
       pathfinder,
     });
 

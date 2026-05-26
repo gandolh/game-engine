@@ -121,4 +121,47 @@ describe("CnpCoordinator", () => {
     coord.pruneFinished();
     expect(coord.getTask("t1")).toBeUndefined();
   });
+
+  it("findBrokenCommitments returns awarded tasks past the commitment window", () => {
+    const coord = new CnpCoordinator();
+    start(coord, { deadlineTick: 5 });
+    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
+    coord.closeTask("t1", 5);
+
+    expect(coord.findBrokenCommitments(8, 4)).toEqual([]);
+    const broken = coord.findBrokenCommitments(9, 4);
+    expect(broken).toHaveLength(1);
+    expect(broken[0]!.taskId).toBe("t1");
+  });
+
+  it("markBrokenCommitmentReported prevents re-reporting", () => {
+    const coord = new CnpCoordinator();
+    start(coord, { deadlineTick: 5 });
+    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
+    coord.closeTask("t1", 5);
+
+    const broken = coord.findBrokenCommitments(10, 4);
+    expect(broken).toHaveLength(1);
+    coord.markBrokenCommitmentReported("t1");
+    expect(coord.findBrokenCommitments(20, 4)).toEqual([]);
+  });
+
+  it("findBrokenCommitments excludes already-completed tasks", () => {
+    const coord = new CnpCoordinator();
+    start(coord, { deadlineTick: 5 });
+    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
+    coord.closeTask("t1", 5);
+    coord.markCompleted("t1");
+
+    expect(coord.findBrokenCommitments(50, 4)).toEqual([]);
+  });
+
+  it("findBrokenCommitments excludes tasks with no winner", () => {
+    const coord = new CnpCoordinator();
+    start(coord, { deadlineTick: 5 });
+    coord.closeTask("t1", 5);
+
+    expect(coord.getTask("t1")!.winnerId).toBeNull();
+    expect(coord.findBrokenCommitments(50, 4)).toEqual([]);
+  });
 });

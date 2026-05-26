@@ -9,6 +9,7 @@ export type SimulationOntology = (typeof ONT_SIMULATION)[keyof typeof ONT_SIMULA
 
 export interface DayStartBody {
   day: number;
+  daysRemaining: number;
 }
 
 export interface DayEndBody {

@@ -12,6 +12,7 @@ import { buildWalkableGrid } from "./world/walkable-grid";
 import { DayClockSystem } from "./systems/day-clock";
 import { InboxDispatchSystem } from "./systems/inbox-dispatch";
 import { PerceiveSystem } from "./systems/perceive";
+import { TrustSystem } from "./systems/trust";
 import { HarvestSystem } from "./systems/harvest";
 import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
@@ -64,9 +65,12 @@ export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
 export interface SimBootstrapOptions {
   seed: number;
   ticksPerDay: number;
+  maxDays?: number;
   farmerSpecs?: FarmerSpec[];
   pathfinder?: Pathfinder | null;
 }
+
+const DEFAULT_MAX_DAYS = 100;
 
 export interface BootedSim {
   world: World<GameEntity>;
@@ -98,13 +102,17 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   // the existing market-wall / shopkeeper entities with a Transform.
   setupWorldRegions(world, farmers);
 
-  const dayClock = new DayClockSystem(bus, { ticksPerDay: opts.ticksPerDay });
+  const dayClock = new DayClockSystem(bus, {
+    ticksPerDay: opts.ticksPerDay,
+    maxDays: opts.maxDays ?? DEFAULT_MAX_DAYS,
+  });
   const scheduler = new Scheduler()
     .add(dayClock)
     .add(weatherFeature.weatherSystem)
     .add(new InboxDispatchSystem(bus, world))
     .add(new ShopSlateSystem(world, bus, rng))
     .add(new EncounterSystem(world, bus))
+    .add(new TrustSystem(world))
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new HarvestSystem(world))

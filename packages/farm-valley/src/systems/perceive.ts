@@ -14,6 +14,7 @@ export class PerceiveSystem implements System {
         if (msg.ontology === ONT_SIMULATION.DAY_START) {
           const body = msg.body as unknown as DayStartBody;
           farmer.beliefs.data.currentDay = body.day;
+          farmer.beliefs.data.daysRemaining = body.daysRemaining;
           farmer.beliefs.revision += 1;
           if (farmer.fsm.current === "WAIT_DAY") {
             farmer.fsm.current = "PERCEIVE";
