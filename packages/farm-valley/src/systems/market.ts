@@ -3,6 +3,8 @@ import type { GameEntity, CropKind } from "../components";
 import {
   ONT_MARKET,
   type MarketOffer,
+  type MarketOntology,
+  type MarketRejectedBody,
   type PostOfferBody,
   type ReadOffersBody,
   type OffersListBody,
@@ -62,7 +64,7 @@ export class MarketSystem implements System {
           this.handleReadOffers(msg, ctx);
           break;
         case ONT_MARKET.CANCEL_OFFER:
-          this.handleCancelOffer(msg);
+          this.handleCancelOffer(msg, ctx);
           break;
         case ONT_MARKET.BUY_REQUEST:
           this.handleBuyRequest(msg, ctx);
@@ -92,6 +94,12 @@ export class MarketSystem implements System {
     const seller = this.findFarmerById(sellerId);
     if (!seller || !seller.inventory) return;
     if (seller.inventory.crops[offer.crop as CropKind] === undefined) return;
+
+    // Spatial gate: posting requires being in the village.
+    if (seller.farmer && seller.farmer.currentRegion !== "village") {
+      this.sendRejection(sellerId, ONT_MARKET.POST_OFFER, ctx.tick);
+      return;
+    }
 
     const offerId = this.offerIdRng.nextU32().toString(36);
     const stored: MarketOffer = {
@@ -127,13 +135,21 @@ export class MarketSystem implements System {
     );
   }
 
-  private handleCancelOffer(msg: AgentMessage): void {
+  private handleCancelOffer(msg: AgentMessage, ctx: SimContext): void {
     const body = msg.body as Partial<CancelOfferBody>;
     if (!body.offerId) return;
     const offer = this.offersById.get(body.offerId);
     if (!offer) return;
     // Only the seller may cancel.
     if (msg.sender === "world" || msg.sender !== offer.sellerId) return;
+
+    // Spatial gate: cancelling also requires being in the village.
+    const seller = this.findFarmerById(msg.sender);
+    if (seller?.farmer && seller.farmer.currentRegion !== "village") {
+      this.sendRejection(msg.sender, ONT_MARKET.CANCEL_OFFER, ctx.tick);
+      return;
+    }
+
     this.offersById.delete(body.offerId);
   }
 
@@ -180,6 +196,27 @@ export class MarketSystem implements System {
       if (f.id === id) return f;
     }
     return undefined;
+  }
+
+  private sendRejection(
+    recipientId: number,
+    originalOntology: MarketOntology,
+    tick: number,
+  ): void {
+    const body: MarketRejectedBody = {
+      reason: "not-in-village",
+      originalOntology,
+    };
+    this.bus.send(
+      {
+        performative: PERFORMATIVE.REFUSE,
+        ontology: ONT_MARKET.REJECTED,
+        sender: "world",
+        recipient: recipientId,
+        body: body as unknown as Record<string, unknown>,
+      },
+      tick,
+    );
   }
 
   private readDay(entity: GameEntity): number | undefined {

@@ -43,6 +43,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   const reserve = (farmer.desires.data["minGoldReserve"] as number | undefined) ?? 80;
   const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? ctx.tick;
   const coord = getCoordinator(farmer.id);
+  const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
 
@@ -158,6 +159,13 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   for (const { o } of ranked) {
     const cost = o.pricePerUnit * o.quantity;
     if (cost > budget) continue;
+    if (!inVillage) {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetRegionId: "village" },
+        priority: 6,
+      });
+    }
     farmer.intentions.queue.push({
       kind: "buy-from-wall",
       data: {

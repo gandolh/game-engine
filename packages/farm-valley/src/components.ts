@@ -8,6 +8,7 @@ import type {
   Personality,
   AgentInbox,
 } from "@engine/core";
+import type { RegionId } from "./world/regions";
 
 export type FarmerFsmState =
   | "WAIT_DAY"
@@ -18,6 +19,12 @@ export type FarmerFsmState =
 
 export interface Farmer {
   name: string;
+  currentRegion: RegionId;
+  path?: {
+    waypoints: ReadonlyArray<{ x: number; y: number }>;
+    nextIndex: number;       // index of the next waypoint to step onto
+    ticksUntilStep: number;  // countdown to next tile step
+  } | undefined;
 }
 
 export type CropKind = "radish" | "wheat" | "pumpkin";
@@ -30,6 +37,7 @@ export interface Inventory {
 
 export interface Plot {
   ownerId: number;
+  regionId: RegionId;
   tileX: number;
   tileY: number;
   state: PlotState;
@@ -59,6 +67,7 @@ export interface MarketWallTag {
 
 export interface ShopkeeperTag {
   readonly isShopkeeper: true;
+  dailySlate?: readonly import("./agents/shop-slate").ShopOffer[];
 }
 
 export interface WeatherStation {

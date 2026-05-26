@@ -74,11 +74,11 @@ async function startGame(
 ): Promise<void> {
   try {
     const { renderer, pathfinder } = await runtimePromise;
-    void pathfinder;
 
     const { world, scheduler, dayClock } = bootstrapSim({
       seed: CONFIG.seed,
       ticksPerDay: CONFIG.ticksPerDay,
+      pathfinder,
     });
 
     decorateMarketAndShop(world);

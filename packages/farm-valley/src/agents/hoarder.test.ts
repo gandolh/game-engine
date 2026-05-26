@@ -4,6 +4,7 @@ import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
 import { ONT_CNP } from "../protocols/cnp";
 import { PERFORMATIVE } from "../protocols/performatives";
+import type { RegionId } from "../world/regions";
 
 function makeFarmer(overrides: {
   gold?: number;
@@ -15,10 +16,12 @@ function makeFarmer(overrides: {
   trust?: Map<number, number>;
   id?: number;
   plotId?: number;
+  region?: RegionId;
 }): GameEntity {
   const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
   const entity: GameEntity = {
     id: overrides.id ?? 1,
+    farmer: { name: "F", currentRegion: overrides.region ?? "village" },
     beliefs: {
       data: {
         currentDay: overrides.day ?? 0,
@@ -163,5 +166,26 @@ describe("deliberateHoarder", () => {
     const responses = f.intentions!.queue.filter((i) => i.kind === "cnp-respond-bid");
     // No proposals were submitted, so no ACCEPT/REJECT messages.
     expect(responses).toHaveLength(0);
+  });
+
+  it("prepends a travel intent before buy-from-wall when not in village", () => {
+    const offers: MarketOffer[] = [
+      { offerId: "ok", sellerId: 5, crop: "radish", quantity: 2, pricePerUnit: 8, postedDay: 0 },
+    ];
+    const f = makeFarmer({
+      gold: 500,
+      offers,
+      day: 1,
+      region: "farm-otto",
+    });
+    deliberateHoarder(f, { tick: 0 });
+    const queue = f.intentions!.queue;
+    const buyIdx = queue.findIndex((i) => i.kind === "buy-from-wall");
+    const travelIdx = queue.findIndex(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
+    );
+    expect(buyIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeLessThan(buyIdx);
   });
 });

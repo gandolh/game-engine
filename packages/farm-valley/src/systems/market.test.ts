@@ -3,12 +3,17 @@ import { MessageBus, World, createRng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { MarketSystem } from "./market";
 import { spawnMarketWall } from "../agents/market-wall";
-import { ONT_MARKET } from "../protocols/market";
+import { ONT_MARKET, type MarketRejectedBody } from "../protocols/market";
 import { PERFORMATIVE } from "../protocols/performatives";
+import type { RegionId } from "../world/regions";
 
-function makeFarmer(world: World<GameEntity>, gold = 50): GameEntity {
+function makeFarmer(
+  world: World<GameEntity>,
+  gold = 50,
+  region: RegionId = "village",
+): GameEntity {
   return world.spawn({
-    farmer: { name: "F" },
+    farmer: { name: "F", currentRegion: region },
     inbox: { messages: [] },
     inventory: {
       gold,
@@ -196,6 +201,76 @@ describe("MarketSystem", () => {
     });
     sys.run({ tick: 1 });
     expect(sys.offersById.size).toBe(0);
+  });
+
+  it("POST_OFFER from a farm region is rejected, no offer stored", () => {
+    const sys = new MarketSystem(bus, world, createRng(1));
+    const farmer = makeFarmer(world, 50, "farm-cora");
+    pushToWall(wall, {
+      ontology: ONT_MARKET.POST_OFFER,
+      sender: farmer.id!,
+      body: { offer: { crop: "radish", quantity: 1, pricePerUnit: 5 } },
+    });
+    sys.run({ tick: 1 });
+
+    expect(sys.offersById.size).toBe(0);
+
+    bus.flush();
+    const rejection = bus
+      .drain()
+      .find((m) => m.ontology === ONT_MARKET.REJECTED && m.recipient === farmer.id);
+    expect(rejection).toBeDefined();
+    expect(rejection!.performative).toBe(PERFORMATIVE.REFUSE);
+    const body = rejection!.body as unknown as MarketRejectedBody;
+    expect(body.reason).toBe("not-in-village");
+    expect(body.originalOntology).toBe(ONT_MARKET.POST_OFFER);
+  });
+
+  it("POST_OFFER from village succeeds (no rejection emitted)", () => {
+    const sys = new MarketSystem(bus, world, createRng(1));
+    const farmer = makeFarmer(world, 50, "village");
+    pushToWall(wall, {
+      ontology: ONT_MARKET.POST_OFFER,
+      sender: farmer.id!,
+      body: { offer: { crop: "radish", quantity: 1, pricePerUnit: 5 } },
+    });
+    sys.run({ tick: 1 });
+
+    expect(sys.offersById.size).toBe(1);
+    bus.flush();
+    const rejection = bus.drain().find((m) => m.ontology === ONT_MARKET.REJECTED);
+    expect(rejection).toBeUndefined();
+  });
+
+  it("CANCEL_OFFER from a farm region is rejected, offer remains", () => {
+    const sys = new MarketSystem(bus, world, createRng(1));
+    const farmer = makeFarmer(world, 50, "village");
+    pushToWall(wall, {
+      ontology: ONT_MARKET.POST_OFFER,
+      sender: farmer.id!,
+      body: { offer: { crop: "radish", quantity: 1, pricePerUnit: 5 } },
+    });
+    sys.run({ tick: 1 });
+    expect(sys.offersById.size).toBe(1);
+    const offerId = Array.from(sys.offersById.keys())[0]!;
+
+    // Farmer leaves village, then tries to cancel.
+    farmer.farmer!.currentRegion = "farm-cora";
+    pushToWall(wall, {
+      ontology: ONT_MARKET.CANCEL_OFFER,
+      sender: farmer.id!,
+      body: { offerId },
+    });
+    sys.run({ tick: 2 });
+
+    expect(sys.offersById.size).toBe(1);
+    bus.flush();
+    const rejection = bus
+      .drain()
+      .find((m) => m.ontology === ONT_MARKET.REJECTED && m.recipient === farmer.id);
+    expect(rejection).toBeDefined();
+    const body = rejection!.body as unknown as MarketRejectedBody;
+    expect(body.originalOntology).toBe(ONT_MARKET.CANCEL_OFFER);
   });
 
   it("READ_OFFERS filter by crop returns only matching offers", () => {

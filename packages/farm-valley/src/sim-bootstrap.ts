@@ -3,16 +3,21 @@ import {
   Scheduler,
   World,
   createRng,
+  type Pathfinder,
   type Rng,
 } from "@engine/core";
 import type { GameEntity } from "./components";
-import { setupFarmer, setupPlot, type FarmerSpec } from "./world-setup";
+import { setupFarmer, setupWorldRegions, type FarmerSpec } from "./world-setup";
+import { buildWalkableGrid } from "./world/walkable-grid";
 import { DayClockSystem } from "./systems/day-clock";
 import { InboxDispatchSystem } from "./systems/inbox-dispatch";
 import { PerceiveSystem } from "./systems/perceive";
 import { HarvestSystem } from "./systems/harvest";
 import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
+import { TravelSystem } from "./systems/travel";
+import { EncounterSystem } from "./systems/encounter";
+import { ShopSlateSystem } from "./systems/shop-slate";
 import { FinishDaySystem } from "./systems/finish-day";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
@@ -60,6 +65,7 @@ export interface SimBootstrapOptions {
   seed: number;
   ticksPerDay: number;
   farmerSpecs?: FarmerSpec[];
+  pathfinder?: Pathfinder | null;
 }
 
 export interface BootedSim {
@@ -78,29 +84,38 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
 
   const specs = opts.farmerSpecs ?? DEFAULT_FARMER_SPECS;
   const farmers: GameEntity[] = [];
-  for (const [idx, spec] of specs.entries()) {
+  for (const spec of specs) {
     const farmer = setupFarmer(world, spec);
     if (farmer.id === undefined) throw new Error(`Farmer ${spec.name} id missing`);
     farmers.push(farmer);
-    const layout = farmPlotLayout(idx);
-    for (const [tx, ty] of layout) {
-      setupPlot(world, farmer.id, tx, ty);
-    }
   }
 
   const weatherFeature = setupWeatherFeature(world, bus, rng);
   const marketShop = setupMarketShopFeature(world, bus, rng);
+
+  // After market-wall + shopkeeper entities exist, lay out the regions —
+  // setupWorldRegions both spawns farm plots (3×3 per farm) and decorates
+  // the existing market-wall / shopkeeper entities with a Transform.
+  setupWorldRegions(world, farmers);
 
   const dayClock = new DayClockSystem(bus, { ticksPerDay: opts.ticksPerDay });
   const scheduler = new Scheduler()
     .add(dayClock)
     .add(weatherFeature.weatherSystem)
     .add(new InboxDispatchSystem(bus, world))
+    .add(new ShopSlateSystem(world, bus, rng))
+    .add(new EncounterSystem(world, bus))
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new HarvestSystem(world))
     .add(new DeliberateSystem(world))
-    .add(weatherFeature.apSystem)
+    .add(weatherFeature.apSystem);
+
+  if (opts.pathfinder) {
+    scheduler.add(new TravelSystem(world, opts.pathfinder, buildWalkableGrid(), bus));
+  }
+
+  scheduler
     .add(new ActSystem(world, bus))
     .add(marketShop.marketSystem)
     .add(marketShop.shopkeeperSystem)
@@ -108,24 +123,6 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new FinishDaySystem(world));
 
   return { world, bus, scheduler, dayClock, rng, farmers };
-}
-
-const FARM_ORIGINS: ReadonlyArray<readonly [number, number]> = [
-  [3, 2],
-  [15, 2],
-  [3, 8],
-  [15, 8],
-];
-
-function farmPlotLayout(idx: number): Array<[number, number]> {
-  const origin = FARM_ORIGINS[idx % FARM_ORIGINS.length]!;
-  const [ox, oy] = origin;
-  return [
-    [ox, oy],
-    [ox + 1, oy],
-    [ox, oy + 1],
-    [ox + 1, oy + 1],
-  ];
 }
 
 export interface FarmerSummary {

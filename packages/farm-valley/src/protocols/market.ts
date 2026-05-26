@@ -10,6 +10,7 @@ export const ONT_MARKET = {
   TRADE_ACCEPT: "trade-accept",
   TRADE_REJECT: "trade-reject",
   COUNTER_OFFER: "counter-offer",
+  REJECTED: "market.rejected",
 } as const;
 
 export type MarketOntology = (typeof ONT_MARKET)[keyof typeof ONT_MARKET];
@@ -53,4 +54,13 @@ export interface TradeAcceptBody {
 export interface TradeRejectBody {
   offerId: string;
   reason: string;
+}
+
+/**
+ * Sent back to a farmer when MarketSystem refuses to act on their inbound
+ * message (e.g. POST_OFFER / CANCEL_OFFER while not in the village).
+ */
+export interface MarketRejectedBody {
+  reason: "not-in-village";
+  originalOntology: MarketOntology;
 }

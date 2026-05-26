@@ -90,12 +90,12 @@ describe("WeatherSystem", () => {
   it("writes weather into all farmers' beliefs", () => {
     // Spawn two farmers with beliefs
     world.spawn({
-      farmer: { name: "Alice" },
+      farmer: { name: "Alice", currentRegion: "farm-cora" as const },
       beliefs: { data: {}, revision: 0 },
       inbox: { messages: [] },
     });
     world.spawn({
-      farmer: { name: "Bob" },
+      farmer: { name: "Bob", currentRegion: "farm-atticus" as const },
       beliefs: { data: {}, revision: 0 },
       inbox: { messages: [] },
     });

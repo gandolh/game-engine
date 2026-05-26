@@ -7,6 +7,7 @@ export const ONT_SHOP = {
   AUCTION_CFP: "auction-cfp",
   AUCTION_BID: "auction-bid",
   AUCTION_RESULT: "auction-result",
+  DAILY_SLATE: "shop.daily-slate",
 } as const;
 
 export type ShopOntology = (typeof ONT_SHOP)[keyof typeof ONT_SHOP];
@@ -50,4 +51,8 @@ export interface AuctionResultBody {
   winnerId: number | null;
   paidPrice: number;
   participants: number[];
+}
+
+export interface DailySlateBody {
+  offers: import("../agents/shop-slate").ShopOffer[];
 }

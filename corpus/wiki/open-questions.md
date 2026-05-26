@@ -4,9 +4,11 @@ Live list of unresolved work and design questions. Items move out of here when a
 
 ## Code gaps (have a clear "next step")
 
-- **Pathfinder integration** — now scoped in [05-village-and-farms](../briefs/game/todo/05-village-and-farms.md). Will close when that brief lands.
-- **Aggressive end-of-sim liquidation.** Deferred in [01-personalities](../briefs/game/done/01-personalities.md) because there was no end-of-sim signal at the time. The game now ends at day 100 (leaderboard) — this is unblocked.
-- **Trust score updates** between farmers were left as TODO in [01-personalities](../briefs/game/done/01-personalities.md). All farmers currently start at 0.5 and stay there. Brief 06's encounter system is a natural place to wire this in but it's explicitly out of scope there.
+- **Shop daily slate is broadcast but not consumed.** [Brief 06](../briefs/game/done/06-spatial-market.md) shipped `ShopSlateSystem` generating offers each day, but [ShopkeeperSystem](../../packages/farm-valley/src/systems/shopkeeper.ts) still handles BUY/SELL with fixed prices — it doesn't decrement `remaining` or reject sold-out slots. Next step: rewrite BUY/SELL handlers to look up the matching slate offer and reject when `remaining === 0`.
+- **MEET messages reach farmers but no personality acts on them.** [EncounterSystem](../../packages/farm-valley/src/systems/encounter.ts) emits pairs; what's missing is the personality-side decision logic to produce `offer-seed` / `accept-seed-offer` intents in response. Hannah's encounter-initiated buying was the canonical use case in the brief.
+- **Renderer doesn't know about regions yet.** The world is now a 40×40 tile grid with 5 regions + roads, but [canvas2d.ts](../../packages/engine/src/render/canvas2d.ts) draws against the old coordinate system. The game runs but the visual is stale relative to the logic. Next step: teach the renderer to draw region tiles, roads, and update camera / world-units constants.
+- **Aggressive end-of-sim liquidation.** Deferred in [01-personalities](../briefs/game/done/01-personalities.md). Still unblocked.
+- **Trust score updates** between farmers — natural fit for the EncounterSystem (successful/failed trades adjust trust), but explicitly out of scope in Brief 06.
 
 ## Design questions (no clear answer yet)
 
