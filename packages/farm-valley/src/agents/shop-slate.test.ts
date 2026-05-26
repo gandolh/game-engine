@@ -20,10 +20,10 @@ describe("generateDailySlate", () => {
     expect(slate1).toEqual(slate2);
   });
 
-  it("prices are within ±20% of the base price for the picked kind/crop", () => {
+  it("prices are within ±20% of the sell base price for the picked crop", () => {
     const slate = generateDailySlate(createRng(7));
     for (const offer of slate) {
-      const base = DEFAULT_PRICES[offer.crop][offer.kind];
+      const base = DEFAULT_PRICES[offer.crop].sell;
       const lo = Math.max(1, Math.round(base * (1 - PRICE_JITTER)));
       const hi = Math.round(base * (1 + PRICE_JITTER));
       expect(offer.unitPrice).toBeGreaterThanOrEqual(lo);
@@ -54,10 +54,10 @@ describe("generateDailySlate", () => {
     expect(unique.size).toBe(SLATE_SIZE);
   });
 
-  it("kind is always 'buy' or 'sell'", () => {
+  it("kind is always 'sell' (no buy variant survives brief 08)", () => {
     const slate = generateDailySlate(createRng(2024));
     for (const offer of slate) {
-      expect(["buy", "sell"]).toContain(offer.kind);
+      expect(offer.kind).toBe("sell");
     }
   });
 

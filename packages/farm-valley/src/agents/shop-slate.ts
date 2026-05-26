@@ -2,7 +2,15 @@ import type { Rng } from "@engine/core";
 
 export interface ShopOffer {
   offerId: string;
-  kind: "buy" | "sell"; // shop buys from farmer | shop sells to farmer
+  /**
+   * Always "sell" since brief 08 — the daily slate now models seed sales only
+   * (shop → farmer). Crop sales (farmer → shop) bypass the slate and use the
+   * fixed-price BUY handler with unlimited liquidity. The literal-typed
+   * discriminant is retained so downstream consumers can keep filtering by
+   * `kind === "sell"` if they want, and so future expansion can add new
+   * variants without reshaping the body type.
+   */
+  kind: "sell";
   crop: "radish" | "wheat" | "pumpkin";
   unitPrice: number;
   quantity: number;
@@ -42,14 +50,13 @@ export function generateDailySlate(rng: Rng, prices?: PriceTable): ShopOffer[] {
 
   const offers: ShopOffer[] = [];
   for (let i = 0; i < SLATE_SIZE; i++) {
-    const kind: "buy" | "sell" = rng.range(0, 1) < 0.5 ? "buy" : "sell";
     const crop = CROPS[rng.range(0, 3) | 0]!;
-    const base = table[crop][kind];
+    const base = table[crop].sell;
     const unitPrice = Math.max(1, Math.round(base * (1 + rng.range(-PRICE_JITTER, PRICE_JITTER))));
     const quantity = Math.floor(rng.range(5, 21));
     const offerId = idFork.nextU32().toString(36);
 
-    offers.push({ offerId, kind, crop, unitPrice, quantity, remaining: quantity });
+    offers.push({ offerId, kind: "sell", crop, unitPrice, quantity, remaining: quantity });
   }
 
   return offers;
