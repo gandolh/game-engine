@@ -246,4 +246,38 @@ describe("ObserverPanel", () => {
     expect(panelEl.style.display).toBe("");
     panel.destroy();
   });
+
+  // brief-11: focus-camera — click row fires callback with farmer id
+  it("clicking a farmer row fires the onFarmerClick callback with the farmer id", () => {
+    const panel = new ObserverPanel(parent);
+    const cb = vi.fn();
+    panel.setOnFarmerClick(cb);
+    panel.update(makeSnapshot());
+
+    // Find the row for farmer id=3 (Alice)
+    const row = parent.querySelector('[data-farmer-id="3"]') as HTMLElement | null;
+    expect(row).not.toBeNull();
+    row!.click();
+
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledWith(3);
+    panel.destroy();
+  });
+
+  // brief-11: focus-camera — reset view button fires callback with null
+  it("clicking Reset view fires the onFarmerClick callback with null", () => {
+    const panel = new ObserverPanel(parent);
+    const cb = vi.fn();
+    panel.setOnFarmerClick(cb);
+    panel.update(makeSnapshot());
+
+    const resetBtn = parent.querySelector("button") as HTMLButtonElement | null;
+    expect(resetBtn).not.toBeNull();
+    expect(resetBtn!.textContent).toContain("Reset view");
+    resetBtn!.click();
+
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledWith(null);
+    panel.destroy();
+  });
 });
