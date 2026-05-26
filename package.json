@@ -14,7 +14,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "atlas": "npm run build -w atlas-builder",
     "sim": "npm start -w run-sim",
-    "preview": "npm start -w world-preview"
+    "preview": "npm start -w world-preview",
+    "build-wasm": "npm run build -w @engine/wasm-modules"
   },
   "devDependencies": {
     "typescript": "6.0.3",

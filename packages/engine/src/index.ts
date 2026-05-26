@@ -5,3 +5,4 @@ export * from "./render";
 export * from "./assets";
 export * from "./persistence";
 export * from "./debug";
+export * from "./wasm";

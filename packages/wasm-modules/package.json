@@ -1,0 +1,13 @@
+{
+  "name": "@engine/wasm-modules",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build/compile.mjs",
+    "typecheck": "asc --noEmit src/pathfinding.ts --config asconfig.json"
+  },
+  "devDependencies": {
+    "assemblyscript": "0.28.17"
+  }
+}
