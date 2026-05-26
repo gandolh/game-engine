@@ -21,10 +21,10 @@ Snapshot of where the Farm Valley engine + game sit relative to the task briefs 
 | [02-weather-crops](../briefs/game/done/02-weather-crops.md) | **Done** | weather-station, weather, crop-growth, ap all in [systems/](../../packages/farm-valley/src/systems/) + tests. |
 | [03-market-shop](../briefs/game/done/03-market-shop.md) | **Done** | market, shopkeeper, auction systems + spawners + tests. |
 | [04-observer-ui](../briefs/game/done/04-observer-ui.md) | **Done** | [ui/](../../packages/farm-valley/src/ui/) ships observer, config-panel, dom helpers + tests. |
+| [05-village-and-farms](../briefs/game/done/05-village-and-farms.md) | **Done** | 5 regions (4 farms N/E/S/W + village), 40×40 tile grid, walkable grid, `TravelSystem` consuming `travel` intents through the WASM pathfinder. Loaded but unused → now load-bearing. |
+| [06-spatial-market](../briefs/game/done/06-spatial-market.md) | **Done (partial)** | Market presence enforced (POST/CANCEL require village), 4 personalities plan trips, EncounterSystem emits MEET pairs, ShopSlateSystem generates 5-offer daily slate. Gap: slate is broadcast but not consumed by trades (ShopkeeperSystem still fixed-price); peer trade negotiation on MEET not implemented yet. |
 
-**Open briefs:**
-- [05-village-and-farms](../briefs/game/todo/05-village-and-farms.md) — spatial restructure: 4 farms + village, pathfinder-driven travel
-- [06-spatial-market](../briefs/game/todo/06-spatial-market.md) — market presence, peer encounters, shop daily slate (depends on 05)
+[../briefs/game/todo/](../briefs/game/todo/) is currently empty.
 
 ## Post-corpus work (delivered, never had a brief)
 
