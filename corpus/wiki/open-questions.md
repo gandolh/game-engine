@@ -4,10 +4,9 @@ Live list of unresolved work and design questions. Items move out of here when a
 
 ## Code gaps (have a clear "next step")
 
-- **Shop daily slate is broadcast but not consumed.** [Brief 06](../briefs/game/done/06-spatial-market.md) shipped `ShopSlateSystem` generating offers each day, but [ShopkeeperSystem](../../packages/farm-valley/src/systems/shopkeeper.ts) still handles BUY/SELL with fixed prices — it doesn't decrement `remaining` or reject sold-out slots. Next step: rewrite BUY/SELL handlers to look up the matching slate offer and reject when `remaining === 0`.
-- **MEET messages reach farmers but no personality acts on them.** [EncounterSystem](../../packages/farm-valley/src/systems/encounter.ts) emits pairs; what's missing is the personality-side decision logic to produce `offer-seed` / `accept-seed-offer` intents in response. Hannah's encounter-initiated buying was the canonical use case in the brief.
-- **Aggressive end-of-sim liquidation.** Deferred in [01-personalities](../briefs/game/done/01-personalities.md). Still unblocked.
-- **Trust score updates** between farmers — natural fit for the EncounterSystem (successful/failed trades adjust trust), but explicitly out of scope in Brief 06.
+- **`act.ts` bypasses the slate-driven shop SELL.** Brief 08 wired ShopkeeperSystem.SELL to consume from the daily slate, but [act.ts](../../packages/farm-valley/src/systems/act.ts) still mutates farmer inventory directly for the `buy-seed` intent. Result: the slate's stock and price variance are invisible to running games today. Next step: route `buy-seed` through the bus (ONT_SHOP.SELL → ShopkeeperSystem → CONFIRM), or fold the slate lookup into act.ts itself.
+- **CNP broken-commitment trust deltas are wired but inert.** Brief 10's TrustSystem accepts `cnpCoordinators: undefined` today because [hoarder.ts](../../packages/farm-valley/src/agents/hoarder.ts) keeps the coordinator registry as a private const. Next step: extract `coordinators` to a `cnp-registry.ts` module and pass the map into TrustSystem from `sim-bootstrap.ts`.
+- **Responder-side OFFER_SEED ACCEPT trust delta** is documented in TrustSystem but not implemented (the initiator-side delta is). Wires up when a clear "I just accepted" signal exists — currently the receiver sends ACCEPT but doesn't record toward themselves. Low priority; the asymmetry is mild.
 
 ## Design questions (no clear answer yet)
 
