@@ -22,7 +22,9 @@ Snapshot of where the Farm Valley engine + game sit relative to the task briefs 
 | [03-market-shop](../briefs/game/done/03-market-shop.md) | **Done** | market, shopkeeper, auction systems + spawners + tests. |
 | [04-observer-ui](../briefs/game/done/04-observer-ui.md) | **Done** | [ui/](../../packages/farm-valley/src/ui/) ships observer, config-panel, dom helpers + tests. |
 
-[../briefs/game/todo/](../briefs/game/todo/) is currently empty.
+**Open briefs:**
+- [05-village-and-farms](../briefs/game/todo/05-village-and-farms.md) — spatial restructure: 4 farms + village, pathfinder-driven travel
+- [06-spatial-market](../briefs/game/todo/06-spatial-market.md) — market presence, peer encounters, shop daily slate (depends on 05)
 
 ## Post-corpus work (delivered, never had a brief)
 

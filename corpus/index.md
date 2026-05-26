@@ -31,4 +31,5 @@ Catalog of everything in this corpus. Start here.
 - [briefs/game/done/02-weather-crops.md](briefs/game/done/02-weather-crops.md) — weather, crop growth, action points
 - [briefs/game/done/03-market-shop.md](briefs/game/done/03-market-shop.md) — market wall, shopkeeper, Vickrey/Dutch auctions
 - [briefs/game/done/04-observer-ui.md](briefs/game/done/04-observer-ui.md) — observer dashboard + config panel
-- [briefs/game/todo/](briefs/game/todo/) — empty
+- [briefs/game/todo/05-village-and-farms.md](briefs/game/todo/05-village-and-farms.md) — 5 regions, compass layout, pathfinder-driven travel
+- [briefs/game/todo/06-spatial-market.md](briefs/game/todo/06-spatial-market.md) — market presence, encounters, shop daily slate (depends on 05)

@@ -4,9 +4,9 @@ Live list of unresolved work and design questions. Items move out of here when a
 
 ## Code gaps (have a clear "next step")
 
-- **Pathfinder loaded but unused.** [main.ts:77](../../packages/farm-valley/src/main.ts#L77) holds the `Pathfinder` instance behind `void pathfinder`. No system routes farmer movement through it. Next step: wire it into the travel/move intent path. See [pathfinder.md](pathfinder.md) (TODO if missing).
+- **Pathfinder integration** — now scoped in [05-village-and-farms](../briefs/game/todo/05-village-and-farms.md). Will close when that brief lands.
 - **Aggressive end-of-sim liquidation.** Deferred in [01-personalities](../briefs/game/done/01-personalities.md) because there was no end-of-sim signal at the time. The game now ends at day 100 (leaderboard) — this is unblocked.
-- **Trust score updates** between farmers were left as TODO in [01-personalities](../briefs/game/done/01-personalities.md). All farmers currently start at 0.5 and stay there.
+- **Trust score updates** between farmers were left as TODO in [01-personalities](../briefs/game/done/01-personalities.md). All farmers currently start at 0.5 and stay there. Brief 06's encounter system is a natural place to wire this in but it's explicitly out of scope there.
 
 ## Design questions (no clear answer yet)
 
