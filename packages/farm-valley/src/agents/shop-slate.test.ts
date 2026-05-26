@@ -2,10 +2,25 @@ import { describe, it, expect } from "vitest";
 import { createRng } from "@engine/core";
 import {
   generateDailySlate,
+  consumeFromSlate,
   DEFAULT_PRICES,
   SLATE_SIZE,
   PRICE_JITTER,
+  type ShopOffer,
 } from "./shop-slate";
+
+function makeOffer(
+  partial: Partial<ShopOffer> & Pick<ShopOffer, "crop" | "unitPrice" | "remaining">,
+): ShopOffer {
+  return {
+    offerId: partial.offerId ?? `o-${partial.crop}-${partial.unitPrice}`,
+    kind: "sell",
+    crop: partial.crop,
+    unitPrice: partial.unitPrice,
+    quantity: partial.quantity ?? partial.remaining,
+    remaining: partial.remaining,
+  };
+}
 
 describe("generateDailySlate", () => {
   it("returns exactly SLATE_SIZE entries", () => {
@@ -89,5 +104,76 @@ describe("generateDailySlate", () => {
     const ids1 = s1.map((o) => o.offerId).join(",");
     const ids2 = s2.map((o) => o.offerId).join(",");
     expect(ids1).not.toBe(ids2);
+  });
+});
+
+describe("consumeFromSlate", () => {
+  it("empty slate → no-matching-offer", () => {
+    const result = consumeFromSlate([], "radish", 1);
+    expect(result).toEqual({ ok: false, reason: "no-matching-offer" });
+  });
+
+  it("undefined slate → no-matching-offer", () => {
+    const result = consumeFromSlate(undefined, "radish", 1);
+    expect(result).toEqual({ ok: false, reason: "no-matching-offer" });
+  });
+
+  it("slate has no matching crop → no-matching-offer", () => {
+    const slate = [makeOffer({ crop: "wheat", unitPrice: 10, remaining: 5 })];
+    const result = consumeFromSlate(slate, "radish", 1);
+    expect(result).toEqual({ ok: false, reason: "no-matching-offer" });
+  });
+
+  it("match with sufficient stock → ok; remaining decremented; totalCost correct", () => {
+    const offer = makeOffer({ crop: "radish", unitPrice: 5, remaining: 10 });
+    const slate = [offer];
+    const result = consumeFromSlate(slate, "radish", 3);
+    expect(result).toEqual({ ok: true, totalCost: 15 });
+    expect(offer.remaining).toBe(7);
+  });
+
+  it("insufficient stock across all matching offers → ok:false; slate untouched", () => {
+    const o1 = makeOffer({ offerId: "a", crop: "radish", unitPrice: 5, remaining: 2 });
+    const o2 = makeOffer({ offerId: "b", crop: "radish", unitPrice: 6, remaining: 2 });
+    const result = consumeFromSlate([o1, o2], "radish", 5);
+    expect(result).toEqual({ ok: false, reason: "insufficient-stock" });
+    // Slate must not have been mutated.
+    expect(o1.remaining).toBe(2);
+    expect(o2.remaining).toBe(2);
+  });
+
+  it("cheapest-first across multiple offers — takes from lower price first", () => {
+    const expensive = makeOffer({ offerId: "exp", crop: "radish", unitPrice: 8, remaining: 3 });
+    const cheap = makeOffer({ offerId: "chp", crop: "radish", unitPrice: 5, remaining: 4 });
+    const result = consumeFromSlate([expensive, cheap], "radish", 5);
+    // Cheap takes 4, expensive takes 1 → cost = 4*5 + 1*8 = 28
+    expect(result).toEqual({ ok: true, totalCost: 28 });
+    expect(cheap.remaining).toBe(0);
+    expect(expensive.remaining).toBe(2);
+  });
+
+  it("tie-break by offerId when prices equal — lexicographically lower id first", () => {
+    const a = makeOffer({ offerId: "aaa", crop: "wheat", unitPrice: 10, remaining: 2 });
+    const b = makeOffer({ offerId: "bbb", crop: "wheat", unitPrice: 10, remaining: 2 });
+    const result = consumeFromSlate([b, a], "wheat", 3);
+    // 'aaa' < 'bbb', so 'aaa' consumed fully (2), then 1 from 'bbb'
+    expect(result).toEqual({ ok: true, totalCost: 30 });
+    expect(a.remaining).toBe(0);
+    expect(b.remaining).toBe(1);
+  });
+
+  it("dryRun: true returns same ok/totalCost but does NOT mutate slate", () => {
+    const offer = makeOffer({ crop: "pumpkin", unitPrice: 20, remaining: 5 });
+    const result = consumeFromSlate([offer], "pumpkin", 2, { dryRun: true });
+    expect(result).toEqual({ ok: true, totalCost: 40 });
+    // Slate must be untouched.
+    expect(offer.remaining).toBe(5);
+  });
+
+  it("dryRun: true on failing case also leaves slate untouched", () => {
+    const offer = makeOffer({ crop: "radish", unitPrice: 5, remaining: 1 });
+    const result = consumeFromSlate([offer], "radish", 5, { dryRun: true });
+    expect(result).toEqual({ ok: false, reason: "insufficient-stock" });
+    expect(offer.remaining).toBe(1);
   });
 });

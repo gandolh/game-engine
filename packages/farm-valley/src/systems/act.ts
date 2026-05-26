@@ -9,8 +9,8 @@ import {
   type BuyRequestBody,
   type CnpTaskBody,
 } from "../protocols";
-
-const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 10, pumpkin: 20 };
+import { consumeFromSlate } from "../agents/shop-slate";
+import type { ShopOffer } from "../agents/shop-slate";
 const SELL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const GROWTH_DAYS: Record<CropKind, number> = { radish: 2, wheat: 4, pumpkin: 7 };
 
@@ -37,6 +37,12 @@ export class ActSystem implements System {
       break;
     }
 
+    let shopkeeper: GameEntity | undefined;
+    for (const s of this.world.query("shopkeeper")) {
+      shopkeeper = s;
+      break;
+    }
+
     for (const farmer of farmers) {
       if (farmer.fsm.current !== "ACT") continue;
       const intentions = farmer.intentions.queue;
@@ -48,11 +54,17 @@ export class ActSystem implements System {
           case "buy-seed": {
             const crop = intent.data.crop as CropKind;
             const qty = (intent.data.quantity as number) ?? 1;
-            const cost = SEED_COST[crop] * qty;
-            if (farmer.inventory.gold >= cost) {
-              farmer.inventory.gold -= cost;
-              farmer.inventory.seeds[crop] += qty;
-            }
+            // Cast: dailySlate is typed readonly but per-offer fields are mutable.
+            const slate = shopkeeper?.shopkeeper?.dailySlate as ShopOffer[] | undefined;
+            // Dry-run first to compute cost without mutating slate.
+            const dry = consumeFromSlate(slate, crop, qty, { dryRun: true });
+            if (!dry.ok || dry.totalCost === undefined) break;
+            if (farmer.inventory.gold < dry.totalCost) break;
+            // Commit.
+            const commit = consumeFromSlate(slate, crop, qty);
+            if (!commit.ok || commit.totalCost === undefined) break;
+            farmer.inventory.gold -= commit.totalCost;
+            farmer.inventory.seeds[crop] += qty;
             break;
           }
           case "plant": {
