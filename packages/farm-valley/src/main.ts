@@ -11,7 +11,8 @@ import {
 import type { AtlasManifest, Pathfinder } from "@engine/core";
 import { buildCanvasFrame } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
-import { HomeScreen, ObserverPanel, type ObserverSnapshot } from "./ui";
+import { ObserverPanel, type ObserverSnapshot } from "./ui";
+import { HomeScreen } from "./screens";
 import { decorateMarketAndShop } from "./decorate";
 
 interface BootConfig {

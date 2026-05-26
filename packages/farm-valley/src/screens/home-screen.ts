@@ -1,4 +1,4 @@
-import { createEl, applyStyles } from "./dom";
+import { createEl, applyStyles } from "../ui/dom";
 
 export interface HomeScreenOptions {
   title?: string;
