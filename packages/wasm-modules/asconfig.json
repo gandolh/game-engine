@@ -1,0 +1,14 @@
+{
+  "options": {
+    "runtime": "stub",
+    "optimizeLevel": 3,
+    "shrinkLevel": 1,
+    "converge": true,
+    "exportRuntime": false,
+    "importMemory": false,
+    "initialMemory": 1,
+    "maximumMemory": 256,
+    "sharedMemory": false,
+    "noAssert": true
+  }
+}

@@ -2,16 +2,14 @@ import {
   FixedStepClock,
   GameLoop,
   InputLog,
-  initWebGpu,
-  loadAtlas,
   loadAtlasImage,
   Camera2D,
-  Renderer,
   Canvas2dRenderer,
   DebugOverlay,
+  createPathfinderFromUrl,
 } from "@engine/core";
-import type { AtlasManifest } from "@engine/core";
-import { buildSpriteFrame, buildCanvasFrame } from "./render-systems";
+import type { AtlasManifest, Pathfinder } from "@engine/core";
+import { buildCanvasFrame } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
 import { HomeScreen, ObserverPanel, type ObserverSnapshot } from "./ui";
 import { decorateMarketAndShop } from "./decorate";
@@ -37,43 +35,19 @@ const CAMERA_CONFIG = {
   centerY: 96,
 } as const;
 
-interface RenderBackend {
-  camera: Camera2D;
-  render(world: ReturnType<typeof bootstrapSim>["world"], alpha: number): void;
+interface Runtime {
+  renderer: Canvas2dRenderer;
+  pathfinder: Pathfinder | null;
 }
 
-async function initRenderBackend(canvas: HTMLCanvasElement): Promise<RenderBackend> {
-  try {
-    const gpu = await initWebGpu({ canvas });
-    const manifest = await fetchAtlasManifest();
-    const atlas = await loadAtlas(gpu.device, manifest);
-    const camera = new Camera2D(CAMERA_CONFIG);
-    const renderer = new Renderer(gpu, camera);
-    renderer.spriteBatch.setAtlas(atlas.view);
-    return {
-      camera,
-      render(world, alpha) {
-        const encoder = renderer.beginFrame();
-        buildSpriteFrame(renderer, world, atlas, alpha);
-        renderer.endFrame(encoder);
-      },
-    };
-  } catch (err) {
-    console.warn("WebGPU unavailable, falling back to Canvas2D:", err);
-    const manifest = await fetchAtlasManifest();
-    const atlasImage = await loadAtlasImage(manifest);
-    const camera = new Camera2D(CAMERA_CONFIG);
-    const renderer = new Canvas2dRenderer(canvas, camera);
-    renderer.setAtlas(atlasImage);
-    return {
-      camera,
-      render(world, alpha) {
-        renderer.beginFrame();
-        buildCanvasFrame(renderer, world, alpha);
-        renderer.endFrame();
-      },
-    };
-  }
+async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
+  const manifest = await fetchAtlasManifest();
+  const atlasImage = await loadAtlasImage(manifest);
+  const camera = new Camera2D(CAMERA_CONFIG);
+  const renderer = new Canvas2dRenderer(canvas, camera);
+  renderer.setAtlas(atlasImage);
+  const pathfinder = await loadPathfinder();
+  return { renderer, pathfinder };
 }
 
 async function boot(): Promise<void> {
@@ -84,21 +58,22 @@ async function boot(): Promise<void> {
 
   const home = new HomeScreen(app);
 
-  const backendPromise = initRenderBackend(canvas);
-  backendPromise.catch(() => {});
+  const runtimePromise = setupRuntime(canvas);
+  runtimePromise.catch(() => {});
 
   home.onStartClicked(() => {
-    void startGame(app, fatal, backendPromise);
+    void startGame(app, fatal, runtimePromise);
   });
 }
 
 async function startGame(
   app: HTMLElement,
   fatal: HTMLElement,
-  backendPromise: Promise<RenderBackend>,
+  runtimePromise: Promise<Runtime>,
 ): Promise<void> {
   try {
-    const backend = await backendPromise;
+    const { renderer, pathfinder } = await runtimePromise;
+    void pathfinder;
 
     const { world, scheduler, dayClock } = bootstrapSim({
       seed: CONFIG.seed,
@@ -132,7 +107,9 @@ async function startGame(
         }
       },
       onRender(alpha) {
-        backend.render(world, alpha);
+        renderer.beginFrame();
+        buildCanvasFrame(renderer, world, alpha);
+        renderer.endFrame();
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });
         observer.update(buildObserverSnapshot(world, dayClock.day));
@@ -243,6 +220,17 @@ async function fetchAtlasManifest(): Promise<AtlasManifest> {
   const res = await fetch("/atlas/main.json");
   if (!res.ok) throw new Error(`Atlas manifest fetch failed: ${res.status}`);
   return (await res.json()) as AtlasManifest;
+}
+
+async function loadPathfinder(): Promise<Pathfinder | null> {
+  try {
+    const pf = await createPathfinderFromUrl("/wasm/pathfinding.wasm");
+    console.info("[wasm] pathfinding module loaded");
+    return pf;
+  } catch (err) {
+    console.warn("[wasm] pathfinding module unavailable — run `npm run build-wasm`:", err);
+    return null;
+  }
 }
 
 function showFatal(el: HTMLElement, err: unknown): void {

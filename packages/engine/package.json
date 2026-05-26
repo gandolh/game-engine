@@ -12,14 +12,14 @@
     "./render": "./src/render/index.ts",
     "./assets": "./src/assets/index.ts",
     "./persistence": "./src/persistence/index.ts",
-    "./debug": "./src/debug/index.ts"
+    "./debug": "./src/debug/index.ts",
+    "./wasm": "./src/wasm/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "devDependencies": {
-    "@webgpu/types": "0.1.70",
     "@types/jsdom": "21.1.7",
     "jsdom": "29.1.1"
   }

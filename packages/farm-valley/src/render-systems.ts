@@ -1,4 +1,4 @@
-import type { Renderer, LoadedAtlas, World, SpriteInstance } from "@engine/core";
+import type { World } from "@engine/core";
 import { Canvas2dRenderer } from "@engine/core";
 import type { Canvas2dSprite } from "@engine/core";
 import type { GameEntity } from "./components";
@@ -58,10 +58,7 @@ interface LogicalSprite {
   frame: string;
   rotation: number;
   layer: number;
-  tintR: number;
-  tintG: number;
-  tintB: number;
-  tintA: number;
+  alpha: number;
 }
 
 function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<LogicalSprite> {
@@ -74,7 +71,7 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
       frame: tile.frame,
       rotation: tile.rotation,
       layer: tile.layer,
-      tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+      alpha: 1,
     };
   }
 
@@ -87,7 +84,7 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
       frame: fence.frame,
       rotation: fence.rotation,
       layer: fence.layer,
-      tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+      alpha: 1,
     };
   }
 
@@ -98,7 +95,7 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
       x: px, y: py, width: TILE, height: TILE,
       frame: "tile/dirt",
       rotation: 0, layer: 2,
-      tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+      alpha: 1,
     };
     if (plot.plot.state.kind === "planted") {
       const crop = plot.plot.state.crop;
@@ -109,7 +106,7 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
         x: px, y: py, width: TILE, height: TILE,
         frame: `crop/${crop}/${stage}`,
         rotation: 0, layer: 10,
-        tintR: 1, tintG: 1, tintB: 1, tintA: 1,
+        alpha: 1,
       };
     }
   }
@@ -125,32 +122,8 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
       frame: s.frame,
       rotation: t.rotation,
       layer: s.layer,
-      tintR: ((tint >> 24) & 0xff) / 255,
-      tintG: ((tint >> 16) & 0xff) / 255,
-      tintB: ((tint >> 8) & 0xff) / 255,
-      tintA: (tint & 0xff) / 255,
+      alpha: (tint & 0xff) / 255,
     };
-  }
-}
-
-export function buildSpriteFrame(
-  renderer: Renderer,
-  world: World<GameEntity>,
-  atlas: LoadedAtlas,
-  alpha: number,
-): void {
-  const batch = renderer.spriteBatch;
-  const push = (s: SpriteInstance) => batch.push(s);
-
-  for (const ls of iterSceneSprites(world, alpha)) {
-    const uv = atlas.frameUv(ls.frame);
-    push({
-      x: ls.x, y: ls.y, width: ls.width, height: ls.height,
-      uvX: uv.u, uvY: uv.v, uvW: uv.w, uvH: uv.h,
-      tintR: ls.tintR, tintG: ls.tintG, tintB: ls.tintB, tintA: ls.tintA,
-      rotation: ls.rotation,
-      layer: ls.layer,
-    });
   }
 }
 
@@ -168,7 +141,7 @@ export function buildCanvasFrame(
       frame: ls.frame,
       rotation: ls.rotation,
       layer: ls.layer,
-      alpha: ls.tintA,
+      alpha: ls.alpha,
     };
     renderer.push(sprite);
   }
