@@ -1,5 +1,5 @@
-export { World } from "./world";
-export type { EngineEntity, Entity } from "./world";
+export { World, Query } from "./world";
+export type { EngineEntity, Entity, With } from "./world";
 export type {
   Transform,
   Sprite,

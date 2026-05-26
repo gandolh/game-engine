@@ -1,4 +1,3 @@
-import { World as MiniplexWorld } from "miniplex";
 import type {
   Transform,
   Sprite,
@@ -25,26 +24,91 @@ export interface EngineEntity {
 
 export type Entity<E extends EngineEntity = EngineEntity> = E;
 
-export class World<E extends EngineEntity = EngineEntity> {
-  readonly inner: MiniplexWorld<E>;
-  private nextId = 1;
+export type With<E, K extends keyof E> = E & Required<Pick<E, K>>;
 
-  constructor() {
-    this.inner = new MiniplexWorld<E>();
+export class Query<E extends object, K extends keyof E = keyof E>
+  implements Iterable<With<E, K>>
+{
+  readonly entities: With<E, K>[] = [];
+  private readonly members = new Set<E>();
+
+  constructor(readonly components: readonly K[]) {}
+
+  matches(entity: E): boolean {
+    for (const k of this.components) {
+      if (entity[k] === undefined) return false;
+    }
+    return true;
   }
+
+  evaluate(entity: E): void {
+    const had = this.members.has(entity);
+    const now = this.matches(entity);
+    if (now && !had) {
+      this.members.add(entity);
+      this.entities.push(entity as With<E, K>);
+    } else if (!now && had) {
+      this.drop(entity);
+    }
+  }
+
+  drop(entity: E): void {
+    if (!this.members.delete(entity)) return;
+    const idx = this.entities.indexOf(entity as With<E, K>);
+    if (idx >= 0) this.entities.splice(idx, 1);
+  }
+
+  [Symbol.iterator](): Iterator<With<E, K>> {
+    const snapshot = this.entities.slice();
+    let i = 0;
+    return {
+      next() {
+        return i < snapshot.length
+          ? { value: snapshot[i++]!, done: false }
+          : { value: undefined as unknown as With<E, K>, done: true };
+      },
+    };
+  }
+}
+
+export class World<E extends EngineEntity = EngineEntity> {
+  private readonly all = new Set<E>();
+  private readonly queries = new Map<string, Query<E, keyof E>>();
+  private nextId = 1;
 
   spawn(entity: E): E {
     const withId = entity as E & { id: number };
     if (withId.id === undefined) withId.id = this.nextId++;
-    this.inner.add(withId);
+    if (this.all.has(withId)) return withId;
+    this.all.add(withId);
+    for (const q of this.queries.values()) q.evaluate(withId);
     return withId;
   }
 
   despawn(entity: E): void {
-    this.inner.remove(entity);
+    if (!this.all.delete(entity)) return;
+    for (const q of this.queries.values()) q.drop(entity);
   }
 
-  query<K extends keyof E>(...components: K[]) {
-    return this.inner.with(...components);
+  query<K extends keyof E>(...components: K[]): Query<E, K> {
+    const key = [...components].sort().join("|");
+    const cached = this.queries.get(key);
+    if (cached) return cached as unknown as Query<E, K>;
+    const q = new Query<E, K>(components);
+    for (const e of this.all) q.evaluate(e);
+    this.queries.set(key, q as unknown as Query<E, keyof E>);
+    return q;
+  }
+
+  addComponent<K extends keyof E>(entity: E, key: K, value: E[K]): void {
+    if (!this.all.has(entity)) return;
+    entity[key] = value;
+    for (const q of this.queries.values()) q.evaluate(entity);
+  }
+
+  removeComponent<K extends keyof E>(entity: E, key: K): void {
+    if (!this.all.has(entity)) return;
+    delete (entity as Record<string, unknown>)[key as string];
+    for (const q of this.queries.values()) q.evaluate(entity);
   }
 }
