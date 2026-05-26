@@ -24,11 +24,21 @@ export interface MeetBody {
   regionId: RegionId;
 }
 
+/**
+ * `direction` is the sender's role in the proposed trade:
+ *   - `"buy"`  → sender will pay `unitPrice` per seed and wants to receive
+ *                `quantity` seeds. Gold flows sender→recipient on accept;
+ *                seeds flow recipient→sender.
+ *   - `"sell"` → sender will give `quantity` seeds in exchange for
+ *                `unitPrice` per seed. Seeds flow sender→recipient on
+ *                accept; gold flows recipient→sender.
+ */
 export interface OfferSeedBody {
   offerId: string;
   crop: "radish" | "wheat" | "pumpkin";
   quantity: number;
   unitPrice: number;
+  direction: "buy" | "sell";
 }
 
 export interface AcceptBody {

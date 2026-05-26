@@ -6,6 +6,11 @@ import { ONT_CNP } from "../protocols/cnp";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import { PERFORMATIVE } from "../protocols/performatives";
 import { CnpCoordinator } from "./cnp-coordinator";
+import {
+  registerPeerTradeHooks,
+  type InitiatePeerTradeFn,
+  type RespondPeerOfferFn,
+} from "./peer-trade-registry";
 
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 8, pumpkin: 15 };
@@ -182,3 +187,91 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 }
 
 registerPersonality("hoarder", deliberateHoarder);
+
+// ---------------------------------------------------------------------------
+// Peer-trade hooks (encounter-trade system)
+// ---------------------------------------------------------------------------
+
+// Shop reference prices used by the peer-trade acceptance heuristics. These
+// mirror the shopkeeper's daily SELL prices defined in `act.ts`.
+const PEER_SHOP_SELL_PRICE: Record<CropKind, number> = {
+  radish: 8,
+  wheat: 14,
+  pumpkin: 35,
+};
+
+const HOARDER_INITIATE_QTY = 3;
+const HOARDER_INITIATE_PRICE_RADISH = 4.5;
+const HOARDER_BUFFER_SEEDS = 2;
+const HOARDER_PEER_BUY_CEILING = 1.05;
+const HOARDER_PEER_SELL_FLOOR = 0.95;
+
+export const initiatePeerTradeHoarder: InitiatePeerTradeFn = (
+  farmer,
+  meet,
+  ctx,
+) => {
+  if (!farmer.inventory || farmer.id === undefined) return null;
+  const reserve =
+    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 80;
+  const day =
+    (farmer.beliefs?.data["currentDay"] as number | undefined) ?? ctx.tick;
+
+  const crop: CropKind = "radish";
+  const qty = HOARDER_INITIATE_QTY;
+  const unitPrice = HOARDER_INITIATE_PRICE_RADISH;
+
+  // Don't initiate if hoarder already has enough radish seeds.
+  if (farmer.inventory.seeds[crop] >= qty) return null;
+  // Don't initiate if it would dip below reserve.
+  if (farmer.inventory.gold - unitPrice * qty < reserve) return null;
+
+  return {
+    offerId: `peer-${farmer.id}-${meet.peerId}-${ctx.tick}-${day}-${crop}`,
+    crop,
+    quantity: qty,
+    unitPrice,
+    direction: "buy",
+  };
+};
+
+export const respondToPeerOfferHoarder: RespondPeerOfferFn = (
+  farmer,
+  offer,
+  _sender,
+  _ctx,
+) => {
+  if (!farmer.inventory) return { decision: "decline", reason: "no-inventory" };
+  const reserve =
+    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 80;
+  const ref = PEER_SHOP_SELL_PRICE[offer.crop];
+
+  if (offer.direction === "sell") {
+    // Someone is selling to us — we'd buy.
+    if (offer.unitPrice > ref * HOARDER_PEER_BUY_CEILING) {
+      return { decision: "decline", reason: "price-too-high" };
+    }
+    const cost = offer.unitPrice * offer.quantity;
+    if (farmer.inventory.gold - cost < reserve) {
+      return { decision: "decline", reason: "would-breach-reserve" };
+    }
+    return { decision: "accept" };
+  }
+
+  // direction === "buy" — someone wants to buy from us; we'd sell seeds.
+  if (offer.unitPrice < ref * HOARDER_PEER_SELL_FLOOR) {
+    return { decision: "decline", reason: "price-too-low" };
+  }
+  if (
+    farmer.inventory.seeds[offer.crop] <
+    offer.quantity + HOARDER_BUFFER_SEEDS
+  ) {
+    return { decision: "decline", reason: "would-deplete-buffer" };
+  }
+  return { decision: "accept" };
+};
+
+registerPeerTradeHooks("hoarder", {
+  initiate: initiatePeerTradeHoarder,
+  respond: respondToPeerOfferHoarder,
+});

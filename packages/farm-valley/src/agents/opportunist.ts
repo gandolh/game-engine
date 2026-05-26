@@ -4,6 +4,10 @@ import type { GameEntity, CropKind } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import type { WeatherCondition } from "../protocols/weather";
+import {
+  registerPeerTradeHooks,
+  type RespondPeerOfferFn,
+} from "./peer-trade-registry";
 
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 8, pumpkin: 15 };
@@ -151,3 +155,54 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 }
 
 registerPersonality("opportunist", deliberateOpportunist);
+
+// ---------------------------------------------------------------------------
+// Peer-trade hooks (encounter-trade system)
+// ---------------------------------------------------------------------------
+
+const OPP_PEER_SHOP_SELL_PRICE: Record<CropKind, number> = {
+  radish: 8,
+  wheat: 14,
+  pumpkin: 35,
+};
+const OPP_PEER_BUY_CEILING = 1.1; // matches wall heuristic
+const OPP_PEER_SELL_FLOOR = 0.9;
+const OPP_BUFFER_SEEDS = 1;
+
+export const respondToPeerOfferOpportunist: RespondPeerOfferFn = (
+  farmer,
+  offer,
+  _sender,
+  _ctx,
+) => {
+  if (!farmer.inventory) return { decision: "decline", reason: "no-inventory" };
+  const reserve =
+    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 50;
+  const ref = OPP_PEER_SHOP_SELL_PRICE[offer.crop];
+
+  if (offer.direction === "sell") {
+    if (offer.unitPrice > ref * OPP_PEER_BUY_CEILING) {
+      return { decision: "decline", reason: "price-too-high" };
+    }
+    const cost = offer.unitPrice * offer.quantity;
+    if (farmer.inventory.gold - cost < reserve) {
+      return { decision: "decline", reason: "would-breach-reserve" };
+    }
+    return { decision: "accept" };
+  }
+
+  if (offer.unitPrice < ref * OPP_PEER_SELL_FLOOR) {
+    return { decision: "decline", reason: "price-too-low" };
+  }
+  if (
+    farmer.inventory.seeds[offer.crop] <
+    offer.quantity + OPP_BUFFER_SEEDS
+  ) {
+    return { decision: "decline", reason: "would-deplete-buffer" };
+  }
+  return { decision: "accept" };
+};
+
+registerPeerTradeHooks("opportunist", {
+  respond: respondToPeerOfferOpportunist,
+});
