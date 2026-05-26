@@ -37,4 +37,9 @@ Catalog of everything in this corpus. Start here.
 - [briefs/game/done/08-shop-slate-sales.md](briefs/game/done/08-shop-slate-sales.md) — slate-driven shop seed sales with limited daily stock
 - [briefs/game/done/09-peer-meet-trades.md](briefs/game/done/09-peer-meet-trades.md) — peer seed trades via MEET; OFFER_SEED gains `direction`
 - [briefs/game/done/10-trust-and-endgame.md](briefs/game/done/10-trust-and-endgame.md) — trust updates + Aggressive end-of-sim liquidation
+- [briefs/game/done/11-focus-camera.md](briefs/game/done/11-focus-camera.md) — focus follow + free pan + sprite halo
+- [briefs/game/done/12-live-leaderboard.md](briefs/game/done/12-live-leaderboard.md) — running standings panel
+- [briefs/game/done/13-walking-animation.md](briefs/game/done/13-walking-animation.md) — 2-frame walk cycle per personality
+- [briefs/game/done/14-meet-indicator.md](briefs/game/done/14-meet-indicator.md) — speech bubble over MEET'd farmers
+- [briefs/game/done/15-slate-billboard.md](briefs/game/done/15-slate-billboard.md) — daily shop slate DOM panel
 - [briefs/game/todo/](briefs/game/todo/) — empty

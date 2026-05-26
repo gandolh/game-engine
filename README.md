@@ -6,6 +6,7 @@ Built on a custom TypeScript game engine that uses an ECS (entity-component-syst
 
 ![Home screen](media/merge-home-screen.png)
 ![Game running](media/merge-running.png)
+![Live with focus camera, leaderboard, observer, MEET indicators, slate billboard](media/farm-valley-polish.png)
 ![Day 100 leaderboard](media/farm-valley-final.png)
 
 ## Try it
