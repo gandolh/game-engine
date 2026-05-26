@@ -76,7 +76,7 @@ async function startGame(
   try {
     const { renderer, pathfinder } = await runtimePromise;
 
-    const { world, scheduler, dayClock } = bootstrapSim({
+    const { world, scheduler, dayClock, meetIndicators } = bootstrapSim({
       seed: CONFIG.seed,
       ticksPerDay: CONFIG.ticksPerDay,
       maxDays: CONFIG.maxDays,
@@ -109,7 +109,7 @@ async function startGame(
       },
       onRender(alpha) {
         renderer.beginFrame();
-        buildCanvasFrame(renderer, world, alpha);
+        buildCanvasFrame(renderer, world, alpha, meetIndicators.active(clock.tick));
         renderer.endFrame();
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });

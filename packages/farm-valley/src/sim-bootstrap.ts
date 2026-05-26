@@ -18,6 +18,7 @@ import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
 import { EncounterSystem } from "./systems/encounter";
+import { MeetIndicatorSystem } from "./systems/meet-indicator";
 import { ShopSlateSystem } from "./systems/shop-slate";
 import { FinishDaySystem } from "./systems/finish-day";
 import { setupWeatherFeature } from "./agents/weather-station";
@@ -80,6 +81,7 @@ export interface BootedSim {
   dayClock: DayClockSystem;
   rng: Rng;
   farmers: GameEntity[];
+  meetIndicators: MeetIndicatorSystem;
 }
 
 export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
@@ -107,12 +109,14 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     ticksPerDay: opts.ticksPerDay,
     maxDays: opts.maxDays ?? DEFAULT_MAX_DAYS,
   });
+  const meetIndicators = new MeetIndicatorSystem(world);
   const scheduler = new Scheduler()
     .add(dayClock)
     .add(weatherFeature.weatherSystem)
     .add(new InboxDispatchSystem(bus, world))
     .add(new ShopSlateSystem(world, bus, rng))
     .add(new EncounterSystem(world, bus))
+    .add(meetIndicators)
     .add(new TrustSystem(world, listCoordinators()))
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
@@ -131,7 +135,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(marketShop.auctionSystem)
     .add(new FinishDaySystem(world));
 
-  return { world, bus, scheduler, dayClock, rng, farmers };
+  return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators };
 }
 
 export interface FarmerSummary {

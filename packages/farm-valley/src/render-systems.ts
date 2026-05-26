@@ -2,6 +2,7 @@ import type { World } from "@engine/core";
 import { Canvas2dRenderer } from "@engine/core";
 import type { Canvas2dSprite } from "@engine/core";
 import type { GameEntity } from "./components";
+import type { MeetIndicatorEntry } from "./systems/meet-indicator";
 import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
@@ -173,12 +174,71 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
   }
 }
 
+/**
+ * Emit one `indicator/meet` bubble sprite per active MEET indicator,
+ * positioned one tile-height above each farmer's current transform.
+ *
+ * This is a standalone generator so concurrent briefs (focus-camera,
+ * walking-animation) can each append to the sprite list without merge
+ * conflicts — they each own their own function.
+ */
+function* iterateMeetIndicators(
+  world: World<GameEntity>,
+  meetIndicators: readonly MeetIndicatorEntry[],
+  alpha: number,
+): Generator<LogicalSprite> {
+  if (meetIndicators.length === 0) return;
+
+  // Build a map of farmerId → interpolated pixel position.
+  const positions = new Map<number, { px: number; py: number }>();
+  for (const entity of world.query("transform")) {
+    if (entity.id === undefined) continue;
+    const t = entity.transform;
+    const tileX = t.prevX + (t.x - t.prevX) * alpha;
+    const tileY = t.prevY + (t.y - t.prevY) * alpha;
+    positions.set(entity.id, {
+      px: tileX * TILE + TILE / 2,
+      py: tileY * TILE + TILE / 2,
+    });
+  }
+
+  for (const entry of meetIndicators) {
+    const pos = positions.get(entry.farmerId);
+    if (!pos) continue;
+    yield {
+      x: pos.px,
+      y: pos.py - TILE, // one tile above the farmer sprite
+      width: TILE,
+      height: TILE,
+      frame: "indicator/meet",
+      rotation: 0,
+      layer: 90, // above all scene sprites
+      alpha: 1,
+    };
+  }
+}
+
 export function buildCanvasFrame(
   renderer: Canvas2dRenderer,
   world: World<GameEntity>,
   alpha: number,
+  meetIndicators: readonly MeetIndicatorEntry[] = [],
 ): void {
   for (const ls of iterSceneSprites(world, alpha)) {
+    const sprite: Canvas2dSprite = {
+      x: ls.x,
+      y: ls.y,
+      width: ls.width,
+      height: ls.height,
+      frame: ls.frame,
+      rotation: ls.rotation,
+      layer: ls.layer,
+      alpha: ls.alpha,
+    };
+    renderer.push(sprite);
+  }
+
+  for (const ls of iterateMeetIndicators(world, meetIndicators, alpha)) {
     const sprite: Canvas2dSprite = {
       x: ls.x,
       y: ls.y,

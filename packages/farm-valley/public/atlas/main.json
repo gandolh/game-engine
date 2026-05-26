@@ -64,56 +64,62 @@
       "w": 16,
       "h": 16
     },
-    "crop/radish/seed": {
+    "indicator/meet": {
       "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/seed": {
+      "x": 69,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "crop/radish/growing": {
-      "x": 69,
-      "y": 18,
-      "w": 16,
-      "h": 16
-    },
-    "crop/radish/mature": {
       "x": 86,
       "y": 18,
       "w": 16,
       "h": 16
     },
-    "crop/wheat/seed": {
+    "crop/radish/mature": {
       "x": 103,
       "y": 18,
       "w": 16,
       "h": 16
     },
-    "crop/wheat/growing": {
+    "crop/wheat/seed": {
       "x": 1,
       "y": 35,
       "w": 16,
       "h": 16
     },
-    "crop/wheat/mature": {
+    "crop/wheat/growing": {
       "x": 18,
       "y": 35,
       "w": 16,
       "h": 16
     },
-    "crop/pumpkin/seed": {
+    "crop/wheat/mature": {
       "x": 35,
       "y": 35,
       "w": 16,
       "h": 16
     },
-    "crop/pumpkin/growing": {
+    "crop/pumpkin/seed": {
       "x": 52,
       "y": 35,
       "w": 16,
       "h": 16
     },
-    "crop/pumpkin/mature": {
+    "crop/pumpkin/growing": {
       "x": 69,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/pumpkin/mature": {
+      "x": 86,
       "y": 35,
       "w": 16,
       "h": 16
