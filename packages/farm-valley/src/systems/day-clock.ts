@@ -3,6 +3,7 @@ import { PERFORMATIVE, ONT_SIMULATION, type DayStartBody } from "../protocols";
 
 export interface DayClockConfig {
   ticksPerDay: number;
+  maxDays: number;
 }
 
 export class DayClockSystem implements System {
@@ -24,7 +25,8 @@ export class DayClockSystem implements System {
     if (boundary === this.lastBoundary) return;
     this.lastBoundary = boundary;
     this.currentDay = boundary;
-    const body: DayStartBody = { day: this.currentDay };
+    const daysRemaining = Math.max(0, this.config.maxDays - this.currentDay);
+    const body: DayStartBody = { day: this.currentDay, daysRemaining };
     this.bus.send(
       {
         performative: PERFORMATIVE.INFORM,

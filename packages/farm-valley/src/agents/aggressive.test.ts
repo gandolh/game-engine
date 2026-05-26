@@ -129,4 +129,64 @@ describe("deliberateAggressive", () => {
     expect(travelIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeLessThan(postIdx);
   });
+
+  it("liquidates all crops when daysRemaining <= 2", () => {
+    const f = makeFarmer({
+      day: 98,
+      crops: { radish: 4, wheat: 2, pumpkin: 3 },
+      region: "village",
+    });
+    f.beliefs!.data["daysRemaining"] = 2;
+    deliberateAggressive(f, { tick: 1960 });
+
+    const queue = f.intentions!.queue;
+    const sells = queue.filter((i) => i.kind === "sell-shopkeeper");
+    expect(sells).toHaveLength(3);
+    const cropQtys: Record<string, number> = {};
+    for (const s of sells) {
+      cropQtys[s.data["crop"] as string] = s.data["quantity"] as number;
+    }
+    expect(cropQtys["radish"]).toBe(4);
+    expect(cropQtys["wheat"]).toBe(2);
+    expect(cropQtys["pumpkin"]).toBe(3);
+    // No planting, no market posting, no wall scanning.
+    expect(queue.find((i) => i.kind === "plant")).toBeUndefined();
+    expect(queue.find((i) => i.kind === "buy-seed")).toBeUndefined();
+    expect(queue.find((i) => i.kind === "post-offer")).toBeUndefined();
+    expect(queue.find((i) => i.kind === "read-offers")).toBeUndefined();
+  });
+
+  it("liquidation prepends travel-to-village when not in village", () => {
+    const f = makeFarmer({
+      day: 99,
+      crops: { pumpkin: 1 },
+      region: "farm-cora",
+    });
+    f.beliefs!.data["daysRemaining"] = 1;
+    deliberateAggressive(f, { tick: 1980 });
+
+    const queue = f.intentions!.queue;
+    const travelIdx = queue.findIndex(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
+    );
+    const sellIdx = queue.findIndex((i) => i.kind === "sell-shopkeeper");
+    expect(travelIdx).toBeGreaterThan(-1);
+    expect(sellIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeLessThan(sellIdx);
+  });
+
+  it("does not liquidate when daysRemaining > 2", () => {
+    const f = makeFarmer({
+      day: 50,
+      seeds: { pumpkin: 1 },
+      crops: { wheat: 3 },
+      region: "village",
+    });
+    f.beliefs!.data["daysRemaining"] = 3;
+    deliberateAggressive(f, { tick: 1000 });
+
+    // Normal flow: planting + market actions, not pure liquidation.
+    const queue = f.intentions!.queue;
+    expect(queue.find((i) => i.kind === "plant")).toBeDefined();
+  });
 });
