@@ -11,7 +11,7 @@ import {
 import type { AtlasManifest, Pathfinder } from "@engine/core";
 import { buildCanvasFrame } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
-import { ObserverPanel, type ObserverSnapshot } from "./ui";
+import { ObserverPanel, SlateBillboardPanel, type ObserverSnapshot } from "./ui";
 import { HomeScreen } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
 
@@ -86,6 +86,7 @@ async function startGame(
     const clock = new FixedStepClock({ tickRateHz: CONFIG.tickRateHz });
     const overlay = new DebugOverlay(app);
     const observer = new ObserverPanel(app);
+    const slateBillboard = new SlateBillboardPanel(app);
     const gameOverPanel = createGameOverPanel(app);
     const inputLog = new InputLog();
     let gameOver = false;
@@ -114,6 +115,8 @@ async function startGame(
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });
         observer.update(buildObserverSnapshot(world, dayClock.day));
+        const shopEntity = (() => { for (const s of world.query("shopkeeper")) return s; return null; })();
+        slateBillboard.update(shopEntity?.shopkeeper?.dailySlate ?? []);
       },
     });
     loop.start();
