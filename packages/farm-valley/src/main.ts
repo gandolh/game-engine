@@ -11,7 +11,13 @@ import {
 import type { AtlasManifest, Pathfinder } from "@engine/core";
 import { buildCanvasFrame } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
-import { ObserverPanel, SlateBillboardPanel, type ObserverSnapshot } from "./ui";
+import {
+  ObserverPanel,
+  LeaderboardPanel,
+  SlateBillboardPanel,
+  type ObserverSnapshot,
+  type LeaderboardRow,
+} from "./ui";
 import { HomeScreen } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
 
@@ -86,6 +92,7 @@ async function startGame(
     const clock = new FixedStepClock({ tickRateHz: CONFIG.tickRateHz });
     const overlay = new DebugOverlay(app);
     const observer = new ObserverPanel(app);
+    const leaderboardPanel = new LeaderboardPanel(app);
     const slateBillboard = new SlateBillboardPanel(app);
     const gameOverPanel = createGameOverPanel(app);
     const inputLog = new InputLog();
@@ -115,6 +122,7 @@ async function startGame(
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });
         observer.update(buildObserverSnapshot(world, dayClock.day));
+        leaderboardPanel.update(buildLeaderboardRows(world));
         const shopEntity = (() => { for (const s of world.query("shopkeeper")) return s; return null; })();
         slateBillboard.update(shopEntity?.shopkeeper?.dailySlate ?? []);
       },
@@ -185,6 +193,20 @@ function buildObserverSnapshot(
     })),
     farmers: farmerEntries,
   };
+}
+
+function buildLeaderboardRows(
+  world: ReturnType<typeof bootstrapSim>["world"],
+): LeaderboardRow[] {
+  return leaderboard(world).map((summary, index) => ({
+    rank: index + 1,
+    id: summary.id,
+    name: summary.name,
+    personality: summary.personality,
+    gold: summary.gold,
+    unsoldValue: summary.unsoldValue,
+    totalValue: summary.totalValue,
+  }));
 }
 
 function createGameOverPanel(parent: HTMLElement): HTMLElement {

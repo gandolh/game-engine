@@ -3,5 +3,7 @@ export type { ObserverSnapshot } from "./observer";
 export { ConfigPanel } from "./config-panel";
 export type { ConfigField, ConfigSchema } from "./config-panel";
 export { createEl, setText, applyStyles } from "./dom";
+export { LeaderboardPanel } from "./leaderboard";
+export type { LeaderboardRow } from "./leaderboard";
 export { SlateBillboardPanel } from "./slate-billboard";
 export type { SlateEntry } from "./slate-billboard";
