@@ -3,6 +3,10 @@
 import type { GameEntity, CropKind } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
+import {
+  registerPeerTradeHooks,
+  type RespondPeerOfferFn,
+} from "./peer-trade-registry";
 
 // Shopkeeper reference prices for now (constants from spec).
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
@@ -160,3 +164,49 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 }
 
 registerPersonality("aggressive", deliberateAggressive);
+
+// ---------------------------------------------------------------------------
+// Peer-trade hooks (encounter-trade system)
+// ---------------------------------------------------------------------------
+
+const AGGR_PEER_SHOP_SELL_PRICE: Record<CropKind, number> = {
+  radish: 8,
+  wheat: 14,
+  pumpkin: 35,
+};
+const AGGR_PEER_BUY_CEILING = 0.95; // discount buyer
+const AGGR_PEER_SELL_FLOOR = 1.0;   // sells at shopkeeper ceiling
+
+export const respondToPeerOfferAggressive: RespondPeerOfferFn = (
+  farmer,
+  offer,
+  _sender,
+  _ctx,
+) => {
+  if (!farmer.inventory) return { decision: "decline", reason: "no-inventory" };
+  const reserve =
+    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 10;
+  const ref = AGGR_PEER_SHOP_SELL_PRICE[offer.crop];
+
+  if (offer.direction === "sell") {
+    if (offer.unitPrice > ref * AGGR_PEER_BUY_CEILING) {
+      return { decision: "decline", reason: "price-too-high" };
+    }
+    const cost = offer.unitPrice * offer.quantity;
+    if (farmer.inventory.gold - cost < reserve) {
+      return { decision: "decline", reason: "would-breach-reserve" };
+    }
+    return { decision: "accept" };
+  }
+
+  // direction === "buy" — peer wants to buy from us.
+  if (offer.unitPrice < ref * AGGR_PEER_SELL_FLOOR) {
+    return { decision: "decline", reason: "price-too-low" };
+  }
+  if (farmer.inventory.seeds[offer.crop] < offer.quantity) {
+    return { decision: "decline", reason: "no-stock" };
+  }
+  return { decision: "accept" };
+};
+
+registerPeerTradeHooks("aggressive", { respond: respondToPeerOfferAggressive });

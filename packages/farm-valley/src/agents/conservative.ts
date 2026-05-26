@@ -1,5 +1,9 @@
 import type { GameEntity, CropKind } from "../components";
 import { registerPersonality } from "./registry";
+import {
+  registerPeerTradeHooks,
+  type RespondPeerOfferFn,
+} from "./peer-trade-registry";
 
 export function deliberateConservative(farmer: GameEntity): void {
   if (!farmer.beliefs || !farmer.desires || !farmer.intentions || !farmer.inventory) return;
@@ -47,3 +51,54 @@ export function deliberateConservative(farmer: GameEntity): void {
 }
 
 registerPersonality("conservative", deliberateConservative);
+
+// ---------------------------------------------------------------------------
+// Peer-trade hooks (encounter-trade system)
+// ---------------------------------------------------------------------------
+
+const CONS_PEER_SHOP_SELL_PRICE: Record<CropKind, number> = {
+  radish: 8,
+  wheat: 14,
+  pumpkin: 35,
+};
+const CONS_PEER_BUY_CEILING = 1.0; // never over shop price
+const CONS_PEER_SELL_FLOOR = 0.9;
+const CONS_BUFFER_SEEDS = 1;
+
+export const respondToPeerOfferConservative: RespondPeerOfferFn = (
+  farmer,
+  offer,
+  _sender,
+  _ctx,
+) => {
+  if (!farmer.inventory) return { decision: "decline", reason: "no-inventory" };
+  const reserve =
+    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 30;
+  const ref = CONS_PEER_SHOP_SELL_PRICE[offer.crop];
+
+  if (offer.direction === "sell") {
+    if (offer.unitPrice > ref * CONS_PEER_BUY_CEILING) {
+      return { decision: "decline", reason: "price-too-high" };
+    }
+    const cost = offer.unitPrice * offer.quantity;
+    if (farmer.inventory.gold - cost < reserve) {
+      return { decision: "decline", reason: "would-breach-reserve" };
+    }
+    return { decision: "accept" };
+  }
+
+  if (offer.unitPrice < ref * CONS_PEER_SELL_FLOOR) {
+    return { decision: "decline", reason: "price-too-low" };
+  }
+  if (
+    farmer.inventory.seeds[offer.crop] <
+    offer.quantity + CONS_BUFFER_SEEDS
+  ) {
+    return { decision: "decline", reason: "would-deplete-buffer" };
+  }
+  return { decision: "accept" };
+};
+
+registerPeerTradeHooks("conservative", {
+  respond: respondToPeerOfferConservative,
+});
