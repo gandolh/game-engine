@@ -13,7 +13,7 @@ import {
 import type { AtlasManifest } from "@engine/core";
 import { buildSpriteFrame, buildCanvasFrame } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
-import { ObserverPanel, type ObserverSnapshot } from "./ui";
+import { HomeScreen, ObserverPanel, type ObserverSnapshot } from "./ui";
 import { decorateMarketAndShop } from "./decorate";
 
 interface BootConfig {
@@ -82,8 +82,23 @@ async function boot(): Promise<void> {
   const fatal = document.getElementById("fatal") as HTMLElement | null;
   if (!canvas || !app || !fatal) throw new Error("Missing #canvas/#app/#fatal");
 
+  const home = new HomeScreen(app);
+
+  const backendPromise = initRenderBackend(canvas);
+  backendPromise.catch(() => {});
+
+  home.onStartClicked(() => {
+    void startGame(app, fatal, backendPromise);
+  });
+}
+
+async function startGame(
+  app: HTMLElement,
+  fatal: HTMLElement,
+  backendPromise: Promise<RenderBackend>,
+): Promise<void> {
   try {
-    const backend = await initRenderBackend(canvas);
+    const backend = await backendPromise;
 
     const { world, scheduler, dayClock } = bootstrapSim({
       seed: CONFIG.seed,
