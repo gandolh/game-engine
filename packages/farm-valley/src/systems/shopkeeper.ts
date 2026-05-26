@@ -7,6 +7,7 @@ import {
   type ShopConfirmBody,
   type AuctionCfpBody,
 } from "../protocols/shop";
+import { consumeFromSlate } from "../agents/shop-slate";
 import type { ShopOffer } from "../agents/shop-slate";
 import { PERFORMATIVE } from "../protocols/performatives";
 import type { AuctionSystem } from "./auction";
@@ -227,51 +228,23 @@ export class ShopkeeperSystem implements System {
     }
 
     const seedCrop = crop as CropKind;
-    const slate = shop.shopkeeper?.dailySlate ?? [];
-    // Matching offers: same crop, still have stock. `kind === "sell"` is
-    // guaranteed by the slate generator post-brief-08 but the filter keeps
-    // the handler robust if a future slate variant ever sneaks a non-sell
-    // offer in.
-    const matching: ShopOffer[] = slate.filter(
-      (o) => o.kind === "sell" && o.crop === seedCrop && o.remaining > 0,
-    );
+    // Cast: dailySlate is typed readonly but per-offer fields are mutable.
+    const slate = shop.shopkeeper?.dailySlate as ShopOffer[] | undefined;
 
-    if (matching.length === 0) {
+    // 1. Dry-run to compute total cost without mutating slate.
+    const dry = consumeFromSlate(slate, seedCrop, qty, { dryRun: true });
+    if (!dry.ok || dry.totalCost === undefined) {
       this.replyConfirm(ctx.tick, sender, {
         ok: false,
         goldDelta: 0,
         itemDelta: { crop: seedCrop, quantity: 0 },
-        reason: "no-matching-offer",
+        reason: dry.reason ?? "no-matching-offer",
       });
       return;
     }
 
-    const totalAvailable = matching.reduce((sum, o) => sum + o.remaining, 0);
-    if (totalAvailable < qty) {
-      this.replyConfirm(ctx.tick, sender, {
-        ok: false,
-        goldDelta: 0,
-        itemDelta: { crop: seedCrop, quantity: 0 },
-        reason: "insufficient-stock",
-      });
-      return;
-    }
-
-    // Cheapest-first. Array.sort is stable from ES2019, so equal-price
-    // offers retain their slate-order tie-break — deterministic.
-    const ordered = [...matching].sort((a, b) => a.unitPrice - b.unitPrice);
-    const plan: Array<{ offer: ShopOffer; take: number }> = [];
-    let qtyLeft = qty;
-    let cost = 0;
-    for (const offer of ordered) {
-      if (qtyLeft <= 0) break;
-      const take = Math.min(offer.remaining, qtyLeft);
-      plan.push({ offer, take });
-      cost += take * offer.unitPrice;
-      qtyLeft -= take;
-    }
-
-    if (farmer.inventory.gold < cost) {
+    // 2. Gold check before committing slate.
+    if (farmer.inventory.gold < dry.totalCost) {
       this.replyConfirm(ctx.tick, sender, {
         ok: false,
         goldDelta: 0,
@@ -281,16 +254,25 @@ export class ShopkeeperSystem implements System {
       return;
     }
 
-    // Commit phase — past this point, all checks have passed and we mutate.
-    for (const { offer, take } of plan) {
-      offer.remaining -= take;
+    // 3. Commit — decrement slate, deduct gold, credit seeds.
+    const consume = consumeFromSlate(slate, seedCrop, qty);
+    // consume.ok must be true here (same slate, no external mutation between steps).
+    if (!consume.ok || consume.totalCost === undefined) {
+      // Defensive: shouldn't happen, but bail cleanly.
+      this.replyConfirm(ctx.tick, sender, {
+        ok: false,
+        goldDelta: 0,
+        itemDelta: { crop: seedCrop, quantity: 0 },
+        reason: "insufficient-stock",
+      });
+      return;
     }
-    farmer.inventory.gold -= cost;
+    farmer.inventory.gold -= consume.totalCost;
     farmer.inventory.seeds[seedCrop] += qty;
 
     this.replyConfirm(ctx.tick, sender, {
       ok: true,
-      goldDelta: -cost,
+      goldDelta: -consume.totalCost,
       itemDelta: { crop: seedCrop, quantity: qty },
     });
   }

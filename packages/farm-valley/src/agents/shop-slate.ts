@@ -1,4 +1,5 @@
 import type { Rng } from "@engine/core";
+import type { CropKind } from "../components";
 
 export interface ShopOffer {
   offerId: string;
@@ -38,6 +39,80 @@ export const SLATE_SIZE = 5;
 export const PRICE_JITTER = 0.2; // ±20%
 
 const CROPS = ["radish", "wheat", "pumpkin"] as const;
+
+export interface SlateConsumeResult {
+  ok: boolean;
+  totalCost?: number;
+  reason?: "no-matching-offer" | "insufficient-stock";
+}
+
+export interface SlateConsumeOptions {
+  /** When true, return result without mutating any offer.remaining. */
+  dryRun?: boolean;
+}
+
+/**
+ * Atomically reserve `quantity` units of `crop` from the slate, cheapest-first
+ * across multiple matching offers. On success, decrements `remaining` on the
+ * chosen offers (in place) and returns `{ ok: true, totalCost }`. On failure,
+ * leaves the slate untouched and returns `{ ok: false, reason }`.
+ *
+ * When `options.dryRun` is true, behaves identically but never mutates any
+ * offer — useful for pre-checking cost before committing.
+ *
+ * The atomicity guarantee: the consumption plan is fully computed and checked
+ * before any offer is touched. If the stock check fails, no mutation happens.
+ */
+export function consumeFromSlate(
+  slate: ShopOffer[] | undefined,
+  crop: CropKind,
+  quantity: number,
+  options: SlateConsumeOptions = {},
+): SlateConsumeResult {
+  if (!slate || slate.length === 0) {
+    return { ok: false, reason: "no-matching-offer" };
+  }
+
+  // Filter matching offers (same crop, still have stock, kind === "sell").
+  const matching = slate.filter(
+    (o) => o.kind === "sell" && o.crop === crop && o.remaining > 0,
+  );
+
+  if (matching.length === 0) {
+    return { ok: false, reason: "no-matching-offer" };
+  }
+
+  // Sort ascending by unitPrice, tie-break by offerId (lexicographic).
+  const ordered = [...matching].sort(
+    (a, b) => a.unitPrice - b.unitPrice || (a.offerId < b.offerId ? -1 : a.offerId > b.offerId ? 1 : 0),
+  );
+
+  // Build consumption plan.
+  const plan: Array<{ offer: ShopOffer; take: number }> = [];
+  let qtyLeft = quantity;
+  let totalCost = 0;
+
+  for (const offer of ordered) {
+    if (qtyLeft <= 0) break;
+    const take = Math.min(offer.remaining, qtyLeft);
+    plan.push({ offer, take });
+    totalCost += take * offer.unitPrice;
+    qtyLeft -= take;
+  }
+
+  if (qtyLeft > 0) {
+    return { ok: false, reason: "insufficient-stock" };
+  }
+
+  // Commit phase — skip when dryRun.
+  if (!options.dryRun) {
+    for (const { offer, take } of plan) {
+      offer.remaining -= take;
+    }
+  }
+
+  return { ok: true, totalCost };
+}
 
 /**
  * Generate a deterministic daily slate of SLATE_SIZE shop offers.
