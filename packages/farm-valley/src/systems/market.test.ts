@@ -8,7 +8,7 @@ import { PERFORMATIVE } from "../protocols/performatives";
 
 function makeFarmer(world: World<GameEntity>, gold = 50): GameEntity {
   return world.spawn({
-    farmer: { name: "F" },
+    farmer: { name: "F", currentRegion: "village" as const },
     inbox: { messages: [] },
     inventory: {
       gold,

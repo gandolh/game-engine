@@ -12,7 +12,7 @@ function makeFarmer(
   opts: { gold?: number; crops?: Partial<Record<"radish" | "wheat" | "pumpkin", number>>; day?: number } = {},
 ): GameEntity {
   return world.spawn({
-    farmer: { name: "F" },
+    farmer: { name: "F", currentRegion: "village" as const },
     inbox: { messages: [] },
     inventory: {
       gold: opts.gold ?? 100,

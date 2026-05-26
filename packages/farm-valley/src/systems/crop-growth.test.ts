@@ -30,6 +30,7 @@ function spawnPlot(world: World<GameEntity>, ownerId: number): GameEntity {
   return world.spawn({
     plot: {
       ownerId,
+      regionId: "farm-cora" as const,
       tileX: 0,
       tileY: 0,
       state: {
@@ -124,6 +125,7 @@ describe("CropGrowthSystem", () => {
     const emptyPlot = world.spawn({
       plot: {
         ownerId: 1,
+        regionId: "farm-cora" as const,
         tileX: 1,
         tileY: 1,
         state: { kind: "empty" },

@@ -19,7 +19,7 @@ function spawnFarmer(
   fsmState: "ACT" | "FINISH_DAY" | "WAIT_DAY" = "ACT",
 ): GameEntity {
   return world.spawn({
-    farmer: { name: "Test" },
+    farmer: { name: "Test", currentRegion: "farm-cora" as const },
     fsm: { current: fsmState, enteredTick: 0 },
     ap: {
       current: apCurrent,
