@@ -333,6 +333,81 @@ describe("EncounterTradeSystem", () => {
     ).toBe(false);
   });
 
+  it("acceptor records +acceptDelta trust toward the sender when accepting OFFER_SEED", () => {
+    // Atticus (aggressive) will accept a sell-direction offer at <= 95% shop
+    // sell price. We inject the OFFER_SEED directly into his inbox from a
+    // peer (Hannah) so we exercise the respond path without needing the
+    // hoarder's initiate hook to fire.
+    const hannah = spawnFarmer(world, {
+      personality: "hoarder",
+      gold: 200,
+      seeds: { wheat: 5 },
+    });
+    const atticus = spawnFarmer(world, {
+      personality: "aggressive",
+      gold: 100,
+      seeds: { wheat: 0 },
+    });
+
+    // direction='sell' means the sender (Hannah) is selling wheat to Atticus.
+    // Aggressive's buy ceiling is 95% of shop price (14 * 0.95 = 13.3).
+    // unitPrice 13 is below the ceiling, so Atticus accepts.
+    const offer: OfferSeedBody = {
+      offerId: "trust-test-1",
+      crop: "wheat",
+      quantity: 1,
+      unitPrice: 13,
+      direction: "sell",
+    };
+    atticus.inbox!.messages.push({
+      performative: PERFORMATIVE.PROPOSE,
+      ontology: ONT_ENCOUNTER.OFFER_SEED,
+      sender: hannah.id!,
+      body: offer as unknown as Record<string, unknown>,
+      tickIssued: 1,
+    });
+
+    trade.run({ tick: 1 });
+
+    // Atticus accepted, so his trust toward Hannah should be 0.5 + 0.05 = 0.55.
+    expect(atticus.trust?.byId.get(hannah.id!)).toBe(0.55);
+  });
+
+  it("declines do NOT bump trust on the responder side", () => {
+    // Inject a sell-direction offer that Atticus will decline (price too high).
+    const hannah = spawnFarmer(world, {
+      personality: "hoarder",
+      gold: 200,
+      seeds: { wheat: 5 },
+    });
+    const atticus = spawnFarmer(world, {
+      personality: "aggressive",
+      gold: 100,
+      seeds: { wheat: 0 },
+    });
+
+    // unitPrice 14 * 0.96 = 13.44, which is above 95% of 14 (13.3) → decline.
+    const offer: OfferSeedBody = {
+      offerId: "trust-decline-1",
+      crop: "wheat",
+      quantity: 1,
+      unitPrice: 14,
+      direction: "sell",
+    };
+    atticus.inbox!.messages.push({
+      performative: PERFORMATIVE.PROPOSE,
+      ontology: ONT_ENCOUNTER.OFFER_SEED,
+      sender: hannah.id!,
+      body: offer as unknown as Record<string, unknown>,
+      tickIssued: 1,
+    });
+
+    trade.run({ tick: 1 });
+
+    // No trust entry at all — decline must not set or modify trust on responder side.
+    expect(atticus.trust?.byId.get(hannah.id!)).toBeUndefined();
+  });
+
   it("expires unresolved pending offers after OFFER_TTL_TICKS", () => {
     const staleOffer: OfferSeedBody = {
       offerId: "stale-1",

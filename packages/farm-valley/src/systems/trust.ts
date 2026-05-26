@@ -12,8 +12,8 @@
 // All updates clamp to [0, 1]. Trust map is lazy-initialized on first delta.
 //
 // The responder-side OFFER_SEED ACCEPT delta (we ACCEPTed peer's offer →
-// +0.05 toward peer) is not implementable today because no production code
-// processes OFFER_SEED. Once a handler exists, add the symmetric branch here.
+// +0.05 toward peer) is applied directly in EncounterTradeSystem.handleOffer,
+// so the trust matrix is fully live across all four cases.
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_ENCOUNTER } from "../protocols/encounter";

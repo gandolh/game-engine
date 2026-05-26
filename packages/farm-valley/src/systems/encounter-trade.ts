@@ -14,6 +14,7 @@ import {
 } from "../protocols/encounter";
 import { PERFORMATIVE } from "../protocols/performatives";
 import { getPeerTradeHooks } from "../agents/peer-trade-registry";
+import { applyTrustDelta, DEFAULT_TRUST_CONFIG } from "./trust";
 
 /**
  * EncounterTradeSystem — drives the peer-to-peer seed-trade handshake on top
@@ -251,6 +252,9 @@ export class EncounterTradeSystem implements System {
     const result = hooks.respond(farmer, offer, sender, { tick: ctx.tick });
     if (result.decision === "accept") {
       this.sendAccept(farmer.id, sender, offer.offerId, ctx.tick);
+      // Responder-side trust delta — initiator-side fires when their inbox
+      // receives our ACCEPT and TrustSystem snoops it.
+      applyTrustDelta(farmer, sender, DEFAULT_TRUST_CONFIG.acceptDelta);
     } else {
       this.sendDecline(
         farmer.id,
