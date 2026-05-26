@@ -42,12 +42,94 @@ interface Runtime {
   pathfinder: Pathfinder | null;
 }
 
+// brief-11: focus-camera — module-level camera interaction state
+let focusedFarmerId: number | null = null;
+let panOffset = { x: 0, y: 0 };
+let zoom = 1;
+
+// brief-11: focus-camera — wire canvas drag + scroll listeners onto the canvas
+function setupCameraListeners(
+  canvas: HTMLCanvasElement,
+  camera: Camera2D,
+): void {
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let camStartX = 0;
+  let camStartY = 0;
+
+  canvas.addEventListener("mousedown", (e: MouseEvent) => {
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    camStartX = panOffset.x;
+    camStartY = panOffset.y;
+  });
+
+  window.addEventListener("mousemove", (e: MouseEvent) => {
+    if (!isDragging) return;
+    // Convert screen-pixel delta to world-pixel delta
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
+    const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
+    panOffset = {
+      x: camStartX - (e.clientX - dragStartX) * scaleX,
+      y: camStartY - (e.clientY - dragStartY) * scaleY,
+    };
+    applyFocusAndPan(camera);
+  });
+
+  window.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+
+  canvas.addEventListener("wheel", (e: WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    zoom = Math.max(0.5, Math.min(3, zoom + delta));
+    camera.setZoom(zoom);
+    applyFocusAndPan(camera);
+  }, { passive: false });
+}
+
+// brief-11: focus-camera — find a farmer's world-pixel position by id
+function farmerWorldPos(
+  world: ReturnType<typeof bootstrapSim>["world"],
+): Map<number, { x: number; y: number }> {
+  const result = new Map<number, { x: number; y: number }>();
+  for (const entity of world.query("transform", "farmer")) {
+    if (entity.id === undefined) continue;
+    result.set(entity.id, {
+      x: entity.transform.x * TILE + TILE / 2,
+      y: entity.transform.y * TILE + TILE / 2,
+    });
+  }
+  return result;
+}
+
+// brief-11: focus-camera — build a live getter so onRender can call it
+let _farmerPosGetter: (() => Map<number, { x: number; y: number }>) | null = null;
+let _camera: Camera2D | null = null;
+
+// brief-11: focus-camera — center + pan logic
+function applyFocusAndPan(camera: Camera2D): void {
+  const baseX = focusedFarmerId !== null && _farmerPosGetter
+    ? (_farmerPosGetter().get(focusedFarmerId)?.x ?? camera.centerX)
+    : (WORLD_WIDTH * TILE) / 2;
+  const baseY = focusedFarmerId !== null && _farmerPosGetter
+    ? (_farmerPosGetter().get(focusedFarmerId)?.y ?? camera.centerY)
+    : (WORLD_HEIGHT * TILE) / 2;
+  camera.setCenter(baseX + panOffset.x, baseY + panOffset.y);
+}
+
 async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   const manifest = await fetchAtlasManifest();
   const atlasImage = await loadAtlasImage(manifest);
   const camera = new Camera2D(CAMERA_CONFIG);
+  _camera = camera;
   const renderer = new Canvas2dRenderer(canvas, camera);
   renderer.setAtlas(atlasImage);
+  setupCameraListeners(canvas, camera);
   const pathfinder = await loadPathfinder();
   return { renderer, pathfinder };
 }
@@ -93,6 +175,15 @@ async function startGame(
 
     void inputLog;
 
+    // brief-11: focus-camera — set up observer row click handler
+    _farmerPosGetter = () => farmerWorldPos(world);
+    observer.setOnFarmerClick((id) => {
+      focusedFarmerId = id;
+      // Reset pan when changing focus
+      panOffset = { x: 0, y: 0 };
+      if (_camera !== null) applyFocusAndPan(_camera);
+    });
+
     const loop = new GameLoop(clock, {
       onTick(tick) {
         if (gameOver) return;
@@ -108,8 +199,12 @@ async function startGame(
         }
       },
       onRender(alpha) {
+        // brief-11: focus-camera — update camera center to follow focused farmer each frame
+        if (_camera !== null && focusedFarmerId !== null) {
+          applyFocusAndPan(_camera);
+        }
         renderer.beginFrame();
-        buildCanvasFrame(renderer, world, alpha);
+        buildCanvasFrame(renderer, world, alpha, focusedFarmerId);
         renderer.endFrame();
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });

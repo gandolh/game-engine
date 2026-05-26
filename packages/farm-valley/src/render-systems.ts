@@ -86,7 +86,45 @@ function computeFences(): readonly FenceTile[] {
 
 const FENCES: readonly FenceTile[] = computeFences();
 
-function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<LogicalSprite> {
+// brief-11: focus-camera — procedural halo ring around the focused farmer's position.
+// Emits 4 small rotated fence-h segments around the entity center to form a visible ring.
+function* iterateFocusHalo(
+  world: World<GameEntity>,
+  focusedFarmerId: number,
+  alpha: number,
+): Generator<LogicalSprite> {
+  for (const entity of world.query("sprite", "transform", "farmer")) {
+    if (entity.id !== focusedFarmerId) continue;
+    const t = entity.transform;
+    const tileX = t.prevX + (t.x - t.prevX) * alpha;
+    const tileY = t.prevY + (t.y - t.prevY) * alpha;
+    const cx = tileX * TILE + TILE / 2;
+    const cy = tileY * TILE + TILE / 2;
+    const r = TILE * 0.8; // ring radius in px
+    // 4 small segments at N/E/S/W
+    const offsets: Array<[number, number, number]> = [
+      [0, -r, 0],
+      [r, 0, Math.PI / 2],
+      [0, r, 0],
+      [-r, 0, Math.PI / 2],
+    ];
+    for (const [dx, dy, rot] of offsets) {
+      yield {
+        x: cx + dx,
+        y: cy + dy,
+        width: TILE * 0.5,
+        height: TILE * 0.5,
+        frame: "tile/fence-h",
+        rotation: rot,
+        layer: 50, // above entities
+        alpha: 0.85,
+      };
+    }
+    break;
+  }
+}
+
+function* iterSceneSprites(world: World<GameEntity>, alpha: number, focusedFarmerId: number | null = null): Generator<LogicalSprite> {
   // Backdrop: one pass over the 40×40 grid. Void tiles emit nothing.
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
@@ -171,14 +209,21 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
       alpha: (tint & 0xff) / 255,
     };
   }
+
+  // brief-11: focus-camera — emit halo around focused farmer if one is set
+  if (focusedFarmerId !== null) {
+    yield* iterateFocusHalo(world, focusedFarmerId, alpha);
+  }
 }
 
+// brief-11: focus-camera
 export function buildCanvasFrame(
   renderer: Canvas2dRenderer,
   world: World<GameEntity>,
   alpha: number,
+  focusedFarmerId: number | null = null,
 ): void {
-  for (const ls of iterSceneSprites(world, alpha)) {
+  for (const ls of iterSceneSprites(world, alpha, focusedFarmerId)) {
     const sprite: Canvas2dSprite = {
       x: ls.x,
       y: ls.y,

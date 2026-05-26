@@ -63,6 +63,10 @@ export class ObserverPanel {
   private weatherEl: HTMLElement;
   private forecastEl: HTMLElement;
   private farmersContainer: HTMLElement;
+  // brief-11: focus-camera
+  private resetBtn: HTMLElement;
+  private onFarmerClick: ((id: number | null) => void) | null = null;
+  private focusedId: number | null = null;
 
   /** Maps farmer id -> cached row elements */
   private rowCache = new Map<number, FarmerRowEls>();
@@ -82,6 +86,29 @@ export class ObserverPanel {
       },
     });
 
+    // brief-11: focus-camera — reset view button
+    this.resetBtn = createEl("button", {
+      style: {
+        display: "block",
+        width: "100%",
+        marginBottom: "6px",
+        padding: "3px 6px",
+        fontSize: "11px",
+        background: "#2a2a2a",
+        color: "#aaa",
+        border: "1px solid #444",
+        borderRadius: "3px",
+        cursor: "pointer",
+        textAlign: "left",
+      },
+    });
+    setText(this.resetBtn, "Reset view");
+    this.resetBtn.addEventListener("click", () => {
+      this.focusedId = null;
+      this._updateRowHighlights();
+      this.onFarmerClick?.(null);
+    });
+
     this.weatherEl = createEl("div", {
       style: { marginBottom: "4px", color: "#aef" },
     });
@@ -93,10 +120,16 @@ export class ObserverPanel {
     this.farmersContainer = createEl("div");
 
     this.panel.appendChild(this.headerEl);
+    this.panel.appendChild(this.resetBtn);
     this.panel.appendChild(this.weatherEl);
     this.panel.appendChild(this.forecastEl);
     this.panel.appendChild(this.farmersContainer);
     parent.appendChild(this.panel);
+  }
+
+  // brief-11: focus-camera — register click callback
+  setOnFarmerClick(cb: (id: number | null) => void): void {
+    this.onFarmerClick = cb;
   }
 
   update(snapshot: ObserverSnapshot): void {
@@ -145,15 +178,42 @@ export class ObserverPanel {
     });
   }
 
+  // brief-11: focus-camera — update highlight borders on all rows
+  private _updateRowHighlights(): void {
+    for (const [id, row] of this.rowCache) {
+      const focused = id === this.focusedId;
+      applyStyles(row.root, {
+        borderBottom: "1px solid #2a2a2a",
+        outline: focused ? "1px solid #ffd700" : "",
+        cursor: "pointer",
+      });
+    }
+  }
+
   private buildFarmerRow(id: number): FarmerRowEls {
     const root = createEl("div", {
       style: {
         borderBottom: "1px solid #2a2a2a",
         paddingBottom: "6px",
         marginBottom: "6px",
+        cursor: "pointer",
       },
     });
     root.dataset["farmerId"] = String(id);
+
+    // brief-11: focus-camera — clicking a row selects/deselects focus
+    root.addEventListener("click", () => {
+      if (this.focusedId === id) {
+        // Toggle off — same as reset
+        this.focusedId = null;
+        this._updateRowHighlights();
+        this.onFarmerClick?.(null);
+      } else {
+        this.focusedId = id;
+        this._updateRowHighlights();
+        this.onFarmerClick?.(id);
+      }
+    });
 
     const nameRow = createEl("div", { style: { display: "flex", gap: "6px", alignItems: "center" } });
     const name = createEl("span", { style: { fontWeight: "bold", color: "#fff" } });
