@@ -23,6 +23,7 @@ Snapshot of where the Farm Valley engine + game sit relative to the task briefs 
 | [04-observer-ui](../briefs/game/done/04-observer-ui.md) | **Done** | [ui/](../../packages/farm-valley/src/ui/) ships observer, config-panel, dom helpers + tests. |
 | [05-village-and-farms](../briefs/game/done/05-village-and-farms.md) | **Done** | 5 regions (4 farms N/E/S/W + village), 40×40 tile grid, walkable grid, `TravelSystem` consuming `travel` intents through the WASM pathfinder. Loaded but unused → now load-bearing. |
 | [06-spatial-market](../briefs/game/done/06-spatial-market.md) | **Done (partial)** | Market presence enforced (POST/CANCEL require village), 4 personalities plan trips, EncounterSystem emits MEET pairs, ShopSlateSystem generates 5-offer daily slate. Gap: slate is broadcast but not consumed by trades (ShopkeeperSystem still fixed-price); peer trade negotiation on MEET not implemented yet. |
+| [07-render-regions](../briefs/game/done/07-render-regions.md) | **Done** | Renderer draws the 40×40 tile world: grass/dirt/path + farm fences. All Transforms in tile coords; renderer converts at draw. `decorate.ts` deleted. Observer shows region per farmer. Camera 640×640. |
 
 [../briefs/game/todo/](../briefs/game/todo/) is currently empty.
 

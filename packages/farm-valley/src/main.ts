@@ -13,7 +13,7 @@ import { buildCanvasFrame } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
 import { ObserverPanel, type ObserverSnapshot } from "./ui";
 import { HomeScreen } from "./screens";
-import { decorateMarketAndShop } from "./decorate";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
 
 interface BootConfig {
   seed: number;
@@ -29,11 +29,12 @@ const CONFIG: BootConfig = {
   maxDays: 100,
 };
 
+const TILE = 16;
 const CAMERA_CONFIG = {
-  worldUnitsX: 320,
-  worldUnitsY: 192,
-  centerX: 160,
-  centerY: 96,
+  worldUnitsX: WORLD_WIDTH * TILE,
+  worldUnitsY: WORLD_HEIGHT * TILE,
+  centerX: (WORLD_WIDTH * TILE) / 2,
+  centerY: (WORLD_HEIGHT * TILE) / 2,
 } as const;
 
 interface Runtime {
@@ -81,8 +82,6 @@ async function startGame(
       pathfinder,
     });
 
-    decorateMarketAndShop(world);
-
     const clock = new FixedStepClock({ tickRateHz: CONFIG.tickRateHz });
     const overlay = new DebugOverlay(app);
     const observer = new ObserverPanel(app);
@@ -123,6 +122,24 @@ async function startGame(
   }
 }
 
+/**
+ * Compute the humanized region label for a farmer:
+ *  - traveling (path !== undefined) → 'traveling'
+ *  - in village                     → 'village'
+ *  - on their own farm              → 'home'
+ *  - on a peer's farm               → the raw region id (e.g. 'farm-otto')
+ */
+function deriveRegionLabel(
+  name: string,
+  currentRegion: string,
+  isTraveling: boolean,
+): string {
+  if (isTraveling) return "traveling";
+  if (currentRegion === "village") return "village";
+  if (currentRegion === `farm-${name.toLowerCase()}`) return "home";
+  return currentRegion;
+}
+
 function buildObserverSnapshot(
   world: ReturnType<typeof bootstrapSim>["world"],
   day: number,
@@ -148,6 +165,7 @@ function buildObserverSnapshot(
       apCurrent: f.ap.current,
       apMax: f.ap.max,
       apPenaltyPending: f.ap.penaltyPending,
+      region: deriveRegionLabel(f.farmer.name, f.farmer.currentRegion, f.farmer.path !== undefined),
     });
   }
   farmerEntries.sort((a, b) => a.id - b.id);
