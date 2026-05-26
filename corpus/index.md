@@ -33,4 +33,5 @@ Catalog of everything in this corpus. Start here.
 - [briefs/game/done/04-observer-ui.md](briefs/game/done/04-observer-ui.md) — observer dashboard + config panel
 - [briefs/game/done/05-village-and-farms.md](briefs/game/done/05-village-and-farms.md) — 5 regions, compass layout, pathfinder-driven travel
 - [briefs/game/done/06-spatial-market.md](briefs/game/done/06-spatial-market.md) — market presence, encounters, shop daily slate
-- [briefs/game/todo/07-render-regions.md](briefs/game/todo/07-render-regions.md) — draw the new 40×40 world; unify on tile coords; delete decorate.ts
+- [briefs/game/done/07-render-regions.md](briefs/game/done/07-render-regions.md) — draw the 40×40 world; unify on tile coords; delete decorate.ts
+- [briefs/game/todo/](briefs/game/todo/) — empty

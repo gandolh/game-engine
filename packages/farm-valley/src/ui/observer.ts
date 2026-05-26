@@ -14,6 +14,7 @@ export interface ObserverSnapshot {
     apCurrent: number;
     apMax: number;
     apPenaltyPending: boolean;
+    region: string;
   }>;
 }
 
@@ -25,6 +26,7 @@ interface FarmerRowEls {
   crops: HTMLElement;
   fsm: HTMLElement;
   ap: HTMLElement;
+  region: HTMLElement;
 }
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
@@ -179,7 +181,11 @@ export class ObserverPanel {
     const ap = createEl("div", { style: { color: "#80c8f0" } });
     root.appendChild(ap);
 
-    return { root, name, personality, gold, crops, fsm, ap };
+    const region = createEl("div", { style: { color: "#d8c878" } });
+    region.dataset["field"] = "region";
+    root.appendChild(region);
+
+    return { root, name, personality, gold, crops, fsm, ap, region };
   }
 
   private updateFarmerRow(
@@ -201,6 +207,8 @@ export class ObserverPanel {
       ? `AP: ${farmer.apCurrent}/${farmer.apMax} (penalty)`
       : `AP: ${farmer.apCurrent}/${farmer.apMax}`;
     setText(row.ap, apText);
+
+    setText(row.region, `Region: ${farmer.region}`);
   }
 
   setVisible(v: boolean): void {

@@ -21,6 +21,7 @@ function makeSnapshot(overrides?: Partial<ObserverSnapshot>): ObserverSnapshot {
         apCurrent: 4,
         apMax: 6,
         apPenaltyPending: false,
+        region: "home",
       },
       {
         id: 5,
@@ -32,6 +33,7 @@ function makeSnapshot(overrides?: Partial<ObserverSnapshot>): ObserverSnapshot {
         apCurrent: 3,
         apMax: 6,
         apPenaltyPending: true,
+        region: "traveling",
       },
     ],
     ...overrides,
@@ -139,6 +141,7 @@ describe("ObserverPanel", () => {
           apCurrent: 3,
           apMax: 6,
           apPenaltyPending: false,
+          region: "village",
         },
         {
           id: 3,
@@ -150,6 +153,7 @@ describe("ObserverPanel", () => {
           apCurrent: 4,
           apMax: 6,
           apPenaltyPending: false,
+          region: "home",
         },
       ],
     });
@@ -161,6 +165,68 @@ describe("ObserverPanel", () => {
     expect(rows.length).toBe(2);
     expect(rows[0]?.dataset["farmerId"]).toBe("3");
     expect(rows[1]?.dataset["farmerId"]).toBe("5");
+    panel.destroy();
+  });
+
+  it("renders the region column for each farmer", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+
+    const rows = Array.from(
+      parent.querySelectorAll("[data-farmer-id]"),
+    ) as HTMLElement[];
+    expect(rows.length).toBe(2);
+
+    // Each row should have exactly one region field.
+    const regionCells = parent.querySelectorAll('[data-field="region"]');
+    expect(regionCells.length).toBe(2);
+
+    const text = parent.textContent ?? "";
+    expect(text).toContain("Region: home");
+    expect(text).toContain("Region: traveling");
+    panel.destroy();
+  });
+
+  it("updates the region field when the snapshot changes", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+    expect(parent.textContent ?? "").toContain("Region: home");
+
+    panel.update(
+      makeSnapshot({
+        farmers: [
+          {
+            id: 3,
+            name: "Alice",
+            personality: "cautious",
+            gold: 100,
+            crops: { radish: 2, wheat: 5, pumpkin: 1 },
+            fsm: "idle",
+            apCurrent: 4,
+            apMax: 6,
+            apPenaltyPending: false,
+            region: "village",
+          },
+          {
+            id: 5,
+            name: "Bob",
+            personality: "bold",
+            gold: 200,
+            crops: { radish: 0, wheat: 3, pumpkin: 4 },
+            fsm: "harvest",
+            apCurrent: 3,
+            apMax: 6,
+            apPenaltyPending: true,
+            region: "farm-otto",
+          },
+        ],
+      }),
+    );
+    const text = parent.textContent ?? "";
+    expect(text).toContain("Region: village");
+    expect(text).toContain("Region: farm-otto");
+    expect(text).not.toContain("Region: home");
+    expect(text).not.toContain("Region: traveling");
     panel.destroy();
   });
 

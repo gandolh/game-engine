@@ -97,12 +97,19 @@ export function setupRegions(
 
   // Village fixtures: market wall and shopkeeper. Re-use entities already
   // spawned by setupMarketShopFeature when present; otherwise create them.
+  // Both transforms are in tile coords; the renderer converts to pixels.
   const wallTransform = {
     x: MARKET_WALL_TILE.x,
     y: MARKET_WALL_TILE.y,
     prevX: MARKET_WALL_TILE.x,
     prevY: MARKET_WALL_TILE.y,
     rotation: 0,
+  };
+  const wallSprite = {
+    atlasId: "main",
+    frame: "structure/market-wall",
+    layer: 50,
+    tintRgba: 0xffffffff,
   };
   let wall: GameEntity | undefined;
   for (const w of world.query("marketWall")) {
@@ -111,11 +118,13 @@ export function setupRegions(
   }
   if (wall) {
     wall.transform = wallTransform;
+    wall.sprite = wallSprite;
   } else {
     world.spawn({
       marketWall: { isMarketWall: true },
       inbox: { messages: [] },
       transform: wallTransform,
+      sprite: wallSprite,
     });
   }
 
@@ -126,6 +135,12 @@ export function setupRegions(
     prevY: SHOPKEEPER_TILE.y,
     rotation: 0,
   };
+  const shopSprite = {
+    atlasId: "main",
+    frame: "structure/shopkeeper",
+    layer: 50,
+    tintRgba: 0xffffffff,
+  };
   let shopkeeper: GameEntity | undefined;
   for (const s of world.query("shopkeeper")) {
     shopkeeper = s;
@@ -133,11 +148,13 @@ export function setupRegions(
   }
   if (shopkeeper) {
     shopkeeper.transform = shopTransform;
+    shopkeeper.sprite = shopSprite;
   } else {
     world.spawn({
       shopkeeper: { isShopkeeper: true },
       inbox: { messages: [] },
       transform: shopTransform,
+      sprite: shopSprite,
     });
   }
 
