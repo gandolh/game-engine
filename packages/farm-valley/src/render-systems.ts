@@ -25,6 +25,23 @@ interface LogicalSprite {
 }
 
 /**
+ * Pick the sprite frame for a farmer entity given the current simulation tick.
+ * While `farmer.path` is set (traveling), the frame alternates between walk-a
+ * and walk-b every 2 ticks (~100ms at 20 Hz). When idle the base personality
+ * frame is returned unchanged.
+ *
+ * Extracted as a top-level helper so concurrent diffs in the sprite loop can
+ * merge mechanically without touching this logic.
+ */
+export function pickFarmerFrame(entity: GameEntity, tick: number): string {
+  const farmer = entity.farmer;
+  const baseFrame = entity.sprite?.frame ?? "";
+  if (!farmer?.path) return baseFrame;
+  const suffix = (tick >> 1) & 1 ? "/walk-b" : "/walk-a";
+  return baseFrame + suffix;
+}
+
+/**
  * Decide which background frame (if any) a tile gets.
  * - void (non-walkable) → null: emit nothing (the canvas clear color is the void)
  * - walkable && region === null → road tile ("tile/path")
@@ -87,7 +104,7 @@ function computeFences(): readonly FenceTile[] {
 
 const FENCES: readonly FenceTile[] = computeFences();
 
-function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<LogicalSprite> {
+function* iterSceneSprites(world: World<GameEntity>, alpha: number, tick: number): Generator<LogicalSprite> {
   // Backdrop: one pass over the 40×40 grid. Void tiles emit nothing.
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
@@ -161,12 +178,13 @@ function* iterSceneSprites(world: World<GameEntity>, alpha: number): Generator<L
     const py = tileY * TILE + TILE / 2;
     const s = entity.sprite;
     const tint = s.tintRgba >>> 0;
+    const frame = entity.farmer !== undefined ? pickFarmerFrame(entity, tick) : s.frame;
     yield {
       x: px,
       y: py,
       width: TILE,
       height: TILE,
-      frame: s.frame,
+      frame,
       rotation: t.rotation,
       layer: s.layer,
       alpha: (tint & 0xff) / 255,
@@ -222,9 +240,10 @@ export function buildCanvasFrame(
   renderer: Canvas2dRenderer,
   world: World<GameEntity>,
   alpha: number,
+  tick: number,
   meetIndicators: readonly MeetIndicatorEntry[] = [],
 ): void {
-  for (const ls of iterSceneSprites(world, alpha)) {
+  for (const ls of iterSceneSprites(world, alpha, tick)) {
     const sprite: Canvas2dSprite = {
       x: ls.x,
       y: ls.y,

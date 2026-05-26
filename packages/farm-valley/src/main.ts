@@ -117,7 +117,7 @@ async function startGame(
       },
       onRender(alpha) {
         renderer.beginFrame();
-        buildCanvasFrame(renderer, world, alpha, meetIndicators.active(clock.tick));
+        buildCanvasFrame(renderer, world, alpha, clock.tick, meetIndicators.active(clock.tick));
         renderer.endFrame();
         const entityCount = countEntities(world);
         overlay.update({ tick: clock.tick, alpha, entityCount });
