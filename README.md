@@ -4,8 +4,9 @@ A tiny top-down farming sim where four AI farmers — each with their own person
 
 Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder.
 
-![Home screen](merge-home-screen.png)
-![Game running](merge-running.png)
+![Home screen](media/merge-home-screen.png)
+![Game running](media/merge-running.png)
+![Day 100 leaderboard](media/farm-valley-final.png)
 
 ## Try it
 
