@@ -22,6 +22,7 @@ import { ShopSlateSystem } from "./systems/shop-slate";
 import { FinishDaySystem } from "./systems/finish-day";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
+import { listCoordinators } from "./agents/cnp-registry";
 import "./agents/conservative";
 import "./agents/aggressive";
 import "./agents/hoarder";
@@ -112,7 +113,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new InboxDispatchSystem(bus, world))
     .add(new ShopSlateSystem(world, bus, rng))
     .add(new EncounterSystem(world, bus))
-    .add(new TrustSystem(world))
+    .add(new TrustSystem(world, listCoordinators()))
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new HarvestSystem(world))

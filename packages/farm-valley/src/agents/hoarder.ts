@@ -5,12 +5,17 @@ import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_CNP } from "../protocols/cnp";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import { PERFORMATIVE } from "../protocols/performatives";
-import { CnpCoordinator } from "./cnp-coordinator";
+import {
+  getOrCreateCoordinator,
+  _resetCnpCoordinatorsForTests,
+} from "./cnp-registry";
 import {
   registerPeerTradeHooks,
   type InitiatePeerTradeFn,
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
+
+export { _resetCnpCoordinatorsForTests };
 
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 8, pumpkin: 15 };
@@ -19,22 +24,6 @@ const CNP_PERIOD_DAYS = 3;
 const CNP_DEFAULT_DEADLINE_TICKS = 2;
 const CNP_TARGET_QUANTITY = 3;
 const BUY_PRICE_MULTIPLIER = 1.05; // up to 105% of shop price
-
-// One coordinator per farmer entity. Keyed by farmer.id so multiple hoarders coexist.
-const coordinators = new Map<number, CnpCoordinator>();
-
-export function _resetCnpCoordinatorsForTests(): void {
-  coordinators.clear();
-}
-
-function getCoordinator(farmerId: number): CnpCoordinator {
-  let c = coordinators.get(farmerId);
-  if (!c) {
-    c = new CnpCoordinator();
-    coordinators.set(farmerId, c);
-  }
-  return c;
-}
 
 function pickHighTier(plotId: number): CropKind {
   // Alternate by plot id parity (pumpkin / wheat as a corn-stand-in).
@@ -47,7 +36,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   const reserve = (farmer.desires.data["minGoldReserve"] as number | undefined) ?? 80;
   const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? ctx.tick;
-  const coord = getCoordinator(farmer.id);
+  const coord = getOrCreateCoordinator(farmer.id);
   const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
