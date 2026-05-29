@@ -318,6 +318,81 @@ function* iterateMeetIndicators(
   }
 }
 
+/**
+ * Push snapshot sprites (dynamic layer from the sim worker) into the renderer.
+ * Each SnapshotSprite is already in pixel space and has alpha pre-computed.
+ * Width/height default to TILE (16) for all snapshot sprites.
+ *
+ * This also draws:
+ *  - MEET bubble (indicator/meet) sprites above each active meet farmer,
+ *    positioned at the interpolated farmer pixel position from the snapshot.
+ *  - Focus halo segments around the focused farmer (identified by id) using
+ *    the interpolated position supplied by the caller.
+ */
+export function pushSnapshotSprites(
+  renderer: Canvas2dRenderer,
+  sprites: import("./worker/snapshot").SnapshotSprite[],
+  meets: import("./worker/snapshot").SnapshotMeet[],
+  farmerPositions: Map<number, { x: number; y: number }>,
+  focusedFarmerId: number | null,
+): void {
+  // Sprites
+  for (const s of sprites) {
+    renderer.push({
+      x: s.x,
+      y: s.y,
+      width: TILE,
+      height: TILE,
+      frame: s.frame,
+      rotation: s.rotation,
+      layer: s.layer,
+      alpha: s.alpha,
+    });
+  }
+
+  // Meet bubbles (one tile above farmer)
+  for (const meet of meets) {
+    const pos = farmerPositions.get(meet.farmerId);
+    if (!pos) continue;
+    renderer.push({
+      x: pos.x,
+      y: pos.y - TILE,
+      width: TILE,
+      height: TILE,
+      frame: "indicator/meet",
+      rotation: 0,
+      layer: 90,
+      alpha: 1,
+    });
+  }
+
+  // Focus halo (4 small segments at N/E/S/W around the focused farmer)
+  if (focusedFarmerId !== null) {
+    const pos = farmerPositions.get(focusedFarmerId);
+    if (pos) {
+      const r = TILE * 0.8;
+      const offsets: Array<[number, number, number]> = [
+        [0, -r, 0],
+        [r, 0, Math.PI / 2],
+        [0, r, 0],
+        [-r, 0, Math.PI / 2],
+      ];
+      for (const [dx, dy, rot] of offsets) {
+        renderer.push({
+          x: pos.x + dx,
+          y: pos.y + dy,
+          width: TILE * 0.5,
+          height: TILE * 0.5,
+          frame: "tile/fence-h",
+          rotation: rot,
+          layer: 50,
+          alpha: 0.85,
+        });
+      }
+    }
+  }
+}
+
 export function buildCanvasFrame(
   renderer: Canvas2dRenderer,
   world: World<GameEntity>,

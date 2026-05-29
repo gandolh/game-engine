@@ -32,7 +32,9 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 
 ## Concurrency
 
-- **Single-threaded for now.** Sim is kept pure so it can move to a Web Worker later.
+- **Sim runs in a Web Worker** (moved 2026-05-29). The Worker owns the ECS `world` and the fixed-step clock; each tick it posts a `RenderSnapshot` (plain, structured-clone-friendly) to the main thread. The main thread keeps the latest two snapshots and **interpolates sprite positions between them** (the prevX/prevY interpolation that used to live on the entity Transform). Transport is `postMessage` only — **no SharedArrayBuffer**, so no COOP/COEP cross-origin-isolation headers are required. See `packages/farm-valley/src/worker/` (`sim-worker`, `sim-client`, `snapshot`, `snapshot-builder`).
+  - Determinism is preserved: the sim only depends on the tick *count*, never wall-clock, so driving ticks from the Worker's `setInterval` changes nothing. `npm run sim` (headless, no Worker) and the in-browser Worker run produce identical sim outcomes for a seed.
+  - The headless `run-sim` tool and all unit tests still drive `bootstrapSim` + `scheduler.tick` directly on the main thread (no Worker) — the Worker is a rendering/UX boundary, not a sim dependency.
 - **Scale target:** 50–100 agents. Engine APIs should not assume that ceiling.
 
 ## WASM
