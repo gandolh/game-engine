@@ -16,6 +16,7 @@ import { HomeScreen, formatSeed } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
 import { SimClient } from "./worker/sim-client";
 import type { FinalStandingRow } from "./worker/snapshot";
+import { serializeRun, parseRun, type RunDescriptor } from "./run-descriptor";
 
 interface BootConfig {
   seed: number;
@@ -131,13 +132,23 @@ async function boot(): Promise<void> {
   const fatal = document.getElementById("fatal") as HTMLElement | null;
   if (!canvas || !app || !fatal) throw new Error("Missing #canvas/#app/#fatal");
 
-  const home = new HomeScreen(app, { defaultSeed: CONFIG.seed });
+  // brief-17: save/replay — if the URL hash carries a shared run descriptor,
+  // use it for this run. Lowest-touch correct option: we do NOT auto-start;
+  // instead we pre-fill the home screen's seed with the shared seed (so the
+  // run picker still drives the launch) and carry the shared maxDays/ticksPerDay
+  // into the run. If no/invalid hash, fall back to CONFIG defaults.
+  const shared = parseRun(location.hash);
+  const defaultSeed = shared?.seed ?? CONFIG.seed;
+  const maxDays = shared?.maxDays ?? CONFIG.maxDays;
+  const ticksPerDay = shared?.ticksPerDay ?? CONFIG.ticksPerDay;
+
+  const home = new HomeScreen(app, { defaultSeed });
 
   const runtimePromise = setupRuntime(canvas);
   runtimePromise.catch(() => {});
 
   home.onStartClicked((seed) => {
-    void startGame(app, fatal, runtimePromise, seed);
+    void startGame(app, fatal, runtimePromise, { seed, maxDays, ticksPerDay });
   });
 }
 
@@ -145,8 +156,9 @@ async function startGame(
   app: HTMLElement,
   fatal: HTMLElement,
   runtimePromise: Promise<Runtime>,
-  seed: number,
+  run: { seed: number; maxDays: number; ticksPerDay: number },
 ): Promise<void> {
+  const { seed, maxDays, ticksPerDay } = run;
   try {
     const { renderer } = await runtimePromise;
 
@@ -176,12 +188,13 @@ async function startGame(
     // own DOM element so we don't touch the engine DebugOverlay signature).
     createSeedBadge(app, seed);
 
-    // Start the sim worker with the seed chosen on the home screen.
+    // Start the sim worker with the run descriptor (seed from the home screen;
+    // maxDays/ticksPerDay from a shared run hash or CONFIG defaults).
     client.init({
       seed,
       tickRateHz: CONFIG.tickRateHz,
-      ticksPerDay: CONFIG.ticksPerDay,
-      maxDays: CONFIG.maxDays,
+      ticksPerDay,
+      maxDays,
     });
 
     // rAF render loop — purely rendering, no sim logic.
@@ -227,7 +240,11 @@ async function startGame(
         gameOverShown = true;
         const final = client.finalSummary;
         if (final !== null) {
-          renderGameOver(gameOverPanel, final, snap?.day ?? 0, seed);
+          renderGameOver(gameOverPanel, final, snap?.day ?? 0, {
+            seed,
+            maxDays,
+            ticksPerDay,
+          });
         }
       }
 
@@ -241,7 +258,16 @@ async function startGame(
   }
 }
 
-function createGameOverPanel(parent: HTMLElement): HTMLElement {
+/** Game-over panel parts: the outer panel, the monospace standings text node,
+ *  and the "Share this run" button (whose handler is (re)bound per run). */
+interface GameOverPanel {
+  panel: HTMLElement;
+  standings: HTMLElement;
+  shareBtn: HTMLButtonElement;
+  shareStatus: HTMLElement;
+}
+
+function createGameOverPanel(parent: HTMLElement): GameOverPanel {
   const panel = document.createElement("div");
   panel.style.cssText = [
     "position: absolute",
@@ -258,10 +284,45 @@ function createGameOverPanel(parent: HTMLElement): HTMLElement {
     "box-shadow: 0 0 60px rgba(201, 168, 90, 0.35)",
     "z-index: 200",
     "display: none",
-    "white-space: pre",
   ].join(";");
+
+  // Standings text keeps the monospace pre layout it always had.
+  const standings = document.createElement("div");
+  standings.style.cssText = "white-space: pre";
+  panel.appendChild(standings);
+
+  // brief-17: save/replay — "Share this run" control row.
+  const shareRow = document.createElement("div");
+  shareRow.style.cssText = [
+    "display: flex",
+    "align-items: center",
+    "gap: 12px",
+    "margin-top: 18px",
+  ].join(";");
+
+  const shareBtn = document.createElement("button");
+  shareBtn.type = "button";
+  shareBtn.textContent = "Share this run";
+  shareBtn.style.cssText = [
+    "padding: 8px 18px",
+    "font: 13px/1 ui-monospace, monospace",
+    "font-weight: 600",
+    "color: #0c0d12",
+    "background: #c9a85a",
+    "border: 2px solid #c9a85a",
+    "border-radius: 6px",
+    "cursor: pointer",
+  ].join(";");
+
+  const shareStatus = document.createElement("span");
+  shareStatus.style.cssText = "font: 12px/1 ui-monospace, monospace; color: #9ba6b8";
+
+  shareRow.appendChild(shareBtn);
+  shareRow.appendChild(shareStatus);
+  panel.appendChild(shareRow);
+
   parent.appendChild(panel);
-  return panel;
+  return { panel, standings, shareBtn, shareStatus };
 }
 
 function createSeedBadge(parent: HTMLElement, seed: number): HTMLElement {
@@ -285,14 +346,14 @@ function createSeedBadge(parent: HTMLElement, seed: number): HTMLElement {
 }
 
 function renderGameOver(
-  panel: HTMLElement,
+  panel: GameOverPanel,
   rows: FinalStandingRow[],
   finalDay: number,
-  seed: number,
+  run: RunDescriptor,
 ): void {
   const lines: string[] = [];
   lines.push(`╔══ FARM VALLEY — final standings after ${finalDay} days ══╗`);
-  lines.push(`  seed: ${formatSeed(seed)}`);
+  lines.push(`  Run #${(run.seed >>> 0).toString(16)}  (seed ${formatSeed(run.seed)})`);
   lines.push("");
   lines.push("  rank  name      personality      gold  unsold  total   crops");
   lines.push("  " + "─".repeat(60));
@@ -304,8 +365,29 @@ function renderGameOver(
   });
   lines.push("");
   lines.push(`  winner: ${rows[0]?.name ?? "—"} (${rows[0]?.totalValue ?? 0}g total value)`);
-  panel.textContent = lines.join("\n");
-  panel.style.display = "block";
+  panel.standings.textContent = lines.join("\n");
+
+  // brief-17: save/replay — wire the Share button for this finished run.
+  panel.shareBtn.onclick = () => {
+    const serialized = serializeRun(run);
+    location.hash = "run=" + serialized;
+    const url = location.href;
+    const clip = navigator.clipboard;
+    if (clip && typeof clip.writeText === "function") {
+      clip.writeText(url).then(
+        () => {
+          panel.shareStatus.textContent = "copied URL to clipboard";
+        },
+        () => {
+          panel.shareStatus.textContent = "URL in address bar (copy failed)";
+        },
+      );
+    } else {
+      panel.shareStatus.textContent = "URL in address bar";
+    }
+  };
+
+  panel.panel.style.display = "block";
 }
 
 async function fetchAtlasManifest(): Promise<AtlasManifest> {
