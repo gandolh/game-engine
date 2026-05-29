@@ -5,13 +5,20 @@ import {
   type AuctionCfpBody,
   type AuctionBidBody,
   type AuctionResultBody,
-  type AuctionType,
 } from "../protocols/shop";
 import { PERFORMATIVE } from "../protocols/performatives";
 
 interface VickreyState {
   type: "vickrey";
   cfp: AuctionCfpBody;
+  bids: Array<{ bidderId: number; amount: number; tickReceived: number }>;
+  resolved: boolean;
+}
+
+interface FpsbState {
+  type: "fpsb";
+  cfp: AuctionCfpBody;
+  /** Same sealed-bid shape as Vickrey — only the price rule differs. */
   bids: Array<{ bidderId: number; amount: number; tickReceived: number }>;
   resolved: boolean;
 }
@@ -33,7 +40,29 @@ interface DutchState {
   resolved: boolean;
 }
 
-type AuctionState = VickreyState | DutchState;
+interface EnglishState {
+  type: "english";
+  cfp: AuctionCfpBody;
+  /** Opening price = reservePrice. */
+  startPrice: number;
+  /** How much the asking price rises per tick. */
+  incrementPerTick: number;
+  /** Close the auction after this many ticks with no affirming bid. */
+  noBidTimeout: number;
+  /** First tick at which this auction was observed; `null` until anchored. */
+  startTick: number | null;
+  /**
+   * Highest affirming bidder so far. Each affirm at the current ask replaces
+   * this; the last/highest affirmer wins at the price they affirmed.
+   */
+  leader: { bidderId: number; paidPrice: number } | null;
+  /** Tick of the most recent affirming bid (drives the no-bid timeout). */
+  lastBidTick: number | null;
+  participants: Set<number>;
+  resolved: boolean;
+}
+
+type AuctionState = VickreyState | FpsbState | DutchState | EnglishState;
 
 export interface DutchAuctionOptions {
   startPrice?: number;
@@ -41,10 +70,18 @@ export interface DutchAuctionOptions {
   floor?: number;
 }
 
+export interface EnglishAuctionOptions {
+  incrementPerTick?: number;
+  noBidTimeout?: number;
+}
+
 /**
- * AuctionSystem — state machine for Vickrey (second-price sealed bid) and
- * Dutch (descending clock) auctions. English and FPSB are TODO and currently
- * return `null` winners.
+ * AuctionSystem — state machine for four auction formats:
+ *   - Vickrey: second-price sealed bid.
+ *   - FPSB: first-price sealed bid (winner pays their own bid).
+ *   - Dutch: descending clock; first accept wins at the current price.
+ *   - English: ascending clock; bidders affirm while the ask is within their
+ *     valuation; the last/highest affirmer wins at the current price.
  *
  * The system does NOT subscribe to the bus directly (the production
  * `InboxDispatchSystem` never calls `bus.notifySubscribers()`). Instead:
@@ -64,12 +101,14 @@ export class AuctionSystem implements System {
   readonly auctions = new Map<string, AuctionState>();
   private readonly _rng: Rng;
   private readonly dutchDefaults: Required<DutchAuctionOptions>;
+  private readonly englishDefaults: Required<EnglishAuctionOptions>;
 
   constructor(
     private readonly bus: MessageBus,
     private readonly world: World<GameEntity>,
     rng: Rng,
     dutchDefaults: DutchAuctionOptions = {},
+    englishDefaults: EnglishAuctionOptions = {},
   ) {
     // Fork even if unused today so future Dutch jitter stays deterministic.
     this._rng = rng.fork("auction");
@@ -78,6 +117,10 @@ export class AuctionSystem implements System {
       startPrice: dutchDefaults.startPrice ?? 200,
       decrementPerTick: dutchDefaults.decrementPerTick ?? 5,
       floor: dutchDefaults.floor ?? 10,
+    };
+    this.englishDefaults = {
+      incrementPerTick: englishDefaults.incrementPerTick ?? 5,
+      noBidTimeout: englishDefaults.noBidTimeout ?? 3,
     };
   }
 
@@ -96,22 +139,38 @@ export class AuctionSystem implements System {
       shop.inbox.messages = remaining;
     }
 
-    // 2. Resolve any closed Vickrey auctions; advance Dutch clocks.
+    // 2. Resolve closed sealed-bid auctions; advance the Dutch/English clocks.
     for (const auction of this.auctions.values()) {
       if (auction.resolved) continue;
-      if (auction.type === "vickrey") {
-        if (ctx.tick >= auction.cfp.closesAtTick) {
-          this.resolveVickrey(auction, ctx);
+      switch (auction.type) {
+        case "vickrey": {
+          if (ctx.tick >= auction.cfp.closesAtTick) this.resolveVickrey(auction, ctx);
+          break;
         }
-      } else {
-        // Anchor startTick on the first run-pass that observes this auction
-        // so that the descending clock counts from when the system sees it,
-        // not from whenever the first bid happens to arrive.
-        if (auction.startTick === null) auction.startTick = ctx.tick;
-        if (auction.winner !== null) {
-          this.resolveDutch(auction, ctx);
-        } else if (ctx.tick >= auction.cfp.closesAtTick) {
-          this.resolveDutch(auction, ctx); // no taker → null winner
+        case "fpsb": {
+          if (ctx.tick >= auction.cfp.closesAtTick) this.resolveFpsb(auction, ctx);
+          break;
+        }
+        case "dutch": {
+          // Anchor startTick on the first run-pass that observes this auction
+          // so that the descending clock counts from when the system sees it,
+          // not from whenever the first bid happens to arrive.
+          if (auction.startTick === null) auction.startTick = ctx.tick;
+          if (auction.winner !== null) {
+            this.resolveDutch(auction, ctx);
+          } else if (ctx.tick >= auction.cfp.closesAtTick) {
+            this.resolveDutch(auction, ctx); // no taker → null winner
+          }
+          break;
+        }
+        case "english": {
+          // Anchor startTick on the first observation, mirroring Dutch, so the
+          // ascending clock counts from when the system sees the auction.
+          if (auction.startTick === null) auction.startTick = ctx.tick;
+          if (this.englishShouldClose(auction, ctx.tick)) {
+            this.resolveEnglish(auction, ctx);
+          }
+          break;
         }
       }
     }
@@ -123,11 +182,20 @@ export class AuctionSystem implements System {
    * Open a new auction. Idempotent — re-opening with an existing id is a
    * no-op so duplicate CFP broadcasts don't reset state.
    */
-  openAuction(cfp: AuctionCfpBody, dutch?: DutchAuctionOptions): void {
+  openAuction(
+    cfp: AuctionCfpBody,
+    dutch?: DutchAuctionOptions,
+    english?: EnglishAuctionOptions,
+  ): void {
     if (this.auctions.has(cfp.auctionId)) return;
     switch (cfp.type) {
       case "vickrey": {
         const state: VickreyState = { type: "vickrey", cfp, bids: [], resolved: false };
+        this.auctions.set(cfp.auctionId, state);
+        return;
+      }
+      case "fpsb": {
+        const state: FpsbState = { type: "fpsb", cfp, bids: [], resolved: false };
         this.auctions.set(cfp.auctionId, state);
         return;
       }
@@ -147,42 +215,68 @@ export class AuctionSystem implements System {
         this.auctions.set(cfp.auctionId, state);
         return;
       }
-      case "english":
-      case "fpsb":
-        // TODO: not implemented yet. Result will be null winner.
-        this.auctions.set(cfp.auctionId, {
-          type: "vickrey",
-          cfp: { ...cfp, type: cfp.type as AuctionType },
-          bids: [],
+      case "english": {
+        const opts = { ...this.englishDefaults, ...english };
+        const state: EnglishState = {
+          type: "english",
+          cfp,
+          startPrice: cfp.reservePrice,
+          incrementPerTick: opts.incrementPerTick,
+          noBidTimeout: opts.noBidTimeout,
+          startTick: null, // anchored on first observation via currentEnglishPrice
+          leader: null,
+          lastBidTick: null,
+          participants: new Set<number>(),
           resolved: false,
-        });
+        };
+        this.auctions.set(cfp.auctionId, state);
         return;
+      }
     }
   }
 
   /**
-   * Submit a bid for an existing auction. For Vickrey: stored. For Dutch:
-   * the first call with `amount >= currentPrice` wins at `currentPrice`.
+   * Submit a bid for an existing auction.
+   *   - Vickrey/FPSB: stored (sealed) until close.
+   *   - Dutch: the first call with `amount >= currentPrice` wins at `currentPrice`.
+   *   - English: an affirm with `amount >= currentPrice` becomes the new leader
+   *     at the current ask; the last/highest affirmer wins on close.
    * Returns false if the auction does not exist or is already resolved.
    */
   submitBid(bid: AuctionBidBody, tick: number): boolean {
     const a = this.auctions.get(bid.auctionId);
     if (!a || a.resolved) return false;
-    if (a.type === "vickrey") {
-      if (tick >= a.cfp.closesAtTick) return false;
-      a.bids.push({ bidderId: bid.bidderId, amount: bid.amount, tickReceived: tick });
-      return true;
+    switch (a.type) {
+      case "vickrey":
+      case "fpsb": {
+        if (tick >= a.cfp.closesAtTick) return false;
+        a.bids.push({ bidderId: bid.bidderId, amount: bid.amount, tickReceived: tick });
+        return true;
+      }
+      case "dutch": {
+        a.participants.add(bid.bidderId);
+        if (a.winner !== null) return false;
+        if (tick >= a.cfp.closesAtTick) return false;
+        const current = this.currentDutchPrice(a, tick);
+        if (bid.amount >= current) {
+          a.winner = { bidderId: bid.bidderId, paidPrice: current };
+          return true;
+        }
+        return false;
+      }
+      case "english": {
+        a.participants.add(bid.bidderId);
+        if (tick >= a.cfp.closesAtTick) return false;
+        const current = this.currentEnglishPrice(a, tick);
+        // Affirm only counts while the ask is within the bidder's valuation.
+        if (bid.amount >= current) {
+          a.leader = { bidderId: bid.bidderId, paidPrice: current };
+          a.lastBidTick = tick;
+          return true;
+        }
+        return false;
+      }
     }
-    // Dutch
-    a.participants.add(bid.bidderId);
-    if (a.winner !== null) return false;
-    if (tick >= a.cfp.closesAtTick) return false;
-    const current = this.currentDutchPrice(a, tick);
-    if (bid.amount >= current) {
-      a.winner = { bidderId: bid.bidderId, paidPrice: current };
-      return true;
-    }
-    return false;
   }
 
   /** Current price of a Dutch auction at the given tick. */
@@ -191,6 +285,13 @@ export class AuctionSystem implements System {
     const elapsed = Math.max(0, tick - a.startTick);
     const raw = a.startPrice - a.decrementPerTick * elapsed;
     return Math.max(a.floor, raw);
+  }
+
+  /** Current ask of an English auction at the given tick. */
+  currentEnglishPrice(a: EnglishState, tick: number): number {
+    if (a.startTick === null) a.startTick = tick;
+    const elapsed = Math.max(0, tick - a.startTick);
+    return a.startPrice + a.incrementPerTick * elapsed;
   }
 
   // ---- internals --------------------------------------------------------
@@ -253,6 +354,48 @@ export class AuctionSystem implements System {
     }, ctx.tick);
   }
 
+  private resolveFpsb(a: FpsbState, ctx: SimContext): void {
+    a.resolved = true;
+    const participants = uniqueParticipants(a.bids.map((b) => b.bidderId));
+    if (a.bids.length === 0) {
+      this.broadcastResult(a.cfp.auctionId, {
+        auctionId: a.cfp.auctionId,
+        winnerId: null,
+        paidPrice: a.cfp.reservePrice,
+        participants,
+      }, ctx.tick);
+      return;
+    }
+
+    // Sort by amount desc; tie-break by earliest tickReceived then lowest
+    // bidder id (matches the Vickrey first-come ordering, with a final stable
+    // bidder-id key for fully deterministic resolution).
+    const sorted = a.bids.slice().sort((x, y) => {
+      if (y.amount !== x.amount) return y.amount - x.amount;
+      if (x.tickReceived !== y.tickReceived) return x.tickReceived - y.tickReceived;
+      return x.bidderId - y.bidderId;
+    });
+
+    const top = sorted[0]!;
+    if (top.amount < a.cfp.reservePrice) {
+      this.broadcastResult(a.cfp.auctionId, {
+        auctionId: a.cfp.auctionId,
+        winnerId: null,
+        paidPrice: a.cfp.reservePrice,
+        participants,
+      }, ctx.tick);
+      return;
+    }
+
+    // First-price: the winner pays their OWN bid.
+    this.broadcastResult(a.cfp.auctionId, {
+      auctionId: a.cfp.auctionId,
+      winnerId: top.bidderId,
+      paidPrice: top.amount,
+      participants,
+    }, ctx.tick);
+  }
+
   private resolveDutch(a: DutchState, ctx: SimContext): void {
     a.resolved = true;
     const participants = Array.from(a.participants);
@@ -269,6 +412,38 @@ export class AuctionSystem implements System {
       auctionId: a.cfp.auctionId,
       winnerId: a.winner.bidderId,
       paidPrice: a.winner.paidPrice,
+      participants,
+    }, ctx.tick);
+  }
+
+  /**
+   * An English auction closes when either the fixed clock runs out
+   * (`tick >= closesAtTick`) or no affirming bid has arrived within
+   * `noBidTimeout` ticks. The timeout is measured from the most recent
+   * affirm, or from the anchored start tick when there have been no bids.
+   */
+  private englishShouldClose(a: EnglishState, tick: number): boolean {
+    if (tick >= a.cfp.closesAtTick) return true;
+    const since = a.lastBidTick ?? a.startTick ?? tick;
+    return tick - since >= a.noBidTimeout;
+  }
+
+  private resolveEnglish(a: EnglishState, ctx: SimContext): void {
+    a.resolved = true;
+    const participants = Array.from(a.participants);
+    if (a.leader === null) {
+      this.broadcastResult(a.cfp.auctionId, {
+        auctionId: a.cfp.auctionId,
+        winnerId: null,
+        paidPrice: a.cfp.reservePrice,
+        participants,
+      }, ctx.tick);
+      return;
+    }
+    this.broadcastResult(a.cfp.auctionId, {
+      auctionId: a.cfp.auctionId,
+      winnerId: a.leader.bidderId,
+      paidPrice: a.leader.paidPrice,
       participants,
     }, ctx.tick);
   }
