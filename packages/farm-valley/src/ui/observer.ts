@@ -2,6 +2,8 @@ import { createEl, setText, applyStyles } from "./dom";
 
 export interface ObserverSnapshot {
   day: number;
+  /** Current season name (brief 22 — seasons / weather arcs). */
+  season: string;
   weather: { condition: string; multiplier: number };
   forecast: Array<{ condition: string; confidence: number }>;
   farmers: Array<{
@@ -133,7 +135,14 @@ export class ObserverPanel {
   }
 
   update(snapshot: ObserverSnapshot): void {
-    setText(this.headerEl, `Day ${snapshot.day}`);
+    const seasonLabel =
+      snapshot.season.length > 0
+        ? snapshot.season.charAt(0).toUpperCase() + snapshot.season.slice(1)
+        : "";
+    setText(
+      this.headerEl,
+      seasonLabel.length > 0 ? `Day ${snapshot.day} — ${seasonLabel}` : `Day ${snapshot.day}`,
+    );
     setText(
       this.weatherEl,
       `Weather: ${snapshot.weather.condition} (x${snapshot.weather.multiplier.toFixed(2)})`,

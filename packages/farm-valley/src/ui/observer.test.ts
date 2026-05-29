@@ -5,6 +5,7 @@ import type { ObserverSnapshot } from "./observer";
 function makeSnapshot(overrides?: Partial<ObserverSnapshot>): ObserverSnapshot {
   return {
     day: 1,
+    season: "spring",
     weather: { condition: "Sunny", multiplier: 1.0 },
     forecast: [
       { condition: "Cloudy", confidence: 0.7 },
@@ -65,6 +66,16 @@ describe("ObserverPanel", () => {
     const text = parent.textContent ?? "";
     expect(text).toContain("Alice");
     expect(text).toContain("Bob");
+    panel.destroy();
+  });
+
+  it("shows the current season in the header (capitalized)", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot({ day: 30, season: "summer" }));
+
+    const header = parent.querySelector("div") as HTMLElement;
+    expect(header.textContent).toContain("Day 30");
+    expect(header.textContent).toContain("Summer");
     panel.destroy();
   });
 
