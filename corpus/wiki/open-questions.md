@@ -16,6 +16,11 @@ _No code-level gaps tracked right now — see Resolved below._
 
 ## Now has a brief (was an open question)
 
-These were design/perf questions; they now have task specs in [../briefs/](../briefs/) and will move to `done/` when implemented:
+_Empty — every brief has shipped (`todo/` is empty). See the Resolved list below and [status.md](status.md)._
 
-- **Decision rationale trace (BDI "why")** → [game/todo/19-decision-trace.md](../briefs/game/todo/19-decision-trace.md). The Brief 11 focus mode shipped, which was the stated trigger to revisit this; the brief surfaces the *lightweight* current/next-intention + reason, not a full reasoning log.
+## Recently shipped (2026-05-29 swarm)
+
+The final 8 briefs all landed; see [status.md](status.md) and [log.md](../log.md) for detail:
+
+- **Decision rationale trace (BDI "why")** → [game/done/19-decision-trace.md](../briefs/game/done/19-decision-trace.md). The Brief 11 focus mode was the stated trigger; ships the *lightweight* current/next-intention + reason ring buffer for the focused farmer, not a full reasoning log.
+- Determinism harness + analytics ([engine/06](../briefs/engine/done/06-determinism-harness-and-analytics.md)), playback controls ([game/16](../briefs/game/done/16-playback-controls.md)), save/replay ([game/17](../briefs/game/done/17-save-replay.md)), seed picker ([game/18](../briefs/game/done/18-seed-picker.md)), event feed ([game/20](../briefs/game/done/20-event-feed.md)), complete auctions ([game/21](../briefs/game/done/21-complete-auctions.md)), seasons/weather arcs ([game/22](../briefs/game/done/22-seasons-weather-arcs.md)).

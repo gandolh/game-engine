@@ -2,6 +2,19 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-05-29] impl | Final brief swarm — all 8 remaining todos shipped, `todo/` now empty
+
+Cleared every remaining brief in one orchestrated swarm. Each brief was implemented by an isolated worktree subagent on its own `feat/<NN>-<slug>` branch, then rebased onto current `main` and merged (`--no-ff`) by the orchestrator. Briefs grouped into waves by file-overlap to avoid `main.ts`/observer/snapshot conflicts (user chose "grouped batches").
+
+- **Wave 1 (parallel, disjoint files):** `21-complete-auctions` (English+FPSB), `06-determinism-harness` (run-sim CHECK_DETERMINISM + EXPORT modes + sim-bootstrap.test.ts guard), `22-seasons-weather-arcs` (4×25-day seasons biasing the weather draw + observer header).
+- **Wave 2 (serialized, shared `main.ts`/observer/worker-snapshot):** `19-decision-trace` (focused-farmer "why"), `18-seed-picker` (home-screen seed + Randomize), `17-save-replay` (run-descriptor URL share/load), `16-playback-controls` (pause/speed/step as worker control messages), `20-event-feed` (read-only snoop → snapshot → panel).
+
+**Worktree-base gotcha:** the harness created worktrees from a *stale* commit (`4402790`, pre-Web-Worker move) rather than current `main`. Wave-1 agents implemented against the old layout — auctions/determinism rebased cleanly, but `22-seasons` had put its observer plumbing in the old inline `main.ts` `buildObserverSnapshot`, which the worker move had relocated to `worker/snapshot-builder.ts`. Orchestrator resolved the rebase: took `main`'s worker-based `main.ts`, re-applied the `season` field in `worker/snapshot-builder.ts`. The `06` rebase also restored the shock narrator that the agent's pre-shock base had dropped from run-sim's default mode. Wave-2 agents were told to `git rebase main` first and did so cleanly.
+
+**Determinism:** verified MATCH across seeds 0xc0ffee/1/42 over the full 100-day run after all merges. Playback/seasons/auctions/trace all deterministic (tick-count-driven, no wall-clock/random in sim).
+
+Final: **446 tests pass** (355 farm-valley + 91 engine), typecheck clean across farm-valley/engine/run-sim. All 8 briefs moved `todo/` → `done/`.
+
 ## [2026-05-29] impl | Open-questions round — 5 fixes landed on feature/open-questions-round
 
 Went through every open question with the user and implemented their choices, one commit per item on branch `feature/open-questions-round` (not yet merged/PR'd):
