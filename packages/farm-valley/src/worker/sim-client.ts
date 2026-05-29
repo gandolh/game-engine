@@ -87,6 +87,33 @@ export class SimClient {
     this.worker.postMessage(msg);
   }
 
+  // ---------------------------------------------------------------------------
+  // Playback controls (wall-clock pacing only — never change sim state)
+  // ---------------------------------------------------------------------------
+
+  /** Pause or resume sim advance. While paused no snapshots arrive. */
+  setPaused(paused: boolean): void {
+    const msg: WorkerInbound = { type: "pause", paused };
+    this.worker.postMessage(msg);
+  }
+
+  /**
+   * Set the tick multiplier (1, 2, 4). The worker runs `multiplier` ticks per
+   * interval fire; each still posts one snapshot, so the client's
+   * arrival-timestamp interpolation stays correct (snapshots just arrive
+   * faster). No change to msPerTick is needed.
+   */
+  setSpeed(multiplier: number): void {
+    const msg: WorkerInbound = { type: "speed", multiplier };
+    this.worker.postMessage(msg);
+  }
+
+  /** While paused, advance exactly one tick then stay paused. */
+  step(): void {
+    const msg: WorkerInbound = { type: "step" };
+    this.worker.postMessage(msg);
+  }
+
   /** Terminate the worker (hard stop). */
   terminate(): void {
     this.worker.terminate();

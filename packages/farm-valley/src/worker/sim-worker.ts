@@ -32,6 +32,18 @@ const TILE = 16;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
+// Playback state (wall-clock pacing only — never affects what a tick computes).
+let paused = false;
+// Tick multiplier: number of scheduler.tick iterations run per interval fire.
+let speedMultiplier = 1;
+// When set, advances exactly one tick on the next interval fire while paused.
+let pendingStep = false;
+
+// Bound at init() to run a single deterministic tick (+ its snapshot). pause/
+// speed/step all reuse this, so the sim advance path is identical regardless of
+// pacing — only HOW MANY times per wall-clock fire it runs differs.
+let runOneTick: (() => void) | null = null;
+
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
 
@@ -40,6 +52,27 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       clearInterval(intervalId);
       intervalId = null;
     }
+    return;
+  }
+
+  if (msg.type === "pause") {
+    paused = msg.paused;
+    return;
+  }
+
+  if (msg.type === "speed") {
+    // Guard against bad values; default to 1x. Multiplier is a positive integer
+    // number of ticks per fire.
+    speedMultiplier =
+      Number.isFinite(msg.multiplier) && msg.multiplier >= 1
+        ? Math.floor(msg.multiplier)
+        : 1;
+    return;
+  }
+
+  if (msg.type === "step") {
+    // One-shot: advance a single tick on the next fire while paused.
+    pendingStep = true;
     return;
   }
 
@@ -82,7 +115,10 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
 
     const msPerTick = 1000 / tickRateHz;
 
-    intervalId = setInterval(() => {
+    // Single-tick body. Deterministic: depends only on the tick COUNT, never on
+    // wall-clock time. pause/speed/step all funnel through here so the sim
+    // advance is byte-identical regardless of pacing.
+    runOneTick = () => {
       if (stopped) return;
 
       // Copy prevX/prevY so the main thread can interpolate between snapshots.
@@ -124,6 +160,26 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
           clearInterval(intervalId);
           intervalId = null;
         }
+      }
+    };
+
+    intervalId = setInterval(() => {
+      if (stopped || runOneTick === null) return;
+
+      // Paused: do not advance the sim, except to honor a one-shot step.
+      if (paused) {
+        if (pendingStep) {
+          pendingStep = false;
+          runOneTick();
+        }
+        return;
+      }
+
+      // Running: advance `speedMultiplier` ticks this fire. Each call posts its
+      // own snapshot so main-thread interpolation stays correct — more
+      // snapshots simply arrive per second at higher speed.
+      for (let i = 0; i < speedMultiplier && !stopped; i += 1) {
+        runOneTick();
       }
     }, msPerTick);
 

@@ -7,3 +7,5 @@ export { LeaderboardPanel } from "./leaderboard";
 export type { LeaderboardRow } from "./leaderboard";
 export { SlateBillboardPanel } from "./slate-billboard";
 export type { SlateEntry } from "./slate-billboard";
+export { PlaybackControlsPanel } from "./playback-controls";
+export type { PlaybackState } from "./playback-controls";

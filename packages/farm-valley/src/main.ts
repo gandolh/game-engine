@@ -11,6 +11,7 @@ import {
   ObserverPanel,
   LeaderboardPanel,
   SlateBillboardPanel,
+  PlaybackControlsPanel,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
@@ -49,6 +50,12 @@ interface Runtime {
 let focusedFarmerId: number | null = null;
 let panOffset = { x: 0, y: 0 };
 let zoom = 1;
+
+// brief-16: playback — module-level pacing state. These only change the
+// wall-clock cadence of worker ticks; sim state for a given tick count is
+// unaffected (determinism preserved).
+let paused = false;
+let speed = 1;
 
 // brief-11: focus-camera — wire canvas drag + scroll listeners onto the canvas
 function setupCameraListeners(
@@ -169,8 +176,63 @@ async function startGame(
     const observer = new ObserverPanel(app);
     const leaderboardPanel = new LeaderboardPanel(app);
     const slateBillboard = new SlateBillboardPanel(app);
+    const playback = new PlaybackControlsPanel(app);
     const gameOverPanel = createGameOverPanel(app);
     let gameOverShown = false;
+
+    // brief-16: playback — wire the controls to the worker and keep the panel
+    // reflecting state. Pause/speed/step only retime when worker ticks run;
+    // they never alter what a tick computes.
+    function applyPaused(next: boolean): void {
+      paused = next;
+      client.setPaused(paused);
+      playback.update({ paused, speed });
+    }
+    function applySpeed(next: number): void {
+      speed = next;
+      client.setSpeed(speed);
+      playback.update({ paused, speed });
+    }
+    function doStep(): void {
+      // Step only makes sense while paused.
+      if (!paused) return;
+      client.step();
+    }
+
+    playback.setOnPause(applyPaused);
+    playback.setOnSpeed(applySpeed);
+    playback.setOnStep(doStep);
+    playback.update({ paused, speed });
+
+    // Keyboard: space = toggle pause, "." = step, 1/2/4 = speed. Ignore keys
+    // while the user is typing into an input/textarea (e.g. the seed field).
+    window.addEventListener("keydown", (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
+        return;
+      }
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          applyPaused(!paused);
+          break;
+        case ".":
+          doStep();
+          break;
+        case "1":
+          applySpeed(1);
+          break;
+        case "2":
+          applySpeed(2);
+          break;
+        case "4":
+          applySpeed(4);
+          break;
+        default:
+          break;
+      }
+    });
 
     // brief-11: focus-camera — set up observer row click handler
     observer.setOnFarmerClick((id) => {
