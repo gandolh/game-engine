@@ -126,7 +126,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     if (offer.pricePerUnit > ceiling) continue;
     const cost = offer.pricePerUnit * offer.quantity;
     if (farmer.inventory.gold - cost < reserve) continue;
-    // TODO: real trust updates land in a future ticket; default to 0.5 for unseen peers.
+    // Trust is maintained live by TrustSystem; default to 0.5 for unseen peers.
     const t = trust?.get(offer.sellerId) ?? 0.5;
     if (best === null || t > best.trust) {
       best = { offer, trust: t };

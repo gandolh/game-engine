@@ -3,22 +3,39 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 import { bootstrapSim } from "farm-valley/src/sim-bootstrap";
-import { decorateMarketAndShop } from "farm-valley/src/decorate";
+import {
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+  REGIONS,
+  regionAt,
+  isWalkable,
+} from "farm-valley/src/world/regions";
 import type { AtlasManifest } from "@engine/core";
 import type { GameEntity } from "farm-valley/src/components";
 
+// Offline snapshot of the real 40×40 region world. Mirrors the live renderer in
+// packages/farm-valley/src/render-systems.ts: same backdrop frame selection,
+// the same farm-perimeter fences, plots, then sprite entities by layer. The
+// world layout is read from the shared regions.ts so this stays in sync with
+// the game instead of hardcoding a stale tile grid.
 const TILE = 16;
-const WORLD_TILES_X = 20;
-const WORLD_TILES_Y = 12;
-const WORLD_W = WORLD_TILES_X * TILE;
-const WORLD_H = WORLD_TILES_Y * TILE;
-const SCALE = 3;
+const WORLD_W = WORLD_WIDTH * TILE;
+const WORLD_H = WORLD_HEIGHT * TILE;
+const SCALE = 2;
 
 interface Frame {
   x: number;
   y: number;
   w: number;
   h: number;
+}
+
+interface BlitSprite {
+  cx: number; // center x in world px
+  cy: number; // center y in world px
+  frame: string;
+  rotation: number;
+  layer: number;
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -41,18 +58,44 @@ function clearToColor(r: number, g: number, b: number, a: number): void {
   }
 }
 
+/**
+ * Blit a frame into `out` at the given top-left, alpha-compositing over what's
+ * already there. When `rotation` is ±90° the source frame is transposed (the
+ * only rotations the world uses, for vertical fence segments).
+ */
 function blitFrame(
   frame: Frame,
   dstX: number,
   dstY: number,
+  rotation = 0,
 ): void {
-  for (let y = 0; y < frame.h; y++) {
-    const dy = dstY + y;
+  const quarterTurns = Math.round(rotation / (Math.PI / 2)) & 3;
+  const swap = quarterTurns === 1 || quarterTurns === 3;
+  const dw = swap ? frame.h : frame.w;
+  const dh = swap ? frame.w : frame.h;
+  for (let oy = 0; oy < dh; oy++) {
+    const dy = dstY + oy;
     if (dy < 0 || dy >= WORLD_H) continue;
-    for (let x = 0; x < frame.w; x++) {
-      const dx = dstX + x;
+    for (let ox = 0; ox < dw; ox++) {
+      const dx = dstX + ox;
       if (dx < 0 || dx >= WORLD_W) continue;
-      const srcIdx = ((frame.y + y) * atlas.width + (frame.x + x)) * 4;
+      // Map destination pixel back to source pixel for the rotation.
+      let sxLocal: number;
+      let syLocal: number;
+      if (quarterTurns === 1) {
+        sxLocal = oy;
+        syLocal = frame.h - 1 - ox;
+      } else if (quarterTurns === 3) {
+        sxLocal = frame.w - 1 - oy;
+        syLocal = ox;
+      } else if (quarterTurns === 2) {
+        sxLocal = frame.w - 1 - ox;
+        syLocal = frame.h - 1 - oy;
+      } else {
+        sxLocal = ox;
+        syLocal = oy;
+      }
+      const srcIdx = ((frame.y + syLocal) * atlas.width + (frame.x + sxLocal)) * 4;
       const a = atlas.data[srcIdx + 3] ?? 0;
       if (a === 0) continue;
       const dstIdx = (dy * WORLD_W + dx) * 4;
@@ -81,64 +124,91 @@ function blitFrame(
   }
 }
 
-function blitTile(frameName: string, tx: number, ty: number): void {
+/** Blit a frame centered on a world-pixel point (matches the renderer's draw). */
+function blitCentered(frameName: string, cx: number, cy: number, rotation = 0): void {
   const frame = manifest.frames[frameName];
   if (!frame) throw new Error(`No atlas frame: ${frameName}`);
-  blitFrame(frame, tx * TILE, ty * TILE);
+  blitFrame(frame, Math.round(cx - frame.w / 2), Math.round(cy - frame.h / 2), rotation);
 }
 
-function blitCentered(frameName: string, cx: number, cy: number): void {
-  const frame = manifest.frames[frameName];
-  if (!frame) throw new Error(`No atlas frame: ${frameName}`);
-  blitFrame(frame, Math.round(cx - frame.w / 2), Math.round(cy - frame.h / 2));
+/**
+ * Background frame for a tile — identical rules to render-systems.ts:
+ *   void (non-walkable) → null, road → path, village → dirt, farm → grass.
+ */
+function backdropFrame(tx: number, ty: number): string | null {
+  if (!isWalkable(tx, ty)) return null;
+  const region = regionAt(tx, ty);
+  if (region === null) return "tile/path";
+  if (region === "village") return "tile/dirt";
+  if (region.startsWith("farm-")) return "tile/grass";
+  return null;
 }
 
-clearToColor(20, 24, 30, 255);
+interface FenceTile {
+  tx: number;
+  ty: number;
+  rotation: number;
+}
 
-for (let ty = 0; ty < WORLD_TILES_Y; ty++) {
-  for (let tx = 0; tx < WORLD_TILES_X; tx++) {
-    blitTile("tile/grass", tx, ty);
+/** Farm perimeter fences, skipping road-facing gaps — mirrors render-systems.ts. */
+function computeFences(): FenceTile[] {
+  const out: FenceTile[] = [];
+  for (const region of REGIONS) {
+    if (region.kind !== "farm") continue;
+    const { minX, minY, maxX, maxY } = region.bounds;
+    for (let tx = minX; tx <= maxX; tx++) {
+      if (!isWalkable(tx, minY - 1)) out.push({ tx, ty: minY, rotation: 0 });
+      if (!isWalkable(tx, maxY + 1)) out.push({ tx, ty: maxY, rotation: 0 });
+    }
+    for (let ty = minY + 1; ty <= maxY - 1; ty++) {
+      if (!isWalkable(minX - 1, ty)) out.push({ tx: minX, ty, rotation: Math.PI / 2 });
+      if (!isWalkable(maxX + 1, ty)) out.push({ tx: maxX, ty, rotation: Math.PI / 2 });
+    }
+  }
+  return out;
+}
+
+clearToColor(12, 13, 18, 255); // matches the renderer's #0c0d12 void color
+
+// 1. Backdrop pass over the 40×40 grid.
+for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+  for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+    const frame = backdropFrame(tx, ty);
+    if (frame === null) continue;
+    blitCentered(frame, tx * TILE + TILE / 2, ty * TILE + TILE / 2);
   }
 }
 
-for (let tx = 0; tx < WORLD_TILES_X; tx++) {
-  blitTile("tile/path", tx, 5);
-}
-for (let ty = 0; ty < WORLD_TILES_Y; ty++) {
-  blitTile("tile/path", 9, ty);
-  blitTile("tile/path", 10, ty);
+// 2. Farm perimeter fences.
+for (const fence of computeFences()) {
+  blitCentered("tile/fence-h", fence.tx * TILE + TILE / 2, fence.ty * TILE + TILE / 2, fence.rotation);
 }
 
-const FENCE_REGIONS = [
-  { left: 2, right: 5, top: 1, bottom: 4 },
-  { left: 14, right: 17, top: 1, bottom: 4 },
-  { left: 2, right: 5, top: 7, bottom: 10 },
-  { left: 14, right: 17, top: 7, bottom: 10 },
-];
-for (const r of FENCE_REGIONS) {
-  for (let tx = r.left; tx <= r.right; tx++) {
-    blitTile("tile/fence-h", tx, r.top);
-    blitTile("tile/fence-h", tx, r.bottom);
-  }
-}
-
+// 3. Boot the real sim (regions, plots, farmers, market wall, shopkeeper).
 const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 20 });
-decorateMarketAndShop(world);
 
+// 4. Plots: dirt tile (+ crop if planted), layered above the backdrop.
 for (const plot of world.query("plot")) {
-  blitTile("tile/dirt", plot.plot.tileX, plot.plot.tileY);
+  blitCentered("tile/dirt", plot.plot.tileX * TILE + TILE / 2, plot.plot.tileY * TILE + TILE / 2);
 }
 
+// 5. Sprite entities (farmers, market wall, shopkeeper), painted by layer so
+//    structures/farmers land on top in the same order the renderer uses.
+const sprites: BlitSprite[] = [];
 for (const e of world.query("sprite", "transform")) {
-  if (!isFarmerOrStructure(e)) continue;
-  blitCentered(e.sprite.frame, e.transform.x, e.transform.y);
+  const t = e.transform;
+  sprites.push({
+    cx: t.x * TILE + TILE / 2,
+    cy: t.y * TILE + TILE / 2,
+    frame: e.sprite.frame,
+    rotation: t.rotation,
+    layer: e.sprite.layer,
+  });
 }
-
-function isFarmerOrStructure(e: GameEntity): e is GameEntity & {
-  sprite: NonNullable<GameEntity["sprite"]>;
-  transform: NonNullable<GameEntity["transform"]>;
-} {
-  return e.sprite !== undefined && e.transform !== undefined;
+sprites.sort((a, b) => a.layer - b.layer);
+for (const s of sprites) {
+  if (!manifest.frames[s.frame]) continue; // tolerate atlas frame drift
+  blitCentered(s.frame, s.cx, s.cy, s.rotation);
 }
 
 const upscaled = upscale(out, SCALE);

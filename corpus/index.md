@@ -23,7 +23,13 @@ Catalog of everything in this corpus. Start here.
 - [briefs/engine/done/03-tests.md](briefs/engine/done/03-tests.md) — engine unit tests (clock, rng, log, bus, world, persistence)
 - [briefs/engine/done/04-spatial-anim.md](briefs/engine/done/04-spatial-anim.md) — spatial hash grid + sprite animation
 - [briefs/engine/superseded/01-tilemap.md](briefs/engine/superseded/01-tilemap.md) — WebGPU chunked tilemap (renderer dropped)
-- [briefs/engine/todo/](briefs/engine/todo/) — empty
+
+- [briefs/engine/done/05-pathfinder-into-movement.md](briefs/engine/done/05-pathfinder-into-movement.md) — audit confirmed the WASM pathfinder is load-bearing; added a game-grid around-obstacle test + fixed stale docs
+- [briefs/engine/done/07-chunked-tile-layer.md](briefs/engine/done/07-chunked-tile-layer.md) — cached static backdrop layer (bake once, blit per frame); chunking not needed
+
+#### Engine — todo
+
+- [briefs/engine/todo/06-determinism-harness-and-analytics.md](briefs/engine/todo/06-determinism-harness-and-analytics.md) — enforce determinism in CI + per-day CSV/JSON export from run-sim
 
 ### Game
 
@@ -42,4 +48,14 @@ Catalog of everything in this corpus. Start here.
 - [briefs/game/done/13-walking-animation.md](briefs/game/done/13-walking-animation.md) — 2-frame walk cycle per personality
 - [briefs/game/done/14-meet-indicator.md](briefs/game/done/14-meet-indicator.md) — speech bubble over MEET'd farmers
 - [briefs/game/done/15-slate-billboard.md](briefs/game/done/15-slate-billboard.md) — daily shop slate DOM panel
-- [briefs/game/todo/](briefs/game/todo/) — empty
+
+#### Game — todo
+
+- [briefs/game/todo/16-playback-controls.md](briefs/game/todo/16-playback-controls.md) — pause / speed (1×/2×/4×) / step
+- [briefs/game/todo/17-save-replay.md](briefs/game/todo/17-save-replay.md) — ship the seed+input-log save/replay; shareable run URL
+- [briefs/game/todo/18-seed-picker.md](briefs/game/todo/18-seed-picker.md) — choose / randomize the seed on the home screen
+- [briefs/game/todo/19-decision-trace.md](briefs/game/todo/19-decision-trace.md) — "why" — surface the focused farmer's intention + reason
+- [briefs/game/todo/20-event-feed.md](briefs/game/todo/20-event-feed.md) — activity ticker narrating trades / auctions / weather
+- [briefs/game/todo/21-complete-auctions.md](briefs/game/todo/21-complete-auctions.md) — implement English + FPSB auctions (no more null-winner stubs)
+- [briefs/game/todo/22-seasons-weather-arcs.md](briefs/game/todo/22-seasons-weather-arcs.md) — season cycle biasing weather + yields (depth)
+- [briefs/game/done/23-fifth-personality-or-shock.md](briefs/game/done/23-fifth-personality-or-shock.md) — **done** (Direction B): one-time mid-game blight shock, deterministic, on-by-default
