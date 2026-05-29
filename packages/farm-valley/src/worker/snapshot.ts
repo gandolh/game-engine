@@ -98,7 +98,37 @@ export interface WorkerStopMsg {
   type: "stop";
 }
 
-export type WorkerInbound = WorkerInitMsg | WorkerStopMsg;
+/**
+ * main → worker: pause/resume ticking. While paused the interval keeps firing
+ * but skips the tick body, so the sim does not advance (no snapshots posted).
+ */
+export interface WorkerPauseMsg {
+  type: "pause";
+  paused: boolean;
+}
+
+/**
+ * main → worker: set the tick multiplier (1, 2, 4, …). At Nx the interval runs
+ * N scheduler.tick iterations per fire — each posting its own snapshot — so the
+ * sim simply advances faster in wall-clock terms. The tick COUNT is unchanged
+ * for a given number of advances, so determinism is preserved.
+ */
+export interface WorkerSpeedMsg {
+  type: "speed";
+  multiplier: number;
+}
+
+/** main → worker: while paused, advance exactly one tick, then stay paused. */
+export interface WorkerStepMsg {
+  type: "step";
+}
+
+export type WorkerInbound =
+  | WorkerInitMsg
+  | WorkerStopMsg
+  | WorkerPauseMsg
+  | WorkerSpeedMsg
+  | WorkerStepMsg;
 
 /** worker → main: the static backdrop sprites to bake once (sent at startup). */
 export interface WorkerStaticLayerMsg {
