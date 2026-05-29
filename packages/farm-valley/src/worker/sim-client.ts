@@ -243,6 +243,10 @@ export class SimClient {
     return this.currentSnapshot?.meets ?? [];
   }
 
+  get events(): RenderSnapshot["events"] {
+    return this.currentSnapshot?.events ?? [];
+  }
+
   get day(): number {
     return this.currentSnapshot?.day ?? 0;
   }

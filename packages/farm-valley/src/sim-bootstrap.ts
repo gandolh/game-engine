@@ -20,6 +20,7 @@ import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
 import { EncounterSystem } from "./systems/encounter";
 import { MeetIndicatorSystem } from "./systems/meet-indicator";
+import { EventFeedSystem } from "./systems/event-feed";
 import { ShopSlateSystem } from "./systems/shop-slate";
 import { FinishDaySystem } from "./systems/finish-day";
 import { setupWeatherFeature } from "./agents/weather-station";
@@ -88,6 +89,7 @@ export interface BootedSim {
   rng: Rng;
   farmers: GameEntity[];
   meetIndicators: MeetIndicatorSystem;
+  eventFeed: EventFeedSystem;
 }
 
 export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
@@ -117,6 +119,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     maxDays,
   });
   const meetIndicators = new MeetIndicatorSystem(world);
+  const eventFeed = new EventFeedSystem(world, dayClock);
   const scheduler = new Scheduler()
     .add(dayClock);
 
@@ -138,6 +141,9 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new EncounterSystem(world, bus))
     .add(meetIndicators)
     .add(new TrustSystem(world, listCoordinators()))
+    // Read-only activity-feed snoop: must observe inbox + market-wall messages
+    // before PerceiveSystem clears them and before MarketSystem drains the wall.
+    .add(eventFeed)
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new HarvestSystem(world))
@@ -155,7 +161,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(marketShop.auctionSystem)
     .add(new FinishDaySystem(world));
 
-  return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators };
+  return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators, eventFeed };
 }
 
 export interface FarmerSummary {

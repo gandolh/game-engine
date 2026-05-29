@@ -16,10 +16,12 @@ import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
 import type { DayClockSystem } from "../systems/day-clock";
 import type { MeetIndicatorSystem } from "../systems/meet-indicator";
+import type { EventFeedSystem } from "../systems/event-feed";
 import type {
   RenderSnapshot,
   SnapshotSprite,
   SnapshotMeet,
+  SnapshotEvent,
   SnapshotShock,
   FinalStandingRow,
 } from "./snapshot";
@@ -216,6 +218,21 @@ function buildMeets(meetIndicators: MeetIndicatorSystem, tick: number): Snapshot
 }
 
 // ---------------------------------------------------------------------------
+// Activity feed
+// ---------------------------------------------------------------------------
+
+/** How many feed lines to ship in the snapshot (panel shows ~30). */
+const EVENT_SNAPSHOT_CAP = 30;
+
+function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {
+  // recent() is oldest-first; ship only the newest EVENT_SNAPSHOT_CAP lines.
+  return eventFeed
+    .recent()
+    .slice(-EVENT_SNAPSHOT_CAP)
+    .map((e) => ({ day: e.day, text: e.text }));
+}
+
+// ---------------------------------------------------------------------------
 // Main builder
 // ---------------------------------------------------------------------------
 
@@ -229,6 +246,7 @@ export function buildRenderSnapshot(
   world: World<GameEntity>,
   dayClock: DayClockSystem,
   meetIndicators: MeetIndicatorSystem,
+  eventFeed: EventFeedSystem,
   tick: number,
   maxDays: number,
   pendingShock: SnapshotShock | null,
@@ -238,6 +256,7 @@ export function buildRenderSnapshot(
 
   const sprites = buildSprites(world, tick);
   const meets = buildMeets(meetIndicators, tick);
+  const events = buildEvents(eventFeed);
   const observer = buildObserverSnapshot(world, day);
   const lbRows = buildLeaderboardRows(world);
 
@@ -256,6 +275,7 @@ export function buildRenderSnapshot(
     day,
     sprites,
     meets,
+    events,
     observer,
     leaderboard: lbRows,
     slate,

@@ -38,6 +38,14 @@ export interface SnapshotMeet {
   farmerId: number;
 }
 
+/** One formatted activity-feed line (newest entries are last in the array). */
+export interface SnapshotEvent {
+  /** Sim day for the "Day N —" prefix. */
+  day: number;
+  /** Narration text (no prefix). */
+  text: string;
+}
+
 /** A one-time shock event, surfaced once in the snapshot it fires on. */
 export interface SnapshotShock {
   kind: string;
@@ -66,6 +74,8 @@ export interface RenderSnapshot {
   sprites: SnapshotSprite[];
   /** Active MEET indicators this tick. */
   meets: SnapshotMeet[];
+  /** Activity-feed lines (oldest-first, capped); panel renders newest-first. */
+  events: SnapshotEvent[];
   /** Observer panel data. */
   observer: ObserverSnapshot;
   /** Leaderboard rows. */

@@ -12,6 +12,7 @@ import {
   LeaderboardPanel,
   SlateBillboardPanel,
   PlaybackControlsPanel,
+  EventFeedPanel,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
@@ -176,6 +177,7 @@ async function startGame(
     const observer = new ObserverPanel(app);
     const leaderboardPanel = new LeaderboardPanel(app);
     const slateBillboard = new SlateBillboardPanel(app);
+    const eventFeedPanel = new EventFeedPanel(app);
     const playback = new PlaybackControlsPanel(app);
     const gameOverPanel = createGameOverPanel(app);
     let gameOverShown = false;
@@ -296,6 +298,7 @@ async function startGame(
 
       leaderboardPanel.update(client.leaderboard);
       slateBillboard.update(client.slate);
+      eventFeedPanel.update(client.events);
 
       // Game over — show once.
       if (client.gameOver && !gameOverShown) {
