@@ -9,7 +9,7 @@ import {
   createPathfinderFromUrl,
 } from "@engine/core";
 import type { AtlasManifest, Pathfinder } from "@engine/core";
-import { buildCanvasFrame } from "./render-systems";
+import { buildCanvasFrame, buildStaticLayerSprites } from "./render-systems";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
 import {
   ObserverPanel,
@@ -170,6 +170,15 @@ async function startGame(
       maxDays: CONFIG.maxDays,
       pathfinder,
     });
+
+    // Bake the static backdrop (tiles + fences + plot dirt) once — it never
+    // changes after world setup, so the renderer blits one cached layer per
+    // frame instead of re-drawing ~1600 tiles. Crops/entities stay dynamic.
+    renderer.bakeStaticLayer(
+      buildStaticLayerSprites(world),
+      WORLD_WIDTH * TILE,
+      WORLD_HEIGHT * TILE,
+    );
 
     const clock = new FixedStepClock({ tickRateHz: CONFIG.tickRateHz });
     const overlay = new DebugOverlay(app);

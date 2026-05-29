@@ -142,12 +142,13 @@ function* iterateFocusHalo(
   }
 }
 
-function* iterSceneSprites(
-  world: World<GameEntity>,
-  alpha: number,
-  tick: number,
-  focusedFarmerId: number | null = null,
-): Generator<LogicalSprite> {
+/**
+ * The static backdrop: tiles + farm fences + plot dirt. These never change
+ * after world setup, so they're baked once into the renderer's static layer
+ * (see `Canvas2dRenderer.bakeStaticLayer`) instead of re-emitted every frame.
+ * Crops on top of plots stay dynamic (they grow), so they're NOT here.
+ */
+export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalSprite> {
   // Backdrop: one pass over the 40×40 grid. Void tiles emit nothing.
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
@@ -180,13 +181,12 @@ function* iterSceneSprites(
     };
   }
 
-  // Plots: their tile coord lives on plot.tileX/tileY.
+  // Plot dirt tiles (static). The crop sprite layered on top is dynamic and
+  // lives in iterSceneSprites.
   for (const plot of world.query("plot")) {
-    const px = plot.plot.tileX * TILE + TILE / 2;
-    const py = plot.plot.tileY * TILE + TILE / 2;
     yield {
-      x: px,
-      y: py,
+      x: plot.plot.tileX * TILE + TILE / 2,
+      y: plot.plot.tileY * TILE + TILE / 2,
       width: TILE,
       height: TILE,
       frame: "tile/dirt",
@@ -194,6 +194,40 @@ function* iterSceneSprites(
       layer: 2,
       alpha: 1,
     };
+  }
+}
+
+/** Materialize the static backdrop sprites for a one-time bake. */
+export function buildStaticLayerSprites(world: World<GameEntity>): Canvas2dSprite[] {
+  const out: Canvas2dSprite[] = [];
+  for (const ls of iterStaticSprites(world)) {
+    out.push({
+      x: ls.x,
+      y: ls.y,
+      width: ls.width,
+      height: ls.height,
+      frame: ls.frame,
+      rotation: ls.rotation,
+      layer: ls.layer,
+      alpha: ls.alpha,
+    });
+  }
+  return out;
+}
+
+function* iterSceneSprites(
+  world: World<GameEntity>,
+  alpha: number,
+  tick: number,
+  focusedFarmerId: number | null = null,
+): Generator<LogicalSprite> {
+  // NOTE: the static backdrop (tiles, fences, plot dirt) is baked once into the
+  // renderer's static layer via buildStaticLayerSprites — not emitted here.
+
+  // Crops on top of plots (dynamic: they grow stage by stage).
+  for (const plot of world.query("plot")) {
+    const px = plot.plot.tileX * TILE + TILE / 2;
+    const py = plot.plot.tileY * TILE + TILE / 2;
     if (plot.plot.state.kind === "planted") {
       const crop = plot.plot.state.crop;
       const days = plot.plot.state.daysGrowing;
