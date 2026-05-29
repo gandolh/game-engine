@@ -269,3 +269,182 @@ describe("AuctionSystem — Dutch", () => {
     expect(res!.paidPrice).toBe(20);
   });
 });
+
+describe("AuctionSystem — FPSB", () => {
+  let world: World<GameEntity>;
+  let bus: MessageBus;
+  let sys: AuctionSystem;
+
+  beforeEach(() => {
+    world = new World<GameEntity>();
+    bus = new MessageBus();
+    spawnShopkeeper(world);
+    sys = new AuctionSystem(bus, world, createRng(7));
+  });
+
+  it("highest bid above reserve wins and pays its OWN bid", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "f1",
+      type: "fpsb",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "f1", bidderId: 101, amount: 50 }, 1);
+    sys.submitBid({ auctionId: "f1", bidderId: 102, amount: 90 }, 2);
+    sys.submitBid({ auctionId: "f1", bidderId: 103, amount: 70 }, 3);
+
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "f1");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBe(102);
+    expect(res!.paidPrice).toBe(90); // first-price: pays own bid, not second-highest
+    expect(res!.participants.sort()).toEqual([101, 102, 103]);
+  });
+
+  it("top bid below reserve → no winner, paid = reserve", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "f2",
+      type: "fpsb",
+      item: "golden_bean",
+      reservePrice: 100,
+      closesAtTick: 3,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "f2", bidderId: 401, amount: 50 }, 1);
+    sys.run({ tick: 3 });
+
+    const res = findResult(bus, "f2");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBeNull();
+    expect(res!.paidPrice).toBe(100);
+  });
+
+  it("ties resolve deterministically — earliest tickReceived then lowest id", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "f3",
+      type: "fpsb",
+      item: "golden_bean",
+      reservePrice: 5,
+      closesAtTick: 10,
+    };
+    sys.openAuction(cfp);
+    // Same amount, same tick → tie-break falls through to lowest bidder id.
+    sys.submitBid({ auctionId: "f3", bidderId: 302, amount: 50 }, 2);
+    sys.submitBid({ auctionId: "f3", bidderId: 301, amount: 50 }, 2);
+
+    sys.run({ tick: 10 });
+
+    const res = findResult(bus, "f3");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBe(301); // lowest id wins the tie
+    expect(res!.paidPrice).toBe(50); // first-price: pays own bid
+  });
+
+  it("no bids → no winner, paid = reserve", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "f4",
+      type: "fpsb",
+      item: "golden_bean",
+      reservePrice: 40,
+      closesAtTick: 3,
+    };
+    sys.openAuction(cfp);
+    sys.run({ tick: 3 });
+
+    const res = findResult(bus, "f4");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBeNull();
+    expect(res!.paidPrice).toBe(40);
+    expect(res!.participants).toEqual([]);
+  });
+});
+
+describe("AuctionSystem — English", () => {
+  let world: World<GameEntity>;
+  let bus: MessageBus;
+  let sys: AuctionSystem;
+
+  beforeEach(() => {
+    world = new World<GameEntity>();
+    bus = new MessageBus();
+    spawnShopkeeper(world);
+    sys = new AuctionSystem(bus, world, createRng(99), undefined, {
+      incrementPerTick: 10,
+      noBidTimeout: 3,
+    });
+  });
+
+  it("ascending clock — last/highest affirmer wins at the current ask", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "e1",
+      type: "english",
+      item: "golden_bean",
+      reservePrice: 20,
+      closesAtTick: 50,
+    };
+    sys.openAuction(cfp);
+    sys.run({ tick: 0 }); // anchor startTick = 0
+
+    // tick 1: ask = 20 + 10*1 = 30. Bidder 7 affirms (valuation covers it).
+    expect(sys.submitBid({ auctionId: "e1", bidderId: 7, amount: 30 }, 1)).toBe(true);
+    // tick 2: ask = 20 + 10*2 = 40. Bidder 8 affirms higher.
+    expect(sys.submitBid({ auctionId: "e1", bidderId: 8, amount: 40 }, 2)).toBe(true);
+    // tick 3: ask = 50. Bidder 7's valuation (45) no longer covers it → rejected.
+    expect(sys.submitBid({ auctionId: "e1", bidderId: 7, amount: 45 }, 3)).toBe(false);
+
+    // No affirm for noBidTimeout (3) ticks after the last bid at tick 2 → close.
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "e1");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBe(8); // last affirmer
+    expect(res!.paidPrice).toBe(40); // ask at the affirming tick
+    expect(res!.participants.sort()).toEqual([7, 8]);
+  });
+
+  it("no taker → null winner, paid = reserve", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "e2",
+      type: "english",
+      item: "golden_bean",
+      reservePrice: 25,
+      closesAtTick: 4,
+    };
+    sys.openAuction(cfp);
+    sys.run({ tick: 0 });
+    sys.run({ tick: 4 }); // fixed clock runs out with no affirming bid
+
+    const res = findResult(bus, "e2");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBeNull();
+    expect(res!.paidPrice).toBe(25);
+    expect(res!.participants).toEqual([]);
+  });
+
+  it("closes on the no-bid timeout before closesAtTick", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "e3",
+      type: "english",
+      item: "golden_bean",
+      reservePrice: 20,
+      closesAtTick: 100, // far away — the timeout must drive the close
+    };
+    sys.openAuction(cfp);
+    sys.run({ tick: 0 }); // anchor startTick = 0
+
+    // tick 1: ask = 30. Bidder 5 affirms.
+    expect(sys.submitBid({ auctionId: "e3", bidderId: 5, amount: 30 }, 1)).toBe(true);
+    // No further bids. Last bid at tick 1; timeout = 3 → closes at tick 4.
+    sys.run({ tick: 3 }); // 3 - 1 = 2 < 3 → still open
+    expect(findResult(bus, "e3")).toBeUndefined();
+
+    sys.run({ tick: 4 }); // 4 - 1 = 3 >= 3 → close
+    const res = findResult(bus, "e3");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBe(5);
+    expect(res!.paidPrice).toBe(30);
+  });
+});
