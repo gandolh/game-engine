@@ -33,7 +33,8 @@ Engine never imports game; game never imports another game package. WASM artifac
 ## Sim loop
 
 - **Fixed step**: 20 Hz tick (`FixedStepClock` in [runtime/](../../packages/engine/src/runtime/)). Render interpolates with an `alpha ∈ [0,1)`.
-- **Deterministic**: all randomness via seeded [`Rng`](../../packages/engine/src/runtime/rng.ts) (mulberry32 + named forks). No `Math.random` or `Date.now` in sim.
+- **Runs in a Web Worker** (browser): the Worker ([worker/sim-worker.ts](../../packages/farm-valley/src/worker/sim-worker.ts)) owns the ECS `world` + clock and posts a `RenderSnapshot` per tick; the main thread ([worker/sim-client.ts](../../packages/farm-valley/src/worker/sim-client.ts)) renders + interpolates between the latest two snapshots. `postMessage` only (no SharedArrayBuffer). The headless [run-sim](../../tools/run-sim/) and all tests drive the sim directly on the main thread (no Worker). See [decisions.md](decisions.md) → Concurrency.
+- **Deterministic**: all randomness via seeded [`Rng`](../../packages/engine/src/runtime/rng.ts) (mulberry32 + named forks). No `Math.random` or `Date.now` in sim. Driving ticks from the Worker doesn't affect this — the sim depends only on the tick count.
 - **Input log**: external inputs flow through [`InputLog`](../../packages/engine/src/runtime/) so the seed + log replay byte-for-byte.
 - **Save model**: seed + event-sourced input log (not snapshots). See [persistence/](../../packages/engine/src/persistence/).
 
@@ -66,4 +67,4 @@ Canvas2D ([packages/engine/src/render/canvas2d.ts](../../packages/engine/src/ren
 
 ## WASM
 
-[packages/engine/src/wasm/](../../packages/engine/src/wasm/) wraps `WebAssembly.instantiate`, exposes `WasmHeap` typed-array views, and currently ships one typed kernel: [`Pathfinder`](../../packages/engine/src/wasm/pathfinder.ts) (4-connected grid shortest-path). The Pathfinder is **loaded at boot but not yet routed into agent movement** — see [open-questions.md](open-questions.md).
+[packages/engine/src/wasm/](../../packages/engine/src/wasm/) wraps `WebAssembly.instantiate`, exposes `WasmHeap` typed-array views, and currently ships one typed kernel: [`Pathfinder`](../../packages/engine/src/wasm/pathfinder.ts) (4-connected grid shortest-path). The Pathfinder is **load-bearing**: [`TravelSystem`](../../packages/farm-valley/src/systems/travel.ts) calls `findPath(grid, start, targetCenter)` against the real [walkable grid](../../packages/farm-valley/src/world/walkable-grid.ts) (regions + road corridors walkable, the rest void) and walks farmers waypoint-by-waypoint, routing around the void via the roads. Around-obstacle routing is tested at the kernel level (`wasm/pathfinder.test.ts` "routes around a wall") and on the real game grid (`systems/travel.test.ts` "routes around the void").

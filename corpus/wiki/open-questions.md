@@ -4,11 +4,18 @@ Live list of unresolved work and design questions. Items move out of here when a
 
 ## Code gaps (have a clear "next step")
 
-_No code-level gaps tracked right now — the three from the 08/09/10 round (act.ts bypass, CNP coordinator registry, responder-side trust delta) all landed in the cleanup pass. Visuals and polish below are open as design questions._
+_No code-level gaps tracked right now — see Resolved below._
 
-## Design questions (no clear answer yet)
+## Resolved
 
-- **Tilemap layer on Canvas2D?** The original [01-tilemap](../briefs/engine/superseded/01-tilemap.md) brief was WebGPU. Background is currently drawn ad-hoc per-tile. Open question: do we need a real chunked tile layer? Only relevant if/when perf demands it (today's 40×40 grid at 60fps is comfortable).
-- **Sim → Web Worker move.** [decisions.md](decisions.md) keeps the sim "pure so it can move to a Web Worker later." No trigger to do this yet.
-- **Asymmetric / fifth personality?** Per the design interview, the answer was *no balance work, moments matter*. So this is on ice unless the runs start feeling stale. Atticus consistently wins; that's coherent narrative, not a bug.
-- **Decision rationale trace (BDI "why").** During the design interview, the user picked the lighter "visual emphasis + current/next intention" answer over a full reasoning log. Revisit if you start watching focused farmers and find yourself wanting to know *why* they decided things.
+- **Sim → Web Worker move** — _resolved 2026-05-29._ The sim now runs in a Web Worker (`packages/farm-valley/src/worker/`); the main thread renders from per-tick `RenderSnapshot`s and interpolates between them. `postMessage` transport (no SharedArrayBuffer → no cross-origin-isolation headers). Determinism preserved and verified: `npm run sim` (no Worker) and the in-browser Worker run produce identical outcomes for a seed. See [decisions.md](decisions.md) → Concurrency.
+- **Chunked tile layer on Canvas2D** — _resolved 2026-05-29 (brief [engine/07](../briefs/engine/done/07-chunked-tile-layer.md))._ Built the cached-static-backdrop variant: the renderer bakes the backdrop (tiles + fences + plot dirt) once into an offscreen canvas and blits it under the per-frame dynamic queue. Chunking wasn't needed at 40×40. Canvas2D stayed locked; no WebGPU revival.
+- **Asymmetric / fifth personality (variance injector)** — _resolved 2026-05-29 (brief [game/23](../briefs/game/done/23-fifth-personality-or-shock.md), Direction B)._ Chose the mid-game **shock** over a fifth personality. `ShockSystem` fires a one-time blight on the run midpoint, wiping a deterministically-chosen (crop-holding) farmer's planted plots and broadcasting `ONT_SIMULATION.SHOCK`. On-by-default, tunable/disable-able via `bootstrapSim({ shock })`. Preserves the "moments matter, no balance work" stance — it's a story beat, not a balance lever.
+- **WASM pathfinder loaded but possibly idle** — _resolved 2026-05-29 (brief [engine/05](../briefs/engine/done/05-pathfinder-into-movement.md))._ Audit confirmed the pathfinder is **load-bearing**, not idle: `TravelSystem.findPath()` computes real routes on the walkable grid and farmers walk them waypoint-by-waypoint, routing around the void via roads. Added a game-grid around-obstacle test (`travel.test.ts` "routes around the void") and corrected the stale "loaded but not yet routed" claim in [architecture.md](architecture.md).
+- **`act.ts` buy-seed bypass** — _resolved 2026-05-29._ `ActSystem`'s `buy-seed` intent now emits an `ONT_SHOP.SELL` (item: "seed") message to the shopkeeper instead of mutating the daily slate inline; `ShopkeeperSystem.handleSell` is the single owner of slate consumption + gold checks. Accepted behavior change: seeds now land ~1 tick after the ACT (ActSystem runs before ShopkeeperSystem), which shifts the deterministic outcome for a given seed. The duplicated slate-consume logic in `act.ts` is gone.
+
+## Now has a brief (was an open question)
+
+These were design/perf questions; they now have task specs in [../briefs/](../briefs/) and will move to `done/` when implemented:
+
+- **Decision rationale trace (BDI "why")** → [game/todo/19-decision-trace.md](../briefs/game/todo/19-decision-trace.md). The Brief 11 focus mode shipped, which was the stated trigger to revisit this; the brief surfaces the *lightweight* current/next-intention + reason, not a full reasoning log.

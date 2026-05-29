@@ -142,12 +142,13 @@ function* iterateFocusHalo(
   }
 }
 
-function* iterSceneSprites(
-  world: World<GameEntity>,
-  alpha: number,
-  tick: number,
-  focusedFarmerId: number | null = null,
-): Generator<LogicalSprite> {
+/**
+ * The static backdrop: tiles + farm fences + plot dirt. These never change
+ * after world setup, so they're baked once into the renderer's static layer
+ * (see `Canvas2dRenderer.bakeStaticLayer`) instead of re-emitted every frame.
+ * Crops on top of plots stay dynamic (they grow), so they're NOT here.
+ */
+export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalSprite> {
   // Backdrop: one pass over the 40×40 grid. Void tiles emit nothing.
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
@@ -180,13 +181,12 @@ function* iterSceneSprites(
     };
   }
 
-  // Plots: their tile coord lives on plot.tileX/tileY.
+  // Plot dirt tiles (static). The crop sprite layered on top is dynamic and
+  // lives in iterSceneSprites.
   for (const plot of world.query("plot")) {
-    const px = plot.plot.tileX * TILE + TILE / 2;
-    const py = plot.plot.tileY * TILE + TILE / 2;
     yield {
-      x: px,
-      y: py,
+      x: plot.plot.tileX * TILE + TILE / 2,
+      y: plot.plot.tileY * TILE + TILE / 2,
       width: TILE,
       height: TILE,
       frame: "tile/dirt",
@@ -194,6 +194,40 @@ function* iterSceneSprites(
       layer: 2,
       alpha: 1,
     };
+  }
+}
+
+/** Materialize the static backdrop sprites for a one-time bake. */
+export function buildStaticLayerSprites(world: World<GameEntity>): Canvas2dSprite[] {
+  const out: Canvas2dSprite[] = [];
+  for (const ls of iterStaticSprites(world)) {
+    out.push({
+      x: ls.x,
+      y: ls.y,
+      width: ls.width,
+      height: ls.height,
+      frame: ls.frame,
+      rotation: ls.rotation,
+      layer: ls.layer,
+      alpha: ls.alpha,
+    });
+  }
+  return out;
+}
+
+function* iterSceneSprites(
+  world: World<GameEntity>,
+  alpha: number,
+  tick: number,
+  focusedFarmerId: number | null = null,
+): Generator<LogicalSprite> {
+  // NOTE: the static backdrop (tiles, fences, plot dirt) is baked once into the
+  // renderer's static layer via buildStaticLayerSprites — not emitted here.
+
+  // Crops on top of plots (dynamic: they grow stage by stage).
+  for (const plot of world.query("plot")) {
+    const px = plot.plot.tileX * TILE + TILE / 2;
+    const py = plot.plot.tileY * TILE + TILE / 2;
     if (plot.plot.state.kind === "planted") {
       const crop = plot.plot.state.crop;
       const days = plot.plot.state.daysGrowing;
@@ -281,6 +315,81 @@ function* iterateMeetIndicators(
       layer: 90, // above all scene sprites
       alpha: 1,
     };
+  }
+}
+
+/**
+ * Push snapshot sprites (dynamic layer from the sim worker) into the renderer.
+ * Each SnapshotSprite is already in pixel space and has alpha pre-computed.
+ * Width/height default to TILE (16) for all snapshot sprites.
+ *
+ * This also draws:
+ *  - MEET bubble (indicator/meet) sprites above each active meet farmer,
+ *    positioned at the interpolated farmer pixel position from the snapshot.
+ *  - Focus halo segments around the focused farmer (identified by id) using
+ *    the interpolated position supplied by the caller.
+ */
+export function pushSnapshotSprites(
+  renderer: Canvas2dRenderer,
+  sprites: import("./worker/snapshot").SnapshotSprite[],
+  meets: import("./worker/snapshot").SnapshotMeet[],
+  farmerPositions: Map<number, { x: number; y: number }>,
+  focusedFarmerId: number | null,
+): void {
+  // Sprites
+  for (const s of sprites) {
+    renderer.push({
+      x: s.x,
+      y: s.y,
+      width: TILE,
+      height: TILE,
+      frame: s.frame,
+      rotation: s.rotation,
+      layer: s.layer,
+      alpha: s.alpha,
+    });
+  }
+
+  // Meet bubbles (one tile above farmer)
+  for (const meet of meets) {
+    const pos = farmerPositions.get(meet.farmerId);
+    if (!pos) continue;
+    renderer.push({
+      x: pos.x,
+      y: pos.y - TILE,
+      width: TILE,
+      height: TILE,
+      frame: "indicator/meet",
+      rotation: 0,
+      layer: 90,
+      alpha: 1,
+    });
+  }
+
+  // Focus halo (4 small segments at N/E/S/W around the focused farmer)
+  if (focusedFarmerId !== null) {
+    const pos = farmerPositions.get(focusedFarmerId);
+    if (pos) {
+      const r = TILE * 0.8;
+      const offsets: Array<[number, number, number]> = [
+        [0, -r, 0],
+        [r, 0, Math.PI / 2],
+        [0, r, 0],
+        [-r, 0, Math.PI / 2],
+      ];
+      for (const [dx, dy, rot] of offsets) {
+        renderer.push({
+          x: pos.x + dx,
+          y: pos.y + dy,
+          width: TILE * 0.5,
+          height: TILE * 0.5,
+          frame: "tile/fence-h",
+          rotation: rot,
+          layer: 50,
+          alpha: 0.85,
+        });
+      }
+    }
   }
 }
 

@@ -2,6 +2,45 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-05-29] impl | Open-questions round — 5 fixes landed on feature/open-questions-round
+
+Went through every open question with the user and implemented their choices, one commit per item on branch `feature/open-questions-round` (not yet merged/PR'd):
+
+1. **act.ts buy-seed → bus** (`2233a15`). Removed the direct slate-mutation shortcut; `buy-seed` now emits `ONT_SHOP.SELL`, handled by `ShopkeeperSystem.handleSell`. Accepted determinism shift (seed lands ~1 tick later). User chose full bus routing over a sync shared-helper refactor.
+2. **Pathfinder verify + docs** (`1793ac6`). Audit found it was already load-bearing (not idle, as the stale docs claimed). Added a game-grid around-obstacle test; corrected architecture.md. Brief engine/05 → done.
+3. **Cached static backdrop** (`a8e0c0b`). `Canvas2dRenderer.bakeStaticLayer` bakes tiles+fences+plot-dirt once; dynamic sprites stay per-frame. User opted to build it now rather than wait on the profile gate. Brief engine/07 → done.
+4. **Mid-game shock** (`7699993`). Direction B of brief 23: a deterministic one-time blight on the run midpoint, targeting a crop-holding farmer so it always lands. Brief game/23 → done. Standings shifted (Atticus 2298→2018 at the default seed) — expected.
+5. **Sim → Web Worker** (`2ed2a4d`). Sim runs in a Worker posting RenderSnapshots; main thread interpolates + renders. postMessage only (no SAB). Determinism verified (`npm run sim` byte-identical) and browser-verified (focus camera, halo, panels, no errors). Implemented by a sonnet subagent against an opus-authored snapshot schema; opus verified.
+
+Brief game/19 (BDI "why" trace) was kept as a todo (user chose lightweight-as-briefed, deferred implementation). Final: 379 tests pass (288 farm-valley + 91 engine), typecheck clean.
+
+Also folded in earlier same-day housekeeping that hadn't been committed: the 11 improvement briefs (game 16–23, engine 05–07), the world-preview rewrite to the real 40×40 world, and the stale-trust-comment cleanup.
+
+## [2026-05-29] brief | 11 improvement TODOs drafted (game 16–23, engine 05–07)
+
+Engine/game review surfaced gaps between stated capability and shipped experience; drafted 11 task briefs to track them. None implemented yet — all in `todo/`.
+
+**Game (`briefs/game/todo/`):**
+- **16-playback-controls** — pause / speed (1×/2×/4×) / step. Highest experience-per-effort: it's a watch-only game with no time control today. Presentation-only; must stay byte-identical to an uninterrupted run for the same seed.
+- **17-save-replay** — ship the save/replay model the architecture already promises ("seed + event-sourced input log"). `InputLog` is currently instantiated and discarded (`void inputLog;` in main.ts). Adds a shareable run URL.
+- **18-seed-picker** — choose/randomize the seed on the home screen (it's hardcoded `0xc0ffee`). Pairs with 17.
+- **19-decision-trace** — the deferred BDI "why". Brief 11's focus mode (the stated trigger to revisit) shipped, so this is now actionable. Lightweight intention+reason, not a full log.
+- **20-event-feed** — activity ticker narrating trades / auctions / weather by snooping the bus read-only (TrustSystem/MeetIndicator precedent). Highest narrative payoff.
+- **21-complete-auctions** — implement English + FPSB. Today they're stubs in auction.ts that route through a Vickrey shell and always return null winners; Vickrey + Dutch work.
+- **22-seasons-weather-arcs** — season cycle biasing weather/yields, giving the 100-day run a shape. Depth brief.
+- **23-fifth-personality-or-shock** — variance injector, **design-gated** (preserves "no balance work, moments matter"). Pick a 5th personality or a mid-game shock at activation.
+
+**Engine (`briefs/engine/todo/`):**
+- **05-pathfinder-into-movement** — make the WASM pathfinder load-bearing in travel, or document straight-line and remove dead plumbing. Closes the "loaded but unused" gap.
+- **06-determinism-harness-and-analytics** — enforce the determinism guarantee in CI (run-twice-and-diff) + per-day CSV/JSON export from run-sim. Protects the foundation 17/18/20 depend on.
+- **07-chunked-tile-layer** — cached/chunked backdrop render pass, **profile-gated**: the brief's first step is measuring whether the per-tile backdrop is actually hot before any code. Canvas2D stays locked (no WebGPU revival).
+
+Corpus updates: cataloged all 11 in [index.md](index.md); restructured [wiki/open-questions.md](wiki/open-questions.md) so the tilemap / decision-trace / fifth-personality / pathfinder questions now point at their briefs, and re-surfaced the `act.ts` buy-seed bypass as a still-untracked code gap.
+
+## [2026-05-29] fix | typecheck unblocked + world-preview rewritten to the real world
+
+Edge-tooling cleanup after an engine review. `npm run typecheck` was red across the monorepo: `tools/world-preview` imported the deleted `farm-valley/src/decorate`. Rewrote [tools/world-preview/src/index.ts](../../tools/world-preview/src/index.ts) to render the real 40×40 region world — reads layout from the shared `world/regions.ts` (single source of truth), boots the actual sim via `bootstrapSim`, and mirrors `render-systems.ts` backdrop/fence/plot/sprite logic (it had been rendering a stale hardcoded 20×12 layout). Also removed two stale `// TODO: real trust updates land in a future ticket` comments in hoarder.ts / opportunist.ts (trust landed in Brief 10) and gitignored the generated `world-preview.png`. Typecheck green; 355 tests still pass.
+
 ## [2026-05-26] impl | Briefs 11–15 landed: viewer upgrade + visual polish
 
 Five briefs spec'd from the design interview ("watch BDI with tension via moments") landed via 5 parallel sonnet subagents in 5 worktrees. Locked decisions from the interview: focus camera + free pan; visual emphasis + current/next intention; moments-driven tension with ambient leaderboard; smallest first slice = viewer upgrade. The user said "all of them, separated todo" and 5 worktrees were spun up at once.

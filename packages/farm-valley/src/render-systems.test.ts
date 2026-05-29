@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { pickFarmerFrame } from "./render-systems";
+import { World } from "@engine/core";
+import { pickFarmerFrame, buildStaticLayerSprites } from "./render-systems";
 import type { GameEntity } from "./components";
 
 function makeFarmerEntity(opts: {
@@ -89,5 +90,58 @@ describe("pickFarmerFrame", () => {
     // Clear path — simulate arrival.
     entity.farmer!.path = undefined;
     expect(pickFarmerFrame(entity, 0)).toBe("farmer/hoarder");
+  });
+});
+
+describe("buildStaticLayerSprites (cached backdrop)", () => {
+  function makeWorldWithOnePlot(): World<GameEntity> {
+    const world = new World<GameEntity>();
+    // A plot (dirt is static); a planted crop on it (dynamic, must NOT appear);
+    // a farmer sprite (dynamic, must NOT appear).
+    world.spawn({
+      plot: {
+        ownerId: 1,
+        regionId: "farm-cora" as import("./world/regions").RegionId,
+        tileX: 18,
+        tileY: 5,
+        state: { kind: "planted", crop: "radish", daysGrowing: 1, readyAtDay: 2, weatherSum: 0 },
+      },
+    } as unknown as GameEntity);
+    world.spawn({
+      sprite: { frame: "farmer/conservative", layer: 50, tintRgba: 0xffffffff },
+      transform: { x: 18, y: 5, prevX: 18, prevY: 5, rotation: 0 },
+      farmer: { name: "C", currentRegion: "farm-cora" as import("./world/regions").RegionId },
+    } as unknown as GameEntity);
+    return world;
+  }
+
+  it("contains the static backdrop: grass/dirt/path tiles, fences, and plot dirt", () => {
+    const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
+    const frames = new Set(sprites.map((s) => s.frame));
+    // Backdrop tile kinds present (the real layout has all three).
+    expect(frames.has("tile/grass")).toBe(true);
+    expect(frames.has("tile/dirt")).toBe(true);
+    expect(frames.has("tile/path")).toBe(true);
+    // Farm fences are baked in.
+    expect(frames.has("tile/fence-h")).toBe(true);
+    // Lots of tiles (40×40 world is mostly walkable region/road).
+    expect(sprites.length).toBeGreaterThan(100);
+  });
+
+  it("does NOT contain dynamic sprites (crops or farmer entities)", () => {
+    const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
+    const frames = sprites.map((s) => s.frame);
+    // No crop sprite (crops grow → dynamic).
+    expect(frames.some((f) => f.startsWith("crop/"))).toBe(false);
+    // No farmer/structure entity sprites.
+    expect(frames.some((f) => f.startsWith("farmer/"))).toBe(false);
+  });
+
+  it("includes exactly one dirt tile per plot", () => {
+    const world = makeWorldWithOnePlot();
+    const dirtForPlot = buildStaticLayerSprites(world).filter(
+      (s) => s.frame === "tile/dirt" && s.x === 18 * 16 + 8 && s.y === 5 * 16 + 8,
+    );
+    expect(dirtForPlot.length).toBe(1);
   });
 });

@@ -138,7 +138,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
   const trust = farmer.trust?.byId;
-  // TODO: real trust updates land in a future ticket; default to 0.5 for unseen peers.
+  // Trust is maintained live by TrustSystem; default to 0.5 for unseen peers.
   const ranked = offers
     .filter((o) => o.sellerId !== farmer.id)
     .filter((o) => o.pricePerUnit <= SHOP_PRICE[o.crop] * BUY_PRICE_MULTIPLIER)

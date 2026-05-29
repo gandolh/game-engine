@@ -57,8 +57,11 @@ export interface ShopkeeperSystemOptions {
  * inventory and gold directly, then replies with CONFIRM as an audit
  * record. (The MD spec calls this the "simplest" path and recommends
  * documenting; alternative would be two-step where the farmer's perceive
- * consumes the CONFIRM and applies the delta. Single-step matches the
- * existing `ActSystem`'s local-intention path mental model.)
+ * consumes the CONFIRM and applies the delta.)
+ *
+ * All seed purchases route here: `ActSystem`'s `buy-seed` intent now emits an
+ * `ONT_SHOP.SELL` (item: "seed") message instead of mutating the slate inline,
+ * so `handleSell` is the single owner of slate consumption + gold checks.
  *
  * Auction trigger choice: lives here (not in AuctionSystem). The shopkeeper
  * is the auctioneer of record; AuctionSystem is a pure state machine. We

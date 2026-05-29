@@ -1,4 +1,5 @@
 import { bootstrapSim, leaderboard, type FarmerSummary } from "farm-valley/src/sim-bootstrap";
+import { ONT_SIMULATION, type ShockBody } from "farm-valley/src/protocols";
 
 const SEED = Number(process.env["SEED"] ?? 0xc0ffee);
 const TICKS_PER_DAY = Number(process.env["TICKS_PER_DAY"] ?? 20);
@@ -49,7 +50,15 @@ function summarize(
   return { weather, summaries: leaderboard(world) };
 }
 
-const { world, scheduler, dayClock } = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
+const { world, scheduler, dayClock, bus } = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
+
+// Narrate the mid-game shock when it fires (otherwise it's an invisible moment).
+bus.subscribeOntology(ONT_SIMULATION.SHOCK, (msg) => {
+  const b = msg.body as unknown as ShockBody;
+  console.log(
+    `  *** SHOCK day ${b.day}: ${b.kind} struck ${b.targetName} — ${b.plotsWiped} planted plot(s) wiped ***`,
+  );
+});
 
 console.log(
   `Farm Valley headless run — seed=0x${SEED.toString(16)}, ${MAX_DAYS} days @ ${TICKS_PER_DAY} ticks/day`,
@@ -60,6 +69,9 @@ const totalTicks = MAX_DAYS * TICKS_PER_DAY;
 let lastReported = -1;
 for (let tick = 0; tick < totalTicks; tick++) {
   scheduler.tick({ tick });
+  // InboxDispatchSystem already flushed this tick's messages into the bus's
+  // deliverable buffer; fire subscriber handlers so the shock narration prints.
+  bus.notifySubscribers();
   if (dayClock.day !== lastReported && dayClock.day % PROGRESS_EVERY === 0) {
     const { weather, summaries } = summarize(world);
     printDayLine(dayClock.day, weather, summaries);

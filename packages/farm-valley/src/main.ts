@@ -1,7 +1,4 @@
 import {
-  FixedStepClock,
-  GameLoop,
-  InputLog,
   loadAtlasImage,
   Camera2D,
   Canvas2dRenderer,
@@ -9,17 +6,16 @@ import {
   createPathfinderFromUrl,
 } from "@engine/core";
 import type { AtlasManifest, Pathfinder } from "@engine/core";
-import { buildCanvasFrame } from "./render-systems";
-import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
+import { pushSnapshotSprites } from "./render-systems";
 import {
   ObserverPanel,
   LeaderboardPanel,
   SlateBillboardPanel,
-  type ObserverSnapshot,
-  type LeaderboardRow,
 } from "./ui";
 import { HomeScreen } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
+import { SimClient } from "./worker/sim-client";
+import type { FinalStandingRow } from "./worker/snapshot";
 
 interface BootConfig {
   seed: number;
@@ -98,33 +94,22 @@ function setupCameraListeners(
   }, { passive: false });
 }
 
-// brief-11: focus-camera — find a farmer's world-pixel position by id
-function farmerWorldPos(
-  world: ReturnType<typeof bootstrapSim>["world"],
-): Map<number, { x: number; y: number }> {
-  const result = new Map<number, { x: number; y: number }>();
-  for (const entity of world.query("transform", "farmer")) {
-    if (entity.id === undefined) continue;
-    result.set(entity.id, {
-      x: entity.transform.x * TILE + TILE / 2,
-      y: entity.transform.y * TILE + TILE / 2,
-    });
-  }
-  return result;
-}
-
-// brief-11: focus-camera — build a live getter so onRender can call it
-let _farmerPosGetter: (() => Map<number, { x: number; y: number }>) | null = null;
+// brief-11: focus-camera — module-level client reference for the camera getter
+let _simClient: SimClient | null = null;
 let _camera: Camera2D | null = null;
 
 // brief-11: focus-camera — center + pan logic
 function applyFocusAndPan(camera: Camera2D): void {
-  const baseX = focusedFarmerId !== null && _farmerPosGetter
-    ? (_farmerPosGetter().get(focusedFarmerId)?.x ?? camera.centerX)
-    : (WORLD_WIDTH * TILE) / 2;
-  const baseY = focusedFarmerId !== null && _farmerPosGetter
-    ? (_farmerPosGetter().get(focusedFarmerId)?.y ?? camera.centerY)
-    : (WORLD_HEIGHT * TILE) / 2;
+  let baseX: number;
+  let baseY: number;
+  if (focusedFarmerId !== null && _simClient !== null) {
+    const pos = _simClient.getFarmerInterpolatedPos(focusedFarmerId);
+    baseX = pos?.x ?? camera.centerX;
+    baseY = pos?.y ?? camera.centerY;
+  } else {
+    baseX = (WORLD_WIDTH * TILE) / 2;
+    baseY = (WORLD_HEIGHT * TILE) / 2;
+  }
   camera.setCenter(baseX + panOffset.x, baseY + panOffset.y);
 }
 
@@ -162,153 +147,93 @@ async function startGame(
   runtimePromise: Promise<Runtime>,
 ): Promise<void> {
   try {
-    const { renderer, pathfinder } = await runtimePromise;
+    const { renderer } = await runtimePromise;
 
-    const { world, scheduler, dayClock, meetIndicators } = bootstrapSim({
-      seed: CONFIG.seed,
-      ticksPerDay: CONFIG.ticksPerDay,
-      maxDays: CONFIG.maxDays,
-      pathfinder,
-    });
+    const client = new SimClient();
+    _simClient = client;
 
-    const clock = new FixedStepClock({ tickRateHz: CONFIG.tickRateHz });
     const overlay = new DebugOverlay(app);
     const observer = new ObserverPanel(app);
     const leaderboardPanel = new LeaderboardPanel(app);
     const slateBillboard = new SlateBillboardPanel(app);
     const gameOverPanel = createGameOverPanel(app);
-    const inputLog = new InputLog();
-    let gameOver = false;
-    let finalSummary: FarmerSummary[] = [];
-
-    void inputLog;
+    let gameOverShown = false;
 
     // brief-11: focus-camera — set up observer row click handler
-    _farmerPosGetter = () => farmerWorldPos(world);
     observer.setOnFarmerClick((id) => {
       focusedFarmerId = id;
-      // Reset pan when changing focus
       panOffset = { x: 0, y: 0 };
       if (_camera !== null) applyFocusAndPan(_camera);
     });
 
-    const loop = new GameLoop(clock, {
-      onTick(tick) {
-        if (gameOver) return;
-        for (const e of world.query("transform")) {
-          e.transform.prevX = e.transform.x;
-          e.transform.prevY = e.transform.y;
-        }
-        scheduler.tick({ tick });
-        if (dayClock.day >= CONFIG.maxDays) {
-          gameOver = true;
-          finalSummary = leaderboard(world);
-          renderGameOver(gameOverPanel, finalSummary, dayClock.day);
-        }
-      },
-      onRender(alpha) {
-        // brief-11: focus-camera — update camera center to follow focused farmer each frame
-        if (_camera !== null && focusedFarmerId !== null) {
-          applyFocusAndPan(_camera);
-        }
-        renderer.beginFrame();
-        buildCanvasFrame(
-          renderer,
-          world,
-          alpha,
-          clock.tick,
-          meetIndicators.active(clock.tick),
-          focusedFarmerId,
-        );
-        renderer.endFrame();
-        const entityCount = countEntities(world);
-        overlay.update({ tick: clock.tick, alpha, entityCount });
-        observer.update(buildObserverSnapshot(world, dayClock.day));
-        leaderboardPanel.update(buildLeaderboardRows(world));
-        const shopEntity = (() => { for (const s of world.query("shopkeeper")) return s; return null; })();
-        slateBillboard.update(shopEntity?.shopkeeper?.dailySlate ?? []);
-      },
+    // Receive the static-layer sprites from the worker and bake them once.
+    client.onStaticLayer((msg) => {
+      renderer.bakeStaticLayer(msg.sprites, msg.worldWidthPx, msg.worldHeightPx);
     });
-    loop.start();
+
+    // Start the sim worker.
+    client.init({
+      seed: CONFIG.seed,
+      tickRateHz: CONFIG.tickRateHz,
+      ticksPerDay: CONFIG.ticksPerDay,
+      maxDays: CONFIG.maxDays,
+    });
+
+    // rAF render loop — purely rendering, no sim logic.
+    function renderFrame(): void {
+      // brief-11: focus-camera — update camera center each frame
+      if (_camera !== null && focusedFarmerId !== null) {
+        applyFocusAndPan(_camera);
+      }
+
+      renderer.beginFrame();
+
+      // Build a position map for all farmer sprites (for meet bubbles + halo).
+      const farmerPositions = new Map<number, { x: number; y: number }>();
+      for (const s of client.getInterpolatedSprites()) {
+        if (s.id !== null && s.interpolate) {
+          farmerPositions.set(s.id, { x: s.x, y: s.y });
+        }
+      }
+
+      pushSnapshotSprites(
+        renderer,
+        client.getInterpolatedSprites(),
+        client.meets,
+        farmerPositions,
+        focusedFarmerId,
+      );
+
+      renderer.endFrame();
+
+      // UI updates.
+      const snap = client.latestSnapshot();
+      const tick = client.tick;
+      overlay.update({ tick, alpha: 0, entityCount: client.entityCount });
+
+      const obs = client.observer;
+      if (obs !== null) observer.update(obs);
+
+      leaderboardPanel.update(client.leaderboard);
+      slateBillboard.update(client.slate);
+
+      // Game over — show once.
+      if (client.gameOver && !gameOverShown) {
+        gameOverShown = true;
+        const final = client.finalSummary;
+        if (final !== null) {
+          renderGameOver(gameOverPanel, final, snap?.day ?? 0);
+        }
+      }
+
+      requestAnimationFrame(renderFrame);
+    }
+
+    requestAnimationFrame(renderFrame);
   } catch (err) {
     showFatal(fatal, err);
     throw err;
   }
-}
-
-/**
- * Compute the humanized region label for a farmer:
- *  - traveling (path !== undefined) → 'traveling'
- *  - in village                     → 'village'
- *  - on their own farm              → 'home'
- *  - on a peer's farm               → the raw region id (e.g. 'farm-otto')
- */
-function deriveRegionLabel(
-  name: string,
-  currentRegion: string,
-  isTraveling: boolean,
-): string {
-  if (isTraveling) return "traveling";
-  if (currentRegion === "village") return "village";
-  if (currentRegion === `farm-${name.toLowerCase()}`) return "home";
-  return currentRegion;
-}
-
-function buildObserverSnapshot(
-  world: ReturnType<typeof bootstrapSim>["world"],
-  day: number,
-): ObserverSnapshot {
-  const station = (() => {
-    for (const w of world.query("weatherStation")) return w.weatherStation;
-    return null;
-  })();
-  const farmerEntries: ObserverSnapshot["farmers"] = [];
-  for (const f of world.query("farmer", "inventory", "fsm", "ap", "personality")) {
-    if (f.id === undefined) continue;
-    farmerEntries.push({
-      id: f.id,
-      name: f.farmer.name,
-      personality: f.personality.kind,
-      gold: f.inventory.gold,
-      crops: {
-        radish: f.inventory.crops.radish,
-        wheat: f.inventory.crops.wheat,
-        pumpkin: f.inventory.crops.pumpkin,
-      },
-      fsm: f.fsm.current,
-      apCurrent: f.ap.current,
-      apMax: f.ap.max,
-      apPenaltyPending: f.ap.penaltyPending,
-      region: deriveRegionLabel(f.farmer.name, f.farmer.currentRegion, f.farmer.path !== undefined),
-    });
-  }
-  farmerEntries.sort((a, b) => a.id - b.id);
-  return {
-    day,
-    weather: {
-      condition: station?.current ?? "normal",
-      multiplier: station?.multiplier ?? 1,
-    },
-    forecast: (station?.forecast ?? []).map((f) => ({
-      condition: f.condition,
-      confidence: f.confidence,
-    })),
-    farmers: farmerEntries,
-  };
-}
-
-function buildLeaderboardRows(
-  world: ReturnType<typeof bootstrapSim>["world"],
-): LeaderboardRow[] {
-  return leaderboard(world).map((summary, index) => ({
-    rank: index + 1,
-    id: summary.id,
-    name: summary.name,
-    personality: summary.personality,
-    gold: summary.gold,
-    unsoldValue: summary.unsoldValue,
-    totalValue: summary.totalValue,
-  }));
 }
 
 function createGameOverPanel(parent: HTMLElement): HTMLElement {
@@ -336,7 +261,7 @@ function createGameOverPanel(parent: HTMLElement): HTMLElement {
 
 function renderGameOver(
   panel: HTMLElement,
-  rows: FarmerSummary[],
+  rows: FinalStandingRow[],
   finalDay: number,
 ): void {
   const lines: string[] = [];
@@ -354,13 +279,6 @@ function renderGameOver(
   lines.push(`  winner: ${rows[0]?.name ?? "—"} (${rows[0]?.totalValue ?? 0}g total value)`);
   panel.textContent = lines.join("\n");
   panel.style.display = "block";
-}
-
-function countEntities(world: ReturnType<typeof bootstrapSim>["world"]): number {
-  let n = 0;
-  for (const _ of world.query("transform")) n += 1;
-  for (const _ of world.query("plot")) n += 1;
-  return n;
 }
 
 async function fetchAtlasManifest(): Promise<AtlasManifest> {
