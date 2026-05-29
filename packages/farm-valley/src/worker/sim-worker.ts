@@ -79,7 +79,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   if (msg.type === "init") {
     const { seed, ticksPerDay, maxDays, tickRateHz } = msg;
 
-    const { world, bus, scheduler, dayClock, meetIndicators } = bootstrapSim({
+    const { world, bus, scheduler, dayClock, meetIndicators, eventFeed } = bootstrapSim({
       seed,
       ticksPerDay,
       maxDays,
@@ -138,6 +138,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         world,
         dayClock,
         meetIndicators,
+        eventFeed,
         tick,
         maxDays,
         pendingShock,

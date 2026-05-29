@@ -9,3 +9,5 @@ export { SlateBillboardPanel } from "./slate-billboard";
 export type { SlateEntry } from "./slate-billboard";
 export { PlaybackControlsPanel } from "./playback-controls";
 export type { PlaybackState } from "./playback-controls";
+export { EventFeedPanel } from "./event-feed-panel";
+export type { EventFeedRow } from "./event-feed-panel";
