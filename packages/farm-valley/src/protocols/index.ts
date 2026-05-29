@@ -11,12 +11,19 @@ export type {
   ShockKind,
 } from "./simulation";
 
-export { ONT_WEATHER, WEATHER_MULTIPLIER } from "./weather";
+export {
+  ONT_WEATHER,
+  WEATHER_MULTIPLIER,
+  SEASON_ORDER,
+  SEASON_LENGTH,
+  seasonForDay,
+} from "./weather";
 export type {
   WeatherOntology,
   WeatherCondition,
   WeatherNowBody,
   WeatherForecastBody,
+  Season,
 } from "./weather";
 
 export { ONT_MARKET } from "./market";

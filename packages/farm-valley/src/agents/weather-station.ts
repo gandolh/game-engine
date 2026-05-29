@@ -14,6 +14,7 @@ export function spawnWeatherStation(world: World<GameEntity>): GameEntity {
     weatherStation: {
       current: "normal",
       multiplier: 1.0,
+      season: "spring",
       forecast: [],
     },
     inbox: { messages: [] },

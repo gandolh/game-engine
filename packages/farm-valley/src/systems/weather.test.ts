@@ -3,7 +3,14 @@ import { World, MessageBus, createRng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { spawnWeatherStation } from "../agents/weather-station";
 import { WeatherSystem } from "./weather";
-import { ONT_SIMULATION, ONT_WEATHER, PERFORMATIVE } from "../protocols";
+import {
+  ONT_SIMULATION,
+  ONT_WEATHER,
+  PERFORMATIVE,
+  seasonForDay,
+  SEASON_LENGTH,
+} from "../protocols";
+import type { WeatherCondition } from "../protocols";
 
 function makeWorld(): World<GameEntity> {
   return new World<GameEntity>();
@@ -159,5 +166,119 @@ describe("WeatherSystem", () => {
         expect(runConditions).toEqual(conditions);
       }
     }
+  });
+
+  it("stamps the current season onto the station and the now broadcast", () => {
+    sendDayStart(world, 30); // day 30 -> summer (second 25-day block)
+    system.run(makeContext(10));
+    bus.flush();
+
+    const stations = [...world.query("weatherStation")];
+    expect(stations[0]!.weatherStation!.season).toBe("summer");
+
+    const nowMsg = bus.drain().find((m) => m.ontology === ONT_WEATHER.NOW);
+    expect(nowMsg).toBeDefined();
+    const body = nowMsg!.body as { season: string; trend: string };
+    expect(body.season).toBe("summer");
+    expect(typeof body.trend).toBe("string");
+    expect(body.trend.length).toBeGreaterThan(0);
+  });
+
+  it("stamps a season onto each forecast message", () => {
+    sendDayStart(world, 1);
+    system.run(makeContext(10));
+    bus.flush();
+
+    const forecastMsgs = bus.drain().filter((m) => m.ontology === ONT_WEATHER.FORECAST);
+    expect(forecastMsgs.length).toBe(3);
+    for (const m of forecastMsgs) {
+      const body = m.body as { forDay: number; season: string };
+      expect(body.season).toBe(seasonForDay(body.forDay));
+    }
+  });
+});
+
+describe("seasonForDay schedule", () => {
+  it("divides the run into four 25-day seasons", () => {
+    expect(seasonForDay(1)).toBe("spring");
+    expect(seasonForDay(25)).toBe("spring");
+    expect(seasonForDay(26)).toBe("summer");
+    expect(seasonForDay(50)).toBe("summer");
+    expect(seasonForDay(51)).toBe("autumn");
+    expect(seasonForDay(75)).toBe("autumn");
+    expect(seasonForDay(76)).toBe("winter");
+    expect(seasonForDay(100)).toBe("winter");
+  });
+
+  it("is a pure function — same day always returns the same season", () => {
+    for (let day = 1; day <= 100; day++) {
+      expect(seasonForDay(day)).toBe(seasonForDay(day));
+    }
+  });
+
+  it("wraps the four-season cycle for runs longer than 100 days", () => {
+    expect(seasonForDay(101)).toBe("spring");
+    expect(seasonForDay(126)).toBe("summer");
+    expect(SEASON_LENGTH).toBe(25);
+  });
+
+  it("treats day 0 (pre-start) as spring", () => {
+    expect(seasonForDay(0)).toBe("spring");
+  });
+});
+
+describe("season biases the weather distribution", () => {
+  /**
+   * Run the WeatherSystem across an entire season's worth of days for a fixed
+   * seed and tally the conditions drawn. Distinct from the per-day determinism
+   * test: here we assert the *shape* of the distribution shifts by season.
+   */
+  function tallySeason(firstDay: number): Record<WeatherCondition, number> {
+    const w = new World<GameEntity>();
+    const b = new MessageBus();
+    const rng = createRng(2024);
+    spawnWeatherStation(w);
+    const sys = new WeatherSystem(b, w, rng);
+
+    const counts: Record<WeatherCondition, number> = {
+      sunny: 0,
+      normal: 0,
+      rainy: 0,
+      storm: 0,
+    };
+    for (let i = 0; i < SEASON_LENGTH; i++) {
+      const day = firstDay + i;
+      for (const s of w.query("weatherStation", "inbox")) {
+        s.inbox.messages.push({
+          performative: PERFORMATIVE.INFORM,
+          ontology: ONT_SIMULATION.DAY_START,
+          sender: "world",
+          body: { day },
+          tickIssued: day,
+        });
+      }
+      sys.run(makeContext(day * 10));
+      for (const s of w.query("weatherStation")) {
+        counts[s.weatherStation!.current] += 1;
+        break;
+      }
+    }
+    return counts;
+  }
+
+  it("summer is sunnier and stormier than winter; winter is rainier", () => {
+    const summer = tallySeason(26); // days 26..50
+    const winter = tallySeason(76); // days 76..100
+
+    expect(summer.sunny).toBeGreaterThan(winter.sunny);
+    expect(winter.rainy).toBeGreaterThan(summer.rainy);
+    // Winter's harsh storm bias outweighs summer's heat storms over a season.
+    expect(winter.storm).toBeGreaterThanOrEqual(summer.storm);
+  });
+
+  it("spring sees more rain than summer", () => {
+    const spring = tallySeason(1); // days 1..25
+    const summer = tallySeason(26);
+    expect(spring.rainy).toBeGreaterThan(summer.rainy);
   });
 });

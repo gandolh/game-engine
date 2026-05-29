@@ -73,6 +73,8 @@ export interface ShopkeeperTag {
 export interface WeatherStation {
   current: import("./protocols/weather").WeatherCondition;
   multiplier: number;
+  /** Current season (pure function of the day index — see protocols/weather). */
+  season: import("./protocols/weather").Season;
   forecast: ReadonlyArray<{
     condition: import("./protocols/weather").WeatherCondition;
     confidence: number;

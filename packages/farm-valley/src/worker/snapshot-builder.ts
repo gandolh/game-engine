@@ -27,6 +27,7 @@ import type { ObserverSnapshot } from "../ui/observer";
 import type { LeaderboardRow } from "../ui/leaderboard";
 import { leaderboard } from "../sim-bootstrap";
 import { pickFarmerFrame } from "../render-systems";
+import { seasonForDay } from "../protocols";
 
 const TILE = 16;
 
@@ -86,6 +87,9 @@ export function buildObserverSnapshot(
 
   return {
     day,
+    // brief 22 — current season for the observer header. Prefer the station's
+    // stamped season; fall back to the pure schedule fn for the pre-day-1 frame.
+    season: station?.season ?? seasonForDay(day),
     weather: {
       condition: station?.current ?? "normal",
       multiplier: station?.multiplier ?? 1,
