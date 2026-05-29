@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
+    "check-determinism": "CHECK_DETERMINISM=1 tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
