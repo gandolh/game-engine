@@ -12,7 +12,7 @@ import {
   LeaderboardPanel,
   SlateBillboardPanel,
 } from "./ui";
-import { HomeScreen } from "./screens";
+import { HomeScreen, formatSeed } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
 import { SimClient } from "./worker/sim-client";
 import type { FinalStandingRow } from "./worker/snapshot";
@@ -131,13 +131,13 @@ async function boot(): Promise<void> {
   const fatal = document.getElementById("fatal") as HTMLElement | null;
   if (!canvas || !app || !fatal) throw new Error("Missing #canvas/#app/#fatal");
 
-  const home = new HomeScreen(app);
+  const home = new HomeScreen(app, { defaultSeed: CONFIG.seed });
 
   const runtimePromise = setupRuntime(canvas);
   runtimePromise.catch(() => {});
 
-  home.onStartClicked(() => {
-    void startGame(app, fatal, runtimePromise);
+  home.onStartClicked((seed) => {
+    void startGame(app, fatal, runtimePromise, seed);
   });
 }
 
@@ -145,6 +145,7 @@ async function startGame(
   app: HTMLElement,
   fatal: HTMLElement,
   runtimePromise: Promise<Runtime>,
+  seed: number,
 ): Promise<void> {
   try {
     const { renderer } = await runtimePromise;
@@ -171,9 +172,13 @@ async function startGame(
       renderer.bakeStaticLayer(msg.sprites, msg.worldWidthPx, msg.worldHeightPx);
     });
 
-    // Start the sim worker.
+    // brief-18: seed badge — show the chosen seed during play (low-touch,
+    // own DOM element so we don't touch the engine DebugOverlay signature).
+    createSeedBadge(app, seed);
+
+    // Start the sim worker with the seed chosen on the home screen.
     client.init({
-      seed: CONFIG.seed,
+      seed,
       tickRateHz: CONFIG.tickRateHz,
       ticksPerDay: CONFIG.ticksPerDay,
       maxDays: CONFIG.maxDays,
@@ -222,7 +227,7 @@ async function startGame(
         gameOverShown = true;
         const final = client.finalSummary;
         if (final !== null) {
-          renderGameOver(gameOverPanel, final, snap?.day ?? 0);
+          renderGameOver(gameOverPanel, final, snap?.day ?? 0, seed);
         }
       }
 
@@ -259,13 +264,35 @@ function createGameOverPanel(parent: HTMLElement): HTMLElement {
   return panel;
 }
 
+function createSeedBadge(parent: HTMLElement, seed: number): HTMLElement {
+  const badge = document.createElement("div");
+  badge.textContent = `seed ${formatSeed(seed)}`;
+  badge.style.cssText = [
+    "position: absolute",
+    "right: 12px",
+    "bottom: 12px",
+    "padding: 4px 10px",
+    "font: 12px/1 ui-monospace, monospace",
+    "color: #c9a85a",
+    "background: rgba(20, 18, 28, 0.8)",
+    "border: 1px solid rgba(201, 168, 90, 0.5)",
+    "border-radius: 5px",
+    "z-index: 150",
+    "pointer-events: none",
+  ].join(";");
+  parent.appendChild(badge);
+  return badge;
+}
+
 function renderGameOver(
   panel: HTMLElement,
   rows: FinalStandingRow[],
   finalDay: number,
+  seed: number,
 ): void {
   const lines: string[] = [];
   lines.push(`╔══ FARM VALLEY — final standings after ${finalDay} days ══╗`);
+  lines.push(`  seed: ${formatSeed(seed)}`);
   lines.push("");
   lines.push("  rank  name      personality      gold  unsold  total   crops");
   lines.push("  " + "─".repeat(60));
