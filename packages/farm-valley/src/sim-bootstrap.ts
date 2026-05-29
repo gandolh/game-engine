@@ -10,6 +10,7 @@ import type { GameEntity } from "./components";
 import { setupFarmer, setupWorldRegions, type FarmerSpec } from "./world-setup";
 import { buildWalkableGrid } from "./world/walkable-grid";
 import { DayClockSystem } from "./systems/day-clock";
+import { ShockSystem, defaultShockDay } from "./systems/shock";
 import { InboxDispatchSystem } from "./systems/inbox-dispatch";
 import { PerceiveSystem } from "./systems/perceive";
 import { TrustSystem } from "./systems/trust";
@@ -70,6 +71,11 @@ export interface SimBootstrapOptions {
   maxDays?: number;
   farmerSpecs?: FarmerSpec[];
   pathfinder?: Pathfinder | null;
+  /**
+   * Mid-game shock (brief 23, Direction B). Defaults to a blight on the run
+   * midpoint. Pass `false` to disable, or override the day/kind.
+   */
+  shock?: false | { shockDay?: number; kind?: "blight" };
 }
 
 const DEFAULT_MAX_DAYS = 100;
@@ -105,13 +111,27 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   // the existing market-wall / shopkeeper entities with a Transform.
   setupWorldRegions(world, farmers);
 
+  const maxDays = opts.maxDays ?? DEFAULT_MAX_DAYS;
   const dayClock = new DayClockSystem(bus, {
     ticksPerDay: opts.ticksPerDay,
-    maxDays: opts.maxDays ?? DEFAULT_MAX_DAYS,
+    maxDays,
   });
   const meetIndicators = new MeetIndicatorSystem(world);
   const scheduler = new Scheduler()
-    .add(dayClock)
+    .add(dayClock);
+
+  // Mid-game shock (default on): runs right after the clock so it sees the
+  // current day boundary, before crop growth / harvest resolve that day.
+  if (opts.shock !== false) {
+    scheduler.add(
+      new ShockSystem(bus, world, rng, opts.ticksPerDay, {
+        shockDay: opts.shock?.shockDay ?? defaultShockDay(maxDays),
+        kind: opts.shock?.kind ?? "blight",
+      }),
+    );
+  }
+
+  scheduler
     .add(weatherFeature.weatherSystem)
     .add(new InboxDispatchSystem(bus, world))
     .add(new ShopSlateSystem(world, bus, rng))

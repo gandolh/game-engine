@@ -7,6 +7,8 @@ export type {
   DayStartBody,
   DayEndBody,
   StateUpdateBody,
+  ShockBody,
+  ShockKind,
 } from "./simulation";
 
 export { ONT_WEATHER, WEATHER_MULTIPLIER } from "./weather";
