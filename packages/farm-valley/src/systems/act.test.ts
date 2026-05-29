@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { World } from "@engine/core";
+import { World, MessageBus } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
 import { ActSystem } from "./act";
+import { ShopkeeperSystem } from "./shopkeeper";
+import { AuctionSystem } from "./auction";
+import { InboxDispatchSystem } from "./inbox-dispatch";
 import { spawnShopkeeper } from "../agents/market-wall";
+import { createRng } from "@engine/core";
+import { ONT_SHOP, type ShopSellBody } from "../protocols/shop";
+import { PERFORMATIVE } from "../protocols/performatives";
 import type { ShopOffer } from "../agents/shop-slate";
 
 function makeOffer(
@@ -35,18 +41,102 @@ function makeFarmer(
   });
 }
 
-describe("ActSystem buy-seed (slate-driven)", () => {
+// As of the open-questions-round refactor, buy-seed no longer mutates the shop
+// slate directly inside ActSystem. It emits an ONT_SHOP.SELL message to the
+// shopkeeper (shop sells a seed to the farmer); ShopkeeperSystem.handleSell
+// owns slate consumption, gold checks, and seed crediting. The slate-rejection
+// edge cases (no-matching-offer / insufficient-stock / insufficient-gold /
+// golden-bean ban / multi-offer fill) live in shopkeeper.test.ts now.
+describe("ActSystem buy-seed (emits ONT_SHOP.SELL)", () => {
   let world: World<GameEntity>;
+  let bus: MessageBus;
   let sys: ActSystem;
   let shopEntity: GameEntity;
 
   beforeEach(() => {
     world = new World<GameEntity>();
-    sys = new ActSystem(world);
+    bus = new MessageBus();
+    sys = new ActSystem(world, bus);
     shopEntity = spawnShopkeeper(world);
   });
 
-  it("buy-seed succeeds when slate has matching offer: gold decremented, seeds incremented, remaining decremented", () => {
+  it("buy-seed emits one ONT_SHOP.SELL message addressed to the shopkeeper", () => {
+    const farmer = makeFarmer(world, { gold: 50 });
+    farmer.intentions!.queue.push({
+      kind: "buy-seed",
+      data: { crop: "radish", quantity: 3 },
+      priority: 0,
+    });
+
+    sys.run({ tick: 1 });
+    bus.flush();
+    const sent = bus.drain();
+
+    const sell = sent.filter((m) => m.ontology === ONT_SHOP.SELL);
+    expect(sell.length).toBe(1);
+    const m = sell[0]!;
+    expect(m.recipient).toBe(shopEntity.id);
+    expect(m.sender).toBe(farmer.id);
+    expect(m.performative).toBe(PERFORMATIVE.REQUEST);
+    const body = m.body as unknown as ShopSellBody;
+    expect(body.item).toBe("seed");
+    expect(body.crop).toBe("radish");
+    expect(body.quantity).toBe(3);
+
+    // ActSystem still transitions the farmer and clears its queue this tick.
+    expect(farmer.fsm!.current).toBe("FINISH_DAY");
+    expect(farmer.intentions!.queue.length).toBe(0);
+
+    // ActSystem itself does NOT touch inventory or slate anymore.
+    expect(farmer.inventory!.gold).toBe(50);
+    expect(farmer.inventory!.seeds.radish).toBe(0);
+  });
+
+  it("buy-seed defaults quantity to 1 when omitted", () => {
+    const farmer = makeFarmer(world);
+    farmer.intentions!.queue.push({
+      kind: "buy-seed",
+      data: { crop: "wheat" },
+      priority: 0,
+    });
+
+    sys.run({ tick: 1 });
+    bus.flush();
+    const body = bus.drain().find((m) => m.ontology === ONT_SHOP.SELL)!
+      .body as unknown as ShopSellBody;
+    expect(body.quantity).toBe(1);
+  });
+
+  it("buy-seed emits nothing when no shopkeeper entity exists", () => {
+    const freshWorld = new World<GameEntity>();
+    const freshBus = new MessageBus();
+    const freshSys = new ActSystem(freshWorld, freshBus);
+    const farmer = makeFarmer(freshWorld);
+    farmer.intentions!.queue.push({
+      kind: "buy-seed",
+      data: { crop: "radish", quantity: 1 },
+      priority: 0,
+    });
+
+    freshSys.run({ tick: 1 });
+    freshBus.flush();
+    expect(freshBus.drain().filter((m) => m.ontology === ONT_SHOP.SELL).length).toBe(0);
+  });
+});
+
+// End-to-end: the seed lands one tick after the buy-seed ACT, via the bus +
+// InboxDispatchSystem + ShopkeeperSystem.handleSell. This documents the
+// accepted one-tick latency the refactor introduces.
+describe("ActSystem buy-seed end-to-end through the shopkeeper", () => {
+  it("credits seeds + decrements gold and slate one tick later", () => {
+    const world = new World<GameEntity>();
+    const bus = new MessageBus();
+    const act = new ActSystem(world, bus);
+    const dispatch = new InboxDispatchSystem(bus, world);
+    const auction = new AuctionSystem(bus, world, createRng(1));
+    const shop = new ShopkeeperSystem(bus, world, auction);
+
+    const shopEntity = spawnShopkeeper(world);
     const radishOffer = makeOffer({ crop: "radish", unitPrice: 5, remaining: 10 });
     shopEntity.shopkeeper!.dailySlate = [radishOffer];
 
@@ -57,100 +147,17 @@ describe("ActSystem buy-seed (slate-driven)", () => {
       priority: 0,
     });
 
-    sys.run({ tick: 1 });
+    // Tick 1: ActSystem emits the SELL; nothing applied yet.
+    act.run({ tick: 1 });
+    expect(farmer.inventory!.gold).toBe(50);
+    expect(farmer.inventory!.seeds.radish).toBe(0);
 
-    // cost = 5 * 3 = 15
-    expect(farmer.inventory!.gold).toBe(35);
+    // Tick 2: dispatch delivers to the shop inbox, ShopkeeperSystem applies it.
+    dispatch.run({ tick: 2 });
+    shop.run({ tick: 2 });
+
+    expect(farmer.inventory!.gold).toBe(35); // 50 - 5*3
     expect(farmer.inventory!.seeds.radish).toBe(3);
     expect(radishOffer.remaining).toBe(7);
-    // Farmer transitions to FINISH_DAY
-    expect(farmer.fsm!.current).toBe("FINISH_DAY");
-    // Queue is cleared
-    expect(farmer.intentions!.queue.length).toBe(0);
-  });
-
-  it("buy-seed does nothing when slate has no matching offer", () => {
-    const wheatOffer = makeOffer({ crop: "wheat", unitPrice: 10, remaining: 5 });
-    shopEntity.shopkeeper!.dailySlate = [wheatOffer];
-
-    const farmer = makeFarmer(world, { gold: 100 });
-    farmer.intentions!.queue.push({
-      kind: "buy-seed",
-      data: { crop: "radish", quantity: 1 },
-      priority: 0,
-    });
-
-    sys.run({ tick: 1 });
-
-    expect(farmer.inventory!.gold).toBe(100);
-    expect(farmer.inventory!.seeds.radish).toBe(0);
-    // Wheat offer untouched
-    expect(wheatOffer.remaining).toBe(5);
-  });
-
-  it("buy-seed does nothing when qty > total remaining; slate untouched (no partial)", () => {
-    const o1 = makeOffer({ offerId: "a", crop: "radish", unitPrice: 5, remaining: 2 });
-    const o2 = makeOffer({ offerId: "b", crop: "radish", unitPrice: 6, remaining: 2 });
-    shopEntity.shopkeeper!.dailySlate = [o1, o2];
-
-    const farmer = makeFarmer(world, { gold: 1000 });
-    farmer.intentions!.queue.push({
-      kind: "buy-seed",
-      data: { crop: "radish", quantity: 5 }, // 5 > 2+2
-      priority: 0,
-    });
-
-    sys.run({ tick: 1 });
-
-    expect(farmer.inventory!.gold).toBe(1000);
-    expect(farmer.inventory!.seeds.radish).toBe(0);
-    expect(o1.remaining).toBe(2);
-    expect(o2.remaining).toBe(2);
-  });
-
-  it("buy-seed does nothing when farmer gold is insufficient", () => {
-    const radishOffer = makeOffer({ crop: "radish", unitPrice: 5, remaining: 10 });
-    shopEntity.shopkeeper!.dailySlate = [radishOffer];
-
-    // 4 gold < 5 needed for 1 seed
-    const farmer = makeFarmer(world, { gold: 4 });
-    farmer.intentions!.queue.push({
-      kind: "buy-seed",
-      data: { crop: "radish", quantity: 1 },
-      priority: 0,
-    });
-
-    sys.run({ tick: 1 });
-
-    expect(farmer.inventory!.gold).toBe(4);
-    expect(farmer.inventory!.seeds.radish).toBe(0);
-    expect(radishOffer.remaining).toBe(10);
-  });
-
-  it("buy-seed does nothing when no shopkeeper entity exists", () => {
-    // Use a fresh world without a shopkeeper.
-    const freshWorld = new World<GameEntity>();
-    const freshSys = new ActSystem(freshWorld);
-    const farmer = freshWorld.spawn({
-      farmer: { name: "F", currentRegion: "village" as const },
-      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
-      intentions: { queue: [] },
-      inventory: {
-        gold: 100,
-        crops: { radish: 0, wheat: 0, pumpkin: 0 },
-        seeds: { radish: 0, wheat: 0, pumpkin: 0 },
-      },
-      beliefs: { data: { currentDay: 0 }, revision: 0 },
-    });
-    farmer.intentions!.queue.push({
-      kind: "buy-seed",
-      data: { crop: "radish", quantity: 1 },
-      priority: 0,
-    });
-
-    freshSys.run({ tick: 1 });
-
-    expect(farmer.inventory!.gold).toBe(100);
-    expect(farmer.inventory!.seeds.radish).toBe(0);
   });
 });
