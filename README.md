@@ -2,7 +2,7 @@
 
 A tiny top-down farming sim where four AI farmers — each with their own personality — plant, harvest, trade, and try to out-earn each other across 100 in-game days. You don't play; you watch them play.
 
-Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder.
+Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder. The simulation runs in a Web Worker and streams render snapshots to the main thread.
 
 ![Home screen](media/merge-home-screen.png)
 ![Game running](media/merge-running.png)
@@ -36,6 +36,7 @@ Each farmer is a [BDI agent](https://en.wikipedia.org/wiki/Belief%E2%80%93desire
 
 - **Weather station** — broadcasts forecasts; rain/drought changes crop yields.
 - **Market & shopkeeper** — farmers buy seeds and sell crops at supply-driven prices.
+- **Mid-game shock** — a one-time blight strikes a random farmer around day 50, wiping their planted crops and reshuffling the standings.
 - **Observer panel** — live readout of every farmer's gold, crops, FSM state, and remaining AP.
 - **Debug overlay** — tick count, render alpha, entity count.
 
@@ -44,7 +45,7 @@ Each farmer is a [BDI agent](https://en.wikipedia.org/wiki/Belief%E2%80%93desire
 ```
 packages/
   engine/          shared engine (ECS, renderer, input, sim, wasm bindings)
-  farm-valley/     the game (agents, systems, screens, UI panels)
+  farm-valley/     the game (agents, systems, screens, UI panels, sim worker)
   wasm-modules/    AssemblyScript pathfinder compiled to WASM
 tools/
   atlas-builder/   packs sprite source images into the runtime atlas
@@ -55,7 +56,8 @@ corpus/            design notes and TODO milestones
 
 The game lives in [packages/farm-valley/src/](packages/farm-valley/src/). Notable bits:
 
-- [main.ts](packages/farm-valley/src/main.ts) — boot, home → game wiring, game loop
+- [main.ts](packages/farm-valley/src/main.ts) — boot, home → game wiring, render loop
+- [worker/](packages/farm-valley/src/worker/) — the sim Web Worker, render-snapshot schema, and the main-thread client that interpolates + renders
 - [screens/](packages/farm-valley/src/screens/) — full-screen views (home screen, game over, …)
 - [ui/](packages/farm-valley/src/ui/) — in-game overlays (observer, debug, config)
 - [agents/](packages/farm-valley/src/agents/) — one file per personality
