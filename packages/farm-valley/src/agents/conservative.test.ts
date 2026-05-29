@@ -49,4 +49,23 @@ describe("deliberateConservative", () => {
     expect(queue.some((i) => i.kind === "travel")).toBe(false);
     expect(queue.some((i) => i.kind === "sell-shopkeeper")).toBe(true);
   });
+
+  // brief 19 — decision rationale trace
+  it("records a plant reason referencing gold and reserve", () => {
+    const f = makeFarmer({ gold: 100, seeds: { radish: 1 }, reserve: 30 });
+    deliberateConservative(f);
+    expect(f.decisionTrace).toBeDefined();
+    expect(
+      f.decisionTrace!.reasons.some((r) => r.startsWith("plant radish:")),
+    ).toBe(true);
+  });
+
+  it("resets the reason buffer each deliberation tick (no carryover)", () => {
+    const f = makeFarmer({ gold: 100, seeds: { radish: 1 }, reserve: 30 });
+    deliberateConservative(f);
+    const firstLen = f.decisionTrace!.reasons.length;
+    expect(firstLen).toBeGreaterThan(0);
+    deliberateConservative(f);
+    expect(f.decisionTrace!.reasons.length).toBe(firstLen);
+  });
 });

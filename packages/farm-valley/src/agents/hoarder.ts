@@ -1,6 +1,7 @@
 // Hoarder farmer personality — CNP initiator for buying radishes from peers.
 // Enqueues intentions: plant, buy-seed, cnp-initiate, cnp-respond-bid, read-offers, buy-from-wall.
 import type { GameEntity, CropKind } from "../components";
+import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_CNP } from "../protocols/cnp";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
@@ -40,6 +41,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
+  resetDecisionTrace(farmer);
 
   // 1. Plant a high-tier crop, falling back to radish only if we can't afford anything else.
   const plotId = (farmer.beliefs.data["plotId"] as number | undefined) ?? farmer.id;
@@ -77,6 +79,11 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
           : { crop: chosen, quantity: 1 },
       priority: chosenMode === "plant" ? 1 : 2,
     });
+    if (chosenMode === "plant") {
+      recordReason(farmer, `plant ${chosen}: high-tier on hand`);
+    } else {
+      recordReason(farmer, `buy seed ${chosen}: short on seeds`);
+    }
   }
 
   // 2. CNP — every CNP_PERIOD_DAYS, initiate a task to buy radishes from peers.
@@ -105,6 +112,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
         },
         priority: 3,
       });
+      recordReason(farmer, `cnp radish x${CNP_TARGET_QUANTITY}: hoard via peers`);
     }
   }
 
@@ -125,6 +133,10 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
         },
         priority: 4,
       });
+      recordReason(
+        farmer,
+        `cnp ${isWinner ? "accept" : "reject"} bid ${proposal.bidderId}`,
+      );
     }
   }
 
@@ -135,6 +147,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     data: { ontology: ONT_MARKET.READ_OFFERS, filter: { crop: "radish" } },
     priority: 5,
   });
+  recordReason(farmer, `read offers: scan radish wall`);
 
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
   const trust = farmer.trust?.byId;
@@ -159,6 +172,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
         data: { targetRegionId: "village" },
         priority: 6,
       });
+      recordReason(farmer, `travel village: buy radish wall`);
     }
     farmer.intentions.queue.push({
       kind: "buy-from-wall",
@@ -169,6 +183,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
       },
       priority: 6,
     });
+    recordReason(farmer, `buy wall ${o.crop} x${o.quantity} @ ${o.pricePerUnit}`);
     budget -= cost;
   }
 

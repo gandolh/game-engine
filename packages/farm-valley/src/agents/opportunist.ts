@@ -1,6 +1,7 @@
 // Opportunist farmer personality.
 // Enqueues intentions: plant, buy-seed, sell-shopkeeper, post-offer, read-offers, buy-from-wall.
 import type { GameEntity, CropKind } from "../components";
+import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import type { WeatherCondition } from "../protocols/weather";
@@ -50,6 +51,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
+  resetDecisionTrace(farmer);
 
   // 1. Plant or buy seed based on weather forecast.
   const desired = pickCropFromWeather(forecast);
@@ -61,12 +63,14 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       data: { crop: target },
       priority: 1,
     });
+    recordReason(farmer, `plant ${target}: weather ${forecast ?? "n/a"}`);
   } else if (farmer.inventory.gold - SEED_COST[target] >= reserve) {
     farmer.intentions.queue.push({
       kind: "buy-seed",
       data: { crop: target, quantity: 1 },
       priority: 2,
     });
+    recordReason(farmer, `buy seed ${target}: short on seeds`);
   }
 
   // 2. Supply-aware market posting: if I have stock, peek offer list (if perceived)
@@ -83,6 +87,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
           data: { targetRegionId: "village" },
           priority: 3,
         });
+        recordReason(farmer, `travel village: post offers`);
       }
       farmer.intentions.queue.push({
         kind: "post-offer",
@@ -94,6 +99,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
         },
         priority: 3,
       });
+      recordReason(farmer, `post offer ${crop} x${qty} @ ${FAIR_PRICE[crop]}: low supply ${supply}`);
     } else {
       if (!inVillage) {
         farmer.intentions.queue.push({
@@ -101,12 +107,14 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
           data: { targetRegionId: "village" },
           priority: 3,
         });
+        recordReason(farmer, `travel village: have crops to sell`);
       }
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
         data: { crop, quantity: qty },
         priority: 3,
       });
+      recordReason(farmer, `sell ${crop} x${qty}: high supply ${supply}`);
     }
   }
 
@@ -116,6 +124,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     data: { ontology: ONT_MARKET.READ_OFFERS },
     priority: 4,
   });
+  recordReason(farmer, `read offers: check market`);
 
   // 4. Buy at most one offer per day — highest-trust seller priced <=110% of shop price.
   const trust = farmer.trust?.byId;
@@ -139,6 +148,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
         data: { targetRegionId: "village" },
         priority: 5,
       });
+      recordReason(farmer, `travel village: buy wall offer`);
     }
     farmer.intentions.queue.push({
       kind: "buy-from-wall",
@@ -149,6 +159,10 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       },
       priority: 5,
     });
+    recordReason(
+      farmer,
+      `buy wall ${best.offer.crop} x${best.offer.quantity} @ ${best.offer.pricePerUnit}: trust ${best.trust.toFixed(2)}`,
+    );
   }
 
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);

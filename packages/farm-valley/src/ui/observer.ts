@@ -17,6 +17,10 @@ export interface ObserverSnapshot {
     apMax: number;
     apPenaltyPending: boolean;
     region: string;
+    // brief 19 — decision rationale trace ("why"), shown for the focused farmer.
+    currentIntention: string | null;
+    nextIntention: string | null;
+    reasons: string[];
   }>;
 }
 
@@ -29,6 +33,8 @@ interface FarmerRowEls {
   fsm: HTMLElement;
   ap: HTMLElement;
   region: HTMLElement;
+  // brief 19 — decision rationale ("why"); only populated for the focused farmer.
+  why: HTMLElement;
 }
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
@@ -254,7 +260,22 @@ export class ObserverPanel {
     region.dataset["field"] = "region";
     root.appendChild(region);
 
-    return { root, name, personality, gold, crops, fsm, ap, region };
+    // brief 19 — "why" sub-element; hidden unless this row is the focused farmer.
+    const why = createEl("div", {
+      style: {
+        marginTop: "4px",
+        paddingTop: "4px",
+        borderTop: "1px dashed #444",
+        color: "#9fd0c0",
+        fontSize: "11px",
+        whiteSpace: "pre-line",
+        display: "none",
+      },
+    });
+    why.dataset["field"] = "why";
+    root.appendChild(why);
+
+    return { root, name, personality, gold, crops, fsm, ap, region, why };
   }
 
   private updateFarmerRow(
@@ -278,6 +299,27 @@ export class ObserverPanel {
     setText(row.ap, apText);
 
     setText(row.region, `Region: ${farmer.region}`);
+
+    // brief 19 — render the decision "why" only for the focused farmer.
+    if (farmer.id === this.focusedId) {
+      const current = farmer.currentIntention ?? "(idle)";
+      const next = farmer.nextIntention ?? "(none)";
+      const reasonLines =
+        farmer.reasons.length > 0
+          ? farmer.reasons.map((r) => `  - ${r}`).join("\n")
+          : "  (no reason)";
+      setText(
+        row.why,
+        `Why:\nNow: ${current}\nNext: ${next}\n${reasonLines}`,
+      );
+      row.why.style.display = "";
+    } else {
+      // Avoid DOM churn: only touch text/display when transitioning out of focus.
+      if (row.why.style.display !== "none") {
+        setText(row.why, "");
+        row.why.style.display = "none";
+      }
+    }
   }
 
   setVisible(v: boolean): void {
