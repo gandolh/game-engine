@@ -1,4 +1,5 @@
 import type { GameEntity, CropKind } from "../components";
+import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality } from "./registry";
 import {
   registerPeerTradeHooks,
@@ -14,6 +15,7 @@ export function deliberateConservative(farmer: GameEntity): void {
   const seedCost = 5;
 
   farmer.intentions.queue.length = 0;
+  resetDecisionTrace(farmer);
 
   if (gold - seedCost >= reserve && seeds[candidate] >= 1) {
     farmer.intentions.queue.push({
@@ -21,12 +23,14 @@ export function deliberateConservative(farmer: GameEntity): void {
       data: { crop: candidate },
       priority: 1,
     });
+    recordReason(farmer, `plant ${candidate}: gold ${gold} >= reserve ${reserve}`);
   } else if (gold - seedCost >= reserve) {
     farmer.intentions.queue.push({
       kind: "buy-seed",
       data: { crop: candidate, quantity: 1 },
       priority: 2,
     });
+    recordReason(farmer, `buy seed ${candidate}: short on seeds`);
   }
 
   const inVillage = farmer.farmer?.currentRegion === "village";
@@ -38,12 +42,14 @@ export function deliberateConservative(farmer: GameEntity): void {
           data: { targetRegionId: "village" },
           priority: 0,
         });
+        recordReason(farmer, `travel village: have crops to sell`);
       }
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
         data: { crop, quantity: farmer.inventory.crops[crop] },
         priority: 0,
       });
+      recordReason(farmer, `sell ${crop} x${farmer.inventory.crops[crop]}`);
     }
   }
 

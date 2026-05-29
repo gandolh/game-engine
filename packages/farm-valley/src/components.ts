@@ -92,6 +92,48 @@ export interface TrustScores {
   byId: Map<number, number>;
 }
 
+/**
+ * Decision rationale trace (brief 19) — a tiny ring buffer of the most recent
+ * one-line reasons a personality produced while deliberating. Game-side only
+ * (the engine `Intentions` component is off-limits). Surfaced for the focused
+ * farmer in the observer panel. Reasons are pure functions of the farmer's
+ * beliefs/desires/inventory at decision time (no wall-clock, no random).
+ */
+export interface DecisionTrace {
+  reasons: string[];
+}
+
+/** Max reasons kept in the decisionTrace ring buffer. */
+export const DECISION_TRACE_CAP = 3;
+
+/**
+ * Reset the farmer's decisionTrace for a fresh deliberation tick. Call this at
+ * the same point each personality clears `intentions.queue` so the trace always
+ * reflects the current tick's decisions. Lazily initializes the field.
+ */
+export function resetDecisionTrace(farmer: GameEntity): void {
+  if (farmer.decisionTrace === undefined) {
+    farmer.decisionTrace = { reasons: [] };
+  } else {
+    farmer.decisionTrace.reasons.length = 0;
+  }
+}
+
+/**
+ * Record a terse reason into the farmer's decisionTrace, capped to the last
+ * DECISION_TRACE_CAP entries. Lazily initializes the field.
+ */
+export function recordReason(farmer: GameEntity, reason: string): void {
+  if (farmer.decisionTrace === undefined) {
+    farmer.decisionTrace = { reasons: [] };
+  }
+  const reasons = farmer.decisionTrace.reasons;
+  reasons.push(reason);
+  if (reasons.length > DECISION_TRACE_CAP) {
+    reasons.splice(0, reasons.length - DECISION_TRACE_CAP);
+  }
+}
+
 export interface GameEntity {
   id?: number;
   transform?: Transform;
@@ -111,5 +153,7 @@ export interface GameEntity {
   shopkeeper?: ShopkeeperTag;
   weatherStation?: WeatherStation;
   trust?: TrustScores;
+  /** brief 19 — last 1-3 one-line decision reasons (game-side, observer "why"). */
+  decisionTrace?: DecisionTrace;
   [key: string]: unknown;
 }

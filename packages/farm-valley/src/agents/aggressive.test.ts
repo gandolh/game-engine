@@ -189,4 +189,23 @@ describe("deliberateAggressive", () => {
     const queue = f.intentions!.queue;
     expect(queue.find((i) => i.kind === "plant")).toBeDefined();
   });
+
+  // brief 19 — decision rationale trace
+  it("records a plant reason when planting", () => {
+    const f = makeFarmer({ seeds: { pumpkin: 1, wheat: 1, radish: 1 } });
+    deliberateAggressive(f, { tick: 0 });
+    expect(f.decisionTrace).toBeDefined();
+    expect(
+      f.decisionTrace!.reasons.some((r) => r.startsWith("plant pumpkin:")),
+    ).toBe(true);
+  });
+
+  it("records a liquidation reason in the last 2 days", () => {
+    const f = makeFarmer({ crops: { wheat: 3 }, region: "village", day: 50 });
+    f.beliefs!.data["daysRemaining"] = 1;
+    deliberateAggressive(f, { tick: 1000 });
+    expect(
+      f.decisionTrace!.reasons.some((r) => r.includes("liquidate")),
+    ).toBe(true);
+  });
 });

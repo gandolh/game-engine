@@ -62,6 +62,8 @@ export function buildObserverSnapshot(
   const farmerEntries: ObserverSnapshot["farmers"] = [];
   for (const f of world.query("farmer", "inventory", "fsm", "ap", "personality")) {
     if (f.id === undefined) continue;
+    // brief 19 — decision rationale trace ("why") for the focused farmer.
+    const queue = f.intentions?.queue ?? [];
     farmerEntries.push({
       id: f.id,
       name: f.farmer.name,
@@ -81,6 +83,9 @@ export function buildObserverSnapshot(
         f.farmer.currentRegion,
         f.farmer.path !== undefined,
       ),
+      currentIntention: queue[0]?.kind ?? null,
+      nextIntention: queue[1]?.kind ?? null,
+      reasons: f.decisionTrace ? [...f.decisionTrace.reasons] : [],
     });
   }
   farmerEntries.sort((a, b) => a.id - b.id);

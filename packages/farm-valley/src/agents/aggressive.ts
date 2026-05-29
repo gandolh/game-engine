@@ -1,6 +1,7 @@
 // Aggressive farmer personality.
 // Enqueues intentions: plant, buy-seed, sell-shopkeeper, post-offer, read-offers, buy-from-wall.
 import type { GameEntity, CropKind } from "../components";
+import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import {
@@ -55,6 +56,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
+  resetDecisionTrace(farmer);
 
   // End-of-sim liquidation: in the last 2 days, dump everything to the
   // shopkeeper and skip planting / market posting / wall scanning.
@@ -69,6 +71,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
           data: { crop, quantity: qty },
           priority: 0,
         });
+        recordReason(farmer, `sell ${crop} x${qty}: liquidate (${daysRemaining}d left)`);
       }
     }
     if (anyToSell && !inVillage) {
@@ -79,6 +82,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
         data: { targetRegionId: "village" },
         priority: 0,
       });
+      recordReason(farmer, `travel village: have crops to sell`);
     }
     return;
   }
@@ -92,12 +96,14 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
         data: { crop: choice.crop },
         priority: 1,
       });
+      recordReason(farmer, `plant ${choice.crop}: best profit crop on hand`);
     } else {
       farmer.intentions.queue.push({
         kind: "buy-seed",
         data: { crop: choice.crop, quantity: 1 },
         priority: 2,
       });
+      recordReason(farmer, `buy seed ${choice.crop}: short on seeds`);
     }
   }
 
@@ -112,6 +118,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
             data: { targetRegionId: "village" },
             priority: 3,
           });
+          recordReason(farmer, `travel village: post offers`);
         }
         farmer.intentions.queue.push({
           kind: "post-offer",
@@ -123,6 +130,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
           },
           priority: 3,
         });
+        recordReason(farmer, `post offer ${crop} x${qty} @ ${PRICE_MAX[crop]}`);
       }
     }
 
@@ -132,6 +140,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
       data: { ontology: ONT_MARKET.READ_OFFERS },
       priority: 4,
     });
+    recordReason(farmer, `read offers: scan for undercuts`);
 
     // If we already have a perceived offer list in beliefs, react to it.
     const offers = farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined;
@@ -148,6 +157,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
                 data: { targetRegionId: "village" },
                 priority: 5,
               });
+              recordReason(farmer, `travel village: buy undercut`);
             }
             farmer.intentions.queue.push({
               kind: "buy-from-wall",
@@ -158,6 +168,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
               },
               priority: 5,
             });
+            recordReason(farmer, `buy wall ${offer.crop} x${offer.quantity}: ${offer.pricePerUnit} < ${Math.round(threshold)}`);
           }
         }
       }
@@ -178,12 +189,14 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
             data: { targetRegionId: "village" },
             priority: 6,
           });
+          recordReason(farmer, `travel village: have crops to sell`);
         }
         farmer.intentions.queue.push({
           kind: "sell-shopkeeper",
           data: { crop, quantity: qty },
           priority: 6,
         });
+        recordReason(farmer, `sell ${crop} x${qty}`);
       }
     }
   }

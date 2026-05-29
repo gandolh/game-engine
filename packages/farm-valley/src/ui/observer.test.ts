@@ -23,6 +23,9 @@ function makeSnapshot(overrides?: Partial<ObserverSnapshot>): ObserverSnapshot {
         apMax: 6,
         apPenaltyPending: false,
         region: "home",
+        currentIntention: "plant",
+        nextIntention: "sell-shopkeeper",
+        reasons: ["plant radish: gold 100 >= reserve 30", "sell radish x2"],
       },
       {
         id: 5,
@@ -35,6 +38,9 @@ function makeSnapshot(overrides?: Partial<ObserverSnapshot>): ObserverSnapshot {
         apMax: 6,
         apPenaltyPending: true,
         region: "traveling",
+        currentIntention: "travel",
+        nextIntention: "post-offer",
+        reasons: ["travel village: post offers"],
       },
     ],
     ...overrides,
@@ -153,6 +159,9 @@ describe("ObserverPanel", () => {
           apMax: 6,
           apPenaltyPending: false,
           region: "village",
+          currentIntention: null,
+          nextIntention: null,
+          reasons: [],
         },
         {
           id: 3,
@@ -165,6 +174,9 @@ describe("ObserverPanel", () => {
           apMax: 6,
           apPenaltyPending: false,
           region: "home",
+          currentIntention: null,
+          nextIntention: null,
+          reasons: [],
         },
       ],
     });
@@ -217,6 +229,9 @@ describe("ObserverPanel", () => {
             apMax: 6,
             apPenaltyPending: false,
             region: "village",
+            currentIntention: null,
+            nextIntention: null,
+            reasons: [],
           },
           {
             id: 5,
@@ -229,6 +244,9 @@ describe("ObserverPanel", () => {
             apMax: 6,
             apPenaltyPending: true,
             region: "farm-otto",
+            currentIntention: null,
+            nextIntention: null,
+            reasons: [],
           },
         ],
       }),
@@ -289,6 +307,53 @@ describe("ObserverPanel", () => {
 
     expect(cb).toHaveBeenCalledTimes(1);
     expect(cb).toHaveBeenCalledWith(null);
+    panel.destroy();
+  });
+
+  // brief 19 — decision rationale ("why") renders only for the focused farmer
+  it("renders current/next intention + reasons only for the focused farmer", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+
+    // Initially nothing focused — both why panels hidden.
+    let whyCells = Array.from(
+      parent.querySelectorAll('[data-field="why"]'),
+    ) as HTMLElement[];
+    expect(whyCells.length).toBe(2);
+    expect(whyCells.every((el) => el.style.display === "none")).toBe(true);
+
+    // Focus Alice (id=3) by clicking, then re-render with a fresh snapshot.
+    const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
+    aliceRow.click();
+    panel.update(makeSnapshot());
+
+    const aliceWhy = aliceRow.querySelector('[data-field="why"]') as HTMLElement;
+    expect(aliceWhy.style.display).toBe("");
+    expect(aliceWhy.textContent).toContain("Now: plant");
+    expect(aliceWhy.textContent).toContain("Next: sell-shopkeeper");
+    expect(aliceWhy.textContent).toContain("plant radish: gold 100 >= reserve 30");
+
+    // Bob (id=5) stays hidden.
+    const bobRow = parent.querySelector('[data-farmer-id="5"]') as HTMLElement;
+    const bobWhy = bobRow.querySelector('[data-field="why"]') as HTMLElement;
+    expect(bobWhy.style.display).toBe("none");
+    panel.destroy();
+  });
+
+  it("hides the why panel again after focus is reset", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+
+    const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
+    aliceRow.click();
+    panel.update(makeSnapshot());
+    const aliceWhy = aliceRow.querySelector('[data-field="why"]') as HTMLElement;
+    expect(aliceWhy.style.display).toBe("");
+
+    const resetBtn = parent.querySelector("button") as HTMLButtonElement;
+    resetBtn.click();
+    panel.update(makeSnapshot());
+    expect(aliceWhy.style.display).toBe("none");
     panel.destroy();
   });
 });
