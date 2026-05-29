@@ -4,10 +4,11 @@ Live list of unresolved work and design questions. Items move out of here when a
 
 ## Code gaps (have a clear "next step")
 
-- **WASM pathfinder loaded but possibly idle.** `Pathfinder` is loaded at boot and `TravelSystem` consumes it conditionally, but it's unconfirmed whether agents path *around* obstacles or move straight-line. **Now briefed → [engine/todo/05-pathfinder-into-movement.md](../briefs/engine/todo/05-pathfinder-into-movement.md)** (audit + wire, or document as straight-line).
+_No code-level gaps tracked right now — see Resolved below._
 
 ## Resolved
 
+- **WASM pathfinder loaded but possibly idle** — _resolved 2026-05-29 (brief [engine/05](../briefs/engine/done/05-pathfinder-into-movement.md))._ Audit confirmed the pathfinder is **load-bearing**, not idle: `TravelSystem.findPath()` computes real routes on the walkable grid and farmers walk them waypoint-by-waypoint, routing around the void via roads. Added a game-grid around-obstacle test (`travel.test.ts` "routes around the void") and corrected the stale "loaded but not yet routed" claim in [architecture.md](architecture.md).
 - **`act.ts` buy-seed bypass** — _resolved 2026-05-29._ `ActSystem`'s `buy-seed` intent now emits an `ONT_SHOP.SELL` (item: "seed") message to the shopkeeper instead of mutating the daily slate inline; `ShopkeeperSystem.handleSell` is the single owner of slate consumption + gold checks. Accepted behavior change: seeds now land ~1 tick after the ACT (ActSystem runs before ShopkeeperSystem), which shifts the deterministic outcome for a given seed. The duplicated slate-consume logic in `act.ts` is gone.
 
 ## Now has a brief (was an open question)

@@ -112,6 +112,50 @@ describe("TravelSystem", () => {
     expect(arrivals[0]).toEqual({ farmerId: farmer.id, regionId: "village" });
   });
 
+  it("routes around the void: every waypoint of a real farm→village path is walkable and uses the road corridor", () => {
+    // The real walkable grid blocks the vast majority of the 40×40 world —
+    // only region bounds + road corridors are walkable. A farm connects to the
+    // village ONLY through a narrow road, so a correct path must funnel through
+    // it and must never cross a blocked (void) tile. This proves the WASM
+    // pathfinder is load-bearing on the real game grid, not just a synthetic
+    // one (engine-level around-obstacle routing is covered in
+    // packages/engine/src/wasm/pathfinder.test.ts "routes around a wall").
+    const cora = getRegion("farm-cora");
+    const village = getRegion("village");
+    const path = pathfinder.findPath(grid, cora.center, village.center);
+
+    // Non-trivial multi-tile route.
+    expect(path.length).toBeGreaterThan(2);
+
+    // Endpoints are the farm and village centers.
+    expect(path[0]).toEqual({ x: cora.center.x, y: cora.center.y });
+    expect(path[path.length - 1]).toEqual({ x: village.center.x, y: village.center.y });
+
+    // Every waypoint is walkable (0) in the real grid — never a void tile.
+    for (const p of path) {
+      expect(grid.cells[p.y * grid.width + p.x]).toBe(0);
+    }
+
+    // Steps are 4-connected (one tile at a time, no diagonal teleports).
+    for (let i = 1; i < path.length; i++) {
+      const dx = Math.abs(path[i]!.x - path[i - 1]!.x);
+      const dy = Math.abs(path[i]!.y - path[i - 1]!.y);
+      expect(dx + dy).toBe(1);
+    }
+
+    // The route leaves the farm bounds and crosses tiles that belong to neither
+    // the farm nor the village — i.e. it actually travels the road corridor
+    // rather than the two regions being adjacent.
+    const inFarm = (p: { x: number; y: number }) =>
+      p.x >= cora.bounds.minX && p.x <= cora.bounds.maxX &&
+      p.y >= cora.bounds.minY && p.y <= cora.bounds.maxY;
+    const inVillage = (p: { x: number; y: number }) =>
+      p.x >= village.bounds.minX && p.x <= village.bounds.maxX &&
+      p.y >= village.bounds.minY && p.y <= village.bounds.maxY;
+    const corridorTiles = path.filter((p) => !inFarm(p) && !inVillage(p));
+    expect(corridorTiles.length).toBeGreaterThan(0);
+  });
+
   it("drops a travel intent and warns when no path exists", () => {
     const farmer = makeFarmer(world, { x: 19, y: 5, region: "farm-cora" });
     farmer.intentions!.queue.push({
