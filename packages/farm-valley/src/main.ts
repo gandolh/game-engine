@@ -13,6 +13,7 @@ import {
   SlateBillboardPanel,
   PlaybackControlsPanel,
   EventFeedPanel,
+  createRightColumn,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
@@ -174,10 +175,14 @@ async function startGame(
     _simClient = client;
 
     const overlay = new DebugOverlay(app);
-    const observer = new ObserverPanel(app);
+    // brief 25 — observer + activity feed share one fixed right-edge flex
+    // column so they stack instead of overlapping; the feed reflows below the
+    // observer when the "why" block expands it.
+    const rightColumn = createRightColumn(app);
+    const observer = new ObserverPanel(rightColumn);
     const leaderboardPanel = new LeaderboardPanel(app);
     const slateBillboard = new SlateBillboardPanel(app);
-    const eventFeedPanel = new EventFeedPanel(app);
+    const eventFeedPanel = new EventFeedPanel(rightColumn);
     const playback = new PlaybackControlsPanel(app);
     const gameOverPanel = createGameOverPanel(app);
     let gameOverShown = false;
