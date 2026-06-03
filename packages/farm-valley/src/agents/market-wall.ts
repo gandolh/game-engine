@@ -47,13 +47,24 @@ export function setupMarketShopFeature(
   world: World<GameEntity>,
   bus: MessageBus,
   rng: Rng,
+  ticksPerDay?: number,
 ): MarketShopFeature {
   const marketWall = spawnMarketWall(world);
   const shopkeeper = spawnShopkeeper(world);
 
   const marketSystem = new MarketSystem(bus, world, rng);
   const auctionSystem = new AuctionSystem(bus, world, rng);
-  const shopkeeperSystem = new ShopkeeperSystem(bus, world, auctionSystem);
+  // brief 27 — keep the auction open across the next day's work phases so the
+  // (now phase-gated) farmers get deliberation cycles to bid. ~1.5 days; falls
+  // back to the system default when ticksPerDay isn't supplied (e.g. tests).
+  const shopkeeperSystem = new ShopkeeperSystem(
+    bus,
+    world,
+    auctionSystem,
+    ticksPerDay !== undefined
+      ? { auctionDurationTicks: Math.round(ticksPerDay * 1.5) }
+      : {},
+  );
 
   return { marketWall, shopkeeper, marketSystem, shopkeeperSystem, auctionSystem };
 }

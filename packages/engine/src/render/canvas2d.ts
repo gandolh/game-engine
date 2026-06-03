@@ -52,7 +52,19 @@ export class Canvas2dRenderer {
    * replaces the previous layer. Generic: the caller decides what counts as
    * "static" (Farm Valley bakes the backdrop tiles + farm fences + plot dirt).
    */
-  bakeStaticLayer(sprites: readonly Canvas2dSprite[], worldWidth: number, worldHeight: number): void {
+  bakeStaticLayer(
+    sprites: readonly Canvas2dSprite[],
+    worldWidth: number,
+    worldHeight: number,
+    /**
+     * Optional post-bake hook. After all static sprites are drawn, the caller
+     * gets the offscreen 2D context + layer dimensions to stamp a procedural
+     * overlay (e.g. per-tile ground-noise brightness — see farm-valley's
+     * render/ground-noise). The engine stays generic: it knows nothing about
+     * tiles or seeds. The hook must leave composite state as it found it.
+     */
+    decorate?: (ctx: Ctx2D, widthPx: number, heightPx: number) => void,
+  ): void {
     if (!this.atlas) throw new Error("bakeStaticLayer: setAtlas must be called first");
     const w = Math.max(1, Math.ceil(worldWidth));
     const h = Math.max(1, Math.ceil(worldHeight));
@@ -68,6 +80,7 @@ export class Canvas2dRenderer {
     for (const { s } of indexed) {
       drawSprite(ctx, this.atlas, s);
     }
+    if (decorate) decorate(ctx, w, h);
     this.staticLayer = surface;
     this.staticLayerW = w;
     this.staticLayerH = h;
@@ -95,7 +108,13 @@ export class Canvas2dRenderer {
     this.queue.push(sprite);
   }
 
-  endFrame(): void {
+  /**
+   * `wash` (brief 26, farm-valley) is an optional full-frame color overlay
+   * applied last in screen space — a day/night + seasonal grade. The engine
+   * stays generic: it just blends one translucent rect over the finished frame
+   * and restores composite/alpha state. `color` is "#rrggbb"; `alpha` ∈ [0,1].
+   */
+  endFrame(wash?: { color: string; alpha: number }): void {
     if (!this.atlas) return;
 
     const { ctx, canvas, camera } = this;
@@ -126,6 +145,18 @@ export class Canvas2dRenderer {
     }
 
     ctx.globalAlpha = 1;
+
+    // brief 26 — full-frame day/night + seasonal wash, in SCREEN space (reset
+    // the camera transform first), then restore composite/alpha so state never
+    // leaks into the next frame (there is no per-frame save/restore here).
+    if (wash && wash.alpha > 0.001) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = wash.alpha;
+      ctx.fillStyle = wash.color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    }
   }
 }
 

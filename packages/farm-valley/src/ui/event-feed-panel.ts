@@ -9,21 +9,22 @@ export interface EventFeedRow {
   text: string;
 }
 
+// brief 25 — flows below the observer inside the shared right column
+// (ui/right-column.ts). Takes the leftover vertical space (`flex: 1`) and
+// scrolls internally rather than self-anchoring to the corner.
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
-  position: "fixed",
-  top: "0",
-  right: "0",
-  width: "300px",
-  maxHeight: "40vh",
-  overflowY: "hidden",
+  width: "100%",
+  flex: "1 1 auto",
+  minHeight: "0",
+  overflowY: "auto",
+  pointerEvents: "auto",
   background: "#1a1a1a",
   color: "#e0e0e0",
   fontFamily: "monospace",
   fontSize: "12px",
   padding: "8px",
   boxSizing: "border-box",
-  zIndex: "9997",
-  borderBottom: "1px solid #333",
+  borderTop: "1px solid #444",
   borderLeft: "1px solid #333",
 };
 

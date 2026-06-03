@@ -15,10 +15,12 @@ import { InboxDispatchSystem } from "./systems/inbox-dispatch";
 import { PerceiveSystem } from "./systems/perceive";
 import { TrustSystem } from "./systems/trust";
 import { HarvestSystem } from "./systems/harvest";
+import { PlotSenseSystem } from "./systems/plot-sense";
 import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
 import { EncounterSystem } from "./systems/encounter";
+import { EncounterTradeSystem } from "./systems/encounter-trade";
 import { MeetIndicatorSystem } from "./systems/meet-indicator";
 import { EventFeedSystem } from "./systems/event-feed";
 import { ShopSlateSystem } from "./systems/shop-slate";
@@ -106,7 +108,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   }
 
   const weatherFeature = setupWeatherFeature(world, bus, rng);
-  const marketShop = setupMarketShopFeature(world, bus, rng);
+  const marketShop = setupMarketShopFeature(world, bus, rng, opts.ticksPerDay);
 
   // After market-wall + shopkeeper entities exist, lay out the regions —
   // setupWorldRegions both spawns farm plots (3×3 per farm) and decorates
@@ -139,6 +141,12 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new InboxDispatchSystem(bus, world))
     .add(new ShopSlateSystem(world, bus, rng))
     .add(new EncounterSystem(world, bus))
+    // brief 24 — EncounterTradeSystem drives peer seed trades (brief 09) AND
+    // golden-bean gifts on MEET. Its docstring requires the order
+    // EncounterSystem → EncounterTradeSystem → PerceiveSystem (PerceiveSystem
+    // clears inboxes). It was absent from the scheduler after the worker
+    // migration, so peer trades/gifts never fired live; registering it here.
+    .add(new EncounterTradeSystem(world))
     .add(meetIndicators)
     .add(new TrustSystem(world, listCoordinators()))
     // Read-only activity-feed snoop: must observe inbox + market-wall messages
@@ -147,6 +155,9 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new HarvestSystem(world))
+    // brief 29 — surface owned-plot watering needs into beliefs before agents
+    // deliberate, so survival-reflex watering can be queued.
+    .add(new PlotSenseSystem(world))
     .add(new DeliberateSystem(world))
     .add(weatherFeature.apSystem);
 

@@ -6,6 +6,8 @@ import {
   type ShopSellBody,
   type ShopConfirmBody,
   type AuctionCfpBody,
+  type AuctionResultBody,
+  type ResaleBeanBody,
 } from "../protocols/shop";
 import { consumeFromSlate } from "../agents/shop-slate";
 import type { ShopOffer } from "../agents/shop-slate";
@@ -36,7 +38,21 @@ const SELLABLE_SEED_CROPS: ReadonlySet<string> = new Set<string>([
 
 const AUCTION_TRIGGER_INTERVAL_DAYS = 5;
 const AUCTION_RESERVE_PRICE = 50;
-const AUCTION_DURATION_TICKS = 20;
+/**
+ * brief 24 — an auction must stay open ACROSS the next day boundary so farmers
+ * (who only deliberate on day-start) get a deliberation cycle to bid while the
+ * CFP is in their beliefs. At 20 ticks/day, 25 ticks means: open on day N's
+ * boundary, farmers bid on day N+1's boundary, resolve mid-day N+1. The old
+ * 20-tick duration closed exactly as the next day began, so nobody ever bid.
+ */
+const AUCTION_DURATION_TICKS = 25;
+
+/**
+ * brief 24 — the shop buys a won golden bean back at a fat premium over the
+ * auction reserve, so winning + reselling is genuinely profitable and the
+ * "like gold" framing holds. Resale price = reserve × this multiplier.
+ */
+const GOLDEN_BEAN_RESALE_MULTIPLIER = 3;
 
 export interface ShopkeeperSystemOptions {
   /** How often (in days) the shopkeeper opens a Golden-Bean auction. */
@@ -77,6 +93,8 @@ export class ShopkeeperSystem implements System {
 
   private lastAuctionDay = -Infinity;
   private auctionSeq = 0;
+  /** brief 24 — auctionIds already settled (winner credited), for idempotency. */
+  private readonly settledAuctions = new Set<string>();
 
   private readonly auctionEveryDays: number;
   private readonly auctionReservePrice: number;
@@ -107,6 +125,17 @@ export class ShopkeeperSystem implements System {
           break;
         case ONT_SHOP.SELL:
           this.handleSell(msg, ctx, shop);
+          break;
+        case ONT_SHOP.RESALE_BEAN:
+          this.handleResaleBean(msg, ctx);
+          break;
+        case ONT_SHOP.AUCTION_RESULT:
+          // The shop is the auctioneer of record: when an auction it opened
+          // resolves, credit the winner their bean and charge the paid price.
+          // Snoop-only (we don't consume — the result is a broadcast the event
+          // feed also reads), so re-push it for other observers.
+          this.creditAuctionWinner(msg);
+          remaining.push(msg);
           break;
         default:
           remaining.push(msg);
@@ -165,6 +194,61 @@ export class ShopkeeperSystem implements System {
       ok: true,
       goldDelta,
       itemDelta: { crop, quantity: -taken },
+    });
+  }
+
+  /**
+   * brief 24 — when an auction this shop opened resolves with a winner, credit
+   * the winner one golden bean and charge them the price they owe. The
+   * AuctionSystem only announces the outcome; the shop (auctioneer of record)
+   * performs settlement. Idempotent per (auctionId): an auction resolves once.
+   */
+  private creditAuctionWinner(msg: AgentMessage): void {
+    const body = msg.body as Partial<AuctionResultBody>;
+    if (body.winnerId === null || body.winnerId === undefined) return;
+    if (this.settledAuctions.has(body.auctionId ?? "")) return;
+    const winner = this.findFarmerById(body.winnerId);
+    if (!winner || !winner.inventory) return;
+    const paid = body.paidPrice ?? 0;
+    // Don't let settlement drive a farmer negative; if they somehow can't
+    // cover it, skip the credit (the bid logic gates on affordability anyway).
+    if (winner.inventory.gold < paid) return;
+    winner.inventory.gold -= paid;
+    winner.inventory.goldenBeans = (winner.inventory.goldenBeans ?? 0) + 1;
+    this.settledAuctions.add(body.auctionId ?? "");
+  }
+
+  /**
+   * brief 24 — golden-bean resale: a farmer sells won beans back to the shop at
+   * a premium over the auction reserve, realizing the "like gold" value.
+   */
+  private handleResaleBean(msg: AgentMessage, ctx: SimContext): void {
+    if (msg.sender === "world") return;
+    const sender = msg.sender;
+    const farmer = this.findFarmerById(sender);
+    if (!farmer || !farmer.inventory) return;
+    const body = msg.body as Partial<ResaleBeanBody>;
+    const qty = body.quantity ?? 0;
+    const have = farmer.inventory.goldenBeans ?? 0;
+    const taken = Math.min(qty, have);
+    if (taken <= 0) {
+      this.replyConfirm(ctx.tick, sender, {
+        ok: false,
+        goldDelta: 0,
+        itemDelta: { crop: "radish", quantity: 0 },
+        reason: "no-golden-bean",
+      });
+      return;
+    }
+    const unit = this.auctionReservePrice * GOLDEN_BEAN_RESALE_MULTIPLIER;
+    const goldDelta = unit * taken;
+    farmer.inventory.goldenBeans = have - taken;
+    farmer.inventory.gold += goldDelta;
+    this.replyConfirm(ctx.tick, sender, {
+      ok: true,
+      goldDelta,
+      itemDelta: { crop: "radish", quantity: 0 },
+      reason: "golden-bean-resold",
     });
   }
 

@@ -39,13 +39,16 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
     intentions: { queue: [] },
     personality: { kind: spec.personality },
     inbox: { messages: [] },
-    farmer: { name: spec.name, currentRegion: initialRegion },
+    farmer: { name: spec.name, currentRegion: initialRegion, homeRegion: initialRegion },
     inventory: {
       gold: spec.startGold,
       crops: { ...ZERO_CROPS },
       seeds: { ...ZERO_CROPS, ...spec.startSeeds },
     },
-    ap: { current: 8, max: 8, penaltyPending: false, penaltyCapacity: 4, away: false },
+    // brief 28 — AP is a large daily budget that grows +2/day; day-1 ceiling
+    // is 100 (maxApForDay(0)). penaltyCapacity is legacy (unrested halving now
+    // lives in the morning wake); kept at half for any old reader.
+    ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false },
   });
   return farmer;
 }

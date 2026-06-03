@@ -36,7 +36,7 @@ export function setupWeatherFeature(
 } {
   spawnWeatherStation(world);
   const weatherSystem = new WeatherSystem(bus, world, rng);
-  const cropGrowthSystem = new CropGrowthSystem(world);
+  const cropGrowthSystem = new CropGrowthSystem(world, bus);
   const apSystem = new ApSystem(world);
   return { weatherSystem, cropGrowthSystem, apSystem };
 }

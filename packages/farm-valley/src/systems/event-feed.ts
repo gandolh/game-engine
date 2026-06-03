@@ -31,7 +31,11 @@ import type { GameEntity } from "../components";
 import { ONT_ENCOUNTER, type AcceptBody } from "../protocols/encounter";
 import { ONT_MARKET } from "../protocols/market";
 import { ONT_SHOP, type AuctionResultBody } from "../protocols/shop";
-import { ONT_SIMULATION, type ShockBody } from "../protocols/simulation";
+import {
+  ONT_SIMULATION,
+  type ShockBody,
+  type CropDeathBody,
+} from "../protocols/simulation";
 import type { DayClockSystem } from "./day-clock";
 
 /** A single formatted feed entry. Internally the list is newest-LAST. */
@@ -117,6 +121,14 @@ export class EventFeedSystem implements System {
           case ONT_SIMULATION.SHOCK:
             this.captureShock(msg.body as unknown as ShockBody, tick, day, out);
             break;
+          case ONT_SIMULATION.CROP_DEATH:
+            this.captureCropDeath(
+              msg.body as unknown as CropDeathBody,
+              tick,
+              day,
+              out,
+            );
+            break;
           default:
             break;
         }
@@ -199,7 +211,7 @@ export class EventFeedSystem implements System {
       tick,
       day,
       key,
-      text: `Auction won by ${winner} at ${body.paidPrice}g`,
+      text: `${winner} won the golden bean at ${body.paidPrice}g`,
     });
   }
 
@@ -219,6 +231,25 @@ export class EventFeedSystem implements System {
       day,
       key,
       text: `Drought! ${name} lost ${body.plotsWiped} ${cropWord}`,
+    });
+  }
+
+  private captureCropDeath(
+    body: CropDeathBody,
+    tick: number,
+    day: number,
+    out: EventEntry[],
+  ): void {
+    // Collapse same-day deaths of the same crop for one owner into one line.
+    const key = `death:${body.day}:${body.ownerId}:${body.crop}`;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    const name = this.nameOf(body.ownerId);
+    out.push({
+      tick,
+      day,
+      key,
+      text: `${name}'s ${body.crop} withered (no water)`,
     });
   }
 

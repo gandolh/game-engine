@@ -15,11 +15,16 @@ export type FarmerFsmState =
   | "PERCEIVE"
   | "DELIBERATE"
   | "ACT"
-  | "FINISH_DAY";
+  | "FINISH_DAY"
+  // brief 27 — night sleep node. A farmer that reached home enters SLEEP for
+  // the night phase (rested); one caught away is flagged unrested.
+  | "SLEEP";
 
 export interface Farmer {
   name: string;
   currentRegion: RegionId;
+  /** brief 27 — the farmer's own farm region; "home" for the sleep check. */
+  homeRegion?: RegionId;
   path?: {
     waypoints: ReadonlyArray<{ x: number; y: number }>;
     nextIndex: number;       // index of the next waypoint to step onto
@@ -33,6 +38,14 @@ export interface Inventory {
   gold: number;
   crops: Record<CropKind, number>;
   seeds: Record<CropKind, number>;
+  /**
+   * Golden beans (brief 24) — a rare, high-value status good won only at the
+   * shopkeeper's auction. Not a `CropKind` (it can't be planted); a winner can
+   * resell it to the shop above the auction reserve, or gift it to a peer on a
+   * MEET encounter for a large trust boost. Optional/defaulted so existing
+   * inventories (and tests) that omit it read as zero.
+   */
+  goldenBeans?: number;
 }
 
 export interface Plot {
@@ -51,6 +64,15 @@ export type PlotState =
       daysGrowing: number;
       readyAtDay: number;
       weatherSum: number;
+      /**
+       * brief 29 — irrigation. Days since this plot was last watered (by an
+       * agent's `water` action or by rain). 0 on the day it's planted/watered.
+       * Growth only advances on watered days; exceeding the grace window kills
+       * the crop. Optional/defaulted so pre-29 planted states read as 0.
+       */
+      daysSinceWater?: number;
+      /** True if watered (or rained on) during the current day. */
+      wateredToday?: boolean;
     };
 
 export interface ActionPoints {
@@ -59,6 +81,12 @@ export interface ActionPoints {
   penaltyPending: boolean;
   penaltyCapacity: number;
   away: boolean;
+  /**
+   * brief 27 — set true when the farmer was NOT home at nightfall (caught away
+   * during the night phase). Consumed at the next day's AP refill to halve the
+   * starting AP (the "sleep in your own bed" rule). Cleared on a rested wake.
+   */
+  unrested?: boolean;
 }
 
 export interface MarketWallTag {

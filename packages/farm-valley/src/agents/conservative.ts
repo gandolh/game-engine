@@ -5,6 +5,8 @@ import {
   registerPeerTradeHooks,
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
+import { deliberateBean } from "./bean-valuation";
+import { deliberateWatering } from "./watering";
 
 export function deliberateConservative(farmer: GameEntity): void {
   if (!farmer.beliefs || !farmer.desires || !farmer.intentions || !farmer.inventory) return;
@@ -16,6 +18,9 @@ export function deliberateConservative(farmer: GameEntity): void {
 
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
+
+  // brief 29 — conservative waters early, never risking the grace window.
+  deliberateWatering(farmer, { dryThreshold: 0 });
 
   if (gold - seedCost >= reserve && seeds[candidate] >= 1) {
     farmer.intentions.queue.push({
@@ -52,6 +57,9 @@ export function deliberateConservative(farmer: GameEntity): void {
       recordReason(farmer, `sell ${crop} x${farmer.inventory.crops[crop]}`);
     }
   }
+
+  // brief 24 — bid cautiously (near reserve) and flip any beans held.
+  deliberateBean(farmer, 0.45);
 
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }

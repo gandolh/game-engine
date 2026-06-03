@@ -93,7 +93,7 @@ describe("EventFeedSystem", () => {
     feed.run({ tick: 5 });
 
     const texts = feed.recent().map((e) => e.text);
-    expect(texts).toContain("Auction won by Cora at 45g");
+    expect(texts).toContain("Cora won the golden bean at 45g");
     expect(texts).toContain("Drought! Atticus lost 1 crop");
   });
 

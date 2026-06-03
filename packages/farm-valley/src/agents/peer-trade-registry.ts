@@ -1,5 +1,5 @@
 import type { GameEntity } from "../components";
-import type { MeetBody, OfferSeedBody } from "../protocols/encounter";
+import type { MeetBody, OfferSeedBody, OfferBeanBody } from "../protocols/encounter";
 
 export interface PeerTradeContext {
   tick: number;
@@ -30,9 +30,22 @@ export type RespondPeerOfferFn = (
   ctx: PeerTradeContext,
 ) => { decision: "accept" | "decline"; reason?: string };
 
+/**
+ * brief 24 — personality hook fired on MEET to decide whether to gift a golden
+ * bean to the peer. Returning a non-null `OfferBeanBody` sends an `OFFER_BEAN`
+ * (a one-way gift, large trust boost). Only consulted when the farmer actually
+ * holds a bean. Returning `null` means "don't gift here".
+ */
+export type InitiateBeanGiftFn = (
+  farmer: GameEntity,
+  meet: MeetBody,
+  ctx: PeerTradeContext,
+) => OfferBeanBody | null;
+
 interface PeerTradeHooks {
   initiate?: InitiatePeerTradeFn;
   respond: RespondPeerOfferFn;
+  initiateGift?: InitiateBeanGiftFn;
 }
 
 const registry = new Map<string, PeerTradeHooks>();

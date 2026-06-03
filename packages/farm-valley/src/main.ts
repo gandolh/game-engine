@@ -7,12 +7,16 @@ import {
 } from "@engine/core";
 import type { AtlasManifest, Pathfinder } from "@engine/core";
 import { pushSnapshotSprites } from "./render-systems";
+import { makeGroundNoiseDecorator } from "./render/ground-noise";
+import { washFor } from "./render/day-night";
+import { seasonForDay } from "./protocols/weather";
 import {
   ObserverPanel,
   LeaderboardPanel,
   SlateBillboardPanel,
   PlaybackControlsPanel,
   EventFeedPanel,
+  createRightColumn,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
@@ -30,7 +34,10 @@ interface BootConfig {
 const CONFIG: BootConfig = {
   seed: 0xc0ffee,
   tickRateHz: 20,
-  ticksPerDay: 20,
+  // brief 27 — long days. 1200 ticks @ 20Hz = 1 real minute/day (watchable;
+  // a 100-day run is ~100 min @ 1×). The Stardew target is 6000 (5 min/day);
+  // it's selectable via the run hash (RunDescriptor carries ticksPerDay).
+  ticksPerDay: 1200,
   maxDays: 100,
 };
 
@@ -174,10 +181,14 @@ async function startGame(
     _simClient = client;
 
     const overlay = new DebugOverlay(app);
-    const observer = new ObserverPanel(app);
+    // brief 25 — observer + activity feed share one fixed right-edge flex
+    // column so they stack instead of overlapping; the feed reflows below the
+    // observer when the "why" block expands it.
+    const rightColumn = createRightColumn(app);
+    const observer = new ObserverPanel(rightColumn);
     const leaderboardPanel = new LeaderboardPanel(app);
     const slateBillboard = new SlateBillboardPanel(app);
-    const eventFeedPanel = new EventFeedPanel(app);
+    const eventFeedPanel = new EventFeedPanel(rightColumn);
     const playback = new PlaybackControlsPanel(app);
     const gameOverPanel = createGameOverPanel(app);
     let gameOverShown = false;
@@ -244,8 +255,16 @@ async function startGame(
     });
 
     // Receive the static-layer sprites from the worker and bake them once.
+    // brief 30 — stamp subtle per-tile ground-noise into the baked layer
+    // (one-time cost, deterministic on the run seed).
+    const groundNoise = makeGroundNoiseDecorator(seed, TILE);
     client.onStaticLayer((msg) => {
-      renderer.bakeStaticLayer(msg.sprites, msg.worldWidthPx, msg.worldHeightPx);
+      renderer.bakeStaticLayer(
+        msg.sprites,
+        msg.worldWidthPx,
+        msg.worldHeightPx,
+        groundNoise,
+      );
     });
 
     // brief-18: seed badge — show the chosen seed during play (low-touch,
@@ -286,7 +305,14 @@ async function startGame(
         focusedFarmerId,
       );
 
-      renderer.endFrame();
+      // brief 26 — day/night + seasonal color wash (render-only, tick-synced;
+      // looks right now that days are long, brief 27).
+      const wash = washFor({
+        tick: client.tick,
+        ticksPerDay,
+        season: seasonForDay(client.day),
+      });
+      renderer.endFrame(wash);
 
       // UI updates.
       const snap = client.latestSnapshot();

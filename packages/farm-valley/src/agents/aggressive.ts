@@ -7,7 +7,10 @@ import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import {
   registerPeerTradeHooks,
   type RespondPeerOfferFn,
+  type InitiateBeanGiftFn,
 } from "./peer-trade-registry";
+import { deliberateBean } from "./bean-valuation";
+import { deliberateWatering } from "./watering";
 
 // Shopkeeper reference prices for now (constants from spec).
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
@@ -57,6 +60,10 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
+
+  // brief 29 — aggressive over-plants and waters lazily (threshold 1), capping
+  // watering so it may let a marginal plot die rather than tend every one.
+  deliberateWatering(farmer, { dryThreshold: 1, maxWaterPerDay: 3 });
 
   // End-of-sim liquidation: in the last 2 days, dump everything to the
   // shopkeeper and skip planting / market posting / wall scanning.
@@ -201,6 +208,9 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     }
   }
 
+  // brief 24 — aggressive bids high (near full expected resale) and flips beans.
+  deliberateBean(farmer, 0.95);
+
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
 
@@ -250,4 +260,23 @@ export const respondToPeerOfferAggressive: RespondPeerOfferFn = (
   return { decision: "accept" };
 };
 
-registerPeerTradeHooks("aggressive", { respond: respondToPeerOfferAggressive });
+/**
+ * brief 24 — aggressive uses a won golden bean as a bribe: gift it to the peer
+ * it ALREADY trusts most (>= 0.6), cementing the alliance with a big trust
+ * boost rather than flipping it for gold. Only fires when holding a bean (the
+ * encounter system guards that) and meeting a sufficiently-trusted peer.
+ */
+export const initiateBeanGiftAggressive: InitiateBeanGiftFn = (
+  farmer,
+  meet,
+  _ctx,
+) => {
+  const trust = farmer.trust?.byId.get(meet.peerId) ?? 0.5;
+  if (trust < 0.6) return null;
+  return { offerId: `bean-${farmer.id}-${meet.peerId}`, quantity: 1 };
+};
+
+registerPeerTradeHooks("aggressive", {
+  respond: respondToPeerOfferAggressive,
+  initiateGift: initiateBeanGiftAggressive,
+});

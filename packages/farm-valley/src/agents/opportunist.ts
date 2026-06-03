@@ -9,6 +9,8 @@ import {
   registerPeerTradeHooks,
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
+import { deliberateBean } from "./bean-valuation";
+import { deliberateWatering } from "./watering";
 
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 8, pumpkin: 15 };
@@ -52,6 +54,9 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
+
+  // brief 29 — opportunist waters lazily (threshold 1), banking AP for trades.
+  deliberateWatering(farmer, { dryThreshold: 1 });
 
   // 1. Plant or buy seed based on weather forecast.
   const desired = pickCropFromWeather(forecast);
@@ -164,6 +169,10 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       `buy wall ${best.offer.crop} x${best.offer.quantity} @ ${best.offer.pricePerUnit}: trust ${best.trust.toFixed(2)}`,
     );
   }
+
+  // brief 24 — opportunist bids for arbitrage (well below resale value to lock
+  // in margin) and flips beans for the spread.
+  deliberateBean(farmer, 0.7);
 
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
