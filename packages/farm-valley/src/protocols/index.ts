@@ -10,6 +10,7 @@ export type {
   StateUpdateBody,
   ShockBody,
   ShockKind,
+  CropDeathBody,
 } from "./simulation";
 
 export {

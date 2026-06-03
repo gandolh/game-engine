@@ -94,7 +94,33 @@ export class ActSystem implements System {
                 daysGrowing: 0,
                 readyAtDay: day + GROWTH_DAYS[crop],
                 weatherSum: 0,
+                // brief 29 — freshly-planted soil counts as watered today.
+                daysSinceWater: 0,
+                wateredToday: true,
               } satisfies PlotState;
+            }
+            break;
+          }
+          case "water": {
+            // brief 29 — water this farmer's planted plots that are due. Resets
+            // the dryness clock so growth advances and the crop won't wilt. A
+            // single `water` action tends one plot (the most-dry due plot) to
+            // keep it a meaningful per-plot AP commitment; agents queue one per
+            // plot that needs it.
+            const due = ownedPlots
+              .filter((p) => {
+                const s = p.plot!.state;
+                return s.kind === "planted" && s.wateredToday !== true;
+              })
+              .sort((a, b) => {
+                const sa = a.plot!.state as Extract<PlotState, { kind: "planted" }>;
+                const sb = b.plot!.state as Extract<PlotState, { kind: "planted" }>;
+                return (sb.daysSinceWater ?? 0) - (sa.daysSinceWater ?? 0);
+              })[0];
+            if (due) {
+              const s = due.plot!.state as Extract<PlotState, { kind: "planted" }>;
+              s.wateredToday = true;
+              s.daysSinceWater = 0;
             }
             break;
           }

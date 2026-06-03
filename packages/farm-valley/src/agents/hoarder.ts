@@ -16,6 +16,7 @@ import {
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
+import { deliberateWatering } from "./watering";
 
 export { _resetCnpCoordinatorsForTests };
 
@@ -43,6 +44,9 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
+
+  // brief 29 — the hoarder waters everything religiously (threshold 0).
+  deliberateWatering(farmer, { dryThreshold: 0 });
 
   // 1. Plant a high-tier crop, falling back to radish only if we can't afford anything else.
   const plotId = (farmer.beliefs.data["plotId"] as number | undefined) ?? farmer.id;

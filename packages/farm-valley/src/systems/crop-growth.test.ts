@@ -39,6 +39,10 @@ function spawnPlot(world: World<GameEntity>, ownerId: number): GameEntity {
         daysGrowing: 0,
         readyAtDay: 5,
         weatherSum: 0,
+        // brief 29 — start watered so the first day grows (mirrors planting,
+        // which marks the soil watered). Tests re-water before later days.
+        daysSinceWater: 0,
+        wateredToday: true,
       } satisfies PlotState,
     },
   });
@@ -107,6 +111,11 @@ describe("CropGrowthSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
 
+    // Re-water before day 2 (brief 29 — watering is per-day).
+    {
+      const s = plotEntity.plot!.state;
+      if (s.kind === "planted") s.wateredToday = true;
+    }
     // Day 2: multiplier 0.8
     stations[0]!.weatherStation!.multiplier = 0.8;
     sendDayStart(world, 2);
@@ -167,5 +176,49 @@ describe("CropGrowthSystem", () => {
     if (state.kind === "planted") {
       expect(state.daysGrowing).toBe(1);
     }
+  });
+
+  // ---- brief 29: irrigation & crop death ----------------------------------
+
+  function setWeather(world: World<GameEntity>, cond: string, mult: number): void {
+    for (const s of world.query("weatherStation")) {
+      s.weatherStation!.current = cond as never;
+      s.weatherStation!.multiplier = mult;
+    }
+  }
+
+  it("a dry (unwatered) plot does not grow and accrues dry days", () => {
+    const plot = spawnPlot(world, 1);
+    (plot.plot!.state as Extract<PlotState, { kind: "planted" }>).wateredToday = false;
+    setWeather(world, "sunny", 1.2);
+    sendDayStart(world, 1);
+    system.run(makeContext(10));
+    const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
+    expect(s.daysGrowing).toBe(0); // no progress on a dry day
+    expect(s.daysSinceWater).toBe(1);
+  });
+
+  it("rain auto-waters every plot (grows without an agent watering)", () => {
+    const plot = spawnPlot(world, 1);
+    (plot.plot!.state as Extract<PlotState, { kind: "planted" }>).wateredToday = false;
+    setWeather(world, "rainy", 0.8);
+    sendDayStart(world, 1);
+    system.run(makeContext(10));
+    const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
+    expect(s.daysGrowing).toBe(1); // rain watered it
+    expect(s.daysSinceWater).toBe(0);
+  });
+
+  it("a crop withers after exceeding the grace window of dry days", () => {
+    const plot = spawnPlot(world, 1);
+    setWeather(world, "sunny", 1.2);
+    // Day 1: planted-watered → grows, resets dry. Days 2,3: dry (1,2). Day 4: dry 3 > grace 2 → death.
+    for (let day = 1; day <= 4; day++) {
+      const s = plot.plot!.state;
+      if (s.kind === "planted" && day > 1) s.wateredToday = false; // never re-water after day 1
+      sendDayStart(world, day);
+      system.run(makeContext(day * 10));
+    }
+    expect(plot.plot!.state.kind).toBe("empty"); // withered, seed lost
   });
 });

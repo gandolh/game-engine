@@ -64,6 +64,15 @@ export type PlotState =
       daysGrowing: number;
       readyAtDay: number;
       weatherSum: number;
+      /**
+       * brief 29 — irrigation. Days since this plot was last watered (by an
+       * agent's `water` action or by rain). 0 on the day it's planted/watered.
+       * Growth only advances on watered days; exceeding the grace window kills
+       * the crop. Optional/defaulted so pre-29 planted states read as 0.
+       */
+      daysSinceWater?: number;
+      /** True if watered (or rained on) during the current day. */
+      wateredToday?: boolean;
     };
 
 export interface ActionPoints {

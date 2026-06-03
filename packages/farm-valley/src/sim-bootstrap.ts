@@ -15,6 +15,7 @@ import { InboxDispatchSystem } from "./systems/inbox-dispatch";
 import { PerceiveSystem } from "./systems/perceive";
 import { TrustSystem } from "./systems/trust";
 import { HarvestSystem } from "./systems/harvest";
+import { PlotSenseSystem } from "./systems/plot-sense";
 import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
@@ -154,6 +155,9 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new HarvestSystem(world))
+    // brief 29 — surface owned-plot watering needs into beliefs before agents
+    // deliberate, so survival-reflex watering can be queued.
+    .add(new PlotSenseSystem(world))
     .add(new DeliberateSystem(world))
     .add(weatherFeature.apSystem);
 
