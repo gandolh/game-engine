@@ -7,6 +7,7 @@ import {
 } from "@engine/core";
 import type { AtlasManifest, Pathfinder } from "@engine/core";
 import { pushSnapshotSprites } from "./render-systems";
+import { makeGroundNoiseDecorator } from "./render/ground-noise";
 import {
   ObserverPanel,
   LeaderboardPanel,
@@ -249,8 +250,16 @@ async function startGame(
     });
 
     // Receive the static-layer sprites from the worker and bake them once.
+    // brief 30 — stamp subtle per-tile ground-noise into the baked layer
+    // (one-time cost, deterministic on the run seed).
+    const groundNoise = makeGroundNoiseDecorator(seed, TILE);
     client.onStaticLayer((msg) => {
-      renderer.bakeStaticLayer(msg.sprites, msg.worldWidthPx, msg.worldHeightPx);
+      renderer.bakeStaticLayer(
+        msg.sprites,
+        msg.worldWidthPx,
+        msg.worldHeightPx,
+        groundNoise,
+      );
     });
 
     // brief-18: seed badge — show the chosen seed during play (low-touch,

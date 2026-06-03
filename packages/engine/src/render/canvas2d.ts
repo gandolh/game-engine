@@ -52,7 +52,19 @@ export class Canvas2dRenderer {
    * replaces the previous layer. Generic: the caller decides what counts as
    * "static" (Farm Valley bakes the backdrop tiles + farm fences + plot dirt).
    */
-  bakeStaticLayer(sprites: readonly Canvas2dSprite[], worldWidth: number, worldHeight: number): void {
+  bakeStaticLayer(
+    sprites: readonly Canvas2dSprite[],
+    worldWidth: number,
+    worldHeight: number,
+    /**
+     * Optional post-bake hook. After all static sprites are drawn, the caller
+     * gets the offscreen 2D context + layer dimensions to stamp a procedural
+     * overlay (e.g. per-tile ground-noise brightness — see farm-valley's
+     * render/ground-noise). The engine stays generic: it knows nothing about
+     * tiles or seeds. The hook must leave composite state as it found it.
+     */
+    decorate?: (ctx: Ctx2D, widthPx: number, heightPx: number) => void,
+  ): void {
     if (!this.atlas) throw new Error("bakeStaticLayer: setAtlas must be called first");
     const w = Math.max(1, Math.ceil(worldWidth));
     const h = Math.max(1, Math.ceil(worldHeight));
@@ -68,6 +80,7 @@ export class Canvas2dRenderer {
     for (const { s } of indexed) {
       drawSprite(ctx, this.atlas, s);
     }
+    if (decorate) decorate(ctx, w, h);
     this.staticLayer = surface;
     this.staticLayerW = w;
     this.staticLayerH = h;
