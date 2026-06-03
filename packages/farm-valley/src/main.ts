@@ -8,6 +8,8 @@ import {
 import type { AtlasManifest, Pathfinder } from "@engine/core";
 import { pushSnapshotSprites } from "./render-systems";
 import { makeGroundNoiseDecorator } from "./render/ground-noise";
+import { washFor } from "./render/day-night";
+import { seasonForDay } from "./protocols/weather";
 import {
   ObserverPanel,
   LeaderboardPanel,
@@ -303,7 +305,14 @@ async function startGame(
         focusedFarmerId,
       );
 
-      renderer.endFrame();
+      // brief 26 — day/night + seasonal color wash (render-only, tick-synced;
+      // looks right now that days are long, brief 27).
+      const wash = washFor({
+        tick: client.tick,
+        ticksPerDay,
+        season: seasonForDay(client.day),
+      });
+      renderer.endFrame(wash);
 
       // UI updates.
       const snap = client.latestSnapshot();

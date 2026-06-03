@@ -108,7 +108,13 @@ export class Canvas2dRenderer {
     this.queue.push(sprite);
   }
 
-  endFrame(): void {
+  /**
+   * `wash` (brief 26, farm-valley) is an optional full-frame color overlay
+   * applied last in screen space — a day/night + seasonal grade. The engine
+   * stays generic: it just blends one translucent rect over the finished frame
+   * and restores composite/alpha state. `color` is "#rrggbb"; `alpha` ∈ [0,1].
+   */
+  endFrame(wash?: { color: string; alpha: number }): void {
     if (!this.atlas) return;
 
     const { ctx, canvas, camera } = this;
@@ -139,6 +145,18 @@ export class Canvas2dRenderer {
     }
 
     ctx.globalAlpha = 1;
+
+    // brief 26 — full-frame day/night + seasonal wash, in SCREEN space (reset
+    // the camera transform first), then restore composite/alpha so state never
+    // leaks into the next frame (there is no per-frame save/restore here).
+    if (wash && wash.alpha > 0.001) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = wash.alpha;
+      ctx.fillStyle = wash.color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    }
   }
 }
 
