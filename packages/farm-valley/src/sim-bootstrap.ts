@@ -19,6 +19,7 @@ import { DeliberateSystem } from "./systems/deliberate";
 import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
 import { EncounterSystem } from "./systems/encounter";
+import { EncounterTradeSystem } from "./systems/encounter-trade";
 import { MeetIndicatorSystem } from "./systems/meet-indicator";
 import { EventFeedSystem } from "./systems/event-feed";
 import { ShopSlateSystem } from "./systems/shop-slate";
@@ -139,6 +140,12 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new InboxDispatchSystem(bus, world))
     .add(new ShopSlateSystem(world, bus, rng))
     .add(new EncounterSystem(world, bus))
+    // brief 24 — EncounterTradeSystem drives peer seed trades (brief 09) AND
+    // golden-bean gifts on MEET. Its docstring requires the order
+    // EncounterSystem → EncounterTradeSystem → PerceiveSystem (PerceiveSystem
+    // clears inboxes). It was absent from the scheduler after the worker
+    // migration, so peer trades/gifts never fired live; registering it here.
+    .add(new EncounterTradeSystem(world))
     .add(meetIndicators)
     .add(new TrustSystem(world, listCoordinators()))
     // Read-only activity-feed snoop: must observe inbox + market-wall messages

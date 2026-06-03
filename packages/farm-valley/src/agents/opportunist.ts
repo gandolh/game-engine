@@ -9,6 +9,7 @@ import {
   registerPeerTradeHooks,
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
+import { deliberateBean } from "./bean-valuation";
 
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 8, pumpkin: 15 };
@@ -164,6 +165,10 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       `buy wall ${best.offer.crop} x${best.offer.quantity} @ ${best.offer.pricePerUnit}: trust ${best.trust.toFixed(2)}`,
     );
   }
+
+  // brief 24 — opportunist bids for arbitrage (well below resale value to lock
+  // in margin) and flips beans for the spread.
+  deliberateBean(farmer, 0.7);
 
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }

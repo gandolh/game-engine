@@ -15,6 +15,7 @@ import {
   type InitiatePeerTradeFn,
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
+import { deliberateBean } from "./bean-valuation";
 
 export { _resetCnpCoordinatorsForTests };
 
@@ -186,6 +187,10 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     recordReason(farmer, `buy wall ${o.crop} x${o.quantity} @ ${o.pricePerUnit}`);
     budget -= cost;
   }
+
+  // brief 24 — hoarder bids hard to WIN the scarce bean (deny others) and then
+  // HOLDS it (no resale — a hoarder hoards).
+  deliberateBean(farmer, 0.9, { resell: false });
 
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }

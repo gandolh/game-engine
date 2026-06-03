@@ -320,11 +320,13 @@ export class AuctionSystem implements System {
       return;
     }
 
-    // Sort by amount desc, tie-break by earliest tickReceived (deterministic
-    // first-come-first-served on equal bids).
+    // Sort by amount desc, tie-break by earliest tickReceived, then lowest
+    // bidderId (brief 24 — final stable key so resolution never depends on
+    // inbox insertion order; matches the FPSB ordering below).
     const sorted = a.bids.slice().sort((x, y) => {
       if (y.amount !== x.amount) return y.amount - x.amount;
-      return x.tickReceived - y.tickReceived;
+      if (x.tickReceived !== y.tickReceived) return x.tickReceived - y.tickReceived;
+      return x.bidderId - y.bidderId;
     });
 
     const top = sorted[0]!;

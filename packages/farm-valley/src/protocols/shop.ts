@@ -8,6 +8,8 @@ export const ONT_SHOP = {
   AUCTION_BID: "auction-bid",
   AUCTION_RESULT: "auction-result",
   DAILY_SLATE: "shop.daily-slate",
+  /** brief 24 — winner resells a won golden bean back to the shop. */
+  RESALE_BEAN: "shop.resale-bean",
 } as const;
 
 export type ShopOntology = (typeof ONT_SHOP)[keyof typeof ONT_SHOP];
@@ -51,6 +53,11 @@ export interface AuctionResultBody {
   winnerId: number | null;
   paidPrice: number;
   participants: number[];
+}
+
+/** brief 24 — farmer offers to resell `quantity` golden beans to the shop. */
+export interface ResaleBeanBody {
+  quantity: number;
 }
 
 export interface DailySlateBody {

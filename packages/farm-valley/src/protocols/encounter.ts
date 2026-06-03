@@ -15,6 +15,8 @@ export const ONT_ENCOUNTER = {
   OFFER_SEED: "encounter.offer-seed",
   ACCEPT: "encounter.accept",
   DECLINE: "encounter.decline",
+  /** brief 24 — gift a golden bean to a co-located peer (no counter-payment). */
+  OFFER_BEAN: "encounter.offer-bean",
 } as const;
 
 export type EncounterOntology = (typeof ONT_ENCOUNTER)[keyof typeof ONT_ENCOUNTER];
@@ -39,6 +41,16 @@ export interface OfferSeedBody {
   quantity: number;
   unitPrice: number;
   direction: "buy" | "sell";
+}
+
+/**
+ * brief 24 — a one-way gift of a golden bean from sender to recipient. No
+ * counter-payment; accepting moves a large positive trust delta from the
+ * receiver toward the giver. Reuses the ACCEPT/DECLINE replies (by `offerId`).
+ */
+export interface OfferBeanBody {
+  offerId: string;
+  quantity: number;
 }
 
 export interface AcceptBody {

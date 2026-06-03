@@ -108,6 +108,27 @@ describe("AuctionSystem — Vickrey", () => {
     expect(res!.paidPrice).toBe(50);
   });
 
+  it("ties on the SAME tick resolve by lowest bidderId (brief 24 hardening)", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "v4b",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 5,
+      closesAtTick: 10,
+    };
+    sys.openAuction(cfp);
+    // Equal amount, equal tickReceived — submit higher id first so a stable
+    // result can't come from insertion order; only the bidderId key decides.
+    sys.submitBid({ auctionId: "v4b", bidderId: 502, amount: 60 }, 3);
+    sys.submitBid({ auctionId: "v4b", bidderId: 501, amount: 60 }, 3);
+
+    sys.run({ tick: 10 });
+
+    const res = findResult(bus, "v4b");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBe(501); // lowest bidderId wins the tie
+  });
+
   it("top bid below reserve → no winner", () => {
     const cfp: AuctionCfpBody = {
       auctionId: "v5",

@@ -25,6 +25,11 @@ export const AP_COST = {
   "buy-from-wall": 2,
   "cnp-initiate": 2,
   "cnp-respond-bid": 1,
+  // brief 24 — bidding is intentionally cheap so auctions stay lively; reselling
+  // a won bean is a shop transaction like selling crops. (Brief 28 revisits the
+  // whole table; these keep the new intents from silently costing 0.)
+  "auction-bid": 0,
+  "resale-bean": 2,
   idle: 0,
 } as const;
 

@@ -199,7 +199,7 @@ export class EventFeedSystem implements System {
       tick,
       day,
       key,
-      text: `Auction won by ${winner} at ${body.paidPrice}g`,
+      text: `${winner} won the golden bean at ${body.paidPrice}g`,
     });
   }
 

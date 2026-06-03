@@ -9,6 +9,7 @@ import {
   ONT_ENCOUNTER,
   type MeetBody,
   type OfferSeedBody,
+  type OfferBeanBody,
   type AcceptBody,
   type DeclineBody,
 } from "../protocols/encounter";
@@ -45,6 +46,13 @@ import { applyTrustDelta, DEFAULT_TRUST_CONFIG } from "./trust";
 
 export const OFFER_TTL_TICKS = 5;
 
+/**
+ * brief 24 — trust gained by the receiver toward the giver of a golden bean.
+ * Large relative to the ±0.05 seed-trade deltas: a gift is a strong loyalty
+ * signal. Clamped to [0,1] by `applyTrustDelta`.
+ */
+export const GIFT_TRUST_DELTA = 0.2;
+
 interface PendingOffer {
   offer: OfferSeedBody;
   senderId: number;
@@ -57,6 +65,7 @@ type EncounterOntologyValue = (typeof ONT_ENCOUNTER)[keyof typeof ONT_ENCOUNTER]
 const ENCOUNTER_ONTOLOGIES: ReadonlySet<string> = new Set<EncounterOntologyValue>([
   ONT_ENCOUNTER.MEET,
   ONT_ENCOUNTER.OFFER_SEED,
+  ONT_ENCOUNTER.OFFER_BEAN,
   ONT_ENCOUNTER.ACCEPT,
   ONT_ENCOUNTER.DECLINE,
 ]);
@@ -132,7 +141,8 @@ export class EncounterTradeSystem implements System {
         // per offerId via the resolvedHandshakes set.
         const consume =
           msg.ontology === ONT_ENCOUNTER.MEET ||
-          msg.ontology === ONT_ENCOUNTER.OFFER_SEED;
+          msg.ontology === ONT_ENCOUNTER.OFFER_SEED ||
+          msg.ontology === ONT_ENCOUNTER.OFFER_BEAN;
 
         if (consume) {
           inbox.splice(i, 1);
@@ -166,6 +176,13 @@ export class EncounterTradeSystem implements System {
           ctx,
         );
         return;
+      case ONT_ENCOUNTER.OFFER_BEAN:
+        this.handleBeanGift(
+          farmer,
+          msg.body as unknown as OfferBeanBody,
+          msg.sender,
+        );
+        return;
       case ONT_ENCOUNTER.ACCEPT:
         this.handleAccept(farmer, msg.body as unknown as AcceptBody, msg.sender);
         return;
@@ -188,7 +205,28 @@ export class EncounterTradeSystem implements System {
     const personality = farmer.personality?.kind;
     if (!personality) return;
     const hooks = getPeerTradeHooks(personality);
-    if (!hooks || !hooks.initiate) return;
+    if (!hooks) return;
+
+    // brief 24 — gift a golden bean to this peer if the personality's gift hook
+    // opts in (e.g. to a trusted ally). One-way and immediate; sent as an
+    // OFFER_BEAN the peer consumes next pass. Independent of the seed offer.
+    if (hooks.initiateGift && (farmer.inventory?.goldenBeans ?? 0) > 0) {
+      const gift = hooks.initiateGift(farmer, meet, { tick: ctx.tick });
+      if (gift) {
+        const peerForGift = this.findEntity(meet.peerId);
+        if (peerForGift?.inbox) {
+          peerForGift.inbox.messages.push({
+            performative: PERFORMATIVE.PROPOSE,
+            ontology: ONT_ENCOUNTER.OFFER_BEAN,
+            sender: farmer.id,
+            body: gift as unknown as Record<string, unknown>,
+            tickIssued: ctx.tick,
+          });
+        }
+      }
+    }
+
+    if (!hooks.initiate) return;
 
     const offer = hooks.initiate(farmer, meet, { tick: ctx.tick });
     if (!offer) return;
@@ -265,6 +303,31 @@ export class EncounterTradeSystem implements System {
       );
       this.pendingOffers.delete(offer.offerId);
     }
+  }
+
+  /**
+   * brief 24 — receive a gifted golden bean. One-way: the bean moves from the
+   * giver to this farmer, and a large positive trust delta is applied from the
+   * receiver (this farmer) toward the giver — a loyalty/alliance play. No
+   * counter-payment, no ACCEPT round-trip.
+   */
+  private handleBeanGift(
+    farmer: GameEntity,
+    body: OfferBeanBody,
+    sender: number | "world",
+  ): void {
+    if (farmer.id === undefined) return;
+    if (sender === "world" || typeof sender !== "number") return;
+    const giver = this.findEntity(sender);
+    if (!giver?.inventory || !farmer.inventory) return;
+    const qty = Math.max(1, body.quantity ?? 1);
+    const have = giver.inventory.goldenBeans ?? 0;
+    const moved = Math.min(qty, have);
+    if (moved <= 0) return;
+    giver.inventory.goldenBeans = have - moved;
+    farmer.inventory.goldenBeans = (farmer.inventory.goldenBeans ?? 0) + moved;
+    // Receiver → giver trust. Large delta (a gift is a strong loyalty signal).
+    applyTrustDelta(farmer, sender, GIFT_TRUST_DELTA);
   }
 
   private handleAccept(

@@ -9,7 +9,12 @@ import {
   type BuyRequestBody,
   type CnpTaskBody,
 } from "../protocols";
-import { ONT_SHOP, type ShopSellBody } from "../protocols/shop";
+import {
+  ONT_SHOP,
+  type ShopSellBody,
+  type AuctionBidBody,
+  type ResaleBeanBody,
+} from "../protocols/shop";
 const SELL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const GROWTH_DAYS: Record<CropKind, number> = { radish: 2, wheat: 4, pumpkin: 7 };
 
@@ -177,6 +182,45 @@ export class ActSystem implements System {
                 ontology: ONT_CNP.TASK,
                 sender: farmer.id,
                 recipient: "broadcast",
+                body: body as unknown as Record<string, unknown>,
+              },
+              ctx.tick,
+            );
+            break;
+          }
+          case "auction-bid": {
+            // brief 24 — send a sealed bid to the shopkeeper (auctioneer). The
+            // AuctionSystem drains AUCTION_BID from the shop inbox each tick.
+            if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) break;
+            const body: AuctionBidBody = {
+              auctionId: intent.data.auctionId as string,
+              bidderId: farmer.id,
+              amount: (intent.data.amount as number) ?? 0,
+            };
+            this.bus.send(
+              {
+                performative: PERFORMATIVE.PROPOSE,
+                ontology: ONT_SHOP.AUCTION_BID,
+                sender: farmer.id,
+                recipient: shopkeeperId,
+                body: body as unknown as Record<string, unknown>,
+              },
+              ctx.tick,
+            );
+            break;
+          }
+          case "resale-bean": {
+            // brief 24 — resell won golden beans to the shop at a premium.
+            if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) break;
+            const body: ResaleBeanBody = {
+              quantity: (intent.data.quantity as number) ?? 1,
+            };
+            this.bus.send(
+              {
+                performative: PERFORMATIVE.REQUEST,
+                ontology: ONT_SHOP.RESALE_BEAN,
+                sender: farmer.id,
+                recipient: shopkeeperId,
                 body: body as unknown as Record<string, unknown>,
               },
               ctx.tick,

@@ -33,6 +33,14 @@ export interface Inventory {
   gold: number;
   crops: Record<CropKind, number>;
   seeds: Record<CropKind, number>;
+  /**
+   * Golden beans (brief 24) — a rare, high-value status good won only at the
+   * shopkeeper's auction. Not a `CropKind` (it can't be planted); a winner can
+   * resell it to the shop above the auction reserve, or gift it to a peer on a
+   * MEET encounter for a large trust boost. Optional/defaulted so existing
+   * inventories (and tests) that omit it read as zero.
+   */
+  goldenBeans?: number;
 }
 
 export interface Plot {
