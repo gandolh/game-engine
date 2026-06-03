@@ -69,6 +69,16 @@ export function deliberateBean(
   if (open) {
     const bid = expectedBeanBid(farmer, open, { valueFactor });
     if (bid !== null) {
+      // brief 28 — contesting an auction costs 2 AP to enter; the bid is free.
+      // auction-entry is a pure AP gate (no world effect); if AP can't cover
+      // it the pruner drops both it and the bid together (entry has higher
+      // priority number so it's dropped first, taking the bid's intent with it
+      // only when neither fits — see priorities below).
+      farmer.intentions!.queue.push({
+        kind: "auction-entry",
+        data: { auctionId: open.auctionId },
+        priority: 1,
+      });
       farmer.intentions!.queue.push({
         kind: "auction-bid",
         data: { auctionId: open.auctionId, amount: bid },

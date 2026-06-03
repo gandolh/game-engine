@@ -13,31 +13,96 @@
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../components";
 
+/**
+ * brief 28 — AP cost table.
+ *   - travel is FREE in AP (it costs daylight/time instead — brief 27).
+ *   - field work (plant/water/harvest) is cheap.
+ *   - selling is 3 AP per transaction.
+ *   - trade/transaction init is 3 AP BASE, discounted toward friends by trust
+ *     (see `tradeInitCost`); the table value is the undiscounted base.
+ *   - auction entry is 2 AP; the bid itself is free.
+ *   - gifting is 1 AP.
+ */
 export const AP_COST = {
   plant: 1,
+  water: 1, // brief 29 — irrigation action
   harvest: 1,
-  travel: 2,
-  negotiate: 2,
+  travel: 0, // brief 28 — walking is AP-free (time-throttled)
+  negotiate: 3,
   "read-offers": 1,
   "post-offer": 1,
   "buy-seed": 1,
-  "sell-shopkeeper": 2,
-  "buy-from-wall": 2,
-  "cnp-initiate": 2,
+  "sell-shopkeeper": 3,
+  "sell-from-wall": 3, // brief 28 — was missing from the table (silently 0)
+  "buy-from-wall": 3, // a transaction init — friend-discountable
+  "cnp-initiate": 3, // a transaction init — friend-discountable
   "cnp-respond-bid": 1,
-  // brief 24 — bidding is intentionally cheap so auctions stay lively; reselling
-  // a won bean is a shop transaction like selling crops. (Brief 28 revisits the
-  // whole table; these keep the new intents from silently costing 0.)
-  "auction-bid": 0,
-  "resale-bean": 2,
+  "auction-entry": 2, // brief 28 — pay to contest an auction
+  "auction-bid": 0, // the bid itself is free once entered
+  "resale-bean": 3,
+  "gift-bean": 1,
   idle: 0,
 } as const;
 
 type KnownIntentKind = keyof typeof AP_COST;
 
+/** Intent kinds whose cost is discounted by trust toward a counterparty. */
+const TRADE_INIT_KINDS: ReadonlySet<string> = new Set([
+  "buy-from-wall",
+  "cnp-initiate",
+  "negotiate",
+]);
+
+/**
+ * brief 28 — tiered friend discount on a trade/transaction init. Cost scales
+ * with the initiator's trust toward the counterparty (baseline 0.5):
+ *   trust >= 0.7 → 1 AP, trust >= 0.5 → 2 AP, else the 3 AP base.
+ */
+export function tradeInitCost(trust: number): number {
+  if (trust >= 0.7) return 1;
+  if (trust >= 0.5) return 2;
+  return 3;
+}
+
+/** brief 28 — base AP on day 1. */
+export const AP_BASE_MAX = 100;
+/** brief 28 — the daily AP ceiling grows by this each day. */
+export const AP_GROWTH_PER_DAY = 2;
+
+/**
+ * brief 28 — the day's AP ceiling: `100 + 2×(day−1)` (day 1 = 100, day 100 =
+ * 298). A farmer wakes with this much if it slept at home, or half if unrested
+ * (applied at the morning wake in PerceiveSystem). `day` is the 0-based sim day
+ * from the clock, so we use `day` directly (day 0 → 100).
+ */
+export function maxApForDay(day: number): number {
+  return AP_BASE_MAX + AP_GROWTH_PER_DAY * Math.max(0, day);
+}
+
 function apCostOf(kind: string): number {
   if (kind in AP_COST) return AP_COST[kind as KnownIntentKind];
   return 0; // Unknown intent kinds cost nothing
+}
+
+/**
+ * Cost of one intent for a given farmer — applies the friend discount to
+ * trade-init kinds using the trust toward the intent's counterparty (the
+ * `data.counterpartyId` / `data.sellerId` / `data.recipientId` slot, if any).
+ */
+function apCostForIntent(
+  farmer: GameEntity,
+  intent: { kind: string; data?: Record<string, unknown> },
+): number {
+  if (TRADE_INIT_KINDS.has(intent.kind)) {
+    const peerId =
+      (intent.data?.["sellerId"] as number | undefined) ??
+      (intent.data?.["recipientId"] as number | undefined) ??
+      (intent.data?.["counterpartyId"] as number | undefined);
+    const trust =
+      peerId !== undefined ? farmer.trust?.byId.get(peerId) ?? 0.5 : 0.5;
+    return tradeInitCost(trust);
+  }
+  return apCostOf(intent.kind);
 }
 
 function isSellIntent(kind: string): boolean {
@@ -71,8 +136,8 @@ export class ApSystem implements System {
     const queue = farmer.ap ? farmer.intentions.queue : [];
     const available = farmer.ap.current;
 
-    // Calculate total cost of all queued intentions
-    let totalCost = queue.reduce((sum, intent) => sum + apCostOf(intent.kind), 0);
+    // Calculate total cost of all queued intentions (friend-discounted).
+    let totalCost = queue.reduce((sum, intent) => sum + apCostForIntent(farmer, intent), 0);
 
     if (totalCost > available) {
       // Keep most-important intents first; drop lowest-priority (highest number) ones.
@@ -88,7 +153,7 @@ export class ApSystem implements System {
       const kept: typeof queue = [];
       let keptCost = 0;
       for (const intent of sorted) {
-        const cost = apCostOf(intent.kind);
+        const cost = apCostForIntent(farmer, intent);
         if (keptCost + cost <= available) {
           kept.push(intent);
           keptCost += cost;

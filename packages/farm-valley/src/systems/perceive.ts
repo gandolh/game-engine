@@ -11,6 +11,7 @@ import {
   type AuctionResultBody,
 } from "../protocols/shop";
 import { isActivePhase, isNightPhase } from "./day-phase";
+import { maxApForDay } from "./ap";
 
 export class PerceiveSystem implements System {
   readonly name = "PerceiveSystem";
@@ -75,7 +76,10 @@ export class PerceiveSystem implements System {
 
     if (body.phase === "morning") {
       // New day's first activity: wake + refill the daily AP budget.
+      // brief 28 — the ceiling grows +2/day; you wake to the full ceiling if
+      // you slept at home, or half it if you were caught away (unrested).
       if (farmer.ap) {
+        farmer.ap.max = maxApForDay(body.day);
         const rested = farmer.ap.unrested !== true;
         farmer.ap.current = rested ? farmer.ap.max : Math.floor(farmer.ap.max / 2);
         farmer.ap.unrested = false;

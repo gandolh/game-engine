@@ -48,21 +48,30 @@ describe("PerceiveSystem — intra-day phases (brief 27)", () => {
     sys = new PerceiveSystem(world);
   });
 
-  it("morning PHASE_START refills AP to max (rested) and arms deliberation", () => {
-    const f = spawnFarmer(world, { apMax: 8, apCurrent: 0 });
-    pushPhase(f, "morning");
+  it("morning PHASE_START sets the day's AP ceiling and refills to it (rested)", () => {
+    const f = spawnFarmer(world, { apCurrent: 0 });
+    pushPhase(f, "morning", 0); // day 0 → ceiling 100 (brief 28)
     sys.run({ tick: 0 });
-    expect(f.ap!.current).toBe(8);
+    expect(f.ap!.max).toBe(100);
+    expect(f.ap!.current).toBe(100);
     expect(f.fsm!.current).toBe("PERCEIVE");
     expect(f.beliefs!.data.phase).toBe("morning");
   });
 
-  it("morning refill is HALVED when the farmer was unrested", () => {
-    const f = spawnFarmer(world, { apMax: 8, apCurrent: 0 });
-    f.ap!.unrested = true;
-    pushPhase(f, "morning");
+  it("the AP ceiling grows +2 per day", () => {
+    const f = spawnFarmer(world, { apCurrent: 0 });
+    pushPhase(f, "morning", 10); // day 10 → 100 + 2*10 = 120
     sys.run({ tick: 0 });
-    expect(f.ap!.current).toBe(4); // floor(8/2)
+    expect(f.ap!.max).toBe(120);
+    expect(f.ap!.current).toBe(120);
+  });
+
+  it("morning refill is HALVED when the farmer was unrested", () => {
+    const f = spawnFarmer(world, { apCurrent: 0 });
+    f.ap!.unrested = true;
+    pushPhase(f, "morning", 0); // ceiling 100
+    sys.run({ tick: 0 });
+    expect(f.ap!.current).toBe(50); // floor(100/2)
     expect(f.ap!.unrested).toBe(false); // cleared on wake
   });
 
