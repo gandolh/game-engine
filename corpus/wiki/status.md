@@ -1,6 +1,6 @@
 # Project Status
 
-Snapshot of where the Farm Valley engine + game sit relative to the task briefs in [../briefs/](../briefs/). As of 2026-05-29. **All briefs are now in `done/` or `superseded/` — `todo/` is empty.**
+Snapshot of where the Farm Valley engine + game sit relative to the task briefs in [../briefs/](../briefs/). As of 2026-06-03. Briefs 01–23 are all in `done/` or `superseded/`. **A grilling session on 2026-06-03 filed 8 new briefs (24–31) into `todo/`** — see [§ Now in todo](#now-in-todo) below.
 
 ## Engine tasks
 
@@ -41,10 +41,27 @@ Snapshot of where the Farm Valley engine + game sit relative to the task briefs 
 | [18-seed-picker](../briefs/game/done/18-seed-picker.md) | **Done** | Home screen gained a seed field (hex `0x…` or decimal, robust parse → default `0xc0ffee`) + a Randomize button (`Math.random` confined to this pre-sim UI handler). `onStartClicked` now passes the chosen seed → `client.init`. Seed shown via a corner badge during play and on the game-over header. Engine `DebugOverlay` untouched. |
 | [19-decision-trace](../briefs/game/done/19-decision-trace.md) | **Done** | New game-side `decisionTrace?: { reasons: string[] }` on `GameEntity` (ring buffer, last 3), recorded at each intention push inside the four `deliberate*` personality fns with terse consistent strings. Plumbed through `buildObserverSnapshot` (current + next intention + reasons); the observer renders the "why" block for the **focused** farmer only (brief-11 focus). |
 | [20-event-feed](../briefs/game/done/20-event-feed.md) | **Done** | New [systems/event-feed.ts](../../packages/farm-valley/src/systems/event-feed.ts) — a passive read-only snoop (TrustSystem placement: after InboxDispatch, before Perceive clears inboxes) capturing `TRADE_COMPLETED` / `AUCTION_RESULT` / `ENCOUNTER.ACCEPT` / `SHOCK` off the market wall + farmer inboxes, deduped by stable key, deterministic per-tick ordering. Surfaced via `BootedSim.eventFeed` → `buildRenderSnapshot` → `RenderSnapshot.events` → `SimClient.events` → new [ui/event-feed-panel.ts](../../packages/farm-valley/src/ui/event-feed-panel.ts) (newest-first, capped 30). Shock surfaced once (no double-count with the existing `snapshot.shock` banner). |
-| [21-complete-auctions](../briefs/game/done/21-complete-auctions.md) | **Done** | `english` and `fpsb` auctions now have real state + resolution (no more Vickrey-shell fallthrough → null winner). FPSB: highest bid above reserve wins, pays own bid, deterministic tie-break (amount → earliest `tickReceived` → lowest bidder id). English: ascending clock anchored on first observation (Dutch pattern), `EnglishAuctionOptions {incrementPerTick, noBidTimeout}`, closes on timeout/`closesAtTick`, last affirming bidder wins at the current ask. |
+| [21-complete-auctions](../briefs/game/done/21-complete-auctions.md) | **Done** (machinery) | `english` and `fpsb` auctions now have real state + resolution (no more Vickrey-shell fallthrough → null winner). FPSB: highest bid above reserve wins, pays own bid, deterministic tie-break (amount → earliest `tickReceived` → lowest bidder id). English: ascending clock anchored on first observation (Dutch pattern), `EnglishAuctionOptions {incrementPerTick, noBidTimeout}`, closes on timeout/`closesAtTick`, last affirming bidder wins at the current ask. **⚠️ Dead on the field:** a live 100-day run (Playwright, 2026-06-03) shows every shopkeeper auction closing "no winner" — **no agent ever bids** (the `golden_bean` prize has no in-sim value). The format machinery is correct + tested; the gameplay wiring is missing. Fix tracked in [game/24](../briefs/game/todo/24-auction-bidding-golden-bean.md). |
 | [22-seasons-weather-arcs](../briefs/game/done/22-seasons-weather-arcs.md) | **Done** | 100-day run split into four 25-day seasons (`seasonForDay`, pure). Each biases the weather draw — spring mild/wet, summer hot/drought-prone, autumn balanced, winter harsh — flowing through the existing weather multipliers into crop yields (no separate yield table). Forecasts soften toward the season trend so agents can plan. Season stamped on the station + broadcast + beliefs, surfaced in the observer header (`Day N — Season`). Deterministic on `(seed, day)`. |
 
-`todo/` is now empty — every brief has shipped.
+## Now in todo
+
+Filed 2026-06-03 from a grilling session that ran the app under Playwright, reviewed status, and stress-tested 5 improvement ideas — which expanded to 8 briefs as the day/night idea unfolded into a gameplay redesign. None implemented yet; these are specs.
+
+| Brief | Status | Notes |
+|---|---|---|
+| [24-auction-bidding-golden-bean](../briefs/game/todo/24-auction-bidding-golden-bean.md) | **Todo** | Make agents actually bid (fixes the brief-21 "no winner" gap). `golden_bean` becomes a rare/high-resale/giftable status good; per-personality valuation; Vickrey tie-break hardened; `OFFER_BEAN` gift handshake → trust. **Independent — ship first.** |
+| [25-panel-overlap-fix](../briefs/game/todo/25-panel-overlap-fix.md) | **Todo** | Observer + activity feed both anchor top-right and overlap. Fix: shared right-column flex container that reflows when the observer grows. **Independent — ship first.** |
+| [26-day-night-seasonal-grading](../briefs/game/todo/26-day-night-seasonal-grading.md) | **Todo (3a)** | Render-side day/night + seasonal color wash, tick-synced, season modulates palette + daylight length. Book-of-Shaders *math* reimplemented in Canvas2D (not its GLSL/code). **Ships with 27** (strobes at the current 1-sec day). |
+| [27-long-days-intraday-timeline](../briefs/game/todo/27-long-days-intraday-timeline.md) | **Todo (3b)** | 1 day = 5 min (ticksPerDay 20→6000). Phased intra-day agent timeline (wake/work/evening/sleep) with live re-deliberation; sleep penalty. **Macro-economy stays day-denominated.** Decouples the deliberation FSM from the day boundary — the gating change. |
+| [28-ap-economy-rework](../briefs/game/todo/28-ap-economy-rework.md) | **Todo (3c)** | AP max 100 (+2/day), sleep-gated (half if unrested), free travel (time-throttled), tiered friend discounts on trades, full new cost table + `sell-from-wall` cost-0 bug fix. **Requires 27.** |
+| [29-irrigation-crop-death](../briefs/game/todo/29-irrigation-crop-death.md) | **Todo (3d)** | Watering required: grace-windowed dryness (`daysSinceWater`), rain auto-waters, crops die after 2 dry days, survival-reflex watering per personality. **The one intentional crop-economy change.** Requires 27 + 28. |
+| [30-procedural-ground-texture](../briefs/game/todo/30-procedural-ground-texture.md) | **Todo** | Subtle per-tile value-noise brightness on the baked static layer (kills the flat solid-color look). Seed-deterministic, one-time bake. Book-of-Shaders *math*, reimplemented. **Independent.** |
+| [31-corpus-index-sync](../briefs/game/todo/31-corpus-index-sync.md) | **In progress** | This sync (fix the stale `index.md` todo/done drift + register 24–31). |
+
+**Dependency chain:** 24 & 25 independent (ship first) · 26 ships with 27 · 27 → 28 → 29 (strict) · 30 & 31 independent.
+
+> ⚠️ **Note on 27–29:** these are a genuine gameplay redesign. All of briefs 01–23 were built against the *one-decision-per-day* model; a continuous-ish intra-day timeline with a real AP economy and crop death will require rebalancing. Each brief fences its determinism/save-format risks, but expect the 100-day balance to shift.
 
 ## Post-corpus work (delivered, never had a brief)
 

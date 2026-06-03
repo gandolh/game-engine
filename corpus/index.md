@@ -25,11 +25,12 @@ Catalog of everything in this corpus. Start here.
 - [briefs/engine/superseded/01-tilemap.md](briefs/engine/superseded/01-tilemap.md) — WebGPU chunked tilemap (renderer dropped)
 
 - [briefs/engine/done/05-pathfinder-into-movement.md](briefs/engine/done/05-pathfinder-into-movement.md) — audit confirmed the WASM pathfinder is load-bearing; added a game-grid around-obstacle test + fixed stale docs
+- [briefs/engine/done/06-determinism-harness-and-analytics.md](briefs/engine/done/06-determinism-harness-and-analytics.md) — determinism harness (CHECK_DETERMINISM) + per-day CSV/JSON export from run-sim
 - [briefs/engine/done/07-chunked-tile-layer.md](briefs/engine/done/07-chunked-tile-layer.md) — cached static backdrop layer (bake once, blit per frame); chunking not needed
 
 #### Engine — todo
 
-- [briefs/engine/todo/06-determinism-harness-and-analytics.md](briefs/engine/todo/06-determinism-harness-and-analytics.md) — enforce determinism in CI + per-day CSV/JSON export from run-sim
+_Empty — no engine briefs queued._
 
 ### Game
 
@@ -48,14 +49,24 @@ Catalog of everything in this corpus. Start here.
 - [briefs/game/done/13-walking-animation.md](briefs/game/done/13-walking-animation.md) — 2-frame walk cycle per personality
 - [briefs/game/done/14-meet-indicator.md](briefs/game/done/14-meet-indicator.md) — speech bubble over MEET'd farmers
 - [briefs/game/done/15-slate-billboard.md](briefs/game/done/15-slate-billboard.md) — daily shop slate DOM panel
+- [briefs/game/done/16-playback-controls.md](briefs/game/done/16-playback-controls.md) — pause / speed (1×/2×/4×) / step (worker control messages)
+- [briefs/game/done/17-save-replay.md](briefs/game/done/17-save-replay.md) — seed+maxDays+ticksPerDay run descriptor; shareable run URL
+- [briefs/game/done/18-seed-picker.md](briefs/game/done/18-seed-picker.md) — choose / randomize the seed on the home screen
+- [briefs/game/done/19-decision-trace.md](briefs/game/done/19-decision-trace.md) — "why" — focused farmer's intention + reason ring buffer
+- [briefs/game/done/20-event-feed.md](briefs/game/done/20-event-feed.md) — activity ticker narrating trades / auctions / weather
+- [briefs/game/done/21-complete-auctions.md](briefs/game/done/21-complete-auctions.md) — English + FPSB auctions with real resolution (no null-winner stubs)
+- [briefs/game/done/22-seasons-weather-arcs.md](briefs/game/done/22-seasons-weather-arcs.md) — 4×25-day seasons biasing weather + yields
+- [briefs/game/done/23-fifth-personality-or-shock.md](briefs/game/done/23-fifth-personality-or-shock.md) — **done** (Direction B): one-time mid-game blight shock, deterministic, on-by-default
 
 #### Game — todo
 
-- [briefs/game/todo/16-playback-controls.md](briefs/game/todo/16-playback-controls.md) — pause / speed (1×/2×/4×) / step
-- [briefs/game/todo/17-save-replay.md](briefs/game/todo/17-save-replay.md) — ship the seed+input-log save/replay; shareable run URL
-- [briefs/game/todo/18-seed-picker.md](briefs/game/todo/18-seed-picker.md) — choose / randomize the seed on the home screen
-- [briefs/game/todo/19-decision-trace.md](briefs/game/todo/19-decision-trace.md) — "why" — surface the focused farmer's intention + reason
-- [briefs/game/todo/20-event-feed.md](briefs/game/todo/20-event-feed.md) — activity ticker narrating trades / auctions / weather
-- [briefs/game/todo/21-complete-auctions.md](briefs/game/todo/21-complete-auctions.md) — implement English + FPSB auctions (no more null-winner stubs)
-- [briefs/game/todo/22-seasons-weather-arcs.md](briefs/game/todo/22-seasons-weather-arcs.md) — season cycle biasing weather + yields (depth)
-- [briefs/game/done/23-fifth-personality-or-shock.md](briefs/game/done/23-fifth-personality-or-shock.md) — **done** (Direction B): one-time mid-game blight shock, deterministic, on-by-default
+Filed 2026-06-03 (grilling session — see [log.md](log.md)). Dependency chain: 24 & 25 independent; **26 ships with 27**; **27 → 28 → 29**; 30 & 31 independent.
+
+- [briefs/game/todo/24-auction-bidding-golden-bean.md](briefs/game/todo/24-auction-bidding-golden-bean.md) — make agents bid; golden bean = rare/high-resale/giftable good (fixes "no winner" dead feature)
+- [briefs/game/todo/25-panel-overlap-fix.md](briefs/game/todo/25-panel-overlap-fix.md) — observer + activity feed share a right-column flex container (no more overlap)
+- [briefs/game/todo/26-day-night-seasonal-grading.md](briefs/game/todo/26-day-night-seasonal-grading.md) — **3a** render-side day/night + seasonal color wash (tick-synced; ships with 27)
+- [briefs/game/todo/27-long-days-intraday-timeline.md](briefs/game/todo/27-long-days-intraday-timeline.md) — **3b** 1 day = 5 min; phased intra-day agent timeline + sleep; macro-economy stays day-denominated
+- [briefs/game/todo/28-ap-economy-rework.md](briefs/game/todo/28-ap-economy-rework.md) — **3c** AP max 100 (+2/day), sleep-gated, free travel, tiered friend discounts, new cost table
+- [briefs/game/todo/29-irrigation-crop-death.md](briefs/game/todo/29-irrigation-crop-death.md) — **3d** watering required; grace-windowed dryness; rain auto-waters; crops die from neglect
+- [briefs/game/todo/30-procedural-ground-texture.md](briefs/game/todo/30-procedural-ground-texture.md) — subtle per-tile value-noise on the baked static layer (kills the flat look)
+- [briefs/game/todo/31-corpus-index-sync.md](briefs/game/todo/31-corpus-index-sync.md) — this sync brief (fix stale index + register 24–31)

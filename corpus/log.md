@@ -2,6 +2,33 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-03] briefs | Grilling session — 8 new todo briefs (24–31); auctions found dead-on-field, day/night idea expanded into a long-day gameplay redesign
+
+Reviewed project status, ran the app under Playwright (full 100-day run, seed `0xc0ffee`), researched whether [The Book of Shaders](https://thebookofshaders.com/) fits, then stress-tested 5 improvement ideas via a grilling pass. The 5 grew to 8 briefs as one idea unfolded.
+
+**Playwright findings (live, not in any doc):**
+- **Auctions are dead on the field.** 21 of ~22 Activity-feed entries over 100 days read "Auction closed with no winner." Root cause traced: brief 21's auction machinery is correct + tested, but **no agent ever emits an `auction-bid` intention** — the `golden_bean` prize has zero in-sim value. → brief 24. (status.md brief-21 row annotated "Done (machinery) / dead on the field".)
+- **Top-right panel overlap.** Observer and event-feed both anchor `top:0; right:0`; the higher-z observer covers the feed. → brief 25.
+- **Visual flatness.** Solid-color tiles, no atmosphere, no sense of time across 100 days. → briefs 26 + 30.
+
+**Book of Shaders verdict:** targets GPU GLSL/WebGL and is "all rights reserved"; project is locked to Canvas2D. The *code/tooling does not fit; the math does.* Briefs 26 (color-mix / day-night curve) and 30 (value noise) reimplement its algorithms in JS — no GLSL, no copied code, no Canvas2D revisit.
+
+**The cascade:** "day/night color grading" (cosmetic) → user wanted real Stardew-style long days → wanted agents to live through them (sleep at night, AP penalty) → an AP rework → watering with crop death. A background impact-analysis workflow (5 parallel subsystem probes + synthesis) found the gating blocker: **the agent FSM only advances on `DAY_START`, so "one decision/day" and "all per-day balance rules" are the same invariant** — changing `ticksPerDay` alone does nothing but slow the sim. That split the one idea into **3a/3b/3c/3d**:
+- **24** — auction bidding + golden bean (rare/high-resale/giftable; per-personality bids; Vickrey tie-break hardened; `OFFER_BEAN` gift → trust).
+- **25** — panel overlap fix (shared right-column flex container).
+- **26 (3a)** — render-side day/night + seasonal color wash, tick-synced, season modulates palette + daylight length. Ships with 27 (strobes at the current 1-sec day).
+- **27 (3b)** — 1 day = 5 min (ticksPerDay 20→6000); phased intra-day timeline with live re-deliberation + sleep penalty; **macro-economy stays day-denominated** (the one deliberate exception is watering, brief 29).
+- **28 (3c)** — AP max 100 (+2/day), sleep-gated (half if unrested), free travel (time-throttled), tiered friend discounts, full cost table + `sell-from-wall` cost-0 bug fix.
+- **29 (3d)** — watering required; grace-windowed dryness (`daysSinceWater`); rain auto-waters; crops die after 2 dry days; survival-reflex watering per personality.
+- **30** — subtle per-tile value-noise on the baked static layer.
+- **31** — this corpus sync.
+
+**Dependency chain:** 24 & 25 independent (ship first) · 26 ships with 27 · 27 → 28 → 29 (strict) · 30 & 31 independent. **27–29 are a real gameplay redesign** — briefs 01–23 were built against one-decision-per-day; expect rebalancing.
+
+**Determinism/save notes captured in the briefs:** old shared run URLs survive the `ticksPerDay` default change (it's field 3 of the run hash; hash value preferred over default); any new sim-affecting intra-day param must version the run descriptor with backward-compatible parsing.
+
+Corpus sync (brief 31): fixed `index.md` — briefs 06 + 16–22 were stale-listed under "todo" headers (and linked to `todo/` paths) though they shipped to `done/`; moved them to the done listings and registered 24–31 under todo. Updated status.md, open-questions.md. No source changed.
+
 ## [2026-05-29] impl | Final brief swarm — all 8 remaining todos shipped, `todo/` now empty
 
 Cleared every remaining brief in one orchestrated swarm. Each brief was implemented by an isolated worktree subagent on its own `feat/<NN>-<slug>` branch, then rebased onto current `main` and merged (`--no-ff`) by the orchestrator. Briefs grouped into waves by file-overlap to avoid `main.ts`/observer/snapshot conflicts (user chose "grouped batches").

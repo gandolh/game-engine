@@ -4,7 +4,7 @@ Live list of unresolved work and design questions. Items move out of here when a
 
 ## Code gaps (have a clear "next step")
 
-_No code-level gaps tracked right now — see Resolved below._
+- **Auctions are dead on the field** — _found 2026-06-03 (Playwright run), brief filed [game/24](../briefs/game/todo/24-auction-bidding-golden-bean.md)._ Brief 21's English/FPSB/Vickrey machinery is correct and tested, but **no agent ever bids**: the shopkeeper auctions a `golden_bean` that has zero in-sim value, so every auction closes "no winner" and the Activity feed is ~all auction-no-winner lines. The fix gives the bean real value (resale + gifting) and wires per-personality bidding.
 
 ## Resolved
 
@@ -16,7 +16,16 @@ _No code-level gaps tracked right now — see Resolved below._
 
 ## Now has a brief (was an open question)
 
-_Empty — every brief has shipped (`todo/` is empty). See the Resolved list below and [status.md](status.md)._
+Filed 2026-06-03 (grilling session — see [log.md](../log.md) and [status.md](status.md) § Now in todo):
+
+- **Auctions never produce a winner** → [game/24](../briefs/game/todo/24-auction-bidding-golden-bean.md) (also listed under Code gaps above — it's a live bug, not just a design question).
+- **Visual flatness — no atmosphere, no sense of time passing** → expanded into a four-part design: day/night + seasonal grading ([game/26](../briefs/game/todo/26-day-night-seasonal-grading.md)), and the gameplay redesign it dragged in — long days + intra-day timeline ([game/27](../briefs/game/todo/27-long-days-intraday-timeline.md)), AP economy rework ([game/28](../briefs/game/todo/28-ap-economy-rework.md)), irrigation & crop death ([game/29](../briefs/game/todo/29-irrigation-crop-death.md)). Plus procedural ground texture ([game/30](../briefs/game/todo/30-procedural-ground-texture.md)).
+- **Top-right UI panels overlap** → [game/25](../briefs/game/todo/25-panel-overlap-fix.md).
+- **Stale corpus index** (`index.md` listed shipped briefs under "todo") → [game/31](../briefs/game/todo/31-corpus-index-sync.md).
+
+### Open design question carried by these briefs
+
+- **Book of Shaders fit** — _researched 2026-06-03._ It targets GPU GLSL/WebGL and is "all rights reserved"; this project is locked to Canvas2D ([decisions.md](decisions.md) → Renderer). Verdict: **the code/tooling does not fit; the math does.** Briefs 26 (color mixing / day-night curve) and 30 (value noise / fBm) reimplement its *algorithms* in JS — they do **not** copy its code or adopt WebGL. No revisit of the Canvas2D decision is implied.
 
 ## Recently shipped (2026-05-29 swarm)
 
