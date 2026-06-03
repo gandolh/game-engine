@@ -4,6 +4,8 @@ import {
   Canvas2dRenderer,
   DebugOverlay,
   createPathfinderFromUrl,
+  createNoiseGeneratorFromUrl,
+  ParticleSystem,
 } from "@engine/core";
 import type { AtlasManifest, Pathfinder } from "@engine/core";
 import { pushSnapshotSprites } from "./render-systems";
@@ -19,7 +21,8 @@ import {
   createRightColumn,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
-import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable } from "./world/regions";
+import { Keyboard } from "@engine/core";
 import { SimClient } from "./worker/sim-client";
 import type { FinalStandingRow } from "./worker/snapshot";
 import { serializeRun, parseRun, type RunDescriptor } from "./run-descriptor";
@@ -52,12 +55,25 @@ const CAMERA_CONFIG = {
 interface Runtime {
   renderer: Canvas2dRenderer;
   pathfinder: Pathfinder | null;
+  noiseGen: import("@engine/core").NoiseGenerator | null;
+  keyboard: Keyboard;
 }
 
 // brief-11: focus-camera — module-level camera interaction state
 let focusedFarmerId: number | null = null;
 let panOffset = { x: 0, y: 0 };
 let zoom = 1;
+
+// ── Debug player (WASD walkability tester) ──────────────────────────────────
+// Starts at village center tile (19,19). Pure render-side — no sim involvement.
+// Moves 1 tile per step; movement is throttled to ~8 steps/sec so it's readable.
+const debugPlayer = {
+  tileX: 19,
+  tileY: 19,
+  lastMoveMs: 0,
+  visible: true,
+};
+const PLAYER_MOVE_INTERVAL_MS = 120; // ~8 tiles/sec
 
 // brief-16: playback — module-level pacing state. These only change the
 // wall-clock cadence of worker ticks; sim state for a given tick count is
@@ -137,8 +153,10 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   const renderer = new Canvas2dRenderer(canvas, camera);
   renderer.setAtlas(atlasImage);
   setupCameraListeners(canvas, camera);
-  const pathfinder = await loadPathfinder();
-  return { renderer, pathfinder };
+  const keyboard = new Keyboard();
+  keyboard.attach(window);
+  const [pathfinder, noiseGen] = await Promise.all([loadPathfinder(), loadNoiseGenerator()]);
+  return { renderer, pathfinder, noiseGen, keyboard };
 }
 
 async function boot(): Promise<void> {
@@ -175,7 +193,7 @@ async function startGame(
 ): Promise<void> {
   const { seed, maxDays, ticksPerDay } = run;
   try {
-    const { renderer } = await runtimePromise;
+    const { renderer, noiseGen, keyboard } = await runtimePromise;
 
     const client = new SimClient();
     _simClient = client;
@@ -257,7 +275,17 @@ async function startGame(
     // Receive the static-layer sprites from the worker and bake them once.
     // brief 30 — stamp subtle per-tile ground-noise into the baked layer
     // (one-time cost, deterministic on the run seed).
-    const groundNoise = makeGroundNoiseDecorator(seed, TILE);
+    // Pre-generate brightness array via WASM (8× faster than JS hash loop).
+    // Falls back to JS path if WASM didn't load.
+    const wasmBrightness = noiseGen
+      ? noiseGen.fillNoise(
+          Math.ceil(WORLD_WIDTH * TILE / TILE),  // cols = WORLD_WIDTH
+          Math.ceil(WORLD_HEIGHT * TILE / TILE), // rows = WORLD_HEIGHT
+          seed,
+          0.12, // GROUND_NOISE_AMPLITUDE
+        )
+      : undefined;
+    const groundNoise = makeGroundNoiseDecorator(seed, TILE, 0.12, wasmBrightness);
     client.onStaticLayer((msg) => {
       renderer.bakeStaticLayer(
         msg.sprites,
@@ -271,6 +299,60 @@ async function startGame(
     // own DOM element so we don't touch the engine DebugOverlay signature).
     createSeedBadge(app, seed);
 
+    // Particle system — lives on the main (render) thread only.
+    const particles = new ParticleSystem();
+    let prevGold = new Map<number, number>(); // farmerId → gold last tick
+    let prevCropTotal = new Map<number, number>(); // farmerId → total crops last tick
+    let lastFrameMs = performance.now();
+
+    // Emit particles based on leaderboard diffs (gold up = sell; crop total
+    // down while gold up = harvest+sell; just crop down = harvest to inventory).
+    function emitParticlesFromDiff(farmerPositions: Map<number, { x: number; y: number }>): void {
+      const lb = client.leaderboard;
+      for (const row of lb) {
+        const pos = farmerPositions.get(row.id);
+        if (!pos) continue;
+        const prevG = prevGold.get(row.id) ?? row.gold;
+        if (row.gold > prevG) {
+          // Gold increased → coin burst
+          particles.emit({
+            x: pos.x, y: pos.y - TILE,
+            count: 8,
+            shape: "star",
+            color: "#f0d238", color2: "#faf0a0",
+            speedMin: 10, speedMax: 35,
+            angleMin: -Math.PI, angleMax: 0,
+            lifetimeMin: 0.5, lifetimeMax: 1.0,
+            sizeMin: 1.5, sizeMax: 3,
+            gravity: 40,
+          });
+        }
+        prevGold.set(row.id, row.gold);
+      }
+    }
+
+    // Watch the snapshot for new shock events → dirt explosion.
+    client.onSnapshot((snap) => {
+      if (snap.shock) {
+        // Shock wiped plots — emit a dramatic dirt burst from each affected farmer.
+        for (const row of snap.leaderboard) {
+          const pos = client.getFarmerInterpolatedPos(row.id);
+          if (!pos) continue;
+          particles.emit({
+            x: pos.x, y: pos.y,
+            count: 20,
+            shape: "rect",
+            color: "#8c6432", color2: "#5a3c1e",
+            speedMin: 15, speedMax: 60,
+            angleMin: -Math.PI, angleMax: 0,
+            lifetimeMin: 0.4, lifetimeMax: 0.9,
+            sizeMin: 1, sizeMax: 2.5,
+            gravity: 80,
+          });
+        }
+      }
+    });
+
     // Start the sim worker with the run descriptor (seed from the home screen;
     // maxDays/ticksPerDay from a shared run hash or CONFIG defaults).
     client.init({
@@ -282,6 +364,10 @@ async function startGame(
 
     // rAF render loop — purely rendering, no sim logic.
     function renderFrame(): void {
+      const nowMs = performance.now();
+      const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
+      lastFrameMs = nowMs;
+
       // brief-11: focus-camera — update camera center each frame
       if (_camera !== null && focusedFarmerId !== null) {
         applyFocusAndPan(_camera);
@@ -297,13 +383,83 @@ async function startGame(
         }
       }
 
+      // Particle events: diff leaderboard to detect gold gains.
+      emitParticlesFromDiff(farmerPositions);
+
+      // Emit ambient leaf/sparkle particles from crop plots (slow rate).
+      if (Math.random() < 0.15) {
+        const snap = client.latestSnapshot();
+        if (snap) {
+          for (const s of snap.sprites) {
+            if (s.id === null && s.frame.includes("/mature") && Math.random() < 0.05) {
+              particles.emit({
+                x: s.x + (Math.random() - 0.5) * 8,
+                y: s.y - 4,
+                count: 1,
+                shape: "circle",
+                color: "#50c832", color2: "#90e850",
+                speedMin: 3, speedMax: 8,
+                angleMin: -Math.PI * 0.8, angleMax: -Math.PI * 0.2,
+                lifetimeMin: 0.8, lifetimeMax: 1.4,
+                sizeMin: 1, sizeMax: 2,
+                gravity: -5,
+              });
+            }
+          }
+        }
+      }
+
+      particles.update(dt);
+
       pushSnapshotSprites(
         renderer,
         client.getInterpolatedSprites(),
         client.meets,
         farmerPositions,
         focusedFarmerId,
+        nowMs,
       );
+
+      // ── Debug player movement (WASD) ─────────────────────────────────────
+      // Throttled to PLAYER_MOVE_INTERVAL_MS so movement stays readable.
+      // P toggles visibility. Checks isWalkable before every step.
+      if (keyboard.justPressed("KeyP")) {
+        debugPlayer.visible = !debugPlayer.visible;
+      }
+      if (nowMs - debugPlayer.lastMoveMs >= PLAYER_MOVE_INTERVAL_MS) {
+        let dx = 0, dy = 0;
+        if (keyboard.isDown("KeyW") || keyboard.isDown("ArrowUp"))    dy = -1;
+        if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))  dy =  1;
+        if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))  dx = -1;
+        if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight")) dx =  1;
+        // Prefer axis-aligned: diagonal is two key presses, process only one
+        if (dx !== 0) dy = 0;
+        if (dx !== 0 || dy !== 0) {
+          const nx = debugPlayer.tileX + dx;
+          const ny = debugPlayer.tileY + dy;
+          if (nx >= 0 && nx < WORLD_WIDTH && ny >= 0 && ny < WORLD_HEIGHT && isWalkable(nx, ny)) {
+            debugPlayer.tileX = nx;
+            debugPlayer.tileY = ny;
+          }
+          debugPlayer.lastMoveMs = nowMs;
+        }
+      }
+      keyboard.endFrame();
+
+      // Draw the debug player on top of everything else (layer 200).
+      if (debugPlayer.visible) {
+        const px = debugPlayer.tileX * TILE + TILE / 2;
+        const py = debugPlayer.tileY * TILE + TILE / 2;
+        renderer.pushShadow(px, py + TILE * 0.35, TILE * 0.32, TILE * 0.12, 0.5);
+        renderer.push({
+          x: px, y: py,
+          width: TILE, height: TILE,
+          frame: "debug/player",
+          rotation: 0,
+          layer: 200,
+          alpha: 1,
+        });
+      }
 
       // brief 26 — day/night + seasonal color wash (render-only, tick-synced;
       // looks right now that days are long, brief 27).
@@ -312,7 +468,7 @@ async function startGame(
         ticksPerDay,
         season: seasonForDay(client.day),
       });
-      renderer.endFrame(wash);
+      renderer.endFrame(wash, particles);
 
       // UI updates.
       const snap = client.latestSnapshot();
@@ -485,6 +641,17 @@ async function fetchAtlasManifest(): Promise<AtlasManifest> {
   const res = await fetch("/atlas/main.json");
   if (!res.ok) throw new Error(`Atlas manifest fetch failed: ${res.status}`);
   return (await res.json()) as AtlasManifest;
+}
+
+async function loadNoiseGenerator(): Promise<import("@engine/core").NoiseGenerator | null> {
+  try {
+    const gen = await createNoiseGeneratorFromUrl("/wasm/noise.wasm");
+    console.info("[wasm] noise module loaded");
+    return gen;
+  } catch (err) {
+    console.warn("[wasm] noise module unavailable:", err);
+    return null;
+  }
 }
 
 async function loadPathfinder(): Promise<Pathfinder | null> {

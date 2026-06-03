@@ -1,9 +1,16 @@
 import { World } from "@engine/core";
-import type { GameEntity, CropKind, FarmerFsmState } from "./components";
+import type { GameEntity, CropKind, FarmerFsmState, Tool } from "./components";
 import { setupRegions } from "./world/region-setup";
 import type { RegionId } from "./world/regions";
 
 const ZERO_CROPS: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+
+/** Starting tool kit — one wooden hoe, axe, and pickaxe. */
+const STARTING_TOOLS: Tool[] = [
+  { kind: "hoe",     tier: "wooden", durability: 100 },
+  { kind: "axe",     tier: "wooden", durability: 100 },
+  { kind: "pickaxe", tier: "wooden", durability: 100 },
+];
 
 /** Personality → region the farmer lives in (Cora N, Atticus E, Hannah S, Otto W). */
 const PERSONALITY_TO_REGION: Record<string, RegionId> = {
@@ -44,7 +51,10 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
       gold: spec.startGold,
       crops: { ...ZERO_CROPS },
       seeds: { ...ZERO_CROPS, ...spec.startSeeds },
+      tools: STARTING_TOOLS.map(t => ({ ...t })),
+      wateringCan: { charges: 10, maxCharges: 10 },
     },
+    resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
     // brief 28 — AP is a large daily budget that grows +2/day; day-1 ceiling
     // is 100 (maxApForDay(0)). penaltyCapacity is legacy (unrested halving now
     // lives in the morning wake); kept at half for any old reader.

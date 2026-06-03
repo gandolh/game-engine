@@ -1,5 +1,6 @@
 import type { SimContext, System, World, MessageBus } from "@engine/core";
 import type { GameEntity } from "../components";
+import { PLOT_DECAY_DAYS } from "../components";
 import { ONT_SIMULATION, PERFORMATIVE, type CropDeathBody } from "../protocols";
 
 /**
@@ -79,6 +80,23 @@ export class CropGrowthSystem implements System {
       }
       // Reset the daily watered flag for the next day (agents must water again).
       state.wateredToday = false;
+    }
+
+    // Plot decay: empty plots that haven't been tended in PLOT_DECAY_DAYS days
+    // revert to green (entity despawned). Requires a hoe to re-till.
+    const toRemove: GameEntity[] = [];
+    for (const plotEntity of plots) {
+      const state = plotEntity.plot.state;
+      if (state.kind !== "empty") continue;
+      const days = (state.daysSinceTended ?? 0) + 1;
+      if (days > PLOT_DECAY_DAYS) {
+        toRemove.push(plotEntity);
+      } else {
+        state.daysSinceTended = days;
+      }
+    }
+    for (const e of toRemove) {
+      this.world.despawn(e);
     }
   }
 

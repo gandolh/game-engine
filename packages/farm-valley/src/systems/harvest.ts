@@ -1,5 +1,6 @@
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity, PlotState } from "../components";
+import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
 
 export class HarvestSystem implements System {
   readonly name = "HarvestSystem";
@@ -13,6 +14,14 @@ export class HarvestSystem implements System {
       if (f.id !== undefined) farmersById.set(f.id, f);
     }
 
+    // Build decoration yield boost per owner (sum of all placed decorations, capped).
+    const boostByOwner = new Map<number, number>();
+    for (const e of this.world.query("farmDecoration")) {
+      const id = e.farmDecoration.ownerId;
+      const add = DECORATION_RECIPE[e.farmDecoration.kind]?.yieldBoost ?? 0;
+      boostByOwner.set(id, Math.min(MAX_DECORATION_BOOST, (boostByOwner.get(id) ?? 0) + add));
+    }
+
     for (const plot of plots) {
       const state = plot.plot.state;
       if (state.kind !== "planted") continue;
@@ -20,7 +29,11 @@ export class HarvestSystem implements System {
       if (currentDay < state.readyAtDay) continue;
       const owner = farmersById.get(plot.plot.ownerId);
       if (!owner || !owner.inventory) continue;
-      owner.inventory.crops[state.crop] += 2;
+
+      // Base yield 2, boosted by decorations on this farm.
+      const boost = boostByOwner.get(plot.plot.ownerId) ?? 0;
+      const yield_ = Math.round(2 * (1 + boost));
+      owner.inventory.crops[state.crop] += yield_;
       plot.plot.state = { kind: "empty" } satisfies PlotState;
     }
   }

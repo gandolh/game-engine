@@ -1,5 +1,6 @@
 import type { LoadedAtlasImage } from "../assets/loader";
 import { Camera2D } from "./camera";
+import type { ParticleSystem } from "./particles";
 
 export interface Canvas2dSprite {
   x: number;
@@ -74,9 +75,13 @@ export class Canvas2dRenderer {
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, w, h);
     // Draw in world coordinates directly (no camera transform): the layer IS
-    // the world. Sort by layer then insertion order, same as endFrame.
+    // the world. Sort by layer then Y (same rule as endFrame dynamic queue).
     const indexed = sprites.map((s, i) => ({ s, i }));
-    indexed.sort((a, b) => (a.s.layer !== b.s.layer ? a.s.layer - b.s.layer : a.i - b.i));
+    indexed.sort((a, b) =>
+      a.s.layer !== b.s.layer ? a.s.layer - b.s.layer :
+      a.s.y !== b.s.y ? a.s.y - b.s.y :
+      a.i - b.i,
+    );
     for (const { s } of indexed) {
       drawSprite(ctx, this.atlas, s);
     }
@@ -102,6 +107,7 @@ export class Canvas2dRenderer {
       this.canvas.height = desiredH;
     }
     this.queue = [];
+    this.shadowQueue = [];
   }
 
   push(sprite: Canvas2dSprite): void {
@@ -109,12 +115,26 @@ export class Canvas2dRenderer {
   }
 
   /**
+   * Queue a ground drop-shadow ellipse to be drawn in a dedicated shadow pass
+   * before all sprites. Shadows are rendered with `multiply` blending so they
+   * darken the ground naturally without a harsh black edge.
+   *
+   * `x`/`y` — world-pixel centre (typically the sprite's feet position).
+   * `rx`/`ry` — ellipse radii in world pixels.
+   * `alpha` — opacity of the shadow (0–1).
+   */
+  pushShadow(x: number, y: number, rx: number, ry: number, alpha: number): void {
+    this.shadowQueue.push({ x, y, rx, ry, alpha });
+  }
+  private shadowQueue: Array<{ x: number; y: number; rx: number; ry: number; alpha: number }> = [];
+
+  /**
    * `wash` (brief 26, farm-valley) is an optional full-frame color overlay
    * applied last in screen space — a day/night + seasonal grade. The engine
    * stays generic: it just blends one translucent rect over the finished frame
    * and restores composite/alpha state. `color` is "#rrggbb"; `alpha` ∈ [0,1].
    */
-  endFrame(wash?: { color: string; alpha: number }): void {
+  endFrame(wash?: { color: string; alpha: number }, particles?: ParticleSystem): void {
     if (!this.atlas) return;
 
     const { ctx, canvas, camera } = this;
@@ -136,8 +156,30 @@ export class Canvas2dRenderer {
       ctx.drawImage(this.staticLayer, 0, 0, this.staticLayerW, this.staticLayerH);
     }
 
+    // Shadow pass: draw all ground ellipses first, under every sprite.
+    // `multiply` blend darkens the ground tile naturally without a harsh edge.
+    if (this.shadowQueue.length > 0) {
+      ctx.globalCompositeOperation = "multiply";
+      for (const sh of this.shadowQueue) {
+        ctx.globalAlpha = sh.alpha;
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.ellipse(sh.x, sh.y, sh.rx, sh.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+    }
+
+    // Y-sort within each layer: sprites with a lower Y (closer to screen top)
+    // draw first; sprites with a higher Y (closer to screen bottom) draw on top.
+    // This is the primary depth cue in top-down 2D RPGs — overlap, not scale.
     const indexed = this.queue.map((s, i) => ({ s, i }));
-    indexed.sort((a, b) => a.s.layer !== b.s.layer ? a.s.layer - b.s.layer : a.i - b.i);
+    indexed.sort((a, b) =>
+      a.s.layer !== b.s.layer ? a.s.layer - b.s.layer :
+      a.s.y !== b.s.y ? a.s.y - b.s.y :
+      a.i - b.i,
+    );
 
     for (const { s } of indexed) {
       ctx.globalAlpha = s.alpha;
@@ -145,6 +187,11 @@ export class Canvas2dRenderer {
     }
 
     ctx.globalAlpha = 1;
+
+    // Particle system — drawn in world space after sprites, before the wash.
+    if (particles && particles.count > 0) {
+      particles.draw(ctx);
+    }
 
     // brief 26 — full-frame day/night + seasonal wash, in SCREEN space (reset
     // the camera transform first), then restore composite/alpha so state never

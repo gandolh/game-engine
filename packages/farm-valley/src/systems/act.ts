@@ -1,5 +1,7 @@
 import type { SimContext, System, World, MessageBus } from "@engine/core";
-import type { GameEntity, CropKind, PlotState } from "../components";
+import { REGIONS } from "../world/regions";
+import type { GameEntity, CropKind, PlotState, ToolKind, ToolTier, DecorationKind } from "../components";
+import { TOOL_PRICE, DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
 import {
   PERFORMATIVE,
   ONT_MARKET,
@@ -18,6 +20,47 @@ import {
 const SELL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const GROWTH_DAYS: Record<CropKind, number> = { radish: 2, wheat: 4, pumpkin: 7 };
 
+/**
+ * Physical-action time cost in ticks (at 20 Hz).
+ * Wooden=60t(3s), stone=40t(2s), iron=20t(1s) per the brief.
+ * Social / travel actions are instant (0).
+ */
+import { TOOL_WORK_TICKS } from "../components";
+
+function actionTicks(kind: string, tools: import("../components").Tool[]): number {
+  const physicalActions = new Set(["plant","water","till","chop-tree","mine-stone","harvest","refill-can"]);
+  if (!physicalActions.has(kind)) return 0;
+  // Pick the best relevant tool for the action.
+  let toolKind: import("../components").ToolKind | null = null;
+  if (kind === "till") toolKind = "hoe";
+  else if (kind === "chop-tree") toolKind = "axe";
+  else if (kind === "mine-stone") toolKind = "pickaxe";
+  else toolKind = "hoe"; // plant/water/harvest — hoe is the reference
+  const tierOrder: Record<string, number> = { wooden: 0, stone: 1, iron: 2 };
+  const best = tools
+    .filter(t => t.kind === toolKind && t.durability > 0)
+    .sort((a, b) => (tierOrder[b.tier] ?? 0) - (tierOrder[a.tier] ?? 0))[0];
+  const tier = (best?.tier ?? "wooden") as import("../components").ToolTier;
+  return TOOL_WORK_TICKS[tier];
+}
+
+/** Stone drop table: [ironOre chance, geode chance]. Rest is plain stone. */
+const STONE_IRON_CHANCE  = 0.20;
+const STONE_GEODE_CHANCE = 0.10;
+
+/** Upgrade path: wooden → stone → iron. */
+const UPGRADE_PATH: Record<ToolTier, ToolTier | null> = {
+  wooden: "stone",
+  stone:  "iron",
+  iron:   null,
+};
+
+/** Gold cost to upgrade at blacksmith (per tier of destination). */
+const UPGRADE_COST: Partial<Record<ToolTier, number>> = {
+  stone: 15,
+  iron:  25,
+};
+
 export class ActSystem implements System {
   readonly name = "ActSystem";
 
@@ -35,6 +78,47 @@ export class ActSystem implements System {
       plotsByOwner.set(plot.plot.ownerId, arr);
     }
 
+    // Occupied tiles per owner (plots + fountains) for till validation
+    const occupiedByOwner = new Map<number, Set<string>>();
+    for (const plot of this.world.query("plot")) {
+      const key = `${plot.plot.tileX},${plot.plot.tileY}`;
+      const s = occupiedByOwner.get(plot.plot.ownerId) ?? new Set();
+      s.add(key);
+      occupiedByOwner.set(plot.plot.ownerId, s);
+    }
+    for (const f of this.world.query("fountain")) {
+      if (!f.transform) continue;
+      const tx = Math.round(f.transform.x);
+      const ty = Math.round(f.transform.y);
+      // Find owner via region
+      for (const farmer of this.world.query("farmer")) {
+        if (farmer.farmer.homeRegion === f.fountain.regionId && farmer.id !== undefined) {
+          const key = `${tx},${ty}`;
+          const s = occupiedByOwner.get(farmer.id) ?? new Set();
+          s.add(key);
+          occupiedByOwner.set(farmer.id, s);
+        }
+      }
+    }
+
+    // Tile features (trees/stones) indexed by tile key
+    const featuresByTile = new Map<string, GameEntity>();
+    for (const f of this.world.query("tileFeature")) {
+      featuresByTile.set(`${f.tileFeature.tileX},${f.tileFeature.tileY}`, f);
+    }
+
+    // Fountains indexed by regionId
+    const fountainByRegion = new Map<string, GameEntity>();
+    for (const f of this.world.query("fountain")) {
+      fountainByRegion.set(f.fountain.regionId, f);
+    }
+
+    let blacksmithId: number | undefined;
+    for (const b of this.world.query("blacksmith")) {
+      blacksmithId = b.id;
+      break;
+    }
+
     let marketWallId: number | undefined;
     for (const w of this.world.query("marketWall")) {
       marketWallId = w.id;
@@ -49,6 +133,7 @@ export class ActSystem implements System {
 
     for (const farmer of farmers) {
       if (farmer.fsm.current !== "ACT") continue;
+
       const intentions = farmer.intentions.queue;
       const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
       const ownedPlots = farmer.id !== undefined ? plotsByOwner.get(farmer.id) ?? [] : [];
@@ -88,6 +173,7 @@ export class ActSystem implements System {
             const free = ownedPlots.find((p) => p.plot!.state.kind === "empty");
             if (free && farmer.inventory.seeds[crop] > 0) {
               farmer.inventory.seeds[crop] -= 1;
+              // Reset decay clock — this plot is being tended right now.
               free.plot!.state = {
                 kind: "planted",
                 crop,
@@ -102,11 +188,10 @@ export class ActSystem implements System {
             break;
           }
           case "water": {
-            // brief 29 — water this farmer's planted plots that are due. Resets
-            // the dryness clock so growth advances and the crop won't wilt. A
-            // single `water` action tends one plot (the most-dry due plot) to
-            // keep it a meaningful per-plot AP commitment; agents queue one per
-            // plot that needs it.
+            // Watering consumes 1 charge from the watering can. If empty,
+            // skip (agent should have queued a refill first).
+            const can = farmer.inventory.wateringCan;
+            if (can && can.charges <= 0) break;
             const due = ownedPlots
               .filter((p) => {
                 const s = p.plot!.state;
@@ -121,6 +206,7 @@ export class ActSystem implements System {
               const s = due.plot!.state as Extract<PlotState, { kind: "planted" }>;
               s.wateredToday = true;
               s.daysSinceWater = 0;
+              if (can) can.charges -= 1;
             }
             break;
           }
@@ -253,7 +339,205 @@ export class ActSystem implements System {
             );
             break;
           }
+
+          case "till": {
+            // Use hoe to create a new plot on a green farm tile.
+            if (farmer.id === undefined) break;
+            const hoe = (farmer.inventory.tools ?? []).find(t => t.kind === "hoe" && t.durability > 0);
+            if (!hoe) break;
+            const tileX = intent.data.tileX as number;
+            const tileY = intent.data.tileY as number;
+            const occ = occupiedByOwner.get(farmer.id) ?? new Set();
+            const tileKey = `${tileX},${tileY}`;
+            if (occ.has(tileKey)) break; // already occupied
+            // Spawn new plot entity
+            this.world.spawn({
+              transform: { x: tileX, y: tileY, prevX: tileX, prevY: tileY, rotation: 0 },
+              plot: {
+                ownerId: farmer.id,
+                regionId: farmer.farmer?.currentRegion ?? (intent.data.regionId as string) as import("../world/regions").RegionId,
+                tileX,
+                tileY,
+                state: { kind: "empty" },
+              },
+            });
+            // Drain hoe durability
+            hoe.durability -= 1;
+            if (hoe.durability <= 0) {
+              const idx = (farmer.inventory.tools ?? []).indexOf(hoe);
+              if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
+            }
+            occ.add(tileKey);
+            occupiedByOwner.set(farmer.id, occ);
+            break;
+          }
+
+          case "chop-tree": {
+            if (farmer.id === undefined) break;
+            const axe = (farmer.inventory.tools ?? []).find(t => t.kind === "axe" && t.durability > 0);
+            if (!axe) break;
+            const tileX = intent.data.tileX as number;
+            const tileY = intent.data.tileY as number;
+            const feat = featuresByTile.get(`${tileX},${tileY}`);
+            if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") break;
+            // Award wood
+            if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
+            farmer.resources.wood += 2;
+            // Remove feature entity
+            this.world.despawn(feat);
+            featuresByTile.delete(`${tileX},${tileY}`);
+            // Drain axe
+            axe.durability -= 1;
+            if (axe.durability <= 0) {
+              const idx = (farmer.inventory.tools ?? []).indexOf(axe);
+              if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
+            }
+            break;
+          }
+
+          case "mine-stone": {
+            if (farmer.id === undefined) break;
+            const pick = (farmer.inventory.tools ?? []).find(t => t.kind === "pickaxe" && t.durability > 0);
+            if (!pick) break;
+            const tileX = intent.data.tileX as number;
+            const tileY = intent.data.tileY as number;
+            const feat = featuresByTile.get(`${tileX},${tileY}`);
+            if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") break;
+            if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
+            // Random drops
+            const roll = Math.random();
+            if (roll < STONE_GEODE_CHANCE) {
+              farmer.resources.geodes += 1;
+            } else if (roll < STONE_GEODE_CHANCE + STONE_IRON_CHANCE) {
+              farmer.resources.ironOre += 1;
+            } else {
+              farmer.resources.stone += 1;
+            }
+            this.world.despawn(feat);
+            featuresByTile.delete(`${tileX},${tileY}`);
+            // Drain pickaxe
+            pick.durability -= 1;
+            if (pick.durability <= 0) {
+              const idx = (farmer.inventory.tools ?? []).indexOf(pick);
+              if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
+            }
+            break;
+          }
+
+          case "refill-can": {
+            // Refill watering can at the farm fountain (2 AP already deducted).
+            const can = farmer.inventory.wateringCan;
+            if (!can) break;
+            can.charges = can.maxCharges;
+            break;
+          }
+
+          case "buy-tool": {
+            // Buy a wooden tool from the shopkeeper.
+            const toolKind = intent.data.toolKind as ToolKind;
+            const tier: ToolTier = "wooden";
+            const price = TOOL_PRICE[tier];
+            if (farmer.inventory.gold < price) break;
+            farmer.inventory.gold -= price;
+            if (!farmer.inventory.tools) farmer.inventory.tools = [];
+            farmer.inventory.tools.push({ kind: toolKind, tier, durability: 100 });
+            break;
+          }
+
+          case "craft-decoration": {
+            // Craft a farm decoration at the carpentry workshop.
+            // Consumes wood from ResourceInventory, places a FarmDecoration entity
+            // on a free tile in the farmer's farm. Boosts crop yield permanently.
+            if (farmer.id === undefined || !farmer.farmer?.homeRegion) break;
+            const kind = intent.data.kind as DecorationKind;
+            const recipe = DECORATION_RECIPE[kind];
+            if (!recipe) break;
+            const res = farmer.resources;
+            if (!res || res.wood < recipe.woodCost) break;
+
+            // Cap total boost: sum existing decorations for this farmer's farm.
+            let existingBoost = 0;
+            for (const e of this.world.query("farmDecoration")) {
+              if (e.farmDecoration.ownerId === farmer.id) {
+                existingBoost += DECORATION_RECIPE[e.farmDecoration.kind]?.yieldBoost ?? 0;
+              }
+            }
+            if (existingBoost >= MAX_DECORATION_BOOST) break; // already maxed
+
+            // Find a free tile in the farm (not occupied by plot/fountain/feature).
+            const homeRegion = farmer.farmer.homeRegion;
+            const regionDef = REGIONS.find(r => r.id === homeRegion);
+            if (!regionDef) break;
+
+            const usedTiles = new Set<string>();
+            for (const e of this.world.query("plot")) {
+              if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
+            }
+            for (const e of this.world.query("farmDecoration")) {
+              if (e.farmDecoration.regionId === homeRegion) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
+            }
+            for (const e of this.world.query("tileFeature")) {
+              if (e.tileFeature.regionId === homeRegion) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);
+            }
+            for (const e of this.world.query("fountain")) {
+              if (e.fountain.regionId === homeRegion && e.transform) {
+                usedTiles.add(`${Math.round(e.transform.x)},${Math.round(e.transform.y)}`);
+              }
+            }
+
+            let placed = false;
+            const b = regionDef.bounds;
+            outer: for (let ty = b.minY; ty <= b.maxY; ty++) {
+              for (let tx = b.minX; tx <= b.maxX; tx++) {
+                if (usedTiles.has(`${tx},${ty}`)) continue;
+                this.world.spawn({
+                  transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+                  sprite: { atlasId: "main", frame: `decoration/${kind}`, layer: 20, tintRgba: 0xffffffff },
+                  farmDecoration: { kind, tileX: tx, tileY: ty, regionId: homeRegion, ownerId: farmer.id },
+                });
+                res.wood -= recipe.woodCost;
+                placed = true;
+                break outer;
+              }
+            }
+            if (!placed) break; // no free tile
+            break;
+          }
+
+          case "upgrade-tool": {
+            // Upgrade a tool at the blacksmith.
+            if (blacksmithId === undefined) break;
+            const toolKind = intent.data.toolKind as ToolKind;
+            const tools = farmer.inventory.tools ?? [];
+            // Find the best existing tool of this kind (highest tier, lowest durability first for upgrade)
+            const existing = tools
+              .filter(t => t.kind === toolKind)
+              .sort((a, b) => {
+                const tierOrder: Record<ToolTier, number> = { wooden: 0, stone: 1, iron: 2 };
+                return tierOrder[b.tier] - tierOrder[a.tier]; // highest tier first
+              })[0];
+            if (!existing) break;
+            const nextTier = UPGRADE_PATH[existing.tier];
+            if (!nextTier) break; // already max
+            const cost = UPGRADE_COST[nextTier] ?? 99;
+            if (farmer.inventory.gold < cost) break;
+            farmer.inventory.gold -= cost;
+            // Replace tool with upgraded version (full durability)
+            const idx = tools.indexOf(existing);
+            if (idx >= 0) {
+              tools[idx] = { kind: toolKind, tier: nextTier, durability: nextTier === "stone" ? 150 : 200 };
+            }
+            break;
+          }
         }
+      }
+
+      // Compute total work time for physical actions in this batch.
+      // Set busyUntilTick so the farmer pauses before the next deliberation.
+      const tools = farmer.inventory?.tools ?? [];
+      const totalCost = intentions.reduce((sum, i) => sum + actionTicks(i.kind, tools), 0);
+      if (totalCost > 0 && farmer.farmer) {
+        farmer.farmer.busyUntilTick = ctx.tick + totalCost;
       }
 
       intentions.length = 0;

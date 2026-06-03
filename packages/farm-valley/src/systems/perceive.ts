@@ -21,6 +21,17 @@ export class PerceiveSystem implements System {
   run(ctx: SimContext): void {
     const farmers = this.world.query("inbox", "beliefs", "fsm");
     for (const farmer of farmers) {
+      // Clear busyUntilTick once the work time has elapsed, allowing re-deliberation.
+      if (farmer.farmer?.busyUntilTick !== undefined && ctx.tick >= farmer.farmer.busyUntilTick) {
+        farmer.farmer.busyUntilTick = undefined;
+        // Re-arm if the farmer is settled and in an active phase.
+        const phase = farmer.beliefs.data.phase as string | undefined;
+        const settled = farmer.fsm.current === "WAIT_DAY";
+        if (settled && phase && phase !== "night") {
+          farmer.fsm.current = "PERCEIVE";
+        }
+      }
+
       for (const msg of farmer.inbox.messages) {
         if (msg.ontology === ONT_SIMULATION.DAY_START) {
           const body = msg.body as unknown as DayStartBody;

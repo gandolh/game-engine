@@ -74,11 +74,22 @@ export class SimClient {
   // Lifecycle
   // ---------------------------------------------------------------------------
 
-  /** Send the init message to start the sim. */
+  /** Send the init message to start the sim. Fetches WASM bytes for transfer. */
   init(opts: Omit<WorkerInitMsg, "type">): void {
     this.msPerTick = 1000 / opts.tickRateHz;
-    const msg: WorkerInitMsg = { type: "init", ...opts };
-    this.worker.postMessage(msg);
+    // Fetch pathfinding WASM bytes and transfer them (zero-copy) to the worker.
+    // Falls back gracefully if the fetch fails — sim runs without pathfinding.
+    void fetch("/wasm/pathfinding.wasm")
+      .then(r => r.arrayBuffer())
+      .then(buf => {
+        const msg: WorkerInitMsg = { type: "init", ...opts, pathfinderWasm: buf };
+        this.worker.postMessage(msg, [buf]); // transfer ownership
+      })
+      .catch(() => {
+        // WASM unavailable — send init without pathfinder (farmers stay put).
+        const msg: WorkerInitMsg = { type: "init", ...opts };
+        this.worker.postMessage(msg);
+      });
   }
 
   /** Stop the sim worker loop. */

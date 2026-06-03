@@ -28,6 +28,8 @@ Catalog of everything in this corpus. Start here.
 - [briefs/engine/done/06-determinism-harness-and-analytics.md](briefs/engine/done/06-determinism-harness-and-analytics.md) — determinism harness (CHECK_DETERMINISM) + per-day CSV/JSON export from run-sim
 - [briefs/engine/done/07-chunked-tile-layer.md](briefs/engine/done/07-chunked-tile-layer.md) — cached static backdrop layer (bake once, blit per frame); chunking not needed
 
+- [briefs/engine/done/08-wasm-expansion.md](briefs/engine/done/08-wasm-expansion.md) — three new WASM modules (noise, rng-batch, floodfill); pathfinder worker wiring bug fixed (farmers now actually walk)
+
 #### Engine — todo
 
 _Empty — no engine briefs queued._
@@ -68,6 +70,13 @@ _Empty — no engine briefs queued._
 - [briefs/game/done/29-irrigation-crop-death.md](briefs/game/done/29-irrigation-crop-death.md) — **3d** watering required; grace-windowed dryness; rain auto-waters; crops die from neglect
 - [briefs/game/done/30-procedural-ground-texture.md](briefs/game/done/30-procedural-ground-texture.md) — subtle per-tile value-noise on the baked static layer
 
+##### Shipped 2026-06-03 (visual + world + activity overhaul — see [log.md](log.md))
+
+- [briefs/game/done/31-corpus-index-sync.md](briefs/game/done/31-corpus-index-sync.md) — corpus sync (resolved by this update)
+- [briefs/game/done/32-rendering-overhaul.md](briefs/game/done/32-rendering-overhaul.md) — Y-sort, drop shadows, particles, 54-frame atlas redesign, walk/work/idle-bob animations
+- [briefs/game/done/33-world-expansion.md](briefs/game/done/33-world-expansion.md) — 11 regions, blacksmith, carpentry, forest/quarry zones, tool system, decorations, home entities
+- [briefs/game/done/35-player-activity.md](briefs/game/done/35-player-activity.md) — slower movement, action time cost, home/sleep routine, periodic market visits, debug player (WASD)
+
 #### Game — todo
 
-- [briefs/game/todo/31-corpus-index-sync.md](briefs/game/todo/31-corpus-index-sync.md) — corpus sync brief (this update applies it; can move to done once committed)
+_Empty — no game briefs queued._

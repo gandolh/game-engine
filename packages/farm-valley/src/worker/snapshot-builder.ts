@@ -180,6 +180,7 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       frame: `crop/${crop}/${stage}`,
       alpha: 1,
       interpolate: false,
+      action: null,
     });
   }
 
@@ -194,6 +195,7 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
     const tint = s.tintRgba >>> 0;
     const isFarmer = entity.farmer !== undefined;
     const frame = isFarmer ? pickFarmerFrame(entity, tick) : s.frame;
+    const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
     sprites.push({
       id: entity.id ?? null,
       x: px,
@@ -203,6 +205,7 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       frame,
       alpha: (tint & 0xff) / 255,
       interpolate: isFarmer,
+      action,
     });
   }
 

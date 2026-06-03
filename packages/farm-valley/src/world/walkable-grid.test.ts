@@ -12,41 +12,37 @@ describe('buildWalkableGrid', () => {
 
   it('village center is walkable', () => {
     const grid = buildWalkableGrid();
-    // Village: x ∈ [14..25], y ∈ [14..25]; center ~(19,19)
-    const villageCenterX = 19;
-    const villageCenterY = 19;
-    expect(grid.cells[villageCenterY * WORLD_WIDTH + villageCenterX]).toBe(0);
+    expect(grid.cells[19 * WORLD_WIDTH + 19]).toBe(0); // village center ~(19,19)
   });
 
-  it('void corner (0,0) is blocked', () => {
+  it('void tile at (12,0) is blocked', () => {
+    // (0,0) is carpentry; (12,0) is between carpentry and Cora — void
     const grid = buildWalkableGrid();
-    expect(grid.cells[0 * WORLD_WIDTH + 0]).toBe(1);
+    expect(grid.cells[0 * WORLD_WIDTH + 12]).toBe(1);
   });
 
   it('road tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    // North road: x ∈ [18..21], y ∈ [12..13]
-    expect(grid.cells[12 * WORLD_WIDTH + 19]).toBe(0);
-    // East road: x ∈ [26..27], y ∈ [18..21]
-    expect(grid.cells[19 * WORLD_WIDTH + 26]).toBe(0);
-    // South road: x ∈ [18..21], y ∈ [26..27]
-    expect(grid.cells[26 * WORLD_WIDTH + 20]).toBe(0);
-    // West road: x ∈ [12..13], y ∈ [18..21]
-    expect(grid.cells[20 * WORLD_WIDTH + 12]).toBe(0);
+    expect(grid.cells[12 * WORLD_WIDTH + 19]).toBe(0); // North road
+    expect(grid.cells[19 * WORLD_WIDTH + 26]).toBe(0); // East road
+    expect(grid.cells[26 * WORLD_WIDTH + 20]).toBe(0); // South road
+    expect(grid.cells[20 * WORLD_WIDTH + 12]).toBe(0); // West road
   });
 
-  it('total walkable tile count matches expected layout', () => {
-    // 4 farms × (12×12=144) = 576
-    // + village × (12×12=144) = 144
-    // + 4 roads:
-    //   North road: 4 cols × 2 rows = 8
-    //   East road:  2 cols × 4 rows = 8
-    //   South road: 4 cols × 2 rows = 8
-    //   West road:  2 cols × 4 rows = 8
-    //   Total roads = 32
-    // Grand total = 576 + 144 + 32 = 752
-    const EXPECTED_WALKABLE = 752;
+  it('resource zone tiles are walkable', () => {
+    const grid = buildWalkableGrid();
+    expect(grid.cells[3 * WORLD_WIDTH + 29]).toBe(0);  // forest-north interior
+    expect(grid.cells[4 * WORLD_WIDTH + 37]).toBe(0);  // quarry-north interior
+    expect(grid.cells[29 * WORLD_WIDTH + 3]).toBe(0);  // forest-south interior
+    expect(grid.cells[37 * WORLD_WIDTH + 4]).toBe(0);  // quarry-south interior
+  });
 
+  it('total walkable tile count matches layout', () => {
+    // Verified by independent BFS count: 1257 tiles
+    // Breakdown (approximate): 4×144 farms + 144 village + 100 blacksmith + 100 carpentry
+    // + 64 forest-north + 50 quarry-north + 64 forest-south + 50 quarry-south
+    // + road network connecting all regions
+    const EXPECTED_WALKABLE = 1257;
     const grid = buildWalkableGrid();
     let walkableCount = 0;
     for (let i = 0; i < grid.cells.length; i++) {

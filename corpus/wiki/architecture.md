@@ -51,20 +51,60 @@ Generic pub/sub at [packages/engine/src/sim/message-bus.ts](../../packages/engin
 - Weather station (broadcasts conditions + forecasts)
 - Day clock (day-start, finish-day events)
 
+## World layout
+
+40×40 tile grid. **11 walkable regions** connected by 2-tile-wide road corridors:
+
+```
+NW: carpentry (0–9, 0–9)     N: farm-cora (14–25, 0–11)      NE: forest-north (26–33,0–7) | quarry-north (35–39,0–9)
+W: farm-otto (0–11,14–25)    Center: village (14–25,14–25)   E: farm-atticus (28–39,14–25)
+SW: forest-south (0–7,26–33) S: farm-hannah (14–25,28–39)    SE: blacksmith (30–39,30–39)
+    quarry-south (0–9,35–39)
+```
+
+Forest zones spawn trees only; quarry zones spawn stones only. North pair (forest-north + quarry-north) serves Cora + Atticus; south pair serves Otto + Hannah. All regions BFS-verified reachable from every farm. Walkable tile count: 1257.
+
+Road network: 4 farm↔village roads + L-bridge to blacksmith + carpentry connector + 4 zone connectors.
+
 ## Game data flow per tick
 
 ```
-DayClock → Perceive → Deliberate → AP → Act → Inbox-dispatch → Harvest → FinishDay
-            (reads          (writes        (consumes
-             inbox)         intentions)    intentions)
+DayClock → Perceive → Deliberate → AP → TravelSystem → Act → Inbox-dispatch
+                                                              → TileFeatures → Harvest → FinishDay
+            (reads          (writes        (walks path)  (consumes
+             inbox)         intentions)                  intentions)
 ```
 
 Plus passive systems: WeatherSystem, CropGrowthSystem, MarketSystem, ShopkeeperSystem, AuctionSystem.
 
+`TravelSystem` only registers when a `Pathfinder` is passed to `bootstrapSim`. In the browser the sim worker fetches the WASM bytes from `WorkerInitMsg.pathfinderWasm` and instantiates its own `Pathfinder` — zero-copy transfer. Headless `run-sim` and tests pass the pathfinder directly.
+
+`TileFeatureSystem` runs once per new day — spawns trees/stones on farm tiles and in dedicated resource zones.
+
+`ActSystem` sets `farmer.farmer.busyUntilTick` after physical actions; `PerceiveSystem` clears it when expired and re-arms deliberation.
+
 ## Render
 
-Canvas2D ([packages/engine/src/render/canvas2d.ts](../../packages/engine/src/render/canvas2d.ts)) — replaced the planned WebGPU renderer in commit `5ac7f8d`. The atlas is procedurally built at install time by [tools/atlas-builder](../../tools/atlas-builder/) (PNG + JSON manifest).
+Canvas2D ([packages/engine/src/render/canvas2d.ts](../../packages/engine/src/render/canvas2d.ts)) — replaced the planned WebGPU renderer in commit `5ac7f8d`.
+
+Key render features:
+- **Y-sort**: sprites sorted by `(layer, y)` each frame — overlap creates depth.
+- **Shadow pass**: ground ellipses drawn before sprites with `multiply` blend.
+- **Particle system**: `ParticleSystem` class — circles/rects/stars with alpha-fade + gravity, drawn in world space after sprites.
+- **Static layer bake**: backdrop tiles baked once into an offscreen canvas; WASM noise generator fills the brightness grid (~8× faster than JS).
+- **Walk/work/bob animation**: `walk-a`/`walk-b` while `farmer.path` is set, `/work` pose for physical actions, 1.5px idle bob.
+
+Atlas: 54 hand-crafted 16×16 pixel-art frames (PNG + JSON manifest at `packages/farm-valley/public/atlas/`).
 
 ## WASM
 
-[packages/engine/src/wasm/](../../packages/engine/src/wasm/) wraps `WebAssembly.instantiate`, exposes `WasmHeap` typed-array views, and currently ships one typed kernel: [`Pathfinder`](../../packages/engine/src/wasm/pathfinder.ts) (4-connected grid shortest-path). The Pathfinder is **load-bearing**: [`TravelSystem`](../../packages/farm-valley/src/systems/travel.ts) calls `findPath(grid, start, targetCenter)` against the real [walkable grid](../../packages/farm-valley/src/world/walkable-grid.ts) (regions + road corridors walkable, the rest void) and walks farmers waypoint-by-waypoint, routing around the void via the roads. Around-obstacle routing is tested at the kernel level (`wasm/pathfinder.test.ts` "routes around a wall") and on the real game grid (`systems/travel.test.ts` "routes around the void").
+[packages/engine/src/wasm/](../../packages/engine/src/wasm/) wraps `WebAssembly.instantiate`, exposes `WasmHeap` typed-array views. Four typed kernels (all AssemblyScript, artifacts committed):
+
+| Module | Size | Purpose |
+|---|---|---|
+| `pathfinding.wasm` | ~1.6 KB | 4-connected A* grid pathfinding — **load-bearing** in `TravelSystem` |
+| `noise.wasm` | 671 B | Value-noise brightness fill for static-layer bake (~8× faster than JS) |
+| `rng.wasm` | 603 B | Mulberry32 batch float fill |
+| `floodfill.wasm` | 836 B | BFS flood-fill, returns reachable tile coordinates |
+
+All kernels export via `@engine/core`. The pathfinder bytes are transferred to the sim worker at init time (`WorkerInitMsg.pathfinderWasm`) so the worker can instantiate its own `Pathfinder` without sharing memory.

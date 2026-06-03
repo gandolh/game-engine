@@ -10,7 +10,9 @@ import {
   type InitiateBeanGiftFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import type { PlotWaterSense } from "../systems/plot-sense";
+import type { TileFeature, FarmDecoration } from "../components";
 
 // Shopkeeper reference prices for now (constants from spec).
 const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
@@ -61,9 +63,38 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
 
+  // Refill can if short (aggressive only refills when can is empty or nearly so).
+  const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
+  const planWater = Math.min(sense?.due ?? 0, 3);
+  deliberateRefillCan(farmer, planWater);
+
   // brief 29 — aggressive over-plants and waters lazily (threshold 1), capping
   // watering so it may let a marginal plot die rather than tend every one.
   deliberateWatering(farmer, { dryThreshold: 1, maxWaterPerDay: 3 });
+
+  // Aggressive expands plots quickly — till up to 3 new plots per day.
+  const plotsOwned = sense?.planted ?? 0;
+  if (plotsOwned < 9) {
+    const occupied = new Set<string>((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? []);
+    deliberateTill(farmer, occupied, 3, 3);
+  }
+  // Chop/mine up to 2 features aggressively (resources = sellable goods).
+  const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
+  deliberateResourceGather(farmer, features, 2, 7);
+
+  // Craft decorations eagerly — aggressive builds fast to boost yield.
+  const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
+  deliberateDecoration(farmer, decorations, 6);
+
+  // Visit village day 0-1 to scope the market fast.
+  deliberateEarlyVillageVisit(farmer, 5);
+  // Aggressive upgrades axe first (wants wood fast for decorations), then hoe.
+  deliberateUpgrade(farmer, "axe", 6);
+  deliberateUpgrade(farmer, "pickaxe", 7);
+  deliberateUpgrade(farmer, "hoe", 8);
+  // Visit resource zones when own farm is depleted.
+  deliberateResourceZoneVisit(farmer, features.length, "tree", 9);
+  deliberateResourceZoneVisit(farmer, features.length, "stone", 10);
 
   // End-of-sim liquidation: in the last 2 days, dump everything to the
   // shopkeeper and skip planting / market posting / wall scanning.
@@ -211,6 +242,8 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // brief 24 — aggressive bids high (near full expected resale) and flips beans.
   deliberateBean(farmer, 0.95);
 
+  deliberatePeriodicMarketVisit(farmer, 3, 6);
+  deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
 

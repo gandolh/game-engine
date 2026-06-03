@@ -16,7 +16,9 @@ import {
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import type { PlotWaterSense } from "../systems/plot-sense";
+import type { TileFeature, FarmDecoration } from "../components";
 
 export { _resetCnpCoordinatorsForTests };
 
@@ -45,8 +47,36 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
 
+  // Hoarder always refills before watering (never risks running dry).
+  const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
+  deliberateRefillCan(farmer, sense?.due ?? 0);
+
   // brief 29 — the hoarder waters everything religiously (threshold 0).
   deliberateWatering(farmer, { dryThreshold: 0 });
+
+  // Expand slowly (hoarder carefully tends a medium plot count).
+  const plotsOwned = sense?.planted ?? 0;
+  if (plotsOwned < 7) {
+    const occupied = new Set<string>((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? []);
+    deliberateTill(farmer, occupied, 1, 3);
+  }
+  // Mine/chop occasionally — hoarder likes accumulating resources.
+  const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
+  deliberateResourceGather(farmer, features, 1, 9);
+
+  // Craft decorations — hoarder invests in yield (moderate priority).
+  const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
+  deliberateDecoration(farmer, decorations, 7);
+
+  // Visit village day 0-1 (hoarder wants to see prices before committing).
+  deliberateEarlyVillageVisit(farmer, 8);
+  // Hoarder upgrades all tools evenly — more yield = more to hoard.
+  deliberateUpgrade(farmer, "hoe",     9);
+  deliberateUpgrade(farmer, "axe",     10);
+  deliberateUpgrade(farmer, "pickaxe", 11);
+  // Visit resource zones when own farm depleted.
+  deliberateResourceZoneVisit(farmer, features.length, "tree",  12);
+  deliberateResourceZoneVisit(farmer, features.length, "stone", 13);
 
   // 1. Plant a high-tier crop, falling back to radish only if we can't afford anything else.
   const plotId = (farmer.beliefs.data["plotId"] as number | undefined) ?? farmer.id;
@@ -196,6 +226,8 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   // HOLDS it (no resale — a hoarder hoards).
   deliberateBean(farmer, 0.9, { resell: false });
 
+  deliberatePeriodicMarketVisit(farmer, 3, 6);
+  deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
 

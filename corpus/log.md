@@ -2,6 +2,24 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-03] impl | Briefs 32–35 + engine/08 — rendering overhaul, world expansion, WASM expansion, agent activity; pathfinder worker bug fixed
+
+Full visual + world + agent-activity pass. All verified live (Playwright + build clean).
+
+**Critical bug fixed (engine/08):** The WASM pathfinder was loaded in the main render thread but never transferred to the sim worker. `TravelSystem` requires it and was silently skipped — farmers have never actually walked since the Worker migration. Fixed by fetching `/wasm/pathfinding.wasm` in `SimClient.init()`, transferring the `ArrayBuffer` (zero-copy) with the init message, and instantiating `Pathfinder` inside the worker.
+
+**Brief 32 — rendering overhaul:** Y-sort depth ordering replaces flat render queue; drop shadows via `multiply` blend; `ParticleSystem` (coin burst / dirt puff / leaf floats); 54-frame pixel-art atlas redesign; walk/work/idle-bob animations; `action` field on `SnapshotSprite`. Earlier ySquash/depth-scale attempt reverted (genre uses pure orthographic).
+
+**Brief 33 — world expansion:** 11 walkable regions (was 5). Blacksmith (SE, tool upgrades), carpentry (NW, decorations), 4 dedicated resource zones (forest-north/south for trees, quarry-north/south for stones). Tool system: hoe/axe/pickaxe × wooden/stone/iron with durability + upgrade path. Watering can (10 charges, refills at farm fountain). Resource drops (wood/stone/iron-ore/geode). Farm decorations (+10–30% yield, capped +75%). Plot decay 5 days. Home entity per farm. 8 new shared deliberation helpers in `agents/watering.ts`. 1257 walkable tiles.
+
+**Engine brief 08 — WASM expansion:** Three new AssemblyScript modules: `noise.wasm` (value-noise fill, ~8× faster than JS path, wired into ground bake), `rng.wasm` (Mulberry32 batch), `floodfill.wasm` (BFS reachable tiles). All exported from `@engine/core`.
+
+**Brief 35 — player activity:** Slower movement (STEP_TICKS 5→8). `busyUntilTick` — physical actions take 1–3 real seconds based on tool tier. Home/sleep routine — all farmers travel home at evening. Periodic market visit every 3 days. Early village visit day 0–1. Debug player (WASD + P toggle, checks `isWalkable`).
+
+**Brief 31 (corpus sync)** resolved by this update — moved to done.
+
+Corpus: 4 new briefs in `done/`; updated `status.md`, `architecture.md`, `index.md`, `log.md`; moved brief 31 `todo/`→`done/`.
+
 ## [2026-06-03] impl | Briefs 24–30 implemented + merged to main; corpus synced
 
 All 7 implementation briefs from the grilling session shipped — built inline one at a time (opus), each tested + verified live with Playwright + headless probes, committed individually, then merged to `main` (`--no-ff`, "Merge briefs 24-30"). Brief 31 is this corpus sync.

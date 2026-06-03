@@ -21,6 +21,7 @@ import { buildStaticLayerSprites } from "../render-systems";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
 import { buildRenderSnapshot } from "./snapshot-builder";
 import { ONT_SIMULATION, type ShockBody } from "../protocols";
+import { createPathfinderFromBytes } from "@engine/core";
 import type {
   WorkerInbound,
   WorkerStaticLayerMsg,
@@ -77,12 +78,25 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   }
 
   if (msg.type === "init") {
+    void (async () => {
     const { seed, ticksPerDay, maxDays, tickRateHz } = msg;
+
+    // Instantiate pathfinder inside the worker from transferred bytes.
+    let pathfinder = null;
+    if (msg.pathfinderWasm) {
+      try {
+        pathfinder = await createPathfinderFromBytes(msg.pathfinderWasm);
+        console.info("[sim-worker] pathfinder loaded");
+      } catch (e) {
+        console.warn("[sim-worker] pathfinder failed to load:", e);
+      }
+    }
 
     const { world, bus, scheduler, dayClock, meetIndicators, eventFeed } = bootstrapSim({
       seed,
       ticksPerDay,
       maxDays,
+      pathfinder,
     });
 
     // Build and post the static-layer sprites (backdrop tiles, fences, plot
@@ -184,6 +198,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       }
     }, msPerTick);
 
+    })(); // end async init IIFE
     return;
   }
 };

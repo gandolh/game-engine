@@ -6,7 +6,9 @@ import {
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import type { PlotWaterSense } from "../systems/plot-sense";
+import type { TileFeature, FarmDecoration } from "../components";
 
 export function deliberateConservative(farmer: GameEntity): void {
   if (!farmer.beliefs || !farmer.desires || !farmer.intentions || !farmer.inventory) return;
@@ -19,8 +21,38 @@ export function deliberateConservative(farmer: GameEntity): void {
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
 
+  // Refill watering can if needed before watering.
+  const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
+  const planWater = sense?.due ?? 0;
+  deliberateRefillCan(farmer, planWater);
+
   // brief 29 — conservative waters early, never risking the grace window.
   deliberateWatering(farmer, { dryThreshold: 0 });
+
+  // Till up to 2 new plots if we have seeds and a hoe (conservative expands slowly).
+  const plotsOwned = (farmer.beliefs.data.plotWater as PlotWaterSense | undefined)?.planted ?? 0;
+  if (plotsOwned < 6 && gold >= reserve + seedCost) {
+    const occupied = new Set<string>(
+      ((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? [])
+    );
+    deliberateTill(farmer, occupied, 1, 2);
+  }
+
+  // Chop/mine on own farm (low priority — opportunistic).
+  const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
+  deliberateResourceGather(farmer, features, 1, 8);
+
+  // Craft decorations when we have wood (conservative: low priority, affordable ones).
+  const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
+  deliberateDecoration(farmer, decorations, 9);
+
+  // Visit village day 0-1 to scout market (gets everyone walking early).
+  deliberateEarlyVillageVisit(farmer, 10);
+  // Upgrade hoe first (conservative farms a lot), then axe for wood.
+  deliberateUpgrade(farmer, "hoe", 11);
+  deliberateUpgrade(farmer, "axe", 12);
+  // Visit resource zones when own farm has nothing left to gather.
+  deliberateResourceZoneVisit(farmer, features.length, "tree", 13);
 
   if (gold - seedCost >= reserve && seeds[candidate] >= 1) {
     farmer.intentions.queue.push({
@@ -61,6 +93,8 @@ export function deliberateConservative(farmer: GameEntity): void {
   // brief 24 — bid cautiously (near reserve) and flip any beans held.
   deliberateBean(farmer, 0.45);
 
+  deliberatePeriodicMarketVisit(farmer, 3, 6);
+  deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
 

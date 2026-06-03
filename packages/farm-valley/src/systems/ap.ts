@@ -25,8 +25,15 @@ import type { GameEntity } from "../components";
  */
 export const AP_COST = {
   plant: 1,
-  water: 1, // brief 29 — irrigation action
+  water: 1, // brief 29 — irrigation action (1 watering-can charge too)
   harvest: 1,
+  till: 1,          // create a new plot tile with a hoe (uses 1 hoe durability)
+  "chop-tree": 1,   // chop a tree with axe (uses 1 axe durability)
+  "mine-stone": 1,  // mine a stone with pickaxe (uses 1 pickaxe durability)
+  "refill-can": 2,  // refill watering can at the farm fountain
+  "buy-tool": 1,          // buy a tool from the shop
+  "upgrade-tool": 2,      // have the blacksmith upgrade a tool (pays gold)
+  "craft-decoration": 2,  // craft a farm decoration at the carpentry workshop
   travel: 0, // brief 28 — walking is AP-free (time-throttled)
   negotiate: 3,
   "read-offers": 1,

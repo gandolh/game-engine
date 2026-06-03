@@ -68,6 +68,24 @@ Filed from a grilling session (Playwright review of the live app + the Book-of-S
 
 Brief [31-corpus-index-sync](../briefs/game/todo/31-corpus-index-sync.md) (this doc sync) is the only one left in `todo/` and is being applied now.
 
+## Shipped 2026-06-03 (briefs 32–35 + engine 08)
+
+Full visual, world, and agent-activity overhaul. All implemented, tested, and verified live.
+
+| Brief | Status | Notes |
+|---|---|---|
+| [32-rendering-overhaul](../briefs/game/done/32-rendering-overhaul.md) | **Done** | Y-sort depth ordering, drop shadows (`multiply` blend), `ParticleSystem`, improved 54-frame pixel-art atlas, walk/work/idle-bob animations, `action` field on `SnapshotSprite`. Reverted wrong ySquash/depth-scale (genre uses pure orthographic). |
+| [33-world-expansion](../briefs/game/done/33-world-expansion.md) | **Done** | 11 walkable regions (was 5): blacksmith, carpentry, forest-north/south, quarry-north/south. Tool system (hoe/axe/pickaxe, wooden→stone→iron, durability, AP cost). Watering can (10 charges, refill at farm fountain). Resource drops (wood/stone/iron-ore/geode). Farm decorations boost crop yield (+10% to +30%, capped +75%). Plot decay after 5 dry days. Home entity per farm. 1257 walkable tiles. |
+| [engine/08-wasm-expansion](../briefs/engine/done/08-wasm-expansion.md) | **Done** | Three new WASM modules: `noise.wasm` (value-noise fill, ~8× faster than JS), `rng.wasm` (Mulberry32 batch), `floodfill.wasm` (BFS reachable tiles). **Critical bug fixed**: pathfinder WASM was never transferred to the sim worker → `TravelSystem` was never active → farmers never moved. Fixed by transferring bytes via `WorkerInitMsg.pathfinderWasm`. |
+| [35-player-activity](../briefs/game/done/35-player-activity.md) | **Done** | Slower movement (STEP_TICKS 5→8). `busyUntilTick` action time cost (3s/2s/1s by tier). Home/sleep routine — all farmers travel home at evening. Periodic market visit every 3 days. Early village visit day 0–1. Debug player (WASD, cyan diamond, checks `isWalkable`). `Keyboard` exported from `@engine/core`. |
+
+### Key decisions made during this batch
+
+- **Orthographic projection confirmed** (research): Stardew Valley and the genre use pure top-down orthographic — depth via Y-sort overlap, not perspective foreshortening. Previous ySquash/depth-scale experiment reverted.
+- **Pathfinder was never wired** (latent bug found): The pathfinder was loaded in the main render thread but never transferred to the sim worker. `TravelSystem` requires it and was silently skipped. Fixed by zero-copy `ArrayBuffer` transfer.
+- **Forest/quarry zones type-locked**: forest-* zones spawn trees only, quarry-* zones spawn stones only (not mixed). Farmers can travel to them when their farm is depleted.
+- **Brief 31 (corpus sync)** is resolved by this update — moved to done.
+
 ## Post-corpus work (delivered, never had a brief)
 
 - **Canvas2D renderer** replacing the planned WebGPU pipeline — [packages/engine/src/render/canvas2d.ts](../../packages/engine/src/render/canvas2d.ts). WebGPU code was deleted in commit `5ac7f8d`.

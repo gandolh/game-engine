@@ -25,6 +25,12 @@ export interface Farmer {
   currentRegion: RegionId;
   /** brief 27 — the farmer's own farm region; "home" for the sleep check. */
   homeRegion?: RegionId;
+  /**
+   * When set, the farmer is busy with a physical action until this tick.
+   * ActSystem skips execution (but not queue-building) while busy, so the
+   * animation plays for a meaningful duration before the next action fires.
+   */
+  busyUntilTick?: number;
   path?: {
     waypoints: ReadonlyArray<{ x: number; y: number }>;
     nextIndex: number;       // index of the next waypoint to step onto
@@ -33,6 +39,43 @@ export interface Farmer {
 }
 
 export type CropKind = "radish" | "wheat" | "pumpkin";
+
+// ── Tool system ──────────────────────────────────────────────────────────────
+
+export type ToolKind = "hoe" | "axe" | "pickaxe";
+export type ToolTier = "wooden" | "stone" | "iron";
+
+/** Durability caps by tier. */
+export const TOOL_MAX_DURABILITY: Record<ToolTier, number> = {
+  wooden: 100,
+  stone:  150,
+  iron:   200,
+};
+
+/** Work-ticks (at 20 Hz) per action by tier. 3s / 2s / 1s. */
+export const TOOL_WORK_TICKS: Record<ToolTier, number> = {
+  wooden: 60,
+  stone:  40,
+  iron:   20,
+};
+
+/** Shop buy price per tier. */
+export const TOOL_PRICE: Record<ToolTier, number> = {
+  wooden: 5,
+  stone:  7,
+  iron:   10,
+};
+
+export interface Tool {
+  kind: ToolKind;
+  tier: ToolTier;
+  durability: number; // remaining uses
+}
+
+export interface WateringCan {
+  charges: number;    // remaining uses before refill
+  maxCharges: number; // always 10
+}
 
 export interface Inventory {
   gold: number;
@@ -46,6 +89,10 @@ export interface Inventory {
    * inventories (and tests) that omit it read as zero.
    */
   goldenBeans?: number;
+  /** Tools owned by this farmer. One entry per tool owned (can stack same kind+tier). */
+  tools?: Tool[];
+  /** Watering can state. Optional so pre-tool saves read as full can. */
+  wateringCan?: WateringCan;
 }
 
 export interface Plot {
@@ -57,7 +104,15 @@ export interface Plot {
 }
 
 export type PlotState =
-  | { kind: "empty" }
+  | {
+      kind: "empty";
+      /**
+       * Days since the plot was last tended (planted or watered). When this
+       * exceeds PLOT_DECAY_DAYS the plot reverts to green (entity removed).
+       * Optional/defaulted to 0 so existing empty plots start fresh.
+       */
+      daysSinceTended?: number;
+    }
   | {
       kind: "planted";
       crop: CropKind;
@@ -96,6 +151,77 @@ export interface MarketWallTag {
 export interface ShopkeeperTag {
   readonly isShopkeeper: true;
   dailySlate?: readonly import("./agents/shop-slate").ShopOffer[];
+}
+
+/** Tags a fountain entity on a farm — used for watering can refill. */
+export interface FountainTag {
+  readonly isFountain: true;
+  /** The farm region this fountain serves. */
+  regionId: RegionId;
+}
+
+export type TileFeatureKind = "tree" | "stone";
+
+/** A tree or stone tile on a farm's non-plot green area. */
+export interface TileFeature {
+  kind: TileFeatureKind;
+  tileX: number;
+  tileY: number;
+  regionId: RegionId;
+  /** Owner farm id (for pathfinding — farmers only chop/mine on their own farm). */
+  ownerId: number;
+}
+
+/** Days without tending before an empty plot reverts to green. */
+export const PLOT_DECAY_DAYS = 5;
+
+/** Tags the blacksmith entity in the forge region. */
+export interface BlacksmithTag {
+  readonly isBlacksmith: true;
+}
+
+/** Tags the carpenter NPC entity in the carpentry region. */
+export interface CarpenterTag {
+  readonly isCarpenter: true;
+}
+
+/** Tags a farmhouse / home entity — the farmer returns here to sleep. */
+export interface HomeTag {
+  readonly isHome: true;
+  regionId: RegionId;
+  ownerId: number;
+}
+
+/** Resources a farmer can hold from chopping/mining. */
+export interface ResourceInventory {
+  wood: number;
+  stone: number;
+  ironOre: number;
+  geodes: number;
+}
+
+// ── Decoration system ────────────────────────────────────────────────────────
+
+export type DecorationKind = "scarecrow" | "windmill" | "flower-bed" | "fence-art";
+
+/** Wood cost and yield multiplier for each decoration type. */
+export const DECORATION_RECIPE: Record<DecorationKind, { woodCost: number; yieldBoost: number }> = {
+  "scarecrow":   { woodCost: 3,  yieldBoost: 0.10 }, // +10% yield
+  "flower-bed":  { woodCost: 5,  yieldBoost: 0.15 }, // +15% yield
+  "fence-art":   { woodCost: 8,  yieldBoost: 0.20 }, // +20% yield
+  "windmill":    { woodCost: 12, yieldBoost: 0.30 }, // +30% yield
+};
+
+/** Maximum stacked yield boost from all decorations on one farm (caps at +75%). */
+export const MAX_DECORATION_BOOST = 0.75;
+
+/** A placed farm decoration — attached to a tile, boosts crop yield for the whole farm. */
+export interface FarmDecoration {
+  kind: DecorationKind;
+  tileX: number;
+  tileY: number;
+  regionId: RegionId;
+  ownerId: number;
 }
 
 export interface WeatherStation {
@@ -179,6 +305,13 @@ export interface GameEntity {
   ap?: ActionPoints;
   marketWall?: MarketWallTag;
   shopkeeper?: ShopkeeperTag;
+  fountain?: FountainTag;
+  tileFeature?: TileFeature;
+  blacksmith?: BlacksmithTag;
+  carpenter?: CarpenterTag;
+  home?: HomeTag;
+  farmDecoration?: FarmDecoration;
+  resources?: ResourceInventory;
   weatherStation?: WeatherStation;
   trust?: TrustScores;
   /** brief 19 — last 1-3 one-line decision reasons (game-side, observer "why"). */

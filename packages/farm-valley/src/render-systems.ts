@@ -7,6 +7,7 @@ import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
   REGIONS,
+  TOWN_SQUARE,
   regionAt,
   isWalkable,
 } from "./world/regions";
@@ -43,18 +44,33 @@ export function pickFarmerFrame(entity: GameEntity, tick: number): string {
 
 /**
  * Decide which background frame (if any) a tile gets.
- * - void (non-walkable) → null: emit nothing (the canvas clear color is the void)
- * - walkable && region === null → road tile ("tile/path")
- * - region.id starts with "farm-" → "tile/grass"
- * - region.id === "village" → "tile/dirt" (cobblestone-ish)
+ * - void (non-walkable) → null
+ * - road only (no region) → "tile/path"
+ * - farm-* → "tile/grass"
+ * - village inner square (TOWN_SQUARE) → "tile/market-floor" (decorative stone)
+ * - village outer → "tile/dirt"
+ * - blacksmith → "tile/forge-floor" (dark stone with heat cracks)
+ * - carpentry → "tile/wood-plank"
+ * - resource-zone → "tile/grass" (same as farms — they're green areas)
  */
 function backdropFrame(tx: number, ty: number): string | null {
   if (!isWalkable(tx, ty)) return null;
   const region = regionAt(tx, ty);
   if (region === null) return "tile/path";
-  if (region === "village") return "tile/dirt";
   if (region.startsWith("farm-")) return "tile/grass";
-  return null;
+  if (region === "blacksmith") return "tile/forge-floor";
+  if (region === "carpentry") return "tile/wood-plank";
+  if (region === "forest-north" || region === "forest-south") return "tile/grass";
+  if (region === "quarry-north" || region === "quarry-south") return "tile/quarry-floor";
+  if (region === "village") {
+    // Market square gets the decorative floor; outer village stays cobblestone
+    if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&
+        ty >= TOWN_SQUARE.minY && ty <= TOWN_SQUARE.maxY) {
+      return "tile/market-floor";
+    }
+    return "tile/dirt";
+  }
+  return "tile/dirt"; // fallback for any future region
 }
 
 interface FenceTile {
@@ -318,6 +334,32 @@ function* iterateMeetIndicators(
   }
 }
 
+// Actions that trigger the bent-over work pose.
+const WORK_ACTIONS = new Set(["plant", "harvest", "water", "till"]);
+
+/**
+ * Pick the final atlas frame for a snapshot sprite, applying:
+ *  - work pose when the farmer's current intention is planting/harvesting/watering
+ *  - idle bob offset (returned separately as `bobY`) when standing still
+ */
+function resolveFrameAndBob(
+  s: import("./worker/snapshot").SnapshotSprite,
+  nowMs: number,
+): { frame: string; bobY: number } {
+  if (s.id === null) return { frame: s.frame, bobY: 0 };
+
+  // Work pose: replace the base idle frame with the /work variant.
+  if (s.action !== null && WORK_ACTIONS.has(s.action)) {
+    const workFrame = s.frame.replace(/\/walk-[ab]$/, "") + "/work";
+    return { frame: workFrame, bobY: 0 };
+  }
+
+  // Idle bob: 1.5px vertical sine oscillation (each farmer offset by id).
+  const isWalking = s.frame.endsWith("/walk-a") || s.frame.endsWith("/walk-b");
+  const bobY = isWalking ? 0 : Math.sin(nowMs / 600 + (s.id ?? 0) * 1.3) * 1.5;
+  return { frame: s.frame, bobY };
+}
+
 /**
  * Push snapshot sprites (dynamic layer from the sim worker) into the renderer.
  * Each SnapshotSprite is already in pixel space and has alpha pre-computed.
@@ -335,15 +377,21 @@ export function pushSnapshotSprites(
   meets: import("./worker/snapshot").SnapshotMeet[],
   farmerPositions: Map<number, { x: number; y: number }>,
   focusedFarmerId: number | null,
+  nowMs: number = 0,
 ): void {
-  // Sprites
+  // Sprites + ground drop-shadows for characters (sprites with an entity id).
   for (const s of sprites) {
+    const { frame, bobY } = resolveFrameAndBob(s, nowMs);
+    // Shadow: small ellipse at feet (bottom edge of sprite), drawn under all sprites.
+    if (s.id !== null) {
+      renderer.pushShadow(s.x, s.y + TILE * 0.35, TILE * 0.32, TILE * 0.12, 0.45);
+    }
     renderer.push({
       x: s.x,
-      y: s.y,
+      y: s.y + bobY,
       width: TILE,
       height: TILE,
-      frame: s.frame,
+      frame,
       rotation: s.rotation,
       layer: s.layer,
       alpha: s.alpha,

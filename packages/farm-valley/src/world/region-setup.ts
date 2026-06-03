@@ -2,6 +2,14 @@ import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
 import { REGIONS, type RegionId, type RegionDef } from "./regions";
 
+/** Fountain is placed at the top-left corner of each farm (minX+1, minY+1). */
+function fountainTile(bounds: RegionDef["bounds"]): { x: number; y: number } {
+  return { x: bounds.minX + 1, y: bounds.minY + 1 };
+}
+
+/** Blacksmith NPC tile within the blacksmith region. */
+const BLACKSMITH_TILE = { x: 33, y: 32 } as const;
+
 /** Village tile where the market wall lives. */
 const MARKET_WALL_TILE = { x: 16, y: 16 } as const;
 /** Village tile where the shopkeeper stands. */
@@ -18,6 +26,7 @@ const PERSONALITY_TO_REGION: Record<string, RegionId> = {
 export interface SetupRegionsResult {
   regionEntities: Map<RegionId, GameEntity>;
   plotEntities: GameEntity[];
+  fountainEntities: GameEntity[];
 }
 
 /**
@@ -37,6 +46,7 @@ export function setupRegions(
 ): SetupRegionsResult {
   const regionEntities = new Map<RegionId, GameEntity>();
   const plotEntities: GameEntity[] = [];
+  const fountainEntities: GameEntity[] = [];
 
   // Assign farmers to regions by personality.
   const farmerByRegion = new Map<RegionId, GameEntity>();
@@ -92,6 +102,54 @@ export function setupRegions(
           plotEntities.push(plot);
         }
       }
+
+      // Fountain at top-left corner of the farm.
+      const ft = fountainTile(def.bounds);
+      const fountain = world.spawn({
+        transform: { x: ft.x, y: ft.y, prevX: ft.x, prevY: ft.y, rotation: 0 },
+        sprite: { atlasId: "main", frame: "structure/fountain", layer: 40, tintRgba: 0xffffffff },
+        fountain: { isFountain: true, regionId: def.id as RegionId },
+      });
+      fountainEntities.push(fountain);
+
+      // Home (farmhouse) at bottom-right corner of the farm.
+      if (ownerId !== undefined) {
+        const hx = def.bounds.maxX - 1;
+        const hy = def.bounds.maxY - 1;
+        world.spawn({
+          transform: { x: hx, y: hy, prevX: hx, prevY: hy, rotation: 0 },
+          sprite: { atlasId: "main", frame: "structure/home", layer: 40, tintRgba: 0xffffffff },
+          home: { isHome: true, regionId: def.id as RegionId, ownerId },
+        });
+      }
+    }
+
+    // Blacksmith NPC entity.
+    if (def.id === "blacksmith") {
+      world.spawn({
+        transform: {
+          x: BLACKSMITH_TILE.x,
+          y: BLACKSMITH_TILE.y,
+          prevX: BLACKSMITH_TILE.x,
+          prevY: BLACKSMITH_TILE.y,
+          rotation: 0,
+        },
+        sprite: { atlasId: "main", frame: "structure/blacksmith", layer: 50, tintRgba: 0xffffffff },
+        blacksmith: { isBlacksmith: true },
+        inbox: { messages: [] },
+      });
+    }
+
+    // Carpenter NPC entity.
+    if (def.id === "carpentry") {
+      const cx = def.center.x;
+      const cy = def.center.y;
+      world.spawn({
+        transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
+        sprite: { atlasId: "main", frame: "structure/carpenter", layer: 50, tintRgba: 0xffffffff },
+        carpenter: { isCarpenter: true },
+        inbox: { messages: [] },
+      });
     }
   }
 
@@ -158,5 +216,5 @@ export function setupRegions(
     });
   }
 
-  return { regionEntities, plotEntities };
+  return { regionEntities, plotEntities, fountainEntities };
 }

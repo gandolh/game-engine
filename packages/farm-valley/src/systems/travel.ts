@@ -11,8 +11,9 @@ import { getRegion, regionAt, type RegionId } from "../world/regions";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
 import { PERFORMATIVE } from "../protocols/performatives";
 
-/** Ticks spent on each waypoint before stepping. 5 ticks @ 20Hz = 4 tiles/sec. */
-export const STEP_TICKS = 5;
+/** Ticks spent on each waypoint before stepping. 8 ticks @ 20Hz = 2.5 tiles/sec.
+ *  Slower than before — walking is visually clear and takes meaningful time. */
+export const STEP_TICKS = 8;
 
 /**
  * Moves farmers tile-by-tile along WASM-pathfinder routes between regions.

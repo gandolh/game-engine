@@ -31,6 +31,12 @@ export interface SnapshotSprite {
   alpha: number;
   /** True for farmer entities — main thread interpolates these against prev. */
   interpolate: boolean;
+  /**
+   * Current farmer action (from intentions queue head) — used by the main
+   * thread to pick the work-pose frame or idle-bob offset.
+   * null for non-farmer sprites.
+   */
+  action: string | null;
 }
 
 /** Active MEET indicator for a farmer this tick. */
@@ -101,6 +107,8 @@ export interface WorkerInitMsg {
   ticksPerDay: number;
   maxDays: number;
   tickRateHz: number;
+  /** Raw bytes of pathfinding.wasm — worker instantiates its own Pathfinder. */
+  pathfinderWasm?: ArrayBuffer;
 }
 
 /** main → worker: stop ticking. */

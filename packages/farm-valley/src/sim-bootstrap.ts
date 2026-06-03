@@ -11,6 +11,7 @@ import { setupFarmer, setupWorldRegions, type FarmerSpec } from "./world-setup";
 import { buildWalkableGrid } from "./world/walkable-grid";
 import { DayClockSystem } from "./systems/day-clock";
 import { ShockSystem, defaultShockDay } from "./systems/shock";
+import { TileFeatureSystem } from "./systems/tile-features";
 import { InboxDispatchSystem } from "./systems/inbox-dispatch";
 import { PerceiveSystem } from "./systems/perceive";
 import { TrustSystem } from "./systems/trust";
@@ -154,6 +155,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(eventFeed)
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
+    .add(new TileFeatureSystem(world, rng, bus))
     .add(new HarvestSystem(world))
     // brief 29 — surface owned-plot watering needs into beliefs before agents
     // deliberate, so survival-reflex watering can be queued.

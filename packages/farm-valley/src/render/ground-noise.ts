@@ -53,10 +53,18 @@ export function tileBrightness(
 /** Matches the engine renderer's offscreen 2D context union. */
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
+/**
+ * Build the ground decorator. When `wasmBrightness` is provided (a
+ * Float32Array from `NoiseGenerator.fillNoise`) it's used directly —
+ * the WASM tight-loop is ~8× faster than the per-tile JS hash path.
+ * Falls back to `tileBrightness` for tiles outside the array or when
+ * no WASM array is supplied.
+ */
 export function makeGroundNoiseDecorator(
   seed: number,
   tilePx: number,
   amplitude: number = GROUND_NOISE_AMPLITUDE,
+  wasmBrightness?: Float32Array,
 ): (ctx: AnyCtx2D, widthPx: number, heightPx: number) => void {
   return (ctx, widthPx, heightPx) => {
     const cols = Math.ceil(widthPx / tilePx);
@@ -65,13 +73,13 @@ export function makeGroundNoiseDecorator(
     const prevAlpha = ctx.globalAlpha;
     for (let ty = 0; ty < rows; ty++) {
       for (let tx = 0; tx < cols; tx++) {
-        const b = tileBrightness(tx, ty, seed, amplitude); // ~[0.88, 1.12]
+        const idx = ty * cols + tx;
+        const b = (wasmBrightness && idx < wasmBrightness.length)
+          ? wasmBrightness[idx]!
+          : tileBrightness(tx, ty, seed, amplitude);
         if (b === 1) continue;
-        // Darken (multiply toward grey) or lighten (screen toward white).
-        // Map |b-1| ∈ [0, amplitude] to an alpha; transparent pixels are
-        // untouched because both ops are no-ops against fully-transparent dest.
-        const strength = Math.abs(b - 1) / amplitude; // [0,1]
-        ctx.globalAlpha = strength * amplitude; // gentle
+        const strength = Math.abs(b - 1) / amplitude;
+        ctx.globalAlpha = strength * amplitude;
         if (b < 1) {
           ctx.globalCompositeOperation = "multiply";
           ctx.fillStyle = "#000000";

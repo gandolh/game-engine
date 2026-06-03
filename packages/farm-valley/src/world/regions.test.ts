@@ -33,17 +33,19 @@ describe('regionAt', () => {
   });
 
   it('returns null for void tiles', () => {
-    // Top-left corner is void
-    expect(regionAt(0, 0)).toBeNull();
-    // Between north farm and village (row 12-13) but outside road x-range
-    expect(regionAt(13, 12)).toBeNull();
-    expect(regionAt(22, 12)).toBeNull();
-    // Between east farm and village but outside road y-range
-    expect(regionAt(26, 14)).toBeNull();
-    // Bottom-right corner is void
-    expect(regionAt(39, 39)).toBeNull();
-    // Between farms that have no direct road
-    expect(regionAt(27, 27)).toBeNull();
+    expect(regionAt(12,  0)).toBeNull();  // NW gap: between carpentry (0-9) and Cora (14-25)
+    expect(regionAt(13,  0)).toBeNull();  // same gap, adjacent tile
+    expect(regionAt(34,  3)).toBeNull();  // 1-tile gap between forest-north (26-33) and quarry-north (35-39)
+    expect(regionAt(26, 13)).toBeNull();  // road area south of forest-north, but outside road segments
+    expect(regionAt(12, 26)).toBeNull();  // SW gap: east of forest-south (0-7), west of S road (18-21)
+    expect(regionAt(13, 12)).toBeNull();  // south of Cora, outside road x-range
+    expect(regionAt(26, 14)).toBeNull();  // between village and Atticus, outside road y-range
+  });
+
+  it('returns "blacksmith" for tiles inside the blacksmith region', () => {
+    expect(regionAt(30, 30)).toBe('blacksmith');
+    expect(regionAt(33, 32)).toBe('blacksmith'); // NPC tile
+    expect(regionAt(39, 39)).toBe('blacksmith');
   });
 
   it('returns null for road tiles (roads are walkable but not a named region)', () => {
@@ -75,9 +77,21 @@ describe('isWalkable', () => {
   });
 
   it('is NOT walkable for void tiles', () => {
-    expect(isWalkable(0, 0)).toBe(false);
-    expect(isWalkable(39, 39)).toBe(false);
-    expect(isWalkable(13, 12)).toBe(false);
+    expect(isWalkable(12,  0)).toBe(false); // NW gap between carpentry and Cora
+    expect(isWalkable(34,  3)).toBe(false); // gap between forest-north and quarry-north
+    expect(isWalkable(12, 26)).toBe(false); // SW gap east of forest-south
+    expect(isWalkable(13,  6)).toBe(false); // NW gap: west of Cora (col 14), south of carpentry (row 9)
+  });
+
+  it('is walkable for blacksmith region tiles', () => {
+    expect(isWalkable(33, 32)).toBe(true);  // blacksmith NPC tile
+    expect(isWalkable(39, 39)).toBe(true);  // blacksmith corner
+  });
+
+  it('is walkable for L-bridge road tiles', () => {
+    expect(isWalkable(27, 25)).toBe(true);  // vertical leg
+    expect(isWalkable(27, 29)).toBe(true);  // vertical leg bottom / horizontal leg overlap
+    expect(isWalkable(28, 28)).toBe(true);  // horizontal leg
   });
 
   it('isWalkable matches regionAt !== null for region tiles', () => {
