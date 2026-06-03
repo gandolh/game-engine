@@ -58,15 +58,16 @@ _Empty — no engine briefs queued._
 - [briefs/game/done/22-seasons-weather-arcs.md](briefs/game/done/22-seasons-weather-arcs.md) — 4×25-day seasons biasing weather + yields
 - [briefs/game/done/23-fifth-personality-or-shock.md](briefs/game/done/23-fifth-personality-or-shock.md) — **done** (Direction B): one-time mid-game blight shock, deterministic, on-by-default
 
+##### Shipped 2026-06-03 (grilling-session batch — see [log.md](log.md))
+
+- [briefs/game/done/24-auction-bidding-golden-bean.md](briefs/game/done/24-auction-bidding-golden-bean.md) — agents bid; golden bean = rare/high-resale/giftable good (fixed the "no winner" dead feature)
+- [briefs/game/done/25-panel-overlap-fix.md](briefs/game/done/25-panel-overlap-fix.md) — observer + activity feed share a right-column flex container
+- [briefs/game/done/26-day-night-seasonal-grading.md](briefs/game/done/26-day-night-seasonal-grading.md) — **3a** render-side day/night + seasonal color wash (tick-synced)
+- [briefs/game/done/27-long-days-intraday-timeline.md](briefs/game/done/27-long-days-intraday-timeline.md) — **3b** long days (ticksPerDay 1200); phased intra-day agent timeline + sleep; macro-economy stays day-denominated
+- [briefs/game/done/28-ap-economy-rework.md](briefs/game/done/28-ap-economy-rework.md) — **3c** AP max 100 (+2/day), sleep-gated, free travel, tiered friend discounts, new cost table
+- [briefs/game/done/29-irrigation-crop-death.md](briefs/game/done/29-irrigation-crop-death.md) — **3d** watering required; grace-windowed dryness; rain auto-waters; crops die from neglect
+- [briefs/game/done/30-procedural-ground-texture.md](briefs/game/done/30-procedural-ground-texture.md) — subtle per-tile value-noise on the baked static layer
+
 #### Game — todo
 
-Filed 2026-06-03 (grilling session — see [log.md](log.md)). Dependency chain: 24 & 25 independent; **26 ships with 27**; **27 → 28 → 29**; 30 & 31 independent.
-
-- [briefs/game/todo/24-auction-bidding-golden-bean.md](briefs/game/todo/24-auction-bidding-golden-bean.md) — make agents bid; golden bean = rare/high-resale/giftable good (fixes "no winner" dead feature)
-- [briefs/game/todo/25-panel-overlap-fix.md](briefs/game/todo/25-panel-overlap-fix.md) — observer + activity feed share a right-column flex container (no more overlap)
-- [briefs/game/todo/26-day-night-seasonal-grading.md](briefs/game/todo/26-day-night-seasonal-grading.md) — **3a** render-side day/night + seasonal color wash (tick-synced; ships with 27)
-- [briefs/game/todo/27-long-days-intraday-timeline.md](briefs/game/todo/27-long-days-intraday-timeline.md) — **3b** 1 day = 5 min; phased intra-day agent timeline + sleep; macro-economy stays day-denominated
-- [briefs/game/todo/28-ap-economy-rework.md](briefs/game/todo/28-ap-economy-rework.md) — **3c** AP max 100 (+2/day), sleep-gated, free travel, tiered friend discounts, new cost table
-- [briefs/game/todo/29-irrigation-crop-death.md](briefs/game/todo/29-irrigation-crop-death.md) — **3d** watering required; grace-windowed dryness; rain auto-waters; crops die from neglect
-- [briefs/game/todo/30-procedural-ground-texture.md](briefs/game/todo/30-procedural-ground-texture.md) — subtle per-tile value-noise on the baked static layer (kills the flat look)
-- [briefs/game/todo/31-corpus-index-sync.md](briefs/game/todo/31-corpus-index-sync.md) — this sync brief (fix stale index + register 24–31)
+- [briefs/game/todo/31-corpus-index-sync.md](briefs/game/todo/31-corpus-index-sync.md) — corpus sync brief (this update applies it; can move to done once committed)

@@ -2,6 +2,27 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-03] impl | Briefs 24–30 implemented + merged to main; corpus synced
+
+All 7 implementation briefs from the grilling session shipped — built inline one at a time (opus), each tested + verified live with Playwright + headless probes, committed individually, then merged to `main` (`--no-ff`, "Merge briefs 24-30"). Brief 31 is this corpus sync.
+
+**Final state:** 489 tests pass (398 farm-valley + 91 engine); typecheck clean across all workspaces; determinism MATCHes across seeds 0xc0ffee/1/42 at the live `ticksPerDay=1200`.
+
+Per brief (commit → result):
+- **24** auction bidding + golden bean — agents bid (per-personality valuation, Vickrey tie-break hardened), bean resells ×3 / gifts for +0.20 trust. Auction duration scaled (×1.5/day) so day-gated agents get a cycle to bid. Live: 20/20 auctions win, 0 no-winner.
+- **25** panel overlap — observer + activity feed in a shared fixed right-column flex container.
+- **30** ground texture — per-tile value-noise baked into the static layer (engine `bakeStaticLayer(...,decorate?)` hook); seed-deterministic.
+- **27** long days — `ticksPerDay` default 20→**1200** (not 6000; that's the documented run-hash-selectable target). Intra-day phases (`PHASE_START`) drive the FSM, new `SLEEP` state, AP refill on morning wake. Final gold IDENTICAL at 20 vs 1200 — macro-economy stayed day-denominated.
+- **28** AP economy — `maxApForDay=100+2·day`, sleep-gated (½ unrested), free travel, tiered friend discount, new cost table; fixed `sell-from-wall` cost-0 bug.
+- **29** irrigation & crop death — `daysSinceWater` + 2-day grace, rain auto-waters, `CROP_DEATH` event; survival-reflex watering (new `PlotSenseSystem` + `agents/watering.ts`). Agents keep crops alive → ~0 deaths in practice (death unit-tested).
+- **26** day/night grading — tick-synced sun curve + seasonal palette wash via engine `endFrame(wash?)`; render-only, sim untouched.
+
+**Two latent bugs fixed in passing:** `EncounterTradeSystem` was never registered after the Worker migration (peer trades + bean gifts were dead live) — now wired in; and `sell-from-wall` silently cost 0 AP.
+
+**Deltas from the specs:** day = 1 min not 5 (watchability/CI; 6000 documented); the warned-of "intra-day rebalancing" did NOT happen (day stayed the economic unit, survival reflexes keep agents productive); crop death rarely fires in normal play (reflex is effective).
+
+Corpus: moved briefs 24–30 `todo/`→`done/`; updated status.md (Now-in-todo → Shipped 2026-06-03 with as-shipped notes + deltas; brief-21 row marked resolved-by-24), open-questions.md (auction gap + the redesign questions → Resolved), index.md (24–30 under a "Shipped" subsection, only 31 left in todo). Not pushed to origin.
+
 ## [2026-06-03] briefs | Grilling session — 8 new todo briefs (24–31); auctions found dead-on-field, day/night idea expanded into a long-day gameplay redesign
 
 Reviewed project status, ran the app under Playwright (full 100-day run, seed `0xc0ffee`), researched whether [The Book of Shaders](https://thebookofshaders.com/) fits, then stress-tested 5 improvement ideas via a grilling pass. The 5 grew to 8 briefs as one idea unfolded.
