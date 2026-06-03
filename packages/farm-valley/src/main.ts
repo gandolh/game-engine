@@ -32,7 +32,10 @@ interface BootConfig {
 const CONFIG: BootConfig = {
   seed: 0xc0ffee,
   tickRateHz: 20,
-  ticksPerDay: 20,
+  // brief 27 — long days. 1200 ticks @ 20Hz = 1 real minute/day (watchable;
+  // a 100-day run is ~100 min @ 1×). The Stardew target is 6000 (5 min/day);
+  // it's selectable via the run hash (RunDescriptor carries ticksPerDay).
+  ticksPerDay: 1200,
   maxDays: 100,
 };
 

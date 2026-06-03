@@ -5,6 +5,8 @@ export const ONT_SIMULATION = {
   REGISTER: "register",
   /** A one-time mid-game shock event (e.g. blight). Broadcast when it fires. */
   SHOCK: "shock",
+  /** brief 27 — start of an intra-day phase (morning/work/evening/night). */
+  PHASE_START: "phase-start",
 } as const;
 
 export type ShockKind = "blight";
@@ -14,6 +16,12 @@ export type SimulationOntology = (typeof ONT_SIMULATION)[keyof typeof ONT_SIMULA
 export interface DayStartBody {
   day: number;
   daysRemaining: number;
+}
+
+/** brief 27 — emitted at each intra-day phase boundary. */
+export interface PhaseStartBody {
+  day: number;
+  phase: "morning" | "work" | "evening" | "night";
 }
 
 export interface DayEndBody {

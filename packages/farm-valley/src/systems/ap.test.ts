@@ -166,52 +166,34 @@ describe("ApSystem", () => {
     });
   });
 
-  describe("penalty next day", () => {
-    it("resets AP to penaltyCapacity next day if penaltyPending was set", () => {
-      // Simulate: farmer in ACT state, will get penalty
+  // brief 27 — AP refill / away-reset / penalty handling MOVED out of ApSystem
+  // (it used to fire on WAIT_DAY) into the morning PHASE_START wake in
+  // PerceiveSystem, because with the intra-day timeline FINISH_DAY→WAIT_DAY
+  // happens once per phase. ApSystem now only prunes + deducts during ACT and
+  // marks `away` / `unrested` for the morning wake to consume. These tests
+  // pin that ApSystem no longer mutates AP on WAIT_DAY; the rested/unrested
+  // refill itself is covered in perceive.test.ts.
+  describe("no longer refills on WAIT_DAY (brief 27)", () => {
+    it("leaves AP untouched in WAIT_DAY even when penaltyPending was set", () => {
       const farmer = spawnFarmer(world, 2, 8, [{ kind: "travel", priority: 1 }]);
-      system.run(makeContext(0)); // ACT phase: sets penaltyPending
-
+      system.run(makeContext(0)); // ACT: travel keeps away, AP→0, penaltyPending
+      expect(farmer.ap!.away).toBe(true);
       expect(farmer.ap!.penaltyPending).toBe(true);
 
-      // Simulate FinishDaySystem running: resets to max
-      farmer.ap!.current = farmer.ap!.max; // as FinishDaySystem does
-      farmer.fsm!.current = "WAIT_DAY";    // as FinishDaySystem does
-
-      // ApSystem runs again: should apply penalty
-      system.run(makeContext(1));
-
-      expect(farmer.ap!.current).toBe(farmer.ap!.penaltyCapacity);
-      expect(farmer.ap!.penaltyPending).toBe(false);
-    });
-
-    it("resets AP to full max next day if no penalty", () => {
-      // Normal day: plant, no travel, AP > 0 after
-      const farmer = spawnFarmer(world, 8, 8, [{ kind: "plant", priority: 1 }]);
-      system.run(makeContext(0));
-
-      // Simulate FinishDaySystem
-      farmer.ap!.current = farmer.ap!.max;
+      const before = farmer.ap!.current;
       farmer.fsm!.current = "WAIT_DAY";
-
       system.run(makeContext(1));
 
-      // No penalty: AP stays at max (ApSystem doesn't touch it when no penaltyPending)
-      expect(farmer.ap!.current).toBe(farmer.ap!.max);
-      expect(farmer.ap!.penaltyPending).toBe(false);
+      // ApSystem must NOT refill or reset anything on WAIT_DAY anymore.
+      expect(farmer.ap!.current).toBe(before);
+      expect(farmer.ap!.away).toBe(true);
+      expect(farmer.ap!.penaltyPending).toBe(true);
     });
 
-    it("resets away flag at WAIT_DAY transition", () => {
+    it("marks away during ACT when a travel intent is kept", () => {
       const farmer = spawnFarmer(world, 8, 8, [{ kind: "travel", priority: 1 }]);
       system.run(makeContext(0));
       expect(farmer.ap!.away).toBe(true);
-
-      // Simulate FinishDaySystem
-      farmer.ap!.current = farmer.ap!.max;
-      farmer.fsm!.current = "WAIT_DAY";
-
-      system.run(makeContext(1));
-      expect(farmer.ap!.away).toBe(false);
     });
   });
 

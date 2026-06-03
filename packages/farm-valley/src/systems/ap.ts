@@ -54,22 +54,15 @@ export class ApSystem implements System {
     const farmers = this.world.query("fsm", "ap", "intentions");
 
     for (const farmer of farmers) {
-      // --- Phase 1: Pre-ACT intent pruning ---
+      // --- Pre-ACT intent pruning ---
       // Run before ActSystem: drop low-priority intents if AP insufficient.
+      // brief 27 — AP is a daily budget refilled at the morning PHASE_START
+      // (PerceiveSystem), NOT here. The old WAIT_DAY refill/penalty block was
+      // removed: with the intra-day timeline, FINISH_DAY→WAIT_DAY happens once
+      // per phase, so any refill keyed on WAIT_DAY would top up every phase.
+      // The rested/unrested halving now lives in the morning wake.
       if (farmer.fsm.current === "ACT") {
         this.pruneAndDeductAp(farmer);
-      }
-
-      // --- Phase 2: Post-FINISH_DAY penalty reset ---
-      // FinishDaySystem has already run and set ap.current = ap.max.
-      // If penaltyPending was set, overwrite with penaltyCapacity.
-      if (farmer.fsm.current === "WAIT_DAY") {
-        if (farmer.ap.penaltyPending) {
-          farmer.ap.current = farmer.ap.penaltyCapacity;
-          farmer.ap.penaltyPending = false;
-        }
-        // Reset away flag at start of each new day
-        farmer.ap.away = false;
       }
     }
   }

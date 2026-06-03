@@ -5,6 +5,7 @@ export { ONT_SIMULATION } from "./simulation";
 export type {
   SimulationOntology,
   DayStartBody,
+  PhaseStartBody,
   DayEndBody,
   StateUpdateBody,
   ShockBody,

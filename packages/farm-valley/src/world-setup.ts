@@ -39,7 +39,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
     intentions: { queue: [] },
     personality: { kind: spec.personality },
     inbox: { messages: [] },
-    farmer: { name: spec.name, currentRegion: initialRegion },
+    farmer: { name: spec.name, currentRegion: initialRegion, homeRegion: initialRegion },
     inventory: {
       gold: spec.startGold,
       crops: { ...ZERO_CROPS },

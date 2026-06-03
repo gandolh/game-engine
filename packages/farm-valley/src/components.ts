@@ -15,11 +15,16 @@ export type FarmerFsmState =
   | "PERCEIVE"
   | "DELIBERATE"
   | "ACT"
-  | "FINISH_DAY";
+  | "FINISH_DAY"
+  // brief 27 — night sleep node. A farmer that reached home enters SLEEP for
+  // the night phase (rested); one caught away is flagged unrested.
+  | "SLEEP";
 
 export interface Farmer {
   name: string;
   currentRegion: RegionId;
+  /** brief 27 — the farmer's own farm region; "home" for the sleep check. */
+  homeRegion?: RegionId;
   path?: {
     waypoints: ReadonlyArray<{ x: number; y: number }>;
     nextIndex: number;       // index of the next waypoint to step onto
@@ -67,6 +72,12 @@ export interface ActionPoints {
   penaltyPending: boolean;
   penaltyCapacity: number;
   away: boolean;
+  /**
+   * brief 27 — set true when the farmer was NOT home at nightfall (caught away
+   * during the night phase). Consumed at the next day's AP refill to halve the
+   * starting AP (the "sleep in your own bed" rule). Cleared on a rested wake.
+   */
+  unrested?: boolean;
 }
 
 export interface MarketWallTag {

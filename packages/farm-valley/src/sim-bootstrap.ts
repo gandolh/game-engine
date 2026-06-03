@@ -107,7 +107,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   }
 
   const weatherFeature = setupWeatherFeature(world, bus, rng);
-  const marketShop = setupMarketShopFeature(world, bus, rng);
+  const marketShop = setupMarketShopFeature(world, bus, rng, opts.ticksPerDay);
 
   // After market-wall + shopkeeper entities exist, lay out the regions —
   // setupWorldRegions both spawns farm plots (3×3 per farm) and decorates

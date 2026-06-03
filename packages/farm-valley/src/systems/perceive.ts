@@ -1,11 +1,16 @@
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../components";
-import { ONT_SIMULATION, type DayStartBody } from "../protocols";
+import {
+  ONT_SIMULATION,
+  type DayStartBody,
+  type PhaseStartBody,
+} from "../protocols";
 import {
   ONT_SHOP,
   type AuctionCfpBody,
   type AuctionResultBody,
 } from "../protocols/shop";
+import { isActivePhase, isNightPhase } from "./day-phase";
 
 export class PerceiveSystem implements System {
   readonly name = "PerceiveSystem";
@@ -21,9 +26,10 @@ export class PerceiveSystem implements System {
           farmer.beliefs.data.currentDay = body.day;
           farmer.beliefs.data.daysRemaining = body.daysRemaining;
           farmer.beliefs.revision += 1;
-          if (farmer.fsm.current === "WAIT_DAY") {
-            farmer.fsm.current = "PERCEIVE";
-          }
+          // brief 27 — the morning PHASE_START (same tick) drives the first
+          // deliberation; DAY_START no longer flips the FSM by itself.
+        } else if (msg.ontology === ONT_SIMULATION.PHASE_START) {
+          this.handlePhaseStart(farmer, msg.body as unknown as PhaseStartBody);
         } else if (msg.ontology === ONT_SHOP.AUCTION_CFP) {
           // brief 24 — surface the open auction into beliefs so the deliberate*
           // fns can decide whether to bid. Stored as the live CFP; cleared on
@@ -50,6 +56,49 @@ export class PerceiveSystem implements System {
         farmer.beliefs.revision += 1;
       }
       farmer.inbox.messages.length = 0;
+    }
+  }
+
+  /**
+   * brief 27 — drive the intra-day FSM off phase boundaries.
+   *   morning  → refill AP (rested=max, unrested=half), then deliberate.
+   *   work/evening → deliberate again (AP carries across phases; no refill).
+   *   night → sleep; flag unrested if the farmer isn't home.
+   * Only re-arms deliberation from a settled state (WAIT_DAY/SLEEP) so a
+   * mid-cycle farmer isn't interrupted.
+   */
+  private handlePhaseStart(farmer: GameEntity, body: PhaseStartBody): void {
+    if (!farmer.beliefs || !farmer.fsm) return;
+    farmer.beliefs.data.phase = body.phase;
+    farmer.beliefs.revision += 1;
+    const settled = farmer.fsm.current === "WAIT_DAY" || farmer.fsm.current === "SLEEP";
+
+    if (body.phase === "morning") {
+      // New day's first activity: wake + refill the daily AP budget.
+      if (farmer.ap) {
+        const rested = farmer.ap.unrested !== true;
+        farmer.ap.current = rested ? farmer.ap.max : Math.floor(farmer.ap.max / 2);
+        farmer.ap.unrested = false;
+        farmer.ap.away = false;
+        farmer.ap.penaltyPending = false;
+      }
+      if (settled) farmer.fsm.current = "PERCEIVE";
+      return;
+    }
+
+    if (isNightPhase(body.phase)) {
+      // Nightfall: sleep. Home → rested; away → unrested (halves tomorrow's AP).
+      const home =
+        farmer.farmer?.homeRegion !== undefined &&
+        farmer.farmer.currentRegion === farmer.farmer.homeRegion &&
+        farmer.farmer.path === undefined;
+      if (farmer.ap) farmer.ap.unrested = !home;
+      if (settled) farmer.fsm.current = "SLEEP";
+      return;
+    }
+
+    if (isActivePhase(body.phase) && settled) {
+      farmer.fsm.current = "PERCEIVE";
     }
   }
 }
