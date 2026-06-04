@@ -1,65 +1,89 @@
 {
   "id": "main",
   "imageUrl": "/atlas/main.png",
-  "width": 256,
+  "width": 128,
   "height": 256,
   "frames": {
-    "tile/grass": {
+    "tile/shore": {
       "x": 1,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "tile/path": {
+    "tile/ocean": {
       "x": 18,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "tile/fence-h": {
+    "tile/foam-a": {
       "x": 35,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "structure/market-wall": {
+    "tile/foam-b": {
       "x": 52,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "structure/shopkeeper": {
+    "tile/foam-c": {
       "x": 69,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "tile/dirt": {
+    "tile/grass": {
       "x": 86,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "farmer/conservative": {
+    "tile/path": {
+      "x": 103,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/fence-h": {
       "x": 1,
       "y": 18,
       "w": 16,
       "h": 16
     },
-    "farmer/conservative/walk-a": {
+    "structure/market-wall": {
       "x": 18,
       "y": 18,
       "w": 16,
       "h": 16
     },
-    "farmer/conservative/walk-b": {
+    "structure/shopkeeper": {
       "x": 35,
       "y": 18,
       "w": 16,
       "h": 16
     },
-    "farmer/conservative/work": {
+    "tile/dirt": {
       "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative": {
+      "x": 69,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/walk-a": {
+      "x": 86,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/walk-b": {
+      "x": 103,
       "y": 18,
       "w": 16,
       "h": 16
@@ -82,248 +106,266 @@
       "w": 16,
       "h": 16
     },
-    "farmer/aggressive/work": {
+    "farmer/hoarder": {
       "x": 52,
       "y": 35,
       "w": 16,
       "h": 16
     },
-    "farmer/hoarder": {
-      "x": 1,
-      "y": 52,
-      "w": 16,
-      "h": 16
-    },
     "farmer/hoarder/walk-a": {
-      "x": 18,
-      "y": 52,
+      "x": 69,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/walk-b": {
-      "x": 35,
-      "y": 52,
-      "w": 16,
-      "h": 16
-    },
-    "farmer/hoarder/work": {
-      "x": 52,
-      "y": 52,
+      "x": 86,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist": {
-      "x": 1,
-      "y": 69,
+      "x": 103,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/walk-a": {
+      "x": 1,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/walk-b": {
+      "x": 18,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/meet": {
+      "x": 35,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/seed": {
+      "x": 52,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/growing": {
+      "x": 69,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "crop/radish/mature": {
+      "x": 86,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "crop/wheat/seed": {
+      "x": 103,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "crop/wheat/growing": {
+      "x": 1,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "crop/wheat/mature": {
       "x": 18,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "farmer/opportunist/walk-b": {
+    "crop/pumpkin/seed": {
       "x": 35,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "farmer/opportunist/work": {
+    "crop/pumpkin/growing": {
       "x": 52,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "indicator/meet": {
+    "crop/pumpkin/mature": {
+      "x": 69,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/forge-floor": {
+      "x": 86,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/market-floor": {
+      "x": 103,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/quarry-floor": {
       "x": 1,
       "y": 86,
       "w": 16,
       "h": 16
     },
-    "crop/radish/seed": {
+    "tile/wood-plank": {
       "x": 18,
       "y": 86,
       "w": 16,
       "h": 16
     },
-    "crop/radish/growing": {
+    "tile/stone-floor": {
       "x": 35,
       "y": 86,
       "w": 16,
       "h": 16
     },
-    "crop/radish/mature": {
+    "tile/ice-floor": {
       "x": 52,
       "y": 86,
       "w": 16,
       "h": 16
     },
-    "crop/wheat/seed": {
+    "tile/mushroom-floor": {
       "x": 69,
       "y": 86,
       "w": 16,
       "h": 16
     },
-    "crop/wheat/growing": {
+    "structure/blacksmith": {
       "x": 86,
       "y": 86,
       "w": 16,
       "h": 16
     },
-    "crop/wheat/mature": {
+    "structure/carpenter": {
       "x": 103,
       "y": 86,
       "w": 16,
       "h": 16
     },
-    "crop/pumpkin/seed": {
-      "x": 120,
-      "y": 86,
-      "w": 16,
-      "h": 16
-    },
-    "crop/pumpkin/growing": {
-      "x": 137,
-      "y": 86,
-      "w": 16,
-      "h": 16
-    },
-    "crop/pumpkin/mature": {
-      "x": 154,
-      "y": 86,
-      "w": 16,
-      "h": 16
-    },
-    "particle/coin-a": {
+    "structure/fountain": {
       "x": 1,
       "y": 103,
       "w": 16,
       "h": 16
     },
-    "particle/coin-b": {
+    "structure/home": {
       "x": 18,
       "y": 103,
       "w": 16,
       "h": 16
     },
-    "particle/dirt-a": {
+    "structure/tree": {
       "x": 35,
       "y": 103,
       "w": 16,
       "h": 16
     },
-    "particle/dirt-b": {
+    "structure/stone": {
       "x": 52,
       "y": 103,
       "w": 16,
       "h": 16
     },
-    "particle/star": {
+    "structure/auction-podium": {
       "x": 69,
       "y": 103,
       "w": 16,
       "h": 16
     },
-    "structure/fountain": {
+    "structure/notice-board": {
+      "x": 86,
+      "y": 103,
+      "w": 16,
+      "h": 16
+    },
+    "structure/mill": {
       "x": 103,
-      "y": 1,
+      "y": 103,
       "w": 16,
       "h": 16
     },
-    "structure/tree": {
-      "x": 120,
-      "y": 1,
+    "structure/well": {
+      "x": 1,
+      "y": 120,
       "w": 16,
       "h": 16
     },
-    "structure/stone": {
-      "x": 137,
-      "y": 1,
+    "structure/mushroom-marker": {
+      "x": 18,
+      "y": 120,
       "w": 16,
       "h": 16
     },
-    "structure/blacksmith": {
-      "x": 154,
-      "y": 1,
+    "structure/ice-marker": {
+      "x": 35,
+      "y": 120,
       "w": 16,
       "h": 16
     },
-    "item/geode": {
-      "x": 171,
-      "y": 1,
+    "farmer/conservative/work": {
+      "x": 52,
+      "y": 120,
       "w": 16,
       "h": 16
     },
-    "item/iron-ore": {
-      "x": 188,
-      "y": 1,
+    "farmer/aggressive/work": {
+      "x": 69,
+      "y": 120,
       "w": 16,
       "h": 16
     },
-    "structure/carpenter": {
-      "x": 205,
-      "y": 1,
+    "farmer/hoarder/work": {
+      "x": 86,
+      "y": 120,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/work": {
+      "x": 103,
+      "y": 120,
       "w": 16,
       "h": 16
     },
     "decoration/scarecrow": {
       "x": 1,
-      "y": 120,
+      "y": 137,
       "w": 16,
       "h": 16
     },
     "decoration/windmill": {
       "x": 18,
-      "y": 120,
+      "y": 137,
       "w": 16,
       "h": 16
     },
     "decoration/flower-bed": {
       "x": 35,
-      "y": 120,
+      "y": 137,
       "w": 16,
       "h": 16
     },
     "decoration/fence-art": {
       "x": 52,
-      "y": 120,
-      "w": 16,
-      "h": 16
-    },
-    "tile/forge-floor": {
-      "x": 222,
-      "y": 1,
-      "w": 16,
-      "h": 16
-    },
-    "tile/wood-plank": {
-      "x": 239,
-      "y": 1,
-      "w": 16,
-      "h": 16
-    },
-    "tile/market-floor": {
-      "x": 1,
-      "y": 137,
-      "w": 16,
-      "h": 16
-    },
-    "tile/quarry-floor": {
-      "x": 18,
       "y": 137,
       "w": 16,
       "h": 16
     },
     "debug/player": {
-      "x": 35,
-      "y": 137,
-      "w": 16,
-      "h": 16
-    },
-    "structure/home": {
-      "x": 52,
+      "x": 69,
       "y": 137,
       "w": 16,
       "h": 16

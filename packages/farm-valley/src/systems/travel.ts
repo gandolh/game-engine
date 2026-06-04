@@ -65,7 +65,21 @@ export class TravelSystem implements System {
       }
       const targetCenter = getRegion(targetRegionId).center;
       const start = { x: transform.x, y: transform.y };
-      const path = this.pathfinder.findPath(this.grid, start, targetCenter);
+      // The WASM pathfinder's allocator can intermittently trap
+      // (RuntimeError: unreachable) under heavy churn. Isolate it so a single
+      // failed path drops this farmer's intent instead of killing the whole
+      // tick — the farmer re-deliberates and can re-path next tick.
+      let path: { x: number; y: number }[];
+      try {
+        path = this.pathfinder.findPath(this.grid, start, targetCenter);
+      } catch (err) {
+        console.warn(
+          `[travel] pathfinder fault from (${start.x},${start.y}) to '${targetRegionId}' for farmer ${entity.id}; dropping intent`,
+          err,
+        );
+        intentions.queue.shift();
+        return;
+      }
 
       if (path.length === 0) {
         console.warn(

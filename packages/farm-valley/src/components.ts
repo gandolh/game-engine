@@ -185,6 +185,29 @@ export interface CarpenterTag {
   readonly isCarpenter: true;
 }
 
+/** Tags the auction podium entity at the town square center. */
+export interface AuctionPodiumTag {
+  readonly isAuctionPodium: true;
+}
+
+/** Tags the notice board entity on the west edge of the town square. */
+export interface NoticeBoardTag {
+  readonly isNoticeBoard: true;
+  /** Today's bounty description, set each day-start by the day-phase system. Absent until first day fires. */
+  bountyText?: string | undefined;
+}
+
+/** Tags the mill NPC entity in the mill region. */
+export interface MillTag {
+  readonly isMill: true;
+}
+
+/** Tags a well entity near a quarry — agents refill watering cans here. */
+export interface WellTag {
+  readonly isWell: true;
+  regionId: import('./world/regions').RegionId;
+}
+
 /** Tags a farmhouse / home entity — the farmer returns here to sleep. */
 export interface HomeTag {
   readonly isHome: true;
@@ -310,6 +333,10 @@ export interface GameEntity {
   blacksmith?: BlacksmithTag;
   carpenter?: CarpenterTag;
   home?: HomeTag;
+  auctionPodium?: AuctionPodiumTag;
+  noticeBoard?: NoticeBoardTag;
+  mill?: MillTag;
+  well?: WellTag;
   farmDecoration?: FarmDecoration;
   resources?: ResourceInventory;
   weatherStation?: WeatherStation;

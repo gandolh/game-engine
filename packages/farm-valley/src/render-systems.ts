@@ -54,7 +54,10 @@ export function pickFarmerFrame(entity: GameEntity, tick: number): string {
  * - resource-zone → "tile/grass" (same as farms — they're green areas)
  */
 function backdropFrame(tx: number, ty: number): string | null {
-  if (!isWalkable(tx, ty)) return null;
+  // Non-walkable tiles (out-of-region gaps, world border) render as ocean, so
+  // the playable regions read as islands in an ocean rather than floating in a
+  // black void. Walkability is unaffected (this is purely visual).
+  if (!isWalkable(tx, ty)) return "tile/ocean";
   const region = regionAt(tx, ty);
   if (region === null) return "tile/path";
   if (region.startsWith("farm-")) return "tile/grass";
@@ -62,6 +65,10 @@ function backdropFrame(tx: number, ty: number): string | null {
   if (region === "carpentry") return "tile/wood-plank";
   if (region === "forest-north" || region === "forest-south") return "tile/grass";
   if (region === "quarry-north" || region === "quarry-south") return "tile/quarry-floor";
+  if (region === "mill") return "tile/stone-floor";
+  if (region === "well-north" || region === "well-south") return "tile/stone-floor";
+  if (region === "mushroom-grove") return "tile/mushroom-floor";
+  if (region === "ice-pond") return "tile/ice-floor";
   if (region === "village") {
     // Market square gets the decorative floor; outer village stays cobblestone
     if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&
@@ -119,6 +126,67 @@ function computeFences(): readonly FenceTile[] {
 }
 
 const FENCES: readonly FenceTile[] = computeFences();
+
+interface ShoreTile {
+  tx: number;
+  ty: number;
+  rotation: number;
+}
+
+/**
+ * Compute shoreline overlay tiles: every LAND tile (walkable) that borders the
+ * OCEAN (a non-walkable tile, which renders as ocean) gets a foam/sand band on
+ * the edge facing the water. The band sprite (`tile/shore`) is authored along
+ * the tile's top edge and rotated to face the adjacent ocean. A land tile with
+ * ocean on multiple sides emits one band per ocean side.
+ *
+ * Rotation by neighbor direction (band faces "up" at rotation 0):
+ *   above (−Y) → 0, right (+X) → 90°, below (+Y) → 180°, left (−X) → 270°.
+ */
+function computeShores(): readonly ShoreTile[] {
+  const out: ShoreTile[] = [];
+  const dirs: Array<[number, number, number]> = [
+    [0, -1, 0],
+    [1, 0, Math.PI / 2],
+    [0, 1, Math.PI],
+    [-1, 0, (3 * Math.PI) / 2],
+  ];
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      if (!isWalkable(tx, ty)) continue; // only land tiles get a shore
+      for (const [dx, dy, rotation] of dirs) {
+        const nx = tx + dx;
+        const ny = ty + dy;
+        // Off-grid OR non-walkable neighbor ⇒ that side faces ocean.
+        const neighborIsOcean =
+          nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT || !isWalkable(nx, ny);
+        if (neighborIsOcean) out.push({ tx, ty, rotation });
+      }
+    }
+  }
+  return out;
+}
+
+const SHORES: readonly ShoreTile[] = computeShores();
+
+/**
+ * In-world ocean tiles (non-walkable tiles inside the 40×40 grid). Used by the
+ * main-thread render loop to draw the animated foam overlay. Out-of-grid water
+ * (beyond the world edge) is covered by the renderer's ocean clearColor, so we
+ * only animate the in-grid gaps between/around the islands.
+ */
+export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
+  const out: Array<{ tx: number; ty: number }> = [];
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      if (!isWalkable(tx, ty)) out.push({ tx, ty });
+    }
+  }
+  return out;
+})();
+
+/** The three animated foam frames, cycled for the water shimmer. */
+export const FOAM_FRAMES = ["tile/foam-a", "tile/foam-b", "tile/foam-c"] as const;
 
 // brief-11: focus-camera — procedural halo ring around the focused farmer's position.
 // Emits 4 small rotated fence-h segments around the entity center to form a visible ring.
@@ -181,6 +249,21 @@ export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalS
         alpha: 1,
       };
     }
+  }
+
+  // Shoreline foam/sand bands: on each land tile bordering ocean, facing the
+  // water. Layer 1 — above the base backdrop (0), below plot dirt (2)/fences.
+  for (const shore of SHORES) {
+    yield {
+      x: shore.tx * TILE + TILE / 2,
+      y: shore.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: "tile/shore",
+      rotation: shore.rotation,
+      layer: 1,
+      alpha: 1,
+    };
   }
 
   // Farm perimeter fences (village gets none).

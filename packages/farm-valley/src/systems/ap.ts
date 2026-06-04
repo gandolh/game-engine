@@ -34,6 +34,8 @@ export const AP_COST = {
   "buy-tool": 1,          // buy a tool from the shop
   "upgrade-tool": 2,      // have the blacksmith upgrade a tool (pays gold)
   "craft-decoration": 2,  // craft a farm decoration at the carpentry workshop
+  "process-crop": 2,      // mill raw crops into gold at a premium (at the mill)
+  "forage": 1,            // forage a seasonal zone (mushroom grove / ice pond)
   travel: 0, // brief 28 — walking is AP-free (time-throttled)
   negotiate: 3,
   "read-offers": 1,

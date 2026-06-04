@@ -31,6 +31,14 @@ export class Canvas2dRenderer {
   private staticLayerW = 0;
   private staticLayerH = 0;
 
+  /**
+   * Backdrop color filled behind every frame (the area outside the world / not
+   * covered by sprites). Defaults to a near-black; games can set it to match
+   * their world (e.g. Farm Valley uses an ocean blue so the map reads as
+   * islands surrounded by water).
+   */
+  clearColor = "#0c0d12";
+
   constructor(canvas: HTMLCanvasElement, camera: Camera2D) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Failed to acquire 2d canvas context");
@@ -140,7 +148,7 @@ export class Canvas2dRenderer {
     const { ctx, canvas, camera } = this;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = "#0c0d12";
+    ctx.fillStyle = this.clearColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const sx = canvas.width / camera.worldUnitsX;

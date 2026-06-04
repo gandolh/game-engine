@@ -33,8 +33,10 @@ describe('regionAt', () => {
   });
 
   it('returns null for void tiles', () => {
-    expect(regionAt(12,  0)).toBeNull();  // NW gap: between carpentry (0-9) and Cora (14-25)
-    expect(regionAt(13,  0)).toBeNull();  // same gap, adjacent tile
+    // NW gap is now partly the ice-pond region (10-13, 0-3); use the west-edge
+    // void below carpentry instead.
+    expect(regionAt(0, 12)).toBeNull();   // W gap: below carpentry (y≤9), above Otto (y≥14)
+    expect(regionAt(0, 13)).toBeNull();   // same gap, adjacent tile
     expect(regionAt(34,  3)).toBeNull();  // 1-tile gap between forest-north (26-33) and quarry-north (35-39)
     expect(regionAt(26, 13)).toBeNull();  // road area south of forest-north, but outside road segments
     expect(regionAt(12, 26)).toBeNull();  // SW gap: east of forest-south (0-7), west of S road (18-21)
@@ -77,7 +79,8 @@ describe('isWalkable', () => {
   });
 
   it('is NOT walkable for void tiles', () => {
-    expect(isWalkable(12,  0)).toBe(false); // NW gap between carpentry and Cora
+    // (12,0) is now the ice-pond region; use the west-edge void instead.
+    expect(isWalkable(0, 12)).toBe(false);  // W gap below carpentry, above Otto
     expect(isWalkable(34,  3)).toBe(false); // gap between forest-north and quarry-north
     expect(isWalkable(12, 26)).toBe(false); // SW gap east of forest-south
     expect(isWalkable(13,  6)).toBe(false); // NW gap: west of Cora (col 14), south of carpentry (row 9)

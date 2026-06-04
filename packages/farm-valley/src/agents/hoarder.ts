@@ -16,7 +16,7 @@ import {
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -58,6 +58,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   const plotsOwned = sense?.planted ?? 0;
   if (plotsOwned < 7) {
     const occupied = new Set<string>((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? []);
+    deliberateBuyTool(farmer, "hoe", 2);
     deliberateTill(farmer, occupied, 1, 3);
   }
   // Mine/chop occasionally — hoarder likes accumulating resources.
@@ -67,6 +68,9 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   // Craft decorations — hoarder invests in yield (moderate priority).
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   deliberateDecoration(farmer, decorations, 7);
+
+  // Hoarder forages the in-season seasonal zone for extra gold.
+  deliberateSeasonalForage(farmer, 8);
 
   // Visit village day 0-1 (hoarder wants to see prices before committing).
   deliberateEarlyVillageVisit(farmer, 8);

@@ -6,7 +6,7 @@ import {
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -35,6 +35,7 @@ export function deliberateConservative(farmer: GameEntity): void {
     const occupied = new Set<string>(
       ((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? [])
     );
+    deliberateBuyTool(farmer, "hoe", 1);
     deliberateTill(farmer, occupied, 1, 2);
   }
 

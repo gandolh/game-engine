@@ -141,41 +141,50 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         e.transform.prevY = e.transform.y;
       }
 
-      scheduler.tick({ tick });
+      // Backstop: a fault inside scheduler.tick (e.g. a WASM pathfinder trap
+      // not caught at its source) must not wedge the setInterval loop. Log it,
+      // skip this tick's snapshot, and still advance the counter so the next
+      // tick proceeds rather than re-running the faulted tick number.
+      try {
+        scheduler.tick({ tick });
 
-      // Fire bus subscribers (InboxDispatchSystem flushed messages above, so
-      // deliverable is populated; notifySubscribers dispatches to our shock
-      // subscriber, among others).
-      bus.notifySubscribers();
+        // Fire bus subscribers (InboxDispatchSystem flushed messages above, so
+        // deliverable is populated; notifySubscribers dispatches to our shock
+        // subscriber, among others).
+        bus.notifySubscribers();
 
-      const snapshot = buildRenderSnapshot(
-        world,
-        dayClock,
-        meetIndicators,
-        eventFeed,
-        tick,
-        maxDays,
-        pendingShock,
-      );
+        const snapshot = buildRenderSnapshot(
+          world,
+          dayClock,
+          meetIndicators,
+          eventFeed,
+          tick,
+          maxDays,
+          pendingShock,
+        );
 
-      // Clear pending shock — it fires exactly once in the snapshot it belongs to.
-      pendingShock = null;
+        // Clear pending shock — it fires exactly once in the snapshot it belongs to.
+        pendingShock = null;
 
-      const snapshotMsg: WorkerSnapshotMsg = {
-        type: "snapshot",
-        snapshot,
-      };
-      self.postMessage(snapshotMsg);
+        const snapshotMsg: WorkerSnapshotMsg = {
+          type: "snapshot",
+          snapshot,
+        };
+        self.postMessage(snapshotMsg);
+
+        if (snapshot.gameOver) {
+          stopped = true;
+          if (intervalId !== null) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+      } catch (err) {
+        console.error(`[sim] tick ${tick} faulted; skipping snapshot`, err);
+        pendingShock = null;
+      }
 
       tick += 1;
-
-      if (snapshot.gameOver) {
-        stopped = true;
-        if (intervalId !== null) {
-          clearInterval(intervalId);
-          intervalId = null;
-        }
-      }
     };
 
     intervalId = setInterval(() => {

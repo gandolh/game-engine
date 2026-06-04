@@ -10,7 +10,7 @@ import {
   type InitiateBeanGiftFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -76,6 +76,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   const plotsOwned = sense?.planted ?? 0;
   if (plotsOwned < 9) {
     const occupied = new Set<string>((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? []);
+    deliberateBuyTool(farmer, "hoe", 2);
     deliberateTill(farmer, occupied, 3, 3);
   }
   // Chop/mine up to 2 features aggressively (resources = sellable goods).
@@ -85,6 +86,9 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // Craft decorations eagerly — aggressive builds fast to boost yield.
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   deliberateDecoration(farmer, decorations, 6);
+
+  // Aggressive mills its high-volume surplus for the premium.
+  deliberateMillVisit(farmer, 10, 6);
 
   // Visit village day 0-1 to scope the market fast.
   deliberateEarlyVillageVisit(farmer, 5);

@@ -181,6 +181,7 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       alpha: 1,
       interpolate: false,
       action: null,
+      label: null,
     });
   }
 
@@ -196,6 +197,27 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
     const isFarmer = entity.farmer !== undefined;
     const frame = isFarmer ? pickFarmerFrame(entity, tick) : s.frame;
     const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
+    let label: string | null = null;
+    if (isFarmer) {
+      label = entity.farmer!.name;
+    } else if (entity.blacksmith) {
+      label = "Blacksmith";
+    } else if (entity.carpenter) {
+      label = "Carpenter";
+    } else if (entity.shopkeeper) {
+      label = "Shopkeeper";
+    } else if (entity.marketWall) {
+      label = "Market";
+    } else if (entity.mill) {
+      label = "Miller";
+    } else if (entity.well) {
+      label = "Well";
+    } else if (entity.auctionPodium) {
+      label = "Auction Podium";
+    } else if (entity.noticeBoard) {
+      // Show today's posted bounty on hover (or a default when none yet).
+      label = entity.noticeBoard.bountyText ?? "Notice Board";
+    }
     sprites.push({
       id: entity.id ?? null,
       x: px,
@@ -206,6 +228,7 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       alpha: (tint & 0xff) / 255,
       interpolate: isFarmer,
       action,
+      label,
     });
   }
 

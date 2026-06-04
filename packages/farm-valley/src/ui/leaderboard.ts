@@ -1,4 +1,5 @@
 import { createEl, setText, applyStyles } from "./dom";
+import { personalityColor } from "./colors";
 
 export interface LeaderboardRow {
   rank: number;
@@ -33,21 +34,6 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   borderTop: "1px solid #333",
   borderRight: "1px solid #333",
 };
-
-const PERSONALITY_COLORS: Record<string, string> = {
-  conservative: "#4a90d9",
-  aggressive: "#e67e22",
-  hoarder: "#2ecc71",
-  opportunist: "#9b59b6",
-  cautious: "#4a90d9",
-  bold: "#e67e22",
-  social: "#2ecc71",
-  default: "#888",
-};
-
-function personalityColor(p: string): string {
-  return PERSONALITY_COLORS[p.toLowerCase()] ?? PERSONALITY_COLORS["default"] ?? "#888";
-}
 
 const RANK_COLORS: Record<number, string> = {
   1: "#f1c40f",

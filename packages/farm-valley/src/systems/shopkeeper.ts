@@ -186,7 +186,9 @@ export class ShopkeeperSystem implements System {
       return;
     }
 
-    const goldDelta = SHOP_BUY_PRICE[crop] * taken;
+    // Apply the notice-board bounty premium when today's wanted crop matches.
+    const bountyMult = this.bountyMultiplierFor(crop);
+    const goldDelta = Math.round(SHOP_BUY_PRICE[crop] * bountyMult) * taken;
     farmer.inventory.crops[crop] -= taken;
     farmer.inventory.gold += goldDelta;
 
@@ -195,6 +197,20 @@ export class ShopkeeperSystem implements System {
       goldDelta,
       itemDelta: { crop, quantity: -taken },
     });
+  }
+
+  /**
+   * The active notice-board bounty multiplier for `crop` (1 when none/mismatch).
+   * The bounty is surfaced into farmer beliefs by PerceiveSystem from the
+   * NoticeBoardSystem broadcast; it's the same value for every farmer, so we
+   * read the first available one.
+   */
+  private bountyMultiplierFor(crop: CropKind): number {
+    for (const f of this.world.query("farmer", "beliefs")) {
+      const b = f.beliefs?.data.bounty as { crop: CropKind; multiplier: number } | undefined;
+      if (b) return b.crop === crop ? b.multiplier : 1;
+    }
+    return 1;
   }
 
   /**

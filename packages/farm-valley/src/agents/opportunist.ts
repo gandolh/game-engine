@@ -10,7 +10,7 @@ import {
   type RespondPeerOfferFn,
 } from "./peer-trade-registry";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -67,6 +67,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   const plotsOwned = sense?.planted ?? 0;
   if (plotsOwned < 8) {
     const occupied = new Set<string>((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? []);
+    deliberateBuyTool(farmer, "hoe", 3);
     deliberateTill(farmer, occupied, 2, 4);
   }
   // Chop/mine when it's opportune (low priority).
@@ -76,6 +77,11 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   // Craft decorations opportunistically — if it improves yield ROI.
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   deliberateDecoration(farmer, decorations, 8);
+
+  // Opportunist chases the mill premium when it has built up a surplus.
+  deliberateMillVisit(farmer, 8, 6);
+  // …and the in-season foraging zone for opportunistic gold.
+  deliberateSeasonalForage(farmer, 7);
 
   // Opportunist visits village on day 0-1 — always wants market info early.
   deliberateEarlyVillageVisit(farmer, 5);

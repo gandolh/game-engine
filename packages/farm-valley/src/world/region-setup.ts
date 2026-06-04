@@ -1,6 +1,6 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
-import { REGIONS, type RegionId, type RegionDef } from "./regions";
+import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, type RegionId, type RegionDef } from "./regions";
 
 /** Fountain is placed at the top-left corner of each farm (minX+1, minY+1). */
 function fountainTile(bounds: RegionDef["bounds"]): { x: number; y: number } {
@@ -27,6 +27,8 @@ export interface SetupRegionsResult {
   regionEntities: Map<RegionId, GameEntity>;
   plotEntities: GameEntity[];
   fountainEntities: GameEntity[];
+  auctionPodiumEntity: GameEntity;
+  noticeBoardEntity: GameEntity;
 }
 
 /**
@@ -216,5 +218,73 @@ export function setupRegions(
     });
   }
 
-  return { regionEntities, plotEntities, fountainEntities };
+  // ── Auction podium — town square center ─────────────────────────────────────
+  const auctionPodiumEntity = world.spawn({
+    transform: {
+      x: AUCTION_PODIUM_TILE.x,
+      y: AUCTION_PODIUM_TILE.y,
+      prevX: AUCTION_PODIUM_TILE.x,
+      prevY: AUCTION_PODIUM_TILE.y,
+      rotation: 0,
+    },
+    sprite: { atlasId: "main", frame: "structure/auction-podium", layer: 45, tintRgba: 0xffffffff },
+    auctionPodium: { isAuctionPodium: true },
+    inbox: { messages: [] },
+  });
+
+  // ── Notice board — west edge of town square ──────────────────────────────────
+  const noticeBoardEntity = world.spawn({
+    transform: {
+      x: NOTICE_BOARD_TILE.x,
+      y: NOTICE_BOARD_TILE.y,
+      prevX: NOTICE_BOARD_TILE.x,
+      prevY: NOTICE_BOARD_TILE.y,
+      rotation: 0,
+    },
+    sprite: { atlasId: "main", frame: "structure/notice-board", layer: 45, tintRgba: 0xffffffff },
+    noticeBoard: { isNoticeBoard: true },
+    inbox: { messages: [] },
+  });
+
+  // ── Mill NPC ──────────────────────────────────────────────────────────────────
+  const millRegion = REGIONS.find((r) => r.id === "mill");
+  if (millRegion) {
+    const mx = millRegion.center.x;
+    const my = millRegion.center.y;
+    world.spawn({
+      transform: { x: mx, y: my, prevX: mx, prevY: my, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/mill", layer: 50, tintRgba: 0xffffffff },
+      mill: { isMill: true },
+      inbox: { messages: [] },
+    });
+  }
+
+  // ── Wells (one near each quarry) ─────────────────────────────────────────────
+  for (const id of ["well-north", "well-south"] as const) {
+    const r = REGIONS.find((reg) => reg.id === id);
+    if (r) {
+      world.spawn({
+        transform: { x: r.center.x, y: r.center.y, prevX: r.center.x, prevY: r.center.y, rotation: 0 },
+        sprite: { atlasId: "main", frame: "structure/well", layer: 45, tintRgba: 0xffffffff },
+        well: { isWell: true, regionId: id },
+      });
+    }
+  }
+
+  // ── Seasonal zone markers (mushroom grove + ice pond) ─────────────────────────
+  // A single decorative entity marks each seasonal zone so spectators can read it.
+  for (const [id, frame] of [
+    ["mushroom-grove", "structure/mushroom-marker"],
+    ["ice-pond",       "structure/ice-marker"],
+  ] as const) {
+    const r = REGIONS.find((reg) => reg.id === id);
+    if (r) {
+      world.spawn({
+        transform: { x: r.center.x, y: r.center.y, prevX: r.center.x, prevY: r.center.y, rotation: 0 },
+        sprite: { atlasId: "main", frame, layer: 40, tintRgba: 0xffffffff },
+      });
+    }
+  }
+
+  return { regionEntities, plotEntities, fountainEntities, auctionPodiumEntity, noticeBoardEntity };
 }

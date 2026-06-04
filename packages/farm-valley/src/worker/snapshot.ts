@@ -37,6 +37,8 @@ export interface SnapshotSprite {
    * null for non-farmer sprites.
    */
   action: string | null;
+  /** Display name shown in the hover tooltip. null for anonymous sprites (crops, plots). */
+  label: string | null;
 }
 
 /** Active MEET indicator for a farmer this tick. */

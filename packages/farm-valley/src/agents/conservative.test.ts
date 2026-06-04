@@ -42,11 +42,16 @@ describe("deliberateConservative", () => {
     expect(travelIdx).toBeLessThan(sellIdx);
   });
 
-  it("does not prepend travel when already in village", () => {
+  it("does not prepend a travel-to-village when already in village", () => {
     const f = makeFarmer({ crops: { radish: 3 }, region: "village" });
     deliberateConservative(f);
     const queue = f.intentions!.queue;
-    expect(queue.some((i) => i.kind === "travel")).toBe(false);
+    // The sell path must not add a redundant travel to the village (the farmer
+    // is already there). A resource-zone travel (e.g. forest-south when the
+    // farm has no features to gather) is a separate concern and is allowed.
+    expect(
+      queue.some((i) => i.kind === "travel" && i.data["targetRegionId"] === "village"),
+    ).toBe(false);
     expect(queue.some((i) => i.kind === "sell-shopkeeper")).toBe(true);
   });
 

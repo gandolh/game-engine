@@ -10,6 +10,7 @@ import {
   type AuctionCfpBody,
   type AuctionResultBody,
 } from "../protocols/shop";
+import { ONT_BOUNTY, type BountyPostedBody } from "../protocols/bounty";
 import { isActivePhase, isNightPhase } from "./day-phase";
 import { maxApForDay } from "./ap";
 
@@ -23,7 +24,7 @@ export class PerceiveSystem implements System {
     for (const farmer of farmers) {
       // Clear busyUntilTick once the work time has elapsed, allowing re-deliberation.
       if (farmer.farmer?.busyUntilTick !== undefined && ctx.tick >= farmer.farmer.busyUntilTick) {
-        farmer.farmer.busyUntilTick = undefined;
+        delete farmer.farmer.busyUntilTick;
         // Re-arm if the farmer is settled and in an active phase.
         const phase = farmer.beliefs.data.phase as string | undefined;
         const settled = farmer.fsm.current === "WAIT_DAY";
@@ -58,6 +59,12 @@ export class PerceiveSystem implements System {
             farmer.beliefs.data.openAuction = undefined;
             farmer.beliefs.revision += 1;
           }
+        } else if (msg.ontology === ONT_BOUNTY.POSTED) {
+          // Notice-board bounty: surface today's wanted crop + premium so the
+          // deliberate* fns can prioritize selling it.
+          const body = msg.body as unknown as BountyPostedBody;
+          farmer.beliefs.data.bounty = body.bounty ?? undefined;
+          farmer.beliefs.revision += 1;
         }
       }
       // brief 24 — drop a stale open auction whose clock has run out (the

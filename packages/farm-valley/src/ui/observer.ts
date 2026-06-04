@@ -1,4 +1,5 @@
 import { createEl, setText, applyStyles } from "./dom";
+import { personalityColor } from "./colors";
 
 export interface ObserverSnapshot {
   day: number;
@@ -56,17 +57,6 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   borderLeft: "1px solid #333",
   borderBottom: "1px solid #333",
 };
-
-const PERSONALITY_COLORS: Record<string, string> = {
-  cautious: "#4a90d9",
-  bold: "#e67e22",
-  social: "#2ecc71",
-  default: "#9b59b6",
-};
-
-function personalityColor(p: string): string {
-  return PERSONALITY_COLORS[p.toLowerCase()] ?? PERSONALITY_COLORS["default"] ?? "#9b59b6";
-}
 
 export class ObserverPanel {
   private panel: HTMLElement;

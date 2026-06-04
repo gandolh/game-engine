@@ -8,7 +8,7 @@ import {
   ParticleSystem,
 } from "@engine/core";
 import type { AtlasManifest, Pathfinder } from "@engine/core";
-import { pushSnapshotSprites } from "./render-systems";
+import { pushSnapshotSprites, OCEAN_TILES, FOAM_FRAMES } from "./render-systems";
 import { makeGroundNoiseDecorator } from "./render/ground-noise";
 import { washFor } from "./render/day-night";
 import { seasonForDay } from "./protocols/weather";
@@ -19,12 +19,13 @@ import {
   PlaybackControlsPanel,
   EventFeedPanel,
   createRightColumn,
+  WorldClockPanel,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable } from "./world/regions";
 import { Keyboard } from "@engine/core";
 import { SimClient } from "./worker/sim-client";
-import type { FinalStandingRow } from "./worker/snapshot";
+import type { FinalStandingRow, SnapshotSprite } from "./worker/snapshot";
 import { serializeRun, parseRun, type RunDescriptor } from "./run-descriptor";
 
 interface BootConfig {
@@ -64,6 +65,9 @@ let focusedFarmerId: number | null = null;
 let panOffset = { x: 0, y: 0 };
 let zoom = 1;
 
+// Hover tooltip — tracks raw canvas-relative mouse position in CSS pixels.
+const mousePos = { x: -9999, y: -9999 };
+
 // ── Debug player (WASD walkability tester) ──────────────────────────────────
 // Starts at village center tile (19,19). Pure render-side — no sim involvement.
 // Moves 1 tile per step; movement is throttled to ~8 steps/sec so it's readable.
@@ -91,6 +95,17 @@ function setupCameraListeners(
   let dragStartY = 0;
   let camStartX = 0;
   let camStartY = 0;
+
+  canvas.addEventListener("mousemove", (e: MouseEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    mousePos.x = e.clientX - rect.left;
+    mousePos.y = e.clientY - rect.top;
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    mousePos.x = -9999;
+    mousePos.y = -9999;
+  });
 
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
     isDragging = true;
@@ -152,6 +167,9 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   _camera = camera;
   const renderer = new Canvas2dRenderer(canvas, camera);
   renderer.setAtlas(atlasImage);
+  // Ocean backdrop beyond the world edge — the map is islands in an ocean, so
+  // the area outside the 40×40 grid is deep water, not black.
+  renderer.clearColor = "#1e4c84";
   setupCameraListeners(canvas, camera);
   const keyboard = new Keyboard();
   keyboard.attach(window);
@@ -181,11 +199,12 @@ async function boot(): Promise<void> {
   runtimePromise.catch(() => {});
 
   home.onStartClicked((seed) => {
-    void startGame(app, fatal, runtimePromise, { seed, maxDays, ticksPerDay });
+    void startGame(canvas, app, fatal, runtimePromise, { seed, maxDays, ticksPerDay });
   });
 }
 
 async function startGame(
+  canvas: HTMLCanvasElement,
   app: HTMLElement,
   fatal: HTMLElement,
   runtimePromise: Promise<Runtime>,
@@ -199,6 +218,7 @@ async function startGame(
     _simClient = client;
 
     const overlay = new DebugOverlay(app);
+    const worldClock = new WorldClockPanel(app);
     // brief 25 — observer + activity feed share one fixed right-edge flex
     // column so they stack instead of overlapping; the feed reflows below the
     // observer when the "why" block expands it.
@@ -299,6 +319,8 @@ async function startGame(
     // own DOM element so we don't touch the engine DebugOverlay signature).
     createSeedBadge(app, seed);
 
+    const tooltip = createTooltip(app);
+
     // Particle system — lives on the main (render) thread only.
     const particles = new ParticleSystem();
     let prevGold = new Map<number, number>(); // farmerId → gold last tick
@@ -374,6 +396,27 @@ async function startGame(
       }
 
       renderer.beginFrame();
+
+      // Animated water shimmer: cycle foam frames over the in-grid ocean tiles.
+      // Render-only; phase is offset per tile so the foam ripples rather than
+      // blinking in unison. ~1.8 s per full A→B→C cycle. Layer 1 = on the water
+      // (over the baked static ocean at layer 0, under plot dirt / entities).
+      const FOAM_PERIOD_MS = 1800;
+      const foamStep = nowMs / (FOAM_PERIOD_MS / FOAM_FRAMES.length);
+      for (const { tx, ty } of OCEAN_TILES) {
+        const phase = tx * 3 + ty * 5; // per-tile offset
+        const frame = FOAM_FRAMES[(Math.floor(foamStep) + phase) % FOAM_FRAMES.length]!;
+        renderer.push({
+          x: tx * TILE + TILE / 2,
+          y: ty * TILE + TILE / 2,
+          width: TILE,
+          height: TILE,
+          frame,
+          rotation: 0,
+          layer: 1,
+          alpha: 0.6,
+        });
+      }
 
       // Build a position map for all farmer sprites (for meet bubbles + halo).
       const farmerPositions = new Map<number, { x: number; y: number }>();
@@ -461,6 +504,10 @@ async function startGame(
         });
       }
 
+      // Hover tooltip: convert CSS mouse position → world pixels → find nearest
+      // labeled sprite within half-a-tile radius.
+      updateTooltip(tooltip, canvas, client.getInterpolatedSprites(), _camera);
+
       // brief 26 — day/night + seasonal color wash (render-only, tick-synced;
       // looks right now that days are long, brief 27).
       const wash = washFor({
@@ -474,6 +521,8 @@ async function startGame(
       const snap = client.latestSnapshot();
       const tick = client.tick;
       overlay.update({ tick, alpha: 0, entityCount: client.entityCount });
+
+      worldClock.update({ tick: client.tick, ticksPerDay, day: client.day });
 
       const obs = client.observer;
       if (obs !== null) observer.update(obs);
@@ -635,6 +684,69 @@ function renderGameOver(
   };
 
   panel.panel.style.display = "block";
+}
+
+function createTooltip(parent: HTMLElement): HTMLElement {
+  const el = document.createElement("div");
+  el.style.cssText = [
+    "position: absolute",
+    "padding: 3px 8px",
+    "font: 11px/1.4 ui-monospace, monospace",
+    "color: #f5e9c8",
+    "background: rgba(20, 18, 28, 0.88)",
+    "border: 1px solid rgba(201, 168, 90, 0.6)",
+    "border-radius: 4px",
+    "pointer-events: none",
+    "z-index: 180",
+    "display: none",
+    "white-space: nowrap",
+  ].join(";");
+  parent.appendChild(el);
+  return el;
+}
+
+function updateTooltip(
+  tooltip: HTMLElement,
+  canvas: HTMLCanvasElement,
+  sprites: SnapshotSprite[],
+  camera: Camera2D | null,
+): void {
+  if (camera === null || mousePos.x < 0) {
+    tooltip.style.display = "none";
+    return;
+  }
+
+  // Convert CSS pixel mouse position to world pixels via the camera viewport.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
+  const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
+  const wx = mousePos.x * scaleX + (camera.centerX - camera.worldUnitsX / 2);
+  const wy = mousePos.y * scaleY + (camera.centerY - camera.worldUnitsY / 2);
+
+  const HALF_TILE = TILE / 2;
+  let bestLabel: string | null = null;
+  let bestDist = HALF_TILE * HALF_TILE;
+
+  for (const s of sprites) {
+    if (!s.label) continue;
+    const dx = s.x - wx;
+    const dy = s.y - wy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestDist) {
+      bestDist = d2;
+      bestLabel = s.label;
+    }
+  }
+
+  if (bestLabel !== null) {
+    tooltip.textContent = bestLabel;
+    tooltip.style.display = "block";
+    // Position just above and to the right of the cursor.
+    tooltip.style.left = `${mousePos.x + 12}px`;
+    tooltip.style.top = `${mousePos.y - 20}px`;
+  } else {
+    tooltip.style.display = "none";
+  }
 }
 
 async function fetchAtlasManifest(): Promise<AtlasManifest> {

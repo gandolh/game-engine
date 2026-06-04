@@ -17,8 +17,31 @@ import {
   type AuctionBidBody,
   type ResaleBeanBody,
 } from "../protocols/shop";
+import { seasonForDay, type Season } from "../protocols/weather";
 const SELL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const GROWTH_DAYS: Record<CropKind, number> = { radish: 2, wheat: 4, pumpkin: 7 };
+
+/**
+ * Mill processing price per crop unit — the gold a farmer earns by milling raw
+ * crops into goods at the mill. Set above the shopkeeper's buy price
+ * (radish 5 / wheat 8 / pumpkin 22) to create an economic gradient: the mill
+ * pays more, but it costs a trip + 2 AP. This is what makes the mill a real
+ * choice rather than a prop.
+ */
+const MILL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 13, pumpkin: 33 };
+/** Crops processed per `process-crop` action. */
+const MILL_BATCH = 5;
+
+/**
+ * Seasonal foraging zones: each is only productive in its season. Foraging in
+ * the right zone + right season yields gold; out of season (or wrong zone) it's
+ * a no-op. This is the seasonal "lock" — enforced here, not in pathfinding, so
+ * the zones stay walkable year-round but only reward in-season.
+ */
+const FORAGE_ZONES: Record<string, { season: Season; reward: number }> = {
+  "mushroom-grove": { season: "autumn", reward: 18 }, // truffles in autumn
+  "ice-pond":       { season: "winter", reward: 22 }, // ice-fishing in winter
+};
 
 /**
  * Physical-action time cost in ticks (at 20 Hz).
@@ -425,15 +448,28 @@ export class ActSystem implements System {
           }
 
           case "refill-can": {
-            // Refill watering can at the farm fountain (2 AP already deducted).
+            // Refill watering can — only valid at a water source: the farmer's
+            // own farm (home fountain) or a well (well-north/well-south).
+            // Without this guard the can refilled anywhere (mid-road, forest…),
+            // making the wells and fountains pointless.
             const can = farmer.inventory.wateringCan;
             if (!can) break;
+            const region = farmer.farmer?.currentRegion;
+            const atWaterSource =
+              region === "well-north" ||
+              region === "well-south" ||
+              region === farmer.farmer?.homeRegion;
+            if (!atWaterSource) break;
             can.charges = can.maxCharges;
             break;
           }
 
           case "buy-tool": {
-            // Buy a wooden tool from the shopkeeper.
+            // Buy a wooden tool from the shopkeeper. Must be at the village
+            // (where the shopkeeper stands) — deliberateBuyTool queues a
+            // travel-to-village intent first; this guard ensures the purchase
+            // doesn't resolve back on the farm if the travel hasn't completed.
+            if (farmer.farmer?.currentRegion !== "village") break;
             const toolKind = intent.data.toolKind as ToolKind;
             const tier: ToolTier = "wooden";
             const price = TOOL_PRICE[tier];
@@ -527,6 +563,36 @@ export class ActSystem implements System {
             if (idx >= 0) {
               tools[idx] = { kind: toolKind, tier: nextTier, durability: nextTier === "stone" ? 150 : 200 };
             }
+            break;
+          }
+
+          case "process-crop": {
+            // Mill raw crops into goods at a premium — only at the mill region.
+            // Converts up to MILL_BATCH units of one crop into gold at MILL_PRICE
+            // (higher than the shopkeeper's buy price; the gradient justifies the
+            // trip). Mirrors the location-gated pattern of buy-tool/craft.
+            if (farmer.farmer?.currentRegion !== "mill") break;
+            const crop = intent.data.crop as CropKind;
+            if (!(crop in MILL_PRICE)) break;
+            const have = farmer.inventory.crops[crop];
+            const taken = Math.min(MILL_BATCH, have);
+            if (taken <= 0) break;
+            farmer.inventory.crops[crop] -= taken;
+            farmer.inventory.gold += MILL_PRICE[crop] * taken;
+            break;
+          }
+
+          case "forage": {
+            // Forage a seasonal zone — only rewards in the zone's season. The
+            // season is derived from the farmer's perceived currentDay, so the
+            // lock is real game logic (out of season = no reward).
+            const region = farmer.farmer?.currentRegion;
+            if (!region) break;
+            const zone = FORAGE_ZONES[region];
+            if (!zone) break;
+            const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
+            if (seasonForDay(day) !== zone.season) break; // out of season — no reward
+            farmer.inventory.gold += zone.reward;
             break;
           }
         }
