@@ -52,7 +52,7 @@ export function pickFarmerFrame(entity: GameEntity, tick: number): string {
  * - village inner square (TOWN_SQUARE) → "tile/market-floor" (decorative stone)
  * - village outer → "tile/dirt"
  * - blacksmith → "tile/forge-floor" (dark stone with heat cracks)
- * - carpentry → "tile/wood-plank"
+ * - carpentry → "tile/carpentry-floor" (laid stone-slab flooring)
  * - resource-zone → "tile/grass" (same as farms — they're green areas)
  */
 function backdropFrame(tx: number, ty: number): string | null {
@@ -68,13 +68,14 @@ function backdropFrame(tx: number, ty: number): string | null {
   }
   if (region.startsWith("farm-")) return "tile/grass";
   if (region === "blacksmith") return "tile/forge-floor";
-  if (region === "carpentry") return "tile/wood-plank";
+  if (region === "carpentry") return "tile/carpentry-floor";
   if (region === "forest-north" || region === "forest-south") return "tile/grass";
   if (region === "quarry-north" || region === "quarry-south") return "tile/quarry-floor";
   if (region === "mill") return "tile/stone-floor";
   if (region === "well-north" || region === "well-south") return "tile/stone-floor";
   if (region === "mushroom-grove") return "tile/mushroom-floor";
   if (region === "ice-pond") return "tile/ice-floor";
+  if (region === "fishing-isle") return "tile/sand";
   if (region === "village") {
     // Market square gets the decorative floor; outer village stays cobblestone
     if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&

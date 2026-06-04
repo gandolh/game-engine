@@ -304,6 +304,9 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       // Show today's posted bounty on hover (or a default when none yet).
       label = "Notice Board";
       description = entity.noticeBoard.bountyText ?? "Today's bounty is posted here.";
+    } else if (entity.fishingSpot) {
+      label = "Fishing Spot";
+      description = "Cast a fishing rod here (from the tile in front) — 1 AP, lands a minnow, bass, or salmon.";
     } else if (entity.fountain) {
       label = "Fountain";
       description = "Refill your watering can at your farm's fountain.";

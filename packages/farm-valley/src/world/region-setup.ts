@@ -361,5 +361,44 @@ export function setupRegions(
     }
   }
 
+  // ── Ambient world dressing (purely decorative sprites; no collision) ──────────
+  // Props are layer-40 sprites only — they do NOT affect walkability or
+  // pathfinding (only `tileFeature` trees/stones block), so these are safe to
+  // scatter on any walkable tile. Tiles are hand-picked to avoid overlapping
+  // interactables (NPCs, market wall, podium, plots).
+  if (REGIONS.some((r) => r.id === "village")) {
+    placeProps(world, [
+      // Village hub corners + edges: lamps, signpost, barrels, plants.
+      { x: 38, y: 34, frame: "decoration/lamp-post" },
+      { x: 49, y: 34, frame: "decoration/lamp-post" },
+      { x: 38, y: 45, frame: "decoration/lamp-post" },
+      { x: 49, y: 45, frame: "decoration/lamp-post" },
+      { x: 39, y: 44, frame: "decoration/signpost" },
+      { x: 48, y: 35, frame: "decoration/barrel" },
+      { x: 39, y: 35, frame: "decoration/crate" },
+      { x: 48, y: 44, frame: "decoration/potted-plant" },
+      // Carpentry workshop yard: stacked logs + a barrel of fasteners.
+      { x: 21, y: 42, frame: "decoration/log-stack" },
+      { x: 28, y: 42, frame: "decoration/barrel" },
+      // Blacksmith yard: crate + barrel of stock.
+      { x: 59, y: 42, frame: "decoration/crate" },
+      { x: 66, y: 42, frame: "decoration/barrel" },
+      // Forest zones: bushes + a firewood stack.
+      { x: 23, y: 5,  frame: "decoration/bush" },
+      { x: 28, y: 10, frame: "decoration/log-stack" },
+      { x: 23, y: 57, frame: "decoration/bush" },
+      { x: 28, y: 62, frame: "decoration/log-stack" },
+      // Quarry zones: crates of cut stone.
+      { x: 59, y: 5,  frame: "decoration/crate" },
+      { x: 64, y: 10, frame: "decoration/crate" },
+      { x: 59, y: 57, frame: "decoration/crate" },
+      { x: 64, y: 62, frame: "decoration/crate" },
+      // Mill yard: hay bales + a signpost.
+      { x: 40, y: 62, frame: "decoration/hay-bale" },
+      { x: 47, y: 62, frame: "decoration/hay-bale" },
+      { x: 40, y: 57, frame: "decoration/signpost" },
+    ]);
+  }
+
   return { regionEntities, plotEntities, fountainEntities, auctionPodiumEntity, noticeBoardEntity };
 }

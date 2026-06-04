@@ -6,8 +6,8 @@ import { ActSystem } from "./act";
 import { getRegion } from "../world/regions";
 
 // Hotbar slot indices (see HOTBAR_SLOTS): 0 Can · 1 Hoe · 2 Axe · 3 Pickaxe ·
-// 4 Radish · 5 Wheat · 6 Pumpkin. The action key uses the selected slot.
-const SLOT = { can: 0, hoe: 1, axe: 2, pickaxe: 3, radish: 4, wheat: 5, pumpkin: 6 } as const;
+// 4 Rod · 5 Radish · 6 Wheat · 7 Pumpkin. The action key uses the selected slot.
+const SLOT = { can: 0, hoe: 1, axe: 2, pickaxe: 3, rod: 4, radish: 5, wheat: 6, pumpkin: 7 } as const;
 
 const PIP = getRegion("farm-pip").center; // { x: 33, y: 19 } — bare farm ground
 
@@ -215,5 +215,56 @@ describe("PlayerControlSystem — hotbar action", () => {
     tick(world, control, act);
     const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
     expect(plot.plot.state.kind).toBe("empty"); // nothing planted
+  });
+});
+
+describe("PlayerControlSystem — fishing", () => {
+  // Fishing-isle west edge tile (40,71); its west neighbour (39,71) is ocean.
+  const ISLE_EDGE = { x: 40, y: 71 };
+
+  /** Stand Pip on the fishing-isle edge with a rod, facing the open water. */
+  function standOnIsle(pip: GameEntity): void {
+    pip.inventory!.tools!.push({ kind: "fishing-rod", tier: "wooden", durability: Infinity });
+    pip.inventory!.fish = { minnow: 0, bass: 0, salmon: 0 };
+    pip.transform!.x = ISLE_EDGE.x;
+    pip.transform!.y = ISLE_EDGE.y;
+    pip.farmer!.currentRegion = "fishing-isle";
+    pip.player!.selectedSlot = SLOT.rod;
+    pip.player!.facing = "left"; // faces (39,71) = ocean
+  }
+
+  it("fishes facing open water from the isle, banking gold and a fish", () => {
+    const { world, pip, control, act } = setup();
+    standOnIsle(pip);
+    const goldBefore = pip.inventory!.gold;
+    pip.player!.pendingAction = true;
+    tick(world, control, act);
+    const caught = pip.inventory!.fish!.minnow + pip.inventory!.fish!.bass + pip.inventory!.fish!.salmon;
+    expect(caught).toBe(1);
+    expect(pip.inventory!.gold).toBeGreaterThan(goldBefore);
+    expect(pip.farmer!.busyUntilTick).toBeGreaterThan(0);
+  });
+
+  it("won't fish when facing land (not open water)", () => {
+    const { world, pip, control, act } = setup();
+    standOnIsle(pip);
+    pip.player!.facing = "right"; // (41,71) is still isle land, not ocean
+    const goldBefore = pip.inventory!.gold;
+    pip.player!.pendingAction = true;
+    tick(world, control, act);
+    expect(pip.inventory!.gold).toBe(goldBefore);
+    expect(pip.player!.pendingAction).toBe(false); // consumed regardless
+  });
+
+  it("won't fish off the isle even facing water", () => {
+    const { world, pip, control, act } = setup();
+    pip.inventory!.tools!.push({ kind: "fishing-rod", tier: "wooden", durability: Infinity });
+    // On Pip's home farm, not the isle.
+    pip.player!.selectedSlot = SLOT.rod;
+    pip.player!.facing = "left";
+    const goldBefore = pip.inventory!.gold;
+    pip.player!.pendingAction = true;
+    tick(world, control, act);
+    expect(pip.inventory!.gold).toBe(goldBefore);
   });
 });

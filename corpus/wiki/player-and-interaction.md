@@ -24,11 +24,22 @@ Pip is a normal farmer **entity** in the sim worker with the same components as 
 
 The action key uses the **selected hotbar slot**, not an auto-by-context guess. [`HOTBAR_SLOTS`](../../packages/farm-valley/src/systems/player-control.ts) is the single source of truth, shared by sim dispatch, the `PlayerHotbar` snapshot field, and [ui/hotbar.ts](../../packages/farm-valley/src/ui/hotbar.ts):
 
-| Slot | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-|---|---|---|---|---|---|---|---|
-| | Can | Hoe | Axe | Pickaxe | Radish | Wheat | Pumpkin |
+| Slot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| | Can | Hoe | Axe | Pickaxe | Rod | Radish | Wheat | Pumpkin |
 
-`player.selectedSlot` decides what Space does on the faced tile (hoe→till, axe→chop, pickaxe→mine, can→water, seed→plant that crop). Selection lives in the sim and flows out through the snapshot, so the UI panel is a pure reflection (highlights the active slot, dims out-of-stock seeds).
+`player.selectedSlot` decides what Space does on the faced tile (hoe→till, axe→chop, pickaxe→mine, can→water, rod→fish open water from the isle, seed→plant that crop). Selection lives in the sim and flows out through the snapshot, so the UI panel is a pure reflection (highlights the active slot, dims out-of-stock seeds). **The rod was inserted at slot index 4 (2026-06-04), shifting the seeds to 5/6/7** — number keys now run 1–8 and the `player-control` test's `SLOT` map was updated to match.
+
+## Fishing — the fishing isle, bubbles, and rare fish (2026-06-04)
+
+Fishing is a **destination activity**: travel to the **fishing isle**, stand on its sandy shore, and cast into the surrounding ocean. The water you cast into determines rarity — calm shoreline yields cheap minnows, **bubble spots** yield the rarer, more valuable fish.
+
+- **The fishing isle** is an 8×8 sand island in open ocean **south of the mill**, region `fishing-isle` ([regions.ts](../../packages/farm-valley/src/world/regions.ts), bounds `40–47 × 68–75`), connected by a single 2-wide bridge to the mill (`42–43 × 64–67`). Its floor renders as a new `tile/sand` backdrop ([render-systems.ts](../../packages/farm-valley/src/render-systems.ts) `backdropFrame`). The walkable-grid test count went **1849 → 1921** (+64 isle, +8 bridge).
+- **Bubble spots** are transient churning-water patches that **drift daily** in the 1-tile ocean ring around the isle. [`BubbleSystem`](../../packages/farm-valley/src/systems/bubbles.ts) (registered right after `TileFeatureSystem`, day-triggered off `DAY_START`, forks a seeded `"bubbles"` rng) clears yesterday's bubbles and re-rolls `BUBBLE_COUNT` (5) fresh ones on random ring tiles each new day. A bubble is a `fishingSpot: FishingSpotTag` entity + `structure/fishing-spot` sprite (layer 4) on a non-walkable ocean tile — it never blocks movement.
+- **The `fish` action** ([ActSystem.handleFish](../../packages/farm-valley/src/systems/act.ts)) costs **1 AP** (`AP_COST.fish` in [ap.ts](../../packages/farm-valley/src/systems/ap.ts)). Requirements: a held rod, standing ON a `fishing-isle` tile, and an **ocean tile in the 4-neighbours** to cast into. If any adjacent water tile is a bubble, the cast uses `FISH_WEIGHTS_BUBBLE` `{minnow 25, bass 45, salmon 30}`; otherwise calm `FISH_WEIGHTS_CALM` `{minnow 80, bass 17, salmon 3}` ([components.ts](../../packages/farm-valley/src/components.ts)). Fish are **minnow / bass / salmon worth 1 / 3 / 5 gold** (`FISH_VALUE`); the catch banks gold immediately + tallies `inventory.fish`. A random **5–30 s** busy window (`FISH_MIN_TICKS`=100 … `FISH_MAX_TICKS`=600) is set on `busyUntilTick`. **Deterministic**: `ActSystem` forks a `"fish"` rng channel; `fish` is excluded from `actionTicks` (the handler sets its own busy time).
+- **Rod, no durability.** One kind, `durability: Infinity` so the shared tool find/prune plumbing never removes it. Every farmer starts with one (`STARTING_TOOLS`).
+- **Player dispatch:** the rod slot emits `{ kind: "fish", … }` only when Pip stands on the isle and faces an ocean tile (`PlayerControlSystem`); `ActSystem` re-checks isle + water + rod and reads bubbles for rarity.
+- **AI farmers fish too.** [`deliberateFishing`](../../packages/farm-valley/src/agents/watering.ts) sends the **opportunist** (every 5 days, 3 casts) and **aggressive** (every 7 days, 2 casts) to the isle edge tile `(40,71)` via a `targetTile` travel, then queues `fish` casts. Low priority (the AP pruner drops it on busy days) and AP-gated (≥30 AP), so it's "nothing-better-to-do" side income. **This changes the AI economy**, so the determinism baseline shifted — re-verified MATCH across seeds `0xc0ffee/1/42` over 100 days (reproducibility, not unchanged numbers).
 
 ## Hover tooltips — name + description
 
@@ -49,6 +60,11 @@ Road-only tiles (`regionAt(x,y) === null`, walkable) that span water render as a
 ## Plot layout
 
 Farms lay out plots in a grid via `PLOT_OFFSETS` in [world/region-setup.ts](../../packages/farm-valley/src/world/region-setup.ts) (currently `[-2, 1]` → a 2×2 grid spaced ≥2 empty cells apart). Pip starts standing on its first plot tile (`center + PLOT_OFFSETS[0]` on both axes), not the bare farm center — gated on `farmer.player`. Fences (`computeFences` in render-systems.ts) sit on farm *perimeters* only, never on plot tiles.
+
+## Floor tiles & world dressing (2026-06-04)
+
+- **Carpentry floor is now stone.** `backdropFrame` ([render-systems.ts](../../packages/farm-valley/src/render-systems.ts)) maps `carpentry` → `tile/carpentry-floor` (a new offset-brick stone-slab tile in [recipes.ts](../../tools/atlas-builder/src/recipes.ts)), replacing the old dark `tile/wood-plank`. Distinct from the speckled `tile/stone-floor` used by mill/wells so the workshop reads as worked stone.
+- **More decoration props.** New `decoration/*` sprites — `barrel`, `crate`, `potted-plant`, `lamp-post`, `signpost`, `hay-bale`, `bush`, `log-stack` — plus `fish/{minnow,bass,salmon}` and `tool/fishing-rod`. All EDG32, 16×16. A purely-decorative `placeProps` batch in [region-setup.ts](../../packages/farm-valley/src/world/region-setup.ts) scatters them across the village hub, craft yards, resource zones, and mill yard. **Props are layer-40 sprites only — they do NOT affect walkability/pathfinding** (only `tileFeature` trees/stones block), so placement is visual-only. Rebuild with `npm run atlas` (atlas now has 157 frames).
 
 ## Archipelago layout (88×80) — every zone an isolated island
 

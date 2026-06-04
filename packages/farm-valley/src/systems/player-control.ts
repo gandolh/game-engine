@@ -34,7 +34,7 @@ const DIR_DELTA: Record<string, { dx: number; dy: number }> = {
  * specific tool/can; `seed` slots plant that crop on an empty owned plot.
  */
 export type HotbarSlot =
-  | { kind: "tool"; tool: "can" | "hoe" | "axe" | "pickaxe"; label: string; glyph: string }
+  | { kind: "tool"; tool: "can" | "hoe" | "axe" | "pickaxe" | "fishing-rod"; label: string; glyph: string }
   | { kind: "seed"; crop: CropKind; label: string; glyph: string };
 
 /**
@@ -43,16 +43,17 @@ export type HotbarSlot =
  * select slots 0-6. This list is the single source of truth shared by the sim
  * (action dispatch), the snapshot, and the hotbar UI.
  *
- *   1 Can · 2 Hoe · 3 Axe · 4 Pickaxe · 5 Radish · 6 Wheat · 7 Pumpkin
+ *   1 Can · 2 Hoe · 3 Axe · 4 Pickaxe · 5 Rod · 6 Radish · 7 Wheat · 8 Pumpkin
  */
 export const HOTBAR_SLOTS: readonly HotbarSlot[] = [
-  { kind: "tool", tool: "can",     label: "Can",     glyph: "🪣" },
-  { kind: "tool", tool: "hoe",     label: "Hoe",     glyph: "⛏" },
-  { kind: "tool", tool: "axe",     label: "Axe",     glyph: "🪓" },
-  { kind: "tool", tool: "pickaxe", label: "Pickaxe", glyph: "⚒" },
-  { kind: "seed", crop: "radish",  label: "Radish",  glyph: "🌱" },
-  { kind: "seed", crop: "wheat",   label: "Wheat",   glyph: "🌾" },
-  { kind: "seed", crop: "pumpkin", label: "Pumpkin", glyph: "🎃" },
+  { kind: "tool", tool: "can",         label: "Can",     glyph: "🪣" },
+  { kind: "tool", tool: "hoe",         label: "Hoe",     glyph: "⛏" },
+  { kind: "tool", tool: "axe",         label: "Axe",     glyph: "🪓" },
+  { kind: "tool", tool: "pickaxe",     label: "Pickaxe", glyph: "⚒" },
+  { kind: "tool", tool: "fishing-rod", label: "Rod",     glyph: "🎣" },
+  { kind: "seed", crop: "radish",      label: "Radish",  glyph: "🌱" },
+  { kind: "seed", crop: "wheat",       label: "Wheat",   glyph: "🌾" },
+  { kind: "seed", crop: "pumpkin",     label: "Pumpkin", glyph: "🎃" },
 ];
 
 export class PlayerControlSystem implements System {
@@ -112,11 +113,12 @@ export class PlayerControlSystem implements System {
    * Reuses the same `Intention` shapes the AI farmers emit so ActSystem runs
    * them identically (and applies its own tool/inventory/proximity checks).
    *
-   *   Can     → water a planted, not-yet-watered plot
-   *   Hoe     → till bare ground on Pip's own farm
-   *   Axe     → chop the tree in front
-   *   Pickaxe → mine the stone in front
-   *   Seed    → plant that crop on an empty owned plot (if a seed is held)
+   *   Can         → water a planted, not-yet-watered plot
+   *   Hoe         → till bare ground on Pip's own farm
+   *   Axe         → chop the tree in front
+   *   Pickaxe     → mine the stone in front
+   *   Fishing rod → fish, when facing a fishing-spot tile
+   *   Seed        → plant that crop on an empty owned plot (if a seed is held)
    */
   private slotIntent(
     entity: GameEntity,
@@ -141,6 +143,17 @@ export class PlayerControlSystem implements System {
           const plot = this.ownedPlotAt(entity, tx, ty);
           if (plot && plot.state.kind === "planted" && plot.state.wateredToday !== true) {
             return { kind: "water", data: { tileX: tx, tileY: ty }, priority: 0 };
+          }
+          return null;
+        }
+        case "fishing-rod": {
+          // Fish when standing on the fishing isle and facing open water. The
+          // faced tile (tx,ty) must be ocean (non-walkable); ActSystem re-checks
+          // that Pip is on the isle + adjacent to water, and reads bubbles for
+          // rarity. We don't gate on a specific spot — any shoreline casts.
+          const onIsle = entity.farmer?.currentRegion === "fishing-isle";
+          if (onIsle && !isWalkable(tx, ty)) {
+            return { kind: "fish", data: { tileX: tx, tileY: ty }, priority: 0 };
           }
           return null;
         }

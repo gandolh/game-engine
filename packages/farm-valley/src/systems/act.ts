@@ -1,7 +1,17 @@
-import type { SimContext, System, World, MessageBus, Intention, With } from "@engine/core";
-import { REGIONS } from "../world/regions";
-import type { GameEntity, CropKind, PlotState, ToolKind, ToolTier, DecorationKind } from "../components";
-import { TOOL_PRICE, DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
+import type { SimContext, System, World, MessageBus, Intention, With, Rng } from "@engine/core";
+import { REGIONS, isWalkable } from "../world/regions";
+import type { GameEntity, CropKind, PlotState, ToolKind, ToolTier, DecorationKind, FishKind } from "../components";
+import {
+  TOOL_PRICE,
+  DECORATION_RECIPE,
+  MAX_DECORATION_BOOST,
+  FISH_KINDS,
+  FISH_VALUE,
+  FISH_MIN_TICKS,
+  FISH_MAX_TICKS,
+  FISH_WEIGHTS_CALM,
+  FISH_WEIGHTS_BUBBLE,
+} from "../components";
 import {
   PERFORMATIVE,
   ONT_MARKET,
@@ -95,6 +105,7 @@ interface ActContext {
   occupiedByOwner: Map<number, Set<string>>;
   featuresByTile: Map<string, GameEntity>;
   fountainByRegion: Map<string, GameEntity>;
+  bubbleTiles: ReadonlySet<string>;
   blacksmithId: number | undefined;
   marketWallId: number | undefined;
   shopkeeperId: number | undefined;
@@ -103,10 +114,21 @@ interface ActContext {
 export class ActSystem implements System {
   readonly name = "ActSystem";
 
+  /**
+   * Seeded RNG channel for fishing outcomes (catch time + which fish). Forked
+   * once from the sim rng so fishing stays deterministic; falls back to an
+   * unseeded channel only when ActSystem is constructed without an rng (legacy
+   * tests). Mining still uses Math.random() — a pre-existing wart, untouched.
+   */
+  private readonly fishRng: Rng | null;
+
   constructor(
     private readonly world: World<GameEntity>,
     private readonly bus?: MessageBus,
-  ) {}
+    rng?: Rng,
+  ) {
+    this.fishRng = rng ? rng.fork("fish") : null;
+  }
 
   private buildActContext(): ActContext {
     const plotsByOwner = new Map<number, GameEntity[]>();
@@ -151,6 +173,12 @@ export class ActSystem implements System {
       fountainByRegion.set(f.fountain.regionId, f);
     }
 
+    // Bubble spot tiles (transient; drift daily around the fishing isle).
+    const bubbleTiles = new Set<string>();
+    for (const f of this.world.query("fishingSpot")) {
+      bubbleTiles.add(`${f.fishingSpot.tileX},${f.fishingSpot.tileY}`);
+    }
+
     let blacksmithId: number | undefined;
     for (const b of this.world.query("blacksmith")) {
       blacksmithId = b.id;
@@ -169,7 +197,7 @@ export class ActSystem implements System {
       break;
     }
 
-    return { plotsByOwner, occupiedByOwner, featuresByTile, fountainByRegion, blacksmithId, marketWallId, shopkeeperId };
+    return { plotsByOwner, occupiedByOwner, featuresByTile, fountainByRegion, bubbleTiles, blacksmithId, marketWallId, shopkeeperId };
   }
 
   private sendIntentMessage(
@@ -694,6 +722,76 @@ export class ActSystem implements System {
     farmer.inventory.gold += zone.reward;
   }
 
+  /**
+   * Fish from the fishing isle. Requirements: the farmer holds a fishing rod,
+   * stands ON a `fishing-isle` tile, and is adjacent (Chebyshev ≤ 1) to an
+   * OCEAN tile (the shoreline) to cast into. The catch tilts on whether that
+   * water is churning: casting next to a **bubble** spot uses the rarer
+   * `FISH_WEIGHTS_BUBBLE` odds, otherwise calm-water `FISH_WEIGHTS_CALM`
+   * (mostly minnows). On success it lands one of minnow/bass/salmon (1/3/5
+   * gold), banked directly + tallied in `inventory.fish`. The rod has no
+   * durability. The reward is awarded now (deterministic on the seed); a random
+   * 5–30 s busy window on `busyUntilTick` keeps the angler occupied so a trip
+   * costs in-day time as well as 1 AP.
+   */
+  private handleFish(
+    farmer: ActingFarmer,
+    bubbleTiles: ReadonlySet<string>,
+    tick: number,
+  ): void {
+    const rod = (farmer.inventory.tools ?? []).find((t) => t.kind === "fishing-rod");
+    if (!rod || !farmer.transform) return;
+    // Must be standing on the fishing isle.
+    if (farmer.farmer?.currentRegion !== "fishing-isle") return;
+
+    const fx = Math.round(farmer.transform.x);
+    const fy = Math.round(farmer.transform.y);
+    // Find an adjacent ocean tile (the shore the rod casts into). Prefer the
+    // 4-neighbours; any non-walkable neighbour is open water.
+    const NEIGHBOURS = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+    ];
+    let castX: number | null = null;
+    let castY: number | null = null;
+    let nearBubble = false;
+    for (const { dx, dy } of NEIGHBOURS) {
+      const ox = fx + dx;
+      const oy = fy + dy;
+      if (isWalkable(ox, oy)) continue; // not open water
+      // First open-water neighbour becomes the cast target; if any adjacent
+      // water tile is a bubble, the whole cast counts as a bubble cast.
+      if (castX === null) { castX = ox; castY = oy; }
+      if (bubbleTiles.has(`${ox},${oy}`)) nearBubble = true;
+    }
+    if (castX === null) return; // no open water to cast into
+
+    // Weighted catch: rarer odds next to a bubble, calm odds otherwise.
+    const weights = nearBubble ? FISH_WEIGHTS_BUBBLE : FISH_WEIGHTS_CALM;
+    const fish = this.pickWeightedFish(weights);
+    const busyTicks = this.fishRng
+      ? this.fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1)
+      : FISH_MIN_TICKS + Math.floor(Math.random() * (FISH_MAX_TICKS - FISH_MIN_TICKS + 1));
+
+    if (!farmer.inventory.fish) farmer.inventory.fish = { minnow: 0, bass: 0, salmon: 0 };
+    farmer.inventory.fish[fish] += 1;
+    farmer.inventory.gold += FISH_VALUE[fish];
+
+    if (farmer.farmer) farmer.farmer.busyUntilTick = tick + busyTicks;
+  }
+
+  /** Draw a fish kind by [minnow,bass,salmon] weights. Deterministic via the
+   *  forked fish rng; falls back to Math.random when rng-less (legacy tests). */
+  private pickWeightedFish(weights: Record<FishKind, number>): FishKind {
+    const total = FISH_KINDS.reduce((s, k) => s + weights[k], 0);
+    const r = (this.fishRng ? this.fishRng.nextFloat() : Math.random()) * total;
+    let acc = 0;
+    for (const k of FISH_KINDS) {
+      acc += weights[k];
+      if (r < acc) return k;
+    }
+    return FISH_KINDS[FISH_KINDS.length - 1]!;
+  }
+
   run(ctx: SimContext): void {
     const farmers = this.world.query("fsm", "intentions", "inventory");
     const actCtx = this.buildActContext();
@@ -777,6 +875,10 @@ export class ActSystem implements System {
           }
           case "forage": {
             this.handleForage(farmer, day);
+            break;
+          }
+          case "fish": {
+            this.handleFish(farmer, actCtx.bubbleTiles, ctx.tick);
             break;
           }
         }

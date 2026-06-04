@@ -75,8 +75,41 @@ export type CropKind = "radish" | "wheat" | "pumpkin";
 
 // ── Tool system ──────────────────────────────────────────────────────────────
 
-export type ToolKind = "hoe" | "axe" | "pickaxe";
+export type ToolKind = "hoe" | "axe" | "pickaxe" | "fishing-rod";
 export type ToolTier = "wooden" | "stone" | "iron";
+
+// ── Fishing ────────────────────────────────────────────────────────────────
+//
+// Fishing is a low-AP, high-time activity: it costs 1 AP but the farmer is busy
+// for a random 5–30 seconds (at 20 Hz → 100–600 ticks), then lands one of three
+// fish. There is exactly ONE kind of fishing rod and it has NO durability
+// (modelled with `durability: Infinity` so the shared tool plumbing never
+// breaks or prunes it). You fish while standing adjacent to a fishing spot.
+
+/** The three catchable fish, in ascending value. */
+export type FishKind = "minnow" | "bass" | "salmon";
+
+export const FISH_KINDS: readonly FishKind[] = ["minnow", "bass", "salmon"];
+
+/** Gold each fish is worth when sold to the shopkeeper. */
+export const FISH_VALUE: Record<FishKind, number> = {
+  minnow: 1,
+  bass:   3,
+  salmon: 5,
+};
+
+/** Fishing time bounds, in ticks at 20 Hz (5 s … 30 s). */
+export const FISH_MIN_TICKS = 100; // 5 s
+export const FISH_MAX_TICKS = 600; // 30 s
+
+/**
+ * Catch odds, as [minnow, bass, salmon] weights. Plain ocean (calm water) mostly
+ * lands the cheap minnow; casting into a bubble spot tilts heavily toward the
+ * rarer, more valuable bass/salmon. Weights need not sum to 1 — the picker
+ * normalises. This is the whole point of the bubbles: a rarity bonus.
+ */
+export const FISH_WEIGHTS_CALM:   Record<FishKind, number> = { minnow: 80, bass: 17, salmon: 3 };
+export const FISH_WEIGHTS_BUBBLE: Record<FishKind, number> = { minnow: 25, bass: 45, salmon: 30 };
 
 /** Work-ticks (at 20 Hz) per action by tier. 3s / 2s / 1s. */
 export const TOOL_WORK_TICKS: Record<ToolTier, number> = {
@@ -115,6 +148,13 @@ export interface Inventory {
    * inventories (and tests) that omit it read as zero.
    */
   goldenBeans?: number;
+  /**
+   * Fish caught (not yet sold), by kind. Optional/defaulted so existing
+   * inventories and tests that omit it read as zero. Sold to the shopkeeper for
+   * `FISH_VALUE` gold each (see ActSystem.handleFish — fishing banks gold
+   * directly on the catch, so this is mostly a running tally for the UI).
+   */
+  fish?: Record<FishKind, number>;
   /** Tools owned by this farmer. One entry per tool owned (can stack same kind+tier). */
   tools?: Tool[];
   /** Watering can state. Optional so pre-tool saves read as full can. */
@@ -279,6 +319,19 @@ export interface WellTag {
   regionId: import('./world/regions').RegionId;
 }
 
+/**
+ * Tags a **bubble spot** — a transient patch of churning water (rising fish)
+ * that drifts in the ocean ring around the fishing isle. Casting INTO a bubble
+ * tile (from the isle edge) skews the catch toward rarer/more valuable fish;
+ * plain ocean skews to minnows. Bubbles spawn/despawn daily and are NOT
+ * permanent fixtures (see BubbleSystem). The tile is a non-walkable ocean tile.
+ */
+export interface FishingSpotTag {
+  readonly isFishingSpot: true;
+  tileX: number;
+  tileY: number;
+}
+
 /** Tags a farmhouse / home entity — the farmer returns here to sleep. */
 export interface HomeTag {
   readonly isHome: true;
@@ -401,6 +454,7 @@ export interface GameEntity {
   marketWall?: MarketWallTag;
   shopkeeper?: ShopkeeperTag;
   fountain?: FountainTag;
+  fishingSpot?: FishingSpotTag;
   tileFeature?: TileFeature;
   blacksmith?: BlacksmithTag;
   carpenter?: CarpenterTag;

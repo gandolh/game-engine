@@ -5,11 +5,17 @@ import type { RegionId } from "./world/regions";
 
 const ZERO_CROPS: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
 
-/** Starting tool kit — one wooden hoe, axe, and pickaxe. */
+/**
+ * Starting tool kit — one wooden hoe, axe, pickaxe, and a fishing rod. There is
+ * only one kind of fishing rod and it has no durability, modelled as
+ * `Infinity` so the shared tool plumbing (find `durability > 0`, prune at
+ * `<= 0`) never breaks or removes it.
+ */
 const STARTING_TOOLS: Tool[] = [
-  { kind: "hoe",     tier: "wooden", durability: 100 },
-  { kind: "axe",     tier: "wooden", durability: 100 },
-  { kind: "pickaxe", tier: "wooden", durability: 100 },
+  { kind: "hoe",         tier: "wooden", durability: 100 },
+  { kind: "axe",         tier: "wooden", durability: 100 },
+  { kind: "pickaxe",     tier: "wooden", durability: 100 },
+  { kind: "fishing-rod", tier: "wooden", durability: Infinity },
 ];
 
 /** Personality → region the farmer lives in (Cora NW, Atticus NE, Hannah SE, Otto SW, Pip top). */
@@ -54,6 +60,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
       gold: spec.startGold,
       crops: { ...ZERO_CROPS },
       seeds: { ...ZERO_CROPS, ...spec.startSeeds },
+      fish: { minnow: 0, bass: 0, salmon: 0 },
       tools: STARTING_TOOLS.map(t => ({ ...t })),
       wateringCan: { charges: 10, maxCharges: 10 },
     },

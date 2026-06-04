@@ -7,7 +7,8 @@ export type RegionId =
   | 'mill'                            // Grain mill — south road between village & Hannah
   | 'well-north' | 'well-south'       // Irrigation wells near quarries
   | 'mushroom-grove'                  // Seasonal zone (autumn-only field work) — SE gap
-  | 'ice-pond';                       // Seasonal zone (winter-only field work) — NW gap
+  | 'ice-pond'                        // Seasonal zone (winter-only field work) — NW gap
+  | 'fishing-isle';                   // Sand island you fish from (any ocean edge) — S of mill
 
 export type RegionKind = 'village' | 'farm';
 
@@ -34,6 +35,7 @@ export interface RegionDef {
 //   C(NW)     forest-N     P(top)      quarry-N    A(NE)
 //   mushroom  carpentry    VILLAGE     blacksmith  ice-pond   (mid band rows 34-45)
 //   O(SW)     forest-S     mill        quarry-S    H(SE)
+//                          fishing-isle (sand, S of mill rows 68-75; bubbles ring it)
 export const WORLD_WIDTH = 88;
 export const WORLD_HEIGHT = 80;
 
@@ -64,6 +66,12 @@ const WELL_SOUTH_BOUNDS    = { minX: 69, minY: 58, maxX: 70, maxY: 59 }; // 2×2
 const MUSHROOM_GROVE_BOUNDS = { minX:  6, minY: 34, maxX: 13, maxY: 41 }; // far W — autumn
 const ICE_POND_BOUNDS      = { minX: 74, minY: 34, maxX: 81, maxY: 41 }; // far E — winter
 
+// ── Fishing isle (8×8 sand island in open ocean, S of the mill) ───────────────
+// A dedicated sand island you travel to and fish from: stand on any edge tile,
+// face the surrounding ocean, and cast. Bubble spots drift in the ring of ocean
+// around it (see BubbleSystem) and grant rarer fish.
+const FISHING_ISLE_BOUNDS  = { minX: 40, minY: 68, maxX: 47, maxY: 75 };
+
 function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: number }): { x: number; y: number } {
   return {
     x: Math.floor((bounds.minX + bounds.maxX) / 2),
@@ -89,6 +97,7 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'well-south',     kind: 'village', bounds: WELL_SOUTH_BOUNDS,      center: midpoint(WELL_SOUTH_BOUNDS) },
   { id: 'mushroom-grove', kind: 'village', bounds: MUSHROOM_GROVE_BOUNDS,  center: midpoint(MUSHROOM_GROVE_BOUNDS) },
   { id: 'ice-pond',       kind: 'village', bounds: ICE_POND_BOUNDS,        center: midpoint(ICE_POND_BOUNDS) },
+  { id: 'fishing-isle',   kind: 'village', bounds: FISHING_ISLE_BOUNDS,    center: midpoint(FISHING_ISLE_BOUNDS) },
 ];
 
 // ── Road corridors ────────────────────────────────────────────────────────────
@@ -130,6 +139,9 @@ const ROADS: readonly RoadDef[] = [
   // ── Wells (stub off the adjacent quarry) ──
   { minX: 66, minY:  6, maxX: 68, maxY:  7 }, // well-north ↔ quarry-north
   { minX: 66, minY: 58, maxX: 68, maxY: 59 }, // well-south ↔ quarry-south
+
+  // ── Fishing isle (hangs off the mill, due south) ──
+  { minX: 42, minY: 64, maxX: 43, maxY: 67 }, // mill ↔ fishing-isle
 ];
 
 // Town square: inner 4×4 of village (auction podium + notice board markers)

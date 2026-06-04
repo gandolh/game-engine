@@ -39,11 +39,12 @@ describe('buildWalkableGrid', () => {
   });
 
   it('total walkable tile count matches layout', () => {
-    // Verified by independent BFS count: 1849 tiles. Archipelago (88×80): five
+    // Verified by independent BFS count: 1921 tiles. Archipelago (88×80): five
     // 12×12 farms (5×144=720) + 144 village + 2×100 craft islands + 4×64
-    // resource zones + 80 mill + 2×4 wells + 2×64 seasonal zones + the bridge
-    // network connecting all islands. Recompute if islands/bridges change.
-    const EXPECTED_WALKABLE = 1849;
+    // resource zones + 80 mill + 2×4 wells + 2×64 seasonal zones + the 8×8
+    // fishing isle (64) + the bridge network (incl. the mill↔isle bridge, +8)
+    // connecting all islands. Recompute if islands/bridges change.
+    const EXPECTED_WALKABLE = 1921;
     const grid = buildWalkableGrid();
     let walkableCount = 0;
     for (let i = 0; i < grid.cells.length; i++) {

@@ -11,7 +11,7 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberatePlantNearby } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -81,6 +81,8 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   deliberateMillVisit(farmer, 8, 6);
   // …and the in-season foraging zone for opportunistic gold.
   deliberateSeasonalForage(farmer, 7);
+  // Opportunist takes the occasional fishing trip for side income.
+  deliberateFishing(farmer, 5, 3, 13);
 
   // Opportunist visits village on day 0-1 — always wants market info early.
   deliberateEarlyVillageVisit(farmer, 5);

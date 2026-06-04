@@ -11,7 +11,7 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberatePlantNearby } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -95,6 +95,9 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // Visit resource zones when own farm is depleted.
   deliberateResourceZoneVisit(farmer, features.length, "tree", 9);
   deliberateResourceZoneVisit(farmer, features.length, "stone", 10);
+  // Occasional fishing trip for opportunistic side income (rarely — aggressive
+  // prefers high-volume farming; fishes only every 7 days).
+  deliberateFishing(farmer, 7, 2, 11);
 
   // End-of-sim liquidation: in the last 2 days, dump everything to the
   // shopkeeper and skip planting / market posting / wall scanning.

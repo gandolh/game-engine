@@ -2,6 +2,20 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-04] impl | Fishing isle + bubbles, stone carpentry floor, more decorations
+
+Player-facing batch (no brief): added fishing as a destination activity, restyled the carpentry floor, and enriched world dressing. (Superseded an earlier same-day draft that put two fixed fishing spots at the village edge — reworked into a dedicated island per user feedback.)
+
+- **Fishing isle.** New 8×8 sand island `fishing-isle` ([regions.ts](../packages/farm-valley/src/world/regions.ts), `40–47 × 68–75`) in open ocean S of the mill, joined by one 2-wide bridge (`42–43 × 64–67`). New `tile/sand` backdrop (`backdropFrame` in [render-systems.ts](../packages/farm-valley/src/render-systems.ts)). Walkable count **1849 → 1921**.
+- **Fishing.** `fish` action ([ActSystem.handleFish](../packages/farm-valley/src/systems/act.ts)): 1 AP, **stand on the isle + cast into an adjacent ocean tile**, random **5–30 s** busy window, lands **minnow/bass/salmon worth 1/3/5 gold**. Rarity depends on the water: casting next to a **bubble** uses `FISH_WEIGHTS_BUBBLE` `{25/45/30}`, calm water uses `FISH_WEIGHTS_CALM` `{80/17/3}` ([components.ts](../packages/farm-valley/src/components.ts)). Banks gold immediately + tallies `inventory.fish`. One **rod, no durability** (`durability: Infinity`), in everyone's `STARTING_TOOLS`. `ActSystem` forks a `"fish"` rng → deterministic; `fish` excluded from `actionTicks`.
+- **Bubbles drift daily.** New [BubbleSystem](../packages/farm-valley/src/systems/bubbles.ts) (after `TileFeatureSystem`, day-triggered, forked `"bubbles"` rng) clears + re-rolls `BUBBLE_COUNT`=5 bubble spots on the ocean ring around the isle each day. Each is a `fishingSpot: FishingSpotTag` + `structure/fishing-spot` sprite on non-walkable ocean (no movement block).
+- **AI farmers fish.** [`deliberateFishing`](../packages/farm-valley/src/agents/watering.ts) sends opportunist (every 5 days, 3 casts) + aggressive (every 7 days, 2 casts) to the isle edge `(40,71)`, low-priority + AP-gated (≥30). **Changes the AI economy → determinism baseline shifted**; re-verified MATCH across seeds `0xc0ffee/1/42` over 100 days.
+- **Hotbar grew 7→8 slots:** rod at index 4 (`🎣`), seeds shifted to 5/6/7; the rod slot emits `fish` only when Pip stands on the isle facing ocean. `player-control.test.ts` `SLOT` map + 3 fishing tests.
+- **Carpentry floor → stone** (`tile/carpentry-floor`, offset-brick slabs) replacing `tile/wood-plank`.
+- **More decorations.** New `decoration/{barrel,crate,potted-plant,lamp-post,signpost,hay-bale,bush,log-stack}` + `fish/{minnow,bass,salmon}` + `tool/fishing-rod` + `tile/sand` in [recipes.ts](../tools/atlas-builder/src/recipes.ts) (EDG32, 16×16; atlas **158 frames**). Visual-only `placeProps` batch across village/craft/resource/mill yards.
+- **Tests/verify:** typecheck clean; **419** farm-valley + 47 engine tests pass; `npm run build` clean.
+- Wiki: rewrote the Fishing section + added "Floor tiles & world dressing" in [wiki/player-and-interaction.md](wiki/player-and-interaction.md).
+
 ## [2026-06-04] impl | World rebuilt as an archipelago (88×80, island-per-zone)
 
 Replaced the abutting-regions map with a true **archipelago**: every zone is its own island ringed by ocean, connected **only** by 2-tile-wide bridges (no land touching between islands). Per request: **Pip's farm moved to the top**, the **four AI farms pushed to the four corners** to encourage travel, **village kept as the central hub** all bridges radiate from. Map grew **52×40 → 88×80**.
