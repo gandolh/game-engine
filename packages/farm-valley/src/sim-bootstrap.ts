@@ -4,8 +4,22 @@ import {
   World,
   createRng,
   type Pathfinder,
+  type PathfinderGrid,
   type Rng,
 } from "@engine/core";
+
+/**
+ * Duck-typed pathfinder interface accepted by bootstrapSim. Both the WASM
+ * Pathfinder class and the pure-JS JsPathfinder satisfy this shape, so
+ * headless runs can use the JS fallback without importing the WASM module.
+ */
+export interface PathfinderLike {
+  findPath(
+    grid: PathfinderGrid,
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+  ): { x: number; y: number }[];
+}
 import type { GameEntity } from "./components";
 import { setupFarmer, setupWorldRegions, type FarmerSpec } from "./world-setup";
 import { buildWalkableGrid } from "./world/walkable-grid";
@@ -76,7 +90,12 @@ export interface SimBootstrapOptions {
   ticksPerDay: number;
   maxDays?: number;
   farmerSpecs?: FarmerSpec[];
-  pathfinder?: Pathfinder | null;
+  /**
+   * Pathfinder for TravelSystem. Accepts either the WASM Pathfinder or the
+   * pure-JS JsPathfinder (duck-typed by PathfinderLike). Pass null/undefined
+   * to omit TravelSystem (farmers stay put — for legacy tests only).
+   */
+  pathfinder?: PathfinderLike | Pathfinder | null;
   /**
    * Mid-game shock (brief 23, Direction B). Defaults to a blight on the run
    * midpoint. Pass `false` to disable, or override the day/kind.
@@ -167,7 +186,9 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(weatherFeature.apSystem);
 
   if (opts.pathfinder) {
-    scheduler.add(new TravelSystem(world, opts.pathfinder, buildWalkableGrid(), bus));
+    // Cast to Pathfinder: JsPathfinder satisfies the duck type; WASM Pathfinder
+    // is an exact match. Both provide findPath(grid, start, end).
+    scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, buildWalkableGrid(), bus));
   }
 
   scheduler

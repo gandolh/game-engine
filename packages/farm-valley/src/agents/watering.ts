@@ -4,6 +4,7 @@ import type { DecorationKind, FarmDecoration, ToolKind } from "../components";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import { REGIONS } from "../world/regions";
 import { seasonForDay, type Season } from "../protocols/weather";
+import { isWithinReach } from "../systems/proximity";
 
 /**
  * brief 29 — survival-reflex watering, shared by all four personalities and
@@ -34,9 +35,9 @@ const WELL_REGIONS = ["well-north", "well-south"] as const;
  * Check if the watering can needs a refill and queue a refill-can intent if so.
  * Must be called BEFORE deliberateWatering so the refill lands before water actions.
  *
- * `refill-can` only resolves at a water source (the home fountain or a well —
- * enforced in ActSystem). If the farmer is away from any source, queue a travel
- * to the nearest one first so the refill doesn't get silently dropped.
+ * brief (proximity) — prefers traveling to the fountain TILE (so the farmer is
+ * adjacent to the fountain when the refill executes). Falls back to region travel
+ * if the fountain tile isn't in beliefs.
  */
 export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number): void {
   const can = farmer.inventory?.wateringCan;
@@ -44,26 +45,42 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
   // If we plan to water more plots than remaining charges, refill first.
   if (can.charges >= planWaterCount && can.charges !== 0) return;
 
-  const region = farmer.farmer.currentRegion;
-  const homeRegion = farmer.farmer.homeRegion;
-  const atWaterSource =
-    region === homeRegion ||
-    region === "well-north" ||
-    region === "well-south";
+  // Resolve the nearest water-source TILE (home fountain or well center).
+  const sense = farmer.beliefs?.data.plotWater as PlotWaterSense | undefined;
+  const fountainTile = sense?.fountainTile;
 
-  if (!atWaterSource) {
-    // Route to the nearest water source: prefer the home fountain, else a well.
-    // (Home is always a valid source; wells are the "closer when away" option.)
-    const target = nearestWaterSource(farmer);
-    if (target && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === target)) {
-      farmer.intentions.queue.push({
-        kind: "travel",
-        data: { targetRegionId: target },
-        priority: -1, // before the refill so travel runs first
-      });
+  // Compute the nearest water-source tile: home fountain tile (from beliefs if
+  // available) or the nearest well/home region center (fallback).
+  let nearestSourceTile: { x: number; y: number } | undefined;
+  if (fountainTile) {
+    nearestSourceTile = fountainTile;
+  } else {
+    // Fallback: use the nearest water source region center (home or well).
+    const sourceRegionId = nearestWaterSource(farmer);
+    if (sourceRegionId) {
+      const def = REGIONS.find(r => r.id === sourceRegionId);
+      if (def) nearestSourceTile = def.center;
     }
   }
 
+  if (!nearestSourceTile) return; // no water source known — skip
+
+  const nearSource = isWithinReach(farmer.transform, nearestSourceTile.x, nearestSourceTile.y);
+
+  if (!nearSource) {
+    // Not adjacent to any water source — travel to the fountain tile; act next cycle.
+    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetTile: { x: nearestSourceTile.x, y: nearestSourceTile.y } },
+        priority: -1,
+      });
+    }
+    recordReason(farmer, `travel to refill (${can.charges}/${can.maxCharges} charges)`);
+    return;
+  }
+
+  // Adjacent to a water source — queue the refill action.
   farmer.intentions.queue.push({
     kind: "refill-can",
     data: {},
@@ -140,8 +157,57 @@ export function deliberateBuyTool(
 }
 
 /**
+ * brief (proximity) — proximity-aware plant helper.
+ *
+ * Picks the first empty plot near the farmer and enqueues a plant intent for it,
+ * OR travels to the nearest empty plot tile if none is within reach.
+ *
+ * Call this INSTEAD of pushing a raw `plant` intent in a personality, passing
+ * the already-decided crop and priority. Returns true if a plant (or travel toward
+ * a planting spot) was enqueued, false if no empty plots exist.
+ */
+export function deliberatePlantNearby(
+  farmer: GameEntity,
+  crop: import("../components").CropKind,
+  priority: number,
+): boolean {
+  if (!farmer.intentions) return false;
+  const sense = farmer.beliefs?.data.plotWater as PlotWaterSense | undefined;
+  const emptyPlots = sense?.emptyPlots ?? [];
+  if (emptyPlots.length === 0) return false;
+
+  const transform = farmer.transform;
+  const inReach = emptyPlots.filter(p => isWithinReach(transform, p.tileX, p.tileY));
+
+  if (inReach.length > 0) {
+    // Plant on the first empty plot within reach (already sorted tileY, tileX).
+    const target = inReach[0]!;
+    farmer.intentions.queue.push({
+      kind: "plant",
+      data: { crop, tileX: target.tileX, tileY: target.tileY },
+      priority,
+    });
+    return true;
+  }
+
+  // No empty plot within reach — travel to the nearest one.
+  const nearest = nearestTile(transform, emptyPlots);
+  if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    farmer.intentions.queue.push({
+      kind: "travel",
+      data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
+      priority: -1,
+    });
+  }
+  return false;
+}
+
+/**
  * Queue till intents to expand the farm up to maxNewPlots new plots this day.
  * Picks the closest unused tiles inside the farmer's farm region.
+ *
+ * brief (proximity) — only enqueues till for tiles within reach; travels to
+ * the nearest candidate otherwise (or in addition if some are reachable).
  */
 export function deliberateTill(
   farmer: GameEntity,
@@ -156,25 +222,69 @@ export function deliberateTill(
   const farmDef = REGIONS.find(r => r.id === farmer.farmer!.homeRegion);
   if (!farmDef || farmDef.kind !== "farm") return;
 
-  let count = 0;
-  outer: for (let ty = farmDef.bounds.minY; ty <= farmDef.bounds.maxY && count < maxNewPlots; ty++) {
-    for (let tx = farmDef.bounds.minX; tx <= farmDef.bounds.maxX && count < maxNewPlots; tx++) {
+  // Collect all candidate tiles (unoccupied, inside farm), sorted (tileY, tileX).
+  const candidates: Array<{ tileX: number; tileY: number }> = [];
+  outer: for (let ty = farmDef.bounds.minY; ty <= farmDef.bounds.maxY; ty++) {
+    for (let tx = farmDef.bounds.minX; tx <= farmDef.bounds.maxX; tx++) {
       const key = `${tx},${ty}`;
       if (occupiedTiles.has(key)) continue;
-      farmer.intentions.queue.push({
-        kind: "till",
-        data: { tileX: tx, tileY: ty, regionId: farmer.farmer.homeRegion },
-        priority,
-      });
-      occupiedTiles.add(key); // optimistically mark as occupied
-      count++;
+      candidates.push({ tileX: tx, tileY: ty });
+      if (candidates.length >= maxNewPlots * 3) break outer; // collect some extras for proximity selection
     }
   }
+  if (candidates.length === 0) return;
+
+  const transform = farmer.transform;
+  const inReach = candidates.filter(p => isWithinReach(transform, p.tileX, p.tileY));
+  const outOfReach = candidates.filter(p => !isWithinReach(transform, p.tileX, p.tileY));
+
+  if (inReach.length === 0) {
+    // No candidate is within reach — travel to the nearest one; act next cycle.
+    const nearest = nearestTile(transform, candidates);
+    if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
+        priority: -1,
+      });
+    }
+    return;
+  }
+
+  // Enqueue till intents for all in-reach tiles (up to maxNewPlots).
+  let count = 0;
+  for (const p of inReach) {
+    if (count >= maxNewPlots) break;
+    farmer.intentions.queue.push({
+      kind: "till",
+      data: { tileX: p.tileX, tileY: p.tileY, regionId: farmer.farmer.homeRegion },
+      priority,
+    });
+    occupiedTiles.add(`${p.tileX},${p.tileY}`);
+    count++;
+  }
+
+  // If there are still out-of-reach candidates, queue travel toward the nearest
+  // to chain tilling across the farm in subsequent deliberation cycles.
+  if (outOfReach.length > 0) {
+    const nearestOut = nearestTile(transform, outOfReach);
+    if (nearestOut && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetTile: { x: nearestOut.tileX, y: nearestOut.tileY } },
+        priority: -1,
+      });
+    }
+  }
+
   if (count > 0) recordReason(farmer, `till ${count} new plot${count > 1 ? "s" : ""}`);
 }
 
 /**
  * Queue chop/mine intents for visible tile features on the farmer's farm.
+ *
+ * brief (proximity) — only enqueues gather for features within reach; travels
+ * to the nearest gatherable feature otherwise.
  */
 export function deliberateResourceGather(
   farmer: GameEntity,
@@ -198,23 +308,54 @@ export function deliberateResourceGather(
     deliberateBuyTool(farmer, "pickaxe", priority - 1);
   }
 
+  // Filter to features the farmer can actually gather with current tools,
+  // sorted (tileY, tileX) for determinism.
+  const gatherable = ownFeatures
+    .filter(f => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick))
+    .slice()
+    .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
+
+  if (gatherable.length === 0) return;
+
+  const transform = farmer.transform;
+  const inReach    = gatherable.filter(f => isWithinReach(transform, f.tileX, f.tileY));
+  const outOfReach = gatherable.filter(f => !isWithinReach(transform, f.tileX, f.tileY));
+
+  if (inReach.length === 0) {
+    // No gatherable feature is within reach — travel to the nearest one; act next cycle.
+    const nearest = nearestTile(transform, gatherable);
+    if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
+        priority: -1,
+      });
+    }
+    return;
+  }
+
+  // Enqueue gather intents for all in-reach features (up to maxActions).
   let count = 0;
-  for (const feat of ownFeatures) {
+  for (const feat of inReach) {
     if (count >= maxActions) break;
-    if (feat.kind === "tree" && hasAxe) {
+    farmer.intentions.queue.push({
+      kind: feat.kind === "tree" ? "chop-tree" : "mine-stone",
+      data: { tileX: feat.tileX, tileY: feat.tileY },
+      priority,
+    });
+    count++;
+  }
+
+  // If there are still out-of-reach features, queue travel toward the nearest
+  // to chain gathering in subsequent deliberation cycles.
+  if (outOfReach.length > 0) {
+    const nearest = nearestTile(transform, outOfReach);
+    if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
-        kind: "chop-tree",
-        data: { tileX: feat.tileX, tileY: feat.tileY },
-        priority,
+        kind: "travel",
+        data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
+        priority: -1,
       });
-      count++;
-    } else if (feat.kind === "stone" && hasPick) {
-      farmer.intentions.queue.push({
-        kind: "mine-stone",
-        data: { tileX: feat.tileX, tileY: feat.tileY },
-        priority,
-      });
-      count++;
     }
   }
   if (count > 0) recordReason(farmer, `gather resources (${count} actions)`);
@@ -517,18 +658,80 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
   if (!urgent && sense.maxDrySoFar < style.dryThreshold) return;
 
   const cap = style.maxWaterPerDay ?? sense.due;
-  const count = Math.min(sense.due, cap);
-  for (let i = 0; i < count; i++) {
-    farmer.intentions!.queue.push({
-      kind: "water",
-      data: {},
-      priority: 0, // survival — most important, watered first
-    });
+  // duePlots is sorted (tileY, tileX) for determinism.
+  const duePlots = sense.duePlots ?? [];
+  const candidatePlots = duePlots.slice(0, cap);
+
+  if (candidatePlots.length === 0) return;
+
+  const transform = farmer.transform;
+
+  // Split into: plots the farmer can reach NOW vs the rest.
+  const inReach = candidatePlots.filter(p => isWithinReach(transform, p.tileX, p.tileY));
+  const outOfReach = candidatePlots.filter(p => !isWithinReach(transform, p.tileX, p.tileY));
+
+  if (inReach.length > 0) {
+    // Enqueue a water intent for every reachable due plot so the farmer waters
+    // the whole cluster in one ACT pass.
+    for (const p of inReach) {
+      farmer.intentions!.queue.push({
+        kind: "water",
+        data: { tileX: p.tileX, tileY: p.tileY },
+        priority: 0,
+      });
+    }
+    // If there are still unreachable due plots, queue travel toward the nearest one.
+    if (outOfReach.length > 0) {
+      const nearest = nearestTile(transform, outOfReach);
+      if (nearest && !farmer.intentions!.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+        farmer.intentions!.queue.push({
+          kind: "travel",
+          data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
+          priority: -1,
+        });
+      }
+    }
+  } else {
+    // No due plot is within reach — travel to the nearest one; act next cycle.
+    const nearest = nearestTile(transform, candidatePlots);
+    if (nearest && !farmer.intentions!.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+      farmer.intentions!.queue.push({
+        kind: "travel",
+        data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
+        priority: -1,
+      });
+    }
   }
-  if (count > 0) {
+
+  const count = inReach.length > 0 ? inReach.length : 0;
+  if (count > 0 || candidatePlots.length > 0) {
     recordReason(
       farmer,
-      `water ${count} plot${count > 1 ? "s" : ""}${urgent ? " (wilting!)" : ""}`,
+      `water ${count > 0 ? count : "→travel"}${count > 1 ? " plots" : count === 1 ? " plot" : ""}${urgent ? " (wilting!)" : ""}`,
     );
   }
+}
+
+/**
+ * Pick the tile in `tiles` closest to `transform` by Manhattan distance.
+ * Tie-break by (tileY, tileX) for determinism (tiles must be pre-sorted for
+ * stable tie-breaking). Returns undefined if the list is empty.
+ */
+function nearestTile(
+  transform: { x: number; y: number } | undefined,
+  tiles: Array<{ tileX: number; tileY: number }>,
+): { tileX: number; tileY: number } | undefined {
+  if (tiles.length === 0) return undefined;
+  if (!transform) return tiles[0];
+  let best = tiles[0]!;
+  let bestDist = Math.abs(best.tileX - transform.x) + Math.abs(best.tileY - transform.y);
+  for (let i = 1; i < tiles.length; i++) {
+    const t = tiles[i]!;
+    const d = Math.abs(t.tileX - transform.x) + Math.abs(t.tileY - transform.y);
+    if (d < bestDist || (d === bestDist && (t.tileY < best.tileY || (t.tileY === best.tileY && t.tileX < best.tileX)))) {
+      best = t;
+      bestDist = d;
+    }
+  }
+  return best;
 }

@@ -11,7 +11,8 @@ import {
   type AuctionResultBody,
 } from "../protocols/shop";
 import { ONT_BOUNTY, type BountyPostedBody } from "../protocols/bounty";
-import { isActivePhase, isNightPhase } from "./day-phase";
+import { isActivePhase, isNightPhase, type DayPhase } from "./day-phase";
+import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
 import { maxApForDay } from "./ap";
 
 export class PerceiveSystem implements System {
@@ -29,6 +30,22 @@ export class PerceiveSystem implements System {
         const phase = farmer.beliefs.data.phase as string | undefined;
         const settled = farmer.fsm.current === "WAIT_DAY";
         if (settled && phase && phase !== "night") {
+          farmer.fsm.current = "PERCEIVE";
+        }
+      }
+
+      // brief (proximity) — strict per-tile actions need many more deliberation
+      // cycles than the ~3 phase boundaries give: a farmer must walk to each
+      // plot/tree/fountain, so it re-plans (walk → act → walk → act across
+      // clusters) the moment it is idle and not en route. Re-arm a settled,
+      // non-busy, non-travelling farmer during an active phase.
+      if (
+        farmer.fsm.current === "WAIT_DAY" &&
+        farmer.farmer?.busyUntilTick === undefined &&
+        farmer.farmer?.path === undefined
+      ) {
+        const livePhase = farmer.beliefs.data.phase as string | undefined;
+        if (livePhase && livePhase !== "night") {
           farmer.fsm.current = "PERCEIVE";
         }
       }
@@ -65,6 +82,26 @@ export class PerceiveSystem implements System {
           const body = msg.body as unknown as BountyPostedBody;
           farmer.beliefs.data.bounty = body.bounty ?? undefined;
           farmer.beliefs.revision += 1;
+        } else if (msg.ontology === ONT_TRAVEL.ARRIVED) {
+          // Re-deliberate on arrival: a farmer has just reached their destination.
+          // Re-arm exactly once per arrival so they chain walk→act→walk→act across
+          // plot clusters within a day. Guards: settled + active phase + not busy.
+          // Deterministic — fires only when the ARRIVED message lands (1 tick after
+          // TravelSystem emits it, via InboxDispatchSystem).
+          const arrivedBody = msg.body as unknown as TravelArrivedBody;
+          if (arrivedBody.farmerId === farmer.id) {
+            const phase = farmer.beliefs.data.phase as DayPhase | undefined;
+            const settled = farmer.fsm.current === "WAIT_DAY";
+            if (
+              settled &&
+              farmer.farmer?.busyUntilTick === undefined &&
+              farmer.farmer?.path === undefined &&
+              phase &&
+              isActivePhase(phase)
+            ) {
+              farmer.fsm.current = "PERCEIVE";
+            }
+          }
         }
       }
       // brief 24 — drop a stale open auction whose clock has run out (the

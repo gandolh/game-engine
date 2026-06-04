@@ -5,11 +5,9 @@ import { TOOL_PRICE, DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../componen
 import {
   PERFORMATIVE,
   ONT_MARKET,
-  ONT_CNP,
   type PostOfferBody,
   type ReadOffersBody,
   type BuyRequestBody,
-  type CnpTaskBody,
 } from "../protocols";
 import {
   ONT_SHOP,
@@ -18,6 +16,7 @@ import {
   type ResaleBeanBody,
 } from "../protocols/shop";
 import { seasonForDay, type Season } from "../protocols/weather";
+import { isWithinReach } from "./proximity";
 const SELL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const GROWTH_DAYS: Record<CropKind, number> = { radish: 2, wheat: 4, pumpkin: 7 };
 
@@ -222,7 +221,20 @@ export class ActSystem implements System {
     day: number,
   ): void {
     const crop = intent.data.crop as CropKind;
-    const free = ownedPlots.find((p) => p.plot!.state.kind === "empty");
+    const tileX = intent.data.tileX as number | undefined;
+    const tileY = intent.data.tileY as number | undefined;
+
+    // brief (proximity) — if a specific tile was specified, guard with proximity
+    // and act only on that plot. Fall back to "first empty" for backward compat.
+    let free: GameEntity | undefined;
+    if (tileX !== undefined && tileY !== undefined) {
+      // Defensive proximity guard: skip if somehow out of reach.
+      if (!isWithinReach(farmer.transform, tileX, tileY)) return;
+      free = ownedPlots.find((p) => p.plot!.tileX === tileX && p.plot!.tileY === tileY && p.plot!.state.kind === "empty");
+    } else {
+      free = ownedPlots.find((p) => p.plot!.state.kind === "empty");
+    }
+
     if (free && farmer.inventory.seeds[crop] > 0) {
       farmer.inventory.seeds[crop] -= 1;
       // Reset decay clock — this plot is being tended right now.
@@ -239,23 +251,39 @@ export class ActSystem implements System {
     }
   }
 
-  private handleWater(farmer: ActingFarmer, ownedPlots: GameEntity[]): void {
+  private handleWater(farmer: ActingFarmer, intent: Intention, ownedPlots: GameEntity[]): void {
     // Watering consumes 1 charge from the watering can. If empty,
     // skip (agent should have queued a refill first).
     const can = farmer.inventory.wateringCan;
     if (can && can.charges <= 0) return;
-    const due = ownedPlots
-      .filter((p) => {
-        const s = p.plot!.state;
-        return s.kind === "planted" && s.wateredToday !== true;
-      })
-      .sort((a, b) => {
-        const sa = a.plot!.state as Extract<PlotState, { kind: "planted" }>;
-        const sb = b.plot!.state as Extract<PlotState, { kind: "planted" }>;
-        return (sb.daysSinceWater ?? 0) - (sa.daysSinceWater ?? 0);
-      })[0];
-    if (due) {
-      const s = due.plot!.state as Extract<PlotState, { kind: "planted" }>;
+
+    const tileX = intent.data.tileX as number | undefined;
+    const tileY = intent.data.tileY as number | undefined;
+
+    let target: GameEntity | undefined;
+    if (tileX !== undefined && tileY !== undefined) {
+      // brief (proximity) — defensive guard: skip if somehow out of reach.
+      if (!isWithinReach(farmer.transform, tileX, tileY)) return;
+      target = ownedPlots.find(
+        (p) => p.plot!.tileX === tileX && p.plot!.tileY === tileY &&
+               p.plot!.state.kind === "planted" &&
+               (p.plot!.state as Extract<PlotState, { kind: "planted" }>).wateredToday !== true,
+      );
+    } else {
+      // Legacy fallback: water the most-dry due plot (old behavior).
+      target = ownedPlots
+        .filter((p) => {
+          const s = p.plot!.state;
+          return s.kind === "planted" && s.wateredToday !== true;
+        })
+        .sort((a, b) => {
+          const sa = a.plot!.state as Extract<PlotState, { kind: "planted" }>;
+          const sb = b.plot!.state as Extract<PlotState, { kind: "planted" }>;
+          return (sb.daysSinceWater ?? 0) - (sa.daysSinceWater ?? 0);
+        })[0];
+    }
+    if (target) {
+      const s = target.plot!.state as Extract<PlotState, { kind: "planted" }>;
       s.wateredToday = true;
       s.daysSinceWater = 0;
       if (can) can.charges -= 1;
@@ -342,30 +370,6 @@ export class ActSystem implements System {
     );
   }
 
-  private handleCnpInitiate(
-    farmer: ActingFarmer,
-    intent: Intention,
-    tick: number,
-  ): void {
-    if (!this.bus || farmer.id === undefined) return;
-    const body: CnpTaskBody = {
-      taskId: `${farmer.id}-${tick}`,
-      initiatorId: farmer.id,
-      buyCrop: intent.data.crop as CropKind,
-      quantity: intent.data.quantity as number,
-      maxPricePerUnit: intent.data.maxPricePerUnit as number,
-      deadlineTick: tick + ((intent.data.deadlineTicks as number) ?? 2),
-    };
-    this.sendIntentMessage(
-      PERFORMATIVE.CFP,
-      ONT_CNP.TASK,
-      farmer.id,
-      "broadcast",
-      body as unknown as Record<string, unknown>,
-      tick,
-    );
-  }
-
   private handleAuctionBid(
     farmer: ActingFarmer,
     intent: Intention,
@@ -422,6 +426,9 @@ export class ActSystem implements System {
     if (!hoe) return;
     const tileX = intent.data.tileX as number;
     const tileY = intent.data.tileY as number;
+    // Strict proximity guard: farmer must be within 1 cell (Chebyshev) of the
+    // target tile. TravelSystem moves farmers into position before acting.
+    if (!isWithinReach(farmer.transform, tileX, tileY)) return;
     const occ = occupiedByOwner.get(farmer.id) ?? new Set();
     const tileKey = `${tileX},${tileY}`;
     if (occ.has(tileKey)) return; // already occupied
@@ -456,6 +463,9 @@ export class ActSystem implements System {
     if (!axe) return;
     const tileX = intent.data.tileX as number;
     const tileY = intent.data.tileY as number;
+    // Strict proximity guard: farmer must be within 1 cell (Chebyshev) of the
+    // target tile. TravelSystem moves farmers into position before acting.
+    if (!isWithinReach(farmer.transform, tileX, tileY)) return;
     const feat = featuresByTile.get(`${tileX},${tileY}`);
     if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") return;
     // Award wood
@@ -482,6 +492,9 @@ export class ActSystem implements System {
     if (!pick) return;
     const tileX = intent.data.tileX as number;
     const tileY = intent.data.tileY as number;
+    // Strict proximity guard: farmer must be within 1 cell (Chebyshev) of the
+    // target tile. TravelSystem moves farmers into position before acting.
+    if (!isWithinReach(farmer.transform, tileX, tileY)) return;
     const feat = featuresByTile.get(`${tileX},${tileY}`);
     if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") return;
     if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
@@ -504,19 +517,41 @@ export class ActSystem implements System {
     }
   }
 
-  private handleRefillCan(farmer: ActingFarmer): void {
-    // Refill watering can — only valid at a water source: the farmer's
-    // own farm (home fountain) or a well (well-north/well-south).
-    // Without this guard the can refilled anywhere (mid-road, forest…),
-    // making the wells and fountains pointless.
+  private handleRefillCan(farmer: ActingFarmer, intent: Intention, fountainByRegion: Map<string, GameEntity>): void {
+    // Refill watering can — only valid when adjacent (Chebyshev ≤ 1) to a
+    // water source tile: the home fountain or a well center.
+    // TravelSystem moves the farmer to the fountain tile before this executes.
     const can = farmer.inventory.wateringCan;
     if (!can) return;
-    const region = farmer.farmer?.currentRegion;
-    const atWaterSource =
-      region === "well-north" ||
-      region === "well-south" ||
-      region === farmer.farmer?.homeRegion;
-    if (!atWaterSource) return;
+
+    const homeRegion = farmer.farmer?.homeRegion;
+
+    // Build the list of candidate water-source tiles: home fountain + wells.
+    const sourceTiles: Array<{ tileX: number; tileY: number }> = [];
+
+    // Home fountain (fountain entity on the farm)
+    if (homeRegion) {
+      const homeFountain = fountainByRegion.get(homeRegion);
+      if (homeFountain?.transform) {
+        sourceTiles.push({
+          tileX: Math.round(homeFountain.transform.x),
+          tileY: Math.round(homeFountain.transform.y),
+        });
+      }
+    }
+
+    // Wells (well-north and well-south): use their region center from REGIONS.
+    for (const wellId of ["well-north", "well-south"] as const) {
+      const wellRegion = REGIONS.find(r => r.id === wellId);
+      if (wellRegion) {
+        sourceTiles.push({ tileX: wellRegion.center.x, tileY: wellRegion.center.y });
+      }
+    }
+
+    // Strict proximity guard: farmer must be within 1 cell of at least one source.
+    const adjacent = sourceTiles.some(s => isWithinReach(farmer.transform, s.tileX, s.tileY));
+    if (!adjacent) return;
+
     can.charges = can.maxCharges;
   }
 
@@ -681,7 +716,7 @@ export class ActSystem implements System {
             break;
           }
           case "water": {
-            this.handleWater(farmer, ownedPlots);
+            this.handleWater(farmer, intent, ownedPlots);
             break;
           }
           case "sell-shopkeeper": {
@@ -698,10 +733,6 @@ export class ActSystem implements System {
           }
           case "buy-from-wall": {
             this.handleBuyFromWall(farmer, intent, actCtx.marketWallId, ctx.tick);
-            break;
-          }
-          case "cnp-initiate": {
-            this.handleCnpInitiate(farmer, intent, ctx.tick);
             break;
           }
           case "auction-bid": {
@@ -725,7 +756,7 @@ export class ActSystem implements System {
             break;
           }
           case "refill-can": {
-            this.handleRefillCan(farmer);
+            this.handleRefillCan(farmer, intent, actCtx.fountainByRegion);
             break;
           }
           case "buy-tool": {

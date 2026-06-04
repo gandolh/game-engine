@@ -56,14 +56,34 @@ export class TravelSystem implements System {
     // Phase 1: start a new path if needed.
     if (hasTravelIntent && !farmer.path) {
       const targetRegionId = front.data.targetRegionId as RegionId | undefined;
-      if (!targetRegionId) {
+      // brief (proximity) — a travel intent may target a specific TILE (to stand
+      // adjacent to a plot/tree/stone/fountain before acting) instead of a whole
+      // region. Tile targets win when both are present.
+      const targetTile = front.data.targetTile as
+        | { x: number; y: number }
+        | undefined;
+
+      let dest: { x: number; y: number };
+      if (targetTile) {
+        const reachable = this.resolveReachableTile(targetTile.x, targetTile.y);
+        if (!reachable) {
+          console.warn(
+            `[travel] farmer ${entity.id} target tile (${targetTile.x},${targetTile.y}) has no reachable adjacent walkable tile; dropping`,
+          );
+          intentions.queue.shift();
+          return;
+        }
+        dest = reachable;
+      } else if (targetRegionId) {
+        dest = getRegion(targetRegionId).center;
+      } else {
         console.warn(
-          `[travel] farmer ${entity.id} has travel intent without targetRegionId; dropping`,
+          `[travel] farmer ${entity.id} has travel intent without targetRegionId or targetTile; dropping`,
         );
         intentions.queue.shift();
         return;
       }
-      const targetCenter = getRegion(targetRegionId).center;
+      const targetCenter = dest;
       const start = { x: transform.x, y: transform.y };
       // The WASM pathfinder's allocator can intermittently trap
       // (RuntimeError: unreachable) under heavy churn. Isolate it so a single
@@ -126,6 +146,38 @@ export class TravelSystem implements System {
         }
       }
     }
+  }
+
+  /** Walkable iff in-bounds and the grid cell is 0 (matches the pathfinder). */
+  private isWalkable(x: number, y: number): boolean {
+    const { width, height, cells } = this.grid;
+    if (x < 0 || y < 0 || x >= width || y >= height) return false;
+    return cells[y * width + x] === 0;
+  }
+
+  /**
+   * Resolve the tile a farmer should stand on to be "at" a target tile: the
+   * target itself if walkable (e.g. a soil plot), otherwise the nearest walkable
+   * 8-neighbour. Neighbours are scanned in a FIXED order so the chosen standing
+   * tile is deterministic. Returns undefined if neither the tile nor any
+   * neighbour is walkable.
+   */
+  private resolveReachableTile(
+    tileX: number,
+    tileY: number,
+  ): { x: number; y: number } | undefined {
+    if (this.isWalkable(tileX, tileY)) return { x: tileX, y: tileY };
+    // Fixed scan order (N, E, S, W, then diagonals) for determinism.
+    const offsets = [
+      [0, -1], [1, 0], [0, 1], [-1, 0],
+      [1, -1], [1, 1], [-1, 1], [-1, -1],
+    ] as const;
+    for (const [dx, dy] of offsets) {
+      const nx = tileX + dx;
+      const ny = tileY + dy;
+      if (this.isWalkable(nx, ny)) return { x: nx, y: ny };
+    }
+    return undefined;
   }
 
   /**

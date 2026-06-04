@@ -7,6 +7,14 @@
 //   - The grid is row-major u8 (0 = walkable, anything else = blocked).
 //   - The output buffer receives i32 pairs (x, y) one waypoint per pair,
 //     ordered from start -> end.
+//
+// Scratch-buffer reuse:
+//   Four module-level static buffers (gScore, parent, closed, heapBuf) are
+//   allocated once on first use and grown on-demand when a larger grid is
+//   requested.  They are NEVER freed between calls — only their contents are
+//   reset at the start of each findPath invocation.  This eliminates the
+//   alloc/free churn that intermittently exhausted the stub-runtime bump
+//   allocator and caused "RuntimeError: unreachable" traps under heavy load.
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);
@@ -21,6 +29,35 @@ function manhattan(ax: i32, ay: i32, bx: i32, by: i32): i32 {
   const dx = ax - bx;
   const dy = ay - by;
   return (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+}
+
+// ---------------------------------------------------------------------------
+// Module-level scratch buffers.  Null (0) means "not yet allocated".
+// scratchCap tracks the number of cells the current allocations can hold.
+// ---------------------------------------------------------------------------
+let scratchGScore: usize = 0;  // i32[total]  — best known cost
+let scratchParent: usize = 0;  // i32[total]  — predecessor index
+let scratchClosed: usize = 0;  // u8[total]   — closed-set flags
+let scratchHeap:   usize = 0;  // i64[total+1] — binary-heap entries (f,idx)
+let scratchCap:    i32   = 0;  // cells the current buffers can hold
+
+@inline
+function ensureScratch(total: i32): void {
+  if (total <= scratchCap) return;
+
+  // Grow: free old buffers only if they were previously allocated.
+  if (scratchCap > 0) {
+    heap.free(scratchGScore);
+    heap.free(scratchParent);
+    heap.free(scratchClosed);
+    heap.free(scratchHeap);
+  }
+
+  scratchGScore = heap.alloc(<usize>(total << 2));          // 4 bytes per i32
+  scratchParent = heap.alloc(<usize>(total << 2));
+  scratchClosed = heap.alloc(<usize>total);                 // 1 byte per u8
+  scratchHeap   = heap.alloc(<usize>((total + 1) << 3));   // 8 bytes per entry
+  scratchCap    = total;
 }
 
 /**
@@ -61,39 +98,35 @@ export function findPath(
   if (load<u8>(gridPtr + <usize>startIdx) != 0) return 0;
   if (load<u8>(gridPtr + <usize>endIdx) != 0) return 0;
 
-  // Scratch arrays:
-  //   gScore[i] best known cost to cell i (i32, MAX_VALUE = unvisited)
-  //   parent[i] predecessor cell index (i32, -1 = none)
-  //   closed[i] u8 flag (0 = open, 1 = closed)
-  const gScore: usize = heap.alloc(<usize>(total << 2));
-  const parent: usize = heap.alloc(<usize>(total << 2));
-  const closed: usize = heap.alloc(<usize>total);
+  // Ensure scratch buffers are large enough for this grid.
+  ensureScratch(total);
 
+  // Reset scratch arrays.
+  //   gScore: sentinel = i32.MAX_VALUE
+  //   parent: sentinel = -1  (all-ones in two's complement)
+  //   closed: all 0
+  memory.fill(scratchClosed, 0, <usize>total);
   for (let i: i32 = 0; i < total; i++) {
-    store<i32>(gScore + (<usize>i << 2), i32.MAX_VALUE);
-    store<i32>(parent + (<usize>i << 2), -1);
-    store<u8>(closed + <usize>i, 0);
+    store<i32>(scratchGScore + (<usize>i << 2), i32.MAX_VALUE);
+    store<i32>(scratchParent + (<usize>i << 2), -1);
   }
 
   // Binary min-heap keyed on fScore. Each entry packs f (i32) then idx (i32).
-  // Capacity is bounded by total cells visited; allocate generously.
-  const heapCap: i32 = total + 1;
-  const heapPtr: usize = heap.alloc(<usize>(heapCap << 3));
   let heapLen: i32 = 0;
 
-  store<i32>(gScore + (<usize>startIdx << 2), 0);
-  heapLen = push(heapPtr, heapLen, manhattan(startX, startY, endX, endY), startIdx);
+  store<i32>(scratchGScore + (<usize>startIdx << 2), 0);
+  heapLen = push(scratchHeap, heapLen, manhattan(startX, startY, endX, endY), startIdx);
 
   let found: bool = false;
 
   while (heapLen > 0) {
     // Pop min.
-    const topIdx: i32 = load<i32>(heapPtr + 4);
-    const topF: i32 = load<i32>(heapPtr);
-    heapLen = popMin(heapPtr, heapLen);
+    const topIdx: i32 = load<i32>(scratchHeap + 4);
+    const topF: i32 = load<i32>(scratchHeap);
+    heapLen = popMin(scratchHeap, heapLen);
 
-    if (load<u8>(closed + <usize>topIdx) != 0) continue;
-    store<u8>(closed + <usize>topIdx, 1);
+    if (load<u8>(scratchClosed + <usize>topIdx) != 0) continue;
+    store<u8>(scratchClosed + <usize>topIdx, 1);
 
     if (topIdx == endIdx) {
       found = true;
@@ -107,7 +140,7 @@ export function findPath(
 
     const cy: i32 = topIdx / width;
     const cx: i32 = topIdx - cy * width;
-    const cg: i32 = load<i32>(gScore + (<usize>topIdx << 2));
+    const cg: i32 = load<i32>(scratchGScore + (<usize>topIdx << 2));
 
     // 4 neighbors: (-1,0), (1,0), (0,-1), (0,1)
     for (let n: i32 = 0; n < 4; n++) {
@@ -121,15 +154,15 @@ export function findPath(
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
       const nIdx: i32 = ny * width + nx;
       if (load<u8>(gridPtr + <usize>nIdx) != 0) continue;
-      if (load<u8>(closed + <usize>nIdx) != 0) continue;
+      if (load<u8>(scratchClosed + <usize>nIdx) != 0) continue;
 
       const tentative: i32 = cg + 1;
-      const existing: i32 = load<i32>(gScore + (<usize>nIdx << 2));
+      const existing: i32 = load<i32>(scratchGScore + (<usize>nIdx << 2));
       if (tentative < existing) {
-        store<i32>(gScore + (<usize>nIdx << 2), tentative);
-        store<i32>(parent + (<usize>nIdx << 2), topIdx);
+        store<i32>(scratchGScore + (<usize>nIdx << 2), tentative);
+        store<i32>(scratchParent + (<usize>nIdx << 2), topIdx);
         const f: i32 = tentative + manhattan(nx, ny, endX, endY);
-        heapLen = push(heapPtr, heapLen, f, nIdx);
+        heapLen = push(scratchHeap, heapLen, f, nIdx);
       }
     }
   }
@@ -142,7 +175,7 @@ export function findPath(
     while (trace != -1) {
       length += 1;
       if (trace == startIdx) break;
-      trace = load<i32>(parent + (<usize>trace << 2));
+      trace = load<i32>(scratchParent + (<usize>trace << 2));
     }
     if (length * 2 <= outCap) {
       trace = endIdx;
@@ -154,17 +187,15 @@ export function findPath(
         store<i32>(off, tx);
         store<i32>(off + 4, ty);
         if (trace == startIdx) break;
-        trace = load<i32>(parent + (<usize>trace << 2));
+        trace = load<i32>(scratchParent + (<usize>trace << 2));
         writeIdx -= 1;
       }
       written = length;
     }
   }
 
-  heap.free(gScore);
-  heap.free(parent);
-  heap.free(closed);
-  heap.free(heapPtr);
+  // NOTE: scratch buffers are intentionally NOT freed here.
+  // They are reused by the next findPath call, eliminating allocator churn.
   return written;
 }
 

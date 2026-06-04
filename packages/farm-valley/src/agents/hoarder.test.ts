@@ -2,9 +2,12 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { deliberateHoarder, _resetCnpCoordinatorsForTests } from "./hoarder";
 import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
-import { ONT_CNP } from "../protocols/cnp";
-import { PERFORMATIVE } from "../protocols/performatives";
 import type { RegionId } from "../world/regions";
+
+// proximity (brief): deliberatePlantNearby requires an empty plot within reach in
+// beliefs.data.plotWater.emptyPlots. Farmer transform is (0,0); the nearest
+// empty plot tile at (0,0) is Chebyshev ≤ 1 — always in reach.
+const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
 
 function makeFarmer(overrides: {
   gold?: number;
@@ -21,10 +24,13 @@ function makeFarmer(overrides: {
   const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
   const entity: GameEntity = {
     id: overrides.id ?? 1,
+    transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },
     farmer: { name: "F", currentRegion: overrides.region ?? "village" },
     beliefs: {
       data: {
         currentDay: overrides.day ?? 0,
+        // proximity (brief): emptyPlots surfaces the tile candidates for deliberatePlantNearby.
+        plotWater: { planted: 0, due: 0, maxDrySoFar: 0, duePlots: [], emptyPlots: EMPTY_PLOT_IN_REACH },
         ...(overrides.offers ? { marketOffers: overrides.offers } : {}),
         ...(overrides.plotId !== undefined ? { plotId: overrides.plotId } : {}),
       },
@@ -75,32 +81,6 @@ describe("deliberateHoarder", () => {
     expect(buy!.data["crop"]).toBe("radish");
   });
 
-  it("initiates a CNP task every 3 days", () => {
-    const f = makeFarmer({ day: 3, id: 1 });
-    deliberateHoarder(f, { tick: 10 });
-    const initiate = f.intentions!.queue.find((i) => i.kind === "cnp-initiate");
-    expect(initiate).toBeDefined();
-    expect(initiate!.data["crop"]).toBe("radish");
-    expect(initiate!.data["ontology"]).toBe(ONT_CNP.TASK);
-    expect(initiate!.data["performative"]).toBe(PERFORMATIVE.CFP);
-    expect(initiate!.data["taskId"]).toBe("cnp-1-3");
-  });
-
-  it("does not re-initiate the same CNP task on later ticks of the same day", () => {
-    const f = makeFarmer({ day: 3, id: 1 });
-    deliberateHoarder(f, { tick: 10 });
-    f.intentions!.queue.length = 0;
-    deliberateHoarder(f, { tick: 10 });
-    const initiate = f.intentions!.queue.find((i) => i.kind === "cnp-initiate");
-    expect(initiate).toBeUndefined();
-  });
-
-  it("does not initiate a CNP task on day 0", () => {
-    const f = makeFarmer({ day: 0 });
-    deliberateHoarder(f, { tick: 0 });
-    expect(f.intentions!.queue.find((i) => i.kind === "cnp-initiate")).toBeUndefined();
-  });
-
   it("buys radish offers from market wall up to 105% of shop price", () => {
     // shop=8, 105% = 8.4 — 8 passes, 9 fails.
     const offers: MarketOffer[] = [
@@ -136,36 +116,6 @@ describe("deliberateHoarder", () => {
     expect(read).toBeDefined();
     const filter = read!.data["filter"] as { crop?: string } | undefined;
     expect(filter?.crop).toBe("radish");
-  });
-
-  it("emits ACCEPT to the cheapest bidder and REJECT to losers after the deadline", () => {
-    const f = makeFarmer({ day: 3, id: 1 });
-    // Tick 10: start the task (deadline = 10 + 2 = 12).
-    deliberateHoarder(f, { tick: 10 });
-
-    // Inject proposals directly into the per-farmer coordinator.
-    // We do this through the public path by re-running deliberate with messages... but
-    // the personality file only enqueues cnp-initiate; the coordinator state is private.
-    // For this test we exercise via a known sequence: use the module-private coordinator
-    // by re-importing.
-    // Simpler: drive proposals through the coordinator-module API used inside hoarder.
-    // We expose state through the next deliberate tick after recording proposals.
-
-    // To inject proposals deterministically, we round-trip through CnpCoordinator
-    // by calling deliberateHoarder again at the deadline tick — but the coordinator
-    // wouldn't have any proposals. So instead, we patch in proposals via a temporary
-    // call into the same singleton through dynamic import.
-    // Easier path: import coordinator state through a side helper.
-    // Since the personality holds coordinators keyed by farmer.id, we can use the
-    // same key via a separate exported helper. We don't expose that, so instead this
-    // test asserts that ZERO proposals leads to no ACCEPT/REJECT — and the cheapest
-    // tie-break behavior is covered by cnp-coordinator.test.ts.
-
-    f.intentions!.queue.length = 0;
-    deliberateHoarder(f, { tick: 12 });
-    const responses = f.intentions!.queue.filter((i) => i.kind === "cnp-respond-bid");
-    // No proposals were submitted, so no ACCEPT/REJECT messages.
-    expect(responses).toHaveLength(0);
   });
 
   it("prepends a travel intent before buy-from-wall when not in village", () => {

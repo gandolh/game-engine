@@ -1,13 +1,10 @@
-// Hoarder farmer personality — CNP initiator for buying radishes from peers.
-// Enqueues intentions: plant, buy-seed, cnp-initiate, cnp-respond-bid, read-offers, buy-from-wall.
+// Hoarder farmer personality — buys radishes from the market wall, reads offers.
+// Enqueues intentions: plant, buy-seed, read-offers, buy-from-wall.
 import type { GameEntity, CropKind } from "../components";
 import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
-import { ONT_CNP } from "../protocols/cnp";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
-import { PERFORMATIVE } from "../protocols/performatives";
 import {
-  getOrCreateCoordinator,
   _resetCnpCoordinatorsForTests,
 } from "./cnp-registry";
 import {
@@ -17,16 +14,13 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
 export { _resetCnpCoordinatorsForTests };
 
 const HIGH_TIER: readonly CropKind[] = ["pumpkin", "wheat"]; // pumpkin/corn alternating; corn unavailable, use wheat
-const CNP_PERIOD_DAYS = 3;
-const CNP_DEFAULT_DEADLINE_TICKS = 2;
-const CNP_TARGET_QUANTITY = 3;
 const BUY_PRICE_MULTIPLIER = 1.05; // up to 105% of shop price
 
 function pickHighTier(plotId: number): CropKind {
@@ -39,8 +33,6 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   if (farmer.id === undefined) return;
 
   const reserve = (farmer.desires.data["minGoldReserve"] as number | undefined) ?? 80;
-  const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? ctx.tick;
-  const coord = getOrCreateCoordinator(farmer.id);
   const inVillage = farmer.farmer?.currentRegion === "village";
 
   farmer.intentions.queue.length = 0;
@@ -109,76 +101,21 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   }
 
   if (chosen) {
-    farmer.intentions.queue.push({
-      kind: chosenMode,
-      data:
-        chosenMode === "plant"
-          ? { crop: chosen }
-          : { crop: chosen, quantity: 1 },
-      priority: chosenMode === "plant" ? 1 : 2,
-    });
     if (chosenMode === "plant") {
-      recordReason(farmer, `plant ${chosen}: high-tier on hand`);
+      if (deliberatePlantNearby(farmer, chosen, 1)) {
+        recordReason(farmer, `plant ${chosen}: high-tier on hand`);
+      }
     } else {
+      farmer.intentions.queue.push({
+        kind: "buy-seed",
+        data: { crop: chosen, quantity: 1 },
+        priority: 2,
+      });
       recordReason(farmer, `buy seed ${chosen}: short on seeds`);
     }
   }
 
-  // 2. CNP — every CNP_PERIOD_DAYS, initiate a task to buy radishes from peers.
-  if (day > 0 && day % CNP_PERIOD_DAYS === 0) {
-    const taskId = `cnp-${farmer.id}-${day}`;
-    if (!coord.getTask(taskId)) {
-      const deadlineTick = ctx.tick + CNP_DEFAULT_DEADLINE_TICKS;
-      coord.startTask({
-        taskId,
-        initiatorId: farmer.id,
-        buyCrop: "radish",
-        quantity: CNP_TARGET_QUANTITY,
-        maxPricePerUnit: CROP_SELL_PRICE.radish,
-        deadlineTick,
-      });
-      farmer.intentions.queue.push({
-        kind: "cnp-initiate",
-        data: {
-          ontology: ONT_CNP.TASK,
-          performative: PERFORMATIVE.CFP,
-          taskId,
-          crop: "radish",
-          quantity: CNP_TARGET_QUANTITY,
-          maxPricePerUnit: CROP_SELL_PRICE.radish,
-          deadlineTick,
-        },
-        priority: 3,
-      });
-      recordReason(farmer, `cnp radish x${CNP_TARGET_QUANTITY}: hoard via peers`);
-    }
-  }
-
-  // 3. Close any CNP tasks whose deadline has arrived this tick.
-  for (const task of coord.dueTasks(ctx.tick)) {
-    const winnerId = coord.closeTask(task.taskId, ctx.tick);
-    // ACCEPT to winner, REJECT to losers — emitted as cnp-respond-bid intentions
-    // (the market/shop slice consumes them as message sends).
-    for (const proposal of task.proposals) {
-      const isWinner = proposal.bidderId === winnerId;
-      farmer.intentions.queue.push({
-        kind: "cnp-respond-bid",
-        data: {
-          ontology: isWinner ? ONT_CNP.ACCEPT : ONT_CNP.REJECT,
-          performative: isWinner ? PERFORMATIVE.ACCEPT : PERFORMATIVE.REJECT,
-          taskId: task.taskId,
-          recipientId: proposal.bidderId,
-        },
-        priority: 4,
-      });
-      recordReason(
-        farmer,
-        `cnp ${isWinner ? "accept" : "reject"} bid ${proposal.bidderId}`,
-      );
-    }
-  }
-
-  // 4. Read the market wall and buy radish offers up to 105% of shop price,
+  // 2. Read the market wall and buy radish offers up to 105% of shop price,
   //    prioritized by trust score (highest trust first).
   farmer.intentions.queue.push({
     kind: "read-offers",

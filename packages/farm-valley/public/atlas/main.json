@@ -316,57 +316,201 @@
       "w": 16,
       "h": 16
     },
-    "farmer/conservative/work": {
+    "decoration/scarecrow": {
       "x": 52,
       "y": 120,
       "w": 16,
       "h": 16
     },
-    "farmer/aggressive/work": {
+    "decoration/windmill": {
       "x": 69,
       "y": 120,
       "w": 16,
       "h": 16
     },
-    "farmer/hoarder/work": {
+    "decoration/flower-bed": {
       "x": 86,
       "y": 120,
       "w": 16,
       "h": 16
     },
-    "farmer/opportunist/work": {
+    "decoration/fence-art": {
       "x": 103,
       "y": 120,
       "w": 16,
       "h": 16
     },
-    "decoration/scarecrow": {
+    "debug/player": {
       "x": 1,
       "y": 137,
       "w": 16,
       "h": 16
     },
-    "decoration/windmill": {
+    "farmer/conservative/work": {
       "x": 18,
       "y": 137,
       "w": 16,
       "h": 16
     },
-    "decoration/flower-bed": {
+    "farmer/aggressive/work": {
       "x": 35,
       "y": 137,
       "w": 16,
       "h": 16
     },
-    "decoration/fence-art": {
+    "farmer/hoarder/work": {
       "x": 52,
       "y": 137,
       "w": 16,
       "h": 16
     },
-    "debug/player": {
+    "farmer/opportunist/work": {
       "x": 69,
       "y": 137,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/till": {
+      "x": 86,
+      "y": 137,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/aggressive/till": {
+      "x": 103,
+      "y": 137,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/hoarder/till": {
+      "x": 1,
+      "y": 154,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/till": {
+      "x": 18,
+      "y": 154,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/water": {
+      "x": 35,
+      "y": 154,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/aggressive/water": {
+      "x": 52,
+      "y": 154,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/hoarder/water": {
+      "x": 69,
+      "y": 154,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/water": {
+      "x": 86,
+      "y": 154,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/refill": {
+      "x": 103,
+      "y": 154,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/aggressive/refill": {
+      "x": 1,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/hoarder/refill": {
+      "x": 18,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/refill": {
+      "x": 35,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/chop": {
+      "x": 52,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/aggressive/chop": {
+      "x": 69,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/hoarder/chop": {
+      "x": 86,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/chop": {
+      "x": 103,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/mine": {
+      "x": 1,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/aggressive/mine": {
+      "x": 18,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/hoarder/mine": {
+      "x": 35,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/mine": {
+      "x": 52,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/conservative/plant": {
+      "x": 69,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/aggressive/plant": {
+      "x": 86,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/hoarder/plant": {
+      "x": 103,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/opportunist/plant": {
+      "x": 1,
+      "y": 205,
       "w": 16,
       "h": 16
     }

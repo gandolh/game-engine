@@ -6,10 +6,9 @@
 // presentation-only), so this descriptor is the *complete* save format — opening
 // the same descriptor reproduces a byte-identical run.
 //
-// Extension point: if/when interactive, sim-affecting inputs land, the engine's
-// `InputLog` (packages/engine/src/runtime/input-log.ts) is where the recorded
-// per-tick input stream would live, and this descriptor would gain a reference
-// to it. We deliberately do NOT wire InputLog today — it would be dead code.
+// Extension point: if/when interactive, sim-affecting inputs land, a per-tick
+// input log would be needed here to replay them. We deliberately keep this
+// descriptor minimal until such inputs exist.
 
 /** Everything needed to reproduce a deterministic run. */
 export interface RunDescriptor {

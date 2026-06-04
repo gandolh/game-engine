@@ -138,7 +138,7 @@ describe("TrustSystem", () => {
       maxPricePerUnit: 8,
       deadlineTick: 5,
     });
-    coord.acceptProposal("t1", { bidderId: winner.id!, pricePerUnit: 7, quantity: 2 });
+    coord.getTask("t1")!.proposals.push({ bidderId: winner.id!, pricePerUnit: 7, quantity: 2 });
     coord.closeTask("t1", 5);
 
     const coords = new Map<number, CnpCoordinator>([[initiator.id!, coord]]);
@@ -160,7 +160,7 @@ describe("TrustSystem", () => {
       maxPricePerUnit: 8,
       deadlineTick: 5,
     });
-    coord.acceptProposal("t1", { bidderId: winner.id!, pricePerUnit: 7, quantity: 2 });
+    coord.getTask("t1")!.proposals.push({ bidderId: winner.id!, pricePerUnit: 7, quantity: 2 });
     coord.closeTask("t1", 5);
 
     const coords = new Map<number, CnpCoordinator>([[initiator.id!, coord]]);

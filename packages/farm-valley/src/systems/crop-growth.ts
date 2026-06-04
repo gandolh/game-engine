@@ -73,7 +73,7 @@ export class CropGrowthSystem implements System {
         if (state.daysSinceWater > DRY_DEATH_GRACE_DAYS) {
           const crop = state.crop;
           const ownerId = plotEntity.plot.ownerId;
-          plotEntity.plot.state = { kind: "empty" };
+          plotEntity.plot.state = { kind: "empty", daysSinceTended: 0 };
           this.announceDeath(newDay, ownerId, crop, ctx.tick);
           continue;
         }

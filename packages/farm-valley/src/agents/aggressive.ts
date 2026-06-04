@@ -11,7 +11,7 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -129,12 +129,9 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   const choice = chooseTargetCrop(farmer, reserve);
   if (choice) {
     if (choice.mode === "plant") {
-      farmer.intentions.queue.push({
-        kind: "plant",
-        data: { crop: choice.crop },
-        priority: 1,
-      });
-      recordReason(farmer, `plant ${choice.crop}: best profit crop on hand`);
+      if (deliberatePlantNearby(farmer, choice.crop, 1)) {
+        recordReason(farmer, `plant ${choice.crop}: best profit crop on hand`);
+      }
     } else {
       farmer.intentions.queue.push({
         kind: "buy-seed",

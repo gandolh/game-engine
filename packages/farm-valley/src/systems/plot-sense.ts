@@ -7,11 +7,14 @@ import type { GameEntity, PlotState, TileFeature, FarmDecoration } from "../comp
  * market offers are surfaced for trade decisions: deliberation reads beliefs,
  * ActSystem resolves against the real plots.
  *
- * Writes `beliefs.data.plotWater = { planted, due, maxDrySoFar }`:
+ * Writes `beliefs.data.plotWater = { planted, due, maxDrySoFar, duePlots, emptyPlots, fountainTile }`:
  *   - planted: number of the farmer's planted plots
  *   - due: how many are not yet watered today (need a `water` action)
  *   - maxDrySoFar: the highest `daysSinceWater` among the farmer's plots
  *     (drives personality-tuned urgency)
+ *   - duePlots: sorted array of {tileX,tileY} for plots needing water today
+ *   - emptyPlots: sorted array of {tileX,tileY} for plots in "empty" state
+ *   - fountainTile: the tile coords of the farmer's home fountain (if known)
  *
  * Runs before DeliberateSystem (after HarvestSystem). Pure read of plot state.
  */
@@ -19,6 +22,12 @@ export interface PlotWaterSense {
   planted: number;
   due: number;
   maxDrySoFar: number;
+  /** Sorted (tileY, tileX) list of plots that need watering today. */
+  duePlots: Array<{ tileX: number; tileY: number }>;
+  /** Sorted (tileY, tileX) list of empty plots ready to plant. */
+  emptyPlots: Array<{ tileX: number; tileY: number }>;
+  /** Tile coords of the farmer's home fountain, if found. */
+  fountainTile?: { x: number; y: number };
 }
 
 export class PlotSenseSystem implements System {
@@ -27,8 +36,9 @@ export class PlotSenseSystem implements System {
   constructor(private readonly world: World<GameEntity>) {}
 
   run(_ctx: SimContext): void {
-    // Group planted plots by owner once.
-    const byOwner = new Map<number, Array<Extract<PlotState, { kind: "planted" }>>>();
+    // Group plots by owner (all states).
+    const byOwnerPlanted = new Map<number, Array<{ tileX: number; tileY: number; state: Extract<PlotState, { kind: "planted" }> }>>();
+    const byOwnerEmpty   = new Map<number, Array<{ tileX: number; tileY: number }>>();
     // Also track all plot tiles per owner (for till collision avoidance).
     const allTilesByOwner = new Map<number, string[]>();
     for (const p of this.world.query("plot")) {
@@ -36,18 +46,25 @@ export class PlotSenseSystem implements System {
       const arr = allTilesByOwner.get(p.plot.ownerId) ?? [];
       arr.push(`${p.plot.tileX},${p.plot.tileY}`);
       allTilesByOwner.set(p.plot.ownerId, arr);
-      if (s.kind !== "planted") continue;
-      const pArr = byOwner.get(p.plot.ownerId) ?? [];
-      pArr.push(s);
-      byOwner.set(p.plot.ownerId, pArr);
+      if (s.kind === "planted") {
+        const pArr = byOwnerPlanted.get(p.plot.ownerId) ?? [];
+        pArr.push({ tileX: p.plot.tileX, tileY: p.plot.tileY, state: s });
+        byOwnerPlanted.set(p.plot.ownerId, pArr);
+      } else if (s.kind === "empty") {
+        const eArr = byOwnerEmpty.get(p.plot.ownerId) ?? [];
+        eArr.push({ tileX: p.plot.tileX, tileY: p.plot.tileY });
+        byOwnerEmpty.set(p.plot.ownerId, eArr);
+      }
     }
 
     // Collect fountain tiles per farm region.
-    const fountainTilesByRegion = new Map<string, string>();
+    const fountainTilesByRegion = new Map<string, { x: number; y: number }>();
     for (const f of this.world.query("fountain")) {
       if (!f.transform) continue;
-      const key = `${Math.round(f.transform.x)},${Math.round(f.transform.y)}`;
-      fountainTilesByRegion.set(f.fountain.regionId, key);
+      fountainTilesByRegion.set(f.fountain.regionId, {
+        x: Math.round(f.transform.x),
+        y: Math.round(f.transform.y),
+      });
     }
 
     // Collect tile features per owner.
@@ -66,23 +83,39 @@ export class PlotSenseSystem implements System {
 
     for (const farmer of this.world.query("beliefs", "farmer")) {
       if (farmer.id === undefined) continue;
-      const plots = byOwner.get(farmer.id) ?? [];
+      const plantedPlots = byOwnerPlanted.get(farmer.id) ?? [];
+
+      // Compute due/maxDry and collect due plot tiles (sorted by tileY, tileX for determinism).
       let due = 0;
       let maxDry = 0;
-      for (const s of plots) {
-        if (s.wateredToday !== true) due += 1;
-        const dry = s.daysSinceWater ?? 0;
+      const dueTiles: Array<{ tileX: number; tileY: number }> = [];
+      for (const p of plantedPlots) {
+        if (p.state.wateredToday !== true) {
+          due += 1;
+          dueTiles.push({ tileX: p.tileX, tileY: p.tileY });
+        }
+        const dry = p.state.daysSinceWater ?? 0;
         if (dry > maxDry) maxDry = dry;
       }
-      const sense: PlotWaterSense = { planted: plots.length, due, maxDrySoFar: maxDry };
+      dueTiles.sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
+
+      // Collect empty plot tiles (sorted by tileY, tileX) for plant deliberation.
+      const emptyTiles = (byOwnerEmpty.get(farmer.id) ?? [])
+        .slice()
+        .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
+
+      const homeRegion = farmer.farmer.homeRegion;
+      const fountainTile = homeRegion ? fountainTilesByRegion.get(homeRegion) : undefined;
+
+      const sense: PlotWaterSense = fountainTile !== undefined
+        ? { planted: plantedPlots.length, due, maxDrySoFar: maxDry, duePlots: dueTiles, emptyPlots: emptyTiles, fountainTile }
+        : { planted: plantedPlots.length, due, maxDrySoFar: maxDry, duePlots: dueTiles, emptyPlots: emptyTiles };
       farmer.beliefs.data.plotWater = sense;
 
       // Surface occupied tiles (plots + fountain) for till planning.
       const tiles = allTilesByOwner.get(farmer.id) ?? [];
-      const homeRegion = farmer.farmer.homeRegion;
-      if (homeRegion) {
-        const ftKey = fountainTilesByRegion.get(homeRegion);
-        if (ftKey) tiles.push(ftKey);
+      if (homeRegion && fountainTile) {
+        tiles.push(`${fountainTile.x},${fountainTile.y}`);
       }
       farmer.beliefs.data.occupiedTiles = tiles;
 

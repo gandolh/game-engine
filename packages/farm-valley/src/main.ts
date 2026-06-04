@@ -216,6 +216,414 @@ async function boot(): Promise<void> {
   });
 }
 
+// ── Panel bundle ─────────────────────────────────────────────────────────────
+
+interface Panels {
+  overlay: DebugOverlay;
+  worldClock: WorldClockPanel;
+  observer: ObserverPanel;
+  leaderboardPanel: LeaderboardPanel;
+  slateBillboard: SlateBillboardPanel;
+  eventFeedPanel: EventFeedPanel;
+  playback: PlaybackControlsPanel;
+  gameOverPanel: GameOverPanel;
+}
+
+// Construct all UI panels and mount them into `app`. The observer and event
+// feed share a right-edge flex column (brief 25) so they stack correctly.
+function buildPanels(app: HTMLElement): Panels {
+  const overlay = new DebugOverlay(app);
+  const worldClock = new WorldClockPanel(app);
+  // brief 25 — observer + activity feed share one fixed right-edge flex
+  // column so they stack instead of overlapping; the feed reflows below the
+  // observer when the "why" block expands it.
+  const rightColumn = createRightColumn(app);
+  const observer = new ObserverPanel(rightColumn);
+  const leaderboardPanel = new LeaderboardPanel(app);
+  const slateBillboard = new SlateBillboardPanel(app);
+  const eventFeedPanel = new EventFeedPanel(rightColumn);
+  const playback = new PlaybackControlsPanel(app);
+  const gameOverPanel = createGameOverPanel(app);
+  return {
+    overlay,
+    worldClock,
+    observer,
+    leaderboardPanel,
+    slateBillboard,
+    eventFeedPanel,
+    playback,
+    gameOverPanel,
+  };
+}
+
+// ── Playback controls ────────────────────────────────────────────────────────
+
+interface PlaybackHandlers {
+  applyPaused: (next: boolean) => void;
+  applySpeed: (next: number) => void;
+  doStep: () => void;
+}
+
+// brief-16: playback — wire the controls to the worker and keep the panel
+// reflecting state. Pause/speed/step only retime when worker ticks run;
+// they never alter what a tick computes.
+function wirePlayback(
+  playback: PlaybackControlsPanel,
+  client: SimClient,
+): PlaybackHandlers {
+  function applyPaused(next: boolean): void {
+    paused = next;
+    client.setPaused(paused);
+    playback.update({ paused, speed });
+  }
+  function applySpeed(next: number): void {
+    speed = next;
+    client.setSpeed(speed);
+    playback.update({ paused, speed });
+  }
+  function doStep(): void {
+    // Step only makes sense while paused.
+    if (!paused) return;
+    client.step();
+  }
+
+  playback.setOnPause(applyPaused);
+  playback.setOnSpeed(applySpeed);
+  playback.setOnStep(doStep);
+  playback.update({ paused, speed });
+
+  return { applyPaused, applySpeed, doStep };
+}
+
+// Keyboard: space = toggle pause, "." = step, 1/2/4 = speed. Ignore keys
+// while the user is typing into an input/textarea (e.g. the seed field).
+function registerHotkeys(handlers: PlaybackHandlers): void {
+  const { applyPaused, applySpeed, doStep } = handlers;
+  window.addEventListener("keydown", (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
+      return;
+    }
+    switch (e.key) {
+      case " ":
+        e.preventDefault();
+        applyPaused(!paused);
+        break;
+      case ".":
+        doStep();
+        break;
+      case "1":
+        applySpeed(1);
+        break;
+      case "2":
+        applySpeed(2);
+        break;
+      case "4":
+        applySpeed(4);
+        break;
+      default:
+        break;
+    }
+  });
+}
+
+// ── Static-layer bake ────────────────────────────────────────────────────────
+
+// Receive the static-layer sprites from the worker and bake them once.
+// brief 30 — stamp subtle per-tile ground-noise into the baked layer
+// (one-time cost, deterministic on the run seed).
+// Pre-generate brightness array via WASM (8× faster than JS hash loop).
+// Falls back to JS path if WASM didn't load.
+function bakeStaticLayer(
+  client: SimClient,
+  renderer: Canvas2dRenderer,
+  noiseGen: import("@engine/core").NoiseGenerator | null,
+  seed: number,
+): void {
+  const wasmBrightness = noiseGen
+    ? noiseGen.fillNoise(
+        Math.ceil(WORLD_WIDTH * TILE / TILE),  // cols = WORLD_WIDTH
+        Math.ceil(WORLD_HEIGHT * TILE / TILE), // rows = WORLD_HEIGHT
+        seed,
+        0.12, // GROUND_NOISE_AMPLITUDE
+      )
+    : undefined;
+  const groundNoise = makeGroundNoiseDecorator(seed, TILE, 0.12, wasmBrightness);
+  client.onStaticLayer((msg) => {
+    renderer.bakeStaticLayer(
+      msg.sprites,
+      msg.worldWidthPx,
+      msg.worldHeightPx,
+      groundNoise,
+    );
+  });
+}
+
+// ── Particle director ────────────────────────────────────────────────────────
+
+// Manages coin-burst and shock-explosion particle events. Tracks prevGold
+// internally so callers only need to pass the current frame's farmer positions.
+class ParticleDirector {
+  private readonly particles: ParticleSystem;
+  private readonly client: SimClient;
+  private prevGold = new Map<number, number>(); // farmerId → gold last tick
+
+  constructor(particles: ParticleSystem, client: SimClient) {
+    this.particles = particles;
+    this.client = client;
+
+    // Watch the snapshot for new shock events → dirt explosion.
+    client.onSnapshot((snap) => {
+      if (!snap.shock) return;
+      // Shock wiped plots — emit a dramatic dirt burst from each affected farmer.
+      for (const row of snap.leaderboard) {
+        const pos = client.getFarmerInterpolatedPos(row.id);
+        if (!pos) continue;
+        this.particles.emit({
+          x: pos.x, y: pos.y,
+          count: 20,
+          shape: "rect",
+          color: "#8c6432", color2: "#5a3c1e",
+          speedMin: 15, speedMax: 60,
+          angleMin: -Math.PI, angleMax: 0,
+          lifetimeMin: 0.4, lifetimeMax: 0.9,
+          sizeMin: 1, sizeMax: 2.5,
+          gravity: 80,
+        });
+      }
+    });
+  }
+
+  // Emit a coin-burst particle when a farmer's gold total increases.
+  emitFromDiff(farmerPositions: Map<number, { x: number; y: number }>): void {
+    const lb = this.client.leaderboard;
+    for (const row of lb) {
+      const pos = farmerPositions.get(row.id);
+      if (!pos) continue;
+      const prevG = this.prevGold.get(row.id) ?? row.gold;
+      if (row.gold > prevG) {
+        // Gold increased → coin burst
+        this.particles.emit({
+          x: pos.x, y: pos.y - TILE,
+          count: 8,
+          shape: "star",
+          color: "#f0d238", color2: "#faf0a0",
+          speedMin: 10, speedMax: 35,
+          angleMin: -Math.PI, angleMax: 0,
+          lifetimeMin: 0.5, lifetimeMax: 1.0,
+          sizeMin: 1.5, sizeMax: 3,
+          gravity: 40,
+        });
+      }
+      this.prevGold.set(row.id, row.gold);
+    }
+  }
+}
+
+// ── Render loop ──────────────────────────────────────────────────────────────
+
+interface RenderLoopDeps {
+  client: SimClient;
+  renderer: Canvas2dRenderer;
+  keyboard: Keyboard;
+  particles: ParticleSystem;
+  particleDirector: ParticleDirector;
+  canvas: HTMLCanvasElement;
+  panels: Panels;
+  tooltip: HTMLElement;
+  seed: number;
+  maxDays: number;
+  ticksPerDay: number;
+}
+
+// Returns the `renderFrame` callback to pass directly to requestAnimationFrame.
+// All mutable frame state (lastFrameMs, gameOverShown) is owned inside this
+// closure, keeping it out of startGame's scope without changing semantics.
+function createRenderLoop(deps: RenderLoopDeps): () => void {
+  const {
+    client, renderer, keyboard, particles, particleDirector,
+    canvas, panels, tooltip, seed, maxDays, ticksPerDay,
+  } = deps;
+  const {
+    overlay, worldClock, observer, leaderboardPanel,
+    slateBillboard, eventFeedPanel, gameOverPanel,
+  } = panels;
+
+  let lastFrameMs = performance.now();
+  let gameOverShown = false;
+
+  function renderFrame(): void {
+    const nowMs = performance.now();
+    const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
+    lastFrameMs = nowMs;
+
+    // Compute interpolated sprites once per frame — used for rendering,
+    // farmer positions, and the hover tooltip.
+    const interpolatedSprites = client.getInterpolatedSprites();
+
+    // brief-11: focus-camera — update camera center each frame
+    if (_camera !== null && focusedFarmerId !== null) {
+      applyFocusAndPan(_camera, interpolatedSprites);
+    }
+
+    renderer.beginFrame();
+
+    // Animated water shimmer: cycle foam frames over the in-grid ocean tiles.
+    // Render-only; phase is offset per tile so the foam ripples rather than
+    // blinking in unison. ~1.8 s per full A→B→C cycle. Layer 1 = on the water
+    // (over the baked static ocean at layer 0, under plot dirt / entities).
+    const FOAM_PERIOD_MS = 1800;
+    const foamStep = nowMs / (FOAM_PERIOD_MS / FOAM_FRAMES.length);
+    for (const { tx, ty } of OCEAN_TILES) {
+      const phase = tx * 3 + ty * 5; // per-tile offset
+      const frame = FOAM_FRAMES[(Math.floor(foamStep) + phase) % FOAM_FRAMES.length]!;
+      renderer.push({
+        x: tx * TILE + TILE / 2,
+        y: ty * TILE + TILE / 2,
+        width: TILE,
+        height: TILE,
+        frame,
+        rotation: 0,
+        layer: 1,
+        alpha: 0.6,
+      });
+    }
+
+    // Build a position map for all farmer sprites (for meet bubbles + halo).
+    const farmerPositions = new Map<number, { x: number; y: number }>();
+    for (const s of interpolatedSprites) {
+      if (s.id !== null && s.interpolate) {
+        farmerPositions.set(s.id, { x: s.x, y: s.y });
+      }
+    }
+
+    // Particle events: diff leaderboard to detect gold gains.
+    particleDirector.emitFromDiff(farmerPositions);
+
+    // Emit ambient leaf/sparkle particles from crop plots (slow rate).
+    if (Math.random() < 0.15) {
+      const snap = client.latestSnapshot();
+      if (snap) {
+        for (const s of snap.sprites) {
+          if (s.id === null && s.frame.includes("/mature") && Math.random() < 0.05) {
+            particles.emit({
+              x: s.x + (Math.random() - 0.5) * 8,
+              y: s.y - 4,
+              count: 1,
+              shape: "circle",
+              color: "#50c832", color2: "#90e850",
+              speedMin: 3, speedMax: 8,
+              angleMin: -Math.PI * 0.8, angleMax: -Math.PI * 0.2,
+              lifetimeMin: 0.8, lifetimeMax: 1.4,
+              sizeMin: 1, sizeMax: 2,
+              gravity: -5,
+            });
+          }
+        }
+      }
+    }
+
+    particles.update(dt);
+
+    pushSnapshotSprites(
+      renderer,
+      interpolatedSprites,
+      client.meets,
+      farmerPositions,
+      focusedFarmerId,
+      nowMs,
+    );
+
+    // ── Debug player movement (WASD) ─────────────────────────────────────
+    // Throttled to PLAYER_MOVE_INTERVAL_MS so movement stays readable.
+    // P toggles visibility. Checks isWalkable before every step.
+    if (keyboard.justPressed("KeyP")) {
+      debugPlayer.visible = !debugPlayer.visible;
+    }
+    if (nowMs - debugPlayer.lastMoveMs >= PLAYER_MOVE_INTERVAL_MS) {
+      let dx = 0, dy = 0;
+      if (keyboard.isDown("KeyW") || keyboard.isDown("ArrowUp"))    dy = -1;
+      if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))  dy =  1;
+      if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))  dx = -1;
+      if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight")) dx =  1;
+      // Prefer axis-aligned: diagonal is two key presses, process only one
+      if (dx !== 0) dy = 0;
+      if (dx !== 0 || dy !== 0) {
+        const nx = debugPlayer.tileX + dx;
+        const ny = debugPlayer.tileY + dy;
+        if (nx >= 0 && nx < WORLD_WIDTH && ny >= 0 && ny < WORLD_HEIGHT && isWalkable(nx, ny)) {
+          debugPlayer.tileX = nx;
+          debugPlayer.tileY = ny;
+        }
+        debugPlayer.lastMoveMs = nowMs;
+      }
+    }
+    keyboard.endFrame();
+
+    // Draw the debug player on top of everything else (layer 200).
+    if (debugPlayer.visible) {
+      const px = debugPlayer.tileX * TILE + TILE / 2;
+      const py = debugPlayer.tileY * TILE + TILE / 2;
+      renderer.pushShadow(px, py + TILE * 0.35, TILE * 0.32, TILE * 0.12, 0.5);
+      renderer.push({
+        x: px, y: py,
+        width: TILE, height: TILE,
+        frame: "debug/player",
+        rotation: 0,
+        layer: 200,
+        alpha: 1,
+      });
+    }
+
+    // Hover tooltip: convert CSS mouse position → world pixels → find nearest
+    // labeled sprite within half-a-tile radius.
+    updateTooltip(tooltip, canvas, interpolatedSprites, _camera);
+
+    // brief 26 — day/night + seasonal color wash (render-only, tick-synced;
+    // looks right now that days are long, brief 27).
+    const wash = washFor({
+      tick: client.tick,
+      ticksPerDay,
+      season: seasonForDay(client.day),
+    });
+    renderer.endFrame(wash, particles);
+
+    // UI updates.
+    const snap = client.latestSnapshot();
+    const tick = client.tick;
+    overlay.update({ tick, alpha: 0, entityCount: client.entityCount });
+
+    worldClock.update({ tick: client.tick, ticksPerDay, day: client.day });
+
+    const obs = client.observer;
+    if (obs !== null) observer.update(obs);
+
+    leaderboardPanel.update(client.leaderboard);
+    slateBillboard.update(client.slate);
+    eventFeedPanel.update(client.events);
+
+    // Game over — show once.
+    if (client.gameOver && !gameOverShown) {
+      gameOverShown = true;
+      const final = client.finalSummary;
+      if (final !== null) {
+        renderGameOver(gameOverPanel, final, snap?.day ?? 0, {
+          seed,
+          maxDays,
+          ticksPerDay,
+        });
+      }
+    }
+
+    requestAnimationFrame(renderFrame);
+  }
+
+  return renderFrame;
+}
+
+// ── startGame orchestrator ───────────────────────────────────────────────────
+
 async function startGame(
   canvas: HTMLCanvasElement,
   app: HTMLElement,
@@ -230,73 +638,11 @@ async function startGame(
     const client = new SimClient();
     _simClient = client;
 
-    const overlay = new DebugOverlay(app);
-    const worldClock = new WorldClockPanel(app);
-    // brief 25 — observer + activity feed share one fixed right-edge flex
-    // column so they stack instead of overlapping; the feed reflows below the
-    // observer when the "why" block expands it.
-    const rightColumn = createRightColumn(app);
-    const observer = new ObserverPanel(rightColumn);
-    const leaderboardPanel = new LeaderboardPanel(app);
-    const slateBillboard = new SlateBillboardPanel(app);
-    const eventFeedPanel = new EventFeedPanel(rightColumn);
-    const playback = new PlaybackControlsPanel(app);
-    const gameOverPanel = createGameOverPanel(app);
-    let gameOverShown = false;
+    const panels = buildPanels(app);
+    const { observer, playback } = panels;
 
-    // brief-16: playback — wire the controls to the worker and keep the panel
-    // reflecting state. Pause/speed/step only retime when worker ticks run;
-    // they never alter what a tick computes.
-    function applyPaused(next: boolean): void {
-      paused = next;
-      client.setPaused(paused);
-      playback.update({ paused, speed });
-    }
-    function applySpeed(next: number): void {
-      speed = next;
-      client.setSpeed(speed);
-      playback.update({ paused, speed });
-    }
-    function doStep(): void {
-      // Step only makes sense while paused.
-      if (!paused) return;
-      client.step();
-    }
-
-    playback.setOnPause(applyPaused);
-    playback.setOnSpeed(applySpeed);
-    playback.setOnStep(doStep);
-    playback.update({ paused, speed });
-
-    // Keyboard: space = toggle pause, "." = step, 1/2/4 = speed. Ignore keys
-    // while the user is typing into an input/textarea (e.g. the seed field).
-    window.addEventListener("keydown", (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
-        return;
-      }
-      switch (e.key) {
-        case " ":
-          e.preventDefault();
-          applyPaused(!paused);
-          break;
-        case ".":
-          doStep();
-          break;
-        case "1":
-          applySpeed(1);
-          break;
-        case "2":
-          applySpeed(2);
-          break;
-        case "4":
-          applySpeed(4);
-          break;
-        default:
-          break;
-      }
-    });
+    const playbackHandlers = wirePlayback(playback, client);
+    registerHotkeys(playbackHandlers);
 
     // brief-11: focus-camera — set up observer row click handler
     observer.setOnFarmerClick((id) => {
@@ -305,28 +651,7 @@ async function startGame(
       if (_camera !== null) applyFocusAndPan(_camera);
     });
 
-    // Receive the static-layer sprites from the worker and bake them once.
-    // brief 30 — stamp subtle per-tile ground-noise into the baked layer
-    // (one-time cost, deterministic on the run seed).
-    // Pre-generate brightness array via WASM (8× faster than JS hash loop).
-    // Falls back to JS path if WASM didn't load.
-    const wasmBrightness = noiseGen
-      ? noiseGen.fillNoise(
-          Math.ceil(WORLD_WIDTH * TILE / TILE),  // cols = WORLD_WIDTH
-          Math.ceil(WORLD_HEIGHT * TILE / TILE), // rows = WORLD_HEIGHT
-          seed,
-          0.12, // GROUND_NOISE_AMPLITUDE
-        )
-      : undefined;
-    const groundNoise = makeGroundNoiseDecorator(seed, TILE, 0.12, wasmBrightness);
-    client.onStaticLayer((msg) => {
-      renderer.bakeStaticLayer(
-        msg.sprites,
-        msg.worldWidthPx,
-        msg.worldHeightPx,
-        groundNoise,
-      );
-    });
+    bakeStaticLayer(client, renderer, noiseGen, seed);
 
     // brief-18: seed badge — show the chosen seed during play (low-touch,
     // own DOM element so we don't touch the engine DebugOverlay signature).
@@ -334,57 +659,8 @@ async function startGame(
 
     const tooltip = createTooltip(app);
 
-    // Particle system — lives on the main (render) thread only.
     const particles = new ParticleSystem();
-    let prevGold = new Map<number, number>(); // farmerId → gold last tick
-    let lastFrameMs = performance.now();
-
-    // Emit a coin-burst particle when a farmer's gold total increases.
-    function emitParticlesFromDiff(farmerPositions: Map<number, { x: number; y: number }>): void {
-      const lb = client.leaderboard;
-      for (const row of lb) {
-        const pos = farmerPositions.get(row.id);
-        if (!pos) continue;
-        const prevG = prevGold.get(row.id) ?? row.gold;
-        if (row.gold > prevG) {
-          // Gold increased → coin burst
-          particles.emit({
-            x: pos.x, y: pos.y - TILE,
-            count: 8,
-            shape: "star",
-            color: "#f0d238", color2: "#faf0a0",
-            speedMin: 10, speedMax: 35,
-            angleMin: -Math.PI, angleMax: 0,
-            lifetimeMin: 0.5, lifetimeMax: 1.0,
-            sizeMin: 1.5, sizeMax: 3,
-            gravity: 40,
-          });
-        }
-        prevGold.set(row.id, row.gold);
-      }
-    }
-
-    // Watch the snapshot for new shock events → dirt explosion.
-    client.onSnapshot((snap) => {
-      if (snap.shock) {
-        // Shock wiped plots — emit a dramatic dirt burst from each affected farmer.
-        for (const row of snap.leaderboard) {
-          const pos = client.getFarmerInterpolatedPos(row.id);
-          if (!pos) continue;
-          particles.emit({
-            x: pos.x, y: pos.y,
-            count: 20,
-            shape: "rect",
-            color: "#8c6432", color2: "#5a3c1e",
-            speedMin: 15, speedMax: 60,
-            angleMin: -Math.PI, angleMax: 0,
-            lifetimeMin: 0.4, lifetimeMax: 0.9,
-            sizeMin: 1, sizeMax: 2.5,
-            gravity: 80,
-          });
-        }
-      }
-    });
+    const particleDirector = new ParticleDirector(particles, client);
 
     // Start the sim worker with the run descriptor (seed from the home screen;
     // maxDays/ticksPerDay from a shared run hash or CONFIG defaults).
@@ -395,172 +671,10 @@ async function startGame(
       maxDays,
     });
 
-    // rAF render loop — purely rendering, no sim logic.
-    function renderFrame(): void {
-      const nowMs = performance.now();
-      const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
-      lastFrameMs = nowMs;
-
-      // Compute interpolated sprites once per frame — used for rendering,
-      // farmer positions, and the hover tooltip.
-      const interpolatedSprites = client.getInterpolatedSprites();
-
-      // brief-11: focus-camera — update camera center each frame
-      if (_camera !== null && focusedFarmerId !== null) {
-        applyFocusAndPan(_camera, interpolatedSprites);
-      }
-
-      renderer.beginFrame();
-
-      // Animated water shimmer: cycle foam frames over the in-grid ocean tiles.
-      // Render-only; phase is offset per tile so the foam ripples rather than
-      // blinking in unison. ~1.8 s per full A→B→C cycle. Layer 1 = on the water
-      // (over the baked static ocean at layer 0, under plot dirt / entities).
-      const FOAM_PERIOD_MS = 1800;
-      const foamStep = nowMs / (FOAM_PERIOD_MS / FOAM_FRAMES.length);
-      for (const { tx, ty } of OCEAN_TILES) {
-        const phase = tx * 3 + ty * 5; // per-tile offset
-        const frame = FOAM_FRAMES[(Math.floor(foamStep) + phase) % FOAM_FRAMES.length]!;
-        renderer.push({
-          x: tx * TILE + TILE / 2,
-          y: ty * TILE + TILE / 2,
-          width: TILE,
-          height: TILE,
-          frame,
-          rotation: 0,
-          layer: 1,
-          alpha: 0.6,
-        });
-      }
-
-      // Build a position map for all farmer sprites (for meet bubbles + halo).
-      const farmerPositions = new Map<number, { x: number; y: number }>();
-      for (const s of interpolatedSprites) {
-        if (s.id !== null && s.interpolate) {
-          farmerPositions.set(s.id, { x: s.x, y: s.y });
-        }
-      }
-
-      // Particle events: diff leaderboard to detect gold gains.
-      emitParticlesFromDiff(farmerPositions);
-
-      // Emit ambient leaf/sparkle particles from crop plots (slow rate).
-      if (Math.random() < 0.15) {
-        const snap = client.latestSnapshot();
-        if (snap) {
-          for (const s of snap.sprites) {
-            if (s.id === null && s.frame.includes("/mature") && Math.random() < 0.05) {
-              particles.emit({
-                x: s.x + (Math.random() - 0.5) * 8,
-                y: s.y - 4,
-                count: 1,
-                shape: "circle",
-                color: "#50c832", color2: "#90e850",
-                speedMin: 3, speedMax: 8,
-                angleMin: -Math.PI * 0.8, angleMax: -Math.PI * 0.2,
-                lifetimeMin: 0.8, lifetimeMax: 1.4,
-                sizeMin: 1, sizeMax: 2,
-                gravity: -5,
-              });
-            }
-          }
-        }
-      }
-
-      particles.update(dt);
-
-      pushSnapshotSprites(
-        renderer,
-        interpolatedSprites,
-        client.meets,
-        farmerPositions,
-        focusedFarmerId,
-        nowMs,
-      );
-
-      // ── Debug player movement (WASD) ─────────────────────────────────────
-      // Throttled to PLAYER_MOVE_INTERVAL_MS so movement stays readable.
-      // P toggles visibility. Checks isWalkable before every step.
-      if (keyboard.justPressed("KeyP")) {
-        debugPlayer.visible = !debugPlayer.visible;
-      }
-      if (nowMs - debugPlayer.lastMoveMs >= PLAYER_MOVE_INTERVAL_MS) {
-        let dx = 0, dy = 0;
-        if (keyboard.isDown("KeyW") || keyboard.isDown("ArrowUp"))    dy = -1;
-        if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))  dy =  1;
-        if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))  dx = -1;
-        if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight")) dx =  1;
-        // Prefer axis-aligned: diagonal is two key presses, process only one
-        if (dx !== 0) dy = 0;
-        if (dx !== 0 || dy !== 0) {
-          const nx = debugPlayer.tileX + dx;
-          const ny = debugPlayer.tileY + dy;
-          if (nx >= 0 && nx < WORLD_WIDTH && ny >= 0 && ny < WORLD_HEIGHT && isWalkable(nx, ny)) {
-            debugPlayer.tileX = nx;
-            debugPlayer.tileY = ny;
-          }
-          debugPlayer.lastMoveMs = nowMs;
-        }
-      }
-      keyboard.endFrame();
-
-      // Draw the debug player on top of everything else (layer 200).
-      if (debugPlayer.visible) {
-        const px = debugPlayer.tileX * TILE + TILE / 2;
-        const py = debugPlayer.tileY * TILE + TILE / 2;
-        renderer.pushShadow(px, py + TILE * 0.35, TILE * 0.32, TILE * 0.12, 0.5);
-        renderer.push({
-          x: px, y: py,
-          width: TILE, height: TILE,
-          frame: "debug/player",
-          rotation: 0,
-          layer: 200,
-          alpha: 1,
-        });
-      }
-
-      // Hover tooltip: convert CSS mouse position → world pixels → find nearest
-      // labeled sprite within half-a-tile radius.
-      updateTooltip(tooltip, canvas, interpolatedSprites, _camera);
-
-      // brief 26 — day/night + seasonal color wash (render-only, tick-synced;
-      // looks right now that days are long, brief 27).
-      const wash = washFor({
-        tick: client.tick,
-        ticksPerDay,
-        season: seasonForDay(client.day),
-      });
-      renderer.endFrame(wash, particles);
-
-      // UI updates.
-      const snap = client.latestSnapshot();
-      const tick = client.tick;
-      overlay.update({ tick, alpha: 0, entityCount: client.entityCount });
-
-      worldClock.update({ tick: client.tick, ticksPerDay, day: client.day });
-
-      const obs = client.observer;
-      if (obs !== null) observer.update(obs);
-
-      leaderboardPanel.update(client.leaderboard);
-      slateBillboard.update(client.slate);
-      eventFeedPanel.update(client.events);
-
-      // Game over — show once.
-      if (client.gameOver && !gameOverShown) {
-        gameOverShown = true;
-        const final = client.finalSummary;
-        if (final !== null) {
-          renderGameOver(gameOverPanel, final, snap?.day ?? 0, {
-            seed,
-            maxDays,
-            ticksPerDay,
-          });
-        }
-      }
-
-      requestAnimationFrame(renderFrame);
-    }
+    const renderFrame = createRenderLoop({
+      client, renderer, keyboard, particles, particleDirector,
+      canvas, panels, tooltip, seed, maxDays, ticksPerDay,
+    });
 
     requestAnimationFrame(renderFrame);
   } catch (err) {

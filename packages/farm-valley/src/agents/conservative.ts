@@ -6,7 +6,7 @@ import {
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -56,12 +56,9 @@ export function deliberateConservative(farmer: GameEntity): void {
   deliberateResourceZoneVisit(farmer, features.length, "tree", 13);
 
   if (gold - seedCost >= reserve && seeds[candidate] >= 1) {
-    farmer.intentions.queue.push({
-      kind: "plant",
-      data: { crop: candidate },
-      priority: 1,
-    });
-    recordReason(farmer, `plant ${candidate}: gold ${gold} >= reserve ${reserve}`);
+    if (deliberatePlantNearby(farmer, candidate, 1)) {
+      recordReason(farmer, `plant ${candidate}: gold ${gold} >= reserve ${reserve}`);
+    }
   } else if (gold - seedCost >= reserve) {
     farmer.intentions.queue.push({
       kind: "buy-seed",

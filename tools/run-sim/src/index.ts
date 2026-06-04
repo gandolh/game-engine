@@ -1,11 +1,25 @@
 import { writeFileSync } from "node:fs";
-import { bootstrapSim, leaderboard, type FarmerSummary } from "farm-valley/src/sim-bootstrap";
+import { bootstrapSim, leaderboard, type FarmerSummary, type PathfinderLike } from "farm-valley/src/sim-bootstrap";
+import { JsPathfinder } from "farm-valley/src/world/js-pathfinder";
 import { ONT_SIMULATION, type ShockBody } from "farm-valley/src/protocols";
 
 const SEED = Number(process.env["SEED"] ?? 0xc0ffee);
-const TICKS_PER_DAY = Number(process.env["TICKS_PER_DAY"] ?? 20);
+// 1200 ticks/day matches the browser default (main.ts: ticksPerDay: 1200).
+// TOOL_WORK_TICKS (60/40/20 at 20Hz = 3s/2s/1s) and STEP_TICKS (8) are
+// calibrated for this rate: a path of 8 steps takes 64 ticks = 5% of a day,
+// and 9 water actions take 540 ticks = 45% of a day — both comfortably fit.
+const TICKS_PER_DAY = Number(process.env["TICKS_PER_DAY"] ?? 1200);
 const MAX_DAYS = Number(process.env["MAX_DAYS"] ?? 100);
 const PROGRESS_EVERY = Number(process.env["PROGRESS_EVERY"] ?? 10);
+
+/**
+ * Create the pure-JS BFS pathfinder used for headless runs. Stateless and
+ * deterministic — no WASM, no memory faults, identical paths on every call
+ * with the same inputs. TravelSystem accepts it via PathfinderLike duck type.
+ */
+function makePathfinder(): PathfinderLike {
+  return new JsPathfinder();
+}
 
 // Mode gates. The default (no env set) path must behave exactly as before.
 const CHECK_DETERMINISM =
@@ -82,6 +96,7 @@ interface RunOptions {
   seed: number;
   ticksPerDay: number;
   maxDays: number;
+  pathfinder?: PathfinderLike | null;
 }
 
 /**
@@ -94,6 +109,7 @@ function runOnce(opts: RunOptions): RunResult {
     seed: opts.seed,
     ticksPerDay: opts.ticksPerDay,
     maxDays: opts.maxDays,
+    pathfinder: opts.pathfinder ?? null,
   });
 
   const perDay: DaySnapshot[] = [];
@@ -217,77 +233,88 @@ function emitExport(format: string, result: RunResult): void {
 // Mode dispatch
 // ---------------------------------------------------------------------------
 
-if (CHECK_DETERMINISM) {
-  // Multi-seed sanity: SEEDS=a,b,c overrides the single SEED. Each seed is
-  // verified internally reproducible (run twice, compare). Diagnostics go to
-  // stderr so a piped CSV/stdout never gets polluted.
-  const seeds =
-    process.env["SEEDS"] !== undefined && process.env["SEEDS"] !== ""
-      ? process.env["SEEDS"].split(",").map((s) => Number(s.trim()))
-      : [SEED];
+function main(): void {
+  const pathfinder = makePathfinder();
 
-  console.error(
-    `Determinism check — ${seeds.length} seed(s), ${MAX_DAYS} days @ ${TICKS_PER_DAY} ticks/day`,
-  );
+  if (CHECK_DETERMINISM) {
+    // Multi-seed sanity: SEEDS=a,b,c overrides the single SEED. Each seed is
+    // verified internally reproducible (run twice, compare). Diagnostics go to
+    // stderr so a piped CSV/stdout never gets polluted.
+    const seeds =
+      process.env["SEEDS"] !== undefined && process.env["SEEDS"] !== ""
+        ? process.env["SEEDS"].split(",").map((s) => Number(s.trim()))
+        : [SEED];
 
-  let anyDiverged = false;
-  for (const seed of seeds) {
-    const a = runOnce({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    const b = runOnce({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    const seedHex = `0x${(seed >>> 0).toString(16)}`;
-    if (fingerprint(a) === fingerprint(b)) {
-      console.error(
-        `  seed ${seedHex}: MATCH (${a.perDay.length} day snapshots, ${a.finalStandings.length} farmers)`,
-      );
-    } else {
-      anyDiverged = true;
-      console.error(`  seed ${seedHex}: DIVERGE`);
-      console.error(describeDivergence(a, b));
-    }
-  }
-
-  if (anyDiverged) {
-    console.error("DETERMINISM CHECK FAILED — sim is not reproducible for at least one seed.");
-    process.exit(1);
-  }
-  console.error("DETERMINISM CHECK PASSED — all seeds reproduced identically.");
-  process.exit(0);
-} else if (EXPORT === "csv" || EXPORT === "json") {
-  // Export mode: machine-readable per-day rows. Suppress the human-readable
-  // leaderboard so stdout stays clean for piping.
-  const result = runOnce({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-  emitExport(EXPORT, result);
-} else {
-  // Default mode — unchanged human-readable run.
-  const { world, scheduler, dayClock, bus } = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-
-  // Narrate the mid-game shock when it fires (otherwise it's an invisible moment).
-  bus.subscribeOntology(ONT_SIMULATION.SHOCK, (msg) => {
-    const b = msg.body as unknown as ShockBody;
-    console.log(
-      `  *** SHOCK day ${b.day}: ${b.kind} struck ${b.targetName} — ${b.plotsWiped} planted plot(s) wiped ***`,
+    console.error(
+      `Determinism check — ${seeds.length} seed(s), ${MAX_DAYS} days @ ${TICKS_PER_DAY} ticks/day`,
     );
-  });
 
-  console.log(
-    `Farm Valley headless run — seed=0x${SEED.toString(16)}, ${MAX_DAYS} days @ ${TICKS_PER_DAY} ticks/day`,
-  );
-  console.log();
-
-  const totalTicks = MAX_DAYS * TICKS_PER_DAY;
-  let lastReported = -1;
-  for (let tick = 0; tick < totalTicks; tick++) {
-    scheduler.tick({ tick });
-    // InboxDispatchSystem already flushed this tick's messages into the bus's
-    // deliverable buffer; fire subscriber handlers so the shock narration prints.
-    bus.notifySubscribers();
-    if (dayClock.day !== lastReported && dayClock.day % PROGRESS_EVERY === 0) {
-      const { weather, summaries } = summarize(world);
-      printDayLine(dayClock.day, weather, summaries);
-      lastReported = dayClock.day;
+    let anyDiverged = false;
+    for (const seed of seeds) {
+      const a = runOnce({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS, pathfinder });
+      const b = runOnce({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS, pathfinder });
+      const seedHex = `0x${(seed >>> 0).toString(16)}`;
+      if (fingerprint(a) === fingerprint(b)) {
+        console.error(
+          `  seed ${seedHex}: MATCH (${a.perDay.length} day snapshots, ${a.finalStandings.length} farmers)`,
+        );
+      } else {
+        anyDiverged = true;
+        console.error(`  seed ${seedHex}: DIVERGE`);
+        console.error(describeDivergence(a, b));
+      }
     }
-  }
 
-  const { weather, summaries } = summarize(world);
-  printFinalLeaderboard(dayClock.day, weather, summaries);
+    if (anyDiverged) {
+      console.error("DETERMINISM CHECK FAILED — sim is not reproducible for at least one seed.");
+      process.exit(1);
+    }
+    console.error("DETERMINISM CHECK PASSED — all seeds reproduced identically.");
+    process.exit(0);
+  } else if (EXPORT === "csv" || EXPORT === "json") {
+    // Export mode: machine-readable per-day rows. Suppress the human-readable
+    // leaderboard so stdout stays clean for piping.
+    const result = runOnce({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS, pathfinder });
+    emitExport(EXPORT, result);
+  } else {
+    // Default mode — unchanged human-readable run.
+    const { world, scheduler, dayClock, bus } = bootstrapSim({
+      seed: SEED,
+      ticksPerDay: TICKS_PER_DAY,
+      maxDays: MAX_DAYS,
+      pathfinder,
+    });
+
+    // Narrate the mid-game shock when it fires (otherwise it's an invisible moment).
+    bus.subscribeOntology(ONT_SIMULATION.SHOCK, (msg) => {
+      const b = msg.body as unknown as ShockBody;
+      console.log(
+        `  *** SHOCK day ${b.day}: ${b.kind} struck ${b.targetName} — ${b.plotsWiped} planted plot(s) wiped ***`,
+      );
+    });
+
+    console.log(
+      `Farm Valley headless run — seed=0x${SEED.toString(16)}, ${MAX_DAYS} days @ ${TICKS_PER_DAY} ticks/day`,
+    );
+    console.log();
+
+    const totalTicks = MAX_DAYS * TICKS_PER_DAY;
+    let lastReported = -1;
+    for (let tick = 0; tick < totalTicks; tick++) {
+      scheduler.tick({ tick });
+      // InboxDispatchSystem already flushed this tick's messages into the bus's
+      // deliverable buffer; fire subscriber handlers so the shock narration prints.
+      bus.notifySubscribers();
+      if (dayClock.day !== lastReported && dayClock.day % PROGRESS_EVERY === 0) {
+        const { weather, summaries } = summarize(world);
+        printDayLine(dayClock.day, weather, summaries);
+        lastReported = dayClock.day;
+      }
+    }
+
+    const { weather, summaries } = summarize(world);
+    printFinalLeaderboard(dayClock.day, weather, summaries);
+  }
 }
+
+main();

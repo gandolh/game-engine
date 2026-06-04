@@ -27,35 +27,10 @@ describe("CnpCoordinator", () => {
     expect(() => start(coord)).toThrow();
   });
 
-  it("acceptProposal records valid bids", () => {
-    const coord = new CnpCoordinator();
-    start(coord);
-    expect(coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 })).toBe(true);
-    expect(coord.acceptProposal("t1", { bidderId: 3, pricePerUnit: 6, quantity: 3 })).toBe(true);
-    expect(coord.getTask("t1")!.proposals).toHaveLength(2);
-  });
-
-  it("rejects proposals over maxPricePerUnit", () => {
-    const coord = new CnpCoordinator();
-    start(coord, { maxPricePerUnit: 8 });
-    expect(coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 9, quantity: 3 })).toBe(false);
-    expect(coord.getTask("t1")!.proposals).toHaveLength(0);
-  });
-
-  it("replaces a bidder's proposal if resubmitted", () => {
-    const coord = new CnpCoordinator();
-    start(coord);
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 6, quantity: 3 });
-    const task = coord.getTask("t1")!;
-    expect(task.proposals).toHaveLength(1);
-    expect(task.proposals[0]!.pricePerUnit).toBe(6);
-  });
-
   it("closeTask waits until deadline", () => {
     const coord = new CnpCoordinator();
     start(coord, { deadlineTick: 5 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
+    coord.getTask("t1")!.proposals.push({ bidderId: 2, pricePerUnit: 7, quantity: 3 });
     expect(coord.closeTask("t1", 4)).toBeNull();
     expect(coord.getTask("t1")!.status).toBe("collecting");
   });
@@ -64,12 +39,12 @@ describe("CnpCoordinator", () => {
     const coord = new CnpCoordinator();
     start(coord, { deadlineTick: 5 });
     // 3 proposals — bidders 4, 2, 7 with prices 6, 6, 8
-    coord.acceptProposal("t1", { bidderId: 4, pricePerUnit: 6, quantity: 3 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 6, quantity: 3 });
-    coord.acceptProposal("t1", { bidderId: 7, pricePerUnit: 8, quantity: 3 });
+    const task = coord.getTask("t1")!;
+    task.proposals.push({ bidderId: 4, pricePerUnit: 6, quantity: 3 });
+    task.proposals.push({ bidderId: 2, pricePerUnit: 6, quantity: 3 });
+    task.proposals.push({ bidderId: 7, pricePerUnit: 8, quantity: 3 });
     const winner = coord.closeTask("t1", 5);
     expect(winner).toBe(2);
-    const task = coord.getTask("t1")!;
     expect(task.status).toBe("awarded");
     expect(task.winnerId).toBe(2);
   });
@@ -85,18 +60,11 @@ describe("CnpCoordinator", () => {
   it("closeTask is idempotent — second call returns the same winner", () => {
     const coord = new CnpCoordinator();
     start(coord, { deadlineTick: 5 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
-    coord.acceptProposal("t1", { bidderId: 3, pricePerUnit: 6, quantity: 3 });
+    const task = coord.getTask("t1")!;
+    task.proposals.push({ bidderId: 2, pricePerUnit: 7, quantity: 3 });
+    task.proposals.push({ bidderId: 3, pricePerUnit: 6, quantity: 3 });
     expect(coord.closeTask("t1", 5)).toBe(3);
     expect(coord.closeTask("t1", 5)).toBe(3);
-  });
-
-  it("rejects proposals once a task is no longer collecting", () => {
-    const coord = new CnpCoordinator();
-    start(coord, { deadlineTick: 5 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
-    coord.closeTask("t1", 5);
-    expect(coord.acceptProposal("t1", { bidderId: 9, pricePerUnit: 6, quantity: 3 })).toBe(false);
   });
 
   it("dueTasks lists only collecting tasks past their deadline", () => {
@@ -111,21 +79,11 @@ describe("CnpCoordinator", () => {
     expect(due).toEqual(["a"]);
   });
 
-  it("markCompleted advances task status and pruneFinished drops it", () => {
-    const coord = new CnpCoordinator();
-    start(coord, { deadlineTick: 5 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
-    coord.closeTask("t1", 5);
-    coord.markCompleted("t1");
-    expect(coord.getTask("t1")!.status).toBe("completed");
-    coord.pruneFinished();
-    expect(coord.getTask("t1")).toBeUndefined();
-  });
-
   it("findBrokenCommitments returns awarded tasks past the commitment window", () => {
     const coord = new CnpCoordinator();
     start(coord, { deadlineTick: 5 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
+    const task = coord.getTask("t1")!;
+    task.proposals.push({ bidderId: 2, pricePerUnit: 7, quantity: 3 });
     coord.closeTask("t1", 5);
 
     expect(coord.findBrokenCommitments(8, 4)).toEqual([]);
@@ -137,23 +95,14 @@ describe("CnpCoordinator", () => {
   it("markBrokenCommitmentReported prevents re-reporting", () => {
     const coord = new CnpCoordinator();
     start(coord, { deadlineTick: 5 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
+    const task = coord.getTask("t1")!;
+    task.proposals.push({ bidderId: 2, pricePerUnit: 7, quantity: 3 });
     coord.closeTask("t1", 5);
 
     const broken = coord.findBrokenCommitments(10, 4);
     expect(broken).toHaveLength(1);
     coord.markBrokenCommitmentReported("t1");
     expect(coord.findBrokenCommitments(20, 4)).toEqual([]);
-  });
-
-  it("findBrokenCommitments excludes already-completed tasks", () => {
-    const coord = new CnpCoordinator();
-    start(coord, { deadlineTick: 5 });
-    coord.acceptProposal("t1", { bidderId: 2, pricePerUnit: 7, quantity: 3 });
-    coord.closeTask("t1", 5);
-    coord.markCompleted("t1");
-
-    expect(coord.findBrokenCommitments(50, 4)).toEqual([]);
   });
 
   it("findBrokenCommitments excludes tasks with no winner", () => {

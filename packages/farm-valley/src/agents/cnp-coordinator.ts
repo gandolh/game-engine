@@ -57,26 +57,6 @@ export class CnpCoordinator {
   }
 
   /**
-   * Record an incoming PROPOSE message body for `taskId`. Returns true if accepted.
-   * Proposals over `maxPricePerUnit` are rejected, as are proposals for unknown tasks
-   * or tasks already past the collecting stage.
-   */
-  acceptProposal(taskId: string, proposal: CnpProposal): boolean {
-    const task = this.tasks.get(taskId);
-    if (!task) return false;
-    if (task.status !== "collecting") return false;
-    if (proposal.pricePerUnit > task.maxPricePerUnit) return false;
-    // Idempotency: replace if same bidder submits again.
-    const existingIdx = task.proposals.findIndex((p) => p.bidderId === proposal.bidderId);
-    if (existingIdx >= 0) {
-      task.proposals[existingIdx] = { ...proposal };
-    } else {
-      task.proposals.push({ ...proposal });
-    }
-    return true;
-  }
-
-  /**
    * Close a task after its deadline. Returns the winning bidderId (or null if no
    * proposals). Deterministic: lowest pricePerUnit, tie-broken by lowest bidderId.
    * No-op if the task is already past the collecting stage.
@@ -108,18 +88,8 @@ export class CnpCoordinator {
     return winner.bidderId;
   }
 
-  markCompleted(taskId: string): void {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-    task.status = "completed";
-  }
-
   getTask(taskId: string): CnpTask | undefined {
     return this.tasks.get(taskId);
-  }
-
-  listTasks(): readonly CnpTask[] {
-    return Array.from(this.tasks.values());
   }
 
   /** Tasks that have reached their deadline and are still collecting. */
@@ -131,13 +101,6 @@ export class CnpCoordinator {
       }
     }
     return out;
-  }
-
-  /** Drop awarded/completed tasks older than `currentTick` to keep memory bounded. */
-  pruneFinished(): void {
-    for (const [id, task] of this.tasks) {
-      if (task.status === "completed") this.tasks.delete(id);
-    }
   }
 
   /**

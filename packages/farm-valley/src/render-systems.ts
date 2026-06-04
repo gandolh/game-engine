@@ -274,13 +274,26 @@ export function buildStaticLayerSprites(world: World<GameEntity>): Canvas2dSprit
   return out;
 }
 
-// Actions that trigger the bent-over work pose.
-const WORK_ACTIONS = new Set(["plant", "harvest", "water", "till"]);
+// Maps each farmer action kind to the atlas pose suffix to use while performing it.
+// Actions not in this map fall back to the normal walk/idle animation.
+const ACTION_POSE: Record<string, string> = {
+  till:          "/till",
+  water:         "/water",
+  "refill-can":  "/refill",
+  "chop-tree":   "/chop",
+  "mine-stone":  "/mine",
+  plant:         "/plant",
+  harvest:       "/work",   // harvest has no dedicated pose — use generic work
+};
 
 /**
  * Pick the final atlas frame for a snapshot sprite, applying:
- *  - work pose when the farmer's current intention is planting/harvesting/watering
+ *  - a distinct action pose when the farmer is performing a physical action
  *  - idle bob offset (returned separately as `bobY`) when standing still
+ *
+ * The base frame carried on the sprite is stripped of any trailing walk suffix
+ * before the action pose suffix is appended, so mid-walk action events resolve
+ * cleanly to the correct personality frame (e.g. `farmer/hoarder/till`).
  */
 function resolveFrameAndBob(
   s: import("./worker/snapshot").SnapshotSprite,
@@ -288,10 +301,11 @@ function resolveFrameAndBob(
 ): { frame: string; bobY: number } {
   if (s.id === null) return { frame: s.frame, bobY: 0 };
 
-  // Work pose: replace the base idle frame with the /work variant.
-  if (s.action !== null && WORK_ACTIONS.has(s.action)) {
-    const workFrame = s.frame.replace(/\/walk-[ab]$/, "") + "/work";
-    return { frame: workFrame, bobY: 0 };
+  // Action pose: strip any walk suffix from the base frame, then append the
+  // pose suffix for the current action.
+  if (s.action !== null && s.action in ACTION_POSE) {
+    const baseFrame = s.frame.replace(/\/walk-[ab]$/, "");
+    return { frame: baseFrame + ACTION_POSE[s.action], bobY: 0 };
   }
 
   // Idle bob: 1.5px vertical sine oscillation (each farmer offset by id).

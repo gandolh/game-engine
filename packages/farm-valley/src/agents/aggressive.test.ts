@@ -4,6 +4,11 @@ import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
 import type { RegionId } from "../world/regions";
 
+// proximity (brief): deliberatePlantNearby requires an empty plot within reach in
+// beliefs.data.plotWater.emptyPlots. Farmer transform is (0,0); the nearest
+// empty plot tile at (0,0) is Chebyshev ≤ 1 — always in reach.
+const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
+
 function makeFarmer(overrides: {
   gold?: number;
   crops?: Partial<Record<CropKind, number>>;
@@ -18,10 +23,13 @@ function makeFarmer(overrides: {
   const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
   return {
     id: overrides.id ?? 1,
+    transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },
     farmer: { name: "F", currentRegion: overrides.region ?? "village" },
     beliefs: {
       data: {
         currentDay: overrides.day ?? 0,
+        // proximity (brief): emptyPlots surfaces the tile candidates for deliberatePlantNearby.
+        plotWater: { planted: 0, due: 0, maxDrySoFar: 0, duePlots: [], emptyPlots: EMPTY_PLOT_IN_REACH },
         ...(overrides.weather ? { weather: { current: overrides.weather } } : {}),
         ...(overrides.offers ? { marketOffers: overrides.offers } : {}),
       },

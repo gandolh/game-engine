@@ -13,13 +13,3 @@ export {
   createNoiseGeneratorFromBytes,
   createNoiseGeneratorFromUrl,
 } from "./noise-generator";
-export {
-  BatchRng,
-  createBatchRngFromBytes,
-  createBatchRngFromUrl,
-} from "./rng-batch";
-export {
-  FloodFiller,
-  createFloodFillerFromBytes,
-  createFloodFillerFromUrl,
-} from "./flood-fill";

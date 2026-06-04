@@ -209,7 +209,12 @@ export class ShopkeeperSystem implements System {
   private bountyMultiplierFor(crop: CropKind): number {
     for (const f of this.world.query("farmer", "beliefs")) {
       const b = f.beliefs?.data.bounty as { crop: CropKind; multiplier: number } | undefined;
-      if (b) return b.crop === crop ? b.multiplier : 1;
+      if (b) {
+        if (b.crop !== crop) return 1;
+        // Guard: only use the multiplier if it's a valid number to prevent NaN gold.
+        if (typeof b.multiplier === "number") return b.multiplier;
+        return 1;
+      }
     }
     return 1;
   }

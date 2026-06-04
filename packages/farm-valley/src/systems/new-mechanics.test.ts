@@ -48,10 +48,13 @@ function makeFarmer(over: FarmerOverrides): GameEntity {
   } as unknown as GameEntity;
 }
 
-function runAct(farmer: GameEntity): void {
+function runAct(farmer: GameEntity, extraEntities?: Partial<GameEntity>[]): void {
   const world = new World<GameEntity>();
   // Re-register the prebuilt farmer entity into the world.
   world.spawn(farmer as Record<string, unknown>);
+  for (const e of extraEntities ?? []) {
+    world.spawn(e as Record<string, unknown>);
+  }
   const bus = new MessageBus();
   const act = new ActSystem(world, bus);
   act.run({ tick: 100 });
@@ -118,22 +121,36 @@ describe("buy-tool location guard", () => {
 });
 
 describe("refill-can location guard", () => {
-  it("refills at the home fountain region", () => {
+  // farm-cora fountain is at (15, 1) — minX+1=15, minY+1=1 (see region-setup.ts).
+  // Farmer must be within Chebyshev 1 of that tile to refill.
+  it("refills when adjacent to the home fountain tile", () => {
     const f = makeFarmer({ region: "farm-cora", homeRegion: "farm-cora", charges: 0 });
+    // Place farmer at (16, 1) — Chebyshev 1 from fountain at (15, 1).
+    f.transform = { x: 16, y: 1, prevX: 16, prevY: 1, rotation: 0 };
     f.intentions!.queue.push({ kind: "refill-can", data: {}, priority: 0 });
-    runAct(f);
+    // Spawn a fountain entity at (15, 1) for farm-cora so ActSystem can find it.
+    const fountainEntity: Partial<GameEntity> = {
+      transform: { x: 15, y: 1, prevX: 15, prevY: 1, rotation: 0 },
+      fountain: { isFountain: true, regionId: "farm-cora" },
+    };
+    runAct(f, [fountainEntity]);
     expect(f.inventory!.wateringCan!.charges).toBe(10);
   });
 
-  it("refills at a well", () => {
+  // well-north center is at (37, 11). Farmer must be within Chebyshev 1.
+  // Wells use REGIONS data (no fountain entity needed).
+  it("refills at a well (adjacent to well center)", () => {
     const f = makeFarmer({ region: "well-north", homeRegion: "farm-cora", charges: 0 });
+    // Place farmer at well-north center (37, 11) — Chebyshev 0.
+    f.transform = { x: 37, y: 11, prevX: 37, prevY: 11, rotation: 0 };
     f.intentions!.queue.push({ kind: "refill-can", data: {}, priority: 0 });
     runAct(f);
     expect(f.inventory!.wateringCan!.charges).toBe(10);
   });
 
-  it("does NOT refill on a road / wrong region", () => {
+  it("does NOT refill when not adjacent to any water source", () => {
     const f = makeFarmer({ region: "forest-north", homeRegion: "farm-cora", charges: 0 });
+    // Default transform (16, 29) is far from all water sources.
     f.intentions!.queue.push({ kind: "refill-can", data: {}, priority: 0 });
     runAct(f);
     expect(f.inventory!.wateringCan!.charges).toBe(0);
@@ -181,15 +198,18 @@ describe("deliberation routing", () => {
     expect(travel!.priority).toBeLessThan(buy!.priority); // travel sorts first (ascending)
   });
 
-  it("deliberateRefillCan routes to a water source when away and can is empty", () => {
+  // Strict proximity: when the farmer is not adjacent to any water source,
+  // deliberateRefillCan queues ONLY a travel intent (not the refill action).
+  // The refill fires in the NEXT deliberation cycle after the farmer arrives.
+  it("deliberateRefillCan queues ONLY travel when away (no refill this cycle)", () => {
     const f = makeFarmer({ region: "forest-north", homeRegion: "farm-cora", charges: 0 });
+    // Default transform (16, 29) is far from fountain (15, 1) and wells.
     f.intentions!.queue.length = 0;
     deliberateRefillCan(f, 3);
     const q = f.intentions!.queue;
     const travel = q.find((i) => i.kind === "travel");
     const refill = q.find((i) => i.kind === "refill-can");
-    expect(travel).toBeTruthy();
-    expect(refill).toBeTruthy();
-    expect(travel!.priority).toBeLessThan(refill!.priority);
+    expect(travel).toBeTruthy(); // travel toward fountain is queued
+    expect(refill).toBeUndefined(); // refill-can is deferred to next cycle
   });
 });

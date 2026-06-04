@@ -4,37 +4,39 @@ export interface PixelRecipe {
   pixels: readonly string[];
 }
 
+// Palette: Endesga-32 (EDG32) by Endesga — https://lospec.com/palette-list/endesga-32
+// Every swatch below is one of the 32 EDG32 colors. The mapping is curated (not
+// raw nearest-RGB) so grass stays green, the ocean stays blue with depth, and
+// sand/wheat stay distinct (EDG32 has no teal, so a naive map muddied the grass).
 const SWATCH: Record<string, [number, number, number, number]> = {
   ".": [0, 0, 0, 0],
-  // Grass — shifted toward a cool teal/blue-green so the islands read as lush
-  // tropical land against the ocean (the game is "islands in an ocean").
-  G: [60, 150, 120, 255],  // teal-green accent (dark)
-  g: [92, 185, 150, 255],  // teal-green accent (light)
-  D: [113, 76, 47, 255],
-  d: [148, 102, 65, 255],
-  S: [62, 90, 138, 255],
-  s: [97, 134, 195, 255],
-  k: [25, 22, 30, 255],
-  w: [232, 226, 209, 255],
-  r: [196, 64, 64, 255],
-  l: [80, 150, 70, 255],
-  L: [140, 200, 110, 255],
-  W: [183, 137, 78, 255],
-  m: [120, 84, 47, 255],
-  M: [70, 48, 26, 255],
-  T: [200, 170, 110, 255],
-  c: [48, 110, 96, 255],   // grass base (dark) — teal-green
-  C: [70, 140, 118, 255],  // grass base (light) — teal-green
-  q: [180, 180, 190, 255],
-  Q: [140, 140, 150, 255],
-  o: [232, 195, 80, 255],
-  p: [220, 130, 60, 255],
-  y: [240, 210, 90, 255],
+  G: [62, 137, 72, 255],    // grass dark        #3e8948
+  g: [99, 199, 77, 255],    // grass light       #63c74d
+  D: [115, 62, 57, 255],    // wood dark         #733e39
+  d: [184, 111, 80, 255],   // wood light        #b86f50
+  S: [90, 105, 136, 255],   // structure blue    #5a6988
+  s: [139, 155, 180, 255],  // structure blue lt #8b9bb4
+  k: [24, 20, 37, 255],     // near-black        #181425
+  w: [234, 212, 170, 255],  // cream / white     #ead4aa
+  r: [190, 74, 47, 255],    // red / rust        #be4a2f
+  l: [38, 92, 66, 255],     // leaf dark         #265c42
+  L: [99, 199, 77, 255],    // leaf light        #63c74d
+  W: [228, 166, 114, 255],  // tan / wheat       #e4a672
+  m: [115, 62, 57, 255],    // trunk dark        #733e39
+  M: [62, 39, 49, 255],     // trunk darker      #3e2731
+  T: [234, 212, 170, 255],  // sand              #ead4aa
+  c: [38, 92, 66, 255],     // grass base dark   #265c42
+  C: [62, 137, 72, 255],    // grass base light  #3e8948
+  q: [192, 203, 220, 255],  // stone light       #c0cbdc
+  Q: [139, 155, 180, 255],  // stone dark        #8b9bb4
+  o: [254, 174, 52, 255],   // gold              #feae34
+  p: [215, 118, 67, 255],   // pumpkin           #d77643
+  y: [254, 231, 97, 255],   // yellow            #fee761
   // Ocean shades for the out-of-region filler so the world reads as islands in
-  // an ocean rather than a black/grass void beyond and between regions.
-  v: [38, 92, 150, 255],   // ocean blue
-  V: [30, 76, 132, 255],   // deeper ocean blue
-  e: [78, 140, 190, 255],  // ocean highlight (foam/sparkle)
+  // an ocean rather than a void beyond/between regions.
+  v: [18, 78, 137, 255],    // ocean             #124e89
+  V: [58, 68, 102, 255],    // ocean deep        #3a4466
+  e: [0, 153, 219, 255],    // ocean foam        #0099db
 };
 
 export function colorOf(ch: string): [number, number, number, number] {
@@ -1207,95 +1209,22 @@ export const RECIPES: PixelRecipe[] = [
     ],
   },
 
-  // ── Farmer work poses ────────────────────────────────────────────────────────
-  {
-    name: "farmer/conservative/work",
-    size: 16,
-    pixels: [
-      "................",
-      "................",
-      ".....yyyyy......",
-      "....yyyyyyy.....",
-      "....ywwwwwy.....",
-      "....yk.w.ky.....",
-      "....yywwwy......",
-      "....rrrrr.......",
-      "...rrrrrrr......",
-      "...rrwwwrr......",
-      "....r.rrr.......",
-      "....rr..........",
-      "...DDD..........",
-      "...DDD..........",
-      "................",
-      "................",
-    ],
-  },
-  {
-    name: "farmer/aggressive/work",
-    size: 16,
-    pixels: [
-      "................",
-      "................",
-      ".....yyyyy......",
-      "....yyyyyyy.....",
-      "....ywwwwwy.....",
-      "....yk.w.ky.....",
-      "....yywwwy......",
-      "....rrrrr.......",
-      "...rrrrrrr......",
-      "...rrwwwrr......",
-      "....r.rrr.......",
-      "....rr..........",
-      "...DDD..........",
-      "...DDD..........",
-      "................",
-      "................",
-    ],
-  },
-  {
-    name: "farmer/hoarder/work",
-    size: 16,
-    pixels: [
-      "................",
-      "................",
-      ".....yyyyy......",
-      "....yyyyyyy.....",
-      "....ywwwwwy.....",
-      "....yk.w.ky.....",
-      "....yywwwy......",
-      "....rrrrr.......",
-      "...rrrrrrr......",
-      "...rrwwwrr......",
-      "....r.rrr.......",
-      "....rr..........",
-      "...DDD..........",
-      "...DDD..........",
-      "................",
-      "................",
-    ],
-  },
-  {
-    name: "farmer/opportunist/work",
-    size: 16,
-    pixels: [
-      "................",
-      "................",
-      ".....yyyyy......",
-      "....yyyyyyy.....",
-      "....ywwwwwy.....",
-      "....yk.w.ky.....",
-      "....yywwwy......",
-      "....rrrrr.......",
-      "...rrrrrrr......",
-      "...rrwwwrr......",
-      "....r.rrr.......",
-      "....rr..........",
-      "...DDD..........",
-      "...DDD..........",
-      "................",
-      "................",
-    ],
-  },
+  // ── Farmer action poses (generated) ─────────────────────────────────────────
+  // Action templates are authored once in conservative palette chars:
+  //   head=y, shirt=r, legs=D, face=w, eyes=k.
+  // Tool chars (m=brown handle, q=stone light, Q=stone dark, W=tan/wood,
+  //             o=gold/seed, s=water blue-lt, e=water blue-hi) are NOT
+  //   substituted, so they keep their colour across all personalities.
+  //
+  // Substitution maps applied per personality (in listed order):
+  //   conservative: identity
+  //   aggressive:   y→k, D→k
+  //   hoarder:      y→D, r→y
+  //   opportunist:  y→s, r→S, D→k
+  //
+  // The generator at the bottom of this file expands all 4 personalities ×
+  // 7 actions (till/water/refill/chop/mine/plant/work) and pushes them in.
+  // ──────────────────────────────────────────────────────────────────────────
 
   // ── Decorations ──────────────────────────────────────────────────────────────
   {
@@ -1411,3 +1340,190 @@ export const RECIPES: PixelRecipe[] = [
     ],
   },
 ];
+
+// ── Farmer action-pose generator ─────────────────────────────────────────────
+// Each template is authored in conservative palette chars.
+// Substitution maps correct the palette for every other personality.
+// Tool chars (m q Q W o s e) are intentionally excluded from any substitution
+// so they keep their original colour regardless of personality.
+
+const ACTION_TEMPLATES: Record<string, readonly string[]> = {
+  // Generic bent-over pose (was the single /work; now also the harvest fallback).
+  work: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrwwwrr......",
+    "....r.rrr.......",
+    "....rr..........",
+    "...DDD..........",
+    "...DDD..........",
+    "................",
+    "................",
+  ],
+
+  // Hoe held at right side, blade angled down toward soil.
+  // handle=m (brown), blade=Q (stone dark), no personality chars on tool.
+  till: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "...rrrrrr.......",
+    "..rrrrrrrrm.....",
+    "..rrwwwrrmm.....",
+    "...r....mm......",
+    "...r...mm.......",
+    "..DDD.Qm........",
+    "..DDD..Q........",
+    "................",
+    "................",
+  ],
+
+  // Watering can held out front, tilted, with a few water droplets.
+  // can body=Q (stone dark), spout=q (stone light), drops=s/e (water blues).
+  water: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "...rrrrrrr......",
+    "..rrrrrrrrr.....",
+    "..rrwwwrrQQQ....",
+    "...r....qQQ.....",
+    "..DDD....s.s....",
+    "..DDD.....s.....",
+    "...........s....",
+    "................",
+    "................",
+  ],
+
+  // Crouched lower, dipping can toward water (refilling at well/fountain).
+  // can=Q/q, water surface=s (structure blue light).
+  refill: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "....rrrrrr......",
+    "...rrrrrrrrQQ...",
+    "...rrwwwrqqQ....",
+    "....r....qQ.....",
+    "....rr.....s....",
+    "...DDD...sss....",
+    "...DDD..sssss...",
+    "................",
+    "................",
+  ],
+
+  // Mid-swing axe raised up to the right.
+  // handle=m (brown), blade=q (stone light).
+  chop: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    ".rrrrrrrr..q....",
+    "rrrrrrrrrr.qq...",
+    ".rrwwwrr...q....",
+    "..r.rrmm........",
+    "..rr..m.........",
+    ".DDD..m.........",
+    ".DDD............",
+    "................",
+    "................",
+  ],
+
+  // Mid-swing pickaxe raised up to the right.
+  // handle=m (brown), pick head=Q (stone dark).
+  mine: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    ".rrrrrrrr.QQ....",
+    "rrrrrrrrrr.Q....",
+    ".rrwwwrr..QQ....",
+    "..r.rrmm........",
+    "..rr..m.........",
+    ".DDD..m.........",
+    ".DDD............",
+    "................",
+    "................",
+  ],
+
+  // Bent forward, one arm reaching down, a few seed pixels on the soil.
+  // seeds=o (gold).
+  plant: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "...rrrrrr.......",
+    "..rrrrrrrrr.....",
+    "..rrwwwrrr......",
+    "...r....rr......",
+    "...rr...ro......",
+    "..DDD..o........",
+    "..DDD..o........",
+    "................",
+    "................",
+  ],
+};
+
+// Per-personality char substitution maps.
+// Each entry maps source chars to destination chars.
+// Applied character-by-character to every pixel in the template.
+const PERSONALITY_SUBS: Record<string, Record<string, string>> = {
+  conservative: {},
+  aggressive:   { y: "k", D: "k" },
+  hoarder:      { y: "D", r: "y" },
+  opportunist:  { y: "s", r: "S", D: "k" },
+};
+
+function applyPersonalitySubs(
+  pixels: readonly string[],
+  subs: Record<string, string>,
+): readonly string[] {
+  if (Object.keys(subs).length === 0) return pixels;
+  return pixels.map((row) =>
+    row
+      .split("")
+      .map((ch) => subs[ch] ?? ch)
+      .join(""),
+  );
+}
+
+for (const [action, template] of Object.entries(ACTION_TEMPLATES)) {
+  for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
+    RECIPES.push({
+      name: `farmer/${personality}/${action}`,
+      size: 16,
+      pixels: applyPersonalitySubs(template, subs),
+    });
+  }
+}

@@ -11,7 +11,7 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -96,12 +96,9 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   const target = fallbackCrop(desired, farmer.inventory.gold, reserve);
 
   if (farmer.inventory.seeds[target] >= 1) {
-    farmer.intentions.queue.push({
-      kind: "plant",
-      data: { crop: target },
-      priority: 1,
-    });
-    recordReason(farmer, `plant ${target}: weather ${forecast ?? "n/a"}`);
+    if (deliberatePlantNearby(farmer, target, 1)) {
+      recordReason(farmer, `plant ${target}: weather ${forecast ?? "n/a"}`);
+    }
   } else if (farmer.inventory.gold - SEED_COST[target] >= reserve) {
     farmer.intentions.queue.push({
       kind: "buy-seed",
@@ -113,12 +110,15 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   // 2. Supply-aware market posting: if I have stock, peek offer list (if perceived)
   //    and either post at fair price (low supply) or dump to shopkeeper (high supply).
+  //    Liquidity fallback: when gold is critically low (< half reserve), bypass the
+  //    supply check and sell directly to the shopkeeper to restore liquidity.
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
+  const needsLiquidity = farmer.inventory.gold < reserve * 0.5;
   for (const crop of ["pumpkin", "wheat", "radish"] as const) {
     const qty = farmer.inventory.crops[crop];
     if (qty <= 0) continue;
     const supply = countOffersByCrop(offers, crop);
-    if (supply < LOW_SUPPLY_THRESHOLD) {
+    if (!needsLiquidity && supply < LOW_SUPPLY_THRESHOLD) {
       if (!inVillage) {
         farmer.intentions.queue.push({
           kind: "travel",
@@ -139,20 +139,15 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       });
       recordReason(farmer, `post offer ${crop} x${qty} @ ${FAIR_PRICE[crop]}: low supply ${supply}`);
     } else {
-      if (!inVillage) {
-        farmer.intentions.queue.push({
-          kind: "travel",
-          data: { targetRegionId: "village" },
-          priority: 3,
-        });
-        recordReason(farmer, `travel village: have crops to sell`);
-      }
+      // High supply or liquidity emergency — sell directly to shopkeeper (instant, no village needed).
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
         data: { crop, quantity: qty },
         priority: 3,
       });
-      recordReason(farmer, `sell ${crop} x${qty}: high supply ${supply}`);
+      recordReason(farmer, needsLiquidity
+        ? `sell ${crop} x${qty}: liquidity fallback (gold ${farmer.inventory.gold} < ${Math.floor(reserve * 0.5)})`
+        : `sell ${crop} x${qty}: high supply ${supply}`);
     }
   }
 
