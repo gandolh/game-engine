@@ -21,26 +21,23 @@ export interface PlaybackState {
 /** Speed multipliers offered, in display order. */
 const SPEEDS = [1, 2, 4] as const;
 
+// Mounted as a flex child of the shared right-edge column (see right-column.ts).
+// The column sets pointer-events:none so the canvas behind it stays clickable;
+// this panel re-enables pointer events for its buttons. It wraps so the
+// pause/step row and the speed row stack when the 300px column is narrow.
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
-  position: "fixed",
-  bottom: "0",
-  left: "50%",
-  transform: "translateX(-50%)",
   display: "flex",
+  flexWrap: "wrap",
   alignItems: "center",
   gap: "6px",
   background: EDG.black,
   color: EDG.silver,
   fontFamily: "monospace",
   fontSize: "12px",
-  padding: "6px 10px",
+  padding: "8px 10px",
   boxSizing: "border-box",
-  zIndex: "9997",
-  borderTop: `1px solid ${EDG.black}`,
-  borderLeft: `1px solid ${EDG.black}`,
-  borderRight: `1px solid ${EDG.black}`,
-  borderTopLeftRadius: "6px",
-  borderTopRightRadius: "6px",
+  pointerEvents: "auto",
+  borderBottom: `1px solid ${EDG.ink}`,
 };
 
 const BTN_STYLES: Partial<CSSStyleDeclaration> = {

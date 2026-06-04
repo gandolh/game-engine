@@ -36,6 +36,39 @@ export interface Farmer {
     nextIndex: number;       // index of the next waypoint to step onto
     ticksUntilStep: number;  // countdown to next tile step
   } | undefined;
+  /**
+   * Set true on the tick the farmer stepped to a new tile under direct (non-
+   * path) control — i.e. the player's Pip walking via WASD. The render walk-
+   * cycle keys off `path` for AI farmers and off this flag for the player, so
+   * Pip animates while moving even though it never builds a pathfinder route.
+   * Cleared each tick by the controlling system.
+   */
+  movedThisTick?: boolean;
+}
+
+/**
+ * Tags the single player-controlled farmer (Pip). Identical components to the AI
+ * farmers (so the same crop/harvest/market/render systems treat it as a farmer),
+ * but its intentions come from keyboard input via PlayerControlSystem rather than
+ * an AI personality, and DeliberateSystem skips it.
+ *
+ * `facing` is the direction Pip last faced; the context-action key acts on the
+ * adjacent tile in that direction. `pendingMove`/`pendingAction` are the buffered
+ * input from the most recent main→worker input message, consumed each tick.
+ */
+export interface Player {
+  readonly isPlayer: true;
+  facing: "up" | "down" | "left" | "right";
+  /** Queued one-tile move for the next control tick, or null. */
+  pendingMove: "up" | "down" | "left" | "right" | null;
+  /** True if the context-action key is queued for the next control tick. */
+  pendingAction: boolean;
+  /**
+   * Index of the selected hotbar slot (0-based; see HOTBAR_SLOTS in
+   * systems/player-control.ts). The action key uses this slot's tool/seed
+   * instead of auto-picking by context. Set by number-key input (1→0, 2→1, …).
+   */
+  selectedSlot: number;
 }
 
 export type CropKind = "radish" | "wheat" | "pumpkin";
@@ -200,6 +233,13 @@ export interface WorkStation {
 export interface WorkNpc {
   /** Ordered loop of stations to visit. */
   readonly stations: readonly WorkStation[];
+  /**
+   * Frame to render when not playing a station swing pose — while walking
+   * between stations, and while dwelling at a station whose `pose` is null
+   * (e.g. the oven). A standing-figure sprite so the NPC never falls back to
+   * its building sprite. (e.g. "npc/blacksmith/idle".)
+   */
+  readonly idlePose: string;
   /** Index of the station currently targeted / occupied. */
   stationIndex: number;
   /**
@@ -354,6 +394,7 @@ export interface GameEntity {
   personality?: Personality;
   inbox?: AgentInbox;
   farmer?: Farmer;
+  player?: Player;
   inventory?: Inventory;
   plot?: Plot;
   ap?: ActionPoints;

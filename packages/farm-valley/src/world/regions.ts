@@ -1,5 +1,6 @@
 export type RegionId =
   | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
+  | 'farm-pip'                         // Player-controlled farmer's farm (far east)
   | 'blacksmith' | 'carpentry'
   | 'forest-north' | 'quarry-north'   // North pair — NE quadrant
   | 'forest-south' | 'quarry-south'   // South pair — SW quadrant
@@ -18,25 +19,35 @@ export interface RegionDef {
   center: { x: number; y: number };
 }
 
-export const WORLD_WIDTH = 40;
+// World widened east 40 → 52 (brief: add a 5th, player-controlled farm). The
+// original square (cols 0-39) is untouched on the west/center/south; everything
+// from the East farm rightward is shifted +12 cols, opening a far-east column
+// (cols 40-51) for Pip's farm. Height is unchanged.
+export const WORLD_WIDTH = 52;
 export const WORLD_HEIGHT = 40;
+
+/** Cols added on the east; east-cluster regions/roads shift by this amount. */
+const EAST_SHIFT = 12;
 
 // ── Core region bounds (inclusive) ──────────────────────────────────────────
 const VILLAGE_BOUNDS       = { minX: 14, minY: 14, maxX: 25, maxY: 25 };
 const FARM_CORA_BOUNDS     = { minX: 14, minY:  0, maxX: 25, maxY: 11 }; // North
-const FARM_ATTICUS_BOUNDS  = { minX: 28, minY: 14, maxX: 39, maxY: 25 }; // East
+const FARM_ATTICUS_BOUNDS  = { minX: 40, minY: 14, maxX: 51, maxY: 25 }; // East (shifted +12)
 const FARM_HANNAH_BOUNDS   = { minX: 14, minY: 28, maxX: 25, maxY: 39 }; // South
 const FARM_OTTO_BOUNDS     = { minX:  0, minY: 14, maxX: 11, maxY: 25 }; // West
+// Pip (player): occupies the column the East farm used to sit in (28-39), now a
+// free 12×12 block between the village's east road and Atticus's new position.
+const FARM_PIP_BOUNDS      = { minX: 28, minY: 14, maxX: 39, maxY: 25 }; // East-center
 
 // ── Special buildings ────────────────────────────────────────────────────────
-// Blacksmith: isolated SE corner, reachable via L-bridge from east road.
-const BLACKSMITH_BOUNDS    = { minX: 30, minY: 30, maxX: 39, maxY: 39 };
+// Blacksmith: isolated SE corner, reachable via L-bridge from east road (+12).
+const BLACKSMITH_BOUNDS    = { minX: 42, minY: 30, maxX: 51, maxY: 39 };
 // Carpentry: NW corner, reachable via path from north road.
 const CARPENTRY_BOUNDS     = { minX:  0, minY:  0, maxX:  9, maxY:  9 };
 
 // ── Resource zones ─────────────────────────────────────────────────────────
-const FOREST_NORTH_BOUNDS  = { minX: 26, minY:  0, maxX: 33, maxY:  7 }; // 8×8
-const QUARRY_NORTH_BOUNDS  = { minX: 35, minY:  0, maxX: 39, maxY:  9 }; // 5×10
+const FOREST_NORTH_BOUNDS  = { minX: 38, minY:  0, maxX: 45, maxY:  7 }; // 8×8 (+12)
+const QUARRY_NORTH_BOUNDS  = { minX: 47, minY:  0, maxX: 51, maxY:  9 }; // 5×10 (+12)
 const FOREST_SOUTH_BOUNDS  = { minX:  0, minY: 26, maxX:  7, maxY: 33 }; // 8×8
 const QUARRY_SOUTH_BOUNDS  = { minX:  0, minY: 35, maxX:  9, maxY: 39 }; // 10×5
 
@@ -88,9 +99,9 @@ const QUARRY_SOUTH_BOUNDS  = { minX:  0, minY: 35, maxX:  9, maxY: 39 }; // 10×
 //              adjusted: col 10-11, row 34-35 (just east of quarry-south bottom)
 
 const MILL_BOUNDS          = { minX: 14, minY: 27, maxX: 19, maxY: 31 }; // 6×5
-const WELL_NORTH_BOUNDS    = { minX: 37, minY: 11, maxX: 38, maxY: 12 }; // 2×2
+const WELL_NORTH_BOUNDS    = { minX: 49, minY: 11, maxX: 50, maxY: 12 }; // 2×2 (+12)
 const WELL_SOUTH_BOUNDS    = { minX: 10, minY: 34, maxX: 11, maxY: 35 }; // 2×2
-const MUSHROOM_GROVE_BOUNDS = { minX: 28, minY: 27, maxX: 33, maxY: 29 }; // 6×3
+const MUSHROOM_GROVE_BOUNDS = { minX: 40, minY: 27, maxX: 45, maxY: 29 }; // 6×3 (+12)
 const ICE_POND_BOUNDS      = { minX: 10, minY:  0, maxX: 13, maxY:  3 }; // 4×4
 
 function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: number }): { x: number; y: number } {
@@ -106,6 +117,7 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'farm-atticus',   kind: 'farm',    bounds: FARM_ATTICUS_BOUNDS,    center: midpoint(FARM_ATTICUS_BOUNDS) },
   { id: 'farm-hannah',    kind: 'farm',    bounds: FARM_HANNAH_BOUNDS,     center: midpoint(FARM_HANNAH_BOUNDS) },
   { id: 'farm-otto',      kind: 'farm',    bounds: FARM_OTTO_BOUNDS,       center: midpoint(FARM_OTTO_BOUNDS) },
+  { id: 'farm-pip',       kind: 'farm',    bounds: FARM_PIP_BOUNDS,        center: midpoint(FARM_PIP_BOUNDS) },
   { id: 'blacksmith',     kind: 'village', bounds: BLACKSMITH_BOUNDS,      center: midpoint(BLACKSMITH_BOUNDS) },
   { id: 'carpentry',      kind: 'village', bounds: CARPENTRY_BOUNDS,       center: midpoint(CARPENTRY_BOUNDS) },
   { id: 'forest-north',   kind: 'village', bounds: FOREST_NORTH_BOUNDS,    center: midpoint(FOREST_NORTH_BOUNDS) },
@@ -127,25 +139,30 @@ interface RoadDef {
 const ROADS: readonly RoadDef[] = [
   // Farm ↔ village roads (2 tiles wide)
   { minX: 18, minY: 12, maxX: 21, maxY: 13 }, // North road  (Cora ↔ Village)
-  { minX: 26, minY: 18, maxX: 27, maxY: 21 }, // East road   (Atticus ↔ Village)
+  { minX: 26, minY: 18, maxX: 27, maxY: 21 }, // East road   (Pip ↔ Village)
   { minX: 18, minY: 26, maxX: 21, maxY: 27 }, // South road  (Hannah ↔ Village)
   { minX: 12, minY: 18, maxX: 13, maxY: 21 }, // West road   (Otto ↔ Village)
 
-  // Blacksmith L-bridge: south from east road, hook east into forge
-  { minX: 26, minY: 22, maxX: 27, maxY: 29 }, // vertical leg
-  { minX: 26, minY: 28, maxX: 30, maxY: 29 }, // horizontal leg
+  // Pip ↔ Atticus connector: Pip's east edge (col 39) abuts Atticus's west edge
+  // (col 40). A 2-tile-tall bridge at rows 18-21 keeps the two east farms linked
+  // so Atticus (and everyone) can still reach the village via Pip's east road.
+  { minX: 38, minY: 18, maxX: 41, maxY: 21 }, // Pip ↔ Atticus bridge
+
+  // Blacksmith L-bridge: south from Atticus's SE, hook east into forge (+12)
+  { minX: 38, minY: 22, maxX: 39, maxY: 29 }, // vertical leg
+  { minX: 38, minY: 28, maxX: 42, maxY: 29 }, // horizontal leg
 
   // Carpentry: west from north road, south into workshop
   { minX: 10, minY: 12, maxX: 17, maxY: 13 }, // horizontal connector
   { minX: 10, minY:  9, maxX: 11, maxY: 13 }, // vertical connector
 
-  // Forest North connector: south edge (row 8) → merge into north road
-  { minX: 26, minY:  8, maxX: 27, maxY: 11 }, // vertical: Forest N bottom → Cora top border
-  { minX: 22, minY: 11, maxX: 25, maxY: 12 }, // horizontal: join north road at col 22-25
+  // Forest North connector: south edge (row 8) → merge into north road (+12)
+  { minX: 38, minY:  8, maxX: 39, maxY: 13 }, // vertical: Forest N bottom → Atticus top border
+  { minX: 38, minY: 13, maxX: 40, maxY: 14 }, // horizontal: join Atticus top-left
 
-  // Quarry North connector: south edge (row 10) → Atticus top edge (row 14)
-  { minX: 35, minY: 10, maxX: 36, maxY: 13 }, // vertical: Quarry N bottom → row 13
-  { minX: 28, minY: 13, maxX: 34, maxY: 14 }, // horizontal: west to Atticus top-left
+  // Quarry North connector: south edge (row 10) → Atticus top edge (row 14) (+12)
+  { minX: 47, minY: 10, maxX: 48, maxY: 13 }, // vertical: Quarry N bottom → row 13
+  { minX: 40, minY: 13, maxX: 46, maxY: 14 }, // horizontal: west to Atticus top-left
 
   // Forest South connector: east edge (col 8) → Otto south border (row 25-26)
   { minX:  8, minY: 25, maxX:  9, maxY: 26 }, // 1-step bridge joining Otto bottom to forest
@@ -156,14 +173,14 @@ const ROADS: readonly RoadDef[] = [
   // Mill connector: spur from mill south edge (row 32) down to Hannah north road
   { minX: 18, minY: 27, maxX: 19, maxY: 32 }, // vertical spur — south road → mill bottom
 
-  // Well-north connector: south stub from quarry-north road to the well pad
-  { minX: 37, minY: 10, maxX: 38, maxY: 11 }, // vertical: quarry road → well pad
+  // Well-north connector: south stub from quarry-north road to the well pad (+12)
+  { minX: 49, minY: 10, maxX: 50, maxY: 11 }, // vertical: quarry road → well pad
 
   // Well-south connector: east stub from quarry-south road to the well pad
   { minX: 10, minY: 35, maxX: 11, maxY: 35 }, // (shares tile with quarry-south connector)
 
-  // Mushroom grove connector: west stub from blacksmith L-bridge vertical leg
-  { minX: 28, minY: 28, maxX: 29, maxY: 29 }, // 2-tile bridge into grove west edge
+  // Mushroom grove connector: west stub from blacksmith L-bridge vertical leg (+12)
+  { minX: 40, minY: 28, maxX: 41, maxY: 29 }, // 2-tile bridge into grove west edge
 
   // Ice pond connector: south stub from carpentry east edge into pond south
   { minX: 10, minY:  4, maxX: 11, maxY:  9 }, // vertical: pond bottom → carpentry north

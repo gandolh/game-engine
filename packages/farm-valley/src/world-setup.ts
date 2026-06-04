@@ -12,23 +12,26 @@ const STARTING_TOOLS: Tool[] = [
   { kind: "pickaxe", tier: "wooden", durability: 100 },
 ];
 
-/** Personality → region the farmer lives in (Cora N, Atticus E, Hannah S, Otto W). */
+/** Personality → region the farmer lives in (Cora N, Atticus E, Hannah S, Otto W, Pip far-E). */
 const PERSONALITY_TO_REGION: Record<string, RegionId> = {
   conservative: "farm-cora",
   aggressive: "farm-atticus",
   hoarder: "farm-hannah",
   opportunist: "farm-otto",
+  pip: "farm-pip",
 };
 
 export interface FarmerSpec {
   name: string;
-  personality: "conservative" | "aggressive" | "hoarder" | "opportunist";
+  personality: "conservative" | "aggressive" | "hoarder" | "opportunist" | "pip";
   homeX: number;
   homeY: number;
   startGold: number;
   riskProfile: "low" | "medium" | "high";
   minGoldReserve: number;
   startSeeds: Partial<Record<CropKind, number>>;
+  /** When true, spawn the player tag so PlayerControlSystem drives this farmer. */
+  player?: boolean;
 }
 
 export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEntity {
@@ -59,6 +62,17 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
     // is 100 (maxApForDay(0)). penaltyCapacity is legacy (unrested halving now
     // lives in the morning wake); kept at half for any old reader.
     ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false },
+    ...(spec.player
+      ? {
+          player: {
+            isPlayer: true as const,
+            facing: "down" as const,
+            pendingMove: null,
+            pendingAction: false,
+            selectedSlot: 0,
+          },
+        }
+      : {}),
   });
   return farmer;
 }

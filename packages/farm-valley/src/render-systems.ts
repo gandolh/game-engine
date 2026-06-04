@@ -36,7 +36,10 @@ interface LogicalSprite {
 export function pickFarmerFrame(entity: GameEntity, tick: number): string {
   const farmer = entity.farmer;
   const baseFrame = entity.sprite?.frame ?? "";
-  if (!farmer?.path) return baseFrame;
+  // AI farmers walk while traveling a path; the player (Pip) has no path, so it
+  // walks while it stepped this tick (set by PlayerControlSystem).
+  const walking = farmer?.path !== undefined || farmer?.movedThisTick === true;
+  if (!walking) return baseFrame;
   const suffix = (tick >> 1) & 1 ? "/walk-b" : "/walk-a";
   return baseFrame + suffix;
 }
@@ -58,7 +61,11 @@ function backdropFrame(tx: number, ty: number): string | null {
   // black void. Walkability is unaffected (this is purely visual).
   if (!isWalkable(tx, ty)) return "tile/ocean";
   const region = regionAt(tx, ty);
-  if (region === null) return "tile/path";
+  if (region === null) {
+    // Road-only tile. If it spans water it gets a plank bridge (drawn as a
+    // separate overlay in iterStaticSprites); otherwise a plain dirt path.
+    return BRIDGE_SET.has(ty * WORLD_WIDTH + tx) ? "tile/ocean" : "tile/path";
+  }
   if (region.startsWith("farm-")) return "tile/grass";
   if (region === "blacksmith") return "tile/forge-floor";
   if (region === "carpentry") return "tile/wood-plank";
@@ -168,6 +175,89 @@ function computeShores(): readonly ShoreTile[] {
 
 const SHORES: readonly ShoreTile[] = computeShores();
 
+interface BridgeTile {
+  tx: number;
+  ty: number;
+  rotation: number;
+}
+
+/**
+ * Compute bridge tiles: every ROAD-only walkable tile (region === null) that
+ * borders the ocean. These are the corridors that connect the islands across
+ * water — without a deck they read as a dirt path floating on the sea, so we
+ * draw a plank bridge instead of `tile/path`.
+ *
+ * Orientation: the bridge deck is authored HORIZONTAL (rails on the top/bottom
+ * long edges, you walk left↔right). We rotate it 90° when the corridor runs
+ * vertically — detected by comparing how the tile connects to its neighbours:
+ * if the road continues up/down (walkable) but is open to ocean left/right, the
+ * span is vertical. Ties default to horizontal.
+ */
+function isBridge(tx: number, ty: number): boolean {
+  if (!isWalkable(tx, ty)) return false;
+  if (regionAt(tx, ty) !== null) return false; // region interiors are land
+  // Touches ocean on at least one side ⇒ it's spanning water.
+  for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+    const nx = tx + dx;
+    const ny = ty + dy;
+    const off = nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT;
+    if (off || !isWalkable(nx, ny)) return true;
+  }
+  return false;
+}
+
+function computeBridges(): readonly BridgeTile[] {
+  const key = (x: number, y: number) => y * WORLD_WIDTH + x;
+  // Pass 1: every road tile that directly touches ocean.
+  const deck = new Set<number>();
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      if (isBridge(tx, ty)) deck.add(key(tx, ty));
+    }
+  }
+  const oceanOrDeck = (x: number, y: number): boolean => {
+    const off = x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT;
+    if (off || !isWalkable(x, y)) return true; // ocean
+    return deck.has(key(x, y));
+  };
+  // Pass 2 (fixpoint): a road tile flanked on BOTH sides of an axis by
+  // ocean-or-deck is itself part of the span (fills the interior of a wide
+  // crossing the edge-only pass-1 misses). Repeat until stable.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+      for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+        if (deck.has(key(tx, ty))) continue;
+        if (!isWalkable(tx, ty) || regionAt(tx, ty) !== null) continue; // road-only
+        const hSpan = oceanOrDeck(tx - 1, ty) && oceanOrDeck(tx + 1, ty);
+        const vSpan = oceanOrDeck(tx, ty - 1) && oceanOrDeck(tx, ty + 1);
+        if (hSpan || vSpan) {
+          deck.add(key(tx, ty));
+          changed = true;
+        }
+      }
+    }
+  }
+  // Emit with a per-tile rotation from the span direction.
+  const out: BridgeTile[] = [];
+  for (const k of deck) {
+    const tx = k % WORLD_WIDTH;
+    const ty = Math.floor(k / WORLD_WIDTH);
+    const vertical = isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1);
+    const horizontal = isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
+    const rotation = vertical && !horizontal ? Math.PI / 2 : 0;
+    out.push({ tx, ty, rotation });
+  }
+  return out;
+}
+
+const BRIDGES: readonly BridgeTile[] = computeBridges();
+/** Fast lookup so backdropFrame can suppress `tile/path` on bridge tiles. */
+const BRIDGE_SET: ReadonlySet<number> = new Set(
+  BRIDGES.map((b) => b.ty * WORLD_WIDTH + b.tx),
+);
+
 /**
  * In-world ocean tiles (non-walkable tiles inside the 40×40 grid). Used by the
  * main-thread render loop to draw the animated foam overlay. Out-of-grid water
@@ -196,7 +286,7 @@ export const FORGE_FIRE_FRAMES = [
 
 /** Tile of the blacksmith oven (matches region-setup placeProps). The fire
  *  overlay is drawn here, above the oven body. */
-export const FORGE_OVEN_TILE = { x: 32, y: 31 } as const;
+export const FORGE_OVEN_TILE = { x: 44, y: 31 } as const;
 
 /**
  * The static backdrop: tiles + farm fences + plot dirt. These never change
@@ -234,6 +324,21 @@ export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalS
       frame: "tile/shore",
       rotation: shore.rotation,
       layer: 1,
+      alpha: 1,
+    };
+  }
+
+  // Plank bridges over the water gaps between islands (drawn above the ocean
+  // backdrop + shore foam, below fences). Rotated per computeBridges.
+  for (const bridge of BRIDGES) {
+    yield {
+      x: bridge.tx * TILE + TILE / 2,
+      y: bridge.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: "tile/bridge-h",
+      rotation: bridge.rotation,
+      layer: 3,
       alpha: 1,
     };
   }

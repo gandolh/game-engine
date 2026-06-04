@@ -213,6 +213,34 @@ export const RECIPES: PixelRecipe[] = [
     ],
   },
   {
+    // Wooden plank bridge spanning a water gap between islands. Authored
+    // HORIZONTAL (you walk left↔right across it): rail/support beams along the
+    // top and bottom long edges (M = dark beam), a wood-plank deck (d = wood
+    // light) with regular dark seams (D) every few columns, and a sliver of
+    // ocean (v) peeking past each rail so it reads as crossing water. Vertical
+    // bridges reuse this frame rotated 90° (see render-systems computeBridges).
+    name: "tile/bridge-h",
+    size: 16,
+    pixels: [
+      "vvvvvvvvvvvvvvvv",
+      "MMMMMMMMMMMMMMMM",
+      "MMMMMMMMMMMMMMMM",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "dddDdddDdddDdddD",
+      "MMMMMMMMMMMMMMMM",
+      "MMMMMMMMMMMMMMMM",
+      "vvvvvvvvvvvvvvvv",
+    ],
+  },
+  {
     name: "tile/fence-h",
     size: 16,
     pixels: [
@@ -855,25 +883,29 @@ export const RECIPES: PixelRecipe[] = [
     ],
   },
   {
+    // Darkened plank floor: face is wood-light (d) over near-black bark grout
+    // (M), instead of the old tan-over-wood-dark. The new floor reads clearly
+    // darker so the tan/wood carpenter tools and props pop against it rather
+    // than blending in.
     name: "tile/wood-plank",
     size: 16,
     pixels: [
-      "mmmmmmmmmmmmmmmm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
-      "mmmmmmmmmmmmmmmm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
-      "mmmmmmmmmmmmmmmm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
-      "mmmmmmmmmmmmmmmm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
-      "mWWWWWWWWWWWWWWm",
+      "MMMMMMMMMMMMMMMM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
+      "MMMMMMMMMMMMMMMM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
+      "MMMMMMMMMMMMMMMM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
+      "MMMMMMMMMMMMMMMM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
+      "MddddddddddddddM",
     ],
   },
   {
@@ -1768,6 +1800,9 @@ const PERSONALITY_SUBS: Record<string, Record<string, string>> = {
   aggressive:   { y: "k", D: "k" },
   hoarder:      { y: "D", r: "y" },
   opportunist:  { y: "s", r: "S", D: "k" },
+  // Pip — the player-controlled farmer. Gold hair (y→o) + green tunic (r→G) so
+  // they read as visually distinct from all four AI farmers at a glance.
+  pip:          { y: "o", r: "G" },
 };
 
 function applyPersonalitySubs(
@@ -1929,6 +1964,77 @@ for (const [facing, template] of Object.entries(FACING_TEMPLATES)) {
   }
 }
 
+// ── Pip (player) down-facing base frames ─────────────────────────────────────
+// The four AI farmers author their DOWN idle + walk frames explicitly above.
+// Pip's are generated from the conservative down templates via the same per-
+// personality substitution (pip = gold hair + green tunic). The up/side facing
+// and all action poses were already generated for pip in the loops above (pip is
+// a PERSONALITY_SUBS key); only these three front-facing frames remained.
+const PIP_DOWN_TEMPLATES: Record<string, readonly string[]> = {
+  "": [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrwwwrr......",
+    "....r...r.......",
+    "....r...r.......",
+    "...DDD.DDD......",
+    "...DDD.DDD......",
+    "................",
+    "................",
+  ],
+  "/walk-a": [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrwwwrr......",
+    "....r...r.......",
+    "....r...r.......",
+    "..DDD...DDD.....",
+    "..DDD...DDD.....",
+    "................",
+    "................",
+  ],
+  "/walk-b": [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....ywwwwwy.....",
+    "....yk.w.ky.....",
+    "....yywwwy......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrwwwrr......",
+    "....r...r.......",
+    "....r...r.......",
+    "....DDD.DDD.....",
+    "....DDD.DDD.....",
+    "................",
+    "................",
+  ],
+};
+
+for (const [suffix, template] of Object.entries(PIP_DOWN_TEMPLATES)) {
+  RECIPES.push({
+    name: `farmer/pip${suffix}`,
+    size: 16,
+    pixels: applyPersonalitySubs(template, PERSONALITY_SUBS.pip!),
+  });
+}
+
 // ── NPC work poses (blacksmith hammer, carpenter saw) ────────────────────────
 // The blacksmith and carpenter NPCs cycle between their props playing these
 // poses. Authored as standalone frames (not personality-substituted) — the NPCs
@@ -1937,6 +2043,54 @@ for (const [facing, template] of Object.entries(FACING_TEMPLATES)) {
 // Blacksmith: apron (D), hammer with stone head (m handle, Q head).
 // Carpenter:  green tunic (G/g), handsaw (q blade, m handle).
 const NPC_POSES: PixelRecipe[] = [
+  // Blacksmith idle — standing, hands at sides, no tool. Used while walking
+  // between stations and while tending a station that has no swing pose (e.g.
+  // the oven), so the NPC always reads as a person, never the building sprite.
+  {
+    name: "npc/blacksmith/idle",
+    size: 16,
+    pixels: [
+      "................",
+      ".....kkkkk......",
+      "....kkkkkkk.....",
+      "....kwwwwwk.....",
+      "....kw.w.kk.....",
+      "....kkwwwk......",
+      "....DDDDD.......",
+      "...DDDDDDD......",
+      "...DDwwwDD......",
+      "....D...D.......",
+      "....D...D.......",
+      "...mmm.mmm......",
+      "...mmm.mmm......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Carpenter idle — standing, hands at sides, no tool (see blacksmith idle).
+  {
+    name: "npc/carpenter/idle",
+    size: 16,
+    pixels: [
+      "................",
+      ".....GGGGG......",
+      "....GGGGGGG.....",
+      "....GwwwwwG.....",
+      "....Gw.w.GG.....",
+      "....GGwwwG......",
+      "....ggggg.......",
+      "...ggggggg......",
+      "...ggwwwgg......",
+      "....g...g.......",
+      "....g...g.......",
+      "...DDD.DDD......",
+      "...DDD.DDD......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
   // Blacksmith hammer raised.
   {
     name: "npc/blacksmith/hammer-a",

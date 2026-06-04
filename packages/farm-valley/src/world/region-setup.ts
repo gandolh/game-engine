@@ -21,20 +21,22 @@ function placeProps(
   }
 }
 
-/** Blacksmith NPC tile within the blacksmith region. */
-const BLACKSMITH_TILE = { x: 33, y: 32 } as const;
+/** Blacksmith NPC tile within the blacksmith region (SE, shifted +12 with the
+ *  east cluster when the world widened for Pip's farm). */
+const BLACKSMITH_TILE = { x: 45, y: 32 } as const;
 
 /** Village tile where the market wall lives. */
 const MARKET_WALL_TILE = { x: 16, y: 16 } as const;
 /** Village tile where the shopkeeper stands. */
 const SHOPKEEPER_TILE = { x: 23, y: 23 } as const;
 
-/** Personality → region assignment (Cora N, Atticus E, Hannah S, Otto W). */
+/** Personality → region assignment (Cora N, Atticus far-E, Hannah S, Otto W, Pip E-center). */
 const PERSONALITY_TO_REGION: Record<string, RegionId> = {
   conservative: "farm-cora",
   aggressive: "farm-atticus",
   hoarder: "farm-hannah",
   opportunist: "farm-otto",
+  pip: "farm-pip",
 };
 
 export interface SetupRegionsResult {
@@ -89,14 +91,28 @@ export function setupRegions(
     regionEntities.set(def.id, regionEntity);
 
     if (def.kind === "farm" && farmer !== undefined && ownerId !== undefined) {
-      // Place the farmer at the farm center, currentRegion = farm id.
-      const { x, y } = def.center;
-      farmer.transform = { x, y, prevX: x, prevY: y, rotation: 0 };
+      // 2×2 grid of plots, each separated from its neighbours by at least 2
+      // empty cells. Offsets {-2, +1} put plot tiles 3 apart on each axis (a
+      // 2-cell gap between them), staying centered in the 12×12 farm.
+      const PLOT_OFFSETS = [-2, 1] as const;
+
+      // Place the farmer at the farm center, currentRegion = farm id. The
+      // player (Pip) starts standing on its own first plot instead of the bare
+      // center tile, so the spectator sees it right where it can till/plant.
+      const start = farmer.player
+        ? { x: def.center.x + PLOT_OFFSETS[0], y: def.center.y + PLOT_OFFSETS[0] }
+        : def.center;
+      farmer.transform = {
+        x: start.x,
+        y: start.y,
+        prevX: start.x,
+        prevY: start.y,
+        rotation: 0,
+      };
       if (farmer.farmer) farmer.farmer.currentRegion = def.id;
 
-      // 3×3 grid of plots centered in the region. center ± 1 on each axis.
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
+      for (const dy of PLOT_OFFSETS) {
+        for (const dx of PLOT_OFFSETS) {
           const tileX = def.center.x + dx;
           const tileY = def.center.y + dy;
           const plot = world.spawn({
@@ -143,10 +159,10 @@ export function setupRegions(
     // Blacksmith NPC + forge props. The NPC patrols anvil → oven → quench.
     if (def.id === "blacksmith") {
       placeProps(world, [
-        { x: 32, y: 31, frame: "structure/forge-oven" },
-        { x: 34, y: 31, frame: "structure/tool-rack" },
-        { x: 34, y: 33, frame: "structure/anvil" },
-        { x: 36, y: 32, frame: "structure/quench-tub" },
+        { x: 44, y: 31, frame: "structure/forge-oven" },
+        { x: 46, y: 31, frame: "structure/tool-rack" },
+        { x: 46, y: 33, frame: "structure/anvil" },
+        { x: 48, y: 32, frame: "structure/quench-tub" },
       ]);
       world.spawn({
         transform: {
@@ -160,13 +176,14 @@ export function setupRegions(
         blacksmith: { isBlacksmith: true },
         inbox: { messages: [] },
         workNpc: {
+          idlePose: "npc/blacksmith/idle",
           stations: [
             // Stand below the anvil, face up, hammer.
-            { tileX: 34, tileY: 34, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
+            { tileX: 46, tileY: 34, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
             // Tend the oven (stand below it, face up, no swing pose).
-            { tileX: 32, tileY: 32, facing: "up", flipX: false, pose: null },
+            { tileX: 44, tileY: 32, facing: "up", flipX: false, pose: null },
             // Quench at the tub (stand left of it, face side/right).
-            { tileX: 35, tileY: 32, facing: "side", flipX: false, pose: null },
+            { tileX: 47, tileY: 32, facing: "side", flipX: false, pose: null },
           ],
           stationIndex: 0,
           phase: "working",
@@ -194,6 +211,7 @@ export function setupRegions(
         carpenter: { isCarpenter: true },
         inbox: { messages: [] },
         workNpc: {
+          idlePose: "npc/carpenter/idle",
           stations: [
             // Saw at the workbench (stand below, face up).
             { tileX: 3, tileY: 4, facing: "up", flipX: false, pose: "npc/carpenter/saw" },

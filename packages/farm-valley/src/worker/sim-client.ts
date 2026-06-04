@@ -124,6 +124,21 @@ export class SimClient {
     this.worker.postMessage(msg);
   }
 
+  /**
+   * Send player (Pip) input to the worker. `move` is a one-tile step direction
+   * (or null); `action` requests the selected-slot field action; `selectSlot`
+   * (0-based, or null) switches the active hotbar slot. The worker buffers these
+   * onto the player entity for PlayerControlSystem to consume next tick.
+   */
+  sendInput(
+    move: "up" | "down" | "left" | "right" | null,
+    action: boolean,
+    selectSlot: number | null = null,
+  ): void {
+    const msg: WorkerInbound = { type: "input", move, action, selectSlot };
+    this.worker.postMessage(msg);
+  }
+
   /** Terminate the worker (hard stop). */
   terminate(): void {
     this.worker.terminate();
@@ -261,5 +276,9 @@ export class SimClient {
 
   get shock(): RenderSnapshot["shock"] {
     return this.currentSnapshot?.shock ?? null;
+  }
+
+  get playerHotbar(): RenderSnapshot["playerHotbar"] {
+    return this.currentSnapshot?.playerHotbar ?? null;
   }
 }

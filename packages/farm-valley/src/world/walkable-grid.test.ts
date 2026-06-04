@@ -32,19 +32,20 @@ describe('buildWalkableGrid', () => {
 
   it('resource zone tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[3 * WORLD_WIDTH + 29]).toBe(0);  // forest-north interior
-    expect(grid.cells[4 * WORLD_WIDTH + 37]).toBe(0);  // quarry-north interior
+    expect(grid.cells[3 * WORLD_WIDTH + 41]).toBe(0);  // forest-north interior (38-45, shifted +12)
+    expect(grid.cells[4 * WORLD_WIDTH + 49]).toBe(0);  // quarry-north interior (47-51, shifted +12)
     expect(grid.cells[29 * WORLD_WIDTH + 3]).toBe(0);  // forest-south interior
     expect(grid.cells[37 * WORLD_WIDTH + 4]).toBe(0);  // quarry-south interior
   });
 
   it('total walkable tile count matches layout', () => {
-    // Verified by independent BFS count: 1311 tiles.
-    // Breakdown (approximate): 4×144 farms + 144 village + 100 blacksmith
+    // Verified by independent BFS count: 1447 tiles (world widened 40→52 and a
+    // 5th 12×12 farm — Pip's — added; east cluster shifted +12).
+    // Breakdown (approximate): 5×144 farms + 144 village + 100 blacksmith
     // + 100 carpentry + 64 forest-north + 50 quarry-north + 64 forest-south
     // + 50 quarry-south + 30 mill + 4 well-north + 4 well-south + 18 mushroom-grove
     // + 16 ice-pond + the road network connecting all regions.
-    const EXPECTED_WALKABLE = 1311;
+    const EXPECTED_WALKABLE = 1447;
     const grid = buildWalkableGrid();
     let walkableCount = 0;
     for (let i = 0; i < grid.cells.length; i++) {

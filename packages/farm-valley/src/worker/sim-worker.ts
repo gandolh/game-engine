@@ -45,6 +45,12 @@ let pendingStep = false;
 // pacing — only HOW MANY times per wall-clock fire it runs differs.
 let runOneTick: (() => void) | null = null;
 
+// Bound at init() to apply a player-input message to the player entity. Null
+// before init; input messages arriving early are dropped.
+let applyInput:
+  | ((move: "up" | "down" | "left" | "right" | null, action: boolean, selectSlot: number | null) => void)
+  | null = null;
+
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
 
@@ -77,6 +83,12 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     return;
   }
 
+  if (msg.type === "input") {
+    // Buffer player input onto the player entity for PlayerControlSystem.
+    applyInput?.(msg.move, msg.action, msg.selectSlot);
+    return;
+  }
+
   if (msg.type === "init") {
     void (async () => {
     const { seed, ticksPerDay, maxDays, tickRateHz } = msg;
@@ -98,6 +110,17 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       maxDays,
       pathfinder,
     });
+
+    // Wire player input: buffer the latest move + latch the action request onto
+    // the player entity. PlayerControlSystem reads + clears these each tick.
+    applyInput = (move, action, selectSlot) => {
+      for (const e of world.query("player")) {
+        if (move !== null) e.player!.pendingMove = move;
+        if (action) e.player!.pendingAction = true;
+        if (selectSlot !== null) e.player!.selectedSlot = selectSlot;
+        break; // single player entity
+      }
+    };
 
     // Build and post the static-layer sprites (backdrop tiles, fences, plot
     // dirt). These never change after world setup so they're baked once by

@@ -39,6 +39,8 @@ export interface SnapshotSprite {
   action: string | null;
   /** Display name shown in the hover tooltip. null for anonymous sprites (crops, plots). */
   label: string | null;
+  /** Longer description shown under the label in the hover tooltip. null for none. */
+  description?: string | null;
   /**
    * Facing for directional sprites (farmers + work NPCs). "down" is the front
    * view (the base frame); "up" is the back; "side" is the right-facing profile.
@@ -81,6 +83,29 @@ export interface FinalStandingRow extends LeaderboardRow {
   crops: { radish: number; wheat: number; pumpkin: number };
 }
 
+/**
+ * One hotbar slot's live display state. `text` is the count/charge readout
+ * (e.g. "10/10", "x3", or "" for a durable tool); `available` dims the slot
+ * when the player can't currently use it (e.g. a seed with zero in stock).
+ */
+export interface HotbarSlotState {
+  label: string;
+  glyph: string;
+  text: string;
+  available: boolean;
+}
+
+/**
+ * Player (Pip) hotbar state for the bottom-center tool bar. Slots and their
+ * order are defined by HOTBAR_SLOTS in systems/player-control.ts (1 Can,
+ * 2 Hoe, 3 Axe, 4 Pickaxe, 5 Radish, 6 Wheat, 7 Pumpkin). `selected` is the
+ * active slot index the action key uses. null when there is no player entity.
+ */
+export interface PlayerHotbar {
+  slots: HotbarSlotState[];
+  selected: number;
+}
+
 /** Full per-tick render + UI snapshot. */
 export interface RenderSnapshot {
   /** Sim tick this snapshot was produced on. */
@@ -107,6 +132,8 @@ export interface RenderSnapshot {
   gameOver: boolean;
   /** Final standings with crop counts, present only when gameOver is true. */
   finalSummary: FinalStandingRow[] | null;
+  /** Player hotbar state, or null when there is no player-controlled farmer. */
+  playerHotbar: PlayerHotbar | null;
 }
 
 // ---- Worker protocol messages ------------------------------------------
@@ -152,12 +179,27 @@ export interface WorkerStepMsg {
   type: "step";
 }
 
+/**
+ * main → worker: player (Pip) input for the next tick. `move` is a one-tile step
+ * direction (or null for no movement this message); `action` requests the
+ * context-sensitive field action on the faced tile. The worker buffers the most
+ * recent values onto the player entity; PlayerControlSystem consumes them.
+ */
+export interface WorkerInputMsg {
+  type: "input";
+  move: "up" | "down" | "left" | "right" | null;
+  action: boolean;
+  /** Hotbar slot to select this message (0-based), or null for no change. */
+  selectSlot: number | null;
+}
+
 export type WorkerInbound =
   | WorkerInitMsg
   | WorkerStopMsg
   | WorkerPauseMsg
   | WorkerSpeedMsg
-  | WorkerStepMsg;
+  | WorkerStepMsg
+  | WorkerInputMsg;
 
 /** worker → main: the static backdrop sprites to bake once (sent at startup). */
 export interface WorkerStaticLayerMsg {

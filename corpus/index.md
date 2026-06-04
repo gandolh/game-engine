@@ -11,6 +11,7 @@ Catalog of everything in this corpus. Start here.
 
 - [wiki/overview.md](wiki/overview.md) — what Farm Valley is; lineage; cast
 - [wiki/architecture.md](wiki/architecture.md) — workspaces, layers, sim loop, ECS, message bus, data flow
+- [wiki/player-and-interaction.md](wiki/player-and-interaction.md) — the playable farmer Pip, hotbar, hover tooltips, feature collision, bridges, plot layout, world widening
 - [wiki/decisions.md](wiki/decisions.md) — locked tech choices
 - [wiki/status.md](wiki/status.md) — what's done, what's open (brief-by-brief)
 - [wiki/open-questions.md](wiki/open-questions.md) — live list of gaps and unresolved questions

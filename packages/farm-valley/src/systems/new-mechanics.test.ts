@@ -137,12 +137,12 @@ describe("refill-can location guard", () => {
     expect(f.inventory!.wateringCan!.charges).toBe(10);
   });
 
-  // well-north center is at (37, 11). Farmer must be within Chebyshev 1.
-  // Wells use REGIONS data (no fountain entity needed).
+  // well-north center is at (49, 11) after the world widened (+12). Farmer must
+  // be within Chebyshev 1. Wells use REGIONS data (no fountain entity needed).
   it("refills at a well (adjacent to well center)", () => {
     const f = makeFarmer({ region: "well-north", homeRegion: "farm-cora", charges: 0 });
-    // Place farmer at well-north center (37, 11) — Chebyshev 0.
-    f.transform = { x: 37, y: 11, prevX: 37, prevY: 11, rotation: 0 };
+    // Place farmer at well-north center (49, 11) — Chebyshev 0.
+    f.transform = { x: 49, y: 11, prevX: 49, prevY: 11, rotation: 0 };
     f.intentions!.queue.push({ kind: "refill-can", data: {}, priority: 0 });
     runAct(f);
     expect(f.inventory!.wateringCan!.charges).toBe(10);

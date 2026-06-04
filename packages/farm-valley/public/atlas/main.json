@@ -46,705 +46,819 @@
       "w": 16,
       "h": 16
     },
-    "tile/fence-h": {
+    "tile/bridge-h": {
       "x": 1,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/fence-h": {
+      "x": 18,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "structure/market-wall": {
-      "x": 18,
+      "x": 35,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "structure/shopkeeper": {
-      "x": 35,
+      "x": 52,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "tile/dirt": {
-      "x": 52,
+      "x": 69,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "farmer/conservative": {
-      "x": 69,
+      "x": 86,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/walk-a": {
-      "x": 86,
+      "x": 103,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/walk-b": {
-      "x": 103,
-      "y": 18,
+      "x": 1,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive": {
-      "x": 1,
+      "x": 18,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/walk-a": {
-      "x": 18,
+      "x": 35,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/walk-b": {
-      "x": 35,
+      "x": 52,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder": {
-      "x": 52,
+      "x": 69,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/walk-a": {
-      "x": 69,
+      "x": 86,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/walk-b": {
-      "x": 86,
+      "x": 103,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist": {
-      "x": 103,
-      "y": 35,
+      "x": 1,
+      "y": 52,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/walk-a": {
-      "x": 1,
+      "x": 18,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/walk-b": {
-      "x": 18,
+      "x": 35,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "indicator/meet": {
-      "x": 35,
+      "x": 52,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "crop/radish/seed": {
-      "x": 52,
+      "x": 69,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "crop/radish/growing": {
-      "x": 69,
+      "x": 86,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "crop/radish/mature": {
-      "x": 86,
+      "x": 103,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "crop/wheat/seed": {
-      "x": 103,
-      "y": 52,
+      "x": 1,
+      "y": 69,
       "w": 16,
       "h": 16
     },
     "crop/wheat/growing": {
-      "x": 1,
+      "x": 18,
       "y": 69,
       "w": 16,
       "h": 16
     },
     "crop/wheat/mature": {
-      "x": 18,
+      "x": 35,
       "y": 69,
       "w": 16,
       "h": 16
     },
     "crop/pumpkin/seed": {
-      "x": 35,
+      "x": 52,
       "y": 69,
       "w": 16,
       "h": 16
     },
     "crop/pumpkin/growing": {
-      "x": 52,
+      "x": 69,
       "y": 69,
       "w": 16,
       "h": 16
     },
     "crop/pumpkin/mature": {
-      "x": 69,
+      "x": 86,
       "y": 69,
       "w": 16,
       "h": 16
     },
     "tile/forge-floor": {
-      "x": 86,
+      "x": 103,
       "y": 69,
       "w": 16,
       "h": 16
     },
     "tile/market-floor": {
-      "x": 103,
-      "y": 69,
+      "x": 1,
+      "y": 86,
       "w": 16,
       "h": 16
     },
     "tile/quarry-floor": {
-      "x": 1,
+      "x": 18,
       "y": 86,
       "w": 16,
       "h": 16
     },
     "tile/wood-plank": {
-      "x": 18,
+      "x": 35,
       "y": 86,
       "w": 16,
       "h": 16
     },
     "tile/stone-floor": {
-      "x": 35,
+      "x": 52,
       "y": 86,
       "w": 16,
       "h": 16
     },
     "tile/ice-floor": {
-      "x": 52,
+      "x": 69,
       "y": 86,
       "w": 16,
       "h": 16
     },
     "tile/mushroom-floor": {
-      "x": 69,
+      "x": 86,
       "y": 86,
       "w": 16,
       "h": 16
     },
     "structure/blacksmith": {
-      "x": 86,
+      "x": 103,
       "y": 86,
       "w": 16,
       "h": 16
     },
     "structure/carpenter": {
-      "x": 103,
-      "y": 86,
+      "x": 1,
+      "y": 103,
       "w": 16,
       "h": 16
     },
     "structure/fountain": {
-      "x": 1,
+      "x": 18,
       "y": 103,
       "w": 16,
       "h": 16
     },
     "structure/home": {
-      "x": 18,
+      "x": 35,
       "y": 103,
       "w": 16,
       "h": 16
     },
     "structure/tree": {
-      "x": 35,
+      "x": 52,
       "y": 103,
       "w": 16,
       "h": 16
     },
     "structure/stone": {
-      "x": 52,
+      "x": 69,
       "y": 103,
       "w": 16,
       "h": 16
     },
     "structure/auction-podium": {
-      "x": 69,
+      "x": 86,
       "y": 103,
       "w": 16,
       "h": 16
     },
     "structure/notice-board": {
-      "x": 86,
+      "x": 103,
       "y": 103,
       "w": 16,
       "h": 16
     },
     "structure/mill": {
-      "x": 103,
-      "y": 103,
+      "x": 1,
+      "y": 120,
       "w": 16,
       "h": 16
     },
     "structure/well": {
-      "x": 1,
+      "x": 18,
       "y": 120,
       "w": 16,
       "h": 16
     },
     "structure/mushroom-marker": {
-      "x": 18,
+      "x": 35,
       "y": 120,
       "w": 16,
       "h": 16
     },
     "structure/ice-marker": {
-      "x": 35,
+      "x": 52,
       "y": 120,
       "w": 16,
       "h": 16
     },
     "structure/forge-oven": {
-      "x": 52,
+      "x": 69,
       "y": 120,
       "w": 16,
       "h": 16
     },
     "structure/forge-fire-a": {
-      "x": 69,
+      "x": 86,
       "y": 120,
       "w": 16,
       "h": 16
     },
     "structure/forge-fire-b": {
-      "x": 86,
+      "x": 103,
       "y": 120,
       "w": 16,
       "h": 16
     },
     "structure/forge-fire-c": {
-      "x": 103,
-      "y": 120,
+      "x": 1,
+      "y": 137,
       "w": 16,
       "h": 16
     },
     "structure/anvil": {
-      "x": 1,
+      "x": 18,
       "y": 137,
       "w": 16,
       "h": 16
     },
     "structure/quench-tub": {
-      "x": 18,
+      "x": 35,
       "y": 137,
       "w": 16,
       "h": 16
     },
     "structure/tool-rack": {
-      "x": 35,
+      "x": 52,
       "y": 137,
       "w": 16,
       "h": 16
     },
     "structure/workbench": {
-      "x": 52,
+      "x": 69,
       "y": 137,
       "w": 16,
       "h": 16
     },
     "structure/sawhorse": {
-      "x": 69,
+      "x": 86,
       "y": 137,
       "w": 16,
       "h": 16
     },
     "structure/log-pile": {
-      "x": 86,
+      "x": 103,
       "y": 137,
       "w": 16,
       "h": 16
     },
     "structure/plank-stack": {
-      "x": 103,
-      "y": 137,
+      "x": 1,
+      "y": 154,
       "w": 16,
       "h": 16
     },
     "decoration/scarecrow": {
-      "x": 1,
+      "x": 18,
       "y": 154,
       "w": 16,
       "h": 16
     },
     "decoration/windmill": {
-      "x": 18,
+      "x": 35,
       "y": 154,
       "w": 16,
       "h": 16
     },
     "decoration/flower-bed": {
-      "x": 35,
+      "x": 52,
       "y": 154,
       "w": 16,
       "h": 16
     },
     "decoration/fence-art": {
-      "x": 52,
+      "x": 69,
       "y": 154,
       "w": 16,
       "h": 16
     },
     "debug/player": {
-      "x": 69,
+      "x": 86,
       "y": 154,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/work": {
-      "x": 86,
+      "x": 103,
       "y": 154,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/work": {
-      "x": 103,
-      "y": 154,
+      "x": 1,
+      "y": 171,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/work": {
-      "x": 1,
+      "x": 18,
       "y": 171,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/work": {
-      "x": 18,
+      "x": 35,
+      "y": 171,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/work": {
+      "x": 52,
       "y": 171,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/till": {
-      "x": 35,
+      "x": 69,
       "y": 171,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/till": {
-      "x": 52,
+      "x": 86,
       "y": 171,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/till": {
-      "x": 69,
+      "x": 103,
       "y": 171,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/till": {
-      "x": 86,
-      "y": 171,
+      "x": 1,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/till": {
+      "x": 18,
+      "y": 188,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/water": {
-      "x": 103,
-      "y": 171,
+      "x": 35,
+      "y": 188,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/water": {
-      "x": 1,
+      "x": 52,
       "y": 188,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/water": {
-      "x": 18,
+      "x": 69,
       "y": 188,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/water": {
-      "x": 35,
+      "x": 86,
+      "y": 188,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/water": {
+      "x": 103,
       "y": 188,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/refill": {
-      "x": 52,
-      "y": 188,
+      "x": 1,
+      "y": 205,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/refill": {
-      "x": 69,
-      "y": 188,
+      "x": 18,
+      "y": 205,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/refill": {
-      "x": 86,
-      "y": 188,
+      "x": 35,
+      "y": 205,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/refill": {
-      "x": 103,
-      "y": 188,
+      "x": 52,
+      "y": 205,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/refill": {
+      "x": 69,
+      "y": 205,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/chop": {
-      "x": 1,
+      "x": 86,
       "y": 205,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/chop": {
-      "x": 18,
+      "x": 103,
       "y": 205,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/chop": {
-      "x": 35,
-      "y": 205,
+      "x": 1,
+      "y": 222,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/chop": {
-      "x": 52,
-      "y": 205,
+      "x": 18,
+      "y": 222,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/chop": {
+      "x": 35,
+      "y": 222,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/mine": {
-      "x": 69,
-      "y": 205,
+      "x": 52,
+      "y": 222,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/mine": {
-      "x": 86,
-      "y": 205,
+      "x": 69,
+      "y": 222,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/mine": {
-      "x": 103,
-      "y": 205,
+      "x": 86,
+      "y": 222,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/mine": {
-      "x": 1,
+      "x": 103,
       "y": 222,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/mine": {
+      "x": 1,
+      "y": 239,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/plant": {
       "x": 18,
-      "y": 222,
+      "y": 239,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/plant": {
       "x": 35,
-      "y": 222,
+      "y": 239,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/plant": {
       "x": 52,
-      "y": 222,
+      "y": 239,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/plant": {
       "x": 69,
-      "y": 222,
+      "y": 239,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/plant": {
+      "x": 86,
+      "y": 239,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/up": {
-      "x": 86,
-      "y": 222,
+      "x": 103,
+      "y": 239,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/up": {
-      "x": 103,
-      "y": 222,
+      "x": 1,
+      "y": 256,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/up": {
-      "x": 1,
-      "y": 239,
+      "x": 18,
+      "y": 256,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/up": {
-      "x": 18,
-      "y": 239,
+      "x": 35,
+      "y": 256,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/up": {
+      "x": 52,
+      "y": 256,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/up/walk-a": {
-      "x": 35,
-      "y": 239,
+      "x": 69,
+      "y": 256,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/up/walk-a": {
-      "x": 52,
-      "y": 239,
+      "x": 86,
+      "y": 256,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/up/walk-a": {
-      "x": 69,
-      "y": 239,
+      "x": 103,
+      "y": 256,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/up/walk-a": {
-      "x": 86,
-      "y": 239,
+      "x": 1,
+      "y": 273,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/up/walk-a": {
+      "x": 18,
+      "y": 273,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/up/walk-b": {
-      "x": 103,
-      "y": 239,
+      "x": 35,
+      "y": 273,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/up/walk-b": {
-      "x": 1,
-      "y": 256,
+      "x": 52,
+      "y": 273,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/up/walk-b": {
-      "x": 18,
-      "y": 256,
+      "x": 69,
+      "y": 273,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/up/walk-b": {
-      "x": 35,
-      "y": 256,
+      "x": 86,
+      "y": 273,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/up/walk-b": {
+      "x": 103,
+      "y": 273,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/side": {
-      "x": 52,
-      "y": 256,
+      "x": 1,
+      "y": 290,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/side": {
-      "x": 69,
-      "y": 256,
+      "x": 18,
+      "y": 290,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/side": {
-      "x": 86,
-      "y": 256,
+      "x": 35,
+      "y": 290,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/side": {
-      "x": 103,
-      "y": 256,
+      "x": 52,
+      "y": 290,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/side": {
+      "x": 69,
+      "y": 290,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/side/walk-a": {
-      "x": 1,
-      "y": 273,
+      "x": 86,
+      "y": 290,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/side/walk-a": {
-      "x": 18,
-      "y": 273,
+      "x": 103,
+      "y": 290,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/side/walk-a": {
-      "x": 35,
-      "y": 273,
+      "x": 1,
+      "y": 307,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/side/walk-a": {
-      "x": 52,
-      "y": 273,
+      "x": 18,
+      "y": 307,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/side/walk-a": {
+      "x": 35,
+      "y": 307,
       "w": 16,
       "h": 16
     },
     "farmer/conservative/side/walk-b": {
-      "x": 69,
-      "y": 273,
+      "x": 52,
+      "y": 307,
       "w": 16,
       "h": 16
     },
     "farmer/aggressive/side/walk-b": {
-      "x": 86,
-      "y": 273,
+      "x": 69,
+      "y": 307,
       "w": 16,
       "h": 16
     },
     "farmer/hoarder/side/walk-b": {
-      "x": 103,
-      "y": 273,
+      "x": 86,
+      "y": 307,
       "w": 16,
       "h": 16
     },
     "farmer/opportunist/side/walk-b": {
+      "x": 103,
+      "y": 307,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/side/walk-b": {
       "x": 1,
-      "y": 290,
+      "y": 324,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip": {
+      "x": 18,
+      "y": 324,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/walk-a": {
+      "x": 35,
+      "y": 324,
+      "w": 16,
+      "h": 16
+    },
+    "farmer/pip/walk-b": {
+      "x": 52,
+      "y": 324,
+      "w": 16,
+      "h": 16
+    },
+    "npc/blacksmith/idle": {
+      "x": 69,
+      "y": 324,
+      "w": 16,
+      "h": 16
+    },
+    "npc/carpenter/idle": {
+      "x": 86,
+      "y": 324,
       "w": 16,
       "h": 16
     },
     "npc/blacksmith/hammer-a": {
-      "x": 18,
-      "y": 290,
+      "x": 103,
+      "y": 324,
       "w": 16,
       "h": 16
     },
     "npc/blacksmith/hammer-b": {
-      "x": 35,
-      "y": 290,
+      "x": 1,
+      "y": 341,
       "w": 16,
       "h": 16
     },
     "npc/carpenter/saw-a": {
-      "x": 52,
-      "y": 290,
+      "x": 18,
+      "y": 341,
       "w": 16,
       "h": 16
     },
     "npc/carpenter/saw-b": {
-      "x": 69,
-      "y": 290,
+      "x": 35,
+      "y": 341,
       "w": 16,
       "h": 16
     }

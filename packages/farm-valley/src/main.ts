@@ -17,12 +17,14 @@ import {
   LeaderboardPanel,
   SlateBillboardPanel,
   PlaybackControlsPanel,
+  HotbarPanel,
   EventFeedPanel,
   createRightColumn,
   WorldClockPanel,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
-import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable } from "./world/regions";
+import { HOTBAR_SLOTS } from "./systems/player-control";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
 import { Keyboard } from "@engine/core";
 import { SimClient } from "./worker/sim-client";
 import type { FinalStandingRow, SnapshotSprite } from "./worker/snapshot";
@@ -67,16 +69,16 @@ let zoom = 1;
 // Hover tooltip — tracks raw canvas-relative mouse position in CSS pixels.
 const mousePos = { x: -9999, y: -9999 };
 
-// ── Debug player (WASD walkability tester) ──────────────────────────────────
-// Starts at village center tile (19,19). Pure render-side — no sim involvement.
-// Moves 1 tile per step; movement is throttled to ~8 steps/sec so it's readable.
-const debugPlayer = {
-  tileX: 19,
-  tileY: 19,
-  lastMoveMs: 0,
-  visible: true,
-};
+// ── Player (Pip) input ───────────────────────────────────────────────────────
+// WASD/arrows walk Pip one tile per step (throttled so movement reads cleanly);
+// Space performs the context-sensitive field action on the tile Pip faces. Both
+// are sent to the sim worker, which owns Pip as a real farmer entity. Movement
+// is throttled here for cadence; the action fires once per key press.
 const PLAYER_MOVE_INTERVAL_MS = 120; // ~8 tiles/sec
+let lastPlayerMoveMs = 0;
+// The player farmer's entity id, learned from the first snapshot (the sprite
+// labeled "Pip"); used to focus the camera on Pip by default.
+let playerFarmerId: number | null = null;
 
 // brief-16: playback — module-level pacing state. These only change the
 // wall-clock cadence of worker ticks; sim state for a given tick count is
@@ -187,6 +189,17 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   setupCameraListeners(canvas, camera);
   const keyboard = new Keyboard();
   keyboard.attach(window);
+  // Stop Space / arrow keys from scrolling the page — they drive Pip's movement
+  // and context action. WASD already don't scroll; we guard the rest.
+  const SCROLL_KEYS = new Set([
+    "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  ]);
+  window.addEventListener("keydown", (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+    if (SCROLL_KEYS.has(e.code)) e.preventDefault();
+  });
   const noiseGen = await loadNoiseGenerator();
   return { renderer, noiseGen, keyboard };
 }
@@ -227,6 +240,7 @@ interface Panels {
   slateBillboard: SlateBillboardPanel;
   eventFeedPanel: EventFeedPanel;
   playback: PlaybackControlsPanel;
+  hotbar: HotbarPanel;
   gameOverPanel: GameOverPanel;
 }
 
@@ -239,11 +253,16 @@ function buildPanels(app: HTMLElement): Panels {
   // column so they stack instead of overlapping; the feed reflows below the
   // observer when the "why" block expands it.
   const rightColumn = createRightColumn(app);
+  // Speed/time controls now live at the TOP of the right sidebar (the bottom-
+  // center spot they used to occupy is the player tool hotbar). They mount
+  // first so they sit above the observer/feed in the column.
+  const playback = new PlaybackControlsPanel(rightColumn);
   const observer = new ObserverPanel(rightColumn);
   const leaderboardPanel = new LeaderboardPanel(app);
   const slateBillboard = new SlateBillboardPanel(app);
   const eventFeedPanel = new EventFeedPanel(rightColumn);
-  const playback = new PlaybackControlsPanel(app);
+  // Player tool hotbar — bottom-center, where the playback controls used to be.
+  const hotbar = new HotbarPanel(app);
   const gameOverPanel = createGameOverPanel(app);
   return {
     overlay,
@@ -253,6 +272,7 @@ function buildPanels(app: HTMLElement): Panels {
     slateBillboard,
     eventFeedPanel,
     playback,
+    hotbar,
     gameOverPanel,
   };
 }
@@ -296,10 +316,11 @@ function wirePlayback(
   return { applyPaused, applySpeed, doStep };
 }
 
-// Keyboard: space = toggle pause, "." = step, 1/2/4 = speed. Ignore keys
+// Keyboard: P = toggle pause, "." = step. (Speed is set via the sidebar
+// buttons; number keys 1-7 are the player's hotbar selection.) Ignore keys
 // while the user is typing into an input/textarea (e.g. the seed field).
 function registerHotkeys(handlers: PlaybackHandlers): void {
-  const { applyPaused, applySpeed, doStep } = handlers;
+  const { applyPaused, doStep } = handlers;
   window.addEventListener("keydown", (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
@@ -307,21 +328,16 @@ function registerHotkeys(handlers: PlaybackHandlers): void {
       return;
     }
     switch (e.key) {
-      case " ":
+      // Pause is on "p" — Space is reserved for the player's action, and the
+      // number keys 1-7 now select hotbar slots (handled in the input loop), so
+      // speed is set via the sidebar buttons rather than 1/2/4 hotkeys.
+      case "p":
+      case "P":
         e.preventDefault();
         applyPaused(!paused);
         break;
       case ".":
         doStep();
-        break;
-      case "1":
-        applySpeed(1);
-        break;
-      case "2":
-        applySpeed(2);
-        break;
-      case "4":
-        applySpeed(4);
         break;
       default:
         break;
@@ -376,6 +392,21 @@ class ParticleDirector {
 
     // Watch the snapshot for new shock events → dirt explosion.
     client.onSnapshot((snap) => {
+      // Learn Pip's entity id once (the farmer sprite labeled "Pip") and focus
+      // the camera on it by default so the player starts looking at themselves.
+      if (playerFarmerId === null) {
+        for (const s of snap.sprites) {
+          if (s.id !== null && s.interpolate && s.label === "Pip") {
+            playerFarmerId = s.id;
+            if (focusedFarmerId === null) {
+              focusedFarmerId = s.id;
+              panOffset = { x: 0, y: 0 };
+              if (_camera !== null) applyFocusAndPan(_camera);
+            }
+            break;
+          }
+        }
+      }
       if (!snap.shock) return;
       // Shock wiped plots — emit a dramatic dirt burst from each affected farmer.
       for (const row of snap.leaderboard) {
@@ -448,7 +479,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
   } = deps;
   const {
     overlay, worldClock, observer, leaderboardPanel,
-    slateBillboard, eventFeedPanel, gameOverPanel,
+    slateBillboard, eventFeedPanel, hotbar, gameOverPanel,
   } = panels;
 
   let lastFrameMs = performance.now();
@@ -553,46 +584,34 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       nowMs,
     );
 
-    // ── Debug player movement (WASD) ─────────────────────────────────────
-    // Throttled to PLAYER_MOVE_INTERVAL_MS so movement stays readable.
-    // P toggles visibility. Checks isWalkable before every step.
-    if (keyboard.justPressed("KeyP")) {
-      debugPlayer.visible = !debugPlayer.visible;
-    }
-    if (nowMs - debugPlayer.lastMoveMs >= PLAYER_MOVE_INTERVAL_MS) {
-      let dx = 0, dy = 0;
-      if (keyboard.isDown("KeyW") || keyboard.isDown("ArrowUp"))    dy = -1;
-      if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))  dy =  1;
-      if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))  dx = -1;
-      if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight")) dx =  1;
-      // Prefer axis-aligned: diagonal is two key presses, process only one
-      if (dx !== 0) dy = 0;
-      if (dx !== 0 || dy !== 0) {
-        const nx = debugPlayer.tileX + dx;
-        const ny = debugPlayer.tileY + dy;
-        if (nx >= 0 && nx < WORLD_WIDTH && ny >= 0 && ny < WORLD_HEIGHT && isWalkable(nx, ny)) {
-          debugPlayer.tileX = nx;
-          debugPlayer.tileY = ny;
+    // ── Player (Pip) input → sim worker ──────────────────────────────────
+    // WASD/arrows request a one-tile move (throttled for readable cadence);
+    // Space requests the context field action on the tile Pip faces. The worker
+    // owns Pip as a real farmer entity and applies these via PlayerControlSystem.
+    {
+      let move: "up" | "down" | "left" | "right" | null = null;
+      if (nowMs - lastPlayerMoveMs >= PLAYER_MOVE_INTERVAL_MS) {
+        if (keyboard.isDown("KeyW") || keyboard.isDown("ArrowUp"))         move = "up";
+        else if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))  move = "down";
+        else if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))  move = "left";
+        else if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight")) move = "right";
+        if (move !== null) lastPlayerMoveMs = nowMs;
+      }
+      // Action fires once per key press (Space or E).
+      const action = keyboard.justPressed("Space") || keyboard.justPressed("KeyE");
+      // Number keys 1-7 select a hotbar slot (Digit1→slot 0, … Digit7→slot 6).
+      let selectSlot: number | null = null;
+      for (let n = 1; n <= HOTBAR_SLOTS.length && n <= 9; n++) {
+        if (keyboard.justPressed(`Digit${n}`)) {
+          selectSlot = n - 1;
+          break;
         }
-        debugPlayer.lastMoveMs = nowMs;
+      }
+      if (move !== null || action || selectSlot !== null) {
+        client.sendInput(move, action, selectSlot);
       }
     }
     keyboard.endFrame();
-
-    // Draw the debug player on top of everything else (layer 200).
-    if (debugPlayer.visible) {
-      const px = debugPlayer.tileX * TILE + TILE / 2;
-      const py = debugPlayer.tileY * TILE + TILE / 2;
-      renderer.pushShadow(px, py + TILE * 0.35, TILE * 0.32, TILE * 0.12, 0.5);
-      renderer.push({
-        x: px, y: py,
-        width: TILE, height: TILE,
-        frame: "debug/player",
-        rotation: 0,
-        layer: 200,
-        alpha: 1,
-      });
-    }
 
     // Hover tooltip: convert CSS mouse position → world pixels → find nearest
     // labeled sprite within half-a-tile radius.
@@ -620,6 +639,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
     leaderboardPanel.update(client.leaderboard);
     slateBillboard.update(client.slate);
     eventFeedPanel.update(client.events);
+    hotbar.update(client.playerHotbar);
 
     // Game over — show once.
     if (client.gameOver && !gameOverShown) {
@@ -872,6 +892,7 @@ function updateTooltip(
 
   const HALF_TILE = TILE / 2;
   let bestLabel: string | null = null;
+  let bestDescription: string | null = null;
   let bestDist = HALF_TILE * HALF_TILE;
 
   for (const s of sprites) {
@@ -882,11 +903,27 @@ function updateTooltip(
     if (d2 < bestDist) {
       bestDist = d2;
       bestLabel = s.label;
+      bestDescription = s.description ?? null;
     }
   }
 
   if (bestLabel !== null) {
-    tooltip.textContent = bestLabel;
+    // Title line (bold) + optional description line beneath it.
+    tooltip.replaceChildren();
+    const title = document.createElement("div");
+    title.textContent = bestLabel;
+    title.style.fontWeight = "700";
+    tooltip.appendChild(title);
+    if (bestDescription !== null) {
+      const desc = document.createElement("div");
+      desc.textContent = bestDescription;
+      desc.style.fontWeight = "400";
+      desc.style.opacity = "0.85";
+      desc.style.marginTop = "2px";
+      desc.style.maxWidth = "220px";
+      desc.style.whiteSpace = "normal";
+      tooltip.appendChild(desc);
+    }
     tooltip.style.display = "block";
     // Position just above and to the right of the cursor.
     tooltip.style.left = `${mousePos.x + 12}px`;

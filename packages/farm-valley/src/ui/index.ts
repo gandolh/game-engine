@@ -8,6 +8,7 @@ export { SlateBillboardPanel } from "./slate-billboard";
 export type { SlateEntry } from "./slate-billboard";
 export { PlaybackControlsPanel } from "./playback-controls";
 export type { PlaybackState } from "./playback-controls";
+export { HotbarPanel } from "./hotbar";
 export { EventFeedPanel } from "./event-feed-panel";
 export type { EventFeedRow } from "./event-feed-panel";
 export { createRightColumn } from "./right-column";

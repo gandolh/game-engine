@@ -9,6 +9,7 @@ function makeNpc(): { world: World<GameEntity>; e: GameEntity } {
     transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },
     sprite: { atlasId: "main", frame: "structure/blacksmith", layer: 50, tintRgba: 0xffffffff },
     workNpc: {
+      idlePose: "npc/blacksmith/idle",
       stations: [
         { tileX: 2, tileY: 0, facing: "side", flipX: false, pose: "npc/blacksmith/hammer" },
         { tileX: 2, tileY: 2, facing: "up", flipX: false, pose: null },
@@ -56,9 +57,9 @@ describe("WorkNpcSystem", () => {
     expect(e.workNpc!.stationIndex).toBe(1);
   });
 
-  it("idle pose (pose:null) clears poseFrame at the station", () => {
+  it("a pose:null station shows the idle figure, never the building sprite", () => {
     const { world, e } = makeNpc();
-    e.workNpc!.stationIndex = 1; // station with pose:null
+    e.workNpc!.stationIndex = 1; // station with pose:null (e.g. the oven)
     e.workNpc!.phase = "walking";
     e.workNpc!.timer = 1;
     const sys = new WorkNpcSystem(world);
@@ -66,7 +67,17 @@ describe("WorkNpcSystem", () => {
     expect(e.transform!.x).toBe(2);
     expect(e.transform!.y).toBe(2);
     expect(e.workNpc!.phase).toBe("working");
-    expect(e.workNpc!.poseFrame).toBeNull();
+    // Regression: previously this cleared poseFrame to null, so the snapshot
+    // fell back to the structure sprite and the NPC "became the building".
+    expect(e.workNpc!.poseFrame).toBe("npc/blacksmith/idle");
     expect(e.workNpc!.facing).toBe("up");
+  });
+
+  it("shows the idle figure while walking between stations", () => {
+    const { world, e } = makeNpc();
+    const sys = new WorkNpcSystem(world);
+    tick(world, sys, 1); // mid-walk toward station 0
+    expect(e.workNpc!.phase).toBe("walking");
+    expect(e.workNpc!.poseFrame).toBe("npc/blacksmith/idle");
   });
 });

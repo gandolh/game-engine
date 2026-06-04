@@ -32,8 +32,10 @@ import { TrustSystem } from "./systems/trust";
 import { HarvestSystem } from "./systems/harvest";
 import { PlotSenseSystem } from "./systems/plot-sense";
 import { DeliberateSystem } from "./systems/deliberate";
+import { PlayerControlSystem } from "./systems/player-control";
 import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
+import { FeatureCollisionSystem } from "./systems/feature-collision";
 import { EncounterSystem } from "./systems/encounter";
 import { EncounterTradeSystem } from "./systems/encounter-trade";
 import { MeetIndicatorSystem } from "./systems/meet-indicator";
@@ -83,6 +85,19 @@ export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
     startGold: 70,
     riskProfile: "medium", minGoldReserve: 50,
     startSeeds: { radish: 2, wheat: 1 },
+  },
+  {
+    // Pip — the player-controlled farmer. Same starting kit as the AI farmers;
+    // its intentions come from keyboard input (PlayerControlSystem), not an AI
+    // personality. homeX/homeY are nominal (region-setup moves it to farm-pip
+    // center). Lives on farm-pip (far east).
+    name: "Pip",
+    personality: "pip",
+    homeX: 33, homeY: 19,
+    startGold: 60,
+    riskProfile: "medium", minGoldReserve: 0,
+    startSeeds: { radish: 3, wheat: 1 },
+    player: true,
   },
 ];
 
@@ -184,12 +199,20 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // deliberate, so survival-reflex watering can be queued.
     .add(new PlotSenseSystem(world))
     .add(new DeliberateSystem(world))
+    // Player (Pip) input → movement + a context action queued for ActSystem.
+    // Runs after DeliberateSystem (which skips the player) and before
+    // TravelSystem/ActSystem so a requested action executes the same tick.
+    .add(new PlayerControlSystem(world))
     .add(weatherFeature.apSystem);
 
   if (opts.pathfinder) {
     // Cast to Pathfinder: JsPathfinder satisfies the duck type; WASM Pathfinder
-    // is an exact match. Both provide findPath(grid, start, end).
-    scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, buildWalkableGrid(), bus));
+    // is an exact match. Both provide findPath(grid, start, end). The grid is
+    // shared with FeatureCollisionSystem, which blocks tree/stone tiles on it
+    // each tick so farmers never path through a feature.
+    const grid = buildWalkableGrid();
+    scheduler.add(new FeatureCollisionSystem(world, grid));
+    scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, grid, bus));
   }
 
   scheduler

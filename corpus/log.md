@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-04] doc | Pip + interaction systems folded into the wiki
+
+Promoted the post-brief-35 work — previously captured only in session/agent memory — into the corpus.
+
+- **New page [wiki/player-and-interaction.md](wiki/player-and-interaction.md)**: the keyboard-controlled 5th farmer **Pip** (real farmer entity, input-driven intentions, `PlayerControlSystem`, not AP-gated, authoritative facing), the slot-based **hotbar** (`HOTBAR_SLOTS`), **hover tooltips** (name + description for all labeled objects), **feature collision** (`FeatureCollisionSystem` blocks tree/stone tiles on the shared pathfinder grid), styled **bridges** (`computeBridges` / `tile/bridge-h`), the **craft-NPC idle pose** fix (blacksmith no longer "becomes the building" at the oven), **plot layout** (`PLOT_OFFSETS`), and the **40→52 world widening** with the dual-`PERSONALITY_TO_REGION` gotcha.
+- Added a *Shipped 2026-06-04* section to [wiki/status.md](wiki/status.md) and refreshed its header (all briefs done; Pip shipped brief-less).
+- Linked the new page from [index.md](index.md).
+- All claims were grepped against current code before writing (`WORLD_WIDTH=52`, dual `PERSONALITY_TO_REGION`, `HOTBAR_SLOTS`, `FeatureCollisionSystem`, `computeBridges`, `idlePose` all confirmed). No code changed — documentation only.
+
 ## [2026-06-04] impl | EDG32 palette enforced project-wide
 
 Locked the project to the **Endesga-32 (EDG32)** palette and made it enforceable. The atlas `SWATCH` (drawn sprites/tiles) was already 100% EDG32; the leak was in the HTML/canvas UI layer (panels, leaderboard, world-clock, home-screen, observer, debug overlay, particles, day/night anchors), which used ~41 off-palette literals.

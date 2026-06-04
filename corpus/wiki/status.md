@@ -1,6 +1,6 @@
 # Project Status
 
-Snapshot of where the Farm Valley engine + game sit relative to the task briefs in [../briefs/](../briefs/). As of 2026-06-03. Briefs 01–23 are all in `done/` or `superseded/`. **A grilling session on 2026-06-03 filed 8 new briefs (24–31) into `todo/`** — see [§ Now in todo](#now-in-todo) below.
+Snapshot of where the Farm Valley engine + game sit relative to the task briefs in [../briefs/](../briefs/). As of 2026-06-04. All briefs (01–35 + engine 01–08) are in `done/` or `superseded/`; the latest work (the playable character **Pip** + interaction systems) shipped without a brief — see [§ Shipped 2026-06-04](#shipped-2026-06-04-player--interaction-no-briefs) and [player-and-interaction.md](player-and-interaction.md).
 
 ## Engine tasks
 
@@ -96,6 +96,18 @@ Full visual, world, and agent-activity overhaul. All implemented, tested, and ve
 - **Headless sim runner** — [tools/run-sim](../../tools/run-sim/) (`npm run sim`), runs the deterministic sim with no renderer (no Worker); narrates the mid-game shock.
 - **Offline world preview** — [tools/world-preview](../../tools/world-preview/) (`npm run preview`), static snapshot viewer; rewritten 2026-05-29 to render the real 40×40 region world from the shared layout.
 - **README + screenshots** at repo root.
+
+## Shipped 2026-06-04 (player + interaction; no briefs)
+
+Post-brief-35 work delivered directly in working sessions (no formal brief). Full synthesis in [player-and-interaction.md](player-and-interaction.md). Verified live (Playwright); typecheck clean; full suite green; determinism MATCHes.
+
+- **Pip — playable 5th farmer.** Keyboard-controlled farmer entity (`personality.kind: "pip"` + `player` component); intentions come from input via [`PlayerControlSystem`](../../packages/farm-valley/src/systems/player-control.ts) instead of `DeliberateSystem` (which skips it). WASD/arrows move (not AP-gated), Space/E acts, P pauses. World widened **40→52** wide for `farm-pip` (`EAST_SHIFT=12`).
+- **Hotbar action dispatch.** `HOTBAR_SLOTS` (1 Can · 2 Hoe · 3 Axe · 4 Pickaxe · 5 Radish · 6 Wheat · 7 Pumpkin); number keys 1–7 select; Space uses the selected slot. Replaced the `1/2/4` speed hotkeys (speed now sidebar-only).
+- **Hover tooltips** — name + description for farmers, structures/NPCs, fountains, farmhouses, trees, stones, and crops.
+- **Feature collision** — [`FeatureCollisionSystem`](../../packages/farm-valley/src/systems/feature-collision.ts) blocks tree/stone tiles on the shared pathfinder grid each tick so farmers route around them; the player is blocked via `featureAt`.
+- **Bridges** — road tiles spanning water render as `tile/bridge-h` (rotated for vertical spans) via `computeBridges()`, not a flat dirt path.
+- **Craft-NPC idle pose** — blacksmith/carpenter use an `idlePose` at pose-less stations (e.g. the oven) so they no longer revert to the building sprite.
+- **Plot layout** — 2×2 grid spaced ≥2 cells apart (`PLOT_OFFSETS`); Pip starts on its first plot. Carpenter floor darkened for tool contrast.
 
 ## Open gaps
 

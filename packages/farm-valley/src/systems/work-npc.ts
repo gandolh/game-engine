@@ -35,8 +35,8 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
   const station = npc.stations[npc.stationIndex]!;
 
   if (npc.phase === "walking") {
-    // Idle facing toward the target while walking; pose cleared.
-    npc.poseFrame = null;
+    // Idle figure while walking (never the building sprite).
+    npc.poseFrame = npc.idlePose;
     npc.timer -= 1;
     if (npc.timer > 0) return;
     npc.timer = STEP_TICKS;
@@ -68,7 +68,9 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
     const phaseBit = Math.floor(npc.timer / 8) & 1;
     npc.poseFrame = `${station.pose}-${phaseBit ? "a" : "b"}`;
   } else {
-    npc.poseFrame = null;
+    // No swing pose at this station (e.g. the oven) — stand idle, don't revert
+    // to the building sprite.
+    npc.poseFrame = npc.idlePose;
   }
 
   npc.timer -= 1;
@@ -78,5 +80,5 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
   npc.stationIndex = (npc.stationIndex + 1) % npc.stations.length;
   npc.phase = "walking";
   npc.timer = STEP_TICKS;
-  npc.poseFrame = null;
+  npc.poseFrame = npc.idlePose;
 }

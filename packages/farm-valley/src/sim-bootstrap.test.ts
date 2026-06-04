@@ -66,7 +66,7 @@ describe("sim determinism", () => {
 
     // Sanity: the run actually did something (not an empty/degenerate run).
     expect(a.perDay.length).toBeGreaterThan(1);
-    expect(a.finalStandings.length).toBe(4);
+    expect(a.finalStandings.length).toBe(5);
   });
 
   it("is internally reproducible across several seeds", () => {

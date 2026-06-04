@@ -30,6 +30,7 @@ import type { LeaderboardRow } from "../ui/leaderboard";
 import { leaderboard } from "../sim-bootstrap";
 import type { FarmerSummary } from "../sim-bootstrap";
 import { pickFarmerFrame } from "../render-systems";
+import { HOTBAR_SLOTS } from "../systems/player-control";
 import { seasonForDay } from "../protocols";
 
 const TILE = 16;
@@ -203,6 +204,9 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
     const py = plot.plot.tileY * TILE + TILE / 2;
     const { crop, daysGrowing, readyAtDay } = plot.plot.state;
     const stage = daysGrowing >= readyAtDay ? "mature" : daysGrowing > 0 ? "growing" : "seed";
+    const cap = crop.charAt(0).toUpperCase() + crop.slice(1);
+    const stageWord = stage === "mature" ? "ready to harvest" : stage === "growing" ? "growing" : "just sown";
+    const watered = plot.plot.state.wateredToday ? "watered today" : "needs water";
     sprites.push({
       id: null,
       x: px,
@@ -213,7 +217,8 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       alpha: 1,
       interpolate: false,
       action: null,
-      label: null,
+      label: `${cap} crop`,
+      description: `${stageWord} · ${watered} · day ${daysGrowing}/${readyAtDay}`,
     });
   }
 
@@ -241,32 +246,78 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       // structure frame is replaced by a directional idle below in render.
       frame = npc.poseFrame ?? s.frame;
     } else if (isFarmer) {
-      const f = resolveFacing(entity.id ?? -1, t.x - t.prevX, t.y - t.prevY);
-      facing = f.facing;
-      flipX = f.flipX;
+      // The player (Pip) carries an authoritative 4-way facing (up/down/left/
+      // right) set by PlayerControlSystem; map it to the 3-way side/up/down +
+      // flipX convention so its directional assets resolve like the AI farmers'
+      // (left/right both use the right-facing "side" frame, mirrored for left).
+      // The movement-delta heuristic is unreliable for the player because it
+      // can only see the *current* tick's step and snaps back to "down" the
+      // instant it stops between key presses.
+      if (entity.player) {
+        const pf = entity.player.facing;
+        if (pf === "left" || pf === "right") {
+          facing = "side";
+          flipX = pf === "left";
+        } else {
+          facing = pf; // "up" | "down"
+        }
+      } else {
+        const f = resolveFacing(entity.id ?? -1, t.x - t.prevX, t.y - t.prevY);
+        facing = f.facing;
+        flipX = f.flipX;
+      }
       frame = pickFarmerFrame(entity, tick);
     }
     const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
     let label: string | null = null;
+    let description: string | null = null;
     if (isFarmer) {
       label = entity.farmer!.name;
+      const kind = entity.personality?.kind ?? "farmer";
+      const gold = entity.inventory?.gold ?? 0;
+      const region = entity.farmer!.currentRegion;
+      const who = entity.player ? "You (player)" : `${kind} farmer`;
+      const doing = action ? `, ${action}` : "";
+      description = `${who} · ${gold}g · ${region}${doing}`;
     } else if (entity.blacksmith) {
       label = "Blacksmith";
+      description = "Forges tool upgrades — bring ore and gold to buy stone/iron tools.";
     } else if (entity.carpenter) {
       label = "Carpenter";
+      description = "Builds wood kits and structures from logs.";
     } else if (entity.shopkeeper) {
       label = "Shopkeeper";
+      description = "Buys your crops and sells the daily seed/tool slate.";
     } else if (entity.marketWall) {
       label = "Market";
+      description = "The village market — prices move with supply and demand.";
     } else if (entity.mill) {
       label = "Miller";
+      description = "Grinds wheat into flour for a better sale price.";
     } else if (entity.well) {
       label = "Well";
+      description = "Refill your watering can here without walking home.";
     } else if (entity.auctionPodium) {
       label = "Auction Podium";
+      description = "Where farmers gather to bid on the daily contract.";
     } else if (entity.noticeBoard) {
       // Show today's posted bounty on hover (or a default when none yet).
-      label = entity.noticeBoard.bountyText ?? "Notice Board";
+      label = "Notice Board";
+      description = entity.noticeBoard.bountyText ?? "Today's bounty is posted here.";
+    } else if (entity.fountain) {
+      label = "Fountain";
+      description = "Refill your watering can at your farm's fountain.";
+    } else if (entity.home) {
+      label = "Farmhouse";
+      description = "Sleep here to end the day and bank your rest bonus.";
+    } else if (entity.tileFeature) {
+      if (entity.tileFeature.kind === "tree") {
+        label = "Tree";
+        description = "Chop with the axe (from the tile in front) for wood.";
+      } else {
+        label = "Stone";
+        description = "Mine with the pickaxe (from the tile in front) for stone.";
+      }
     }
     sprites.push({
       id: entity.id ?? null,
@@ -279,6 +330,7 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       interpolate: isFarmer,
       action,
       label,
+      description,
       facing,
       flipX,
     });
@@ -348,6 +400,7 @@ export function buildRenderSnapshot(
   const entityCount = countEntities(world);
 
   const finalSummary = gameOver ? buildFinalStandings(lb) : null;
+  const playerHotbar = buildPlayerHotbar(world);
 
   return {
     tick,
@@ -362,5 +415,32 @@ export function buildRenderSnapshot(
     shock: pendingShock,
     gameOver,
     finalSummary,
+    playerHotbar,
   };
+}
+
+/**
+ * Build the player (Pip) hotbar state from HOTBAR_SLOTS, or null when there is
+ * no player entity. Each slot reports its live count/charge readout and whether
+ * it can currently be used (tools are always available; seeds dim at zero).
+ */
+function buildPlayerHotbar(world: World<GameEntity>): import("./snapshot").PlayerHotbar | null {
+  for (const e of world.query("player", "inventory")) {
+    const inv = e.inventory;
+    const can = inv.wateringCan;
+    const slots = HOTBAR_SLOTS.map((slot) => {
+      if (slot.kind === "seed") {
+        const n = inv.seeds[slot.crop];
+        return { label: slot.label, glyph: slot.glyph, text: `x${n}`, available: n > 0 };
+      }
+      if (slot.tool === "can") {
+        const text = can ? `${can.charges}/${can.maxCharges}` : "0/0";
+        return { label: slot.label, glyph: slot.glyph, text, available: (can?.charges ?? 0) > 0 };
+      }
+      // hoe / axe / pickaxe — durable tools, no count.
+      return { label: slot.label, glyph: slot.glyph, text: "", available: true };
+    });
+    return { slots, selected: e.player?.selectedSlot ?? 0 };
+  }
+  return null;
 }
