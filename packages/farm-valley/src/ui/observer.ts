@@ -1,5 +1,6 @@
 import { createEl, setText, applyStyles } from "./dom";
 import { personalityColor } from "./colors";
+import { EDG } from "@engine/core/render";
 
 export interface ObserverSnapshot {
   day: number;
@@ -48,14 +49,14 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   overflowY: "auto",
   flexShrink: "0",
   pointerEvents: "auto",
-  background: "#1a1a1a",
-  color: "#e0e0e0",
+  background: EDG.black,
+  color: EDG.silver,
   fontFamily: "monospace",
   fontSize: "12px",
   padding: "8px",
   boxSizing: "border-box",
-  borderLeft: "1px solid #333",
-  borderBottom: "1px solid #333",
+  borderLeft: `1px solid ${EDG.black}`,
+  borderBottom: `1px solid ${EDG.black}`,
 };
 
 export class ObserverPanel {
@@ -81,8 +82,8 @@ export class ObserverPanel {
         fontWeight: "bold",
         fontSize: "14px",
         marginBottom: "6px",
-        color: "#fff",
-        borderBottom: "1px solid #444",
+        color: EDG.white,
+        borderBottom: `1px solid ${EDG.ink}`,
         paddingBottom: "4px",
       },
     });
@@ -95,9 +96,9 @@ export class ObserverPanel {
         marginBottom: "6px",
         padding: "3px 6px",
         fontSize: "11px",
-        background: "#2a2a2a",
-        color: "#aaa",
-        border: "1px solid #444",
+        background: EDG.black,
+        color: EDG.steel,
+        border: `1px solid ${EDG.ink}`,
         borderRadius: "3px",
         cursor: "pointer",
         textAlign: "left",
@@ -111,7 +112,7 @@ export class ObserverPanel {
     });
 
     this.weatherEl = createEl("div", {
-      style: { marginBottom: "4px", color: "#aef" },
+      style: { marginBottom: "4px", color: EDG.silver },
     });
 
     this.forecastEl = createEl("div", {

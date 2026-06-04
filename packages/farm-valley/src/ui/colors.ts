@@ -6,18 +6,20 @@
 // (cautious / bold / social) are kept so any older snapshot or label still
 // resolves to a stable color.
 
+import { EDG } from "@engine/core/render";
+
 export const PERSONALITY_COLORS: Record<string, string> = {
-  conservative: "#4a90d9", // blue
-  aggressive: "#e67e22",   // orange
-  hoarder: "#2ecc71",      // green
-  opportunist: "#9b59b6",  // purple
+  conservative: EDG.skyBlue, // skyBlue
+  aggressive: EDG.orange,    // orange
+  hoarder: EDG.green,        // green
+  opportunist: EDG.mauve,    // purple
   // legacy aliases
-  cautious: "#4a90d9",
-  bold: "#e67e22",
-  social: "#2ecc71",
-  default: "#9b59b6",
+  cautious: EDG.skyBlue,
+  bold: EDG.orange,
+  social: EDG.green,
+  default: EDG.mauve,
 };
 
 export function personalityColor(p: string): string {
-  return PERSONALITY_COLORS[p.toLowerCase()] ?? PERSONALITY_COLORS["default"] ?? "#9b59b6";
+  return PERSONALITY_COLORS[p.toLowerCase()] ?? PERSONALITY_COLORS["default"] ?? EDG.mauve;
 }
