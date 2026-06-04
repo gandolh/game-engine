@@ -39,6 +39,15 @@ export interface SnapshotSprite {
   action: string | null;
   /** Display name shown in the hover tooltip. null for anonymous sprites (crops, plots). */
   label: string | null;
+  /**
+   * Facing for directional sprites (farmers + work NPCs). "down" is the front
+   * view (the base frame); "up" is the back; "side" is the right-facing profile.
+   * Persists the last movement direction while idle. null for non-directional
+   * sprites (structures, crops). See render-systems `resolveFrameAndBob`.
+   */
+  facing?: "down" | "up" | "side" | null;
+  /** Mirror the sprite horizontally (used with facing "side" for leftward movement). */
+  flipX?: boolean;
 }
 
 /** Active MEET indicator for a farmer this tick. */

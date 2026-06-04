@@ -178,6 +178,44 @@ export interface CarpenterTag {
   readonly isCarpenter: true;
 }
 
+/**
+ * A work station an NPC visits: a tile to stand on, the facing to adopt there,
+ * and the animated pose to play (two-frame, e.g. `npc/blacksmith/hammer`).
+ * `pose: null` means "just stand/idle here" (used for a brief walk-around).
+ */
+export interface WorkStation {
+  readonly tileX: number;
+  readonly tileY: number;
+  readonly facing: "down" | "up" | "side";
+  readonly flipX: boolean;
+  /** Pose frame prefix (the system appends `-a`/`-b`), or null to idle. */
+  readonly pose: string | null;
+}
+
+/**
+ * Drives a stationary craft NPC (blacksmith, carpenter) around its props: walk
+ * to the next station, dwell there playing the station's pose for a while, then
+ * move on. Purely cosmetic — deterministic on tick, no sim coupling.
+ */
+export interface WorkNpc {
+  /** Ordered loop of stations to visit. */
+  readonly stations: readonly WorkStation[];
+  /** Index of the station currently targeted / occupied. */
+  stationIndex: number;
+  /**
+   * Phase: "walking" (stepping toward the station tile) or "working" (arrived,
+   * dwelling + playing the pose).
+   */
+  phase: "walking" | "working";
+  /** Ticks remaining in the current phase action (step cadence / dwell). */
+  timer: number;
+  /** Resolved pose/idle frame to render this tick (null = use a facing idle frame). */
+  poseFrame: string | null;
+  /** Facing to render this tick. */
+  facing: "down" | "up" | "side";
+  flipX: boolean;
+}
+
 /** Tags the auction podium entity at the town square center. */
 export interface AuctionPodiumTag {
   readonly isAuctionPodium: true;
@@ -325,6 +363,7 @@ export interface GameEntity {
   tileFeature?: TileFeature;
   blacksmith?: BlacksmithTag;
   carpenter?: CarpenterTag;
+  workNpc?: WorkNpc;
   home?: HomeTag;
   auctionPodium?: AuctionPodiumTag;
   noticeBoard?: NoticeBoardTag;

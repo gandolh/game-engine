@@ -8,7 +8,7 @@ import {
   EDG,
 } from "@engine/core";
 import type { AtlasManifest } from "@engine/core";
-import { pushSnapshotSprites, OCEAN_TILES, FOAM_FRAMES } from "./render-systems";
+import { pushSnapshotSprites, OCEAN_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE } from "./render-systems";
 import { makeGroundNoiseDecorator } from "./render/ground-noise";
 import { washFor } from "./render/day-night";
 import { seasonForDay } from "./protocols/weather";
@@ -490,6 +490,23 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
         alpha: 0.6,
       });
     }
+
+    // Animated forge fire in the blacksmith oven's mouth. Layer 41 = just above
+    // the oven body (layer 40), below the NPC (50). ~0.4 s per A→B→C flicker.
+    const FIRE_PERIOD_MS = 420;
+    const fireFrame = FORGE_FIRE_FRAMES[
+      Math.floor(nowMs / (FIRE_PERIOD_MS / FORGE_FIRE_FRAMES.length)) % FORGE_FIRE_FRAMES.length
+    ]!;
+    renderer.push({
+      x: FORGE_OVEN_TILE.x * TILE + TILE / 2,
+      y: FORGE_OVEN_TILE.y * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: fireFrame,
+      rotation: 0,
+      layer: 41,
+      alpha: 1,
+    });
 
     // Build a position map for all farmer sprites (for meet bubbles + halo).
     const farmerPositions = new Map<number, { x: number; y: number }>();

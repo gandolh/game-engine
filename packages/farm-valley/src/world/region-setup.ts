@@ -7,6 +7,20 @@ function fountainTile(bounds: RegionDef["bounds"]): { x: number; y: number } {
   return { x: bounds.minX + 1, y: bounds.minY + 1 };
 }
 
+/** Spawn a batch of static decorative props (sprite + transform only). Layer 40
+ *  sits below NPCs/farmers (50/100) so the worker can stand in front of them. */
+function placeProps(
+  world: World<GameEntity>,
+  props: ReadonlyArray<{ x: number; y: number; frame: string }>,
+): void {
+  for (const p of props) {
+    world.spawn({
+      transform: { x: p.x, y: p.y, prevX: p.x, prevY: p.y, rotation: 0 },
+      sprite: { atlasId: "main", frame: p.frame, layer: 40, tintRgba: 0xffffffff },
+    });
+  }
+}
+
 /** Blacksmith NPC tile within the blacksmith region. */
 const BLACKSMITH_TILE = { x: 33, y: 32 } as const;
 
@@ -126,8 +140,14 @@ export function setupRegions(
       }
     }
 
-    // Blacksmith NPC entity.
+    // Blacksmith NPC + forge props. The NPC patrols anvil → oven → quench.
     if (def.id === "blacksmith") {
+      placeProps(world, [
+        { x: 32, y: 31, frame: "structure/forge-oven" },
+        { x: 34, y: 31, frame: "structure/tool-rack" },
+        { x: 34, y: 33, frame: "structure/anvil" },
+        { x: 36, y: 32, frame: "structure/quench-tub" },
+      ]);
       world.spawn({
         transform: {
           x: BLACKSMITH_TILE.x,
@@ -139,18 +159,56 @@ export function setupRegions(
         sprite: { atlasId: "main", frame: "structure/blacksmith", layer: 50, tintRgba: 0xffffffff },
         blacksmith: { isBlacksmith: true },
         inbox: { messages: [] },
+        workNpc: {
+          stations: [
+            // Stand below the anvil, face up, hammer.
+            { tileX: 34, tileY: 34, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
+            // Tend the oven (stand below it, face up, no swing pose).
+            { tileX: 32, tileY: 32, facing: "up", flipX: false, pose: null },
+            // Quench at the tub (stand left of it, face side/right).
+            { tileX: 35, tileY: 32, facing: "side", flipX: false, pose: null },
+          ],
+          stationIndex: 0,
+          phase: "working",
+          timer: 90,
+          poseFrame: null,
+          facing: "up",
+          flipX: false,
+        },
       });
     }
 
-    // Carpenter NPC entity.
+    // Carpenter NPC + workshop props. The NPC patrols workbench → sawhorse.
     if (def.id === "carpentry") {
       const cx = def.center.x;
       const cy = def.center.y;
+      placeProps(world, [
+        { x: 3, y: 3, frame: "structure/workbench" },
+        { x: 6, y: 3, frame: "structure/sawhorse" },
+        { x: 2, y: 6, frame: "structure/log-pile" },
+        { x: 6, y: 6, frame: "structure/plank-stack" },
+      ]);
       world.spawn({
         transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
         sprite: { atlasId: "main", frame: "structure/carpenter", layer: 50, tintRgba: 0xffffffff },
         carpenter: { isCarpenter: true },
         inbox: { messages: [] },
+        workNpc: {
+          stations: [
+            // Saw at the workbench (stand below, face up).
+            { tileX: 3, tileY: 4, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Saw the log on the sawhorse (stand below, face up).
+            { tileX: 6, tileY: 4, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Inspect the log pile (stand right of it, face side/left).
+            { tileX: 3, tileY: 6, facing: "side", flipX: true, pose: null },
+          ],
+          stationIndex: 0,
+          phase: "working",
+          timer: 90,
+          poseFrame: null,
+          facing: "up",
+          flipX: false,
+        },
       });
     }
   }

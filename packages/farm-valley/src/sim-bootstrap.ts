@@ -41,6 +41,7 @@ import { EventFeedSystem } from "./systems/event-feed";
 import { ShopSlateSystem } from "./systems/shop-slate";
 import { NoticeBoardSystem } from "./systems/notice-board";
 import { FinishDaySystem } from "./systems/finish-day";
+import { WorkNpcSystem } from "./systems/work-npc";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
 import { listCoordinators } from "./agents/cnp-registry";
@@ -196,6 +197,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(marketShop.marketSystem)
     .add(marketShop.shopkeeperSystem)
     .add(marketShop.auctionSystem)
+    .add(new WorkNpcSystem(world))
     .add(new FinishDaySystem(world));
 
   return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators, eventFeed };

@@ -12,6 +12,9 @@ export interface Canvas2dSprite {
   rotation: number;
   layer: number;
   alpha: number;
+  /** Mirror horizontally about the sprite center (for left/right facing from a
+   *  single side-profile frame). Optional; defaults to false. */
+  flipX?: boolean;
 }
 
 /** Minimal 2D context surface the renderer needs — satisfied by both
@@ -220,10 +223,11 @@ function compareSprite(a: Canvas2dSprite, b: Canvas2dSprite): number {
 function drawSprite(ctx: Ctx2D, atlas: LoadedAtlasImage, s: Canvas2dSprite): void {
   const r = atlas.frameRect(s.frame);
   const bitmap = atlas.bitmap;
-  if (s.rotation !== 0) {
+  if (s.rotation !== 0 || s.flipX) {
     ctx.save();
     ctx.translate(s.x, s.y);
-    ctx.rotate(s.rotation);
+    if (s.rotation !== 0) ctx.rotate(s.rotation);
+    if (s.flipX) ctx.scale(-1, 1);
     ctx.drawImage(bitmap, r.x, r.y, r.w, r.h, -s.width / 2, -s.height / 2, s.width, s.height);
     ctx.restore();
   } else {

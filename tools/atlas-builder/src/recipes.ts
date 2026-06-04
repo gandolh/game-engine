@@ -1209,6 +1209,271 @@ export const RECIPES: PixelRecipe[] = [
     ],
   },
 
+  // ── Workshop props — blacksmith forge ───────────────────────────────────────
+  // Stationary decorations placed around the blacksmith. The NPC walks between
+  // them and plays a pose (see ACTION_TEMPLATES hammer). The oven's fire is an
+  // animated overlay (forge/fire-a/b/c) cycled by the render loop, drawn ABOVE
+  // the static oven body so the flames flicker over a stable hearth.
+
+  // Stone-and-brick oven/hearth with a dark mouth. The fire overlay sits in the
+  // mouth (rows 6–9). Body uses stone (Q/q) + brick rust (r) + dark mouth (k).
+  {
+    name: "structure/forge-oven",
+    size: 16,
+    pixels: [
+      "................",
+      "....QQQQQQQQ....",
+      "...QqqqqqqqqQ...",
+      "...QqrqrqrqqQ...",
+      "...QqqqqqqqqQ...",
+      "...QkkkkkkkkQ...",
+      "...Qkk....kkQ...",
+      "...Qk......kQ...",
+      "...Qk......kQ...",
+      "...Qkk....kkQ...",
+      "...QkkkkkkkkQ...",
+      "...QqrqrqrqqQ...",
+      "...QQQQQQQQQQ...",
+      "....mm....mm....",
+      "....MM....MM....",
+      "................",
+    ],
+  },
+  // Forge fire — frame A. Transparent base; drawn over forge-oven's mouth.
+  // Flames: r (rust/base) → o (gold) → y (yellow tip). Cycled A→B→C.
+  {
+    name: "structure/forge-fire-a",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      ".....r..r.r.....",
+      ".....ro.ror.....",
+      ".....oyooyo.....",
+      ".....royyor.....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    name: "structure/forge-fire-b",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      ".......r........",
+      ".....r.oo.r.....",
+      ".....royyor.....",
+      ".....oyyyyo.....",
+      ".....royyor.....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    name: "structure/forge-fire-c",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "......r.r.......",
+      ".....ror.r......",
+      ".....oyoroo.....",
+      ".....oyyyyo.....",
+      ".....royoyr.....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Anvil on a wooden stump. Steel face (q) + dark body (Q), horn to the left,
+  // mounted on a brown stump (m/M). The NPC hammers facing this.
+  {
+    name: "structure/anvil",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "......qqqqq.....",
+      "....qqQQQQQq....",
+      "...QQQQQQQQQ....",
+      "....QQQQQQQ.....",
+      ".....QQQ........",
+      ".....QQQQ.......",
+      "....QQQQQQ......",
+      "....mmmmmm......",
+      "....mMMMMm......",
+      "....mMMMMm......",
+      "....MMMMMM......",
+      "................",
+    ],
+  },
+  // Quench tub — barrel of water for cooling hot metal. Wood staves (m/M) with
+  // metal hoops (Q) and a water surface (v/e highlights).
+  {
+    name: "structure/quench-tub",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "....QQQQQQQQ....",
+      "....mvvevvvm....",
+      "....mvvvvevm....",
+      "....mevvvvvm....",
+      "....QQQQQQQQ....",
+      "....mMMMMMMm....",
+      "....mMMMMMMm....",
+      "....QQQQQQQQ....",
+      "....mMMMMMMm....",
+      "....mMMMMMMm....",
+      "....MMMMMMMM....",
+      "................",
+      "................",
+    ],
+  },
+  // Tool rack — hammers + tongs hung on a wooden wall board.
+  {
+    name: "structure/tool-rack",
+    size: 16,
+    pixels: [
+      "................",
+      "..MMMMMMMMMMMM..",
+      "..MWWWWWWWWWWM..",
+      "..M.q..Q..q..M..",
+      "..M.q..Q..Q..M..",
+      "..M.m..m..m..M..",
+      "..M.m..m..mm.M..",
+      "..M.m..m..m..M..",
+      "..MWWWWWWWWWWM..",
+      "..MMMMMMMMMMMM..",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
+  // ── Workshop props — carpenter ───────────────────────────────────────────────
+  // Sturdy workbench with a plank top (W) on dark legs (M), a saw (q) resting on
+  // it, and a couple of pegs.
+  {
+    name: "structure/workbench",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      ".....qqqqqq.....",
+      "....q......q....",
+      "..WWWWWWWWWWWW..",
+      "..WWWWWWWWWWWW..",
+      "..MWWWWWWWWWWM..",
+      "..M..........M..",
+      "..M..........M..",
+      "..MM........MM..",
+      "..MM........MM..",
+      "..MM........MM..",
+      "..MM........MM..",
+      "..MM........MM..",
+      "................",
+      "................",
+    ],
+  },
+  // Sawhorse with a log being cut. X-legs (m) + crossbar, a log (d/D) on top.
+  {
+    name: "structure/sawhorse",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "....dddddddd....",
+      "...dDdDdDdDdd...",
+      "....dddddddd....",
+      "..mmmmmmmmmmmm..",
+      "...m.m....m.m...",
+      "...m.m....m.m...",
+      "..m...m..m...m..",
+      "..m...m..m...m..",
+      ".m....m..m....m.",
+      ".m....m..m....m.",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Log pile — stacked round logs (end-grain).
+  {
+    name: "structure/log-pile",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "....dddd.dddd...",
+      "...dDmDddDmDd...",
+      "...dDmDddDmDd...",
+      "....dddd.dddd...",
+      "..dddd.dddd.dd..",
+      ".dDmDddDmDddDm..",
+      ".dDmDddDmDddDm..",
+      "..dddd.dddd.dd..",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Plank stack — sawn lumber stacked flat.
+  {
+    name: "structure/plank-stack",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "..WWWWWWWWWWWW..",
+      "..MMMMMMMMMMMM..",
+      "..WWWWWWWWWWWW..",
+      "..MMMMMMMMMMMM..",
+      "..WWWWWWWWWWWW..",
+      "..MMMMMMMMMMMM..",
+      "..WWWWWWWWWWWW..",
+      "..MMMMMMMMMMMM..",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
   // ── Farmer action poses (generated) ─────────────────────────────────────────
   // Action templates are authored once in conservative palette chars:
   //   head=y, shirt=r, legs=D, face=w, eyes=k.
@@ -1527,3 +1792,242 @@ for (const [action, template] of Object.entries(ACTION_TEMPLATES)) {
     });
   }
 }
+
+// ── Directional facing frames (3-way: down / up / side) ──────────────────────
+// The existing `farmer/<p>` (+ /walk-a /walk-b) frames are the DOWN (front)
+// facing. Here we author UP (back) and SIDE (profile, right-facing) variants for
+// idle + 2 walk frames, then generate them for every personality via the same
+// substitution maps. The renderer picks the facing from movement direction and
+// mirrors the side frame horizontally for leftward movement (flipX).
+//
+// Frame names produced (per personality P):
+//   farmer/P/up,   farmer/P/up/walk-a,   farmer/P/up/walk-b
+//   farmer/P/side, farmer/P/side/walk-a, farmer/P/side/walk-b
+// Authored in conservative chars (head/hair=y, face=w, eyes=k, shirt=r, legs=D).
+
+const FACING_TEMPLATES: Record<string, readonly string[]> = {
+  // UP — back of head: no face/eyes, just the hair block + back of shirt/legs.
+  up: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....yyyyyyy.....",
+    "....yyyyyyy.....",
+    "....yyyyyy......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrrrrrr......",
+    "....r...r.......",
+    "....r...r.......",
+    "...DDD.DDD......",
+    "...DDD.DDD......",
+    "................",
+    "................",
+  ],
+  "up/walk-a": [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....yyyyyyy.....",
+    "....yyyyyyy.....",
+    "....yyyyyy......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrrrrrr......",
+    "....r...r.......",
+    "....r...r.......",
+    "..DDD...DDD.....",
+    "..DDD...DDD.....",
+    "................",
+    "................",
+  ],
+  "up/walk-b": [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyy.....",
+    "....yyyyyyy.....",
+    "....yyyyyyy.....",
+    "....yyyyyy......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrrrrrr......",
+    "....r...r.......",
+    "....r...r.......",
+    "....DDD.DDD.....",
+    "....DDD.DDD.....",
+    "................",
+    "................",
+  ],
+  // SIDE — right-facing profile. One eye (k), face (w) toward +x, hair behind.
+  // The renderer mirrors this (flipX) for leftward movement.
+  side: [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyyy....",
+    "....ywwwwwy.....",
+    "....ywwwwk.y....",
+    "....yywwww......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrrrrrw......",
+    "....r..rr.......",
+    "....r...r.......",
+    "....DDDD........",
+    "....DDDD........",
+    "................",
+    "................",
+  ],
+  "side/walk-a": [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyyy....",
+    "....ywwwwwy.....",
+    "....ywwwwk.y....",
+    "....yywwww......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrrrrrw......",
+    "....r..rr.......",
+    "...rr...r.......",
+    "..DDD....DD.....",
+    "..DD......D.....",
+    "................",
+    "................",
+  ],
+  "side/walk-b": [
+    "................",
+    "................",
+    ".....yyyyy......",
+    "....yyyyyyyy....",
+    "....ywwwwwy.....",
+    "....ywwwwk.y....",
+    "....yywwww......",
+    "....rrrrr.......",
+    "...rrrrrrr......",
+    "...rrrrrrw......",
+    "....r..rr.......",
+    "....rr..r.......",
+    ".....DDDD.......",
+    ".....DD.DD......",
+    "................",
+    "................",
+  ],
+};
+
+for (const [facing, template] of Object.entries(FACING_TEMPLATES)) {
+  for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
+    RECIPES.push({
+      name: `farmer/${personality}/${facing}`,
+      size: 16,
+      pixels: applyPersonalitySubs(template, subs),
+    });
+  }
+}
+
+// ── NPC work poses (blacksmith hammer, carpenter saw) ────────────────────────
+// The blacksmith and carpenter NPCs cycle between their props playing these
+// poses. Authored as standalone frames (not personality-substituted) — the NPCs
+// have their own look. Two frames each for a simple up/down or push/pull swing.
+//
+// Blacksmith: apron (D), hammer with stone head (m handle, Q head).
+// Carpenter:  green tunic (G/g), handsaw (q blade, m handle).
+const NPC_POSES: PixelRecipe[] = [
+  // Blacksmith hammer raised.
+  {
+    name: "npc/blacksmith/hammer-a",
+    size: 16,
+    pixels: [
+      "................",
+      ".....kkkkk....Q.",
+      "....kkkkkkk..QQ.",
+      "....kwwwwwk..m..",
+      "....kw.w.kk..m..",
+      "....kkwwwk..m...",
+      "....DDDDD..m....",
+      "...DDDDDDDm.....",
+      "...DDwwwDD......",
+      "....D...D.......",
+      "....D...D.......",
+      "...mmm.mmm......",
+      "...mmm.mmm......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Blacksmith hammer struck down on the anvil.
+  {
+    name: "npc/blacksmith/hammer-b",
+    size: 16,
+    pixels: [
+      "................",
+      ".....kkkkk......",
+      "....kkkkkkk.....",
+      "....kwwwwwk.....",
+      "....kw.w.kk.....",
+      "....kkwwwk......",
+      "....DDDDD.......",
+      "...DDDDDDDm.....",
+      "...DDwwwDDmm....",
+      "....D...Dmm.Q...",
+      "....D...D..QQ...",
+      "...mmm.mmm......",
+      "...mmm.mmm......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Carpenter saw pushed forward.
+  {
+    name: "npc/carpenter/saw-a",
+    size: 16,
+    pixels: [
+      "................",
+      ".....GGGGG......",
+      "....GGGGGGG.....",
+      "....GwwwwwG.....",
+      "....Gw.w.GG.....",
+      "....GGwwwG......",
+      "....ggggg.......",
+      "...ggggggg.qqqq.",
+      "...ggwwwggmqqqq.",
+      "....g...g.m.....",
+      "....g...g.......",
+      "...DDD.DDD......",
+      "...DDD.DDD......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Carpenter saw pulled back.
+  {
+    name: "npc/carpenter/saw-b",
+    size: 16,
+    pixels: [
+      "................",
+      ".....GGGGG......",
+      "....GGGGGGG.....",
+      "....GwwwwwG.....",
+      "....Gw.w.GG.....",
+      "....GGwwwG......",
+      "....ggggg.......",
+      "...ggggggqqqq...",
+      "...ggwwwgmqqq...",
+      "....g..ggm......",
+      "....g...g.......",
+      "...DDD.DDD......",
+      "...DDD.DDD......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+];
+RECIPES.push(...NPC_POSES);

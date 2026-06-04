@@ -187,6 +187,17 @@ export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
 /** The three animated foam frames, cycled for the water shimmer. */
 export const FOAM_FRAMES = ["tile/foam-a", "tile/foam-b", "tile/foam-c"] as const;
 
+/** Animated forge-fire frames, cycled in the blacksmith oven's mouth. */
+export const FORGE_FIRE_FRAMES = [
+  "structure/forge-fire-a",
+  "structure/forge-fire-b",
+  "structure/forge-fire-c",
+] as const;
+
+/** Tile of the blacksmith oven (matches region-setup placeProps). The fire
+ *  overlay is drawn here, above the oven body. */
+export const FORGE_OVEN_TILE = { x: 32, y: 31 } as const;
+
 /**
  * The static backdrop: tiles + farm fences + plot dirt. These never change
  * after world setup, so they're baked once into the renderer's static layer
@@ -301,17 +312,33 @@ function resolveFrameAndBob(
 ): { frame: string; bobY: number } {
   if (s.id === null) return { frame: s.frame, bobY: 0 };
 
-  // Action pose: strip any walk suffix from the base frame, then append the
-  // pose suffix for the current action.
-  if (s.action !== null && s.action in ACTION_POSE) {
-    const baseFrame = s.frame.replace(/\/walk-[ab]$/, "");
-    return { frame: baseFrame + ACTION_POSE[s.action], bobY: 0 };
+  // NPC pose frames (e.g. "npc/blacksmith/hammer-a") are already fully resolved
+  // worker-side, as is the NPC's non-directional idle (the structure sprite).
+  if (s.frame.startsWith("npc/") || !s.frame.startsWith("farmer/")) {
+    return { frame: s.frame, bobY: 0 };
   }
 
+  // Split the worker-sent farmer frame into its base personality frame and a
+  // walking flag (the worker appends /walk-a|b while traveling).
+  const walkMatch = /\/walk-[ab]$/.exec(s.frame);
+  const isWalking = walkMatch !== null;
+  const walkSuffix = walkMatch ? walkMatch[0] : "";
+  const base = s.frame.replace(/\/walk-[ab]$/, ""); // e.g. "farmer/hoarder"
+
+  // Action pose takes priority and is authored front-facing only (brief, OK).
+  if (s.action !== null && s.action in ACTION_POSE) {
+    return { frame: base + ACTION_POSE[s.action], bobY: 0 };
+  }
+
+  // Apply 3-way facing. "down" is the base frame (no facing segment); "up"/
+  // "side" insert a facing segment before any walk suffix.
+  const facing = s.facing ?? "down";
+  const dirSeg = facing === "down" ? "" : `/${facing}`;
+  const frame = base + dirSeg + walkSuffix;
+
   // Idle bob: 1.5px vertical sine oscillation (each farmer offset by id).
-  const isWalking = s.frame.endsWith("/walk-a") || s.frame.endsWith("/walk-b");
   const bobY = isWalking ? 0 : Math.sin(nowMs / 600 + (s.id ?? 0) * 1.3) * 1.5;
-  return { frame: s.frame, bobY };
+  return { frame, bobY };
 }
 
 /**
@@ -349,6 +376,7 @@ export function pushSnapshotSprites(
       rotation: s.rotation,
       layer: s.layer,
       alpha: s.alpha,
+      flipX: s.flipX ?? false,
     });
   }
 

@@ -34,6 +34,37 @@ import { seasonForDay } from "../protocols";
 
 const TILE = 16;
 
+// Per-entity last facing, so a farmer keeps facing the way they last moved when
+// they stop (rather than snapping back to "down"). Worker-local; the sim is
+// authoritative on positions, this is purely a render-facing memo.
+const lastFacing = new Map<number, { facing: "down" | "up" | "side"; flipX: boolean }>();
+
+/**
+ * Pick a 3-way facing from a per-tick movement delta. Vertical dominates ties
+ * (more readable in top-down). `flipX` mirrors the right-facing side profile for
+ * leftward movement. Stationary (0,0) keeps the entity's last facing.
+ */
+function resolveFacing(
+  id: number,
+  dx: number,
+  dy: number,
+): { facing: "down" | "up" | "side"; flipX: boolean } {
+  if (dx === 0 && dy === 0) {
+    return lastFacing.get(id) ?? { facing: "down", flipX: false };
+  }
+  let facing: "down" | "up" | "side";
+  let flipX = false;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    facing = "side";
+    flipX = dx < 0; // side frame is authored right-facing; mirror for leftward
+  } else {
+    facing = dy < 0 ? "up" : "down";
+  }
+  const result = { facing, flipX };
+  lastFacing.set(id, result);
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Region-label helper (mirrors the one in main.ts)
 // ---------------------------------------------------------------------------
@@ -196,7 +227,25 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
     const s = entity.sprite;
     const tint = s.tintRgba >>> 0;
     const isFarmer = entity.farmer !== undefined;
-    const frame = isFarmer ? pickFarmerFrame(entity, tick) : s.frame;
+    const npc = entity.workNpc;
+
+    // Facing: farmers + work NPCs face the way they're moving (persisted while
+    // idle). NPCs override with their station facing (set by WorkNpcSystem).
+    let facing: "down" | "up" | "side" | null = null;
+    let flipX = false;
+    let frame = s.frame;
+    if (npc) {
+      facing = npc.facing;
+      flipX = npc.flipX;
+      // poseFrame (e.g. "npc/blacksmith/hammer-a") overrides; else the base
+      // structure frame is replaced by a directional idle below in render.
+      frame = npc.poseFrame ?? s.frame;
+    } else if (isFarmer) {
+      const f = resolveFacing(entity.id ?? -1, t.x - t.prevX, t.y - t.prevY);
+      facing = f.facing;
+      flipX = f.flipX;
+      frame = pickFarmerFrame(entity, tick);
+    }
     const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
     let label: string | null = null;
     if (isFarmer) {
@@ -230,6 +279,8 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       interpolate: isFarmer,
       action,
       label,
+      facing,
+      flipX,
     });
   }
 
