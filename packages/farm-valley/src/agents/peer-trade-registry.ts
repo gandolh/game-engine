@@ -64,14 +64,3 @@ export function getPeerTradeHooks(personality: string): PeerTradeHooks | undefin
   return registry.get(personality);
 }
 
-export function listRegisteredPeerTradePersonalities(): readonly string[] {
-  return Array.from(registry.keys()).sort();
-}
-
-/**
- * Test helper — clears the registry so each test file's import order is
- * deterministic. Not used in production.
- */
-export function _resetPeerTradeRegistryForTests(): void {
-  registry.clear();
-}

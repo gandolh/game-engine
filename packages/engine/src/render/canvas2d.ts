@@ -84,13 +84,8 @@ export class Canvas2dRenderer {
     ctx.clearRect(0, 0, w, h);
     // Draw in world coordinates directly (no camera transform): the layer IS
     // the world. Sort by layer then Y (same rule as endFrame dynamic queue).
-    const indexed = sprites.map((s, i) => ({ s, i }));
-    indexed.sort((a, b) =>
-      a.s.layer !== b.s.layer ? a.s.layer - b.s.layer :
-      a.s.y !== b.s.y ? a.s.y - b.s.y :
-      a.i - b.i,
-    );
-    for (const { s } of indexed) {
+    const sorted = sprites.slice().sort(compareSprite);
+    for (const s of sorted) {
       drawSprite(ctx, this.atlas, s);
     }
     if (decorate) decorate(ctx, w, h);
@@ -182,14 +177,9 @@ export class Canvas2dRenderer {
     // Y-sort within each layer: sprites with a lower Y (closer to screen top)
     // draw first; sprites with a higher Y (closer to screen bottom) draw on top.
     // This is the primary depth cue in top-down 2D RPGs — overlap, not scale.
-    const indexed = this.queue.map((s, i) => ({ s, i }));
-    indexed.sort((a, b) =>
-      a.s.layer !== b.s.layer ? a.s.layer - b.s.layer :
-      a.s.y !== b.s.y ? a.s.y - b.s.y :
-      a.i - b.i,
-    );
+    this.queue.sort(compareSprite);
 
-    for (const { s } of indexed) {
+    for (const s of this.queue) {
       ctx.globalAlpha = s.alpha;
       drawSprite(ctx, this.atlas, s);
     }
@@ -213,6 +203,14 @@ export class Canvas2dRenderer {
       ctx.globalAlpha = 1;
     }
   }
+}
+
+/** Stable sort comparator: layer ascending, then Y ascending.
+ *  JS Array.sort is guaranteed stable (ES2019+), so equal-key sprites
+ *  retain their insertion order — no index tiebreaker needed. */
+function compareSprite(a: Canvas2dSprite, b: Canvas2dSprite): number {
+  if (a.layer !== b.layer) return a.layer - b.layer;
+  return a.y - b.y;
 }
 
 /** Draw one sprite via the atlas frame rect. Shared by the live queue and the

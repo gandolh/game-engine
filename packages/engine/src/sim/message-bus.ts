@@ -30,6 +30,10 @@ export class MessageBus {
     this.inflight.length = 0;
   }
 
+  /**
+   * Returns the live internal deliverable array for the current tick.
+   * WARNING: the returned array is valid only until the next flush(); callers must not retain it across ticks.
+   */
   drain(): readonly QueuedMessage[] {
     return this.deliverable;
   }

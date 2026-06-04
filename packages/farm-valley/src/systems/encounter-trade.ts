@@ -5,6 +5,7 @@ import type {
   AgentMessage,
 } from "@engine/core";
 import type { GameEntity, CropKind } from "../components";
+import { findById } from "./entity-helpers";
 import {
   ONT_ENCOUNTER,
   type MeetBody,
@@ -213,7 +214,7 @@ export class EncounterTradeSystem implements System {
     if (hooks.initiateGift && (farmer.inventory?.goldenBeans ?? 0) > 0) {
       const gift = hooks.initiateGift(farmer, meet, { tick: ctx.tick });
       if (gift) {
-        const peerForGift = this.findEntity(meet.peerId);
+        const peerForGift = findById(this.world, meet.peerId, "farmer", "inbox");
         if (peerForGift?.inbox) {
           peerForGift.inbox.messages.push({
             performative: PERFORMATIVE.PROPOSE,
@@ -234,7 +235,7 @@ export class EncounterTradeSystem implements System {
     // Defensive idempotency: skip if we already have a live offer with this id.
     if (this.pendingOffers.has(offer.offerId)) return;
 
-    const peer = this.findEntity(meet.peerId);
+    const peer = findById(this.world, meet.peerId, "farmer", "inbox");
     if (!peer || !peer.inbox) return;
 
     this.pendingOffers.set(offer.offerId, {
@@ -318,7 +319,7 @@ export class EncounterTradeSystem implements System {
   ): void {
     if (farmer.id === undefined) return;
     if (sender === "world" || typeof sender !== "number") return;
-    const giver = this.findEntity(sender);
+    const giver = findById(this.world, sender, "farmer", "inbox");
     if (!giver?.inventory || !farmer.inventory) return;
     const qty = Math.max(1, body.quantity ?? 1);
     const have = giver.inventory.goldenBeans ?? 0;
@@ -344,8 +345,8 @@ export class EncounterTradeSystem implements System {
     // And we must be the original sender (offer initiator).
     if (farmer.id !== pending.senderId) return;
 
-    const initiator = this.findEntity(pending.senderId);
-    const acceptor = this.findEntity(pending.recipientId);
+    const initiator = findById(this.world, pending.senderId, "farmer", "inbox");
+    const acceptor = findById(this.world, pending.recipientId, "farmer", "inbox");
     this.pendingOffers.delete(body.offerId);
     if (!initiator || !acceptor) return;
     if (!initiator.inventory || !acceptor.inventory) return;
@@ -400,7 +401,7 @@ export class EncounterTradeSystem implements System {
     offerId: string,
     tick: number,
   ): void {
-    const recipient = this.findEntity(toId);
+    const recipient = findById(this.world, toId, "farmer", "inbox");
     if (!recipient || !recipient.inbox) return;
     const body: AcceptBody = { offerId };
     recipient.inbox.messages.push({
@@ -419,7 +420,7 @@ export class EncounterTradeSystem implements System {
     reason: string,
     tick: number,
   ): void {
-    const recipient = this.findEntity(toId);
+    const recipient = findById(this.world, toId, "farmer", "inbox");
     if (!recipient || !recipient.inbox) return;
     const body: DeclineBody = { offerId, reason };
     recipient.inbox.messages.push({
@@ -429,13 +430,6 @@ export class EncounterTradeSystem implements System {
       body: body as unknown as Record<string, unknown>,
       tickIssued: tick,
     });
-  }
-
-  private findEntity(id: number): GameEntity | undefined {
-    for (const e of this.world.query("farmer", "inbox")) {
-      if (e.id === id) return e;
-    }
-    return undefined;
   }
 
   /**

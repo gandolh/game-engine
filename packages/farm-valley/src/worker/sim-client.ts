@@ -27,7 +27,6 @@ import type {
 import type { ObserverSnapshot } from "../ui/observer";
 import type { LeaderboardRow } from "../ui/leaderboard";
 import type { ShopOffer } from "../agents/shop-slate";
-import type { Canvas2dSprite } from "@engine/core";
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
@@ -214,24 +213,6 @@ export class SimClient {
       }
     }
     return null;
-  }
-
-  /**
-   * Returns a Canvas2dSprite[] from the current interpolated sprite list,
-   * ready to push into the renderer. Width/height default to TILE (16).
-   */
-  getCanvas2dSprites(): Canvas2dSprite[] {
-    const TILE = 16;
-    return this.getInterpolatedSprites().map((s) => ({
-      x: s.x,
-      y: s.y,
-      width: TILE,
-      height: TILE,
-      frame: s.frame,
-      rotation: s.rotation,
-      layer: s.layer,
-      alpha: s.alpha,
-    }));
   }
 
   // ---------------------------------------------------------------------------

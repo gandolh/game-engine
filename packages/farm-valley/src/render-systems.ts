@@ -2,7 +2,6 @@ import type { World } from "@engine/core";
 import { Canvas2dRenderer } from "@engine/core";
 import type { Canvas2dSprite } from "@engine/core";
 import type { GameEntity } from "./components";
-import type { MeetIndicatorEntry } from "./systems/meet-indicator";
 import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
@@ -188,44 +187,6 @@ export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
 /** The three animated foam frames, cycled for the water shimmer. */
 export const FOAM_FRAMES = ["tile/foam-a", "tile/foam-b", "tile/foam-c"] as const;
 
-// brief-11: focus-camera — procedural halo ring around the focused farmer's position.
-// Emits 4 small rotated fence-h segments around the entity center to form a visible ring.
-function* iterateFocusHalo(
-  world: World<GameEntity>,
-  focusedFarmerId: number,
-  alpha: number,
-): Generator<LogicalSprite> {
-  for (const entity of world.query("sprite", "transform", "farmer")) {
-    if (entity.id !== focusedFarmerId) continue;
-    const t = entity.transform;
-    const tileX = t.prevX + (t.x - t.prevX) * alpha;
-    const tileY = t.prevY + (t.y - t.prevY) * alpha;
-    const cx = tileX * TILE + TILE / 2;
-    const cy = tileY * TILE + TILE / 2;
-    const r = TILE * 0.8; // ring radius in px
-    // 4 small segments at N/E/S/W
-    const offsets: Array<[number, number, number]> = [
-      [0, -r, 0],
-      [r, 0, Math.PI / 2],
-      [0, r, 0],
-      [-r, 0, Math.PI / 2],
-    ];
-    for (const [dx, dy, rot] of offsets) {
-      yield {
-        x: cx + dx,
-        y: cy + dy,
-        width: TILE * 0.5,
-        height: TILE * 0.5,
-        frame: "tile/fence-h",
-        rotation: rot,
-        layer: 50, // above entities
-        alpha: 0.85,
-      };
-    }
-    break;
-  }
-}
-
 /**
  * The static backdrop: tiles + farm fences + plot dirt. These never change
  * after world setup, so they're baked once into the renderer's static layer
@@ -280,8 +241,7 @@ export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalS
     };
   }
 
-  // Plot dirt tiles (static). The crop sprite layered on top is dynamic and
-  // lives in iterSceneSprites.
+  // Plot dirt tiles (static). The crop sprite layered on top is dynamic.
   for (const plot of world.query("plot")) {
     yield {
       x: plot.plot.tileX * TILE + TILE / 2,
@@ -312,109 +272,6 @@ export function buildStaticLayerSprites(world: World<GameEntity>): Canvas2dSprit
     });
   }
   return out;
-}
-
-function* iterSceneSprites(
-  world: World<GameEntity>,
-  alpha: number,
-  tick: number,
-  focusedFarmerId: number | null = null,
-): Generator<LogicalSprite> {
-  // NOTE: the static backdrop (tiles, fences, plot dirt) is baked once into the
-  // renderer's static layer via buildStaticLayerSprites — not emitted here.
-
-  // Crops on top of plots (dynamic: they grow stage by stage).
-  for (const plot of world.query("plot")) {
-    const px = plot.plot.tileX * TILE + TILE / 2;
-    const py = plot.plot.tileY * TILE + TILE / 2;
-    if (plot.plot.state.kind === "planted") {
-      const crop = plot.plot.state.crop;
-      const days = plot.plot.state.daysGrowing;
-      const ready = plot.plot.state.readyAtDay;
-      const stage = days >= ready ? "mature" : days > 0 ? "growing" : "seed";
-      yield {
-        x: px,
-        y: py,
-        width: TILE,
-        height: TILE,
-        frame: `crop/${crop}/${stage}`,
-        rotation: 0,
-        layer: 10,
-        alpha: 1,
-      };
-    }
-  }
-
-  // Sprite entities: transform.x/y are tile units; convert to pixels here.
-  for (const entity of world.query("sprite", "transform")) {
-    const t = entity.transform;
-    const tileX = t.prevX + (t.x - t.prevX) * alpha;
-    const tileY = t.prevY + (t.y - t.prevY) * alpha;
-    const px = tileX * TILE + TILE / 2;
-    const py = tileY * TILE + TILE / 2;
-    const s = entity.sprite;
-    const tint = s.tintRgba >>> 0;
-    const frame = entity.farmer !== undefined ? pickFarmerFrame(entity, tick) : s.frame;
-    yield {
-      x: px,
-      y: py,
-      width: TILE,
-      height: TILE,
-      frame,
-      rotation: t.rotation,
-      layer: s.layer,
-      alpha: (tint & 0xff) / 255,
-    };
-  }
-
-  // brief-11: focus-camera — emit halo around focused farmer if one is set
-  if (focusedFarmerId !== null) {
-    yield* iterateFocusHalo(world, focusedFarmerId, alpha);
-  }
-}
-
-/**
- * Emit one `indicator/meet` bubble sprite per active MEET indicator,
- * positioned one tile-height above each farmer's current transform.
- *
- * This is a standalone generator so concurrent briefs (focus-camera,
- * walking-animation) can each append to the sprite list without merge
- * conflicts — they each own their own function.
- */
-function* iterateMeetIndicators(
-  world: World<GameEntity>,
-  meetIndicators: readonly MeetIndicatorEntry[],
-  alpha: number,
-): Generator<LogicalSprite> {
-  if (meetIndicators.length === 0) return;
-
-  // Build a map of farmerId → interpolated pixel position.
-  const positions = new Map<number, { px: number; py: number }>();
-  for (const entity of world.query("transform")) {
-    if (entity.id === undefined) continue;
-    const t = entity.transform;
-    const tileX = t.prevX + (t.x - t.prevX) * alpha;
-    const tileY = t.prevY + (t.y - t.prevY) * alpha;
-    positions.set(entity.id, {
-      px: tileX * TILE + TILE / 2,
-      py: tileY * TILE + TILE / 2,
-    });
-  }
-
-  for (const entry of meetIndicators) {
-    const pos = positions.get(entry.farmerId);
-    if (!pos) continue;
-    yield {
-      x: pos.px,
-      y: pos.py - TILE, // one tile above the farmer sprite
-      width: TILE,
-      height: TILE,
-      frame: "indicator/meet",
-      rotation: 0,
-      layer: 90, // above all scene sprites
-      alpha: 1,
-    };
-  }
 }
 
 // Actions that trigger the bent-over work pose.
@@ -521,42 +378,5 @@ export function pushSnapshotSprites(
         });
       }
     }
-  }
-}
-
-export function buildCanvasFrame(
-  renderer: Canvas2dRenderer,
-  world: World<GameEntity>,
-  alpha: number,
-  tick: number,
-  meetIndicators: readonly MeetIndicatorEntry[] = [],
-  focusedFarmerId: number | null = null,
-): void {
-  for (const ls of iterSceneSprites(world, alpha, tick, focusedFarmerId)) {
-    const sprite: Canvas2dSprite = {
-      x: ls.x,
-      y: ls.y,
-      width: ls.width,
-      height: ls.height,
-      frame: ls.frame,
-      rotation: ls.rotation,
-      layer: ls.layer,
-      alpha: ls.alpha,
-    };
-    renderer.push(sprite);
-  }
-
-  for (const ls of iterateMeetIndicators(world, meetIndicators, alpha)) {
-    const sprite: Canvas2dSprite = {
-      x: ls.x,
-      y: ls.y,
-      width: ls.width,
-      height: ls.height,
-      frame: ls.frame,
-      rotation: ls.rotation,
-      layer: ls.layer,
-      alpha: ls.alpha,
-    };
-    renderer.push(sprite);
   }
 }

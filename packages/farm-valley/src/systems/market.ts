@@ -1,5 +1,6 @@
 import type { SimContext, System, MessageBus, World, Rng, AgentMessage } from "@engine/core";
 import type { GameEntity, CropKind } from "../components";
+import { firstEntity, findById } from "./entity-helpers";
 import {
   ONT_MARKET,
   type MarketOffer,
@@ -45,7 +46,7 @@ export class MarketSystem implements System {
   }
 
   run(ctx: SimContext): void {
-    const wall = this.findWall();
+    const wall = firstEntity(this.world, "marketWall", "inbox");
     if (!wall || !wall.inbox) return;
 
     const messages = wall.inbox.messages;
@@ -91,7 +92,7 @@ export class MarketSystem implements System {
     const sellerId = msg.sender;
 
     // Verify seller actually has inventory (silent ignore otherwise).
-    const seller = this.findFarmerById(sellerId);
+    const seller = findById(this.world, sellerId, "farmer", "inventory");
     if (!seller || !seller.inventory) return;
     if (seller.inventory.crops[offer.crop as CropKind] === undefined) return;
 
@@ -144,7 +145,7 @@ export class MarketSystem implements System {
     if (msg.sender === "world" || msg.sender !== offer.sellerId) return;
 
     // Spatial gate: cancelling also requires being in the village.
-    const seller = this.findFarmerById(msg.sender);
+    const seller = findById(this.world, msg.sender, "farmer", "inventory");
     if (seller?.farmer && seller.farmer.currentRegion !== "village") {
       this.sendRejection(msg.sender, ONT_MARKET.CANCEL_OFFER, ctx.tick);
       return;
@@ -185,18 +186,6 @@ export class MarketSystem implements System {
   }
 
   // ---- helpers -----------------------------------------------------------
-
-  private findWall(): GameEntity | undefined {
-    for (const e of this.world.query("marketWall", "inbox")) return e;
-    return undefined;
-  }
-
-  private findFarmerById(id: number): GameEntity | undefined {
-    for (const f of this.world.query("farmer", "inventory")) {
-      if (f.id === id) return f;
-    }
-    return undefined;
-  }
 
   private sendRejection(
     recipientId: number,

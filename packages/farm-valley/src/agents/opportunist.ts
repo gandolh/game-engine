@@ -7,16 +7,15 @@ import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import type { WeatherCondition } from "../protocols/weather";
 import {
   registerPeerTradeHooks,
-  type RespondPeerOfferFn,
 } from "./peer-trade-registry";
+import { makeRespondPeerOffer } from "./peer-trade-policy";
+import { CROP_SELL_PRICE, SEED_COST } from "../economy";
 import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
-const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
-const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 8, pumpkin: 15 };
-// Fair-price posting: between cost and shop ceiling.
+// Fair-price posting: between cost and shop ceiling (intentionally below CROP_SELL_PRICE).
 const FAIR_PRICE: Record<CropKind, number> = { radish: 7, wheat: 12, pumpkin: 30 };
 const LOW_SUPPLY_THRESHOLD = 3;
 const BUY_PRICE_MULTIPLIER = 1.1; // willing to pay up to 110% of shop price
@@ -170,7 +169,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   let best: { offer: MarketOffer; trust: number } | null = null;
   for (const offer of offers) {
     if (offer.sellerId === farmer.id) continue;
-    const ceiling = SHOP_PRICE[offer.crop] * BUY_PRICE_MULTIPLIER;
+    const ceiling = CROP_SELL_PRICE[offer.crop] * BUY_PRICE_MULTIPLIER;
     if (offer.pricePerUnit > ceiling) continue;
     const cost = offer.pricePerUnit * offer.quantity;
     if (farmer.inventory.gold - cost < reserve) continue;
@@ -219,48 +218,16 @@ registerPersonality("opportunist", deliberateOpportunist);
 // Peer-trade hooks (encounter-trade system)
 // ---------------------------------------------------------------------------
 
-const OPP_PEER_SHOP_SELL_PRICE: Record<CropKind, number> = {
-  radish: 8,
-  wheat: 14,
-  pumpkin: 35,
-};
 const OPP_PEER_BUY_CEILING = 1.1; // matches wall heuristic
 const OPP_PEER_SELL_FLOOR = 0.9;
 const OPP_BUFFER_SEEDS = 1;
 
-export const respondToPeerOfferOpportunist: RespondPeerOfferFn = (
-  farmer,
-  offer,
-  _sender,
-  _ctx,
-) => {
-  if (!farmer.inventory) return { decision: "decline", reason: "no-inventory" };
-  const reserve =
-    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 50;
-  const ref = OPP_PEER_SHOP_SELL_PRICE[offer.crop];
-
-  if (offer.direction === "sell") {
-    if (offer.unitPrice > ref * OPP_PEER_BUY_CEILING) {
-      return { decision: "decline", reason: "price-too-high" };
-    }
-    const cost = offer.unitPrice * offer.quantity;
-    if (farmer.inventory.gold - cost < reserve) {
-      return { decision: "decline", reason: "would-breach-reserve" };
-    }
-    return { decision: "accept" };
-  }
-
-  if (offer.unitPrice < ref * OPP_PEER_SELL_FLOOR) {
-    return { decision: "decline", reason: "price-too-low" };
-  }
-  if (
-    farmer.inventory.seeds[offer.crop] <
-    offer.quantity + OPP_BUFFER_SEEDS
-  ) {
-    return { decision: "decline", reason: "would-deplete-buffer" };
-  }
-  return { decision: "accept" };
-};
+export const respondToPeerOfferOpportunist = makeRespondPeerOffer({
+  buyCeiling: OPP_PEER_BUY_CEILING,
+  sellFloor: OPP_PEER_SELL_FLOOR,
+  bufferSeeds: OPP_BUFFER_SEEDS,
+  reserveDefault: 50,
+});
 
 registerPeerTradeHooks("opportunist", {
   respond: respondToPeerOfferOpportunist,

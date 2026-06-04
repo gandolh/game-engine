@@ -7,9 +7,9 @@
 // (the prevX/prevY interpolation that used to live on the entity Transform now
 // happens by lerping snapshot[N-1] → snapshot[N]).
 //
-// Everything the old render path read directly off `world` is captured here:
-// sprites (for buildCanvasFrame), observer rows, leaderboard rows, the shop
-// slate, MEET indicators, focus positions, and the entity count.
+// Everything the main thread needs for rendering is captured here:
+// sprites, observer rows, leaderboard rows, the shop slate, MEET indicators,
+// focus positions, and the entity count.
 
 import type { Canvas2dSprite } from "@engine/core";
 import type { ObserverSnapshot } from "../ui/observer";

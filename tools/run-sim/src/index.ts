@@ -259,7 +259,7 @@ if (CHECK_DETERMINISM) {
   emitExport(EXPORT, result);
 } else {
   // Default mode — unchanged human-readable run.
-  const { world, scheduler, dayClock, bus } = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
+  const { world, scheduler, dayClock, bus } = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
 
   // Narrate the mid-game shock when it fires (otherwise it's an invisible moment).
   bus.subscribeOntology(ONT_SIMULATION.SHOCK, (msg) => {

@@ -58,14 +58,40 @@ export class Query<E extends object, K extends keyof E = keyof E>
     if (idx >= 0) this.entities.splice(idx, 1);
   }
 
+  // Free list of scratch buffers reused across iterations. Iterating a query
+  // takes a private copy of `entities` at iteration start (so concurrent
+  // despawns during the loop don't shift the iteration — same semantics as a
+  // `.slice()`), but the buffer is pooled and reused instead of allocating a
+  // fresh array every `for...of`. The pool grows only with concurrent/nested
+  // iteration depth, so steady-state iteration allocates no entity array.
+  private readonly bufferPool: With<E, K>[][] = [];
+
   [Symbol.iterator](): Iterator<With<E, K>> {
-    const snapshot = this.entities.slice();
+    const src = this.entities;
+    const n = src.length;
+    const pool = this.bufferPool;
+    const buf = pool.pop() ?? [];
+    buf.length = n;
+    for (let j = 0; j < n; j++) buf[j] = src[j]!;
     let i = 0;
+    let released = false;
+    const release = (): void => {
+      if (released) return;
+      released = true;
+      buf.length = 0; // drop references before returning to the pool
+      pool.push(buf);
+    };
     return {
       next() {
-        return i < snapshot.length
-          ? { value: snapshot[i++]!, done: false }
-          : { value: undefined as unknown as With<E, K>, done: true };
+        if (!released && i < n) {
+          return { value: buf[i++]!, done: false };
+        }
+        release();
+        return { value: undefined as unknown as With<E, K>, done: true };
+      },
+      return(value?: unknown) {
+        release();
+        return { value: value as With<E, K>, done: true };
       },
     };
   }

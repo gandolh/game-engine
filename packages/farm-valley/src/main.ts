@@ -3,11 +3,10 @@ import {
   Camera2D,
   Canvas2dRenderer,
   DebugOverlay,
-  createPathfinderFromUrl,
   createNoiseGeneratorFromUrl,
   ParticleSystem,
 } from "@engine/core";
-import type { AtlasManifest, Pathfinder } from "@engine/core";
+import type { AtlasManifest } from "@engine/core";
 import { pushSnapshotSprites, OCEAN_TILES, FOAM_FRAMES } from "./render-systems";
 import { makeGroundNoiseDecorator } from "./render/ground-noise";
 import { washFor } from "./render/day-night";
@@ -55,7 +54,6 @@ const CAMERA_CONFIG = {
 
 interface Runtime {
   renderer: Canvas2dRenderer;
-  pathfinder: Pathfinder | null;
   noiseGen: import("@engine/core").NoiseGenerator | null;
   keyboard: Keyboard;
 }
@@ -146,11 +144,26 @@ let _simClient: SimClient | null = null;
 let _camera: Camera2D | null = null;
 
 // brief-11: focus-camera — center + pan logic
-function applyFocusAndPan(camera: Camera2D): void {
+// sprites: precomputed interpolated list for this frame; pass null to let the
+// function fetch it lazily via getFarmerInterpolatedPos (e.g. drag handler).
+function applyFocusAndPan(
+  camera: Camera2D,
+  sprites?: import("./worker/snapshot").SnapshotSprite[],
+): void {
   let baseX: number;
   let baseY: number;
   if (focusedFarmerId !== null && _simClient !== null) {
-    const pos = _simClient.getFarmerInterpolatedPos(focusedFarmerId);
+    let pos: { x: number; y: number } | null = null;
+    if (sprites !== undefined) {
+      for (const s of sprites) {
+        if (s.id === focusedFarmerId && s.interpolate) {
+          pos = { x: s.x, y: s.y };
+          break;
+        }
+      }
+    } else {
+      pos = _simClient.getFarmerInterpolatedPos(focusedFarmerId);
+    }
     baseX = pos?.x ?? camera.centerX;
     baseY = pos?.y ?? camera.centerY;
   } else {
@@ -173,8 +186,8 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   setupCameraListeners(canvas, camera);
   const keyboard = new Keyboard();
   keyboard.attach(window);
-  const [pathfinder, noiseGen] = await Promise.all([loadPathfinder(), loadNoiseGenerator()]);
-  return { renderer, pathfinder, noiseGen, keyboard };
+  const noiseGen = await loadNoiseGenerator();
+  return { renderer, noiseGen, keyboard };
 }
 
 async function boot(): Promise<void> {
@@ -324,11 +337,9 @@ async function startGame(
     // Particle system — lives on the main (render) thread only.
     const particles = new ParticleSystem();
     let prevGold = new Map<number, number>(); // farmerId → gold last tick
-    let prevCropTotal = new Map<number, number>(); // farmerId → total crops last tick
     let lastFrameMs = performance.now();
 
-    // Emit particles based on leaderboard diffs (gold up = sell; crop total
-    // down while gold up = harvest+sell; just crop down = harvest to inventory).
+    // Emit a coin-burst particle when a farmer's gold total increases.
     function emitParticlesFromDiff(farmerPositions: Map<number, { x: number; y: number }>): void {
       const lb = client.leaderboard;
       for (const row of lb) {
@@ -390,9 +401,13 @@ async function startGame(
       const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
       lastFrameMs = nowMs;
 
+      // Compute interpolated sprites once per frame — used for rendering,
+      // farmer positions, and the hover tooltip.
+      const interpolatedSprites = client.getInterpolatedSprites();
+
       // brief-11: focus-camera — update camera center each frame
       if (_camera !== null && focusedFarmerId !== null) {
-        applyFocusAndPan(_camera);
+        applyFocusAndPan(_camera, interpolatedSprites);
       }
 
       renderer.beginFrame();
@@ -420,7 +435,7 @@ async function startGame(
 
       // Build a position map for all farmer sprites (for meet bubbles + halo).
       const farmerPositions = new Map<number, { x: number; y: number }>();
-      for (const s of client.getInterpolatedSprites()) {
+      for (const s of interpolatedSprites) {
         if (s.id !== null && s.interpolate) {
           farmerPositions.set(s.id, { x: s.x, y: s.y });
         }
@@ -456,7 +471,7 @@ async function startGame(
 
       pushSnapshotSprites(
         renderer,
-        client.getInterpolatedSprites(),
+        interpolatedSprites,
         client.meets,
         farmerPositions,
         focusedFarmerId,
@@ -506,7 +521,7 @@ async function startGame(
 
       // Hover tooltip: convert CSS mouse position → world pixels → find nearest
       // labeled sprite within half-a-tile radius.
-      updateTooltip(tooltip, canvas, client.getInterpolatedSprites(), _camera);
+      updateTooltip(tooltip, canvas, interpolatedSprites, _camera);
 
       // brief 26 — day/night + seasonal color wash (render-only, tick-synced;
       // looks right now that days are long, brief 27).
@@ -762,17 +777,6 @@ async function loadNoiseGenerator(): Promise<import("@engine/core").NoiseGenerat
     return gen;
   } catch (err) {
     console.warn("[wasm] noise module unavailable:", err);
-    return null;
-  }
-}
-
-async function loadPathfinder(): Promise<Pathfinder | null> {
-  try {
-    const pf = await createPathfinderFromUrl("/wasm/pathfinding.wasm");
-    console.info("[wasm] pathfinding module loaded");
-    return pf;
-  } catch (err) {
-    console.warn("[wasm] pathfinding module unavailable — run `npm run build-wasm`:", err);
     return null;
   }
 }

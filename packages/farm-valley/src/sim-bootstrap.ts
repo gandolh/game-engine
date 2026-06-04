@@ -30,6 +30,7 @@ import { FinishDaySystem } from "./systems/finish-day";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
 import { listCoordinators } from "./agents/cnp-registry";
+import { CROP_SELL_PRICE } from "./economy";
 import "./agents/conservative";
 import "./agents/aggressive";
 import "./agents/hoarder";
@@ -189,8 +190,6 @@ export interface FarmerSummary {
   totalValue: number;
 }
 
-const SELL_PRICE = { radish: 8, wheat: 14, pumpkin: 35 };
-
 export function leaderboard(world: World<GameEntity>): FarmerSummary[] {
   const out: FarmerSummary[] = [];
   for (const f of world.query("farmer", "inventory", "personality")) {
@@ -201,9 +200,9 @@ export function leaderboard(world: World<GameEntity>): FarmerSummary[] {
       pumpkin: f.inventory.crops.pumpkin,
     };
     const unsoldValue =
-      crops.radish * SELL_PRICE.radish +
-      crops.wheat * SELL_PRICE.wheat +
-      crops.pumpkin * SELL_PRICE.pumpkin;
+      crops.radish * CROP_SELL_PRICE.radish +
+      crops.wheat * CROP_SELL_PRICE.wheat +
+      crops.pumpkin * CROP_SELL_PRICE.pumpkin;
     out.push({
       id: f.id,
       name: f.farmer.name,

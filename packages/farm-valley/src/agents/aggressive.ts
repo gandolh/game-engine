@@ -6,20 +6,16 @@ import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import {
   registerPeerTradeHooks,
-  type RespondPeerOfferFn,
   type InitiateBeanGiftFn,
 } from "./peer-trade-registry";
+import { makeRespondPeerOffer } from "./peer-trade-policy";
+import { CROP_SELL_PRICE, SEED_COST } from "../economy";
 import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
-// Shopkeeper reference prices for now (constants from spec).
-const SHOP_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
-const SEED_COST: Record<CropKind, number> = { radish: 5, wheat: 8, pumpkin: 15 };
 const PROFITABILITY_ORDER: readonly CropKind[] = ["pumpkin", "wheat", "radish"];
-// priceMax: aggressive posts at the shopkeeper price (the market ceiling for the crop).
-const PRICE_MAX: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
 const UNDERCUT_THRESHOLD = 0.9; // buy offers below 90% of shop price
 
 function pickCropForWeather(condition: string | undefined): CropKind | null {
@@ -168,11 +164,11 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
             ontology: ONT_MARKET.POST_OFFER,
             crop,
             quantity: qty,
-            pricePerUnit: PRICE_MAX[crop],
+            pricePerUnit: CROP_SELL_PRICE[crop],
           },
           priority: 3,
         });
-        recordReason(farmer, `post offer ${crop} x${qty} @ ${PRICE_MAX[crop]}`);
+        recordReason(farmer, `post offer ${crop} x${qty} @ ${CROP_SELL_PRICE[crop]}`);
       }
     }
 
@@ -189,7 +185,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     if (offers) {
       for (const offer of offers) {
         if (offer.sellerId === farmer.id) continue;
-        const threshold = SHOP_PRICE[offer.crop] * UNDERCUT_THRESHOLD;
+        const threshold = CROP_SELL_PRICE[offer.crop] * UNDERCUT_THRESHOLD;
         if (offer.pricePerUnit < threshold) {
           const cost = offer.pricePerUnit * offer.quantity;
           if (farmer.inventory.gold - cost >= reserve) {
@@ -257,45 +253,15 @@ registerPersonality("aggressive", deliberateAggressive);
 // Peer-trade hooks (encounter-trade system)
 // ---------------------------------------------------------------------------
 
-const AGGR_PEER_SHOP_SELL_PRICE: Record<CropKind, number> = {
-  radish: 8,
-  wheat: 14,
-  pumpkin: 35,
-};
 const AGGR_PEER_BUY_CEILING = 0.95; // discount buyer
 const AGGR_PEER_SELL_FLOOR = 1.0;   // sells at shopkeeper ceiling
 
-export const respondToPeerOfferAggressive: RespondPeerOfferFn = (
-  farmer,
-  offer,
-  _sender,
-  _ctx,
-) => {
-  if (!farmer.inventory) return { decision: "decline", reason: "no-inventory" };
-  const reserve =
-    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 10;
-  const ref = AGGR_PEER_SHOP_SELL_PRICE[offer.crop];
-
-  if (offer.direction === "sell") {
-    if (offer.unitPrice > ref * AGGR_PEER_BUY_CEILING) {
-      return { decision: "decline", reason: "price-too-high" };
-    }
-    const cost = offer.unitPrice * offer.quantity;
-    if (farmer.inventory.gold - cost < reserve) {
-      return { decision: "decline", reason: "would-breach-reserve" };
-    }
-    return { decision: "accept" };
-  }
-
-  // direction === "buy" — peer wants to buy from us.
-  if (offer.unitPrice < ref * AGGR_PEER_SELL_FLOOR) {
-    return { decision: "decline", reason: "price-too-low" };
-  }
-  if (farmer.inventory.seeds[offer.crop] < offer.quantity) {
-    return { decision: "decline", reason: "no-stock" };
-  }
-  return { decision: "accept" };
-};
+export const respondToPeerOfferAggressive = makeRespondPeerOffer({
+  buyCeiling: AGGR_PEER_BUY_CEILING,
+  sellFloor: AGGR_PEER_SELL_FLOOR,
+  bufferSeeds: 0,
+  reserveDefault: 10,
+});
 
 /**
  * brief 24 — aggressive uses a won golden bean as a bribe: gift it to the peer

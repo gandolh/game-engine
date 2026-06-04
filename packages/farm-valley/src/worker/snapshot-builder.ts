@@ -28,6 +28,7 @@ import type {
 import type { ObserverSnapshot } from "../ui/observer";
 import type { LeaderboardRow } from "../ui/leaderboard";
 import { leaderboard } from "../sim-bootstrap";
+import type { FarmerSummary } from "../sim-bootstrap";
 import { pickFarmerFrame } from "../render-systems";
 import { seasonForDay } from "../protocols";
 
@@ -113,8 +114,8 @@ export function buildObserverSnapshot(
 // Leaderboard rows (mirrors buildLeaderboardRows in main.ts)
 // ---------------------------------------------------------------------------
 
-export function buildLeaderboardRows(world: World<GameEntity>): LeaderboardRow[] {
-  return leaderboard(world).map((summary, index) => ({
+export function buildLeaderboardRows(summaries: FarmerSummary[]): LeaderboardRow[] {
+  return summaries.map((summary, index) => ({
     rank: index + 1,
     id: summary.id,
     name: summary.name,
@@ -129,8 +130,8 @@ export function buildLeaderboardRows(world: World<GameEntity>): LeaderboardRow[]
 // Final standings (leaderboard + crop counts for game-over panel)
 // ---------------------------------------------------------------------------
 
-function buildFinalStandings(world: World<GameEntity>): FinalStandingRow[] {
-  return leaderboard(world).map((summary, index) => ({
+function buildFinalStandings(summaries: FarmerSummary[]): FinalStandingRow[] {
+  return summaries.map((summary, index) => ({
     rank: index + 1,
     id: summary.id,
     name: summary.name,
@@ -284,7 +285,8 @@ export function buildRenderSnapshot(
   const meets = buildMeets(meetIndicators, tick);
   const events = buildEvents(eventFeed);
   const observer = buildObserverSnapshot(world, day);
-  const lbRows = buildLeaderboardRows(world);
+  const lb = leaderboard(world);
+  const lbRows = buildLeaderboardRows(lb);
 
   const shopEntity = (() => {
     for (const s of world.query("shopkeeper")) return s;
@@ -294,7 +296,7 @@ export function buildRenderSnapshot(
 
   const entityCount = countEntities(world);
 
-  const finalSummary = gameOver ? buildFinalStandings(world) : null;
+  const finalSummary = gameOver ? buildFinalStandings(lb) : null;
 
   return {
     tick,

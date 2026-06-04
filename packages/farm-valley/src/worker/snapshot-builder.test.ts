@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { bootstrapSim } from "../sim-bootstrap";
+import { bootstrapSim, leaderboard } from "../sim-bootstrap";
 import {
   buildRenderSnapshot,
   buildObserverSnapshot,
@@ -289,7 +289,7 @@ describe("buildObserverSnapshot", () => {
 describe("buildLeaderboardRows", () => {
   it("returns 4 rows sorted by totalValue desc", () => {
     const sim = bootAndTick(5);
-    const rows = buildLeaderboardRows(sim.world);
+    const rows = buildLeaderboardRows(leaderboard(sim.world));
     expect(rows).toHaveLength(4);
     for (let i = 0; i < rows.length - 1; i++) {
       expect(rows[i]!.totalValue).toBeGreaterThanOrEqual(rows[i + 1]!.totalValue);

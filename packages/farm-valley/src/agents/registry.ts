@@ -19,6 +19,3 @@ export function getDeliberate(name: string): DeliberateFn | undefined {
   return registry.get(name);
 }
 
-export function listPersonalities(): readonly string[] {
-  return Array.from(registry.keys()).sort();
-}

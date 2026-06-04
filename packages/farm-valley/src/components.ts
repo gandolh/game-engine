@@ -45,13 +45,6 @@ export type CropKind = "radish" | "wheat" | "pumpkin";
 export type ToolKind = "hoe" | "axe" | "pickaxe";
 export type ToolTier = "wooden" | "stone" | "iron";
 
-/** Durability caps by tier. */
-export const TOOL_MAX_DURABILITY: Record<ToolTier, number> = {
-  wooden: 100,
-  stone:  150,
-  iron:   200,
-};
-
 /** Work-ticks (at 20 Hz) per action by tier. 3s / 2s / 1s. */
 export const TOOL_WORK_TICKS: Record<ToolTier, number> = {
   wooden: 60,

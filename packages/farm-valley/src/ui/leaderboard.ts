@@ -87,7 +87,15 @@ export class LeaderboardPanel {
       }
     }
 
-    // Upsert rows in sorted (rank) order
+    // Upsert rows in sorted (rank) order.
+    // Snapshot children ONCE before the loop so we allocate one Array per frame
+    // instead of one per row.  insertBefore on an already-inserted node is a
+    // move, so earlier insertBefore calls can shift later indices — but that
+    // only moves a node forward, leaving indices at or after the destination
+    // pointing at nodes that haven't been touched yet, which is exactly what we
+    // want: we always compare against "what is currently at position index"
+    // using the live HTMLCollection rather than the stale snapshot.
+    const liveChildren = this.rowsContainer.children;
     rows.forEach((row, index) => {
       let els = this.rowCache.get(row.id);
 
@@ -98,9 +106,8 @@ export class LeaderboardPanel {
       }
 
       // Maintain DOM order to match rank order
-      const children = Array.from(this.rowsContainer.children);
-      if (children[index] !== els.root) {
-        this.rowsContainer.insertBefore(els.root, children[index] ?? null);
+      if (liveChildren[index] !== els.root) {
+        this.rowsContainer.insertBefore(els.root, liveChildren[index] ?? null);
       }
 
       this.updateRow(els, row);

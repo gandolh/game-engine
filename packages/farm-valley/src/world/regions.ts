@@ -18,12 +18,6 @@ export interface RegionDef {
   center: { x: number; y: number };
 }
 
-// Layout constants
-export const FARM_SIZE = 12;    // 12×12 tiles per farm
-export const VILLAGE_SIZE = 12; // 12×12 village
-export const ROAD_LEN = 4;      // tiles of road between farm edge and village edge
-export const ROAD_WIDTH = 2;
-
 export const WORLD_WIDTH = 40;
 export const WORLD_HEIGHT = 40;
 

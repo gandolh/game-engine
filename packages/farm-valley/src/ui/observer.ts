@@ -166,7 +166,11 @@ export class ObserverPanel {
       }
     }
 
-    // Upsert rows in sorted order
+    // Upsert rows in sorted order.
+    // Read the live HTMLCollection once before the loop — no Array allocation,
+    // and the reference remains valid across insertBefore calls because
+    // HTMLCollection is live and always reflects the current DOM state.
+    const liveChildren = this.farmersContainer.children;
     sorted.forEach((farmer, index) => {
       let row = this.rowCache.get(farmer.id);
 
@@ -176,10 +180,10 @@ export class ObserverPanel {
         this.farmersContainer.appendChild(row.root);
       }
 
-      // Ensure DOM order matches sorted order
-      const children = Array.from(this.farmersContainer.children);
-      if (children[index] !== row.root) {
-        this.farmersContainer.insertBefore(row.root, children[index] ?? null);
+      // Ensure DOM order matches sorted order — index the live HTMLCollection
+      // directly to avoid allocating an Array snapshot per row per frame.
+      if (liveChildren[index] !== row.root) {
+        this.farmersContainer.insertBefore(row.root, liveChildren[index] ?? null);
       }
 
       this.updateFarmerRow(row, farmer);

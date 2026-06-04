@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@engine/core": "0.0.0",
     "farm-valley": "0.0.0"
   },
   "devDependencies": {

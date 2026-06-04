@@ -3,7 +3,7 @@ import type { AtlasManifest } from "./atlas-format";
 export interface LoadedAtlasImage {
   manifest: AtlasManifest;
   bitmap: ImageBitmap;
-  frameRect(frame: string): PixelRect;
+  frameRect(frame: string): Readonly<PixelRect>;
 }
 
 export interface PixelRect {
@@ -24,10 +24,10 @@ export async function loadAtlasImage(manifest: AtlasManifest): Promise<LoadedAtl
   return {
     manifest,
     bitmap,
-    frameRect(name: string): PixelRect {
+    frameRect(name: string): Readonly<PixelRect> {
       const frame = manifest.frames[name];
       if (!frame) throw new Error(`Atlas frame not found: ${name} (atlas ${manifest.id})`);
-      return { x: frame.x, y: frame.y, w: frame.w, h: frame.h };
+      return frame;
     },
   };
 }

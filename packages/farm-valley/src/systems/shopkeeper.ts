@@ -1,5 +1,6 @@
 import type { SimContext, System, MessageBus, World, AgentMessage } from "@engine/core";
 import type { GameEntity, CropKind } from "../components";
+import { firstEntity, findById } from "./entity-helpers";
 import {
   ONT_SHOP,
   type ShopBuyBody,
@@ -112,7 +113,7 @@ export class ShopkeeperSystem implements System {
   }
 
   run(ctx: SimContext): void {
-    const shop = this.findShop();
+    const shop = firstEntity(this.world, "shopkeeper", "inbox");
     if (!shop || !shop.inbox) return;
 
     // 1. Process inbox — but only ontologies this system owns. AuctionSystem
@@ -159,7 +160,7 @@ export class ShopkeeperSystem implements System {
     const body = msg.body as Partial<ShopBuyBody>;
     if (msg.sender === "world") return;
     const sender = msg.sender;
-    const farmer = this.findFarmerById(sender);
+    const farmer = findById(this.world, sender, "farmer", "inventory");
     if (!farmer || !farmer.inventory) return;
 
     const crop = body.crop as CropKind | undefined;
@@ -223,7 +224,7 @@ export class ShopkeeperSystem implements System {
     const body = msg.body as Partial<AuctionResultBody>;
     if (body.winnerId === null || body.winnerId === undefined) return;
     if (this.settledAuctions.has(body.auctionId ?? "")) return;
-    const winner = this.findFarmerById(body.winnerId);
+    const winner = findById(this.world, body.winnerId, "farmer", "inventory");
     if (!winner || !winner.inventory) return;
     const paid = body.paidPrice ?? 0;
     // Don't let settlement drive a farmer negative; if they somehow can't
@@ -241,7 +242,7 @@ export class ShopkeeperSystem implements System {
   private handleResaleBean(msg: AgentMessage, ctx: SimContext): void {
     if (msg.sender === "world") return;
     const sender = msg.sender;
-    const farmer = this.findFarmerById(sender);
+    const farmer = findById(this.world, sender, "farmer", "inventory");
     if (!farmer || !farmer.inventory) return;
     const body = msg.body as Partial<ResaleBeanBody>;
     const qty = body.quantity ?? 0;
@@ -297,7 +298,7 @@ export class ShopkeeperSystem implements System {
     const body = msg.body as Partial<ShopSellBody>;
     if (msg.sender === "world") return;
     const sender = msg.sender;
-    const farmer = this.findFarmerById(sender);
+    const farmer = findById(this.world, sender, "farmer", "inventory");
     if (!farmer || !farmer.inventory) return;
 
     const crop = body.crop as string | undefined;
@@ -419,18 +420,6 @@ export class ShopkeeperSystem implements System {
       },
       tick,
     );
-  }
-
-  private findShop(): GameEntity | undefined {
-    for (const e of this.world.query("shopkeeper", "inbox")) return e;
-    return undefined;
-  }
-
-  private findFarmerById(id: number): GameEntity | undefined {
-    for (const f of this.world.query("farmer", "inventory")) {
-      if (f.id === id) return f;
-    }
-    return undefined;
   }
 
   private readCurrentDay(): number | undefined {

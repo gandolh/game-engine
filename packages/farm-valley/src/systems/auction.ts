@@ -7,11 +7,22 @@ import {
   type AuctionResultBody,
 } from "../protocols/shop";
 import { PERFORMATIVE } from "../protocols/performatives";
+import { firstEntity } from "./entity-helpers";
+
+type SealedBid = { bidderId: number; amount: number; tickReceived: number };
+
+/** Deterministic sealed-bid comparator: amount desc, tickReceived asc, bidderId asc.
+ *  This ordering is the determinism anchor — do not alter it. */
+const compareSealedBids = (x: SealedBid, y: SealedBid): number => {
+  if (y.amount !== x.amount) return y.amount - x.amount;
+  if (x.tickReceived !== y.tickReceived) return x.tickReceived - y.tickReceived;
+  return x.bidderId - y.bidderId;
+};
 
 interface VickreyState {
   type: "vickrey";
   cfp: AuctionCfpBody;
-  bids: Array<{ bidderId: number; amount: number; tickReceived: number }>;
+  bids: SealedBid[];
   resolved: boolean;
 }
 
@@ -19,7 +30,7 @@ interface FpsbState {
   type: "fpsb";
   cfp: AuctionCfpBody;
   /** Same sealed-bid shape as Vickrey — only the price rule differs. */
-  bids: Array<{ bidderId: number; amount: number; tickReceived: number }>;
+  bids: SealedBid[];
   resolved: boolean;
 }
 
@@ -126,7 +137,7 @@ export class AuctionSystem implements System {
 
   run(ctx: SimContext): void {
     // 1. Drain AUCTION_BID messages from the shopkeeper inbox.
-    const shop = this.findShop();
+    const shop = firstEntity(this.world, "shopkeeper", "inbox");
     if (shop?.inbox) {
       const remaining: AgentMessage[] = [];
       for (const msg of shop.inbox.messages) {
@@ -323,11 +334,7 @@ export class AuctionSystem implements System {
     // Sort by amount desc, tie-break by earliest tickReceived, then lowest
     // bidderId (brief 24 — final stable key so resolution never depends on
     // inbox insertion order; matches the FPSB ordering below).
-    const sorted = a.bids.slice().sort((x, y) => {
-      if (y.amount !== x.amount) return y.amount - x.amount;
-      if (x.tickReceived !== y.tickReceived) return x.tickReceived - y.tickReceived;
-      return x.bidderId - y.bidderId;
-    });
+    const sorted = a.bids.slice().sort(compareSealedBids);
 
     const top = sorted[0]!;
     if (top.amount < a.cfp.reservePrice) {
@@ -372,11 +379,7 @@ export class AuctionSystem implements System {
     // Sort by amount desc; tie-break by earliest tickReceived then lowest
     // bidder id (matches the Vickrey first-come ordering, with a final stable
     // bidder-id key for fully deterministic resolution).
-    const sorted = a.bids.slice().sort((x, y) => {
-      if (y.amount !== x.amount) return y.amount - x.amount;
-      if (x.tickReceived !== y.tickReceived) return x.tickReceived - y.tickReceived;
-      return x.bidderId - y.bidderId;
-    });
+    const sorted = a.bids.slice().sort(compareSealedBids);
 
     const top = sorted[0]!;
     if (top.amount < a.cfp.reservePrice) {
@@ -463,10 +466,6 @@ export class AuctionSystem implements System {
     );
   }
 
-  private findShop(): GameEntity | undefined {
-    for (const e of this.world.query("shopkeeper", "inbox")) return e;
-    return undefined;
-  }
 }
 
 function uniqueParticipants(ids: readonly number[]): number[] {

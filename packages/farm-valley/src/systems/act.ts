@@ -1,4 +1,4 @@
-import type { SimContext, System, World, MessageBus } from "@engine/core";
+import type { SimContext, System, World, MessageBus, Intention, With } from "@engine/core";
 import { REGIONS } from "../world/regions";
 import type { GameEntity, CropKind, PlotState, ToolKind, ToolTier, DecorationKind } from "../components";
 import { TOOL_PRICE, DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
@@ -84,6 +84,23 @@ const UPGRADE_COST: Partial<Record<ToolTier, number>> = {
   iron:  25,
 };
 
+/**
+ * A farmer currently being processed by run(): narrowed to the components the
+ * run() query guarantees (`query("fsm", "intentions", "inventory")`), so the
+ * extracted handlers can read these fields without re-guarding for undefined.
+ */
+type ActingFarmer = With<GameEntity, "fsm" | "intentions" | "inventory">;
+
+interface ActContext {
+  plotsByOwner: Map<number, GameEntity[]>;
+  occupiedByOwner: Map<number, Set<string>>;
+  featuresByTile: Map<string, GameEntity>;
+  fountainByRegion: Map<string, GameEntity>;
+  blacksmithId: number | undefined;
+  marketWallId: number | undefined;
+  shopkeeperId: number | undefined;
+}
+
 export class ActSystem implements System {
   readonly name = "ActSystem";
 
@@ -92,23 +109,22 @@ export class ActSystem implements System {
     private readonly bus?: MessageBus,
   ) {}
 
-  run(ctx: SimContext): void {
-    const farmers = this.world.query("fsm", "intentions", "inventory");
+  private buildActContext(): ActContext {
     const plotsByOwner = new Map<number, GameEntity[]>();
+    const occupiedByOwner = new Map<number, Set<string>>();
+
+    // Single pass over plots — builds both plotsByOwner and occupiedByOwner.
     for (const plot of this.world.query("plot")) {
       const arr = plotsByOwner.get(plot.plot.ownerId) ?? [];
       arr.push(plot);
       plotsByOwner.set(plot.plot.ownerId, arr);
-    }
 
-    // Occupied tiles per owner (plots + fountains) for till validation
-    const occupiedByOwner = new Map<number, Set<string>>();
-    for (const plot of this.world.query("plot")) {
       const key = `${plot.plot.tileX},${plot.plot.tileY}`;
       const s = occupiedByOwner.get(plot.plot.ownerId) ?? new Set();
       s.add(key);
       occupiedByOwner.set(plot.plot.ownerId, s);
     }
+
     for (const f of this.world.query("fountain")) {
       if (!f.transform) continue;
       const tx = Math.round(f.transform.x);
@@ -154,445 +170,582 @@ export class ActSystem implements System {
       break;
     }
 
+    return { plotsByOwner, occupiedByOwner, featuresByTile, fountainByRegion, blacksmithId, marketWallId, shopkeeperId };
+  }
+
+  private sendIntentMessage(
+    performative: string,
+    ontology: string,
+    senderId: number,
+    recipientId: number | "broadcast",
+    body: Record<string, unknown>,
+    tick: number,
+  ): void {
+    this.bus!.send(
+      {
+        performative,
+        ontology,
+        sender: senderId,
+        recipient: recipientId,
+        body: body as unknown as Record<string, unknown>,
+      },
+      tick,
+    );
+  }
+
+  private handleBuySeed(
+    farmer: ActingFarmer,
+    intent: Intention,
+    shopkeeperId: number | undefined,
+    tick: number,
+  ): void {
+    if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) return;
+    const body: ShopSellBody = {
+      item: "seed",
+      crop: intent.data.crop as CropKind,
+      quantity: (intent.data.quantity as number) ?? 1,
+    };
+    this.sendIntentMessage(
+      PERFORMATIVE.REQUEST,
+      ONT_SHOP.SELL,
+      farmer.id,
+      shopkeeperId,
+      body as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  private handlePlant(
+    farmer: ActingFarmer,
+    intent: Intention,
+    ownedPlots: GameEntity[],
+    day: number,
+  ): void {
+    const crop = intent.data.crop as CropKind;
+    const free = ownedPlots.find((p) => p.plot!.state.kind === "empty");
+    if (free && farmer.inventory.seeds[crop] > 0) {
+      farmer.inventory.seeds[crop] -= 1;
+      // Reset decay clock — this plot is being tended right now.
+      free.plot!.state = {
+        kind: "planted",
+        crop,
+        daysGrowing: 0,
+        readyAtDay: day + GROWTH_DAYS[crop],
+        weatherSum: 0,
+        // brief 29 — freshly-planted soil counts as watered today.
+        daysSinceWater: 0,
+        wateredToday: true,
+      } satisfies PlotState;
+    }
+  }
+
+  private handleWater(farmer: ActingFarmer, ownedPlots: GameEntity[]): void {
+    // Watering consumes 1 charge from the watering can. If empty,
+    // skip (agent should have queued a refill first).
+    const can = farmer.inventory.wateringCan;
+    if (can && can.charges <= 0) return;
+    const due = ownedPlots
+      .filter((p) => {
+        const s = p.plot!.state;
+        return s.kind === "planted" && s.wateredToday !== true;
+      })
+      .sort((a, b) => {
+        const sa = a.plot!.state as Extract<PlotState, { kind: "planted" }>;
+        const sb = b.plot!.state as Extract<PlotState, { kind: "planted" }>;
+        return (sb.daysSinceWater ?? 0) - (sa.daysSinceWater ?? 0);
+      })[0];
+    if (due) {
+      const s = due.plot!.state as Extract<PlotState, { kind: "planted" }>;
+      s.wateredToday = true;
+      s.daysSinceWater = 0;
+      if (can) can.charges -= 1;
+    }
+  }
+
+  private handleSellShopkeeper(
+    farmer: ActingFarmer,
+    intent: Intention,
+  ): void {
+    const crop = intent.data.crop as CropKind;
+    const qty = (intent.data.quantity as number) ?? 0;
+    const available = Math.min(qty, farmer.inventory.crops[crop]);
+    if (available > 0) {
+      farmer.inventory.crops[crop] -= available;
+      farmer.inventory.gold += SELL_PRICE[crop] * available;
+    }
+  }
+
+  private handlePostOffer(
+    farmer: ActingFarmer,
+    intent: Intention,
+    marketWallId: number | undefined,
+    tick: number,
+  ): void {
+    if (!this.bus || marketWallId === undefined || farmer.id === undefined) return;
+    const body: PostOfferBody = {
+      offer: {
+        sellerId: farmer.id,
+        crop: intent.data.crop as CropKind,
+        quantity: intent.data.quantity as number,
+        pricePerUnit: intent.data.pricePerUnit as number,
+      },
+    };
+    this.sendIntentMessage(
+      PERFORMATIVE.INFORM,
+      ONT_MARKET.POST_OFFER,
+      farmer.id,
+      marketWallId,
+      body as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  private handleReadOffers(
+    farmer: ActingFarmer,
+    intent: Intention,
+    marketWallId: number | undefined,
+    tick: number,
+  ): void {
+    if (!this.bus || marketWallId === undefined || farmer.id === undefined) return;
+    const filter = intent.data.filter as ReadOffersBody["filter"] | undefined;
+    const body: ReadOffersBody = filter === undefined ? {} : { filter };
+    this.sendIntentMessage(
+      PERFORMATIVE.REQUEST,
+      ONT_MARKET.READ_OFFERS,
+      farmer.id,
+      marketWallId,
+      body as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  private handleBuyFromWall(
+    farmer: ActingFarmer,
+    intent: Intention,
+    marketWallId: number | undefined,
+    tick: number,
+  ): void {
+    if (!this.bus || marketWallId === undefined || farmer.id === undefined) return;
+    const body: BuyRequestBody = {
+      offerId: intent.data.offerId as string,
+      buyerId: farmer.id,
+      pricePerUnit: intent.data.pricePerUnit as number,
+      quantity: (intent.data.quantity as number) ?? 1,
+    };
+    this.sendIntentMessage(
+      PERFORMATIVE.PROPOSE,
+      ONT_MARKET.BUY_REQUEST,
+      farmer.id,
+      marketWallId,
+      body as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  private handleCnpInitiate(
+    farmer: ActingFarmer,
+    intent: Intention,
+    tick: number,
+  ): void {
+    if (!this.bus || farmer.id === undefined) return;
+    const body: CnpTaskBody = {
+      taskId: `${farmer.id}-${tick}`,
+      initiatorId: farmer.id,
+      buyCrop: intent.data.crop as CropKind,
+      quantity: intent.data.quantity as number,
+      maxPricePerUnit: intent.data.maxPricePerUnit as number,
+      deadlineTick: tick + ((intent.data.deadlineTicks as number) ?? 2),
+    };
+    this.sendIntentMessage(
+      PERFORMATIVE.CFP,
+      ONT_CNP.TASK,
+      farmer.id,
+      "broadcast",
+      body as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  private handleAuctionBid(
+    farmer: ActingFarmer,
+    intent: Intention,
+    shopkeeperId: number | undefined,
+    tick: number,
+  ): void {
+    // brief 24 — send a sealed bid to the shopkeeper (auctioneer). The
+    // AuctionSystem drains AUCTION_BID from the shop inbox each tick.
+    if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) return;
+    const body: AuctionBidBody = {
+      auctionId: intent.data.auctionId as string,
+      bidderId: farmer.id,
+      amount: (intent.data.amount as number) ?? 0,
+    };
+    this.sendIntentMessage(
+      PERFORMATIVE.PROPOSE,
+      ONT_SHOP.AUCTION_BID,
+      farmer.id,
+      shopkeeperId,
+      body as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  private handleResaleBean(
+    farmer: ActingFarmer,
+    intent: Intention,
+    shopkeeperId: number | undefined,
+    tick: number,
+  ): void {
+    // brief 24 — resell won golden beans to the shop at a premium.
+    if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) return;
+    const body: ResaleBeanBody = {
+      quantity: (intent.data.quantity as number) ?? 1,
+    };
+    this.sendIntentMessage(
+      PERFORMATIVE.REQUEST,
+      ONT_SHOP.RESALE_BEAN,
+      farmer.id,
+      shopkeeperId,
+      body as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  private handleTill(
+    farmer: ActingFarmer,
+    intent: Intention,
+    occupiedByOwner: Map<number, Set<string>>,
+  ): void {
+    // Use hoe to create a new plot on a green farm tile.
+    if (farmer.id === undefined) return;
+    const hoe = (farmer.inventory.tools ?? []).find(t => t.kind === "hoe" && t.durability > 0);
+    if (!hoe) return;
+    const tileX = intent.data.tileX as number;
+    const tileY = intent.data.tileY as number;
+    const occ = occupiedByOwner.get(farmer.id) ?? new Set();
+    const tileKey = `${tileX},${tileY}`;
+    if (occ.has(tileKey)) return; // already occupied
+    // Spawn new plot entity
+    this.world.spawn({
+      transform: { x: tileX, y: tileY, prevX: tileX, prevY: tileY, rotation: 0 },
+      plot: {
+        ownerId: farmer.id,
+        regionId: farmer.farmer?.currentRegion ?? (intent.data.regionId as string) as import("../world/regions").RegionId,
+        tileX,
+        tileY,
+        state: { kind: "empty" },
+      },
+    });
+    // Drain hoe durability
+    hoe.durability -= 1;
+    if (hoe.durability <= 0) {
+      const idx = (farmer.inventory.tools ?? []).indexOf(hoe);
+      if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
+    }
+    occ.add(tileKey);
+    occupiedByOwner.set(farmer.id, occ);
+  }
+
+  private handleChopTree(
+    farmer: ActingFarmer,
+    intent: Intention,
+    featuresByTile: Map<string, GameEntity>,
+  ): void {
+    if (farmer.id === undefined) return;
+    const axe = (farmer.inventory.tools ?? []).find(t => t.kind === "axe" && t.durability > 0);
+    if (!axe) return;
+    const tileX = intent.data.tileX as number;
+    const tileY = intent.data.tileY as number;
+    const feat = featuresByTile.get(`${tileX},${tileY}`);
+    if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") return;
+    // Award wood
+    if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
+    farmer.resources.wood += 2;
+    // Remove feature entity
+    this.world.despawn(feat);
+    featuresByTile.delete(`${tileX},${tileY}`);
+    // Drain axe
+    axe.durability -= 1;
+    if (axe.durability <= 0) {
+      const idx = (farmer.inventory.tools ?? []).indexOf(axe);
+      if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
+    }
+  }
+
+  private handleMineStone(
+    farmer: ActingFarmer,
+    intent: Intention,
+    featuresByTile: Map<string, GameEntity>,
+  ): void {
+    if (farmer.id === undefined) return;
+    const pick = (farmer.inventory.tools ?? []).find(t => t.kind === "pickaxe" && t.durability > 0);
+    if (!pick) return;
+    const tileX = intent.data.tileX as number;
+    const tileY = intent.data.tileY as number;
+    const feat = featuresByTile.get(`${tileX},${tileY}`);
+    if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") return;
+    if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
+    // Random drops
+    const roll = Math.random();
+    if (roll < STONE_GEODE_CHANCE) {
+      farmer.resources.geodes += 1;
+    } else if (roll < STONE_GEODE_CHANCE + STONE_IRON_CHANCE) {
+      farmer.resources.ironOre += 1;
+    } else {
+      farmer.resources.stone += 1;
+    }
+    this.world.despawn(feat);
+    featuresByTile.delete(`${tileX},${tileY}`);
+    // Drain pickaxe
+    pick.durability -= 1;
+    if (pick.durability <= 0) {
+      const idx = (farmer.inventory.tools ?? []).indexOf(pick);
+      if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
+    }
+  }
+
+  private handleRefillCan(farmer: ActingFarmer): void {
+    // Refill watering can — only valid at a water source: the farmer's
+    // own farm (home fountain) or a well (well-north/well-south).
+    // Without this guard the can refilled anywhere (mid-road, forest…),
+    // making the wells and fountains pointless.
+    const can = farmer.inventory.wateringCan;
+    if (!can) return;
+    const region = farmer.farmer?.currentRegion;
+    const atWaterSource =
+      region === "well-north" ||
+      region === "well-south" ||
+      region === farmer.farmer?.homeRegion;
+    if (!atWaterSource) return;
+    can.charges = can.maxCharges;
+  }
+
+  private handleBuyTool(
+    farmer: ActingFarmer,
+    intent: Intention,
+  ): void {
+    // Buy a wooden tool from the shopkeeper. Must be at the village
+    // (where the shopkeeper stands) — deliberateBuyTool queues a
+    // travel-to-village intent first; this guard ensures the purchase
+    // doesn't resolve back on the farm if the travel hasn't completed.
+    if (farmer.farmer?.currentRegion !== "village") return;
+    const toolKind = intent.data.toolKind as ToolKind;
+    const tier: ToolTier = "wooden";
+    const price = TOOL_PRICE[tier];
+    if (farmer.inventory.gold < price) return;
+    farmer.inventory.gold -= price;
+    if (!farmer.inventory.tools) farmer.inventory.tools = [];
+    farmer.inventory.tools.push({ kind: toolKind, tier, durability: 100 });
+  }
+
+  private handleCraftDecoration(
+    farmer: ActingFarmer,
+    intent: Intention,
+  ): void {
+    // Craft a farm decoration at the carpentry workshop.
+    // Consumes wood from ResourceInventory, places a FarmDecoration entity
+    // on a free tile in the farmer's farm. Boosts crop yield permanently.
+    if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
+    const kind = intent.data.kind as DecorationKind;
+    const recipe = DECORATION_RECIPE[kind];
+    if (!recipe) return;
+    const res = farmer.resources;
+    if (!res || res.wood < recipe.woodCost) return;
+
+    // Cap total boost: sum existing decorations for this farmer's farm.
+    let existingBoost = 0;
+    for (const e of this.world.query("farmDecoration")) {
+      if (e.farmDecoration.ownerId === farmer.id) {
+        existingBoost += DECORATION_RECIPE[e.farmDecoration.kind]?.yieldBoost ?? 0;
+      }
+    }
+    if (existingBoost >= MAX_DECORATION_BOOST) return; // already maxed
+
+    // Find a free tile in the farm (not occupied by plot/fountain/feature).
+    const homeRegion = farmer.farmer.homeRegion;
+    const regionDef = REGIONS.find(r => r.id === homeRegion);
+    if (!regionDef) return;
+
+    const usedTiles = new Set<string>();
+    for (const e of this.world.query("plot")) {
+      if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
+    }
+    for (const e of this.world.query("farmDecoration")) {
+      if (e.farmDecoration.regionId === homeRegion) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
+    }
+    for (const e of this.world.query("tileFeature")) {
+      if (e.tileFeature.regionId === homeRegion) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);
+    }
+    for (const e of this.world.query("fountain")) {
+      if (e.fountain.regionId === homeRegion && e.transform) {
+        usedTiles.add(`${Math.round(e.transform.x)},${Math.round(e.transform.y)}`);
+      }
+    }
+
+    let placed = false;
+    const b = regionDef.bounds;
+    outer: for (let ty = b.minY; ty <= b.maxY; ty++) {
+      for (let tx = b.minX; tx <= b.maxX; tx++) {
+        if (usedTiles.has(`${tx},${ty}`)) continue;
+        this.world.spawn({
+          transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+          sprite: { atlasId: "main", frame: `decoration/${kind}`, layer: 20, tintRgba: 0xffffffff },
+          farmDecoration: { kind, tileX: tx, tileY: ty, regionId: homeRegion, ownerId: farmer.id },
+        });
+        res.wood -= recipe.woodCost;
+        placed = true;
+        break outer;
+      }
+    }
+    if (!placed) return; // no free tile
+  }
+
+  private handleUpgradeTool(
+    farmer: ActingFarmer,
+    intent: Intention,
+    blacksmithId: number | undefined,
+  ): void {
+    // Upgrade a tool at the blacksmith.
+    if (blacksmithId === undefined) return;
+    const toolKind = intent.data.toolKind as ToolKind;
+    const tools = farmer.inventory.tools ?? [];
+    // Find the best existing tool of this kind (highest tier, lowest durability first for upgrade)
+    const existing = tools
+      .filter(t => t.kind === toolKind)
+      .sort((a, b) => {
+        const tierOrder: Record<ToolTier, number> = { wooden: 0, stone: 1, iron: 2 };
+        return tierOrder[b.tier] - tierOrder[a.tier]; // highest tier first
+      })[0];
+    if (!existing) return;
+    const nextTier = UPGRADE_PATH[existing.tier];
+    if (!nextTier) return; // already max
+    const cost = UPGRADE_COST[nextTier] ?? 99;
+    if (farmer.inventory.gold < cost) return;
+    farmer.inventory.gold -= cost;
+    // Replace tool with upgraded version (full durability)
+    const idx = tools.indexOf(existing);
+    if (idx >= 0) {
+      tools[idx] = { kind: toolKind, tier: nextTier, durability: nextTier === "stone" ? 150 : 200 };
+    }
+  }
+
+  private handleProcessCrop(
+    farmer: ActingFarmer,
+    intent: Intention,
+  ): void {
+    // Mill raw crops into goods at a premium — only at the mill region.
+    // Converts up to MILL_BATCH units of one crop into gold at MILL_PRICE
+    // (higher than the shopkeeper's buy price; the gradient justifies the
+    // trip). Mirrors the location-gated pattern of buy-tool/craft.
+    if (farmer.farmer?.currentRegion !== "mill") return;
+    const crop = intent.data.crop as CropKind;
+    if (!(crop in MILL_PRICE)) return;
+    const have = farmer.inventory.crops[crop];
+    const taken = Math.min(MILL_BATCH, have);
+    if (taken <= 0) return;
+    farmer.inventory.crops[crop] -= taken;
+    farmer.inventory.gold += MILL_PRICE[crop] * taken;
+  }
+
+  private handleForage(farmer: ActingFarmer, day: number): void {
+    // Forage a seasonal zone — only rewards in the zone's season. The
+    // season is derived from the farmer's perceived currentDay, so the
+    // lock is real game logic (out of season = no reward).
+    const region = farmer.farmer?.currentRegion;
+    if (!region) return;
+    const zone = FORAGE_ZONES[region];
+    if (!zone) return;
+    if (seasonForDay(day) !== zone.season) return; // out of season — no reward
+    farmer.inventory.gold += zone.reward;
+  }
+
+  run(ctx: SimContext): void {
+    const farmers = this.world.query("fsm", "intentions", "inventory");
+    const actCtx = this.buildActContext();
+
     for (const farmer of farmers) {
       if (farmer.fsm.current !== "ACT") continue;
 
       const intentions = farmer.intentions.queue;
       const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
-      const ownedPlots = farmer.id !== undefined ? plotsByOwner.get(farmer.id) ?? [] : [];
+      const ownedPlots = farmer.id !== undefined ? actCtx.plotsByOwner.get(farmer.id) ?? [] : [];
 
       for (const intent of intentions) {
         switch (intent.kind) {
           case "buy-seed": {
-            // Seed purchases now go through the shopkeeper's bus channel
-            // (ONT_SHOP.SELL = shop sells a seed to the farmer), matching how
-            // SELL/POST/READ already work. ShopkeeperSystem.handleSell consumes
-            // the daily slate, checks gold, credits seeds, and replies CONFIRM.
-            // Because ActSystem runs before ShopkeeperSystem and the message is
-            // dispatched by InboxDispatchSystem, the seed lands ~1 tick later
-            // rather than synchronously — an accepted behavior change (the
-            // former direct slate mutation duplicated handleSell). See
-            // corpus/wiki/open-questions.md.
-            if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) break;
-            const body: ShopSellBody = {
-              item: "seed",
-              crop: intent.data.crop as CropKind,
-              quantity: (intent.data.quantity as number) ?? 1,
-            };
-            this.bus.send(
-              {
-                performative: PERFORMATIVE.REQUEST,
-                ontology: ONT_SHOP.SELL,
-                sender: farmer.id,
-                recipient: shopkeeperId,
-                body: body as unknown as Record<string, unknown>,
-              },
-              ctx.tick,
-            );
+            this.handleBuySeed(farmer, intent, actCtx.shopkeeperId, ctx.tick);
             break;
           }
           case "plant": {
-            const crop = intent.data.crop as CropKind;
-            const free = ownedPlots.find((p) => p.plot!.state.kind === "empty");
-            if (free && farmer.inventory.seeds[crop] > 0) {
-              farmer.inventory.seeds[crop] -= 1;
-              // Reset decay clock — this plot is being tended right now.
-              free.plot!.state = {
-                kind: "planted",
-                crop,
-                daysGrowing: 0,
-                readyAtDay: day + GROWTH_DAYS[crop],
-                weatherSum: 0,
-                // brief 29 — freshly-planted soil counts as watered today.
-                daysSinceWater: 0,
-                wateredToday: true,
-              } satisfies PlotState;
-            }
+            this.handlePlant(farmer, intent, ownedPlots, day);
             break;
           }
           case "water": {
-            // Watering consumes 1 charge from the watering can. If empty,
-            // skip (agent should have queued a refill first).
-            const can = farmer.inventory.wateringCan;
-            if (can && can.charges <= 0) break;
-            const due = ownedPlots
-              .filter((p) => {
-                const s = p.plot!.state;
-                return s.kind === "planted" && s.wateredToday !== true;
-              })
-              .sort((a, b) => {
-                const sa = a.plot!.state as Extract<PlotState, { kind: "planted" }>;
-                const sb = b.plot!.state as Extract<PlotState, { kind: "planted" }>;
-                return (sb.daysSinceWater ?? 0) - (sa.daysSinceWater ?? 0);
-              })[0];
-            if (due) {
-              const s = due.plot!.state as Extract<PlotState, { kind: "planted" }>;
-              s.wateredToday = true;
-              s.daysSinceWater = 0;
-              if (can) can.charges -= 1;
-            }
+            this.handleWater(farmer, ownedPlots);
             break;
           }
           case "sell-shopkeeper": {
-            const crop = intent.data.crop as CropKind;
-            const qty = (intent.data.quantity as number) ?? 0;
-            const available = Math.min(qty, farmer.inventory.crops[crop]);
-            if (available > 0) {
-              farmer.inventory.crops[crop] -= available;
-              farmer.inventory.gold += SELL_PRICE[crop] * available;
-            }
+            this.handleSellShopkeeper(farmer, intent);
             break;
           }
           case "post-offer": {
-            if (!this.bus || marketWallId === undefined || farmer.id === undefined) break;
-            const body: PostOfferBody = {
-              offer: {
-                sellerId: farmer.id,
-                crop: intent.data.crop as CropKind,
-                quantity: intent.data.quantity as number,
-                pricePerUnit: intent.data.pricePerUnit as number,
-              },
-            };
-            this.bus.send(
-              {
-                performative: PERFORMATIVE.INFORM,
-                ontology: ONT_MARKET.POST_OFFER,
-                sender: farmer.id,
-                recipient: marketWallId,
-                body: body as unknown as Record<string, unknown>,
-              },
-              ctx.tick,
-            );
+            this.handlePostOffer(farmer, intent, actCtx.marketWallId, ctx.tick);
             break;
           }
           case "read-offers": {
-            if (!this.bus || marketWallId === undefined || farmer.id === undefined) break;
-            const filter = intent.data.filter as ReadOffersBody["filter"] | undefined;
-            const body: ReadOffersBody = filter === undefined ? {} : { filter };
-            this.bus.send(
-              {
-                performative: PERFORMATIVE.REQUEST,
-                ontology: ONT_MARKET.READ_OFFERS,
-                sender: farmer.id,
-                recipient: marketWallId,
-                body: body as unknown as Record<string, unknown>,
-              },
-              ctx.tick,
-            );
+            this.handleReadOffers(farmer, intent, actCtx.marketWallId, ctx.tick);
             break;
           }
           case "buy-from-wall": {
-            if (!this.bus || marketWallId === undefined || farmer.id === undefined) break;
-            const body: BuyRequestBody = {
-              offerId: intent.data.offerId as string,
-              buyerId: farmer.id,
-              pricePerUnit: intent.data.pricePerUnit as number,
-              quantity: (intent.data.quantity as number) ?? 1,
-            };
-            this.bus.send(
-              {
-                performative: PERFORMATIVE.PROPOSE,
-                ontology: ONT_MARKET.BUY_REQUEST,
-                sender: farmer.id,
-                recipient: marketWallId,
-                body: body as unknown as Record<string, unknown>,
-              },
-              ctx.tick,
-            );
+            this.handleBuyFromWall(farmer, intent, actCtx.marketWallId, ctx.tick);
             break;
           }
           case "cnp-initiate": {
-            if (!this.bus || farmer.id === undefined) break;
-            const body: CnpTaskBody = {
-              taskId: `${farmer.id}-${ctx.tick}`,
-              initiatorId: farmer.id,
-              buyCrop: intent.data.crop as CropKind,
-              quantity: intent.data.quantity as number,
-              maxPricePerUnit: intent.data.maxPricePerUnit as number,
-              deadlineTick: ctx.tick + ((intent.data.deadlineTicks as number) ?? 2),
-            };
-            this.bus.send(
-              {
-                performative: PERFORMATIVE.CFP,
-                ontology: ONT_CNP.TASK,
-                sender: farmer.id,
-                recipient: "broadcast",
-                body: body as unknown as Record<string, unknown>,
-              },
-              ctx.tick,
-            );
+            this.handleCnpInitiate(farmer, intent, ctx.tick);
             break;
           }
           case "auction-bid": {
-            // brief 24 — send a sealed bid to the shopkeeper (auctioneer). The
-            // AuctionSystem drains AUCTION_BID from the shop inbox each tick.
-            if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) break;
-            const body: AuctionBidBody = {
-              auctionId: intent.data.auctionId as string,
-              bidderId: farmer.id,
-              amount: (intent.data.amount as number) ?? 0,
-            };
-            this.bus.send(
-              {
-                performative: PERFORMATIVE.PROPOSE,
-                ontology: ONT_SHOP.AUCTION_BID,
-                sender: farmer.id,
-                recipient: shopkeeperId,
-                body: body as unknown as Record<string, unknown>,
-              },
-              ctx.tick,
-            );
+            this.handleAuctionBid(farmer, intent, actCtx.shopkeeperId, ctx.tick);
             break;
           }
           case "resale-bean": {
-            // brief 24 — resell won golden beans to the shop at a premium.
-            if (!this.bus || shopkeeperId === undefined || farmer.id === undefined) break;
-            const body: ResaleBeanBody = {
-              quantity: (intent.data.quantity as number) ?? 1,
-            };
-            this.bus.send(
-              {
-                performative: PERFORMATIVE.REQUEST,
-                ontology: ONT_SHOP.RESALE_BEAN,
-                sender: farmer.id,
-                recipient: shopkeeperId,
-                body: body as unknown as Record<string, unknown>,
-              },
-              ctx.tick,
-            );
+            this.handleResaleBean(farmer, intent, actCtx.shopkeeperId, ctx.tick);
             break;
           }
-
           case "till": {
-            // Use hoe to create a new plot on a green farm tile.
-            if (farmer.id === undefined) break;
-            const hoe = (farmer.inventory.tools ?? []).find(t => t.kind === "hoe" && t.durability > 0);
-            if (!hoe) break;
-            const tileX = intent.data.tileX as number;
-            const tileY = intent.data.tileY as number;
-            const occ = occupiedByOwner.get(farmer.id) ?? new Set();
-            const tileKey = `${tileX},${tileY}`;
-            if (occ.has(tileKey)) break; // already occupied
-            // Spawn new plot entity
-            this.world.spawn({
-              transform: { x: tileX, y: tileY, prevX: tileX, prevY: tileY, rotation: 0 },
-              plot: {
-                ownerId: farmer.id,
-                regionId: farmer.farmer?.currentRegion ?? (intent.data.regionId as string) as import("../world/regions").RegionId,
-                tileX,
-                tileY,
-                state: { kind: "empty" },
-              },
-            });
-            // Drain hoe durability
-            hoe.durability -= 1;
-            if (hoe.durability <= 0) {
-              const idx = (farmer.inventory.tools ?? []).indexOf(hoe);
-              if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
-            }
-            occ.add(tileKey);
-            occupiedByOwner.set(farmer.id, occ);
+            this.handleTill(farmer, intent, actCtx.occupiedByOwner);
             break;
           }
-
           case "chop-tree": {
-            if (farmer.id === undefined) break;
-            const axe = (farmer.inventory.tools ?? []).find(t => t.kind === "axe" && t.durability > 0);
-            if (!axe) break;
-            const tileX = intent.data.tileX as number;
-            const tileY = intent.data.tileY as number;
-            const feat = featuresByTile.get(`${tileX},${tileY}`);
-            if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") break;
-            // Award wood
-            if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
-            farmer.resources.wood += 2;
-            // Remove feature entity
-            this.world.despawn(feat);
-            featuresByTile.delete(`${tileX},${tileY}`);
-            // Drain axe
-            axe.durability -= 1;
-            if (axe.durability <= 0) {
-              const idx = (farmer.inventory.tools ?? []).indexOf(axe);
-              if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
-            }
+            this.handleChopTree(farmer, intent, actCtx.featuresByTile);
             break;
           }
-
           case "mine-stone": {
-            if (farmer.id === undefined) break;
-            const pick = (farmer.inventory.tools ?? []).find(t => t.kind === "pickaxe" && t.durability > 0);
-            if (!pick) break;
-            const tileX = intent.data.tileX as number;
-            const tileY = intent.data.tileY as number;
-            const feat = featuresByTile.get(`${tileX},${tileY}`);
-            if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") break;
-            if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
-            // Random drops
-            const roll = Math.random();
-            if (roll < STONE_GEODE_CHANCE) {
-              farmer.resources.geodes += 1;
-            } else if (roll < STONE_GEODE_CHANCE + STONE_IRON_CHANCE) {
-              farmer.resources.ironOre += 1;
-            } else {
-              farmer.resources.stone += 1;
-            }
-            this.world.despawn(feat);
-            featuresByTile.delete(`${tileX},${tileY}`);
-            // Drain pickaxe
-            pick.durability -= 1;
-            if (pick.durability <= 0) {
-              const idx = (farmer.inventory.tools ?? []).indexOf(pick);
-              if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
-            }
+            this.handleMineStone(farmer, intent, actCtx.featuresByTile);
             break;
           }
-
           case "refill-can": {
-            // Refill watering can — only valid at a water source: the farmer's
-            // own farm (home fountain) or a well (well-north/well-south).
-            // Without this guard the can refilled anywhere (mid-road, forest…),
-            // making the wells and fountains pointless.
-            const can = farmer.inventory.wateringCan;
-            if (!can) break;
-            const region = farmer.farmer?.currentRegion;
-            const atWaterSource =
-              region === "well-north" ||
-              region === "well-south" ||
-              region === farmer.farmer?.homeRegion;
-            if (!atWaterSource) break;
-            can.charges = can.maxCharges;
+            this.handleRefillCan(farmer);
             break;
           }
-
           case "buy-tool": {
-            // Buy a wooden tool from the shopkeeper. Must be at the village
-            // (where the shopkeeper stands) — deliberateBuyTool queues a
-            // travel-to-village intent first; this guard ensures the purchase
-            // doesn't resolve back on the farm if the travel hasn't completed.
-            if (farmer.farmer?.currentRegion !== "village") break;
-            const toolKind = intent.data.toolKind as ToolKind;
-            const tier: ToolTier = "wooden";
-            const price = TOOL_PRICE[tier];
-            if (farmer.inventory.gold < price) break;
-            farmer.inventory.gold -= price;
-            if (!farmer.inventory.tools) farmer.inventory.tools = [];
-            farmer.inventory.tools.push({ kind: toolKind, tier, durability: 100 });
+            this.handleBuyTool(farmer, intent);
             break;
           }
-
           case "craft-decoration": {
-            // Craft a farm decoration at the carpentry workshop.
-            // Consumes wood from ResourceInventory, places a FarmDecoration entity
-            // on a free tile in the farmer's farm. Boosts crop yield permanently.
-            if (farmer.id === undefined || !farmer.farmer?.homeRegion) break;
-            const kind = intent.data.kind as DecorationKind;
-            const recipe = DECORATION_RECIPE[kind];
-            if (!recipe) break;
-            const res = farmer.resources;
-            if (!res || res.wood < recipe.woodCost) break;
-
-            // Cap total boost: sum existing decorations for this farmer's farm.
-            let existingBoost = 0;
-            for (const e of this.world.query("farmDecoration")) {
-              if (e.farmDecoration.ownerId === farmer.id) {
-                existingBoost += DECORATION_RECIPE[e.farmDecoration.kind]?.yieldBoost ?? 0;
-              }
-            }
-            if (existingBoost >= MAX_DECORATION_BOOST) break; // already maxed
-
-            // Find a free tile in the farm (not occupied by plot/fountain/feature).
-            const homeRegion = farmer.farmer.homeRegion;
-            const regionDef = REGIONS.find(r => r.id === homeRegion);
-            if (!regionDef) break;
-
-            const usedTiles = new Set<string>();
-            for (const e of this.world.query("plot")) {
-              if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
-            }
-            for (const e of this.world.query("farmDecoration")) {
-              if (e.farmDecoration.regionId === homeRegion) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
-            }
-            for (const e of this.world.query("tileFeature")) {
-              if (e.tileFeature.regionId === homeRegion) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);
-            }
-            for (const e of this.world.query("fountain")) {
-              if (e.fountain.regionId === homeRegion && e.transform) {
-                usedTiles.add(`${Math.round(e.transform.x)},${Math.round(e.transform.y)}`);
-              }
-            }
-
-            let placed = false;
-            const b = regionDef.bounds;
-            outer: for (let ty = b.minY; ty <= b.maxY; ty++) {
-              for (let tx = b.minX; tx <= b.maxX; tx++) {
-                if (usedTiles.has(`${tx},${ty}`)) continue;
-                this.world.spawn({
-                  transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
-                  sprite: { atlasId: "main", frame: `decoration/${kind}`, layer: 20, tintRgba: 0xffffffff },
-                  farmDecoration: { kind, tileX: tx, tileY: ty, regionId: homeRegion, ownerId: farmer.id },
-                });
-                res.wood -= recipe.woodCost;
-                placed = true;
-                break outer;
-              }
-            }
-            if (!placed) break; // no free tile
+            this.handleCraftDecoration(farmer, intent);
             break;
           }
-
           case "upgrade-tool": {
-            // Upgrade a tool at the blacksmith.
-            if (blacksmithId === undefined) break;
-            const toolKind = intent.data.toolKind as ToolKind;
-            const tools = farmer.inventory.tools ?? [];
-            // Find the best existing tool of this kind (highest tier, lowest durability first for upgrade)
-            const existing = tools
-              .filter(t => t.kind === toolKind)
-              .sort((a, b) => {
-                const tierOrder: Record<ToolTier, number> = { wooden: 0, stone: 1, iron: 2 };
-                return tierOrder[b.tier] - tierOrder[a.tier]; // highest tier first
-              })[0];
-            if (!existing) break;
-            const nextTier = UPGRADE_PATH[existing.tier];
-            if (!nextTier) break; // already max
-            const cost = UPGRADE_COST[nextTier] ?? 99;
-            if (farmer.inventory.gold < cost) break;
-            farmer.inventory.gold -= cost;
-            // Replace tool with upgraded version (full durability)
-            const idx = tools.indexOf(existing);
-            if (idx >= 0) {
-              tools[idx] = { kind: toolKind, tier: nextTier, durability: nextTier === "stone" ? 150 : 200 };
-            }
+            this.handleUpgradeTool(farmer, intent, actCtx.blacksmithId);
             break;
           }
-
           case "process-crop": {
-            // Mill raw crops into goods at a premium — only at the mill region.
-            // Converts up to MILL_BATCH units of one crop into gold at MILL_PRICE
-            // (higher than the shopkeeper's buy price; the gradient justifies the
-            // trip). Mirrors the location-gated pattern of buy-tool/craft.
-            if (farmer.farmer?.currentRegion !== "mill") break;
-            const crop = intent.data.crop as CropKind;
-            if (!(crop in MILL_PRICE)) break;
-            const have = farmer.inventory.crops[crop];
-            const taken = Math.min(MILL_BATCH, have);
-            if (taken <= 0) break;
-            farmer.inventory.crops[crop] -= taken;
-            farmer.inventory.gold += MILL_PRICE[crop] * taken;
+            this.handleProcessCrop(farmer, intent);
             break;
           }
-
           case "forage": {
-            // Forage a seasonal zone — only rewards in the zone's season. The
-            // season is derived from the farmer's perceived currentDay, so the
-            // lock is real game logic (out of season = no reward).
-            const region = farmer.farmer?.currentRegion;
-            if (!region) break;
-            const zone = FORAGE_ZONES[region];
-            if (!zone) break;
-            const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
-            if (seasonForDay(day) !== zone.season) break; // out of season — no reward
-            farmer.inventory.gold += zone.reward;
+            this.handleForage(farmer, day);
             break;
           }
         }
