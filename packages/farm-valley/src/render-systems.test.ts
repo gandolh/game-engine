@@ -115,16 +115,19 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     return world;
   }
 
-  it("contains the static backdrop: grass/dirt/path tiles, fences, and plot dirt", () => {
+  it("contains the static backdrop: grass/dirt/ocean tiles, bridges, fences, and plot dirt", () => {
     const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
     const frames = new Set(sprites.map((s) => s.frame));
-    // Backdrop tile kinds present (the real layout has all three).
+    // Backdrop tile kinds present. In the archipelago every road tile spans
+    // water, so there is no plain "tile/path" — roads render as bridges over
+    // ocean instead.
     expect(frames.has("tile/grass")).toBe(true);
     expect(frames.has("tile/dirt")).toBe(true);
-    expect(frames.has("tile/path")).toBe(true);
+    expect(frames.has("tile/ocean")).toBe(true);
+    expect(frames.has("tile/bridge-h")).toBe(true);
     // Farm fences are baked in.
     expect(frames.has("tile/fence-h")).toBe(true);
-    // Lots of tiles (40×40 world is mostly walkable region/road).
+    // Lots of tiles (88×80 world: islands + ocean fill the whole grid).
     expect(sprites.length).toBeGreaterThan(100);
   });
 

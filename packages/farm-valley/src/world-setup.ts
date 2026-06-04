@@ -12,7 +12,7 @@ const STARTING_TOOLS: Tool[] = [
   { kind: "pickaxe", tier: "wooden", durability: 100 },
 ];
 
-/** Personality → region the farmer lives in (Cora N, Atticus E, Hannah S, Otto W, Pip far-E). */
+/** Personality → region the farmer lives in (Cora NW, Atticus NE, Hannah SE, Otto SW, Pip top). */
 const PERSONALITY_TO_REGION: Record<string, RegionId> = {
   conservative: "farm-cora",
   aggressive: "farm-atticus",

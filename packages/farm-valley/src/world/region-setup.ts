@@ -21,14 +21,13 @@ function placeProps(
   }
 }
 
-/** Blacksmith NPC tile within the blacksmith region (SE, shifted +12 with the
- *  east cluster when the world widened for Pip's farm). */
-const BLACKSMITH_TILE = { x: 45, y: 32 } as const;
+/** Blacksmith NPC tile within the blacksmith island (E of village, 58-67×34-43). */
+const BLACKSMITH_TILE = { x: 62, y: 41 } as const;
 
-/** Village tile where the market wall lives. */
-const MARKET_WALL_TILE = { x: 16, y: 16 } as const;
+/** Village tile where the market wall lives (village island 38-49×34-45). */
+const MARKET_WALL_TILE = { x: 40, y: 36 } as const;
 /** Village tile where the shopkeeper stands. */
-const SHOPKEEPER_TILE = { x: 23, y: 23 } as const;
+const SHOPKEEPER_TILE = { x: 47, y: 43 } as const;
 
 /** Personality → region assignment (Cora N, Atticus far-E, Hannah S, Otto W, Pip E-center). */
 const PERSONALITY_TO_REGION: Record<string, RegionId> = {
@@ -159,10 +158,10 @@ export function setupRegions(
     // Blacksmith NPC + forge props. The NPC patrols anvil → oven → quench.
     if (def.id === "blacksmith") {
       placeProps(world, [
-        { x: 44, y: 31, frame: "structure/forge-oven" },
-        { x: 46, y: 31, frame: "structure/tool-rack" },
-        { x: 46, y: 33, frame: "structure/anvil" },
-        { x: 48, y: 32, frame: "structure/quench-tub" },
+        { x: 61, y: 37, frame: "structure/forge-oven" },
+        { x: 63, y: 37, frame: "structure/tool-rack" },
+        { x: 63, y: 39, frame: "structure/anvil" },
+        { x: 65, y: 38, frame: "structure/quench-tub" },
       ]);
       world.spawn({
         transform: {
@@ -178,12 +177,12 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/blacksmith/idle",
           stations: [
-            // Stand below the anvil, face up, hammer.
-            { tileX: 46, tileY: 34, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
-            // Tend the oven (stand below it, face up, no swing pose).
-            { tileX: 44, tileY: 32, facing: "up", flipX: false, pose: null },
-            // Quench at the tub (stand left of it, face side/right).
-            { tileX: 47, tileY: 32, facing: "side", flipX: false, pose: null },
+            // Stand below the anvil (63,39), face up, hammer.
+            { tileX: 63, tileY: 40, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
+            // Tend the oven (61,37) — stand below it, face up, no swing pose.
+            { tileX: 61, tileY: 38, facing: "up", flipX: false, pose: null },
+            // Quench at the tub (65,38) — stand left of it, face side/right.
+            { tileX: 64, tileY: 38, facing: "side", flipX: false, pose: null },
           ],
           stationIndex: 0,
           phase: "working",
@@ -200,10 +199,10 @@ export function setupRegions(
       const cx = def.center.x;
       const cy = def.center.y;
       placeProps(world, [
-        { x: 3, y: 3, frame: "structure/workbench" },
-        { x: 6, y: 3, frame: "structure/sawhorse" },
-        { x: 2, y: 6, frame: "structure/log-pile" },
-        { x: 6, y: 6, frame: "structure/plank-stack" },
+        { x: 23, y: 37, frame: "structure/workbench" },
+        { x: 26, y: 37, frame: "structure/sawhorse" },
+        { x: 22, y: 40, frame: "structure/log-pile" },
+        { x: 26, y: 40, frame: "structure/plank-stack" },
       ]);
       world.spawn({
         transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
@@ -213,12 +212,12 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/carpenter/idle",
           stations: [
-            // Saw at the workbench (stand below, face up).
-            { tileX: 3, tileY: 4, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Saw the log on the sawhorse (stand below, face up).
-            { tileX: 6, tileY: 4, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Inspect the log pile (stand right of it, face side/left).
-            { tileX: 3, tileY: 6, facing: "side", flipX: true, pose: null },
+            // Saw at the workbench (23,37) — stand below, face up.
+            { tileX: 23, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Saw the log on the sawhorse (26,37) — stand below, face up.
+            { tileX: 26, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Inspect the log pile (22,40) — stand right of it, face side/left.
+            { tileX: 23, tileY: 40, facing: "side", flipX: true, pose: null },
           ],
           stationIndex: 0,
           phase: "working",

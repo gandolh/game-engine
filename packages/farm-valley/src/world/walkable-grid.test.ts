@@ -12,40 +12,38 @@ describe('buildWalkableGrid', () => {
 
   it('village center is walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[19 * WORLD_WIDTH + 19]).toBe(0); // village center ~(19,19)
+    expect(grid.cells[39 * WORLD_WIDTH + 43]).toBe(0); // village center (43,39)
   });
 
-  it('void tile at (0,12) is blocked', () => {
-    // West edge gap between Otto's farm (y≥14) and carpentry (y≤9) — still void.
-    // (12,0) is no longer void: the ice-pond region now covers x10-13, y0-3.
+  it('ocean tile at (0,0) is blocked', () => {
+    // Archipelago: every non-region, non-road tile is ocean (blocked). The
+    // top-left corner is open water with no island near it.
     const grid = buildWalkableGrid();
-    expect(grid.cells[12 * WORLD_WIDTH + 0]).toBe(1);
+    expect(grid.cells[0 * WORLD_WIDTH + 0]).toBe(1);
   });
 
-  it('road tiles are walkable', () => {
+  it('bridge (road) tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[12 * WORLD_WIDTH + 19]).toBe(0); // North road
-    expect(grid.cells[19 * WORLD_WIDTH + 26]).toBe(0); // East road
-    expect(grid.cells[26 * WORLD_WIDTH + 20]).toBe(0); // South road
-    expect(grid.cells[20 * WORLD_WIDTH + 12]).toBe(0); // West road
+    expect(grid.cells[38 * WORLD_WIDTH + 34]).toBe(0); // village ↔ carpentry
+    expect(grid.cells[20 * WORLD_WIDTH + 42]).toBe(0); // village ↔ Pip
+    expect(grid.cells[38 * WORLD_WIDTH + 54]).toBe(0); // village ↔ blacksmith
+    expect(grid.cells[50 * WORLD_WIDTH + 42]).toBe(0); // village ↔ mill
   });
 
   it('resource zone tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[3 * WORLD_WIDTH + 41]).toBe(0);  // forest-north interior (38-45, shifted +12)
-    expect(grid.cells[4 * WORLD_WIDTH + 49]).toBe(0);  // quarry-north interior (47-51, shifted +12)
-    expect(grid.cells[29 * WORLD_WIDTH + 3]).toBe(0);  // forest-south interior
-    expect(grid.cells[37 * WORLD_WIDTH + 4]).toBe(0);  // quarry-south interior
+    expect(grid.cells[7 * WORLD_WIDTH + 25]).toBe(0);  // forest-north interior (22-29,4-11)
+    expect(grid.cells[7 * WORLD_WIDTH + 61]).toBe(0);  // quarry-north interior (58-65,4-11)
+    expect(grid.cells[59 * WORLD_WIDTH + 25]).toBe(0); // forest-south interior
+    expect(grid.cells[59 * WORLD_WIDTH + 61]).toBe(0); // quarry-south interior
   });
 
   it('total walkable tile count matches layout', () => {
-    // Verified by independent BFS count: 1447 tiles (world widened 40→52 and a
-    // 5th 12×12 farm — Pip's — added; east cluster shifted +12).
-    // Breakdown (approximate): 5×144 farms + 144 village + 100 blacksmith
-    // + 100 carpentry + 64 forest-north + 50 quarry-north + 64 forest-south
-    // + 50 quarry-south + 30 mill + 4 well-north + 4 well-south + 18 mushroom-grove
-    // + 16 ice-pond + the road network connecting all regions.
-    const EXPECTED_WALKABLE = 1447;
+    // Verified by independent BFS count: 1849 tiles. Archipelago (88×80): five
+    // 12×12 farms (5×144=720) + 144 village + 2×100 craft islands + 4×64
+    // resource zones + 80 mill + 2×4 wells + 2×64 seasonal zones + the bridge
+    // network connecting all islands. Recompute if islands/bridges change.
+    const EXPECTED_WALKABLE = 1849;
     const grid = buildWalkableGrid();
     let walkableCount = 0;
     for (let i = 0; i < grid.cells.length; i++) {
@@ -64,9 +62,9 @@ describe('buildWalkableGrid', () => {
     const walkable = (x: number, y: number) =>
       x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT && grid.cells[idx(x, y)] === 0;
 
-    const start = idx(19, 19); // village center
+    const start = idx(43, 39); // village center (88×80 archipelago)
     const seen = new Set<number>([start]);
-    const queue: Array<[number, number]> = [[19, 19]];
+    const queue: Array<[number, number]> = [[43, 39]];
     while (queue.length > 0) {
       const [x, y] = queue.shift()!;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {

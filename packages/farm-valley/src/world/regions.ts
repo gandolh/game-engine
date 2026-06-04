@@ -19,90 +19,50 @@ export interface RegionDef {
   center: { x: number; y: number };
 }
 
-// World widened east 40 → 52 (brief: add a 5th, player-controlled farm). The
-// original square (cols 0-39) is untouched on the west/center/south; everything
-// from the East farm rightward is shifted +12 cols, opening a far-east column
-// (cols 40-51) for Pip's farm. Height is unchanged.
-export const WORLD_WIDTH = 52;
-export const WORLD_HEIGHT = 40;
+// Archipelago layout (88×80). Every zone is an isolated island surrounded by
+// ocean on all sides; islands NEVER touch (≥1 tile of water between any two
+// region bodies) and are connected ONLY by 2-tile-wide bridges (the ROADS
+// below, which only ever span water). The village sits dead-center as the hub
+// most bridges radiate from; Pip's farm is the top island; the four AI farms
+// occupy the four corners to maximise travel.
+//
+// The renderer is already island-aware: backdropFrame paints every non-walkable
+// tile as ocean, computeShores adds foam on land-bordering-ocean, and
+// computeBridges decks any road-only tile touching ocean. So this layout drives
+// the whole archipelago purely from these bounds + ROADS.
+//
+//   C(NW)     forest-N     P(top)      quarry-N    A(NE)
+//   mushroom  carpentry    VILLAGE     blacksmith  ice-pond   (mid band rows 34-45)
+//   O(SW)     forest-S     mill        quarry-S    H(SE)
+export const WORLD_WIDTH = 88;
+export const WORLD_HEIGHT = 80;
 
-/** Cols added on the east; east-cluster regions/roads shift by this amount. */
-const EAST_SHIFT = 12;
+// ── Farm islands (12×12) ─────────────────────────────────────────────────────
+const FARM_PIP_BOUNDS      = { minX: 38, minY:  2, maxX: 49, maxY: 13 }; // Top-center (player)
+const FARM_CORA_BOUNDS     = { minX:  2, minY:  2, maxX: 13, maxY: 13 }; // NW corner
+const FARM_ATTICUS_BOUNDS  = { minX: 74, minY:  2, maxX: 85, maxY: 13 }; // NE corner
+const FARM_OTTO_BOUNDS     = { minX:  2, minY: 54, maxX: 13, maxY: 65 }; // SW corner
+const FARM_HANNAH_BOUNDS   = { minX: 74, minY: 54, maxX: 85, maxY: 65 }; // SE corner
 
-// ── Core region bounds (inclusive) ──────────────────────────────────────────
-const VILLAGE_BOUNDS       = { minX: 14, minY: 14, maxX: 25, maxY: 25 };
-const FARM_CORA_BOUNDS     = { minX: 14, minY:  0, maxX: 25, maxY: 11 }; // North
-const FARM_ATTICUS_BOUNDS  = { minX: 40, minY: 14, maxX: 51, maxY: 25 }; // East (shifted +12)
-const FARM_HANNAH_BOUNDS   = { minX: 14, minY: 28, maxX: 25, maxY: 39 }; // South
-const FARM_OTTO_BOUNDS     = { minX:  0, minY: 14, maxX: 11, maxY: 25 }; // West
-// Pip (player): occupies the column the East farm used to sit in (28-39), now a
-// free 12×12 block between the village's east road and Atticus's new position.
-const FARM_PIP_BOUNDS      = { minX: 28, minY: 14, maxX: 39, maxY: 25 }; // East-center
+// ── Village hub (12×12) + craft islands flanking it (10×10) ──────────────────
+const VILLAGE_BOUNDS       = { minX: 38, minY: 34, maxX: 49, maxY: 45 }; // center hub
+const CARPENTRY_BOUNDS     = { minX: 20, minY: 34, maxX: 29, maxY: 43 }; // W of village
+const BLACKSMITH_BOUNDS    = { minX: 58, minY: 34, maxX: 67, maxY: 43 }; // E of village
 
-// ── Special buildings ────────────────────────────────────────────────────────
-// Blacksmith: isolated SE corner, reachable via L-bridge from east road (+12).
-const BLACKSMITH_BOUNDS    = { minX: 42, minY: 30, maxX: 51, maxY: 39 };
-// Carpentry: NW corner, reachable via path from north road.
-const CARPENTRY_BOUNDS     = { minX:  0, minY:  0, maxX:  9, maxY:  9 };
+// ── Resource zones (8×8) ─────────────────────────────────────────────────────
+const FOREST_NORTH_BOUNDS  = { minX: 22, minY:  4, maxX: 29, maxY: 11 };
+const QUARRY_NORTH_BOUNDS  = { minX: 58, minY:  4, maxX: 65, maxY: 11 };
+const FOREST_SOUTH_BOUNDS  = { minX: 22, minY: 56, maxX: 29, maxY: 63 };
+const QUARRY_SOUTH_BOUNDS  = { minX: 58, minY: 56, maxX: 65, maxY: 63 };
 
-// ── Resource zones ─────────────────────────────────────────────────────────
-const FOREST_NORTH_BOUNDS  = { minX: 38, minY:  0, maxX: 45, maxY:  7 }; // 8×8 (+12)
-const QUARRY_NORTH_BOUNDS  = { minX: 47, minY:  0, maxX: 51, maxY:  9 }; // 5×10 (+12)
-const FOREST_SOUTH_BOUNDS  = { minX:  0, minY: 26, maxX:  7, maxY: 33 }; // 8×8
-const QUARRY_SOUTH_BOUNDS  = { minX:  0, minY: 35, maxX:  9, maxY: 39 }; // 10×5
+// ── Mill (south of village) + wells (near the quarries) ──────────────────────
+const MILL_BOUNDS          = { minX: 39, minY: 56, maxX: 48, maxY: 63 };
+const WELL_NORTH_BOUNDS    = { minX: 69, minY:  6, maxX: 70, maxY:  7 }; // 2×2
+const WELL_SOUTH_BOUNDS    = { minX: 69, minY: 58, maxX: 70, maxY: 59 }; // 2×2
 
-// ── New zones ─────────────────────────────────────────────────────────────────
-//
-// Mill: 6×5 zone south of village, on the south road gap (between village bottom
-// row 26 and Hannah top row 28). Reachable via the south road.
-//
-// Wells: 2×2 pads adjacent to the quarries, giving agents an irrigation-refill
-// destination that is structurally closer than heading home.
-//   well-north — east of quarry-north road, row 11-12
-//   well-south — below quarry-south road, col 11-12
-//
-// Mushroom grove (seasonal): 6×3 zone in the SE gap between the blacksmith L-bridge
-// and Hannah. Autumn only for field-work intent. Year-round walkable (agents pass
-// through freely; the seasonal lock is enforced by agent behaviour, not pathfinding).
-//
-// Ice pond (seasonal): 4×4 zone in the NW gap above carpentry and left of Cora road.
-// Winter only for field-work intent.
-//
-// Updated world map (40×40):
-//
-//    0         1         2         3
-//    0123456789012345678901234567890123456789
-//  0 WWWWWWWWWW iiii CCCCCCCCCCCCFFFFFFFFxQQQQQ
-//  3 WWWWWWWWWW iiii
-//  7 WWWWWWWWWW....CCCCCCCCCCCCFFFFFFFFxQQQQQ
-//  8                            pp         QQ
-// 10           pp  CCCCCCCCCCCC pp   ww    QQ
-// 11                                ww
-// 12           pppppppppppp              pppp
-// 13                        pppppppppppppp
-// 14 OOOO...   VVVVVVVVVVVV    AAAAAAAAAAAA
-// 25 OOOO...   VVVVVVVVVVVV    AAAAAAAAAAAA
-// 26 ffff pp   pp (south road)  pp
-// 27           MM MMMM                 mmmmmm
-// 31           MM MMMM
-// 33 ffff                             mmmmmm
-// 34      ww
-// 35 qqqq pp HH........HH
-// 36      ww
-// 39 qqqq    HH........HH
-//
-// M = mill (6×5, col 14-19, row 27-31)
-// i = ice-pond (4×4, col 10-13, row 0-3) — winter seasonal
-// m = mushroom-grove (6×3, col 28-33, row 27-29) — autumn seasonal
-// ww (north) = well-north (2×2, col 37-38, row 11-12)
-// ww (south) = well-south (2×2, col 11-12, row 34-35) — but quarry-south is 0-9,35-39
-//              adjusted: col 10-11, row 34-35 (just east of quarry-south bottom)
-
-const MILL_BOUNDS          = { minX: 14, minY: 27, maxX: 19, maxY: 31 }; // 6×5
-const WELL_NORTH_BOUNDS    = { minX: 49, minY: 11, maxX: 50, maxY: 12 }; // 2×2 (+12)
-const WELL_SOUTH_BOUNDS    = { minX: 10, minY: 34, maxX: 11, maxY: 35 }; // 2×2
-const MUSHROOM_GROVE_BOUNDS = { minX: 40, minY: 27, maxX: 45, maxY: 29 }; // 6×3 (+12)
-const ICE_POND_BOUNDS      = { minX: 10, minY:  0, maxX: 13, maxY:  3 }; // 4×4
+// ── Seasonal zones ───────────────────────────────────────────────────────────
+const MUSHROOM_GROVE_BOUNDS = { minX:  6, minY: 34, maxX: 13, maxY: 41 }; // far W — autumn
+const ICE_POND_BOUNDS      = { minX: 74, minY: 34, maxX: 81, maxY: 41 }; // far E — winter
 
 function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: number }): { x: number; y: number } {
   return {
@@ -136,64 +96,50 @@ interface RoadDef {
   minX: number; minY: number; maxX: number; maxY: number;
 }
 
+// Every entry is a 2-tile-wide bridge that spans ONLY water (it touches no land
+// except the two island edges it joins). Together they form a tree rooted at the
+// village: village → {carpentry, blacksmith, Pip, mill}; carpentry → the west
+// chain (mushroom-grove, forest-north, forest-south); blacksmith → the east
+// chain (ice-pond, quarry-north, quarry-south); each corner farm + each well
+// hangs off its nearest resource island. Verified: no island-to-island
+// adjacency and full BFS connectivity from the village center (walkable-grid
+// test asserts both).
 const ROADS: readonly RoadDef[] = [
-  // Farm ↔ village roads (2 tiles wide)
-  { minX: 18, minY: 12, maxX: 21, maxY: 13 }, // North road  (Cora ↔ Village)
-  { minX: 26, minY: 18, maxX: 27, maxY: 21 }, // East road   (Pip ↔ Village)
-  { minX: 18, minY: 26, maxX: 21, maxY: 27 }, // South road  (Hannah ↔ Village)
-  { minX: 12, minY: 18, maxX: 13, maxY: 21 }, // West road   (Otto ↔ Village)
+  // ── Village hub spokes ──
+  { minX: 30, minY: 38, maxX: 37, maxY: 39 }, // village ↔ carpentry
+  { minX: 50, minY: 38, maxX: 57, maxY: 39 }, // village ↔ blacksmith
+  { minX: 42, minY: 14, maxX: 43, maxY: 33 }, // village ↔ Pip (top)
+  { minX: 42, minY: 46, maxX: 43, maxY: 55 }, // village ↔ mill
 
-  // Pip ↔ Atticus connector: Pip's east edge (col 39) abuts Atticus's west edge
-  // (col 40). A 2-tile-tall bridge at rows 18-21 keeps the two east farms linked
-  // so Atticus (and everyone) can still reach the village via Pip's east road.
-  { minX: 38, minY: 18, maxX: 41, maxY: 21 }, // Pip ↔ Atticus bridge
+  // ── West chain (off carpentry) ──
+  { minX: 14, minY: 37, maxX: 19, maxY: 38 }, // carpentry ↔ mushroom-grove
+  { minX: 24, minY: 12, maxX: 25, maxY: 33 }, // carpentry ↔ forest-north
+  { minX: 24, minY: 44, maxX: 25, maxY: 55 }, // carpentry ↔ forest-south
 
-  // Blacksmith L-bridge: south from Atticus's SE, hook east into forge (+12)
-  { minX: 38, minY: 22, maxX: 39, maxY: 29 }, // vertical leg
-  { minX: 38, minY: 28, maxX: 42, maxY: 29 }, // horizontal leg
+  // ── East chain (off blacksmith) ──
+  { minX: 68, minY: 37, maxX: 73, maxY: 38 }, // blacksmith ↔ ice-pond
+  { minX: 60, minY: 12, maxX: 61, maxY: 33 }, // blacksmith ↔ quarry-north
+  { minX: 60, minY: 44, maxX: 61, maxY: 55 }, // blacksmith ↔ quarry-south
 
-  // Carpentry: west from north road, south into workshop
-  { minX: 10, minY: 12, maxX: 17, maxY: 13 }, // horizontal connector
-  { minX: 10, minY:  9, maxX: 11, maxY: 13 }, // vertical connector
+  // ── Corner farms hang off the nearest resource island ──
+  { minX: 14, minY:  6, maxX: 21, maxY:  7 }, // Cora ↔ forest-north
+  { minX: 66, minY:  6, maxX: 73, maxY:  7 }, // Atticus ↔ quarry-north
+  { minX: 14, minY: 59, maxX: 21, maxY: 60 }, // Otto ↔ forest-south
+  { minX: 66, minY: 59, maxX: 73, maxY: 60 }, // Hannah ↔ quarry-south
 
-  // Forest North connector: south edge (row 8) → merge into north road (+12)
-  { minX: 38, minY:  8, maxX: 39, maxY: 13 }, // vertical: Forest N bottom → Atticus top border
-  { minX: 38, minY: 13, maxX: 40, maxY: 14 }, // horizontal: join Atticus top-left
-
-  // Quarry North connector: south edge (row 10) → Atticus top edge (row 14) (+12)
-  { minX: 47, minY: 10, maxX: 48, maxY: 13 }, // vertical: Quarry N bottom → row 13
-  { minX: 40, minY: 13, maxX: 46, maxY: 14 }, // horizontal: west to Atticus top-left
-
-  // Forest South connector: east edge (col 8) → Otto south border (row 25-26)
-  { minX:  8, minY: 25, maxX:  9, maxY: 26 }, // 1-step bridge joining Otto bottom to forest
-
-  // Quarry South connector: east edge (col 10) → Hannah west border
-  { minX: 10, minY: 35, maxX: 13, maxY: 36 }, // horizontal: Quarry S right → col 14 (Hannah left)
-
-  // Mill connector: spur from mill south edge (row 32) down to Hannah north road
-  { minX: 18, minY: 27, maxX: 19, maxY: 32 }, // vertical spur — south road → mill bottom
-
-  // Well-north connector: south stub from quarry-north road to the well pad (+12)
-  { minX: 49, minY: 10, maxX: 50, maxY: 11 }, // vertical: quarry road → well pad
-
-  // Well-south connector: east stub from quarry-south road to the well pad
-  { minX: 10, minY: 35, maxX: 11, maxY: 35 }, // (shares tile with quarry-south connector)
-
-  // Mushroom grove connector: west stub from blacksmith L-bridge vertical leg (+12)
-  { minX: 40, minY: 28, maxX: 41, maxY: 29 }, // 2-tile bridge into grove west edge
-
-  // Ice pond connector: south stub from carpentry east edge into pond south
-  { minX: 10, minY:  4, maxX: 11, maxY:  9 }, // vertical: pond bottom → carpentry north
+  // ── Wells (stub off the adjacent quarry) ──
+  { minX: 66, minY:  6, maxX: 68, maxY:  7 }, // well-north ↔ quarry-north
+  { minX: 66, minY: 58, maxX: 68, maxY: 59 }, // well-south ↔ quarry-south
 ];
 
 // Town square: inner 4×4 of village (auction podium + notice board markers)
-export const TOWN_SQUARE = { minX: 18, minY: 18, maxX: 21, maxY: 21 };
+export const TOWN_SQUARE = { minX: 42, minY: 38, maxX: 45, maxY: 41 };
 
 // Auction podium tile: dead center of the town square — where agents gather for CFP
-export const AUCTION_PODIUM_TILE = { x: 19, y: 19 } as const;
+export const AUCTION_PODIUM_TILE = { x: 43, y: 39 } as const;
 
 // Notice board tile: west edge of town square
-export const NOTICE_BOARD_TILE = { x: 17, y: 19 } as const;
+export const NOTICE_BOARD_TILE = { x: 42, y: 39 } as const;
 
 function inBounds(
   x: number,

@@ -286,7 +286,7 @@ export const FORGE_FIRE_FRAMES = [
 
 /** Tile of the blacksmith oven (matches region-setup placeProps). The fire
  *  overlay is drawn here, above the oven body. */
-export const FORGE_OVEN_TILE = { x: 44, y: 31 } as const;
+export const FORGE_OVEN_TILE = { x: 61, y: 37 } as const;
 
 /**
  * The static backdrop: tiles + farm fences + plot dirt. These never change

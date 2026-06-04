@@ -2,6 +2,16 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-04] impl | World rebuilt as an archipelago (88×80, island-per-zone)
+
+Replaced the abutting-regions map with a true **archipelago**: every zone is its own island ringed by ocean, connected **only** by 2-tile-wide bridges (no land touching between islands). Per request: **Pip's farm moved to the top**, the **four AI farms pushed to the four corners** to encourage travel, **village kept as the central hub** all bridges radiate from. Map grew **52×40 → 88×80**.
+
+- **[world/regions.ts](../packages/farm-valley/src/world/regions.ts)** is the whole change: new `WORLD_WIDTH/HEIGHT`, a 17-island bounds table (Pip top, farms in corners, village center, craft islands flanking, resources/mill/wells/seasonal filling the rest), and a `ROADS` array that is now 16 water-spanning bridges forming a tree rooted at the village. `EAST_SHIFT` and the stale ASCII map deleted. `TOWN_SQUARE`/`AUCTION_PODIUM_TILE`/`NOTICE_BOARD_TILE` recomputed into the new village bounds.
+- **Coordinated coordinate moves:** `BLACKSMITH_TILE`/`MARKET_WALL_TILE`/`SHOPKEEPER_TILE` + forge & carpentry props/NPC stations ([region-setup.ts](../packages/farm-valley/src/world/region-setup.ts)) and `FORGE_OVEN_TILE` ([render-systems.ts](../packages/farm-valley/src/render-systems.ts)) re-anchored inside the new island bounds. Both `PERSONALITY_TO_REGION` maps unchanged (IDs stable).
+- **Renderer untouched structurally** — `backdropFrame`/`computeShores`/`computeBridges`/`computeFences`/`OCEAN_TILES` derive everything from `regionAt`/`isWalkable`, so the islands, shores and bridges fall out for free. No more plain `tile/path` (every road is a bridge).
+- **Tests:** `regions.test.ts`, `walkable-grid.test.ts` (`EXPECTED_WALKABLE` 1447→**1849**, BFS start → new village center 43,39), `new-mechanics.test.ts` (Cora fountain 15,1→3,3; well-north 49,11→69,6) and `render-systems.test.ts` (dropped the `tile/path` assertion, added `tile/ocean`+`tile/bridge-h`) updated. `npm run typecheck`, all 416 farm-valley + 47 engine tests, and `check-determinism` all pass. Verified no island is stranded (BFS reachability guard) and JS-pathfinder routes corner→village (pathLen 51–58).
+- Wiki: rewrote the "World widening 40→52" section of [wiki/player-and-interaction.md](wiki/player-and-interaction.md) into "Archipelago layout (88×80)".
+
 ## [2026-06-04] doc | Pip + interaction systems folded into the wiki
 
 Promoted the post-brief-35 work — previously captured only in session/agent memory — into the corpus.

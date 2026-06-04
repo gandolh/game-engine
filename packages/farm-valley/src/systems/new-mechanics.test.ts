@@ -121,28 +121,28 @@ describe("buy-tool location guard", () => {
 });
 
 describe("refill-can location guard", () => {
-  // farm-cora fountain is at (15, 1) — minX+1=15, minY+1=1 (see region-setup.ts).
-  // Farmer must be within Chebyshev 1 of that tile to refill.
+  // farm-cora fountain is at (3, 3) — minX+1=3, minY+1=3 (see region-setup.ts;
+  // Cora is the NW-corner island at 2-13×2-13). Farmer must be within Chebyshev 1.
   it("refills when adjacent to the home fountain tile", () => {
     const f = makeFarmer({ region: "farm-cora", homeRegion: "farm-cora", charges: 0 });
-    // Place farmer at (16, 1) — Chebyshev 1 from fountain at (15, 1).
-    f.transform = { x: 16, y: 1, prevX: 16, prevY: 1, rotation: 0 };
+    // Place farmer at (4, 3) — Chebyshev 1 from fountain at (3, 3).
+    f.transform = { x: 4, y: 3, prevX: 4, prevY: 3, rotation: 0 };
     f.intentions!.queue.push({ kind: "refill-can", data: {}, priority: 0 });
-    // Spawn a fountain entity at (15, 1) for farm-cora so ActSystem can find it.
+    // Spawn a fountain entity at (3, 3) for farm-cora so ActSystem can find it.
     const fountainEntity: Partial<GameEntity> = {
-      transform: { x: 15, y: 1, prevX: 15, prevY: 1, rotation: 0 },
+      transform: { x: 3, y: 3, prevX: 3, prevY: 3, rotation: 0 },
       fountain: { isFountain: true, regionId: "farm-cora" },
     };
     runAct(f, [fountainEntity]);
     expect(f.inventory!.wateringCan!.charges).toBe(10);
   });
 
-  // well-north center is at (49, 11) after the world widened (+12). Farmer must
-  // be within Chebyshev 1. Wells use REGIONS data (no fountain entity needed).
+  // well-north center is at (69, 6) in the 88×80 archipelago. Farmer must be
+  // within Chebyshev 1. Wells use REGIONS data (no fountain entity needed).
   it("refills at a well (adjacent to well center)", () => {
     const f = makeFarmer({ region: "well-north", homeRegion: "farm-cora", charges: 0 });
-    // Place farmer at well-north center (49, 11) — Chebyshev 0.
-    f.transform = { x: 49, y: 11, prevX: 49, prevY: 11, rotation: 0 };
+    // Place farmer at well-north center (69, 6) — Chebyshev 0.
+    f.transform = { x: 69, y: 6, prevX: 69, prevY: 6, rotation: 0 };
     f.intentions!.queue.push({ kind: "refill-can", data: {}, priority: 0 });
     runAct(f);
     expect(f.inventory!.wateringCan!.charges).toBe(10);
