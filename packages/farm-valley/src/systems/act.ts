@@ -1,5 +1,5 @@
 import type { SimContext, System, World, MessageBus, Intention, With, Rng } from "@engine/core";
-import { REGIONS, isWalkable } from "../world/regions";
+import { REGIONS, isWalkable, isFishingIsle } from "../world/regions";
 import type { GameEntity, CropKind, PlotState, ToolKind, ToolTier, DecorationKind, FishKind } from "../components";
 import {
   TOOL_PRICE,
@@ -741,8 +741,8 @@ export class ActSystem implements System {
   ): void {
     const rod = (farmer.inventory.tools ?? []).find((t) => t.kind === "fishing-rod");
     if (!rod || !farmer.transform) return;
-    // Must be standing on the fishing isle.
-    if (farmer.farmer?.currentRegion !== "fishing-isle") return;
+    // Must be standing on a fishing isle.
+    if (!isFishingIsle(farmer.farmer?.currentRegion ?? null)) return;
 
     const fx = Math.round(farmer.transform.x);
     const fy = Math.round(farmer.transform.y);

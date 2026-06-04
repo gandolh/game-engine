@@ -108,7 +108,7 @@ Post-brief-35 work delivered directly in working sessions (no formal brief). Ful
 - **Bridges** — road tiles spanning water render as `tile/bridge-h` (rotated for vertical spans) via `computeBridges()`, not a flat dirt path.
 - **Craft-NPC idle pose** — blacksmith/carpenter use an `idlePose` at pose-less stations (e.g. the oven) so they no longer revert to the building sprite.
 - **Plot layout** — 2×2 grid spaced ≥2 cells apart (`PLOT_OFFSETS`); Pip starts on its first plot.
-- **Fishing** — destination activity at a new 8×8 **fishing isle** (sand, bridged S of the mill). `fish` action (1 AP, random 5–30 s, minnow/bass/salmon = 1/3/5 gold). Rarity tilts on **bubble spots** that drift daily around the isle (`BubbleSystem`); casting next to one favours rare fish. One durability-free rod (hotbar slot 5). **AI opportunist + aggressive fish too** (changed the determinism baseline; re-verified MATCH ×3 seeds). See [player-and-interaction.md](player-and-interaction.md) → Fishing.
+- **Fishing** — destination activity at **two 8×8 fishing isles** (sand, bridged S of the mill and S of forest-south). `fish` action (1 AP, random 5–30 s, minnow/bass/salmon = 1/3/5 gold). Rarity tilts on **bubble spots** that drift daily around each isle (`BubbleSystem`); casting next to one favours rare fish. One durability-free rod (hotbar slot 5). **AI opportunist + aggressive fish too** (changed the determinism baseline; re-verified MATCH ×3 seeds). See [player-and-interaction.md](player-and-interaction.md) → Fishing.
 - **Carpentry floor → stone** (`tile/carpentry-floor`); **more decoration props** (`barrel`/`crate`/`potted-plant`/`lamp-post`/`signpost`/`hay-bale`/`bush`/`log-stack`) scattered as visual-only dressing. Atlas now 157 frames.
 
 ## Open gaps

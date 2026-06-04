@@ -2,7 +2,7 @@ import type { GameEntity } from "../components";
 import { recordReason, DECORATION_RECIPE, MAX_DECORATION_BOOST, TOOL_PRICE } from "../components";
 import type { DecorationKind, FarmDecoration, ToolKind } from "../components";
 import type { PlotWaterSense } from "../systems/plot-sense";
-import { REGIONS } from "../world/regions";
+import { REGIONS, isFishingIsle } from "../world/regions";
 import { seasonForDay, type Season } from "../protocols/weather";
 import { isWithinReach } from "../systems/proximity";
 
@@ -737,11 +737,16 @@ function nearestTile(
 }
 
 /**
- * Fishing-isle cast tile — a fixed edge tile of the fishing isle whose west
- * neighbour is open ocean, so a farmer standing here can cast (ActSystem scans
- * the 4-neighbours for water). AI farmers travel here, then queue `fish`.
+ * Fishing-isle cast tiles — one edge tile per isle whose west neighbour is open
+ * ocean, so a farmer standing here can cast (ActSystem scans the 4-neighbours
+ * for water). AI farmers travel to the nearest one, then queue `fish`.
+ *   fishing-isle   (40–47×68–75): west edge (40,71), ocean at (39,71)
+ *   fishing-isle-2 (22–29×68–75): west edge (22,71), ocean at (21,71)
  */
-const FISHING_CAST_TILE = { x: 40, y: 71 } as const;
+const FISHING_CAST_TILES = [
+  { x: 40, y: 71 },
+  { x: 22, y: 71 },
+] as const;
 
 /**
  * Discretionary fishing trip for AI farmers. Every `period` days a farmer with
@@ -768,11 +773,20 @@ export function deliberateFishing(
   // Must hold a rod (everyone starts with one, but be defensive).
   if (!(farmer.inventory?.tools ?? []).some((t) => t.kind === "fishing-rod")) return;
 
-  if (farmer.farmer.currentRegion !== "fishing-isle") {
+  if (!isFishingIsle(farmer.farmer.currentRegion ?? null)) {
     if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
+      // Head to whichever isle's cast tile is nearest (Manhattan).
+      const t = farmer.transform;
+      const cast = t
+        ? [...FISHING_CAST_TILES].sort(
+            (a, b) =>
+              (Math.abs(a.x - t.x) + Math.abs(a.y - t.y)) -
+              (Math.abs(b.x - t.x) + Math.abs(b.y - t.y)),
+          )[0]!
+        : FISHING_CAST_TILES[0];
       farmer.intentions.queue.push({
         kind: "travel",
-        data: { targetTile: { x: FISHING_CAST_TILE.x, y: FISHING_CAST_TILE.y } },
+        data: { targetTile: { x: cast.x, y: cast.y } },
         priority: priority - 1,
       });
     }

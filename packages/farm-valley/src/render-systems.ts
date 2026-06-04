@@ -75,7 +75,7 @@ function backdropFrame(tx: number, ty: number): string | null {
   if (region === "well-north" || region === "well-south") return "tile/stone-floor";
   if (region === "mushroom-grove") return "tile/mushroom-floor";
   if (region === "ice-pond") return "tile/ice-floor";
-  if (region === "fishing-isle") return "tile/sand";
+  if (region === "fishing-isle" || region === "fishing-isle-2") return "tile/sand";
   if (region === "village") {
     // Market square gets the decorative floor; outer village stays cobblestone
     if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&

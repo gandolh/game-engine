@@ -1,6 +1,6 @@
 import type { SimContext, System, World, Intention } from "@engine/core";
 import type { GameEntity, CropKind } from "../components";
-import { regionAt, isWalkable, type RegionId } from "../world/regions";
+import { regionAt, isWalkable, isFishingIsle, type RegionId } from "../world/regions";
 
 /**
  * PlayerControlSystem — turns buffered keyboard input into the player farmer
@@ -151,7 +151,7 @@ export class PlayerControlSystem implements System {
           // faced tile (tx,ty) must be ocean (non-walkable); ActSystem re-checks
           // that Pip is on the isle + adjacent to water, and reads bubbles for
           // rarity. We don't gate on a specific spot — any shoreline casts.
-          const onIsle = entity.farmer?.currentRegion === "fishing-isle";
+          const onIsle = isFishingIsle(entity.farmer?.currentRegion ?? null);
           if (onIsle && !isWalkable(tx, ty)) {
             return { kind: "fish", data: { tileX: tx, tileY: ty }, priority: 0 };
           }
