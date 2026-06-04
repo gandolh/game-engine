@@ -168,7 +168,7 @@ function computeFences(): FenceTile[] {
   return out;
 }
 
-clearToColor(12, 13, 18, 255); // matches the renderer's #0c0d12 void color
+clearToColor(24, 20, 37, 255); // EDG.black (#181425) — matches the renderer's clearColor
 
 // 1. Backdrop pass over the 40×40 grid.
 for (let ty = 0; ty < WORLD_HEIGHT; ty++) {

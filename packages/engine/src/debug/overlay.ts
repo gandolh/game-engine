@@ -1,3 +1,5 @@
+import { EDG } from "../render";
+
 export interface OverlayStats {
   fps: number;
   tick: number;
@@ -20,9 +22,9 @@ export class DebugOverlay {
       "left: 8px",
       "padding: 6px 8px",
       "font: 12px/1.4 ui-monospace, monospace",
-      "color: #d7e3ff",
-      "background: rgba(0,0,0,0.55)",
-      "border: 1px solid rgba(255,255,255,0.08)",
+      `color: ${EDG.silver}`,
+      "background: rgba(24, 20, 37, 0.55)", // EDG.black
+      "border: 1px solid rgba(255, 255, 255, 0.08)", // EDG.white
       "border-radius: 4px",
       "pointer-events: none",
       "white-space: pre",

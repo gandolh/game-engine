@@ -1,5 +1,6 @@
 import { createEl, setText, applyStyles } from "./dom";
 import { personalityColor } from "./colors";
+import { EDG } from "@engine/core/render";
 
 export interface LeaderboardRow {
   rank: number;
@@ -24,25 +25,25 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   bottom: "0",
   left: "0",
   width: "220px",
-  background: "#1a1a1a",
-  color: "#e0e0e0",
+  background: EDG.black,
+  color: EDG.silver,
   fontFamily: "monospace",
   fontSize: "12px",
   padding: "8px",
   boxSizing: "border-box",
   zIndex: "9999",
-  borderTop: "1px solid #333",
-  borderRight: "1px solid #333",
+  borderTop: `1px solid ${EDG.black}`,
+  borderRight: `1px solid ${EDG.black}`,
 };
 
 const RANK_COLORS: Record<number, string> = {
-  1: "#f1c40f",
-  2: "#bdc3c7",
-  3: "#cd7f32",
+  1: EDG.gold,
+  2: EDG.silver,
+  3: EDG.clay,
 };
 
 function rankColor(rank: number): string {
-  return RANK_COLORS[rank] ?? "#888";
+  return RANK_COLORS[rank] ?? EDG.steel;
 }
 
 export class LeaderboardPanel {
@@ -62,8 +63,8 @@ export class LeaderboardPanel {
         fontWeight: "bold",
         fontSize: "13px",
         marginBottom: "6px",
-        color: "#fff",
-        borderBottom: "1px solid #444",
+        color: EDG.white,
+        borderBottom: `1px solid ${EDG.ink}`,
         paddingBottom: "4px",
       },
       text: "Standings",
@@ -122,7 +123,7 @@ export class LeaderboardPanel {
         gap: "5px",
         paddingBottom: "4px",
         marginBottom: "4px",
-        borderBottom: "1px solid #2a2a2a",
+        borderBottom: `1px solid ${EDG.black}`,
       },
     });
     root.dataset["farmerId"] = String(id);
@@ -131,19 +132,19 @@ export class LeaderboardPanel {
       style: { fontWeight: "bold", width: "16px", textAlign: "right", flexShrink: "0" },
     });
     const name = createEl("span", {
-      style: { color: "#fff", flexGrow: "1" },
+      style: { color: EDG.white, flexGrow: "1" },
     });
     const personality = createEl("span", {
       style: {
         fontSize: "9px",
         borderRadius: "3px",
         padding: "1px 3px",
-        color: "#fff",
+        color: EDG.white,
         flexShrink: "0",
       },
     });
     const total = createEl("span", {
-      style: { color: "#f1c40f", flexShrink: "0", textAlign: "right" },
+      style: { color: EDG.gold, flexShrink: "0", textAlign: "right" },
     });
 
     root.appendChild(rank);

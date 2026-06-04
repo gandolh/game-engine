@@ -1,4 +1,5 @@
 import { createEl, setText, applyStyles } from "./dom";
+import { EDG } from "@engine/core/render";
 
 /** Maximum lines the panel shows (newest-first). */
 export const EVENT_FEED_PANEL_CAP = 30;
@@ -18,14 +19,14 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   minHeight: "0",
   overflowY: "auto",
   pointerEvents: "auto",
-  background: "#1a1a1a",
-  color: "#e0e0e0",
+  background: EDG.black,
+  color: EDG.silver,
   fontFamily: "monospace",
   fontSize: "12px",
   padding: "8px",
   boxSizing: "border-box",
-  borderTop: "1px solid #444",
-  borderLeft: "1px solid #333",
+  borderTop: `1px solid ${EDG.ink}`,
+  borderLeft: `1px solid ${EDG.black}`,
 };
 
 export class EventFeedPanel {
@@ -42,8 +43,8 @@ export class EventFeedPanel {
         fontWeight: "bold",
         fontSize: "13px",
         marginBottom: "6px",
-        color: "#fff",
-        borderBottom: "1px solid #444",
+        color: EDG.white,
+        borderBottom: `1px solid ${EDG.ink}`,
         paddingBottom: "4px",
       },
       text: "Activity",
@@ -82,7 +83,7 @@ export class EventFeedPanel {
   private buildLine(): HTMLElement {
     return createEl("div", {
       style: {
-        color: "#a8e6a8",
+        color: EDG.green,
         marginBottom: "3px",
         whiteSpace: "nowrap",
         overflow: "hidden",

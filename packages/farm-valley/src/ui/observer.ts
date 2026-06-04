@@ -116,7 +116,7 @@ export class ObserverPanel {
     });
 
     this.forecastEl = createEl("div", {
-      style: { marginBottom: "8px", color: "#888", fontSize: "11px" },
+      style: { marginBottom: "8px", color: EDG.steel, fontSize: "11px" },
     });
 
     this.farmersContainer = createEl("div");
@@ -196,8 +196,8 @@ export class ObserverPanel {
     for (const [id, row] of this.rowCache) {
       const focused = id === this.focusedId;
       applyStyles(row.root, {
-        borderBottom: "1px solid #2a2a2a",
-        outline: focused ? "1px solid #ffd700" : "",
+        borderBottom: `1px solid ${EDG.black}`,
+        outline: focused ? `1px solid ${EDG.gold}` : "",
         cursor: "pointer",
       });
     }
@@ -206,7 +206,7 @@ export class ObserverPanel {
   private buildFarmerRow(id: number): FarmerRowEls {
     const root = createEl("div", {
       style: {
-        borderBottom: "1px solid #2a2a2a",
+        borderBottom: `1px solid ${EDG.black}`,
         paddingBottom: "6px",
         marginBottom: "6px",
         cursor: "pointer",
@@ -229,32 +229,32 @@ export class ObserverPanel {
     });
 
     const nameRow = createEl("div", { style: { display: "flex", gap: "6px", alignItems: "center" } });
-    const name = createEl("span", { style: { fontWeight: "bold", color: "#fff" } });
+    const name = createEl("span", { style: { fontWeight: "bold", color: EDG.white } });
     const personality = createEl("span", {
       style: {
         fontSize: "10px",
         borderRadius: "3px",
         padding: "1px 4px",
-        color: "#fff",
+        color: EDG.white,
       },
     });
     nameRow.appendChild(name);
     nameRow.appendChild(personality);
     root.appendChild(nameRow);
 
-    const gold = createEl("div", { style: { color: "#f1c40f" } });
+    const gold = createEl("div", { style: { color: EDG.gold } });
     root.appendChild(gold);
 
-    const crops = createEl("div", { style: { color: "#a8e6a8" } });
+    const crops = createEl("div", { style: { color: EDG.green } });
     root.appendChild(crops);
 
-    const fsm = createEl("div", { style: { color: "#c8a0e0" } });
+    const fsm = createEl("div", { style: { color: EDG.plum } });
     root.appendChild(fsm);
 
-    const ap = createEl("div", { style: { color: "#80c8f0" } });
+    const ap = createEl("div", { style: { color: EDG.skyBlue } });
     root.appendChild(ap);
 
-    const region = createEl("div", { style: { color: "#d8c878" } });
+    const region = createEl("div", { style: { color: EDG.tan } });
     region.dataset["field"] = "region";
     root.appendChild(region);
 
@@ -263,8 +263,8 @@ export class ObserverPanel {
       style: {
         marginTop: "4px",
         paddingTop: "4px",
-        borderTop: "1px dashed #444",
-        color: "#9fd0c0",
+        borderTop: `1px dashed ${EDG.ink}`,
+        color: EDG.steel,
         fontSize: "11px",
         whiteSpace: "pre-line",
         display: "none",

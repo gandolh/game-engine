@@ -1,4 +1,5 @@
 import { createEl, applyStyles } from "../ui/dom";
+import { EDG } from "@engine/core/render";
 
 export interface HomeScreenOptions {
   title?: string;
@@ -36,8 +37,8 @@ const OVERLAY_STYLES: Partial<CSSStyleDeclaration> = {
   justifyContent: "center",
   gap: "24px",
   background:
-    "radial-gradient(ellipse at center, #1a2230 0%, #0c0d12 70%)",
-  color: "#f5e9c8",
+    `radial-gradient(ellipse at center, ${EDG.black} 0%, ${EDG.black} 70%)`,
+  color: EDG.cream,
   fontFamily: "ui-sans-serif, system-ui, sans-serif",
   zIndex: "1000",
   transition: "opacity 200ms ease-out",
@@ -48,14 +49,14 @@ const TITLE_STYLES: Partial<CSSStyleDeclaration> = {
   fontWeight: "700",
   letterSpacing: "0.08em",
   margin: "0",
-  color: "#f5e9c8",
-  textShadow: "0 0 24px rgba(201, 168, 90, 0.45)",
+  color: EDG.cream,
+  textShadow: "0 0 24px rgba(228, 166, 114, 0.45)", // EDG.tan
 };
 
 const SUBTITLE_STYLES: Partial<CSSStyleDeclaration> = {
   fontSize: "16px",
   margin: "0",
-  color: "#9ba6b8",
+  color: EDG.steel,
   maxWidth: "520px",
   textAlign: "center",
   lineHeight: "1.5",
@@ -68,12 +69,12 @@ const BUTTON_STYLES: Partial<CSSStyleDeclaration> = {
   fontFamily: "inherit",
   fontWeight: "600",
   letterSpacing: "0.05em",
-  color: "#0c0d12",
-  background: "#c9a85a",
-  border: "2px solid #c9a85a",
+  color: EDG.black,
+  background: EDG.tan,
+  border: `2px solid ${EDG.tan}`,
   borderRadius: "6px",
   cursor: "pointer",
-  boxShadow: "0 0 24px rgba(201, 168, 90, 0.35)",
+  boxShadow: "0 0 24px rgba(228, 166, 114, 0.35)", // EDG.tan
   transition: "transform 120ms ease-out, background 120ms ease-out",
 };
 
@@ -85,7 +86,7 @@ const SEED_ROW_STYLES: Partial<CSSStyleDeclaration> = {
 
 const SEED_LABEL_STYLES: Partial<CSSStyleDeclaration> = {
   fontSize: "13px",
-  color: "#9ba6b8",
+  color: EDG.steel,
   letterSpacing: "0.06em",
   textTransform: "uppercase",
 };
@@ -94,9 +95,9 @@ const SEED_INPUT_STYLES: Partial<CSSStyleDeclaration> = {
   padding: "8px 12px",
   fontSize: "16px",
   fontFamily: "ui-monospace, monospace",
-  color: "#f5e9c8",
-  background: "rgba(12, 13, 18, 0.8)",
-  border: "1px solid #c9a85a",
+  color: EDG.cream,
+  background: "rgba(24, 20, 37, 0.8)", // EDG.black
+  border: `1px solid ${EDG.tan}`,
   borderRadius: "6px",
   width: "160px",
   textAlign: "center",
@@ -108,9 +109,9 @@ const RANDOMIZE_STYLES: Partial<CSSStyleDeclaration> = {
   fontFamily: "inherit",
   fontWeight: "600",
   letterSpacing: "0.05em",
-  color: "#c9a85a",
+  color: EDG.tan,
   background: "transparent",
-  border: "1px solid #c9a85a",
+  border: `1px solid ${EDG.tan}`,
   borderRadius: "6px",
   cursor: "pointer",
   transition: "background 120ms ease-out, color 120ms ease-out",
@@ -118,7 +119,7 @@ const RANDOMIZE_STYLES: Partial<CSSStyleDeclaration> = {
 
 const HINT_STYLES: Partial<CSSStyleDeclaration> = {
   fontSize: "12px",
-  color: "#6a7384",
+  color: EDG.steel,
   margin: "0",
   letterSpacing: "0.04em",
 };
@@ -172,12 +173,12 @@ export class HomeScreen {
     applyStyles(randomizeBtn, RANDOMIZE_STYLES);
     randomizeBtn.type = "button";
     randomizeBtn.addEventListener("mouseenter", () => {
-      randomizeBtn.style.background = "#c9a85a";
-      randomizeBtn.style.color = "#0c0d12";
+      randomizeBtn.style.background = EDG.tan;
+      randomizeBtn.style.color = EDG.black;
     });
     randomizeBtn.addEventListener("mouseleave", () => {
       randomizeBtn.style.background = "transparent";
-      randomizeBtn.style.color = "#c9a85a";
+      randomizeBtn.style.color = EDG.tan;
     });
     randomizeBtn.addEventListener("click", () => {
       // Math.random() is allowed HERE only (pre-sim UI), per brief 18.
@@ -194,11 +195,11 @@ export class HomeScreen {
     this.button.type = "button";
     this.button.addEventListener("mouseenter", () => {
       this.button.style.transform = "translateY(-1px)";
-      this.button.style.background = "#dbbd6e";
+      this.button.style.background = EDG.tan;
     });
     this.button.addEventListener("mouseleave", () => {
       this.button.style.transform = "";
-      this.button.style.background = "#c9a85a";
+      this.button.style.background = EDG.tan;
     });
     this.button.addEventListener("click", () => this.trigger());
 

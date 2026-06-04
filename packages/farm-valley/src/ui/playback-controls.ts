@@ -1,4 +1,5 @@
 import { createEl, setText, applyStyles } from "./dom";
+import { EDG } from "@engine/core/render";
 
 /**
  * PlaybackControlsPanel — spectator time controls: pause/resume, speed
@@ -28,25 +29,25 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   display: "flex",
   alignItems: "center",
   gap: "6px",
-  background: "#1a1a1a",
-  color: "#e0e0e0",
+  background: EDG.black,
+  color: EDG.silver,
   fontFamily: "monospace",
   fontSize: "12px",
   padding: "6px 10px",
   boxSizing: "border-box",
   zIndex: "9997",
-  borderTop: "1px solid #333",
-  borderLeft: "1px solid #333",
-  borderRight: "1px solid #333",
+  borderTop: `1px solid ${EDG.black}`,
+  borderLeft: `1px solid ${EDG.black}`,
+  borderRight: `1px solid ${EDG.black}`,
   borderTopLeftRadius: "6px",
   borderTopRightRadius: "6px",
 };
 
 const BTN_STYLES: Partial<CSSStyleDeclaration> = {
   font: "12px/1 monospace",
-  color: "#e0e0e0",
-  background: "#2a2a2a",
-  border: "1px solid #444",
+  color: EDG.silver,
+  background: EDG.black,
+  border: `1px solid ${EDG.ink}`,
   borderRadius: "4px",
   padding: "5px 9px",
   cursor: "pointer",
@@ -90,7 +91,7 @@ export class PlaybackControlsPanel {
 
     const sep = createEl("span", {
       text: "│",
-      style: { color: "#444", padding: "0 2px" },
+      style: { color: EDG.ink, padding: "0 2px" },
     });
     this.panel.appendChild(sep);
 
@@ -137,9 +138,9 @@ export class PlaybackControlsPanel {
     for (const [mult, btn] of this.speedBtns) {
       const active = mult === state.speed;
       applyStyles(btn, {
-        background: active ? "#c9a85a" : "#2a2a2a",
-        color: active ? "#0c0d12" : "#e0e0e0",
-        borderColor: active ? "#c9a85a" : "#444",
+        background: active ? EDG.tan : EDG.black,
+        color: active ? EDG.black : EDG.silver,
+        borderColor: active ? EDG.tan : EDG.ink,
         fontWeight: active ? "700" : "400",
       });
     }

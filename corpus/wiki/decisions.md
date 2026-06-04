@@ -30,6 +30,13 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 
 - **Build-time procedural atlas** via [tools/atlas-builder](../../tools/atlas-builder/). PNG + JSON manifest. No external art pipeline.
 
+## Art / Palette
+
+- **EDG32 (Endesga-32) is the single, mandatory color palette.** Every color drawn anywhere — sprites, tiles, particles, day/night wash, and all HTML/canvas UI — must be one of the 32 EDG32 swatches (<https://lospec.com/palette-list/endesga-32>).
+  - **Single source of truth:** [packages/engine/src/render/palette.ts](../../packages/engine/src/render/palette.ts) exports `EDG32` (the 32 hex colors), `EDG` (named constants — use these in code), `EDG32_SET`, and `isEdg32()` / `nearestEdg32()` / `rgbOf()` helpers. Re-exported from `@engine/core/render`.
+  - **No raw hex literals.** New code references `EDG.<name>`; the atlas `SWATCH` table uses EDG32 RGB tuples. Day/night and particle *gradients* lerp between EDG32 anchors with alpha — the anchors are on-palette; the per-pixel interpolated tint is a deliberate overlay, not a flat fill.
+  - **Enforced by test:** [packages/engine/src/render/palette.test.ts](../../packages/engine/src/render/palette.test.ts) scans every `packages/` + `tools/` source file and fails on any off-palette `#rgb`/`#rrggbb` literal, asserts the atlas `SWATCH` tuples are all EDG32, and checks `EDG` ⊆ `EDG32`. A tiny documented allowlist exists for legitimate non-palette literals (currently empty).
+
 ## Concurrency
 
 - **Sim runs in a Web Worker** (moved 2026-05-29). The Worker owns the ECS `world` and the fixed-step clock; each tick it posts a `RenderSnapshot` (plain, structured-clone-friendly) to the main thread. The main thread keeps the latest two snapshots and **interpolates sprite positions between them** (the prevX/prevY interpolation that used to live on the entity Transform). Transport is `postMessage` only — **no SharedArrayBuffer**, so no COOP/COEP cross-origin-isolation headers are required. See `packages/farm-valley/src/worker/` (`sim-worker`, `sim-client`, `snapshot`, `snapshot-builder`).

@@ -5,6 +5,7 @@ import {
   DebugOverlay,
   createNoiseGeneratorFromUrl,
   ParticleSystem,
+  EDG,
 } from "@engine/core";
 import type { AtlasManifest } from "@engine/core";
 import { pushSnapshotSprites, OCEAN_TILES, FOAM_FRAMES } from "./render-systems";
@@ -182,7 +183,7 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   renderer.setAtlas(atlasImage);
   // Ocean backdrop beyond the world edge — the map is islands in an ocean, so
   // the area outside the 40×40 grid is deep water, not black.
-  renderer.clearColor = "#1e4c84";
+  renderer.clearColor = EDG.blue;
   setupCameraListeners(canvas, camera);
   const keyboard = new Keyboard();
   keyboard.attach(window);
@@ -384,7 +385,7 @@ class ParticleDirector {
           x: pos.x, y: pos.y,
           count: 20,
           shape: "rect",
-          color: "#8c6432", color2: "#5a3c1e",
+          color: EDG.wood, color2: EDG.woodDark,
           speedMin: 15, speedMax: 60,
           angleMin: -Math.PI, angleMax: 0,
           lifetimeMin: 0.4, lifetimeMax: 0.9,
@@ -408,7 +409,7 @@ class ParticleDirector {
           x: pos.x, y: pos.y - TILE,
           count: 8,
           shape: "star",
-          color: "#f0d238", color2: "#faf0a0",
+          color: EDG.gold, color2: EDG.yellow,
           speedMin: 10, speedMax: 35,
           angleMin: -Math.PI, angleMax: 0,
           lifetimeMin: 0.5, lifetimeMax: 1.0,
@@ -512,7 +513,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
               y: s.y - 4,
               count: 1,
               shape: "circle",
-              color: "#50c832", color2: "#90e850",
+              color: EDG.green, color2: EDG.green,
               speedMin: 3, speedMax: 8,
               angleMin: -Math.PI * 0.8, angleMax: -Math.PI * 0.2,
               lifetimeMin: 0.8, lifetimeMax: 1.4,
@@ -702,11 +703,11 @@ function createGameOverPanel(parent: HTMLElement): GameOverPanel {
     "min-width: 480px",
     "padding: 24px 32px",
     "font: 13px/1.5 ui-monospace, monospace",
-    "color: #f5e9c8",
-    "background: rgba(20, 18, 28, 0.95)",
-    "border: 2px solid #c9a85a",
+    `color: ${EDG.cream}`,
+    "background: rgba(24, 20, 37, 0.95)", // EDG.black
+    `border: 2px solid ${EDG.tan}`,
     "border-radius: 8px",
-    "box-shadow: 0 0 60px rgba(201, 168, 90, 0.35)",
+    "box-shadow: 0 0 60px rgba(228, 166, 114, 0.35)", // EDG.tan
     "z-index: 200",
     "display: none",
   ].join(";");
@@ -732,15 +733,15 @@ function createGameOverPanel(parent: HTMLElement): GameOverPanel {
     "padding: 8px 18px",
     "font: 13px/1 ui-monospace, monospace",
     "font-weight: 600",
-    "color: #0c0d12",
-    "background: #c9a85a",
-    "border: 2px solid #c9a85a",
+    `color: ${EDG.black}`,
+    `background: ${EDG.tan}`,
+    `border: 2px solid ${EDG.tan}`,
     "border-radius: 6px",
     "cursor: pointer",
   ].join(";");
 
   const shareStatus = document.createElement("span");
-  shareStatus.style.cssText = "font: 12px/1 ui-monospace, monospace; color: #9ba6b8";
+  shareStatus.style.cssText = `font: 12px/1 ui-monospace, monospace; color: ${EDG.steel}`;
 
   shareRow.appendChild(shareBtn);
   shareRow.appendChild(shareStatus);
@@ -759,9 +760,9 @@ function createSeedBadge(parent: HTMLElement, seed: number): HTMLElement {
     "bottom: 12px",
     "padding: 4px 10px",
     "font: 12px/1 ui-monospace, monospace",
-    "color: #c9a85a",
-    "background: rgba(20, 18, 28, 0.8)",
-    "border: 1px solid rgba(201, 168, 90, 0.5)",
+    `color: ${EDG.tan}`,
+    "background: rgba(24, 20, 37, 0.8)", // EDG.black
+    "border: 1px solid rgba(228, 166, 114, 0.5)", // EDG.tan
     "border-radius: 5px",
     "z-index: 150",
     "pointer-events: none",
@@ -821,9 +822,9 @@ function createTooltip(parent: HTMLElement): HTMLElement {
     "position: absolute",
     "padding: 3px 8px",
     "font: 11px/1.4 ui-monospace, monospace",
-    "color: #f5e9c8",
-    "background: rgba(20, 18, 28, 0.88)",
-    "border: 1px solid rgba(201, 168, 90, 0.6)",
+    `color: ${EDG.cream}`,
+    "background: rgba(24, 20, 37, 0.88)", // EDG.black
+    "border: 1px solid rgba(228, 166, 114, 0.6)", // EDG.tan
     "border-radius: 4px",
     "pointer-events: none",
     "z-index: 180",

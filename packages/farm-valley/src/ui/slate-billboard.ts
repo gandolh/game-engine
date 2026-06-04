@@ -1,5 +1,6 @@
 import { createEl, setText, applyStyles } from "./dom";
 import type { ShopOffer } from "../agents/shop-slate";
+import { EDG } from "@engine/core/render";
 
 export type SlateEntry = Pick<ShopOffer, "offerId" | "crop" | "unitPrice" | "quantity" | "remaining">;
 
@@ -13,15 +14,15 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   bottom: "0",
   right: "0",
   width: "240px",
-  background: "#1a1a1a",
-  color: "#e0e0e0",
+  background: EDG.black,
+  color: EDG.silver,
   fontFamily: "monospace",
   fontSize: "12px",
   padding: "8px",
   boxSizing: "border-box",
   zIndex: "9998",
-  borderTop: "1px solid #333",
-  borderLeft: "1px solid #333",
+  borderTop: `1px solid ${EDG.black}`,
+  borderLeft: `1px solid ${EDG.black}`,
 };
 
 export class SlateBillboardPanel {
@@ -41,8 +42,8 @@ export class SlateBillboardPanel {
         fontWeight: "bold",
         fontSize: "13px",
         marginBottom: "6px",
-        color: "#f1c40f",
-        borderBottom: "1px solid #444",
+        color: EDG.gold,
+        borderBottom: `1px solid ${EDG.ink}`,
         paddingBottom: "4px",
       },
       text: "Shop Slate",
@@ -102,14 +103,14 @@ export class SlateBillboardPanel {
   private buildOfferRow(offerId: string): OfferRowEls {
     const root = createEl("div", {
       style: {
-        borderBottom: "1px solid #2a2a2a",
+        borderBottom: `1px solid ${EDG.black}`,
         paddingBottom: "4px",
         marginBottom: "4px",
       },
     });
     root.dataset["offerId"] = offerId;
 
-    const label = createEl("div", { style: { color: "#a8e6a8" } });
+    const label = createEl("div", { style: { color: EDG.green } });
     root.appendChild(label);
 
     return { root, label };

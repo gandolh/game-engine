@@ -2,12 +2,10 @@
 
 A tiny top-down farming sim where four AI farmers — each with their own personality — plant, harvest, trade, and try to out-earn each other across 100 in-game days. You don't play; you watch them play.
 
-Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder. The simulation runs in a Web Worker and streams render snapshots to the main thread.
+Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder. The simulation runs in a Web Worker and streams render snapshots to the main thread. All art is drawn from a single 32-color palette ([EDG32](https://lospec.com/palette-list/endesga-32)), enforced across sprites, UI, and effects.
 
-![Home screen](media/merge-home-screen.png)
-![Game running](media/merge-running.png)
-![Live with focus camera, leaderboard, observer, MEET indicators, slate billboard](media/farm-valley-polish.png)
-![Day 100 leaderboard](media/farm-valley-final.png)
+![Home screen](media/fv-home-screen.png)
+![Game running — world, day/night clock, observer panel, leaderboard, and activity feed](media/fv-edg32-running.png)
 
 ## Try it
 
@@ -34,11 +32,17 @@ Each farmer is a [BDI agent](https://en.wikipedia.org/wiki/Belief%E2%80%93desire
 
 ## What's in the box
 
-- **Weather station** — broadcasts forecasts; rain/drought changes crop yields.
+- **Weather & seasons** — a season/day clock drives forecasts; rain/drought changes crop yields, and a render-side day/night wash tints the world from dawn to dusk.
 - **Market & shopkeeper** — farmers buy seeds and sell crops at supply-driven prices.
 - **Mid-game shock** — a one-time blight strikes a random farmer around day 50, wiping their planted crops and reshuffling the standings.
-- **Observer panel** — live readout of every farmer's gold, crops, FSM state, and remaining AP.
+- **Observer panel** — live readout of every farmer's gold, crops, FSM state, and remaining AP; click a farmer to focus the camera on them.
+- **Leaderboard & activity feed** — live standings (color-coded by personality) plus a running log of meets, trades, and harvests.
+- **Animated pixel art** — walk/work/idle animations, drop shadows, and particle bursts (coins, dirt, leaves), all drawn from the EDG32 palette.
 - **Debug overlay** — tick count, render alpha, entity count.
+
+## Art direction
+
+Every color in the project — sprites, tiles, particles, the day/night wash, and all HTML/canvas UI — comes from the 32-color [EDG32 (Endesga-32)](https://lospec.com/palette-list/endesga-32) palette. The palette is a single source of truth in [packages/engine/src/render/palette.ts](packages/engine/src/render/palette.ts) (use the named `EDG.*` constants), and a guard test scans the whole source tree and fails CI on any off-palette color literal — so new assets stay on-palette by construction.
 
 ## Project layout
 

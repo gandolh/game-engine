@@ -1,6 +1,7 @@
 import { createEl, applyStyles, setText } from "./dom";
 import { phaseForFraction, dayFraction, type DayPhase } from "../systems/day-phase";
 import { seasonForDay, type Season } from "../protocols/weather";
+import { EDG } from "@engine/core/render";
 
 export interface WorldClockState {
   tick: number;
@@ -16,17 +17,17 @@ const PHASE_LABEL: Record<DayPhase, string> = {
 };
 
 const PHASE_COLOR: Record<DayPhase, string> = {
-  morning: "#f9d87a",
-  work:    "#ffe0a0",
-  evening: "#e08050",
-  night:   "#6080c8",
+  morning: EDG.yellow,
+  work:    EDG.cream,
+  evening: EDG.clay,
+  night:   EDG.steel,
 };
 
 const SEASON_COLOR: Record<Season, string> = {
-  spring: "#78c878",
-  summer: "#e8b840",
-  autumn: "#d06820",
-  winter: "#80b8e0",
+  spring: EDG.green,
+  summer: EDG.gold,
+  autumn: EDG.clay,
+  winter: EDG.skyBlue,
 };
 
 const SEASON_ICON: Record<Season, string> = {
@@ -56,9 +57,9 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   fontFamily: "ui-monospace, monospace",
   fontSize: "13px",
   fontWeight: "bold",
-  color: "#f5e9c8",
-  background: "rgba(20, 18, 28, 0.88)",
-  border: "1px solid rgba(201, 168, 90, 0.55)",
+  color: EDG.cream,
+  background: "rgba(24, 20, 37, 0.88)", // EDG.black
+  border: "1px solid rgba(228, 166, 114, 0.55)", // EDG.tan
   borderTop: "none",
   borderRadius: "0 0 8px 8px",
   zIndex: "9998",
@@ -81,14 +82,14 @@ export class WorldClockPanel {
     applyStyles(this.panel, PANEL_STYLES);
 
     this.seasonEl = createEl("span");
-    this.dayEl    = createEl("span", { style: { color: "#d4bc88" } });
+    this.dayEl    = createEl("span", { style: { color: EDG.tan } });
     this.timeEl   = createEl("span");
     this.phaseEl  = createEl("span", { style: { fontSize: "11px", opacity: "0.8" } });
 
     // Separator dots
-    const dot1 = createEl("span", { style: { color: "#666", userSelect: "none" } });
+    const dot1 = createEl("span", { style: { color: EDG.slate, userSelect: "none" } });
     setText(dot1, "·");
-    const dot2 = createEl("span", { style: { color: "#666", userSelect: "none" } });
+    const dot2 = createEl("span", { style: { color: EDG.slate, userSelect: "none" } });
     setText(dot2, "·");
 
     this.panel.appendChild(this.seasonEl);

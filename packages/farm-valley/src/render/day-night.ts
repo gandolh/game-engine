@@ -1,5 +1,6 @@
 import type { Season } from "../protocols/weather";
 import { dayFraction } from "../systems/day-phase";
+import { EDG, rgbOf } from "@engine/core/render";
 
 /**
  * brief 26 — day/night + seasonal color grading.
@@ -38,11 +39,18 @@ interface SeasonGrade {
   daylight: number;
 }
 
+// Night/noon anchors are EDG32 colors (the wash lerps *between* these palette
+// anchors and lays them down as a translucent tint — see washFor). Keeping the
+// anchors on-palette is what makes the day/night grade EDG32-compliant; the
+// per-frame interpolation + alpha is a tint, not a flat fill, so it can't be
+// (and isn't) palette-locked per output pixel.
+//   night anchors → EDG cool blue-greys (slate / navy / ink)
+//   noon  anchors → EDG warm/neutral lights (white / cream / silver)
 const SEASON_GRADES: Record<Season, SeasonGrade> = {
-  spring: { night: [40, 60, 110], noon: [255, 250, 220], nightAlpha: 0.3, daylight: 0.62 },
-  summer: { night: [40, 55, 100], noon: [255, 244, 200], nightAlpha: 0.26, daylight: 0.7 },
-  autumn: { night: [55, 50, 95], noon: [255, 235, 190], nightAlpha: 0.34, daylight: 0.55 },
-  winter: { night: [35, 45, 95], noon: [225, 235, 255], nightAlpha: 0.42, daylight: 0.42 },
+  spring: { night: rgbOf(EDG.slate), noon: rgbOf(EDG.white), nightAlpha: 0.3, daylight: 0.62 },
+  summer: { night: rgbOf(EDG.slate), noon: rgbOf(EDG.cream), nightAlpha: 0.26, daylight: 0.7 },
+  autumn: { night: rgbOf(EDG.navy), noon: rgbOf(EDG.cream), nightAlpha: 0.34, daylight: 0.55 },
+  winter: { night: rgbOf(EDG.ink), noon: rgbOf(EDG.silver), nightAlpha: 0.42, daylight: 0.42 },
 };
 
 /** Smoothstep — eases 0→1 between edges. */

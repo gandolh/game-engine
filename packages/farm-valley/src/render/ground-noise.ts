@@ -15,6 +15,8 @@
  * run URL) always produces the same ground.
  */
 
+import { EDG } from "@engine/core/render";
+
 /**
  * Deterministic hash → [0,1). Integer cell coords + seed in, fraction out.
  * Uses `Math.imul` for true 32-bit integer multiplies (a plain `*` overflows
@@ -81,11 +83,12 @@ export function makeGroundNoiseDecorator(
         const strength = Math.abs(b - 1) / amplitude;
         ctx.globalAlpha = strength * amplitude;
         if (b < 1) {
+          // multiply by EDG.black darkens; screen by EDG.white lightens.
           ctx.globalCompositeOperation = "multiply";
-          ctx.fillStyle = "#000000";
+          ctx.fillStyle = EDG.black;
         } else {
           ctx.globalCompositeOperation = "screen";
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = EDG.white;
         }
         ctx.fillRect(tx * tilePx, ty * tilePx, tilePx, tilePx);
       }

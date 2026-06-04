@@ -22,7 +22,7 @@ export interface ParticleEmitOptions {
   count: number;
   /** Particle shape. */
   shape: ParticleShape;
-  /** CSS colour string (e.g. "#f0d238"). */
+  /** CSS colour string — use an EDG32 swatch (e.g. EDG.gold). */
   color: string;
   /** Optional second colour — random lerp between color and color2. */
   color2?: string;

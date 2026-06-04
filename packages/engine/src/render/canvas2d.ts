@@ -1,5 +1,6 @@
 import type { LoadedAtlasImage } from "../assets/loader";
 import { Camera2D } from "./camera";
+import { EDG } from "./palette";
 import type { ParticleSystem } from "./particles";
 
 export interface Canvas2dSprite {
@@ -37,7 +38,7 @@ export class Canvas2dRenderer {
    * their world (e.g. Farm Valley uses an ocean blue so the map reads as
    * islands surrounded by water).
    */
-  clearColor = "#0c0d12";
+  clearColor: string = EDG.black;
 
   constructor(canvas: HTMLCanvasElement, camera: Camera2D) {
     const ctx = canvas.getContext("2d");
@@ -165,7 +166,8 @@ export class Canvas2dRenderer {
       ctx.globalCompositeOperation = "multiply";
       for (const sh of this.shadowQueue) {
         ctx.globalAlpha = sh.alpha;
-        ctx.fillStyle = "#000000";
+        // EDG.black under a `multiply` blend = soft shadow (darkens the ground).
+        ctx.fillStyle = EDG.black;
         ctx.beginPath();
         ctx.ellipse(sh.x, sh.y, sh.rx, sh.ry, 0, 0, Math.PI * 2);
         ctx.fill();

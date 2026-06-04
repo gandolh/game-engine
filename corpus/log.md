@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-04] impl | EDG32 palette enforced project-wide
+
+Locked the project to the **Endesga-32 (EDG32)** palette and made it enforceable. The atlas `SWATCH` (drawn sprites/tiles) was already 100% EDG32; the leak was in the HTML/canvas UI layer (panels, leaderboard, world-clock, home-screen, observer, debug overlay, particles, day/night anchors), which used ~41 off-palette literals.
+
+- **New single source of truth:** `packages/engine/src/render/palette.ts` — `EDG32` (32 hex), `EDG` (named constants), `EDG32_SET`, `isEdg32`/`nearestEdg32`/`rgbOf`. Re-exported from `@engine/core/render`.
+- **Migration:** every off-palette `#rgb`/`#rrggbb` and `rgba()` literal across `packages/` + `tools/` replaced with `EDG.*` (role-curated mapping, not blind nearest-RGB). Day/night season anchors and the dirt/coin/leaf particle colors now lerp between EDG32 anchors. Engine `clearColor` default + canvas shadow + ground-noise multiply/screen operands snapped to `EDG.black`/`EDG.white`.
+- **Enforcement:** `packages/engine/src/render/palette.test.ts` scans all source for off-palette hex literals (fails CI), asserts the atlas SWATCH tuples ⊆ EDG32, and `EDG` ⊆ EDG32. Allowlist mechanism for legitimate exceptions (currently empty).
+- Decision recorded in [wiki/decisions.md](wiki/decisions.md) → "Art / Palette". Typecheck + full suite green (447 tests), atlas + dist rebuilt clean.
+
 ## [2026-06-03] impl | Briefs 32–35 + engine/08 — rendering overhaul, world expansion, WASM expansion, agent activity; pathfinder worker bug fixed
 
 Full visual + world + agent-activity pass. All verified live (Playwright + build clean).
