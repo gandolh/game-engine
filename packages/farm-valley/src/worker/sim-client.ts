@@ -23,6 +23,7 @@ import type {
   RenderSnapshot,
   SnapshotSprite,
   SnapshotRivalry,
+  SnapshotWealthSeries,
   FinalStandingRow,
   RunRecap,
   RelationshipMatrixData,
@@ -396,5 +397,10 @@ export class SimClient {
   /** Brief 37 — active named rivalries and alliances (resolved names). */
   get rivalries(): SnapshotRivalry[] {
     return this.currentSnapshot?.rivalries ?? [];
+  }
+
+  /** Brief 39 — per-farmer wealth time series for the wealth-over-time graph. */
+  get wealthSeries(): SnapshotWealthSeries[] {
+    return this.currentSnapshot?.wealthSeries ?? [];
   }
 }

@@ -16,3 +16,6 @@ export { WorldClockPanel } from "./world-clock";
 export type { WorldClockState } from "./world-clock";
 export { RelationshipMatrixPanel } from "./relationship-matrix";
 export type { RelationshipMatrixData } from "./relationship-matrix";
+export { WealthGraphPanel } from "./wealth-graph";
+export type { SnapshotWealthSeries } from "../worker/snapshot";
+export type { ChartPoint, ChartBounds, WealthCrossing } from "./wealth-graph";

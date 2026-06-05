@@ -26,6 +26,7 @@ import type {
   SnapshotEvent,
   SnapshotShock,
   SnapshotRivalry,
+  SnapshotWealthSeries,
   FinalStandingRow,
   RelationshipMatrixData,
 } from "./snapshot";
@@ -502,6 +503,58 @@ export function buildRivalriesData(
 }
 
 // ---------------------------------------------------------------------------
+// Wealth series (brief 39)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build per-farmer wealth time series from the run-history rows. Groups rows
+ * by farmerId and attaches the farmer's display name and personality (resolved
+ * from the ECS world) so the chart panel needs no second lookup.
+ *
+ * Capped at MAX_WEALTH_ROWS rows total (100 days × 5 farmers = 500 max, within
+ * the brief's stated bound) — early-exit guard to keep serialisation cheap.
+ */
+const MAX_WEALTH_ROWS = 500;
+
+export function buildWealthSeries(
+  world: World<GameEntity>,
+  runHistoryRows: readonly RunHistoryRow[],
+): SnapshotWealthSeries[] {
+  // Resolve farmer names + personalities from the ECS world (deterministic id order).
+  const farmerMeta = new Map<number, { name: string; personality: string }>();
+  for (const f of world.query("farmer", "personality")) {
+    if (f.id === undefined) continue;
+    farmerMeta.set(f.id, { name: f.farmer.name, personality: f.personality.kind });
+  }
+
+  // Group run-history rows by farmerId, respecting the MAX_WEALTH_ROWS cap.
+  const byFarmer = new Map<number, RunHistoryRow[]>();
+  let total = 0;
+  for (const row of runHistoryRows) {
+    if (total >= MAX_WEALTH_ROWS) break;
+    let bucket = byFarmer.get(row.farmerId);
+    if (bucket === undefined) {
+      bucket = [];
+      byFarmer.set(row.farmerId, bucket);
+    }
+    bucket.push(row);
+    total += 1;
+  }
+
+  // Build the output in deterministic farmer-id order.
+  const farmerIds = [...byFarmer.keys()].sort((a, b) => a - b);
+  return farmerIds.map((id) => {
+    const meta = farmerMeta.get(id) ?? { name: `Farmer ${id}`, personality: "conservative" };
+    return {
+      farmerId: id,
+      name: meta.name,
+      personality: meta.personality,
+      rows: byFarmer.get(id) ?? [],
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Main builder
 // ---------------------------------------------------------------------------
 
@@ -558,6 +611,11 @@ export function buildRenderSnapshot(
     : null;
   const playerHotbar = buildPlayerHotbar(world);
 
+  // Build the per-farmer wealth time series for the live graph panel (brief 39).
+  // Cheap: grouping ≤500 rows per tick. The series is always present (empty array
+  // before day 1) so the panel doesn't need a null-check.
+  const wealthSeries = buildWealthSeries(world, runHistoryRows);
+
   return {
     tick,
     day,
@@ -575,6 +633,7 @@ export function buildRenderSnapshot(
     playerHotbar,
     relationships,
     rivalries,
+    wealthSeries,
   };
 }
 
