@@ -6,7 +6,7 @@ import {
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import { SEED_COST, CROP_SEASON } from "../economy";
@@ -44,6 +44,21 @@ function pickConservativeCrop(
   }
   // Fallback: radish is always affordable.
   return { crop: "radish", cost: SEED_COST.radish };
+}
+
+/**
+ * brief 43 — pick the crop to grow under glass: the highest-value crop whose
+ * native season is NOT the current one, so the greenhouse earns what the open
+ * field can't this season (its whole strategic point). Falls back to grape.
+ */
+function pickGreenhouseCrop(day: number): CropKind {
+  const season = seasonForDay(day);
+  // Value order (priciest first).
+  const byValue: CropKind[] = ["grape", "pumpkin", "corn", "tomato", "winter-squash", "wheat", "carrot", "radish"];
+  for (const crop of byValue) {
+    if (CROP_SEASON[crop] !== season) return crop;
+  }
+  return "grape";
 }
 
 export function deliberateConservative(farmer: GameEntity): void {
@@ -185,6 +200,33 @@ export function deliberateConservative(farmer: GameEntity): void {
     deliberateSellFruit(farmer, 5);
   }
 
+  // ── GREENHOUSE track (brief 43) — the run's heaviest sink, season-immune plots ─
+  // Conservative is the patient-capital archetype, so she leans into the
+  // greenhouse hardest and PRIORITISES it: it's the headline late-game milestone,
+  // it pays back over the rest of the run, and it must be built early enough to
+  // amortise. So once she can afford it she COMMITS the greenhouse excursion
+  // FIRST (before the livestock excursion) and that excursion OWNS the single
+  // carpentry-travel slot for the day — committing two far excursions on the same
+  // quiet day would just stall both (only one resolves per arrival at this pace).
+  // Once built she plants a premium crop (grape) in it YEAR-ROUND — the
+  // season-immune plots grow it at full rate regardless of season, the payoff.
+  const hasGreenhouse = (farmer.beliefs.data["hasGreenhouse"] as boolean | undefined) ?? false;
+  const greenhouseSurplus = gold >= reserve + 90; // cushion over the material-discounted (~120g) sink
+  const greenhouseQuietDay = greenhouseSurplus && !plotsUrgent && apHeadroom;
+  let committedGreenhouseExcursion = false;
+  if (day >= 6 && !hasGreenhouse && greenhouseQuietDay) {
+    deliberateBuildGreenhouse(farmer, reserve, 13, -2);
+    committedGreenhouseExcursion = true;
+  }
+  if (hasGreenhouse) {
+    // Greenhouse strategy: grow a PREMIUM crop that is OUT of season outside, so
+    // the season-immune plots earn what the open field can't right now. Pick the
+    // priciest crop whose native season isn't the current one (grape unless it's
+    // autumn, in which case the next-best off-season pick).
+    const ghCrop = pickGreenhouseCrop(day);
+    deliberateGreenhousePlant(farmer, ghCrop, SEED_COST[ghCrop], reserve, 2);
+  }
+
   // ── LIVESTOCK track (build coop → stock → tend → sell) ───────────────────────
   // Tend + sell always run cheaply (tend works at home; sell rides village trips).
   if (day >= 8) {
@@ -192,13 +234,11 @@ export function deliberateConservative(farmer: GameEntity): void {
     deliberateSellProducts(farmer, 5);
   }
   // Livestock excursion, AFTER the first tree is planted (so the orchard's quick
-  // on-farm hop isn't blocked by the slow coop trip). The build trip goes to the
-  // carpenter — and since animals can now be bought there too (handleBuyAnimal),
-  // the SAME carpentry visit both builds the coop and stocks the first birds, so
-  // a patient farmer completes the livestock loop in one cross-map excursion
-  // instead of a build trip plus a separate village round-trip (which, at low
-  // ticks/day, eats far too many in-game days to ever finish).
-  if (day >= 8 && quietInvestDay && orchardCount >= 1) {
+  // on-farm hop isn't blocked by the slow coop trip), and NOT on a day we already
+  // committed the greenhouse excursion (one far carpentry trip at a time). The
+  // build trip goes to the carpenter — and since animals can now be bought there
+  // too, the SAME carpentry visit both builds the coop and stocks the first birds.
+  if (day >= 8 && quietInvestDay && orchardCount >= 1 && !committedGreenhouseExcursion) {
     if (!hasCoop) {
       deliberateBuildPen(farmer, "coop", "chicken", reserve + 5, 14, -2);
     }

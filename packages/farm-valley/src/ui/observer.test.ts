@@ -26,6 +26,8 @@ function makeSnapshot(overrides?: Partial<ObserverSnapshot>): ObserverSnapshot {
         currentIntention: "plant",
         nextIntention: "sell-shopkeeper",
         reasons: ["plant radish: gold 100 >= reserve 30", "sell radish x2"],
+        skills: { farming: 1, foraging: 1, fishing: 1, mining: 1 },
+        hasGreenhouse: false,
       },
       {
         id: 5,
@@ -41,6 +43,8 @@ function makeSnapshot(overrides?: Partial<ObserverSnapshot>): ObserverSnapshot {
         currentIntention: "travel",
         nextIntention: "post-offer",
         reasons: ["travel village: post offers"],
+        skills: { farming: 1, foraging: 1, fishing: 1, mining: 1 },
+        hasGreenhouse: false,
       },
     ],
     ...overrides,
@@ -82,6 +86,23 @@ describe("ObserverPanel", () => {
     const header = parent.querySelector("div") as HTMLElement;
     expect(header.textContent).toContain("Day 30");
     expect(header.textContent).toContain("Summer");
+    panel.destroy();
+  });
+
+  // brief 43 — observer surfaces per-farmer skill levels + greenhouse marker.
+  it("renders skill levels and a greenhouse marker for the farmer", () => {
+    const panel = new ObserverPanel(parent);
+    const snap = makeSnapshot();
+    snap.farmers[0]!.skills = { farming: 7, foraging: 3, fishing: 2, mining: 5 };
+    snap.farmers[0]!.hasGreenhouse = true;
+    panel.update(snap);
+
+    const text = parent.textContent ?? "";
+    expect(text).toContain("Fa7");
+    expect(text).toContain("Fo3");
+    expect(text).toContain("Fi2");
+    expect(text).toContain("Mi5");
+    expect(text).toContain("[GH]"); // greenhouse marker
     panel.destroy();
   });
 
@@ -162,6 +183,8 @@ describe("ObserverPanel", () => {
           currentIntention: null,
           nextIntention: null,
           reasons: [],
+          skills: { farming: 1, foraging: 1, fishing: 1, mining: 1 },
+          hasGreenhouse: false,
         },
         {
           id: 3,
@@ -177,6 +200,8 @@ describe("ObserverPanel", () => {
           currentIntention: null,
           nextIntention: null,
           reasons: [],
+          skills: { farming: 1, foraging: 1, fishing: 1, mining: 1 },
+          hasGreenhouse: false,
         },
       ],
     });
@@ -232,6 +257,8 @@ describe("ObserverPanel", () => {
             currentIntention: null,
             nextIntention: null,
             reasons: [],
+            skills: { farming: 1, foraging: 1, fishing: 1, mining: 1 },
+            hasGreenhouse: false,
           },
           {
             id: 5,
@@ -247,6 +274,8 @@ describe("ObserverPanel", () => {
             currentIntention: null,
             nextIntention: null,
             reasons: [],
+            skills: { farming: 1, foraging: 1, fishing: 1, mining: 1 },
+            hasGreenhouse: false,
           },
         ],
       }),

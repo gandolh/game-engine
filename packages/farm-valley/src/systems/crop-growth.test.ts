@@ -259,6 +259,40 @@ describe("CropGrowthSystem", () => {
     const s = plotEntity.plot!.state as Extract<PlotState, { kind: "planted" }>;
     expect(s.daysGrowing).toBeCloseTo(0.5); // half-rate increment
   });
+
+  // ---- brief 43: greenhouse (season-immune) -------------------------------
+
+  it("greenhouse plot grows an out-of-season crop at FULL rate (vs half for a normal plot)", () => {
+    const mkOutOfSeasonRadish = (greenhouse: boolean, tileX: number): GameEntity =>
+      world.spawn({
+        plot: {
+          ownerId: 1,
+          regionId: "farm-cora" as const,
+          tileX,
+          tileY: 0,
+          greenhouse,
+          state: {
+            kind: "planted",
+            crop: "radish", // spring crop
+            daysGrowing: 0,
+            readyAtDay: 5,
+            weatherSum: 0,
+            daysSinceWater: 0,
+            wateredToday: true,
+          } satisfies PlotState,
+        },
+      });
+    const normalPlot = mkOutOfSeasonRadish(false, 0);
+    const greenhousePlot = mkOutOfSeasonRadish(true, 4);
+
+    sendDayStart(world, 51); // autumn — radish is OUT of season
+    system.run(makeContext(100));
+
+    const sNormal = normalPlot.plot!.state as Extract<PlotState, { kind: "planted" }>;
+    const sGreen = greenhousePlot.plot!.state as Extract<PlotState, { kind: "planted" }>;
+    expect(sNormal.daysGrowing).toBeCloseTo(0.5); // open field: half-rate out of season
+    expect(sGreen.daysGrowing).toBeCloseTo(1.0);   // greenhouse: full-rate regardless of season
+  });
 });
 
 // ---- brief 41: computeQuality (harvest) -------------------------------------

@@ -12,6 +12,7 @@ import {
   FRUIT_SEASON,
   totalProductCount,
   totalFruitCount,
+  GREENHOUSE_BUILD_COST,
 } from "../economy";
 
 /**
@@ -881,6 +882,118 @@ export function deliberateBuildPen(
   recordReason(
     farmer,
     `building ${penKind} (${animal}) — surplus gold ${farmer.inventory.gold}, ${goldDue}g${wood >= recipe.woodCost ? " (wood discount)" : ""}`,
+  );
+}
+
+/**
+ * brief 43 — plant a HIGH-VALUE crop in any empty greenhouse plot, regardless of
+ * season. This is the whole strategic point of the greenhouse: a season-immune
+ * plot grows premium out-of-season crops at full rate. The farmer plants from
+ * seeds on hand if possible, else buys the crop's seed (gated on reserve). One
+ * plot per call (chains across deliberation cycles via the proximity walk), with
+ * a travel hop to the greenhouse tile when out of reach.
+ *
+ * `crop` — the year-round crop to grow under glass (e.g. "grape", the priciest).
+ */
+export function deliberateGreenhousePlant(
+  farmer: GameEntity,
+  crop: import("../components").CropKind,
+  seedCost: number,
+  reserve: number,
+  priority: number,
+): void {
+  if (!farmer.intentions || !farmer.inventory) return;
+  const empty = (farmer.beliefs?.data["greenhouseEmptyPlots"] as Array<{ tileX: number; tileY: number }> | undefined) ?? [];
+  if (empty.length === 0) return;
+
+  const haveSeed = farmer.inventory.seeds[crop] >= 1;
+  if (!haveSeed) {
+    // Buy a seed first if affordable above reserve; the plant lands next cycle.
+    if (farmer.inventory.gold - seedCost < reserve) return;
+    if (!farmer.intentions.queue.some(i => i.kind === "buy-seed" && i.data.crop === crop)) {
+      farmer.intentions.queue.push({ kind: "buy-seed", data: { crop, quantity: 1 }, priority: priority + 1 });
+      recordReason(farmer, `buy ${crop} seed for greenhouse`);
+    }
+    return;
+  }
+
+  // Pick the nearest empty greenhouse plot; plant if in reach, else travel.
+  const target = empty[0]!;
+  if (isWithinReach(farmer.transform, target.tileX, target.tileY)) {
+    if (!farmer.intentions.queue.some(i => i.kind === "plant" && i.data.tileX === target.tileX && i.data.tileY === target.tileY)) {
+      farmer.intentions.queue.push({ kind: "plant", data: { crop, tileX: target.tileX, tileY: target.tileY }, priority });
+      recordReason(farmer, `plant ${crop} in greenhouse (year-round)`);
+    }
+  } else if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    farmer.intentions.queue.push({
+      kind: "travel",
+      data: { targetTile: { x: target.tileX, y: target.tileY } },
+      priority: -1,
+    });
+  }
+}
+
+/**
+ * brief 43 — queue a `build-greenhouse` intent (the run's heaviest sink) using
+ * brief 42's working excursion pattern. Fires only on a quiet invest day with a
+ * comfortable surplus over `reserve`, exactly like the pen build: the greenhouse
+ * is built AT the carpenter, so the carpentry TRAVEL leg needs a WINNING (low)
+ * priority on the commit day or the trip never wins queue[0] and the feature
+ * reads as dormant. Gold-funded (wood+stone are an optional discount), so a
+ * patient gold-rich farmer can commit without ever gathering materials.
+ *
+ * `travelPriority` — winning carpentry-travel priority on the commit day
+ * (undefined falls back to the non-committal `priority + 1`).
+ */
+export function deliberateBuildGreenhouse(
+  farmer: GameEntity,
+  reserve: number,
+  priority: number,
+  travelPriority?: number,
+): void {
+  if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
+
+  // Already has one? (surfaced into beliefs by PlotSenseSystem)
+  const hasGreenhouse = farmer.beliefs?.data["hasGreenhouse"] as boolean | undefined;
+  if (hasGreenhouse) return;
+
+  // Gate on the gold the farmer would actually pay (discounted only if she holds
+  // BOTH materials), so a wood/stone-poor but gold-rich patient farmer can still
+  // commit — same lesson as the pen build.
+  const recipe = GREENHOUSE_BUILD_COST;
+  const wood = farmer.resources?.wood ?? 0;
+  const stone = farmer.resources?.stone ?? 0;
+  const useMaterials = wood >= recipe.woodCost && stone >= recipe.stoneCost;
+  const goldDue = useMaterials ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
+  if (farmer.inventory.gold - goldDue < reserve) return;
+
+  // Don't double-queue.
+  if (farmer.intentions.queue.some(i => i.kind === "build-greenhouse")) return;
+
+  const inCarpentry = farmer.farmer.currentRegion === "carpentry";
+  if (!inCarpentry) {
+    const wanted = travelPriority ?? priority + 1;
+    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "carpentry");
+    if (existing) {
+      // Upgrade a shadowing carpentry trip so the build trip wins queue[0]
+      // instead of being deduped out (same fix as the pen build).
+      if (wanted < existing.priority) existing.priority = wanted;
+    } else {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetRegionId: "carpentry" },
+        priority: wanted,
+      });
+    }
+  }
+  farmer.intentions.queue.push({
+    kind: "build-greenhouse",
+    data: {},
+    priority,
+  });
+  recordReason(
+    farmer,
+    `build greenhouse — surplus gold ${farmer.inventory.gold}, ${goldDue}g${useMaterials ? " (material discount)" : ""}`,
   );
 }
 
