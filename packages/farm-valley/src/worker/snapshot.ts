@@ -17,10 +17,31 @@ import type { LeaderboardRow } from "../ui/leaderboard";
 import type { ShopOffer } from "../agents/shop-slate";
 import type { RunRecap } from "../run-recap";
 import type { RelationshipMatrixData } from "../ui/relationship-matrix";
+import type { RunHistoryRow } from "../systems/run-history";
 
 // Re-export RelationshipMatrixData so snapshot consumers can import the type
 // from this cross-thread contract module without depending on the UI file.
 export type { RelationshipMatrixData };
+
+// Re-export RunHistoryRow so snapshot consumers can import the type from this
+// cross-thread contract module without depending on run-history.ts directly.
+export type { RunHistoryRow };
+
+/**
+ * Per-farmer wealth time series for the wealth-over-time graph (brief 39).
+ * One entry per farmer, carrying all historical gold-per-day rows plus the
+ * farmer's display name and personality so the chart can label/color lines
+ * without a second cross-reference lookup on the main thread.
+ *
+ * Structured-clone-friendly: plain object arrays, no Maps/Sets.
+ */
+export interface SnapshotWealthSeries {
+  farmerId: number;
+  name: string;
+  personality: string;
+  /** Rows in ascending day order. Each row is one RunHistoryRow entry. */
+  rows: RunHistoryRow[];
+}
 
 // Re-export RunRecap so snapshot consumers can import the type from this
 // cross-thread contract module without depending on run-recap.ts directly.
@@ -162,6 +183,13 @@ export interface RenderSnapshot {
    * resolved farmer names for the panel and end-of-run recap. Brief 37.
    */
   rivalries: SnapshotRivalry[];
+  /**
+   * Per-farmer wealth time series for the wealth-over-time line chart.
+   * One entry per farmer, with all per-day gold rows captured so far.
+   * Live-updated every snapshot so the chart redraws as the run progresses.
+   * Brief 39.
+   */
+  wealthSeries: SnapshotWealthSeries[];
 }
 
 /** One active rivalry/alliance entry, structured-clone-friendly. */

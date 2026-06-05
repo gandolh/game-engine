@@ -210,9 +210,9 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
             tick,
             maxDays,
             pendingShock,
-            // Pass run-history rows so the game-over recap can be built.
-            // history() is a defensive copy; only called once at game-over
-            // (stopped=true after this tick), so this never wastes CPU.
+            // Pass run-history rows: used by the live wealth graph (brief 39)
+            // every tick, and by the game-over recap builder when gameOver=true.
+            // history() is a cheap defensive copy (≤500 rows, append-only buffer).
             runHistory.history(),
             // brief 37 — rivalry system for trust matrix + named rivalries.
             rivalry,
