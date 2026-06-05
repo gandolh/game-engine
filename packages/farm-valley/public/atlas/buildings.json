@@ -250,20 +250,26 @@
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-sapling": {
+    "structure/greenhouse": {
       "x": 18,
       "y": 135,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-growing": {
+    "structure/fruit-tree-sapling": {
       "x": 35,
       "y": 135,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-mature": {
+    "structure/fruit-tree-growing": {
       "x": 52,
+      "y": 135,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-mature": {
+      "x": 69,
       "y": 135,
       "w": 16,
       "h": 16

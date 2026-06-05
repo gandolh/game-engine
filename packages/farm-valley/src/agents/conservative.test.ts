@@ -100,6 +100,10 @@ describe("deliberateConservative", () => {
     f.beliefs!.data["penCount_chicken"] = 0;
     f.beliefs!.data["orchardCount"] = 1;          // first tree already in the ground
     f.beliefs!.data["occupiedTiles"] = [];
+    // brief 43 — the greenhouse excursion now takes precedence over livestock on
+    // a quiet day; mark it already built so the coop excursion is the one tested.
+    f.beliefs!.data["hasGreenhouse"] = true;
+    f.beliefs!.data["greenhouseEmptyPlots"] = [];
     f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
     f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 }; // gold-funded build
 
@@ -117,6 +121,48 @@ describe("deliberateConservative", () => {
     expect(
       f.decisionTrace!.reasons.some((r) => r.startsWith("building coop")),
     ).toBe(true);
+  });
+
+  // brief 43 — greenhouse: the heaviest sink. With a large gold cushion, spare
+  // AP, plots not wilting, and no greenhouse yet, the conservative COMMITS the
+  // build (build-greenhouse + a WINNING carpentry travel) — mirroring the coop
+  // wiring so the feature actually fires live, not dormant.
+  it("commits a greenhouse build (build-greenhouse + carpentry travel) given a large surplus", () => {
+    const f = makeFarmer({ gold: 500, reserve: 30, region: "farm-cora" });
+    f.beliefs!.data["currentDay"] = 30;            // past the day-12 greenhouse gate
+    f.beliefs!.data["hasGreenhouse"] = false;       // none yet
+    f.beliefs!.data["occupiedTiles"] = [];
+    f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
+    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 }; // gold-funded build
+
+    deliberateConservative(f);
+    const queue = f.intentions!.queue;
+
+    const buildIdx = queue.findIndex((i) => i.kind === "build-greenhouse");
+    const carpTravel = queue.find(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "carpentry",
+    );
+    expect(buildIdx).toBeGreaterThan(-1);
+    expect(carpTravel).toBeDefined();
+    expect(carpTravel!.priority).toBeLessThan(0); // committed: wins queue[0]
+    expect(
+      f.decisionTrace!.reasons.some((r) => r.startsWith("build greenhouse")),
+    ).toBe(true);
+  });
+
+  it("does NOT commit a greenhouse build when gold can't cover cost + reserve", () => {
+    const f = makeFarmer({ gold: 150, reserve: 30, region: "farm-cora" });
+    f.beliefs!.data["currentDay"] = 30;
+    f.beliefs!.data["hasGreenhouse"] = false;
+    f.beliefs!.data["occupiedTiles"] = [];
+    f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
+    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 }; // gold-funded: full 140g due
+
+    deliberateConservative(f);
+    // gold 150 − 140 (gold-funded) = 10 < reserve 30 → no committed build trip.
+    expect(
+      f.intentions!.queue.some((i) => i.kind === "build-greenhouse"),
+    ).toBe(false);
   });
 
   it("does NOT commit a coop build when gold is below the surplus cushion", () => {

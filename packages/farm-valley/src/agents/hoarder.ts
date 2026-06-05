@@ -15,7 +15,7 @@ import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -215,6 +215,14 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
       if (!hasCoop) deliberateBuildPen(farmer, "coop", "chicken", reserve + 5, 14, -2);
       if (hasCoop && chickens < 3) deliberateBuyAnimal(farmer, "chicken", reserve + 5, 15, -2);
     }
+  }
+
+  // brief 43 — greenhouse (the heaviest sink). Hoarder is patient capital, so she
+  // builds it when genuinely flush, on its own quiet day with a large cushion.
+  const hasGreenhouse = (farmer.beliefs.data["hasGreenhouse"] as boolean | undefined) ?? false;
+  const greenhouseQuietDay = farmer.inventory.gold >= reserve + 220 && !plotsUrgent && apHeadroom;
+  if (day >= 12 && !hasGreenhouse && greenhouseQuietDay) {
+    deliberateBuildGreenhouse(farmer, reserve, 13, -2);
   }
 
   deliberateSleep(farmer);

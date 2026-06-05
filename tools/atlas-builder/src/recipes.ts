@@ -3932,6 +3932,59 @@ const NPC_POSES: PixelRecipe[] = [
     ],
   },
 
+  // ── brief 43 — greenhouse ─────────────────────────────────────────────────────
+  {
+    // Greenhouse — a compact glasshouse on a single farm tile (16×16, like the
+    // pens): pale structure-blue glass panes (s) in a darker frame (S), a green
+    // hint of crops under glass (g), a cream sill (w), and a small wooden door
+    // (D/d). Single-tile so it spawns + renders cleanly alongside pens/orchards.
+    name: "structure/greenhouse",
+    size: 16,
+    pixels: [
+      ".......SS.......",
+      "......SssS......",
+      ".....SssssS.....",
+      "....SssssssS....",
+      "...SssggggssS...",
+      "..SssgGGggssS...",
+      "..SsssgggsssS...",
+      "..SssSsssSssS...",
+      "..SsssssssssS...",
+      "..SssSsssSssS...",
+      "..SssssssssssS..",
+      "..SwwwwDDwwwwS..",
+      "..SwwwwDdwwwwS..",
+      "..SwwwwDdwwwwS..",
+      "..SSSSSDdSSSSS..",
+      "...kkkkkkkkk....",
+    ],
+  },
+  {
+    // Greenhouse floor — a tilled bed under glass. Tan/cream soil border (w) with
+    // dark furrows (D/d), a hint of glass-blue tint (s) at the corners so it reads
+    // as "indoor" vs the open-field dirt plot. 16×16 ground tile.
+    name: "tile/greenhouse-floor",
+    size: 16,
+    pixels: [
+      "swwwwwwwwwwwwwws",
+      "wDddddddddddddDw",
+      "wdDDDDDDDDDDDDdw",
+      "wdDddddddddddDdw",
+      "wdDdDDDDDDDDdDdw",
+      "wdDdDddddddDdDdw",
+      "wdDdDdDDDDdDdDdw",
+      "wdDdDdDddDdDdDdw",
+      "wdDdDdDddDdDdDdw",
+      "wdDdDdDDDDdDdDdw",
+      "wdDdDddddddDdDdw",
+      "wdDdDDDDDDDDdDdw",
+      "wdDddddddddddDdw",
+      "wdDDDDDDDDDDDDdw",
+      "wDddddddddddddDw",
+      "swwwwwwwwwwwwwws",
+    ],
+  },
+
   // ── brief 42 — orchard / fruit trees ────────────────────────────────────────
   {
     // Fruit tree sapling (just planted, immature). l=leaf-dark, m=trunk.

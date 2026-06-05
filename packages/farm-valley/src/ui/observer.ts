@@ -24,6 +24,10 @@ export interface ObserverSnapshot {
     currentIntention: string | null;
     nextIntention: string | null;
     reasons: string[];
+    /** brief 43 — per-axis skill levels (farming/foraging/fishing/mining). */
+    skills: { farming: number; foraging: number; fishing: number; mining: number };
+    /** brief 43 — true if the farmer has built a greenhouse. */
+    hasGreenhouse: boolean;
   }>;
 }
 
@@ -36,6 +40,8 @@ interface FarmerRowEls {
   fsm: HTMLElement;
   ap: HTMLElement;
   region: HTMLElement;
+  // brief 43 — per-farm skill levels line.
+  skills: HTMLElement;
   // brief 19 — decision rationale ("why"); only populated for the focused farmer.
   why: HTMLElement;
 }
@@ -259,6 +265,11 @@ export class ObserverPanel {
     region.dataset["field"] = "region";
     root.appendChild(region);
 
+    // brief 43 — skill levels line (legibility: why a late-game farmer is productive).
+    const skills = createEl("div", { style: { color: EDG.gold, fontSize: "11px" } });
+    skills.dataset["field"] = "skills";
+    root.appendChild(skills);
+
     // brief 19 — "why" sub-element; hidden unless this row is the focused farmer.
     const why = createEl("div", {
       style: {
@@ -274,7 +285,7 @@ export class ObserverPanel {
     why.dataset["field"] = "why";
     root.appendChild(why);
 
-    return { root, name, personality, gold, crops, fsm, ap, region, why };
+    return { root, name, personality, gold, crops, fsm, ap, region, skills, why };
   }
 
   private updateFarmerRow(
@@ -302,6 +313,14 @@ export class ObserverPanel {
     setText(row.ap, apText);
 
     setText(row.region, `Region: ${farmer.region}`);
+
+    // brief 43 — skill levels + greenhouse marker.
+    const s = farmer.skills;
+    const gh = farmer.hasGreenhouse ? " [GH]" : "";
+    setText(
+      row.skills,
+      `Skills: Fa${s.farming} Fo${s.foraging} Fi${s.fishing} Mi${s.mining}${gh}`,
+    );
 
     // brief 19 — render the decision "why" only for the focused farmer.
     if (farmer.id === this.focusedId) {

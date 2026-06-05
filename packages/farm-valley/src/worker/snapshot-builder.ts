@@ -38,6 +38,7 @@ import { pickFarmerFrame } from "../render-systems";
 import { HOTBAR_SLOTS } from "../systems/player-control";
 import { seasonForDay } from "../protocols";
 import { summarizeRun } from "../run-recap";
+import { skillLevel } from "../systems/skills";
 
 const TILE = 16;
 
@@ -172,6 +173,10 @@ export function buildObserverSnapshot(
     return null;
   })();
 
+  // brief 43 — greenhouse ownership (one per farmer) for the observer marker.
+  const greenhouseOwners = new Set<number>();
+  for (const g of world.query("greenhouse")) greenhouseOwners.add(g.greenhouse.ownerId);
+
   const farmerEntries: ObserverSnapshot["farmers"] = [];
   for (const f of world.query("farmer", "inventory", "fsm", "ap", "personality")) {
     if (f.id === undefined) continue;
@@ -196,6 +201,14 @@ export function buildObserverSnapshot(
       currentIntention: queue[0]?.kind ?? null,
       nextIntention: queue[1]?.kind ?? null,
       reasons: f.decisionTrace ? [...f.decisionTrace.reasons] : [],
+      // brief 43 — per-axis skill LEVELS (derived from XP) + greenhouse marker.
+      skills: {
+        farming:  skillLevel(f.skills?.farming ?? 0),
+        foraging: skillLevel(f.skills?.foraging ?? 0),
+        fishing:  skillLevel(f.skills?.fishing ?? 0),
+        mining:   skillLevel(f.skills?.mining ?? 0),
+      },
+      hasGreenhouse: greenhouseOwners.has(f.id),
     });
   }
   farmerEntries.sort((a, b) => a.id - b.id);

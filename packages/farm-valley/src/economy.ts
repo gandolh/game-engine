@@ -136,6 +136,35 @@ export function bankHarvest(inv: Inventory, crop: CropKind, qty: number, quality
   inv.cropQuality[crop]![quality] += qty;
 }
 
+// ── Greenhouse economy (brief 43) ─────────────────────────────────────────────
+
+/**
+ * brief 43 — cost to build a greenhouse at the carpenter. This is the run's
+ * heaviest single sink: it must be a genuine late-game decision (can I afford it,
+ * is the run long enough to amortize off-season premium crops?). Like a pen
+ * (brief 42's deliberation fix), it is GOLD-FUNDED with materials as an OPTIONAL
+ * discount, so the patient personalities who bank gold but rarely chop/mine can
+ * still commit — otherwise the feature reads as dormant (the AI never gathers the
+ * raw prerequisite).
+ *
+ *   goldCost     — gold paid with no materials in hand.
+ *   woodCost / stoneCost — materials consumed to earn the discount (optional).
+ *   goldDiscount — gold saved when BOTH wood+stone are available and spent.
+ *
+ * With materials in hand the effective cost is ~120 gold + 20 wood + 12 stone;
+ * gold-only it is 200. Either way far above a pen (barn = 75), so it lands well
+ * into the run.
+ */
+export const GREENHOUSE_BUILD_COST: {
+  goldCost: number;
+  woodCost: number;
+  stoneCost: number;
+  goldDiscount: number;
+} = { goldCost: 140, woodCost: 20, stoneCost: 12, goldDiscount: 50 };
+
+/** Number of season-immune plots a greenhouse provides. */
+export const GREENHOUSE_PLOT_COUNT = 4;
+
 // ── Livestock economy constants (brief 42) ───────────────────────────────────
 
 /**

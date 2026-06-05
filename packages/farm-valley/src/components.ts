@@ -261,6 +261,13 @@ export interface Plot {
   tileX: number;
   tileY: number;
   state: PlotState;
+  /**
+   * brief 43 — greenhouse plot flag. When true, this plot is inside a built
+   * greenhouse: crops grow at FULL rate regardless of season (CropGrowthSystem
+   * skips the out-of-season suitability multiplier). Optional/defaulted so all
+   * existing open-field plots read as `false` (season-gated as before).
+   */
+  greenhouse?: boolean;
 }
 
 export type PlotState =
@@ -370,6 +377,54 @@ export interface OrchardTree {
   lastHarvestDay: number;
   /** Accumulated fruit units ready to pick (produced on season-start once mature). */
   fruitReady: number;
+}
+
+// ── Skills (brief 43) ─────────────────────────────────────────────────────────
+
+/**
+ * brief 43 — per-farm skill axes. Each is leveled by DOING the matching activity
+ * (farming = plant/harvest, foraging = forage, fishing = fish, mining = mine).
+ * The skill bonuses are PURE functions of these XP counters (see systems/skills.ts),
+ * so determinism is preserved: the same activity history always yields the same
+ * level + bonus. No rolls live here — any quality/rarity roll that a bonus shifts
+ * still flows through a forked seeded Rng at the resolve site.
+ */
+export type SkillKind = "farming" | "foraging" | "fishing" | "mining";
+
+export const SKILL_KINDS: readonly SkillKind[] = ["farming", "foraging", "fishing", "mining"];
+
+/**
+ * A farmer's accumulated skill XP. One integer counter per axis. Levels are
+ * derived (not stored) via `skillLevel(xp)` in systems/skills.ts so there is a
+ * single source of truth for the curve. Optional on the farmer so pre-43 saves
+ * and bare test fixtures read as all-zero (level 1, no bonus).
+ */
+export interface Skills {
+  farming: number;
+  foraging: number;
+  fishing: number;
+  mining: number;
+}
+
+/** A zero-initialized Skills record (level 1 across the board). */
+export function zeroSkills(): Skills {
+  return { farming: 0, foraging: 0, fishing: 0, mining: 0 };
+}
+
+// ── Greenhouse (brief 43) ─────────────────────────────────────────────────────
+
+/**
+ * brief 43 — a buildable greenhouse on a farmer's farm. A single Greenhouse
+ * entity owns a small block of season-immune plots (spawned alongside it). It is
+ * SOLID art (like a pen): the farmer paths around the glasshouse footprint, and
+ * the season-immune plots sit on the open tiles in front of it. Built at the
+ * carpenter via a high-cost `build-greenhouse` action (see GREENHOUSE_BUILD_COST).
+ */
+export interface Greenhouse {
+  tileX: number;
+  tileY: number;
+  regionId: RegionId;
+  ownerId: number;
 }
 
 export type TileFeatureKind = "tree" | "stone";
@@ -635,5 +690,9 @@ export interface GameEntity {
   pen?: Pen;
   /** brief 42 — an orchard tree tile on the farmer's farm. */
   orchardTree?: OrchardTree;
+  /** brief 43 — per-farm skill XP counters (farming/foraging/fishing/mining). */
+  skills?: Skills;
+  /** brief 43 — a built greenhouse structure on the farmer's farm. */
+  greenhouse?: Greenhouse;
   [key: string]: unknown;
 }

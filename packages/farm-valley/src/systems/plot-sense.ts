@@ -39,6 +39,9 @@ export class PlotSenseSystem implements System {
     // Group plots by owner (all states).
     const byOwnerPlanted = new Map<number, Array<{ tileX: number; tileY: number; state: Extract<PlotState, { kind: "planted" }> }>>();
     const byOwnerEmpty   = new Map<number, Array<{ tileX: number; tileY: number }>>();
+    // brief 43 — empty GREENHOUSE plots tracked separately so the deliberation
+    // can plant a year-round high-value crop in them regardless of season.
+    const byOwnerGreenhouseEmpty = new Map<number, Array<{ tileX: number; tileY: number }>>();
     // Also track all plot tiles per owner (for till collision avoidance).
     const allTilesByOwner = new Map<number, string[]>();
     for (const p of this.world.query("plot")) {
@@ -54,6 +57,11 @@ export class PlotSenseSystem implements System {
         const eArr = byOwnerEmpty.get(p.plot.ownerId) ?? [];
         eArr.push({ tileX: p.plot.tileX, tileY: p.plot.tileY });
         byOwnerEmpty.set(p.plot.ownerId, eArr);
+        if (p.plot.greenhouse === true) {
+          const gArr = byOwnerGreenhouseEmpty.get(p.plot.ownerId) ?? [];
+          gArr.push({ tileX: p.plot.tileX, tileY: p.plot.tileY });
+          byOwnerGreenhouseEmpty.set(p.plot.ownerId, gArr);
+        }
       }
     }
 
@@ -90,6 +98,12 @@ export class PlotSenseSystem implements System {
       if (p.pen.kind === "barn") { entry.hasBarn = true; entry.barnFed = p.pen.fedToday; }
       entry.animalCounts[p.pen.animal] = (entry.animalCounts[p.pen.animal] ?? 0) + p.pen.count;
       pensByOwner.set(oid, entry);
+    }
+
+    // brief 43 — collect greenhouse ownership (one per farmer).
+    const greenhouseOwners = new Set<number>();
+    for (const g of this.world.query("greenhouse")) {
+      greenhouseOwners.add(g.greenhouse.ownerId);
     }
 
     // brief 42 — collect orchard tree state per owner.
@@ -161,6 +175,13 @@ export class PlotSenseSystem implements System {
       const orchState = orchardsByOwner.get(farmer.id);
       farmer.beliefs.data["orchardCount"] = orchState?.count ?? 0;
       farmer.beliefs.data["orchardFruitReady"] = orchState?.readyTrees ?? [];
+
+      // brief 43 — surface greenhouse ownership for build deliberation, and the
+      // empty greenhouse-plot tiles (sorted) for year-round greenhouse planting.
+      farmer.beliefs.data["hasGreenhouse"] = greenhouseOwners.has(farmer.id);
+      farmer.beliefs.data["greenhouseEmptyPlots"] = (byOwnerGreenhouseEmpty.get(farmer.id) ?? [])
+        .slice()
+        .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
 
       farmer.beliefs.revision += 1;
     }

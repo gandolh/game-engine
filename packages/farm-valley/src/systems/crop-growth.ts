@@ -4,6 +4,7 @@ import { PLOT_DECAY_DAYS } from "../components";
 import { ONT_SIMULATION, PERFORMATIVE, type CropDeathBody } from "../protocols";
 import { seasonForDay } from "../protocols/weather";
 import { CROP_SEASON, OUT_OF_SEASON_GROWTH_RATE } from "../economy";
+import { farmingGrowthMultiplier } from "./skills";
 
 /**
  * brief 29 — a crop dies after this many consecutive dry days. The grace
@@ -57,6 +58,14 @@ export class CropGrowthSystem implements System {
       break;
     }
 
+    // brief 43 — per-owner farming XP, so a higher farming level speeds crop
+    // growth a touch (a pure function of XP; see skills.ts). Built once per day
+    // boundary, keyed by owner id.
+    const farmingXpByOwner = new Map<number, number>();
+    for (const f of this.world.query("farmer")) {
+      if (f.id !== undefined) farmingXpByOwner.set(f.id, f.skills?.farming ?? 0);
+    }
+
     // Iterate plots in entity id order for determinism. Reuse a scratch array
     // (refilled each day boundary) instead of spreading the query into a fresh
     // one. Sort is in place; same deterministic order as before.
@@ -84,8 +93,17 @@ export class CropGrowthSystem implements System {
         // HarvestSystem (which reads daysGrowing as an integer via | 0).
         const currentSeason = seasonForDay(newDay);
         const cropSeason = CROP_SEASON[state.crop];
-        const seasonMultiplier = currentSeason === cropSeason ? 1.0 : OUT_OF_SEASON_GROWTH_RATE;
-        state.daysGrowing += seasonMultiplier;
+        // brief 43 — greenhouse plots ignore season entirely: they grow at full
+        // rate (1.0) year-round, which is the whole point of the structure. Open-
+        // field plots keep the brief-41 season-suitability multiplier (0.5 out of
+        // season). The greenhouse flag is set on the plot at build time.
+        const inGreenhouse = plotEntity.plot.greenhouse === true;
+        const seasonMultiplier = inGreenhouse || currentSeason === cropSeason
+          ? 1.0
+          : OUT_OF_SEASON_GROWTH_RATE;
+        // brief 43 — farming skill speeds growth a touch (gentle, compounding).
+        const skillMultiplier = farmingGrowthMultiplier(farmingXpByOwner.get(plotEntity.plot.ownerId) ?? 0);
+        state.daysGrowing += seasonMultiplier * skillMultiplier;
         state.weatherSum += weatherMultiplier;
       } else {
         state.daysSinceWater = (state.daysSinceWater ?? 0) + 1;
@@ -107,6 +125,9 @@ export class CropGrowthSystem implements System {
     for (const plotEntity of plots) {
       const state = plotEntity.plot.state;
       if (state.kind !== "empty") continue;
+      // brief 43 — greenhouse plots are permanent infrastructure (built at real
+      // cost): they never decay back to green even when left empty for a while.
+      if (plotEntity.plot.greenhouse === true) continue;
       const days = (state.daysSinceTended ?? 0) + 1;
       if (days > PLOT_DECAY_DAYS) {
         toRemove.push(plotEntity);

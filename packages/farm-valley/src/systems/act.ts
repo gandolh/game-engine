@@ -25,7 +25,15 @@ import {
   QUALITY_MULTIPLIER,
   totalProductCount,
   totalFruitCount,
+  GREENHOUSE_BUILD_COST,
+  GREENHOUSE_PLOT_COUNT,
 } from "../economy";
+import {
+  grantSkillXp,
+  foragingGoldMultiplier,
+  fishingRarityBonus,
+  miningRarityBonus,
+} from "./skills";
 import {
   PERFORMATIVE,
   ONT_MARKET,
@@ -101,6 +109,26 @@ function actionTicks(kind: string, tools: import("../components").Tool[]): numbe
 /** Stone drop table: [ironOre chance, geode chance]. Rest is plain stone. */
 const STONE_IRON_CHANCE  = 0.20;
 const STONE_GEODE_CHANCE = 0.10;
+
+/**
+ * brief 43 — reallocate `bonus` fraction of the minnow weight toward the rarer
+ * bass+salmon (split 50/50), leaving total weight unchanged. Pure: depends only
+ * on the input weights + bonus, so it doesn't touch the RNG. At bonus=0 the
+ * weights are returned unshifted (so unskilled fishing is byte-identical to the
+ * pre-43 behavior).
+ */
+function applyFishingRarityBonus(
+  weights: Record<FishKind, number>,
+  bonus: number,
+): Record<FishKind, number> {
+  if (bonus <= 0) return weights;
+  const moved = weights.minnow * bonus;
+  return {
+    minnow: weights.minnow - moved,
+    bass:   weights.bass + moved * 0.5,
+    salmon: weights.salmon + moved * 0.5,
+  };
+}
 
 /** Upgrade path: wooden → stone → iron. */
 const UPGRADE_PATH: Record<ToolTier, ToolTier | null> = {
@@ -298,6 +326,9 @@ export class ActSystem implements System {
         daysSinceWater: 0,
         wateredToday: true,
       } satisfies PlotState;
+      // brief 43 — planting earns farming XP (the other half of farming is the
+      // harvest grant in HarvestSystem).
+      grantSkillXp(farmer, "farming", 1);
     }
   }
 
@@ -569,15 +600,23 @@ export class ActSystem implements System {
     const feat = featuresByTile.get(`${tileX},${tileY}`);
     if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") return;
     if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
-    // Random drops
+    // Random drops. brief 43 — mining skill widens the geode/iron bands (a master
+    // miner pulls more valuable drops). The roll itself is the pre-existing
+    // Math.random() wart (untouched per the brief); the skill SHIFT is a pure
+    // function of mining XP, so the bonus is deterministic given the roll.
+    const mineBonus = miningRarityBonus(farmer.skills?.mining ?? 0);
+    const geodeChance = STONE_GEODE_CHANCE + mineBonus * 0.5;
+    const ironChance = STONE_IRON_CHANCE + mineBonus * 0.5;
     const roll = Math.random();
-    if (roll < STONE_GEODE_CHANCE) {
+    if (roll < geodeChance) {
       farmer.resources.geodes += 1;
-    } else if (roll < STONE_GEODE_CHANCE + STONE_IRON_CHANCE) {
+    } else if (roll < geodeChance + ironChance) {
       farmer.resources.ironOre += 1;
     } else {
       farmer.resources.stone += 1;
     }
+    // brief 43 — mining the rock earns mining XP.
+    grantSkillXp(farmer, "mining", 1);
     this.world.despawn(feat);
     featuresByTile.delete(`${tileX},${tileY}`);
     // Drain pickaxe
@@ -762,7 +801,11 @@ export class ActSystem implements System {
     const zone = FORAGE_ZONES[region];
     if (!zone) return;
     if (seasonForDay(day) !== zone.season) return; // out of season — no reward
-    farmer.inventory.gold += zone.reward;
+    // brief 43 — foraging skill multiplies the reward (gentle, compounding) and
+    // the forage earns foraging XP.
+    const mult = foragingGoldMultiplier(farmer.skills?.foraging ?? 0);
+    farmer.inventory.gold += Math.round(zone.reward * mult);
+    grantSkillXp(farmer, "foraging", 1);
   }
 
   /**
@@ -809,7 +852,11 @@ export class ActSystem implements System {
     if (castX === null) return; // no open water to cast into
 
     // Weighted catch: rarer odds next to a bubble, calm odds otherwise.
-    const weights = nearBubble ? FISH_WEIGHTS_BUBBLE : FISH_WEIGHTS_CALM;
+    // brief 43 — fishing skill reallocates a fraction of the minnow weight toward
+    // bass+salmon (a pure function of fishing XP), so a master angler lands rarer
+    // fish more often. The pick itself stays on the forked seeded fish rng.
+    const baseWeights = nearBubble ? FISH_WEIGHTS_BUBBLE : FISH_WEIGHTS_CALM;
+    const weights = applyFishingRarityBonus(baseWeights, fishingRarityBonus(farmer.skills?.fishing ?? 0));
     const fish = this.pickWeightedFish(weights);
     const busyTicks = this.fishRng
       ? this.fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1)
@@ -818,6 +865,8 @@ export class ActSystem implements System {
     if (!farmer.inventory.fish) farmer.inventory.fish = { minnow: 0, bass: 0, salmon: 0 };
     farmer.inventory.fish[fish] += 1;
     farmer.inventory.gold += FISH_VALUE[fish];
+    // brief 43 — a cast earns fishing XP.
+    grantSkillXp(farmer, "fishing", 1);
 
     if (farmer.farmer) farmer.farmer.busyUntilTick = tick + busyTicks;
   }
@@ -918,6 +967,119 @@ export class ActSystem implements System {
       }
     }
     if (!placed) return;
+  }
+
+  /**
+   * brief 43 — build a greenhouse at the carpentry workshop. Requires:
+   *   - farmer at carpentry region
+   *   - enough gold per GREENHOUSE_BUILD_COST (wood+stone are an optional
+   *     discount, never a hard gate — same lesson as brief 42's pens).
+   * Spawns one SOLID Greenhouse entity on an INTERIOR farm tile (never the
+   * farmer's standing tile or a farm-edge tile, which could trap her), plus a
+   * small block of season-immune greenhouse plots on the open tiles around it.
+   * One greenhouse per farmer.
+   */
+  private handleBuildGreenhouse(farmer: ActingFarmer, _intent: Intention): void {
+    if (farmer.farmer?.currentRegion !== "carpentry") return;
+    if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
+
+    // Already has a greenhouse? One per farmer.
+    for (const g of this.world.query("greenhouse")) {
+      if (g.greenhouse.ownerId === farmer.id) return;
+    }
+
+    const recipe = GREENHOUSE_BUILD_COST;
+    const res = farmer.resources;
+    const useMaterials = !!res && res.wood >= recipe.woodCost && res.stone >= recipe.stoneCost;
+    const goldDue = useMaterials ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
+    if (farmer.inventory.gold < goldDue) return;
+
+    const homeRegion = farmer.farmer.homeRegion;
+    const regionDef = REGIONS.find(r => r.id === homeRegion);
+    if (!regionDef) return;
+
+    // Collect occupied tiles on the farm (plots, decorations, features, pens,
+    // orchards, fountain) plus the farmer's standing tile, so the structure and
+    // its plots never overlap something or trap the farmer.
+    const usedTiles = new Set<string>();
+    for (const e of this.world.query("plot")) {
+      if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
+    }
+    for (const e of this.world.query("farmDecoration")) {
+      if (e.farmDecoration.regionId === homeRegion) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
+    }
+    for (const e of this.world.query("tileFeature")) {
+      if (e.tileFeature.regionId === homeRegion) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);
+    }
+    for (const e of this.world.query("pen")) {
+      if (e.pen.regionId === homeRegion) usedTiles.add(`${e.pen.tileX},${e.pen.tileY}`);
+    }
+    for (const e of this.world.query("orchardTree")) {
+      if (e.orchardTree.regionId === homeRegion) usedTiles.add(`${e.orchardTree.tileX},${e.orchardTree.tileY}`);
+    }
+    for (const e of this.world.query("fountain")) {
+      if (e.fountain.regionId === homeRegion && e.transform) {
+        usedTiles.add(`${Math.round(e.transform.x)},${Math.round(e.transform.y)}`);
+      }
+    }
+    usedTiles.add(`${farmer.transform?.x},${farmer.transform?.y}`);
+
+    // Place the glasshouse on an INTERIOR tile (one in from every bound) so it
+    // can't sever the only walkable route off the farm (same care as pens).
+    const b = regionDef.bounds;
+    const innerMinX = Math.min(b.minX + 1, b.maxX);
+    const innerMaxX = Math.max(b.maxX - 1, b.minX);
+    const innerMinY = Math.min(b.minY + 1, b.maxY);
+    const innerMaxY = Math.max(b.maxY - 1, b.minY);
+
+    let structTile: { x: number; y: number } | null = null;
+    outer: for (let ty = innerMinY; ty <= innerMaxY; ty++) {
+      for (let tx = innerMinX; tx <= innerMaxX; tx++) {
+        if (usedTiles.has(`${tx},${ty}`)) continue;
+        structTile = { x: tx, y: ty };
+        break outer;
+      }
+    }
+    if (!structTile) return; // no free interior tile
+
+    // Reserve the structure tile, then find GREENHOUSE_PLOT_COUNT free plot tiles
+    // (interior, never the structure tile / used tiles) for the season-immune
+    // plots. If we can't find enough open plot tiles, abort (don't half-build).
+    usedTiles.add(`${structTile.x},${structTile.y}`);
+    const plotTiles: Array<{ x: number; y: number }> = [];
+    plot: for (let ty = innerMinY; ty <= innerMaxY; ty++) {
+      for (let tx = innerMinX; tx <= innerMaxX; tx++) {
+        if (usedTiles.has(`${tx},${ty}`)) continue;
+        plotTiles.push({ x: tx, y: ty });
+        usedTiles.add(`${tx},${ty}`);
+        if (plotTiles.length >= GREENHOUSE_PLOT_COUNT) break plot;
+      }
+    }
+    if (plotTiles.length === 0) return; // no room for any greenhouse plot
+
+    // Commit: pay, spawn the SOLID glasshouse + the greenhouse plots.
+    if (useMaterials && res) { res.wood -= recipe.woodCost; res.stone -= recipe.stoneCost; }
+    farmer.inventory.gold -= goldDue;
+    this.world.spawn({
+      transform: { x: structTile.x, y: structTile.y, prevX: structTile.x, prevY: structTile.y, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/greenhouse", layer: 30, tintRgba: 0xffffffff },
+      greenhouse: { tileX: structTile.x, tileY: structTile.y, regionId: homeRegion, ownerId: farmer.id },
+      solid: { isSolid: true, tileX: structTile.x, tileY: structTile.y },
+    });
+    for (const pt of plotTiles) {
+      this.world.spawn({
+        transform: { x: pt.x, y: pt.y, prevX: pt.x, prevY: pt.y, rotation: 0 },
+        sprite: { atlasId: "main", frame: "tile/greenhouse-floor", layer: 5, tintRgba: 0xffffffff },
+        plot: {
+          ownerId: farmer.id,
+          regionId: homeRegion,
+          tileX: pt.x,
+          tileY: pt.y,
+          state: { kind: "empty" },
+          greenhouse: true,
+        },
+      });
+    }
   }
 
   /**
@@ -1164,6 +1326,10 @@ export class ActSystem implements System {
           }
           case "build-pen": {
             this.handleBuildPen(farmer, intent);
+            break;
+          }
+          case "build-greenhouse": {
+            this.handleBuildGreenhouse(farmer, intent);
             break;
           }
           case "buy-animal": {

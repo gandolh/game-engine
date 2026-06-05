@@ -2,6 +2,10 @@ import type { SimContext, System, World, Rng } from "@engine/core";
 import type { GameEntity, PlotState, CropQuality } from "../components";
 import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
 import { bankHarvest } from "../economy";
+import { farmingQualityBonus, grantSkillXp } from "./skills";
+
+/** brief 43 — farming XP awarded per harvested plot. */
+export const HARVEST_FARMING_XP = 2;
 
 /**
  * brief 41 — compute quality tier deterministically at harvest.
@@ -30,6 +34,13 @@ export function computeQuality(
   daysSinceWater: number,
   decorationBoost: number,
   rng: Rng,
+  /**
+   * brief 43 — additive husbandry shift from the owner's farming skill (pure
+   * function of farming XP; see farmingQualityBonus). 0 by default so legacy
+   * callers and bare fixtures are unaffected. Pushes a skilled farmer toward
+   * Silver/Gold without warping the curve (capped small in skills.ts).
+   */
+  farmingBonus = 0,
 ): CropQuality {
   // Clamp daysSinceWater (may be undefined/0 on freshly-watered crop)
   const dryDays = daysSinceWater;
@@ -43,8 +54,8 @@ export function computeQuality(
   // Husbandry = weighted blend (water matters most, then growth, then weather).
   const husbandry = waterScore * 0.5 + growthScore * 0.3 + weatherScore * 0.2;
 
-  // Decoration boost shifts the roll thresholds.
-  const effectiveHusbandry = Math.min(1, husbandry + decorationBoost * 0.3);
+  // Decoration boost + farming-skill bonus shift the roll thresholds.
+  const effectiveHusbandry = Math.min(1, husbandry + decorationBoost * 0.3 + farmingBonus);
 
   // Seeded random roll from the quality rng channel.
   const roll = rng.nextFloat();
@@ -113,11 +124,15 @@ export class HarvestSystem implements System {
           state.daysSinceWater ?? 0,
           boost,
           this.qualityRng,
+          // brief 43 — owner's farming skill nudges quality up.
+          farmingQualityBonus(owner.skills?.farming ?? 0),
         );
       }
 
       // Bank the harvested crop at its quality tier.
       bankHarvest(owner.inventory, state.crop, yield_, quality);
+      // brief 43 — reward farming on every harvest (skills earned by doing).
+      grantSkillXp(owner, "farming", HARVEST_FARMING_XP);
       plot.plot.state = { kind: "empty" } satisfies PlotState;
     }
   }
