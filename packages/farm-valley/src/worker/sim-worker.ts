@@ -123,7 +123,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       }
     }
 
-    const { world, bus, scheduler, dayClock, meetIndicators, eventFeed } = bootstrapSim({
+    const { world, bus, scheduler, dayClock, meetIndicators, eventFeed, runHistory, rivalry } = bootstrapSim({
       seed,
       ticksPerDay,
       maxDays,
@@ -210,6 +210,12 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
             tick,
             maxDays,
             pendingShock,
+            // Pass run-history rows so the game-over recap can be built.
+            // history() is a defensive copy; only called once at game-over
+            // (stopped=true after this tick), so this never wastes CPU.
+            runHistory.history(),
+            // brief 37 — rivalry system for trust matrix + named rivalries.
+            rivalry,
           ),
         );
 

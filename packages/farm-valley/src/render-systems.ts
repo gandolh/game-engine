@@ -9,6 +9,7 @@ import {
   TOWN_SQUARE,
   regionAt,
   isWalkable,
+  type RegionId,
 } from "./world/regions";
 
 const TILE = 16;
@@ -99,36 +100,45 @@ interface FenceTile {
 /**
  * Compute fence perimeter tiles for every farm region. Skips any tile whose
  * neighbor (one step outside the farm) is walkable — that's the road-facing
- * gap where the farm meets a road, so we don't visually block the entry.
+ * gap where the farm meets a road, so we don't visually block the entry — AND
+ * any tile whose neighbor is OCEAN: in the archipelago a farm edge facing water
+ * is an island margin, which gets a stone WALL (see `computeWalls`) instead of
+ * a wooden fence. Fences therefore only ever enclose a farm boundary that abuts
+ * another LAND region (none in the current layout, but the logic stays correct
+ * if two regions ever touch).
  *
  * Top/bottom edges → fence-h rotation 0
  * Left/right edges → fence-h rotation 90° (Math.PI / 2)
  */
 function computeFences(): readonly FenceTile[] {
   const out: FenceTile[] = [];
+  // A fence is only drawn where the farm meets another LAND region (not a road
+  // entry, not the open ocean). Ocean-facing margins are walls, not fences.
+  const isLandRegion = (x: number, y: number): boolean =>
+    regionAt(x, y) !== null;
   for (const region of REGIONS) {
     if (region.kind !== "farm") continue;
     const { minX, minY, maxX, maxY } = region.bounds;
 
     // Top edge (ty = minY). Neighbor outside is (tx, minY - 1).
     for (let tx = minX; tx <= maxX; tx++) {
-      if (isWalkable(tx, minY - 1)) continue; // road entry — leave open
+      if (!isLandRegion(tx, minY - 1)) continue;
       out.push({ tx, ty: minY, rotation: 0 });
     }
     // Bottom edge (ty = maxY). Neighbor outside is (tx, maxY + 1).
     for (let tx = minX; tx <= maxX; tx++) {
-      if (isWalkable(tx, maxY + 1)) continue;
+      if (!isLandRegion(tx, maxY + 1)) continue;
       out.push({ tx, ty: maxY, rotation: 0 });
     }
     // Left edge (tx = minX). Neighbor outside is (minX - 1, ty). Skip the
     // corners (already drawn by top/bottom passes).
     for (let ty = minY + 1; ty <= maxY - 1; ty++) {
-      if (isWalkable(minX - 1, ty)) continue;
+      if (!isLandRegion(minX - 1, ty)) continue;
       out.push({ tx: minX, ty, rotation: Math.PI / 2 });
     }
     // Right edge (tx = maxX).
     for (let ty = minY + 1; ty <= maxY - 1; ty++) {
-      if (isWalkable(maxX + 1, ty)) continue;
+      if (!isLandRegion(maxX + 1, ty)) continue;
       out.push({ tx: maxX, ty, rotation: Math.PI / 2 });
     }
   }
@@ -136,6 +146,71 @@ function computeFences(): readonly FenceTile[] {
 }
 
 const FENCES: readonly FenceTile[] = computeFences();
+
+interface WallTile {
+  tx: number;
+  ty: number;
+  rotation: number;
+  frame: string;
+}
+
+/**
+ * The edge material for a region's island margin. Each island reads as its own
+ * place, so its shoreline is themed:
+ *   farm fields   → soft sandy beach (`tile/shore-sand`)
+ *   carpentry     → built wooden bulwark (`tile/wall-wood`)
+ *   blacksmith / quarries → hard stone wall (`tile/wall`)
+ *   fishing isles → sandy beach (they're sand islands)
+ *   everything else → stone wall (a neutral retaining edge)
+ */
+function edgeFrame(region: RegionId): string {
+  if (region.startsWith("farm-")) return "tile/shore-sand";
+  if (region === "fishing-isle" || region === "fishing-isle-2") return "tile/shore-sand";
+  if (region === "carpentry") return "tile/wall-wood";
+  // blacksmith, quarry-*, village, forests, mill, wells, grove, ice-pond, …
+  return "tile/wall";
+}
+
+/**
+ * Compute island wall tiles: every REGION-interior LAND tile that borders the
+ * OCEAN (a non-walkable tile) gets an edge band on the side facing the water —
+ * so every island is ringed by a margin matching its region's material (see
+ * `edgeFrame`). A tile with ocean on several sides emits one band per side.
+ *
+ * This deliberately covers only region tiles, never ROAD tiles: the 2-wide
+ * bridges that connect islands are road-only (`regionAt === null`) and stay
+ * open, so the wall never seals off a bridge mouth. Each band is authored
+ * top-edge-up and rotated to face the adjacent ocean, matching `computeShores`'
+ * rotation convention:
+ *   above (−Y) → 0, right (+X) → 90°, below (+Y) → 180°, left (−X) → 270°.
+ */
+function computeWalls(): readonly WallTile[] {
+  const out: WallTile[] = [];
+  const dirs: Array<[number, number, number]> = [
+    [0, -1, 0],
+    [1, 0, Math.PI / 2],
+    [0, 1, Math.PI],
+    [-1, 0, (3 * Math.PI) / 2],
+  ];
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      const region = regionAt(tx, ty);
+      if (region === null) continue; // only region land gets a wall
+      const frame = edgeFrame(region);
+      for (const [dx, dy, rotation] of dirs) {
+        const nx = tx + dx;
+        const ny = ty + dy;
+        // Off-grid OR non-walkable neighbor ⇒ that side faces ocean.
+        const neighborIsOcean =
+          nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT || !isWalkable(nx, ny);
+        if (neighborIsOcean) out.push({ tx, ty, rotation, frame });
+      }
+    }
+  }
+  return out;
+}
+
+const WALLS: readonly WallTile[] = computeWalls();
 
 interface ShoreTile {
   tx: number;
@@ -302,8 +377,175 @@ export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> =
   return out;
 })();
 
+interface CoralTile {
+  tx: number;
+  ty: number;
+  frame: string;
+  rotation: number;
+}
+
+/**
+ * Coral is drawn semi-transparent so it reads as resting DEEP below the water
+ * surface — the flowing water shows through and the muted shapes look submerged
+ * rather than sitting on top of the sea. Low value (≈0.4) keeps the reefs a
+ * quiet seabed accent, not a bright object.
+ */
+const CORAL_ALPHA = 0.4;
+
+/**
+ * Compute coral-zone tiles: connected clusters of decorative coral on OPEN-WATER
+ * ocean tiles, AUTOTILED so each cluster reads as ONE continuous seabed texture
+ * rather than independent per-tile stamps. A candidate tile must be (a) ocean
+ * (non-walkable), and (b) not touch any land/bridge on the 8 surrounding tiles —
+ * so zones sit out in the open sea, clear of the shore foam (`computeShores`)
+ * and island walls rather than crowding the coastline. We grow a handful of
+ * seeded clusters, then pick each cell's frame from the coral autotile set by
+ * how its 4-neighbours are also coral:
+ *   - 4 coral neighbours        → `tile/coral-fill` (full-bleed interior; seams
+ *                                  with neighbouring fills into one mass)
+ *   - one open-water side       → `tile/coral-edge`, rotated to face the water
+ *   - two open-water sides that
+ *     share a corner            → `tile/coral-corner`, rotated to the open corner
+ * The fill tile covers the whole cell edge-to-edge, so adjacent interior cells
+ * meet with no seam and the patch looks like a single big reef.
+ *
+ * This is purely visual (coral sits on non-walkable tiles and never affects
+ * walkability/pathfinding, exactly like the bubble fishing-spots). It's computed
+ * once at module load with a fixed seed, so the layout is deterministic and
+ * stable across runs (no `Math.random`).
+ */
+function computeCoral(): readonly CoralTile[] {
+  // Open-water candidates: ocean tiles with no walkable neighbour in the 8-ring.
+  const candidates: Array<{ tx: number; ty: number }> = [];
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      if (isWalkable(tx, ty)) continue; // coral sits on ocean
+      let nearLand = false;
+      for (let dy = -1; dy <= 1 && !nearLand; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          if (isWalkable(tx + dx, ty + dy)) {
+            nearLand = true;
+            break;
+          }
+        }
+      }
+      if (!nearLand) candidates.push({ tx, ty });
+    }
+  }
+
+  // A tiny seeded LCG so cluster placement is deterministic (render-only; we
+  // deliberately avoid Math.random so the baked layout never shifts run-to-run).
+  let seed = 0x9e3779b1 >>> 0;
+  const rand = (): number => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 0x100000000;
+  };
+
+  // Fewer but BIGGER, COMPACT clusters so each zone is a chunky connected mass
+  // with a real interior (the autotiling only reads as "one texture" when many
+  // cells have coral on all 4 sides → fill tiles). We grow each cluster as a
+  // near-circular blob: from a random seed, repeatedly add the still-free
+  // candidate CLOSEST to the seed (squared-distance), so the patch fills in
+  // round rather than snaking off in a thin line.
+  const CLUSTERS = 8;
+  const taken = new Set<number>();
+  const key = (x: number, y: number) => y * WORLD_WIDTH + x;
+  const candidateSet = new Set(candidates.map((c) => key(c.tx, c.ty)));
+
+  for (let c = 0; c < CLUSTERS && candidates.length > 0; c++) {
+    const seedTile = candidates[Math.floor(rand() * candidates.length)]!;
+    // Target a chunky cluster (10–17 tiles → a ~3-tile-radius blob with interior).
+    const size = 10 + Math.floor(rand() * 8);
+    // Frontier = free candidates adjacent to the cluster so far; we always pop
+    // the one nearest the seed to keep the blob compact and roughly round.
+    const frontier = new Map<number, { tx: number; ty: number }>();
+    const dist2 = (t: { tx: number; ty: number }) =>
+      (t.tx - seedTile.tx) ** 2 + (t.ty - seedTile.ty) ** 2;
+    const addNeighbours = (t: { tx: number; ty: number }) => {
+      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+        const nx = t.tx + dx;
+        const ny = t.ty + dy;
+        const nk = key(nx, ny);
+        if (candidateSet.has(nk) && !taken.has(nk) && !frontier.has(nk)) {
+          frontier.set(nk, { tx: nx, ty: ny });
+        }
+      }
+    };
+    const sk = key(seedTile.tx, seedTile.ty);
+    if (taken.has(sk)) continue; // seed already used by an earlier cluster
+    taken.add(sk);
+    addNeighbours(seedTile);
+    let placed = 1;
+    while (frontier.size > 0 && placed < size) {
+      let bestK = -1;
+      let best: { tx: number; ty: number } | null = null;
+      let bestD = Infinity;
+      for (const [fk, ft] of frontier) {
+        const d = dist2(ft);
+        if (d < bestD) { bestD = d; bestK = fk; best = ft; }
+      }
+      frontier.delete(bestK);
+      if (best === null || taken.has(bestK)) continue;
+      taken.add(bestK);
+      placed++;
+      addNeighbours(best);
+    }
+  }
+
+  // Autotile pass: pick frame + rotation per cell from its coral neighbours.
+  // Direction order matches the wall/shore rotation convention (band/fade faces
+  // "up" at rotation 0): up=−Y→0, right=+X→90°, down=+Y→180°, left=−X→270°.
+  const HALF_PI = Math.PI / 2;
+  const isCoral = (x: number, y: number) => taken.has(key(x, y));
+  const out: CoralTile[] = [];
+  for (const k of taken) {
+    const tx = k % WORLD_WIDTH;
+    const ty = Math.floor(k / WORLD_WIDTH);
+    const up = isCoral(tx, ty - 1);
+    const right = isCoral(tx + 1, ty);
+    const down = isCoral(tx, ty + 1);
+    const left = isCoral(tx - 1, ty);
+    const openCount = (up ? 0 : 1) + (right ? 0 : 1) + (down ? 0 : 1) + (left ? 0 : 1);
+
+    if (openCount === 0) {
+      out.push({ tx, ty, frame: "tile/coral-fill", rotation: 0 });
+      continue;
+    }
+    // A convex corner: exactly two open sides that are adjacent (share a corner).
+    // The corner tile fades the TOP-LEFT quadrant at rotation 0, i.e. open on the
+    // up+left sides; rotate so the fade faces whichever pair is open.
+    if (openCount === 2) {
+      if (!up && !left) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 0 }); continue; }
+      if (!up && !right) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: HALF_PI }); continue; }
+      if (!down && !right) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 2 * HALF_PI }); continue; }
+      if (!down && !left) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 3 * HALF_PI }); continue; }
+      // Two OPPOSITE open sides (a 1-wide neck) — treat as an edge facing up.
+    }
+    // Edge: fade faces the (first) open side. The edge tile fades its TOP at
+    // rotation 0, so rotate to point the fade at the open-water side.
+    const rotation = !up ? 0 : !right ? HALF_PI : !down ? 2 * HALF_PI : 3 * HALF_PI;
+    out.push({ tx, ty, frame: "tile/coral-edge", rotation });
+  }
+  return out;
+}
+
+const CORAL: readonly CoralTile[] = computeCoral();
+
 /** The three animated foam frames, cycled for the water shimmer. */
 export const FOAM_FRAMES = ["tile/foam-a", "tile/foam-b", "tile/foam-c"] as const;
+
+/**
+ * The fishing-spot rising-bubble animation: 3 frames the render loop cycles
+ * (A→B→C) so the spot's three bubbles climb to the surface and pop. `-a` is the
+ * `structure/fishing-spot` frame the BubbleSystem spawns / the snapshot carries;
+ * the render loop swaps the displayed frame to animate it (see main.ts).
+ */
+export const FISHING_SPOT_FRAMES = [
+  "structure/fishing-spot",
+  "structure/fishing-spot-b",
+  "structure/fishing-spot-c",
+] as const;
 
 /** Animated forge-fire frames, cycled in the blacksmith oven's mouth. */
 export const FORGE_FIRE_FRAMES = [
@@ -314,7 +556,15 @@ export const FORGE_FIRE_FRAMES = [
 
 /** Tile of the blacksmith oven (matches region-setup placeProps). The fire
  *  overlay is drawn here, above the oven body. */
-export const FORGE_OVEN_TILE = { x: 61, y: 37 } as const;
+export const FORGE_OVEN_TILE = { x: 62, y: 37 } as const;
+
+/** Animated forge chimney-smoke frames, cycled by the render loop above the
+ *  forge-house (see FORGE_CHIMNEY_PX). */
+export const FORGE_SMOKE_FRAMES = [
+  "structure/forge-smoke-a",
+  "structure/forge-smoke-b",
+  "structure/forge-smoke-c",
+] as const;
 
 /**
  * The static backdrop: tiles + farm fences + plot dirt. These never change
@@ -356,6 +606,24 @@ export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalS
     };
   }
 
+  // Coral reefs on open-water ocean tiles (above the animated water, below the
+  // bridges/shore). Purely decorative — coral sits on non-walkable tiles and
+  // never affects movement (computeCoral keeps reefs clear of shores/bridges).
+  // Drawn semi-transparent (CORAL_ALPHA) so the water shows through and the
+  // muted shapes read as resting deep below the surface.
+  for (const coral of CORAL) {
+    yield {
+      x: coral.tx * TILE + TILE / 2,
+      y: coral.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: coral.frame,
+      rotation: coral.rotation,
+      layer: 2,
+      alpha: CORAL_ALPHA,
+    };
+  }
+
   // Plank bridges over the water gaps between islands (drawn above the ocean
   // backdrop + shore foam, below fences). Rotated per computeBridges.
   for (const bridge of BRIDGES) {
@@ -367,6 +635,24 @@ export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalS
       frame: "tile/bridge-h",
       rotation: bridge.rotation,
       layer: 3,
+      alpha: 1,
+    };
+  }
+
+  // Island edges: a region-themed margin on every land tile facing ocean,
+  // oriented to face the water (stone wall, wooden bulwark, or sandy beach per
+  // `edgeFrame`). Above the ocean backdrop + shore foam + bridges (layers 0–3),
+  // below fences (20) and entities — so it reads as the island's edge. Bridge
+  // mouths stay open (road tiles get no wall).
+  for (const wall of WALLS) {
+    yield {
+      x: wall.tx * TILE + TILE / 2,
+      y: wall.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: wall.frame,
+      rotation: wall.rotation,
+      layer: 4,
       alpha: 1,
     };
   }
@@ -385,6 +671,27 @@ export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalS
     };
   }
 
+  // Big multi-tile workshop buildings (forge-house, carpenter-workshop). These
+  // are large STATIC scenery anchoring the craft islands; they never move, so
+  // they bake here once rather than streaming as per-tick snapshot sprites.
+  // Bottom-anchored: `baseTileX`/`baseTileY` is the ground tile the building
+  // stands on; the sprite extends UP and (for wide sprites) is centered over the
+  // tile span. drawSprite is center-anchored, so we offset the center such that
+  // the sprite's BOTTOM edge sits at the bottom of the base tile row. Layer 5
+  // keeps them above the floor/walls (0–4) yet behind fences/props/NPCs (20+).
+  for (const b of BIG_STRUCTURES) {
+    yield {
+      x: b.baseTileX * TILE + b.wPx / 2,
+      y: b.baseTileY * TILE + TILE - b.hPx / 2,
+      width: b.wPx,
+      height: b.hPx,
+      frame: b.frame,
+      rotation: 0,
+      layer: 5,
+      alpha: 1,
+    };
+  }
+
   // Plot dirt tiles (static). The crop sprite layered on top is dynamic.
   for (const plot of world.query("plot")) {
     yield {
@@ -399,6 +706,39 @@ export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalS
     };
   }
 }
+
+/**
+ * Large multi-tile static buildings baked into the static layer. `baseTileX` is
+ * the LEFT tile column the sprite is centered-over (sprite is `wPx` wide, so a
+ * 32px sprite spans `baseTileX`..`baseTileX+1`); `baseTileY` is the bottom tile
+ * row the building stands on. See the bake loop in `iterStaticSprites` for the
+ * bottom-anchor math. Placed on the otherwise-empty top rows of each craft
+ * island so the work-yard props/NPC sit in the open ground in front.
+ */
+const BIG_STRUCTURES: ReadonlyArray<{
+  frame: string;
+  baseTileX: number;
+  baseTileY: number;
+  wPx: number;
+  hPx: number;
+}> = [
+  // Blacksmith forge-house — east half of the blacksmith island (x58–67),
+  // spanning tiles x63–64, standing on row y36 (rises into y34–36). Kept off the
+  // x60–61 road spine (see region-setup) so the island stays traversable.
+  { frame: "structure/forge-house", baseTileX: 63, baseTileY: 36, wPx: 32, hPx: 48 },
+  // Carpenter's workshop — west half of the carpenter island (x20–29), spanning
+  // tiles x21–22, standing on row y36 (rises into y34–36). Kept off the x24–25
+  // road spine.
+  { frame: "structure/carpenter-workshop", baseTileX: 21, baseTileY: 36, wPx: 32, hPx: 48 },
+];
+
+/** The forge-house chimney top, in pixel space — where smoke puffs spawn. The
+ *  chimney is at recipe column ~11 of the 32px sprite, top at the sprite's top
+ *  (≈ baseTileY*TILE + TILE - hPx). Used by the animated smoke overlay in main. */
+export const FORGE_CHIMNEY_PX = {
+  x: 63 * TILE + 11,
+  y: 36 * TILE + TILE - 48 + 2,
+} as const;
 
 /** Materialize the static backdrop sprites for a one-time bake. */
 export function buildStaticLayerSprites(world: World<GameEntity>): Canvas2dSprite[] {
@@ -443,6 +783,17 @@ function resolveFrameAndBob(
   s: import("./worker/snapshot").SnapshotSprite,
   nowMs: number,
 ): { frame: string; bobY: number } {
+  // Fishing spots: animate the three rising bubbles by cycling A→B→C (~1.2 s),
+  // with a per-tile phase offset (off the pixel position) so neighbouring spots
+  // don't bubble in lockstep. Wall-clock driven (nowMs) — purely cosmetic; the
+  // spot's tile position still comes from the seeded BubbleSystem snapshot.
+  if (s.frame === "structure/fishing-spot") {
+    const SPOT_PERIOD_MS = 1200;
+    const step = nowMs / (SPOT_PERIOD_MS / FISHING_SPOT_FRAMES.length);
+    const phase = Math.floor(s.x / TILE) * 2 + Math.floor(s.y / TILE) * 3;
+    const frame = FISHING_SPOT_FRAMES[(Math.floor(step) + phase) % FISHING_SPOT_FRAMES.length]!;
+    return { frame, bobY: 0 };
+  }
   if (s.id === null) return { frame: s.frame, bobY: 0 };
 
   // NPC pose frames (e.g. "npc/blacksmith/hammer-a") are already fully resolved
@@ -482,15 +833,12 @@ function resolveFrameAndBob(
  * This also draws:
  *  - MEET bubble (indicator/meet) sprites above each active meet farmer,
  *    positioned at the interpolated farmer pixel position from the snapshot.
- *  - Focus halo segments around the focused farmer (identified by id) using
- *    the interpolated position supplied by the caller.
  */
 export function pushSnapshotSprites(
   renderer: Canvas2dRenderer,
   sprites: import("./worker/snapshot").SnapshotSprite[],
   meets: import("./worker/snapshot").SnapshotMeet[],
   farmerPositions: Map<number, { x: number; y: number }>,
-  focusedFarmerId: number | null,
   nowMs: number = 0,
 ): void {
   // Sprites + ground drop-shadows for characters (sprites with an entity id).
@@ -527,31 +875,5 @@ export function pushSnapshotSprites(
       layer: 90,
       alpha: 1,
     });
-  }
-
-  // Focus halo (4 small segments at N/E/S/W around the focused farmer)
-  if (focusedFarmerId !== null) {
-    const pos = farmerPositions.get(focusedFarmerId);
-    if (pos) {
-      const r = TILE * 0.8;
-      const offsets: Array<[number, number, number]> = [
-        [0, -r, 0],
-        [r, 0, Math.PI / 2],
-        [0, r, 0],
-        [-r, 0, Math.PI / 2],
-      ];
-      for (const [dx, dy, rot] of offsets) {
-        renderer.push({
-          x: pos.x + dx,
-          y: pos.y + dy,
-          width: TILE * 0.5,
-          height: TILE * 0.5,
-          frame: "tile/fence-h",
-          rotation: rot,
-          layer: 50,
-          alpha: 0.85,
-        });
-      }
-    }
   }
 }

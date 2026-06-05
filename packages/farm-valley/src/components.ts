@@ -270,6 +270,20 @@ export interface TileFeature {
   ownerId: number;
 }
 
+/**
+ * Marks a tile-occupying obstacle that blocks movement (both the player's step
+ * checks and the AI pathfinder grid) without being a gatherable tree/stone.
+ * Used for workshop props and the big workshop buildings so farmers and Pip walk
+ * AROUND them instead of through them. Static: placed once at world setup, never
+ * moved or removed, so connectivity is validated at setup time (see
+ * region-setup `SOLID_*` placements + the walkable-grid connectivity test).
+ */
+export interface Solid {
+  readonly isSolid: true;
+  tileX: number;
+  tileY: number;
+}
+
 /** Days without tending before an empty plot reverts to green. */
 export const PLOT_DECAY_DAYS = 5;
 
@@ -488,6 +502,7 @@ export interface GameEntity {
   fountain?: FountainTag;
   fishingSpot?: FishingSpotTag;
   tileFeature?: TileFeature;
+  solid?: Solid;
   blacksmith?: BlacksmithTag;
   carpenter?: CarpenterTag;
   workNpc?: WorkNpc;

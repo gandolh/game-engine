@@ -43,5 +43,16 @@ export class FeatureCollisionSystem implements System {
       cells[i] = 1;
       this.blocked.push(i);
     }
+
+    // Re-block every static solid obstacle (workshop props + big buildings).
+    // These never move, but blocking them here (alongside features) keeps a
+    // single walkability authority and survives any future dynamic solids.
+    for (const e of this.world.query("solid")) {
+      const { tileX, tileY } = e.solid;
+      if (tileX < 0 || tileY < 0 || tileX >= width || tileY >= height) continue;
+      const i = tileY * width + tileX;
+      cells[i] = 1;
+      this.blocked.push(i);
+    }
   }
 }

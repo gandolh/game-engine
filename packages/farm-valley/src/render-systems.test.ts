@@ -115,7 +115,7 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     return world;
   }
 
-  it("contains the static backdrop: grass/dirt land tiles, bridges, fences, and plot dirt (ocean is NOT baked)", () => {
+  it("contains the static backdrop: grass/dirt land tiles, bridges, island walls, and plot dirt (ocean is NOT baked)", () => {
     const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
     const frames = new Set(sprites.map((s) => s.frame));
     // Backdrop tile kinds present. In the archipelago every road tile spans
@@ -128,8 +128,21 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     // tiles bake transparent (backdropFrame → null for non-walkable/bridge).
     expect(frames.has("tile/ocean")).toBe(false);
     expect(frames.has("tile/bridge-h")).toBe(true);
-    // Farm fences are baked in.
-    expect(frames.has("tile/fence-h")).toBe(true);
+    // In the archipelago every island margin gets a region-themed edge band
+    // facing the ocean (stone wall, wooden bulwark for carpentry, sandy beach
+    // for farms/fishing isles); farm fences only enclose a land-to-land
+    // boundary, of which there are none in the current layout. All three
+    // materials are present across the world's islands.
+    expect(frames.has("tile/wall")).toBe(true); // blacksmith / quarries / etc.
+    expect(frames.has("tile/wall-wood")).toBe(true); // carpentry
+    expect(frames.has("tile/shore-sand")).toBe(true); // farm fields + fishing isles
+    // The old wooden FENCE band no longer rings the island margins.
+    expect(frames.has("tile/fence-h")).toBe(false);
+    // Coral zones are autotiled connected patches on open-water ocean tiles
+    // (purely decorative; never affect walkability). At least the interior fill
+    // and a faded edge are baked.
+    expect(frames.has("tile/coral-fill")).toBe(true);
+    expect(frames.has("tile/coral-edge")).toBe(true);
     // Lots of tiles (88×80 world: islands + ocean fill the whole grid).
     expect(sprites.length).toBeGreaterThan(100);
   });

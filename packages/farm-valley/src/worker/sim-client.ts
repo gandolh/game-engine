@@ -22,7 +22,10 @@ import type {
   WorkerStaticLayerMsg,
   RenderSnapshot,
   SnapshotSprite,
+  SnapshotRivalry,
   FinalStandingRow,
+  RunRecap,
+  RelationshipMatrixData,
 } from "./snapshot";
 import type { ProfileReport } from "@engine/core";
 import type { ObserverSnapshot } from "../ui/observer";
@@ -373,11 +376,25 @@ export class SimClient {
     return this.currentSnapshot?.finalSummary ?? null;
   }
 
+  get recap(): RunRecap | null {
+    return this.currentSnapshot?.recap ?? null;
+  }
+
   get shock(): RenderSnapshot["shock"] {
     return this.currentSnapshot?.shock ?? null;
   }
 
   get playerHotbar(): RenderSnapshot["playerHotbar"] {
     return this.currentSnapshot?.playerHotbar ?? null;
+  }
+
+  /** Brief 37 — trust matrix for the relationship grid panel. */
+  get relationships(): RelationshipMatrixData {
+    return this.currentSnapshot?.relationships ?? { farmers: [], trust: {} };
+  }
+
+  /** Brief 37 — active named rivalries and alliances (resolved names). */
+  get rivalries(): SnapshotRivalry[] {
+    return this.currentSnapshot?.rivalries ?? [];
   }
 }

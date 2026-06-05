@@ -237,15 +237,19 @@ export class PlayerControlSystem implements System {
     return null;
   }
 
-  /** True if a tree/stone feature occupies the tile (movement-blocking). */
+  /** True if a movement-blocking entity occupies the tile: a tree/stone feature
+   *  or a static solid obstacle (workshop prop / big building footprint). */
   private featureAt(tx: number, ty: number): boolean {
     for (const f of this.world.query("tileFeature")) {
       if (f.tileFeature.tileX === tx && f.tileFeature.tileY === ty) return true;
     }
+    for (const s of this.world.query("solid")) {
+      if (s.solid.tileX === tx && s.solid.tileY === ty) return true;
+    }
     return false;
   }
 
-  /** A tile is steppable iff walkable and free of a tree/stone feature. */
+  /** A tile is steppable iff walkable and free of a feature/solid obstacle. */
   private canStand(tx: number, ty: number): boolean {
     return isWalkable(tx, ty) && !this.featureAt(tx, ty);
   }

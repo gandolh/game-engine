@@ -17,13 +17,17 @@ import type { GameEntity } from "../components";
 import type { DayClockSystem } from "../systems/day-clock";
 import type { MeetIndicatorSystem } from "../systems/meet-indicator";
 import type { EventFeedSystem } from "../systems/event-feed";
+import type { RunHistoryRow } from "../systems/run-history";
+import type { RivalrySystem } from "../systems/rivalry";
 import type {
   RenderSnapshot,
   SnapshotSprite,
   SnapshotMeet,
   SnapshotEvent,
   SnapshotShock,
+  SnapshotRivalry,
   FinalStandingRow,
+  RelationshipMatrixData,
 } from "./snapshot";
 import type { ObserverSnapshot } from "../ui/observer";
 import type { LeaderboardRow } from "../ui/leaderboard";
@@ -32,6 +36,7 @@ import type { FarmerSummary } from "../sim-bootstrap";
 import { pickFarmerFrame } from "../render-systems";
 import { HOTBAR_SLOTS } from "../systems/player-control";
 import { seasonForDay } from "../protocols";
+import { summarizeRun } from "../run-recap";
 
 const TILE = 16;
 
@@ -80,6 +85,21 @@ function deriveRegionLabel(
   if (currentRegion === `farm-${name.toLowerCase()}`) return "home";
   return currentRegion;
 }
+
+// Friendly hover name + blurb for the decorative props (sprite-only entities
+// with no identifying component — keyed off their `sprite.frame`). Keeping it a
+// frame→label map means a new `decoration/*` prop just needs one entry here to
+// become hover-able.
+const DECORATION_LABELS: Record<string, { label: string; description: string }> = {
+  "decoration/barrel": { label: "Barrel", description: "A storage barrel — just scenery." },
+  "decoration/crate": { label: "Crate", description: "A wooden crate — just scenery." },
+  "decoration/potted-plant": { label: "Potted Plant", description: "A potted plant — just scenery." },
+  "decoration/lamp-post": { label: "Lamp Post", description: "Lights the village at night — just scenery." },
+  "decoration/signpost": { label: "Signpost", description: "A village signpost — just scenery." },
+  "decoration/hay-bale": { label: "Hay Bale", description: "A bale of hay — just scenery." },
+  "decoration/bush": { label: "Bush", description: "A leafy bush — just scenery." },
+  "decoration/log-stack": { label: "Log Stack", description: "Stacked logs — just scenery." },
+};
 
 // ---------------------------------------------------------------------------
 // Observer snapshot (mirrors buildObserverSnapshot in main.ts)
@@ -328,6 +348,13 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
         label = "Stone";
         description = "Mine with the pickaxe (from the tile in front) for stone.";
       }
+    } else {
+      // Decorative props carry no identifying component; name them by frame.
+      const deco = DECORATION_LABELS[frame];
+      if (deco) {
+        label = deco.label;
+        description = deco.description;
+      }
     }
     sprites.push({
       id: entity.id ?? null,
@@ -385,10 +412,92 @@ function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {
   for (let i = 0; i < n; i += 1) {
     const e = all[start + i]!;
     const rec = out[i];
-    if (rec === undefined) out[i] = { day: e.day, text: e.text };
-    else { rec.day = e.day; rec.text = e.text; }
+    if (rec === undefined) out[i] = { day: e.day, text: e.text, drama: e.drama };
+    else { rec.day = e.day; rec.text = e.text; rec.drama = e.drama; }
   }
   if (out.length !== n) out.length = n;
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Relationship matrix (brief 37)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the relationship matrix data from the current farmer trust states.
+ * Missing trust entries fall back to the baseline 0.5 (same convention as
+ * applyTrustDelta in trust.ts).
+ */
+export function buildRelationshipsData(world: World<GameEntity>): RelationshipMatrixData {
+  const farmerList: Array<{ id: number; name: string; personality: string; entity: GameEntity }> = [];
+  for (const f of world.query("farmer", "personality")) {
+    if (f.id === undefined) continue;
+    farmerList.push({
+      id: f.id,
+      name: f.farmer.name,
+      personality: f.personality.kind,
+      entity: f,
+    });
+  }
+  // Sort by id for a deterministic, stable order.
+  farmerList.sort((a, b) => a.id - b.id);
+
+  const farmers = farmerList.map((f) => ({ id: f.id, name: f.name, personality: f.personality }));
+
+  const trust: Record<number, Record<number, number>> = {};
+  for (const from of farmerList) {
+    trust[from.id] = {};
+    for (const to of farmerList) {
+      if (from.id === to.id) {
+        // Diagonal: self-trust is not meaningful; use 1.0 as a sentinel so the
+        // panel can render it as a blank/diagonal cell.
+        trust[from.id]![to.id] = 1.0;
+      } else {
+        trust[from.id]![to.id] = from.entity.trust?.byId.get(to.id) ?? 0.5;
+      }
+    }
+  }
+
+  return { farmers, trust };
+}
+
+/**
+ * Build the active rivalries list from the RivalrySystem, with resolved farmer
+ * names included for the main thread. Returns [] if no rivalry system.
+ */
+export function buildRivalriesData(
+  rivalrySystem: RivalrySystem | undefined,
+): SnapshotRivalry[] {
+  if (!rivalrySystem) return [];
+  const out: SnapshotRivalry[] = [];
+
+  for (const r of rivalrySystem.activeRivalries()) {
+    out.push({
+      aId: r.aId,
+      bId: r.bId,
+      aName: rivalrySystem.nameOf(r.aId),
+      bName: rivalrySystem.nameOf(r.bId),
+      score: r.score,
+      kind: "rivalry",
+    });
+  }
+  for (const a of rivalrySystem.activeAlliances()) {
+    out.push({
+      aId: a.aId,
+      bId: a.bId,
+      aName: rivalrySystem.nameOf(a.aId),
+      bName: rivalrySystem.nameOf(a.bId),
+      score: 0,
+      kind: "alliance",
+    });
+  }
+  // Sort by kind (rivalry first) then by pair key.
+  out.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === "rivalry" ? -1 : 1;
+    const ka = `${a.aId}:${a.bId}`;
+    const kb = `${b.aId}:${b.bId}`;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
   return out;
 }
 
@@ -401,6 +510,11 @@ function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {
  *
  * @param pendingShock  A shock body captured by the bus subscriber this tick
  *                      (or null if none fired).
+ * @param runHistoryRows  Per-day rank/gold rows from RunHistorySystem.history().
+ *                        Used to build the RunRecap at game-over. Pass an empty
+ *                        array (or omit via the default) for non-game-over ticks.
+ * @param rivalrySystem  The RivalrySystem instance (brief 37). Optional for
+ *                       back-compat with existing tests.
  */
 export function buildRenderSnapshot(
   world: World<GameEntity>,
@@ -410,6 +524,8 @@ export function buildRenderSnapshot(
   tick: number,
   maxDays: number,
   pendingShock: SnapshotShock | null,
+  runHistoryRows: readonly RunHistoryRow[] = [],
+  rivalrySystem?: RivalrySystem,
 ): RenderSnapshot {
   const day = dayClock.day;
   const gameOver = day >= maxDays;
@@ -430,6 +546,16 @@ export function buildRenderSnapshot(
   const entityCount = countEntities(world);
 
   const finalSummary = gameOver ? buildFinalStandings(lb) : null;
+
+  // Build the rivalry data for this tick.
+  const rivalries = buildRivalriesData(rivalrySystem);
+  const relationships = buildRelationshipsData(world);
+
+  // Build the recap once at game-over from the full run history + events.
+  // summarizeRun is a pure function: same inputs → identical recap.
+  const recap = gameOver && finalSummary !== null
+    ? summarizeRun(runHistoryRows, eventFeed.recent(), finalSummary, rivalries)
+    : null;
   const playerHotbar = buildPlayerHotbar(world);
 
   return {
@@ -445,7 +571,10 @@ export function buildRenderSnapshot(
     shock: pendingShock,
     gameOver,
     finalSummary,
+    recap,
     playerHotbar,
+    relationships,
+    rivalries,
   };
 }
 

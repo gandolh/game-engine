@@ -2,7 +2,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
-import { RECIPES, colorOf, type PixelRecipe } from "./recipes";
+import { RECIPES, colorOf, recipeWidth, recipeHeight, type PixelRecipe } from "./recipes";
 
 interface PackedFrame {
   x: number;
@@ -26,20 +26,25 @@ function nextPow2(n: number): number {
 }
 
 function packShelf(recipes: readonly PixelRecipe[]): Packed {
-  const targetWidth = 128;
+  // Widen the atlas enough that the widest frame fits on a shelf (big multi-tile
+  // structures are 32px wide; 16px frames still pack the same as before).
+  const widest = recipes.reduce((m, r) => Math.max(m, recipeWidth(r)), 0);
+  const targetWidth = Math.max(128, nextPow2(widest + PADDING * 2));
   const frames: Record<string, PackedFrame> = {};
   let x = PADDING;
   let y = PADDING;
   let rowHeight = 0;
   for (const r of recipes) {
-    if (x + r.size + PADDING > targetWidth) {
+    const w = recipeWidth(r);
+    const h = recipeHeight(r);
+    if (x + w + PADDING > targetWidth) {
       x = PADDING;
       y += rowHeight + PADDING;
       rowHeight = 0;
     }
-    frames[r.name] = { x, y, w: r.size, h: r.size };
-    x += r.size + PADDING;
-    if (r.size > rowHeight) rowHeight = r.size;
+    frames[r.name] = { x, y, w, h };
+    x += w + PADDING;
+    if (h > rowHeight) rowHeight = h;
   }
   const used = y + rowHeight + PADDING;
   return { width: targetWidth, height: nextPow2(used), frames };
@@ -51,13 +56,18 @@ function rasterize(packed: Packed, recipes: readonly PixelRecipe[]): PNG {
   for (const r of recipes) {
     const frame = packed.frames[r.name];
     if (!frame) throw new Error(`Missing frame for ${r.name}`);
-    for (let py = 0; py < r.size; py++) {
+    const w = recipeWidth(r);
+    const h = recipeHeight(r);
+    if (r.pixels.length !== h) {
+      throw new Error(`Recipe ${r.name} has ${r.pixels.length} rows != height ${h}`);
+    }
+    for (let py = 0; py < h; py++) {
       const row = r.pixels[py];
       if (!row) throw new Error(`Recipe ${r.name} missing row ${py}`);
-      if (row.length !== r.size) {
-        throw new Error(`Recipe ${r.name} row ${py} length ${row.length} != ${r.size}`);
+      if (row.length !== w) {
+        throw new Error(`Recipe ${r.name} row ${py} length ${row.length} != ${w}`);
       }
-      for (let px = 0; px < r.size; px++) {
+      for (let px = 0; px < w; px++) {
         const ch = row.charAt(px);
         const [cr, cg, cb, ca] = colorOf(ch);
         const idx = ((frame.y + py) * packed.width + (frame.x + px)) * 4;

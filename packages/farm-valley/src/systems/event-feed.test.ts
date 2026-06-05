@@ -3,15 +3,24 @@ import { World } from "@engine/core";
 import type { GameEntity } from "../components";
 import { EventFeedSystem, EVENT_FEED_CAP } from "./event-feed";
 import type { DayClockSystem } from "./day-clock";
+import type { RunHistorySystem, RunHistoryRow } from "./run-history";
 import { ONT_MARKET } from "../protocols/market";
 import { ONT_SHOP } from "../protocols/shop";
 import { ONT_SIMULATION } from "../protocols/simulation";
 import { ONT_ENCOUNTER } from "../protocols/encounter";
 import { PERFORMATIVE } from "../protocols";
 
-/** Minimal DayClock stub — EventFeedSystem only reads `.day`. */
-function fakeClock(day: number): DayClockSystem {
-  return { day } as unknown as DayClockSystem;
+/** Minimal DayClock stub — EventFeedSystem reads `.day` and `.maxDays`. */
+function fakeClock(day: number, maxDays = 100): DayClockSystem {
+  return { day, maxDays } as unknown as DayClockSystem;
+}
+
+/**
+ * Minimal RunHistorySystem stub — returns a fixed set of history rows.
+ * EventFeedSystem only calls `.history()`.
+ */
+function fakeHistory(rows: RunHistoryRow[]): RunHistorySystem {
+  return { history: () => rows } as unknown as RunHistorySystem;
 }
 
 function makeFarmer(world: World<GameEntity>, name: string): GameEntity {
@@ -167,5 +176,158 @@ describe("EventFeedSystem", () => {
       feed.run({ tick: i });
     }
     expect(feed.recent()).toHaveLength(EVENT_FEED_CAP);
+  });
+
+  // ---- drama score (brief 38) ---------------------------------------------
+
+  it("every captured entry carries a drama score in [0, 1]", () => {
+    const buyer = makeFarmer(world, "Hannah");
+    const seller = makeFarmer(world, "Otto");
+    const wall = makeWall(world);
+    // Push one of each observable event type.
+    push(wall, ONT_MARKET.TRADE_COMPLETED, seller.id!, {
+      offerId: "t1",
+      buyerId: buyer.id!,
+      sellerId: seller.id!,
+      crop: "radish",
+      quantity: 2,
+      pricePerUnit: 5,
+    });
+    push(wall, ONT_SHOP.AUCTION_RESULT, "world", {
+      auctionId: "auc-1",
+      winnerId: buyer.id!,
+      paidPrice: 40,
+      participants: [buyer.id!],
+    });
+    push(wall, ONT_SIMULATION.SHOCK, "world", {
+      kind: "blight",
+      day: 5,
+      targetFarmerId: seller.id!,
+      targetName: "Otto",
+      plotsWiped: 2,
+    });
+
+    const feed = new EventFeedSystem(world, fakeClock(5));
+    feed.run({ tick: 1 });
+
+    const entries = feed.recent();
+    expect(entries.length).toBeGreaterThan(0);
+    for (const e of entries) {
+      expect(typeof e.drama).toBe("number");
+      expect(e.drama).toBeGreaterThanOrEqual(0);
+      expect(e.drama).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("a shock event scores higher drama than a routine trade", () => {
+    const buyer = makeFarmer(world, "Hannah");
+    const seller = makeFarmer(world, "Otto");
+    const wall = makeWall(world);
+    push(wall, ONT_MARKET.TRADE_COMPLETED, seller.id!, {
+      offerId: "t1",
+      buyerId: buyer.id!,
+      sellerId: seller.id!,
+      crop: "radish",
+      quantity: 1,
+      pricePerUnit: 5,
+    });
+    push(wall, ONT_SIMULATION.SHOCK, "world", {
+      kind: "blight",
+      day: 50,
+      targetFarmerId: seller.id!,
+      targetName: "Otto",
+      plotsWiped: 1,
+    });
+
+    const feed = new EventFeedSystem(world, fakeClock(50));
+    feed.run({ tick: 1 });
+
+    const entries = feed.recent();
+    const trade = entries.find((e) => e.key.startsWith("trade:"));
+    const shock = entries.find((e) => e.key.startsWith("shock:"));
+    expect(trade).toBeDefined();
+    expect(shock).toBeDefined();
+    expect(shock!.drama).toBeGreaterThan(trade!.drama);
+  });
+
+  // ---- rank-change detection (brief 38) -----------------------------------
+
+  it("emits a rank-flip line when the top-rank farmer changes day-over-day", () => {
+    const farmerA = makeFarmer(world, "Cora");
+    const farmerB = makeFarmer(world, "Otto");
+
+    // Day 9: Cora is rank 1. Day 10: Otto is rank 1 — a flip occurs.
+    const historyRows: RunHistoryRow[] = [
+      { day: 9, farmerId: farmerA.id!, gold: 200, rank: 1 },
+      { day: 9, farmerId: farmerB.id!, gold: 180, rank: 2 },
+      { day: 10, farmerId: farmerB.id!, gold: 210, rank: 1 },
+      { day: 10, farmerId: farmerA.id!, gold: 195, rank: 2 },
+    ];
+    const hist = fakeHistory(historyRows);
+
+    // Day 9: first check, no flip yet (no previous leader recorded).
+    const feed = new EventFeedSystem(world, fakeClock(9), undefined, hist);
+    feed.run({ tick: 100 }); // day 9 tick
+
+    let entries = feed.recent();
+    const rankFlip9 = entries.find((e) => e.key.startsWith("rankflip:"));
+    expect(rankFlip9).toBeUndefined(); // first observation, no previous leader
+
+    // Day 10: Otto is now rank 1 — expect flip event.
+    // Simulate the clock advancing to day 10.
+    const feed2 = new EventFeedSystem(world, fakeClock(10), undefined, hist);
+    // Prime the last leader by running day 9 first.
+    feed2.run({ tick: 100 });  // day 10 check (fakeClock returns 10, history has day 10 rows)
+
+    // Directly verify: create a fresh feed, prime day 9, then advance to day 10.
+    const histRows2: RunHistoryRow[] = [
+      { day: 1, farmerId: farmerA.id!, gold: 200, rank: 1 },
+      { day: 1, farmerId: farmerB.id!, gold: 180, rank: 2 },
+      { day: 2, farmerId: farmerB.id!, gold: 210, rank: 1 },
+      { day: 2, farmerId: farmerA.id!, gold: 195, rank: 2 },
+    ];
+    const hist2 = fakeHistory(histRows2);
+
+    // Feed that starts at day 1 (Cora leads), then day 2 (Otto leads).
+    let currentDay = 1;
+    const clock: DayClockSystem = {
+      get day() { return currentDay; },
+      maxDays: 100,
+    } as unknown as DayClockSystem;
+
+    const feed3 = new EventFeedSystem(world, clock, undefined, hist2);
+    feed3.run({ tick: 10 }); // day 1: Cora recorded as initial leader, no flip
+
+    entries = feed3.recent();
+    expect(entries.find((e) => e.key.startsWith("rankflip:"))).toBeUndefined();
+
+    currentDay = 2;
+    feed3.run({ tick: 20 }); // day 2: Otto overtakes Cora → rank flip
+
+    entries = feed3.recent();
+    const flip = entries.find((e) => e.key.startsWith("rankflip:"));
+    expect(flip).toBeDefined();
+    expect(flip!.text).toContain("Otto");
+    expect(flip!.text).toContain("Cora");
+    expect(flip!.text).toContain("1st");
+    expect(flip!.drama).toBeGreaterThanOrEqual(0);
+    expect(flip!.drama).toBeLessThanOrEqual(1);
+  });
+
+  it("does not emit a rank-flip when runHistory is not injected", () => {
+    const wall = makeWall(world);
+    // Feed with no runHistory — no rank-flip lines should appear.
+    const feed = new EventFeedSystem(world, fakeClock(50));
+    push(wall, ONT_SHOP.AUCTION_RESULT, "world", {
+      auctionId: "auc-x",
+      winnerId: null,
+      paidPrice: 1,
+      participants: [],
+    });
+    feed.run({ tick: 1 });
+
+    const entries = feed.recent();
+    const flip = entries.find((e) => e.key.startsWith("rankflip:"));
+    expect(flip).toBeUndefined();
   });
 });

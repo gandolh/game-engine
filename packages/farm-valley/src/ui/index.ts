@@ -14,3 +14,5 @@ export type { EventFeedRow } from "./event-feed-panel";
 export { createRightColumn } from "./right-column";
 export { WorldClockPanel } from "./world-clock";
 export type { WorldClockState } from "./world-clock";
+export { RelationshipMatrixPanel } from "./relationship-matrix";
+export type { RelationshipMatrixData } from "./relationship-matrix";

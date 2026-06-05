@@ -15,6 +15,16 @@ import type { Canvas2dSprite, ProfileReport } from "@engine/core";
 import type { ObserverSnapshot } from "../ui/observer";
 import type { LeaderboardRow } from "../ui/leaderboard";
 import type { ShopOffer } from "../agents/shop-slate";
+import type { RunRecap } from "../run-recap";
+import type { RelationshipMatrixData } from "../ui/relationship-matrix";
+
+// Re-export RelationshipMatrixData so snapshot consumers can import the type
+// from this cross-thread contract module without depending on the UI file.
+export type { RelationshipMatrixData };
+
+// Re-export RunRecap so snapshot consumers can import the type from this
+// cross-thread contract module without depending on run-recap.ts directly.
+export type { RunRecap };
 
 /** One renderable sprite in tile coordinates (renderer converts to px). */
 export interface SnapshotSprite {
@@ -63,6 +73,8 @@ export interface SnapshotEvent {
   day: number;
   /** Narration text (no prefix). */
   text: string;
+  /** Drama score in [0, 1]; higher = more significant. From drama.ts. */
+  drama: number;
 }
 
 /** A one-time shock event, surfaced once in the snapshot it fires on. */
@@ -132,8 +144,34 @@ export interface RenderSnapshot {
   gameOver: boolean;
   /** Final standings with crop counts, present only when gameOver is true. */
   finalSummary: FinalStandingRow[] | null;
+  /**
+   * End-of-run recap (standings with rank-delta, per-farmer arcs, headline).
+   * Present only when gameOver is true; null otherwise.
+   */
+  recap: RunRecap | null;
   /** Player hotbar state, or null when there is no player-controlled farmer. */
   playerHotbar: PlayerHotbar | null;
+  /**
+   * Trust matrix for the relationship grid panel. Contains each farmer's trust
+   * toward every peer as a plain Record (structured-clone-friendly).
+   * Brief 37.
+   */
+  relationships: RelationshipMatrixData;
+  /**
+   * Active named rivalries (accumulated adverse history ≥ threshold) with
+   * resolved farmer names for the panel and end-of-run recap. Brief 37.
+   */
+  rivalries: SnapshotRivalry[];
+}
+
+/** One active rivalry/alliance entry, structured-clone-friendly. */
+export interface SnapshotRivalry {
+  aId: number;
+  bId: number;
+  aName: string;
+  bName: string;
+  score: number;
+  kind: "rivalry" | "alliance";
 }
 
 // ---- Worker protocol messages ------------------------------------------

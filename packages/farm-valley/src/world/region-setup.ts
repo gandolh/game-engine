@@ -7,17 +7,39 @@ function fountainTile(bounds: RegionDef["bounds"]): { x: number; y: number } {
   return { x: bounds.minX + 1, y: bounds.minY + 1 };
 }
 
-/** Spawn a batch of static decorative props (sprite + transform only). Layer 40
- *  sits below NPCs/farmers (50/100) so the worker can stand in front of them. */
+/**
+ * Spawn a batch of static decorative props (sprite + transform). Layer 40 sits
+ * below NPCs/farmers (50/100) so the worker can stand in front of them. Every
+ * prop is also a `solid` obstacle so neither Pip nor the AI farmers walk THROUGH
+ * it — they path around (FeatureCollisionSystem blocks the grid, and Pip's step
+ * check sees `solid`). Pass `solid: false` for a prop that must stay walkable
+ * (e.g. a flat ground decoration on a tile a farmer must cross).
+ */
 function placeProps(
   world: World<GameEntity>,
-  props: ReadonlyArray<{ x: number; y: number; frame: string }>,
+  props: ReadonlyArray<{ x: number; y: number; frame: string; solid?: boolean }>,
 ): void {
   for (const p of props) {
-    world.spawn({
+    const entity: GameEntity = {
       transform: { x: p.x, y: p.y, prevX: p.x, prevY: p.y, rotation: 0 },
       sprite: { atlasId: "main", frame: p.frame, layer: 40, tintRgba: 0xffffffff },
-    });
+    };
+    if (p.solid !== false) {
+      entity.solid = { isSolid: true, tileX: p.x, tileY: p.y };
+    }
+    world.spawn(entity);
+  }
+}
+
+/** Spawn invisible solid blockers for a building's multi-tile footprint, so the
+ *  big baked workshop sprites (drawn in render-systems) block movement on the
+ *  tiles they visually occupy. No sprite — the building is the baked static art. */
+function placeFootprint(
+  world: World<GameEntity>,
+  tiles: ReadonlyArray<{ x: number; y: number }>,
+): void {
+  for (const t of tiles) {
+    world.spawn({ solid: { isSolid: true, tileX: t.x, tileY: t.y } });
   }
 }
 
@@ -155,13 +177,33 @@ export function setupRegions(
       }
     }
 
-    // Blacksmith NPC + forge props. The NPC patrols anvil → oven → quench.
+    // Blacksmith NPC + forge props. A big forge-house (baked static scenery,
+    // see render-systems BIG_STRUCTURES) stands on the EAST half of the island
+    // (x63–64, y34–36); the work-yard props sit on the open ground in front of
+    // it (y37–41). IMPORTANT: the island's through-road spine runs down x60–61
+    // (the bridge road {60-61, 12-33} lands at the top and {60-61, 44-55} exits
+    // the bottom), so the building/props/footprint must keep x60–61 CLEAR or the
+    // island — and everything routed through it — gets walled off. The NPC
+    // patrols anvil → oven → quench.
     if (def.id === "blacksmith") {
       placeProps(world, [
-        { x: 61, y: 37, frame: "structure/forge-oven" },
-        { x: 63, y: 37, frame: "structure/tool-rack" },
-        { x: 63, y: 39, frame: "structure/anvil" },
-        { x: 65, y: 38, frame: "structure/quench-tub" },
+        // Forge work line in front of the forge-house (east half, x62–67).
+        { x: 62, y: 37, frame: "structure/forge-oven" },
+        { x: 65, y: 37, frame: "structure/tool-rack" },
+        { x: 64, y: 39, frame: "structure/anvil" },
+        { x: 66, y: 38, frame: "structure/quench-tub" },
+        // New detail props that flesh out the forge yard.
+        { x: 62, y: 39, frame: "structure/coal-pile" },
+        { x: 63, y: 41, frame: "structure/grindstone" },
+        { x: 66, y: 40, frame: "structure/ingot-rack" },
+        { x: 65, y: 41, frame: "structure/anvil" },
+      ]);
+      // The big forge-house occupies x63–64 × y34–36 (baked art in render-
+      // systems BIG_STRUCTURES); block its footprint so nobody walks through it.
+      placeFootprint(world, [
+        { x: 63, y: 34 }, { x: 64, y: 34 },
+        { x: 63, y: 35 }, { x: 64, y: 35 },
+        { x: 63, y: 36 }, { x: 64, y: 36 },
       ]);
       world.spawn({
         transform: {
@@ -177,12 +219,12 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/blacksmith/idle",
           stations: [
-            // Stand below the anvil (63,39), face up, hammer.
-            { tileX: 63, tileY: 40, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
-            // Tend the oven (61,37) — stand below it, face up, no swing pose.
-            { tileX: 61, tileY: 38, facing: "up", flipX: false, pose: null },
-            // Quench at the tub (65,38) — stand left of it, face side/right.
-            { tileX: 64, tileY: 38, facing: "side", flipX: false, pose: null },
+            // Stand below the anvil (64,39), face up, hammer.
+            { tileX: 64, tileY: 40, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
+            // Tend the oven (62,37) — stand below it, face up, no swing pose.
+            { tileX: 62, tileY: 38, facing: "up", flipX: false, pose: null },
+            // Quench at the tub (66,38) — stand left of it, face side/right.
+            { tileX: 65, tileY: 38, facing: "side", flipX: false, pose: null },
           ],
           stationIndex: 0,
           phase: "working",
@@ -194,15 +236,37 @@ export function setupRegions(
       });
     }
 
-    // Carpenter NPC + workshop props. The NPC patrols workbench → sawhorse.
+    // Carpenter NPC + workshop props. A big carpenter-workshop (baked static
+    // scenery, see render-systems BIG_STRUCTURES) stands on the WEST half of the
+    // island (x21–22, y34–36); the lumber-yard props sit on the open ground in
+    // front of it (y37–41). IMPORTANT: the island's through-road spine runs down
+    // x24–25 (bridge road {24-25, 12-33} lands at the top and {24-25, 44-55}
+    // exits the bottom), so the building/props/footprint must keep x24–25 CLEAR
+    // or the island — and forest-north + farm-cora, which route through it — get
+    // walled off. The NPC patrols workbench → sawhorse.
     if (def.id === "carpentry") {
       const cx = def.center.x;
       const cy = def.center.y;
       placeProps(world, [
-        { x: 23, y: 37, frame: "structure/workbench" },
-        { x: 26, y: 37, frame: "structure/sawhorse" },
-        { x: 22, y: 40, frame: "structure/log-pile" },
-        { x: 26, y: 40, frame: "structure/plank-stack" },
+        // Bench + sawing line in front of the workshop (west + east of spine).
+        { x: 21, y: 37, frame: "structure/workbench" },
+        { x: 27, y: 37, frame: "structure/sawhorse" },
+        { x: 20, y: 40, frame: "structure/log-pile" },
+        { x: 27, y: 40, frame: "structure/plank-stack" },
+        // New detail props that flesh out the lumber yard.
+        { x: 28, y: 38, frame: "structure/lumber-rack" },
+        { x: 22, y: 41, frame: "structure/sawpit" },
+        // Shavings sit east of the spine — column x20,y37–38 is the mushroom-
+        // grove road landing and must stay clear.
+        { x: 23, y: 41, frame: "structure/shavings-pile" },
+        { x: 27, y: 41, frame: "structure/log-pile" },
+      ]);
+      // The big carpenter-workshop occupies x21–22 × y34–36 (baked art in
+      // render-systems BIG_STRUCTURES); block its footprint.
+      placeFootprint(world, [
+        { x: 21, y: 34 }, { x: 22, y: 34 },
+        { x: 21, y: 35 }, { x: 22, y: 35 },
+        { x: 21, y: 36 }, { x: 22, y: 36 },
       ]);
       world.spawn({
         transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
@@ -212,12 +276,12 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/carpenter/idle",
           stations: [
-            // Saw at the workbench (23,37) — stand below, face up.
-            { tileX: 23, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Saw the log on the sawhorse (26,37) — stand below, face up.
-            { tileX: 26, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Inspect the log pile (22,40) — stand right of it, face side/left.
-            { tileX: 23, tileY: 40, facing: "side", flipX: true, pose: null },
+            // Saw at the workbench (21,37) — stand below, face up.
+            { tileX: 21, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Saw the log on the sawhorse (27,37) — stand below, face up.
+            { tileX: 27, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Inspect the log pile (20,40) — stand right of it, face side/left.
+            { tileX: 21, tileY: 40, facing: "side", flipX: true, pose: null },
           ],
           stationIndex: 0,
           phase: "working",
@@ -377,12 +441,20 @@ export function setupRegions(
       { x: 48, y: 35, frame: "decoration/barrel" },
       { x: 39, y: 35, frame: "decoration/crate" },
       { x: 48, y: 44, frame: "decoration/potted-plant" },
-      // Carpentry workshop yard: stacked logs + a barrel of fasteners.
-      { x: 21, y: 42, frame: "decoration/log-stack" },
-      { x: 28, y: 42, frame: "decoration/barrel" },
-      // Blacksmith yard: crate + barrel of stock.
-      { x: 59, y: 42, frame: "decoration/crate" },
-      { x: 66, y: 42, frame: "decoration/barrel" },
+      // Carpentry workshop yard: stacked logs + a barrel of fasteners, lamps
+      // framing the workshop, a signpost at the dock-side entrance.
+      { x: 20, y: 42, frame: "decoration/log-stack" },
+      { x: 29, y: 42, frame: "decoration/barrel" },
+      { x: 20, y: 35, frame: "decoration/lamp-post" },
+      { x: 29, y: 35, frame: "decoration/lamp-post" },
+      { x: 21, y: 43, frame: "decoration/signpost" },
+      // Blacksmith yard: crate + barrel of stock, lamps framing the forge, a
+      // firewood stack for the forge fire.
+      { x: 58, y: 42, frame: "decoration/crate" },
+      { x: 67, y: 42, frame: "decoration/barrel" },
+      { x: 58, y: 35, frame: "decoration/lamp-post" },
+      { x: 67, y: 35, frame: "decoration/lamp-post" },
+      { x: 66, y: 41, frame: "decoration/log-stack" },
       // Forest zones: bushes + a firewood stack.
       { x: 23, y: 5,  frame: "decoration/bush" },
       { x: 28, y: 10, frame: "decoration/log-stack" },

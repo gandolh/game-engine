@@ -27,6 +27,10 @@ export class DayClockSystem implements System {
     return this.currentDay;
   }
 
+  get maxDays(): number {
+    return this.config.maxDays;
+  }
+
   run(ctx: SimContext): void {
     const boundary = Math.floor(ctx.tick / this.config.ticksPerDay);
     if (boundary !== this.lastBoundary) {

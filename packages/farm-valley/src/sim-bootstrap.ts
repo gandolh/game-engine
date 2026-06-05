@@ -41,6 +41,8 @@ import { EncounterSystem } from "./systems/encounter";
 import { EncounterTradeSystem } from "./systems/encounter-trade";
 import { MeetIndicatorSystem } from "./systems/meet-indicator";
 import { EventFeedSystem } from "./systems/event-feed";
+import { RunHistorySystem } from "./systems/run-history";
+import { RivalrySystem } from "./systems/rivalry";
 import { ShopSlateSystem } from "./systems/shop-slate";
 import { NoticeBoardSystem } from "./systems/notice-board";
 import { FinishDaySystem } from "./systems/finish-day";
@@ -131,6 +133,8 @@ export interface BootedSim {
   farmers: GameEntity[];
   meetIndicators: MeetIndicatorSystem;
   eventFeed: EventFeedSystem;
+  runHistory: RunHistorySystem;
+  rivalry: RivalrySystem;
 }
 
 export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
@@ -160,7 +164,11 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     maxDays,
   });
   const meetIndicators = new MeetIndicatorSystem(world);
-  const eventFeed = new EventFeedSystem(world, dayClock);
+  const rivalry = new RivalrySystem(world, listCoordinators());
+  const runHistory = new RunHistorySystem(world);
+  // Pass runHistory so EventFeedSystem can detect rank-1 changes and emit the
+  // "race is on" line. RunHistorySystem is constructed first (no mutual dep).
+  const eventFeed = new EventFeedSystem(world, dayClock, rivalry, runHistory);
   const scheduler = new Scheduler()
     .add(dayClock);
 
@@ -189,9 +197,16 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new EncounterTradeSystem(world))
     .add(meetIndicators)
     .add(new TrustSystem(world, listCoordinators()))
+    // brief 37 — RivalrySystem must run BEFORE EventFeedSystem so that the feed
+    // can read freshlyFormedThisTick() on the same tick.
+    .add(rivalry)
     // Read-only activity-feed snoop: must observe inbox + market-wall messages
     // before PerceiveSystem clears them and before MarketSystem drains the wall.
     .add(eventFeed)
+    // Per-day rank/gold history collector. Snoops DAY_START from the
+    // weatherStation inbox (same pattern as BubbleSystem). Runs here in the
+    // read-only snoop band so messages are visible before PerceiveSystem clears.
+    .add(runHistory)
     .add(new PerceiveSystem(world))
     .add(weatherFeature.cropGrowthSystem)
     .add(new TileFeatureSystem(world, rng, bus))
@@ -225,7 +240,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new WorkNpcSystem(world))
     .add(new FinishDaySystem(world));
 
-  return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators, eventFeed };
+  return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators, eventFeed, runHistory, rivalry };
 }
 
 export interface FarmerSummary {

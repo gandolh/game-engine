@@ -1,7 +1,27 @@
 export interface PixelRecipe {
   name: string;
+  /**
+   * Square frame side in pixels for the common case. For non-square (big multi-
+   * tile) sprites, set `width`/`height` explicitly and `size` is ignored for
+   * layout; each pixels row must then be `width` chars and there must be
+   * `height` rows. Defaults: width = height = size.
+   */
   size: number;
+  /** Optional explicit frame width (px). Defaults to `size`. */
+  width?: number;
+  /** Optional explicit frame height (px). Defaults to `size`. */
+  height?: number;
   pixels: readonly string[];
+}
+
+/** Resolved pixel width of a recipe (explicit `width`, else square `size`). */
+export function recipeWidth(r: PixelRecipe): number {
+  return r.width ?? r.size;
+}
+
+/** Resolved pixel height of a recipe (explicit `height`, else square `size`). */
+export function recipeHeight(r: PixelRecipe): number {
+  return r.height ?? r.size;
 }
 
 // Palette: Endesga-32 (EDG32) by Endesga — https://lospec.com/palette-list/endesga-32
@@ -61,6 +81,87 @@ export const RECIPES: PixelRecipe[] = [
       "WTTWTTTTWTTTWTTT",
       "................",
       "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    // Island wall / cliff — a raised stone retaining wall along the TOP edge of
+    // the tile, sitting on the LAND margin where it meets the ocean. Authored
+    // top-edge-up like `tile/shore` and rotated (0/90/180/270) so the wall face
+    // looks out over the adjacent water; transparent below so the land tile
+    // shows through. q=stone light (cap), Q=stone dark (face), k=near-black
+    // (shadow seam at the base of the cliff).
+    name: "tile/wall",
+    size: 16,
+    pixels: [
+      "qqqqqqqqqqqqqqqq",
+      "qqqqqqqqqqqqqqqq",
+      "QqQQqQQqQQqQQqQq",
+      "QQQQQQQQQQQQQQQQ",
+      "QQkQQQkQQQkQQQkQ",
+      "QQQQQQQQQQQQQQQQ",
+      "kkkkkkkkkkkkkkkk",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    // Wooden island wall — a plank retaining wall along the TOP edge of the
+    // tile, used on the carpentry island margin so its shoreline reads as a
+    // built wooden bulwark. Authored top-edge-up like `tile/wall`, rotated to
+    // face the water. D=wood dark (posts/seam), d=wood light (planks),
+    // k=near-black (shadow seam at the waterline).
+    name: "tile/wall-wood",
+    size: 16,
+    pixels: [
+      "dddddddddddddddd",
+      "dddDddddDddddDdd",
+      "dddDddddDddddDdd",
+      "DDDDDDDDDDDDDDDD",
+      "dddddddddddddddd",
+      "dddDddddDddddDdd",
+      "kkkkkkkkkkkkkkkk",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    // Sandy beach edge — a fuller wet-sand + foam band along the TOP edge, used
+    // on farm-field island margins so they read as a soft sandy shore rather
+    // than a hard wall. Authored top-edge-up like `tile/shore`, rotated to face
+    // the water. w=foam, T=sand, W=tan/wet sand, e=ocean highlight.
+    name: "tile/shore-sand",
+    size: 16,
+    pixels: [
+      "wwwwwwwwwwwwwwww",
+      "wewwwewwwewwweww",
+      "TTTTTTTTTTTTTTTT",
+      "TTWTTTWTTTWTTTWT",
+      "TTTTTTTTTTTTTTTT",
+      "WTTTWTTTWTTTWTTT",
+      "TTTTTTTTTTTTTTTT",
       "................",
       "................",
       "................",
@@ -610,6 +711,31 @@ export const RECIPES: PixelRecipe[] = [
       "....kkkkkk......",
       ".....kk.........",
       "....kk..........",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    // Downward-pointing yellow arrow drawn above the head of the farmer the
+    // camera is currently following (Pip or any clicked AI farmer). Bright
+    // yellow body (y) with a dark outline (k) so it reads on any backdrop.
+    name: "indicator/follow",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      ".....kkkkkk.....",
+      ".....kyyyyk.....",
+      ".....kyyyyk.....",
+      ".....kyyyyk.....",
+      "...kkkyyyykkk...",
+      "...kyyyyyyyyk...",
+      "....kyyyyyyk....",
+      ".....kyyyyk.....",
+      "......kyyk......",
+      ".......kk.......",
       "................",
       "................",
       "................",
@@ -1690,31 +1816,186 @@ export const RECIPES: PixelRecipe[] = [
   },
 
   // ── Fishing ──────────────────────────────────────────────────────────────────
-  // Fishing spot — a ring of foam/ripples over deep ocean marking fishable
-  // water. Drawn over the ocean backdrop on its non-walkable tile (layer 4),
-  // with a couple of jumping-fish highlights (w) so it reads as "fish here".
+  // Fishing spot — THREE rising bubbles animated over a 3-frame cycle (A→B→C),
+  // drawn on its non-walkable ocean tile (layer 4). Each frame the three bubbles
+  // climb a little higher and grow, then pop into a foam crest at the top and
+  // restart from the seabed — a looping "glug glug" of bubbles rising to the
+  // surface so the spot reads as fish stirring the water. The three bubbles sit
+  // in three columns (left/center/right) and are staggered in phase so they
+  // don't rise in lockstep. Transparent base (.) so the ocean shows through;
+  // q = soft bubble outline (light stone), e = bright ocean-foam ring/body,
+  // w = white highlight + foam crest where a bubble pops at the surface.
+  // `structure/fishing-spot` is frame A — it is the frame the BubbleSystem
+  // spawns + the snapshot carries; the render loop swaps in -a/-b/-c for the
+  // animation (see main.ts).
+  //
+  // Frame A — bubbles low (near the seabed), small.
   {
     name: "structure/fishing-spot",
     size: 16,
     pixels: [
-      "vvvvvvvvvvvvvvvv",
-      "vvvvveeeevvvvvvv",
-      "vvveevvvveevvvvv",
-      "vveevVVVVeevvvvv",
-      "veevVVwVVVeevvvv",
-      "veevVVVVVVeevwvv",
-      "veevVVVVVVeevvvv",
-      "vveevVVVVeevvvvv",
-      "vvveeeveeeevvvvv",
-      "vvvvvevvvveevvvv",
-      "vvwvvvvvvvveevvv",
-      "vvvvvveevvvveevv",
-      "vvvvveeeevvvvevv",
-      "vvvveevveevvvvvv",
-      "vvvvvvvvvvvvvvvv",
-      "vvvvvvvvvvvvvvvv",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "...q........q...",
+      "..qeq......qeq..",
+      "...q...qq...q...",
+      ".......qeq......",
+      "........q.......",
+      "................",
+      "................",
     ],
   },
+  // Frame B — bubbles risen to mid-tile, a touch bigger; the center one larger.
+  {
+    name: "structure/fishing-spot-b",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "...qq.......q...",
+      "..qewq.....qeq..",
+      "..qeeq....qewq..",
+      "...qq......qq...",
+      "................",
+      ".......qq.......",
+      "......qewq......",
+      "......qeeq......",
+      ".......qq.......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Frame C — bubbles reach the top and POP into foam crests (w); a fresh small
+  // bubble starts again at the bottom so the loop reads as continuous.
+  {
+    name: "structure/fishing-spot-c",
+    size: 16,
+    pixels: [
+      "...w........w...",
+      "..wew......wew..",
+      "...w........w...",
+      "................",
+      "................",
+      "................",
+      "................",
+      ".......w........",
+      "......wew.......",
+      ".......w........",
+      "................",
+      "................",
+      "................",
+      "...q.......qq...",
+      "..qeq.....qewq..",
+      "...q.......qq...",
+    ],
+  },
+  // ── Coral (deep-water seabed zones) ──────────────────────────────────────────
+  // A coral zone is a CONNECTED seabed patch made of many tiles that blend into
+  // ONE continuous texture (not independent per-tile stamps). It reads as
+  // something resting DEEP under the water — drawn on NON-walkable ocean tiles
+  // at low alpha (see `computeCoral` → CORAL_ALPHA) so the flowing water shows
+  // through and it looks murky/submerged. The palette is deliberately
+  // blue-shifted and desaturated: deep ocean (V), structure-blue (S/s) and
+  // muted stone (Q) for the bulk, with only faint hints of dark leaf (l) for
+  // kelp and a single dull-gold (o) polyp as an accent — no vivid reds/oranges.
+  //
+  // It's an autotile set, like the island walls/shores: `computeCoral` picks a
+  // FILL tile for cluster INTERIOR cells (covers the whole tile edge-to-edge so
+  // neighbours seam together into one mass) and an EDGE tile for cluster BORDER
+  // cells (the seabed fades to water on the open side; authored top-fade-up and
+  // rotated 0/90/180/270 to face the open water). Adjacent fill tiles meet with
+  // no seam, so a multi-tile zone looks like one big reef rather than tiles.
+
+  // FILL — full-bleed seabed, used for interior cells. Edges are solid muted
+  // blue on all four sides so neighbouring fills join seamlessly; the surface is
+  // a gentle mottle of structure-blue (S/s) over deep ocean (V) with sparse
+  // stone lumps (Q) and one dull-gold polyp (o) so the mass has texture.
+  {
+    name: "tile/coral-fill",
+    size: 16,
+    pixels: [
+      "SSSSSSSSSSSSSSSS",
+      "SsSSSVSSSSVSSSsS",
+      "SSSSSSSsSSSSSSSS",
+      "SSVSSSSSSSSVSSQS",
+      "SsSSSSQSSSSSSSSS",
+      "SSSSSSSSSSsSSSSS",
+      "SSSVSSSSSSSSSVSS",
+      "SSSSSSoSSSSSSSSS",
+      "SSsSSSSSSSQSSSsS",
+      "SSSSSVSSSSSSSSSS",
+      "SQSSSSSSSsSSSSSS",
+      "SSSSSSSSSSSSVSSS",
+      "SSSVSSSsSSSSSSQS",
+      "SsSSSSSSSSVSSSSS",
+      "SSSSQSSSSSSSSSsS",
+      "SSSSSSSSSSSSSSSS",
+    ],
+  },
+  // EDGE — seabed that fills the BOTTOM of the tile and FADES upward into open
+  // water along the TOP edge, so a cluster border softly dissolves into the sea.
+  // Authored top-fade-up; `computeCoral` rotates it to face whichever side is
+  // open water. Top rows thin out to v/V water; lower rows are solid seabed that
+  // seams with an adjacent fill below.
+  {
+    name: "tile/coral-edge",
+    size: 16,
+    pixels: [
+      "vVvVvVvVvVvVvVvV",
+      "vVvVvVvVvVvVvVvV",
+      "VvSVvVvVvVvVvSvV",
+      "vSVSvVSVvVSvSVSv",
+      "VSSVSvSSVSvSSVSV",
+      "SSVSSSSVSSSSVSSS",
+      "SSSSSSoSSSSSSSSS",
+      "SsSSSSSSSSQSSSsS",
+      "SSSSSSSSSSSSSSSS",
+      "SSSVSSSsSSSSSVSS",
+      "SQSSSSSSSsSSSSSS",
+      "SSSSSSSSSSSSVSSS",
+      "SSSVSSSsSSSSSSQS",
+      "SsSSSSSSSSVSSSSS",
+      "SSSSQSSSSSSSSSsS",
+      "SSSSSSSSSSSSSSSS",
+    ],
+  },
+  // CORNER — an INNER cluster cell that has open water on TWO adjacent sides
+  // (a convex corner of the patch). Fades to water across the TOP-LEFT quadrant;
+  // rotated by `computeCoral` so the fade faces the open corner. Keeps the
+  // patch's rounded corners from looking like a hard staircase of edge tiles.
+  {
+    name: "tile/coral-corner",
+    size: 16,
+    pixels: [
+      "vVvVvVvVvVvVvVvV",
+      "vVvVvVvVvVvVvSvV",
+      "vVvVvVvVvVvSVSvV",
+      "vVvVvVvVvSvSVSSv",
+      "vVvVvVvSvSVSSVSV",
+      "vVvVvSvSSSSVSSSS",
+      "vVvSvSSSSSoSSSSS",
+      "vSvSVSSSSSSSSQsS",
+      "vVSSSSSSSSSSSSSS",
+      "vSSSVSSSsSSSSSVS",
+      "SSQSSSSSSSsSSSSS",
+      "SSSSSSSSSSSSVSSS",
+      "SSSVSSSsSSSSSSQS",
+      "SsSSSSSSSSVSSSSS",
+      "SSSSQSSSSSSSSSsS",
+      "SSSSSSSSSSSSSSSS",
+    ],
+  },
+
   // Fishing rod — wooden pole (m/d) with a line (q) and a gold hook glint (o).
   {
     name: "tool/fishing-rod",
@@ -1987,6 +2268,351 @@ export const RECIPES: PixelRecipe[] = [
       "...dMdMdMdM.....",
       "...MdMdMdMd.....",
       "...dMdMdMdM.....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
+  // ── Big workshop buildings (multi-tile, 32×48) ───────────────────────────────
+  // LARGE bottom-anchored scenery that anchors each craftsman island with a real
+  // building behind the work-yard. They are STATIC (never move), so they're baked
+  // into the static layer (render-systems iterStaticSprites / BIG_STRUCTURES) and
+  // drawn bottom-aligned to their base tile.
+  //
+  // Authoring: 32 wide × 48 tall (2 tiles wide × 3 tall). The bottom 16px is the
+  // ground footprint (the tile it "stands on"); rows above are overhang that draw
+  // up/behind nearer entities. Lower-Y rows are the roof/upper storey; the door
+  // sits at the base so the NPC + yard props in front read as the forge/shop yard.
+
+  // Blacksmith forge-house — stone-and-timber smithy with a brick chimney, a
+  // pitched slate roof, a glowing forge window, and a timber double door.
+  // Q/q = stone walls, S/s = slate roof, r = brick chimney, M/m/D/d = timber,
+  // o/y = forge glow through the window, k = dark openings.
+  {
+    name: "structure/forge-house",
+    size: 32,
+    width: 32,
+    height: 48,
+    pixels: [
+      "..........rrrr..................",
+      "..........rkkr..................",
+      "..........rkkr..................",
+      "..........rrrr..................",
+      "..........rQQr..................",
+      ".........SSSSSSS................",
+      "........SSSSSSSSS...............",
+      ".......SSSSSSSSSSS..............",
+      "......SSSSSSSSSSSSS.............",
+      ".....SSSSSSSSSSSSSSS............",
+      "....SSSSSSSSSSSSSSSSS...........",
+      "...SSsSSsSSsSSsSSsSSsS..........",
+      "..SSSSSSSSSSSSSSSSSSSSS.........",
+      ".sSSSSSSSSSSSSSSSSSSSSSs........",
+      "QQQQQQQQQQQQQQQQQQQQQQQQ........",
+      "QqqqqqqqqqqqqqqqqqqqqqqQ........",
+      "QqQQQQQQQQQQQQQQQQQQQQqQ........",
+      "QqQ.........QQQ.....QQqQ........",
+      "QqQ.ooooo...QQQ.QQQ.QQqQ........",
+      "QqQ.oyyyo...QQQ.QkQ.QQqQ........",
+      "QqQ.oyoyo...QQQ.QkQ.QQqQ........",
+      "QqQ.oyyyo...QQQ.QkQ.QQqQ........",
+      "QqQ.ooooo...QQQ.QkQ.QQqQ........",
+      "QqQ.........QQQ.QkQ.QQqQ........",
+      "QqQQQQQQQQQQQQQ.QkQ.QQQqQ.......",
+      "QqqqqqqqqqqqqQ..QkQ..qqqQ.......",
+      "QqQQQQQQQQQQQQ..QkQ.QQQqQ.......",
+      "QqQDDDDDDDDDDD..QkQ.DDDqQ.......",
+      "QqQDdddddddddD..QkQ.DddQ........",
+      "QqQDddddddddDD..QkQ.DddQ........",
+      "QqQDdDDDDDDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QQQQQQQQQQQQQQQQQQQQQQQQ........",
+      "kQQQQQQQQQQQQQQQQQQQQQQk........",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+    ],
+  },
+
+  // Carpenter's workshop — timber lumber-mill with a green pitched roof, two
+  // shuttered windows, a plank-clad facade, and a wide barn door showing dark
+  // rafters. G/g/l/L = green roof, W/w = tan planks, M/m/D/d = timber frame,
+  // q = window-glint, k = open doorway shadow.
+  {
+    name: "structure/carpenter-workshop",
+    size: 32,
+    width: 32,
+    height: 48,
+    pixels: [
+      "................................",
+      ".............ll.................",
+      "............lLLl................",
+      "...........lLLLLl...............",
+      "..........lLGGGGLl..............",
+      ".........lLGGGGGGLl.............",
+      "........lLGGGGGGGGLl............",
+      ".......lLGGGGGGGGGGLl...........",
+      "......lLGGGGGGGGGGGGLl..........",
+      ".....lLGGGGGGGGGGGGGGLl.........",
+      "....lLGGgGGgGGgGGgGGgGLl........",
+      "...lLGGGGGGGGGGGGGGGGGGLl.......",
+      "..lLGGGGGGGGGGGGGGGGGGGGLl......",
+      ".lLGGGGGGGGGGGGGGGGGGGGGGLl.....",
+      "lLLLLLLLLLLLLLLLLLLLLLLLLLLl....",
+      "MMMMMMMMMMMMMMMMMMMMMMMMMMMM....",
+      "MWWWWWWWWWWWWWWWWWWWWWWWWWWM....",
+      "MWMWWWWWWWWWWWWWWWWWWWWWWMWM....",
+      "MWMW..mmmm.WWWWWWWW.mmmm.WMW....",
+      "MWMW.mWWWWm.WWWWWW.mWWWWm.WM....",
+      "MWMW.mWqqWm.WWWWWW.mWqqWm.WM....",
+      "MWMW.mWqqWm.WWWWWW.mWqqWm.WM....",
+      "MWMW.mWWWWm.WWWWWW.mWWWWm.WM....",
+      "MWMW..mmmm.WWWWWWWW.mmmm.WMW....",
+      "MWMWWWWWWWWWWWWWWWWWWWWWWMWM....",
+      "MWMWWWWWWWkkkkkkkkWWWWWWWMWM....",
+      "MWMWWWWWWWkddddddkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MMMMMMMMMMkdDDDDdkMMMMMMMMM.....",
+      "kMMMMMMMMMkkkkkkkkMMMMMMMMk.....",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+    ],
+  },
+
+  // ── Extra blacksmith yard detail props (16×16) ───────────────────────────────
+  // Grindstone — round whetstone on a wooden frame for sharpening blades.
+  {
+    name: "structure/grindstone",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      ".....QQQQ.......",
+      "....QqqqqQ......",
+      "...QqQQQQqQ.....",
+      "...QqQkkQqQ.....",
+      "...QqQkkQqQ.....",
+      "...QqQQQQqQ.....",
+      "....QqqqqQ......",
+      "....mQQQQm......",
+      "...mm....mm.....",
+      "..mm......mm....",
+      "..m........m....",
+      "..m........m....",
+      "................",
+      "................",
+    ],
+  },
+  // Coal pile — heap of black coal/coke for the forge, a few embers glowing.
+  {
+    name: "structure/coal-pile",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "......kk........",
+      ".....kkkk.......",
+      "....kkokkk......",
+      "...kkkkkokk.....",
+      "..kkokkkkkkk....",
+      "..kkkkkokkkk....",
+      ".kkkkkkkkkokk...",
+      ".kkokkkkkkkkk...",
+      "kkkkkkkokkkkkk..",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Iron ingot rack — finished bars stacked on a timber rack. Steel q/Q + wood.
+  {
+    name: "structure/ingot-rack",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "..M........M....",
+      "..MqqqqqqqqM....",
+      "..MQQQQQQQQM....",
+      "..MqqqqqqqqM....",
+      "..MQQQQQQQQM....",
+      "..MqqqqqqqqM....",
+      "..MQQQQQQQQM....",
+      "..MMMMMMMMMM....",
+      "...m......m.....",
+      "...m......m.....",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
+  // ── Extra carpenter yard detail props (16×16) ────────────────────────────────
+  // Lumber rack — a frame holding long boards on end, leaning at angles.
+  {
+    name: "structure/lumber-rack",
+    size: 16,
+    pixels: [
+      "................",
+      ".W..W.W..W..W...",
+      ".W..W.W..W..W...",
+      ".W..W.W..W.W....",
+      ".W.W..W.W..W....",
+      ".W.W..W.W.W.....",
+      ".WW...WW.W.W....",
+      "MMMMMMMMMMMMM...",
+      ".WW...WW..WW....",
+      ".W.W..W.W..W....",
+      ".W..W.W..W.W....",
+      "MMMMMMMMMMMMM...",
+      "..m........m....",
+      "..m........m....",
+      "................",
+      "................",
+    ],
+  },
+  // Sawpit — a pit with a two-man saw and sawdust, for ripping logs into planks.
+  {
+    name: "structure/sawpit",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "...dddddddd.....",
+      "..dDdDdDdDdd....",
+      "..dddddddddd....",
+      "..qqqqqqqqqq....",
+      "..mkkkkkkkkm....",
+      "..mkWWkkWWkm....",
+      "..mkkkkkkkkm....",
+      "..mkWkkkkWkm....",
+      "..mkkkkkkkkm....",
+      "..mmmmmmmmmm....",
+      "...WWWWWWWW.....",
+      "...WW.WW.WW.....",
+      "................",
+      "................",
+    ],
+  },
+  // Wood-shavings pile — curls of plane shavings + a couple of off-cuts.
+  {
+    name: "structure/shavings-pile",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "......WdW.......",
+      ".....WdWdW......",
+      "....WdWWWdW.....",
+      "...WdWdWdWdW....",
+      "..WdWWdWWdWdW...",
+      "..dWdWdWdWdWd...",
+      "...WWdWWdWWW....",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
+  // ── Forge chimney smoke (animated overlay, drawn above the forge-house) ───────
+  // Three frames of a rising smoke puff, cycled by the render loop like the forge
+  // fire. Transparent base; s/S = steel/slate smoke greys, drifting up.
+  {
+    name: "structure/forge-smoke-a",
+    size: 16,
+    pixels: [
+      "......ss........",
+      ".....sSSs.......",
+      ".....sSSs.......",
+      "......ss........",
+      "......s.........",
+      "......s.........",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    name: "structure/forge-smoke-b",
+    size: 16,
+    pixels: [
+      ".....sSs........",
+      "....sSSSs.......",
+      "....sSSSs.......",
+      ".....sSs........",
+      "......ss........",
+      "......s.........",
+      "......s.........",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    name: "structure/forge-smoke-c",
+    size: 16,
+    pixels: [
+      "....sSSs........",
+      "...sSSSSs.......",
+      "...sSSSSs.......",
+      "....sSs.........",
+      "....sSs.........",
+      ".....ss.........",
+      "......s.........",
+      "......s.........",
+      "................",
+      "................",
       "................",
       "................",
       "................",

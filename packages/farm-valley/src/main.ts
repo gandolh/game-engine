@@ -9,7 +9,7 @@ import {
   EDG,
 } from "@engine/core";
 import type { AtlasManifest } from "@engine/core";
-import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE } from "./render-systems";
+import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX } from "./render-systems";
 import { makeGroundNoiseDecorator } from "./render/ground-noise";
 import { washFor } from "./render/day-night";
 import { seasonForDay } from "./protocols/weather";
@@ -22,13 +22,14 @@ import {
   EventFeedPanel,
   createRightColumn,
   WorldClockPanel,
+  RelationshipMatrixPanel,
 } from "./ui";
 import { HomeScreen, formatSeed } from "./screens";
 import { HOTBAR_SLOTS } from "./systems/player-control";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./world/regions";
 import { Keyboard } from "@engine/core";
 import { SimClient } from "./worker/sim-client";
-import type { FinalStandingRow, SnapshotSprite } from "./worker/snapshot";
+import type { FinalStandingRow, RunRecap, SnapshotSprite } from "./worker/snapshot";
 import { serializeRun, parseRun, type RunDescriptor } from "./run-descriptor";
 
 interface BootConfig {
@@ -75,6 +76,12 @@ interface Runtime {
 let focusedFarmerId: number | null = null;
 let panOffset = { x: 0, y: 0 };
 let zoom = 1;
+// When the player starts moving Pip while the camera has been panned/looking
+// elsewhere, we re-center on Pip — but easing panOffset toward 0 over a few
+// frames instead of an instant setCenter snap, which read as the camera
+// "jumping back to a previous position". While true, the render loop decays
+// panOffset each frame; it clears itself once the offset is ~0.
+let recenteringOnPip = false;
 
 // Hover tooltip — tracks raw canvas-relative mouse position in CSS pixels.
 const mousePos = { x: -9999, y: -9999 };
@@ -122,6 +129,9 @@ function setupCameraListeners(
 
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
     isDragging = true;
+    // A manual drag overrides any in-progress smooth recenter so the two don't
+    // fight over panOffset.
+    recenteringOnPip = false;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     camStartX = panOffset.x;
@@ -254,6 +264,7 @@ interface Panels {
   playback: PlaybackControlsPanel;
   hotbar: HotbarPanel;
   gameOverPanel: GameOverPanel;
+  relationshipMatrix: RelationshipMatrixPanel;
 }
 
 // Construct all UI panels and mount them into `app`. The observer and event
@@ -273,6 +284,9 @@ function buildPanels(app: HTMLElement): Panels {
   const leaderboardPanel = new LeaderboardPanel(app);
   const slateBillboard = new SlateBillboardPanel(app);
   const eventFeedPanel = new EventFeedPanel(rightColumn);
+  // brief 37 — relationship matrix panel: mounts at the bottom of the right
+  // column (below the event feed), showing the N×N trust grid.
+  const relationshipMatrix = new RelationshipMatrixPanel(rightColumn);
   // Player tool hotbar — bottom-center, where the playback controls used to be.
   const hotbar = new HotbarPanel(app);
   const gameOverPanel = createGameOverPanel(app);
@@ -286,6 +300,7 @@ function buildPanels(app: HTMLElement): Panels {
     playback,
     hotbar,
     gameOverPanel,
+    relationshipMatrix,
   };
 }
 
@@ -496,7 +511,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
   } = deps;
   const {
     overlay, worldClock, observer, leaderboardPanel,
-    slateBillboard, eventFeedPanel, hotbar, gameOverPanel,
+    slateBillboard, eventFeedPanel, hotbar, gameOverPanel, relationshipMatrix,
   } = panels;
 
   let lastFrameMs = performance.now();
@@ -524,6 +539,17 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
     const interpolatedSprites = frameProfiler.time("interp", () =>
       client.getInterpolatedSprites(),
     );
+
+    // Smoothly decay any pan offset back to zero while re-centering on Pip, so
+    // the view glides onto him instead of snapping (the "jump back to a previous
+    // position" on move-start). Exponential ease toward 0; snap+stop when close.
+    if (recenteringOnPip) {
+      panOffset = { x: panOffset.x * 0.8, y: panOffset.y * 0.8 };
+      if (Math.abs(panOffset.x) < 0.5 && Math.abs(panOffset.y) < 0.5) {
+        panOffset = { x: 0, y: 0 };
+        recenteringOnPip = false;
+      }
+    }
 
     // brief-11: focus-camera — update camera center each frame
     if (_camera !== null && focusedFarmerId !== null) {
@@ -582,6 +608,11 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       });
     }
 
+    // The fishing-spot's rising-bubble animation is handled inside
+    // `pushSnapshotSprites` → `resolveFrameAndBob` (it cycles the single layer-4
+    // `structure/fishing-spot` snapshot sprite through its A→B→C bubble frames),
+    // so no separate overlay pass is needed here.
+
     // Animated forge fire in the blacksmith oven's mouth. Layer 41 = just above
     // the oven body (layer 40), below the NPC (50). ~0.4 s per A→B→C flicker.
     const FIRE_PERIOD_MS = 420;
@@ -597,6 +628,25 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       rotation: 0,
       layer: 41,
       alpha: 1,
+    });
+
+    // Animated chimney smoke rising from the forge-house chimney. Cycled slower
+    // than the fire (~0.7 s per A→B→C) and drawn behind the work-yard (layer 6,
+    // just above the baked forge-house at layer 5) with a soft alpha so it reads
+    // as drifting smoke, not a solid sprite. The smoke also bobs up a couple of
+    // pixels over the cycle for a touch of motion.
+    const SMOKE_PERIOD_MS = 700;
+    const smokeIdx = Math.floor(nowMs / (SMOKE_PERIOD_MS / FORGE_SMOKE_FRAMES.length)) % FORGE_SMOKE_FRAMES.length;
+    const smokeFrame = FORGE_SMOKE_FRAMES[smokeIdx]!;
+    renderer.push({
+      x: FORGE_CHIMNEY_PX.x,
+      y: FORGE_CHIMNEY_PX.y - smokeIdx * 2,
+      width: TILE,
+      height: TILE,
+      frame: smokeFrame,
+      rotation: 0,
+      layer: 6,
+      alpha: 0.55,
     });
 
     // Build a position map for all farmer sprites (for meet bubbles + halo).
@@ -640,9 +690,29 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       interpolatedSprites,
       client.meets,
       farmerPositions,
-      focusedFarmerId,
       nowMs,
     );
+
+    // Yellow follow arrow bobbing above the head of whichever farmer the camera
+    // is currently following (Pip by default, or an AI farmer clicked in the
+    // observer panel). Layer 91 = above the meet bubble (90). A gentle sine bob
+    // keeps it lively without distracting.
+    if (focusedFarmerId !== null) {
+      const followed = farmerPositions.get(focusedFarmerId);
+      if (followed) {
+        const bob = Math.sin(nowMs / 300) * 1.5;
+        renderer.push({
+          x: followed.x,
+          y: followed.y - TILE - 2 + bob,
+          width: TILE,
+          height: TILE,
+          frame: "indicator/follow",
+          rotation: 0,
+          layer: 91,
+          alpha: 1,
+        });
+      }
+    }
 
     // ── Player (Pip) input → sim worker ──────────────────────────────────
     // WASD/arrows set the HELD move direction; the sim (PlayerControlSystem)
@@ -661,11 +731,11 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))       moveY = "down";
       if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))       moveX = "left";
       if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight"))      moveX = "right";
-      // Space recenters the camera on Pip (clears any pan/observer focus).
+      // Space recenters the camera on Pip (clears any pan/observer focus). Eases
+      // the pan offset back to 0 (smooth recenter) rather than snapping.
       if (keyboard.justPressed("Space") && playerFarmerId !== null) {
         focusedFarmerId = playerFarmerId;
-        panOffset = { x: 0, y: 0 };
-        if (_camera !== null) applyFocusAndPan(_camera);
+        recenteringOnPip = true;
       }
       // E fires the selected hotbar tool's action once per key press.
       const action = keyboard.justPressed("KeyE");
@@ -680,9 +750,21 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       // Send when either held axis CHANGES (incl. press→null on release, so the
       // worker stops Pip), or on any discrete action/slot event. Avoids flooding
       // the worker with an identical held-dir message every frame.
+      const moveChanged = moveX !== lastPlayerMoveX || moveY !== lastPlayerMoveY;
+      // Focus the camera on Pip the moment the player STARTS moving (a held axis
+      // goes from idle→direction). If the observer had panned/clicked elsewhere,
+      // this eases the view back to Pip so the player sees who they're driving.
+      // Only fires on the start of a fresh move (moveChanged + something held),
+      // not every frame, and not on release (both axes null). We set the focus
+      // target and flag a smooth recenter (panOffset decays to 0 in the render
+      // loop) rather than zeroing panOffset here — an instant setCenter looked
+      // like the camera "jumping back to a previous position".
+      if (moveChanged && (moveX !== null || moveY !== null) && playerFarmerId !== null) {
+        focusedFarmerId = playerFarmerId;
+        recenteringOnPip = true;
+      }
       if (
-        moveX !== lastPlayerMoveX ||
-        moveY !== lastPlayerMoveY ||
+        moveChanged ||
         action ||
         selectSlot !== null
       ) {
@@ -720,6 +802,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
     slateBillboard.update(client.slate);
     eventFeedPanel.update(client.events);
     hotbar.update(client.playerHotbar);
+    relationshipMatrix.update(client.relationships);
 
     // Game over — show once.
     if (client.gameOver && !gameOverShown) {
@@ -730,7 +813,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
           seed,
           maxDays,
           ticksPerDay,
-        });
+        }, client.recap);
       }
     }
 
@@ -813,10 +896,16 @@ async function startGame(
 }
 
 /** Game-over panel parts: the outer panel, the monospace standings text node,
- *  and the "Share this run" button (whose handler is (re)bound per run). */
+ *  the "Share this run" button (whose handler is (re)bound per run), and the
+ *  new recap sections (headline + per-farmer arcs). */
 interface GameOverPanel {
   panel: HTMLElement;
+  /** Monospace pre-formatted standings block (kept as-is for back-compat). */
   standings: HTMLElement;
+  /** Run headline ("The story of the run: ..."). */
+  headline: HTMLElement;
+  /** Per-farmer arc sentences container. */
+  arcsContainer: HTMLElement;
   shareBtn: HTMLButtonElement;
   shareStatus: HTMLElement;
 }
@@ -829,6 +918,7 @@ function createGameOverPanel(parent: HTMLElement): GameOverPanel {
     "top: 50%",
     "transform: translate(-50%, -50%)",
     "min-width: 480px",
+    "max-width: 640px",
     "padding: 24px 32px",
     "font: 13px/1.5 ui-monospace, monospace",
     `color: ${EDG.cream}`,
@@ -838,12 +928,50 @@ function createGameOverPanel(parent: HTMLElement): GameOverPanel {
     "box-shadow: 0 0 60px rgba(228, 166, 114, 0.35)", // EDG.tan
     "z-index: 200",
     "display: none",
+    "overflow-y: auto",
+    "max-height: 90vh",
   ].join(";");
 
-  // Standings text keeps the monospace pre layout it always had.
+  // ── Headline ("The story of the run: …") ──────────────────────────────
+  const headline = document.createElement("div");
+  headline.style.cssText = [
+    `color: ${EDG.gold}`,
+    "font-weight: 600",
+    "margin-bottom: 14px",
+    "white-space: normal",
+    "word-break: break-word",
+  ].join(";");
+  panel.appendChild(headline);
+
+  // ── Standings text (monospace pre — kept as-is) ────────────────────────
   const standings = document.createElement("div");
   standings.style.cssText = "white-space: pre";
   panel.appendChild(standings);
+
+  // ── Per-farmer arc sentences ───────────────────────────────────────────
+  const arcsSeparator = document.createElement("div");
+  arcsSeparator.style.cssText = [
+    `border-top: 1px solid ${EDG.steel}`,
+    "margin: 14px 0 10px",
+    "opacity: 0.5",
+  ].join(";");
+  panel.appendChild(arcsSeparator);
+
+  const arcsHeader = document.createElement("div");
+  arcsHeader.textContent = "  Season arcs";
+  arcsHeader.style.cssText = [
+    `color: ${EDG.tan}`,
+    "font-weight: 600",
+    "margin-bottom: 6px",
+  ].join(";");
+  panel.appendChild(arcsHeader);
+
+  const arcsContainer = document.createElement("div");
+  arcsContainer.style.cssText = [
+    `color: ${EDG.cream}`,
+    "line-height: 1.7",
+  ].join(";");
+  panel.appendChild(arcsContainer);
 
   // brief-17: save/replay — "Share this run" control row.
   const shareRow = document.createElement("div");
@@ -876,7 +1004,7 @@ function createGameOverPanel(parent: HTMLElement): GameOverPanel {
   panel.appendChild(shareRow);
 
   parent.appendChild(panel);
-  return { panel, standings, shareBtn, shareStatus };
+  return { panel, standings, headline, arcsContainer, shareBtn, shareStatus };
 }
 
 function createSeedBadge(parent: HTMLElement, seed: number): HTMLElement {
@@ -904,22 +1032,73 @@ function renderGameOver(
   rows: FinalStandingRow[],
   finalDay: number,
   run: RunDescriptor,
+  recap: RunRecap | null,
 ): void {
+  // ── Headline ─────────────────────────────────────────────────────────────
+  // Populate the recap headline if available; otherwise fall back to an empty
+  // string (the element stays in the DOM but blank — harmless).
+  panel.headline.textContent = recap?.headline ?? "";
+
+  // ── Standings text (unchanged monospace block) ────────────────────────────
   const lines: string[] = [];
   lines.push(`╔══ FARM VALLEY — final standings after ${finalDay} days ══╗`);
   lines.push(`  Run #${(run.seed >>> 0).toString(16)}  (seed ${formatSeed(run.seed)})`);
   lines.push("");
-  lines.push("  rank  name      personality      gold  unsold  total   crops");
-  lines.push("  " + "─".repeat(60));
-  rows.forEach((r, i) => {
-    const cropStr = `r${r.crops.radish} w${r.crops.wheat} p${r.crops.pumpkin}`;
-    lines.push(
-      `  ${String(i + 1).padEnd(5)} ${r.name.padEnd(9)} ${r.personality.padEnd(15)} ${String(r.gold).padStart(5)}  ${String(r.unsoldValue).padStart(5)}  ${String(r.totalValue).padStart(5)}   ${cropStr}`,
-    );
-  });
+
+  if (recap !== null) {
+    // Enhanced standings: include the rank-delta vs mid-season.
+    lines.push("  rank  Δmid  name      personality      gold  unsold  total   crops");
+    lines.push("  " + "─".repeat(68));
+    recap.standings.forEach((s, i) => {
+      const r = rows[i];
+      if (r === undefined) return;
+      const cropStr = `r${r.crops.radish} w${r.crops.wheat} p${r.crops.pumpkin}`;
+      const delta = s.midRankDelta === 0 ? "  —" :
+        s.midRankDelta > 0 ? `▲${s.midRankDelta}`.padStart(3) :
+          `▼${Math.abs(s.midRankDelta)}`.padStart(3);
+      lines.push(
+        `  ${String(i + 1).padEnd(5)} ${delta.padEnd(5)} ${s.name.padEnd(9)} ${s.personality.padEnd(15)} ${String(s.gold).padStart(5)}  ${String(r.unsoldValue).padStart(5)}  ${String(s.totalValue).padStart(5)}   ${cropStr}`,
+      );
+    });
+  } else {
+    // Fallback: original standings without delta column.
+    lines.push("  rank  name      personality      gold  unsold  total   crops");
+    lines.push("  " + "─".repeat(60));
+    rows.forEach((r, i) => {
+      const cropStr = `r${r.crops.radish} w${r.crops.wheat} p${r.crops.pumpkin}`;
+      lines.push(
+        `  ${String(i + 1).padEnd(5)} ${r.name.padEnd(9)} ${r.personality.padEnd(15)} ${String(r.gold).padStart(5)}  ${String(r.unsoldValue).padStart(5)}  ${String(r.totalValue).padStart(5)}   ${cropStr}`,
+      );
+    });
+  }
   lines.push("");
   lines.push(`  winner: ${rows[0]?.name ?? "—"} (${rows[0]?.totalValue ?? 0}g total value)`);
   panel.standings.textContent = lines.join("\n");
+
+  // ── Per-farmer arc sentences ──────────────────────────────────────────────
+  panel.arcsContainer.replaceChildren();
+  if (recap !== null && recap.arcs.length > 0) {
+    for (const arc of recap.arcs) {
+      const line = document.createElement("div");
+      line.textContent = `  ${arc}`;
+      line.style.cssText = `color: ${EDG.cream}; opacity: 0.9;`;
+      panel.arcsContainer.appendChild(line);
+    }
+  }
+
+  // ── Rivalries / alliances (brief 37) ────────────────────────────────────
+  if (recap !== null && recap.rivalries !== undefined && recap.rivalries.length > 0) {
+    const separator = document.createElement("div");
+    separator.style.cssText = `color: ${EDG.steel}; margin-top: 6px; padding-top: 4px; border-top: 1px solid ${EDG.ink};`;
+    separator.textContent = "  Notable relationships:";
+    panel.arcsContainer.appendChild(separator);
+    for (const r of recap.rivalries) {
+      const line = document.createElement("div");
+      line.textContent = `  ${r}`;
+      line.style.cssText = `color: ${EDG.red}; opacity: 0.9;`;
+      panel.arcsContainer.appendChild(line);
+    }
+  }
 
   // brief-17: save/replay — wire the Share button for this finished run.
   panel.shareBtn.onclick = () => {

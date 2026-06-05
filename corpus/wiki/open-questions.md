@@ -4,7 +4,35 @@ Live list of unresolved work and design questions. Items move out of here when a
 
 ## Code gaps (have a clear "next step")
 
-_No code-level gaps tracked right now — the 2026-06-03 batch (briefs 24–30) all shipped. See Resolved below and [status.md](status.md)._
+**Spectator/story layer** — _queued 2026-06-05_ as briefs [36–40](../briefs/game/todo/) from research into the spectator-sim genre (RimWorld / DF Legends / CK3 observer / Football Manager / Civ4 AI Survivor). Farm Valley is a *watched* sim and these are the gaps relative to what makes such sims compelling (apophenia + legibility + stakes + pacing):
+
+- **No end-of-run recap.** The run just prints standings; no per-farmer "season arc" / headline. → [36-end-of-run-recap](../briefs/game/todo/36-end-of-run-recap.md). Highest payoff.
+- **Trust matrix invisible; no named rivalries.** ~~`TrustSystem` data never reaches the viewer.~~ → _plumbing shipped 2026-06-05_ ([37-rivalries-and-relationship-legibility](../briefs/game/done/37-rivalries-and-relationship-legibility.md)) **but DORMANT** — see the new "Peer-interaction layer is inert" gap below: with no farmer↔farmer trades/declines firing, the matrix stays flat at 0.5 baseline and zero rivalries form. The machinery is correct + tested; it activates for free once peer interaction is live.
+- **Flat narrative density.** Every event reads with equal weight; no escalation toward the climax. → [38-drama-scoring-and-narrative-escalation](../briefs/game/todo/38-drama-scoring-and-narrative-escalation.md).
+- **No history/momentum view.** Live leaderboard shows now, not the trajectory or crossings. → [39-wealth-over-time-graph](../briefs/game/todo/39-wealth-over-time-graph.md).
+- **Decision legibility shallow + no highlight-skip.** "Why" is focused-farmer-only and click-gated; no fast-forward to dramatic moments. → [40-thought-bubbles-and-highlight-skip](../briefs/game/todo/40-thought-bubbles-and-highlight-skip.md).
+
+Suggested order 36 → 37 → 38 → 39 → 40 (39/40 consume 36/38). All are read-only/render-side or additive observation — none touch agent deliberation or the determinism-load-bearing tick body.
+
+> **⚠️ Peer-interaction layer is inert (found 2026-06-05 while shipping brief 37).** A full 100-day run on seeds `0xc0ffee/1/42` fires **zero** farmer↔farmer events: no peer seed trades, no `ONT_ENCOUNTER.ACCEPT`/`DECLINE`, no `TRADE_COMPLETED` between farmers, no broken CNP commitments. Consequently **the entire `TrustSystem` matrix never leaves its 0.5 baseline** — `farmer.trust` is never even lazy-initialized. The only live events all run are auction wins (Atticus repeatedly winning the golden bean) and crop-withering. This means:
+> - Brief 37's relationship matrix renders a static all-neutral grid, and **rivalries/alliances can never form** in current play (brief 37 acceptance "≥1 rivalry per live run" is unmet — shipped as dormant plumbing per user call).
+> - Any future spectator feature keyed off trust/relationships (recap rivalries, drama from disputes) is equally inert until this is fixed.
+> The root cause is upstream of these briefs: `EncounterTradeSystem` initiates trades only in narrow conditions that don't trigger in steady-state play (each agent farms its own plots; encounters at the market rarely escalate to an OFFER/ACCEPT/DECLINE). **Fix = a separate gameplay brief** to make peer interaction actually happen (must touch `agents/**` + encounter logic, which 36–40 were scoped to avoid). Until then, the relationship/rivalry features are correct-but-dormant scaffolding. Likely best addressed alongside the 41–46 gameplay-depth batch, which is already allowed to change agent deliberation.
+
+**Gameplay / content / world depth** — _queued 2026-06-05_ as briefs [41–46](../briefs/game/todo/), **bold scope** (user opted to reshape the sim; these change the determinism baseline *by design* — verify replay-MATCH + json diff, don't preserve old numbers). Diagnosis from a code read: the farming loop is thin (3 crops, no quality), progression is uni-axial (tools/decorations/plots/AP — all "more of the same"), the world has 18 zones but the economy uses ~6 (cosmetic NPCs, dead seasonal/well zones, decorations no AI crafts, seasons invisible in the tiles), and everyone wins the same way (grow → fixed-price shop → highest `totalValue`).
+
+- **Farming loop too thin.** 3 crops, no quality dimension. → [41-crop-roster-and-quality-tiers](../briefs/game/todo/41-crop-roster-and-quality-tiers.md). **The spine — do first.**
+- **No animal/perennial pillar.** Missing the genre's second playstyle. → [42-livestock-and-orchards](../briefs/game/todo/42-livestock-and-orchards.md).
+- **Shallow uni-axial progression; no off-season growing.** → [43-greenhouse-and-farm-skill-progression](../briefs/game/todo/43-greenhouse-and-farm-skill-progression.md).
+- **World looks busier than it is.** Cosmetic NPCs, no social hub, dead zones. → [44-living-world-working-npcs-and-tavern](../briefs/game/todo/44-living-world-working-npcs-and-tavern.md).
+- **Seasons invisible; no calendar landmarks.** The art-direction + festival ask. → [45-seasonal-visual-identity-and-festivals](../briefs/game/todo/45-seasonal-visual-identity-and-festivals.md).
+- **One way to win; no demand-side economy.** The ocean does nothing. → [46-harbor-shipping-and-contracts](../briefs/game/todo/46-harbor-shipping-and-contracts.md).
+
+Suggested order **41 → 42 → 43 → 44 → 45 → 46** (41's crops/quality feed 42/43/45/46; 44's notice-board/NPC-fulfillment feeds 46). Unlike 36–40, these **do** touch agent deliberation and the economy — each carries a determinism re-verify + baseline-update step. Deliberately *not* taken (user deferred): a head-on supply-driven shop-price rework — 46's contracts add demand-side pressure without rewriting the shop.
+
+**Tooling / rendering** — _queued 2026-06-05 (user request)._
+
+- **Single mega-atlas is hard to author.** All ~157 frames pack into one `main.png`; the renderer holds a single atlas and ignores the `atlasId` every sprite already carries. → [47-split-atlas-into-specialized-sheets](../briefs/game/todo/47-split-atlas-into-specialized-sheets.md): emit ~5–7 specialized sheets (characters/buildings/terrain/crops/props/items-ui) + an index, make `atlasId` load-bearing (renderer atlas map). No-visual-change refactor; no sim/determinism impact; opens a seam for brief 45's seasonal terrain swap.
 
 ## Resolved
 

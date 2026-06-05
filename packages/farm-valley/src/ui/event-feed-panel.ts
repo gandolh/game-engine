@@ -8,6 +8,12 @@ export const EVENT_FEED_PANEL_CAP = 30;
 export interface EventFeedRow {
   day: number;
   text: string;
+  /**
+   * Drama score from drama.ts, [0, 1]. Optional for back-compat with code
+   * that builds rows without a score (e.g. older tests). Undefined is treated
+   * as 0 (routine).
+   */
+  drama?: number;
 }
 
 // brief 25 — flows below the observer inside the shared right column
@@ -76,7 +82,12 @@ export class EventFeedPanel {
 
     shown.forEach((row, i) => {
       const lineEl = this.linesContainer.children[i] as HTMLElement;
-      setText(lineEl, `Day ${row.day} — ${row.text}`);
+      const isHighDrama = (row.drama ?? 0) >= 0.7;
+      // Apply emphasis: brighter color + star prefix for high-drama rows.
+      // Color is set on every update so a reused DOM node toggles correctly.
+      lineEl.style.color = isHighDrama ? EDG.gold : EDG.green;
+      const prefix = isHighDrama ? "★ " : "";
+      setText(lineEl, `${prefix}Day ${row.day} — ${row.text}`);
     });
   }
 
