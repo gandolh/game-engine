@@ -12,7 +12,8 @@ import {
   type InitiatePeerTradeFn,
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
-import { CROP_SELL_PRICE, SEED_COST } from "../economy";
+import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
+import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
@@ -20,12 +21,26 @@ import type { TileFeature, FarmDecoration } from "../components";
 
 export { _resetCnpCoordinatorsForTests };
 
-const HIGH_TIER: readonly CropKind[] = ["pumpkin", "wheat"]; // pumpkin/corn alternating; corn unavailable, use wheat
 const BUY_PRICE_MULTIPLIER = 1.05; // up to 105% of shop price
 
-function pickHighTier(plotId: number): CropKind {
-  // Alternate by plot id parity (pumpkin / wheat as a corn-stand-in).
-  return HIGH_TIER[plotId % HIGH_TIER.length]!;
+/**
+ * brief 41 — hoarder picks the highest-value in-season crop they can afford
+ * (hoards the good stuff). Falls back to radish only when nothing else works.
+ */
+function pickHoarderCrop(day: number, gold: number, reserve: number): CropKind {
+  const season = seasonForDay(day);
+  // Highest-value in-season crops by season.
+  const seasonPrefs: Record<import("../protocols/weather").Season, CropKind[]> = {
+    spring: ["wheat", "carrot", "radish"],
+    summer: ["corn", "tomato"],
+    autumn: ["grape", "pumpkin"],
+    winter: ["winter-squash"],
+  };
+  const preferred = seasonPrefs[season];
+  for (const crop of preferred) {
+    if (gold - SEED_COST[crop] >= reserve) return crop;
+  }
+  return "radish";
 }
 
 export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): void {
@@ -73,9 +88,14 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   deliberateResourceZoneVisit(farmer, features.length, "tree",  12);
   deliberateResourceZoneVisit(farmer, features.length, "stone", 13);
 
-  // 1. Plant a high-tier crop, falling back to radish only if we can't afford anything else.
-  const plotId = (farmer.beliefs.data["plotId"] as number | undefined) ?? farmer.id;
-  const preferred = pickHighTier(plotId);
+  // 1. brief 41 — plant the highest-value in-season crop we can afford; hoarder
+  //    picks by reserve comfort AND season. Falls back through seeds on hand.
+  const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? 0;
+  const preferred = pickHoarderCrop(day, farmer.inventory.gold, reserve);
+  const cropSeason = CROP_SEASON[preferred];
+  const currentSeason = seasonForDay(day);
+  const seasonNote = currentSeason === cropSeason ? "in-season premium" : "fallback";
+
   let chosen: CropKind | null = null;
   let chosenMode: "plant" | "buy-seed" = "plant";
 
@@ -85,16 +105,14 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     chosen = preferred;
     chosenMode = "buy-seed";
   } else {
-    // Try the other high-tier crop.
-    const other = HIGH_TIER.find((c) => c !== preferred)!;
-    if (farmer.inventory.seeds[other] >= 1) {
-      chosen = other;
-    } else if (farmer.inventory.gold - SEED_COST[other] >= reserve) {
-      chosen = other;
-      chosenMode = "buy-seed";
-    } else if (farmer.inventory.seeds.radish >= 1) {
-      chosen = "radish";
-    } else if (farmer.inventory.gold - SEED_COST.radish >= reserve) {
+    // Try other available seeds.
+    for (const crop of Object.keys(farmer.inventory.seeds) as CropKind[]) {
+      if (crop !== preferred && farmer.inventory.seeds[crop] >= 1) {
+        chosen = crop;
+        break;
+      }
+    }
+    if (!chosen && farmer.inventory.gold - SEED_COST.radish >= reserve) {
       chosen = "radish";
       chosenMode = "buy-seed";
     }
@@ -103,7 +121,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   if (chosen) {
     if (chosenMode === "plant") {
       if (deliberatePlantNearby(farmer, chosen, 1)) {
-        recordReason(farmer, `plant ${chosen}: high-tier on hand`);
+        recordReason(farmer, `plant ${chosen}: ${seasonNote}`);
       }
     } else {
       farmer.intentions.queue.push({
@@ -111,7 +129,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
         data: { crop: chosen, quantity: 1 },
         priority: 2,
       });
-      recordReason(farmer, `buy seed ${chosen}: short on seeds`);
+      recordReason(farmer, `buy seed ${chosen}: ${seasonNote}`);
     }
   }
 

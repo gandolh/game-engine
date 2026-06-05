@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, it, expect } from "vitest";
 import { World } from "@engine/core";
 import type { GameEntity } from "../components";
@@ -29,8 +30,8 @@ function setup(): {
     farmer: { name: "Pip", currentRegion: "farm-pip", homeRegion: "farm-pip" },
     inventory: {
       gold: 60,
-      crops: { radish: 0, wheat: 0, pumpkin: 0 },
-      seeds: { radish: 3, wheat: 0, pumpkin: 0 },
+      crops: { ...ZERO_CROPS },
+      seeds: { ...ZERO_CROPS, radish: 3 },
       tools: [
         { kind: "hoe", tier: "wooden", durability: 100 },
         { kind: "axe", tier: "wooden", durability: 100 },

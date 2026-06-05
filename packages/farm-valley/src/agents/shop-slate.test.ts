@@ -76,24 +76,26 @@ describe("generateDailySlate", () => {
     }
   });
 
-  it("crop is always radish, wheat, or pumpkin", () => {
+  it("crop is always one of the 8 known crop kinds (brief 41)", () => {
+    const VALID_CROPS = ["radish", "wheat", "carrot", "tomato", "corn", "pumpkin", "grape", "winter-squash"];
     const slate = generateDailySlate(createRng(3030));
     for (const offer of slate) {
-      expect(["radish", "wheat", "pumpkin"]).toContain(offer.crop);
+      expect(VALID_CROPS).toContain(offer.crop);
     }
   });
 
-  it("uses custom PriceTable when provided", () => {
+  it("uses custom Partial<PriceTable> when provided (brief 41)", () => {
+    // Partial override: only radish overridden at 100; rest fall back to DEFAULT_PRICES.
     const customPrices = {
       radish: { buy: 100, sell: 100 },
-      wheat: { buy: 100, sell: 100 },
-      pumpkin: { buy: 100, sell: 100 },
     };
     const slate = generateDailySlate(createRng(77), customPrices);
     for (const offer of slate) {
-      // All prices are derived from 100 ± 20%, so in [80, 120].
-      expect(offer.unitPrice).toBeGreaterThanOrEqual(80);
-      expect(offer.unitPrice).toBeLessThanOrEqual(120);
+      if (offer.crop === "radish") {
+        // All prices are derived from 100 ± 20%, so in [80, 120].
+        expect(offer.unitPrice).toBeGreaterThanOrEqual(80);
+        expect(offer.unitPrice).toBeLessThanOrEqual(120);
+      }
     }
   });
 

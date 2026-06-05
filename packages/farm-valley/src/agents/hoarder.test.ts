@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, expect, it, beforeEach } from "vitest";
 import { deliberateHoarder, _resetCnpCoordinatorsForTests } from "./hoarder";
 import type { GameEntity, CropKind } from "../components";
@@ -21,7 +22,7 @@ function makeFarmer(overrides: {
   plotId?: number;
   region?: RegionId;
 }): GameEntity {
-  const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+  const ZERO: Record<CropKind, number> = { ...ZERO_CROPS };
   const entity: GameEntity = {
     id: overrides.id ?? 1,
     transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },
@@ -53,21 +54,27 @@ describe("deliberateHoarder", () => {
     _resetCnpCoordinatorsForTests();
   });
 
-  it("plants a high-tier crop when seed is available", () => {
-    const f = makeFarmer({ seeds: { pumpkin: 1 }, plotId: 0 });
-    deliberateHoarder(f, { tick: 0 });
+  it("plants a high-tier crop when seed is available (brief 41: grape in autumn)", () => {
+    // Day 60 = autumn. Hoarder picks grape (highest autumn value) if available.
+    // With grape seed, gold=300, reserve=80: 300-20=280>=80 → preferred=grape.
+    const f = makeFarmer({ seeds: { grape: 1 }, plotId: 0, day: 60 });
+    deliberateHoarder(f, { tick: 1200 });
+    const plant = f.intentions!.queue.find((i) => i.kind === "plant");
+    expect(plant).toBeDefined();
+    expect(plant!.data["crop"]).toBe("grape");
+  });
+
+  it("falls back to seed on hand when no preferred crop can be bought (brief 41)", () => {
+    // Day 60 = autumn. gold=82, reserve=80.
+    // grape cost 20: 82-20=62<80 → can't buy.
+    // pumpkin cost 15: 82-15=67<80 → can't buy.
+    // pickHoarderCrop returns "radish" (fallback). radish cost 5: 82-5=77<80 → can't buy radish.
+    // Loop finds pumpkin seed on hand → plants it.
+    const f = makeFarmer({ seeds: { pumpkin: 1 }, plotId: 0, day: 60, gold: 82, reserve: 80 });
+    deliberateHoarder(f, { tick: 1200 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
     expect(plant).toBeDefined();
     expect(plant!.data["crop"]).toBe("pumpkin");
-  });
-
-  it("alternates between pumpkin and wheat by plot id parity", () => {
-    const fEven = makeFarmer({ seeds: { pumpkin: 1, wheat: 1 }, plotId: 0, id: 10 });
-    const fOdd = makeFarmer({ seeds: { pumpkin: 1, wheat: 1 }, plotId: 1, id: 11 });
-    deliberateHoarder(fEven, { tick: 0 });
-    deliberateHoarder(fOdd, { tick: 0 });
-    expect(fEven.intentions!.queue.find((i) => i.kind === "plant")!.data["crop"]).toBe("pumpkin");
-    expect(fOdd.intentions!.queue.find((i) => i.kind === "plant")!.data["crop"]).toBe("wheat");
   });
 
   it("falls back to radish only when no high-tier crop is affordable", () => {

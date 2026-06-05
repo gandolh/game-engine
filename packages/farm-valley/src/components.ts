@@ -103,7 +103,36 @@ export interface Player {
   glideFromY: number;
 }
 
-export type CropKind = "radish" | "wheat" | "pumpkin";
+/**
+ * brief 41 — expanded crop roster. Season-gated (each crop has a primary season
+ * in economy.ts cropSeason; growing out of season accrues growth at half rate).
+ */
+export type CropKind =
+  | "radish"       // spring,  2d,  cost 5,  sell 8
+  | "wheat"        // spring,  4d,  cost 8,  sell 14
+  | "carrot"       // spring,  3d,  cost 6,  sell 11
+  | "tomato"       // summer,  5d,  cost 10, sell 20
+  | "corn"         // summer,  6d,  cost 12, sell 26
+  | "pumpkin"      // autumn,  7d,  cost 15, sell 35
+  | "grape"        // autumn,  9d,  cost 20, sell 50
+  | "winter-squash"; // winter,  5d,  cost 9,  sell 22
+
+/**
+ * brief 41 — quality tier earned at harvest. Normal is the baseline; Silver
+ * and Gold reward consistent watering + husbandry + a seeded roll.
+ * Multipliers: Normal ×1.0 / Silver ×1.25 / Gold ×1.5 (see economy.ts).
+ */
+export type CropQuality = "normal" | "silver" | "gold";
+
+/**
+ * Per-quality count for one crop kind. Used in `cropQuality` parallel inventory
+ * (see Inventory comment below).
+ */
+export interface CropQualityCounts {
+  normal: number;
+  silver: number;
+  gold: number;
+}
 
 // ── Tool system ──────────────────────────────────────────────────────────────
 
@@ -168,10 +197,32 @@ export interface WateringCan {
   maxCharges: number; // always 10
 }
 
+/**
+ * brief 41 — quality representation choice (DESIGN DECISION):
+ *
+ * We keep `crops: Record<CropKind, number>` as the TOTAL count (backward-
+ * compatible with all existing call sites that read crop totals) and add a
+ * parallel optional `cropQuality?: Record<CropKind, CropQualityCounts>` for
+ * the quality breakdown. This is the least-invasive path: all existing code
+ * that reads `inv.crops[crop]` keeps working; quality-aware code (sell price
+ * weighting, leaderboard, tooltip) reads `cropQuality[crop]` with a helper
+ * that defaults to all-Normal when absent.
+ *
+ * Helpers: `totalCropCount(inv, crop)` (= inv.crops[crop]), and
+ * `cropInventoryValue(inv, crop, basePrice)` accounting for quality tiers.
+ * Both are in economy.ts (co-located with the price constants).
+ */
 export interface Inventory {
   gold: number;
+  /** Total harvested crop count per kind. Use with cropQuality for quality split. */
   crops: Record<CropKind, number>;
   seeds: Record<CropKind, number>;
+  /**
+   * brief 41 — per-quality breakdown of harvested crops. Optional: when absent
+   * (or when a crop's entry is absent), all units are treated as Normal quality.
+   * `crops[crop]` always equals `normal + silver + gold` when this is present.
+   */
+  cropQuality?: Partial<Record<CropKind, CropQualityCounts>>;
   /**
    * Golden beans (brief 24) — a rare, high-value status good won only at the
    * shopkeeper's auction. Not a `CropKind` (it can't be planted); a winner can

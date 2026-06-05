@@ -3,7 +3,10 @@ import type { GameEntity, CropKind, FarmerFsmState, Tool } from "./components";
 import { setupRegions } from "./world/region-setup";
 import type { RegionId } from "./world/regions";
 
-const ZERO_CROPS: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+// brief 41 — expanded to cover all 8 crop kinds.
+const ZERO_CROPS: Record<CropKind, number> = {
+  radish: 0, wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0, grape: 0, "winter-squash": 0,
+};
 
 /**
  * Starting tool kit — one wooden hoe, axe, pickaxe, and a fishing rod. There is

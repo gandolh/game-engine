@@ -50,7 +50,7 @@ import { WorkNpcSystem } from "./systems/work-npc";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
 import { listCoordinators } from "./agents/cnp-registry";
-import { CROP_SELL_PRICE } from "./economy";
+import { cropInventoryValue } from "./economy";
 import "./agents/conservative";
 import "./agents/aggressive";
 import "./agents/hoarder";
@@ -211,7 +211,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(weatherFeature.cropGrowthSystem)
     .add(new TileFeatureSystem(world, rng, bus))
     .add(new BubbleSystem(world, rng))
-    .add(new HarvestSystem(world))
+    .add(new HarvestSystem(world, rng))
     // brief 29 — surface owned-plot watering needs into beliefs before agents
     // deliberate, so survival-reflex watering can be queued.
     .add(new PlotSenseSystem(world))
@@ -248,7 +248,9 @@ export interface FarmerSummary {
   name: string;
   personality: string;
   gold: number;
-  crops: { radish: number; wheat: number; pumpkin: number };
+  /** Total crop counts per kind (quality-blind). */
+  crops: Partial<Record<import("./components").CropKind, number>>;
+  /** brief 41 — quality-weighted value of all held crops. */
   unsoldValue: number;
   totalValue: number;
 }
@@ -257,15 +259,13 @@ export function leaderboard(world: World<GameEntity>): FarmerSummary[] {
   const out: FarmerSummary[] = [];
   for (const f of world.query("farmer", "inventory", "personality")) {
     if (f.id === undefined) continue;
-    const crops = {
-      radish: f.inventory.crops.radish,
-      wheat: f.inventory.crops.wheat,
-      pumpkin: f.inventory.crops.pumpkin,
-    };
-    const unsoldValue =
-      crops.radish * CROP_SELL_PRICE.radish +
-      crops.wheat * CROP_SELL_PRICE.wheat +
-      crops.pumpkin * CROP_SELL_PRICE.pumpkin;
+    // brief 41 — quality-weighted unsold value (uses cropQuality if present).
+    const unsoldValue = cropInventoryValue(f.inventory);
+    // Snapshot all crop counts (dynamic keyset so new crops appear automatically).
+    const crops: Partial<Record<import("./components").CropKind, number>> = {};
+    for (const [k, v] of Object.entries(f.inventory.crops) as [import("./components").CropKind, number][]) {
+      if (v > 0) crops[k] = v;
+    }
     out.push({
       id: f.id,
       name: f.farmer.name,

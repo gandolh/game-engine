@@ -13,7 +13,8 @@ export interface ObserverSnapshot {
     name: string;
     personality: string;
     gold: number;
-    crops: { radish: number; wheat: number; pumpkin: number };
+    /** brief 41 — all crop kind counts (sparse: missing = 0). */
+    crops: Partial<Record<import("../components").CropKind, number>>;
     fsm: string;
     apCurrent: number;
     apMax: number;
@@ -286,9 +287,13 @@ export class ObserverPanel {
       background: personalityColor(farmer.personality),
     });
 
-    const { radish, wheat, pumpkin } = farmer.crops;
+    // brief 41 — show all crop kinds with non-zero counts.
+    const cropStr = Object.entries(farmer.crops)
+      .filter(([, qty]) => qty > 0)
+      .map(([k, qty]) => `${k.slice(0, 3).toUpperCase()}:${qty}`)
+      .join(" ") || "-";
     setText(row.gold, `Gold: ${farmer.gold}`);
-    setText(row.crops, `R:${radish} W:${wheat} P:${pumpkin}`);
+    setText(row.crops, cropStr);
     setText(row.fsm, `State: ${farmer.fsm}`);
 
     const apText = farmer.apPenaltyPending

@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, expect, it } from "vitest";
 import { deliberateOpportunist } from "./opportunist";
 import type { GameEntity, CropKind } from "../components";
@@ -21,7 +22,7 @@ function makeFarmer(overrides: {
   id?: number;
   region?: RegionId;
 }): GameEntity {
-  const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+  const ZERO: Record<CropKind, number> = { ...ZERO_CROPS };
   const entity: GameEntity = {
     id: overrides.id ?? 1,
     transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },
@@ -49,18 +50,22 @@ function makeFarmer(overrides: {
 }
 
 describe("deliberateOpportunist", () => {
-  it("plants wheat under storm forecast", () => {
-    const f = makeFarmer({ seeds: { wheat: 1 }, weather: { forecast: "storm" } });
+  it("plants radish under storm forecast in spring (brief 41: cheapest in-season)", () => {
+    // Day 0 = spring. Storm → cheapest in-season = radish.
+    const f = makeFarmer({ seeds: { radish: 1 }, weather: { forecast: "storm" } });
     deliberateOpportunist(f, { tick: 0 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
-    expect(plant!.data["crop"]).toBe("wheat");
+    expect(plant).toBeDefined();
+    expect(plant!.data["crop"]).toBe("radish");
   });
 
-  it("plants pumpkin under sunny forecast", () => {
-    const f = makeFarmer({ seeds: { pumpkin: 1 }, weather: { forecast: "sunny" } });
+  it("plants wheat under sunny forecast in spring (brief 41: most valuable in-season)", () => {
+    // Day 0 = spring. Sunny → most valuable in-season = wheat (highest of spring crops).
+    const f = makeFarmer({ seeds: { wheat: 1 }, weather: { forecast: "sunny" } });
     deliberateOpportunist(f, { tick: 0 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
-    expect(plant!.data["crop"]).toBe("pumpkin");
+    expect(plant).toBeDefined();
+    expect(plant!.data["crop"]).toBe("wheat");
   });
 
   it("posts at fair price when supply is low (<3 offers)", () => {

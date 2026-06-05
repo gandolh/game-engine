@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeEach } from "vitest";
 import { World, MessageBus, createRng } from "@engine/core";
 import type { GameEntity } from "../components";
@@ -10,7 +11,7 @@ import { PERFORMATIVE } from "../protocols/performatives";
 import "./aggressive";
 import "./conservative";
 
-const ZERO = { radish: 0, wheat: 0, pumpkin: 0 } as const;
+const ZERO = { ...ZERO_CROPS } as const;
 
 function openCfp(reservePrice = 50): AuctionCfpBody {
   return {

@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeEach } from "vitest";
 import { World, MessageBus } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
@@ -34,8 +35,8 @@ function makeFarmer(
     intentions: { queue: [] },
     inventory: {
       gold: opts.gold ?? 100,
-      crops: { radish: 0, wheat: 0, pumpkin: 0 },
-      seeds: { radish: 0, wheat: 0, pumpkin: 0, ...(opts.seeds ?? {}) },
+      crops: { ...ZERO_CROPS },
+      seeds: { ...ZERO_CROPS, ...(opts.seeds ?? {}) },
     },
     beliefs: { data: { currentDay: 0 }, revision: 0 },
   });

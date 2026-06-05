@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { World } from "@engine/core";
+import { World, createRng } from "@engine/core";
 import type { GameEntity, PlotState } from "../components";
 import { spawnWeatherStation } from "../agents/weather-station";
 import { CropGrowthSystem } from "./crop-growth";
+import { computeQuality } from "./harvest";
+import { cropInventoryValue, ZERO_CROPS } from "../economy";
 import { PERFORMATIVE, ONT_SIMULATION } from "../protocols";
 
 function makeWorld(): World<GameEntity> {
@@ -220,5 +222,89 @@ describe("CropGrowthSystem", () => {
       system.run(makeContext(day * 10));
     }
     expect(plot.plot!.state.kind).toBe("empty"); // withered, seed lost
+  });
+
+  // ---- brief 41: season suitability & quality -----------------------------
+
+  it("in-season crop grows at full rate (daysGrowing += 1 per day)", () => {
+    // Radish is a spring crop. Day 1 = spring → full rate.
+    const plot = spawnPlot(world, 1);
+    sendDayStart(world, 1);
+    system.run(makeContext(10));
+    const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
+    expect(s.daysGrowing).toBe(1); // full-rate increment
+  });
+
+  it("out-of-season crop grows at half rate (daysGrowing += 0.5 per day)", () => {
+    // Radish is a spring crop. Day 51 = autumn → half rate.
+    const plotEntity = world.spawn({
+      plot: {
+        ownerId: 1,
+        regionId: "farm-cora" as const,
+        tileX: 2,
+        tileY: 0,
+        state: {
+          kind: "planted",
+          crop: "radish",
+          daysGrowing: 0,
+          readyAtDay: 5,
+          weatherSum: 0,
+          daysSinceWater: 0,
+          wateredToday: true,
+        } satisfies PlotState,
+      },
+    });
+    sendDayStart(world, 51); // autumn
+    system.run(makeContext(100));
+    const s = plotEntity.plot!.state as Extract<PlotState, { kind: "planted" }>;
+    expect(s.daysGrowing).toBeCloseTo(0.5); // half-rate increment
+  });
+});
+
+// ---- brief 41: computeQuality (harvest) -------------------------------------
+
+describe("computeQuality", () => {
+  it("produces deterministic gold quality for perfect husbandry", () => {
+    const rng = createRng(999).fork("crop-quality");
+    // Perfect conditions: watered every day (daysSinceWater=0), full growth (daysGrowing>=growthDays),
+    // high weatherSum, decoration boost.
+    const q1 = computeQuality(3, 3, 3.0, 0, 1, rng);
+    const rng2 = createRng(999).fork("crop-quality");
+    const q2 = computeQuality(3, 3, 3.0, 0, 1, rng2);
+    expect(q1).toBe(q2); // deterministic
+  });
+
+  it("perfect husbandry yields gold quality", () => {
+    const rng = createRng(42).fork("crop-quality");
+    // daysGrowing=growthDays (100%), weatherSum=growthDays (avg 1.0), daysSinceWater=0, decoration boost
+    const q = computeQuality(4, 4, 4.0, 0, 1, rng);
+    expect(q).toBe("gold");
+  });
+
+  it("neglected crop (never watered) yields normal quality", () => {
+    const rng = createRng(1234).fork("crop-quality");
+    // daysSinceWater = growthDays (never watered, always dry)
+    const growthDays = 4;
+    const q = computeQuality(4, growthDays, 4.0, growthDays, 0, rng);
+    // Water score = 0 (worst); quality should be normal.
+    expect(q).toBe("normal");
+  });
+
+  it("leaderboard values gold > normal for same crop", () => {
+    // Build two inventories: one normal, one gold. Same count, same crop.
+    const seeds = { ...ZERO_CROPS };
+    const invNormal = {
+      gold: 0,
+      crops: { ...ZERO_CROPS, radish: 2 },
+      seeds,
+      cropQuality: { radish: { normal: 2, silver: 0, gold: 0 } },
+    };
+    const invGold = {
+      gold: 0,
+      crops: { ...ZERO_CROPS, radish: 2 },
+      seeds,
+      cropQuality: { radish: { normal: 0, silver: 0, gold: 2 } },
+    };
+    expect(cropInventoryValue(invGold)).toBeGreaterThan(cropInventoryValue(invNormal));
   });
 });

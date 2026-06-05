@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, expect, it, beforeEach } from "vitest";
 import { MessageBus, World } from "@engine/core";
 import type { GameEntity, CropKind } from "../components";
@@ -13,7 +14,7 @@ import "../agents/aggressive";
 import "../agents/conservative";
 import "../agents/opportunist";
 
-const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+const ZERO: Record<CropKind, number> = { ...ZERO_CROPS };
 
 interface FarmerSpec {
   personality: "hoarder" | "aggressive" | "conservative" | "opportunist";

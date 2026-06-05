@@ -2,7 +2,7 @@
   "id": "crops",
   "imageUrl": "/atlas/crops.png",
   "width": 128,
-  "height": 64,
+  "height": 128,
   "frames": {
     "crop/radish/seed": {
       "x": 1,
@@ -55,6 +55,96 @@
     "crop/pumpkin/mature": {
       "x": 18,
       "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/carrot/seed": {
+      "x": 35,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/carrot/growing": {
+      "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/carrot/mature": {
+      "x": 69,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/tomato/seed": {
+      "x": 86,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/tomato/growing": {
+      "x": 103,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "crop/tomato/mature": {
+      "x": 1,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/corn/seed": {
+      "x": 18,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/corn/growing": {
+      "x": 35,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/corn/mature": {
+      "x": 52,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/grape/seed": {
+      "x": 69,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/grape/growing": {
+      "x": 86,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/grape/mature": {
+      "x": 103,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "crop/winter-squash/seed": {
+      "x": 1,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "crop/winter-squash/growing": {
+      "x": 18,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "crop/winter-squash/mature": {
+      "x": 35,
+      "y": 52,
       "w": 16,
       "h": 16
     }

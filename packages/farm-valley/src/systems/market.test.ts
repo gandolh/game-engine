@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeEach } from "vitest";
 import { MessageBus, World, createRng } from "@engine/core";
 import type { GameEntity } from "../components";
@@ -17,8 +18,8 @@ function makeFarmer(
     inbox: { messages: [] },
     inventory: {
       gold,
-      crops: { radish: 5, wheat: 0, pumpkin: 0 },
-      seeds: { radish: 0, wheat: 0, pumpkin: 0 },
+      crops: { ...ZERO_CROPS, radish: 5 },
+      seeds: { ...ZERO_CROPS },
     },
     beliefs: { data: { currentDay: 3 }, revision: 0 },
   });

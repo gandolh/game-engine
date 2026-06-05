@@ -54,5 +54,6 @@ export interface ShockBody {
 export interface CropDeathBody {
   day: number;
   ownerId: number;
-  crop: "radish" | "wheat" | "pumpkin";
+  /** brief 41 — extended to all crop kinds. */
+  crop: import("../components").CropKind;
 }

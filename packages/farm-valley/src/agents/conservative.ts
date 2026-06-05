@@ -9,14 +9,50 @@ import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
+import { SEED_COST, CROP_SEASON } from "../economy";
+import { seasonForDay } from "../protocols/weather";
+
+/**
+ * brief 41 — pick the safest (cheapest, in-season) crop for the current day.
+ * If seeds on hand include an in-season crop, plant it first (never wasteful).
+ * Otherwise buy the cheapest in-season crop we can afford.
+ * Conservative prefers: spring→carrot/radish, summer→tomato, autumn→pumpkin,
+ * winter→winter-squash. Fallback to radish if nothing else affordable.
+ */
+function pickConservativeCrop(
+  day: number,
+  gold: number,
+  reserve: number,
+  seeds?: Record<CropKind, number>,
+): { crop: CropKind; cost: number } {
+  const season = seasonForDay(day);
+  // Priority: use seeds already on hand (in-season first, cheapest).
+  const inSeasonCheap: CropKind[] =
+    season === "spring" ? ["carrot", "radish", "wheat"] :
+    season === "summer" ? ["tomato", "corn"] :
+    season === "autumn" ? ["pumpkin", "grape"] :
+    ["winter-squash"];
+  if (seeds !== undefined) {
+    for (const crop of inSeasonCheap) {
+      if (seeds[crop] >= 1) return { crop, cost: 0 };
+    }
+  }
+  // No in-season seeds on hand — buy the cheapest in-season we can afford.
+  for (const crop of inSeasonCheap) {
+    const cost = SEED_COST[crop];
+    if (gold - cost >= reserve) return { crop, cost };
+  }
+  // Fallback: radish is always affordable.
+  return { crop: "radish", cost: SEED_COST.radish };
+}
 
 export function deliberateConservative(farmer: GameEntity): void {
   if (!farmer.beliefs || !farmer.desires || !farmer.intentions || !farmer.inventory) return;
   const reserve = (farmer.desires.data.minGoldReserve as number | undefined) ?? 30;
   const gold = farmer.inventory.gold;
   const seeds = farmer.inventory.seeds;
-  const candidate: CropKind = "radish";
-  const seedCost = 5;
+  const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
+  const { crop: candidate, cost: seedCost } = pickConservativeCrop(day, gold, reserve, seeds);
 
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
@@ -55,9 +91,12 @@ export function deliberateConservative(farmer: GameEntity): void {
   // Visit resource zones when own farm has nothing left to gather.
   deliberateResourceZoneVisit(farmer, features.length, "tree", 13);
 
+  const season = seasonForDay(day);
+  const cropSeason = CROP_SEASON[candidate];
+  const seasonTag = season === cropSeason ? "in-season" : "off-season";
   if (gold - seedCost >= reserve && seeds[candidate] >= 1) {
     if (deliberatePlantNearby(farmer, candidate, 1)) {
-      recordReason(farmer, `plant ${candidate}: gold ${gold} >= reserve ${reserve}`);
+      recordReason(farmer, `plant ${candidate}: ${seasonTag}, safe choice`);
     }
   } else if (gold - seedCost >= reserve) {
     farmer.intentions.queue.push({
@@ -65,12 +104,15 @@ export function deliberateConservative(farmer: GameEntity): void {
       data: { crop: candidate, quantity: 1 },
       priority: 2,
     });
-    recordReason(farmer, `buy seed ${candidate}: short on seeds`);
+    recordReason(farmer, `buy seed ${candidate}: ${seasonTag}, short on seeds`);
   }
 
   const inVillage = farmer.farmer?.currentRegion === "village";
-  for (const crop of (["radish", "wheat", "pumpkin"] as const)) {
-    if (farmer.inventory.crops[crop] > 0) {
+  // brief 41 — sell all crop kinds (dynamic, not hard-coded to 3).
+  const allCrops = Object.keys(farmer.inventory.crops) as CropKind[];
+  for (const crop of allCrops) {
+    const qty = farmer.inventory.crops[crop];
+    if (qty > 0) {
       if (!inVillage) {
         farmer.intentions.queue.push({
           kind: "travel",
@@ -81,10 +123,13 @@ export function deliberateConservative(farmer: GameEntity): void {
       }
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
-        data: { crop, quantity: farmer.inventory.crops[crop] },
+        data: { crop, quantity: qty },
         priority: 0,
       });
-      recordReason(farmer, `sell ${crop} x${farmer.inventory.crops[crop]}`);
+      const curSeason = seasonForDay(day);
+      const cs = CROP_SEASON[crop];
+      const seasonal = curSeason === cs ? "" : " (off-season)";
+      recordReason(farmer, `sell ${crop}${seasonal} x${qty}`);
     }
   }
 

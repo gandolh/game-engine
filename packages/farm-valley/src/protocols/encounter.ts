@@ -37,7 +37,8 @@ export interface MeetBody {
  */
 export interface OfferSeedBody {
   offerId: string;
-  crop: "radish" | "wheat" | "pumpkin";
+  /** brief 41 — extended to all 8 crop kinds. */
+  crop: import("../components").CropKind;
   quantity: number;
   unitPrice: number;
   direction: "buy" | "sell";
