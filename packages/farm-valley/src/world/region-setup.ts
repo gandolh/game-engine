@@ -357,6 +357,44 @@ export function setupRegions(
     });
   }
 
+  // ── Tavern — village social hub (brief 44) ──────────────────────────────────
+  // The tavern building stands on the village's north edge (45,34); the barkeep
+  // NPC works the bar one tile below it (45,35), patrolling pour → wipe → idle so
+  // the hub reads as a place, not a terminal. The tavern entity carries an inbox
+  // (TavernSystem snoops DAY_START for the daily gossip line) + the tavern tag.
+  // Both tiles are free village tiles (clear of the market wall, shopkeeper,
+  // podium, notice board and the corner lamps/props).
+  if (REGIONS.some((r) => r.id === "village")) {
+    world.spawn({
+      transform: { x: 45, y: 34, prevX: 45, prevY: 34, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/tavern", layer: 50, tintRgba: 0xffffffff },
+      tavern: { isTavern: true },
+      inbox: { messages: [] },
+      solid: { isSolid: true, tileX: 45, tileY: 34 },
+    });
+    world.spawn({
+      transform: { x: 45, y: 35, prevX: 45, prevY: 35, rotation: 0 },
+      sprite: { atlasId: "main", frame: "npc/barkeep/idle", layer: 50, tintRgba: 0xffffffff },
+      workNpc: {
+        idlePose: "npc/barkeep/idle",
+        stations: [
+          // Pour at the bar (stand at 45,35, face down toward patrons).
+          { tileX: 45, tileY: 35, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
+          // Wipe the counter one tile west.
+          { tileX: 44, tileY: 35, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
+          // Step back east and idle.
+          { tileX: 46, tileY: 35, facing: "down", flipX: false, pose: null },
+        ],
+        stationIndex: 0,
+        phase: "working",
+        timer: 90,
+        poseFrame: null,
+        facing: "down",
+        flipX: false,
+      },
+    });
+  }
+
   // ── Auction podium — town square center ─────────────────────────────────────
   const auctionPodiumEntity = world.spawn({
     transform: {

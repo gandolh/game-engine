@@ -2,6 +2,19 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-05] impl | Brief 44 — Living World: Working NPCs + Tavern (A+B + cheap C)
+
+**Carpenter, blacksmith, tavern — the world now does something.**
+
+- **Part A — carpenter commissions.** NEW `systems/carpenter.ts` + `protocols/commission.ts`. A `commission-build` ACT emits `ONT_COMMISSION.BUILD` to the carpenter NPC; the CarpenterSystem (order→fulfill twin of `ShopkeeperSystem.handleSell`) validates, escrows the wood up-front, builds over a 30-tick build-time, then DELIVERS the decoration on the farmer's farm + replies `COMMISSION_DONE`. Aggressive wired to commission (replaces its old instant `craft-decoration`).
+- **Part A — blacksmith validates.** `act.ts handleUpgradeTool` now consumes ORE (wooden→stone = 2 stone; stone→iron = 2 iron ore) **plus** gold, enforces tier order, and rejects with NO mutation when materials are missing (was assume-success).
+- **Part B — tavern.** NEW `systems/tavern.ts` + `structure/tavern` + `npc/barkeep` WorkNpc in the village hub (45,34–35). Gossip = a daily rumor line drawn deterministically from the event feed (highest drama, tie-break newest→key). Hiring = `hire-help` ACT (25g, village-gated, once/day) → +40 AP next morning (`Farmer.helperHiredDay`, applied in `perceive.ts`). Gathering = `deliberateTavernGather` (periodic every-12-day, AP-gated ≥40, staggered by id).
+- **Part C (cheap).** Notice board already posts a daily demand line (the brief-20/bounty system) — verified + added `notice-board.test.ts`. Second-mill/well purpose left out of scope per the brief.
+- **Tests:** +15 (carpenter, tavern/pickGossip, blacksmith-validate + hire in act.test, notice-board). 607 FV + 60 engine = 667. Typecheck clean; palette + atlas guards pass; atlas rebaked (+4 frames: barkeep idle/pour-a/pour-b, tavern).
+- **Determinism re-baselined by design — MATCH ×3 (0xc0ffee/1/42).** Live (0xc0ffee, ticksPerDay 20, JsPathfinder): ≥1 real carpenter commission (Atticus), blacksmith upgrades consume materials (seed-dependent; unit-tested), 4 hires (Atticus), 8 tavern visits, 4 gossip lines.
+- **Balance:** the leader-runaway PERSISTS (Atticus wins, Cora ~5694 #2). Hiring + tavern are AP/gold-gated luxuries that fire when a farmer is already flush, so they do NOT help trailing farmers catch up — flavor/sinks for the leader, not a balance lever. The populated-hub visual is carried by the barkeep WorkNpc; AI gathering is rare-by-design (the agent loop never leaves a farmer idle in the village).
+- **Worktree gotcha (documented in probe-44.ts):** in a git worktree, the bare `farm-valley/*` import specifier resolves to the PARENT checkout's source (shared node_modules), so `npm run sim` + tsx probes run the WRONG code. The probe pins to the worktree via RELATIVE imports (`../../../packages/farm-valley/src/...`). `npm run test`/`typecheck` are fine (workspace `-w` reads local files).
+
 ## [2026-06-05] impl | Brief 42 — Livestock Pens + Orchards (Parts A+B)
 
 **Parts A+B shipped; Part C (processing/maker chain) explicitly skipped.**

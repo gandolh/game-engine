@@ -15,6 +15,14 @@ import { isActivePhase, isNightPhase, type DayPhase } from "./day-phase";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
 import { maxApForDay } from "./ap";
 
+/**
+ * brief 44 — extra AP a day-helper (hired at the tavern) grants on the morning
+ * after the hire. A flat, generous bump so a trailing farmer can buy back a
+ * productive day; gated to spare gold (the 25g hire cost) so it's a sink, never
+ * a survival crutch.
+ */
+const HELPER_AP_BOOST = 40;
+
 export class PerceiveSystem implements System {
   readonly name = "PerceiveSystem";
 
@@ -137,6 +145,15 @@ export class PerceiveSystem implements System {
         farmer.ap.max = maxApForDay(body.day);
         const rested = farmer.ap.unrested !== true;
         farmer.ap.current = rested ? farmer.ap.max : Math.floor(farmer.ap.max / 2);
+        // brief 44 — a day-helper hired at the tavern the PREVIOUS day grants a
+        // one-day AP boost the morning after (the catch-up mechanic). The hire
+        // sets helperHiredDay = the day of hire; the boost lands on day+1's wake,
+        // then the flag is cleared so it never carries further.
+        if (farmer.farmer?.helperHiredDay !== undefined && farmer.farmer.helperHiredDay === body.day - 1) {
+          farmer.ap.current += HELPER_AP_BOOST;
+          farmer.ap.max += HELPER_AP_BOOST;
+          delete farmer.farmer.helperHiredDay;
+        }
         farmer.ap.unrested = false;
         farmer.ap.away = false;
         farmer.ap.penaltyPending = false;

@@ -520,21 +520,39 @@
       "w": 16,
       "h": 16
     },
-    "animal/chicken": {
+    "npc/barkeep/idle": {
       "x": 35,
       "y": 205,
       "w": 16,
       "h": 16
     },
-    "animal/cow": {
+    "npc/barkeep/pour-a": {
       "x": 52,
       "y": 205,
       "w": 16,
       "h": 16
     },
-    "animal/sheep": {
+    "npc/barkeep/pour-b": {
       "x": 69,
       "y": 205,
+      "w": 16,
+      "h": 16
+    },
+    "animal/chicken": {
+      "x": 86,
+      "y": 205,
+      "w": 16,
+      "h": 16
+    },
+    "animal/cow": {
+      "x": 103,
+      "y": 205,
+      "w": 16,
+      "h": 16
+    },
+    "animal/sheep": {
+      "x": 1,
+      "y": 222,
       "w": 16,
       "h": 16
     }
