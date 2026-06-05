@@ -184,9 +184,12 @@ export class ActSystem implements System {
    * Seeded RNG channel for fishing outcomes (catch time + which fish). Forked
    * once from the sim rng so fishing stays deterministic; falls back to an
    * unseeded channel only when ActSystem is constructed without an rng (legacy
-   * tests). Mining still uses Math.random() — a pre-existing wart, untouched.
+   * tests). Mining uses its own forked `mineRng` channel for the same reason
+   * (the old raw Math.random() broke determinism once brief 44 made agents
+   * mine ore to feed the now-validating blacksmith — see corpus log 2026-06-05).
    */
   private readonly fishRng: Rng | null;
+  private readonly mineRng: Rng | null;
 
   constructor(
     private readonly world: World<GameEntity>,
@@ -194,6 +197,7 @@ export class ActSystem implements System {
     rng?: Rng,
   ) {
     this.fishRng = rng ? rng.fork("fish") : null;
+    this.mineRng = rng ? rng.fork("mine") : null;
   }
 
   private buildActContext(): ActContext {
@@ -617,13 +621,13 @@ export class ActSystem implements System {
     if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") return;
     if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
     // Random drops. brief 43 — mining skill widens the geode/iron bands (a master
-    // miner pulls more valuable drops). The roll itself is the pre-existing
-    // Math.random() wart (untouched per the brief); the skill SHIFT is a pure
-    // function of mining XP, so the bonus is deterministic given the roll.
+    // miner pulls more valuable drops). The roll uses the forked `mineRng` so the
+    // drop is deterministic (falls back to Math.random only for legacy rng-less
+    // tests); the skill SHIFT is a pure function of mining XP.
     const mineBonus = miningRarityBonus(farmer.skills?.mining ?? 0);
     const geodeChance = STONE_GEODE_CHANCE + mineBonus * 0.5;
     const ironChance = STONE_IRON_CHANCE + mineBonus * 0.5;
-    const roll = Math.random();
+    const roll = this.mineRng ? this.mineRng.nextFloat() : Math.random();
     if (roll < geodeChance) {
       farmer.resources.geodes += 1;
     } else if (roll < geodeChance + ironChance) {
