@@ -156,6 +156,16 @@ Brief 41 deliberately changed sim outcomes (new crops/quality/season-gating). Th
 
 Brief 42 re-baselines determinism (MATCH ×3 on replay). **First pass was DORMANT** (no agent built anything); a second pass (per user direction) made it fire live. **Live run (seed 0xc0ffee, pathfinder on):** Cora (conservative) builds a coop d31 → 3 chickens → 201 eggs, plants 2 orchards that mature + fruit (apple d51), and **OVERTAKES Atticus (aggressive) at d36 to win 5883 vs 3105** — the first real lead crossing in the project (leaders: Hannah→Atticus d24→Cora d36). The patient-capital playstyle now beats the wire-to-wire aggressive crop-rusher, **partially closing the leader-runaway gap** and **activating the dormant spectator layer** (38 rank-flips / 39 crossings / 40 race-on / recap headline now have live signal). ⚠️ Probe pitfall caught here: a headless check must pass `pathfinder: new JsPathfinder()` to `bootstrapSim` — without it TravelSystem is omitted and NO travel-gated action (build/buy/plant) ever fires, falsely reading as dormant.
 
+## Shipped 2026-06-05 (brief 43 — greenhouse + per-farm skills)
+
+| Brief | Status | Notes |
+|---|---|---|
+| [43-greenhouse-and-farm-skill-progression](../briefs/game/done/43-greenhouse-and-farm-skill-progression.md) | **Done (Parts A+B) — fires live** | **A — Greenhouse:** buildable (140g, or ~90g with 20 wood + 12 stone) → glasshouse + 4 **season-immune** plots that grow any crop full-rate year-round + never decay ([crop-growth.ts](../../packages/farm-valley/src/systems/crop-growth.ts) bypasses brief-41 season suitability for them). Built via brief-42's committed-excursion pattern (conservative/hoarder favor; aggressive skips). **B — Skills:** NEW [systems/skills.ts](../../packages/farm-valley/src/systems/skills.ts), 10-level gentle curve `5·(n-1)·n`; `Skills` (farming/foraging/fishing/mining) earned by doing the activity; bonuses feed quality/growth (farming), fish rarity, mine drops, forage gold; surfaced in `observer.ts` + snapshot. Professions skipped (follow-up). 2 new atlas frames. **+15 tests (592 FV + 60 engine); determinism MATCH ×3.** |
+
+### ⚠️ Baseline note (post-43) — runaway returns; skills lopsided
+
+Brief 43 re-baselines (MATCH ×3). Live (seed 0xc0ffee): **greenhouse built by Cora d33, out-of-season corn growing d62**; skills level (Atticus farming L6). BUT the greenhouse's ~140g + off-season effort **doesn't amortize within 100 days**, so Cora reverts from her brief-42 #1 to **#2 and Atticus runs away again (2655 vs 1075)** — the leader-runaway returns at this seed (42's crossing was livestock-driven; the greenhouse is a longer-horizon bet). Skills are **lopsided to farming** (the AI rarely forages/fishes/mines, so those 3 skills stay L1 — legible but largely inert). Both are balance observations, not defects — feature fires + deterministic.
+
 ## Open gaps
 
 See [open-questions.md](open-questions.md) for the live list.
