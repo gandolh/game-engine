@@ -81,6 +81,14 @@ export interface SnapshotSprite {
   facing?: "down" | "up" | "side" | null;
   /** Mirror the sprite horizontally (used with facing "side" for leftward movement). */
   flipX?: boolean;
+  /**
+   * Intention bubble glyph frame (e.g. "indicator/intention-plant") to draw
+   * above this AI farmer for the brief window after an intention change, or null
+   * when no bubble should show. Only set for non-player farmer sprites; always
+   * null for non-farmer sprites.
+   * Brief 40.
+   */
+  bubble?: string | null;
 }
 
 /** Active MEET indicator for a farmer this tick. */
@@ -96,6 +104,13 @@ export interface SnapshotEvent {
   text: string;
   /** Drama score in [0, 1]; higher = more significant. From drama.ts. */
   drama: number;
+  /**
+   * The primary farmer entity id involved in this event (winner of auction,
+   * target of shock, etc.), or null when none is identifiable. Used by the main
+   * thread to zoom-to the relevant farmer when the user clicks the feed entry.
+   * Brief 40.
+   */
+  farmerId?: number | null;
 }
 
 /** A one-time shock event, surfaced once in the snapshot it fires on. */
@@ -272,6 +287,17 @@ export interface WorkerProfileToggleMsg {
   enabled: boolean;
 }
 
+/**
+ * main → worker: fast-forward until the next event with drama ≥
+ * HIGHLIGHT_THRESHOLD is produced, or a safety cap is hit. After stopping,
+ * resumes at the prior pace. The final snapshot (the one containing the
+ * high-drama event, or the last tick before the cap) is posted normally.
+ * Brief 40.
+ */
+export interface WorkerSkipToHighlightMsg {
+  type: "skipToHighlight";
+}
+
 export type WorkerInbound =
   | WorkerInitMsg
   | WorkerStopMsg
@@ -279,7 +305,8 @@ export type WorkerInbound =
   | WorkerSpeedMsg
   | WorkerStepMsg
   | WorkerInputMsg
-  | WorkerProfileToggleMsg;
+  | WorkerProfileToggleMsg
+  | WorkerSkipToHighlightMsg;
 
 /** worker → main: the static backdrop sprites to bake once (sent at startup). */
 export interface WorkerStaticLayerMsg {

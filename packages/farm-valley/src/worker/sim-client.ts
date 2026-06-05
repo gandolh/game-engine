@@ -69,6 +69,7 @@ function copySprite(dst: SnapshotSprite, src: SnapshotSprite): void {
   dst.description = src.description ?? null;
   dst.facing = src.facing ?? null;
   dst.flipX = src.flipX ?? false;
+  dst.bubble = src.bubble ?? null;
 }
 
 export class SimClient {
@@ -188,6 +189,16 @@ export class SimClient {
   /** While paused, advance exactly one tick then stay paused. */
   step(): void {
     const msg: WorkerInbound = { type: "step" };
+    this.worker.postMessage(msg);
+  }
+
+  /**
+   * Fast-forward until the next high-drama event (drama ≥ HIGHLIGHT_THRESHOLD)
+   * or a safety cap. The worker resumes at the prior pace after stopping.
+   * Brief 40.
+   */
+  skipToHighlight(): void {
+    const msg: WorkerInbound = { type: "skipToHighlight" };
     this.worker.postMessage(msg);
   }
 

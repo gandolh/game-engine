@@ -19,7 +19,7 @@
 import { bootstrapSim } from "../sim-bootstrap";
 import { buildStaticLayerSprites } from "../render-systems";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
-import { buildRenderSnapshot } from "./snapshot-builder";
+import { buildRenderSnapshot, HIGHLIGHT_THRESHOLD } from "./snapshot-builder";
 import { ONT_SIMULATION, type ShockBody } from "../protocols";
 import { createPathfinderFromBytes, Profiler } from "@engine/core";
 import type {
@@ -29,6 +29,36 @@ import type {
   WorkerProfileMsg,
   SnapshotShock,
 } from "./snapshot";
+
+/**
+ * Pure stop-condition helper for the skip-to-highlight loop.
+ * Returns true when a new event with drama ≥ threshold appeared this tick —
+ * i.e. when prevLen < curLen AND the newest event's drama meets the bar.
+ *
+ * Exported so unit tests can verify the stop condition without spinning up
+ * the real worker. Brief 40.
+ *
+ * @param prevLen   Number of events in the feed BEFORE this tick.
+ * @param curLen    Number of events in the feed AFTER this tick.
+ * @param newestDrama  Drama score of the newest (last) event after this tick.
+ * @param threshold  The drama threshold (e.g. HIGHLIGHT_THRESHOLD = 0.7).
+ */
+export function shouldStopSkip(
+  prevLen: number,
+  curLen: number,
+  newestDrama: number,
+  threshold: number,
+): boolean {
+  return curLen > prevLen && newestDrama >= threshold;
+}
+
+/**
+ * Safety cap: stop the skip loop after at most this many days of fast-forward.
+ * High-drama events are rare (the main blight is around day 50), so a 30-day
+ * cap balances responsiveness against an infinite loop if nothing dramatic
+ * happens in the remaining run. The cap is documented here for visibility.
+ */
+const SKIP_MAX_DAYS = 30;
 
 const TILE = 16;
 
@@ -48,10 +78,25 @@ let speedMultiplier = 1;
 // When set, advances exactly one tick on the next interval fire while paused.
 let pendingStep = false;
 
+/**
+ * When set, the interval loop runs ticks until a high-drama event appears (or
+ * the safety cap is hit), then clears this flag and resumes prior pace.
+ * Brief 40 — skip-to-highlight pacing control.
+ */
+let pendingSkipToHighlight = false;
+
 // Bound at init() to run a single deterministic tick (+ its snapshot). pause/
 // speed/step all reuse this, so the sim advance path is identical regardless of
 // pacing — only HOW MANY times per wall-clock fire it runs differs.
 let runOneTick: (() => void) | null = null;
+
+/**
+ * Bound at init(). Returns the current event feed length and the newest event's
+ * drama score (or 0 if the feed is empty). Used by the skip-to-highlight loop
+ * to check the stop condition without needing a direct reference to eventFeed.
+ * Brief 40.
+ */
+let getEventFeedInfo: (() => { length: number; newestDrama: number }) | null = null;
 
 // Bound at init() to apply a player-input message to the player entity. Null
 // before init; input messages arriving early are dropped.
@@ -105,6 +150,13 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   if (msg.type === "input") {
     // Buffer player input onto the player entity for PlayerControlSystem.
     applyInput?.(msg.moveX, msg.moveY, msg.action, msg.selectSlot);
+    return;
+  }
+
+  if (msg.type === "skipToHighlight") {
+    // Set the flag; the interval loop will run ticks until the stop condition
+    // is met or the safety cap (SKIP_MAX_DAYS) is hit.
+    pendingSkipToHighlight = true;
     return;
   }
 
@@ -176,6 +228,13 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     let stopped = false;
 
     const msPerTick = 1000 / tickRateHz;
+
+    // Bind the event-feed info accessor for the skip-to-highlight loop.
+    getEventFeedInfo = () => {
+      const events = eventFeed.recent();
+      const last = events[events.length - 1];
+      return { length: events.length, newestDrama: last?.drama ?? 0 };
+    };
 
     // Single-tick body. Deterministic: depends only on the tick COUNT, never on
     // wall-clock time. pause/speed/step all funnel through here so the sim
@@ -261,6 +320,29 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
 
     intervalId = setInterval(() => {
       if (stopped || runOneTick === null) return;
+
+      // Skip-to-highlight: run ticks until a high-drama event appears or the
+      // safety cap is hit. Runs BEFORE the paused check so the skip works even
+      // while paused (it's a one-shot acceleration command). Resumes prior pacing
+      // after stopping. Brief 40.
+      if (pendingSkipToHighlight && getEventFeedInfo !== null) {
+        pendingSkipToHighlight = false;
+        // Safety cap: at most SKIP_MAX_DAYS × ticksPerDay ticks fast-forwarded.
+        const capTicks = SKIP_MAX_DAYS * ticksPerDay;
+        let skipped = 0;
+        while (!stopped && skipped < capTicks) {
+          const { length: prevLen } = getEventFeedInfo();
+          runOneTick();
+          const { length: curLen, newestDrama } = getEventFeedInfo();
+          skipped += 1;
+          if (shouldStopSkip(prevLen, curLen, newestDrama, HIGHLIGHT_THRESHOLD)) {
+            // High-drama event found — stop here.
+            break;
+          }
+        }
+        // Resume the prior pacing (paused stays paused, running stays running).
+        return;
+      }
 
       // Paused: do not advance the sim, except to honor a one-shot step.
       if (paused) {

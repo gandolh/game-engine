@@ -56,6 +56,13 @@ export interface EventEntry {
    * Set by dramaScore() in drama.ts for every captured entry.
    */
   drama: number;
+  /**
+   * The primary farmer entity id involved in this event, or null when
+   * none is identifiable. Used by brief 40's zoom-to-event feature.
+   * Set at capture time for events that have a clear subject (auction winner,
+   * shock target, crop-death owner, rank-flip, etc.). Null for trade/accept.
+   */
+  farmerId?: number | null;
 }
 
 /** Minimal TRADE_COMPLETED body shape we narrate (mirrors TrustSystem). */
@@ -193,6 +200,7 @@ export class EventFeedSystem implements System {
           key,
           text: `${accepter} accepted ${initiator}'s seed offer`,
           drama: dramaScore("accept", { day, maxDays: this.dayClock.maxDays }),
+          farmerId: null,
         });
       }
     }
@@ -226,6 +234,7 @@ export class EventFeedSystem implements System {
       key,
       text: `${buyer} bought ${what} from ${seller}${price}`,
       drama: dramaScore("trade", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: null,
     });
   }
 
@@ -246,6 +255,7 @@ export class EventFeedSystem implements System {
         key,
         text: "Auction closed with no winner",
         drama: dramaScore("auction", { day, maxDays: this.dayClock.maxDays }),
+        farmerId: null,
       });
       return;
     }
@@ -256,6 +266,7 @@ export class EventFeedSystem implements System {
       key,
       text: `${winner} won the golden bean at ${body.paidPrice}g`,
       drama: dramaScore("auction", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: body.winnerId,
     });
   }
 
@@ -276,6 +287,7 @@ export class EventFeedSystem implements System {
       key,
       text: `Drought! ${name} lost ${body.plotsWiped} ${cropWord}`,
       drama: dramaScore("shock", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: body.targetFarmerId,
     });
   }
 
@@ -296,6 +308,7 @@ export class EventFeedSystem implements System {
       key,
       text: `${name}'s ${body.crop} withered (no water)`,
       drama: dramaScore("crop-death", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: body.ownerId,
     });
   }
 
@@ -325,6 +338,7 @@ export class EventFeedSystem implements System {
           key,
           text: `A rivalry is brewing: ${nameA} vs. ${nameB}`,
           drama: dramaScore("rivalry", { day, maxDays: this.dayClock.maxDays }),
+          farmerId: null,
         });
       } else {
         // "alliance"
@@ -339,6 +353,7 @@ export class EventFeedSystem implements System {
           key,
           text: `${nameA} and ${nameB} formed an alliance`,
           drama: dramaScore("alliance", { day, maxDays: this.dayClock.maxDays }),
+          farmerId: null,
         });
       }
     }
@@ -395,6 +410,7 @@ export class EventFeedSystem implements System {
       key,
       text: `${newLeaderName} overtakes ${oldLeaderName} for 1st!`,
       drama: dramaScore("rank-flip", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: currentLeaderId,
     });
   }
 
@@ -458,6 +474,7 @@ export class EventFeedSystem implements System {
       key,
       text: `Final stretch — ${leaderName} and ${secondName} separated by ${gapStr}%`,
       drama: dramaScore("race-on", { day, maxDays }),
+      farmerId: leadRow.farmerId,
     });
   }
 
