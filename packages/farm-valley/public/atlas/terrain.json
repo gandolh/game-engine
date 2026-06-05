@@ -1,0 +1,158 @@
+{
+  "id": "terrain",
+  "imageUrl": "/atlas/terrain.png",
+  "width": 128,
+  "height": 128,
+  "frames": {
+    "tile/shore": {
+      "x": 1,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/wall": {
+      "x": 18,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/wall-wood": {
+      "x": 35,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/shore-sand": {
+      "x": 52,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/ocean": {
+      "x": 69,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/foam-a": {
+      "x": 86,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/foam-b": {
+      "x": 103,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tile/foam-c": {
+      "x": 1,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/grass": {
+      "x": 18,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/path": {
+      "x": 35,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/bridge-h": {
+      "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/fence-h": {
+      "x": 69,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/dirt": {
+      "x": 86,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/forge-floor": {
+      "x": 103,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/market-floor": {
+      "x": 1,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tile/quarry-floor": {
+      "x": 18,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tile/wood-plank": {
+      "x": 35,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tile/sand": {
+      "x": 52,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tile/stone-floor": {
+      "x": 69,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tile/ice-floor": {
+      "x": 86,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tile/mushroom-floor": {
+      "x": 103,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tile/carpentry-floor": {
+      "x": 1,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-fill": {
+      "x": 18,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-edge": {
+      "x": 35,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-corner": {
+      "x": 52,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    }
+  }
+}

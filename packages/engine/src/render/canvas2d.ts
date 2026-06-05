@@ -9,6 +9,18 @@ export interface Canvas2dSprite {
   width: number;
   height: number;
   frame: string;
+  /**
+   * Id of the atlas sheet that owns this sprite's frame. Must match one of the
+   * sheet ids in the renderer's atlas map (e.g. "terrain", "buildings",
+   * "characters"). Set centrally by frameToAtlasId (render-systems.ts) so every
+   * sprite automatically resolves against the correct sheet.
+   *
+   * Design decision (brief 47 open question): `addAtlas` deliberately supports
+   * adding/replacing a sheet after first render so brief 45's seasonal terrain
+   * swap can call `addAtlas(newTerrainAtlas)` without rebuilding all sheets. No
+   * lazy-loading or hot-swap machinery is built — just the seam is left open.
+   */
+  atlasId: string;
   rotation: number;
   layer: number;
   alpha: number;
@@ -25,7 +37,8 @@ export class Canvas2dRenderer {
   readonly camera: Camera2D;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly canvas: HTMLCanvasElement;
-  private atlas: LoadedAtlasImage | null = null;
+  /** Map of sheet id → loaded atlas image. Populated by addAtlas(). */
+  private atlases: Map<string, LoadedAtlasImage> = new Map();
   private queue: Canvas2dSprite[] = [];
   /** Live element count in `queue` (the array is reused across frames, not
    *  reallocated — see beginFrame). Entries past queueLen are stale. */
@@ -77,8 +90,29 @@ export class Canvas2dRenderer {
     this.camera = camera;
   }
 
+  /**
+   * Register (or replace) a single atlas sheet keyed by its manifest id.
+   * Calling this with an already-known id replaces the previous sheet — the
+   * seam for brief 45's seasonal terrain swap (call `addAtlas(newTerrainSheet)`
+   * and all terrain sprites will resolve against the new sheet on the next frame).
+   * No lazy-load or hot-swap machinery is built here; the seam is just open.
+   */
+  addAtlas(atlas: LoadedAtlasImage): void {
+    this.atlases.set(atlas.manifest.id, atlas);
+  }
+
+  /**
+   * Back-compat shim: register a single atlas as if it were the only one.
+   * Kept so engine consumers (tests, etc.) that call `setAtlas` without knowing
+   * about multi-sheet still work. Internally delegates to `addAtlas`.
+   */
   setAtlas(atlas: LoadedAtlasImage): void {
-    this.atlas = atlas;
+    this.addAtlas(atlas);
+  }
+
+  /** True if at least one atlas sheet has been registered. */
+  private get hasAtlases(): boolean {
+    return this.atlases.size > 0;
   }
 
   /**
@@ -103,7 +137,7 @@ export class Canvas2dRenderer {
      */
     decorate?: (ctx: Ctx2D, widthPx: number, heightPx: number) => void,
   ): void {
-    if (!this.atlas) throw new Error("bakeStaticLayer: setAtlas must be called first");
+    if (!this.hasAtlases) throw new Error("bakeStaticLayer: addAtlas must be called first");
     const w = Math.max(1, Math.ceil(worldWidth));
     const h = Math.max(1, Math.ceil(worldHeight));
     const surface = createOffscreen(w, h);
@@ -115,7 +149,7 @@ export class Canvas2dRenderer {
     // the world. Sort by layer then Y (same rule as endFrame dynamic queue).
     const sorted = sprites.slice().sort(compareSprite);
     for (const s of sorted) {
-      drawSprite(ctx, this.atlas, s);
+      drawSprite(ctx, this.atlases, s);
     }
     if (decorate) decorate(ctx, w, h);
     this.staticLayer = surface;
@@ -139,8 +173,14 @@ export class Canvas2dRenderer {
    * "ocean." If pattern creation isn't supported (e.g. some jsdom contexts) the
    * pattern stays null and the water pass is a no-op.
    */
-  bakeWaterPattern(frame: string, tileSize: number, pixelScale = 1): void {
-    if (!this.atlas) throw new Error("bakeWaterPattern: setAtlas must be called first");
+  /**
+   * Build the repeating water pattern from a single atlas `frame` on sheet
+   * `atlasId`. Call once after atlases are loaded.
+   */
+  bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale = 1): void {
+    if (!this.hasAtlases) throw new Error("bakeWaterPattern: addAtlas must be called first");
+    const atlas = this.atlases.get(atlasId);
+    if (!atlas) throw new Error(`bakeWaterPattern: atlas "${atlasId}" not found`);
     const scale = Math.max(1, Math.round(pixelScale));
     // Pattern tile covers `tileSize × scale` world px; nearest-neighbour upscale
     // keeps the wave texels crisp and chunky (imageSmoothingEnabled = false).
@@ -149,8 +189,8 @@ export class Canvas2dRenderer {
     const tctx = surface.getContext("2d") as Ctx2D | null;
     if (!tctx) throw new Error("bakeWaterPattern: failed to acquire offscreen 2d context");
     tctx.imageSmoothingEnabled = false;
-    const r = this.atlas.frameRect(frame);
-    tctx.drawImage(this.atlas.bitmap, r.x, r.y, r.w, r.h, 0, 0, size, size);
+    const r = atlas.frameRect(frame);
+    tctx.drawImage(atlas.bitmap, r.x, r.y, r.w, r.h, 0, 0, size, size);
     this.waterPattern = this.ctx.createPattern(surface, "repeat");
     this.waterTileSize = size;
     this.waterOffsetX = 0;
@@ -243,7 +283,7 @@ export class Canvas2dRenderer {
    * and restores composite/alpha state. `color` is "#rrggbb"; `alpha` ∈ [0,1].
    */
   endFrame(wash?: { color: string; alpha: number }, particles?: ParticleSystem): void {
-    if (!this.atlas) return;
+    if (!this.hasAtlases) return;
 
     const { ctx, canvas, camera } = this;
 
@@ -328,7 +368,7 @@ export class Canvas2dRenderer {
     for (let i = 0; i < this.queueLen; i += 1) {
       const s = this.queue[i]!;
       ctx.globalAlpha = s.alpha;
-      drawSprite(ctx, this.atlas, s);
+      drawSprite(ctx, this.atlases, s);
     }
 
     ctx.globalAlpha = 1;
@@ -361,8 +401,12 @@ function compareSprite(a: Canvas2dSprite, b: Canvas2dSprite): number {
 }
 
 /** Draw one sprite via the atlas frame rect. Shared by the live queue and the
- *  static-layer bake so both paths stay pixel-identical. */
-function drawSprite(ctx: Ctx2D, atlas: LoadedAtlasImage, s: Canvas2dSprite): void {
+ *  static-layer bake so both paths stay pixel-identical.
+ *  Resolves the correct sheet atlas via s.atlasId — throws clearly if the sheet
+ *  or frame is unknown so misconfigurations surface immediately. */
+function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s: Canvas2dSprite): void {
+  const atlas = atlases.get(s.atlasId);
+  if (!atlas) throw new Error(`drawSprite: atlas sheet "${s.atlasId}" not loaded (frame "${s.frame}")`);
   const r = atlas.frameRect(s.frame);
   const bitmap = atlas.bitmap;
   if (s.rotation !== 0 || s.flipX) {

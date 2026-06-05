@@ -1,0 +1,50 @@
+{
+  "id": "items-ui",
+  "imageUrl": "/atlas/items-ui.png",
+  "width": 128,
+  "height": 32,
+  "frames": {
+    "indicator/meet": {
+      "x": 1,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/follow": {
+      "x": 18,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "debug/player": {
+      "x": 35,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "tool/fishing-rod": {
+      "x": 52,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "fish/minnow": {
+      "x": 69,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "fish/bass": {
+      "x": 86,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "fish/salmon": {
+      "x": 103,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    }
+  }
+}

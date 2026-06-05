@@ -14,6 +14,47 @@ import {
 
 const TILE = 16;
 
+// ── Atlas sheet routing ───────────────────────────────────────────────────────
+// Mirrors PREFIX_TO_SHEET in tools/atlas-builder/src/recipes.ts.
+// Keep in sync when adding new frame prefixes.
+// Design decision: the mapping lives here (runtime) AND in the builder because
+// the builder emits the sheets and the runtime routes sprites to them; sharing
+// a single source would require the game to import builder code or vice versa
+// (both illegal in this monorepo). A build-time test in atlas-builder verifies
+// the sets stay consistent.
+const FRAME_PREFIX_TO_ATLAS: Readonly<Record<string, string>> = {
+  "farmer":     "characters",
+  "npc":        "characters",
+  "structure":  "buildings",
+  "tile":       "terrain",
+  "crop":       "crops",
+  "decoration": "props",
+  "fish":       "items-ui",
+  "tool":       "items-ui",
+  "indicator":  "items-ui",
+  "debug":      "items-ui",
+};
+
+/**
+ * Derive the atlas sheet id for a sprite frame name (e.g. "tile/grass" →
+ * "terrain"). Throws if the frame prefix is not mapped so misconfigurations
+ * surface immediately rather than producing a silent rendering glitch.
+ *
+ * Centralised here so every sprite — static backdrop (buildStaticLayerSprites),
+ * snapshot (snapshot-builder.ts buildSprites), and dynamic meet-indicator —
+ * sets atlasId from the same authoritative mapping.
+ */
+export function frameToAtlasId(frame: string): string {
+  const prefix = frame.split("/")[0];
+  const sheetId = FRAME_PREFIX_TO_ATLAS[prefix ?? ""];
+  if (sheetId === undefined) {
+    throw new Error(
+      `frameToAtlasId: unknown prefix "${prefix ?? ""}" in frame "${frame}". Update FRAME_PREFIX_TO_ATLAS.`,
+    );
+  }
+  return sheetId;
+}
+
 interface LogicalSprite {
   x: number;
   y: number;
@@ -750,6 +791,7 @@ export function buildStaticLayerSprites(world: World<GameEntity>): Canvas2dSprit
       width: ls.width,
       height: ls.height,
       frame: ls.frame,
+      atlasId: frameToAtlasId(ls.frame),
       rotation: ls.rotation,
       layer: ls.layer,
       alpha: ls.alpha,
@@ -854,6 +896,7 @@ export function pushSnapshotSprites(
       width: TILE,
       height: TILE,
       frame,
+      atlasId: frameToAtlasId(frame),
       rotation: s.rotation,
       layer: s.layer,
       alpha: s.alpha,
@@ -871,6 +914,7 @@ export function pushSnapshotSprites(
       width: TILE,
       height: TILE,
       frame: "indicator/meet",
+      atlasId: "items-ui",
       rotation: 0,
       layer: 90,
       alpha: 1,
