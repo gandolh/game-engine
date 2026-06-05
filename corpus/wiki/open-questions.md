@@ -9,7 +9,7 @@ Live list of unresolved work and design questions. Items move out of here when a
 - **No end-of-run recap.** The run just prints standings; no per-farmer "season arc" / headline. → [36-end-of-run-recap](../briefs/game/todo/36-end-of-run-recap.md). Highest payoff.
 - **Trust matrix invisible; no named rivalries.** ~~`TrustSystem` data never reaches the viewer.~~ → _plumbing shipped 2026-06-05_ ([37-rivalries-and-relationship-legibility](../briefs/game/done/37-rivalries-and-relationship-legibility.md)) **but DORMANT** — see the new "Peer-interaction layer is inert" gap below: with no farmer↔farmer trades/declines firing, the matrix stays flat at 0.5 baseline and zero rivalries form. The machinery is correct + tested; it activates for free once peer interaction is live.
 - **Flat narrative density.** Every event reads with equal weight; no escalation toward the climax. → [38-drama-scoring-and-narrative-escalation](../briefs/game/todo/38-drama-scoring-and-narrative-escalation.md).
-- **No history/momentum view.** Live leaderboard shows now, not the trajectory or crossings. → [39-wealth-over-time-graph](../briefs/game/todo/39-wealth-over-time-graph.md).
+- ~~**No history/momentum view.**~~ → _shipped 2026-06-05_ ([39-wealth-over-time-graph](../briefs/game/done/39-wealth-over-time-graph.md)): multi-line wealth chart with crossings marked, live from brief-36's history series.
 - **Decision legibility shallow + no highlight-skip.** "Why" is focused-farmer-only and click-gated; no fast-forward to dramatic moments. → [40-thought-bubbles-and-highlight-skip](../briefs/game/todo/40-thought-bubbles-and-highlight-skip.md).
 
 Suggested order 36 → 37 → 38 → 39 → 40 (39/40 consume 36/38). All are read-only/render-side or additive observation — none touch agent deliberation or the determinism-load-bearing tick body.
@@ -32,7 +32,7 @@ Suggested order **41 → 42 → 43 → 44 → 45 → 46** (41's crops/quality fe
 
 **Tooling / rendering** — _queued 2026-06-05 (user request)._
 
-- **Single mega-atlas is hard to author.** All ~157 frames pack into one `main.png`; the renderer holds a single atlas and ignores the `atlasId` every sprite already carries. → [47-split-atlas-into-specialized-sheets](../briefs/game/todo/47-split-atlas-into-specialized-sheets.md): emit ~5–7 specialized sheets (characters/buildings/terrain/crops/props/items-ui) + an index, make `atlasId` load-bearing (renderer atlas map). No-visual-change refactor; no sim/determinism impact; opens a seam for brief 45's seasonal terrain swap.
+- ~~**Single mega-atlas is hard to author.**~~ → _shipped 2026-06-05_ ([47-split-atlas-into-specialized-sheets](../briefs/game/done/47-split-atlas-into-specialized-sheets.md)): 6 sheets (characters/buildings/terrain/crops/props/items-ui) + `atlas/index.json`; `atlasId` now load-bearing (renderer atlas `Map`, `addAtlas`, `frameToAtlasId`). No-visual-change; sim untouched. `setAtlas` left as the seam for brief 45's seasonal-terrain swap.
 
 ## Resolved
 

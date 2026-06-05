@@ -84,13 +84,13 @@ Catalog of everything in this corpus. Start here.
 - [briefs/game/done/36-end-of-run-recap.md](briefs/game/done/36-end-of-run-recap.md) — Day-100 "Legends" wrap-up (standings + mid-season rank delta + per-farmer season arc + run headline); passive per-day `RunHistorySystem` + pure `summarizeRun`. **Done.**
 - [briefs/game/done/37-rivalries-and-relationship-legibility.md](briefs/game/done/37-rivalries-and-relationship-legibility.md) — relationship-matrix panel + `RivalrySystem` (rivalry/alliance detection, feed lines, recap rivalries). **Done (plumbing) but DORMANT** — peer↔peer events never fire in live play so the trust matrix stays flat and no rivalries form; see [wiki/open-questions.md](wiki/open-questions.md) → "Peer-interaction layer is inert".
 - [briefs/game/done/38-drama-scoring-and-narrative-escalation.md](briefs/game/done/38-drama-scoring-and-narrative-escalation.md) — per-event `drama` score (pure `drama.ts`, act-band weighted) → feed emphasis (★ + EDG.gold ≥0.7), rank-flip + race-on lines, max-drama recap headline. **Done.** (Live: rank-flip/race-on dormant — leader runs away; blight is the headline.)
+- [briefs/game/done/39-wealth-over-time-graph.md](briefs/game/done/39-wealth-over-time-graph.md) — multi-line wealth-over-time chart with crossings marked; pure consumer of brief-36 history (live `wealthSeries` on the snapshot). **Done.**
+- [briefs/game/done/47-split-atlas-into-specialized-sheets.md](briefs/game/done/47-split-atlas-into-specialized-sheets.md) — atlas split into 6 sheets (characters/buildings/terrain/crops/props/items-ui) + index; `atlasId` now load-bearing (renderer atlas map). **Done.**
 
 #### Game — todo
 
 Spectator/story layer (queued 2026-06-05 from genre + spectator-sim research; do in order — 39/40 consume 36/38):
 
-- [briefs/game/todo/38-drama-scoring-and-narrative-escalation.md](briefs/game/todo/38-drama-scoring-and-narrative-escalation.md) — pure drama score per event (act-band weighted), top-rank-change events, feed emphasis, "race is on".
-- [briefs/game/todo/39-wealth-over-time-graph.md](briefs/game/todo/39-wealth-over-time-graph.md) — multi-line wealth-over-time chart with crossings marked (consumes 36's history).
 - [briefs/game/todo/40-thought-bubbles-and-highlight-skip.md](briefs/game/todo/40-thought-bubbles-and-highlight-skip.md) — ambient intention bubbles + "skip to next highlight" worker control + click-feed-to-zoom (uses 38's drama).
 
 Gameplay / content / world depth (queued 2026-06-05; **bold** scope — these change the determinism baseline by design, re-verify reproducibility; 41 is the spine others build on):
@@ -101,7 +101,3 @@ Gameplay / content / world depth (queued 2026-06-05; **bold** scope — these ch
 - [briefs/game/todo/44-living-world-working-npcs-and-tavern.md](briefs/game/todo/44-living-world-working-npcs-and-tavern.md) — make the cosmetic carpenter/blacksmith fulfill real orders; add a tavern social hub; repurpose the dead notice board.
 - [briefs/game/todo/45-seasonal-visual-identity-and-festivals.md](briefs/game/todo/45-seasonal-visual-identity-and-festivals.md) — season-variant tiles + rain/snow particles (the art ask) + scheduled festival days with contests/special markets.
 - [briefs/game/todo/46-harbor-shipping-and-contracts.md](briefs/game/todo/46-harbor-shipping-and-contracts.md) — a harbor + time-boxed contracts + reputation: a demand-driven new playstyle axis (and a soft fix for the fixed-price-shop flatness).
-
-Tooling / rendering (queued 2026-06-05; render + asset-pipeline only, no sim/determinism impact):
-
-- [briefs/game/todo/47-split-atlas-into-specialized-sheets.md](briefs/game/todo/47-split-atlas-into-specialized-sheets.md) — split the single `main` atlas into ~5–7 purpose-grouped sheets (characters/buildings/terrain/crops/props/items-ui); make the already-present `atlasId` load-bearing (renderer holds an atlas map); no-visual-change refactor for authoring ergonomics (and a seam for brief 45's seasonal terrain).
