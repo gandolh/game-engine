@@ -469,3 +469,16 @@ Implemented [briefs/game/done/40-thought-bubbles-and-highlight-skip.md](briefs/g
 - +18 tests (556 farm-valley pass); typecheck clean; atlas + palette guards pass; determinism **MATCH ×3**.
 
 Live caveat (expected, not a bug): high-drama events are rare (leader runs away; the Day-50 blight is the main beat), so "skip to highlight" can fast-forward far or hit its 30-day cap. Related: [[project-peer-interaction-inert]] + the leader-runaway flatness. This **completes the spectator/story layer (briefs 36–40)**. Worktree removed.
+
+## [2026-06-05] ship | Game brief 41 — Crop roster + quality tiers (THE SPINE; worktree → main; re-baselined)
+
+Implemented [briefs/game/done/41-crop-roster-and-quality-tiers.md](briefs/game/done/41-crop-roster-and-quality-tiers.md) (Sonnet executor in a worktree, merged to `main` when green). First gameplay brief that **changes the determinism baseline by design** — verified MATCH-on-replay (×3), not equality to the old numbers.
+
+- **Part A — crops, season-gated.** `CropKind` 3→**8**: + `carrot` (spring), `tomato`+`corn` (summer), `grape` (autumn), `winter-squash` (winter — **winter is no longer cropless**). `economy.ts` gains `CROP_SEASON`, `OUT_OF_SEASON_GROWTH_RATE=0.5`, `ZERO_CROPS`; all crop tables expanded. `CropGrowthSystem` multiplies the daily growth advance by 1.0 in-season / 0.5 out. 15 new `crop/*` recipes → the brief-47 `crops` sheet (rebaked).
+- **Part B — quality tiers.** `CropQuality` Normal/Silver/Gold; `Inventory.cropQuality?` is an OPTIONAL parallel breakdown (back-compat — flat `crops` count preserved). `computeQuality()` (pure, in harvest.ts) = water(0.5)+growth(0.3)+weather(0.2)+decoration shift + a **forked `crop-quality` Rng** roll (Gold ≥0.82, Silver ≥0.52). `HarvestSystem` takes the rng. Quality-weighted net worth via `cropInventoryValue()` (×1/×1.25/×1.5), used by `leaderboard()` + `run-history`. Crop sprite quality pip + tooltip.
+- **Agents:** all four personalities now plant **season-aware** (in-season × margin × affordability, per-personality flavor; `decisionTrace` reasons). Shop slate/shopkeeper sell all 8 seeds.
+- **Part C (multi-harvest):** corn is in the roster; the executor's report did not confirm a regrow loop landed — treat multi-harvest as NOT guaranteed this brief (follow-up if desired).
+- **+6 tests** (562 farm-valley + 60 engine pass); typecheck clean; atlas + palette guards pass; determinism **MATCH ×3** (replay).
+- **Live verification (seed 0xc0ffee):** all 8 crops get planted across the run; all 3 qualities (normal/silver/gold) get banked — the new systems are genuinely exercised.
+
+**⚠️ New baseline / balance note:** day-100 standings are now an EXTREME runaway — Atticus (aggressive) **16,467g** vs Cora 980 / Hannah 199 / Otto 72 (Pip 60, idle player). The aggressive personality exploits the high-value seasonal crops (esp. autumn grape / premium) far better than the others. This is not a brief-41 defect (re-baseline was expected) but it sharpens the pre-existing **leader-runaway flatness** — relevant to 42–46 balancing and to the spectator layer (38/40's drama stays dormant when one farmer dominates wire-to-wire). See [[project-peer-interaction-inert]] and the leader-runaway gap in open-questions.

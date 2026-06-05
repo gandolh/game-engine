@@ -136,6 +136,16 @@ First use of the per-brief branch + worktree + auto-merge-when-green workflow; t
 |---|---|---|
 | [40-thought-bubbles-and-highlight-skip](../briefs/game/done/40-thought-bubbles-and-highlight-skip.md) | **Done** | **Part A:** 14 `indicator/intention-*` glyphs (→ `items-ui` sheet); `SnapshotSprite.bubble` maps each AI farmer's `intention.kind` → glyph, shown for a 10-tick window on intention *change* (meet-bubble precedence), drawn in [render-systems.ts](../../packages/farm-valley/src/render-systems.ts) layer 89. **Part B:** `skipToHighlight` worker control (loops `runOneTick` until a `drama≥0.7` event or 30-day cap; pure `shouldStopSkip()` tested; pacing-only) + `H` hotkey + button; `SnapshotEvent.farmerId` (set for clear-subject events) drives feed-row-click → focus camera. +18 tests (556 farm-valley pass); determinism MATCH ×3. Live caveat: high-drama events are rare (leader runs away; Day-50 blight is the main beat), so skip can fast-forward far / hit the cap — expected, see [[project-peer-interaction-inert]] + leader-runaway flatness. **This completes the spectator/story layer (briefs 36–40).** |
 
+## Shipped 2026-06-05 (gameplay-depth batch — brief 41, the spine)
+
+| Brief | Status | Notes |
+|---|---|---|
+| [41-crop-roster-and-quality-tiers](../briefs/game/done/41-crop-roster-and-quality-tiers.md) | **Done (re-baselined)** | `CropKind` 3→8 (carrot/spring, tomato+corn/summer, grape/autumn, winter-squash/winter); season suitability (in-season 1.0× / out 0.5× growth, via `seasonForDay`). Normal/Silver/Gold quality earned at harvest from husbandry + a forked `crop-quality` Rng ([harvest.ts](../../packages/farm-valley/src/systems/harvest.ts) `computeQuality`); `Inventory.cropQuality?` optional breakdown (flat `crops` preserved for back-compat); quality-weighted net worth via `cropInventoryValue()` (×1/1.25/1.5) in `leaderboard`/`run-history`. All 4 personalities plant season-aware. 15 new `crop/*` atlas frames (crops sheet). +6 tests (562 FV + 60 engine). **Determinism re-baselined by design — MATCH ×3 on replay** (not equal to the pre-41 numbers). Live: all 8 crops planted, all 3 qualities banked. |
+
+### ⚠️ Determinism baseline note (post-41)
+
+Brief 41 deliberately changed sim outcomes (new crops/quality/season-gating). The **new day-100 baseline (seed 0xc0ffee)** is an extreme runaway: Atticus (aggressive) ~16,467g vs Cora 980 / Hannah 199 / Otto 72 (Pip ~60, idle player). Reproducible (MATCH ×3 on replay). This is the new reference for 42–46 (which will each re-baseline again). It sharpens the **leader-runaway flatness** gap — see [open-questions.md](open-questions.md).
+
 ## Open gaps
 
 See [open-questions.md](open-questions.md) for the live list.

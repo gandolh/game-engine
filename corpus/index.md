@@ -92,7 +92,7 @@ Catalog of everything in this corpus. Start here.
 
 Gameplay / content / world depth (queued 2026-06-05; **bold** scope — these change the determinism baseline by design, re-verify reproducibility; 41 is the spine others build on):
 
-- [briefs/game/todo/41-crop-roster-and-quality-tiers.md](briefs/game/todo/41-crop-roster-and-quality-tiers.md) — 4–6 more season-locked crops + Normal/Silver/Gold quality tiers feeding sell price + net worth. **The spine.**
+- [briefs/game/done/41-crop-roster-and-quality-tiers.md](briefs/game/done/41-crop-roster-and-quality-tiers.md) — 8 crops (season-gated; winter no longer cropless) + Normal/Silver/Gold quality (husbandry + seeded roll) feeding quality-weighted net worth. **The spine — DONE.** Re-baselined determinism; new outcome is an extreme aggressive-farmer runaway (see status/open-questions).
 - [briefs/game/todo/42-livestock-and-orchards.md](briefs/game/todo/42-livestock-and-orchards.md) — coops/barns (counter-based herds → daily products) + perennial fruit orchards: a slow-burn parallel playstyle.
 - [briefs/game/todo/43-greenhouse-and-farm-skill-progression.md](briefs/game/todo/43-greenhouse-and-farm-skill-progression.md) — year-round greenhouse + per-farm skills (farming/foraging/fishing/mining) that compound over the run.
 - [briefs/game/todo/44-living-world-working-npcs-and-tavern.md](briefs/game/todo/44-living-world-working-npcs-and-tavern.md) — make the cosmetic carpenter/blacksmith fulfill real orders; add a tavern social hub; repurpose the dead notice board.
