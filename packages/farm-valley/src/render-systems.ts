@@ -33,6 +33,10 @@ const FRAME_PREFIX_TO_ATLAS: Readonly<Record<string, string>> = {
   "tool":       "items-ui",
   "indicator":  "items-ui",
   "debug":      "items-ui",
+  // brief 42 — livestock + orchard
+  "animal":     "characters",
+  "product":    "items-ui",
+  "fruit":      "items-ui",
 };
 
 /**

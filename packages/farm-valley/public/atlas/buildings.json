@@ -237,6 +237,36 @@
       "y": 118,
       "w": 16,
       "h": 16
+    },
+    "structure/coop": {
+      "x": 103,
+      "y": 118,
+      "w": 16,
+      "h": 16
+    },
+    "structure/barn": {
+      "x": 1,
+      "y": 135,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-sapling": {
+      "x": 18,
+      "y": 135,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-growing": {
+      "x": 35,
+      "y": 135,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-mature": {
+      "x": 52,
+      "y": 135,
+      "w": 16,
+      "h": 16
     }
   }
 }

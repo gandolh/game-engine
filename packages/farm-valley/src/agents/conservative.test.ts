@@ -86,4 +86,53 @@ describe("deliberateConservative", () => {
     deliberateConservative(f);
     expect(f.decisionTrace!.reasons.length).toBe(firstLen);
   });
+
+  // brief 42 — patient capital: with surplus gold, spare AP, plots not wilting,
+  // and the first orchard already planted, the conservative COMMITS the coop
+  // build — queueing a build-pen plus a winning-priority carpentry trip, and
+  // recording the "building coop" rationale. This is the wiring that was inert
+  // before the brief-42 deliberation fix.
+  it("commits a coop build (build-pen + carpentry travel) given surplus gold + spare AP", () => {
+    const f = makeFarmer({ gold: 300, reserve: 30, region: "farm-cora" });
+    // Patient-capital prerequisites the deliberation reads from beliefs/ap:
+    f.beliefs!.data["currentDay"] = 20;          // past the day-8 livestock gate
+    f.beliefs!.data["hasPen_coop"] = false;       // no coop yet
+    f.beliefs!.data["penCount_chicken"] = 0;
+    f.beliefs!.data["orchardCount"] = 1;          // first tree already in the ground
+    f.beliefs!.data["occupiedTiles"] = [];
+    f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
+    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 }; // gold-funded build
+
+    deliberateConservative(f);
+    const queue = f.intentions!.queue;
+
+    const buildIdx = queue.findIndex((i) => i.kind === "build-pen" && i.data["penKind"] === "coop");
+    const carpTravel = queue.find(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "carpentry",
+    );
+    expect(buildIdx).toBeGreaterThan(-1);
+    expect(carpTravel).toBeDefined();
+    // The trip must WIN queue[0] (committed), so its priority beats survival/sell.
+    expect(carpTravel!.priority).toBeLessThan(0);
+    expect(
+      f.decisionTrace!.reasons.some((r) => r.startsWith("building coop")),
+    ).toBe(true);
+  });
+
+  it("does NOT commit a coop build when gold is below the surplus cushion", () => {
+    const f = makeFarmer({ gold: 60, reserve: 30, region: "farm-cora" });
+    f.beliefs!.data["currentDay"] = 20;
+    f.beliefs!.data["hasPen_coop"] = false;
+    f.beliefs!.data["penCount_chicken"] = 0;
+    f.beliefs!.data["orchardCount"] = 1;
+    f.beliefs!.data["occupiedTiles"] = [];
+    f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
+    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
+
+    deliberateConservative(f);
+    // gold 60 with reserve 30 is below reserve+50 → no committed build trip.
+    expect(
+      f.intentions!.queue.some((i) => i.kind === "build-pen"),
+    ).toBe(false);
+  });
 });

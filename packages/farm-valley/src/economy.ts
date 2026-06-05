@@ -1,4 +1,4 @@
-import type { CropKind, CropQuality, Inventory } from "./components";
+import type { CropKind, CropQuality, CropQualityCounts, Inventory, ProductKind, FruitKind, AnimalKind } from "./components";
 import type { Season } from "./protocols/weather";
 
 /**
@@ -136,8 +136,160 @@ export function bankHarvest(inv: Inventory, crop: CropKind, qty: number, quality
   inv.cropQuality[crop]![quality] += qty;
 }
 
+// ── Livestock economy constants (brief 42) ───────────────────────────────────
+
 /**
- * brief 41 — deduct harvested crops from inventory respecting quality split.
+ * Cost to build a pen at the carpenter.
+ *
+ * brief 42 (deliberation fix) — pens are now GOLD-FUNDED with wood as an OPTIONAL
+ * discount, rather than wood-GATED. The original `woodCost`-gated recipe made the
+ * feature dormant live: AI farmers almost never chop wood (it competes with
+ * farming), so a hard wood prerequisite never cleared and ZERO pens were ever
+ * built in a 100-day run. The carpenter stays relevant (build still happens
+ * there; brief 44 will craft pens there too) and wood stays meaningful (it buys
+ * a gold discount), but gold alone now suffices — which is what lets the patient
+ * personalities (who bank plenty of gold) actually invest.
+ *
+ *   goldCost      — gold paid when the farmer has NO wood to spend.
+ *   woodCost      — wood consumed to earn the discount (optional; 0 = pay full gold).
+ *   goldDiscount  — gold saved when `woodCost` wood is available and spent.
+ *
+ * With wood in hand the effective cost matches the original recipe
+ * (coop = 30 gold + 8 wood, barn = 50 gold + 12 wood).
+ */
+export const PEN_BUILD_COST: Record<
+  "coop" | "barn",
+  { goldCost: number; woodCost: number; goldDiscount: number }
+> = {
+  coop: { goldCost: 45, woodCost: 8,  goldDiscount: 15 },
+  barn: { goldCost: 75, woodCost: 12, goldDiscount: 25 },
+};
+
+/** Gold cost to buy one animal at the village shopkeeper. */
+export const ANIMAL_BUY_COST: Record<AnimalKind, number> = {
+  chicken: 15,
+  cow:     35,
+  sheep:   30,
+};
+
+/** Which animal a pen kind can hold (coop → chicken; barn → cow or sheep). */
+export const PEN_ANIMAL: Record<"coop" | "barn", AnimalKind[]> = {
+  coop: ["chicken"],
+  barn: ["cow", "sheep"],
+};
+
+/** Which product each animal produces daily. */
+export const ANIMAL_PRODUCT: Record<AnimalKind, ProductKind> = {
+  chicken: "egg",
+  cow:     "milk",
+  sheep:   "wool",
+};
+
+/** Base daily yield per animal (at full care). */
+export const PRODUCT_YIELD_PER_ANIMAL: Record<AnimalKind, number> = {
+  chicken: 1,
+  cow:     1,
+  sheep:   1,
+};
+
+/** Sell price per product unit (Normal quality). Quality multipliers apply. */
+export const PRODUCT_SELL_PRICE: Record<ProductKind, number> = {
+  egg:  8,
+  milk: 12,
+  wool: 14,
+};
+
+/** Daily care decay rate (applied each day; faster decay on unfed days). */
+export const CARE_DECAY_RATE = 0.05;
+/** Faster decay when pen is unfed. */
+export const CARE_DECAY_UNFED = 0.12;
+/** Amount care is raised by a `tend` action. */
+export const CARE_TEND_BOOST = 0.20;
+
+// ── Orchard economy constants (brief 42) ─────────────────────────────────────
+
+/** Gold cost to plant a fruit tree at the farm. */
+export const TREE_PLANT_COST: Record<import("./components").FruitKind, number> = {
+  apple:  25,
+  cherry: 20,
+};
+
+/** Days for a fruit tree to mature (much slower than crops). */
+export const ORCHARD_MATURATION_DAYS = 20;
+
+/** Fruit yield per harvest (mature tree, in its yield season). */
+export const FRUIT_YIELD_PER_HARVEST = 4;
+
+/** The season each fruit yields in (perennial — once per cycle). */
+export const FRUIT_SEASON: Record<FruitKind, Season> = {
+  apple:  "autumn",
+  cherry: "spring",
+};
+
+/** Sell price per fruit unit (Normal quality). Quality multipliers apply. */
+export const FRUIT_SELL_PRICE: Record<FruitKind, number> = {
+  apple:  18,
+  cherry: 20,
+};
+
+// ── Livestock inventory helpers (brief 42) ────────────────────────────────────
+
+/** Total count of a product kind in inventory (sum across quality tiers). */
+export function totalProductCount(inv: Inventory, kind: ProductKind): number {
+  const q = inv.products?.[kind];
+  if (!q) return 0;
+  return q.normal + q.silver + q.gold;
+}
+
+/** Total count of a fruit kind in inventory (sum across quality tiers). */
+export function totalFruitCount(inv: Inventory, kind: FruitKind): number {
+  const q = inv.fruit?.[kind];
+  if (!q) return 0;
+  return q.normal + q.silver + q.gold;
+}
+
+/** Add product units at a given quality tier to inventory. */
+export function bankProduct(inv: Inventory, kind: ProductKind, qty: number, quality: CropQuality): void {
+  if (!inv.products) inv.products = {};
+  if (!inv.products[kind]) inv.products[kind] = { normal: 0, silver: 0, gold: 0 };
+  inv.products[kind]![quality] += qty;
+}
+
+/** Add fruit units at a given quality tier to inventory. */
+export function bankFruit(inv: Inventory, kind: FruitKind, qty: number, quality: CropQuality): void {
+  if (!inv.fruit) inv.fruit = {};
+  if (!inv.fruit[kind]) inv.fruit[kind] = { normal: 0, silver: 0, gold: 0 };
+  inv.fruit[kind]![quality] += qty;
+}
+
+/** Quality-weighted sell value of all held products. */
+export function productInventoryValue(inv: Inventory): number {
+  if (!inv.products) return 0;
+  let total = 0;
+  for (const [kind, q] of Object.entries(inv.products) as [ProductKind, CropQualityCounts][]) {
+    const base = PRODUCT_SELL_PRICE[kind];
+    total += q.normal * base * QUALITY_MULTIPLIER.normal;
+    total += q.silver * base * QUALITY_MULTIPLIER.silver;
+    total += q.gold   * base * QUALITY_MULTIPLIER.gold;
+  }
+  return total;
+}
+
+/** Quality-weighted sell value of all held fruit. */
+export function fruitInventoryValue(inv: Inventory): number {
+  if (!inv.fruit) return 0;
+  let total = 0;
+  for (const [kind, q] of Object.entries(inv.fruit) as [FruitKind, CropQualityCounts][]) {
+    const base = FRUIT_SELL_PRICE[kind];
+    total += q.normal * base * QUALITY_MULTIPLIER.normal;
+    total += q.silver * base * QUALITY_MULTIPLIER.silver;
+    total += q.gold   * base * QUALITY_MULTIPLIER.gold;
+  }
+  return total;
+}
+
+/**
+ * brief 42 — deduct harvested crops from inventory respecting quality split.
  * Deducts from the specified quality tier first, then falls back to lower tiers.
  * Returns the amount actually deducted.
  */

@@ -1,5 +1,5 @@
 import type { SimContext, System, World } from "@engine/core";
-import type { GameEntity, PlotState, TileFeature, FarmDecoration } from "../components";
+import type { GameEntity, PlotState, TileFeature, FarmDecoration, AnimalKind } from "../components";
 
 /**
  * brief 29 — surface each farmer's owned-plot watering needs into beliefs so
@@ -81,6 +81,29 @@ export class PlotSenseSystem implements System {
       decorationsAll.push(e.farmDecoration);
     }
 
+    // brief 42 — collect pen state per owner.
+    const pensByOwner = new Map<number, { hasCoop: boolean; hasBarn: boolean; coopFed: boolean; barnFed: boolean; animalCounts: Partial<Record<AnimalKind, number>> }>();
+    for (const p of this.world.query("pen")) {
+      const oid = p.pen.ownerId;
+      const entry = pensByOwner.get(oid) ?? { hasCoop: false, hasBarn: false, coopFed: false, barnFed: false, animalCounts: {} };
+      if (p.pen.kind === "coop") { entry.hasCoop = true; entry.coopFed = p.pen.fedToday; }
+      if (p.pen.kind === "barn") { entry.hasBarn = true; entry.barnFed = p.pen.fedToday; }
+      entry.animalCounts[p.pen.animal] = (entry.animalCounts[p.pen.animal] ?? 0) + p.pen.count;
+      pensByOwner.set(oid, entry);
+    }
+
+    // brief 42 — collect orchard tree state per owner.
+    const orchardsByOwner = new Map<number, { count: number; readyTrees: Array<{ tileX: number; tileY: number; kind: string }> }>();
+    for (const t of this.world.query("orchardTree")) {
+      const oid = t.orchardTree.ownerId;
+      const entry = orchardsByOwner.get(oid) ?? { count: 0, readyTrees: [] };
+      entry.count += 1;
+      if (t.orchardTree.mature && t.orchardTree.fruitReady > 0) {
+        entry.readyTrees.push({ tileX: t.orchardTree.tileX, tileY: t.orchardTree.tileY, kind: t.orchardTree.kind });
+      }
+      orchardsByOwner.set(oid, entry);
+    }
+
     for (const farmer of this.world.query("beliefs", "farmer")) {
       if (farmer.id === undefined) continue;
       const plantedPlots = byOwnerPlanted.get(farmer.id) ?? [];
@@ -124,6 +147,20 @@ export class PlotSenseSystem implements System {
 
       // Surface all placed decorations (for boost-cap check in deliberation).
       farmer.beliefs.data.decorations = decorationsAll;
+
+      // brief 42 — surface pen/orchard state into beliefs for agent deliberation.
+      const penState = pensByOwner.get(farmer.id);
+      farmer.beliefs.data["hasPen_coop"] = penState?.hasCoop ?? false;
+      farmer.beliefs.data["hasPen_barn"] = penState?.hasBarn ?? false;
+      farmer.beliefs.data["coopFedToday"] = penState?.coopFed ?? false;
+      farmer.beliefs.data["barnFedToday"] = penState?.barnFed ?? false;
+      farmer.beliefs.data["penCount_chicken"] = penState?.animalCounts["chicken"] ?? 0;
+      farmer.beliefs.data["penCount_cow"]     = penState?.animalCounts["cow"] ?? 0;
+      farmer.beliefs.data["penCount_sheep"]   = penState?.animalCounts["sheep"] ?? 0;
+
+      const orchState = orchardsByOwner.get(farmer.id);
+      farmer.beliefs.data["orchardCount"] = orchState?.count ?? 0;
+      farmer.beliefs.data["orchardFruitReady"] = orchState?.readyTrees ?? [];
 
       farmer.beliefs.revision += 1;
     }

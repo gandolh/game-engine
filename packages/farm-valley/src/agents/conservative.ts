@@ -6,7 +6,7 @@ import {
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import { SEED_COST, CROP_SEASON } from "../economy";
@@ -137,6 +137,78 @@ export function deliberateConservative(farmer: GameEntity): void {
   deliberateBean(farmer, 0.45);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
+
+  // brief 42 — livestock + orchard (patient capital; conservative leans in hardest).
+  //
+  // These are LOW-priority by importance number, but the build/buy/plant ACTIONS
+  // only execute once the farmer stands at the right place (carpentry / village /
+  // a free farm tile), and those TRIPS compete with survival watering + selling.
+  // A non-committal `+1` travel always loses, so the feature stayed dormant.
+  //
+  // Fix — give the trips a winning travel priority on a QUIET day (gold surplus +
+  // plots not about to wilt + AP headroom), so they actually land without
+  // permanently hijacking the farm loop. Crucially the two capital tracks are
+  // INDEPENDENT, because they live in different places at this scale:
+  //
+  //   • ORCHARD is on the farmer's OWN farm (a short hop) and the tree needs
+  //     ~20 days to mature, so plant it EARLY and on its own — it must not wait
+  //     behind the slow cross-map livestock chain or it will never fruit in time.
+  //   • LIVESTOCK needs a far carpentry trip (build) then a village trip (stock).
+  //     At low ticks/day these trips take several in-game days of walking, so we
+  //     commit ONE livestock excursion at a time (build → stock) and let the
+  //     cheap tend/sell follow-ups ride normal days.
+  //
+  // The orchard commit and the livestock commit are kept on separate quiet days
+  // (orchard takes precedence once it's plantable) so they don't fight over the
+  // single queue[0] travel slot.
+  const surplusGold = gold >= reserve + 50; // comfortable cushion before sinking capital
+  // Plots one day from wilting (grace is 2 dry days) — never abandon those.
+  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2;
+  const apHeadroom = (farmer.ap?.current ?? 0) >= 20; // don't starve core work
+  // A committed excursion may leave plots dry for ONE day; that's safe under the
+  // 2-day grace window, and watering reclaims priority the moment she's home. We
+  // only block the commit when a plot is actually about to die (plotsUrgent).
+  const quietInvestDay = surplusGold && !plotsUrgent && apHeadroom;
+
+  const hasCoop = (farmer.beliefs.data["hasPen_coop"] as boolean | undefined) ?? false;
+  const chickens = (farmer.beliefs.data["penCount_chicken"] as number | undefined) ?? 0;
+  const orchardCount = (farmer.beliefs.data["orchardCount"] as number | undefined) ?? 0;
+
+  // ── ORCHARD track (plant early; on-farm; slow-maturing) ──────────────────────
+  // Plant the first apple tree as soon as there's a quiet day from day 6, so the
+  // ~20-day maturation completes with margin before autumn fruiting. Harvest +
+  // sell ride normal days.
+  if (day >= 6) {
+    const orchardCommit = quietInvestDay && orchardCount < 1; // commit the very first tree
+    deliberatePlantOrchard(farmer, "apple", 2, reserve + 5, 16, orchardCommit ? -2 : undefined);
+    deliberateHarvestFruit(farmer, 3);
+    deliberateSellFruit(farmer, 5);
+  }
+
+  // ── LIVESTOCK track (build coop → stock → tend → sell) ───────────────────────
+  // Tend + sell always run cheaply (tend works at home; sell rides village trips).
+  if (day >= 8) {
+    deliberateTendPens(farmer, 4);
+    deliberateSellProducts(farmer, 5);
+  }
+  // Livestock excursion, AFTER the first tree is planted (so the orchard's quick
+  // on-farm hop isn't blocked by the slow coop trip). The build trip goes to the
+  // carpenter — and since animals can now be bought there too (handleBuyAnimal),
+  // the SAME carpentry visit both builds the coop and stocks the first birds, so
+  // a patient farmer completes the livestock loop in one cross-map excursion
+  // instead of a build trip plus a separate village round-trip (which, at low
+  // ticks/day, eats far too many in-game days to ever finish).
+  if (day >= 8 && quietInvestDay && orchardCount >= 1) {
+    if (!hasCoop) {
+      deliberateBuildPen(farmer, "coop", "chicken", reserve + 5, 14, -2);
+    }
+    // Buy whenever the coop exists and the herd is small — fires at the carpenter
+    // right after the build, or at the village on a later selling trip.
+    if (hasCoop && chickens < 3) {
+      deliberateBuyAnimal(farmer, "chicken", reserve + 5, 15, -2);
+    }
+  }
+
   deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }

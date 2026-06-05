@@ -1,10 +1,18 @@
 import type { GameEntity } from "../components";
 import { recordReason, DECORATION_RECIPE, MAX_DECORATION_BOOST, TOOL_PRICE } from "../components";
-import type { DecorationKind, FarmDecoration, ToolKind } from "../components";
+import type { DecorationKind, FarmDecoration, ToolKind, FruitKind } from "../components";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import { REGIONS, isFishingIsle } from "../world/regions";
 import { seasonForDay, type Season } from "../protocols/weather";
 import { isWithinReach } from "../systems/proximity";
+import {
+  PEN_BUILD_COST,
+  ANIMAL_BUY_COST,
+  TREE_PLANT_COST,
+  FRUIT_SEASON,
+  totalProductCount,
+  totalFruitCount,
+} from "../economy";
 
 /**
  * brief 29 — survival-reflex watering, shared by all four personalities and
@@ -802,3 +810,346 @@ export function deliberateFishing(
   }
   recordReason(farmer, `fishing trip (day ${day}, ${n} casts)`);
 }
+
+// ── brief 42 — livestock + orchard deliberation helpers ───────────────────────
+
+/**
+ * Queue a `build-pen` intent if the farmer:
+ *   - has no pen of the given kind yet
+ *   - has enough wood + gold (above reserve)
+ *   - is at (or can travel to) carpentry
+ * Low priority — a slow-burn investment.
+ */
+export function deliberateBuildPen(
+  farmer: GameEntity,
+  penKind: "coop" | "barn",
+  animal: import("../components").AnimalKind,
+  reserve: number,
+  priority: number,
+  /**
+   * brief 42 (deliberation fix) — priority for the carpentry TRAVEL leg.
+   * The build only executes once the farmer is AT carpentry, but the trip there
+   * competes with survival/sell travel (priority 0/-1) and so never won under
+   * the original `priority + 1` scheme — the pen was perpetually queued but never
+   * reached. Personalities pass a WINNING (low) travel priority on a "quiet"
+   * invest day (watering satisfied + surplus gold) so the trip actually happens;
+   * `undefined` falls back to the old non-committal `priority + 1`.
+   */
+  travelPriority?: number,
+): void {
+  if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
+  const recipe = PEN_BUILD_COST[penKind];
+
+  // Don't build if already has one.
+  const hasPen = farmer.beliefs?.data["hasPen_" + penKind] as boolean | undefined;
+  if (hasPen) return;
+
+  // brief 42 (deliberation fix) — pens are gold-funded; wood is an optional
+  // discount (see PEN_BUILD_COST). Gate on the gold the farmer would actually
+  // pay: discounted if they happen to hold the wood, full otherwise. This is
+  // what lets a wood-poor-but-gold-rich patient farmer finally invest.
+  const wood = farmer.resources?.wood ?? 0;
+  const goldDue = wood >= recipe.woodCost ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
+  if (farmer.inventory.gold - goldDue < reserve) return;
+
+  // Don't double-queue.
+  if (farmer.intentions.queue.some(i => i.kind === "build-pen" && i.data.penKind === penKind)) return;
+
+  const inCarpentry = farmer.farmer.currentRegion === "carpentry";
+  if (!inCarpentry) {
+    const wanted = travelPriority ?? priority + 1;
+    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "carpentry");
+    if (existing) {
+      // Another helper (e.g. decoration crafting) may have already queued a
+      // carpentry trip at a worse (higher) priority. If we're COMMITTING the
+      // build, upgrade that trip so it wins queue[0] instead of being shadowed
+      // by an unrelated village errand — otherwise the build trip never lands.
+      if (wanted < existing.priority) existing.priority = wanted;
+    } else {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetRegionId: "carpentry" },
+        priority: wanted,
+      });
+    }
+  }
+  farmer.intentions.queue.push({
+    kind: "build-pen",
+    data: { penKind, animal },
+    priority,
+  });
+  recordReason(
+    farmer,
+    `building ${penKind} (${animal}) — surplus gold ${farmer.inventory.gold}, ${goldDue}g${wood >= recipe.woodCost ? " (wood discount)" : ""}`,
+  );
+}
+
+/**
+ * Queue a `buy-animal` intent if the farmer has a pen but no animals yet, and
+ * can afford one above reserve.
+ */
+export function deliberateBuyAnimal(
+  farmer: GameEntity,
+  animal: import("../components").AnimalKind,
+  reserve: number,
+  priority: number,
+  /** Winning travel priority for the village trip on an invest day (see deliberateBuildPen). */
+  travelPriority?: number,
+): void {
+  if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
+
+  // Need a pen first.
+  const hasPen = farmer.beliefs?.data["hasPen_" + (animal === "chicken" ? "coop" : "barn")] as boolean | undefined;
+  if (!hasPen) return;
+
+  const cost = ANIMAL_BUY_COST[animal];
+  if (farmer.inventory.gold - cost < reserve) return;
+
+  // Don't double-queue.
+  if (farmer.intentions.queue.some(i => i.kind === "buy-animal" && i.data.animal === animal)) return;
+  // Already has animals? Only buy if count < 3 (modest herd cap for agents).
+  const penCount = farmer.beliefs?.data["penCount_" + animal] as number | undefined ?? 0;
+  if (penCount >= 3) return;
+
+  // brief 42 (deliberation fix) — animals can be bought at the village OR the
+  // carpenter (see handleBuyAnimal). If the farmer is already at the carpenter
+  // (e.g. she just built the coop there), buy on the spot — no extra trip. Else
+  // travel to whichever buy-region is being committed (village).
+  const atBuyRegion =
+    farmer.farmer.currentRegion === "village" || farmer.farmer.currentRegion === "carpentry";
+  if (!atBuyRegion) {
+    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetRegionId: "village" },
+        priority: travelPriority ?? priority + 1,
+      });
+    }
+  }
+  farmer.intentions.queue.push({
+    kind: "buy-animal",
+    data: { animal },
+    priority,
+  });
+  recordReason(farmer, `buy ${animal} (pen count ${penCount})`);
+}
+
+/**
+ * Queue a `tend` intent for each untended pen the farmer owns (low priority).
+ */
+export function deliberateTendPens(
+  farmer: GameEntity,
+  priority: number,
+): void {
+  if (!farmer.intentions || !farmer.farmer || farmer.id === undefined) return;
+
+  const hasCoop = farmer.beliefs?.data["hasPen_coop"] as boolean | undefined;
+  const hasBarn = farmer.beliefs?.data["hasPen_barn"] as boolean | undefined;
+  if (!hasCoop && !hasBarn) return;
+
+  const coopFed = farmer.beliefs?.data["coopFedToday"] as boolean | undefined;
+  const barnFed = farmer.beliefs?.data["barnFedToday"] as boolean | undefined;
+
+  if (hasCoop && !coopFed) {
+    if (!farmer.intentions.queue.some(i => i.kind === "tend" && i.data.penKind === "coop")) {
+      farmer.intentions.queue.push({
+        kind: "tend",
+        data: { penKind: "coop" },
+        priority,
+      });
+      recordReason(farmer, "tend coop");
+    }
+  }
+  if (hasBarn && !barnFed) {
+    if (!farmer.intentions.queue.some(i => i.kind === "tend" && i.data.penKind === "barn")) {
+      farmer.intentions.queue.push({
+        kind: "tend",
+        data: { penKind: "barn" },
+        priority,
+      });
+      recordReason(farmer, "tend barn");
+    }
+  }
+}
+
+/**
+ * Queue sell intents for any held livestock products.
+ */
+export function deliberateSellProducts(
+  farmer: GameEntity,
+  priority: number,
+): void {
+  if (!farmer.intentions || !farmer.inventory || !farmer.farmer) return;
+  const products = farmer.inventory.products;
+  if (!products) return;
+  const inVillage = farmer.farmer.currentRegion === "village";
+
+  for (const kind of ["egg", "milk", "wool"] as const) {
+    const total = totalProductCount(farmer.inventory, kind);
+    if (total <= 0) continue;
+    if (!inVillage) {
+      if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetRegionId: "village" },
+          priority: priority + 1,
+        });
+      }
+    }
+    if (!farmer.intentions.queue.some(i => i.kind === "sell-product" && i.data.kind === kind)) {
+      farmer.intentions.queue.push({
+        kind: "sell-product",
+        data: { kind },
+        priority,
+      });
+      recordReason(farmer, `sell ${kind} x${total}`);
+    }
+  }
+}
+
+/**
+ * Queue a `plant-tree` intent on a free farm tile if the farmer:
+ *   - can afford the tree (above reserve)
+ *   - has fewer than maxTrees orchards on their farm
+ *   - is at (or near) their farm
+ */
+export function deliberatePlantOrchard(
+  farmer: GameEntity,
+  kind: FruitKind,
+  maxTrees: number,
+  reserve: number,
+  priority: number,
+  /** Winning travel priority to reach the planting tile on an invest day (see deliberateBuildPen). */
+  travelPriority?: number,
+): void {
+  if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
+  const cost = TREE_PLANT_COST[kind];
+  if (farmer.inventory.gold - cost < reserve) return;
+
+  const treeCount = farmer.beliefs?.data["orchardCount"] as number | undefined ?? 0;
+  if (treeCount >= maxTrees) return;
+
+  if (farmer.intentions.queue.some(i => i.kind === "plant-tree" && i.data.kind === kind)) return;
+
+  // Find a free tile on the farm (from beliefs occupiedTiles).
+  const homeRegion = farmer.farmer.homeRegion;
+  const farmDef = homeRegion ? REGIONS.find(r => r.id === homeRegion) : undefined;
+  if (!farmDef || farmDef.kind !== "farm") return;
+
+  const occupied = new Set<string>((farmer.beliefs?.data["occupiedTiles"] as string[] | undefined) ?? []);
+
+  // Collect ALL free tiles, then pick the one NEAREST the farmer so the tree
+  // goes on a tile she can plant without a long cross-farm hop. At low ticks/day
+  // walking is expensive, and the old top-left-first pick frequently chose a tile
+  // far from her current position — so the plant trip never finished and the
+  // orchard stayed unplanted. Proximity selection makes planting land same-day.
+  const free: Array<{ tileX: number; tileY: number }> = [];
+  for (let ty = farmDef.bounds.minY; ty <= farmDef.bounds.maxY; ty++) {
+    for (let tx = farmDef.bounds.minX; tx <= farmDef.bounds.maxX; tx++) {
+      if (!occupied.has(`${tx},${ty}`)) free.push({ tileX: tx, tileY: ty });
+    }
+  }
+  // `free` is built in (tileY, tileX) order, the deterministic tie-break nearestTile expects.
+  const near = nearestTile(farmer.transform, free);
+  const target: { x: number; y: number } | null = near ? { x: near.tileX, y: near.tileY } : null;
+  if (!target) return;
+
+  const inReach = isWithinReach(farmer.transform, target.x, target.y);
+  if (!inReach) {
+    const wanted = travelPriority ?? -1;
+    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetTile);
+    if (existing) {
+      // A watering/till hop to a tile may already be queued. When COMMITTING the
+      // planting, retarget+upgrade it to the free orchard tile so the trip lands
+      // here (the tree is what matters this quiet day); otherwise leave it.
+      if (wanted < existing.priority) {
+        existing.priority = wanted;
+        existing.data = { targetTile: { x: target.x, y: target.y } };
+      }
+    } else {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetTile: { x: target.x, y: target.y } },
+        priority: wanted,
+      });
+    }
+    return;
+  }
+
+  farmer.intentions.queue.push({
+    kind: "plant-tree",
+    data: { kind, tileX: target.x, tileY: target.y },
+    priority,
+  });
+  recordReason(farmer, `plant ${kind} tree (orchards: ${treeCount}/${maxTrees})`);
+}
+
+/**
+ * Queue harvest-fruit intents for any ready fruit trees on the farmer's farm.
+ */
+export function deliberateHarvestFruit(
+  farmer: GameEntity,
+  priority: number,
+): void {
+  if (!farmer.intentions || !farmer.farmer || farmer.id === undefined) return;
+
+  const readyTrees = farmer.beliefs?.data["orchardFruitReady"] as Array<{ tileX: number; tileY: number; kind: string }> | undefined;
+  if (!readyTrees || readyTrees.length === 0) return;
+
+  for (const tree of readyTrees) {
+    if (farmer.intentions.queue.some(i => i.kind === "harvest-fruit" && i.data.tileX === tree.tileX && i.data.tileY === tree.tileY)) continue;
+    const inReach = isWithinReach(farmer.transform, tree.tileX, tree.tileY);
+    if (!inReach) {
+      if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetTile: { x: tree.tileX, y: tree.tileY } },
+          priority: -1,
+        });
+      }
+      continue;
+    }
+    farmer.intentions.queue.push({
+      kind: "harvest-fruit",
+      data: { tileX: tree.tileX, tileY: tree.tileY },
+      priority,
+    });
+    recordReason(farmer, `harvest ${tree.kind} fruit`);
+  }
+}
+
+/**
+ * Queue sell-fruit intents for any held fruit.
+ */
+export function deliberateSellFruit(
+  farmer: GameEntity,
+  priority: number,
+): void {
+  if (!farmer.intentions || !farmer.inventory || !farmer.farmer) return;
+  const fruit = farmer.inventory.fruit;
+  if (!fruit) return;
+  const inVillage = farmer.farmer.currentRegion === "village";
+
+  for (const kind of ["apple", "cherry"] as const) {
+    const total = totalFruitCount(farmer.inventory, kind);
+    if (total <= 0) continue;
+    if (!inVillage) {
+      if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetRegionId: "village" },
+          priority: priority + 1,
+        });
+      }
+    }
+    if (!farmer.intentions.queue.some(i => i.kind === "sell-fruit" && i.data.kind === kind)) {
+      farmer.intentions.queue.push({
+        kind: "sell-fruit",
+        data: { kind },
+        priority,
+      });
+      recordReason(farmer, `sell ${kind} x${total}`);
+    }
+  }
+}
+
