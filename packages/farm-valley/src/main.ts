@@ -318,6 +318,7 @@ interface PlaybackHandlers {
   applyPaused: (next: boolean) => void;
   applySpeed: (next: number) => void;
   doStep: () => void;
+  doSkipToHighlight: () => void;
 }
 
 // brief-16: playback — wire the controls to the worker and keep the panel
@@ -342,20 +343,25 @@ function wirePlayback(
     if (!paused) return;
     client.step();
   }
+  function doSkipToHighlight(): void {
+    // Brief 40 — fast-forward to the next high-drama event.
+    client.skipToHighlight();
+  }
 
   playback.setOnPause(applyPaused);
   playback.setOnSpeed(applySpeed);
   playback.setOnStep(doStep);
+  playback.setOnSkipToHighlight(doSkipToHighlight);
   playback.update({ paused, speed });
 
-  return { applyPaused, applySpeed, doStep };
+  return { applyPaused, applySpeed, doStep, doSkipToHighlight };
 }
 
 // Keyboard: P = toggle pause, "." = step. (Speed is set via the sidebar
 // buttons; number keys 1-7 are the player's hotbar selection.) Ignore keys
 // while the user is typing into an input/textarea (e.g. the seed field).
 function registerHotkeys(handlers: PlaybackHandlers): void {
-  const { applyPaused, doStep } = handlers;
+  const { applyPaused, doStep, doSkipToHighlight } = handlers;
   window.addEventListener("keydown", (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
@@ -373,6 +379,14 @@ function registerHotkeys(handlers: PlaybackHandlers): void {
         break;
       case ".":
         doStep();
+        break;
+      // Brief 40 — H: skip to the next high-drama event.
+      // "H" is free: not used by WASD/arrows (Pip movement), not 1–8 (hotbar),
+      // not E (action), not Space (recenter), not P (pause), not "." (step).
+      case "h":
+      case "H":
+        e.preventDefault();
+        doSkipToHighlight();
         break;
       default:
         break;
@@ -873,6 +887,13 @@ async function startGame(
 
     // brief-11: focus-camera — set up observer row click handler
     observer.setOnFarmerClick((id) => {
+      focusedFarmerId = id;
+      panOffset = { x: 0, y: 0 };
+      if (_camera !== null) applyFocusAndPan(_camera);
+    });
+
+    // Brief 40 — feed entry click → focus the involved farmer.
+    panels.eventFeedPanel.setOnFarmerClick((id) => {
       focusedFarmerId = id;
       panOffset = { x: 0, y: 0 };
       if (_camera !== null) applyFocusAndPan(_camera);

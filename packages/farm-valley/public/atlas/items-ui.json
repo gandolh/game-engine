@@ -2,7 +2,7 @@
   "id": "items-ui",
   "imageUrl": "/atlas/items-ui.png",
   "width": 128,
-  "height": 32,
+  "height": 64,
   "frames": {
     "indicator/meet": {
       "x": 1,
@@ -16,33 +16,117 @@
       "w": 16,
       "h": 16
     },
-    "debug/player": {
+    "indicator/intention-plant": {
       "x": 35,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "tool/fishing-rod": {
+    "indicator/intention-water": {
       "x": 52,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "fish/minnow": {
+    "indicator/intention-harvest": {
       "x": 69,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "fish/bass": {
+    "indicator/intention-sell": {
       "x": 86,
       "y": 1,
       "w": 16,
       "h": 16
     },
-    "fish/salmon": {
+    "indicator/intention-buy": {
       "x": 103,
       "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-travel": {
+      "x": 1,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-sleep": {
+      "x": 18,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-fish": {
+      "x": 35,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-bid": {
+      "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-meet": {
+      "x": 69,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-chop": {
+      "x": 86,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-mine": {
+      "x": 103,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-work": {
+      "x": 1,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "indicator/intention-idle": {
+      "x": 18,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "debug/player": {
+      "x": 35,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "tool/fishing-rod": {
+      "x": 52,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "fish/minnow": {
+      "x": 69,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "fish/bass": {
+      "x": 86,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "fish/salmon": {
+      "x": 103,
+      "y": 35,
       "w": 16,
       "h": 16
     }

@@ -873,8 +873,12 @@ function resolveFrameAndBob(
  * Width/height default to TILE (16) for all snapshot sprites.
  *
  * This also draws:
- *  - MEET bubble (indicator/meet) sprites above each active meet farmer,
- *    positioned at the interpolated farmer pixel position from the snapshot.
+ *  - MEET bubble (indicator/meet) sprites above each active meet farmer.
+ *  - INTENTION bubble (indicator/intention-*) above each AI farmer for the
+ *    brief window after an intention change. If a meet bubble and an intention
+ *    bubble would both appear for the same farmer, the meet bubble takes
+ *    priority (higher signal moment) and the intention bubble is suppressed.
+ *    Brief 40.
  */
 export function pushSnapshotSprites(
   renderer: Canvas2dRenderer,
@@ -883,6 +887,10 @@ export function pushSnapshotSprites(
   farmerPositions: Map<number, { x: number; y: number }>,
   nowMs: number = 0,
 ): void {
+  // Build a Set of farmer ids that have an active meet bubble, so intention
+  // bubbles can be suppressed for those farmers. Brief 40.
+  const meetFarmerIds = new Set<number>(meets.map((m) => m.farmerId));
+
   // Sprites + ground drop-shadows for characters (sprites with an entity id).
   for (const s of sprites) {
     const { frame, bobY } = resolveFrameAndBob(s, nowMs);
@@ -902,6 +910,27 @@ export function pushSnapshotSprites(
       alpha: s.alpha,
       flipX: s.flipX ?? false,
     });
+
+    // Brief 40 — intention bubble. Only for AI farmers that have a bubble glyph
+    // set AND are not currently showing a meet bubble (meet takes priority).
+    if (
+      s.bubble !== null &&
+      s.bubble !== undefined &&
+      s.id !== null &&
+      !meetFarmerIds.has(s.id)
+    ) {
+      renderer.push({
+        x: s.x,
+        y: s.y - TILE,
+        width: TILE,
+        height: TILE,
+        frame: s.bubble,
+        atlasId: "items-ui",
+        rotation: 0,
+        layer: 89, // just below meet bubble (90) so meet always wins visually
+        alpha: 1,
+      });
+    }
   }
 
   // Meet bubbles (one tile above farmer)

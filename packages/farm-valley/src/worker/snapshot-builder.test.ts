@@ -1,6 +1,9 @@
 /**
  * snapshot-builder.test.ts — verifies that buildRenderSnapshot produces
  * correct, deterministic output from a bootstrapped sim.
+ *
+ * Also includes Brief 40 unit tests for the intention→glyph map and the
+ * shouldStopSkip pure helper (no worker/sim bootstrapping needed for those).
  */
 
 import { describe, it, expect } from "vitest";
@@ -10,7 +13,10 @@ import {
   buildObserverSnapshot,
   buildLeaderboardRows,
   countEntities,
+  INTENTION_KIND_TO_GLYPH,
+  HIGHLIGHT_THRESHOLD,
 } from "./snapshot-builder";
+import { shouldStopSkip } from "./sim-worker";
 import type { SnapshotShock } from "./snapshot";
 
 const SEED = 0xc0ffee;
@@ -301,5 +307,151 @@ describe("countEntities", () => {
   it("returns a positive number", () => {
     const sim = bootAndTick(1);
     expect(countEntities(sim.world)).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 40 — intention→glyph map
+// ---------------------------------------------------------------------------
+
+describe("INTENTION_KIND_TO_GLYPH (brief 40)", () => {
+  it("maps every documented intention kind to an indicator/* frame", () => {
+    const documented = [
+      "plant", "water", "harvest", "sell", "buy", "travel",
+      "sleep", "fish", "bid", "meet", "refill", "chop", "mine",
+      "work", "idle",
+    ] as const;
+    for (const kind of documented) {
+      const glyph = INTENTION_KIND_TO_GLYPH[kind];
+      expect(glyph, `${kind} should map to a glyph`).toBeDefined();
+      expect(
+        glyph!.startsWith("indicator/intention-"),
+        `${kind} glyph should start with indicator/intention-`,
+      ).toBe(true);
+    }
+  });
+
+  it("maps plant to indicator/intention-plant", () => {
+    expect(INTENTION_KIND_TO_GLYPH["plant"]).toBe("indicator/intention-plant");
+  });
+
+  it("maps water to indicator/intention-water", () => {
+    expect(INTENTION_KIND_TO_GLYPH["water"]).toBe("indicator/intention-water");
+  });
+
+  it("maps refill to indicator/intention-water (reuse water glyph)", () => {
+    expect(INTENTION_KIND_TO_GLYPH["refill"]).toBe("indicator/intention-water");
+  });
+
+  it("maps fish to indicator/intention-fish", () => {
+    expect(INTENTION_KIND_TO_GLYPH["fish"]).toBe("indicator/intention-fish");
+  });
+
+  it("maps bid to indicator/intention-bid", () => {
+    expect(INTENTION_KIND_TO_GLYPH["bid"]).toBe("indicator/intention-bid");
+  });
+
+  it("returns undefined for an unknown intention kind (no bubble shown)", () => {
+    expect(INTENTION_KIND_TO_GLYPH["unknown-kind-xyz"]).toBeUndefined();
+  });
+
+  it("HIGHLIGHT_THRESHOLD is 0.7 — matches the feed-panel emphasis threshold", () => {
+    expect(HIGHLIGHT_THRESHOLD).toBe(0.7);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 40 — shouldStopSkip pure helper
+// ---------------------------------------------------------------------------
+
+describe("shouldStopSkip (brief 40)", () => {
+  it("returns false when feed length did not increase (no new event)", () => {
+    expect(shouldStopSkip(5, 5, 0.9, 0.7)).toBe(false);
+  });
+
+  it("returns false when a new event appeared but drama is below threshold", () => {
+    expect(shouldStopSkip(5, 6, 0.65, 0.7)).toBe(false);
+  });
+
+  it("returns true when a new event appeared and drama meets the threshold exactly", () => {
+    expect(shouldStopSkip(5, 6, 0.7, 0.7)).toBe(true);
+  });
+
+  it("returns true when a new event appeared and drama exceeds the threshold", () => {
+    expect(shouldStopSkip(5, 6, 0.95, 0.7)).toBe(true);
+  });
+
+  it("returns false when feed length decreased (no new event added)", () => {
+    expect(shouldStopSkip(6, 5, 0.95, 0.7)).toBe(false);
+  });
+
+  it("respects a custom threshold — drama 0.85 below 0.9 → false", () => {
+    expect(shouldStopSkip(5, 6, 0.85, 0.9)).toBe(false);
+  });
+
+  it("respects a custom threshold — drama 0.9 at 0.9 → true", () => {
+    expect(shouldStopSkip(5, 6, 0.9, 0.9)).toBe(true);
+  });
+
+  it("handles the starting case (prevLen=0, 1 high-drama event) → true", () => {
+    expect(shouldStopSkip(0, 1, 0.8, 0.7)).toBe(true);
+  });
+
+  it("handles the starting case (prevLen=0, 1 low-drama event) → false", () => {
+    expect(shouldStopSkip(0, 1, 0.3, 0.7)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 40 — AI farmer sprites carry a bubble field
+// ---------------------------------------------------------------------------
+
+describe("AI farmer sprites carry a bubble field (brief 40)", () => {
+  it("AI farmer sprites have a bubble field (string or null) after a tick", () => {
+    // Run a few ticks to let the AI farmers start acting and pick intentions.
+    const sim = bootAndTick(5);
+    const snap = buildRenderSnapshot(
+      sim.world,
+      sim.dayClock,
+      sim.meetIndicators,
+      sim.eventFeed,
+      5,
+      MAX_DAYS,
+      null,
+    );
+
+    // All AI farmer sprites (interpolate=true, not the player) should have the
+    // bubble field defined (string or null; never undefined after tick 0+).
+    const aiFarmerSprites = snap.sprites.filter(
+      (s) => s.interpolate && s.id !== null,
+    );
+    expect(aiFarmerSprites.length).toBeGreaterThan(0);
+    for (const s of aiFarmerSprites) {
+      // bubble is string (active glyph) or null (window expired) — never undefined.
+      expect(s.bubble === null || typeof s.bubble === "string").toBe(true);
+    }
+  });
+
+  it("non-farmer sprites have no bubble (undefined or null, both falsy)", () => {
+    const sim = bootAndTick(5);
+    const snap = buildRenderSnapshot(
+      sim.world,
+      sim.dayClock,
+      sim.meetIndicators,
+      sim.eventFeed,
+      5,
+      MAX_DAYS,
+      null,
+    );
+
+    // Crop sprites (id=null) go through a separate code path and don't have
+    // the bubble field set at all (undefined), which is acceptable — the
+    // renderer guards with `s.bubble !== null && s.bubble !== undefined`.
+    const cropSprites = snap.sprites.filter(
+      (s) => s.frame.startsWith("crop/"),
+    );
+    for (const s of cropSprites) {
+      expect(s.bubble).toBeFalsy();
+    }
   });
 });

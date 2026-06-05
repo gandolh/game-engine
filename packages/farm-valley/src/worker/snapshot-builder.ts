@@ -41,6 +41,63 @@ import { summarizeRun } from "../run-recap";
 
 const TILE = 16;
 
+// ---------------------------------------------------------------------------
+// Brief 40 — intention bubble constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Drama threshold for "skip to highlight" (Part B). An event is a highlight
+ * when its drama score meets or exceeds this value. Matches the feed panel's
+ * emphasis threshold (≥ 0.7 → gold star in EventFeedPanel). Centralised here
+ * (snapshot-builder is the worker-side authority) and re-exported so sim-worker
+ * and the unit-test helper can import it without duplicating the constant.
+ */
+export const HIGHLIGHT_THRESHOLD = 0.7;
+
+/**
+ * How many ticks a bubble stays visible after an intention CHANGE.
+ * On-change-only legibility rule: we show the bubble for a brief window (like
+ * the meet bubble's 10 ticks) so the map isn't a wall of persistent icons.
+ * After the window expires, the bubble disappears until the next intention
+ * change. This gives scan-level legibility without ambient clutter.
+ */
+const BUBBLE_SHOW_TICKS = 10;
+
+/**
+ * Maps an intention.kind string to its indicator glyph frame name.
+ * Only AI-farmer intention kinds are listed; player (Pip) never gets a bubble.
+ *
+ * Intention kinds observed in the codebase (agents/*.ts):
+ *   plant, water, harvest, sell, buy, travel, sleep, idle,
+ *   fish, bid, meet, refill, chop, mine, work
+ * Any unmapped kind silently returns null (no bubble).
+ */
+export const INTENTION_KIND_TO_GLYPH: Readonly<Record<string, string>> = {
+  "plant":   "indicator/intention-plant",
+  "water":   "indicator/intention-water",
+  "harvest": "indicator/intention-harvest",
+  "sell":    "indicator/intention-sell",
+  "buy":     "indicator/intention-buy",
+  "travel":  "indicator/intention-travel",
+  "sleep":   "indicator/intention-sleep",
+  "fish":    "indicator/intention-fish",
+  "bid":     "indicator/intention-bid",
+  "meet":    "indicator/intention-meet",
+  "refill":  "indicator/intention-water",
+  "chop":    "indicator/intention-chop",
+  "mine":    "indicator/intention-mine",
+  "work":    "indicator/intention-work",
+  "idle":    "indicator/intention-idle",
+};
+
+/**
+ * Worker-local state tracking the last-seen intention kind and the tick it was
+ * last changed for each AI farmer entity id. Used to trigger the on-change
+ * bubble visibility window (BUBBLE_SHOW_TICKS). The map grows to at most
+ * N_FARMERS entries and lives for the duration of the run.
+ */
+const lastIntention = new Map<number, { kind: string; changedAtTick: number }>();
+
 // Per-entity last facing, so a farmer keeps facing the way they last moved when
 // they stop (rather than snapping back to "down"). Worker-local; the sim is
 // authoritative on positions, this is purely a render-facing memo.
@@ -297,6 +354,27 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       frame = pickFarmerFrame(entity, tick);
     }
     const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
+
+    // Brief 40 — intention bubble for AI farmers (NOT the player).
+    // Legibility rule: show the bubble for BUBBLE_SHOW_TICKS after an intention
+    // change so the map reads without becoming a wall of persistent icons. The
+    // bubble disappears once the window expires and reappears on the next change.
+    // Player (Pip) never gets a bubble (the player knows what they're doing).
+    let bubble: string | null = null;
+    const isAiFarmer = isFarmer && !entity.player;
+    if (isAiFarmer && entity.id !== undefined) {
+      const currentKind = action ?? "idle";
+      const prev = lastIntention.get(entity.id);
+      const changed = prev === undefined || prev.kind !== currentKind;
+      if (changed) {
+        lastIntention.set(entity.id, { kind: currentKind, changedAtTick: tick });
+      }
+      const changedAtTick = lastIntention.get(entity.id)?.changedAtTick ?? tick;
+      if (tick - changedAtTick < BUBBLE_SHOW_TICKS) {
+        bubble = INTENTION_KIND_TO_GLYPH[currentKind] ?? null;
+      }
+    }
+
     let label: string | null = null;
     let description: string | null = null;
     if (isFarmer) {
@@ -371,6 +449,7 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
       description,
       facing,
       flipX,
+      bubble,
     });
   }
 
@@ -413,8 +492,14 @@ function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {
   for (let i = 0; i < n; i += 1) {
     const e = all[start + i]!;
     const rec = out[i];
-    if (rec === undefined) out[i] = { day: e.day, text: e.text, drama: e.drama };
-    else { rec.day = e.day; rec.text = e.text; rec.drama = e.drama; }
+    if (rec === undefined) {
+      out[i] = { day: e.day, text: e.text, drama: e.drama, farmerId: e.farmerId ?? null };
+    } else {
+      rec.day = e.day;
+      rec.text = e.text;
+      rec.drama = e.drama;
+      rec.farmerId = e.farmerId ?? null;
+    }
   }
   if (out.length !== n) out.length = n;
   return out;

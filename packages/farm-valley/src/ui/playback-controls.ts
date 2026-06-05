@@ -9,6 +9,7 @@ const KEY_BINDINGS: ReadonlyArray<readonly [string, string]> = [
   ["1 – 8", "Select a hotbar slot"],
   ["P", "Pause / resume"],
   [".", "Step one tick (while paused)"],
+  ["H", "Skip to next highlight (next high-drama event)"],
   ["Drag", "Pan the camera"],
   ["Scroll", "Zoom in / out"],
 ];
@@ -82,11 +83,13 @@ export class PlaybackControlsPanel {
   private helpModal: HTMLElement;
   private pauseBtn: HTMLButtonElement;
   private stepBtn: HTMLButtonElement;
+  private skipBtn: HTMLButtonElement;
   private speedBtns: Map<number, HTMLButtonElement> = new Map();
 
   private onPause: ((paused: boolean) => void) | null = null;
   private onSpeed: ((multiplier: number) => void) | null = null;
   private onStep: (() => void) | null = null;
+  private onSkipToHighlight: (() => void) | null = null;
 
   // Local mirror of the last state pushed via update(), used so the pause
   // button can toggle without the caller having to track it.
@@ -122,6 +125,16 @@ export class PlaybackControlsPanel {
       this.onStep?.();
     });
     this.panel.appendChild(this.stepBtn);
+
+    // Brief 40 — Skip to highlight button (hotkey H).
+    this.skipBtn = createEl("button", { text: "★ Skip [H]" });
+    applyStyles(this.skipBtn, BTN_STYLES);
+    this.skipBtn.type = "button";
+    this.skipBtn.title = "Fast-forward to the next dramatic event (H)";
+    this.skipBtn.addEventListener("click", () => {
+      this.onSkipToHighlight?.();
+    });
+    this.panel.appendChild(this.skipBtn);
 
     const sep = createEl("span", {
       text: "│",
@@ -285,6 +298,11 @@ export class PlaybackControlsPanel {
     this.onStep = cb;
   }
 
+  /** Brief 40 — callback invoked when the "Skip to highlight" button is clicked. */
+  setOnSkipToHighlight(cb: () => void): void {
+    this.onSkipToHighlight = cb;
+  }
+
   /** Reflect current playback state: pause label, active speed, step enabled. */
   update(state: PlaybackState): void {
     this.state = { ...state };
@@ -317,5 +335,6 @@ export class PlaybackControlsPanel {
     this.panel.remove();
     this.helpModal.remove();
     this.speedBtns.clear();
+    this.onSkipToHighlight = null;
   }
 }
