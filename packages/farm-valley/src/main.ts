@@ -3,12 +3,13 @@ import {
   Camera2D,
   Canvas2dRenderer,
   DebugOverlay,
+  Profiler,
   createNoiseGeneratorFromUrl,
   ParticleSystem,
   EDG,
 } from "@engine/core";
 import type { AtlasManifest } from "@engine/core";
-import { pushSnapshotSprites, OCEAN_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE } from "./render-systems";
+import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE } from "./render-systems";
 import { makeGroundNoiseDecorator } from "./render/ground-noise";
 import { washFor } from "./render/day-night";
 import { seasonForDay } from "./protocols/weather";
@@ -48,6 +49,15 @@ const CONFIG: BootConfig = {
 };
 
 const TILE = 16;
+
+// P0 profiling — opt-in via `?profile` (or `?profile=1`) on the URL. When set,
+// the worker times tick + snapshot and the render loop times the frame +
+// interpolation; both surface in the DebugOverlay. Diagnostic only — never
+// touches sim state, so determinism is unaffected.
+const PROFILE_ENABLED =
+  typeof location !== "undefined" &&
+  new URLSearchParams(location.search).has("profile");
+
 const CAMERA_CONFIG = {
   worldUnitsX: WORLD_WIDTH * TILE,
   worldUnitsY: WORLD_HEIGHT * TILE,
@@ -71,11 +81,13 @@ const mousePos = { x: -9999, y: -9999 };
 
 // ── Player (Pip) input ───────────────────────────────────────────────────────
 // WASD/arrows walk Pip one tile per step (throttled so movement reads cleanly);
-// Space performs the context-sensitive field action on the tile Pip faces. Both
-// are sent to the sim worker, which owns Pip as a real farmer entity. Movement
-// is throttled here for cadence; the action fires once per key press.
-const PLAYER_MOVE_INTERVAL_MS = 120; // ~8 tiles/sec
-let lastPlayerMoveMs = 0;
+// E performs the context-sensitive field action (selected hotbar tool) on the
+// tile Pip faces; Space recenters the camera on Pip. Move/action are sent to the
+// sim worker, which owns Pip as a real farmer entity. The step CADENCE now lives
+// in the sim (PlayerControlSystem.PLAYER_STEP_TICKS) so movement can glide; the
+// main thread just reports the held direction, resending only when it changes.
+let lastPlayerMoveX: "left" | "right" | null = null;
+let lastPlayerMoveY: "up" | "down" | null = null;
 // The player farmer's entity id, learned from the first snapshot (the sprite
 // labeled "Pip"); used to focus the camera on Pip by default.
 let playerFarmerId: number | null = null;
@@ -374,6 +386,11 @@ function bakeStaticLayer(
       msg.worldHeightPx,
       groundNoise,
     );
+    // Animated water surface tiles the ocean frame under the (ocean-less) static
+    // layer. Baked here once the atlas + world size are known. pixelScale 3 →
+    // chunky 3×-bigger wave pixels that survive the downscale when zoomed out
+    // (at zoom 0.5 a 1px ripple aliases into noise; a 3px one still reads).
+    renderer.bakeWaterPattern("tile/ocean", TILE, 3);
   });
 }
 
@@ -485,14 +502,28 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
   let lastFrameMs = performance.now();
   let gameOverShown = false;
 
+  // P0 profiling — main-thread sampler for the frame + interpolation cost. The
+  // worker reports its own tick/snapshot timings via client.onProfile below.
+  const frameProfiler = new Profiler({ enabled: PROFILE_ENABLED });
+  if (PROFILE_ENABLED) {
+    client.setProfiling(true);
+    client.onProfile((_tick, report) => overlay.setWorkerReport(report));
+  }
+  // Emit the main-thread frame report to the overlay periodically (every ~60
+  // frames) so the numbers tick over without per-frame string churn.
+  let frameReportCounter = 0;
+
   function renderFrame(): void {
-    const nowMs = performance.now();
+    const frameStart = performance.now();
+    const nowMs = frameStart;
     const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
     lastFrameMs = nowMs;
 
     // Compute interpolated sprites once per frame — used for rendering,
-    // farmer positions, and the hover tooltip.
-    const interpolatedSprites = client.getInterpolatedSprites();
+    // farmer positions, and the hover tooltip. Timed separately (T1.2 target).
+    const interpolatedSprites = frameProfiler.time("interp", () =>
+      client.getInterpolatedSprites(),
+    );
 
     // brief-11: focus-camera — update camera center each frame
     if (_camera !== null && focusedFarmerId !== null) {
@@ -501,18 +532,47 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     renderer.beginFrame();
 
-    // Animated water shimmer: cycle foam frames over the in-grid ocean tiles.
-    // Render-only; phase is offset per tile so the foam ripples rather than
-    // blinking in unison. ~1.8 s per full A→B→C cycle. Layer 1 = on the water
-    // (over the baked static ocean at layer 0, under plot dirt / entities).
+    // Animated water surface (brief: water rendering perf). The whole ocean is
+    // ONE tiling pattern filled by the renderer under the static islands; we
+    // just advance its scroll offset here so the water flows. sin/cos drift
+    // gives a gentle, non-linear current rather than a constant slide. Render-
+    // only (no determinism impact). This replaces the old ~5k-draws/frame foam
+    // grid — the open sea is now a single fillRect.
+    const t = nowMs / 1000;
+    const WATER_DRIFT = TILE * 0.6; // peak scroll amplitude, world px
+    renderer.setWaterScroll(
+      Math.sin(t * 0.25) * WATER_DRIFT,
+      Math.cos(t * 0.17) * WATER_DRIFT,
+    );
+
+    // Sparse foam bubbles at the coastline only, culled to the visible camera
+    // rect (plus a 1-tile margin). Tens of draws instead of one per water cell.
+    // Phase offset per tile so bubbles pop out of sync; ~1.8 s A→B→C cycle.
+    //
+    // Zoom-aware density: when zoomed out the viewport cull stops helping (the
+    // whole archipelago is on screen) AND a 16px bubble shrinks to a few pixels
+    // that don't read — so we thin them by a stride that grows as zoom drops.
+    // The chunky water pattern carries the surface at far zoom; bubbles return
+    // to full density as you zoom in. Keeps far-zoom frame time flat.
+    const zoom = _camera!.zoom;
+    const bubbleStride = zoom >= 1 ? 1 : zoom >= 0.75 ? 2 : zoom >= 0.6 ? 3 : 4;
     const FOAM_PERIOD_MS = 1800;
     const foamStep = nowMs / (FOAM_PERIOD_MS / FOAM_FRAMES.length);
-    for (const { tx, ty } of OCEAN_TILES) {
+    const viewLeft = _camera!.centerX - _camera!.worldUnitsX / 2 - TILE;
+    const viewRight = _camera!.centerX + _camera!.worldUnitsX / 2 + TILE;
+    const viewTop = _camera!.centerY - _camera!.worldUnitsY / 2 - TILE;
+    const viewBottom = _camera!.centerY + _camera!.worldUnitsY / 2 + TILE;
+    for (let i = 0; i < COASTLINE_BUBBLE_TILES.length; i++) {
+      if (i % bubbleStride !== 0) continue; // thin out at low zoom
+      const { tx, ty } = COASTLINE_BUBBLE_TILES[i]!;
+      const cx = tx * TILE + TILE / 2;
+      const cy = ty * TILE + TILE / 2;
+      if (cx < viewLeft || cx > viewRight || cy < viewTop || cy > viewBottom) continue;
       const phase = tx * 3 + ty * 5; // per-tile offset
       const frame = FOAM_FRAMES[(Math.floor(foamStep) + phase) % FOAM_FRAMES.length]!;
       renderer.push({
-        x: tx * TILE + TILE / 2,
-        y: ty * TILE + TILE / 2,
+        x: cx,
+        y: cy,
         width: TILE,
         height: TILE,
         frame,
@@ -585,20 +645,30 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
     );
 
     // ── Player (Pip) input → sim worker ──────────────────────────────────
-    // WASD/arrows request a one-tile move (throttled for readable cadence);
-    // Space requests the context field action on the tile Pip faces. The worker
-    // owns Pip as a real farmer entity and applies these via PlayerControlSystem.
+    // WASD/arrows set the HELD move direction; the sim (PlayerControlSystem)
+    // owns the step cadence and glides Pip between tiles, so we just report which
+    // direction is held and let the worker pace it. E requests the context field
+    // action (selected hotbar tool) on the tile Pip faces; Space recenters the
+    // camera back on Pip. The worker owns Pip as a real farmer entity.
     {
-      let move: "up" | "down" | "left" | "right" | null = null;
-      if (nowMs - lastPlayerMoveMs >= PLAYER_MOVE_INTERVAL_MS) {
-        if (keyboard.isDown("KeyW") || keyboard.isDown("ArrowUp"))         move = "up";
-        else if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))  move = "down";
-        else if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))  move = "left";
-        else if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight")) move = "right";
-        if (move !== null) lastPlayerMoveMs = nowMs;
+      // Two independent axes so holding two keys (e.g. W+A) moves diagonally.
+      // Opposite keys cancel (first-checked wins, then overridden — net: the
+      // last branch that matches sets the axis, so down-beats-up / right-beats-
+      // left when both are held; harmless, the player isn't pressing both).
+      let moveX: "left" | "right" | null = null;
+      let moveY: "up" | "down" | null = null;
+      if (keyboard.isDown("KeyW") || keyboard.isDown("ArrowUp"))         moveY = "up";
+      if (keyboard.isDown("KeyS") || keyboard.isDown("ArrowDown"))       moveY = "down";
+      if (keyboard.isDown("KeyA") || keyboard.isDown("ArrowLeft"))       moveX = "left";
+      if (keyboard.isDown("KeyD") || keyboard.isDown("ArrowRight"))      moveX = "right";
+      // Space recenters the camera on Pip (clears any pan/observer focus).
+      if (keyboard.justPressed("Space") && playerFarmerId !== null) {
+        focusedFarmerId = playerFarmerId;
+        panOffset = { x: 0, y: 0 };
+        if (_camera !== null) applyFocusAndPan(_camera);
       }
-      // Action fires once per key press (Space or E).
-      const action = keyboard.justPressed("Space") || keyboard.justPressed("KeyE");
+      // E fires the selected hotbar tool's action once per key press.
+      const action = keyboard.justPressed("KeyE");
       // Number keys 1-7 select a hotbar slot (Digit1→slot 0, … Digit7→slot 6).
       let selectSlot: number | null = null;
       for (let n = 1; n <= HOTBAR_SLOTS.length && n <= 9; n++) {
@@ -607,8 +677,18 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
           break;
         }
       }
-      if (move !== null || action || selectSlot !== null) {
-        client.sendInput(move, action, selectSlot);
+      // Send when either held axis CHANGES (incl. press→null on release, so the
+      // worker stops Pip), or on any discrete action/slot event. Avoids flooding
+      // the worker with an identical held-dir message every frame.
+      if (
+        moveX !== lastPlayerMoveX ||
+        moveY !== lastPlayerMoveY ||
+        action ||
+        selectSlot !== null
+      ) {
+        client.sendInput(moveX, moveY, action, selectSlot);
+        lastPlayerMoveX = moveX;
+        lastPlayerMoveY = moveY;
       }
     }
     keyboard.endFrame();
@@ -651,6 +731,17 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
           maxDays,
           ticksPerDay,
         });
+      }
+    }
+
+    // P0 — record total frame cost and refresh the overlay's frame report
+    // periodically (string formatting every frame would itself be noise).
+    if (PROFILE_ENABLED) {
+      frameProfiler.add("frame", performance.now() - frameStart);
+      frameReportCounter += 1;
+      if (frameReportCounter >= 60) {
+        frameReportCounter = 0;
+        overlay.setFrameReport(frameProfiler.report());
       }
     }
 

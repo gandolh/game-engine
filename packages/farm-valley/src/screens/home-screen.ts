@@ -144,7 +144,7 @@ export class HomeScreen {
     const subtitle = createEl("p", {
       text:
         opts.subtitle ??
-        "Play as Pip and farm alongside four BDI rivals — plant, trade, and outwit them across 100 days. WASD/arrows to move, Space to act.",
+        "Play as Pip and farm alongside four BDI rivals — plant, trade, and outwit them across 100 days. WASD/arrows to move, E to act, Space to recenter on yourself.",
     });
     applyStyles(subtitle, SUBTITLE_STYLES);
 

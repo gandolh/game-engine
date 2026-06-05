@@ -115,7 +115,7 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     return world;
   }
 
-  it("contains the static backdrop: grass/dirt/ocean tiles, bridges, fences, and plot dirt", () => {
+  it("contains the static backdrop: grass/dirt land tiles, bridges, fences, and plot dirt (ocean is NOT baked)", () => {
     const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
     const frames = new Set(sprites.map((s) => s.frame));
     // Backdrop tile kinds present. In the archipelago every road tile spans
@@ -123,7 +123,10 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     // ocean instead.
     expect(frames.has("tile/grass")).toBe(true);
     expect(frames.has("tile/dirt")).toBe(true);
-    expect(frames.has("tile/ocean")).toBe(true);
+    // Ocean is no longer baked into the static layer — the animated water
+    // pattern (Canvas2dRenderer) fills the ocean under the islands, so ocean
+    // tiles bake transparent (backdropFrame → null for non-walkable/bridge).
+    expect(frames.has("tile/ocean")).toBe(false);
     expect(frames.has("tile/bridge-h")).toBe(true);
     // Farm fences are baked in.
     expect(frames.has("tile/fence-h")).toBe(true);

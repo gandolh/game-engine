@@ -72,6 +72,10 @@ export class EventFeedSystem implements System {
   /** Keys already captured, so re-observed inbox messages aren't re-added. */
   private readonly seen = new Set<string>();
 
+  /** Reused per-tick scratch for this tick's fresh entries (cleared each run)
+   *  so the hot path doesn't allocate a new array every tick. */
+  private readonly fresh: EventEntry[] = [];
+
   constructor(
     private readonly world: World<GameEntity>,
     private readonly dayClock: DayClockSystem,
@@ -79,9 +83,11 @@ export class EventFeedSystem implements System {
 
   run(ctx: SimContext): void {
     const day = this.dayClock.day;
-    // Collect this tick's fresh entries, then sort by stable key before
-    // appending so replays are byte-identical regardless of query order.
-    const fresh: EventEntry[] = [];
+    // Collect this tick's fresh entries (reused scratch), then sort by stable
+    // key before appending so replays are byte-identical regardless of query
+    // order.
+    const fresh = this.fresh;
+    fresh.length = 0;
 
     this.snoopMarketWall(ctx.tick, day, fresh);
     this.snoopFarmerInboxes(ctx.tick, day, fresh);

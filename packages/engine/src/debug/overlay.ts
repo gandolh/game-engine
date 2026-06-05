@@ -1,4 +1,5 @@
 import { EDG } from "../render";
+import type { ProfileReport } from "./profiler";
 
 export interface OverlayStats {
   fps: number;
@@ -13,6 +14,11 @@ export class DebugOverlay {
   private frameCount = 0;
   private fps = 0;
   private accumulatedMs = 0;
+
+  /** Latest worker-side profiling report (P0), or null when profiling is off. */
+  private workerReport: ProfileReport | null = null;
+  /** Latest main-thread frame report (P0), or null when profiling is off. */
+  private frameReport: ProfileReport | null = null;
 
   constructor(parent: HTMLElement) {
     const el = document.createElement("div");
@@ -44,11 +50,40 @@ export class DebugOverlay {
       this.frameCount = 0;
       this.accumulatedMs = 0;
     }
-    this.element.textContent =
+    let text =
       `fps   ${this.fps.toFixed(1)}\n` +
       `tick  ${stats.tick}\n` +
       `alpha ${stats.alpha.toFixed(3)}\n` +
       `ents  ${stats.entityCount}`;
+
+    // P0 profiling block — appended only when reports are present. Shows
+    // mean / p95 ms (or KB for byte metrics) so regressions are visible live.
+    const fmt = (label: string, report: ProfileReport | null, key: string, unit: "ms" | "kb"): string => {
+      const s = report?.[key];
+      if (s === undefined) return "";
+      return unit === "kb"
+        ? `\n${label} ${(s.mean / 1024).toFixed(1)}KB`
+        : `\n${label} ${s.mean.toFixed(2)}/${s.p95.toFixed(2)}ms`;
+    };
+    if (this.workerReport !== null || this.frameReport !== null) {
+      text += "\n— mean/p95 —";
+      text += fmt("tick ", this.workerReport, "tick", "ms");
+      text += fmt("snap ", this.workerReport, "snapshot.build", "ms");
+      text += fmt("snapKB", this.workerReport, "snapshot.bytes", "kb");
+      text += fmt("frame", this.frameReport, "frame", "ms");
+      text += fmt("interp", this.frameReport, "interp", "ms");
+    }
+    this.element.textContent = text;
+  }
+
+  /** Feed the latest worker-side profiling report (P0). */
+  setWorkerReport(report: ProfileReport): void {
+    this.workerReport = report;
+  }
+
+  /** Feed the latest main-thread frame profiling report (P0). */
+  setFrameReport(report: ProfileReport): void {
+    this.frameReport = report;
   }
 
   destroy(): void {

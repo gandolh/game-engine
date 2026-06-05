@@ -56,15 +56,18 @@ export function pickFarmerFrame(entity: GameEntity, tick: number): string {
  * - resource-zone → "tile/grass" (same as farms — they're green areas)
  */
 function backdropFrame(tx: number, ty: number): string | null {
-  // Non-walkable tiles (out-of-region gaps, world border) render as ocean, so
-  // the playable regions read as islands in an ocean rather than floating in a
-  // black void. Walkability is unaffected (this is purely visual).
-  if (!isWalkable(tx, ty)) return "tile/ocean";
+  // Non-walkable tiles (out-of-region gaps, world border) are OCEAN. We no
+  // longer bake a static ocean tile here — the renderer's animated water
+  // pattern fills the whole world rect under the static layer, so we leave
+  // these unbaked (null) and let the flowing water show through. Walkability is
+  // unaffected (this is purely visual).
+  if (!isWalkable(tx, ty)) return null;
   const region = regionAt(tx, ty);
   if (region === null) {
-    // Road-only tile. If it spans water it gets a plank bridge (drawn as a
-    // separate overlay in iterStaticSprites); otherwise a plain dirt path.
-    return BRIDGE_SET.has(ty * WORLD_WIDTH + tx) ? "tile/ocean" : "tile/path";
+    // Road-only tile. If it spans water it gets a plank bridge deck (drawn as a
+    // separate overlay in iterStaticSprites) over the animated water (null
+    // base); otherwise a plain dirt path.
+    return BRIDGE_SET.has(ty * WORLD_WIDTH + tx) ? null : "tile/path";
   }
   if (region.startsWith("farm-")) return "tile/grass";
   if (region === "blacksmith") return "tile/forge-floor";
@@ -260,16 +263,40 @@ const BRIDGE_SET: ReadonlySet<number> = new Set(
 );
 
 /**
- * In-world ocean tiles (non-walkable tiles inside the 40×40 grid). Used by the
- * main-thread render loop to draw the animated foam overlay. Out-of-grid water
- * (beyond the world edge) is covered by the renderer's ocean clearColor, so we
- * only animate the in-grid gaps between/around the islands.
+ * In-world ocean tiles (non-walkable tiles inside the grid). The water surface
+ * itself is now a single scrolling pattern (see `Canvas2dRenderer`), so this is
+ * no longer used to draw per-cell foam — kept as a general ocean-tile query.
+ * Coastline bubbles use `COASTLINE_BUBBLE_TILES` instead. Out-of-grid water
+ * (beyond the world edge) is covered by the renderer's ocean clearColor.
  */
 export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
   const out: Array<{ tx: number; ty: number }> = [];
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
       if (!isWalkable(tx, ty)) out.push({ tx, ty });
+    }
+  }
+  return out;
+})();
+
+/**
+ * Coastline bubble tiles: in-grid OCEAN tiles that touch LAND on at least one
+ * of the four sides. The render loop draws sparse animated foam bubbles only on
+ * these (culled to the viewport) — surf reads naturally at the shore, and it's
+ * tens of draws instead of one per water cell. The flowing water pattern
+ * handles the open sea; bubbles are an accent on top of it.
+ */
+export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
+  const out: Array<{ tx: number; ty: number }> = [];
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      if (isWalkable(tx, ty)) continue; // bubbles sit on ocean, not land
+      const touchesLand =
+        isWalkable(tx, ty - 1) ||
+        isWalkable(tx, ty + 1) ||
+        isWalkable(tx - 1, ty) ||
+        isWalkable(tx + 1, ty);
+      if (touchesLand) out.push({ tx, ty });
     }
   }
   return out;

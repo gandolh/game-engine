@@ -11,7 +11,7 @@ import { regionAt, isWalkable, isFishingIsle, type RegionId } from "../world/reg
  * Pip is a normal farmer entity in every other respect (crop growth, harvest,
  * the market, rendering and walk-cycle animation all treat it like the AI
  * farmers). The only difference is the source of its intentions: this system,
- * driven by `entity.player.pendingMove` / `pendingAction`, instead of an AI
+ * driven by `entity.player.pendingMoveX/Y` / `pendingAction`, instead of an AI
  * `deliberate()` function. DeliberateSystem skips any entity with a `player`
  * tag, and this system runs immediately before ActSystem so a queued action
  * executes on the same tick it was requested.
@@ -28,6 +28,14 @@ const DIR_DELTA: Record<string, { dx: number; dy: number }> = {
   left:  { dx: -1, dy: 0 },
   right: { dx: 1,  dy: 0 },
 };
+
+/**
+ * Ticks between Pip's one-tile commits while a move key is held. At 20 Hz this
+ * is ~6.7 tiles/sec — close to the old ~8 tiles/sec feel, but the cadence now
+ * lives in the sim (tick-aligned) so we can glide farmer.renderPos across the
+ * gap. Mirrors TravelSystem.STEP_TICKS, just faster for a responsive player.
+ */
+export const PLAYER_STEP_TICKS = 3;
 
 /**
  * What a hotbar slot does. `tool` slots act on the tile in front of Pip with a
@@ -71,22 +79,69 @@ export class PlayerControlSystem implements System {
       farmer.movedThisTick = false;
 
       // ── Movement ─────────────────────────────────────────────────────────
-      if (player.pendingMove !== null) {
-        player.facing = player.pendingMove;
-        const { dx, dy } = DIR_DELTA[player.pendingMove]!;
-        const nx = Math.round(transform.x) + dx;
-        const ny = Math.round(transform.y) + dy;
-        // Block the step onto unwalkable tiles AND onto trees/stones — you can't
-        // walk through a feature, you chop/mine it from the tile in front.
-        if (isWalkable(nx, ny) && !this.featureAt(nx, ny)) {
-          transform.x = nx;
-          transform.y = ny;
+      // pendingMoveX/Y are the HELD axes (resent when the held keys change, null
+      // on release). Two axes held at once → DIAGONAL. The sim owns the cadence:
+      // commit one tile every PLAYER_STEP_TICKS ticks; on the in-between ticks
+      // glide farmer.renderPos so the per-tick snapshot shows continuous motion
+      // (no full-tile jump → smooth camera). Mirrors TravelSystem's renderPos.
+      //
+      // The glide TRAILS the authoritative transform: each commit moves transform
+      // to the new tile immediately, and renderPos eases from the PREVIOUS tile up
+      // *into* that committed tile over the next PLAYER_STEP_TICKS ticks. Trailing
+      // (never leading) is what keeps releases/direction-flips smooth — the
+      // visual never sits ahead of transform, so stopping or turning never has to
+      // yank Pip backward (the cause of the press-A-then-D "shake").
+      const mx = player.pendingMoveX;
+      const my = player.pendingMoveY;
+      if (mx !== null || my !== null) {
+        // 4-way facing for the sprite (no diagonal frames): horizontal wins on a
+        // diagonal because the side profile reads best; else use the live axis.
+        player.facing = mx ?? my!;
+
+        if (player.stepCooldown > 0) player.stepCooldown -= 1;
+
+        if (player.stepCooldown <= 0) {
+          // Resolve the step from both axes, with wall-slide: prefer the full
+          // diagonal, but if it's blocked fall back to whichever single axis is
+          // open so Pip slides along a wall instead of stopping dead.
+          const dxWant = mx === "left" ? -1 : mx === "right" ? 1 : 0;
+          const dyWant = my === "up" ? -1 : my === "down" ? 1 : 0;
+          const fromX = Math.round(transform.x);
+          const fromY = Math.round(transform.y);
+          const step = this.resolveStep(fromX, fromY, dxWant, dyWant);
+          if (step) {
+            // Commit transform to the new tile; remember the tile we left so the
+            // in-between ticks can ease renderPos from it up INTO the new tile.
+            player.glideFromX = fromX;
+            player.glideFromY = fromY;
+            transform.x = fromX + step.dx;
+            transform.y = fromY + step.dy;
+            farmer.renderPos = { x: fromX, y: fromY };
+            farmer.movedThisTick = true;
+            const region = regionAt(transform.x, transform.y);
+            if (region !== null) farmer.currentRegion = region;
+            player.stepCooldown = PLAYER_STEP_TICKS;
+          } else {
+            // Fully blocked — sit on the true tile (no glide), retry next tick.
+            farmer.renderPos = undefined;
+          }
+        } else {
+          // Between commits: ease renderPos from the tile we left (glideFrom) up
+          // into the committed transform tile. RENDER-ONLY — transform already
+          // holds the authoritative tile, so sim logic (action targeting,
+          // proximity) is unchanged. frac in (0,1): progress through the window.
+          const frac = (PLAYER_STEP_TICKS - player.stepCooldown) / PLAYER_STEP_TICKS;
+          farmer.renderPos = {
+            x: player.glideFromX + (transform.x - player.glideFromX) * frac,
+            y: player.glideFromY + (transform.y - player.glideFromY) * frac,
+          };
           farmer.movedThisTick = true;
-          // Keep currentRegion in sync (TravelSystem does this for AI farmers).
-          const region = regionAt(nx, ny);
-          if (region !== null) farmer.currentRegion = region;
         }
-        player.pendingMove = null;
+      } else {
+        // Key released — next press steps immediately, and Pip renders on its
+        // true tile (drop any mid-step glide).
+        player.stepCooldown = 0;
+        farmer.renderPos = undefined;
       }
 
       // ── Action ────────────────────────────────────────────────────────────
@@ -188,6 +243,44 @@ export class PlayerControlSystem implements System {
       if (f.tileFeature.tileX === tx && f.tileFeature.tileY === ty) return true;
     }
     return false;
+  }
+
+  /** A tile is steppable iff walkable and free of a tree/stone feature. */
+  private canStand(tx: number, ty: number): boolean {
+    return isWalkable(tx, ty) && !this.featureAt(tx, ty);
+  }
+
+  /**
+   * Resolve the one-tile step from (fromX,fromY) given the desired per-axis
+   * deltas (each in {-1,0,1}), with wall-slide and no corner-cutting:
+   *  - Diagonal request: take it only if the destination AND both orthogonal
+   *    cells are open (so Pip can't squeeze through a corner gap). If the
+   *    diagonal is blocked, slide along whichever single axis is open.
+   *  - Single-axis request: take it if open.
+   * Returns the chosen {dx,dy}, or null if every candidate is blocked.
+   */
+  private resolveStep(
+    fromX: number,
+    fromY: number,
+    dxWant: number,
+    dyWant: number,
+  ): { dx: number; dy: number } | null {
+    if (dxWant !== 0 && dyWant !== 0) {
+      const diagOpen =
+        this.canStand(fromX + dxWant, fromY + dyWant) &&
+        this.canStand(fromX + dxWant, fromY) &&
+        this.canStand(fromX, fromY + dyWant);
+      if (diagOpen) return { dx: dxWant, dy: dyWant };
+      // Wall-slide: prefer the horizontal slide, else the vertical.
+      if (this.canStand(fromX + dxWant, fromY)) return { dx: dxWant, dy: 0 };
+      if (this.canStand(fromX, fromY + dyWant)) return { dx: 0, dy: dyWant };
+      return null;
+    }
+    // Single axis (one of dxWant/dyWant is 0).
+    if (this.canStand(fromX + dxWant, fromY + dyWant)) {
+      return { dx: dxWant, dy: dyWant };
+    }
+    return null;
   }
 
   /** The plot owned by `entity` at the given tile, or null. */

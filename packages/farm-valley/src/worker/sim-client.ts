@@ -24,6 +24,7 @@ import type {
   SnapshotSprite,
   FinalStandingRow,
 } from "./snapshot";
+import type { ProfileReport } from "@engine/core";
 import type { ObserverSnapshot } from "../ui/observer";
 import type { LeaderboardRow } from "../ui/leaderboard";
 import type { ShopOffer } from "../agents/shop-slate";
@@ -34,6 +35,36 @@ function clamp(v: number, lo: number, hi: number): number {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
+}
+
+/**
+ * Smoothstep easing (3t² − 2t³): zero slope at t=0 and t=1, so a farmer eases
+ * out of a tile and eases into the next instead of snapping between constant-
+ * velocity segments. Render-only — the sim still steps one tile per STEP_TICKS.
+ */
+function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Copy every SnapshotSprite field from `src` into the pooled `dst` (T1.2). Must
+ * assign ALL fields — including optionals — so a reused record never carries a
+ * stale value from the different sprite that previously occupied this slot.
+ */
+function copySprite(dst: SnapshotSprite, src: SnapshotSprite): void {
+  dst.id = src.id;
+  dst.x = src.x;
+  dst.y = src.y;
+  dst.rotation = src.rotation;
+  dst.layer = src.layer;
+  dst.frame = src.frame;
+  dst.alpha = src.alpha;
+  dst.interpolate = src.interpolate;
+  dst.action = src.action;
+  dst.label = src.label;
+  dst.description = src.description ?? null;
+  dst.facing = src.facing ?? null;
+  dst.flipX = src.flipX ?? false;
 }
 
 export class SimClient {
@@ -48,8 +79,29 @@ export class SimClient {
   /** ms between ticks (1000 / tickRateHz), set in init(). */
   private msPerTick = 50;
 
+  /**
+   * Render delay (the "interpolate in the past" margin). We render one full tick
+   * behind the newest snapshot's arrival so there is always a known next sample
+   * to interpolate toward — when a snapshot arrives a few ms late, we glide
+   * through the gap instead of freezing pinned at alpha=1. Costs ~1 tick of
+   * display latency (50 ms), imperceptible for a watch-only game.
+   */
+  private get renderDelayMs(): number {
+    return this.msPerTick;
+  }
+
   private staticLayerCallback: ((msg: WorkerStaticLayerMsg) => void) | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
+  private profileCallback: ((tick: number, report: ProfileReport) => void) | null = null;
+
+  // T1.2 — interpolation pooling. getInterpolatedSprites runs every render
+  // frame (~60 Hz), so all of this is reused rather than allocated per call:
+  //  - prevById is rebuilt once per arriving snapshot (in onmessage), not per
+  //    frame, and indexes the PREV snapshot's interpolated sprites by id.
+  //  - interpOut is a pooled output array; we mutate its sprite objects in place
+  //    and only grow it when the sprite count rises.
+  private readonly prevById = new Map<number, SnapshotSprite>();
+  private interpOut: SnapshotSprite[] = [];
 
   constructor() {
     this.worker = new Worker(new URL("./sim-worker.ts", import.meta.url), {
@@ -64,7 +116,18 @@ export class SimClient {
         this.prevSnapshot = this.currentSnapshot;
         this.currentSnapshot = msg.snapshot;
         this.lastSnapshotArrivalMs = performance.now();
+        // T1.2 — rebuild the prev-sprite id index once per snapshot (not per
+        // frame). prevSnapshot is the just-superseded current snapshot.
+        this.prevById.clear();
+        const prev = this.prevSnapshot;
+        if (prev !== null) {
+          for (const s of prev.sprites) {
+            if (s.interpolate && s.id !== null) this.prevById.set(s.id, s);
+          }
+        }
         this.snapshotCallback?.(msg.snapshot);
+      } else if (msg.type === "profile") {
+        this.profileCallback?.(msg.tick, msg.report);
       }
     };
   }
@@ -125,23 +188,35 @@ export class SimClient {
   }
 
   /**
-   * Send player (Pip) input to the worker. `move` is a one-tile step direction
-   * (or null); `action` requests the selected-slot field action; `selectSlot`
-   * (0-based, or null) switches the active hotbar slot. The worker buffers these
-   * onto the player entity for PlayerControlSystem to consume next tick.
+   * Send player (Pip) input to the worker. `moveX`/`moveY` are the held
+   * horizontal/vertical axes (both set = diagonal; null = released); `action`
+   * requests the selected-slot field action; `selectSlot` (0-based, or null)
+   * switches the active hotbar slot. The worker buffers these onto the player
+   * entity for PlayerControlSystem to consume.
    */
   sendInput(
-    move: "up" | "down" | "left" | "right" | null,
+    moveX: "left" | "right" | null,
+    moveY: "up" | "down" | null,
     action: boolean,
     selectSlot: number | null = null,
   ): void {
-    const msg: WorkerInbound = { type: "input", move, action, selectSlot };
+    const msg: WorkerInbound = { type: "input", moveX, moveY, action, selectSlot };
     this.worker.postMessage(msg);
   }
 
   /** Terminate the worker (hard stop). */
   terminate(): void {
     this.worker.terminate();
+  }
+
+  /**
+   * Turn worker-side profiling on/off (P0). While on, the worker periodically
+   * posts a profile report (tick + snapshot timings + payload size) consumed via
+   * onProfile(). Diagnostic only — does not affect the sim.
+   */
+  setProfiling(enabled: boolean): void {
+    const msg: WorkerInbound = { type: "profile", enabled };
+    this.worker.postMessage(msg);
   }
 
   // ---------------------------------------------------------------------------
@@ -156,6 +231,11 @@ export class SimClient {
   /** Called each tick when a snapshot arrives. */
   onSnapshot(cb: (snap: RenderSnapshot) => void): void {
     this.snapshotCallback = cb;
+  }
+
+  /** Called when a worker profiling report arrives (only while profiling is on). */
+  onProfile(cb: (tick: number, report: ProfileReport) => void): void {
+    this.profileCallback = cb;
   }
 
   // ---------------------------------------------------------------------------
@@ -180,40 +260,59 @@ export class SimClient {
    * Non-interpolated sprites use the current snapshot position as-is.
    *
    * Returns [] if no snapshot has arrived yet.
+   *
+   * ⚠️ POOLED RETURN (T1.2): the returned array and its sprite objects are
+   * reused across calls and overwritten on the next call. Consume the result
+   * within the current frame; do not retain it across frames, and finish using
+   * one result before calling this (or getFarmerInterpolatedPos) again.
    */
   getInterpolatedSprites(): SnapshotSprite[] {
     const current = this.currentSnapshot;
-    if (current === null) return [];
+    if (current === null) {
+      this.interpOut.length = 0;
+      return this.interpOut;
+    }
 
     const now = performance.now();
-    const alpha = clamp(
-      (now - this.lastSnapshotArrivalMs) / this.msPerTick,
+    // Play the interpolation head one render-delay in the PAST. With the delay
+    // the alpha=1 endpoint is reached ~renderDelayMs after the next snapshot is
+    // due — so a slightly-late snapshot is absorbed by the margin instead of
+    // showing as a freeze-then-jump. Easing (smoothstep) softens tile entry/exit.
+    const rawAlpha = clamp(
+      (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
       0,
       1,
     );
+    const alpha = smoothstep(rawAlpha);
 
     const prev = this.prevSnapshot;
+    const src = current.sprites;
+    const out = this.interpOut;
 
-    // Build a lookup from id → prev sprite for the interpolated ones.
-    const prevById = new Map<number, SnapshotSprite>();
-    if (prev !== null) {
-      for (const s of prev.sprites) {
-        if (s.interpolate && s.id !== null) {
-          prevById.set(s.id, s);
+    // Write each current sprite into the pooled output, copying fields in place
+    // (no per-frame object/array allocation). For interpolated sprites with a
+    // matching prev, lerp x/y; everything else passes through unchanged.
+    for (let i = 0; i < src.length; i += 1) {
+      const s = src[i]!;
+      let dst = out[i];
+      if (dst === undefined) {
+        // Grow the pool by one reusable record.
+        dst = { ...s };
+        out[i] = dst;
+      } else {
+        copySprite(dst, s);
+      }
+      if (s.interpolate && s.id !== null && prev !== null) {
+        const p = this.prevById.get(s.id);
+        if (p !== undefined) {
+          dst.x = lerp(p.x, s.x, alpha);
+          dst.y = lerp(p.y, s.y, alpha);
         }
       }
     }
-
-    return current.sprites.map((s) => {
-      if (!s.interpolate || s.id === null || prev === null) return s;
-      const p = prevById.get(s.id);
-      if (p === undefined) return s;
-      return {
-        ...s,
-        x: lerp(p.x, s.x, alpha),
-        y: lerp(p.y, s.y, alpha),
-      };
-    });
+    // Trim the pool to this frame's sprite count (keeps backing store).
+    if (out.length !== src.length) out.length = src.length;
+    return out;
   }
 
   /**

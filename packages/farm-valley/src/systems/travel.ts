@@ -16,6 +16,95 @@ import { PERFORMATIVE } from "../protocols/performatives";
 export const STEP_TICKS = 8;
 
 /**
+ * String-pull a 4-connected grid path into a smoother route that cuts corners
+ * diagonally, then re-rasterize it back into a DENSE one-tile-per-step sequence.
+ *
+ * Why both passes:
+ *  - String-pulling alone leaves long straight segments (e.g. start → corner),
+ *    but the stepper advances ONE waypoint per STEP_TICKS — so a long segment
+ *    would teleport in a single step.
+ *  - Re-rasterizing each kept segment with a grid walk (Bresenham, 8-connected)
+ *    restores one-tile-apart spacing while now including diagonal steps. Pacing
+ *    (STEP_TICKS per tile) and determinism are unchanged — this is a pure,
+ *    allocation-bounded transform of integer tile coords with no randomness.
+ *
+ * `isWalkable(x, y)` must match the pathfinder's grid so we never smooth a
+ * diagonal that clips a blocked tile.
+ */
+export function smoothPath(
+  path: ReadonlyArray<{ x: number; y: number }>,
+  isWalkable: (x: number, y: number) => boolean,
+): { x: number; y: number }[] {
+  if (path.length <= 2) return path.map(p => ({ x: p.x, y: p.y }));
+
+  // Diagonal line-of-sight: can we walk a straight grid line a→b without
+  // crossing a blocked tile? Supercover-style: at each step also require the
+  // two orthogonal cells of a diagonal move to be open, so we never squeeze
+  // through a corner gap that a tile-mover couldn't actually pass.
+  const lineOfSight = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    let x = a.x;
+    let y = a.y;
+    const dxAbs = Math.abs(b.x - a.x);
+    const dyAbs = Math.abs(b.y - a.y);
+    const sx = a.x < b.x ? 1 : -1;
+    const sy = a.y < b.y ? 1 : -1;
+    let err = dxAbs - dyAbs;
+    // step guard: at most width+height steps for any in-grid line.
+    for (let guard = dxAbs + dyAbs + 1; guard > 0; guard -= 1) {
+      if (x === b.x && y === b.y) return true;
+      const e2 = 2 * err;
+      let movedX = false;
+      let movedY = false;
+      if (e2 > -dyAbs) { err -= dyAbs; x += sx; movedX = true; }
+      if (e2 < dxAbs) { err += dxAbs; y += sy; movedY = true; }
+      if (!isWalkable(x, y)) return false;
+      // Diagonal step: forbid corner-clipping past two blocked orthogonals.
+      if (movedX && movedY && !isWalkable(x - sx, y) && !isWalkable(x, y - sy)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Pass 1: greedy string-pull — keep an anchor, extend to the farthest later
+  // node still in line of sight, repeat. Yields corner anchors only.
+  const anchors: { x: number; y: number }[] = [{ x: path[0]!.x, y: path[0]!.y }];
+  let anchor = 0;
+  while (anchor < path.length - 1) {
+    let farthest = anchor + 1;
+    for (let j = anchor + 2; j < path.length; j += 1) {
+      if (lineOfSight(path[anchor]!, path[j]!)) farthest = j;
+      else break;
+    }
+    anchors.push({ x: path[farthest]!.x, y: path[farthest]!.y });
+    anchor = farthest;
+  }
+
+  // Pass 2: re-rasterize each anchor→anchor segment into one-tile steps
+  // (8-connected). Skip each segment's start tile to avoid duplicates.
+  const dense: { x: number; y: number }[] = [{ x: anchors[0]!.x, y: anchors[0]!.y }];
+  for (let i = 0; i < anchors.length - 1; i += 1) {
+    const a = anchors[i]!;
+    const b = anchors[i + 1]!;
+    let x = a.x;
+    let y = a.y;
+    const dxAbs = Math.abs(b.x - a.x);
+    const dyAbs = Math.abs(b.y - a.y);
+    const sx = a.x < b.x ? 1 : -1;
+    const sy = a.y < b.y ? 1 : -1;
+    let err = dxAbs - dyAbs;
+    for (let guard = dxAbs + dyAbs + 1; guard > 0; guard -= 1) {
+      if (x === b.x && y === b.y) break;
+      const e2 = 2 * err;
+      if (e2 > -dyAbs) { err -= dyAbs; x += sx; }
+      if (e2 < dxAbs) { err += dxAbs; y += sy; }
+      dense.push({ x, y });
+    }
+  }
+  return dense;
+}
+
+/**
  * Moves farmers tile-by-tile along WASM-pathfinder routes between regions.
  *
  * Per tick:
@@ -115,9 +204,14 @@ export class TravelSystem implements System {
         return;
       }
 
+      // Smooth the 4-connected route into a diagonal-cutting dense path so the
+      // farmer walks corners instead of staircasing. Still one tile per step,
+      // so STEP_TICKS pacing and determinism are unchanged.
+      const smoothed = smoothPath(path, (x, y) => this.isWalkable(x, y));
+
       farmer.path = {
-        waypoints: path,
-        // Pathfinder includes the start tile as path[0]; the next step is path[1].
+        waypoints: smoothed,
+        // Path includes the start tile as [0]; the next step is [1].
         nextIndex: 1,
         ticksUntilStep: STEP_TICKS,
       };
@@ -132,11 +226,38 @@ export class TravelSystem implements System {
         ticksUntilStep: number;
       };
       mutablePath.ticksUntilStep -= 1;
+
+      // Sub-tile render glide (RENDER-ONLY — never touches the authoritative
+      // transform). The logical position still steps one whole tile per
+      // STEP_TICKS exactly as before (so the sim, AP, regions, pathing and
+      // determinism are byte-for-byte unchanged). But the worker posts one
+      // snapshot per tick, so for the 7 in-between ticks the transform is
+      // identical and the render interpolation has nothing to lerp — the farmer
+      // sits still, then jumps a full tile on the 8th tick (the "teleport
+      // between cell centers" chunkiness).
+      //
+      // To fix that we compute where the farmer *visually* is partway through
+      // the current step and stash it on farmer.renderPos. The snapshot builder
+      // prefers renderPos over transform for farmer sprites, so each snapshot
+      // carries a position that has advanced ~1/STEP_TICKS of a tile, and the
+      // main-thread lerp now sees continuous motion every tick.
+      const from = mutablePath.waypoints[mutablePath.nextIndex - 1];
+      const next = mutablePath.waypoints[mutablePath.nextIndex];
+      if (from && next) {
+        // progress in [0, 1]: 0 just after the previous commit, 1 at the boundary.
+        const frac = (STEP_TICKS - mutablePath.ticksUntilStep) / STEP_TICKS;
+        farmer.renderPos = {
+          x: from.x + (next.x - from.x) * frac,
+          y: from.y + (next.y - from.y) * frac,
+        };
+      }
+
       if (mutablePath.ticksUntilStep <= 0) {
-        const next = mutablePath.waypoints[mutablePath.nextIndex];
         if (next) {
           transform.x = next.x;
           transform.y = next.y;
+          // Land the render glide exactly on the integer waypoint too.
+          farmer.renderPos = { x: next.x, y: next.y };
         }
         mutablePath.nextIndex += 1;
         mutablePath.ticksUntilStep = STEP_TICKS;
@@ -195,6 +316,9 @@ export class TravelSystem implements System {
       farmer.currentRegion = arrivedRegion;
     }
     farmer.path = undefined;
+    // Drop the render glide so a stopped farmer renders at its true tile (and
+    // the snapshot builder falls back to transform until the next path starts).
+    farmer.renderPos = undefined;
     // Pop the travel intent.
     if (intentions.queue[0]?.kind === "travel") {
       intentions.queue.shift();

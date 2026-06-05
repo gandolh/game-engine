@@ -1,0 +1,87 @@
+# Performance & Optimization
+
+Optimization opportunities for the engine, filtered against what the code **actually does** (verified 2026-06-05). Ordered by impact-for-effort. Generic "best practice" advice that doesn't apply at Farm Valley's scale (~4 farmers + tens of entities) is explicitly called out so it isn't re-litigated.
+
+> **Determinism guardrail.** Any of these is a refactor of *how* state moves, never *what* it computes. Prove behavior-preservation with multi-seed `EXPORT=json` diffs, not just `CHECK_DETERMINISM=1` (which only proves reproducibility). See [architecture.md](architecture.md) and the root [CLAUDE.md](../../CLAUDE.md).
+
+## Already done — do not redo
+
+- **Query iteration is pooled.** `for...of` over a query borrows a scratch buffer and returns it; steady-state iteration allocates zero arrays — [world.ts:65-97](../../packages/engine/src/ecs/world.ts#L65-L97).
+- **Static layer + water pattern baked once** to OffscreenCanvas, blitted with one `drawImage`/`fillRect` per frame — [canvas2d.ts:77-153](../../packages/engine/src/render/canvas2d.ts#L77-L153). This is the textbook "layer caching" win, already shipped (brief 07).
+- **Message bus uses buffer-swap** (`inflight`↔`deliverable`) instead of reallocating — [message-bus.ts](../../packages/engine/src/sim/message-bus.ts).
+- **Coastline foam bubbles are viewport-culled** — [main.ts:544](../../packages/farm-valley/src/main.ts#L544). (The *only* culling currently in the renderer — see Tier 2.)
+
+## Tier 1 — Highest impact
+
+### T1.1 The sim→render snapshot boundary
+Every worker tick builds 6–8 fresh arrays (~150–200 object allocations) and ships them via **structured clone** — [sim-worker.ts:179-196](../../packages/farm-valley/src/worker/sim-worker.ts#L179-L196), [snapshot-builder.ts](../../packages/farm-valley/src/worker/snapshot-builder.ts). Structured clone copies the whole graph; transfer/shared memory is ~10–50× faster for the copy itself.
+
+- **(a) Bigger win, more effort:** pack the mutable numeric sprite data (id/x/y/frame/layer/alpha) into a `Float32Array`/`Int32Array` over a small ring of 2–3 buffers and either `postMessage(buf, [buf])` (transfer) or a `SharedArrayBuffer` (zero-copy read on the main thread). Keep the rare/variable payload (events, leaderboard, observer rows) on the structured-clone path. ⚠️ `SharedArrayBuffer` requires cross-origin isolation (COOP/COEP headers) — trivial in Vite dev, must be verified for production hosting.
+- **(b) Cheaper interim win:** stop double-allocating the events array (`.slice().map()` → single loop into a reused buffer), and rebuild the observer/leaderboard payload only on **day boundaries**, not every tick — that state barely changes tick-to-tick.
+
+### T1.2 Per-frame interpolation allocates on the render thread
+`getInterpolatedSprites()` runs every *frame* (~60fps, not per tick): `new Map()` of prev-sprites, `.map()` a fresh array, spread `{...s}` per sprite — [sim-client.ts](../../packages/farm-valley/src/worker/sim-client.ts), [main.ts:500](../../packages/farm-valley/src/main.ts#L500). Classic GC-churn.
+
+- Pool the interpolated sprite array + objects; mutate in place across frames.
+- Index prev-sprites by id once when the snapshot arrives, not every frame.
+- If sprite IDs are dense, replace the `Map` with a plain indexed array.
+
+## Tier 2 — Culling & clipping (classic strategies, currently mostly absent)
+
+The static backdrop is **blitted full-frame with no clipping** even when zoomed in — the entire 88×80 baked canvas is drawn every frame regardless of how little is on screen ([canvas2d.ts:235-237](../../packages/engine/src/render/canvas2d.ts#L235-L237)). Dynamic sprites and shadows are **not viewport-culled** ([canvas2d.ts:259-264](../../packages/engine/src/render/canvas2d.ts#L259-L264)); only foam bubbles are. So the classic 2D wins are real here:
+
+- **Viewport culling of dynamic sprites/shadows.** Skip `push`/`drawSprite` for anything whose bounds fall outside `[viewLeft,viewRight]×[viewTop,viewBottom]` — the same test already used for foam at [main.ts:535-544](../../packages/farm-valley/src/main.ts#L535-L544). Cheap, and grows in value as entity count / world size grows.
+- **Clip the static-layer blit to the visible source rect.** `drawImage(staticLayer, sx,sy,sw,sh, dx,dy,dw,dh)` using only the camera-visible region instead of the whole baked canvas. Saves fill work when zoomed in.
+- **`ctx.clip()` / dirty-rectangle redraw.** Lower priority — the wash + full sprite repaint each frame make a true dirty-rect scheme awkward, but a clip region around the camera viewport prevents overdraw outside it.
+- **Sort only when the set changes.** `this.queue.sort(compareSprite)` runs every frame ([canvas2d.ts:259](../../packages/engine/src/render/canvas2d.ts#L259)); z-order rarely changes frame-to-frame. Bucket by layer or sort-on-dirty.
+
+## Tier 2b — Loose per-tick allocations in systems
+
+Small individually, all in the hot path, trivial to fix (the `length = 0` reuse pattern already lives in [feature-collision.ts](../../packages/farm-valley/src/systems/feature-collision.ts)):
+
+- [crop-growth.ts:55](../../packages/farm-valley/src/systems/crop-growth.ts#L55) — `[...world.query("plot")]` spreads a fresh array just to sort it. Reuse a persistent scratch array, sort in place.
+- [event-feed.ts:84](../../packages/farm-valley/src/systems/event-feed.ts#L84) — `const fresh = []` every tick. Reuse a member buffer.
+- Render queue: `this.queue = []` each frame ([canvas2d.ts:170](../../packages/engine/src/render/canvas2d.ts#L170)) → reuse with `length = 0`.
+
+## Explicitly NOT worth doing at current scale
+
+- **Archetype / SoA / column-oriented ECS storage.** The ECS uses flat objects with property-based components ([world.ts:12-23](../../packages/engine/src/ecs/world.ts#L12-L23)). The literature's 5–10× cache-locality wins materialize at thousands–millions of entities in tight numeric loops; Farm Valley has ~4 farmers + tens of entities. A rewrite would be high-effort, near-zero-payoff, and would fight the determinism guarantees. **Confirmed by profiling 2026-06-05:** the full sim tick over ~300 entities is **0.33ms (~0.7% of the 50ms budget)** — there is no cache-locality problem to solve. Revisit **only** if entity counts grow by orders of magnitude.
+- **Path caching beyond current behavior.** The pathfinder is only called on a *new* travel intent with no active path ([travel.ts:57](../../packages/farm-valley/src/systems/travel.ts#L57)); it is not a per-tick cost. Profiling shows the whole tick (pathfinder included on travel ticks) is sub-millisecond. Not worth caching.
+- **Packed/SharedArrayBuffer snapshot (P2 #7).** Profiling shows `snapshot.build` = 0.08ms and ~36KB/tick structured clone — invisible in the tick/frame budget. The packed-buffer/SAB rewrite would add real complexity + COOP/COEP risk for an unmeasurable gain. Deferred indefinitely; revisit only if `snapshot.bytes` or the worker tick climb materially (e.g. a 10× entity-count increase).
+
+## Measuring (P0 — shipped 2026-06-05)
+
+A `Profiler` ([profiler.ts](../../packages/engine/src/debug/profiler.ts), exported from `@engine/core`) is wired into the worker and render loop. Append `?profile` to the URL to turn it on; the [DebugOverlay](../../packages/engine/src/debug/overlay.ts) then shows mean/p95 for:
+- `tick` — `scheduler.tick` (worker)
+- `snapshot.build` / `snapshot.bytes` — snapshot construction + payload size (worker; the T1.1 baseline)
+- `interp` — `getInterpolatedSprites` (main; the T1.2 baseline)
+- `frame` — whole render-frame body (main)
+
+Off by default (zero overhead). Diagnostic only — measures host timing, never sim state. Use these numbers as the before/after baseline for every task below. Tracked in [briefs/engine/todo/09-perf-optimization.md](../briefs/engine/todo/09-perf-optimization.md).
+
+### Measured results (2026-06-05, seed 0xc0ffee, post-P1/P2, ~250–300 entities)
+
+| Metric | mean | p95 | budget | utilization |
+|---|---|---|---|---|
+| `tick` (sim) | 0.33–0.37 ms | 0.50–0.70 ms | 50 ms (20Hz) | **~0.7%** |
+| `snapshot.build` | 0.08–0.09 ms | 0.20 ms | — | negligible |
+| `snapshot.bytes` | ~36 KB/tick (~720 KB/s) | — | — | sub-ms clone |
+| `frame` (render) | 1.36–1.69 ms | 2.0–2.3 ms | 16.6 ms (60fps) | **~10%** |
+| `interp` | 0.03–0.04 ms | 0.10 ms | — | negligible |
+| fps | ~60 | — | vsync | not a self-imposed cap |
+
+**Conclusion: the engine is far under budget everywhere.** 60fps is browser vsync (rAF), not a limiter we set — the render frame uses only ~10% of its 16.6ms budget and the sim tick ~0.7% of its 50ms. These numbers **settle the two gated items**: #7 (packed/SAB snapshot) and P3 (archetype ECS) both chase costs that don't exist at this scale — see "Explicitly NOT worth doing" below.
+
+## Suggested order of attack
+
+1. ~~**Profile first**~~ — ✅ done (see "Measuring" above).
+2. ~~T1.2 interpolation pooling + T2b loose allocations + Tier 2 viewport culling/clipping~~ — ✅ **done 2026-06-05** (brief 09 P1; behavior-preserving, multi-seed `EXPORT=json` byte-identical). Sort-on-dirty was partially deferred (live set is tiny after culling). Details: [briefs/engine/todo/09-perf-optimization.md](../briefs/engine/todo/09-perf-optimization.md).
+3. ~~T1.1(b) snapshot interim win~~ — ✅ **done 2026-06-05** (events double-alloc removed). The brief's "cache observer/leaderboard per day" half was **dropped as incorrect**: that state changes intra-day (gold/FSM/AP/intention update on arbitrary ticks), so caching it would freeze the live panels.
+4. T1.1(a) SharedArrayBuffer/transfer boundary — **deferred, gated on profiling**. Build only if `?profile` shows `snapshot.bytes`/copy time is material; expected negligible at ~25 sprites/tick. Prefer transferable buffers over SAB (no COOP/COEP needed). See [briefs/engine/todo/09-perf-optimization.md](../briefs/engine/todo/09-perf-optimization.md) #7.
+
+## Sources
+
+External best-practice references consulted (2026-06-05):
+- [surma.dev — Is postMessage slow?](https://surma.dev/things/is-postmessage-slow/) · [Chrome — Transferable objects](https://developer.chrome.com/blog/transferable-objects-lightning-fast) · [MDN — SharedArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer)
+- [web.dev — Static memory with object pools](https://web.dev/articles/speed-static-mem-pools) · [MDN — Optimizing canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas) · [Konva — Canvas perf tips](https://konvajs.org/docs/performance/All_Performance_Tips.html)
+- [ecs-faq (Sander Mertens)](https://github.com/SanderMertens/ecs-faq) · [ECS deep dive](https://www.numberanalytics.com/blog/ecs-in-game-development-deep-dive)

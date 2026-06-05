@@ -13,6 +13,7 @@ Catalog of everything in this corpus. Start here.
 - [wiki/architecture.md](wiki/architecture.md) — workspaces, layers, sim loop, ECS, message bus, data flow
 - [wiki/player-and-interaction.md](wiki/player-and-interaction.md) — the playable farmer Pip, hotbar, hover tooltips, feature collision, bridges, plot layout, the 88×80 archipelago layout
 - [wiki/decisions.md](wiki/decisions.md) — locked tech choices
+- [wiki/performance.md](wiki/performance.md) — optimization opportunities filtered against actual code (snapshot boundary, interpolation pooling, culling/clipping); what's already done; what's not worth doing at current scale
 - [wiki/status.md](wiki/status.md) — what's done, what's open (brief-by-brief)
 - [wiki/open-questions.md](wiki/open-questions.md) — live list of gaps and unresolved questions
 
@@ -33,7 +34,7 @@ Catalog of everything in this corpus. Start here.
 
 #### Engine — todo
 
-_Empty — no engine briefs queued._
+- [briefs/engine/todo/09-perf-optimization.md](briefs/engine/todo/09-perf-optimization.md) — prioritized perf pass (P0 profile → P1 mechanical alloc + culling/clipping → P2 snapshot boundary → P3 deferred); source analysis in [wiki/performance.md](wiki/performance.md)
 
 ### Game
 

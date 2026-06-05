@@ -74,9 +74,13 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
           player: {
             isPlayer: true as const,
             facing: "down" as const,
-            pendingMove: null,
+            pendingMoveX: null,
+            pendingMoveY: null,
             pendingAction: false,
             selectedSlot: 0,
+            stepCooldown: 0,
+            glideFromX: spec.homeX,
+            glideFromY: spec.homeY,
           },
         }
       : {}),

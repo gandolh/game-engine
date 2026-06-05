@@ -21,15 +21,23 @@ import { buildStaticLayerSprites } from "../render-systems";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
 import { buildRenderSnapshot } from "./snapshot-builder";
 import { ONT_SIMULATION, type ShockBody } from "../protocols";
-import { createPathfinderFromBytes } from "@engine/core";
+import { createPathfinderFromBytes, Profiler } from "@engine/core";
 import type {
   WorkerInbound,
   WorkerStaticLayerMsg,
   WorkerSnapshotMsg,
+  WorkerProfileMsg,
   SnapshotShock,
 } from "./snapshot";
 
 const TILE = 16;
+
+// P0 profiling — worker-side sampler for scheduler.tick + snapshot build/size.
+// Off by default; the main thread toggles it via a "profile" message. Diagnostic
+// only (host timing), so it never affects what a tick computes.
+const profiler = new Profiler();
+// Emit a rolling report this often (in ticks) while profiling is enabled.
+const PROFILE_REPORT_EVERY = 60;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -48,7 +56,12 @@ let runOneTick: (() => void) | null = null;
 // Bound at init() to apply a player-input message to the player entity. Null
 // before init; input messages arriving early are dropped.
 let applyInput:
-  | ((move: "up" | "down" | "left" | "right" | null, action: boolean, selectSlot: number | null) => void)
+  | ((
+      moveX: "left" | "right" | null,
+      moveY: "up" | "down" | null,
+      action: boolean,
+      selectSlot: number | null,
+    ) => void)
   | null = null;
 
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
@@ -83,9 +96,15 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     return;
   }
 
+  if (msg.type === "profile") {
+    profiler.enabled = msg.enabled;
+    if (!msg.enabled) profiler.reset();
+    return;
+  }
+
   if (msg.type === "input") {
     // Buffer player input onto the player entity for PlayerControlSystem.
-    applyInput?.(msg.move, msg.action, msg.selectSlot);
+    applyInput?.(msg.moveX, msg.moveY, msg.action, msg.selectSlot);
     return;
   }
 
@@ -111,11 +130,17 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       pathfinder,
     });
 
-    // Wire player input: buffer the latest move + latch the action request onto
-    // the player entity. PlayerControlSystem reads + clears these each tick.
-    applyInput = (move, action, selectSlot) => {
+    // Wire player input. `move` is the HELD direction (or null on release); it
+    // is written through unconditionally so releasing a key stops Pip — the
+    // client only sends a message when the held direction changes (or on a
+    // discrete action/slot event), and every such message carries the current
+    // held direction, so this never spuriously clears a still-held key.
+    // `action` latches (consumed once by PlayerControlSystem); `selectSlot`
+    // switches the hotbar slot.
+    applyInput = (moveX, moveY, action, selectSlot) => {
       for (const e of world.query("player")) {
-        if (move !== null) e.player!.pendingMove = move;
+        e.player!.pendingMoveX = moveX;
+        e.player!.pendingMoveY = moveY;
         if (action) e.player!.pendingAction = true;
         if (selectSlot !== null) e.player!.selectedSlot = selectSlot;
         break; // single player entity
@@ -169,31 +194,49 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       // skip this tick's snapshot, and still advance the counter so the next
       // tick proceeds rather than re-running the faulted tick number.
       try {
-        scheduler.tick({ tick });
+        profiler.time("tick", () => scheduler.tick({ tick }));
 
         // Fire bus subscribers (InboxDispatchSystem flushed messages above, so
         // deliverable is populated; notifySubscribers dispatches to our shock
         // subscriber, among others).
         bus.notifySubscribers();
 
-        const snapshot = buildRenderSnapshot(
-          world,
-          dayClock,
-          meetIndicators,
-          eventFeed,
-          tick,
-          maxDays,
-          pendingShock,
+        const snapshot = profiler.time("snapshot.build", () =>
+          buildRenderSnapshot(
+            world,
+            dayClock,
+            meetIndicators,
+            eventFeed,
+            tick,
+            maxDays,
+            pendingShock,
+          ),
         );
 
         // Clear pending shock — it fires exactly once in the snapshot it belongs to.
         pendingShock = null;
+
+        // Approximate the structured-clone payload size (T1.1 baseline). Only
+        // serialize when profiling is on — JSON.stringify is itself non-trivial.
+        if (profiler.enabled) {
+          profiler.add("snapshot.bytes", JSON.stringify(snapshot).length);
+        }
 
         const snapshotMsg: WorkerSnapshotMsg = {
           type: "snapshot",
           snapshot,
         };
         self.postMessage(snapshotMsg);
+
+        // Periodic rolling report to the main thread for the debug overlay.
+        if (profiler.enabled && tick % PROFILE_REPORT_EVERY === 0) {
+          const profileMsg: WorkerProfileMsg = {
+            type: "profile",
+            tick,
+            report: profiler.report(),
+          };
+          self.postMessage(profileMsg);
+        }
 
         if (snapshot.gameOver) {
           stopped = true;

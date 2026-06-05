@@ -27,6 +27,22 @@ export class Canvas2dRenderer {
   private readonly canvas: HTMLCanvasElement;
   private atlas: LoadedAtlasImage | null = null;
   private queue: Canvas2dSprite[] = [];
+  /** Live element count in `queue` (the array is reused across frames, not
+   *  reallocated — see beginFrame). Entries past queueLen are stale. */
+  private queueLen = 0;
+  private shadowLen = 0;
+
+  // Visible world-space rect for this frame (camera viewport + a one-tile
+  // margin), computed in beginFrame. push()/pushShadow() cull against it so
+  // off-screen sprites never reach the draw loop. Generous default until the
+  // first beginFrame so nothing is dropped before the camera is known.
+  private cullLeft = -Infinity;
+  private cullRight = Infinity;
+  private cullTop = -Infinity;
+  private cullBottom = Infinity;
+  /** Half-extent margin (world px) added around the viewport so sprites whose
+   *  center is just off-screen but whose body overlaps still draw. */
+  private static readonly CULL_MARGIN = 32;
 
   // Cached static layer: the unchanging backdrop (tiles, fences, plot dirt)
   // baked once into an offscreen canvas in world-pixel space, then blitted
@@ -34,6 +50,15 @@ export class Canvas2dRenderer {
   private staticLayer: OffscreenCanvas | HTMLCanvasElement | null = null;
   private staticLayerW = 0;
   private staticLayerH = 0;
+
+  // Animated water surface: a single tiling CanvasPattern built once from one
+  // atlas frame. `endFrame` fills the whole world rect with it in ONE call
+  // (under the static layer), scrolling the pattern's matrix by a per-frame
+  // offset so the water visibly flows. Replaces per-water-cell drawImage.
+  private waterPattern: CanvasPattern | null = null;
+  private waterTileSize = 0;
+  private waterOffsetX = 0;
+  private waterOffsetY = 0;
 
   /**
    * Backdrop color filled behind every frame (the area outside the world / not
@@ -98,6 +123,51 @@ export class Canvas2dRenderer {
     this.staticLayerH = h;
   }
 
+  /**
+   * Build the repeating water pattern from a single atlas `frame`, wrapped in a
+   * "repeat" CanvasPattern. Call once after the atlas is set. The game then
+   * calls `setWaterScroll` each frame and `endFrame` fills the world with it in
+   * one `fillRect`.
+   *
+   * `pixelScale` (default 1) enlarges the texture in world space: each source
+   * texel maps to `pixelScale` world pixels, so the wave features become
+   * `pixelScale×` bigger. Bigger features survive the camera downscale when
+   * zoomed out (a 1px ripple aliases into noise at zoom 0.5; a 3px one reads as
+   * a wave). The pattern repeats every `tileSize × pixelScale` world px.
+   *
+   * Generic: the engine knows only "a tiling pattern + a scroll offset," not
+   * "ocean." If pattern creation isn't supported (e.g. some jsdom contexts) the
+   * pattern stays null and the water pass is a no-op.
+   */
+  bakeWaterPattern(frame: string, tileSize: number, pixelScale = 1): void {
+    if (!this.atlas) throw new Error("bakeWaterPattern: setAtlas must be called first");
+    const scale = Math.max(1, Math.round(pixelScale));
+    // Pattern tile covers `tileSize × scale` world px; nearest-neighbour upscale
+    // keeps the wave texels crisp and chunky (imageSmoothingEnabled = false).
+    const size = Math.max(1, Math.ceil(tileSize) * scale);
+    const surface = createOffscreen(size, size);
+    const tctx = surface.getContext("2d") as Ctx2D | null;
+    if (!tctx) throw new Error("bakeWaterPattern: failed to acquire offscreen 2d context");
+    tctx.imageSmoothingEnabled = false;
+    const r = this.atlas.frameRect(frame);
+    tctx.drawImage(this.atlas.bitmap, r.x, r.y, r.w, r.h, 0, 0, size, size);
+    this.waterPattern = this.ctx.createPattern(surface, "repeat");
+    this.waterTileSize = size;
+    this.waterOffsetX = 0;
+    this.waterOffsetY = 0;
+  }
+
+  /**
+   * Set the water pattern's scroll offset (world pixels) for the coming frame.
+   * Wrapped to the tile size so the float never grows without bound. Cheap; call
+   * every frame with a slowly-advancing sin/cos offset to make the water flow.
+   */
+  setWaterScroll(offsetX: number, offsetY: number): void {
+    if (this.waterTileSize <= 0) return;
+    this.waterOffsetX = offsetX % this.waterTileSize;
+    this.waterOffsetY = offsetY % this.waterTileSize;
+  }
+
   /** Drop the cached static layer (e.g. before re-baking a changed world). */
   clearStaticLayer(): void {
     this.staticLayer = null;
@@ -113,12 +183,33 @@ export class Canvas2dRenderer {
       this.canvas.width = desiredW;
       this.canvas.height = desiredH;
     }
-    this.queue = [];
-    this.shadowQueue = [];
+    // Reuse the queue arrays across frames — reset by length, don't realloc.
+    // (Stale entries past the live length are overwritten by push() or ignored
+    // by endFrame, which iterates only [0, queueLen).)
+    this.queueLen = 0;
+    this.shadowLen = 0;
+
+    // Recompute the visible world rect (camera viewport + margin) for culling.
+    const { camera } = this;
+    const halfX = camera.worldUnitsX / 2;
+    const halfY = camera.worldUnitsY / 2;
+    const m = Canvas2dRenderer.CULL_MARGIN;
+    this.cullLeft = camera.centerX - halfX - m;
+    this.cullRight = camera.centerX + halfX + m;
+    this.cullTop = camera.centerY - halfY - m;
+    this.cullBottom = camera.centerY + halfY + m;
+  }
+
+  /** True if a world-space point lies within this frame's visible rect. */
+  private inView(x: number, y: number): boolean {
+    return x >= this.cullLeft && x <= this.cullRight && y >= this.cullTop && y <= this.cullBottom;
   }
 
   push(sprite: Canvas2dSprite): void {
-    this.queue.push(sprite);
+    // Viewport cull: skip sprites whose center is outside the visible rect.
+    if (!this.inView(sprite.x, sprite.y)) return;
+    this.queue[this.queueLen] = sprite;
+    this.queueLen += 1;
   }
 
   /**
@@ -131,7 +222,17 @@ export class Canvas2dRenderer {
    * `alpha` — opacity of the shadow (0–1).
    */
   pushShadow(x: number, y: number, rx: number, ry: number, alpha: number): void {
-    this.shadowQueue.push({ x, y, rx, ry, alpha });
+    // Viewport cull, matching push().
+    if (!this.inView(x, y)) return;
+    // Reuse pooled shadow records — mutate in place rather than allocate.
+    let rec = this.shadowQueue[this.shadowLen];
+    if (rec === undefined) {
+      rec = { x, y, rx, ry, alpha };
+      this.shadowQueue[this.shadowLen] = rec;
+    } else {
+      rec.x = x; rec.y = y; rec.rx = rx; rec.ry = ry; rec.alpha = alpha;
+    }
+    this.shadowLen += 1;
   }
   private shadowQueue: Array<{ x: number; y: number; rx: number; ry: number; alpha: number }> = [];
 
@@ -157,17 +258,57 @@ export class Canvas2dRenderer {
     ctx.setTransform(sx, 0, 0, sy, -left * sx, -top * sy);
     ctx.imageSmoothingEnabled = false;
 
-    // Cached static backdrop first (one blit), under the dynamic sprites.
-    if (this.staticLayer) {
+    // Clip the world-space fills/blits below to the visible rect (intersected
+    // with the world bounds). When zoomed in this draws only the on-screen
+    // portion of the water + static layer instead of the whole 88×80 world.
+    const visL = Math.max(0, left);
+    const visT = Math.max(0, top);
+    const visR = Math.min(this.staticLayerW, left + camera.worldUnitsX);
+    const visB = Math.min(this.staticLayerH, top + camera.worldUnitsY);
+    const visW = Math.max(0, visR - visL);
+    const visH = Math.max(0, visB - visT);
+
+    // Animated water surface: fill the VISIBLE world rect with the tiling
+    // pattern, scrolled by the per-frame offset. Drawn UNDER the static layer
+    // (islands), so it shows through wherever the static layer is transparent
+    // (ocean/bridge tiles the game leaves unbaked). One fillRect for all water.
+    if (this.waterPattern && this.staticLayerW > 0 && visW > 0 && visH > 0) {
       ctx.globalAlpha = 1;
-      ctx.drawImage(this.staticLayer, 0, 0, this.staticLayerW, this.staticLayerH);
+      // setTransform on the pattern shifts the texture origin → scroll. It's in
+      // the pattern's own space, which here equals world space (the canvas
+      // transform is already the camera). Wrap keeps the matrix values small.
+      // DOMMatrix / pattern.setTransform are absent in some jsdom contexts —
+      // guard so headless render (tests) still fills static water without scroll.
+      if (typeof DOMMatrix !== "undefined" && this.waterPattern.setTransform) {
+        this.waterPattern.setTransform(
+          new DOMMatrix([1, 0, 0, 1, this.waterOffsetX, this.waterOffsetY]),
+        );
+      }
+      ctx.fillStyle = this.waterPattern;
+      ctx.fillRect(visL, visT, visW, visH);
     }
+
+    // Cached static backdrop first (one blit), under the dynamic sprites. Only
+    // the visible source rect is blitted (9-arg drawImage) so zooming in doesn't
+    // pay for the off-screen remainder of the baked layer.
+    if (this.staticLayer && visW > 0 && visH > 0) {
+      ctx.globalAlpha = 1;
+      ctx.drawImage(this.staticLayer, visL, visT, visW, visH, visL, visT, visW, visH);
+    }
+
+    // The sprite queue is reused across frames AND sorted below; sort() would
+    // touch stale tail entries, so trim to this frame's live length first (no
+    // realloc — trimming keeps the backing store). The shadow queue is NOT
+    // trimmed: its records are pooled (reused in place) and we iterate it by
+    // shadowLen, so stale tail records are simply skipped.
+    if (this.queue.length !== this.queueLen) this.queue.length = this.queueLen;
 
     // Shadow pass: draw all ground ellipses first, under every sprite.
     // `multiply` blend darkens the ground tile naturally without a harsh edge.
-    if (this.shadowQueue.length > 0) {
+    if (this.shadowLen > 0) {
       ctx.globalCompositeOperation = "multiply";
-      for (const sh of this.shadowQueue) {
+      for (let i = 0; i < this.shadowLen; i += 1) {
+        const sh = this.shadowQueue[i]!;
         ctx.globalAlpha = sh.alpha;
         // EDG.black under a `multiply` blend = soft shadow (darkens the ground).
         ctx.fillStyle = EDG.black;
@@ -184,7 +325,8 @@ export class Canvas2dRenderer {
     // This is the primary depth cue in top-down 2D RPGs — overlap, not scale.
     this.queue.sort(compareSprite);
 
-    for (const s of this.queue) {
+    for (let i = 0; i < this.queueLen; i += 1) {
+      const s = this.queue[i]!;
       ctx.globalAlpha = s.alpha;
       drawSprite(ctx, this.atlas, s);
     }

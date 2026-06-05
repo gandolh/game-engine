@@ -39,7 +39,7 @@ function setup(): {
       wateringCan: { charges: 10, maxCharges: 10 },
     },
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
-    player: { isPlayer: true, facing: "down", pendingMove: null, pendingAction: false, selectedSlot: 0 },
+    player: { isPlayer: true, facing: "down", pendingMoveX: null, pendingMoveY: null, pendingAction: false, selectedSlot: 0, stepCooldown: 0, glideFromX: PIP.x, glideFromY: PIP.y },
   });
   return {
     world,
@@ -61,15 +61,92 @@ function tick(
 }
 
 describe("PlayerControlSystem — movement", () => {
-  it("steps one walkable tile and sets facing", () => {
+  it("steps one walkable tile and sets facing on the first held tick", () => {
     const { world, pip, control, act } = setup();
-    pip.player!.pendingMove = "right";
+    pip.player!.pendingMoveX = "right";
     tick(world, control, act);
     expect(pip.transform!.x).toBe(PIP.x + 1);
     expect(pip.transform!.y).toBe(PIP.y);
     expect(pip.player!.facing).toBe("right");
     expect(pip.farmer!.movedThisTick).toBe(true);
-    expect(pip.player!.pendingMove).toBeNull(); // consumed
+    // The held axis stays set while the key is down (not a one-shot pulse); the
+    // sim paces the next step via stepCooldown.
+    expect(pip.player!.pendingMoveX).toBe("right");
+  });
+
+  it("paces held movement: steps every PLAYER_STEP_TICKS ticks, trailing-gliding between", () => {
+    const { world, pip, control, act } = setup();
+    pip.player!.pendingMoveX = "right"; // held
+    // Tick 1: immediate commit (cooldown 0 → step → reset). transform is already
+    // on the destination tile; renderPos starts on the tile we LEFT (trailing).
+    tick(world, control, act, 0);
+    expect(pip.transform!.x).toBe(PIP.x + 1);
+    expect(pip.farmer!.renderPos!.x).toBe(PIP.x); // trails at the origin tile
+    // In-between ticks ease renderPos UP toward the committed transform tile
+    // (never past it) — transform does not advance.
+    tick(world, control, act, 1);
+    expect(pip.transform!.x).toBe(PIP.x + 1); // not committed yet
+    expect(pip.farmer!.renderPos!.x).toBeGreaterThan(PIP.x); // gliding in
+    expect(pip.farmer!.renderPos!.x).toBeLessThan(PIP.x + 1); // but trailing transform
+    tick(world, control, act, 2);
+    expect(pip.transform!.x).toBe(PIP.x + 1); // still gliding
+    // Tick 4: cooldown elapsed → next commit.
+    tick(world, control, act, 3);
+    expect(pip.transform!.x).toBe(PIP.x + 2);
+  });
+
+  it("moves diagonally when both axes are held", () => {
+    const { world, pip, control, act } = setup();
+    pip.player!.pendingMoveX = "right";
+    pip.player!.pendingMoveY = "down";
+    tick(world, control, act);
+    expect(pip.transform!.x).toBe(PIP.x + 1);
+    expect(pip.transform!.y).toBe(PIP.y + 1);
+    expect(pip.farmer!.movedThisTick).toBe(true);
+    expect(pip.player!.facing).toBe("right"); // horizontal wins for the sprite
+  });
+
+  it("wall-slides: a blocked diagonal falls back to the open axis", () => {
+    const { world, pip, control, act } = setup();
+    // Block the down tile (a tree directly below) but leave the right tile open.
+    const bx = PIP.x, by = PIP.y + 1;
+    world.spawn({
+      transform: { x: bx, y: by, prevX: bx, prevY: by, rotation: 0 },
+      tileFeature: { kind: "tree", tileX: bx, tileY: by, regionId: "farm-pip", ownerId: pip.id! },
+    });
+    pip.player!.pendingMoveX = "right";
+    pip.player!.pendingMoveY = "down"; // SE diagonal blocked on the S orthogonal
+    tick(world, control, act);
+    // Corner-cut forbidden, so it slides horizontally instead of going diagonal.
+    expect(pip.transform!.x).toBe(PIP.x + 1);
+    expect(pip.transform!.y).toBe(PIP.y);
+  });
+
+  it("clears renderPos and resets cadence on key release", () => {
+    const { world, pip, control, act } = setup();
+    pip.player!.pendingMoveX = "right";
+    tick(world, control, act, 0);
+    pip.player!.pendingMoveX = null; // release
+    tick(world, control, act, 1);
+    expect(pip.farmer!.renderPos).toBeUndefined();
+    expect(pip.player!.stepCooldown).toBe(0); // next press steps immediately
+  });
+
+  it("press-stop-press the opposite way does not yank the visual backward", () => {
+    // Regression for the press-A-then-D shake: the trailing glide must never
+    // leave renderPos ahead of transform, so a release/flip never snaps back.
+    const { world, pip, control, act } = setup();
+    pip.player!.pendingMoveX = "left";
+    tick(world, control, act, 0); // commit left; renderPos at the origin (trailing)
+    const afterLeftX = pip.transform!.x;
+    // renderPos must be at or behind (>=) the committed tile, never ahead (<).
+    expect(pip.farmer!.renderPos!.x).toBeGreaterThanOrEqual(afterLeftX);
+    pip.player!.pendingMoveX = null; // release
+    tick(world, control, act, 1);
+    expect(pip.farmer!.renderPos).toBeUndefined(); // snaps cleanly to transform
+    pip.player!.pendingMoveX = "right"; // now press the opposite way
+    tick(world, control, act, 2);
+    expect(pip.transform!.x).toBe(afterLeftX + 1); // clean step back right
   });
 
   it("does not step onto a tree/stone but still turns to face it", () => {
@@ -79,7 +156,7 @@ describe("PlayerControlSystem — movement", () => {
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       tileFeature: { kind: "tree", tileX: tx, tileY: ty, regionId: "farm-pip", ownerId: pip.id! },
     });
-    pip.player!.pendingMove = "right";
+    pip.player!.pendingMoveX = "right";
     tick(world, control, act);
     expect(pip.transform!.x).toBe(PIP.x); // blocked by the tree
     expect(pip.transform!.y).toBe(PIP.y);
@@ -92,7 +169,7 @@ describe("PlayerControlSystem — movement", () => {
     // Push Pip to the farm's NW corner, then try to walk up off the island.
     pip.transform!.x = 28;
     pip.transform!.y = 14;
-    pip.player!.pendingMove = "up"; // (28,13) is ocean/void — not walkable
+    pip.player!.pendingMoveY = "up"; // (28,13) is ocean/void — not walkable
     tick(world, control, act);
     expect(pip.transform!.x).toBe(28);
     expect(pip.transform!.y).toBe(14);

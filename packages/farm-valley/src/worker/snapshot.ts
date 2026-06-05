@@ -11,7 +11,7 @@
 // sprites, observer rows, leaderboard rows, the shop slate, MEET indicators,
 // focus positions, and the entity count.
 
-import type { Canvas2dSprite } from "@engine/core";
+import type { Canvas2dSprite, ProfileReport } from "@engine/core";
 import type { ObserverSnapshot } from "../ui/observer";
 import type { LeaderboardRow } from "../ui/leaderboard";
 import type { ShopOffer } from "../agents/shop-slate";
@@ -187,10 +187,23 @@ export interface WorkerStepMsg {
  */
 export interface WorkerInputMsg {
   type: "input";
-  move: "up" | "down" | "left" | "right" | null;
+  /** Held horizontal/vertical move axes (both set = diagonal), or null. */
+  moveX: "left" | "right" | null;
+  moveY: "up" | "down" | null;
   action: boolean;
   /** Hotbar slot to select this message (0-based), or null for no change. */
   selectSlot: number | null;
+}
+
+/**
+ * main → worker: turn the worker-side profiler on/off. When on, the worker
+ * times scheduler.tick + snapshot build + snapshot byte size and posts a
+ * WorkerProfileMsg every `PROFILE_REPORT_EVERY` ticks. Diagnostic only —
+ * measures host timing, never sim state, so determinism is unaffected.
+ */
+export interface WorkerProfileToggleMsg {
+  type: "profile";
+  enabled: boolean;
 }
 
 export type WorkerInbound =
@@ -199,7 +212,8 @@ export type WorkerInbound =
   | WorkerPauseMsg
   | WorkerSpeedMsg
   | WorkerStepMsg
-  | WorkerInputMsg;
+  | WorkerInputMsg
+  | WorkerProfileToggleMsg;
 
 /** worker → main: the static backdrop sprites to bake once (sent at startup). */
 export interface WorkerStaticLayerMsg {
@@ -216,4 +230,18 @@ export interface WorkerSnapshotMsg {
   snapshot: RenderSnapshot;
 }
 
-export type WorkerOutbound = WorkerStaticLayerMsg | WorkerSnapshotMsg;
+/**
+ * worker → main: periodic profiling report (only while profiling is enabled).
+ * `tick` is the tick the report was emitted on; `report` holds rolling stats for
+ * the worker-side metrics ("tick", "snapshot.build", "snapshot.bytes").
+ */
+export interface WorkerProfileMsg {
+  type: "profile";
+  tick: number;
+  report: ProfileReport;
+}
+
+export type WorkerOutbound =
+  | WorkerStaticLayerMsg
+  | WorkerSnapshotMsg
+  | WorkerProfileMsg;

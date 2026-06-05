@@ -37,6 +37,15 @@ export interface Farmer {
     ticksUntilStep: number;  // countdown to next tile step
   } | undefined;
   /**
+   * RENDER-ONLY sub-tile position, in TILE units. TravelSystem advances this a
+   * fraction of a tile each tick while walking a path so the per-tick snapshot
+   * shows continuous motion, instead of the transform jumping a full tile once
+   * per STEP_TICKS. NEVER read by sim logic (only the snapshot builder reads it);
+   * the authoritative position remains the integer `transform`. Cleared on
+   * arrival so a stopped farmer renders at its true tile.
+   */
+  renderPos?: { x: number; y: number } | undefined;
+  /**
    * Set true on the tick the farmer stepped to a new tile under direct (non-
    * path) control — i.e. the player's Pip walking via WASD. The render walk-
    * cycle keys off `path` for AI farmers and off this flag for the player, so
@@ -53,14 +62,22 @@ export interface Farmer {
  * an AI personality, and DeliberateSystem skips it.
  *
  * `facing` is the direction Pip last faced; the context-action key acts on the
- * adjacent tile in that direction. `pendingMove`/`pendingAction` are the buffered
- * input from the most recent main→worker input message, consumed each tick.
+ * adjacent tile in that direction. `pendingMoveX`/`pendingMoveY`/`pendingAction`
+ * are the buffered input from the most recent main→worker input message.
  */
 export interface Player {
   readonly isPlayer: true;
   facing: "up" | "down" | "left" | "right";
-  /** Queued one-tile move for the next control tick, or null. */
-  pendingMove: "up" | "down" | "left" | "right" | null;
+  /**
+   * The currently HELD move axes (the main thread resends them whenever the held
+   * keys change, and sends null on release). Two independent axes so two keys
+   * held at once (e.g. W+A) move Pip DIAGONALLY. The sim owns the step cadence:
+   * PlayerControlSystem advances Pip one tile every PLAYER_STEP_TICKS ticks while
+   * either axis is set, gliding renderPos in between, so Pip (and a camera
+   * following Pip) moves continuously instead of jumping a full tile per step.
+   */
+  pendingMoveX: "left" | "right" | null;
+  pendingMoveY: "up" | "down" | null;
   /** True if the context-action key is queued for the next control tick. */
   pendingAction: boolean;
   /**
@@ -69,6 +86,21 @@ export interface Player {
    * instead of auto-picking by context. Set by number-key input (1→0, 2→1, …).
    */
   selectedSlot: number;
+  /**
+   * Sim-owned step cadence counter (ticks until the next one-tile commit while a
+   * direction is held). Render-pacing bookkeeping, deterministic — depends only
+   * on tick count and held input. Starts at 0 so the first held tick steps
+   * immediately (no input latency).
+   */
+  stepCooldown: number;
+  /**
+   * The tile Pip left on the most recent step commit, in TILE units. The
+   * in-between ticks ease renderPos from here up into the committed transform
+   * tile (a TRAILING glide — the visual never leads the authoritative position).
+   * Render-pacing only.
+   */
+  glideFromX: number;
+  glideFromY: number;
 }
 
 export type CropKind = "radish" | "wheat" | "pumpkin";

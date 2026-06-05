@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-05] impl | Smoother travel: diagonal path-smoothing (sim) + eased interpolation (render)
+
+Travel looked choppy because (a) both pathfinders are 4-connected so routes staircased, and (b) the render lerp was linear and could freeze at alpha=1 on a late snapshot. Fixed both, high-value/low-risk pair (no WASM change, no 8-connected pathfinding).
+
+- **`smoothPath()` ([travel.ts](../packages/farm-valley/src/systems/travel.ts)).** Post-processes the 4-connected route into a diagonal-cutting one: a greedy string-pull (keep an anchor, extend to the farthest later node still in line of sight) collapses straight runs to corner anchors, then each anchor→anchor segment is re-rasterized (Bresenham, 8-connected) back into a **dense one-tile-per-step** sequence. Staying one-tile-per-step preserves `STEP_TICKS` pacing exactly. Line-of-sight is supercover-style and forbids corner-clipping past two blocked orthogonals, so a smoothed diagonal never crosses a blocked tile. Called once at path setup; pure integer transform, no rng → **determinism intact** (`CHECK_DETERMINISM=1` MATCH).
+- **Render: smoothstep easing + interpolate-in-the-past ([sim-client.ts](../packages/farm-valley/src/worker/sim-client.ts)).** `getInterpolatedSprites` now eases the lerp `alpha` with smoothstep (3t²−2t³) so farmers ease out of / into each tile instead of constant-velocity snapping, and shifts the interpolation head back by one tick (`renderDelayMs = msPerTick`) so a slightly-late snapshot is absorbed by the margin instead of showing as a freeze-then-jump. Render-only, ~50 ms display latency (imperceptible for watch-only).
+- **Note:** `resolveFacing` ([snapshot-builder.ts](../packages/farm-valley/src/worker/snapshot-builder.ts)) already handles diagonal deltas (vertical dominates ties), so the new diagonal steps need no facing changes.
+- **Tests/verify:** 5 new `smoothPath` unit tests (diagonal-cut, adjacency, no blocked-tile step, determinism); typecheck clean; **478** tests pass (424 farm-valley + 54 engine); `CHECK_DETERMINISM=1 SEED=12345 MAX_DAYS=20` MATCH. The `[travel] no path` warnings in headless runs are pre-existing (predate this change).
+
 ## [2026-06-04] impl | Fishing isles (×2) + bubbles, stone carpentry floor, more decorations
 
 Player-facing batch (no brief): added fishing as a destination activity, restyled the carpentry floor, and enriched world dressing. (Superseded an earlier same-day draft that put two fixed fishing spots at the village edge — reworked into a dedicated island per user feedback.)
@@ -258,3 +267,68 @@ Brief 06 (depends on 05) layers in market presence enforcement, peer encounter t
 ## [2026-05-26] status | Brief sweep + post-corpus work documented
 
 Audited all 8 task briefs against the codebase. 7 of 8 are **done**; `01-tilemap` is **superseded** (WebGPU dropped for Canvas2D in commit `5ac7f8d`). Recorded post-corpus work that never had a brief: Canvas2D renderer, in-house ECS replacing miniplex (`020406d`), WASM pathfinding infrastructure, home screen, headless `run-sim`, `world-preview`. See [wiki/status.md](wiki/status.md).
+
+## [2026-06-05] wiki | performance.md — optimization opportunities
+
+New page [wiki/performance.md](wiki/performance.md), born from an "what optimizations can we do" question. Mapped the engine's per-tick/per-frame hot spots and filtered generic best-practice advice against actual code. Key findings:
+
+- **Already done** (don't redo): pooled query iteration, baked static layer + water pattern, message-bus buffer-swap, foam-bubble viewport culling.
+- **Tier 1**: the snapshot boundary ships ~150–200 allocs/tick via structured clone — candidate for transfer / `SharedArrayBuffer` packing of numeric sprite data; and `getInterpolatedSprites()` allocates a Map + array + per-sprite spread every *frame* (poolable).
+- **Tier 2 (culling/clipping)**: the static layer is blitted full-frame with **no clipping**, and dynamic sprites/shadows are **not** viewport-culled (only foam is) — so the classic 2D culling/clip-rect/sort-on-dirty wins are genuinely unrealized here.
+- **Explicitly NOT worth it at ~4-farmer scale**: archetype/SoA ECS rewrite (5–10× cache wins need thousands+ entities), extra path caching (pathfinder isn't a per-tick cost).
+
+No code changed — analysis only. Suggested order: profile → mechanical allocation + culling fixes → snapshot interim → SAB boundary. Indexed in [index.md](index.md).
+
+## [2026-06-05] brief | 09-perf-optimization (todo)
+
+Turned [wiki/performance.md](wiki/performance.md) into an ordered, shippable brief: [briefs/engine/todo/09-perf-optimization.md](briefs/engine/todo/09-perf-optimization.md). First entry in the previously-empty engine-todo list. Priority tiers:
+
+- **P0** — instrument worker tick + render frame (baseline; gates whether P2.7 is worth it).
+- **P1** — pool per-frame interpolation, viewport-cull sprites/shadows, clip static-layer blit, kill loose per-tick allocs, sort-on-dirty. All mechanical, `EXPORT=json`-verifiable.
+- **P2** — snapshot interim (no double-alloc events, day-boundary observer/leaderboard rebuild), then packed numeric snapshot over transfer/`SharedArrayBuffer` (COOP/COEP caveat noted).
+- **P3** — deferred: archetype/SoA ECS rewrite, extra path caching (both near-zero payoff at ~4-farmer scale).
+
+## [2026-06-05] code | Brief 09 P0 — perf profiling instrumentation
+
+Shipped P0 of [briefs/engine/todo/09-perf-optimization.md](briefs/engine/todo/09-perf-optimization.md). New dependency-free `Profiler` in `@engine/core` ([packages/engine/src/debug/profiler.ts](../packages/engine/src/debug/profiler.ts)) — per-metric rolling ring → count/mean/min/max/p50/p95, no-op when disabled. Wired worker (`tick`, `snapshot.build`, `snapshot.bytes`) + main (`interp`, `frame`); surfaced in DebugOverlay; opt-in via `?profile` URL param (off by default = zero overhead). New protocol msgs (WorkerProfileToggleMsg / WorkerProfileMsg).
+
+Verification: typecheck clean, 473 tests pass (+7 new in [profiler.test.ts](../packages/engine/src/debug/profiler.test.ts)), `check-determinism` MATCH, production build OK. No sim-state changes (host-timing only) so determinism is unaffected. This is the baseline for the rest of brief 09; P1/P2 remain. See [wiki/performance.md](wiki/performance.md) "Measuring".
+
+## [2026-06-05] code | Brief 09 P1 — allocation pooling + culling/clipping
+
+Shipped P1 of [briefs/engine/todo/09-perf-optimization.md](briefs/engine/todo/09-perf-optimization.md) — mechanical, behavior-preserving render/alloc work:
+
+- **Interpolation pooling** ([sim-client.ts](../packages/farm-valley/src/worker/sim-client.ts)): `getInterpolatedSprites()` reuses a pooled array + records (`copySprite`); prev-id index rebuilt once per snapshot, not per frame. Removes the per-frame Map + `.map()` + spread. Return is now pooled (documented contract: consume within the frame).
+- **Viewport culling** ([canvas2d.ts](../packages/engine/src/render/canvas2d.ts)): `beginFrame` computes the visible world rect; `push`/`pushShadow` cull off-screen centers — covers all push sites at once. Queues reused (length-reset, not realloc); shadow records pooled.
+
+## [2026-06-05] code | Brief 09 P2 — snapshot interim win (events); #7 deferred
+
+Shipped the safe half of P2 and **corrected the brief** on the rest:
+
+- **#6 events double-alloc fixed** ([snapshot-builder.ts](../packages/farm-valley/src/worker/snapshot-builder.ts)): `buildEvents` no longer does `.slice().map()` (two allocations/tick); it fills a pooled `eventsScratch` buffer in place. Aliasing contract documented — safe in prod because postMessage structured-clones the snapshot before the next build; same-thread callers (tests, run-sim) only compare observer/leaderboard, never events.
+- **#6 day-boundary caching DROPPED as incorrect.** The brief said "rebuild observer/leaderboard only on day boundaries — that state barely changes tick-to-tick." Verified false against [act.ts](../packages/farm-valley/src/systems/act.ts): gold (sell/buy/fish/mill) and observer fsm/AP/intention change on arbitrary intra-day ticks; per-day caching would freeze the live panels. Source-of-truth = code (per [CLAUDE.md](CLAUDE.md)).
+- **#7 (packed transfer / SharedArrayBuffer) DEFERRED** — user decision, gated on profiling. Build only if `?profile` shows `snapshot.bytes`/copy time is material (expected negligible at ~25 sprites/tick). Prefer transferable buffers over SAB to avoid COOP/COEP. Trigger + plan recorded in the brief.
+
+Verification: typecheck clean, **473 tests** pass (snapshot-builder suite incl.), check-determinism MATCH. Behavior-preserving (event contents unchanged, only allocation). Brief 09 now: P0 ✅ P1 ✅ P2 #6 ✅ / #7 deferred; P3 deferred by design. See [wiki/performance.md](wiki/performance.md).
+- **Static-layer + water clipping**: `endFrame` blits/fills only the visible source rect (9-arg `drawImage`).
+- **Loose system allocs**: crop-growth `plotScratch` (day-boundary, reused) + event-feed `this.fresh` (per-tick, reused).
+- **Item 5 (sort-on-dirty)**: partially deferred — queue trimmed before sort, but full dirty-tracking skipped (live set is tiny after culling). Noted in the brief, not silently dropped.
+
+Verification: typecheck clean; **473 tests** pass (incl. render-systems suite exercising push/endFrame); `check-determinism` MATCH; **multi-seed `EXPORT=json` before/after byte-identical** (seeds 1/42/1337, 100 days each — proves the event-feed/crop-growth sim-path changes are behavior-preserving, per CLAUDE.md); production build OK. Next: P2 (snapshot boundary). See [wiki/performance.md](wiki/performance.md).
+
+## [2026-06-05] measure | Brief 09 — `?profile` numbers captured; P3 + #7 settled
+
+Ran the P0 profiler in a real browser (Playwright-driven dev server, seed 0xc0ffee, ~250–300 entities, sampled across day boundaries). Numbers in [wiki/performance.md](wiki/performance.md) "Measured results":
+
+- sim `tick` **0.33–0.37ms** (mean) / 0.50–0.70ms (p95) — **~0.7% of the 50ms 20Hz budget**.
+- `snapshot.build` 0.08ms; `snapshot.bytes` **~36KB/tick** (~720KB/s structured clone).
+- render `frame` **1.36–1.69ms** / 2.0–2.3ms p95 — **~10% of the 16.6ms 60fps budget**.
+- `interp` 0.03ms (T1.2 pooling made it negligible). fps ~60 = browser vsync.
+
+**Clarified the "60fps" question:** there is no self-imposed fps cap — render is rAF/vsync (60fps) and the sim is a separate 20Hz worker loop; the renderer interpolates between snapshots. Nothing to "uncap."
+
+**Decisions settled by the data:**
+- **P2 #7 (packed/SAB snapshot): not worth building.** 0.08ms build + 36KB clone is invisible in budget. Re-trigger only on a ~10× entity increase. Brief #7 + perf wiki updated.
+- **P3 (archetype/SoA ECS rewrite, path caching): confirmed deferred.** Tick is 0.33ms over ~300 entities — no cache-locality cost to recover. Brief P3 section updated with the measured justification.
+
+No code changed — measurement + corpus only. Brief 09 is now effectively complete: P0 ✅ P1 ✅ P2 ✅(#6 / #7 declined-on-data) P3 declined-on-data.

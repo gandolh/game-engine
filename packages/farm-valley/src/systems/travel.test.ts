@@ -11,7 +11,7 @@ import {
   type PathfinderGrid,
 } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
-import { TravelSystem, STEP_TICKS } from "./travel";
+import { TravelSystem, STEP_TICKS, smoothPath } from "./travel";
 import { buildWalkableGrid } from "../world/walkable-grid";
 import { getRegion, WORLD_WIDTH, WORLD_HEIGHT, type RegionId } from "../world/regions";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
@@ -50,6 +50,84 @@ function captureArrived(bus: MessageBus): TravelArrivedBody[] {
   });
   return out;
 }
+
+describe("smoothPath", () => {
+  // All-walkable 10x10 field unless a tile is listed as blocked.
+  const field = (blocked: ReadonlyArray<[number, number]>) => {
+    const set = new Set(blocked.map(([x, y]) => `${x},${y}`));
+    return (x: number, y: number) =>
+      x >= 0 && y >= 0 && x < 10 && y < 10 && !set.has(`${x},${y}`);
+  };
+
+  it("returns a copy unchanged for paths of length <= 2", () => {
+    const p = [{ x: 1, y: 1 }, { x: 2, y: 1 }];
+    const out = smoothPath(p, field([]));
+    expect(out).toEqual(p);
+    expect(out).not.toBe(p); // fresh array, not the input
+  });
+
+  it("cuts an L-shaped staircase into a diagonal on open ground", () => {
+    // 4-connected staircase from (0,0) to (3,3): E,S,E,S,E,S...
+    const stair = [
+      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 },
+      { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3 },
+    ];
+    const out = smoothPath(stair, field([]));
+    // On open ground the smoothed route is the straight diagonal — every step
+    // advances both axes by one.
+    expect(out[0]).toEqual({ x: 0, y: 0 });
+    expect(out[out.length - 1]).toEqual({ x: 3, y: 3 });
+    for (let i = 1; i < out.length; i += 1) {
+      const dx = Math.abs(out[i]!.x - out[i - 1]!.x);
+      const dy = Math.abs(out[i]!.y - out[i - 1]!.y);
+      expect(dx).toBe(1);
+      expect(dy).toBe(1);
+    }
+  });
+
+  it("keeps every smoothed step adjacent (one tile, 4- or 8-connected)", () => {
+    const stair = [
+      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 },
+      { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3 },
+    ];
+    const out = smoothPath(stair, field([]));
+    for (let i = 1; i < out.length; i += 1) {
+      const dx = Math.abs(out[i]!.x - out[i - 1]!.x);
+      const dy = Math.abs(out[i]!.y - out[i - 1]!.y);
+      expect(Math.max(dx, dy)).toBe(1); // adjacent
+    }
+  });
+
+  it("never produces a step onto a blocked tile", () => {
+    // Wall down the middle column x=2 (rows 0..8 blocked), forcing a detour.
+    const blocked: [number, number][] = [];
+    for (let y = 0; y <= 8; y += 1) blocked.push([2, y]);
+    const isWalkable = field(blocked);
+    // A hand-built 4-connected path around the wall (down to y=9, across, up).
+    const around = [
+      { x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }, { x: 0, y: 3 },
+      { x: 0, y: 4 }, { x: 0, y: 5 }, { x: 0, y: 6 }, { x: 0, y: 7 },
+      { x: 0, y: 8 }, { x: 0, y: 9 }, { x: 1, y: 9 }, { x: 2, y: 9 },
+      { x: 3, y: 9 }, { x: 3, y: 8 }, { x: 3, y: 7 },
+    ];
+    const out = smoothPath(around, isWalkable);
+    for (const step of out) {
+      expect(isWalkable(step.x, step.y)).toBe(true);
+    }
+    expect(out[0]).toEqual({ x: 0, y: 0 });
+    expect(out[out.length - 1]).toEqual({ x: 3, y: 7 });
+  });
+
+  it("is deterministic — identical input yields byte-identical output", () => {
+    const stair = [
+      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 },
+      { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3 },
+    ];
+    const a = smoothPath(stair, field([]));
+    const b = smoothPath(stair, field([]));
+    expect(a).toEqual(b);
+  });
+});
 
 describe("TravelSystem", () => {
   let pathfinder: Pathfinder;

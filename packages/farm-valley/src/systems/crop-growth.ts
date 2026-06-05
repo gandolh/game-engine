@@ -1,4 +1,4 @@
-import type { SimContext, System, World, MessageBus } from "@engine/core";
+import type { SimContext, System, World, MessageBus, With } from "@engine/core";
 import type { GameEntity } from "../components";
 import { PLOT_DECAY_DAYS } from "../components";
 import { ONT_SIMULATION, PERFORMATIVE, type CropDeathBody } from "../protocols";
@@ -14,6 +14,10 @@ export const DRY_DEATH_GRACE_DAYS = 2;
 export class CropGrowthSystem implements System {
   readonly name = "CropGrowthSystem";
   private lastDayProcessed = -1;
+  /** Reused scratch list of plot entities (sorted in place each day boundary)
+   *  so the day-tick doesn't allocate a fresh array via spread. Typed as the
+   *  query result (plot guaranteed present) to match world.query("plot"). */
+  private readonly plotScratch: With<GameEntity, "plot">[] = [];
 
   constructor(
     private readonly world: World<GameEntity>,
@@ -51,8 +55,12 @@ export class CropGrowthSystem implements System {
       break;
     }
 
-    // Iterate plots in entity id order for determinism
-    const plots = [...this.world.query("plot")];
+    // Iterate plots in entity id order for determinism. Reuse a scratch array
+    // (refilled each day boundary) instead of spreading the query into a fresh
+    // one. Sort is in place; same deterministic order as before.
+    const plots = this.plotScratch;
+    plots.length = 0;
+    for (const p of this.world.query("plot")) plots.push(p);
     plots.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
 
     for (const plotEntity of plots) {

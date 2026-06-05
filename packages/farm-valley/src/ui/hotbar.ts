@@ -10,7 +10,7 @@ import type { PlayerHotbar } from "../worker/snapshot";
  *
  * Number keys 1-7 select a slot (handled in main.ts → sent to the worker). The
  * selected slot is highlighted; slots the player can't currently use (a seed
- * with zero in stock, an empty watering can) are dimmed. The action key (Space)
+ * with zero in stock, an empty watering can) are dimmed. The action key (E)
  * performs the selected slot's tool/seed on the tile Pip faces.
  */
 

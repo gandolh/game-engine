@@ -225,10 +225,17 @@ function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] 
   // Entity sprites (farmers, shopkeeper, market-wall, etc.).
   for (const entity of world.query("sprite", "transform")) {
     const t = entity.transform;
-    // Emit RAW current-tick pixel position (no interpolation here).
-    // The main thread lerps farmer sprites between prev and current snapshot.
-    const px = t.x * TILE + TILE / 2;
-    const py = t.y * TILE + TILE / 2;
+    // Farmers walking a path carry a RENDER-ONLY sub-tile glide position
+    // (farmer.renderPos) that advances a fraction of a tile each tick, so the
+    // per-tick snapshot shows continuous motion instead of a once-per-STEP_TICKS
+    // full-tile jump. Prefer it when present; otherwise use the authoritative
+    // integer transform. The main thread still lerps between consecutive
+    // snapshots on top of this.
+    const rp = entity.farmer?.renderPos;
+    const posX = rp ? rp.x : t.x;
+    const posY = rp ? rp.y : t.y;
+    const px = posX * TILE + TILE / 2;
+    const py = posY * TILE + TILE / 2;
     const s = entity.sprite;
     const tint = s.tintRgba >>> 0;
     const isFarmer = entity.farmer !== undefined;
@@ -357,12 +364,32 @@ function buildMeets(meetIndicators: MeetIndicatorSystem, tick: number): Snapshot
 /** How many feed lines to ship in the snapshot (panel shows ~30). */
 const EVENT_SNAPSHOT_CAP = 30;
 
+// Reused output buffer for buildEvents — the events feed is rebuilt every tick,
+// so we avoid the previous slice()+map() double allocation by mutating a pooled
+// array in place (records reused; trimmed to the live count).
+//
+// ⚠️ ALIASING: the returned array is reused across calls. In production this is
+// safe because the snapshot is structured-cloned by postMessage before the next
+// build, so the main thread holds an independent copy. Callers that invoke
+// buildRenderSnapshot twice ON THE SAME THREAD (tests, headless run-sim) must
+// not retain and compare `snapshot.events` across the two calls — copy first.
+// (Current same-thread callers only compare observer/leaderboard, never events.)
+const eventsScratch: SnapshotEvent[] = [];
+
 function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {
   // recent() is oldest-first; ship only the newest EVENT_SNAPSHOT_CAP lines.
-  return eventFeed
-    .recent()
-    .slice(-EVENT_SNAPSHOT_CAP)
-    .map((e) => ({ day: e.day, text: e.text }));
+  const all = eventFeed.recent();
+  const start = Math.max(0, all.length - EVENT_SNAPSHOT_CAP);
+  const n = all.length - start;
+  const out = eventsScratch;
+  for (let i = 0; i < n; i += 1) {
+    const e = all[start + i]!;
+    const rec = out[i];
+    if (rec === undefined) out[i] = { day: e.day, text: e.text };
+    else { rec.day = e.day; rec.text = e.text; }
+  }
+  if (out.length !== n) out.length = n;
+  return out;
 }
 
 // ---------------------------------------------------------------------------
