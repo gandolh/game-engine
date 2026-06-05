@@ -1,0 +1,34 @@
+{
+  "sheets": [
+    {
+      "id": "characters",
+      "imageUrl": "/atlas/characters.png",
+      "manifestUrl": "/atlas/characters.json"
+    },
+    {
+      "id": "buildings",
+      "imageUrl": "/atlas/buildings.png",
+      "manifestUrl": "/atlas/buildings.json"
+    },
+    {
+      "id": "terrain",
+      "imageUrl": "/atlas/terrain.png",
+      "manifestUrl": "/atlas/terrain.json"
+    },
+    {
+      "id": "crops",
+      "imageUrl": "/atlas/crops.png",
+      "manifestUrl": "/atlas/crops.json"
+    },
+    {
+      "id": "props",
+      "imageUrl": "/atlas/props.png",
+      "manifestUrl": "/atlas/props.json"
+    },
+    {
+      "id": "items-ui",
+      "imageUrl": "/atlas/items-ui.png",
+      "manifestUrl": "/atlas/items-ui.json"
+    }
+  ]
+}

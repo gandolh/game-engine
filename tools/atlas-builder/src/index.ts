@@ -1,8 +1,14 @@
-import { writeFileSync, mkdirSync } from "node:fs";
+// Design decisions (brief 47):
+//   - Grouping: explicit PREFIX_TO_SHEET map in recipes.ts; unknown prefix → loud error.
+//   - One PNG+JSON per sheet, named <sheet>.png / <sheet>.json.
+//   - An atlas/index.json lists all sheet ids + their imageUrl/json paths so the
+//     runtime loader needs no hardcoded sheet list (adding a sheet = just rebuild).
+//   - The old main.png/main.json are superseded and deleted; do NOT commit them.
+import { writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
-import { RECIPES, colorOf, recipeWidth, recipeHeight, type PixelRecipe } from "./recipes";
+import { RECIPES, colorOf, recipeWidth, recipeHeight, frameToSheetId, type PixelRecipe } from "./recipes";
 
 interface PackedFrame {
   x: number;
@@ -85,20 +91,83 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(__dirname, "../../../packages/farm-valley/public/atlas");
 mkdirSync(outDir, { recursive: true });
 
-const packed = packShelf(RECIPES);
-const png = rasterize(packed, RECIPES);
-const pngBuffer = PNG.sync.write(png);
-writeFileSync(resolve(outDir, "main.png"), pngBuffer);
+// ── Group recipes by sheet ────────────────────────────────────────────────────
+// This validates every recipe has a known prefix and assigns it to its sheet.
+const sheetRecipes = new Map<string, PixelRecipe[]>();
+for (const recipe of RECIPES) {
+  const sheetId = frameToSheetId(recipe.name);
+  let group = sheetRecipes.get(sheetId);
+  if (group === undefined) {
+    group = [];
+    sheetRecipes.set(sheetId, group);
+  }
+  group.push(recipe);
+}
 
-const manifest = {
-  id: "main",
-  imageUrl: "/atlas/main.png",
-  width: packed.width,
-  height: packed.height,
-  frames: packed.frames,
-};
-writeFileSync(resolve(outDir, "main.json"), JSON.stringify(manifest, null, 2));
+// ── Pack + rasterize + write one PNG+JSON per sheet ───────────────────────────
+const sheetOrder = ["characters", "buildings", "terrain", "crops", "props", "items-ui"] as const;
+
+// Verify all sheets in the map appear in our expected order list (no unexpected sheets).
+for (const sheetId of sheetRecipes.keys()) {
+  if (!(sheetOrder as readonly string[]).includes(sheetId)) {
+    throw new Error(`atlas-builder: unexpected sheet "${sheetId}" — add it to sheetOrder`);
+  }
+}
+
+interface SheetIndexEntry {
+  id: string;
+  imageUrl: string;
+  manifestUrl: string;
+}
+const indexEntries: SheetIndexEntry[] = [];
+
+for (const sheetId of sheetOrder) {
+  const recipes = sheetRecipes.get(sheetId);
+  if (!recipes || recipes.length === 0) {
+    console.warn(`atlas-builder: sheet "${sheetId}" has no recipes — skipping`);
+    continue;
+  }
+
+  const packed = packShelf(recipes);
+  const png = rasterize(packed, recipes);
+  const pngBuffer = PNG.sync.write(png);
+  writeFileSync(resolve(outDir, `${sheetId}.png`), pngBuffer);
+
+  const manifest = {
+    id: sheetId,
+    imageUrl: `/atlas/${sheetId}.png`,
+    width: packed.width,
+    height: packed.height,
+    frames: packed.frames,
+  };
+  writeFileSync(resolve(outDir, `${sheetId}.json`), JSON.stringify(manifest, null, 2));
+
+  indexEntries.push({
+    id: sheetId,
+    imageUrl: `/atlas/${sheetId}.png`,
+    manifestUrl: `/atlas/${sheetId}.json`,
+  });
+
+  console.log(
+    `atlas-builder: [${sheetId}] ${recipes.length} frames → ${packed.width}x${packed.height}`,
+  );
+}
+
+// ── Emit the index file ───────────────────────────────────────────────────────
+// The runtime loads /atlas/index.json to discover sheets without a hardcoded list.
+const atlasIndex = { sheets: indexEntries };
+writeFileSync(resolve(outDir, "index.json"), JSON.stringify(atlasIndex, null, 2));
+console.log(`atlas-builder: wrote index.json (${indexEntries.length} sheets)`);
+
+// ── Remove superseded main.png / main.json ────────────────────────────────────
+for (const legacy of ["main.png", "main.json"]) {
+  const legacyPath = resolve(outDir, legacy);
+  if (existsSync(legacyPath)) {
+    rmSync(legacyPath);
+    console.log(`atlas-builder: removed superseded ${legacy}`);
+  }
+}
 
 console.log(
-  `atlas-builder: wrote ${RECIPES.length} frames into ${packed.width}x${packed.height} atlas at ${outDir}`,
+  `atlas-builder: total ${RECIPES.length} recipes across ${indexEntries.length} sheets written to ${outDir}`,
 );

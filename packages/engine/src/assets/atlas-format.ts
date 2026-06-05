@@ -12,3 +12,16 @@ export interface AtlasManifest {
   height: number;
   frames: Record<string, AtlasFrame>;
 }
+
+/** One entry in atlas/index.json — describes a single sheet by id + URLs. */
+export interface AtlasIndexEntry {
+  id: string;
+  imageUrl: string;
+  manifestUrl: string;
+}
+
+/** The atlas/index.json file emitted by the builder. Consumed by the loader to
+ *  discover all sheets without a hardcoded sheet list in the runtime. */
+export interface AtlasIndex {
+  sheets: AtlasIndexEntry[];
+}

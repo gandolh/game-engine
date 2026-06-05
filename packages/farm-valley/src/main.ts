@@ -1,5 +1,5 @@
 import {
-  loadAtlasImage,
+  loadAllAtlasSheets,
   Camera2D,
   Canvas2dRenderer,
   DebugOverlay,
@@ -8,7 +8,6 @@ import {
   ParticleSystem,
   EDG,
 } from "@engine/core";
-import type { AtlasManifest } from "@engine/core";
 import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX } from "./render-systems";
 import { makeGroundNoiseDecorator } from "./render/ground-noise";
 import { washFor } from "./render/day-night";
@@ -199,12 +198,14 @@ function applyFocusAndPan(
 }
 
 async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
-  const manifest = await fetchAtlasManifest();
-  const atlasImage = await loadAtlasImage(manifest);
+  // Load all atlas sheets from the builder-emitted index; no hardcoded sheet list.
+  const atlasMap = await loadAllAtlasSheets("/atlas/index.json");
   const camera = new Camera2D(CAMERA_CONFIG);
   _camera = camera;
   const renderer = new Canvas2dRenderer(canvas, camera);
-  renderer.setAtlas(atlasImage);
+  for (const atlas of atlasMap.values()) {
+    renderer.addAtlas(atlas);
+  }
   // Ocean backdrop beyond the world edge — the map is islands in an ocean, so
   // the area outside the 40×40 grid is deep water, not black.
   renderer.clearColor = EDG.blue;
@@ -405,7 +406,7 @@ function bakeStaticLayer(
     // layer. Baked here once the atlas + world size are known. pixelScale 3 →
     // chunky 3×-bigger wave pixels that survive the downscale when zoomed out
     // (at zoom 0.5 a 1px ripple aliases into noise; a 3px one still reads).
-    renderer.bakeWaterPattern("tile/ocean", TILE, 3);
+    renderer.bakeWaterPattern("tile/ocean", "terrain", TILE, 3);
   });
 }
 
@@ -602,6 +603,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
         width: TILE,
         height: TILE,
         frame,
+        atlasId: "terrain",
         rotation: 0,
         layer: 1,
         alpha: 0.6,
@@ -625,6 +627,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       width: TILE,
       height: TILE,
       frame: fireFrame,
+      atlasId: "buildings",
       rotation: 0,
       layer: 41,
       alpha: 1,
@@ -644,6 +647,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       width: TILE,
       height: TILE,
       frame: smokeFrame,
+      atlasId: "buildings",
       rotation: 0,
       layer: 6,
       alpha: 0.55,
@@ -707,6 +711,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
           width: TILE,
           height: TILE,
           frame: "indicator/follow",
+          atlasId: "items-ui",
           rotation: 0,
           layer: 91,
           alpha: 1,
@@ -1201,12 +1206,6 @@ function updateTooltip(
   } else {
     tooltip.style.display = "none";
   }
-}
-
-async function fetchAtlasManifest(): Promise<AtlasManifest> {
-  const res = await fetch("/atlas/main.json");
-  if (!res.ok) throw new Error(`Atlas manifest fetch failed: ${res.status}`);
-  return (await res.json()) as AtlasManifest;
 }
 
 async function loadNoiseGenerator(): Promise<import("@engine/core").NoiseGenerator | null> {

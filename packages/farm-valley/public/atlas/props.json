@@ -1,0 +1,80 @@
+{
+  "id": "props",
+  "imageUrl": "/atlas/props.png",
+  "width": 128,
+  "height": 64,
+  "frames": {
+    "decoration/scarecrow": {
+      "x": 1,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/windmill": {
+      "x": 18,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/flower-bed": {
+      "x": 35,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fence-art": {
+      "x": 52,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/barrel": {
+      "x": 69,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/crate": {
+      "x": 86,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/potted-plant": {
+      "x": 103,
+      "y": 1,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/lamp-post": {
+      "x": 1,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/signpost": {
+      "x": 18,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/hay-bale": {
+      "x": 35,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/bush": {
+      "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/log-stack": {
+      "x": 69,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    }
+  }
+}

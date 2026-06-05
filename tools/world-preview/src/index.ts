@@ -12,6 +12,7 @@ import {
 } from "farm-valley/src/world/regions";
 import type { AtlasManifest } from "@engine/core";
 import type { GameEntity } from "farm-valley/src/components";
+import { PREFIX_TO_SHEET } from "../../atlas-builder/src/recipes";
 
 // Offline snapshot of the real 40×40 region world. Mirrors the live renderer in
 // packages/farm-valley/src/render-systems.ts: same backdrop frame selection,
@@ -41,10 +42,27 @@ interface BlitSprite {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
 const atlasDir = resolve(repoRoot, "packages/farm-valley/public/atlas");
-const manifest: AtlasManifest = JSON.parse(
-  readFileSync(resolve(atlasDir, "main.json"), "utf8"),
-) as AtlasManifest;
-const atlas = PNG.sync.read(readFileSync(resolve(atlasDir, "main.png")));
+
+// Load all sheets from the builder-emitted index.json.
+interface AtlasIndex { sheets: Array<{ id: string; manifestUrl: string; imageUrl: string }> }
+const atlasIndex = JSON.parse(readFileSync(resolve(atlasDir, "index.json"), "utf8")) as AtlasIndex;
+const sheetManifests = new Map<string, AtlasManifest>();
+const sheetPngs = new Map<string, PNG>();
+for (const entry of atlasIndex.sheets) {
+  // manifestUrl is "/atlas/<id>.json" — strip leading slash and resolve from atlasDir parent.
+  const manifestPath = resolve(repoRoot, "packages/farm-valley/public", entry.manifestUrl.slice(1));
+  const pngPath = resolve(repoRoot, "packages/farm-valley/public", entry.imageUrl.slice(1));
+  sheetManifests.set(entry.id, JSON.parse(readFileSync(manifestPath, "utf8")) as AtlasManifest);
+  sheetPngs.set(entry.id, PNG.sync.read(readFileSync(pngPath)));
+}
+
+/** Resolve a frame name to its sheet id (same prefix→sheet mapping as the runtime). */
+function frameSheetId(frameName: string): string {
+  const prefix = frameName.split("/")[0] ?? "";
+  const id = PREFIX_TO_SHEET[prefix];
+  if (!id) throw new Error(`world-preview: unknown frame prefix "${prefix}" in "${frameName}"`);
+  return id;
+}
 
 const out = new PNG({ width: WORLD_W, height: WORLD_H });
 out.data.fill(0);
@@ -64,6 +82,7 @@ function clearToColor(r: number, g: number, b: number, a: number): void {
  * only rotations the world uses, for vertical fence segments).
  */
 function blitFrame(
+  atlas: PNG,
   frame: Frame,
   dstX: number,
   dstY: number,
@@ -126,9 +145,13 @@ function blitFrame(
 
 /** Blit a frame centered on a world-pixel point (matches the renderer's draw). */
 function blitCentered(frameName: string, cx: number, cy: number, rotation = 0): void {
-  const frame = manifest.frames[frameName];
+  const sheetId = frameSheetId(frameName);
+  const sheetManifest = sheetManifests.get(sheetId);
+  const sheetPng = sheetPngs.get(sheetId);
+  if (!sheetManifest || !sheetPng) throw new Error(`No atlas sheet for: ${frameName} (sheet "${sheetId}")`);
+  const frame = sheetManifest.frames[frameName];
   if (!frame) throw new Error(`No atlas frame: ${frameName}`);
-  blitFrame(frame, Math.round(cx - frame.w / 2), Math.round(cy - frame.h / 2), rotation);
+  blitFrame(sheetPng, frame, Math.round(cx - frame.w / 2), Math.round(cy - frame.h / 2), rotation);
 }
 
 /**
@@ -207,7 +230,14 @@ for (const e of world.query("sprite", "transform")) {
 }
 sprites.sort((a, b) => a.layer - b.layer);
 for (const s of sprites) {
-  if (!manifest.frames[s.frame]) continue; // tolerate atlas frame drift
+  // tolerate atlas frame drift — if the sheet or frame is missing, skip
+  try {
+    const sid = frameSheetId(s.frame);
+    const sm = sheetManifests.get(sid);
+    if (!sm || !sm.frames[s.frame]) continue;
+  } catch {
+    continue;
+  }
   blitCentered(s.frame, s.cx, s.cy, s.rotation);
 }
 
