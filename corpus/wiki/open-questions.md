@@ -10,7 +10,7 @@ Live list of unresolved work and design questions. Items move out of here when a
 - **Trust matrix invisible; no named rivalries.** ~~`TrustSystem` data never reaches the viewer.~~ → _plumbing shipped 2026-06-05_ ([37-rivalries-and-relationship-legibility](../briefs/game/done/37-rivalries-and-relationship-legibility.md)) **but DORMANT** — see the new "Peer-interaction layer is inert" gap below: with no farmer↔farmer trades/declines firing, the matrix stays flat at 0.5 baseline and zero rivalries form. The machinery is correct + tested; it activates for free once peer interaction is live.
 - **Flat narrative density.** Every event reads with equal weight; no escalation toward the climax. → [38-drama-scoring-and-narrative-escalation](../briefs/game/todo/38-drama-scoring-and-narrative-escalation.md).
 - ~~**No history/momentum view.**~~ → _shipped 2026-06-05_ ([39-wealth-over-time-graph](../briefs/game/done/39-wealth-over-time-graph.md)): multi-line wealth chart with crossings marked, live from brief-36's history series.
-- **Decision legibility shallow + no highlight-skip.** "Why" is focused-farmer-only and click-gated; no fast-forward to dramatic moments. → [40-thought-bubbles-and-highlight-skip](../briefs/game/todo/40-thought-bubbles-and-highlight-skip.md).
+- ~~**Decision legibility shallow + no highlight-skip.**~~ → _shipped 2026-06-05_ ([40-thought-bubbles-and-highlight-skip](../briefs/game/done/40-thought-bubbles-and-highlight-skip.md)): ambient intention bubbles + skip-to-highlight (H) + feed-click-to-zoom. **Spectator layer 36–40 complete.**
 
 Suggested order 36 → 37 → 38 → 39 → 40 (39/40 consume 36/38). All are read-only/render-side or additive observation — none touch agent deliberation or the determinism-load-bearing tick body.
 

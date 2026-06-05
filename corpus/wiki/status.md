@@ -130,6 +130,12 @@ First use of the per-brief branch + worktree + auto-merge-when-green workflow; t
 
 **Verified on `main` after both merges:** typecheck clean; 537 farm-valley + 60 engine tests pass; determinism MATCH ×3 (47 confirmed zero sim impact).
 
+## Shipped 2026-06-05 (brief 40 — spectator layer complete)
+
+| Brief | Status | Notes |
+|---|---|---|
+| [40-thought-bubbles-and-highlight-skip](../briefs/game/done/40-thought-bubbles-and-highlight-skip.md) | **Done** | **Part A:** 14 `indicator/intention-*` glyphs (→ `items-ui` sheet); `SnapshotSprite.bubble` maps each AI farmer's `intention.kind` → glyph, shown for a 10-tick window on intention *change* (meet-bubble precedence), drawn in [render-systems.ts](../../packages/farm-valley/src/render-systems.ts) layer 89. **Part B:** `skipToHighlight` worker control (loops `runOneTick` until a `drama≥0.7` event or 30-day cap; pure `shouldStopSkip()` tested; pacing-only) + `H` hotkey + button; `SnapshotEvent.farmerId` (set for clear-subject events) drives feed-row-click → focus camera. +18 tests (556 farm-valley pass); determinism MATCH ×3. Live caveat: high-drama events are rare (leader runs away; Day-50 blight is the main beat), so skip can fast-forward far / hit the cap — expected, see [[project-peer-interaction-inert]] + leader-runaway flatness. **This completes the spectator/story layer (briefs 36–40).** |
+
 ## Open gaps
 
 See [open-questions.md](open-questions.md) for the live list.
