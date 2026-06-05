@@ -12,7 +12,7 @@ import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -88,9 +88,16 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
   deliberateResourceGather(farmer, features, 2, 7);
 
-  // Craft decorations eagerly — aggressive builds fast to boost yield.
+  // brief 44 — commission decorations at the CARPENTER (a real order the
+  // CarpenterSystem validates + delivers over a build-time), replacing the old
+  // instant craft. Aggressive chops a lot of wood, so it's the natural farmer to
+  // close the carpenter loop. Uses the brief-42 excursion discipline: on a quiet
+  // invest day commit a WINNING carpentry-travel leg so the trip actually lands.
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
-  deliberateDecoration(farmer, decorations, 6);
+  const plotsUrgentAggr = (sense?.maxDrySoFar ?? 0) >= 2;
+  const apHeadroomAggr = (farmer.ap?.current ?? 0) >= 20;
+  const quietInvestDayAggr = !plotsUrgentAggr && apHeadroomAggr;
+  deliberateCommissionBuild(farmer, decorations, 6, quietInvestDayAggr ? -2 : undefined);
 
   // Aggressive mills its high-volume surplus for the premium.
   deliberateMillVisit(farmer, 10, 6);
@@ -263,7 +270,18 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   deliberateHarvestFruit(farmer, 12);
   deliberateSellFruit(farmer, 12);
 
+  // brief 44 — hire a day-helper at the tavern when AP-starved + gold-rich (a
+  // catch-up sink). Aggressive runs its AP down hard, so it's a good candidate.
+  deliberateHireHelp(farmer, reserve, 13, -2);
+
+  // brief 44 — gathering beat: a farmer that came to the village and is now idle
+  // drifts to the tavern so the hub looks populated. Runs BEFORE the sleep helper
+  // so it can claim a truly-idle queue; the next arrival re-deliberation then
+  // sends the farmer home for the night.
+  deliberateTavernGather(farmer, -2);
+
   deliberateSleep(farmer);
+
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
 

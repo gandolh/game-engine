@@ -3882,6 +3882,103 @@ const NPC_POSES: PixelRecipe[] = [
     ],
   },
 
+  // ── brief 44 — tavern barkeep NPC ────────────────────────────────────────────
+  // Barkeep idle — apron-clad figure behind the bar (cream apron `w`, wood-dark
+  // `D` body, near-black `k` hair), mirroring the blacksmith/carpenter idle build.
+  {
+    name: "npc/barkeep/idle",
+    size: 16,
+    pixels: [
+      "................",
+      ".....kkkkk......",
+      "....kkkkkkk.....",
+      "....kwwwwwk.....",
+      "....kw.w.kk.....",
+      "....kkwwwk......",
+      "....rrrrr.......",
+      "...rrrrrrr......",
+      "...rrwwwrr......",
+      "....w...w.......",
+      "....w...w.......",
+      "...DDD.DDD......",
+      "...DDD.DDD......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Barkeep pouring a drink (mug raised) — pour-a.
+  {
+    name: "npc/barkeep/pour-a",
+    size: 16,
+    pixels: [
+      "................",
+      ".....kkkkk......",
+      "....kkkkkkk.....",
+      "....kwwwwwk.....",
+      "....kw.w.kk.....",
+      "....kkwwwk..o...",
+      "....rrrrr..oo...",
+      "...rrrrrrroo....",
+      "...rrwwwrr......",
+      "....w...w.......",
+      "....w...w.......",
+      "...DDD.DDD......",
+      "...DDD.DDD......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Barkeep setting the mug down — pour-b.
+  {
+    name: "npc/barkeep/pour-b",
+    size: 16,
+    pixels: [
+      "................",
+      ".....kkkkk......",
+      "....kkkkkkk.....",
+      "....kwwwwwk.....",
+      "....kw.w.kk.....",
+      "....kkwwwk......",
+      "....rrrrr.......",
+      "...rrrrrrr.o....",
+      "...rrwwwrroo....",
+      "....w...woo.....",
+      "....w...w.......",
+      "...DDD.DDD......",
+      "...DDD.DDD......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // ── brief 44 — tavern building ───────────────────────────────────────────────
+  // Tavern — a timber-and-plaster public house: cream plaster walls (`w`), wood
+  // beams (`D`/`M`), a warm gold-lit doorway (`o`), red-rust roof (`r`).
+  {
+    name: "structure/tavern",
+    size: 16,
+    pixels: [
+      "................",
+      "...rrrrrrrrrr...",
+      "..rrrrrrrrrrrr..",
+      "..MwwwwwwwwwwM..",
+      "..MwDwwwwwDwwM..",
+      "..MwwwwwwwwwwM..",
+      "..MwDwwwwwDwwM..",
+      "..MwwwoooowwwM..",
+      "..MwwwoooowwwM..",
+      "..MMMMooooMMMM..",
+      ".....oooo.......",
+      ".....oooo.......",
+      "....MMMMMM......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
   // ── brief 42 — livestock pens ────────────────────────────────────────────────
   {
     // Coop — a small wooden hen-house. D=wood-dark, d=wood-light, w=cream roof,

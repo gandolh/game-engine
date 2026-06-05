@@ -47,6 +47,7 @@ import {
   type AuctionBidBody,
   type ResaleBeanBody,
 } from "../protocols/shop";
+import { ONT_COMMISSION } from "../protocols/commission";
 import { seasonForDay, type Season } from "../protocols/weather";
 import { isWithinReach } from "./proximity";
 // brief 41 — import economy constants (SELL_PRICE / GROWTH_DAYS now live in economy.ts).
@@ -142,6 +143,21 @@ const UPGRADE_COST: Partial<Record<ToolTier, number>> = {
   stone: 15,
   iron:  25,
 };
+
+/**
+ * brief 44 — the blacksmith now VALIDATES upgrades for real instead of
+ * assume-success: each tier consumes ore from the farmer's ResourceInventory in
+ * addition to gold. wooden→stone needs raw STONE; stone→iron needs IRON ORE.
+ * Without the ore the upgrade is rejected (no mutation). The blacksmith is where
+ * mining pays off — you turn the rock you dug into a better tool.
+ */
+const UPGRADE_MATERIAL: Partial<Record<ToolTier, { resource: "stone" | "ironOre"; amount: number }>> = {
+  stone: { resource: "stone",   amount: 2 },
+  iron:  { resource: "ironOre", amount: 2 },
+};
+
+/** brief 44 — gold a farmer pays the tavern to hire a day-helper. */
+const HIRE_HELP_GOLD_COST = 25;
 
 /**
  * A farmer currently being processed by run(): narrowed to the components the
@@ -762,16 +778,80 @@ export class ActSystem implements System {
         return tierOrder[b.tier] - tierOrder[a.tier]; // highest tier first
       })[0];
     if (!existing) return;
+    // Enforce tier order: wooden→stone→iron, one step at a time.
     const nextTier = UPGRADE_PATH[existing.tier];
     if (!nextTier) return; // already max
     const cost = UPGRADE_COST[nextTier] ?? 99;
     if (farmer.inventory.gold < cost) return;
+
+    // brief 44 — the blacksmith VALIDATES: it consumes ore in addition to gold.
+    // wooden→stone burns raw stone; stone→iron burns iron ore. Reject (no
+    // mutation) if the farmer lacks the materials — no more assume-success.
+    const material = UPGRADE_MATERIAL[nextTier];
+    if (material) {
+      const res = farmer.resources;
+      if (!res || res[material.resource] < material.amount) return; // missing materials
+      res[material.resource] -= material.amount;
+    }
+
     farmer.inventory.gold -= cost;
     // Replace tool with upgraded version (full durability)
     const idx = tools.indexOf(existing);
     if (idx >= 0) {
       tools[idx] = { kind: toolKind, tier: nextTier, durability: nextTier === "stone" ? 150 : 200 };
     }
+  }
+
+  /**
+   * brief 44 — commission a build at the carpenter. Unlike the old instant
+   * `craft-decoration`, this SENDS an order message to the carpenter NPC, which
+   * (CarpenterSystem) validates it, escrows the wood, builds over a build-time,
+   * and DELIVERS the structure. The agent only places the order — fulfillment is
+   * a system. Location-gated: the farmer must be AT carpentry (its deliberate
+   * helper queues a carpentry travel leg first).
+   */
+  private handleCommissionBuild(
+    farmer: ActingFarmer,
+    intent: Intention,
+    tick: number,
+  ): void {
+    if (!this.bus || farmer.id === undefined) return;
+    if (farmer.farmer?.currentRegion !== "carpentry") return;
+    const carpenterId = this.carpenterId();
+    if (carpenterId === undefined) return;
+    const kind = intent.data.kind as DecorationKind;
+    const recipe = DECORATION_RECIPE[kind];
+    if (!recipe) return;
+    // Local pre-check so we don't fire a doomed order (the carpenter re-validates
+    // and escrows authoritatively).
+    if (!farmer.resources || farmer.resources.wood < recipe.woodCost) return;
+    this.sendIntentMessage(
+      PERFORMATIVE.REQUEST,
+      ONT_COMMISSION.BUILD,
+      farmer.id,
+      carpenterId,
+      { kind } as unknown as Record<string, unknown>,
+      tick,
+    );
+  }
+
+  /**
+   * brief 44 — hire a day-helper at the tavern. A money sink + catch-up
+   * mechanic: an AP-starved, gold-rich farmer pays gold for a temporary AP boost
+   * (applied at the next morning wake via `helperHiredDay`, see PerceiveSystem).
+   * Location-gated to the village (where the tavern stands) and once per day.
+   */
+  private handleHireHelp(farmer: ActingFarmer, day: number): void {
+    if (farmer.farmer?.currentRegion !== "village") return;
+    if (farmer.farmer.helperHiredDay === day) return; // already hired today
+    if (farmer.inventory.gold < HIRE_HELP_GOLD_COST) return;
+    farmer.inventory.gold -= HIRE_HELP_GOLD_COST;
+    farmer.farmer.helperHiredDay = day;
+  }
+
+  private carpenterId(): number | undefined {
+    for (const c of this.world.query("carpenter")) return c.id;
+    return undefined;
   }
 
   private handleProcessCrop(
@@ -1310,6 +1390,14 @@ export class ActSystem implements System {
           }
           case "upgrade-tool": {
             this.handleUpgradeTool(farmer, intent, actCtx.blacksmithId);
+            break;
+          }
+          case "commission-build": {
+            this.handleCommissionBuild(farmer, intent, ctx.tick);
+            break;
+          }
+          case "hire-help": {
+            this.handleHireHelp(farmer, day);
             break;
           }
           case "process-crop": {

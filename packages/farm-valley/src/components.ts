@@ -53,6 +53,13 @@ export interface Farmer {
    * Cleared each tick by the controlling system.
    */
   movedThisTick?: boolean;
+  /**
+   * brief 44 — the sim day on which the farmer last hired a day-helper at the
+   * tavern. The helper boost (extra AP, applied at the morning wake) lasts only
+   * the day of hire; this gates re-hiring to once per day and lets the AP refill
+   * know to add the bonus. Absent = no helper hired.
+   */
+  helperHiredDay?: number;
 }
 
 /**
@@ -461,9 +468,29 @@ export interface BlacksmithTag {
   readonly isBlacksmith: true;
 }
 
-/** Tags the carpenter NPC entity in the carpentry region. */
+/**
+ * Tags the carpenter NPC entity in the carpentry region.
+ *
+ * brief 44 — the carpenter now fulfills REAL commissions. `pending` holds
+ * accepted build orders (cost already escrowed from the farmer): each ticks
+ * down `ticksLeft` and is DELIVERED by CarpenterSystem when it reaches 0.
+ */
 export interface CarpenterTag {
   readonly isCarpenter: true;
+  /** brief 44 — accepted commissions in flight (escrowed, building). */
+  pending?: PendingCommission[];
+}
+
+/** brief 44 — one accepted carpenter commission being built over a build-time. */
+export interface PendingCommission {
+  /** The farmer who commissioned (and was already charged for) this build. */
+  ownerId: number;
+  /** Home farm region to place the delivered structure on. */
+  regionId: RegionId;
+  /** The decoration to deliver. */
+  kind: DecorationKind;
+  /** Ticks remaining before delivery. */
+  ticksLeft: number;
 }
 
 /**
@@ -526,6 +553,19 @@ export interface NoticeBoardTag {
 /** Tags the mill NPC entity in the mill region. */
 export interface MillTag {
   readonly isMill: true;
+}
+
+/**
+ * brief 44 — tags the tavern entity in the village hub. Carries the barkeep's
+ * current gossip line (a daily rumor drawn deterministically from the event
+ * feed by TavernSystem) for the hover tooltip / observer panel.
+ */
+export interface TavernTag {
+  readonly isTavern: true;
+  /** The barkeep's current rumor line (set each day-start by TavernSystem). */
+  gossip?: string | undefined;
+  /** Sim day the gossip line was last refreshed. */
+  gossipDay?: number | undefined;
 }
 
 /** Tags a well entity near a quarry — agents refill watering cans here. */
@@ -679,6 +719,7 @@ export interface GameEntity {
   auctionPodium?: AuctionPodiumTag;
   noticeBoard?: NoticeBoardTag;
   mill?: MillTag;
+  tavern?: TavernTag;
   well?: WellTag;
   farmDecoration?: FarmDecoration;
   resources?: ResourceInventory;

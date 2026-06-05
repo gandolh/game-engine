@@ -162,3 +162,114 @@ describe("ActSystem buy-seed end-to-end through the shopkeeper", () => {
     expect(radishOffer.remaining).toBe(7);
   });
 });
+
+// brief 44 — the blacksmith now VALIDATES upgrades: it consumes ore in addition
+// to gold and enforces the tier order. No more assume-success.
+describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
+  let world: World<GameEntity>;
+  let bus: MessageBus;
+  let sys: ActSystem;
+
+  function blacksmithFarmer(
+    opts: { gold?: number; tier?: "wooden" | "stone"; stone?: number; ironOre?: number },
+  ): GameEntity {
+    const tier = opts.tier ?? "wooden";
+    return world.spawn({
+      farmer: { name: "Smith", currentRegion: "blacksmith" as const },
+      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+      intentions: { queue: [] },
+      inventory: {
+        gold: opts.gold ?? 100,
+        crops: { ...ZERO_CROPS },
+        seeds: { ...ZERO_CROPS },
+        tools: [{ kind: "hoe", tier, durability: 100 }],
+      },
+      resources: { wood: 0, stone: opts.stone ?? 0, ironOre: opts.ironOre ?? 0, geodes: 0 },
+      beliefs: { data: { currentDay: 5 }, revision: 0 },
+    });
+  }
+
+  beforeEach(() => {
+    world = new World<GameEntity>();
+    bus = new MessageBus();
+    sys = new ActSystem(world, bus);
+    world.spawn({ blacksmith: { isBlacksmith: true } });
+  });
+
+  it("upgrades wooden→stone, consuming raw stone + gold", () => {
+    const farmer = blacksmithFarmer({ gold: 100, tier: "wooden", stone: 5 });
+    farmer.intentions!.queue.push({ kind: "upgrade-tool", data: { toolKind: "hoe" }, priority: 0 });
+    sys.run({ tick: 0 });
+    const hoe = farmer.inventory!.tools!.find((t) => t.kind === "hoe")!;
+    expect(hoe.tier).toBe("stone");
+    expect(farmer.resources!.stone).toBe(3); // 5 - 2 consumed
+    expect(farmer.inventory!.gold).toBe(85); // 100 - 15
+  });
+
+  it("rejects the upgrade when the farmer has no ore (no mutation)", () => {
+    const farmer = blacksmithFarmer({ gold: 100, tier: "wooden", stone: 0 });
+    farmer.intentions!.queue.push({ kind: "upgrade-tool", data: { toolKind: "hoe" }, priority: 0 });
+    sys.run({ tick: 0 });
+    const hoe = farmer.inventory!.tools!.find((t) => t.kind === "hoe")!;
+    expect(hoe.tier).toBe("wooden"); // unchanged
+    expect(farmer.inventory!.gold).toBe(100); // not charged
+  });
+
+  it("stone→iron consumes iron ore", () => {
+    const farmer = blacksmithFarmer({ gold: 100, tier: "stone", ironOre: 3 });
+    farmer.intentions!.queue.push({ kind: "upgrade-tool", data: { toolKind: "hoe" }, priority: 0 });
+    sys.run({ tick: 0 });
+    const hoe = farmer.inventory!.tools!.find((t) => t.kind === "hoe")!;
+    expect(hoe.tier).toBe("iron");
+    expect(farmer.resources!.ironOre).toBe(1); // 3 - 2
+    expect(farmer.inventory!.gold).toBe(75); // 100 - 25
+  });
+});
+
+// brief 44 — hire a day-helper at the tavern: costs gold, gated to the village +
+// once per day. The AP boost itself is applied at the next morning wake.
+describe("ActSystem hire-help (tavern day-helper)", () => {
+  let world: World<GameEntity>;
+  let bus: MessageBus;
+  let sys: ActSystem;
+
+  function villageFarmer(opts: { gold?: number; region?: "village" | "farm-cora"; day?: number }): GameEntity {
+    return world.spawn({
+      farmer: { name: "Hannah", currentRegion: (opts.region ?? "village") as never },
+      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+      intentions: { queue: [] },
+      inventory: { gold: opts.gold ?? 100, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS } },
+      beliefs: { data: { currentDay: opts.day ?? 5 }, revision: 0 },
+    });
+  }
+
+  beforeEach(() => {
+    world = new World<GameEntity>();
+    bus = new MessageBus();
+    sys = new ActSystem(world, bus);
+  });
+
+  it("charges gold and records the hire day", () => {
+    const farmer = villageFarmer({ gold: 100, day: 5 });
+    farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.inventory!.gold).toBe(75); // 100 - 25
+    expect(farmer.farmer!.helperHiredDay).toBe(5);
+  });
+
+  it("does nothing when not in the village", () => {
+    const farmer = villageFarmer({ gold: 100, region: "farm-cora" });
+    farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.inventory!.gold).toBe(100);
+    expect(farmer.farmer!.helperHiredDay).toBeUndefined();
+  });
+
+  it("does nothing when too poor to afford the hire", () => {
+    const farmer = villageFarmer({ gold: 10 });
+    farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.inventory!.gold).toBe(10);
+    expect(farmer.farmer!.helperHiredDay).toBeUndefined();
+  });
+});

@@ -47,6 +47,8 @@ import { ShopSlateSystem } from "./systems/shop-slate";
 import { NoticeBoardSystem } from "./systems/notice-board";
 import { FinishDaySystem } from "./systems/finish-day";
 import { WorkNpcSystem } from "./systems/work-npc";
+import { CarpenterSystem } from "./systems/carpenter";
+import { TavernSystem } from "./systems/tavern";
 import { LivestockSystem } from "./systems/livestock";
 import { OrchardSystem } from "./systems/orchard";
 import { setupWeatherFeature } from "./agents/weather-station";
@@ -205,6 +207,11 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // Read-only activity-feed snoop: must observe inbox + market-wall messages
     // before PerceiveSystem clears them and before MarketSystem drains the wall.
     .add(eventFeed)
+    // brief 44 — the tavern barkeep refreshes its daily gossip line from the
+    // event feed. Runs right AFTER EventFeedSystem (so the feed is up to date)
+    // and before PerceiveSystem clears the tavern inbox's DAY_START. Reads the
+    // feed deterministically (highest-drama recent entry).
+    .add(new TavernSystem(world, eventFeed))
     // Per-day rank/gold history collector. Snoops DAY_START from the
     // weatherStation inbox (same pattern as BubbleSystem). Runs here in the
     // read-only snoop band so messages are visible before PerceiveSystem clears.
@@ -243,6 +250,12 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(marketShop.marketSystem)
     .add(marketShop.shopkeeperSystem)
     .add(marketShop.auctionSystem)
+    // brief 44 — the carpenter validates + fulfills commissioned builds. Runs in
+    // the resolve band next to the shopkeeper (the order→fulfill twin): it drains
+    // ONT_COMMISSION.BUILD orders from its inbox (delivered by InboxDispatchSystem
+    // the tick after a farmer's commission-build act), escrows the cost, and
+    // delivers the structure after a build-time.
+    .add(new CarpenterSystem(world, bus))
     .add(new WorkNpcSystem(world))
     .add(new FinishDaySystem(world));
 
