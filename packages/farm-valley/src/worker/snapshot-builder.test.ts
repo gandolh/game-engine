@@ -215,11 +215,14 @@ describe("buildRenderSnapshot", () => {
 
     expect(snap.gameOver).toBe(true);
     expect(snap.finalSummary).not.toBeNull();
-    // FinalStandingRow has crops
+    // FinalStandingRow has crops (brief 41: sparse Partial<Record<CropKind, number>> — only non-zero crops included)
     for (const row of snap.finalSummary!) {
-      expect(typeof row.crops.radish).toBe("number");
-      expect(typeof row.crops.wheat).toBe("number");
-      expect(typeof row.crops.pumpkin).toBe("number");
+      expect(typeof row.crops).toBe("object");
+      // All present entries must be positive numbers (zero entries are omitted).
+      for (const [, count] of Object.entries(row.crops)) {
+        expect(typeof count).toBe("number");
+        expect(count).toBeGreaterThan(0);
+      }
     }
   });
 });

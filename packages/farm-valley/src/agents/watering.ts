@@ -376,8 +376,9 @@ export function deliberateMillVisit(
   if (!farmer.intentions || !farmer.inventory) return;
   const crops = farmer.inventory.crops;
   // Pick the crop with the largest stock at/above the threshold.
-  let best: { crop: "radish" | "wheat" | "pumpkin"; qty: number } | null = null;
-  for (const crop of ["pumpkin", "wheat", "radish"] as const) {
+  let best: { crop: import("../components").CropKind; qty: number } | null = null;
+  // brief 41 — check all 8 crop kinds for mill surplus.
+  for (const crop of ["grape", "pumpkin", "corn", "tomato", "winter-squash", "wheat", "carrot", "radish"] as const) {
     const qty = crops[crop];
     if (qty >= minStock && (!best || qty > best.qty)) best = { crop, qty };
   }

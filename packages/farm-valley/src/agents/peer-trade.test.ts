@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, expect, it } from "vitest";
 import type { GameEntity, CropKind } from "../components";
 import type { MeetBody, OfferSeedBody } from "../protocols/encounter";
@@ -9,7 +10,7 @@ import { respondToPeerOfferAggressive } from "./aggressive";
 import { respondToPeerOfferConservative } from "./conservative";
 import { respondToPeerOfferOpportunist } from "./opportunist";
 
-const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+const ZERO: Record<CropKind, number> = { ...ZERO_CROPS };
 
 function makeFarmer(overrides: {
   id?: number;

@@ -182,11 +182,8 @@ export function buildObserverSnapshot(
       name: f.farmer.name,
       personality: f.personality.kind,
       gold: f.inventory.gold,
-      crops: {
-        radish: f.inventory.crops.radish,
-        wheat: f.inventory.crops.wheat,
-        pumpkin: f.inventory.crops.pumpkin,
-      },
+      // brief 41 — forward all crop counts (dynamic keyset).
+      crops: { ...f.inventory.crops },
       fsm: f.fsm.current,
       apCurrent: f.ap.current,
       apMax: f.ap.max,
@@ -249,11 +246,8 @@ function buildFinalStandings(summaries: FarmerSummary[]): FinalStandingRow[] {
     gold: summary.gold,
     unsoldValue: summary.unsoldValue,
     totalValue: summary.totalValue,
-    crops: {
-      radish: summary.crops.radish,
-      wheat: summary.crops.wheat,
-      pumpkin: summary.crops.pumpkin,
-    },
+    // brief 41 — forward the sparse crop map from FarmerSummary.
+    crops: { ...summary.crops },
   }));
 }
 

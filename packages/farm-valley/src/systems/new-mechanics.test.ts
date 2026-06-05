@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, it, expect } from "vitest";
 import { World } from "@engine/core";
 import type { GameEntity } from "../components";
@@ -24,7 +25,7 @@ interface FarmerOverrides {
 // intentions.queue when fsm.current === "ACT". Cast through `unknown` because
 // this is a deliberately partial fixture, not a fully-typed game entity.
 function makeFarmer(over: FarmerOverrides): GameEntity {
-  const ZERO = { radish: 0, wheat: 0, pumpkin: 0 };
+  const ZERO = { ...ZERO_CROPS };
   return {
     id: 1,
     transform: { x: 16, y: 29, prevX: 16, prevY: 29, rotation: 0 },

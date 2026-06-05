@@ -127,8 +127,9 @@ export interface SnapshotShock {
  * only in `RenderSnapshot.finalSummary` so the game-over panel can print crop
  * counts without needing a second data source.
  */
+/** brief 41 — crops is now a flexible partial map (all 8 kinds may appear). */
 export interface FinalStandingRow extends LeaderboardRow {
-  crops: { radish: number; wheat: number; pumpkin: number };
+  crops: Partial<Record<import("../components").CropKind, number>>;
 }
 
 /**

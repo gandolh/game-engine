@@ -15,11 +15,16 @@ import type { ShopOffer } from "../agents/shop-slate";
 import { PERFORMATIVE } from "../protocols/performatives";
 import type { AuctionSystem } from "./auction";
 
-/** Price the shopkeeper PAYS to buy crops from farmers. */
+/** Price the shopkeeper PAYS to buy crops from farmers. brief 41 — extended. */
 const SHOP_BUY_PRICE: Record<CropKind, number> = {
-  radish: 5,
-  wheat: 8,
-  pumpkin: 22,
+  radish:          5,
+  wheat:           8,
+  carrot:          7,
+  tomato:          13,
+  corn:            17,
+  pumpkin:         22,
+  grape:           32,
+  "winter-squash": 14,
 };
 
 /**
@@ -30,11 +35,17 @@ const SHOP_BUY_PRICE: Record<CropKind, number> = {
  *
  * `golden_bean` is intentionally excluded — it's auction-only — and gets its
  * own dedicated rejection branch before this check.
+ * brief 41 — extended to all 8 crop kinds.
  */
 const SELLABLE_SEED_CROPS: ReadonlySet<string> = new Set<string>([
   "radish",
   "wheat",
+  "carrot",
+  "tomato",
+  "corn",
   "pumpkin",
+  "grape",
+  "winter-squash",
 ]);
 
 const AUCTION_TRIGGER_INTERVAL_DAYS = 5;

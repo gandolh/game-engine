@@ -27,17 +27,25 @@ import {
 } from "../protocols/shop";
 import { seasonForDay, type Season } from "../protocols/weather";
 import { isWithinReach } from "./proximity";
-const SELL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 14, pumpkin: 35 };
-const GROWTH_DAYS: Record<CropKind, number> = { radish: 2, wheat: 4, pumpkin: 7 };
+// brief 41 — import economy constants (SELL_PRICE / GROWTH_DAYS now live in economy.ts).
+import { CROP_SELL_PRICE as SELL_PRICE, GROWTH_DAYS, QUALITY_MULTIPLIER } from "../economy";
 
 /**
  * Mill processing price per crop unit — the gold a farmer earns by milling raw
- * crops into goods at the mill. Set above the shopkeeper's buy price
- * (radish 5 / wheat 8 / pumpkin 22) to create an economic gradient: the mill
- * pays more, but it costs a trip + 2 AP. This is what makes the mill a real
- * choice rather than a prop.
+ * crops into goods at the mill. Set above the shopkeeper's buy price to create
+ * an economic gradient: the mill pays more, but it costs a trip + 2 AP.
+ * brief 41 — extended to cover all crop kinds.
  */
-const MILL_PRICE: Record<CropKind, number> = { radish: 8, wheat: 13, pumpkin: 33 };
+const MILL_PRICE: Record<CropKind, number> = {
+  radish:          8,
+  wheat:           13,
+  carrot:          10,
+  tomato:          18,
+  corn:            24,
+  pumpkin:         33,
+  grape:           46,
+  "winter-squash": 20,
+};
 /** Crops processed per `process-crop` action. */
 const MILL_BATCH = 5;
 
@@ -325,7 +333,28 @@ export class ActSystem implements System {
     const crop = intent.data.crop as CropKind;
     const qty = (intent.data.quantity as number) ?? 0;
     const available = Math.min(qty, farmer.inventory.crops[crop]);
-    if (available > 0) {
+    if (available <= 0) return;
+
+    // brief 41 — quality-weighted sell price. Deduct crops by quality tier
+    // (best first: gold, silver, normal) and pay the quality-weighted price.
+    const basePrice = SELL_PRICE[crop];
+    const quality = farmer.inventory.cropQuality;
+    if (quality?.[crop]) {
+      const q = quality[crop]!;
+      let remaining = available;
+      // Sell in quality order: gold first (highest value), then silver, then normal.
+      for (const [tier, mult] of [["gold", QUALITY_MULTIPLIER.gold], ["silver", QUALITY_MULTIPLIER.silver], ["normal", QUALITY_MULTIPLIER.normal]] as const) {
+        if (remaining <= 0) break;
+        const take = Math.min(remaining, q[tier]);
+        if (take > 0) {
+          farmer.inventory.gold += Math.round(basePrice * mult * take);
+          q[tier] -= take;
+          remaining -= take;
+        }
+      }
+      farmer.inventory.crops[crop] -= available;
+    } else {
+      // Legacy path: no quality breakdown — sell all as Normal.
       farmer.inventory.crops[crop] -= available;
       farmer.inventory.gold += SELL_PRICE[crop] * available;
     }

@@ -1088,7 +1088,11 @@ function renderGameOver(
     recap.standings.forEach((s, i) => {
       const r = rows[i];
       if (r === undefined) return;
-      const cropStr = `r${r.crops.radish} w${r.crops.wheat} p${r.crops.pumpkin}`;
+      // brief 41 — dynamic crop summary (show non-zero counts only).
+      const cropStr = Object.entries(r.crops ?? {})
+        .filter(([, qty]) => (qty ?? 0) > 0)
+        .map(([k, qty]) => `${k.slice(0, 1)}:${qty}`)
+        .join(" ") || "-";
       const delta = s.midRankDelta === 0 ? "  —" :
         s.midRankDelta > 0 ? `▲${s.midRankDelta}`.padStart(3) :
           `▼${Math.abs(s.midRankDelta)}`.padStart(3);
@@ -1101,7 +1105,10 @@ function renderGameOver(
     lines.push("  rank  name      personality      gold  unsold  total   crops");
     lines.push("  " + "─".repeat(60));
     rows.forEach((r, i) => {
-      const cropStr = `r${r.crops.radish} w${r.crops.wheat} p${r.crops.pumpkin}`;
+      const cropStr = Object.entries(r.crops ?? {})
+        .filter(([, qty]) => (qty ?? 0) > 0)
+        .map(([k, qty]) => `${k.slice(0, 1)}:${qty}`)
+        .join(" ") || "-";
       lines.push(
         `  ${String(i + 1).padEnd(5)} ${r.name.padEnd(9)} ${r.personality.padEnd(15)} ${String(r.gold).padStart(5)}  ${String(r.unsoldValue).padStart(5)}  ${String(r.totalValue).padStart(5)}   ${cropStr}`,
       );

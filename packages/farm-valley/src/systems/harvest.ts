@@ -1,11 +1,79 @@
-import type { SimContext, System, World } from "@engine/core";
-import type { GameEntity, PlotState } from "../components";
+import type { SimContext, System, World, Rng } from "@engine/core";
+import type { GameEntity, PlotState, CropQuality } from "../components";
 import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
+import { bankHarvest } from "../economy";
+
+/**
+ * brief 41 — compute quality tier deterministically at harvest.
+ *
+ * Husbandry score (0–1):
+ *   - daysGrowing / GROWTH_DAYS: how long it actually grew (higher = more care).
+ *     Capped to 1 to avoid over-rewarding very slow plots.
+ *   - weatherSum / daysGrowing: average weather multiplier while growing (higher
+ *     weatherSum means the crop grew in better conditions).
+ *   - decorationBoost: 0–MAX_DECORATION_BOOST; better farm infrastructure helps.
+ *   - daysSinceWater at harvest: lower is better (0 = watered day of harvest).
+ *
+ * Seeded roll (from rng.fork("crop-quality")) determines whether the husbandry
+ * score clears the Silver or Gold threshold. Same inputs + same seed always
+ * produce the same tier (deterministic).
+ *
+ * Thresholds (tuned so average-care yields Normal, good husbandry yields Silver,
+ * near-perfect yields Gold):
+ *   goldThreshold  = 0.85 after boost
+ *   silverThreshold = 0.60 after boost
+ */
+export function computeQuality(
+  daysGrowing: number,
+  growthDays: number,
+  weatherSum: number,
+  daysSinceWater: number,
+  decorationBoost: number,
+  rng: Rng,
+): CropQuality {
+  // Clamp daysSinceWater (may be undefined/0 on freshly-watered crop)
+  const dryDays = daysSinceWater;
+  // Watering score: 1.0 if watered last day, degrades linearly with dryness (max 2 dry = grace period)
+  const waterScore = Math.max(0, 1 - dryDays * 0.4);
+  // Growth completeness: how close to full grow days; capped at 1.
+  const growthScore = Math.min(1, daysGrowing / Math.max(1, growthDays));
+  // Weather bonus: average weather multiplier (1.0 = normal, 1.2 = sunny).
+  const weatherScore = daysGrowing > 0 ? Math.min(1, (weatherSum / daysGrowing) / 1.2) : 0.5;
+
+  // Husbandry = weighted blend (water matters most, then growth, then weather).
+  const husbandry = waterScore * 0.5 + growthScore * 0.3 + weatherScore * 0.2;
+
+  // Decoration boost shifts the roll thresholds.
+  const effectiveHusbandry = Math.min(1, husbandry + decorationBoost * 0.3);
+
+  // Seeded random roll from the quality rng channel.
+  const roll = rng.nextFloat();
+
+  // Gold: high husbandry AND lucky roll; Silver: medium husbandry.
+  const GOLD_THRESHOLD   = 0.82;
+  const SILVER_THRESHOLD = 0.52;
+
+  if (effectiveHusbandry >= GOLD_THRESHOLD && roll < effectiveHusbandry - 0.1) {
+    return "gold";
+  }
+  if (effectiveHusbandry >= SILVER_THRESHOLD && roll < effectiveHusbandry + 0.1) {
+    return "silver";
+  }
+  return "normal";
+}
 
 export class HarvestSystem implements System {
   readonly name = "HarvestSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  /** Seeded quality RNG — forked once from the sim rng, deterministic. */
+  private readonly qualityRng: Rng | null;
+
+  constructor(
+    private readonly world: World<GameEntity>,
+    rng?: Rng,
+  ) {
+    this.qualityRng = rng ? rng.fork("crop-quality") : null;
+  }
 
   run(_ctx: SimContext): void {
     const plots = this.world.query("plot");
@@ -33,7 +101,23 @@ export class HarvestSystem implements System {
       // Base yield 2, boosted by decorations on this farm.
       const boost = boostByOwner.get(plot.plot.ownerId) ?? 0;
       const yield_ = Math.round(2 * (1 + boost));
-      owner.inventory.crops[state.crop] += yield_;
+
+      // brief 41 — compute quality from husbandry inputs + seeded rng.
+      // Fall back to a deterministic quality based on daysGrowing when no rng (legacy tests).
+      let quality: CropQuality = "normal";
+      if (this.qualityRng) {
+        quality = computeQuality(
+          state.daysGrowing,
+          currentDay - (state.readyAtDay - (state.daysGrowing | 0)), // approx growthDays
+          state.weatherSum,
+          state.daysSinceWater ?? 0,
+          boost,
+          this.qualityRng,
+        );
+      }
+
+      // Bank the harvested crop at its quality tier.
+      bankHarvest(owner.inventory, state.crop, yield_, quality);
       plot.plot.state = { kind: "empty" } satisfies PlotState;
     }
   }

@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, expect, it } from "vitest";
 import { deliberateConservative } from "./conservative";
 import type { GameEntity, CropKind } from "../components";
@@ -15,7 +16,7 @@ function makeFarmer(overrides: {
   reserve?: number;
   region?: RegionId;
 }): GameEntity {
-  const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+  const ZERO: Record<CropKind, number> = { ...ZERO_CROPS };
   return {
     id: 1,
     transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },

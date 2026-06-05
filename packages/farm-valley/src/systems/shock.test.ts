@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeEach } from "vitest";
 import { World, MessageBus, createRng } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
@@ -13,8 +14,8 @@ function spawnFarmer(world: World<GameEntity>, name: string): GameEntity {
     personality: { kind: "conservative" },
     inventory: {
       gold: 0,
-      crops: { radish: 0, wheat: 0, pumpkin: 0 },
-      seeds: { radish: 0, wheat: 0, pumpkin: 0 },
+      crops: { ...ZERO_CROPS },
+      seeds: { ...ZERO_CROPS },
     },
   });
 }

@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -37,8 +38,8 @@ function makeFarmer(
     farmer: { name: "T", currentRegion: opts.region },
     inventory: {
       gold: 0,
-      crops: { radish: 0, wheat: 0, pumpkin: 0 },
-      seeds: { radish: 0, wheat: 0, pumpkin: 0 },
+      crops: { ...ZERO_CROPS },
+      seeds: { ...ZERO_CROPS },
     },
   });
 }

@@ -9,37 +9,46 @@ import {
   type InitiateBeanGiftFn,
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
-import { CROP_SELL_PRICE, SEED_COST } from "../economy";
+import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
+import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
-const PROFITABILITY_ORDER: readonly CropKind[] = ["pumpkin", "wheat", "radish"];
 const UNDERCUT_THRESHOLD = 0.9; // buy offers below 90% of shop price
 
-function pickCropForWeather(condition: string | undefined): CropKind | null {
-  // Storm/rainy => downgrade to radish.
-  if (condition === "storm" || condition === "rainy") return "radish";
-  return null;
-}
-
+/**
+ * brief 41 — aggressive picks the highest-value IN-SEASON crop first. During
+ * storm/rain downgrade to the cheapest in-season option to limit risk.
+ */
 function chooseTargetCrop(
   farmer: GameEntity,
   reserve: number,
+  day: number,
 ): { crop: CropKind; mode: "plant" | "buy-seed" } | null {
   if (!farmer.inventory) return null;
   const gold = farmer.inventory.gold;
   const weather = (farmer.beliefs?.data["weather"] as { current?: string } | undefined)?.current;
-  const forced = pickCropForWeather(weather);
-  const order: readonly CropKind[] = forced ? [forced] : PROFITABILITY_ORDER;
+  const season = seasonForDay(day);
 
-  for (const crop of order) {
+  // In-season crops ranked by value desc (aggressive chases premium).
+  const allCrops: CropKind[] = ["grape", "corn", "pumpkin", "tomato", "winter-squash", "wheat", "carrot", "radish"];
+  // Under storm/rainy: prefer cheap fast crops (radish/carrot).
+  const isBadWeather = weather === "storm" || weather === "rainy";
+  const order: CropKind[] = isBadWeather
+    ? allCrops.filter(c => CROP_SEASON[c] === season).reverse() // cheapest first
+    : allCrops.filter(c => CROP_SEASON[c] === season);          // most profitable first
+
+  // Fall back to all crops if nothing in-season is affordable.
+  const candidates = order.length > 0 ? order : allCrops;
+
+  for (const crop of candidates) {
     if (farmer.inventory.seeds[crop] >= 1) {
       return { crop, mode: "plant" };
     }
   }
-  for (const crop of order) {
+  for (const crop of candidates) {
     const cost = SEED_COST[crop];
     if (gold - cost >= reserve) {
       return { crop, mode: "buy-seed" };
@@ -103,7 +112,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // shopkeeper and skip planting / market posting / wall scanning.
   if (daysRemaining !== undefined && daysRemaining <= 2) {
     let anyToSell = false;
-    for (const crop of PROFITABILITY_ORDER) {
+    for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
       const qty = farmer.inventory.crops[crop];
       if (qty > 0) {
         anyToSell = true;
@@ -128,12 +137,15 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     return;
   }
 
-  // 1. Plant / buy seed based on profitability + weather.
-  const choice = chooseTargetCrop(farmer, reserve);
+  // 1. Plant / buy seed based on profitability + season + weather.
+  const choice = chooseTargetCrop(farmer, reserve, day);
   if (choice) {
+    const cropSeason = CROP_SEASON[choice.crop];
+    const currentSeason = seasonForDay(day);
+    const seasonNote = currentSeason === cropSeason ? "in-season premium" : "best available";
     if (choice.mode === "plant") {
       if (deliberatePlantNearby(farmer, choice.crop, 1)) {
-        recordReason(farmer, `plant ${choice.crop}: best profit crop on hand`);
+        recordReason(farmer, `plant ${choice.crop}: ${seasonNote}`);
       }
     } else {
       farmer.intentions.queue.push({
@@ -141,13 +153,13 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
         data: { crop: choice.crop, quantity: 1 },
         priority: 2,
       });
-      recordReason(farmer, `buy seed ${choice.crop}: short on seeds`);
+      recordReason(farmer, `buy seed ${choice.crop}: ${seasonNote}`);
     }
   }
 
   // 2. Every 2 days, post inventory on market wall at priceMax.
   if (day % 2 === 0) {
-    for (const crop of PROFITABILITY_ORDER) {
+    for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
       const qty = farmer.inventory.crops[crop];
       if (qty > 0) {
         if (!inVillage) {
@@ -218,7 +230,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // 5. Background fallback: sell crops to shopkeeper if we somehow accumulated them and
   //    today is not a wall-posting day (to keep gold flowing).
   if (day % 2 !== 0) {
-    for (const crop of PROFITABILITY_ORDER) {
+    for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
       const qty = farmer.inventory.crops[crop];
       if (qty > 0) {
         if (!inVillage) {

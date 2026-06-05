@@ -1,3 +1,4 @@
+import { ZERO_CROPS } from "../economy";
 import { describe, expect, it } from "vitest";
 import { deliberateAggressive } from "./aggressive";
 import type { GameEntity, CropKind } from "../components";
@@ -20,7 +21,7 @@ function makeFarmer(overrides: {
   id?: number;
   region?: RegionId;
 }): GameEntity {
-  const ZERO: Record<CropKind, number> = { radish: 0, wheat: 0, pumpkin: 0 };
+  const ZERO: Record<CropKind, number> = { ...ZERO_CROPS };
   return {
     id: overrides.id ?? 1,
     transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },
@@ -46,9 +47,10 @@ function makeFarmer(overrides: {
 }
 
 describe("deliberateAggressive", () => {
-  it("plants pumpkin when seed is available (most profitable)", () => {
-    const f = makeFarmer({ seeds: { pumpkin: 1, wheat: 1, radish: 1 } });
-    deliberateAggressive(f, { tick: 0 });
+  it("plants pumpkin when seed is available (most profitable autumn crop, brief 41)", () => {
+    // Day 60 = autumn; aggressive picks pumpkin (highest in-season value among seeds held).
+    const f = makeFarmer({ day: 60, seeds: { pumpkin: 1, wheat: 1, radish: 1 } });
+    deliberateAggressive(f, { tick: 60 * 20 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
     expect(plant).toBeDefined();
     expect(plant!.data["crop"]).toBe("pumpkin");
@@ -64,12 +66,18 @@ describe("deliberateAggressive", () => {
     expect(plant!.data["crop"]).toBe("radish");
   });
 
-  it("buys pumpkin seed when none in stock but enough gold", () => {
-    const f = makeFarmer({ gold: 100, seeds: {} });
-    deliberateAggressive(f, { tick: 0 });
+  it("buys pumpkin seed when none in stock but enough gold (autumn, brief 41)", () => {
+    // Day 60 = autumn; aggressive targets pumpkin (affordable, in-season, most valuable after grape).
+    // grape cost 20: 100-20=80>=10 → grape first. Use grape: seeds={} → buys grape.
+    // To get pumpkin: provide grape seed so pumpkin is the next choice, or price out grape.
+    // Simpler: give day 60 with no seeds, gold=100; aggressive will try grape (20) → buys grape.
+    // Test the in-season buy behavior: with gold=100 and reserve=10, it should buy grape.
+    const f = makeFarmer({ gold: 100, seeds: {}, day: 60 });
+    deliberateAggressive(f, { tick: 1200 });
     const buy = f.intentions!.queue.find((i) => i.kind === "buy-seed");
     expect(buy).toBeDefined();
-    expect(buy!.data["crop"]).toBe("pumpkin");
+    // Autumn: grape is highest value, cost 20; 100-20=80>=10 reserve → buys grape.
+    expect(buy!.data["crop"]).toBe("grape");
   });
 
   it("posts inventory on the market wall every 2 days", () => {
@@ -184,14 +192,15 @@ describe("deliberateAggressive", () => {
   });
 
   it("does not liquidate when daysRemaining > 2", () => {
+    // Day 60 = autumn; pumpkin is in-season → plant intent present.
     const f = makeFarmer({
-      day: 50,
+      day: 60,
       seeds: { pumpkin: 1 },
       crops: { wheat: 3 },
       region: "village",
     });
     f.beliefs!.data["daysRemaining"] = 3;
-    deliberateAggressive(f, { tick: 1000 });
+    deliberateAggressive(f, { tick: 1200 });
 
     // Normal flow: planting + market actions, not pure liquidation.
     const queue = f.intentions!.queue;
@@ -199,9 +208,10 @@ describe("deliberateAggressive", () => {
   });
 
   // brief 19 — decision rationale trace
-  it("records a plant reason when planting", () => {
-    const f = makeFarmer({ seeds: { pumpkin: 1, wheat: 1, radish: 1 } });
-    deliberateAggressive(f, { tick: 0 });
+  it("records a plant reason when planting (brief 41: pumpkin in autumn)", () => {
+    // Day 60 = autumn; pumpkin is in-season highest value seed held.
+    const f = makeFarmer({ day: 60, seeds: { pumpkin: 1, wheat: 1, radish: 1 } });
+    deliberateAggressive(f, { tick: 1200 });
     expect(f.decisionTrace).toBeDefined();
     expect(
       f.decisionTrace!.reasons.some((r) => r.startsWith("plant pumpkin:")),

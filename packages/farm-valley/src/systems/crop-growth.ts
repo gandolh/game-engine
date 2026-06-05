@@ -2,6 +2,8 @@ import type { SimContext, System, World, MessageBus, With } from "@engine/core";
 import type { GameEntity } from "../components";
 import { PLOT_DECAY_DAYS } from "../components";
 import { ONT_SIMULATION, PERFORMATIVE, type CropDeathBody } from "../protocols";
+import { seasonForDay } from "../protocols/weather";
+import { CROP_SEASON, OUT_OF_SEASON_GROWTH_RATE } from "../economy";
 
 /**
  * brief 29 — a crop dies after this many consecutive dry days. The grace
@@ -74,7 +76,16 @@ export class CropGrowthSystem implements System {
       const wateredToday = state.wateredToday === true || raining;
       if (wateredToday) {
         state.daysSinceWater = 0;
-        state.daysGrowing += 1;
+        // brief 41 — season suitability: in-season crops advance 1 day; out-of-
+        // season crops advance OUT_OF_SEASON_GROWTH_RATE (0.5) days. The advance
+        // accumulates as a float in daysGrowing; readyAtDay uses integer GROWTH_DAYS
+        // so fractional accumulation naturally extends the effective grow time when
+        // planted off-season. We use floor when the plot's readyAtDay is compared in
+        // HarvestSystem (which reads daysGrowing as an integer via | 0).
+        const currentSeason = seasonForDay(newDay);
+        const cropSeason = CROP_SEASON[state.crop];
+        const seasonMultiplier = currentSeason === cropSeason ? 1.0 : OUT_OF_SEASON_GROWTH_RATE;
+        state.daysGrowing += seasonMultiplier;
         state.weatherSum += weatherMultiplier;
       } else {
         state.daysSinceWater = (state.daysSinceWater ?? 0) + 1;

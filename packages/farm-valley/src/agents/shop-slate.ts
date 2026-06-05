@@ -12,7 +12,8 @@ export interface ShopOffer {
    * variants without reshaping the body type.
    */
   kind: "sell";
-  crop: "radish" | "wheat" | "pumpkin";
+  /** brief 41 — expanded crop union (all 8 kinds may appear on the slate). */
+  crop: import("../components").CropKind;
   unitPrice: number;
   quantity: number;
   remaining: number;
@@ -21,24 +22,37 @@ export interface ShopOffer {
 export interface PriceTable {
   readonly radish: { buy: number; sell: number };
   readonly wheat: { buy: number; sell: number };
+  readonly carrot: { buy: number; sell: number };
+  readonly tomato: { buy: number; sell: number };
+  readonly corn: { buy: number; sell: number };
   readonly pumpkin: { buy: number; sell: number };
+  readonly grape: { buy: number; sell: number };
+  readonly "winter-squash": { buy: number; sell: number };
 }
 
 /**
- * Baseline prices that mirror shopkeeper.ts:
- *   shop buys crops at: radish 5 / wheat 8 / pumpkin 22
- *   shop sells seeds at: radish 5 / wheat 10 / pumpkin 20
+ * Baseline prices (brief 41 — extended to all 8 crops):
+ *   shop buys crops at SHOP_BUY_PRICE in shopkeeper.ts
+ *   shop sells seeds at SEED_COST in economy.ts
  */
 export const DEFAULT_PRICES: PriceTable = {
-  radish: { buy: 5, sell: 5 },
-  wheat: { buy: 8, sell: 10 },
-  pumpkin: { buy: 22, sell: 20 },
+  radish:          { buy: 5,  sell: 5  },
+  wheat:           { buy: 8,  sell: 8  },
+  carrot:          { buy: 7,  sell: 6  },
+  tomato:          { buy: 13, sell: 10 },
+  corn:            { buy: 17, sell: 12 },
+  pumpkin:         { buy: 22, sell: 15 },
+  grape:           { buy: 32, sell: 20 },
+  "winter-squash": { buy: 14, sell: 9  },
 };
 
 export const SLATE_SIZE = 5;
 export const PRICE_JITTER = 0.2; // ±20%
 
-const CROPS = ["radish", "wheat", "pumpkin"] as const;
+/** brief 41 — all 8 crop kinds on the daily slate. */
+const CROPS = [
+  "radish", "wheat", "carrot", "tomato", "corn", "pumpkin", "grape", "winter-squash",
+] as const;
 
 export interface SlateConsumeResult {
   ok: boolean;
@@ -118,15 +132,15 @@ export function consumeFromSlate(
  * Generate a deterministic daily slate of SLATE_SIZE shop offers.
  * The same rng state + prices inputs always produce the same output.
  */
-export function generateDailySlate(rng: Rng, prices?: PriceTable): ShopOffer[] {
+export function generateDailySlate(rng: Rng, prices?: Partial<PriceTable>): ShopOffer[] {
   const table = prices ?? DEFAULT_PRICES;
   // One fork instance, reused across all SLATE_SIZE slots for offerId generation.
   const idFork = rng.fork("shop.offerId");
 
   const offers: ShopOffer[] = [];
   for (let i = 0; i < SLATE_SIZE; i++) {
-    const crop = CROPS[rng.range(0, 3) | 0]!;
-    const base = table[crop].sell;
+    const crop = CROPS[rng.range(0, CROPS.length) | 0]!;
+    const base = (table[crop] ?? DEFAULT_PRICES[crop]).sell;
     const unitPrice = Math.max(1, Math.round(base * (1 + rng.range(-PRICE_JITTER, PRICE_JITTER))));
     const quantity = Math.floor(rng.range(5, 21));
     const offerId = idFork.nextU32().toString(36);

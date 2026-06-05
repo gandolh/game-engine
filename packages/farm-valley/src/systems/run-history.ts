@@ -23,7 +23,7 @@
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_SIMULATION } from "../protocols/simulation";
-import { CROP_SELL_PRICE } from "../economy";
+import { cropInventoryValue } from "../economy";
 
 /** One per-farmer row captured at the start of each sim day. */
 export interface RunHistoryRow {
@@ -75,10 +75,8 @@ export class RunHistorySystem implements System {
     for (const f of this.world.query("farmer", "inventory")) {
       if (f.id === undefined) continue;
       const inv = f.inventory;
-      const unsoldValue =
-        inv.crops.radish * CROP_SELL_PRICE.radish +
-        inv.crops.wheat * CROP_SELL_PRICE.wheat +
-        inv.crops.pumpkin * CROP_SELL_PRICE.pumpkin;
+      // brief 41 — quality-weighted unsold value (uses cropQuality if present).
+      const unsoldValue = cropInventoryValue(inv);
       standings.push({
         id: f.id,
         gold: inv.gold,

@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { ZERO_CROPS } from "./economy";
 import { summarizeRun } from "./run-recap";
 import type { RunHistoryRow } from "./systems/run-history";
 import type { EventEntry } from "./systems/event-feed";
@@ -35,7 +36,7 @@ function makeStandings(specs: Array<{ id: number; name: string; personality: str
   return specs.map((s) => ({
     ...s,
     unsoldValue: s.totalValue - s.gold,
-    crops: { radish: 0, wheat: 0, pumpkin: 0 },
+    crops: { ...ZERO_CROPS },
   }));
 }
 

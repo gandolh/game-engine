@@ -4,35 +4,65 @@ import type { GameEntity, CropKind } from "../components";
 import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
-import type { WeatherCondition } from "../protocols/weather";
+import type { WeatherCondition, Season } from "../protocols/weather";
+import { seasonForDay } from "../protocols/weather";
 import {
   registerPeerTradeHooks,
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
-import { CROP_SELL_PRICE, SEED_COST } from "../economy";
+import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberatePlantNearby } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
 // Fair-price posting: between cost and shop ceiling (intentionally below CROP_SELL_PRICE).
-const FAIR_PRICE: Record<CropKind, number> = { radish: 7, wheat: 12, pumpkin: 30 };
+// brief 41 — expanded to all 8 crops.
+const FAIR_PRICE: Record<CropKind, number> = {
+  radish:          7,
+  wheat:           12,
+  carrot:          10,
+  tomato:          18,
+  corn:            23,
+  pumpkin:         30,
+  grape:           44,
+  "winter-squash": 19,
+};
 const LOW_SUPPLY_THRESHOLD = 3;
 const BUY_PRICE_MULTIPLIER = 1.1; // willing to pay up to 110% of shop price
 
-function pickCropFromWeather(forecast: WeatherCondition | undefined): CropKind {
+/**
+ * brief 41 — opportunist adapts to weather forecast AND season. Picks the
+ * best in-season crop adjusted for forecast conditions.
+ */
+function pickCropFromWeatherAndSeason(
+  forecast: WeatherCondition | undefined,
+  day: number,
+): CropKind {
+  const season = seasonForDay(day);
+  // In-season candidates ranked by value.
+  const inSeason: Record<Season, CropKind[]> = {
+    spring: ["wheat", "carrot", "radish"],
+    summer: ["corn", "tomato"],
+    autumn: ["grape", "pumpkin"],
+    winter: ["winter-squash"],
+  };
+  const candidates = inSeason[season];
+  // Under bad weather, prefer the faster/cheaper option.
   if (forecast === "storm" || forecast === "rainy") {
-    // Wheat/radish under storm/rain. Prefer wheat (higher value) when affordable.
-    return "wheat";
+    return candidates[candidates.length - 1]!; // cheapest/fastest in-season
   }
-  // Pumpkin/corn under sun. We only have pumpkin/wheat/radish — pumpkin is the high-tier sun crop.
-  return "pumpkin";
+  return candidates[0]!; // most valuable in-season
 }
 
 function fallbackCrop(crop: CropKind, gold: number, reserve: number): CropKind {
   // If we can't afford the chosen crop's seed, slide down.
   if (gold - SEED_COST[crop] >= reserve) return crop;
-  if (gold - SEED_COST.wheat >= reserve) return "wheat";
+  // Try cheaper in-season alternatives.
+  const cheaper: CropKind[] = ["tomato", "carrot", "radish", "winter-squash", "wheat"];
+  for (const c of cheaper) {
+    if (gold - SEED_COST[c] >= reserve) return c;
+  }
   return "radish";
 }
 
@@ -93,13 +123,16 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   deliberateResourceZoneVisit(farmer, features.length, "stone", 11);
   deliberateResourceZoneVisit(farmer, features.length, "tree",  12);
 
-  // 1. Plant or buy seed based on weather forecast.
-  const desired = pickCropFromWeather(forecast);
+  // 1. Plant or buy seed based on weather forecast + season.
+  const desired = pickCropFromWeatherAndSeason(forecast, day);
   const target = fallbackCrop(desired, farmer.inventory.gold, reserve);
+  const cropSeason = CROP_SEASON[target];
+  const currentSeason = seasonForDay(day);
+  const seasonNote = currentSeason === cropSeason ? "in-season" : "off-season";
 
   if (farmer.inventory.seeds[target] >= 1) {
     if (deliberatePlantNearby(farmer, target, 1)) {
-      recordReason(farmer, `plant ${target}: weather ${forecast ?? "n/a"}`);
+      recordReason(farmer, `plant ${target}: ${seasonNote}, weather ${forecast ?? "n/a"}`);
     }
   } else if (farmer.inventory.gold - SEED_COST[target] >= reserve) {
     farmer.intentions.queue.push({
@@ -107,7 +140,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       data: { crop: target, quantity: 1 },
       priority: 2,
     });
-    recordReason(farmer, `buy seed ${target}: short on seeds`);
+    recordReason(farmer, `buy seed ${target}: ${seasonNote}, short on seeds`);
   }
 
   // 2. Supply-aware market posting: if I have stock, peek offer list (if perceived)
@@ -116,7 +149,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   //    supply check and sell directly to the shopkeeper to restore liquidity.
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
   const needsLiquidity = farmer.inventory.gold < reserve * 0.5;
-  for (const crop of ["pumpkin", "wheat", "radish"] as const) {
+  for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
     const qty = farmer.inventory.crops[crop];
     if (qty <= 0) continue;
     const supply = countOffersByCrop(offers, crop);
