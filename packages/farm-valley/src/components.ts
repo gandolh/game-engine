@@ -242,6 +242,17 @@ export interface Inventory {
   tools?: Tool[];
   /** Watering can state. Optional so pre-tool saves read as full can. */
   wateringCan?: WateringCan;
+  /**
+   * brief 42 — livestock products held (not yet sold). Each product kind may
+   * have quality tiers (reusing CropQualityCounts). Optional so pre-42 saves read as empty.
+   * `products[kind]` total == normal + silver + gold in the CropQualityCounts entry.
+   */
+  products?: Partial<Record<ProductKind, CropQualityCounts>>;
+  /**
+   * brief 42 — fruit in inventory (from orchard harvest). Quality-tracked like crops.
+   * Optional so pre-42 saves read as empty.
+   */
+  fruit?: Partial<Record<FruitKind, CropQualityCounts>>;
 }
 
 export interface Plot {
@@ -307,6 +318,58 @@ export interface FountainTag {
   readonly isFountain: true;
   /** The farm region this fountain serves. */
   regionId: RegionId;
+}
+
+// ── Livestock (brief 42) ─────────────────────────────────────────────────────
+
+/** Animals that can live in a pen. Coops hold chickens; barns hold cows or sheep. */
+export type AnimalKind = "chicken" | "cow" | "sheep";
+
+/** Products from each animal kind. */
+export type ProductKind = "egg" | "milk" | "wool";
+
+/** Pen structure — a counter-based herd with care scalar.
+ * - coop: holds chickens → eggs
+ * - barn: holds cows → milk, OR sheep → wool
+ * `care` is 0–1; raised by `tend`, decayed daily by CARE_DECAY_RATE.
+ * High care → higher product quality + no yield penalty.
+ * `fedToday` is reset to false each day-start; if false at production time,
+ * the pen gets no yield and care decays faster.
+ */
+export interface Pen {
+  kind: "coop" | "barn";
+  animal: AnimalKind;
+  count: number;
+  /** Care scalar, 0–1. 1 = well-tended, 0 = neglected. */
+  care: number;
+  /** True if the farmer has fed/tended this pen today. */
+  fedToday: boolean;
+  tileX: number;
+  tileY: number;
+  regionId: RegionId;
+  ownerId: number;
+}
+
+// ── Orchards (brief 42) ──────────────────────────────────────────────────────
+
+/** Fruit tree variants for orchards. apple = autumn yield, cherry = spring yield. */
+export type FruitKind = "apple" | "cherry";
+
+/** A planted orchard tile — tracks maturation and perennial seasonal yields. */
+export interface OrchardTree {
+  kind: FruitKind;
+  tileX: number;
+  tileY: number;
+  regionId: RegionId;
+  ownerId: number;
+  /** Days of maturation accrued (counts fractionally like daysGrowing). */
+  daysGrown: number;
+  /** True once the tree is mature (daysGrown >= ORCHARD_MATURATION_DAYS). */
+  mature: boolean;
+  /** The game-day of the last fruit harvest (to gate once-per-season yield). */
+  lastHarvestDay: number;
+  /** Accumulated fruit units ready to pick (produced on season-start once mature). */
+  fruitReady: number;
 }
 
 export type TileFeatureKind = "tree" | "stone";
@@ -568,5 +631,9 @@ export interface GameEntity {
   trust?: TrustScores;
   /** brief 19 — last 1-3 one-line decision reasons (game-side, observer "why"). */
   decisionTrace?: DecisionTrace;
+  /** brief 42 — a livestock pen on the farmer's farm. */
+  pen?: Pen;
+  /** brief 42 — an orchard tree tile on the farmer's farm. */
+  orchardTree?: OrchardTree;
   [key: string]: unknown;
 }

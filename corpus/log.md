@@ -2,6 +2,22 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-05] impl | Brief 42 — Livestock Pens + Orchards (Parts A+B)
+
+**Parts A+B shipped; Part C (processing/maker chain) explicitly skipped.**
+
+- **`Pen` + `OrchardTree` components** added to `GameEntity` in [components.ts](../packages/farm-valley/src/components.ts). `Inventory` extended with `products?` and `fruit?` optional maps using `CropQualityCounts`.
+- **[`LivestockSystem`](../packages/farm-valley/src/systems/livestock.ts)**: DAY_START-gated (weather-station inbox snoop). Fed pens yield `count × baseYield` at seeded-RNG quality from care scalar (gold ≥0.82, silver ≥0.55). Unfed: no yield, faster decay (0.12 vs 0.05/day). Resets `fedToday` daily.
+- **[`OrchardSystem`](../packages/farm-valley/src/systems/orchard.ts)**: DAY_START-gated. Immature trees accrue `daysGrown` (mature at 20). Mature trees drop `FRUIT_YIELD_PER_HARVEST=4` into `fruitReady` once per 25-day season block — perennial (block-index gate prevents same-season re-drop but allows the same-named season in year 2+).
+- **Economy constants** ([economy.ts](../packages/farm-valley/src/economy.ts)): `PEN_BUILD_COST`, `ANIMAL_BUY_COST`, `PRODUCT_YIELD_PER_ANIMAL`, `PRODUCT_SELL_PRICE`, `CARE_DECAY_*`, `TREE_PLANT_COST`, `ORCHARD_MATURATION_DAYS=20`, `FRUIT_SEASON`, `FRUIT_SELL_PRICE`. Helper fns `bankProduct`/`bankFruit`/`totalProductCount`/`totalFruitCount`/`productInventoryValue`/`fruitInventoryValue`.
+- **`ActSystem`** ([systems/act.ts](../packages/farm-valley/src/systems/act.ts)): 7 new handlers (`build-pen`, `buy-animal`, `tend`, `plant-tree`, `harvest-fruit`, `sell-product`, `sell-fruit`).
+- **`PlotSenseSystem`** ([systems/plot-sense.ts](../packages/farm-valley/src/systems/plot-sense.ts)): surfaces pen/orchard beliefs per farmer (hasPen_coop/barn, coopFedToday/barnFedToday, penCount_*, orchardCount, orchardFruitReady).
+- **Agent wiring** ([agents/watering.ts](../packages/farm-valley/src/agents/watering.ts)): 7 new `deliberate*` helpers. conservative = day10+ coop+chicken, day15+ apple orchard; hoarder = day8+ both pen types + day12+ both orchard kinds; aggressive = passive-only (tend/sell/harvest if already owns); opportunist = day12+ coop+cherry.
+- **Leaderboard** (`leaderboard()` in [sim-bootstrap.ts](../packages/farm-valley/src/sim-bootstrap.ts)): `livestockValue` (products+fruit at sell price) + `assetValue` (pens by animal count × buy cost + mature orchards × expected fruit value) added to `totalValue`.
+- **Atlas** ([tools/atlas-builder/src/recipes.ts](../tools/atlas-builder/src/recipes.ts)): 13 new pixel-art recipes across `characters` (`animal/chicken/cow/sheep`), `buildings` (`structure/coop`, `barn`, `fruit-tree-sapling/growing/mature`), `items-ui` (`product/egg/milk/wool`, `fruit/apple/cherry`). Atlas now **220 frames** across 6 sheets. Fixed cherry row-17→16 pixel error during bake.
+- **Tests**: 10 new tests (livestock ×5, orchard ×5) in [systems/livestock.test.ts](../packages/farm-valley/src/systems/livestock.test.ts) and [systems/orchard.test.ts](../packages/farm-valley/src/systems/orchard.test.ts). **575 tests pass** (56 files). Typecheck clean. Determinism MATCH ×3 (seeds 0xc0ffee, 1, 42).
+- **Season-block perennial fix**: `seasonForDay` uses 1-based days (d = day − 1); OrchardSystem gates on `Math.floor(max(0, day−1)/25)` block index instead of season name — prevents same-block re-drop while enabling each-cycle fruiting.
+
 ## [2026-06-05] briefs | Gameplay / content / world-depth — 6 briefs queued (41–46)
 
 Second design pass (after the 36–40 spectator/story layer): the user asked what would improve the *game itself* — gameplay, content, art/world, playstyles — and chose **bold scope** ("reshape the sim", accept a shifted determinism baseline) focused on **deeper content + progression** and **art style / world design / new areas & playstyles**.

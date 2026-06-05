@@ -15,7 +15,7 @@ import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -185,6 +185,38 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   deliberateBean(farmer, 0.9, { resell: false });
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
+
+  // brief 42 — hoarder strongly leans into livestock + orchards (patient capital),
+  // using the same committed-excursion discipline as the conservative (see the
+  // long note there): a far trip only lands when given a winning travel priority
+  // on a quiet day, so we commit ONE excursion at a time. The hoarder is the
+  // POOREST farmer live, so these fire only when she's genuinely flush — exactly
+  // the intended "patient capital when affordable, skip when broke" behaviour.
+  const surplusGold = farmer.inventory.gold >= reserve + 50;
+  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2;
+  const apHeadroom = (farmer.ap?.current ?? 0) >= 20;
+  const quietInvestDay = surplusGold && !plotsUrgent && apHeadroom;
+  const hasCoop = (farmer.beliefs.data["hasPen_coop"] as boolean | undefined) ?? false;
+  const chickens = (farmer.beliefs.data["penCount_chicken"] as number | undefined) ?? 0;
+  const orchardCount = (farmer.beliefs.data["orchardCount"] as number | undefined) ?? 0;
+
+  // Orchard first (on-farm, slow-maturing) — apple for autumn fruit.
+  if (day >= 6) {
+    const orchardCommit = quietInvestDay && orchardCount < 1;
+    deliberatePlantOrchard(farmer, "apple", 2, reserve + 5, 18, orchardCommit ? -2 : undefined);
+    deliberateHarvestFruit(farmer, 3);
+    deliberateSellFruit(farmer, 5);
+  }
+  // Livestock loop (build coop + stock at the carpenter in one trip).
+  if (day >= 8) {
+    deliberateTendPens(farmer, 4);
+    deliberateSellProducts(farmer, 5);
+    if (quietInvestDay && orchardCount >= 1) {
+      if (!hasCoop) deliberateBuildPen(farmer, "coop", "chicken", reserve + 5, 14, -2);
+      if (hasCoop && chickens < 3) deliberateBuyAnimal(farmer, "chicken", reserve + 5, 15, -2);
+    }
+  }
+
   deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }

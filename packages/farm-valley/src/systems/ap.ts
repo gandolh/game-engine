@@ -52,6 +52,14 @@ export const AP_COST = {
   "resale-bean": 3,
   "gift-bean": 1,
   idle: 0,
+  // brief 42 — livestock and orchard actions
+  "build-pen": 3,       // build a pen at the carpenter (consumes wood + gold)
+  "buy-animal": 2,      // buy an animal at the village shopkeeper
+  "tend": 1,            // tend the pen (raise care + set fedToday)
+  "plant-tree": 2,      // plant a fruit tree on a farm tile
+  "harvest-fruit": 1,   // collect ready fruit from a mature tree
+  "sell-product": 3,    // sell livestock products to the shopkeeper
+  "sell-fruit": 3,      // sell fruit to the shopkeeper
 } as const;
 
 type KnownIntentKind = keyof typeof AP_COST;

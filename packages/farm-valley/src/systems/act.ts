@@ -1,6 +1,6 @@
 import type { SimContext, System, World, MessageBus, Intention, With, Rng } from "@engine/core";
 import { REGIONS, isWalkable, isFishingIsle } from "../world/regions";
-import type { GameEntity, CropKind, PlotState, ToolKind, ToolTier, DecorationKind, FishKind } from "../components";
+import type { GameEntity, CropKind, PlotState, ToolKind, ToolTier, DecorationKind, FishKind, AnimalKind, FruitKind } from "../components";
 import {
   TOOL_PRICE,
   DECORATION_RECIPE,
@@ -12,6 +12,20 @@ import {
   FISH_WEIGHTS_CALM,
   FISH_WEIGHTS_BUBBLE,
 } from "../components";
+import {
+  PEN_BUILD_COST,
+  ANIMAL_BUY_COST,
+  PEN_ANIMAL,
+  ANIMAL_PRODUCT,
+  PRODUCT_SELL_PRICE,
+  TREE_PLANT_COST,
+  FRUIT_SELL_PRICE,
+  CARE_TEND_BOOST,
+  bankFruit,
+  QUALITY_MULTIPLIER,
+  totalProductCount,
+  totalFruitCount,
+} from "../economy";
 import {
   PERFORMATIVE,
   ONT_MARKET,
@@ -28,7 +42,7 @@ import {
 import { seasonForDay, type Season } from "../protocols/weather";
 import { isWithinReach } from "./proximity";
 // brief 41 — import economy constants (SELL_PRICE / GROWTH_DAYS now live in economy.ts).
-import { CROP_SELL_PRICE as SELL_PRICE, GROWTH_DAYS, QUALITY_MULTIPLIER } from "../economy";
+import { CROP_SELL_PRICE as SELL_PRICE, GROWTH_DAYS } from "../economy";
 
 /**
  * Mill processing price per crop unit — the gold a farmer earns by milling raw
@@ -821,6 +835,244 @@ export class ActSystem implements System {
     return FISH_KINDS[FISH_KINDS.length - 1]!;
   }
 
+  // ── brief 42 livestock + orchard handlers ────────────────────────────────
+
+  /**
+   * Build a pen (coop or barn) at the carpentry workshop. Requires:
+   *   - farmer at carpentry region
+   *   - enough wood + gold per PEN_BUILD_COST
+   * Spawns a Pen entity on the farmer's farm at a free tile.
+   */
+  private handleBuildPen(farmer: ActingFarmer, intent: Intention): void {
+    if (farmer.farmer?.currentRegion !== "carpentry") return;
+    if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
+    const penKind = intent.data.penKind as "coop" | "barn";
+    const animalKind = intent.data.animal as AnimalKind;
+    const recipe = PEN_BUILD_COST[penKind];
+    if (!recipe) return;
+    // brief 42 (deliberation fix) — pens are gold-funded; wood is an optional
+    // discount, not a hard gate (see PEN_BUILD_COST). If the farmer has the wood
+    // they spend it for a cheaper build; otherwise they pay full gold.
+    const res = farmer.resources;
+    const useWood = !!res && res.wood >= recipe.woodCost;
+    const goldDue = useWood ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
+    if (farmer.inventory.gold < goldDue) return;
+
+    // Validate animal kind is compatible with pen kind.
+    if (!PEN_ANIMAL[penKind].includes(animalKind)) return;
+
+    // Already has a pen of this kind?
+    let alreadyHas = false;
+    for (const p of this.world.query("pen")) {
+      if (p.pen.ownerId === farmer.id && p.pen.kind === penKind) { alreadyHas = true; break; }
+    }
+    if (alreadyHas) return; // one pen per kind per farmer
+
+    const homeRegion = farmer.farmer.homeRegion;
+    const regionDef = REGIONS.find(r => r.id === homeRegion);
+    if (!regionDef) return;
+
+    // Find a free tile on the farm.
+    const usedTiles = new Set<string>();
+    for (const e of this.world.query("plot")) {
+      if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
+    }
+    for (const e of this.world.query("farmDecoration")) {
+      if (e.farmDecoration.regionId === homeRegion) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
+    }
+    for (const e of this.world.query("tileFeature")) {
+      if (e.tileFeature.regionId === homeRegion) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);
+    }
+    for (const e of this.world.query("pen")) {
+      if (e.pen.regionId === homeRegion) usedTiles.add(`${e.pen.tileX},${e.pen.tileY}`);
+    }
+    for (const e of this.world.query("orchardTree")) {
+      if (e.orchardTree.regionId === homeRegion) usedTiles.add(`${e.orchardTree.tileX},${e.orchardTree.tileY}`);
+    }
+
+    // A pen tile is SOLID, so placing it on the farmer's current tile (trapping
+    // her) or on a farm-edge tile (which can sever the only walkable route off
+    // the farm) strands the farmer with "no path" faults. Place on an INTERIOR
+    // tile (one in from every bound) and never on the farmer's standing tile.
+    usedTiles.add(`${farmer.transform?.x},${farmer.transform?.y}`);
+    let placed = false;
+    const b = regionDef.bounds;
+    const innerMinX = Math.min(b.minX + 1, b.maxX);
+    const innerMaxX = Math.max(b.maxX - 1, b.minX);
+    const innerMinY = Math.min(b.minY + 1, b.maxY);
+    const innerMaxY = Math.max(b.maxY - 1, b.minY);
+    outer: for (let ty = innerMinY; ty <= innerMaxY; ty++) {
+      for (let tx = innerMinX; tx <= innerMaxX; tx++) {
+        if (usedTiles.has(`${tx},${ty}`)) continue;
+        const frame = penKind === "coop" ? "structure/coop" : "structure/barn";
+        this.world.spawn({
+          transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+          sprite: { atlasId: "main", frame, layer: 30, tintRgba: 0xffffffff },
+          pen: { kind: penKind, animal: animalKind, count: 0, care: 0.5, fedToday: false, tileX: tx, tileY: ty, regionId: homeRegion, ownerId: farmer.id },
+          solid: { isSolid: true, tileX: tx, tileY: ty },
+        });
+        if (useWood && res) res.wood -= recipe.woodCost;
+        farmer.inventory.gold -= goldDue;
+        placed = true;
+        break outer;
+      }
+    }
+    if (!placed) return;
+  }
+
+  /**
+   * Buy an animal and add it to the matching pen.
+   *
+   * brief 42 (deliberation fix) — sold at the VILLAGE shopkeeper OR the CARPENTER.
+   * The carpenter is where pens are built (and where brief 44 will craft them), so
+   * letting it also stock starter livestock means a patient farmer builds the coop
+   * and buys the first birds in ONE trip. Without this, at low ticks/day the second
+   * cross-map village round-trip (after the carpentry build trip) eats so many
+   * in-game days that animals were never actually bought in a 100-day run.
+   */
+  private handleBuyAnimal(farmer: ActingFarmer, intent: Intention): void {
+    const region = farmer.farmer?.currentRegion;
+    if (region !== "village" && region !== "carpentry") return;
+    if (farmer.id === undefined) return;
+    const animalKind = intent.data.animal as AnimalKind;
+    const cost = ANIMAL_BUY_COST[animalKind];
+    if (farmer.inventory.gold < cost) return;
+
+    // Find the farmer's matching pen.
+    let penEntity: With<GameEntity, "pen"> | null = null;
+    for (const p of this.world.query("pen")) {
+      if (p.pen.ownerId === farmer.id && p.pen.animal === animalKind) {
+        penEntity = p;
+        break;
+      }
+    }
+    if (!penEntity) return; // need to build pen first
+
+    farmer.inventory.gold -= cost;
+    penEntity.pen.count += 1;
+  }
+
+  /**
+   * Tend the pen on the farmer's farm. Sets fedToday=true and boosts care.
+   */
+  private handleTend(farmer: ActingFarmer, intent: Intention): void {
+    if (farmer.id === undefined) return;
+    const penKind = intent.data.penKind as ("coop" | "barn") | undefined;
+
+    // Find the pen to tend (by kind if specified, else first untended).
+    let penEntity: With<GameEntity, "pen"> | null = null;
+    for (const p of this.world.query("pen")) {
+      if (p.pen.ownerId !== farmer.id) continue;
+      if (penKind !== undefined && p.pen.kind !== penKind) continue;
+      penEntity = p;
+      break;
+    }
+    if (!penEntity) return;
+
+    penEntity.pen.fedToday = true;
+    penEntity.pen.care = Math.min(1, penEntity.pen.care + CARE_TEND_BOOST);
+  }
+
+  /**
+   * Plant a fruit tree on a free tile of the farmer's farm.
+   * Costs gold from TREE_PLANT_COST. Creates an OrchardTree entity.
+   */
+  private handlePlantTree(farmer: ActingFarmer, intent: Intention): void {
+    if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
+    const fruitKind = intent.data.kind as FruitKind;
+    const cost = TREE_PLANT_COST[fruitKind];
+    if (farmer.inventory.gold < cost) return;
+
+    const tileX = intent.data.tileX as number | undefined;
+    const tileY = intent.data.tileY as number | undefined;
+    if (tileX === undefined || tileY === undefined) return;
+
+    const homeRegion = farmer.farmer.homeRegion;
+    // Check tile is free.
+    for (const e of this.world.query("orchardTree")) {
+      if (e.orchardTree.tileX === tileX && e.orchardTree.tileY === tileY && e.orchardTree.regionId === homeRegion) return;
+    }
+    for (const e of this.world.query("plot")) {
+      if (e.plot.tileX === tileX && e.plot.tileY === tileY && e.plot.regionId === homeRegion) return;
+    }
+
+    farmer.inventory.gold -= cost;
+    this.world.spawn({
+      transform: { x: tileX, y: tileY, prevX: tileX, prevY: tileY, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/fruit-tree-sapling", layer: 30, tintRgba: 0xffffffff },
+      orchardTree: {
+        kind: fruitKind,
+        tileX,
+        tileY,
+        regionId: homeRegion,
+        ownerId: farmer.id,
+        daysGrown: 0,
+        mature: false,
+        lastHarvestDay: -1,
+        fruitReady: 0,
+      },
+    });
+  }
+
+  /**
+   * Harvest ready fruit from the nearest mature orchard tree on the farmer's farm.
+   * Banks fruit into inventory (Normal quality — upgrade path is Part C).
+   */
+  private handleHarvestFruit(farmer: ActingFarmer, intent: Intention): void {
+    if (farmer.id === undefined) return;
+    const tileX = intent.data.tileX as number | undefined;
+    const tileY = intent.data.tileY as number | undefined;
+
+    // Find the target tree (by tile if given, else first ready tree).
+    let treeEntity: With<GameEntity, "orchardTree"> | null = null;
+    for (const t of this.world.query("orchardTree")) {
+      if (t.orchardTree.ownerId !== farmer.id) continue;
+      if (!t.orchardTree.mature || t.orchardTree.fruitReady <= 0) continue;
+      if (tileX !== undefined && t.orchardTree.tileX !== tileX) continue;
+      if (tileY !== undefined && t.orchardTree.tileY !== tileY) continue;
+      treeEntity = t;
+      break;
+    }
+    if (!treeEntity) return;
+
+    const tree = treeEntity.orchardTree;
+    const qty = tree.fruitReady;
+    tree.fruitReady = 0;
+    bankFruit(farmer.inventory, tree.kind, qty, "normal");
+  }
+
+  /**
+   * Sell all held products of a given kind to the shopkeeper (village).
+   */
+  private handleSellProduct(farmer: ActingFarmer, intent: Intention): void {
+    if (farmer.farmer?.currentRegion !== "village") return;
+    const productKind = intent.data.kind as import("../components").ProductKind;
+    const q = farmer.inventory.products?.[productKind];
+    if (!q) return;
+    const base = PRODUCT_SELL_PRICE[productKind];
+    const total = q.normal * base * QUALITY_MULTIPLIER.normal
+      + q.silver * base * QUALITY_MULTIPLIER.silver
+      + q.gold   * base * QUALITY_MULTIPLIER.gold;
+    farmer.inventory.gold += Math.round(total);
+    farmer.inventory.products![productKind] = { normal: 0, silver: 0, gold: 0 };
+  }
+
+  /**
+   * Sell all held fruit of a given kind to the shopkeeper (village).
+   */
+  private handleSellFruit(farmer: ActingFarmer, intent: Intention): void {
+    if (farmer.farmer?.currentRegion !== "village") return;
+    const fruitKind = intent.data.kind as FruitKind;
+    const q = farmer.inventory.fruit?.[fruitKind];
+    if (!q) return;
+    const base = FRUIT_SELL_PRICE[fruitKind];
+    const total = q.normal * base * QUALITY_MULTIPLIER.normal
+      + q.silver * base * QUALITY_MULTIPLIER.silver
+      + q.gold   * base * QUALITY_MULTIPLIER.gold;
+    farmer.inventory.gold += Math.round(total);
+    farmer.inventory.fruit![fruitKind] = { normal: 0, silver: 0, gold: 0 };
+  }
+
   run(ctx: SimContext): void {
     const farmers = this.world.query("fsm", "intentions", "inventory");
     const actCtx = this.buildActContext();
@@ -908,6 +1160,34 @@ export class ActSystem implements System {
           }
           case "fish": {
             this.handleFish(farmer, actCtx.bubbleTiles, ctx.tick);
+            break;
+          }
+          case "build-pen": {
+            this.handleBuildPen(farmer, intent);
+            break;
+          }
+          case "buy-animal": {
+            this.handleBuyAnimal(farmer, intent);
+            break;
+          }
+          case "tend": {
+            this.handleTend(farmer, intent);
+            break;
+          }
+          case "plant-tree": {
+            this.handlePlantTree(farmer, intent);
+            break;
+          }
+          case "harvest-fruit": {
+            this.handleHarvestFruit(farmer, intent);
+            break;
+          }
+          case "sell-product": {
+            this.handleSellProduct(farmer, intent);
+            break;
+          }
+          case "sell-fruit": {
+            this.handleSellFruit(farmer, intent);
             break;
           }
         }

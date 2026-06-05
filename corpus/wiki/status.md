@@ -146,6 +146,16 @@ First use of the per-brief branch + worktree + auto-merge-when-green workflow; t
 
 Brief 41 deliberately changed sim outcomes (new crops/quality/season-gating). The **new day-100 baseline (seed 0xc0ffee)** is an extreme runaway: Atticus (aggressive) ~16,467g vs Cora 980 / Hannah 199 / Otto 72 (Pip ~60, idle player). Reproducible (MATCH ×3 on replay). This is the new reference for 42–46 (which will each re-baseline again). It sharpens the **leader-runaway flatness** gap — see [open-questions.md](open-questions.md).
 
+## Shipped 2026-06-05 (brief 42 — livestock pens + orchards)
+
+| Brief | Status | Notes |
+|---|---|---|
+| [42-livestock-pens-and-orchards](../briefs/game/todo/42-livestock-pens-and-orchards.md) | **Done (Parts A+B)** | **Part A — Livestock pens:** `Pen` component (`coop`/`barn`, `AnimalKind`, `count`, `care 0–1`, `fedToday`). [`LivestockSystem`](../../packages/farm-valley/src/systems/livestock.ts) fires on DAY_START: fed pens → `count×yield` products (egg/milk/wool) at seeded-RNG quality from care scalar; unfed → faster care decay (0.12/day vs 0.05). [`ActSystem`](../../packages/farm-valley/src/systems/act.ts) added: `build-pen`, `buy-animal`, `tend` (set fedToday), `sell-product` handlers. **Part B — Orchards:** `OrchardTree` component (`FruitKind` apple/cherry, `daysGrown`, `mature`, `lastHarvestDay`, `fruitReady`). [`OrchardSystem`](../../packages/farm-valley/src/systems/orchard.ts) matures trees in 20 days, drops `FRUIT_YIELD_PER_HARVEST` fruit into `fruitReady` once per 25-day season block (perennial — block-index gate, not season-name gate). `harvest-fruit`, `plant-tree`, `sell-fruit` acts. **Agent wiring:** conservative/hoarder invest heavily; aggressive passive-only; opportunist diversifies. 13 new atlas frames across `characters`/`buildings`/`items-ui` sheets. Leaderboard extended with `livestockValue` + `assetValue`. **10 new tests** (livestock ×5 + orchard ×5); 575 total; typecheck clean; determinism MATCH ×3. Part C (processing/maker chain) explicitly skipped. |
+
+### ⚠️ Determinism note (post-42)
+
+Brief 42 adds `LivestockSystem` and `OrchardSystem` to the scheduler. Both use forked seeded RNG (`rng.fork("livestock")`; orchard has no RNG), so the determinism baseline shifts again. MATCH ×3 confirmed (seeds 0xc0ffee/1/42). Agents try to travel to `carpentry` for pen-building but the headless JS pathfinder can't route some farmers — `travel` intents are dropped silently (pre-existing limitation). In the browser with WASM pathfinder, routes work.
+
 ## Open gaps
 
 See [open-questions.md](open-questions.md) for the live list.

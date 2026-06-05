@@ -47,10 +47,12 @@ import { ShopSlateSystem } from "./systems/shop-slate";
 import { NoticeBoardSystem } from "./systems/notice-board";
 import { FinishDaySystem } from "./systems/finish-day";
 import { WorkNpcSystem } from "./systems/work-npc";
+import { LivestockSystem } from "./systems/livestock";
+import { OrchardSystem } from "./systems/orchard";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
 import { listCoordinators } from "./agents/cnp-registry";
-import { cropInventoryValue } from "./economy";
+import { cropInventoryValue, productInventoryValue, fruitInventoryValue, ANIMAL_BUY_COST, FRUIT_SELL_PRICE, FRUIT_YIELD_PER_HARVEST } from "./economy";
 import "./agents/conservative";
 import "./agents/aggressive";
 import "./agents/hoarder";
@@ -212,6 +214,10 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new TileFeatureSystem(world, rng, bus))
     .add(new BubbleSystem(world, rng))
     .add(new HarvestSystem(world, rng))
+    // brief 42 — livestock daily product yield + care decay (runs after harvest).
+    .add(new LivestockSystem(world, rng))
+    // brief 42 — orchard maturation + seasonal fruit-drop.
+    .add(new OrchardSystem(world))
     // brief 29 — surface owned-plot watering needs into beliefs before agents
     // deliberate, so survival-reflex watering can be queued.
     .add(new PlotSenseSystem(world))
@@ -252,15 +258,41 @@ export interface FarmerSummary {
   crops: Partial<Record<import("./components").CropKind, number>>;
   /** brief 41 — quality-weighted value of all held crops. */
   unsoldValue: number;
+  /** brief 42 — value of held products + fruit. */
+  livestockValue: number;
+  /** brief 42 — value of pens (animal count × buy cost) + mature orchards (orchard count × avg fruit value). */
+  assetValue: number;
   totalValue: number;
 }
 
 export function leaderboard(world: World<GameEntity>): FarmerSummary[] {
   const out: FarmerSummary[] = [];
+
+  // brief 42 — build per-farmer pen and orchard asset values.
+  const penValueByOwner = new Map<number, number>();
+  const orchardValueByOwner = new Map<number, number>();
+  for (const p of world.query("pen")) {
+    const ownerId = p.pen.ownerId;
+    // Value pens by animal count × buy cost (rough liquidation value).
+    const animalVal = (ANIMAL_BUY_COST[p.pen.animal] ?? 0) * p.pen.count;
+    penValueByOwner.set(ownerId, (penValueByOwner.get(ownerId) ?? 0) + animalVal);
+  }
+  for (const t of world.query("orchardTree")) {
+    const ownerId = t.orchardTree.ownerId;
+    if (!t.orchardTree.mature) continue;
+    // Mature orchard value: expected annual yield × sell price.
+    const fruitVal = FRUIT_YIELD_PER_HARVEST * FRUIT_SELL_PRICE[t.orchardTree.kind];
+    orchardValueByOwner.set(ownerId, (orchardValueByOwner.get(ownerId) ?? 0) + fruitVal);
+  }
+
   for (const f of world.query("farmer", "inventory", "personality")) {
     if (f.id === undefined) continue;
     // brief 41 — quality-weighted unsold value (uses cropQuality if present).
     const unsoldValue = cropInventoryValue(f.inventory);
+    // brief 42 — livestock product + fruit value.
+    const livestockValue = productInventoryValue(f.inventory) + fruitInventoryValue(f.inventory);
+    // brief 42 — pen + orchard asset value.
+    const assetValue = (penValueByOwner.get(f.id) ?? 0) + (orchardValueByOwner.get(f.id) ?? 0);
     // Snapshot all crop counts (dynamic keyset so new crops appear automatically).
     const crops: Partial<Record<import("./components").CropKind, number>> = {};
     for (const [k, v] of Object.entries(f.inventory.crops) as [import("./components").CropKind, number][]) {
@@ -273,7 +305,9 @@ export function leaderboard(world: World<GameEntity>): FarmerSummary[] {
       gold: f.inventory.gold,
       crops,
       unsoldValue,
-      totalValue: f.inventory.gold + unsoldValue,
+      livestockValue,
+      assetValue,
+      totalValue: f.inventory.gold + unsoldValue + livestockValue + assetValue,
     });
   }
   out.sort((a, b) => b.totalValue - a.totalValue);

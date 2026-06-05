@@ -13,8 +13,8 @@
 import { describe, it, expect } from "vitest";
 import { frameToAtlasId } from "./render-systems";
 
-// The complete set of prefixes produced by the atlas-builder recipes
-// (farmer/* + npc/* + structure/* + tile/* + crop/* + decoration/* + fish/* + tool/* + indicator/* + debug/*).
+// The complete set of prefixes produced by the atlas-builder recipes.
+// brief 42 — added animal/*, product/*, fruit/*.
 const ALL_RECIPE_PREFIXES: Record<string, string> = {
   "farmer":     "characters",
   "npc":        "characters",
@@ -26,6 +26,10 @@ const ALL_RECIPE_PREFIXES: Record<string, string> = {
   "tool":       "items-ui",
   "indicator":  "items-ui",
   "debug":      "items-ui",
+  // brief 42 — livestock + orchard
+  "animal":     "characters",
+  "product":    "items-ui",
+  "fruit":      "items-ui",
 };
 
 describe("frameToAtlasId (runtime atlas routing)", () => {
@@ -102,6 +106,23 @@ describe("frameToAtlasId (runtime atlas routing)", () => {
 
   it("routes debug/* to items-ui", () => {
     expect(frameToAtlasId("debug/player")).toBe("items-ui");
+  });
+
+  it("routes animal/* to characters (brief 42)", () => {
+    expect(frameToAtlasId("animal/chicken")).toBe("characters");
+    expect(frameToAtlasId("animal/cow")).toBe("characters");
+    expect(frameToAtlasId("animal/sheep")).toBe("characters");
+  });
+
+  it("routes product/* to items-ui (brief 42)", () => {
+    expect(frameToAtlasId("product/egg")).toBe("items-ui");
+    expect(frameToAtlasId("product/milk")).toBe("items-ui");
+    expect(frameToAtlasId("product/wool")).toBe("items-ui");
+  });
+
+  it("routes fruit/* to items-ui (brief 42)", () => {
+    expect(frameToAtlasId("fruit/apple")).toBe("items-ui");
+    expect(frameToAtlasId("fruit/cherry")).toBe("items-ui");
   });
 
   it("throws on unknown prefix", () => {

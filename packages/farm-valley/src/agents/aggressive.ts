@@ -12,7 +12,7 @@ import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -255,6 +255,14 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   deliberateBean(farmer, 0.95);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
+
+  // brief 42 — aggressive mostly skips livestock (AP-hungry); only tends if already has pens,
+  // harvests fruit of opportunity.
+  deliberateTendPens(farmer, 12);
+  deliberateSellProducts(farmer, 12);
+  deliberateHarvestFruit(farmer, 12);
+  deliberateSellFruit(farmer, 12);
+
   deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }

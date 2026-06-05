@@ -1,0 +1,154 @@
+/**
+ * brief 42 — livestock system tests
+ *
+ * Tests:
+ *  1. Fed+tended pen yields product the next day.
+ *  2. Unfed pen yields nothing and decays care faster.
+ *  3. Quality from care is deterministic (inputs+seed → same tier, two identical runs).
+ *  4. Leaderboard includes pen + product asset value.
+ */
+import { describe, it, expect } from "vitest";
+import { bootstrapSim, leaderboard } from "../sim-bootstrap";
+import { bankProduct, totalProductCount } from "../economy";
+import type { Inventory } from "../components";
+
+const TICKS_PER_DAY = 10;
+
+/** Run the sim for N days. */
+function runDays(sim: ReturnType<typeof bootstrapSim>, days: number, startTick = 0): number {
+  const end = startTick + days * TICKS_PER_DAY;
+  for (let t = startTick; t < end; t++) {
+    sim.scheduler.tick({ tick: t });
+  }
+  return end;
+}
+
+describe("LivestockSystem", () => {
+  it("fed+tended pen yields product the next day", () => {
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
+    const { world } = sim;
+
+    // Use farmer 0 (conservative = Cora, id should be consistent).
+    const farmerList = [...world.query("farmer", "inventory")];
+    const farmer = farmerList[0]!;
+    if (farmer.id === undefined) throw new Error("farmer has no id");
+
+    // Spawn a coop pen: 3 chickens, care=0.8, fedToday=true.
+    world.spawn({
+      pen: {
+        kind: "coop",
+        animal: "chicken",
+        count: 3,
+        care: 0.8,
+        fedToday: true,
+        tileX: 5, tileY: 5,
+        regionId: "farm-cora",
+        ownerId: farmer.id,
+      },
+    });
+
+    // Run 1 day so LivestockSystem fires.
+    runDays(sim, 1);
+
+    // Should have eggs now (count × baseYield = 3 × 1 = 3).
+    const eggs = totalProductCount(farmer.inventory, "egg");
+    expect(eggs).toBeGreaterThanOrEqual(3);
+  });
+
+  it("unfed pen yields nothing and decays care faster than fed pen", () => {
+    const sim = bootstrapSim({ seed: 2, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
+    const { world } = sim;
+
+    const farmerList = [...world.query("farmer", "inventory")];
+    const farmer = farmerList[0]!;
+    if (farmer.id === undefined) throw new Error("farmer has no id");
+
+    // Spawn a barn pen: 2 cows, care=0.8, fedToday=false (unfed).
+    const penEntity = world.spawn({
+      pen: {
+        kind: "barn",
+        animal: "cow",
+        count: 2,
+        care: 0.8,
+        fedToday: false,
+        tileX: 6, tileY: 6,
+        regionId: "farm-cora",
+        ownerId: farmer.id,
+      },
+    });
+
+    const careBefore = penEntity.pen!.care;
+    runDays(sim, 1);
+
+    // No milk should be produced.
+    const milk = totalProductCount(farmer.inventory, "milk");
+    expect(milk).toBe(0);
+
+    // Care should have decayed faster (> 0.05, which is the fed decay rate).
+    const careDecay = careBefore - penEntity.pen!.care;
+    expect(careDecay).toBeGreaterThan(0.05);
+  });
+
+  it("product quality roll is deterministic — identical seed produces identical results", () => {
+    function runAndGetEggCount(): number {
+      const sim = bootstrapSim({ seed: 42, ticksPerDay: TICKS_PER_DAY, maxDays: 3 });
+      const { world } = sim;
+      const farmerList = [...world.query("farmer", "inventory")];
+      const farmer = farmerList[0]!;
+      if (farmer.id === undefined) return -1;
+      world.spawn({
+        pen: {
+          kind: "coop", animal: "chicken", count: 1, care: 0.9,
+          fedToday: true, tileX: 5, tileY: 5,
+          regionId: "farm-cora", ownerId: farmer.id,
+        },
+      });
+      runDays(sim, 2);
+      return totalProductCount(farmer.inventory, "egg");
+    }
+    const run1 = runAndGetEggCount();
+    const run2 = runAndGetEggCount();
+    expect(run1).toBe(run2);
+    expect(run1).toBeGreaterThan(0);
+  });
+
+  it("leaderboard includes pen asset value in totalValue", () => {
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
+    const { world } = sim;
+
+    const farmerList = [...world.query("farmer", "inventory")];
+    const farmer = farmerList[0]!;
+    if (farmer.id === undefined) throw new Error("farmer has no id");
+
+    // Spawn a coop with 2 chickens.
+    world.spawn({
+      pen: {
+        kind: "coop", animal: "chicken", count: 2,
+        care: 0.5, fedToday: false, tileX: 5, tileY: 5,
+        regionId: "farm-cora", ownerId: farmer.id,
+      },
+    });
+
+    runDays(sim, 1);
+
+    const board = leaderboard(world);
+    const entry = board.find(e => e.id === farmer.id);
+    expect(entry).toBeDefined();
+    // 2 chickens × ANIMAL_BUY_COST.chicken (15) = 30 asset value.
+    expect(entry!.assetValue).toBeGreaterThanOrEqual(30);
+    expect(entry!.totalValue).toBeGreaterThan(entry!.gold);
+  });
+
+  it("bankProduct helper adds quality-tracked products to inventory", () => {
+    const inv: Inventory = {
+      gold: 100,
+      crops: { radish: 0, wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0, grape: 0, "winter-squash": 0 },
+      seeds: { radish: 0, wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0, grape: 0, "winter-squash": 0 },
+    };
+    bankProduct(inv, "egg", 3, "normal");
+    bankProduct(inv, "egg", 1, "gold");
+    expect(totalProductCount(inv, "egg")).toBe(4);
+    expect(inv.products!["egg"]!.gold).toBe(1);
+    expect(inv.products!["egg"]!.normal).toBe(3);
+  });
+});

@@ -2,7 +2,7 @@
   "id": "items-ui",
   "imageUrl": "/atlas/items-ui.png",
   "width": 128,
-  "height": 64,
+  "height": 128,
   "frames": {
     "indicator/meet": {
       "x": 1,
@@ -127,6 +127,36 @@
     "fish/salmon": {
       "x": 103,
       "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "product/egg": {
+      "x": 1,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "product/milk": {
+      "x": 18,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "product/wool": {
+      "x": 35,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "fruit/apple": {
+      "x": 52,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "fruit/cherry": {
+      "x": 69,
+      "y": 52,
       "w": 16,
       "h": 16
     }
