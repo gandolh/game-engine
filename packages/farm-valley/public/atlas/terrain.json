@@ -58,105 +58,129 @@
       "w": 16,
       "h": 16
     },
-    "tile/path": {
+    "tile/grass-spring": {
       "x": 35,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/grass-summer": {
+      "x": 52,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/grass-autumn": {
+      "x": 69,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/grass-winter": {
+      "x": 86,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "tile/path": {
+      "x": 103,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "tile/bridge-h": {
-      "x": 52,
-      "y": 18,
+      "x": 1,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "tile/fence-h": {
-      "x": 69,
-      "y": 18,
+      "x": 18,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "tile/dirt": {
-      "x": 86,
-      "y": 18,
+      "x": 35,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "tile/forge-floor": {
-      "x": 103,
-      "y": 18,
+      "x": 52,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "tile/market-floor": {
-      "x": 1,
+      "x": 69,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "tile/quarry-floor": {
-      "x": 18,
-      "y": 35,
-      "w": 16,
-      "h": 16
-    },
-    "tile/wood-plank": {
-      "x": 35,
-      "y": 35,
-      "w": 16,
-      "h": 16
-    },
-    "tile/sand": {
-      "x": 52,
-      "y": 35,
-      "w": 16,
-      "h": 16
-    },
-    "tile/stone-floor": {
-      "x": 69,
-      "y": 35,
-      "w": 16,
-      "h": 16
-    },
-    "tile/ice-floor": {
       "x": 86,
       "y": 35,
       "w": 16,
       "h": 16
     },
-    "tile/mushroom-floor": {
+    "tile/wood-plank": {
       "x": 103,
       "y": 35,
       "w": 16,
       "h": 16
     },
-    "tile/carpentry-floor": {
+    "tile/sand": {
       "x": 1,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/coral-fill": {
+    "tile/stone-floor": {
       "x": 18,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/coral-edge": {
+    "tile/ice-floor": {
       "x": 35,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/coral-corner": {
+    "tile/mushroom-floor": {
       "x": 52,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/carpentry-floor": {
       "x": 69,
       "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-fill": {
+      "x": 86,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-edge": {
+      "x": 103,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-corner": {
+      "x": 1,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 18,
+      "y": 69,
       "w": 16,
       "h": 16
     }

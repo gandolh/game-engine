@@ -60,6 +60,11 @@ export interface Farmer {
    * know to add the bonus. Absent = no helper hired.
    */
   helperHiredDay?: number;
+  /**
+   * brief 45 — number of festival harvest contests this farmer has won. A small
+   * standing bump + a recap/observer signal. Absent = never won one.
+   */
+  festivalWins?: number;
 }
 
 /**

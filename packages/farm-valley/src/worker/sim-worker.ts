@@ -20,7 +20,7 @@ import { bootstrapSim } from "../sim-bootstrap";
 import { buildStaticLayerSprites } from "../render-systems";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
 import { buildRenderSnapshot, HIGHLIGHT_THRESHOLD } from "./snapshot-builder";
-import { ONT_SIMULATION, type ShockBody } from "../protocols";
+import { ONT_SIMULATION, type ShockBody, seasonForDay } from "../protocols";
 import { createPathfinderFromBytes, Profiler } from "@engine/core";
 import type {
   WorkerInbound,
@@ -202,14 +202,22 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     // Build and post the static-layer sprites (backdrop tiles, fences, plot
     // dirt). These never change after world setup so they're baked once by
     // the main thread renderer.
-    const staticSprites = buildStaticLayerSprites(world);
-    const staticMsg: WorkerStaticLayerMsg = {
-      type: "static-layer",
-      sprites: staticSprites,
-      worldWidthPx: WORLD_WIDTH * TILE,
-      worldHeightPx: WORLD_HEIGHT * TILE,
+    // brief 45 — bake the static layer for the CURRENT season's ground tiles, and
+    // re-post it whenever the season changes (4× per run; cheap). The main thread
+    // re-bakes its static layer from each message.
+    let lastBakedSeason = seasonForDay(dayClock.day);
+    const postStaticLayer = (season: import("../protocols/weather").Season): void => {
+      const staticSprites = buildStaticLayerSprites(world, season);
+      const staticMsg: WorkerStaticLayerMsg = {
+        type: "static-layer",
+        sprites: staticSprites,
+        worldWidthPx: WORLD_WIDTH * TILE,
+        worldHeightPx: WORLD_HEIGHT * TILE,
+        season,
+      };
+      self.postMessage(staticMsg);
     };
-    self.postMessage(staticMsg);
+    postStaticLayer(lastBakedSeason);
 
     // Subscribe to the shock ontology so the snapshot can surface it once.
     let pendingShock: SnapshotShock | null = null;
@@ -292,6 +300,15 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
           snapshot,
         };
         self.postMessage(snapshotMsg);
+
+        // brief 45 — re-bake the static layer on a season change so the ground
+        // tiles switch to the new season's variant. Render-only; the sim is
+        // unaffected (the season is a pure function of the day index).
+        const seasonNow = seasonForDay(dayClock.day);
+        if (seasonNow !== lastBakedSeason) {
+          lastBakedSeason = seasonNow;
+          postStaticLayer(seasonNow);
+        }
 
         // Periodic rolling report to the main thread for the debug overlay.
         if (profiler.enabled && tick % PROFILE_REPORT_EVERY === 0) {

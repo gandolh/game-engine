@@ -29,6 +29,7 @@
  *   "alliance"   → snoopRivalrySystem ("alliance" kind from RivalrySystem)
  *   "rank-flip"  → rank-change detection (NEW: X overtakes Y for 1st!)
  *   "race-on"    → final-stretch proximity line (NEW)
+ *   "festival"   → festival harvest-contest result (brief 45)
  */
 export type DramaEventKind =
   | "trade"
@@ -39,7 +40,8 @@ export type DramaEventKind =
   | "rivalry"
   | "alliance"
   | "rank-flip"
-  | "race-on";
+  | "race-on"
+  | "festival";
 
 // ---------------------------------------------------------------------------
 // Context
@@ -107,6 +109,9 @@ const BASE_DRAMA: Record<DramaEventKind, number> = {
   "alliance":   0.40,
   "rank-flip":  0.75,
   "race-on":    0.90,
+  // festival — a scheduled calendar landmark with a gold prize + standing bump;
+  // a deliberate spotlight beat (and a chance for a trailing farmer to win one).
+  "festival":   0.70,
 };
 
 // ---------------------------------------------------------------------------

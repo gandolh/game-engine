@@ -12,7 +12,7 @@ import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -279,6 +279,8 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // so it can claim a truly-idle queue; the next arrival re-deliberation then
   // sends the farmer home for the night.
   deliberateTavernGather(farmer, -2);
+  // brief 45 — festival-day gathering at the village podium.
+  deliberateFestivalGather(farmer, -2);
 
   deliberateSleep(farmer);
 

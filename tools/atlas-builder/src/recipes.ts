@@ -100,6 +100,11 @@ const SWATCH: Record<string, [number, number, number, number]> = {
   v: [18, 78, 137, 255],    // ocean             #124e89
   V: [58, 68, 102, 255],    // ocean deep        #3a4466
   e: [0, 153, 219, 255],    // ocean foam        #0099db
+  // brief 45 — seasonal tile / foliage swatches (all EDG32).
+  n: [255, 255, 255, 255],  // snow white        #ffffff
+  a: [254, 174, 52, 255],   // autumn gold       #feae34 (= gold `o`)
+  A: [215, 118, 67, 255],   // autumn orange     #d77643 (= pumpkin `p`)
+  b: [228, 166, 114, 255],  // autumn tan        #e4a672 (= wheat `W`)
 };
 
 export function colorOf(ch: string): [number, number, number, number] {
@@ -332,6 +337,106 @@ export const RECIPES: PixelRecipe[] = [
       "ccccccGcccccCccc",
       "cccGcccccGcGcccc",
       "ccccccCccccccccc",
+    ],
+  },
+  // ── brief 45 — seasonal grass variants ────────────────────────────────────────
+  // Render-only ground-tile treatments selected per-season in backdropFrame.
+  // Spring = the freshest base grass + light flecks; summer = deeper/drier base;
+  // autumn = golden/orange flecks over a tan-dried base; winter = snow-dusted.
+  // Each shares the base grass layout so they read as the SAME field changing
+  // through the year. All swatch chars are EDG32 (see SWATCH).
+  {
+    name: "tile/grass-spring",
+    size: 16,
+    pixels: [
+      "ccCgccccccccgccc",
+      "cCcccCccccGcccGc",
+      "cccgcccccccCGccc",
+      "cGcccccGcccccgcc",
+      "ccCccccccGcccCcc",
+      "ccGccccgccccccCc",
+      "ccccCcccCGccccGc",
+      "cgccccccccccCccc",
+      "cGcccccGcccCGccc",
+      "ccccgcccccccCcGc",
+      "ccCcccccccGccccc",
+      "ccccccGcccgcccGc",
+      "cGcccCcccccccccc",
+      "ccccccGcccccCccc",
+      "cccGcccccGcGcccc",
+      "ccgcccCccccccccc",
+    ],
+  },
+  {
+    // Summer: deeper, drier — base swapped to the darker grass-base (c only),
+    // sparse light highlights, the odd dry wheat-tan fleck (b).
+    name: "tile/grass-summer",
+    size: 16,
+    pixels: [
+      "cccccccccccccccc",
+      "ccccGccccccccccc",
+      "cccccccccbccGccc",
+      "cGcccccccccccccc",
+      "cccccccccGcccccc",
+      "ccGcccccccccccbc",
+      "ccccGcccGcccccGc",
+      "cccccccccccccccc",
+      "cGcccccGcccGcccc",
+      "ccccbccccccccccc",
+      "cccccccccGcccccc",
+      "ccccccGccccccccc",
+      "cGccccccccccccbc",
+      "cccccccGccccGccc",
+      "cccGccccccGccccc",
+      "ccccccGccccccccc",
+    ],
+  },
+  {
+    // Autumn: golden/orange flecks (a/A) + tan (b) over the base grass — the
+    // field turning. A few green specks linger so it's clearly the same grass.
+    name: "tile/grass-autumn",
+    size: 16,
+    pixels: [
+      "ccAcccccccacccbc",
+      "ccccaccccAcccacc",
+      "cbccccccccccAccc",
+      "cAcccccacccccbcc",
+      "ccacccccccccAccc",
+      "ccAccccbcccccccc",
+      "ccccacccaAcccccA",
+      "cbccccccccccaccc",
+      "cAcccccacccaAccc",
+      "ccccbccccccccAca",
+      "ccacccccccAccccc",
+      "ccccccAcccbcccac",
+      "cacccAcccccccccc",
+      "ccccccAcccccaccc",
+      "cccacccccacacccc",
+      "ccbcccacccccccac",
+    ],
+  },
+  {
+    // Winter: snow-dusted — a near-solid snow (n) blanket with frozen-grass (c)
+    // patches showing through and faint blue-grey shadow (Q) at clumps.
+    name: "tile/grass-winter",
+    size: 16,
+    pixels: [
+      "nnnnnnnnnnnnnnnn",
+      "nnnnQnnnnnnnnQnn",
+      "nncnnnnnnnnnnnnn",
+      "nnnnnnnnQnnnnnnn",
+      "nnQnnnnnnnnncnnn",
+      "nnnnnnnnnnnnnnnn",
+      "nnnnnncnnnQnnnnn",
+      "nQnnnnnnnnnnnnnn",
+      "nnnnnnnQnnnnncnn",
+      "nnncnnnnnnnnnnnn",
+      "nnnnnnnnQnnnnnQn",
+      "nnQnnnnnnnnnnnnn",
+      "nnnnncnnnnnQnnnn",
+      "nnnnnnnnnnnnnnnn",
+      "nQnnnnnnQnnncnnn",
+      "nnnnnnnnnnnnnnnn",
     ],
   },
   {
@@ -1940,6 +2045,54 @@ export const RECIPES: PixelRecipe[] = [
       "....cCcCcCc.....",
       ".....CCCCC......",
       "......CCC.......",
+      ".......m........",
+      ".......m........",
+      ".......m........",
+      ".......m........",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    // brief 45 — autumn tree: same silhouette as structure/tree, canopy recolored
+    // to golden/orange (a/A/b). Render-only variant selected in autumn.
+    name: "structure/tree-autumn",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      ".....aAaAa......",
+      "....AaAbAaA.....",
+      "...aAaAaAaAb....",
+      "...AbAaAaAaA....",
+      "....aAaAaAa.....",
+      ".....AaAbA......",
+      "......aAa.......",
+      ".......m........",
+      ".......m........",
+      ".......m........",
+      ".......m........",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    // brief 45 — bare winter tree: leafless branches + trunk, dusted with snow
+    // (n) on the limbs. Render-only variant selected in winter.
+    name: "structure/tree-bare",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      ".....n..n.......",
+      "....M.MM.M......",
+      ".....MMMM.n.....",
+      "...n..MM........",
+      "....M.M.M.......",
+      ".....MMM........",
+      "......Mm........",
       ".......m........",
       ".......m........",
       ".......m........",

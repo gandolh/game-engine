@@ -53,6 +53,22 @@ export type {
   AuctionResultBody,
 } from "./shop";
 
+export {
+  ONT_FESTIVAL,
+  FESTIVALS,
+  FESTIVAL_OFFSET_IN_SEASON,
+  festivalForDay,
+  festivalDayForSeason,
+  daysUntilFestival,
+} from "./festival";
+export type {
+  FestivalOntology,
+  FestivalId,
+  FestivalDef,
+  FestivalAnnounceBody,
+  FestivalResultBody,
+} from "./festival";
+
 export { ONT_CNP } from "./cnp";
 export type {
   CnpOntology,

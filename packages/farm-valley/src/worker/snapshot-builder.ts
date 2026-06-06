@@ -703,6 +703,20 @@ export function buildRenderSnapshot(
     : null;
   const playerHotbar = buildPlayerHotbar(world);
 
+  // brief 45 — current weather + season for the render-only rain/snow overlay.
+  const station = (() => {
+    for (const w of world.query("weatherStation")) return w.weatherStation;
+    return null;
+  })();
+  const weather = {
+    condition: station?.current ?? ("normal" as const),
+    season: station?.season ?? seasonForDay(day),
+  };
+  const todaysFestival = dayClock.festivalToday;
+  const festival = todaysFestival
+    ? { id: todaysFestival.id, name: todaysFestival.name, contestCrop: todaysFestival.contestCrop }
+    : null;
+
   // Build the per-farmer wealth time series for the live graph panel (brief 39).
   // Cheap: grouping ≤500 rows per tick. The series is always present (empty array
   // before day 1) so the panel doesn't need a null-check.
@@ -726,6 +740,8 @@ export function buildRenderSnapshot(
     relationships,
     rivalries,
     wealthSeries,
+    weather,
+    festival,
   };
 }
 

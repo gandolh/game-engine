@@ -709,6 +709,53 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
 
+    // brief 45 — weather ambient overlay (render-only). Rain on rainy/storm days;
+    // snow in winter (or winter storm). Particles spawn across the visible
+    // viewport and fall, so the season + sky read at a glance. EDG palette only;
+    // wall-clock animated like the foam/forge effects; no determinism impact.
+    {
+      const snap = client.latestSnapshot();
+      const w = snap?.weather;
+      if (w) {
+        const vw = viewRight - viewLeft;
+        const spawnAcross = (count: number, fn: (x: number, y: number) => void): void => {
+          for (let i = 0; i < count; i++) {
+            fn(viewLeft + Math.random() * vw, viewTop - Math.random() * TILE * 2);
+          }
+        };
+        const isWinter = w.season === "winter";
+        if (isWinter) {
+          // Snow: slow, drifting white flecks. Density scales with the viewport.
+          const flakes = Math.round((vw / TILE) * (w.condition === "storm" ? 0.9 : 0.5));
+          spawnAcross(flakes, (x, y) =>
+            particles.emit({
+              x, y, count: 1, shape: "circle",
+              color: EDG.white, color2: EDG.silver,
+              speedMin: 8, speedMax: 18,
+              angleMin: Math.PI * 0.45, angleMax: Math.PI * 0.55,
+              lifetimeMin: 1.6, lifetimeMax: 2.6,
+              sizeMin: 0.8, sizeMax: 1.6,
+              gravity: 6,
+            }),
+          );
+        } else if (w.condition === "rainy" || w.condition === "storm") {
+          // Rain: fast, near-vertical blue streaks. Heavier in a storm.
+          const drops = Math.round((vw / TILE) * (w.condition === "storm" ? 2.2 : 1.2));
+          spawnAcross(drops, (x, y) =>
+            particles.emit({
+              x, y, count: 1, shape: "rect",
+              color: EDG.skyBlue, color2: EDG.silver,
+              speedMin: 220, speedMax: 320,
+              angleMin: Math.PI * 0.46, angleMax: Math.PI * 0.5,
+              lifetimeMin: 0.5, lifetimeMax: 0.9,
+              sizeMin: 0.4, sizeMax: 0.9,
+              gravity: 80,
+            }),
+          );
+        }
+      }
+    }
+
     particles.update(dt);
 
     pushSnapshotSprites(
@@ -717,6 +764,7 @@ function createRenderLoop(deps: RenderLoopDeps): () => void {
       client.meets,
       farmerPositions,
       nowMs,
+      seasonForDay(client.day),
     );
 
     // Yellow follow arrow bobbing above the head of whichever farmer the camera

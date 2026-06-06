@@ -31,6 +31,7 @@ import type { GameEntity } from "../components";
 import { ONT_ENCOUNTER, type AcceptBody } from "../protocols/encounter";
 import { ONT_MARKET } from "../protocols/market";
 import { ONT_SHOP, type AuctionResultBody } from "../protocols/shop";
+import { ONT_FESTIVAL, type FestivalResultBody } from "../protocols/festival";
 import {
   ONT_SIMULATION,
   type ShockBody,
@@ -166,6 +167,14 @@ export class EventFeedSystem implements System {
           case ONT_SIMULATION.CROP_DEATH:
             this.captureCropDeath(
               msg.body as unknown as CropDeathBody,
+              tick,
+              day,
+              out,
+            );
+            break;
+          case ONT_FESTIVAL.RESULT:
+            this.captureFestival(
+              msg.body as unknown as FestivalResultBody,
               tick,
               day,
               out,
@@ -309,6 +318,36 @@ export class EventFeedSystem implements System {
       text: `${name}'s ${body.crop} withered (no water)`,
       drama: dramaScore("crop-death", { day, maxDays: this.dayClock.maxDays }),
       farmerId: body.ownerId,
+    });
+  }
+
+  private captureFestival(
+    body: FestivalResultBody,
+    tick: number,
+    day: number,
+    out: EventEntry[],
+  ): void {
+    if (typeof body.festivalId !== "string") return;
+    // One result per festival firing (keyed by festival id + the day it ran).
+    const key = `festival:${body.festivalId}:${body.day}`;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    let text: string;
+    if (body.winnerId === null || body.winnerName === null) {
+      text = `${body.name} — no contest entries this year`;
+    } else {
+      const quality = body.winnerQuality ?? "normal";
+      // e.g. "Autumn Harvest Fair — Atticus wins with a Gold pumpkin"
+      const qLabel = quality.charAt(0).toUpperCase() + quality.slice(1);
+      text = `${body.name} — ${body.winnerName} wins with a ${qLabel} ${body.contestCrop}`;
+    }
+    out.push({
+      tick,
+      day,
+      key,
+      text,
+      drama: dramaScore("festival", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: body.winnerId,
     });
   }
 
