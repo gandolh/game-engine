@@ -91,9 +91,9 @@ describe("no source file uses an off-palette color literal", () => {
 
   it("atlas-builder SWATCH RGB tuples are all EDG32 colors", () => {
     // The drawn game assets (sprites/tiles) get their colors from the SWATCH
-    // table in recipes.ts, expressed as [r,g,b,a] tuples rather than hex. Parse
-    // those tuples and assert each opaque swatch is an EDG32 color.
-    const recipes = join(REPO_ROOT, "tools", "atlas-builder", "src", "recipes.ts");
+    // table in recipes/palette.ts, expressed as [r,g,b,a] tuples rather than
+    // hex. Parse those tuples and assert each opaque swatch is an EDG32 color.
+    const recipes = join(REPO_ROOT, "tools", "atlas-builder", "src", "recipes", "palette.ts");
     const text = readFileSync(recipes, "utf8");
     // Match `X: [r, g, b, a]` swatch rows inside the SWATCH object.
     const rowRe = /^\s*[A-Za-z.]:\s*\[\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\s*\]/gm;
