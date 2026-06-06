@@ -200,7 +200,7 @@ function applyFocusAndPan(
 
 async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   // Load all atlas sheets from the builder-emitted index; no hardcoded sheet list.
-  const atlasMap = await loadAllAtlasSheets("/atlas/index.json");
+  const atlasMap = await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL);
   const camera = new Camera2D(CAMERA_CONFIG);
   _camera = camera;
   const renderer = new Canvas2dRenderer(canvas, camera);
@@ -1296,7 +1296,7 @@ function updateTooltip(
 
 async function loadNoiseGenerator(): Promise<import("@engine/core").NoiseGenerator | null> {
   try {
-    const gen = await createNoiseGeneratorFromUrl("/wasm/noise.wasm");
+    const gen = await createNoiseGeneratorFromUrl(`${import.meta.env.BASE_URL}wasm/noise.wasm`);
     console.info("[wasm] noise module loaded");
     return gen;
   } catch (err) {

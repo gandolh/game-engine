@@ -146,7 +146,7 @@ export class SimClient {
     this.msPerTick = 1000 / opts.tickRateHz;
     // Fetch pathfinding WASM bytes and transfer them (zero-copy) to the worker.
     // Falls back gracefully if the fetch fails — sim runs without pathfinding.
-    void fetch("/wasm/pathfinding.wasm")
+    void fetch(`${import.meta.env.BASE_URL}wasm/pathfinding.wasm`)
       .then(r => r.arrayBuffer())
       .then(buf => {
         const msg: WorkerInitMsg = { type: "init", ...opts, pathfinderWasm: buf };

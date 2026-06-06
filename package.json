@@ -15,7 +15,10 @@
     "atlas": "npm run build -w atlas-builder",
     "sim": "npm start -w run-sim",
     "preview": "npm start -w world-preview",
-    "build-wasm": "npm run build -w @engine/wasm-modules"
+    "build-wasm": "npm run build -w @engine/wasm-modules",
+    "deploy": "node deploy/deploy.ts deploy",
+    "deploy:pre": "node deploy/deploy.ts pre-deploy",
+    "deploy:all": "node deploy/deploy.ts all"
   },
   "devDependencies": {
     "typescript": "6.0.3",
