@@ -1,6 +1,6 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
-import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, type RegionId, type RegionDef } from "./regions";
+import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, type RegionId, type RegionDef } from "./regions";
 
 /** Fountain is placed at the top-left corner of each farm (minX+1, minY+1). */
 function fountainTile(bounds: RegionDef["bounds"]): { x: number; y: number } {
@@ -66,6 +66,8 @@ export interface SetupRegionsResult {
   fountainEntities: GameEntity[];
   auctionPodiumEntity: GameEntity;
   noticeBoardEntity: GameEntity;
+  /** brief 46 — harbor contract board entity. */
+  harborBoardEntity: GameEntity;
 }
 
 /**
@@ -510,5 +512,49 @@ export function setupRegions(
     ]);
   }
 
-  return { regionEntities, plotEntities, fountainEntities, auctionPodiumEntity, noticeBoardEntity };
+  // ── Harbor board — dockmaster's contract board at the harbor island ──────────
+  // brief 46 — the harbor board entity holds openContracts + committed map;
+  // HarborSystem queries "harborBoard","inbox" to post/resolve contracts.
+  const harborBoardEntity = world.spawn({
+    transform: {
+      x: HARBOR_BOARD_TILE.x,
+      y: HARBOR_BOARD_TILE.y,
+      prevX: HARBOR_BOARD_TILE.x,
+      prevY: HARBOR_BOARD_TILE.y,
+      rotation: 0,
+    },
+    sprite: { atlasId: "main", frame: "structure/notice-board", layer: 45, tintRgba: 0xffffffff },
+    harborBoard: { isHarborBoard: true, openContracts: [], committed: new Map() },
+    inbox: { messages: [] },
+  });
+
+  // Dockmaster NPC at the dock tile (flavor; no interaction yet).
+  // Frame is "npc/dockmaster/idle" matching the npc/barkeep/idle convention.
+  world.spawn({
+    transform: {
+      x: HARBOR_DOCK_TILE.x,
+      y: HARBOR_DOCK_TILE.y,
+      prevX: HARBOR_DOCK_TILE.x,
+      prevY: HARBOR_DOCK_TILE.y,
+      rotation: 0,
+    },
+    sprite: { atlasId: "main", frame: "npc/dockmaster/idle", layer: 50, tintRgba: 0xffffffff },
+    dockmaster: { isDockmaster: true },
+  });
+
+  // Harbor props — dock + cargo ship. Placed on tiles that don't overlap the
+  // interactive tiles (HARBOR_DOCK_TILE={61,68}, HARBOR_BOARD_TILE={62,71}).
+  // Both are layer-40 decorative props with solid=false so the harbor floor
+  // stays walkable (the ship is static art; the dock planks are decorative).
+  // Harbor bounds: minX=58, minY=68, maxX=65, maxY=75.
+  placeProps(world, [
+    // Dock/pier prop: waterside at the west edge of the harbor isle (x58, y70),
+    // one tile clear of the harbor bound edge — a plank pier jutting into the sea.
+    { x: 58, y: 70, frame: "structure/dock", solid: false },
+    // Cargo ship: anchored to the left of the dock (x58, y72 — one tile below
+    // the pier), a purely decorative static prop.
+    { x: 58, y: 72, frame: "structure/cargo-ship", solid: false },
+  ]);
+
+  return { regionEntities, plotEntities, fountainEntities, auctionPodiumEntity, noticeBoardEntity, harborBoardEntity };
 }

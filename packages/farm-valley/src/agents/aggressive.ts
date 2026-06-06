@@ -12,7 +12,8 @@ import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
+import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
@@ -273,6 +274,15 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // brief 44 — hire a day-helper at the tavern when AP-starved + gold-rich (a
   // catch-up sink). Aggressive runs its AP down hard, so it's a good candidate.
   deliberateHireHelp(farmer, reserve, 13, -2);
+
+  // brief 46 — harbor contracts. Aggressive takes HIGH-RISK contracts
+  // (riskTolerance 1.0 = speculative: commits even without goods in hand).
+  // Aggressive over-commits, may miss deadlines (forfeit risk), but catches
+  // the biggest rewards. Always commits from day 1.
+  if (day >= 3) {
+    const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
+    deliberateHarborContract(farmer, openContracts, 1.0, reserve, 4, -2);
+  }
 
   // brief 44 — gathering beat: a farmer that came to the village and is now idle
   // drifts to the tavern so the hub looks populated. Runs BEFORE the sleep helper

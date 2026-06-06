@@ -6,7 +6,8 @@ import {
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
+import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import { SEED_COST, CROP_SEASON } from "../economy";
@@ -247,6 +248,20 @@ export function deliberateConservative(farmer: GameEntity): void {
     if (hasCoop && chickens < 3) {
       deliberateBuyAnimal(farmer, "chicken", reserve + 5, 15, -2);
     }
+  }
+
+  // brief 46 — harbor contracts. Conservative only commits when goods are ALREADY
+  // in inventory (riskTolerance 0.0 = conservative), ensuring she never misses
+  // a deadline. She commits on a quiet day (surplus gold, not plots urgent) and
+  // gives the harbor excursion a WINNING travel priority so the delivery trip
+  // actually out-prioritizes idle farming. This is the "committed excursion wins"
+  // pattern from brief 42.
+  const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
+  if (day >= 3) {
+    // Conservative: only commit if already have goods (riskTolerance 0.0)
+    // OR commit with goods-haul plan early (moderate risk OK by day 10 for extra income)
+    const harborTolerance = day >= 10 ? 0.5 : 0.0;
+    deliberateHarborContract(farmer, openContracts, harborTolerance, reserve, 5, -2);
   }
 
   // brief 44 — gathering beat (pure flavor; an idle in-village farmer drifts to

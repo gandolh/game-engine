@@ -14,6 +14,7 @@ import { ONT_BOUNTY, type BountyPostedBody } from "../protocols/bounty";
 import { isActivePhase, isNightPhase, type DayPhase } from "./day-phase";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
 import { maxApForDay } from "./ap";
+import { ONT_HARBOR } from "../protocols/harbor";
 
 /**
  * brief 44 — extra AP a day-helper (hired at the tavern) grants on the morning
@@ -120,6 +121,22 @@ export class PerceiveSystem implements System {
         farmer.beliefs.revision += 1;
       }
       farmer.inbox.messages.length = 0;
+    }
+
+    // brief 46 — harbor open contracts: write from the board into each
+    // farmer's beliefs so deliberate* helpers can read harborOpenContracts.
+    // Re-writes every tick so the beliefs always reflect the live board.
+    // Uses a lazy query so the cost is O(1) when no board entity exists.
+    let harborOpenContracts: GameEntity["harborBoard"] = undefined;
+    for (const board of this.world.query("harborBoard")) {
+      harborOpenContracts = board.harborBoard;
+      break; // single harbor board
+    }
+    if (harborOpenContracts) {
+      const openList = harborOpenContracts.openContracts;
+      for (const farmer of this.world.query("beliefs", "farmer")) {
+        farmer.beliefs.data.harborOpenContracts = openList;
+      }
     }
   }
 

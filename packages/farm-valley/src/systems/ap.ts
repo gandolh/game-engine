@@ -62,6 +62,10 @@ export const AP_COST = {
   "harvest-fruit": 1,   // collect ready fruit from a mature tree
   "sell-product": 3,    // sell livestock products to the shopkeeper
   "sell-fruit": 3,      // sell fruit to the shopkeeper
+  // brief 46 — harbor contract actions
+  "commit-contract": 1,   // commit to an open harbor contract (at the harbor)
+  "deliver-contract": 3,  // deliver goods to the harbor dock for a committed contract
+  "build-greenhouse": 3,  // build a greenhouse at the carpenter
 } as const;
 
 type KnownIntentKind = keyof typeof AP_COST;

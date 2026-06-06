@@ -52,6 +52,7 @@ import { TavernSystem } from "./systems/tavern";
 import { FestivalSystem } from "./systems/festival";
 import { LivestockSystem } from "./systems/livestock";
 import { OrchardSystem } from "./systems/orchard";
+import { HarborSystem } from "./systems/harbor";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
 import { listCoordinators } from "./agents/cnp-registry";
@@ -214,6 +215,13 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // it (single surface, exactly like AUCTION_RESULT). It mutates only farmer
     // gold (the prize) + beliefs; it must precede DeliberateSystem.
     .add(new FestivalSystem(bus, world, rng, opts.ticksPerDay))
+    // brief 46 — HarborSystem runs in the snoop band: it reads DAY_START from
+    // the harbor board inbox, posts new contracts on cadence days, resolves
+    // missed deadlines on day boundary, and handles delivery confirmations.
+    // Runs BEFORE EventFeedSystem so the feed can snoop the harbor broadcast
+    // messages (CONTRACT_POSTED, CONTRACT_DELIVERED, CONTRACT_MISSED) before
+    // PerceiveSystem clears inboxes.
+    .add(new HarborSystem(world, bus, rng))
     // Read-only activity-feed snoop: must observe inbox + market-wall messages
     // before PerceiveSystem clears them and before MarketSystem drains the wall.
     .add(eventFeed)

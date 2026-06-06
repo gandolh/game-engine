@@ -12,9 +12,10 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
+import type { HarborContract } from "../protocols/harbor";
 
 // Fair-price posting: between cost and shop ceiling (intentionally below CROP_SELL_PRICE).
 // brief 41 — expanded to all 8 crops.
@@ -268,6 +269,14 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   // brief 44 — hire a day-helper at the tavern when AP-starved + gold-rich.
   deliberateHireHelp(farmer, reserve, 13, -2);
+
+  // brief 46 — harbor contracts: opportunist watches deadlines for arbitrage
+  // and commits with moderate-high risk tolerance (0.7) from day 3. She's
+  // the most likely to speculate on "grow-then-deliver" contracts.
+  const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
+  if (day >= 3) {
+    deliberateHarborContract(farmer, openContracts, 0.7, reserve, 5, -2);
+  }
 
   // brief 44 — gathering beat (pure flavor; an idle in-village farmer drifts to
   // the tavern). Runs before the sleep helper so it can claim a truly-idle queue.
