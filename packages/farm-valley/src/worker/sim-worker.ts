@@ -109,7 +109,7 @@ let applyInput:
     ) => void)
   | null = null;
 
-self.onmessage = (event: MessageEvent<WorkerInbound>) => {
+const onWorkerMessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
 
   if (msg.type === "stop") {
@@ -382,3 +382,10 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     return;
   }
 };
+
+// Register the handler only inside a real Worker context. Guarding this lets
+// the module be imported in node (tests, headless tooling) — which exercise
+// pure helpers like `shouldStopSkip` — without `self` being defined.
+if (typeof self !== "undefined") {
+  self.onmessage = onWorkerMessage;
+}
