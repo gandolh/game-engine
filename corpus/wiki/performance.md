@@ -7,20 +7,20 @@ Optimization opportunities for the engine, filtered against what the code **actu
 ## Already done — do not redo
 
 - **Query iteration is pooled.** `for...of` over a query borrows a scratch buffer and returns it; steady-state iteration allocates zero arrays — [world.ts:65-97](../../packages/engine/src/ecs/world.ts#L65-L97).
-- **Static layer + water pattern baked once** to OffscreenCanvas, blitted with one `drawImage`/`fillRect` per frame — [canvas2d.ts:77-153](../../packages/engine/src/render/canvas2d.ts#L77-L153). This is the textbook "layer caching" win, already shipped (brief 07).
+- **Static layer + water pattern baked once** to OffscreenCanvas, blitted with one `drawImage`/`fillRect` per frame — [canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts). This is the textbook "layer caching" win, already shipped (brief 07).
 - **Message bus uses buffer-swap** (`inflight`↔`deliverable`) instead of reallocating — [message-bus.ts](../../packages/engine/src/sim/message-bus.ts).
-- **Coastline foam bubbles are viewport-culled** — [main.ts:544](../../packages/farm-valley/src/main.ts#L544). (The *only* culling currently in the renderer — see Tier 2.)
+- **Coastline foam bubbles are viewport-culled** — [main/render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts). (The *only* culling currently in the renderer — see Tier 2.)
 
 ## Tier 1 — Highest impact
 
 ### T1.1 The sim→render snapshot boundary
-Every worker tick builds 6–8 fresh arrays (~150–200 object allocations) and ships them via **structured clone** — [sim-worker.ts:179-196](../../packages/farm-valley/src/worker/sim-worker.ts#L179-L196), [snapshot-builder.ts](../../packages/farm-valley/src/worker/snapshot-builder.ts). Structured clone copies the whole graph; transfer/shared memory is ~10–50× faster for the copy itself.
+Every worker tick builds 6–8 fresh arrays (~150–200 object allocations) and ships them via **structured clone** — [sim-worker.ts](../../packages/farm-valley/src/worker/sim-worker.ts), [snapshot-builder/](../../packages/farm-valley/src/worker/snapshot-builder/). Structured clone copies the whole graph; transfer/shared memory is ~10–50× faster for the copy itself.
 
 - **(a) Bigger win, more effort:** pack the mutable numeric sprite data (id/x/y/frame/layer/alpha) into a `Float32Array`/`Int32Array` over a small ring of 2–3 buffers and either `postMessage(buf, [buf])` (transfer) or a `SharedArrayBuffer` (zero-copy read on the main thread). Keep the rare/variable payload (events, leaderboard, observer rows) on the structured-clone path. ⚠️ `SharedArrayBuffer` requires cross-origin isolation (COOP/COEP headers) — trivial in Vite dev, must be verified for production hosting.
 - **(b) Cheaper interim win:** stop double-allocating the events array (`.slice().map()` → single loop into a reused buffer), and rebuild the observer/leaderboard payload only on **day boundaries**, not every tick — that state barely changes tick-to-tick.
 
 ### T1.2 Per-frame interpolation allocates on the render thread
-`getInterpolatedSprites()` runs every *frame* (~60fps, not per tick): `new Map()` of prev-sprites, `.map()` a fresh array, spread `{...s}` per sprite — [sim-client.ts](../../packages/farm-valley/src/worker/sim-client.ts), [main.ts:500](../../packages/farm-valley/src/main.ts#L500). Classic GC-churn.
+`getInterpolatedSprites()` runs every *frame* (~60fps, not per tick): `new Map()` of prev-sprites, `.map()` a fresh array, spread `{...s}` per sprite — [sim-client/client.ts](../../packages/farm-valley/src/worker/sim-client/client.ts), [main/render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts). Classic GC-churn.
 
 - Pool the interpolated sprite array + objects; mutate in place across frames.
 - Index prev-sprites by id once when the snapshot arrives, not every frame.
@@ -28,25 +28,25 @@ Every worker tick builds 6–8 fresh arrays (~150–200 object allocations) and 
 
 ## Tier 2 — Culling & clipping (classic strategies, currently mostly absent)
 
-The static backdrop is **blitted full-frame with no clipping** even when zoomed in — the entire 88×80 baked canvas is drawn every frame regardless of how little is on screen ([canvas2d.ts:235-237](../../packages/engine/src/render/canvas2d.ts#L235-L237)). Dynamic sprites and shadows are **not viewport-culled** ([canvas2d.ts:259-264](../../packages/engine/src/render/canvas2d.ts#L259-L264)); only foam bubbles are. So the classic 2D wins are real here:
+The static backdrop is **blitted full-frame with no clipping** even when zoomed in — the entire 88×80 baked canvas is drawn every frame regardless of how little is on screen ([canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts)). Dynamic sprites and shadows are **not viewport-culled** ([canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts)); only foam bubbles are. So the classic 2D wins are real here:
 
-- **Viewport culling of dynamic sprites/shadows.** Skip `push`/`drawSprite` for anything whose bounds fall outside `[viewLeft,viewRight]×[viewTop,viewBottom]` — the same test already used for foam at [main.ts:535-544](../../packages/farm-valley/src/main.ts#L535-L544). Cheap, and grows in value as entity count / world size grows.
+- **Viewport culling of dynamic sprites/shadows.** Skip `push`/`drawSprite` for anything whose bounds fall outside `[viewLeft,viewRight]×[viewTop,viewBottom]` — the same test already used for foam in [main/render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts). Cheap, and grows in value as entity count / world size grows.
 - **Clip the static-layer blit to the visible source rect.** `drawImage(staticLayer, sx,sy,sw,sh, dx,dy,dw,dh)` using only the camera-visible region instead of the whole baked canvas. Saves fill work when zoomed in.
 - **`ctx.clip()` / dirty-rectangle redraw.** Lower priority — the wash + full sprite repaint each frame make a true dirty-rect scheme awkward, but a clip region around the camera viewport prevents overdraw outside it.
-- **Sort only when the set changes.** `this.queue.sort(compareSprite)` runs every frame ([canvas2d.ts:259](../../packages/engine/src/render/canvas2d.ts#L259)); z-order rarely changes frame-to-frame. Bucket by layer or sort-on-dirty.
+- **Sort only when the set changes.** `this.queue.sort(compareSprite)` runs every frame ([canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts)); z-order rarely changes frame-to-frame. Bucket by layer or sort-on-dirty.
 
 ## Tier 2b — Loose per-tick allocations in systems
 
 Small individually, all in the hot path, trivial to fix (the `length = 0` reuse pattern already lives in [feature-collision.ts](../../packages/farm-valley/src/systems/feature-collision.ts)):
 
 - [crop-growth.ts:55](../../packages/farm-valley/src/systems/crop-growth.ts#L55) — `[...world.query("plot")]` spreads a fresh array just to sort it. Reuse a persistent scratch array, sort in place.
-- [event-feed.ts:84](../../packages/farm-valley/src/systems/event-feed.ts#L84) — `const fresh = []` every tick. Reuse a member buffer.
-- Render queue: `this.queue = []` each frame ([canvas2d.ts:170](../../packages/engine/src/render/canvas2d.ts#L170)) → reuse with `length = 0`.
+- [event-feed/system.ts](../../packages/farm-valley/src/systems/event-feed/system.ts) — `const fresh = []` every tick. Reuse a member buffer.
+- Render queue: `this.queue = []` each frame ([canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts)) → reuse with `length = 0`.
 
 ## Explicitly NOT worth doing at current scale
 
 - **Archetype / SoA / column-oriented ECS storage.** The ECS uses flat objects with property-based components ([world.ts:12-23](../../packages/engine/src/ecs/world.ts#L12-L23)). The literature's 5–10× cache-locality wins materialize at thousands–millions of entities in tight numeric loops; Farm Valley has ~4 farmers + tens of entities. A rewrite would be high-effort, near-zero-payoff, and would fight the determinism guarantees. **Confirmed by profiling 2026-06-05:** the full sim tick over ~300 entities is **0.33ms (~0.7% of the 50ms budget)** — there is no cache-locality problem to solve. Revisit **only** if entity counts grow by orders of magnitude.
-- **Path caching beyond current behavior.** The pathfinder is only called on a *new* travel intent with no active path ([travel.ts:57](../../packages/farm-valley/src/systems/travel.ts#L57)); it is not a per-tick cost. Profiling shows the whole tick (pathfinder included on travel ticks) is sub-millisecond. Not worth caching.
+- **Path caching beyond current behavior.** The pathfinder is only called on a *new* travel intent with no active path ([travel/system.ts](../../packages/farm-valley/src/systems/travel/system.ts)); it is not a per-tick cost. Profiling shows the whole tick (pathfinder included on travel ticks) is sub-millisecond. Not worth caching.
 - **Packed/SharedArrayBuffer snapshot (P2 #7).** Profiling shows `snapshot.build` = 0.08ms and ~36KB/tick structured clone — invisible in the tick/frame budget. The packed-buffer/SAB rewrite would add real complexity + COOP/COEP risk for an unmeasurable gain. Deferred indefinitely; revisit only if `snapshot.bytes` or the worker tick climb materially (e.g. a 10× entity-count increase).
 
 ## Measuring (P0 — shipped 2026-06-05)

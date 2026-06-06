@@ -2,6 +2,17 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-06] refactor | Code-structure split — monoliths → module directories + test/determinism perf
+
+A behavior-preserving structural pass (no gameplay change). Every source file over ~300 lines was split into a directory of focused modules fronted by a barrel `index.ts` that re-exports the prior public surface — so all importers and co-located tests resolve unchanged. The **module-directory convention** is now documented in [architecture.md](wiki/architecture.md).
+
+- **Split** (representative): `tools/atlas-builder/src/recipes.ts` (4582 → `recipes/{types,sheet-map,palette,base-recipes,templates,index}`); `agents/watering.ts` (1675 → 11 per-domain `deliberate*` modules); `systems/act.ts` (1544 → `act/{constants,helpers,types,system,index}` + `act/handlers/{farming,commerce,resource,fishing,build,harbor}` — the 27 ACT handlers became free composition functions, class 1433 → 292); `main.ts` (1314 → 175, with `main/{config,camera,playback,panels,render-loop,particles,…}`); `render-systems.ts`, `worker/snapshot-builder.ts`, `worker/snapshot.ts`, `components.ts` (per-domain types), `economy.ts`, `render/canvas2d.ts`, and the mid-size `systems/*` (auction/event-feed/shopkeeper/encounter-trade/harbor/travel/festival/rivalry/player-control), `world/region-setup.ts`, `ui/{wealth-graph,observer}`, `run-recap.ts`, `worker/sim-client.ts`, `tools/run-sim`.
+- **Exception:** `worker/sim-worker.ts` stays a single file (Vite references it by URL); its pure `shouldStopSkip` moved to `sim-worker-skip.ts` (import-safe under node) and the top-level `self.onmessage` registration is now `typeof self`-guarded.
+- **Necessary test touch:** `palette.test.ts` reads the SWATCH table by literal path → repointed to `recipes/palette.ts`.
+- **Test-runtime perf:** vitest now uses `projects` — a fast `node` project for the ~53 pure-sim test files and a `jsdom` project scoped to the ~9 DOM files. farm-valley environment setup **85s → ~11s**, wall **9.4s → 5.6s**.
+- **Determinism-check perf:** `CHECK_DETERMINISM` runs its `(seed, pass)` runs across a `worker_threads` pool instead of sequentially (worker isolation is mandatory — `cnp-registry`'s module-level `coordinators` Map + `World.nextId` collide across in-process runs). run-sim split into `run-core`/`env`/`format`/`pathfinder`/`determinism`/`determinism-worker`. Single-seed 20d **12.6s → 7.5s**; 4-seed **~96s → ~20s**; output order + pass/fail/exit semantics unchanged.
+- **Verified:** full typecheck clean; **636 FV + 60 engine** tests green; atlas rebuild byte-identical; sim output **byte-identical to a pre-refactor baseline** at seeds `0xc0ffee/1/42` (20d) and `0xc0ffee` (100d); `CHECK_DETERMINISM` MATCH; production `vite build` + a live Playwright dev-server run (game boots, worker ticks, panels populate). Doc sweep: architecture/status/performance/player-and-interaction repointed to the new dirs/barrels, performance.md line-anchors dropped, index.md compacted.
+
 ## [2026-06-05] impl | Brief 44 — Living World: Working NPCs + Tavern (A+B + cheap C)
 
 **Carpenter, blacksmith, tavern — the world now does something.**
@@ -278,106 +289,17 @@ Engine/game review surfaced gaps between stated capability and shipped experienc
 
 Corpus updates: cataloged all 11 in [index.md](index.md); restructured [wiki/open-questions.md](wiki/open-questions.md) so the tilemap / decision-trace / fifth-personality / pathfinder questions now point at their briefs, and re-surfaced the `act.ts` buy-seed bypass as a still-untracked code gap.
 
-## [2026-05-29] fix | typecheck unblocked + world-preview rewritten to the real world
+> **Compacted 2026-06-06:** the early foundation entries (2026-05-26 → 05-29, when the corpus adopted the wiki pattern and briefs 05–15 + the open-questions round shipped) are summarized below. Full blow-by-blow lives in the brief files + git history; every durable decision and finding is preserved here or in the wiki.
 
-Edge-tooling cleanup after an engine review. `npm run typecheck` was red across the monorepo: `tools/world-preview` imported the deleted `farm-valley/src/decorate`. Rewrote [tools/world-preview/src/index.ts](../../tools/world-preview/src/index.ts) to render the real 40×40 region world — reads layout from the shared `world/regions.ts` (single source of truth), boots the actual sim via `bootstrapSim`, and mirrors `render-systems.ts` backdrop/fence/plot/sprite logic (it had been rendering a stale hardcoded 20×12 layout). Also removed two stale `// TODO: real trust updates land in a future ticket` comments in hoarder.ts / opportunist.ts (trust landed in Brief 10) and gitignored the generated `world-preview.png`. Typecheck green; 355 tests still pass.
+## [2026-05-26 → 05-29] summary | Foundations — wiki adoption, briefs 05–15, open-questions round
 
-## [2026-05-26] impl | Briefs 11–15 landed: viewer upgrade + visual polish
+The corpus's first three weeks, collapsed. Durable decisions and findings (the rest was merge narrative on a world-state since rewritten by the archipelago + worker move):
 
-Five briefs spec'd from the design interview ("watch BDI with tension via moments") landed via 5 parallel sonnet subagents in 5 worktrees. Locked decisions from the interview: focus camera + free pan; visual emphasis + current/next intention; moments-driven tension with ambient leaderboard; smallest first slice = viewer upgrade. The user said "all of them, separated todo" and 5 worktrees were spun up at once.
-
-- **11-focus-camera**: Click an observer row to follow that farmer (gold halo, gold row outline, Reset View button). Free pan (mouse drag) + scroll-wheel zoom (0.5×–3×). `Camera2D` gained `setCenter` / `setZoom` setters (the only engine change in this round).
-- **12-live-leaderboard**: New `LeaderboardPanel` (bottom-left) updates each render frame using the existing `leaderboard(world)` from `sim-bootstrap.ts`.
-- **13-walking-animation**: 8 new atlas recipes (4 personalities × walk-a / walk-b) and a `pickFarmerFrame(entity, tick)` helper. Two-tick phase flip while `farmer.path` is set; reverts to idle on arrival.
-- **14-meet-indicator**: New `MeetIndicatorSystem` (snoops farmer inboxes, not the bus, because `EncounterSystem` writes directly to inboxes). New `indicator/meet` speech-bubble atlas frame. `iterateMeetIndicators` generator in render-systems.ts renders the bubble above each active farmer for 10 ticks.
-- **15-slate-billboard**: New `SlateBillboardPanel` (bottom-right) reads `shopkeeper.dailySlate` each frame, shows `[crop] [price]g · [remaining]/[total] left` rows.
-
-Merge story: serialized merges to main. 15 + 12 conflicted on `main.ts` (panel instantiation lines) and `ui/index.ts` (re-exports) — both trivial additive. 14 auto-merged. 13 conflicted on `render-systems.ts` (sprite loop signature), `main.ts` (buildCanvasFrame call), and binary atlas artifacts (resolved by re-running `npm run atlas`). 11 conflicted on the same `render-systems.ts` + `main.ts` lines; final `buildCanvasFrame` signature became `(renderer, world, alpha, tick, meetIndicators, focusedFarmerId)`. 264/264 farm-valley tests pass on main.
-
-Live verification via Playwright: focus camera works (clicking Hannah shifts the camera south, her row gets the gold outline), MEET indicator visible as a white "!" bubble over co-located farmers, leaderboard updates throughout the run (Hannah was #1 at day 3 with 111g, Atticus the eventual day-100 winner at 2086g), slate billboard renders live and `radish 16/17 left` confirms `act.ts` is genuinely consuming from the slate (Brief 08's path through `act.ts` is now exercised in-game, not just in tests).
-
-Screenshot: [media/farm-valley-polish.png](../../media/farm-valley-polish.png).
-
-## [2026-05-26] impl | Follow-up gaps closed (slate-in-act, cnp-registry, responder-trust)
-
-Three short cleanup briefs landed via three parallel sonnet subagents (no opus planner — orchestrator-planned, sonnet-executed). Worktrees: `feature/slate-in-act`, `feature/cnp-registry`, `feature/responder-trust`. All three merged to main; 238/238 farm-valley tests pass.
-
-- `slate-in-act` (commit `bac5499`): ActSystem.buy-seed now consumes from `shopkeeper.dailySlate` via a shared `consumeFromSlate(slate, crop, qty, { dryRun? })` helper in `agents/shop-slate.ts`. `ShopkeeperSystem.handleSell` refactored to use the same helper. The hardcoded `SEED_COST` table in `act.ts` is gone. Slate's stock + price variance are now load-bearing in the running game.
-- `cnp-registry` (commit `7e8da0a`): Extracted the per-farmer `CnpCoordinator` map from `hoarder.ts` into a new `agents/cnp-registry.ts` module with `getOrCreateCoordinator` + `listCoordinators`. `sim-bootstrap.ts` passes `listCoordinators()` to `TrustSystem`, so broken-commitment trust deltas now fire in running games (previously `cnpCoordinators: undefined`).
-- `responder-trust` (commit `2d606f8`): When `EncounterTradeSystem.handleOffer` returns `decision: "accept"`, the acceptor applies `+0.05` trust toward the sender directly via the exported `applyTrustDelta`. The trust matrix is fully live.
-
-Verified end-to-end in Playwright: dev server boots, 4 farms + village render, farmers travel and the Region column flips between `home` / `village` / `traveling`, day 100 leaderboard fires with Atticus's end-of-sim liquidation reflected (`Region: traveling`, `unsold: 0`). Screenshot saved at `media/farm-valley-final.png`.
-
-Tracked PNGs moved from repo root to `media/` (README updated).
-
-## [2026-05-26] reorg | Adopt LLM Wiki pattern
-
-Reorganized the corpus from a flat `engine/todo/` + `game/todo/` layout into the three-layer wiki pattern:
-- `briefs/` for raw historical task specs (was `engine/` and `game/`)
-- `wiki/` for LLM-curated synthesis pages
-- `CLAUDE.md` schema, `index.md` catalog, this `log.md`
-
-Added: [wiki/overview.md](wiki/overview.md), [wiki/architecture.md](wiki/architecture.md), [wiki/decisions.md](wiki/decisions.md), [wiki/open-questions.md](wiki/open-questions.md). Migrated `STATUS.md` → [wiki/status.md](wiki/status.md) and split its "Open gaps" section into [wiki/open-questions.md](wiki/open-questions.md).
-
-## [2026-05-26] impl | Briefs 08 + 09 + 10 landed in parallel worktrees
-
-Three feature branches (`feature/shop-slate-sales`, `feature/peer-meet-trades`, `feature/trust-and-endgame`) dispatched as parallel background opus subagents per the new opus-plans-then-sonnet-executes pattern. Two of the three opus subagents discovered the nested-Agent-tool wasn't loaded in their sandbox and inlined their implementations; one (Brief 10) got blocked partway when the classifier flagged the policy-divergence. I (orchestrator) took over the verify/finish step for 09 and 10, ran typecheck + tests, then merged all three to main.
-
-218/218 farm-valley tests pass on main after all three merges. Auto-merge resolved the overlap in `aggressive.ts` between briefs 09 (peer-trade respond hook) and 10 (end-game liquidation) — different sections of the file, no conflict markers needed.
-
-Closed gaps that were in [open-questions.md](wiki/open-questions.md):
-- Shop slate is consumed by trades (brief 08).
-- MEET messages drive real gameplay via peer seed trades (brief 09).
-- Trust scores update on encounter and CNP outcomes (brief 10).
-- Aggressive liquidates in the last 2 days (brief 10).
-
-New / surfaced gaps:
-- `act.ts` has a direct-mutation `buy-seed` path that bypasses `ShopkeeperSystem.SELL`, so brief 08's slate-driven path is currently only exercised by tests. Follow-up: route `buy-seed` through the bus.
-- The CNP coordinator registry lives inside `hoarder.ts` as a private const; TrustSystem accepts `cnpCoordinators: undefined` at construction today. A small refactor exposing the registry will activate broken-commitment trust deltas in the running game.
-
-Process note: the nested-Agent-tool issue is real and recurring — the saved subagent workflow ("opus plans → sonnet executes") only works if the subagent dispatch tool is loaded in the planner's environment. Two paths forward: (a) preload `Agent` in subagent prompts, or (b) accept opus inlining as the fallback. Today's run used (b) successfully for 08 and 09.
-
-## [2026-05-26] impl | Brief 07 landed — renderer caught up to the new world
-
-Brief 07 implemented on `feature/render-regions` by a single senior (opus) subagent. Game now renders the 40×40 tile world: grass for farms, dirt for the village, path tiles for roads, fence perimeters around each farm. All `Transform.{x,y}` are now in tile units; renderer converts at draw time. `decorate.ts` deleted. Observer panel gained a region column (home / village / traveling / `<peer-farm>`). 159/159 farm-valley tests pass; production build green.
-
-Tile size = 16; camera covers full 640×640 world (zoomed-out always-on view as decided in Briefs 05/06).
-
-Subagent note: the brief said "must not touch `region-setup.ts`" but the senior had to add sprite stamping for market wall + shopkeeper there once `decorate.ts` was deleted (decorate.ts was providing both the pixel-coord override AND the sprite component). Reasonable judgment call — flagged in their report.
-
-## [2026-05-26] process | Subagent workflow change
-
-Going forward, implementation work uses **opus-plans-then-sonnet-executes** instead of the parallel opus+sonnet pattern used for Briefs 05/06. The senior plans (reads brief, surveys code, writes concrete step-by-step plan including exact diffs and tests), then dispatches one sonnet to execute the plan. Cheaper, more predictable, fewer scope drifts. Saved to memory.
-
-## [2026-05-26] impl | Briefs 05 + 06 landed via parallel subagents
-
-Brief 05 (`0c50acd`) and Brief 06 (`e45c7d7`) implemented on branch `feature/village-farms` using paired senior (opus) + junior (sonnet) subagents per brief, working in one shared worktree at `.claude/worktrees/village-farms`. 157/157 farm-valley tests pass. Both briefs moved to `briefs/game/done/`.
-
-Worked as expected:
-- The senior/junior file-ownership split in the briefs gave both subagents non-overlapping scopes and they ran cleanly in parallel.
-- The WASM pathfinder is now load-bearing: personalities prepend a `travel → village` intent before any market action when they're not already there. TravelSystem consumes those and walks farmers tile-by-tile (STEP_TICKS=5).
-
-Divergences from the briefs worth noting:
-- Walkable tile count was 752, not 728 — my arithmetic in Brief 05 was off (4×144 + 144 + 32 = 752). Test asserts the correct count.
-- Senior found that the "flat plot loop" the brief said to remove from `world-setup.ts` actually lived in `sim-bootstrap.ts`. They pragmatically extended scope to `sim-bootstrap.ts` and replaced it there. Reasonable call.
-- `System.run(ctx)` was used everywhere (not `step(stepMs)` as the briefs sketched) — the senior caught this from existing code. Codebase wins, per [CLAUDE.md](CLAUDE.md).
-- Brief 06's "ShopkeeperSystem consumes from `remaining` and rejects sold-out trades" wasn't implemented because my junior prompt forbade touching `shopkeeper.ts`. The slate is generated and broadcast but trades still hit the existing fixed-price handlers. See [wiki/open-questions.md](wiki/open-questions.md).
-- No renderer changes yet — the new 40×40 region layout is invisible until the canvas2d renderer is taught about regions. Tracked in open-questions.
-
-## [2026-05-26] brief | 05-village-and-farms + 06-spatial-market drafted
-
-Spatial restructure: 4 farms (N/E/S/W) + village center with shop and town square. Decisions made:
-- World view: all 5 regions on one zoomed-out canvas (one continuous map, no scene transitions)
-- Spatial coupling: posting offers + peer trades require presence in village; reading stays remote
-- Shop: daily slate of 5 offers, ±10–20% off baseline, mix of buy/sell
-
-Brief 05 (foundation) covers regions, walkable grid, pathfinder integration, travel intent + TravelSystem. Finally puts the WASM pathfinder to work — closes [open-questions.md](wiki/open-questions.md) "Pathfinder loaded but unused."
-
-Brief 06 (depends on 05) layers in market presence enforcement, peer encounter trades, shop daily slate, and updates personalities to plan trips. Trust score gap from Brief 01 still deferred.
-
-## [2026-05-26] status | Brief sweep + post-corpus work documented
-
-Audited all 8 task briefs against the codebase. 7 of 8 are **done**; `01-tilemap` is **superseded** (WebGPU dropped for Canvas2D in commit `5ac7f8d`). Recorded post-corpus work that never had a brief: Canvas2D renderer, in-house ECS replacing miniplex (`020406d`), WASM pathfinding infrastructure, home screen, headless `run-sim`, `world-preview`. See [wiki/status.md](wiki/status.md).
+- **Corpus reorg → LLM-wiki pattern** (`[2026-05-26] reorg`): flat `engine/todo`+`game/todo` → three layers `briefs/` (immutable specs) + `wiki/` (curated synthesis) + `index.md`/`log.md`. Added overview/architecture/decisions/open-questions; migrated `STATUS.md` → `wiki/status.md`.
+- **Locked tech-choice baselines** (also in [decisions.md](wiki/decisions.md)): Canvas2D replaced the planned WebGPU renderer (`5ac7f8d`); in-house ECS replaced miniplex (`020406d`); the WASM pathfinder became **load-bearing** in `TravelSystem` (briefs 05/06); the sim moved into a **Web Worker** (snapshot/interpolate boundary, postMessage only, no SAB).
+- **Briefs shipped:** 05/06 (5 regions + village + spatial market + travel), 07 (renderer caught up to the tile world; `decorate.ts` deleted), 08/09/10 (shop slate consumed, peer MEET trades, trust + aggressive end-game liquidation), 11–15 (focus camera + free pan/zoom, live leaderboard, walk animation, meet indicator, slate billboard), 16–23 (playback controls, save/replay URL, seed picker, decision trace, event feed, complete English+FPSB auctions, seasons, mid-game blight shock). Plus the open-questions round: `buy-seed` routed through the bus, the CNP coordinator registry extracted to `agents/cnp-registry.ts`, cached static backdrop bake.
+- **Process lessons (saved to memory, still in force):** implementation is **opus-plans-then-sonnet-executes**; worktree swarms group briefs by file-overlap and must **`git rebase main` before merge** (the harness once spun worktrees off a *stale* pre-Worker commit, breaking a rebase). See the [feedback memories].
+- End of this era: `todo/` emptied, **446 tests** green (355 FV + 91 engine), typecheck clean across workspaces.
 
 ## [2026-06-05] wiki | performance.md — optimization opportunities
 
@@ -559,6 +481,6 @@ Implemented [briefs/game/done/46-harbor-shipping-and-contracts.md](briefs/game/d
 
 **⚠️ Baseline / balance note (the recurring theme, now across 6 depth briefs):** brief 46 fires but only the *stockpiling hoarder* reaches the commit gate at this seed — the other 3 personalities evaluate contracts every tick yet rarely find an eligible one they'll act on, the same spare-capacity reality that left 43 (greenhouse) and 44 (tavern/hiring) flush-only. Combined with the inert peer-interaction layer (37), a single dominant farmer keeps the field flat and the spectator/rivalry drama (37/38/39/40) only intermittently lit. The depth systems (41–46) are each correct + tested + individually live; the clearest remaining work is a **balance / rubber-banding / peer-interaction brief** that broadens who can afford the deep systems and activates the drama layer. See [[project-leader-runaway]] / [[project-peer-interaction-inert]] and open-questions.
 
-### Milestone: game briefs 01–46 complete
+### Milestone: game briefs 01–47 complete; 48 queued
 
-With 46 merged, the full game-brief backlog (01–46, plus 47 the atlas split) is shipped. The engine is feature-complete for Farm Valley; the one open brief is engine 09-perf-optimization (unscoped). The standing theme for any next wave is **balance/drama activation**, not new mechanics — the systems exist and fire; the competition is just lopsided.
+With 46 merged, the 01–46 backlog (plus 47, the atlas split) is shipped. The engine is feature-complete for Farm Valley; open briefs are engine 09-perf-optimization (unscoped) and game [48-boats-and-coral-fishing](briefs/game/todo/48-boats-and-coral-fishing.md) (queued in `todo/`). The standing theme for any next *mechanics* wave is **balance/drama activation** — the depth systems exist and fire; the competition is just lopsided.

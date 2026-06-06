@@ -32,8 +32,13 @@ Suggested order 36 → 37 → 38 → 39 → 40 (39/40 consume 36/38). All are re
 
 Suggested order **41 → 42 → 43 → 44 → 45 → 46** — **all shipped 2026-06-05/06.** Each touched agent deliberation + the economy and carried a determinism re-verify + baseline-update (MATCH ×3). Deliberately *not* taken (user deferred): a head-on supply-driven shop-price rework — 46's contracts add demand-side pressure without rewriting the shop. **Net standing gap after the whole 41–46 wave:** the depth systems all fire individually, but a single dominant farmer keeps the field flat and three of four personalities under-use the deep systems (spare-capacity reality) — the clearest next brief is **balance / rubber-banding / peer-interaction**, not new mechanics.
 
+**Gameplay / content — post-46 queue.** — _queued 2026-06-06._
+
+- **Boats & coral fishing** → [48-boats-and-coral-fishing](../briefs/game/todo/48-boats-and-coral-fishing.md) (in `todo/`). The first content brief after the 41–46 depth wave: boats for crossing open ocean + a coral-fishing activity over the existing decorative coral zones. Not yet scheduled. (Note: the standing balance/drama-activation gap above is still the higher-leverage next brief; 48 is additive content.)
+
 **Tooling / rendering** — _queued 2026-06-05 (user request)._
 
+- **Stale "save model" claim (doc lint, found 2026-06-06).** [architecture.md](architecture.md) names a `packages/engine/src/persistence/` directory + an event-sourced `InputLog` save model, but no `persistence/` dir exists in the tree (predates this refactor). Either the feature was never built / was removed, or the path drifted — verify and fix the architecture.md claim or build/restore the module. Low priority; not blocking.
 - ~~**Single mega-atlas is hard to author.**~~ → _shipped 2026-06-05_ ([47-split-atlas-into-specialized-sheets](../briefs/game/done/47-split-atlas-into-specialized-sheets.md)): 6 sheets (characters/buildings/terrain/crops/props/items-ui) + `atlas/index.json`; `atlasId` now load-bearing (renderer atlas `Map`, `addAtlas`, `frameToAtlasId`). No-visual-change; sim untouched. `setAtlas` left as the seam for brief 45's seasonal-terrain swap.
 
 ## Resolved

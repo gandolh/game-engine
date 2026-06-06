@@ -1,6 +1,6 @@
 # Project Status
 
-Current-state snapshot (as of **2026-06-06**). One terse line per brief; full per-brief detail lives in the brief files and the chronological [log.md](../log.md). **All game briefs (01–47) are now Done/Superseded — none remain in `todo/`.** All engine briefs are Done/Superseded except [09-perf-optimization](../briefs/engine/todo/09-perf-optimization.md) (the only open brief, not yet scoped). Player/interaction work (Pip) shipped without briefs — see [player-and-interaction.md](player-and-interaction.md).
+Current-state snapshot (as of **2026-06-06**). One terse line per brief; full per-brief detail lives in the brief files and the chronological [log.md](../log.md). **Game briefs 01–47 are Done/Superseded; [48-boats-and-coral-fishing](../briefs/game/todo/48-boats-and-coral-fishing.md) is queued in `todo/`.** Engine briefs are Done/Superseded except [09-perf-optimization](../briefs/engine/todo/09-perf-optimization.md) (open, not yet scoped). Player/interaction work (Pip) shipped without briefs — see [player-and-interaction.md](player-and-interaction.md).
 
 > **Compaction note (2026-06-05):** this page was rewritten from a long shipping history into a snapshot. The blow-by-blow (test counts, per-brief implementation notes, batch narratives) now lives only in [log.md](../log.md); this page keeps the *current* status + the durable "how the sim behaves now" summary.
 
@@ -15,7 +15,7 @@ Current-state snapshot (as of **2026-06-06**). One terse line per brief; full pe
 | [07-chunked-tile-layer](../briefs/engine/done/07-chunked-tile-layer.md) | **Done** — `bakeStaticLayer` bakes the backdrop once; chunking unneeded. |
 | [08-wasm-expansion](../briefs/engine/done/08-wasm-expansion.md) | **Done** — noise/rng/floodfill WASM; fixed the never-transferred-pathfinder bug (farmers now move). |
 
-## Game briefs — all Done (45, 46 still todo)
+## Game briefs — 01–47 all Done; 48 queued in todo
 
 Foundational (01–23): personalities, weather/crops, market/shop, observer UI, regions + travel, spatial market, render, slate sales, peer trades, trust + endgame, focus camera, leaderboard, walk/meet/slate UI, playback controls, save/replay, seed picker, decision trace, event feed, complete auctions, seasons, mid-game shock. All **Done** — see each brief in [../briefs/game/done/](../briefs/game/done/).
 
@@ -45,14 +45,14 @@ Foundational (01–23): personalities, weather/crops, market/shop, observer UI, 
 
 ## Current sim behaviour & determinism
 
-- **Tests/typecheck:** as of brief 46 the suite is green (636 farm-valley + 60 engine = **696**); typecheck clean. (Latest counts always in the newest [log.md](../log.md) entry — not tracked here.)
+- **Tests/typecheck:** green (636 farm-valley + 60 engine = **696**); typecheck clean. (Latest counts always in the newest [log.md](../log.md) entry — not tracked here.) The farm-valley suite runs node-by-default with jsdom scoped to the ~9 DOM test files (vitest `projects`), and `CHECK_DETERMINISM` runs its passes in parallel `worker_threads` — see the 2026-06-06 refactor log entry.
 - **Determinism:** load-bearing and verified `MATCH ×3` (seeds `0xc0ffee/1/42`) after every brief via `CHECK_DETERMINISM=1`. Briefs **41–46 re-baselined outcomes by design** (new crops/quality/livestock/greenhouse/NPCs/festivals/harbor-contracts) — the contract is *same seed reproduces itself*, NOT equality to pre-41 numbers.
 - **Headless-probe pitfall:** a headless `bootstrapSim` check must pass `pathfinder: new JsPathfinder()`, or `TravelSystem` is omitted and every travel-gated action (build/buy/plant/commission) silently no-ops — falsely reading as "dormant". (This caught a false dormancy on brief 42.)
 - **Leader-runaway / dormancy (the live-drama gap):** through brief 41 one farmer (Atticus/aggressive) ran away wire-to-wire, so the spectator layer (37/38/39/40) had no live drama to surface. **Brief 42 produced the first real lead crossing** (Cora's livestock play overtakes Atticus) — but 43 (greenhouse capital doesn't repay in 100d) and 44 (tavern/hiring are flush-only sinks) let the runaway return. Skills (43) are lopsided to farming since the AI rarely forages/fishes/mines. **Festivals (45) fire + narrate but the *physical* podium gathering is thin.** **Harbor contracts (46) fire live but only the stockpiling hoarder reaches the commit gate** — the other 3 personalities evaluate contracts every tick yet rarely act (the same spare-capacity reality). The **peer-interaction layer is inert** (37): no farmer↔farmer trades/declines fire, so `farmer.trust` never leaves 0.5 and no rivalry forms. Net: the depth systems are correct + tested + individually live, but a *single* dominant farmer keeps the field flat; the clearest remaining lever is a **balance/rubber-banding or peer-interaction brief** that broadens who can afford to use livestock/greenhouse/contracts and lights up the spectator + rivalry layers. Full detail in [open-questions.md](open-questions.md).
 
 ## Post-corpus work (no brief)
 
-Canvas2D renderer (replaced WebGPU), in-house ECS (replaced miniplex), WASM pathfinding infra, sim-in-a-Web-Worker (snapshot/interpolate boundary), home screen, headless run-sim, offline world-preview, README. The playable farmer **Pip** + interaction systems (hotbar, tooltips, feature collision, bridges, 88×80 archipelago, fishing) — full synthesis in [player-and-interaction.md](player-and-interaction.md).
+Canvas2D renderer (replaced WebGPU), in-house ECS (replaced miniplex), WASM pathfinding infra, sim-in-a-Web-Worker (snapshot/interpolate boundary), home screen, headless run-sim, offline world-preview, README. The playable farmer **Pip** + interaction systems (hotbar, tooltips, feature collision, bridges, 88×80 archipelago, fishing) — full synthesis in [player-and-interaction.md](player-and-interaction.md). A **2026-06-06 code-structure refactor** split every >300-line file into module directories fronted by barrels (behavior-preserving; see [architecture.md](architecture.md) → *Module-directory convention*).
 
 ## Open gaps
 

@@ -30,10 +30,12 @@ Root [package.json](../../package.json) is an npm workspaces monorepo; `engine` 
 
 Engine never imports game; game never imports another game package. WASM artifacts are committed under `packages/farm-valley/public/wasm/` so fresh clones can `npm run dev` without first running `npm run build-wasm`.
 
+**Module-directory convention.** Large units are split into a directory of focused modules fronted by a barrel `index.ts` that re-exports the public surface (e.g. `systems/act/` → `system.ts` + `handlers/*` + `constants` + `index`; `components/` → per-domain type files + `index`; `agents/watering/` → per-domain `deliberate*` helpers + `index`). Consumers import the directory (`from "../components"`, `from "./act"`) and resolve to the barrel, so internal layout can change without touching importers. The one exception is `worker/sim-worker.ts`, which stays a single file because Vite references it by URL (`new Worker(new URL("../sim-worker.ts", …))`).
+
 ## Sim loop
 
 - **Fixed step**: 20 Hz tick (`FixedStepClock` in [runtime/](../../packages/engine/src/runtime/)). Render interpolates with an `alpha ∈ [0,1)`.
-- **Runs in a Web Worker** (browser): the Worker ([worker/sim-worker.ts](../../packages/farm-valley/src/worker/sim-worker.ts)) owns the ECS `world` + clock and posts a `RenderSnapshot` per tick; the main thread ([worker/sim-client.ts](../../packages/farm-valley/src/worker/sim-client.ts)) renders + interpolates between the latest two snapshots. `postMessage` only (no SharedArrayBuffer). The headless [run-sim](../../tools/run-sim/) and all tests drive the sim directly on the main thread (no Worker). See [decisions.md](decisions.md) → Concurrency.
+- **Runs in a Web Worker** (browser): the Worker ([worker/sim-worker.ts](../../packages/farm-valley/src/worker/sim-worker.ts)) owns the ECS `world` + clock and posts a `RenderSnapshot` per tick; the main thread ([worker/sim-client/](../../packages/farm-valley/src/worker/sim-client/)) renders + interpolates between the latest two snapshots. `postMessage` only (no SharedArrayBuffer). The headless [run-sim](../../tools/run-sim/) and all tests drive the sim directly on the main thread (no Worker). See [decisions.md](decisions.md) → Concurrency.
 - **Deterministic**: all randomness via seeded [`Rng`](../../packages/engine/src/runtime/rng.ts) (mulberry32 + named forks). No `Math.random` or `Date.now` in sim. Driving ticks from the Worker doesn't affect this — the sim depends only on the tick count.
 - **Input log**: external inputs flow through [`InputLog`](../../packages/engine/src/runtime/) so the seed + log replay byte-for-byte.
 - **Save model**: seed + event-sourced input log (not snapshots). See [persistence/](../../packages/engine/src/persistence/).
@@ -53,18 +55,7 @@ Generic pub/sub at [packages/engine/src/sim/message-bus.ts](../../packages/engin
 
 ## World layout
 
-40×40 tile grid. **11 walkable regions** connected by 2-tile-wide road corridors:
-
-```
-NW: carpentry (0–9, 0–9)     N: farm-cora (14–25, 0–11)      NE: forest-north (26–33,0–7) | quarry-north (35–39,0–9)
-W: farm-otto (0–11,14–25)    Center: village (14–25,14–25)   E: farm-atticus (28–39,14–25)
-SW: forest-south (0–7,26–33) S: farm-hannah (14–25,28–39)    SE: blacksmith (30–39,30–39)
-    quarry-south (0–9,35–39)
-```
-
-Forest zones spawn trees only; quarry zones spawn stones only. North pair (forest-north + quarry-north) serves Cora + Atticus; south pair serves Otto + Hannah. All regions BFS-verified reachable from every farm. Walkable tile count: 1257.
-
-Road network: 4 farm↔village roads + L-bridge to blacksmith + carpentry connector + 4 zone connectors.
+**88×80 tile archipelago** (`WORLD_WIDTH`/`WORLD_HEIGHT` in [world/regions.ts](../../packages/farm-valley/src/world/regions.ts)) — islands joined by bridges, walkable tile count `2065` (guarded by `walkable-grid.test.ts`). Region bounds, placement, and the bridge tree are documented in [player-and-interaction.md](player-and-interaction.md) → archipelago layout; that page is the source of truth for tile geometry. Resource zones (forest/quarry) spawn trees/stones; all regions are BFS-verified reachable.
 
 ## Game data flow per tick
 
@@ -85,7 +76,7 @@ Plus passive systems: WeatherSystem, CropGrowthSystem, MarketSystem, ShopkeeperS
 
 ## Render
 
-Canvas2D ([packages/engine/src/render/canvas2d.ts](../../packages/engine/src/render/canvas2d.ts)) — replaced the planned WebGPU renderer in commit `5ac7f8d`.
+Canvas2D ([packages/engine/src/render/canvas2d/](../../packages/engine/src/render/canvas2d/)) — replaced the planned WebGPU renderer in commit `5ac7f8d`.
 
 Key render features:
 - **Y-sort**: sprites sorted by `(layer, y)` each frame — overlap creates depth.
@@ -94,7 +85,7 @@ Key render features:
 - **Static layer bake**: backdrop tiles baked once into an offscreen canvas; WASM noise generator fills the brightness grid (~8× faster than JS).
 - **Walk/work/bob animation**: `walk-a`/`walk-b` while `farmer.path` is set, `/work` pose for physical actions, 1.5px idle bob.
 
-Atlas: 54 hand-crafted 16×16 pixel-art frames (PNG + JSON manifest at `packages/farm-valley/public/atlas/`).
+Atlas: ~220 hand-crafted 16×16 pixel-art frames split across **6 sheets + an `index.json`** (characters/buildings/terrain/crops/props/items-ui) at `packages/farm-valley/public/atlas/`; `atlasId` is load-bearing (the renderer maps each frame to its sheet). Sheets are generated from pixel recipes in [tools/atlas-builder/src/recipes/](../../tools/atlas-builder/src/recipes/) (split into `base-recipes`, `templates`, `palette`, `sheet-map`).
 
 ## WASM
 
