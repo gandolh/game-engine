@@ -30,35 +30,11 @@ import type {
   SnapshotShock,
 } from "./snapshot";
 
-/**
- * Pure stop-condition helper for the skip-to-highlight loop.
- * Returns true when a new event with drama ≥ threshold appeared this tick —
- * i.e. when prevLen < curLen AND the newest event's drama meets the bar.
- *
- * Exported so unit tests can verify the stop condition without spinning up
- * the real worker. Brief 40.
- *
- * @param prevLen   Number of events in the feed BEFORE this tick.
- * @param curLen    Number of events in the feed AFTER this tick.
- * @param newestDrama  Drama score of the newest (last) event after this tick.
- * @param threshold  The drama threshold (e.g. HIGHLIGHT_THRESHOLD = 0.7).
- */
-export function shouldStopSkip(
-  prevLen: number,
-  curLen: number,
-  newestDrama: number,
-  threshold: number,
-): boolean {
-  return curLen > prevLen && newestDrama >= threshold;
-}
-
-/**
- * Safety cap: stop the skip loop after at most this many days of fast-forward.
- * High-drama events are rare (the main blight is around day 50), so a 30-day
- * cap balances responsiveness against an infinite loop if nothing dramatic
- * happens in the remaining run. The cap is documented here for visibility.
- */
-const SKIP_MAX_DAYS = 30;
+// Pure skip-to-highlight stop logic lives in a sibling so it can be unit-tested
+// without importing this module (which registers a worker message handler).
+// Re-exported here so `import { shouldStopSkip } from "./sim-worker"` still works.
+import { shouldStopSkip, SKIP_MAX_DAYS } from "./sim-worker-skip";
+export { shouldStopSkip };
 
 const TILE = 16;
 

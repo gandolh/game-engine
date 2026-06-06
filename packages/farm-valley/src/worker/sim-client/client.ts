@@ -1,5 +1,5 @@
 /**
- * sim-client.ts — main-thread facade for the sim Web Worker.
+ * client.ts — main-thread facade for the sim Web Worker.
  *
  * SimClient:
  *  - Spawns the worker and sends WorkerInitMsg.
@@ -27,50 +27,12 @@ import type {
   FinalStandingRow,
   RunRecap,
   RelationshipMatrixData,
-} from "./snapshot";
+} from "../snapshot";
 import type { ProfileReport } from "@engine/core";
-import type { ObserverSnapshot } from "../ui/observer";
-import type { LeaderboardRow } from "../ui/leaderboard";
-import type { ShopOffer } from "../agents/shop-slate";
-
-function clamp(v: number, lo: number, hi: number): number {
-  return v < lo ? lo : v > hi ? hi : v;
-}
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-/**
- * Smoothstep easing (3t² − 2t³): zero slope at t=0 and t=1, so a farmer eases
- * out of a tile and eases into the next instead of snapping between constant-
- * velocity segments. Render-only — the sim still steps one tile per STEP_TICKS.
- */
-function smoothstep(t: number): number {
-  return t * t * (3 - 2 * t);
-}
-
-/**
- * Copy every SnapshotSprite field from `src` into the pooled `dst` (T1.2). Must
- * assign ALL fields — including optionals — so a reused record never carries a
- * stale value from the different sprite that previously occupied this slot.
- */
-function copySprite(dst: SnapshotSprite, src: SnapshotSprite): void {
-  dst.id = src.id;
-  dst.x = src.x;
-  dst.y = src.y;
-  dst.rotation = src.rotation;
-  dst.layer = src.layer;
-  dst.frame = src.frame;
-  dst.alpha = src.alpha;
-  dst.interpolate = src.interpolate;
-  dst.action = src.action;
-  dst.label = src.label;
-  dst.description = src.description ?? null;
-  dst.facing = src.facing ?? null;
-  dst.flipX = src.flipX ?? false;
-  dst.bubble = src.bubble ?? null;
-}
+import type { ObserverSnapshot } from "../../ui/observer";
+import type { LeaderboardRow } from "../../ui/leaderboard";
+import type { ShopOffer } from "../../agents/shop-slate";
+import { clamp, lerp, smoothstep, copySprite } from "./interp";
 
 export class SimClient {
   private readonly worker: Worker;
@@ -109,7 +71,7 @@ export class SimClient {
   private interpOut: SnapshotSprite[] = [];
 
   constructor() {
-    this.worker = new Worker(new URL("./sim-worker.ts", import.meta.url), {
+    this.worker = new Worker(new URL("../sim-worker.ts", import.meta.url), {
       type: "module",
     });
 
@@ -193,7 +155,7 @@ export class SimClient {
   }
 
   /**
-   * Fast-forward until the next high-drama event (drama ≥ HIGHLIGHT_THRESHOLD)
+   * Fast-forward until the next high-drama event (drama >= HIGHLIGHT_THRESHOLD)
    * or a safety cap. The worker resumes at the prior pace after stopping.
    * Brief 40.
    */
@@ -276,7 +238,7 @@ export class SimClient {
    *
    * Returns [] if no snapshot has arrived yet.
    *
-   * ⚠️ POOLED RETURN (T1.2): the returned array and its sprite objects are
+   * POOLED RETURN (T1.2): the returned array and its sprite objects are
    * reused across calls and overwritten on the next call. Consume the result
    * within the current frame; do not retain it across frames, and finish using
    * one result before calling this (or getFarmerInterpolatedPos) again.
