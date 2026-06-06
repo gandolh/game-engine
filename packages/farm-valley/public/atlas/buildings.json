@@ -46,237 +46,249 @@
       "w": 16,
       "h": 16
     },
-    "structure/stone": {
+    "structure/tree-autumn": {
       "x": 1,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "structure/tree-bare": {
+      "x": 18,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "structure/stone": {
+      "x": 35,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "structure/auction-podium": {
-      "x": 18,
+      "x": 52,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "structure/notice-board": {
-      "x": 35,
+      "x": 69,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "structure/mill": {
-      "x": 52,
+      "x": 86,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "structure/well": {
-      "x": 69,
+      "x": 103,
       "y": 18,
       "w": 16,
       "h": 16
     },
     "structure/mushroom-marker": {
-      "x": 86,
-      "y": 18,
+      "x": 1,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "structure/ice-marker": {
-      "x": 103,
-      "y": 18,
+      "x": 18,
+      "y": 35,
       "w": 16,
       "h": 16
     },
     "structure/forge-oven": {
-      "x": 1,
+      "x": 35,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "structure/forge-fire-a": {
-      "x": 18,
+      "x": 52,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "structure/forge-fire-b": {
-      "x": 35,
+      "x": 69,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "structure/forge-fire-c": {
-      "x": 52,
+      "x": 86,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "structure/anvil": {
-      "x": 69,
+      "x": 103,
       "y": 35,
       "w": 16,
       "h": 16
     },
     "structure/quench-tub": {
-      "x": 86,
-      "y": 35,
+      "x": 1,
+      "y": 52,
       "w": 16,
       "h": 16
     },
     "structure/tool-rack": {
-      "x": 103,
-      "y": 35,
+      "x": 18,
+      "y": 52,
       "w": 16,
       "h": 16
     },
     "structure/workbench": {
-      "x": 1,
+      "x": 35,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "structure/sawhorse": {
-      "x": 18,
+      "x": 52,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "structure/log-pile": {
-      "x": 35,
+      "x": 69,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "structure/plank-stack": {
-      "x": 52,
+      "x": 86,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "structure/fishing-spot": {
-      "x": 69,
+      "x": 103,
       "y": 52,
       "w": 16,
       "h": 16
     },
     "structure/fishing-spot-b": {
-      "x": 86,
-      "y": 52,
+      "x": 1,
+      "y": 69,
       "w": 16,
       "h": 16
     },
     "structure/fishing-spot-c": {
-      "x": 103,
-      "y": 52,
+      "x": 18,
+      "y": 69,
       "w": 16,
       "h": 16
     },
     "structure/forge-house": {
-      "x": 1,
+      "x": 35,
       "y": 69,
       "w": 32,
       "h": 48
     },
     "structure/carpenter-workshop": {
-      "x": 34,
+      "x": 68,
       "y": 69,
       "w": 32,
       "h": 48
     },
     "structure/grindstone": {
-      "x": 67,
-      "y": 69,
-      "w": 16,
-      "h": 16
-    },
-    "structure/coal-pile": {
-      "x": 84,
-      "y": 69,
-      "w": 16,
-      "h": 16
-    },
-    "structure/ingot-rack": {
       "x": 101,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "structure/lumber-rack": {
+    "structure/coal-pile": {
       "x": 1,
+      "y": 118,
+      "w": 16,
+      "h": 16
+    },
+    "structure/ingot-rack": {
+      "x": 18,
+      "y": 118,
+      "w": 16,
+      "h": 16
+    },
+    "structure/lumber-rack": {
+      "x": 35,
       "y": 118,
       "w": 16,
       "h": 16
     },
     "structure/sawpit": {
-      "x": 18,
+      "x": 52,
       "y": 118,
       "w": 16,
       "h": 16
     },
     "structure/shavings-pile": {
-      "x": 35,
+      "x": 69,
       "y": 118,
       "w": 16,
       "h": 16
     },
     "structure/forge-smoke-a": {
-      "x": 52,
+      "x": 86,
       "y": 118,
       "w": 16,
       "h": 16
     },
     "structure/forge-smoke-b": {
-      "x": 69,
-      "y": 118,
-      "w": 16,
-      "h": 16
-    },
-    "structure/forge-smoke-c": {
-      "x": 86,
-      "y": 118,
-      "w": 16,
-      "h": 16
-    },
-    "structure/tavern": {
       "x": 103,
       "y": 118,
       "w": 16,
       "h": 16
     },
-    "structure/coop": {
+    "structure/forge-smoke-c": {
       "x": 1,
       "y": 135,
       "w": 16,
       "h": 16
     },
-    "structure/barn": {
+    "structure/tavern": {
       "x": 18,
       "y": 135,
       "w": 16,
       "h": 16
     },
-    "structure/greenhouse": {
+    "structure/coop": {
       "x": 35,
       "y": 135,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-sapling": {
+    "structure/barn": {
       "x": 52,
       "y": 135,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-growing": {
+    "structure/greenhouse": {
       "x": 69,
       "y": 135,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-mature": {
+    "structure/fruit-tree-sapling": {
       "x": 86,
       "y": 135,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-growing": {
+      "x": 103,
+      "y": 135,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-mature": {
+      "x": 1,
+      "y": 152,
       "w": 16,
       "h": 16
     }

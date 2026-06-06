@@ -206,6 +206,20 @@ export interface RenderSnapshot {
    * Brief 39.
    */
   wealthSeries: SnapshotWealthSeries[];
+  /**
+   * brief 45 — current weather + season, for the render-only rain/snow ambient
+   * overlay (main.ts) and any weather UI. Pure render input — drawn over the
+   * frame, never read by sim logic.
+   */
+  weather: {
+    condition: import("../protocols/weather").WeatherCondition;
+    season: import("../protocols/weather").Season;
+  };
+  /**
+   * brief 45 — the festival firing today, or null. Lets the UI surface the
+   * calendar landmark. Pure render input.
+   */
+  festival: { id: string; name: string; contestCrop: string } | null;
 }
 
 /** One active rivalry/alliance entry, structured-clone-friendly. */
@@ -309,13 +323,16 @@ export type WorkerInbound =
   | WorkerProfileToggleMsg
   | WorkerSkipToHighlightMsg;
 
-/** worker → main: the static backdrop sprites to bake once (sent at startup). */
+/** worker → main: the static backdrop sprites to bake (sent at startup AND on a
+ *  season change — brief 45 re-bakes the season-variant ground tiles). */
 export interface WorkerStaticLayerMsg {
   type: "static-layer";
   /** Full Canvas2dSprite (with width/height) since bakeStaticLayer needs those. */
   sprites: Canvas2dSprite[];
   worldWidthPx: number;
   worldHeightPx: number;
+  /** brief 45 — the season these sprites were baked for (selects the grass variant). */
+  season?: import("../protocols/weather").Season;
 }
 
 /** worker → main: a per-tick render snapshot. */

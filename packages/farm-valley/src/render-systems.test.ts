@@ -121,7 +121,9 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     // Backdrop tile kinds present. In the archipelago every road tile spans
     // water, so there is no plain "tile/path" — roads render as bridges over
     // ocean instead.
-    expect(frames.has("tile/grass")).toBe(true);
+    // brief 45 — grass tiles are now season-specific; with no season arg the
+    // default is "spring", so the frame is "tile/grass-spring".
+    expect(frames.has("tile/grass-spring")).toBe(true);
     expect(frames.has("tile/dirt")).toBe(true);
     // Ocean is no longer baked into the static layer — the animated water
     // pattern (Canvas2dRenderer) fills the ocean under the islands, so ocean

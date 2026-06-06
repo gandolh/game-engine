@@ -1063,6 +1063,58 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
 /** How often (in days) a farmer makes a tavern gathering trip (a periodic luxury). */
 const TAVERN_VISIT_PERIOD = 12;
 
+/** brief 45 — the festival gathering tile: the auction podium in the town square. */
+const FESTIVAL_PODIUM_TILE = { x: 43, y: 39 } as const;
+
+/**
+ * brief 45 — festival-day gathering beat. On a festival day a farmer with a
+ * comfortable AP cushion (and no plot wilting) makes the excursion to the village
+ * podium (the festival stage) — the spectator sees the farmers convene for the
+ * harvest contest, exactly like the brief-44 tavern gather but anchored to the
+ * calendar landmark instead of a periodic timer.
+ *
+ * The contest itself is resolved by FestivalSystem from inventory (every farmer
+ * holding the contest crop is judged) — so this helper is the visible "they all
+ * showed up" beat, plus a `decisionTrace` reason that surfaces festival planning.
+ * Travel is AP-free; low priority so it never competes with real farm work.
+ * Deterministic: gated purely on the festival-today belief + phase + AP + position.
+ */
+export function deliberateFestivalGather(farmer: GameEntity, priority: number): void {
+  if (!farmer.intentions || !farmer.farmer || !farmer.beliefs) return;
+  const festival = farmer.beliefs.data.festivalToday as
+    | { name: string; contestCrop: string } | null | undefined;
+  if (!festival) return; // not a festival day
+
+  const phase = farmer.beliefs.data.phase as string | undefined;
+  // Gather in the MORNING / WORK window (plenty of day to get home before night).
+  if (phase !== "morning" && phase !== "work") return;
+
+  // Keep it a LUXURY that never starves farm work (mirror the tavern gather gate).
+  if ((farmer.ap?.current ?? 0) < 40) return;
+  const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
+  if (sense && sense.maxDrySoFar >= 2) return;
+
+  // Already at the podium, or a festival hop already queued? Don't re-queue.
+  if (isWithinReach(farmer.transform, FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.festivalGather)) return;
+
+  // Hold the contest crop: if the farmer would otherwise sell it today, surface
+  // the intent to keep it for judging (the contest reads end-of-day inventory).
+  const held = farmer.inventory?.crops[festival.contestCrop as import("../components").CropKind] ?? 0;
+
+  farmer.intentions.queue.push({
+    kind: "travel",
+    data: { targetTile: { x: FESTIVAL_PODIUM_TILE.x, y: FESTIVAL_PODIUM_TILE.y }, festivalGather: true },
+    priority,
+  });
+  recordReason(
+    farmer,
+    held > 0
+      ? `${festival.name}: enter ${festival.contestCrop} (holding ${held})`
+      : `${festival.name}: gather at the podium`,
+  );
+}
+
 /**
  * brief 43 — plant a HIGH-VALUE crop in any empty greenhouse plot, regardless of
  * season. This is the whole strategic point of the greenhouse: a season-immune

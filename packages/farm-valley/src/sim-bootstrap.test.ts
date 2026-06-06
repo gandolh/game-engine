@@ -69,7 +69,9 @@ describe("sim determinism", () => {
     expect(a.finalStandings.length).toBe(5);
   });
 
-  it("is internally reproducible across several seeds", () => {
+  // brief 45 — FestivalSystem adds belief-write overhead each tick; 4 seeds × 2
+  // replays × 30 days ≈ 9 s in CI (node env, no JsPathfinder). Extend timeout.
+  it("is internally reproducible across several seeds", { timeout: 30_000 }, () => {
     for (const seed of [1, 42, 0xbeef, 123456]) {
       const a = runOnce(seed, TICKS_PER_DAY, MAX_DAYS);
       const b = runOnce(seed, TICKS_PER_DAY, MAX_DAYS);

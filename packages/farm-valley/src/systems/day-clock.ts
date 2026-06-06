@@ -6,6 +6,11 @@ import {
   type PhaseStartBody,
 } from "../protocols";
 import { phaseForTick, type DayPhase } from "./day-phase";
+import {
+  festivalForDay,
+  daysUntilFestival as daysUntilFestivalForDay,
+  type FestivalDef,
+} from "../protocols/festival";
 
 export interface DayClockConfig {
   ticksPerDay: number;
@@ -29,6 +34,20 @@ export class DayClockSystem implements System {
 
   get maxDays(): number {
     return this.config.maxDays;
+  }
+
+  /**
+   * brief 45 — the festival firing on the current day, or null. Pure function of
+   * the day index (the calendar fixes festival dates). Lets the UI / observer
+   * panel and agents see "today is a festival".
+   */
+  get festivalToday(): FestivalDef | null {
+    return festivalForDay(this.currentDay);
+  }
+
+  /** brief 45 — days until the next festival (0 if today is one). */
+  get daysUntilFestival(): number {
+    return daysUntilFestivalForDay(this.currentDay);
   }
 
   run(ctx: SimContext): void {

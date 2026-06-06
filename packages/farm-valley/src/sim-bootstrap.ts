@@ -49,6 +49,7 @@ import { FinishDaySystem } from "./systems/finish-day";
 import { WorkNpcSystem } from "./systems/work-npc";
 import { CarpenterSystem } from "./systems/carpenter";
 import { TavernSystem } from "./systems/tavern";
+import { FestivalSystem } from "./systems/festival";
 import { LivestockSystem } from "./systems/livestock";
 import { OrchardSystem } from "./systems/orchard";
 import { setupWeatherFeature } from "./agents/weather-station";
@@ -204,6 +205,15 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // brief 37 — RivalrySystem must run BEFORE EventFeedSystem so that the feed
     // can read freshlyFormedThisTick() on the same tick.
     .add(rivalry)
+    // brief 45 — FestivalSystem runs in the read-only snoop band: it reads the
+    // fresh DAY_START (delivered by InboxDispatchSystem above), announces a
+    // festival day + writes festival awareness into beliefs BEFORE PerceiveSystem
+    // clears inboxes / DeliberateSystem reads them, and resolves the PREVIOUS
+    // festival day's contest into an ONT_FESTIVAL.RESULT broadcast. That RESULT
+    // is fanned to the market-wall inbox next tick, where EventFeedSystem snoops
+    // it (single surface, exactly like AUCTION_RESULT). It mutates only farmer
+    // gold (the prize) + beliefs; it must precede DeliberateSystem.
+    .add(new FestivalSystem(bus, world, rng, opts.ticksPerDay))
     // Read-only activity-feed snoop: must observe inbox + market-wall messages
     // before PerceiveSystem clears them and before MarketSystem drains the wall.
     .add(eventFeed)

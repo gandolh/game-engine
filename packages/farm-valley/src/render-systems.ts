@@ -11,6 +11,19 @@ import {
   isWalkable,
   type RegionId,
 } from "./world/regions";
+import type { Season } from "./protocols/weather";
+
+/**
+ * brief 45 — per-season grass tile variant. Selected in `backdropFrame` so the
+ * baked static layer shows the season's ground treatment. Re-baked on season
+ * change (4× per run; see main.ts). Render-only — no determinism impact.
+ */
+const SEASON_GRASS: Record<Season, string> = {
+  spring: "tile/grass-spring",
+  summer: "tile/grass-summer",
+  autumn: "tile/grass-autumn",
+  winter: "tile/grass-winter",
+};
 
 const TILE = 16;
 
@@ -101,7 +114,8 @@ export function pickFarmerFrame(entity: GameEntity, tick: number): string {
  * - carpentry → "tile/carpentry-floor" (laid stone-slab flooring)
  * - resource-zone → "tile/grass" (same as farms — they're green areas)
  */
-function backdropFrame(tx: number, ty: number): string | null {
+function backdropFrame(tx: number, ty: number, season: Season = "spring"): string | null {
+  const grassFrame = SEASON_GRASS[season];
   // Non-walkable tiles (out-of-region gaps, world border) are OCEAN. We no
   // longer bake a static ocean tile here — the renderer's animated water
   // pattern fills the whole world rect under the static layer, so we leave
@@ -115,10 +129,10 @@ function backdropFrame(tx: number, ty: number): string | null {
     // base); otherwise a plain dirt path.
     return BRIDGE_SET.has(ty * WORLD_WIDTH + tx) ? null : "tile/path";
   }
-  if (region.startsWith("farm-")) return "tile/grass";
+  if (region.startsWith("farm-")) return grassFrame;
   if (region === "blacksmith") return "tile/forge-floor";
   if (region === "carpentry") return "tile/carpentry-floor";
-  if (region === "forest-north" || region === "forest-south") return "tile/grass";
+  if (region === "forest-north" || region === "forest-south") return grassFrame;
   if (region === "quarry-north" || region === "quarry-south") return "tile/quarry-floor";
   if (region === "mill") return "tile/stone-floor";
   if (region === "well-north" || region === "well-south") return "tile/stone-floor";
@@ -617,11 +631,14 @@ export const FORGE_SMOKE_FRAMES = [
  * (see `Canvas2dRenderer.bakeStaticLayer`) instead of re-emitted every frame.
  * Crops on top of plots stay dynamic (they grow), so they're NOT here.
  */
-export function* iterStaticSprites(world: World<GameEntity>): Generator<LogicalSprite> {
+export function* iterStaticSprites(
+  world: World<GameEntity>,
+  season: Season = "spring",
+): Generator<LogicalSprite> {
   // Backdrop: one pass over the 40×40 grid. Void tiles emit nothing.
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-      const frame = backdropFrame(tx, ty);
+      const frame = backdropFrame(tx, ty, season);
       if (frame === null) continue;
       yield {
         x: tx * TILE + TILE / 2,
@@ -785,10 +802,13 @@ export const FORGE_CHIMNEY_PX = {
   y: 36 * TILE + TILE - 48 + 2,
 } as const;
 
-/** Materialize the static backdrop sprites for a one-time bake. */
-export function buildStaticLayerSprites(world: World<GameEntity>): Canvas2dSprite[] {
+/** Materialize the static backdrop sprites for a one-time bake (or a season re-bake). */
+export function buildStaticLayerSprites(
+  world: World<GameEntity>,
+  season: Season = "spring",
+): Canvas2dSprite[] {
   const out: Canvas2dSprite[] = [];
-  for (const ls of iterStaticSprites(world)) {
+  for (const ls of iterStaticSprites(world, season)) {
     out.push({
       x: ls.x,
       y: ls.y,
@@ -825,10 +845,28 @@ const ACTION_POSE: Record<string, string> = {
  * before the action pose suffix is appended, so mid-walk action events resolve
  * cleanly to the correct personality frame (e.g. `farmer/hoarder/till`).
  */
+/**
+ * brief 45 — seasonal foliage remap for static feature trees (render-only).
+ * The sim spawns farm/orchard trees with `structure/tree`; in autumn/winter we
+ * swap the displayed frame to the season variant so the world reads as the same
+ * trees changing through the year. Other frames pass through unchanged.
+ */
+function seasonalTreeFrame(frame: string, season: Season): string {
+  if (frame !== "structure/tree") return frame;
+  if (season === "autumn") return "structure/tree-autumn";
+  if (season === "winter") return "structure/tree-bare";
+  return frame; // spring/summer keep the green tree
+}
+
 function resolveFrameAndBob(
   s: import("./worker/snapshot").SnapshotSprite,
   nowMs: number,
+  season: Season = "spring",
 ): { frame: string; bobY: number } {
+  // Seasonal feature-tree remap (applies before any pose/walk logic; trees are
+  // id-less static features so they hit the early `s.id === null` return below).
+  const seasonal = seasonalTreeFrame(s.frame, season);
+  if (seasonal !== s.frame) return { frame: seasonal, bobY: 0 };
   // Fishing spots: animate the three rising bubbles by cycling A→B→C (~1.2 s),
   // with a per-tile phase offset (off the pixel position) so neighbouring spots
   // don't bubble in lockstep. Wall-clock driven (nowMs) — purely cosmetic; the
@@ -890,6 +928,7 @@ export function pushSnapshotSprites(
   meets: import("./worker/snapshot").SnapshotMeet[],
   farmerPositions: Map<number, { x: number; y: number }>,
   nowMs: number = 0,
+  season: Season = "spring",
 ): void {
   // Build a Set of farmer ids that have an active meet bubble, so intention
   // bubbles can be suppressed for those farmers. Brief 40.
@@ -897,7 +936,7 @@ export function pushSnapshotSprites(
 
   // Sprites + ground drop-shadows for characters (sprites with an entity id).
   for (const s of sprites) {
-    const { frame, bobY } = resolveFrameAndBob(s, nowMs);
+    const { frame, bobY } = resolveFrameAndBob(s, nowMs, season);
     // Shadow: small ellipse at feet (bottom edge of sprite), drawn under all sprites.
     if (s.id !== null) {
       renderer.pushShadow(s.x, s.y + TILE * 0.35, TILE * 0.32, TILE * 0.12, 0.45);
