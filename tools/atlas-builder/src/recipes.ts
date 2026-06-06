@@ -4495,5 +4495,88 @@ const NPC_POSES: PixelRecipe[] = [
       "................",
     ],
   },
+
+  // ── brief 46 — harbor sprites ────────────────────────────────────────────────
+
+  // Dockmaster NPC idle — salty seafarer in a navy coat (S=structure-blue-dark,
+  // s=structure-blue-lt) and a dark cap (k/M), cream face/hands (w), wood-dark
+  // legs (D). Same 16×16 size + body proportions as npc/blacksmith/idle and
+  // npc/barkeep/idle so it reads as the same NPC system.
+  {
+    name: "npc/dockmaster/idle",
+    size: 16,
+    pixels: [
+      "................",
+      ".....MMMMM......",
+      "....MMMMMMM.....",
+      "....MwwwwwM.....",
+      "....Mw.w.MM.....",
+      "....MMwwwM......",
+      "....SSSSS.......",
+      "...SSSSSSS......",
+      "...SSwwwSS......",
+      "....S...S.......",
+      "....S...S.......",
+      "...DDD.DDD......",
+      "...DDD.DDD......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
+  // Dock / pier — wooden planks over water. Plank-face (d=wood-light) with dark
+  // seams (D) and beam supports (M/m) at the edges; ocean (v) peeks between the
+  // support posts. Designed for a top-down read: rows of planks running left–right,
+  // support beam row at bottom, ocean gaps between posts. EDG32 only.
+  {
+    name: "structure/dock",
+    size: 16,
+    pixels: [
+      "vvvMMMMMMMMMvvvv",
+      "vvvMdddddddMvvvv",
+      "vvvMdDdDdDdMvvvv",
+      "vvvMdddddddMvvvv",
+      "vvvMdDdDdDdMvvvv",
+      "vvvMdddddddMvvvv",
+      "vvvMdDdDdDdMvvvv",
+      "vvvMdddddddMvvvv",
+      "vvvMMMMMMMMmvvvv",
+      "vvvv.m...m.vvvvv",
+      "vvvv.m...m.vvvvv",
+      "vvvv.m...m.vvvvv",
+      "vvvvvvvvvvvvvvvv",
+      "vvvvvvvvvvvvvvvv",
+      "vvvvvvvvvvvvvvvv",
+      "vvvvvvvvvvvvvvvv",
+    ],
+  },
+
+  // Cargo ship — a small single-tile merchant vessel viewed from above/side.
+  // Hull: wood-dark (D/d) with a darker keel (M). Mast: wood post (m) with a
+  // cream sail (w/W). A couple of brown cargo crates (D/d) on deck. Ocean (v)
+  // peeks at the waterline edges. EDG32 only.
+  {
+    name: "structure/cargo-ship",
+    size: 16,
+    pixels: [
+      "vvvvvvvvvvvvvvvv",
+      "vvvvvvvvvvvvvvvv",
+      "vvvvDDDDDDDDvvvv",
+      "vvvDdddddddddvvv",
+      "vvDddwwwwwwdddvv",
+      "vvDddwwmwwwdddvv",
+      "vvDddwwmwwwdddvv",
+      "vvDddDDmDDddddvv",
+      "vvDdddddmddddvvv",
+      "vvvDddddmDDdvvvv",
+      "vvvvDdddmddvvvvv",
+      "vvvvvDDDMDDvvvvv",
+      "vvvvvvvMvvvvvvvv",
+      "vvvvvvvvvvvvvvvv",
+      "vvvvvvvvvvvvvvvv",
+      "vvvvvvvvvvvvvvvv",
+    ],
+  },
 ];
 RECIPES.push(...NPC_POSES);

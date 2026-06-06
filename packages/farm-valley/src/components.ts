@@ -65,6 +65,17 @@ export interface Farmer {
    * standing bump + a recap/observer signal. Absent = never won one.
    */
   festivalWins?: number;
+  /**
+   * brief 46 — harbor standing / reputation score. Fulfilled contracts raise
+   * this; missed committed contracts penalize it. Gates access to higher-tier
+   * contracts. Absent = 0 (no reputation).
+   */
+  harborReputation?: number;
+  /**
+   * brief 46 — the contract the farmer has currently committed to (if any).
+   * Set by the `commit-contract` action; cleared when delivered or missed.
+   */
+  committedContract?: import('./protocols/harbor').HarborContract | undefined;
 }
 
 /**
@@ -599,6 +610,27 @@ export interface HomeTag {
   ownerId: number;
 }
 
+/**
+ * brief 46 — tags the harbor contract board entity. Holds the active open
+ * contracts and the committed-contract registry. HarborSystem updates this
+ * each day; agents read it via beliefs.
+ */
+export interface HarborBoardTag {
+  readonly isHarborBoard: true;
+  /** Currently open (uncommitted) contracts available for farmers to take. */
+  openContracts: import('./protocols/harbor').HarborContract[];
+  /**
+   * Committed contracts: contractId → farmerId.
+   * A committed contract is still in openContracts until delivered/missed.
+   */
+  committed: Map<string, number>;
+}
+
+/** brief 46 — tags the dockmaster NPC entity at the harbor. */
+export interface DockmasterTag {
+  readonly isDockmaster: true;
+}
+
 /** Resources a farmer can hold from chopping/mining. */
 export interface ResourceInventory {
   wood: number;
@@ -740,5 +772,9 @@ export interface GameEntity {
   skills?: Skills;
   /** brief 43 — a built greenhouse structure on the farmer's farm. */
   greenhouse?: Greenhouse;
+  /** brief 46 — harbor contract board entity. */
+  harborBoard?: HarborBoardTag;
+  /** brief 46 — dockmaster NPC entity at the harbor. */
+  dockmaster?: DockmasterTag;
   [key: string]: unknown;
 }

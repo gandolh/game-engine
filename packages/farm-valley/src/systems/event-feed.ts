@@ -37,6 +37,11 @@ import {
   type ShockBody,
   type CropDeathBody,
 } from "../protocols/simulation";
+import {
+  ONT_HARBOR,
+  type ContractDeliveredBody,
+  type ContractMissedBody,
+} from "../protocols/harbor";
 import type { DayClockSystem } from "./day-clock";
 import type { RivalrySystem } from "./rivalry";
 import type { RunHistorySystem } from "./run-history";
@@ -125,6 +130,7 @@ export class EventFeedSystem implements System {
 
     this.snoopMarketWall(ctx.tick, day, fresh);
     this.snoopFarmerInboxes(ctx.tick, day, fresh);
+    this.snoopHarborBoard(ctx.tick, day, fresh);
     this.snoopRivalrySystem(ctx.tick, day, fresh);
     this.snoopRankChange(ctx.tick, day, fresh);
     this.snoopRaceOn(ctx.tick, day, fresh);
@@ -348,6 +354,75 @@ export class EventFeedSystem implements System {
       text,
       drama: dramaScore("festival", { day, maxDays: this.dayClock.maxDays }),
       farmerId: body.winnerId,
+    });
+  }
+
+  // ---- harbor board snoop (brief 46) -------------------------------------
+  // CONTRACT_DELIVERED and CONTRACT_MISSED land as broadcasts. We snoop the
+  // harbor board's inbox (single entity → single source, no double-counting).
+
+  private snoopHarborBoard(tick: number, day: number, out: EventEntry[]): void {
+    for (const board of this.world.query("harborBoard", "inbox")) {
+      for (const msg of board.inbox.messages) {
+        switch (msg.ontology) {
+          case ONT_HARBOR.CONTRACT_DELIVERED:
+            this.captureContractDelivered(
+              msg.body as unknown as ContractDeliveredBody,
+              tick,
+              day,
+              out,
+            );
+            break;
+          case ONT_HARBOR.CONTRACT_MISSED:
+            this.captureContractMissed(
+              msg.body as unknown as ContractMissedBody,
+              tick,
+              day,
+              out,
+            );
+            break;
+          default:
+            break;
+        }
+      }
+    }
+  }
+
+  private captureContractDelivered(
+    body: ContractDeliveredBody,
+    tick: number,
+    day: number,
+    out: EventEntry[],
+  ): void {
+    const key = `contract-delivered:${body.contractId}:${body.farmerId}`;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    out.push({
+      tick,
+      day,
+      key,
+      text: `${body.farmerName} delivered a harbor contract — +${body.reward}g, +${body.reputationReward} rep`,
+      drama: dramaScore("contract-delivered", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: body.farmerId,
+    });
+  }
+
+  private captureContractMissed(
+    body: ContractMissedBody,
+    tick: number,
+    day: number,
+    out: EventEntry[],
+  ): void {
+    const key = `contract-missed:${body.contractId}:${body.farmerId}`;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    out.push({
+      tick,
+      day,
+      key,
+      text: `${body.farmerName} missed a harbor contract deadline — -${body.penaltyReputation} rep`,
+      drama: dramaScore("contract-missed", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: body.farmerId,
     });
   }
 

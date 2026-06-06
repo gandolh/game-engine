@@ -41,7 +41,10 @@ export type DramaEventKind =
   | "alliance"
   | "rank-flip"
   | "race-on"
-  | "festival";
+  | "festival"
+  // brief 46 — harbor contract events
+  | "contract-delivered"
+  | "contract-missed";
 
 // ---------------------------------------------------------------------------
 // Context
@@ -112,6 +115,9 @@ const BASE_DRAMA: Record<DramaEventKind, number> = {
   // festival — a scheduled calendar landmark with a gold prize + standing bump;
   // a deliberate spotlight beat (and a chance for a trailing farmer to win one).
   "festival":   0.70,
+  // brief 46 — harbor contract outcomes (planning horizon, high value = high drama).
+  "contract-delivered": 0.60,
+  "contract-missed":    0.55,
 };
 
 // ---------------------------------------------------------------------------

@@ -78,3 +78,15 @@ export type {
   CnpRejectBody,
   CnpCompletedBody,
 } from "./cnp";
+
+export { ONT_HARBOR } from "./harbor";
+export type {
+  HarborOntology,
+  HarborContract,
+  ContractGoods,
+  ContractPostedBody,
+  ContractCommittedBody,
+  ContractDeliveredBody,
+  ContractMissedBody,
+  ContractExpiredBody,
+} from "./harbor";

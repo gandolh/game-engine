@@ -9,7 +9,8 @@ export type RegionId =
   | 'mushroom-grove'                  // Seasonal zone (autumn-only field work) — SE gap
   | 'ice-pond'                        // Seasonal zone (winter-only field work) — NW gap
   | 'fishing-isle'                    // Sand island you fish from (any ocean edge) — S of mill
-  | 'fishing-isle-2';                 // Second sand fishing island — S of forest-south (SW)
+  | 'fishing-isle-2'                  // Second sand fishing island — S of forest-south (SW)
+  | 'harbor';                         // Harbor island — shipping dock + contract board (brief 46)
 
 export type RegionKind = 'village' | 'farm';
 
@@ -75,9 +76,25 @@ const ICE_POND_BOUNDS      = { minX: 74, minY: 34, maxX: 81, maxY: 41 }; // far 
 const FISHING_ISLE_BOUNDS   = { minX: 40, minY: 68, maxX: 47, maxY: 75 };
 const FISHING_ISLE_2_BOUNDS = { minX: 22, minY: 68, maxX: 29, maxY: 75 };
 
+// ── Harbor island (brief 46) — 8×8 dock + contract board ─────────────────────
+// A coastal dock island south of Hannah's farm (quarry-south quadrant). It sits
+// at the SE corner of the navigable ocean, connected by a 2-tile bridge to
+// quarry-south. The harbor is the home of shipping contracts, the dockmaster
+// NPC, and the arriving cargo ship. 8×8 keeps it small like the fishing isles.
+const HARBOR_BOUNDS = { minX: 58, minY: 68, maxX: 65, maxY: 75 };
+
 /** Every fishing-isle region id, so the renderer / fishing logic treat them
  *  uniformly. */
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
+
+/** The harbor island where shipping contracts are posted (brief 46). */
+export const HARBOR_REGION_ID: RegionId = 'harbor';
+
+/** The dock tile where a farmer stands to deliver a contract. */
+export const HARBOR_DOCK_TILE = { x: 61, y: 68 } as const;
+
+/** The contract board tile within the harbor. */
+export const HARBOR_BOARD_TILE = { x: 62, y: 71 } as const;
 
 /** True if a region id is one of the fishing isles. */
 export function isFishingIsle(region: RegionId | null): boolean {
@@ -111,6 +128,7 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'ice-pond',       kind: 'village', bounds: ICE_POND_BOUNDS,        center: midpoint(ICE_POND_BOUNDS) },
   { id: 'fishing-isle',   kind: 'village', bounds: FISHING_ISLE_BOUNDS,    center: midpoint(FISHING_ISLE_BOUNDS) },
   { id: 'fishing-isle-2', kind: 'village', bounds: FISHING_ISLE_2_BOUNDS,  center: midpoint(FISHING_ISLE_2_BOUNDS) },
+  { id: 'harbor',         kind: 'village', bounds: HARBOR_BOUNDS,          center: midpoint(HARBOR_BOUNDS) },
 ];
 
 // ── Road corridors ────────────────────────────────────────────────────────────
@@ -156,6 +174,9 @@ const ROADS: readonly RoadDef[] = [
   // ── Fishing isles (hang off the mill / forest-south, due south) ──
   { minX: 42, minY: 64, maxX: 43, maxY: 67 }, // mill ↔ fishing-isle
   { minX: 24, minY: 64, maxX: 25, maxY: 67 }, // forest-south ↔ fishing-isle-2
+
+  // ── Harbor (brief 46) — hangs off quarry-south, due south ──────────────────
+  { minX: 60, minY: 64, maxX: 61, maxY: 67 }, // quarry-south ↔ harbor
 ];
 
 // Town square: inner 4×4 of village (auction podium + notice board markers)
