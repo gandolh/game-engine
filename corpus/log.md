@@ -2,6 +2,16 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-08] impl | Service NPCs become (lightly) deliberating agents
+
+**Part B of the "livelier world" work: the village's service NPCs react to the sim instead of patrolling blindly.** Additive + cosmetic — the existing message-response systems (Carpenter/Tavern/Harbor/shop) still own every transaction; this only changes how alive the NPCs *look*.
+
+- **`busyFactor` on `WorkNpc`** ([components/world-features.ts](../packages/farm-valley/src/components/world-features.ts)) — an activity multiplier on the patrol cadence. [WorkNpcSystem](../packages/farm-valley/src/systems/work-npc.ts) scales its step/dwell ticks by it (`scaled()`, clamped 0.25–4, integer-rounded so the patrol stays deterministic and never hits 0 ticks). Optional → pre-existing WorkNpc literals stay valid (treated as 1).
+- **NEW [agents/npc-behaviors.ts](../packages/farm-valley/src/agents/npc-behaviors.ts)** — a registry mirroring the personality registry (`registerNpcBehavior`/`getNpcBehavior`) + `npcRoleOf(entity)` (resolves a service tag → role). Behaviors are PURE functions of world state returning a busyFactor: barkeep/blacksmith/carpenter liven up (BUSY 0.5) when a farmer shares their region (`companyDriven`); the dockmaster bustles while the harbor board has open/committed contracts and idles (1.6) when empty.
+- **NEW [systems/npc-deliberate.ts](../packages/farm-valley/src/systems/npc-deliberate.ts)** `NpcDeliberateSystem` — runs right before WorkNpcSystem, dispatches each work-NPC by role, stamps the busyFactor. Cosmetic + deterministic, lives in the worker (reads/writes sim entities).
+- **Dockmaster gained a `workNpc` patrol** ([region-setup/setup.ts](../packages/farm-valley/src/world/region-setup/setup.ts)) — it was a static idle sprite; now it paces the harbor (board ↔ dock), the one NPC whose behavior keys off live demand (contracts). Shopkeeper + miller stay fixed-counter sprites (no patrol → no behavior registered; the registry is generic so they can gain one later).
+- **Verified.** Typecheck clean; **667 FV + 60 engine** green (+4 npc-deliberate tests: role resolution, busyFactor bounds, dockmaster busy↔idle on contract presence). **Determinism MATCH (21 farmers, 100 days) at BOTH ticksPerDay 20 AND 1200** — the new dockmaster transform + cadence scaling are pure-on-tick. world-preview renders clean.
+
 ## [2026-06-08] impl | Scale to 21 farmers via a procedural southern farm band
 
 **The roster grows 5 → 21 (20 AI + Pip) by generating extra farm islands instead of hand-authoring them.** The bottleneck was never the agent layer (generic; engine targets 50–100) — it was the hand-authored archipelago. Goal was a *bigger, livelier world* (per the user), not a balance fix. New wiki page: [world-generation.md](wiki/world-generation.md).

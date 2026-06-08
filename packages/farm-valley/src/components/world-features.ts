@@ -115,6 +115,14 @@ export interface WorkNpc {
   /** Facing to render this tick. */
   facing: "down" | "up" | "side";
   flipX: boolean;
+  /**
+   * Activity multiplier on the patrol cadence (step + dwell), set each tick by
+   * NpcDeliberateSystem from world state. 1 = baseline; <1 = busier (faster
+   * patrol, shorter dwell — there's demand); >1 = idle/slow (the valley is
+   * quiet). Lets the service NPCs visibly react to the sim instead of looping
+   * blindly. Optional so pre-existing WorkNpc literals stay valid (treated as 1).
+   */
+  busyFactor?: number;
 }
 
 /** Tags the auction podium entity at the town square center. */

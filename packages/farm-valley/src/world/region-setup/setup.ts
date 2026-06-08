@@ -488,6 +488,25 @@ export function setupRegions(
     },
     sprite: { atlasId: "main", frame: "npc/dockmaster/idle", layer: 50, tintRgba: 0xffffffff },
     dockmaster: { isDockmaster: true },
+    // Paces the harbor (board ↔ dock edge) so the dock reads as staffed. The
+    // dockmaster has no swing pose (only an idle frame), so every station stands
+    // idle; NpcDeliberateSystem speeds the patrol while contracts are open.
+    // Tiles stay clear of the dock prop (58,70) + cargo ship (58,72) + the
+    // interactive board (62,71)/dock (61,68). Harbor bounds: 58–65 × 68–75.
+    workNpc: {
+      idlePose: "npc/dockmaster/idle",
+      stations: [
+        { tileX: 62, tileY: 72, facing: "up", flipX: false, pose: null },   // at the board
+        { tileX: 61, tileY: 69, facing: "down", flipX: false, pose: null }, // by the dock
+        { tileX: 63, tileY: 73, facing: "side", flipX: false, pose: null }, // east end
+      ],
+      stationIndex: 0,
+      phase: "working",
+      timer: 90,
+      poseFrame: null,
+      facing: "down",
+      flipX: false,
+    },
   });
 
   // Harbor props — dock + cargo ship. Placed on tiles that don't overlap the

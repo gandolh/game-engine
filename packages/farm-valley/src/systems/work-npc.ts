@@ -18,6 +18,18 @@ const STEP_TICKS = 4;
 /** Ticks an NPC dwells at a station playing its pose before moving on. */
 const DWELL_TICKS = 90; // ~4.5s at 20 Hz
 
+/**
+ * Scale a base cadence by the NPC's busyFactor (set by NpcDeliberateSystem):
+ * <1 shortens it (busier), >1 lengthens it (idle). Clamped + integer-rounded so
+ * the patrol stays deterministic and never degenerates to 0 ticks. Missing
+ * factor → baseline (1).
+ */
+function scaled(base: number, busyFactor: number | undefined): number {
+  const f = busyFactor ?? 1;
+  const clamped = f < 0.25 ? 0.25 : f > 4 ? 4 : f;
+  return Math.max(1, Math.round(base * clamped));
+}
+
 export class WorkNpcSystem implements System {
   readonly name = "WorkNpcSystem";
 
@@ -39,7 +51,7 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
     npc.poseFrame = npc.idlePose;
     npc.timer -= 1;
     if (npc.timer > 0) return;
-    npc.timer = STEP_TICKS;
+    npc.timer = scaled(STEP_TICKS, npc.busyFactor);
 
     // Step one tile toward the station (Manhattan: x first, then y).
     const dx = station.tileX - transform.x;
@@ -53,7 +65,7 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
     // Arrived?
     if (transform.x === station.tileX && transform.y === station.tileY) {
       npc.phase = "working";
-      npc.timer = DWELL_TICKS;
+      npc.timer = scaled(DWELL_TICKS, npc.busyFactor);
       npc.facing = station.facing;
       npc.flipX = station.flipX;
     }
@@ -79,6 +91,6 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
   // Advance to the next station and start walking.
   npc.stationIndex = (npc.stationIndex + 1) % npc.stations.length;
   npc.phase = "walking";
-  npc.timer = STEP_TICKS;
+  npc.timer = scaled(STEP_TICKS, npc.busyFactor);
   npc.poseFrame = npc.idlePose;
 }

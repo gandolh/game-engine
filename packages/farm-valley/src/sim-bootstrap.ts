@@ -49,6 +49,7 @@ import { ShopSlateSystem } from "./systems/shop-slate";
 import { NoticeBoardSystem } from "./systems/notice-board";
 import { FinishDaySystem } from "./systems/finish-day";
 import { WorkNpcSystem } from "./systems/work-npc";
+import { NpcDeliberateSystem } from "./systems/npc-deliberate";
 import { CarpenterSystem } from "./systems/carpenter";
 import { TavernSystem } from "./systems/tavern";
 import { FestivalSystem } from "./systems/festival";
@@ -331,6 +332,9 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // the tick after a farmer's commission-build act), escrows the cost, and
     // delivers the structure after a build-time.
     .add(new CarpenterSystem(world, bus))
+    // NpcDeliberateSystem sets each service NPC's busyFactor from world state;
+    // WorkNpcSystem (next) scales its patrol cadence by it. Cosmetic + pure.
+    .add(new NpcDeliberateSystem(world))
     .add(new WorkNpcSystem(world))
     .add(new FinishDaySystem(world));
 
