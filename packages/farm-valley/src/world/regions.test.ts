@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { regionAt, isWalkable, REGIONS } from './regions';
+import { regionAt, isWalkable, REGIONS, EXTRA_FARM_COUNT, nearestResourceZone, getRegion } from './regions';
 
 // Archipelago layout (88×80): every zone is an isolated island, connected only
 // by 2-wide bridges. Pip top-center; the four AI farms in the corners; village
@@ -101,5 +101,41 @@ describe('isWalkable', () => {
       const midY = Math.floor((minY + maxY) / 2);
       expect(isWalkable(midX, midY)).toBe(regionAt(midX, midY) !== null);
     }
+  });
+});
+
+describe('procedural farm band', () => {
+  it('spawns exactly EXTRA_FARM_COUNT farm-N regions in addition to the 5 fixed farms', () => {
+    const extra = REGIONS.filter((r) => /^farm-\d+$/.test(r.id));
+    expect(extra).toHaveLength(EXTRA_FARM_COUNT);
+    const fixedFarms = REGIONS.filter((r) => r.kind === 'farm' && !/^farm-\d+$/.test(r.id));
+    expect(fixedFarms).toHaveLength(5); // Cora/Atticus/Hannah/Otto/Pip
+  });
+
+  it('every procedural farm center resolves to its own region id and is walkable', () => {
+    for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
+      const id = `farm-${i}` as const;
+      const { center } = getRegion(id);
+      expect(regionAt(center.x, center.y)).toBe(id);
+      expect(isWalkable(center.x, center.y)).toBe(true);
+    }
+  });
+});
+
+describe('nearestResourceZone', () => {
+  it('routes northern (Cora/Atticus) farms to the north zones', () => {
+    const cora = getRegion('farm-cora').center;
+    expect(nearestResourceZone(cora, 'tree')).toBe('forest-north');
+    expect(nearestResourceZone(cora, 'stone')).toBe('quarry-north');
+  });
+
+  it('routes southern (Otto/Hannah) + the procedural band to the south zones', () => {
+    const otto = getRegion('farm-otto').center;
+    expect(nearestResourceZone(otto, 'tree')).toBe('forest-south');
+    expect(nearestResourceZone(otto, 'stone')).toBe('quarry-south');
+    // The southern farm band is well below both zones → south is nearer.
+    const band = getRegion('farm-0').center;
+    expect(nearestResourceZone(band, 'tree')).toBe('forest-south');
+    expect(nearestResourceZone(band, 'stone')).toBe('quarry-south');
   });
 });

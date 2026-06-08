@@ -22,18 +22,13 @@ const STARTING_TOOLS: Tool[] = [
   { kind: "fishing-rod", tier: "wooden", durability: Infinity },
 ];
 
-/** Personality → region the farmer lives in (Cora NW, Atticus NE, Hannah SE, Otto SW, Pip top). */
-const PERSONALITY_TO_REGION: Record<string, RegionId> = {
-  conservative: "farm-cora",
-  aggressive: "farm-atticus",
-  hoarder: "farm-hannah",
-  opportunist: "farm-otto",
-  pip: "farm-pip",
-};
-
 export interface FarmerSpec {
   name: string;
   personality: "conservative" | "aggressive" | "hoarder" | "opportunist" | "pip";
+  /** The farm island this farmer lives on. Assigned at spec-generation time
+   *  (see makeFarmerSpecs); replaces the old personality→region map so any
+   *  number of farmers can be placed. */
+  homeRegion: RegionId;
   homeX: number;
   homeY: number;
   startGold: number;
@@ -46,10 +41,7 @@ export interface FarmerSpec {
 
 export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEntity {
   const sprite = `farmer/${spec.personality}`;
-  const initialRegion = PERSONALITY_TO_REGION[spec.personality];
-  if (!initialRegion) {
-    throw new Error(`setupFarmer: no region assigned for personality '${spec.personality}'`);
-  }
+  const initialRegion = spec.homeRegion;
   const farmer = world.spawn({
     transform: { x: spec.homeX, y: spec.homeY, prevX: spec.homeX, prevY: spec.homeY, rotation: 0 },
     sprite: { atlasId: "main", frame: sprite, layer: 100, tintRgba: 0xffffffff },

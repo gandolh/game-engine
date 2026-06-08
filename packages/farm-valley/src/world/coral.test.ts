@@ -7,7 +7,7 @@ import {
   nearestReef,
 } from "./coral";
 import { buildWalkableGrid } from "./walkable-grid";
-import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS } from "./regions";
 
 describe("coral geography + boat grid", () => {
   it("reef + lane tiles sit on open OCEAN (not land/road)", () => {
@@ -48,13 +48,23 @@ describe("coral geography + boat grid", () => {
     expect(g.cells[idx(43, 39)]).toBe(1);
   });
 
-  it("the LAND walkable grid is unchanged by brief 48 (still 2065 walkable)", () => {
+  it("the LAND walkable grid is exactly REGIONS + ROADS — no coral leakage", () => {
     // Coral reefs are NOT regions and the boat grid is separate, so the land
-    // grid's count + reachability are untouched. (Guards the brief's promise.)
+    // grid is precisely the island bodies + bridges. Recompute that set
+    // independently and assert the builder agrees (self-tracks the farm count).
+    const expected = new Set<number>();
+    const mark = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
+      for (let y = b.minY; y <= b.maxY; y++) {
+        for (let x = b.minX; x <= b.maxX; x++) expected.add(y * WORLD_WIDTH + x);
+      }
+    };
+    for (const r of REGIONS) mark(r.bounds);
+    for (const road of ROADS) mark(road);
+
     const grid = buildWalkableGrid();
     let walkable = 0;
     for (let i = 0; i < grid.cells.length; i++) if (grid.cells[i] === 0) walkable++;
-    expect(walkable).toBe(2065);
+    expect(walkable).toBe(expected.size);
   });
 
   it("isCoralReefTile / isDockTile classify the right tiles", () => {

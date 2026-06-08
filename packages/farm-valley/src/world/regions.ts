@@ -1,4 +1,5 @@
-export type RegionId =
+/** Hand-authored islands with fixed coordinates. */
+export type FixedRegionId =
   | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
   | 'farm-pip'                         // Player-controlled farmer's farm (far east)
   | 'blacksmith' | 'carpentry'
@@ -11,6 +12,12 @@ export type RegionId =
   | 'fishing-isle'                    // Sand island you fish from (any ocean edge) — S of mill
   | 'fishing-isle-2'                  // Second sand fishing island — S of forest-south (SW)
   | 'harbor';                         // Harbor island — shipping dock + contract board (brief 46)
+
+/** Procedurally-generated extra farm islands (the southern farm band). `farm-0`
+ *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeExtraFarmRegion}. */
+export type ExtraFarmRegionId = `farm-${number}`;
+
+export type RegionId = FixedRegionId | ExtraFarmRegionId;
 
 export type RegionKind = 'village' | 'farm';
 
@@ -39,7 +46,36 @@ export interface RegionDef {
 //   O(SW)     forest-S     mill        quarry-S    H(SE)
 //             fishing-isle-2          fishing-isle  (two sand isles, rows 68-75; bubbles ring each)
 export const WORLD_WIDTH = 88;
-export const WORLD_HEIGHT = 80;
+
+// ── Procedural farm band (south of the hand-authored core) ───────────────────
+// To scale past the five hand-authored farms we generate extra farm islands in a
+// regular grid in NEW space below the original 88×80 core. The originals (Pip +
+// the four corners) keep their exact coordinates; these are purely additive.
+//
+// Layout: a COLS-wide grid starting at (FARM_BAND_X0, FARM_BAND_Y0). Each cell is
+// EXTRA_FARM_SIZE tiles square with EXTRA_FARM_GAP tiles of ocean on every side
+// (pitch = size + gap), so no two farm bodies are ever adjacent. Each farm hangs
+// off a per-row "collector" bridge by a short centered stub; the collectors join
+// a single vertical trunk that taps the village↔mill column, keeping the whole
+// graph a connected tree rooted at the village. All generation is pure (no RNG),
+// so it stays deterministic. See generateFarmBand() below.
+// Typed as `number` (not the literal 16) so it reads as a tunable knob and the
+// `=== 0` / `> 0` guards below aren't flagged as dead comparisons.
+export const EXTRA_FARM_COUNT: number = 16; // 5 hand-authored + 16 = 21 farms (20 AI + Pip)
+const EXTRA_FARM_COLS = 6;
+const EXTRA_FARM_SIZE = 10;         // 10×10 still fits the 2×2 plot grid (PLOT_OFFSETS [-2,1])
+const EXTRA_FARM_GAP = 2;           // ≥2 ocean tiles between farm bodies → no adjacency
+const EXTRA_FARM_PITCH = EXTRA_FARM_SIZE + EXTRA_FARM_GAP; // 12
+const FARM_BAND_X0 = 2;
+const FARM_BAND_Y0 = 84;            // 4-tile water gutter below the reef lanes (y≤78)
+const EXTRA_FARM_ROWS = Math.ceil(EXTRA_FARM_COUNT / EXTRA_FARM_COLS);
+
+// World grows downward to fit the farm band; the original core (y≤79) is
+// untouched. With EXTRA_FARM_COUNT=0 this collapses to the original 80 (no rows).
+export const WORLD_HEIGHT = Math.max(
+  80,
+  FARM_BAND_Y0 + EXTRA_FARM_ROWS * EXTRA_FARM_PITCH + 2, // +2 bottom water margin
+);
 
 // ── Farm islands (12×12) ─────────────────────────────────────────────────────
 const FARM_PIP_BOUNDS      = { minX: 38, minY:  2, maxX: 49, maxY: 13 }; // Top-center (player)
@@ -108,6 +144,96 @@ function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: numb
   };
 }
 
+// ── Procedural farm-band generation ──────────────────────────────────────────
+// Pure functions (no RNG) producing the extra farm regions + the bridge network
+// that wires them into the village-rooted road tree. Indices 0..EXTRA_FARM_COUNT-1.
+
+/** Bounds of extra farm `i` in the grid (row-major, COLS wide). */
+function extraFarmBounds(i: number): { minX: number; minY: number; maxX: number; maxY: number } {
+  const col = i % EXTRA_FARM_COLS;
+  const row = Math.floor(i / EXTRA_FARM_COLS);
+  const minX = FARM_BAND_X0 + col * EXTRA_FARM_PITCH;
+  const minY = FARM_BAND_Y0 + row * EXTRA_FARM_PITCH;
+  return { minX, minY, maxX: minX + EXTRA_FARM_SIZE - 1, maxY: minY + EXTRA_FARM_SIZE - 1 };
+}
+
+/** The RegionDef for extra farm `i`. */
+function makeExtraFarmRegion(i: number): RegionDef {
+  const bounds = extraFarmBounds(i);
+  return { id: `farm-${i}` as RegionId, kind: 'farm', bounds, center: midpoint(bounds) };
+}
+
+const EXTRA_FARM_REGIONS: readonly RegionDef[] = Array.from(
+  { length: EXTRA_FARM_COUNT },
+  (_unused, i) => makeExtraFarmRegion(i),
+);
+
+// Column of the trunk bridge. It taps the MILL's south edge and runs straight
+// down into the farm band through open ocean. x48–49 is chosen because x48 is the
+// mill's east-edge column (mill spans x39–48, so the trunk joins the mill body at
+// exactly that edge) while x48–49 stays clear of fishing-isle (x40–47) and harbor
+// (x58–65) — the only other islands in the southern corridor.
+const FARM_TRUNK_X = 48;
+// Y the trunk starts at: one tile below the mill's south edge (mill maxY = 63).
+const FARM_TRUNK_Y0 = 64;
+
+/**
+ * Generate the bridge network for the farm band. Every road is a 2-wide bridge
+ * spanning only ocean, joining exactly the islands it's meant to:
+ *  - trunk: vertical, from the core (mill area) down to the first collector;
+ *  - collectors: one horizontal road per occupied row, sitting in the GAP gutter
+ *    above that row's farms (pure water), spanning the columns the row uses;
+ *  - links: short vertical bridges in a gutter column joining the trunk down
+ *    through successive collectors (so all collectors hang off the trunk);
+ *  - stubs: a short 2-wide bridge from each farm's top edge up into its row
+ *    collector, centered on the farm so it never touches a neighbour.
+ */
+function generateFarmBand(): RoadDef[] {
+  if (EXTRA_FARM_COUNT === 0) return [];
+  const roads: RoadDef[] = [];
+
+  // Collector y for a given row: the 2-tile gutter directly above the row's farms.
+  // Sitting at rowMinY-2..rowMinY-1 means the collector's bottom edge is adjacent
+  // to every farm top in the row, so each farm joins the network with no separate
+  // stub. The collector itself is a road (not an island body), so farm bodies stay
+  // non-adjacent to each other — the no-adjacency invariant is about islands only.
+  const collectorY = (row: number): { minY: number; maxY: number } => {
+    const rowMinY = FARM_BAND_Y0 + row * EXTRA_FARM_PITCH;
+    return { minY: rowMinY - EXTRA_FARM_GAP, maxY: rowMinY - 1 }; // 2-tall, pure water
+  };
+
+  // Trunk: from one tile below the mill's south edge straight down to the first
+  // collector. x = FARM_TRUNK_X..+1 (see constant doc).
+  const firstCollector = collectorY(0);
+  roads.push({ minX: FARM_TRUNK_X, maxX: FARM_TRUNK_X + 1, minY: FARM_TRUNK_Y0, maxY: firstCollector.minY - 1 });
+
+  for (let row = 0; row < EXTRA_FARM_ROWS; row++) {
+    const farmsInRow = Math.min(EXTRA_FARM_COLS, EXTRA_FARM_COUNT - row * EXTRA_FARM_COLS);
+    if (farmsInRow <= 0) break;
+    const cy = collectorY(row);
+    const firstBounds = extraFarmBounds(row * EXTRA_FARM_COLS);
+    const lastBounds = extraFarmBounds(row * EXTRA_FARM_COLS + farmsInRow - 1);
+
+    // Collector spanning all of this row's farm columns plus the trunk column, so
+    // the trunk/link always meets it and every farm top is adjacent to it.
+    const colMinX = Math.min(firstBounds.minX, FARM_TRUNK_X);
+    const colMaxX = Math.max(lastBounds.maxX, FARM_TRUNK_X + 1);
+    roads.push({ minX: colMinX, maxX: colMaxX, minY: cy.minY, maxY: cy.maxY });
+
+    // Link this collector down to the next occupied row's collector (vertical, in
+    // the trunk column, through the farm row's gap).
+    const nextRowStart = (row + 1) * EXTRA_FARM_COLS;
+    if (row + 1 < EXTRA_FARM_ROWS && nextRowStart < EXTRA_FARM_COUNT) {
+      const next = collectorY(row + 1);
+      roads.push({ minX: FARM_TRUNK_X, maxX: FARM_TRUNK_X + 1, minY: cy.maxY + 1, maxY: next.minY - 1 });
+    }
+  }
+
+  return roads;
+}
+
+const EXTRA_FARM_ROADS: readonly RoadDef[] = generateFarmBand();
+
 export const REGIONS: readonly RegionDef[] = [
   { id: 'village',        kind: 'village', bounds: VILLAGE_BOUNDS,         center: midpoint(VILLAGE_BOUNDS) },
   { id: 'farm-cora',      kind: 'farm',    bounds: FARM_CORA_BOUNDS,       center: midpoint(FARM_CORA_BOUNDS) },
@@ -129,6 +255,8 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'fishing-isle',   kind: 'village', bounds: FISHING_ISLE_BOUNDS,    center: midpoint(FISHING_ISLE_BOUNDS) },
   { id: 'fishing-isle-2', kind: 'village', bounds: FISHING_ISLE_2_BOUNDS,  center: midpoint(FISHING_ISLE_2_BOUNDS) },
   { id: 'harbor',         kind: 'village', bounds: HARBOR_BOUNDS,          center: midpoint(HARBOR_BOUNDS) },
+  // Procedural farm band (south) — additive; the five fixed farms above are unchanged.
+  ...EXTRA_FARM_REGIONS,
 ];
 
 // ── Road corridors ────────────────────────────────────────────────────────────
@@ -177,6 +305,9 @@ const ROADS: readonly RoadDef[] = [
 
   // ── Harbor (brief 46) — hangs off quarry-south, due south ──────────────────
   { minX: 60, minY: 64, maxX: 61, maxY: 67 }, // quarry-south ↔ harbor
+
+  // ── Procedural farm band (south) — trunk + per-row collectors ──
+  ...EXTRA_FARM_ROADS,
 ];
 
 // Town square: inner 4×4 of village (auction podium + notice board markers)
@@ -222,6 +353,35 @@ export function getRegion(id: RegionId): RegionDef {
   const region = REGIONS.find((r) => r.id === id);
   if (!region) throw new Error(`getRegion: unknown region id '${id}'`);
   return region;
+}
+
+/**
+ * Pick the resource zone (forest for "tree", quarry for "stone") nearest a
+ * farm, used for gather routing + zone ownership. Replaces the old hardcoded
+ * N/S corner-pair mapping so it works for any farm position (incl. the
+ * procedural southern band). Compares the farm center to each candidate zone's
+ * center by squared distance; ties resolve to the north zone for stability.
+ */
+export function nearestResourceZone(
+  farmCenter: { x: number; y: number },
+  kind: "tree" | "stone",
+): RegionId {
+  const candidates: RegionId[] = kind === "tree"
+    ? ["forest-north", "forest-south"]
+    : ["quarry-north", "quarry-south"];
+  let best: RegionId = candidates[0]!;
+  let bestDist = Infinity;
+  for (const id of candidates) {
+    const c = getRegion(id).center;
+    const dx = c.x - farmCenter.x;
+    const dy = c.y - farmCenter.y;
+    const d = dx * dx + dy * dy;
+    if (d < bestDist) {
+      bestDist = d;
+      best = id;
+    }
+  }
+  return best;
 }
 
 export { ROADS };

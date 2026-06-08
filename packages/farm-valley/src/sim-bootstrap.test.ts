@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bootstrapSim, leaderboard, type FarmerSummary } from "./sim-bootstrap";
+import { bootstrapSim, leaderboard, DEFAULT_FARMER_SPECS, type FarmerSummary } from "./sim-bootstrap";
 
 /**
  * Determinism regression guard.
@@ -66,7 +66,7 @@ describe("sim determinism", () => {
 
     // Sanity: the run actually did something (not an empty/degenerate run).
     expect(a.perDay.length).toBeGreaterThan(1);
-    expect(a.finalStandings.length).toBe(5);
+    expect(a.finalStandings.length).toBe(DEFAULT_FARMER_SPECS.length);
   });
 
   // brief 45 — FestivalSystem adds belief-write overhead each tick; 4 seeds × 2

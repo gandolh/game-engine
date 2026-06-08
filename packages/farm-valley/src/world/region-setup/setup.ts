@@ -6,7 +6,7 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, type RegionId, type RegionDef } from "../regions";
-import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE, PERSONALITY_TO_REGION } from "./tiles";
+import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE } from "./tiles";
 import { fountainTile, placeProps, placeFootprint } from "./placement";
 
 export interface SetupRegionsResult {
@@ -20,8 +20,8 @@ export interface SetupRegionsResult {
 }
 
 /**
- * Spawn 5 region entities (one per REGIONS entry). For each farm region, lay
- * out 9 plots in a 3×3 grid centered in the region with the owning farmer's
+ * Spawn one region entity per REGIONS entry. For each farm region, lay
+ * out 4 plots in a 2×2 grid centered in the region with the owning farmer's
  * id and the region id stamped on. For the village, ensure a market wall and
  * shopkeeper entity exist at fixed tiles, each with a Transform so they live
  * in world space (re-uses existing entities if already spawned by
@@ -38,13 +38,12 @@ export function setupRegions(
   const plotEntities: GameEntity[] = [];
   const fountainEntities: GameEntity[] = [];
 
-  // Assign farmers to regions by personality.
+  // Assign farmers to their farms by the homeRegion each carries (set at
+  // spec-generation time). Supports any number of farmers / farms.
   const farmerByRegion = new Map<RegionId, GameEntity>();
   for (const farmer of farmers) {
-    const kind = farmer.personality?.kind;
-    if (typeof kind !== "string") continue;
-    const regionId = PERSONALITY_TO_REGION[kind];
-    if (regionId) farmerByRegion.set(regionId, farmer);
+    const regionId = farmer.farmer?.homeRegion;
+    if (regionId) farmerByRegion.set(regionId as RegionId, farmer);
   }
 
   // Spawn region entities + farm plots.
@@ -489,6 +488,25 @@ export function setupRegions(
     },
     sprite: { atlasId: "main", frame: "npc/dockmaster/idle", layer: 50, tintRgba: 0xffffffff },
     dockmaster: { isDockmaster: true },
+    // Paces the harbor (board ↔ dock edge) so the dock reads as staffed. The
+    // dockmaster has no swing pose (only an idle frame), so every station stands
+    // idle; NpcDeliberateSystem speeds the patrol while contracts are open.
+    // Tiles stay clear of the dock prop (58,70) + cargo ship (58,72) + the
+    // interactive board (62,71)/dock (61,68). Harbor bounds: 58–65 × 68–75.
+    workNpc: {
+      idlePose: "npc/dockmaster/idle",
+      stations: [
+        { tileX: 62, tileY: 72, facing: "up", flipX: false, pose: null },   // at the board
+        { tileX: 61, tileY: 69, facing: "down", flipX: false, pose: null }, // by the dock
+        { tileX: 63, tileY: 73, facing: "side", flipX: false, pose: null }, // east end
+      ],
+      stationIndex: 0,
+      phase: "working",
+      timer: 90,
+      poseFrame: null,
+      facing: "down",
+      flipX: false,
+    },
   });
 
   // Harbor props — dock + cargo ship. Placed on tiles that don't overlap the

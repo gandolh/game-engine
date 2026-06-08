@@ -12,6 +12,7 @@ Catalog of everything in this corpus. Start here.
 - [wiki/overview.md](wiki/overview.md) — what Farm Valley is; lineage; cast
 - [wiki/architecture.md](wiki/architecture.md) — workspaces, layers, sim loop, ECS, message bus, module-directory convention, data flow
 - [wiki/player-and-interaction.md](wiki/player-and-interaction.md) — the playable farmer Pip, hotbar, hover tooltips, feature collision, bridges, plot layout, the 88×80 archipelago layout
+- [wiki/world-generation.md](wiki/world-generation.md) — the rect-based archipelago model, the procedural southern farm band (21-farmer scale), and the ranked menu for more organic generation
 - [wiki/decisions.md](wiki/decisions.md) — locked tech choices
 - [wiki/performance.md](wiki/performance.md) — optimization opportunities filtered against actual code; what's already done; what's not worth doing at current scale
 - [wiki/status.md](wiki/status.md) — what's done, what's open (brief-by-brief, current state)

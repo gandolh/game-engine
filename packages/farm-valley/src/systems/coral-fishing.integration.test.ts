@@ -26,7 +26,9 @@ describe("coral fishing (live sim)", () => {
     });
   }
 
-  it("a farmer boards, rows to a reef over water, and catches a coral special", () => {
+  // 21-farmer roster makes these full-scheduler runs ~4× heavier than the
+  // original 5-farmer sim — bump past vitest's 5s default.
+  it("a farmer boards, rows to a reef over water, and catches a coral special", { timeout: 30_000 }, () => {
     const sim = boot();
     let aboardSeen = false;
     let reachedReef = false;
@@ -51,7 +53,7 @@ describe("coral fishing (live sim)", () => {
     expect(coral).toBeGreaterThan(0);
   });
 
-  it("completes the round trip: a farmer that went aboard returns on foot", () => {
+  it("completes the round trip: a farmer that went aboard returns on foot", { timeout: 30_000 }, () => {
     const sim = boot();
     const everAboard = new Set<number>();
     const disembarked = new Set<number>();

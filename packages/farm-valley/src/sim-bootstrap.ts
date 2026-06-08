@@ -22,6 +22,7 @@ export interface PathfinderLike {
 }
 import type { GameEntity } from "./components";
 import { setupFarmer, setupWorldRegions, type FarmerSpec } from "./world-setup";
+import { EXTRA_FARM_COUNT, type RegionId } from "./world/regions";
 import { buildWalkableGrid } from "./world/walkable-grid";
 import { buildBoatGrid } from "./world/coral";
 import { DayClockSystem } from "./systems/day-clock";
@@ -48,6 +49,7 @@ import { ShopSlateSystem } from "./systems/shop-slate";
 import { NoticeBoardSystem } from "./systems/notice-board";
 import { FinishDaySystem } from "./systems/finish-day";
 import { WorkNpcSystem } from "./systems/work-npc";
+import { NpcDeliberateSystem } from "./systems/npc-deliberate";
 import { CarpenterSystem } from "./systems/carpenter";
 import { TavernSystem } from "./systems/tavern";
 import { FestivalSystem } from "./systems/festival";
@@ -63,10 +65,15 @@ import "./agents/aggressive";
 import "./agents/hoarder";
 import "./agents/opportunist";
 
-export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
+/**
+ * The five original, hand-placed farmers (four AI archetypes + the player Pip),
+ * each on its named corner/top farm island.
+ */
+const FIXED_FARMER_SPECS: FarmerSpec[] = [
   {
     name: "Cora",
     personality: "conservative",
+    homeRegion: "farm-cora",
     homeX: 24, homeY: 40,
     startGold: 50,
     riskProfile: "low", minGoldReserve: 30,
@@ -75,6 +82,7 @@ export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
   {
     name: "Atticus",
     personality: "aggressive",
+    homeRegion: "farm-atticus",
     homeX: 296, homeY: 40,
     startGold: 80,
     riskProfile: "high", minGoldReserve: 10,
@@ -83,6 +91,7 @@ export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
   {
     name: "Hannah",
     personality: "hoarder",
+    homeRegion: "farm-hannah",
     homeX: 24, homeY: 136,
     startGold: 120,
     riskProfile: "high", minGoldReserve: 80,
@@ -91,6 +100,7 @@ export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
   {
     name: "Otto",
     personality: "opportunist",
+    homeRegion: "farm-otto",
     homeX: 296, homeY: 136,
     startGold: 70,
     riskProfile: "medium", minGoldReserve: 50,
@@ -103,12 +113,55 @@ export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
     // center). Lives on farm-pip (far east).
     name: "Pip",
     personality: "pip",
+    homeRegion: "farm-pip",
     homeX: 33, homeY: 19,
     startGold: 60,
     riskProfile: "medium", minGoldReserve: 0,
     startSeeds: { radish: 3, wheat: 1 },
     player: true,
   },
+];
+
+/**
+ * The four AI archetypes, in cycle order, each a template for the extra farmers
+ * generated to fill the procedural southern farm band (`farm-0`..). Index `i`
+ * picks `EXTRA_FARMER_TEMPLATES[i % 4]`; the name is suffixed with the index so
+ * every farmer's label is unique (e.g. "Cora-2", "Atticus-2", …).
+ */
+const EXTRA_FARMER_TEMPLATES: ReadonlyArray<Omit<FarmerSpec, "homeRegion" | "homeX" | "homeY" | "name"> & { baseName: string }> = [
+  { baseName: "Cora",    personality: "conservative", startGold: 50,  riskProfile: "low",    minGoldReserve: 30, startSeeds: { radish: 3 } },
+  { baseName: "Atticus", personality: "aggressive",   startGold: 80,  riskProfile: "high",   minGoldReserve: 10, startSeeds: { radish: 1, wheat: 1, pumpkin: 1 } },
+  { baseName: "Hannah",  personality: "hoarder",      startGold: 120, riskProfile: "high",   minGoldReserve: 80, startSeeds: { wheat: 2, pumpkin: 1 } },
+  { baseName: "Otto",    personality: "opportunist",  startGold: 70,  riskProfile: "medium", minGoldReserve: 50, startSeeds: { radish: 2, wheat: 1 } },
+];
+
+/**
+ * Generate the extra AI farmers that populate the procedural farm band. One per
+ * `farm-${i}` region (i in 0..EXTRA_FARM_COUNT-1), cycling the four archetypes.
+ * homeX/homeY are nominal — setupRegions repositions each farmer to its farm
+ * center. Determinism-safe: pure function of the index, no RNG.
+ */
+function makeExtraFarmerSpecs(): FarmerSpec[] {
+  const specs: FarmerSpec[] = [];
+  for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
+    const t = EXTRA_FARMER_TEMPLATES[i % EXTRA_FARMER_TEMPLATES.length]!;
+    specs.push({
+      name: `${t.baseName}-${i}`,
+      personality: t.personality,
+      homeRegion: `farm-${i}` as RegionId,
+      homeX: 0, homeY: 0,
+      startGold: t.startGold,
+      riskProfile: t.riskProfile,
+      minGoldReserve: t.minGoldReserve,
+      startSeeds: { ...t.startSeeds },
+    });
+  }
+  return specs;
+}
+
+export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
+  ...FIXED_FARMER_SPECS,
+  ...makeExtraFarmerSpecs(),
 ];
 
 export interface SimBootstrapOptions {
@@ -279,6 +332,9 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // the tick after a farmer's commission-build act), escrows the cost, and
     // delivers the structure after a build-time.
     .add(new CarpenterSystem(world, bus))
+    // NpcDeliberateSystem sets each service NPC's busyFactor from world state;
+    // WorkNpcSystem (next) scales its patrol cadence by it. Cosmetic + pure.
+    .add(new NpcDeliberateSystem(world))
     .add(new WorkNpcSystem(world))
     .add(new FinishDaySystem(world));
 
