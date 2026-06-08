@@ -7,9 +7,9 @@
  *   quarry-north/south (stone zones): 20% stone only, cap 20
  *
  * Forest zones always spawn trees; quarry zones always spawn stones. Farm
- * tiles can spawn either. Each zone is owned by the nearest farm pair (north
- * pair = Cora + Atticus, south pair = Otto + Hannah). Any farmer in the same
- * pair can chop/mine there.
+ * tiles can spawn either. Each zone's spawned features are attributed to the
+ * nearest farm (by center distance) as a pathfinding-priority hint; any farmer
+ * can chop/mine in any zone.
  */
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
@@ -26,15 +26,6 @@ const MAX_PER_FARM = 6;
 const ZONE_TREE_CHANCE  = 0.25;
 const ZONE_STONE_CHANCE = 0.20;
 const MAX_PER_ZONE = 20;
-
-// Which farmers "own" each resource zone (both farms in the pair share it).
-// Ownership is used only for pathfinding priority; any farmer can gather anywhere.
-const ZONE_OWNER_FARMS: Record<string, readonly string[]> = {
-  'forest-north': ['farm-cora',    'farm-atticus'],
-  'quarry-north': ['farm-cora',    'farm-atticus'],
-  'forest-south': ['farm-otto',    'farm-hannah'],
-  'quarry-south': ['farm-otto',    'farm-hannah'],
-};
 
 export class TileFeatureSystem implements System {
   readonly name = "TileFeatureSystem";
@@ -111,15 +102,22 @@ export class TileFeatureSystem implements System {
 
       if (!isFarm && !isForest && !isQuarry) continue;
 
-      // Determine owner id: for zones, pick the first farm in the pair.
+      // Determine owner id: for zones, pick the nearest farm by center distance
+      // (ownership is only a pathfinding-priority hint — any farmer may gather
+      // anywhere). Generalizes the old hardcoded N/S corner pairs to any farm.
       let ownerId: number | undefined;
       if (isFarm) {
         ownerId = farmOwnerByRegion.get(def.id);
       } else {
-        const ownerFarms = ZONE_OWNER_FARMS[def.id] ?? [];
-        for (const fid of ownerFarms) {
-          const id = farmOwnerByRegion.get(fid);
-          if (id !== undefined) { ownerId = id; break; }
+        let bestDist = Infinity;
+        for (const farmDef of REGIONS) {
+          if (farmDef.kind !== "farm") continue;
+          const id = farmOwnerByRegion.get(farmDef.id);
+          if (id === undefined) continue;
+          const dx = farmDef.center.x - def.center.x;
+          const dy = farmDef.center.y - def.center.y;
+          const d = dx * dx + dy * dy;
+          if (d < bestDist) { bestDist = d; ownerId = id; }
         }
       }
       if (ownerId === undefined) continue;

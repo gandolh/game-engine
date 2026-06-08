@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildWalkableGrid } from './walkable-grid';
-import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS } from './regions';
+import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS } from './regions';
 
 describe('buildWalkableGrid', () => {
   it('grid size matches WORLD_WIDTH * WORLD_HEIGHT', () => {
@@ -38,21 +38,50 @@ describe('buildWalkableGrid', () => {
     expect(grid.cells[59 * WORLD_WIDTH + 61]).toBe(0); // quarry-south interior
   });
 
-  it('total walkable tile count matches layout', () => {
-    // Verified by independent BFS count. Archipelago (88×80): five
-    // 12×12 farms (5×144=720) + 144 village + 2×100 craft islands + 4×64
-    // resource zones + 80 mill + 2×4 wells + 2×64 seasonal zones + TWO 8×8
-    // fishing isles (2×64=128) + 1×64 harbor isle (brief 46) + the bridge
-    // network (incl. both isle bridges, harbor bridge (+8)) connecting all
-    // islands. Recompute if islands/bridges change.
-    // Pre-harbor: 1993. Harbor adds: 64 (8×8 isle) + 8 (2×4 bridge to quarry-south) = +72 → 2065.
-    const EXPECTED_WALKABLE = 2065;
+  it('walkable count matches an independent recomputation from REGIONS + ROADS', () => {
+    // The hand-pinned magic number (2065 pre-procedural-farms) no longer scales
+    // now that the southern farm band is generated from EXTRA_FARM_COUNT. Instead
+    // we recompute the expected walkable set from the same primitives the builder
+    // uses (every region body + every road), independently of buildWalkableGrid,
+    // and assert the two agree. This catches a builder bug while self-tracking
+    // any change to the farm count or bridge layout.
+    const expected = new Set<number>();
+    const mark = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
+      for (let y = b.minY; y <= b.maxY; y++) {
+        for (let x = b.minX; x <= b.maxX; x++) expected.add(y * WORLD_WIDTH + x);
+      }
+    };
+    for (const r of REGIONS) mark(r.bounds);
+    for (const road of ROADS) mark(road);
+
     const grid = buildWalkableGrid();
     let walkableCount = 0;
     for (let i = 0; i < grid.cells.length; i++) {
       if (grid.cells[i] === 0) walkableCount++;
     }
-    expect(walkableCount).toBe(EXPECTED_WALKABLE);
+    expect(walkableCount).toBe(expected.size);
+  });
+
+  it('no two island bodies are adjacent (≥1 ocean tile between every region pair)', () => {
+    // Archipelago invariant: islands NEVER touch — they connect only via bridges
+    // (ROADS). Two axis-aligned region rects are non-adjacent iff expanding one by
+    // a 1-tile margin does not intersect the other (this also rejects diagonal
+    // touches, which the shore/bridge renderer treats as adjacency too).
+    const touches = (
+      a: { minX: number; minY: number; maxX: number; maxY: number },
+      b: { minX: number; minY: number; maxX: number; maxY: number },
+    ) => !(a.maxX + 1 < b.minX || b.maxX < a.minX - 1 || a.maxY + 1 < b.minY || b.maxY < a.minY - 1);
+
+    for (let i = 0; i < REGIONS.length; i++) {
+      for (let j = i + 1; j < REGIONS.length; j++) {
+        const a = REGIONS[i]!;
+        const b = REGIONS[j]!;
+        expect(
+          touches(a.bounds, b.bounds),
+          `${a.id} and ${b.id} must be separated by ocean`,
+        ).toBe(false);
+      }
+    }
   });
 
   it('every region center is walkable and reachable from the village', () => {

@@ -60,7 +60,7 @@ describe("buildRenderSnapshot", () => {
     expect(snap.shock).toBeNull();
   });
 
-  it("observer has 5 farmers (4 AI + player)", () => {
+  it("observer has one entry per farmer (4 AI + player + procedural band)", () => {
     const sim = bootAndTick(5);
     const snap = buildRenderSnapshot(
       sim.world,
@@ -72,13 +72,13 @@ describe("buildRenderSnapshot", () => {
       null,
     );
 
-    expect(snap.observer.farmers).toHaveLength(5);
+    expect(snap.observer.farmers).toHaveLength(sim.farmers.length);
     // Farmers sorted by id
     const ids = snap.observer.farmers.map((f) => f.id);
     expect(ids).toEqual([...ids].sort((a, b) => a - b));
   });
 
-  it("leaderboard has 5 rows with correct structure", () => {
+  it("leaderboard has one row per farmer with correct structure", () => {
     const sim = bootAndTick(5);
     const snap = buildRenderSnapshot(
       sim.world,
@@ -90,7 +90,7 @@ describe("buildRenderSnapshot", () => {
       null,
     );
 
-    expect(snap.leaderboard).toHaveLength(5);
+    expect(snap.leaderboard).toHaveLength(sim.farmers.length);
     for (const row of snap.leaderboard) {
       expect(typeof row.rank).toBe("number");
       expect(typeof row.id).toBe("number");
@@ -99,9 +99,9 @@ describe("buildRenderSnapshot", () => {
       expect(typeof row.gold).toBe("number");
       expect(typeof row.totalValue).toBe("number");
     }
-    // Ranks are 1..5 (4 AI farmers + Pip)
+    // Ranks are a contiguous 1..N.
     const ranks = snap.leaderboard.map((r) => r.rank);
-    expect(ranks).toEqual([1, 2, 3, 4, 5]);
+    expect(ranks).toEqual(Array.from({ length: sim.farmers.length }, (_v, i) => i + 1));
   });
 
   it("slate is an array (may be empty early in the sim)", () => {
@@ -286,20 +286,20 @@ describe("determinism — same seed produces identical observer + leaderboard", 
 });
 
 describe("buildObserverSnapshot", () => {
-  it("returns weather + 5 farmers (4 AI + player)", () => {
+  it("returns weather + one entry per farmer", () => {
     const sim = bootAndTick(5);
     const obs = buildObserverSnapshot(sim.world, sim.dayClock.day);
     expect(obs.weather).toBeDefined();
-    expect(obs.farmers).toHaveLength(5);
+    expect(obs.farmers).toHaveLength(sim.farmers.length);
     expect(obs.forecast).toBeDefined();
   });
 });
 
 describe("buildLeaderboardRows", () => {
-  it("returns 5 rows sorted by totalValue desc", () => {
+  it("returns one row per farmer sorted by totalValue desc", () => {
     const sim = bootAndTick(5);
     const rows = buildLeaderboardRows(leaderboard(sim.world));
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(sim.farmers.length);
     for (let i = 0; i < rows.length - 1; i++) {
       expect(rows[i]!.totalValue).toBeGreaterThanOrEqual(rows[i + 1]!.totalValue);
     }

@@ -27,8 +27,8 @@ describe("RunHistorySystem", () => {
     const sim = runDays(0xc0ffee, DAYS);
     const history = sim.runHistory.history();
 
-    // DAY_START fires for days 0..(DAYS-1), so 5 days × 5 farmers = 25 rows.
-    expect(history).toHaveLength(DAYS * 5);
+    // DAY_START fires for days 0..(DAYS-1), one row per farmer per day.
+    expect(history).toHaveLength(DAYS * sim.farmers.length);
   });
 
   it("rows cover the expected day range (0..DAYS-1 as triggered by the sim clock)", () => {
@@ -100,8 +100,8 @@ describe("RunHistorySystem", () => {
     const MAX_DAYS = 10;
     const sim = runDays(0xc0ffee, MAX_DAYS, MAX_DAYS);
     const history = sim.runHistory.history();
-    // 5 farmers × 10 days = 50 rows maximum
-    expect(history.length).toBeLessThanOrEqual(MAX_DAYS * 5);
+    // one row per farmer per day maximum
+    expect(history.length).toBeLessThanOrEqual(MAX_DAYS * sim.farmers.length);
   });
 
   it("is deterministic: same seed produces identical history", () => {

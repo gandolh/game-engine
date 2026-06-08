@@ -6,7 +6,7 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, type RegionId, type RegionDef } from "../regions";
-import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE, PERSONALITY_TO_REGION } from "./tiles";
+import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE } from "./tiles";
 import { fountainTile, placeProps, placeFootprint } from "./placement";
 
 export interface SetupRegionsResult {
@@ -20,8 +20,8 @@ export interface SetupRegionsResult {
 }
 
 /**
- * Spawn 5 region entities (one per REGIONS entry). For each farm region, lay
- * out 9 plots in a 3×3 grid centered in the region with the owning farmer's
+ * Spawn one region entity per REGIONS entry. For each farm region, lay
+ * out 4 plots in a 2×2 grid centered in the region with the owning farmer's
  * id and the region id stamped on. For the village, ensure a market wall and
  * shopkeeper entity exist at fixed tiles, each with a Transform so they live
  * in world space (re-uses existing entities if already spawned by
@@ -38,13 +38,12 @@ export function setupRegions(
   const plotEntities: GameEntity[] = [];
   const fountainEntities: GameEntity[] = [];
 
-  // Assign farmers to regions by personality.
+  // Assign farmers to their farms by the homeRegion each carries (set at
+  // spec-generation time). Supports any number of farmers / farms.
   const farmerByRegion = new Map<RegionId, GameEntity>();
   for (const farmer of farmers) {
-    const kind = farmer.personality?.kind;
-    if (typeof kind !== "string") continue;
-    const regionId = PERSONALITY_TO_REGION[kind];
-    if (regionId) farmerByRegion.set(regionId, farmer);
+    const regionId = farmer.farmer?.homeRegion;
+    if (regionId) farmerByRegion.set(regionId as RegionId, farmer);
   }
 
   // Spawn region entities + farm plots.

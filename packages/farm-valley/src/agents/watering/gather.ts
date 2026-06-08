@@ -4,6 +4,7 @@ import { seasonForDay } from "../../protocols/weather";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestTile, FORAGE_ZONES } from "./shared";
 import { deliberateBuyTool } from "./tools";
+import { getRegion, nearestResourceZone, type RegionId } from "../../world/regions";
 
 /**
  * Queue chop/mine intents for visible tile features on the farmer's farm.
@@ -180,9 +181,9 @@ export function deliberateResourceZoneVisit(
   // Only travel out if own farm is depleted.
   if (ownFarmFeatureCount > 0) return;
 
-  const targetZone = preferKind === "tree"
-    ? (farmer.farmer.homeRegion?.includes("cora") || farmer.farmer.homeRegion?.includes("atticus") ? "forest-north" : "forest-south")
-    : (farmer.farmer.homeRegion?.includes("cora") || farmer.farmer.homeRegion?.includes("atticus") ? "quarry-north" : "quarry-south");
+  const homeRegion = farmer.farmer.homeRegion as RegionId | undefined;
+  const farmCenter = homeRegion ? getRegion(homeRegion).center : { x: 0, y: 0 };
+  const targetZone = nearestResourceZone(farmCenter, preferKind);
 
   if (farmer.farmer.currentRegion === targetZone) return;
   if (farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === targetZone)) return;

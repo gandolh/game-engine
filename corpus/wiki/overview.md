@@ -1,6 +1,6 @@
 # Farm Valley — Overview
 
-A top-down farming sim where four AI farmers (each with a personality) plant, harvest, and trade across 100 in-game days. **You don't play; you watch them play.**
+A top-down farming sim where a field of AI farmers (each with one of four personalities) plant, harvest, and trade across 100 in-game days. **You don't play; you watch them play.** The four named archetypes below are the protagonists; the roster scaled to **21 farmers (20 AI + the player Pip)** on 2026-06-08 (see [world-generation.md](world-generation.md)) — the extra farmers are archetype clones (`Cora-0`, `Atticus-1`, …) on procedurally-generated farm islands.
 
 ## What this codebase is
 
