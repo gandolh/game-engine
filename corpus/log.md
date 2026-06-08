@@ -2,6 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-08] brief | Brief 49 — organic procgen (coherent noise + authored detail)
+
+**Filed [briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md](briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md)** off a deep-research pass on procedural-generation best practices (PCG book / Red Blob Games / Inigo Quilez / GDC; all claims adversarially verified). Six cheapest-first tracks: (1) **fBm** over the existing noise kernel, (2) Inigo Quilez **domain warping** for organic shapes, (3) **Simplex swap + octave rotation** to kill Perlin grid artifacts, (4) **constructive layout + MST bridges** for guaranteed connectivity, (5) **L-system / grammar** vegetation scatter, (6) **authored set-pieces / prefab stamping** (Johnson's GDC handmade-procedural hybrid).
+
+- It's the **actionable cut of the existing research menu** in [wiki/world-generation.md](wiki/world-generation.md) §"Improving it further", not a replacement — tracks 1–2 are render-only and highest payoff-per-risk; 4–6 may each spawn a follow-up brief.
+- Determinism unchanged: everything threads `rng.fork(label)`, fBm/warp are pure functions of position+seed; world-gen factored toward a pure `generateWorld(seed)` so guard tests become multi-seed property tests.
+- index.md updated: 48 rolled into done (01–48); 49 is the new todo. Cross-linked from world-generation.md.
+
 ## [2026-06-08] impl | Service NPCs become (lightly) deliberating agents
 
 **Part B of the "livelier world" work: the village's service NPCs react to the sim instead of patrolling blindly.** Additive + cosmetic — the existing message-response systems (Carpenter/Tavern/Harbor/shop) still own every transaction; this only changes how alive the NPCs *look*.

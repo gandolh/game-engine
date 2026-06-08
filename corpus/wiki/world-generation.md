@@ -98,5 +98,14 @@ Ranked techniques (all must thread `rng.fork(label)` — never `Math.random`):
 next) — jittered placement, MST bridges, multi-seed property tests, biome/décor.
 Phase 2 (future) — Model B organic shapes via CA + center-floodfill.
 
+The actionable cut of this menu is filed as
+[brief 49 — organic procgen](../briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md):
+it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on
+(**fBm + Inigo Quilez domain warping**, replacing the blocky hash kernel),
+**Simplex/octave-rotation** to kill Perlin grid artifacts, plus
+**L-system vegetation scatter** and **authored set-pieces** (the
+handmade-procedural hybrid). Backed by an adversarially-verified research pass
+(PCG book / Red Blob Games / Quilez / GDC) — see [log.md](../log.md) 2026-06-08.
+
 See [architecture.md](architecture.md), [player-and-interaction.md](player-and-interaction.md)
 (archipelago layout), and the determinism rules in [decisions.md](decisions.md).
