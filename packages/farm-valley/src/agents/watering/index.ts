@@ -27,6 +27,8 @@ export { deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens } from "./l
 
 export { deliberateFishing } from "./fishing";
 
+export { deliberateCoralFishing } from "./coral";
+
 export {
   deliberateSellProducts,
   deliberateSellFruit,

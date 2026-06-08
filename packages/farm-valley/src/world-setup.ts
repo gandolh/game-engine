@@ -1,5 +1,6 @@
 import { World } from "@engine/core";
 import type { GameEntity, CropKind, FarmerFsmState, Tool } from "./components";
+import { zeroFish } from "./components";
 import { setupRegions } from "./world/region-setup";
 import type { RegionId } from "./world/regions";
 
@@ -63,7 +64,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
       gold: spec.startGold,
       crops: { ...ZERO_CROPS },
       seeds: { ...ZERO_CROPS, ...spec.startSeeds },
-      fish: { minnow: 0, bass: 0, salmon: 0 },
+      fish: zeroFish(),
       tools: STARTING_TOOLS.map(t => ({ ...t })),
       wateringCan: { charges: 10, maxCharges: 10 },
     },

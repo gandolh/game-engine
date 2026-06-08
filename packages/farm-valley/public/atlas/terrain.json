@@ -178,8 +178,14 @@
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/coral-reef": {
       "x": 18,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 35,
       "y": 69,
       "w": 16,
       "h": 16

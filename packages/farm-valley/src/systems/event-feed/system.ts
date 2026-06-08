@@ -42,6 +42,7 @@ import {
   type ContractDeliveredBody,
   type ContractMissedBody,
 } from "../../protocols/harbor";
+import { ONT_CORAL, type CoralCaughtBody } from "../../protocols/coral";
 import type { DayClockSystem } from "../day-clock";
 import type { RivalrySystem } from "../rivalry";
 import type { RunHistorySystem } from "../run-history";
@@ -145,6 +146,14 @@ export class EventFeedSystem implements System {
           case ONT_FESTIVAL.RESULT:
             this.captureFestival(
               msg.body as unknown as FestivalResultBody,
+              tick,
+              day,
+              out,
+            );
+            break;
+          case ONT_CORAL.CAUGHT:
+            this.captureCoralCatch(
+              msg.body as unknown as CoralCaughtBody,
               tick,
               day,
               out,
@@ -318,6 +327,30 @@ export class EventFeedSystem implements System {
       text,
       drama: dramaScore("festival", { day, maxDays: this.dayClock.maxDays }),
       farmerId: body.winnerId,
+    });
+  }
+
+  private captureCoralCatch(
+    body: CoralCaughtBody,
+    tick: number,
+    day: number,
+    out: EventEntry[],
+  ): void {
+    if (typeof body.farmerId !== "number") return;
+    // One line per notable catch (the handler only broadcasts the rare lobster).
+    // Keyed by farmer + tick so two lobsters by the same farmer on the same day
+    // (different casts/ticks) each get a line, but a re-snoop of the same
+    // message across ticks is deduped.
+    const key = `coral:${body.farmerId}:${tick}`;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    out.push({
+      tick,
+      day,
+      key,
+      text: `${body.farmerName} hauled in a coral-reef ${body.fish} (${body.value}g)!`,
+      drama: dramaScore("coral-catch", { day, maxDays: this.dayClock.maxDays }),
+      farmerId: body.farmerId,
     });
   }
 

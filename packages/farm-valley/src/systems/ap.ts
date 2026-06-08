@@ -39,6 +39,12 @@ export const AP_COST = {
   "process-crop": 2,      // mill raw crops into gold at a premium (at the mill)
   "forage": 1,            // forage a seasonal zone (mushroom grove / ice pond)
   "fish": 1,              // cast at a fishing spot — cheap AP, long busy time, lands a fish
+  // brief 48 — coral fishing. Boarding/disembarking are free (like travel); a
+  // coral cast costs more AP than a shore cast (3 vs 1) — the premium catch is
+  // gated behind a real budget cost so the boat trip is a deliberate investment.
+  "board-boat": 0,
+  "return-to-shore": 0,
+  "fish-coral": 3,
   travel: 0, // brief 28 — walking is AP-free (time-throttled)
   negotiate: 3,
   "read-offers": 1,

@@ -66,6 +66,14 @@ export interface Farmer {
    * Set by the `commit-contract` action; cleared when delivered or missed.
    */
   committedContract?: import('../protocols/harbor').HarborContract | undefined;
+  /**
+   * brief 48 — true while the farmer is aboard their boat (rowing over water to
+   * a coral reef). While aboard, TravelSystem pathfinds on the BOAT grid (water
+   * lanes) instead of the land grid; `board-boat` sets it, `return-to-shore`
+   * (back at the dock) clears it. Absent/false = on foot. The farmer always
+   * boards/disembarks at a dock tile, so a non-aboard farmer is always on land.
+   */
+  aboard?: boolean;
 }
 
 /**

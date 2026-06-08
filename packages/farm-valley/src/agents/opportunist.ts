@@ -12,7 +12,7 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
@@ -114,6 +114,11 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   deliberateSeasonalForage(farmer, 7);
   // Opportunist takes the occasional fishing trip for side income.
   deliberateFishing(farmer, 5, 3, 13);
+  // brief 48 — the opportunist is the fishing-leaning archetype: it values the
+  // coral-reef premium most and rows out readily (frequent trips, modest AP
+  // floor). The special fish (12–20g vs salmon's 5g) is exactly its kind of
+  // opportunistic upside.
+  deliberateCoralFishing(farmer, 6, 3, -2, 40);
 
   // Opportunist visits village on day 0-1 — always wants market info early.
   deliberateEarlyVillageVisit(farmer, 5);

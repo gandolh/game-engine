@@ -37,8 +37,28 @@ export function applyFishingRarityBonus(
   if (bonus <= 0) return weights;
   const moved = weights.minnow * bonus;
   return {
+    ...weights,
     minnow: weights.minnow - moved,
     bass:   weights.bass + moved * 0.5,
     salmon: weights.salmon + moved * 0.5,
+  };
+}
+
+/**
+ * brief 48 — coral-reef rarity bonus. Reallocate `bonus` fraction of the common
+ * coral-trout weight toward the rare lobster, leaving total weight unchanged.
+ * Pure (no RNG); at bonus=0 the weights are returned unshifted. Mirrors
+ * applyFishingRarityBonus so a master angler hooks more lobsters at the reef.
+ */
+export function applyCoralRarityBonus(
+  weights: Record<FishKind, number>,
+  bonus: number,
+): Record<FishKind, number> {
+  if (bonus <= 0) return weights;
+  const moved = weights["coral-trout"] * bonus;
+  return {
+    ...weights,
+    "coral-trout": weights["coral-trout"] - moved,
+    lobster:       weights.lobster + moved,
   };
 }

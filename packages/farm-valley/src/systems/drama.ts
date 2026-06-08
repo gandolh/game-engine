@@ -44,7 +44,9 @@ export type DramaEventKind =
   | "festival"
   // brief 46 — harbor contract events
   | "contract-delivered"
-  | "contract-missed";
+  | "contract-missed"
+  // brief 48 — a notable coral-reef catch (the rare lobster)
+  | "coral-catch";
 
 // ---------------------------------------------------------------------------
 // Context
@@ -118,6 +120,9 @@ const BASE_DRAMA: Record<DramaEventKind, number> = {
   // brief 46 — harbor contract outcomes (planning horizon, high value = high drama).
   "contract-delivered": 0.60,
   "contract-missed":    0.55,
+  // brief 48 — landing a rare coral-reef lobster: a specialist's payoff for the
+  // boat trip out. Mid-high; below a rank flip but above a routine trade.
+  "coral-catch":        0.50,
 };
 
 // ---------------------------------------------------------------------------

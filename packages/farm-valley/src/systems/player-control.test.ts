@@ -2,6 +2,7 @@ import { ZERO_CROPS } from "../economy";
 import { describe, it, expect } from "vitest";
 import { World } from "@engine/core";
 import type { GameEntity } from "../components";
+import { zeroFish } from "../components";
 import { PlayerControlSystem } from "./player-control";
 import { ActSystem } from "./act";
 import { getRegion } from "../world/regions";
@@ -303,7 +304,7 @@ describe("PlayerControlSystem — fishing", () => {
   /** Stand Pip on the fishing-isle edge with a rod, facing the open water. */
   function standOnIsle(pip: GameEntity): void {
     pip.inventory!.tools!.push({ kind: "fishing-rod", tier: "wooden", durability: Infinity });
-    pip.inventory!.fish = { minnow: 0, bass: 0, salmon: 0 };
+    pip.inventory!.fish = zeroFish();
     pip.transform!.x = ISLE_EDGE.x;
     pip.transform!.y = ISLE_EDGE.y;
     pip.farmer!.currentRegion = "fishing-isle";

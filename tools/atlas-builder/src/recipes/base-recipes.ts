@@ -3305,6 +3305,62 @@ export const BASE_RECIPES: PixelRecipe[] = [
     ],
   },
 
+  // ── brief 48 — Boats & Coral Fishing static decorations ────────────────────
+  // structure/boat — a moored rowboat at the dock tile (south edge of each
+  // fishing isle). Top-down perspective: wood hull (d/D), dark outline/shadow
+  // (M/k), a pair of oars (m), and shallow ocean reflections (v/e) on either
+  // side so the boat reads as floating. Purely static — the boat never moves.
+  {
+    name: "structure/boat",
+    size: 16,
+    pixels: [
+      "................",
+      "....vvvvvvvv....",
+      "...vvDDDDDDvv...",
+      "...vDddddddDv...",
+      "...vDddmdddDv...",
+      "...vDdmmmddDv...",
+      "...vDddmdddDv...",
+      "...vDddddddDv...",
+      "...vvDDDDDDvv...",
+      "....vevvvvev....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+
+  // tile/coral-reef — the FISHABLE reef marker. Brighter and richer than the
+  // background decorative tile/coral-* tiles so the reef reads as a distinct
+  // "go here to fish" location. Ocean base (V/v), vivid gold polyps (o),
+  // red coral branches (r), bright foam highlights (e/w), stone lumps (Q)
+  // for texture. Full-bleed so it tiles cleanly with the ocean around it.
+  {
+    name: "tile/coral-reef",
+    size: 16,
+    pixels: [
+      "VVVeVVVVVVeVVVVV",
+      "VVVVVVVeVVVVVVVV",
+      "VeVVVrVVVVVrVVeV",
+      "VVVVrrrrVVrrrrVV",
+      "VVVrroorrVoorrVV",
+      "VVVrrooorroorvVV",
+      "VeVVrroooorrvVeV",
+      "VVVVrroooorrVVVV",
+      "VVVVVrroorrVVVVV",
+      "VVeVVVrrrrVVeVVV",
+      "VVVVVVVrrVVVVVVV",
+      "VVVVVVoooVVVVVVV",
+      "VVVeVoooooVeVVVV",
+      "VVVVVowoooVVVVVV",
+      "VVVVVVoooVVVVVVV",
+      "VVVeVVVVVVeVVVVV",
+    ],
+  },
+
   // ── Forge chimney smoke (animated overlay, drawn above the forge-house) ───────
   // Three frames of a rising smoke puff, cycled by the render loop like the forge
   // fire. Transparent base; s/S = steel/slate smoke greys, drifting up.

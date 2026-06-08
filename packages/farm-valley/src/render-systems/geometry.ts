@@ -15,6 +15,7 @@ import {
   isWalkable,
   type RegionId,
 } from "../world/regions";
+import { CORAL_REEFS } from "../world/coral";
 
 const TILE = 16;
 
@@ -502,5 +503,33 @@ export const BIG_STRUCTURES: ReadonlyArray<{
   // road spine.
   { frame: "structure/carpenter-workshop", baseTileX: 21, baseTileY: 36, wPx: 32, hPx: 48 },
 ];
+
+// ── Fishing statics (brief 48) ────────────────────────────────────────────────
+
+/** A single static decoration tile (frame at a tile coordinate). */
+export interface FishingStaticTile {
+  tx: number;
+  ty: number;
+  frame: string;
+}
+
+/**
+ * Static visual decorations for the Boats & Coral Fishing feature (brief 48).
+ * Two kinds:
+ *   - A moored `structure/boat` at each reef's dock tile (south edge of the
+ *     fishing isle, where farmers board).
+ *   - A `tile/coral-reef` marker at each reef tile (the fishable ocean tile),
+ *     drawn at full opacity so it's clearly visible through the water.
+ * Both are purely visual — they sit on already-established walkable/non-walkable
+ * tiles and never affect sim or pathfinding.
+ */
+export const FISHING_STATICS: readonly FishingStaticTile[] = (() => {
+  const out: FishingStaticTile[] = [];
+  for (const reef of CORAL_REEFS) {
+    out.push({ tx: reef.dock.x, ty: reef.dock.y, frame: "structure/boat" });
+    out.push({ tx: reef.reef.x, ty: reef.reef.y, frame: "tile/coral-reef" });
+  }
+  return out;
+})();
 
 export { CORAL_ALPHA };

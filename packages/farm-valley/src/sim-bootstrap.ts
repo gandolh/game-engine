@@ -23,6 +23,7 @@ export interface PathfinderLike {
 import type { GameEntity } from "./components";
 import { setupFarmer, setupWorldRegions, type FarmerSpec } from "./world-setup";
 import { buildWalkableGrid } from "./world/walkable-grid";
+import { buildBoatGrid } from "./world/coral";
 import { DayClockSystem } from "./systems/day-clock";
 import { ShockSystem, defaultShockDay } from "./systems/shock";
 import { TileFeatureSystem } from "./systems/tile-features";
@@ -259,8 +260,12 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // shared with FeatureCollisionSystem, which blocks tree/stone tiles on it
     // each tick so farmers never path through a feature.
     const grid = buildWalkableGrid();
+    // brief 48 — the boat-travel grid (water lanes dock→reef). Separate from the
+    // land grid so the engine pathfinder + the land walkable-grid are untouched;
+    // TravelSystem swaps to it while a farmer is aboard.
+    const boatGrid = buildBoatGrid();
     scheduler.add(new FeatureCollisionSystem(world, grid));
-    scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, grid, bus));
+    scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, grid, bus, boatGrid));
   }
 
   scheduler

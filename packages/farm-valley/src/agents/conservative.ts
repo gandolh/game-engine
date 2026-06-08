@@ -6,7 +6,7 @@ import {
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateCoralFishing } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -263,6 +263,12 @@ export function deliberateConservative(farmer: GameEntity): void {
     const harborTolerance = day >= 10 ? 0.5 : 0.0;
     deliberateHarborContract(farmer, openContracts, harborTolerance, reserve, 5, -2);
   }
+
+  // brief 48 — conservative only rows out to the coral reef when farm chores are
+  // clearly handled: a steep AP floor (70) means she goes solely on a very free
+  // day, takes just a couple of casts, and rarely (every 12 days). The premium
+  // catch is welcome, but never at the cost of the farm.
+  deliberateCoralFishing(farmer, 12, 2, -2, 70);
 
   // brief 44 — gathering beat (pure flavor; an idle in-village farmer drifts to
   // the tavern). Runs before the sleep helper so it can claim a truly-idle queue.

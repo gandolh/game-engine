@@ -12,7 +12,7 @@ import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -115,6 +115,10 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   // Occasional fishing trip for opportunistic side income (rarely — aggressive
   // prefers high-volume farming; fishes only every 7 days).
   deliberateFishing(farmer, 7, 2, 11);
+  // brief 48 — aggressive chases the high-value coral catch (the jackpot
+  // lobster) but treats it as a bet, not a routine: bigger AP floor, fewer
+  // trips than the opportunist. High volume at the reef when it does go.
+  deliberateCoralFishing(farmer, 8, 3, -2, 50);
 
   // End-of-sim liquidation: in the last 2 days, dump everything to the
   // shopkeeper and skip planting / market posting / wall scanning.

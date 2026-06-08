@@ -26,6 +26,7 @@ import {
   handleForage,
 } from "./handlers/resource";
 import { handleFish } from "./handlers/fishing";
+import { handleBoardBoat, handleFishCoral, handleReturnToShore } from "./handlers/coral";
 import {
   handleUpgradeTool,
   handleCommissionBuild,
@@ -232,6 +233,18 @@ export class ActSystem implements System {
           }
           case "fish": {
             handleFish(farmer, actCtx.bubbleTiles, ctx.tick, this.fishRng);
+            break;
+          }
+          case "board-boat": {
+            handleBoardBoat(farmer);
+            break;
+          }
+          case "fish-coral": {
+            handleFishCoral(farmer, ctx.tick, this.fishRng, this.bus);
+            break;
+          }
+          case "return-to-shore": {
+            handleReturnToShore(farmer);
             break;
           }
           case "build-pen": {

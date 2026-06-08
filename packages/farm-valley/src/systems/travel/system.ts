@@ -35,7 +35,22 @@ export class TravelSystem implements System {
     private readonly pathfinder: Pathfinder,
     private readonly grid: PathfinderGrid,
     private readonly bus: MessageBus,
+    /**
+     * brief 48 — the boat-travel grid (water lanes from each dock to its reef).
+     * When a farmer is aboard their boat, pathing + smoothing + walkability use
+     * this grid instead of the land grid, so the farmer rows over water to the
+     * reef. Optional so legacy constructions (and tests that don't exercise
+     * boats) keep working — absent means "no water lanes", boats can't move.
+     */
+    private readonly boatGrid?: PathfinderGrid,
   ) {}
+
+  /** The grid this farmer pathfinds on this tick: the boat grid while aboard,
+   *  otherwise the land grid. */
+  private gridFor(entity: GameEntity): PathfinderGrid {
+    if (entity.farmer?.aboard && this.boatGrid) return this.boatGrid;
+    return this.grid;
+  }
 
   run(ctx: SimContext): void {
     for (const entity of this.world.query("farmer", "transform", "intentions")) {
@@ -51,6 +66,8 @@ export class TravelSystem implements System {
 
     const front = intentions.queue[0];
     const hasTravelIntent = front !== undefined && front.kind === "travel";
+    // brief 48 — pathing happens on the boat grid while aboard, land grid otherwise.
+    const grid = this.gridFor(entity);
 
     // Phase 1: start a new path if needed.
     if (hasTravelIntent && !farmer.path) {
@@ -64,7 +81,7 @@ export class TravelSystem implements System {
 
       let dest: { x: number; y: number };
       if (targetTile) {
-        const reachable = this.resolveReachableTile(targetTile.x, targetTile.y);
+        const reachable = this.resolveReachableTile(grid, targetTile.x, targetTile.y);
         if (!reachable) {
           console.warn(
             `[travel] farmer ${entity.id} target tile (${targetTile.x},${targetTile.y}) has no reachable adjacent walkable tile; dropping`,
@@ -90,7 +107,7 @@ export class TravelSystem implements System {
       // tick — the farmer re-deliberates and can re-path next tick.
       let path: { x: number; y: number }[];
       try {
-        path = this.pathfinder.findPath(this.grid, start, targetCenter);
+        path = this.pathfinder.findPath(grid, start, targetCenter);
       } catch (err) {
         console.warn(
           `[travel] pathfinder fault from (${start.x},${start.y}) to '${targetRegionId}' for farmer ${entity.id}; dropping intent`,
@@ -117,7 +134,7 @@ export class TravelSystem implements System {
       // Smooth the 4-connected route into a diagonal-cutting dense path so the
       // farmer walks corners instead of staircasing. Still one tile per step,
       // so STEP_TICKS pacing and determinism are unchanged.
-      const smoothed = smoothPath(path, (x, y) => this.isWalkable(x, y));
+      const smoothed = smoothPath(path, (x, y) => this.isWalkable(grid, x, y));
 
       farmer.path = {
         waypoints: smoothed,
@@ -179,9 +196,11 @@ export class TravelSystem implements System {
     }
   }
 
-  /** Walkable iff in-bounds and the grid cell is 0 (matches the pathfinder). */
-  private isWalkable(x: number, y: number): boolean {
-    const { width, height, cells } = this.grid;
+  /** Walkable iff in-bounds and the given grid's cell is 0 (matches the
+   *  pathfinder). The grid is the land grid normally, the boat grid while
+   *  aboard (brief 48). */
+  private isWalkable(grid: PathfinderGrid, x: number, y: number): boolean {
+    const { width, height, cells } = grid;
     if (x < 0 || y < 0 || x >= width || y >= height) return false;
     return cells[y * width + x] === 0;
   }
@@ -194,10 +213,11 @@ export class TravelSystem implements System {
    * neighbour is walkable.
    */
   private resolveReachableTile(
+    grid: PathfinderGrid,
     tileX: number,
     tileY: number,
   ): { x: number; y: number } | undefined {
-    if (this.isWalkable(tileX, tileY)) return { x: tileX, y: tileY };
+    if (this.isWalkable(grid, tileX, tileY)) return { x: tileX, y: tileY };
     // Fixed scan order (N, E, S, W, then diagonals) for determinism.
     const offsets = [
       [0, -1], [1, 0], [0, 1], [-1, 0],
@@ -206,7 +226,7 @@ export class TravelSystem implements System {
     for (const [dx, dy] of offsets) {
       const nx = tileX + dx;
       const ny = tileY + dy;
-      if (this.isWalkable(nx, ny)) return { x: nx, y: ny };
+      if (this.isWalkable(grid, nx, ny)) return { x: nx, y: ny };
     }
     return undefined;
   }

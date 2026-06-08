@@ -20,6 +20,7 @@ import {
   FISH_MAX_TICKS,
   FISH_WEIGHTS_CALM,
   FISH_WEIGHTS_BUBBLE,
+  zeroFish,
 } from "../../../components";
 import { grantSkillXp, fishingRarityBonus } from "../../skills";
 import { isFishingIsle, isWalkable } from "../../../world/regions";
@@ -85,7 +86,7 @@ export function handleFish(
     ? fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1)
     : FISH_MIN_TICKS + Math.floor(Math.random() * (FISH_MAX_TICKS - FISH_MIN_TICKS + 1));
 
-  if (!farmer.inventory.fish) farmer.inventory.fish = { minnow: 0, bass: 0, salmon: 0 };
+  if (!farmer.inventory.fish) farmer.inventory.fish = zeroFish();
   farmer.inventory.fish[fish] += 1;
   farmer.inventory.gold += FISH_VALUE[fish];
   // brief 43 — a cast earns fishing XP.

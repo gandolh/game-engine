@@ -25,6 +25,7 @@ import {
   BIG_STRUCTURES,
   BRIDGE_SET,
   CORAL_ALPHA,
+  FISHING_STATICS,
 } from "./geometry";
 import { frameToAtlasId } from "./frames";
 
@@ -225,6 +226,25 @@ export function* iterStaticSprites(
       frame: b.frame,
       rotation: 0,
       layer: 5,
+      alpha: 1,
+    };
+  }
+
+  // brief 48 — Boats & Coral Fishing static decorations. A moored boat at each
+  // dock tile (layer 6 — above the floor/walls and big-structure buildings, so
+  // the boat reads as sitting on the dock rather than behind it) and a reef
+  // marker at each reef tile (layer 2 — same as the decorative coral, so it
+  // appears submerged but still clearly visible at full opacity).
+  for (const fs of FISHING_STATICS) {
+    const isBoat = fs.frame === "structure/boat";
+    yield {
+      x: fs.tx * TILE + TILE / 2,
+      y: fs.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: fs.frame,
+      rotation: 0,
+      layer: isBoat ? 6 : 2,
       alpha: 1,
     };
   }
