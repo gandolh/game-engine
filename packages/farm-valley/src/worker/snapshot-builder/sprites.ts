@@ -19,6 +19,7 @@ import {
   DECORATION_LABELS,
   INTENTION_KIND_TO_GLYPH,
 } from "./constants";
+import { cropCue, farmerCue, UNTINTED_RGBA } from "./indicators";
 
 const TILE = 16;
 
@@ -75,7 +76,11 @@ function deriveRegionLabel(
   return currentRegion;
 }
 
-export function buildSprites(world: World<GameEntity>, tick: number): SnapshotSprite[] {
+export function buildSprites(
+  world: World<GameEntity>,
+  tick: number,
+  day: number,
+): SnapshotSprite[] {
   const sprites: SnapshotSprite[] = [];
 
   // Dynamic crop sprites (planted plots only).
@@ -88,6 +93,9 @@ export function buildSprites(world: World<GameEntity>, tick: number): SnapshotSp
     const cap = crop.charAt(0).toUpperCase() + crop.slice(1);
     const stageWord = stage === "mature" ? "ready to harvest" : stage === "growing" ? "growing" : "just sown";
     const watered = plot.plot.state.wateredToday ? "watered today" : "needs water";
+    // Visual state cue (RENDER-ONLY): thirsty / dying crops get a subtle tint +
+    // tooltip suffix. Healthy crops return the untinted default.
+    const cue = cropCue(plot.plot.state);
     sprites.push({
       id: null,
       x: px,
@@ -95,11 +103,12 @@ export function buildSprites(world: World<GameEntity>, tick: number): SnapshotSp
       rotation: 0,
       layer: 10,
       frame: `crop/${crop}/${stage}`,
-      alpha: 1,
+      alpha: cue.alpha,
+      tintRgba: cue.tintRgba,
       interpolate: false,
       action: null,
       label: `${cap} crop`,
-      description: `${stageWord} · ${watered} · day ${daysGrowing}/${readyAtDay}`,
+      description: `${stageWord} · ${watered} · day ${daysGrowing}/${readyAtDay}${cue.suffix}`,
     });
   }
 
@@ -180,6 +189,11 @@ export function buildSprites(world: World<GameEntity>, tick: number): SnapshotSp
 
     let label: string | null = null;
     let description: string | null = null;
+    // Visual state cue (RENDER-ONLY): exhausted / broken-tool farmers get a
+    // subtle tint + tooltip suffix. Non-farmer sprites keep their sim tint and
+    // stay untinted (default). farmerCue is a pure read of post-tick state.
+    const cue = isFarmer ? farmerCue(entity, day) : null;
+
     if (isFarmer) {
       label = entity.farmer!.name;
       const kind = entity.personality?.kind ?? "farmer";
@@ -187,7 +201,7 @@ export function buildSprites(world: World<GameEntity>, tick: number): SnapshotSp
       const region = entity.farmer!.currentRegion;
       const who = entity.player ? "You (player)" : `${kind} farmer`;
       const doing = action ? `, ${action}` : "";
-      description = `${who} · ${gold}g · ${region}${doing}`;
+      description = `${who} · ${gold}g · ${region}${doing}${cue!.suffix}`;
     } else if (entity.blacksmith) {
       label = "Blacksmith";
       description = "Forges tool upgrades — bring ore and gold to buy stone/iron tools.";
@@ -245,7 +259,10 @@ export function buildSprites(world: World<GameEntity>, tick: number): SnapshotSp
       rotation: t.rotation,
       layer: s.layer,
       frame,
-      alpha: (tint & 0xff) / 255,
+      // Farmers: alpha + tint from the state cue (healthy → 1 / untinted).
+      // Non-farmers: keep the alpha encoded in the sim sprite's tint; untinted.
+      alpha: cue ? cue.alpha : (tint & 0xff) / 255,
+      tintRgba: cue ? cue.tintRgba : UNTINTED_RGBA,
       interpolate: isFarmer,
       action,
       label,

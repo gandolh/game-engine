@@ -22,6 +22,14 @@ export interface Canvas2dSprite {
   /** Mirror horizontally about the sprite center (for left/right facing from a
    *  single side-profile frame). Optional; defaults to false. */
   flipX?: boolean;
+  /**
+   * Optional RGB multiply tint as 0xRRGGBBAA. The RGB channels multiply the
+   * frame's pixels (white 0xffffff = unchanged); the low alpha byte is folded
+   * into the sprite's `alpha`. Used by Farm Valley's visual state indicators
+   * (thirsty/dying crops, exhausted/broken-tool farmers). Absent or 0xffffffff
+   * means no tint. The tint is applied per-sprite via a pooled offscreen buffer
+   * so it never leaks into other sprites. */
+  tintRgba?: number;
 }
 
 /** Minimal 2D context surface the renderer needs — satisfied by both

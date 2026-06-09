@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Audit P1c — visual state indicators (+ generic sprite tint in the engine renderer)
+
+**Spectators can now SEE crop/farmer trouble at a glance, via sprite tint+alpha (no new atlas frames).** From the WORLD_DESIGN_TODO P1 cluster.
+
+- New [worker/snapshot-builder/indicators.ts](../packages/farm-valley/src/worker/snapshot-builder/indicators.ts): pure `cropCue(state)` / `farmerCue(entity, day)` → `{tintRgba, alpha, suffix}`, colors from `EDG.*`. Wired into [snapshot-builder/sprites.ts](../packages/farm-valley/src/worker/snapshot-builder/sprites.ts) (`buildSprites` now takes `day`); tooltip description gains the cue suffix. Snapshot builder only READS post-tick state — render-only, determinism-neutral.
+- Indicators keyed to REAL sim conditions (verified, not invented): **thirsty** = planted + `!wateredToday` (tint `EDG.steel`, alpha 1); **dying** = `daysSinceWater >= DRY_DEATH_GRACE_DAYS` (=2, the actual wither rule in [systems/crop-growth.ts](../packages/farm-valley/src/systems/crop-growth.ts) — one more dry day reverts the plot to empty) (`EDG.slate`, alpha 0.6); **exhausted** = `ap.unrested` OR `ap.current < 20% of ap.max` (`EDG.steel`, alpha 0.8 — note: `unrested` lives on `ap`, not `inventory`); **broken tool** = can `charges===0` OR any `tools[].durability<=0` (`EDG.red`, alpha 1). Precedence: dying>thirsty, broken>exhausted. Healthy entities stay untinted (`0xffffffff`, alpha 1) — asserted by tests so we don't tint everything.
+- **Engine change (kept, with sign-off):** the Canvas2D renderer previously honored only `alpha`, so the tint had nowhere to land. Added an OPTIONAL `tintRgba?` to `Canvas2dSprite` + an RGB-multiply path in `drawSprite` ([packages/engine/src/render/canvas2d/](../packages/engine/src/render/canvas2d/)) — pooled offscreen buffer (no steady-state alloc), white=no-op, jsdom-safe fallback, palette-guard-safe (constructed string not a literal). This is a GENERIC render capability (like the existing alpha/flipX), no engine→game dependency — so it respects the "engine stays generic" boundary. Exceeded the originally-stated game-only scope; reviewed and accepted because tint genuinely belongs in the renderer.
+- Verified: `npm run typecheck` EXIT 0; snapshot-builder tests +10 (42 total); palette guard green; full suite engine 60 + farm-valley 711. **Tint pixels confirmed in a real browser canvas** (multiply red tint: rgb(204,204,204)→(204,68,68)); jsdom can't exercise the tint path so unit tests prove the data, the browser check proves the pixels.
+
 ## [2026-06-09] impl | Audit P1a — help-modal personality + FSM legends; render FPS cap
 
 **Two small spectator-facing improvements from the WORLD_DESIGN_TODO audit P1 cluster.**

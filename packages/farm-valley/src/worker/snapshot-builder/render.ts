@@ -55,7 +55,7 @@ export function buildRenderSnapshot(
   const day = dayClock.day;
   const gameOver = day >= maxDays;
 
-  const sprites = buildSprites(world, tick);
+  const sprites = buildSprites(world, tick, day);
   const meets = buildMeets(meetIndicators, tick);
   const events = buildEvents(eventFeed);
   const observer = buildObserverSnapshot(world, day);

@@ -458,3 +458,211 @@ describe("AI farmer sprites carry a bubble field (brief 40)", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Visual state indicators — RENDER-ONLY tint/alpha cues on sprites.
+//   thirsty / dying crops; exhausted / broken-tool farmers; healthy = untinted.
+// ---------------------------------------------------------------------------
+
+import { DRY_DEATH_GRACE_DAYS } from "../systems/crop-growth";
+import {
+  UNTINTED_RGBA,
+  EXHAUSTED_AP_FRACTION,
+  cropCue,
+  farmerCue,
+} from "./snapshot-builder/indicators";
+import type { CropKind } from "../components";
+
+const TILE = 16;
+
+/** Build a snapshot at the given tick (no shock). */
+function snapAt(sim: ReturnType<typeof bootstrapSim>, tick: number) {
+  return buildRenderSnapshot(
+    sim.world,
+    sim.dayClock,
+    sim.meetIndicators,
+    sim.eventFeed,
+    tick,
+    MAX_DAYS,
+    null,
+  );
+}
+
+/** Find the crop sprite produced for a plot at the given tile coords. */
+function cropSpriteAt(snap: ReturnType<typeof snapAt>, tileX: number, tileY: number) {
+  const x = tileX * TILE + TILE / 2;
+  const y = tileY * TILE + TILE / 2;
+  return snap.sprites.find(
+    (s) => s.id === null && s.frame.startsWith("crop/") && s.x === x && s.y === y,
+  );
+}
+
+/** Plant a known crop on the first available plot; return its tile coords. */
+function plantFirstPlot(
+  sim: ReturnType<typeof bootstrapSim>,
+  crop: CropKind,
+  overrides: { wateredToday?: boolean; daysSinceWater?: number; daysGrowing?: number },
+): { tileX: number; tileY: number } {
+  for (const p of sim.world.query("plot")) {
+    p.plot.state = {
+      kind: "planted",
+      crop,
+      daysGrowing: overrides.daysGrowing ?? 1,
+      readyAtDay: 4,
+      weatherSum: 0,
+      daysSinceWater: overrides.daysSinceWater ?? 0,
+      wateredToday: overrides.wateredToday ?? true,
+    };
+    return { tileX: p.plot.tileX, tileY: p.plot.tileY };
+  }
+  throw new Error("no plot entity found in world");
+}
+
+/** Find the first AI farmer entity (has farmer + inventory + ap). */
+function firstFarmer(sim: ReturnType<typeof bootstrapSim>) {
+  for (const e of sim.world.query("farmer", "inventory", "ap")) {
+    if (e.id !== undefined) return e;
+  }
+  throw new Error("no farmer entity found");
+}
+
+function farmerSprite(snap: ReturnType<typeof snapAt>, id: number) {
+  return snap.sprites.find((s) => s.id === id && s.frame.startsWith("farmer/"));
+}
+
+describe("visual state indicators — crops", () => {
+  it("an unwatered (not-yet-at-risk) crop sprite is thirsty: tinted, full alpha, tooltip says thirsty", () => {
+    const sim = bootAndTick(5);
+    const { tileX, tileY } = plantFirstPlot(sim, "wheat", {
+      wateredToday: false,
+      daysSinceWater: 0,
+    });
+    const snap = snapAt(sim, 5);
+    const s = cropSpriteAt(snap, tileX, tileY);
+    expect(s).toBeDefined();
+    expect(s!.tintRgba).not.toBe(UNTINTED_RGBA);
+    expect(s!.alpha).toBe(1); // thirsty keeps full alpha
+    expect(s!.description).toContain("thirsty");
+    expect(s!.description).not.toContain("dying");
+  });
+
+  it("a crop at the wither grace threshold is dying: tinted + reduced alpha, tooltip says dying", () => {
+    const sim = bootAndTick(5);
+    // daysSinceWater >= DRY_DEATH_GRACE_DAYS → one more dry day is fatal (the
+    // real crop-growth.ts wither rule). Even unwatered-today, dying wins.
+    const { tileX, tileY } = plantFirstPlot(sim, "wheat", {
+      wateredToday: false,
+      daysSinceWater: DRY_DEATH_GRACE_DAYS,
+    });
+    const snap = snapAt(sim, 5);
+    const s = cropSpriteAt(snap, tileX, tileY);
+    expect(s).toBeDefined();
+    expect(s!.tintRgba).not.toBe(UNTINTED_RGBA);
+    expect(s!.alpha).toBeLessThan(1);
+    expect(s!.description).toContain("dying");
+  });
+
+  it("a healthy (watered, not-at-risk) crop sprite is UNTINTED with full alpha", () => {
+    const sim = bootAndTick(5);
+    const { tileX, tileY } = plantFirstPlot(sim, "wheat", {
+      wateredToday: true,
+      daysSinceWater: 0,
+    });
+    const snap = snapAt(sim, 5);
+    const s = cropSpriteAt(snap, tileX, tileY);
+    expect(s).toBeDefined();
+    expect(s!.tintRgba).toBe(UNTINTED_RGBA);
+    expect(s!.alpha).toBe(1);
+    expect(s!.description).not.toContain("thirsty");
+    expect(s!.description).not.toContain("dying");
+  });
+
+  it("dying takes precedence over thirsty (unwatered AND at-risk → dying)", () => {
+    const dying = cropCue({
+      kind: "planted",
+      crop: "wheat",
+      daysGrowing: 1,
+      readyAtDay: 4,
+      weatherSum: 0,
+      daysSinceWater: DRY_DEATH_GRACE_DAYS,
+      wateredToday: false,
+    });
+    expect(dying.suffix).toContain("dying");
+  });
+});
+
+describe("visual state indicators — farmers", () => {
+  it("an unrested farmer sprite is exhausted: tinted + dimmed, tooltip says exhausted", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    f.ap!.unrested = true;
+    // Ensure no broken tool steals precedence: top up the can.
+    if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
+    const snap = snapAt(sim, 5);
+    const s = farmerSprite(snap, f.id!);
+    expect(s).toBeDefined();
+    expect(s!.tintRgba).not.toBe(UNTINTED_RGBA);
+    expect(s!.alpha).toBeLessThan(1);
+    expect(s!.description).toContain("exhausted");
+  });
+
+  it("a low-AP farmer (below threshold) is exhausted", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    f.ap!.unrested = false;
+    f.ap!.max = 100;
+    f.ap!.current = Math.floor(100 * EXHAUSTED_AP_FRACTION) - 1; // below threshold
+    if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
+    const snap = snapAt(sim, 5);
+    const s = farmerSprite(snap, f.id!);
+    expect(s).toBeDefined();
+    expect(s!.description).toContain("exhausted");
+  });
+
+  it("a farmer with an empty watering can is broken-tool: tinted, tooltip says tool broken", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    // Keep AP healthy so the cue is unambiguously the broken tool.
+    f.ap!.unrested = false;
+    f.ap!.max = 100;
+    f.ap!.current = 100;
+    if (!f.inventory!.wateringCan) f.inventory!.wateringCan = { charges: 0, maxCharges: 10 };
+    else f.inventory!.wateringCan.charges = 0;
+    const snap = snapAt(sim, 5);
+    const s = farmerSprite(snap, f.id!);
+    expect(s).toBeDefined();
+    expect(s!.tintRgba).not.toBe(UNTINTED_RGBA);
+    expect(s!.description).toContain("tool broken");
+  });
+
+  it("broken tool takes precedence over exhausted", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    f.ap!.unrested = true; // exhausted...
+    if (!f.inventory!.wateringCan) f.inventory!.wateringCan = { charges: 0, maxCharges: 10 };
+    else f.inventory!.wateringCan.charges = 0; // ...AND empty can
+    const snap = snapAt(sim, 5);
+    const s = farmerSprite(snap, f.id!);
+    expect(s!.description).toContain("tool broken");
+    expect(s!.description).not.toContain("exhausted");
+  });
+
+  it("a healthy, rested farmer with a usable tool is UNTINTED with full alpha", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    f.ap!.unrested = false;
+    f.ap!.max = 100;
+    f.ap!.current = 100; // well above the exhausted threshold
+    if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
+    if (f.inventory!.tools) for (const t of f.inventory!.tools) t.durability = Math.max(t.durability, 10);
+    const cue = farmerCue(f, sim.dayClock.day);
+    expect(cue.tintRgba).toBe(UNTINTED_RGBA);
+    expect(cue.alpha).toBe(1);
+    expect(cue.suffix).toBe("");
+    const snap = snapAt(sim, 5);
+    const s = farmerSprite(snap, f.id!);
+    expect(s).toBeDefined();
+    expect(s!.tintRgba).toBe(UNTINTED_RGBA);
+    expect(s!.alpha).toBe(1);
+  });
+});

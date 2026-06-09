@@ -15,6 +15,14 @@ export interface SnapshotSprite {
   frame: string;
   /** Per-sprite alpha (from tint), 0..1. */
   alpha: number;
+  /**
+   * Per-sprite RGB tint as 0xRRGGBBAA (the engine sprite tint format). Used by
+   * the visual state indicators (snapshot-builder/indicators.ts) to wash a
+   * sprite when a crop is thirsty/dying or a farmer is exhausted / has a broken
+   * tool. Healthy/normal sprites carry 0xffffffff (no RGB shift). Optional so
+   * untinted sprites may omit it; the renderer treats absent as 0xffffffff.
+   */
+  tintRgba?: number;
   /** True for farmer entities — main thread interpolates these against prev. */
   interpolate: boolean;
   /**

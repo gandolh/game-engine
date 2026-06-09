@@ -52,6 +52,7 @@ export function pushSnapshotSprites(
       layer: s.layer,
       alpha: s.alpha,
       flipX: s.flipX ?? false,
+      tintRgba: s.tintRgba ?? 0xffffffff,
     });
 
     // Brief 40 — intention bubble. Only for AI farmers that have a bubble glyph
