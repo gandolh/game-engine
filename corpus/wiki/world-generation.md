@@ -120,7 +120,11 @@ it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on
 **Simplex/octave-rotation** — _track 3 evaluated and **deferred** as a low-value
 nicety: fBm+warp already removed the grid-axis artifacts it targeted; revisit only
 if Model-B shapes need a coherent basis (see [log.md](../log.md) 2026-06-09)_ — plus
-**L-system vegetation scatter** and **authored set-pieces** — _track 6
+**L-system vegetation scatter** — _track 5 **shipped** as seeded cluster-growth
+(copses/outcrops) in [tile-features.ts](../../packages/farm-valley/src/systems/tile-features.ts):
+gameplay-neutral (same rates/caps/ownership, only placement clusters), drawn from
+an isolated `rng.fork('tile-cluster')` so the main run-rng stream is unshifted_ —
+and **authored set-pieces** — _track 6
 **partially shipped**: decorative open-water props
 ([render-systems/set-pieces.ts](../../packages/farm-valley/src/render-systems/set-pieces.ts),
 blue-noise seabed accents, render-only) are done; the **interactive shrine

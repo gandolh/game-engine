@@ -31,11 +31,20 @@ export class TileFeatureSystem implements System {
   readonly name = "TileFeatureSystem";
   private lastDayProcessed = -1;
 
+  // Dedicated rng stream for all feature placement (cluster centers + growth +
+  // count rolls). Forked ONCE per run from the main stream so clustering draws
+  // never shift the downstream sim's `this.rng` stream — the spawn loop reads
+  // exclusively from `this.cluster`, leaving `this.rng` otherwise untouched.
+  // (Brief 49 track 5: organic clusters, gameplay-neutral.)
+  private readonly cluster: Rng;
+
   constructor(
     private readonly world: World<GameEntity>,
     private readonly rng: Rng,
     private readonly bus?: MessageBus,
-  ) {}
+  ) {
+    this.cluster = rng.fork("tile-cluster");
+  }
 
   run(ctx: SimContext): void {
     // Trigger once per new day.
@@ -129,44 +138,60 @@ export class TileFeatureSystem implements System {
 
       const occupied = occupiedByRegion.get(rid) ?? new Set<string>();
 
-      // Gather empty candidate tiles.
+      // Gather empty candidate tiles (row-major — a fixed, deterministic order).
       const candidates: Array<{ x: number; y: number }> = [];
       for (let ty = def.bounds.minY; ty <= def.bounds.maxY; ty++) {
         for (let tx = def.bounds.minX; tx <= def.bounds.maxX; tx++) {
           if (!occupied.has(`${tx},${ty}`)) candidates.push({ x: tx, y: ty });
         }
       }
+      if (candidates.length === 0) continue;
 
-      // Fisher-Yates shuffle (deterministic via Rng).
-      for (let i = candidates.length - 1; i > 0; i--) {
-        const j = Math.floor(this.rng.nextFloat() * (i + 1));
-        const a = candidates[i]!;
-        const b = candidates[j]!;
-        candidates[i] = b;
-        candidates[j] = a;
-      }
-
-      let spawned = currentCount;
-      for (const { x, y } of candidates) {
-        if (spawned >= maxFeatures) break;
-
-        const r = this.rng.nextFloat();
-        let kind: "tree" | "stone" | null = null;
-
+      // --- Decide HOW MANY features to spawn (gameplay-neutral count) ---
+      // We preserve the COUNT distribution exactly: today the system rolls one
+      // `nextFloat() < chance` per empty candidate tile, i.e. the per-day spawn
+      // count is Binomial(emptyCandidates, chance) clipped at the cap. We
+      // reproduce that same Binomial draw here (one roll per candidate, on the
+      // FORKED stream) — so the EXPECTED count and the cap are identical to
+      // before. Only the spatial PLACEMENT of those features changes: instead of
+      // landing on the rolled tiles, they grow outward from a few cluster centers
+      // so they read as organic copses/outcrops.
+      //
+      // For farm tiles (mixed tree+stone) we additionally tag each spawn slot
+      // tree-or-stone in the same proportion the old per-tile roll produced
+      // (tree if r<FARM_TREE_CHANCE, else stone if r<TREE+STONE), so the
+      // tree/stone mix is preserved too.
+      const slots: Array<"tree" | "stone"> = [];
+      const room = maxFeatures - currentCount; // cap headroom (>0 here)
+      for (const _candidate of candidates) {
+        if (slots.length >= room) break;
+        const r = this.cluster.nextFloat();
         if (isForest) {
-          // Forest zone: trees only
-          if (r < ZONE_TREE_CHANCE) kind = "tree";
+          if (r < ZONE_TREE_CHANCE) slots.push("tree");
         } else if (isQuarry) {
-          // Quarry zone: stones only
-          if (r < ZONE_STONE_CHANCE) kind = "stone";
+          if (r < ZONE_STONE_CHANCE) slots.push("stone");
         } else {
-          // Farm tile: mixed low-rate spawns
-          if (r < FARM_TREE_CHANCE) kind = "tree";
-          else if (r < FARM_TREE_CHANCE + FARM_STONE_CHANCE) kind = "stone";
+          if (r < FARM_TREE_CHANCE) slots.push("tree");
+          else if (r < FARM_TREE_CHANCE + FARM_STONE_CHANCE) slots.push("stone");
         }
+      }
+      if (slots.length === 0) continue;
 
-        if (kind === null) continue;
+      // --- Decide WHERE to place them (organic clusters) ---
+      // Seed a small number of cluster centers (copses / outcrops), then grow
+      // each cluster outward into adjacent empty tiles by BFS over a frontier,
+      // round-robin across centers so multiple clusters fill evenly. The number
+      // of centers scales ~sqrt(slots) (bounded 1..4) so a handful of features
+      // forms one clump and a near-cap zone forms a few distinct copses.
+      const targetCount = slots.length;
+      const centerCount = Math.max(1, Math.min(4, Math.round(Math.sqrt(targetCount))));
 
+      const placements = this.growClusters(candidates, occupied, centerCount, targetCount);
+
+      // Place features. `placements` is ordered; pair each with its slot kind.
+      for (let i = 0; i < placements.length; i++) {
+        const { x, y } = placements[i]!;
+        const kind = slots[i]!;
         const frame = kind === "tree" ? "structure/tree" : "structure/stone";
         this.world.spawn({
           transform: { x, y, prevX: x, prevY: y, rotation: 0 },
@@ -174,8 +199,95 @@ export class TileFeatureSystem implements System {
           tileFeature: { kind, tileX: x, tileY: y, regionId: rid, ownerId },
         });
         occupied.add(`${x},${y}`);
-        spawned++;
       }
     }
+  }
+
+  /**
+   * Grow up to `targetCount` cluster placements over the empty `candidates` of a
+   * region. Picks `centerCount` seed tiles, then expands each cluster by BFS into
+   * adjacent (4-neighbour) empty in-region tiles, round-robin across clusters so
+   * they fill evenly. All randomness is drawn from the forked `this.cluster`
+   * stream in a fixed order, so placement is fully deterministic.
+   *
+   * Returns at most `targetCount` distinct tile coords (fewer only if the region
+   * has fewer reachable empty tiles than requested).
+   */
+  private growClusters(
+    candidates: ReadonlyArray<{ x: number; y: number }>,
+    occupied: ReadonlySet<string>,
+    centerCount: number,
+    targetCount: number,
+  ): Array<{ x: number; y: number }> {
+    const key = (x: number, y: number) => `${x},${y}`;
+    // Set of tiles that are valid cluster targets (empty + in-region).
+    const inRegion = new Set<string>();
+    for (const c of candidates) inRegion.add(key(c.x, c.y));
+
+    const claimed = new Set<string>();
+    const result: Array<{ x: number; y: number }> = [];
+
+    // Per-cluster BFS frontiers.
+    const frontiers: Array<Array<{ x: number; y: number }>> = [];
+    const seedPool = [...candidates];
+    const seeds = Math.min(centerCount, seedPool.length);
+    for (let s = 0; s < seeds; s++) {
+      // Pick a center uniformly from the remaining pool (forked rng, fixed order).
+      const idx = this.cluster.int(0, seedPool.length);
+      const center = seedPool[idx]!;
+      // Remove picked center from the pool (swap-pop, deterministic).
+      seedPool[idx] = seedPool[seedPool.length - 1]!;
+      seedPool.pop();
+      frontiers.push([center]);
+    }
+
+    // Round-robin BFS expansion across clusters until we hit the target or run dry.
+    let active = true;
+    while (result.length < targetCount && active) {
+      active = false;
+      for (let f = 0; f < frontiers.length && result.length < targetCount; f++) {
+        const frontier = frontiers[f]!;
+        // Pop the next unclaimed frontier tile for this cluster.
+        let placed = false;
+        while (frontier.length > 0 && !placed) {
+          // Pull from the front for breadth-first growth.
+          const tile = frontier.shift()!;
+          const k = key(tile.x, tile.y);
+          if (claimed.has(k) || !inRegion.has(k)) continue;
+          claimed.add(k);
+          result.push(tile);
+          placed = true;
+          active = true;
+          // Enqueue 4-neighbours as future growth (in a fixed order).
+          const neighbours = [
+            { x: tile.x + 1, y: tile.y },
+            { x: tile.x - 1, y: tile.y },
+            { x: tile.x, y: tile.y + 1 },
+            { x: tile.x, y: tile.y - 1 },
+          ];
+          for (const n of neighbours) {
+            const nk = key(n.x, n.y);
+            if (inRegion.has(nk) && !claimed.has(nk) && !occupied.has(nk)) {
+              frontier.push(n);
+            }
+          }
+        }
+      }
+    }
+
+    // If clusters ran dry before reaching the target (e.g. fragmented region),
+    // top up from any remaining unclaimed empty tiles so the COUNT is preserved.
+    if (result.length < targetCount) {
+      for (const c of candidates) {
+        if (result.length >= targetCount) break;
+        const k = key(c.x, c.y);
+        if (!claimed.has(k)) {
+          claimed.add(k);
+          result.push(c);
+        }
+      }
+    }
+
+    return result;
   }
 }

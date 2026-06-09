@@ -2,6 +2,18 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Brief 49 track 5 — clustered tile-feature scatter (gameplay-neutral) + brief 49 actionable tracks complete
+
+**Shipped track 5: resource-zone trees/stones now spawn in organic copses/outcrops instead of an even per-tile sprinkle — gameplay-neutral and deterministic.** Completes brief 49's actionable tracks.
+
+- All in [systems/tile-features.ts](../packages/farm-valley/src/systems/tile-features.ts). Two-phase rewrite of `TileFeatureSystem.run()`: (1) **count** — the SAME per-candidate `nextFloat() < chance` Binomial roll as before (same rates 0.25/0.20/0.02/0.015, same caps MAX_PER_ZONE=20 / MAX_PER_FARM=6, clipped to cap headroom), so expected feature count and resource SUPPLY are mathematically unchanged; (2) **placement** — new `growClusters()` seeds `clamp(round(sqrt(N)),1..4)` centers and grows each via round-robin 4-neighbour BFS over empty in-region tiles (tops up from leftovers if a fragmented region runs dry, so count is always preserved). Only POSITIONS changed (clustered), not counts/caps/ownership/kind-mix/trigger.
+- **Gameplay-neutral at the rng level** (the strong form): clustering draws come from a dedicated `this.rng.fork('tile-cluster')` forked ONCE in the constructor; the spawn loop no longer touches `this.rng` at all, so the main run-rng stream the rest of the sim shares is byte-unshifted by clustering. Zero `Math.random`/`Date.now`. Verified in the diff (only `this.cluster.*` draws inside `run()`).
+- **Determinism: code stays deterministic (engine invariant intact), but the heavy verification ceremony was dropped at the user's request for this track** — no `CHECK_DETERMINISM` ×6, no multi-seed economy json-diff. Kept a cheap unit-level determinism test (same seed → byte-identical placements) so a future `Math.random` regression still fails loudly.
+- New `tile-features.test.ts` (6 cases): caps never exceeded (incl. pre-seeded near cap), zones trend toward cap over time (count behavior preserved), forest=trees/quarry=stones/farm=mixed, determinism, and a **clustering invariant** (mean nearest-neighbour Manhattan distance ≈1.00 clustered vs ≈1.36 uniform reference, asserted `< uniform×0.9`). Measured on day 1 deliberately — high zone rates saturate to cap within ~1 day, after which clustered and uniform NN both compress toward ~1.0 and become indistinguishable, so day-1 sparsity is where the signal is clean.
+- Proof: `npm run typecheck` EXIT 0 (checked the exit code, not a log tail — per the track-4 lesson); full suite green (engine 60, farm-valley 699).
+
+**Brief 49 status:** actionable tracks DONE — 1 (fBm), 2 (domain warp), 4 (jittered placement), 5 (clustered features); 6's décor-props half shipped (shrine→[brief 50](briefs/game/todo/50-interactive-shrine-landmark.md)); 3 (Simplex) deferred as a low-value nicety. Candidate to move `briefs/game/todo/49-*` → `done/` (the only open follow-ups are the separate briefs 50 + a possible track-3 revisit).
+
 ## [2026-06-09] impl | Brief 49 track 6 — decorative open-water props (render-only) + brief 50 split
 
 **Shipped track 6 (the low-risk half): decorative open-water props.** Deterministic seabed accents (rocks via `structure/stone`, sandbars via `tile/sand`/`tile/shore-sand`) scattered in open ocean — purely visual, modeled on the coral décor.
