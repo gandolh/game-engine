@@ -2,6 +2,18 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] briefs | "More islands" theme — filed briefs 51–54
+
+**User asked for several new landmark/special islands, extending the shrine (brief 50) into a theme.** Filed four new todo briefs (numbers 51–54; 50 already existed):
+
+- **[51 — heritage / history sites](briefs/game/todo/51-heritage-sites-decorative-islands.md):** decorative, presence-only (standing stones / ruins / monument). On-island cousin of the brief-49 set-piece props. Lowest risk.
+- **[52 — waterfall island](briefs/game/todo/52-waterfall-island.md):** decorative + ANIMATED (the only animation ask). Anchor the cascade to the existing ocean-ripple / forge-fire frame-cycling rather than inventing a new animation path.
+- **[53 — remote bar (gold→AP)](briefs/game/todo/53-remote-bar-gold-for-ap.md):** ⚠️ **overlaps the existing brief-44 village tavern** (`hire-help` already pays gold for an AP boost). Filed as a SCOPE DECISION, not an auto-build: (1) remote second venue for the far-south band [recommended], (2) a distinct instant-AP-for-gold mechanic [balance risk — leader-runaway], or (3) decline/fold into tavern. Grill the user before building.
+- **[54 — camping / rest island](briefs/game/todo/54-camping-rest-island.md):** ⚠️ overlaps the existing SLEEP/unrested mechanic. Genuine new value = resting AWAY from home without the unrested (half-AP) penalty, for long-range farmers; extends where `unrested` is decided.
+
+- All four reuse the shrine/track-6 patterns (region+bridge or scenic islet, EDG palette, determinism via `rng.fork`, guard-test updates for reachable regions). Two (53, 54) explicitly flag overlap with shipped systems so we don't build duplicates. Cross-linked in index.md as the "more islands" theme.
+- **Brief 50 (shrine) is mid-planning** at filing time: locked decisions so far — small cooldown-gated AP top-up (clamped to day max), opportunist-only, small island off an existing hub breaking symmetry, determinism via standard CHECK_DETERMINISM + guard/unit tests.
+
 ## [2026-06-09] impl | Audit P1d — per-personality work-sprite silhouettes (completes the P1 spectator-UX cluster)
 
 **The four AI farmers are now distinct at a glance in EVERY pose — including the work loop the audit flagged as pixel-identical.** Added a per-personality HAT SILHOUETTE (shape, not just color) so the personality reads even mid-work.
