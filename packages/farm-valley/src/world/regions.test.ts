@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { regionAt, isWalkable, REGIONS, EXTRA_FARM_COUNT, nearestResourceZone, getRegion } from './regions';
+import {
+  regionAt, isWalkable, REGIONS, EXTRA_FARM_COUNT, nearestResourceZone, getRegion,
+  WORLD_WIDTH, WORLD_HEIGHT,
+} from './regions';
 
 // Archipelago layout (88×80): every zone is an isolated island, connected only
 // by 2-wide bridges. Pip top-center; the four AI farms in the corners; village
@@ -119,6 +122,50 @@ describe('procedural farm band', () => {
       expect(regionAt(center.x, center.y)).toBe(id);
       expect(isWalkable(center.x, center.y)).toBe(true);
     }
+  });
+
+  it('every band farm body stays within world bounds', () => {
+    for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
+      const { bounds } = getRegion(`farm-${i}` as const);
+      expect(bounds.minX, `farm-${i} minX`).toBeGreaterThanOrEqual(0);
+      expect(bounds.minY, `farm-${i} minY`).toBeGreaterThanOrEqual(0);
+      expect(bounds.maxX, `farm-${i} maxX`).toBeLessThan(WORLD_WIDTH);
+      expect(bounds.maxY, `farm-${i} maxY`).toBeLessThan(WORLD_HEIGHT);
+    }
+  });
+
+  it('every band farm routes to a resource zone for both tree and stone', () => {
+    for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
+      const { center } = getRegion(`farm-${i}` as const);
+      expect(['forest-north', 'forest-south']).toContain(nearestResourceZone(center, 'tree'));
+      expect(['quarry-north', 'quarry-south']).toContain(nearestResourceZone(center, 'stone'));
+    }
+  });
+
+  it('jitter is real: band farms are NOT all on the exact original grid', () => {
+    // Guard against a silent regression back to a perfect grid. The band is
+    // generated with a FIXED world-gen seed, so this is deterministic; we assert
+    // the PROPERTY that the jitter actually moved bodies off their grid origin
+    // (rather than locking 16 hardcoded coordinate pairs). The same band layout
+    // is identical on every run by design.
+    const COLS = 6;
+    const PITCH = 14; // EXTRA_FARM_SIZE(10) + EXTRA_FARM_GAP(4)
+    const X0 = 2;
+    const Y0 = 84;
+    let offGrid = 0;
+    for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const gridMinX = X0 + col * PITCH;
+      const gridMinY = Y0 + row * PITCH;
+      const { bounds } = getRegion(`farm-${i}` as const);
+      // Jitter is bounded at ±1 in each axis (no-adjacency budget).
+      expect(Math.abs(bounds.minX - gridMinX)).toBeLessThanOrEqual(1);
+      expect(Math.abs(bounds.minY - gridMinY)).toBeLessThanOrEqual(1);
+      if (bounds.minX !== gridMinX || bounds.minY !== gridMinY) offGrid++;
+    }
+    // At least a few farms must have moved (the band is visibly scattered).
+    expect(offGrid).toBeGreaterThan(EXTRA_FARM_COUNT / 2);
   });
 });
 

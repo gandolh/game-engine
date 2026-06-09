@@ -1,7 +1,6 @@
 import { Canvas2dRenderer } from "@engine/core";
 import type { NoiseGenerator } from "@engine/core";
-import { makeGroundNoiseDecorator } from "../render/ground-noise";
-import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
+import { makeGroundNoiseDecorator, GROUND_NOISE_AMPLITUDE } from "../render/ground-noise";
 import { TILE } from "./config";
 import type { SimClient } from "../worker/sim-client";
 
@@ -10,23 +9,21 @@ import type { SimClient } from "../worker/sim-client";
 // Receive the static-layer sprites from the worker and bake them once.
 // brief 30 — stamp subtle per-tile ground-noise into the baked layer
 // (one-time cost, deterministic on the run seed).
-// Pre-generate brightness array via WASM (8× faster than JS hash loop).
-// Falls back to JS path if WASM didn't load.
+//
+// brief 49 (Track 1) — the ground noise is now coherent fBm computed in JS
+// inside ground-noise.ts. We deliberately BYPASS the WASM noise path here (the
+// wasm `fillNoise` is per-cell hash, not fBm) by not passing a `wasmBrightness`
+// array, so the JS fBm path always runs at bake time. The one-time bake over
+// ~88×122 tiles costs a few ms, which is fine. `noiseGen` is still loaded by
+// main.ts (kept for other potential consumers) but no longer feeds the ground
+// decorator.
 export function bakeStaticLayer(
   client: SimClient,
   renderer: Canvas2dRenderer,
-  noiseGen: NoiseGenerator | null,
+  _noiseGen: NoiseGenerator | null,
   seed: number,
 ): void {
-  const wasmBrightness = noiseGen
-    ? noiseGen.fillNoise(
-        Math.ceil(WORLD_WIDTH * TILE / TILE),  // cols = WORLD_WIDTH
-        Math.ceil(WORLD_HEIGHT * TILE / TILE), // rows = WORLD_HEIGHT
-        seed,
-        0.12, // GROUND_NOISE_AMPLITUDE
-      )
-    : undefined;
-  const groundNoise = makeGroundNoiseDecorator(seed, TILE, 0.12, wasmBrightness);
+  const groundNoise = makeGroundNoiseDecorator(seed, TILE, GROUND_NOISE_AMPLITUDE);
   client.onStaticLayer((msg) => {
     renderer.bakeStaticLayer(
       msg.sprites,

@@ -20,9 +20,10 @@ Two layout halves:
   farms (Pip top-center, Cora/Atticus/Otto/Hannah in the four corners), craft
   islands, resource zones, mill, wells, seasonal zones, two fishing isles, harbor.
   Coordinates are literal consts; unchanged.
-- **Procedural farm band (`y ≥ 84`):** `EXTRA_FARM_COUNT` (=16) extra farms in a
-  regular grid, generated purely from constants — see below. Added to scale the
-  roster from 5 to **21 farmers (20 AI + Pip)** without hand-authoring 16 islands.
+- **Procedural farm band (`y ≥ 84`):** `EXTRA_FARM_COUNT` (=16) extra farms on a
+  **seed-jittered grid** (brief 49 track 4 — ±1-tile X/Y wobble off a regular grid,
+  from a fixed `WORLD_GEN_SEED`; was a pure grid before) — see below. Added to scale
+  the roster from 5 to **21 farmers (20 AI + Pip)** without hand-authoring 16 islands.
 
 ### Procedural farm band (implemented)
 
@@ -31,16 +32,20 @@ In [regions.ts](../../packages/farm-valley/src/world/regions.ts):
 - `RegionId = FixedRegionId | ExtraFarmRegionId` where `ExtraFarmRegionId =
   \`farm-${number}\`` (`farm-0`..`farm-15`). Named fixed farms (`farm-cora`…) keep
   their ids, so all fixed-island tests/consumers are untouched.
-- Grid: `EXTRA_FARM_COLS=6`, `EXTRA_FARM_SIZE=10`, `EXTRA_FARM_GAP=2` →
-  `EXTRA_FARM_PITCH=12`. Pitch − size = 2-tile ocean gap → **no farm body is ever
-  adjacent to another** (constructive, can't violate). `WORLD_HEIGHT` is derived
-  from the row count (88×80 → **88×122** at 16 farms).
+- Grid: `EXTRA_FARM_COLS=6`, `EXTRA_FARM_SIZE=10`, `EXTRA_FARM_GAP=4` →
+  `EXTRA_FARM_PITCH=14` (gap widened from 2 in brief 49 track 4 to make room for
+  jitter). Each farm is then jittered ±1 tile per axis; pitch − size − 2·jitter =
+  **≥2-tile ocean gap worst-case → no farm body is ever adjacent to another**
+  (constructive, can't violate). `WORLD_HEIGHT` is derived from the row count
+  (88×80 → **88×128** at 16 jittered farms).
 - Bridges (`generateFarmBand`): a vertical **trunk** taps the mill's south edge
   (x48–49) and runs down through open ocean; one horizontal **collector** per row
-  sits in the 2-tile gutter directly above its farms (so every farm top is
-  adjacent to it — no per-farm stub needed); short vertical **links** join the
-  collectors down the trunk column. Result is a connected tree rooted at the
-  village; bridges span only water.
+  sits in the gutter above its farms, pinned to the un-jittered grid line and
+  X-spanning all jittered farms in the row; each farm hangs off its collector by
+  its own short 2-wide vertical **stub** (added in track 4 to absorb the Y-jitter —
+  previously farms were adjacent to the collector with no stub); short vertical
+  **links** join the collectors down the trunk column. Result is a connected tree
+  rooted at the village; bridges span only water.
 - Farmer→farm assignment is **by `homeRegion` carried on each `FarmerSpec`**
   (set in `makeExtraFarmerSpecs`, [sim-bootstrap.ts](../../packages/farm-valley/src/sim-bootstrap.ts)),
   replacing the old `PERSONALITY_TO_REGION` map. Extra farmers cycle the four AI
@@ -69,14 +74,24 @@ authored."** Two models:
 
 Ranked techniques (all must thread `rng.fork(label)` — never `Math.random`):
 
-1. **Placement (Model A):** *jittered grid* is best for now — constructive
-   spacing means no-adjacency can't be violated. *Poisson-disk (Bridson)* /
+1. **Placement (Model A):** *jittered grid* — **implemented (brief 49 track 4)**:
+   the farm band now applies seeded ±1-tile X/Y jitter (fixed `WORLD_GEN_SEED`,
+   `fork('farm-band-jitter')`) within a widened gap budget (`EXTRA_FARM_GAP` 2→4),
+   with per-farm vertical stub bridges so connectivity holds by construction.
+   Constructive spacing means no-adjacency can't be violated (≥2 ocean tiles
+   between bodies, worst-case). MST bridges were scoped out as overkill at this
+   tree topology. *Poisson-disk (Bridson)* /
    *Mitchell best-candidate* give nicer blue-noise scatter once islands have radii
    (Model B); pop the active list by `rng.int`, not array order, to stay
    deterministic.
 2. **Shapes (Model B):** *CA-fill + center-floodfill* (plain TS) is the
-   lowest-risk organic outline; *noise-threshold* needs coherent fBm (the committed
-   `noise.wasm` is hash noise — blocky — so upgrade it or do it in JS). Always keep
+   lowest-risk organic outline; *noise-threshold* needs coherent fBm — now
+   **implemented in JS** (brief 49 track 1: `fbm` + `valueNoise2d` in
+   [ground-noise.ts](../../packages/farm-valley/src/render/ground-noise.ts), 4
+   octaves over smoothstep value noise). It currently drives the **render-only
+   ground texture** (the committed `noise.wasm` is still hash noise and is bypassed
+   for that pass); reuse the same JS fBm as the noise-threshold source if Model B
+   shapes are pursued. Always keep
    a bounding rect (for `regionAt` fast-reject + tilling) plus a mask, and force the
    central ~7×7 plot core to land. `floodfill.wasm` exists but is unwired (no host
    loader) — plain-TS BFS is simpler at this grid size.
@@ -101,8 +116,10 @@ Phase 2 (future) — Model B organic shapes via CA + center-floodfill.
 The actionable cut of this menu is filed as
 [brief 49 — organic procgen](../briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md):
 it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on
-(**fBm + Inigo Quilez domain warping**, replacing the blocky hash kernel),
-**Simplex/octave-rotation** to kill Perlin grid artifacts, plus
+(**fBm + Inigo Quilez domain warping** — _both shipped, tracks 1–2 (render-only)_ — replacing the blocky hash kernel),
+**Simplex/octave-rotation** — _track 3 evaluated and **deferred** as a low-value
+nicety: fBm+warp already removed the grid-axis artifacts it targeted; revisit only
+if Model-B shapes need a coherent basis (see [log.md](../log.md) 2026-06-09)_ — plus
 **L-system vegetation scatter** and **authored set-pieces** (the
 handmade-procedural hybrid). Backed by an adversarially-verified research pass
 (PCG book / Red Blob Games / Quilez / GDC) — see [log.md](../log.md) 2026-06-08.

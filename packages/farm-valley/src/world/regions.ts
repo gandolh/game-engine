@@ -1,3 +1,5 @@
+import { createRng } from '@engine/core';
+
 /** Hand-authored islands with fixed coordinates. */
 export type FixedRegionId =
   | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
@@ -57,24 +59,68 @@ export const WORLD_WIDTH = 88;
 // (pitch = size + gap), so no two farm bodies are ever adjacent. Each farm hangs
 // off a per-row "collector" bridge by a short centered stub; the collectors join
 // a single vertical trunk that taps the village↔mill column, keeping the whole
-// graph a connected tree rooted at the village. All generation is pure (no RNG),
-// so it stays deterministic. See generateFarmBand() below.
+// graph a connected tree rooted at the village.
+//
+// Organic jitter (brief 49 track 4): each band farm body is nudged by a small
+// per-farm offset in X and Y so the band reads as scattered, not a perfect grid.
+// The jitter is seeded by a FIXED module-level world-gen seed (NOT the run seed),
+// so the terrain is identical on every run — exactly what we want for a stable
+// world the spectator learns. We honour the project's "all randomness flows
+// through rng.fork(label)" rule by forking from that fixed seed once at module
+// init; we never call Math.random/Date.now. See WORLD_GEN_SEED / generateFarmBand().
 // Typed as `number` (not the literal 16) so it reads as a tunable knob and the
 // `=== 0` / `> 0` guards below aren't flagged as dead comparisons.
 export const EXTRA_FARM_COUNT: number = 16; // 5 hand-authored + 16 = 21 farms (20 AI + Pip)
 const EXTRA_FARM_COLS = 6;
 const EXTRA_FARM_SIZE = 10;         // 10×10 still fits the 2×2 plot grid (PLOT_OFFSETS [-2,1])
-const EXTRA_FARM_GAP = 2;           // ≥2 ocean tiles between farm bodies → no adjacency
-const EXTRA_FARM_PITCH = EXTRA_FARM_SIZE + EXTRA_FARM_GAP; // 12
+const EXTRA_FARM_GAP = 4;           // 4-tile gutter between un-jittered farm bodies
+const EXTRA_FARM_PITCH = EXTRA_FARM_SIZE + EXTRA_FARM_GAP; // 14
 const FARM_BAND_X0 = 2;
 const FARM_BAND_Y0 = 84;            // 4-tile water gutter below the reef lanes (y≤78)
 const EXTRA_FARM_ROWS = Math.ceil(EXTRA_FARM_COUNT / EXTRA_FARM_COLS);
+
+// ── World-gen RNG (FIXED seed — NOT the run seed) ────────────────────────────
+// REGIONS/ROADS are module-level consts read by ~15 consumers; we deliberately do
+// NOT thread a per-run seed through them. Instead the procedural farm band's
+// organic jitter is drawn from this fixed seed, computed once at module load, so
+// the world layout is byte-identical on every run. This keeps the const exports
+// const, satisfies determinism (a tick's output depends only on tick count + the
+// run rng; world geometry is constant), and still routes randomness through
+// rng.fork(label) per project convention.
+export const WORLD_GEN_SEED = 0x5eed_face;
+
+// Per-farm jitter magnitude (tiles), applied independently in X and Y to each
+// band farm body. Bounded at 1 BY DESIGN so the no-adjacency invariant holds by
+// construction (budget proof below). Drawn from int(-MAG, MAG+1) → {-1,0,+1}.
+const EXTRA_FARM_JITTER = 1;
+
+// No-adjacency budget (X, the binding axis):
+//   pitch 14, size 10 → 4 ocean tiles between adjacent un-jittered farm bodies.
+//   Worst case: left farm shifts +JITTER, right farm shifts -JITTER → gutter
+//   shrinks by 2*JITTER = 2 → 4 - 2 = 2 ocean tiles ≥ 1. ✔
+// No-adjacency budget (Y):
+//   pitch 14, size 10 → row r farm bottom (jittered ≤ base+10) vs row r+1 farm
+//   top (jittered ≥ base+13): ≥ 3 ocean tiles ≥ 1, regardless of X. ✔
+// Per-farm offsets are drawn in ascending farm order (0,1,2,…) from a single
+// fork so the layout is reproducible.
+const farmJitterRng = createRng(WORLD_GEN_SEED).fork('farm-band-jitter');
+const FARM_JITTER: readonly { dx: number; dy: number }[] = Array.from(
+  { length: EXTRA_FARM_COUNT },
+  () => ({
+    dx: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
+    dy: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
+  }),
+);
 
 // World grows downward to fit the farm band; the original core (y≤79) is
 // untouched. With EXTRA_FARM_COUNT=0 this collapses to the original 80 (no rows).
 export const WORLD_HEIGHT = Math.max(
   80,
-  FARM_BAND_Y0 + EXTRA_FARM_ROWS * EXTRA_FARM_PITCH + 2, // +2 bottom water margin
+  // Last row's un-jittered farm bottom = Y0 + (ROWS-1)*PITCH + (SIZE-1); +1 for
+  // downward jitter, then ≥1 row of bottom water margin. PITCH*ROWS - GAP + 2
+  // expands to exactly that with comfortable slack (the gutter below the last row
+  // is unused), so reuse the simple closed form.
+  FARM_BAND_Y0 + EXTRA_FARM_ROWS * EXTRA_FARM_PITCH + 2, // bottom water margin
 );
 
 // ── Farm islands (12×12) ─────────────────────────────────────────────────────
@@ -145,15 +191,30 @@ function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: numb
 }
 
 // ── Procedural farm-band generation ──────────────────────────────────────────
-// Pure functions (no RNG) producing the extra farm regions + the bridge network
-// that wires them into the village-rooted road tree. Indices 0..EXTRA_FARM_COUNT-1.
+// Functions producing the extra farm regions + the bridge network that wires them
+// into the village-rooted road tree. Indices 0..EXTRA_FARM_COUNT-1. The only
+// randomness is the per-farm organic jitter (FARM_JITTER), drawn once at module
+// init from the FIXED WORLD_GEN_SEED — so the band is identical on every run.
 
-/** Bounds of extra farm `i` in the grid (row-major, COLS wide). */
-function extraFarmBounds(i: number): { minX: number; minY: number; maxX: number; maxY: number } {
+/** Un-jittered grid origin (minX,minY) of extra farm `i` (row-major, COLS wide).
+ *  The row collector is pinned to this grid line; only the farm body is jittered. */
+function extraFarmGridOrigin(i: number): { minX: number; minY: number } {
   const col = i % EXTRA_FARM_COLS;
   const row = Math.floor(i / EXTRA_FARM_COLS);
-  const minX = FARM_BAND_X0 + col * EXTRA_FARM_PITCH;
-  const minY = FARM_BAND_Y0 + row * EXTRA_FARM_PITCH;
+  return {
+    minX: FARM_BAND_X0 + col * EXTRA_FARM_PITCH,
+    minY: FARM_BAND_Y0 + row * EXTRA_FARM_PITCH,
+  };
+}
+
+/** Jittered bounds of extra farm `i`. The body is nudged by its fixed-seed
+ *  per-farm offset (±EXTRA_FARM_JITTER in each axis); the no-adjacency budget
+ *  above proves neighbours keep ≥1 ocean tile in both axes by construction. */
+function extraFarmBounds(i: number): { minX: number; minY: number; maxX: number; maxY: number } {
+  const origin = extraFarmGridOrigin(i);
+  const j = FARM_JITTER[i]!;
+  const minX = origin.minX + j.dx;
+  const minY = origin.minY + j.dy;
   return { minX, minY, maxX: minX + EXTRA_FARM_SIZE - 1, maxY: minY + EXTRA_FARM_SIZE - 1 };
 }
 
@@ -192,14 +253,17 @@ function generateFarmBand(): RoadDef[] {
   if (EXTRA_FARM_COUNT === 0) return [];
   const roads: RoadDef[] = [];
 
-  // Collector y for a given row: the 2-tile gutter directly above the row's farms.
-  // Sitting at rowMinY-2..rowMinY-1 means the collector's bottom edge is adjacent
-  // to every farm top in the row, so each farm joins the network with no separate
-  // stub. The collector itself is a road (not an island body), so farm bodies stay
-  // non-adjacent to each other — the no-adjacency invariant is about islands only.
+  // Collector y for a given row: a fixed 2-tall bridge pinned to the UN-jittered
+  // grid line, sitting in the middle of the gutter above the row's farms (gutter
+  // is rowMinY-EXTRA_FARM_GAP .. rowMinY-1, i.e. 4 tiles tall now). Pinning the
+  // collector to the grid line (not the jittered farm tops) means each farm joins
+  // the network via its own short vertical stub from the collector down to the
+  // jittered farm top. The collector is a road (not an island), so jittered farm
+  // bodies stay non-adjacent to one another — the invariant is about islands only.
   const collectorY = (row: number): { minY: number; maxY: number } => {
     const rowMinY = FARM_BAND_Y0 + row * EXTRA_FARM_PITCH;
-    return { minY: rowMinY - EXTRA_FARM_GAP, maxY: rowMinY - 1 }; // 2-tall, pure water
+    // 2-tall, centered in the 4-tile gutter: rowMinY-3 .. rowMinY-2 (pure water).
+    return { minY: rowMinY - 3, maxY: rowMinY - 2 };
   };
 
   // Trunk: from one tile below the mill's south edge straight down to the first
@@ -211,13 +275,34 @@ function generateFarmBand(): RoadDef[] {
     const farmsInRow = Math.min(EXTRA_FARM_COLS, EXTRA_FARM_COUNT - row * EXTRA_FARM_COLS);
     if (farmsInRow <= 0) break;
     const cy = collectorY(row);
-    const firstBounds = extraFarmBounds(row * EXTRA_FARM_COLS);
-    const lastBounds = extraFarmBounds(row * EXTRA_FARM_COLS + farmsInRow - 1);
 
-    // Collector spanning all of this row's farm columns plus the trunk column, so
-    // the trunk/link always meets it and every farm top is adjacent to it.
-    const colMinX = Math.min(firstBounds.minX, FARM_TRUNK_X);
-    const colMaxX = Math.max(lastBounds.maxX, FARM_TRUNK_X + 1);
+    // Per-farm stubs + the X-extent the collector must span. Each stub is a 2-wide
+    // vertical bridge centered on the JITTERED farm body, from the collector's
+    // bottom edge down to one tile above the farm's (jittered) top edge — pure
+    // water. The collector must span from the trunk column across every stub
+    // column so trunk → collector → stub → farm is always one connected tree.
+    let colMinX = FARM_TRUNK_X;
+    let colMaxX = FARM_TRUNK_X + 1;
+    for (let c = 0; c < farmsInRow; c++) {
+      const bounds = extraFarmBounds(row * EXTRA_FARM_COLS + c);
+      // Stub columns: 2-wide, left-of-center on the jittered farm (size 10 → +4,+5).
+      const stubMinX = bounds.minX + Math.floor(EXTRA_FARM_SIZE / 2) - 1;
+      const stubMaxX = stubMinX + 1;
+      colMinX = Math.min(colMinX, stubMinX);
+      colMaxX = Math.max(colMaxX, stubMaxX);
+
+      // Stub spans the water between the collector bottom and the jittered farm
+      // top. If downward jitter put the farm top directly under the collector
+      // (no gap), the farm is already adjacent to the collector — skip the stub.
+      const stubMinY = cy.maxY + 1;
+      const stubMaxY = bounds.minY - 1;
+      if (stubMaxY >= stubMinY) {
+        roads.push({ minX: stubMinX, maxX: stubMaxX, minY: stubMinY, maxY: stubMaxY });
+      }
+    }
+
+    // Collector spanning all of this row's stub columns plus the trunk column, so
+    // the trunk/link always meets it and every stub joins it.
     roads.push({ minX: colMinX, maxX: colMaxX, minY: cy.minY, maxY: cy.maxY });
 
     // Link this collector down to the next occupied row's collector (vertical, in

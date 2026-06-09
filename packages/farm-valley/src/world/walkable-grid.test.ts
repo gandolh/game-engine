@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { createRng } from '@engine/core';
 import { buildWalkableGrid } from './walkable-grid';
-import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS } from './regions';
+import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, WORLD_GEN_SEED, EXTRA_FARM_COUNT } from './regions';
 
 describe('buildWalkableGrid', () => {
   it('grid size matches WORLD_WIDTH * WORLD_HEIGHT', () => {
@@ -82,6 +83,75 @@ describe('buildWalkableGrid', () => {
         ).toBe(false);
       }
     }
+  });
+
+  it('jittered band farm bodies keep a ≥2-tile ocean margin (jitter budget holds)', () => {
+    // Brief 49 track 4: the procedural band is jittered ±1/axis from a 4-tile
+    // gutter (pitch 14, size 10). The hard invariant is ≥2 ocean tiles between
+    // any two band farm bodies (worst case 4 - 2*1 = 2). Stronger than the ≥1
+    // no-adjacency test above; proves the jitter can never crowd two farms.
+    const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id));
+    // Chebyshev-style gap between two non-overlapping axis-aligned rects: the max
+    // over axes of the inter-edge ocean-tile count. (If they overlap on an axis
+    // the gap on that axis is negative; the binding separation is the other axis.)
+    const oceanGap = (
+      a: { minX: number; minY: number; maxX: number; maxY: number },
+      b: { minX: number; minY: number; maxX: number; maxY: number },
+    ) => {
+      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
+      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
+      return Math.max(gx, gy);
+    };
+    for (let i = 0; i < band.length; i++) {
+      for (let j = i + 1; j < band.length; j++) {
+        const a = band[i]!;
+        const b = band[j]!;
+        expect(
+          oceanGap(a.bounds, b.bounds),
+          `${a.id} and ${b.id} must keep ≥2 ocean tiles`,
+        ).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('band jitter is deterministic and reproduces the live band centers', () => {
+    // The band layout is a pure function of the FIXED WORLD_GEN_SEED. Re-run the
+    // EXACT jitter derivation (same fork label, same per-farm draw order: dx then
+    // dy, ±EXTRA_FARM_JITTER=1) and confirm it (a) is stable across two draws and
+    // (b) reproduces the live band's centers when applied to the regular grid
+    // origins. A future Math.random()/Date.now(), or a change to the seed or draw
+    // order, makes this diverge — so the regression fails loudly.
+    const drawJitter = () => {
+      const rng = createRng(WORLD_GEN_SEED).fork('farm-band-jitter');
+      return Array.from({ length: EXTRA_FARM_COUNT }, () => ({
+        dx: rng.int(-1, 2),
+        dy: rng.int(-1, 2),
+      }));
+    };
+    const jitterA = drawJitter();
+    const jitterB = drawJitter();
+    expect(jitterB).toEqual(jitterA); // stable across independent draws
+
+    const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id))
+      .sort((a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)));
+    expect(band).toHaveLength(EXTRA_FARM_COUNT);
+
+    // Recover each farm's un-jittered grid center by subtracting the recomputed
+    // jitter; it must land on the regular grid (every center on the same lattice).
+    // This is non-tautological: it cross-checks the live center against an
+    // independent recomputation of the offset that produced it.
+    const gridCenters = band.map((r, i) => ({
+      x: r.center.x - jitterA[i]!.dx,
+      y: r.center.y - jitterA[i]!.dy,
+    }));
+    // All recovered origins must sit on a uniform pitch (the grid is regular):
+    // every x is one of the column lattice values, every y one of the row values.
+    const xs = [...new Set(gridCenters.map((c) => c.x))].sort((a, b) => a - b);
+    const ys = [...new Set(gridCenters.map((c) => c.y))].sort((a, b) => a - b);
+    const uniformPitch = (vals: number[]) =>
+      vals.length < 2 || vals.slice(1).every((v, k) => v - vals[k]! === vals[1]! - vals[0]!);
+    expect(uniformPitch(xs), `recovered grid columns must be evenly pitched: ${xs}`).toBe(true);
+    expect(uniformPitch(ys), `recovered grid rows must be evenly pitched: ${ys}`).toBe(true);
   });
 
   it('every region center is walkable and reachable from the village', () => {

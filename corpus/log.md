@@ -2,6 +2,39 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Brief 49 track 4 — jittered farm-band placement (Model A)
+
+**Shipped track 4: the 16-farm southern band is now organically scattered instead of a perfect grid.** Seeded X+Y jitter (±1 tile/axis) wobbles each farm off its grid origin; the village-rooted bridge tree still connects every farm by construction.
+
+- All in [regions.ts](../packages/farm-valley/src/world/regions.ts). **No `generateWorld(seed)` refactor** — the key scoping decision: `REGIONS`/`ROADS` are module-level consts consumed by ~15 files, so threading the run seed through them was out of scope. Instead jitter derives from a **fixed `WORLD_GEN_SEED = 0x5eed_face`** via `createRng(seed).fork('farm-band-jitter')`, baked at module load (terrain is identical every run — correct, and more correct than run-seeding it). `FARM_JITTER[i]` precomputed in ascending-index order so it's iteration-order-independent.
+- **Connectivity preserved by construction:** `EXTRA_FARM_GAP` widened 2→4 (pitch 12→14) for slack; collectors pinned to the un-jittered grid line; each farm gets its own 2-wide vertical stub from collector to its jittered top. Budget math guarantees ≥2 ocean tiles between any two farm bodies worst-case (gutter 4 − 2·jitter 1 = 2). `WORLD_HEIGHT` 122→128; walkable count now recomputed by the guard test (no magic number).
+- **MST bridges deliberately NOT done** — the existing collector/trunk tree already gives village-rooted connectivity; MST is overkill at this topology. Scoped out, not forgotten.
+- Proof (headless, no browser — RAM-light): `npm run typecheck` green; guard tests green (regions + walkable-grid, +2 new invariants: ≥2-tile margin, a fresh-module determinism probe, a "jitter is real / not a grid" assertion); full suite 682 passing. **`CHECK_DETERMINISM=1` MATCH ×3 seeds (0xc0ffee/1/42) at BOTH ticksPerDay=20 AND 1200** — the 20-tick path matters most ([project_mining_random_determinism]). ASCII band map confirmed visible scatter.
+- **Pre-existing issue isolated (NOT introduced by this track):** the headless sim logs `[travel] no path … to region 'undefined'` for ~2 farmers and drops the intent. Confirmed identical on a clean `git stash` of HEAD (same farmers/coords), so it predates jitter and is deterministic. Worth a follow-up but out of scope here. → candidate for open-questions.md.
+
+## [2026-06-09] decision | Brief 49 track 3 — Simplex/octave-rotation deferred
+
+**Track 3 (coherent-noise kernel: Simplex swap / octave rotation) evaluated and deferred — not implemented.** The brief itself frames it as "a quality nicety, not a rewrite" and notes Perlin/Simplex are "largely interchangeable for basic terrain." After tracks 1–2, the original complaint (blocky, **grid-axis-aligned** texture) is already gone: fBm gave spatial coherence and the domain warp destroys axis-alignment regardless of the underlying basis — verified visually (marbled streaks, no visible grid). A Simplex basis would be fixing an artifact we've already removed, and even a JS-only from-scratch Simplex is real surface area that re-opens the texture path we deliberately cleaned.
+
+- **Revisit only if Model-B organic *shapes* are pursued** and need a coherent noise-threshold basis — at which point the JS `fbm`/`domainWarp` already in [ground-noise.ts](../packages/farm-valley/src/render/ground-noise.ts) are the reusable source, and Simplex-vs-value-noise can be evaluated against that concrete need rather than as a speculative nicety.
+- No code change; recorded so the question isn't re-opened cold.
+
+## [2026-06-09] impl | Brief 49 track 2 — domain warping (render-only)
+
+**Shipped track 2: Inigo Quilez domain warping on the ground texture.** Before sampling the track-1 ground fBm, the sample coordinates are displaced by a low-frequency fBm vector field (`p' = p + k·fbm(p)`), so the cloudy patches swirl/marble organically instead of sitting as smooth blobs. Verified visually (4×-exaggerated un-tinted render): soft marbled streaks, no lava-lamp.
+
+- All in [ground-noise.ts](../packages/farm-valley/src/render/ground-noise.ts): new pure `domainWarp(x,y,seed) → [wx,wy]`; `tileBrightness` samples the ground fBm at the warped position. **Single warp layer** (not Quilez's k=4 double recursion — too busy for a faint ±0.12 multiply): `WARP_STRENGTH=1.5`, `WARP_FREQUENCY=1/16` (half the texture freq, so it bends whole patches), dx/dy decorrelated via distinct seed forks + a fixed coord offset so the warp pushes in a real 2D direction, not just the diagonal.
+- **Render-only, NOT Model B.** Deliberately scoped to warp the *texture coordinates*, not terrain *outlines* — outline warping needs the Model-B stored-walkability-grid rewrite, which stays a flagged, sign-off-gated decision (untouched here). The `domainWarp` util is reusable as the noise-threshold source if Model B is ever pursued.
+- Proof: pure & deterministic on (x,y,seed); render-only so no sim json-diff. `ground-noise.test.ts` adds domainWarp determinism/decorrelation/boundedness + a wired-in check; **known-vector regression constants re-captured** for the new warped baseline; spatial-coherence guard preserved (adjacent/far ≈0.25, still < 0.5 — confirms warp didn't go psychedelic). `npm run typecheck` green; `ground-noise.test.ts` 15 passed; palette guard green; full suite green in isolation (one determinism test flaked on a 5s parallel-load *timeout*, not a mismatch — passes 3/3 alone, determinism intact).
+
+## [2026-06-09] impl | Brief 49 track 1 — fBm ground texture (render-only)
+
+**Shipped track 1 of [briefs/game/todo/49](briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md): the blocky hash-noise ground texture is now fractional Brownian motion** — coherent cloudy patches instead of spatially-uncorrelated per-tile static. Same ±0.12 brightness amplitude; only the *character* changed.
+
+- All in JS — [packages/farm-valley/src/render/ground-noise.ts](../packages/farm-valley/src/render/ground-noise.ts) gains pure `valueNoise2d` (smoothstep-faded bilinear value noise over the existing `hash2` lattice) and `fbm(x,y,seed,octaves,lacunarity,gain)`. `tileBrightness` now samples fBm at base period ~8 tiles, **4 octaves, lacunarity 2, gain 0.5**. Per-octave seed offset `0x9e3779b1` so lattices don't align.
+- **`noise.wasm` untouched and bypassed** for the ground pass: [main/static-layer.ts](../packages/farm-valley/src/main/static-layer.ts) no longer passes `wasmBrightness`, so the JS fBm path always runs at bake (one-time cost, imperceptible). The `wasmBrightness?` param on `makeGroundNoiseDecorator` is kept for API stability. Track 3 owns the WASM kernel.
+- Proof: render-only, no sim state touched, so no sim json-diff needed. `ground-noise.test.ts` adds determinism, [0,1)/[1±amp] bounds, a hard-coded known-vector regression, and a spatial-coherence assertion (adjacent-vs-far delta ratio ≈0.24). `npm run typecheck` green; full `npm run test` green (engine 60, farm-valley 673); palette guard green; verified live in `npm run dev` (0 console errors bar a favicon 404).
+
 ## [2026-06-08] brief | Brief 49 — organic procgen (coherent noise + authored detail)
 
 **Filed [briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md](briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md)** off a deep-research pass on procedural-generation best practices (PCG book / Red Blob Games / Inigo Quilez / GDC; all claims adversarially verified). Six cheapest-first tracks: (1) **fBm** over the existing noise kernel, (2) Inigo Quilez **domain warping** for organic shapes, (3) **Simplex swap + octave rotation** to kill Perlin grid artifacts, (4) **constructive layout + MST bridges** for guaranteed connectivity, (5) **L-system / grammar** vegetation scatter, (6) **authored set-pieces / prefab stamping** (Johnson's GDC handmade-procedural hybrid).
