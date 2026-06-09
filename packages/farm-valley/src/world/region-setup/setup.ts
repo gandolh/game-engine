@@ -446,6 +446,22 @@ export function setupRegions(
     }
   }
 
+  // ── Waterfall landmark (brief 52) ────────────────────────────────────────────
+  // A single decorative BASE sprite (the static rock/cliff the water falls over)
+  // at the waterfall islet center. The cascading-water animation is drawn on top
+  // as a wall-clock render-loop overlay (render-loop.ts WATERFALL_FRAMES) — it has
+  // NO sim presence. This entity carries NO identifying component and NO behavior;
+  // the hover label is resolved frame→label in snapshot-builder/constants.ts.
+  const waterfallRegion = REGIONS.find((r) => r.id === "waterfall");
+  if (waterfallRegion) {
+    const wx = waterfallRegion.center.x;
+    const wy = waterfallRegion.center.y;
+    world.spawn({
+      transform: { x: wx, y: wy, prevX: wx, prevY: wy, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/waterfall", layer: 40, tintRgba: 0xffffffff },
+    });
+  }
+
   // ── Ambient world dressing (purely decorative sprites; no collision) ──────────
   // Props are layer-40 sprites only — they do NOT affect walkability or
   // pathfinding (only `tileFeature` trees/stones block), so these are safe to

@@ -65,6 +65,9 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   "structure/heritage-stones": { label: "Standing Stones", description: "An ancient dolmen ring — a relic of an older age. Just a landmark." },
   "structure/heritage-ruin": { label: "Ruined Tower", description: "The crumbling remains of an old watchtower. Just a landmark." },
   "structure/heritage-statue": { label: "Weathered Statue", description: "A worn monument to someone long forgotten. Just a landmark." },
+  // brief 52 — the animated waterfall landmark islet. The hover names the static
+  // base cliff; the cascade is a render-only overlay. No gameplay behavior.
+  "structure/waterfall": { label: "Waterfall", description: "Water tumbles down a mossy cliff into the sea — a scenic landmark." },
 };
 
 /** How many feed lines to ship in the snapshot (panel shows ~30). */

@@ -13,6 +13,7 @@ export {
   FORGE_OVEN_TILE,
   FORGE_SMOKE_FRAMES,
   FORGE_CHIMNEY_PX,
+  WATERFALL_FRAMES,
 } from "./frames";
 
 export {

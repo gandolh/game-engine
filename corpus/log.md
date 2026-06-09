@@ -2,6 +2,16 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Brief 52 — animated waterfall island
+
+**Shipped a reachable waterfall island with an animated cascade** — the third "more islands" brief and the first with motion. Decorative (region + bridge + sprite), animation is render-loop-only (zero sim/determinism impact).
+
+- Island: `'waterfall'` 8×8 at x64-71/y16-23, center (67,19), one 2-wide water-only bridge (x64-65, y12-15) off quarry-north's south edge. ≥2-tile ocean margin (exactly 2 to farm-atticus), BFS-reachable (guard tests assert). **No map expansion** — fit an existing NE-mid gap. [regions.ts](../packages/farm-valley/src/world/regions.ts) + `WATERFALL_TILE` export.
+- 4 new authored sprites in base-recipes.ts: `structure/waterfall` (static gorge base, spawned as the landmark in setup.ts, layer 40) + `structure/waterfall-a/-b/-c` (cascade frames — bright water-blue streaks stepping downward + a foam plunge-pool that grows/brightens A→B→C). EDG palette. Atlas regenerated deterministically (buildings.png/.json only).
+- **Animation:** `WATERFALL_FRAMES` cycled in [render-loop.ts](../packages/farm-valley/src/main/render-loop.ts) at `WATERFALL_PERIOD_MS=540` (~180ms/frame, layer 41) via `Math.floor(nowMs/(PERIOD/len))%len` — drawn in the SAME block and SAME way as the forge-fire/foam overlays. Wall-clock / render-loop only — NOT in the sim or snapshot, so no determinism path. **Verified in-browser that it actually animates** (frame cycle stepped [1,2,0] over ~400ms — not stuck) + the frames show visible downward cascade + foam growth.
+- set-pieces snapshot shifted again (new island grew the brief-49 open-water rejection set) — updated deliberately; prop count 28 + rejection invariants intact.
+- Verified: typecheck EXIT 0; guard+atlas+set-pieces 64; full suite engine 60 + farm-valley 726 + atlas-builder 4; `CHECK_DETERMINISM=1` MATCH; palette green.
+
 ## [2026-06-09] impl | Brief 51 — three decorative heritage islands
 
 **Shipped 3 reachable, purely-decorative heritage landmark islands** (standing stones / ruined tower / weathered statue) scattered across three quadrants to break the archipelago's cardinal symmetry. Presence-only — region + bridge + sprite + hover label, NO sim behavior.

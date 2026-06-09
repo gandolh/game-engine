@@ -1,6 +1,7 @@
 import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler } from "@engine/core";
 import { EDG } from "@engine/core";
-import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX } from "../render-systems";
+import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES } from "../render-systems";
+import { WATERFALL_TILE } from "../world/regions";
 import { washFor } from "../render/day-night";
 import { seasonForDay } from "../protocols/weather";
 import { HOTBAR_SLOTS } from "../systems/player-control";
@@ -212,6 +213,30 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       rotation: 0,
       layer: 6,
       alpha: 0.55,
+    });
+
+    // brief 52 — animated waterfall cascade on the decorative waterfall island.
+    // Drawn EXACTLY like the forge-fire overlay above: a 3-frame array cycled by
+    // wall-clock (Math.floor(nowMs / (PERIOD/len)) % len) and pushed as an overlay
+    // at the island's anchor tile, on top of the static `structure/waterfall` base
+    // cliff (layer 40). Layer 41 sits just above the base, like the forge fire over
+    // the oven. ~540ms A→B→C so the bright streaks step downward and read as
+    // continuously falling water. Render-only / wall-clock — NO sim, NO snapshot,
+    // NO determinism impact.
+    const WATERFALL_PERIOD_MS = 540;
+    const waterfallFrame = WATERFALL_FRAMES[
+      Math.floor(nowMs / (WATERFALL_PERIOD_MS / WATERFALL_FRAMES.length)) % WATERFALL_FRAMES.length
+    ]!;
+    renderer.push({
+      x: WATERFALL_TILE.x * TILE + TILE / 2,
+      y: WATERFALL_TILE.y * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: waterfallFrame,
+      atlasId: "buildings",
+      rotation: 0,
+      layer: 41,
+      alpha: 1,
     });
 
     // Build a position map for all farmer sprites (for meet bubbles + halo).

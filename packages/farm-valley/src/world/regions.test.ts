@@ -76,6 +76,14 @@ describe('regionAt', () => {
     expect(isWalkable(7, 73)).toBe(true);
   });
 
+  it('returns "waterfall" at its center and it is walkable (brief 52)', () => {
+    // Decorative ANIMATED landmark islet in the NE-mid open ocean (x64-71,y16-23).
+    expect(regionAt(67, 19)).toBe('waterfall'); // center
+    expect(regionAt(64, 16)).toBe('waterfall');
+    expect(regionAt(71, 23)).toBe('waterfall');
+    expect(isWalkable(67, 19)).toBe(true);
+  });
+
   it('returns null for bridge (road) tiles — walkable but not a named region', () => {
     expect(regionAt(34, 38)).toBeNull(); // village ↔ carpentry bridge
     expect(regionAt(42, 20)).toBeNull(); // village ↔ Pip bridge

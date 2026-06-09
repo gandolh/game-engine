@@ -17,7 +17,8 @@ export type FixedRegionId =
   | 'shrine'                          // Interactive shrine island — pray for a bounded AP boost (brief 50)
   | 'heritage-stones'                 // Decorative standing-stones islet (brief 51) — W-mid, no behavior
   | 'heritage-ruin'                   // Decorative ruined-tower islet (brief 51) — NE, no behavior
-  | 'heritage-statue';                // Decorative weathered-statue islet (brief 51) — SW-south, no behavior
+  | 'heritage-statue'                 // Decorative weathered-statue islet (brief 51) — SW-south, no behavior
+  | 'waterfall';                      // Decorative waterfall islet (brief 52) — N-mid-E, ANIMATED cascade, no behavior
 
 /** Procedurally-generated extra farm islands (the southern farm band). `farm-0`
  *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeExtraFarmRegion}. */
@@ -200,6 +201,30 @@ const HERITAGE_STONES_BOUNDS = { minX:  4, minY: 20, maxX: 11, maxY: 27 }; // W-
 const HERITAGE_RUIN_BOUNDS   = { minX: 76, minY: 20, maxX: 83, maxY: 27 }; // NE (below Atticus)
 const HERITAGE_STATUE_BOUNDS = { minX:  4, minY: 70, maxX: 11, maxY: 77 }; // SW-south (below Otto)
 
+// ── Waterfall island (brief 52) — a small 8×8 DECORATIVE landmark islet ───────
+// A scenic reachable islet whose landmark is an ANIMATED cascade (the only island
+// in the "more islands" set with motion). It is REACHABLE (region + one 2-wide
+// water-only bridge) but carries NO gameplay behavior: no act handler, no
+// deliberation, no perceive, no component. It exists purely as a layout body +
+// a static base-cliff sprite (the rock the water falls over) + a hover label;
+// the cascade animation is a render-loop/wall-clock overlay (see render-loop.ts
+// WATERFALL_FRAMES), exactly like the forge-fire / foam overlays — ZERO sim or
+// determinism impact.
+//
+// Placed in the open ocean of the NE-mid quadrant, in the gap between the shrine
+// (maxX 59) / blacksmith↔quarry-north bridge (x60–61) to its west and
+// heritage-ruin (minX 76) to its east, below quarry-north. This keeps it OFF the
+// archipelago's cardinal axes (it sits east of the central spine, north of the
+// mid band) so it reads as a scattered landmark, not a symmetric ring. No map
+// expansion was needed — it fits an existing open-ocean gap of the core grid.
+//
+// Margin (computed against EVERY other region body + roads; the walkable-grid
+// guard re-asserts ≥2 ocean tiles): nearest body farm-atticus at 2 ocean tiles
+// (≥2 ✔); nearest road the blacksmith↔quarry-north bridge (x60–61) at 2 ocean
+// tiles. BFS-reachable from the village over its single quarry-north bridge.
+// Center (67,19).
+const WATERFALL_BOUNDS = { minX: 64, minY: 16, maxX: 71, maxY: 23 };
+
 /** Every fishing-isle region id, so the renderer / fishing logic treat them
  *  uniformly. */
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
@@ -216,6 +241,14 @@ export const HERITAGE_REGION_IDS: readonly RegionId[] = [
   'heritage-ruin',
   'heritage-statue',
 ];
+
+/** brief 52 — the decorative ANIMATED waterfall island (no behavior). */
+export const WATERFALL_REGION_ID: RegionId = 'waterfall';
+
+/** brief 52 — the waterfall island's cascade-overlay anchor tile (its center
+ *  column / top). The render loop draws the animated cascade frames here as a
+ *  wall-clock overlay; sim/snapshot never reference it. */
+export const WATERFALL_TILE = { x: 67, y: 18 } as const;
 
 /** The dock tile where a farmer stands to deliver a contract. */
 export const HARBOR_DOCK_TILE = { x: 61, y: 68 } as const;
@@ -391,6 +424,9 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'heritage-stones', kind: 'village', bounds: HERITAGE_STONES_BOUNDS, center: midpoint(HERITAGE_STONES_BOUNDS) },
   { id: 'heritage-ruin',   kind: 'village', bounds: HERITAGE_RUIN_BOUNDS,   center: midpoint(HERITAGE_RUIN_BOUNDS) },
   { id: 'heritage-statue', kind: 'village', bounds: HERITAGE_STATUE_BOUNDS, center: midpoint(HERITAGE_STATUE_BOUNDS) },
+  // Waterfall island (brief 52) — decorative ANIMATED landmark islet; village-kind
+  // so it renders/routes as an ordinary reachable island, but carries NO behavior.
+  { id: 'waterfall', kind: 'village', bounds: WATERFALL_BOUNDS, center: midpoint(WATERFALL_BOUNDS) },
   // Procedural farm band (south) — additive; the five fixed farms above are unchanged.
   ...EXTRA_FARM_REGIONS,
 ];
@@ -452,6 +488,11 @@ const ROADS: readonly RoadDef[] = [
   { minX:  8, minY: 28, maxX:  9, maxY: 33 }, // heritage-stones ↔ mushroom-grove (down, 6 ocean tiles)
   { minX: 78, minY: 14, maxX: 79, maxY: 19 }, // heritage-ruin   ↔ farm-atticus   (up,   6 ocean tiles)
   { minX:  6, minY: 66, maxX:  7, maxY: 69 }, // heritage-statue ↔ farm-otto      (up,   4 ocean tiles)
+
+  // ── Waterfall island (brief 52) — one 2-wide water-only bridge ─────────────
+  // 2-wide, water-only, x64–65 down through y12–15 (4 ocean tiles) joining the
+  // quarry-north south edge (y11, x58–65) to the waterfall top edge (y16, x64–71).
+  { minX: 64, minY: 12, maxX: 65, maxY: 15 }, // quarry-north ↔ waterfall
 
   // ── Procedural farm band (south) — trunk + per-row collectors ──
   ...EXTRA_FARM_ROADS,

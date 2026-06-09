@@ -200,6 +200,35 @@ describe('buildWalkableGrid', () => {
       expect(walkable(h!.center.x, h!.center.y), `${id} center walkable`).toBe(true);
       expect(seen.has(idx(h!.center.x, h!.center.y)), `${id} reachable from village`).toBe(true);
     }
+
+    // brief 52 — the decorative ANIMATED waterfall islet is a real region,
+    // walkable at its center, and BFS-reachable from the village over its single
+    // quarry-north bridge.
+    const waterfall = REGIONS.find((r) => r.id === 'waterfall');
+    expect(waterfall, 'waterfall region exists').toBeTruthy();
+    expect(walkable(waterfall!.center.x, waterfall!.center.y), 'waterfall center walkable').toBe(true);
+    expect(seen.has(idx(waterfall!.center.x, waterfall!.center.y)), 'waterfall reachable from village').toBe(true);
+  });
+
+  it('the waterfall island keeps a ≥2-tile ocean margin from every other region (brief 52)', () => {
+    // The waterfall is a hand-placed landmark; assert the no-adjacency invariant
+    // holds with the ≥2-tile margin against every other island body.
+    const waterfall = REGIONS.find((r) => r.id === 'waterfall')!;
+    const oceanGap = (
+      a: { minX: number; minY: number; maxX: number; maxY: number },
+      b: { minX: number; minY: number; maxX: number; maxY: number },
+    ) => {
+      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
+      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
+      return Math.max(gx, gy);
+    };
+    for (const r of REGIONS) {
+      if (r.id === 'waterfall') continue;
+      expect(
+        oceanGap(waterfall.bounds, r.bounds),
+        `waterfall and ${r.id} must keep ≥2 ocean tiles`,
+      ).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it('each heritage islet keeps a ≥2-tile ocean margin from every other region (brief 51)', () => {

@@ -2208,6 +2208,108 @@ export const BASE_RECIPES: PixelRecipe[] = [
     ],
   },
   {
+    // brief 52 — waterfall BASE: the static rock/cliff the water falls over. A
+    // mossy dark-stone gorge (stone dark `Q`, light `q`, near-black `k` seams, with
+    // a little grass `G`/`c` cap on the clifftop) framing a recessed water channel
+    // (ocean `v`, deep `V`) that ends in a foaming plunge pool (`e` ocean foam,
+    // cream `w` froth) at the base. Drawn as the landmark; the bright animated
+    // cascade streaks are layered ON TOP by the render loop (structure/waterfall-a/
+    // b/c). Distinct from every other structure (a vertical gorge, not a tower or
+    // ring). Purely decorative.
+    name: "structure/waterfall",
+    size: 16,
+    pixels: [
+      "..GcG......GcG..",
+      ".QqkQ.vvvv.QkqQ.",
+      ".QqkQ.vVVv.QkqQ.",
+      ".QqkQ.vvvv.QkqQ.",
+      ".QkQk.vVVv.kQkQ.",
+      ".QqkQ.vvvv.QkqQ.",
+      ".QqkQ.vVVv.QkqQ.",
+      ".QkQk.vvvv.kQkQ.",
+      ".QqkQ.vVVv.QkqQ.",
+      ".QqkQ.vvvv.QkqQ.",
+      ".QkQk.vVVv.kQkQ.",
+      "..QkQ.vvvv.QkQ..",
+      "...Q.ewwwe.Q....",
+      "....ewwwwwe.....",
+      "...eewwwwwee....",
+      "....eeeeeee.....",
+    ],
+  },
+  // Waterfall cascade — frame A. TRANSPARENT base; drawn OVER structure/waterfall
+  // by the render loop as a wall-clock overlay (no determinism impact), exactly
+  // like the forge-fire over the oven. Bright water-blue streaks (ocean foam `e`,
+  // light `s`) occupy the cliff's central channel; across A→B→C the streak rows
+  // STEP DOWN one row so the column reads as continuously falling water, with a
+  // little lighter foam (`w`/`n`) at the plunge-pool base. EDG palette only.
+  {
+    name: "structure/waterfall-a",
+    size: 16,
+    pixels: [
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      ".....nwwwn......",
+      "......nwn.......",
+      "................",
+      "................",
+    ],
+  },
+  {
+    name: "structure/waterfall-b",
+    size: 16,
+    pixels: [
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      ".....wnnw.......",
+      ".....nwwwn......",
+      "......nwn.......",
+      "................",
+    ],
+  },
+  {
+    name: "structure/waterfall-c",
+    size: 16,
+    pixels: [
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......see.......",
+      "......ees.......",
+      "......nwn.......",
+      ".....wnnw.......",
+      ".....nwwwn......",
+      "......nwn.......",
+    ],
+  },
+  {
     name: "structure/mushroom-marker",
     size: 16,
     pixels: [

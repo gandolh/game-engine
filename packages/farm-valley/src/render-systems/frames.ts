@@ -50,6 +50,18 @@ export const FORGE_CHIMNEY_PX = {
   y: 36 * TILE + TILE - 48 + 2,
 } as const;
 
+/**
+ * brief 52 — animated waterfall-cascade frames, cycled by the render loop on top
+ * of the static `structure/waterfall` base (the cliff). Across A→B→C the bright
+ * water-blue streaks step DOWN a row so the column reads as continuously falling
+ * water. Wall-clock driven (no determinism impact), exactly like FORGE_FIRE_FRAMES.
+ */
+export const WATERFALL_FRAMES = [
+  "structure/waterfall-a",
+  "structure/waterfall-b",
+  "structure/waterfall-c",
+] as const;
+
 // ── Atlas sheet routing ───────────────────────────────────────────────────────
 // Mirrors PREFIX_TO_SHEET in tools/atlas-builder/src/recipes/sheet-map.ts.
 // Keep in sync when adding new frame prefixes.
