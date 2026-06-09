@@ -2,6 +2,16 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Brief 49 track 6 — decorative open-water props (render-only) + brief 50 split
+
+**Shipped track 6 (the low-risk half): decorative open-water props.** Deterministic seabed accents (rocks via `structure/stone`, sandbars via `tile/sand`/`tile/shore-sand`) scattered in open ocean — purely visual, modeled on the coral décor.
+
+- New [render-systems/set-pieces.ts](../packages/farm-valley/src/render-systems/set-pieces.ts): 28 props placed by blue-noise candidate-rejection from `createRng(WORLD_GEN_SEED).fork('set-pieces')` (the FIXED gen seed, never the run seed). Min-spacing Chebyshev 3; rejects walkable tiles, any 8-neighbour of land/road (keeps props off the coastline), coral/reef/dock/boat-lane tiles. Drawn semi-transparent (alpha 0.45) on the static layer, mirroring the coral pass. **Zero new atlas frames** (reused existing). `WORLD_GEN_SEED` was made `export` (value unchanged).
+- **NOT regions, NOT walkable** → `regions.test.ts`/`walkable-grid.test.ts` unaffected (re-verified). New `set-pieces.test.ts` (11 cases): determinism, all rejection invariants, spacing, bounds, frame-whitelist, region/road disjointness.
+- **Interactive landmark deferred to [brief 50](briefs/game/todo/50-interactive-shrine-landmark.md).** The player wanted an authored landmark island that's *interactive* (visit→small buff). That's a real gameplay feature touching the BDI loop + determinism, so it was split into its own brief rather than rushed into a render track (per brief 49's own "tracks 4–6 may each warrant a follow-up brief"). Grill the buff balance before building — a careless buff could wake the dormant [project_leader_runaway] dynamic.
+
+**Caught + fixed a latent bug from track 4 (commit 5338cfc).** The track-4 determinism guard used a `await import('./regions?determinism-probe')` vite query-suffix to force a "fresh" module — but `tsc` can't resolve that suffix, so **`farm-valley`'s package typecheck was RED** (TS2307), masked at the root because the failing workspace's output scrolled past a `tail`. The probe was also *weak* (ES module caching means a re-import doesn't actually re-run the seed). Replaced it with a real, non-tautological determinism test: recompute the jitter from the exported `WORLD_GEN_SEED` (same fork label + draw order), assert it's stable across two draws, and recover each farm's un-jittered origin (live center − recomputed jitter) and assert those origins sit on a uniform grid lattice — a `Math.random` regression would break the lattice. **Root `npm run typecheck` now EXIT 0 across all 6 workspaces; full suite 60 + 693 green.** Lesson: verify the FULL typecheck exit code, not a `tail` of its output (a failing workspace can scroll off).
+
 ## [2026-06-09] impl | Brief 49 track 4 — jittered farm-band placement (Model A)
 
 **Shipped track 4: the 16-farm southern band is now organically scattered instead of a perfect grid.** Seeded X+Y jitter (±1 tile/axis) wobbles each farm off its grid origin; the village-rooted bridge tree still connects every farm by construction.

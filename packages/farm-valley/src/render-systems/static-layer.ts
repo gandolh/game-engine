@@ -27,6 +27,7 @@ import {
   CORAL_ALPHA,
   FISHING_STATICS,
 } from "./geometry";
+import { SET_PIECES, SET_PIECE_ALPHA } from "./set-pieces";
 import { frameToAtlasId } from "./frames";
 
 const TILE = 16;
@@ -159,6 +160,25 @@ export function* iterStaticSprites(
       rotation: coral.rotation,
       layer: 2,
       alpha: CORAL_ALPHA,
+    };
+  }
+
+  // Decorative open-water props (brief 49): lone rocks + sandbar patches
+  // scattered out in the open ocean as seabed accents. Same layer/treatment as
+  // the coral — drawn semi-transparent (SET_PIECE_ALPHA) so they read as resting
+  // deep below the surface. Purely visual: set-pieces sit on non-walkable open
+  // water (kept clear of shores, coral, reefs, docks, and boat lanes by
+  // computeSetPieces) and never affect movement or sim.
+  for (const piece of SET_PIECES) {
+    yield {
+      x: piece.tx * TILE + TILE / 2,
+      y: piece.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: piece.frame,
+      rotation: piece.rotation,
+      layer: 2,
+      alpha: SET_PIECE_ALPHA,
     };
   }
 

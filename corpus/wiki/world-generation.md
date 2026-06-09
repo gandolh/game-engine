@@ -120,8 +120,12 @@ it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on
 **Simplex/octave-rotation** — _track 3 evaluated and **deferred** as a low-value
 nicety: fBm+warp already removed the grid-axis artifacts it targeted; revisit only
 if Model-B shapes need a coherent basis (see [log.md](../log.md) 2026-06-09)_ — plus
-**L-system vegetation scatter** and **authored set-pieces** (the
-handmade-procedural hybrid). Backed by an adversarially-verified research pass
+**L-system vegetation scatter** and **authored set-pieces** — _track 6
+**partially shipped**: decorative open-water props
+([render-systems/set-pieces.ts](../../packages/farm-valley/src/render-systems/set-pieces.ts),
+blue-noise seabed accents, render-only) are done; the **interactive shrine
+landmark** half was split into [brief 50](../briefs/game/todo/50-interactive-shrine-landmark.md)
+as a gameplay feature_ — (the handmade-procedural hybrid). Backed by an adversarially-verified research pass
 (PCG book / Red Blob Games / Quilez / GDC) — see [log.md](../log.md) 2026-06-08.
 
 See [architecture.md](architecture.md), [player-and-interaction.md](player-and-interaction.md)
