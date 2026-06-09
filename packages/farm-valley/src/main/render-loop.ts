@@ -57,6 +57,16 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   let lastFrameMs = performance.now();
   let gameOverShown = false;
 
+  // Render FPS cap. The sim runs in the worker (decoupled from rendering), so
+  // this only paces the main-thread draw — it never affects tick output or
+  // determinism. requestAnimationFrame fires at the display's refresh rate
+  // (120/144Hz monitors render faster than needed and waste CPU/GPU); we gate
+  // the per-frame work so we draw at most ~60×/sec. A small epsilon avoids
+  // dropping a frame that lands a hair early on a 60Hz vsync boundary.
+  const TARGET_FPS = 60;
+  const MIN_FRAME_MS = 1000 / TARGET_FPS - 1; // ~15.67ms; epsilon = 1ms
+  let lastRenderMs = performance.now() - MIN_FRAME_MS;
+
   // P0 profiling — main-thread sampler for the frame + interpolation cost. The
   // worker reports its own tick/snapshot timings via client.onProfile below.
   const frameProfiler = new Profiler({ enabled: PROFILE_ENABLED });
@@ -70,6 +80,18 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
   function renderFrame(): void {
     const frameStart = performance.now();
+
+    // FPS cap: if this rAF callback fired sooner than the target frame interval
+    // (e.g. on a high-refresh display), skip all work and reschedule. We keep
+    // using rAF (vsync-aligned, auto-throttles on hidden tabs) rather than a
+    // setInterval, just gating the work. dt is measured from the last RENDERED
+    // frame so interpolation stays smooth at the capped rate.
+    if (frameStart - lastRenderMs < MIN_FRAME_MS) {
+      requestAnimationFrame(renderFrame);
+      return;
+    }
+    lastRenderMs = frameStart;
+
     const nowMs = frameStart;
     const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
     lastFrameMs = nowMs;
