@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl+decision | Tavern AP boost → same-day; brief 53 (bar) superseded
+
+**Two linked changes from a scope call:** the user asked for a "bar island where agents spend gold for AP," then — on being reminded that the village tavern's `hire-help` ALREADY does gold→AP — chose to **skip the bar and improve the tavern instead**.
+
+- **Brief 53 (remote bar) → superseded/** (no island built). The gold→AP mechanic is the tavern's; a second venue would duplicate it. One-line note added atop the brief.
+- **Tavern hire-help is now SAME-DAY** instead of next-morning. Was (brief 44): hire at the village tavern (25g) → +40 AP on the *next* morning's wake (modeled hiring a helper for tomorrow). Now: the boost lands **immediately at hire time** in [act/handlers/build.ts](../packages/farm-valley/src/systems/act/handlers/build.ts) (`handleHireHelp`), and the next-morning application block in [perceive.ts](../packages/farm-valley/src/systems/perceive.ts) is removed (`helperHiredDay` survives purely as the once-per-day cooldown marker).
+- **Balance-safe retune:** boost reduced 40→**25** (`HELPER_AP_BOOST`, moved from perceive.ts to [ap.ts](../packages/farm-valley/src/systems/ap.ts)) and **clamped**: `ap.current = min(current + 25, maxApForDay(day) + 25)`. Smaller boost offsets the greater power of same-day AP; the clamp caps the result at ~one sane day so a rich leader can't buy same-day dominance ([project_leader_runaway]). 25g cost + once/day cooldown + the AP_COST=1 action cost all preserved. ap.max only bumped if the clamp would push current past it (vs the old always-+40-to-max).
+- Verified: typecheck EXIT 0; act+perceive tests updated (24 pass); full suite engine 60 + farm-valley 728 + atlas-builder 4; `CHECK_DETERMINISM=1` MATCH (it's a sim-trajectory change — confirmed reproducible); **economy spot-check (MAX_DAYS=20)** healthy: gold spread 45→1389g, no starvation, no runaway (believable personality gradient).
+
 ## [2026-06-09] impl | Brief 52 — animated waterfall island
 
 **Shipped a reachable waterfall island with an animated cascade** — the third "more islands" brief and the first with motion. Decorative (region + bridge + sprite), animation is render-loop-only (zero sim/determinism impact).

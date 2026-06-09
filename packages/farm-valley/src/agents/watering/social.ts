@@ -85,8 +85,9 @@ export function deliberateEarlyVillageVisit(farmer: GameEntity, priority: number
 /**
  * brief 44 — hire a day-helper at the tavern (in the village). A gold sink +
  * catch-up mechanic: when the farmer is AP-starved (ran low today) AND gold-rich
- * (comfortable surplus over reserve + the hire cost), it pays for an AP boost
- * tomorrow. Uses the excursion pattern: commit a WINNING village-travel leg so
+ * (comfortable surplus over reserve + the hire cost), it pays for a SAME-DAY AP
+ * boost (applied immediately at the tavern, see handleHireHelp). Uses the
+ * excursion pattern: commit a WINNING village-travel leg so
  * the trip actually lands. Gated so it stays a "spare gold/AP" sink, never a
  * survival need.
  *

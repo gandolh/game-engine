@@ -29,6 +29,7 @@ import {
   UPGRADE_MATERIAL,
   HIRE_HELP_GOLD_COST,
 } from "../constants";
+import { maxApForDay, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "../../ap";
 import type { ActingFarmer } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -132,17 +133,33 @@ export function handleCommissionBuild(
 }
 
 /**
- * brief 44 — hire a day-helper at the tavern. A money sink + catch-up
- * mechanic: an AP-starved, gold-rich farmer pays gold for a temporary AP boost
- * (applied at the next morning wake via helperHiredDay, see PerceiveSystem).
- * Location-gated to the village (where the tavern stands) and once per day.
+ * brief 44 — hire a day-helper at the tavern. A gold sink + catch-up mechanic:
+ * an AP-starved, gold-rich farmer pays gold for a quick hired hand (a rallying
+ * round at the tavern) that puts them back to work SAME-DAY. The AP boost lands
+ * immediately, here, at hire time — not the morning after.
+ *
+ * Bounded so it stays a catch-up sink, never pay-to-win (see
+ * project_leader_runaway): `ap.current` is topped up by HELPER_AP_BOOST but
+ * clamped to `maxApForDay(day) + HELPER_AP_MARGIN`, so a rich leader can't buy
+ * same-day dominance. `ap.max` is nudged up only if the clamped current would
+ * otherwise exceed it (keeps the current ≤ max invariant when the margin bites).
+ *
+ * Location-gated to the village (where the tavern stands). `helperHiredDay`
+ * remains the once-per-day cooldown marker even though the effect is now
+ * immediate. Pure function of sim state: no RNG, no Math.random/Date.now.
  */
 export function handleHireHelp(farmer: ActingFarmer, day: number): void {
   if (farmer.farmer?.currentRegion !== "village") return;
   if (farmer.farmer.helperHiredDay === day) return; // already hired today
   if (farmer.inventory.gold < HIRE_HELP_GOLD_COST) return;
+  if (!farmer.ap) return; // no AP component → nothing to boost
   farmer.inventory.gold -= HIRE_HELP_GOLD_COST;
-  farmer.farmer.helperHiredDay = day;
+  // Same-day AP boost, clamped so it can't snowball past ~one sane day's worth.
+  const ceiling = maxApForDay(day) + HELPER_AP_MARGIN;
+  farmer.ap.current = Math.min(farmer.ap.current + HELPER_AP_BOOST, ceiling);
+  // Preserve current ≤ max if the margin pushed current above the day ceiling.
+  if (farmer.ap.current > farmer.ap.max) farmer.ap.max = farmer.ap.current;
+  farmer.farmer.helperHiredDay = day; // once-per-day cooldown marker
 }
 
 /**

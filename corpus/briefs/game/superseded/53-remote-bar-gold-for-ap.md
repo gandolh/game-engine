@@ -1,5 +1,11 @@
 # Game Task 53 — Remote bar (spend gold for AP)
 
+> **SUPERSEDED (2026-06-09):** the "spend gold for AP" mechanic already exists as
+> the village tavern's `hire-help`. Rather than build a duplicate bar island, the
+> user chose to **improve the tavern instead** — making its AP boost land
+> **same-day** (smaller boost + AP clamp) instead of next-morning. See log.md
+> 2026-06-09 "Tavern AP boost → same-day". No bar island was built.
+
 ## Context
 
 Part of the **"more islands"** theme (user request, 2026-06-09) — see

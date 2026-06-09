@@ -112,6 +112,21 @@ export function tradeInitCost(trust: number): number {
 export const SHRINE_AP_BOOST = 12;
 export const SHRINE_COOLDOWN_DAYS = 5;
 
+/**
+ * brief 44 — the AP a tavern day-helper grants. SAME-DAY: applied immediately in
+ * the `hire-help` act handler (the quick hired hand / rallying drink puts you
+ * back to work right now), NOT the morning after. Deliberately modest (25) and
+ * clamped so a gold-rich leader can't buy same-day dominance (see
+ * project_leader_runaway): a hire tops `ap.current` up to at most
+ * `maxApForDay(day) + HELPER_AP_MARGIN`. The small margin lets an AP-starved
+ * farmer get a genuinely useful catch-up bump (a hire is gated to a low AP
+ * fraction in deliberation) without ever snowballing past roughly one sane day's
+ * worth of work. `ap.max` is nudged up only enough to preserve the
+ * current ≤ max invariant when the margin is used.
+ */
+export const HELPER_AP_BOOST = 25;
+export const HELPER_AP_MARGIN = 25;
+
 /** brief 28 — base AP on day 1. */
 export const AP_BASE_MAX = 100;
 /** brief 28 — the daily AP ceiling grows by this each day. */

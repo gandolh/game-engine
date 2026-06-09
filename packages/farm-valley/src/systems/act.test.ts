@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { World, MessageBus } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
 import { ActSystem } from "./act";
-import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS } from "./ap";
+import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "./ap";
 import { ShopkeeperSystem } from "./shopkeeper";
 import { AuctionSystem } from "./auction";
 import { InboxDispatchSystem } from "./inbox-dispatch";
@@ -228,19 +228,34 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
 });
 
 // brief 44 — hire a day-helper at the tavern: costs gold, gated to the village +
-// once per day. The AP boost itself is applied at the next morning wake.
+// once per day. The AP boost lands SAME-DAY (immediately at hire time), clamped
+// so a rich leader can't buy same-day dominance.
 describe("ActSystem hire-help (tavern day-helper)", () => {
   let world: World<GameEntity>;
   let bus: MessageBus;
   let sys: ActSystem;
 
-  function villageFarmer(opts: { gold?: number; region?: "village" | "farm-cora"; day?: number }): GameEntity {
+  function villageFarmer(opts: {
+    gold?: number;
+    region?: "village" | "farm-cora";
+    day?: number;
+    apCurrent?: number;
+    apMax?: number;
+  }): GameEntity {
+    const day = opts.day ?? 5;
     return world.spawn({
       farmer: { name: "Hannah", currentRegion: (opts.region ?? "village") as never },
       fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
       intentions: { queue: [] },
       inventory: { gold: opts.gold ?? 100, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS } },
-      beliefs: { data: { currentDay: opts.day ?? 5 }, revision: 0 },
+      ap: {
+        current: opts.apCurrent ?? 10,
+        max: opts.apMax ?? maxApForDay(day),
+        penaltyPending: false,
+        penaltyCapacity: 0,
+        away: false,
+      },
+      beliefs: { data: { currentDay: day }, revision: 0 },
     });
   }
 
@@ -250,27 +265,58 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     sys = new ActSystem(world, bus);
   });
 
-  it("charges gold and records the hire day", () => {
-    const farmer = villageFarmer({ gold: 100, day: 5 });
+  it("charges gold, boosts AP same-day, and records the hire day", () => {
+    const farmer = villageFarmer({ gold: 100, day: 5, apCurrent: 10 });
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 0 });
     expect(farmer.inventory!.gold).toBe(75); // 100 - 25
+    expect(farmer.ap!.current).toBe(10 + HELPER_AP_BOOST); // same-day boost
     expect(farmer.farmer!.helperHiredDay).toBe(5);
   });
 
+  it("a second hire the same day is a no-op (once-per-day cooldown)", () => {
+    const farmer = villageFarmer({ gold: 100, day: 5, apCurrent: 10 });
+    farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    const goldAfterFirst = farmer.inventory!.gold;
+    const apAfterFirst = farmer.ap!.current;
+    // Try again the same day.
+    farmer.fsm!.current = "ACT" as FarmerFsmState;
+    farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
+    sys.run({ tick: 1 });
+    expect(farmer.inventory!.gold).toBe(goldAfterFirst); // no further charge
+    expect(farmer.ap!.current).toBe(apAfterFirst); // no further boost
+  });
+
+  it("clamps the same-day boost to maxApForDay + margin (no snowball)", () => {
+    const day = 5;
+    const cap = maxApForDay(day);
+    // Start already at the day ceiling: the boost can't push past cap + margin.
+    const farmer = villageFarmer({ gold: 100, day, apCurrent: cap, apMax: cap });
+    farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    const ceiling = cap + HELPER_AP_MARGIN;
+    expect(farmer.ap!.current).toBe(Math.min(cap + HELPER_AP_BOOST, ceiling));
+    expect(farmer.ap!.current).toBeLessThanOrEqual(ceiling);
+    // max is nudged up to preserve current ≤ max when the margin bites.
+    expect(farmer.ap!.max).toBeGreaterThanOrEqual(farmer.ap!.current);
+  });
+
   it("does nothing when not in the village", () => {
-    const farmer = villageFarmer({ gold: 100, region: "farm-cora" });
+    const farmer = villageFarmer({ gold: 100, region: "farm-cora", apCurrent: 10 });
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 0 });
     expect(farmer.inventory!.gold).toBe(100);
+    expect(farmer.ap!.current).toBe(10); // no boost
     expect(farmer.farmer!.helperHiredDay).toBeUndefined();
   });
 
   it("does nothing when too poor to afford the hire", () => {
-    const farmer = villageFarmer({ gold: 10 });
+    const farmer = villageFarmer({ gold: 10, apCurrent: 10 });
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 0 });
     expect(farmer.inventory!.gold).toBe(10);
+    expect(farmer.ap!.current).toBe(10); // no boost
     expect(farmer.farmer!.helperHiredDay).toBeUndefined();
   });
 });
