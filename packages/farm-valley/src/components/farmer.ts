@@ -51,6 +51,13 @@ export interface Farmer {
    */
   helperHiredDay?: number;
   /**
+   * brief 50 — the sim day on which the farmer last prayed at the shrine. The
+   * pray-at-shrine act grants a small AP top-up (clamped to maxApForDay so it
+   * can never push past a normal full day); this gates re-praying to once per
+   * SHRINE_COOLDOWN_DAYS. Absent = never prayed.
+   */
+  shrinePrayedDay?: number;
+  /**
    * brief 45 — number of festival harvest contests this farmer has won. A small
    * standing bump + a recap/observer signal. Absent = never won one.
    */

@@ -72,6 +72,9 @@ export const AP_COST = {
   "commit-contract": 1,   // commit to an open harbor contract (at the harbor)
   "deliver-contract": 3,  // deliver goods to the harbor dock for a committed contract
   "build-greenhouse": 3,  // build a greenhouse at the carpenter
+  // brief 50 — pray at the shrine. The act itself is AP-free (its whole point is
+  // to GRANT AP); the cost gate is the trip + the ~5-day cooldown, not an AP fee.
+  "pray-at-shrine": 0,
 } as const;
 
 type KnownIntentKind = keyof typeof AP_COST;
@@ -93,6 +96,21 @@ export function tradeInitCost(trust: number): number {
   if (trust >= 0.5) return 2;
   return 3;
 }
+
+/**
+ * brief 50 — shrine interaction tunables.
+ *
+ * `SHRINE_AP_BOOST` — the small AP top-up `pray-at-shrine` grants. Deliberately
+ * small (≈12) and ALWAYS clamped to `maxApForDay(day)` so a prayer can never push
+ * a farmer past a normal full day's ceiling — it can't snowball a leader (see
+ * project_leader_runaway). It's a minor catch-up nudge, not a power spike.
+ *
+ * `SHRINE_COOLDOWN_DAYS` — once per ~5 days per farmer. The act sets
+ * `shrinePrayedDay`; both deliberation and the handler refuse a prayer while
+ * `day - shrinePrayedDay < SHRINE_COOLDOWN_DAYS`.
+ */
+export const SHRINE_AP_BOOST = 12;
+export const SHRINE_COOLDOWN_DAYS = 5;
 
 /** brief 28 — base AP on day 1. */
 export const AP_BASE_MAX = 100;

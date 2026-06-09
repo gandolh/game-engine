@@ -59,6 +59,13 @@ describe('regionAt', () => {
     expect(regionAt(67, 43)).toBe('blacksmith');
   });
 
+  it('returns "shrine" for tiles inside the shrine island (brief 50)', () => {
+    expect(regionAt(53, 18)).toBe('shrine');
+    expect(regionAt(56, 21)).toBe('shrine'); // center
+    expect(regionAt(59, 24)).toBe('shrine');
+    expect(isWalkable(56, 21)).toBe(true);
+  });
+
   it('returns null for bridge (road) tiles — walkable but not a named region', () => {
     expect(regionAt(34, 38)).toBeNull(); // village ↔ carpentry bridge
     expect(regionAt(42, 20)).toBeNull(); // village ↔ Pip bridge

@@ -3,6 +3,8 @@ import { recordReason, DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../com
 import type { DecorationKind, FarmDecoration } from "../../components";
 import { isWithinReach } from "../../systems/proximity";
 import { TAVERN_GATHER_TILE, TAVERN_VISIT_PERIOD, FESTIVAL_PODIUM_TILE } from "./shared";
+import { SHRINE_REGION_ID } from "../../world/regions";
+import { SHRINE_COOLDOWN_DAYS } from "../../systems/ap";
 
 /**
  * Queue a craft-decoration intent if the farmer has enough wood and hasn't
@@ -130,6 +132,80 @@ export function deliberateHireHelp(
     priority,
   });
   recordReason(farmer, `hire day-helper at tavern (AP ${farmer.ap.current}/${farmer.ap.max}, gold ${farmer.inventory.gold})`);
+}
+
+/**
+ * brief 50 — visit the interactive shrine island to pray for a small, bounded AP
+ * top-up (clamped to the day's ceiling by the act). Mirrors the mill/forage trip
+ * shape: travel-to-shrine first (lower priority number), then the AP-free
+ * `pray-at-shrine` action resolves on the shrine (ActSystem gates it on region +
+ * cooldown). Wired into the OPPORTUNIST only — it already weighs detours.
+ *
+ * Gated so it stays an occasional catch-up nudge, never a core-loop disruptor:
+ *   - off-cooldown only (≥ SHRINE_COOLDOWN_DAYS since the last prayer);
+ *   - only in the MORNING/WORK window (plenty of day left to make the round-trip
+ *     and still get home before night — never at dusk, where the sleep helper
+ *     would preempt the trip and strand the prayer, the brief-42 lesson);
+ *   - only when the farmer woke AP-starved (current ≤ half the day's ceiling —
+ *     the catch-up boost is only worth a detour then) AND no plot is wilting;
+ *   - commits a WINNING travel leg so the pilgrimage actually lands (a modest
+ *     non-committal leg gets shadowed by other chores and never reaches queue[0]).
+ * Deterministic: a pure read of day / phase / AP fraction / region / plot-sense.
+ *
+ * `travelPriority` — winning shrine-travel priority on a pilgrimage day.
+ */
+export function deliberateShrineVisit(
+  farmer: GameEntity,
+  priority: number,
+  travelPriority?: number,
+): void {
+  if (!farmer.intentions || !farmer.farmer || !farmer.ap || !farmer.beliefs) return;
+  const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
+  if (day === 0) return; // settle in first
+
+  // Only in the morning/work window — leave time for the round-trip + getting
+  // home before night (a dusk trip would be preempted by the sleep helper).
+  const phase = farmer.beliefs.data.phase as string | undefined;
+  if (phase !== "morning" && phase !== "work") return;
+
+  // Cooldown: refuse if prayed within the last SHRINE_COOLDOWN_DAYS days (the act
+  // re-gates this authoritatively; this just avoids a doomed trip).
+  const last = farmer.farmer.shrinePrayedDay;
+  if (last !== undefined && day - last < SHRINE_COOLDOWN_DAYS) return;
+
+  // AP-starved: only worth a detour when the farmer woke with a low budget (e.g.
+  // unrested → half ceiling). Compared to the day's ceiling so it's phase-stable.
+  const apFraction = farmer.ap.max > 0 ? farmer.ap.current / farmer.ap.max : 1;
+  if (apFraction > 0.55) return;
+
+  // Don't abandon a wilting farm for a luxury pilgrimage.
+  const sense = farmer.beliefs.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
+  if (sense && sense.maxDrySoFar >= 2) return;
+
+  // Don't double-queue a prayer.
+  if (farmer.intentions.queue.some((i) => i.kind === "pray-at-shrine")) return;
+
+  if (farmer.farmer.currentRegion !== SHRINE_REGION_ID) {
+    const wanted = travelPriority ?? priority - 1;
+    const existing = farmer.intentions.queue.find(
+      (i) => i.kind === "travel" && i.data.targetRegionId === SHRINE_REGION_ID,
+    );
+    if (existing) {
+      if (wanted < existing.priority) existing.priority = wanted;
+    } else {
+      farmer.intentions.queue.push({
+        kind: "travel",
+        data: { targetRegionId: SHRINE_REGION_ID },
+        priority: wanted,
+      });
+    }
+  }
+  farmer.intentions.queue.push({
+    kind: "pray-at-shrine",
+    data: {},
+    priority,
+  });
+  recordReason(farmer, `pray at shrine (AP ${farmer.ap.current}/${farmer.ap.max})`);
 }
 
 /**

@@ -413,6 +413,20 @@ export function setupRegions(
     }
   }
 
+  // ── Shrine landmark (brief 50) ───────────────────────────────────────────────
+  // A single decorative set-piece sprite at the shrine island center. The
+  // interaction (pray-at-shrine) is region-gated in ActSystem, so the sprite is
+  // purely the visible landmark; no special component needed.
+  const shrineRegion = REGIONS.find((r) => r.id === "shrine");
+  if (shrineRegion) {
+    const sx = shrineRegion.center.x;
+    const sy = shrineRegion.center.y;
+    world.spawn({
+      transform: { x: sx, y: sy, prevX: sx, prevY: sy, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/shrine", layer: 50, tintRgba: 0xffffffff },
+    });
+  }
+
   // ── Ambient world dressing (purely decorative sprites; no collision) ──────────
   // Props are layer-40 sprites only — they do NOT affect walkability or
   // pathfinding (only `tileFeature` trees/stones block), so these are safe to

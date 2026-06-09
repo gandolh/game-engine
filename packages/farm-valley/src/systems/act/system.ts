@@ -39,6 +39,7 @@ import {
   handleHarvestFruit,
 } from "./handlers/build";
 import { handleCommitContract, handleDeliverContract } from "./handlers/harbor";
+import { handlePrayAtShrine } from "./handlers/shrine";
 
 export class ActSystem implements System {
   readonly name = "ActSystem";
@@ -285,6 +286,10 @@ export class ActSystem implements System {
           }
           case "deliver-contract": {
             handleDeliverContract(farmer, intent);
+            break;
+          }
+          case "pray-at-shrine": {
+            handlePrayAtShrine(farmer, day);
             break;
           }
         }

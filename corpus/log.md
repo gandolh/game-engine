@@ -2,6 +2,17 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Brief 50 — interactive shrine island (visit→AP buff)
+
+**Shipped the first interactive island.** Opportunist farmers occasionally travel to a shrine island and "pray" for a small, bounded, cooldown-gated AP top-up. First of the "more islands" theme to land; establishes the interactive-island pattern (region+bridge + act handler + one-personality deliberation + cooldown).
+
+- **Island:** `'shrine'` region, 7×7 at x53–59/y18–24, center (56,21) — east-central open ocean, off the cardinal axes (breaks symmetry). One 2-wide water-only bridge (x58–59, y12–17) off quarry-north's south edge. **≥4 ocean tiles** to the nearest island (farm-pip) — clears the ≥2 no-adjacency margin; BFS-reachable from the village (guard-test asserted). [regions.ts](../packages/farm-valley/src/world/regions.ts).
+- **Buff (balance-safe):** `pray-at-shrine` sets `ap.current = min(ap.current + SHRINE_AP_BOOST(12), maxApForDay(day))` — **clamped to the day's ceiling so it can never exceed a normal full day** (can't snowball a leader; [project_leader_runaway]). Cooldown `SHRINE_COOLDOWN_DAYS=5` via a new `shrinePrayedDay?` on `Farmer` (mirrors `helperHiredDay`). Region-gated (only on the shrine) + cooldown-gated in BOTH the handler (authoritative) and deliberation. New [act/handlers/shrine.ts](../packages/farm-valley/src/systems/act/handlers/shrine.ts); AP cost 0 in ap.ts (the trip + cooldown ARE the cost).
+- **Deliberation:** `deliberateShrineVisit` ([agents/watering/social.ts](../packages/farm-valley/src/agents/watering/social.ts)) wired into **opportunist only**. Fires morning/work, off-cooldown, AP-starved (≤0.55 of ceiling), no wilting plot, with a winning travel priority — tuned to the established excursion pattern (deliberateHireHelp/CommissionBuild) after the initial ≤0.4-at-dusk gate never fired (the documented brief-42 dusk/sleep-preemption lesson). Instrumented runs confirm it fires occasionally, not never (~50 prayers / ~34 active days over 60 days @ 1200 ticks).
+- **New atlas sprite:** authored `structure/shrine` (a dolmen — two upright megaliths + dark lintel, gold offering on a grassy mound; EDG palette) in base-recipes.ts; atlas regenerated deterministically (`buildings.png`/`.json` only). Visually confirmed in-browser — reads clearly as a shrine, distinct from other structures.
+- **No perceive.ts change** — like deliberateMillVisit/HireHelp, the helper reads currentRegion/day/plotWater already on the farmer; nothing needed folding into beliefs.
+- Verified: typecheck EXIT 0; guard+shrine+act tests (regions/walkable/act) 48 pass; full suite engine 60 + farm-valley 722 + atlas-builder 4; `CHECK_DETERMINISM=1` MATCH @ 1200 AND 20 ticks (re-verified independently @ 1200, 21 farmers); palette guard green. Zero Math.random/Date.now (logic is a pure function of sim state — no rng fork needed).
+
 ## [2026-06-09] briefs | "More islands" theme — filed briefs 51–54
 
 **User asked for several new landmark/special islands, extending the shrine (brief 50) into a theme.** Filed four new todo briefs (numbers 51–54; 50 already existed):

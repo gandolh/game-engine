@@ -12,7 +12,7 @@ import {
 import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateShrineVisit } from "./watering";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
@@ -274,6 +274,12 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   // brief 44 — hire a day-helper at the tavern when AP-starved + gold-rich.
   deliberateHireHelp(farmer, reserve, 13, -2);
+
+  // brief 50 — occasional pilgrimage to the shrine for a small, bounded AP top-up
+  // when AP-starved and off-cooldown. Modest action priority, but a WINNING travel
+  // leg (-2) on a pilgrimage day so the trip actually lands (the opportunist is the
+  // only personality that weighs this detour).
+  deliberateShrineVisit(farmer, 12, -2);
 
   // brief 46 — harbor contracts: opportunist watches deadlines for arbitrage
   // and commits with moderate-high risk tolerance (0.7) from day 3. She's

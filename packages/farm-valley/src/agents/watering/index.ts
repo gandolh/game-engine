@@ -42,6 +42,7 @@ export {
   deliberateTavernGather,
   deliberateFestivalGather,
   deliberateCommissionBuild,
+  deliberateShrineVisit,
 } from "./social";
 
 export { deliberateHarborContract, deliberateDeliverContract } from "./harbor";

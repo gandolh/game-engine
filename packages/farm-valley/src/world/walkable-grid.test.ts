@@ -183,5 +183,33 @@ describe('buildWalkableGrid', () => {
       expect(walkable(x, y), `${region.id} center (${x},${y}) walkable`).toBe(true);
       expect(seen.has(idx(x, y)), `${region.id} center (${x},${y}) reachable from village`).toBe(true);
     }
+
+    // brief 50 — the shrine is a real region, walkable at its center, and
+    // BFS-reachable from the village over its single quarry-north bridge.
+    const shrine = REGIONS.find((r) => r.id === 'shrine');
+    expect(shrine, 'shrine region exists').toBeTruthy();
+    expect(walkable(shrine!.center.x, shrine!.center.y), 'shrine center walkable').toBe(true);
+    expect(seen.has(idx(shrine!.center.x, shrine!.center.y)), 'shrine reachable from village').toBe(true);
+  });
+
+  it('the shrine island keeps a ≥2-tile ocean margin from every other region (brief 50)', () => {
+    // The shrine is a hand-placed landmark; assert the no-adjacency invariant
+    // holds with the ≥2-tile margin against every other island body.
+    const shrine = REGIONS.find((r) => r.id === 'shrine')!;
+    const oceanGap = (
+      a: { minX: number; minY: number; maxX: number; maxY: number },
+      b: { minX: number; minY: number; maxX: number; maxY: number },
+    ) => {
+      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
+      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
+      return Math.max(gx, gy);
+    };
+    for (const r of REGIONS) {
+      if (r.id === 'shrine') continue;
+      expect(
+        oceanGap(shrine.bounds, r.bounds),
+        `shrine and ${r.id} must keep ≥2 ocean tiles`,
+      ).toBeGreaterThanOrEqual(2);
+    }
   });
 });

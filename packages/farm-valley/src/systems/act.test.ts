@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { World, MessageBus } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
 import { ActSystem } from "./act";
+import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS } from "./ap";
 import { ShopkeeperSystem } from "./shopkeeper";
 import { AuctionSystem } from "./auction";
 import { InboxDispatchSystem } from "./inbox-dispatch";
@@ -271,5 +272,91 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     sys.run({ tick: 0 });
     expect(farmer.inventory!.gold).toBe(10);
     expect(farmer.farmer!.helperHiredDay).toBeUndefined();
+  });
+});
+
+// brief 50 — pray at the interactive shrine: region-gated (must be ON the
+// shrine), cooldown-gated (once per SHRINE_COOLDOWN_DAYS), and grants a small
+// bounded AP top-up clamped to maxApForDay so it can never exceed a full day.
+describe("ActSystem pray-at-shrine (interactive shrine)", () => {
+  let world: World<GameEntity>;
+  let sys: ActSystem;
+
+  function shrineFarmer(opts: {
+    region?: "shrine" | "farm-cora";
+    day?: number;
+    apCurrent?: number;
+    apMax?: number;
+    prayedDay?: number;
+  }): GameEntity {
+    const day = opts.day ?? 5;
+    return world.spawn({
+      farmer: {
+        name: "Olin",
+        currentRegion: (opts.region ?? "shrine") as never,
+        ...(opts.prayedDay !== undefined ? { shrinePrayedDay: opts.prayedDay } : {}),
+      },
+      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+      intentions: { queue: [] },
+      inventory: { gold: 100, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS } },
+      ap: {
+        current: opts.apCurrent ?? 20,
+        max: opts.apMax ?? maxApForDay(day),
+        penaltyPending: false,
+        penaltyCapacity: 0,
+        away: false,
+      },
+      beliefs: { data: { currentDay: day }, revision: 0 },
+    });
+  }
+
+  beforeEach(() => {
+    world = new World<GameEntity>();
+    sys = new ActSystem(world);
+  });
+
+  it("raises AP by the boost and records the prayer day when ON the shrine and OFF cooldown", () => {
+    const farmer = shrineFarmer({ region: "shrine", day: 5, apCurrent: 20 });
+    farmer.intentions!.queue.push({ kind: "pray-at-shrine", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.ap!.current).toBe(20 + SHRINE_AP_BOOST);
+    expect(farmer.farmer!.shrinePrayedDay).toBe(5);
+  });
+
+  it("clamps the boost to maxApForDay (never exceeds a full day)", () => {
+    const day = 5;
+    const cap = maxApForDay(day);
+    const farmer = shrineFarmer({ region: "shrine", day, apCurrent: cap - 3, apMax: cap });
+    farmer.intentions!.queue.push({ kind: "pray-at-shrine", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.ap!.current).toBe(cap); // would be cap+9 unclamped
+    expect(farmer.ap!.current).toBeLessThanOrEqual(maxApForDay(day));
+  });
+
+  it("is a no-op when NOT on the shrine", () => {
+    const farmer = shrineFarmer({ region: "farm-cora", day: 5, apCurrent: 20 });
+    farmer.intentions!.queue.push({ kind: "pray-at-shrine", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.ap!.current).toBe(20);
+    expect(farmer.farmer!.shrinePrayedDay).toBeUndefined();
+  });
+
+  it("is a no-op while still on cooldown (< SHRINE_COOLDOWN_DAYS since last prayer)", () => {
+    // prayed on day 5, now day 5 + (cooldown - 1) → still on cooldown.
+    const day = 5 + (SHRINE_COOLDOWN_DAYS - 1);
+    const farmer = shrineFarmer({ region: "shrine", day, apCurrent: 20, prayedDay: 5 });
+    farmer.intentions!.queue.push({ kind: "pray-at-shrine", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.ap!.current).toBe(20);
+    expect(farmer.farmer!.shrinePrayedDay).toBe(5); // unchanged
+  });
+
+  it("prays again once the cooldown has elapsed", () => {
+    const day = 5 + SHRINE_COOLDOWN_DAYS;
+    const farmer = shrineFarmer({ region: "shrine", day, apCurrent: 20, prayedDay: 5 });
+    farmer.intentions!.queue.push({ kind: "pray-at-shrine", data: {}, priority: 0 });
+    sys.run({ tick: 0 });
+    expect(farmer.ap!.current).toBe(20 + SHRINE_AP_BOOST);
+    expect(farmer.farmer!.shrinePrayedDay).toBe(day);
   });
 });

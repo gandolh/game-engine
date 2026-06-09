@@ -13,7 +13,8 @@ export type FixedRegionId =
   | 'ice-pond'                        // Seasonal zone (winter-only field work) — NW gap
   | 'fishing-isle'                    // Sand island you fish from (any ocean edge) — S of mill
   | 'fishing-isle-2'                  // Second sand fishing island — S of forest-south (SW)
-  | 'harbor';                         // Harbor island — shipping dock + contract board (brief 46)
+  | 'harbor'                          // Harbor island — shipping dock + contract board (brief 46)
+  | 'shrine';                         // Interactive shrine island — pray for a bounded AP boost (brief 50)
 
 /** Procedurally-generated extra farm islands (the southern farm band). `farm-0`
  *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeExtraFarmRegion}. */
@@ -165,12 +166,26 @@ const FISHING_ISLE_2_BOUNDS = { minX: 22, minY: 68, maxX: 29, maxY: 75 };
 // NPC, and the arriving cargo ship. 8×8 keeps it small like the fishing isles.
 const HARBOR_BOUNDS = { minX: 58, minY: 68, maxX: 65, maxY: 75 };
 
+// ── Shrine island (brief 50) — a small 7×7 authored landmark ──────────────────
+// An interactive set-piece in the east-central open ocean, deliberately OFF the
+// archipelago's cardinal axes (it sits between the Pip↔village bridge corridor at
+// x42–43 and the blacksmith↔quarry column at x60–61) so it breaks the layout's
+// N/S/E/W symmetry. A farmer travels here and `pray-at-shrine` for a small,
+// cooldown-gated AP top-up. It hangs off quarry-north (its nearest island) by a
+// single 2-wide water-only bridge. Budget: nearest island body is farm-pip at 4
+// ocean tiles (≥2 no-adjacency margin holds comfortably); BFS-reachable from the
+// village (walkable-grid test asserts both). Center (56,21).
+const SHRINE_BOUNDS = { minX: 53, minY: 18, maxX: 59, maxY: 24 };
+
 /** Every fishing-isle region id, so the renderer / fishing logic treat them
  *  uniformly. */
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
 
 /** The harbor island where shipping contracts are posted (brief 46). */
 export const HARBOR_REGION_ID: RegionId = 'harbor';
+
+/** brief 50 — the interactive shrine island (pray for a bounded AP boost). */
+export const SHRINE_REGION_ID: RegionId = 'shrine';
 
 /** The dock tile where a farmer stands to deliver a contract. */
 export const HARBOR_DOCK_TILE = { x: 61, y: 68 } as const;
@@ -340,6 +355,7 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'fishing-isle',   kind: 'village', bounds: FISHING_ISLE_BOUNDS,    center: midpoint(FISHING_ISLE_BOUNDS) },
   { id: 'fishing-isle-2', kind: 'village', bounds: FISHING_ISLE_2_BOUNDS,  center: midpoint(FISHING_ISLE_2_BOUNDS) },
   { id: 'harbor',         kind: 'village', bounds: HARBOR_BOUNDS,          center: midpoint(HARBOR_BOUNDS) },
+  { id: 'shrine',         kind: 'village', bounds: SHRINE_BOUNDS,          center: midpoint(SHRINE_BOUNDS) },
   // Procedural farm band (south) — additive; the five fixed farms above are unchanged.
   ...EXTRA_FARM_REGIONS,
 ];
@@ -390,6 +406,11 @@ const ROADS: readonly RoadDef[] = [
 
   // ── Harbor (brief 46) — hangs off quarry-south, due south ──────────────────
   { minX: 60, minY: 64, maxX: 61, maxY: 67 }, // quarry-south ↔ harbor
+
+  // ── Shrine (brief 50) — hangs off quarry-north, due south of it ────────────
+  // 2-wide, water-only, x58–59 down through y12–17 (6 ocean tiles) joining the
+  // quarry-north south edge (y11) to the shrine top edge (y18).
+  { minX: 58, minY: 12, maxX: 59, maxY: 17 }, // quarry-north ↔ shrine
 
   // ── Procedural farm band (south) — trunk + per-row collectors ──
   ...EXTRA_FARM_ROADS,
