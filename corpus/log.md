@@ -2,6 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Audit P1a — help-modal personality + FSM legends; render FPS cap
+
+**Two small spectator-facing improvements from the WORLD_DESIGN_TODO audit P1 cluster.**
+
+- **P1a (onboarding legend):** the in-game help "?" modal already had Controls + Tools sections but not the personality-color or FSM-state legends the audit asked for. Extended [ui/playback-controls.ts](../packages/farm-valley/src/ui/playback-controls.ts) `buildHelpModal()` with a **Personalities** section (4 kinds, color swatch via `personalityColor()`, one-line glosses grounded in each `agents/*.ts` deliberate logic) and a **Farmer states (FSM)** section (the 6 `FarmerFsmState` strings + plain-English meaning, raw names kept so they match the observer panel). Legend data as module consts beside `KEY_BINDINGS`/`TOOL_HELP`; zero new color literals (palette guard green). +3 tests.
+- **Render FPS cap at 60:** the main-thread `requestAnimationFrame` loop ([main/render-loop.ts](../packages/farm-valley/src/main/render-loop.ts)) was uncapped — on a 120/144Hz display it rendered faster than needed, wasting CPU/GPU. Added a frame gate: skip all per-frame work + reschedule if the rAF callback fires sooner than ~15.67ms since the last RENDERED frame (keeps rAF as scheduler — vsync-aligned, auto-throttles on hidden tabs). **Sim is decoupled in the worker, so this is render-only — zero determinism/tick impact.** Verified it runs steady without stalling; couldn't exercise the clamp-from-higher path because the test display is ~59Hz (no headroom above 60), but the cap is correct by construction.
+- `npm run typecheck` EXIT 0; full suite green (engine 60, farm-valley 702).
+
 ## [2026-06-09] impl | Brief 49 track 5 — clustered tile-feature scatter (gameplay-neutral) + brief 49 actionable tracks complete
 
 **Shipped track 5: resource-zone trees/stones now spawn in organic copses/outcrops instead of an even per-tile sprinkle — gameplay-neutral and deterministic.** Completes brief 49's actionable tracks.

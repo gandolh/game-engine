@@ -1,5 +1,7 @@
 import { createEl, setText, applyStyles } from "./dom";
 import { EDG } from "@engine/core/render";
+import { personalityColor } from "./colors";
+import type { FarmerFsmState } from "../components/farmer";
 
 /** Keybindings shown in the help modal — [keys, what they do]. */
 const KEY_BINDINGS: ReadonlyArray<readonly [string, string]> = [
@@ -24,6 +26,45 @@ const TOOL_HELP: ReadonlyArray<readonly [string, string, string]> = [
   ["🌱", "Radish", "Plant radish seeds on your tilled plot"],
   ["🌾", "Wheat", "Plant wheat seeds on your tilled plot"],
   ["🎃", "Pumpkin", "Plant pumpkin seeds on your tilled plot"],
+];
+
+/**
+ * The four farmer personalities, with a one-line gloss grounded in each
+ * personality's deliberate* logic (see agents/conservative|aggressive|hoarder|
+ * opportunist.ts). The swatch color is driven through personalityColor() so the
+ * legend always matches the observer panel and stays on-palette. — [kind, gloss].
+ */
+const PERSONALITY_HELP: ReadonlyArray<readonly [string, string]> = [
+  [
+    "conservative",
+    "Plays it safe: waters every plot early, expands slowly, plants the cheapest in-season crop, and leans hardest into patient capital (orchard, livestock, greenhouse).",
+  ],
+  [
+    "aggressive",
+    "Chases profit: over-plants and waters lazily, expands fast, plants the priciest in-season crop, undercuts the market wall, and takes the riskiest harbor contracts.",
+  ],
+  [
+    "hoarder",
+    "Accumulates: waters religiously, buys up cheap radish offers ranked by trust, wins and keeps the golden bean, and stockpiles toward livestock and a greenhouse.",
+  ],
+  [
+    "opportunist",
+    "Reads the market: plants by weather and season, posts at fair price or dumps by supply, buys the best-trust wall offer, and fishes the coral reef readily.",
+  ],
+];
+
+/**
+ * The farmer FSM states, in cycle order, each with a plain-English gloss. The
+ * raw state string matches what the observer panel shows (see FarmerFsmState in
+ * components/farmer.ts). — [state, gloss].
+ */
+const FSM_HELP: ReadonlyArray<readonly [FarmerFsmState, string]> = [
+  ["WAIT_DAY", "Waiting at the start of the day for work to begin"],
+  ["PERCEIVE", "Sensing the world — crops, prices, weather, neighbours"],
+  ["DELIBERATE", "Choosing what to do next (its personality picks intentions)"],
+  ["ACT", "Carrying out the chosen task"],
+  ["FINISH_DAY", "Wrapping up the day's work"],
+  ["SLEEP", "Resting at home for the night"],
 ];
 
 /**
@@ -242,6 +283,44 @@ export class PlaybackControlsPanel {
         createEl("span", { text: name, style: { color: EDG.gold } }),
       );
       card.appendChild(this.helpRow(label, effect));
+    }
+
+    // ── Personalities section ──
+    // One row per kind: a color swatch (driven by personalityColor so it matches
+    // the observer panel + stays on-palette), the kind name, and a truthful gloss.
+    card.appendChild(this.sectionTitle("Personalities"));
+    for (const [kind, gloss] of PERSONALITY_HELP) {
+      const label = createEl("span", {
+        style: { display: "flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap" },
+      });
+      const swatch = createEl("span", {
+        style: {
+          flex: "0 0 auto",
+          width: "10px",
+          height: "10px",
+          borderRadius: "2px",
+          background: personalityColor(kind),
+        },
+      });
+      label.appendChild(swatch);
+      label.appendChild(createEl("span", { text: kind, style: { color: EDG.gold } }));
+      card.appendChild(this.helpRow(label, gloss));
+    }
+
+    // ── Farmer states section ──
+    // One row per FSM state, in cycle order. The raw state string matches the
+    // observer panel; the right cell explains what the farmer is doing.
+    card.appendChild(this.sectionTitle("Farmer states (FSM)"));
+    for (const [state, gloss] of FSM_HELP) {
+      card.appendChild(
+        this.helpRow(
+          createEl("span", {
+            text: state,
+            style: { color: EDG.gold, whiteSpace: "nowrap" },
+          }),
+          gloss,
+        ),
+      );
     }
 
     backdrop.appendChild(card);

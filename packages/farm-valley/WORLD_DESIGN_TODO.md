@@ -225,7 +225,7 @@ issue in #5 above).
 - [x] 🔬 Fix `PERSONALITY_COLORS` keys so chips aren't all default purple; extracted shared `ui/colors.ts` used by observer + leaderboard (ui/colors.ts, observer.ts, leaderboard.ts)
 - [ ] Differentiate farmer WORK sprites per personality (currently pixel-identical) + idle silhouettes/hats (recipes.ts:1083-1168, 173-435)
 - [ ] Add crop/farmer/tool visual state indicators (thirsty/dying/exhausted/broken) (render-systems.ts:251-266)
-- [ ] Add an in-game legend / onboarding ("?" panel: personalities, FSM states, controls) (home-screen.ts:143, observer.ts:297)
+- [x] Add an in-game legend / onboarding ("?" panel: personalities, FSM states, controls) — *the "?" modal (playback-controls.ts) already had Controls + Tools; extended it with Personalities (color-swatch legend) + Farmer-states (FSM) sections (2026-06-09)*
 - [ ] Add discoverable focus-on-farmer affordances (hint, "Following: X", bold "Why:", stronger highlight, rename Reset→Unfollow) (observer.ts:116,205,223-234,306-325)
 
 ### P2 — Polish
