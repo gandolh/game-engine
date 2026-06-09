@@ -1,7 +1,7 @@
 import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler } from "@engine/core";
 import { EDG } from "@engine/core";
-import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES } from "../render-systems";
-import { WATERFALL_TILE } from "../world/regions";
+import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES } from "../render-systems";
+import { WATERFALL_TILE, CAMPFIRE_TILE } from "../world/regions";
 import { washFor } from "../render/day-night";
 import { seasonForDay } from "../protocols/weather";
 import { HOTBAR_SLOTS } from "../systems/player-control";
@@ -233,6 +233,29 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       width: TILE,
       height: TILE,
       frame: waterfallFrame,
+      atlasId: "buildings",
+      rotation: 0,
+      layer: 41,
+      alpha: 1,
+    });
+
+    // brief 54 — animated campfire flicker on the camping island. Drawn EXACTLY
+    // like the forge-fire / waterfall overlays above: a 3-frame array cycled by
+    // wall-clock (Math.floor(nowMs / (PERIOD/len)) % len) and pushed as an overlay
+    // at the campfire tile, on top of the static `structure/campfire` base (the
+    // stone ring + logs, layer 40 from setup). Layer 41 sits just above the base,
+    // like the forge fire over the oven. ~390ms A→B→C so the flame flickers.
+    // Render-only / wall-clock — NO sim, NO snapshot, NO determinism impact.
+    const CAMPFIRE_PERIOD_MS = 390;
+    const campfireFrame = CAMPFIRE_FRAMES[
+      Math.floor(nowMs / (CAMPFIRE_PERIOD_MS / CAMPFIRE_FRAMES.length)) % CAMPFIRE_FRAMES.length
+    ]!;
+    renderer.push({
+      x: CAMPFIRE_TILE.x * TILE + TILE / 2,
+      y: CAMPFIRE_TILE.y * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: campfireFrame,
       atlasId: "buildings",
       rotation: 0,
       layer: 41,

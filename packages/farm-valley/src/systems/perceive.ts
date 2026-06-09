@@ -15,6 +15,7 @@ import { isActivePhase, isNightPhase, type DayPhase } from "./day-phase";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
 import { maxApForDay } from "./ap";
 import { ONT_HARBOR } from "../protocols/harbor";
+import { CAMP_REGION_ID } from "../world/regions";
 
 export class PerceiveSystem implements System {
   readonly name = "PerceiveSystem";
@@ -167,12 +168,19 @@ export class PerceiveSystem implements System {
     }
 
     if (isNightPhase(body.phase)) {
-      // Nightfall: sleep. Home → rested; away → unrested (halves tomorrow's AP).
+      // Nightfall: sleep. RESTED (full AP tomorrow) if the farmer is HOME, or
+      // (brief 54) camped on the camping island; otherwise away → unrested
+      // (halves tomorrow's AP). Camp rest is FULLY rested — same as home, no
+      // partial tier. Both conditions require the farmer to have settled (no path).
+      const settledTile = farmer.farmer?.path === undefined;
       const home =
         farmer.farmer?.homeRegion !== undefined &&
         farmer.farmer.currentRegion === farmer.farmer.homeRegion &&
-        farmer.farmer.path === undefined;
-      if (farmer.ap) farmer.ap.unrested = !home;
+        settledTile;
+      const onCamp =
+        farmer.farmer?.currentRegion === CAMP_REGION_ID && settledTile;
+      const rested = home || onCamp;
+      if (farmer.ap) farmer.ap.unrested = !rested;
       if (settled) farmer.fsm.current = "SLEEP";
       return;
     }

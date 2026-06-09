@@ -462,6 +462,31 @@ export function setupRegions(
     });
   }
 
+  // ── Camping island landmark (brief 54) ──────────────────────────────────────
+  // A big TENT sprite at the camp island center + a static CAMPFIRE base beside
+  // it. The campfire's flame flicker is drawn ON TOP as a wall-clock render-loop
+  // overlay (render-loop.ts CAMPFIRE_FRAMES) — it has NO sim presence. Neither
+  // entity carries an identifying component or behavior; the REST effect is a
+  // passive region check in PerceiveSystem's night block (currentRegion ==='camp'
+  // ⇒ rested). The tent hover label is resolved frame→label in
+  // snapshot-builder/constants.ts (DECORATION_LABELS).
+  const campRegion = REGIONS.find((r) => r.id === "camp");
+  if (campRegion) {
+    const cx = campRegion.center.x; // 71
+    const cy = campRegion.center.y; // 72
+    world.spawn({
+      transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/tent", layer: 50, tintRgba: 0xffffffff },
+    });
+    // Campfire base beside the tent (two tiles east — matches CAMPFIRE_TILE the
+    // render loop animates the flame over). Layer 40 so the layer-41 flame
+    // overlay sits just above it.
+    world.spawn({
+      transform: { x: cx + 2, y: cy, prevX: cx + 2, prevY: cy, rotation: 0 },
+      sprite: { atlasId: "main", frame: "structure/campfire", layer: 40, tintRgba: 0xffffffff },
+    });
+  }
+
   // ── Ambient world dressing (purely decorative sprites; no collision) ──────────
   // Props are layer-40 sprites only — they do NOT affect walkability or
   // pathfinding (only `tileFeature` trees/stones block), so these are safe to

@@ -2309,6 +2309,132 @@ export const BASE_RECIPES: PixelRecipe[] = [
       "......nwn.......",
     ],
   },
+  // ── Camping island (brief 54) ───────────────────────────────────────────────
+  // The big TENT — island centerpiece. A wide canvas A-frame tent: cream/white
+  // canvas (`w`) with red trim/banding (`r`), a dark triangular door opening (`k`)
+  // and wood pole/peg detail (`d`/`D`) at the base, on a little grass apron
+  // (`G`/`c`). Larger visual weight than the other landmarks — it fills most of
+  // the 16×16 cell and reads clearly as a tent (a broad triangle, distinct from
+  // the towers/rings/statues). Purely decorative; the rest effect is region-gated.
+  {
+    name: "structure/tent",
+    size: 16,
+    pixels: [
+      "................",
+      ".......w........",
+      "......www.......",
+      "......wrw.......",
+      ".....wwrww......",
+      ".....wwrww......",
+      "....wwwrwww.....",
+      "....wwrkrww.....",
+      "...wwwrkrwww....",
+      "...wwrrkrrww....",
+      "..wwwrrkrrwww...",
+      "..wrwrrkrrwrw...",
+      ".dwwwwrkrwwwwd..",
+      ".DGcwwwwwwwcGD..",
+      "..GGcGGGGGcGG...",
+      "...cGGGGGGGc....",
+    ],
+  },
+  // Campfire — static BASE (the spawned landmark). A ring of stones (`Q`/`q`)
+  // around two crossed logs (`d`/`D`) with a small resting ember (`r`/`o`). The
+  // animated flame (campfire-a/b/c) is layered ON TOP by the render loop as a
+  // wall-clock overlay (no determinism impact), exactly like the forge fire over
+  // the oven. EDG palette only (fire reds/oranges + wood + stone).
+  {
+    name: "structure/campfire",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "......ror.......",
+      ".....rooor......",
+      "....Q.dDd.Q.....",
+      "...Qq.DdD.qQ....",
+      "...Qq.dDd.qQ....",
+      "....QqqqqqQ.....",
+      ".....QQQQQ......",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  // Campfire flame — frame A. TRANSPARENT base; drawn OVER structure/campfire by
+  // the render loop (wall-clock overlay, no sim/determinism impact), like the
+  // forge fire over the oven. Flames: r (rust/base) → o (gold) → y (yellow tip).
+  // Across A→B→C the flame shape + brightness vary so the fire flickers.
+  {
+    name: "structure/campfire-a",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      ".......y........",
+      ".......o........",
+      "......yoy.......",
+      "......oyo.......",
+      ".....rooor......",
+      ".....rooor......",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    name: "structure/campfire-b",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      ".......y........",
+      "......y.y.......",
+      ".......o........",
+      "......yoy.......",
+      ".....yooooy.....",
+      ".....rooyor.....",
+      ".....rooooor....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
+  {
+    name: "structure/campfire-c",
+    size: 16,
+    pixels: [
+      "................",
+      "................",
+      "................",
+      "................",
+      ".......y........",
+      "......yoy.......",
+      ".....y.o.y......",
+      "......yoy.......",
+      ".....rooor......",
+      ".....rooyor.....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+  },
   {
     name: "structure/mushroom-marker",
     size: 16,

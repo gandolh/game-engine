@@ -62,6 +62,18 @@ export const WATERFALL_FRAMES = [
   "structure/waterfall-c",
 ] as const;
 
+/**
+ * brief 54 — animated campfire-flame frames, cycled by the render loop on top of
+ * the static `structure/campfire` base (the stone ring + logs) at the camping
+ * island. Across A→B→C the flame shape + brightness vary for a simple flicker.
+ * Wall-clock driven (no determinism impact), exactly like FORGE_FIRE_FRAMES.
+ */
+export const CAMPFIRE_FRAMES = [
+  "structure/campfire-a",
+  "structure/campfire-b",
+  "structure/campfire-c",
+] as const;
+
 // ── Atlas sheet routing ───────────────────────────────────────────────────────
 // Mirrors PREFIX_TO_SHEET in tools/atlas-builder/src/recipes/sheet-map.ts.
 // Keep in sync when adding new frame prefixes.

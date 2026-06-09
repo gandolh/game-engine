@@ -84,6 +84,14 @@ describe('regionAt', () => {
     expect(isWalkable(67, 19)).toBe(true);
   });
 
+  it('returns "camp" at its center and it is walkable (brief 54)', () => {
+    // Camping islet in the SE open ocean, E of the harbor (x68-75,y69-76).
+    expect(regionAt(71, 72)).toBe('camp'); // center
+    expect(regionAt(68, 69)).toBe('camp');
+    expect(regionAt(75, 76)).toBe('camp');
+    expect(isWalkable(71, 72)).toBe(true);
+  });
+
   it('returns null for bridge (road) tiles — walkable but not a named region', () => {
     expect(regionAt(34, 38)).toBeNull(); // village ↔ carpentry bridge
     expect(regionAt(42, 20)).toBeNull(); // village ↔ Pip bridge

@@ -99,6 +99,26 @@ describe("PerceiveSystem — intra-day phases (brief 27)", () => {
     expect(f.ap!.unrested).toBe(true);
   });
 
+  it("night PHASE_START camped on the camp island → SLEEP, RESTED (brief 54)", () => {
+    // A farmer caught away from home but standing on the camping island at
+    // nightfall sleeps rested (no unrested penalty), same as sleeping at home.
+    const f = spawnFarmer(world, { region: "camp", home: "farm-cora" });
+    pushPhase(f, "night");
+    sys.run({ tick: 1080 });
+    expect(f.fsm!.current).toBe("SLEEP");
+    expect(f.ap!.unrested).toBe(false); // camp = fully rested
+  });
+
+  it("night PHASE_START camped but still travelling (path set) → unrested (brief 54)", () => {
+    // The rest only counts once the farmer has settled on the tile; a farmer
+    // mid-path over the camp at nightfall is still unrested.
+    const f = spawnFarmer(world, { region: "camp", home: "farm-cora" });
+    f.farmer!.path = { waypoints: [{ x: 71, y: 72 }], nextIndex: 0, ticksUntilStep: 1 };
+    pushPhase(f, "night");
+    sys.run({ tick: 1080 });
+    expect(f.ap!.unrested).toBe(true);
+  });
+
   it("does not interrupt a farmer mid-cycle (only re-arms from WAIT_DAY/SLEEP)", () => {
     const f = spawnFarmer(world);
     f.fsm!.current = "ACT"; // mid deliberation/act

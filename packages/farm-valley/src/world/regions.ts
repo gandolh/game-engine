@@ -18,7 +18,8 @@ export type FixedRegionId =
   | 'heritage-stones'                 // Decorative standing-stones islet (brief 51) — W-mid, no behavior
   | 'heritage-ruin'                   // Decorative ruined-tower islet (brief 51) — NE, no behavior
   | 'heritage-statue'                 // Decorative weathered-statue islet (brief 51) — SW-south, no behavior
-  | 'waterfall';                      // Decorative waterfall islet (brief 52) — N-mid-E, ANIMATED cascade, no behavior
+  | 'waterfall'                       // Decorative waterfall islet (brief 52) — N-mid-E, ANIMATED cascade, no behavior
+  | 'camp';                           // Camping islet (brief 54) — SE (E of harbor); rest AWAY from home with no unrested penalty
 
 /** Procedurally-generated extra farm islands (the southern farm band). `farm-0`
  *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeExtraFarmRegion}. */
@@ -225,6 +226,30 @@ const HERITAGE_STATUE_BOUNDS = { minX:  4, minY: 70, maxX: 11, maxY: 77 }; // SW
 // Center (67,19).
 const WATERFALL_BOUNDS = { minX: 64, minY: 16, maxX: 71, maxY: 23 };
 
+// ── Camping island (brief 54) — a small 8×8 reachable landmark with a REST effect ─
+// A campsite islet in the SE open ocean, directly EAST of the harbor and just
+// below Hannah's farm — squarely in the far-from-home travel band (harbor
+// contracts, the two southern fishing isles, the SE end of the procedural farm
+// band). A farmer caught here at nightfall sleeps RESTED (full AP next morning)
+// instead of suffering the away-from-home `unrested` half-AP penalty (see
+// perceive.ts night block). This is the ONLY behavior change — it is a passive
+// effect of standing on the region at nightfall; no act handler / deliberation /
+// cooldown / component. The landmark art is a big TENT at the center + an
+// animated CAMPFIRE beside it (the flicker is a render-loop/wall-clock overlay,
+// like the forge fire / waterfall — ZERO sim impact).
+//
+// Placed OFF the cardinal axes (E of the harbor, below Hannah) so it reads as a
+// scattered landmark, not a symmetric ring. It hangs off the harbor (its nearest
+// island) by a single 2-wide water-only bridge. No map expansion was needed — it
+// fits an existing open-ocean gap of the southern corridor.
+//
+// Margin (computed against EVERY other region body; the walkable-grid guard
+// re-asserts ≥2 ocean tiles): nearest body is the harbor at exactly 2 ocean tiles
+// (x66–67 — the bridge fills that gutter), Hannah's farm at 2 (above). Camp body
+// x68–75 (maxX 75 < WORLD_WIDTH 88) × y69–76. BFS-reachable from the village over
+// its single harbor bridge. Center (71,72).
+const CAMP_BOUNDS = { minX: 68, minY: 69, maxX: 75, maxY: 76 };
+
 /** Every fishing-isle region id, so the renderer / fishing logic treat them
  *  uniformly. */
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
@@ -244,6 +269,17 @@ export const HERITAGE_REGION_IDS: readonly RegionId[] = [
 
 /** brief 52 — the decorative ANIMATED waterfall island (no behavior). */
 export const WATERFALL_REGION_ID: RegionId = 'waterfall';
+
+/** brief 54 — the camping islet. A farmer caught here at nightfall sleeps
+ *  RESTED (no away-from-home penalty). The only behavior is the perceive.ts
+ *  night-check extension (`onCamp`); the island otherwise routes/renders like
+ *  any other reachable landmark. */
+export const CAMP_REGION_ID: RegionId = 'camp';
+
+/** brief 54 — the camping islet's campfire-overlay anchor tile (beside the tent
+ *  at the island center). The render loop draws the animated campfire flicker
+ *  frames here as a wall-clock overlay; sim/snapshot never reference it. */
+export const CAMPFIRE_TILE = { x: 73, y: 72 } as const;
 
 /** brief 52 — the waterfall island's cascade-overlay anchor tile (its center
  *  column / top). The render loop draws the animated cascade frames here as a
@@ -427,6 +463,10 @@ export const REGIONS: readonly RegionDef[] = [
   // Waterfall island (brief 52) — decorative ANIMATED landmark islet; village-kind
   // so it renders/routes as an ordinary reachable island, but carries NO behavior.
   { id: 'waterfall', kind: 'village', bounds: WATERFALL_BOUNDS, center: midpoint(WATERFALL_BOUNDS) },
+  // Camping island (brief 54) — village-kind so it renders/routes as an ordinary
+  // reachable island; its ONLY behavior is the passive rested-away rest effect
+  // (perceive.ts night block), not an act handler.
+  { id: 'camp', kind: 'village', bounds: CAMP_BOUNDS, center: midpoint(CAMP_BOUNDS) },
   // Procedural farm band (south) — additive; the five fixed farms above are unchanged.
   ...EXTRA_FARM_REGIONS,
 ];
@@ -493,6 +533,12 @@ const ROADS: readonly RoadDef[] = [
   // 2-wide, water-only, x64–65 down through y12–15 (4 ocean tiles) joining the
   // quarry-north south edge (y11, x58–65) to the waterfall top edge (y16, x64–71).
   { minX: 64, minY: 12, maxX: 65, maxY: 15 }, // quarry-north ↔ waterfall
+
+  // ── Camping island (brief 54) — one 2-wide water-only bridge ───────────────
+  // Horizontal, x66–67 (the only 2 ocean tiles between the harbor east edge at
+  // x65 and the camp west edge at x68), y71–72 — inside both islands' y-overlap.
+  // Joins the harbor (its nearest hub island) to the camp; pure water.
+  { minX: 66, minY: 71, maxX: 67, maxY: 72 }, // harbor ↔ camp
 
   // ── Procedural farm band (south) — trunk + per-row collectors ──
   ...EXTRA_FARM_ROADS,

@@ -2,6 +2,16 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Brief 54 — camping island (rest away from home) — completes the "more islands" theme
+
+**Shipped the camping island: a farmer caught away from home at night can sleep RESTED (full AP) on it instead of suffering the unrested half-AP penalty.** The fifth and final "more islands" brief — the theme is now complete (50 shrine, 51 heritage ×3, 52 waterfall, 53 bar→superseded/tavern, 54 camp).
+
+- **The one mechanic change** — [perceive.ts](../packages/farm-valley/src/systems/perceive.ts) night block: `rested = home || onCamp` where `onCamp = currentRegion === CAMP_REGION_ID && path === undefined`. **Fully rested, same as home** (no partial tier); the travel cost to reach the camp IS the tradeoff. **Passive** — no new deliberation/act/cooldown/component; a farmer who happens to be on the camp at nightfall is rescued. (Active "route to camp when far + late" is a deferred follow-up.)
+- **Island:** `'camp'` 8×8 at x68-75/y69-76, one 2-wide water-only bridge off the harbor's east edge (x66-67). Placed in the SE corner deliberately — near the harbor, the two southern fishing isles, and the SE farm band, i.e. exactly where farmers on long trips get caught away at night, so the passive rescue actually triggers. ≥2-tile margin + BFS-reachable via harbor (guard tests assert). No map expansion.
+- **Art (user-directed):** big `structure/tent` (cream A-frame, red banding, centerpiece) spawned at center + `structure/campfire` base beside it; `structure/campfire-a/b/c` 3-frame flicker cycled in [render-loop.ts](../packages/farm-valley/src/main/render-loop.ts) (`CAMPFIRE_PERIOD_MS=390`, layer 41) the same wall-clock way as forge-fire/waterfall — render-only, no determinism impact. **Verified in-browser**: tent reads as a centerpiece, campfire animates (cycle steps 2→0→1 over ~280ms). Atlas regenerated deterministically (buildings.png/.json).
+- set-pieces scatter NOT shifted this time (the SE gap wasn't sampled) — count 28 unchanged, no snapshot edit.
+- Verified: typecheck EXIT 0; rest unit test (on-camp⇒rested, away⇒unrested, home⇒rested) + guard + atlas + set-pieces tests; full suite engine 60 + farm-valley 732 + atlas-builder 4; `CHECK_DETERMINISM=1` MATCH @ 1200 AND 20 ticks (rest-override changes the trajectory — confirmed reproducible); palette green.
+
 ## [2026-06-09] impl+decision | Tavern AP boost → same-day; brief 53 (bar) superseded
 
 **Two linked changes from a scope call:** the user asked for a "bar island where agents spend gold for AP," then — on being reminded that the village tavern's `hire-help` ALREADY does gold→AP — chose to **skip the bar and improve the tavern instead**.

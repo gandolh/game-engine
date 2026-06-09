@@ -68,6 +68,10 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   // brief 52 — the animated waterfall landmark islet. The hover names the static
   // base cliff; the cascade is a render-only overlay. No gameplay behavior.
   "structure/waterfall": { label: "Waterfall", description: "Water tumbles down a mossy cliff into the sea — a scenic landmark." },
+  // brief 54 — the camping island landmarks. A farmer caught here at nightfall
+  // sleeps rested (no away-from-home penalty); the tent + campfire mark the spot.
+  "structure/tent": { label: "Campsite Tent", description: "A traveller's tent. Sleep here when caught far from home and you wake fully rested." },
+  "structure/campfire": { label: "Campfire", description: "A crackling campfire warms the campsite — sleep here to wake rested." },
 };
 
 /** How many feed lines to ship in the snapshot (panel shows ~30). */

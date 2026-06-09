@@ -208,6 +208,34 @@ describe('buildWalkableGrid', () => {
     expect(waterfall, 'waterfall region exists').toBeTruthy();
     expect(walkable(waterfall!.center.x, waterfall!.center.y), 'waterfall center walkable').toBe(true);
     expect(seen.has(idx(waterfall!.center.x, waterfall!.center.y)), 'waterfall reachable from village').toBe(true);
+
+    // brief 54 — the camping island is a real region, walkable at its center, and
+    // BFS-reachable from the village over its single harbor bridge.
+    const camp = REGIONS.find((r) => r.id === 'camp');
+    expect(camp, 'camp region exists').toBeTruthy();
+    expect(walkable(camp!.center.x, camp!.center.y), 'camp center walkable').toBe(true);
+    expect(seen.has(idx(camp!.center.x, camp!.center.y)), 'camp reachable from village').toBe(true);
+  });
+
+  it('the camping island keeps a ≥2-tile ocean margin from every other region (brief 54)', () => {
+    // The camp is a hand-placed landmark; assert the no-adjacency invariant holds
+    // with the ≥2-tile margin against every other island body.
+    const camp = REGIONS.find((r) => r.id === 'camp')!;
+    const oceanGap = (
+      a: { minX: number; minY: number; maxX: number; maxY: number },
+      b: { minX: number; minY: number; maxX: number; maxY: number },
+    ) => {
+      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
+      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
+      return Math.max(gx, gy);
+    };
+    for (const r of REGIONS) {
+      if (r.id === 'camp') continue;
+      expect(
+        oceanGap(camp.bounds, r.bounds),
+        `camp and ${r.id} must keep ≥2 ocean tiles`,
+      ).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it('the waterfall island keeps a ≥2-tile ocean margin from every other region (brief 52)', () => {

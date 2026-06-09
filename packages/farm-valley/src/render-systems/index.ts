@@ -14,6 +14,7 @@ export {
   FORGE_SMOKE_FRAMES,
   FORGE_CHIMNEY_PX,
   WATERFALL_FRAMES,
+  CAMPFIRE_FRAMES,
 } from "./frames";
 
 export {
