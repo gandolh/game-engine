@@ -14,38 +14,43 @@ bordering ocean, `computeBridges` decks road-only tiles touching ocean,
 `computeIslandEdges` themes margins. **So any walkable shape automatically gets
 foam + shore + bridge decking for free.**
 
-Two layout halves:
+As of **2026-06-09** the layout is **RADIAL on a 160×160 map** (was an 88×80 core
++ southern grid band): a central cluster of services, two concentric farm rings on
+the rim. Two halves:
 
-- **Fixed core (hand-authored, `y ≤ 79`):** village hub (center), the five named
-  farms (Pip top-center, Cora/Atticus/Otto/Hannah in the four corners), craft
-  islands, resource zones, mill, wells, seasonal zones, two fishing isles, harbor.
-  Coordinates are literal consts; unchanged.
-- **Procedural farm band (`y ≥ 84`):** `EXTRA_FARM_COUNT` (=16) extra farms on a
-  **seed-jittered grid** (brief 49 track 4 — ±1-tile X/Y wobble off a regular grid,
-  from a fixed `WORLD_GEN_SEED`; was a pure grid before) — see below. Added to scale
-  the roster from 5 to **21 farmers (20 AI + Pip)** without hand-authoring 16 islands.
+- **Central cluster (hand-authored):** village hub at **dead-center (75–86 ×
+  75–86, center 80,80)**, craft islands flanking it E/W, resource zones on the
+  diagonals, seasonal zones north, shrine + waterfall on a north-center band,
+  fishing isles + harbor + camp south, heritage islets in the gaps. Literal
+  `bounds` consts.
+- **Radial farm rings:** all 21 farms (5 named + `EXTRA_FARM_COUNT`=16 procedural)
+  ring the cluster near the edges. Scales the roster to **21 farmers (20 AI +
+  Pip)** with the homesteads-on-the-frontier read.
 
-### Procedural farm band (implemented)
+### Radial rings + spoke bridges (implemented)
 
 In [regions.ts](../../packages/farm-valley/src/world/regions.ts):
 
 - `RegionId = FixedRegionId | ExtraFarmRegionId` where `ExtraFarmRegionId =
-  \`farm-${number}\`` (`farm-0`..`farm-15`). Named fixed farms (`farm-cora`…) keep
-  their ids, so all fixed-island tests/consumers are untouched.
-- Grid: `EXTRA_FARM_COLS=6`, `EXTRA_FARM_SIZE=10`, `EXTRA_FARM_GAP=4` →
-  `EXTRA_FARM_PITCH=14` (gap widened from 2 in brief 49 track 4 to make room for
-  jitter). Each farm is then jittered ±1 tile per axis; pitch − size − 2·jitter =
-  **≥2-tile ocean gap worst-case → no farm body is ever adjacent to another**
-  (constructive, can't violate). `WORLD_HEIGHT` is derived from the row count
-  (88×80 → **88×128** at 16 jittered farms).
-- Bridges (`generateFarmBand`): a vertical **trunk** taps the mill's south edge
-  (x48–49) and runs down through open ocean; one horizontal **collector** per row
-  sits in the gutter above its farms, pinned to the un-jittered grid line and
-  X-spanning all jittered farms in the row; each farm hangs off its collector by
-  its own short 2-wide vertical **stub** (added in track 4 to absorb the Y-jitter —
-  previously farms were adjacent to the collector with no stub); short vertical
-  **links** join the collectors down the trunk column. Result is a connected tree
-  rooted at the village; bridges span only water.
+  \`farm-${number}\`` (`farm-0`..`farm-15`). Named farms (`farm-cora`…) keep their
+  ids and ARE the inner ring's even slots.
+- `ringSlotBounds(ring, k, size)` places farm k of a ring of n at
+  `angle = φ + 2π·k/n`, `center = round(80 + R·{cos,sin}angle)`, then derives the
+  `size`-square bounds (12 named / 10 procedural). **Inner ring** n=9, R=52,
+  φ=−90° (named on even slots, farm-0..3 on odd); **outer ring** n=12, R=72,
+  φ=−75° (farm-4..15). `makeRadialFarmRegion(i)` does the index→slot mapping, then
+  nudges each by a fixed-seed ±1 jitter (fork `farm-ring-jitter` off `WORLD_GEN_SEED`).
+- **No-adjacency by construction:** min farm-farm ocean gap **7** (≥2 holds after
+  jitter), min cluster-to-farm gap **3**. `WORLD_WIDTH = WORLD_HEIGHT = 160` (plain
+  consts now — the old band-height derivation + `EXTRA_FARM_COLS/SIZE/GAP/PITCH` are
+  gone).
+- **Bridge tree:** `CLUSTER_BRIDGES` (≈20 hand-authored pairs) + `generateFarmSpokes()`
+  (one spoke per farm to the nearest island that yields a clean straight bridge —
+  inner farms target cluster islands, outer farms target inner-farms∪cluster).
+  `straightBridge(a,b)` scans every 2-wide window along the islands' overlap and
+  returns the first rect that overlaps no island and edge-touches only its two
+  endpoints, so a spoke auto-dodges a third island (e.g. well-north sitting between
+  quarry-north and heritage-ruin). 41 bridges, full BFS connectivity from village.
 - Farmer→farm assignment is **by `homeRegion` carried on each `FarmerSpec`**
   (set in `makeExtraFarmerSpecs`, [sim-bootstrap.ts](../../packages/farm-valley/src/sim-bootstrap.ts)),
   replacing the old `PERSONALITY_TO_REGION` map. Extra farmers cycle the four AI
