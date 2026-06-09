@@ -2,6 +2,19 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Audit P1d — per-personality work-sprite silhouettes (completes the P1 spectator-UX cluster)
+
+**The four AI farmers are now distinct at a glance in EVERY pose — including the work loop the audit flagged as pixel-identical.** Added a per-personality HAT SILHOUETTE (shape, not just color) so the personality reads even mid-work.
+
+- All in the atlas-builder recipes. New `PERSONALITY_HATS` overlay + `applyPersonalityHat()`/`applyFarmerLook()` in [tools/atlas-builder/src/recipes/templates.ts](../tools/atlas-builder/src/recipes/templates.ts); wired into [recipes/index.ts](../tools/atlas-builder/src/recipes/index.ts) so the hat stamps onto EVERY farmer frame — generated action poses + facings via `applyFarmerLook`, and the hand-authored down idle/walk frames via a post-stamp by name. (Idle/walk down frames are hand-authored literals; up/side + all action poses are generated — the hat had to apply to both paths.)
+- Hat shapes (rows 0–3 only, clear of tool pixels at rows 7+): conservative=flat band, aggressive=red spiked/crown, hoarder=gold wide-brim (overhangs ±1px), opportunist=cap+gold feather; pip keeps its distinct gold/green. All chars are valid EDG palette entries.
+- **Atlas regenerated** — only `packages/farm-valley/public/atlas/characters.png` changed (frame count/sizes identical, so the JSON manifest is unchanged); build is deterministic (two builds → byte-identical PNG).
+- New `personality-hats.test.ts` (atlas-builder, +vitest pinned 4.1.7 + a `test` script) asserts the four **work** AND **till** frames are pairwise non-identical, and that the hat never overwrites tool pixels (body rows 4+ byte-match the colour-subbed-only frame). Directly refutes the audit's "pixel-identical work frames."
+- `package-lock.json`: adds atlas-builder's vitest dep; also reconciled a pre-existing stale `@engine/core` entry under run-sim (drift `npm install` corrected — run-sim's package.json never declared it).
+- Verified: typecheck EXIT 0 (all 6 workspaces); atlas.test.ts 16/16; palette guard 6/6; full suite engine 60 + farm-valley 715 + atlas-builder 4. **Visually confirmed in-browser** (rendered the 4 personalities × idle/work/walk from the regenerated atlas): all four clearly distinct, the work pose now reads per-personality via hat silhouette.
+
+**WORLD_DESIGN_TODO audit P1 cluster COMPLETE** — P1a (legend), P1b (focus affordances), P1c (state indicators), P1d (work sprites) all shipped 2026-06-09. Remaining audit items are P2 polish.
+
 ## [2026-06-09] impl | Audit P1b — discoverable focus-on-farmer affordances
 
 **Click-to-follow is now discoverable.** From the WORLD_DESIGN_TODO P1 cluster. All in [ui/observer/panel.ts](../packages/farm-valley/src/ui/observer/panel.ts) (+ types.ts, +4 tests) — pure main-thread UI, no sim/determinism.

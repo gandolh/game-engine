@@ -180,6 +180,106 @@ export function applyPersonalitySubs(
   );
 }
 
+// ── Per-personality HAT SILHOUETTE overlay ────────────────────────────────────
+// The four AI farmers' WORK/action poses previously shared one silhouette and
+// differed only by a weak head-colour swap — effectively pixel-identical during
+// the core farming loop. To make each farmer read at a glance in ANY pose, we
+// stamp a distinct hat SHAPE onto the HEAD region of every farmer frame.
+//
+// Each hat is a sparse 16-wide overlay covering ONLY the top head rows (0–3).
+// A `.` means "leave the underlying pixel untouched"; any other char is stamped
+// over it. The head/hair block sits at rows 2–6 and faces/eyes start at row 4,
+// so confining the hat to rows 0–3 keeps it on the head and well clear of the
+// tool pixels (`m q Q W o s e`), which only ever appear at the arms/sides on
+// rows 7+ in the action poses. (Verified per pose — no hat row overlaps a tool.)
+//
+// All chars below are valid EDG32 palette chars (see palette.ts):
+//   w=cream, r=red/rust, D=wood-dark, s=structure-blue-lt, o=gold, k=near-black.
+//
+// Shapes:
+//   conservative — plain flat hat (cream band across the crown).
+//   aggressive   — spiked / pointed hat (jagged near-black spikes above a band).
+//   hoarder      — wide-brim hat (a band whose brim extends 1px each side).
+//   opportunist  — cap with a feather/peak (blue cap + an asymmetric gold feather).
+//   pip (player) — its own gold crown, distinct from all four AI farmers.
+// Each hat band is chosen to CONTRAST with that personality's (substituted)
+// hair colour so the shape reads even on the head, not only via the overhang:
+//   conservative hair=y → cream `w` band
+//   aggressive   hair=k → red  `r` spikes
+//   hoarder      hair=D → gold `o` wide brim
+//   opportunist  hair=s → red  `r` cap + gold `o` feather
+//   pip          hair=o → red  `r` crown
+export const PERSONALITY_HATS: Record<string, readonly string[]> = {
+  // Flat brimmed cream band hugging the crown.
+  conservative: [
+    "................",
+    "................",
+    ".....wwwww......",
+    "....w.....w.....",
+  ],
+  // Jagged red spikes poking above a red band (reads against the black head).
+  aggressive: [
+    "................",
+    ".....r.r.r......",
+    ".....rrrrr......",
+    "....r.....r.....",
+  ],
+  // Wide brim: gold band on row 2, brim overhanging 1px each side on row 3.
+  hoarder: [
+    "................",
+    "................",
+    ".....ooooo......",
+    "...ooooooooo....",
+  ],
+  // Cap with a forward-right feather/peak (asymmetric gold pixel above a red cap).
+  opportunist: [
+    "..........o.....",
+    ".........ro.....",
+    ".....rrrrr......",
+    "....r.....r.....",
+  ],
+  // Pip's own rounded red crown — clearly distinct from the AI hats above.
+  pip: [
+    "................",
+    "......rrr.......",
+    ".....rrrrr......",
+    "....r.....r.....",
+  ],
+};
+
+// Stamp a personality's hat onto a (already personality-substituted) pose.
+// Only non-`.` overlay chars overwrite the underlying pixel; everything else is
+// preserved. The overlay only ever touches rows 0–3, so it never disturbs the
+// body, face, legs, or any action-pose tool pixels (all at rows 7+).
+export function applyPersonalityHat(
+  pixels: readonly string[],
+  personality: string,
+): readonly string[] {
+  const hat = PERSONALITY_HATS[personality];
+  if (!hat) return pixels;
+  return pixels.map((row, y) => {
+    const overlay = hat[y];
+    if (!overlay) return row;
+    let out = "";
+    for (let x = 0; x < row.length; x++) {
+      const stamp = overlay.charAt(x);
+      out += stamp !== "" && stamp !== "." ? stamp : row.charAt(x);
+    }
+    return out;
+  });
+}
+
+// Convenience: apply colour subs then stamp the hat, the canonical farmer-frame
+// transform. Used by the recipe generator for every farmer frame so the hat is
+// applied UNIFORMLY across idle, walk, all facings, and all action poses.
+export function applyFarmerLook(
+  pixels: readonly string[],
+  personality: string,
+  subs: Record<string, string>,
+): readonly string[] {
+  return applyPersonalityHat(applyPersonalitySubs(pixels, subs), personality);
+}
+
 // ── Directional facing frames (3-way: down / up / side) ──────────────────────
 // The existing `farmer/<p>` (+ /walk-a /walk-b) frames are the DOWN (front)
 // facing. Here we author UP (back) and SIDE (profile, right-facing) variants for

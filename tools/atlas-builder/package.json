@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsx src/index.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@types/pngjs": "6.0.5",
-    "tsx": "4.22.3"
+    "tsx": "4.22.3",
+    "vitest": "4.1.7"
   }
 }
