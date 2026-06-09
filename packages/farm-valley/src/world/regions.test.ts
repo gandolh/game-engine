@@ -66,6 +66,16 @@ describe('regionAt', () => {
     expect(isWalkable(56, 21)).toBe(true);
   });
 
+  it('returns the heritage islets at their centers and they are walkable (brief 51)', () => {
+    // Three purely-decorative landmark islets in three quadrants.
+    expect(regionAt(7, 23)).toBe('heritage-stones');  // center of x4-11,y20-27
+    expect(regionAt(79, 23)).toBe('heritage-ruin');   // center of x76-83,y20-27
+    expect(regionAt(7, 73)).toBe('heritage-statue');  // center of x4-11,y70-77
+    expect(isWalkable(7, 23)).toBe(true);
+    expect(isWalkable(79, 23)).toBe(true);
+    expect(isWalkable(7, 73)).toBe(true);
+  });
+
   it('returns null for bridge (road) tiles — walkable but not a named region', () => {
     expect(regionAt(34, 38)).toBeNull(); // village ↔ carpentry bridge
     expect(regionAt(42, 20)).toBeNull(); // village ↔ Pip bridge

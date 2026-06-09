@@ -60,6 +60,11 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   "decoration/hay-bale": { label: "Hay Bale", description: "A bale of hay — just scenery." },
   "decoration/bush": { label: "Bush", description: "A leafy bush — just scenery." },
   "decoration/log-stack": { label: "Log Stack", description: "Stacked logs — just scenery." },
+  // brief 51 — heritage-site landmark islets. Decorative only; the hover names
+  // them so spectators read the world's "history". No gameplay behavior.
+  "structure/heritage-stones": { label: "Standing Stones", description: "An ancient dolmen ring — a relic of an older age. Just a landmark." },
+  "structure/heritage-ruin": { label: "Ruined Tower", description: "The crumbling remains of an old watchtower. Just a landmark." },
+  "structure/heritage-statue": { label: "Weathered Statue", description: "A worn monument to someone long forgotten. Just a landmark." },
 };
 
 /** How many feed lines to ship in the snapshot (panel shows ~30). */

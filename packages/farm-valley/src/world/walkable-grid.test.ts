@@ -190,6 +190,39 @@ describe('buildWalkableGrid', () => {
     expect(shrine, 'shrine region exists').toBeTruthy();
     expect(walkable(shrine!.center.x, shrine!.center.y), 'shrine center walkable').toBe(true);
     expect(seen.has(idx(shrine!.center.x, shrine!.center.y)), 'shrine reachable from village').toBe(true);
+
+    // brief 51 — the three decorative heritage islets are real regions, walkable
+    // at their centers, and BFS-reachable from the village over their single
+    // bridges (one to mushroom-grove, one to Atticus, one to Otto).
+    for (const id of ['heritage-stones', 'heritage-ruin', 'heritage-statue'] as const) {
+      const h = REGIONS.find((r) => r.id === id);
+      expect(h, `${id} region exists`).toBeTruthy();
+      expect(walkable(h!.center.x, h!.center.y), `${id} center walkable`).toBe(true);
+      expect(seen.has(idx(h!.center.x, h!.center.y)), `${id} reachable from village`).toBe(true);
+    }
+  });
+
+  it('each heritage islet keeps a ≥2-tile ocean margin from every other region (brief 51)', () => {
+    // The three heritage sites are hand-placed landmarks; assert the no-adjacency
+    // invariant holds with the ≥2-tile margin against every other island body.
+    const oceanGap = (
+      a: { minX: number; minY: number; maxX: number; maxY: number },
+      b: { minX: number; minY: number; maxX: number; maxY: number },
+    ) => {
+      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
+      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
+      return Math.max(gx, gy);
+    };
+    for (const id of ['heritage-stones', 'heritage-ruin', 'heritage-statue'] as const) {
+      const h = REGIONS.find((r) => r.id === id)!;
+      for (const r of REGIONS) {
+        if (r.id === id) continue;
+        expect(
+          oceanGap(h.bounds, r.bounds),
+          `${id} and ${r.id} must keep ≥2 ocean tiles`,
+        ).toBeGreaterThanOrEqual(2);
+      }
+    }
   });
 
   it('the shrine island keeps a ≥2-tile ocean margin from every other region (brief 50)', () => {

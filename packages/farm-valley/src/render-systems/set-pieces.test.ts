@@ -36,9 +36,9 @@ describe("set-pieces (decorative open-water props)", () => {
     expect(first).toMatchInlineSnapshot(`
       [
         {
-          "frame": "structure/stone",
-          "tx": 37,
-          "ty": 54,
+          "frame": "tile/sand",
+          "tx": 14,
+          "ty": 16,
         },
         {
           "frame": "structure/stone",

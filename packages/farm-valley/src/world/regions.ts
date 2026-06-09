@@ -14,7 +14,10 @@ export type FixedRegionId =
   | 'fishing-isle'                    // Sand island you fish from (any ocean edge) — S of mill
   | 'fishing-isle-2'                  // Second sand fishing island — S of forest-south (SW)
   | 'harbor'                          // Harbor island — shipping dock + contract board (brief 46)
-  | 'shrine';                         // Interactive shrine island — pray for a bounded AP boost (brief 50)
+  | 'shrine'                          // Interactive shrine island — pray for a bounded AP boost (brief 50)
+  | 'heritage-stones'                 // Decorative standing-stones islet (brief 51) — W-mid, no behavior
+  | 'heritage-ruin'                   // Decorative ruined-tower islet (brief 51) — NE, no behavior
+  | 'heritage-statue';                // Decorative weathered-statue islet (brief 51) — SW-south, no behavior
 
 /** Procedurally-generated extra farm islands (the southern farm band). `farm-0`
  *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeExtraFarmRegion}. */
@@ -177,6 +180,26 @@ const HARBOR_BOUNDS = { minX: 58, minY: 68, maxX: 65, maxY: 75 };
 // village (walkable-grid test asserts both). Center (56,21).
 const SHRINE_BOUNDS = { minX: 53, minY: 18, maxX: 59, maxY: 24 };
 
+// ── Heritage sites (brief 51) — three purely DECORATIVE landmark islets ───────
+// Three small 8×8 authored landmarks that break the archipelago's cardinal
+// symmetry and give the world a sense of history. They are REACHABLE (region +
+// one 2-wide water-only bridge each) but have NO gameplay behavior: no act
+// handler, no deliberation, no perceive, no cooldown, no component. They exist
+// purely as a layout body + a center sprite + a hover label. Placed in three
+// different quadrants (W-mid, NE, SW-south) so they read as scattered relics,
+// NOT a fourth symmetric ring. No map expansion was needed — all three fit in
+// existing open-ocean gaps of the original 88×80 core.
+//
+// Margins (computed against EVERY other region body + the farm band; the
+// walkable-grid guard re-asserts ≥2 ocean tiles):
+//   stones : nearest body farm-cora at 6 ocean tiles  (≥2 ✔)
+//   ruin   : nearest body farm-atticus at 6 ocean tiles (≥2 ✔)
+//   statue : nearest body farm-otto at 4 ocean tiles  (≥2 ✔)
+// Each is BFS-reachable from the village over its single bridge (guard asserts).
+const HERITAGE_STONES_BOUNDS = { minX:  4, minY: 20, maxX: 11, maxY: 27 }; // W-mid (above mushroom-grove)
+const HERITAGE_RUIN_BOUNDS   = { minX: 76, minY: 20, maxX: 83, maxY: 27 }; // NE (below Atticus)
+const HERITAGE_STATUE_BOUNDS = { minX:  4, minY: 70, maxX: 11, maxY: 77 }; // SW-south (below Otto)
+
 /** Every fishing-isle region id, so the renderer / fishing logic treat them
  *  uniformly. */
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
@@ -186,6 +209,13 @@ export const HARBOR_REGION_ID: RegionId = 'harbor';
 
 /** brief 50 — the interactive shrine island (pray for a bounded AP boost). */
 export const SHRINE_REGION_ID: RegionId = 'shrine';
+
+/** brief 51 — the three purely-decorative heritage-site islets (no behavior). */
+export const HERITAGE_REGION_IDS: readonly RegionId[] = [
+  'heritage-stones',
+  'heritage-ruin',
+  'heritage-statue',
+];
 
 /** The dock tile where a farmer stands to deliver a contract. */
 export const HARBOR_DOCK_TILE = { x: 61, y: 68 } as const;
@@ -356,6 +386,11 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'fishing-isle-2', kind: 'village', bounds: FISHING_ISLE_2_BOUNDS,  center: midpoint(FISHING_ISLE_2_BOUNDS) },
   { id: 'harbor',         kind: 'village', bounds: HARBOR_BOUNDS,          center: midpoint(HARBOR_BOUNDS) },
   { id: 'shrine',         kind: 'village', bounds: SHRINE_BOUNDS,          center: midpoint(SHRINE_BOUNDS) },
+  // Heritage sites (brief 51) — decorative landmark islets; village-kind so they
+  // render/route as ordinary reachable islands, but carry NO gameplay behavior.
+  { id: 'heritage-stones', kind: 'village', bounds: HERITAGE_STONES_BOUNDS, center: midpoint(HERITAGE_STONES_BOUNDS) },
+  { id: 'heritage-ruin',   kind: 'village', bounds: HERITAGE_RUIN_BOUNDS,   center: midpoint(HERITAGE_RUIN_BOUNDS) },
+  { id: 'heritage-statue', kind: 'village', bounds: HERITAGE_STATUE_BOUNDS, center: midpoint(HERITAGE_STATUE_BOUNDS) },
   // Procedural farm band (south) — additive; the five fixed farms above are unchanged.
   ...EXTRA_FARM_REGIONS,
 ];
@@ -411,6 +446,12 @@ const ROADS: readonly RoadDef[] = [
   // 2-wide, water-only, x58–59 down through y12–17 (6 ocean tiles) joining the
   // quarry-north south edge (y11) to the shrine top edge (y18).
   { minX: 58, minY: 12, maxX: 59, maxY: 17 }, // quarry-north ↔ shrine
+
+  // ── Heritage sites (brief 51) — one 2-wide water-only bridge each ──────────
+  // Each spans only ocean from the islet's edge to its nearest hub island.
+  { minX:  8, minY: 28, maxX:  9, maxY: 33 }, // heritage-stones ↔ mushroom-grove (down, 6 ocean tiles)
+  { minX: 78, minY: 14, maxX: 79, maxY: 19 }, // heritage-ruin   ↔ farm-atticus   (up,   6 ocean tiles)
+  { minX:  6, minY: 66, maxX:  7, maxY: 69 }, // heritage-statue ↔ farm-otto      (up,   4 ocean tiles)
 
   // ── Procedural farm band (south) — trunk + per-row collectors ──
   ...EXTRA_FARM_ROADS,

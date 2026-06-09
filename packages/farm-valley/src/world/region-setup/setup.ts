@@ -427,6 +427,25 @@ export function setupRegions(
     });
   }
 
+  // ── Heritage landmarks (brief 51) ────────────────────────────────────────────
+  // One decorative sprite at each heritage islet center. These carry NO
+  // identifying component and NO sim behavior — they are purely visible landmarks.
+  // The hover label is resolved frame→label in snapshot-builder/constants.ts
+  // (DECORATION_LABELS), the same path the village props use.
+  for (const [id, frame] of [
+    ["heritage-stones", "structure/heritage-stones"],
+    ["heritage-ruin",   "structure/heritage-ruin"],
+    ["heritage-statue", "structure/heritage-statue"],
+  ] as const) {
+    const r = REGIONS.find((reg) => reg.id === id);
+    if (r) {
+      world.spawn({
+        transform: { x: r.center.x, y: r.center.y, prevX: r.center.x, prevY: r.center.y, rotation: 0 },
+        sprite: { atlasId: "main", frame, layer: 50, tintRgba: 0xffffffff },
+      });
+    }
+  }
+
   // ── Ambient world dressing (purely decorative sprites; no collision) ──────────
   // Props are layer-40 sprites only — they do NOT affect walkability or
   // pathfinding (only `tileFeature` trees/stones block), so these are safe to

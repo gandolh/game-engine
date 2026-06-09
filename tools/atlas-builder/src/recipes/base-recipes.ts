@@ -2128,6 +2128,86 @@ export const BASE_RECIPES: PixelRecipe[] = [
     ],
   },
   {
+    // brief 51 — heritage standing stones: an ancient dolmen ring. Three weathered
+    // megaliths (stone light `q` faces, dark `Q` bodies) ring a low grassy mound
+    // (`G`/`c`), with near-black `k` seams reading as age cracks/shadow. Distinct
+    // from the shrine (no gold offering glow, an open ring rather than a capped
+    // dolmen) and from every other structure. Purely decorative.
+    name: "structure/heritage-stones",
+    size: 16,
+    pixels: [
+      "................",
+      ".....qq..qq.....",
+      "....qQQkkQQq....",
+      "....qQQkkQQq....",
+      "..qq.QQQQ.qq....",
+      ".qQQk.QQ.kQQq...",
+      ".qQQk.QQ.kQQq...",
+      ".qQQk....kQQq...",
+      "..QQ......QQ....",
+      "..QQ.qqqq.QQ....",
+      "...k.qQQq.k.....",
+      "...GGqQQqGG.....",
+      "..GcGGGGGGcG....",
+      "...GccGGccG.....",
+      "....cGGGGc......",
+      "................",
+    ],
+  },
+  {
+    // brief 51 — ruined watchtower: a broken stone tower (light `q` mortar over
+    // dark `Q` blocks) with a jagged, collapsed crown and a fallen-block rubble
+    // skirt at its base, near-black `k` for window slits / cracks. Reads as a
+    // crumbling fortification — distinct from the well (no roof/bucket) and the
+    // mill (no sails). Purely decorative.
+    name: "structure/heritage-ruin",
+    size: 16,
+    pixels: [
+      "................",
+      "....Q..QQ.......",
+      "....QqQQQq......",
+      "....QqQQQq......",
+      "....QqkQkq......",
+      "....QqQQQq......",
+      "....QqQQQq......",
+      "....QqkQkq......",
+      "....QqQQQq......",
+      "...QQqQQQqQ.....",
+      "...QqQQQQQq.....",
+      "..QQqQQQQQqQ....",
+      "..QqQQQQQQQq....",
+      ".QQ.QQqqQQ.QQ...",
+      "QQq..QQQQ..qQQ..",
+      "................",
+    ],
+  },
+  {
+    // brief 51 — weathered statue: a robed figure on a plinth, carved in pale
+    // stone (light `q` highlights, dark `Q` shade), near-black `k` for the worn
+    // face/seams, atop a wide stepped pedestal. Reads as an old monument — the
+    // tallest of the three relics. Purely decorative.
+    name: "structure/heritage-statue",
+    size: 16,
+    pixels: [
+      "................",
+      "......qq........",
+      ".....qkkq.......",
+      ".....qQQq.......",
+      "......qq........",
+      ".....qQQq.......",
+      "....qQqqQq......",
+      "...qQ.qq.Qq.....",
+      "....q.qq.q......",
+      "......qq........",
+      ".....qQQq.......",
+      ".....QQQQ.......",
+      "...QQQQQQQQ.....",
+      "..QqqqqqqqqQ....",
+      ".QQQQQQQQQQQQ...",
+      "................",
+    ],
+  },
+  {
     name: "structure/mushroom-marker",
     size: 16,
     pixels: [

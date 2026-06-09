@@ -2,6 +2,19 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Brief 51 — three decorative heritage islands
+
+**Shipped 3 reachable, purely-decorative heritage landmark islands** (standing stones / ruined tower / weathered statue) scattered across three quadrants to break the archipelago's cardinal symmetry. Presence-only — region + bridge + sprite + hover label, NO sim behavior.
+
+- All in [regions.ts](../packages/farm-valley/src/world/regions.ts) (3 ids + bounds + REGIONS entries + 3 water-only bridges, `HERITAGE_REGION_IDS` export) and [region-setup/setup.ts](../packages/farm-valley/src/world/region-setup/setup.ts) (sprite spawn per islet, mirroring the shrine block). All 8×8:
+  - `heritage-stones` x4-11/y20-27 → bridge to mushroom-grove (W-mid)
+  - `heritage-ruin` x76-83/y20-27 → bridge to farm-atticus (NE)
+  - `heritage-statue` x4-11/y70-77 → bridge to farm-otto (SW)
+- **No map expansion needed** — all three fit existing open-ocean gaps of the original 88×80 core (WORLD_WIDTH/HEIGHT unchanged), each ≥2-tile ocean margin + BFS-reachable (guard tests assert).
+- 3 new authored `structure/heritage-*` sprites (EDG palette, base-recipes.ts); atlas regenerated deterministically (52→55 frames; buildings.png/.json only). Visually confirmed distinct in-browser. Hover labels via `DECORATION_LABELS` (snapshot-builder/constants.ts).
+- **Cross-feature ripple (benign, expected):** the brief-49 open-water set-piece scatter rejects walkable tiles, so 3 new islands grew the rejection set and shifted ONE sampled prop position — `set-pieces.test.ts` inline snapshot updated deliberately; prop count (28) + all rejection invariants still pass. (A reminder that adding reachable islands perturbs the décor scatter — not the sim.)
+- Verified: typecheck EXIT 0; guard+heritage+atlas tests 51; set-pieces 11 (count unchanged); full suite engine 60 + farm-valley 724 + atlas-builder 4; `CHECK_DETERMINISM=1` MATCH (decorative islands don't affect sim); palette green. The pre-existing `[travel] region 'undefined'` warning reproduced identically (unrelated).
+
 ## [2026-06-09] impl | Brief 50 — interactive shrine island (visit→AP buff)
 
 **Shipped the first interactive island.** Opportunist farmers occasionally travel to a shrine island and "pray" for a small, bounded, cooldown-gated AP top-up. First of the "more islands" theme to land; establishes the interactive-island pattern (region+bridge + act handler + one-personality deliberation + cooldown).
