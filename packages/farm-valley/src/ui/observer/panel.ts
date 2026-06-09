@@ -12,8 +12,12 @@ export class ObserverPanel {
   private farmersContainer: HTMLElement;
   // brief-11: focus-camera
   private resetBtn: HTMLElement;
+  // discoverability: persistent dim hint shown while nothing is followed.
+  private hintEl: HTMLElement;
   private onFarmerClick: ((id: number | null) => void) | null = null;
   private focusedId: number | null = null;
+  /** Name of the currently focused farmer, for the dynamic Unfollow label. */
+  private focusedName: string | null = null;
 
   /** Maps farmer id -> cached row elements */
   private rowCache = new Map<number, FarmerRowEls>();
@@ -52,9 +56,20 @@ export class ObserverPanel {
     setText(this.resetBtn, "Reset view");
     this.resetBtn.addEventListener("click", () => {
       this.focusedId = null;
+      this.focusedName = null;
       this._updateRowHighlights();
       this.onFarmerClick?.(null);
     });
+
+    // discoverability: a subtle, persistent hint that rows are clickable.
+    this.hintEl = createEl("div", {
+      style: {
+        fontSize: "11px",
+        color: EDG.steel,
+        marginBottom: "6px",
+      },
+    });
+    setText(this.hintEl, "Click a farmer to follow them");
 
     this.weatherEl = createEl("div", {
       style: { marginBottom: "4px", color: EDG.silver },
@@ -67,6 +82,7 @@ export class ObserverPanel {
     this.farmersContainer = createEl("div");
 
     this.panel.appendChild(this.headerEl);
+    this.panel.appendChild(this.hintEl);
     this.panel.appendChild(this.resetBtn);
     this.panel.appendChild(this.weatherEl);
     this.panel.appendChild(this.forecastEl);
@@ -97,6 +113,15 @@ export class ObserverPanel {
       .map((f) => `  ${f.condition} ~${Math.round(f.confidence * 100)}%`)
       .join("\n");
     setText(this.forecastEl, `Forecast:\n${forecastLines}`);
+
+    // Keep the dynamic Unfollow label in sync with the focused farmer's name.
+    if (this.focusedId !== null) {
+      const focused = snapshot.farmers.find((f) => f.id === this.focusedId);
+      this.focusedName = focused?.name ?? this.focusedName;
+    } else {
+      this.focusedName = null;
+    }
+    this._updateFollowControls();
 
     // Sort farmers by id ascending
     const sorted = [...snapshot.farmers].sort((a, b) => a.id - b.id);
@@ -142,9 +167,25 @@ export class ObserverPanel {
       const focused = id === this.focusedId;
       applyStyles(row.root, {
         borderBottom: `1px solid ${EDG.black}`,
-        outline: focused ? `1px solid ${EDG.gold}` : "",
+        // discoverability: a stronger, more legible focus highlight — a thicker
+        // gold outline plus a faint gold-tinted background (alpha-suffixed EDG
+        // hex; the palette guard's regex ignores 8-digit #rrggbbaa values).
+        outline: focused ? `2px solid ${EDG.gold}` : "",
+        background: focused ? `${EDG.gold}22` : "",
         cursor: "pointer",
       });
+    }
+    this._updateFollowControls();
+  }
+
+  // discoverability: dynamic Unfollow label + hint visibility, driven by focus.
+  private _updateFollowControls(): void {
+    if (this.focusedId !== null && this.focusedName !== null) {
+      setText(this.resetBtn, `Unfollow ${this.focusedName}`);
+      this.hintEl.style.display = "none";
+    } else {
+      setText(this.resetBtn, "Reset view");
+      this.hintEl.style.display = "";
     }
   }
 
@@ -159,22 +200,27 @@ export class ObserverPanel {
     });
     root.dataset["farmerId"] = String(id);
 
+    const nameRow = createEl("div", { style: { display: "flex", gap: "6px", alignItems: "center" } });
+    const name = createEl("span", { style: { fontWeight: "bold", color: EDG.white } });
+
     // brief-11: focus-camera — clicking a row selects/deselects focus
     root.addEventListener("click", () => {
       if (this.focusedId === id) {
         // Toggle off — same as reset
         this.focusedId = null;
+        this.focusedName = null;
         this._updateRowHighlights();
         this.onFarmerClick?.(null);
       } else {
         this.focusedId = id;
+        // Capture the name now so the Unfollow label is correct immediately,
+        // before the next update() snapshot arrives.
+        this.focusedName = name.textContent ?? null;
         this._updateRowHighlights();
         this.onFarmerClick?.(id);
       }
     });
 
-    const nameRow = createEl("div", { style: { display: "flex", gap: "6px", alignItems: "center" } });
-    const name = createEl("span", { style: { fontWeight: "bold", color: EDG.white } });
     const personality = createEl("span", {
       style: {
         fontSize: "10px",
@@ -221,9 +267,17 @@ export class ObserverPanel {
       },
     });
     why.dataset["field"] = "why";
+    // discoverability: a bold "Why:" header above the decision trace.
+    const whyHeader = createEl("strong", {
+      style: { display: "block", fontWeight: "bold", color: EDG.steel },
+    });
+    setText(whyHeader, "Why:");
+    const whyBody = createEl("div");
+    why.appendChild(whyHeader);
+    why.appendChild(whyBody);
     root.appendChild(why);
 
-    return { root, name, personality, gold, crops, fsm, ap, region, skills, why };
+    return { root, name, personality, gold, crops, fsm, ap, region, skills, why, whyBody };
   }
 
   private updateFarmerRow(
@@ -268,15 +322,16 @@ export class ObserverPanel {
         farmer.reasons.length > 0
           ? farmer.reasons.map((r) => `  - ${r}`).join("\n")
           : "  (no reason)";
+      // The bold "Why:" header is a static child; only the body text updates.
       setText(
-        row.why,
-        `Why:\nNow: ${current}\nNext: ${next}\n${reasonLines}`,
+        row.whyBody,
+        `Now: ${current}\nNext: ${next}\n${reasonLines}`,
       );
       row.why.style.display = "";
     } else {
       // Avoid DOM churn: only touch text/display when transitioning out of focus.
       if (row.why.style.display !== "none") {
-        setText(row.why, "");
+        setText(row.whyBody, "");
         row.why.style.display = "none";
       }
     }

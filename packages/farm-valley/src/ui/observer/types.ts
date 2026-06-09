@@ -40,4 +40,7 @@ export interface FarmerRowEls {
   skills: HTMLElement;
   // brief 19 — decision rationale ("why"); only populated for the focused farmer.
   why: HTMLElement;
+  // discoverability: the body text under the bold "Why:" header (separate so the
+  // header stays a static bold child and only the trace text updates).
+  whyBody: HTMLElement;
 }

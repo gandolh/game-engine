@@ -369,6 +369,96 @@ describe("ObserverPanel", () => {
     panel.destroy();
   });
 
+  // discoverability — dynamic button label (Reset view ⇄ Unfollow {name})
+  it("button reads 'Reset view' when unfocused and 'Unfollow {name}' once a farmer is followed", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+
+    const resetBtn = parent.querySelector("button") as HTMLButtonElement;
+    expect(resetBtn.textContent).toBe("Reset view");
+
+    // Follow Alice (id=3).
+    const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
+    aliceRow.click();
+    expect(resetBtn.textContent).toBe("Unfollow Alice");
+
+    // Label survives a re-render with a fresh snapshot.
+    panel.update(makeSnapshot());
+    expect(resetBtn.textContent).toBe("Unfollow Alice");
+
+    // Unfollow restores the default label.
+    resetBtn.click();
+    expect(resetBtn.textContent).toBe("Reset view");
+    panel.destroy();
+  });
+
+  // discoverability — persistent hint line toggles on focus
+  it("shows the 'Click a farmer to follow them' hint when unfocused and hides it while following", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+
+    const text = parent.textContent ?? "";
+    expect(text).toContain("Click a farmer to follow them");
+
+    // The hint element is the sibling carrying that text; locate it.
+    const hint = Array.from(parent.querySelectorAll("div")).find(
+      (el) => el.textContent === "Click a farmer to follow them",
+    ) as HTMLElement;
+    expect(hint).toBeDefined();
+    expect(hint.style.display).not.toBe("none");
+
+    // Following a farmer hides the hint.
+    const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
+    aliceRow.click();
+    expect(hint.style.display).toBe("none");
+
+    // Unfollowing shows it again.
+    const resetBtn = parent.querySelector("button") as HTMLButtonElement;
+    resetBtn.click();
+    expect(hint.style.display).not.toBe("none");
+    panel.destroy();
+  });
+
+  // discoverability — stronger highlight on the focused row
+  it("gives the focused row a thicker gold outline + tinted background", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+
+    const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
+    const bobRow = parent.querySelector('[data-farmer-id="5"]') as HTMLElement;
+
+    // Unfocused: no outline / no tinted background.
+    expect(aliceRow.style.outline).toBe("");
+
+    aliceRow.click();
+    expect(aliceRow.style.outline).toContain("2px");
+    expect(aliceRow.style.outline.toLowerCase()).toContain("solid");
+    expect(aliceRow.style.background).not.toBe("");
+    // Bob (unfocused) keeps no highlight.
+    expect(bobRow.style.outline).toBe("");
+    expect(bobRow.style.background).toBe("");
+    panel.destroy();
+  });
+
+  // discoverability — bold "Why:" header on the focused row's why block
+  it("renders a bold 'Why:' header in the focused farmer's why block", () => {
+    const panel = new ObserverPanel(parent);
+    panel.update(makeSnapshot());
+
+    const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
+    aliceRow.click();
+    panel.update(makeSnapshot());
+
+    const why = aliceRow.querySelector('[data-field="why"]') as HTMLElement;
+    const strong = why.querySelector("strong") as HTMLElement | null;
+    expect(strong).not.toBeNull();
+    expect(strong!.textContent).toBe("Why:");
+    expect(strong!.style.fontWeight).toBe("bold");
+    // Decision trace still renders alongside the header.
+    expect(why.textContent).toContain("Now: plant");
+    panel.destroy();
+  });
+
   it("hides the why panel again after focus is reset", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());

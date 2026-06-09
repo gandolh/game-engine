@@ -2,6 +2,17 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-09] impl | Audit P1b — discoverable focus-on-farmer affordances
+
+**Click-to-follow is now discoverable.** From the WORLD_DESIGN_TODO P1 cluster. All in [ui/observer/panel.ts](../packages/farm-valley/src/ui/observer/panel.ts) (+ types.ts, +4 tests) — pure main-thread UI, no sim/determinism.
+
+- **Dynamic button** (folds the audit's "Following: X" badge + the Reset→Unfollow rename into one control): reads `Unfollow {name}` while following, `Reset view` when nothing's focused. Verified live: clicking Cora-0's row flipped it to "Unfollow Cora-0".
+- **Persistent hint line** ("Click a farmer to follow them", dim `EDG.steel` 11px) shown when unfocused, hidden while following. Verified live (visible unfocused, gone after click).
+- **Bold "Why:" header** on the focused row's decision-trace block (static `<strong>` + a separate `whyBody` that updates per-frame).
+- **Stronger highlight**: focused row outline 1px→**2px solid `EDG.gold`** + faint translucent `EDG.gold + "22"` background (the palette guard's HEX_RE ignores 8-digit #rrggbbaa, and it's a const-ref + literal in source, so the guard stays green).
+- The on-canvas `indicator/follow` bob already existed (in-world half) — left as-is.
+- Verified: typecheck EXIT 0; observer tests 15→19; palette guard green; full suite engine 60 + farm-valley 715; interactive states confirmed in a real browser.
+
 ## [2026-06-09] impl | Audit P1c — visual state indicators (+ generic sprite tint in the engine renderer)
 
 **Spectators can now SEE crop/farmer trouble at a glance, via sprite tint+alpha (no new atlas frames).** From the WORLD_DESIGN_TODO P1 cluster.

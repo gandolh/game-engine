@@ -226,7 +226,7 @@ issue in #5 above).
 - [ ] Differentiate farmer WORK sprites per personality (currently pixel-identical) + idle silhouettes/hats (recipes.ts:1083-1168, 173-435)
 - [x] Add crop/farmer/tool visual state indicators (thirsty/dying/exhausted/broken) — *sprite tint+alpha via snapshot-builder/indicators.ts; keyed to real sim conditions (wateredToday, DRY_DEATH_GRACE_DAYS wither rule, ap.unrested/<20%, tool durability/can charges). Added a generic tintRgba to the engine Canvas2D renderer. (2026-06-09)*
 - [x] Add an in-game legend / onboarding ("?" panel: personalities, FSM states, controls) — *the "?" modal (playback-controls.ts) already had Controls + Tools; extended it with Personalities (color-swatch legend) + Farmer-states (FSM) sections (2026-06-09)*
-- [ ] Add discoverable focus-on-farmer affordances (hint, "Following: X", bold "Why:", stronger highlight, rename Reset→Unfollow) (observer.ts:116,205,223-234,306-325)
+- [x] Add discoverable focus-on-farmer affordances (hint, "Following: X", bold "Why:", stronger highlight, rename Reset→Unfollow) — *observer/panel.ts: dynamic "Unfollow {name}"/"Reset view" button (badge+rename in one), persistent "click a farmer to follow" hint, bold Why: header, 2px gold outline + tint highlight. Verified live. (2026-06-09)*
 
 ### P2 — Polish
 - [ ] Integrate mills/wells visually: signposts, use-time glow, rebalanced placement, mill loop (regions.ts, render-systems.ts)
