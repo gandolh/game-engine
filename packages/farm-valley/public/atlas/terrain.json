@@ -148,44 +148,62 @@
       "w": 16,
       "h": 16
     },
-    "tile/mushroom-floor": {
+    "tile/shrine-floor": {
       "x": 52,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/carpentry-floor": {
+    "tile/heritage-floor": {
       "x": 69,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/coral-fill": {
+    "tile/dock-floor": {
       "x": 86,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/coral-edge": {
+    "tile/mushroom-floor": {
       "x": 103,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "tile/coral-corner": {
+    "tile/carpentry-floor": {
       "x": 1,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "tile/coral-reef": {
+    "tile/coral-fill": {
       "x": 18,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/coral-edge": {
       "x": 35,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-corner": {
+      "x": 52,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-reef": {
+      "x": 69,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 86,
       "y": 69,
       "w": 16,
       "h": 16

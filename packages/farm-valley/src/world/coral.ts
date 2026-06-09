@@ -13,10 +13,10 @@
  *   • water stays blocked for everyone on foot;
  *   • boat travel is just another deterministic pathfind, on a different grid.
  *
- * Geography (south edge of the 88×80 archipelago, below the two fishing isles):
+ * Geography (south of the central cluster's fishing isles, in the 160×160 map):
  *
- *   fishing-isle   (40–47 × 68–75): dock (43,75) → lane (43,76)(43,77) → reef (43,78)
- *   fishing-isle-2 (22–29 × 68–75): dock (25,75) → lane (25,76)(25,77) → reef (25,78)
+ *   fishing-isle   (75–82 × 105–112): dock (78,112) → lane (78,113)(78,114) → reef (78,115)
+ *   fishing-isle-2 (59–66 × 105–112): dock (62,112) → lane (62,113)(62,114) → reef (62,115)
  *
  * The dock tile is the isle's own south-edge land tile (walkable on the land
  * grid too), so a farmer walks to the dock on foot, boards, then rows straight
@@ -44,20 +44,20 @@ export interface CoralReef {
 export const CORAL_REEFS: readonly CoralReef[] = [
   {
     id: "reef-mill",
-    dock: { x: 43, y: 75 },
-    reef: { x: 43, y: 78 },
+    dock: { x: 78, y: 112 },
+    reef: { x: 78, y: 115 },
     lane: [
-      { x: 43, y: 76 },
-      { x: 43, y: 77 },
+      { x: 78, y: 113 },
+      { x: 78, y: 114 },
     ],
   },
   {
     id: "reef-forest",
-    dock: { x: 25, y: 75 },
-    reef: { x: 25, y: 78 },
+    dock: { x: 62, y: 112 },
+    reef: { x: 62, y: 115 },
     lane: [
-      { x: 25, y: 76 },
-      { x: 25, y: 77 },
+      { x: 62, y: 113 },
+      { x: 62, y: 114 },
     ],
   },
 ];

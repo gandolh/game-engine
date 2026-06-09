@@ -65,6 +65,8 @@ interface LogicalSprite {
  * - blacksmith → "tile/forge-floor" (dark stone with heat cracks)
  * - carpentry → "tile/carpentry-floor" (laid stone-slab flooring)
  * - resource-zone → "tile/grass" (same as farms — they're green areas)
+ * - shrine → "tile/shrine-floor"; harbor → "tile/dock-floor";
+ *   heritage-* → "tile/heritage-floor"; waterfall/camp → seasonal grass
  */
 function backdropFrame(tx: number, ty: number, season: Season = "spring"): string | null {
   const grassFrame = SEASON_GRASS[season];
@@ -91,6 +93,16 @@ function backdropFrame(tx: number, ty: number, season: Season = "spring"): strin
   if (region === "mushroom-grove") return "tile/mushroom-floor";
   if (region === "ice-pond") return "tile/ice-floor";
   if (region === "fishing-isle" || region === "fishing-isle-2") return "tile/sand";
+  // Landmark / service islands get their own ground so they don't all read as
+  // bland dirt (richer "peisage"): shrine flagstone, harbor planking, mossy
+  // heritage stone, grassy waterfall + campsite.
+  if (region === "shrine") return "tile/shrine-floor";
+  if (region === "harbor") return "tile/dock-floor";
+  if (region === "heritage-stones" || region === "heritage-ruin" || region === "heritage-statue") {
+    return "tile/heritage-floor";
+  }
+  if (region === "waterfall") return grassFrame; // mossy green base under the cliff
+  if (region === "camp") return grassFrame;       // campsite on grass
   if (region === "village") {
     // Market square gets the decorative floor; outer village stays cobblestone
     if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&

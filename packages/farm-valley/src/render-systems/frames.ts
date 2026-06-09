@@ -32,7 +32,7 @@ export const FORGE_FIRE_FRAMES = [
 
 /** Tile of the blacksmith oven (matches region-setup placeProps). The fire
  *  overlay is drawn here, above the oven body. */
-export const FORGE_OVEN_TILE = { x: 62, y: 37 } as const;
+export const FORGE_OVEN_TILE = { x: 97, y: 79 } as const;
 
 /** Animated forge chimney-smoke frames, cycled by the render loop above the
  *  forge-house (see FORGE_CHIMNEY_PX). */
@@ -46,8 +46,8 @@ export const FORGE_SMOKE_FRAMES = [
  *  chimney is at recipe column ~11 of the 32px sprite, top at the sprite's top
  *  (≈ baseTileY*TILE + TILE - hPx). Used by the animated smoke overlay in main. */
 export const FORGE_CHIMNEY_PX = {
-  x: 63 * TILE + 11,
-  y: 36 * TILE + TILE - 48 + 2,
+  x: 99 * TILE + 11,
+  y: 78 * TILE + TILE - 48 + 2,
 } as const;
 
 /**

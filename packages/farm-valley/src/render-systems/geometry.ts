@@ -494,14 +494,16 @@ export const BIG_STRUCTURES: ReadonlyArray<{
   wPx: number;
   hPx: number;
 }> = [
-  // Blacksmith forge-house — east half of the blacksmith island (x58–67),
-  // spanning tiles x63–64, standing on row y36 (rises into y34–36). Kept off the
-  // x60–61 road spine (see region-setup) so the island stays traversable.
-  { frame: "structure/forge-house", baseTileX: 63, baseTileY: 36, wPx: 32, hPx: 48 },
-  // Carpenter's workshop — west half of the carpenter island (x20–29), spanning
-  // tiles x21–22, standing on row y36 (rises into y34–36). Kept off the x24–25
-  // road spine.
-  { frame: "structure/carpenter-workshop", baseTileX: 21, baseTileY: 36, wPx: 32, hPx: 48 },
+  // Blacksmith forge-house — east half of the blacksmith island (x93–102),
+  // spanning tiles x99–100, standing on row y78 (rises into y76–78). Kept off the
+  // x93–94 road spine (see region-setup) so the island stays traversable.
+  { frame: "structure/forge-house", baseTileX: 99, baseTileY: 78, wPx: 32, hPx: 48 },
+  // Carpenter's workshop — WEST strip of the carpenter island (x59–68), spanning
+  // tiles x59–60 (left of the x61–62 road spine), standing on row y78 (rises into
+  // y76–78). Sitting on the narrow west strip keeps the whole east half an open
+  // yard so the island interior never gets walled off (the village bridge lands
+  // on the east edge x68).
+  { frame: "structure/carpenter-workshop", baseTileX: 59, baseTileY: 78, wPx: 32, hPx: 48 },
 ];
 
 // ── Fishing statics (brief 48) ────────────────────────────────────────────────

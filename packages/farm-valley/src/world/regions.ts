@@ -3,26 +3,26 @@ import { createRng } from '@engine/core';
 /** Hand-authored islands with fixed coordinates. */
 export type FixedRegionId =
   | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
-  | 'farm-pip'                         // Player-controlled farmer's farm (far east)
+  | 'farm-pip'                         // Player-controlled farmer's farm
   | 'blacksmith' | 'carpentry'
-  | 'forest-north' | 'quarry-north'   // North pair — NE quadrant
-  | 'forest-south' | 'quarry-south'   // South pair — SW quadrant
-  | 'mill'                            // Grain mill — south road between village & Hannah
+  | 'forest-north' | 'quarry-north'
+  | 'forest-south' | 'quarry-south'
+  | 'mill'                            // Grain mill
   | 'well-north' | 'well-south'       // Irrigation wells near quarries
-  | 'mushroom-grove'                  // Seasonal zone (autumn-only field work) — SE gap
-  | 'ice-pond'                        // Seasonal zone (winter-only field work) — NW gap
-  | 'fishing-isle'                    // Sand island you fish from (any ocean edge) — S of mill
-  | 'fishing-isle-2'                  // Second sand fishing island — S of forest-south (SW)
+  | 'mushroom-grove'                  // Seasonal zone (autumn-only field work)
+  | 'ice-pond'                        // Seasonal zone (winter-only field work)
+  | 'fishing-isle'                    // Sand island you fish from
+  | 'fishing-isle-2'                  // Second sand fishing island
   | 'harbor'                          // Harbor island — shipping dock + contract board (brief 46)
   | 'shrine'                          // Interactive shrine island — pray for a bounded AP boost (brief 50)
-  | 'heritage-stones'                 // Decorative standing-stones islet (brief 51) — W-mid, no behavior
-  | 'heritage-ruin'                   // Decorative ruined-tower islet (brief 51) — NE, no behavior
-  | 'heritage-statue'                 // Decorative weathered-statue islet (brief 51) — SW-south, no behavior
-  | 'waterfall'                       // Decorative waterfall islet (brief 52) — N-mid-E, ANIMATED cascade, no behavior
-  | 'camp';                           // Camping islet (brief 54) — SE (E of harbor); rest AWAY from home with no unrested penalty
+  | 'heritage-stones'                 // Decorative standing-stones islet (brief 51) — no behavior
+  | 'heritage-ruin'                   // Decorative ruined-tower islet (brief 51) — no behavior
+  | 'heritage-statue'                 // Decorative weathered-statue islet (brief 51) — no behavior
+  | 'waterfall'                       // Decorative waterfall islet (brief 52) — ANIMATED cascade, no behavior
+  | 'camp';                           // Camping islet (brief 54) — rest AWAY from home with no unrested penalty
 
-/** Procedurally-generated extra farm islands (the southern farm band). `farm-0`
- *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeExtraFarmRegion}. */
+/** Procedurally-generated extra farm islands (the radial outer farms). `farm-0`
+ *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeRadialFarmRegion}. */
 export type ExtraFarmRegionId = `farm-${number}`;
 
 export type RegionId = FixedRegionId | ExtraFarmRegionId;
@@ -37,79 +37,98 @@ export interface RegionDef {
   center: { x: number; y: number };
 }
 
-// Archipelago layout (88×80). Every zone is an isolated island surrounded by
-// ocean on all sides; islands NEVER touch (≥1 tile of water between any two
-// region bodies) and are connected ONLY by 2-tile-wide bridges (the ROADS
-// below, which only ever span water). The village sits dead-center as the hub
-// most bridges radiate from; Pip's farm is the top island; the four AI farms
-// occupy the four corners to maximise travel.
+// ── RADIAL archipelago layout (160×160) ──────────────────────────────────────
+// Every zone is an isolated island surrounded by ocean on all sides; islands
+// NEVER touch (≥1 tile of water between any two region bodies) and are connected
+// ONLY by 2-tile-wide bridges (the ROADS below, which only ever span water).
+//
+// The map is RADIAL: a CENTRAL CLUSTER of all functional/decorative islands
+// (village dead-center as the hub most bridges radiate from, craft islands
+// flanking it E/W, resource zones on the diagonals, seasonal zones north,
+// fishing/harbor/camp south, decorative landmarks scattered in the gaps),
+// surrounded by TWO CONCENTRIC RINGS of the 21 farms out near the map edges —
+// "town + services in the middle, homesteads on the frontier".
 //
 // The renderer is already island-aware: backdropFrame paints every non-walkable
 // tile as ocean, computeShores adds foam on land-bordering-ocean, and
 // computeBridges decks any road-only tile touching ocean. So this layout drives
 // the whole archipelago purely from these bounds + ROADS.
-//
-//   C(NW)     forest-N     P(top)      quarry-N    A(NE)
-//   mushroom  carpentry    VILLAGE     blacksmith  ice-pond   (mid band rows 34-45)
-//   O(SW)     forest-S     mill        quarry-S    H(SE)
-//             fishing-isle-2          fishing-isle  (two sand isles, rows 68-75; bubbles ring each)
-export const WORLD_WIDTH = 88;
+export const WORLD_WIDTH = 160;
+export const WORLD_HEIGHT = 160;
 
-// ── Procedural farm band (south of the hand-authored core) ───────────────────
-// To scale past the five hand-authored farms we generate extra farm islands in a
-// regular grid in NEW space below the original 88×80 core. The originals (Pip +
-// the four corners) keep their exact coordinates; these are purely additive.
-//
-// Layout: a COLS-wide grid starting at (FARM_BAND_X0, FARM_BAND_Y0). Each cell is
-// EXTRA_FARM_SIZE tiles square with EXTRA_FARM_GAP tiles of ocean on every side
-// (pitch = size + gap), so no two farm bodies are ever adjacent. Each farm hangs
-// off a per-row "collector" bridge by a short centered stub; the collectors join
-// a single vertical trunk that taps the village↔mill column, keeping the whole
-// graph a connected tree rooted at the village.
-//
-// Organic jitter (brief 49 track 4): each band farm body is nudged by a small
-// per-farm offset in X and Y so the band reads as scattered, not a perfect grid.
-// The jitter is seeded by a FIXED module-level world-gen seed (NOT the run seed),
-// so the terrain is identical on every run — exactly what we want for a stable
-// world the spectator learns. We honour the project's "all randomness flows
-// through rng.fork(label)" rule by forking from that fixed seed once at module
-// init; we never call Math.random/Date.now. See WORLD_GEN_SEED / generateFarmBand().
-// Typed as `number` (not the literal 16) so it reads as a tunable knob and the
-// `=== 0` / `> 0` guards below aren't flagged as dead comparisons.
-export const EXTRA_FARM_COUNT: number = 16; // 5 hand-authored + 16 = 21 farms (20 AI + Pip)
-const EXTRA_FARM_COLS = 6;
-const EXTRA_FARM_SIZE = 10;         // 10×10 still fits the 2×2 plot grid (PLOT_OFFSETS [-2,1])
-const EXTRA_FARM_GAP = 4;           // 4-tile gutter between un-jittered farm bodies
-const EXTRA_FARM_PITCH = EXTRA_FARM_SIZE + EXTRA_FARM_GAP; // 14
-const FARM_BAND_X0 = 2;
-const FARM_BAND_Y0 = 84;            // 4-tile water gutter below the reef lanes (y≤78)
-const EXTRA_FARM_ROWS = Math.ceil(EXTRA_FARM_COUNT / EXTRA_FARM_COLS);
+/** Map center — the village center and the radius origin for the farm rings. */
+const MAP_CX = 80;
+const MAP_CY = 80;
 
 // ── World-gen RNG (FIXED seed — NOT the run seed) ────────────────────────────
 // REGIONS/ROADS are module-level consts read by ~15 consumers; we deliberately do
-// NOT thread a per-run seed through them. Instead the procedural farm band's
-// organic jitter is drawn from this fixed seed, computed once at module load, so
-// the world layout is byte-identical on every run. This keeps the const exports
-// const, satisfies determinism (a tick's output depends only on tick count + the
-// run rng; world geometry is constant), and still routes randomness through
-// rng.fork(label) per project convention.
+// NOT thread a per-run seed through them. Any procedural placement (the radial
+// farm ring jitter) is drawn from this fixed seed, computed once at module load,
+// so the world layout is byte-identical on every run. This keeps the const
+// exports const, satisfies determinism (a tick's output depends only on tick
+// count + the run rng; world geometry is constant), and still routes randomness
+// through rng.fork(label) per project convention.
 export const WORLD_GEN_SEED = 0x5eed_face;
 
-// Per-farm jitter magnitude (tiles), applied independently in X and Y to each
-// band farm body. Bounded at 1 BY DESIGN so the no-adjacency invariant holds by
-// construction (budget proof below). Drawn from int(-MAG, MAG+1) → {-1,0,+1}.
-const EXTRA_FARM_JITTER = 1;
+// ── Central cluster (all functional/decorative islands) ──────────────────────
+// Hand-authored bounds, packed around (80,80), each ≥1 ocean tile from its
+// neighbours; the decorative landmarks (shrine/waterfall/heritage*/camp) keep
+// ≥2 from every other island (their dedicated margin tests). Verified by the
+// /tmp/verify-layout geometry harness: min any-pair gap 1, min landmark gap 2.
+const VILLAGE_BOUNDS        = { minX: 75, minY: 75, maxX: 86, maxY: 86 }; // center hub (12×12)
+const CARPENTRY_BOUNDS      = { minX: 59, minY: 76, maxX: 68, maxY: 85 }; // W of village (10×10)
+const BLACKSMITH_BOUNDS     = { minX: 93, minY: 76, maxX: 102, maxY: 85 }; // E of village (10×10)
+const MILL_BOUNDS           = { minX: 76, minY: 93, maxX: 85, maxY: 100 }; // S of village (10×8)
 
-// No-adjacency budget (X, the binding axis):
-//   pitch 14, size 10 → 4 ocean tiles between adjacent un-jittered farm bodies.
-//   Worst case: left farm shifts +JITTER, right farm shifts -JITTER → gutter
-//   shrinks by 2*JITTER = 2 → 4 - 2 = 2 ocean tiles ≥ 1. ✔
-// No-adjacency budget (Y):
-//   pitch 14, size 10 → row r farm bottom (jittered ≤ base+10) vs row r+1 farm
-//   top (jittered ≥ base+13): ≥ 3 ocean tiles ≥ 1, regardless of X. ✔
-// Per-farm offsets are drawn in ascending farm order (0,1,2,…) from a single
-// fork so the layout is reproducible.
-const farmJitterRng = createRng(WORLD_GEN_SEED).fork('farm-band-jitter');
+const FOREST_NORTH_BOUNDS   = { minX: 61, minY: 61, maxX: 68, maxY: 68 }; // NW diagonal (8×8)
+const QUARRY_NORTH_BOUNDS   = { minX: 93, minY: 61, maxX: 100, maxY: 68 }; // NE diagonal
+const FOREST_SOUTH_BOUNDS   = { minX: 61, minY: 93, maxX: 68, maxY: 100 }; // SW diagonal
+const QUARRY_SOUTH_BOUNDS   = { minX: 93, minY: 93, maxX: 100, maxY: 100 }; // SE diagonal
+
+const MUSHROOM_GROVE_BOUNDS = { minX: 59, minY: 47, maxX: 66, maxY: 54 }; // N — autumn
+const ICE_POND_BOUNDS       = { minX: 95, minY: 47, maxX: 102, maxY: 54 }; // N — winter
+
+const WELL_NORTH_BOUNDS     = { minX: 103, minY: 62, maxX: 104, maxY: 63 }; // 2×2, by quarry-north
+const WELL_SOUTH_BOUNDS     = { minX: 103, minY: 94, maxX: 104, maxY: 95 }; // 2×2, by quarry-south
+
+const SHRINE_BOUNDS         = { minX: 71, minY: 58, maxX: 77, maxY: 64 }; // N-center (7×7), interactive
+const WATERFALL_BOUNDS      = { minX: 80, minY: 58, maxX: 87, maxY: 65 }; // N-center-E (8×8), ANIMATED
+
+const HERITAGE_STONES_BOUNDS  = { minX: 45, minY: 63, maxX: 52, maxY: 70 }; // W (8×8) decorative
+const HERITAGE_RUIN_BOUNDS    = { minX: 109, minY: 63, maxX: 116, maxY: 70 }; // E (8×8) decorative
+const HERITAGE_STATUE_BOUNDS  = { minX: 45, minY: 93, maxX: 52, maxY: 100 }; // SW (8×8) decorative
+
+const FISHING_ISLE_BOUNDS   = { minX: 75, minY: 105, maxX: 82, maxY: 112 }; // S-center (8×8 sand)
+const FISHING_ISLE_2_BOUNDS = { minX: 59, minY: 105, maxX: 66, maxY: 112 }; // S-W (8×8 sand)
+const HARBOR_BOUNDS         = { minX: 93, minY: 105, maxX: 100, maxY: 112 }; // S-E dock (8×8)
+const CAMP_BOUNDS           = { minX: 109, minY: 105, maxX: 116, maxY: 112 }; // SE campsite (8×8)
+
+// ── Radial farm rings (21 farms on the frontier) ─────────────────────────────
+// Farm at slot k of a ring of n farms at radius R and phase φ:
+//   angle = φ + 2π·k/n;  fcx = round(cx + R·cos angle);  fcy = round(cy + R·sin angle)
+//   minX  = round(fcx − size/2);  minY = round(fcy − size/2)
+// Named farms are 12×12; procedural farms are 10×10.
+//
+// Inner ring: n=9, R=52, φ=−90°. Slots 0/2/4/6/8 are the 5 named farms; slots
+//   1/3/5/7 are procedural farm-0..3.
+// Outer ring: n=12, R=72, φ=−75°. All procedural farm-4..15.
+//
+// Verified separations (geometry harness): min farm-farm gap 7, min
+// cluster-to-farm gap 3 — well above the ≥2/≥1 invariant floors. A small
+// per-farm jitter (±EXTRA_FARM_JITTER, fixed-seed) scatters the procedural farms
+// off the perfect ring so the frontier reads as organic, not a stamped wheel;
+// the gap budget (7) absorbs it with room to spare.
+export const EXTRA_FARM_COUNT: number = 16; // 5 named + 16 procedural = 21 farms
+const FARM_NAMED_SIZE = 12;
+const FARM_PROC_SIZE = 10;
+
+const INNER_RING = { n: 9, r: 52, phi: -Math.PI / 2 };
+const OUTER_RING = { n: 12, r: 72, phi: (-90 + 15) * (Math.PI / 180) };
+
+// Per-procedural-farm organic jitter (tiles), applied in X and Y. Bounded at 1
+// so the ≥2 no-adjacency margin (worst case 7 - 2 = 5) holds by construction.
+const EXTRA_FARM_JITTER = 1;
+const farmJitterRng = createRng(WORLD_GEN_SEED).fork('farm-ring-jitter');
 const FARM_JITTER: readonly { dx: number; dy: number }[] = Array.from(
   { length: EXTRA_FARM_COUNT },
   () => ({
@@ -118,137 +137,62 @@ const FARM_JITTER: readonly { dx: number; dy: number }[] = Array.from(
   }),
 );
 
-// World grows downward to fit the farm band; the original core (y≤79) is
-// untouched. With EXTRA_FARM_COUNT=0 this collapses to the original 80 (no rows).
-export const WORLD_HEIGHT = Math.max(
-  80,
-  // Last row's un-jittered farm bottom = Y0 + (ROWS-1)*PITCH + (SIZE-1); +1 for
-  // downward jitter, then ≥1 row of bottom water margin. PITCH*ROWS - GAP + 2
-  // expands to exactly that with comfortable slack (the gutter below the last row
-  // is unused), so reuse the simple closed form.
-  FARM_BAND_Y0 + EXTRA_FARM_ROWS * EXTRA_FARM_PITCH + 2, // bottom water margin
+/** Compute the (un-jittered) bounds of the farm at slot `k` of a ring. */
+function ringSlotBounds(
+  ring: { n: number; r: number; phi: number },
+  k: number,
+  size: number,
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  const angle = ring.phi + (Math.PI * 2 * k) / ring.n;
+  const fcx = Math.round(MAP_CX + ring.r * Math.cos(angle));
+  const fcy = Math.round(MAP_CY + ring.r * Math.sin(angle));
+  const minX = Math.round(fcx - size / 2);
+  const minY = Math.round(fcy - size / 2);
+  return { minX, minY, maxX: minX + size - 1, maxY: minY + size - 1 };
+}
+
+// Inner-ring slot index of each named farm (slots 0/2/4/6/8).
+const NAMED_FARM_SLOT: Record<string, number> = {
+  'farm-pip': 0,
+  'farm-atticus': 2,
+  'farm-hannah': 4,
+  'farm-otto': 6,
+  'farm-cora': 8,
+};
+function namedFarmBounds(id: keyof typeof NAMED_FARM_SLOT) {
+  return ringSlotBounds(INNER_RING, NAMED_FARM_SLOT[id]!, FARM_NAMED_SIZE);
+}
+
+const FARM_PIP_BOUNDS     = namedFarmBounds('farm-pip');
+const FARM_ATTICUS_BOUNDS = namedFarmBounds('farm-atticus');
+const FARM_HANNAH_BOUNDS  = namedFarmBounds('farm-hannah');
+const FARM_OTTO_BOUNDS    = namedFarmBounds('farm-otto');
+const FARM_CORA_BOUNDS    = namedFarmBounds('farm-cora');
+
+/** Procedural farm `i`: i=0..3 → inner-ring slots {1,3,5,7}; i=4..15 → outer
+ *  slots 0..11. Bounds are jittered by the fixed-seed per-farm offset. */
+function makeRadialFarmRegion(i: number): RegionDef {
+  const INNER_PROC_SLOTS = [1, 3, 5, 7];
+  let base: { minX: number; minY: number; maxX: number; maxY: number };
+  if (i < INNER_PROC_SLOTS.length) {
+    base = ringSlotBounds(INNER_RING, INNER_PROC_SLOTS[i]!, FARM_PROC_SIZE);
+  } else {
+    base = ringSlotBounds(OUTER_RING, i - INNER_PROC_SLOTS.length, FARM_PROC_SIZE);
+  }
+  const j = FARM_JITTER[i]!;
+  const bounds = {
+    minX: base.minX + j.dx,
+    minY: base.minY + j.dy,
+    maxX: base.maxX + j.dx,
+    maxY: base.maxY + j.dy,
+  };
+  return { id: `farm-${i}` as RegionId, kind: 'farm', bounds, center: midpoint(bounds) };
+}
+
+const EXTRA_FARM_REGIONS: readonly RegionDef[] = Array.from(
+  { length: EXTRA_FARM_COUNT },
+  (_unused, i) => makeRadialFarmRegion(i),
 );
-
-// ── Farm islands (12×12) ─────────────────────────────────────────────────────
-const FARM_PIP_BOUNDS      = { minX: 38, minY:  2, maxX: 49, maxY: 13 }; // Top-center (player)
-const FARM_CORA_BOUNDS     = { minX:  2, minY:  2, maxX: 13, maxY: 13 }; // NW corner
-const FARM_ATTICUS_BOUNDS  = { minX: 74, minY:  2, maxX: 85, maxY: 13 }; // NE corner
-const FARM_OTTO_BOUNDS     = { minX:  2, minY: 54, maxX: 13, maxY: 65 }; // SW corner
-const FARM_HANNAH_BOUNDS   = { minX: 74, minY: 54, maxX: 85, maxY: 65 }; // SE corner
-
-// ── Village hub (12×12) + craft islands flanking it (10×10) ──────────────────
-const VILLAGE_BOUNDS       = { minX: 38, minY: 34, maxX: 49, maxY: 45 }; // center hub
-const CARPENTRY_BOUNDS     = { minX: 20, minY: 34, maxX: 29, maxY: 43 }; // W of village
-const BLACKSMITH_BOUNDS    = { minX: 58, minY: 34, maxX: 67, maxY: 43 }; // E of village
-
-// ── Resource zones (8×8) ─────────────────────────────────────────────────────
-const FOREST_NORTH_BOUNDS  = { minX: 22, minY:  4, maxX: 29, maxY: 11 };
-const QUARRY_NORTH_BOUNDS  = { minX: 58, minY:  4, maxX: 65, maxY: 11 };
-const FOREST_SOUTH_BOUNDS  = { minX: 22, minY: 56, maxX: 29, maxY: 63 };
-const QUARRY_SOUTH_BOUNDS  = { minX: 58, minY: 56, maxX: 65, maxY: 63 };
-
-// ── Mill (south of village) + wells (near the quarries) ──────────────────────
-const MILL_BOUNDS          = { minX: 39, minY: 56, maxX: 48, maxY: 63 };
-const WELL_NORTH_BOUNDS    = { minX: 69, minY:  6, maxX: 70, maxY:  7 }; // 2×2
-const WELL_SOUTH_BOUNDS    = { minX: 69, minY: 58, maxX: 70, maxY: 59 }; // 2×2
-
-// ── Seasonal zones ───────────────────────────────────────────────────────────
-const MUSHROOM_GROVE_BOUNDS = { minX:  6, minY: 34, maxX: 13, maxY: 41 }; // far W — autumn
-const ICE_POND_BOUNDS      = { minX: 74, minY: 34, maxX: 81, maxY: 41 }; // far E — winter
-
-// ── Fishing isles (two 8×8 sand islands in open ocean) ────────────────────────
-// Dedicated sand islands you travel to and fish from: stand on any edge tile,
-// face the surrounding ocean, and cast. Bubble spots drift in the ring of ocean
-// around each (see BubbleSystem) and grant rarer fish. One hangs off the mill
-// (S, center), the other off forest-south (S, SW).
-const FISHING_ISLE_BOUNDS   = { minX: 40, minY: 68, maxX: 47, maxY: 75 };
-const FISHING_ISLE_2_BOUNDS = { minX: 22, minY: 68, maxX: 29, maxY: 75 };
-
-// ── Harbor island (brief 46) — 8×8 dock + contract board ─────────────────────
-// A coastal dock island south of Hannah's farm (quarry-south quadrant). It sits
-// at the SE corner of the navigable ocean, connected by a 2-tile bridge to
-// quarry-south. The harbor is the home of shipping contracts, the dockmaster
-// NPC, and the arriving cargo ship. 8×8 keeps it small like the fishing isles.
-const HARBOR_BOUNDS = { minX: 58, minY: 68, maxX: 65, maxY: 75 };
-
-// ── Shrine island (brief 50) — a small 7×7 authored landmark ──────────────────
-// An interactive set-piece in the east-central open ocean, deliberately OFF the
-// archipelago's cardinal axes (it sits between the Pip↔village bridge corridor at
-// x42–43 and the blacksmith↔quarry column at x60–61) so it breaks the layout's
-// N/S/E/W symmetry. A farmer travels here and `pray-at-shrine` for a small,
-// cooldown-gated AP top-up. It hangs off quarry-north (its nearest island) by a
-// single 2-wide water-only bridge. Budget: nearest island body is farm-pip at 4
-// ocean tiles (≥2 no-adjacency margin holds comfortably); BFS-reachable from the
-// village (walkable-grid test asserts both). Center (56,21).
-const SHRINE_BOUNDS = { minX: 53, minY: 18, maxX: 59, maxY: 24 };
-
-// ── Heritage sites (brief 51) — three purely DECORATIVE landmark islets ───────
-// Three small 8×8 authored landmarks that break the archipelago's cardinal
-// symmetry and give the world a sense of history. They are REACHABLE (region +
-// one 2-wide water-only bridge each) but have NO gameplay behavior: no act
-// handler, no deliberation, no perceive, no cooldown, no component. They exist
-// purely as a layout body + a center sprite + a hover label. Placed in three
-// different quadrants (W-mid, NE, SW-south) so they read as scattered relics,
-// NOT a fourth symmetric ring. No map expansion was needed — all three fit in
-// existing open-ocean gaps of the original 88×80 core.
-//
-// Margins (computed against EVERY other region body + the farm band; the
-// walkable-grid guard re-asserts ≥2 ocean tiles):
-//   stones : nearest body farm-cora at 6 ocean tiles  (≥2 ✔)
-//   ruin   : nearest body farm-atticus at 6 ocean tiles (≥2 ✔)
-//   statue : nearest body farm-otto at 4 ocean tiles  (≥2 ✔)
-// Each is BFS-reachable from the village over its single bridge (guard asserts).
-const HERITAGE_STONES_BOUNDS = { minX:  4, minY: 20, maxX: 11, maxY: 27 }; // W-mid (above mushroom-grove)
-const HERITAGE_RUIN_BOUNDS   = { minX: 76, minY: 20, maxX: 83, maxY: 27 }; // NE (below Atticus)
-const HERITAGE_STATUE_BOUNDS = { minX:  4, minY: 70, maxX: 11, maxY: 77 }; // SW-south (below Otto)
-
-// ── Waterfall island (brief 52) — a small 8×8 DECORATIVE landmark islet ───────
-// A scenic reachable islet whose landmark is an ANIMATED cascade (the only island
-// in the "more islands" set with motion). It is REACHABLE (region + one 2-wide
-// water-only bridge) but carries NO gameplay behavior: no act handler, no
-// deliberation, no perceive, no component. It exists purely as a layout body +
-// a static base-cliff sprite (the rock the water falls over) + a hover label;
-// the cascade animation is a render-loop/wall-clock overlay (see render-loop.ts
-// WATERFALL_FRAMES), exactly like the forge-fire / foam overlays — ZERO sim or
-// determinism impact.
-//
-// Placed in the open ocean of the NE-mid quadrant, in the gap between the shrine
-// (maxX 59) / blacksmith↔quarry-north bridge (x60–61) to its west and
-// heritage-ruin (minX 76) to its east, below quarry-north. This keeps it OFF the
-// archipelago's cardinal axes (it sits east of the central spine, north of the
-// mid band) so it reads as a scattered landmark, not a symmetric ring. No map
-// expansion was needed — it fits an existing open-ocean gap of the core grid.
-//
-// Margin (computed against EVERY other region body + roads; the walkable-grid
-// guard re-asserts ≥2 ocean tiles): nearest body farm-atticus at 2 ocean tiles
-// (≥2 ✔); nearest road the blacksmith↔quarry-north bridge (x60–61) at 2 ocean
-// tiles. BFS-reachable from the village over its single quarry-north bridge.
-// Center (67,19).
-const WATERFALL_BOUNDS = { minX: 64, minY: 16, maxX: 71, maxY: 23 };
-
-// ── Camping island (brief 54) — a small 8×8 reachable landmark with a REST effect ─
-// A campsite islet in the SE open ocean, directly EAST of the harbor and just
-// below Hannah's farm — squarely in the far-from-home travel band (harbor
-// contracts, the two southern fishing isles, the SE end of the procedural farm
-// band). A farmer caught here at nightfall sleeps RESTED (full AP next morning)
-// instead of suffering the away-from-home `unrested` half-AP penalty (see
-// perceive.ts night block). This is the ONLY behavior change — it is a passive
-// effect of standing on the region at nightfall; no act handler / deliberation /
-// cooldown / component. The landmark art is a big TENT at the center + an
-// animated CAMPFIRE beside it (the flicker is a render-loop/wall-clock overlay,
-// like the forge fire / waterfall — ZERO sim impact).
-//
-// Placed OFF the cardinal axes (E of the harbor, below Hannah) so it reads as a
-// scattered landmark, not a symmetric ring. It hangs off the harbor (its nearest
-// island) by a single 2-wide water-only bridge. No map expansion was needed — it
-// fits an existing open-ocean gap of the southern corridor.
-//
-// Margin (computed against EVERY other region body; the walkable-grid guard
-// re-asserts ≥2 ocean tiles): nearest body is the harbor at exactly 2 ocean tiles
-// (x66–67 — the bridge fills that gutter), Hannah's farm at 2 (above). Camp body
-// x68–75 (maxX 75 < WORLD_WIDTH 88) × y69–76. BFS-reachable from the village over
-// its single harbor bridge. Center (71,72).
-const CAMP_BOUNDS = { minX: 68, minY: 69, maxX: 75, maxY: 76 };
 
 /** Every fishing-isle region id, so the renderer / fishing logic treat them
  *  uniformly. */
@@ -277,20 +221,22 @@ export const WATERFALL_REGION_ID: RegionId = 'waterfall';
 export const CAMP_REGION_ID: RegionId = 'camp';
 
 /** brief 54 — the camping islet's campfire-overlay anchor tile (beside the tent
- *  at the island center). The render loop draws the animated campfire flicker
+ *  at the island center, two tiles east — matches the `cx+2` campfire spawn in
+ *  region-setup setup.ts). The render loop draws the animated campfire flicker
  *  frames here as a wall-clock overlay; sim/snapshot never reference it. */
-export const CAMPFIRE_TILE = { x: 73, y: 72 } as const;
+export const CAMPFIRE_TILE = { x: 114, y: 108 } as const;
 
 /** brief 52 — the waterfall island's cascade-overlay anchor tile (its center
  *  column / top). The render loop draws the animated cascade frames here as a
  *  wall-clock overlay; sim/snapshot never reference it. */
-export const WATERFALL_TILE = { x: 67, y: 18 } as const;
+export const WATERFALL_TILE = { x: 83, y: 59 } as const;
 
-/** The dock tile where a farmer stands to deliver a contract. */
-export const HARBOR_DOCK_TILE = { x: 61, y: 68 } as const;
+/** The dock tile where a farmer stands to deliver a contract (harbor north
+ *  edge center). */
+export const HARBOR_DOCK_TILE = { x: 96, y: 105 } as const;
 
 /** The contract board tile within the harbor. */
-export const HARBOR_BOARD_TILE = { x: 62, y: 71 } as const;
+export const HARBOR_BOARD_TILE = { x: 97, y: 108 } as const;
 
 /** True if a region id is one of the fishing isles. */
 export function isFishingIsle(region: RegionId | null): boolean {
@@ -303,135 +249,6 @@ function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: numb
     y: Math.floor((bounds.minY + bounds.maxY) / 2),
   };
 }
-
-// ── Procedural farm-band generation ──────────────────────────────────────────
-// Functions producing the extra farm regions + the bridge network that wires them
-// into the village-rooted road tree. Indices 0..EXTRA_FARM_COUNT-1. The only
-// randomness is the per-farm organic jitter (FARM_JITTER), drawn once at module
-// init from the FIXED WORLD_GEN_SEED — so the band is identical on every run.
-
-/** Un-jittered grid origin (minX,minY) of extra farm `i` (row-major, COLS wide).
- *  The row collector is pinned to this grid line; only the farm body is jittered. */
-function extraFarmGridOrigin(i: number): { minX: number; minY: number } {
-  const col = i % EXTRA_FARM_COLS;
-  const row = Math.floor(i / EXTRA_FARM_COLS);
-  return {
-    minX: FARM_BAND_X0 + col * EXTRA_FARM_PITCH,
-    minY: FARM_BAND_Y0 + row * EXTRA_FARM_PITCH,
-  };
-}
-
-/** Jittered bounds of extra farm `i`. The body is nudged by its fixed-seed
- *  per-farm offset (±EXTRA_FARM_JITTER in each axis); the no-adjacency budget
- *  above proves neighbours keep ≥1 ocean tile in both axes by construction. */
-function extraFarmBounds(i: number): { minX: number; minY: number; maxX: number; maxY: number } {
-  const origin = extraFarmGridOrigin(i);
-  const j = FARM_JITTER[i]!;
-  const minX = origin.minX + j.dx;
-  const minY = origin.minY + j.dy;
-  return { minX, minY, maxX: minX + EXTRA_FARM_SIZE - 1, maxY: minY + EXTRA_FARM_SIZE - 1 };
-}
-
-/** The RegionDef for extra farm `i`. */
-function makeExtraFarmRegion(i: number): RegionDef {
-  const bounds = extraFarmBounds(i);
-  return { id: `farm-${i}` as RegionId, kind: 'farm', bounds, center: midpoint(bounds) };
-}
-
-const EXTRA_FARM_REGIONS: readonly RegionDef[] = Array.from(
-  { length: EXTRA_FARM_COUNT },
-  (_unused, i) => makeExtraFarmRegion(i),
-);
-
-// Column of the trunk bridge. It taps the MILL's south edge and runs straight
-// down into the farm band through open ocean. x48–49 is chosen because x48 is the
-// mill's east-edge column (mill spans x39–48, so the trunk joins the mill body at
-// exactly that edge) while x48–49 stays clear of fishing-isle (x40–47) and harbor
-// (x58–65) — the only other islands in the southern corridor.
-const FARM_TRUNK_X = 48;
-// Y the trunk starts at: one tile below the mill's south edge (mill maxY = 63).
-const FARM_TRUNK_Y0 = 64;
-
-/**
- * Generate the bridge network for the farm band. Every road is a 2-wide bridge
- * spanning only ocean, joining exactly the islands it's meant to:
- *  - trunk: vertical, from the core (mill area) down to the first collector;
- *  - collectors: one horizontal road per occupied row, sitting in the GAP gutter
- *    above that row's farms (pure water), spanning the columns the row uses;
- *  - links: short vertical bridges in a gutter column joining the trunk down
- *    through successive collectors (so all collectors hang off the trunk);
- *  - stubs: a short 2-wide bridge from each farm's top edge up into its row
- *    collector, centered on the farm so it never touches a neighbour.
- */
-function generateFarmBand(): RoadDef[] {
-  if (EXTRA_FARM_COUNT === 0) return [];
-  const roads: RoadDef[] = [];
-
-  // Collector y for a given row: a fixed 2-tall bridge pinned to the UN-jittered
-  // grid line, sitting in the middle of the gutter above the row's farms (gutter
-  // is rowMinY-EXTRA_FARM_GAP .. rowMinY-1, i.e. 4 tiles tall now). Pinning the
-  // collector to the grid line (not the jittered farm tops) means each farm joins
-  // the network via its own short vertical stub from the collector down to the
-  // jittered farm top. The collector is a road (not an island), so jittered farm
-  // bodies stay non-adjacent to one another — the invariant is about islands only.
-  const collectorY = (row: number): { minY: number; maxY: number } => {
-    const rowMinY = FARM_BAND_Y0 + row * EXTRA_FARM_PITCH;
-    // 2-tall, centered in the 4-tile gutter: rowMinY-3 .. rowMinY-2 (pure water).
-    return { minY: rowMinY - 3, maxY: rowMinY - 2 };
-  };
-
-  // Trunk: from one tile below the mill's south edge straight down to the first
-  // collector. x = FARM_TRUNK_X..+1 (see constant doc).
-  const firstCollector = collectorY(0);
-  roads.push({ minX: FARM_TRUNK_X, maxX: FARM_TRUNK_X + 1, minY: FARM_TRUNK_Y0, maxY: firstCollector.minY - 1 });
-
-  for (let row = 0; row < EXTRA_FARM_ROWS; row++) {
-    const farmsInRow = Math.min(EXTRA_FARM_COLS, EXTRA_FARM_COUNT - row * EXTRA_FARM_COLS);
-    if (farmsInRow <= 0) break;
-    const cy = collectorY(row);
-
-    // Per-farm stubs + the X-extent the collector must span. Each stub is a 2-wide
-    // vertical bridge centered on the JITTERED farm body, from the collector's
-    // bottom edge down to one tile above the farm's (jittered) top edge — pure
-    // water. The collector must span from the trunk column across every stub
-    // column so trunk → collector → stub → farm is always one connected tree.
-    let colMinX = FARM_TRUNK_X;
-    let colMaxX = FARM_TRUNK_X + 1;
-    for (let c = 0; c < farmsInRow; c++) {
-      const bounds = extraFarmBounds(row * EXTRA_FARM_COLS + c);
-      // Stub columns: 2-wide, left-of-center on the jittered farm (size 10 → +4,+5).
-      const stubMinX = bounds.minX + Math.floor(EXTRA_FARM_SIZE / 2) - 1;
-      const stubMaxX = stubMinX + 1;
-      colMinX = Math.min(colMinX, stubMinX);
-      colMaxX = Math.max(colMaxX, stubMaxX);
-
-      // Stub spans the water between the collector bottom and the jittered farm
-      // top. If downward jitter put the farm top directly under the collector
-      // (no gap), the farm is already adjacent to the collector — skip the stub.
-      const stubMinY = cy.maxY + 1;
-      const stubMaxY = bounds.minY - 1;
-      if (stubMaxY >= stubMinY) {
-        roads.push({ minX: stubMinX, maxX: stubMaxX, minY: stubMinY, maxY: stubMaxY });
-      }
-    }
-
-    // Collector spanning all of this row's stub columns plus the trunk column, so
-    // the trunk/link always meets it and every stub joins it.
-    roads.push({ minX: colMinX, maxX: colMaxX, minY: cy.minY, maxY: cy.maxY });
-
-    // Link this collector down to the next occupied row's collector (vertical, in
-    // the trunk column, through the farm row's gap).
-    const nextRowStart = (row + 1) * EXTRA_FARM_COLS;
-    if (row + 1 < EXTRA_FARM_ROWS && nextRowStart < EXTRA_FARM_COUNT) {
-      const next = collectorY(row + 1);
-      roads.push({ minX: FARM_TRUNK_X, maxX: FARM_TRUNK_X + 1, minY: cy.maxY + 1, maxY: next.minY - 1 });
-    }
-  }
-
-  return roads;
-}
-
-const EXTRA_FARM_ROADS: readonly RoadDef[] = generateFarmBand();
 
 export const REGIONS: readonly RegionDef[] = [
   { id: 'village',        kind: 'village', bounds: VILLAGE_BOUNDS,         center: midpoint(VILLAGE_BOUNDS) },
@@ -467,7 +284,8 @@ export const REGIONS: readonly RegionDef[] = [
   // reachable island; its ONLY behavior is the passive rested-away rest effect
   // (perceive.ts night block), not an act handler.
   { id: 'camp', kind: 'village', bounds: CAMP_BOUNDS, center: midpoint(CAMP_BOUNDS) },
-  // Procedural farm band (south) — additive; the five fixed farms above are unchanged.
+  // Radial farm rings (frontier) — additive; the five named farms above are the
+  // inner ring's even slots.
   ...EXTRA_FARM_REGIONS,
 ];
 
@@ -478,80 +296,174 @@ interface RoadDef {
 
 // Every entry is a 2-tile-wide bridge that spans ONLY water (it touches no land
 // except the two island edges it joins). Together they form a tree rooted at the
-// village: village → {carpentry, blacksmith, Pip, mill}; carpentry → the west
-// chain (mushroom-grove, forest-north, forest-south); blacksmith → the east
-// chain (ice-pond, quarry-north, quarry-south); each corner farm + each well
-// hangs off its nearest resource island. Verified: no island-to-island
-// adjacency and full BFS connectivity from the village center (walkable-grid
-// test asserts both).
+// village. The CLUSTER bridges (hand-authored) wire the central islands; the
+// FARM SPOKES (generated by generateFarmSpokes) hang each ring farm off the
+// nearest island that yields a clean straight bridge. Verified by the geometry
+// harness: 41 bridges, 0 island overlaps, full BFS connectivity from the village
+// center, and the no-adjacency invariant untouched (bridges are road-only tiles).
+
+/** A pair of islands to bridge, looked up by id at generation time. */
+const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
+  ['village', 'carpentry'],
+  ['village', 'blacksmith'],
+  ['village', 'mill'],
+  ['village', 'shrine'],
+  ['shrine', 'waterfall'],
+  ['carpentry', 'forest-north'],
+  ['carpentry', 'forest-south'],
+  ['blacksmith', 'quarry-north'],
+  ['blacksmith', 'quarry-south'],
+  ['forest-north', 'mushroom-grove'],
+  ['quarry-north', 'ice-pond'],
+  ['quarry-north', 'well-north'],
+  ['quarry-south', 'well-south'],
+  ['quarry-north', 'heritage-ruin'],
+  ['forest-north', 'heritage-stones'],
+  ['forest-south', 'heritage-statue'],
+  ['mill', 'fishing-isle'],
+  ['forest-south', 'fishing-isle-2'],
+  ['quarry-south', 'harbor'],
+  ['harbor', 'camp'],
+];
+
+const boundsOf = (id: RegionId) => {
+  const r = REGIONS.find((reg) => reg.id === id);
+  if (!r) throw new Error(`boundsOf: unknown region '${id}'`);
+  return r.bounds;
+};
+const centerOf = (id: RegionId) => {
+  const r = REGIONS.find((reg) => reg.id === id);
+  if (!r) throw new Error(`centerOf: unknown region '${id}'`);
+  return r.center;
+};
+
+/** Do two inclusive rects overlap (share any tile)? */
+function rectsOverlap(a: RoadDef, b: RoadDef): boolean {
+  return !(a.maxX < b.minX || b.maxX < a.minX || a.maxY < b.minY || b.maxY < a.minY);
+}
+
+/** A candidate bridge rect is CLEAN iff it overlaps no region body and, when
+ *  expanded by 1 tile, edge-touches exactly its two endpoint islands. */
+function bridgeIsClean(rect: RoadDef, aId: RegionId, bId: RegionId): boolean {
+  for (const reg of REGIONS) {
+    if (rectsOverlap(rect, reg.bounds)) return false;
+  }
+  const exp = { minX: rect.minX - 1, minY: rect.minY - 1, maxX: rect.maxX + 1, maxY: rect.maxY + 1 };
+  for (const reg of REGIONS) {
+    if (reg.id === aId || reg.id === bId) continue;
+    if (rectsOverlap(exp, reg.bounds)) return false;
+  }
+  return true;
+}
+
+/**
+ * Find a CLEAN straight 2-wide bridge between two islands, or null. Scans every
+ * valid 2-wide window along the islands' overlap axis (so it can dodge a small
+ * obstacle island like a well that sits in the first window) and returns the
+ * first window whose rect overlaps no island and edge-touches only the two
+ * endpoints.
+ */
+function straightBridge(aId: RegionId, bId: RegionId): RoadDef | null {
+  const a = boundsOf(aId);
+  const b = boundsOf(bId);
+  const candidates: RoadDef[] = [];
+  // Vertical bridges: every 2-wide x-window in the x-overlap.
+  const ox0 = Math.max(a.minX, b.minX);
+  const ox1 = Math.min(a.maxX, b.maxX);
+  for (let x0 = ox0; x0 + 1 <= ox1; x0++) {
+    if (a.maxY < b.minY) {
+      const r = { minX: x0, minY: a.maxY + 1, maxX: x0 + 1, maxY: b.minY - 1 };
+      if (r.minY <= r.maxY) candidates.push(r);
+    }
+    if (b.maxY < a.minY) {
+      const r = { minX: x0, minY: b.maxY + 1, maxX: x0 + 1, maxY: a.minY - 1 };
+      if (r.minY <= r.maxY) candidates.push(r);
+    }
+  }
+  // Horizontal bridges: every 2-wide y-window in the y-overlap.
+  const oy0 = Math.max(a.minY, b.minY);
+  const oy1 = Math.min(a.maxY, b.maxY);
+  for (let y0 = oy0; y0 + 1 <= oy1; y0++) {
+    if (a.maxX < b.minX) {
+      const r = { minX: a.maxX + 1, minY: y0, maxX: b.minX - 1, maxY: y0 + 1 };
+      if (r.minX <= r.maxX) candidates.push(r);
+    }
+    if (b.maxX < a.minX) {
+      const r = { minX: b.maxX + 1, minY: y0, maxX: a.minX - 1, maxY: y0 + 1 };
+      if (r.minX <= r.maxX) candidates.push(r);
+    }
+  }
+  for (const r of candidates) {
+    if (bridgeIsClean(r, aId, bId)) return r;
+  }
+  return null;
+}
+
+/** The cluster bridge rects, resolved from CLUSTER_BRIDGES. */
+function generateClusterBridges(): RoadDef[] {
+  const out: RoadDef[] = [];
+  for (const [aId, bId] of CLUSTER_BRIDGES) {
+    const r = straightBridge(aId, bId);
+    if (!r) throw new Error(`generateClusterBridges: no clean bridge ${aId}↔${bId}`);
+    out.push(r);
+  }
+  return out;
+}
+
+/**
+ * Generate one spoke bridge per ring farm. Each farm connects to the nearest
+ * island (by squared center distance) that yields a clean straight bridge:
+ *  - inner-ring farms target the central cluster islands;
+ *  - outer-ring farms target the inner-ring farms ∪ cluster islands (the inner
+ *    ring is closer, so most outer farms hang off an inner farm).
+ * The concentric rings + wide moats guarantee a clean straight spoke for every
+ * farm (verified by the geometry harness: all 21 connect, full BFS reachability).
+ */
+function generateFarmSpokes(): RoadDef[] {
+  const clusterIds = REGIONS.filter((r) => r.kind === 'village').map((r) => r.id);
+  const innerFarmIds: RegionId[] = [
+    'farm-pip', 'farm-atticus', 'farm-hannah', 'farm-otto', 'farm-cora',
+    'farm-0', 'farm-1', 'farm-2', 'farm-3',
+  ];
+  const innerProcSlots = 4; // farm-0..3 are inner-ring
+  const out: RoadDef[] = [];
+
+  const connect = (fid: RegionId, pool: RegionId[]) => {
+    const fc = centerOf(fid);
+    const sorted = [...pool].sort((A, B) => {
+      const a = centerOf(A);
+      const b = centerOf(B);
+      const da = (a.x - fc.x) ** 2 + (a.y - fc.y) ** 2;
+      const db = (b.x - fc.x) ** 2 + (b.y - fc.y) ** 2;
+      return da - db;
+    });
+    for (const t of sorted) {
+      const r = straightBridge(fid, t);
+      if (r) { out.push(r); return; }
+    }
+    throw new Error(`generateFarmSpokes: no clean spoke for ${fid}`);
+  };
+
+  for (const fid of innerFarmIds) connect(fid, clusterIds);
+  for (let i = innerProcSlots; i < EXTRA_FARM_COUNT; i++) {
+    connect(`farm-${i}` as RegionId, [...innerFarmIds, ...clusterIds]);
+  }
+  return out;
+}
+
 const ROADS: readonly RoadDef[] = [
-  // ── Village hub spokes ──
-  { minX: 30, minY: 38, maxX: 37, maxY: 39 }, // village ↔ carpentry
-  { minX: 50, minY: 38, maxX: 57, maxY: 39 }, // village ↔ blacksmith
-  { minX: 42, minY: 14, maxX: 43, maxY: 33 }, // village ↔ Pip (top)
-  { minX: 42, minY: 46, maxX: 43, maxY: 55 }, // village ↔ mill
-
-  // ── West chain (off carpentry) ──
-  { minX: 14, minY: 37, maxX: 19, maxY: 38 }, // carpentry ↔ mushroom-grove
-  { minX: 24, minY: 12, maxX: 25, maxY: 33 }, // carpentry ↔ forest-north
-  { minX: 24, minY: 44, maxX: 25, maxY: 55 }, // carpentry ↔ forest-south
-
-  // ── East chain (off blacksmith) ──
-  { minX: 68, minY: 37, maxX: 73, maxY: 38 }, // blacksmith ↔ ice-pond
-  { minX: 60, minY: 12, maxX: 61, maxY: 33 }, // blacksmith ↔ quarry-north
-  { minX: 60, minY: 44, maxX: 61, maxY: 55 }, // blacksmith ↔ quarry-south
-
-  // ── Corner farms hang off the nearest resource island ──
-  { minX: 14, minY:  6, maxX: 21, maxY:  7 }, // Cora ↔ forest-north
-  { minX: 66, minY:  6, maxX: 73, maxY:  7 }, // Atticus ↔ quarry-north
-  { minX: 14, minY: 59, maxX: 21, maxY: 60 }, // Otto ↔ forest-south
-  { minX: 66, minY: 59, maxX: 73, maxY: 60 }, // Hannah ↔ quarry-south
-
-  // ── Wells (stub off the adjacent quarry) ──
-  { minX: 66, minY:  6, maxX: 68, maxY:  7 }, // well-north ↔ quarry-north
-  { minX: 66, minY: 58, maxX: 68, maxY: 59 }, // well-south ↔ quarry-south
-
-  // ── Fishing isles (hang off the mill / forest-south, due south) ──
-  { minX: 42, minY: 64, maxX: 43, maxY: 67 }, // mill ↔ fishing-isle
-  { minX: 24, minY: 64, maxX: 25, maxY: 67 }, // forest-south ↔ fishing-isle-2
-
-  // ── Harbor (brief 46) — hangs off quarry-south, due south ──────────────────
-  { minX: 60, minY: 64, maxX: 61, maxY: 67 }, // quarry-south ↔ harbor
-
-  // ── Shrine (brief 50) — hangs off quarry-north, due south of it ────────────
-  // 2-wide, water-only, x58–59 down through y12–17 (6 ocean tiles) joining the
-  // quarry-north south edge (y11) to the shrine top edge (y18).
-  { minX: 58, minY: 12, maxX: 59, maxY: 17 }, // quarry-north ↔ shrine
-
-  // ── Heritage sites (brief 51) — one 2-wide water-only bridge each ──────────
-  // Each spans only ocean from the islet's edge to its nearest hub island.
-  { minX:  8, minY: 28, maxX:  9, maxY: 33 }, // heritage-stones ↔ mushroom-grove (down, 6 ocean tiles)
-  { minX: 78, minY: 14, maxX: 79, maxY: 19 }, // heritage-ruin   ↔ farm-atticus   (up,   6 ocean tiles)
-  { minX:  6, minY: 66, maxX:  7, maxY: 69 }, // heritage-statue ↔ farm-otto      (up,   4 ocean tiles)
-
-  // ── Waterfall island (brief 52) — one 2-wide water-only bridge ─────────────
-  // 2-wide, water-only, x64–65 down through y12–15 (4 ocean tiles) joining the
-  // quarry-north south edge (y11, x58–65) to the waterfall top edge (y16, x64–71).
-  { minX: 64, minY: 12, maxX: 65, maxY: 15 }, // quarry-north ↔ waterfall
-
-  // ── Camping island (brief 54) — one 2-wide water-only bridge ───────────────
-  // Horizontal, x66–67 (the only 2 ocean tiles between the harbor east edge at
-  // x65 and the camp west edge at x68), y71–72 — inside both islands' y-overlap.
-  // Joins the harbor (its nearest hub island) to the camp; pure water.
-  { minX: 66, minY: 71, maxX: 67, maxY: 72 }, // harbor ↔ camp
-
-  // ── Procedural farm band (south) — trunk + per-row collectors ──
-  ...EXTRA_FARM_ROADS,
+  ...generateClusterBridges(),
+  ...generateFarmSpokes(),
 ];
 
 // Town square: inner 4×4 of village (auction podium + notice board markers)
-export const TOWN_SQUARE = { minX: 42, minY: 38, maxX: 45, maxY: 41 };
+export const TOWN_SQUARE = { minX: 78, minY: 79, maxX: 81, maxY: 82 };
 
 // Auction podium tile: dead center of the town square — where agents gather for CFP
-export const AUCTION_PODIUM_TILE = { x: 43, y: 39 } as const;
+export const AUCTION_PODIUM_TILE = { x: 80, y: 80 } as const;
 
 // Notice board tile: west edge of town square
-export const NOTICE_BOARD_TILE = { x: 42, y: 39 } as const;
+export const NOTICE_BOARD_TILE = { x: 79, y: 80 } as const;
 
 function inBounds(
   x: number,
@@ -591,10 +503,9 @@ export function getRegion(id: RegionId): RegionDef {
 
 /**
  * Pick the resource zone (forest for "tree", quarry for "stone") nearest a
- * farm, used for gather routing + zone ownership. Replaces the old hardcoded
- * N/S corner-pair mapping so it works for any farm position (incl. the
- * procedural southern band). Compares the farm center to each candidate zone's
- * center by squared distance; ties resolve to the north zone for stability.
+ * farm, used for gather routing + zone ownership. Compares the farm center to
+ * each candidate zone's center by squared distance; ties resolve to the north
+ * zone for stability.
  */
 export function nearestResourceZone(
   farmCenter: { x: number; y: number },

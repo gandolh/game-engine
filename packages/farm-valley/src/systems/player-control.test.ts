@@ -298,8 +298,9 @@ describe("PlayerControlSystem — hotbar action", () => {
 });
 
 describe("PlayerControlSystem — fishing", () => {
-  // Fishing-isle west edge tile (40,71); its west neighbour (39,71) is ocean.
-  const ISLE_EDGE = { x: 40, y: 71 };
+  // Fishing-isle west edge tile (75,108); its west neighbour (74,108) is ocean,
+  // its east neighbour (76,108) is isle land (radial 160×160 layout).
+  const ISLE_EDGE = { x: 75, y: 108 };
 
   /** Stand Pip on the fishing-isle edge with a rod, facing the open water. */
   function standOnIsle(pip: GameEntity): void {

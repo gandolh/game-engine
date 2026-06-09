@@ -2,7 +2,7 @@
   "id": "props",
   "imageUrl": "/atlas/props.png",
   "width": 128,
-  "height": 64,
+  "height": 128,
   "frames": {
     "decoration/scarecrow": {
       "x": 1,
@@ -73,6 +73,84 @@
     "decoration/log-stack": {
       "x": 69,
       "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/stone-lantern": {
+      "x": 86,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/torii": {
+      "x": 103,
+      "y": 18,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/buoy": {
+      "x": 1,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-basket": {
+      "x": 18,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/anchor": {
+      "x": 35,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/mushroom-cluster": {
+      "x": 52,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fern": {
+      "x": 69,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/ore-cart": {
+      "x": 86,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/rubble": {
+      "x": 103,
+      "y": 35,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/grain-sack": {
+      "x": 1,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/flour-bag": {
+      "x": 18,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/cattail": {
+      "x": 35,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/cairn": {
+      "x": 52,
+      "y": 52,
       "w": 16,
       "h": 16
     }

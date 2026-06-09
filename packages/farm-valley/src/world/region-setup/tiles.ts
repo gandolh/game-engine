@@ -8,10 +8,10 @@
  * that field.
  */
 
-/** Blacksmith NPC tile within the blacksmith island (E of village, 58-67×34-43). */
-export const BLACKSMITH_TILE = { x: 62, y: 41 } as const;
+/** Blacksmith NPC tile within the blacksmith island (E of village, 93-102×76-85). */
+export const BLACKSMITH_TILE = { x: 97, y: 83 } as const;
 
-/** Village tile where the market wall lives (village island 38-49×34-45). */
-export const MARKET_WALL_TILE = { x: 40, y: 36 } as const;
+/** Village tile where the market wall lives (village island 75-86×75-86). */
+export const MARKET_WALL_TILE = { x: 77, y: 77 } as const;
 /** Village tile where the shopkeeper stands. */
-export const SHOPKEEPER_TILE = { x: 47, y: 43 } as const;
+export const SHOPKEEPER_TILE = { x: 84, y: 84 } as const;

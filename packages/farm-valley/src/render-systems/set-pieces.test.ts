@@ -37,23 +37,23 @@ describe("set-pieces (decorative open-water props)", () => {
       [
         {
           "frame": "structure/stone",
-          "tx": 37,
-          "ty": 54,
-        },
-        {
-          "frame": "tile/sand",
-          "tx": 14,
-          "ty": 16,
+          "tx": 111,
+          "ty": 81,
         },
         {
           "frame": "structure/stone",
-          "tx": 12,
-          "ty": 92,
+          "tx": 146,
+          "ty": 129,
         },
         {
-          "frame": "tile/shore-sand",
+          "frame": "tile/sand",
+          "tx": 26,
+          "ty": 20,
+        },
+        {
+          "frame": "structure/stone",
           "tx": 22,
-          "ty": 13,
+          "ty": 115,
         },
       ]
     `);

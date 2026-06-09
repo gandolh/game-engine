@@ -129,31 +129,31 @@ export function setupRegions(
 
     // Blacksmith NPC + forge props. A big forge-house (baked static scenery,
     // see render-systems BIG_STRUCTURES) stands on the EAST half of the island
-    // (x63–64, y34–36); the work-yard props sit on the open ground in front of
-    // it (y37–41). IMPORTANT: the island's through-road spine runs down x60–61
-    // (the bridge road {60-61, 12-33} lands at the top and {60-61, 44-55} exits
-    // the bottom), so the building/props/footprint must keep x60–61 CLEAR or the
-    // island — and everything routed through it — gets walled off. The NPC
-    // patrols anvil → oven → quench.
+    // (x99–100, y76–78); the work-yard props sit on the open ground in front of
+    // it (y79–85). IMPORTANT: the island's through-road spine runs down x93–94
+    // (the village bridge lands on the west edge y76–77 and the quarry bridges
+    // land at the top {93-94} and bottom), so the building/props/footprint must
+    // keep x93–94 CLEAR or the island — and everything routed through it — gets
+    // walled off. The NPC patrols anvil → oven → quench.
     if (def.id === "blacksmith") {
       placeProps(world, [
-        // Forge work line in front of the forge-house (east half, x62–67).
-        { x: 62, y: 37, frame: "structure/forge-oven" },
-        { x: 65, y: 37, frame: "structure/tool-rack" },
-        { x: 64, y: 39, frame: "structure/anvil" },
-        { x: 66, y: 38, frame: "structure/quench-tub" },
+        // Forge work line in front of the forge-house (east half, x95–102).
+        { x: 97, y: 79, frame: "structure/forge-oven" },
+        { x: 100, y: 79, frame: "structure/tool-rack" },
+        { x: 99, y: 81, frame: "structure/anvil" },
+        { x: 101, y: 80, frame: "structure/quench-tub" },
         // New detail props that flesh out the forge yard.
-        { x: 62, y: 39, frame: "structure/coal-pile" },
-        { x: 63, y: 41, frame: "structure/grindstone" },
-        { x: 66, y: 40, frame: "structure/ingot-rack" },
-        { x: 65, y: 41, frame: "structure/anvil" },
+        { x: 97, y: 81, frame: "structure/coal-pile" },
+        { x: 98, y: 83, frame: "structure/grindstone" },
+        { x: 101, y: 82, frame: "structure/ingot-rack" },
+        { x: 100, y: 83, frame: "structure/anvil" },
       ]);
-      // The big forge-house occupies x63–64 × y34–36 (baked art in render-
+      // The big forge-house occupies x99–100 × y76–78 (baked art in render-
       // systems BIG_STRUCTURES); block its footprint so nobody walks through it.
       placeFootprint(world, [
-        { x: 63, y: 34 }, { x: 64, y: 34 },
-        { x: 63, y: 35 }, { x: 64, y: 35 },
-        { x: 63, y: 36 }, { x: 64, y: 36 },
+        { x: 99, y: 76 }, { x: 100, y: 76 },
+        { x: 99, y: 77 }, { x: 100, y: 77 },
+        { x: 99, y: 78 }, { x: 100, y: 78 },
       ]);
       world.spawn({
         transform: {
@@ -169,12 +169,12 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/blacksmith/idle",
           stations: [
-            // Stand below the anvil (64,39), face up, hammer.
-            { tileX: 64, tileY: 40, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
-            // Tend the oven (62,37) — stand below it, face up, no swing pose.
-            { tileX: 62, tileY: 38, facing: "up", flipX: false, pose: null },
-            // Quench at the tub (66,38) — stand left of it, face side/right.
-            { tileX: 65, tileY: 38, facing: "side", flipX: false, pose: null },
+            // Stand below the anvil (99,81), face up, hammer.
+            { tileX: 99, tileY: 82, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
+            // Tend the oven (97,79) — stand below it, face up, no swing pose.
+            { tileX: 97, tileY: 80, facing: "up", flipX: false, pose: null },
+            // Quench at the tub (101,80) — stand left of it, face side/right.
+            { tileX: 100, tileY: 80, facing: "side", flipX: false, pose: null },
           ],
           stationIndex: 0,
           phase: "working",
@@ -187,36 +187,39 @@ export function setupRegions(
     }
 
     // Carpenter NPC + workshop props. A big carpenter-workshop (baked static
-    // scenery, see render-systems BIG_STRUCTURES) stands on the WEST half of the
-    // island (x21–22, y34–36); the lumber-yard props sit on the open ground in
-    // front of it (y37–41). IMPORTANT: the island's through-road spine runs down
-    // x24–25 (bridge road {24-25, 12-33} lands at the top and {24-25, 44-55}
-    // exits the bottom), so the building/props/footprint must keep x24–25 CLEAR
-    // or the island — and forest-north + farm-cora, which route through it — get
-    // walled off. The NPC patrols workbench → sawhorse.
+    // scenery, see render-systems BIG_STRUCTURES) stands on the WEST strip of the
+    // island (x59–60, y76–78), left of the x61–62 road spine; the lumber-yard
+    // props sit in the open EAST half (x63–68). IMPORTANT: the island's
+    // through-road spine runs down x61–62 (the village bridge lands on the east
+    // edge y76–77; the forest bridges land at the top {61-62} and bottom), so the
+    // building/props/footprint must keep x61–62 CLEAR — and keep an open lane
+    // through the east yard — or the island gets walled off. The whole east half
+    // is reachable; props line the top/bottom edges leaving the center open. The
+    // NPC patrols workbench → sawhorse.
     if (def.id === "carpentry") {
-      const cx = def.center.x;
-      const cy = def.center.y;
+      const cx = def.center.x; // 63
+      const cy = def.center.y; // 80
+      // The village bridge lands on the east edge at (68,76)/(68,77) — keep that
+      // entry column (x68, y76–79) and the row just inside it OPEN. Props line the
+      // far-west-of-yard and bottom edges only.
       placeProps(world, [
-        // Bench + sawing line in front of the workshop (west + east of spine).
-        { x: 21, y: 37, frame: "structure/workbench" },
-        { x: 27, y: 37, frame: "structure/sawhorse" },
-        { x: 20, y: 40, frame: "structure/log-pile" },
-        { x: 27, y: 40, frame: "structure/plank-stack" },
-        // New detail props that flesh out the lumber yard.
-        { x: 28, y: 38, frame: "structure/lumber-rack" },
-        { x: 22, y: 41, frame: "structure/sawpit" },
-        // Shavings sit east of the spine — column x20,y37–38 is the mushroom-
-        // grove road landing and must stay clear.
-        { x: 23, y: 41, frame: "structure/shavings-pile" },
-        { x: 27, y: 41, frame: "structure/log-pile" },
+        // Bench + sawing line along the TOP edge of the east yard (x63–65, y77).
+        { x: 63, y: 78, frame: "structure/workbench" },
+        { x: 65, y: 77, frame: "structure/sawhorse" },
+        { x: 64, y: 77, frame: "structure/lumber-rack" },
+        // Lumber stacks along the BOTTOM edge (y84–85), leaving y80–83 open.
+        { x: 64, y: 84, frame: "structure/log-pile" },
+        { x: 66, y: 84, frame: "structure/plank-stack" },
+        { x: 64, y: 85, frame: "structure/sawpit" },
+        { x: 66, y: 85, frame: "structure/shavings-pile" },
+        { x: 67, y: 85, frame: "structure/log-pile" },
       ]);
-      // The big carpenter-workshop occupies x21–22 × y34–36 (baked art in
+      // The big carpenter-workshop occupies x59–60 × y76–78 (baked art in
       // render-systems BIG_STRUCTURES); block its footprint.
       placeFootprint(world, [
-        { x: 21, y: 34 }, { x: 22, y: 34 },
-        { x: 21, y: 35 }, { x: 22, y: 35 },
-        { x: 21, y: 36 }, { x: 22, y: 36 },
+        { x: 59, y: 76 }, { x: 60, y: 76 },
+        { x: 59, y: 77 }, { x: 60, y: 77 },
+        { x: 59, y: 78 }, { x: 60, y: 78 },
       ]);
       world.spawn({
         transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
@@ -226,12 +229,12 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/carpenter/idle",
           stations: [
-            // Saw at the workbench (21,37) — stand below, face up.
-            { tileX: 21, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Saw the log on the sawhorse (27,37) — stand below, face up.
-            { tileX: 27, tileY: 38, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Inspect the log pile (20,40) — stand right of it, face side/left.
-            { tileX: 21, tileY: 40, facing: "side", flipX: true, pose: null },
+            // Saw at the workbench (63,78) — stand below, face up.
+            { tileX: 63, tileY: 79, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Saw the log on the sawhorse (65,77) — stand below, face up.
+            { tileX: 65, tileY: 78, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
+            // Inspect the log pile (64,84) — stand above it, face down.
+            { tileX: 64, tileY: 83, facing: "down", flipX: false, pose: null },
           ],
           stationIndex: 0,
           phase: "working",
@@ -308,32 +311,32 @@ export function setupRegions(
   }
 
   // ── Tavern — village social hub (brief 44) ──────────────────────────────────
-  // The tavern building stands on the village's north edge (45,34); the barkeep
-  // NPC works the bar one tile below it (45,35), patrolling pour → wipe → idle so
+  // The tavern building stands on the village's north edge (82,75); the barkeep
+  // NPC works the bar one tile below it (82,76), patrolling pour → wipe → idle so
   // the hub reads as a place, not a terminal. The tavern entity carries an inbox
   // (TavernSystem snoops DAY_START for the daily gossip line) + the tavern tag.
   // Both tiles are free village tiles (clear of the market wall, shopkeeper,
   // podium, notice board and the corner lamps/props).
   if (REGIONS.some((r) => r.id === "village")) {
     world.spawn({
-      transform: { x: 45, y: 34, prevX: 45, prevY: 34, rotation: 0 },
+      transform: { x: 82, y: 75, prevX: 82, prevY: 75, rotation: 0 },
       sprite: { atlasId: "main", frame: "structure/tavern", layer: 50, tintRgba: 0xffffffff },
       tavern: { isTavern: true },
       inbox: { messages: [] },
-      solid: { isSolid: true, tileX: 45, tileY: 34 },
+      solid: { isSolid: true, tileX: 82, tileY: 75 },
     });
     world.spawn({
-      transform: { x: 45, y: 35, prevX: 45, prevY: 35, rotation: 0 },
+      transform: { x: 82, y: 76, prevX: 82, prevY: 76, rotation: 0 },
       sprite: { atlasId: "main", frame: "npc/barkeep/idle", layer: 50, tintRgba: 0xffffffff },
       workNpc: {
         idlePose: "npc/barkeep/idle",
         stations: [
-          // Pour at the bar (stand at 45,35, face down toward patrons).
-          { tileX: 45, tileY: 35, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
+          // Pour at the bar (stand at 82,76, face down toward patrons).
+          { tileX: 82, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
           // Wipe the counter one tile west.
-          { tileX: 44, tileY: 35, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
+          { tileX: 81, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
           // Step back east and idle.
-          { tileX: 46, tileY: 35, facing: "down", flipX: false, pose: null },
+          { tileX: 83, tileY: 76, facing: "down", flipX: false, pose: null },
         ],
         stationIndex: 0,
         phase: "working",
@@ -472,8 +475,8 @@ export function setupRegions(
   // snapshot-builder/constants.ts (DECORATION_LABELS).
   const campRegion = REGIONS.find((r) => r.id === "camp");
   if (campRegion) {
-    const cx = campRegion.center.x; // 71
-    const cy = campRegion.center.y; // 72
+    const cx = campRegion.center.x; // 112
+    const cy = campRegion.center.y; // 108
     world.spawn({
       transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
       sprite: { atlasId: "main", frame: "structure/tent", layer: 50, tintRgba: 0xffffffff },
@@ -493,44 +496,109 @@ export function setupRegions(
   // scatter on any walkable tile. Tiles are hand-picked to avoid overlapping
   // interactables (NPCs, market wall, podium, plots).
   if (REGIONS.some((r) => r.id === "village")) {
+    // Village hub corners + edges: lamps, signpost, barrels, plants. Clear of the
+    // tavern (82,75)/barkeep (82,76), market wall (77,77), shopkeeper (84,84),
+    // podium (80,80) and notice board (79,80). Village bounds 75–86 × 75–86.
     placeProps(world, [
-      // Village hub corners + edges: lamps, signpost, barrels, plants.
-      { x: 38, y: 34, frame: "decoration/lamp-post" },
-      { x: 49, y: 34, frame: "decoration/lamp-post" },
-      { x: 38, y: 45, frame: "decoration/lamp-post" },
-      { x: 49, y: 45, frame: "decoration/lamp-post" },
-      { x: 39, y: 44, frame: "decoration/signpost" },
-      { x: 48, y: 35, frame: "decoration/barrel" },
-      { x: 39, y: 35, frame: "decoration/crate" },
-      { x: 48, y: 44, frame: "decoration/potted-plant" },
-      // Carpentry workshop yard: stacked logs + a barrel of fasteners, lamps
-      // framing the workshop, a signpost at the dock-side entrance.
-      { x: 20, y: 42, frame: "decoration/log-stack" },
-      { x: 29, y: 42, frame: "decoration/barrel" },
-      { x: 20, y: 35, frame: "decoration/lamp-post" },
-      { x: 29, y: 35, frame: "decoration/lamp-post" },
-      { x: 21, y: 43, frame: "decoration/signpost" },
-      // Blacksmith yard: crate + barrel of stock, lamps framing the forge, a
-      // firewood stack for the forge fire.
-      { x: 58, y: 42, frame: "decoration/crate" },
-      { x: 67, y: 42, frame: "decoration/barrel" },
-      { x: 58, y: 35, frame: "decoration/lamp-post" },
-      { x: 67, y: 35, frame: "decoration/lamp-post" },
-      { x: 66, y: 41, frame: "decoration/log-stack" },
-      // Forest zones: bushes + a firewood stack.
-      { x: 23, y: 5,  frame: "decoration/bush" },
-      { x: 28, y: 10, frame: "decoration/log-stack" },
-      { x: 23, y: 57, frame: "decoration/bush" },
-      { x: 28, y: 62, frame: "decoration/log-stack" },
-      // Quarry zones: crates of cut stone.
-      { x: 59, y: 5,  frame: "decoration/crate" },
-      { x: 64, y: 10, frame: "decoration/crate" },
-      { x: 59, y: 57, frame: "decoration/crate" },
-      { x: 64, y: 62, frame: "decoration/crate" },
-      // Mill yard: hay bales + a signpost.
-      { x: 40, y: 62, frame: "decoration/hay-bale" },
-      { x: 47, y: 62, frame: "decoration/hay-bale" },
-      { x: 40, y: 57, frame: "decoration/signpost" },
+      { x: 75, y: 75, frame: "decoration/lamp-post" },
+      { x: 86, y: 75, frame: "decoration/lamp-post" },
+      { x: 75, y: 86, frame: "decoration/lamp-post" },
+      { x: 86, y: 86, frame: "decoration/lamp-post" },
+      { x: 76, y: 85, frame: "decoration/signpost" },
+      { x: 85, y: 76, frame: "decoration/barrel" },
+      { x: 76, y: 78, frame: "decoration/crate" },
+      { x: 85, y: 85, frame: "decoration/potted-plant" },
+    ]);
+
+    // Carpentry workshop yard (island 59–68 × 76–85; workshop x59–60×76–78, spine
+    // x61–62, open east yard x63–68): lamps framing the entrance, a barrel and a
+    // log stack hugging the edges, a signpost — all clear of the open y80–83
+    // corridor so the interior stays reachable.
+    placeProps(world, [
+      { x: 68, y: 85, frame: "decoration/log-stack" },
+      { x: 67, y: 84, frame: "decoration/barrel" },
+      { x: 63, y: 77, frame: "decoration/lamp-post" },
+      { x: 63, y: 84, frame: "decoration/lamp-post" },
+      { x: 63, y: 85, frame: "decoration/signpost" },
+    ]);
+
+    // Blacksmith yard (island 93–102 × 76–85; forge-house x99–100×76–78, spine
+    // x93–94): crate + barrel of stock, lamps framing the forge, a firewood
+    // stack — east of the spine, clear of the forge work line.
+    placeProps(world, [
+      { x: 95, y: 76, frame: "decoration/crate" },
+      { x: 102, y: 84, frame: "decoration/barrel" },
+      { x: 95, y: 78, frame: "decoration/lamp-post" },
+      { x: 95, y: 84, frame: "decoration/log-stack" },
+    ]);
+
+    // Forest zones — friendlier woodland: mushrooms, ferns, a bush + firewood.
+    // Resource islands grow trees/stones daily (TileFeatureSystem); keep these
+    // NON-solid so they never block a feature tile or sever the island.
+    placeProps(world, [
+      // forest-north 61–68 × 61–68
+      { x: 62, y: 62, frame: "decoration/mushroom-cluster", solid: false },
+      { x: 67, y: 63, frame: "decoration/fern", solid: false },
+      { x: 63, y: 67, frame: "decoration/bush", solid: false },
+      // forest-south 61–68 × 93–100
+      { x: 62, y: 94, frame: "decoration/fern", solid: false },
+      { x: 67, y: 95, frame: "decoration/mushroom-cluster", solid: false },
+      { x: 63, y: 99, frame: "decoration/log-stack", solid: false },
+    ]);
+
+    // Quarry zones — working stone yards: ore carts, rubble piles, crates of cut
+    // stone. NON-solid (stones spawn here daily).
+    placeProps(world, [
+      // quarry-north 93–100 × 61–68
+      { x: 94, y: 62, frame: "decoration/ore-cart", solid: false },
+      { x: 99, y: 63, frame: "decoration/rubble", solid: false },
+      { x: 95, y: 67, frame: "decoration/crate", solid: false },
+      // quarry-south 93–100 × 93–100
+      { x: 94, y: 94, frame: "decoration/rubble", solid: false },
+      { x: 99, y: 95, frame: "decoration/ore-cart", solid: false },
+      { x: 95, y: 99, frame: "decoration/crate", solid: false },
+    ]);
+
+    // Mill yard (76–85 × 93–100): grain + flour sacks, hay bales, a signpost.
+    placeProps(world, [
+      { x: 77, y: 94, frame: "decoration/grain-sack" },
+      { x: 84, y: 94, frame: "decoration/flour-bag" },
+      { x: 77, y: 99, frame: "decoration/hay-bale" },
+      { x: 84, y: 99, frame: "decoration/hay-bale" },
+      { x: 80, y: 99, frame: "decoration/signpost" },
+    ]);
+
+    // Shrine (71–77 × 58–64): stone lanterns flanking the shrine + a torii gate
+    // at the approach. Center (74,61) holds the shrine sprite — keep it clear.
+    placeProps(world, [
+      { x: 72, y: 59, frame: "decoration/stone-lantern" },
+      { x: 76, y: 59, frame: "decoration/stone-lantern" },
+      { x: 74, y: 63, frame: "decoration/torii" },
+    ]);
+
+    // Mushroom-grove (59–66 × 47–54) + ice-pond (95–102 × 47–54) seasonal zones:
+    // mushrooms in the grove, cattail reeds at the frozen pond.
+    placeProps(world, [
+      { x: 60, y: 48, frame: "decoration/mushroom-cluster", solid: false },
+      { x: 65, y: 53, frame: "decoration/mushroom-cluster", solid: false },
+      { x: 96, y: 48, frame: "decoration/cattail", solid: false },
+      { x: 101, y: 53, frame: "decoration/cattail", solid: false },
+    ]);
+
+    // Heritage islets (decorative; center holds the landmark sprite): a cairn by
+    // each so the relics read as tended. heritage-stones (45–52×63–70), -ruin
+    // (109–116×63–70), -statue (45–52×93–100). Center is the landmark — offset.
+    placeProps(world, [
+      { x: 46, y: 64, frame: "decoration/cairn", solid: false },
+      { x: 115, y: 64, frame: "decoration/cairn", solid: false },
+      { x: 46, y: 99, frame: "decoration/cairn", solid: false },
+    ]);
+
+    // Waterfall islet (80–87 × 58–65): cattail reeds at the base pool. The center
+    // (83,61) holds the static cliff + the animated cascade overlay — keep clear.
+    placeProps(world, [
+      { x: 81, y: 64, frame: "decoration/cattail", solid: false },
+      { x: 86, y: 64, frame: "decoration/cattail", solid: false },
     ]);
   }
 
@@ -565,14 +633,14 @@ export function setupRegions(
     // Paces the harbor (board ↔ dock edge) so the dock reads as staffed. The
     // dockmaster has no swing pose (only an idle frame), so every station stands
     // idle; NpcDeliberateSystem speeds the patrol while contracts are open.
-    // Tiles stay clear of the dock prop (58,70) + cargo ship (58,72) + the
-    // interactive board (62,71)/dock (61,68). Harbor bounds: 58–65 × 68–75.
+    // Tiles stay clear of the dock prop (93,107) + cargo ship (93,109) + the
+    // interactive board (97,108)/dock (96,105). Harbor bounds: 93–100 × 105–112.
     workNpc: {
       idlePose: "npc/dockmaster/idle",
       stations: [
-        { tileX: 62, tileY: 72, facing: "up", flipX: false, pose: null },   // at the board
-        { tileX: 61, tileY: 69, facing: "down", flipX: false, pose: null }, // by the dock
-        { tileX: 63, tileY: 73, facing: "side", flipX: false, pose: null }, // east end
+        { tileX: 96, tileY: 109, facing: "up", flipX: false, pose: null },   // at the board
+        { tileX: 96, tileY: 106, facing: "down", flipX: false, pose: null }, // by the dock
+        { tileX: 98, tileY: 110, facing: "side", flipX: false, pose: null }, // east end
       ],
       stationIndex: 0,
       phase: "working",
@@ -584,17 +652,22 @@ export function setupRegions(
   });
 
   // Harbor props — dock + cargo ship. Placed on tiles that don't overlap the
-  // interactive tiles (HARBOR_DOCK_TILE={61,68}, HARBOR_BOARD_TILE={62,71}).
+  // interactive tiles (HARBOR_DOCK_TILE={96,105}, HARBOR_BOARD_TILE={97,108}).
   // Both are layer-40 decorative props with solid=false so the harbor floor
   // stays walkable (the ship is static art; the dock planks are decorative).
-  // Harbor bounds: minX=58, minY=68, maxX=65, maxY=75.
+  // Harbor bounds: minX=93, minY=105, maxX=100, maxY=112.
   placeProps(world, [
-    // Dock/pier prop: waterside at the west edge of the harbor isle (x58, y70),
+    // Dock/pier prop: waterside at the west edge of the harbor isle (x93, y107),
     // one tile clear of the harbor bound edge — a plank pier jutting into the sea.
-    { x: 58, y: 70, frame: "structure/dock", solid: false },
-    // Cargo ship: anchored to the left of the dock (x58, y72 — one tile below
+    { x: 93, y: 107, frame: "structure/dock", solid: false },
+    // Cargo ship: anchored to the left of the dock (x93, y109 — one tile below
     // the pier), a purely decorative static prop.
-    { x: 58, y: 72, frame: "structure/cargo-ship", solid: false },
+    { x: 93, y: 109, frame: "structure/cargo-ship", solid: false },
+    // Themed harbor dressing: a buoy bobbing off the pier, a creel of fish, and
+    // an anchor leaning by the board. Clear of dock (96,105)/board (97,108).
+    { x: 99, y: 106, frame: "decoration/buoy" },
+    { x: 95, y: 111, frame: "decoration/fish-basket" },
+    { x: 99, y: 111, frame: "decoration/anchor" },
   ]);
 
   return { regionEntities, plotEntities, fountainEntities, auctionPodiumEntity, noticeBoardEntity, harborBoardEntity };

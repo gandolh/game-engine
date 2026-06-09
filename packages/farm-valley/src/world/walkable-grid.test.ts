@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from '@engine/core';
 import { buildWalkableGrid } from './walkable-grid';
-import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, WORLD_GEN_SEED, EXTRA_FARM_COUNT } from './regions';
+import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, EXTRA_FARM_COUNT, WORLD_GEN_SEED, getRegion } from './regions';
+
+const VILLAGE = getRegion('village').center; // (80,80) in the radial layout
 
 describe('buildWalkableGrid', () => {
   it('grid size matches WORLD_WIDTH * WORLD_HEIGHT', () => {
@@ -13,7 +15,7 @@ describe('buildWalkableGrid', () => {
 
   it('village center is walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[39 * WORLD_WIDTH + 43]).toBe(0); // village center (43,39)
+    expect(grid.cells[VILLAGE.y * WORLD_WIDTH + VILLAGE.x]).toBe(0); // village center
   });
 
   it('ocean tile at (0,0) is blocked', () => {
@@ -25,18 +27,26 @@ describe('buildWalkableGrid', () => {
 
   it('bridge (road) tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[38 * WORLD_WIDTH + 34]).toBe(0); // village ↔ carpentry
-    expect(grid.cells[20 * WORLD_WIDTH + 42]).toBe(0); // village ↔ Pip
-    expect(grid.cells[38 * WORLD_WIDTH + 54]).toBe(0); // village ↔ blacksmith
-    expect(grid.cells[50 * WORLD_WIDTH + 42]).toBe(0); // village ↔ mill
+    // Every ROAD tile must be walkable. Spot-check the village hub spokes by
+    // sampling the first tile of a couple of known cluster bridges, then assert
+    // the whole road set is open.
+    expect(grid.cells[76 * WORLD_WIDTH + 70]).toBe(0); // village ↔ carpentry ({69-74,76-77})
+    expect(grid.cells[90 * WORLD_WIDTH + 77]).toBe(0); // village ↔ mill ({76-77,87-92})
+    for (const road of ROADS) {
+      for (let y = road.minY; y <= road.maxY; y++) {
+        for (let x = road.minX; x <= road.maxX; x++) {
+          expect(grid.cells[y * WORLD_WIDTH + x], `road tile (${x},${y})`).toBe(0);
+        }
+      }
+    }
   });
 
   it('resource zone tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[7 * WORLD_WIDTH + 25]).toBe(0);  // forest-north interior (22-29,4-11)
-    expect(grid.cells[7 * WORLD_WIDTH + 61]).toBe(0);  // quarry-north interior (58-65,4-11)
-    expect(grid.cells[59 * WORLD_WIDTH + 25]).toBe(0); // forest-south interior
-    expect(grid.cells[59 * WORLD_WIDTH + 61]).toBe(0); // quarry-south interior
+    for (const id of ['forest-north', 'quarry-north', 'forest-south', 'quarry-south'] as const) {
+      const c = getRegion(id).center;
+      expect(grid.cells[c.y * WORLD_WIDTH + c.x], `${id} center`).toBe(0);
+    }
   });
 
   it('walkable count matches an independent recomputation from REGIONS + ROADS', () => {
@@ -114,15 +124,15 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('band jitter is deterministic and reproduces the live band centers', () => {
-    // The band layout is a pure function of the FIXED WORLD_GEN_SEED. Re-run the
-    // EXACT jitter derivation (same fork label, same per-farm draw order: dx then
-    // dy, ±EXTRA_FARM_JITTER=1) and confirm it (a) is stable across two draws and
-    // (b) reproduces the live band's centers when applied to the regular grid
-    // origins. A future Math.random()/Date.now(), or a change to the seed or draw
-    // order, makes this diverge — so the regression fails loudly.
+  it('ring jitter is deterministic and the band sits on the two ring radii', () => {
+    // The radial band layout is a pure function of the FIXED WORLD_GEN_SEED. The
+    // per-farm jitter (fork 'farm-ring-jitter', draw order dx then dy, ±1) is
+    // stable across draws; and after removing it every procedural farm center
+    // lands on one of the two ring radii (R=52 inner for farm-0..3, R=72 outer
+    // for farm-4..15) about the map center. A future Math.random()/Date.now(),
+    // or a seed/fork/draw-order change, makes this diverge — fails loudly.
     const drawJitter = () => {
-      const rng = createRng(WORLD_GEN_SEED).fork('farm-band-jitter');
+      const rng = createRng(WORLD_GEN_SEED).fork('farm-ring-jitter');
       return Array.from({ length: EXTRA_FARM_COUNT }, () => ({
         dx: rng.int(-1, 2),
         dy: rng.int(-1, 2),
@@ -136,22 +146,23 @@ describe('buildWalkableGrid', () => {
       .sort((a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)));
     expect(band).toHaveLength(EXTRA_FARM_COUNT);
 
-    // Recover each farm's un-jittered grid center by subtracting the recomputed
-    // jitter; it must land on the regular grid (every center on the same lattice).
-    // This is non-tautological: it cross-checks the live center against an
-    // independent recomputation of the offset that produced it.
-    const gridCenters = band.map((r, i) => ({
-      x: r.center.x - jitterA[i]!.dx,
-      y: r.center.y - jitterA[i]!.dy,
-    }));
-    // All recovered origins must sit on a uniform pitch (the grid is regular):
-    // every x is one of the column lattice values, every y one of the row values.
-    const xs = [...new Set(gridCenters.map((c) => c.x))].sort((a, b) => a - b);
-    const ys = [...new Set(gridCenters.map((c) => c.y))].sort((a, b) => a - b);
-    const uniformPitch = (vals: number[]) =>
-      vals.length < 2 || vals.slice(1).every((v, k) => v - vals[k]! === vals[1]! - vals[0]!);
-    expect(uniformPitch(xs), `recovered grid columns must be evenly pitched: ${xs}`).toBe(true);
-    expect(uniformPitch(ys), `recovered grid rows must be evenly pitched: ${ys}`).toBe(true);
+    // Recover each farm's un-jittered center by subtracting the recomputed jitter
+    // and confirm its radius from the map center (80,80) matches its ring. The
+    // farm body is 10×10 so its center is bounds.minX+4/minY+4; the un-jittered
+    // center = midpoint(base bounds), recovered as live center − jitter offset.
+    const CX = 80;
+    const CY = 80;
+    band.forEach((r, i) => {
+      const ux = r.center.x - jitterA[i]!.dx;
+      const uy = r.center.y - jitterA[i]!.dy;
+      const radius = Math.hypot(ux - CX, uy - CY);
+      const expected = i < 4 ? 52 : 72;
+      // Allow ±2 for integer rounding of the ring formula (the body center floors
+      // to minX+4 for a 10-wide farm, losing up to ~0.7 per axis). The 20-tile
+      // gap between the two radii means ±2 still cleanly separates inner/outer.
+      expect(Math.abs(radius - expected), `farm-${i} un-jittered radius ${radius.toFixed(2)}`)
+        .toBeLessThanOrEqual(2);
+    });
   });
 
   it('every region center is walkable and reachable from the village', () => {
@@ -164,9 +175,9 @@ describe('buildWalkableGrid', () => {
     const walkable = (x: number, y: number) =>
       x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT && grid.cells[idx(x, y)] === 0;
 
-    const start = idx(43, 39); // village center (88×80 archipelago)
+    const start = idx(VILLAGE.x, VILLAGE.y); // village center (radial layout)
     const seen = new Set<number>([start]);
-    const queue: Array<[number, number]> = [[43, 39]];
+    const queue: Array<[number, number]> = [[VILLAGE.x, VILLAGE.y]];
     while (queue.length > 0) {
       const [x, y] = queue.shift()!;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {

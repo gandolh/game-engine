@@ -60,6 +60,20 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   "decoration/hay-bale": { label: "Hay Bale", description: "A bale of hay — just scenery." },
   "decoration/bush": { label: "Bush", description: "A leafy bush — just scenery." },
   "decoration/log-stack": { label: "Log Stack", description: "Stacked logs — just scenery." },
+  // Themed per-island decorations — friendlier scenery on the central islands.
+  "decoration/stone-lantern": { label: "Stone Lantern", description: "A carved shrine lantern, its flame ever-lit — just scenery." },
+  "decoration/torii": { label: "Shrine Gate", description: "A weathered red gate marking the sacred ground — just scenery." },
+  "decoration/buoy": { label: "Buoy", description: "A floating harbor marker bobbing in the swell — just scenery." },
+  "decoration/fish-basket": { label: "Fish Basket", description: "A woven creel of the day's catch — just scenery." },
+  "decoration/anchor": { label: "Anchor", description: "A rusted iron anchor resting on the pier — just scenery." },
+  "decoration/mushroom-cluster": { label: "Mushrooms", description: "A ring of red-capped toadstools — just scenery." },
+  "decoration/fern": { label: "Fern", description: "A spray of leafy forest fronds — just scenery." },
+  "decoration/ore-cart": { label: "Ore Cart", description: "A minecart heaped with raw stone — just scenery." },
+  "decoration/rubble": { label: "Rubble", description: "A loose pile of broken quarry stone — just scenery." },
+  "decoration/grain-sack": { label: "Grain Sack", description: "A plump sack of grain for the mill — just scenery." },
+  "decoration/flour-bag": { label: "Flour Bag", description: "A stout bag of milled flour — just scenery." },
+  "decoration/cattail": { label: "Cattails", description: "Water-edge reeds swaying by the pond — just scenery." },
+  "decoration/cairn": { label: "Cairn", description: "A stacked-stone marker beside the old relics — just scenery." },
   // brief 51 — heritage-site landmark islets. Decorative only; the hover names
   // them so spectators read the world's "history". No gameplay behavior.
   "structure/heritage-stones": { label: "Standing Stones", description: "An ancient dolmen ring — a relic of an older age. Just a landmark." },

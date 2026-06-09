@@ -7,7 +7,9 @@ import {
   nearestReef,
 } from "./coral";
 import { buildWalkableGrid } from "./walkable-grid";
-import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS, getRegion } from "./regions";
+
+const VILLAGE = getRegion("village").center; // a land tile, never on the boat grid
 
 describe("coral geography + boat grid", () => {
   it("reef + lane tiles sit on open OCEAN (not land/road)", () => {
@@ -45,7 +47,7 @@ describe("coral geography + boat grid", () => {
     for (const l of r0.lane) expect(g.cells[idx(l.x, l.y)]).toBe(0);
     expect(g.cells[idx(r0.reef.x, r0.reef.y)]).toBe(0);
     // An arbitrary land tile (village center) is BLOCKED on the boat grid.
-    expect(g.cells[idx(43, 39)]).toBe(1);
+    expect(g.cells[idx(VILLAGE.x, VILLAGE.y)]).toBe(1);
   });
 
   it("the LAND walkable grid is exactly REGIONS + ROADS — no coral leakage", () => {
@@ -74,13 +76,13 @@ describe("coral geography + boat grid", () => {
       expect(isCoralReefTile(r.dock.x, r.dock.y)).toBe(false);
       expect(isDockTile(r.reef.x, r.reef.y)).toBe(false);
     }
-    expect(isCoralReefTile(43, 39)).toBe(false); // village center
+    expect(isCoralReefTile(VILLAGE.x, VILLAGE.y)).toBe(false); // village center
   });
 
   it("nearestReef picks by dock proximity, deterministic tie-break by id", () => {
-    // From the NW (Cora's farm) the forest reef (dock 25,75) is nearest.
-    expect(nearestReef(8, 8).id).toBe("reef-forest");
-    // From the SE the mill reef (dock 43,75) is nearer.
-    expect(nearestReef(80, 70).id).toBe("reef-mill");
+    // reef-forest dock (62,112) is W, reef-mill dock (78,112) is E. A tile west
+    // of the midpoint picks forest; east picks mill.
+    expect(nearestReef(50, 100).id).toBe("reef-forest");
+    expect(nearestReef(95, 100).id).toBe("reef-mill");
   });
 });

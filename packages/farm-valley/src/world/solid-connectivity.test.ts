@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";
 import { buildWalkableGrid } from "./walkable-grid";
-import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, getRegion } from "./regions";
+
+const VILLAGE = getRegion("village").center; // BFS seed for reachability floods
 
 /**
  * Solid-obstacle connectivity guard.
@@ -65,7 +67,7 @@ describe("solid-obstacle connectivity", () => {
     const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 1200, maxDays: 1 });
     const cells = gridWithSolids(world);
     // Seed from a village interior tile (always walkable, never solid).
-    const reachable = flood(cells, 43, 39);
+    const reachable = flood(cells, VILLAGE.x, VILLAGE.y);
     for (const r of REGIONS) {
       // Wells are 2×2 micro-regions; use their center like any other region.
       expect(reachable[idx(r.center.x, r.center.y)], `region ${r.id} center unreachable`).toBe(1);
@@ -74,18 +76,15 @@ describe("solid-obstacle connectivity", () => {
 
   it("no solid tile covers a road/bridge tile", () => {
     const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 1200, maxDays: 1 });
-    const base = buildWalkableGrid().cells;
-    // A road tile is walkable in base but lies OUTSIDE every region. We only
-    // assert the specific village↔craft-island bridge mouths used by travel.
-    const bridgeTiles: ReadonlyArray<[number, number]> = [
-      [34, 38], [35, 38], [36, 38], [37, 38], // village ↔ carpentry road (W)
-      [50, 38], [51, 38], [52, 38], [53, 38], // village ↔ blacksmith road (E)
-    ];
     const solidSet = new Set<number>();
     for (const e of world.query("solid")) solidSet.add(idx(e.solid.tileX, e.solid.tileY));
-    for (const [x, y] of bridgeTiles) {
-      if (base[idx(x, y)] === 0) {
-        expect(solidSet.has(idx(x, y)), `solid blocks bridge tile (${x},${y})`).toBe(false);
+    // No solid prop / footprint may sit on ANY road tile — a bridge is 2-wide and
+    // a single blocked tile can sever the island it connects.
+    for (const road of ROADS) {
+      for (let y = road.minY; y <= road.maxY; y++) {
+        for (let x = road.minX; x <= road.maxX; x++) {
+          expect(solidSet.has(idx(x, y)), `solid blocks bridge tile (${x},${y})`).toBe(false);
+        }
       }
     }
   });
@@ -93,7 +92,7 @@ describe("solid-obstacle connectivity", () => {
   it("every work-NPC station tile is reachable and not itself solid", () => {
     const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 1200, maxDays: 1 });
     const cells = gridWithSolids(world);
-    const reachable = flood(cells, 43, 39);
+    const reachable = flood(cells, VILLAGE.x, VILLAGE.y);
     const solidSet = new Set<number>();
     for (const e of world.query("solid")) solidSet.add(idx(e.solid.tileX, e.solid.tileY));
     for (const npc of world.query("workNpc")) {
@@ -108,7 +107,7 @@ describe("solid-obstacle connectivity", () => {
   it("every farm plot tile is reachable and not solid", () => {
     const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 1200, maxDays: 1 });
     const cells = gridWithSolids(world);
-    const reachable = flood(cells, 43, 39);
+    const reachable = flood(cells, VILLAGE.x, VILLAGE.y);
     const solidSet = new Set<number>();
     for (const e of world.query("solid")) solidSet.add(idx(e.solid.tileX, e.solid.tileY));
     for (const p of world.query("plot")) {

@@ -10,6 +10,7 @@ import {
   deliberateBuyTool,
   deliberateRefillCan,
 } from "../agents/watering";
+import { getRegion } from "../world/regions";
 
 interface FarmerOverrides {
   region?: string;
@@ -138,12 +139,14 @@ describe("refill-can location guard", () => {
     expect(f.inventory!.wateringCan!.charges).toBe(10);
   });
 
-  // well-north center is at (69, 6) in the 88×80 archipelago. Farmer must be
-  // within Chebyshev 1. Wells use REGIONS data (no fountain entity needed).
+  // Farmer must be within Chebyshev 1 of a well center. Wells use REGIONS data
+  // (no fountain entity needed). Derive the well center so the test survives
+  // layout changes.
   it("refills at a well (adjacent to well center)", () => {
     const f = makeFarmer({ region: "well-north", homeRegion: "farm-cora", charges: 0 });
-    // Place farmer at well-north center (69, 6) — Chebyshev 0.
-    f.transform = { x: 69, y: 6, prevX: 69, prevY: 6, rotation: 0 };
+    const well = getRegion("well-north").center;
+    // Place farmer ON the well-north center — Chebyshev 0.
+    f.transform = { x: well.x, y: well.y, prevX: well.x, prevY: well.y, rotation: 0 };
     f.intentions!.queue.push({ kind: "refill-can", data: {}, priority: 0 });
     runAct(f);
     expect(f.inventory!.wateringCan!.charges).toBe(10);
