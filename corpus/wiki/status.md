@@ -63,6 +63,10 @@ The sim moved out of the browser into a **Node.js server** and the Vite app beca
 
 Canvas2D renderer (replaced WebGPU), in-house ECS (replaced miniplex), WASM pathfinding infra, the sim↔render snapshot/interpolate boundary (sim-in-a-Web-Worker through brief 56, then sim-in-a-Node-server from briefs 57–58), home screen, headless run-sim, offline world-preview, README. The playable farmer **Pip** + interaction systems (hotbar, tooltips, feature collision, bridges, fishing) and the **160×160 RADIAL archipelago** (2026-06-09 — services centered, all 21 farms on two concentric rings; richer per-island floor tiles + themed `decoration/*` scenery) — full synthesis in [player-and-interaction.md](player-and-interaction.md). A **2026-06-06 code-structure refactor** split every >300-line file into module directories fronted by barrels (behavior-preserving; see [architecture.md](architecture.md) → *Module-directory convention*).
 
+## Asset pipeline (brief 71, 2026-06-10)
+
+The recipe monolith is gone: every hand-authored sprite lives in its own file under [tools/atlas-builder/src/recipes/assets/](../../tools/atlas-builder/src/recipes/assets/) (177 files, path mirrors the frame name, explicit barrel preserving pack order). The builder is incremental — each sheet's manifest carries an `inputsHash` (SHA-256 of its asset files + palette + sheet-map + generator sources + packing config + `BUILDER_VERSION`); unchanged sheets are skipped (`npm run atlas` on a clean tree: `0 built, 6 cached`), `--force`/`FORCE=1` rebuilds. PNG encoding is pinned (`filterType: 0`, `deflateLevel: 9`, `deflateStrategy: 3`) so identical pixels → identical bytes (one-time whole-atlas binary diff at landing; pixels verified identical). Design research + sources in [asset-pipeline.md](asset-pipeline.md). Gotcha discovered: `pngjs` mutates the options object passed to `PNG.sync.write` — the builder spreads a copy per call to keep the hash inputs stable.
+
 ## Open gaps
 
 See [open-questions.md](open-questions.md) for the live list.

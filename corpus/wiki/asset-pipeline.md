@@ -1,6 +1,6 @@
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
 
-Research synthesis (2026-06-10) on asset "cooking" and texture-atlas best practice, filtered against what this repo actually does. Feeds [brief 71](../briefs/game/todo/71-per-asset-recipe-files-and-cached-atlas-builds.md).
+Research synthesis (2026-06-10) on asset "cooking" and texture-atlas best practice, filtered against what this repo actually does. Fed [brief 71](../briefs/game/done/71-per-asset-recipe-files-and-cached-atlas-builds.md) (shipped 2026-06-10 — recommendations 1–4 landed; 5 was verified already true: [loader.ts](../../packages/engine/src/assets/loader.ts) decodes each sheet via `createImageBitmap`).
 
 ## The bake principle (what we already do)
 
@@ -61,7 +61,7 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 2. **Per-sheet incremental bake**: fingerprint each sheet's inputs (table above), stamp `inputsHash` into the manifest, skip unchanged sheets; `--force` flag for full rebuilds.
 3. **Pin PNG encoder options** for byte-stable committed artifacts (one-time whole-atlas diff when this lands).
 4. Keep shelf packing, 1px padding, pow2, 6 sheets; document maxrects-packer as the future upgrade path.
-5. Load-time: verify/adopt `createImageBitmap` per sheet.
+5. Load-time: verify/adopt `createImageBitmap` per sheet. *(Verified 2026-06-10: already the case in [loader.ts](../../packages/engine/src/assets/loader.ts).)*
 
 ## Sources
 
