@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "../../../types";
 
-// 2026-06-10 art pass — young grapes in purple (`U` lit, `u` shaded) to match
-// the mature stage.
 const recipe: PixelRecipe =
   {
     name: "crop/grape/growing",

@@ -1,11 +1,7 @@
 import type { With } from "@engine/core";
 import type { GameEntity } from "../../components";
 
-/**
- * A farmer currently being processed by run(): narrowed to the components the
- * run() query guarantees (`query("fsm", "intentions", "inventory")`), so the
- * extracted handlers can read these fields without re-guarding for undefined.
- */
+/** Narrowed from `query("fsm", "intentions", "inventory")` — handlers can skip re-guarding those fields. */
 export type ActingFarmer = With<GameEntity, "fsm" | "intentions" | "inventory">;
 
 export interface ActContext {

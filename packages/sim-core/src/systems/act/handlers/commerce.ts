@@ -1,8 +1,4 @@
-/**
- * Commerce action handlers: buy-seed, sell-shopkeeper, post-offer, read-offers,
- * buy-from-wall, auction-bid, resale-bean, buy-tool, process-crop, sell-product,
- * sell-fruit.
- */
+/** Commerce handlers: buy-seed, sell-shopkeeper, post-offer, read-offers, buy-from-wall, auction-bid, resale-bean, buy-tool, process-crop, sell-product, sell-fruit. */
 import type { Intention, MessageBus } from "@engine/core";
 import type { GameEntity, CropKind } from "../../../components";
 import { TOOL_PRICE } from "../../../components";
@@ -28,9 +24,6 @@ import {
 import { MILL_PRICE, MILL_BATCH } from "../constants";
 import type { ActingFarmer } from "../types";
 
-// ---------------------------------------------------------------------------
-// Internal helper: thin wrapper so handlers don't each inline bus.send
-// ---------------------------------------------------------------------------
 function sendIntentMessage(
   bus: MessageBus,
   performative: string,
@@ -85,14 +78,12 @@ export function handleSellShopkeeper(
   const available = Math.min(qty, farmer.inventory.crops[crop]);
   if (available <= 0) return;
 
-  // brief 41 — quality-weighted sell price. Deduct crops by quality tier
-  // (best first: gold, silver, normal) and pay the quality-weighted price.
+  // Quality-weighted: sell gold-tier first (highest value), then silver, then normal.
   const basePrice = SELL_PRICE[crop];
   const quality = farmer.inventory.cropQuality;
   if (quality?.[crop]) {
     const q = quality[crop]!;
     let remaining = available;
-    // Sell in quality order: gold first (highest value), then silver, then normal.
     for (const [tier, mult] of [["gold", QUALITY_MULTIPLIER.gold], ["silver", QUALITY_MULTIPLIER.silver], ["normal", QUALITY_MULTIPLIER.normal]] as const) {
       if (remaining <= 0) break;
       const take = Math.min(remaining, q[tier]);
@@ -104,7 +95,6 @@ export function handleSellShopkeeper(
     }
     farmer.inventory.crops[crop] -= available;
   } else {
-    // Legacy path: no quality breakdown — sell all as Normal.
     farmer.inventory.crops[crop] -= available;
     farmer.inventory.gold += SELL_PRICE[crop] * available;
   }
@@ -190,8 +180,6 @@ export function handleAuctionBid(
   shopkeeperId: number | undefined,
   tick: number,
 ): void {
-  // brief 24 — send a sealed bid to the shopkeeper (auctioneer). The
-  // AuctionSystem drains AUCTION_BID from the shop inbox each tick.
   if (!bus || shopkeeperId === undefined || farmer.id === undefined) return;
   const body: AuctionBidBody = {
     auctionId: intent.data.auctionId as string,
@@ -216,7 +204,6 @@ export function handleResaleBean(
   shopkeeperId: number | undefined,
   tick: number,
 ): void {
-  // brief 24 — resell won golden beans to the shop at a premium.
   if (!bus || shopkeeperId === undefined || farmer.id === undefined) return;
   const body: ResaleBeanBody = {
     quantity: (intent.data.quantity as number) ?? 1,
@@ -236,10 +223,7 @@ export function handleBuyTool(
   farmer: ActingFarmer,
   intent: Intention,
 ): void {
-  // Buy a wooden tool from the shopkeeper. Must be at the village
-  // (where the shopkeeper stands) — deliberateBuyTool queues a
-  // travel-to-village intent first; this guard ensures the purchase
-  // doesn't resolve back on the farm if the travel hasn't completed.
+  // Location-gated: deliberation queues a travel-to-village intent first.
   if (farmer.farmer?.currentRegion !== "village") return;
   const toolKind = intent.data.toolKind as import("../../../components").ToolKind;
   const tier: import("../../../components").ToolTier = "wooden";
@@ -254,10 +238,7 @@ export function handleProcessCrop(
   farmer: ActingFarmer,
   intent: Intention,
 ): void {
-  // Mill raw crops into goods at a premium — only at the mill region.
-  // Converts up to MILL_BATCH units of one crop into gold at MILL_PRICE
-  // (higher than the shopkeeper's buy price; the gradient justifies the
-  // trip). Mirrors the location-gated pattern of buy-tool/craft.
+  // Location-gated to mill. Pays MILL_PRICE (premium over shopkeeper buy price).
   if (farmer.farmer?.currentRegion !== "mill") return;
   const crop = intent.data.crop as CropKind;
   if (!(crop in MILL_PRICE)) return;

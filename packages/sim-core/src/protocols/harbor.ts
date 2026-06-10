@@ -1,15 +1,4 @@
-/**
- * Harbor contract ontology — FIPA-ACL-style performatives for the shipping
- * contracts system (brief 46). Mirrors the bounty/festival ontology pattern:
- * world → broadcast announces; farmers commit/deliver via the harbor entity
- * inbox; HarborSystem resolves outcomes.
- *
- * CONTRACT_POSTED:  A new contract is available at the harbor board.
- * CONTRACT_COMMITTED: A farmer has committed to a contract (intent to deliver).
- * CONTRACT_DELIVERED: A farmer delivered goods before the deadline → payout.
- * CONTRACT_MISSED:   Deadline expired on a committed contract → penalty.
- * CONTRACT_EXPIRED:  Deadline expired on an open (uncommitted) contract → removed.
- */
+// Harbor shipping contracts: POSTED (board), COMMITTED (intent), DELIVERED (payout), MISSED (penalty), EXPIRED (unclaimed).
 
 import type { CropKind, CropQuality } from "../components";
 
@@ -23,8 +12,6 @@ export const ONT_HARBOR = {
 
 export type HarborOntology = (typeof ONT_HARBOR)[keyof typeof ONT_HARBOR];
 
-// ── Contract definition ───────────────────────────────────────────────────────
-
 /** The goods specification for a contract. */
 export interface ContractGoods {
   /** Crop the dock wants. */
@@ -35,10 +22,7 @@ export interface ContractGoods {
   quantity: number;
 }
 
-/**
- * A single harbor contract. Contracts are value objects (no mutation after
- * creation); HarborSystem tracks commitment state separately.
- */
+/** Immutable value object; HarborSystem tracks commitment state separately. */
 export interface HarborContract {
   /** Stable unique id (e.g. "contract-42-3" for day 42 slot 3). */
   id: string;
@@ -57,8 +41,6 @@ export interface HarborContract {
   /** 'normal' | 'silver' | 'gold' difficulty tier (scales reward/deadline). */
   tier: "normal" | "silver" | "gold";
 }
-
-// ── Message bodies ────────────────────────────────────────────────────────────
 
 export interface ContractPostedBody {
   contract: HarborContract;

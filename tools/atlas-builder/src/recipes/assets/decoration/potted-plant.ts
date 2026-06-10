@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Clay pot brimming with leafy plant.
     name: "decoration/potted-plant",
     size: 16,
     pixels: [

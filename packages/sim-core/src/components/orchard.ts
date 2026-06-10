@@ -1,7 +1,5 @@
 import type { RegionId } from "../world/regions";
 
-// ── Orchards (brief 42) ──────────────────────────────────────────────────────
-
 /** Fruit tree variants for orchards. apple = autumn yield, cherry = spring yield. */
 export type FruitKind = "apple" | "cherry";
 

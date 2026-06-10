@@ -5,9 +5,9 @@ export const ONT_SIMULATION = {
   REGISTER: "register",
   /** A one-time mid-game shock event (e.g. blight). Broadcast when it fires. */
   SHOCK: "shock",
-  /** brief 27 — start of an intra-day phase (morning/work/evening/night). */
+  /** Start of an intra-day phase (morning/work/evening/night). */
   PHASE_START: "phase-start",
-  /** brief 29 — a planted crop withered from lack of water. */
+  /** A planted crop withered from lack of water. */
   CROP_DEATH: "crop-death",
 } as const;
 
@@ -20,7 +20,7 @@ export interface DayStartBody {
   daysRemaining: number;
 }
 
-/** brief 27 — emitted at each intra-day phase boundary. */
+/** Emitted at each intra-day phase boundary. */
 export interface PhaseStartBody {
   day: number;
   phase: "morning" | "work" | "evening" | "night";
@@ -50,10 +50,9 @@ export interface ShockBody {
   plotsWiped: number;
 }
 
-/** brief 29 — a crop withered from neglect (no water past the grace window). */
+/** A crop withered from neglect (no water past the grace window). */
 export interface CropDeathBody {
   day: number;
   ownerId: number;
-  /** brief 41 — extended to all crop kinds. */
   crop: import("../components").CropKind;
 }

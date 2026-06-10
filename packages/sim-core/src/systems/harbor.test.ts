@@ -1,11 +1,3 @@
-/**
- * harbor.test.ts — unit + integration tests for brief 46: Harbor, Shipping & Contracts.
- *
- * Coverage:
- *  - generateContracts() pure function: determinism, tier gating, quantity bounds
- *  - canFulfillContract() pure function: inventory matching, quality floors
- *  - Live sim: contracts post, farmer commits, farmer delivers
- */
 import { describe, it, expect } from "vitest";
 import { createRng } from "@engine/core";
 import { generateContracts, canFulfillContract } from "./harbor";
@@ -13,8 +5,6 @@ import { bootstrapSim } from "../sim-bootstrap";
 import { JsPathfinder } from "../world/js-pathfinder";
 import { ZERO_CROPS } from "../economy";
 import type { GameEntity } from "../components";
-
-// ─── Pure function tests ────────────────────────────────────────────────────
 
 describe("generateContracts (pure, deterministic)", () => {
   it("generates exactly the requested count of contracts", () => {
@@ -91,8 +81,6 @@ describe("generateContracts (pure, deterministic)", () => {
   });
 });
 
-// ─── canFulfillContract tests ───────────────────────────────────────────────
-
 describe("canFulfillContract (pure)", () => {
   const makeInv = (overrides: Partial<GameEntity["inventory"]> = {}): GameEntity["inventory"] => ({
     gold: 100,
@@ -157,10 +145,7 @@ describe("canFulfillContract (pure)", () => {
   });
 });
 
-// ─── Integration: live sim smoke tests ─────────────────────────────────────
-
 describe("HarborSystem integration (live sim)", () => {
-  /** Advance the sim to a given day. */
   function advanceToDayStart(
     sim: ReturnType<typeof bootstrapSim>,
     targetDay: number,
@@ -196,15 +181,10 @@ describe("HarborSystem integration (live sim)", () => {
       pathfinder: new JsPathfinder(),
       shock: false,
     });
-    // Advance to day 6 (second cadence day: 3 and 6).
     advanceToDayStart(sim, 7);
 
     const boards = [...sim.world.query("harborBoard")];
     const board = boards[0]!;
-    // At day 7: day 3 batch + day 6 batch = 4 total (minus any committed/expired).
-    // Some may have been committed or expired; check at least 2 were posted ever
-    // by checking the open list or that board has non-zero history.
-    // (Contracts posted on day 3 have deadline day 3+6=9, still open on day 7.)
     expect(board.harborBoard!.openContracts.length).toBeGreaterThan(0);
   });
 
@@ -216,7 +196,6 @@ describe("HarborSystem integration (live sim)", () => {
       pathfinder: new JsPathfinder(),
       shock: false,
     });
-    // Advance past first cadence (day 3).
     advanceToDayStart(sim, 4);
 
     const farmers = [...sim.world.query("farmer", "beliefs")];
@@ -228,7 +207,6 @@ describe("HarborSystem integration (live sim)", () => {
   });
 
   it("HarborSystem constructor export is the correct class", () => {
-    // Sanity: the exported HarborSystem can be instantiated
     const sim = bootstrapSim({
       seed: 1,
       ticksPerDay: 20,
@@ -236,8 +214,6 @@ describe("HarborSystem integration (live sim)", () => {
       pathfinder: new JsPathfinder(),
       shock: false,
     });
-    // The HarborSystem is already registered in the scheduler by bootstrapSim.
-    // Verify the harbor board entity exists (proof the system's dependencies are wired).
     const boards = [...sim.world.query("harborBoard")];
     expect(boards.length).toBeGreaterThan(0);
   });

@@ -4,17 +4,11 @@ import { zeroFish } from "./components";
 import { setupRegions } from "./world/region-setup";
 import type { RegionId } from "./world/regions";
 
-// brief 41 — expanded to cover all 8 crop kinds.
 const ZERO_CROPS: Record<CropKind, number> = {
   radish: 0, wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0, grape: 0, "winter-squash": 0,
 };
 
-/**
- * Starting tool kit — one wooden hoe, axe, pickaxe, and a fishing rod. There is
- * only one kind of fishing rod and it has no durability, modelled as
- * `Infinity` so the shared tool plumbing (find `durability > 0`, prune at
- * `<= 0`) never breaks or removes it.
- */
+/** Fishing rod durability is Infinity — never breaks or gets pruned. */
 const STARTING_TOOLS: Tool[] = [
   { kind: "hoe",         tier: "wooden", durability: 100 },
   { kind: "axe",         tier: "wooden", durability: 100 },
@@ -25,9 +19,7 @@ const STARTING_TOOLS: Tool[] = [
 export interface FarmerSpec {
   name: string;
   personality: "conservative" | "aggressive" | "hoarder" | "opportunist" | "pip";
-  /** The farm island this farmer lives on. Assigned at spec-generation time
-   *  (see makeFarmerSpecs); replaces the old personality→region map so any
-   *  number of farmers can be placed. */
+  /** The farm island this farmer lives on. */
   homeRegion: RegionId;
   homeX: number;
   homeY: number;
@@ -61,9 +53,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
       wateringCan: { charges: 10, maxCharges: 10 },
     },
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
-    // brief 28 — AP is a large daily budget that grows +2/day; day-1 ceiling
-    // is 100 (maxApForDay(0)). penaltyCapacity is legacy (unrested halving now
-    // lives in the morning wake); kept at half for any old reader.
+    // penaltyCapacity is legacy; unrested halving lives in the morning wake
     ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false },
     ...(spec.player
       ? {
@@ -81,11 +71,6 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
   return farmer;
 }
 
-/**
- * Spawn region entities, lay out plots per farm, and place village fixtures.
- * Each farmer's Transform is moved to the center of their assigned farm and
- * their `currentRegion` is set accordingly. Replaces the old flat plot loop.
- */
 export function setupWorldRegions(
   world: World<GameEntity>,
   farmers: GameEntity[],

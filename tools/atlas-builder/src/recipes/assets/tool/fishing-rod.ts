@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Fishing rod — wooden pole (m/d) with a line (q) and a gold hook glint (o).
 const recipe: PixelRecipe =
   {
     name: "tool/fishing-rod",

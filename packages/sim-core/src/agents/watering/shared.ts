@@ -34,7 +34,7 @@ export const TAVERN_GATHER_TILE = { x: 44, y: 35 } as const;
 /** How often (in days) a farmer makes a tavern gathering trip (a periodic luxury). */
 export const TAVERN_VISIT_PERIOD = 12;
 
-/** brief 45 — the festival gathering tile: the auction podium in the town square. */
+/** The festival gathering tile: auction podium in the town square. */
 export const FESTIVAL_PODIUM_TILE = { x: 43, y: 39 } as const;
 
 /**

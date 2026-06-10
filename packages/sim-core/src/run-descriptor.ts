@@ -1,14 +1,4 @@
-// brief-17: save/replay — the run descriptor + URL-hash serialization.
-//
-// A fully deterministic Farm Valley run is described entirely by three numbers:
-// the RNG seed, the day count, and the ticks-per-day. There are currently no
-// sim-affecting external inputs (the viewer only pans/zooms/focuses, which is
-// presentation-only), so this descriptor is the *complete* save format — opening
-// the same descriptor reproduces a byte-identical run.
-//
-// Extension point: if/when interactive, sim-affecting inputs land, a per-tick
-// input log would be needed here to replay them. We deliberately keep this
-// descriptor minimal until such inputs exist.
+// A run is fully described by (seed, maxDays, ticksPerDay) — same descriptor reproduces a byte-identical run.
 
 /** Everything needed to reproduce a deterministic run. */
 export interface RunDescriptor {
@@ -17,22 +7,14 @@ export interface RunDescriptor {
   ticksPerDay: number;
 }
 
-/**
- * Serialize a run descriptor to a compact, URL-hash-safe string of the form
- * `seed-maxDays-ticksPerDay`, where each field is an unsigned-32-bit hex number.
- * Round-trippable via {@link parseRun}. No `#` or `run=` prefix is added here.
- */
+/** Serialize to `seed-maxDays-ticksPerDay` (unsigned-32-bit hex). No `#` or `run=` prefix. */
 export function serializeRun(desc: RunDescriptor): string {
   return [desc.seed, desc.maxDays, desc.ticksPerDay]
     .map((n) => (n >>> 0).toString(16))
     .join("-");
 }
 
-/**
- * Parse a run descriptor from a URL hash fragment. Tolerant of a leading `#`
- * and an optional `run=` prefix (so `#run=abc-def-1`, `run=...`, and the bare
- * `abc-def-1` all parse). Returns null on anything malformed, empty, or partial.
- */
+/** Parse from URL hash. Tolerates leading `#` and optional `run=` prefix. Returns null if malformed. */
 export function parseRun(hash: string): RunDescriptor | null {
   if (typeof hash !== "string") return null;
 

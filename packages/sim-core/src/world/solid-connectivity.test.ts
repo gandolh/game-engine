@@ -5,21 +5,8 @@ import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, getRegion } from "./regions"
 
 const VILLAGE = getRegion("village").center; // BFS seed for reachability floods
 
-/**
- * Solid-obstacle connectivity guard.
- *
- * Workshop props + big-building footprints are now `solid` (they block movement
- * for both Pip and the AI pathfinder). This test boots a real sim, overlays
- * every `solid` tile onto the base walkable grid, and asserts that blocking
- * them did NOT wall anything off:
- *  - every region's interior is still reachable from the village,
- *  - every farm plot tile is reachable (farmers must reach their plots),
- *  - every work-NPC station tile is reachable AND not itself solid,
- *  - no `solid` tile sits on a bridge/road tile (would sever an island).
- *
- * If a future prop placement traps a region or covers a station/road, this
- * fails loudly with the offending tile.
- */
+// Connectivity guard: overlay every solid tile onto the walkable grid and assert no region,
+// farm plot, or work-NPC station was walled off, and no solid covers a bridge/road tile.
 
 function idx(x: number, y: number): number {
   return y * WORLD_WIDTH + x;
@@ -66,7 +53,6 @@ describe("solid-obstacle connectivity", () => {
   it("every region center stays reachable from the village after blocking solids", () => {
     const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 1200, maxDays: 1 });
     const cells = gridWithSolids(world);
-    // Seed from a village interior tile (always walkable, never solid).
     const reachable = flood(cells, VILLAGE.x, VILLAGE.y);
     for (const r of REGIONS) {
       // Wells are 2×2 micro-regions; use their center like any other region.
@@ -78,8 +64,6 @@ describe("solid-obstacle connectivity", () => {
     const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 1200, maxDays: 1 });
     const solidSet = new Set<number>();
     for (const e of world.query("solid")) solidSet.add(idx(e.solid.tileX, e.solid.tileY));
-    // No solid prop / footprint may sit on ANY road tile — a bridge is 2-wide and
-    // a single blocked tile can sever the island it connects.
     for (const road of ROADS) {
       for (let y = road.minY; y <= road.maxY; y++) {
         for (let x = road.minX; x <= road.maxX; x++) {

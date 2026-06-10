@@ -6,12 +6,7 @@ import { nearestTile, FORAGE_ZONES } from "./shared";
 import { deliberateBuyTool } from "./tools";
 import { getRegion, nearestResourceZone, type RegionId } from "../../world/regions";
 
-/**
- * Queue chop/mine intents for visible tile features on the farmer's farm.
- *
- * brief (proximity) — only enqueues gather for features within reach; travels
- * to the nearest gatherable feature otherwise.
- */
+/** Queue chop/mine for visible farm features; travels to the nearest if none are in reach. */
 export function deliberateResourceGather(
   farmer: GameEntity,
   tileFeatures: Array<{ kind: "tree" | "stone"; tileX: number; tileY: number; ownerId: number }>,
@@ -23,9 +18,7 @@ export function deliberateResourceGather(
   const hasAxe    = tools.some(t => t.kind === "axe"     && t.durability > 0);
   const hasPick   = tools.some(t => t.kind === "pickaxe" && t.durability > 0);
 
-  // Tool-break recovery: if the farmer owns features it can't gather because the
-  // matching tool is broken/gone, queue a replacement purchase (same fix as the
-  // hoe path — a broken axe/pickaxe would otherwise permanently stall gathering).
+  // If the relevant tool is broken, buy a replacement before gathering stalls permanently.
   const ownFeatures = tileFeatures.filter((f) => f.ownerId === farmer.id);
   if (!hasAxe && ownFeatures.some((f) => f.kind === "tree")) {
     deliberateBuyTool(farmer, "axe", priority - 1);
@@ -34,8 +27,6 @@ export function deliberateResourceGather(
     deliberateBuyTool(farmer, "pickaxe", priority - 1);
   }
 
-  // Filter to features the farmer can actually gather with current tools,
-  // sorted (tileY, tileX) for determinism.
   const gatherable = ownFeatures
     .filter(f => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick))
     .slice()
@@ -48,7 +39,6 @@ export function deliberateResourceGather(
   const outOfReach = gatherable.filter(f => !isWithinReach(transform, f.tileX, f.tileY));
 
   if (inReach.length === 0) {
-    // No gatherable feature is within reach — travel to the nearest one; act next cycle.
     const nearest = nearestTile(transform, gatherable);
     if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
@@ -60,7 +50,6 @@ export function deliberateResourceGather(
     return;
   }
 
-  // Enqueue gather intents for all in-reach features (up to maxActions).
   let count = 0;
   for (const feat of inReach) {
     if (count >= maxActions) break;
@@ -72,8 +61,6 @@ export function deliberateResourceGather(
     count++;
   }
 
-  // If there are still out-of-reach features, queue travel toward the nearest
-  // to chain gathering in subsequent deliberation cycles.
   if (outOfReach.length > 0) {
     const nearest = nearestTile(transform, outOfReach);
     if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
@@ -87,13 +74,7 @@ export function deliberateResourceGather(
   if (count > 0) recordReason(farmer, `gather resources (${count} actions)`);
 }
 
-/**
- * Queue a trip to the mill to process a surplus crop into gold at a premium.
- * Fires when the farmer holds at least `minStock` units of any crop and isn't
- * already heading there. Travel runs first (lower priority number), then the
- * process-crop action resolves at the mill (ActSystem gates on region === mill).
- * This is what makes the mill an actual economic choice for the agents.
- */
+/** Queue a mill trip when holding ≥ minStock units of any crop for the premium price. */
 export function deliberateMillVisit(
   farmer: GameEntity,
   minStock: number,
@@ -101,16 +82,13 @@ export function deliberateMillVisit(
 ): void {
   if (!farmer.intentions || !farmer.inventory) return;
   const crops = farmer.inventory.crops;
-  // Pick the crop with the largest stock at/above the threshold.
   let best: { crop: import("../../components").CropKind; qty: number } | null = null;
-  // brief 41 — check all 8 crop kinds for mill surplus.
   for (const crop of ["grape", "pumpkin", "corn", "tomato", "winter-squash", "wheat", "carrot", "radish"] as const) {
     const qty = crops[crop];
     if (qty >= minStock && (!best || qty > best.qty)) best = { crop, qty };
   }
   if (!best) return;
 
-  // Don't double-queue a mill trip.
   if (farmer.intentions.queue.some(i => i.kind === "process-crop")) return;
 
   if (farmer.farmer?.currentRegion !== "mill") {
@@ -130,12 +108,7 @@ export function deliberateMillVisit(
   recordReason(farmer, `mill ${best.crop} x${best.qty} for premium`);
 }
 
-/**
- * Queue a trip to a seasonal forage zone when it's in season — the mushroom
- * grove (autumn) or ice pond (winter). Foraging there yields gold (ActSystem
- * gates the reward on both region AND season). Out of season this is a no-op,
- * which is what makes the zones a seasonal opportunity rather than a prop.
- */
+/** Queue a forage trip to the mushroom-grove (autumn) or ice-pond (winter); no-op out of season. */
 export function deliberateSeasonalForage(
   farmer: GameEntity,
   priority: number,
@@ -146,7 +119,6 @@ export function deliberateSeasonalForage(
   const zone = FORAGE_ZONES.find((z) => z.season === season);
   if (!zone) return; // no zone is in season right now
 
-  // Don't double-queue a forage trip.
   if (farmer.intentions.queue.some(i => i.kind === "forage")) return;
 
   if (farmer.farmer.currentRegion !== zone.region) {
@@ -166,11 +138,7 @@ export function deliberateSeasonalForage(
   recordReason(farmer, `forage ${zone.region} (in season: ${season})`);
 }
 
-/**
- * Queue travel to the nearest resource zone (forest or quarry) when the
- * farmer's farm has no features left to gather and there are zones nearby.
- * `preferKind` steers toward forest (trees) or quarry (stones).
- */
+/** Travel to nearest forest/quarry zone when own farm has no features left. */
 export function deliberateResourceZoneVisit(
   farmer: GameEntity,
   ownFarmFeatureCount: number,
@@ -178,7 +146,6 @@ export function deliberateResourceZoneVisit(
   priority: number,
 ): void {
   if (!farmer.intentions || !farmer.farmer) return;
-  // Only travel out if own farm is depleted.
   if (ownFarmFeatureCount > 0) return;
 
   const homeRegion = farmer.farmer.homeRegion as RegionId | undefined;

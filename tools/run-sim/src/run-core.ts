@@ -1,14 +1,5 @@
-/**
- * run-core.ts — the side-effect-free core of the headless runner.
- *
- * Holds the canonical "boot a sim, tick to completion, capture per-day
- * snapshots" routine plus the byte-comparison helpers. Both `index.ts` (the
- * CLI) and `determinism-worker.ts` (a worker thread) import from here, so the
- * worker can reuse `runOnce` without triggering `index.ts`'s top-level `main()`.
- *
- * Nothing here reads the wall clock or env vars — the result depends solely on
- * the seed, so it is reproducible and byte-for-byte comparable.
- */
+// Side-effect-free headless runner core: no wall-clock, no env vars.
+// Shared by index.ts (CLI) and determinism-worker.ts so the worker doesn't trigger main().
 import {
   bootstrapSim,
   leaderboard,
@@ -51,11 +42,6 @@ export function summarize(
   return { weather: currentWeather(world), summaries: leaderboard(world) };
 }
 
-/**
- * Boots and ticks a sim to completion, capturing a leaderboard snapshot at the
- * end of every distinct day plus the final standings. No console output, no
- * timing — pure sim outputs, so the result is byte-for-byte comparable.
- */
 export function runOnce(opts: RunOptions): RunResult {
   const { world, scheduler, dayClock } = bootstrapSim({
     seed: opts.seed,
@@ -85,12 +71,10 @@ export function runOnce(opts: RunOptions): RunResult {
   };
 }
 
-// A stable string form of a run, used purely for equality comparison.
 export function fingerprint(result: RunResult): string {
   return JSON.stringify(result);
 }
 
-// First textual difference between two runs (day-by-day), for a helpful report.
 export function describeDivergence(a: RunResult, b: RunResult): string {
   const n = Math.max(a.perDay.length, b.perDay.length);
   for (let i = 0; i < n; i++) {

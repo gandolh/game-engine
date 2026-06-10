@@ -4,34 +4,23 @@ import { TILE } from "./config";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 import type { SimClient } from "../worker/sim-client";
 
-// brief-11: focus-camera — module-level camera interaction state
 export let focusedFarmerId: number | null = null;
 export let panOffset = { x: 0, y: 0 };
 export let zoom = 1;
-// When the player starts moving Pip while the camera has been panned/looking
-// elsewhere, we re-center on Pip — but easing panOffset toward 0 over a few
-// frames instead of an instant setCenter snap, which read as the camera
-// "jumping back to a previous position". While true, the render loop decays
-// panOffset each frame; it clears itself once the offset is ~0.
+// recenteringOnPip: eases panOffset→0 over several frames instead of snapping
+// (an instant setCenter read as "jumping back to a previous position").
 export let recenteringOnPip = false;
 
 // Hover tooltip — tracks raw canvas-relative mouse position in CSS pixels.
 export const mousePos = { x: -9999, y: -9999 };
 
-// ── Player (Pip) input ───────────────────────────────────────────────────────
-// WASD/arrows walk Pip one tile per step (throttled so movement reads cleanly);
-// E performs the context-sensitive field action (selected hotbar tool) on the
-// tile Pip faces; Space recenters the camera on Pip. Move/action are sent to the
-// sim worker, which owns Pip as a real farmer entity. The step CADENCE now lives
-// in the sim (PlayerControlSystem.PLAYER_STEP_TICKS) so movement can glide; the
-// main thread just reports the held direction, resending only when it changes.
+// WASD/arrows hold directions; step cadence lives in PlayerControlSystem.
+// Main thread reports held direction only when it changes.
 export let lastPlayerMoveX: "left" | "right" | null = null;
 export let lastPlayerMoveY: "up" | "down" | null = null;
-// The player farmer's entity id, learned from the first snapshot (the sprite
-// labeled "Pip"); used to focus the camera on Pip by default.
+// playerFarmerId: learned from the first snapshot (sprite labeled "Pip").
 export let playerFarmerId: number | null = null;
 
-// brief-11: focus-camera — module-level client reference for the camera getter
 export let _simClient: SimClient | null = null;
 export let _camera: Camera2D | null = null;
 
@@ -46,9 +35,7 @@ export function setPlayerFarmerId(id: number | null): void { playerFarmerId = id
 export function setSimClient(c: SimClient | null): void { _simClient = c; }
 export function setCamera(c: Camera2D | null): void { _camera = c; }
 
-// brief-11: focus-camera — center + pan logic
-// sprites: precomputed interpolated list for this frame; pass null to let the
-// function fetch it lazily via getFarmerInterpolatedPos (e.g. drag handler).
+// sprites: pass the interpolated list for this frame, or omit to fetch lazily.
 export function applyFocusAndPan(
   camera: Camera2D,
   sprites?: SnapshotSprite[],
@@ -76,7 +63,6 @@ export function applyFocusAndPan(
   camera.setCenter(baseX + panOffset.x, baseY + panOffset.y);
 }
 
-// brief-11: focus-camera — wire canvas drag + scroll listeners onto the canvas
 export function setupCameraListeners(
   canvas: HTMLCanvasElement,
   camera: Camera2D,
@@ -100,9 +86,7 @@ export function setupCameraListeners(
 
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
     isDragging = true;
-    // A manual drag overrides any in-progress smooth recenter so the two don't
-    // fight over panOffset.
-    recenteringOnPip = false;
+    recenteringOnPip = false; // drag overrides smooth recenter
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     camStartX = panOffset.x;
@@ -111,7 +95,7 @@ export function setupCameraListeners(
 
   window.addEventListener("mousemove", (e: MouseEvent) => {
     if (!isDragging) return;
-    // Convert screen-pixel delta to world-pixel delta
+    // Screen-pixel delta → world-pixel delta
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
     const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
@@ -128,9 +112,7 @@ export function setupCameraListeners(
 
   canvas.addEventListener("wheel", (e: WheelEvent) => {
     e.preventDefault();
-    // brief-60: multiplicative step so zooming feels uniform across [MIN_ZOOM, MAX_ZOOM].
-    // A fixed ±0.1 additive step is glacial at 5×; multiplying by a factor
-    // keeps the perceived speed roughly constant in log-zoom space.
+    // Multiplicative step keeps perceived zoom speed constant in log-zoom space.
     const factor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
     zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
     camera.setZoom(zoom);

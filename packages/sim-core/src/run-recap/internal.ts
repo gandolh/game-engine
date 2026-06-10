@@ -2,10 +2,7 @@ import type { RunHistoryRow } from "../systems/run-history";
 import type { EventEntry } from "../systems/event-feed";
 import type { RecapStanding } from "./types";
 
-/**
- * Find the max day in the history and return floor(maxDay / 2) as the
- * midpoint. Returns 0 if history is empty.
- */
+/** Returns floor(maxDay / 2) from history; 0 if empty. */
 export function midpointDay(history: readonly RunHistoryRow[]): number {
   if (history.length === 0) return 0;
   let maxDay = 0;
@@ -15,10 +12,7 @@ export function midpointDay(history: readonly RunHistoryRow[]): number {
   return Math.floor(maxDay / 2);
 }
 
-/**
- * Build a map { day → { farmerId → rank } } from the full history.
- * Deterministic: history rows processed in insertion order.
- */
+/** Build { day → { farmerId → rank } } map from full history. Deterministic: insertion order. */
 export function buildRankMap(
   history: readonly RunHistoryRow[],
 ): Map<number, Map<number, number>> {
@@ -54,14 +48,8 @@ export function describeTrajectory(rows: readonly RunHistoryRow[]): string {
 
 /**
  * Derive a terse one-line arc sentence for a single farmer.
- *
- * Three named patterns (from the brief):
- *   "surge"    — spent ≥ 50% of days at last place, ended 1st.
- *   "collapse" — led (1st) for ≥ 50% of days, ended at rank ≥ 3.
- *   "steady"   — in the top half for ≥ 75% of days (neither surge nor collapse).
- *   fallback   — generic trajectory sentence.
- *
- * Deterministic: sorting and counting only; no randomness.
+ * Named patterns: "surge" (last ≥50% of days → won), "collapse" (led ≥50% → ended ≥3rd),
+ * "steady" (top-half ≥75%), fallback (generic trajectory). Deterministic — no randomness.
  */
 export function farmerArc(
   farmerId: number,
@@ -69,7 +57,6 @@ export function farmerArc(
   finalRank: number,
   history: readonly RunHistoryRow[],
 ): string {
-  // Collect this farmer's rows, oldest-first.
   const farmerRows = history
     .filter((r) => r.farmerId === farmerId)
     .sort((a, b) => a.day - b.day);
@@ -80,36 +67,30 @@ export function farmerArc(
 
   const totalDays = farmerRows.length;
 
-  // Determine total number of farmers (= max rank seen across the entire history).
   let maxRankSeen = 0;
   for (const row of history) {
     if (row.rank > maxRankSeen) maxRankSeen = row.rank;
   }
   const lastPlace = maxRankSeen;
 
-  // Days at last place.
   let daysLast = 0;
   for (const row of farmerRows) {
     if (row.rank === lastPlace) daysLast++;
   }
 
-  // Days at 1st place.
   let daysFirst = 0;
   for (const row of farmerRows) {
     if (row.rank === 1) daysFirst++;
   }
 
-  // "Surge" arc: ≥ 50% of days at last place AND final rank is 1.
   if (daysLast >= Math.ceil(totalDays * 0.5) && finalRank === 1) {
     return `${name} — last for ${daysLast} days, surged to 1st in the final stretch.`;
   }
 
-  // "Collapse" arc: led ≥ 50% of days AND final rank ≥ 3.
   if (daysFirst >= Math.ceil(totalDays * 0.5) && finalRank >= 3) {
     return `${name} — led for ${daysFirst} days, then collapsed to ${finalRank}${rankSuffix(finalRank)}.`;
   }
 
-  // "Steady" arc: top-half ≥ 75% of days.
   const topHalf = Math.ceil(lastPlace / 2);
   let daysInTopHalf = 0;
   for (const row of farmerRows) {
@@ -120,55 +101,33 @@ export function farmerArc(
     return `${name} — steady all season, rarely left the top ${topHalf}.`;
   }
 
-  // Generic fallback.
   return `${name} — finished ${finalRank}${rankSuffix(finalRank)} after a ${describeTrajectory(farmerRows)} run.`;
 }
 
 /**
  * Pick the single most dramatic event for the run headline.
  *
- * Strategy (updated for brief 38 — drama scores):
- *
- * 1. If any event carries a drama score, prefer the **highest-drama** event
- *    as the headline source. Tie-break: latest day, then stable (insertion)
- *    order. This surfaces rank-flips, shocks, and auction wins automatically.
- * 2. Fallback when all drama scores are equal (or all events lack a score):
- *    use the original text-based heuristics:
- *    a. Biggest single gold trade (parse "(Xg)").
- *    b. Drought/blight event.
- *    c. Combination sentence when both are present.
+ * 1. Highest-drama event (tie-break: latest day, then stable order). Threshold > 0.1
+ *    so routine low-drama trades don't hijack when no notable event exists.
+ * 2. Text-based fallback: biggest "(Xg)" trade, first drought/shock, or both.
  * 3. Ultimate fallback: "{winner} took the crown with {totalValue}g."
  *
- * Deterministic — sorting is by stable numeric fields; no randomness.
+ * Deterministic — sorting by stable numeric fields; no randomness.
  */
 export function buildHeadline(
   events: readonly EventEntry[],
   winner: RecapStanding | undefined,
 ): string {
-  // ---- 1. Drama-score path -------------------------------------------------
-  // Find the event with the highest drama score (tie-break: latest day, then
-  // stable order = last element among equals when iterating oldest-first).
-  // `drama` is optional on EventEntry for back-compat with pre-38 callers
-  // that omit the field; treat undefined as 0.
-
-  // Compute max drama across all events.
   let maxDrama = 0;
   for (const e of events) {
     const d = e.drama ?? 0;
     if (d > maxDrama) maxDrama = d;
   }
 
-  // Only use the drama path if at least one event has a non-zero score AND
-  // the max is above a low-noise threshold (> 0.1) so routine trades with
-  // drama=0.08 don't hijack the headline when there are no notable events.
   if (maxDrama > 0.1 && events.length > 0) {
-    // Among events tied at maxDrama, pick the latest day (oldest-first list
-    // means we scan forward and keep the last match = latest day + position).
     let best: EventEntry | null = null;
     for (const e of events) {
       if ((e.drama ?? 0) >= maxDrama) {
-        // Replace best if same drama and same-or-later day (stable: later
-        // position in the array wins among exact same-day ties).
         if (
           best === null ||
           e.day > best.day ||
@@ -183,9 +142,6 @@ export function buildHeadline(
     }
   }
 
-  // ---- 2. Text-based fallback (original heuristics) -----------------------
-
-  // Find the biggest gold trade by parsing "(Xg)" from event text.
   let biggestTrade: { text: string; value: number } | null = null;
   for (const e of events) {
     const m = e.text.match(/\((\d+)g\)/);
@@ -197,7 +153,6 @@ export function buildHeadline(
     }
   }
 
-  // Find the first drought/shock event (oldest-first order = deterministic).
   let shockText: string | null = null;
   for (const e of events) {
     if (e.text.startsWith("Drought!")) {
@@ -216,7 +171,6 @@ export function buildHeadline(
     return `The story of the run: ${shockText.toLowerCase()}.`;
   }
 
-  // ---- 3. Ultimate fallback -----------------------------------------------
   if (winner !== undefined) {
     return `The story of the run: ${winner.name} took the crown with ${winner.totalValue}g total value.`;
   }

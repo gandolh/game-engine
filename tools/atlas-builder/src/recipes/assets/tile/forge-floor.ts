@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// ── Tile floors ─────────────────────────────────────────────────────────────
 const recipe: PixelRecipe =
   {
     name: "tile/forge-floor",

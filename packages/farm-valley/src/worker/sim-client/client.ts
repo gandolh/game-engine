@@ -62,6 +62,8 @@ export class SimClient {
 
   private prevSnapshot: RenderSnapshot | null = null;
   private currentSnapshot: RenderSnapshot | null = null;
+  /** Last non-null wealthSeries received (the server omits unchanged ones). */
+  private cachedWealthSeries: SnapshotWealthSeries[] = [];
 
   /** performance.now() when the current snapshot arrived. */
   private lastSnapshotArrivalMs = 0;
@@ -118,6 +120,11 @@ export class SimClient {
         this.prevSnapshot = this.currentSnapshot;
         this.currentSnapshot = msg.snapshot;
         this.lastSnapshotArrivalMs = performance.now();
+        // wealthSeries is only sent on snapshots where new per-day rows exist
+        // (null in between) — cache the last real one for the graph panel.
+        if (msg.snapshot.wealthSeries !== null) {
+          this.cachedWealthSeries = msg.snapshot.wealthSeries;
+        }
         // T1.2 — rebuild the prev-sprite id index once per snapshot (not per
         // frame). prevSnapshot is the just-superseded current snapshot.
         this.prevById.clear();
@@ -421,6 +428,6 @@ export class SimClient {
 
   /** Brief 39 — per-farmer wealth time series for the wealth-over-time graph. */
   get wealthSeries(): SnapshotWealthSeries[] {
-    return this.currentSnapshot?.wealthSeries ?? [];
+    return this.cachedWealthSeries;
   }
 }

@@ -1,17 +1,5 @@
-/**
- * determinism-worker.ts — one sim run per message, in an isolated worker thread.
- *
- * Worker isolation is load-bearing here, not just a perf win: the sim keeps
- * module-level mutable state (agents/cnp-registry.ts's `coordinators` Map, keyed
- * by farmer id, and World.nextId which restarts at 1 each run), so two runs in
- * the SAME JS context would collide on those ids and cross-contaminate. Each
- * worker thread gets its own module graph, so every run is fully isolated and
- * the reproducibility comparison stays honest.
- *
- * The worker ships back the full RunResult; the parent reuses fingerprint() /
- * describeDivergence() verbatim, so comparison semantics are identical to the
- * old in-process sequential path.
- */
+// Worker isolation is load-bearing: the sim has module-level mutable state (coordinator Map,
+// World.nextId) that would collide if two runs shared a JS context.
 import { parentPort } from "node:worker_threads";
 import { runOnce, type RunResult } from "./run-core";
 import { makePathfinder } from "./pathfinder";

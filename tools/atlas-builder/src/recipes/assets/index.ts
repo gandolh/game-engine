@@ -1,6 +1,4 @@
-// Barrel for all per-asset recipe files.
 // Order is packing-sensitive — do not reorder.
-// Each file lives at assets/<name>.ts and default-exports a PixelRecipe.
 import { type PixelRecipe } from "../types";
 
 import r0 from "./tile/shore";
@@ -182,182 +180,182 @@ import r175 from "./tile/cliff-face-left";
 import r176 from "./tile/cliff-face-right";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
-  r0, // tile/shore
-  r1, // tile/wall
-  r2, // tile/wall-wood
-  r3, // tile/shore-sand
-  r4, // tile/ocean
-  r5, // tile/foam-a
-  r6, // tile/foam-b
-  r7, // tile/foam-c
-  r8, // tile/grass
-  r9, // tile/grass-spring
-  r10, // tile/grass-summer
-  r11, // tile/grass-autumn
-  r12, // tile/grass-winter
-  r13, // tile/path
-  r14, // tile/bridge-h
-  r15, // tile/fence-h
-  r16, // structure/market-wall
-  r17, // structure/shopkeeper
-  r18, // tile/dirt
-  r19, // farmer/conservative
-  r20, // farmer/conservative/walk-a
-  r21, // farmer/conservative/walk-b
-  r22, // farmer/aggressive
-  r23, // farmer/aggressive/walk-a
-  r24, // farmer/aggressive/walk-b
-  r25, // farmer/hoarder
-  r26, // farmer/hoarder/walk-a
-  r27, // farmer/hoarder/walk-b
-  r28, // farmer/opportunist
-  r29, // farmer/opportunist/walk-a
-  r30, // farmer/opportunist/walk-b
-  r31, // indicator/meet
-  r32, // indicator/follow
-  r33, // indicator/intention-plant
-  r34, // indicator/intention-water
-  r35, // indicator/intention-harvest
-  r36, // indicator/intention-sell
-  r37, // indicator/intention-buy
-  r38, // indicator/intention-travel
-  r39, // indicator/intention-sleep
-  r40, // indicator/intention-fish
-  r41, // indicator/intention-bid
-  r42, // indicator/intention-meet
-  r43, // indicator/intention-chop
-  r44, // indicator/intention-mine
-  r45, // indicator/intention-work
-  r46, // indicator/intention-idle
-  r47, // crop/radish/seed
-  r48, // crop/radish/growing
-  r49, // crop/radish/mature
-  r50, // crop/wheat/seed
-  r51, // crop/wheat/growing
-  r52, // crop/wheat/mature
-  r53, // crop/pumpkin/seed
-  r54, // crop/pumpkin/growing
-  r55, // crop/pumpkin/mature
-  r56, // crop/carrot/seed
-  r57, // crop/carrot/growing
-  r58, // crop/carrot/mature
-  r59, // crop/tomato/seed
-  r60, // crop/tomato/growing
-  r61, // crop/tomato/mature
-  r62, // crop/corn/seed
-  r63, // crop/corn/growing
-  r64, // crop/corn/mature
-  r65, // crop/grape/seed
-  r66, // crop/grape/growing
-  r67, // crop/grape/mature
-  r68, // crop/winter-squash/seed
-  r69, // crop/winter-squash/growing
-  r70, // crop/winter-squash/mature
-  r71, // tile/forge-floor
-  r72, // tile/market-floor
-  r73, // tile/quarry-floor
-  r74, // tile/wood-plank
-  r75, // tile/sand
-  r76, // tile/stone-floor
-  r77, // tile/ice-floor
-  r78, // tile/shrine-floor
-  r79, // tile/heritage-floor
-  r80, // tile/heritage-floor-stones
-  r81, // tile/heritage-floor-ruin
-  r82, // tile/heritage-floor-statue
-  r83, // tile/dock-floor
-  r84, // tile/mushroom-floor
-  r85, // structure/blacksmith
-  r86, // structure/carpenter
-  r87, // structure/fountain
-  r88, // structure/home
-  r89, // structure/tree
-  r90, // structure/tree-autumn
-  r91, // structure/tree-bare
-  r92, // structure/stone
-  r93, // structure/auction-podium
-  r94, // structure/notice-board
-  r95, // structure/mill
-  r96, // structure/well
-  r97, // structure/shrine
-  r98, // structure/heritage-stones
-  r99, // structure/heritage-ruin
-  r100, // structure/heritage-statue
-  r101, // structure/waterfall
-  r102, // structure/waterfall-a
-  r103, // structure/waterfall-b
-  r104, // structure/waterfall-c
-  r105, // structure/tent
-  r106, // structure/campfire
-  r107, // structure/campfire-a
-  r108, // structure/campfire-b
-  r109, // structure/campfire-c
-  r110, // structure/mushroom-marker
-  r111, // structure/ice-marker
-  r112, // structure/forge-oven
-  r113, // structure/forge-fire-a
-  r114, // structure/forge-fire-b
-  r115, // structure/forge-fire-c
-  r116, // structure/anvil
-  r117, // structure/quench-tub
-  r118, // structure/tool-rack
-  r119, // structure/workbench
-  r120, // structure/sawhorse
-  r121, // structure/log-pile
-  r122, // structure/plank-stack
-  r123, // decoration/scarecrow
-  r124, // decoration/windmill
-  r125, // decoration/flower-bed
-  r126, // decoration/fence-art
-  r127, // debug/player
-  r128, // tile/carpentry-floor
-  r129, // structure/fishing-spot
-  r130, // structure/fishing-spot-b
-  r131, // structure/fishing-spot-c
-  r132, // tile/coral-fill
-  r133, // tile/coral-edge
-  r134, // tile/coral-corner
-  r135, // tool/fishing-rod
-  r136, // fish/minnow
-  r137, // fish/bass
-  r138, // fish/salmon
-  r139, // decoration/barrel
-  r140, // decoration/crate
-  r141, // decoration/potted-plant
-  r142, // decoration/lamp-post
-  r143, // decoration/signpost
-  r144, // decoration/hay-bale
-  r145, // decoration/bush
-  r146, // decoration/log-stack
-  r147, // decoration/stone-lantern
-  r148, // decoration/torii
-  r149, // decoration/buoy
-  r150, // decoration/fish-basket
-  r151, // decoration/anchor
-  r152, // decoration/mushroom-cluster
-  r153, // decoration/fern
-  r154, // decoration/ore-cart
-  r155, // decoration/rubble
-  r156, // decoration/grain-sack
-  r157, // decoration/flour-bag
-  r158, // decoration/cattail
-  r159, // decoration/cairn
-  r160, // structure/forge-house
-  r161, // structure/carpenter-workshop
-  r162, // structure/grindstone
-  r163, // structure/coal-pile
-  r164, // structure/ingot-rack
-  r165, // structure/lumber-rack
-  r166, // structure/sawpit
-  r167, // structure/shavings-pile
-  r168, // structure/boat
-  r169, // tile/coral-reef
-  r170, // structure/forge-smoke-a
-  r171, // structure/forge-smoke-b
-  r172, // structure/forge-smoke-c
-  r173, // tile/cliff-face-a
-  r174, // tile/cliff-face-b
-  r175, // tile/cliff-face-left
-  r176, // tile/cliff-face-right
+  r0,
+  r1,
+  r2,
+  r3,
+  r4,
+  r5,
+  r6,
+  r7,
+  r8,
+  r9,
+  r10,
+  r11,
+  r12,
+  r13,
+  r14,
+  r15,
+  r16,
+  r17,
+  r18,
+  r19,
+  r20,
+  r21,
+  r22,
+  r23,
+  r24,
+  r25,
+  r26,
+  r27,
+  r28,
+  r29,
+  r30,
+  r31,
+  r32,
+  r33,
+  r34,
+  r35,
+  r36,
+  r37,
+  r38,
+  r39,
+  r40,
+  r41,
+  r42,
+  r43,
+  r44,
+  r45,
+  r46,
+  r47,
+  r48,
+  r49,
+  r50,
+  r51,
+  r52,
+  r53,
+  r54,
+  r55,
+  r56,
+  r57,
+  r58,
+  r59,
+  r60,
+  r61,
+  r62,
+  r63,
+  r64,
+  r65,
+  r66,
+  r67,
+  r68,
+  r69,
+  r70,
+  r71,
+  r72,
+  r73,
+  r74,
+  r75,
+  r76,
+  r77,
+  r78,
+  r79,
+  r80,
+  r81,
+  r82,
+  r83,
+  r84,
+  r85,
+  r86,
+  r87,
+  r88,
+  r89,
+  r90,
+  r91,
+  r92,
+  r93,
+  r94,
+  r95,
+  r96,
+  r97,
+  r98,
+  r99,
+  r100,
+  r101,
+  r102,
+  r103,
+  r104,
+  r105,
+  r106,
+  r107,
+  r108,
+  r109,
+  r110,
+  r111,
+  r112,
+  r113,
+  r114,
+  r115,
+  r116,
+  r117,
+  r118,
+  r119,
+  r120,
+  r121,
+  r122,
+  r123,
+  r124,
+  r125,
+  r126,
+  r127,
+  r128,
+  r129,
+  r130,
+  r131,
+  r132,
+  r133,
+  r134,
+  r135,
+  r136,
+  r137,
+  r138,
+  r139,
+  r140,
+  r141,
+  r142,
+  r143,
+  r144,
+  r145,
+  r146,
+  r147,
+  r148,
+  r149,
+  r150,
+  r151,
+  r152,
+  r153,
+  r154,
+  r155,
+  r156,
+  r157,
+  r158,
+  r159,
+  r160,
+  r161,
+  r162,
+  r163,
+  r164,
+  r165,
+  r166,
+  r167,
+  r168,
+  r169,
+  r170,
+  r171,
+  r172,
+  r173,
+  r174,
+  r175,
+  r176,
 ];
 

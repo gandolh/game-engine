@@ -7,7 +7,7 @@ import type { AuctionCfpBody } from "../protocols/shop";
 import { EncounterTradeSystem } from "../systems/encounter-trade";
 import { ONT_ENCOUNTER, type OfferBeanBody } from "../protocols/encounter";
 import { PERFORMATIVE } from "../protocols/performatives";
-// Register hooks (side-effect imports) so the gift handshake resolves.
+// Side-effect imports register personality hooks needed for the gift handshake.
 import "./aggressive";
 import "./conservative";
 
@@ -45,23 +45,21 @@ function makeFarmer(over: {
 describe("expectedBeanBid", () => {
   it("scales the bid by the personality value factor, floored at reserve", () => {
     const f = makeFarmer({ gold: 1000, reserve: 0, openAuction: openCfp(50) });
-    const resale = 50 * RESALE_MULTIPLIER; // 150
+    const resale = 50 * RESALE_MULTIPLIER;
     const aggressive = expectedBeanBid(f, openCfp(50), { valueFactor: 0.95 });
     const conservative = expectedBeanBid(f, openCfp(50), { valueFactor: 0.45 });
-    expect(aggressive).toBe(Math.round(resale * 0.95)); // 143
-    expect(conservative).toBe(Math.max(50, Math.round(resale * 0.45))); // 68
+    expect(aggressive).toBe(Math.round(resale * 0.95));
+    expect(conservative).toBe(Math.max(50, Math.round(resale * 0.45)));
     expect(aggressive!).toBeGreaterThan(conservative!);
   });
 
   it("returns null when the farmer can't meet the reserve without breaching its gold reserve", () => {
     const f = makeFarmer({ gold: 60, reserve: 30, openAuction: openCfp(50) });
-    // affordable = 60 - 30 = 30 < reserve 50 → no bid
     expect(expectedBeanBid(f, openCfp(50), { valueFactor: 0.95 })).toBeNull();
   });
 
   it("caps the bid at what the farmer can afford", () => {
     const f = makeFarmer({ gold: 90, reserve: 0, openAuction: openCfp(50) });
-    // target would be 143 but affordable is only 90
     expect(expectedBeanBid(f, openCfp(50), { valueFactor: 0.95 })).toBe(90);
   });
 });
@@ -130,8 +128,7 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
 
     expect(giver.inventory!.goldenBeans).toBe(0);
     expect(receiver.inventory!.goldenBeans).toBe(1);
-    // Receiver's trust toward giver jumped well above the 0.5 baseline.
-    expect(receiver.trust!.byId.get(giver.id!)!).toBeGreaterThan(0.6);
+    expect(receiver.trust!.byId.get(giver.id!)!).toBeGreaterThan(0.6); // well above 0.5 default
   });
 
   it("is a no-op if the giver has no bean to give", () => {
@@ -150,5 +147,4 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
   });
 });
 
-// Keep createRng import used (mirrors other test files that seed deterministically).
-void createRng;
+void createRng; // keep import live

@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Work (NPC work) — a wrench/tool (stone) inside the bubble.
     name: "indicator/intention-work",
     size: 16,
     pixels: [

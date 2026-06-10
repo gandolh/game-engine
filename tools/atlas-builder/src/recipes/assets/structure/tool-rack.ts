@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Tool rack — hammers + tongs hung on a wooden wall board.
 const recipe: PixelRecipe =
   {
     name: "structure/tool-rack",

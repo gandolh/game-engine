@@ -69,7 +69,6 @@ describe("MarketSystem", () => {
     expect(stored.pricePerUnit).toBe(7);
     expect(stored.postedDay).toBe(3);
 
-    // Read it back.
     pushToWall(wall, {
       ontology: ONT_MARKET.READ_OFFERS,
       sender: farmer.id!,
@@ -99,7 +98,6 @@ describe("MarketSystem", () => {
     expect(sys.offersById.size).toBe(1);
     const offerId = Array.from(sys.offersById.keys())[0]!;
 
-    // Wrong sender — must be ignored.
     pushToWall(wall, {
       ontology: ONT_MARKET.CANCEL_OFFER,
       sender: stranger.id!,
@@ -108,7 +106,6 @@ describe("MarketSystem", () => {
     sys.run({ tick: 2 });
     expect(sys.offersById.size).toBe(1);
 
-    // Right sender — removes it.
     pushToWall(wall, {
       ontology: ONT_MARKET.CANCEL_OFFER,
       sender: seller.id!,
@@ -255,7 +252,6 @@ describe("MarketSystem", () => {
     expect(sys.offersById.size).toBe(1);
     const offerId = Array.from(sys.offersById.keys())[0]!;
 
-    // Farmer leaves village, then tries to cancel.
     farmer.farmer!.currentRegion = "farm-cora";
     pushToWall(wall, {
       ontology: ONT_MARKET.CANCEL_OFFER,
@@ -277,7 +273,6 @@ describe("MarketSystem", () => {
   it("READ_OFFERS filter by crop returns only matching offers", () => {
     const sys = new MarketSystem(bus, world, createRng(1));
     const farmer = makeFarmer(world);
-    // ensure farmer also has wheat for posting
     farmer.inventory!.crops.wheat = 2;
     pushToWall(wall, {
       ontology: ONT_MARKET.POST_OFFER,

@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Sawpit — a pit with a two-man saw and sawdust, for ripping logs into planks.
 const recipe: PixelRecipe =
   {
     name: "structure/sawpit",

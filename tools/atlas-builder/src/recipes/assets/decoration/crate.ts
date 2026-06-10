@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Wooden crate with cross-bracing.
     name: "decoration/crate",
     size: 16,
     pixels: [

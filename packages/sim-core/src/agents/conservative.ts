@@ -13,13 +13,7 @@ import type { TileFeature, FarmDecoration } from "../components";
 import { SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 
-/**
- * brief 41 — pick the safest (cheapest, in-season) crop for the current day.
- * If seeds on hand include an in-season crop, plant it first (never wasteful).
- * Otherwise buy the cheapest in-season crop we can afford.
- * Conservative prefers: spring→carrot/radish, summer→tomato, autumn→pumpkin,
- * winter→winter-squash. Fallback to radish if nothing else affordable.
- */
+/** Picks cheapest in-season crop; uses seeds on hand first; falls back to radish. */
 function pickConservativeCrop(
   day: number,
   gold: number,
@@ -27,7 +21,6 @@ function pickConservativeCrop(
   seeds?: Record<CropKind, number>,
 ): { crop: CropKind; cost: number } {
   const season = seasonForDay(day);
-  // Priority: use seeds already on hand (in-season first, cheapest).
   const inSeasonCheap: CropKind[] =
     season === "spring" ? ["carrot", "radish", "wheat"] :
     season === "summer" ? ["tomato", "corn"] :
@@ -38,7 +31,6 @@ function pickConservativeCrop(
       if (seeds[crop] >= 1) return { crop, cost: 0 };
     }
   }
-  // No in-season seeds on hand — buy the cheapest in-season we can afford.
   for (const crop of inSeasonCheap) {
     const cost = SEED_COST[crop];
     if (gold - cost >= reserve) return { crop, cost };
@@ -47,14 +39,9 @@ function pickConservativeCrop(
   return { crop: "radish", cost: SEED_COST.radish };
 }
 
-/**
- * brief 43 — pick the crop to grow under glass: the highest-value crop whose
- * native season is NOT the current one, so the greenhouse earns what the open
- * field can't this season (its whole strategic point). Falls back to grape.
- */
+/** Picks highest-value crop whose native season is NOT the current one (the greenhouse's purpose). */
 function pickGreenhouseCrop(day: number): CropKind {
   const season = seasonForDay(day);
-  // Value order (priciest first).
   const byValue: CropKind[] = ["grape", "pumpkin", "corn", "tomato", "winter-squash", "wheat", "carrot", "radish"];
   for (const crop of byValue) {
     if (CROP_SEASON[crop] !== season) return crop;
@@ -73,15 +60,12 @@ export function deliberateConservative(farmer: GameEntity): void {
   farmer.intentions.queue.length = 0;
   resetDecisionTrace(farmer);
 
-  // Refill watering can if needed before watering.
   const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
   const planWater = sense?.due ?? 0;
   deliberateRefillCan(farmer, planWater);
-
-  // brief 29 — conservative waters early, never risking the grace window.
+  // Waters at dryThreshold 0 — never risks the grace window.
   deliberateWatering(farmer, { dryThreshold: 0 });
 
-  // Till up to 2 new plots if we have seeds and a hoe (conservative expands slowly).
   const plotsOwned = (farmer.beliefs.data.plotWater as PlotWaterSense | undefined)?.planted ?? 0;
   if (plotsOwned < 6 && gold >= reserve + seedCost) {
     const occupied = new Set<string>(
@@ -91,20 +75,16 @@ export function deliberateConservative(farmer: GameEntity): void {
     deliberateTill(farmer, occupied, 1, 2);
   }
 
-  // Chop/mine on own farm (low priority — opportunistic).
   const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
   deliberateResourceGather(farmer, features, 1, 8);
 
-  // Craft decorations when we have wood (conservative: low priority, affordable ones).
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   deliberateDecoration(farmer, decorations, 9);
 
-  // Visit village day 0-1 to scout market (gets everyone walking early).
   deliberateEarlyVillageVisit(farmer, 10);
-  // Upgrade hoe first (conservative farms a lot), then axe for wood.
+  // Upgrade hoe first (farms the most), then axe.
   deliberateUpgrade(farmer, "hoe", 11);
   deliberateUpgrade(farmer, "axe", 12);
-  // Visit resource zones when own farm has nothing left to gather.
   deliberateResourceZoneVisit(farmer, features.length, "tree", 13);
 
   const season = seasonForDay(day);
@@ -124,7 +104,6 @@ export function deliberateConservative(farmer: GameEntity): void {
   }
 
   const inVillage = farmer.farmer?.currentRegion === "village";
-  // brief 41 — sell all crop kinds (dynamic, not hard-coded to 3).
   const allCrops = Object.keys(farmer.inventory.crops) as CropKind[];
   for (const crop of allCrops) {
     const qty = farmer.inventory.crops[crop];
@@ -149,70 +128,34 @@ export function deliberateConservative(farmer: GameEntity): void {
     }
   }
 
-  // brief 24 — bid cautiously (near reserve) and flip any beans held.
+  // Bids cautiously (0.45 of resale) and flips beans held.
   deliberateBean(farmer, 0.45);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 
-  // brief 42 — livestock + orchard (patient capital; conservative leans in hardest).
-  //
-  // These are LOW-priority by importance number, but the build/buy/plant ACTIONS
-  // only execute once the farmer stands at the right place (carpentry / village /
-  // a free farm tile), and those TRIPS compete with survival watering + selling.
-  // A non-committal `+1` travel always loses, so the feature stayed dormant.
-  //
-  // Fix — give the trips a winning travel priority on a QUIET day (gold surplus +
-  // plots not about to wilt + AP headroom), so they actually land without
-  // permanently hijacking the farm loop. Crucially the two capital tracks are
-  // INDEPENDENT, because they live in different places at this scale:
-  //
-  //   • ORCHARD is on the farmer's OWN farm (a short hop) and the tree needs
-  //     ~20 days to mature, so plant it EARLY and on its own — it must not wait
-  //     behind the slow cross-map livestock chain or it will never fruit in time.
-  //   • LIVESTOCK needs a far carpentry trip (build) then a village trip (stock).
-  //     At low ticks/day these trips take several in-game days of walking, so we
-  //     commit ONE livestock excursion at a time (build → stock) and let the
-  //     cheap tend/sell follow-ups ride normal days.
-  //
-  // The orchard commit and the livestock commit are kept on separate quiet days
-  // (orchard takes precedence once it's plantable) so they don't fight over the
-  // single queue[0] travel slot.
-  const surplusGold = gold >= reserve + 50; // comfortable cushion before sinking capital
-  // Plots one day from wilting (grace is 2 dry days) — never abandon those.
-  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2;
-  const apHeadroom = (farmer.ap?.current ?? 0) >= 20; // don't starve core work
-  // A committed excursion may leave plots dry for ONE day; that's safe under the
-  // 2-day grace window, and watering reclaims priority the moment she's home. We
-  // only block the commit when a plot is actually about to die (plotsUrgent).
+  // Commit capital excursions only on a "quiet day": surplus gold + plots safe + AP headroom.
+  // Orchard (on-farm, plant early for ~20d maturation) and livestock (far carpentry trip)
+  // use separate quiet days so they don't compete for the single queue[0] travel slot.
+  const surplusGold = gold >= reserve + 50;
+  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2; // grace is 2 dry days
+  const apHeadroom = (farmer.ap?.current ?? 0) >= 20;
   const quietInvestDay = surplusGold && !plotsUrgent && apHeadroom;
 
   const hasCoop = (farmer.beliefs.data["hasPen_coop"] as boolean | undefined) ?? false;
   const chickens = (farmer.beliefs.data["penCount_chicken"] as number | undefined) ?? 0;
   const orchardCount = (farmer.beliefs.data["orchardCount"] as number | undefined) ?? 0;
 
-  // ── ORCHARD track (plant early; on-farm; slow-maturing) ──────────────────────
-  // Plant the first apple tree as soon as there's a quiet day from day 6, so the
-  // ~20-day maturation completes with margin before autumn fruiting. Harvest +
-  // sell ride normal days.
   if (day >= 6) {
-    const orchardCommit = quietInvestDay && orchardCount < 1; // commit the very first tree
+    const orchardCommit = quietInvestDay && orchardCount < 1;
     deliberatePlantOrchard(farmer, "apple", 2, reserve + 5, 16, orchardCommit ? -2 : undefined);
     deliberateHarvestFruit(farmer, 3);
     deliberateSellFruit(farmer, 5);
   }
 
-  // ── GREENHOUSE track (brief 43) — the run's heaviest sink, season-immune plots ─
-  // Conservative is the patient-capital archetype, so she leans into the
-  // greenhouse hardest and PRIORITISES it: it's the headline late-game milestone,
-  // it pays back over the rest of the run, and it must be built early enough to
-  // amortise. So once she can afford it she COMMITS the greenhouse excursion
-  // FIRST (before the livestock excursion) and that excursion OWNS the single
-  // carpentry-travel slot for the day — committing two far excursions on the same
-  // quiet day would just stall both (only one resolves per arrival at this pace).
-  // Once built she plants a premium crop (grape) in it YEAR-ROUND — the
-  // season-immune plots grow it at full rate regardless of season, the payoff.
+  // Greenhouse is prioritised over livestock — one carpentry trip per quiet day.
+  // Once built, grows premium off-season crop year-round (season-immune plots).
   const hasGreenhouse = (farmer.beliefs.data["hasGreenhouse"] as boolean | undefined) ?? false;
-  const greenhouseSurplus = gold >= reserve + 90; // cushion over the material-discounted (~120g) sink
+  const greenhouseSurplus = gold >= reserve + 90;
   const greenhouseQuietDay = greenhouseSurplus && !plotsUrgent && apHeadroom;
   let committedGreenhouseExcursion = false;
   if (day >= 6 && !hasGreenhouse && greenhouseQuietDay) {
@@ -220,70 +163,42 @@ export function deliberateConservative(farmer: GameEntity): void {
     committedGreenhouseExcursion = true;
   }
   if (hasGreenhouse) {
-    // Greenhouse strategy: grow a PREMIUM crop that is OUT of season outside, so
-    // the season-immune plots earn what the open field can't right now. Pick the
-    // priciest crop whose native season isn't the current one (grape unless it's
-    // autumn, in which case the next-best off-season pick).
     const ghCrop = pickGreenhouseCrop(day);
     deliberateGreenhousePlant(farmer, ghCrop, SEED_COST[ghCrop], reserve, 2);
   }
 
-  // ── LIVESTOCK track (build coop → stock → tend → sell) ───────────────────────
-  // Tend + sell always run cheaply (tend works at home; sell rides village trips).
+  // Tend + sell always run cheaply. Livestock excursion only after orchard planted,
+  // and not on a greenhouse-commit day (one carpentry trip at a time).
   if (day >= 8) {
     deliberateTendPens(farmer, 4);
     deliberateSellProducts(farmer, 5);
   }
-  // Livestock excursion, AFTER the first tree is planted (so the orchard's quick
-  // on-farm hop isn't blocked by the slow coop trip), and NOT on a day we already
-  // committed the greenhouse excursion (one far carpentry trip at a time). The
-  // build trip goes to the carpenter — and since animals can now be bought there
-  // too, the SAME carpentry visit both builds the coop and stocks the first birds.
   if (day >= 8 && quietInvestDay && orchardCount >= 1 && !committedGreenhouseExcursion) {
     if (!hasCoop) {
       deliberateBuildPen(farmer, "coop", "chicken", reserve + 5, 14, -2);
     }
-    // Buy whenever the coop exists and the herd is small — fires at the carpenter
-    // right after the build, or at the village on a later selling trip.
     if (hasCoop && chickens < 3) {
       deliberateBuyAnimal(farmer, "chicken", reserve + 5, 15, -2);
     }
   }
 
-  // brief 46 — harbor contracts. Conservative only commits when goods are ALREADY
-  // in inventory (riskTolerance 0.0 = conservative), ensuring she never misses
-  // a deadline. She commits on a quiet day (surplus gold, not plots urgent) and
-  // gives the harbor excursion a WINNING travel priority so the delivery trip
-  // actually out-prioritizes idle farming. This is the "committed excursion wins"
-  // pattern from brief 42.
+  // riskTolerance 0.0 (only commits with goods on hand); relaxes to 0.5 after day 10.
   const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
   if (day >= 3) {
-    // Conservative: only commit if already have goods (riskTolerance 0.0)
-    // OR commit with goods-haul plan early (moderate risk OK by day 10 for extra income)
     const harborTolerance = day >= 10 ? 0.5 : 0.0;
     deliberateHarborContract(farmer, openContracts, harborTolerance, reserve, 5, -2);
   }
 
-  // brief 48 — conservative only rows out to the coral reef when farm chores are
-  // clearly handled: a steep AP floor (70) means she goes solely on a very free
-  // day, takes just a couple of casts, and rarely (every 12 days). The premium
-  // catch is welcome, but never at the cost of the farm.
+  // Coral only on a very free day: steep AP floor (70), rare trips (every 12 days).
   deliberateCoralFishing(farmer, 12, 2, -2, 70);
 
-  // brief 44 — gathering beat (pure flavor; an idle in-village farmer drifts to
-  // the tavern). Runs before the sleep helper so it can claim a truly-idle queue.
   deliberateTavernGather(farmer, -2);
-  // brief 45 — on a festival day, gather at the village podium (the festival stage).
   deliberateFestivalGather(farmer, -2);
   deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
 
 registerPersonality("conservative", deliberateConservative);
-
-// ---------------------------------------------------------------------------
-// Peer-trade hooks (encounter-trade system)
-// ---------------------------------------------------------------------------
 
 const CONS_PEER_BUY_CEILING = 1.0; // never over shop price
 const CONS_PEER_SELL_FLOOR = 0.9;
@@ -296,11 +211,7 @@ export const respondToPeerOfferConservative = makeRespondPeerOffer({
   reserveDefault: 30,
 });
 
-/**
- * brief 59 — conservative is a cautious crop BUYER: it only takes a clear
- * bargain (ceiling 0.9, well below shop) and never spends down its reserve. It
- * doesn't accumulate crops itself, so it's pure demand, not supply.
- */
+// Only buys crops at a clear bargain (ceiling 0.9, well below shop); pure demand, not supply.
 export const respondCropOfferConservative = makeRespondPeerOffer({
   commodity: "crop",
   buyCeiling: 0.9, // only buys a clear bargain (well below shop)

@@ -1,13 +1,5 @@
-/**
- * determinism.ts — the parallel determinism check.
- *
- * For N seeds there are 2N independent (seed, pass) runs. We dispatch them
- * across a bounded pool of worker threads (one fresh module graph each), collect
- * all results, then compare pass 0 vs pass 1 per seed and emit MATCH/DIVERGE in
- * the ORIGINAL seed order — so stderr output, pass/fail, and exit code are
- * byte-identical to the old sequential implementation regardless of which
- * worker finished when.
- */
+// Parallel determinism check: 2N runs dispatched across a worker pool, results compared
+// in original seed order so stderr/exit-code are deterministic regardless of finish order.
 import { Worker } from "node:worker_threads";
 import { availableParallelism } from "node:os";
 import { fingerprint, describeDivergence, type RunResult } from "./run-core";
@@ -37,8 +29,7 @@ function runJobsInPool(jobs: DeterminismJob[]): Promise<DeterminismJobResult[]> 
     };
 
     const spawn = () => {
-      // tsx loader so the worker can import the .ts entry directly (Node >= 20).
-      const worker = new Worker(WORKER_URL, { execArgv: ["--import", "tsx"] });
+      const worker = new Worker(WORKER_URL, { execArgv: ["--import", "tsx"] }); // tsx: import .ts directly in Node ≥20
 
       const dispatch = () => {
         if (next >= jobs.length) {
@@ -67,11 +58,6 @@ function runJobsInPool(jobs: DeterminismJob[]): Promise<DeterminismJobResult[]> 
   });
 }
 
-/**
- * Run the parallel determinism check. Returns true if every seed reproduced
- * identically across its two passes. Diagnostics go to stderr so a piped
- * stdout stays clean.
- */
 export async function runDeterminismCheck(opts: CheckOptions): Promise<boolean> {
   const { seeds, ticksPerDay, maxDays } = opts;
 
@@ -88,7 +74,6 @@ export async function runDeterminismCheck(opts: CheckOptions): Promise<boolean> 
 
   const finished = await runJobsInPool(jobs);
 
-  // Index results by seed → [pass0, pass1] for ordered comparison.
   const bySeed = new Map<number, RunResult[]>();
   for (const r of finished) {
     let arr = bySeed.get(r.seed);

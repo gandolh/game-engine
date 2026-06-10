@@ -28,14 +28,7 @@ export interface TileFeature {
   ownerId: number;
 }
 
-/**
- * Marks a tile-occupying obstacle that blocks movement (both the player's step
- * checks and the AI pathfinder grid) without being a gatherable tree/stone.
- * Used for workshop props and the big workshop buildings so farmers and Pip walk
- * AROUND them instead of through them. Static: placed once at world setup, never
- * moved or removed, so connectivity is validated at setup time (see
- * region-setup `SOLID_*` placements + the walkable-grid connectivity test).
- */
+/** Blocks movement (player + AI pathfinder grid). Static — placed once, never moved. */
 export interface Solid {
   readonly isSolid: true;
   tileX: number;
@@ -47,20 +40,12 @@ export interface BlacksmithTag {
   readonly isBlacksmith: true;
 }
 
-/**
- * Tags the carpenter NPC entity in the carpentry region.
- *
- * brief 44 — the carpenter now fulfills REAL commissions. `pending` holds
- * accepted build orders (cost already escrowed from the farmer): each ticks
- * down `ticksLeft` and is DELIVERED by CarpenterSystem when it reaches 0.
- */
 export interface CarpenterTag {
   readonly isCarpenter: true;
-  /** brief 44 — accepted commissions in flight (escrowed, building). */
   pending?: PendingCommission[];
 }
 
-/** brief 44 — one accepted carpenter commission being built over a build-time. */
+/** One accepted carpenter commission ticking down to delivery. */
 export interface PendingCommission {
   /** The farmer who commissioned (and was already charged for) this build. */
   ownerId: number;
@@ -72,11 +57,7 @@ export interface PendingCommission {
   ticksLeft: number;
 }
 
-/**
- * A work station an NPC visits: a tile to stand on, the facing to adopt there,
- * and the animated pose to play (two-frame, e.g. `npc/blacksmith/hammer`).
- * `pose: null` means "just stand/idle here" (used for a brief walk-around).
- */
+/** A work station an NPC visits. `pose: null` = idle/stand. */
 export interface WorkStation {
   readonly tileX: number;
   readonly tileY: number;
@@ -86,42 +67,18 @@ export interface WorkStation {
   readonly pose: string | null;
 }
 
-/**
- * Drives a stationary craft NPC (blacksmith, carpenter) around its props: walk
- * to the next station, dwell there playing the station's pose for a while, then
- * move on. Purely cosmetic — deterministic on tick, no sim coupling.
- */
+/** Patrol NPC state: walks to stations in a loop, dwells + plays a pose. Cosmetic; no sim coupling. */
 export interface WorkNpc {
-  /** Ordered loop of stations to visit. */
   readonly stations: readonly WorkStation[];
-  /**
-   * Frame to render when not playing a station swing pose — while walking
-   * between stations, and while dwelling at a station whose `pose` is null
-   * (e.g. the oven). A standing-figure sprite so the NPC never falls back to
-   * its building sprite. (e.g. "npc/blacksmith/idle".)
-   */
   readonly idlePose: string;
-  /** Index of the station currently targeted / occupied. */
   stationIndex: number;
-  /**
-   * Phase: "walking" (stepping toward the station tile) or "working" (arrived,
-   * dwelling + playing the pose).
-   */
   phase: "walking" | "working";
-  /** Ticks remaining in the current phase action (step cadence / dwell). */
   timer: number;
-  /** Resolved pose/idle frame to render this tick (null = use a facing idle frame). */
+  /** Pose frame to render this tick (null = facing idle). */
   poseFrame: string | null;
-  /** Facing to render this tick. */
   facing: "down" | "up" | "side";
   flipX: boolean;
-  /**
-   * Activity multiplier on the patrol cadence (step + dwell), set each tick by
-   * NpcDeliberateSystem from world state. 1 = baseline; <1 = busier (faster
-   * patrol, shorter dwell — there's demand); >1 = idle/slow (the valley is
-   * quiet). Lets the service NPCs visibly react to the sim instead of looping
-   * blindly. Optional so pre-existing WorkNpc literals stay valid (treated as 1).
-   */
+  /** Patrol speed multiplier set by NpcDeliberateSystem (<1 = busier, >1 = idle). Optional → 1. */
   busyFactor?: number;
 }
 
@@ -142,11 +99,6 @@ export interface MillTag {
   readonly isMill: true;
 }
 
-/**
- * brief 44 — tags the tavern entity in the village hub. Carries the barkeep's
- * current gossip line (a daily rumor drawn deterministically from the event
- * feed by TavernSystem) for the hover tooltip / observer panel.
- */
 export interface TavernTag {
   readonly isTavern: true;
   /** The barkeep's current rumor line (set each day-start by TavernSystem). */
@@ -161,13 +113,7 @@ export interface WellTag {
   regionId: import('../world/regions').RegionId;
 }
 
-/**
- * Tags a **bubble spot** — a transient patch of churning water (rising fish)
- * that drifts in the ocean ring around the fishing isle. Casting INTO a bubble
- * tile (from the isle edge) skews the catch toward rarer/more valuable fish;
- * plain ocean skews to minnows. Bubbles spawn/despawn daily and are NOT
- * permanent fixtures (see BubbleSystem). The tile is a non-walkable ocean tile.
- */
+/** Transient bubble spot in the ocean ring. Casting into one skews toward rarer fish. */
 export interface FishingSpotTag {
   readonly isFishingSpot: true;
   tileX: number;
@@ -181,28 +127,18 @@ export interface HomeTag {
   ownerId: number;
 }
 
-/**
- * brief 46 — tags the harbor contract board entity. Holds the active open
- * contracts and the committed-contract registry. HarborSystem updates this
- * each day; agents read it via beliefs.
- */
+/** Harbor contract board. HarborSystem updates it each day; agents read via beliefs. */
 export interface HarborBoardTag {
   readonly isHarborBoard: true;
-  /** Currently open (uncommitted) contracts available for farmers to take. */
   openContracts: import('../protocols/harbor').HarborContract[];
-  /**
-   * Committed contracts: contractId → farmerId.
-   * A committed contract is still in openContracts until delivered/missed.
-   */
+  /** contractId → farmerId. Committed contracts stay in openContracts until delivered/missed. */
   committed: Map<string, number>;
 }
 
-/** brief 46 — tags the dockmaster NPC entity at the harbor. */
 export interface DockmasterTag {
   readonly isDockmaster: true;
 }
 
-// ── Decoration system ────────────────────────────────────────────────────────
 
 export type DecorationKind = "scarecrow" | "windmill" | "flower-bed" | "fence-art";
 
@@ -237,15 +173,7 @@ export interface WeatherStation {
   }>;
 }
 
-// ── Greenhouse (brief 43) ─────────────────────────────────────────────────────
-
-/**
- * brief 43 — a buildable greenhouse on a farmer's farm. A single Greenhouse
- * entity owns a small block of season-immune plots (spawned alongside it). It is
- * SOLID art (like a pen): the farmer paths around the glasshouse footprint, and
- * the season-immune plots sit on the open tiles in front of it. Built at the
- * carpenter via a high-cost `build-greenhouse` action (see GREENHOUSE_BUILD_COST).
- */
+/** Buildable greenhouse: plots inside it ignore the out-of-season growth penalty. */
 export interface Greenhouse {
   tileX: number;
   tileY: number;

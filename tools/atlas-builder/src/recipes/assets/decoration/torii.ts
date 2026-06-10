@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Shrine torii-style gate — twin red posts under a red lintel (peaceful relic).
     name: "decoration/torii",
     size: 16,
     pixels: [

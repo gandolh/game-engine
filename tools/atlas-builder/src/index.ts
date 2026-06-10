@@ -1,14 +1,6 @@
-// Design decisions (brief 47, updated brief 71):
-//   - Grouping: explicit PREFIX_TO_SHEET map in recipes/sheet-map.ts; unknown prefix → loud error.
-//   - One PNG+JSON per sheet, named <sheet>.png / <sheet>.json.
-//   - An atlas/index.json lists all sheet ids + their imageUrl/json paths so the
-//     runtime loader needs no hardcoded sheet list (adding a sheet = just rebuild).
-//   - Per-sheet incremental builds (brief 71): SHA-256 fingerprint per sheet;
-//     skip rasterize+encode+write when fingerprint matches the committed manifest.
-//   - Pinned PNG encoder options (brief 71): filterType:0, deflateLevel:9, deflateStrategy:3
-//     → identical pixels produce identical bytes across runs and machines.
-//   - --force (or FORCE=1 env var) bypasses all skips and rebuilds every sheet.
-//   - index.json is rewritten only when its content would change.
+// Per-sheet incremental build: SHA-256 fingerprint per sheet; skip when manifest hash matches.
+// Pinned PNG encoder (filterType:0, deflateLevel:9, deflateStrategy:3) → deterministic bytes across machines.
+// --force / FORCE=1 bypasses all skips. index.json rewritten only on content change.
 import { writeFileSync, mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -106,18 +98,11 @@ const recipesDir = resolve(__dirname, "recipes");
 const assetsDir = resolve(__dirname, "recipes/assets");
 mkdirSync(outDir, { recursive: true });
 
-// ── Parse CLI / env ───────────────────────────────────────────────────────────
 const force = process.argv.includes("--force") || process.env["FORCE"] === "1";
 
-// ── Group recipes by sheet ────────────────────────────────────────────────────
-// This validates every recipe has a known prefix and assigns it to its sheet.
 const sheetRecipes = new Map<string, PixelRecipe[]>();
-
-// Also build a map: assetName → sheet (for fingerprinting)
 const recipeAssetPaths = new Map<string, string>();
 
-// Build an index of all asset files for each sheet
-// The assets barrel imports from recipes/assets/<name>.ts
 function assetFileForRecipe(name: string): string {
   return resolve(assetsDir, ...name.split("/")) + ".ts";
 }
@@ -130,27 +115,21 @@ for (const recipe of RECIPES) {
     sheetRecipes.set(sheetId, group);
   }
   group.push(recipe);
-  // The asset file only exists for BASE_RECIPES (hand-authored); generated frames
-  // don't have their own file (they come from templates.ts).
-  const assetPath = assetFileForRecipe(recipe.name);
+  const assetPath = assetFileForRecipe(recipe.name); // only BASE_RECIPES have a file; generated frames come from templates.ts
   if (existsSync(assetPath)) {
     recipeAssetPaths.set(recipe.name, assetPath);
   }
 }
 
-// ── Pack + rasterize + write one PNG+JSON per sheet ───────────────────────────
 const sheetOrder = ["characters", "buildings", "terrain", "crops", "props", "items-ui"] as const;
 
-// Verify all sheets in the map appear in our expected order list (no unexpected sheets).
 for (const sheetId of sheetRecipes.keys()) {
   if (!(sheetOrder as readonly string[]).includes(sheetId)) {
     throw new Error(`atlas-builder: unexpected sheet "${sheetId}" — add it to sheetOrder`);
   }
 }
 
-// Sheets with generated frames (need templates.ts + recipes/index.ts in hash).
-// "characters" has farmer action/facing poses; "buildings", "terrain", "items-ui"
-// also get generated frames from NPC_POSES in templates.ts (tavern, barn, dock, etc.).
+// Characters: farmer action/facing poses. Buildings/terrain/items-ui: NPC_POSES from templates.ts.
 const SHEETS_WITH_GENERATED = new Set(["characters", "buildings", "terrain", "items-ui"]);
 
 const recipesIndexPath = resolve(recipesDir, "index.ts");
@@ -172,16 +151,12 @@ for (const sheetId of sheetOrder) {
     continue;
   }
 
-  // Collect sorted asset file paths for this sheet's hand-authored recipes
   const sheetAssetFiles: string[] = [];
   for (const recipe of recipes) {
     const p = recipeAssetPaths.get(recipe.name);
-    if (p !== undefined) {
-      sheetAssetFiles.push(p);
-    }
+    if (p !== undefined) sheetAssetFiles.push(p);
   }
-  // Sort for deterministic hash order
-  sheetAssetFiles.sort();
+  sheetAssetFiles.sort(); // deterministic hash order
 
   const hasGenerated = SHEETS_WITH_GENERATED.has(sheetId);
   const inputsHash = computeSheetHash(
@@ -195,7 +170,6 @@ for (const sheetId of sheetOrder) {
 
   const manifestPath = resolve(outDir, `${sheetId}.json`);
 
-  // ── Cache check ─────────────────────────────────────────────────────────────
   if (!force && existsSync(manifestPath)) {
     try {
       const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as { inputsHash?: string };
@@ -214,13 +188,9 @@ for (const sheetId of sheetOrder) {
     }
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────────
   const packed = packShelf(recipes);
   const png = rasterize(packed, recipes);
-  // Pinned encoder options (brief 71): identical pixels → identical bytes across runs.
-  // Spread PNG_OPTIONS to prevent pngjs from mutating the shared constant object
-  // (pngjs writes extra defaults back into the options object it receives).
-  const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS });
+  const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS }); // spread: pngjs mutates options in-place
   writeFileSync(resolve(outDir, `${sheetId}.png`), pngBuffer);
 
   const manifest = {
@@ -245,8 +215,7 @@ for (const sheetId of sheetOrder) {
   );
 }
 
-// ── Emit the index file (only when content changes) ───────────────────────────
-// The runtime loads /atlas/index.json to discover sheets without a hardcoded list.
+// runtime discovers sheets via /atlas/index.json — no hardcoded sheet list needed.
 const atlasIndex = { sheets: indexEntries };
 const newIndexJson = JSON.stringify(atlasIndex, null, 2);
 const indexPath = resolve(outDir, "index.json");
@@ -261,7 +230,6 @@ if (existingIndexJson !== newIndexJson) {
   console.log(`atlas-builder: index.json unchanged`);
 }
 
-// ── Remove superseded main.png / main.json ────────────────────────────────────
 for (const legacy of ["main.png", "main.json"]) {
   const legacyPath = resolve(outDir, legacy);
   if (existsSync(legacyPath)) {

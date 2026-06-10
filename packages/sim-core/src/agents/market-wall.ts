@@ -4,11 +4,7 @@ import { MarketSystem } from "../systems/market";
 import { ShopkeeperSystem } from "../systems/shopkeeper";
 import { AuctionSystem } from "../systems/auction";
 
-/**
- * Spawn the Market Wall entity. The bulletin board itself has no offer
- * state on the entity — offers are owned by `MarketSystem.offersById`
- * (chosen path: store-in-system, not store-on-entity).
- */
+/** Spawn the Market Wall entity. Offer state lives in MarketSystem.offersById, not on the entity. */
 export function spawnMarketWall(world: World<GameEntity>): GameEntity {
   return world.spawn({
     marketWall: { isMarketWall: true },
@@ -16,10 +12,7 @@ export function spawnMarketWall(world: World<GameEntity>): GameEntity {
   });
 }
 
-/**
- * Spawn the Shopkeeper NPC entity. Handlers run inside `ShopkeeperSystem`
- * and `AuctionSystem`, both of which drain this entity's inbox.
- */
+/** Spawn the Shopkeeper NPC entity. ShopkeeperSystem and AuctionSystem drain its inbox. */
 export function spawnShopkeeper(world: World<GameEntity>): GameEntity {
   return world.spawn({
     shopkeeper: { isShopkeeper: true },
@@ -36,12 +29,8 @@ export interface MarketShopFeature {
 }
 
 /**
- * Public entry point: spawns the wall + shopkeeper, constructs the three
- * systems with mutual references (Shopkeeper triggers auctions via the
- * AuctionSystem directly + broadcasts AUCTION_CFP on the bus for farmer
- * awareness). Caller adds the systems to the scheduler.
- *
- * Order in the scheduler should be: market, shopkeeper, auction.
+ * Spawns the wall + shopkeeper and constructs MarketSystem, ShopkeeperSystem, AuctionSystem.
+ * Scheduler order: market → shopkeeper → auction.
  */
 export function setupMarketShopFeature(
   world: World<GameEntity>,
@@ -54,9 +43,7 @@ export function setupMarketShopFeature(
 
   const marketSystem = new MarketSystem(bus, world, rng);
   const auctionSystem = new AuctionSystem(bus, world, rng);
-  // brief 27 — keep the auction open across the next day's work phases so the
-  // (now phase-gated) farmers get deliberation cycles to bid. ~1.5 days; falls
-  // back to the system default when ticksPerDay isn't supplied (e.g. tests).
+  // Auction duration ~1.5 days so phase-gated farmers get deliberation cycles to bid.
   const shopkeeperSystem = new ShopkeeperSystem(
     bus,
     world,

@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// ── Extra carpenter yard detail props (16×16) ────────────────────────────────
-// Lumber rack — a frame holding long boards on end, leaning at angles.
 const recipe: PixelRecipe =
   {
     name: "structure/lumber-rack",

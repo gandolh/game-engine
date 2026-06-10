@@ -14,11 +14,6 @@ import type { AtlasManifest } from "@engine/core";
 import type { GameEntity } from "@farm/sim-core/components";
 import { PREFIX_TO_SHEET } from "../../atlas-builder/src/recipes";
 
-// Offline snapshot of the real 40×40 region world. Mirrors the live renderer in
-// packages/farm-valley/src/render-systems.ts: same backdrop frame selection,
-// the same farm-perimeter fences, plots, then sprite entities by layer. The
-// world layout is read from the shared regions.ts so this stays in sync with
-// the game instead of hardcoding a stale tile grid.
 const TILE = 16;
 const WORLD_W = WORLD_WIDTH * TILE;
 const WORLD_H = WORLD_HEIGHT * TILE;
@@ -32,8 +27,8 @@ interface Frame {
 }
 
 interface BlitSprite {
-  cx: number; // center x in world px
-  cy: number; // center y in world px
+  cx: number;
+  cy: number;
   frame: string;
   rotation: number;
   layer: number;
@@ -43,20 +38,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
 const atlasDir = resolve(repoRoot, "packages/farm-valley/public/atlas");
 
-// Load all sheets from the builder-emitted index.json.
 interface AtlasIndex { sheets: Array<{ id: string; manifestUrl: string; imageUrl: string }> }
 const atlasIndex = JSON.parse(readFileSync(resolve(atlasDir, "index.json"), "utf8")) as AtlasIndex;
 const sheetManifests = new Map<string, AtlasManifest>();
 const sheetPngs = new Map<string, PNG>();
 for (const entry of atlasIndex.sheets) {
-  // manifestUrl is "/atlas/<id>.json" — strip leading slash and resolve from atlasDir parent.
   const manifestPath = resolve(repoRoot, "packages/farm-valley/public", entry.manifestUrl.slice(1));
   const pngPath = resolve(repoRoot, "packages/farm-valley/public", entry.imageUrl.slice(1));
   sheetManifests.set(entry.id, JSON.parse(readFileSync(manifestPath, "utf8")) as AtlasManifest);
   sheetPngs.set(entry.id, PNG.sync.read(readFileSync(pngPath)));
 }
 
-/** Resolve a frame name to its sheet id (same prefix→sheet mapping as the runtime). */
 function frameSheetId(frameName: string): string {
   const prefix = frameName.split("/")[0] ?? "";
   const id = PREFIX_TO_SHEET[prefix];
@@ -76,11 +68,7 @@ function clearToColor(r: number, g: number, b: number, a: number): void {
   }
 }
 
-/**
- * Blit a frame into `out` at the given top-left, alpha-compositing over what's
- * already there. When `rotation` is ±90° the source frame is transposed (the
- * only rotations the world uses, for vertical fence segments).
- */
+// rotation ±90° transposes src (used for vertical fence segments).
 function blitFrame(
   atlas: PNG,
   frame: Frame,
@@ -98,7 +86,6 @@ function blitFrame(
     for (let ox = 0; ox < dw; ox++) {
       const dx = dstX + ox;
       if (dx < 0 || dx >= WORLD_W) continue;
-      // Map destination pixel back to source pixel for the rotation.
       let sxLocal: number;
       let syLocal: number;
       if (quarterTurns === 1) {
@@ -143,7 +130,6 @@ function blitFrame(
   }
 }
 
-/** Blit a frame centered on a world-pixel point (matches the renderer's draw). */
 function blitCentered(frameName: string, cx: number, cy: number, rotation = 0): void {
   const sheetId = frameSheetId(frameName);
   const sheetManifest = sheetManifests.get(sheetId);
@@ -154,10 +140,6 @@ function blitCentered(frameName: string, cx: number, cy: number, rotation = 0): 
   blitFrame(sheetPng, frame, Math.round(cx - frame.w / 2), Math.round(cy - frame.h / 2), rotation);
 }
 
-/**
- * Background frame for a tile — identical rules to render-systems.ts:
- *   void (non-walkable) → null, road → path, village → dirt, farm → grass.
- */
 function backdropFrame(tx: number, ty: number): string | null {
   if (!isWalkable(tx, ty)) return null;
   const region = regionAt(tx, ty);
@@ -173,7 +155,6 @@ interface FenceTile {
   rotation: number;
 }
 
-/** Farm perimeter fences, skipping road-facing gaps — mirrors render-systems.ts. */
 function computeFences(): FenceTile[] {
   const out: FenceTile[] = [];
   for (const region of REGIONS) {
@@ -191,9 +172,7 @@ function computeFences(): FenceTile[] {
   return out;
 }
 
-clearToColor(24, 20, 37, 255); // EDG.black (#181425) — matches the renderer's clearColor
-
-// 1. Backdrop pass over the 40×40 grid.
+clearToColor(24, 20, 37, 255); // EDG.black (#181425)
 for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
   for (let tx = 0; tx < WORLD_WIDTH; tx++) {
     const frame = backdropFrame(tx, ty);
@@ -202,21 +181,16 @@ for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
   }
 }
 
-// 2. Farm perimeter fences.
 for (const fence of computeFences()) {
   blitCentered("tile/fence-h", fence.tx * TILE + TILE / 2, fence.ty * TILE + TILE / 2, fence.rotation);
 }
 
-// 3. Boot the real sim (regions, plots, farmers, market wall, shopkeeper).
 const { world } = bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 20 });
 
-// 4. Plots: dirt tile (+ crop if planted), layered above the backdrop.
 for (const plot of world.query("plot")) {
   blitCentered("tile/dirt", plot.plot.tileX * TILE + TILE / 2, plot.plot.tileY * TILE + TILE / 2);
 }
 
-// 5. Sprite entities (farmers, market wall, shopkeeper), painted by layer so
-//    structures/farmers land on top in the same order the renderer uses.
 const sprites: BlitSprite[] = [];
 for (const e of world.query("sprite", "transform")) {
   const t = e.transform;

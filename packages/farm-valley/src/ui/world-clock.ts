@@ -37,8 +37,7 @@ const SEASON_ICON: Record<Season, string> = {
   winter: "❄",
 };
 
-// Converts a 0..1 day fraction to an in-world "hour" label (6am–2am cycle).
-// 0.00 = 6:00 AM (morning wake), 1.00 = 6:00 AM next day.
+// Day fraction 0.0 = 6:00 AM, 1.0 = next 6:00 AM (20 in-game hours).
 function fractionToTimeLabel(f: number): string {
   const totalMinutes = Math.floor(f * 20 * 60); // 20 in-game hours in a day
   const hour = (6 + Math.floor(totalMinutes / 60)) % 24;
@@ -86,7 +85,6 @@ export class WorldClockPanel {
     this.timeEl   = createEl("span");
     this.phaseEl  = createEl("span", { style: { fontSize: "11px", opacity: "0.8" } });
 
-    // Separator dots
     const dot1 = createEl("span", { style: { color: EDG.slate, userSelect: "none" } });
     setText(dot1, "·");
     const dot2 = createEl("span", { style: { color: EDG.slate, userSelect: "none" } });

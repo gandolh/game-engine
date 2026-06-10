@@ -111,13 +111,8 @@ export function deliberateHarborContract(
 }
 
 /**
- * Queue a deliver-contract intent when the farmer has a committed contract and
- * has or can get the goods. The delivery itself is handled by HarborSystem
- * (every tick when farmer is at harbor with goods). This helper ensures the
- * farmer PRIORITISES traveling to the harbor when committed, overriding
- * discretionary activities — the "committed excursion wins" pattern from
- * brief 42/43.
- *
+ * Queue a deliver-contract intent for a committed contract. Ensures the farmer
+ * prioritises traveling to the harbor (committed excursion wins pattern).
  * `travelPriority`: winning harbor-travel priority (undefined = non-committal).
  */
 export function deliberateDeliverContract(

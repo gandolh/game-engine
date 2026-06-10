@@ -1,20 +1,4 @@
-/**
- * probe-perf.ts — brief 09 close-out: load profile of the current
- * one-SimHost-per-WebSocket server under N concurrent viewers.
- *
- * Spawns `@farm/server`, then ramps synthetic WS clients 1 → 5 → 10. Each
- * client sends the real browser init (seed 0xc0ffee, ticksPerDay 1200,
- * tickRateHz 20) and drains snapshots. Per phase (~10s warmup + 45s sample):
- *   - server process-tree CPU% (of one core) + RSS, via /proc
- *   - achieved snapshot rate per client (target 20/s — drops = tick starvation,
- *     since all SimHosts share one Node event loop)
- *   - raw JSON payload bytes vs wire bytes (permessage-deflate) per client
- *   - server-side Profiler report (tick / snapshot.build / snapshot.bytes)
- *     from client 0's `profile` toggle
- *
- * Run: npx tsx tools/run-sim/src/probe-perf.ts
- * (~3 min wall-clock; deliberately loads the box during the 10-sim phase.)
- */
+/* brief 09 — WS server load profile: ramp 1→5→10 clients, measure CPU/RSS, snapshot rate, deflate ratio. (~3 min) */
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -35,8 +19,6 @@ const INIT = {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
-// ---- /proc helpers ---------------------------------------------------------
-
 interface ProcStat {
   pid: number;
   ppid: number;
@@ -47,11 +29,9 @@ interface ProcStat {
 function readProcStat(pid: number): ProcStat | null {
   try {
     const raw = readFileSync(`/proc/${pid}/stat`, "utf8");
-    // comm (field 2) may contain spaces/parens — split after the last ')'.
-    const close = raw.lastIndexOf(")");
+    const close = raw.lastIndexOf(")"); // comm (field 2) may contain spaces
     const rest = raw.slice(close + 2).split(" ");
-    // rest[0] = state (field 3); ppid = field 4; utime/stime = fields 14/15;
-    // rss = field 24.
+    // rest: [state, ppid, ...] fields 3+; utime=rest[11], stime=rest[12], rss=rest[21]
     const ppid = Number(rest[1]);
     const utime = Number(rest[11]);
     const stime = Number(rest[12]);
@@ -62,7 +42,6 @@ function readProcStat(pid: number): ProcStat | null {
   }
 }
 
-/** Sum utime+stime jiffies and RSS over rootPid and all its descendants. */
 function sampleTree(rootPid: number): { jiffies: number; rssMb: number } {
   const stats: ProcStat[] = [];
   for (const entry of readdirSync("/proc")) {
@@ -95,9 +74,7 @@ function sampleTree(rootPid: number): { jiffies: number; rssMb: number } {
   return { jiffies, rssMb: (rssPages * 4096) / (1024 * 1024) };
 }
 
-const HZ = 100; // kernel jiffy rate (USER_HZ); 100 on every mainstream distro
-
-// ---- synthetic client ------------------------------------------------------
+const HZ = 100; // kernel USER_HZ; 100 on all mainstream Linux distros
 
 interface ClientStats {
   snapshots: number;
@@ -118,8 +95,7 @@ class DrainClient {
     this.ws.on("message", (data) => {
       const text = data.toString();
       this.stats.payloadBytes += text.length;
-      // Cheap type sniff — avoid full JSON.parse on every 36KB snapshot.
-      if (text.startsWith('{"type":"snapshot"')) {
+      if (text.startsWith('{"type":"snapshot"')) { // cheap sniff — avoid full JSON.parse per snapshot
         this.stats.snapshots += 1;
       } else if (text.startsWith('{"type":"profile"')) {
         const msg = JSON.parse(text) as {
@@ -131,8 +107,7 @@ class DrainClient {
     this.ws.on("error", (e) => console.error(`[client ${id}] error:`, e.message));
   }
 
-  /** Compressed bytes actually received on the TCP socket (incl. WS framing). */
-  wireBytes(): number {
+  wireBytes(): number { // compressed bytes on the TCP socket (incl. WS framing)
     const sock = (this.ws as unknown as { _socket?: { bytesRead: number } })._socket;
     return sock?.bytesRead ?? 0;
   }
@@ -150,14 +125,12 @@ class DrainClient {
   }
 }
 
-// ---- server lifecycle ------------------------------------------------------
-
 function startServer(): Promise<ChildProcess> {
   return new Promise((res, reject) => {
     const child = spawn("npx", ["tsx", "src/index.ts"], {
       cwd: resolve(repoRoot, "packages/server"),
       stdio: ["ignore", "pipe", "pipe"],
-      detached: true, // own process group → clean tree kill
+      detached: true, // own process group → SIGTERM kills the whole tree
     });
     const onData = (buf: Buffer): void => {
       const line = buf.toString();
@@ -174,8 +147,6 @@ function startServer(): Promise<ChildProcess> {
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
-// ---- main ------------------------------------------------------------------
 
 async function main(): Promise<void> {
   console.log("[probe] starting @farm/server …");

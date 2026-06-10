@@ -31,7 +31,7 @@ describe("MessageBus", () => {
       const first = bus.drain();
       const second = bus.drain();
       expect(second).toHaveLength(first.length);
-      expect(second[0]).toBe(first[0]); // same reference — deliverable not cleared
+      expect(second[0]).toBe(first[0]);
     });
 
     it("drain returns empty before any flush", () => {
@@ -46,11 +46,10 @@ describe("MessageBus", () => {
       const bus = new MessageBus();
       bus.send(makeMsg({ ontology: "first" }), 0);
       bus.flush();
-      // drain to confirm first message is deliverable
       expect(bus.drain()).toHaveLength(1);
 
       bus.send(makeMsg({ ontology: "second" }), 1);
-      bus.flush(); // swap: second batch now deliverable, old inflight cleared
+      bus.flush();
 
       const result = bus.drain();
       expect(result).toHaveLength(1);
@@ -62,9 +61,7 @@ describe("MessageBus", () => {
       bus.send(makeMsg({ ontology: "a" }), 0);
       bus.send(makeMsg({ ontology: "b" }), 0);
       bus.flush();
-      // Now send two more but flush again — old inflight (a,b) now deliverable, new empty inflight cleared
       bus.flush();
-      // Deliverable should now be the new (empty) inflight that was just promoted
       expect(bus.drain()).toHaveLength(0);
     });
   });
@@ -79,7 +76,6 @@ describe("MessageBus", () => {
       bus.send(makeMsg({ ontology: "other" }), 0);
       bus.flush();
       bus.notifySubscribers();
-      // Handler should be called exactly twice (only for matching ontology)
       expect(handler).toHaveBeenCalledTimes(2);
     });
 

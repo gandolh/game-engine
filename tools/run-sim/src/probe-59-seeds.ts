@@ -1,10 +1,4 @@
-/**
- * probe-59-seeds.ts — diagnose which crop seeds farmers actually accumulate,
- * to pick a tradeable crop for peer offers (radish is consumed instantly).
- * Samples each AI farmer's seed inventory at days 10/30/60/99.
- *
- * Run: PATHFINDER=wasm npx tsx tools/run-sim/src/probe-59-seeds.ts
- */
+/* brief 59 — diagnose which crop seeds farmers accumulate; radish consumed instantly. Run with PATHFINDER=wasm. */
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import type { CropKind } from "@farm/sim-core/components";
 import { makePathfinder } from "./pathfinder";
@@ -24,13 +18,9 @@ async function main(): Promise<void> {
     pathfinder,
   });
 
-  // peak seed holding per crop across the whole run, summed over all AI farmers,
-  // plus the max any single farmer ever held.
   const peakSingle: Record<string, number> = {};
-  // peak wheat-CROP holding per personality
   const peakWheatByKind: Record<string, number> = {};
-  // count farmer-ticks where someone held >= 3 of a crop's seeds (tradeable surplus)
-  const surplusFarmerDays: Record<string, number> = {};
+  const surplusFarmerDays: Record<string, number> = {}; // farmer-days with ≥3 seeds (tradeable surplus)
   let lastDay = -1;
 
   const totalTicks = MAX_DAYS * TICKS_PER_DAY;
@@ -48,7 +38,6 @@ async function main(): Promise<void> {
         const n = f.inventory!.seeds[crop];
         if (n > (peakSingle[crop] ?? 0)) peakSingle[crop] = n;
         if (n >= 3) surplusFarmerDays[crop] = (surplusFarmerDays[crop] ?? 0) + 1;
-        // also track HARVESTED CROP holdings (the real surplus)
         const ck = `CROP:${crop}`;
         const cn = f.inventory!.crops[crop];
         if (cn > (peakSingle[ck] ?? 0)) peakSingle[ck] = cn;

@@ -3,7 +3,7 @@ import { washFor, daylightAt } from "./day-night";
 
 const TPD = 1200;
 
-describe("day-night grading (brief 26)", () => {
+describe("day-night grading", () => {
   it("daylight peaks at midday and is zero deep at night", () => {
     expect(daylightAt(0.5, 0.6)).toBe(1); // noon
     expect(daylightAt(0.0, 0.6)).toBe(0); // start of day (pre-dawn)

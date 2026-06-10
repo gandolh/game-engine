@@ -1,14 +1,3 @@
-/**
- * geometry.test.ts — unit tests for brief 65 cliff-face geometry.
- *
- * Verifies:
- *  1. computeCliffs() emits only onto non-walkable (ocean) tiles.
- *  2. No cliff tile overlaps a bridge span (BRIDGE_SET).
- *  3. The output is deterministic across two independent evaluations.
- *  4. The correct number of islands in TALL_ISLANDS (3–5).
- *  5. COASTLINE_BUBBLE_TILES has no cliff-tile members.
- */
-
 import { describe, it, expect } from "vitest";
 import {
   CLIFFS,
@@ -19,7 +8,7 @@ import {
 } from "./geometry";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
 
-describe("computeCliffs (brief 65)", () => {
+describe("computeCliffs", () => {
   it("TALL_ISLANDS has between 3 and 5 entries", () => {
     expect(TALL_ISLANDS.length).toBeGreaterThanOrEqual(3);
     expect(TALL_ISLANDS.length).toBeLessThanOrEqual(5);
@@ -58,9 +47,6 @@ describe("computeCliffs (brief 65)", () => {
   });
 
   it("CLIFFS is deterministic: the set matches CLIFF_SET exactly", () => {
-    // If computeCliffs() were non-deterministic (Math.random etc.), re-running
-    // module evaluation would give different results. Since modules are cached,
-    // we verify that the exported CLIFFS array is consistent with CLIFF_SET.
     const rebuiltSet = new Set(CLIFFS.map((c) => c.ty * WORLD_WIDTH + c.tx));
     expect(rebuiltSet.size).toBe(CLIFF_SET.size);
     for (const k of rebuiltSet) {

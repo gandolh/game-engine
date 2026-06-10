@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Sandy beach floor for the fishing isle. 2026-06-10 art pass — wind RIPPLES:
-// short diagonal runs of cream `w` over wet-sand `W`, with sparse `T` grains
-// and one `H` shell speck, replacing the even speckle.
 const recipe: PixelRecipe =
   {
     name: "tile/sand",

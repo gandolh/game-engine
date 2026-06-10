@@ -3,21 +3,11 @@ import { dayFraction } from "@farm/sim-core/systems/day-phase";
 import { EDG, rgbOf } from "@engine/core/render";
 
 /**
- * brief 26 — day/night + seasonal color grading.
- *
- * A full-frame color wash computed render-side from the sim clock: a within-day
- * sun curve (dawn → noon → dusk → night) tinted by a per-season palette, with
- * the season also shortening winter daylight. Pure function of
- * (tick, ticksPerDay, season) — deterministic, render-only, never fed back into
- * the sim.
- *
- * The math (palette lerp + a smooth sun curve) is reimplemented in JS, inspired
- * by The Book of Shaders' Colors chapter — NOT copied (its code is all-rights-
- * reserved). This renderer is Canvas2D: the wash is one translucent fillRect,
- * not a GLSL shader.
- *
- * Only meaningful once days are long (brief 27, ticksPerDay 1200/6000); at the
- * old 20-tick day it would strobe. Validated together with brief 27.
+ * Day/night + seasonal color wash. Pure function of (tick, ticksPerDay, season);
+ * render-only, never fed back into the sim. Canvas2D fillRect wash, not a shader.
+ * Night/noon colors lerp between EDG palette anchors; the per-frame tint is not
+ * palette-locked per pixel (only the anchor colors are). Only meaningful with
+ * ticksPerDay ≥ 1200; at 20-tick days it would strobe.
  */
 
 export interface Wash {
@@ -39,13 +29,9 @@ interface SeasonGrade {
   daylight: number;
 }
 
-// Night/noon anchors are EDG32 colors (the wash lerps *between* these palette
-// anchors and lays them down as a translucent tint — see washFor). Keeping the
-// anchors on-palette is what makes the day/night grade EDG32-compliant; the
-// per-frame interpolation + alpha is a tint, not a flat fill, so it can't be
-// (and isn't) palette-locked per output pixel.
-//   night anchors → EDG cool blue-greys (slate / navy / ink)
-//   noon  anchors → EDG warm/neutral lights (white / cream / silver)
+// Night/noon anchors are EDG32 colors; the palette guard is satisfied because
+// anchors are on-palette. Interpolated tint values are not individually palette-
+// locked (they can't be) — only the anchors are.
 const SEASON_GRADES: Record<Season, SeasonGrade> = {
   spring: { night: rgbOf(EDG.slate), noon: rgbOf(EDG.white), nightAlpha: 0.3, daylight: 0.62 },
   summer: { night: rgbOf(EDG.slate), noon: rgbOf(EDG.cream), nightAlpha: 0.26, daylight: 0.7 },
@@ -59,14 +45,9 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/**
- * Daylight intensity in [0,1] for a within-day fraction `f`, given the season's
- * daylight share. 0 = deep night, 1 = noon. A symmetric dawn/dusk ramp around
- * a daylight plateau centered at midday; shorter `daylight` ⇒ longer/darker
- * night (winter).
- */
+/** Daylight intensity in [0,1]. 0=night, 1=noon. Symmetric ramp; shorter daylight = winter. */
 export function daylightAt(f: number, daylight: number): number {
-  // Daylight window centered on 0.5, width = daylight; ramps over a margin.
+  // Daylight window centered on 0.5, width = daylight.
   const half = daylight / 2;
   const dawnStart = 0.5 - half - 0.12;
   const dawnEnd = 0.5 - half;
@@ -87,12 +68,7 @@ function toHex(r: number, g: number, b: number): string {
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 
-/**
- * Compute the day/night/seasonal wash for the current tick. At full daylight
- * the wash is a faint warm noon tint; toward night it lerps to the season's
- * cool dim at `nightAlpha`. Returns alpha 0 (skip) only never — there's always
- * a subtle grade — but callers may treat very small alphas as skippable.
- */
+/** Compute the day/night/seasonal wash for the current tick. */
 export function washFor(args: {
   tick: number;
   ticksPerDay: number;
@@ -100,14 +76,11 @@ export function washFor(args: {
 }): Wash {
   const grade = SEASON_GRADES[args.season];
   const f = dayFraction(args.tick, args.ticksPerDay);
-  const light = daylightAt(f, grade.daylight); // 0 night .. 1 noon
-
-  // Night → noon blend of the overlay color.
+  const light = daylightAt(f, grade.daylight); // 0=night, 1=noon
   const r = lerp(grade.night[0], grade.noon[0], light);
   const g = lerp(grade.night[1], grade.noon[1], light);
   const b = lerp(grade.night[2], grade.noon[2], light);
 
-  // Opacity: strong cool wash at night, fading to a faint warm wash at noon.
   const NOON_ALPHA = 0.06;
   const alpha = lerp(grade.nightAlpha, NOON_ALPHA, light);
 

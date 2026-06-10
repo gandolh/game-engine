@@ -47,14 +47,10 @@ describe("coral act handlers", () => {
     const rng = createRng(0xc0ffee).fork("fish");
     handleFishCoral(f, 100, rng);
     const fish = f.inventory.fish!;
-    const caught = fish["coral-trout"] + fish.lobster;
-    expect(caught).toBe(1); // exactly one special fish
-    // No shore fish were touched.
+    expect(fish["coral-trout"] + fish.lobster).toBe(1); // exactly one special fish
     expect(fish.minnow + fish.bass + fish.salmon).toBe(0);
-    // Banked the catch's premium value.
     const expectedKind = fish.lobster === 1 ? "lobster" : "coral-trout";
     expect(f.inventory.gold).toBe(FISH_VALUE[expectedKind]);
-    // Earned fishing XP + got a busy window.
     expect(f.skills!.fishing).toBeGreaterThan(0);
     expect(f.farmer!.busyUntilTick).toBeGreaterThan(100);
   });
@@ -77,8 +73,6 @@ describe("coral act handlers", () => {
   });
 
   it("broadcasts a feed message only for the jackpot lobster", () => {
-    // Find a seed that lands a lobster (skill-free, coral-trout dominates, so
-    // scan a few forks). We assert the broadcast is sent iff a lobster is caught.
     let sawLobsterBroadcast = false;
     let sawTroutNoBroadcast = false;
     for (let seed = 0; seed < 40 && !(sawLobsterBroadcast && sawTroutNoBroadcast); seed++) {
@@ -119,6 +113,6 @@ describe("coral act handlers", () => {
       farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },
     });
     handleReturnToShore(midWater);
-    expect(midWater.farmer!.aboard).toBe(true); // can't step off mid-ocean
+    expect(midWater.farmer!.aboard).toBe(true);
   });
 });

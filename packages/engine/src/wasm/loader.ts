@@ -1,6 +1,4 @@
-// Minimal wasm loader. Takes raw module bytes + an imports object and returns
-// a typed instance. Stays platform-agnostic so the same code path works in
-// the browser (fetch) and Node (fs.readFile / Buffer).
+// Platform-agnostic wasm loader (browser fetch + Node fs.readFile both work).
 
 export type WasmImports = WebAssembly.Imports;
 
@@ -12,17 +10,10 @@ export interface LoadedWasm<T extends WebAssembly.Exports = WebAssembly.Exports>
 }
 
 export interface LoadWasmOptions {
-  /** Raw module bytes (e.g. from fetch().arrayBuffer() or fs.readFile). */
   bytes: BufferSource;
-  /** Wasm import object. AssemblyScript stub-runtime modules need only `env.abort`. */
   imports?: WasmImports;
 }
 
-/**
- * Instantiate a wasm module from raw bytes. Returns the instance plus a typed
- * exports view and a handle to the module's linear memory (looked up under the
- * conventional `memory` export name).
- */
 export async function loadWasmModule<T extends WebAssembly.Exports = WebAssembly.Exports>(
   opts: LoadWasmOptions,
 ): Promise<LoadedWasm<T>> {
@@ -47,10 +38,6 @@ export async function loadWasmModule<T extends WebAssembly.Exports = WebAssembly
   };
 }
 
-/**
- * Browser/Node convenience: fetch wasm bytes from a URL and instantiate.
- * `globalThis.fetch` exists in both modern Node (>=18) and browsers.
- */
 export async function fetchWasmModule<T extends WebAssembly.Exports = WebAssembly.Exports>(
   url: string,
   imports?: WasmImports,
@@ -61,12 +48,7 @@ export async function fetchWasmModule<T extends WebAssembly.Exports = WebAssembl
   return loadWasmModule<T>(imports ? { bytes, imports } : { bytes });
 }
 
-/**
- * Default `env` imports for AssemblyScript stub-runtime modules. AS emits
- * a call to `env.abort(msg, file, line, col)` when a runtime check fails
- * (e.g. unreachable, alloc-out-of-memory). We throw it as a JS error so the
- * host can catch it.
- */
+// AssemblyScript calls env.abort on runtime failure (unreachable, OOM); throw as a JS error.
 function defaultEnvImports(): WebAssembly.ModuleImports {
   return {
     abort(msgPtr: number, filePtr: number, line: number, col: number): void {

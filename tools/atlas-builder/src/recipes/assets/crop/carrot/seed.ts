@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "../../../types";
 
-// ── brief 41 — new crop sprites ─────────────────────────────────────────────
-// Carrot (spring, fast). Orange body (o), green top (l/L).
 const recipe: PixelRecipe =
   {
     name: "crop/carrot/seed",

@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Log pile — stacked round logs (end-grain).
 const recipe: PixelRecipe =
   {
     name: "structure/log-pile",

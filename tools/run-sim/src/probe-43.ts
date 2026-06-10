@@ -1,15 +1,4 @@
-/**
- * probe-43.ts — brief 43 LIVE acceptance probe.
- *
- * Runs a full headless sim with the JS pathfinder (REQUIRED, or TravelSystem is
- * omitted and build-greenhouse can never fire) and reports:
- *   - greenhouses built + which farmer
- *   - whether an out-of-season crop grew in a greenhouse plot
- *   - per-farmer final skill levels (and that they rose over the run)
- *   - day-100 standings
- *
- * Run: npx tsx tools/run-sim/src/probe-43.ts
- */
+/* brief 43 — acceptance probe: greenhouses built, out-of-season growth, skill leveling. */
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { skillLevel } from "@farm/sim-core/systems/skills";
@@ -28,8 +17,6 @@ const { world, scheduler } = bootstrapSim({
   pathfinder: new JsPathfinder(),
 });
 
-// Snapshot starting skills (all should be 0/level-1; skills component is lazily
-// created on first XP grant, so most farmers have none at t=0).
 const startSkill = new Map<number, Record<string, number>>();
 for (const f of world.query("farmer")) {
   if (f.id !== undefined) startSkill.set(f.id, { ...(f.skills ?? { farming: 0, foraging: 0, fishing: 0, mining: 0 }) });
@@ -46,7 +33,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
   scheduler.tick({ tick });
   const day = Math.floor(tick / TICKS_PER_DAY);
 
-  // Track greenhouse construction the tick it appears.
   for (const g of world.query("greenhouse", "transform")) {
     const owner = findFarmer(g.greenhouse.ownerId);
     const name = owner?.farmer?.name ?? `#${g.greenhouse.ownerId}`;
@@ -58,7 +44,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
     }
   }
 
-  // Detect any planted greenhouse plot (debug) + out-of-season growth.
   const season = seasonForDay(day);
   for (const p of world.query("plot")) {
     if (p.plot.greenhouse !== true) continue;

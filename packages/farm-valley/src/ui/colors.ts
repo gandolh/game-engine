@@ -1,18 +1,12 @@
-// Shared personality color palette — single source of truth for the observer
-// panel, leaderboard, and any future UI that color-codes farmers by personality.
-//
-// The four personality kinds are conservative / aggressive / hoarder /
-// opportunist (see Personality.kind in @engine/core). The legacy aliases
-// (cautious / bold / social) are kept so any older snapshot or label still
-// resolves to a stable color.
+// Single source of truth for personality colors; legacy aliases kept for snapshot compat.
 
 import { EDG } from "@engine/core/render";
 
 export const PERSONALITY_COLORS: Record<string, string> = {
-  conservative: EDG.skyBlue, // skyBlue
-  aggressive: EDG.orange,    // orange
-  hoarder: EDG.green,        // green
-  opportunist: EDG.mauve,    // purple
+  conservative: EDG.skyBlue,
+  aggressive: EDG.orange,
+  hoarder: EDG.green,
+  opportunist: EDG.mauve,
   // legacy aliases
   cautious: EDG.skyBlue,
   bold: EDG.orange,

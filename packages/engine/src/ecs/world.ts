@@ -58,12 +58,9 @@ export class Query<E extends object, K extends keyof E = keyof E>
     if (idx >= 0) this.entities.splice(idx, 1);
   }
 
-  // Free list of scratch buffers reused across iterations. Iterating a query
-  // takes a private copy of `entities` at iteration start (so concurrent
-  // despawns during the loop don't shift the iteration — same semantics as a
-  // `.slice()`), but the buffer is pooled and reused instead of allocating a
-  // fresh array every `for...of`. The pool grows only with concurrent/nested
-  // iteration depth, so steady-state iteration allocates no entity array.
+  // Pooled scratch buffers: iteration takes a snapshot of `entities` at loop start,
+  // so despawning mid-loop is safe. Steady-state iteration allocates no array
+  // (pool grows only with concurrent/nested iteration depth).
   private readonly bufferPool: With<E, K>[][] = [];
 
   [Symbol.iterator](): Iterator<With<E, K>> {

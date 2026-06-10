@@ -1,15 +1,6 @@
 import { createEl, applyStyles } from "./dom";
 
-/**
- * brief 25 — shared top-right column.
- *
- * The ObserverPanel and the EventFeedPanel both used to anchor themselves to
- * `position: fixed; top: 0; right: 0`, so they stacked on the same corner and
- * the higher-z observer covered the activity feed entirely. This container is
- * the single fixed right-edge column; both panels mount into it as flex
- * children (observer on top, activity below) and reflow automatically when the
- * observer grows (e.g. the focused-farmer "why" block expands its height).
- */
+// Single fixed right-edge column; panels stack as flex children so they never overlap.
 const COLUMN_STYLES: Partial<CSSStyleDeclaration> = {
   position: "fixed",
   top: "0",
@@ -18,8 +9,6 @@ const COLUMN_STYLES: Partial<CSSStyleDeclaration> = {
   height: "100vh",
   display: "flex",
   flexDirection: "column",
-  // Children manage their own borders/background; the column just stacks them
-  // and lets the feed take the leftover space below the observer.
   alignItems: "stretch",
   pointerEvents: "none",
   zIndex: "9997",

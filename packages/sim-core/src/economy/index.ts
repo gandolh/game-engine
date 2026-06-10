@@ -1,5 +1,4 @@
-// Barrel — re-exports every public symbol from the economy sub-modules so that
-// existing importers of `../economy` continue to resolve without modification.
+// Barrel re-export of all economy sub-modules.
 
 export {
   ZERO_CROPS,

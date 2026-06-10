@@ -6,9 +6,7 @@ import type { MarketOffer } from "../protocols/market";
 import type { WeatherCondition } from "../protocols/weather";
 import type { RegionId } from "../world/regions";
 
-// proximity (brief): deliberatePlantNearby requires an empty plot within reach in
-// beliefs.data.plotWater.emptyPlots. Farmer transform is (0,0); the nearest
-// empty plot tile at (0,0) is Chebyshev ≤ 1 — always in reach.
+// Farmer transform (0,0); tile (0,0) is always within Chebyshev reach.
 const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
 
 function makeFarmer(overrides: {
@@ -30,7 +28,6 @@ function makeFarmer(overrides: {
     beliefs: {
       data: {
         currentDay: 0,
-        // proximity (brief): emptyPlots surfaces the tile candidates for deliberatePlantNearby.
         plotWater: { planted: 0, due: 0, maxDrySoFar: 0, duePlots: [], emptyPlots: EMPTY_PLOT_IN_REACH },
         ...(overrides.weather ? { weather: overrides.weather } : {}),
         ...(overrides.offers ? { marketOffers: overrides.offers } : {}),
@@ -50,8 +47,7 @@ function makeFarmer(overrides: {
 }
 
 describe("deliberateOpportunist", () => {
-  it("plants radish under storm forecast in spring (brief 41: cheapest in-season)", () => {
-    // Day 0 = spring. Storm → cheapest in-season = radish.
+  it("plants radish under storm forecast in spring (cheapest in-season)", () => {
     const f = makeFarmer({ seeds: { radish: 1 }, weather: { forecast: "storm" } });
     deliberateOpportunist(f, { tick: 0 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
@@ -59,8 +55,7 @@ describe("deliberateOpportunist", () => {
     expect(plant!.data["crop"]).toBe("radish");
   });
 
-  it("plants wheat under sunny forecast in spring (brief 41: most valuable in-season)", () => {
-    // Day 0 = spring. Sunny → most valuable in-season = wheat (highest of spring crops).
+  it("plants wheat under sunny forecast in spring (most valuable in-season)", () => {
     const f = makeFarmer({ seeds: { wheat: 1 }, weather: { forecast: "sunny" } });
     deliberateOpportunist(f, { tick: 0 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
@@ -110,9 +105,8 @@ describe("deliberateOpportunist", () => {
     expect(buys[0]!.data["offerId"]).toBe("hi-trust");
   });
 
-  it("ignores offers priced above 110% of shop price", () => {
+  it("ignores offers priced above 110% of shop price (wheat shop=14, ceiling=15.4; 16 rejected)", () => {
     const offers: MarketOffer[] = [
-      // wheat shop=14, 110% = 15.4 — 16 is too expensive
       { offerId: "too-pricey", sellerId: 5, crop: "wheat", quantity: 1, pricePerUnit: 16, postedDay: 0 },
     ];
     const f = makeFarmer({ gold: 500, offers });

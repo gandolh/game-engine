@@ -1,12 +1,5 @@
-// AssemblyScript module: Mulberry32 batch random-float fill.
-//
-// Memory contract:
-//   - Heap is managed by AssemblyScript's TLSF allocator (stub runtime).
-//   - Host calls `alloc(size)` to reserve output scratch in wasm linear memory,
-//     calls `fillRandom`, reads the f32 values, then `free`s.
-//   - Output buffer receives `count` f32 values in [0, 1) (row-major / linear).
-//
-// Algorithm matches packages/engine/src/runtime/rng.ts (Mulberry32).
+// AssemblyScript: Mulberry32 batch f32 fill. Host alloc→fillRandom→free; output [0,1).
+// Algorithm matches packages/engine/src/runtime/rng.ts.
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);
@@ -16,15 +9,6 @@ export function free(ptr: usize): void {
   heap.free(ptr);
 }
 
-/**
- * Fill outPtr with `count` f32 random values in [0, 1).
- * Returns the new RNG state after `count` iterations.
- *
- * @param outPtr  pointer to host-allocated f32 output buffer (count * 4 bytes)
- * @param count   number of f32 values to produce
- * @param state   current Mulberry32 state (u32 as i32)
- * @returns       updated state (u32 as i32) after count iterations
- */
 export function fillRandom(
   outPtr: usize,
   count: i32,

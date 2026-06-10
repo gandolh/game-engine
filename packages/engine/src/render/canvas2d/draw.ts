@@ -1,31 +1,24 @@
 import type { LoadedAtlasImage } from "../../assets/loader";
 import type { Canvas2dSprite, Ctx2D } from "./types";
 
-/** Stable sort comparator: layer ascending, then Y ascending (`sortY` when a
- *  sprite carries one — see Canvas2dSprite.sortY — otherwise the draw `y`).
- *  JS Array.sort is guaranteed stable (ES2019+), so equal-key sprites
- *  retain their insertion order — no index tiebreaker needed. */
+/** Layer asc, then Y asc (uses sortY when present). Array.sort is stable (ES2019+) — no tiebreaker needed. */
 export function compareSprite(a: Canvas2dSprite, b: Canvas2dSprite): number {
   if (a.layer !== b.layer) return a.layer - b.layer;
   return (a.sortY ?? a.y) - (b.sortY ?? b.y);
 }
 
-/** Draw one sprite via the atlas frame rect. Shared by the live queue and the
- *  static-layer bake so both paths stay pixel-identical.
- *  Resolves the correct sheet atlas via s.atlasId — throws clearly if the sheet
- *  or frame is unknown so misconfigurations surface immediately. */
+/** Draw one sprite via the atlas frame rect. Shared by endFrame and bakeStaticLayer — keeps both paths pixel-identical. */
 export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s: Canvas2dSprite): void {
   const atlas = atlases.get(s.atlasId);
   if (!atlas) throw new Error(`drawSprite: atlas sheet "${s.atlasId}" not loaded (frame "${s.frame}")`);
   const r = atlas.frameRect(s.frame);
   const bitmap = atlas.bitmap;
 
-  // RGB multiply tint (Farm Valley visual state indicators): when present and
-  // not pure white, draw the frame onto a pooled offscreen buffer, multiply it
-  // by the tint color (source-atop preserves the frame's alpha mask), and blit
-  // the tinted buffer. White (0xffffff) is a no-op so we skip the buffer path.
+  // RGB multiply tint: draw onto a pooled offscreen, multiply by tint color,
+  // then re-mask with destination-in to prevent bleed into transparent padding.
+  // White (0xffffff) is a no-op — skip the offscreen path entirely.
   const tint = (s.tintRgba ?? 0xffffffff) >>> 0;
-  const rgb = tint >>> 8; // drop the alpha byte; RGB is what multiplies
+  const rgb = tint >>> 8; // drop alpha byte; only RGB is used for multiply
   if (rgb !== 0xffffff) {
     const buf = tintBuffer(r.w, r.h);
     if (buf) {
@@ -36,8 +29,6 @@ export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s
       bctx.globalCompositeOperation = "multiply";
       bctx.fillStyle = `#${rgb.toString(16).padStart(6, "0")}`;
       bctx.fillRect(0, 0, r.w, r.h);
-      // Re-mask to the frame's silhouette so the multiply fill can't bleed into
-      // the (transparent) padding around the glyph.
       bctx.globalCompositeOperation = "destination-in";
       bctx.drawImage(bitmap, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
       bctx.globalCompositeOperation = "source-over";
@@ -59,7 +50,6 @@ export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s
   }
 }
 
-/** Blit a pre-tinted offscreen frame buffer at the sprite's transform. */
 function blit(
   ctx: Ctx2D,
   src: OffscreenCanvas | HTMLCanvasElement,
@@ -79,12 +69,8 @@ function blit(
   }
 }
 
-/**
- * Pooled offscreen tint buffer, grown to fit the largest frame seen. Reused
- * across sprites/frames so per-sprite tinting allocates nothing steady-state.
- * Returns null when no offscreen 2D context is available (e.g. jsdom tests),
- * in which case callers fall back to an untinted draw.
- */
+/** Pooled offscreen tint buffer, grown to fit the largest frame seen (steady-state: zero allocs).
+ *  Returns null when no offscreen 2D context is available (e.g. jsdom) — callers fall back to untinted. */
 let tintCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
 let tintCtx: Ctx2D | null = null;
 function tintBuffer(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: Ctx2D } | null {
@@ -104,8 +90,7 @@ function tintBuffer(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanva
   return { canvas: tintCanvas, ctx: tintCtx };
 }
 
-/** Offscreen surface for the static layer: prefer OffscreenCanvas, fall back
- *  to a detached <canvas> (older browsers / jsdom). */
+/** Prefer OffscreenCanvas; fall back to a detached HTMLCanvasElement (older browsers / jsdom). */
 export function createOffscreen(w: number, h: number): OffscreenCanvas | HTMLCanvasElement {
   if (typeof OffscreenCanvas !== "undefined") {
     return new OffscreenCanvas(w, h);

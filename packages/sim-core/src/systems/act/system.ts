@@ -44,14 +44,7 @@ import { handlePrayAtShrine } from "./handlers/shrine";
 export class ActSystem implements System {
   readonly name = "ActSystem";
 
-  /**
-   * Seeded RNG channels for fishing outcomes (catch time + which fish) and
-   * mining drops, each forked once from the sim rng. The rng is REQUIRED: the
-   * old optional-rng path silently fell back to Math.random(), which is exactly
-   * the nondeterminism trap that broke brief 44 (raw Math.random() in mining
-   * once agents fed the now-validating blacksmith — see corpus log 2026-06-05).
-   * A missing rng is now a type error, not a reproducibility hole.
-   */
+  /** Seeded RNG for fishing and mining — never use Math.random() here (determinism). */
   private readonly fishRng: Rng;
   private readonly mineRng: Rng;
 
@@ -68,7 +61,6 @@ export class ActSystem implements System {
     const plotsByOwner = new Map<number, GameEntity[]>();
     const occupiedByOwner = new Map<number, Set<string>>();
 
-    // Single pass over plots — builds both plotsByOwner and occupiedByOwner.
     for (const plot of this.world.query("plot")) {
       const arr = plotsByOwner.get(plot.plot.ownerId) ?? [];
       arr.push(plot);
@@ -84,7 +76,6 @@ export class ActSystem implements System {
       if (!f.transform) continue;
       const tx = Math.round(f.transform.x);
       const ty = Math.round(f.transform.y);
-      // Find owner via region
       for (const farmer of this.world.query("farmer")) {
         if (farmer.farmer.homeRegion === f.fountain.regionId && farmer.id !== undefined) {
           const key = `${tx},${ty}`;
@@ -95,19 +86,17 @@ export class ActSystem implements System {
       }
     }
 
-    // Tile features (trees/stones) indexed by tile key
     const featuresByTile = new Map<string, GameEntity>();
     for (const f of this.world.query("tileFeature")) {
       featuresByTile.set(`${f.tileFeature.tileX},${f.tileFeature.tileY}`, f);
     }
 
-    // Fountains indexed by regionId
     const fountainByRegion = new Map<string, GameEntity>();
     for (const f of this.world.query("fountain")) {
       fountainByRegion.set(f.fountain.regionId, f);
     }
 
-    // Bubble spot tiles (transient; drift daily around the fishing isle).
+    // Bubble spot tiles drift daily; BubbleSystem refreshes them each morning.
     const bubbleTiles = new Set<string>();
     for (const f of this.world.query("fishingSpot")) {
       bubbleTiles.add(`${f.fishingSpot.tileX},${f.fishingSpot.tileY}`);
@@ -295,7 +284,6 @@ export class ActSystem implements System {
         }
       }
 
-      // Compute total work time for physical actions in this batch.
       // Set busyUntilTick so the farmer pauses before the next deliberation.
       const tools = farmer.inventory?.tools ?? [];
       const totalCost = intentions.reduce((sum, i) => sum + actionTicks(i.kind, tools), 0);

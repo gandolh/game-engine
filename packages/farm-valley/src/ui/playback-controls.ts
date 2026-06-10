@@ -28,12 +28,7 @@ const TOOL_HELP: ReadonlyArray<readonly [string, string, string]> = [
   ["🎃", "Pumpkin", "Plant pumpkin seeds on your tilled plot"],
 ];
 
-/**
- * The four farmer personalities, with a one-line gloss grounded in each
- * personality's deliberate* logic (see agents/conservative|aggressive|hoarder|
- * opportunist.ts). The swatch color is driven through personalityColor() so the
- * legend always matches the observer panel and stays on-palette. — [kind, gloss].
- */
+/** Personality glosses grounded in deliberate* logic; swatch via personalityColor() stays on-palette. */
 const PERSONALITY_HELP: ReadonlyArray<readonly [string, string]> = [
   [
     "conservative",
@@ -53,11 +48,6 @@ const PERSONALITY_HELP: ReadonlyArray<readonly [string, string]> = [
   ],
 ];
 
-/**
- * The farmer FSM states, in cycle order, each with a plain-English gloss. The
- * raw state string matches what the observer panel shows (see FarmerFsmState in
- * components/farmer.ts). — [state, gloss].
- */
 const FSM_HELP: ReadonlyArray<readonly [FarmerFsmState, string]> = [
   ["WAIT_DAY", "Waiting at the start of the day for work to begin"],
   ["PERCEIVE", "Sensing the world — crops, prices, weather, neighbours"],
@@ -66,17 +56,6 @@ const FSM_HELP: ReadonlyArray<readonly [FarmerFsmState, string]> = [
   ["FINISH_DAY", "Wrapping up the day's work"],
   ["SLEEP", "Resting at home for the night"],
 ];
-
-/**
- * PlaybackControlsPanel — spectator time controls: pause/resume, speed
- * (1x/2x/4x), and single-step. Pure presentation: it fires callbacks that the
- * caller wires to SimClient.setPaused/.setSpeed/.step. It does not touch the
- * sim or its determinism — it only changes wall-clock pacing.
- *
- * Construction follows the leaderboard/slate-billboard pattern: the constructor
- * takes the parent element and appends a fixed panel. State is reflected via
- * `update({ paused, speed })`.
- */
 
 export interface PlaybackState {
   paused: boolean;
@@ -87,10 +66,7 @@ export interface PlaybackState {
 /** Speed multipliers offered, in display order. */
 const SPEEDS = [1, 2, 4] as const;
 
-// Mounted as a flex child of the shared right-edge column (see right-column.ts).
-// The column sets pointer-events:none so the canvas behind it stays clickable;
-// this panel re-enables pointer events for its buttons. It wraps so the
-// pause/step row and the speed row stack when the 300px column is narrow.
+// Flex child of right-column; re-enables pointer-events (column sets none for canvas passthrough).
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   display: "flex",
   flexWrap: "wrap",
@@ -140,7 +116,6 @@ export class PlaybackControlsPanel {
     this.panel = createEl("div");
     applyStyles(this.panel, PANEL_STYLES);
 
-    // Help "?" button sits to the LEFT of pause; toggles the keybindings modal.
     this.helpModal = this.buildHelpModal(parent);
     this.helpBtn = createEl("button", { text: "?" });
     applyStyles(this.helpBtn, BTN_STYLES);
@@ -167,7 +142,6 @@ export class PlaybackControlsPanel {
     });
     this.panel.appendChild(this.stepBtn);
 
-    // Brief 40 — Skip to highlight button (hotkey H).
     this.skipBtn = createEl("button", { text: "★ Skip [H]" });
     applyStyles(this.skipBtn, BTN_STYLES);
     this.skipBtn.type = "button";
@@ -198,12 +172,6 @@ export class PlaybackControlsPanel {
     this.update(this.state);
   }
 
-  /**
-   * Build the (initially hidden) centered help modal: a Controls section listing
-   * keybindings and a Tools section describing each hotbar slot. Mounts on the
-   * same parent as the panel so it floats over the canvas. Clicking the backdrop
-   * or the × closes it.
-   */
   private buildHelpModal(parent: HTMLElement): HTMLElement {
     const backdrop = createEl("div", {
       style: {
@@ -238,7 +206,6 @@ export class PlaybackControlsPanel {
     });
     card.addEventListener("click", (e) => e.stopPropagation());
 
-    // Header row with title + close button.
     const header = createEl("div", {
       style: {
         display: "flex",
@@ -260,7 +227,6 @@ export class PlaybackControlsPanel {
     header.appendChild(closeBtn);
     card.appendChild(header);
 
-    // ── Controls section ──
     card.appendChild(this.sectionTitle("Controls"));
     for (const [keys, desc] of KEY_BINDINGS) {
       card.appendChild(
@@ -274,7 +240,6 @@ export class PlaybackControlsPanel {
       );
     }
 
-    // ── Tools section ──
     card.appendChild(this.sectionTitle("Tools (select with 1–8, use with E)"));
     for (const [glyph, name, effect] of TOOL_HELP) {
       const label = createEl("span", { style: { whiteSpace: "nowrap" } });
@@ -285,9 +250,6 @@ export class PlaybackControlsPanel {
       card.appendChild(this.helpRow(label, effect));
     }
 
-    // ── Personalities section ──
-    // One row per kind: a color swatch (driven by personalityColor so it matches
-    // the observer panel + stays on-palette), the kind name, and a truthful gloss.
     card.appendChild(this.sectionTitle("Personalities"));
     for (const [kind, gloss] of PERSONALITY_HELP) {
       const label = createEl("span", {
@@ -307,9 +269,6 @@ export class PlaybackControlsPanel {
       card.appendChild(this.helpRow(label, gloss));
     }
 
-    // ── Farmer states section ──
-    // One row per FSM state, in cycle order. The raw state string matches the
-    // observer panel; the right cell explains what the farmer is doing.
     card.appendChild(this.sectionTitle("Farmer states (FSM)"));
     for (const [state, gloss] of FSM_HELP) {
       card.appendChild(
@@ -328,7 +287,6 @@ export class PlaybackControlsPanel {
     return backdrop;
   }
 
-  /** A dim section heading inside the help modal. */
   private sectionTitle(text: string): HTMLElement {
     return createEl("div", {
       text,
@@ -344,7 +302,6 @@ export class PlaybackControlsPanel {
     });
   }
 
-  /** A two-column row: a left key/label cell and a right description cell. */
   private helpRow(left: HTMLElement, desc: string): HTMLElement {
     const row = createEl("div", {
       style: { display: "flex", gap: "12px", padding: "2px 0" },
@@ -360,7 +317,6 @@ export class PlaybackControlsPanel {
     return row;
   }
 
-  /** Show or hide the help modal. */
   setHelpVisible(v: boolean): void {
     this.helpModal.style.display = v ? "flex" : "none";
   }
@@ -377,18 +333,15 @@ export class PlaybackControlsPanel {
     this.onStep = cb;
   }
 
-  /** Brief 40 — callback invoked when the "Skip to highlight" button is clicked. */
   setOnSkipToHighlight(cb: () => void): void {
     this.onSkipToHighlight = cb;
   }
 
-  /** Reflect current playback state: pause label, active speed, step enabled. */
   update(state: PlaybackState): void {
     this.state = { ...state };
 
     setText(this.pauseBtn, state.paused ? "▶ Resume" : "⏸ Pause");
 
-    // Step is only meaningful while paused.
     this.stepBtn.disabled = !state.paused;
     applyStyles(this.stepBtn, {
       opacity: state.paused ? "1" : "0.4",

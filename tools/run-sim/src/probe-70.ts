@@ -1,19 +1,4 @@
-/**
- * probe-70.ts — brief 70 baseline + post-change probe.
- *
- * Counts peer OFFER_CROP events, ACCEPT (closes), and DECLINE reasons per
- * day-band (days 0-4, 5-9, 10-14, 15-19) for seed 0xc0ffee, then optionally
- * runs the two brief-59 working seeds (1 and 42) for regression checks.
- *
- * Used to:
- *   (A) Confirm the baseline: early-game (days 0-14) closes ~0, all
- *       would-breach-reserve declines on 0xc0ffee.
- *   (B) After the startGold bump: confirm ≥1 close in first 15 days on
- *       0xc0ffee, and no regression on seeds 1 & 42.
- *
- * Run: PATHFINDER=wasm npx tsx tools/run-sim/src/probe-70.ts
- * Limit: MAX_DAYS=20 TICKS_PER_DAY=20 (hard constraint, constrained hardware)
- */
+/* brief 70 — peer OFFER_CROP/ACCEPT/DECLINE counts by day-band; confirm startGold bump produces early closes. Run with PATHFINDER=wasm. */
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import {
   ONT_ENCOUNTER,
@@ -57,7 +42,6 @@ async function runSeed(seed: number): Promise<SeedResult> {
     pathfinder,
   });
 
-  // Initialize band stats
   const bands: BandStats[] = BANDS.map((b) => ({
     label: b.label,
     offers: 0,
@@ -67,7 +51,6 @@ async function runSeed(seed: number): Promise<SeedResult> {
 
   let firstCloseDay: number | null = null;
 
-  // Wrap each farmer inbox's push to count encounter messages per day-band.
   for (const f of world.query("farmer", "inbox")) {
     const arr = f.inbox!.messages;
     const origPush = arr.push.bind(arr);
@@ -102,7 +85,6 @@ async function runSeed(seed: number): Promise<SeedResult> {
     scheduler.tick({ tick });
   }
 
-  // Aggregate totals
   let totalOffers = 0;
   let totalCloses = 0;
   let totalDeclines = 0;

@@ -49,7 +49,6 @@ async function loadNoiseGenerator(): Promise<NoiseGenerator | null> {
 }
 
 async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
-  // Load all atlas sheets from the builder-emitted index; no hardcoded sheet list.
   const atlasMap = await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL);
   const camera = new Camera2D(CAMERA_CONFIG);
   setCamera(camera);
@@ -57,14 +56,12 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }
-  // Ocean backdrop beyond the world edge — the map is islands in an ocean, so
-  // the area outside the 40×40 grid is deep water, not black.
+  // Ocean backdrop beyond the world edge (deep water, not black).
   renderer.clearColor = EDG.blue;
   setupCameraListeners(canvas, camera);
   const keyboard = new Keyboard();
   keyboard.attach(window);
-  // Stop Space / arrow keys from scrolling the page — they drive Pip's movement
-  // and context action. WASD already don't scroll; we guard the rest.
+  // Prevent Space/arrow scroll — these drive Pip; WASD already don't scroll.
   const SCROLL_KEYS = new Set([
     "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
   ]);
@@ -84,11 +81,7 @@ async function boot(): Promise<void> {
   const fatal = document.getElementById("fatal") as HTMLElement | null;
   if (!canvas || !app || !fatal) throw new Error("Missing #canvas/#app/#fatal");
 
-  // brief-17: save/replay — if the URL hash carries a shared run descriptor,
-  // use it for this run. Lowest-touch correct option: we do NOT auto-start;
-  // instead we pre-fill the home screen's seed with the shared seed (so the
-  // run picker still drives the launch) and carry the shared maxDays/ticksPerDay
-  // into the run. If no/invalid hash, fall back to CONFIG defaults.
+  // Shared run URL: pre-fill seed from hash; don't auto-start.
   const shared = parseRun(location.hash);
   const defaultSeed = shared?.seed ?? CONFIG.seed;
   const maxDays = shared?.maxDays ?? CONFIG.maxDays;
@@ -103,8 +96,6 @@ async function boot(): Promise<void> {
     void startGame(canvas, app, fatal, runtimePromise, { seed, maxDays, ticksPerDay });
   });
 }
-
-// ── startGame orchestrator ───────────────────────────────────────────────────
 
 async function startGame(
   canvas: HTMLCanvasElement,
@@ -126,14 +117,12 @@ async function startGame(
     const playbackHandlers = wirePlayback(playback, client);
     registerHotkeys(playbackHandlers);
 
-    // brief-11: focus-camera — set up observer row click handler
     observer.setOnFarmerClick((id) => {
       setFocusedFarmerId(id);
       setPanOffset({ x: 0, y: 0 });
       if (_camera !== null) applyFocusAndPan(_camera);
     });
 
-    // Brief 40 — feed entry click → focus the involved farmer.
     panels.eventFeedPanel.setOnFarmerClick((id) => {
       setFocusedFarmerId(id);
       setPanOffset({ x: 0, y: 0 });
@@ -142,8 +131,6 @@ async function startGame(
 
     bakeStaticLayer(client, renderer, noiseGen, seed);
 
-    // brief-18: seed badge — show the chosen seed during play (low-touch,
-    // own DOM element so we don't touch the engine DebugOverlay signature).
     createSeedBadge(app, seed);
 
     const tooltip = createTooltip(app);
@@ -151,8 +138,6 @@ async function startGame(
     const particles = new ParticleSystem();
     const particleDirector = new ParticleDirector(particles, client);
 
-    // Start the sim worker with the run descriptor (seed from the home screen;
-    // maxDays/ticksPerDay from a shared run hash or CONFIG defaults).
     client.init({
       seed,
       tickRateHz: CONFIG.tickRateHz,

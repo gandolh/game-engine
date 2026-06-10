@@ -2,12 +2,7 @@ import type { CropKind } from "../components";
 import type { Season } from "./weather";
 import { SEASON_LENGTH, SEASON_ORDER } from "./weather";
 
-/**
- * brief 45 — festival ontology. Festival days are calendar landmarks anchored to
- * the season clock (see `festivalForDay`). On a festival day the FestivalSystem
- * announces the festival (so agents gather + plan) and, at end-of-day, resolves a
- * harvest contest into a FESTIVAL_RESULT broadcast that the event feed narrates.
- */
+// Festival days are calendar landmarks anchored to the season clock; FestivalSystem announces then resolves the harvest contest.
 export const ONT_FESTIVAL = {
   /** Broadcast at the start of a festival day so agents know to participate. */
   ANNOUNCE: "festival-announce",
@@ -30,35 +25,15 @@ export interface FestivalDef {
   name: string;
   /** Season this festival belongs to. */
   season: Season;
-  /**
-   * The crop the harvest contest judges + the special-market spike targets.
-   * Each festival celebrates a crop that's in-season for it, so a farmer who
-   * planned around the season has a shot at winning.
-   */
+  /** In-season crop judged at the contest + targeted by the price spike. */
   contestCrop: CropKind;
-  /** Gold prize awarded to the contest winner. */
+  /** Gold prize for the contest winner. */
   prize: number;
-  /**
-   * One-day shop SELL-price multiplier on `contestCrop` for the festival day
-   * (the "special market" — a planning opportunity for agents who stocked up).
-   */
+  /** One-day shop sell-price multiplier on contestCrop (planning opportunity for agents who stocked up). */
   priceSpike: number;
 }
 
-/**
- * brief 45 — the festival calendar. One festival per season, anchored to the
- * MIDDLE of its season block so it lands inside a 100-day run for every season
- * and gives agents days of lead time to plan (they can see it coming in beliefs).
- *
- * `offsetInSeason` is days into the season (0-based) where the festival fires;
- * SEASON_LENGTH/2 = mid-season. Day numbers below assume SEASON_LENGTH=25:
- *   spring-planting-fair → day 13
- *   summer-market-day    → day 38
- *   autumn-harvest-fair  → day 63
- *   winter-feast         → day 88
- *
- * Determinism: dates are a pure function of the calendar — no RNG, no clock.
- */
+/** Mid-season offset (SEASON_LENGTH/2): spring=day13, summer=day38, autumn=day63, winter=day88 at SEASON_LENGTH=25. Deterministic. */
 export const FESTIVAL_OFFSET_IN_SEASON = Math.floor(SEASON_LENGTH / 2);
 
 export const FESTIVALS: Readonly<Record<Season, FestivalDef>> = {
@@ -96,21 +71,13 @@ export const FESTIVALS: Readonly<Record<Season, FestivalDef>> = {
   },
 };
 
-/**
- * The 1-based day on which the given season's festival fires.
- * spring → 13, summer → 38, autumn → 63, winter → 88 (at SEASON_LENGTH=25).
- */
+/** 1-based day for the given season's festival (day 1 = first day of spring). */
 export function festivalDayForSeason(season: Season): number {
   const seasonIndex = SEASON_ORDER.indexOf(season);
-  // Day 1 is the first day of spring; each season is SEASON_LENGTH days.
   return seasonIndex * SEASON_LENGTH + FESTIVAL_OFFSET_IN_SEASON + 1;
 }
 
-/**
- * Pure function of the day index → the festival firing on that day, or null.
- * Deterministic; no RNG, no clock. Handles runs longer than one year by folding
- * the day into a year (the four-season cycle repeats).
- */
+/** Returns the festival on `day`, or null. Deterministic; cycle repeats for runs longer than 4 seasons. */
 export function festivalForDay(day: number): FestivalDef | null {
   if (day < 1) return null;
   const yearLength = SEASON_LENGTH * SEASON_ORDER.length;
@@ -121,10 +88,7 @@ export function festivalForDay(day: number): FestivalDef | null {
   return null;
 }
 
-/**
- * Days until the next festival from `day` (0 if today is a festival, else the
- * count to the upcoming one). Looks ahead up to one full year. Deterministic.
- */
+/** Days until the next festival (0 if today). Deterministic. */
 export function daysUntilFestival(day: number): number {
   if (day < 0) day = 0;
   const yearLength = SEASON_LENGTH * SEASON_ORDER.length;

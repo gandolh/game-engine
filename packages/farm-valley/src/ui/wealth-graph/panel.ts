@@ -1,18 +1,3 @@
-/**
- * WealthGraphPanel — a collapsible multi-line wealth-over-time chart.
- *
- * Draws one polyline per farmer (X = day, Y = gold) on a <canvas> element,
- * color-coded by personality via `personalityColor()`. Crossing events (where
- * two farmers swap gold ordering between consecutive days) are marked with a
- * small circle at the interpolated intersection point.
- *
- * The panel mounts in the right-column flex container (brief 25). It has a
- * collapse toggle so it doesn't crowd the observer / feed / relationship-matrix
- * panels that also live there — the graph is glanceable context, not the main view.
- *
- * Brief 39. Render-only: no sim state, no determinism surface.
- */
-
 import { EDG } from "@engine/core/render";
 import { createEl, applyStyles } from "../dom";
 import { personalityColor } from "../colors";
@@ -33,27 +18,19 @@ import {
   PAD_BOTTOM,
 } from "./styles";
 
-/**
- * WealthGraphPanel — collapsible wealth-over-time line chart for the right column.
- *
- * Usage:
- *   const graph = new WealthGraphPanel(rightColumn);
- *   graph.update(client.wealthSeries, client.day);  // in the render loop
- */
 export class WealthGraphPanel {
   private readonly panel: HTMLElement;
   private readonly canvasWrapper: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly toggleEl: HTMLElement;
 
-  private collapsed = true; // default: collapsed so it doesn't crowd others
+  private collapsed = true;
   private lastDayDrawn = -1;
 
   constructor(parent: HTMLElement) {
     this.panel = createEl("div");
     applyStyles(this.panel, PANEL_STYLES);
 
-    // ── Header (click to collapse/expand) ──────────────────────────────────
     const header = createEl("div");
     applyStyles(header, HEADER_STYLES);
 
@@ -70,7 +47,6 @@ export class WealthGraphPanel {
       this.applyCollapse();
     });
 
-    // ── Canvas wrapper ──────────────────────────────────────────────────────
     this.canvasWrapper = createEl("div");
     applyStyles(this.canvasWrapper, CANVAS_WRAPPER_STYLES);
 
@@ -98,15 +74,8 @@ export class WealthGraphPanel {
     }
   }
 
-  /**
-   * Update the chart. Redraws only when the in-game day changes (cheaper than
-   * every animation frame). Pass the current snapshot day so the guard works.
-   *
-   * @param series  Per-farmer wealth time series from `client.wealthSeries`.
-   * @param day     Current sim day from `client.day`.
-   */
+  /** Redraws only when the day changes; per-day frequency is sufficient. */
   update(series: SnapshotWealthSeries[], day: number): void {
-    // Skip redraw if day unchanged (per-day redraw is sufficient and cheaper).
     if (day === this.lastDayDrawn) return;
     this.lastDayDrawn = day;
 
@@ -127,12 +96,10 @@ export class WealthGraphPanel {
       bottom: H - PAD_BOTTOM,
     };
 
-    // Clear.
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = EDG.black;
     ctx.fillRect(0, 0, W, H);
 
-    // Empty state: show a muted placeholder.
     if (series.length === 0 || series.every((s) => s.rows.length === 0)) {
       ctx.fillStyle = EDG.steel;
       ctx.font = "10px monospace";
@@ -141,7 +108,6 @@ export class WealthGraphPanel {
       return;
     }
 
-    // Compute domain.
     let maxDay = 1;
     let maxGold = 1;
     for (const s of series) {
@@ -151,24 +117,19 @@ export class WealthGraphPanel {
       }
     }
 
-    // Helper: data → canvas pixels.
     const toX = (day: number): number =>
       bounds.left + (day / maxDay) * (bounds.right - bounds.left);
     const toY = (gold: number): number =>
       bounds.bottom - (gold / maxGold) * (bounds.bottom - bounds.top);
 
-    // ── Axes ──────────────────────────────────────────────────────────────
     ctx.strokeStyle = EDG.ink;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    // Y-axis.
     ctx.moveTo(bounds.left, bounds.top);
     ctx.lineTo(bounds.left, bounds.bottom);
-    // X-axis.
     ctx.lineTo(bounds.right, bounds.bottom);
     ctx.stroke();
 
-    // Axis labels (day range + gold range).
     ctx.fillStyle = EDG.slate;
     ctx.font = "9px monospace";
     ctx.textAlign = "left";
@@ -179,7 +140,6 @@ export class WealthGraphPanel {
     ctx.fillText(String(maxGold) + "g", bounds.left - 2, bounds.top + 8);
     ctx.fillText("0g", bounds.left - 2, bounds.bottom);
 
-    // ── Farmer lines ──────────────────────────────────────────────────────
     const allPoints = computePoints(series, bounds);
 
     for (let i = 0; i < series.length; i++) {
@@ -197,7 +157,6 @@ export class WealthGraphPanel {
       }
       ctx.stroke();
 
-      // End-of-line label (farmer initial) to the right of the last point.
       const last = pts[pts.length - 1]!;
       ctx.fillStyle = color;
       ctx.font = "bold 9px monospace";
@@ -206,7 +165,6 @@ export class WealthGraphPanel {
       ctx.fillText(initial, last.x + 2, last.y + 3);
     }
 
-    // ── Crossing markers ──────────────────────────────────────────────────
     const crossings = detectCrossings(series);
     ctx.strokeStyle = EDG.yellow;
     ctx.fillStyle = EDG.yellow;
@@ -215,7 +173,6 @@ export class WealthGraphPanel {
     for (const c of crossings) {
       const cx = toX(c.crossX);
       const cy = toY(c.crossGold);
-      // Small circle at the crossing.
       ctx.beginPath();
       ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
       ctx.fill();

@@ -1,9 +1,4 @@
-/**
- * probe-snapshot-size.ts — measure the current RenderSnapshot JSON payload,
- * per top-level section + sprite composition. Run after roster/world changes
- * to keep wiki/performance.md's transport numbers honest.
- * Run: npx tsx tools/run-sim/src/probe-snapshot-size.ts
- */
+/* Measure RenderSnapshot JSON payload per section + sprite composition. Run after roster/world changes. */
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { buildRenderSnapshot, SnapshotSpriteState } from "@farm/sim-core/snapshot-builder";
 

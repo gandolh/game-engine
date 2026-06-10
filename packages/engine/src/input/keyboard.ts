@@ -1,7 +1,4 @@
-/**
- * Keyboard — tracks keydown/keyup events from a Window or HTMLElement.
- * Uses KeyboardEvent.code for layout-independent key identification.
- */
+/** Tracks keydown/keyup via KeyboardEvent.code (layout-independent). */
 export class Keyboard {
   private readonly _pressed = new Set<string>();
   private readonly _justPressed = new Set<string>();
@@ -51,13 +48,11 @@ export class Keyboard {
     return this._justReleased.has(code);
   }
 
-  /** Call once per tick after all input queries are done. */
   endFrame(): void {
     this._justPressed.clear();
     this._justReleased.clear();
   }
 
-  /** Returns the set of currently pressed key codes (read-only view). */
   get pressedKeys(): ReadonlySet<string> {
     return this._pressed;
   }

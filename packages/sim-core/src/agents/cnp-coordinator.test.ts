@@ -38,7 +38,6 @@ describe("CnpCoordinator", () => {
   it("closeTask picks lowest price, tie-broken by lowest bidderId", () => {
     const coord = new CnpCoordinator();
     start(coord, { deadlineTick: 5 });
-    // 3 proposals — bidders 4, 2, 7 with prices 6, 6, 8
     const task = coord.getTask("t1")!;
     task.proposals.push({ bidderId: 4, pricePerUnit: 6, quantity: 3 });
     task.proposals.push({ bidderId: 2, pricePerUnit: 6, quantity: 3 });

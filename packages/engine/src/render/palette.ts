@@ -1,25 +1,7 @@
-/**
- * EDG32 — the project's single, mandatory color palette.
- *
- * Endesga-32 (EDG32) by Endesga — https://lospec.com/palette-list/endesga-32
- *
- * Every color drawn anywhere in the engine, the game, and the tooling MUST be
- * one of these 32 swatches. This module is the single source of truth:
- *
- *   - `EDG32` — the 32 colors as lowercase "#rrggbb" strings, in palette order.
- *   - `EDG` — the same colors as readable named constants (use these in code).
- *   - `EDG32_SET` — a Set for O(1) membership / validation.
- *   - `isEdg32()` / `nearestEdg32()` — validation + snapping helpers.
- *
- * New assets and UI: pick from `EDG` by name. Do NOT introduce raw hex literals
- * — the palette guard test (palette.test.ts) scans the source tree and fails on
- * any "#rrggbb" that is not an EDG32 color. If you genuinely need a value the
- * palette can't express (an alpha-blended gradient anchor, say), build it from
- * EDG32 RGB tuples via `rgbOf()` rather than a literal, or add the file to the
- * guard's documented allowlist with a comment explaining why.
- */
+/** Endesga-32 (EDG32) — the project's mandatory palette. https://lospec.com/palette-list/endesga-32
+ *  All drawn colors MUST come from `EDG.*`. palette.test.ts scans the source tree and fails on
+ *  any raw "#rrggbb" not in EDG32. To use a non-literal value (blend anchor, etc.) use `rgbOf()`. */
 
-/** The 32 EDG32 colors, in canonical palette order, lowercase "#rrggbb". */
 export const EDG32 = [
   "#be4a2f",
   "#d77643",
@@ -57,10 +39,6 @@ export const EDG32 = [
 
 export type Edg32Color = (typeof EDG32)[number];
 
-/**
- * Named EDG32 swatches. Names describe hue/role so call sites read clearly.
- * Indices follow the canonical lospec ordering above.
- */
 export const EDG = {
   rust: "#be4a2f", //  0  brick / rust red-orange
   clay: "#d77643", //  1  clay / pumpkin orange
@@ -96,10 +74,8 @@ export const EDG = {
   skinMid: "#c28569", // 31  mid skin / tan-brown
 } as const satisfies Record<string, Edg32Color>;
 
-/** O(1) membership set (lowercase hex). */
 export const EDG32_SET: ReadonlySet<string> = new Set(EDG32);
 
-/** Normalize a "#rgb"/"#rrggbb" (any case) to lowercase "#rrggbb". */
 export function normalizeHex(hex: string): string {
   let c = hex.trim().toLowerCase();
   if (c.startsWith("#")) c = c.slice(1);
@@ -107,19 +83,16 @@ export function normalizeHex(hex: string): string {
   return `#${c}`;
 }
 
-/** True if `hex` is exactly one of the EDG32 colors. */
 export function isEdg32(hex: string): boolean {
   return EDG32_SET.has(normalizeHex(hex));
 }
 
-/** "#rrggbb" → [r,g,b]. */
 export function rgbOf(hex: string): [number, number, number] {
   const c = normalizeHex(hex).slice(1);
   const n = parseInt(c, 16);
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
-/** Nearest EDG32 color to an arbitrary hex (squared-RGB distance). */
 export function nearestEdg32(hex: string): Edg32Color {
   const [r, g, b] = rgbOf(hex);
   let best: Edg32Color = EDG32[0];

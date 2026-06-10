@@ -14,17 +14,11 @@ export interface EventFeedRow {
    * as 0 (routine).
    */
   drama?: number;
-  /**
-   * The primary farmer entity id involved in this event, or null/undefined when
-   * none is identifiable. Clicking a row with a farmerId focuses the camera on
-   * that farmer. Brief 40.
-   */
+  /** Clicking a row with a farmerId focuses the camera on that farmer. */
   farmerId?: number | null;
 }
 
-// brief 25 — flows below the observer inside the shared right column
-// (ui/right-column.ts). Takes the leftover vertical space (`flex: 1`) and
-// scrolls internally rather than self-anchoring to the corner.
+// Flows below the observer in the shared right column; takes leftover space.
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   width: "100%",
   flex: "1 1 auto",
@@ -46,7 +40,6 @@ export class EventFeedPanel {
   private headerEl: HTMLElement;
   private linesContainer: HTMLElement;
 
-  /** Brief 40 — called when a row with a known farmerId is clicked. */
   private onFarmerClick: ((id: number) => void) | null = null;
 
   setOnFarmerClick(cb: (id: number) => void): void {
@@ -72,10 +65,7 @@ export class EventFeedPanel {
     this.linesContainer = createEl("div");
     this.linesContainer.dataset["eventFeedLines"] = "";
 
-    // Brief 40 — delegated click on feed lines. If the clicked element carries a
-    // data-farmer-id attribute, fire the onFarmerClick callback so the camera
-    // pans to that farmer. Using event delegation avoids re-attaching listeners
-    // on every update() call.
+    // Delegated click: data-farmer-id on a line fires onFarmerClick.
     this.linesContainer.addEventListener("click", (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -91,12 +81,8 @@ export class EventFeedPanel {
     parent.appendChild(this.panel);
   }
 
-  /**
-   * Render the feed newest-FIRST. `rows` are expected chronological
-   * (oldest-first, as the system stores them); we reverse and cap here.
-   */
+  /** Render newest-first. rows are oldest-first; reversed and capped here. */
   update(rows: ReadonlyArray<EventFeedRow>): void {
-    // Newest-first, capped.
     const shown = rows.slice(-EVENT_FEED_PANEL_CAP).reverse();
 
     // Reconcile DOM line count to `shown.length`.
@@ -110,13 +96,10 @@ export class EventFeedPanel {
     shown.forEach((row, i) => {
       const lineEl = this.linesContainer.children[i] as HTMLElement;
       const isHighDrama = (row.drama ?? 0) >= 0.7;
-      // Apply emphasis: brighter color + star prefix for high-drama rows.
-      // Color is set on every update so a reused DOM node toggles correctly.
+      // Set color on every update so a reused DOM node toggles correctly.
       lineEl.style.color = isHighDrama ? EDG.gold : EDG.green;
       const prefix = isHighDrama ? "★ " : "";
       setText(lineEl, `${prefix}Day ${row.day} — ${row.text}`);
-      // Brief 40 — click-to-zoom: clicking a row that has a known farmerId
-      // fires the onFarmerClick callback so the camera pans to that farmer.
       const fid = row.farmerId ?? null;
       if (fid !== null) {
         lineEl.style.cursor = "pointer";

@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../../types";
 
-// Tomato (summer, mid). Red body (r), green leaf (l).
 const recipe: PixelRecipe =
   {
     name: "crop/tomato/seed",

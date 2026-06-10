@@ -1,10 +1,3 @@
-/**
- * interp.ts — Pure interpolation helpers used by SimClient.
- *
- * These are render-side utilities (main thread only). They contain no sim
- * logic and carry no side effects; they may be tested in isolation.
- */
-
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 
 export function clamp(v: number, lo: number, hi: number): number {
@@ -24,11 +17,7 @@ export function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/**
- * Copy every SnapshotSprite field from `src` into the pooled `dst` (T1.2). Must
- * assign ALL fields — including optionals — so a reused record never carries a
- * stale value from the different sprite that previously occupied this slot.
- */
+/** Copy all SnapshotSprite fields (including optionals) so a reused pool slot never carries stale data. */
 export function copySprite(dst: SnapshotSprite, src: SnapshotSprite): void {
   dst.id = src.id;
   dst.x = src.x;

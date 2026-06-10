@@ -101,6 +101,11 @@ export class TravelSystem implements System {
       }
       const targetCenter = dest;
       const start = { x: transform.x, y: transform.y };
+      // Tile-targeted intents have no region — name the tile in warns instead
+      // of printing "region 'undefined'" (which misreads as a corrupt intent).
+      const destLabel = targetTile
+        ? `tile (${targetTile.x},${targetTile.y})${front.data.tavernGather ? " [tavern-gather]" : ""}`
+        : `region '${targetRegionId}'`;
       // The WASM pathfinder's allocator can intermittently trap
       // (RuntimeError: unreachable) under heavy churn. Isolate it so a single
       // failed path drops this farmer's intent instead of killing the whole
@@ -110,7 +115,7 @@ export class TravelSystem implements System {
         path = this.pathfinder.findPath(grid, start, targetCenter);
       } catch (err) {
         console.warn(
-          `[travel] pathfinder fault from (${start.x},${start.y}) to '${targetRegionId}' for farmer ${entity.id}; dropping intent`,
+          `[travel] pathfinder fault from (${start.x},${start.y}) to ${destLabel} for farmer ${entity.id}; dropping intent`,
           err,
         );
         intentions.queue.shift();
@@ -119,7 +124,7 @@ export class TravelSystem implements System {
 
       if (path.length === 0) {
         console.warn(
-          `[travel] no path from (${start.x},${start.y}) to region '${targetRegionId}' for farmer ${entity.id}; dropping intent`,
+          `[travel] no path from (${start.x},${start.y}) to ${destLabel} for farmer ${entity.id}; dropping intent`,
         );
         intentions.queue.shift();
         return;

@@ -20,7 +20,6 @@ export interface VickreyState {
 export interface FpsbState {
   type: "fpsb";
   cfp: AuctionCfpBody;
-  /** Same sealed-bid shape as Vickrey — only the price rule differs. */
   bids: SealedBid[];
   resolved: boolean;
 }
@@ -28,16 +27,11 @@ export interface FpsbState {
 export interface DutchState {
   type: "dutch";
   cfp: AuctionCfpBody;
-  /** Starting price = reservePrice for our simple model. */
   startPrice: number;
-  /** How much the price drops per tick. */
   decrementPerTick: number;
-  /** Floor below which the price will not go. */
   floor: number;
-  /** First tick at which this auction was observed; `null` until anchored. */
-  startTick: number | null;
-  /** First-accept wins — null if open. */
-  winner: { bidderId: number; paidPrice: number } | null;
+  startTick: number | null; // anchored on first observation
+  winner: { bidderId: number; paidPrice: number } | null; // null if open
   participants: Set<number>;
   resolved: boolean;
 }
@@ -45,21 +39,12 @@ export interface DutchState {
 export interface EnglishState {
   type: "english";
   cfp: AuctionCfpBody;
-  /** Opening price = reservePrice. */
   startPrice: number;
-  /** How much the asking price rises per tick. */
   incrementPerTick: number;
-  /** Close the auction after this many ticks with no affirming bid. */
   noBidTimeout: number;
-  /** First tick at which this auction was observed; `null` until anchored. */
-  startTick: number | null;
-  /**
-   * Highest affirming bidder so far. Each affirm at the current ask replaces
-   * this; the last/highest affirmer wins at the price they affirmed.
-   */
-  leader: { bidderId: number; paidPrice: number } | null;
-  /** Tick of the most recent affirming bid (drives the no-bid timeout). */
-  lastBidTick: number | null;
+  startTick: number | null; // anchored on first observation
+  leader: { bidderId: number; paidPrice: number } | null; // last affirmer at current ask
+  lastBidTick: number | null; // drives no-bid timeout
   participants: Set<number>;
   resolved: boolean;
 }

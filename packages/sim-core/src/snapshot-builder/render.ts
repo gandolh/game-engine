@@ -99,9 +99,19 @@ export function buildRenderSnapshot(
     : null;
 
   // Build the per-farmer wealth time series for the live graph panel (brief 39).
-  // Cheap: grouping ≤500 rows per tick. The series is always present (empty array
-  // before day 1) so the panel doesn't need a null-check.
-  const wealthSeries = buildWealthSeries(world, runHistoryRows);
+  // Rows only grow on day boundaries, so with a per-run spriteState (the server
+  // path) the series is rebuilt + sent only when the row count changed since
+  // the last send; otherwise the snapshot carries null and the client reuses
+  // its cached copy. Without spriteState (tests) it's built every tick.
+  let wealthSeries: RenderSnapshot["wealthSeries"];
+  if (spriteState === undefined) {
+    wealthSeries = buildWealthSeries(world, runHistoryRows);
+  } else if (spriteState.wealthRowsSent !== runHistoryRows.length) {
+    spriteState.wealthRowsSent = runHistoryRows.length;
+    wealthSeries = buildWealthSeries(world, runHistoryRows);
+  } else {
+    wealthSeries = null;
+  }
 
   return {
     tick,

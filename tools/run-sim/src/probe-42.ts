@@ -1,4 +1,4 @@
-/* brief 42 instrumentation probe — confirm livestock/orchard fires live. */
+/* brief 42 — confirm livestock/orchard fires live. */
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { totalProductCount, totalFruitCount } from "@farm/sim-core/economy";
@@ -26,7 +26,6 @@ const totalTicks = MAX_DAYS * TICKS_PER_DAY;
 for (let tick = 0; tick < totalTicks; tick++) {
   scheduler.tick({ tick });
 
-  // Pens.
   let pens = 0;
   let animals = 0;
   for (const p of world.query("pen")) {
@@ -37,7 +36,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
   pensBuiltPeak = Math.max(pensBuiltPeak, pens);
   animalsPeak = Math.max(animalsPeak, animals);
 
-  // Orchards.
   let orchards = 0;
   let matured = 0;
   for (const t of world.query("orchardTree")) {
@@ -47,7 +45,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
   orchardsPeak = Math.max(orchardsPeak, orchards);
   orchardsMaturedPeak = Math.max(orchardsMaturedPeak, matured);
 
-  // Banked products + fruit (peak held — these get sold so track the max).
   let prod = 0;
   let fruit = 0;
   for (const f of world.query("farmer", "inventory")) {
@@ -68,7 +65,6 @@ console.log("products banked (peak held):", productsBankedPeak);
 console.log("fruit banked (peak held):", fruitBankedPeak);
 console.log("final day:", dayClock.day);
 
-// Day-100 standings.
 const standings = leaderboard(world).sort((a, b) => b.totalValue - a.totalValue);
 console.log("=== day-100 standings (by totalValue) ===");
 for (const s of standings) {

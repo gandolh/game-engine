@@ -15,9 +15,7 @@ export class DebugOverlay {
   private fps = 0;
   private accumulatedMs = 0;
 
-  /** Latest worker-side profiling report (P0), or null when profiling is off. */
   private workerReport: ProfileReport | null = null;
-  /** Latest main-thread frame report (P0), or null when profiling is off. */
   private frameReport: ProfileReport | null = null;
 
   constructor(parent: HTMLElement) {
@@ -56,8 +54,6 @@ export class DebugOverlay {
       `alpha ${stats.alpha.toFixed(3)}\n` +
       `ents  ${stats.entityCount}`;
 
-    // P0 profiling block — appended only when reports are present. Shows
-    // mean / p95 ms (or KB for byte metrics) so regressions are visible live.
     const fmt = (label: string, report: ProfileReport | null, key: string, unit: "ms" | "kb"): string => {
       const s = report?.[key];
       if (s === undefined) return "";
@@ -76,12 +72,10 @@ export class DebugOverlay {
     this.element.textContent = text;
   }
 
-  /** Feed the latest worker-side profiling report (P0). */
   setWorkerReport(report: ProfileReport): void {
     this.workerReport = report;
   }
 
-  /** Feed the latest main-thread frame profiling report (P0). */
   setFrameReport(report: ProfileReport): void {
     this.frameReport = report;
   }

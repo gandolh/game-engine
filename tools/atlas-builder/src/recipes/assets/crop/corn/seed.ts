@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../../types";
 
-// Corn (summer, multi). Yellow stalk (y), gold cob (o).
 const recipe: PixelRecipe =
   {
     name: "crop/corn/seed",

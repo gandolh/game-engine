@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Wooden signpost with a painted arrow.
     name: "decoration/signpost",
     size: 16,
     pixels: [

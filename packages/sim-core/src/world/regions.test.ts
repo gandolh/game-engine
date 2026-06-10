@@ -4,14 +4,6 @@ import {
   WORLD_WIDTH, WORLD_HEIGHT,
 } from './regions';
 
-// RADIAL archipelago layout (160×160): every zone is an isolated island,
-// connected only by 2-wide bridges. A central cluster of functional/decorative
-// islands (village dead-center) is ringed by two concentric rings of the 21
-// farms. See regions.ts for the full bounds table. These tests assert the
-// PROPERTY (each region's own center resolves to it; corners are inside; ocean
-// gaps are ocean) by deriving coordinates from the region defs, so they survive
-// future layout tweaks rather than re-pinning literals each time.
-
 /** A tile clearly inside a region (its center). */
 const centerOf = (id: string) => getRegion(id as never).center;
 /** Each corner tile of a region's bounds. */

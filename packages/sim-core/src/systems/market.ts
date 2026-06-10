@@ -14,23 +14,8 @@ import {
 } from "../protocols/market";
 import { PERFORMATIVE } from "../protocols/performatives";
 
-/**
- * MarketSystem — bulletin-board market. Handles ontologies posted to the
- * MarketWall entity's inbox.
- *
- * Design choices:
- *   - Offer store lives here (`offersById: Map<string, MarketOffer>`),
- *     not on the wall entity. This keeps the entity component shape clean
- *     and avoids the `[key: string]: unknown` escape hatch.
- *   - offerId is generated deterministically via `rng.fork("market.offerId")`
- *     once at construction; every POST_OFFER consumes one `nextU32()` from
- *     that forked stream, yielding the same id sequence for the same seed.
- *   - BUY_REQUEST is forwarded directly to the offer's seller as a
- *     REQUEST/BUY_REQUEST direct message; the seller's farmer agent is
- *     expected to react (out of scope here).
- *   - Unknown buyer/seller references are silently ignored — invalid input
- *     should not crash the loop.
- */
+// Bulletin-board market. offerId stream: rng.fork("market.offerId") → same id sequence per seed.
+// BUY_REQUEST forwarded to seller as REQUEST; unknown refs silently ignored.
 export class MarketSystem implements System {
   readonly name = "MarketSystem";
 
@@ -52,7 +37,6 @@ export class MarketSystem implements System {
     const messages = wall.inbox.messages;
     if (messages.length === 0) return;
 
-    // Drain the wall's inbox each tick.
     const drained = messages.slice();
     messages.length = 0;
 
@@ -74,13 +58,10 @@ export class MarketSystem implements System {
           this.handleTradeCompleted(msg);
           break;
         default:
-          // Unknown ontology — drop silently.
           break;
       }
     }
   }
-
-  // ---- handlers ----------------------------------------------------------
 
   private handlePostOffer(msg: AgentMessage, ctx: SimContext): void {
     const body = msg.body as Partial<PostOfferBody>;
@@ -91,12 +72,11 @@ export class MarketSystem implements System {
     if (msg.sender === "world") return; // world cannot post farmer offers
     const sellerId = msg.sender;
 
-    // Verify seller actually has inventory (silent ignore otherwise).
     const seller = findById(this.world, sellerId, "farmer", "inventory");
     if (!seller || !seller.inventory) return;
     if (seller.inventory.crops[offer.crop as CropKind] === undefined) return;
 
-    // Spatial gate: posting requires being in the village.
+    // Location-gated: posting requires being in the village.
     if (seller.farmer && seller.farmer.currentRegion !== "village") {
       this.sendRejection(sellerId, ONT_MARKET.POST_OFFER, ctx.tick);
       return;
@@ -141,10 +121,8 @@ export class MarketSystem implements System {
     if (!body.offerId) return;
     const offer = this.offersById.get(body.offerId);
     if (!offer) return;
-    // Only the seller may cancel.
-    if (msg.sender === "world" || msg.sender !== offer.sellerId) return;
+    if (msg.sender === "world" || msg.sender !== offer.sellerId) return; // only seller may cancel
 
-    // Spatial gate: cancelling also requires being in the village.
     const seller = findById(this.world, msg.sender, "farmer", "inventory");
     if (seller?.farmer && seller.farmer.currentRegion !== "village") {
       this.sendRejection(msg.sender, ONT_MARKET.CANCEL_OFFER, ctx.tick);
@@ -184,8 +162,6 @@ export class MarketSystem implements System {
     if (!body.offerId) return;
     this.offersById.delete(body.offerId);
   }
-
-  // ---- helpers -----------------------------------------------------------
 
   private sendRejection(
     recipientId: number,

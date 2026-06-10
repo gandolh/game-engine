@@ -3,11 +3,7 @@ import { CROP_SELL_PRICE, QUALITY_MULTIPLIER } from "./crops";
 import { PRODUCT_SELL_PRICE } from "./livestock";
 import { FRUIT_SELL_PRICE } from "./fruit";
 
-/**
- * brief 41 — compute the quality-weighted sell value of all crops in inventory.
- * Uses `cropQuality` breakdown if present; otherwise treats all units as Normal.
- * Used by leaderboard(), totalValue helpers, and run-history.
- */
+/** Quality-weighted sell value of all crops. Falls back to Normal quality if breakdown absent. */
 export function cropInventoryValue(inv: Inventory): number {
   let total = 0;
   const crops = inv.crops;
@@ -22,34 +18,24 @@ export function cropInventoryValue(inv: Inventory): number {
       total += q.silver * basePrice * QUALITY_MULTIPLIER.silver;
       total += q.gold   * basePrice * QUALITY_MULTIPLIER.gold;
     } else {
-      // All units are Normal when quality breakdown is absent.
       total += totalUnits * basePrice * QUALITY_MULTIPLIER.normal;
     }
   }
   return total;
 }
 
-/**
- * brief 41 — total count of a single crop kind (convenience helper).
- * Equivalent to inv.crops[crop] but clearly named for call sites that want
- * "total regardless of quality".
- */
+/** Total units of a crop regardless of quality. */
 export function totalCropCount(inv: Inventory, crop: CropKind): number {
   return inv.crops[crop];
 }
 
-/**
- * brief 41 — add harvested crops to inventory, respecting the quality split.
- * Increments both `crops[crop]` (total) and `cropQuality[crop][quality]`.
- */
+/** Add harvested crops to inventory; increments both total count and quality breakdown. */
 export function bankHarvest(inv: Inventory, crop: CropKind, qty: number, quality: CropQuality): void {
   inv.crops[crop] += qty;
   if (!inv.cropQuality) inv.cropQuality = {};
   if (!inv.cropQuality[crop]) inv.cropQuality[crop] = { normal: 0, silver: 0, gold: 0 };
   inv.cropQuality[crop]![quality] += qty;
 }
-
-// ── Livestock inventory helpers (brief 42) ────────────────────────────────────
 
 /** Total count of a product kind in inventory (sum across quality tiers). */
 export function totalProductCount(inv: Inventory, kind: ProductKind): number {
@@ -105,22 +91,16 @@ export function fruitInventoryValue(inv: Inventory): number {
   return total;
 }
 
-/**
- * brief 42 — deduct harvested crops from inventory respecting quality split.
- * Deducts from the specified quality tier first, then falls back to lower tiers.
- * Returns the amount actually deducted.
- */
+/** Deduct crops from inventory respecting quality split; preferred tier first. Returns amount deducted. */
 export function deductCrops(inv: Inventory, crop: CropKind, qty: number, preferQuality?: CropQuality): number {
   const have = inv.crops[crop];
   const taken = Math.min(qty, have);
   if (taken <= 0) return 0;
   inv.crops[crop] -= taken;
 
-  // Update quality breakdown.
   if (inv.cropQuality?.[crop]) {
     const q = inv.cropQuality[crop]!;
     let remaining = taken;
-    // Deduct from requested quality first, then silver, then normal, then gold.
     const order: CropQuality[] = preferQuality
       ? [preferQuality, "silver", "normal", "gold"].filter((v, i, a) => a.indexOf(v) === i) as CropQuality[]
       : ["silver", "normal", "gold"] as CropQuality[];

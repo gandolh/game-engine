@@ -5,14 +5,7 @@ interface PathPoint {
   y: number;
 }
 
-/**
- * Pure-JS BFS pathfinder implementing the same `findPath` interface as the
- * WASM Pathfinder. 4-connected (N/E/S/W), stateless, no heap allocation beyond
- * the path array. Used in headless run-sim so TravelSystem functions without
- * the WASM module and without memory-leak faults.
- *
- * Returns the shortest path from start to end (inclusive), or [] if no path.
- */
+/** Pure-JS BFS satisfying the same `findPath` interface as the WASM Pathfinder. Returns path inclusive, or []. */
 export class JsPathfinder {
   findPath(
     grid: PathfinderGrid,
@@ -21,7 +14,6 @@ export class JsPathfinder {
   ): PathPoint[] {
     const { cells, width, height } = grid;
 
-    // Boundary + walkability checks.
     const inBounds = (x: number, y: number) =>
       x >= 0 && y >= 0 && x < width && y < height;
     const isWalkable = (x: number, y: number) =>
@@ -30,7 +22,6 @@ export class JsPathfinder {
     if (!isWalkable(start.x, start.y) || !isWalkable(end.x, end.y)) return [];
     if (start.x === end.x && start.y === end.y) return [{ x: start.x, y: start.y }];
 
-    // BFS with parent tracking. parent array: index → parent index (-1 = none).
     const size = width * height;
     const visited = new Uint8Array(size);
     const parent = new Int32Array(size).fill(-1);
@@ -68,7 +59,6 @@ export class JsPathfinder {
 
     if (!found) return [];
 
-    // Reconstruct path from end to start, then reverse.
     const path: PathPoint[] = [];
     let cur = endIdx;
     while (cur !== -1) {

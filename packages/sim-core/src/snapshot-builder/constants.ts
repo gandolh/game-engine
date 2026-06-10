@@ -1,34 +1,10 @@
-/**
- * snapshot-builder/constants.ts — shared constants for snapshot building.
- */
-
-/**
- * Drama threshold for "skip to highlight" (Part B). An event is a highlight
- * when its drama score meets or exceeds this value. Matches the feed panel's
- * emphasis threshold (≥ 0.7 → gold star in EventFeedPanel). Centralised here
- * (snapshot-builder is the worker-side authority) and re-exported so sim-worker
- * and the unit-test helper can import it without duplicating the constant.
- */
+/** Drama score threshold; events at or above this are "highlights". */
 export const HIGHLIGHT_THRESHOLD = 0.7;
 
-/**
- * How many ticks a bubble stays visible after an intention CHANGE.
- * On-change-only legibility rule: we show the bubble for a brief window (like
- * the meet bubble's 10 ticks) so the map isn't a wall of persistent icons.
- * After the window expires, the bubble disappears until the next intention
- * change. This gives scan-level legibility without ambient clutter.
- */
+/** Ticks a bubble stays visible after an intention change (on-change-only). */
 export const BUBBLE_SHOW_TICKS = 10;
 
-/**
- * Maps an intention.kind string to its indicator glyph frame name.
- * Only AI-farmer intention kinds are listed; player (Pip) never gets a bubble.
- *
- * Intention kinds observed in the codebase (agents/*.ts):
- *   plant, water, harvest, sell, buy, travel, sleep, idle,
- *   fish, bid, meet, refill, chop, mine, work
- * Any unmapped kind silently returns null (no bubble).
- */
+/** Maps intention.kind → indicator glyph frame name. AI farmers only; Pip never gets a bubble. Unmapped kinds return null. */
 export const INTENTION_KIND_TO_GLYPH: Readonly<Record<string, string>> = {
   "plant":   "indicator/intention-plant",
   "water":   "indicator/intention-water",
@@ -47,10 +23,7 @@ export const INTENTION_KIND_TO_GLYPH: Readonly<Record<string, string>> = {
   "idle":    "indicator/intention-idle",
 };
 
-// Friendly hover name + blurb for the decorative props (sprite-only entities
-// with no identifying component — keyed off their `sprite.frame`). Keeping it a
-// frame→label map means a new `decoration/*` prop just needs one entry here to
-// become hover-able.
+// Hover label + blurb for decorative props (sprite-only entities, keyed off sprite.frame).
 export const DECORATION_LABELS: Record<string, { label: string; description: string }> = {
   "decoration/barrel": { label: "Barrel", description: "A storage barrel — just scenery." },
   "decoration/crate": { label: "Crate", description: "A wooden crate — just scenery." },
@@ -60,7 +33,6 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   "decoration/hay-bale": { label: "Hay Bale", description: "A bale of hay — just scenery." },
   "decoration/bush": { label: "Bush", description: "A leafy bush — just scenery." },
   "decoration/log-stack": { label: "Log Stack", description: "Stacked logs — just scenery." },
-  // Themed per-island decorations — friendlier scenery on the central islands.
   "decoration/stone-lantern": { label: "Stone Lantern", description: "A carved shrine lantern, its flame ever-lit — just scenery." },
   "decoration/torii": { label: "Shrine Gate", description: "A weathered red gate marking the sacred ground — just scenery." },
   "decoration/buoy": { label: "Buoy", description: "A floating harbor marker bobbing in the swell — just scenery." },
@@ -74,16 +46,12 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   "decoration/flour-bag": { label: "Flour Bag", description: "A stout bag of milled flour — just scenery." },
   "decoration/cattail": { label: "Cattails", description: "Water-edge reeds swaying by the pond — just scenery." },
   "decoration/cairn": { label: "Cairn", description: "A stacked-stone marker beside the old relics — just scenery." },
-  // brief 51 — heritage-site landmark islets. Decorative only; the hover names
-  // them so spectators read the world's "history". No gameplay behavior.
+  // Heritage landmark islets — decorative only; hover names them for spectators.
   "structure/heritage-stones": { label: "Standing Stones", description: "An ancient dolmen ring — a relic of an older age. Just a landmark." },
   "structure/heritage-ruin": { label: "Ruined Tower", description: "The crumbling remains of an old watchtower. Just a landmark." },
   "structure/heritage-statue": { label: "Weathered Statue", description: "A worn monument to someone long forgotten. Just a landmark." },
-  // brief 52 — the animated waterfall landmark islet. The hover names the static
-  // base cliff; the cascade is a render-only overlay. No gameplay behavior.
   "structure/waterfall": { label: "Waterfall", description: "Water tumbles down a mossy cliff into the sea — a scenic landmark." },
-  // brief 54 — the camping island landmarks. A farmer caught here at nightfall
-  // sleeps rested (no away-from-home penalty); the tent + campfire mark the spot.
+  // Campsite landmarks: sleeping here avoids the away-from-home AP penalty.
   "structure/tent": { label: "Campsite Tent", description: "A traveller's tent. Sleep here when caught far from home and you wake fully rested." },
   "structure/campfire": { label: "Campfire", description: "A crackling campfire warms the campsite — sleep here to wake rested." },
 };
@@ -91,12 +59,5 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
 /** How many feed lines to ship in the snapshot (panel shows ~30). */
 export const EVENT_SNAPSHOT_CAP = 30;
 
-/**
- * Build per-farmer wealth time series from the run-history rows. Groups rows
- * by farmerId and attaches the farmer's display name and personality (resolved
- * from the ECS world) so the chart panel needs no second lookup.
- *
- * Capped at MAX_WEALTH_ROWS rows total (100 days × 5 farmers = 500 max, within
- * the brief's stated bound) — early-exit guard to keep serialisation cheap.
- */
+/** Cap on total wealth-series rows (100 days × 5 farmers = 500 max). */
 export const MAX_WEALTH_ROWS = 500;

@@ -64,11 +64,16 @@ export interface RenderSnapshot {
   rivalries: SnapshotRivalry[];
   /**
    * Per-farmer wealth time series for the wealth-over-time line chart.
-   * One entry per farmer, with all per-day gold rows captured so far.
-   * Live-updated every snapshot so the chart redraws as the run progresses.
-   * Brief 39.
+   * One entry per farmer, with all per-day gold rows captured so far. Brief 39.
+   *
+   * The rows only grow on day boundaries, so when a per-run
+   * `SnapshotSpriteState` is supplied (the server path) the series is sent
+   * ONLY on snapshots where new rows exist and is `null` in between — the
+   * client caches the last non-null value (SimClient.wealthSeries). By day
+   * 100 the full series is ~100 KB; re-sending it at 20 Hz dominated the
+   * payload. Builders without per-run state (tests) still send it every tick.
    */
-  wealthSeries: SnapshotWealthSeries[];
+  wealthSeries: SnapshotWealthSeries[] | null;
   /**
    * brief 45 — current weather + season, for the render-only rain/snow ambient
    * overlay (main.ts) and any weather UI. Pure render input — drawn over the

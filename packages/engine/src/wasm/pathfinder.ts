@@ -1,4 +1,3 @@
-// Typed wrapper around the `pathfinding.wasm` module.
 
 import { loadWasmModule, fetchWasmModule } from "./loader";
 import type { LoadedWasm } from "./loader";
@@ -91,7 +90,6 @@ export class Pathfinder {
   }
 }
 
-/** Instantiate the pathfinder from raw wasm bytes (Node/tests). */
 export async function createPathfinderFromBytes(
   bytes: BufferSource,
   opts?: { maxWaypoints?: number },
@@ -100,7 +98,6 @@ export async function createPathfinderFromBytes(
   return new Pathfinder(loaded, opts);
 }
 
-/** Instantiate the pathfinder by URL (browser; also works in Node 18+). */
 export async function createPathfinderFromUrl(
   url: string,
   opts?: { maxWaypoints?: number },

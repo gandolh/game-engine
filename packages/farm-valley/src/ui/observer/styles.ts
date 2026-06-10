@@ -1,9 +1,6 @@
 import { EDG } from "@engine/core/render";
 
-// brief 25 — the observer is now a flex child of the shared right column
-// (ui/right-column.ts), not self-anchored to the corner. It sizes to content
-// up to a cap so the activity feed can flow below it; `flexShrink: 0` keeps it
-// from being squeezed when the feed fills the rest of the column.
+// Flex child of the shared right column; flexShrink:0 so the feed below it is never squeezed.
 export const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   width: "100%",
   maxHeight: "70vh",

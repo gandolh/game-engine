@@ -23,13 +23,9 @@ describe("Rng (mulberry32)", () => {
   describe("snapshot / restoreRng round-trip", () => {
     it("restores state exactly — same outputs after restore", () => {
       const r1 = createRng(99999);
-      // Advance N steps
       for (let i = 0; i < 5; i++) r1.nextU32();
-      // Take snapshot
       const snap = r1.snapshot();
-      // Collect M outputs from r1
       const seqA = Array.from({ length: 8 }, () => r1.nextU32());
-      // Restore from snapshot and collect M outputs from r2
       const r2 = restoreRng(snap);
       const seqB = Array.from({ length: 8 }, () => r2.nextU32());
       expect(seqA).toEqual(seqB);

@@ -12,10 +12,7 @@ import {
 } from "./camera";
 import type { SimClient } from "../worker/sim-client";
 
-// ── Particle director ────────────────────────────────────────────────────────
-
-// Manages coin-burst and shock-explosion particle events. Tracks prevGold
-// internally so callers only need to pass the current frame's farmer positions.
+/** Manages coin-burst and shock-explosion particle events. */
 export class ParticleDirector {
   private readonly particles: ParticleSystem;
   private readonly client: SimClient;
@@ -25,10 +22,8 @@ export class ParticleDirector {
     this.particles = particles;
     this.client = client;
 
-    // Watch the snapshot for new shock events → dirt explosion.
     client.onSnapshot((snap) => {
-      // Learn Pip's entity id once (the farmer sprite labeled "Pip") and focus
-      // the camera on it by default so the player starts looking at themselves.
+      // Learn Pip's entity id once from the first snapshot; focus camera on it.
       if (playerFarmerId === null) {
         for (const s of snap.sprites) {
           if (s.id !== null && s.interpolate && s.label === "Pip") {
@@ -43,7 +38,6 @@ export class ParticleDirector {
         }
       }
       if (!snap.shock) return;
-      // Shock wiped plots — emit a dramatic dirt burst from each affected farmer.
       for (const row of snap.leaderboard) {
         const pos = client.getFarmerInterpolatedPos(row.id);
         if (!pos) continue;
@@ -62,7 +56,6 @@ export class ParticleDirector {
     });
   }
 
-  // Emit a coin-burst particle when a farmer's gold total increases.
   emitFromDiff(farmerPositions: Map<number, { x: number; y: number }>): void {
     const lb = this.client.leaderboard;
     for (const row of lb) {
@@ -70,7 +63,6 @@ export class ParticleDirector {
       if (!pos) continue;
       const prevG = this.prevGold.get(row.id) ?? row.gold;
       if (row.gold > prevG) {
-        // Gold increased → coin burst
         this.particles.emit({
           x: pos.x, y: pos.y - TILE,
           count: 8,

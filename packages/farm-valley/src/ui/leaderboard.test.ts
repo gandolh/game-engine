@@ -16,7 +16,6 @@ function makeRow(
 }
 
 function makeRows4Sorted(): LeaderboardRow[] {
-  // Sorted descending by totalValue
   return [
     makeRow({ rank: 1, id: 2, name: "Atticus", personality: "aggressive", gold: 200, unsoldValue: 50, totalValue: 250 }),
     makeRow({ rank: 2, id: 3, name: "Hannah", personality: "hoarder", gold: 150, unsoldValue: 60, totalValue: 210 }),
@@ -60,8 +59,6 @@ describe("LeaderboardPanel", () => {
   });
 
   it("tied totals stable-sort by id when ranks match", () => {
-    // Two farmers with identical totalValue — we pass them in already sorted by id
-    // The leaderboard just renders the order it receives; caller must sort
     const rows: LeaderboardRow[] = [
       makeRow({ rank: 1, id: 1, name: "Cora", gold: 100, unsoldValue: 0, totalValue: 100 }),
       makeRow({ rank: 2, id: 2, name: "Atticus", gold: 100, unsoldValue: 0, totalValue: 100 }),
@@ -73,7 +70,6 @@ describe("LeaderboardPanel", () => {
     expect(rowEls).toHaveLength(2);
 
     const ids = Array.from(rowEls).map((el) => Number((el as HTMLElement).dataset["farmerId"]));
-    // Stable: lower id first when tied
     expect(ids).toEqual([1, 2]);
   });
 
@@ -98,10 +94,8 @@ describe("LeaderboardPanel", () => {
     });
 
     try {
-      // Update twice with the same data
       panel.update(rows);
       panel.update(rows);
-      // setText() guards against no-op writes — count should be 0
       expect(writeCount).toBe(0);
     } finally {
       Object.defineProperty(Node.prototype, "textContent", originalSetter);

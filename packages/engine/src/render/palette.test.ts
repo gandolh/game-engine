@@ -4,33 +4,19 @@ import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EDG32, EDG32_SET, EDG, isEdg32, nearestEdg32, normalizeHex } from "./palette";
 
-// ── EDG32 palette guard ──────────────────────────────────────────────────────
-// EDG32 (Endesga-32) is the project's single mandatory palette. This test is the
-// enforcement mechanism: it scans every source file in the repo and FAILS if any
-// color literal is not one of the 32 EDG32 swatches. New assets/UI must pick from
-// the `EDG` named constants (palette.ts) — raw off-palette hex literals break CI.
-//
-// If you have a legitimate non-palette literal (a blend operand, a gradient
-// anchor built from EDG rgb, a #rrggbbaa with alpha, etc.) either express it via
-// EDG/rgbOf, or add the file (with a reason) to ALLOWLIST_FILES below.
-
-// Repo root = packages/engine/src/render → up 4.
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..", "..");
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git"]);
 const SOURCE_EXT = /\.(ts|js|mjs|cjs)$/;
-// Tests (this file references off-palette colors deliberately) are not scanned.
-const SKIP_FILE = /\.(test|spec)\.(ts|js)$/;
+const SKIP_FILE = /\.(test|spec)\.(ts|js)$/; // test files may reference off-palette colors deliberately
 
-// Files allowed to contain non-EDG32 literals, each with a reason. Keep empty
-// unless there's a real need; the whole point is that this list stays tiny.
+// Files allowed to contain non-EDG32 literals (keep this list tiny).
 const ALLOWLIST_FILES: Record<string, string> = {
   // (none — every drawn color currently maps to EDG32)
 };
 
-// Any 3- or 6-digit hex color literal: #abc or #aabbcc, not followed by another
-// hex digit (so #rrggbbaa with alpha is not falsely split).
+// #abc or #aabbcc, not followed by another hex digit (avoids splitting #rrggbbaa).
 const HEX_RE = /#[0-9a-fA-F]{6}(?![0-9a-fA-F])|#[0-9a-fA-F]{3}(?![0-9a-fA-F])/g;
 
 function walk(dir: string, out: string[]): void {
@@ -90,12 +76,8 @@ describe("no source file uses an off-palette color literal", () => {
   });
 
   it("atlas-builder SWATCH RGB tuples are all EDG32 colors", () => {
-    // The drawn game assets (sprites/tiles) get their colors from the SWATCH
-    // table in recipes/palette.ts, expressed as [r,g,b,a] tuples rather than
-    // hex. Parse those tuples and assert each opaque swatch is an EDG32 color.
     const recipes = join(REPO_ROOT, "tools", "atlas-builder", "src", "recipes", "palette.ts");
     const text = readFileSync(recipes, "utf8");
-    // Match `X: [r, g, b, a]` swatch rows inside the SWATCH object.
     const rowRe = /^\s*[A-Za-z.]:\s*\[\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\s*\]/gm;
     const toHex = (r: number, g: number, b: number) =>
       "#" + [r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("");

@@ -36,11 +36,9 @@ describe("PlaybackControlsPanel", () => {
     const calls: boolean[] = [];
     panel.setOnPause((p) => calls.push(p));
 
-    // Starts unpaused → first click requests paused=true.
     btnByText(parent, "Pause").click();
     expect(calls).toEqual([true]);
 
-    // Reflect the new state; button now reads "Resume" → next click requests false.
     panel.update({ paused: true, speed: 1 });
     btnByText(parent, "Resume").click();
     expect(calls).toEqual([true, false]);
@@ -64,11 +62,8 @@ describe("PlaybackControlsPanel", () => {
     });
 
     const step = btnByText(parent, "Step");
-
-    // Disabled while running.
     expect(step.disabled).toBe(true);
 
-    // Enabled once paused.
     panel.update({ paused: true, speed: 1 });
     expect(step.disabled).toBe(false);
     step.click();
@@ -86,7 +81,6 @@ describe("PlaybackControlsPanel", () => {
   describe("help modal legends", () => {
     function openModal(): HTMLElement {
       btnByText(parent, "?").click();
-      // The modal is mounted on the same parent and shown via display:flex.
       const modal = Array.from(parent.children).find(
         (el) => el instanceof HTMLElement && el.style.display === "flex",
       ) as HTMLElement | undefined;
@@ -123,7 +117,6 @@ describe("PlaybackControlsPanel", () => {
       for (const state of FSM_STATES) {
         expect(text).toContain(state);
       }
-      // Each state row carries a description cell beyond the raw state string.
       const stateSpans = Array.from(modal.querySelectorAll("span")).filter((s) =>
         (FSM_STATES as readonly string[]).includes(s.textContent ?? ""),
       );

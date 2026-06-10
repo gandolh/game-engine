@@ -1,9 +1,3 @@
-/**
- * format.ts — human-readable console output + machine-readable CSV/JSON export.
- *
- * Diagnostics are caller's choice of stream; the CSV/JSON payload is written to
- * EXPORT_FILE or stdout so it can be piped cleanly.
- */
 import { writeFileSync } from "node:fs";
 import type { FarmerSummary, RunResult } from "./run-core";
 
@@ -43,10 +37,6 @@ export function printFinalLeaderboard(
   });
   console.log("=".repeat(72));
 }
-
-// ---------------------------------------------------------------------------
-// CSV / JSON export
-// ---------------------------------------------------------------------------
 
 const EXPORT_COLUMNS = [
   "day",

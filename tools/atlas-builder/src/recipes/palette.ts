@@ -36,9 +36,7 @@ export const SWATCH: Record<string, [number, number, number, number]> = {
   a: [254, 174, 52, 255],   // autumn gold       #feae34 (= gold `o`)
   A: [215, 118, 67, 255],   // autumn orange     #d77643 (= pumpkin `p`)
   b: [228, 166, 114, 255],  // autumn tan        #e4a672 (= wheat `W`)
-  // 2026-06-10 art pass — the EDG32 colors the original curated map never used.
-  // They exist for hue-shifted shading (shadows lean cool/purple, highlights
-  // lean warm), selective outlines, and the missing crop/flower hues.
+  // EDG32 hues added for hue-shifted shading, selective outlines, and crop/flower colors.
   t: [25, 60, 62, 255],     // foliage deep shade #193c3e (canopy under-shadow)
   N: [38, 43, 68, 255],     // cool shadow navy   #262b44 (selective outline; softer than `k`)
   f: [247, 118, 34, 255],   // flame orange       #f77622 (fire mid, carrot, autumn leaves)

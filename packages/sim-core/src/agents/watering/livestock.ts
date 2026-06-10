@@ -3,46 +3,27 @@ import { recordReason } from "../../components";
 import type { AnimalKind } from "../../components";
 import { PEN_BUILD_COST, ANIMAL_BUY_COST } from "../../economy";
 
-/**
- * Queue a `build-pen` intent if the farmer:
- *   - has no pen of the given kind yet
- *   - has enough wood + gold (above reserve)
- *   - is at (or can travel to) carpentry
- * Low priority — a slow-burn investment.
- */
+/** Queue build-pen at carpentry when farmer has no pen of that kind and gold is above reserve. */
 export function deliberateBuildPen(
   farmer: GameEntity,
   penKind: "coop" | "barn",
   animal: AnimalKind,
   reserve: number,
   priority: number,
-  /**
-   * brief 42 (deliberation fix) — priority for the carpentry TRAVEL leg.
-   * The build only executes once the farmer is AT carpentry, but the trip there
-   * competes with survival/sell travel (priority 0/-1) and so never won under
-   * the original `priority + 1` scheme — the pen was perpetually queued but never
-   * reached. Personalities pass a WINNING (low) travel priority on a "quiet"
-   * invest day (watering satisfied + surplus gold) so the trip actually happens;
-   * `undefined` falls back to the old non-committal `priority + 1`.
-   */
+  /** Winning travel priority on a quiet invest day so the carpentry trip actually lands; undefined = priority + 1. */
   travelPriority?: number,
 ): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
   const recipe = PEN_BUILD_COST[penKind];
 
-  // Don't build if already has one.
   const hasPen = farmer.beliefs?.data["hasPen_" + penKind] as boolean | undefined;
   if (hasPen) return;
 
-  // brief 42 (deliberation fix) — pens are gold-funded; wood is an optional
-  // discount (see PEN_BUILD_COST). Gate on the gold the farmer would actually
-  // pay: discounted if they happen to hold the wood, full otherwise. This is
-  // what lets a wood-poor-but-gold-rich patient farmer finally invest.
+  // Gold-funded; wood gives optional discount so a wood-poor farmer can still invest.
   const wood = farmer.resources?.wood ?? 0;
   const goldDue = wood >= recipe.woodCost ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
   if (farmer.inventory.gold - goldDue < reserve) return;
 
-  // Don't double-queue.
   if (farmer.intentions.queue.some(i => i.kind === "build-pen" && i.data.penKind === penKind)) return;
 
   const inCarpentry = farmer.farmer.currentRegion === "carpentry";
@@ -50,10 +31,7 @@ export function deliberateBuildPen(
     const wanted = travelPriority ?? priority + 1;
     const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "carpentry");
     if (existing) {
-      // Another helper (e.g. decoration crafting) may have already queued a
-      // carpentry trip at a worse (higher) priority. If we're COMMITTING the
-      // build, upgrade that trip so it wins queue[0] instead of being shadowed
-      // by an unrelated village errand — otherwise the build trip never lands.
+      // On a commit day, upgrade a shadowing carpentry trip so the build wins queue[0].
       if (wanted < existing.priority) existing.priority = wanted;
     } else {
       farmer.intentions.queue.push({
@@ -74,10 +52,7 @@ export function deliberateBuildPen(
   );
 }
 
-/**
- * Queue a `buy-animal` intent if the farmer has a pen but no animals yet, and
- * can afford one above reserve.
- */
+/** Queue buy-animal when pen exists and herd count is below 3. */
 export function deliberateBuyAnimal(
   farmer: GameEntity,
   animal: AnimalKind,
@@ -97,14 +72,10 @@ export function deliberateBuyAnimal(
 
   // Don't double-queue.
   if (farmer.intentions.queue.some(i => i.kind === "buy-animal" && i.data.animal === animal)) return;
-  // Already has animals? Only buy if count < 3 (modest herd cap for agents).
   const penCount = farmer.beliefs?.data["penCount_" + animal] as number | undefined ?? 0;
   if (penCount >= 3) return;
 
-  // brief 42 (deliberation fix) — animals can be bought at the village OR the
-  // carpenter (see handleBuyAnimal). If the farmer is already at the carpenter
-  // (e.g. she just built the coop there), buy on the spot — no extra trip. Else
-  // travel to whichever buy-region is being committed (village).
+  // Animals can be bought at village OR carpenter (buy on the spot if already there).
   const atBuyRegion =
     farmer.farmer.currentRegion === "village" || farmer.farmer.currentRegion === "carpentry";
   if (!atBuyRegion) {
@@ -124,9 +95,7 @@ export function deliberateBuyAnimal(
   recordReason(farmer, `buy ${animal} (pen count ${penCount})`);
 }
 
-/**
- * Queue a `tend` intent for each untended pen the farmer owns (low priority).
- */
+/** Queue a tend intent for each untended pen the farmer owns. */
 export function deliberateTendPens(
   farmer: GameEntity,
   priority: number,

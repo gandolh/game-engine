@@ -21,70 +21,37 @@ import type { TradeCommodity } from "../../agents/peer-trade-policy";
 import { applyTrustDelta, DEFAULT_TRUST_CONFIG } from "../trust";
 import { OFFER_TTL_TICKS, GIFT_TRUST_DELTA, ENCOUNTER_ONTOLOGIES } from "./constants";
 
-/**
- * EncounterTradeSystem — drives the peer-to-peer seed-trade handshake on top
- * of the encounter protocol.
- *
- * Lifecycle in one `run()`:
- *
- *   1. Drain pending-offer entries older than OFFER_TTL_TICKS.
- *   2. For each farmer (id-ascending for determinism), splice out any
- *      MEET / OFFER_SEED / ACCEPT / DECLINE message from its inbox and
- *      dispatch it through that farmer's personality peer-trade hooks. The
- *      resulting OFFER_SEED / ACCEPT / DECLINE messages are deposited
- *      directly into the appropriate peer's inbox (point-to-point — no
- *      MessageBus round-trip).
- *   3. Repeat until no encounter-protocol messages remain (handshake
- *      resolves in a single tick).
- *   4. On ACCEPT, transfer gold + seeds between the two farmer entities.
- *
- * Ordering contract (when wired into a scheduler — out of scope for this
- * brief, see corpus/briefs/game/todo/09-peer-meet-trades-plan.md §1.2):
- *   EncounterSystem  →  EncounterTradeSystem  →  PerceiveSystem
- * PerceiveSystem currently wipes farmer inboxes wholesale, so peer-trade
- * messages MUST be consumed beforehand.
- *
- * AP cost: peer trades are AP-free in this brief. Adding an AP cost is a
- * deliberate follow-up (see plan §8).
- */
+// EncounterSystem → EncounterTradeSystem → PerceiveSystem (ordering constraint: PerceiveSystem wipes inboxes).
+// Handshake resolves in a single tick via iterated inbox sweeps (id-ascending for determinism).
 
 interface PendingOffer {
   offer: OfferSeedBody;
   senderId: number;
   recipientId: number;
   tick: number;
-  /** brief 59 — which inventory slot the transfer moves on accept. */
-  commodity: TradeCommodity;
+  commodity: TradeCommodity; // "seed" or "crop" — selects the inventory slot on accept
 }
 
 export class EncounterTradeSystem implements System {
   readonly name = "EncounterTradeSystem";
 
   private readonly pendingOffers = new Map<string, PendingOffer>();
-  /** offerIds whose ACCEPT/DECLINE has been resolved this run. */
-  private readonly resolvedHandshakes = new Set<string>();
+  private readonly resolvedHandshakes = new Set<string>(); // prevent double-resolve in one tick
 
   constructor(private readonly world: World<GameEntity>) {}
 
-  /**
-   * Test helper — wipes pending offers between test cases.
-   */
   _resetForTests(): void {
     this.pendingOffers.clear();
     this.resolvedHandshakes.clear();
   }
 
   run(ctx: SimContext): void {
-    // 1. Expire stale offers first.
     this.expireOffers(ctx.tick);
 
-    // 2. Resolve the handshake. We loop until a pass finds no MEET or
-    //    OFFER_SEED messages — those drive the state machine forward and
-    //    are consumed (spliced out of inboxes).
     this.resolvedHandshakes.clear();
     let didWork = true;
     let safety = 0;
-    while (didWork && safety < 8) {
+    while (didWork && safety < 8) { // loop until no MEET/OFFER_SEED remain; safety cap prevents infinite loops
       didWork = this.processInboxes(ctx);
       safety += 1;
     }
@@ -98,12 +65,8 @@ export class EncounterTradeSystem implements System {
     }
   }
 
-  /**
-   * Single sweep over all farmer inboxes; returns true if any encounter
-   * message was processed (so the caller can decide whether to loop again).
-   */
+  /** Returns true if any encounter message was consumed (caller loops again). */
   private processInboxes(ctx: SimContext): boolean {
-    // Snapshot farmers in id-ascending order for determinism.
     const farmers: GameEntity[] = [];
     for (const f of this.world.query("farmer", "inbox", "personality")) {
       if (f.id === undefined) continue;
@@ -116,16 +79,12 @@ export class EncounterTradeSystem implements System {
     for (const farmer of farmers) {
       if (!farmer.inbox) continue;
       const inbox = farmer.inbox.messages;
-      // Iterate in reverse so splice is safe.
-      for (let i = inbox.length - 1; i >= 0; i--) {
+      for (let i = inbox.length - 1; i >= 0; i--) { // reverse so splice is safe
         const msg = inbox[i];
         if (!msg) continue;
         if (!ENCOUNTER_ONTOLOGIES.has(msg.ontology)) continue;
 
-        // MEET and OFFER_SEED drive the handshake forward and are consumed
-        // (spliced out of the inbox). ACCEPT and DECLINE are left in the
-        // inbox so TrustSystem can snoop them — they're dispatched once
-        // per offerId via the resolvedHandshakes set.
+        // MEET/OFFER_* are consumed; ACCEPT/DECLINE are left for TrustSystem to snoop.
         const consume =
           msg.ontology === ONT_ENCOUNTER.MEET ||
           msg.ontology === ONT_ENCOUNTER.OFFER_SEED ||
@@ -137,7 +96,6 @@ export class EncounterTradeSystem implements System {
           this.dispatch(farmer, msg, ctx);
           workDone = true;
         } else {
-          // ACCEPT / DECLINE — resolve at most once per offerId per tick.
           const body = msg.body as { offerId?: string };
           const offerId = body.offerId;
           if (typeof offerId === "string" && !this.resolvedHandshakes.has(offerId)) {
@@ -202,15 +160,10 @@ export class EncounterTradeSystem implements System {
     const hooks = getPeerTradeHooks(personality);
     if (!hooks) return;
 
-    // MEET is delivered to BOTH farmers in a pair. The lower-id guard below
-    // applies ONLY to the seed offer, so a pair never makes two simultaneous
-    // *seed* offers. Gifts and crop offers are each side proposing its OWN
-    // surplus (distinct ontologies + offerIds, independently negotiated), so
-    // both sides may fire them — that's how the crop seller, whichever id it
-    // has, actually gets to sell (brief 59: the surplus-holding hoarder is
-    // often the higher id, and the old guard silently blocked it).
+    // Seed offer is lower-id gated (prevents two simultaneous seed offers from one pair).
+    // Gifts and crop offers are independent — both sides may fire them.
 
-    // brief 24 — gift a golden bean to this peer if the personality's gift hook
+    // Gift a golden bean if the personality hook opts in:
     // opts in (e.g. to a trusted ally). One-way and immediate; sent as an
     // OFFER_BEAN the peer consumes next pass. Independent of the seed offer.
     if (hooks.initiateGift && (farmer.inventory?.goldenBeans ?? 0) > 0) {
@@ -229,27 +182,18 @@ export class EncounterTradeSystem implements System {
       }
     }
 
-    // brief 59 — a HARVESTED-crop offer (the surplus that actually exists).
-    // Independent of the seed offer; sent as OFFER_CROP.
     if (hooks.initiateCrop) {
       const cropOffer = hooks.initiateCrop(farmer, meet, { tick: ctx.tick });
       if (cropOffer) this.sendOffer(farmer.id, meet.peerId, cropOffer, "crop", ctx.tick);
     }
 
-    // Seed offer: gated to the lower-id side so a pair never makes two
-    // simultaneous seed offers (preserves the original brief-09 invariant).
-    if (farmer.id > meet.peerId) return;
+    if (farmer.id > meet.peerId) return; // seed offer: lower-id side only
     if (!hooks.initiate) return;
     const offer = hooks.initiate(farmer, meet, { tick: ctx.tick });
     if (!offer) return;
     this.sendOffer(farmer.id, meet.peerId, offer, "seed", ctx.tick);
   }
 
-  /**
-   * Register a pending offer and deliver it to the peer. `commodity` selects
-   * the ontology (OFFER_SEED / OFFER_CROP) and is recorded so the eventual
-   * ACCEPT transfers the right inventory slot.
-   */
   private sendOffer(
     fromId: number,
     toId: number,
@@ -257,8 +201,7 @@ export class EncounterTradeSystem implements System {
     commodity: TradeCommodity,
     tick: number,
   ): void {
-    // Defensive idempotency: skip if we already have a live offer with this id.
-    if (this.pendingOffers.has(offer.offerId)) return;
+    if (this.pendingOffers.has(offer.offerId)) return; // idempotent
 
     const peer = findById(this.world, toId, "farmer", "inbox");
     if (!peer || !peer.inbox) return;
@@ -290,9 +233,7 @@ export class EncounterTradeSystem implements System {
     if (farmer.id === undefined) return;
     if (sender === "world" || typeof sender !== "number") return;
 
-    // Defensive — if the offer never made it into our pendingOffers map
-    // (e.g. injected directly into the inbox by a test), track it now so
-    // we can resolve ACCEPT later.
+    // Track offers injected directly by tests so ACCEPT can still resolve.
     if (!this.pendingOffers.has(offer.offerId)) {
       this.pendingOffers.set(offer.offerId, {
         offer,
@@ -316,8 +257,7 @@ export class EncounterTradeSystem implements System {
       return;
     }
 
-    // Crop offers consult respondCrop (priced vs CROP_SELL_PRICE); a personality
-    // without one declines all crop offers. Seed offers use respond.
+    // Crop offers use respondCrop (may be absent → decline); seed offers use respond.
     const responder = commodity === "crop" ? hooks.respondCrop : hooks.respond;
     if (!responder) {
       this.sendDecline(farmer.id, sender, offer.offerId, "no-crop-responder", ctx.tick);
@@ -327,9 +267,7 @@ export class EncounterTradeSystem implements System {
     const result = responder(farmer, offer, sender, { tick: ctx.tick });
     if (result.decision === "accept") {
       this.sendAccept(farmer.id, sender, offer.offerId, ctx.tick);
-      // Responder-side trust delta — initiator-side fires when their inbox
-      // receives our ACCEPT and TrustSystem snoops it.
-      applyTrustDelta(farmer, sender, DEFAULT_TRUST_CONFIG.acceptDelta);
+      applyTrustDelta(farmer, sender, DEFAULT_TRUST_CONFIG.acceptDelta); // responder-side; initiator-side fires when TrustSystem snoops their ACCEPT inbox
     } else {
       this.sendDecline(
         farmer.id,
@@ -342,12 +280,7 @@ export class EncounterTradeSystem implements System {
     }
   }
 
-  /**
-   * brief 24 — receive a gifted golden bean. One-way: the bean moves from the
-   * giver to this farmer, and a large positive trust delta is applied from the
-   * receiver (this farmer) toward the giver — a loyalty/alliance play. No
-   * counter-payment, no ACCEPT round-trip.
-   */
+  /** One-way bean gift — no ACCEPT round-trip. Receiver gains large trust toward giver. */
   private handleBeanGift(
     farmer: GameEntity,
     body: OfferBeanBody,
@@ -363,7 +296,6 @@ export class EncounterTradeSystem implements System {
     if (moved <= 0) return;
     giver.inventory.goldenBeans = have - moved;
     farmer.inventory.goldenBeans = (farmer.inventory.goldenBeans ?? 0) + moved;
-    // Receiver → giver trust. Large delta (a gift is a strong loyalty signal).
     applyTrustDelta(farmer, sender, GIFT_TRUST_DELTA);
   }
 
@@ -375,11 +307,8 @@ export class EncounterTradeSystem implements System {
     const pending = this.pendingOffers.get(body.offerId);
     if (!pending) return;
     if (farmer.id === undefined) return;
-    // The ACCEPT must come from the offer's recipient (i.e. the peer who
-    // received our OFFER_SEED).
-    if (sender !== pending.recipientId) return;
-    // And we must be the original sender (offer initiator).
-    if (farmer.id !== pending.senderId) return;
+    if (sender !== pending.recipientId) return; // ACCEPT must come from the offer's recipient
+    if (farmer.id !== pending.senderId) return; // we must be the original initiator
 
     const initiator = findById(this.world, pending.senderId, "farmer", "inbox");
     const acceptor = findById(this.world, pending.recipientId, "farmer", "inbox");
@@ -394,15 +323,7 @@ export class EncounterTradeSystem implements System {
     this.pendingOffers.delete(body.offerId);
   }
 
-  /**
-   * Atomic transfer. `direction` is the original initiator's role:
-   *   - "buy"  → initiator pays gold, acceptor gives stock.
-   *   - "sell" → initiator gives stock, acceptor pays gold.
-   * `commodity` selects which inventory slot moves (seeds vs harvested crops).
-   *
-   * If either side can't fulfill (gold/stock), the transfer is silently
-   * skipped to keep the sim deterministic.
-   */
+  /** Atomic transfer. direction="buy": initiator pays, acceptor gives stock. Skipped silently if unfulfillable. */
   private applyTransfer(
     initiator: GameEntity,
     acceptor: GameEntity,
@@ -418,7 +339,6 @@ export class EncounterTradeSystem implements System {
     const stock2 = commodity === "seed" ? inv2.seeds : inv2.crops;
 
     if (offer.direction === "buy") {
-      // Initiator buys: pays gold to acceptor, receives stock.
       if (inv1.gold < total) return;
       if (stock2[crop] < qty) return;
       inv1.gold -= total;
@@ -427,7 +347,7 @@ export class EncounterTradeSystem implements System {
       stock1[crop] += qty;
       if (commodity === "crop") moveNormalQuality(inv2, inv1, crop, qty);
     } else {
-      // Initiator sells: gives stock, receives gold from acceptor.
+      // sell: initiator gives stock, receives gold
       if (inv2.gold < total) return;
       if (stock1[crop] < qty) return;
       inv2.gold -= total;
@@ -475,24 +395,14 @@ export class EncounterTradeSystem implements System {
     });
   }
 
-  /**
-   * Inspector used by tests.
-   */
   _pendingOfferCount(): number {
     return this.pendingOffers.size;
   }
 
-  /**
-   * Inspector used by tests.
-   */
   _hasPendingOffer(offerId: string): boolean {
     return this.pendingOffers.has(offerId);
   }
 
-  /**
-   * Test helper — seed a pending offer directly so we can exercise TTL
-   * without round-tripping through the inbox.
-   */
   _seedPendingForTests(p: {
     offerId: string;
     senderId: number;
@@ -510,14 +420,7 @@ export class EncounterTradeSystem implements System {
   }
 }
 
-/**
- * brief 59 — keep `cropQuality` consistent when harvested crops change hands.
- * `crops[crop]` (already moved by the caller) must equal normal+silver+gold
- * when the per-quality breakdown is present. Traded units are treated as
- * Normal quality (sellers offload their lowest tier), so we shift the `normal`
- * bucket. No-ops when neither side tracks quality. Clamps to avoid negatives if
- * the giver's normal count somehow lags its total.
- */
+// Traded crop units count as Normal quality. Clamps to avoid negatives.
 function moveNormalQuality(
   giver: Inventory,
   receiver: Inventory,

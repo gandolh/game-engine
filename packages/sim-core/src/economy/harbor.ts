@@ -1,13 +1,6 @@
 import type { HarborContract } from "../protocols/harbor";
 
-// ── Harbor contract economy (brief 46) ───────────────────────────────────────
-
-/**
- * Reputation thresholds that gate contract tiers.
- *   - normal contracts: 0 reputation (always available from day 1)
- *   - silver contracts: ≥ 5 reputation
- *   - gold   contracts: ≥ 15 reputation
- */
+/** Reputation thresholds to unlock contract tiers (normal=0, silver=5, gold=15). */
 export const HARBOR_REP_THRESHOLD: Record<"normal" | "silver" | "gold", number> = {
   normal: 0,
   silver: 5,
@@ -23,13 +16,7 @@ export const HARBOR_POST_CADENCE = 3;
 /** Number of contracts posted per batch. */
 export const HARBOR_BATCH_SIZE = 2;
 
-/**
- * Contract reward multiplier over base crop sell price. Contracts pay
- * MORE than the shop to reward the planning + travel overhead.
- *   normal: ×2.0 base sell × quantity (solid bonus)
- *   silver: ×2.5 base sell × quantity
- *   gold:   ×3.2 base sell × quantity
- */
+/** Reward = multiplier × CROP_SELL_PRICE × quantity; contracts pay above shop price to reward planning + travel (normal=×2.0, silver=×2.5, gold=×3.2). */
 export const CONTRACT_REWARD_MULT: Record<"normal" | "silver" | "gold", number> = {
   normal: 2.0,
   silver: 2.5,
@@ -50,11 +37,7 @@ export const CONTRACT_DEADLINE_DAYS: Record<"normal" | "silver" | "gold", number
   gold:   10,
 };
 
-/**
- * Compute the harbor contract reward for a given contract, factoring in
- * quality bonus: delivering gold-quality when minQuality is normal pays ×1.3
- * of the base reward (a quality premium).
- */
+/** Returns the contract reward (gold). Quality bonus is embedded in contract.reward at creation time. */
 export function contractRewardValue(contract: HarborContract): number {
   return contract.reward;
 }

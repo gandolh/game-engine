@@ -39,7 +39,7 @@ function pushPhase(f: GameEntity, phase: PhaseStartBody["phase"], day = 1): void
   });
 }
 
-describe("PerceiveSystem — intra-day phases (brief 27)", () => {
+describe("PerceiveSystem — intra-day phases", () => {
   let world: World<GameEntity>;
   let sys: PerceiveSystem;
 
@@ -50,7 +50,7 @@ describe("PerceiveSystem — intra-day phases (brief 27)", () => {
 
   it("morning PHASE_START sets the day's AP ceiling and refills to it (rested)", () => {
     const f = spawnFarmer(world, { apCurrent: 0 });
-    pushPhase(f, "morning", 0); // day 0 → ceiling 100 (brief 28)
+    pushPhase(f, "morning", 0); // day 0 → ceiling 100
     sys.run({ tick: 0 });
     expect(f.ap!.max).toBe(100);
     expect(f.ap!.current).toBe(100);
@@ -99,9 +99,8 @@ describe("PerceiveSystem — intra-day phases (brief 27)", () => {
     expect(f.ap!.unrested).toBe(true);
   });
 
-  it("night PHASE_START camped on the camp island → SLEEP, RESTED (brief 54)", () => {
-    // A farmer caught away from home but standing on the camping island at
-    // nightfall sleeps rested (no unrested penalty), same as sleeping at home.
+  it("night PHASE_START camped on the camp island → SLEEP, RESTED", () => {
+    // Camping island = fully rested, same as home.
     const f = spawnFarmer(world, { region: "camp", home: "farm-cora" });
     pushPhase(f, "night");
     sys.run({ tick: 1080 });
@@ -109,9 +108,8 @@ describe("PerceiveSystem — intra-day phases (brief 27)", () => {
     expect(f.ap!.unrested).toBe(false); // camp = fully rested
   });
 
-  it("night PHASE_START camped but still travelling (path set) → unrested (brief 54)", () => {
-    // The rest only counts once the farmer has settled on the tile; a farmer
-    // mid-path over the camp at nightfall is still unrested.
+  it("night PHASE_START camped but still travelling (path set) → unrested", () => {
+    // Rest only counts when settled on the tile; mid-path is still unrested.
     const f = spawnFarmer(world, { region: "camp", home: "farm-cora" });
     f.farmer!.path = { waypoints: [{ x: 71, y: 72 }], nextIndex: 0, ticksUntilStep: 1 };
     pushPhase(f, "night");

@@ -82,7 +82,6 @@ describe("HomeScreen", () => {
   });
 
   it("Randomize changes the field value", () => {
-    // Math.random is the entropy source for Randomize (allowed in pre-sim UI).
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     new HomeScreen(parent);
     const input = seedInput(parent);

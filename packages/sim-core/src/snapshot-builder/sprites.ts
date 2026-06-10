@@ -48,6 +48,13 @@ export class SnapshotSpriteState {
     number,
     { facing: "down" | "up" | "side"; flipX: boolean }
   >();
+  /**
+   * Run-history row count at the last snapshot that carried `wealthSeries`.
+   * Rows only grow (one per farmer per day boundary), so an unchanged count
+   * means the series the client already has is still current and the snapshot
+   * sends `wealthSeries: null` instead. -1 forces the first snapshot to send.
+   */
+  wealthRowsSent = -1;
 }
 
 /** Shared fallback for callers that don't supply their own per-run state. */
@@ -127,7 +134,10 @@ export function buildSprites(
       interpolate: false,
       action: null,
       label: `${cap} crop`,
-      description: `${stageWord} · ${watered} · day ${daysGrowing}/${readyAtDay}${cue.suffix}`,
+      // daysGrowing advances by 1/ticksPerDay each tick — serialize it rounded
+      // to 0.1 days so the tooltip string (sent for every crop sprite in every
+      // snapshot) doesn't churn a fresh ~17-char float tail per tick.
+      description: `${stageWord} · ${watered} · day ${daysGrowing.toFixed(1)}/${readyAtDay}${cue.suffix}`,
     });
   }
 

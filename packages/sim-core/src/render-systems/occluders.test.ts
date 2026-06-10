@@ -1,12 +1,3 @@
-/**
- * occluders.test.ts — brief 65 follow-up: edge depth-sorting.
- *
- * Verifies that the vertical-face sprites (south wall bands + cliff faces)
- * moved out of the static bake and into the per-frame occluder push, keyed at
- * the face's base on the entity layer so characters behind the island edge
- * are occluded instead of drawn floating over the wall / water.
- */
-
 import { describe, expect, it } from "vitest";
 import { World } from "@engine/core";
 import type { Canvas2dSprite } from "@engine/core";
@@ -41,8 +32,7 @@ describe("static layer exclusions", () => {
       expect(s.frame.startsWith("tile/cliff-face")).toBe(false);
       const tx = Math.floor(s.x / TILE);
       const ty = Math.floor(s.y / TILE);
-      // No baked sprite may coincide with an occluder band's tile+rotation
-      // while using a wall frame (the N/E/W bands on the same tile stay baked).
+      // N/E/W bands on the same tile stay baked; only the south band is an occluder.
       if (s.frame === "tile/wall" || s.frame === "tile/wall-wood") {
         expect(
           occluderKeys.has(`${tx},${ty},${s.rotation}`),
@@ -69,10 +59,8 @@ describe("pushOccluderSprites", () => {
 
     expect(pushed.length).toBe(OCCLUDER_WALLS.length + CLIFFS.length);
     for (const s of pushed) {
-      expect(s.layer).toBe(50); // shares the farmer/NPC layer for y-sorting
-      // sortY = bottom edge of the sprite's tile (its draw center +8).
-      expect(s.sortY).toBe(s.y + TILE / 2);
-      // The base must sort at-or-after any character center on the same tile.
+      expect(s.layer).toBe(50); // entity layer for y-sorting with farmers/NPCs
+      expect(s.sortY).toBe(s.y + TILE / 2); // sortY = bottom edge of tile
       expect(s.sortY!).toBeGreaterThanOrEqual(s.y);
     }
   });

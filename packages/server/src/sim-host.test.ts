@@ -1,17 +1,3 @@
-/**
- * sim-host.test.ts — verifies the Node sim host (and the WS server around it)
- * faithfully reproduce the simulation over the transport.
- *
- * Two layers:
- *  1. SimHost directly with a collecting `send` — deterministic assertions about
- *     the message stream + transport-TRANSPARENCY (server output == headless
- *     WASM run). No socket, so no timing flakiness.
- *  2. A real `ws` round-trip — proves the wire path (JSON over a socket) works
- *     for init → static-layer → snapshot stream → pause → step → gameOver.
- *
- * The pathfinder is the WASM one (matching the browser + the production server),
- * loaded from packages/wasm-modules/dist — see the JS/WASM divergence note.
- */
 import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -34,7 +20,6 @@ function loadWasmBytes(): ArrayBuffer {
   ) as ArrayBuffer;
 }
 
-/** Drive a SimHost synchronously to completion, collecting every sent message. */
 async function runHostToCompletion(
   seed: number,
   ticksPerDay: number,
@@ -43,7 +28,6 @@ async function runHostToCompletion(
 ): Promise<WorkerOutbound[]> {
   const out: WorkerOutbound[] = [];
   const host = new SimHost((m) => out.push(m), { pathfinder });
-  // tickRateHz huge so setInterval fires back-to-back; await gameOver.
   await new Promise<void>((resolveDone) => {
     const orig = out.push.bind(out);
     (out as unknown as { push: (m: WorkerOutbound) => number }).push = (m) => {
@@ -80,31 +64,18 @@ describe("SimHost message stream", () => {
     expect(msgs[0]?.type).toBe("static-layer");
     const snaps = msgs.filter((m) => m.type === "snapshot");
     expect(snaps.length).toBeGreaterThan(0);
-    // Ticks strictly increase.
     const ticks = snaps.map((m) =>
       m.type === "snapshot" ? m.snapshot.tick : -1,
     );
     for (let i = 1; i < ticks.length; i++) {
       expect(ticks[i]!).toBeGreaterThan(ticks[i - 1]!);
     }
-    // Exactly one final gameOver, and it's last.
     const last = snaps[snaps.length - 1]!;
     expect(last.type === "snapshot" && last.snapshot.gameOver).toBe(true);
   });
 });
 
 describe("transport transparency", () => {
-  // The transport must not change outcomes. Two independent SimHost runs (each
-  // building snapshots, applying the season re-bake + shock subscription, etc.)
-  // for the same seed/params must produce a byte-identical message stream — i.e.
-  // running the sim through the host path is fully deterministic.
-  //
-  // NOTE: we deliberately do NOT compare against tools/run-sim's `runOnce`. The
-  // host stops at the first tick where `dayClock.day >= maxDays` (identical to
-  // the browser worker's `gameOver` rule), whereas run-core's loop bound stops
-  // one tick earlier at the day boundary (tick 59/day 2 vs the host's tick
-  // 60/day 3 for a 3-day run). Both are internally consistent; the host's rule
-  // is the one the live game uses, so host-vs-host is the faithful check.
   for (const seed of [0xc0ffee, 1, 42]) {
     it(`two host runs are byte-identical for seed 0x${seed.toString(16)}`, async () => {
       const pfA = (await createPathfinderFromBytes(
@@ -117,7 +88,6 @@ describe("transport transparency", () => {
       const a = await runHostToCompletion(seed, 20, 3, pfA);
       const b = await runHostToCompletion(seed, 20, 3, pfB);
 
-      // Compare the per-tick snapshot stream (the load-bearing sim output).
       const snapsOf = (msgs: WorkerOutbound[]) =>
         msgs
           .filter((m) => m.type === "snapshot")

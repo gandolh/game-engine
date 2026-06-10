@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Buy — a small bag/sack (tan) inside the bubble.
     name: "indicator/intention-buy",
     size: 16,
     pixels: [

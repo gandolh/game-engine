@@ -1,16 +1,4 @@
-/**
- * index.ts — the Farm Valley sim server entrypoint.
- *
- * A WebSocket server (the `ws` library; Node has a WS client but no server). Each
- * connection owns ONE sim run: on connect we create a SimHost, on each inbound
- * message we forward it to the host, and on close we stop the host (so a
- * disconnect never leaks a ticking sim). Snapshots stream out as JSON.
- *
- * The host loop + sim are deterministic and depend only on the tick count, so a
- * given seed produces byte-identical output to the browser worker (both use the
- * WASM pathfinder).
- */
-
+// Farm Valley sim server: one SimHost per connection; disconnect stops the sim (no leaks).
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -20,16 +8,9 @@ import { SimHost } from "./sim-host";
 
 const PORT = Number(process.env["PORT"] ?? 8787);
 
-/**
- * Backpressure: if a client falls behind, the socket's buffered byte count
- * climbs. For a watch-only sim it is correct to DROP intermediate snapshots
- * rather than queue unboundedly (the client interpolates across gaps). We never
- * drop static-layer / profile messages — only per-tick snapshots, which are the
- * high-frequency stream. ~1 MB ≈ several uncompressed snapshots in flight.
- */
+// Backpressure: drop per-tick snapshots when bufferedAmount exceeds this; never drop static-layer/profile.
 const MAX_BUFFERED_BYTES = 1_000_000;
 
-/** Load the WASM pathfinder bytes once at startup; reused for every connection. */
 async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
   const here = dirname(fileURLToPath(import.meta.url));
   const wasmPath = resolve(
@@ -54,11 +35,7 @@ async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
 async function main(): Promise<void> {
   const pathfinderWasm = await loadPathfinderWasm();
 
-  // permessage-deflate: transparent per-message compression negotiated at the
-  // WS handshake. Snapshots are repetitive JSON, so this typically cuts the wire
-  // size ~70-80% at near-zero CPU for our payload size. `threshold` skips tiny
-  // control frames (init/profile) where the compression header costs more than
-  // it saves. Falls back gracefully if a client doesn't support the extension.
+  // permessage-deflate: ~70-80% size reduction on repetitive JSON snapshots; threshold skips tiny frames.
   const wss = new WebSocketServer({
     port: PORT,
     perMessageDeflate: { threshold: 1024 },
@@ -68,19 +45,14 @@ async function main(): Promise<void> {
   wss.on("connection", (ws: WebSocket) => {
     let dropped = 0;
 
-    // Disable Nagle's algorithm: a no-op for today's large JSON frames, but
-    // mandatory before any small-frame (binary/delta) codec, where Nagle +
-    // delayed-ACK would add ~40 ms of artificial latency per send. `_socket` is
-    // the underlying net.Socket, exposed by `ws` but absent from its public
-    // types — narrow it here rather than reach for `any`.
+    // setNoDelay: no-op for large frames today, but required before any small-frame codec (Nagle+ACK ≈ 40ms).
+    // `_socket` is exposed by `ws` but absent from its public types — narrowed to avoid `any`.
     const rawSocket = (ws as { _socket?: { setNoDelay(b: boolean): void } })
       ._socket;
     rawSocket?.setNoDelay(true);
 
     const send = (msg: WorkerOutbound): void => {
       if (ws.readyState !== ws.OPEN) return;
-      // Drop-stale: skip per-tick snapshots when the send buffer is backed up.
-      // Always deliver static-layer/profile (low-frequency, correctness-relevant).
       if (msg.type === "snapshot" && ws.bufferedAmount > MAX_BUFFERED_BYTES) {
         dropped += 1;
         if (dropped % 60 === 0) {

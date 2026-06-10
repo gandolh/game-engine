@@ -3,7 +3,7 @@ import { createRightColumn } from "./right-column";
 import { ObserverPanel } from "./observer";
 import { EventFeedPanel } from "./event-feed-panel";
 
-describe("right-column (brief 25 — panel overlap fix)", () => {
+describe("right-column", () => {
   let root: HTMLElement;
 
   beforeEach(() => {
@@ -32,8 +32,6 @@ describe("right-column (brief 25 — panel overlap fix)", () => {
       col.children[0] as HTMLElement,
       col.children[1] as HTMLElement,
     ];
-    // Panels flow inside the column — they must NOT self-anchor (which was the
-    // overlap bug). The column owns the fixed positioning, not the panels.
     expect(first.style.position).not.toBe("fixed");
     expect(second.style.position).not.toBe("fixed");
   });
@@ -44,7 +42,6 @@ describe("right-column (brief 25 — panel overlap fix)", () => {
     new EventFeedPanel(col);
     const observerEl = col.children[0] as HTMLElement;
     const feedEl = col.children[1] as HTMLElement;
-    // Observer doesn't shrink; feed grows to fill — so they never overlap.
     expect(observerEl.style.flexShrink).toBe("0");
     expect(feedEl.style.flex).toContain("1");
   });

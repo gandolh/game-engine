@@ -1,12 +1,3 @@
-/**
- * wealth-graph.test.ts — unit tests for the pure chart-layout helpers.
- *
- * Tests the deterministic coordinate-mapping and crossing-detection functions
- * without touching the canvas (no pixel assertions — just math).
- *
- * @vitest-environment jsdom
- */
-
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   computePoints,
@@ -15,8 +6,6 @@ import {
 } from "./wealth-graph";
 import type { ChartBounds, WealthCrossing } from "./wealth-graph";
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
-
-// ---- helpers ---------------------------------------------------------------
 
 function makeSeries(
   entries: Array<{
@@ -45,8 +34,6 @@ const BOUNDS: ChartBounds = {
   right: 100,
   bottom: 100,
 };
-
-// ---- computePoints tests ---------------------------------------------------
 
 describe("computePoints", () => {
   it("returns empty array when series is empty", () => {
@@ -126,8 +113,6 @@ describe("computePoints", () => {
     expect(pts[1]![0]!.y).toBeCloseTo(50, 5);
   });
 });
-
-// ---- detectCrossings tests -------------------------------------------------
 
 describe("detectCrossings", () => {
   it("returns empty when series is empty", () => {
@@ -228,8 +213,6 @@ describe("detectCrossings", () => {
   });
 });
 
-// ---- WealthGraphPanel DOM tests --------------------------------------------
-
 describe("WealthGraphPanel", () => {
   let container: HTMLElement;
   let panel: WealthGraphPanel;
@@ -245,8 +228,6 @@ describe("WealthGraphPanel", () => {
   });
 
   it("starts collapsed (canvas wrapper hidden)", () => {
-    // The canvas sits inside the canvas wrapper. The wrapper is the parent of the
-    // canvas element. It is hidden by default (collapsed state).
     const canvas = container.querySelector("canvas");
     expect(canvas).not.toBeNull();
     const wrapper = canvas!.parentElement as HTMLElement;
@@ -254,16 +235,11 @@ describe("WealthGraphPanel", () => {
   });
 
   it("toggling the header expands the panel", () => {
-    // The header is the first direct child div of the outer panel div.
-    // outer panel = container.querySelector("div")
-    // header = first child of outer panel
     const outerPanel = container.querySelector("div") as HTMLElement | null;
     expect(outerPanel).not.toBeNull();
     const header = outerPanel!.firstElementChild as HTMLElement | null;
     expect(header).not.toBeNull();
-    // Click the header to expand.
     header!.click();
-    // After click the canvas wrapper should be visible.
     const canvas = container.querySelector("canvas");
     expect(canvas).not.toBeNull();
     const wrapper = canvas!.parentElement as HTMLElement;
@@ -302,7 +278,6 @@ describe("WealthGraphPanel", () => {
     const series = makeSeries([
       { farmerId: 1, rows: [{ day: 1, gold: 100 }] },
     ]);
-    // Should not throw even when called twice for the same day.
     expect(() => {
       panel.update(series, 1);
       panel.update(series, 1);

@@ -59,13 +59,13 @@ describe("ApSystem", () => {
       expect(farmer.ap!.current).toBe(7);
     });
 
-    it("travel is FREE in AP (brief 28 — time-throttled instead)", () => {
+    it("travel is free in AP (time-throttled)", () => {
       const farmer = spawnFarmer(world, 8, 8, [{ kind: "travel", priority: 1 }]);
       system.run(makeContext(0));
-      expect(farmer.ap!.current).toBe(8); // unchanged — travel costs 0
+      expect(farmer.ap!.current).toBe(8); // travel costs 0
     });
 
-    it("deducts AP for a sell (cost 3, brief 28)", () => {
+    it("deducts AP for a sell (cost 3)", () => {
       const farmer = spawnFarmer(world, 8, 8, [{ kind: "sell-shopkeeper", priority: 1 }]);
       system.run(makeContext(0));
       expect(farmer.ap!.current).toBe(5);
@@ -78,12 +78,10 @@ describe("ApSystem", () => {
         { kind: "harvest", priority: 3 },
       ]);
       system.run(makeContext(0));
-      // plant=1 + buy-seed=1 + harvest=1 = 3
-      expect(farmer.ap!.current).toBe(5);
+      expect(farmer.ap!.current).toBe(5); // plant=1 + buy-seed=1 + harvest=1
     });
 
     it("does not deduct AP below zero", () => {
-      // 2 AP, sell costs 3 → can't fit; should be dropped, AP stays >= 0
       const farmer = spawnFarmer(world, 2, 8, [
         { kind: "plant", priority: 1 },
         { kind: "sell-shopkeeper", priority: 5 }, // cost 3, won't fit
@@ -95,11 +93,10 @@ describe("ApSystem", () => {
 
   describe("Intent pruning when AP is insufficient", () => {
     it("drops lowest-priority (highest priority number) intent first", () => {
-      // 2 AP available. plant=1, buy-seed=1, harvest=1 → total 3, drop one.
       const farmer = spawnFarmer(world, 2, 8, [
         { kind: "plant", priority: 1 },
         { kind: "buy-seed", priority: 2 },
-        { kind: "harvest", priority: 5 }, // lowest priority (highest number) → dropped
+        { kind: "harvest", priority: 5 }, // dropped — highest priority number
       ]);
       system.run(makeContext(0));
       const kinds = farmer.intentions!.queue.map((i) => i.kind);
@@ -108,11 +105,9 @@ describe("ApSystem", () => {
     });
 
     it("keeps sell-shopkeeper even when it has high priority number", () => {
-      // 3 AP. sell-shopkeeper costs 3 (protected), plant costs 1. Both = 4 > 3.
-      // sell is protected → plant should be dropped, sell kept.
       const farmer = spawnFarmer(world, 3, 8, [
         { kind: "plant", priority: 1 },
-        { kind: "sell-shopkeeper", priority: 5 }, // high priority number but protected
+        { kind: "sell-shopkeeper", priority: 5 }, // protected — kept over plant
       ]);
       system.run(makeContext(0));
       const kinds = farmer.intentions!.queue.map((i) => i.kind);
@@ -121,11 +116,10 @@ describe("ApSystem", () => {
     });
 
     it("can drop multiple intents if needed", () => {
-      // 1 AP available, all three costs 1 each → keep 1, drop 2
       const farmer = spawnFarmer(world, 1, 8, [
-        { kind: "plant", priority: 1 },    // keep (lowest priority number = most important)
-        { kind: "buy-seed", priority: 2 }, // drop
-        { kind: "harvest", priority: 3 },  // drop
+        { kind: "plant", priority: 1 },    // kept
+        { kind: "buy-seed", priority: 2 }, // dropped
+        { kind: "harvest", priority: 3 },  // dropped
       ]);
       system.run(makeContext(0));
       const queue = farmer.intentions!.queue;
@@ -142,8 +136,6 @@ describe("ApSystem", () => {
     });
 
     it("sets penaltyPending=true when away and AP reaches 0", () => {
-      // Travel is free, but a costly action drains AP to 0 while away.
-      // 1 AP: free travel (away=true) + plant (cost 1) → AP 0.
       const farmer = spawnFarmer(world, 1, 8, [
         { kind: "travel", priority: 1 },
         { kind: "plant", priority: 2 },
@@ -155,7 +147,6 @@ describe("ApSystem", () => {
     });
 
     it("does not set penaltyPending when not away even if AP is 0", () => {
-      // Plant costs 1, farmer has exactly 1 AP but no travel
       const farmer = spawnFarmer(world, 1, 8, [{ kind: "plant", priority: 1 }]);
       system.run(makeContext(0));
       expect(farmer.ap!.current).toBe(0);
@@ -166,27 +157,20 @@ describe("ApSystem", () => {
     it("does not set penaltyPending when away but AP > 0", () => {
       const farmer = spawnFarmer(world, 8, 8, [{ kind: "travel", priority: 1 }]);
       system.run(makeContext(0));
-      // travel is free now → remaining is 8 (unchanged)
       expect(farmer.ap!.current).toBe(8);
       expect(farmer.ap!.away).toBe(true);
       expect(farmer.ap!.penaltyPending).toBe(false);
     });
   });
 
-  // brief 27 — AP refill / away-reset / penalty handling MOVED out of ApSystem
-  // (it used to fire on WAIT_DAY) into the morning PHASE_START wake in
-  // PerceiveSystem, because with the intra-day timeline FINISH_DAY→WAIT_DAY
-  // happens once per phase. ApSystem now only prunes + deducts during ACT and
-  // marks `away` / `unrested` for the morning wake to consume. These tests
-  // pin that ApSystem no longer mutates AP on WAIT_DAY; the rested/unrested
-  // refill itself is covered in perceive.test.ts.
-  describe("no longer refills on WAIT_DAY (brief 27)", () => {
+  // Rested/unrested refill is in PerceiveSystem (morning wake); ApSystem must NOT touch AP on WAIT_DAY.
+  describe("no longer refills on WAIT_DAY", () => {
     it("leaves AP untouched in WAIT_DAY even when penaltyPending was set", () => {
       const farmer = spawnFarmer(world, 1, 8, [
         { kind: "travel", priority: 1 }, // free, flags away
         { kind: "plant", priority: 2 }, // cost 1 → AP→0
       ]);
-      system.run(makeContext(0)); // ACT: away + AP→0 → penaltyPending
+      system.run(makeContext(0));
       expect(farmer.ap!.away).toBe(true);
       expect(farmer.ap!.penaltyPending).toBe(true);
 
@@ -194,7 +178,6 @@ describe("ApSystem", () => {
       farmer.fsm!.current = "WAIT_DAY";
       system.run(makeContext(1));
 
-      // ApSystem must NOT refill or reset anything on WAIT_DAY anymore.
       expect(farmer.ap!.current).toBe(before);
       expect(farmer.ap!.away).toBe(true);
       expect(farmer.ap!.penaltyPending).toBe(true);
@@ -211,7 +194,7 @@ describe("ApSystem", () => {
     it("costs 0 AP for idle", () => {
       const farmer = spawnFarmer(world, 8, 8, [{ kind: "idle", priority: 10 }]);
       system.run(makeContext(0));
-      expect(farmer.ap!.current).toBe(8); // No deduction
+      expect(farmer.ap!.current).toBe(8);
     });
   });
 
@@ -219,12 +202,11 @@ describe("ApSystem", () => {
     it("does not deduct AP for farmers in WAIT_DAY state", () => {
       const farmer = spawnFarmer(world, 8, 8, [{ kind: "plant", priority: 1 }], "WAIT_DAY");
       system.run(makeContext(0));
-      // No deduction, but away reset happens
       expect(farmer.ap!.current).toBe(8);
     });
   });
 
-  describe("brief 28 — growing AP ceiling + discount tiers (pure)", () => {
+  describe("growing AP ceiling + discount tiers (pure)", () => {
     it("maxApForDay = 100 + 2*day", () => {
       expect(maxApForDay(0)).toBe(100);
       expect(maxApForDay(1)).toBe(102);
@@ -240,8 +222,8 @@ describe("ApSystem", () => {
     });
   });
 
-  describe("brief 28 — new cost table + friend discount", () => {
-    it("sell-from-wall now costs 3 AP (was silently 0)", () => {
+  describe("AP cost table + friend discount", () => {
+    it("sell-from-wall costs 3 AP", () => {
       const f = spawnFarmer(world, 8, 8, [{ kind: "sell-from-wall", priority: 1 }]);
       system.run(makeContext(0));
       expect(f.ap!.current).toBe(5);
@@ -257,7 +239,6 @@ describe("ApSystem", () => {
     });
 
     it("a trade-init is cheaper toward a trusted counterparty (tiered)", () => {
-      // buy-from-wall base is 3; trust 0.8 toward seller 99 → 1 AP.
       const friend = world.spawn({
         farmer: { name: "Friendly", currentRegion: "village" as const },
         fsm: { current: "ACT", enteredTick: 0 },
@@ -271,7 +252,7 @@ describe("ApSystem", () => {
         trust: { byId: new Map<number, number>([[99, 0.8]]) },
       });
       system.run(makeContext(0));
-      expect(friend.ap!.current).toBe(9); // 10 - 1 (friend discount)
+      expect(friend.ap!.current).toBe(9); // trust 0.8 → 1 AP (friend discount)
     });
 
     it("a trade-init toward a distrusted counterparty pays the full 3 AP", () => {

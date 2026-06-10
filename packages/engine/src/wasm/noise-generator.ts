@@ -1,4 +1,3 @@
-// Typed wrapper around the `noise.wasm` module.
 
 import { loadWasmModule, fetchWasmModule } from "./loader";
 import type { LoadedWasm } from "./loader";
@@ -29,12 +28,8 @@ export class NoiseGenerator {
     });
   }
 
-  /**
-   * Returns a Float32Array of `cols * rows` brightness multipliers (row-major).
-   * Each value is in `[1 - amplitude, 1 + amplitude]`.
-   *
-   * The returned array is a copy — safe to use after the call returns.
-   */
+  /** Returns row-major Float32Array of `cols*rows` brightness multipliers in [1-amplitude, 1+amplitude].
+   *  The array is a copy — safe to use after the call returns. */
   fillNoise(cols: number, rows: number, seed: number, amplitude: number): Float32Array {
     const count = cols * rows;
     const outPtr = this.heap.alloc(count * 4);
@@ -46,15 +41,13 @@ export class NoiseGenerator {
         seed >>> 0,
         Math.round(amplitude * 1000),
       );
-      // Copy out before freeing (memory.buffer may move after next alloc).
-      return new Float32Array(this.heap.f32(outPtr, count));
+      return new Float32Array(this.heap.f32(outPtr, count)); // copy before free — memory.buffer may move
     } finally {
       this.heap.free(outPtr);
     }
   }
 }
 
-/** Instantiate the noise generator from raw wasm bytes (Node/tests). */
 export async function createNoiseGeneratorFromBytes(
   bytes: BufferSource,
 ): Promise<NoiseGenerator> {
@@ -62,7 +55,6 @@ export async function createNoiseGeneratorFromBytes(
   return new NoiseGenerator(loaded);
 }
 
-/** Instantiate the noise generator by URL (browser; also works in Node 18+). */
 export async function createNoiseGeneratorFromUrl(url: string): Promise<NoiseGenerator> {
   const loaded = await fetchWasmModule<NoiseExports>(url);
   return new NoiseGenerator(loaded);

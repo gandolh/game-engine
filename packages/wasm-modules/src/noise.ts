@@ -1,13 +1,6 @@
-// AssemblyScript module: hash-based per-tile brightness noise.
-//
-// Memory contract:
-//   - Heap is managed by AssemblyScript's TLSF allocator (stub runtime).
-//   - Host calls `alloc(size)` to reserve output scratch in wasm linear memory,
-//     calls `fillNoise`, reads the f32 values, then `free`s.
-//   - Output buffer receives `cols * rows` f32 brightness multipliers (row-major).
-//   - Each value is in [1-amplitude, 1+amplitude] centered on 1.0.
-//
-// Matches the hash2 / tileBrightness logic in farm-valley/src/render/ground-noise.ts.
+// AssemblyScript: hash-based per-tile brightness noise. Host alloc→fillNoise→free.
+// Output: cols*rows f32 brightness multipliers in [1-amplitude, 1+amplitude], row-major.
+// Matches hash2/tileBrightness in farm-valley/src/render/ground-noise.ts.
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);
@@ -25,15 +18,7 @@ function hash2(x: i32, y: i32, seed: i32): f32 {
   return <f32>h / <f32>4294967296.0;
 }
 
-/**
- * Fill outPtr with `cols * rows` f32 brightness multipliers (row-major).
- *
- * @param outPtr          pointer to host-allocated f32 output buffer
- * @param cols            number of tile columns
- * @param rows            number of tile rows
- * @param seed            hash seed (determines the noise pattern)
- * @param amplitudeX1000  amplitude * 1000 as integer (e.g. 120 = 0.12)
- */
+// amplitudeX1000: amplitude scaled by 1000 (e.g. 120 = 0.12) to avoid floats in the signature.
 export function fillNoise(
   outPtr: usize,
   cols: i32,

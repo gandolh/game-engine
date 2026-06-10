@@ -1,7 +1,4 @@
-// Daily notice-board bounty: the village posts a demand for one crop each day at
-// a price premium. Agents that perceive a bounty for a crop they hold/grow can
-// prioritize selling it, which differentiates personalities (opportunists chase
-// the premium; conservatives ignore it).
+// Daily notice-board bounty: village posts a premium on one crop; opportunists chase it, conservatives ignore it.
 
 import type { CropKind } from "../components";
 

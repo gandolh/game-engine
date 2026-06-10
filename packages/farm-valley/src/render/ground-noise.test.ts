@@ -8,16 +8,9 @@ import {
   GROUND_NOISE_AMPLITUDE,
 } from "./ground-noise";
 
-// brief 49 Track 2 — domain warping. WARP_STRENGTH (k) in ground-noise.ts is
-// 1.5 fBm-coordinate units; mirror it here for the boundedness assertions.
+// WARP_STRENGTH (k) from ground-noise.ts; mirrored for boundedness assertions.
 const WARP_K = 1.5;
 const FBM_BASE_FREQUENCY = 1 / 8;
-
-// brief 49 Track 1 — the ground texture is now coherent fBm value noise
-// (base freq 1/8, 4 octaves, lacunarity 2, gain 0.5) instead of raw per-tile
-// hash. These tests pin determinism, [0,1) bounds on the noise primitives,
-// the [1±amplitude] brightness contract, fixed known-vectors, and the
-// spatial-coherence property that distinguishes fBm from the old hash static.
 
 const OCTAVES = 4;
 const LACUNARITY = 2;
@@ -72,7 +65,7 @@ describe("fbm", () => {
   });
 });
 
-describe("tileBrightness (brief 30 / brief 49)", () => {
+describe("tileBrightness", () => {
   it("is deterministic on (seed, x, y)", () => {
     const a = tileBrightness(3, 7, 0xc0ffee);
     const b = tileBrightness(3, 7, 0xc0ffee);
@@ -111,10 +104,8 @@ describe("tileBrightness (brief 30 / brief 49)", () => {
     expect(Math.abs(mean - 1)).toBeLessThan(0.01);
   });
 
-  // Known-vector regression: these literals were captured from the current
-  // (Track 2 domain-warped) implementation. A change here means the baked
-  // ground texture moved — intentional refactors must re-capture; accidental
-  // drift fails the build. (Track 1 values were pre-warp and are now stale.)
+  // Known-vector regression: values from the domain-warped implementation.
+  // Changing these means the baked texture moved — re-capture after intentional refactors.
   it("matches captured known-vectors", () => {
     expect(tileBrightness(5, 7, 12345)).toBeCloseTo(1.0118082820199261, 12);
     expect(tileBrightness(0, 0, 12345)).toBeCloseTo(1.0537431249204061, 12);
@@ -122,7 +113,7 @@ describe("tileBrightness (brief 30 / brief 49)", () => {
   });
 });
 
-describe("domainWarp (brief 49 Track 2)", () => {
+describe("domainWarp", () => {
   it("is deterministic on (x, y, seed)", () => {
     for (const [x, y, s] of [
       [0, 0, 1],
@@ -137,8 +128,6 @@ describe("domainWarp (brief 49 Track 2)", () => {
   });
 
   it("uses decorrelated dx/dy (not pushed only along the diagonal)", () => {
-    // If dx === dy for every coord the warp would only slide along the
-    // diagonal. Sample a sweep and require at least one with dx !== dy.
     let sawDecorrelated = false;
     for (let i = 0; i < 50; i++) {
       const x = i * 0.37;
@@ -185,7 +174,6 @@ describe("domainWarp (brief 49 Track 2)", () => {
         if (Math.abs(warped - unwarped) > 1e-6) differing++;
       }
     }
-    // The vast majority of tiles should be displaced by the warp.
     expect(differing).toBeGreaterThan(40 * 40 * 0.5);
   });
 });
@@ -206,11 +194,8 @@ describe("spatial coherence (fBm vs hash)", () => {
     }
     const adjacentAvg = adjacentSum / count;
     const farAvg = farSum / count;
-    // Coherence: neighbours should be meaningfully closer than distant tiles.
-    // Robust margin (not flaky): adjacent delta well under half the far delta.
-    // brief 49 Track 2: domain warping PRESERVES this — measured ratio ≈ 0.25
-    // after warping (vs ≈ 0.24 pre-warp). If this fails, WARP_STRENGTH is too
-    // high; dial it down until coherence holds (the "not too psychedelic" guard).
+    // Adjacent delta should be well under half the far delta.
+    // If this fails, WARP_STRENGTH is too high.
     expect(adjacentAvg).toBeLessThan(farAvg * 0.5);
   });
 });

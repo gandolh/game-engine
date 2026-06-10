@@ -89,7 +89,6 @@ describe("ObserverPanel", () => {
     panel.destroy();
   });
 
-  // brief 43 — observer surfaces per-farmer skill levels + greenhouse marker.
   it("renders skill levels and a greenhouse marker for the farmer", () => {
     const panel = new ObserverPanel(parent);
     const snap = makeSnapshot();
@@ -305,7 +304,6 @@ describe("ObserverPanel", () => {
     panel.destroy();
   });
 
-  // brief-11: focus-camera — click row fires callback with farmer id
   it("clicking a farmer row fires the onFarmerClick callback with the farmer id", () => {
     const panel = new ObserverPanel(parent);
     const cb = vi.fn();
@@ -322,7 +320,6 @@ describe("ObserverPanel", () => {
     panel.destroy();
   });
 
-  // brief-11: focus-camera — reset view button fires callback with null
   it("clicking Reset view fires the onFarmerClick callback with null", () => {
     const panel = new ObserverPanel(parent);
     const cb = vi.fn();
@@ -339,7 +336,6 @@ describe("ObserverPanel", () => {
     panel.destroy();
   });
 
-  // brief 19 — decision rationale ("why") renders only for the focused farmer
   it("renders current/next intention + reasons only for the focused farmer", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());
@@ -369,7 +365,6 @@ describe("ObserverPanel", () => {
     panel.destroy();
   });
 
-  // discoverability — dynamic button label (Reset view ⇄ Unfollow {name})
   it("button reads 'Reset view' when unfocused and 'Unfollow {name}' once a farmer is followed", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());
@@ -392,7 +387,6 @@ describe("ObserverPanel", () => {
     panel.destroy();
   });
 
-  // discoverability — persistent hint line toggles on focus
   it("shows the 'Click a farmer to follow them' hint when unfocused and hides it while following", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());
@@ -400,26 +394,22 @@ describe("ObserverPanel", () => {
     const text = parent.textContent ?? "";
     expect(text).toContain("Click a farmer to follow them");
 
-    // The hint element is the sibling carrying that text; locate it.
     const hint = Array.from(parent.querySelectorAll("div")).find(
       (el) => el.textContent === "Click a farmer to follow them",
     ) as HTMLElement;
     expect(hint).toBeDefined();
     expect(hint.style.display).not.toBe("none");
 
-    // Following a farmer hides the hint.
     const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
     aliceRow.click();
     expect(hint.style.display).toBe("none");
 
-    // Unfollowing shows it again.
     const resetBtn = parent.querySelector("button") as HTMLButtonElement;
     resetBtn.click();
     expect(hint.style.display).not.toBe("none");
     panel.destroy();
   });
 
-  // discoverability — stronger highlight on the focused row
   it("gives the focused row a thicker gold outline + tinted background", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());
@@ -427,20 +417,17 @@ describe("ObserverPanel", () => {
     const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
     const bobRow = parent.querySelector('[data-farmer-id="5"]') as HTMLElement;
 
-    // Unfocused: no outline / no tinted background.
     expect(aliceRow.style.outline).toBe("");
 
     aliceRow.click();
     expect(aliceRow.style.outline).toContain("2px");
     expect(aliceRow.style.outline.toLowerCase()).toContain("solid");
     expect(aliceRow.style.background).not.toBe("");
-    // Bob (unfocused) keeps no highlight.
     expect(bobRow.style.outline).toBe("");
     expect(bobRow.style.background).toBe("");
     panel.destroy();
   });
 
-  // discoverability — bold "Why:" header on the focused row's why block
   it("renders a bold 'Why:' header in the focused farmer's why block", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());

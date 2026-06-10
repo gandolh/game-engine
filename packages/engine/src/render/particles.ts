@@ -1,46 +1,26 @@
-/**
- * Lightweight canvas-2D particle system.
- *
- * Particles are pure canvas primitives (no atlas), drawn directly by the
- * ParticleSystem each frame using the renderer's world-space transform.
- * The system is completely decoupled from the ECS — game code calls
- * `emit()` whenever an event fires (sell, plant, harvest, …) and
- * `update(dt)` + `draw(ctx)` each render frame.
- *
- * Coordinate space: world pixels, same as sprite x/y.
- */
+/** Canvas-2D particle system. Decoupled from ECS — call emit() on events, update(dt)+draw(ctx) each frame.
+ *  Coordinate space: world pixels (same as sprite x/y). Uses Math.random — display-only, not sim. */
 
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 export type ParticleShape = "circle" | "rect" | "star";
 
 export interface ParticleEmitOptions {
-  /** World-pixel origin. */
-  x: number;
+  x: number;          // world-pixel origin
   y: number;
-  /** Number of particles to spawn. */
   count: number;
-  /** Particle shape. */
   shape: ParticleShape;
-  /** CSS colour string — use an EDG32 swatch (e.g. EDG.gold). */
-  color: string;
-  /** Optional second colour — random lerp between color and color2. */
-  color2?: string;
-  /** Initial speed range [min, max] in world-px / second. */
-  speedMin: number;
+  color: string;      // EDG32 swatch recommended
+  color2?: string;    // random lerp between color and color2
+  speedMin: number;   // world-px / second
   speedMax: number;
-  /** Emission angle range in radians [minAngle, maxAngle].
-   *  0 = right, -PI/2 = up. Default: full circle. */
-  angleMin?: number;
+  angleMin?: number;  // radians; 0 = right, -PI/2 = up; default full circle
   angleMax?: number;
-  /** Particle lifetime in seconds [min, max]. */
-  lifetimeMin: number;
+  lifetimeMin: number; // seconds
   lifetimeMax: number;
-  /** Radius (circle) or half-size (rect/star) in world pixels. */
-  sizeMin: number;
+  sizeMin: number;    // radius (circle) or half-size (rect/star), world px
   sizeMax: number;
-  /** Gravity acceleration in world-px / s² (positive = downward). */
-  gravity?: number;
+  gravity?: number;   // world-px / s², positive = downward
 }
 
 interface Particle {
@@ -52,7 +32,7 @@ interface Particle {
   maxLife: number;
   size: number;
   shape: ParticleShape;
-  r: number; g: number; b: number; // colour components
+  r: number; g: number; b: number;
   gravity: number;
 }
 
@@ -75,7 +55,6 @@ function rand(min: number, max: number): number {
 export class ParticleSystem {
   private particles: Particle[] = [];
 
-  /** Emit a burst of particles at a world-pixel position. */
   emit(opts: ParticleEmitOptions): void {
     const angleMin = opts.angleMin ?? 0;
     const angleMax = opts.angleMax ?? Math.PI * 2;
@@ -105,7 +84,6 @@ export class ParticleSystem {
     }
   }
 
-  /** Advance all particles by `dt` seconds. */
   update(dt: number): void {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -121,7 +99,6 @@ export class ParticleSystem {
     }
   }
 
-  /** Draw all live particles into ctx (which should already have the world transform set). */
   draw(ctx: Ctx2D): void {
     if (this.particles.length === 0) return;
     ctx.save();
@@ -136,7 +113,6 @@ export class ParticleSystem {
       } else if (p.shape === "rect") {
         ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2);
       } else {
-        // 4-point star
         drawStar(ctx, p.x, p.y, p.size);
       }
     }

@@ -28,8 +28,6 @@ describe("NoticeBoardSystem (daily demand line)", () => {
     const world = new World<GameEntity>();
     const bus = new MessageBus();
     const board = makeBoard(world);
-    // Try a handful of seeds so we land on a day the rng rolls a bounty (60%
-    // chance); assert the demand line is a real "Wanted: ..." string.
     let posted = false;
     for (let seed = 1; seed <= 8 && !posted; seed++) {
       const w = new World<GameEntity>();
@@ -43,7 +41,6 @@ describe("NoticeBoardSystem (daily demand line)", () => {
     }
     expect(posted).toBe(true);
 
-    // And confirm the system broadcasts a bounty-posted message + stamps a line.
     const sys = new NoticeBoardSystem(world, bus, createRng(1));
     pushDayStart(board, 1);
     sys.run({ tick: 20 } as never);
@@ -51,9 +48,7 @@ describe("NoticeBoardSystem (daily demand line)", () => {
     const sent = bus.drain().filter((m) => m.ontology === ONT_BOUNTY.POSTED);
     expect(sent.length).toBe(1);
     const body = sent[0]!.body as unknown as BountyPostedBody;
-    // The body carries either an active bounty or null (a no-bounty day).
     expect("bounty" in body).toBe(true);
-    // The board always shows SOME demand line (a bounty or "No bounty today").
     expect(typeof board.noticeBoard!.bountyText).toBe("string");
   });
 });

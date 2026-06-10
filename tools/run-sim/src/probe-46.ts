@@ -1,21 +1,4 @@
-/**
- * probe-46.ts — brief 46 LIVE acceptance probe.
- *
- * Runs a full headless sim with the JS pathfinder (REQUIRED — without it
- * TravelSystem is omitted and harbor trips never fire) and verifies:
- *   - Harbor board spawns with openContracts array
- *   - Contracts post on cadence days (every 3 days, 2 per batch)
- *   - At least one farmer commits to a contract over 100 days
- *   - At least one farmer delivers a contract (receives reward + rep)
- *   - Contract-delivered event-feed lines appear
- *   - Day-100 standings with harbor reputation
- *
- * Run: npx tsx tools/run-sim/src/probe-46.ts
- */
-// NOTE: relative imports (not the bare `farm-valley/*` specifier) on purpose —
-// in a git worktree the `farm-valley` package specifier resolves to the PARENT
-// checkout's source (shared node_modules), so a bare import would run the wrong
-// code. Relative paths pin this probe to THIS worktree's farm-valley source.
+/* brief 46 — acceptance probe: harbor board spawns, contracts posted/delivered, rep gained. */
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import type { GameEntity } from "@farm/sim-core/components";
@@ -62,7 +45,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
   scheduler.tick({ tick });
   const day = Math.floor(tick / TICKS_PER_DAY);
 
-  // Snapshot board once per day at mid-tick
   if (day !== lastSnapshotDay && tick % TICKS_PER_DAY === Math.floor(TICKS_PER_DAY / 2)) {
     lastSnapshotDay = day;
     for (const board of world.query("harborBoard")) {
@@ -77,7 +59,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
   }
 }
 
-// Extract harbor events from the event feed
 const deliveredLines: string[] = [];
 const missedLines: string[] = [];
 for (const entry of eventFeed.recent()) {
@@ -91,10 +72,8 @@ for (const entry of eventFeed.recent()) {
   }
 }
 
-// Count total contracts that were ever posted (from board snapshots max open count).
 const maxOpenAtAny = Math.max(0, ...boardSnapshots.map((s) => s.openCount + s.committedCount));
 
-// Check farmer harbor reputations at end of run
 console.log("\n=== HARBOR BOARD LIFECYCLE ===");
 const significantSnapshots = boardSnapshots.filter((s, i) =>
   i === 0 ||
@@ -140,7 +119,6 @@ console.log("\n=== ACCEPTANCE (brief 46 harbor contracts) ===");
 const boardExists = [...world.query("harborBoard", "inbox")].length === 1;
 const contractsEverPosted = maxOpenAtAny > 0;
 const hasDeliveries = totalDeliveries > 0;
-// Check at least one farmer has non-zero harbor reputation (proof that deliveries happened).
 const anyRepGained = [...world.query("farmer")].some((f) => (f.farmer?.harborReputation ?? 0) > 0);
 
 console.log(`  harbor board entity spawned:          ${boardExists ? "YES ✓" : "NO ✗"}`);

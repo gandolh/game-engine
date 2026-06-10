@@ -1,20 +1,7 @@
-/**
- * relationship-matrix.test.ts — jsdom tests for RelationshipMatrixPanel.
- *
- * Verifies:
- *   - An N×N grid renders the correct number of cells.
- *   - Cell color maps to the correct trust band.
- *   - Diagonal cells are blank/inert.
- *
- * @vitest-environment jsdom
- */
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { RelationshipMatrixPanel } from "./relationship-matrix";
 import type { RelationshipMatrixData } from "./relationship-matrix";
 import { EDG } from "@engine/core/render";
-
-// ---- helpers ---------------------------------------------------------------
 
 function makeData(trustValues: number[][]): RelationshipMatrixData {
   const n = trustValues.length;
@@ -37,8 +24,6 @@ function makeData(trustValues: number[][]): RelationshipMatrixData {
   return { farmers, trust };
 }
 
-// ---- tests -----------------------------------------------------------------
-
 describe("RelationshipMatrixPanel", () => {
   let container: HTMLElement;
   let panel: RelationshipMatrixPanel;
@@ -51,7 +36,6 @@ describe("RelationshipMatrixPanel", () => {
 
   it("renders an N×N grid of data cells (N=3, plus header row + label col)", () => {
     const n = 3;
-    // trustValues[from][to]
     const data = makeData([
       [1, 0.5, 0.5],
       [0.5, 1, 0.5],
@@ -63,7 +47,6 @@ describe("RelationshipMatrixPanel", () => {
     expect(rows).toHaveLength(n); // n data rows
 
     const cells = container.querySelectorAll("tbody td");
-    // Each row has n+1 cells (1 label + n data cells)
     expect(cells).toHaveLength(n * (n + 1));
   });
 
@@ -80,16 +63,11 @@ describe("RelationshipMatrixPanel", () => {
     const rows = container.querySelectorAll("tbody tr");
     expect(rows).toHaveLength(n);
 
-    // n rows × (n+1) cells per row (label + n data)
     const cells = container.querySelectorAll("tbody td");
     expect(cells).toHaveLength(n * (n + 1));
   });
 
-  /**
-   * jsdom normalizes hex color values to rgb(r, g, b) when reading back from
-   * .style.background. We compare the computed background against the expected
-   * hex value using a helper that converts hex → rgb string.
-   */
+  // jsdom normalizes hex to rgb(r, g, b) on .style.background.
   function hexToRgb(hex: string): string {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -108,7 +86,6 @@ describe("RelationshipMatrixPanel", () => {
     // Row 0, data cell index 1 (col 1, skipping label col) = farmer1→farmer2
     const rows = container.querySelectorAll("tbody tr");
     const firstRow = rows[0]!;
-    // children: [labelCell, cell(1→1 diagonal), cell(1→2)]
     const cellTo2 = firstRow.querySelectorAll("td")[2] as HTMLElement | undefined;
     expect(cellTo2).toBeDefined();
     expect(cellTo2!.style.background).toBe(hexToRgb(EDG.red));
@@ -165,9 +142,7 @@ describe("RelationshipMatrixPanel", () => {
     panel.update(data);
 
     const headerCells = container.querySelectorAll("thead th");
-    // first is corner (blank), then farmer initials
     const texts = Array.from(headerCells).map((th) => th.textContent ?? "");
-    // Cora → "C", Atticus → "A"
     expect(texts).toContain("C");
     expect(texts).toContain("A");
   });

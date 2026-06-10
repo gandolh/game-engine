@@ -69,14 +69,14 @@ describe("generateDailySlate", () => {
     expect(unique.size).toBe(SLATE_SIZE);
   });
 
-  it("kind is always 'sell' (no buy variant survives brief 08)", () => {
+  it("kind is always 'sell'", () => {
     const slate = generateDailySlate(createRng(2024));
     for (const offer of slate) {
       expect(offer.kind).toBe("sell");
     }
   });
 
-  it("crop is always one of the 8 known crop kinds (brief 41)", () => {
+  it("crop is always one of the 8 known crop kinds", () => {
     const VALID_CROPS = ["radish", "wheat", "carrot", "tomato", "corn", "pumpkin", "grape", "winter-squash"];
     const slate = generateDailySlate(createRng(3030));
     for (const offer of slate) {
@@ -84,16 +84,14 @@ describe("generateDailySlate", () => {
     }
   });
 
-  it("uses custom Partial<PriceTable> when provided (brief 41)", () => {
-    // Partial override: only radish overridden at 100; rest fall back to DEFAULT_PRICES.
+  it("uses custom Partial<PriceTable> when provided", () => {
     const customPrices = {
       radish: { buy: 100, sell: 100 },
     };
     const slate = generateDailySlate(createRng(77), customPrices);
     for (const offer of slate) {
       if (offer.crop === "radish") {
-        // All prices are derived from 100 ± 20%, so in [80, 120].
-        expect(offer.unitPrice).toBeGreaterThanOrEqual(80);
+        expect(offer.unitPrice).toBeGreaterThanOrEqual(80); // 100 ± 20%
         expect(offer.unitPrice).toBeLessThanOrEqual(120);
       }
     }
@@ -102,7 +100,6 @@ describe("generateDailySlate", () => {
   it("different seeds produce different slates", () => {
     const s1 = generateDailySlate(createRng(1));
     const s2 = generateDailySlate(createRng(2));
-    // They could be equal by coincidence but with these seeds they won't be.
     const ids1 = s1.map((o) => o.offerId).join(",");
     const ids2 = s2.map((o) => o.offerId).join(",");
     expect(ids1).not.toBe(ids2);
@@ -139,7 +136,6 @@ describe("consumeFromSlate", () => {
     const o2 = makeOffer({ offerId: "b", crop: "radish", unitPrice: 6, remaining: 2 });
     const result = consumeFromSlate([o1, o2], "radish", 5);
     expect(result).toEqual({ ok: false, reason: "insufficient-stock" });
-    // Slate must not have been mutated.
     expect(o1.remaining).toBe(2);
     expect(o2.remaining).toBe(2);
   });
@@ -148,8 +144,7 @@ describe("consumeFromSlate", () => {
     const expensive = makeOffer({ offerId: "exp", crop: "radish", unitPrice: 8, remaining: 3 });
     const cheap = makeOffer({ offerId: "chp", crop: "radish", unitPrice: 5, remaining: 4 });
     const result = consumeFromSlate([expensive, cheap], "radish", 5);
-    // Cheap takes 4, expensive takes 1 → cost = 4*5 + 1*8 = 28
-    expect(result).toEqual({ ok: true, totalCost: 28 });
+    expect(result).toEqual({ ok: true, totalCost: 28 }); // 4×5 + 1×8
     expect(cheap.remaining).toBe(0);
     expect(expensive.remaining).toBe(2);
   });
@@ -158,8 +153,7 @@ describe("consumeFromSlate", () => {
     const a = makeOffer({ offerId: "aaa", crop: "wheat", unitPrice: 10, remaining: 2 });
     const b = makeOffer({ offerId: "bbb", crop: "wheat", unitPrice: 10, remaining: 2 });
     const result = consumeFromSlate([b, a], "wheat", 3);
-    // 'aaa' < 'bbb', so 'aaa' consumed fully (2), then 1 from 'bbb'
-    expect(result).toEqual({ ok: true, totalCost: 30 });
+    expect(result).toEqual({ ok: true, totalCost: 30 }); // 'aaa'<'bbb': take 2 from aaa, 1 from bbb
     expect(a.remaining).toBe(0);
     expect(b.remaining).toBe(1);
   });
@@ -168,8 +162,7 @@ describe("consumeFromSlate", () => {
     const offer = makeOffer({ crop: "pumpkin", unitPrice: 20, remaining: 5 });
     const result = consumeFromSlate([offer], "pumpkin", 2, { dryRun: true });
     expect(result).toEqual({ ok: true, totalCost: 40 });
-    // Slate must be untouched.
-    expect(offer.remaining).toBe(5);
+    expect(offer.remaining).toBe(5); // slate untouched
   });
 
   it("dryRun: true on failing case also leaves slate untouched", () => {

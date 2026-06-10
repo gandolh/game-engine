@@ -1,21 +1,4 @@
-/**
- * probe-45.ts — brief 45 LIVE acceptance probe.
- *
- * Runs a full headless sim with the JS pathfinder (REQUIRED — without it
- * TravelSystem is omitted and gatherings/festival trips never fire) and reports
- * the living-world signals brief 45's acceptance needs:
- *   - how many festivals fired (expect ~4 over 100 days)
- *   - whether each produced a contest winner + an event-feed line
- *   - the festival results (winner, quality, prize)
- *   - farmers gathering at the podium on festival days
- *   - day-100 standings
- *
- * Run: npx tsx tools/run-sim/src/probe-45.ts
- */
-// NOTE: relative imports (not the bare `farm-valley/*` specifier) on purpose —
-// in a git worktree the `farm-valley` package specifier resolves to the PARENT
-// checkout's source (shared node_modules), so a bare import would run the wrong
-// code. Relative paths pin this probe to THIS worktree's farm-valley source.
+/* brief 45 — acceptance probe: festivals fired, contest winners, event-feed lines, podium gatherings. */
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { isWithinReach } from "@farm/sim-core/systems/proximity";
@@ -33,7 +16,6 @@ const { world, scheduler, dayClock, eventFeed } = bootstrapSim({
   pathfinder: new JsPathfinder(),
 });
 
-// Festival podium tile (the auction podium in the town square — the brief 45 stage).
 const FESTIVAL_PODIUM_TILE = { x: 43, y: 39 };
 
 function findFarmer(id: number): GameEntity | undefined {
@@ -60,12 +42,9 @@ const festivalResults: FestivalResult[] = [];
 const festivalAnnouncements: { day: number; festivalId: string; name: string }[] = [];
 let feedFestivalLines = 0;
 
-// Track podium gatherings (farmers near the podium on festival days).
 const podiumGathersByDay = new Map<number, Set<string>>();
 let lastDay = -1;
 
-// Track whether a FestivalSystem belief write happened (festivalToday belief set).
-// We detect announcement by checking farmer beliefs each tick when it's a festival day.
 const believedFestivalDays = new Set<number>();
 
 const totalTicks = MAX_DAYS * TICKS_PER_DAY;
@@ -79,8 +58,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
     podiumGathersByDay.set(day, new Set());
   }
 
-  // Detect that FestivalSystem wrote the festivalToday belief (proves the system ran).
-  // This is a more reliable post-tick check than the inbox (PerceiveSystem clears it).
   if (!believedFestivalDays.has(day) && festivalForDay(day) !== null) {
     for (const f of world.query("farmer", "beliefs")) {
       const ft = f.beliefs.data.festivalToday as { name: string; contestCrop: string } | null | undefined;
@@ -91,7 +68,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
     }
   }
 
-  // Track farmers gathering at the festival podium on festival days.
   const todayFestival = festivalForDay(day);
   if (todayFestival !== null && frac >= 0.1 && frac < 0.9) {
     for (const f of world.query("farmer", "transform")) {
@@ -104,8 +80,6 @@ for (let tick = 0; tick < totalTicks; tick++) {
   }
 }
 
-// Count feed lines about festivals and extract festival result details from EventFeedSystem.
-// The event feed is the authoritative proof that FestivalSystem fired and narrated correctly.
 for (const entry of eventFeed.recent()) {
   const text = entry.text;
   // Festival result lines: "Spring Planting Fair — ...", "Summer Market Day — ...",
@@ -128,7 +102,6 @@ for (const entry of eventFeed.recent()) {
       let winnerName: string | null = null;
       let winnerQuality: string | null = null;
       if (!resultPart.startsWith("no contest")) {
-        // "WinnerName wins with a Quality crop"
         const winsMatch = /^(.+?) wins with a (\w+) /.exec(resultPart);
         if (winsMatch) {
           winnerName = winsMatch[1] ?? null;
@@ -154,7 +127,6 @@ for (const entry of eventFeed.recent()) {
   }
 }
 
-// Print summary.
 console.log("\n=== FESTIVAL CALENDAR (expected firing days) ===");
 for (const season of ["spring", "summer", "autumn", "winter"] as const) {
   const d = festivalDayForSeason(season);
@@ -203,8 +175,6 @@ console.log(`  feed lines narrating festival results: ${feedFestivalLines}`);
 console.log(`  contests with a declared winner: ${resultsWithWinner}`);
 console.log(`  farmer-days at the festival podium: ${totalGatheringVisits}`);
 
-// Brief acceptance gate: FestivalSystem must write beliefs on all 4 festival days
-// and produce ≥4 feed narration lines (one per resolved contest).
 const pass =
   believedCount >= 4 &&
   feedFestivalLines >= 4;

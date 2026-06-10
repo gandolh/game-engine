@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Plank stack — sawn lumber stacked flat.
 const recipe: PixelRecipe =
   {
     name: "structure/plank-stack",

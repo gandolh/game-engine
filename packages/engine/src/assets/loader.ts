@@ -13,12 +13,7 @@ export interface PixelRect {
   h: number;
 }
 
-/**
- * Resolve an atlas-relative URL against a deployment base. Atlas JSON bakes in
- * root-absolute paths ("/atlas/foo.png"); when the app is hosted under a
- * subpath (e.g. "/farm-valley/") those must be prefixed with the base. A
- * non-rooted or already-absolute (http(s)://) URL is returned untouched.
- */
+/** Prefix a root-absolute atlas URL with the deployment base; http(s):// or non-rooted URLs pass through unchanged. */
 export function resolveAssetUrl(url: string, baseUrl = "/"): string {
   if (!url.startsWith("/") || url.startsWith("//")) return url;
   const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
@@ -48,10 +43,6 @@ export async function loadAtlasImage(
   };
 }
 
-/**
- * Fetch /atlas/index.json and load all sheets listed in it. Returns the loaded
- * atlases keyed by sheet id. The indexUrl defaults to "/atlas/index.json".
- */
 export async function loadAllAtlasSheets(
   indexUrl = "/atlas/index.json",
   baseUrl = "/",

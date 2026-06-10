@@ -74,28 +74,17 @@ export interface GameEntity {
   resources?: ResourceInventory;
   weatherStation?: WeatherStation;
   trust?: TrustScores;
-  /** brief 19 — last 1-3 one-line decision reasons (game-side, observer "why"). */
   decisionTrace?: DecisionTrace;
-  /** brief 42 — a livestock pen on the farmer's farm. */
   pen?: Pen;
-  /** brief 42 — an orchard tree tile on the farmer's farm. */
   orchardTree?: OrchardTree;
-  /** brief 43 — per-farm skill XP counters (farming/foraging/fishing/mining). */
   skills?: Skills;
-  /** brief 43 — a built greenhouse structure on the farmer's farm. */
   greenhouse?: Greenhouse;
-  /** brief 46 — harbor contract board entity. */
   harborBoard?: HarborBoardTag;
-  /** brief 46 — dockmaster NPC entity at the harbor. */
   dockmaster?: DockmasterTag;
   [key: string]: unknown;
 }
 
-/**
- * Reset the farmer's decisionTrace for a fresh deliberation tick. Call this at
- * the same point each personality clears `intentions.queue` so the trace always
- * reflects the current tick's decisions. Lazily initializes the field.
- */
+/** Reset decisionTrace at the start of each deliberation tick. Lazily initializes. */
 export function resetDecisionTrace(farmer: GameEntity): void {
   if (farmer.decisionTrace === undefined) {
     farmer.decisionTrace = { reasons: [] };
@@ -104,10 +93,7 @@ export function resetDecisionTrace(farmer: GameEntity): void {
   }
 }
 
-/**
- * Record a terse reason into the farmer's decisionTrace, capped to the last
- * DECISION_TRACE_CAP entries. Lazily initializes the field.
- */
+/** Append a reason to decisionTrace, capped at DECISION_TRACE_CAP. Lazily initializes. */
 export function recordReason(farmer: GameEntity, reason: string): void {
   if (farmer.decisionTrace === undefined) {
     farmer.decisionTrace = { reasons: [] };

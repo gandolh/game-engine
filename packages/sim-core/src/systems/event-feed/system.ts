@@ -1,30 +1,6 @@
-// EventFeedSystem — passive, read-only snoop that narrates notable economic
-// moments into a capped, deterministic activity feed.
-//
-// Placement (see sim-bootstrap): runs between InboxDispatchSystem and
-// PerceiveSystem, alongside TrustSystem, so it observes messages routed to
-// inboxes (and the market wall inbox) BEFORE PerceiveSystem clears them and
-// before MarketSystem drains the wall. It MUST NOT consume or mutate any
-// message — it only reads `inbox.messages`. It adds no bus traffic.
-//
-// Determinism guarantees:
-//   - No Date.now / Math.random / wall-clock.
-//   - Each captured event carries a stable `key`; a Set of seen keys dedups
-//     re-observation across ticks (an inbox message lives until PerceiveSystem
-//     clears it, so the same message would otherwise be re-snooped).
-//   - Within a single run() the freshly captured events are sorted by `key`
-//     before being appended, so a replay produces a byte-identical feed.
-//
-// Snoop sources (single, deterministic surface per ontology to avoid
-// double-counting broadcasts that fan out into every inbox):
-//   - market wall inbox: ONT_MARKET.TRADE_COMPLETED, ONT_SHOP.AUCTION_RESULT,
-//     ONT_SIMULATION.SHOCK (all broadcast/wall-routed; the wall is one entity).
-//   - farmer inboxes:    ONT_ENCOUNTER.ACCEPT (peer seed deals).
-//
-// The worker's existing SHOCK bus-subscription (snapshot.shock) is left
-// untouched; that surfaces a one-shot banner. We derive the feed line
-// independently from the wall inbox and dedup it by (day,target), so the shock
-// is not counted twice within the feed.
+// EventFeedSystem — read-only snoop; must run BEFORE PerceiveSystem clears inboxes and before MarketSystem drains the wall.
+// MUST NOT consume or mutate messages. No Math.random/Date.now. Events sorted by key before append for deterministic replay.
+// Snoop surface: market-wall inbox (TRADE_COMPLETED, AUCTION_RESULT, SHOCK) + farmer inboxes (ENCOUNTER.ACCEPT).
 
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -52,31 +28,14 @@ import { type EventEntry, type TradeCompletedBody, EVENT_FEED_CAP } from "./type
 export class EventFeedSystem implements System {
   readonly name = "EventFeedSystem";
 
-  /** Feed entries, newest-LAST. Capped at EVENT_FEED_CAP. */
-  private readonly events: EventEntry[] = [];
+  private readonly events: EventEntry[] = []; // newest-LAST, capped at EVENT_FEED_CAP
+  private readonly seen = new Set<string>(); // dedup re-observed inbox messages across ticks
+  private readonly fresh: EventEntry[] = []; // reused per-tick scratch
 
-  /** Keys already captured, so re-observed inbox messages aren't re-added. */
-  private readonly seen = new Set<string>();
-
-  /** Reused per-tick scratch for this tick's fresh entries (cleared each run)
-   *  so the hot path doesn't allocate a new array every tick. */
-  private readonly fresh: EventEntry[] = [];
-
-  // ---- rank-change detection state ----------------------------------------
-  // Updated once per new day. Guards against re-detecting on every tick of the
-  // same day. `lastTopFarmerId` is null until we have at least one history row.
-
-  /** The farmer id that held rank 1 as of the last rank-check day. */
-  private lastTopFarmerId: number | null = null;
-  /** The last sim day on which we performed a rank-change check. */
+  private lastTopFarmerId: number | null = null; // rank-1 as of last check day
   private lastRankCheckDay = -1;
 
-  // ---- race-on state -------------------------------------------------------
-  // One-shot: emitted at most once per run, guarded by the `seen` set plus this
-  // boolean so we don't re-scan history on every tick after the first emit.
-
-  /** True once the "race is on" line has been emitted for this run. */
-  private raceOnEmitted = false;
+  private raceOnEmitted = false; // one-shot per run
 
   constructor(
     private readonly world: World<GameEntity>,
@@ -87,9 +46,6 @@ export class EventFeedSystem implements System {
 
   run(ctx: SimContext): void {
     const day = this.dayClock.day;
-    // Collect this tick's fresh entries (reused scratch), then sort by stable
-    // key before appending so replays are byte-identical regardless of query
-    // order.
     const fresh = this.fresh;
     fresh.length = 0;
 
@@ -102,20 +58,11 @@ export class EventFeedSystem implements System {
 
     if (fresh.length === 0) return;
     fresh.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
-    for (const entry of fresh) {
-      this.events.push(entry);
-    }
-    // Trim oldest (front) entries beyond the cap.
+    for (const entry of fresh) this.events.push(entry);
     if (this.events.length > EVENT_FEED_CAP) {
       this.events.splice(0, this.events.length - EVENT_FEED_CAP);
     }
   }
-
-  // ---- market wall snoop -------------------------------------------------
-  // TRADE_COMPLETED, AUCTION_RESULT and SHOCK all land in the (single) market
-  // wall inbox: TRADE_COMPLETED is routed there by sellers, the other two are
-  // broadcasts that InboxDispatchSystem fans into every inbox. Reading them
-  // from the wall alone gives a single deterministic source per ontology.
 
   private snoopMarketWall(tick: number, day: number, out: EventEntry[]): void {
     for (const wall of this.world.query("marketWall", "inbox")) {
@@ -166,10 +113,6 @@ export class EventFeedSystem implements System {
     }
   }
 
-  // ---- farmer inbox snoop ------------------------------------------------
-  // Peer seed deals: a recipient ACCEPTs an OFFER_SEED. ACCEPT lands in the
-  // initiator's farmer inbox; sender is the accepting peer.
-
   private snoopFarmerInboxes(tick: number, day: number, out: EventEntry[]): void {
     for (const farmer of this.world.query("farmer", "inbox")) {
       if (farmer.id === undefined) continue;
@@ -193,8 +136,6 @@ export class EventFeedSystem implements System {
       }
     }
   }
-
-  // ---- capture helpers ---------------------------------------------------
 
   private captureTrade(
     body: TradeCompletedBody,
@@ -285,8 +226,7 @@ export class EventFeedSystem implements System {
     day: number,
     out: EventEntry[],
   ): void {
-    // Collapse same-day deaths of the same crop for one owner into one line.
-    const key = `death:${body.day}:${body.ownerId}:${body.crop}`;
+    const key = `death:${body.day}:${body.ownerId}:${body.crop}`; // same-day same-crop collapses to one line
     if (this.seen.has(key)) return;
     this.seen.add(key);
     const name = this.nameOf(body.ownerId);
@@ -307,7 +247,6 @@ export class EventFeedSystem implements System {
     out: EventEntry[],
   ): void {
     if (typeof body.festivalId !== "string") return;
-    // One result per festival firing (keyed by festival id + the day it ran).
     const key = `festival:${body.festivalId}:${body.day}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
@@ -319,7 +258,7 @@ export class EventFeedSystem implements System {
       // e.g. "Autumn Harvest Fair — Atticus wins with a Gold pumpkin"
       const qLabel = quality.charAt(0).toUpperCase() + quality.slice(1);
       text = `${body.name} — ${body.winnerName} wins with a ${qLabel} ${body.contestCrop}`;
-    }
+    } // e.g. "Autumn Harvest Fair — Atticus wins with a Gold pumpkin"
     out.push({
       tick,
       day,
@@ -337,10 +276,7 @@ export class EventFeedSystem implements System {
     out: EventEntry[],
   ): void {
     if (typeof body.farmerId !== "number") return;
-    // One line per notable catch (the handler only broadcasts the rare lobster).
-    // Keyed by farmer + tick so two lobsters by the same farmer on the same day
-    // (different casts/ticks) each get a line, but a re-snoop of the same
-    // message across ticks is deduped.
+    // Keyed by farmer+tick: two lobsters on same day each get a line; re-snoop deduped.
     const key = `coral:${body.farmerId}:${tick}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
@@ -354,10 +290,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // ---- harbor board snoop (brief 46) -------------------------------------
-  // CONTRACT_DELIVERED and CONTRACT_MISSED land as broadcasts. We snoop the
-  // harbor board's inbox (single entity → single source, no double-counting).
-
+  // Snoop harbor board (single entity) to avoid double-counting broadcasts.
   private snoopHarborBoard(tick: number, day: number, out: EventEntry[]): void {
     for (const board of this.world.query("harborBoard", "inbox")) {
       for (const msg of board.inbox.messages) {
@@ -423,14 +356,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // ---- rivalry / alliance snoop ------------------------------------------
-  // Read freshly-formed rivalries and alliances from RivalrySystem (which runs
-  // BEFORE EventFeedSystem in the scheduler) and emit one-shot feed lines.
-  // Dedup via the existing `seen` set with stable keys (`rivalry-formed:lo:hi`
-  // and `alliance-formed:lo:hi`). The RivalrySystem manages its own one-shot
-  // guard for announcements, but we double-dedup here in case of tick ordering
-  // edge cases.
-
+  // RivalrySystem runs BEFORE EventFeedSystem (scheduler order).
   private snoopRivalrySystem(tick: number, day: number, out: EventEntry[]): void {
     if (!this.rivalry) return;
     for (const formed of this.rivalry.freshlyFormedThisTick()) {
@@ -452,7 +378,6 @@ export class EventFeedSystem implements System {
           farmerId: null,
         });
       } else {
-        // "alliance"
         const key = `alliance-formed:${pairStr}`;
         if (this.seen.has(key)) continue;
         this.seen.add(key);
@@ -470,29 +395,13 @@ export class EventFeedSystem implements System {
     }
   }
 
-  // ---- rank-change detection -----------------------------------------------
-  // Reads RunHistorySystem.history() once per new day (guarded by
-  // lastRankCheckDay). If the rank-1 farmer changed since last check, pushes a
-  // "X overtakes Y for 1st!" feed line with a stable dedup key.
-  //
-  // Source rationale: RunHistorySystem (brief 36, merged) provides per-day
-  // rank rows already sorted by totalValue desc → farmerId asc. We look at rows
-  // for the current day with rank===1 to find the current leader. If it differs
-  // from the previously recorded leader we emit an event and update state.
-  //
-  // Note: RunHistorySystem records rows on DAY_START (snoops the weatherStation
-  // inbox). EventFeedSystem also runs in the read-only snoop band AFTER
-  // RunHistorySystem (see sim-bootstrap scheduler order), so same-day history
-  // is available when we check.
-
+  // Checked once per new day. RunHistorySystem must run before this (same snoop band).
   private snoopRankChange(tick: number, day: number, out: EventEntry[]): void {
     if (!this.runHistory) return;
-    // Only check once per new day.
     if (day === this.lastRankCheckDay) return;
     this.lastRankCheckDay = day;
 
     const history = this.runHistory.history();
-    // Find the current leader (rank === 1, day === current day).
     let currentLeaderId: number | null = null;
     for (const row of history) {
       if (row.day === day && row.rank === 1) {
@@ -500,14 +409,12 @@ export class EventFeedSystem implements System {
         break;
       }
     }
-    if (currentLeaderId === null) return; // no history for this day yet
+    if (currentLeaderId === null) return;
 
     const prevLeaderId = this.lastTopFarmerId;
     this.lastTopFarmerId = currentLeaderId;
 
-    // No flip on the very first day we see a leader (no previous to compare).
-    if (prevLeaderId === null) return;
-    // Same leader — no flip.
+    if (prevLeaderId === null) return; // no previous to compare on first day
     if (prevLeaderId === currentLeaderId) return;
 
     const newLeaderName = this.nameOf(currentLeaderId);
@@ -525,21 +432,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // ---- race-on (final-stretch proximity) -----------------------------------
-  // Emitted at most ONCE per run (one-shot, guarded by raceOnEmitted + seen).
-  // Trigger: day ≥ ceil(maxDays * 0.9) AND the top-2 gold gap is within 8% of
-  // the leader's totalValue.
-  //
-  // Gold source: the most recent day's RunHistorySystem rows for the top two
-  // farmers (by rank 1 and rank 2). We use `gold` from the history row as a
-  // proxy for wealth — it's the raw gold value recorded at day start, which is
-  // stable and deterministic. The gap percentage is computed as:
-  //   gapPct = (leader.gold - second.gold) / leader.gold * 100
-  // clamped away from divide-by-zero. If leader.gold === 0 we skip.
-  //
-  // Key: `raceon:run` (one-shot per run, not per day). The `raceOnEmitted`
-  // boolean provides an early-exit after first emission so we don't re-scan.
-
+  // One-shot: day ≥ 90% of maxDays AND top-2 gold gap ≤ 8%. raceOnEmitted short-circuits future scans.
   private snoopRaceOn(tick: number, day: number, out: EventEntry[]): void {
     if (this.raceOnEmitted) return;
     if (!this.runHistory) return;
@@ -567,7 +460,6 @@ export class EventFeedSystem implements System {
     if (leadRow.gold === 0) return;
 
     const gapPct = ((leadRow.gold - secondRow.gold) / leadRow.gold) * 100;
-    // Threshold: ≤ 8% gap means the race is on.
     if (gapPct > 8) return;
 
     const key = "raceon:run";
@@ -577,7 +469,6 @@ export class EventFeedSystem implements System {
 
     const leaderName = this.nameOf(leadRow.farmerId);
     const secondName = this.nameOf(secondRow.farmerId);
-    // Round gap to one decimal for display.
     const gapStr = gapPct.toFixed(1);
     out.push({
       tick,
@@ -589,8 +480,6 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // ---- helpers -----------------------------------------------------------
-
   private nameOf(id: number): string {
     for (const f of this.world.query("farmer")) {
       if (f.id === id) return f.farmer.name;
@@ -598,10 +487,7 @@ export class EventFeedSystem implements System {
     return `#${id}`;
   }
 
-  /**
-   * Returns the feed, newest-LAST (chronological). The panel reverses for a
-   * newest-first display. Returns a defensive copy.
-   */
+  /** Returns a defensive copy of the feed (newest-LAST / chronological). */
   recent(): readonly EventEntry[] {
     return this.events.slice();
   }

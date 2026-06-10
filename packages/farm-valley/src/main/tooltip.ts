@@ -33,7 +33,7 @@ export function updateTooltip(
     return;
   }
 
-  // Convert CSS pixel mouse position to world pixels via the camera viewport.
+  // CSS pixel mouse → world pixels; cap dpr at 2 to match Canvas2dRenderer.
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
   const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
@@ -58,7 +58,6 @@ export function updateTooltip(
   }
 
   if (bestLabel !== null) {
-    // Title line (bold) + optional description line beneath it.
     tooltip.replaceChildren();
     const title = document.createElement("div");
     title.textContent = bestLabel;
@@ -75,7 +74,6 @@ export function updateTooltip(
       tooltip.appendChild(desc);
     }
     tooltip.style.display = "block";
-    // Position just above and to the right of the cursor.
     tooltip.style.left = `${mousePos.x + 12}px`;
     tooltip.style.top = `${mousePos.y - 20}px`;
   } else {

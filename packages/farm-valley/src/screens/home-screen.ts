@@ -148,7 +148,6 @@ export class HomeScreen {
     });
     applyStyles(subtitle, SUBTITLE_STYLES);
 
-    // Seed picker row: label + input + Randomize button.
     const seedRow = createEl("div");
     applyStyles(seedRow, SEED_ROW_STYLES);
 
@@ -161,7 +160,6 @@ export class HomeScreen {
     this.seedInput.value = formatSeed(this.defaultSeed);
     this.seedInput.spellcheck = false;
     this.seedInput.setAttribute("aria-label", "Run seed");
-    // Enter inside the field starts the game.
     this.seedInput.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
@@ -181,7 +179,7 @@ export class HomeScreen {
       randomizeBtn.style.color = EDG.tan;
     });
     randomizeBtn.addEventListener("click", () => {
-      // Math.random() is allowed HERE only (pre-sim UI), per brief 18.
+      // Math.random() is allowed here (pre-sim UI only — not in sim code).
       const fresh = Math.floor(Math.random() * 0x100000000) >>> 0;
       this.seedInput.value = formatSeed(fresh);
     });

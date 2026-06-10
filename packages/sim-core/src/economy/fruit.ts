@@ -1,8 +1,6 @@
 import type { FruitKind } from "../components";
 import type { Season } from "../protocols/weather";
 
-// ── Orchard economy constants (brief 42) ─────────────────────────────────────
-
 /** Gold cost to plant a fruit tree at the farm. */
 export const TREE_PLANT_COST: Record<FruitKind, number> = {
   apple:  25,

@@ -3,15 +3,9 @@ import { EDG } from "@engine/core/render";
 import type { PlayerHotbar } from "@farm/sim-core/snapshot";
 
 /**
- * HotbarPanel — the player (Pip) tool bar, bottom-center, where the playback
- * controls used to sit. Slots, order, and the selected slot are owned by the
- * sim (HOTBAR_SLOTS + player.selectedSlot in systems/player-control.ts) and
- * arrive each tick via the render snapshot; this panel just reflects them.
- *
- * Number keys 1-7 select a slot (handled in main.ts → sent to the worker). The
- * selected slot is highlighted; slots the player can't currently use (a seed
- * with zero in stock, an empty watering can) are dimmed. The action key (E)
- * performs the selected slot's tool/seed on the tile Pip faces.
+ * HotbarPanel — Pip's tool bar. Slots, order, and selection are owned by the sim
+ * (HOTBAR_SLOTS + player.selectedSlot) and arrive via snapshot; this panel reflects them.
+ * Keys 1-7 select slots (handled in main.ts); E performs the selected action.
  */
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
@@ -65,7 +59,6 @@ export class HotbarPanel {
     parent.appendChild(this.panel);
   }
 
-  /** (Re)build the slot elements to match the slot count. */
   private ensureSlots(n: number): void {
     if (this.slots.length === n) return;
     this.panel.replaceChildren();
@@ -96,7 +89,6 @@ export class HotbarPanel {
     }
   }
 
-  /** Reflect the player's live hotbar. Hidden entirely when there is no player. */
   update(hotbar: PlayerHotbar | null): void {
     if (hotbar === null) {
       this.panel.style.display = "none";

@@ -1,9 +1,3 @@
-/**
- * render-systems/index.ts — barrel re-exporting the full public API of the
- * original render-systems.ts so all existing consumers continue to work
- * unchanged.
- */
-
 export {
   frameToAtlasId,
   pickFarmerFrame,

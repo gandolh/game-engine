@@ -1,9 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Carpenter's workshop — timber lumber-mill with a green pitched roof, two
-// shuttered windows, a plank-clad facade, and a wide barn door showing dark
-// rafters. G/g/l/L = green roof, W/w = tan planks, M/m/D/d = timber frame,
-// q = window-glint, k = open doorway shadow.
 const recipe: PixelRecipe =
   {
     name: "structure/carpenter-workshop",

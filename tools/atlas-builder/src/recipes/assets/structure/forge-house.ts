@@ -1,9 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Blacksmith forge-house — stone-and-timber smithy with a brick chimney, a
-// pitched slate roof, a glowing forge window, and a timber double door.
-// Q/q = stone walls, S/s = slate roof, r = brick chimney, M/m/D/d = timber,
-// o/y = forge glow through the window, k = dark openings.
 const recipe: PixelRecipe =
   {
     name: "structure/forge-house",

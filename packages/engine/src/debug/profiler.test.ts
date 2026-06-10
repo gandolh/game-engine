@@ -37,7 +37,6 @@ describe("Profiler", () => {
     const p = new Profiler({ enabled: true });
     for (let i = 1; i <= 100; i += 1) p.add("d", i);
     const s = p.stats("d")!;
-    // p50/p95 are order statistics of 1..100.
     expect(s.p50).toBeGreaterThanOrEqual(50);
     expect(s.p50).toBeLessThanOrEqual(52);
     expect(s.p95).toBeGreaterThanOrEqual(95);
@@ -48,8 +47,8 @@ describe("Profiler", () => {
     const p = new Profiler({ enabled: true, capacity: 4 });
     for (const v of [10, 10, 10, 10, 20, 20, 20, 20]) p.add("d", v);
     const s = p.stats("d")!;
-    expect(s.count).toBe(8); // total ever added
-    expect(s.mean).toBe(20); // ring only holds the last 4 (all 20)
+    expect(s.count).toBe(8);
+    expect(s.mean).toBe(20);
     expect(s.min).toBe(20);
   });
 
@@ -59,7 +58,6 @@ describe("Profiler", () => {
     p.add("b", 2);
     const r = p.report();
     expect(Object.keys(r).sort()).toEqual(["a", "b"]);
-    // Round-trips through structured-clone semantics (plain values only).
     expect(JSON.parse(JSON.stringify(r))).toEqual(r);
   });
 

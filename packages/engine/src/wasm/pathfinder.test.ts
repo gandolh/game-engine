@@ -33,12 +33,6 @@ describe("Pathfinder (wasm A*)", () => {
   });
 
   it("routes around a wall", () => {
-    // 5x5 grid, vertical wall at x=2 with a single gap at y=4.
-    //   . . # . .
-    //   . . # . .
-    //   . . # . .
-    //   . . # . .
-    //   . . . . .
     const w = 5, h = 5;
     const cells = new Uint8Array(w * h);
     for (let y = 0; y < 4; y++) cells[y * w + 2] = 1;
@@ -46,14 +40,11 @@ describe("Pathfinder (wasm A*)", () => {
     expect(path.length).toBeGreaterThan(0);
     expect(path[0]).toEqual({ x: 0, y: 0 });
     expect(path[path.length - 1]).toEqual({ x: 4, y: 0 });
-    // Path must dip down through the gap.
     expect(path.some((p) => p.y === 4)).toBe(true);
-    // Path must never traverse a blocked cell.
     for (const p of path) {
       expect(cells[p.y * w + p.x]).toBe(0);
     }
-    // Manhattan distance is 4 horizontal + 8 detour = 12 steps → 13 points.
-    expect(path.length).toBe(13);
+    expect(path.length).toBe(13); // 4 horizontal + 8 detour through gap
   });
 
   it("returns empty array when no path exists", () => {
@@ -88,8 +79,6 @@ describe("Pathfinder (wasm A*)", () => {
   });
 
   it("handles repeated calls without leaking memory growth", async () => {
-    // Drives many large allocations through the wasm heap to confirm
-    // alloc/free balance correctly under repeated use.
     const w = 64, h = 64;
     const cells = new Uint8Array(w * h);
     for (let i = 0; i < 50; i++) {

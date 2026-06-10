@@ -1,11 +1,6 @@
 import type { FishKind } from "../components";
 
-/**
- * brief 48 — coral fishing protocol. A notable coral catch (the rare lobster)
- * is broadcast so EventFeedSystem can narrate it (single market-wall surface,
- * exactly like AUCTION_RESULT). Routine coral-trout catches are NOT broadcast
- * (they'd flood the feed) — only the jackpot lobster.
- */
+// Broadcast on a lobster catch only (routine coral-trout would flood the feed).
 export const ONT_CORAL = {
   CAUGHT: "coral-caught",
 } as const;

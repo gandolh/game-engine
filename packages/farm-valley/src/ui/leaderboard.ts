@@ -51,7 +51,6 @@ export class LeaderboardPanel {
   private headerEl: HTMLElement;
   private rowsContainer: HTMLElement;
 
-  /** Maps farmer id -> cached row elements */
   private rowCache = new Map<number, RowEls>();
 
   constructor(parent: HTMLElement) {
@@ -80,7 +79,6 @@ export class LeaderboardPanel {
   update(rows: LeaderboardRow[]): void {
     const currentIds = new Set(rows.map((r) => r.id));
 
-    // Remove rows for farmers that are no longer present
     for (const [id, rowEls] of this.rowCache) {
       if (!currentIds.has(id)) {
         rowEls.root.remove();
@@ -88,14 +86,7 @@ export class LeaderboardPanel {
       }
     }
 
-    // Upsert rows in sorted (rank) order.
-    // Snapshot children ONCE before the loop so we allocate one Array per frame
-    // instead of one per row.  insertBefore on an already-inserted node is a
-    // move, so earlier insertBefore calls can shift later indices — but that
-    // only moves a node forward, leaving indices at or after the destination
-    // pointing at nodes that haven't been touched yet, which is exactly what we
-    // want: we always compare against "what is currently at position index"
-    // using the live HTMLCollection rather than the stale snapshot.
+    // insertBefore on an existing node is a move; live HTMLCollection stays valid.
     const liveChildren = this.rowsContainer.children;
     rows.forEach((row, index) => {
       let els = this.rowCache.get(row.id);
@@ -106,7 +97,6 @@ export class LeaderboardPanel {
         this.rowsContainer.appendChild(els.root);
       }
 
-      // Maintain DOM order to match rank order
       if (liveChildren[index] !== els.root) {
         this.rowsContainer.insertBefore(els.root, liveChildren[index] ?? null);
       }

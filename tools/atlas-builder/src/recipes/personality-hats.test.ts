@@ -22,7 +22,6 @@ function poseGrid(personality: string, action: string): string {
 }
 
 describe("farmer action poses are visually distinct per personality", () => {
-  // The audit's core claim was about the WORK pose; we also check TILL.
   for (const action of ["work", "till"] as const) {
     it(`the four AI ${action} frames are pairwise distinct`, () => {
       for (let i = 0; i < AI_PERSONALITIES.length; i++) {
@@ -51,11 +50,6 @@ describe("farmer action poses are visually distinct per personality", () => {
   });
 
   it("the hat never overwrites tool pixels in any action pose", () => {
-    // The hat overlay only touches the head rows (0–3). Tool pixels
-    // (m q Q W o s e) live at the arms/sides on rows 7+. So the body rows of
-    // the generated (hat-stamped) pose must be byte-identical to the
-    // colour-subbed-only pose for every personality and every action — proving
-    // the hat collides with no tool. Compare rows 4+ (only rows 0–3 may differ).
     for (const [action, template] of Object.entries(ACTION_TEMPLATES)) {
       for (const [p, subs] of Object.entries(PERSONALITY_SUBS)) {
         const subsOnly = applyPersonalitySubs(template, subs);

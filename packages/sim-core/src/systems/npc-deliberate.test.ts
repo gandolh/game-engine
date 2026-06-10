@@ -1,10 +1,3 @@
-/**
- * npc-deliberate.test.ts — the service-NPC deliberation layer (Part B).
- *
- * Drives bootstrapSim() directly (canonical, no Worker) plus a couple of pure
- * checks on the role resolver / behavior registry.
- */
-
 import { describe, it, expect } from "vitest";
 import { World } from "@engine/core";
 import { bootstrapSim } from "../sim-bootstrap";
@@ -45,8 +38,7 @@ describe("NpcDeliberateSystem (live sim)", () => {
     expect(npcs.length).toBeGreaterThan(0);
     for (const e of npcs) {
       expect(typeof e.workNpc.busyFactor).toBe("number");
-      // Behaviors only ever emit the BUSY/CALM/IDLE constants (0.5..1.6).
-      expect(e.workNpc.busyFactor!).toBeGreaterThanOrEqual(0.5);
+      expect(e.workNpc.busyFactor!).toBeGreaterThanOrEqual(0.5); // BUSY/CALM/IDLE constants (0.5–1.6)
       expect(e.workNpc.busyFactor!).toBeLessThanOrEqual(1.6);
     }
   });
@@ -57,15 +49,13 @@ describe("NpcDeliberateSystem (live sim)", () => {
     const board = [...sim.world.query("harborBoard")][0]!;
     const sys = new NpcDeliberateSystem(sim.world);
 
-    // Force an empty board → IDLE (>1).
     board.harborBoard.openContracts.length = 0;
     board.harborBoard.committed.clear();
     sys.run({ tick: 1 });
-    expect(dock!.workNpc.busyFactor!).toBeGreaterThan(1);
+    expect(dock!.workNpc.busyFactor!).toBeGreaterThan(1); // empty board → IDLE
 
-    // Add an open contract → BUSY (<1).
     board.harborBoard.openContracts.push({} as never);
     sys.run({ tick: 2 });
-    expect(dock!.workNpc.busyFactor!).toBeLessThan(1);
+    expect(dock!.workNpc.busyFactor!).toBeLessThan(1); // open contract → BUSY
   });
 });

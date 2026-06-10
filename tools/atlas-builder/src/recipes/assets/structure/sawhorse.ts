@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Sawhorse with a log being cut. X-legs (m) + crossbar, a log (d/D) on top.
 const recipe: PixelRecipe =
   {
     name: "structure/sawhorse",

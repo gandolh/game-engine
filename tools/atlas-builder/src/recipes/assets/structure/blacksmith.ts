@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// ── Structures ───────────────────────────────────────────────────────────────
 const recipe: PixelRecipe =
   {
     name: "structure/blacksmith",

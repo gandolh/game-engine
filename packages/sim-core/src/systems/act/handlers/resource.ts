@@ -1,7 +1,4 @@
-/**
- * Resource-gathering action handlers: chop-tree, mine-stone, forage, refill-can,
- * craft-decoration.
- */
+/** Resource-gathering handlers: chop-tree, mine-stone, forage, refill-can, craft-decoration. */
 import type { Intention, Rng, World } from "@engine/core";
 import type { GameEntity, DecorationKind } from "../../../components";
 import {
@@ -26,18 +23,13 @@ export function handleChopTree(
   if (!axe) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
-  // Strict proximity guard: farmer must be within 1 cell (Chebyshev) of the
-  // target tile. TravelSystem moves farmers into position before acting.
-  if (!isWithinReach(farmer.transform, tileX, tileY)) return;
+  if (!isWithinReach(farmer.transform, tileX, tileY)) return; // TravelSystem moves farmer into reach first
   const feat = featuresByTile.get(`${tileX},${tileY}`);
   if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") return;
-  // Award wood
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
   farmer.resources.wood += 2;
-  // Remove feature entity
   world.despawn(feat);
   featuresByTile.delete(`${tileX},${tileY}`);
-  // Drain axe
   axe.durability -= 1;
   if (axe.durability <= 0) {
     const idx = (farmer.inventory.tools ?? []).indexOf(axe);
@@ -57,15 +49,11 @@ export function handleMineStone(
   if (!pick) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
-  // Strict proximity guard: farmer must be within 1 cell (Chebyshev) of the
-  // target tile. TravelSystem moves farmers into position before acting.
-  if (!isWithinReach(farmer.transform, tileX, tileY)) return;
+  if (!isWithinReach(farmer.transform, tileX, tileY)) return; // TravelSystem moves farmer into reach first
   const feat = featuresByTile.get(`${tileX},${tileY}`);
   if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") return;
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
-  // Random drops. brief 43 — mining skill widens the geode/iron bands (a master
-  // miner pulls more valuable drops). The roll uses the forked `mineRng` so the
-  // drop is deterministic; the skill SHIFT is a pure function of mining XP.
+  // Mining skill widens geode/iron bands (pure function of XP); roll uses forked mineRng for determinism.
   const mineBonus = miningRarityBonus(farmer.skills?.mining ?? 0);
   const geodeChance = STONE_GEODE_CHANCE + mineBonus * 0.5;
   const ironChance = STONE_IRON_CHANCE + mineBonus * 0.5;
@@ -77,11 +65,9 @@ export function handleMineStone(
   } else {
     farmer.resources.stone += 1;
   }
-  // brief 43 — mining the rock earns mining XP.
   grantSkillXp(farmer, "mining", 1);
   world.despawn(feat);
   featuresByTile.delete(`${tileX},${tileY}`);
-  // Drain pickaxe
   pick.durability -= 1;
   if (pick.durability <= 0) {
     const idx = (farmer.inventory.tools ?? []).indexOf(pick);
@@ -94,18 +80,14 @@ export function handleRefillCan(
   _intent: Intention,
   fountainByRegion: Map<string, GameEntity>,
 ): void {
-  // Refill watering can — only valid when adjacent (Chebyshev ≤ 1) to a
-  // water source tile: the home fountain or a well center.
-  // TravelSystem moves the farmer to the fountain tile before this executes.
+  // Valid only when Chebyshev ≤ 1 from the home fountain or a well center.
   const can = farmer.inventory.wateringCan;
   if (!can) return;
 
   const homeRegion = farmer.farmer?.homeRegion;
 
-  // Build the list of candidate water-source tiles: home fountain + wells.
   const sourceTiles: Array<{ tileX: number; tileY: number }> = [];
 
-  // Home fountain (fountain entity on the farm)
   if (homeRegion) {
     const homeFountain = fountainByRegion.get(homeRegion);
     if (homeFountain?.transform) {
@@ -116,7 +98,6 @@ export function handleRefillCan(
     }
   }
 
-  // Wells (well-north and well-south): use their region center from REGIONS.
   for (const wellId of ["well-north", "well-south"] as const) {
     const wellRegion = REGIONS.find(r => r.id === wellId);
     if (wellRegion) {
@@ -124,7 +105,6 @@ export function handleRefillCan(
     }
   }
 
-  // Strict proximity guard: farmer must be within 1 cell of at least one source.
   const adjacent = sourceTiles.some(s => isWithinReach(farmer.transform, s.tileX, s.tileY));
   if (!adjacent) return;
 
@@ -136,9 +116,6 @@ export function handleCraftDecoration(
   intent: Intention,
   world: World<GameEntity>,
 ): void {
-  // Craft a farm decoration at the carpentry workshop.
-  // Consumes wood from ResourceInventory, places a FarmDecoration entity
-  // on a free tile in the farmer's farm. Boosts crop yield permanently.
   if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
   const kind = intent.data.kind as DecorationKind;
   const recipe = DECORATION_RECIPE[kind];
@@ -146,16 +123,14 @@ export function handleCraftDecoration(
   const res = farmer.resources;
   if (!res || res.wood < recipe.woodCost) return;
 
-  // Cap total boost: sum existing decorations for this farmer's farm.
   let existingBoost = 0;
   for (const e of world.query("farmDecoration")) {
     if (e.farmDecoration.ownerId === farmer.id) {
       existingBoost += DECORATION_RECIPE[e.farmDecoration.kind]?.yieldBoost ?? 0;
     }
   }
-  if (existingBoost >= MAX_DECORATION_BOOST) return; // already maxed
+  if (existingBoost >= MAX_DECORATION_BOOST) return;
 
-  // Find a free tile in the farm (not occupied by plot/fountain/feature).
   const homeRegion = farmer.farmer.homeRegion;
   const regionDef = REGIONS.find(r => r.id === homeRegion);
   if (!regionDef) return;
@@ -191,20 +166,17 @@ export function handleCraftDecoration(
       break outer;
     }
   }
-  if (!placed) return; // no free tile
+  if (!placed) return;
 }
 
 export function handleForage(farmer: ActingFarmer, day: number): void {
-  // Forage a seasonal zone — only rewards in the zone's season. The
-  // season is derived from the farmer's perceived currentDay, so the
-  // lock is real game logic (out of season = no reward).
+  // Out-of-season → no reward. Season derived from currentDay.
   const region = farmer.farmer?.currentRegion;
   if (!region) return;
   const zone = FORAGE_ZONES[region];
   if (!zone) return;
-  if (seasonForDay(day) !== zone.season) return; // out of season — no reward
-  // brief 43 — foraging skill multiplies the reward (gentle, compounding) and
-  // the forage earns foraging XP.
+  if (seasonForDay(day) !== zone.season) return;
+  // Foraging skill multiplies the reward; pure function of XP.
   const mult = foragingGoldMultiplier(farmer.skills?.foraging ?? 0);
   farmer.inventory.gold += Math.round(zone.reward * mult);
   grantSkillXp(farmer, "foraging", 1);

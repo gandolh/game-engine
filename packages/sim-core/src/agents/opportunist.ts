@@ -1,5 +1,3 @@
-// Opportunist farmer personality.
-// Enqueues intentions: plant, buy-seed, sell-shopkeeper, post-offer, read-offers, buy-from-wall.
 import type { GameEntity, CropKind } from "../components";
 import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
@@ -18,7 +16,6 @@ import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
 
 // Fair-price posting: between cost and shop ceiling (intentionally below CROP_SELL_PRICE).
-// brief 41 — expanded to all 8 crops.
 const FAIR_PRICE: Record<CropKind, number> = {
   radish:          7,
   wheat:           12,
@@ -32,16 +29,12 @@ const FAIR_PRICE: Record<CropKind, number> = {
 const LOW_SUPPLY_THRESHOLD = 3;
 const BUY_PRICE_MULTIPLIER = 1.1; // willing to pay up to 110% of shop price
 
-/**
- * brief 41 — opportunist adapts to weather forecast AND season. Picks the
- * best in-season crop adjusted for forecast conditions.
- */
+/** Picks best in-season crop, adjusted for weather forecast. */
 function pickCropFromWeatherAndSeason(
   forecast: WeatherCondition | undefined,
   day: number,
 ): CropKind {
   const season = seasonForDay(day);
-  // In-season candidates ranked by value.
   const inSeason: Record<Season, CropKind[]> = {
     spring: ["wheat", "carrot", "radish"],
     summer: ["corn", "tomato"],
@@ -49,7 +42,6 @@ function pickCropFromWeatherAndSeason(
     winter: ["winter-squash"],
   };
   const candidates = inSeason[season];
-  // Under bad weather, prefer the faster/cheaper option.
   if (forecast === "storm" || forecast === "rainy") {
     return candidates[candidates.length - 1]!; // cheapest/fastest in-season
   }
@@ -57,9 +49,7 @@ function pickCropFromWeatherAndSeason(
 }
 
 function fallbackCrop(crop: CropKind, gold: number, reserve: number): CropKind {
-  // If we can't afford the chosen crop's seed, slide down.
   if (gold - SEED_COST[crop] >= reserve) return crop;
-  // Try cheaper in-season alternatives.
   const cheaper: CropKind[] = ["tomato", "carrot", "radish", "winter-squash", "wheat"];
   for (const c of cheaper) {
     if (gold - SEED_COST[c] >= reserve) return c;
@@ -89,47 +79,34 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
   deliberateRefillCan(farmer, Math.min(sense?.due ?? 0, 2));
-
-  // brief 29 — opportunist waters lazily (threshold 1), banking AP for trades.
+  // Waters lazily (threshold 1), banking AP for trades.
   deliberateWatering(farmer, { dryThreshold: 1 });
 
-  // Opportunist expands plots when it's profitable (medium expansion).
   const plotsOwned = sense?.planted ?? 0;
   if (plotsOwned < 8) {
     const occupied = new Set<string>((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? []);
     deliberateBuyTool(farmer, "hoe", 3);
     deliberateTill(farmer, occupied, 2, 4);
   }
-  // Chop/mine when it's opportune (low priority).
   const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
   deliberateResourceGather(farmer, features, 1, 8);
 
-  // Craft decorations opportunistically — if it improves yield ROI.
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   deliberateDecoration(farmer, decorations, 8);
 
-  // Opportunist chases the mill premium when it has built up a surplus.
   deliberateMillVisit(farmer, 8, 6);
-  // …and the in-season foraging zone for opportunistic gold.
   deliberateSeasonalForage(farmer, 7);
-  // Opportunist takes the occasional fishing trip for side income.
   deliberateFishing(farmer, 5, 3, 13);
-  // brief 48 — the opportunist is the fishing-leaning archetype: it values the
-  // coral-reef premium most and rows out readily (frequent trips, modest AP
-  // floor). The special fish (12–20g vs salmon's 5g) is exactly its kind of
-  // opportunistic upside.
+  // Coral: fishing-leaning archetype — most frequent trips, modest AP floor (40).
   deliberateCoralFishing(farmer, 6, 3, -2, 40);
 
-  // Opportunist visits village on day 0-1 — always wants market info early.
   deliberateEarlyVillageVisit(farmer, 5);
-  // Upgrade pickaxe first (stones → geodes = high value), then hoe.
+  // Upgrade pickaxe first (stones → geodes = high value).
   deliberateUpgrade(farmer, "pickaxe", 9);
   deliberateUpgrade(farmer, "hoe",     10);
-  // Travel to resource zones when own farm has nothing.
   deliberateResourceZoneVisit(farmer, features.length, "stone", 11);
   deliberateResourceZoneVisit(farmer, features.length, "tree",  12);
 
-  // 1. Plant or buy seed based on weather forecast + season.
   const desired = pickCropFromWeatherAndSeason(forecast, day);
   const target = fallbackCrop(desired, farmer.inventory.gold, reserve);
   const cropSeason = CROP_SEASON[target];
@@ -149,10 +126,8 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     recordReason(farmer, `buy seed ${target}: ${seasonNote}, short on seeds`);
   }
 
-  // 2. Supply-aware market posting: if I have stock, peek offer list (if perceived)
-  //    and either post at fair price (low supply) or dump to shopkeeper (high supply).
-  //    Liquidity fallback: when gold is critically low (< half reserve), bypass the
-  //    supply check and sell directly to the shopkeeper to restore liquidity.
+  // Post at fair price when supply < threshold; dump to shopkeeper when high supply
+  // or gold < half reserve (liquidity fallback).
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
   const needsLiquidity = farmer.inventory.gold < reserve * 0.5;
   for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
@@ -180,7 +155,6 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       });
       recordReason(farmer, `post offer ${crop} x${qty} @ ${FAIR_PRICE[crop]}: low supply ${supply}`);
     } else {
-      // High supply or liquidity emergency — sell directly to shopkeeper (instant, no village needed).
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
         data: { crop, quantity: qty },
@@ -192,7 +166,6 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     }
   }
 
-  // 3. Make sure we have a perceived offer list each day.
   farmer.intentions.queue.push({
     kind: "read-offers",
     data: { ontology: ONT_MARKET.READ_OFFERS },
@@ -200,7 +173,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   });
   recordReason(farmer, `read offers: check market`);
 
-  // 4. Buy at most one offer per day — highest-trust seller priced <=110% of shop price.
+  // Buy at most one wall offer per day — highest-trust seller at ≤110% of shop.
   const trust = farmer.trust?.byId;
   let best: { offer: MarketOffer; trust: number } | null = null;
   for (const offer of offers) {
@@ -209,8 +182,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     if (offer.pricePerUnit > ceiling) continue;
     const cost = offer.pricePerUnit * offer.quantity;
     if (farmer.inventory.gold - cost < reserve) continue;
-    // Trust is maintained live by TrustSystem; default to 0.5 for unseen peers.
-    const t = trust?.get(offer.sellerId) ?? 0.5;
+    const t = trust?.get(offer.sellerId) ?? 0.5; // default 0.5 for unseen peers
     if (best === null || t > best.trust) {
       best = { offer, trust: t };
     }
@@ -239,17 +211,12 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     );
   }
 
-  // brief 24 — opportunist bids for arbitrage (well below resale value to lock
-  // in margin) and flips beans for the spread.
+  // Bids for arbitrage at 0.7 of resale and flips beans for the spread.
   deliberateBean(farmer, 0.7);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 
-  // brief 42 — opportunist DIVERSIFIES: a modest coop + a single apple orchard,
-  // funded only out of genuine surplus (it's an opportunist, not a homesteader).
-  // Uses the same committed-excursion discipline as the conservative (see the
-  // note there) so the trips actually land: commit ONE quiet-day excursion at a
-  // time and let the cheap tend/harvest/sell ride normal days.
+  // Diversifies with a modest coop + single apple orchard on genuine surplus only.
   const oppSurplus = farmer.inventory.gold >= reserve + 50;
   const oppUrgent = (sense?.maxDrySoFar ?? 0) >= 2;
   const oppAp = (farmer.ap?.current ?? 0) >= 20;
@@ -258,12 +225,10 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   const oppChickens = (farmer.beliefs.data["penCount_chicken"] as number | undefined) ?? 0;
   const oppOrchards = (farmer.beliefs.data["orchardCount"] as number | undefined) ?? 0;
   if (day >= 8) {
-    // Orchard (apple → autumn) — on-farm, plant early so it matures in time.
     const orchardCommit = oppQuiet && oppOrchards < 1;
     deliberatePlantOrchard(farmer, "apple", 1, reserve + 5, 16, orchardCommit ? -2 : undefined);
     deliberateHarvestFruit(farmer, 4);
     deliberateSellFruit(farmer, 6);
-    // Livestock loop (build + stock at the carpenter in one trip).
     deliberateTendPens(farmer, 5);
     deliberateSellProducts(farmer, 6);
     if (oppQuiet && oppOrchards >= 1) {
@@ -272,37 +237,23 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     }
   }
 
-  // brief 44 — hire a day-helper at the tavern when AP-starved + gold-rich.
   deliberateHireHelp(farmer, reserve, 13, -2);
-
-  // brief 50 — occasional pilgrimage to the shrine for a small, bounded AP top-up
-  // when AP-starved and off-cooldown. Modest action priority, but a WINNING travel
-  // leg (-2) on a pilgrimage day so the trip actually lands (the opportunist is the
-  // only personality that weighs this detour).
+  // Shrine: opportunist only — AP top-up when starved + off-cooldown.
   deliberateShrineVisit(farmer, 12, -2);
 
-  // brief 46 — harbor contracts: opportunist watches deadlines for arbitrage
-  // and commits with moderate-high risk tolerance (0.7) from day 3. She's
-  // the most likely to speculate on "grow-then-deliver" contracts.
+  // riskTolerance 0.7: most likely to speculate on grow-then-deliver contracts.
   const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
   if (day >= 3) {
     deliberateHarborContract(farmer, openContracts, 0.7, reserve, 5, -2);
   }
 
-  // brief 44 — gathering beat (pure flavor; an idle in-village farmer drifts to
-  // the tavern). Runs before the sleep helper so it can claim a truly-idle queue.
   deliberateTavernGather(farmer, -2);
-  // brief 45 — festival-day gathering at the village podium.
   deliberateFestivalGather(farmer, -2);
   deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }
 
 registerPersonality("opportunist", deliberateOpportunist);
-
-// ---------------------------------------------------------------------------
-// Peer-trade hooks (encounter-trade system)
-// ---------------------------------------------------------------------------
 
 const OPP_PEER_BUY_CEILING = 1.1; // matches wall heuristic
 const OPP_PEER_SELL_FLOOR = 0.9;
@@ -315,12 +266,7 @@ export const respondToPeerOfferOpportunist = makeRespondPeerOffer({
   reserveDefault: 50,
 });
 
-/**
- * brief 59 — opportunist is the natural arbitrageur and the keenest crop BUYER:
- * it snaps up peers' surplus harvested crops at or below shop value (ceiling
- * 1.0) to resell at the wall for margin. (It barely accumulates crops itself —
- * peak ~4 wheat — so it's demand, not supply; the hoarder is the seller.)
- */
+// Keenest crop buyer: snaps up peers' surplus at ≤ shop value (1.0) to resell at the wall.
 export const respondCropOfferOpportunist = makeRespondPeerOffer({
   commodity: "crop",
   buyCeiling: 1.0, // buys crops at or below shop value (resale margin)

@@ -1,6 +1,4 @@
-// protocol barrel — the transport-neutral message contract between the sim host
-// (Web Worker today; Node WS server in brief 57) and the renderer client.
-// Names retain the historical "Worker*" prefix; the transport is swappable.
+// Protocol barrel. "Worker*" prefix is historical; transport is swappable (Web Worker today, WS server later).
 export type {
   WorkerInbound,
   WorkerOutbound,

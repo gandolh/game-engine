@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// ── Debug ────────────────────────────────────────────────────────────────────
 const recipe: PixelRecipe =
   {
     name: "debug/player",

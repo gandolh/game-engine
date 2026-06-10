@@ -14,10 +14,7 @@ export const WEATHER_MULTIPLIER: Record<WeatherCondition, number> = {
   storm: 0.5,
 };
 
-/**
- * Seasons divide the 100-day run into 4 quarters (see `seasonForDay`).
- * Each season biases the per-day weather draw (see `systems/weather.ts`).
- */
+// Each season biases the per-day weather draw (see systems/weather.ts).
 export type Season = "spring" | "summer" | "autumn" | "winter";
 
 export const SEASON_ORDER: ReadonlyArray<Season> = [
@@ -30,12 +27,7 @@ export const SEASON_ORDER: ReadonlyArray<Season> = [
 /** Days in each season. The cycle repeats if the run exceeds 4 seasons. */
 export const SEASON_LENGTH = 25;
 
-/**
- * Pure function of the day index -> Season. Deterministic; no RNG, no clock.
- * Day 1 is the first day of spring. Days are grouped in `SEASON_LENGTH`-day
- * blocks and the four-season cycle repeats for runs longer than 100 days.
- * Day 0 (pre-start) is treated as spring.
- */
+/** Deterministic: day 1 = first day of spring; cycle repeats for runs longer than 4 seasons. Day 0 = spring. */
 export function seasonForDay(day: number): Season {
   const d = Math.max(0, Math.floor(day) - 1);
   const idx = Math.floor(d / SEASON_LENGTH) % SEASON_ORDER.length;

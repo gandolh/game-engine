@@ -7,12 +7,8 @@ import { nearestWaterSource, nearestTile } from "./shared";
 import type { WateringStyle } from "./shared";
 
 /**
- * Check if the watering can needs a refill and queue a refill-can intent if so.
- * Must be called BEFORE deliberateWatering so the refill lands before water actions.
- *
- * brief (proximity) — prefers traveling to the fountain TILE (so the farmer is
- * adjacent to the fountain when the refill executes). Falls back to region travel
- * if the fountain tile isn't in beliefs.
+ * Queue a refill-can intent if needed. Must be called BEFORE deliberateWatering.
+ * Prefers the fountain tile from beliefs; falls back to nearest water-source region center.
  */
 export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number): void {
   const can = farmer.inventory?.wateringCan;
@@ -20,17 +16,13 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
   // If we plan to water more plots than remaining charges, refill first.
   if (can.charges >= planWaterCount && can.charges !== 0) return;
 
-  // Resolve the nearest water-source TILE (home fountain or well center).
   const sense = farmer.beliefs?.data.plotWater as PlotWaterSense | undefined;
   const fountainTile = sense?.fountainTile;
 
-  // Compute the nearest water-source tile: home fountain tile (from beliefs if
-  // available) or the nearest well/home region center (fallback).
   let nearestSourceTile: { x: number; y: number } | undefined;
   if (fountainTile) {
     nearestSourceTile = fountainTile;
   } else {
-    // Fallback: use the nearest water source region center (home or well).
     const sourceRegionId = nearestWaterSource(farmer);
     if (sourceRegionId) {
       const def = REGIONS.find(r => r.id === sourceRegionId);
@@ -38,12 +30,11 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
     }
   }
 
-  if (!nearestSourceTile) return; // no water source known — skip
+  if (!nearestSourceTile) return;
 
   const nearSource = isWithinReach(farmer.transform, nearestSourceTile.x, nearestSourceTile.y);
 
   if (!nearSource) {
-    // Not adjacent to any water source — travel to the fountain tile; act next cycle.
     if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
         kind: "travel",
@@ -55,11 +46,10 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
     return;
   }
 
-  // Adjacent to a water source — queue the refill action.
   farmer.intentions.queue.push({
     kind: "refill-can",
     data: {},
-    priority: 0, // same as water — survival
+    priority: 0,
   });
   recordReason(farmer, `refill can (${can.charges}/${can.maxCharges} charges)`);
 }
@@ -67,13 +57,10 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
 export function deliberateWatering(farmer: GameEntity, style: WateringStyle): void {
   const sense = farmer.beliefs?.data.plotWater as PlotWaterSense | undefined;
   if (!sense || sense.due <= 0) return;
-  // Only water once the driest plot has reached the personality's threshold,
-  // EXCEPT always water if something is one day from wilting (grace - 1).
-  const urgent = sense.maxDrySoFar >= 2; // grace is 2; at 2 dry days it's last chance
+  const urgent = sense.maxDrySoFar >= 2; // grace is 2 dry days; at 2 it's last chance
   if (!urgent && sense.maxDrySoFar < style.dryThreshold) return;
 
   const cap = style.maxWaterPerDay ?? sense.due;
-  // duePlots is sorted (tileY, tileX) for determinism.
   const duePlots = sense.duePlots ?? [];
   const candidatePlots = duePlots.slice(0, cap);
 
@@ -86,8 +73,6 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
   const outOfReach = candidatePlots.filter(p => !isWithinReach(transform, p.tileX, p.tileY));
 
   if (inReach.length > 0) {
-    // Enqueue a water intent for every reachable due plot so the farmer waters
-    // the whole cluster in one ACT pass.
     for (const p of inReach) {
       farmer.intentions!.queue.push({
         kind: "water",
@@ -95,7 +80,6 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
         priority: 0,
       });
     }
-    // If there are still unreachable due plots, queue travel toward the nearest one.
     if (outOfReach.length > 0) {
       const nearest = nearestTile(transform, outOfReach);
       if (nearest && !farmer.intentions!.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
@@ -107,7 +91,6 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
       }
     }
   } else {
-    // No due plot is within reach — travel to the nearest one; act next cycle.
     const nearest = nearestTile(transform, candidatePlots);
     if (nearest && !farmer.intentions!.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions!.queue.push({

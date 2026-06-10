@@ -1,80 +1,56 @@
-/**
- * AP ordering decision:
- * ApSystem runs AFTER FinishDaySystem in the scheduler.
- * FinishDaySystem resets ap.current = ap.max unconditionally.
- * ApSystem then checks penaltyPending: if set, it overwrites ap.current
- * with ap.penaltyCapacity and clears penaltyPending.
- * This means the penalty applies on the NEXT day after over-spending while away.
- *
- * The FINISH_DAY state transition (FINISH_DAY → WAIT_DAY) is already handled
- * by FinishDaySystem; ApSystem only mutates the ap component.
- */
+// ApSystem runs AFTER FinishDaySystem; it only prunes + deducts AP in ACT state.
+// Penalty application and rested/unrested refill happen in PerceiveSystem (morning wake).
 
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../components";
 
-/**
- * brief 28 — AP cost table.
- *   - travel is FREE in AP (it costs daylight/time instead — brief 27).
- *   - field work (plant/water/harvest) is cheap.
- *   - selling is 3 AP per transaction.
- *   - trade/transaction init is 3 AP BASE, discounted toward friends by trust
- *     (see `tradeInitCost`); the table value is the undiscounted base.
- *   - auction entry is 2 AP; the bid itself is free.
- *   - gifting is 1 AP.
- */
+/** AP cost table. Travel is free (time-throttled). Trade-init (3 base) is discounted by trust; see tradeInitCost. */
 export const AP_COST = {
   plant: 1,
-  water: 1, // brief 29 — irrigation action (1 watering-can charge too)
+  water: 1, // also consumes 1 watering-can charge
   harvest: 1,
-  till: 1,          // create a new plot tile with a hoe (uses 1 hoe durability)
-  "chop-tree": 1,   // chop a tree with axe (uses 1 axe durability)
-  "mine-stone": 1,  // mine a stone with pickaxe (uses 1 pickaxe durability)
+  till: 1,          // uses 1 hoe durability
+  "chop-tree": 1,   // uses 1 axe durability
+  "mine-stone": 1,  // uses 1 pickaxe durability
   "refill-can": 2,  // refill watering can at the farm fountain
-  "buy-tool": 1,          // buy a tool from the shop
-  "upgrade-tool": 2,      // have the blacksmith upgrade a tool (pays gold)
-  "craft-decoration": 2,  // craft a farm decoration at the carpentry workshop
-  "commission-build": 2,  // brief 44 — commission a build at the carpenter (escrows wood; delivered after build-time)
-  "hire-help": 1,         // brief 44 — hire a day-helper at the tavern (pays gold for an AP boost)
-  "process-crop": 2,      // mill raw crops into gold at a premium (at the mill)
-  "forage": 1,            // forage a seasonal zone (mushroom grove / ice pond)
-  "fish": 1,              // cast at a fishing spot — cheap AP, long busy time, lands a fish
-  // brief 48 — coral fishing. Boarding/disembarking are free (like travel); a
-  // coral cast costs more AP than a shore cast (3 vs 1) — the premium catch is
-  // gated behind a real budget cost so the boat trip is a deliberate investment.
+  "buy-tool": 1,
+  "upgrade-tool": 2,
+  "craft-decoration": 2,
+  "commission-build": 2,  // escrows wood; decoration delivered after build-time
+  "hire-help": 1,         // pays gold for a same-day AP boost (see HELPER_AP_BOOST)
+  "process-crop": 2,
+  "forage": 1,
+  "fish": 1,              // cheap AP, long busy time
+  // coral-fishing: boarding/returning free (like travel); coral cast costs 3 vs 1 shore — premium catch gated by real AP budget
   "board-boat": 0,
   "return-to-shore": 0,
   "fish-coral": 3,
-  travel: 0, // brief 28 — walking is AP-free (time-throttled)
+  travel: 0, // walking is AP-free (time-throttled)
   negotiate: 3,
   "read-offers": 1,
   "post-offer": 1,
   "buy-seed": 1,
   "sell-shopkeeper": 3,
-  "sell-from-wall": 3, // brief 28 — was missing from the table (silently 0)
-  "buy-from-wall": 3, // a transaction init — friend-discountable
-  "cnp-initiate": 3, // a transaction init — friend-discountable
+  "sell-from-wall": 3,
+  "buy-from-wall": 3, // trade-init — friend-discountable
+  "cnp-initiate": 3, // trade-init — friend-discountable
   "cnp-respond-bid": 1,
-  "auction-entry": 2, // brief 28 — pay to contest an auction
-  "auction-bid": 0, // the bid itself is free once entered
+  "auction-entry": 2,
+  "auction-bid": 0, // bid is free once you've paid entry
   "resale-bean": 3,
   "gift-bean": 1,
   idle: 0,
-  // brief 42 — livestock and orchard actions
-  "build-pen": 3,       // build a pen at the carpenter (consumes wood + gold)
-  "buy-animal": 2,      // buy an animal at the village shopkeeper
-  "tend": 1,            // tend the pen (raise care + set fedToday)
-  "plant-tree": 2,      // plant a fruit tree on a farm tile
-  "harvest-fruit": 1,   // collect ready fruit from a mature tree
-  "sell-product": 3,    // sell livestock products to the shopkeeper
-  "sell-fruit": 3,      // sell fruit to the shopkeeper
-  // brief 46 — harbor contract actions
-  "commit-contract": 1,   // commit to an open harbor contract (at the harbor)
-  "deliver-contract": 3,  // deliver goods to the harbor dock for a committed contract
-  "build-greenhouse": 3,  // build a greenhouse at the carpenter
-  // brief 50 — pray at the shrine. The act itself is AP-free (its whole point is
-  // to GRANT AP); the cost gate is the trip + the ~5-day cooldown, not an AP fee.
-  "pray-at-shrine": 0,
+  "build-pen": 3,
+  "buy-animal": 2,
+  "tend": 1,            // raise pen care + set fedToday
+  "plant-tree": 2,
+  "harvest-fruit": 1,
+  "sell-product": 3,
+  "sell-fruit": 3,
+  "commit-contract": 1,
+  "deliver-contract": 3,
+  "build-greenhouse": 3,
+  "pray-at-shrine": 0, // AP-free — grants AP; cost gate is the trip + ~5-day cooldown
 } as const;
 
 type KnownIntentKind = keyof typeof AP_COST;
@@ -86,58 +62,25 @@ const TRADE_INIT_KINDS: ReadonlySet<string> = new Set([
   "negotiate",
 ]);
 
-/**
- * brief 28 — tiered friend discount on a trade/transaction init. Cost scales
- * with the initiator's trust toward the counterparty (baseline 0.5):
- *   trust >= 0.7 → 1 AP, trust >= 0.5 → 2 AP, else the 3 AP base.
- */
+/** Tiered trade-init cost: trust≥0.7→1 AP, ≥0.5→2 AP, else 3 (baseline 0.5). */
 export function tradeInitCost(trust: number): number {
   if (trust >= 0.7) return 1;
   if (trust >= 0.5) return 2;
   return 3;
 }
 
-/**
- * brief 50 — shrine interaction tunables.
- *
- * `SHRINE_AP_BOOST` — the small AP top-up `pray-at-shrine` grants. Deliberately
- * small (≈12) and ALWAYS clamped to `maxApForDay(day)` so a prayer can never push
- * a farmer past a normal full day's ceiling — it can't snowball a leader (see
- * project_leader_runaway). It's a minor catch-up nudge, not a power spike.
- *
- * `SHRINE_COOLDOWN_DAYS` — once per ~5 days per farmer. The act sets
- * `shrinePrayedDay`; both deliberation and the handler refuse a prayer while
- * `day - shrinePrayedDay < SHRINE_COOLDOWN_DAYS`.
- */
+/** Shrine AP top-up — clamped to maxApForDay so it can't snowball a leader. Once per ~5 days. */
 export const SHRINE_AP_BOOST = 12;
 export const SHRINE_COOLDOWN_DAYS = 5;
 
-/**
- * brief 44 — the AP a tavern day-helper grants. SAME-DAY: applied immediately in
- * the `hire-help` act handler (the quick hired hand / rallying drink puts you
- * back to work right now), NOT the morning after. Deliberately modest (25) and
- * clamped so a gold-rich leader can't buy same-day dominance (see
- * project_leader_runaway): a hire tops `ap.current` up to at most
- * `maxApForDay(day) + HELPER_AP_MARGIN`. The small margin lets an AP-starved
- * farmer get a genuinely useful catch-up bump (a hire is gated to a low AP
- * fraction in deliberation) without ever snowballing past roughly one sane day's
- * worth of work. `ap.max` is nudged up only enough to preserve the
- * current ≤ max invariant when the margin is used.
- */
+/** Same-day AP boost from hiring tavern help. Clamped to maxApForDay+HELPER_AP_MARGIN so gold-rich leaders can't snowball. */
 export const HELPER_AP_BOOST = 25;
 export const HELPER_AP_MARGIN = 25;
 
-/** brief 28 — base AP on day 1. */
 export const AP_BASE_MAX = 100;
-/** brief 28 — the daily AP ceiling grows by this each day. */
 export const AP_GROWTH_PER_DAY = 2;
 
-/**
- * brief 28 — the day's AP ceiling: `100 + 2×(day−1)` (day 1 = 100, day 100 =
- * 298). A farmer wakes with this much if it slept at home, or half if unrested
- * (applied at the morning wake in PerceiveSystem). `day` is the 0-based sim day
- * from the clock, so we use `day` directly (day 0 → 100).
- */
+/** Day's AP ceiling: 100 + 2×day (0-based). Halved if unrested (applied at morning wake in PerceiveSystem). */
 export function maxApForDay(day: number): number {
   return AP_BASE_MAX + AP_GROWTH_PER_DAY * Math.max(0, day);
 }
@@ -182,13 +125,7 @@ export class ApSystem implements System {
     const farmers = this.world.query("fsm", "ap", "intentions");
 
     for (const farmer of farmers) {
-      // --- Pre-ACT intent pruning ---
-      // Run before ActSystem: drop low-priority intents if AP insufficient.
-      // brief 27 — AP is a daily budget refilled at the morning PHASE_START
-      // (PerceiveSystem), NOT here. The old WAIT_DAY refill/penalty block was
-      // removed: with the intra-day timeline, FINISH_DAY→WAIT_DAY happens once
-      // per phase, so any refill keyed on WAIT_DAY would top up every phase.
-      // The rested/unrested halving now lives in the morning wake.
+      // Prune + deduct before ActSystem executes. Refill happens in PerceiveSystem (morning wake).
       if (farmer.fsm.current === "ACT") {
         this.pruneAndDeductAp(farmer);
       }
@@ -199,17 +136,14 @@ export class ApSystem implements System {
     const queue = farmer.ap ? farmer.intentions.queue : [];
     const available = farmer.ap.current;
 
-    // Calculate total cost of all queued intentions (friend-discounted).
     let totalCost = queue.reduce((sum, intent) => sum + apCostForIntent(farmer, intent), 0);
 
     if (totalCost > available) {
-      // Keep most-important intents first; drop lowest-priority (highest number) ones.
-      // Sell-* actions are protected and always sorted to the front regardless of priority number.
+      // Sell-* protected: sorted to front regardless of priority number. Lowest priority number = most important.
       const sorted = [...queue].sort((a, b) => {
         const aSell = isSellIntent(a.kind) ? 0 : 1;
         const bSell = isSellIntent(b.kind) ? 0 : 1;
-        if (aSell !== bSell) return aSell - bSell; // sell intents come first (protected)
-        // Among same group: keep lowest priority number (most important) first
+        if (aSell !== bSell) return aSell - bSell;
         return a.priority - b.priority;
       });
 
@@ -221,10 +155,8 @@ export class ApSystem implements System {
           kept.push(intent);
           keptCost += cost;
         }
-        // Else drop this intent (it didn't fit within available AP)
       }
 
-      // Restore original queue with only kept intents (preserve original ordering)
       farmer.intentions.queue.length = 0;
       for (const intent of kept) {
         farmer.intentions.queue.push(intent);
@@ -232,16 +164,13 @@ export class ApSystem implements System {
       totalCost = keptCost;
     }
 
-    // Deduct AP
     farmer.ap.current = Math.max(0, farmer.ap.current - totalCost);
 
-    // Determine if any kept intent involves travel (farmer will be away)
     const hasTravel = farmer.intentions.queue.some((i) => i.kind === "travel");
     if (hasTravel) {
       farmer.ap.away = true;
     }
 
-    // If farmer is away and has zero AP remaining, mark penalty for next day
     if (farmer.ap.away && farmer.ap.current === 0) {
       farmer.ap.penaltyPending = true;
     }

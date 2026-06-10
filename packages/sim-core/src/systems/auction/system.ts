@@ -24,24 +24,9 @@ import {
 export type { DutchAuctionOptions, EnglishAuctionOptions };
 
 /**
- * AuctionSystem — state machine for four auction formats:
- *   - Vickrey: second-price sealed bid.
- *   - FPSB: first-price sealed bid (winner pays their own bid).
- *   - Dutch: descending clock; first accept wins at the current price.
- *   - English: ascending clock; bidders affirm while the ask is within their
- *     valuation; the last/highest affirmer wins at the current price.
- *
- * The system does NOT subscribe to the bus directly (the production
- * `InboxDispatchSystem` never calls `bus.notifySubscribers()`). Instead:
- *   - Auctions are opened by the ShopkeeperSystem calling `openAuction(cfp)`
- *     directly. The shopkeeper also broadcasts an `AUCTION_CFP` on the bus
- *     for farmer awareness.
- *   - Bids are read from the shopkeeper entity's inbox each tick (farmers
- *     send `ONT_SHOP.AUCTION_BID` direct-addressed to the shopkeeper).
- *   - Results are broadcast on the bus when an auction closes.
- *
- * For tests, callers can also invoke `submitBid()` directly to bypass the
- * inbox plumbing.
+ * State machine for four auction formats (Vickrey, FPSB, Dutch, English).
+ * ShopkeeperSystem opens auctions via openAuction(); bids arrive in the shopkeeper inbox.
+ * Tests may call submitBid() directly. Results broadcast on the bus when closed.
  */
 export class AuctionSystem implements System {
   readonly name = "AuctionSystem";
@@ -58,8 +43,7 @@ export class AuctionSystem implements System {
     dutchDefaults: DutchAuctionOptions = {},
     englishDefaults: EnglishAuctionOptions = {},
   ) {
-    // Fork even if unused today so future Dutch jitter stays deterministic.
-    this._rng = rng.fork("auction");
+    this._rng = rng.fork("auction"); // forked now so any future use stays deterministic
     void this._rng;
     this.dutchDefaults = {
       startPrice: dutchDefaults.startPrice ?? 200,
@@ -73,7 +57,6 @@ export class AuctionSystem implements System {
   }
 
   run(ctx: SimContext): void {
-    // 1. Drain AUCTION_BID messages from the shopkeeper inbox.
     const shop = firstEntity(this.world, "shopkeeper", "inbox");
     if (shop?.inbox) {
       const remaining: AgentMessage[] = [];
@@ -87,7 +70,6 @@ export class AuctionSystem implements System {
       shop.inbox.messages = remaining;
     }
 
-    // 2. Resolve closed sealed-bid auctions; advance the Dutch/English clocks.
     for (const auction of this.auctions.values()) {
       if (auction.resolved) continue;
       switch (auction.type) {
@@ -100,9 +82,6 @@ export class AuctionSystem implements System {
           break;
         }
         case "dutch": {
-          // Anchor startTick on the first run-pass that observes this auction
-          // so that the descending clock counts from when the system sees it,
-          // not from whenever the first bid happens to arrive.
           if (auction.startTick === null) auction.startTick = ctx.tick;
           if (auction.winner !== null) {
             this.resolveDutch(auction, ctx);
@@ -112,8 +91,6 @@ export class AuctionSystem implements System {
           break;
         }
         case "english": {
-          // Anchor startTick on the first observation, mirroring Dutch, so the
-          // ascending clock counts from when the system sees the auction.
           if (auction.startTick === null) auction.startTick = ctx.tick;
           if (this.englishShouldClose(auction, ctx.tick)) {
             this.resolveEnglish(auction, ctx);
@@ -124,12 +101,7 @@ export class AuctionSystem implements System {
     }
   }
 
-  // ---- public API (callable by ShopkeeperSystem and tests) --------------
-
-  /**
-   * Open a new auction. Idempotent — re-opening with an existing id is a
-   * no-op so duplicate CFP broadcasts don't reset state.
-   */
+  /** Idempotent — re-opening an existing auctionId is a no-op. */
   openAuction(
     cfp: AuctionCfpBody,
     dutch?: DutchAuctionOptions,
@@ -155,7 +127,7 @@ export class AuctionSystem implements System {
           startPrice: Math.max(opts.startPrice, cfp.reservePrice),
           decrementPerTick: opts.decrementPerTick,
           floor: Math.max(opts.floor, cfp.reservePrice),
-          startTick: null, // anchored on first observation via currentDutchPrice
+          startTick: null,
           winner: null,
           participants: new Set<number>(),
           resolved: false,
@@ -171,7 +143,7 @@ export class AuctionSystem implements System {
           startPrice: cfp.reservePrice,
           incrementPerTick: opts.incrementPerTick,
           noBidTimeout: opts.noBidTimeout,
-          startTick: null, // anchored on first observation via currentEnglishPrice
+          startTick: null,
           leader: null,
           lastBidTick: null,
           participants: new Set<number>(),
@@ -183,14 +155,7 @@ export class AuctionSystem implements System {
     }
   }
 
-  /**
-   * Submit a bid for an existing auction.
-   *   - Vickrey/FPSB: stored (sealed) until close.
-   *   - Dutch: the first call with `amount >= currentPrice` wins at `currentPrice`.
-   *   - English: an affirm with `amount >= currentPrice` becomes the new leader
-   *     at the current ask; the last/highest affirmer wins on close.
-   * Returns false if the auction does not exist or is already resolved.
-   */
+  /** Returns false if the auction doesn't exist or is already resolved. */
   submitBid(bid: AuctionBidBody, tick: number): boolean {
     const a = this.auctions.get(bid.auctionId);
     if (!a || a.resolved) return false;
@@ -216,7 +181,6 @@ export class AuctionSystem implements System {
         a.participants.add(bid.bidderId);
         if (tick >= a.cfp.closesAtTick) return false;
         const current = this.currentEnglishPrice(a, tick);
-        // Affirm only counts while the ask is within the bidder's valuation.
         if (bid.amount >= current) {
           a.leader = { bidderId: bid.bidderId, paidPrice: current };
           a.lastBidTick = tick;
@@ -242,8 +206,6 @@ export class AuctionSystem implements System {
     return a.startPrice + a.incrementPerTick * elapsed;
   }
 
-  // ---- internals --------------------------------------------------------
-
   private handleBidMessage(msg: AgentMessage, ctx: SimContext): void {
     const body = msg.body as Partial<AuctionBidBody>;
     if (!body.auctionId || typeof body.amount !== "number") return;
@@ -268,9 +230,7 @@ export class AuctionSystem implements System {
       return;
     }
 
-    // Sort by amount desc, tie-break by earliest tickReceived, then lowest
-    // bidderId (brief 24 — final stable key so resolution never depends on
-    // inbox insertion order; matches the FPSB ordering below).
+    // compareSealedBids: amount desc, tickReceived asc, bidderId asc — deterministic regardless of inbox order.
     const sorted = a.bids.slice().sort(compareSealedBids);
 
     const top = sorted[0]!;
@@ -313,9 +273,6 @@ export class AuctionSystem implements System {
       return;
     }
 
-    // Sort by amount desc; tie-break by earliest tickReceived then lowest
-    // bidder id (matches the Vickrey first-come ordering, with a final stable
-    // bidder-id key for fully deterministic resolution).
     const sorted = a.bids.slice().sort(compareSealedBids);
 
     const top = sorted[0]!;
@@ -329,7 +286,6 @@ export class AuctionSystem implements System {
       return;
     }
 
-    // First-price: the winner pays their OWN bid.
     this.broadcastResult(a.cfp.auctionId, {
       auctionId: a.cfp.auctionId,
       winnerId: top.bidderId,
@@ -358,12 +314,7 @@ export class AuctionSystem implements System {
     }, ctx.tick);
   }
 
-  /**
-   * An English auction closes when either the fixed clock runs out
-   * (`tick >= closesAtTick`) or no affirming bid has arrived within
-   * `noBidTimeout` ticks. The timeout is measured from the most recent
-   * affirm, or from the anchored start tick when there have been no bids.
-   */
+  // Closes on fixed timeout OR noBidTimeout ticks after the last affirm.
   private englishShouldClose(a: EnglishState, tick: number): boolean {
     if (tick >= a.cfp.closesAtTick) return true;
     const since = a.lastBidTick ?? a.startTick ?? tick;

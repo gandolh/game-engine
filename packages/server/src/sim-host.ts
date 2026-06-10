@@ -1,21 +1,5 @@
-/**
- * sim-host.ts — owns one ECS world + sim loop, transport-agnostic.
- *
- * This is the Node port of the browser sim Web Worker
- * (packages/farm-valley/src/worker/sim-worker.ts). The tick body, pacing,
- * pause/speed/step, skip-to-highlight, season re-bake, shock subscription, and
- * player-input handling are ALL ported unchanged — only the I/O differs:
- *
- *   worker `self.postMessage(msg)`  → host `send(msg)` callback
- *   worker `self.onmessage`         → host `handleInbound(msg)` method
- *
- * `setInterval` pacing is host scheduling (wall-clock), not sim logic. The sim
- * is deterministic and depends only on the tick COUNT, so running it from Node
- * with a socket transport does not introduce any nondeterminism. A run started
- * with a given seed produces byte-identical output to the browser worker (both
- * use the WASM pathfinder — see the JS/WASM divergence note in the corpus).
- */
-
+// Transport-agnostic Node port of sim-worker.ts: postMessage→send callback, onmessage→handleInbound().
+// setInterval is wall-clock pacing only; the sim depends solely on tick count (fully deterministic).
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { buildStaticLayerSprites } from "@farm/sim-core/render-systems";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
@@ -50,21 +34,12 @@ const PROFILE_REPORT_EVERY = 60;
 export type SendFn = (msg: WorkerOutbound) => void;
 
 export interface SimHostOptions {
-  /**
-   * Pathfinder for TravelSystem. The server passes the WASM pathfinder (to match
-   * the browser); tests may pass a JsPathfinder. If null, TravelSystem is omitted
-   * and travel-gated actions no-op (same as the worker without WASM).
-   */
+  /** WASM pathfinder (matches browser) or JsPathfinder (tests); null → travel no-ops. */
   pathfinder?: PathfinderLike | null;
-  /** Optionally instantiate the WASM pathfinder from these bytes instead. */
+  /** Instantiate pathfinder from these bytes instead of a pre-built instance. */
   pathfinderWasm?: ArrayBuffer | null;
 }
 
-/**
- * One running simulation. Construct with a `send` callback, call `start(init)`
- * once with the run parameters, feed control/input messages via `handleInbound`,
- * and `stop()` (or rely on the gameOver auto-stop) to end it.
- */
 export class SimHost {
   private readonly send: SendFn;
   private readonly opts: SimHostOptions;
@@ -72,7 +47,7 @@ export class SimHost {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private stopped = false;
 
-  // Playback state (wall-clock pacing only — never affects what a tick computes).
+  // Wall-clock pacing only — never affects what a tick computes.
   private paused = false;
   private speedMultiplier = 1;
   private pendingStep = false;
@@ -80,7 +55,6 @@ export class SimHost {
 
   private readonly profiler = new Profiler();
 
-  // Bound in start(); null before the run begins.
   private runOneTick: (() => void) | null = null;
   private getEventFeedInfo:
     | (() => { length: number; newestDrama: number })
@@ -101,7 +75,6 @@ export class SimHost {
     this.opts = opts;
   }
 
-  /** Handle a main→sim message (the WorkerInbound protocol). */
   handleInbound(msg: WorkerInbound): void {
     switch (msg.type) {
       case "stop":
@@ -135,7 +108,6 @@ export class SimHost {
     }
   }
 
-  /** Stop the loop and release the interval. Idempotent. */
   stop(): void {
     this.stopped = true;
     if (this.intervalId !== null) {
@@ -147,8 +119,7 @@ export class SimHost {
   private async resolvePathfinder(
     init: WorkerInitMsg,
   ): Promise<PathfinderLike | null> {
-    // Precedence: an explicitly-injected pathfinder (tests) → bytes from opts →
-    // bytes on the init message → none.
+    // Precedence: injected instance → opts bytes → init bytes → none.
     if (this.opts.pathfinder) return this.opts.pathfinder;
     const bytes = this.opts.pathfinderWasm ?? init.pathfinderWasm ?? null;
     if (bytes) {
@@ -163,7 +134,6 @@ export class SimHost {
     return null;
   }
 
-  /** Boot the sim for this run and begin ticking. Called once, on `init`. */
   private async start(init: WorkerInitMsg): Promise<void> {
     const { seed, ticksPerDay, maxDays, tickRateHz } = init;
     this.ticksPerDay = ticksPerDay;
@@ -181,7 +151,6 @@ export class SimHost {
       rivalry,
     } = bootstrapSim({ seed, ticksPerDay, maxDays, pathfinder });
 
-    // Wire player (Pip) input onto the player entity for PlayerControlSystem.
     this.applyInput = (moveX, moveY, action, selectSlot) => {
       for (const e of world.query("player")) {
         e.player!.pendingMoveX = moveX;
@@ -192,8 +161,7 @@ export class SimHost {
       }
     };
 
-    // Static-layer sprites: baked for the current season, re-posted on a season
-    // change (4× per run). The client re-bakes its backdrop from each message.
+    // Re-post static layer on season change (4× per run); client re-bakes its backdrop.
     let lastBakedSeason = seasonForDay(dayClock.day);
     const postStaticLayer = (season: Season): void => {
       const staticSprites = buildStaticLayerSprites(world, season);
@@ -208,7 +176,6 @@ export class SimHost {
     };
     postStaticLayer(lastBakedSeason);
 
-    // Surface the mid-game shock once, in the snapshot it belongs to.
     let pendingShock: SnapshotShock | null = null;
     bus.subscribeOntology(ONT_SIMULATION.SHOCK, (busMsg) => {
       const b = busMsg.body as unknown as ShockBody;
@@ -223,8 +190,7 @@ export class SimHost {
 
     let tick = 0;
 
-    // Per-run render memo (facing/bubble), so this connection's sim never shares
-    // cosmetic state with another sim running in the same server process.
+    // Per-connection sprite state so concurrent sims never share cosmetic state.
     const spriteState = new SnapshotSpriteState();
 
     this.getEventFeedInfo = () => {
@@ -233,8 +199,6 @@ export class SimHost {
       return { length: events.length, newestDrama: last?.drama ?? 0 };
     };
 
-    // Single deterministic tick. Depends only on the tick COUNT. pause/speed/step
-    // all funnel through here so the advance is byte-identical regardless of pacing.
     this.runOneTick = () => {
       if (this.stopped) return;
 
@@ -299,7 +263,6 @@ export class SimHost {
     this.intervalId = setInterval(() => this.onInterval(), msPerTick);
   }
 
-  /** One interval fire — the host pacing loop, ported from the worker. */
   private onInterval(): void {
     if (this.stopped || this.runOneTick === null) return;
 

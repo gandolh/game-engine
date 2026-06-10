@@ -5,9 +5,7 @@ import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
 import type { RegionId } from "../world/regions";
 
-// proximity (brief): deliberatePlantNearby requires an empty plot within reach in
-// beliefs.data.plotWater.emptyPlots. Farmer transform is (0,0); the nearest
-// empty plot tile at (0,0) is Chebyshev ≤ 1 — always in reach.
+// Farmer transform (0,0); tile (0,0) is always within Chebyshev reach.
 const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
 
 function makeFarmer(overrides: {
@@ -30,7 +28,6 @@ function makeFarmer(overrides: {
     beliefs: {
       data: {
         currentDay: overrides.day ?? 0,
-        // proximity (brief): emptyPlots surfaces the tile candidates for deliberatePlantNearby.
         plotWater: { planted: 0, due: 0, maxDrySoFar: 0, duePlots: [], emptyPlots: EMPTY_PLOT_IN_REACH },
         ...(overrides.offers ? { marketOffers: overrides.offers } : {}),
         ...(overrides.plotId !== undefined ? { plotId: overrides.plotId } : {}),
@@ -54,9 +51,7 @@ describe("deliberateHoarder", () => {
     _resetCnpCoordinatorsForTests();
   });
 
-  it("plants a high-tier crop when seed is available (brief 41: grape in autumn)", () => {
-    // Day 60 = autumn. Hoarder picks grape (highest autumn value) if available.
-    // With grape seed, gold=300, reserve=80: 300-20=280>=80 → preferred=grape.
+  it("plants grape when seed is available (highest autumn value, day 60)", () => {
     const f = makeFarmer({ seeds: { grape: 1 }, plotId: 0, day: 60 });
     deliberateHoarder(f, { tick: 1200 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
@@ -64,12 +59,8 @@ describe("deliberateHoarder", () => {
     expect(plant!.data["crop"]).toBe("grape");
   });
 
-  it("falls back to seed on hand when no preferred crop can be bought (brief 41)", () => {
-    // Day 60 = autumn. gold=82, reserve=80.
-    // grape cost 20: 82-20=62<80 → can't buy.
-    // pumpkin cost 15: 82-15=67<80 → can't buy.
-    // pickHoarderCrop returns "radish" (fallback). radish cost 5: 82-5=77<80 → can't buy radish.
-    // Loop finds pumpkin seed on hand → plants it.
+  it("falls back to seed on hand when no preferred crop can be bought (day 60, gold barely above reserve)", () => {
+    // gold=82, reserve=80: grape(20) and pumpkin(15) both dip below reserve; pumpkin seed in hand → plants it.
     const f = makeFarmer({ seeds: { pumpkin: 1 }, plotId: 0, day: 60, gold: 82, reserve: 80 });
     deliberateHoarder(f, { tick: 1200 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
@@ -78,9 +69,7 @@ describe("deliberateHoarder", () => {
   });
 
   it("falls back to radish only when no high-tier crop is affordable", () => {
-    // Reserve 80, gold 80 means we cannot afford any seed without dipping below reserve...
-    // unless radish seed (cost 5) — wait: gold 80 - 5 = 75 < 80 reserve. So we need gold 85.
-    // Make all high-tier seeds unaffordable but radish affordable.
+    // gold=85, reserve=80: only radish(5) fits (85-5=80≥80); high-tier seeds would dip below.
     const f = makeFarmer({ gold: 85, reserve: 80, seeds: {}, plotId: 0 });
     deliberateHoarder(f, { tick: 0 });
     const buy = f.intentions!.queue.find((i) => i.kind === "buy-seed");
@@ -88,8 +77,7 @@ describe("deliberateHoarder", () => {
     expect(buy!.data["crop"]).toBe("radish");
   });
 
-  it("buys radish offers from market wall up to 105% of shop price", () => {
-    // shop=8, 105% = 8.4 — 8 passes, 9 fails.
+  it("buys radish offers from market wall up to 105% of shop price (shop=8, ceiling=8.4)", () => {
     const offers: MarketOffer[] = [
       { offerId: "ok", sellerId: 5, crop: "radish", quantity: 2, pricePerUnit: 8, postedDay: 0 },
       { offerId: "too-pricey", sellerId: 6, crop: "radish", quantity: 2, pricePerUnit: 9, postedDay: 0 },

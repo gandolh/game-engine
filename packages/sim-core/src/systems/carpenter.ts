@@ -10,30 +10,10 @@ import {
   type CommissionDoneBody,
 } from "../protocols/commission";
 
-/**
- * brief 44 — CarpenterSystem: the carpenter NPC now fulfills REAL commissions.
- *
- * This is the order→fulfill half of the loop, modelled on
- * `ShopkeeperSystem.handleSell`: an agent sends a `commission-build` order (its
- * `commission-build` act emits ONT_COMMISSION.BUILD to the carpenter), and this
- * SYSTEM — not agent logic — validates it, charges the wood cost up-front
- * (escrow), queues the job for a short build-time, and on completion DELIVERS
- * the structure (spawns the decoration on the farmer's farm) + replies
- * ONT_COMMISSION.DONE.
- *
- * Why a build-time (not instant like the old `craft-decoration`): the brief asks
- * the carpenter to actually *work* an order over time so the village reads as
- * alive (the NPC is busy on a real job, not just pantomiming). The cost is paid
- * when the order is accepted so a farmer can't double-spend the same wood while
- * a job is in flight.
- *
- * Determinism: message-driven + a per-job tick countdown. No Math.random /
- * Date.now. Pending commissions are processed in array order; delivery tile is
- * the first free farm tile in a fixed (row-major) scan, exactly like the old
- * craft-decoration placement — so a replay is byte-identical.
- */
+// CarpenterSystem: validates commissions, escrows wood up-front, delivers structure after COMMISSION_BUILD_TICKS.
+// No Math.random/Date.now; delivery tile is first free farm tile in fixed row-major scan (deterministic replay).
 
-/** Ticks the carpenter spends building a commission before delivery (~1.5s @20Hz). */
+/** Build time before delivery (~1.5 s at 20 Hz). */
 export const COMMISSION_BUILD_TICKS = 30;
 
 export class CarpenterSystem implements System {
@@ -48,7 +28,6 @@ export class CarpenterSystem implements System {
     const carpenter = this.findCarpenter();
     if (!carpenter || !carpenter.inbox || !carpenter.carpenter) return;
 
-    // 1. Accept new BUILD orders from the inbox (escrow cost up-front).
     const remaining: AgentMessage[] = [];
     for (const msg of carpenter.inbox.messages) {
       if (msg.ontology === ONT_COMMISSION.BUILD) {
@@ -59,7 +38,6 @@ export class CarpenterSystem implements System {
     }
     carpenter.inbox.messages = remaining;
 
-    // 2. Tick down in-flight commissions; deliver the finished ones.
     const pending = carpenter.carpenter.pending;
     if (pending && pending.length > 0) {
       const stillBuilding: PendingCommission[] = [];
@@ -75,8 +53,6 @@ export class CarpenterSystem implements System {
     }
   }
 
-  // ---- accept ------------------------------------------------------------
-
   private acceptOrder(msg: AgentMessage, ctx: SimContext, carpenter: GameEntity): void {
     if (msg.sender === "world" || typeof msg.sender !== "number") return;
     const farmer = findById(this.world, msg.sender, "farmer", "inventory");
@@ -90,14 +66,12 @@ export class CarpenterSystem implements System {
       return;
     }
 
-    // Validate materials: the carpenter requires the recipe's wood up-front.
     const res = farmer.resources;
     if (!res || res.wood < recipe.woodCost) {
       this.replyDone(ctx.tick, msg.sender, { ok: false, kind, reason: "insufficient-wood" });
       return;
     }
 
-    // Validate boost cap (don't accept a commission that would be wasted).
     let existingBoost = 0;
     for (const e of this.world.query("farmDecoration")) {
       if (e.farmDecoration.ownerId === farmer.id) {
@@ -109,9 +83,7 @@ export class CarpenterSystem implements System {
       return;
     }
 
-    // Escrow: charge the wood now, queue the build. The decoration is spawned on
-    // delivery (after the build-time) so the farmer pays before the work begins.
-    res.wood -= recipe.woodCost;
+    res.wood -= recipe.woodCost; // escrow: wood charged now, decoration spawned on delivery
     if (!carpenter.carpenter!.pending) carpenter.carpenter!.pending = [];
     carpenter.carpenter!.pending.push({
       ownerId: farmer.id!,
@@ -121,8 +93,6 @@ export class CarpenterSystem implements System {
     });
   }
 
-  // ---- deliver -----------------------------------------------------------
-
   private deliver(job: PendingCommission, ctx: SimContext): void {
     const regionDef = REGIONS.find((r) => r.id === job.regionId);
     if (!regionDef) {
@@ -130,7 +100,6 @@ export class CarpenterSystem implements System {
       return;
     }
 
-    // Collect occupied tiles on the farm (same scan as the old craft-decoration).
     const usedTiles = new Set<string>();
     for (const e of this.world.query("plot")) {
       if (e.plot.regionId === job.regionId) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
@@ -171,8 +140,6 @@ export class CarpenterSystem implements System {
       ...(placed ? {} : { reason: "no-free-tile" }),
     });
   }
-
-  // ---- helpers -----------------------------------------------------------
 
   private replyDone(tick: number, to: number, body: CommissionDoneBody): void {
     this.bus.send(

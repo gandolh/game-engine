@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Harvest — a small wheat stalk (tan) inside the bubble.
     name: "indicator/intention-harvest",
     size: 16,
     pixels: [

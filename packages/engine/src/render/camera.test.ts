@@ -1,14 +1,3 @@
-/**
- * camera.test.ts — brief 60: Camera2D.setZoom clamping + worldUnits derivation.
- *
- * Tests:
- *  1. setZoom at 1 sets zoom=1 and derives worldUnitsX/Y = baseUnits exactly.
- *  2. setZoom below MIN_ZOOM clamps to MIN_ZOOM.
- *  3. setZoom above MAX_ZOOM clamps to MAX_ZOOM.
- *  4. setZoom in the valid interior sets zoom exactly and derives correct worldUnits.
- *  5. worldUnitsX/Y = baseUnits / zoom after a valid setZoom.
- *  6. setZoom at MAX_ZOOM (6) — at 6× a 16px tile = 96 canvas px (regression guard).
- */
 import { describe, it, expect } from "vitest";
 import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "./camera";
 
@@ -16,7 +5,7 @@ function makeCamera(unitsX = 640, unitsY = 480): Camera2D {
   return new Camera2D({ worldUnitsX: unitsX, worldUnitsY: unitsY, centerX: 0, centerY: 0 });
 }
 
-describe("Camera2D.setZoom (brief 60)", () => {
+describe("Camera2D.setZoom", () => {
   it("zoom=1 leaves worldUnits equal to base units", () => {
     const cam = makeCamera(640, 480);
     cam.setZoom(1);
@@ -59,7 +48,6 @@ describe("Camera2D.setZoom (brief 60)", () => {
   });
 
   it("at MAX_ZOOM (6) worldUnits = baseUnits / 6 — a 16px tile maps to 96 canvas px", () => {
-    // This is the brief-60 acceptance regression: no-clamp at 6.
     const cam = makeCamera(640, 480);
     cam.setZoom(MAX_ZOOM);
     expect(cam.zoom).toBe(6);

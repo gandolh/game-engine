@@ -43,12 +43,7 @@ function makeFarmer(
   });
 }
 
-// As of the open-questions-round refactor, buy-seed no longer mutates the shop
-// slate directly inside ActSystem. It emits an ONT_SHOP.SELL message to the
-// shopkeeper (shop sells a seed to the farmer); ShopkeeperSystem.handleSell
-// owns slate consumption, gold checks, and seed crediting. The slate-rejection
-// edge cases (no-matching-offer / insufficient-stock / insufficient-gold /
-// golden-bean ban / multi-offer fill) live in shopkeeper.test.ts now.
+// buy-seed emits ONT_SHOP.SELL; ShopkeeperSystem owns slate/gold/seed mutation.
 describe("ActSystem buy-seed (emits ONT_SHOP.SELL)", () => {
   let world: World<GameEntity>;
   let bus: MessageBus;
@@ -85,11 +80,10 @@ describe("ActSystem buy-seed (emits ONT_SHOP.SELL)", () => {
     expect(body.crop).toBe("radish");
     expect(body.quantity).toBe(3);
 
-    // ActSystem still transitions the farmer and clears its queue this tick.
     expect(farmer.fsm!.current).toBe("FINISH_DAY");
     expect(farmer.intentions!.queue.length).toBe(0);
 
-    // ActSystem itself does NOT touch inventory or slate anymore.
+    // ActSystem does NOT touch inventory or slate — only emits the message.
     expect(farmer.inventory!.gold).toBe(50);
     expect(farmer.inventory!.seeds.radish).toBe(0);
   });
@@ -126,9 +120,7 @@ describe("ActSystem buy-seed (emits ONT_SHOP.SELL)", () => {
   });
 });
 
-// End-to-end: the seed lands one tick after the buy-seed ACT, via the bus +
-// InboxDispatchSystem + ShopkeeperSystem.handleSell. This documents the
-// accepted one-tick latency the refactor introduces.
+// Seed lands one tick after buy-seed ACT (accepted one-tick latency through bus pipeline).
 describe("ActSystem buy-seed end-to-end through the shopkeeper", () => {
   it("credits seeds + decrements gold and slate one tick later", () => {
     const world = new World<GameEntity>();

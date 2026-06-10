@@ -1,8 +1,6 @@
 import { type PixelRecipe } from "../../types";
 
-// ── Forge chimney smoke (animated overlay, drawn above the forge-house) ───────
-// Three frames of a rising smoke puff, cycled by the render loop like the forge
-// fire. Transparent base; s/S = steel/slate smoke greys, drifting up.
+// Transparent base; drawn above forge-house (wall-clock overlay). Cycled A→B→C.
 const recipe: PixelRecipe =
   {
     name: "structure/forge-smoke-a",

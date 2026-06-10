@@ -1,7 +1,4 @@
-/**
- * Harbor contract helpers, constants, and types.
- * Split from harbor.ts for brief 46.
- */
+/** Harbor contract helpers, constants, and types. */
 
 import type { Rng } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -15,8 +12,7 @@ import { CROP_SELL_PRICE } from "../../economy";
 import type { CropKind, CropQuality } from "../../components";
 import type { HarborContract } from "../../protocols/harbor";
 
-// ── Eligible crops for contracts: the main 8 crops ───────────────────────────
-// Sorted by sell price so higher-value crops appear more often in gold contracts.
+// Sorted by sell price; higher-value crops appear more often in gold contracts.
 export const CONTRACT_CROPS: readonly CropKind[] = [
   "radish", "wheat", "carrot", "tomato", "corn",
   "pumpkin", "grape", "winter-squash",
@@ -26,25 +22,19 @@ export const CONTRACT_CROPS_HIGH: readonly CropKind[] = [
   "tomato", "corn", "pumpkin", "grape", "winter-squash",
 ];
 
-// ── Quality distribution by tier ─────────────────────────────────────────────
 export const TIER_MIN_QUALITY: Record<"normal" | "silver" | "gold", CropQuality> = {
   normal: "normal",
   silver: "normal",  // silver contracts: any quality acceptable
   gold:   "silver",  // gold contracts: need at least silver
 };
 
-// ── Quantity ranges by tier ──────────────────────────────────────────────────
 export const TIER_QTY: Record<"normal" | "silver" | "gold", [number, number]> = {
   normal: [4,  8],
   silver: [6,  12],
   gold:   [8,  16],
 };
 
-/**
- * Pure, deterministic contract generation. Given a day and a forked Rng,
- * produce `count` contracts for a batch posted on `day`. Exported for unit
- * testing.
- */
+/** Pure deterministic contract generation for a batch posted on `day`. */
 export function generateContracts(
   day: number,
   count: number,
@@ -52,7 +42,6 @@ export function generateContracts(
   farmerReputations: number[],
 ): HarborContract[] {
   const contracts: HarborContract[] = [];
-  // Determine which tiers are achievable by at least some farmer.
   const maxRep = farmerReputations.length > 0
     ? Math.max(...farmerReputations)
     : 0;
@@ -88,11 +77,7 @@ export function generateContracts(
   return contracts;
 }
 
-/**
- * Pure, deterministic contract resolution rank. Checks if a farmer has the
- * goods to fulfill a contract. Returns true if the farmer's inventory has
- * enough of the required crop at or above the required quality.
- */
+/** Returns true if the farmer's inventory can fulfill the contract's crop/quality/quantity. */
 export function canFulfillContract(
   inv: GameEntity["inventory"],
   contract: HarborContract,
@@ -102,13 +87,11 @@ export function canFulfillContract(
   const total = inv.crops[crop] ?? 0;
   if (total < quantity) return false;
 
-  // Quality check: count units at or above the minimum quality tier.
   const quality = inv.cropQuality?.[crop];
   if (!quality) {
     // No quality breakdown → all Normal. If minQuality is normal, OK.
     return minQuality === "normal";
   }
-  // Count units that meet the quality floor.
   let qualifying = 0;
   if (minQuality === "normal") qualifying = quality.normal + quality.silver + quality.gold;
   else if (minQuality === "silver") qualifying = quality.silver + quality.gold;

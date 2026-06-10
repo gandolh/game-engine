@@ -25,10 +25,8 @@ export class PerceiveSystem implements System {
   run(ctx: SimContext): void {
     const farmers = this.world.query("inbox", "beliefs", "fsm");
     for (const farmer of farmers) {
-      // Clear busyUntilTick once the work time has elapsed, allowing re-deliberation.
       if (farmer.farmer?.busyUntilTick !== undefined && ctx.tick >= farmer.farmer.busyUntilTick) {
         delete farmer.farmer.busyUntilTick;
-        // Re-arm if the farmer is settled and in an active phase.
         const phase = farmer.beliefs.data.phase as string | undefined;
         const settled = farmer.fsm.current === "WAIT_DAY";
         if (settled && phase && phase !== "night") {
@@ -36,11 +34,8 @@ export class PerceiveSystem implements System {
         }
       }
 
-      // brief (proximity) — strict per-tile actions need many more deliberation
-      // cycles than the ~3 phase boundaries give: a farmer must walk to each
-      // plot/tree/fountain, so it re-plans (walk → act → walk → act across
-      // clusters) the moment it is idle and not en route. Re-arm a settled,
-      // non-busy, non-travelling farmer during an active phase.
+      // Re-arm a settled, idle, non-travelling farmer during an active phase
+      // so walk→act→walk chains can execute within a day without waiting for phase boundaries.
       if (
         farmer.fsm.current === "WAIT_DAY" &&
         farmer.farmer?.busyUntilTick === undefined &&
@@ -58,14 +53,11 @@ export class PerceiveSystem implements System {
           farmer.beliefs.data.currentDay = body.day;
           farmer.beliefs.data.daysRemaining = body.daysRemaining;
           farmer.beliefs.revision += 1;
-          // brief 27 — the morning PHASE_START (same tick) drives the first
-          // deliberation; DAY_START no longer flips the FSM by itself.
+          // morning PHASE_START (same tick) drives first deliberation; DAY_START alone doesn't flip FSM
         } else if (msg.ontology === ONT_SIMULATION.PHASE_START) {
           this.handlePhaseStart(farmer, msg.body as unknown as PhaseStartBody);
         } else if (msg.ontology === ONT_SHOP.AUCTION_CFP) {
-          // brief 24 — surface the open auction into beliefs so the deliberate*
-          // fns can decide whether to bid. Stored as the live CFP; cleared on
-          // result or when it has closed.
+          // Surface open auction into beliefs; cleared on result or timeout.
           const cfp = msg.body as unknown as AuctionCfpBody;
           farmer.beliefs.data.openAuction = cfp;
           farmer.beliefs.revision += 1;
@@ -79,17 +71,11 @@ export class PerceiveSystem implements System {
             farmer.beliefs.revision += 1;
           }
         } else if (msg.ontology === ONT_BOUNTY.POSTED) {
-          // Notice-board bounty: surface today's wanted crop + premium so the
-          // deliberate* fns can prioritize selling it.
           const body = msg.body as unknown as BountyPostedBody;
           farmer.beliefs.data.bounty = body.bounty ?? undefined;
           farmer.beliefs.revision += 1;
         } else if (msg.ontology === ONT_TRAVEL.ARRIVED) {
-          // Re-deliberate on arrival: a farmer has just reached their destination.
-          // Re-arm exactly once per arrival so they chain walk→act→walk→act across
-          // plot clusters within a day. Guards: settled + active phase + not busy.
-          // Deterministic — fires only when the ARRIVED message lands (1 tick after
-          // TravelSystem emits it, via InboxDispatchSystem).
+          // Re-arm on arrival to chain walk→act→walk→act within a day.
           const arrivedBody = msg.body as unknown as TravelArrivedBody;
           if (arrivedBody.farmerId === farmer.id) {
             const phase = farmer.beliefs.data.phase as DayPhase | undefined;
@@ -106,8 +92,7 @@ export class PerceiveSystem implements System {
           }
         }
       }
-      // brief 24 — drop a stale open auction whose clock has run out (the
-      // farmer never saw a result, e.g. nobody bid).
+      // Drop a stale open auction whose clock has run out without a result.
       const open = farmer.beliefs.data.openAuction as AuctionCfpBody | undefined;
       if (open && ctx.tick >= open.closesAtTick) {
         farmer.beliefs.data.openAuction = undefined;
@@ -116,14 +101,11 @@ export class PerceiveSystem implements System {
       farmer.inbox.messages.length = 0;
     }
 
-    // brief 46 — harbor open contracts: write from the board into each
-    // farmer's beliefs so deliberate* helpers can read harborOpenContracts.
-    // Re-writes every tick so the beliefs always reflect the live board.
-    // Uses a lazy query so the cost is O(1) when no board entity exists.
+    // Push live harbor board into every farmer's beliefs each tick.
     let harborOpenContracts: GameEntity["harborBoard"] = undefined;
     for (const board of this.world.query("harborBoard")) {
       harborOpenContracts = board.harborBoard;
-      break; // single harbor board
+      break;
     }
     if (harborOpenContracts) {
       const openList = harborOpenContracts.openContracts;
@@ -133,14 +115,9 @@ export class PerceiveSystem implements System {
     }
   }
 
-  /**
-   * brief 27 — drive the intra-day FSM off phase boundaries.
-   *   morning  → refill AP (rested=max, unrested=half), then deliberate.
-   *   work/evening → deliberate again (AP carries across phases; no refill).
-   *   night → sleep; flag unrested if the farmer isn't home.
-   * Only re-arms deliberation from a settled state (WAIT_DAY/SLEEP) so a
-   * mid-cycle farmer isn't interrupted.
-   */
+  // morning: refill AP (rested=max, unrested=half) then deliberate.
+  // work/evening: deliberate again; AP carries across phases.
+  // night: sleep; flag unrested if not home or camp. Only re-arms from WAIT_DAY/SLEEP.
   private handlePhaseStart(farmer: GameEntity, body: PhaseStartBody): void {
     if (!farmer.beliefs || !farmer.fsm) return;
     farmer.beliefs.data.phase = body.phase;
@@ -148,17 +125,11 @@ export class PerceiveSystem implements System {
     const settled = farmer.fsm.current === "WAIT_DAY" || farmer.fsm.current === "SLEEP";
 
     if (body.phase === "morning") {
-      // New day's first activity: wake + refill the daily AP budget.
-      // brief 28 — the ceiling grows +2/day; you wake to the full ceiling if
-      // you slept at home, or half it if you were caught away (unrested).
       if (farmer.ap) {
         farmer.ap.max = maxApForDay(body.day);
         const rested = farmer.ap.unrested !== true;
         farmer.ap.current = rested ? farmer.ap.max : Math.floor(farmer.ap.max / 2);
-        // brief 44 — the tavern day-helper boost is now applied SAME-DAY at hire
-        // time (see handleHireHelp), not the morning after. `helperHiredDay`
-        // survives here purely as the once-per-day cooldown marker; the new day's
-        // wake naturally lets the farmer hire again (helperHiredDay !== today).
+        // helperHiredDay is a once-per-day cooldown marker; boost applied same-day at hire
         farmer.ap.unrested = false;
         farmer.ap.away = false;
         farmer.ap.penaltyPending = false;
@@ -168,10 +139,7 @@ export class PerceiveSystem implements System {
     }
 
     if (isNightPhase(body.phase)) {
-      // Nightfall: sleep. RESTED (full AP tomorrow) if the farmer is HOME, or
-      // (brief 54) camped on the camping island; otherwise away → unrested
-      // (halves tomorrow's AP). Camp rest is FULLY rested — same as home, no
-      // partial tier. Both conditions require the farmer to have settled (no path).
+      // Rested if home or camped on the camping island (same as home, no partial tier).
       const settledTile = farmer.farmer?.path === undefined;
       const home =
         farmer.farmer?.homeRegion !== undefined &&

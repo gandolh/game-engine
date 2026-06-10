@@ -2,7 +2,6 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Travel — a small arrow (cream) pointing right, indicating movement.
     name: "indicator/intention-travel",
     size: 16,
     pixels: [

@@ -58,7 +58,6 @@ export class SlateBillboardPanel {
 
   update(slate: ReadonlyArray<SlateEntry>): void {
     if (slate.length === 0) {
-      // Clear all rows and hide the container
       for (const row of this.rowCache.values()) {
         row.root.remove();
       }
@@ -69,10 +68,8 @@ export class SlateBillboardPanel {
 
     this.panel.style.display = "";
 
-    // Track which offerIds are present
     const currentIds = new Set(slate.map((o) => o.offerId));
 
-    // Remove stale rows
     for (const [id, row] of this.rowCache) {
       if (!currentIds.has(id)) {
         row.root.remove();
@@ -80,7 +77,6 @@ export class SlateBillboardPanel {
       }
     }
 
-    // Upsert rows in slate order
     slate.forEach((offer, index) => {
       let row = this.rowCache.get(offer.offerId);
 
@@ -90,7 +86,6 @@ export class SlateBillboardPanel {
         this.offersContainer.appendChild(row.root);
       }
 
-      // Ensure DOM order matches slate order
       const children = Array.from(this.offersContainer.children);
       if (children[index] !== row.root) {
         this.offersContainer.insertBefore(row.root, children[index] ?? null);

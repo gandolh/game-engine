@@ -72,11 +72,9 @@ describe("MeetIndicatorSystem", () => {
     sys.run({ tick: 0 });
     expect(sys.active(0)).toHaveLength(1);
 
-    // Still alive just before expiry.
     sys.run({ tick: INDICATOR_DURATION_TICKS - 1 });
     expect(sys.active(INDICATOR_DURATION_TICKS - 1)).toHaveLength(1);
 
-    // Expired at or after expiresAtTick.
     sys.run({ tick: INDICATOR_DURATION_TICKS });
     expect(sys.active(INDICATOR_DURATION_TICKS)).toHaveLength(0);
   });
@@ -85,8 +83,7 @@ describe("MeetIndicatorSystem", () => {
     const a = makeFarmer(world);
     const b = makeFarmer(world);
 
-    // Message was issued at tick 0 but we run at tick 5 — old message, skip.
-    pushMeet(a, b.id!, 0);
+    pushMeet(a, b.id!, 0); // issued at tick 0, run at tick 5 → old message, skip
     sys.run({ tick: 5 });
 
     expect(sys.active(5)).toHaveLength(0);
@@ -100,8 +97,7 @@ describe("MeetIndicatorSystem", () => {
     sys.run({ tick: 0 });
     expect(sys.active(0)[0]!.expiresAtTick).toBe(INDICATOR_DURATION_TICKS);
 
-    // New MEET at tick 5 overwrites the previous entry.
-    pushMeet(a, b.id!, 5);
+    pushMeet(a, b.id!, 5); // new MEET overwrites the previous entry
     sys.run({ tick: 5 });
     expect(sys.active(5)).toHaveLength(1);
     expect(sys.active(5)[0]!.expiresAtTick).toBe(5 + INDICATOR_DURATION_TICKS);
@@ -118,7 +114,6 @@ describe("MeetIndicatorSystem", () => {
     pushMeet(c, a.id!, 0);
     sys.run({ tick: 0 });
 
-    // 4 distinct entries: a↔b (2 sides) + a↔c (2 sides).
-    expect(sys.active(0)).toHaveLength(4);
+    expect(sys.active(0)).toHaveLength(4); // a↔b (2 sides) + a↔c (2 sides)
   });
 });

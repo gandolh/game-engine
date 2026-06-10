@@ -5,24 +5,14 @@ export interface PeerTradeContext {
   tick: number;
 }
 
-/**
- * Personality hook fired when a farmer receives a MEET. Returning a non-null
- * `OfferSeedBody` instructs the encounter-trade system to deliver an
- * `OFFER_SEED` to the peer. Returning `null` means "this personality does not
- * initiate a peer trade in this context".
- */
+/** Hook fired on MEET: return an OfferSeedBody to initiate a peer trade, or null to skip. */
 export type InitiatePeerTradeFn = (
   farmer: GameEntity,
   meet: MeetBody,
   ctx: PeerTradeContext,
 ) => OfferSeedBody | null;
 
-/**
- * Personality hook fired when a farmer receives an `OFFER_SEED`. The hook
- * returns whether to accept or decline. The encounter-trade system then
- * delivers the ACCEPT or DECLINE message to the offerer and (on accept)
- * performs the inventory + gold transfer.
- */
+/** Hook fired on OFFER_SEED: return accept/decline; system performs the transfer on accept. */
 export type RespondPeerOfferFn = (
   farmer: GameEntity,
   offer: OfferSeedBody,
@@ -30,12 +20,7 @@ export type RespondPeerOfferFn = (
   ctx: PeerTradeContext,
 ) => { decision: "accept" | "decline"; reason?: string };
 
-/**
- * brief 24 — personality hook fired on MEET to decide whether to gift a golden
- * bean to the peer. Returning a non-null `OfferBeanBody` sends an `OFFER_BEAN`
- * (a one-way gift, large trust boost). Only consulted when the farmer actually
- * holds a bean. Returning `null` means "don't gift here".
- */
+/** Hook fired on MEET when farmer holds a bean: return OfferBeanBody to gift (large trust boost), or null. */
 export type InitiateBeanGiftFn = (
   farmer: GameEntity,
   meet: MeetBody,
@@ -46,17 +31,9 @@ interface PeerTradeHooks {
   initiate?: InitiatePeerTradeFn;
   respond: RespondPeerOfferFn;
   initiateGift?: InitiateBeanGiftFn;
-  /**
-   * brief 59 — fired on MEET to decide whether to propose a HARVESTED-crop
-   * trade (vs the seed trade `initiate` handles). Crops are the real surplus
-   * farmers accumulate; this is the hook that actually closes peer trades.
-   */
+  /** Fired on MEET to propose a harvested-crop trade (crops are the real surplus; this closes most trades). */
   initiateCrop?: InitiatePeerTradeFn;
-  /**
-   * brief 59 — fired on an incoming OFFER_CROP. Same contract as `respond` but
-   * prices against CROP_SELL_PRICE and checks the `crops` inventory. Defaults
-   * to declining all crop offers if a personality doesn't provide one.
-   */
+  /** Fired on OFFER_CROP; prices against CROP_SELL_PRICE. Defaults to declining if absent. */
   respondCrop?: RespondPeerOfferFn;
 }
 

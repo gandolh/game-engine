@@ -1,7 +1,5 @@
-// Thin helpers around a wasm module's linear memory. AssemblyScript modules
-// resize memory dynamically via the TLSF allocator, which means any typed
-// array view created against `memory.buffer` is invalidated after a grow.
-// `WasmHeap` re-fetches the buffer each time you ask for a view.
+// AS modules resize memory via TLSF; any typed-array view against memory.buffer is invalidated after a grow.
+// WasmHeap re-fetches the buffer on each view request to avoid stale references.
 
 export interface WasmAllocator {
   alloc(size: number): number;
@@ -26,7 +24,6 @@ export class WasmHeap {
     return new Float32Array(this.memory.buffer, ptr, length);
   }
 
-  /** Allocate `size` bytes inside the wasm heap; throws if the allocator returns 0. */
   alloc(size: number): number {
     const ptr = this.allocator.alloc(size);
     if (ptr === 0) throw new Error(`wasm alloc(${size}) returned null pointer`);

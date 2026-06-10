@@ -10,9 +10,8 @@ export class ObserverPanel {
   private weatherEl: HTMLElement;
   private forecastEl: HTMLElement;
   private farmersContainer: HTMLElement;
-  // brief-11: focus-camera
   private resetBtn: HTMLElement;
-  // discoverability: persistent dim hint shown while nothing is followed.
+  // Persistent dim hint shown while nothing is followed.
   private hintEl: HTMLElement;
   private onFarmerClick: ((id: number | null) => void) | null = null;
   private focusedId: number | null = null;
@@ -37,7 +36,6 @@ export class ObserverPanel {
       },
     });
 
-    // brief-11: focus-camera — reset view button
     this.resetBtn = createEl("button", {
       style: {
         display: "block",
@@ -61,7 +59,6 @@ export class ObserverPanel {
       this.onFarmerClick?.(null);
     });
 
-    // discoverability: a subtle, persistent hint that rows are clickable.
     this.hintEl = createEl("div", {
       style: {
         fontSize: "11px",
@@ -90,7 +87,6 @@ export class ObserverPanel {
     parent.appendChild(this.panel);
   }
 
-  // brief-11: focus-camera — register click callback
   setOnFarmerClick(cb: (id: number | null) => void): void {
     this.onFarmerClick = cb;
   }
@@ -114,7 +110,6 @@ export class ObserverPanel {
       .join("\n");
     setText(this.forecastEl, `Forecast:\n${forecastLines}`);
 
-    // Keep the dynamic Unfollow label in sync with the focused farmer's name.
     if (this.focusedId !== null) {
       const focused = snapshot.farmers.find((f) => f.id === this.focusedId);
       this.focusedName = focused?.name ?? this.focusedName;
@@ -123,13 +118,9 @@ export class ObserverPanel {
     }
     this._updateFollowControls();
 
-    // Sort farmers by id ascending
     const sorted = [...snapshot.farmers].sort((a, b) => a.id - b.id);
-
-    // Track which ids are present
     const currentIds = new Set(sorted.map((f) => f.id));
 
-    // Remove stale rows
     for (const [id, row] of this.rowCache) {
       if (!currentIds.has(id)) {
         row.root.remove();
@@ -137,10 +128,7 @@ export class ObserverPanel {
       }
     }
 
-    // Upsert rows in sorted order.
-    // Read the live HTMLCollection once before the loop — no Array allocation,
-    // and the reference remains valid across insertBefore calls because
-    // HTMLCollection is live and always reflects the current DOM state.
+    // insertBefore on an existing node is a move; live HTMLCollection stays valid.
     const liveChildren = this.farmersContainer.children;
     sorted.forEach((farmer, index) => {
       let row = this.rowCache.get(farmer.id);
@@ -151,8 +139,6 @@ export class ObserverPanel {
         this.farmersContainer.appendChild(row.root);
       }
 
-      // Ensure DOM order matches sorted order — index the live HTMLCollection
-      // directly to avoid allocating an Array snapshot per row per frame.
       if (liveChildren[index] !== row.root) {
         this.farmersContainer.insertBefore(row.root, liveChildren[index] ?? null);
       }
@@ -161,15 +147,12 @@ export class ObserverPanel {
     });
   }
 
-  // brief-11: focus-camera — update highlight borders on all rows
   private _updateRowHighlights(): void {
     for (const [id, row] of this.rowCache) {
       const focused = id === this.focusedId;
       applyStyles(row.root, {
         borderBottom: `1px solid ${EDG.black}`,
-        // discoverability: a stronger, more legible focus highlight — a thicker
-        // gold outline plus a faint gold-tinted background (alpha-suffixed EDG
-        // hex; the palette guard's regex ignores 8-digit #rrggbbaa values).
+        // Gold outline + faint gold tint; palette guard ignores 8-digit #rrggbbaa.
         outline: focused ? `2px solid ${EDG.gold}` : "",
         background: focused ? `${EDG.gold}22` : "",
         cursor: "pointer",
@@ -178,7 +161,6 @@ export class ObserverPanel {
     this._updateFollowControls();
   }
 
-  // discoverability: dynamic Unfollow label + hint visibility, driven by focus.
   private _updateFollowControls(): void {
     if (this.focusedId !== null && this.focusedName !== null) {
       setText(this.resetBtn, `Unfollow ${this.focusedName}`);
@@ -203,18 +185,15 @@ export class ObserverPanel {
     const nameRow = createEl("div", { style: { display: "flex", gap: "6px", alignItems: "center" } });
     const name = createEl("span", { style: { fontWeight: "bold", color: EDG.white } });
 
-    // brief-11: focus-camera — clicking a row selects/deselects focus
     root.addEventListener("click", () => {
       if (this.focusedId === id) {
-        // Toggle off — same as reset
         this.focusedId = null;
         this.focusedName = null;
         this._updateRowHighlights();
         this.onFarmerClick?.(null);
       } else {
         this.focusedId = id;
-        // Capture the name now so the Unfollow label is correct immediately,
-        // before the next update() snapshot arrives.
+        // Capture the name so the Unfollow label is correct before the next snapshot.
         this.focusedName = name.textContent ?? null;
         this._updateRowHighlights();
         this.onFarmerClick?.(id);
@@ -249,12 +228,11 @@ export class ObserverPanel {
     region.dataset["field"] = "region";
     root.appendChild(region);
 
-    // brief 43 — skill levels line (legibility: why a late-game farmer is productive).
     const skills = createEl("div", { style: { color: EDG.gold, fontSize: "11px" } });
     skills.dataset["field"] = "skills";
     root.appendChild(skills);
 
-    // brief 19 — "why" sub-element; hidden unless this row is the focused farmer.
+    // "Why" trace: hidden unless this row is the focused farmer.
     const why = createEl("div", {
       style: {
         marginTop: "4px",
@@ -267,7 +245,6 @@ export class ObserverPanel {
       },
     });
     why.dataset["field"] = "why";
-    // discoverability: a bold "Why:" header above the decision trace.
     const whyHeader = createEl("strong", {
       style: { display: "block", fontWeight: "bold", color: EDG.steel },
     });
@@ -290,7 +267,6 @@ export class ObserverPanel {
       background: personalityColor(farmer.personality),
     });
 
-    // brief 41 — show all crop kinds with non-zero counts.
     const cropStr = Object.entries(farmer.crops)
       .filter(([, qty]) => qty > 0)
       .map(([k, qty]) => `${k.slice(0, 3).toUpperCase()}:${qty}`)
@@ -306,7 +282,6 @@ export class ObserverPanel {
 
     setText(row.region, `Region: ${farmer.region}`);
 
-    // brief 43 — skill levels + greenhouse marker.
     const s = farmer.skills;
     const gh = farmer.hasGreenhouse ? " [GH]" : "";
     setText(
@@ -314,7 +289,6 @@ export class ObserverPanel {
       `Skills: Fa${s.farming} Fo${s.foraging} Fi${s.fishing} Mi${s.mining}${gh}`,
     );
 
-    // brief 19 — render the decision "why" only for the focused farmer.
     if (farmer.id === this.focusedId) {
       const current = farmer.currentIntention ?? "(idle)";
       const next = farmer.nextIntention ?? "(none)";
@@ -322,14 +296,13 @@ export class ObserverPanel {
         farmer.reasons.length > 0
           ? farmer.reasons.map((r) => `  - ${r}`).join("\n")
           : "  (no reason)";
-      // The bold "Why:" header is a static child; only the body text updates.
+      // "Why:" header is a static child; only the body text updates.
       setText(
         row.whyBody,
         `Now: ${current}\nNext: ${next}\n${reasonLines}`,
       );
       row.why.style.display = "";
     } else {
-      // Avoid DOM churn: only touch text/display when transitioning out of focus.
       if (row.why.style.display !== "none") {
         setText(row.whyBody, "");
         row.why.style.display = "none";

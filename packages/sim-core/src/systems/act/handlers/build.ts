@@ -1,7 +1,4 @@
-/**
- * Build & livestock action handlers: build-pen, build-greenhouse, buy-animal,
- * tend, plant-tree, harvest-fruit, upgrade-tool, commission-build, hire-help.
- */
+/** Build/livestock handlers: build-pen, build-greenhouse, buy-animal, tend, plant-tree, harvest-fruit, upgrade-tool, commission-build, hire-help. */
 import type { Intention, MessageBus, World } from "@engine/core";
 import type { With } from "@engine/core";
 import type { GameEntity, AnimalKind, FruitKind } from "../../../components";
@@ -32,9 +29,6 @@ import {
 import { maxApForDay, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "../../ap";
 import type { ActingFarmer } from "../types";
 
-// ---------------------------------------------------------------------------
-// Internal helper: thin wrapper so handlers don't each inline bus.send
-// ---------------------------------------------------------------------------
 function sendBusMessage(
   bus: MessageBus,
   performative: string,
@@ -61,50 +55,35 @@ export function handleUpgradeTool(
   intent: Intention,
   blacksmithId: number | undefined,
 ): void {
-  // Upgrade a tool at the blacksmith.
   if (blacksmithId === undefined) return;
   const toolKind = intent.data.toolKind as import("../../../components").ToolKind;
   const tools = farmer.inventory.tools ?? [];
-  // Find the best existing tool of this kind (highest tier, lowest durability first for upgrade)
   const existing = tools
     .filter(t => t.kind === toolKind)
     .sort((a, b) => {
       const tierOrder: Record<import("../../../components").ToolTier, number> = { wooden: 0, stone: 1, iron: 2 };
-      return tierOrder[b.tier] - tierOrder[a.tier]; // highest tier first
+      return tierOrder[b.tier] - tierOrder[a.tier];
     })[0];
   if (!existing) return;
-  // Enforce tier order: wooden→stone→iron, one step at a time.
   const nextTier = UPGRADE_PATH[existing.tier];
-  if (!nextTier) return; // already max
+  if (!nextTier) return;
   const cost = UPGRADE_COST[nextTier] ?? 99;
   if (farmer.inventory.gold < cost) return;
 
-  // brief 44 — the blacksmith VALIDATES: it consumes ore in addition to gold.
-  // wooden→stone burns raw stone; stone→iron burns iron ore. Reject (no
-  // mutation) if the farmer lacks the materials — no more assume-success.
+  // wooden→stone burns raw stone; stone→iron burns iron ore
   const material = UPGRADE_MATERIAL[nextTier];
   if (material) {
     const res = farmer.resources;
-    if (!res || res[material.resource] < material.amount) return; // missing materials
+    if (!res || res[material.resource] < material.amount) return;
     res[material.resource] -= material.amount;
   }
 
   farmer.inventory.gold -= cost;
-  // Replace tool with upgraded version (full durability)
   const idx = tools.indexOf(existing);
-  if (idx >= 0) {
-    tools[idx] = { kind: toolKind, tier: nextTier, durability: nextTier === "stone" ? 150 : 200 };
-  }
+  if (idx >= 0) tools[idx] = { kind: toolKind, tier: nextTier, durability: nextTier === "stone" ? 150 : 200 };
 }
 
-/**
- * brief 44 — commission a build at the carpenter. Unlike the old instant
- * `craft-decoration`, this SENDS an order message to the carpenter NPC, which
- * (CarpenterSystem) validates it, escrows the wood, builds over a build-time,
- * and DELIVERS the structure. The agent only places the order — fulfillment is
- * a system. Location-gated: the farmer must be AT carpentry (its deliberate
- * helper queues a carpentry travel leg first).
- */
+/** Location-gated to carpentry. Sends an order to CarpenterSystem; fulfillment is async. */
 export function handleCommissionBuild(
   farmer: ActingFarmer,
   intent: Intention,
@@ -118,9 +97,7 @@ export function handleCommissionBuild(
   const kind = intent.data.kind as import("../../../components").DecorationKind;
   const recipe = DECORATION_RECIPE[kind];
   if (!recipe) return;
-  // Local pre-check so we don't fire a doomed order (the carpenter re-validates
-  // and escrows authoritatively).
-  if (!farmer.resources || farmer.resources.wood < recipe.woodCost) return;
+  if (!farmer.resources || farmer.resources.wood < recipe.woodCost) return; // carpenter re-validates authoritatively
   sendBusMessage(
     bus,
     PERFORMATIVE.REQUEST,
@@ -132,42 +109,20 @@ export function handleCommissionBuild(
   );
 }
 
-/**
- * brief 44 — hire a day-helper at the tavern. A gold sink + catch-up mechanic:
- * an AP-starved, gold-rich farmer pays gold for a quick hired hand (a rallying
- * round at the tavern) that puts them back to work SAME-DAY. The AP boost lands
- * immediately, here, at hire time — not the morning after.
- *
- * Bounded so it stays a catch-up sink, never pay-to-win (see
- * project_leader_runaway): `ap.current` is topped up by HELPER_AP_BOOST but
- * clamped to `maxApForDay(day) + HELPER_AP_MARGIN`, so a rich leader can't buy
- * same-day dominance. `ap.max` is nudged up only if the clamped current would
- * otherwise exceed it (keeps the current ≤ max invariant when the margin bites).
- *
- * Location-gated to the village (where the tavern stands). `helperHiredDay`
- * remains the once-per-day cooldown marker even though the effect is now
- * immediate. Pure function of sim state: no RNG, no Math.random/Date.now.
- */
+/** Same-day AP boost (pure, no RNG). Location-gated to village. Clamped to maxApForDay+HELPER_AP_MARGIN. */
 export function handleHireHelp(farmer: ActingFarmer, day: number): void {
   if (farmer.farmer?.currentRegion !== "village") return;
-  if (farmer.farmer.helperHiredDay === day) return; // already hired today
+  if (farmer.farmer.helperHiredDay === day) return;
   if (farmer.inventory.gold < HIRE_HELP_GOLD_COST) return;
-  if (!farmer.ap) return; // no AP component → nothing to boost
+  if (!farmer.ap) return;
   farmer.inventory.gold -= HIRE_HELP_GOLD_COST;
-  // Same-day AP boost, clamped so it can't snowball past ~one sane day's worth.
   const ceiling = maxApForDay(day) + HELPER_AP_MARGIN;
   farmer.ap.current = Math.min(farmer.ap.current + HELPER_AP_BOOST, ceiling);
-  // Preserve current ≤ max if the margin pushed current above the day ceiling.
-  if (farmer.ap.current > farmer.ap.max) farmer.ap.max = farmer.ap.current;
-  farmer.farmer.helperHiredDay = day; // once-per-day cooldown marker
+  if (farmer.ap.current > farmer.ap.max) farmer.ap.max = farmer.ap.current; // preserve current ≤ max
+  farmer.farmer.helperHiredDay = day;
 }
 
-/**
- * Build a pen (coop or barn) at the carpentry workshop. Requires:
- *   - farmer at carpentry region
- *   - enough wood + gold per PEN_BUILD_COST
- * Spawns a Pen entity on the farmer's farm at a free tile.
- */
+/** Build a coop/barn at carpentry. Pen tile placed on an interior tile to avoid trapping the farmer. */
 export function handleBuildPen(
   farmer: ActingFarmer,
   intent: Intention,
@@ -179,29 +134,24 @@ export function handleBuildPen(
   const animalKind = intent.data.animal as AnimalKind;
   const recipe = PEN_BUILD_COST[penKind];
   if (!recipe) return;
-  // brief 42 (deliberation fix) — pens are gold-funded; wood is an optional
-  // discount, not a hard gate (see PEN_BUILD_COST). If the farmer has the wood
-  // they spend it for a cheaper build; otherwise they pay full gold.
+  // Wood is an optional discount, not a hard gate (see PEN_BUILD_COST).
   const res = farmer.resources;
   const useWood = !!res && res.wood >= recipe.woodCost;
   const goldDue = useWood ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
   if (farmer.inventory.gold < goldDue) return;
 
-  // Validate animal kind is compatible with pen kind.
   if (!PEN_ANIMAL[penKind].includes(animalKind)) return;
 
-  // Already has a pen of this kind?
   let alreadyHas = false;
   for (const p of world.query("pen")) {
     if (p.pen.ownerId === farmer.id && p.pen.kind === penKind) { alreadyHas = true; break; }
   }
-  if (alreadyHas) return; // one pen per kind per farmer
+  if (alreadyHas) return;
 
   const homeRegion = farmer.farmer.homeRegion;
   const regionDef = REGIONS.find(r => r.id === homeRegion);
   if (!regionDef) return;
 
-  // Find a free tile on the farm.
   const usedTiles = new Set<string>();
   for (const e of world.query("plot")) {
     if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
@@ -219,10 +169,7 @@ export function handleBuildPen(
     if (e.orchardTree.regionId === homeRegion) usedTiles.add(`${e.orchardTree.tileX},${e.orchardTree.tileY}`);
   }
 
-  // A pen tile is SOLID, so placing it on the farmer's current tile (trapping
-  // her) or on a farm-edge tile (which can sever the only walkable route off
-  // the farm) strands the farmer with "no path" faults. Place on an INTERIOR
-  // tile (one in from every bound) and never on the farmer's standing tile.
+  // SOLID tile — must be interior (one in from every bound) to avoid severing the only walkable exit.
   usedTiles.add(`${farmer.transform?.x},${farmer.transform?.y}`);
   let placed = false;
   const b = regionDef.bounds;
@@ -249,16 +196,7 @@ export function handleBuildPen(
   if (!placed) return;
 }
 
-/**
- * brief 43 — build a greenhouse at the carpentry workshop. Requires:
- *   - farmer at carpentry region
- *   - enough gold per GREENHOUSE_BUILD_COST (wood+stone are an optional
- *     discount, never a hard gate — same lesson as brief 42's pens).
- * Spawns one SOLID Greenhouse entity on an INTERIOR farm tile (never the
- * farmer's standing tile or a farm-edge tile, which could trap her), plus a
- * small block of season-immune greenhouse plots on the open tiles around it.
- * One greenhouse per farmer.
- */
+/** Build a greenhouse at carpentry. Wood+stone are optional discount. One per farmer. Spawns SOLID entity + season-immune plots. */
 export function handleBuildGreenhouse(
   farmer: ActingFarmer,
   _intent: Intention,
@@ -282,9 +220,6 @@ export function handleBuildGreenhouse(
   const regionDef = REGIONS.find(r => r.id === homeRegion);
   if (!regionDef) return;
 
-  // Collect occupied tiles on the farm (plots, decorations, features, pens,
-  // orchards, fountain) plus the farmer's standing tile, so the structure and
-  // its plots never overlap something or trap the farmer.
   const usedTiles = new Set<string>();
   for (const e of world.query("plot")) {
     if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
@@ -308,8 +243,7 @@ export function handleBuildGreenhouse(
   }
   usedTiles.add(`${farmer.transform?.x},${farmer.transform?.y}`);
 
-  // Place the glasshouse on an INTERIOR tile (one in from every bound) so it
-  // can't sever the only walkable route off the farm (same care as pens).
+  // Interior tile (one in from every bound) — same SOLID-tile safety as pens.
   const b = regionDef.bounds;
   const innerMinX = Math.min(b.minX + 1, b.maxX);
   const innerMaxX = Math.max(b.maxX - 1, b.minX);
@@ -324,11 +258,8 @@ export function handleBuildGreenhouse(
       break outer;
     }
   }
-  if (!structTile) return; // no free interior tile
+  if (!structTile) return;
 
-  // Reserve the structure tile, then find GREENHOUSE_PLOT_COUNT free plot tiles
-  // (interior, never the structure tile / used tiles) for the season-immune
-  // plots. If we can't find enough open plot tiles, abort (don't half-build).
   usedTiles.add(`${structTile.x},${structTile.y}`);
   const plotTiles: Array<{ x: number; y: number }> = [];
   plot: for (let ty = innerMinY; ty <= innerMaxY; ty++) {
@@ -339,9 +270,8 @@ export function handleBuildGreenhouse(
       if (plotTiles.length >= GREENHOUSE_PLOT_COUNT) break plot;
     }
   }
-  if (plotTiles.length === 0) return; // no room for any greenhouse plot
+  if (plotTiles.length === 0) return;
 
-  // Commit: pay, spawn the SOLID glasshouse + the greenhouse plots.
   if (useMaterials && res) { res.wood -= recipe.woodCost; res.stone -= recipe.stoneCost; }
   farmer.inventory.gold -= goldDue;
   world.spawn({
@@ -366,11 +296,7 @@ export function handleBuildGreenhouse(
   }
 }
 
-/**
- * Buy an animal and add it to the matching pen.
- *
- * brief 42 (deliberation fix) — sold at the VILLAGE shopkeeper OR the CARPENTER.
- */
+/** Buy an animal; sold at village or carpentry. Requires matching pen. */
 export function handleBuyAnimal(
   farmer: ActingFarmer,
   intent: Intention,
@@ -383,7 +309,6 @@ export function handleBuyAnimal(
   const cost = ANIMAL_BUY_COST[animalKind];
   if (farmer.inventory.gold < cost) return;
 
-  // Find the farmer's matching pen.
   let penEntity: With<GameEntity, "pen"> | null = null;
   for (const p of world.query("pen")) {
     if (p.pen.ownerId === farmer.id && p.pen.animal === animalKind) {
@@ -391,15 +316,13 @@ export function handleBuyAnimal(
       break;
     }
   }
-  if (!penEntity) return; // need to build pen first
+  if (!penEntity) return;
 
   farmer.inventory.gold -= cost;
   penEntity.pen.count += 1;
 }
 
-/**
- * Tend the pen on the farmer's farm. Sets fedToday=true and boosts care.
- */
+/** Set fedToday and boost care for the matching pen. */
 export function handleTend(
   farmer: ActingFarmer,
   intent: Intention,
@@ -408,7 +331,6 @@ export function handleTend(
   if (farmer.id === undefined) return;
   const penKind = intent.data.penKind as ("coop" | "barn") | undefined;
 
-  // Find the pen to tend (by kind if specified, else first untended).
   let penEntity: With<GameEntity, "pen"> | null = null;
   for (const p of world.query("pen")) {
     if (p.pen.ownerId !== farmer.id) continue;
@@ -422,10 +344,7 @@ export function handleTend(
   penEntity.pen.care = Math.min(1, penEntity.pen.care + CARE_TEND_BOOST);
 }
 
-/**
- * Plant a fruit tree on a free tile of the farmer's farm.
- * Costs gold from TREE_PLANT_COST. Creates an OrchardTree entity.
- */
+/** Plant a fruit tree on a free farm tile. */
 export function handlePlantTree(
   farmer: ActingFarmer,
   intent: Intention,
@@ -441,7 +360,6 @@ export function handlePlantTree(
   if (tileX === undefined || tileY === undefined) return;
 
   const homeRegion = farmer.farmer.homeRegion;
-  // Check tile is free.
   for (const e of world.query("orchardTree")) {
     if (e.orchardTree.tileX === tileX && e.orchardTree.tileY === tileY && e.orchardTree.regionId === homeRegion) return;
   }
@@ -467,10 +385,7 @@ export function handlePlantTree(
   });
 }
 
-/**
- * Harvest ready fruit from the nearest mature orchard tree on the farmer's farm.
- * Banks fruit into inventory (Normal quality).
- */
+/** Harvest ready fruit from the target (or first ready) mature orchard tree. */
 export function handleHarvestFruit(
   farmer: ActingFarmer,
   intent: Intention,
@@ -480,7 +395,6 @@ export function handleHarvestFruit(
   const tileX = intent.data.tileX as number | undefined;
   const tileY = intent.data.tileY as number | undefined;
 
-  // Find the target tree (by tile if given, else first ready tree).
   let treeEntity: With<GameEntity, "orchardTree"> | null = null;
   for (const t of world.query("orchardTree")) {
     if (t.orchardTree.ownerId !== farmer.id) continue;

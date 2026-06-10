@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../../types";
 
-// Grape (autumn, high-value). Purple/pumpkin color (p) on vine (l).
 const recipe: PixelRecipe =
   {
     name: "crop/grape/seed",

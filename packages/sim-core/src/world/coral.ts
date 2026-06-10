@@ -1,27 +1,5 @@
-/**
- * brief 48 — Boats & coral fishing geography + the boat-travel grid.
- *
- * The ocean is normally non-walkable (every non-region, non-road tile is water;
- * see walkable-grid.ts). Coral reefs sit OUT in that open water, reachable only
- * by boat. We keep the engine pathfinder + the land walkable grid completely
- * untouched: instead we build a SECOND PathfinderGrid (`buildBoatGrid`) whose
- * only walkable cells are the boat lanes — the dock tiles plus the straight
- * water corridors out to each reef. TravelSystem pathfinds on the LAND grid
- * normally and on the BOAT grid only while a farmer is aboard their boat. So:
- *   • coral reefs are NOT regions → the land reachability/2065-count tests are
- *     untouched;
- *   • water stays blocked for everyone on foot;
- *   • boat travel is just another deterministic pathfind, on a different grid.
- *
- * Geography (south of the central cluster's fishing isles, in the 160×160 map):
- *
- *   fishing-isle   (75–82 × 105–112): dock (78,112) → lane (78,113)(78,114) → reef (78,115)
- *   fishing-isle-2 (59–66 × 105–112): dock (62,112) → lane (62,113)(62,114) → reef (62,115)
- *
- * The dock tile is the isle's own south-edge land tile (walkable on the land
- * grid too), so a farmer walks to the dock on foot, boards, then rows straight
- * south down the lane to the reef.
- */
+// Coral reef geography: water lanes south of the fishing isles, reachable only by boat.
+// TravelSystem pathfinds on the LAND grid normally, on the BOAT grid only while aboard.
 import type { PathfinderGrid } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "./regions";
 
@@ -36,11 +14,6 @@ export interface CoralReef {
   lane: ReadonlyArray<{ x: number; y: number }>;
 }
 
-/**
- * The two coral reefs (one off each fishing isle). Symmetric short lanes keep
- * the round trip a real-but-affordable AP/time cost a personality weighs
- * against staying home to farm.
- */
 export const CORAL_REEFS: readonly CoralReef[] = [
   {
     id: "reef-mill",
@@ -97,12 +70,7 @@ export function nearestReef(x: number, y: number): CoralReef {
   return best;
 }
 
-/**
- * Build the boat-travel grid: every cell blocked EXCEPT the dock tiles + lane
- * tiles + reef tiles of every reef. Built once at startup (the lanes are
- * static). 0 = walkable (boat may traverse), 1 = blocked. TravelSystem uses
- * this grid only while a farmer is aboard.
- */
+/** Boat grid: all blocked except dock + lane + reef tiles. Used by TravelSystem while aboard. */
 export function buildBoatGrid(): PathfinderGrid {
   const cells = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
   cells.fill(1);

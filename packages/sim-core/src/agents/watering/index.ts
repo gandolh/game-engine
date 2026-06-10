@@ -1,6 +1,3 @@
-// Barrel — re-exports the full public surface of the watering helpers so that
-// `import { ... } from "./watering"` continues to work without changes in any
-// consumer (personality files, tests, etc.).
 
 export type { WateringStyle } from "./shared";
 

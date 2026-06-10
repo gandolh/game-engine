@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { JSDOM } from "jsdom";
 import { Keyboard } from "./keyboard";
 
-// ---------- Keyboard ----------
-
 describe("Keyboard", () => {
   let dom: JSDOM;
   let win: EventTarget;
@@ -31,14 +29,11 @@ describe("Keyboard", () => {
   it("justPressed is true on the first tick after keydown, false after endFrame", () => {
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "KeyA", bubbles: true }));
 
-    // First observation (same tick)
     expect(kb.justPressed("KeyA")).toBe(true);
 
-    // After endFrame the just-set is cleared
     kb.endFrame();
     expect(kb.justPressed("KeyA")).toBe(false);
 
-    // But isDown is still true
     expect(kb.isDown("KeyA")).toBe(true);
   });
 
@@ -56,7 +51,7 @@ describe("Keyboard", () => {
   it("holding a key does not re-trigger justPressed across frames", () => {
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "ShiftLeft", bubbles: true }));
     kb.endFrame();
-    // Simulate browser repeat — but code guards with !_pressed.has
+    // browser keydown repeat — code guards with !_pressed.has so justPressed stays false
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "ShiftLeft", bubbles: true }));
     expect(kb.justPressed("ShiftLeft")).toBe(false);
   });
@@ -66,9 +61,8 @@ describe("Keyboard", () => {
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "KeyZ", bubbles: true }));
     expect(kb.isDown("KeyZ")).toBe(false);
 
-    // Re-attach and re-detach — no double-listener
     kb.attach(win as Window);
-    kb.attach(win as Window); // second attach should detach first
+    kb.attach(win as Window); // second attach detaches the first (no double-listener)
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "KeyZ", bubbles: true }));
     expect(kb.isDown("KeyZ")).toBe(true);
   });

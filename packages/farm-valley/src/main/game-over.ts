@@ -3,16 +3,11 @@ import { formatSeed } from "../screens";
 import { serializeRun, type RunDescriptor } from "@farm/sim-core/run-descriptor";
 import type { FinalStandingRow, RunRecap } from "@farm/sim-core/snapshot";
 
-/** Game-over panel parts: the outer panel, the monospace standings text node,
- *  the "Share this run" button (whose handler is (re)bound per run), and the
- *  new recap sections (headline + per-farmer arcs). */
+/** Game-over panel element handles. */
 export interface GameOverPanel {
   panel: HTMLElement;
-  /** Monospace pre-formatted standings block (kept as-is for back-compat). */
   standings: HTMLElement;
-  /** Run headline ("The story of the run: ..."). */
   headline: HTMLElement;
-  /** Per-farmer arc sentences container. */
   arcsContainer: HTMLElement;
   shareBtn: HTMLButtonElement;
   shareStatus: HTMLElement;
@@ -40,7 +35,6 @@ export function createGameOverPanel(parent: HTMLElement): GameOverPanel {
     "max-height: 90vh",
   ].join(";");
 
-  // ── Headline ("The story of the run: …") ──────────────────────────────
   const headline = document.createElement("div");
   headline.style.cssText = [
     `color: ${EDG.gold}`,
@@ -51,12 +45,10 @@ export function createGameOverPanel(parent: HTMLElement): GameOverPanel {
   ].join(";");
   panel.appendChild(headline);
 
-  // ── Standings text (monospace pre — kept as-is) ────────────────────────
   const standings = document.createElement("div");
   standings.style.cssText = "white-space: pre";
   panel.appendChild(standings);
 
-  // ── Per-farmer arc sentences ───────────────────────────────────────────
   const arcsSeparator = document.createElement("div");
   arcsSeparator.style.cssText = [
     `border-top: 1px solid ${EDG.steel}`,
@@ -81,7 +73,6 @@ export function createGameOverPanel(parent: HTMLElement): GameOverPanel {
   ].join(";");
   panel.appendChild(arcsContainer);
 
-  // brief-17: save/replay — "Share this run" control row.
   const shareRow = document.createElement("div");
   shareRow.style.cssText = [
     "display: flex",
@@ -142,25 +133,19 @@ export function renderGameOver(
   run: RunDescriptor,
   recap: RunRecap | null,
 ): void {
-  // ── Headline ─────────────────────────────────────────────────────────────
-  // Populate the recap headline if available; otherwise fall back to an empty
-  // string (the element stays in the DOM but blank — harmless).
   panel.headline.textContent = recap?.headline ?? "";
 
-  // ── Standings text (unchanged monospace block) ────────────────────────────
   const lines: string[] = [];
   lines.push(`╔══ FARM VALLEY — final standings after ${finalDay} days ══╗`);
   lines.push(`  Run #${(run.seed >>> 0).toString(16)}  (seed ${formatSeed(run.seed)})`);
   lines.push("");
 
   if (recap !== null) {
-    // Enhanced standings: include the rank-delta vs mid-season.
     lines.push("  rank  Δmid  name      personality      gold  unsold  total   crops");
     lines.push("  " + "─".repeat(68));
     recap.standings.forEach((s, i) => {
       const r = rows[i];
       if (r === undefined) return;
-      // brief 41 — dynamic crop summary (show non-zero counts only).
       const cropStr = Object.entries(r.crops ?? {})
         .filter(([, qty]) => (qty ?? 0) > 0)
         .map(([k, qty]) => `${k.slice(0, 1)}:${qty}`)
@@ -173,7 +158,6 @@ export function renderGameOver(
       );
     });
   } else {
-    // Fallback: original standings without delta column.
     lines.push("  rank  name      personality      gold  unsold  total   crops");
     lines.push("  " + "─".repeat(60));
     rows.forEach((r, i) => {
@@ -190,7 +174,6 @@ export function renderGameOver(
   lines.push(`  winner: ${rows[0]?.name ?? "—"} (${rows[0]?.totalValue ?? 0}g total value)`);
   panel.standings.textContent = lines.join("\n");
 
-  // ── Per-farmer arc sentences ──────────────────────────────────────────────
   panel.arcsContainer.replaceChildren();
   if (recap !== null && recap.arcs.length > 0) {
     for (const arc of recap.arcs) {
@@ -201,7 +184,6 @@ export function renderGameOver(
     }
   }
 
-  // ── Rivalries / alliances (brief 37) ────────────────────────────────────
   if (recap !== null && recap.rivalries !== undefined && recap.rivalries.length > 0) {
     const separator = document.createElement("div");
     separator.style.cssText = `color: ${EDG.steel}; margin-top: 6px; padding-top: 4px; border-top: 1px solid ${EDG.ink};`;
@@ -215,7 +197,6 @@ export function renderGameOver(
     }
   }
 
-  // brief-17: save/replay — wire the Share button for this finished run.
   panel.shareBtn.onclick = () => {
     const serialized = serializeRun(run);
     location.hash = "run=" + serialized;

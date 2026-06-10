@@ -1,10 +1,6 @@
 import { type PixelRecipe } from "../../types";
 
-// EDGE — seabed that fills the BOTTOM of the tile and FADES upward into open
-// water along the TOP edge, so a cluster border softly dissolves into the sea.
-// Authored top-fade-up; `computeCoral` rotates it to face whichever side is
-// open water. Top rows thin out to v/V water; lower rows are solid seabed that
-// seams with an adjacent fill below.
+// EDGE: authored top-fade-up; computeCoral rotates to face open water.
 const recipe: PixelRecipe =
   {
     name: "tile/coral-edge",

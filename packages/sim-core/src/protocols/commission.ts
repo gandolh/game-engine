@@ -1,14 +1,4 @@
-// brief 44 — carpenter commission protocol.
-//
-// An agent commissions a build at the carpenter NPC: it sends a COMMISSION_BUILD
-// order (decoration kind + the wood/gold it is willing to spend). The
-// CarpenterSystem (NOT agent logic) validates the order, escrows the cost
-// up-front, holds the job for a short build-time, then DELIVERS the structure
-// (spawns the decoration on the farmer's farm) and replies COMMISSION_DONE.
-//
-// This mirrors the shop's order→fulfill pattern (ShopkeeperSystem.handleSell):
-// an agent sends an order message; a SYSTEM validates + resolves it. FIPA-ACL
-// style: REQUEST to commission, INFORM/FAILURE to confirm.
+// Carpenter commission: agent REQUESTs a decoration build; CarpenterSystem validates + escrows cost + delivers; replies INFORM/FAILURE.
 
 import type { DecorationKind } from "../components";
 

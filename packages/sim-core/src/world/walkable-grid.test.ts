@@ -20,18 +20,13 @@ describe('buildWalkableGrid', () => {
   });
 
   it('ocean tile at (0,0) is blocked', () => {
-    // Archipelago: every non-region, non-road tile is ocean (blocked). The
-    // top-left corner is open water with no island near it.
     const grid = buildWalkableGrid();
     expect(grid.cells[0 * WORLD_WIDTH + 0]).toBe(1);
   });
 
   it('bridge (road) tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    // Every ROAD tile must be walkable. Spot-check the village hub spokes by
-    // sampling the first tile of a couple of known cluster bridges, then assert
-    // the whole road set is open.
-    expect(grid.cells[76 * WORLD_WIDTH + 70]).toBe(0); // village ↔ carpentry ({69-74,76-77})
+    expect(grid.cells[76 * WORLD_WIDTH + 70]).toBe(0); // village ↔ carpentry bridge
     expect(grid.cells[90 * WORLD_WIDTH + 77]).toBe(0); // village ↔ mill ({76-77,87-92})
     for (const road of ROADS) {
       for (let y = road.minY; y <= road.maxY; y++) {
@@ -51,12 +46,6 @@ describe('buildWalkableGrid', () => {
   });
 
   it('walkable count matches an independent recomputation from REGIONS + ROADS', () => {
-    // The hand-pinned magic number (2065 pre-procedural-farms) no longer scales
-    // now that the southern farm band is generated from EXTRA_FARM_COUNT. Instead
-    // we recompute the expected walkable set from the same primitives the builder
-    // uses (every region body + every road), independently of buildWalkableGrid,
-    // and assert the two agree. This catches a builder bug while self-tracking
-    // any change to the farm count or bridge layout.
     const expected = new Set<number>();
     const mark = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
       for (let y = b.minY; y <= b.maxY; y++) {
@@ -75,10 +64,6 @@ describe('buildWalkableGrid', () => {
   });
 
   it('no two island bodies are adjacent (≥1 ocean tile between every region pair)', () => {
-    // Archipelago invariant: islands NEVER touch — they connect only via bridges
-    // (ROADS). Two axis-aligned region rects are non-adjacent iff expanding one by
-    // a 1-tile margin does not intersect the other (this also rejects diagonal
-    // touches, which the shore/bridge renderer treats as adjacency too).
     const touches = (
       a: { minX: number; minY: number; maxX: number; maxY: number },
       b: { minX: number; minY: number; maxX: number; maxY: number },
@@ -97,14 +82,8 @@ describe('buildWalkableGrid', () => {
   });
 
   it('jittered band farm bodies keep a ≥2-tile ocean margin (jitter budget holds)', () => {
-    // Brief 49 track 4: the procedural band is jittered ±1/axis from a 4-tile
-    // gutter (pitch 14, size 10). The hard invariant is ≥2 ocean tiles between
-    // any two band farm bodies (worst case 4 - 2*1 = 2). Stronger than the ≥1
-    // no-adjacency test above; proves the jitter can never crowd two farms.
+    // Procedural band jitter ±1/axis from a 4-tile gutter; worst-case gap = 4−2×1 = 2.
     const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id));
-    // Chebyshev-style gap between two non-overlapping axis-aligned rects: the max
-    // over axes of the inter-edge ocean-tile count. (If they overlap on an axis
-    // the gap on that axis is negative; the binding separation is the other axis.)
     const oceanGap = (
       a: { minX: number; minY: number; maxX: number; maxY: number },
       b: { minX: number; minY: number; maxX: number; maxY: number },
@@ -126,12 +105,7 @@ describe('buildWalkableGrid', () => {
   });
 
   it('ring jitter is deterministic and the band sits on the two ring radii', () => {
-    // The radial band layout is a pure function of the FIXED WORLD_GEN_SEED. The
-    // per-farm jitter (fork 'farm-ring-jitter', draw order dx then dy, ±1) is
-    // stable across draws; and after removing it every procedural farm center
-    // lands on one of the two ring radii (R=52 inner for farm-0..3, R=72 outer
-    // for farm-4..15) about the map center. A future Math.random()/Date.now(),
-    // or a seed/fork/draw-order change, makes this diverge — fails loudly.
+    // Jitter is fork('farm-ring-jitter'); dx then dy, ±1. A seed/fork/draw-order change diverges here.
     const drawJitter = () => {
       const rng = createRng(WORLD_GEN_SEED).fork('farm-ring-jitter');
       return Array.from({ length: EXTRA_FARM_COUNT }, () => ({
@@ -147,10 +121,6 @@ describe('buildWalkableGrid', () => {
       .sort((a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)));
     expect(band).toHaveLength(EXTRA_FARM_COUNT);
 
-    // Recover each farm's un-jittered center by subtracting the recomputed jitter
-    // and confirm its radius from the map center (80,80) matches its ring. The
-    // farm body is 10×10 so its center is bounds.minX+4/minY+4; the un-jittered
-    // center = midpoint(base bounds), recovered as live center − jitter offset.
     const CX = 80;
     const CY = 80;
     band.forEach((r, i) => {
@@ -158,25 +128,20 @@ describe('buildWalkableGrid', () => {
       const uy = r.center.y - jitterA[i]!.dy;
       const radius = Math.hypot(ux - CX, uy - CY);
       const expected = i < 4 ? 52 : 72;
-      // Allow ±2 for integer rounding of the ring formula (the body center floors
-      // to minX+4 for a 10-wide farm, losing up to ~0.7 per axis). The 20-tile
-      // gap between the two radii means ±2 still cleanly separates inner/outer.
+      // ±2 tolerance for integer rounding of the ring formula. The 20-tile gap cleanly separates inner/outer.
       expect(Math.abs(radius - expected), `farm-${i} un-jittered radius ${radius.toFixed(2)}`)
         .toBeLessThanOrEqual(2);
     });
   });
 
   it('every region center is walkable and reachable from the village', () => {
-    // Guards against a new region/road change that leaves a region as an
-    // unreachable island — which would make agents endlessly re-path (and can
-    // exhaust the pathfinder). BFS from the village center over walkable tiles.
     const grid = buildWalkableGrid();
     const W = WORLD_WIDTH;
     const idx = (x: number, y: number) => y * W + x;
     const walkable = (x: number, y: number) =>
       x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT && grid.cells[idx(x, y)] === 0;
 
-    const start = idx(VILLAGE.x, VILLAGE.y); // village center (radial layout)
+    const start = idx(VILLAGE.x, VILLAGE.y);
     const seen = new Set<number>([start]);
     const queue: Array<[number, number]> = [[VILLAGE.x, VILLAGE.y]];
     while (queue.length > 0) {
@@ -196,16 +161,11 @@ describe('buildWalkableGrid', () => {
       expect(seen.has(idx(x, y)), `${region.id} center (${x},${y}) reachable from village`).toBe(true);
     }
 
-    // brief 50 — the shrine is a real region, walkable at its center, and
-    // BFS-reachable from the village over its single quarry-north bridge.
     const shrine = REGIONS.find((r) => r.id === 'shrine');
     expect(shrine, 'shrine region exists').toBeTruthy();
     expect(walkable(shrine!.center.x, shrine!.center.y), 'shrine center walkable').toBe(true);
     expect(seen.has(idx(shrine!.center.x, shrine!.center.y)), 'shrine reachable from village').toBe(true);
 
-    // brief 51 — the three decorative heritage islets are real regions, walkable
-    // at their centers, and BFS-reachable from the village over their single
-    // bridges (one to mushroom-grove, one to Atticus, one to Otto).
     for (const id of ['heritage-stones', 'heritage-ruin', 'heritage-statue'] as const) {
       const h = REGIONS.find((r) => r.id === id);
       expect(h, `${id} region exists`).toBeTruthy();
@@ -213,25 +173,18 @@ describe('buildWalkableGrid', () => {
       expect(seen.has(idx(h!.center.x, h!.center.y)), `${id} reachable from village`).toBe(true);
     }
 
-    // brief 52 — the decorative ANIMATED waterfall islet is a real region,
-    // walkable at its center, and BFS-reachable from the village over its single
-    // quarry-north bridge.
     const waterfall = REGIONS.find((r) => r.id === 'waterfall');
     expect(waterfall, 'waterfall region exists').toBeTruthy();
     expect(walkable(waterfall!.center.x, waterfall!.center.y), 'waterfall center walkable').toBe(true);
     expect(seen.has(idx(waterfall!.center.x, waterfall!.center.y)), 'waterfall reachable from village').toBe(true);
 
-    // brief 54 — the camping island is a real region, walkable at its center, and
-    // BFS-reachable from the village over its single harbor bridge.
     const camp = REGIONS.find((r) => r.id === 'camp');
     expect(camp, 'camp region exists').toBeTruthy();
     expect(walkable(camp!.center.x, camp!.center.y), 'camp center walkable').toBe(true);
     expect(seen.has(idx(camp!.center.x, camp!.center.y)), 'camp reachable from village').toBe(true);
   });
 
-  it('the camping island keeps a ≥2-tile ocean margin from every other region (brief 54)', () => {
-    // The camp is a hand-placed landmark; assert the no-adjacency invariant holds
-    // with the ≥2-tile margin against every other island body.
+  it('the camping island keeps a ≥2-tile ocean margin from every other region', () => {
     const camp = REGIONS.find((r) => r.id === 'camp')!;
     const oceanGap = (
       a: { minX: number; minY: number; maxX: number; maxY: number },
@@ -250,9 +203,7 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('the waterfall island keeps a ≥2-tile ocean margin from every other region (brief 52)', () => {
-    // The waterfall is a hand-placed landmark; assert the no-adjacency invariant
-    // holds with the ≥2-tile margin against every other island body.
+  it('the waterfall island keeps a ≥2-tile ocean margin from every other region', () => {
     const waterfall = REGIONS.find((r) => r.id === 'waterfall')!;
     const oceanGap = (
       a: { minX: number; minY: number; maxX: number; maxY: number },
@@ -271,9 +222,7 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('each heritage islet keeps a ≥2-tile ocean margin from every other region (brief 51)', () => {
-    // The three heritage sites are hand-placed landmarks; assert the no-adjacency
-    // invariant holds with the ≥2-tile margin against every other island body.
+  it('each heritage islet keeps a ≥2-tile ocean margin from every other region', () => {
     const oceanGap = (
       a: { minX: number; minY: number; maxX: number; maxY: number },
       b: { minX: number; minY: number; maxX: number; maxY: number },
@@ -294,25 +243,18 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('brief 65 — cliff tiles are all non-walkable (walkable grid byte-identical)', () => {
-    // Every cliff tile in CLIFFS must sit on a non-walkable (ocean) tile. If any
-    // cliff tile were on a walkable tile, it would mean the cliff computation is
-    // wrong. This also proves the walkable grid is byte-identical before/after
-    // cliff computation: cliffs are purely visual and touch only ocean tiles.
+  it('cliff tiles are all non-walkable (cliffs are purely visual and touch only ocean)', () => {
     const grid = buildWalkableGrid();
     for (const cliff of CLIFFS) {
       expect(
         grid.cells[cliff.ty * WORLD_WIDTH + cliff.tx],
         `cliff at (${cliff.tx},${cliff.ty}) frame=${cliff.frame} must be on a non-walkable ocean tile`,
-      ).toBe(1); // 1 = blocked (ocean), 0 = walkable
+      ).toBe(1);
     }
-    // Also verify the cliff count is non-zero (the computation produced output).
     expect(CLIFFS.length, 'CLIFFS must be non-empty').toBeGreaterThan(0);
   });
 
-  it('the shrine island keeps a ≥2-tile ocean margin from every other region (brief 50)', () => {
-    // The shrine is a hand-placed landmark; assert the no-adjacency invariant
-    // holds with the ≥2-tile margin against every other island body.
+  it('the shrine island keeps a ≥2-tile ocean margin from every other region', () => {
     const shrine = REGIONS.find((r) => r.id === 'shrine')!;
     const oceanGap = (
       a: { minX: number; minY: number; maxX: number; maxY: number },

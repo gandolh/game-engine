@@ -1,11 +1,5 @@
-// AssemblyScript module: BFS flood-fill on a u8 walkability grid.
-//
-// Memory contract:
-//   - Heap is managed by AssemblyScript's TLSF allocator (stub runtime).
-//   - Grid format matches pathfinding.wasm: row-major u8, 0 = walkable.
-//   - Host calls `alloc(size)` to reserve output scratch in wasm linear memory,
-//     calls `floodFill`, reads the i32 (x,y) pairs, then `free`s.
-//   - Output buffer receives i32 pairs: [x0, y0, x1, y1, ...].
+// AssemblyScript: BFS flood-fill on a row-major u8 grid (0=walkable).
+// Host alloc→floodFill→free; output is i32 (x,y) pairs.
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);
@@ -15,18 +9,6 @@ export function free(ptr: usize): void {
   heap.free(ptr);
 }
 
-/**
- * BFS flood-fill from (startX, startY) on a walkable grid.
- *
- * @param gridPtr  pointer to width*height u8 cells (row-major; 0 = walkable)
- * @param width    grid width in cells
- * @param height   grid height in cells
- * @param startX   BFS origin X
- * @param startY   BFS origin Y
- * @param outPtr   pointer to host-allocated i32 output buffer (x,y pairs)
- * @param outCap   capacity in number of i32s (so outCap/2 tile pairs max)
- * @returns        number of reachable tiles found (capped at outCap/2)
- */
 export function floodFill(
   gridPtr: usize,
   width: i32,
@@ -42,15 +24,11 @@ export function floodFill(
   const total: i32 = width * height;
   const startIdx: i32 = startY * width + startX;
 
-  // Reject if start cell is blocked.
   if (load<u8>(gridPtr + <usize>startIdx) != 0) return 0;
 
-  // BFS queue: stores flat cell indices as i32 (width*height entries max).
   const queuePtr: usize = heap.alloc(<usize>(total << 2));
-  // Visited flags: u8, one per cell.
   const visitedPtr: usize = heap.alloc(<usize>total);
 
-  // Zero visited array.
   for (let i: i32 = 0; i < total; i++) {
     store<u8>(visitedPtr + <usize>i, 0);
   }
@@ -60,7 +38,6 @@ export function floodFill(
   let qTail: i32 = 0;
   let found: i32 = 0;
 
-  // Enqueue start.
   store<i32>(queuePtr + (<usize>qTail << 2), startIdx);
   qTail += 1;
   store<u8>(visitedPtr + <usize>startIdx, 1);
@@ -72,7 +49,6 @@ export function floodFill(
     const cy: i32 = idx / width;
     const cx: i32 = idx - cy * width;
 
-    // Write this tile to output if there is capacity.
     if (found < maxOut) {
       const off: usize = outPtr + <usize>(found << 3); // found * 8 bytes (2 i32s)
       store<i32>(off, cx);
@@ -80,7 +56,6 @@ export function floodFill(
     }
     found += 1;
 
-    // 4-connected neighbors.
     for (let n: i32 = 0; n < 4; n++) {
       let nx: i32 = cx;
       let ny: i32 = cy;

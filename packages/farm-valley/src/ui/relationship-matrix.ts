@@ -1,59 +1,25 @@
-/**
- * RelationshipMatrixPanel — a compact N×N trust grid that renders each farmer's
- * trust toward every other farmer as a color-coded cell.
- *
- * Trust bands (from field notes + brief 37):
- *   < 0.35  → hostile  → EDG.red
- *   0.35–0.65 → neutral → EDG.steel
- *   > 0.65  → allied   → EDG.green
- *
- * Diagonal cells (self→self) are blank. Header row and column show farmer
- * initials colored by personalityColor().
- *
- * Layout pattern follows LeaderboardPanel: constructor(parent) builds the
- * panel element; update(data) renders/reconciles; setVisible(v) and destroy().
- */
-
 import { createEl, applyStyles } from "./dom";
 import { personalityColor } from "./colors";
 import { EDG } from "@engine/core/render";
 
-// ---- data shape ------------------------------------------------------------
-
-/**
- * Data for the relationship matrix panel. Structured-clone-friendly (no Maps).
- * `trust` maps `fromId` → `toId` → trust value (baseline 0.5 for unseen peers).
- */
+/** Structured-clone-friendly (no Maps); missing trust entries fall back to 0.5. */
 export interface RelationshipMatrixData {
-  /** Farmers in deterministic order (sorted by id asc). */
+  /** Farmers sorted by id asc. */
   farmers: Array<{ id: number; name: string; personality: string }>;
-  /**
-   * Trust matrix: trust[fromId][toId] = value in [0,1].
-   * Missing entries fall back to 0.5 (baseline).
-   */
+  /** trust[fromId][toId] ∈ [0,1]. */
   trust: Record<number, Record<number, number>>;
 }
 
-// ---- trust band helpers ----------------------------------------------------
-
-/**
- * Trust bands:
- *   < 0.35  → hostile  (EDG.red)
- *   0.35–0.65 → neutral (EDG.steel)
- *   > 0.65  → allied   (EDG.green)
- */
+// Trust bands: <0.35 hostile (EDG.red), 0.35–0.65 neutral (EDG.steel), >0.65 allied (EDG.green).
 function trustColor(value: number): string {
   if (value < 0.35) return EDG.red;
   if (value > 0.65) return EDG.green;
   return EDG.steel;
 }
 
-/** Short initial label for a farmer name (first char, uppercase). */
 function initial(name: string): string {
   return name.charAt(0).toUpperCase();
 }
-
-// ---- styles ----------------------------------------------------------------
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   background: EDG.black,
@@ -102,8 +68,6 @@ const DATA_CELL_STYLES: Partial<CSSStyleDeclaration> = {
   padding: "1px",
 };
 
-// ---- panel -----------------------------------------------------------------
-
 export class RelationshipMatrixPanel {
   private panel: HTMLElement;
   private headerEl: HTMLElement;
@@ -125,10 +89,6 @@ export class RelationshipMatrixPanel {
     parent.appendChild(this.panel);
   }
 
-  /**
-   * Re-render the N×N grid from `data`. Rebuilds the table on each call
-   * (the farmer count is small and the table is compact; no row-caching needed).
-   */
   update(data: RelationshipMatrixData): void {
     const { farmers, trust } = data;
     if (farmers.length === 0) {
@@ -139,11 +99,9 @@ export class RelationshipMatrixPanel {
     const table = createEl("table");
     applyStyles(table, TABLE_STYLES);
 
-    // ---- header row (column labels = "to" farmer initials) ----------------
     const thead = createEl("thead");
     const headerRow = createEl("tr");
 
-    // Top-left corner cell: blank (row label = "from", col label = "to").
     const cornerCell = createEl("th");
     applyStyles(cornerCell, { ...HEADER_CELL_STYLES, color: EDG.steel });
     cornerCell.textContent = "";
@@ -163,13 +121,11 @@ export class RelationshipMatrixPanel {
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // ---- body rows (row = "from" farmer) ----------------------------------
     const tbody = createEl("tbody");
 
     for (const fromFarmer of farmers) {
       const row = createEl("tr");
 
-      // Row label = "from" farmer initial.
       const rowLabelCell = createEl("td");
       applyStyles(rowLabelCell, {
         ...HEADER_CELL_STYLES,
@@ -184,7 +140,6 @@ export class RelationshipMatrixPanel {
         const td = createEl("td");
 
         if (fromFarmer.id === toFarmer.id) {
-          // Diagonal: self → blank/inert.
           applyStyles(td, {
             ...DATA_CELL_STYLES,
             background: EDG.ink,
@@ -200,8 +155,6 @@ export class RelationshipMatrixPanel {
             background: bg,
             color: EDG.white,
           });
-          // Show numeric value (2 decimal places) as tooltip; cell text is empty
-          // for a clean grid look.
           td.title = `${fromFarmer.name} → ${toFarmer.name}: ${value.toFixed(2)}`;
           td.textContent = "";
         }

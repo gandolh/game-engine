@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../../types";
 
-// Winter-squash (winter). Tan body (W), green stem (l).
 const recipe: PixelRecipe =
   {
     name: "crop/winter-squash/seed",

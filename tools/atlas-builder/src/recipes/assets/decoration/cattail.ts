@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Cattail reeds — water-edge rushes (ice-pond / waterfall shore accent).
-// 2026-06-10 art pass — real cattails: pumpkin-brown `p` seed heads with a
-// white `w` fluff tip, brown stalks, and lit `L`/`l` blade leaves arcing up.
 const recipe: PixelRecipe =
   {
     name: "decoration/cattail",

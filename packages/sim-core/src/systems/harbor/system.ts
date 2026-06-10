@@ -1,24 +1,6 @@
-/**
- * HarborSystem — brief 46: harbor, shipping and contracts.
- *
- * Responsibilities:
- *  1. Every HARBOR_POST_CADENCE days, post HARBOR_BATCH_SIZE new time-boxed
- *     contracts to the harbor board (seeded, deterministic via `rng.fork("harbor")`).
- *  2. Each tick, check all open committed contracts: if the deadline has
- *     passed → fire CONTRACT_MISSED (penalty) or CONTRACT_EXPIRED (for
- *     uncommitted open ones). Also check if a farmer can deliver (has the
- *     goods at the harbor) → fire CONTRACT_DELIVERED (payout + rep).
- *  3. Broadcast CONTRACT_POSTED, CONTRACT_DELIVERED, CONTRACT_MISSED so
- *     EventFeedSystem can narrate them.
- *
- * Placement (sim-bootstrap): runs in the same snoop band as FestivalSystem,
- * BEFORE EventFeedSystem (so RESULT/DELIVERED broadcasts are snooped by
- * the feed this tick) and BEFORE PerceiveSystem (so beliefs are fresh).
- *
- * Determinism: contract generation is a pure function of day + forked rng.
- * NEVER Math.random / Date.now. Contract ids use day + slot index, so they
- * are stable across replays.
- */
+// HarborSystem: posts contracts every HARBOR_POST_CADENCE days; resolves delivery/miss each tick.
+// Must run BEFORE EventFeedSystem (broadcasts snooped same tick) and BEFORE PerceiveSystem.
+// No Math.random/Date.now — contract ids keyed by day+slot for stable replay.
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -57,7 +39,6 @@ export class HarborSystem implements System {
     const board = this.findBoard();
     if (!board || !board.inbox || !board.harborBoard) return;
 
-    // ── Detect DAY_START ──────────────────────────────────────────────────────
     let newDay: number | null = null;
     for (const msg of board.inbox.messages) {
       if (msg.ontology === ONT_SIMULATION.DAY_START) {
@@ -69,25 +50,19 @@ export class HarborSystem implements System {
     if (newDay !== null && newDay !== this.lastDayProcessed) {
       this.lastDayProcessed = newDay;
 
-      // 1. Check committed contracts whose deadline passed (yesterday).
       this.resolveExpiredContracts(newDay, ctx.tick, board);
 
-      // 2. Post new contracts on cadence days.
       if (newDay > 0 && newDay % HARBOR_POST_CADENCE === 0) {
         this.postContracts(newDay, ctx.tick, board);
       }
     }
 
-    // ── Every tick: attempt delivery for committed farmers at the harbor ──────
     this.attemptDeliveries(ctx.tick, board);
   }
-
-  // ── Contract posting ─────────────────────────────────────────────────────────
 
   private postContracts(day: number, tick: number, board: GameEntity): void {
     if (!board.harborBoard) return;
 
-    // Collect farmer reputations to gate tier availability.
     const reps: number[] = [];
     for (const f of this.world.query("farmer")) {
       reps.push(f.farmer.harborReputation ?? 0);
@@ -110,8 +85,6 @@ export class HarborSystem implements System {
     }
   }
 
-  // ── Deadline resolution ──────────────────────────────────────────────────────
-
   private resolveExpiredContracts(today: number, tick: number, board: GameEntity): void {
     if (!board.harborBoard) return;
     const hb = board.harborBoard;
@@ -122,10 +95,8 @@ export class HarborSystem implements System {
         stillOpen.push(contract);
         continue;
       }
-      // Deadline has passed.
       const committedFarmerId = hb.committed.get(contract.id);
       if (committedFarmerId !== undefined) {
-        // Committed but not delivered → MISS.
         hb.committed.delete(contract.id);
         this.applyMissPenalty(committedFarmerId, contract, tick);
       } else {
@@ -180,12 +151,6 @@ export class HarborSystem implements System {
     }
   }
 
-  // ── Delivery check ───────────────────────────────────────────────────────────
-
-  /**
-   * Each tick: if a farmer is at the harbor AND has a committed contract AND
-   * has the goods in inventory → resolve the delivery immediately.
-   */
   private attemptDeliveries(tick: number, board: GameEntity): void {
     if (!board.harborBoard) return;
     const hb = board.harborBoard;
@@ -197,16 +162,13 @@ export class HarborSystem implements System {
       if (f.farmer?.currentRegion !== "harbor") continue;
       if (!canFulfillContract(f.inventory, contract)) continue;
 
-      // Deduct goods from inventory.
       const { crop, quantity, minQuality } = contract.goods;
       deductCrops(f.inventory, crop, quantity, minQuality);
 
-      // Pay out.
       f.inventory.gold += contract.reward;
       f.farmer.harborReputation = (f.farmer.harborReputation ?? 0) + contract.reputationReward;
       f.farmer.committedContract = undefined;
 
-      // Remove from board.
       hb.openContracts = hb.openContracts.filter((c) => c.id !== contract.id);
       hb.committed.delete(contract.id);
 
@@ -231,8 +193,6 @@ export class HarborSystem implements System {
       );
     }
   }
-
-  // ── Board lookup ─────────────────────────────────────────────────────────────
 
   private findBoard(): GameEntity | undefined {
     for (const e of this.world.query("harborBoard", "inbox")) return e;

@@ -1,11 +1,7 @@
 import type { FishKind } from "../../components";
 import { TOOL_WORK_TICKS } from "../../components";
 
-/**
- * Physical-action time cost in ticks (at 20 Hz).
- * Wooden=60t(3s), stone=40t(2s), iron=20t(1s) per the brief.
- * Social / travel actions are instant (0).
- */
+/** Physical-action time cost in ticks (@20 Hz): wooden=60t, stone=40t, iron=20t. Social/travel=0. */
 export function actionTicks(kind: string, tools: import("../../components").Tool[]): number {
   const physicalActions = new Set(["plant","water","till","chop-tree","mine-stone","harvest","refill-can"]);
   if (!physicalActions.has(kind)) return 0;
@@ -23,13 +19,7 @@ export function actionTicks(kind: string, tools: import("../../components").Tool
   return TOOL_WORK_TICKS[tier];
 }
 
-/**
- * brief 43 — reallocate `bonus` fraction of the minnow weight toward the rarer
- * bass+salmon (split 50/50), leaving total weight unchanged. Pure: depends only
- * on the input weights + bonus, so it doesn't touch the RNG. At bonus=0 the
- * weights are returned unshifted (so unskilled fishing is byte-identical to the
- * pre-43 behavior).
- */
+/** Shift `bonus` fraction of minnow weight toward bass+salmon (pure; bonus=0 is identity). */
 export function applyFishingRarityBonus(
   weights: Record<FishKind, number>,
   bonus: number,
@@ -44,12 +34,7 @@ export function applyFishingRarityBonus(
   };
 }
 
-/**
- * brief 48 — coral-reef rarity bonus. Reallocate `bonus` fraction of the common
- * coral-trout weight toward the rare lobster, leaving total weight unchanged.
- * Pure (no RNG); at bonus=0 the weights are returned unshifted. Mirrors
- * applyFishingRarityBonus so a master angler hooks more lobsters at the reef.
- */
+/** Shift `bonus` fraction of coral-trout weight toward lobster (pure; bonus=0 is identity). */
 export function applyCoralRarityBonus(
   weights: Record<FishKind, number>,
   bonus: number,

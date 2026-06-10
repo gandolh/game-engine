@@ -1,12 +1,3 @@
-/**
- * brief 42 — livestock system tests
- *
- * Tests:
- *  1. Fed+tended pen yields product the next day.
- *  2. Unfed pen yields nothing and decays care faster.
- *  3. Quality from care is deterministic (inputs+seed → same tier, two identical runs).
- *  4. Leaderboard includes pen + product asset value.
- */
 import { describe, it, expect } from "vitest";
 import { bootstrapSim, leaderboard } from "../sim-bootstrap";
 import { bankProduct, totalProductCount } from "../economy";
@@ -14,7 +5,6 @@ import type { Inventory } from "../components";
 
 const TICKS_PER_DAY = 10;
 
-/** Run the sim for N days. */
 function runDays(sim: ReturnType<typeof bootstrapSim>, days: number, startTick = 0): number {
   const end = startTick + days * TICKS_PER_DAY;
   for (let t = startTick; t < end; t++) {
@@ -28,12 +18,10 @@ describe("LivestockSystem", () => {
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
     const { world } = sim;
 
-    // Use farmer 0 (conservative = Cora, id should be consistent).
     const farmerList = [...world.query("farmer", "inventory")];
     const farmer = farmerList[0]!;
     if (farmer.id === undefined) throw new Error("farmer has no id");
 
-    // Spawn a coop pen: 3 chickens, care=0.8, fedToday=true.
     world.spawn({
       pen: {
         kind: "coop",
@@ -47,10 +35,8 @@ describe("LivestockSystem", () => {
       },
     });
 
-    // Run 1 day so LivestockSystem fires.
     runDays(sim, 1);
 
-    // Should have eggs now (count × baseYield = 3 × 1 = 3).
     const eggs = totalProductCount(farmer.inventory, "egg");
     expect(eggs).toBeGreaterThanOrEqual(3);
   });
@@ -63,7 +49,6 @@ describe("LivestockSystem", () => {
     const farmer = farmerList[0]!;
     if (farmer.id === undefined) throw new Error("farmer has no id");
 
-    // Spawn a barn pen: 2 cows, care=0.8, fedToday=false (unfed).
     const penEntity = world.spawn({
       pen: {
         kind: "barn",
@@ -80,12 +65,10 @@ describe("LivestockSystem", () => {
     const careBefore = penEntity.pen!.care;
     runDays(sim, 1);
 
-    // No milk should be produced.
     const milk = totalProductCount(farmer.inventory, "milk");
     expect(milk).toBe(0);
 
-    // Care should have decayed faster (> 0.05, which is the fed decay rate).
-    const careDecay = careBefore - penEntity.pen!.care;
+    const careDecay = careBefore - penEntity.pen!.care; // unfed decay > fed decay (0.05)
     expect(careDecay).toBeGreaterThan(0.05);
   });
 
@@ -120,7 +103,6 @@ describe("LivestockSystem", () => {
     const farmer = farmerList[0]!;
     if (farmer.id === undefined) throw new Error("farmer has no id");
 
-    // Spawn a coop with 2 chickens.
     world.spawn({
       pen: {
         kind: "coop", animal: "chicken", count: 2,
@@ -134,8 +116,7 @@ describe("LivestockSystem", () => {
     const board = leaderboard(world);
     const entry = board.find(e => e.id === farmer.id);
     expect(entry).toBeDefined();
-    // 2 chickens × ANIMAL_BUY_COST.chicken (15) = 30 asset value.
-    expect(entry!.assetValue).toBeGreaterThanOrEqual(30);
+    expect(entry!.assetValue).toBeGreaterThanOrEqual(30); // 2 chickens × 15
     expect(entry!.totalValue).toBeGreaterThan(entry!.gold);
   });
 
