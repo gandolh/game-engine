@@ -2,6 +2,10 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-10] todo | Brief 71 filed — per-asset recipe files + cached per-sheet atlas builds (online research → wiki/asset-pipeline.md)
+
+User asked for a todo on assets: keep the bake principle but author each asset in its own file, build per group with caching of unchanged groups, and research asset-cooking + atlas best practice online first. Ran a web-research agent over engine cooking pipelines (Unreal/Unity/Godot/O3DE/AssetCooker), build-cache design (Bazel/Turborepo/Nx cache-key composition), packing algorithms (Jylänki 2010 survey, MaxRects vs shelf), padding/bleeding, and Canvas2D-specific atlas economics; synthesis filed as [wiki/asset-pipeline.md](wiki/asset-pipeline.md) (with sources). Key repo-specific verdicts: keep shelf packing + 1px padding (frames are uniform 16px — MaxRects' occupancy edge needs mixed sizes), keep ~6 sheets (the split is for authoring/diff locality, not GPU limits), pin pngjs encoder options for byte-stable committed artifacts, and store the per-sheet cache key as an `inputsHash` stamp inside each committed sheet manifest (no separate cache file). Brief: [71-per-asset-recipe-files-and-cached-atlas-builds](briefs/game/todo/71-per-asset-recipe-files-and-cached-atlas-builds.md) — split the ~4,300-line [base-recipes.ts](../tools/atlas-builder/src/recipes/base-recipes.ts) into `recipes/assets/<prefix>/<name>.ts` (one file per asset, explicit barrel, path↔name test), per-sheet fingerprint → skip unchanged sheets, `--force` escape hatch. Tooling-only; zero determinism exposure. Also fixed index.md's stale "game todo is empty" line (70 + 71 now listed).
+
 ## [2026-06-10] triage | Open-questions round — every open item decided; 3 fixes shipped, briefs 66–70 filed, 1 dropped
 
 Walked [open-questions.md](wiki/open-questions.md) end-to-end with the user (variants + recommendation per item); every item now has a disposition. **Shipped directly (small, verifiable):**
