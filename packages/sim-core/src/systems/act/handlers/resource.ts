@@ -50,7 +50,7 @@ export function handleMineStone(
   intent: Intention,
   featuresByTile: Map<string, GameEntity>,
   world: World<GameEntity>,
-  mineRng: Rng | null,
+  mineRng: Rng,
 ): void {
   if (farmer.id === undefined) return;
   const pick = (farmer.inventory.tools ?? []).find(t => t.kind === "pickaxe" && t.durability > 0);
@@ -65,12 +65,11 @@ export function handleMineStone(
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
   // Random drops. brief 43 — mining skill widens the geode/iron bands (a master
   // miner pulls more valuable drops). The roll uses the forked `mineRng` so the
-  // drop is deterministic (falls back to Math.random only for legacy rng-less
-  // tests); the skill SHIFT is a pure function of mining XP.
+  // drop is deterministic; the skill SHIFT is a pure function of mining XP.
   const mineBonus = miningRarityBonus(farmer.skills?.mining ?? 0);
   const geodeChance = STONE_GEODE_CHANCE + mineBonus * 0.5;
   const ironChance = STONE_IRON_CHANCE + mineBonus * 0.5;
-  const roll = mineRng ? mineRng.nextFloat() : Math.random();
+  const roll = mineRng.nextFloat();
   if (roll < geodeChance) {
     farmer.resources.geodes += 1;
   } else if (roll < geodeChance + ironChance) {

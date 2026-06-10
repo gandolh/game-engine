@@ -1,6 +1,6 @@
 import { ZERO_CROPS } from "../economy";
 import { describe, it, expect } from "vitest";
-import { World } from "@engine/core";
+import { World, createRng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ActSystem } from "./act";
 import { MessageBus } from "@engine/core";
@@ -58,7 +58,7 @@ function runAct(farmer: GameEntity, extraEntities?: Partial<GameEntity>[]): void
     world.spawn(e as Record<string, unknown>);
   }
   const bus = new MessageBus();
-  const act = new ActSystem(world, bus);
+  const act = new ActSystem(world, createRng(1), bus);
   act.run({ tick: 100 });
 }
 

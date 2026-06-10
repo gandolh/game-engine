@@ -11,7 +11,6 @@
     "./sim": "./src/sim/index.ts",
     "./render": "./src/render/index.ts",
     "./assets": "./src/assets/index.ts",
-    "./persistence": "./src/persistence/index.ts",
     "./debug": "./src/debug/index.ts",
     "./wasm": "./src/wasm/index.ts"
   },

@@ -70,14 +70,16 @@ export class SimClient {
   private msPerTick = 50;
 
   /**
-   * Render delay (the "interpolate in the past" margin). We render one full tick
-   * behind the newest snapshot's arrival so there is always a known next sample
-   * to interpolate toward — when a snapshot arrives a few ms late, we glide
-   * through the gap instead of freezing pinned at alpha=1. Costs ~1 tick of
-   * display latency (50 ms), imperceptible for a watch-only game.
+   * Render delay (the "interpolate in the past" margin). We render two full
+   * ticks behind the newest snapshot's arrival so there is always a known next
+   * sample to interpolate toward — when a snapshot arrives late, we glide
+   * through the gap instead of freezing pinned at alpha=1. Two ticks (vs the
+   * old one) absorbs the wider WS jitter of the client/server split; the cost
+   * is ~2 ticks of display latency (100 ms at the default rate), imperceptible
+   * for a watch-only game. (Open-questions round, 2026-06-10.)
    */
   private get renderDelayMs(): number {
-    return this.msPerTick;
+    return 2 * this.msPerTick;
   }
 
   private staticLayerCallback: ((msg: WorkerStaticLayerMsg) => void) | null = null;

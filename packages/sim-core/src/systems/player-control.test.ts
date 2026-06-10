@@ -1,6 +1,6 @@
 import { ZERO_CROPS } from "../economy";
 import { describe, it, expect } from "vitest";
-import { World } from "@engine/core";
+import { World, createRng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { zeroFish } from "../components";
 import { PlayerControlSystem } from "./player-control";
@@ -48,7 +48,7 @@ function setup(): {
     world,
     pip,
     control: new PlayerControlSystem(world),
-    act: new ActSystem(world),
+    act: new ActSystem(world, createRng(1)),
   };
 }
 

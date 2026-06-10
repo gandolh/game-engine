@@ -57,7 +57,7 @@ export function handleReturnToShore(farmer: ActingFarmer): void {
 export function handleFishCoral(
   farmer: ActingFarmer,
   tick: number,
-  fishRng: Rng | null,
+  fishRng: Rng,
   bus?: MessageBus,
 ): void {
   if (!farmer.farmer || !farmer.transform) return;
@@ -74,9 +74,7 @@ export function handleFishCoral(
     fishingRarityBonus(farmer.skills?.fishing ?? 0),
   );
   const fish = pickWeightedFish(weights, fishRng);
-  const busyTicks = fishRng
-    ? fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1)
-    : FISH_MIN_TICKS;
+  const busyTicks = fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1);
 
   if (!farmer.inventory.fish) farmer.inventory.fish = zeroFish();
   farmer.inventory.fish[fish] += 1;

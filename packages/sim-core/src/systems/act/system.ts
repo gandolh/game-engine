@@ -45,23 +45,23 @@ export class ActSystem implements System {
   readonly name = "ActSystem";
 
   /**
-   * Seeded RNG channel for fishing outcomes (catch time + which fish). Forked
-   * once from the sim rng so fishing stays deterministic; falls back to an
-   * unseeded channel only when ActSystem is constructed without an rng (legacy
-   * tests). Mining uses its own forked `mineRng` channel for the same reason
-   * (the old raw Math.random() broke determinism once brief 44 made agents
-   * mine ore to feed the now-validating blacksmith — see corpus log 2026-06-05).
+   * Seeded RNG channels for fishing outcomes (catch time + which fish) and
+   * mining drops, each forked once from the sim rng. The rng is REQUIRED: the
+   * old optional-rng path silently fell back to Math.random(), which is exactly
+   * the nondeterminism trap that broke brief 44 (raw Math.random() in mining
+   * once agents fed the now-validating blacksmith — see corpus log 2026-06-05).
+   * A missing rng is now a type error, not a reproducibility hole.
    */
-  private readonly fishRng: Rng | null;
-  private readonly mineRng: Rng | null;
+  private readonly fishRng: Rng;
+  private readonly mineRng: Rng;
 
   constructor(
     private readonly world: World<GameEntity>,
+    rng: Rng,
     private readonly bus?: MessageBus,
-    rng?: Rng,
   ) {
-    this.fishRng = rng ? rng.fork("fish") : null;
-    this.mineRng = rng ? rng.fork("mine") : null;
+    this.fishRng = rng.fork("fish");
+    this.mineRng = rng.fork("mine");
   }
 
   private buildActContext(): ActContext {

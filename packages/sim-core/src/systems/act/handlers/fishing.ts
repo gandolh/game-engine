@@ -28,13 +28,14 @@ import { applyFishingRarityBonus } from "../helpers";
 import type { ActingFarmer } from "../types";
 
 /** Draw a fish kind by [minnow,bass,salmon] weights. Deterministic via the
- *  forked fish rng; falls back to Math.random when rng-less (legacy tests). */
+ *  forked fish rng — the rng is required so a missing fork is a type error,
+ *  not a silent reproducibility hole. */
 export function pickWeightedFish(
   weights: Record<FishKind, number>,
-  fishRng: Rng | null,
+  fishRng: Rng,
 ): FishKind {
   const total = FISH_KINDS.reduce((s, k) => s + weights[k], 0);
-  const r = (fishRng ? fishRng.nextFloat() : Math.random()) * total;
+  const r = fishRng.nextFloat() * total;
   let acc = 0;
   for (const k of FISH_KINDS) {
     acc += weights[k];
@@ -47,7 +48,7 @@ export function handleFish(
   farmer: ActingFarmer,
   bubbleTiles: ReadonlySet<string>,
   tick: number,
-  fishRng: Rng | null,
+  fishRng: Rng,
 ): void {
   const rod = (farmer.inventory.tools ?? []).find((t) => t.kind === "fishing-rod");
   if (!rod || !farmer.transform) return;
@@ -82,9 +83,7 @@ export function handleFish(
   const baseWeights = nearBubble ? FISH_WEIGHTS_BUBBLE : FISH_WEIGHTS_CALM;
   const weights = applyFishingRarityBonus(baseWeights, fishingRarityBonus(farmer.skills?.fishing ?? 0));
   const fish = pickWeightedFish(weights, fishRng);
-  const busyTicks = fishRng
-    ? fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1)
-    : FISH_MIN_TICKS + Math.floor(Math.random() * (FISH_MAX_TICKS - FISH_MIN_TICKS + 1));
+  const busyTicks = fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1);
 
   if (!farmer.inventory.fish) farmer.inventory.fish = zeroFish();
   farmer.inventory.fish[fish] += 1;

@@ -1,6 +1,6 @@
 import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeEach } from "vitest";
-import { World, MessageBus } from "@engine/core";
+import { World, MessageBus, createRng } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
 import { CarpenterSystem, COMMISSION_BUILD_TICKS } from "./carpenter";
 import { ActSystem } from "./act";
@@ -83,7 +83,7 @@ describe("CarpenterSystem", () => {
   });
 
   it("end-to-end: a commission-build act drives a delivered structure", () => {
-    const act = new ActSystem(world, bus);
+    const act = new ActSystem(world, createRng(1), bus);
     const dispatch = new InboxDispatchSystem(bus, world);
     const farmer = makeFarmer(world, { wood: 12 });
     farmer.intentions!.queue.push({ kind: "commission-build", data: { kind: "windmill" }, priority: 0 });

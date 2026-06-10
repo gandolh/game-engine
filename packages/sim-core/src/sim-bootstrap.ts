@@ -322,7 +322,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   }
 
   scheduler
-    .add(new ActSystem(world, bus, rng))
+    .add(new ActSystem(world, rng, bus))
     .add(marketShop.marketSystem)
     .add(marketShop.shopkeeperSystem)
     .add(marketShop.auctionSystem)

@@ -58,7 +58,7 @@ describe("ActSystem buy-seed (emits ONT_SHOP.SELL)", () => {
   beforeEach(() => {
     world = new World<GameEntity>();
     bus = new MessageBus();
-    sys = new ActSystem(world, bus);
+    sys = new ActSystem(world, createRng(1), bus);
     shopEntity = spawnShopkeeper(world);
   });
 
@@ -112,7 +112,7 @@ describe("ActSystem buy-seed (emits ONT_SHOP.SELL)", () => {
   it("buy-seed emits nothing when no shopkeeper entity exists", () => {
     const freshWorld = new World<GameEntity>();
     const freshBus = new MessageBus();
-    const freshSys = new ActSystem(freshWorld, freshBus);
+    const freshSys = new ActSystem(freshWorld, createRng(1), freshBus);
     const farmer = makeFarmer(freshWorld);
     farmer.intentions!.queue.push({
       kind: "buy-seed",
@@ -133,7 +133,7 @@ describe("ActSystem buy-seed end-to-end through the shopkeeper", () => {
   it("credits seeds + decrements gold and slate one tick later", () => {
     const world = new World<GameEntity>();
     const bus = new MessageBus();
-    const act = new ActSystem(world, bus);
+    const act = new ActSystem(world, createRng(1), bus);
     const dispatch = new InboxDispatchSystem(bus, world);
     const auction = new AuctionSystem(bus, world, createRng(1));
     const shop = new ShopkeeperSystem(bus, world, auction);
@@ -193,7 +193,7 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
   beforeEach(() => {
     world = new World<GameEntity>();
     bus = new MessageBus();
-    sys = new ActSystem(world, bus);
+    sys = new ActSystem(world, createRng(1), bus);
     world.spawn({ blacksmith: { isBlacksmith: true } });
   });
 
@@ -262,7 +262,7 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
   beforeEach(() => {
     world = new World<GameEntity>();
     bus = new MessageBus();
-    sys = new ActSystem(world, bus);
+    sys = new ActSystem(world, createRng(1), bus);
   });
 
   it("charges gold, boosts AP same-day, and records the hire day", () => {
@@ -358,7 +358,7 @@ describe("ActSystem pray-at-shrine (interactive shrine)", () => {
 
   beforeEach(() => {
     world = new World<GameEntity>();
-    sys = new ActSystem(world);
+    sys = new ActSystem(world, createRng(1));
   });
 
   it("raises AP by the boost and records the prayer day when ON the shrine and OFF cooldown", () => {
