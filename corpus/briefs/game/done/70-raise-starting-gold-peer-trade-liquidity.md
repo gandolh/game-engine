@@ -1,6 +1,6 @@
 # Brief 70 — Raise starting gold so early-game peer crop trades can close
 
-**Status:** todo · **Area:** `packages/sim-core` (farmer specs, peer-trade interplay) · **Drafted:** 2026-06-10
+**Status:** done (merged 2026-06-10 — lever shipped; 15-day acceptance superseded by probe findings, see log) · **Area:** `packages/sim-core` (farmer specs, peer-trade interplay) · **Drafted:** 2026-06-10
 
 Brief 59 fixed the peer-trade layer (price bug + `OFFER_CROP` path) and trades now close on most seeds — but on seed `0xc0ffee` early-game buyers are too cash-poor: every offer dies on the `would-breach-reserve` decline. Decision (open-questions round 2026-06-10): **raise the initial budget** so the early game has enough liquidity for the peer economy to function, rather than leaving it as an in-character constraint. ⚠️ This is a **sim balance change**: every seed's deterministic outcome shifts — the determinism *baseline* moves with it (reproducibility itself is untouched).
 
