@@ -1,3 +1,9 @@
+// brief-60: shared zoom bounds — import these in any handler that clamps zoom.
+/** Minimum zoom level (zoomed out). A separate brief owns the zoom-out end. */
+export const MIN_ZOOM = 0.5;
+/** Maximum zoom level (zoomed in). At 6× a 16px tile is 96 canvas px — crisp under nearest-neighbor. */
+export const MAX_ZOOM = 6;
+
 export interface CameraConfig {
   worldUnitsX: number;
   worldUnitsY: number;
@@ -33,11 +39,11 @@ export class Camera2D {
   }
 
   /**
-   * Set zoom level, clamped to [0.5, 3].
+   * Set zoom level, clamped to [MIN_ZOOM, MAX_ZOOM].
    * Zoom > 1 shows less of the world (zoomed in), < 1 shows more.
    */
   setZoom(z: number): void {
-    this.zoom = Math.max(0.5, Math.min(3, z));
+    this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
     this.worldUnitsX = this.baseUnitsX / this.zoom;
     this.worldUnitsY = this.baseUnitsY / this.zoom;
   }
