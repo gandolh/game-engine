@@ -24,8 +24,8 @@ const TILE = 16;
  */
 export function pushSnapshotSprites(
   renderer: Canvas2dRenderer,
-  sprites: import("../worker/snapshot").SnapshotSprite[],
-  meets: import("../worker/snapshot").SnapshotMeet[],
+  sprites: import("../snapshot").SnapshotSprite[],
+  meets: import("../snapshot").SnapshotMeet[],
   farmerPositions: Map<number, { x: number; y: number }>,
   nowMs: number = 0,
   season: Season = "spring",

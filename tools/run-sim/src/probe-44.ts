@@ -18,10 +18,10 @@
 // in a git worktree the `farm-valley` package specifier resolves to the PARENT
 // checkout's source (shared node_modules), so a bare import would run the wrong
 // code. Relative paths pin this probe to THIS worktree's farm-valley source.
-import { bootstrapSim, leaderboard } from "../../../packages/farm-valley/src/sim-bootstrap";
-import { JsPathfinder } from "../../../packages/farm-valley/src/world/js-pathfinder";
-import { isWithinReach } from "../../../packages/farm-valley/src/systems/proximity";
-import type { GameEntity, ToolTier } from "../../../packages/farm-valley/src/components";
+import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
+import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
+import { isWithinReach } from "@farm/sim-core/systems/proximity";
+import type { GameEntity, ToolTier } from "@farm/sim-core/components";
 
 const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;

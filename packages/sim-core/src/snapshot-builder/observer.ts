@@ -3,10 +3,10 @@
  */
 
 import type { World } from "@engine/core";
-import type { GameEntity } from "../../components";
-import type { ObserverSnapshot } from "../../ui/observer";
-import { seasonForDay } from "../../protocols";
-import { skillLevel } from "../../systems/skills";
+import type { GameEntity } from "../components";
+import type { ObserverSnapshot } from "../snapshot/observer-types";
+import { seasonForDay } from "../protocols";
+import { skillLevel } from "../systems/skills";
 import { deriveRegionLabel } from "./sprites";
 
 // ---------------------------------------------------------------------------

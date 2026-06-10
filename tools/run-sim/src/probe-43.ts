@@ -10,12 +10,12 @@
  *
  * Run: npx tsx tools/run-sim/src/probe-43.ts
  */
-import { bootstrapSim, leaderboard } from "farm-valley/src/sim-bootstrap";
-import { JsPathfinder } from "farm-valley/src/world/js-pathfinder";
-import { skillLevel } from "farm-valley/src/systems/skills";
-import { CROP_SEASON } from "farm-valley/src/economy";
-import { seasonForDay } from "farm-valley/src/protocols/weather";
-import { SKILL_KINDS, type GameEntity } from "farm-valley/src/components";
+import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
+import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
+import { skillLevel } from "@farm/sim-core/systems/skills";
+import { CROP_SEASON } from "@farm/sim-core/economy";
+import { seasonForDay } from "@farm/sim-core/protocols/weather";
+import { SKILL_KINDS, type GameEntity } from "@farm/sim-core/components";
 
 const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;

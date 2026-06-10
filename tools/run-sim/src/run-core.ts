@@ -14,7 +14,7 @@ import {
   leaderboard,
   type FarmerSummary,
   type PathfinderLike,
-} from "farm-valley/src/sim-bootstrap";
+} from "@farm/sim-core/sim-bootstrap";
 
 export type { FarmerSummary, PathfinderLike };
 

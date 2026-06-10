@@ -1,7 +1,7 @@
 import { EDG } from "@engine/core";
 import { formatSeed } from "../screens";
-import { serializeRun, type RunDescriptor } from "../run-descriptor";
-import type { FinalStandingRow, RunRecap } from "../worker/snapshot";
+import { serializeRun, type RunDescriptor } from "@farm/sim-core/run-descriptor";
+import type { FinalStandingRow, RunRecap } from "@farm/sim-core/snapshot";
 
 /** Game-over panel parts: the outer panel, the monospace standings text node,
  *  the "Share this run" button (whose handler is (re)bound per run), and the

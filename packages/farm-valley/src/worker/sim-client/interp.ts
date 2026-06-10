@@ -5,7 +5,7 @@
  * logic and carry no side effects; they may be tested in isolation.
  */
 
-import type { SnapshotSprite } from "../snapshot";
+import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 
 export function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;

@@ -1,0 +1,40 @@
+{
+  "name": "@farm/sim-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./snapshot": "./src/snapshot/index.ts",
+    "./snapshot-builder": "./src/snapshot-builder/index.ts",
+    "./protocol": "./src/protocol/index.ts",
+    "./render-systems": "./src/render-systems/index.ts",
+    "./components": "./src/components/index.ts",
+    "./protocols": "./src/protocols/index.ts",
+    "./economy": "./src/economy/index.ts",
+    "./run-recap": "./src/run-recap/index.ts",
+    "./sim-bootstrap": "./src/sim-bootstrap.ts",
+    "./world-setup": "./src/world-setup.ts",
+    "./run-descriptor": "./src/run-descriptor.ts",
+    "./sim-worker-skip": "./src/sim-worker-skip.ts",
+    "./systems/player-control": "./src/systems/player-control/index.ts",
+    "./world/*": "./src/world/*.ts",
+    "./systems/*": "./src/systems/*.ts",
+    "./agents/*": "./src/agents/*.ts",
+    "./protocols/*": "./src/protocols/*.ts",
+    "./components/*": "./src/components/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@engine/core": "0.0.0"
+  },
+  "devDependencies": {
+    "jsdom": "29.1.1",
+    "@types/jsdom": "21.1.7"
+  }
+}

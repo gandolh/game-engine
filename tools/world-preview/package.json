@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@engine/core": "0.0.0",
+    "@farm/sim-core": "0.0.0",
     "farm-valley": "0.0.0",
     "pngjs": "7.0.0"
   },

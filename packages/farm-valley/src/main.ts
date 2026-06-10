@@ -10,7 +10,7 @@ import {
 import type { NoiseGenerator } from "@engine/core";
 import { HomeScreen } from "./screens";
 import { SimClient } from "./worker/sim-client";
-import { parseRun } from "./run-descriptor";
+import { parseRun } from "@farm/sim-core/run-descriptor";
 
 import { CONFIG, CAMERA_CONFIG } from "./main/config";
 import {

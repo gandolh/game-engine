@@ -2,16 +2,16 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
-import { bootstrapSim } from "farm-valley/src/sim-bootstrap";
+import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
   REGIONS,
   regionAt,
   isWalkable,
-} from "farm-valley/src/world/regions";
+} from "@farm/sim-core/world/regions";
 import type { AtlasManifest } from "@engine/core";
-import type { GameEntity } from "farm-valley/src/components";
+import type { GameEntity } from "@farm/sim-core/components";
 import { PREFIX_TO_SHEET } from "../../atlas-builder/src/recipes";
 
 // Offline snapshot of the real 40×40 region world. Mirrors the live renderer in

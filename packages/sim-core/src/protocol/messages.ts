@@ -3,7 +3,7 @@
 // WorkerOutbound covers worker → main.
 
 import type { Canvas2dSprite, ProfileReport } from "@engine/core";
-import type { RenderSnapshot } from "./render-snapshot";
+import type { RenderSnapshot } from "../snapshot/render-snapshot";
 
 // ---- main → worker messages -----------------------------------------------
 
@@ -107,7 +107,7 @@ export interface WorkerStaticLayerMsg {
   worldWidthPx: number;
   worldHeightPx: number;
   /** brief 45 — the season these sprites were baked for (selects the grass variant). */
-  season?: import("../../protocols/weather").Season;
+  season?: import("../protocols/weather").Season;
 }
 
 /** worker → main: a per-tick render snapshot. */

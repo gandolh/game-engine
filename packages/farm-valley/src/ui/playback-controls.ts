@@ -1,7 +1,7 @@
 import { createEl, setText, applyStyles } from "./dom";
 import { EDG } from "@engine/core/render";
 import { personalityColor } from "./colors";
-import type { FarmerFsmState } from "../components/farmer";
+import type { FarmerFsmState } from "@farm/sim-core/components/farmer";
 
 /** Keybindings shown in the help modal — [keys, what they do]. */
 const KEY_BINDINGS: ReadonlyArray<readonly [string, string]> = [

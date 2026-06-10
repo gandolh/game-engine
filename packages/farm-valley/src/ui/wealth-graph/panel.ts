@@ -16,7 +16,7 @@
 import { EDG } from "@engine/core/render";
 import { createEl, applyStyles } from "../dom";
 import { personalityColor } from "../colors";
-import type { SnapshotWealthSeries } from "../../worker/snapshot";
+import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 import { computePoints, detectCrossings } from "./compute";
 import type { ChartBounds } from "./compute";
 import {

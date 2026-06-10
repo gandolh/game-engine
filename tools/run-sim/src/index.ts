@@ -8,8 +8,8 @@
  * Sim logic lives in run-core.ts (side-effect free, shared with the worker);
  * env parsing in env.ts; output formatting in format.ts.
  */
-import { bootstrapSim } from "farm-valley/src/sim-bootstrap";
-import { ONT_SIMULATION, type ShockBody } from "farm-valley/src/protocols";
+import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
+import { ONT_SIMULATION, type ShockBody } from "@farm/sim-core/protocols";
 import { runOnce, summarize } from "./run-core";
 import { makePathfinder } from "./pathfinder";
 import { runDeterminismCheck } from "./determinism";

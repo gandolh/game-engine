@@ -1,5 +1,5 @@
-import type { Season } from "../protocols/weather";
-import { dayFraction } from "../systems/day-phase";
+import type { Season } from "@farm/sim-core/protocols/weather";
+import { dayFraction } from "@farm/sim-core/systems/day-phase";
 import { EDG, rgbOf } from "@engine/core/render";
 
 /**

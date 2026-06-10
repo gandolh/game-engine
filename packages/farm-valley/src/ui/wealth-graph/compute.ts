@@ -1,4 +1,4 @@
-import type { SnapshotWealthSeries } from "../../worker/snapshot";
+import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 
 /** One {x,y} coordinate in canvas pixel space. */
 export interface ChartPoint {

@@ -1,7 +1,7 @@
 import { Camera2D } from "@engine/core";
-import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { TILE } from "./config";
-import type { SnapshotSprite } from "../worker/snapshot";
+import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 import type { SimClient } from "../worker/sim-client";
 
 // brief-11: focus-camera — module-level camera interaction state

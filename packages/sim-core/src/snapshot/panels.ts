@@ -1,8 +1,8 @@
 // Panel and HUD data types — wealth graph, rivalry list, final standings,
 // leaderboard rows, and player hotbar state. All structured-clone-friendly.
 
-import type { RunHistoryRow } from "../../systems/run-history";
-import type { LeaderboardRow } from "../../ui/leaderboard";
+import type { RunHistoryRow } from "../systems/run-history";
+import type { LeaderboardRow } from "./ui-types";
 
 /**
  * Per-farmer wealth time series for the wealth-over-time graph (brief 39).
@@ -37,7 +37,7 @@ export interface SnapshotRivalry {
  */
 /** brief 41 — crops is now a flexible partial map (all 8 kinds may appear). */
 export interface FinalStandingRow extends LeaderboardRow {
-  crops: Partial<Record<import("../../components").CropKind, number>>;
+  crops: Partial<Record<import("../components").CropKind, number>>;
 }
 
 /**

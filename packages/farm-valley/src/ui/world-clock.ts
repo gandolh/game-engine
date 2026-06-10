@@ -1,6 +1,6 @@
 import { createEl, applyStyles, setText } from "./dom";
-import { phaseForFraction, dayFraction, type DayPhase } from "../systems/day-phase";
-import { seasonForDay, type Season } from "../protocols/weather";
+import { phaseForFraction, dayFraction, type DayPhase } from "@farm/sim-core/systems/day-phase";
+import { seasonForDay, type Season } from "@farm/sim-core/protocols/weather";
 import { EDG } from "@engine/core/render";
 
 export interface WorldClockState {

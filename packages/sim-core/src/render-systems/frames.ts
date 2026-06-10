@@ -174,7 +174,7 @@ export function seasonalTreeFrame(frame: string, season: Season): string {
  * cleanly to the correct personality frame (e.g. `farmer/hoarder/till`).
  */
 export function resolveFrameAndBob(
-  s: import("../worker/snapshot").SnapshotSprite,
+  s: import("../snapshot").SnapshotSprite,
   nowMs: number,
   season: Season = "spring",
 ): { frame: string; bobY: number } {

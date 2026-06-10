@@ -4,17 +4,17 @@
  */
 
 import type { World } from "@engine/core";
-import type { GameEntity } from "../../components";
-import type { FarmerSummary } from "../../sim-bootstrap";
-import type { LeaderboardRow } from "../../ui/leaderboard";
+import type { GameEntity } from "../components";
+import type { FarmerSummary } from "../sim-bootstrap";
+import type { LeaderboardRow } from "../snapshot/ui-types";
 import type {
   FinalStandingRow,
   RelationshipMatrixData,
   SnapshotRivalry,
   SnapshotWealthSeries,
 } from "../snapshot";
-import type { RunHistoryRow } from "../../systems/run-history";
-import type { RivalrySystem } from "../../systems/rivalry";
+import type { RunHistoryRow } from "../systems/run-history";
+import type { RivalrySystem } from "../systems/rivalry";
 import { MAX_WEALTH_ROWS } from "./constants";
 
 // ---------------------------------------------------------------------------

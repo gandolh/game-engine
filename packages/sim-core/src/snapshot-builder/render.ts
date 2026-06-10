@@ -5,19 +5,19 @@
  */
 
 import type { World } from "@engine/core";
-import type { GameEntity } from "../../components";
-import type { DayClockSystem } from "../../systems/day-clock";
-import type { MeetIndicatorSystem } from "../../systems/meet-indicator";
-import type { EventFeedSystem } from "../../systems/event-feed";
-import type { RunHistoryRow } from "../../systems/run-history";
-import type { RivalrySystem } from "../../systems/rivalry";
+import type { GameEntity } from "../components";
+import type { DayClockSystem } from "../systems/day-clock";
+import type { MeetIndicatorSystem } from "../systems/meet-indicator";
+import type { EventFeedSystem } from "../systems/event-feed";
+import type { RunHistoryRow } from "../systems/run-history";
+import type { RivalrySystem } from "../systems/rivalry";
 import type {
   RenderSnapshot,
   SnapshotShock,
 } from "../snapshot";
-import { leaderboard } from "../../sim-bootstrap";
-import { seasonForDay } from "../../protocols";
-import { summarizeRun } from "../../run-recap";
+import { leaderboard } from "../sim-bootstrap";
+import { seasonForDay } from "../protocols";
+import { summarizeRun } from "../run-recap";
 
 import { buildSprites, buildPlayerHotbar } from "./sprites";
 import { buildMeets, buildEvents } from "./events";
@@ -66,7 +66,7 @@ export function buildRenderSnapshot(
     for (const s of world.query("shopkeeper")) return s;
     return null;
   })();
-  const slate = (shopEntity?.shopkeeper?.dailySlate ?? []) as import("../../agents/shop-slate").ShopOffer[];
+  const slate = (shopEntity?.shopkeeper?.dailySlate ?? []) as import("../agents/shop-slate").ShopOffer[];
 
   const entityCount = countEntities(world);
 

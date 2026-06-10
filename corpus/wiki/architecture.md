@@ -5,7 +5,8 @@
 ```
 packages/
   engine/          @engine/core         — reusable engine
-  farm-valley/     farm-valley          — the game
+  sim-core/        @farm/sim-core        — the deterministic sim (Node-safe + browser-safe)
+  farm-valley/     farm-valley          — the renderer (the game's client)
   wasm-modules/    @engine/wasm-modules — AssemblyScript sources
 tools/
   atlas-builder    runtime sprite atlas
@@ -13,13 +14,21 @@ tools/
   world-preview    offline snapshot viewer
 ```
 
-Root [package.json](../../package.json) is an npm workspaces monorepo; `engine` and `farm-valley` share TS config via [tsconfig.base.json](../../tsconfig.base.json).
+Root [package.json](../../package.json) is an npm workspaces monorepo; all packages share TS config via [tsconfig.base.json](../../tsconfig.base.json).
+
+**`@farm/sim-core` (brief 56)** holds the deterministic simulation — `bootstrapSim` + `systems/**`, `agents/**`, `world/**`, `economy/**`, `protocols/**`, `components/**`, the snapshot layer (`snapshot/`, `snapshot-builder/`), `render-systems/` (pure sprite-frame production, no DOM), and the transport-neutral message contract (`protocol/`, still using the historical `Worker*` names). It imports `@engine/core` (incl. the render barrel, for the EDG palette + sprite types — Node-safe because nothing instantiates a Canvas at module load) but **never** the renderer. It exposes TS source directly via subpath `exports` (no build step), like `@engine/core`. This was extracted so both the renderer and the future Node WS server (brief 57) can depend on the sim without the renderer in between.
 
 ## Layers
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  farm-valley/  agents, systems, screens, ui, protocols   │  ← game-specific
+│  farm-valley/  main, screens, ui, render, worker/sim-    │  ← renderer (client)
+│                client  (Canvas2D, DOM panels)            │
+├──────────────────────────────────────────────────────────┤
+│  @farm/sim-core  bootstrapSim · systems · agents · world │  ← deterministic sim
+│                  economy · protocols · components ·      │    (Node + browser safe)
+│                  snapshot · snapshot-builder · render-   │
+│                  systems · protocol (message contract)   │
 ├──────────────────────────────────────────────────────────┤
 │  @engine/core  ecs · sim · render · input · runtime ·    │  ← generic engine
 │                animation · spatial · wasm · persistence  │
@@ -28,7 +37,7 @@ Root [package.json](../../package.json) is an npm workspaces monorepo; `engine` 
 └──────────────────────────────────────────────────────────┘
 ```
 
-Engine never imports game; game never imports another game package. WASM artifacts are committed under `packages/farm-valley/public/wasm/` so fresh clones can `npm run dev` without first running `npm run build-wasm`.
+Engine never imports game; the renderer (`farm-valley`) depends on `@farm/sim-core` for sim logic + the snapshot/message types; `@farm/sim-core` never imports the renderer. WASM artifacts are committed under `packages/farm-valley/public/wasm/` (the renderer fetches them) and built into `packages/wasm-modules/dist/` (sim-core's `travel.test.ts` reads the dist copy); fresh clones can `npm run dev` without first running `npm run build-wasm`.
 
 **Module-directory convention.** Large units are split into a directory of focused modules fronted by a barrel `index.ts` that re-exports the public surface (e.g. `systems/act/` → `system.ts` + `handlers/*` + `constants` + `index`; `components/` → per-domain type files + `index`; `agents/watering/` → per-domain `deliberate*` helpers + `index`). Consumers import the directory (`from "../components"`, `from "./act"`) and resolve to the barrel, so internal layout can change without touching importers. The one exception is `worker/sim-worker.ts`, which stays a single file because Vite references it by URL (`new Worker(new URL("../sim-worker.ts", …))`).
 

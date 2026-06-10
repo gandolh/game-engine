@@ -2,8 +2,8 @@
  * snapshot-builder/events.ts — buildEvents and buildMeets from system state.
  */
 
-import type { MeetIndicatorSystem } from "../../systems/meet-indicator";
-import type { EventFeedSystem } from "../../systems/event-feed";
+import type { MeetIndicatorSystem } from "../systems/meet-indicator";
+import type { EventFeedSystem } from "../systems/event-feed";
 import type { SnapshotMeet, SnapshotEvent } from "../snapshot";
 import { EVENT_SNAPSHOT_CAP } from "./constants";
 

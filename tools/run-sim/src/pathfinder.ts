@@ -1,4 +1,4 @@
-import { JsPathfinder } from "farm-valley/src/world/js-pathfinder";
+import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import type { PathfinderLike } from "./run-core";
 
 /**

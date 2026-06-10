@@ -1,10 +1,10 @@
 import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler } from "@engine/core";
 import { EDG } from "@engine/core";
-import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES } from "../render-systems";
-import { WATERFALL_TILE, CAMPFIRE_TILE } from "../world/regions";
+import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES } from "@farm/sim-core/render-systems";
+import { WATERFALL_TILE, CAMPFIRE_TILE } from "@farm/sim-core/world/regions";
 import { washFor } from "../render/day-night";
-import { seasonForDay } from "../protocols/weather";
-import { HOTBAR_SLOTS } from "../systems/player-control";
+import { seasonForDay } from "@farm/sim-core/protocols/weather";
+import { HOTBAR_SLOTS } from "@farm/sim-core/systems/player-control";
 import { TILE, PROFILE_ENABLED } from "./config";
 import {
   focusedFarmerId,

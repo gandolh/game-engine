@@ -10,7 +10,7 @@ import { ZERO_CROPS } from "./economy";
 import { summarizeRun } from "./run-recap";
 import type { RunHistoryRow } from "./systems/run-history";
 import type { EventEntry } from "./systems/event-feed";
-import type { FinalStandingRow, SnapshotRivalry } from "./worker/snapshot";
+import type { FinalStandingRow, SnapshotRivalry } from "./snapshot";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,7 +1,7 @@
 import { Camera2D, EDG } from "@engine/core";
 import { TILE } from "./config";
 import { mousePos } from "./camera";
-import type { SnapshotSprite } from "../worker/snapshot";
+import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 
 export function createTooltip(parent: HTMLElement): HTMLElement {
   const el = document.createElement("div");

@@ -7,13 +7,13 @@
  */
 
 import type { World } from "@engine/core";
-import type { GameEntity } from "../../components";
+import type { GameEntity } from "../components";
 import type {
   SnapshotSprite,
 } from "../snapshot";
 import type { PlayerHotbar } from "../snapshot";
-import { pickFarmerFrame } from "../../render-systems";
-import { HOTBAR_SLOTS } from "../../systems/player-control";
+import { pickFarmerFrame } from "../render-systems";
+import { HOTBAR_SLOTS } from "../systems/player-control";
 import {
   BUBBLE_SHOW_TICKS,
   DECORATION_LABELS,

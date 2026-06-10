@@ -1,6 +1,6 @@
 import { createEl, setText, applyStyles } from "./dom";
 import { EDG } from "@engine/core/render";
-import type { PlayerHotbar } from "../worker/snapshot";
+import type { PlayerHotbar } from "@farm/sim-core/snapshot";
 
 /**
  * HotbarPanel — the player (Pip) tool bar, bottom-center, where the playback

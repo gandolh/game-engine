@@ -9,7 +9,7 @@
  */
 
 import type { RunHistoryRow } from "../systems/run-history";
-import type { FinalStandingRow, SnapshotRivalry } from "../worker/snapshot";
+import type { FinalStandingRow, SnapshotRivalry } from "../snapshot";
 import type { EventEntry } from "../systems/event-feed";
 import { midpointDay, buildRankMap, farmerArc, buildHeadline } from "./internal";
 import type { RecapStanding, RunRecap } from "./types";

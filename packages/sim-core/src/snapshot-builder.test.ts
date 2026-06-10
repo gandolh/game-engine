@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { bootstrapSim, leaderboard } from "../sim-bootstrap";
+import { bootstrapSim, leaderboard } from "./sim-bootstrap";
 import {
   buildRenderSnapshot,
   buildObserverSnapshot,
@@ -16,7 +16,7 @@ import {
   INTENTION_KIND_TO_GLYPH,
   HIGHLIGHT_THRESHOLD,
 } from "./snapshot-builder";
-import { shouldStopSkip } from "./sim-worker";
+import { shouldStopSkip } from "./sim-worker-skip";
 import type { SnapshotShock } from "./snapshot";
 
 const SEED = 0xc0ffee;
@@ -464,14 +464,14 @@ describe("AI farmer sprites carry a bubble field (brief 40)", () => {
 //   thirsty / dying crops; exhausted / broken-tool farmers; healthy = untinted.
 // ---------------------------------------------------------------------------
 
-import { DRY_DEATH_GRACE_DAYS } from "../systems/crop-growth";
+import { DRY_DEATH_GRACE_DAYS } from "./systems/crop-growth";
 import {
   UNTINTED_RGBA,
   EXHAUSTED_AP_FRACTION,
   cropCue,
   farmerCue,
 } from "./snapshot-builder/indicators";
-import type { CropKind } from "../components";
+import type { CropKind } from "./components";
 
 const TILE = 16;
 

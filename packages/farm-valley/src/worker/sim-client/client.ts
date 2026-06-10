@@ -27,11 +27,11 @@ import type {
   FinalStandingRow,
   RunRecap,
   RelationshipMatrixData,
-} from "../snapshot";
+} from "@farm/sim-core/snapshot";
 import type { ProfileReport } from "@engine/core";
 import type { ObserverSnapshot } from "../../ui/observer";
 import type { LeaderboardRow } from "../../ui/leaderboard";
-import type { ShopOffer } from "../../agents/shop-slate";
+import type { ShopOffer } from "@farm/sim-core/agents/shop-slate";
 import { clamp, lerp, smoothstep, copySprite } from "./interp";
 
 export class SimClient {

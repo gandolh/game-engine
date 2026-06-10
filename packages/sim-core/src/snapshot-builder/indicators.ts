@@ -16,9 +16,9 @@
  */
 
 import { EDG, rgbOf } from "@engine/core/render";
-import type { GameEntity, PlotState } from "../../components";
-import { DRY_DEATH_GRACE_DAYS } from "../../systems/crop-growth";
-import { maxApForDay } from "../../systems/ap";
+import type { GameEntity, PlotState } from "../components";
+import { DRY_DEATH_GRACE_DAYS } from "../systems/crop-growth";
+import { maxApForDay } from "../systems/ap";
 
 /** Default (healthy/normal) tint: full white, no RGB shift. */
 export const UNTINTED_RGBA = 0xffffffff;

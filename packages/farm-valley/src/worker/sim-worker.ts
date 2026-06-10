@@ -16,11 +16,11 @@
  * notifySubscribers() then dispatches those deliverable messages to subscribers.
  */
 
-import { bootstrapSim } from "../sim-bootstrap";
-import { buildStaticLayerSprites } from "../render-systems";
-import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
-import { buildRenderSnapshot, HIGHLIGHT_THRESHOLD } from "./snapshot-builder";
-import { ONT_SIMULATION, type ShockBody, seasonForDay } from "../protocols";
+import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
+import { buildStaticLayerSprites } from "@farm/sim-core/render-systems";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
+import { buildRenderSnapshot, HIGHLIGHT_THRESHOLD } from "@farm/sim-core/snapshot-builder";
+import { ONT_SIMULATION, type ShockBody, seasonForDay } from "@farm/sim-core/protocols";
 import { createPathfinderFromBytes, Profiler } from "@engine/core";
 import type {
   WorkerInbound,
@@ -28,12 +28,12 @@ import type {
   WorkerSnapshotMsg,
   WorkerProfileMsg,
   SnapshotShock,
-} from "./snapshot";
+} from "@farm/sim-core/snapshot";
 
 // Pure skip-to-highlight stop logic lives in a sibling so it can be unit-tested
 // without importing this module (which registers a worker message handler).
 // Re-exported here so `import { shouldStopSkip } from "./sim-worker"` still works.
-import { shouldStopSkip, SKIP_MAX_DAYS } from "./sim-worker-skip";
+import { shouldStopSkip, SKIP_MAX_DAYS } from "@farm/sim-core/sim-worker-skip";
 export { shouldStopSkip };
 
 const TILE = 16;
@@ -182,7 +182,7 @@ const onWorkerMessage = (event: MessageEvent<WorkerInbound>) => {
     // re-post it whenever the season changes (4× per run; cheap). The main thread
     // re-bakes its static layer from each message.
     let lastBakedSeason = seasonForDay(dayClock.day);
-    const postStaticLayer = (season: import("../protocols/weather").Season): void => {
+    const postStaticLayer = (season: import("@farm/sim-core/protocols/weather").Season): void => {
       const staticSprites = buildStaticLayerSprites(world, season);
       const staticMsg: WorkerStaticLayerMsg = {
         type: "static-layer",

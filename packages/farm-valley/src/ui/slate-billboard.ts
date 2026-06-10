@@ -1,5 +1,5 @@
 import { createEl, setText, applyStyles } from "./dom";
-import type { ShopOffer } from "../agents/shop-slate";
+import type { ShopOffer } from "@farm/sim-core/agents/shop-slate";
 import { EDG } from "@engine/core/render";
 
 export type SlateEntry = Pick<ShopOffer, "offerId" | "crop" | "unitPrice" | "quantity" | "remaining">;

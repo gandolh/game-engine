@@ -1,7 +1,7 @@
 /* brief 42 instrumentation probe — confirm livestock/orchard fires live. */
-import { bootstrapSim, leaderboard } from "farm-valley/src/sim-bootstrap";
-import { JsPathfinder } from "farm-valley/src/world/js-pathfinder";
-import { totalProductCount, totalFruitCount } from "farm-valley/src/economy";
+import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
+import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
+import { totalProductCount, totalFruitCount } from "@farm/sim-core/economy";
 
 const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;

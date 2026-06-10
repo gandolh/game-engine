@@ -18,7 +18,12 @@ import { getRegion, WORLD_WIDTH, WORLD_HEIGHT, type RegionId } from "../world/re
 import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const wasmPath = resolve(__dirname, "../../public/wasm/pathfinding.wasm");
+// The pathfinder WASM artifact is built by @engine/wasm-modules; reference its
+// committed dist output (sim-core ships no public/ assets of its own).
+const wasmPath = resolve(
+  __dirname,
+  "../../../wasm-modules/dist/pathfinding.wasm",
+);
 
 function loadBytes(): ArrayBuffer {
   const buf = readFileSync(wasmPath);

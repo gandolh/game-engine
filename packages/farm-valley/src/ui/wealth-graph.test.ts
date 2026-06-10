@@ -14,7 +14,7 @@ import {
   WealthGraphPanel,
 } from "./wealth-graph";
 import type { ChartBounds, WealthCrossing } from "./wealth-graph";
-import type { SnapshotWealthSeries } from "../worker/snapshot";
+import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 
 // ---- helpers ---------------------------------------------------------------
 

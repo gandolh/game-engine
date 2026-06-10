@@ -1,4 +1,4 @@
-import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 
 export interface BootConfig {
   seed: number;

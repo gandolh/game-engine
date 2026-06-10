@@ -5,11 +5,11 @@
 // SharedArrayBuffer); the main thread keeps the latest two and interpolates
 // sprite positions between them using alpha.
 
-import type { ObserverSnapshot } from "../../ui/observer";
-import type { LeaderboardRow } from "../../ui/leaderboard";
-import type { ShopOffer } from "../../agents/shop-slate";
-import type { RunRecap } from "../../run-recap";
-import type { RelationshipMatrixData } from "../../ui/relationship-matrix";
+import type { ObserverSnapshot } from "./observer-types";
+import type { LeaderboardRow } from "./ui-types";
+import type { ShopOffer } from "../agents/shop-slate";
+import type { RunRecap } from "../run-recap";
+import type { RelationshipMatrixData } from "./ui-types";
 import type { SnapshotSprite, SnapshotMeet, SnapshotEvent, SnapshotShock } from "./sprites";
 import type {
   SnapshotWealthSeries,
@@ -75,8 +75,8 @@ export interface RenderSnapshot {
    * frame, never read by sim logic.
    */
   weather: {
-    condition: import("../../protocols/weather").WeatherCondition;
-    season: import("../../protocols/weather").Season;
+    condition: import("../protocols/weather").WeatherCondition;
+    season: import("../protocols/weather").Season;
   };
   /**
    * brief 45 — the festival firing today, or null. Lets the UI surface the

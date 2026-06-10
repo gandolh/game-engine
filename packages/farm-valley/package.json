@@ -11,7 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@engine/core": "0.0.0"
+    "@engine/core": "0.0.0",
+    "@farm/sim-core": "0.0.0"
   },
   "devDependencies": {
     "jsdom": "29.1.1",
