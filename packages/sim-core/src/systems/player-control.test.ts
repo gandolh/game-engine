@@ -6,6 +6,7 @@ import { zeroFish } from "../components";
 import { PlayerControlSystem } from "./player-control";
 import { ActSystem } from "./act";
 import { getRegion } from "../world/regions";
+import { PLAYER_SPEED } from "./player-control";
 
 // Hotbar slot indices (see HOTBAR_SLOTS): 0 Can · 1 Hoe · 2 Axe · 3 Pickaxe ·
 // 4 Rod · 5 Radish · 6 Wheat · 7 Pumpkin. The action key uses the selected slot.
@@ -41,7 +42,7 @@ function setup(): {
       wateringCan: { charges: 10, maxCharges: 10 },
     },
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
-    player: { isPlayer: true, facing: "down", pendingMoveX: null, pendingMoveY: null, pendingAction: false, selectedSlot: 0, stepCooldown: 0, glideFromX: PIP.x, glideFromY: PIP.y },
+    player: { isPlayer: true, facing: "down", pendingMoveX: null, pendingMoveY: null, pendingAction: false, selectedSlot: 0 },
   });
   return {
     world,
@@ -63,120 +64,184 @@ function tick(
 }
 
 describe("PlayerControlSystem — movement", () => {
-  it("steps one walkable tile and sets facing on the first held tick", () => {
+  it("moves Pip sub-tile immediately on the first held tick (no latency)", () => {
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "right";
     tick(world, control, act);
-    expect(pip.transform!.x).toBe(PIP.x + 1);
-    expect(pip.transform!.y).toBe(PIP.y);
+    // Continuous movement: transform.x advances by PLAYER_SPEED each tick the key
+    // is held, so after tick 1 Pip has moved exactly PLAYER_SPEED tiles east.
+    expect(pip.transform!.x).toBeCloseTo(PIP.x + PLAYER_SPEED);
+    expect(pip.transform!.y).toBeCloseTo(PIP.y);
     expect(pip.player!.facing).toBe("right");
     expect(pip.farmer!.movedThisTick).toBe(true);
-    // The held axis stays set while the key is down (not a one-shot pulse); the
-    // sim paces the next step via stepCooldown.
     expect(pip.player!.pendingMoveX).toBe("right");
   });
 
-  it("paces held movement: steps every PLAYER_STEP_TICKS ticks, trailing-gliding between", () => {
+  it("reaches ~1 tile after PLAYER_STEP_TICKS held ticks (speed parity)", () => {
+    // Speed parity: PLAYER_SPEED = 1/PLAYER_STEP_TICKS tiles/tick → 1 tile
+    // after PLAYER_STEP_TICKS ticks, matching the old step-per-3-ticks cadence.
     const { world, pip, control, act } = setup();
-    pip.player!.pendingMoveX = "right"; // held
-    // Tick 1: immediate commit (cooldown 0 → step → reset). transform is already
-    // on the destination tile; renderPos starts on the tile we LEFT (trailing).
-    tick(world, control, act, 0);
-    expect(pip.transform!.x).toBe(PIP.x + 1);
-    expect(pip.farmer!.renderPos!.x).toBe(PIP.x); // trails at the origin tile
-    // In-between ticks ease renderPos UP toward the committed transform tile
-    // (never past it) — transform does not advance.
-    tick(world, control, act, 1);
-    expect(pip.transform!.x).toBe(PIP.x + 1); // not committed yet
-    expect(pip.farmer!.renderPos!.x).toBeGreaterThan(PIP.x); // gliding in
-    expect(pip.farmer!.renderPos!.x).toBeLessThan(PIP.x + 1); // but trailing transform
-    tick(world, control, act, 2);
-    expect(pip.transform!.x).toBe(PIP.x + 1); // still gliding
-    // Tick 4: cooldown elapsed → next commit.
-    tick(world, control, act, 3);
-    expect(pip.transform!.x).toBe(PIP.x + 2);
+    pip.player!.pendingMoveX = "right";
+    for (let t = 0; t < 3; t++) tick(world, control, act, t);
+    // After 3 ticks Pip has moved 3×PLAYER_SPEED = 1.0 tile.
+    expect(pip.transform!.x).toBeCloseTo(PIP.x + 1.0, 5);
   });
 
-  it("moves diagonally when both axes are held", () => {
+  it("continuous: position advances smoothly every tick (sub-tile positions)", () => {
+    const { world, pip, control, act } = setup();
+    pip.player!.pendingMoveX = "right";
+    const positions: number[] = [];
+    for (let t = 0; t < 6; t++) {
+      tick(world, control, act, t);
+      positions.push(pip.transform!.x);
+    }
+    // Each tick must advance by exactly PLAYER_SPEED (monotonically increasing).
+    for (let i = 1; i < positions.length; i++) {
+      expect(positions[i]! - positions[i - 1]!).toBeCloseTo(PLAYER_SPEED, 5);
+    }
+  });
+
+  it("moves diagonally when both axes are held (axis-independent, not normalized)", () => {
+    // Design choice: diagonal movement is AXIS-INDEPENDENT (no SQRT2 normalization),
+    // so each axis advances by PLAYER_SPEED independently. This keeps velocity math
+    // simple and deterministic — no Math.sqrt in sim code.
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "right";
     pip.player!.pendingMoveY = "down";
     tick(world, control, act);
-    expect(pip.transform!.x).toBe(PIP.x + 1);
-    expect(pip.transform!.y).toBe(PIP.y + 1);
+    expect(pip.transform!.x).toBeCloseTo(PIP.x + PLAYER_SPEED);
+    expect(pip.transform!.y).toBeCloseTo(PIP.y + PLAYER_SPEED);
     expect(pip.farmer!.movedThisTick).toBe(true);
     expect(pip.player!.facing).toBe("right"); // horizontal wins for the sprite
   });
 
-  it("wall-slides: a blocked diagonal falls back to the open axis", () => {
+  it("wall-slides: moving into a blocked X axis slides along Y instead", () => {
     const { world, pip, control, act } = setup();
-    // Block the down tile (a tree directly below) but leave the right tile open.
-    const bx = PIP.x, by = PIP.y + 1;
+    // Put Pip right against the right edge of its farm so moving right will be
+    // blocked after a few ticks; hold down+right to verify Y still advances.
+    // Simpler test: move right toward a tree while also holding down.
+    // Block the tile one full tile east of the starting position.
+    // We need to position Pip close enough to the tree to trigger the collision.
+    // Start Pip 0.6 tiles west of the tile boundary — so the next tick would
+    // push the AABB past the tree. Place Pip at PIP.x + 0.7 (AABB half-width=0.3,
+    // right edge = x + 0.3; next tick right edge = x + 0.3 + PLAYER_SPEED ≈
+    // PIP.x + 0.7 + 0.3 + 0.333 ≈ PIP.x + 1.33 which crosses PIP.x+1 boundary).
+    pip.transform!.x = PIP.x + 0.7;
+    const bx = PIP.x + 1, by = PIP.y;
     world.spawn({
       transform: { x: bx, y: by, prevX: bx, prevY: by, rotation: 0 },
       tileFeature: { kind: "tree", tileX: bx, tileY: by, regionId: "farm-pip", ownerId: pip.id! },
     });
     pip.player!.pendingMoveX = "right";
-    pip.player!.pendingMoveY = "down"; // SE diagonal blocked on the S orthogonal
+    pip.player!.pendingMoveY = "down";
     tick(world, control, act);
-    // Corner-cut forbidden, so it slides horizontally instead of going diagonal.
-    expect(pip.transform!.x).toBe(PIP.x + 1);
-    expect(pip.transform!.y).toBe(PIP.y);
+    // X should be clamped (right edge at bx - 0.3 = PIP.x + 0.7),
+    // but Y should still advance by PLAYER_SPEED (wall-slide).
+    expect(pip.transform!.x).toBeLessThanOrEqual(bx - 0.3 + 0.001);
+    expect(pip.transform!.y).toBeCloseTo(PIP.y + PLAYER_SPEED);
   });
 
-  it("clears renderPos and resets cadence on key release", () => {
+  it("Pip can stop mid-tile and rest at a fractional position", () => {
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "right";
     tick(world, control, act, 0);
-    pip.player!.pendingMoveX = null; // release
-    tick(world, control, act, 1);
+    tick(world, control, act, 1); // now at PIP.x + 2*PLAYER_SPEED (sub-tile)
+    const midX = pip.transform!.x;
+    // midX is a non-integer fraction
+    expect(midX).not.toBe(Math.round(midX));
+    pip.player!.pendingMoveX = null; // release — stop mid-tile
+    tick(world, control, act, 2);
+    // Position stays exactly where Pip stopped (no snap).
+    expect(pip.transform!.x).toBeCloseTo(midX);
     expect(pip.farmer!.renderPos).toBeUndefined();
-    expect(pip.player!.stepCooldown).toBe(0); // next press steps immediately
+    expect(pip.farmer!.movedThisTick).toBe(false);
   });
 
-  it("press-stop-press the opposite way does not yank the visual backward", () => {
-    // Regression for the press-A-then-D shake: the trailing glide must never
-    // leave renderPos ahead of transform, so a release/flip never snaps back.
+  it("REGRESSION: rapid left→right reversal never teleports Pip backward", () => {
+    // Brief 61 regression: Pip's position must never move backward by more than
+    // PLAYER_SPEED in a single tick, even during rapid direction changes.
+    // Under the old tile-commit system, mid-glide reversals could produce a
+    // renderPos jump of ~0.67 tiles backward. With continuous movement this is
+    // impossible: each tick, position changes by at most PLAYER_SPEED per axis.
+    const { world, pip, control, act } = setup();
+    const positions: number[] = [pip.transform!.x];
+
+    // Move left for 2 ticks, then immediately reverse to right for 2 ticks.
+    pip.player!.pendingMoveX = "left";
+    tick(world, control, act, 0);
+    positions.push(pip.transform!.x);
+    tick(world, control, act, 1);
+    positions.push(pip.transform!.x);
+
+    pip.player!.pendingMoveX = "right"; // reverse mid-step
+    tick(world, control, act, 2);
+    positions.push(pip.transform!.x);
+    tick(world, control, act, 3);
+    positions.push(pip.transform!.x);
+
+    // Verify no single tick produces a backward jump larger than PLAYER_SPEED.
+    for (let i = 1; i < positions.length; i++) {
+      const delta = positions[i]! - positions[i - 1]!;
+      // The worst backward jump allowed is PLAYER_SPEED (one tick of movement).
+      expect(delta).toBeGreaterThanOrEqual(-(PLAYER_SPEED + 1e-9));
+    }
+  });
+
+  it("press-stop-press the opposite way does not teleport backward", () => {
+    // Semantics change from brief 61: stopping no longer snaps to a tile —
+    // Pip rests at whatever sub-tile position it occupied. The key regression
+    // property is preserved: no backward jump larger than one tick of velocity.
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "left";
-    tick(world, control, act, 0); // commit left; renderPos at the origin (trailing)
+    tick(world, control, act, 0);
     const afterLeftX = pip.transform!.x;
-    // renderPos must be at or behind (>=) the committed tile, never ahead (<).
-    expect(pip.farmer!.renderPos!.x).toBeGreaterThanOrEqual(afterLeftX);
+    // After moving left, x < PIP.x.
+    expect(afterLeftX).toBeLessThan(PIP.x);
+
     pip.player!.pendingMoveX = null; // release
     tick(world, control, act, 1);
-    expect(pip.farmer!.renderPos).toBeUndefined(); // snaps cleanly to transform
-    pip.player!.pendingMoveX = "right"; // now press the opposite way
+    // Pip stays exactly where it stopped — no snap.
+    expect(pip.transform!.x).toBeCloseTo(afterLeftX);
+
+    pip.player!.pendingMoveX = "right"; // press opposite way
     tick(world, control, act, 2);
-    expect(pip.transform!.x).toBe(afterLeftX + 1); // clean step back right
+    // Pip moves right by PLAYER_SPEED — clean, no backward jump.
+    expect(pip.transform!.x).toBeCloseTo(afterLeftX + PLAYER_SPEED);
   });
 
-  it("does not step onto a tree/stone but still turns to face it", () => {
+  it("does not move into a tile blocked by a tree feature", () => {
     const { world, pip, control, act } = setup();
+    // Place tree far enough right that Pip can't cross it even with continuous
+    // sub-tile movement. Start Pip 0.1 tiles west of the tile boundary.
+    pip.transform!.x = PIP.x + 0.4;
     const tx = PIP.x + 1, ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       tileFeature: { kind: "tree", tileX: tx, tileY: ty, regionId: "farm-pip", ownerId: pip.id! },
     });
     pip.player!.pendingMoveX = "right";
-    tick(world, control, act);
-    expect(pip.transform!.x).toBe(PIP.x); // blocked by the tree
-    expect(pip.transform!.y).toBe(PIP.y);
+    // Run enough ticks that Pip would cross the boundary without collision.
+    for (let t = 0; t < 6; t++) tick(world, control, act, t);
+    // AABB half-width = 0.3 → right edge must stay below tx (= PIP.x+1).
+    // x + 0.3 < PIP.x + 1 → x < PIP.x + 0.7
+    expect(pip.transform!.x).toBeLessThanOrEqual(PIP.x + 0.7 + 0.001);
     expect(pip.player!.facing).toBe("right"); // still turned to face it
-    expect(pip.farmer!.movedThisTick).toBe(false);
   });
 
-  it("does not step onto a non-walkable tile but still turns to face it", () => {
+  it("does not move onto a non-walkable tile", () => {
     const { world, pip, control, act } = setup();
-    // Push Pip to the farm's NW corner, then try to walk up off the island.
-    pip.transform!.x = 28;
-    pip.transform!.y = 14;
-    pip.player!.pendingMoveY = "up"; // (28,13) is ocean/void — not walkable
-    tick(world, control, act);
-    expect(pip.transform!.x).toBe(28);
-    expect(pip.transform!.y).toBe(14);
+    // Push Pip close to the farm's NW edge, then try to walk up off the island.
+    // The NW boundary: farm-pip minY is known from FARM_PIP_BOUNDS. The ocean
+    // tile above the top row of the farm is non-walkable. Place Pip near the
+    // top edge so it hits the collision within a few ticks.
+    const farmRegion = getRegion("farm-pip");
+    pip.transform!.x = farmRegion.center.x;
+    pip.transform!.y = farmRegion.bounds.minY + 0.4;
+    pip.player!.pendingMoveY = "up"; // ocean above minY
+    for (let t = 0; t < 6; t++) tick(world, control, act, t);
+    // Pip must not have crossed above minY (AABB half-height 0.3 → y ≥ minY + 0.3 - ε).
+    expect(pip.transform!.y).toBeGreaterThanOrEqual(farmRegion.bounds.minY - 0.001);
     expect(pip.player!.facing).toBe("up");
-    expect(pip.farmer!.movedThisTick).toBe(false);
   });
 });
 

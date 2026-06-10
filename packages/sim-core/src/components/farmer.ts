@@ -92,6 +92,13 @@ export interface Farmer {
  * `facing` is the direction Pip last faced; the context-action key acts on the
  * adjacent tile in that direction. `pendingMoveX`/`pendingMoveY`/`pendingAction`
  * are the buffered input from the most recent main→worker input message.
+ *
+ * Brief 61 — continuous movement: Pip's `transform.x/y` is now a FLOAT (sub-tile).
+ * Each tick the held axes apply a velocity of PLAYER_SPEED tiles/tick, clamped by
+ * per-axis AABB collision. There is no stepCooldown or glide machinery; the
+ * authoritative float position IS the render position, so the snapshot-builder
+ * simply reads transform directly. Sim consumers that need a tile index must
+ * Math.round(transform.x/y).
  */
 export interface Player {
   readonly isPlayer: true;
@@ -99,10 +106,9 @@ export interface Player {
   /**
    * The currently HELD move axes (the main thread resends them whenever the held
    * keys change, and sends null on release). Two independent axes so two keys
-   * held at once (e.g. W+A) move Pip DIAGONALLY. The sim owns the step cadence:
-   * PlayerControlSystem advances Pip one tile every PLAYER_STEP_TICKS ticks while
-   * either axis is set, gliding renderPos in between, so Pip (and a camera
-   * following Pip) moves continuously instead of jumping a full tile per step.
+   * held at once (e.g. W+A) move Pip DIAGONALLY (axis-independent, not
+   * normalized — see brief 61). Given the same input-per-tick sequence, movement
+   * is bit-identical (plain float ops, no Math.random, no wall-clock).
    */
   pendingMoveX: "left" | "right" | null;
   pendingMoveY: "up" | "down" | null;
@@ -114,19 +120,4 @@ export interface Player {
    * instead of auto-picking by context. Set by number-key input (1→0, 2→1, …).
    */
   selectedSlot: number;
-  /**
-   * Sim-owned step cadence counter (ticks until the next one-tile commit while a
-   * direction is held). Render-pacing bookkeeping, deterministic — depends only
-   * on tick count and held input. Starts at 0 so the first held tick steps
-   * immediately (no input latency).
-   */
-  stepCooldown: number;
-  /**
-   * The tile Pip left on the most recent step commit, in TILE units. The
-   * in-between ticks ease renderPos from here up into the committed transform
-   * tile (a TRAILING glide — the visual never leads the authoritative position).
-   * Render-pacing only.
-   */
-  glideFromX: number;
-  glideFromY: number;
 }
