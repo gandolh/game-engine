@@ -31,7 +31,7 @@ Root [package.json](../../package.json) is an npm workspaces monorepo; all packa
 │                  systems · protocol (message contract)   │
 ├──────────────────────────────────────────────────────────┤
 │  @engine/core  ecs · sim · render · input · runtime ·    │  ← generic engine
-│                animation · spatial · wasm · persistence  │
+│                assets · debug · wasm                      │
 ├──────────────────────────────────────────────────────────┤
 │  @engine/wasm-modules  pathfinding.wasm (AssemblyScript) │  ← native-speed kernels
 └──────────────────────────────────────────────────────────┘
@@ -48,8 +48,7 @@ Engine never imports game; the renderer (`farm-valley`) depends on `@farm/sim-co
 - **Fixed step**: 20 Hz tick (`FixedStepClock` in [runtime/](../../packages/engine/src/runtime/)). Render interpolates with an `alpha ∈ [0,1)`.
 - **Runs in a Node server** (browser play): the sim lives in `@farm/server`'s `SimHost`, which owns the ECS `world` + clock and sends a `RenderSnapshot` per tick over a WebSocket; the browser ([worker/sim-client/](../../packages/farm-valley/src/worker/sim-client/)) renders + interpolates between the latest two snapshots. JSON over WS (no SharedArrayBuffer). The headless [run-sim](../../tools/run-sim/) and all tests still drive the sim directly in-process (no server). See [decisions.md](decisions.md) → Concurrency. *(Through brief 56 this ran in an in-browser Web Worker; briefs 57–58 moved it to the Node server.)*
 - **Deterministic**: all randomness via seeded [`Rng`](../../packages/engine/src/runtime/rng.ts) (mulberry32 + named forks). No `Math.random` or `Date.now` in sim. Driving ticks from the server's `setInterval` doesn't affect this — the sim depends only on the tick count.
-- **Input log**: external inputs flow through [`InputLog`](../../packages/engine/src/runtime/) so the seed + log replay byte-for-byte.
-- **Save model**: seed + event-sourced input log (not snapshots). See [persistence/](../../packages/engine/src/persistence/).
+- **Save / replay / share**: a run is fully described by its seed + params (`ticksPerDay`/`maxDays`), captured in the [`run-descriptor`](../../packages/sim-core/src/run-descriptor.ts) and round-tripped through the URL hash (the "Share this run" button in the game-over screen). Because the sim is deterministic, the seed alone reproduces the run byte-for-byte — there is **no** input-log or snapshot-based save model. *(An engine-level `InputLog`/event-sourced persistence layer was once planned but never built; do not cite `packages/engine/src/persistence/` — it does not exist.)*
 
 ## ECS
 
@@ -66,7 +65,7 @@ Generic pub/sub at [packages/engine/src/sim/message-bus.ts](../../packages/engin
 
 ## World layout
 
-**88×80 tile archipelago** (`WORLD_WIDTH`/`WORLD_HEIGHT` in [world/regions.ts](../../packages/farm-valley/src/world/regions.ts)) — islands joined by bridges, walkable tile count `2065` (guarded by `walkable-grid.test.ts`). Region bounds, placement, and the bridge tree are documented in [player-and-interaction.md](player-and-interaction.md) → archipelago layout; that page is the source of truth for tile geometry. Resource zones (forest/quarry) spawn trees/stones; all regions are BFS-verified reachable.
+**88×80 tile archipelago** (`WORLD_WIDTH`/`WORLD_HEIGHT` in [world/regions.ts](../../packages/sim-core/src/world/regions.ts)) — islands joined by bridges, walkable tile count `2065` (guarded by `walkable-grid.test.ts`). Region bounds, placement, and the bridge tree are documented in [player-and-interaction.md](player-and-interaction.md) → archipelago layout; that page is the source of truth for tile geometry. Resource zones (forest/quarry) spawn trees/stones; all regions are BFS-verified reachable.
 
 ## Game data flow per tick
 

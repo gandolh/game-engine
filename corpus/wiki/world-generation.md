@@ -1,7 +1,7 @@
 # World generation
 
 How the archipelago is laid out, and the menu of techniques for making it more
-organic. Source of truth is [regions.ts](../../packages/farm-valley/src/world/regions.ts);
+organic. Source of truth is [regions.ts](../../packages/sim-core/src/world/regions.ts);
 verify any constant here against it before acting.
 
 ## Current model — rectangles, partly generated
@@ -29,7 +29,7 @@ the rim. Two halves:
 
 ### Radial rings + spoke bridges (implemented)
 
-In [regions.ts](../../packages/farm-valley/src/world/regions.ts):
+In [regions.ts](../../packages/sim-core/src/world/regions.ts):
 
 - `RegionId = FixedRegionId | ExtraFarmRegionId` where `ExtraFarmRegionId =
   \`farm-${number}\`` (`farm-0`..`farm-15`). Named farms (`farm-cora`…) keep their
@@ -52,7 +52,7 @@ In [regions.ts](../../packages/farm-valley/src/world/regions.ts):
   endpoints, so a spoke auto-dodges a third island (e.g. well-north sitting between
   quarry-north and heritage-ruin). 41 bridges, full BFS connectivity from village.
 - Farmer→farm assignment is **by `homeRegion` carried on each `FarmerSpec`**
-  (set in `makeExtraFarmerSpecs`, [sim-bootstrap.ts](../../packages/farm-valley/src/sim-bootstrap.ts)),
+  (set in `makeExtraFarmerSpecs`, [sim-bootstrap.ts](../../packages/sim-core/src/sim-bootstrap.ts)),
   replacing the old `PERSONALITY_TO_REGION` map. Extra farmers cycle the four AI
   archetypes (named `Cora-0`, `Atticus-1`, …).
 - Resource-zone routing/ownership uses `nearestResourceZone(farmCenter, kind)`
@@ -119,21 +119,21 @@ next) — jittered placement, MST bridges, multi-seed property tests, biome/déc
 Phase 2 (future) — Model B organic shapes via CA + center-floodfill.
 
 The actionable cut of this menu is filed as
-[brief 49 — organic procgen](../briefs/game/todo/49-organic-procgen-noise-and-authored-detail.md):
+[brief 49 — organic procgen](../briefs/game/done/49-organic-procgen-noise-and-authored-detail.md):
 it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on
 (**fBm + Inigo Quilez domain warping** — _both shipped, tracks 1–2 (render-only)_ — replacing the blocky hash kernel),
 **Simplex/octave-rotation** — _track 3 evaluated and **deferred** as a low-value
 nicety: fBm+warp already removed the grid-axis artifacts it targeted; revisit only
 if Model-B shapes need a coherent basis (see [log.md](../log.md) 2026-06-09)_ — plus
 **L-system vegetation scatter** — _track 5 **shipped** as seeded cluster-growth
-(copses/outcrops) in [tile-features.ts](../../packages/farm-valley/src/systems/tile-features.ts):
+(copses/outcrops) in [tile-features.ts](../../packages/sim-core/src/systems/tile-features.ts):
 gameplay-neutral (same rates/caps/ownership, only placement clusters), drawn from
 an isolated `rng.fork('tile-cluster')` so the main run-rng stream is unshifted_ —
 and **authored set-pieces** — _track 6
 **partially shipped**: decorative open-water props
-([render-systems/set-pieces.ts](../../packages/farm-valley/src/render-systems/set-pieces.ts),
+([render-systems/set-pieces.ts](../../packages/sim-core/src/render-systems/set-pieces.ts),
 blue-noise seabed accents, render-only) are done; the **interactive shrine
-landmark** half was split into [brief 50](../briefs/game/todo/50-interactive-shrine-landmark.md)
+landmark** half was split into [brief 50](../briefs/game/done/50-interactive-shrine-landmark.md)
 as a gameplay feature_ — (the handmade-procedural hybrid). Backed by an adversarially-verified research pass
 (PCG book / Red Blob Games / Quilez / GDC) — see [log.md](../log.md) 2026-06-08.
 

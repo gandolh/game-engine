@@ -14,10 +14,12 @@ Optimization opportunities for the engine, filtered against what the code **actu
 ## Tier 1 — Highest impact
 
 ### T1.1 The sim→render snapshot boundary
-Every worker tick builds 6–8 fresh arrays (~150–200 object allocations) and ships them via **structured clone** — [sim-worker.ts](../../packages/farm-valley/src/worker/sim-worker.ts), [snapshot-builder/](../../packages/farm-valley/src/worker/snapshot-builder/). Structured clone copies the whole graph; transfer/shared memory is ~10–50× faster for the copy itself.
+> **Boundary changed (briefs 57–58, 2026-06-10).** The sim no longer runs in an in-browser Web Worker over `postMessage`/structured-clone — it runs in the Node server (`@farm/server`, [sim-host.ts](../../packages/server/src/sim-host.ts)) and ships each `RenderSnapshot` to the browser as **`JSON.stringify` over a WebSocket**. So the cost is now JSON serialization + network framing, not structured clone, and the `SharedArrayBuffer`/transfer ideas below **no longer apply** (there's no shared address space across a socket). This whole tier should be re-measured against the new transport before any work.
 
-- **(a) Bigger win, more effort:** pack the mutable numeric sprite data (id/x/y/frame/layer/alpha) into a `Float32Array`/`Int32Array` over a small ring of 2–3 buffers and either `postMessage(buf, [buf])` (transfer) or a `SharedArrayBuffer` (zero-copy read on the main thread). Keep the rare/variable payload (events, leaderboard, observer rows) on the structured-clone path. ⚠️ `SharedArrayBuffer` requires cross-origin isolation (COOP/COEP headers) — trivial in Vite dev, must be verified for production hosting.
-- **(b) Cheaper interim win:** stop double-allocating the events array (`.slice().map()` → single loop into a reused buffer), and rebuild the observer/leaderboard payload only on **day boundaries**, not every tick — that state barely changes tick-to-tick.
+Each server tick builds 6–8 fresh arrays (~150–200 object allocations) and `JSON.stringify`s them onto the socket — [snapshot-builder/](../../packages/sim-core/src/snapshot-builder/). The server already measures payload size (`snapshot.bytes`) and has drop-stale backpressure.
+
+- **(a) ~~Bigger win~~ — obsoleted by the split.** The old plan (pack numeric sprite data into a `Float32Array` ring + `postMessage(buf, [buf])` transfer or `SharedArrayBuffer`) assumed a same-process Worker. Over a WebSocket the equivalent would be a **binary wire codec** (e.g. a typed-array frame for the hot sprite fields + JSON for the rare payload) — but only if profiling shows JSON encode + bytes/sec is material at 20 Hz. Measure first; for ~25 sprites/tick it's likely negligible.
+- **(b) Cheaper interim win (still valid):** stop double-allocating the events array (`.slice().map()` → single loop into a reused buffer), and rebuild the observer/leaderboard payload only on **day boundaries**, not every tick — that state barely changes tick-to-tick. This reduces both allocation and JSON size regardless of transport.
 
 ### T1.2 Per-frame interpolation allocates on the render thread
 `getInterpolatedSprites()` runs every *frame* (~60fps, not per tick): `new Map()` of prev-sprites, `.map()` a fresh array, spread `{...s}` per sprite — [sim-client/client.ts](../../packages/farm-valley/src/worker/sim-client/client.ts), [main/render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts). Classic GC-churn.
@@ -37,17 +39,17 @@ The static backdrop is **blitted full-frame with no clipping** even when zoomed 
 
 ## Tier 2b — Loose per-tick allocations in systems
 
-Small individually, all in the hot path, trivial to fix (the `length = 0` reuse pattern already lives in [feature-collision.ts](../../packages/farm-valley/src/systems/feature-collision.ts)):
+Small individually, all in the hot path, trivial to fix (the `length = 0` reuse pattern already lives in [feature-collision.ts](../../packages/sim-core/src/systems/feature-collision.ts)):
 
-- [crop-growth.ts:55](../../packages/farm-valley/src/systems/crop-growth.ts#L55) — `[...world.query("plot")]` spreads a fresh array just to sort it. Reuse a persistent scratch array, sort in place.
-- [event-feed/system.ts](../../packages/farm-valley/src/systems/event-feed/system.ts) — `const fresh = []` every tick. Reuse a member buffer.
+- [crop-growth.ts:55](../../packages/sim-core/src/systems/crop-growth.ts#L55) — `[...world.query("plot")]` spreads a fresh array just to sort it. Reuse a persistent scratch array, sort in place.
+- [event-feed/system.ts](../../packages/sim-core/src/systems/event-feed/system.ts) — `const fresh = []` every tick. Reuse a member buffer.
 - Render queue: `this.queue = []` each frame ([canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts)) → reuse with `length = 0`.
 
 ## Explicitly NOT worth doing at current scale
 
 - **Archetype / SoA / column-oriented ECS storage.** The ECS uses flat objects with property-based components ([world.ts:12-23](../../packages/engine/src/ecs/world.ts#L12-L23)). The literature's 5–10× cache-locality wins materialize at thousands–millions of entities in tight numeric loops; Farm Valley has ~4 farmers + tens of entities. A rewrite would be high-effort, near-zero-payoff, and would fight the determinism guarantees. **Confirmed by profiling 2026-06-05:** the full sim tick over ~300 entities is **0.33ms (~0.7% of the 50ms budget)** — there is no cache-locality problem to solve. Revisit **only** if entity counts grow by orders of magnitude.
-- **Path caching beyond current behavior.** The pathfinder is only called on a *new* travel intent with no active path ([travel/system.ts](../../packages/farm-valley/src/systems/travel/system.ts)); it is not a per-tick cost. Profiling shows the whole tick (pathfinder included on travel ticks) is sub-millisecond. Not worth caching.
-- **Packed/SharedArrayBuffer snapshot (P2 #7).** Profiling shows `snapshot.build` = 0.08ms and ~36KB/tick structured clone — invisible in the tick/frame budget. The packed-buffer/SAB rewrite would add real complexity + COOP/COEP risk for an unmeasurable gain. Deferred indefinitely; revisit only if `snapshot.bytes` or the worker tick climb materially (e.g. a 10× entity-count increase).
+- **Path caching beyond current behavior.** The pathfinder is only called on a *new* travel intent with no active path ([travel/system.ts](../../packages/sim-core/src/systems/travel/system.ts)); it is not a per-tick cost. Profiling shows the whole tick (pathfinder included on travel ticks) is sub-millisecond. Not worth caching.
+- **Packed/SharedArrayBuffer snapshot (P2 #7).** Profiling (when this was a Web Worker) showed `snapshot.build` = 0.08ms and ~36KB/tick — invisible in the tick/frame budget. The packed-buffer/SAB rewrite would add real complexity for an unmeasurable gain. **Doubly moot since the split** (briefs 57–58): the boundary is now JSON over a WebSocket, not structured clone, so SAB doesn't even apply — see the T1.1 note above. Deferred indefinitely; revisit only if `snapshot.bytes` or the server tick climb materially (e.g. a 10× entity-count increase), and then via a binary wire codec, not SAB.
 
 ## Measuring (P0 — shipped 2026-06-05)
 

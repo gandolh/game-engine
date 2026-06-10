@@ -2,6 +2,16 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-10] lint | Corpus cleanup after the client/server split
+
+Post-split corpus lint pass (no code changes). Fixed drift the brief-56 file move + brief-58 deletions left in the **live wiki pages** (briefs/ + log.md left untouched — they're immutable history, and their `todo/`/`sim-worker.ts` references were correct when written):
+
+- **Moved-path drift:** brief 56 relocated ~190 sim files `farm-valley/src/**` → `sim-core/src/**`, but several wiki pages still linked the old paths. Repointed all of them (`world/regions`, `systems/**`, `render-systems/**`, `worker/snapshot{,-builder}` → `sim-core/...`) across [architecture.md](wiki/architecture.md), [player-and-interaction.md](wiki/player-and-interaction.md), [world-generation.md](wiki/world-generation.md), [performance.md](wiki/performance.md). Zero broken `packages/` links remain in the live wiki.
+- **Stale `todo/` brief links:** [world-generation.md](wiki/world-generation.md) linked briefs 49/50 as `todo/` though they shipped → `done/`. (Other `todo/` links across the corpus were verified to live only in immutable briefs/log, left as-is.)
+- **`persistence`/`InputLog` fiction:** [architecture.md](wiki/architecture.md) claimed a `packages/engine/src/persistence/` dir + event-sourced save model that **never existed** (verified: no dir, no `InputLog`, only `rng` in `runtime/`). Rewrote the save/replay bullet to the truth — runs are reproduced from the seed via the `run-descriptor` (URL hash); fixed the layer diagram (`assets · debug · wasm`, not `animation · spatial · persistence`). Logged the residual dangling `@engine/core` `./persistence` export (a code lint) in [open-questions.md](wiki/open-questions.md).
+- **performance.md T1.1 boundary stale:** described the Web-Worker + structured-clone snapshot path and a SharedArrayBuffer/transfer optimization that the split obsoleted (boundary is now JSON-over-WebSocket). Re-framed against the new transport (measure-first binary codec, not SAB).
+- **open-questions.md:** collapsed the shipped spectator (36–40) + depth (41–46) + boats (48) detail (it lives in status.md/log.md) down to the one genuinely-unresolved gap — the standing **balance / peer-interaction lever** — and fixed its stale `todo/` links + the now-resolved client/server-split item.
+
 ## [2026-06-10] impl | Brief 58 — renderer over WebSocket + deploy both (client/server split, step 4 of 4 — DONE)
 
 **Made the Vite app a pure WebSocket client of the Node sim server and removed the in-browser Worker** — the final step of the [client/server split](briefs/game/done/55-client-server-split.md). The sim now runs only in `@farm/server`; the browser renders snapshots streamed over a socket.
