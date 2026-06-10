@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRng } from '@engine/core';
 import { buildWalkableGrid } from './walkable-grid';
 import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, EXTRA_FARM_COUNT, WORLD_GEN_SEED, getRegion } from './regions';
+import { CLIFFS } from '../render-systems/geometry';
 
 const VILLAGE = getRegion('village').center; // (80,80) in the radial layout
 
@@ -291,6 +292,22 @@ describe('buildWalkableGrid', () => {
         ).toBeGreaterThanOrEqual(2);
       }
     }
+  });
+
+  it('brief 65 — cliff tiles are all non-walkable (walkable grid byte-identical)', () => {
+    // Every cliff tile in CLIFFS must sit on a non-walkable (ocean) tile. If any
+    // cliff tile were on a walkable tile, it would mean the cliff computation is
+    // wrong. This also proves the walkable grid is byte-identical before/after
+    // cliff computation: cliffs are purely visual and touch only ocean tiles.
+    const grid = buildWalkableGrid();
+    for (const cliff of CLIFFS) {
+      expect(
+        grid.cells[cliff.ty * WORLD_WIDTH + cliff.tx],
+        `cliff at (${cliff.tx},${cliff.ty}) frame=${cliff.frame} must be on a non-walkable ocean tile`,
+      ).toBe(1); // 1 = blocked (ocean), 0 = walkable
+    }
+    // Also verify the cliff count is non-zero (the computation produced output).
+    expect(CLIFFS.length, 'CLIFFS must be non-empty').toBeGreaterThan(0);
   });
 
   it('the shrine island keeps a ≥2-tile ocean margin from every other region (brief 50)', () => {

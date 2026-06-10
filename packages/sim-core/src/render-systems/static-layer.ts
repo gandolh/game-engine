@@ -22,6 +22,7 @@ import {
   SHORES,
   BRIDGES,
   CORAL,
+  CLIFFS,
   BIG_STRUCTURES,
   BRIDGE_SET,
   CORAL_ALPHA,
@@ -195,6 +196,25 @@ export function* iterStaticSprites(
       rotation: piece.rotation,
       layer: 2,
       alpha: SET_PIECE_ALPHA,
+    };
+  }
+
+  // Cliff-face skirts (brief 65): vertical stone faces on the ocean tiles south
+  // of tall islands, making them read as elevated. Layer 2 — same as coral, above
+  // the animated water backdrop (0) and shore foam (1), below bridges (3) and
+  // island walls (4). Full opacity so the stone face reads clearly; the wall and
+  // shore above (layers 1 and 4) sit on the land tile; the cliff sits on the ocean
+  // tile directly below, extending the visual height down to the waterline.
+  for (const cliff of CLIFFS) {
+    yield {
+      x: cliff.tx * TILE + TILE / 2,
+      y: cliff.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: cliff.frame,
+      rotation: 0,
+      layer: 2,
+      alpha: 1,
     };
   }
 
