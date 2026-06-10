@@ -1,6 +1,6 @@
 # Brief 68 — Ambient idle life (birds, leaves, chimney smoke)
 
-**Status:** done (merged 2026-06-10) · **Area:** `packages/farm-valley` (render-only ambient layer) · **Drafted:** 2026-06-10
+**Status:** todo (returned 2026-06-10 — was moved to done/ prematurely by a bulk save; no implementation exists on any branch) · **Area:** `packages/farm-valley` (render-only ambient layer) · **Drafted:** 2026-06-10
 
 The world reads as frozen between farmer actions. Add a thin layer of ambient motion — occasional birds crossing the sky, drifting leaves near trees, smoke wisps from building chimneys — so the valley breathes while you watch. From the 2026-06-10 game-feel research pass ([performance.md](../../../wiki/performance.md) Tier 3). **Render-only; zero sim/determinism impact** — nothing here may touch the worker/server sim or the snapshot contents.
 

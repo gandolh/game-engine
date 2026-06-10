@@ -1,6 +1,8 @@
 # Brief 09 — Performance optimization pass
 
-**Status:** todo · **Area:** engine + farm-valley render/worker · **Drafted:** 2026-06-05
+**Status:** done (closed 2026-06-10) · **Area:** engine + farm-valley render/worker · **Drafted:** 2026-06-05
+
+> **Close-out (2026-06-10).** All actionable items shipped 2026-06-05 (P0, P1, #6); #7 and P3 were deferred behind explicit profiling gates. The 2026-06-10 client/server split (briefs 55–58) then changed the boundary this brief was written against, so the gates were **re-evaluated under the real current architecture** (Node server, one SimHost per WebSocket, 21-farmer world) with [probe-perf.ts](../../../../tools/run-sim/src/probe-perf.ts) ramping 1→5→10 concurrent viewers. Result: #7 stays dead in its original form — snapshot raw size did cross the byte threshold (~100–126 KB/tick vs the 36 KB recorded here) but no budget is pressured (snapshot.build 0.3 ms, client frame 6 ms, permessage-deflate 14× → ~7 KB/snap on the wire). The cost that actually scales is **one full sim per connection** (~8% of a dev core + ~25 MB RSS per viewer), which no snapshot codec fixes — that work moved to the shared-run brief ([game/todo/72](../../../game/todo/72-shared-run-lobby-server.md)) and the snapshot-payload items to [wiki/performance.md](../../../wiki/performance.md) T1.1. Full numbers in performance.md → "Measured results (2026-06-10)".
 
 Source analysis: [wiki/performance.md](../../../wiki/performance.md). Per-tick/per-frame hot spots were mapped against actual code; this brief turns the findings into ordered, shippable tasks.
 

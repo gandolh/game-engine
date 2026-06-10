@@ -1,6 +1,6 @@
 # Brief 69 — Named system stages + same-stage message read/write assertion
 
-**Status:** done (merged 2026-06-10) · **Area:** `packages/engine` (scheduler, message-bus dev hooks) + `packages/sim-core` (sim-bootstrap) · **Drafted:** 2026-06-10
+**Status:** todo (returned 2026-06-10 — was moved to done/ prematurely by a bulk save; no implementation exists on any branch) · **Area:** `packages/engine` (scheduler, message-bus dev hooks) + `packages/sim-core` (sim-bootstrap) · **Drafted:** 2026-06-10
 
 The scheduler registration order in [sim-bootstrap.ts](../../../../packages/sim-core/src/sim-bootstrap.ts) encodes real data dependencies (EncounterSystem → EncounterTradeSystem → PerceiveSystem which clears inboxes; EventFeed/Tavern/Harbor/Festival must snoop messages **before** PerceiveSystem clears and MarketSystem drains) — but only in inline comments. A reorder compiles fine and breaks silently. Turn the convention into structure + a dev-mode lint. **Behavior-preserving refactor** — registration order must not change.
 

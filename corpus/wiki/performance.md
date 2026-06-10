@@ -32,7 +32,7 @@ Optimization opportunities for the engine, filtered against what the code **actu
 > 3. **Coarse static/dynamic sprite split.** 358 of 398 sprites (structures + decorations) change ~daily; ship them as a separate message on change (the static *terrain* layer already works this way via `buildStaticLayerSprites`) and keep only the ~40 moving sprites per tick. ≈70% snapshot reduction without any binary codec.
 > 4. **Omit default-valued sprite fields** (`rotation: 0`, `alpha: 1`, `action: null`, `id: null`…) from the JSON. ~261 B/sprite today; mostly boilerplate.
 >
-> Gate before building 3/4: run [probe-perf.ts](../../tools/run-sim/src/probe-perf.ts) (1→5→10 synthetic viewers, ~3 min, loads the box — **needs user sign-off per the resource rule**) to see whether server CPU per viewer is actually material; deflate may already make the bytes a non-issue, and items 1–2 are worth doing regardless.
+> ~~Gate before building 3/4: run [probe-perf.ts](../../tools/run-sim/src/probe-perf.ts) (1→5→10 synthetic viewers, ~3 min, loads the box — **needs user sign-off per the resource rule**)~~ — **GATE ANSWERED 2026-06-10** (user-approved ramp run; full table under "Measured results (2026-06-10)" below). Verdict: deflate already makes the *bytes* a non-issue on the wire (14× → ~7 KB/snap, ~150 KB/s/viewer) and serialization is small next to the tick — the cost that actually scales is **one full sim per WS connection** (~8% of a dev core + ~25 MB RSS per viewer; ~80% of one core at 10 viewers, all on one Node thread). So items 3/4 are **not** worth building as standalone JSON slimming; they fold into the shared-run/lobby protocol rework ([briefs/game/todo/72](../briefs/game/todo/72-shared-run-lobby-server.md)), which attacks the per-connection-sim model itself (encode-once broadcast). Items 1–2 remain worth doing regardless (item 1's unbounded growth is real: payload grew 100→126 KB within the probe's first ~3 sim-days).
 
 ### T1.3 WebSocket transport hardening — TODO (queued 2026-06-10, online-research pass)
 
@@ -111,7 +111,7 @@ A `Profiler` ([profiler.ts](../../packages/engine/src/debug/profiler.ts), export
 - `interp` — `getInterpolatedSprites` (main; the T1.2 baseline)
 - `frame` — whole render-frame body (main)
 
-Off by default (zero overhead). Diagnostic only — measures host timing, never sim state. Use these numbers as the before/after baseline for every task below. Tracked in [briefs/engine/todo/09-perf-optimization.md](../briefs/engine/todo/09-perf-optimization.md).
+Off by default (zero overhead). Diagnostic only — measures host timing, never sim state. Use these numbers as the before/after baseline for every task below. Tracked in [briefs/engine/done/09-perf-optimization.md](../briefs/engine/done/09-perf-optimization.md) (closed 2026-06-10). Post-split the "worker" side lives in [sim-host.ts](../../packages/server/src/sim-host.ts) (server) and the toggle rides the WS protocol.
 
 ### Measured results (2026-06-05, seed 0xc0ffee, post-P1/P2, ~250–300 entities)
 
@@ -126,12 +126,30 @@ Off by default (zero overhead). Diagnostic only — measures host timing, never 
 
 **Conclusion: the engine is far under budget everywhere.** 60fps is browser vsync (rAF), not a limiter we set — the render frame uses only ~10% of its 16.6ms budget and the sim tick ~0.7% of its 50ms. These numbers **settle the two gated items**: #7 (packed/SAB snapshot) and P3 (archetype ECS) both chase costs that don't exist at this scale — see "Explicitly NOT worth doing" below.
 
+### Measured results (2026-06-10, post-split: Node server, one SimHost per WS connection, 21-farmer world)
+
+Brief-09 close-out re-profile under the real serving architecture. Server side: [probe-perf.ts](../../tools/run-sim/src/probe-perf.ts) (user-approved ramp, 1→5→10 synthetic drain-clients, real browser init: seed `0xc0ffee`, ticksPerDay 1200, 20 Hz, ~45 s sample/phase, WSL2 dev box). Client side: Playwright Chromium on `npm run dev` + `?profile`.
+
+| Concurrent sims | Server CPU (of one core) | RSS | Achieved snapshot rate | Raw payload/snap | Wire/client | Deflate |
+|---|---|---|---|---|---|---|
+| 1 | 10.5% | 307 MB | 19.9/s | 99 KB | 141 KB/s | 14.1× |
+| 5 | 44.7% | 412 MB | 19.9/s | 103 KB | 144 KB/s | 14.2× |
+| 10 | **79.8%** | 528 MB | 19.9/s (no starvation) | 108 KB | 149 KB/s | 14.4× |
+
+Sim-0 profiler across the run: `tick` mean 0.88 → 3.05 ms (grows with sim progression + event-loop contention; still ≤9% of the 50 ms budget), `snapshot.build` ~0.30–0.35 ms flat, `snapshot.bytes` 100 → 126 KB (grows intra-run — wealthSeries + crops). Client: `frame` 6.0 ms mean / 8.1 ms p95, `interp` 0.11 ms (T1.2 pooling holds), parsing 100 KB JSON at 20/s is comfortably absorbed.
+
+One-snapshot composition (101.8 KB total): `sprites` 80.2 KB (302 sprites × ~266 B — each carrying hover `label`/`description` strings + serialized defaults `rotation:0`/`alpha:1`/`tintRgba`/`action:null`/`id:null`/`interpolate:false` every tick), `observer` 10.7 KB, `relationships` 5.0 KB, `wealthSeries` 2.4 KB (early-run; grows unbounded), `leaderboard` 2.2 KB. Confirms the T1.1 ranked-fix analysis.
+
+**Verdicts.** (a) **~10 viewers fits a small 2-vCPU VPS, barely** — ~0.8 dev-core ≈ 1–1.6 small-VPS cores + ~530 MB RSS; all sims share one Node thread, so the hard ceiling is ~12–15 viewers before tick starvation. (b) **Brief-09 #7 (packed snapshot) stays dead in its successor form too**: bytes crossed the old re-trigger threshold (100–126 KB ≫ "tens of KB") but no budget is pressured — the scaling cost is whole sims per connection, which no codec fixes. (c) The real lever is **one shared run broadcast to N viewers** (~10× across the board) → [briefs/game/todo/72](../briefs/game/todo/72-shared-run-lobby-server.md); T1.1 items 3–4 fold into its protocol rework. (d) Wire bandwidth is a non-issue (10 viewers ≈ 1.5 MB/s ≈ 12 Mbps total).
+
+⚠️ Probe side-finding: the 10-sim run loudly reproduced the open-questions "travel intents dropped en masse" issue — repeated `[travel] pathfinder fault from (x,y) to 'undefined'` with a WASM `RuntimeError: unreachable` escaping `Pathfinder.findPath` → caught per-intent in TravelSystem. Live servers hit this too; see [open-questions.md](open-questions.md).
+
 ## Suggested order of attack
 
 1. ~~**Profile first**~~ — ✅ done (see "Measuring" above).
-2. ~~T1.2 interpolation pooling + T2b loose allocations + Tier 2 viewport culling/clipping~~ — ✅ **done 2026-06-05** (brief 09 P1; behavior-preserving, multi-seed `EXPORT=json` byte-identical). Sort-on-dirty was partially deferred (live set is tiny after culling). Details: [briefs/engine/todo/09-perf-optimization.md](../briefs/engine/todo/09-perf-optimization.md).
+2. ~~T1.2 interpolation pooling + T2b loose allocations + Tier 2 viewport culling/clipping~~ — ✅ **done 2026-06-05** (brief 09 P1; behavior-preserving, multi-seed `EXPORT=json` byte-identical). Sort-on-dirty was partially deferred (live set is tiny after culling). Details: [briefs/engine/done/09-perf-optimization.md](../briefs/engine/done/09-perf-optimization.md).
 3. ~~T1.1(b) snapshot interim win~~ — ✅ **done 2026-06-05** (events double-alloc removed). The brief's "cache observer/leaderboard per day" half was **dropped as incorrect**: that state changes intra-day (gold/FSM/AP/intention update on arbitrary ticks), so caching it would freeze the live panels.
-4. T1.1(a) SharedArrayBuffer/transfer boundary — **deferred, gated on profiling**. Build only if `?profile` shows `snapshot.bytes`/copy time is material; expected negligible at ~25 sprites/tick. Prefer transferable buffers over SAB (no COOP/COEP needed). See [briefs/engine/todo/09-perf-optimization.md](../briefs/engine/todo/09-perf-optimization.md) #7.
+4. ~~T1.1(a) SharedArrayBuffer/transfer boundary~~ — **dead, twice over (2026-06-10)**: the split removed the shared address space (no SAB across a socket), and the probe-perf ramp showed its successor (a packed wire codec) chases a cost that isn't the bottleneck — see "Measured results (2026-06-10)" and [briefs/engine/done/09-perf-optimization.md](../briefs/engine/done/09-perf-optimization.md) #7 close-out. The snapshot-payload work that *is* worth doing lives in T1.1 items 1–2 and [briefs/game/todo/72](../briefs/game/todo/72-shared-run-lobby-server.md).
 5. ~~**T1.3 WebSocket transport quick-wins**~~ — ✅ **mostly done 2026-06-10**: `permessage-deflate` + `setNoDelay` + render-delay 1→2 ticks shipped; `visibilitychange` briefed ([game/todo/66](../briefs/game/todo/66-visibilitychange-pause-resync.md)); Caddy compression verification dropped by decision.
 6. **Tier 3 game-feel** (queued 2026-06-10) — pixel-snap + camera smoothing briefed ([game/todo/67](../briefs/game/todo/67-pixel-snap-and-camera-smoothing.md)), ambient idle life briefed ([game/todo/68](../briefs/game/todo/68-ambient-idle-life.md)); number popups + juice deferred until those land. Game-feel briefs, not perf.
 
