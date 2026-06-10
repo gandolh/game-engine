@@ -69,13 +69,18 @@ import "./agents/opportunist";
  * The five original, hand-placed farmers (four AI archetypes + the player Pip),
  * each on its named corner/top farm island.
  */
+// brief 70 — raised starting gold by +30 across all AI archetypes so the
+// early-game peer crop economy can close trades (Otto's opportunist had only
+// 20g slack above reserve; now 50g — enough to buy a 2-wheat parcel at shop
+// price). The relative spread and minGoldReserve are unchanged; Hannah stays
+// richest, Atticus stays the low-reserve gambler.
 const FIXED_FARMER_SPECS: FarmerSpec[] = [
   {
     name: "Cora",
     personality: "conservative",
     homeRegion: "farm-cora",
     homeX: 24, homeY: 40,
-    startGold: 50,
+    startGold: 80,   // was 50  (+30, brief 70)
     riskProfile: "low", minGoldReserve: 30,
     startSeeds: { radish: 3 },
   },
@@ -84,7 +89,7 @@ const FIXED_FARMER_SPECS: FarmerSpec[] = [
     personality: "aggressive",
     homeRegion: "farm-atticus",
     homeX: 296, homeY: 40,
-    startGold: 80,
+    startGold: 110,  // was 80  (+30, brief 70)
     riskProfile: "high", minGoldReserve: 10,
     startSeeds: { radish: 1, wheat: 1, pumpkin: 1 },
   },
@@ -93,7 +98,7 @@ const FIXED_FARMER_SPECS: FarmerSpec[] = [
     personality: "hoarder",
     homeRegion: "farm-hannah",
     homeX: 24, homeY: 136,
-    startGold: 120,
+    startGold: 150,  // was 120 (+30, brief 70)
     riskProfile: "high", minGoldReserve: 80,
     startSeeds: { wheat: 2, pumpkin: 1 },
   },
@@ -102,7 +107,7 @@ const FIXED_FARMER_SPECS: FarmerSpec[] = [
     personality: "opportunist",
     homeRegion: "farm-otto",
     homeX: 296, homeY: 136,
-    startGold: 70,
+    startGold: 100,  // was 70  (+30, brief 70)
     riskProfile: "medium", minGoldReserve: 50,
     startSeeds: { radish: 2, wheat: 1 },
   },
@@ -115,7 +120,7 @@ const FIXED_FARMER_SPECS: FarmerSpec[] = [
     personality: "pip",
     homeRegion: "farm-pip",
     homeX: 33, homeY: 19,
-    startGold: 60,
+    startGold: 90,   // was 60  (+30, brief 70)
     riskProfile: "medium", minGoldReserve: 0,
     startSeeds: { radish: 3, wheat: 1 },
     player: true,
@@ -128,11 +133,12 @@ const FIXED_FARMER_SPECS: FarmerSpec[] = [
  * picks `EXTRA_FARMER_TEMPLATES[i % 4]`; the name is suffixed with the index so
  * every farmer's label is unique (e.g. "Cora-2", "Atticus-2", …).
  */
+// brief 70 — +30 startGold (see FIXED_FARMER_SPECS comment above).
 const EXTRA_FARMER_TEMPLATES: ReadonlyArray<Omit<FarmerSpec, "homeRegion" | "homeX" | "homeY" | "name"> & { baseName: string }> = [
-  { baseName: "Cora",    personality: "conservative", startGold: 50,  riskProfile: "low",    minGoldReserve: 30, startSeeds: { radish: 3 } },
-  { baseName: "Atticus", personality: "aggressive",   startGold: 80,  riskProfile: "high",   minGoldReserve: 10, startSeeds: { radish: 1, wheat: 1, pumpkin: 1 } },
-  { baseName: "Hannah",  personality: "hoarder",      startGold: 120, riskProfile: "high",   minGoldReserve: 80, startSeeds: { wheat: 2, pumpkin: 1 } },
-  { baseName: "Otto",    personality: "opportunist",  startGold: 70,  riskProfile: "medium", minGoldReserve: 50, startSeeds: { radish: 2, wheat: 1 } },
+  { baseName: "Cora",    personality: "conservative", startGold: 80,  riskProfile: "low",    minGoldReserve: 30, startSeeds: { radish: 3 } },
+  { baseName: "Atticus", personality: "aggressive",   startGold: 110, riskProfile: "high",   minGoldReserve: 10, startSeeds: { radish: 1, wheat: 1, pumpkin: 1 } },
+  { baseName: "Hannah",  personality: "hoarder",      startGold: 150, riskProfile: "high",   minGoldReserve: 80, startSeeds: { wheat: 2, pumpkin: 1 } },
+  { baseName: "Otto",    personality: "opportunist",  startGold: 100, riskProfile: "medium", minGoldReserve: 50, startSeeds: { radish: 2, wheat: 1 } },
 ];
 
 /**
