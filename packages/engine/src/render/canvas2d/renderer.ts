@@ -296,8 +296,18 @@ export class Canvas2dRenderer {
           new DOMMatrix([1, 0, 0, 1, this.waterOffsetX, this.waterOffsetY]),
         );
       }
+      // brief 63 — water shimmer fix: at downscale (sx < 1) nearest-neighbor
+      // minification inconsistently drops pattern rows/columns each frame as the
+      // sub-pixel scroll offset shifts the sampling grid → shimmer/moiré. Switch
+      // to bilinear smoothing only for this fillRect so the downscaled water blurs
+      // smoothly instead of flickering. Land tiles and sprites (drawn after this
+      // block) still use nearest-neighbor (imageSmoothingEnabled remains false for
+      // them). The flip is cheap — one canvas state property toggle per frame.
+      const waterSmooth = sx < 1;
+      if (waterSmooth) ctx.imageSmoothingEnabled = true;
       ctx.fillStyle = this.waterPattern;
       ctx.fillRect(visL, visT, visW, visH);
+      if (waterSmooth) ctx.imageSmoothingEnabled = false;
     }
 
     // Cached static backdrop first (one blit), under the dynamic sprites. Only
