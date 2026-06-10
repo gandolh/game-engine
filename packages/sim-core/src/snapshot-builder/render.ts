@@ -19,7 +19,7 @@ import { leaderboard } from "../sim-bootstrap";
 import { seasonForDay } from "../protocols";
 import { summarizeRun } from "../run-recap";
 
-import { buildSprites, buildPlayerHotbar } from "./sprites";
+import { buildSprites, buildPlayerHotbar, SnapshotSpriteState } from "./sprites";
 import { buildMeets, buildEvents } from "./events";
 import { buildObserverSnapshot, countEntities } from "./observer";
 import {
@@ -51,11 +51,12 @@ export function buildRenderSnapshot(
   pendingShock: SnapshotShock | null,
   runHistoryRows: readonly RunHistoryRow[] = [],
   rivalrySystem?: RivalrySystem,
+  spriteState?: SnapshotSpriteState,
 ): RenderSnapshot {
   const day = dayClock.day;
   const gameOver = day >= maxDays;
 
-  const sprites = buildSprites(world, tick, day);
+  const sprites = buildSprites(world, tick, day, spriteState);
   const meets = buildMeets(meetIndicators, tick);
   const events = buildEvents(eventFeed);
   const observer = buildObserverSnapshot(world, day);

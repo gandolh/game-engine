@@ -33,12 +33,12 @@ if (!parentPort) {
   throw new Error("determinism-worker must be run as a worker thread");
 }
 
-parentPort.on("message", (job: DeterminismJob) => {
+parentPort.on("message", async (job: DeterminismJob) => {
   const result = runOnce({
     seed: job.seed,
     ticksPerDay: job.ticksPerDay,
     maxDays: job.maxDays,
-    pathfinder: makePathfinder(),
+    pathfinder: await makePathfinder(),
   });
   const out: DeterminismJobResult = { seed: job.seed, pass: job.pass, result };
   parentPort!.postMessage(out);

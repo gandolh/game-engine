@@ -43,7 +43,7 @@ async function main(): Promise<void> {
       seed: SEED,
       ticksPerDay: TICKS_PER_DAY,
       maxDays: MAX_DAYS,
-      pathfinder: makePathfinder(),
+      pathfinder: await makePathfinder(),
     });
     emitExport(EXPORT, result, EXPORT_FILE);
   } else {
@@ -52,7 +52,7 @@ async function main(): Promise<void> {
       seed: SEED,
       ticksPerDay: TICKS_PER_DAY,
       maxDays: MAX_DAYS,
-      pathfinder: makePathfinder(),
+      pathfinder: await makePathfinder(),
     });
 
     // Narrate the mid-game shock when it fires (otherwise it's an invisible moment).

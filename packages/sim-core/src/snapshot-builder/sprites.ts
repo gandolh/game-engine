@@ -1,9 +1,11 @@
 /**
  * snapshot-builder/sprites.ts — per-tick sprite list from live ECS world.
  *
- * Module-level mutable Maps (lastIntention, lastFacing) are singletons for the
- * duration of the run. resolveFacing and buildSprites must share the same Maps;
- * they live in this module together to guarantee that invariant.
+ * The render memos (lastIntention, lastFacing) live in a per-RUN
+ * `SnapshotSpriteState` rather than module globals, so multiple sims in one
+ * process (the Node server) don't cross-contaminate each other's cosmetic
+ * facing/bubble state. Callers that omit it fall back to a shared default
+ * (correct for one-sim-per-context: the legacy browser worker, tests).
  */
 
 import type { World } from "@engine/core";
@@ -24,17 +26,32 @@ import { cropCue, farmerCue, UNTINTED_RGBA } from "./indicators";
 const TILE = 16;
 
 /**
- * Worker-local state tracking the last-seen intention kind and the tick it was
- * last changed for each AI farmer entity id. Used to trigger the on-change
- * bubble visibility window (BUBBLE_SHOW_TICKS). The map grows to at most
- * N_FARMERS entries and lives for the duration of the run.
+ * Per-RUN render memo for the sprite builder: the last-seen intention kind (+ the
+ * tick it changed, driving the on-change bubble window) and the last facing for
+ * each entity id. Both are RENDER-ONLY — the sim is authoritative on positions;
+ * these only smooth which way a sprite visually faces / when its bubble shows.
+ *
+ * This MUST be per-run, not a module singleton: the Node server (brief 57) runs
+ * multiple sims in one process, so a shared map would let one run's leftover
+ * facing bleed into another run's first ticks (a real cross-contamination bug
+ * the single-sim-per-worker browser never hit). `buildRenderSnapshot` takes an
+ * optional instance; the server passes a fresh one per connection. Callers that
+ * omit it (the legacy browser worker, tests) fall back to a module singleton,
+ * which is correct for one-sim-per-context use.
  */
-const lastIntention = new Map<number, { kind: string; changedAtTick: number }>();
+export class SnapshotSpriteState {
+  readonly lastIntention = new Map<
+    number,
+    { kind: string; changedAtTick: number }
+  >();
+  readonly lastFacing = new Map<
+    number,
+    { facing: "down" | "up" | "side"; flipX: boolean }
+  >();
+}
 
-// Per-entity last facing, so a farmer keeps facing the way they last moved when
-// they stop (rather than snapping back to "down"). Worker-local; the sim is
-// authoritative on positions, this is purely a render-facing memo.
-const lastFacing = new Map<number, { facing: "down" | "up" | "side"; flipX: boolean }>();
+/** Shared fallback for callers that don't supply their own per-run state. */
+const defaultSpriteState = new SnapshotSpriteState();
 
 /**
  * Pick a 3-way facing from a per-tick movement delta. Vertical dominates ties
@@ -42,12 +59,13 @@ const lastFacing = new Map<number, { facing: "down" | "up" | "side"; flipX: bool
  * leftward movement. Stationary (0,0) keeps the entity's last facing.
  */
 function resolveFacing(
+  state: SnapshotSpriteState,
   id: number,
   dx: number,
   dy: number,
 ): { facing: "down" | "up" | "side"; flipX: boolean } {
   if (dx === 0 && dy === 0) {
-    return lastFacing.get(id) ?? { facing: "down", flipX: false };
+    return state.lastFacing.get(id) ?? { facing: "down", flipX: false };
   }
   let facing: "down" | "up" | "side";
   let flipX = false;
@@ -58,7 +76,7 @@ function resolveFacing(
     facing = dy < 0 ? "up" : "down";
   }
   const result = { facing, flipX };
-  lastFacing.set(id, result);
+  state.lastFacing.set(id, result);
   return result;
 }
 
@@ -80,6 +98,7 @@ export function buildSprites(
   world: World<GameEntity>,
   tick: number,
   day: number,
+  state: SnapshotSpriteState = defaultSpriteState,
 ): SnapshotSprite[] {
   const sprites: SnapshotSprite[] = [];
 
@@ -159,7 +178,7 @@ export function buildSprites(
           facing = pf; // "up" | "down"
         }
       } else {
-        const f = resolveFacing(entity.id ?? -1, t.x - t.prevX, t.y - t.prevY);
+        const f = resolveFacing(state, entity.id ?? -1, t.x - t.prevX, t.y - t.prevY);
         facing = f.facing;
         flipX = f.flipX;
       }
@@ -176,12 +195,12 @@ export function buildSprites(
     const isAiFarmer = isFarmer && !entity.player;
     if (isAiFarmer && entity.id !== undefined) {
       const currentKind = action ?? "idle";
-      const prev = lastIntention.get(entity.id);
+      const prev = state.lastIntention.get(entity.id);
       const changed = prev === undefined || prev.kind !== currentKind;
       if (changed) {
-        lastIntention.set(entity.id, { kind: currentKind, changedAtTick: tick });
+        state.lastIntention.set(entity.id, { kind: currentKind, changedAtTick: tick });
       }
-      const changedAtTick = lastIntention.get(entity.id)?.changedAtTick ?? tick;
+      const changedAtTick = state.lastIntention.get(entity.id)?.changedAtTick ?? tick;
       if (tick - changedAtTick < BUBBLE_SHOW_TICKS) {
         bubble = INTENTION_KIND_TO_GLYPH[currentKind] ?? null;
       }
