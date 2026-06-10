@@ -24,6 +24,17 @@
 # directory index behave. Without this, "/farm-valley" 404s.
 redir /farm-valley /farm-valley/ permanent
 
+# Sim WebSocket → the Node sim server (brief 58, @farm/server, pm2 process
+# "farm-valley-sim" on :8787). MUST come before the static handle_path below:
+# Caddy matches handle blocks in order, and /farm-valley/sim must reach the
+# server, not the file_server. reverse_proxy forwards the WS Upgrade/Connection
+# headers automatically. The server listens at its root ("/"), so strip the
+# /farm-valley/sim prefix before proxying.
+handle /farm-valley/sim {
+	uri strip_prefix /farm-valley/sim
+	reverse_proxy localhost:8787
+}
+
 handle_path /farm-valley/* {
 	root * /var/www/farm-valley
 	encode gzip zstd

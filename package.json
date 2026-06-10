@@ -8,7 +8,8 @@
     "tools/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w farm-valley",
+    "dev": "node tools/dev.mjs",
+    "dev:client": "npm run dev -w farm-valley",
     "build": "npm run build -w farm-valley",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -19,6 +20,7 @@
     "build-wasm": "npm run build -w @engine/wasm-modules",
     "deploy": "node deploy/deploy.ts deploy",
     "deploy:pre": "node deploy/deploy.ts pre-deploy",
+    "deploy:server": "node deploy/deploy.ts server",
     "deploy:all": "node deploy/deploy.ts all"
   },
   "devDependencies": {

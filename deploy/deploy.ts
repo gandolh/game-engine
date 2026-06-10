@@ -98,6 +98,10 @@ interface Config {
   remoteCaddyfile: string; // main Caddyfile (validated on reload)
   remoteCaddySnippet: string; // per-project snippet this tool writes
   sudoNoPasswd: boolean;
+  // --- sim server (brief 58) ---
+  serverDir: string; // remote dir the Node sim server is rsynced to
+  pm2Name: string; // pm2 process name for the sim server
+  serverPort: string; // port the server listens on (matches the Caddy proxy)
 }
 
 function buildConfig(env: Env): Config {
@@ -121,6 +125,9 @@ function buildConfig(env: Env): Config {
     remoteCaddyfile: env.REMOTE_CADDYFILE || "/etc/caddy/Caddyfile",
     remoteCaddySnippet: env.REMOTE_CADDY_SNIPPET || "/etc/caddy/sites/farm-valley.caddy",
     sudoNoPasswd: (env.SUDO_NOPASSWD || "false").toLowerCase() === "true",
+    serverDir: env.SERVER_DIR || "/srv/farm-valley-sim",
+    pm2Name: env.PM2_NAME || "farm-valley-sim",
+    serverPort: env.SERVER_PORT || "8787",
   };
 }
 
@@ -346,6 +353,98 @@ function deploy(cfg: Config, opts: { build: boolean; skipTests: boolean }) {
   console.log(`\n${c.green}✓ Deploy complete.${c.reset}\n`);
 }
 
+// =============================================================================
+// SERVER PHASE — deploy the Node sim server (brief 58) + (re)start it on pm2
+// =============================================================================
+//
+// The sim server (@farm/server) is a long-running Node process. It needs its
+// workspace deps (sim-core, engine, wasm-modules) + node_modules, and runs via
+// tsx (no build step, like the headless tools). We rsync the relevant packages
+// + the root manifests, `npm ci` on the box to materialize node_modules + the
+// workspace symlinks, then start/reload it under pm2 (the box already has pm2).
+//
+// The committed pathfinding.wasm under packages/wasm-modules/dist/ rides along
+// in the rsync — the server reads it from there (see sim-host.ts).
+function deployServer(cfg: Config) {
+  console.log(`\n${c.bold}=== Server: deploy + pm2 (re)start ===${c.reset}\n`);
+
+  step("Checking SSH + pm2 + node on the server ...");
+  if (!sshTest(cfg, "true")) {
+    die(`Cannot reach ${cfg.sshTarget} over SSH.`);
+  }
+  if (!sshTest(cfg, "command -v pm2 >/dev/null 2>&1")) {
+    die(
+      "pm2 not found on the server. Install it (`npm i -g pm2`) then re-run, " +
+        "or run pre-deploy first.",
+    );
+  }
+  if (!sshTest(cfg, "command -v node >/dev/null 2>&1")) {
+    die("node not found on the server.");
+  }
+  ok("Server has node + pm2.");
+
+  step(`Ensuring ${cfg.serverDir} exists ...`);
+  if (sshTest(cfg, `test -w "$(dirname ${shq(cfg.serverDir)})"`)) {
+    ssh(cfg, `mkdir -p ${shq(cfg.serverDir)}`);
+  } else {
+    sudoRemote(
+      cfg,
+      `mkdir -p ${shq(cfg.serverDir)} && chown -R "$(whoami)" ${shq(cfg.serverDir)}`,
+      `create ${cfg.serverDir} and hand it to your user`,
+    );
+  }
+
+  // Rsync the monorepo SOURCE (not node_modules) so the box can `npm ci`. We
+  // send the whole packages/ + tools/ trees + root manifests: `npm ci` validates
+  // the lockfile against the full workspace set declared in package.json
+  // ("packages/*", "tools/*"), so a partial tree would make it bail. Source is
+  // tiny; node_modules (the heavy part) is excluded and rebuilt on the box, as
+  // are dist/ + source maps. The committed wasm-modules/dist/pathfinding.wasm
+  // is NOT excluded (the server reads it).
+  step(`Syncing monorepo source → ${cfg.sshTarget}:${cfg.serverDir} ...`);
+  const includeArgs = [
+    "package.json",
+    "package-lock.json",
+    "tsconfig.base.json",
+    "packages",
+    "tools",
+  ];
+  const rsyncArgs = [
+    "-avzR", // -R: preserve the relative path names so layout is kept
+    "--delete",
+    // Only exclude node_modules (heavy, rebuilt on the box via npm ci) and
+    // source maps. We deliberately do NOT exclude dist/ — the committed
+    // wasm-modules/dist/pathfinding.wasm the server reads lives there, and the
+    // other dist dirs are tiny; excluding dist would risk dropping the wasm.
+    "--exclude=node_modules",
+    "--exclude=*.map",
+    ...rsyncSshOpt(cfg),
+    ...includeArgs,
+    `${cfg.sshTarget}:${cfg.serverDir}/`,
+  ];
+  run("rsync", rsyncArgs, { cwd: REPO_ROOT });
+
+  step("Installing deps on the box (npm ci — tsx + ws live here) ...");
+  // tsx (the runtime) is a devDep, so the full `npm ci` is needed (not --omit=dev).
+  // The workspace install also wires the @farm/* and @engine/* symlinks.
+  ssh(cfg, `cd ${shq(cfg.serverDir)} && npm ci`);
+
+  step(`Starting/reloading pm2 process "${cfg.pm2Name}" (PORT=${cfg.serverPort}) ...`);
+  // `pm2 reload` if it already exists, else `pm2 start`. We start the root
+  // `npm run server` script so pm2 supervises the tsx process. --update-env
+  // picks up the PORT each (re)deploy.
+  const pm2Cmd =
+    `cd ${shq(cfg.serverDir)} && ` +
+    `PORT=${cfg.serverPort} pm2 describe ${shq(cfg.pm2Name)} >/dev/null 2>&1 ` +
+    `&& PORT=${cfg.serverPort} pm2 reload ${shq(cfg.pm2Name)} --update-env ` +
+    `|| PORT=${cfg.serverPort} pm2 start npm --name ${shq(cfg.pm2Name)} -- run server`;
+  ssh(cfg, pm2Cmd);
+  ssh(cfg, "pm2 save", { allowFail: true });
+
+  ok(`Sim server deployed and running under pm2 as "${cfg.pm2Name}".`);
+  console.log(`\n${c.green}✓ Server deploy complete.${c.reset}\n`);
+}
+
 // Sanity-check the emitted bundle before we ship it: the static entrypoints and
 // runtime assets must exist, and index.html must reference assets under the
 // configured sub-path (else the app 404s its own scripts when served).
@@ -437,12 +536,18 @@ function main() {
     case "deploy":
       deploy(cfg, { build: !noBuild, skipTests });
       break;
+    case "server":
+      deployServer(cfg);
+      break;
     case "all":
       preDeploy(cfg);
       deploy(cfg, { build: !noBuild, skipTests });
+      deployServer(cfg);
       break;
     default:
-      die(`Unknown phase "${phase}". Use pre-deploy | deploy | all (--help).`);
+      die(
+        `Unknown phase "${phase}". Use pre-deploy | deploy | server | all (--help).`,
+      );
   }
 }
 
@@ -456,9 +561,12 @@ ${c.bold}Usage${c.reset}
 ${c.bold}Phases${c.reset}
   pre-deploy   Provision the server: check SSH, ensure Caddy, ensure
                ${c.dim}REMOTE_DIR${c.reset} exists, sync the Caddyfile, reload Caddy.
-  deploy       Typecheck + test + build locally with the sub-path base, then
-               rsync dist/ to the server (exact mirror).
-  all          pre-deploy, then deploy. (default)
+  deploy       Typecheck + test + build the CLIENT locally with the sub-path
+               base, then rsync dist/ to the server (exact mirror).
+  server       Deploy the Node sim server (@farm/server): rsync the server +
+               its workspace deps, npm ci on the box, pm2 start/reload
+               ${c.dim}PM2_NAME${c.reset} on ${c.dim}SERVER_PORT${c.reset}.
+  all          pre-deploy, then deploy (client), then server. (default)
 
 ${c.bold}Flags${c.reset}
   --no-build    Deploy the existing dist/ without rebuilding.

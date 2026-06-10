@@ -2,7 +2,7 @@
 
 A tiny top-down farming sim where four AI farmers — each with their own personality — plant, harvest, trade, and try to out-earn each other across 100 in-game days. You don't play; you watch them play.
 
-Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder. The simulation runs in a Web Worker and streams render snapshots to the main thread. All art is drawn from a single 32-color palette ([EDG32](https://lospec.com/palette-list/endesga-32)), enforced across sprites, UI, and effects.
+Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder. The simulation runs in a Node.js server and streams render snapshots to the browser over a WebSocket; the browser is a pure client that renders + interpolates them. All art is drawn from a single 32-color palette ([EDG32](https://lospec.com/palette-list/endesga-32)), enforced across sprites, UI, and effects.
 
 ![Home screen](media/fv-home-screen.png)
 ![Game running — world, day/night clock, observer panel, leaderboard, and activity feed](media/fv-edg32-running.png)
@@ -14,8 +14,10 @@ Requirements: Node 20+ and npm.
 ```bash
 npm install
 npm run build-wasm   # one-time: compile the WASM pathfinder
-npm run dev          # opens the game at http://localhost:5173
+npm run dev          # starts the sim server + the client at http://localhost:5173
 ```
+
+`npm run dev` runs both halves: the Node sim server (`@farm/server`, on `:8787`) and the Vite client, which proxies the sim WebSocket to the server.
 
 Click **Start** (or press Enter) on the home screen. The simulation runs on its own — sit back and watch the observer panel for live stats. When day 100 ends, a leaderboard pops up.
 
@@ -49,7 +51,9 @@ Every color in the project — sprites, tiles, particles, the day/night wash, an
 ```
 packages/
   engine/          shared engine (ECS, renderer, input, sim, wasm bindings)
-  farm-valley/     the game (agents, systems, screens, UI panels, sim worker)
+  sim-core/        the deterministic simulation (systems, agents, world, snapshot)
+  farm-valley/     the renderer / client (screens, UI panels, render loop)
+  server/          the Node sim server (hosts the sim, streams it over a WebSocket)
   wasm-modules/    AssemblyScript pathfinder compiled to WASM
 tools/
   atlas-builder/   packs sprite source images into the runtime atlas
@@ -58,10 +62,10 @@ tools/
 corpus/            design notes and TODO milestones
 ```
 
-The game lives in [packages/farm-valley/src/](packages/farm-valley/src/). Notable bits:
+The renderer lives in [packages/farm-valley/src/](packages/farm-valley/src/); the simulation in [packages/sim-core/src/](packages/sim-core/src/), hosted by [packages/server/](packages/server/). Notable bits:
 
 - [main.ts](packages/farm-valley/src/main.ts) — boot, home → game wiring, render loop
-- [worker/](packages/farm-valley/src/worker/) — the sim Web Worker, render-snapshot schema, and the main-thread client that interpolates + renders
+- [worker/sim-client/](packages/farm-valley/src/worker/sim-client/) — the WebSocket client that talks to the sim server and interpolates + renders snapshots
 - [screens/](packages/farm-valley/src/screens/) — full-screen views (home screen, game over, …)
 - [ui/](packages/farm-valley/src/ui/) — in-game overlays (observer, debug, config)
 - [agents/](packages/farm-valley/src/agents/) — one file per personality
@@ -70,8 +74,9 @@ The game lives in [packages/farm-valley/src/](packages/farm-valley/src/). Notabl
 ## Common commands
 
 ```bash
-npm run dev          # run Farm Valley in the browser (hot reload)
-npm run build        # production build of the game
+npm run dev          # run Farm Valley: sim server + client in the browser (hot reload)
+npm run server       # run just the Node sim server (WebSocket, :8787)
+npm run build        # production build of the client
 npm run test         # vitest across all workspaces
 npm run typecheck    # tsc --noEmit across all workspaces
 npm run sim          # headless simulation (no browser)

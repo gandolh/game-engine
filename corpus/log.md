@@ -2,6 +2,18 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-10] impl | Brief 58 — renderer over WebSocket + deploy both (client/server split, step 4 of 4 — DONE)
+
+**Made the Vite app a pure WebSocket client of the Node sim server and removed the in-browser Worker** — the final step of the [client/server split](briefs/game/done/55-client-server-split.md). The sim now runs only in `@farm/server`; the browser renders snapshots streamed over a socket.
+
+- **`SimClient` reskinned, public API unchanged** ([sim-client/client.ts](../packages/farm-valley/src/worker/sim-client/client.ts)): `new WebSocket(resolveServerUrl())` instead of `new Worker(...)`; same-origin URL under the base path (`wss://host/farm-valley/sim` in prod; dev hits `/sim`, Vite-proxied). `init()` no longer fetches/transfers WASM (the server owns the pathfinder) — it just sends the run params, queued until `onopen`. `onmessage` JSON-parses `WorkerOutbound` and runs the unchanged static-layer/snapshot/profile + `prevById` interpolation logic. Send helpers → `ws.send(JSON.stringify(...))`. Added an `onConnectionLost` hook. Every `main/*` consumer was untouched (the whole point of preserving the API).
+- **Deleted `worker/sim-worker.ts`** + the Vite `new Worker(new URL(...))` reference; removed the module-directory-convention exception that existed only for it. `worker/` now holds just `sim-client/`.
+- **Dev runner:** `npm run dev` now runs a tiny zero-dep concurrent script ([tools/dev.mjs](../tools/dev.mjs)) that starts the Node server + Vite together and tears both down on exit; `vite.config.ts` proxies `/sim` → `ws://localhost:8787` (`ws: true`, prefix stripped). (`npm run dev:client` is Vite-only.)
+- **Deploy both parts:** the Caddy snippet gained a `handle /farm-valley/sim { reverse_proxy localhost:8787 }` (WS upgrade, before the static `handle_path`). `deploy.ts` gained a **`server` phase** (rsync monorepo source minus node_modules → `npm ci` on the box → `pm2 reload`-or-`start` "farm-valley-sim" with `PORT`), wired into `all` + `npm run deploy:server`; new `.env` keys `SERVER_DIR`/`PM2_NAME`/`SERVER_PORT`. **Dry-run-verified only — real VPS execution (npm ci/pm2/Caddy reload/WS-through-proxy) is unverified.**
+- **Verified live via Playwright:** loaded the dev app, clicked Start, confirmed it connects + renders the full game (world/farmers/all panels) off the server with the sim advancing (tick streaming); **pause froze the tick (953, held across a wait); resume advanced it (→1099)**. Only console noise is an unrelated favicon 404. **Gate:** full typecheck clean; full suite exit 0; fast JS + WASM determinism both MATCH (reskin is render-only); no stray worker refs. Not committed.
+
+**Split complete (55–58).** The sim is a Node service; the renderer is a WS client; determinism preserved throughout.
+
 ## [2026-06-10] impl | Brief 57 — Node WebSocket sim server (client/server split, step 2 of 4)
 
 **Stood up `packages/server` (`@farm/server`): a long-running Node process that hosts the sim and streams it over a WebSocket** — step 2 of the [client/server split](briefs/game/todo/55-client-server-split.md). The renderer is NOT wired to it yet (that's brief 58); this brief delivers the server + proves the transport is transparent.

@@ -1,18 +1,24 @@
 /**
- * client.ts — main-thread facade for the sim Web Worker.
+ * client.ts — main-thread facade for the sim, talking to the Node sim server
+ * over a WebSocket (brief 58). Previously this spawned an in-browser Web Worker;
+ * the sim now lives in a separate Node process (@farm/server) and this client
+ * sends/receives the SAME WorkerInbound/WorkerOutbound protocol over a socket.
+ * The public API is unchanged so the renderer (main/*) is untouched.
  *
  * SimClient:
- *  - Spawns the worker and sends WorkerInitMsg.
+ *  - Opens a WebSocket to the server and sends WorkerInitMsg (once connected).
  *  - Receives WorkerStaticLayerMsg (once) and WorkerSnapshotMsg (per tick).
  *  - Keeps the two most-recent snapshots (prev + current) for interpolation.
  *  - Exposes interpolated sprites: farmer sprites are lerped between prev and
  *    current positions; all other sprites use the current position as-is.
  *  - Exposes accessor methods so the render loop can pull observer/leaderboard/
- *    slate/meets/overlay data without touching the worker protocol directly.
+ *    slate/meets/overlay data without touching the wire protocol directly.
  *
  * Interpolation note: `performance.now()` is used for the arrival timestamp.
  * This is *display timing* on the main thread — not sim logic — so it is
  * correct to use wall-clock time here (determinism is a sim-side property).
+ * Network jitter is wider than postMessage; the one-tick render-delay margin
+ * (see renderDelayMs) absorbs a slightly-late snapshot.
  */
 
 import type {
@@ -27,15 +33,32 @@ import type {
   FinalStandingRow,
   RunRecap,
   RelationshipMatrixData,
+  ObserverSnapshot,
+  LeaderboardRow,
 } from "@farm/sim-core/snapshot";
 import type { ProfileReport } from "@engine/core";
-import type { ObserverSnapshot } from "../../ui/observer";
-import type { LeaderboardRow } from "../../ui/leaderboard";
 import type { ShopOffer } from "@farm/sim-core/agents/shop-slate";
 import { clamp, lerp, smoothstep, copySprite } from "./interp";
 
+/**
+ * Resolve the sim server WebSocket URL, same-origin under the app's base path
+ * (e.g. wss://host/farm-valley/sim in prod, reverse-proxied by Caddy). In dev,
+ * Vite's server.proxy forwards this path to ws://localhost:8787. Falls back to a
+ * localhost default outside a browser (e.g. tests).
+ */
+function resolveServerUrl(): string {
+  if (typeof location === "undefined") return "ws://localhost:8787";
+  const scheme = location.protocol === "https:" ? "wss" : "ws";
+  const base = import.meta.env.BASE_URL ?? "/";
+  return `${scheme}://${location.host}${base}sim`;
+}
+
 export class SimClient {
-  private readonly worker: Worker;
+  private readonly ws: WebSocket;
+  /** Messages queued before the socket opened; flushed on `open`. */
+  private readonly pending: WorkerInbound[] = [];
+  private conned = false;
+  private connectionLostCallback: (() => void) | null = null;
 
   private prevSnapshot: RenderSnapshot | null = null;
   private currentSnapshot: RenderSnapshot | null = null;
@@ -70,13 +93,23 @@ export class SimClient {
   private readonly prevById = new Map<number, SnapshotSprite>();
   private interpOut: SnapshotSprite[] = [];
 
-  constructor() {
-    this.worker = new Worker(new URL("../sim-worker.ts", import.meta.url), {
-      type: "module",
-    });
+  constructor(url: string = resolveServerUrl()) {
+    this.ws = new WebSocket(url);
 
-    this.worker.onmessage = (event: MessageEvent<WorkerOutbound>) => {
-      const msg = event.data;
+    this.ws.onopen = () => {
+      this.conned = true;
+      // Flush anything queued before the socket was ready (e.g. the init message).
+      for (const msg of this.pending) this.ws.send(JSON.stringify(msg));
+      this.pending.length = 0;
+    };
+
+    this.ws.onmessage = (event: MessageEvent) => {
+      let msg: WorkerOutbound;
+      try {
+        msg = JSON.parse(event.data as string) as WorkerOutbound;
+      } catch {
+        return; // ignore malformed frames
+      }
       if (msg.type === "static-layer") {
         this.staticLayerCallback?.(msg);
       } else if (msg.type === "snapshot") {
@@ -97,34 +130,52 @@ export class SimClient {
         this.profileCallback?.(msg.tick, msg.report);
       }
     };
+
+    this.ws.onclose = () => {
+      this.conned = false;
+      this.connectionLostCallback?.();
+    };
+    this.ws.onerror = () => {
+      // A failed connection fires error then close; surface lost-connection once.
+      this.connectionLostCallback?.();
+    };
+  }
+
+  /**
+   * Send a protocol message to the server, queueing it if the socket has not
+   * opened yet (so init() can be called immediately after construction).
+   */
+  private sendMsg(msg: WorkerInbound): void {
+    if (this.conned && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    } else {
+      this.pending.push(msg);
+    }
+  }
+
+  /** Called when the socket closes or errors (server gone). Render-side hook. */
+  onConnectionLost(cb: () => void): void {
+    this.connectionLostCallback = cb;
   }
 
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
 
-  /** Send the init message to start the sim. Fetches WASM bytes for transfer. */
+  /**
+   * Send the init message to start the run. The SERVER owns the pathfinder now
+   * (it reads pathfinding.wasm from disk), so unlike the old Worker path we no
+   * longer fetch/transfer WASM here — we just send the run params. Queued until
+   * the socket opens.
+   */
   init(opts: Omit<WorkerInitMsg, "type">): void {
     this.msPerTick = 1000 / opts.tickRateHz;
-    // Fetch pathfinding WASM bytes and transfer them (zero-copy) to the worker.
-    // Falls back gracefully if the fetch fails — sim runs without pathfinding.
-    void fetch(`${import.meta.env.BASE_URL}wasm/pathfinding.wasm`)
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        const msg: WorkerInitMsg = { type: "init", ...opts, pathfinderWasm: buf };
-        this.worker.postMessage(msg, [buf]); // transfer ownership
-      })
-      .catch(() => {
-        // WASM unavailable — send init without pathfinder (farmers stay put).
-        const msg: WorkerInitMsg = { type: "init", ...opts };
-        this.worker.postMessage(msg);
-      });
+    this.sendMsg({ type: "init", ...opts });
   }
 
-  /** Stop the sim worker loop. */
+  /** Stop the server's sim loop for this connection. */
   stop(): void {
-    const msg: WorkerInbound = { type: "stop" };
-    this.worker.postMessage(msg);
+    this.sendMsg({ type: "stop" });
   }
 
   // ---------------------------------------------------------------------------
@@ -133,8 +184,7 @@ export class SimClient {
 
   /** Pause or resume sim advance. While paused no snapshots arrive. */
   setPaused(paused: boolean): void {
-    const msg: WorkerInbound = { type: "pause", paused };
-    this.worker.postMessage(msg);
+    this.sendMsg({ type: "pause", paused });
   }
 
   /**
@@ -144,14 +194,12 @@ export class SimClient {
    * faster). No change to msPerTick is needed.
    */
   setSpeed(multiplier: number): void {
-    const msg: WorkerInbound = { type: "speed", multiplier };
-    this.worker.postMessage(msg);
+    this.sendMsg({ type: "speed", multiplier });
   }
 
   /** While paused, advance exactly one tick then stay paused. */
   step(): void {
-    const msg: WorkerInbound = { type: "step" };
-    this.worker.postMessage(msg);
+    this.sendMsg({ type: "step" });
   }
 
   /**
@@ -160,8 +208,7 @@ export class SimClient {
    * Brief 40.
    */
   skipToHighlight(): void {
-    const msg: WorkerInbound = { type: "skipToHighlight" };
-    this.worker.postMessage(msg);
+    this.sendMsg({ type: "skipToHighlight" });
   }
 
   /**
@@ -177,13 +224,12 @@ export class SimClient {
     action: boolean,
     selectSlot: number | null = null,
   ): void {
-    const msg: WorkerInbound = { type: "input", moveX, moveY, action, selectSlot };
-    this.worker.postMessage(msg);
+    this.sendMsg({ type: "input", moveX, moveY, action, selectSlot });
   }
 
   /** Terminate the worker (hard stop). */
   terminate(): void {
-    this.worker.terminate();
+    this.ws.close();
   }
 
   /**
@@ -192,8 +238,7 @@ export class SimClient {
    * onProfile(). Diagnostic only — does not affect the sim.
    */
   setProfiling(enabled: boolean): void {
-    const msg: WorkerInbound = { type: "profile", enabled };
-    this.worker.postMessage(msg);
+    this.sendMsg({ type: "profile", enabled });
   }
 
   // ---------------------------------------------------------------------------
