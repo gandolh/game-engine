@@ -317,8 +317,17 @@ function deploy(cfg: Config, opts: { build: boolean; skipTests: boolean }) {
     if (!existsSync(DIST_DIR)) die("dist/ not found — run without --no-build first.");
   }
 
-  step("Verifying remote dir exists ...");
-  ssh(cfg, `mkdir -p ${shq(cfg.remoteDir)}`);
+  // deploy only builds + uploads; provisioning (creating REMOTE_DIR, Caddy)
+  // lives in pre-deploy. If the dir is missing, the server was never set up —
+  // bail rather than silently mkdir + rsync --delete into a fresh/wrong dir
+  // (a mistyped REMOTE_DIR would otherwise create a stray dir and mirror into it).
+  step("Checking remote dir exists ...");
+  if (!sshTest(cfg, `test -d ${shq(cfg.remoteDir)}`)) {
+    die(
+      `Remote dir ${cfg.remoteDir} does not exist on ${cfg.sshTarget}.\n` +
+        `  Run \`npm run deploy:pre\` first to provision the server.`,
+    );
+  }
 
   step(`Syncing dist/ → ${cfg.sshTarget}:${cfg.remoteDir} ...`);
   // Trailing slash on dist/ uploads the CONTENTS. --delete keeps the remote an
