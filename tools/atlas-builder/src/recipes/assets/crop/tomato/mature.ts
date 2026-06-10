@@ -1,5 +1,7 @@
 import { type PixelRecipe } from "../../../types";
 
+// 2026-06-10 art pass — ripe tomato in true bright red (`R` #e43b44) with a
+// `w` glint top-left and deep-red `x` shading bottom-right, lit leaf crown.
 const recipe: PixelRecipe =
   {
     name: "crop/tomato/mature",
@@ -7,15 +9,15 @@ const recipe: PixelRecipe =
     pixels: [
       "................",
       "................",
+      "......lLl.......",
+      ".....lLlll......",
       "......lll.......",
-      ".....lllll......",
-      "......lll.......",
-      ".....rrrrr......",
-      "....rrrrrrr.....",
-      "....rrrrrrr.....",
-      "....rrrrrrr.....",
-      ".....rrrrr......",
-      "......rrr.......",
+      ".....RRRRR......",
+      "....RwRRRRx.....",
+      "....RRRRRRx.....",
+      "....RRRRxxx.....",
+      ".....RRRxx......",
+      "......Rxx.......",
       "......dkd.......",
       "................",
       "................",

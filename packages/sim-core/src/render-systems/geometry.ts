@@ -191,6 +191,28 @@ function computeWalls(): readonly WallTile[] {
 
 export const WALLS: readonly WallTile[] = computeWalls();
 
+// ── Occluder walls (brief 65 follow-up: edge depth-sorting) ──────────────────
+
+/**
+ * A SOUTH-facing wall band is the top of a vertical face descending toward the
+ * water (extended further down by the brief-65 cliff skirts on tall islands).
+ * Baked into the static layer (layer 4) it always rendered UNDER characters
+ * (layer 50), so a farmer standing on a south-coast tile was painted on top of
+ * the parapet and appeared to float over the wall / open water. These bands are
+ * excluded from the static bake and re-pushed every frame as dynamic occluders
+ * on the entity layer instead (see `pushOccluderSprites` in occluders.ts),
+ * y-sorted at the face's base so they cover the feet of a character standing
+ * behind the edge.
+ *
+ * Sandy beach edges (`tile/shore-sand` — farms and the fishing isles) stay
+ * baked: a beach is flat ground you stand ON, not a face you stand behind.
+ */
+export function isOccluderWall(w: WallTile): boolean {
+  return w.rotation === Math.PI && w.frame !== "tile/shore-sand";
+}
+
+export const OCCLUDER_WALLS: readonly WallTile[] = WALLS.filter(isOccluderWall);
+
 // ── Shores ───────────────────────────────────────────────────────────────────
 
 /**

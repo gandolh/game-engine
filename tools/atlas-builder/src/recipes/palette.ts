@@ -36,6 +36,20 @@ export const SWATCH: Record<string, [number, number, number, number]> = {
   a: [254, 174, 52, 255],   // autumn gold       #feae34 (= gold `o`)
   A: [215, 118, 67, 255],   // autumn orange     #d77643 (= pumpkin `p`)
   b: [228, 166, 114, 255],  // autumn tan        #e4a672 (= wheat `W`)
+  // 2026-06-10 art pass — the EDG32 colors the original curated map never used.
+  // They exist for hue-shifted shading (shadows lean cool/purple, highlights
+  // lean warm), selective outlines, and the missing crop/flower hues.
+  t: [25, 60, 62, 255],     // foliage deep shade #193c3e (canopy under-shadow)
+  N: [38, 43, 68, 255],     // cool shadow navy   #262b44 (selective outline; softer than `k`)
+  f: [247, 118, 34, 255],   // flame orange       #f77622 (fire mid, carrot, autumn leaves)
+  R: [228, 59, 68, 255],    // bright red         #e43b44 (tomato, toadstool, salmon back)
+  x: [162, 38, 51, 255],    // deep red shade     #a22633 (shadow side of any red)
+  U: [181, 80, 136, 255],   // grape / bloom      #b55088 (grapes, radish, flowers)
+  u: [104, 56, 108, 255],   // deep purple shade  #68386c (grape shadow, dusk accents)
+  P: [246, 117, 122, 255],  // petal pink         #f6757a (blossoms, salmon flank)
+  i: [44, 232, 245, 255],   // water sparkle cyan #2ce8f5 (waterfall/fountain glints)
+  h: [232, 183, 150, 255],  // warm highlight     #e8b796 (lit wood/burlap/sand ridge)
+  H: [194, 133, 105, 255],  // rope / wicker tan  #c28569 (mid wood, pebbles, dirt clods)
 };
 
 export function colorOf(ch: string): [number, number, number, number] {

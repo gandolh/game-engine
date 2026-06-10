@@ -10,6 +10,7 @@ Optimization opportunities for the engine, filtered against what the code **actu
 - **Static layer + water pattern baked once** to OffscreenCanvas, blitted with one `drawImage`/`fillRect` per frame — [canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts). This is the textbook "layer caching" win, already shipped (brief 07).
 - **Message bus uses buffer-swap** (`inflight`↔`deliverable`) instead of reallocating — [message-bus.ts](../../packages/engine/src/sim/message-bus.ts).
 - **Coastline foam bubbles are viewport-culled** — [main/render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts). (The *only* culling currently in the renderer — see Tier 2.)
+- **Test-suite runtime tuned (2026-06-10).** sim-core runs with `pool: "threads"` + `isolate: false` ([vitest.config.ts](../../packages/sim-core/vitest.config.ts) — module-state safety rationale in the file; verified green under shuffled file order), and the three heaviest live-sim test files (coral-fishing, orchard, tile-features) each drive ONE shared deterministic run in `beforeAll` and latch per-milestone observations instead of booting near-identical sims per spec. Full suite ~66s → ~45s wall; sim-core 54s → ~25s solo. Don't re-split the shared runs or re-enable per-file isolation without re-measuring; the floor is now coral-fishing's single ~12k-tick JsPathfinder run (~24s).
 
 ## Tier 1 — Highest impact
 

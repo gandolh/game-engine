@@ -1,25 +1,27 @@
 import { type PixelRecipe } from "../../types";
 
+// brief 45 — bare winter tree, redrawn in the 2026-06-10 art pass. A real
+// branching structure: two limbs forking off a tapered trunk, lit `m` against
+// shaded `M`, with snow (`n`) resting ON TOP of limbs only (light comes from
+// above) and a cool navy `N` shadow pixel where branches meet the trunk.
 const recipe: PixelRecipe =
   {
-    // brief 45 — bare winter tree: leafless branches + trunk, dusted with snow
-    // (n) on the limbs. Render-only variant selected in winter.
     name: "structure/tree-bare",
     size: 16,
     pixels: [
       "................",
-      "................",
-      ".....n..n.......",
-      "....M.MM.M......",
-      ".....MMMM.n.....",
-      "...n..MM........",
-      "....M.M.M.......",
-      ".....MMM........",
-      "......Mm........",
-      ".......m........",
-      ".......m........",
-      ".......m........",
-      ".......m........",
+      "...nn....n......",
+      "...mM...nM......",
+      "....mM..mM..n...",
+      "..n..mM.mM.nM...",
+      "..mM..mMmM.mM...",
+      "...mM..mMMmM....",
+      "....mM.mMmM.....",
+      ".....mMmM.......",
+      "......mNM.......",
+      ".......mM.......",
+      ".......mM.......",
+      "......mmMM......",
       "................",
       "................",
       "................",

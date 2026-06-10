@@ -1,28 +1,29 @@
 import { type PixelRecipe } from "../../types";
 
+// 2026-06-10 art pass — autumn: fallen leaves as 2px LEAF PAIRS drifting in
+// loose diagonal clusters (the wind blew them somewhere), not confetti. Gold
+// `a`, orange `A`, tan `b`, plus a couple of hot `f` leaves for spice.
 const recipe: PixelRecipe =
   {
-    // Autumn: golden/orange flecks (a/A) + tan (b) over the base grass — the
-    // field turning. A few green specks linger so it's clearly the same grass.
     name: "tile/grass-autumn",
     size: 16,
     pixels: [
-      "ccAcccccccacccbc",
-      "ccccaccccAcccacc",
-      "cbccccccccccAccc",
-      "cAcccccacccccbcc",
-      "ccacccccccccAccc",
-      "ccAccccbcccccccc",
-      "ccccacccaAcccccA",
-      "cbccccccccccaccc",
-      "cAcccccacccaAccc",
-      "ccccbccccccccAca",
-      "ccacccccccAccccc",
-      "ccccccAcccbcccac",
-      "cacccAcccccccccc",
-      "ccccccAcccccaccc",
-      "cccacccccacacccc",
-      "ccbcccacccccccac",
+      "cccccccccccccccc",
+      "ccaAcccccccccccc",
+      "cccbAccccccAaccc",
+      "ccccccccccccbccc",
+      "cccccccccccccccc",
+      "cfaccccccccccccc",
+      "ccAbccccaAcccccc",
+      "cccccccccbAccccc",
+      "cccccccccccccccc",
+      "ccccbacccccccccc",
+      "cccccAacccccfAcc",
+      "ccccccccccccAbcc",
+      "caAccccccccccccc",
+      "ccbcccccAacccccc",
+      "cccccccccAbccccc",
+      "cccccccccccccccc",
     ],
   }
 ;

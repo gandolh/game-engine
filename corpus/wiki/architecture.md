@@ -89,7 +89,8 @@ Plus passive systems: WeatherSystem, CropGrowthSystem, MarketSystem, ShopkeeperS
 Canvas2D ([packages/engine/src/render/canvas2d/](../../packages/engine/src/render/canvas2d/)) — replaced the planned WebGPU renderer in commit `5ac7f8d`.
 
 Key render features:
-- **Y-sort**: sprites sorted by `(layer, y)` each frame — overlap creates depth.
+- **Y-sort**: sprites sorted by `(layer, y)` each frame — overlap creates depth. Sprites may carry an optional `sortY` depth key overriding `y` (drawing position unchanged); used by the edge occluders below.
+- **Edge occluders** (2026-06-10, brief 65 follow-up): south-facing island wall bands + cliff faces are NOT baked — [occluders.ts](../../packages/sim-core/src/render-systems/occluders.ts) re-pushes them every frame on the entity layer (50) with `sortY` at the face's bottom edge, so a character standing on a south-coast tile is occluded by the parapet instead of being painted over the wall / hovering over the water. Sandy beach edges stay baked (flat ground, no face).
 - **Shadow pass**: ground ellipses drawn before sprites with `multiply` blend.
 - **Particle system**: `ParticleSystem` class — circles/rects/stars with alpha-fade + gravity, drawn in world space after sprites.
 - **Static layer bake**: backdrop tiles baked once into an offscreen canvas; WASM noise generator fills the brightness grid (~8× faster than JS).

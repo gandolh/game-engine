@@ -1,12 +1,13 @@
 import type { LoadedAtlasImage } from "../../assets/loader";
 import type { Canvas2dSprite, Ctx2D } from "./types";
 
-/** Stable sort comparator: layer ascending, then Y ascending.
+/** Stable sort comparator: layer ascending, then Y ascending (`sortY` when a
+ *  sprite carries one — see Canvas2dSprite.sortY — otherwise the draw `y`).
  *  JS Array.sort is guaranteed stable (ES2019+), so equal-key sprites
  *  retain their insertion order — no index tiebreaker needed. */
 export function compareSprite(a: Canvas2dSprite, b: Canvas2dSprite): number {
   if (a.layer !== b.layer) return a.layer - b.layer;
-  return a.y - b.y;
+  return (a.sortY ?? a.y) - (b.sortY ?? b.y);
 }
 
 /** Draw one sprite via the atlas frame rect. Shared by the live queue and the

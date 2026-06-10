@@ -19,6 +19,15 @@ export interface Canvas2dSprite {
   rotation: number;
   layer: number;
   alpha: number;
+  /**
+   * Optional depth key for the within-layer y-sort (defaults to `y`). For
+   * sprites that depict a VERTICAL face (island edge walls, cliff faces) the
+   * draw center sits above the face's base, so sorting by `y` would put a
+   * character standing behind the face on top of it. Set `sortY` to the face's
+   * base (its bottom edge in world px) so the painter's algorithm occludes
+   * characters behind it and still draws anything south of it in front.
+   * Drawing position is unaffected — only the sort key changes. */
+  sortY?: number;
   /** Mirror horizontally about the sprite center (for left/right facing from a
    *  single side-profile frame). Optional; defaults to false. */
   flipX?: boolean;

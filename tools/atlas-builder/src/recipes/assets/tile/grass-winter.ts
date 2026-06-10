@@ -1,27 +1,28 @@
 import { type PixelRecipe } from "../../types";
 
+// 2026-06-10 art pass — winter: snow with 2px drift shadows in light stone `q`
+// (cool, not gray-noise), a couple of deeper `Q` hollows, and two dark `c`
+// grass blades poking through the crust to keep it alive.
 const recipe: PixelRecipe =
   {
-    // Winter: snow-dusted — a near-solid snow (n) blanket with frozen-grass (c)
-    // patches showing through and faint blue-grey shadow (Q) at clumps.
     name: "tile/grass-winter",
     size: 16,
     pixels: [
       "nnnnnnnnnnnnnnnn",
-      "nnnnQnnnnnnnnQnn",
+      "nnqqnnnnnnnnnnnn",
+      "nnnqnnnnnnqqnnnn",
+      "nnnnnnnnnnnqnnnn",
+      "nnnnnnnnnnnnnnnn",
       "nncnnnnnnnnnnnnn",
-      "nnnnnnnnQnnnnnnn",
-      "nnQnnnnnnnnncnnn",
+      "nncnnnnQqnnnnnnn",
+      "nnnnnnnnqnnnqqnn",
       "nnnnnnnnnnnnnnnn",
-      "nnnnnncnnnQnnnnn",
-      "nQnnnnnnnnnnnnnn",
-      "nnnnnnnQnnnnncnn",
-      "nnncnnnnnnnnnnnn",
-      "nnnnnnnnQnnnnnQn",
-      "nnQnnnnnnnnnnnnn",
-      "nnnnncnnnnnQnnnn",
-      "nnnnnnnnnnnnnnnn",
-      "nQnnnnnnQnnncnnn",
+      "nnnnqqnnnnnnnnnn",
+      "nnnnnqQnnnnnnnnn",
+      "nnnnnnnnnnnncnnn",
+      "nqnnnnnnnnnncnnn",
+      "nqqnnnnnqqnnnnnn",
+      "nnnnnnnnnqnnnnnn",
       "nnnnnnnnnnnnnnnn",
     ],
   }

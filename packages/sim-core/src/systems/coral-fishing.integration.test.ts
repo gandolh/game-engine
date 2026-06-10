@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";
 import { JsPathfinder } from "../world/js-pathfinder";
 import { isCoralReefTile } from "../world/coral";
@@ -14,64 +14,68 @@ import { isCoralReefTile } from "../world/coral";
  * second eligible window. brief 70 raised starting gold by +30 which shifts the
  * opportunist's early-game routing (iron upgrades now affordable from day 1),
  * pushing the first completed reef trip from day 6 to day 12. The extended
- * window keeps the proof end-to-end and remains within the 30 s timeout.
+ * window keeps the proof end-to-end and remains within the 60 s timeout.
+ *
+ * Both specs observe the SAME deterministic 15-day run (seed 0xc0ffee), driven
+ * once in beforeAll — observations are latched per tick, so nothing is lost by
+ * sharing. This halves what used to be the slowest file in the suite (two
+ * identical ~12k-tick full-scheduler replays).
  */
+
+const TICKS_PER_DAY = 800;
+const DAYS = 15;
+
+// Latched per-tick observations from the single shared run.
+let aboardSeen = false;
+let reachedReef = false;
+let coralEverCaught = false;
+const everAboard = new Set<number>();
+const disembarked = new Set<number>();
+const stillAboardAtEnd = new Set<number>();
+
 describe("coral fishing (live sim)", () => {
-  function boot() {
-    return bootstrapSim({
+  // 21-farmer roster makes this full-scheduler run ~4× heavier than the
+  // original 5-farmer sim — bump past vitest's 5s default.
+  beforeAll(() => {
+    const sim = bootstrapSim({
       seed: 0xc0ffee,
-      ticksPerDay: 800,
+      ticksPerDay: TICKS_PER_DAY,
       maxDays: 20,
       pathfinder: new JsPathfinder(),
       shock: false,
     });
-  }
-
-  // 21-farmer roster makes these full-scheduler runs ~4× heavier than the
-  // original 5-farmer sim — bump past vitest's 5s default.
-  it("a farmer boards, rows to a reef over water, and catches a coral special", { timeout: 60_000 }, () => {
-    const sim = boot();
-    let aboardSeen = false;
-    let reachedReef = false;
-    for (let t = 0; t < 800 * 14; t++) {
+    for (let t = 0; t < TICKS_PER_DAY * DAYS; t++) {
       sim.scheduler.tick({ tick: t });
       sim.bus.notifySubscribers();
       for (const f of sim.farmers) {
-        if (f.farmer?.aboard) aboardSeen = true;
-        const tx = Math.round(f.transform?.x ?? -1);
-        const ty = Math.round(f.transform?.y ?? -1);
-        if (f.farmer?.aboard && isCoralReefTile(tx, ty)) reachedReef = true;
-      }
-    }
-    expect(aboardSeen).toBe(true);
-    expect(reachedReef).toBe(true);
-
-    let coral = 0;
-    for (const f of sim.farmers) {
-      const fish = f.inventory?.fish;
-      coral += (fish?.["coral-trout"] ?? 0) + (fish?.lobster ?? 0);
-    }
-    expect(coral).toBeGreaterThan(0);
-  });
-
-  it("completes the round trip: a farmer that went aboard returns on foot", { timeout: 60_000 }, () => {
-    const sim = boot();
-    const everAboard = new Set<number>();
-    const disembarked = new Set<number>();
-    const stillAboardAtEnd = new Set<number>();
-    for (let t = 0; t < 800 * 15; t++) {
-      sim.scheduler.tick({ tick: t });
-      sim.bus.notifySubscribers();
-      for (const f of sim.farmers) {
-        if (f.id === undefined) continue;
-        if (f.farmer?.aboard) everAboard.add(f.id);
-        else if (everAboard.has(f.id)) disembarked.add(f.id);
+        if (f.farmer?.aboard) {
+          aboardSeen = true;
+          if (f.id !== undefined) everAboard.add(f.id);
+          const tx = Math.round(f.transform?.x ?? -1);
+          const ty = Math.round(f.transform?.y ?? -1);
+          if (isCoralReefTile(tx, ty)) reachedReef = true;
+        } else if (f.id !== undefined && everAboard.has(f.id)) {
+          disembarked.add(f.id);
+        }
+        if (!coralEverCaught) {
+          const fish = f.inventory?.fish;
+          if ((fish?.["coral-trout"] ?? 0) + (fish?.lobster ?? 0) > 0) coralEverCaught = true;
+        }
       }
     }
     // Record who is still aboard at the end of the window.
     for (const f of sim.farmers) {
       if (f.id !== undefined && f.farmer?.aboard) stillAboardAtEnd.add(f.id);
     }
+  }, 60_000);
+
+  it("a farmer boards, rows to a reef over water, and catches a coral special", () => {
+    expect(aboardSeen).toBe(true);
+    expect(reachedReef).toBe(true);
+    expect(coralEverCaught).toBe(true);
+  });
+
+  it("completes the round trip: a farmer that went aboard returns on foot", () => {
     expect(everAboard.size).toBeGreaterThan(0);
     // Any farmer who completed a trip (boarded AND later seen on foot) must have
     // returned; farmers still mid-trip at the window edge are exempt.

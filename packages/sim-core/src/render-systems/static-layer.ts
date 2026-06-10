@@ -22,11 +22,11 @@ import {
   SHORES,
   BRIDGES,
   CORAL,
-  CLIFFS,
   BIG_STRUCTURES,
   BRIDGE_SET,
   CORAL_ALPHA,
   FISHING_STATICS,
+  isOccluderWall,
 } from "./geometry";
 import { SET_PIECES, SET_PIECE_ALPHA } from "./set-pieces";
 import { frameToAtlasId } from "./frames";
@@ -199,24 +199,9 @@ export function* iterStaticSprites(
     };
   }
 
-  // Cliff-face skirts (brief 65): vertical stone faces on the ocean tiles south
-  // of tall islands, making them read as elevated. Layer 2 — same as coral, above
-  // the animated water backdrop (0) and shore foam (1), below bridges (3) and
-  // island walls (4). Full opacity so the stone face reads clearly; the wall and
-  // shore above (layers 1 and 4) sit on the land tile; the cliff sits on the ocean
-  // tile directly below, extending the visual height down to the waterline.
-  for (const cliff of CLIFFS) {
-    yield {
-      x: cliff.tx * TILE + TILE / 2,
-      y: cliff.ty * TILE + TILE / 2,
-      width: TILE,
-      height: TILE,
-      frame: cliff.frame,
-      rotation: 0,
-      layer: 2,
-      alpha: 1,
-    };
-  }
+  // Cliff-face skirts (brief 65) are NOT baked here: they form a vertical face
+  // that must depth-sort against characters, so they're pushed per-frame as
+  // dynamic occluders on the entity layer instead — see occluders.ts.
 
   // Plank bridges over the water gaps between islands (drawn above the ocean
   // backdrop + shore foam, below fences). Rotated per computeBridges.
@@ -237,8 +222,12 @@ export function* iterStaticSprites(
   // oriented to face the water (stone wall, wooden bulwark, or sandy beach per
   // `edgeFrame`). Above the ocean backdrop + shore foam + bridges (layers 0–3),
   // below fences (20) and entities — so it reads as the island's edge. Bridge
-  // mouths stay open (road tiles get no wall).
+  // mouths stay open (road tiles get no wall). SOUTH-facing wall bands are
+  // skipped: they're the top of a vertical face and must depth-sort against
+  // characters, so they're pushed per-frame as dynamic occluders instead
+  // (see isOccluderWall in geometry.ts and occluders.ts).
   for (const wall of WALLS) {
+    if (isOccluderWall(wall)) continue;
     yield {
       x: wall.tx * TILE + TILE / 2,
       y: wall.ty * TILE + TILE / 2,

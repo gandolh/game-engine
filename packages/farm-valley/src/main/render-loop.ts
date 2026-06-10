@@ -1,6 +1,6 @@
 import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler } from "@engine/core";
 import { EDG } from "@engine/core";
-import { pushSnapshotSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES } from "@farm/sim-core/render-systems";
 import { WATERFALL_TILE, CAMPFIRE_TILE } from "@farm/sim-core/world/regions";
 import { washFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -381,6 +381,12 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       nowMs,
       seasonForDay(client.day),
     );
+
+    // Edge occluders (brief 65 follow-up): south-facing wall bands + cliff
+    // faces, pushed on the entity layer with sortY at the face's base so a
+    // character standing behind the island edge gets its feet occluded instead
+    // of being painted over the parapet / hovering above the water.
+    pushOccluderSprites(renderer);
 
     // Yellow follow arrow bobbing above the head of whichever farmer the camera
     // is currently following (Pip by default, or an AI farmer clicked in the

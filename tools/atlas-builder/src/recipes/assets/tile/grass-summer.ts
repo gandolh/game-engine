@@ -1,28 +1,29 @@
 import { type PixelRecipe } from "../../types";
 
+// 2026-06-10 art pass — summer: the lushest variant. Same tuft texture as base
+// grass but with more `g` light tips (high sun) and two gold `y` buttercup
+// pixels. Deliberately the brightest of the four seasons.
 const recipe: PixelRecipe =
   {
-    // Summer: deeper, drier — base swapped to the darker grass-base (c only),
-    // sparse light highlights, the odd dry wheat-tan fleck (b).
     name: "tile/grass-summer",
     size: 16,
     pixels: [
       "cccccccccccccccc",
-      "ccccGccccccccccc",
-      "cccccccccbccGccc",
-      "cGcccccccccccccc",
-      "cccccccccGcccccc",
-      "ccGcccccccccccbc",
-      "ccccGcccGcccccGc",
+      "ccCgccccccCgcccc",
+      "ccCCccccccCCcccc",
+      "ccccccccccccccyc",
       "cccccccccccccccc",
-      "cGcccccGcccGcccc",
-      "ccccbccccccccccc",
-      "cccccccccGcccccc",
-      "ccccccGccccccccc",
-      "cGccccccccccccbc",
-      "cccccccGccccGccc",
-      "cccGccccccGccccc",
-      "ccccccGccccccccc",
+      "cCgcccccgccccccc",
+      "cCCccccCCccccCgc",
+      "ccccccccccccCCcc",
+      "cccycccccccccccc",
+      "ccccCgcccccccccc",
+      "ccccCCccccccCgcc",
+      "ccccccccccccCccc",
+      "cgcccccccccccccc",
+      "cCccccccCgcccccc",
+      "ccccccccCCcccccc",
+      "ccccccccCccccccc",
     ],
   }
 ;

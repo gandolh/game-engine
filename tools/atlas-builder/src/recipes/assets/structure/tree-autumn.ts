@@ -1,26 +1,28 @@
 import { type PixelRecipe } from "../../types";
 
+// brief 45 — autumn tree, redrawn in the 2026-06-10 art pass. Same silhouette
+// as structure/tree so the seasonal swap doesn't pop, but the canopy uses the
+// warm EDG32 ramp: highlight `y`, body `a` (gold), shade `f` (flame orange),
+// and a deep red `x` core shadow — hue-shifted, not just darkened.
 const recipe: PixelRecipe =
   {
-    // brief 45 — autumn tree: same silhouette as structure/tree, canopy recolored
-    // to golden/orange (a/A/b). Render-only variant selected in autumn.
     name: "structure/tree-autumn",
     size: 16,
     pixels: [
       "................",
-      "................",
-      ".....aAaAa......",
-      "....AaAbAaA.....",
-      "...aAaAaAaAb....",
-      "...AbAaAaAaA....",
-      "....aAaAaAa.....",
-      ".....AaAbA......",
-      "......aAa.......",
-      ".......m........",
-      ".......m........",
-      ".......m........",
-      ".......m........",
-      "................",
+      ".....yaaa.......",
+      "....yyaaaaf.....",
+      "...yyaaaaaaf....",
+      "..yaaaaaaaaaf...",
+      "..yaaaafaaaaf...",
+      ".yaaafaaaaaaff..",
+      ".yaaaaaaafaaaf..",
+      "..aafaaaaaaff...",
+      "...ffaaaafff....",
+      "....xffmMfx.....",
+      ".......mM.......",
+      ".......mM.......",
+      "......mmMM......",
       "................",
       "................",
     ],

@@ -1,20 +1,21 @@
 import { type PixelRecipe } from "../../types";
 
+// Forest fern. 2026-06-10 art pass — three arcing fronds off a central stem
+// (left, center, right) with `g` light tips, instead of the old sparse Y.
 const recipe: PixelRecipe =
   {
-    // Forest fern — a spray of leafy green fronds.
     name: "decoration/fern",
     size: 16,
     pixels: [
       "................",
-      ".......l........",
-      "...l...l...l....",
-      "...ll..l..ll....",
+      "................",
+      ".......g........",
+      "..g....L....g...",
+      "..lL...L...Lg...",
+      "...lL.gLg.Ll....",
       "....lLlLlLl.....",
-      "....lLLLLLl.....",
-      ".....lLgLl......",
+      ".....lLLLl......",
       "......lLl.......",
-      ".......l........",
       ".......l........",
       ".......l........",
       "................",

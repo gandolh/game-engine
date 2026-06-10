@@ -10,7 +10,7 @@
  *  - are deterministic (same seed → identical placements);
  *  - keep forest=trees-only, quarry=stones-only, farm=mixed.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";
 import { REGIONS } from "../world/regions";
 import type { GameEntity } from "../components";
@@ -72,10 +72,19 @@ function meanNearestNeighbour(pts: ReadonlyArray<{ x: number; y: number }>): num
 const ZONE_IDS = ["forest-north", "forest-south", "quarry-north", "quarry-south"] as const;
 
 describe("TileFeatureSystem — organic clusters", () => {
+  // The cap, trend-to-cap, and zone-kind checks are universal end-state
+  // invariants, so they all read this one long run instead of booting a
+  // fresh sim each (formerly three runs of 60/80/40 days).
+  let longRun: Map<string, Feat[]>;
+
+  beforeAll(() => {
+    const sim = bootstrapSim({ seed: 3, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });
+    runDays(sim, 80);
+    longRun = byRegion(collectFeatures(sim.world));
+  });
+
   it("never exceeds caps per zone / per farm over many days", () => {
-    const sim = bootstrapSim({ seed: 11, ticksPerDay: TICKS_PER_DAY, maxDays: 60 });
-    runDays(sim, 60);
-    const regions = byRegion(collectFeatures(sim.world));
+    const regions = longRun;
     for (const def of REGIONS) {
       const feats = regions.get(def.id) ?? [];
       const isZone = ZONE_IDS.includes(def.id as (typeof ZONE_IDS)[number]);
@@ -108,9 +117,7 @@ describe("TileFeatureSystem — organic clusters", () => {
   it("zones trend toward their cap over many days (count behaviour preserved)", () => {
     // Average filled fraction across the four resource zones after a long run
     // should be high — the cap is the binding constraint, as in the old scatter.
-    const sim = bootstrapSim({ seed: 3, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });
-    runDays(sim, 80);
-    const regions = byRegion(collectFeatures(sim.world));
+    const regions = longRun;
     let total = 0;
     for (const id of ZONE_IDS) total += (regions.get(id) ?? []).length;
     const avg = total / ZONE_IDS.length;
@@ -170,9 +177,7 @@ describe("TileFeatureSystem — organic clusters", () => {
   });
 
   it("forest spawns trees only, quarry spawns stones only, farms are mixed-capable", () => {
-    const sim = bootstrapSim({ seed: 7, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
-    runDays(sim, 40);
-    const regions = byRegion(collectFeatures(sim.world));
+    const regions = longRun;
     for (const id of ["forest-north", "forest-south"]) {
       for (const f of regions.get(id) ?? []) expect(f.kind).toBe("tree");
     }

@@ -20,6 +20,8 @@ export {
 export {
   OCEAN_TILES,
   COASTLINE_BUBBLE_TILES,
+  OCCLUDER_WALLS,
+  isOccluderWall,
 } from "./geometry";
 
 export {
@@ -28,3 +30,5 @@ export {
 } from "./static-layer";
 
 export { pushSnapshotSprites } from "./snapshot-sprites";
+
+export { pushOccluderSprites } from "./occluders";
