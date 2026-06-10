@@ -134,12 +134,12 @@ export function buildSprites(
   // Entity sprites (farmers, shopkeeper, market-wall, etc.).
   for (const entity of world.query("sprite", "transform")) {
     const t = entity.transform;
-    // Farmers walking a path carry a RENDER-ONLY sub-tile glide position
-    // (farmer.renderPos) that advances a fraction of a tile each tick, so the
-    // per-tick snapshot shows continuous motion instead of a once-per-STEP_TICKS
-    // full-tile jump. Prefer it when present; otherwise use the authoritative
-    // integer transform. The main thread still lerps between consecutive
-    // snapshots on top of this.
+    // AI farmers walking a path carry a RENDER-ONLY sub-tile glide position
+    // (farmer.renderPos) set by TravelSystem to interpolate between waypoint
+    // steps. The player (Pip) uses continuous float movement (brief 61): its
+    // transform IS already smooth, so renderPos is always undefined for Pip and
+    // we fall through to t.x/t.y, which is correct. The main thread still lerps
+    // between consecutive snapshots (alpha) on top of this.
     const rp = entity.farmer?.renderPos;
     const posX = rp ? rp.x : t.x;
     const posY = rp ? rp.y : t.y;

@@ -74,9 +74,6 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
             pendingMoveY: null,
             pendingAction: false,
             selectedSlot: 0,
-            stepCooldown: 0,
-            glideFromX: spec.homeX,
-            glideFromY: spec.homeY,
           },
         }
       : {}),

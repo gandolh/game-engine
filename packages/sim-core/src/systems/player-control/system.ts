@@ -12,9 +12,31 @@
  * tag, and this system runs immediately before ActSystem so a queued action
  * executes on the same tick it was requested.
  *
- * Movement is intentionally NOT AP-gated — the player walks freely tile-by-tile
- * for responsiveness. The action itself flows through ActSystem, which applies
- * the same proximity / tool / inventory rules as for the AI farmers.
+ * ── Brief 61: Continuous sub-tile movement ────────────────────────────────────
+ * Movement is now VELOCITY-BASED (float position). Each tick that an axis is
+ * held, transform.x/y advances by PLAYER_SPEED (= 1/PLAYER_STEP_TICKS ≈ 0.333
+ * tiles/tick), so Pip crosses one tile in exactly PLAYER_STEP_TICKS ticks —
+ * matching the old effective speed while eliminating the glide/commit machinery
+ * that caused the rapid-reversal teleport (brief 61 bug).
+ *
+ * Collision uses Pip's AABB (AABB_HALF = 0.3 tiles, i.e. 0.6×0.6 tile box
+ * around Pip's center). The axes are resolved INDEPENDENTLY (first X, then Y),
+ * which gives wall-slide for free: if the X move clips a solid tile, X is
+ * clamped to the tile edge while Y still advances. Walkability is tested against
+ * integer tile coordinates overlapped by the AABB.
+ *
+ * Diagonal movement is AXIS-INDEPENDENT: both X and Y advance by PLAYER_SPEED
+ * per tick (no SQRT2 normalization). Pip moves ~41 % faster diagonally in
+ * world-units, which is consistent with most action-adventure games and avoids
+ * any transcendental math in the sim path (determinism requirement).
+ *
+ * The `glideFromX/Y` and `stepCooldown` fields are removed from `Player`
+ * (brief 61). `farmer.renderPos` is cleared every tick; the snapshot-builder
+ * falls back to `transform`, which is now already smooth.
+ *
+ * Sim consumers that need a tile index MUST Math.round(transform.x/y). The
+ * proximity helper (`isWithinReach`) already does this. Action targeting in
+ * this file (tx/ty for hotbar) also rounds.
  *
  * Split from player-control.ts.
  */
@@ -23,6 +45,21 @@ import type { SimContext, System, World, Intention } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { regionAt, isWalkable, isFishingIsle, type RegionId } from "../../world/regions";
 import { DIR_DELTA, PLAYER_STEP_TICKS, HOTBAR_SLOTS, type HotbarSlot } from "./hotbar";
+
+/**
+ * Pip's movement speed in tiles per tick.
+ * 1 / PLAYER_STEP_TICKS ≈ 0.333 tiles/tick → 1 tile in 3 ticks, matching the
+ * old tile-commit cadence. Exported for tests.
+ */
+export const PLAYER_SPEED = 1 / PLAYER_STEP_TICKS;
+
+/**
+ * Half-width (and half-height) of Pip's AABB in tile units. The AABB is a
+ * 0.6×0.6 tile square centered on transform. A slightly-inset box (vs. 0.5)
+ * gives a small tolerance at tile corners, preventing Pip from snagging on
+ * single-tile protruding corners when sliding along walls.
+ */
+const AABB_HALF = 0.3;
 
 export class PlayerControlSystem implements System {
   readonly name = "PlayerControlSystem";
@@ -38,70 +75,34 @@ export class PlayerControlSystem implements System {
       // Movement resets every tick; the walk-cycle reads movedThisTick.
       farmer.movedThisTick = false;
 
-      // ── Movement ─────────────────────────────────────────────────────────
-      // pendingMoveX/Y are the HELD axes (resent when the held keys change, null
-      // on release). Two axes held at once → DIAGONAL. The sim owns the cadence:
-      // commit one tile every PLAYER_STEP_TICKS ticks; on the in-between ticks
-      // glide farmer.renderPos so the per-tick snapshot shows continuous motion
-      // (no full-tile jump → smooth camera). Mirrors TravelSystem's renderPos.
-      //
-      // The glide TRAILS the authoritative transform: each commit moves transform
-      // to the new tile immediately, and renderPos eases from the PREVIOUS tile up
-      // *into* that committed tile over the next PLAYER_STEP_TICKS ticks. Trailing
-      // (never leading) is what keeps releases/direction-flips smooth — the
-      // visual never sits ahead of transform, so stopping or turning never has to
-      // yank Pip backward (the cause of the press-A-then-D "shake").
+      // ── Continuous movement ───────────────────────────────────────────────
+      // Clear any residual renderPos every tick — transform IS the position now.
+      farmer.renderPos = undefined;
+
       const mx = player.pendingMoveX;
       const my = player.pendingMoveY;
+
       if (mx !== null || my !== null) {
-        // 4-way facing for the sprite (no diagonal frames): horizontal wins on a
-        // diagonal because the side profile reads best; else use the live axis.
+        // 4-way facing: horizontal wins on a diagonal (side profile reads best).
         player.facing = mx ?? my!;
 
-        if (player.stepCooldown > 0) player.stepCooldown -= 1;
+        // Desired velocity per axis: ±PLAYER_SPEED or 0.
+        const vx = mx === "left" ? -PLAYER_SPEED : mx === "right" ? PLAYER_SPEED : 0;
+        const vy = my === "up"   ? -PLAYER_SPEED : my === "down"  ? PLAYER_SPEED : 0;
 
-        if (player.stepCooldown <= 0) {
-          // Resolve the step from both axes, with wall-slide: prefer the full
-          // diagonal, but if it's blocked fall back to whichever single axis is
-          // open so Pip slides along a wall instead of stopping dead.
-          const dxWant = mx === "left" ? -1 : mx === "right" ? 1 : 0;
-          const dyWant = my === "up" ? -1 : my === "down" ? 1 : 0;
-          const fromX = Math.round(transform.x);
-          const fromY = Math.round(transform.y);
-          const step = this.resolveStep(fromX, fromY, dxWant, dyWant);
-          if (step) {
-            // Commit transform to the new tile; remember the tile we left so the
-            // in-between ticks can ease renderPos from it up INTO the new tile.
-            player.glideFromX = fromX;
-            player.glideFromY = fromY;
-            transform.x = fromX + step.dx;
-            transform.y = fromY + step.dy;
-            farmer.renderPos = { x: fromX, y: fromY };
-            farmer.movedThisTick = true;
-            const region = regionAt(transform.x, transform.y);
-            if (region !== null) farmer.currentRegion = region;
-            player.stepCooldown = PLAYER_STEP_TICKS;
-          } else {
-            // Fully blocked — sit on the true tile (no glide), retry next tick.
-            farmer.renderPos = undefined;
-          }
-        } else {
-          // Between commits: ease renderPos from the tile we left (glideFrom) up
-          // into the committed transform tile. RENDER-ONLY — transform already
-          // holds the authoritative tile, so sim logic (action targeting,
-          // proximity) is unchanged. frac in (0,1): progress through the window.
-          const frac = (PLAYER_STEP_TICKS - player.stepCooldown) / PLAYER_STEP_TICKS;
-          farmer.renderPos = {
-            x: player.glideFromX + (transform.x - player.glideFromX) * frac,
-            y: player.glideFromY + (transform.y - player.glideFromY) * frac,
-          };
+        // Per-axis AABB collision — resolve X then Y independently (wall-slide).
+        const newX = this.resolveAxis(transform.x, transform.y, vx, 0).x;
+        const newY = this.resolveAxis(newX,          transform.y, 0,  vy).y;
+
+        const moved = newX !== transform.x || newY !== transform.y;
+        transform.x = newX;
+        transform.y = newY;
+
+        if (moved) {
           farmer.movedThisTick = true;
+          const region = regionAt(Math.round(transform.x), Math.round(transform.y));
+          if (region !== null) farmer.currentRegion = region;
         }
-      } else {
-        // Key released — next press steps immediately, and Pip renders on its
-        // true tile (drop any mid-step glide).
-        player.stepCooldown = 0;
-        farmer.renderPos = undefined;
       }
 
       // ── Action ────────────────────────────────────────────────────────────
@@ -110,6 +111,7 @@ export class PlayerControlSystem implements System {
       if (player.pendingAction) {
         player.pendingAction = false;
         const { dx, dy } = DIR_DELTA[player.facing]!;
+        // Round Pip's position to the nearest tile, then add the facing delta.
         const tx = Math.round(transform.x) + dx;
         const ty = Math.round(transform.y) + dy;
         const slot = HOTBAR_SLOTS[player.selectedSlot];
@@ -120,6 +122,65 @@ export class PlayerControlSystem implements System {
         }
       }
     }
+  }
+
+  /**
+   * Resolve one axis of movement with AABB collision, returning the new {x,y}.
+   * Only one of vx/vy should be non-zero per call (call twice for diagonal).
+   *
+   * Algorithm:
+   *   1. Compute the candidate position after applying the velocity.
+   *   2. Gather all integer tiles the AABB would overlap at the candidate.
+   *   3. For each overlapping tile that is solid (not walkable or has a feature),
+   *      clamp the position to the tile edge (no penetration).
+   */
+  private resolveAxis(
+    cx: number,
+    cy: number,
+    vx: number,
+    vy: number,
+  ): { x: number; y: number } {
+    if (vx === 0 && vy === 0) return { x: cx, y: cy };
+
+    const nx = cx + vx;
+    const ny = cy + vy;
+
+    // Tiles covered by the AABB at the new position. A small epsilon (1e-6)
+    // prevents a boundary-exactly-touching tile edge from being counted as
+    // overlapping, which avoids spurious Y-axis clamps when the X axis has
+    // already been resolved and Pip's AABB edge sits exactly on a tile boundary.
+    const EPS = 1e-6;
+    const minTX = Math.floor(nx - AABB_HALF + EPS);
+    const maxTX = Math.floor(nx + AABB_HALF - EPS);
+    const minTY = Math.floor(ny - AABB_HALF + EPS);
+    const maxTY = Math.floor(ny + AABB_HALF - EPS);
+
+    let x = nx;
+    let y = ny;
+
+    for (let tx = minTX; tx <= maxTX; tx++) {
+      for (let ty = minTY; ty <= maxTY; ty++) {
+        if (this.canStand(tx, ty)) continue; // open — no clamp needed
+
+        // Tile (tx,ty) is solid. Clamp our movement axis to the tile edge.
+        if (vx > 0) {
+          // Moving right: clamp right edge of AABB to left edge of tile.
+          x = Math.min(x, tx - AABB_HALF);
+        } else if (vx < 0) {
+          // Moving left: clamp left edge of AABB to right edge of tile.
+          x = Math.max(x, tx + 1 + AABB_HALF);
+        }
+        if (vy > 0) {
+          // Moving down: clamp bottom edge to top edge of tile.
+          y = Math.min(y, ty - AABB_HALF);
+        } else if (vy < 0) {
+          // Moving up: clamp top edge to bottom edge of tile.
+          y = Math.max(y, ty + 1 + AABB_HALF);
+        }
+      }
+    }
+
+    return { x, y };
   }
 
   /**
@@ -212,39 +273,6 @@ export class PlayerControlSystem implements System {
   /** A tile is steppable iff walkable and free of a feature/solid obstacle. */
   private canStand(tx: number, ty: number): boolean {
     return isWalkable(tx, ty) && !this.featureAt(tx, ty);
-  }
-
-  /**
-   * Resolve the one-tile step from (fromX,fromY) given the desired per-axis
-   * deltas (each in {-1,0,1}), with wall-slide and no corner-cutting:
-   *  - Diagonal request: take it only if the destination AND both orthogonal
-   *    cells are open (so Pip can't squeeze through a corner gap). If the
-   *    diagonal is blocked, slide along whichever single axis is open.
-   *  - Single-axis request: take it if open.
-   * Returns the chosen {dx,dy}, or null if every candidate is blocked.
-   */
-  private resolveStep(
-    fromX: number,
-    fromY: number,
-    dxWant: number,
-    dyWant: number,
-  ): { dx: number; dy: number } | null {
-    if (dxWant !== 0 && dyWant !== 0) {
-      const diagOpen =
-        this.canStand(fromX + dxWant, fromY + dyWant) &&
-        this.canStand(fromX + dxWant, fromY) &&
-        this.canStand(fromX, fromY + dyWant);
-      if (diagOpen) return { dx: dxWant, dy: dyWant };
-      // Wall-slide: prefer the horizontal slide, else the vertical.
-      if (this.canStand(fromX + dxWant, fromY)) return { dx: dxWant, dy: 0 };
-      if (this.canStand(fromX, fromY + dyWant)) return { dx: 0, dy: dyWant };
-      return null;
-    }
-    // Single axis (one of dxWant/dyWant is 0).
-    if (this.canStand(fromX + dxWant, fromY + dyWant)) {
-      return { dx: dxWant, dy: dyWant };
-    }
-    return null;
   }
 
   /** The plot owned by `entity` at the given tile, or null. */
