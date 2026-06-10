@@ -45,6 +45,14 @@ export class Canvas2dRenderer {
   private waterOffsetX = 0;
   private waterOffsetY = 0;
 
+  // brief 64 — swell pulse: a second low-alpha pattern pass drawn on top of
+  // the base water fill, shifted by a small offset, to create a gentle ambient
+  // wave swell. Alpha and offsets are pushed each frame by the render loop
+  // (same API as setWaterScroll). Default alpha=0 → no-op until first set.
+  private waterSwellAlpha = 0;
+  private waterSwellOffsetX = 0;
+  private waterSwellOffsetY = 0;
+
   /**
    * Backdrop color filled behind every frame (the area outside the world / not
    * covered by sprites). Defaults to a near-black; games can set it to match
@@ -180,6 +188,22 @@ export class Canvas2dRenderer {
     this.waterOffsetY = offsetY % this.waterTileSize;
   }
 
+  /**
+   * brief 64 — swell pulse. Push the swell parameters for the coming frame.
+   * The render loop computes alpha (0–1) and offset from a sine phase and calls
+   * this once per frame; `endFrame` draws a second pattern pass at the given
+   * alpha+offset on top of the base water fill. When alpha ≤ 0 the pass is
+   * skipped entirely. Mirrors `setWaterScroll` — the engine only draws what
+   * it's told; the wall-clock sine lives in the render loop.
+   */
+  setWaterSwell(alpha: number, offsetX: number, offsetY: number): void {
+    this.waterSwellAlpha = alpha;
+    if (this.waterTileSize > 0) {
+      this.waterSwellOffsetX = offsetX % this.waterTileSize;
+      this.waterSwellOffsetY = offsetY % this.waterTileSize;
+    }
+  }
+
   /** Drop the cached static layer (e.g. before re-baking a changed world). */
   clearStaticLayer(): void {
     this.staticLayer = null;
@@ -307,6 +331,29 @@ export class Canvas2dRenderer {
       if (waterSmooth) ctx.imageSmoothingEnabled = true;
       ctx.fillStyle = this.waterPattern;
       ctx.fillRect(visL, visT, visW, visH);
+
+      // brief 64 — swell pulse: second low-alpha pass of the same pattern at a
+      // small offset so the water appears to gently rise/fall. Sits INSIDE the
+      // smoothing guard so it gets the same bilinear treatment at low zoom —
+      // prevents the swell layer itself from shimmering at zoom < 1. Skipped
+      // entirely when swellAlpha ≤ 0 (e.g. before the render loop sets it).
+      if (this.waterSwellAlpha > 0) {
+        if (typeof DOMMatrix !== "undefined" && this.waterPattern.setTransform) {
+          this.waterPattern.setTransform(
+            new DOMMatrix([1, 0, 0, 1, this.waterSwellOffsetX, this.waterSwellOffsetY]),
+          );
+        }
+        ctx.globalAlpha = this.waterSwellAlpha;
+        ctx.fillRect(visL, visT, visW, visH);
+        ctx.globalAlpha = 1;
+        // Restore the base scroll transform so later code sees a clean state.
+        if (typeof DOMMatrix !== "undefined" && this.waterPattern.setTransform) {
+          this.waterPattern.setTransform(
+            new DOMMatrix([1, 0, 0, 1, this.waterOffsetX, this.waterOffsetY]),
+          );
+        }
+      }
+
       if (waterSmooth) ctx.imageSmoothingEnabled = false;
     }
 

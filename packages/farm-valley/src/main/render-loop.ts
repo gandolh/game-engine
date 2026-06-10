@@ -134,6 +134,24 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       Math.cos(t * 0.17) * WATER_DRIFT,
     );
 
+    // brief 64 — swell pulse. A slow whole-pattern brightness modulation that
+    // makes the water appear to gently rise/fall rather than only slide. Period
+    // ~7.5 s (angular freq 2π/7.5 ≈ 0.838 rad/s); alpha oscillates 0.06–0.10
+    // so the effect is invisible until you look for it. The swell offset drifts
+    // orthogonally to the base scroll so it doesn't simply double the base fill.
+    // Wall-clock only — no determinism impact. Uses the same `t` computed above.
+    const SWELL_PERIOD_S = 7.5;
+    const swellPhase = (t * (2 * Math.PI)) / SWELL_PERIOD_S; // [0, 2π) cycling
+    const SWELL_ALPHA_MID = 0.08;
+    const SWELL_ALPHA_AMP = 0.02; // total range 0.06–0.10
+    const swellAlpha = SWELL_ALPHA_MID + SWELL_ALPHA_AMP * Math.sin(swellPhase);
+    const SWELL_DRIFT = TILE * 0.4; // offset amplitude, world px — less than base
+    renderer.setWaterSwell(
+      swellAlpha,
+      Math.cos(t * 0.19) * SWELL_DRIFT, // cos/sin at different rates → orthogonal feel
+      Math.sin(t * 0.13) * SWELL_DRIFT,
+    );
+
     // Sparse foam bubbles at the coastline only, culled to the visible camera
     // rect (plus a 1-tile margin). Tens of draws instead of one per water cell.
     // Phase offset per tile so bubbles pop out of sync; ~1.8 s A→B→C cycle.
@@ -143,6 +161,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     // that don't read — so we thin them by a stride that grows as zoom drops.
     // The chunky water pattern carries the surface at far zoom; bubbles return
     // to full density as you zoom in. Keeps far-zoom frame time flat.
+    //
+    // brief 64 — foam alpha is now swell-synced: the base 0.45 rises by 0.25
+    // as the swell "arrives" at each shore tile, using the same swellPhase plus
+    // a per-tile offset so tiles brighten at slightly different times rather
+    // than all flickering in unison.
     const zoom = _camera!.zoom;
     const bubbleStride = zoom >= 1 ? 1 : zoom >= 0.75 ? 2 : zoom >= 0.6 ? 3 : 4;
     const FOAM_PERIOD_MS = 1800;
@@ -157,8 +180,13 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       const cx = tx * TILE + TILE / 2;
       const cy = ty * TILE + TILE / 2;
       if (cx < viewLeft || cx > viewRight || cy < viewTop || cy > viewBottom) continue;
-      const phase = tx * 3 + ty * 5; // per-tile offset
+      const phase = tx * 3 + ty * 5; // per-tile offset (integer, reused below)
       const frame = FOAM_FRAMES[(Math.floor(foamStep) + phase) % FOAM_FRAMES.length]!;
+      // brief 64 — swell-synced foam brightness. tilePhase is a small normalized
+      // offset per tile (divide by 8 so the range stays within ~2π over the tile
+      // grid rather than wrapping many times and randomizing to a flat average).
+      const tilePhase = phase * 0.125;
+      const foamAlpha = 0.45 + 0.25 * Math.sin(swellPhase + tilePhase);
       renderer.push({
         x: cx,
         y: cy,
@@ -168,7 +196,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         atlasId: "terrain",
         rotation: 0,
         layer: 1,
-        alpha: 0.6,
+        alpha: foamAlpha,
       });
     }
 
