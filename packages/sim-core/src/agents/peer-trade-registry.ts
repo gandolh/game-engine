@@ -46,6 +46,18 @@ interface PeerTradeHooks {
   initiate?: InitiatePeerTradeFn;
   respond: RespondPeerOfferFn;
   initiateGift?: InitiateBeanGiftFn;
+  /**
+   * brief 59 — fired on MEET to decide whether to propose a HARVESTED-crop
+   * trade (vs the seed trade `initiate` handles). Crops are the real surplus
+   * farmers accumulate; this is the hook that actually closes peer trades.
+   */
+  initiateCrop?: InitiatePeerTradeFn;
+  /**
+   * brief 59 — fired on an incoming OFFER_CROP. Same contract as `respond` but
+   * prices against CROP_SELL_PRICE and checks the `crops` inventory. Defaults
+   * to declining all crop offers if a personality doesn't provide one.
+   */
+  respondCrop?: RespondPeerOfferFn;
 }
 
 const registry = new Map<string, PeerTradeHooks>();

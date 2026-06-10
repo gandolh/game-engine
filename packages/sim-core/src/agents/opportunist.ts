@@ -9,7 +9,7 @@ import { seasonForDay } from "../protocols/weather";
 import {
   registerPeerTradeHooks,
 } from "./peer-trade-registry";
-import { makeRespondPeerOffer } from "./peer-trade-policy";
+import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateShrineVisit } from "./watering";
@@ -315,6 +315,21 @@ export const respondToPeerOfferOpportunist = makeRespondPeerOffer({
   reserveDefault: 50,
 });
 
+/**
+ * brief 59 — opportunist is the natural arbitrageur and the keenest crop BUYER:
+ * it snaps up peers' surplus harvested crops at or below shop value (ceiling
+ * 1.0) to resell at the wall for margin. (It barely accumulates crops itself —
+ * peak ~4 wheat — so it's demand, not supply; the hoarder is the seller.)
+ */
+export const respondCropOfferOpportunist = makeRespondPeerOffer({
+  commodity: "crop",
+  buyCeiling: 1.0, // buys crops at or below shop value (resale margin)
+  sellFloor: 0.9,
+  bufferSeeds: 0,
+  reserveDefault: 50,
+});
+
 registerPeerTradeHooks("opportunist", {
   respond: respondToPeerOfferOpportunist,
+  respondCrop: respondCropOfferOpportunist,
 });

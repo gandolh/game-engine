@@ -4,18 +4,20 @@ import type {
   World,
   AgentMessage,
 } from "@engine/core";
-import type { GameEntity, CropKind } from "../../components";
+import type { GameEntity, CropKind, Inventory } from "../../components";
 import { findById } from "../entity-helpers";
 import {
   ONT_ENCOUNTER,
   type MeetBody,
   type OfferSeedBody,
+  type OfferCropBody,
   type OfferBeanBody,
   type AcceptBody,
   type DeclineBody,
 } from "../../protocols/encounter";
 import { PERFORMATIVE } from "../../protocols/performatives";
 import { getPeerTradeHooks } from "../../agents/peer-trade-registry";
+import type { TradeCommodity } from "../../agents/peer-trade-policy";
 import { applyTrustDelta, DEFAULT_TRUST_CONFIG } from "../trust";
 import { OFFER_TTL_TICKS, GIFT_TRUST_DELTA, ENCOUNTER_ONTOLOGIES } from "./constants";
 
@@ -51,6 +53,8 @@ interface PendingOffer {
   senderId: number;
   recipientId: number;
   tick: number;
+  /** brief 59 — which inventory slot the transfer moves on accept. */
+  commodity: TradeCommodity;
 }
 
 export class EncounterTradeSystem implements System {
@@ -125,6 +129,7 @@ export class EncounterTradeSystem implements System {
         const consume =
           msg.ontology === ONT_ENCOUNTER.MEET ||
           msg.ontology === ONT_ENCOUNTER.OFFER_SEED ||
+          msg.ontology === ONT_ENCOUNTER.OFFER_CROP ||
           msg.ontology === ONT_ENCOUNTER.OFFER_BEAN;
 
         if (consume) {
@@ -157,6 +162,16 @@ export class EncounterTradeSystem implements System {
           msg.body as unknown as OfferSeedBody,
           msg.sender,
           ctx,
+          "seed",
+        );
+        return;
+      case ONT_ENCOUNTER.OFFER_CROP:
+        this.handleOffer(
+          farmer,
+          msg.body as unknown as OfferCropBody,
+          msg.sender,
+          ctx,
+          "crop",
         );
         return;
       case ONT_ENCOUNTER.OFFER_BEAN:
@@ -181,14 +196,19 @@ export class EncounterTradeSystem implements System {
     ctx: SimContext,
   ): void {
     if (farmer.id === undefined) return;
-    // Only the lower-id farmer's MEET triggers initiate, so a pair never
-    // initiates two simultaneous offers.
-    if (farmer.id > meet.peerId) return;
 
     const personality = farmer.personality?.kind;
     if (!personality) return;
     const hooks = getPeerTradeHooks(personality);
     if (!hooks) return;
+
+    // MEET is delivered to BOTH farmers in a pair. The lower-id guard below
+    // applies ONLY to the seed offer, so a pair never makes two simultaneous
+    // *seed* offers. Gifts and crop offers are each side proposing its OWN
+    // surplus (distinct ontologies + offerIds, independently negotiated), so
+    // both sides may fire them — that's how the crop seller, whichever id it
+    // has, actually gets to sell (brief 59: the surplus-holding hoarder is
+    // often the higher id, and the old guard silently blocked it).
 
     // brief 24 — gift a golden bean to this peer if the personality's gift hook
     // opts in (e.g. to a trusted ally). One-way and immediate; sent as an
@@ -209,30 +229,54 @@ export class EncounterTradeSystem implements System {
       }
     }
 
-    if (!hooks.initiate) return;
+    // brief 59 — a HARVESTED-crop offer (the surplus that actually exists).
+    // Independent of the seed offer; sent as OFFER_CROP.
+    if (hooks.initiateCrop) {
+      const cropOffer = hooks.initiateCrop(farmer, meet, { tick: ctx.tick });
+      if (cropOffer) this.sendOffer(farmer.id, meet.peerId, cropOffer, "crop", ctx.tick);
+    }
 
+    // Seed offer: gated to the lower-id side so a pair never makes two
+    // simultaneous seed offers (preserves the original brief-09 invariant).
+    if (farmer.id > meet.peerId) return;
+    if (!hooks.initiate) return;
     const offer = hooks.initiate(farmer, meet, { tick: ctx.tick });
     if (!offer) return;
+    this.sendOffer(farmer.id, meet.peerId, offer, "seed", ctx.tick);
+  }
 
+  /**
+   * Register a pending offer and deliver it to the peer. `commodity` selects
+   * the ontology (OFFER_SEED / OFFER_CROP) and is recorded so the eventual
+   * ACCEPT transfers the right inventory slot.
+   */
+  private sendOffer(
+    fromId: number,
+    toId: number,
+    offer: OfferSeedBody,
+    commodity: TradeCommodity,
+    tick: number,
+  ): void {
     // Defensive idempotency: skip if we already have a live offer with this id.
     if (this.pendingOffers.has(offer.offerId)) return;
 
-    const peer = findById(this.world, meet.peerId, "farmer", "inbox");
+    const peer = findById(this.world, toId, "farmer", "inbox");
     if (!peer || !peer.inbox) return;
 
     this.pendingOffers.set(offer.offerId, {
       offer,
-      senderId: farmer.id,
-      recipientId: meet.peerId,
-      tick: ctx.tick,
+      senderId: fromId,
+      recipientId: toId,
+      tick,
+      commodity,
     });
 
     peer.inbox.messages.push({
       performative: PERFORMATIVE.PROPOSE,
-      ontology: ONT_ENCOUNTER.OFFER_SEED,
-      sender: farmer.id,
+      ontology: commodity === "crop" ? ONT_ENCOUNTER.OFFER_CROP : ONT_ENCOUNTER.OFFER_SEED,
+      sender: fromId,
       body: offer as unknown as Record<string, unknown>,
-      tickIssued: ctx.tick,
+      tickIssued: tick,
     });
   }
 
@@ -241,6 +285,7 @@ export class EncounterTradeSystem implements System {
     offer: OfferSeedBody,
     sender: number | "world",
     ctx: SimContext,
+    commodity: TradeCommodity,
   ): void {
     if (farmer.id === undefined) return;
     if (sender === "world" || typeof sender !== "number") return;
@@ -254,6 +299,7 @@ export class EncounterTradeSystem implements System {
         senderId: sender,
         recipientId: farmer.id,
         tick: ctx.tick,
+        commodity,
       });
     }
 
@@ -270,7 +316,15 @@ export class EncounterTradeSystem implements System {
       return;
     }
 
-    const result = hooks.respond(farmer, offer, sender, { tick: ctx.tick });
+    // Crop offers consult respondCrop (priced vs CROP_SELL_PRICE); a personality
+    // without one declines all crop offers. Seed offers use respond.
+    const responder = commodity === "crop" ? hooks.respondCrop : hooks.respond;
+    if (!responder) {
+      this.sendDecline(farmer.id, sender, offer.offerId, "no-crop-responder", ctx.tick);
+      this.pendingOffers.delete(offer.offerId);
+      return;
+    }
+    const result = responder(farmer, offer, sender, { tick: ctx.tick });
     if (result.decision === "accept") {
       this.sendAccept(farmer.id, sender, offer.offerId, ctx.tick);
       // Responder-side trust delta — initiator-side fires when their inbox
@@ -333,7 +387,7 @@ export class EncounterTradeSystem implements System {
     if (!initiator || !acceptor) return;
     if (!initiator.inventory || !acceptor.inventory) return;
 
-    this.applyTransfer(initiator, acceptor, pending.offer);
+    this.applyTransfer(initiator, acceptor, pending.offer, pending.commodity);
   }
 
   private handleDecline(body: DeclineBody): void {
@@ -342,8 +396,9 @@ export class EncounterTradeSystem implements System {
 
   /**
    * Atomic transfer. `direction` is the original initiator's role:
-   *   - "buy"  → initiator pays gold, acceptor gives seeds.
-   *   - "sell" → initiator gives seeds, acceptor pays gold.
+   *   - "buy"  → initiator pays gold, acceptor gives stock.
+   *   - "sell" → initiator gives stock, acceptor pays gold.
+   * `commodity` selects which inventory slot moves (seeds vs harvested crops).
    *
    * If either side can't fulfill (gold/stock), the transfer is silently
    * skipped to keep the sim deterministic.
@@ -352,28 +407,34 @@ export class EncounterTradeSystem implements System {
     initiator: GameEntity,
     acceptor: GameEntity,
     offer: OfferSeedBody,
+    commodity: TradeCommodity,
   ): void {
     const inv1 = initiator.inventory!;
     const inv2 = acceptor.inventory!;
     const total = offer.unitPrice * offer.quantity;
     const crop: CropKind = offer.crop;
+    const qty = offer.quantity;
+    const stock1 = commodity === "seed" ? inv1.seeds : inv1.crops;
+    const stock2 = commodity === "seed" ? inv2.seeds : inv2.crops;
 
     if (offer.direction === "buy") {
-      // Initiator buys: pays gold to acceptor, receives seeds.
+      // Initiator buys: pays gold to acceptor, receives stock.
       if (inv1.gold < total) return;
-      if (inv2.seeds[crop] < offer.quantity) return;
+      if (stock2[crop] < qty) return;
       inv1.gold -= total;
       inv2.gold += total;
-      inv2.seeds[crop] -= offer.quantity;
-      inv1.seeds[crop] += offer.quantity;
+      stock2[crop] -= qty;
+      stock1[crop] += qty;
+      if (commodity === "crop") moveNormalQuality(inv2, inv1, crop, qty);
     } else {
-      // Initiator sells: gives seeds, receives gold from acceptor.
+      // Initiator sells: gives stock, receives gold from acceptor.
       if (inv2.gold < total) return;
-      if (inv1.seeds[crop] < offer.quantity) return;
+      if (stock1[crop] < qty) return;
       inv2.gold -= total;
       inv1.gold += total;
-      inv1.seeds[crop] -= offer.quantity;
-      inv2.seeds[crop] += offer.quantity;
+      stock1[crop] -= qty;
+      stock2[crop] += qty;
+      if (commodity === "crop") moveNormalQuality(inv1, inv2, crop, qty);
     }
   }
 
@@ -444,6 +505,31 @@ export class EncounterTradeSystem implements System {
       senderId: p.senderId,
       recipientId: p.recipientId,
       tick: p.tick,
+      commodity: "seed",
     });
+  }
+}
+
+/**
+ * brief 59 — keep `cropQuality` consistent when harvested crops change hands.
+ * `crops[crop]` (already moved by the caller) must equal normal+silver+gold
+ * when the per-quality breakdown is present. Traded units are treated as
+ * Normal quality (sellers offload their lowest tier), so we shift the `normal`
+ * bucket. No-ops when neither side tracks quality. Clamps to avoid negatives if
+ * the giver's normal count somehow lags its total.
+ */
+function moveNormalQuality(
+  giver: Inventory,
+  receiver: Inventory,
+  crop: CropKind,
+  qty: number,
+): void {
+  if (giver.cropQuality) {
+    const g = giver.cropQuality[crop];
+    if (g) g.normal = Math.max(0, g.normal - qty);
+  }
+  if (receiver.cropQuality) {
+    const r = receiver.cropQuality[crop];
+    if (r) r.normal += qty;
   }
 }

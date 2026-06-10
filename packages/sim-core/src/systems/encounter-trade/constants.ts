@@ -14,6 +14,7 @@ type EncounterOntologyValue = (typeof ONT_ENCOUNTER)[keyof typeof ONT_ENCOUNTER]
 export const ENCOUNTER_ONTOLOGIES: ReadonlySet<string> = new Set<EncounterOntologyValue>([
   ONT_ENCOUNTER.MEET,
   ONT_ENCOUNTER.OFFER_SEED,
+  ONT_ENCOUNTER.OFFER_CROP,
   ONT_ENCOUNTER.OFFER_BEAN,
   ONT_ENCOUNTER.ACCEPT,
   ONT_ENCOUNTER.DECLINE,

@@ -8,7 +8,7 @@ import {
   registerPeerTradeHooks,
   type InitiateBeanGiftFn,
 } from "./peer-trade-registry";
-import { makeRespondPeerOffer } from "./peer-trade-policy";
+import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
@@ -318,6 +318,35 @@ export const respondToPeerOfferAggressive = makeRespondPeerOffer({
 });
 
 /**
+ * brief 59 — aggressive initiates to BUY radish seeds it's short on, to plant
+ * faster (growth over reserve). Bids at SEED_COST (mult 1.0), which clears every
+ * seller's floor, and only when below a small stock threshold so it doesn't
+ * spam offers once stocked. (Seeds rarely surplus, so this seldom closes — kept
+ * because aggressive's identity is "spend to grow".)
+ */
+export const initiatePeerTradeAggressive = makeInitiatePeerTrade({
+  stance: "buy-shortage",
+  crop: "radish",
+  quantity: 2,
+  threshold: 2,
+  priceMult: 1.0,
+  reserveDefault: 10,
+});
+
+/**
+ * brief 59 — aggressive is the discount crop buyer: it snaps up peers' surplus
+ * harvested crops cheaply (ceiling 0.95, below shop) to resell at the wall for
+ * margin. Low reserve — it leans into spending.
+ */
+export const respondCropOfferAggressive = makeRespondPeerOffer({
+  commodity: "crop",
+  buyCeiling: 0.95,
+  sellFloor: 1.0,
+  bufferSeeds: 0,
+  reserveDefault: 10,
+});
+
+/**
  * brief 24 — aggressive uses a won golden bean as a bribe: gift it to the peer
  * it ALREADY trusts most (>= 0.6), cementing the alliance with a big trust
  * boost rather than flipping it for gold. Only fires when holding a bean (the
@@ -334,6 +363,8 @@ export const initiateBeanGiftAggressive: InitiateBeanGiftFn = (
 };
 
 registerPeerTradeHooks("aggressive", {
+  initiate: initiatePeerTradeAggressive,
   respond: respondToPeerOfferAggressive,
   initiateGift: initiateBeanGiftAggressive,
+  respondCrop: respondCropOfferAggressive,
 });

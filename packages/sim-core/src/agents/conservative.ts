@@ -4,7 +4,7 @@ import { registerPersonality } from "./registry";
 import {
   registerPeerTradeHooks,
 } from "./peer-trade-registry";
-import { makeRespondPeerOffer } from "./peer-trade-policy";
+import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
 import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateCoralFishing } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
@@ -296,6 +296,20 @@ export const respondToPeerOfferConservative = makeRespondPeerOffer({
   reserveDefault: 30,
 });
 
+/**
+ * brief 59 — conservative is a cautious crop BUYER: it only takes a clear
+ * bargain (ceiling 0.9, well below shop) and never spends down its reserve. It
+ * doesn't accumulate crops itself, so it's pure demand, not supply.
+ */
+export const respondCropOfferConservative = makeRespondPeerOffer({
+  commodity: "crop",
+  buyCeiling: 0.9, // only buys a clear bargain (well below shop)
+  sellFloor: 0.9,
+  bufferSeeds: 0,
+  reserveDefault: 30,
+});
+
 registerPeerTradeHooks("conservative", {
   respond: respondToPeerOfferConservative,
+  respondCrop: respondCropOfferConservative,
 });

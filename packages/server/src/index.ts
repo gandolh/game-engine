@@ -54,11 +54,28 @@ async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
 async function main(): Promise<void> {
   const pathfinderWasm = await loadPathfinderWasm();
 
-  const wss = new WebSocketServer({ port: PORT });
+  // permessage-deflate: transparent per-message compression negotiated at the
+  // WS handshake. Snapshots are repetitive JSON, so this typically cuts the wire
+  // size ~70-80% at near-zero CPU for our payload size. `threshold` skips tiny
+  // control frames (init/profile) where the compression header costs more than
+  // it saves. Falls back gracefully if a client doesn't support the extension.
+  const wss = new WebSocketServer({
+    port: PORT,
+    perMessageDeflate: { threshold: 1024 },
+  });
   console.log(`[server] Farm Valley sim server listening on ws://localhost:${PORT}`);
 
   wss.on("connection", (ws: WebSocket) => {
     let dropped = 0;
+
+    // Disable Nagle's algorithm: a no-op for today's large JSON frames, but
+    // mandatory before any small-frame (binary/delta) codec, where Nagle +
+    // delayed-ACK would add ~40 ms of artificial latency per send. `_socket` is
+    // the underlying net.Socket, exposed by `ws` but absent from its public
+    // types — narrow it here rather than reach for `any`.
+    const rawSocket = (ws as { _socket?: { setNoDelay(b: boolean): void } })
+      ._socket;
+    rawSocket?.setNoDelay(true);
 
     const send = (msg: WorkerOutbound): void => {
       if (ws.readyState !== ws.OPEN) return;

@@ -11,7 +11,7 @@ import {
   registerPeerTradeHooks,
   type InitiatePeerTradeFn,
 } from "./peer-trade-registry";
-import { makeRespondPeerOffer } from "./peer-trade-policy";
+import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
@@ -260,7 +260,13 @@ registerPersonality("hoarder", deliberateHoarder);
 // ---------------------------------------------------------------------------
 
 const HOARDER_INITIATE_QTY = 3;
-const HOARDER_INITIATE_PRICE_RADISH = 4.5;
+/**
+ * Hoarder bids at the seed's shop cost (a fair price a peer holding surplus
+ * will take — it beats nothing, and is below the hoarder's own 1.05 buy
+ * ceiling). Priced against SEED_COST, not the harvested-crop value. (Pre-brief-59
+ * this was a flat 4.5 vs an 8-anchored floor, so every offer was declined.)
+ */
+const HOARDER_INITIATE_PRICE_MULT = 1.0;
 const HOARDER_BUFFER_SEEDS = 2;
 const HOARDER_PEER_BUY_CEILING = 1.05;
 const HOARDER_PEER_SELL_FLOOR = 0.95;
@@ -278,7 +284,7 @@ export const initiatePeerTradeHoarder: InitiatePeerTradeFn = (
 
   const crop: CropKind = "radish";
   const qty = HOARDER_INITIATE_QTY;
-  const unitPrice = HOARDER_INITIATE_PRICE_RADISH;
+  const unitPrice = SEED_COST[crop] * HOARDER_INITIATE_PRICE_MULT;
 
   // Don't initiate if hoarder already has enough radish seeds.
   if (farmer.inventory.seeds[crop] >= qty) return null;
@@ -301,7 +307,28 @@ export const respondToPeerOfferHoarder = makeRespondPeerOffer({
   reserveDefault: 80,
 });
 
+/**
+ * brief 59 — the hoarder is the field's big crop accumulator (it stockpiles
+ * harvested crops and sells them inefficiently — peak wheat ~22 vs ~4 for
+ * anyone else), so it's the natural SUPPLY side of the peer crop economy.
+ * Giving it a peer-sell outlet for surplus (threshold 6, above its working
+ * stock; small 2-unit parcels so a cash-tight buyer can afford one) is in
+ * character — it only parts with crops once it has a comfortable pile. Sells
+ * just below shop (0.95) so the opportunist/aggressive buyers bite. This is
+ * what lets crop trades actually close and feed the trust matrix.
+ */
+export const initiateCropTradeHoarder = makeInitiatePeerTrade({
+  stance: "sell-surplus",
+  commodity: "crop",
+  crop: "wheat",
+  quantity: 2,
+  threshold: 6,
+  priceMult: 0.95,
+  reserveDefault: 80,
+});
+
 registerPeerTradeHooks("hoarder", {
   initiate: initiatePeerTradeHoarder,
   respond: respondToPeerOfferHoarder,
+  initiateCrop: initiateCropTradeHoarder,
 });

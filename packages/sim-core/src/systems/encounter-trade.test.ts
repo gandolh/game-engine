@@ -22,6 +22,7 @@ interface FarmerSpec {
   gold?: number;
   reserve?: number;
   seeds?: Partial<Record<CropKind, number>>;
+  crops?: Partial<Record<CropKind, number>>;
   day?: number;
 }
 
@@ -41,7 +42,7 @@ function spawnFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEntity {
     intentions: { queue: [] },
     inventory: {
       gold: spec.gold ?? 200,
-      crops: { ...ZERO },
+      crops: { ...ZERO, ...spec.crops },
       seeds: { ...ZERO, ...spec.seeds },
     },
   });
@@ -65,26 +66,51 @@ describe("EncounterTradeSystem", () => {
   });
 
   it("Hoarder declines an OFFER_SEED that breaches her seed buffer", () => {
-    // Hannah initiates a BUY offer to Atticus at unitPrice 4.5 (below
-    // aggressive's 95% floor → Atticus declines).
+    // A peer (Atticus) tries to BUY radish seeds from Hannah. Hannah (hoarder)
+    // keeps a 2-seed buffer, so an offer for more than (stock - buffer) is
+    // declined "would-deplete-buffer" even at an acceptable price. Hannah holds
+    // 3 radish; buffer 2 → she can part with at most 1, but the offer asks 2.
     const hannah = spawnFarmer(world, {
       personality: "hoarder",
       gold: 200,
       reserve: 80,
+      seeds: { radish: 3 },
+    });
+    const atticus = spawnFarmer(world, {
+      personality: "aggressive",
+      gold: 100,
       seeds: { radish: 0 },
     });
-    spawnFarmer(world, { personality: "aggressive", gold: 100, seeds: { radish: 5 } });
 
-    encounter.run({ tick: 1 });
+    // Atticus buys 2 radish seeds at SEED_COST (5) — clears Hannah's sell floor
+    // (0.95×5=4.75), so only the buffer rule can decline it.
+    const offer: OfferSeedBody = {
+      offerId: "buffer-1",
+      crop: "radish",
+      quantity: 2,
+      unitPrice: 5,
+      direction: "buy",
+    };
+    hannah.inbox!.messages.push({
+      performative: PERFORMATIVE.PROPOSE,
+      ontology: ONT_ENCOUNTER.OFFER_SEED,
+      sender: atticus.id!,
+      body: offer as unknown as Record<string, unknown>,
+      tickIssued: 1,
+    });
+
     trade.run({ tick: 1 });
 
-    const declines = inboxOf(hannah, ONT_ENCOUNTER.DECLINE);
+    // Hannah declines back to Atticus (the offer's sender).
+    const declines = inboxOf(atticus, ONT_ENCOUNTER.DECLINE);
     expect(declines).toHaveLength(1);
   });
 
   it("MEET → OFFER_SEED → ACCEPT transfers seeds + gold (sell direction injected)", () => {
     // Inject a sell-direction OFFER_SEED directly: Atticus offers wheat seeds
-    // to Otto at unit price 14 (= shop) → Otto's ceiling 110% (15.4) → accept.
+    // to Otto at unit price 8 (= SEED_COST.wheat) → Otto's ceiling 110% of seed
+    // cost (8.8) → accept. (brief 59: seed trades anchor on SEED_COST, not the
+    // crop sell price 14.)
     const atticus = spawnFarmer(world, {
       personality: "aggressive",
       gold: 100,
@@ -101,7 +127,7 @@ describe("EncounterTradeSystem", () => {
       offerId: "manual-1",
       crop: "wheat",
       quantity: 2,
-      unitPrice: 14,
+      unitPrice: 8,
       direction: "sell",
     };
     otto.inbox!.messages.push({
@@ -114,10 +140,10 @@ describe("EncounterTradeSystem", () => {
 
     trade.run({ tick: 1 });
 
-    // Otto pays 28, gains 2 wheat seeds. Atticus receives 28, loses 2 seeds.
-    expect(atticus.inventory!.gold).toBe(128);
+    // Otto pays 16, gains 2 wheat seeds. Atticus receives 16, loses 2 seeds.
+    expect(atticus.inventory!.gold).toBe(116);
     expect(atticus.inventory!.seeds.wheat).toBe(3);
-    expect(otto.inventory!.gold).toBe(172);
+    expect(otto.inventory!.gold).toBe(184);
     expect(otto.inventory!.seeds.wheat).toBe(2);
   });
 
@@ -351,13 +377,13 @@ describe("EncounterTradeSystem", () => {
     });
 
     // direction='sell' means the sender (Hannah) is selling wheat to Atticus.
-    // Aggressive's buy ceiling is 95% of shop price (14 * 0.95 = 13.3).
-    // unitPrice 13 is below the ceiling, so Atticus accepts.
+    // brief 59 — aggressive's buy ceiling is 95% of SEED_COST.wheat (8 * 0.95 =
+    // 7.6). unitPrice 7 is below the ceiling, so Atticus accepts.
     const offer: OfferSeedBody = {
       offerId: "trust-test-1",
       crop: "wheat",
       quantity: 1,
-      unitPrice: 13,
+      unitPrice: 7,
       direction: "sell",
     };
     atticus.inbox!.messages.push({
@@ -433,5 +459,91 @@ describe("EncounterTradeSystem", () => {
     // Past TTL — expired.
     trade.run({ tick: 10 + OFFER_TTL_TICKS + 1 });
     expect(trade._pendingOfferCount()).toBe(0);
+  });
+
+  // brief 59 — harvested-CROP trades. Seeds are never in surplus (farmers plant
+  // just-in-time), so the crop path is what actually closes peer trades live.
+  describe("crop trades (OFFER_CROP)", () => {
+    it("MEET → OFFER_CROP → ACCEPT transfers crops + gold and bumps trust both ways", () => {
+      // Hannah (hoarder, low id) holds a wheat-crop surplus → initiates a CROP
+      // sell to Otto (opportunist, crop buyer). Hannah sells 2 wheat @ 0.95×
+      // CROP_SELL_PRICE.wheat (14) = 13.3 → Otto's crop ceiling 1.0×14=14 → accept.
+      const hannah = spawnFarmer(world, {
+        personality: "hoarder",
+        gold: 200,
+        reserve: 80,
+        crops: { wheat: 6 }, // >= initiate threshold (6)
+      });
+      const otto = spawnFarmer(world, {
+        personality: "opportunist",
+        gold: 200,
+        reserve: 50,
+        crops: { wheat: 0 },
+      });
+
+      encounter.run({ tick: 1 });
+      trade.run({ tick: 1 });
+
+      // 2 wheat @ 13.3 = 26.6 gold.
+      expect(hannah.inventory!.crops.wheat).toBe(4);
+      expect(otto.inventory!.crops.wheat).toBe(2);
+      expect(hannah.inventory!.gold).toBeCloseTo(226.6, 5);
+      expect(otto.inventory!.gold).toBeCloseTo(173.4, 5);
+
+      // Trust flows both ways: Otto (acceptor) → Hannah on accept; Hannah
+      // (initiator) → Otto when TrustSystem snoops the ACCEPT (not run here),
+      // so at minimum the acceptor-side delta is applied immediately.
+      expect(otto.trust?.byId.get(hannah.id!)).toBe(0.55);
+    });
+
+    it("does not move seeds when trading crops", () => {
+      const hannah = spawnFarmer(world, {
+        personality: "hoarder",
+        gold: 200,
+        reserve: 80,
+        crops: { wheat: 6 },
+        seeds: { wheat: 3 },
+      });
+      const otto = spawnFarmer(world, {
+        personality: "opportunist",
+        gold: 200,
+        reserve: 50,
+      });
+
+      encounter.run({ tick: 1 });
+      trade.run({ tick: 1 });
+
+      // Seeds untouched on both sides — only the crops inventory moved.
+      expect(hannah.inventory!.seeds.wheat).toBe(3);
+      expect(otto.inventory!.seeds.wheat).toBe(0);
+    });
+
+    it("a personality without respondCrop declines crop offers", () => {
+      // Inject an OFFER_CROP to a hoarder (no respondCrop hook) → no-crop-responder.
+      const seller = spawnFarmer(world, { personality: "opportunist", crops: { wheat: 5 } });
+      const hoarder = spawnFarmer(world, { personality: "hoarder", gold: 200 });
+      const offer: OfferSeedBody = {
+        offerId: "crop-1",
+        crop: "wheat",
+        quantity: 2,
+        unitPrice: 13.3,
+        direction: "sell",
+      };
+      hoarder.inbox!.messages.push({
+        performative: PERFORMATIVE.PROPOSE,
+        ontology: ONT_ENCOUNTER.OFFER_CROP,
+        sender: seller.id!,
+        body: offer as unknown as Record<string, unknown>,
+        tickIssued: 1,
+      });
+
+      trade.run({ tick: 1 });
+
+      const declines = inboxOf(seller, ONT_ENCOUNTER.DECLINE) as Array<{
+        body: { reason?: string };
+      }>;
+      expect(declines).toHaveLength(1);
+      expect(declines[0]!.body.reason).toBe("no-crop-responder");
+    });
   });
 });
