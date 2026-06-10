@@ -202,9 +202,33 @@
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/cliff-face-a": {
       "x": 86,
       "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/cliff-face-b": {
+      "x": 103,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "tile/cliff-face-left": {
+      "x": 1,
+      "y": 86,
+      "w": 16,
+      "h": 16
+    },
+    "tile/cliff-face-right": {
+      "x": 18,
+      "y": 86,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 35,
+      "y": 86,
       "w": 16,
       "h": 16
     }

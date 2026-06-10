@@ -17,6 +17,30 @@ import {
 } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
 
+// ── Cliff-face tiles (brief 65) ───────────────────────────────────────────────
+
+/** Islands that get a cliff skirt (rows = number of ocean tile rows south of the
+ *  island's south coast that get cliff-face tiles). Render-only; pathfinding,
+ *  collision, and determinism are untouched (cliffs sit on non-walkable ocean). */
+export const TALL_ISLANDS: ReadonlyArray<{ region: RegionId; rows: 1 | 2 }> = [
+  { region: "heritage-ruin",  rows: 1 }, // ruined watchtower — strong vertical read
+  { region: "waterfall",      rows: 2 }, // height explains the cascade best with 2 rows
+  { region: "shrine",         rows: 1 }, // sacred elevated promontory
+  { region: "quarry-north",   rows: 1 }, // quarry carved from a rocky cliff
+];
+
+export interface CliffTile {
+  tx: number;
+  ty: number;
+  frame: string;
+  row: number; // 0 = first ocean row south, 1 = second (only for rows:2 islands)
+}
+
+/** A/B variant from tile coordinates — derived deterministically, no RNG. */
+function cliffVariant(tx: number, ty: number): "a" | "b" {
+  return (tx * 3 + ty * 5) % 2 === 0 ? "a" : "b";
+}
+
 const TILE = 16;
 
 // ── Tile geometry types ───────────────────────────────────────────────────────
@@ -285,6 +309,83 @@ export const BRIDGE_SET: ReadonlySet<number> = new Set(
   BRIDGES.map((b) => b.ty * WORLD_WIDTH + b.tx),
 );
 
+// ── Cliff skirts (brief 65) ───────────────────────────────────────────────────
+
+/**
+ * Compute cliff-face tiles for the `TALL_ISLANDS` set (brief 65). For each
+ * tall island we walk its southern coastline — every land tile (tx, maxY) whose
+ * southern neighbour (tx, maxY+1) is ocean (non-walkable, in-grid) — and emit
+ * cliff-face sprites on those ocean tiles. Two-row islands get a second row at
+ * (tx, maxY+2) as well.
+ *
+ * Layer: 2 (same as coral / set-pieces, above shore foam at 1, below bridges at
+ * 3). Cliffs are fully opaque so they read clearly; coral is seeded to open water
+ * away from shores, so overlap with coral is rare.
+ *
+ * Corner pieces (tile/cliff-face-left / -right): the leftmost / rightmost tile
+ * of each row gets a corner frame so the cliff terminates naturally instead of
+ * cutting off abruptly.
+ *
+ * Exclusions — bridges and boats are unaffected because:
+ *  - We only emit on non-walkable (ocean) tiles; bridge road tiles are walkable
+ *    and therefore automatically excluded.
+ *  - TALL_ISLANDS was chosen so none has a bridge exiting its south face
+ *    (verified by inspection: shrine/waterfall bridges go E/W; heritage-ruin
+ *    bridge to quarry-north goes N/E horizontally; quarry-north's bridges go
+ *    W/E/N — none exit southward from any of these four islands).
+ *  - Fishing-isle boat docks/lanes are at y≥113; fishing-isle is NOT in
+ *    TALL_ISLANDS, so no overlap.
+ */
+function computeCliffs(): readonly CliffTile[] {
+  // Pass 1 — collect all cliff positions so corner detection works.
+  type CliffPos = { tx: number; ty: number; row: number };
+  const allPositions: CliffPos[] = [];
+
+  for (const { region, rows } of TALL_ISLANDS) {
+    const reg = REGIONS.find((r) => r.id === region);
+    if (!reg) continue;
+    const { minX, maxX, maxY } = reg.bounds;
+
+    for (let tx = minX; tx <= maxX; tx++) {
+      for (let row = 0; row < rows; row++) {
+        const ty = maxY + 1 + row;
+        if (ty >= WORLD_HEIGHT) continue;   // off-grid
+        if (isWalkable(tx, ty)) continue;   // bridge / walkable tile — skip
+        allPositions.push({ tx, ty, row });
+      }
+    }
+  }
+
+  // Pass 2 — fast lookup for corner detection.
+  const cliffKey = (x: number, y: number) => y * WORLD_WIDTH + x;
+  const cliffSet = new Set(allPositions.map((p) => cliffKey(p.tx, p.ty)));
+
+  // Pass 3 — emit CliffTile with the correct frame (corner or variant).
+  const out: CliffTile[] = [];
+  for (const { tx, ty, row } of allPositions) {
+    const hasLeft  = cliffSet.has(cliffKey(tx - 1, ty));
+    const hasRight = cliffSet.has(cliffKey(tx + 1, ty));
+    let frame: string;
+    if (!hasLeft) {
+      frame = "tile/cliff-face-left";
+    } else if (!hasRight) {
+      frame = "tile/cliff-face-right";
+    } else {
+      frame = `tile/cliff-face-${cliffVariant(tx, ty)}`;
+    }
+    out.push({ tx, ty, frame, row });
+  }
+  return out;
+}
+
+export const CLIFFS: readonly CliffTile[] = computeCliffs();
+
+/** Fast lookup: cliff tile positions (ty*WORLD_WIDTH+tx). Used to suppress
+ *  coastline foam bubbles off cliff tiles so bubbles don't float mid-cliff. */
+export const CLIFF_SET: ReadonlySet<number> = new Set(
+  CLIFFS.map((c) => c.ty * WORLD_WIDTH + c.tx),
+);
+
 // ── Ocean + coastline tiles ───────────────────────────────────────────────────
 
 /**
@@ -310,12 +411,17 @@ export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
  * these (culled to the viewport) — surf reads naturally at the shore, and it's
  * tens of draws instead of one per water cell. The flowing water pattern
  * handles the open sea; bubbles are an accent on top of it.
+ *
+ * brief 65: cliff tiles are excluded — foam bubbles floating mid-cliff would
+ * look wrong. CLIFF_SET is computed just before this (above) so we can filter
+ * here without touching the farm-valley render loop.
  */
 export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
   const out: Array<{ tx: number; ty: number }> = [];
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
       if (isWalkable(tx, ty)) continue; // bubbles sit on ocean, not land
+      if (CLIFF_SET.has(ty * WORLD_WIDTH + tx)) continue; // brief 65: no bubbles on cliff faces
       const touchesLand =
         isWalkable(tx, ty - 1) ||
         isWalkable(tx, ty + 1) ||
