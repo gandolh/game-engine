@@ -1,4 +1,4 @@
-export { Camera2D } from "./camera";
+export { Camera2D, MIN_ZOOM, MAX_ZOOM } from "./camera";
 export type { CameraConfig } from "./camera";
 export { Canvas2dRenderer } from "./canvas2d";
 export type { Canvas2dSprite } from "./canvas2d";

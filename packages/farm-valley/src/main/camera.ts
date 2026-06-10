@@ -1,4 +1,4 @@
-import { Camera2D } from "@engine/core";
+import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { TILE } from "./config";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
@@ -128,8 +128,11 @@ export function setupCameraListeners(
 
   canvas.addEventListener("wheel", (e: WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    zoom = Math.max(0.5, Math.min(3, zoom + delta));
+    // brief-60: multiplicative step so zooming feels uniform across [MIN_ZOOM, MAX_ZOOM].
+    // A fixed ±0.1 additive step is glacial at 5×; multiplying by a factor
+    // keeps the perceived speed roughly constant in log-zoom space.
+    const factor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
+    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
     camera.setZoom(zoom);
     applyFocusAndPan(camera);
   }, { passive: false });
