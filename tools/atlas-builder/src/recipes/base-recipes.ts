@@ -1856,6 +1856,92 @@ export const BASE_RECIPES: PixelRecipe[] = [
       "qqqqqqqqqqqqqqqq",
     ],
   },
+  // ── brief 62 — per-island heritage floor variants ────────────────────────────
+  // Three themed floors, one per heritage island, replacing the single shared
+  // `tile/heritage-floor` in backdropFrame. All are low-contrast backdrops (layer
+  // 0) meant to sit in the same family as the original heritage-floor recipe.
+  // EDG32 palette only; all swatch chars come from SWATCH above.
+  {
+    // heritage-floor-stones — mossy turf with half-buried stone slabs.
+    // l = deep green moss (#265c42 greenDark), L = bright grass tuft (#63c74d),
+    // c = grass dark base (#265c42), G = grass mid (#3e8948),
+    // S = slate slab face (#5a6988), Q = stone dark slab edge (#8b9bb4).
+    // The slab seams (S/Q) read as old stone half-swallowed by the turf (l/c).
+    name: "tile/heritage-floor-stones",
+    size: 16,
+    pixels: [
+      "clcccclcccclcccc",
+      "lcccclccccclccGc",
+      "cSSSSSSSSSSSSScc",
+      "cSQQQSSQQQSSQScc",
+      "cSSSSSSSSSSSSScc",
+      "ccclcccclcccclcc",
+      "cclccGcccclccccc",
+      "clcccclcccclcccc",
+      "cSSSSSSSSSSSSScc",
+      "cSQQQSSQQQSSQScc",
+      "cSSSSSSSSSSSSScc",
+      "ccclcccGcccclccc",
+      "cclcccclccccclcc",
+      "lccccclccGccclcc",
+      "cSSSSSSSSSSSSScc",
+      "cSQQQSSQQQSSQScc",
+    ],
+  },
+  {
+    // heritage-floor-ruin — cracked brick rubble.
+    // r = rust/brick (#be4a2f), p = clay/pumpkin mortar (#d77643),
+    // M = bark/near-black crack lines (#3e2731), D = dark wood/rubble (#733e39).
+    // Irregular mortar lines (M) cross a warm brick field (r/p) so it reads as
+    // a collapsed wall seen from above — distinct from stone slabs or grass.
+    name: "tile/heritage-floor-ruin",
+    size: 16,
+    pixels: [
+      "rrrprrrrprrrrprr",
+      "rMrMrMrMrMrMrMrM",
+      "prrrrprrrrprrrrp",
+      "rMMMrMMMrMMMrMMM",
+      "rrprrrrprrrrprrr",
+      "rMrMrMrMrMrMrMrM",
+      "prrDDrprrDDrprrD",
+      "rMrMDMrMrMDMrMrM",
+      "rrrprrrrprrrrprr",
+      "rMrMrMrMrMrMrMrM",
+      "prrrrprrrrprrrrp",
+      "rMMMrMMMrMMMrMMM",
+      "rrprrrrpDrrrprrr",
+      "rMrMrMrMrMrMrMrM",
+      "prrrrprrrrprrrrp",
+      "rMMMrMMMrMMMrMMM",
+    ],
+  },
+  {
+    // heritage-floor-statue — weathered pale flagstone with sparse lichen.
+    // s = steel blue-grey (#8b9bb4, EDG steel), S = slate (#5a6988, EDG slate),
+    // q = stone light (#c0cbdc), e = lichen-blue highlight (#0099db, EDG skyBlue).
+    // Large pale slabs (s/q) with thin slate grout (S) and a few lichen dots (e)
+    // so it reads as old tended stone — paler and calmer than the ruin floor.
+    name: "tile/heritage-floor-statue",
+    size: 16,
+    pixels: [
+      "ssssssssSssssssS",
+      "ssqsssssSssqsssS",
+      "ssssssssSssssssS",
+      "SSSSSSSSSSSSSSSS",
+      "sssesssSssssssss",
+      "sssssssSSsssssss",
+      "ssssssssSssessss",
+      "SSSSSSSSSSSSSSSS",
+      "ssssssssSssssssS",
+      "ssqsssssSssqsssS",
+      "ssssssssSssssssS",
+      "SSSSSSSSSSSSSSSS",
+      "ssssssssSsssssss",
+      "sssessssSSssssss",
+      "ssssssssSsssesss",
+      "SSSSSSSSSSSSSSSS",
+    ],
+  },
   {
     // Dock planking — weathered wooden boards for the harbor floor. d = wood
     // light, D = wood dark seams, m = darker nail/grain line.

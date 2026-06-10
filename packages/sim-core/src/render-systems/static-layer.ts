@@ -66,7 +66,10 @@ interface LogicalSprite {
  * - carpentry → "tile/carpentry-floor" (laid stone-slab flooring)
  * - resource-zone → "tile/grass" (same as farms — they're green areas)
  * - shrine → "tile/shrine-floor"; harbor → "tile/dock-floor";
- *   heritage-* → "tile/heritage-floor"; waterfall/camp → seasonal grass
+ *   heritage-stones → "tile/heritage-floor-stones" (mossy turf + slabs);
+ *   heritage-ruin   → "tile/heritage-floor-ruin"   (cracked brick rubble);
+ *   heritage-statue → "tile/heritage-floor-statue" (pale flagstone + lichen);
+ *   waterfall/camp  → seasonal grass
  */
 function backdropFrame(tx: number, ty: number, season: Season = "spring"): string | null {
   const grassFrame = SEASON_GRASS[season];
@@ -98,9 +101,10 @@ function backdropFrame(tx: number, ty: number, season: Season = "spring"): strin
   // heritage stone, grassy waterfall + campsite.
   if (region === "shrine") return "tile/shrine-floor";
   if (region === "harbor") return "tile/dock-floor";
-  if (region === "heritage-stones" || region === "heritage-ruin" || region === "heritage-statue") {
-    return "tile/heritage-floor";
-  }
+  // brief 62 — each heritage island gets its own floor to break the visual copy-paste.
+  if (region === "heritage-stones") return "tile/heritage-floor-stones";
+  if (region === "heritage-ruin") return "tile/heritage-floor-ruin";
+  if (region === "heritage-statue") return "tile/heritage-floor-statue";
   if (region === "waterfall") return grassFrame; // mossy green base under the cliff
   if (region === "camp") return grassFrame;       // campsite on grass
   if (region === "village") {
