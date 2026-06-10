@@ -1,10 +1,10 @@
 export { type PixelRecipe } from "./types";
 export { PREFIX_TO_SHEET, frameToSheetId, recipeWidth, recipeHeight } from "./sheet-map";
 export { colorOf } from "./palette";
-export { BASE_RECIPES } from "./base-recipes";
+export { BASE_RECIPES } from "./assets/index";
 
 import { type PixelRecipe } from "./types";
-import { BASE_RECIPES } from "./base-recipes";
+import { BASE_RECIPES } from "./assets/index";
 import {
   ACTION_TEMPLATES,
   PERSONALITY_SUBS,

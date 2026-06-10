@@ -1,0 +1,66 @@
+import { type PixelRecipe } from "../../types";
+
+// Blacksmith forge-house — stone-and-timber smithy with a brick chimney, a
+// pitched slate roof, a glowing forge window, and a timber double door.
+// Q/q = stone walls, S/s = slate roof, r = brick chimney, M/m/D/d = timber,
+// o/y = forge glow through the window, k = dark openings.
+const recipe: PixelRecipe =
+  {
+    name: "structure/forge-house",
+    size: 32,
+    width: 32,
+    height: 48,
+    pixels: [
+      "..........rrrr..................",
+      "..........rkkr..................",
+      "..........rkkr..................",
+      "..........rrrr..................",
+      "..........rQQr..................",
+      ".........SSSSSSS................",
+      "........SSSSSSSSS...............",
+      ".......SSSSSSSSSSS..............",
+      "......SSSSSSSSSSSSS.............",
+      ".....SSSSSSSSSSSSSSS............",
+      "....SSSSSSSSSSSSSSSSS...........",
+      "...SSsSSsSSsSSsSSsSSsS..........",
+      "..SSSSSSSSSSSSSSSSSSSSS.........",
+      ".sSSSSSSSSSSSSSSSSSSSSSs........",
+      "QQQQQQQQQQQQQQQQQQQQQQQQ........",
+      "QqqqqqqqqqqqqqqqqqqqqqqQ........",
+      "QqQQQQQQQQQQQQQQQQQQQQqQ........",
+      "QqQ.........QQQ.....QQqQ........",
+      "QqQ.ooooo...QQQ.QQQ.QQqQ........",
+      "QqQ.oyyyo...QQQ.QkQ.QQqQ........",
+      "QqQ.oyoyo...QQQ.QkQ.QQqQ........",
+      "QqQ.oyyyo...QQQ.QkQ.QQqQ........",
+      "QqQ.ooooo...QQQ.QkQ.QQqQ........",
+      "QqQ.........QQQ.QkQ.QQqQ........",
+      "QqQQQQQQQQQQQQQ.QkQ.QQQqQ.......",
+      "QqqqqqqqqqqqqQ..QkQ..qqqQ.......",
+      "QqQQQQQQQQQQQQ..QkQ.QQQqQ.......",
+      "QqQDDDDDDDDDDD..QkQ.DDDqQ.......",
+      "QqQDdddddddddD..QkQ.DddQ........",
+      "QqQDddddddddDD..QkQ.DddQ........",
+      "QqQDdDDDDDDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QqQDdDddddDDdD..QkQ.DddQ........",
+      "QQQQQQQQQQQQQQQQQQQQQQQQ........",
+      "kQQQQQQQQQQQQQQQQQQQQQQk........",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+    ],
+  }
+;
+
+export default recipe;
