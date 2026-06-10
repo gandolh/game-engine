@@ -15,12 +15,24 @@ Optimization opportunities for the engine, filtered against what the code **actu
 ## Tier 1 — Highest impact
 
 ### T1.1 The sim→render snapshot boundary
-> **Boundary changed (briefs 57–58, 2026-06-10).** The sim no longer runs in an in-browser Web Worker over `postMessage`/structured-clone — it runs in the Node server (`@farm/server`, [sim-host.ts](../../packages/server/src/sim-host.ts)) and ships each `RenderSnapshot` to the browser as **`JSON.stringify` over a WebSocket**. So the cost is now JSON serialization + network framing, not structured clone, and the `SharedArrayBuffer`/transfer ideas below **no longer apply** (there's no shared address space across a socket). This whole tier should be re-measured against the new transport before any work.
+> **Boundary changed (briefs 57–58, 2026-06-10).** The sim no longer runs in an in-browser Web Worker over `postMessage`/structured-clone — it runs in the Node server (`@farm/server`, [sim-host.ts](../../packages/server/src/sim-host.ts)) and ships each `RenderSnapshot` to the browser as **`JSON.stringify` over a WebSocket**. So the cost is now JSON serialization + network framing, not structured clone, and the `SharedArrayBuffer`/transfer ideas below **no longer apply** (there's no shared address space across a socket).
 
-Each server tick builds 6–8 fresh arrays (~150–200 object allocations) and `JSON.stringify`s them onto the socket — [snapshot-builder/](../../packages/sim-core/src/snapshot-builder/). The server already measures payload size (`snapshot.bytes`) and has drop-stale backpressure.
-
-- **(a) ~~Bigger win~~ — obsoleted by the split.** The old plan (pack numeric sprite data into a `Float32Array` ring + `postMessage(buf, [buf])` transfer or `SharedArrayBuffer`) assumed a same-process Worker. Over a WebSocket the equivalent would be a **binary wire codec** (e.g. a typed-array frame for the hot sprite fields + JSON for the rare payload) — but only if profiling shows JSON encode + bytes/sec is material at 20 Hz. Measure first; for ~25 sprites/tick it's likely negligible.
-- **(b) Cheaper interim win (still valid):** stop double-allocating the events array (`.slice().map()` → single loop into a reused buffer), and rebuild the observer/leaderboard payload only on **day boundaries**, not every tick — that state barely changes tick-to-tick. This reduces both allocation and JSON size regardless of transport.
+> **Re-measured 2026-06-10** (post 21-farmer radial reorg + 40→52 world widening) with [probe-snapshot-size.ts](../../tools/run-sim/src/probe-snapshot-size.ts), seed `0xc0ffee`, day 19: **the snapshot is now ~143 KB/tick raw JSON — 4× the 36 KB the old table below records.** At 20 Hz that is ~2.8 MB/s of stringify (+ permessage-deflate) **per viewer** (one SimHost per WebSocket). Composition:
+>
+> | section | KB | % | changes… |
+> |---|---|---|---|
+> | `sprites` (398: **309 structure + 49 decoration** + 21 farmers + 15 crops + 4 npc) | 104 | 73% | structures/decorations ~daily; only ~40 sprites move per tick |
+> | `wealthSeries` (21 farmers × per-day rows, full history re-sent) | 19.6 | 14% | **day boundary only**; grows linearly → ~100 KB/tick by day 100 |
+> | `observer` | 10.7 | 7.5% | intra-day (must stay per-tick) |
+> | `relationships` + `leaderboard` + rest | ~8 | 5.5% | intra-day |
+>
+> Concrete wins, in impact-for-effort order (all transport/snapshot-side, sim untouched; verify each with the fast 3-day/3-seed diff):
+> 1. **Send `wealthSeries` only on day boundaries** (client keeps the last one). Kills the one section that grows without bound; by late game it's the largest payload. Trivial client change (the field becomes optional).
+> 2. **Stop re-sending tooltip `label`/`description` strings for all 398 sprites every tick.** They exist for hover only. Cheapest fix: round `daysGrowing` in [sprites.ts:130](../../packages/sim-core/src/snapshot-builder/sprites.ts#L130) — today it serializes the raw per-tick float (`day 1.0133333333333334/21`, ~17 chars of churn per crop per tick that also defeats delta-style dedup). Bigger fix: ship descriptions in a separate id-keyed table sent only when a sprite's text actually changes.
+> 3. **Coarse static/dynamic sprite split.** 358 of 398 sprites (structures + decorations) change ~daily; ship them as a separate message on change (the static *terrain* layer already works this way via `buildStaticLayerSprites`) and keep only the ~40 moving sprites per tick. ≈70% snapshot reduction without any binary codec.
+> 4. **Omit default-valued sprite fields** (`rotation: 0`, `alpha: 1`, `action: null`, `id: null`…) from the JSON. ~261 B/sprite today; mostly boilerplate.
+>
+> Gate before building 3/4: run [probe-perf.ts](../../tools/run-sim/src/probe-perf.ts) (1→5→10 synthetic viewers, ~3 min, loads the box — **needs user sign-off per the resource rule**) to see whether server CPU per viewer is actually material; deflate may already make the bytes a non-issue, and items 1–2 are worth doing regardless.
 
 ### T1.3 WebSocket transport hardening — TODO (queued 2026-06-10, online-research pass)
 
@@ -54,6 +66,16 @@ The static backdrop is **blitted full-frame with no clipping** even when zoomed 
 - **Clip the static-layer blit to the visible source rect.** `drawImage(staticLayer, sx,sy,sw,sh, dx,dy,dw,dh)` using only the camera-visible region instead of the whole baked canvas. Saves fill work when zoomed in.
 - **`ctx.clip()` / dirty-rectangle redraw.** Lower priority — the wash + full sprite repaint each frame make a true dirty-rect scheme awkward, but a clip region around the camera viewport prevents overdraw outside it.
 - **Sort only when the set changes.** `this.queue.sort(compareSprite)` runs every frame ([canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts)); z-order rarely changes frame-to-frame. Bucket by layer or sort-on-dirty.
+
+## Tier 2b-pre — Sim tick re-verified at 21 farmers (2026-06-10)
+
+A 2-day headless run (2,400 ticks, 21 farmers, default world) completes in ~2s wall *including* Node startup — the sim tick is still **well under 1 ms against the 50 ms budget**, so the 2026-06-05 "engine far under budget" conclusion survives the 4× roster growth. A code sweep (2026-06-10) catalogued the remaining per-tick allocation/O(n²) sites for the record — **none are worth fixing for throughput at n=21**; they only matter as GC pressure if many SimHosts share one Node process (re-evaluate after probe-perf):
+
+- [plot-sense.ts](../../packages/sim-core/src/systems/plot-sense.ts) — 4 fresh Maps per tick + per-farmer `.slice().sort()` of empty plots.
+- [encounter.ts](../../packages/sim-core/src/systems/encounter.ts) — fresh sorted farmer array + by-region Map + O(n²/2) pair scan per tick.
+- [rivalry/system.ts](../../packages/sim-core/src/systems/rivalry/system.ts) `activeAlliances()`/`activeRivalries()` — O(n²) pair scans, called **per snapshot tick** via the builder.
+- [snapshot-builder/panels.ts](../../packages/sim-core/src/snapshot-builder/panels.ts) `buildRelationshipsData` — O(n²) trust matrix per tick (441 cells at n=21).
+- [ap.ts:208](../../packages/sim-core/src/systems/ap.ts#L208) — `[...queue].sort()` per ACT farmer per tick.
 
 ## Tier 2b — Loose per-tick allocations in systems
 

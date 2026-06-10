@@ -63,6 +63,17 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 4. Keep shelf packing, 1px padding, pow2, 6 sheets; document maxrects-packer as the future upgrade path.
 5. Load-time: verify/adopt `createImageBitmap` per sheet. *(Verified 2026-06-10: already the case in [loader.ts](../../packages/engine/src/assets/loader.ts).)*
 
+## Art direction (2026-06-10 art pass)
+
+A designer pass over the recipes themselves (not the pipeline), guided by the classic pixel-art craft rules (Saultoons' "The ONLY Pixel Art Guide You Need" — readable silhouettes, hue-shifted ramps, selective outlines, texture clusters over speckle noise, one committed light direction). The rules now encoded in the assets, for anyone touching recipes later:
+
+- **All 32 EDG32 colors are mapped.** [palette.ts](../../tools/atlas-builder/src/recipes/palette.ts) previously used 20; the art pass added swatch chars for the missing 11 — deep foliage `t` #193c3e, cool-outline navy `N` #262b44, flame `f` #f77622, bright red `R` #e43b44, deep red `x` #a22633, grape `U` #b55088, deep purple `u` #68386c, petal pink `P` #f6757a, sparkle cyan `i` #2ce8f5, warm highlight `h` #e8b796, wicker `H` #c28569. Palette changes invalidate every sheet's `inputsHash` (by design).
+- **Light comes from the top-left, everywhere.** Trees/bushes carry a 4-step hue-shifted ramp (`g→G→l→t` summer, `y→a→f→x` autumn) — shadows shift hue toward cool/deep, never just darker.
+- **Tiles use texture clusters, not lone-pixel speckle.** Grass = 2px tufts with a light tip; autumn = 2px leaf pairs in drifts; dirt = clods; sand = ripple runs; winter = 2px `q` drift shadows. Keep marks in small clusters and off systematic rows so tiling doesn't seam.
+- **Fire is a 4-step ramp** `y→o→f→r`; the overlay frames (campfire/forge a-b-c) keep their exact shapes/positions — only colors changed, so render-loop anchoring is untouched. Waterfall frames carry cyan `i` glints that step down one row per frame, matching the documented falling-streak behavior.
+- **Crops read by hue**: grapes/radish purple `U/u/P`, tomato `R/x`, carrot `f/p`, pumpkin ribbed `f/p/r/x`, squash `h/W/H` — each mature crop has a glint and a shaded side.
+- **Farmer sprites were deliberately left alone** — they're template-generated ([templates.ts](../../tools/atlas-builder/src/recipes/templates.ts)) with personality substitution maps and hat-silhouette guard tests; restyling them is its own brief.
+
 ## Sources
 
 - [Unreal — Cooking Content](https://dev.epicgames.com/documentation/en-us/unreal-engine/cooking-content-in-unreal-engine) · [Unity — SpriteAtlas](https://docs.unity3d.com/2020.1/Documentation/Manual/class-SpriteAtlas.html) · [Godot — Importing images](https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_images.html) · [O3DE asset pipeline](https://deepwiki.com/o3de/o3de/4-asset-pipeline) · [AssetCooker](https://github.com/jlaumon/AssetCooker)

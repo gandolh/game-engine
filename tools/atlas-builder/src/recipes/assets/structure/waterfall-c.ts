@@ -1,5 +1,7 @@
 import { type PixelRecipe } from "../../types";
 
+// Waterfall cascade — frame C. See waterfall-a for the overlay contract.
+// 2026-06-10 art pass — the cyan `i` glints sit one row below frame B's.
 const recipe: PixelRecipe =
   {
     name: "structure/waterfall-c",
@@ -9,12 +11,12 @@ const recipe: PixelRecipe =
       "......ees.......",
       "......see.......",
       "......ees.......",
-      "......see.......",
+      "......sie.......",
       "......ees.......",
       "......see.......",
       "......ees.......",
       "......see.......",
-      "......ees.......",
+      "......eis.......",
       "......see.......",
       "......ees.......",
       "......nwn.......",

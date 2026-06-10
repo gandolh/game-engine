@@ -1,5 +1,7 @@
 import { type PixelRecipe } from "../../types";
 
+// 2026-06-10 art pass — bass with a dark `l` back fading to a light `g`
+// belly, so it reads as a shaded body instead of a flat green blob.
 const recipe: PixelRecipe =
   {
     name: "fish/bass",
@@ -8,15 +10,15 @@ const recipe: PixelRecipe =
       "................",
       "................",
       "................",
-      "......GGG....l..",
-      "....GGGGGGG.ll..",
-      "...GGGGGGGGlll..",
-      "..GGGGGGGGGGll..",
-      "..GGGkGGGGGGl...",
-      "..GGGGGGGGGGll..",
-      "...GGGGGGGGlll..",
-      "....GGGGGGG.ll..",
-      "......GGG....l..",
+      "......lll....l..",
+      "....llGGGGG.ll..",
+      "...lGGGGGGglll..",
+      "..lGGGGGGGGgll..",
+      "..GGGkGGGGGgl...",
+      "..gGGGGGGGGgll..",
+      "...gggGGGGGlll..",
+      "....gggggGG.ll..",
+      "......ggg....l..",
       "................",
       "................",
       "................",

@@ -36,7 +36,7 @@ export function printFinalLeaderboard(
   );
   console.log("  " + "-".repeat(70));
   summaries.forEach((s, i) => {
-    const cropStr = `r${s.crops.radish} w${s.crops.wheat} p${s.crops.pumpkin}`;
+    const cropStr = `r${s.crops.radish ?? 0} w${s.crops.wheat ?? 0} p${s.crops.pumpkin ?? 0}`;
     console.log(
       `  ${pad(i + 1, 5)}${pad(s.name, 10)}${pad(s.personality, 14)}${lpad(s.gold, 8)}${lpad(s.unsoldValue, 8)}${lpad(s.totalValue, 8)}  ${cropStr}`,
     );

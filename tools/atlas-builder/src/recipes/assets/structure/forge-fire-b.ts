@@ -1,5 +1,7 @@
 import { type PixelRecipe } from "../../types";
 
+// Forge fire — frame B (hottest, full blaze). 2026-06-10 art pass — ramp
+// y → o → f with a rust `r` bed at the bottom edge.
 const recipe: PixelRecipe =
   {
     name: "structure/forge-fire-b",
@@ -10,9 +12,9 @@ const recipe: PixelRecipe =
       "................",
       "................",
       "................",
-      ".......r........",
-      ".....r.oo.r.....",
-      ".....royyor.....",
+      ".......f........",
+      ".....f.oo.f.....",
+      ".....foyyof.....",
       ".....oyyyyo.....",
       ".....royyor.....",
       "................",

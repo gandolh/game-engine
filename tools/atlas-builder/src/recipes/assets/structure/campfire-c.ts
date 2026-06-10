@@ -1,5 +1,7 @@
 import { type PixelRecipe } from "../../types";
 
+// Campfire flame — frame C (split tongue). 2026-06-10 art pass — four-step
+// fire ramp y → o → f → r; shape unchanged.
 const recipe: PixelRecipe =
   {
     name: "structure/campfire-c",
@@ -13,8 +15,8 @@ const recipe: PixelRecipe =
       "......yoy.......",
       ".....y.o.y......",
       "......yoy.......",
-      ".....rooor......",
-      ".....rooyor.....",
+      ".....fooof......",
+      ".....rfoyfr.....",
       "................",
       "................",
       "................",

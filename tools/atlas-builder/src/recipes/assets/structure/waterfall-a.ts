@@ -6,6 +6,8 @@ import { type PixelRecipe } from "../../types";
 // light `s`) occupy the cliff's central channel; across A→B→C the streak rows
 // STEP DOWN one row so the column reads as continuously falling water, with a
 // little lighter foam (`w`/`n`) at the plunge-pool base. EDG palette only.
+// 2026-06-10 art pass — two cyan `i` glints per frame that also step down one
+// row across A→B→C, so sparkles travel with the falling water.
 const recipe: PixelRecipe =
   {
     name: "structure/waterfall-a",
@@ -13,12 +15,12 @@ const recipe: PixelRecipe =
     pixels: [
       "......see.......",
       "......ees.......",
-      "......see.......",
+      "......sie.......",
       "......ees.......",
       "......see.......",
       "......ees.......",
       "......see.......",
-      "......ees.......",
+      "......eis.......",
       "......see.......",
       "......ees.......",
       "......see.......",
