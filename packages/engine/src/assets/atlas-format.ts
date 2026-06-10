@@ -11,6 +11,13 @@ export interface AtlasManifest {
   width: number;
   height: number;
   frames: Record<string, AtlasFrame>;
+  /**
+   * SHA-256 fingerprint of the inputs that produced this sheet (asset recipe
+   * files, shared sources, packing constants, encoder options, builder version).
+   * Stamped by atlas-builder; tolerated (ignored) by the runtime loader.
+   * Optional so that old committed manifests without this field remain valid.
+   */
+  inputsHash?: string;
 }
 
 /** One entry in atlas/index.json — describes a single sheet by id + URLs. */

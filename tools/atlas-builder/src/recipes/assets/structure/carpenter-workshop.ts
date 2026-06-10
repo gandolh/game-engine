@@ -1,0 +1,66 @@
+import { type PixelRecipe } from "../../types";
+
+// Carpenter's workshop — timber lumber-mill with a green pitched roof, two
+// shuttered windows, a plank-clad facade, and a wide barn door showing dark
+// rafters. G/g/l/L = green roof, W/w = tan planks, M/m/D/d = timber frame,
+// q = window-glint, k = open doorway shadow.
+const recipe: PixelRecipe =
+  {
+    name: "structure/carpenter-workshop",
+    size: 32,
+    width: 32,
+    height: 48,
+    pixels: [
+      "................................",
+      ".............ll.................",
+      "............lLLl................",
+      "...........lLLLLl...............",
+      "..........lLGGGGLl..............",
+      ".........lLGGGGGGLl.............",
+      "........lLGGGGGGGGLl............",
+      ".......lLGGGGGGGGGGLl...........",
+      "......lLGGGGGGGGGGGGLl..........",
+      ".....lLGGGGGGGGGGGGGGLl.........",
+      "....lLGGgGGgGGgGGgGGgGLl........",
+      "...lLGGGGGGGGGGGGGGGGGGLl.......",
+      "..lLGGGGGGGGGGGGGGGGGGGGLl......",
+      ".lLGGGGGGGGGGGGGGGGGGGGGGLl.....",
+      "lLLLLLLLLLLLLLLLLLLLLLLLLLLl....",
+      "MMMMMMMMMMMMMMMMMMMMMMMMMMMM....",
+      "MWWWWWWWWWWWWWWWWWWWWWWWWWWM....",
+      "MWMWWWWWWWWWWWWWWWWWWWWWWMWM....",
+      "MWMW..mmmm.WWWWWWWW.mmmm.WMW....",
+      "MWMW.mWWWWm.WWWWWW.mWWWWm.WM....",
+      "MWMW.mWqqWm.WWWWWW.mWqqWm.WM....",
+      "MWMW.mWqqWm.WWWWWW.mWqqWm.WM....",
+      "MWMW.mWWWWm.WWWWWW.mWWWWm.WM....",
+      "MWMW..mmmm.WWWWWWWW.mmmm.WMW....",
+      "MWMWWWWWWWWWWWWWWWWWWWWWWMWM....",
+      "MWMWWWWWWWkkkkkkkkWWWWWWWMWM....",
+      "MWMWWWWWWWkddddddkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MWMWWWWWWWkdDDDDdkWWWWWWWMWM....",
+      "MMMMMMMMMMkdDDDDdkMMMMMMMMM.....",
+      "kMMMMMMMMMkkkkkkkkMMMMMMMMk.....",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+      "................................",
+    ],
+  }
+;
+
+export default recipe;
