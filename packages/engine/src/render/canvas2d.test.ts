@@ -96,3 +96,53 @@ describe("Canvas2dRenderer atlas map", () => {
     expect(() => renderer.bakeStaticLayer([], 640, 480)).toThrow("addAtlas must be called first");
   });
 });
+
+describe("pixelSnap formula", () => {
+  /**
+   * The pixel-snap formula used in the renderer's sprite draw loop:
+   *   snappedWorld = (Math.round(worldCoord * sx + ox) - ox) / sx
+   * where sx = canvas.width / worldUnitsX and ox = Math.round(-left * sx).
+   * This ensures the sprite center maps to an integer screen pixel.
+   */
+  function snapWorld(worldCoord: number, sx: number, ox: number): number {
+    return (Math.round(worldCoord * sx + ox) - ox) / sx;
+  }
+
+  it("a fractional world coord maps to an integer screen position", () => {
+    const sx = 2; // 2 screen pixels per world pixel
+    const ox = 0; // no camera offset
+    const worldCoord = 10.3;
+    const snapped = snapWorld(worldCoord, sx, ox);
+    const screenPos = snapped * sx + ox;
+    expect(Number.isInteger(Math.round(screenPos))).toBe(true);
+    // More precisely: the screen position is an exact integer (no fraction)
+    expect(screenPos % 1).toBeCloseTo(0, 10);
+  });
+
+  it("the raw fractional world coord does NOT map to an integer screen position (test correctness)", () => {
+    const sx = 2;
+    const ox = 0;
+    const worldCoord = 10.3;
+    const rawScreenPos = worldCoord * sx + ox; // 20.6 — not integer
+    expect(rawScreenPos % 1).not.toBeCloseTo(0, 2);
+  });
+
+  it("no-op when world coord is already on a pixel boundary", () => {
+    const sx = 2;
+    const ox = 0;
+    const worldCoord = 10; // exact integer → no change
+    const snapped = snapWorld(worldCoord, sx, ox);
+    expect(snapped).toBe(worldCoord);
+  });
+
+  it("handles non-zero camera origin offset (ox != 0)", () => {
+    const sx = 3;
+    const left = 5.7;
+    const ox = Math.round(-left * sx); // rounded camera offset
+    const worldCoord = 12.4;
+    const snapped = snapWorld(worldCoord, sx, ox);
+    const screenPos = snapped * sx + ox;
+    // Screen position must be an integer (within floating-point epsilon)
+    expect(screenPos % 1).toBeCloseTo(0, 10);
+  });
+});

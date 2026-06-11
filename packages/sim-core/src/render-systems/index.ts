@@ -9,6 +9,8 @@ export {
   FORGE_CHIMNEY_PX,
   WATERFALL_FRAMES,
   CAMPFIRE_FRAMES,
+  WEATHER_BEACON_FRAMES,
+  WEATHER_BEACON_PX,
 } from "./frames";
 
 export {

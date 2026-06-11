@@ -1,8 +1,8 @@
-import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler } from "@engine/core";
+import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
-import { pushSnapshotSprites, pushOccluderSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
 import { WATERFALL_TILE, CAMPFIRE_TILE } from "@farm/sim-core/world/regions";
-import { washFor } from "../render/day-night";
+import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SLOTS } from "@farm/sim-core/systems/player-control";
 import { TILE, PROFILE_ENABLED } from "./config";
@@ -26,6 +26,7 @@ import type { ParticleDirector } from "./particles";
 import { renderGameOver } from "./game-over";
 import { updateTooltip } from "./tooltip";
 import type { SimClient } from "../worker/sim-client";
+import type { AmbientLayer } from "./ambient";
 
 export interface RenderLoopDeps {
   client: SimClient;
@@ -39,12 +40,13 @@ export interface RenderLoopDeps {
   seed: number;
   maxDays: number;
   ticksPerDay: number;
+  ambient: AmbientLayer;
 }
 
 export function createRenderLoop(deps: RenderLoopDeps): () => void {
   const {
     client, renderer, keyboard, particles, particleDirector,
-    canvas, panels, tooltip, seed, maxDays, ticksPerDay,
+    canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
   } = deps;
   const {
     overlay, worldClock, observer, leaderboardPanel,
@@ -90,15 +92,19 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     // Exponential ease panOffset→0 while recentering (avoids snap jump).
     if (recenteringOnPip) {
-      setPanOffset({ x: panOffset.x * 0.8, y: panOffset.y * 0.8 });
+      setPanOffset({
+        x: expSmooth(panOffset.x, 0, 12, dt),
+        y: expSmooth(panOffset.y, 0, 12, dt),
+      });
       if (Math.abs(panOffset.x) < 0.5 && Math.abs(panOffset.y) < 0.5) {
         setPanOffset({ x: 0, y: 0 });
         setRecenteringOnPip(false);
       }
     }
 
-    if (_camera !== null && focusedFarmerId !== null) {
-      applyFocusAndPan(_camera, interpolatedSprites);
+    const sx = _camera !== null ? canvas.width / _camera.worldUnitsX : 1;
+    if (_camera !== null) {
+      applyFocusAndPan(_camera, interpolatedSprites, dt, sx);
     }
 
     renderer.beginFrame();
@@ -225,6 +231,20 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 1,
     });
 
+    // Beacon blink: layer 42, ~1 Hz on/off; wall-clock only, never seeded, never touches worker.
+    const beaconFrame = WEATHER_BEACON_FRAMES[Math.floor(nowMs / 500) % 2]!;
+    renderer.push({
+      x: WEATHER_BEACON_PX.x,
+      y: WEATHER_BEACON_PX.y,
+      width: TILE,
+      height: TILE,
+      frame: beaconFrame,
+      atlasId: "buildings",
+      rotation: 0,
+      layer: 42,
+      alpha: 1,
+    });
+
     const farmerPositions = new Map<number, { x: number; y: number }>();
     for (const s of interpolatedSprites) {
       if (s.id !== null && s.interpolate) {
@@ -306,7 +326,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       client.meets,
       farmerPositions,
       nowMs,
-      seasonForDay(client.day),
+      seasonForDay(client.day), // season computed below; keep separate call for ordering
     );
 
     // Occluder sprites: south-facing wall/cliff faces; sortY at face base so
@@ -372,11 +392,21 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     updateTooltip(tooltip, canvas, interpolatedSprites, _camera);
 
+    const season = seasonForDay(client.day);
     const wash = washFor({
       tick: client.tick,
       ticksPerDay,
-      season: seasonForDay(client.day),
+      season,
     });
+    const nightness = nightnessFor({
+      tick: client.tick,
+      ticksPerDay,
+      season,
+    });
+    const dtMs = dt * 1000;
+    const view = { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom };
+    ambient.update(dtMs, nowMs, view, nightness, season);
+    ambient.pushSprites(renderer);
     renderer.endFrame(wash, particles);
 
     const snap = client.latestSnapshot();

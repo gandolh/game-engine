@@ -417,6 +417,9 @@ export const BIG_STRUCTURES: ReadonlyArray<{
 }> = [
   { frame: "structure/forge-house", baseTileX: 99, baseTileY: 78, wPx: 32, hPx: 48 },
   { frame: "structure/carpenter-workshop", baseTileX: 59, baseTileY: 78, wPx: 32, hPx: 48 },
+  // Weather-station island: building (3×2 tiles) left side, antenna mast (1×4 tiles) right side.
+  { frame: "structure/weather-station", baseTileX: 109, baseTileY: 122, wPx: 48, hPx: 32 },
+  { frame: "structure/weather-antenna", baseTileX: 114, baseTileY: 122, wPx: 16, hPx: 64 },
 ];
 
 /** A single static decoration tile (frame at a tile coordinate). */

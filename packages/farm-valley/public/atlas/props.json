@@ -153,7 +153,31 @@
       "y": 52,
       "w": 16,
       "h": 16
+    },
+    "decoration/bird-a": {
+      "x": 69,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/bird-b": {
+      "x": 86,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/leaf-a": {
+      "x": 103,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/leaf-autumn": {
+      "x": 1,
+      "y": 69,
+      "w": 16,
+      "h": 16
     }
   },
-  "inputsHash": "6e7d49306a6d61cec1bffa27838940c1aed2d42e4cf546e992d965e20cb17b13"
+  "inputsHash": "4fd5c338acdc26e842b385ae6f11494c6c8755dcadd9e0edd223577b1722b88d"
 }

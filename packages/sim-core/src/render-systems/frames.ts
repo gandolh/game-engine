@@ -50,6 +50,18 @@ export const CAMPFIRE_FRAMES = [
   "structure/campfire-c",
 ] as const;
 
+/** 2-frame beacon blink animation (lit ↔ dim). Wall-clock driven, ~1 Hz. */
+export const WEATHER_BEACON_FRAMES = [
+  "structure/weather-beacon-a",
+  "structure/weather-beacon-b",
+] as const;
+
+/** Beacon tip pixel position: top of antenna mast (tile 114, 119 — tip is at top of island). */
+export const WEATHER_BEACON_PX = {
+  x: 114 * TILE + TILE / 2,
+  y: 119 * TILE + TILE / 2,
+} as const;
+
 // Must mirror PREFIX_TO_SHEET in atlas-builder (a test verifies sync).
 const FRAME_PREFIX_TO_ATLAS: Readonly<Record<string, string>> = {
   "farmer":     "characters",

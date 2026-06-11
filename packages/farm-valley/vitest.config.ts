@@ -12,6 +12,7 @@ const DOM_FILES = [
   "src/ui/right-column.test.ts",
   "src/ui/slate-billboard.test.ts",
   "src/ui/wealth-graph.test.ts",
+  "src/worker/sim-client/client.visibility.test.ts",
 ];
 
 export default defineConfig({

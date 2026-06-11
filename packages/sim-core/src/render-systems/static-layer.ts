@@ -70,6 +70,7 @@ function backdropFrame(tx: number, ty: number, season: Season = "spring"): strin
   if (region === "heritage-statue") return "tile/heritage-floor-statue";
   if (region === "waterfall") return grassFrame;
   if (region === "camp") return grassFrame;
+  if (region === "weather-station") return grassFrame;
   if (region === "village") {
     if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&
         ty >= TOWN_SQUARE.minY && ty <= TOWN_SQUARE.maxY) {

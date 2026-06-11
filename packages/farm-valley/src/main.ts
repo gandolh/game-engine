@@ -25,6 +25,7 @@ import {
 import { buildPanels } from "./main/panels";
 import { wirePlayback, registerHotkeys } from "./main/playback";
 import { bakeStaticLayer } from "./main/static-layer";
+import { AmbientLayer } from "./main/ambient";
 import { createSeedBadge } from "./main/game-over";
 import { createTooltip } from "./main/tooltip";
 import { ParticleDirector } from "./main/particles";
@@ -129,7 +130,8 @@ async function startGame(
       if (_camera !== null) applyFocusAndPan(_camera);
     });
 
-    bakeStaticLayer(client, renderer, noiseGen, seed);
+    const ambient = new AmbientLayer();
+    bakeStaticLayer(client, renderer, noiseGen, seed, ambient);
 
     createSeedBadge(app, seed);
 
@@ -147,7 +149,7 @@ async function startGame(
 
     const renderFrame = createRenderLoop({
       client, renderer, keyboard, particles, particleDirector,
-      canvas, panels, tooltip, seed, maxDays, ticksPerDay,
+      canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
     });
 
     requestAnimationFrame(renderFrame);

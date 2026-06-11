@@ -59,6 +59,8 @@ export class SimClient {
   private readonly pending: WorkerInbound[] = [];
   private conned = false;
   private connectionLostCallback: (() => void) | null = null;
+  /** Brief 66 — visibility listener handle; null in headless/test environments. */
+  private docListener: (() => void) | null = null;
 
   private prevSnapshot: RenderSnapshot | null = null;
   private currentSnapshot: RenderSnapshot | null = null;
@@ -134,6 +136,14 @@ export class SimClient {
             if (s.interpolate && s.id !== null) this.prevById.set(s.id, s);
           }
         }
+        // Brief 66 — while the tab is hidden, backlogged snapshots must not
+        // form a lerping pair that straddles the hidden gap. Force-clear the
+        // pair so sprites snap to current on re-show rather than lerping across
+        // however many ticks passed while hidden.
+        if (typeof document !== "undefined" && document.hidden) {
+          this.prevSnapshot = null;
+          this.prevById.clear();
+        }
         this.snapshotCallback?.(msg.snapshot);
       } else if (msg.type === "profile") {
         this.profileCallback?.(msg.tick, msg.report);
@@ -148,6 +158,27 @@ export class SimClient {
       // A failed connection fires error then close; surface lost-connection once.
       this.connectionLostCallback?.();
     };
+
+    // Brief 66 — register the visibility listener for tab-hide/show resync.
+    // Guarded so headless tests (no `document`) are unaffected.
+    if (typeof document !== "undefined") {
+      this.docListener = () => this.onVisibilityChange();
+      document.addEventListener("visibilitychange", this.docListener);
+    }
+  }
+
+  /**
+   * Brief 66 — handle tab visibility transitions.
+   * Hidden: drop the snapshot pair so nothing lerps across the hidden interval.
+   * Visible: reset the arrival timestamp so the next snapshot starts a fresh window.
+   */
+  private onVisibilityChange(): void {
+    if (document.hidden) {
+      this.prevSnapshot = null;
+      this.prevById.clear();
+    } else {
+      this.lastSnapshotArrivalMs = performance.now();
+    }
   }
 
   /**
@@ -238,6 +269,11 @@ export class SimClient {
 
   /** Terminate the worker (hard stop). */
   terminate(): void {
+    // Brief 66 — detach the visibility listener so the client GC's cleanly.
+    if (this.docListener !== null && typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", this.docListener);
+      this.docListener = null;
+    }
     this.ws.close();
   }
 

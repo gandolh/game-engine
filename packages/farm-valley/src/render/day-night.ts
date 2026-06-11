@@ -68,6 +68,20 @@ function toHex(r: number, g: number, b: number): string {
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 
+/**
+ * Nightness: 1 - daylight intensity. 0 = full day, 1 = deep night.
+ * Takes the same args as washFor.
+ */
+export function nightnessFor(args: {
+  tick: number;
+  ticksPerDay: number;
+  season: Season;
+}): number {
+  const grade = SEASON_GRADES[args.season];
+  const f = dayFraction(args.tick, args.ticksPerDay);
+  return 1 - daylightAt(f, grade.daylight);
+}
+
 /** Compute the day/night/seasonal wash for the current tick. */
 export function washFor(args: {
   tick: number;

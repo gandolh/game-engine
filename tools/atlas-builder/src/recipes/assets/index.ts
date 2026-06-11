@@ -178,6 +178,14 @@ import r173 from "./tile/cliff-face-a";
 import r174 from "./tile/cliff-face-b";
 import r175 from "./tile/cliff-face-left";
 import r176 from "./tile/cliff-face-right";
+import r177 from "./decoration/bird-a";
+import r178 from "./decoration/bird-b";
+import r179 from "./decoration/leaf-a";
+import r180 from "./decoration/leaf-autumn";
+import r181 from "./structure/weather-station";
+import r182 from "./structure/weather-antenna";
+import r183 from "./structure/weather-beacon-a";
+import r184 from "./structure/weather-beacon-b";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -357,5 +365,13 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r174,
   r175,
   r176,
+  r177,
+  r178,
+  r179,
+  r180,
+  r181,
+  r182,
+  r183,
+  r184,
 ];
 

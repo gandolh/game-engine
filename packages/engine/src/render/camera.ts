@@ -39,3 +39,8 @@ export class Camera2D {
   }
 
 }
+
+/** Frame-rate-independent exponential approach toward `target`. k≈8–12 (per-second rate). */
+export function expSmooth(current: number, target: number, k: number, dtSec: number): number {
+  return current + (target - current) * (1 - Math.exp(-k * dtSec));
+}

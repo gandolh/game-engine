@@ -18,14 +18,15 @@ export type FixedRegionId =
   | 'heritage-ruin'                   // decorative — no behavior
   | 'heritage-statue'                 // decorative — no behavior
   | 'waterfall'                       // decorative — ANIMATED cascade, no behavior
-  | 'camp';                           // rest away from home without the unrested penalty
+  | 'camp'                            // rest away from home without the unrested penalty
+  | 'weather-station';                // decorative — antenna mast + beacon blink, no behavior
 
 /** `farm-0` .. `farm-(EXTRA_FARM_COUNT-1)` on the radial outer rings. */
 export type ExtraFarmRegionId = `farm-${number}`;
 
 export type RegionId = FixedRegionId | ExtraFarmRegionId;
 
-export type RegionKind = 'village' | 'farm';
+export type RegionKind = 'village' | 'farm' | 'landmark';
 
 export interface RegionDef {
   id: RegionId;
@@ -77,6 +78,11 @@ const FISHING_ISLE_BOUNDS   = { minX: 75, minY: 105, maxX: 82, maxY: 112 }; // S
 const FISHING_ISLE_2_BOUNDS = { minX: 59, minY: 105, maxX: 66, maxY: 112 }; // S-W (8×8 sand)
 const HARBOR_BOUNDS         = { minX: 93, minY: 105, maxX: 100, maxY: 112 }; // S-E dock (8×8)
 const CAMP_BOUNDS           = { minX: 109, minY: 105, maxX: 116, maxY: 112 }; // SE campsite (8×8)
+
+// Weather station island: 7×7, south of camp, same x-band.
+// ≥6-tile gap to camp (north), ≥3-tile gap to farm-1 worst-case (NE).
+// Bridged north-to-south (vertical bridge) to camp.
+const WEATHER_STATION_BOUNDS = { minX: 109, minY: 119, maxX: 115, maxY: 125 }; // S (7×7)
 
 // 21 farms on two concentric rings (R=52 inner n=9, R=72 outer n=12).
 // Named farms are 12×12; procedural are 10×10. Min farm-farm gap 7, min cluster-farm gap 3.
@@ -175,6 +181,12 @@ export const CAMPFIRE_TILE = { x: 114, y: 108 } as const;
 /** Waterfall cascade-overlay anchor tile (center column / top). Render-loop only. */
 export const WATERFALL_TILE = { x: 83, y: 59 } as const;
 
+/** Weather-station region id. */
+export const WEATHER_STATION_REGION_ID: RegionId = 'weather-station';
+
+/** Antenna tip anchor tile (top-right of island). Render-loop only. */
+export const WEATHER_STATION_TILE = { x: 114, y: 119 } as const;
+
 /** Harbor north-edge center — farmer stands here to deliver a contract. */
 export const HARBOR_DOCK_TILE = { x: 96, y: 105 } as const;
 
@@ -218,6 +230,7 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'heritage-statue', kind: 'village', bounds: HERITAGE_STATUE_BOUNDS, center: midpoint(HERITAGE_STATUE_BOUNDS) },
   { id: 'waterfall', kind: 'village', bounds: WATERFALL_BOUNDS, center: midpoint(WATERFALL_BOUNDS) },
   { id: 'camp', kind: 'village', bounds: CAMP_BOUNDS, center: midpoint(CAMP_BOUNDS) },
+  { id: 'weather-station', kind: 'landmark', bounds: WEATHER_STATION_BOUNDS, center: midpoint(WEATHER_STATION_BOUNDS) },
   ...EXTRA_FARM_REGIONS,
 ];
 
@@ -247,6 +260,7 @@ const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
   ['forest-south', 'fishing-isle-2'],
   ['quarry-south', 'harbor'],
   ['harbor', 'camp'],
+  ['camp', 'weather-station'],
 ];
 
 const boundsOf = (id: RegionId) => {

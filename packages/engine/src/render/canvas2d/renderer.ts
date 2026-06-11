@@ -45,6 +45,13 @@ export class Canvas2dRenderer {
   /** Background color filled behind every frame. Games can set this to match their world. */
   clearColor: string = EDG.black;
 
+  /**
+   * When true (default), sprite world positions are snapped to integer device-pixel boundaries
+   * before drawing so nearest-neighbor scaling doesn't cause ±1px shimmer.
+   * The bakeStaticLayer path is unaffected — baked pixels stay byte-identical.
+   */
+  pixelSnap = true;
+
   constructor(canvas: HTMLCanvasElement, camera: Camera2D) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Failed to acquire 2d canvas context");
@@ -204,7 +211,9 @@ export class Canvas2dRenderer {
     const sy = canvas.height / camera.worldUnitsY;
     const left = camera.centerX - camera.worldUnitsX / 2;
     const top = camera.centerY - camera.worldUnitsY / 2;
-    ctx.setTransform(sx, 0, 0, sy, -left * sx, -top * sy);
+    const ox = this.pixelSnap ? Math.round(-left * sx) : -left * sx;
+    const oy = this.pixelSnap ? Math.round(-top * sy) : -top * sy;
+    ctx.setTransform(sx, 0, 0, sy, ox, oy);
     ctx.imageSmoothingEnabled = false;
 
     // Clip to the visible world rect so zoomed-in frames only blit/fill the on-screen portion.
@@ -282,7 +291,15 @@ export class Canvas2dRenderer {
     for (let i = 0; i < this.queueLen; i += 1) {
       const s = this.queue[i]!;
       ctx.globalAlpha = s.alpha;
-      drawSprite(ctx, this.atlases, s);
+      if (this.pixelSnap) {
+        const origX = s.x, origY = s.y;
+        s.x = (Math.round(origX * sx + ox) - ox) / sx;
+        s.y = (Math.round(origY * sy + oy) - oy) / sy;
+        drawSprite(ctx, this.atlases, s);
+        s.x = origX; s.y = origY;
+      } else {
+        drawSprite(ctx, this.atlases, s);
+      }
     }
 
     ctx.globalAlpha = 1;

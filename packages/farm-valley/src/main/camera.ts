@@ -1,4 +1,4 @@
-import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "@engine/core";
+import { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { TILE } from "./config";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
@@ -35,10 +35,55 @@ export function setPlayerFarmerId(id: number | null): void { playerFarmerId = id
 export function setSimClient(c: SimClient | null): void { _simClient = c; }
 export function setCamera(c: Camera2D | null): void { _camera = c; }
 
+// ---------- Focus glide state (module-private; accessed only via stepFocusGlide) ----------
+let _prevFocusId: number | null = null;
+let _gliding = false;
+let _glideElapsedSec = 0;
+
+export interface GlideState {
+  center: { x: number; y: number };
+  gliding: boolean;
+  elapsedSec: number;
+}
+
+/**
+ * Returns the new camera center + glide state for this frame.
+ *  rawTarget = base(focus)+panOffset (already computed by caller).
+ *  focusChanged: did focusedFarmerId change since last frame.
+ *  sx: world→screen scale (canvas.width / camera.worldUnitsX) for the 0.5px rest test.
+ *  k≈10. Force-lock after 0.6s cap so a fast-moving target can't trap a permanent trail.
+ */
+export function stepFocusGlide(
+  prevCenter: { x: number; y: number },
+  rawTarget: { x: number; y: number },
+  focusChanged: boolean,
+  dtSec: number,
+  sx: number,
+  state: { gliding: boolean; elapsedSec: number },
+): GlideState {
+  const K = 10;
+  const MAX_ELAPSED = 0.6;
+  const REST_THRESHOLD = 0.5; // screen pixels
+  if (focusChanged) { state.gliding = true; state.elapsedSec = 0; }
+  if (state.gliding) {
+    let cx = expSmooth(prevCenter.x, rawTarget.x, K, dtSec);
+    let cy = expSmooth(prevCenter.y, rawTarget.y, K, dtSec);
+    state.elapsedSec += dtSec;
+    const screenDist = Math.hypot(rawTarget.x - cx, rawTarget.y - cy) * sx;
+    if (screenDist < REST_THRESHOLD || state.elapsedSec >= MAX_ELAPSED) {
+      cx = rawTarget.x; cy = rawTarget.y; state.gliding = false;
+    }
+    return { center: { x: cx, y: cy }, gliding: state.gliding, elapsedSec: state.elapsedSec };
+  }
+  return { center: { x: rawTarget.x, y: rawTarget.y }, gliding: false, elapsedSec: 0 };
+}
+
 // sprites: pass the interpolated list for this frame, or omit to fetch lazily.
 export function applyFocusAndPan(
   camera: Camera2D,
   sprites?: SnapshotSprite[],
+  dtSec = 0,
+  sx = 0,
 ): void {
   let baseX: number;
   let baseY: number;
@@ -60,7 +105,20 @@ export function applyFocusAndPan(
     baseX = (WORLD_WIDTH * TILE) / 2;
     baseY = (WORLD_HEIGHT * TILE) / 2;
   }
-  camera.setCenter(baseX + panOffset.x, baseY + panOffset.y);
+  const rawTarget = { x: baseX + panOffset.x, y: baseY + panOffset.y };
+  if (dtSec > 0) {
+    const focusChanged = focusedFarmerId !== _prevFocusId;
+    _prevFocusId = focusedFarmerId;
+    const result = stepFocusGlide(
+      { x: camera.centerX, y: camera.centerY }, rawTarget, focusChanged, dtSec, sx,
+      { gliding: _gliding, elapsedSec: _glideElapsedSec },
+    );
+    _gliding = result.gliding; _glideElapsedSec = result.elapsedSec;
+    camera.setCenter(result.center.x, result.center.y);
+  } else {
+    _prevFocusId = focusedFarmerId; _gliding = false; _glideElapsedSec = 0;
+    camera.setCenter(rawTarget.x, rawTarget.y);
+  }
 }
 
 export function setupCameraListeners(

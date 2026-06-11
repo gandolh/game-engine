@@ -2,7 +2,7 @@
   "id": "buildings",
   "imageUrl": "/atlas/buildings.png",
   "width": 128,
-  "height": 256,
+  "height": 512,
   "frames": {
     "structure/market-wall": {
       "x": 1,
@@ -334,60 +334,84 @@
       "w": 16,
       "h": 16
     },
-    "structure/tavern": {
+    "structure/weather-station": {
       "x": 18,
       "y": 169,
+      "w": 48,
+      "h": 32
+    },
+    "structure/weather-antenna": {
+      "x": 67,
+      "y": 169,
+      "w": 16,
+      "h": 64
+    },
+    "structure/weather-beacon-a": {
+      "x": 84,
+      "y": 169,
+      "w": 16,
+      "h": 16
+    },
+    "structure/weather-beacon-b": {
+      "x": 101,
+      "y": 169,
+      "w": 16,
+      "h": 16
+    },
+    "structure/tavern": {
+      "x": 1,
+      "y": 234,
       "w": 16,
       "h": 16
     },
     "structure/coop": {
-      "x": 35,
-      "y": 169,
+      "x": 18,
+      "y": 234,
       "w": 16,
       "h": 16
     },
     "structure/barn": {
-      "x": 52,
-      "y": 169,
+      "x": 35,
+      "y": 234,
       "w": 16,
       "h": 16
     },
     "structure/greenhouse": {
-      "x": 69,
-      "y": 169,
+      "x": 52,
+      "y": 234,
       "w": 16,
       "h": 16
     },
     "structure/fruit-tree-sapling": {
-      "x": 86,
-      "y": 169,
+      "x": 69,
+      "y": 234,
       "w": 16,
       "h": 16
     },
     "structure/fruit-tree-growing": {
-      "x": 103,
-      "y": 169,
+      "x": 86,
+      "y": 234,
       "w": 16,
       "h": 16
     },
     "structure/fruit-tree-mature": {
-      "x": 1,
-      "y": 186,
+      "x": 103,
+      "y": 234,
       "w": 16,
       "h": 16
     },
     "structure/dock": {
-      "x": 18,
-      "y": 186,
+      "x": 1,
+      "y": 251,
       "w": 16,
       "h": 16
     },
     "structure/cargo-ship": {
-      "x": 35,
-      "y": 186,
+      "x": 18,
+      "y": 251,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "2350ae9f56c6fa4cfeab77b3f1cb7efbb94d42227d750cb127fe18f1f6a576b3"
+  "inputsHash": "2e1dd8b9c62803cbf52bb67dd04bbf9b0a017dca36926f8e55617823a0be82a8"
 }

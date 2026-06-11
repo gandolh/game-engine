@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "./camera";
+import { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "./camera";
 
 function makeCamera(unitsX = 640, unitsY = 480): Camera2D {
   return new Camera2D({ worldUnitsX: unitsX, worldUnitsY: unitsY, centerX: 0, centerY: 0 });
@@ -58,5 +58,49 @@ describe("Camera2D.setZoom", () => {
   it("MIN_ZOOM is 0.5 and MAX_ZOOM is 6 (contract guard)", () => {
     expect(MIN_ZOOM).toBe(0.5);
     expect(MAX_ZOOM).toBe(6);
+  });
+});
+
+describe("expSmooth", () => {
+  it("converges toward target over time", () => {
+    let val = 0;
+    const target = 100;
+    for (let i = 0; i < 100; i++) {
+      val = expSmooth(val, target, 10, 0.016);
+    }
+    // After 100 frames at ~16ms, must be very close to target
+    expect(val).toBeCloseTo(target, 1);
+  });
+
+  it("never overshoots — result is always between current and target for positive k and dt", () => {
+    const current = 0;
+    const target = 50;
+    const result = expSmooth(current, target, 10, 0.016);
+    expect(result).toBeGreaterThan(current);
+    expect(result).toBeLessThan(target);
+  });
+
+  it("never overshoots in the negative direction", () => {
+    const current = 100;
+    const target = 0;
+    const result = expSmooth(current, target, 10, 0.016);
+    expect(result).toBeLessThan(current);
+    expect(result).toBeGreaterThan(target);
+  });
+
+  it("frame-rate independence — one 32ms step ≈ two 16ms steps (within ~1e-3 of gap)", () => {
+    const current = 0;
+    const target = 100;
+    // One 32ms step
+    const oneStep = expSmooth(current, target, 10, 0.032);
+    // Two 16ms steps
+    const twoSteps = expSmooth(expSmooth(current, target, 10, 0.016), target, 10, 0.016);
+    // The gap between them should be small
+    expect(Math.abs(oneStep - twoSteps)).toBeLessThan(1e-3 * (target - current));
+  });
+
+  it("identity when current === target", () => {
+    const result = expSmooth(42, 42, 10, 0.016);
+    expect(result).toBe(42);
   });
 });
