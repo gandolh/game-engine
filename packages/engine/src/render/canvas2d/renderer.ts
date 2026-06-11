@@ -4,8 +4,9 @@ import { EDG } from "../palette";
 import type { ParticleSystem } from "../particles";
 import type { Canvas2dSprite, Ctx2D } from "./types";
 import { compareSprite, drawSprite, createOffscreen, spritesOverlap } from "./draw";
+import type { RendererLike } from "../renderer";
 
-export class Canvas2dRenderer {
+export class Canvas2dRenderer implements RendererLike {
   readonly camera: Camera2D;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly canvas: HTMLCanvasElement;
