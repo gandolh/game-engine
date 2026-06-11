@@ -89,6 +89,14 @@ export class SimClient {
   private staticLayerCallback: ((msg: WorkerStaticLayerMsg) => void) | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
   private profileCallback: ((tick: number, report: ProfileReport) => void) | null = null;
+  private attachCallback: ((owner: boolean) => void) | null = null;
+
+  /**
+   * Whether this client is the run owner (controls playback).
+   * Default true so single-player / headless paths behave as before —
+   * the server sends an "attach" message only in the shared-run path.
+   */
+  private isOwner = true;
 
   // T1.2 — interpolation pooling. getInterpolatedSprites runs every render
   // frame (~60 Hz), so all of this is reused rather than allocated per call:
@@ -147,6 +155,12 @@ export class SimClient {
         this.snapshotCallback?.(msg.snapshot);
       } else if (msg.type === "profile") {
         this.profileCallback?.(msg.tick, msg.report);
+      } else if (msg.type === "attach") {
+        // Brief 72 — shared-run attach reply from the server registry.
+        // The server only sends this in the shared-run path; default is owner=true
+        // so single-player / headless paths are unaffected.
+        this.isOwner = msg.owner;
+        this.attachCallback?.(msg.owner);
       }
     };
 
@@ -303,6 +317,24 @@ export class SimClient {
   /** Called when a worker profiling report arrives (only while profiling is on). */
   onProfile(cb: (tick: number, report: ProfileReport) => void): void {
     this.profileCallback = cb;
+  }
+
+  /**
+   * Called when the server sends an attach reply (brief 72 shared-run path).
+   * Fires with `owner: true` if this client controls playback, `false` for spectators.
+   * Not called in the single-player / headless path (isOwner stays true).
+   */
+  onAttach(cb: (owner: boolean) => void): void {
+    this.attachCallback = cb;
+  }
+
+  /**
+   * Whether this client is the run owner (may send control messages).
+   * True by default so single-player / headless paths are unaffected.
+   * Set to false when the server sends `{ type: "attach", owner: false }`.
+   */
+  get owner(): boolean {
+    return this.isOwner;
   }
 
   // ---------------------------------------------------------------------------

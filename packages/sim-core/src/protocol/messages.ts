@@ -98,7 +98,19 @@ export interface WorkerProfileMsg {
   report: ProfileReport;
 }
 
+/**
+ * server → client: sent immediately after a socket attaches to a run.
+ * `owner: true` means this socket controls playback; `owner: false` means spectator.
+ * Single-player / headless paths default to owner=true so existing behaviour is
+ * unchanged (the client never receives this message from the old Worker path).
+ */
+export interface WorkerAttachMsg {
+  type: "attach";
+  owner: boolean;
+}
+
 export type WorkerOutbound =
   | WorkerStaticLayerMsg
   | WorkerSnapshotMsg
-  | WorkerProfileMsg;
+  | WorkerProfileMsg
+  | WorkerAttachMsg;

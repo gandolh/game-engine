@@ -13,4 +13,5 @@ export type {
   WorkerStaticLayerMsg,
   WorkerSnapshotMsg,
   WorkerProfileMsg,
+  WorkerAttachMsg,
 } from "./messages";

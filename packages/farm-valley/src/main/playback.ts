@@ -1,6 +1,10 @@
 import type { PlaybackControlsPanel } from "../ui";
 import type { SimClient } from "../worker/sim-client";
 
+// Brief 72 — client reference for owner-gate check in hotkeys.
+// Declared at module scope so registerHotkeys can access it after wirePlayback sets it.
+let _client: SimClient | null = null;
+
 // Wall-clock pacing only — never affects what a tick computes.
 export let paused = false;
 export let speed = 1;
@@ -16,6 +20,7 @@ export function wirePlayback(
   playback: PlaybackControlsPanel,
   client: SimClient,
 ): PlaybackHandlers {
+  _client = client;
   function applyPaused(next: boolean): void {
     paused = next;
     client.setPaused(paused);
@@ -44,6 +49,8 @@ export function wirePlayback(
 }
 
 // P=pause, "."=step. Speed via sidebar buttons; 1-7 select hotbar slots.
+// Brief 72 — hotkeys are only active for the run owner; spectators cannot
+// control the shared simulation via keyboard shortcuts.
 export function registerHotkeys(handlers: PlaybackHandlers): void {
   const { applyPaused, doStep, doSkipToHighlight } = handlers;
   window.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -52,6 +59,8 @@ export function registerHotkeys(handlers: PlaybackHandlers): void {
     if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
       return;
     }
+    // Spectators cannot control the run via hotkeys.
+    if (_client !== null && !_client.owner) return;
     switch (e.key) {
       // Pause is on "p" — Space is reserved for the player's action, and the
       // number keys 1-7 now select hotbar slots (handled in the input loop), so

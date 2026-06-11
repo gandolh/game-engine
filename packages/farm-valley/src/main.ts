@@ -118,6 +118,12 @@ async function startGame(
     const playbackHandlers = wirePlayback(playback, client);
     registerHotkeys(playbackHandlers);
 
+    // Brief 72 — when the server assigns owner=false (spectator), hide playback
+    // controls so the spectator cannot issue control commands to the shared run.
+    client.onAttach((isOwner) => {
+      playback.setVisible(isOwner);
+    });
+
     observer.setOnFarmerClick((id) => {
       setFocusedFarmerId(id);
       setPanOffset({ x: 0, y: 0 });

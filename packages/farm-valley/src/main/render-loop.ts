@@ -353,6 +353,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
 
     // Player input: report held direction; worker paces the step cadence.
+    // Brief 72 — only forward input when this client is the run owner; spectators
+    // can still read the keyboard for camera controls (Space recentre) but must
+    // not send Pip movement/action to the shared run.
     {
       let moveX: "left" | "right" | null = null;
       let moveY: "up" | "down" | null = null;
@@ -364,28 +367,30 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         setFocusedFarmerId(playerFarmerId);
         setRecenteringOnPip(true);
       }
-      const action = keyboard.justPressed("KeyE");
-      let selectSlot: number | null = null;
-      for (let n = 1; n <= HOTBAR_SLOTS.length && n <= 9; n++) {
-        if (keyboard.justPressed(`Digit${n}`)) {
-          selectSlot = n - 1;
-          break;
+      if (client.owner) {
+        const action = keyboard.justPressed("KeyE");
+        let selectSlot: number | null = null;
+        for (let n = 1; n <= HOTBAR_SLOTS.length && n <= 9; n++) {
+          if (keyboard.justPressed(`Digit${n}`)) {
+            selectSlot = n - 1;
+            break;
+          }
         }
-      }
-      // Resend only when held axis changes; avoids flooding the worker every frame.
-      const moveChanged = moveX !== lastPlayerMoveX || moveY !== lastPlayerMoveY;
-      if (moveChanged && (moveX !== null || moveY !== null) && playerFarmerId !== null) {
-        setFocusedFarmerId(playerFarmerId);
-        setRecenteringOnPip(true);
-      }
-      if (
-        moveChanged ||
-        action ||
-        selectSlot !== null
-      ) {
-        client.sendInput(moveX, moveY, action, selectSlot);
-        setLastPlayerMoveX(moveX);
-        setLastPlayerMoveY(moveY);
+        // Resend only when held axis changes; avoids flooding the worker every frame.
+        const moveChanged = moveX !== lastPlayerMoveX || moveY !== lastPlayerMoveY;
+        if (moveChanged && (moveX !== null || moveY !== null) && playerFarmerId !== null) {
+          setFocusedFarmerId(playerFarmerId);
+          setRecenteringOnPip(true);
+        }
+        if (
+          moveChanged ||
+          action ||
+          selectSlot !== null
+        ) {
+          client.sendInput(moveX, moveY, action, selectSlot);
+          setLastPlayerMoveX(moveX);
+          setLastPlayerMoveY(moveY);
+        }
       }
     }
     keyboard.endFrame();

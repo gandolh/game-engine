@@ -1,15 +1,16 @@
-// Farm Valley sim server: one SimHost per connection; disconnect stops the sim (no leaks).
+// Farm Valley sim server: shared-run registry — one SimHost per unique run key,
+// broadcast to all attached sockets. Disconnect of the last socket stops after
+// a grace period; disconnect of the owner transfers control to the next socket.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
-import type { WorkerInbound, WorkerOutbound } from "@farm/sim-core/protocol";
+import type { WorkerInbound } from "@farm/sim-core/protocol";
 import { SimHost } from "./sim-host";
+import { RunRegistry } from "./run-registry";
+import type { ClientSocket } from "./run-registry";
 
 const PORT = Number(process.env["PORT"] ?? 8787);
-
-// Backpressure: drop per-tick snapshots when bufferedAmount exceeds this; never drop static-layer/profile.
-const MAX_BUFFERED_BYTES = 1_000_000;
 
 async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
   const here = dirname(fileURLToPath(import.meta.url));
@@ -35,6 +36,8 @@ async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
 async function main(): Promise<void> {
   const pathfinderWasm = await loadPathfinderWasm();
 
+  const registry = new RunRegistry((send, _init) => new SimHost(send, { pathfinderWasm }));
+
   // permessage-deflate: ~70-80% size reduction on repetitive JSON snapshots; threshold skips tiny frames.
   const wss = new WebSocketServer({
     port: PORT,
@@ -43,29 +46,14 @@ async function main(): Promise<void> {
   console.log(`[server] Farm Valley sim server listening on ws://localhost:${PORT}`);
 
   wss.on("connection", (ws: WebSocket) => {
-    let dropped = 0;
-
     // setNoDelay: no-op for large frames today, but required before any small-frame codec (Nagle+ACK ≈ 40ms).
     // `_socket` is exposed by `ws` but absent from its public types — narrowed to avoid `any`.
     const rawSocket = (ws as { _socket?: { setNoDelay(b: boolean): void } })
       ._socket;
     rawSocket?.setNoDelay(true);
 
-    const send = (msg: WorkerOutbound): void => {
-      if (ws.readyState !== ws.OPEN) return;
-      if (msg.type === "snapshot" && ws.bufferedAmount > MAX_BUFFERED_BYTES) {
-        dropped += 1;
-        if (dropped % 60 === 0) {
-          console.warn(
-            `[server] client slow: dropped ${dropped} snapshots (buffered=${ws.bufferedAmount}B)`,
-          );
-        }
-        return;
-      }
-      ws.send(JSON.stringify(msg));
-    };
-
-    const host = new SimHost(send, { pathfinderWasm });
+    // ws satisfies ClientSocket: readyState, OPEN, bufferedAmount, send are all present.
+    const socket: ClientSocket = ws;
 
     ws.on("message", (data) => {
       let msg: WorkerInbound;
@@ -75,11 +63,11 @@ async function main(): Promise<void> {
         console.warn("[server] ignoring non-JSON message from client");
         return;
       }
-      host.handleInbound(msg);
+      registry.handleControl(socket, msg);
     });
 
-    ws.on("close", () => host.stop());
-    ws.on("error", () => host.stop());
+    ws.on("close", () => registry.detach(socket));
+    ws.on("error", () => registry.detach(socket));
   });
 
   const shutdown = (): void => {
