@@ -5,6 +5,22 @@ type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 export type ParticleShape = "circle" | "rect" | "star";
 
+/**
+ * Read-only snapshot of a single live particle, consumed by GPU renderers.
+ * Colors are in the same 0..255 range as stored internally; alpha is derived
+ * as max(0, life/maxLife) — identical to the computation in draw().
+ */
+export interface GpuParticleView {
+  x: number;
+  y: number;
+  size: number;
+  shape: ParticleShape;
+  r: number; // 0..255
+  g: number; // 0..255
+  b: number; // 0..255
+  alpha: number; // 0..1, = max(0, life/maxLife)
+}
+
 export interface ParticleEmitOptions {
   x: number;          // world-pixel origin
   y: number;
@@ -122,6 +138,32 @@ export class ParticleSystem {
 
   get count(): number {
     return this.particles.length;
+  }
+
+  /**
+   * Iterate over all live particles, exposing a read-only view for GPU renderers.
+   * The visitor is called synchronously; the view object is reused across calls —
+   * do not retain a reference beyond the callback.
+   * Alpha is computed identically to draw(): max(0, life / maxLife).
+   */
+  forEachParticle(visit: (v: GpuParticleView) => void): void {
+    const view: GpuParticleView = {
+      x: 0, y: 0, size: 0,
+      shape: "circle",
+      r: 0, g: 0, b: 0,
+      alpha: 0,
+    };
+    for (const p of this.particles) {
+      view.x     = p.x;
+      view.y     = p.y;
+      view.size  = p.size;
+      view.shape = p.shape;
+      view.r     = p.r;
+      view.g     = p.g;
+      view.b     = p.b;
+      view.alpha = Math.max(0, p.life / p.maxLife);
+      visit(view);
+    }
   }
 }
 
