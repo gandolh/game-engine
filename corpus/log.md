@@ -2,6 +2,18 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] done | Brief 77 shipped — 3D buildings + farm cottages
+
+Implemented [77-building-3d-depth-and-farm-houses](briefs/game/done/77-building-3d-depth-and-farm-houses.md). Render/asset-only; **3-day/3-seed `EXPORT=json` diff MATCH ×3** (WASM, ticks=20) — sim baseline untouched.
+
+- **weather-station redrawn** ([weather-station.ts](../tools/atlas-builder/src/recipes/assets/structure/weather-station.ts)) 48×32 → **48×48**: hipped roof (lit ridge `s` / body `S` / shadow `N`) + eave line over a tall stone front wall (`q`/`Q`/`N`) with two lit windows + central door. `hPx 32→48` in [`BIG_STRUCTURES`](../packages/sim-core/src/render-systems/geometry.ts) (rows 120–122, inside the 7×7 island; antenna clear).
+- **5 new `structure/cottage-*` recipes** (32×48, forge-house depth: gable roof + cream wall + wood posts + lit windows/door), roof color keyed to owner personality per [ui/colors.ts](../packages/farm-valley/src/ui/colors.ts): conservative=skyBlue `e`, aggressive=orange `f`, hoarder=green `g`, opportunist=mauve `U`, **Pip=red `R`** (distinct player house). All EDG32 swatch chars; palette guard green.
+- **Premise correction:** the brief assumed procedural farms `farm-0…15` have no owner and no house. **Stale** — `DEFAULT_FARMER_SPECS` = 5 fixed + 16 extra = **21 farmers**, each extra homed at `farm-{i}`, so all 21 farm regions already had a flat 16×16 home. So 77 *replaced every farm's home with the new 3D cottage* (not "added houses to empty islands"). New `farmCottageFrame(regionId)` helper in [geometry.ts](../packages/sim-core/src/render-systems/geometry.ts) maps named farms by personality + procedural `farm-{i}` by `i%4` (matching the EXTRA_FARMER_TEMPLATES cycle).
+- **Render path:** cottages baked into the static layer via `BIG_STRUCTURES` (bottom-anchored, **no new world entities** → byte-identical by construction), computed from `REGIONS` farm corners (`baseTileX = maxX-2, baseTileY = maxY-1`). The per-farm `home` entity is kept (sim home semantics) but its `sprite` field was **dropped** to avoid double-drawing over the baked cottage ([setup.ts](../packages/sim-core/src/world/region-setup/setup.ts)).
+- **Known consequence (accepted):** the "Farmhouse" hover tooltip is gone — the hover loop ([snapshot-builder/sprites.ts](../packages/sim-core/src/snapshot-builder/sprites.ts) `world.query("sprite","transform")`) only iterates sprite-bearing entities, and the home entity no longer has one. This makes farm cottages *consistent* with every other baked structure (forge-house/carpenter/weather-station also have no hover entity). Not a regression worth re-adding a sprite for.
+
+Atlas rebuilt (`buildings.json` 68→73 frames + `buildings.png`); typecheck clean; 647/647 sim-core tests pass. **Pending: in-browser eyeball** (weather-station island + a named + a procedural farm) — not yet user-signed-off.
+
 ## [2026-06-11] research | Building 3D depth + farm-island houses (brief 77 drafted)
 
 User: weather-station house "looks too flat", wants more 3D depth on buildings + a house on the farm islands. Research-only, no code changed.

@@ -407,19 +407,64 @@ function computeCoral(): readonly CoralTile[] {
 
 export const CORAL: readonly CoralTile[] = computeCoral();
 
-/** Large static buildings baked into the static layer. baseTileX = left col, baseTileY = bottom row. */
-export const BIG_STRUCTURES: ReadonlyArray<{
+/**
+ * Maps a farm region id to its baked cottage frame. Pure helper — see brief 77.
+ * Named farms map by owner personality; procedural `farm-{i}` farms map by (i % 4),
+ * matching EXTRA_FARMER_TEMPLATES order (0 conservative, 1 aggressive, 2 hoarder, 3 opportunist).
+ */
+export function farmCottageFrame(regionId: string): string {
+  switch (regionId) {
+    case "farm-pip":
+      return "structure/cottage-pip";
+    case "farm-cora":
+      return "structure/cottage-conservative";
+    case "farm-atticus":
+      return "structure/cottage-aggressive";
+    case "farm-hannah":
+      return "structure/cottage-hoarder";
+    case "farm-otto":
+      return "structure/cottage-opportunist";
+    default: {
+      const m = /^farm-(\d+)$/.exec(regionId);
+      const i = m ? Number(m[1]) : 0;
+      const byMod = [
+        "structure/cottage-conservative",
+        "structure/cottage-aggressive",
+        "structure/cottage-hoarder",
+        "structure/cottage-opportunist",
+      ] as const;
+      return byMod[i % 4]!;
+    }
+  }
+}
+
+interface BigStructure {
   frame: string;
   baseTileX: number;
   baseTileY: number;
   wPx: number;
   hPx: number;
-}> = [
+}
+
+/** Large static buildings baked into the static layer. baseTileX = left col, baseTileY = bottom row. */
+export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
   { frame: "structure/forge-house", baseTileX: 99, baseTileY: 78, wPx: 32, hPx: 48 },
   { frame: "structure/carpenter-workshop", baseTileX: 59, baseTileY: 78, wPx: 32, hPx: 48 },
   // Weather-station island: building (3×2 tiles) left side, antenna mast (1×4 tiles) right side.
-  { frame: "structure/weather-station", baseTileX: 109, baseTileY: 122, wPx: 48, hPx: 32 },
+  // Taller (hPx 48) building — rises upward into tile rows 120-122, within island bounds (minY 119).
+  { frame: "structure/weather-station", baseTileX: 109, baseTileY: 122, wPx: 48, hPx: 48 },
   { frame: "structure/weather-antenna", baseTileX: 114, baseTileY: 122, wPx: 16, hPx: 64 },
+  // One baked 3D cottage per farm region, bottom-anchored at the SE corner the old home used
+  // (maxX-1,maxY-1 in setup.ts). 32px (2 tiles) wide ⇒ baseTileX = maxX-2.
+  ...REGIONS.filter((r) => r.kind === "farm").map(
+    (r): BigStructure => ({
+      frame: farmCottageFrame(r.id),
+      baseTileX: r.bounds.maxX - 2,
+      baseTileY: r.bounds.maxY - 1,
+      wPx: 32,
+      hPx: 48,
+    }),
+  ),
 ];
 
 /** A single static decoration tile (frame at a tile coordinate). */

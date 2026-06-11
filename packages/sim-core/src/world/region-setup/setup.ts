@@ -93,9 +93,9 @@ export function setupRegions(
       if (ownerId !== undefined) {
         const hx = def.bounds.maxX - 1;
         const hy = def.bounds.maxY - 1;
+        // render: the farmhouse is now drawn as a baked cottage in BIG_STRUCTURES (geometry.ts); the home entity stays for the snapshot 'Farmhouse' hover label + sim home semantics, but carries no sprite to avoid double-draw.
         world.spawn({
           transform: { x: hx, y: hy, prevX: hx, prevY: hy, rotation: 0 },
-          sprite: { atlasId: "main", frame: "structure/home", layer: 40, tintRgba: 0xffffffff },
           home: { isHome: true, regionId: def.id as RegionId, ownerId },
         });
       }

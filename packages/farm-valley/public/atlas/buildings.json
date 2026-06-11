@@ -338,7 +338,7 @@
       "x": 18,
       "y": 169,
       "w": 48,
-      "h": 32
+      "h": 48
     },
     "structure/weather-antenna": {
       "x": 67,
@@ -358,60 +358,90 @@
       "w": 16,
       "h": 16
     },
-    "structure/tavern": {
+    "structure/cottage-conservative": {
       "x": 1,
       "y": 234,
+      "w": 32,
+      "h": 48
+    },
+    "structure/cottage-aggressive": {
+      "x": 34,
+      "y": 234,
+      "w": 32,
+      "h": 48
+    },
+    "structure/cottage-hoarder": {
+      "x": 67,
+      "y": 234,
+      "w": 32,
+      "h": 48
+    },
+    "structure/cottage-opportunist": {
+      "x": 1,
+      "y": 283,
+      "w": 32,
+      "h": 48
+    },
+    "structure/cottage-pip": {
+      "x": 34,
+      "y": 283,
+      "w": 32,
+      "h": 48
+    },
+    "structure/tavern": {
+      "x": 67,
+      "y": 283,
       "w": 16,
       "h": 16
     },
     "structure/coop": {
-      "x": 18,
-      "y": 234,
+      "x": 84,
+      "y": 283,
       "w": 16,
       "h": 16
     },
     "structure/barn": {
-      "x": 35,
-      "y": 234,
+      "x": 101,
+      "y": 283,
       "w": 16,
       "h": 16
     },
     "structure/greenhouse": {
-      "x": 52,
-      "y": 234,
+      "x": 1,
+      "y": 332,
       "w": 16,
       "h": 16
     },
     "structure/fruit-tree-sapling": {
-      "x": 69,
-      "y": 234,
+      "x": 18,
+      "y": 332,
       "w": 16,
       "h": 16
     },
     "structure/fruit-tree-growing": {
-      "x": 86,
-      "y": 234,
+      "x": 35,
+      "y": 332,
       "w": 16,
       "h": 16
     },
     "structure/fruit-tree-mature": {
-      "x": 103,
-      "y": 234,
+      "x": 52,
+      "y": 332,
       "w": 16,
       "h": 16
     },
     "structure/dock": {
-      "x": 1,
-      "y": 251,
+      "x": 69,
+      "y": 332,
       "w": 16,
       "h": 16
     },
     "structure/cargo-ship": {
-      "x": 18,
-      "y": 251,
+      "x": 86,
+      "y": 332,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "2e1dd8b9c62803cbf52bb67dd04bbf9b0a017dca36926f8e55617823a0be82a8"
+  "inputsHash": "079083304c75772294dd8145c8739078216a0a2c7d54f47f35f142999a6dd156"
 }

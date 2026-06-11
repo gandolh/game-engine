@@ -186,6 +186,11 @@ import r181 from "./structure/weather-station";
 import r182 from "./structure/weather-antenna";
 import r183 from "./structure/weather-beacon-a";
 import r184 from "./structure/weather-beacon-b";
+import r185 from "./structure/cottage-conservative";
+import r186 from "./structure/cottage-aggressive";
+import r187 from "./structure/cottage-hoarder";
+import r188 from "./structure/cottage-opportunist";
+import r189 from "./structure/cottage-pip";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -373,5 +378,10 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r182,
   r183,
   r184,
+  r185,
+  r186,
+  r187,
+  r188,
+  r189,
 ];
 
