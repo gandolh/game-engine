@@ -43,6 +43,7 @@ export class FestivalSystem implements System {
     for (const station of this.world.query("weatherStation", "inbox")) {
       for (const msg of station.inbox.messages) {
         if (msg.ontology === ONT_SIMULATION.DAY_START) {
+          this.bus.markRead(ONT_SIMULATION.DAY_START);
           const day = (msg.body as { day: number }).day;
           if (newDay === null || day > newDay) newDay = day;
         }

@@ -1,4 +1,4 @@
-import type { SimContext, System, World } from "@engine/core";
+import type { SimContext, System, World, MessageBus } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_SIMULATION } from "../protocols";
 import type { EventFeedSystem, EventEntry } from "./event-feed";
@@ -16,6 +16,7 @@ export class TavernSystem implements System {
   constructor(
     private readonly world: World<GameEntity>,
     private readonly eventFeed: EventFeedSystem,
+    private readonly bus?: MessageBus,
   ) {}
 
   run(_ctx: SimContext): void {
@@ -25,6 +26,7 @@ export class TavernSystem implements System {
     let newDay: number | null = null;
     for (const msg of tavern.inbox.messages) {
       if (msg.ontology === ONT_SIMULATION.DAY_START) {
+        this.bus?.markRead(ONT_SIMULATION.DAY_START);
         const day = (msg.body as { day: number }).day;
         if (day > this.lastDayProcessed) newDay = day;
       }

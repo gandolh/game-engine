@@ -42,6 +42,7 @@ export class HarborSystem implements System {
     let newDay: number | null = null;
     for (const msg of board.inbox.messages) {
       if (msg.ontology === ONT_SIMULATION.DAY_START) {
+        this.bus.markRead(ONT_SIMULATION.DAY_START);
         const day = (msg.body as { day: number }).day;
         if (newDay === null || day > newDay) newDay = day;
       }

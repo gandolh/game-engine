@@ -1,6 +1,6 @@
 /** Passive per-day rank collector. Runs in snoop band (after InboxDispatch, before PerceiveSystem). */
 
-import type { SimContext, System, World } from "@engine/core";
+import type { SimContext, System, World, MessageBus } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_SIMULATION } from "../protocols/simulation";
 import { cropInventoryValue } from "../economy";
@@ -18,13 +18,17 @@ export class RunHistorySystem implements System {
   private readonly rows: RunHistoryRow[] = [];
   private lastDayProcessed = -1;
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(
+    private readonly world: World<GameEntity>,
+    private readonly bus?: MessageBus,
+  ) {}
 
   run(_ctx: SimContext): void {
     let newDay: number | null = null;
     for (const station of this.world.query("weatherStation", "inbox")) {
       for (const msg of station.inbox.messages) {
         if (msg.ontology === ONT_SIMULATION.DAY_START) {
+          this.bus?.markRead(ONT_SIMULATION.DAY_START);
           const day = (msg.body as { day: number }).day;
           if (day > this.lastDayProcessed) {
             newDay = day;

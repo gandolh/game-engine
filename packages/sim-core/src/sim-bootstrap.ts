@@ -191,9 +191,10 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   });
   const meetIndicators = new MeetIndicatorSystem(world);
   const rivalry = new RivalrySystem(world, listCoordinators());
-  const runHistory = new RunHistorySystem(world);
+  const runHistory = new RunHistorySystem(world, bus);
   const eventFeed = new EventFeedSystem(world, dayClock, rivalry, runHistory);
   const scheduler = new Scheduler()
+    .stage("CLOCK")
     .add(dayClock);
 
   if (opts.shock !== false) {
@@ -206,28 +207,25 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   }
 
   scheduler
+    .stage("DISPATCH")
     .add(weatherFeature.weatherSystem)
     .add(new InboxDispatchSystem(bus, world))
     .add(new ShopSlateSystem(world, bus, rng))
     .add(new NoticeBoardSystem(world, bus, rng))
+    .stage("SNOOP")
     .add(new EncounterSystem(world, bus))
-    // must run before PerceiveSystem clears inboxes
     .add(new EncounterTradeSystem(world))
     .add(meetIndicators)
     .add(new TrustSystem(world, listCoordinators()))
-    // must run before EventFeedSystem (feed reads freshlyFormedThisTick)
     .add(rivalry)
-    // snoop band: reads DAY_START before PerceiveSystem clears inboxes; must precede DeliberateSystem
     .add(new FestivalSystem(bus, world, rng, opts.ticksPerDay))
-    // snoop band: reads DAY_START, posts/resolves contracts; must run before EventFeedSystem snoops its broadcasts
     .add(new HarborSystem(world, bus, rng))
-    // snoop band: must observe inbox + market-wall messages before PerceiveSystem clears them
     .add(eventFeed)
-    // after EventFeedSystem (feed up to date); before PerceiveSystem clears DAY_START
-    .add(new TavernSystem(world, eventFeed))
-    // snoop band: snoops DAY_START before PerceiveSystem clears
+    .add(new TavernSystem(world, eventFeed, bus))
     .add(runHistory)
+    .stage("PERCEIVE")
     .add(new PerceiveSystem(world))
+    .stage("GROW")
     .add(weatherFeature.cropGrowthSystem)
     .add(new TileFeatureSystem(world, rng, bus))
     .add(new BubbleSystem(world, rng))
@@ -235,8 +233,8 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new LivestockSystem(world, rng))
     .add(new OrchardSystem(world))
     .add(new PlotSenseSystem(world))
+    .stage("DELIBERATE")
     .add(new DeliberateSystem(world))
-    // after Deliberate (skips player), before TravelSystem/ActSystem
     .add(new PlayerControlSystem(world))
     .add(weatherFeature.apSystem);
 
@@ -244,11 +242,13 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     const grid = buildWalkableGrid();
     // separate boat grid (water lanes); TravelSystem swaps to it while a farmer is aboard
     const boatGrid = buildBoatGrid();
+    scheduler.stage("MOVE");
     scheduler.add(new FeatureCollisionSystem(world, grid));
     scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, grid, bus, boatGrid));
   }
 
   scheduler
+    .stage("ACT")
     .add(new ActSystem(world, rng, bus))
     .add(marketShop.marketSystem)
     .add(marketShop.shopkeeperSystem)
