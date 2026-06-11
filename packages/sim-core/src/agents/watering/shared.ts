@@ -28,14 +28,17 @@ export const FISHING_CAST_TILES = [
   { x: 22, y: 71 },
 ] as const;
 
-/** Tavern gathering tile inside the village hub (next to the barkeep). */
-export const TAVERN_GATHER_TILE = { x: 44, y: 35 } as const;
+/**
+ * Tavern gathering tile inside the village hub (patron side of the bar: one tile
+ * south of the barkeep at (82,76), well inside village bounds (75–86, 75–86)).
+ */
+export const TAVERN_GATHER_TILE = { x: 82, y: 78 } as const;
 
 /** How often (in days) a farmer makes a tavern gathering trip (a periodic luxury). */
 export const TAVERN_VISIT_PERIOD = 12;
 
-/** The festival gathering tile: auction podium in the town square. */
-export const FESTIVAL_PODIUM_TILE = { x: 43, y: 39 } as const;
+/** The festival gathering tile: auction podium in the town square (matches AUCTION_PODIUM_TILE). */
+export const FESTIVAL_PODIUM_TILE = { x: 80, y: 80 } as const;
 
 /**
  * Pick the nearest water source region to the farmer: their home farm (fountain)

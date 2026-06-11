@@ -2,6 +2,10 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] done | Brief 73 landed — reachability guards on gather/pray beats; (29,69) diagnosis: CASE 3 (walkable, same-component as shrine in current radial world — stale finding)
+
+Connectivity-component map (`packages/sim-core/src/world/connectivity.ts`): pure-JS 4-connected floodfill over `buildWalkableGrid()`, lazy singleton, exports `componentOf` / `sameComponent`. Guards added to `deliberateShrineVisit`, `deliberateTavernGather`, and `deliberateFestivalGather` in `social.ts`: skip when `aboard` or `!sameComponent(farmerTile, targetTile)`. Stale tile constants in `shared.ts` also corrected: `TAVERN_GATHER_TILE` (44,35)→(82,78) and `FESTIVAL_PODIUM_TILE` (43,39)→(80,80). (29,69) turns out to be inside farm-3 (inner ring slot 7) — Case 3, no world-data fix needed. Sim-outcome baseline moves by design (skipping doomed intents shifts tick timing); no probe/determinism run per the constrained-hardware decision. Task 4 (WASM allocator fault) deferred per brief instructions.
+
 ## [2026-06-11] todo | Brief 74 filed — weather station island with signal antenna
 
 Small offshore island: a compact weather-station building + a tall signal-antenna mast with a blinking indicator light. Render-only (world-gen + Atlas recipes); no sim/determinism impact. Follows the existing "more islands" pattern (briefs 50/51/52/54). Brief: [74-weather-station-island](briefs/game/todo/74-weather-station-island.md).

@@ -3,8 +3,9 @@ import { recordReason, DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../com
 import type { DecorationKind, FarmDecoration } from "../../components";
 import { isWithinReach } from "../../systems/proximity";
 import { TAVERN_GATHER_TILE, TAVERN_VISIT_PERIOD, FESTIVAL_PODIUM_TILE } from "./shared";
-import { SHRINE_REGION_ID } from "../../world/regions";
+import { SHRINE_REGION_ID, getRegion } from "../../world/regions";
 import { SHRINE_COOLDOWN_DAYS } from "../../systems/ap";
+import { sameComponent } from "../../world/connectivity";
 
 /** Queue craft-decoration when wood is available and boost cap not reached. */
 export function deliberateDecoration(
@@ -105,8 +106,11 @@ export function deliberateHireHelp(
 
 /**
  * Visit the shrine for a small AP top-up. Opportunist only. Gated on: off-cooldown,
- * morning/work phase, AP ≤ 55% of max, no wilting plots. Commits a winning travel leg.
- * Deterministic: pure read of day / phase / AP fraction / region / plot-sense.
+ * morning/work phase, AP ≤ 55% of max, no wilting plots, same land component as the
+ * shrine (skips farmers aboard a boat or stranded on a disconnected island), and not
+ * currently mid-boat-trip. Commits a winning travel leg.
+ * Deterministic: pure read of day / phase / AP fraction / region / plot-sense /
+ * connectivity-map lookup.
  */
 export function deliberateShrineVisit(
   farmer: GameEntity,
@@ -125,6 +129,15 @@ export function deliberateShrineVisit(
   const sense = farmer.beliefs.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
   if (sense && sense.maxDrySoFar >= 2) return;
   if (farmer.intentions.queue.some((i) => i.kind === "pray-at-shrine")) return;
+
+  // Reachability guard: skip if aboard a boat or on a disconnected land pocket.
+  if (farmer.farmer.aboard) return;
+  if (farmer.transform) {
+    const fx = Math.round(farmer.transform.x);
+    const fy = Math.round(farmer.transform.y);
+    const shrineCenter = getRegion(SHRINE_REGION_ID).center;
+    if (!sameComponent(fx, fy, shrineCenter.x, shrineCenter.y)) return;
+  }
 
   if (farmer.farmer.currentRegion !== SHRINE_REGION_ID) {
     const wanted = travelPriority ?? priority - 1;
@@ -149,7 +162,12 @@ export function deliberateShrineVisit(
   recordReason(farmer, `pray at shrine (AP ${farmer.ap.current}/${farmer.ap.max})`);
 }
 
-/** Periodic tavern visit (every TAVERN_VISIT_PERIOD days, staggered by entity id). Pure flavor; AP-free travel; morning/work phase only. */
+/**
+ * Periodic tavern visit (every TAVERN_VISIT_PERIOD days, staggered by entity id).
+ * Pure flavor; AP-free travel; morning/work phase only. Gated to the same land
+ * component as the tavern and not mid-boat-trip (replaces the old "gated to the
+ * village" claim — it is now gated by same-land-component + not-aboard).
+ */
 export function deliberateTavernGather(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || !farmer.beliefs || !farmer.inventory) return;
   const phase = farmer.beliefs.data.phase as string | undefined;
@@ -164,6 +182,14 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   if (isWithinReach(farmer.transform, TAVERN_GATHER_TILE.x, TAVERN_GATHER_TILE.y)) return;
   if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile && i.data.tavernGather)) return;
 
+  // Reachability guard: skip if aboard a boat or on a disconnected land pocket.
+  if (farmer.farmer.aboard) return;
+  if (farmer.transform) {
+    const fx = Math.round(farmer.transform.x);
+    const fy = Math.round(farmer.transform.y);
+    if (!sameComponent(fx, fy, TAVERN_GATHER_TILE.x, TAVERN_GATHER_TILE.y)) return;
+  }
+
   farmer.intentions.queue.push({
     kind: "travel",
     data: { targetTile: { x: TAVERN_GATHER_TILE.x, y: TAVERN_GATHER_TILE.y }, tavernGather: true },
@@ -172,7 +198,12 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   recordReason(farmer, "visit the tavern (gathering beat)");
 }
 
-/** Travel to the festival podium on a festival day (morning/work phase, AP ≥ 40, no wilting). AP-free; contest judged from end-of-day inventory by FestivalSystem. */
+/**
+ * Travel to the festival podium on a festival day (morning/work phase, AP ≥ 40, no
+ * wilting). AP-free; contest judged from end-of-day inventory by FestivalSystem. Gated
+ * to the same land component as the podium and not mid-boat-trip (same-land-component +
+ * not-aboard guard, mirroring deliberateTavernGather).
+ */
 export function deliberateFestivalGather(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || !farmer.beliefs) return;
   const festival = farmer.beliefs.data.festivalToday as
@@ -185,6 +216,14 @@ export function deliberateFestivalGather(farmer: GameEntity, priority: number): 
   if (sense && sense.maxDrySoFar >= 2) return;
   if (isWithinReach(farmer.transform, FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)) return;
   if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.festivalGather)) return;
+
+  // Reachability guard: skip if aboard a boat or on a disconnected land pocket.
+  if (farmer.farmer.aboard) return;
+  if (farmer.transform) {
+    const fx = Math.round(farmer.transform.x);
+    const fy = Math.round(farmer.transform.y);
+    if (!sameComponent(fx, fy, FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)) return;
+  }
 
   const held = farmer.inventory?.crops[festival.contestCrop as import("../../components").CropKind] ?? 0;
 
