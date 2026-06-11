@@ -214,6 +214,24 @@ describe("RunRegistry — owner control", () => {
     expect(stub.controlLog).toHaveLength(0);
   });
 
+  // Brief 78 — Pip-movement regression guard. The reported "Pip doesn't move"
+  // symptom traced to duplicate dev processes producing a second socket that
+  // attached as a spectator (owner:false), whose input the render-loop swallows.
+  // These lock the invariant the single-player path depends on: the OWNER's
+  // input reaches the host (→ applyInput → pendingMove → PlayerControlSystem),
+  // while a spectator's input is dropped. A regression that gated the owner's
+  // input (or ungated a spectator's) would fail here headlessly.
+  it("input from owner IS forwarded to the host", () => {
+    registry.handleControl(owner, { type: "input", moveX: "right", moveY: null, action: false, selectSlot: null });
+    expect(stub.controlLog).toHaveLength(1);
+    expect(stub.controlLog[0]).toEqual({ type: "input", moveX: "right", moveY: null, action: false, selectSlot: null });
+  });
+
+  it("input from spectator is NOT forwarded to the host", () => {
+    registry.handleControl(spectator, { type: "input", moveX: "right", moveY: null, action: false, selectSlot: null });
+    expect(stub.controlLog).toHaveLength(0);
+  });
+
   it("stop from spectator does NOT stop the shared run", () => {
     registry.handleControl(spectator, { type: "stop" });
     expect(stub.stopped).toBe(false);

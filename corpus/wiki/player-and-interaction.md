@@ -13,7 +13,14 @@ Pip is a normal farmer **entity** in the sim worker with the same components as 
 - `farmer.movedThisTick` flag exists so the render walk-cycle animates Pip even though it has no pathfinder `path`.
 
 ### Input plumbing
-`WorkerInputMsg { move, action, selectSlot }` → `SimClient.sendInput()` → worker `applyInput` buffers the values onto the player entity, consumed/cleared by `PlayerControlSystem` each tick. Controls: **WASD/arrows** move, **Space** (or **E**) = action, **number keys 1–7** select a hotbar slot. Pause was moved off Space to **P** to free Space for the action; the old `1/2/4` speed hotkeys were removed (number keys now belong to the hotbar) — speed is set via the sidebar buttons.
+
+**Post-brief-72 (client/server split), the input path crosses a websocket + an owner gate** — it is no longer an in-worker `postMessage`:
+
+`render-loop` reads the held axes from `keyboard` each frame → **`client.owner` gate** (only the run owner forwards Pip input; spectators in a shared run may not drive Pip) → resend **only when the held axis changes** (`moveChanged`, avoids per-frame flooding; held key persists server-side) → `SimClient.sendInput()` posts `{ type: "input", moveX, moveY, action, selectSlot }` over the **websocket** → server [`RunRegistry.handleControl`](../../packages/server/src/run-registry.ts) forwards it **only if `socket === run.owner`** → [`SimHost.applyInput`](../../packages/server/src/sim-host.ts) writes `pendingMoveX/Y` / `pendingAction` / `selectedSlot` onto the single `player` entity → [`PlayerControlSystem`](../../packages/sim-core/src/systems/player-control/system.ts) **reads** `pendingMove*` each tick (velocity move + per-axis AABB wall-slide). Note `pendingMove*` is **read but not cleared** (held-direction model); it persists until a keyup sends `null`.
+
+Controls: **WASD/arrows** move, **Space** recenters camera on Pip, **E** = action, **number keys 1–9** select a hotbar slot. Speed is set via the sidebar buttons.
+
+> **Brief 78 (2026-06-11):** a reported "Pip doesn't move" was **not reproducible in a clean single-player `npm run dev`** — the full chain (client → registry `owner:true` → host `applyInput` → `PlayerControlSystem`) was verified healthy end-to-end via live instrumentation (Pip moved tile-by-tile, wall-collision intact). Root cause of the live symptom: **duplicate dev processes** (overlapping sessions left extra Vite/server instances running), so a second socket attached to the same run-key as a **spectator** (`owner:false`) and `render-loop` silently swallowed its input. Guarded headlessly by `run-registry.test.ts` ("input from owner IS forwarded" / "from spectator is NOT"). If it recurs in a clean session, the next suspect is keyboard focus, not the transport.
 
 ### Pip's sprite
 `pip` is a `PERSONALITY_SUBS` entry in [atlas-builder recipes.ts](../../tools/atlas-builder/src/recipes/) (gold hair `y→o`, green tunic `r→G`) which auto-generates the action + facing frames; a small extra block makes the 3 down-base frames. Rebuild with `npm run atlas`.

@@ -2,6 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] done | Brief 78 closed — Pip movement NOT broken (not-reproducible)
+
+Diagnostic-first brief; [78-pip-movement-broken](briefs/game/done/78-pip-movement-broken.md). **No code fix — the premise was stale** (cf. brief 77). Instrumented every hop and drove real key events via Playwright against a *clean* `npm run dev`:
+- client → `{moveX:"right", owner:true, pid:5}`; registry → `{isOwner:true, sockets:1}`; host → `{applyWired:true}`; `PlayerControlSystem` → Pip moved `(77,25)→(85.7,25)` tile-by-tile, stopping at a wall (`canStandTarget:false`). All four prime suspects (server hop, owner gate, `moveChanged` race, `applyInput` timing) ruled out.
+- **Root cause of the live symptom: duplicate dev processes.** Overlapping sessions left extra Vite (5173 **and** 5174) + server instances running; a second socket on the same run-key attaches as a **spectator** (`attach owner:false`) and `render-loop` silently swallows its input (the brief's suspect #2 — environmental, not a single-player defect). Killing the stale processes → movement worked first try.
+- **Deliverables:** headless regression guard in [run-registry.test.ts](../packages/server/src/run-registry.test.ts) ("input from owner IS forwarded" / "from spectator is NOT") so an owner-gate regression is caught (21/21 server tests pass); corrected the stale pre-brief-72 input-path section of [player-and-interaction.md](wiki/player-and-interaction.md) (websocket + owner gate + `pendingMove*` read-not-cleared). No transport/sim code changed.
+- **Lesson:** kill stale `npm run dev` trees before live-diagnosing a client/server bug; a lingering second socket masquerades as a movement/control defect.
+
 ## [2026-06-11] done | Brief 75 shipped — principled economy model + crop re-tune
 
 Implemented [75-economy-rebalance-formula](briefs/game/done/75-economy-rebalance-formula.md). **⚠️ Sim-outcome baseline MOVED by design** (reproducibility re-verified REPRODUCIBLE ×3 at the new baseline; recorded run-descriptor URLs replay differently now).
