@@ -163,7 +163,6 @@ describe("ApSystem", () => {
     });
   });
 
-  // Rested/unrested refill is in PerceiveSystem (morning wake); ApSystem must NOT touch AP on WAIT_DAY.
   describe("no longer refills on WAIT_DAY", () => {
     it("leaves AP untouched in WAIT_DAY even when penaltyPending was set", () => {
       const farmer = spawnFarmer(world, 1, 8, [

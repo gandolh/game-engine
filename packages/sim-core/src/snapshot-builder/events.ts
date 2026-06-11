@@ -7,8 +7,7 @@ export function buildMeets(meetIndicators: MeetIndicatorSystem, tick: number): S
   return meetIndicators.active(tick).map((entry) => ({ farmerId: entry.farmerId }));
 }
 
-// ⚠️ ALIASING: pooled buffer reused each call. Safe in production (postMessage clones before next build).
-// Same-thread callers (tests, headless) must not retain snapshot.events across two builds — copy first.
+// ⚠️ Pooled buffer reused each call. Same-thread callers (tests) must not retain .events across two builds.
 const eventsScratch: SnapshotEvent[] = [];
 
 export function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {

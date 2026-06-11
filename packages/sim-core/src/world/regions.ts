@@ -1,6 +1,5 @@
 import { createRng } from '@engine/core';
 
-/** Hand-authored islands with fixed coordinates. */
 export type FixedRegionId =
   | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
   | 'farm-pip'                         // Player-controlled farmer's farm
@@ -21,8 +20,7 @@ export type FixedRegionId =
   | 'waterfall'                       // decorative — ANIMATED cascade, no behavior
   | 'camp';                           // rest away from home without the unrested penalty
 
-/** Procedurally-generated extra farm islands (the radial outer farms). `farm-0`
- *  .. `farm-(EXTRA_FARM_COUNT-1)`, laid out by {@link makeRadialFarmRegion}. */
+/** `farm-0` .. `farm-(EXTRA_FARM_COUNT-1)` on the radial outer rings. */
 export type ExtraFarmRegionId = `farm-${number}`;
 
 export type RegionId = FixedRegionId | ExtraFarmRegionId;
@@ -47,8 +45,7 @@ export const WORLD_HEIGHT = 160;
 const MAP_CX = 80;
 const MAP_CY = 80;
 
-// FIXED seed (not the run seed): world geometry is constant across runs.
-// Determinism: a tick depends only on tick count + run rng; world geometry is immutable.
+// Fixed (not the run seed): world geometry is immutable across runs.
 export const WORLD_GEN_SEED = 0x5eed_face;
 
 // Hand-authored bounds packed around (80,80); ≥1 ocean gap between any pair,
@@ -158,43 +155,31 @@ const EXTRA_FARM_REGIONS: readonly RegionDef[] = Array.from(
   (_unused, i) => makeRadialFarmRegion(i),
 );
 
-/** Every fishing-isle region id, so the renderer / fishing logic treat them
- *  uniformly. */
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
 
-/** The harbor island where shipping contracts are posted. */
 export const HARBOR_REGION_ID: RegionId = 'harbor';
-
-/** The interactive shrine island (pray for a bounded AP boost). */
 export const SHRINE_REGION_ID: RegionId = 'shrine';
-
-/** The three purely-decorative heritage-site islets (no behavior). */
 export const HERITAGE_REGION_IDS: readonly RegionId[] = [
   'heritage-stones',
   'heritage-ruin',
   'heritage-statue',
 ];
-
-/** The decorative ANIMATED waterfall island (no behavior). */
 export const WATERFALL_REGION_ID: RegionId = 'waterfall';
 
-/** The camping islet. A farmer here at nightfall sleeps RESTED (no away-from-home penalty). */
+/** A farmer here at nightfall sleeps RESTED (no away-from-home penalty). */
 export const CAMP_REGION_ID: RegionId = 'camp';
 
-/** Campfire-overlay anchor tile (cx+2 from island center). Render-loop only; sim/snapshot never reference it. */
+/** Campfire-overlay anchor tile (cx+2 from island center). Render-loop only. */
 export const CAMPFIRE_TILE = { x: 114, y: 108 } as const;
 
-/** Waterfall cascade-overlay anchor tile (center column / top). Render-loop only; sim/snapshot never reference it. */
+/** Waterfall cascade-overlay anchor tile (center column / top). Render-loop only. */
 export const WATERFALL_TILE = { x: 83, y: 59 } as const;
 
-/** The dock tile where a farmer stands to deliver a contract (harbor north
- *  edge center). */
+/** Harbor north-edge center — farmer stands here to deliver a contract. */
 export const HARBOR_DOCK_TILE = { x: 96, y: 105 } as const;
 
-/** The contract board tile within the harbor. */
 export const HARBOR_BOARD_TILE = { x: 97, y: 108 } as const;
 
-/** True if a region id is one of the fishing isles. */
 export function isFishingIsle(region: RegionId | null): boolean {
   return region === 'fishing-isle' || region === 'fishing-isle-2';
 }
@@ -236,7 +221,7 @@ export const REGIONS: readonly RegionDef[] = [
   ...EXTRA_FARM_REGIONS,
 ];
 
-// Roads: 2-wide bridges spanning only water; tree rooted at village. 41 total.
+// Roads: 2-wide bridges spanning only water; tree rooted at village.
 interface RoadDef {
   minX: number; minY: number; maxX: number; maxY: number;
 }
@@ -390,7 +375,7 @@ function inBounds(
   return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
 }
 
-/** RegionId for a tile coordinate, or null for void/road-only tiles. */
+/** Returns null for void/road-only tiles. */
 export function regionAt(x: number, y: number): RegionId | null {
   for (const region of REGIONS) {
     if (inBounds(x, y, region.bounds)) return region.id;
@@ -398,7 +383,6 @@ export function regionAt(x: number, y: number): RegionId | null {
   return null;
 }
 
-/** True if the tile is inside a region or on a road. */
 export function isWalkable(x: number, y: number): boolean {
   if (regionAt(x, y) !== null) return true;
   for (const road of ROADS) {
@@ -407,7 +391,6 @@ export function isWalkable(x: number, y: number): boolean {
   return false;
 }
 
-/** Get a region definition by id. Throws if not found. */
 export function getRegion(id: RegionId): RegionDef {
   const region = REGIONS.find((r) => r.id === id);
   if (!region) throw new Error(`getRegion: unknown region id '${id}'`);

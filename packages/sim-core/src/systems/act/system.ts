@@ -3,7 +3,7 @@ import type { GameEntity } from "../../components";
 import { actionTicks } from "./helpers";
 import type { ActContext, ActingFarmer } from "./types";
 
-// Handler modules — one file per domain.
+
 import { handlePlant, handleWater, handleTill } from "./handlers/farming";
 import {
   handleBuySeed,
@@ -284,7 +284,6 @@ export class ActSystem implements System {
         }
       }
 
-      // Set busyUntilTick so the farmer pauses before the next deliberation.
       const tools = farmer.inventory?.tools ?? [];
       const totalCost = intentions.reduce((sum, i) => sum + actionTicks(i.kind, tools), 0);
       if (totalCost > 0 && farmer.farmer) {

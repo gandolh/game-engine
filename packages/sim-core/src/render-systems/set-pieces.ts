@@ -1,5 +1,4 @@
-// Decorative open-water seabed props. Render-only; zero sim/pathfinding impact.
-// Scatter computed once at module load from WORLD_GEN_SEED — no Math.random.
+// Decorative open-water seabed props. Render-only; scatter computed once at module load.
 import { createRng } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, WORLD_GEN_SEED } from "../world/regions";
 import { CORAL } from "./geometry";
@@ -35,7 +34,6 @@ function computeSetPieces(): readonly SetPieceTile[] {
     for (const l of reef.lane) forbidden.add(key(l.x, l.y));
   }
 
-  // Open water + no walkable 8-ring neighbor (clear of coastline).
   const eligible = (tx: number, ty: number): boolean => {
     if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return false;
     if (forbidden.has(key(tx, ty))) return false;
@@ -62,7 +60,7 @@ function computeSetPieces(): readonly SetPieceTile[] {
   };
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS && placed.length < TARGET_COUNT; attempt++) {
-    // Always draw all four fields so rng stream stays aligned regardless of acceptance.
+    // Draw all four rng fields every iteration to keep the stream aligned regardless of acceptance.
     const tx = rng.int(0, WORLD_WIDTH);
     const ty = rng.int(0, WORLD_HEIGHT);
     const frame = rng.pick(PROP_FRAMES);

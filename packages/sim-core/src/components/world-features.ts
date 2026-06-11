@@ -35,7 +35,6 @@ export interface Solid {
   tileY: number;
 }
 
-/** Tags the blacksmith entity in the forge region. */
 export interface BlacksmithTag {
   readonly isBlacksmith: true;
 }
@@ -82,7 +81,6 @@ export interface WorkNpc {
   busyFactor?: number;
 }
 
-/** Tags the auction podium entity at the town square center. */
 export interface AuctionPodiumTag {
   readonly isAuctionPodium: true;
 }
@@ -94,7 +92,6 @@ export interface NoticeBoardTag {
   bountyText?: string | undefined;
 }
 
-/** Tags the mill NPC entity in the mill region. */
 export interface MillTag {
   readonly isMill: true;
 }
@@ -138,7 +135,6 @@ export interface HarborBoardTag {
 export interface DockmasterTag {
   readonly isDockmaster: true;
 }
-
 
 export type DecorationKind = "scarecrow" | "windmill" | "flower-bed" | "fence-art";
 

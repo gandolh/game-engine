@@ -31,11 +31,7 @@ export class TileFeatureSystem implements System {
   readonly name = "TileFeatureSystem";
   private lastDayProcessed = -1;
 
-  // Dedicated rng stream for all feature placement (cluster centers + growth +
-  // count rolls). Forked ONCE per run from the main stream so clustering draws
-  // never shift the downstream sim's `this.rng` stream — the spawn loop reads
-  // exclusively from `this.cluster`, leaving `this.rng` otherwise untouched.
-  // (Brief 49 track 5: organic clusters, gameplay-neutral.)
+  // Dedicated rng stream for feature placement — forked so cluster draws never shift the main sim rng stream.
   private readonly cluster: Rng;
 
   constructor(
@@ -47,7 +43,6 @@ export class TileFeatureSystem implements System {
   }
 
   run(ctx: SimContext): void {
-    // Trigger once per new day.
     const stations = this.world.query("weatherStation", "inbox");
     let newDay: number | null = null;
     for (const station of stations) {
@@ -62,7 +57,6 @@ export class TileFeatureSystem implements System {
     if (newDay === null) return;
     this.lastDayProcessed = newDay;
 
-    // --- Build occupied-tile sets per region ---
     const occupiedByRegion = new Map<string, Set<string>>();
     const featureCountByRegion = new Map<string, number>();
 
@@ -96,14 +90,12 @@ export class TileFeatureSystem implements System {
       occupiedByRegion.get(rid)!.add(key);
     }
 
-    // --- Collect primary owner id per farm region ---
     const farmOwnerByRegion = new Map<string, number>();
     for (const e of this.world.query("farmer")) {
       const rid = e.farmer.homeRegion;
       if (rid && e.id !== undefined) farmOwnerByRegion.set(rid, e.id);
     }
 
-    // --- Spawn loop over farms and resource zones ---
     for (const def of REGIONS) {
       const isForest = def.id === "forest-north" || def.id === "forest-south";
       const isQuarry = def.id === "quarry-north" || def.id === "quarry-south";
@@ -111,9 +103,7 @@ export class TileFeatureSystem implements System {
 
       if (!isFarm && !isForest && !isQuarry) continue;
 
-      // Determine owner id: for zones, pick the nearest farm by center distance
-      // (ownership is only a pathfinding-priority hint — any farmer may gather
-      // anywhere). Generalizes the old hardcoded N/S corner pairs to any farm.
+      // Ownership = nearest farm by center distance (pathfinding-priority hint only; any farmer may gather).
       let ownerId: number | undefined;
       if (isFarm) {
         ownerId = farmOwnerByRegion.get(def.id);
@@ -138,7 +128,6 @@ export class TileFeatureSystem implements System {
 
       const occupied = occupiedByRegion.get(rid) ?? new Set<string>();
 
-      // Gather empty candidate tiles (row-major — a fixed, deterministic order).
       const candidates: Array<{ x: number; y: number }> = [];
       for (let ty = def.bounds.minY; ty <= def.bounds.maxY; ty++) {
         for (let tx = def.bounds.minX; tx <= def.bounds.maxX; tx++) {
@@ -147,20 +136,8 @@ export class TileFeatureSystem implements System {
       }
       if (candidates.length === 0) continue;
 
-      // --- Decide HOW MANY features to spawn (gameplay-neutral count) ---
-      // We preserve the COUNT distribution exactly: today the system rolls one
-      // `nextFloat() < chance` per empty candidate tile, i.e. the per-day spawn
-      // count is Binomial(emptyCandidates, chance) clipped at the cap. We
-      // reproduce that same Binomial draw here (one roll per candidate, on the
-      // FORKED stream) — so the EXPECTED count and the cap are identical to
-      // before. Only the spatial PLACEMENT of those features changes: instead of
-      // landing on the rolled tiles, they grow outward from a few cluster centers
-      // so they read as organic copses/outcrops.
-      //
-      // For farm tiles (mixed tree+stone) we additionally tag each spawn slot
-      // tree-or-stone in the same proportion the old per-tile roll produced
-      // (tree if r<FARM_TREE_CHANCE, else stone if r<TREE+STONE), so the
-      // tree/stone mix is preserved too.
+      // One roll per candidate (Binomial draw on the forked stream) to decide count;
+      // farm tiles tag each slot tree-or-stone preserving the original tree/stone mix.
       const slots: Array<"tree" | "stone"> = [];
       const room = maxFeatures - currentCount; // cap headroom (>0 here)
       for (const _candidate of candidates) {
@@ -177,18 +154,12 @@ export class TileFeatureSystem implements System {
       }
       if (slots.length === 0) continue;
 
-      // --- Decide WHERE to place them (organic clusters) ---
-      // Seed a small number of cluster centers (copses / outcrops), then grow
-      // each cluster outward into adjacent empty tiles by BFS over a frontier,
-      // round-robin across centers so multiple clusters fill evenly. The number
-      // of centers scales ~sqrt(slots) (bounded 1..4) so a handful of features
-      // forms one clump and a near-cap zone forms a few distinct copses.
+      // Place in organic clusters: BFS outward from sqrt(count) seed centers, round-robin.
       const targetCount = slots.length;
       const centerCount = Math.max(1, Math.min(4, Math.round(Math.sqrt(targetCount))));
 
       const placements = this.growClusters(candidates, occupied, centerCount, targetCount);
 
-      // Place features. `placements` is ordered; pair each with its slot kind.
       for (let i = 0; i < placements.length; i++) {
         const { x, y } = placements[i]!;
         const kind = slots[i]!;
@@ -220,28 +191,23 @@ export class TileFeatureSystem implements System {
     targetCount: number,
   ): Array<{ x: number; y: number }> {
     const key = (x: number, y: number) => `${x},${y}`;
-    // Set of tiles that are valid cluster targets (empty + in-region).
     const inRegion = new Set<string>();
     for (const c of candidates) inRegion.add(key(c.x, c.y));
 
     const claimed = new Set<string>();
     const result: Array<{ x: number; y: number }> = [];
 
-    // Per-cluster BFS frontiers.
     const frontiers: Array<Array<{ x: number; y: number }>> = [];
     const seedPool = [...candidates];
     const seeds = Math.min(centerCount, seedPool.length);
     for (let s = 0; s < seeds; s++) {
-      // Pick a center uniformly from the remaining pool (forked rng, fixed order).
       const idx = this.cluster.int(0, seedPool.length);
       const center = seedPool[idx]!;
-      // Remove picked center from the pool (swap-pop, deterministic).
       seedPool[idx] = seedPool[seedPool.length - 1]!;
       seedPool.pop();
       frontiers.push([center]);
     }
 
-    // Round-robin BFS expansion across clusters until we hit the target or run dry.
     let active = true;
     while (result.length < targetCount && active) {
       active = false;
@@ -250,7 +216,6 @@ export class TileFeatureSystem implements System {
         // Pop the next unclaimed frontier tile for this cluster.
         let placed = false;
         while (frontier.length > 0 && !placed) {
-          // Pull from the front for breadth-first growth.
           const tile = frontier.shift()!;
           const k = key(tile.x, tile.y);
           if (claimed.has(k) || !inRegion.has(k)) continue;
@@ -258,7 +223,6 @@ export class TileFeatureSystem implements System {
           result.push(tile);
           placed = true;
           active = true;
-          // Enqueue 4-neighbours as future growth (in a fixed order).
           const neighbours = [
             { x: tile.x + 1, y: tile.y },
             { x: tile.x - 1, y: tile.y },
@@ -275,8 +239,7 @@ export class TileFeatureSystem implements System {
       }
     }
 
-    // If clusters ran dry before reaching the target (e.g. fragmented region),
-    // top up from any remaining unclaimed empty tiles so the COUNT is preserved.
+    // Top up from unclaimed tiles if clusters ran dry (fragmented region).
     if (result.length < targetCount) {
       for (const c of candidates) {
         if (result.length >= targetCount) break;

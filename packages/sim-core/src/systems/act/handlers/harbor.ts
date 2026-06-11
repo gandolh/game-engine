@@ -1,4 +1,3 @@
-/** Harbor handlers: commit-contract, deliver-contract. */
 import type { Intention, MessageBus, World } from "@engine/core";
 import type { GameEntity } from "../../../components";
 import { ONT_HARBOR } from "../../../protocols/harbor";

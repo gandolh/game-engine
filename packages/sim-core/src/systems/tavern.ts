@@ -3,28 +3,7 @@ import type { GameEntity } from "../components";
 import { ONT_SIMULATION } from "../protocols";
 import type { EventFeedSystem, EventEntry } from "./event-feed";
 
-/**
- * brief 44 — TavernSystem: the village social hub's barkeep.
- *
- * Responsibility here is the **gossip line**: each day-start the barkeep surfaces
- * one rumor drawn from the event feed (brief 20) onto the tavern entity, so the
- * village reads as informed/alive (diegetic narration). It is stamped on the
- * `tavern.gossip` field for the hover tooltip / observer panel.
- *
- * The other two tavern mechanics live elsewhere by design (mirroring how the
- * shop's order→fulfill split works):
- *   - **Hiring** a day-helper is an AP-gated `hire-help` ACT (see act.ts) that
- *     costs gold and grants an AP boost — handled where the farmer's gold/AP
- *     live, not here.
- *   - **Gathering** (idle/evening farmers pathing to the tavern) is queued by a
- *     deliberate helper (see watering.ts `deliberateTavernGather`) using the
- *     existing deterministic travel — the tavern is just a travel target.
- *
- * Determinism: the gossip pick is a PURE function of the event feed contents.
- * We pick the highest-drama recent entry, tie-broken by newest tick then by the
- * entry's stable `key` — no Math.random / Date.now. Detection of a new day
- * mirrors NoticeBoardSystem: snoop the tavern inbox for a fresh DAY_START.
- */
+/** Surfaces a daily gossip rumor from the event feed onto the tavern entity. No Math.random/Date.now. */
 
 /** Window of recent feed entries the barkeep draws a rumor from. */
 const GOSSIP_WINDOW = 12;
@@ -50,8 +29,6 @@ export class TavernSystem implements System {
         if (day > this.lastDayProcessed) newDay = day;
       }
     }
-    // The tavern inbox is cleared by nobody else, so drain it after snooping so a
-    // stale DAY_START doesn't linger (it's broadcast-fanned each day).
     tavern.inbox.messages.length = 0;
     if (newDay === null) return;
     this.lastDayProcessed = newDay;
@@ -67,12 +44,7 @@ export class TavernSystem implements System {
   }
 }
 
-/**
- * Deterministically pick a rumor line from the (newest-last) event feed: take the
- * most recent `GOSSIP_WINDOW` entries, choose the highest-drama one, tie-broken
- * by newest tick, then by stable key. Returns undefined when the feed is empty.
- * Exported for direct unit testing.
- */
+/** Highest-drama entry from the last GOSSIP_WINDOW feed entries; tie-broken by newest tick, then stable key. */
 export function pickGossip(feed: readonly EventEntry[]): string | undefined {
   if (feed.length === 0) return undefined;
   const window = feed.slice(Math.max(0, feed.length - GOSSIP_WINDOW));

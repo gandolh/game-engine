@@ -61,8 +61,7 @@ export function buildRelationshipsData(world: World<GameEntity>): RelationshipMa
     trust[from.id] = {};
     for (const to of farmerList) {
       if (from.id === to.id) {
-        // Diagonal: self-trust not meaningful; use 1.0 as sentinel for blank cell rendering.
-        trust[from.id]![to.id] = 1.0;
+        trust[from.id]![to.id] = 1.0; // diagonal: self-trust sentinel for blank cell rendering
       } else {
         trust[from.id]![to.id] = from.entity.trust?.byId.get(to.id) ?? 0.5;
       }

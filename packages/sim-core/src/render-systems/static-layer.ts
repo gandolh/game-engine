@@ -141,7 +141,7 @@ export function* iterStaticSprites(
     };
   }
 
-  // Cliff skirts NOT baked: they depth-sort against characters → see occluders.ts.
+  // Cliffs not baked: depth-sort against characters → occluders.ts.
   for (const bridge of BRIDGES) {
     yield {
       x: bridge.tx * TILE + TILE / 2,
@@ -155,7 +155,7 @@ export function* iterStaticSprites(
     };
   }
 
-  // South-facing walls skipped (depth-sort → occluders.ts).
+  // South-facing walls skipped: depth-sorted as occluders instead.
   for (const wall of WALLS) {
     if (isOccluderWall(wall)) continue;
     yield {
@@ -183,7 +183,7 @@ export function* iterStaticSprites(
     };
   }
 
-  // Big buildings: bottom-anchored at baseTileY; center offset so bottom edge = base tile bottom.
+  // Big buildings: bottom-anchored at baseTileY; center offset places bottom edge at tile bottom.
   for (const b of BIG_STRUCTURES) {
     yield {
       x: b.baseTileX * TILE + b.wPx / 2,

@@ -1,5 +1,4 @@
-// @farm/sim-core — Node-safe + browser-safe (no DOM at module load).
-// Root barrel for the most common entry points; deep subpaths in package.json `exports`.
+// Root barrel — Node-safe + browser-safe (no DOM at module load). Deep subpaths in package.json exports.
 
 export {
   bootstrapSim,

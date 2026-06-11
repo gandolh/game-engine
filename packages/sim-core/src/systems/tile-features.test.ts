@@ -1,14 +1,7 @@
 /**
- * brief 49 track 5 — TileFeatureSystem organic-cluster tests.
- *
- * Verifies the per-day tree/stone spawns:
- *  - respect the hard caps (MAX_PER_ZONE / MAX_PER_FARM), incl. when pre-seeded;
- *  - preserve the COUNT behaviour (zones trend toward the cap over days, as
- *    before — the cap is the binding constraint, not a rate regression);
- *  - land in organic CLUSTERS (avg nearest-neighbour distance among a zone's
- *    features is smaller than uniform random placement would give);
- *  - are deterministic (same seed → identical placements);
- *  - keep forest=trees-only, quarry=stones-only, farm=mixed.
+ * TileFeatureSystem organic-cluster tests.
+ * Verifies caps (MAX_PER_ZONE/MAX_PER_FARM), count preservation, cluster placement,
+ * determinism, and type constraints (forest=trees-only, quarry=stones-only, farm=mixed).
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";

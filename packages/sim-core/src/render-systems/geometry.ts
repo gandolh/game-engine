@@ -1,4 +1,3 @@
-// All compute* functions run at module load — deterministic pure geometry, no RNG.
 import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
@@ -72,7 +71,7 @@ export function edgeFrame(region: RegionId): string {
   return "tile/wall";
 }
 
-// Fences only where a farm abuts another land region (not road entry, not ocean). Ocean margins = walls.
+// Fences: farm borders against other land regions only; ocean margins use walls.
 function computeFences(): readonly FenceTile[] {
   const out: FenceTile[] = [];
   const isLandRegion = (x: number, y: number): boolean =>
@@ -104,8 +103,8 @@ function computeFences(): readonly FenceTile[] {
 
 export const FENCES: readonly FenceTile[] = computeFences();
 
-// Walls: region land tiles bordering ocean get a material band (edgeFrame) per side.
-// Road tiles excluded: bridge mouths must stay open. Rotation: −Y=0, +X=90°, +Y=180°, −X=270°.
+// Walls: material band on land tiles bordering ocean. Road tiles excluded (bridge mouths open).
+// Rotation: −Y=0, +X=90°, +Y=180°, −X=270°.
 function computeWalls(): readonly WallTile[] {
   const out: WallTile[] = [];
   const dirs: Array<[number, number, number]> = [
@@ -144,7 +143,7 @@ export function isOccluderWall(w: WallTile): boolean {
 
 export const OCCLUDER_WALLS: readonly WallTile[] = WALLS.filter(isOccluderWall);
 
-// Shores: foam band on each land-tile side facing ocean. Band authored top-up at rotation 0.
+// Shores: foam band on land tiles facing ocean. Authored top-up at rotation 0.
 function computeShores(): readonly ShoreTile[] {
   const out: ShoreTile[] = [];
   const dirs: Array<[number, number, number]> = [
@@ -169,8 +168,6 @@ function computeShores(): readonly ShoreTile[] {
 }
 
 export const SHORES: readonly ShoreTile[] = computeShores();
-
-// Bridge deck authored horizontal; rotated 90° for vertical corridors.
 
 export function isBridge(tx: number, ty: number): boolean {
   if (!isWalkable(tx, ty)) return false;
@@ -198,7 +195,6 @@ function computeBridges(): readonly BridgeTile[] {
     if (off || !isWalkable(x, y)) return true; // ocean
     return deck.has(key(x, y));
   };
-  // Fixpoint: road tiles flanked by ocean-or-deck on both sides of an axis are part of the span.
   let changed = true;
   while (changed) {
     changed = false;
@@ -234,7 +230,6 @@ export const BRIDGE_SET: ReadonlySet<number> = new Set(
   BRIDGES.map((b) => b.ty * WORLD_WIDTH + b.tx),
 );
 
-// Cliff skirts south of TALL_ISLANDS. Bridges excluded (walkable tiles skip). Corner frames at edges.
 function computeCliffs(): readonly CliffTile[] {
   type CliffPos = { tx: number; ty: number; row: number };
   const allPositions: CliffPos[] = [];
@@ -309,11 +304,10 @@ export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> =
   return out;
 })();
 
-// Coral alpha: semi-transparent so water shows through (submerged look).
+// Coral alpha: semi-transparent so water shows through.
 const CORAL_ALPHA = 0.4;
 
-// Coral: autotiled clusters on open-water tiles (no 8-ring land neighbor). Fixed-seed, no Math.random.
-// Autotile frames: coral-fill (interior), coral-edge (one open side), coral-corner (two adjacent open sides).
+// Coral clusters on open-water tiles (no 8-ring land neighbor). Fixed-seed, no Math.random.
 function computeCoral(): readonly CoralTile[] {
   const candidates: Array<{ tx: number; ty: number }> = [];
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
@@ -333,14 +327,12 @@ function computeCoral(): readonly CoralTile[] {
     }
   }
 
-  // Seeded LCG — no Math.random so the layout is stable across runs.
   let seed = 0x9e3779b1 >>> 0;
   const rand = (): number => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 0x100000000;
   };
 
-  // Compact circular clusters: always add the nearest-to-seed free candidate so patches fill round.
   const CLUSTERS = 8;
   const taken = new Set<number>();
   const key = (x: number, y: number) => y * WORLD_WIDTH + x;
@@ -399,13 +391,13 @@ function computeCoral(): readonly CoralTile[] {
       out.push({ tx, ty, frame: "tile/coral-fill", rotation: 0 });
       continue;
     }
-    // Corner tile fades TOP-LEFT at rotation 0; rotate to match the open pair.
+    // Corner tile: TOP-LEFT open at rotation 0; rotate to match the open pair.
     if (openCount === 2) {
       if (!up && !left) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 0 }); continue; }
       if (!up && !right) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: HALF_PI }); continue; }
       if (!down && !right) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 2 * HALF_PI }); continue; }
       if (!down && !left) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 3 * HALF_PI }); continue; }
-      // Two opposite open sides (1-wide neck) — fall through to edge.
+      // Opposite open sides (1-wide neck) — fall through to edge.
     }
     const rotation = !up ? 0 : !right ? HALF_PI : !down ? 2 * HALF_PI : 3 * HALF_PI;
     out.push({ tx, ty, frame: "tile/coral-edge", rotation });
@@ -415,10 +407,7 @@ function computeCoral(): readonly CoralTile[] {
 
 export const CORAL: readonly CoralTile[] = computeCoral();
 
-/**
- * Large static buildings baked into the static layer. baseTileX = left column,
- * baseTileY = bottom row. Both off their island's road spine so the interior stays traversable.
- */
+/** Large static buildings baked into the static layer. baseTileX = left col, baseTileY = bottom row. */
 export const BIG_STRUCTURES: ReadonlyArray<{
   frame: string;
   baseTileX: number;

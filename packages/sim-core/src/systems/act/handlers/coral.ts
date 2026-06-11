@@ -1,4 +1,3 @@
-/** Coral-trip handlers: board-boat, fish-coral, return-to-shore. Movement via TravelSystem; each step guards on current tile/aboard state. */
 import type { Rng, MessageBus } from "@engine/core";
 import { FISH_VALUE, CORAL_WEIGHTS, FISH_MIN_TICKS, FISH_MAX_TICKS, zeroFish } from "../../../components";
 import { grantSkillXp, fishingRarityBonus } from "../../skills";

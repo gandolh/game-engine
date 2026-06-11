@@ -45,12 +45,10 @@ export const CORAL_DOCK_TILES: ReadonlySet<string> = new Set(
   CORAL_REEFS.map((r) => `${r.dock.x},${r.dock.y}`),
 );
 
-/** True if a tile is a coral reef tile (where coral fishing resolves). */
 export function isCoralReefTile(x: number, y: number): boolean {
   return CORAL_REEF_TILES.has(`${Math.round(x)},${Math.round(y)}`);
 }
 
-/** True if a tile is a boat dock tile (where a farmer boards / disembarks). */
 export function isDockTile(x: number, y: number): boolean {
   return CORAL_DOCK_TILES.has(`${Math.round(x)},${Math.round(y)}`);
 }

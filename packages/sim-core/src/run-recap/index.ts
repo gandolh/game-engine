@@ -1,5 +1,4 @@
-// Pure synthesis module — no side effects, no Date.now / Math.random.
-// Same inputs → byte-identical RunRecap.
+// Pure synthesis — no side effects, no Date.now/Math.random; same inputs → byte-identical output.
 
 import type { RunHistoryRow } from "../systems/run-history";
 import type { FinalStandingRow, SnapshotRivalry } from "../snapshot";
@@ -9,7 +8,6 @@ import type { RecapStanding, RunRecap } from "./types";
 
 export type { RecapStanding, RunRecap };
 
-/** Build a RunRecap from collected sim data. Pure — same inputs → byte-identical output. */
 export function summarizeRun(
   history: readonly RunHistoryRow[],
   events: readonly EventEntry[],

@@ -109,8 +109,7 @@ describe("EncounterTradeSystem", () => {
   it("MEET → OFFER_SEED → ACCEPT transfers seeds + gold (sell direction injected)", () => {
     // Inject a sell-direction OFFER_SEED directly: Atticus offers wheat seeds
     // to Otto at unit price 8 (= SEED_COST.wheat) → Otto's ceiling 110% of seed
-    // cost (8.8) → accept. (brief 59: seed trades anchor on SEED_COST, not the
-    // crop sell price 14.)
+    // cost (8.8) → accept. (Seed trades anchor on SEED_COST, not the crop sell price 14.)
     const atticus = spawnFarmer(world, {
       personality: "aggressive",
       gold: 100,
@@ -377,8 +376,7 @@ describe("EncounterTradeSystem", () => {
     });
 
     // direction='sell' means the sender (Hannah) is selling wheat to Atticus.
-    // brief 59 — aggressive's buy ceiling is 95% of SEED_COST.wheat (8 * 0.95 =
-    // 7.6). unitPrice 7 is below the ceiling, so Atticus accepts.
+    // aggressive's buy ceiling is 95% of SEED_COST.wheat (8 * 0.95 = 7.6); unitPrice 7 is below → accepts.
     const offer: OfferSeedBody = {
       offerId: "trust-test-1",
       crop: "wheat",
@@ -461,8 +459,7 @@ describe("EncounterTradeSystem", () => {
     expect(trade._pendingOfferCount()).toBe(0);
   });
 
-  // brief 59 — harvested-CROP trades. Seeds are never in surplus (farmers plant
-  // just-in-time), so the crop path is what actually closes peer trades live.
+  // Harvested-crop trades: seeds are never in surplus (farmers plant just-in-time), so the crop path closes live.
   describe("crop trades (OFFER_CROP)", () => {
     it("MEET → OFFER_CROP → ACCEPT transfers crops + gold and bumps trust both ways", () => {
       // Hannah (hoarder, low id) holds a wheat-crop surplus → initiates a CROP

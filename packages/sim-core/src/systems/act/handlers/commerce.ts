@@ -1,4 +1,3 @@
-/** Commerce handlers: buy-seed, sell-shopkeeper, post-offer, read-offers, buy-from-wall, auction-bid, resale-bean, buy-tool, process-crop, sell-product, sell-fruit. */
 import type { Intention, MessageBus } from "@engine/core";
 import type { GameEntity, CropKind } from "../../../components";
 import { TOOL_PRICE } from "../../../components";
@@ -78,7 +77,7 @@ export function handleSellShopkeeper(
   const available = Math.min(qty, farmer.inventory.crops[crop]);
   if (available <= 0) return;
 
-  // Quality-weighted: sell gold-tier first (highest value), then silver, then normal.
+  // Quality-weighted: sell gold-tier first, then silver, then normal.
   const basePrice = SELL_PRICE[crop];
   const quality = farmer.inventory.cropQuality;
   if (quality?.[crop]) {
@@ -223,7 +222,6 @@ export function handleBuyTool(
   farmer: ActingFarmer,
   intent: Intention,
 ): void {
-  // Location-gated: deliberation queues a travel-to-village intent first.
   if (farmer.farmer?.currentRegion !== "village") return;
   const toolKind = intent.data.toolKind as import("../../../components").ToolKind;
   const tier: import("../../../components").ToolTier = "wooden";
@@ -238,8 +236,7 @@ export function handleProcessCrop(
   farmer: ActingFarmer,
   intent: Intention,
 ): void {
-  // Location-gated to mill. Pays MILL_PRICE (premium over shopkeeper buy price).
-  if (farmer.farmer?.currentRegion !== "mill") return;
+  if (farmer.farmer?.currentRegion !== "mill") return; // pays MILL_PRICE premium
   const crop = intent.data.crop as CropKind;
   if (!(crop in MILL_PRICE)) return;
   const have = farmer.inventory.crops[crop];

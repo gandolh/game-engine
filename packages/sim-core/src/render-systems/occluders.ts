@@ -1,15 +1,12 @@
-// Dynamic edge occluders: south-facing wall + cliff tiles pushed each frame at sortY = tile bottom edge.
-// This makes them cover characters standing north of the face (y-sorted on the entity layer).
+// Dynamic occluders: south-facing wall + cliff tiles pushed each frame at sortY = tile bottom edge.
 import type { Canvas2dRenderer } from "@engine/core";
 import { OCCLUDER_WALLS, CLIFFS } from "./geometry";
 import { frameToAtlasId } from "./frames";
 
 const TILE = 16;
 
-/** Must share the entity layer so `compareSprite` y-sorts occluders against characters. */
-const ENTITY_LAYER = 50;
+const ENTITY_LAYER = 50; // shared with characters so compareSprite y-sorts occluders against them
 
-/** Push occluder sprites for this frame. Accepts a `push` surface so tests can pass a stub. */
 export function pushOccluderSprites(renderer: Pick<Canvas2dRenderer, "push">): void {
   for (const wall of OCCLUDER_WALLS) {
     renderer.push({

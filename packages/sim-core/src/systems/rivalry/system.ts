@@ -64,28 +64,20 @@ export class RivalrySystem implements System {
     this.detectNewAlliances();
   }
 
-  // ---- farmer inbox snoop ---------------------------------------------------
-
   private processFarmerInboxes(): void {
     for (const farmer of this.world.query("farmer", "inbox")) {
       if (farmer.id === undefined) continue;
       for (const msg of farmer.inbox.messages) {
         if (msg.ontology !== ONT_ENCOUNTER.DECLINE) continue;
         if (typeof msg.sender !== "number") continue;
-        // farmer.id received a DECLINE from msg.sender (the peer rejected our
-        // OFFER_SEED). This is adverse for the initiator (farmer.id) toward the
-        // peer (msg.sender). Accumulate on the ordered pair.
         this.addAdverseEvent(farmer.id, msg.sender);
       }
     }
   }
 
-  // ---- CNP broken commitments -----------------------------------------------
-
   private processCnpBrokenCommitments(currentTick: number): void {
     if (!this.cnpCoordinators) return;
-    // Mirror TrustSystem.processCnpCommitments but use our own seenBroken set
-    // and do NOT call markBrokenCommitmentReported (TrustSystem owns that).
+    // Do NOT call markBrokenCommitmentReported — TrustSystem owns that flag.
     const BROKEN_WINDOW = 4;
     for (const coord of this.cnpCoordinators.values()) {
       const broken = coord.findBrokenCommitments(currentTick, BROKEN_WINDOW);
@@ -94,25 +86,16 @@ export class RivalrySystem implements System {
         const key = `broken:${task.taskId}`;
         if (this.seenBroken.has(key)) continue;
         this.seenBroken.add(key);
-        // Initiator had a broken commitment toward the winner — adverse for the
-        // pair. We record the pair (initiatorId, winnerId) just like TrustSystem.
         this.addAdverseEvent(task.initiatorId, task.winnerId);
       }
     }
   }
 
-  // ---- alliance detection ---------------------------------------------------
-
   private detectNewAlliances(): void {
-    // An alliance is purely derived from the current trust matrix — no
-    // accumulator needed. We scan all ordered pairs of farmers and check if both
-    // trust each other above ALLIANCE_TRUST_THRESHOLD. Emit a fresh entry only
-    // the first time a pair crosses that threshold (one-shot via announcedAllianceKeys).
     const farmers: Array<{ id: number; entity: GameEntity }> = [];
     for (const f of this.world.query("farmer")) {
       if (f.id !== undefined) farmers.push({ id: f.id, entity: f });
     }
-    // Sort for deterministic iteration order.
     farmers.sort((a, b) => a.id - b.id);
 
     for (let i = 0; i < farmers.length; i++) {
@@ -122,14 +105,11 @@ export class RivalrySystem implements System {
         const aId = fa.id;
         const bId = fb.id;
         const key = pairKey(aId, bId);
-        // Skip pairs already announced.
         if (this.announcedAllianceKeys.has(key)) continue;
-        // Check mutual trust.
         const trustAtoB = fa.entity.trust?.byId.get(bId) ?? 0.5;
         const trustBtoA = fb.entity.trust?.byId.get(aId) ?? 0.5;
         if (trustAtoB >= ALLIANCE_TRUST_THRESHOLD && trustBtoA >= ALLIANCE_TRUST_THRESHOLD) {
           this.announcedAllianceKeys.add(key);
-          // Sort ids for the FreshRivalry so aId < bId.
           const loId = aId < bId ? aId : bId;
           const hiId = aId < bId ? bId : aId;
           this.freshThisTick.push({ aId: loId, bId: hiId, score: 0, kind: "alliance" });
@@ -137,8 +117,6 @@ export class RivalrySystem implements System {
       }
     }
   }
-
-  // ---- internal accumulator -------------------------------------------------
 
   private addAdverseEvent(aId: number, bId: number): void {
     const key = pairKey(aId, bId);
@@ -148,7 +126,6 @@ export class RivalrySystem implements System {
     // Check if this event pushes the pair over the threshold for the first time.
     if (next >= RIVALRY_THRESHOLD && !this.activeRivalryKeys.has(key)) {
       this.activeRivalryKeys.add(key);
-      // Decode ids from key (lo:hi).
       const [loStr, hiStr] = key.split(":");
       const loId = Number(loStr);
       const hiId = Number(hiStr);
@@ -156,16 +133,7 @@ export class RivalrySystem implements System {
     }
   }
 
-  // ---- public accessors -----------------------------------------------------
-
-  /**
-   * Returns rivalries and alliances formed THIS tick (cleared every tick).
-   * EventFeedSystem reads this list during the same tick (RivalrySystem runs
-   * before EventFeedSystem in the scheduler).
-   * The list is sorted by pair key for deterministic ordering.
-   */
   freshlyFormedThisTick(): readonly FreshRivalry[] {
-    // Sort by pair key for deterministic ordering before returning.
     return this.freshThisTick
       .slice()
       .sort((a, b) => {
@@ -175,10 +143,6 @@ export class RivalrySystem implements System {
       });
   }
 
-  /**
-   * Returns a stable, deterministically-ordered list of all active rivalries
-   * (pairs where score ≥ RIVALRY_THRESHOLD). Sorted by pair key.
-   */
   activeRivalries(): readonly ActiveRivalry[] {
     const out: ActiveRivalry[] = [];
     for (const key of this.activeRivalryKeys) {
@@ -194,11 +158,6 @@ export class RivalrySystem implements System {
     return out;
   }
 
-  /**
-   * Returns active alliances — pairs where BOTH farmers' trust toward each other
-   * exceeds ALLIANCE_TRUST_THRESHOLD. Derived directly from current trust state
-   * (no accumulator). Sorted by pair key.
-   */
   activeAlliances(): readonly ActiveAlliance[] {
     const farmers: Array<{ id: number; entity: GameEntity }> = [];
     for (const f of this.world.query("farmer")) {
@@ -228,10 +187,6 @@ export class RivalrySystem implements System {
     return out;
   }
 
-  /**
-   * Look up a farmer's display name by id from the world. Returns `#id` if not
-   * found (same convention as EventFeedSystem.nameOf).
-   */
   nameOf(id: number): string {
     for (const f of this.world.query("farmer")) {
       if (f.id === id) return f.farmer.name;

@@ -12,7 +12,7 @@ export function midpointDay(history: readonly RunHistoryRow[]): number {
   return Math.floor(maxDay / 2);
 }
 
-/** Build { day → { farmerId → rank } } map from full history. Deterministic: insertion order. */
+/** { day → { farmerId → rank } }, deterministic insertion order. */
 export function buildRankMap(
   history: readonly RunHistoryRow[],
 ): Map<number, Map<number, number>> {
@@ -46,11 +46,7 @@ export function describeTrajectory(rows: readonly RunHistoryRow[]): string {
   return "consistent";
 }
 
-/**
- * Derive a terse one-line arc sentence for a single farmer.
- * Named patterns: "surge" (last ≥50% of days → won), "collapse" (led ≥50% → ended ≥3rd),
- * "steady" (top-half ≥75%), fallback (generic trajectory). Deterministic — no randomness.
- */
+/** Terse arc sentence: surge (last→1st), collapse (led→3rd+), steady (top-half ≥75%), or generic. */
 export function farmerArc(
   farmerId: number,
   name: string,
@@ -104,16 +100,7 @@ export function farmerArc(
   return `${name} — finished ${finalRank}${rankSuffix(finalRank)} after a ${describeTrajectory(farmerRows)} run.`;
 }
 
-/**
- * Pick the single most dramatic event for the run headline.
- *
- * 1. Highest-drama event (tie-break: latest day, then stable order). Threshold > 0.1
- *    so routine low-drama trades don't hijack when no notable event exists.
- * 2. Text-based fallback: biggest "(Xg)" trade, first drought/shock, or both.
- * 3. Ultimate fallback: "{winner} took the crown with {totalValue}g."
- *
- * Deterministic — sorting by stable numeric fields; no randomness.
- */
+/** Headline from highest-drama event (threshold >0.1); falls back to biggest trade / drought; then winner. */
 export function buildHeadline(
   events: readonly EventEntry[],
   winner: RecapStanding | undefined,

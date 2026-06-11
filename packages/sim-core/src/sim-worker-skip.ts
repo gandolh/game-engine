@@ -1,5 +1,3 @@
-// Pure stop-condition logic for skip-to-highlight; lives outside sim-worker.ts for unit-testability.
-
 /** True when a new event with drama ≥ threshold appeared this tick. */
 export function shouldStopSkip(
   prevLen: number,

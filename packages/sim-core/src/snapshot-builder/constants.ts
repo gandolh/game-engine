@@ -23,7 +23,7 @@ export const INTENTION_KIND_TO_GLYPH: Readonly<Record<string, string>> = {
   "idle":    "indicator/intention-idle",
 };
 
-// Hover label + blurb for decorative props (sprite-only entities, keyed off sprite.frame).
+// Hover label + description for decorative props, keyed by sprite.frame.
 export const DECORATION_LABELS: Record<string, { label: string; description: string }> = {
   "decoration/barrel": { label: "Barrel", description: "A storage barrel — just scenery." },
   "decoration/crate": { label: "Crate", description: "A wooden crate — just scenery." },
@@ -46,12 +46,11 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   "decoration/flour-bag": { label: "Flour Bag", description: "A stout bag of milled flour — just scenery." },
   "decoration/cattail": { label: "Cattails", description: "Water-edge reeds swaying by the pond — just scenery." },
   "decoration/cairn": { label: "Cairn", description: "A stacked-stone marker beside the old relics — just scenery." },
-  // Heritage landmark islets — decorative only; hover names them for spectators.
   "structure/heritage-stones": { label: "Standing Stones", description: "An ancient dolmen ring — a relic of an older age. Just a landmark." },
   "structure/heritage-ruin": { label: "Ruined Tower", description: "The crumbling remains of an old watchtower. Just a landmark." },
   "structure/heritage-statue": { label: "Weathered Statue", description: "A worn monument to someone long forgotten. Just a landmark." },
   "structure/waterfall": { label: "Waterfall", description: "Water tumbles down a mossy cliff into the sea — a scenic landmark." },
-  // Campsite landmarks: sleeping here avoids the away-from-home AP penalty.
+  // Campsite: sleeping here avoids the away-from-home AP penalty.
   "structure/tent": { label: "Campsite Tent", description: "A traveller's tent. Sleep here when caught far from home and you wake fully rested." },
   "structure/campfire": { label: "Campfire", description: "A crackling campfire warms the campsite — sleep here to wake rested." },
 };

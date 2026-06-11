@@ -1,5 +1,4 @@
-// A run is fully described by (seed, maxDays, ticksPerDay) — same descriptor reproduces a byte-identical run.
-
+// (seed, maxDays, ticksPerDay) → byte-identical replay.
 /** Everything needed to reproduce a deterministic run. */
 export interface RunDescriptor {
   seed: number;
@@ -31,7 +30,6 @@ export function parseRun(hash: string): RunDescriptor | null {
   const ticksPerDay = parseHexField(parts[2]);
   if (seed === null || maxDays === null || ticksPerDay === null) return null;
 
-  // A run with zero days or zero ticks-per-day can't produce anything useful.
   if (maxDays <= 0 || ticksPerDay <= 0) return null;
 
   return { seed, maxDays, ticksPerDay };

@@ -69,18 +69,15 @@ Generic pub/sub at [packages/engine/src/sim/message-bus.ts](../../packages/engin
 
 ## Game data flow per tick
 
+See [system-ordering.md](system-ordering.md) for the complete rationale. In brief:
+
 ```
-DayClock → Perceive → Deliberate → AP → TravelSystem → Act → Inbox-dispatch
-                                                              → TileFeatures → Harvest → FinishDay
-            (reads          (writes        (walks path)  (consumes
-             inbox)         intentions)                  intentions)
+DayClock → [shock] → InboxDispatch → [snoop band] → Perceive → Deliberate → AP → Travel → Act → Resolve → FinishDay
 ```
 
-Plus passive systems: WeatherSystem, CropGrowthSystem, MarketSystem, ShopkeeperSystem, AuctionSystem.
+**Snoop band** (between InboxDispatch and Perceive): Encounter, EncounterTrade, Trust, Rivalry, Festival, Harbor, EventFeed, Tavern, RunHistory — all read inbox messages without consuming them. `PerceiveSystem` is the barrier that clears inboxes and folds messages into beliefs.
 
-`TravelSystem` only registers when a `Pathfinder` is passed to `bootstrapSim`. In the browser the sim worker fetches the WASM bytes from `WorkerInitMsg.pathfinderWasm` and instantiates its own `Pathfinder` — zero-copy transfer. Headless `run-sim` and tests pass the pathfinder directly.
-
-`TileFeatureSystem` runs once per new day — spawns trees/stones on farm tiles and in dedicated resource zones.
+`TravelSystem` only registers when a `Pathfinder` is passed to `bootstrapSim`. It holds both a land grid (shared with `FeatureCollisionSystem`) and a separate boat grid (water lanes for coral fishing); farmers swap grids while aboard.
 
 `ActSystem` sets `farmer.farmer.busyUntilTick` after physical actions; `PerceiveSystem` clears it when expired and re-arms deliberation.
 

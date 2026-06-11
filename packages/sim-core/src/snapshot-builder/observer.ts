@@ -52,8 +52,7 @@ export function buildObserverSnapshot(
 
   return {
     day,
-    // Prefer the station's stamped season; fall back to the schedule fn for the pre-day-1 frame.
-    season: station?.season ?? seasonForDay(day),
+    season: station?.season ?? seasonForDay(day), // fallback for pre-day-1 frame
     weather: {
       condition: station?.current ?? "normal",
       multiplier: station?.multiplier ?? 1,

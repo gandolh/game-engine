@@ -1,6 +1,4 @@
-// Render-only visual cues (tint + alpha + tooltip suffix). Pure reads — never mutates components.
-// All colors from EDG32 palette via rgbOf.
-
+// Render-only visual cues (tint + alpha + tooltip suffix). Never mutates components.
 import { EDG, rgbOf } from "@engine/core/render";
 import type { GameEntity, PlotState } from "../components";
 import { DRY_DEATH_GRACE_DAYS } from "../systems/crop-growth";
@@ -29,11 +27,9 @@ function tintFrom(edgHex: string, alpha: number): number {
   return ((r << 24) | (g << 16) | (b << 8) | a) >>> 0;
 }
 
-// Crop cue precedence: DYING (daysSinceWater >= DRY_DEATH_GRACE_DAYS — one more dry day is fatal) > THIRSTY.
-/** Thirsty: faint blue-grey wash, full alpha. */
-const THIRSTY_TINT = tintFrom(EDG.steel, 1);
-/** Dying: stronger slate wash + reduced alpha (fading). */
-const DYING_TINT = tintFrom(EDG.slate, 0.6);
+// Crop cue precedence: DYING (daysSinceWater >= DRY_DEATH_GRACE_DAYS) > THIRSTY.
+const THIRSTY_TINT = tintFrom(EDG.steel, 1);    // faint blue-grey wash
+const DYING_TINT = tintFrom(EDG.slate, 0.6);    // stronger wash + reduced alpha
 
 /** Derive a crop's visual cue from its planted plot state. */
 export function cropCue(state: Extract<PlotState, { kind: "planted" }>): StateCue {
@@ -47,11 +43,9 @@ export function cropCue(state: Extract<PlotState, { kind: "planted" }>): StateCu
   return HEALTHY;
 }
 
-// Farmer cue precedence: BROKEN TOOL (actionable blocker) > EXHAUSTED (ambient end-of-day).
-/** Broken/empty tool: red-ish wash. */
-const BROKEN_TINT = tintFrom(EDG.red, 1);
-/** Exhausted: desaturated + dimmed steel wash. */
-const EXHAUSTED_TINT = tintFrom(EDG.steel, 0.8);
+// Farmer cue precedence: BROKEN TOOL > EXHAUSTED.
+const BROKEN_TINT = tintFrom(EDG.red, 1);         // red-ish wash
+const EXHAUSTED_TINT = tintFrom(EDG.steel, 0.8);  // desaturated + dimmed
 
 function hasBrokenTool(inv: NonNullable<GameEntity["inventory"]>): boolean {
   if (inv.wateringCan !== undefined && inv.wateringCan.charges === 0) return true;
@@ -72,10 +66,7 @@ function isExhausted(entity: GameEntity, day: number): boolean {
   return ap.current < ceiling * EXHAUSTED_AP_FRACTION;
 }
 
-/**
- * Derive a farmer's visual cue. `day` sizes the AP ceiling when ap.max is unset.
- * Returns healthy (untinted) cue for a rested farmer with usable tools.
- */
+/** Derive a farmer's visual cue. `day` sizes the AP ceiling when ap.max is unset. */
 export function farmerCue(entity: GameEntity, day: number): StateCue {
   const inv = entity.inventory;
   if (inv !== undefined && hasBrokenTool(inv)) {

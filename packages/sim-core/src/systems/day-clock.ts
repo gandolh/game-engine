@@ -36,16 +36,12 @@ export class DayClockSystem implements System {
     return this.config.maxDays;
   }
 
-  /**
-   * brief 45 — the festival firing on the current day, or null. Pure function of
-   * the day index (the calendar fixes festival dates). Lets the UI / observer
-   * panel and agents see "today is a festival".
-   */
+  /** Festival on the current day, or null. Pure function of day index. */
   get festivalToday(): FestivalDef | null {
     return festivalForDay(this.currentDay);
   }
 
-  /** brief 45 — days until the next festival (0 if today is one). */
+  /** Days until the next festival (0 if today is one). */
   get daysUntilFestival(): number {
     return daysUntilFestivalForDay(this.currentDay);
   }
@@ -67,13 +63,10 @@ export class DayClockSystem implements System {
         },
         ctx.tick,
       );
-      // Force a phase re-emit at every day boundary so a new day always begins
-      // with a fresh morning PHASE_START even if the phase label is unchanged.
+      // Re-emit PHASE_START at every day boundary so morning PHASE_START fires even if phase label is unchanged.
       this.lastPhase = null;
     }
 
-    // brief 27 — emit PHASE_START at each intra-day phase boundary so agents
-    // re-deliberate (work) or sleep (night) across the long day.
     const phase = phaseForTick(ctx.tick, this.config.ticksPerDay);
     if (phase !== this.lastPhase) {
       this.lastPhase = phase;

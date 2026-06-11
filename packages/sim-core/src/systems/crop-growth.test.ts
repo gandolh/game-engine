@@ -41,8 +41,7 @@ function spawnPlot(world: World<GameEntity>, ownerId: number): GameEntity {
         daysGrowing: 0,
         readyAtDay: 5,
         weatherSum: 0,
-        // brief 29 — start watered so the first day grows (mirrors planting,
-        // which marks the soil watered). Tests re-water before later days.
+        // Start watered so the first day grows (mirrors planting, which marks the soil watered).
         daysSinceWater: 0,
         wateredToday: true,
       } satisfies PlotState,
@@ -113,7 +112,7 @@ describe("CropGrowthSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
 
-    // Re-water before day 2 (brief 29 — watering is per-day).
+    // Re-water before day 2 (watering is per-day).
     {
       const s = plotEntity.plot!.state;
       if (s.kind === "planted") s.wateredToday = true;
@@ -180,7 +179,7 @@ describe("CropGrowthSystem", () => {
     }
   });
 
-  // ---- brief 29: irrigation & crop death ----------------------------------
+  // ---- irrigation & crop death ----------------------------------
 
   function setWeather(world: World<GameEntity>, cond: string, mult: number): void {
     for (const s of world.query("weatherStation")) {
@@ -224,7 +223,7 @@ describe("CropGrowthSystem", () => {
     expect(plot.plot!.state.kind).toBe("empty"); // withered, seed lost
   });
 
-  // ---- brief 41: season suitability & quality -----------------------------
+  // ---- season suitability & quality -----------------------------
 
   it("in-season crop grows at full rate (daysGrowing += 1 per day)", () => {
     // Radish is a spring crop. Day 1 = spring → full rate.
@@ -260,7 +259,7 @@ describe("CropGrowthSystem", () => {
     expect(s.daysGrowing).toBeCloseTo(0.5); // half-rate increment
   });
 
-  // ---- brief 43: greenhouse (season-immune) -------------------------------
+  // ---- greenhouse (season-immune) -------------------------------
 
   it("greenhouse plot grows an out-of-season crop at FULL rate (vs half for a normal plot)", () => {
     const mkOutOfSeasonRadish = (greenhouse: boolean, tileX: number): GameEntity =>
@@ -295,7 +294,7 @@ describe("CropGrowthSystem", () => {
   });
 });
 
-// ---- brief 41: computeQuality (harvest) -------------------------------------
+// ---- computeQuality (harvest) -------------------------------------
 
 describe("computeQuality", () => {
   it("produces deterministic gold quality for perfect husbandry", () => {

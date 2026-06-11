@@ -108,7 +108,7 @@ describe("AuctionSystem — Vickrey", () => {
     expect(res!.paidPrice).toBe(50);
   });
 
-  it("ties on the SAME tick resolve by lowest bidderId (brief 24 hardening)", () => {
+  it("ties on the SAME tick resolve by lowest bidderId (determinism hardening)", () => {
     const cfp: AuctionCfpBody = {
       auctionId: "v4b",
       type: "vickrey",

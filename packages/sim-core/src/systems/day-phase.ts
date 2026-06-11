@@ -1,19 +1,7 @@
 /**
- * brief 27 — intra-day phases.
- *
- * A day is now long (default 1200 ticks = 1 real minute @ 20Hz; the Stardew
- * target of 6000 = 5 min is selectable via the run hash). Agents no longer act
- * once per day — the day is split into phases, and agents re-deliberate at the
- * start of each WORK phase, reacting to live conditions. The macro-economy
- * (crop growth, weather, seasons, auctions, shock) stays day-denominated — only
- * agent *activity* is intra-day.
- *
- * Phases (as fractions of the day):
- *   morning  [0.00, 0.15)  — wake; first work deliberation fires at its start
- *   work     [0.15, 0.65)  — main activity window; a second work deliberation
- *   evening  [0.65, 0.85)  — head home
- *   night    [0.85, 1.00)  — sleep; no field work. Caught away ⇒ unrested.
- *
+ * Intra-day phases (fractions of ticksPerDay):
+ *   morning [0.00, 0.15) — wake; work [0.15, 0.65) — main activity;
+ *   evening [0.65, 0.85) — head home; night [0.85, 1.00) — sleep (caught away ⇒ unrested).
  * All pure functions of (tick, ticksPerDay). No randomness, no wall-clock.
  */
 

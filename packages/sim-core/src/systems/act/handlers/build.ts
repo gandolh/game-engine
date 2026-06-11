@@ -1,4 +1,3 @@
-/** Build/livestock handlers: build-pen, build-greenhouse, buy-animal, tend, plant-tree, harvest-fruit, upgrade-tool, commission-build, hire-help. */
 import type { Intention, MessageBus, World } from "@engine/core";
 import type { With } from "@engine/core";
 import type { GameEntity, AnimalKind, FruitKind } from "../../../components";
@@ -70,7 +69,6 @@ export function handleUpgradeTool(
   const cost = UPGRADE_COST[nextTier] ?? 99;
   if (farmer.inventory.gold < cost) return;
 
-  // wooden→stone burns raw stone; stone→iron burns iron ore
   const material = UPGRADE_MATERIAL[nextTier];
   if (material) {
     const res = farmer.resources;
@@ -134,7 +132,7 @@ export function handleBuildPen(
   const animalKind = intent.data.animal as AnimalKind;
   const recipe = PEN_BUILD_COST[penKind];
   if (!recipe) return;
-  // Wood is an optional discount, not a hard gate (see PEN_BUILD_COST).
+  // Wood is an optional discount, not a hard gate.
   const res = farmer.resources;
   const useWood = !!res && res.wood >= recipe.woodCost;
   const goldDue = useWood ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;

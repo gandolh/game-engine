@@ -1,4 +1,3 @@
-/** Resource-gathering handlers: chop-tree, mine-stone, forage, refill-can, craft-decoration. */
 import type { Intention, Rng, World } from "@engine/core";
 import type { GameEntity, DecorationKind } from "../../../components";
 import {
@@ -23,7 +22,7 @@ export function handleChopTree(
   if (!axe) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
-  if (!isWithinReach(farmer.transform, tileX, tileY)) return; // TravelSystem moves farmer into reach first
+  if (!isWithinReach(farmer.transform, tileX, tileY)) return;
   const feat = featuresByTile.get(`${tileX},${tileY}`);
   if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") return;
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
@@ -49,11 +48,11 @@ export function handleMineStone(
   if (!pick) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
-  if (!isWithinReach(farmer.transform, tileX, tileY)) return; // TravelSystem moves farmer into reach first
+  if (!isWithinReach(farmer.transform, tileX, tileY)) return;
   const feat = featuresByTile.get(`${tileX},${tileY}`);
   if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") return;
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
-  // Mining skill widens geode/iron bands (pure function of XP); roll uses forked mineRng for determinism.
+  // Mining skill widens geode/iron bands (pure fn of XP); forked mineRng for determinism.
   const mineBonus = miningRarityBonus(farmer.skills?.mining ?? 0);
   const geodeChance = STONE_GEODE_CHANCE + mineBonus * 0.5;
   const ironChance = STONE_IRON_CHANCE + mineBonus * 0.5;
@@ -80,7 +79,7 @@ export function handleRefillCan(
   _intent: Intention,
   fountainByRegion: Map<string, GameEntity>,
 ): void {
-  // Valid only when Chebyshev ≤ 1 from the home fountain or a well center.
+  // Chebyshev ≤ 1 from home fountain or a well center.
   const can = farmer.inventory.wateringCan;
   if (!can) return;
 
@@ -170,12 +169,11 @@ export function handleCraftDecoration(
 }
 
 export function handleForage(farmer: ActingFarmer, day: number): void {
-  // Out-of-season → no reward. Season derived from currentDay.
   const region = farmer.farmer?.currentRegion;
   if (!region) return;
   const zone = FORAGE_ZONES[region];
   if (!zone) return;
-  if (seasonForDay(day) !== zone.season) return;
+  if (seasonForDay(day) !== zone.season) return; // out-of-season → no reward
   // Foraging skill multiplies the reward; pure function of XP.
   const mult = foragingGoldMultiplier(farmer.skills?.foraging ?? 0);
   farmer.inventory.gold += Math.round(zone.reward * mult);

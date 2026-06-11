@@ -1,4 +1,3 @@
-/** Harbor contract helpers, constants, and types. */
 
 import type { Rng } from "@engine/core";
 import type { GameEntity } from "../../components";

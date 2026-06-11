@@ -44,8 +44,7 @@ export function isCoralFish(kind: FishKind): boolean {
   return kind === "coral-trout" || kind === "lobster";
 }
 
-/** A fresh all-zero fish tally (every kind, incl. coral specials). Use this to
- *  lazily initialise `inventory.fish` so it always has every key present. */
+/** Zero-initialize `inventory.fish` so every key is present. */
 export function zeroFish(): Record<FishKind, number> {
   return { minnow: 0, bass: 0, salmon: 0, "coral-trout": 0, lobster: 0 };
 }

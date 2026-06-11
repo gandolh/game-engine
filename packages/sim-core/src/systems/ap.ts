@@ -112,7 +112,6 @@ function apCostForIntent(
 }
 
 function isSellIntent(kind: string): boolean {
-  // Keep high-priority sell actions last; they are the final revenue-generating step
   return kind === "sell-shopkeeper" || kind === "sell-from-wall";
 }
 
@@ -125,8 +124,7 @@ export class ApSystem implements System {
     const farmers = this.world.query("fsm", "ap", "intentions");
 
     for (const farmer of farmers) {
-      // Prune + deduct before ActSystem executes. Refill happens in PerceiveSystem (morning wake).
-      if (farmer.fsm.current === "ACT") {
+        if (farmer.fsm.current === "ACT") {
         this.pruneAndDeductAp(farmer);
       }
     }
@@ -139,7 +137,6 @@ export class ApSystem implements System {
     let totalCost = queue.reduce((sum, intent) => sum + apCostForIntent(farmer, intent), 0);
 
     if (totalCost > available) {
-      // Sell-* protected: sorted to front regardless of priority number. Lowest priority number = most important.
       const sorted = [...queue].sort((a, b) => {
         const aSell = isSellIntent(a.kind) ? 0 : 1;
         const bSell = isSellIntent(b.kind) ? 0 : 1;

@@ -156,8 +156,6 @@ describe("ActSystem buy-seed end-to-end through the shopkeeper", () => {
   });
 });
 
-// brief 44 — the blacksmith now VALIDATES upgrades: it consumes ore in addition
-// to gold and enforces the tier order. No more assume-success.
 describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
   let world: World<GameEntity>;
   let bus: MessageBus;
@@ -219,9 +217,6 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
   });
 });
 
-// brief 44 — hire a day-helper at the tavern: costs gold, gated to the village +
-// once per day. The AP boost lands SAME-DAY (immediately at hire time), clamped
-// so a rich leader can't buy same-day dominance.
 describe("ActSystem hire-help (tavern day-helper)", () => {
   let world: World<GameEntity>;
   let bus: MessageBus;
@@ -313,9 +308,6 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
   });
 });
 
-// brief 50 — pray at the interactive shrine: region-gated (must be ON the
-// shrine), cooldown-gated (once per SHRINE_COOLDOWN_DAYS), and grants a small
-// bounded AP top-up clamped to maxApForDay so it can never exceed a full day.
 describe("ActSystem pray-at-shrine (interactive shrine)", () => {
   let world: World<GameEntity>;
   let sys: ActSystem;

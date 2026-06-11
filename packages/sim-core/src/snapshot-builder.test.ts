@@ -1,11 +1,3 @@
-/**
- * snapshot-builder.test.ts — verifies that buildRenderSnapshot produces
- * correct, deterministic output from a bootstrapped sim.
- *
- * Also includes Brief 40 unit tests for the intention→glyph map and the
- * shouldStopSkip pure helper (no worker/sim bootstrapping needed for those).
- */
-
 import { describe, it, expect } from "vitest";
 import { bootstrapSim, leaderboard } from "./sim-bootstrap";
 import {
@@ -313,11 +305,7 @@ describe("countEntities", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Brief 40 — intention→glyph map
-// ---------------------------------------------------------------------------
-
-describe("INTENTION_KIND_TO_GLYPH (brief 40)", () => {
+describe("INTENTION_KIND_TO_GLYPH", () => {
   it("maps every documented intention kind to an indicator/* frame", () => {
     const documented = [
       "plant", "water", "harvest", "sell", "buy", "travel",
@@ -363,11 +351,7 @@ describe("INTENTION_KIND_TO_GLYPH (brief 40)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Brief 40 — shouldStopSkip pure helper
-// ---------------------------------------------------------------------------
-
-describe("shouldStopSkip (brief 40)", () => {
+describe("shouldStopSkip", () => {
   it("returns false when feed length did not increase (no new event)", () => {
     expect(shouldStopSkip(5, 5, 0.9, 0.7)).toBe(false);
   });
@@ -405,11 +389,7 @@ describe("shouldStopSkip (brief 40)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Brief 40 — AI farmer sprites carry a bubble field
-// ---------------------------------------------------------------------------
-
-describe("AI farmer sprites carry a bubble field (brief 40)", () => {
+describe("AI farmer sprites carry a bubble field", () => {
   it("AI farmer sprites have a bubble field (string or null) after a tick", () => {
     // Run a few ticks to let the AI farmers start acting and pick intentions.
     const sim = bootAndTick(5);

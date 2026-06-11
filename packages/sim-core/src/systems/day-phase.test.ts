@@ -6,7 +6,7 @@ import {
   isNightPhase,
 } from "./day-phase";
 
-describe("day-phase (brief 27)", () => {
+describe("day-phase", () => {
   const TPD = 1200;
 
   it("maps ticks to the four phases in order across a day", () => {

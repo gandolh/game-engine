@@ -188,9 +188,8 @@ describe("PlayerControlSystem — movement", () => {
   });
 
   it("press-stop-press the opposite way does not teleport backward", () => {
-    // Semantics change from brief 61: stopping no longer snaps to a tile —
-    // Pip rests at whatever sub-tile position it occupied. The key regression
-    // property is preserved: no backward jump larger than one tick of velocity.
+    // Stopping no longer snaps to a tile — Pip rests at whatever sub-tile position it occupied.
+    // Regression property: no backward jump larger than one tick of velocity.
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "left";
     tick(world, control, act, 0);

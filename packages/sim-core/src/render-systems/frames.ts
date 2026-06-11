@@ -50,7 +50,7 @@ export const CAMPFIRE_FRAMES = [
   "structure/campfire-c",
 ] as const;
 
-// Mirrors PREFIX_TO_SHEET in atlas-builder; a test verifies they stay in sync.
+// Must mirror PREFIX_TO_SHEET in atlas-builder (a test verifies sync).
 const FRAME_PREFIX_TO_ATLAS: Readonly<Record<string, string>> = {
   "farmer":     "characters",
   "npc":        "characters",
@@ -89,8 +89,7 @@ export function pickFarmerFrame(entity: GameEntity, tick: number): string {
   return baseFrame + suffix;
 }
 
-// Maps each farmer action kind to the atlas pose suffix to use while performing it.
-// Actions not in this map fall back to the normal walk/idle animation.
+// Action → pose suffix. Unmapped actions fall back to walk/idle animation.
 export const ACTION_POSE: Record<string, string> = {
   till:          "/till",
   water:         "/water",
@@ -98,7 +97,7 @@ export const ACTION_POSE: Record<string, string> = {
   "chop-tree":   "/chop",
   "mine-stone":  "/mine",
   plant:         "/plant",
-  harvest:       "/work",   // harvest has no dedicated pose — use generic work
+  harvest:       "/work",   // no dedicated harvest pose
 };
 
 /** Remap `structure/tree` to the seasonal variant frame. Other frames pass through. */
@@ -126,7 +125,6 @@ export function resolveFrameAndBob(
   }
   if (s.id === null) return { frame: s.frame, bobY: 0 };
 
-  // NPC frames are fully resolved worker-side.
   if (s.frame.startsWith("npc/") || !s.frame.startsWith("farmer/")) {
     return { frame: s.frame, bobY: 0 };
   }
@@ -140,7 +138,7 @@ export function resolveFrameAndBob(
     return { frame: base + ACTION_POSE[s.action], bobY: 0 };
   }
 
-  // "down" = base frame; "up"/"side" insert a facing segment before walk suffix.
+  // "down" = base frame; "up"/"side" insert a facing segment.
   const facing = s.facing ?? "down";
   const dirSeg = facing === "down" ? "" : `/${facing}`;
   const frame = base + dirSeg + walkSuffix;

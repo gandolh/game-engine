@@ -63,8 +63,6 @@ export class TrustSystem implements System {
     this.processCnpCommitments(ctx.tick);
   }
 
-  // ---- farmer inboxes ----------------------------------------------------
-
   private processFarmerInboxes(): void {
     for (const farmer of this.world.query("farmer", "inbox")) {
       for (const msg of farmer.inbox.messages) {
@@ -78,8 +76,6 @@ export class TrustSystem implements System {
     }
   }
 
-  // ---- market wall snoop -------------------------------------------------
-
   private processMarketWall(): void {
     for (const wall of this.world.query("marketWall", "inbox")) {
       for (const msg of wall.inbox.messages) {
@@ -92,8 +88,6 @@ export class TrustSystem implements System {
       }
     }
   }
-
-  // ---- CNP broken commitments --------------------------------------------
 
   private processCnpCommitments(currentTick: number): void {
     if (!this.cnpCoordinators) return;
@@ -113,8 +107,6 @@ export class TrustSystem implements System {
     }
   }
 
-  // ---- helpers -----------------------------------------------------------
-
   private findFarmerById(id: number): GameEntity | undefined {
     for (const f of this.world.query("farmer")) {
       if (f.id === id) return f;
@@ -123,11 +115,7 @@ export class TrustSystem implements System {
   }
 }
 
-/**
- * Apply a trust delta from `farmer` toward `peerId`. Lazy-initializes the
- * trust map. Clamps the resulting value to [0, 1]. Baseline `0.5` matches
- * the default already used by hoarder/opportunist for unseen peers.
- */
+/** Apply trust delta toward peerId; lazy-init map, clamp to [0,1]. Baseline 0.5 = unseen peer default. */
 export function applyTrustDelta(farmer: GameEntity, peerId: number, delta: number): void {
   if (!farmer.trust) {
     farmer.trust = { byId: new Map<number, number>() };

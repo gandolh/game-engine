@@ -4,22 +4,12 @@ import { JsPathfinder } from "../world/js-pathfinder";
 import { isCoralReefTile } from "../world/coral";
 
 /**
- * brief 48 — live-sim smoke test: drive the real scheduler with the default
- * roster and confirm the coral-fishing trip fires end-to-end — a farmer BOARDS,
- * ROWS to a reef over water, and LANDS a coral-only special. Canonical
- * "exercise sim behavior without a browser" test (bootstrapSim + JsPathfinder,
- * no Worker).
+ * Live-sim smoke test: drives the real scheduler to confirm the coral-fishing trip fires
+ * end-to-end — a farmer BOARDS, ROWS to a reef, and LANDS a coral-only special.
+ * Uses bootstrapSim + JsPathfinder, no Worker.
  *
- * Window: 12 days — the opportunist's coral period is 6 days, so day 12 is the
- * second eligible window. brief 70 raised starting gold by +30 which shifts the
- * opportunist's early-game routing (iron upgrades now affordable from day 1),
- * pushing the first completed reef trip from day 6 to day 12. The extended
- * window keeps the proof end-to-end and remains within the 60 s timeout.
- *
- * Both specs observe the SAME deterministic 15-day run (seed 0xc0ffee), driven
- * once in beforeAll — observations are latched per tick, so nothing is lost by
- * sharing. This halves what used to be the slowest file in the suite (two
- * identical ~12k-tick full-scheduler replays).
+ * 15-day window (seed 0xc0ffee). Both specs share a single beforeAll run to halve run time.
+ * Starting gold was raised by +30 pushing first completed reef trip to day 12.
  */
 
 const TICKS_PER_DAY = 800;

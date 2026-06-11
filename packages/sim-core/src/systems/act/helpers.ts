@@ -5,7 +5,6 @@ import { TOOL_WORK_TICKS } from "../../components";
 export function actionTicks(kind: string, tools: import("../../components").Tool[]): number {
   const physicalActions = new Set(["plant","water","till","chop-tree","mine-stone","harvest","refill-can"]);
   if (!physicalActions.has(kind)) return 0;
-  // Pick the best relevant tool for the action.
   let toolKind: import("../../components").ToolKind | null = null;
   if (kind === "till") toolKind = "hoe";
   else if (kind === "chop-tree") toolKind = "axe";

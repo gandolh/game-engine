@@ -57,7 +57,6 @@ export class PerceiveSystem implements System {
         } else if (msg.ontology === ONT_SIMULATION.PHASE_START) {
           this.handlePhaseStart(farmer, msg.body as unknown as PhaseStartBody);
         } else if (msg.ontology === ONT_SHOP.AUCTION_CFP) {
-          // Surface open auction into beliefs; cleared on result or timeout.
           const cfp = msg.body as unknown as AuctionCfpBody;
           farmer.beliefs.data.openAuction = cfp;
           farmer.beliefs.revision += 1;
@@ -75,7 +74,6 @@ export class PerceiveSystem implements System {
           farmer.beliefs.data.bounty = body.bounty ?? undefined;
           farmer.beliefs.revision += 1;
         } else if (msg.ontology === ONT_TRAVEL.ARRIVED) {
-          // Re-arm on arrival to chain walk→act→walk→act within a day.
           const arrivedBody = msg.body as unknown as TravelArrivedBody;
           if (arrivedBody.farmerId === farmer.id) {
             const phase = farmer.beliefs.data.phase as DayPhase | undefined;
@@ -92,7 +90,6 @@ export class PerceiveSystem implements System {
           }
         }
       }
-      // Drop a stale open auction whose clock has run out without a result.
       const open = farmer.beliefs.data.openAuction as AuctionCfpBody | undefined;
       if (open && ctx.tick >= open.closesAtTick) {
         farmer.beliefs.data.openAuction = undefined;
@@ -101,7 +98,6 @@ export class PerceiveSystem implements System {
       farmer.inbox.messages.length = 0;
     }
 
-    // Push live harbor board into every farmer's beliefs each tick.
     let harborOpenContracts: GameEntity["harborBoard"] = undefined;
     for (const board of this.world.query("harborBoard")) {
       harborOpenContracts = board.harborBoard;
@@ -153,8 +149,6 @@ export class PerceiveSystem implements System {
       return;
     }
 
-    if (isActivePhase(body.phase) && settled) {
-      farmer.fsm.current = "PERCEIVE";
-    }
+    if (isActivePhase(body.phase) && settled) farmer.fsm.current = "PERCEIVE";
   }
 }

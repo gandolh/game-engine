@@ -1,4 +1,3 @@
-/** Farming handlers: plant, water, till. */
 import type { Intention } from "@engine/core";
 import type { World } from "@engine/core";
 import type { GameEntity, CropKind, PlotState } from "../../../components";
@@ -35,7 +34,7 @@ export function handlePlant(
       readyAtDay: day + GROWTH_DAYS[crop],
       weatherSum: 0,
       daysSinceWater: 0,
-      wateredToday: true, // freshly-planted soil counts as watered
+      wateredToday: true, // freshly-planted counts as watered
     } satisfies PlotState;
     grantSkillXp(farmer, "farming", 1);
   }
@@ -91,7 +90,7 @@ export function handleTill(
   if (!hoe) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
-  if (!isWithinReach(farmer.transform, tileX, tileY)) return; // TravelSystem moves farmer into reach first
+  if (!isWithinReach(farmer.transform, tileX, tileY)) return;
   const occ = occupiedByOwner.get(farmer.id) ?? new Set();
   const tileKey = `${tileX},${tileY}`;
   if (occ.has(tileKey)) return;

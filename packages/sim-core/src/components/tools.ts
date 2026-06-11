@@ -8,7 +8,6 @@ export const TOOL_WORK_TICKS: Record<ToolTier, number> = {
   iron:   20,
 };
 
-/** Shop buy price per tier. */
 export const TOOL_PRICE: Record<ToolTier, number> = {
   wooden: 5,
   stone:  7,

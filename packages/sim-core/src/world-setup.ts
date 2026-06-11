@@ -53,8 +53,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
       wateringCan: { charges: 10, maxCharges: 10 },
     },
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
-    // penaltyCapacity is legacy; unrested halving lives in the morning wake
-    ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false },
+      ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false }, // penaltyCapacity: legacy field
     ...(spec.player
       ? {
           player: {

@@ -17,25 +17,9 @@ import type {
 type WeatherWeights = ReadonlyArray<{ condition: WeatherCondition; weight: number }>;
 
 /**
- * Per-season weather distributions (game brief 22 — seasons / weather arcs).
- *
- * The 100-day run is divided into four 25-day seasons (see `seasonForDay`).
- * Each season biases the per-day weather draw to give the run a coherent arc.
- * Weights sum to 1.0 within each season. No Python source exists in this repo,
- * so the biases below are chosen for coherence and documented here:
- *
- *   spring — mild & growy: extra rain (good for the early radish push),
- *            storms rare.  sunny .35 / normal .35 / rainy .25 / storm .05
- *   summer — hot & drought-prone: lots of sun but heat-storm risk; little rain.
- *            sunny .55 / normal .25 / rainy .08 / storm .12
- *   autumn — the harvest balance: steady normal/rain, moderate everything.
- *            sunny .30 / normal .40 / rainy .25 / storm .05
- *   winter — harsh: sun is scarce, storms and cold rain dominate.
- *            sunny .15 / normal .25 / rainy .35 / storm .25
- *
- * Because sunny->1.2 and storm->0.5 multipliers feed crop-growth's weatherSum,
- * these biases also implicitly modulate yields: summer grows fast but is risky,
- * winter is a slow grind. No separate yield table is needed.
+ * Per-season weather weights (spring/summer/autumn/winter). sunny→1.2 and storm→0.5 multipliers
+ * feed crop-growth's weatherSum: summer grows fast but is risky; winter is a slow grind.
+ * spring: .35/.35/.25/.05 | summer: .55/.25/.08/.12 | autumn: .30/.40/.25/.05 | winter: .15/.25/.35/.25
  */
 const SEASON_WEATHER_WEIGHTS: Record<Season, WeatherWeights> = {
   spring: [
@@ -114,10 +98,8 @@ export class WeatherSystem implements System {
   ) {}
 
   run(_ctx: SimContext): void {
-    // Find the WeatherStation singleton
     const stations = this.world.query("weatherStation", "inbox");
     for (const station of stations) {
-      // Scan inbox for a day-start message
       let newDay: number | null = null;
       for (const msg of station.inbox.messages) {
         if (msg.ontology === ONT_SIMULATION.DAY_START) {
@@ -131,32 +113,24 @@ export class WeatherSystem implements System {
       if (newDay === null) continue;
       this.lastDayProcessed = newDay;
 
-      // 0. Season is a pure function of the day index (deterministic, no clock).
       const season = seasonForDay(newDay);
-
-      // 1. Roll new condition using this season's biased distribution.
       const condition = rollWeighted(this.rng, SEASON_WEATHER_WEIGHTS[season]);
       const multiplier = WEATHER_MULTIPLIER[condition];
 
-      // 2. Update WeatherStation component
       station.weatherStation.current = condition;
       station.weatherStation.multiplier = multiplier;
       station.weatherStation.season = season;
 
-      // 3. Generate 3-day forecast. Each forecast day uses ITS OWN season's
-      //    softened weights, so a forecast that crosses a season boundary
-      //    already reflects the upcoming trend.
+      // Each forecast day uses its own season's softened weights (handles season-boundary crossings).
       const forecast: Array<{ condition: WeatherCondition; confidence: number }> = [];
       for (let i = 1; i <= FORECAST_DAYS; i++) {
         const fcSeason = seasonForDay(newDay + i);
         const predicted = rollWeighted(this.rng, forecastWeights(fcSeason));
-        // Confidence decreases further into the future
         const confidence = Math.max(0.4, 0.85 - (i - 1) * 0.15);
         forecast.push({ condition: predicted, confidence });
       }
       station.weatherStation.forecast = forecast;
 
-      // 4. Broadcast ONT_WEATHER.NOW (includes the current season + trend hint)
       const nowBody: WeatherNowBody = {
         condition,
         multiplier,
@@ -175,8 +149,6 @@ export class WeatherSystem implements System {
         _ctx.tick,
       );
 
-      // 4b. Broadcast ONT_WEATHER.FORECAST for each upcoming day. The season
-      //     on each message lets agents see when (and into what) the trend turns.
       for (let i = 0; i < forecast.length; i++) {
         const fc = forecast[i]!;
         const forDay = newDay + i + 1;
@@ -198,7 +170,6 @@ export class WeatherSystem implements System {
         );
       }
 
-      // 5. Write into ALL farmers' beliefs
       const farmers = this.world.query("beliefs", "farmer");
       for (const farmer of farmers) {
         farmer.beliefs.data.weatherNow = { condition, multiplier, day: newDay, season };

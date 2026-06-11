@@ -42,7 +42,7 @@ export function setupRegions(
     regionEntities.set(def.id, regionEntity);
 
     if (def.kind === "farm" && farmer !== undefined && ownerId !== undefined) {
-      // Offsets {-2, +1}: plots 3 apart on each axis (2-cell gap), centered in the farm.
+      // Plots 3 apart on each axis (2-cell gap), centered in the farm.
       const PLOT_OFFSETS = [-2, 1] as const;
 
       // Pip starts on its first plot tile instead of bare center.
@@ -398,7 +398,6 @@ export function setupRegions(
     });
   }
 
-  // Decorative props (layer-40, no collision); tileFeature trees/stones still block.
   if (REGIONS.some((r) => r.id === "village")) {
     placeProps(world, [
       { x: 75, y: 75, frame: "decoration/lamp-post" },
@@ -426,7 +425,6 @@ export function setupRegions(
       { x: 95, y: 84, frame: "decoration/log-stack" },
     ]);
 
-    // Forest/quarry/mill props are NON-solid so TileFeatureSystem trees/stones can spawn freely.
     placeProps(world, [
       { x: 62, y: 62, frame: "decoration/mushroom-cluster", solid: false },
       { x: 67, y: 63, frame: "decoration/fern", solid: false },

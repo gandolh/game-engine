@@ -1,9 +1,3 @@
-/**
- * snapshot-builder/render.ts — buildRenderSnapshot orchestrator.
- *
- * Assembles the complete per-tick RenderSnapshot by calling the sub-modules.
- */
-
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
 import type { DayClockSystem } from "../systems/day-clock";
@@ -30,17 +24,6 @@ import {
   buildWealthSeries,
 } from "./panels";
 
-/**
- * Build a complete RenderSnapshot for the current tick.
- *
- * @param pendingShock  A shock body captured by the bus subscriber this tick
- *                      (or null if none fired).
- * @param runHistoryRows  Per-day rank/gold rows from RunHistorySystem.history().
- *                        Used to build the RunRecap at game-over. Pass an empty
- *                        array (or omit via the default) for non-game-over ticks.
- * @param rivalrySystem  The RivalrySystem instance (brief 37). Optional for
- *                       back-compat with existing tests.
- */
 export function buildRenderSnapshot(
   world: World<GameEntity>,
   dayClock: DayClockSystem,
@@ -73,18 +56,14 @@ export function buildRenderSnapshot(
 
   const finalSummary = gameOver ? buildFinalStandings(lb) : null;
 
-  // Build the rivalry data for this tick.
   const rivalries = buildRivalriesData(rivalrySystem);
   const relationships = buildRelationshipsData(world);
 
-  // Build the recap once at game-over from the full run history + events.
-  // summarizeRun is a pure function: same inputs → identical recap.
   const recap = gameOver && finalSummary !== null
     ? summarizeRun(runHistoryRows, eventFeed.recent(), finalSummary, rivalries)
     : null;
   const playerHotbar = buildPlayerHotbar(world);
 
-  // brief 45 — current weather + season for the render-only rain/snow overlay.
   const station = (() => {
     for (const w of world.query("weatherStation")) return w.weatherStation;
     return null;
@@ -98,11 +77,7 @@ export function buildRenderSnapshot(
     ? { id: todaysFestival.id, name: todaysFestival.name, contestCrop: todaysFestival.contestCrop }
     : null;
 
-  // Build the per-farmer wealth time series for the live graph panel (brief 39).
-  // Rows only grow on day boundaries, so with a per-run spriteState (the server
-  // path) the series is rebuilt + sent only when the row count changed since
-  // the last send; otherwise the snapshot carries null and the client reuses
-  // its cached copy. Without spriteState (tests) it's built every tick.
+  // Wealth series: rebuilt only when row count changed (server path); null otherwise.
   let wealthSeries: RenderSnapshot["wealthSeries"];
   if (spriteState === undefined) {
     wealthSeries = buildWealthSeries(world, runHistoryRows);

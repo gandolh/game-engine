@@ -3,7 +3,6 @@ import type { RegionId } from "../world/regions";
 /** Animals that can live in a pen. Coops hold chickens; barns hold cows or sheep. */
 export type AnimalKind = "chicken" | "cow" | "sheep";
 
-/** Products from each animal kind. */
 export type ProductKind = "egg" | "milk" | "wool";
 
 /** Pen: coop → eggs, barn → milk/wool. `care` (0–1) affects quality; decays daily. */

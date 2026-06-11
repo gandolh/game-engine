@@ -33,36 +33,15 @@ export interface ShopkeeperSystemOptions {
 }
 
 /**
- * ShopkeeperSystem — fixed-price BUY (farmer-sells-crops, unlimited liquidity)
- * + slate-driven SELL (shop-sells-seeds, limited daily stock per brief 08)
- * + periodic Golden-Bean auction trigger.
- *
- * Inventory-mutation choice: **single-step direct mutation**. When a farmer
- * sends ONT_SHOP.BUY / SELL via the bus, this system mutates the farmer's
- * inventory and gold directly, then replies with CONFIRM as an audit
- * record. (The MD spec calls this the "simplest" path and recommends
- * documenting; alternative would be two-step where the farmer's perceive
- * consumes the CONFIRM and applies the delta.)
- *
- * All seed purchases route here: `ActSystem`'s `buy-seed` intent now emits an
- * `ONT_SHOP.SELL` (item: "seed") message instead of mutating the slate inline,
- * so `handleSell` is the single owner of slate consumption + gold checks.
- *
- * Auction trigger choice: lives here (not in AuctionSystem). The shopkeeper
- * is the auctioneer of record; AuctionSystem is a pure state machine. We
- * both:
- *   1. broadcast `ONT_SHOP.AUCTION_CFP` on the bus (so farmer inboxes see
- *      it via InboxDispatchSystem), and
- *   2. call `auctionSystem.openAuction(cfp)` directly so the state machine
- *      doesn't depend on the bus subscribe path (which the production loop
- *      doesn't wire up — see `InboxDispatchSystem`).
+ * ShopkeeperSystem — fixed-price BUY + slate-driven SELL + periodic Golden-Bean auction trigger.
+ * Direct mutation: mutates farmer inventory/gold on BUY/SELL, replies CONFIRM as audit record.
+ * Auction trigger: broadcasts AUCTION_CFP and calls auctionSystem.openAuction() directly.
  */
 export class ShopkeeperSystem implements System {
   readonly name = "ShopkeeperSystem";
 
   private lastAuctionDay = -Infinity;
   private auctionSeq = 0;
-  /** brief 24 — auctionIds already settled (winner credited), for idempotency. */
   private readonly settledAuctions = new Set<string>();
 
   private readonly auctionEveryDays: number;
@@ -84,8 +63,7 @@ export class ShopkeeperSystem implements System {
     const shop = firstEntity(this.world, "shopkeeper", "inbox");
     if (!shop || !shop.inbox) return;
 
-    // 1. Process inbox — but only ontologies this system owns. AuctionSystem
-    //    drains the same inbox in its own pass for AUCTION_BID etc.
+    // Only drain ontologies this system owns; AuctionSystem drains AUCTION_BID etc. separately.
     const remaining: AgentMessage[] = [];
     for (const msg of shop.inbox.messages) {
       switch (msg.ontology) {
@@ -99,10 +77,7 @@ export class ShopkeeperSystem implements System {
           this.handleResaleBean(msg, ctx);
           break;
         case ONT_SHOP.AUCTION_RESULT:
-          // The shop is the auctioneer of record: when an auction it opened
-          // resolves, credit the winner their bean and charge the paid price.
-          // Snoop-only (we don't consume — the result is a broadcast the event
-          // feed also reads), so re-push it for other observers.
+          // Snoop-only: credit the winner, then re-push for other observers.
           this.creditAuctionWinner(msg);
           remaining.push(msg);
           break;
@@ -113,16 +88,12 @@ export class ShopkeeperSystem implements System {
     }
     shop.inbox.messages = remaining;
 
-    // 2. Periodic auction trigger (in days, not ticks). We observe `currentDay`
-    //    from any farmer's beliefs; if none available, fall back to no-trigger.
     const day = this.readCurrentDay();
     if (day !== undefined && day - this.lastAuctionDay >= this.auctionEveryDays) {
       this.triggerAuction(ctx, day);
       this.lastAuctionDay = day;
     }
   }
-
-  // ---- handlers ----------------------------------------------------------
 
   private handleBuy(msg: AgentMessage, ctx: SimContext): void {
     const body = msg.body as Partial<ShopBuyBody>;
@@ -155,7 +126,6 @@ export class ShopkeeperSystem implements System {
       return;
     }
 
-    // Apply the notice-board bounty premium when today's wanted crop matches.
     const bountyMult = this.bountyMultiplierFor(crop);
     const goldDelta = Math.round(SHOP_BUY_PRICE[crop] * bountyMult) * taken;
     farmer.inventory.crops[crop] -= taken;
@@ -168,12 +138,6 @@ export class ShopkeeperSystem implements System {
     });
   }
 
-  /**
-   * The active notice-board bounty multiplier for `crop` (1 when none/mismatch).
-   * The bounty is surfaced into farmer beliefs by PerceiveSystem from the
-   * NoticeBoardSystem broadcast; it's the same value for every farmer, so we
-   * read the first available one.
-   */
   private bountyMultiplierFor(crop: CropKind): number {
     for (const f of this.world.query("farmer", "beliefs")) {
       const b = f.beliefs?.data.bounty as { crop: CropKind; multiplier: number } | undefined;
@@ -187,12 +151,6 @@ export class ShopkeeperSystem implements System {
     return 1;
   }
 
-  /**
-   * brief 24 — when an auction this shop opened resolves with a winner, credit
-   * the winner one golden bean and charge them the price they owe. The
-   * AuctionSystem only announces the outcome; the shop (auctioneer of record)
-   * performs settlement. Idempotent per (auctionId): an auction resolves once.
-   */
   private creditAuctionWinner(msg: AgentMessage): void {
     const body = msg.body as Partial<AuctionResultBody>;
     if (body.winnerId === null || body.winnerId === undefined) return;
@@ -200,18 +158,12 @@ export class ShopkeeperSystem implements System {
     const winner = findById(this.world, body.winnerId, "farmer", "inventory");
     if (!winner || !winner.inventory) return;
     const paid = body.paidPrice ?? 0;
-    // Don't let settlement drive a farmer negative; if they somehow can't
-    // cover it, skip the credit (the bid logic gates on affordability anyway).
     if (winner.inventory.gold < paid) return;
     winner.inventory.gold -= paid;
     winner.inventory.goldenBeans = (winner.inventory.goldenBeans ?? 0) + 1;
     this.settledAuctions.add(body.auctionId ?? "");
   }
 
-  /**
-   * brief 24 — golden-bean resale: a farmer sells won beans back to the shop at
-   * a premium over the auction reserve, realizing the "like gold" value.
-   */
   private handleResaleBean(msg: AgentMessage, ctx: SimContext): void {
     if (msg.sender === "world") return;
     const sender = msg.sender;
@@ -242,31 +194,6 @@ export class ShopkeeperSystem implements System {
     });
   }
 
-  /**
-   * Slate-driven seed sale (shop → farmer). Brief 08 replaced the legacy
-   * fixed-price `SHOP_SEED_PRICE` lookup with a daily-slate lookup:
-   *
-   *   1. Input validation + golden-bean ban (same as before).
-   *   2. Reject unknown seeds with `unknown-seed` before slate lookup so the
-   *      reason stays informative.
-   *   3. Filter the shop's `dailySlate` for offers matching crop with stock.
-   *   4. If no matching offers at all → FAILURE `no-matching-offer`.
-   *   5. If cumulative `remaining` across matching offers < qty → FAILURE
-   *      `insufficient-stock`. No mutation either way (atomic check).
-   *   6. Walk matching offers cheapest-first, planning deductions. The
-   *      decision to consume across multiple matching offers (rather than
-   *      "one offer per request") favors the farmer in this single-shop
-   *      economy and is documented in `08-shop-slate-sales-plan.md`.
-   *   7. Check farmer gold against the total cost. FAILURE on shortfall —
-   *      still no offer mutation yet (atomic).
-   *   8. Commit: decrement each touched offer's `remaining`, deduct gold,
-   *      credit seeds, reply CONFIRM with `goldDelta = -cost`.
-   *
-   * Note on readonly: `shop.shopkeeper.dailySlate` is typed `readonly
-   * ShopOffer[]` — the array slot is readonly (no reassignment), but each
-   * offer's `remaining: number` is a writable field, so the per-offer
-   * mutation here is type-safe.
-   */
   private handleSell(msg: AgentMessage, ctx: SimContext, shop: GameEntity): void {
     const body = msg.body as Partial<ShopSellBody>;
     if (msg.sender === "world") return;
@@ -305,10 +232,8 @@ export class ShopkeeperSystem implements System {
     }
 
     const seedCrop = crop as CropKind;
-    // Cast: dailySlate is typed readonly but per-offer fields are mutable.
     const slate = shop.shopkeeper?.dailySlate as ShopOffer[] | undefined;
 
-    // 1. Dry-run to compute total cost without mutating slate.
     const dry = consumeFromSlate(slate, seedCrop, qty, { dryRun: true });
     if (!dry.ok || dry.totalCost === undefined) {
       this.replyConfirm(ctx.tick, sender, {
@@ -320,7 +245,6 @@ export class ShopkeeperSystem implements System {
       return;
     }
 
-    // 2. Gold check before committing slate.
     if (farmer.inventory.gold < dry.totalCost) {
       this.replyConfirm(ctx.tick, sender, {
         ok: false,
@@ -331,11 +255,8 @@ export class ShopkeeperSystem implements System {
       return;
     }
 
-    // 3. Commit — decrement slate, deduct gold, credit seeds.
     const consume = consumeFromSlate(slate, seedCrop, qty);
-    // consume.ok must be true here (same slate, no external mutation between steps).
     if (!consume.ok || consume.totalCost === undefined) {
-      // Defensive: shouldn't happen, but bail cleanly.
       this.replyConfirm(ctx.tick, sender, {
         ok: false,
         goldDelta: 0,
@@ -354,8 +275,6 @@ export class ShopkeeperSystem implements System {
     });
   }
 
-  // ---- auction trigger ---------------------------------------------------
-
   private triggerAuction(ctx: SimContext, _day: number): void {
     const auctionId = `gb-${this.auctionSeq++}`;
     const cfp: AuctionCfpBody = {
@@ -365,7 +284,6 @@ export class ShopkeeperSystem implements System {
       reservePrice: this.auctionReservePrice,
       closesAtTick: ctx.tick + this.auctionDurationTicks,
     };
-    // (1) Broadcast on the bus so farmer inboxes hear it.
     this.bus.send(
       {
         performative: PERFORMATIVE.CFP,
@@ -376,11 +294,8 @@ export class ShopkeeperSystem implements System {
       },
       ctx.tick,
     );
-    // (2) Register with the AuctionSystem directly.
     this.auctionSystem.openAuction(cfp);
   }
-
-  // ---- helpers -----------------------------------------------------------
 
   private replyConfirm(tick: number, to: number, body: ShopConfirmBody): void {
     this.bus.send(

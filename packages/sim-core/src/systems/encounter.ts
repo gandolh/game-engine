@@ -38,7 +38,6 @@ export class EncounterSystem implements System {
   }
 
   run(ctx: SimContext): void {
-    // Gather farmers in id-ascending order for deterministic pairing.
     const farmers: GameEntity[] = [];
     for (const e of this.world.query("farmer", "inbox")) {
       if (e.id === undefined) continue;
@@ -47,7 +46,6 @@ export class EncounterSystem implements System {
     if (farmers.length < 2) return;
     farmers.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
 
-    // Group by region.
     const byRegion = new Map<RegionId, GameEntity[]>();
     for (const f of farmers) {
       const region = f.farmer?.currentRegion;
@@ -60,11 +58,9 @@ export class EncounterSystem implements System {
       list.push(f);
     }
 
-    // Iterate region groups in REGIONS order for determinism.
     for (const regionDef of REGIONS) {
       const group = byRegion.get(regionDef.id);
       if (!group || group.length < 2) continue;
-      // group is already id-ascending because `farmers` was sorted.
       for (let i = 0; i < group.length; i++) {
         for (let j = i + 1; j < group.length; j++) {
           const a = group[i]!;

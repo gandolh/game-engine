@@ -118,43 +118,25 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
   it("contains the static backdrop: grass/dirt land tiles, bridges, island walls, and plot dirt (ocean is NOT baked)", () => {
     const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
     const frames = new Set(sprites.map((s) => s.frame));
-    // Backdrop tile kinds present. In the archipelago every road tile spans
-    // water, so there is no plain "tile/path" — roads render as bridges over
-    // ocean instead.
-    // brief 45 — grass tiles are now season-specific; with no season arg the
-    // default is "spring", so the frame is "tile/grass-spring".
+    // Grass is season-specific; default season is "spring".
     expect(frames.has("tile/grass-spring")).toBe(true);
     expect(frames.has("tile/dirt")).toBe(true);
-    // Ocean is no longer baked into the static layer — the animated water
-    // pattern (Canvas2dRenderer) fills the ocean under the islands, so ocean
-    // tiles bake transparent (backdropFrame → null for non-walkable/bridge).
+    // Ocean tiles are not baked; Canvas2dRenderer fills water under islands.
     expect(frames.has("tile/ocean")).toBe(false);
     expect(frames.has("tile/bridge-h")).toBe(true);
-    // In the archipelago every island margin gets a region-themed edge band
-    // facing the ocean (stone wall, wooden bulwark for carpentry, sandy beach
-    // for farms/fishing isles); farm fences only enclose a land-to-land
-    // boundary, of which there are none in the current layout. All three
-    // materials are present across the world's islands.
     expect(frames.has("tile/wall")).toBe(true); // blacksmith / quarries / etc.
     expect(frames.has("tile/wall-wood")).toBe(true); // carpentry
     expect(frames.has("tile/shore-sand")).toBe(true); // farm fields + fishing isles
-    // The old wooden FENCE band no longer rings the island margins.
     expect(frames.has("tile/fence-h")).toBe(false);
-    // Coral zones are autotiled connected patches on open-water ocean tiles
-    // (purely decorative; never affect walkability). At least the interior fill
-    // and a faded edge are baked.
     expect(frames.has("tile/coral-fill")).toBe(true);
     expect(frames.has("tile/coral-edge")).toBe(true);
-    // Lots of tiles (88×80 world: islands + ocean fill the whole grid).
     expect(sprites.length).toBeGreaterThan(100);
   });
 
   it("does NOT contain dynamic sprites (crops or farmer entities)", () => {
     const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
     const frames = sprites.map((s) => s.frame);
-    // No crop sprite (crops grow → dynamic).
     expect(frames.some((f) => f.startsWith("crop/"))).toBe(false);
-    // No farmer/structure entity sprites.
     expect(frames.some((f) => f.startsWith("farmer/"))).toBe(false);
   });
 

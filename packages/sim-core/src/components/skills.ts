@@ -11,7 +11,6 @@ export interface Skills {
   mining: number;
 }
 
-/** A zero-initialized Skills record (level 1 across the board). */
 export function zeroSkills(): Skills {
   return { farming: 0, foraging: 0, fishing: 0, mining: 0 };
 }

@@ -1,13 +1,3 @@
-/**
- * snapshot-builder/sprites.ts — per-tick sprite list from live ECS world.
- *
- * The render memos (lastIntention, lastFacing) live in a per-RUN
- * `SnapshotSpriteState` rather than module globals, so multiple sims in one
- * process (the Node server) don't cross-contaminate each other's cosmetic
- * facing/bubble state. Callers that omit it fall back to a shared default
- * (correct for one-sim-per-context: the legacy browser worker, tests).
- */
-
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
 import type {
@@ -26,18 +16,9 @@ import { cropCue, farmerCue, UNTINTED_RGBA } from "./indicators";
 const TILE = 16;
 
 /**
- * Per-RUN render memo for the sprite builder: the last-seen intention kind (+ the
- * tick it changed, driving the on-change bubble window) and the last facing for
- * each entity id. Both are RENDER-ONLY — the sim is authoritative on positions;
- * these only smooth which way a sprite visually faces / when its bubble shows.
- *
- * This MUST be per-run, not a module singleton: the Node server (brief 57) runs
- * multiple sims in one process, so a shared map would let one run's leftover
- * facing bleed into another run's first ticks (a real cross-contamination bug
- * the single-sim-per-worker browser never hit). `buildRenderSnapshot` takes an
- * optional instance; the server passes a fresh one per connection. Callers that
- * omit it (the legacy browser worker, tests) fall back to a module singleton,
- * which is correct for one-sim-per-context use.
+ * Per-RUN render memo (last intention + facing per entity id). Must be per-run so the
+ * Node server (multiple sims in one process) can't cross-contaminate facing/bubble state.
+ * Callers that omit it (browser worker, tests) fall back to a module singleton.
  */
 export class SnapshotSpriteState {
   readonly lastIntention = new Map<
@@ -48,23 +29,14 @@ export class SnapshotSpriteState {
     number,
     { facing: "down" | "up" | "side"; flipX: boolean }
   >();
-  /**
-   * Run-history row count at the last snapshot that carried `wealthSeries`.
-   * Rows only grow (one per farmer per day boundary), so an unchanged count
-   * means the series the client already has is still current and the snapshot
-   * sends `wealthSeries: null` instead. -1 forces the first snapshot to send.
-   */
+  /** Row count at the last snapshot that carried wealthSeries; -1 forces the first send. */
   wealthRowsSent = -1;
 }
 
 /** Shared fallback for callers that don't supply their own per-run state. */
 const defaultSpriteState = new SnapshotSpriteState();
 
-/**
- * Pick a 3-way facing from a per-tick movement delta. Vertical dominates ties
- * (more readable in top-down). `flipX` mirrors the right-facing side profile for
- * leftward movement. Stationary (0,0) keeps the entity's last facing.
- */
+// Vertical dominates ties; flipX mirrors the right-facing side profile for leftward movement.
 function resolveFacing(
   state: SnapshotSpriteState,
   id: number,
@@ -87,9 +59,6 @@ function resolveFacing(
   return result;
 }
 
-/**
- * Derive a human-readable region label from a farmer's raw region string.
- */
 function deriveRegionLabel(
   name: string,
   currentRegion: string,
@@ -109,7 +78,6 @@ export function buildSprites(
 ): SnapshotSprite[] {
   const sprites: SnapshotSprite[] = [];
 
-  // Dynamic crop sprites (planted plots only).
   for (const plot of world.query("plot")) {
     if (plot.plot.state.kind !== "planted") continue;
     const px = plot.plot.tileX * TILE + TILE / 2;
@@ -119,8 +87,6 @@ export function buildSprites(
     const cap = crop.charAt(0).toUpperCase() + crop.slice(1);
     const stageWord = stage === "mature" ? "ready to harvest" : stage === "growing" ? "growing" : "just sown";
     const watered = plot.plot.state.wateredToday ? "watered today" : "needs water";
-    // Visual state cue (RENDER-ONLY): thirsty / dying crops get a subtle tint +
-    // tooltip suffix. Healthy crops return the untinted default.
     const cue = cropCue(plot.plot.state);
     sprites.push({
       id: null,
@@ -134,9 +100,7 @@ export function buildSprites(
       interpolate: false,
       action: null,
       label: `${cap} crop`,
-      // daysGrowing advances by 1/ticksPerDay each tick — serialize it rounded
-      // to 0.1 days so the tooltip string (sent for every crop sprite in every
-      // snapshot) doesn't churn a fresh ~17-char float tail per tick.
+      // toFixed(1) avoids a new float-string per tick for every crop sprite in the snapshot.
       description: `${stageWord} · ${watered} · day ${daysGrowing.toFixed(1)}/${readyAtDay}${cue.suffix}`,
     });
   }
@@ -144,12 +108,7 @@ export function buildSprites(
   // Entity sprites (farmers, shopkeeper, market-wall, etc.).
   for (const entity of world.query("sprite", "transform")) {
     const t = entity.transform;
-    // AI farmers walking a path carry a RENDER-ONLY sub-tile glide position
-    // (farmer.renderPos) set by TravelSystem to interpolate between waypoint
-    // steps. The player (Pip) uses continuous float movement (brief 61): its
-    // transform IS already smooth, so renderPos is always undefined for Pip and
-    // we fall through to t.x/t.y, which is correct. The main thread still lerps
-    // between consecutive snapshots (alpha) on top of this.
+    // AI farmers use renderPos (sub-tile glide set by TravelSystem); Pip uses continuous transform.
     const rp = entity.farmer?.renderPos;
     const posX = rp ? rp.x : t.x;
     const posY = rp ? rp.y : t.y;
@@ -160,25 +119,15 @@ export function buildSprites(
     const isFarmer = entity.farmer !== undefined;
     const npc = entity.workNpc;
 
-    // Facing: farmers + work NPCs face the way they're moving (persisted while
-    // idle). NPCs override with their station facing (set by WorkNpcSystem).
     let facing: "down" | "up" | "side" | null = null;
     let flipX = false;
     let frame = s.frame;
     if (npc) {
       facing = npc.facing;
       flipX = npc.flipX;
-      // poseFrame (e.g. "npc/blacksmith/hammer-a") overrides; else the base
-      // structure frame is replaced by a directional idle below in render.
-      frame = npc.poseFrame ?? s.frame;
+      frame = npc.poseFrame ?? s.frame; // poseFrame overrides the base frame
     } else if (isFarmer) {
-      // The player (Pip) carries an authoritative 4-way facing (up/down/left/
-      // right) set by PlayerControlSystem; map it to the 3-way side/up/down +
-      // flipX convention so its directional assets resolve like the AI farmers'
-      // (left/right both use the right-facing "side" frame, mirrored for left).
-      // The movement-delta heuristic is unreliable for the player because it
-      // can only see the *current* tick's step and snaps back to "down" the
-      // instant it stops between key presses.
+      // Pip carries authoritative 4-way facing from PlayerControlSystem; map to 3-way + flipX.
       if (entity.player) {
         const pf = entity.player.facing;
         if (pf === "left" || pf === "right") {
@@ -196,11 +145,7 @@ export function buildSprites(
     }
     const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
 
-    // Brief 40 — intention bubble for AI farmers (NOT the player).
-    // Legibility rule: show the bubble for BUBBLE_SHOW_TICKS after an intention
-    // change so the map reads without becoming a wall of persistent icons. The
-    // bubble disappears once the window expires and reappears on the next change.
-    // Player (Pip) never gets a bubble (the player knows what they're doing).
+    // Intention bubble: shown for BUBBLE_SHOW_TICKS after a change; AI farmers only (not Pip).
     let bubble: string | null = null;
     const isAiFarmer = isFarmer && !entity.player;
     if (isAiFarmer && entity.id !== undefined) {
@@ -218,9 +163,6 @@ export function buildSprites(
 
     let label: string | null = null;
     let description: string | null = null;
-    // Visual state cue (RENDER-ONLY): exhausted / broken-tool farmers get a
-    // subtle tint + tooltip suffix. Non-farmer sprites keep their sim tint and
-    // stay untinted (default). farmerCue is a pure read of post-tick state.
     const cue = isFarmer ? farmerCue(entity, day) : null;
 
     if (isFarmer) {
@@ -274,7 +216,6 @@ export function buildSprites(
         description = "Mine with the pickaxe (from the tile in front) for stone.";
       }
     } else {
-      // Decorative props carry no identifying component; name them by frame.
       const deco = DECORATION_LABELS[frame];
       if (deco) {
         label = deco.label;
@@ -288,8 +229,7 @@ export function buildSprites(
       rotation: t.rotation,
       layer: s.layer,
       frame,
-      // Farmers: alpha + tint from the state cue (healthy → 1 / untinted).
-      // Non-farmers: keep the alpha encoded in the sim sprite's tint; untinted.
+      // Farmers: alpha+tint from state cue. Non-farmers: alpha from sprite tint's low byte.
       alpha: cue ? cue.alpha : (tint & 0xff) / 255,
       tintRgba: cue ? cue.tintRgba : UNTINTED_RGBA,
       interpolate: isFarmer,
@@ -305,11 +245,7 @@ export function buildSprites(
   return sprites;
 }
 
-/**
- * Build the player (Pip) hotbar state from HOTBAR_SLOTS, or null when there is
- * no player entity. Each slot reports its live count/charge readout and whether
- * it can currently be used (tools are always available; seeds dim at zero).
- */
+/** Build Pip's hotbar state; null when no player entity. Seeds dim at zero; tools always available. */
 export function buildPlayerHotbar(world: World<GameEntity>): PlayerHotbar | null {
   for (const e of world.query("player", "inventory")) {
     const inv = e.inventory;

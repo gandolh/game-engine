@@ -258,7 +258,7 @@ export class EventFeedSystem implements System {
       // e.g. "Autumn Harvest Fair — Atticus wins with a Gold pumpkin"
       const qLabel = quality.charAt(0).toUpperCase() + quality.slice(1);
       text = `${body.name} — ${body.winnerName} wins with a ${qLabel} ${body.contestCrop}`;
-    } // e.g. "Autumn Harvest Fair — Atticus wins with a Gold pumpkin"
+    }
     out.push({
       tick,
       day,
@@ -290,7 +290,6 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // Snoop harbor board (single entity) to avoid double-counting broadcasts.
   private snoopHarborBoard(tick: number, day: number, out: EventEntry[]): void {
     for (const board of this.world.query("harborBoard", "inbox")) {
       for (const msg of board.inbox.messages) {
@@ -356,7 +355,6 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // RivalrySystem runs BEFORE EventFeedSystem (scheduler order).
   private snoopRivalrySystem(tick: number, day: number, out: EventEntry[]): void {
     if (!this.rivalry) return;
     for (const formed of this.rivalry.freshlyFormedThisTick()) {
@@ -395,7 +393,6 @@ export class EventFeedSystem implements System {
     }
   }
 
-  // Checked once per new day. RunHistorySystem must run before this (same snoop band).
   private snoopRankChange(tick: number, day: number, out: EventEntry[]): void {
     if (!this.runHistory) return;
     if (day === this.lastRankCheckDay) return;
@@ -432,7 +429,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // One-shot: day ≥ 90% of maxDays AND top-2 gold gap ≤ 8%. raceOnEmitted short-circuits future scans.
+  // One-shot: day ≥ 90% of maxDays AND top-2 gold gap ≤ 8%.
   private snoopRaceOn(tick: number, day: number, out: EventEntry[]): void {
     if (this.raceOnEmitted) return;
     if (!this.runHistory) return;
@@ -442,7 +439,6 @@ export class EventFeedSystem implements System {
     if (day < threshold) return;
 
     const history = this.runHistory.history();
-    // Find the most recently recorded day in history (could be current or prev).
     let latestHistDay = -1;
     for (const row of history) {
       if (row.day > latestHistDay) latestHistDay = row.day;

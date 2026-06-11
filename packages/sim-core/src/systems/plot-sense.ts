@@ -1,22 +1,8 @@
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity, PlotState, TileFeature, FarmDecoration, AnimalKind } from "../components";
 
-/**
- * brief 29 — surface each farmer's owned-plot watering needs into beliefs so
- * the (plot-blind) deliberate* fns can queue `water` actions. Mirrors how
- * market offers are surfaced for trade decisions: deliberation reads beliefs,
- * ActSystem resolves against the real plots.
- *
- * Writes `beliefs.data.plotWater = { planted, due, maxDrySoFar, duePlots, emptyPlots, fountainTile }`:
- *   - planted: number of the farmer's planted plots
- *   - due: how many are not yet watered today (need a `water` action)
- *   - maxDrySoFar: the highest `daysSinceWater` among the farmer's plots
- *     (drives personality-tuned urgency)
- *   - duePlots: sorted array of {tileX,tileY} for plots needing water today
- *   - emptyPlots: sorted array of {tileX,tileY} for plots in "empty" state
- *   - fountainTile: the tile coords of the farmer's home fountain (if known)
- *
- * Runs before DeliberateSystem (after HarvestSystem). Pure read of plot state.
+/** Surfaces plot watering/planting state into beliefs for deliberation.
+ *  Runs before DeliberateSystem (after HarvestSystem). Pure read of plot state.
  */
 export interface PlotWaterSense {
   planted: number;
@@ -36,13 +22,10 @@ export class PlotSenseSystem implements System {
   constructor(private readonly world: World<GameEntity>) {}
 
   run(_ctx: SimContext): void {
-    // Group plots by owner (all states).
     const byOwnerPlanted = new Map<number, Array<{ tileX: number; tileY: number; state: Extract<PlotState, { kind: "planted" }> }>>();
     const byOwnerEmpty   = new Map<number, Array<{ tileX: number; tileY: number }>>();
-    // brief 43 — empty GREENHOUSE plots tracked separately so the deliberation
-    // can plant a year-round high-value crop in them regardless of season.
+    // Empty greenhouse plots tracked separately for year-round planting deliberation.
     const byOwnerGreenhouseEmpty = new Map<number, Array<{ tileX: number; tileY: number }>>();
-    // Also track all plot tiles per owner (for till collision avoidance).
     const allTilesByOwner = new Map<number, string[]>();
     for (const p of this.world.query("plot")) {
       const s = p.plot.state;
@@ -65,7 +48,6 @@ export class PlotSenseSystem implements System {
       }
     }
 
-    // Collect fountain tiles per farm region.
     const fountainTilesByRegion = new Map<string, { x: number; y: number }>();
     for (const f of this.world.query("fountain")) {
       if (!f.transform) continue;
@@ -75,7 +57,6 @@ export class PlotSenseSystem implements System {
       });
     }
 
-    // Collect tile features per owner.
     const featuresByOwner = new Map<number, TileFeature[]>();
     for (const f of this.world.query("tileFeature")) {
       const arr = featuresByOwner.get(f.tileFeature.ownerId) ?? [];
@@ -83,13 +64,11 @@ export class PlotSenseSystem implements System {
       featuresByOwner.set(f.tileFeature.ownerId, arr);
     }
 
-    // Collect all placed decorations (all farmers share this read).
     const decorationsAll: FarmDecoration[] = [];
     for (const e of this.world.query("farmDecoration")) {
       decorationsAll.push(e.farmDecoration);
     }
 
-    // brief 42 — collect pen state per owner.
     const pensByOwner = new Map<number, { hasCoop: boolean; hasBarn: boolean; coopFed: boolean; barnFed: boolean; animalCounts: Partial<Record<AnimalKind, number>> }>();
     for (const p of this.world.query("pen")) {
       const oid = p.pen.ownerId;
@@ -100,13 +79,11 @@ export class PlotSenseSystem implements System {
       pensByOwner.set(oid, entry);
     }
 
-    // brief 43 — collect greenhouse ownership (one per farmer).
     const greenhouseOwners = new Set<number>();
     for (const g of this.world.query("greenhouse")) {
       greenhouseOwners.add(g.greenhouse.ownerId);
     }
 
-    // brief 42 — collect orchard tree state per owner.
     const orchardsByOwner = new Map<number, { count: number; readyTrees: Array<{ tileX: number; tileY: number; kind: string }> }>();
     for (const t of this.world.query("orchardTree")) {
       const oid = t.orchardTree.ownerId;
@@ -122,7 +99,6 @@ export class PlotSenseSystem implements System {
       if (farmer.id === undefined) continue;
       const plantedPlots = byOwnerPlanted.get(farmer.id) ?? [];
 
-      // Compute due/maxDry and collect due plot tiles (sorted by tileY, tileX for determinism).
       let due = 0;
       let maxDry = 0;
       const dueTiles: Array<{ tileX: number; tileY: number }> = [];
@@ -136,7 +112,6 @@ export class PlotSenseSystem implements System {
       }
       dueTiles.sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
 
-      // Collect empty plot tiles (sorted by tileY, tileX) for plant deliberation.
       const emptyTiles = (byOwnerEmpty.get(farmer.id) ?? [])
         .slice()
         .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
@@ -149,20 +124,15 @@ export class PlotSenseSystem implements System {
         : { planted: plantedPlots.length, due, maxDrySoFar: maxDry, duePlots: dueTiles, emptyPlots: emptyTiles };
       farmer.beliefs.data.plotWater = sense;
 
-      // Surface occupied tiles (plots + fountain) for till planning.
       const tiles = allTilesByOwner.get(farmer.id) ?? [];
       if (homeRegion && fountainTile) {
         tiles.push(`${fountainTile.x},${fountainTile.y}`);
       }
       farmer.beliefs.data.occupiedTiles = tiles;
 
-      // Surface tile features for gather planning.
       farmer.beliefs.data.tileFeatures = featuresByOwner.get(farmer.id) ?? [];
-
-      // Surface all placed decorations (for boost-cap check in deliberation).
       farmer.beliefs.data.decorations = decorationsAll;
 
-      // brief 42 — surface pen/orchard state into beliefs for agent deliberation.
       const penState = pensByOwner.get(farmer.id);
       farmer.beliefs.data["hasPen_coop"] = penState?.hasCoop ?? false;
       farmer.beliefs.data["hasPen_barn"] = penState?.hasBarn ?? false;
@@ -176,8 +146,6 @@ export class PlotSenseSystem implements System {
       farmer.beliefs.data["orchardCount"] = orchState?.count ?? 0;
       farmer.beliefs.data["orchardFruitReady"] = orchState?.readyTrees ?? [];
 
-      // brief 43 — surface greenhouse ownership for build deliberation, and the
-      // empty greenhouse-plot tiles (sorted) for year-round greenhouse planting.
       farmer.beliefs.data["hasGreenhouse"] = greenhouseOwners.has(farmer.id);
       farmer.beliefs.data["greenhouseEmptyPlots"] = (byOwnerGreenhouseEmpty.get(farmer.id) ?? [])
         .slice()

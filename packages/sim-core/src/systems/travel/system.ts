@@ -35,18 +35,10 @@ export class TravelSystem implements System {
     private readonly pathfinder: Pathfinder,
     private readonly grid: PathfinderGrid,
     private readonly bus: MessageBus,
-    /**
-     * brief 48 — the boat-travel grid (water lanes from each dock to its reef).
-     * When a farmer is aboard their boat, pathing + smoothing + walkability use
-     * this grid instead of the land grid, so the farmer rows over water to the
-     * reef. Optional so legacy constructions (and tests that don't exercise
-     * boats) keep working — absent means "no water lanes", boats can't move.
-     */
+    /** Boat grid (water lanes dock→reef); used when farmer.aboard. Optional; absent = no boat movement. */
     private readonly boatGrid?: PathfinderGrid,
   ) {}
 
-  /** The grid this farmer pathfinds on this tick: the boat grid while aboard,
-   *  otherwise the land grid. */
   private gridFor(entity: GameEntity): PathfinderGrid {
     if (entity.farmer?.aboard && this.boatGrid) return this.boatGrid;
     return this.grid;
@@ -66,15 +58,12 @@ export class TravelSystem implements System {
 
     const front = intentions.queue[0];
     const hasTravelIntent = front !== undefined && front.kind === "travel";
-    // brief 48 — pathing happens on the boat grid while aboard, land grid otherwise.
     const grid = this.gridFor(entity);
 
     // Phase 1: start a new path if needed.
     if (hasTravelIntent && !farmer.path) {
       const targetRegionId = front.data.targetRegionId as RegionId | undefined;
-      // brief (proximity) — a travel intent may target a specific TILE (to stand
-      // adjacent to a plot/tree/stone/fountain before acting) instead of a whole
-      // region. Tile targets win when both are present.
+      // Tile target (targetTile) wins over regionId when both are present; used for adjacency-gated acts.
       const targetTile = front.data.targetTile as
         | { x: number; y: number }
         | undefined;
@@ -101,15 +90,10 @@ export class TravelSystem implements System {
       }
       const targetCenter = dest;
       const start = { x: transform.x, y: transform.y };
-      // Tile-targeted intents have no region — name the tile in warns instead
-      // of printing "region 'undefined'" (which misreads as a corrupt intent).
       const destLabel = targetTile
         ? `tile (${targetTile.x},${targetTile.y})${front.data.tavernGather ? " [tavern-gather]" : ""}`
         : `region '${targetRegionId}'`;
-      // The WASM pathfinder's allocator can intermittently trap
-      // (RuntimeError: unreachable) under heavy churn. Isolate it so a single
-      // failed path drops this farmer's intent instead of killing the whole
-      // tick — the farmer re-deliberates and can re-path next tick.
+      // Isolate pathfinder faults (WASM allocator can trap under heavy churn); drop intent rather than crashing the tick.
       let path: { x: number; y: number }[];
       try {
         path = this.pathfinder.findPath(grid, start, targetCenter);
@@ -131,26 +115,20 @@ export class TravelSystem implements System {
       }
 
       if (path.length <= 1) {
-        // Already at / overlaps the destination tile — resolve instantly.
         this.arrive(entity, tick);
         return;
       }
 
-      // Smooth the 4-connected route into a diagonal-cutting dense path so the
-      // farmer walks corners instead of staircasing. Still one tile per step,
-      // so STEP_TICKS pacing and determinism are unchanged.
       const smoothed = smoothPath(path, (x, y) => this.isWalkable(grid, x, y));
 
       farmer.path = {
         waypoints: smoothed,
-        // Path includes the start tile as [0]; the next step is [1].
         nextIndex: 1,
         ticksUntilStep: STEP_TICKS,
       };
       return;
     }
 
-    // Phase 2: advance along an active path.
     if (farmer.path) {
       const mutablePath = farmer.path as {
         waypoints: ReadonlyArray<{ x: number; y: number }>;
@@ -159,24 +137,11 @@ export class TravelSystem implements System {
       };
       mutablePath.ticksUntilStep -= 1;
 
-      // Sub-tile render glide (RENDER-ONLY — never touches the authoritative
-      // transform). The logical position still steps one whole tile per
-      // STEP_TICKS exactly as before (so the sim, AP, regions, pathing and
-      // determinism are byte-for-byte unchanged). But the worker posts one
-      // snapshot per tick, so for the 7 in-between ticks the transform is
-      // identical and the render interpolation has nothing to lerp — the farmer
-      // sits still, then jumps a full tile on the 8th tick (the "teleport
-      // between cell centers" chunkiness).
-      //
-      // To fix that we compute where the farmer *visually* is partway through
-      // the current step and stash it on farmer.renderPos. The snapshot builder
-      // prefers renderPos over transform for farmer sprites, so each snapshot
-      // carries a position that has advanced ~1/STEP_TICKS of a tile, and the
-      // main-thread lerp now sees continuous motion every tick.
+      // Sub-tile render glide: farmer.renderPos interpolates toward the next waypoint each tick.
+      // RENDER-ONLY — never mutates transform. Sim, AP, regions, determinism unchanged.
       const from = mutablePath.waypoints[mutablePath.nextIndex - 1];
       const next = mutablePath.waypoints[mutablePath.nextIndex];
       if (from && next) {
-        // progress in [0, 1]: 0 just after the previous commit, 1 at the boundary.
         const frac = (STEP_TICKS - mutablePath.ticksUntilStep) / STEP_TICKS;
         farmer.renderPos = {
           x: from.x + (next.x - from.x) * frac,
@@ -188,7 +153,6 @@ export class TravelSystem implements System {
         if (next) {
           transform.x = next.x;
           transform.y = next.y;
-          // Land the render glide exactly on the integer waypoint too.
           farmer.renderPos = { x: next.x, y: next.y };
         }
         mutablePath.nextIndex += 1;
@@ -201,29 +165,19 @@ export class TravelSystem implements System {
     }
   }
 
-  /** Walkable iff in-bounds and the given grid's cell is 0 (matches the
-   *  pathfinder). The grid is the land grid normally, the boat grid while
-   *  aboard (brief 48). */
   private isWalkable(grid: PathfinderGrid, x: number, y: number): boolean {
     const { width, height, cells } = grid;
     if (x < 0 || y < 0 || x >= width || y >= height) return false;
     return cells[y * width + x] === 0;
   }
 
-  /**
-   * Resolve the tile a farmer should stand on to be "at" a target tile: the
-   * target itself if walkable (e.g. a soil plot), otherwise the nearest walkable
-   * 8-neighbour. Neighbours are scanned in a FIXED order so the chosen standing
-   * tile is deterministic. Returns undefined if neither the tile nor any
-   * neighbour is walkable.
-   */
+  /** Walkable tile adjacent to (tileX, tileY); fixed scan order (N/E/S/W then diagonals) for determinism. */
   private resolveReachableTile(
     grid: PathfinderGrid,
     tileX: number,
     tileY: number,
   ): { x: number; y: number } | undefined {
     if (this.isWalkable(grid, tileX, tileY)) return { x: tileX, y: tileY };
-    // Fixed scan order (N, E, S, W, then diagonals) for determinism.
     const offsets = [
       [0, -1], [1, 0], [0, 1], [-1, 0],
       [1, -1], [1, 1], [-1, 1], [-1, -1],
@@ -236,10 +190,6 @@ export class TravelSystem implements System {
     return undefined;
   }
 
-  /**
-   * Final-arrival handling: update currentRegion, clear path, pop the front
-   * travel intent, and emit ARRIVED on the bus.
-   */
   private arrive(entity: GameEntity, tick: number): void {
     const farmer = entity.farmer;
     const transform = entity.transform;
@@ -251,10 +201,7 @@ export class TravelSystem implements System {
       farmer.currentRegion = arrivedRegion;
     }
     farmer.path = undefined;
-    // Drop the render glide so a stopped farmer renders at its true tile (and
-    // the snapshot builder falls back to transform until the next path starts).
     farmer.renderPos = undefined;
-    // Pop the travel intent.
     if (intentions.queue[0]?.kind === "travel") {
       intentions.queue.shift();
     }

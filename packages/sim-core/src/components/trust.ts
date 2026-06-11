@@ -14,5 +14,4 @@ export interface DecisionTrace {
   reasons: string[];
 }
 
-/** Max reasons kept in the decisionTrace ring buffer. */
 export const DECISION_TRACE_CAP = 3;

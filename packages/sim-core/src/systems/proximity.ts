@@ -1,12 +1,8 @@
 import type { Transform } from "@engine/core";
 
 /**
- * brief (proximity) — a farmer may only perform a tile-targeted action (till,
- * water, refill-can, chop-tree, mine-stone, plant) when standing on the target
- * tile or one of its 8 neighbours. "1 cell distance" = Chebyshev distance ≤ 1.
- *
- * Farmer transforms hold integer TILE coordinates (TravelSystem advances them
- * waypoint-by-waypoint), but we round defensively in case of any sub-tile value.
+ * Tile-targeted actions require Chebyshev distance ≤ 1 (target tile or any of its 8 neighbours).
+ * Transforms hold integer tile coordinates; round defensively for any sub-tile value.
  */
 export function isWithinReach(
   transform: Transform | undefined,

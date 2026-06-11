@@ -53,7 +53,6 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
     if (npc.timer > 0) return;
     npc.timer = scaled(STEP_TICKS, npc.busyFactor);
 
-    // Step one tile toward the station (Manhattan: x first, then y).
     const dx = station.tileX - transform.x;
     const dy = station.tileY - transform.y;
     if (dx !== 0) {
@@ -62,7 +61,6 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
       transform.y += Math.sign(dy);
     }
 
-    // Arrived?
     if (transform.x === station.tileX && transform.y === station.tileY) {
       npc.phase = "working";
       npc.timer = scaled(DWELL_TICKS, npc.busyFactor);
@@ -72,7 +70,6 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
     return;
   }
 
-  // phase === "working": face the prop, play the pose, dwell.
   npc.facing = station.facing;
   npc.flipX = station.flipX;
   if (station.pose) {
@@ -88,7 +85,6 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
   npc.timer -= 1;
   if (npc.timer > 0) return;
 
-  // Advance to the next station and start walking.
   npc.stationIndex = (npc.stationIndex + 1) % npc.stations.length;
   npc.phase = "walking";
   npc.timer = scaled(STEP_TICKS, npc.busyFactor);

@@ -51,7 +51,7 @@ export class EncounterTradeSystem implements System {
     this.resolvedHandshakes.clear();
     let didWork = true;
     let safety = 0;
-    while (didWork && safety < 8) { // loop until no MEET/OFFER_SEED remain; safety cap prevents infinite loops
+    while (didWork && safety < 8) { // safety cap prevents infinite loops
       didWork = this.processInboxes(ctx);
       safety += 1;
     }
@@ -160,12 +160,8 @@ export class EncounterTradeSystem implements System {
     const hooks = getPeerTradeHooks(personality);
     if (!hooks) return;
 
-    // Seed offer is lower-id gated (prevents two simultaneous seed offers from one pair).
+    // Seed offer is lower-id gated (prevents duplicate offers from one pair).
     // Gifts and crop offers are independent — both sides may fire them.
-
-    // Gift a golden bean if the personality hook opts in:
-    // opts in (e.g. to a trusted ally). One-way and immediate; sent as an
-    // OFFER_BEAN the peer consumes next pass. Independent of the seed offer.
     if (hooks.initiateGift && (farmer.inventory?.goldenBeans ?? 0) > 0) {
       const gift = hooks.initiateGift(farmer, meet, { tick: ctx.tick });
       if (gift) {
@@ -257,7 +253,6 @@ export class EncounterTradeSystem implements System {
       return;
     }
 
-    // Crop offers use respondCrop (may be absent → decline); seed offers use respond.
     const responder = commodity === "crop" ? hooks.respondCrop : hooks.respond;
     if (!responder) {
       this.sendDecline(farmer.id, sender, offer.offerId, "no-crop-responder", ctx.tick);
@@ -267,7 +262,7 @@ export class EncounterTradeSystem implements System {
     const result = responder(farmer, offer, sender, { tick: ctx.tick });
     if (result.decision === "accept") {
       this.sendAccept(farmer.id, sender, offer.offerId, ctx.tick);
-      applyTrustDelta(farmer, sender, DEFAULT_TRUST_CONFIG.acceptDelta); // responder-side; initiator-side fires when TrustSystem snoops their ACCEPT inbox
+      applyTrustDelta(farmer, sender, DEFAULT_TRUST_CONFIG.acceptDelta);
     } else {
       this.sendDecline(
         farmer.id,
@@ -347,7 +342,6 @@ export class EncounterTradeSystem implements System {
       stock1[crop] += qty;
       if (commodity === "crop") moveNormalQuality(inv2, inv1, crop, qty);
     } else {
-      // sell: initiator gives stock, receives gold
       if (inv2.gold < total) return;
       if (stock1[crop] < qty) return;
       inv2.gold -= total;

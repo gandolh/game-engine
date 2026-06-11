@@ -1,4 +1,3 @@
-/** Fishing handler. Near-bubble cast uses FISH_WEIGHTS_BUBBLE (rarer odds); calm uses FISH_WEIGHTS_CALM. Reward is deterministic via forked fishRng. */
 import type { Rng } from "@engine/core";
 import type { FishKind } from "../../../components";
 import {

@@ -8,7 +8,6 @@ import {
   type Rng,
 } from "@engine/core";
 
-/** Duck-typed: both WASM Pathfinder and pure-JS JsPathfinder satisfy this shape. */
 export interface PathfinderLike {
   findPath(
     grid: PathfinderGrid,
@@ -61,7 +60,6 @@ import "./agents/aggressive";
 import "./agents/hoarder";
 import "./agents/opportunist";
 
-/** The five original, hand-placed farmers (four AI archetypes + the player Pip). */
 const FIXED_FARMER_SPECS: FarmerSpec[] = [
   {
     name: "Cora",
@@ -111,7 +109,6 @@ const FIXED_FARMER_SPECS: FarmerSpec[] = [
   },
 ];
 
-/** Templates for extra AI farmers filling the procedural farm band. Index `i` picks `[i % 4]`; name is suffixed with the index. */
 const EXTRA_FARMER_TEMPLATES: ReadonlyArray<Omit<FarmerSpec, "homeRegion" | "homeX" | "homeY" | "name"> & { baseName: string }> = [
   { baseName: "Cora",    personality: "conservative", startGold: 80,  riskProfile: "low",    minGoldReserve: 30, startSeeds: { radish: 3 } },
   { baseName: "Atticus", personality: "aggressive",   startGold: 110, riskProfile: "high",   minGoldReserve: 10, startSeeds: { radish: 1, wheat: 1, pumpkin: 1 } },
@@ -119,7 +116,6 @@ const EXTRA_FARMER_TEMPLATES: ReadonlyArray<Omit<FarmerSpec, "homeRegion" | "hom
   { baseName: "Otto",    personality: "opportunist",  startGold: 100, riskProfile: "medium", minGoldReserve: 50, startSeeds: { radish: 2, wheat: 1 } },
 ];
 
-/** Pure function of the index, no RNG. homeX/homeY are nominal — setupRegions repositions each farmer. */
 function makeExtraFarmerSpecs(): FarmerSpec[] {
   const specs: FarmerSpec[] = [];
   for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
@@ -196,7 +192,6 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   const meetIndicators = new MeetIndicatorSystem(world);
   const rivalry = new RivalrySystem(world, listCoordinators());
   const runHistory = new RunHistorySystem(world);
-  // runHistory passed so EventFeedSystem can detect rank-1 changes.
   const eventFeed = new EventFeedSystem(world, dayClock, rivalry, runHistory);
   const scheduler = new Scheduler()
     .add(dayClock);
@@ -259,7 +254,6 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(marketShop.shopkeeperSystem)
     .add(marketShop.auctionSystem)
     .add(new CarpenterSystem(world, bus))
-    // NpcDeliberateSystem sets busyFactor; WorkNpcSystem uses it for patrol cadence
     .add(new NpcDeliberateSystem(world))
     .add(new WorkNpcSystem(world))
     .add(new FinishDaySystem(world));
@@ -272,7 +266,6 @@ export interface FarmerSummary {
   name: string;
   personality: string;
   gold: number;
-  /** Total crop counts per kind (quality-blind). */
   crops: Partial<Record<import("./components").CropKind, number>>;
   /** Quality-weighted value of all held crops. */
   unsoldValue: number;

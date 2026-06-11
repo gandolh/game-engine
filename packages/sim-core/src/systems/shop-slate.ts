@@ -5,13 +5,7 @@ import { ONT_SHOP } from "../protocols/shop";
 import { ONT_SIMULATION, PERFORMATIVE } from "../protocols";
 import type { DailySlateBody } from "../protocols/shop";
 
-/**
- * ShopSlateSystem — generates a fresh daily offer slate for the shopkeeper.
- *
- * Detection strategy: same as WeatherSystem — scan the shopkeeper entity's
- * inbox for ONT_SIMULATION.DAY_START messages each tick, and react only when
- * a new (higher) day number arrives.
- */
+/** Generates a fresh daily offer slate for the shopkeeper on each DAY_START. */
 export class ShopSlateSystem implements System {
   readonly name = "ShopSlateSystem";
 
@@ -27,7 +21,6 @@ export class ShopSlateSystem implements System {
     const shop = this.findShopkeeper();
     if (!shop || !shop.inbox) return;
 
-    // Scan shopkeeper inbox for a DAY_START signal.
     let newDay: number | null = null;
     for (const msg of shop.inbox.messages) {
       if (msg.ontology === ONT_SIMULATION.DAY_START) {
@@ -41,13 +34,9 @@ export class ShopSlateSystem implements System {
     if (newDay === null) return;
     this.lastDayProcessed = newDay;
 
-    // Generate the daily slate.
     const offers = generateDailySlate(this.rng);
-
-    // Write onto the shopkeeper entity.
     shop.shopkeeper!.dailySlate = offers;
 
-    // Broadcast DAILY_SLATE so the observer panel and farmer perception can read it.
     const body: DailySlateBody = { offers };
     this.bus.send(
       {

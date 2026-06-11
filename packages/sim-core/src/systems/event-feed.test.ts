@@ -178,7 +178,7 @@ describe("EventFeedSystem", () => {
     expect(feed.recent()).toHaveLength(EVENT_FEED_CAP);
   });
 
-  // ---- drama score (brief 38) ---------------------------------------------
+  // ---- drama score ---------------------------------------------------
 
   it("every captured entry carries a drama score in [0, 1]", () => {
     const buyer = makeFarmer(world, "Hannah");
@@ -250,7 +250,7 @@ describe("EventFeedSystem", () => {
     expect(shock!.drama).toBeGreaterThan(trade!.drama);
   });
 
-  // ---- rank-change detection (brief 38) -----------------------------------
+  // ---- rank-change detection -------------------------------------------
 
   it("emits a rank-flip line when the top-rank farmer changes day-over-day", () => {
     const farmerA = makeFarmer(world, "Cora");
