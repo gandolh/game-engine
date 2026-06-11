@@ -35,7 +35,9 @@ struct WaterUniform {
   swellAlpha  : f32,
   swellScrollX: f32,
   swellScrollY: f32,
-  // Tile size (world px). UV = (worldPos + scroll) / tileSize → tiling via repeat sampler.
+  // Tile size (world px). UV = (worldPos - scroll) / tileSize → tiling via repeat sampler.
+  // Subtraction matches Canvas2D: pattern.setTransform(translate(+scroll)) shows pattern
+  // texel (worldPos - scroll) at world point worldPos.
   tileSize    : f32,
   // 1.0 → use bilinear sampler (zoomed out, sx < 1); 0.0 → nearest.
   useLinear   : f32,
@@ -81,7 +83,7 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOut {
 // Output is premultiplied alpha to match canvas alphaMode = "premultiplied".
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-  let uv = (in.worldPos + vec2<f32>(water.scrollX, water.scrollY)) / water.tileSize;
+  let uv = (in.worldPos - vec2<f32>(water.scrollX, water.scrollY)) / water.tileSize;
 
   var base: vec4<f32>;
   if (water.useLinear > 0.5) {
@@ -94,7 +96,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   // Canvas2D does: source-over at globalAlpha=swellAlpha, so effective src alpha = swell.a * swellAlpha.
   // All blending here is in straight-alpha space; premultiply at the end.
   if (water.swellAlpha > 0.0) {
-    let uvS = (in.worldPos + vec2<f32>(water.swellScrollX, water.swellScrollY)) / water.tileSize;
+    let uvS = (in.worldPos - vec2<f32>(water.swellScrollX, water.swellScrollY)) / water.tileSize;
     var swell: vec4<f32>;
     if (water.useLinear > 0.5) {
       swell = textureSample(waterTexture, samplerLinear,  uvS);

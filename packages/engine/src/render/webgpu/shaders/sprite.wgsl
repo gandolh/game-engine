@@ -19,7 +19,8 @@
 //   [10] r        f32  — tint red   (0..1)
 //   [11] g        f32  — tint green (0..1)
 //   [12] b        f32  — tint blue  (0..1)
-//   [13] a        f32  — sprite alpha / tint alpha (0..1)
+//   [13] a        f32  — sprite alpha (0..1; the tintRgba alpha byte is dropped
+//                        by the CPU packer, matching Canvas2D's rgb-only multiply)
 
 // ── Uniforms ─────────────────────────────────────────────────────────────────
 

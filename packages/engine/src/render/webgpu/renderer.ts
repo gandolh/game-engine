@@ -9,6 +9,7 @@ import type { ViewUniform } from "./gpu-context";
 import { GpuAtlasStore } from "./texture-atlas";
 import { SpriteBatch } from "./sprite-batch";
 import type { GpuSpriteInstance } from "./sprite-batch";
+import { ShadowBatch } from "./shadow-batch";
 import { Overlay2D } from "./overlay-2d";
 import { StaticLayerPass, WaterPass } from "./static-layer-pass";
 import type { VisibleRect } from "./static-layer-pass";
@@ -25,6 +26,16 @@ const GHOST_UI_LAYER = 80;   // overlappers at/above this layer never occlude
 // ── Shadow queue record (pooled to avoid per-frame alloc) ─────────────────────
 interface ShadowRecord {
   x: number; y: number; rx: number; ry: number; alpha: number;
+}
+
+// ── Sprite draw-group record (pooled to avoid per-frame alloc) ────────────────
+// One record per consecutive same-atlas run in the sorted queue (plus one per
+// x-ray ghost). Instances live in the SpriteBatch's frame buffer; the record
+// remembers which range to draw with which atlas bind group.
+interface DrawGroup {
+  bindGroup: GPUBindGroup | null;
+  first: number;
+  count: number;
 }
 
 // ── Tiny runtime hex → rgba float helper ──────────────────────────────────────
@@ -44,14 +55,16 @@ function hexToRgbaFloats(hex: string, alpha = 1): [number, number, number, numbe
   ];
 }
 
-// ── tintRgba → (r, g, b, a) floats in 0..1 ───────────────────────────────────
+// ── tintRgba → (r, g, b) floats in 0..1 ──────────────────────────────────────
+// The tint's alpha byte is intentionally DROPPED, mirroring Canvas2dRenderer:
+// canvas2d/draw.ts only uses the RGB bytes for the multiply (`tint >>> 8`), so
+// sprite opacity is s.alpha alone on both backends.
 function tintFloats(tintRgba: number | undefined, spriteAlpha: number): [number, number, number, number] {
   const t = tintRgba !== undefined ? (tintRgba >>> 0) : 0xffffffff;
   const r = ((t >>> 24) & 0xff) / 255;
   const g = ((t >>> 16) & 0xff) / 255;
   const b = ((t >>> 8)  & 0xff) / 255;
-  const tAlpha = (t & 0xff) / 255;
-  return [r, g, b, spriteAlpha * tAlpha];
+  return [r, g, b, spriteAlpha];
 }
 
 export class WebGpuRenderer implements RendererLike {
@@ -63,6 +76,7 @@ export class WebGpuRenderer implements RendererLike {
   private readonly _gpuCtx: GpuContext;
   private readonly _store: GpuAtlasStore;
   private readonly _batch: SpriteBatch;
+  private readonly _shadowBatch: ShadowBatch;
   private readonly _overlay: Overlay2D;
   private readonly _staticPass: StaticLayerPass;
   private readonly _waterPass: WaterPass;
@@ -71,7 +85,9 @@ export class WebGpuRenderer implements RendererLike {
 
   /** When true (default), particles + weather render on the GPU (Wave 4). Set false to
    *  use the 2D-overlay fallback (Wave 2 behaviour) — an A/B/safety toggle in case a GPU
-   *  effect misbehaves on a given device. Shadows + wash always use the overlay. */
+   *  effect misbehaves on a given device. Shadows render GPU-side either way (they must
+   *  sit UNDER sprites, which the overlay — composited on top — cannot do); the wash
+   *  always uses the overlay. */
   useGpuEffects = true;
 
   // CPU-side atlas map: required for bakeStaticLayer/bakeWaterPattern (StaticLayerPass/WaterPass
@@ -90,6 +106,18 @@ export class WebGpuRenderer implements RendererLike {
 
   // Scratch index array for the x-ray pass.
   private _occludableIdx: number[] = [];
+
+  // Pooled draw-group records (consecutive same-atlas runs + ghosts).
+  private _groups: DrawGroup[] = [];
+  private _groupLen = 0;
+
+  // Scratch instance reused for every SpriteBatch.add() call (zero per-sprite alloc).
+  private readonly _inst: GpuSpriteInstance = {
+    x: 0, y: 0, w: 0, h: 0,
+    u0: 0, v0: 0, u1: 0, v1: 0,
+    rotation: 0, flipX: 0,
+    r: 1, g: 1, b: 1, a: 1,
+  };
 
   // Viewport culling rect — generous defaults until first beginFrame.
   private _cullLeft = -Infinity;
@@ -110,6 +138,7 @@ export class WebGpuRenderer implements RendererLike {
     gpuCtx: GpuContext,
     store: GpuAtlasStore,
     batch: SpriteBatch,
+    shadowBatch: ShadowBatch,
     overlay: Overlay2D,
     staticPass: StaticLayerPass,
     waterPass: WaterPass,
@@ -123,6 +152,7 @@ export class WebGpuRenderer implements RendererLike {
     this._gpuCtx = gpuCtx;
     this._store = store;
     this._batch = batch;
+    this._shadowBatch = shadowBatch;
     this._overlay = overlay;
     this._staticPass = staticPass;
     this._waterPass = waterPass;
@@ -151,6 +181,7 @@ export class WebGpuRenderer implements RendererLike {
     device.pushErrorScope("validation");
     const store = new GpuAtlasStore(device);
     const batch = new SpriteBatch(gpuCtx, store.bindGroupLayout());
+    const shadowBatch = new ShadowBatch(gpuCtx);
     const overlay = new Overlay2D(canvas);
     const staticPass = new StaticLayerPass(gpuCtx);
     const waterPass = new WaterPass(gpuCtx);
@@ -162,7 +193,7 @@ export class WebGpuRenderer implements RendererLike {
     }
 
     return new WebGpuRenderer(
-      canvas, camera, gpuCtx, store, batch, overlay, staticPass, waterPass, particleBatch, weatherPass,
+      canvas, camera, gpuCtx, store, batch, shadowBatch, overlay, staticPass, waterPass, particleBatch, weatherPass,
     );
   }
 
@@ -170,6 +201,10 @@ export class WebGpuRenderer implements RendererLike {
 
   addAtlas(atlas: LoadedAtlasImage): void {
     this._atlases.set(atlas.manifest.id, atlas);
+    // Skip the GPU upload after device loss — copyExternalImageToTexture throws on a
+    // destroyed device, and an uncaught throw here would break the caller (e.g. the
+    // sim WebSocket message handler). The CPU map stays correct for getAtlas().
+    if (this._deviceLost) return;
     this._store.add(atlas);
   }
 
@@ -190,6 +225,7 @@ export class WebGpuRenderer implements RendererLike {
     decorate?: DecorateFn,
   ): void {
     if (this._atlases.size === 0) throw new Error("bakeStaticLayer: addAtlas must be called first");
+    if (this._deviceLost) return; // see addAtlas — GPU uploads throw on a destroyed device
     this._staticPass.bake(sprites, this._atlases, worldWidth, worldHeight, decorate);
     this._staticLayerW = Math.max(1, Math.ceil(worldWidth));
     this._staticLayerH = Math.max(1, Math.ceil(worldHeight));
@@ -197,6 +233,7 @@ export class WebGpuRenderer implements RendererLike {
 
   bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale?: number): void {
     if (this._atlases.size === 0) throw new Error("bakeWaterPattern: addAtlas must be called first");
+    if (this._deviceLost) return; // see addAtlas — GPU uploads throw on a destroyed device
     this._waterPass.bakePattern(this._atlases, frame, atlasId, tileSize, pixelScale);
   }
 
@@ -264,6 +301,44 @@ export class WebGpuRenderer implements RendererLike {
     this._shadowLen += 1;
   }
 
+  /** Record a draw group [first, first+count) for `atlasId` into the pooled group list. */
+  private _recordGroup(atlasId: string, first: number, count: number): void {
+    let rec = this._groups[this._groupLen];
+    if (rec === undefined) {
+      rec = { bindGroup: null, first: 0, count: 0 };
+      this._groups[this._groupLen] = rec;
+    }
+    rec.bindGroup = this._store.bindGroup(atlasId);
+    rec.first = first;
+    rec.count = count;
+    this._groupLen += 1;
+  }
+
+  /** Pack one sprite into the SpriteBatch via the reusable scratch instance. */
+  private _packSprite(
+    s: Sprite,
+    sx: number, sy: number, ox: number, oy: number,
+    alpha: number,
+  ): number {
+    // Apply z-lift (screenY = y - z) and pixel-snap, mirroring drawQueued.
+    const liftedY = s.z ? s.y - s.z : s.y;
+    const inst = this._inst;
+    inst.x = this.pixelSnap ? (Math.round(s.x * sx + ox) - ox) / sx : s.x;
+    inst.y = this.pixelSnap ? (Math.round(liftedY * sy + oy) - oy) / sy : liftedY;
+    inst.w = s.width;
+    inst.h = s.height;
+
+    const uv = this._store.uv(s.atlasId, s.frame);
+    inst.u0 = uv.u0; inst.v0 = uv.v0; inst.u1 = uv.u1; inst.v1 = uv.v1;
+    inst.rotation = s.rotation;
+    inst.flipX = s.flipX ? 1 : 0;
+
+    const [r, g, b, a] = tintFloats(s.tintRgba, alpha);
+    inst.r = r; inst.g = g; inst.b = b; inst.a = a;
+
+    return this._batch.add(inst);
+  }
+
   endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike): void {
     if (this._deviceLost) return;
     if (this._atlases.size === 0) return;
@@ -314,40 +389,17 @@ export class WebGpuRenderer implements RendererLike {
     const visB = Math.min(this._staticLayerH, top  + camera.worldUnitsY);
     const visRect: VisibleRect = { visL, visT, visR, visB };
 
-    // ── Step 3: clear + render pass ──────────────────────────────────────────
-    const clearRgba = hexToRgbaFloats(this.clearColor);
-    const encoder = this._gpuCtx.device.createCommandEncoder({ label: "frame" });
-    const pass = this._gpuCtx.beginPass(encoder, clearRgba);
+    // ── Step 3: pack the WHOLE frame's instance data and upload it ONCE, BEFORE
+    // encoding any draw that references the buffers. queue.writeBuffer executes on
+    // the queue timeline ahead of the frame's submit, so writing a buffer more than
+    // once per frame would make the last write win for EVERY draw in the pass.
 
-    // Set view bind group once for ALL subsequent GPU draw calls in this pass.
-    pass.setBindGroup(0, this._gpuCtx.viewBindGroup());
-
-    // ── Step 4: water (under static), then static layer ───────────────────────
-    const zoomedOut = sx < 1;
-    this._waterPass.draw(pass, gpuView, visRect, zoomedOut);
-    this._staticPass.draw(pass, gpuView, visRect);
-
-    // ── Step 5: GPU shadows — dark translucent quads scaled to ellipse bounds ─
-    // Drawn via the sprite batch using a 1×1 white atlas pixel scaled to shadow dimensions,
-    // with a very dark tint and the shadow's alpha. Since we have no dedicated shadow texture,
-    // we use the sprite pipeline with a near-black tint and premultiplied alpha blend.
-    // The approach: draw a filled rect (w=2*rx, h=2*ry) centered at (x, y) using the
-    // sprite batch with a single-pixel white texture. However, we don't have a guaranteed
-    // 1×1 white frame in every atlas. Instead, we render shadows on the overlay canvas
-    // using "source-over" blending (not "multiply" — see overlay-2d.ts §"Shadows decision").
-    // The overlay starts transparent, so we use a dark semi-transparent fill which is
-    // visually close enough. This is the deferred GPU-side shadow from Wave 1d.
-    // NOTE: we render these BEFORE sprites in the GPU pass would require a dedicated
-    // shadow pipeline; we instead render them on the overlay (before the world transform
-    // is applied to overlay) using screen-space math. See overlay block below.
-
-    // ── Step 6: sort + x-ray sprite pass ─────────────────────────────────────
+    // 3a. Sort + group sprites by consecutive atlasId runs.
     if (this._queue.length !== this._queueLen) this._queue.length = this._queueLen;
     this._queue.sort(compareSprite);
 
-    // Group sprites by atlasId and flush per group.
-    // Per-group instance array (reused across atlas groups within a frame).
-    const groupInstances: GpuSpriteInstance[] = [];
+    this._batch.begin();
+    this._groupLen = 0;
     let occludableCount = 0;
 
     let i = 0;
@@ -355,9 +407,9 @@ export class WebGpuRenderer implements RendererLike {
       const s = this._queue[i];
       if (s === undefined) { i++; continue; }
       const currentAtlas = s.atlasId;
+      const groupFirst = this._batch.count;
 
-      // Collect all consecutive sprites for this atlasId.
-      groupInstances.length = 0;
+      // Pack all consecutive sprites for this atlasId.
       let j = i;
       while (j < this._queueLen) {
         const sp = this._queue[j];
@@ -369,38 +421,21 @@ export class WebGpuRenderer implements RendererLike {
           occludableCount += 1;
         }
 
-        // Build GpuSpriteInstance from Canvas2dSprite.
-        // Apply z-lift (screenY = y - z) and pixel-snap, mirroring drawQueued.
-        const liftedY = sp.z ? sp.y - sp.z : sp.y;
-        const px = this.pixelSnap ? (Math.round(sp.x * sx + ox) - ox) / sx : sp.x;
-        const py = this.pixelSnap ? (Math.round(liftedY * sy + oy) - oy) / sy : liftedY;
-
-        const uv = this._store.uv(sp.atlasId, sp.frame);
-        const [r, g, b, a] = tintFloats(sp.tintRgba, sp.alpha);
-
-        groupInstances.push({
-          x: px, y: py,
-          w: sp.width, h: sp.height,
-          u0: uv.u0, v0: uv.v0, u1: uv.u1, v1: uv.v1,
-          rotation: sp.rotation,
-          flipX: sp.flipX ? 1 : 0,
-          r, g, b, a,
-        });
-
+        this._packSprite(sp, sx, sy, ox, oy, sp.alpha);
         j++;
       }
 
-      if (groupInstances.length > 0) {
-        const atlasBindGroup = this._store.bindGroup(currentAtlas);
-        this._batch.flush(pass, atlasBindGroup, groupInstances);
+      const groupCount = this._batch.count - groupFirst;
+      if (groupCount > 0) {
+        this._recordGroup(currentAtlas, groupFirst, groupCount);
       }
 
       i = j;
     }
 
-    // ── Step 6b: x-ray ghost pass ─────────────────────────────────────────────
-    // Re-emit occludable sprites at GHOST_ALPHA when covered by a later world sprite.
-    // Reuse groupInstances scratch for each ghost.
+    // 3b. X-ray ghost pass: re-emit occludable sprites at GHOST_ALPHA when covered
+    // by a later world sprite. Ghosts draw after all normal sprites (one group each),
+    // mirroring Canvas2dRenderer's second drawQueued loop.
     for (let k = 0; k < occludableCount; k += 1) {
       const gi = this._occludableIdx[k];
       if (gi === undefined) continue;
@@ -416,29 +451,54 @@ export class WebGpuRenderer implements RendererLike {
       }
 
       if (covered) {
-        const liftedY = g.z ? g.y - g.z : g.y;
-        const px = this.pixelSnap ? (Math.round(g.x * sx + ox) - ox) / sx : g.x;
-        const py = this.pixelSnap ? (Math.round(liftedY * sy + oy) - oy) / sy : liftedY;
-        const uv = this._store.uv(g.atlasId, g.frame);
-        const [r, gg, b] = tintFloats(g.tintRgba, 1);
-        const ghostInst: GpuSpriteInstance = {
-          x: px, y: py,
-          w: g.width, h: g.height,
-          u0: uv.u0, v0: uv.v0, u1: uv.u1, v1: uv.v1,
-          rotation: g.rotation,
-          flipX: g.flipX ? 1 : 0,
-          r, g: gg, b,
-          a: g.alpha * GHOST_ALPHA,
-        };
-        groupInstances.length = 0;
-        groupInstances.push(ghostInst);
-        this._batch.flush(pass, this._store.bindGroup(g.atlasId), groupInstances);
+        const first = this._packSprite(g, sx, sy, ox, oy, g.alpha * GHOST_ALPHA);
+        this._recordGroup(g.atlasId, first, 1);
       }
     }
 
-    // ── Step 6c: GPU particles + weather (Wave 4) — in-pass, on top of sprites ─
-    // View bind group (group 0) is still set on the pass. Order matches Canvas2D:
-    // particles first, then the weather curtain over them.
+    this._batch.upload();
+
+    // 3c. Shadows — GPU-side dark ellipses (multiply-equivalent, see shadow-batch.ts),
+    // drawn between the static layer and the sprite queue exactly like Canvas2D.
+    // Color is runtime-parsed from EDG.black (no literals); alpha is the queued alpha,
+    // unmodified — premultiplied source-over of black at alpha a darkens by (1 - a),
+    // identical to canvas multiply.
+    this._shadowBatch.begin();
+    if (this._shadowLen > 0) {
+      const [shR, shG, shB] = hexToRgbaFloats(EDG.black);
+      for (let si = 0; si < this._shadowLen; si += 1) {
+        const sh = this._shadowQueue[si];
+        if (sh === undefined) continue;
+        this._shadowBatch.add(sh.x, sh.y, sh.rx, sh.ry, shR, shG, shB, sh.alpha);
+      }
+    }
+    this._shadowBatch.upload();
+
+    // ── Step 4: encode the render pass ───────────────────────────────────────
+    const clearRgba = hexToRgbaFloats(this.clearColor);
+    const encoder = this._gpuCtx.device.createCommandEncoder({ label: "frame" });
+    const pass = this._gpuCtx.beginPass(encoder, clearRgba);
+
+    // Set view bind group once for ALL subsequent GPU draw calls in this pass.
+    pass.setBindGroup(0, this._gpuCtx.viewBindGroup());
+
+    // 4a. Water (under static), then static layer.
+    const zoomedOut = sx < 1;
+    this._waterPass.draw(pass, gpuView, visRect, zoomedOut);
+    this._staticPass.draw(pass, gpuView, visRect);
+
+    // 4b. Shadows — under the sprite queue (Canvas2D order: water, static, shadows, sprites).
+    this._shadowBatch.draw(pass);
+
+    // 4c. Sprites: one instanced draw per atlas group, in y-sort order; ghost groups last.
+    for (let gIdx = 0; gIdx < this._groupLen; gIdx += 1) {
+      const grp = this._groups[gIdx];
+      if (grp === undefined || grp.bindGroup === null) continue;
+      this._batch.drawRange(pass, grp.bindGroup, grp.first, grp.count);
+    }
+
+    // 4d. GPU particles + weather (Wave 4) — in-pass, on top of sprites.
+    // Order matches Canvas2D: particles first, then the weather curtain over them.
     if (this.useGpuEffects) {
       if (particles && particles.count > 0) {
         this._particleBatch.draw(pass, particles);
@@ -450,45 +510,28 @@ export class WebGpuRenderer implements RendererLike {
       }
     }
 
-    // ── Step 7: end GPU pass ──────────────────────────────────────────────────
+    // ── Step 5: end GPU pass ──────────────────────────────────────────────────
     pass.end();
     this._gpuCtx.queue.submit([encoder.finish()]);
 
-    // ── Step 8: overlay (shadows, particles, weather, wash) ──────────────────
+    // ── Step 6: overlay (particle/weather fallback, wash) ─────────────────────
+    // Shadows are NOT drawn here — the overlay composites on top of the GPU canvas,
+    // which would put them above the sprites they belong under. They render in the
+    // GPU pass (step 4b).
     this._overlay.beginFrame();
-
-    // Shadows on the overlay (source-over at alpha, dark fill).
-    // Using source-over rather than multiply because the overlay is transparent;
-    // multiply on transparent produces transparent, not a darkened composite
-    // (see corpus/briefs/engine/todo/webgpu/wave-1d-overlay-2d.md §"Shadows decision").
-    // We apply the world transform first so shadow coordinates are in world space.
-    this._overlay.applyWorldTransform(overlayView);
     const overlayCtx = this._overlay.ctx;
-    if (this._shadowLen > 0) {
-      overlayCtx.globalCompositeOperation = "source-over";
-      // Shadow color: use a very dark fill parsed from EDG.black at runtime (no hex literal).
-      const [sr, sg, sb] = hexToRgbaFloats(EDG.black);
-      for (let si = 0; si < this._shadowLen; si += 1) {
-        const sh = this._shadowQueue[si];
-        if (sh === undefined) continue;
-        overlayCtx.globalAlpha = sh.alpha * 0.7; // darken under source-over on transparent bg
-        overlayCtx.fillStyle = `rgb(${Math.round(sr * 255)},${Math.round(sg * 255)},${Math.round(sb * 255)})`;
-        overlayCtx.beginPath();
-        overlayCtx.ellipse(sh.x, sh.y, sh.rx, sh.ry, 0, 0, Math.PI * 2);
-        overlayCtx.fill();
-      }
-      overlayCtx.globalAlpha = 1;
-      overlayCtx.globalCompositeOperation = "source-over";
-    }
 
     // Particles + weather: overlay fallback, used ONLY when GPU effects are disabled
     // (Wave 4 renders these in the GPU pass above). Also catches any non-RainField
     // WeatherLike, which the GPU weather pass can't read. Kept for A/B + safety.
-    if (!this.useGpuEffects) {
-      if (particles && particles.count > 0) particles.draw(overlayCtx);
-      if (weather && weather.count > 0) weather.draw(overlayCtx);
-    } else if (weather && !(weather instanceof RainField) && weather.count > 0) {
-      weather.draw(overlayCtx);
+    if (!this.useGpuEffects || (weather && !(weather instanceof RainField) && weather.count > 0)) {
+      this._overlay.applyWorldTransform(overlayView);
+      if (!this.useGpuEffects) {
+        if (particles && particles.count > 0) particles.draw(overlayCtx);
+        if (weather && weather.count > 0) weather.draw(overlayCtx);
+      } else if (weather && weather.count > 0) {
+        weather.draw(overlayCtx);
+      }
     }
 
     // Wash in screen space (transform reset).

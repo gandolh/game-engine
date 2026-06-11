@@ -43,12 +43,13 @@ const INITIAL_CAPACITY = 512;
 const STREAK_HALF_WIDTH = 0.35;
 
 // Size in bytes of the WeatherUniform block in the shader:
-//   vec3<f32> color (12 bytes) + 4 bytes padding + f32 curtain_alpha (4 bytes) = 16 bytes
-// WGSL struct layout: vec3<f32> has alignment 16, so the struct is:
-//   offset 0: color (12 bytes)  + 4 bytes implicit padding = 16 bytes
-//   offset 16: curtain_alpha (4 bytes) + 12 bytes padding   = 16 bytes
-// Total: 32 bytes.
-const WEATHER_UNIFORM_BYTES = 32;
+//   struct { color: vec3<f32>, curtain_alpha: f32 }
+// WGSL struct layout: vec3<f32> has align 16 / size 12, and the following f32
+// (align 4) packs INTO the vec3's tail padding at offset 12 — there is no gap.
+//   offset  0: color.rgb     (12 bytes)
+//   offset 12: curtain_alpha (4 bytes)
+// Total: 16 bytes (struct align 16).
+const WEATHER_UNIFORM_BYTES = 16;
 
 export class WeatherPass {
   private readonly device: GPUDevice;
@@ -82,11 +83,11 @@ export class WeatherPass {
       size: WEATHER_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Float32Array scratch: 8 floats = 32 bytes.
+    // Float32Array scratch: 4 floats = 16 bytes.
     // Layout matches WGSL WeatherUniform:
-    //   [0..2] = color.rgb (with implicit padding at [3] = 0)
-    //   [4]    = curtain_alpha (with [5..7] = 0 padding)
-    this.weatherUniformScratch = new Float32Array(8);
+    //   [0..2] = color.rgb
+    //   [3]    = curtain_alpha (packed into the vec3's tail padding — offset 12)
+    this.weatherUniformScratch = new Float32Array(4);
 
     this.weatherBindGroupLayout = ctx.device.createBindGroupLayout({
       label: "WeatherPass weather-bgl",
@@ -224,19 +225,12 @@ export class WeatherPass {
     const ca = weather.curtainAlpha;
 
     // Pack WeatherUniform into the scratch buffer.
-    // WGSL layout (std140 / WGSL alignment rules for structs):
-    //   vec3<f32> color  → 12 bytes (occupies elements [0..2]),
-    //   padding          → 4 bytes  (element [3] = 0)
-    //   f32 curtain_alpha→ 4 bytes  (element [4])
-    //   padding          → 12 bytes (elements [5..7] = 0)
+    // WGSL layout: curtain_alpha (f32, align 4) packs into the vec3's tail
+    // padding at byte offset 12 — element [3], NOT a separate 16-byte slot.
     this.weatherUniformScratch[0] = cr;
     this.weatherUniformScratch[1] = cg;
     this.weatherUniformScratch[2] = cb;
-    this.weatherUniformScratch[3] = 0; // pad
-    this.weatherUniformScratch[4] = ca;
-    this.weatherUniformScratch[5] = 0; // pad
-    this.weatherUniformScratch[6] = 0; // pad
-    this.weatherUniformScratch[7] = 0; // pad
+    this.weatherUniformScratch[3] = ca;
     this.device.queue.writeBuffer(
       this.weatherUniformBuffer,
       0,
