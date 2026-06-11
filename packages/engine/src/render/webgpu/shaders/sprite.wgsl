@@ -97,13 +97,14 @@ fn vs_main(
     let world_x = rotated_x + inst.pos.x;
     let world_y = rotated_y + inst.pos.y;
 
-    // World → clip space using the view uniform
-    // Formula (Y flipped for WebGPU NDC, Y-up):
-    //   clip_x = (world_x * scaleX + offsetX) *  2 - 1      (maps [0,W] → [-1,1])
-    //   clip_y = (world_y * scaleY + offsetY) * -2 + 1      (maps [0,H] →  [1,-1])
-    // Note: offset encodes the camera top-left in pixel space; scaleX = canvas_W / worldUnitsX
-    let nx = (world_x * view.scale_x + view.offset_x) * 2.0 - 1.0;
-    let ny = (world_y * view.scale_y + view.offset_y) * (-2.0) + 1.0;
+    // World → clip space using the canonical view uniform (already folded by the orchestrator):
+    //   scaleX  =  sx * 2 / canvasW         scaleY  = -sy * 2 / canvasH  (negative Y-flip)
+    //   offsetX =  ox * 2 / canvasW - 1     offsetY =  1 - oy * 2 / canvasH
+    // Shader does ONLY: clipX = worldX * scaleX + offsetX
+    //                   clipY = worldY * scaleY + offsetY  (scaleY is negative — no extra negation)
+    // (Wave 2 reconciliation: removed the erroneous extra *2-1 that Wave 1c applied in-shader.)
+    let nx = world_x * view.scale_x + view.offset_x;
+    let ny = world_y * view.scale_y + view.offset_y;
 
     // Interpolate atlas UVs across the quad corners
     let u = select(inst.uv_min.x, inst.uv_max.x, (corner_idx & 1u) != 0u);
