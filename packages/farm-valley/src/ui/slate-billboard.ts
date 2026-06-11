@@ -4,26 +4,41 @@ import { EDG } from "@engine/core/render";
 
 export type SlateEntry = Pick<ShopOffer, "offerId" | "crop" | "unitPrice" | "quantity" | "remaining">;
 
+/** Resolves a crop's atlas frame to a pixel-art data URL, or null to skip the icon. */
+export type SlateIconResolver = (frame: string) => string | null;
+
 interface OfferRowEls {
   root: HTMLElement;
-  label: HTMLElement;
+  icon: HTMLElement;
+  name: HTMLElement;
+  price: HTMLElement;
+  barFill: HTMLElement;
+  stock: HTMLElement;
+  iconLoaded: boolean;
 }
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   position: "fixed",
   bottom: "0",
   right: "0",
-  width: "240px",
+  width: "258px",
+  maxHeight: "44vh",
+  overflowY: "auto",
   background: EDG.black,
   color: EDG.silver,
   fontFamily: "monospace",
   fontSize: "12px",
-  padding: "8px",
+  padding: "8px 10px 10px",
   boxSizing: "border-box",
   zIndex: "9998",
-  borderTop: `1px solid ${EDG.black}`,
-  borderLeft: `1px solid ${EDG.black}`,
+  borderTop: `1px solid ${EDG.ink}`,
+  borderLeft: `1px solid ${EDG.ink}`,
+  borderTopLeftRadius: "6px",
 };
+
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 export class SlateBillboardPanel {
   private panel: HTMLElement;
@@ -41,13 +56,22 @@ export class SlateBillboardPanel {
       style: {
         fontWeight: "bold",
         fontSize: "13px",
-        marginBottom: "6px",
+        marginBottom: "7px",
         color: EDG.gold,
         borderBottom: `1px solid ${EDG.ink}`,
         paddingBottom: "4px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
       },
-      text: "Shop Slate",
     });
+    const headerTitle = createEl("span", { text: "Shop Slate" });
+    const headerHint = createEl("span", {
+      text: "buy / sell",
+      style: { fontSize: "9px", fontWeight: "normal", color: EDG.steel },
+    });
+    this.headerEl.appendChild(headerTitle);
+    this.headerEl.appendChild(headerHint);
 
     this.offersContainer = createEl("div");
 
@@ -56,7 +80,7 @@ export class SlateBillboardPanel {
     parent.appendChild(this.panel);
   }
 
-  update(slate: ReadonlyArray<SlateEntry>): void {
+  update(slate: ReadonlyArray<SlateEntry>, iconFor?: SlateIconResolver): void {
     if (slate.length === 0) {
       for (const row of this.rowCache.values()) {
         row.root.remove();
@@ -91,31 +115,89 @@ export class SlateBillboardPanel {
         this.offersContainer.insertBefore(row.root, children[index] ?? null);
       }
 
-      this.updateOfferRow(row, offer);
+      this.updateOfferRow(row, offer, iconFor);
     });
   }
 
   private buildOfferRow(offerId: string): OfferRowEls {
     const root = createEl("div", {
       style: {
-        borderBottom: `1px solid ${EDG.black}`,
-        paddingBottom: "4px",
-        marginBottom: "4px",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "5px 0",
+        borderBottom: `1px solid ${EDG.ink}`,
       },
     });
     root.dataset["offerId"] = offerId;
 
-    const label = createEl("div", { style: { color: EDG.green } });
-    root.appendChild(label);
+    const icon = createEl("div", {
+      style: {
+        width: "22px",
+        height: "22px",
+        flexShrink: "0",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center",
+        backgroundSize: "contain",
+        imageRendering: "pixelated",
+      },
+    });
 
-    return { root, label };
+    // Right side: name + price on top, a stock bar + count below.
+    const info = createEl("div", { style: { flex: "1 1 auto", minWidth: "0" } });
+
+    const topLine = createEl("div", {
+      style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "6px" },
+    });
+    const name = createEl("div", { style: { color: EDG.white, fontWeight: "bold" } });
+    const price = createEl("div", { style: { color: EDG.gold, fontWeight: "bold", flexShrink: "0" } });
+    topLine.appendChild(name);
+    topLine.appendChild(price);
+
+    const barTrack = createEl("div", {
+      style: {
+        height: "5px",
+        marginTop: "3px",
+        background: EDG.ink,
+        borderRadius: "3px",
+        overflow: "hidden",
+      },
+    });
+    const barFill = createEl("div", {
+      style: { height: "100%", width: "100%", background: EDG.green, borderRadius: "3px" },
+    });
+    barTrack.appendChild(barFill);
+
+    const stock = createEl("div", {
+      style: { fontSize: "10px", color: EDG.steel, marginTop: "2px" },
+    });
+
+    info.appendChild(topLine);
+    info.appendChild(barTrack);
+    info.appendChild(stock);
+
+    root.appendChild(icon);
+    root.appendChild(info);
+
+    return { root, icon, name, price, barFill, stock, iconLoaded: false };
   }
 
-  private updateOfferRow(row: OfferRowEls, offer: SlateEntry): void {
-    setText(
-      row.label,
-      `${offer.crop} ${offer.unitPrice}g · ${offer.remaining}/${offer.quantity} left`,
-    );
+  private updateOfferRow(row: OfferRowEls, offer: SlateEntry, iconFor?: SlateIconResolver): void {
+    // Crop sprite is fixed per offer — load it once (style write, never via textContent).
+    if (!row.iconLoaded && iconFor) {
+      const url = iconFor(`crop/${offer.crop}/mature`);
+      if (url) {
+        row.icon.style.backgroundImage = `url(${url})`;
+        row.iconLoaded = true;
+      }
+    }
+    setText(row.name, capitalize(offer.crop));
+    setText(row.price, `${offer.unitPrice}g`);
+    setText(row.stock, `${offer.remaining}/${offer.quantity} left`);
+    const pct = offer.quantity > 0 ? Math.round((offer.remaining / offer.quantity) * 100) : 0;
+    // Low stock shifts the bar toward gold then red so scarcity reads at a glance.
+    row.barFill.style.width = `${pct}%`;
+    row.barFill.style.background = pct <= 20 ? EDG.red : pct <= 50 ? EDG.gold : EDG.green;
   }
 
   setVisible(v: boolean): void {

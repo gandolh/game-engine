@@ -414,6 +414,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         farmerPositions,
         nowMs,
         seasonForDay(client.day), // season computed below; keep separate call for ordering
+        playerFarmerId, // x-ray the player when occluded by walls/buildings
       );
 
       // Occluder sprites: south-facing wall/cliff faces; sortY at face base so
@@ -514,7 +515,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     frameProfiler.time("panels", () => {
       leaderboardPanel.update(client.leaderboard);
-      slateBillboard.update(client.slate);
+      slateBillboard.update(client.slate, (frame) => frameDataUrl(renderer, frame, 2));
       eventFeedPanel.update(client.events);
       hotbar.update(client.playerHotbar, (frame) => frameDataUrl(renderer, frame, 2));
       applyToolCursor();

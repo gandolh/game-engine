@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareSprite } from "./draw";
+import { compareSprite, spritesOverlap } from "./draw";
 import type { Canvas2dSprite } from "./types";
 
 function sprite(partial: Partial<Canvas2dSprite>): Canvas2dSprite {
@@ -45,5 +45,33 @@ describe("compareSprite", () => {
     const face = sprite({ layer: 50, y: 8, sortY: 16 });
     const characterInFront = sprite({ layer: 50, y: 24 });
     expect(compareSprite(face, characterInFront)).toBeLessThan(0);
+  });
+});
+
+describe("spritesOverlap (x-ray pass)", () => {
+  it("overlapping rects are detected", () => {
+    const a = sprite({ x: 100, y: 100 });
+    const b = sprite({ x: 104, y: 96 });
+    expect(spritesOverlap(a, b)).toBe(true);
+  });
+
+  it("edge-adjacent tiles do not overlap (strict)", () => {
+    const a = sprite({ x: 100, y: 100 });        // [92,108]
+    const b = sprite({ x: 116, y: 100 });        // [108,124] — shares the 108 edge only
+    expect(spritesOverlap(a, b)).toBe(false);
+  });
+
+  it("a tall occluder (e.g. a wall/building) covers a player one tile north", () => {
+    const player = sprite({ x: 100, y: 84 });                      // ground at y=84
+    const wall = sprite({ x: 100, y: 100, height: 48, sortY: 108 }); // 48px tall, base south of player
+    expect(spritesOverlap(player, wall)).toBe(true);
+  });
+
+  it("z lift is accounted for — a high-z drop is tested at its lifted screen rect", () => {
+    const lifted = sprite({ x: 100, y: 200, z: 100 }); // drawn around screen-y 100
+    const atScreen = sprite({ x: 100, y: 100 });
+    expect(spritesOverlap(lifted, atScreen)).toBe(true);
+    const atGround = sprite({ x: 100, y: 200 });
+    expect(spritesOverlap(lifted, atGround)).toBe(false); // not where it's drawn
   });
 });

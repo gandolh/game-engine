@@ -1,9 +1,11 @@
 import { EDG } from "@engine/core/render";
 
 // Flex child of the shared right column; flexShrink:0 so the feed below it is never squeezed.
+// Capped well below half the viewport (was 70vh, which starved the Activity feed) — the
+// farmer list scrolls internally past the cap, leaving room for the panels below.
 export const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   width: "100%",
-  maxHeight: "70vh",
+  maxHeight: "40vh",
   overflowY: "auto",
   flexShrink: "0",
   pointerEvents: "auto",

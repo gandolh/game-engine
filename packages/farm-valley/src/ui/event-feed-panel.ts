@@ -18,11 +18,13 @@ export interface EventFeedRow {
   farmerId?: number | null;
 }
 
-// Flows below the observer in the shared right column; takes leftover space.
+// Flows below the observer in the shared right column; takes leftover space. minHeight keeps
+// it readable (~10+ lines) even when the panels below it are expanded, so it never collapses
+// to a sliver the way it did under minHeight:0.
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   width: "100%",
   flex: "1 1 auto",
-  minHeight: "0",
+  minHeight: "180px",
   overflowY: "auto",
   pointerEvents: "auto",
   background: EDG.black,
@@ -115,7 +117,8 @@ export class EventFeedPanel {
     return createEl("div", {
       style: {
         color: EDG.green,
-        marginBottom: "3px",
+        marginBottom: "4px",
+        lineHeight: "1.45",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",

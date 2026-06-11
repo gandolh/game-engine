@@ -34,12 +34,32 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
 };
 
 const HEADER_STYLES: Partial<CSSStyleDeclaration> = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
   fontWeight: "bold",
   fontSize: "12px",
   marginBottom: "4px",
   color: EDG.white,
   borderBottom: `1px solid ${EDG.ink}`,
   paddingBottom: "3px",
+  cursor: "pointer",
+  userSelect: "none",
+};
+
+const CAPTION_STYLES: Partial<CSSStyleDeclaration> = {
+  fontSize: "10px",
+  color: EDG.steel,
+  lineHeight: "1.35",
+  marginBottom: "5px",
+};
+
+const LEGEND_STYLES: Partial<CSSStyleDeclaration> = {
+  display: "flex",
+  gap: "10px",
+  fontSize: "10px",
+  color: EDG.silver,
+  marginBottom: "6px",
 };
 
 const TABLE_STYLES: Partial<CSSStyleDeclaration> = {
@@ -68,10 +88,33 @@ const DATA_CELL_STYLES: Partial<CSSStyleDeclaration> = {
   padding: "1px",
 };
 
+/** A "■ label" legend chip in the given swatch color. */
+function legendChip(color: string, label: string): HTMLElement {
+  const chip = createEl("div", {
+    style: { display: "flex", alignItems: "center", gap: "3px" },
+  });
+  const swatch = createEl("span", {
+    style: {
+      width: "9px",
+      height: "9px",
+      background: color,
+      borderRadius: "2px",
+      display: "inline-block",
+      flexShrink: "0",
+    },
+  });
+  const text = createEl("span", { text: label });
+  chip.appendChild(swatch);
+  chip.appendChild(text);
+  return chip;
+}
+
 export class RelationshipMatrixPanel {
   private panel: HTMLElement;
   private headerEl: HTMLElement;
+  private bodyEl: HTMLElement;
   private tableContainer: HTMLElement;
+  private collapsed = false;
   /** Dirty guard: skip the full 441-cell rebuild + table reflow when nothing
    *  rendered has changed. Trust shifts at most per-tick and usually per-day,
    *  but update() is called every render frame (~60 Hz) — without this the
@@ -79,20 +122,50 @@ export class RelationshipMatrixPanel {
    *  see corpus/wiki/performance.md). Mirrors wealth-graph's `lastDayDrawn`. */
   private lastSignature = "";
 
+  private chevronEl: HTMLElement;
+
   constructor(parent: HTMLElement) {
     this.panel = createEl("div");
     applyStyles(this.panel, PANEL_STYLES);
 
-    this.headerEl = createEl("div", {
-      style: HEADER_STYLES,
-      text: "Relationships",
+    this.headerEl = createEl("div", { style: HEADER_STYLES });
+    const title = createEl("span", { text: "Relationships" });
+    this.chevronEl = createEl("span", {
+      text: "▾",
+      style: { color: EDG.steel, fontSize: "10px" },
     });
+    this.headerEl.appendChild(title);
+    this.headerEl.appendChild(this.chevronEl);
+    this.headerEl.addEventListener("click", () => this.toggle());
+
+    // Everything below the header collapses together.
+    this.bodyEl = createEl("div");
+
+    const caption = createEl("div", {
+      style: CAPTION_STYLES,
+      text: "Who trusts whom — each row's feelings toward each column. Hover a cell for the value.",
+    });
+
+    const legend = createEl("div", { style: LEGEND_STYLES });
+    legend.appendChild(legendChip(EDG.green, "ally"));
+    legend.appendChild(legendChip(EDG.steel, "neutral"));
+    legend.appendChild(legendChip(EDG.red, "rival"));
 
     this.tableContainer = createEl("div");
 
+    this.bodyEl.appendChild(caption);
+    this.bodyEl.appendChild(legend);
+    this.bodyEl.appendChild(this.tableContainer);
+
     this.panel.appendChild(this.headerEl);
-    this.panel.appendChild(this.tableContainer);
+    this.panel.appendChild(this.bodyEl);
     parent.appendChild(this.panel);
+  }
+
+  private toggle(): void {
+    this.collapsed = !this.collapsed;
+    this.bodyEl.style.display = this.collapsed ? "none" : "";
+    this.chevronEl.textContent = this.collapsed ? "▸" : "▾";
   }
 
   /** Cheap render-equivalence key: farmer identity + every trust value at the

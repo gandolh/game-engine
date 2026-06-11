@@ -146,3 +146,101 @@ describe("pixelSnap formula", () => {
     expect(screenPos % 1).toBeCloseTo(0, 10);
   });
 });
+
+describe("x-ray (occlusion-transparency) pass", () => {
+  // A recording 2D context that captures globalAlpha at each drawImage call, so we can detect the
+  // extra low-alpha "ghost" re-draw of an occluded sprite. Only the methods endFrame touches.
+  function makeRecordingCtx(): { ctx: unknown; drawAlphas: number[] } {
+    const drawAlphas: number[] = [];
+    const ctx = {
+      imageSmoothingEnabled: false,
+      globalAlpha: 1,
+      globalCompositeOperation: "source-over",
+      fillStyle: "#000",
+      strokeStyle: "#000",
+      lineWidth: 1,
+      createPattern: () => null,
+      setTransform: () => {},
+      save: () => {},
+      restore: () => {},
+      fillRect: () => {},
+      beginPath: () => {},
+      ellipse: () => {},
+      arc: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      stroke: () => {},
+      closePath: () => {},
+      fill: () => {},
+      drawImage(this: { globalAlpha: number }) {
+        drawAlphas.push(this.globalAlpha);
+      },
+    };
+    return { ctx, drawAlphas };
+  }
+
+  function makeCanvas(ctx: unknown): HTMLCanvasElement {
+    return {
+      getContext: () => ctx,
+      clientWidth: 640, clientHeight: 480, width: 640, height: 480,
+    } as unknown as HTMLCanvasElement;
+  }
+
+  function makeCamera(): import("./camera").Camera2D {
+    return {
+      worldUnitsX: 640, worldUnitsY: 480, centerX: 320, centerY: 240, zoom: 1,
+      setCenter: () => {}, setZoom: () => {},
+    } as unknown as import("./camera").Camera2D;
+  }
+
+  function base(partial: Partial<import("./canvas2d/types").Canvas2dSprite>): import("./canvas2d/types").Canvas2dSprite {
+    return {
+      x: 0, y: 0, width: 16, height: 16, frame: "f", atlasId: "terrain",
+      rotation: 0, layer: 50, alpha: 1, ...partial,
+    };
+  }
+
+  async function setup(ctx: unknown) {
+    const { Canvas2dRenderer: Renderer } = await import("./canvas2d");
+    const renderer = new Renderer(makeCanvas(ctx), makeCamera());
+    // Inline atlas stub — every frame maps to a 16×16 rect.
+    renderer.addAtlas({
+      manifest: { id: "terrain", imageUrl: "", width: 64, height: 64, frames: {} },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub bitmap
+      bitmap: {} as any,
+      frameRect: () => ({ x: 0, y: 0, w: 16, h: 16 }),
+    } as unknown as import("../assets/loader").LoadedAtlasImage);
+    return renderer;
+  }
+
+  it("re-draws an occludable sprite at low alpha when a taller sprite covers it", async () => {
+    const { ctx, drawAlphas } = makeRecordingCtx();
+    const renderer = await setup(ctx);
+    // Player (occludable) one tile north of a 48px-tall wall whose base is south of it → covered.
+    renderer.push(base({ x: 320, y: 220, occludable: true }));
+    renderer.push(base({ x: 320, y: 240, height: 48, sortY: 264 }));
+    renderer.endFrame();
+    // 2 normal draws + 1 ghost re-draw; the ghost is at 0.4 alpha.
+    expect(drawAlphas.length).toBe(3);
+    expect(drawAlphas).toContain(0.4);
+  });
+
+  it("does NOT re-draw when nothing covers the occludable sprite", async () => {
+    const { ctx, drawAlphas } = makeRecordingCtx();
+    const renderer = await setup(ctx);
+    renderer.push(base({ x: 320, y: 220, occludable: true }));
+    renderer.push(base({ x: 100, y: 240, height: 48, sortY: 264 })); // far away in x
+    renderer.endFrame();
+    expect(drawAlphas.length).toBe(2);
+    expect(drawAlphas).not.toContain(0.4);
+  });
+
+  it("UI-layer sprites (bubbles/arrows) over the player do not trigger a ghost", async () => {
+    const { ctx, drawAlphas } = makeRecordingCtx();
+    const renderer = await setup(ctx);
+    renderer.push(base({ x: 320, y: 220, occludable: true }));
+    renderer.push(base({ x: 320, y: 208, layer: 90 })); // meet bubble above the head, overlapping
+    renderer.endFrame();
+    expect(drawAlphas.length).toBe(2); // no ghost
+  });
+});

@@ -3,7 +3,7 @@ import { Camera2D } from "../camera";
 import { EDG } from "../palette";
 import type { ParticleSystem } from "../particles";
 import type { Canvas2dSprite, Ctx2D } from "./types";
-import { compareSprite, drawSprite, createOffscreen } from "./draw";
+import { compareSprite, drawSprite, createOffscreen, spritesOverlap } from "./draw";
 
 export class Canvas2dRenderer {
   readonly camera: Camera2D;
@@ -24,6 +24,11 @@ export class Canvas2dRenderer {
   private cullBottom = Infinity;
   // Extra margin (world px) so sprites whose center is just off-screen but whose body overlaps still draw.
   private static readonly CULL_MARGIN = 32;
+
+  // X-ray (occlusion-transparency) pass tuning.
+  private static readonly GHOST_ALPHA = 0.4;     // re-draw alpha for an occluded flagged sprite
+  private static readonly GHOST_UI_LAYER = 80;   // overlappers at/above this layer (bubbles, arrows) never occlude
+  private occludableIdx: number[] = [];          // reused scratch: sorted-queue indices of occludable sprites
 
   // Static backdrop baked once into an offscreen canvas (world-pixel space), blitted each frame.
   private staticLayer: OffscreenCanvas | HTMLCanvasElement | null = null;
@@ -203,6 +208,24 @@ export class Canvas2dRenderer {
   }
   private shadowQueue: Array<{ x: number; y: number; rx: number; ry: number; alpha: number }> = [];
 
+  /** Draw one queued sprite, applying the pseudo-3D z lift and optional pixel-snap. Caller sets
+   *  ctx.globalAlpha first. Mutates s.x/s.y transiently (restored before return). */
+  private drawQueued(ctx: Ctx2D, s: Canvas2dSprite, sx: number, sy: number, ox: number, oy: number): void {
+    const origY = s.y;
+    const liftedY = s.z ? origY - s.z : origY;
+    if (this.pixelSnap) {
+      const origX = s.x;
+      s.x = (Math.round(origX * sx + ox) - ox) / sx;
+      s.y = (Math.round(liftedY * sy + oy) - oy) / sy;
+      drawSprite(ctx, this.atlases, s);
+      s.x = origX; s.y = origY;
+    } else {
+      s.y = liftedY;
+      drawSprite(ctx, this.atlases, s);
+      s.y = origY;
+    }
+  }
+
   /** `wash`: optional full-frame color overlay (day/night grade) applied last in screen space. color="#rrggbb"; alpha∈[0,1].
    *  `weather`: optional world-space overlay (rain/snow) drawn on top of sprites/particles, under the wash. */
   endFrame(
@@ -299,23 +322,32 @@ export class Canvas2dRenderer {
 
     this.queue.sort(compareSprite);
 
+    let occludableCount = 0;
     for (let i = 0; i < this.queueLen; i += 1) {
       const s = this.queue[i]!;
       ctx.globalAlpha = s.alpha;
-      // Pseudo-3D: lift the sprite up the screen by its height z (drawing only — compareSprite still
-      // sorts on the ground y, so depth order is unaffected). z=0/undefined is a no-op.
-      const origY = s.y;
-      const liftedY = s.z ? origY - s.z : origY;
-      if (this.pixelSnap) {
-        const origX = s.x;
-        s.x = (Math.round(origX * sx + ox) - ox) / sx;
-        s.y = (Math.round(liftedY * sy + oy) - oy) / sy;
-        drawSprite(ctx, this.atlases, s);
-        s.x = origX; s.y = origY;
-      } else {
-        s.y = liftedY;
-        drawSprite(ctx, this.atlases, s);
-        s.y = origY;
+      this.drawQueued(ctx, s, sx, sy, ox, oy);
+      if (s.occludable) {
+        this.occludableIdx[occludableCount] = i;
+        occludableCount += 1;
+      }
+    }
+
+    // X-ray pass: re-draw any occludable sprite at low alpha when a taller world sprite drawn in
+    // front of it (later in sort order, below the UI layers) overlaps its rect — so the player stays
+    // partially visible behind walls/buildings instead of fully hidden. Scoped to flagged sprites.
+    for (let k = 0; k < occludableCount; k += 1) {
+      const gi = this.occludableIdx[k]!;
+      const g = this.queue[gi]!;
+      let covered = false;
+      for (let j = gi + 1; j < this.queueLen && !covered; j += 1) {
+        const o = this.queue[j]!;
+        if (o.occludable || o.layer >= Canvas2dRenderer.GHOST_UI_LAYER) continue;
+        if (spritesOverlap(g, o)) covered = true;
+      }
+      if (covered) {
+        ctx.globalAlpha = g.alpha * Canvas2dRenderer.GHOST_ALPHA;
+        this.drawQueued(ctx, g, sx, sy, ox, oy);
       }
     }
 

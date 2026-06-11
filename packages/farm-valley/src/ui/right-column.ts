@@ -10,6 +10,9 @@ const COLUMN_STYLES: Partial<CSSStyleDeclaration> = {
   display: "flex",
   flexDirection: "column",
   alignItems: "stretch",
+  // Safety net: if the stacked panels ever exceed the viewport, scroll the whole
+  // column rather than clipping the bottom panel off-screen.
+  overflowY: "auto",
   pointerEvents: "none",
   zIndex: "9997",
   boxSizing: "border-box",

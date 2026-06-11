@@ -15,6 +15,7 @@ export function pushSnapshotSprites(
   farmerPositions: Map<number, { x: number; y: number }>,
   nowMs: number = 0,
   season: Season = "spring",
+  playerId: number | null = null,
 ): void {
   const meetFarmerIds = new Set<number>(meets.map((m) => m.farmerId));
 
@@ -35,6 +36,7 @@ export function pushSnapshotSprites(
       x: s.x,
       y: s.y + bobY,
       ...(zPx > 0 ? { z: zPx } : {}),
+      ...(s.id !== null && s.id === playerId ? { occludable: true } : {}),
       width: TILE,
       height: TILE,
       frame,

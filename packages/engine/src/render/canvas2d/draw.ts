@@ -7,6 +7,20 @@ export function compareSprite(a: Canvas2dSprite, b: Canvas2dSprite): number {
   return (a.sortY ?? a.y) - (b.sortY ?? b.y);
 }
 
+/** AABB overlap of two sprites' drawn rects (centered at x, y−z; width×height). Strict (<,>) so
+ *  edge-adjacent tiles don't count. Used by the renderer's x-ray pass to test if an occludable
+ *  sprite is covered by one drawn in front of it. */
+export function spritesOverlap(a: Canvas2dSprite, b: Canvas2dSprite): boolean {
+  const ay = a.z ? a.y - a.z : a.y;
+  const by = b.z ? b.y - b.z : b.y;
+  return (
+    a.x - a.width / 2 < b.x + b.width / 2 &&
+    a.x + a.width / 2 > b.x - b.width / 2 &&
+    ay - a.height / 2 < by + b.height / 2 &&
+    ay + a.height / 2 > by - b.height / 2
+  );
+}
+
 /** Draw one sprite via the atlas frame rect. Shared by endFrame and bakeStaticLayer — keeps both paths pixel-identical. */
 export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s: Canvas2dSprite): void {
   const atlas = atlases.get(s.atlasId);

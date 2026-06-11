@@ -47,8 +47,13 @@ describe("SlateBillboardPanel", () => {
     ]);
 
     const text = parent.textContent ?? "";
-    expect(text).toContain("radish 5g · 7/10 left");
-    expect(text).toContain("pumpkin 20g · 3/6 left");
+    // Crop name (capitalized), price, and remaining/quantity each render in their own element.
+    expect(text).toContain("Radish");
+    expect(text).toContain("5g");
+    expect(text).toContain("7/10 left");
+    expect(text).toContain("Pumpkin");
+    expect(text).toContain("20g");
+    expect(text).toContain("3/6 left");
     panel.destroy();
   });
 
@@ -81,7 +86,9 @@ describe("SlateBillboardPanel", () => {
 
     // Updated text is reflected
     const text = parent.textContent ?? "";
-    expect(text).toContain("radish 5g · 7/10 left");
+    expect(text).toContain("Radish");
+    expect(text).toContain("5g");
+    expect(text).toContain("7/10 left");
     panel.destroy();
   });
 

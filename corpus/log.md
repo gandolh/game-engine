@@ -12,6 +12,13 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 - **Determinism:** all render-only on the main thread (`Math.random`, like `ParticleSystem`); no sim/snapshot-tick impact; `isWalkable` is a pure query.
 - **Verified:** typecheck clean; engine 89 (incl. 7 new `rain-field.test.ts`, with a 120-frame camera-pan density-stability regression guard), farm-valley 135, sim-core 654 — all green; palette guard passes. Wiki: [architecture.md](wiki/architecture.md) Render section updated.
 
+## [2026-06-11] impl | Brief 81 follow-up — occlusion transparency (x-ray the player behind walls/buildings)
+
+Extends the pseudo-3D work. New optional `Canvas2dSprite.occludable`; the renderer runs an **x-ray pass** after the main sprite draw: for each occludable sprite, if a taller sprite drawn in front of it (later in sort order, layer < 80 so UI bubbles/arrows are excluded) overlaps its rect ([`spritesOverlap`](../packages/engine/src/render/canvas2d/draw.ts) — AABB on drawn rects incl. z-lift), re-draw it at `GHOST_ALPHA=0.4` on top. Flagged for the **player only** via `pushSnapshotSprites(..., playerId)` (scoped → cheap; extend by flagging more sprites). Works for layer-50 occluders (walls, cliff faces) + dynamic layer-50 structures.
+
+- **Architectural finding (now in [architecture.md](wiki/architecture.md)):** big buildings (houses/forge/weather-station) are **baked at layer 5 < farmers' layer 50**, so they currently **never occlude entities** — a farmer behind a house is painted over the roof. Giving houses real occlusion (and thus x-ray) needs a dynamic layer-50 occluder face — an open follow-up the user asked about (pseudo-3D for buildings + a waterfall-from-a-wall redesign), pending scope decision.
+- **Verified:** typecheck clean; engine 96 (incl. 4 new `spritesOverlap` unit tests + 3 recording-context x-ray integration tests asserting the low-alpha re-draw), farm-valley 135, sim-core 654 — all green. Render-only; no determinism impact.
+
 ## [2026-06-11] impl(wip) | Brief 80 — AI fishing fix: cast tiles derived from isle bounds + class-level guard test (tasks 1–2 done; baseline diff pending sign-off)
 
 [80-fishing-cast-tiles-stale](briefs/game/todo/80-fishing-cast-tiles-stale.md), for the bug the wiki audit surfaced: `FISHING_CAST_TILES = [(40,71),(22,71)]` were pre-radial-reorg and off-isle (isles at 75–82 / 59–66 × 105–112), so `deliberateFishing` could never satisfy the `fish` precondition → AI fishing silently dead (Pip unaffected). Same class as brief 73's tavern/festival ocean-tile fix, which missed this constant; root cause of the miss is that `social.test.ts` guarded the reachability *logic*, not target-tile *validity*.
