@@ -65,17 +65,17 @@ Generic pub/sub at [packages/engine/src/sim/message-bus.ts](../../packages/engin
 
 ## World layout
 
-**88×80 tile archipelago** (`WORLD_WIDTH`/`WORLD_HEIGHT` in [world/regions.ts](../../packages/sim-core/src/world/regions.ts)) — islands joined by bridges, walkable tile count `2065` (guarded by `walkable-grid.test.ts`). Region bounds, placement, and the bridge tree are documented in [player-and-interaction.md](player-and-interaction.md) → archipelago layout; that page is the source of truth for tile geometry. Resource zones (forest/quarry) spawn trees/stones; all regions are BFS-verified reachable.
+**160×160 tile radial archipelago** (`WORLD_WIDTH`/`WORLD_HEIGHT` in [world/regions.ts](../../packages/sim-core/src/world/regions.ts), 2026-06-09 reorg) — a central service cluster surrounded by two concentric rings of 21 farms, islands joined only by bridges. `walkable-grid.test.ts` recomputes the walkable count from `REGIONS + ROADS` (no hardcoded magic number) and BFS-asserts every region reachable. Region bounds, placement, and the bridge tree live in [player-and-interaction.md](player-and-interaction.md) → *RADIAL archipelago layout* (the source of truth for tile geometry) and [world-generation.md](world-generation.md). Resource zones (forest/quarry) spawn trees/stones.
 
 ## Game data flow per tick
 
-See [system-ordering.md](system-ordering.md) for the complete rationale. In brief:
+[system-ordering.md](system-ordering.md) is the source of truth for the exact registration order + rationale (verify there, not here). High-level shape:
 
 ```
-DayClock → [shock] → InboxDispatch → [snoop band] → Perceive → Deliberate → AP → Travel → Act → Resolve → FinishDay
+DayClock → [shock] → InboxDispatch → [snoop band] → Perceive → Grow → {PlotSense · Deliberate · AP} → Travel → Act → Resolve → FinishDay
 ```
 
-**Snoop band** (between InboxDispatch and Perceive): Encounter, EncounterTrade, Trust, Rivalry, Festival, Harbor, EventFeed, Tavern, RunHistory — all read inbox messages without consuming them. `PerceiveSystem` is the barrier that clears inboxes and folds messages into beliefs.
+**Snoop band** (between InboxDispatch and Perceive): the encounter/trust/rivalry/festival/harbor/tavern/event-feed/run-history systems all read inbox messages without consuming them (full list in system-ordering.md). `PerceiveSystem` is the barrier that clears inboxes and folds messages into beliefs. AP runs inside the deliberate stage, not as a separate step.
 
 `TravelSystem` only registers when a `Pathfinder` is passed to `bootstrapSim`. It holds both a land grid (shared with `FeatureCollisionSystem`) and a separate boat grid (water lanes for coral fishing); farmers swap grids while aboard.
 
