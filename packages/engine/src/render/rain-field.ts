@@ -165,4 +165,61 @@ export class RainField {
   get count(): number {
     return this.drops.length;
   }
+
+  // ── GPU read API (Wave 4b) ────────────────────────────────────────────────
+  // These expose the final screen/world geometry used by draw() so the GPU
+  // weather pass can replicate the exact same math without duplicating it.
+  // draw(ctx) remains the authoritative Canvas-2D fallback; these are read-only.
+
+  /** The current weather kind. Named `weatherKind` to avoid clashing with the private `kind` field. */
+  get weatherKind(): WeatherKind {
+    return this.kind;
+  }
+
+  /** The EDG color string (CSS hex). Parse at the call site via `rgbOf()` to get floats. */
+  get streakColor(): string {
+    return this.color;
+  }
+
+  /** The draw-alpha for the curtain (globalAlpha in draw()). */
+  get curtainAlpha(): number {
+    return this.alpha;
+  }
+
+  /**
+   * Visits the two endpoints of every rain streak using the EXACT same math as draw().
+   * (x0, y0) is the head (impact point lifted by z); (x1, y1) is the tail.
+   * Only meaningful when weatherKind === "rain".
+   */
+  forEachRainStreak(
+    visit: (x0: number, y0: number, x1: number, y1: number) => void,
+  ): void {
+    for (const d of this.drops) {
+      const len = RAIN.streakLen * d.scale;
+      const spd = Math.hypot(d.wind, d.vz) || 1;
+      const drawX = d.gx;
+      const drawY = d.gy - d.z;
+      visit(
+        drawX,
+        drawY,
+        drawX - (d.wind / spd) * len,
+        drawY - (d.vz / spd) * len,
+      );
+    }
+  }
+
+  /**
+   * Visits the center + half-size of every snow flake using the EXACT same math as draw().
+   * `cx` includes the sin-sway; `halfSize` is the s value (SNOW.flakeSize × scale).
+   * Only meaningful when weatherKind === "snow".
+   */
+  forEachSnowFlake(
+    visit: (cx: number, cy: number, halfSize: number) => void,
+  ): void {
+    for (const d of this.drops) {
+      const s = SNOW.flakeSize * d.scale;
+      const sway = Math.sin(this.timeSec * 1.5 + d.phase) * SNOW.swayAmp;
+      visit(d.gx + sway, d.gy - d.z, s);
+    }
+  }
 }
