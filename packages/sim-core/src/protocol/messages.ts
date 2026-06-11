@@ -52,6 +52,12 @@ export interface WorkerInputMsg {
   action: boolean;
   /** Hotbar slot to select (0-based), or null for no change. */
   selectSlot: number | null;
+  /**
+   * When set, the action fires on this world tile instead of the faced tile.
+   * PlayerControlSystem applies a Chebyshev-≤1 reach guard server-side.
+   * Null (or absent) means use the default faced-tile E-key path.
+   */
+  actionTile?: { x: number; y: number } | null;
 }
 
 /** main → worker: turn the worker-side profiler on/off. Diagnostic only — never affects sim state or determinism. */

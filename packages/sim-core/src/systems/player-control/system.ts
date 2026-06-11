@@ -55,9 +55,41 @@ export class PlayerControlSystem implements System {
 
       if (player.pendingAction) {
         player.pendingAction = false;
-        const { dx, dy } = DIR_DELTA[player.facing]!;
-        const tx = Math.round(transform.x) + dx;
-        const ty = Math.round(transform.y) + dy;
+
+        let tx: number;
+        let ty: number;
+
+        if (player.pendingActionTile !== null) {
+          // Click-to-act path: use the clicked tile with a Chebyshev-≤1 reach guard.
+          const clickedTile = player.pendingActionTile;
+          player.pendingActionTile = null; // always clear, whether reachable or not
+
+          const px = Math.round(transform.x);
+          const py = Math.round(transform.y);
+
+          // Orient Pip toward the clicked tile for sprite readability.
+          const faceDx = clickedTile.x - px;
+          const faceDy = clickedTile.y - py;
+          if (Math.abs(faceDx) >= Math.abs(faceDy)) {
+            player.facing = faceDx >= 0 ? "right" : "left";
+          } else {
+            player.facing = faceDy >= 0 ? "down" : "up";
+          }
+
+          const reachable = Math.max(Math.abs(clickedTile.x - px), Math.abs(clickedTile.y - py)) <= 1;
+          if (!reachable) {
+            // Out of reach — skip action entirely (facing was updated above for readability).
+            continue;
+          }
+          tx = clickedTile.x;
+          ty = clickedTile.y;
+        } else {
+          // E-key path: use the tile in front of Pip (unchanged behavior).
+          const { dx, dy } = DIR_DELTA[player.facing]!;
+          tx = Math.round(transform.x) + dx;
+          ty = Math.round(transform.y) + dy;
+        }
+
         const slot = HOTBAR_SLOTS[player.selectedSlot];
         const intent = slot ? this.slotIntent(entity, slot, tx, ty) : null;
         if (intent !== null) {

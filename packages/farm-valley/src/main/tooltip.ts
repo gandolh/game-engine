@@ -1,6 +1,7 @@
 import { Camera2D, EDG } from "@engine/core";
 import { TILE } from "./config";
 import { mousePos } from "./camera";
+import { screenToWorld } from "./screen-to-tile";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 
 export function createTooltip(parent: HTMLElement): HTMLElement {
@@ -33,12 +34,8 @@ export function updateTooltip(
     return;
   }
 
-  // CSS pixel mouse → world pixels; cap dpr at 2 to match Canvas2dRenderer.
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
-  const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
-  const wx = mousePos.x * scaleX + (camera.centerX - camera.worldUnitsX / 2);
-  const wy = mousePos.y * scaleY + (camera.centerY - camera.worldUnitsY / 2);
+  // CSS pixel mouse → world pixels via shared helper (dpr capped at 2).
+  const { wx, wy } = screenToWorld(camera, canvas, mousePos.x, mousePos.y);
 
   const HALF_TILE = TILE / 2;
   let bestLabel: string | null = null;

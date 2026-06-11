@@ -63,6 +63,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
             pendingMoveY: null,
             pendingAction: false,
             selectedSlot: 0,
+            pendingActionTile: null,
           },
         }
       : {}),

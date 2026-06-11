@@ -42,7 +42,7 @@ function setup(): {
       wateringCan: { charges: 10, maxCharges: 10 },
     },
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
-    player: { isPlayer: true, facing: "down", pendingMoveX: null, pendingMoveY: null, pendingAction: false, selectedSlot: 0 },
+    player: { isPlayer: true, facing: "down", pendingMoveX: null, pendingMoveY: null, pendingAction: false, selectedSlot: 0, pendingActionTile: null },
   });
   return {
     world,
@@ -358,6 +358,76 @@ describe("PlayerControlSystem — hotbar action", () => {
     tick(world, control, act);
     const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
     expect(plot.plot.state.kind).toBe("empty"); // nothing planted
+  });
+});
+
+describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
+  it("(a) plants at the CLICKED tile when pendingActionTile is Chebyshev-≤1 from Pip", () => {
+    const { world, pip, control, act } = setup();
+    // Plant on the tile directly below Pip (dy=1 → Chebyshev 1). Pip is facing right
+    // to ensure the action does NOT use the faced tile.
+    const tx = PIP.x, ty = PIP.y + 1;
+    world.spawn({
+      transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+      plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
+    });
+    pip.player!.selectedSlot = SLOT.radish;
+    pip.player!.facing = "right"; // faced tile is PIP.x+1, NOT the clicked tile
+    pip.player!.pendingAction = true;
+    pip.player!.pendingActionTile = { x: tx, y: ty }; // below Pip, Chebyshev=1
+
+    tick(world, control, act);
+
+    // The action should have fired on the CLICKED tile (below), not the faced tile (right).
+    const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
+    expect(plot.plot.state.kind).toBe("planted");
+    expect(pip.inventory!.seeds.radish).toBe(2); // one seed consumed
+    // pendingActionTile must be cleared
+    expect(pip.player!.pendingActionTile).toBeNull();
+  });
+
+  it("(b) out-of-reach click (Chebyshev≥2) queues NO intent and clears pendingActionTile", () => {
+    const { world, pip, control, act } = setup();
+    // Place a plot 3 tiles away — clearly out of reach.
+    const tx = PIP.x + 3, ty = PIP.y;
+    world.spawn({
+      transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+      plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
+    });
+    pip.player!.selectedSlot = SLOT.radish;
+    pip.player!.facing = "down";
+    pip.player!.pendingAction = true;
+    pip.player!.pendingActionTile = { x: tx, y: ty }; // Chebyshev=3
+
+    tick(world, control, act);
+
+    // Plot must remain empty (no intent queued).
+    const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
+    expect(plot.plot.state.kind).toBe("empty");
+    // Seeds unchanged
+    expect(pip.inventory!.seeds.radish).toBe(3);
+    // pendingActionTile must still be cleared
+    expect(pip.player!.pendingActionTile).toBeNull();
+  });
+
+  it("(c) REGRESSION: pendingAction with pendingActionTile=null uses the faced tile (E-key path)", () => {
+    const { world, pip, control, act } = setup();
+    // Plant on the tile Pip is facing (right).
+    const tx = PIP.x + 1, ty = PIP.y;
+    world.spawn({
+      transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+      plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
+    });
+    pip.player!.selectedSlot = SLOT.radish;
+    pip.player!.facing = "right";
+    pip.player!.pendingAction = true;
+    pip.player!.pendingActionTile = null; // explicit null → E-key path
+
+    tick(world, control, act);
+
+    const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
+    expect(plot.plot.state.kind).toBe("planted");
+    expect(pip.inventory!.seeds.radish).toBe(2);
   });
 });
 

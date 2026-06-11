@@ -14,6 +14,7 @@ import {
   lastPlayerMoveX,
   lastPlayerMoveY,
   _camera,
+  mousePos,
   setFocusedFarmerId,
   setPanOffset,
   setRecenteringOnPip,
@@ -21,6 +22,7 @@ import {
   setLastPlayerMoveY,
   applyFocusAndPan,
 } from "./camera";
+import { screenToTile } from "./screen-to-tile";
 import type { Panels } from "./panels";
 import type { ParticleDirector } from "./particles";
 import { renderGameOver } from "./game-over";
@@ -73,6 +75,82 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   }
   // Emit frame report every ~60 frames to avoid per-frame string churn.
   let frameReportCounter = 0;
+
+  // ---------------------------------------------------------------------------
+  // Click-to-act: left-button press/release cycle sends action + tile to server.
+  // Only fires for the run owner; spectators cannot control Pip.
+  // A press/release is treated as a click only when the pointer moved < 5px —
+  // this also guards against accidental taps after the camera gained focus.
+  // ---------------------------------------------------------------------------
+  let clickStartX = 0;
+  let clickStartY = 0;
+
+  canvas.addEventListener("mousedown", (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    clickStartX = e.clientX;
+    clickStartY = e.clientY;
+  });
+
+  canvas.addEventListener("mouseup", (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    if (!client.owner) return;
+
+    const dist = Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY);
+    if (dist >= 5) return; // dragged — not a click
+
+    const cam = _camera;
+    if (cam === null) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const tile = screenToTile(cam, canvas, cx, cy);
+
+    // Pass held movement axes so we don't zero out in-progress movement.
+    client.sendInput(lastPlayerMoveX, lastPlayerMoveY, true, null, tile);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Action-aware cursor: update canvas.style.cursor on mousemove based on the
+  // active hotbar slot. Only update when the computed cursor string changes.
+  // ---------------------------------------------------------------------------
+  let lastCursor = "";
+
+  canvas.addEventListener("mousemove", () => {
+    const hotbarSnap = client.playerHotbar;
+    let nextCursor: string;
+
+    if (hotbarSnap === null) {
+      nextCursor = "default";
+    } else {
+      const slot = HOTBAR_SLOTS[hotbarSnap.selected];
+      if (slot === undefined) {
+        nextCursor = "default";
+      } else if (slot.kind === "tool") {
+        switch (slot.tool) {
+          case "axe":
+          case "pickaxe":
+          case "fishing-rod":
+            nextCursor = "crosshair";
+            break;
+          case "hoe":
+          case "can":
+            nextCursor = "cell";
+            break;
+          default:
+            nextCursor = "default";
+        }
+      } else {
+        // seed slot
+        nextCursor = "cell";
+      }
+    }
+
+    if (nextCursor !== lastCursor) {
+      lastCursor = nextCursor;
+      canvas.style.cursor = nextCursor;
+    }
+  });
 
   function renderFrame(): void {
     const frameStart = performance.now();

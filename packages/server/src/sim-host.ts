@@ -65,6 +65,7 @@ export class SimHost {
         moveY: "up" | "down" | null,
         action: boolean,
         selectSlot: number | null,
+        actionTile: { x: number; y: number } | null,
       ) => void)
     | null = null;
 
@@ -97,7 +98,7 @@ export class SimHost {
         if (!msg.enabled) this.profiler.reset();
         return;
       case "input":
-        this.applyInput?.(msg.moveX, msg.moveY, msg.action, msg.selectSlot);
+        this.applyInput?.(msg.moveX, msg.moveY, msg.action, msg.selectSlot, msg.actionTile ?? null);
         return;
       case "skipToHighlight":
         this.pendingSkipToHighlight = true;
@@ -151,12 +152,13 @@ export class SimHost {
       rivalry,
     } = bootstrapSim({ seed, ticksPerDay, maxDays, pathfinder });
 
-    this.applyInput = (moveX, moveY, action, selectSlot) => {
+    this.applyInput = (moveX, moveY, action, selectSlot, actionTile) => {
       for (const e of world.query("player")) {
         e.player!.pendingMoveX = moveX;
         e.player!.pendingMoveY = moveY;
         if (action) e.player!.pendingAction = true;
         if (selectSlot !== null) e.player!.selectedSlot = selectSlot;
+        e.player!.pendingActionTile = actionTile;
         break; // single player entity
       }
     };

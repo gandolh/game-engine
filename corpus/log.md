@@ -2,6 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] done | Brief 79 shipped — click-to-target + action-aware cursor
+
+Implemented [79-pip-click-to-target-and-action-cursor](briefs/game/done/79-pip-click-to-target-and-action-cursor.md). Decisions: reach guard **Chebyshev ≤ 1**, **slot-generic CSS cursor** (4a), **pan moved to middle/right-drag** (left-click = act). **3-seed/3-day `EXPORT=json` diff MATCH ×3** (new field inert in headless).
+
+- `Player.pendingActionTile: {x,y}|null` ([farmer.ts](../packages/sim-core/src/components/farmer.ts), init null in [world-setup.ts](../packages/sim-core/src/world-setup.ts)); optional `actionTile` on the input protocol msg + threaded `sendInput → applyInput`. [PlayerControlSystem](../packages/sim-core/src/systems/player-control/system.ts): clicked tile when set (Chebyshev≤1 guard, always-clear, facing orients to click), faced tile for **E** (unchanged). `slotIntent`/`ActSystem` still own validity.
+- Shared [`screenToTile`](../packages/farm-valley/src/main/screen-to-tile.ts) factored out of `tooltip.ts` (dpr cap 2). Canvas left-click (owner-gated) → tile → act; mousemove → slot-generic cursor (axe/pickaxe/rod=`crosshair`, hoe/can/seed=`cell`). [camera.ts](../packages/farm-valley/src/main/camera.ts) pan now middle/right-drag + `contextmenu` suppressed.
+- **Verified live:** cursor changes with selected tool (axe→crosshair, hoe→cell, pickaxe→crosshair) via the real key→server→snapshot→cursor round-trip; left-click + middle-drag dispatch cleanly (no errors). Click-to-act *logic* covered by new [player-control.test.ts](../packages/sim-core/src/systems/player-control.test.ts) cases (plant at clicked tile / out-of-reach rejected / E faced-tile regression). typecheck clean; sim-core 650 + server 21 + farm-valley 135 tests pass.
+
 ## [2026-06-11] done | Brief 78 closed — Pip movement NOT broken (not-reproducible)
 
 Diagnostic-first brief; [78-pip-movement-broken](briefs/game/done/78-pip-movement-broken.md). **No code fix — the premise was stale** (cf. brief 77). Instrumented every hop and drove real key events via Playwright against a *clean* `npm run dev`:

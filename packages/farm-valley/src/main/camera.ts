@@ -142,7 +142,10 @@ export function setupCameraListeners(
     mousePos.y = -9999;
   });
 
+  // Pan starts only on MIDDLE (button 1) or RIGHT (button 2) click.
+  // Left click (button 0) is now reserved for click-to-act.
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
+    if (e.button !== 1 && e.button !== 2) return;
     isDragging = true;
     recenteringOnPip = false; // drag overrides smooth recenter
     dragStartX = e.clientX;
@@ -150,6 +153,9 @@ export function setupCameraListeners(
     camStartX = panOffset.x;
     camStartY = panOffset.y;
   });
+
+  // Prevent the context menu from appearing during right-drag panning.
+  canvas.addEventListener("contextmenu", (e: MouseEvent) => e.preventDefault());
 
   window.addEventListener("mousemove", (e: MouseEvent) => {
     if (!isDragging) return;

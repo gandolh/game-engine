@@ -22,6 +22,15 @@ Controls: **WASD/arrows** move, **Space** recenters camera on Pip, **E** = actio
 
 > **Brief 78 (2026-06-11):** a reported "Pip doesn't move" was **not reproducible in a clean single-player `npm run dev`** — the full chain (client → registry `owner:true` → host `applyInput` → `PlayerControlSystem`) was verified healthy end-to-end via live instrumentation (Pip moved tile-by-tile, wall-collision intact). Root cause of the live symptom: **duplicate dev processes** (overlapping sessions left extra Vite/server instances running), so a second socket attached to the same run-key as a **spectator** (`owner:false`) and `render-loop` silently swallowed its input. Guarded headlessly by `run-registry.test.ts` ("input from owner IS forwarded" / "from spectator is NOT"). If it recurs in a clean session, the next suspect is keyboard focus, not the transport.
 
+### Click-to-target + action-aware cursor (brief 79, 2026-06-11)
+
+Pip can act on a **clicked** tile, not only the faced tile:
+
+- **Targeting.** `Player` carries `pendingActionTile: {x,y} | null` ([farmer.ts](../../packages/sim-core/src/components/farmer.ts)). A canvas **left-click** converts pointer→tile via the shared [`screenToTile`](../../packages/farm-valley/src/main/screen-to-tile.ts) helper (dpr capped at 2, factored out of `tooltip.ts` so click/cursor/tooltip all agree) and sends it through `sendInput(..., actionTile)` → `applyInput` → the player entity. `PlayerControlSystem` uses the clicked tile when set (else the faced tile for the **E** key), with a **Chebyshev ≤ 1 reach guard** (a click >1 tile away is ignored); `pendingActionTile` is always cleared after consuming, and Pip's `facing` orients toward the click. `slotIntent` and `ActSystem` still own all validity (ownership/tool/AP/proximity) — a click only *proposes* a tile.
+- **Cursor.** Slot-generic CSS named cursors (no sim round-trip): axe/pickaxe/fishing-rod → `crosshair`; hoe/watering-can/seed → `cell`; otherwise `default`. Set on `mousemove` from the selected hotbar slot. CSS cursors sidestep the EDG palette guard.
+- **Pan moved to middle/right-drag.** Left mouse is now reserved for acting; camera pan is **middle (button 1) or right (button 2) drag** ([camera.ts](../../packages/farm-valley/src/main/camera.ts)); `contextmenu` is suppressed so right-drag doesn't pop the menu.
+- **Determinism + spectators:** `pendingActionTile` defaults `null` and is only set by a click, so AI/headless is inert (3-seed/3-day `EXPORT=json` diff MATCH ×3). The click is `client.owner`-gated — spectators in a shared run cannot act.
+
 ### Pip's sprite
 `pip` is a `PERSONALITY_SUBS` entry in [atlas-builder recipes.ts](../../tools/atlas-builder/src/recipes/) (gold hair `y→o`, green tunic `r→G`) which auto-generates the action + facing frames; a small extra block makes the 3 down-base frames. Rebuild with `npm run atlas`.
 

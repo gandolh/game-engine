@@ -43,4 +43,10 @@ export interface Player {
   pendingMoveY: "up" | "down" | null;
   pendingAction: boolean;
   selectedSlot: number;
+  /**
+   * When set by a click-to-act event, the action fires on this tile instead of the faced tile.
+   * PlayerControlSystem applies a Chebyshev-≤1 reach guard and clears this field each tick.
+   * Defaults null — AI farmers and headless runs are completely inert.
+   */
+  pendingActionTile: { x: number; y: number } | null;
 }

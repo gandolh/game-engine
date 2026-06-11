@@ -269,16 +269,19 @@ export class SimClient {
    * Send player (Pip) input to the worker. `moveX`/`moveY` are the held
    * horizontal/vertical axes (both set = diagonal; null = released); `action`
    * requests the selected-slot field action; `selectSlot` (0-based, or null)
-   * switches the active hotbar slot. The worker buffers these onto the player
-   * entity for PlayerControlSystem to consume.
+   * switches the active hotbar slot. Optional `actionTile` overrides the
+   * faced-tile target for a click-to-act event; the server applies a
+   * Chebyshev-≤1 reach guard before queuing an intention.
+   * The worker buffers these onto the player entity for PlayerControlSystem to consume.
    */
   sendInput(
     moveX: "left" | "right" | null,
     moveY: "up" | "down" | null,
     action: boolean,
     selectSlot: number | null = null,
+    actionTile: { x: number; y: number } | null = null,
   ): void {
-    this.sendMsg({ type: "input", moveX, moveY, action, selectSlot });
+    this.sendMsg({ type: "input", moveX, moveY, action, selectSlot, actionTile });
   }
 
   /** Terminate the worker (hard stop). */
