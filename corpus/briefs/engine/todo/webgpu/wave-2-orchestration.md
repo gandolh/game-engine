@@ -82,6 +82,51 @@ construct and return a working `WebGpuRenderer`.
 - Device-loss: if `device.lost` fires, log and stop drawing (do not crash the rAF loop).
 - No `any`.
 
+## Wave-1 integration reconciliation (READ — these are real mismatches to fix)
+
+Wave 1 landed as 5 independent modules; their cross-module assumptions must be reconciled
+here. You are **explicitly authorized to edit, ONLY for these reconciliations**, the
+otherwise-Wave-1-owned files `webgpu/gpu-context.ts`, `webgpu/shaders/sprite.wgsl`, and
+`webgpu/shaders/water.wgsl`, in addition to your owned `webgpu/renderer.ts`. Make the
+minimum change needed and note each in your report.
+
+1. **CANONICAL view-uniform convention (must unify gpu-context + both shaders).**
+   The uniform carries the FULL world→clip transform collapsed (the Wave 1a form):
+   ```
+   scaleX = sx * 2 / canvasW ;  offsetX = ox * 2 / canvasW - 1
+   scaleY = -sy * 2 / canvasH ;  offsetY = 1 - oy * 2 / canvasH
+   // shader does ONLY:  clip = vec2(worldX*scaleX + offsetX, worldY*scaleY + offsetY)
+   ```
+   where `sx=canvasW/worldUnitsX`, `sy=canvasH/worldUnitsY`, `ox/oy` are the pixel-snapped
+   offsets (`ox = pixelSnap ? round(-left*sx) : -left*sx`, etc.). `sprite.wgsl` currently
+   re-applies `*2-1` in-shader — **remove that** so it matches the canonical form. Verify
+   `water.wgsl` uses the same convention; fix if not. `gpu-context.setView` already expects
+   the collapsed values — compute them in the orchestrator and pass them in.
+
+2. **Atlas map.** `GpuAtlasStore` (1b) exposes only `get(id)`, NOT a full Map. The static
+   bake (1e `StaticLayerPass.bake`) and water bake (`WaterPass.bakePattern`) both expect a
+   `Map<string, LoadedAtlasImage>`. So `WebGpuRenderer` must keep its OWN
+   `atlases: Map<string, LoadedAtlasImage>`, populated in `addAtlas` alongside
+   `store.add(atlas)`. Pass `this.atlases` to `bake`/`bakePattern`.
+
+3. **SpriteBatch usage (1c).** `add()` is a no-op stub; the intended path is to build
+   per-atlas instance arrays in the orchestrator and call
+   `flush(pass, store.bindGroup(atlasId), atlasInstances)` once per atlas group. Group 0
+   (view bind group) is set ONCE per pass by you (`pass.setBindGroup(0, ctx.viewBindGroup())`)
+   before any flush; `flush` sets group 1 + the instance buffer + `draw(6, n)`. Instance
+   byte layout is 14×f32 = 56 bytes in this order: x,y,w,h,u0,v0,u1,v1,rotation,flipX,r,g,b,a
+   (a = sprite.alpha × tint.a). Pre-multiply nothing on the CPU — the shader outputs
+   premultiplied.
+
+4. **Pass argument shapes.** `StaticLayerPass.draw(pass, view, visRect)` and
+   `WaterPass.draw(pass, view, visRect, zoomedOut)` take a `VisibleRect`
+   `{visL,visT,visR,visB}` (compute exactly as `Canvas2dRenderer.endFrame`, clamped to
+   `[0, staticLayerW/H]`) and `zoomedOut = sx < 1`. Draw water first, then static.
+
+5. **Overlay (1d)** `applyWorldTransform(view)` takes the same `ViewUniform`. It does NOT
+   draw shadows — shadows are your GPU-side responsibility (step 5 of the per-frame
+   sequence above).
+
 ## Acceptance & verify
 
 - `npm run typecheck -w @engine/core` and `npm run typecheck` (root) clean.
