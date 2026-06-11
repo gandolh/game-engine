@@ -141,13 +141,26 @@ export class WebGpuRenderer implements RendererLike {
   /** Async factory: create GpuContext then wire all collaborators. Throws on any failure. */
   static async create(canvas: HTMLCanvasElement, camera: Camera2D): Promise<WebGpuRenderer> {
     const gpuCtx = await GpuContext.create(canvas);
-    const store = new GpuAtlasStore(gpuCtx.device);
+    const { device } = gpuCtx;
+
+    // Construct all collaborators (which create shader modules + pipelines) inside a
+    // validation error scope. A WGSL compile error or invalid pipeline does NOT throw
+    // synchronously — it surfaces as a device validation error. Capturing it here lets
+    // create() throw so createRenderer() falls back to Canvas2D, instead of returning a
+    // renderer that produces a blank/grey frame because the whole command buffer is invalid.
+    device.pushErrorScope("validation");
+    const store = new GpuAtlasStore(device);
     const batch = new SpriteBatch(gpuCtx, store.bindGroupLayout());
     const overlay = new Overlay2D(canvas);
     const staticPass = new StaticLayerPass(gpuCtx);
     const waterPass = new WaterPass(gpuCtx);
     const particleBatch = new ParticleBatch(gpuCtx);
     const weatherPass = new WeatherPass(gpuCtx);
+    const validationError = await device.popErrorScope();
+    if (validationError) {
+      throw new Error(`webgpu: pipeline/shader validation failed — ${validationError.message}`);
+    }
+
     return new WebGpuRenderer(
       canvas, camera, gpuCtx, store, batch, overlay, staticPass, waterPass, particleBatch, weatherPass,
     );

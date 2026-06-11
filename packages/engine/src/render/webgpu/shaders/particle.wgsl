@@ -117,25 +117,27 @@ fn vs_main(
 
 @fragment
 fn fs_main(in : VertexOut) -> @location(0) vec4<f32> {
-    var coverage : f32 = 1.0;
+    // WGSL requires derivative builtins (fwidth) to be called from UNIFORM control flow —
+    // never inside a branch that depends on per-fragment varying data (here, shape_id).
+    // So compute BOTH shapes' SDF coverage unconditionally (cheap ALU), then select by
+    // shape below. This keeps every fwidth() call outside the data-dependent `if`.
+    let d_circle = length(in.local_uv - vec2<f32>(0.5, 0.5)) - 0.5;
+    let fw_circle = fwidth(d_circle);
+    let cov_circle = clamp(1.0 - d_circle / max(fw_circle, 0.0001), 0.0, 1.0);
+
+    let su = in.local_uv.x * 2.0 - 1.0;
+    let sv = in.local_uv.y * 2.0 - 1.0;
+    let d_diamond = abs(su) + abs(sv) - 1.0;
+    let fw_diamond = fwidth(d_diamond);
+    let cov_diamond = clamp(1.0 - d_diamond / max(fw_diamond, 0.0001), 0.0, 1.0);
 
     let shape = i32(round(in.shape_id));
-
+    var coverage : f32 = 1.0;  // shape == 1 (rect): full quad
     if shape == 0 {
-        // Circle SDF: center at (0.5, 0.5), radius 0.5
-        let d = length(in.local_uv - vec2<f32>(0.5, 0.5)) - 0.5;
-        // Soft discard: fade over ~1 fragment width
-        let fw = fwidth(d);
-        coverage = clamp(1.0 - d / max(fw, 0.0001), 0.0, 1.0);
+        coverage = cov_circle;
     } else if shape == 2 {
-        // Star / diamond: map UV from [0,1] to [-1,1]
-        let su = in.local_uv.x * 2.0 - 1.0;
-        let sv = in.local_uv.y * 2.0 - 1.0;
-        let d_diamond = abs(su) + abs(sv) - 1.0;
-        let fw = fwidth(d_diamond);
-        coverage = clamp(1.0 - d_diamond / max(fw, 0.0001), 0.0, 1.0);
+        coverage = cov_diamond;
     }
-    // shape == 1 (rect): coverage stays 1.0
 
     if coverage <= 0.0 {
         discard;
