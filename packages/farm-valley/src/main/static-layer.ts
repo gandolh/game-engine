@@ -13,6 +13,7 @@ export function bakeStaticLayer(
   _noiseGen: NoiseGenerator | null,
   seed: number,
   ambient: AmbientLayer,
+  onBaked?: () => void,
 ): void {
   const groundNoise = makeGroundNoiseDecorator(seed, TILE, GROUND_NOISE_AMPLITUDE);
   client.onStaticLayer((msg) => {
@@ -25,5 +26,6 @@ export function bakeStaticLayer(
     // pixelScale 3: chunky wave pixels survive downscale at low zoom.
     renderer.bakeWaterPattern("tile/ocean", "terrain", TILE, 3);
     ambient.init(msg.sprites, seed);
+    onBaked?.();
   });
 }

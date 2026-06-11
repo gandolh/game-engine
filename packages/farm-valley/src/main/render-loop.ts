@@ -41,6 +41,7 @@ export interface RenderLoopDeps {
   maxDays: number;
   ticksPerDay: number;
   ambient: AmbientLayer;
+  onFirstFrame?: () => void;
 }
 
 export function createRenderLoop(deps: RenderLoopDeps): () => void {
@@ -48,6 +49,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     client, renderer, keyboard, particles, particleDirector,
     canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
   } = deps;
+
+  let firstFrameSignaled = false;
   const {
     overlay, worldClock, observer, leaderboardPanel,
     slateBillboard, eventFeedPanel, hotbar, gameOverPanel, relationshipMatrix,
@@ -89,6 +92,12 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const interpolatedSprites = frameProfiler.time("interp", () =>
       client.getInterpolatedSprites(),
     );
+
+    // Signal the first frame that contains real world content (sprites present).
+    if (!firstFrameSignaled && interpolatedSprites.length > 0) {
+      firstFrameSignaled = true;
+      deps.onFirstFrame?.();
+    }
 
     // Exponential ease panOffset→0 while recentering (avoids snap jump).
     if (recenteringOnPip) {

@@ -2,6 +2,17 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] done | Brief 76 shipped — loading screen covers the boot flash
+
+Implemented [76-loading-screen](briefs/game/done/76-loading-screen.md). Strictly main-thread UI/boot — no worker/sim/seeded file touched, so `npm run sim` is byte-identical by construction (not re-run).
+
+- New [loading-screen.ts](../packages/farm-valley/src/screens/loading-screen.ts) `LoadingScreen` (sibling of `HomeScreen`, reuses its overlay style: absolute inset:0, EDG.black radial gradient, EDG.cream text, zIndex 1000, `opacity 200ms` fade). Title "Loading…", seed line, progress label, 3-dot pulse (injected `@keyframes`, EDG.tan). `show()/setProgress()/hide()` (idempotent). Exported from the `screens` barrel.
+- Wired into [main.ts](../packages/farm-valley/src/main.ts) `startGame`: shown the instant Start is clicked (before `await runtimePromise`, so the bare `EDG.blue` ocean canvas is never exposed — the first `renderFrame` paint happens well after the overlay is up). Progress milestones: "Loading assets…" → "Building world…" → "Starting sim…".
+- **Dismissal off real readiness, not a timer:** two flags — `staticBaked` (new optional `onBaked` callback on [bakeStaticLayer](../packages/farm-valley/src/main/static-layer.ts)) and `firstFrame` (new optional `onFirstFrame` on [createRenderLoop](../packages/farm-valley/src/main/render-loop.ts), fired once when `interpolatedSprites.length > 0`). `maybeDismiss()` hides only when both are true. Spectator/late-join (brief 72) works: `onFirstFrame` fires off any rendered snapshot incl. a replay frame.
+- Error path: `catch` calls `loadingScreen.hide()` before `showFatal` so the overlay doesn't cover the fatal message.
+
+typecheck clean; palette guard green; 135/135 farm-valley tests pass. **Pending: in-browser eyeball** (no bare-ocean flash from Start to ready) — not yet user-signed-off.
+
 ## [2026-06-11] done | Brief 77 shipped — 3D buildings + farm cottages
 
 Implemented [77-building-3d-depth-and-farm-houses](briefs/game/done/77-building-3d-depth-and-farm-houses.md). Render/asset-only; **3-day/3-seed `EXPORT=json` diff MATCH ×3** (WASM, ticks=20) — sim baseline untouched.

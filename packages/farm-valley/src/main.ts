@@ -8,7 +8,7 @@ import {
   createNoiseGeneratorFromUrl,
 } from "@engine/core";
 import type { NoiseGenerator } from "@engine/core";
-import { HomeScreen } from "./screens";
+import { HomeScreen, LoadingScreen } from "./screens";
 import { SimClient } from "./worker/sim-client";
 import { parseRun } from "@farm/sim-core/run-descriptor";
 
@@ -94,7 +94,10 @@ async function boot(): Promise<void> {
   runtimePromise.catch(() => {});
 
   home.onStartClicked((seed) => {
-    void startGame(canvas, app, fatal, runtimePromise, { seed, maxDays, ticksPerDay });
+    const loading = new LoadingScreen(app, { seed });
+    loading.show();
+    loading.setProgress("Loading assets…");
+    void startGame(canvas, app, fatal, runtimePromise, { seed, maxDays, ticksPerDay }, loading);
   });
 }
 
@@ -104,10 +107,22 @@ async function startGame(
   fatal: HTMLElement,
   runtimePromise: Promise<Runtime>,
   run: { seed: number; maxDays: number; ticksPerDay: number },
+  loadingScreen: LoadingScreen,
 ): Promise<void> {
   const { seed, maxDays, ticksPerDay } = run;
+
+  let staticBaked = false;
+  let firstFrame = false;
+
+  function maybeDismiss(): void {
+    if (staticBaked && firstFrame) {
+      loadingScreen.hide();
+    }
+  }
+
   try {
     const { renderer, noiseGen, keyboard } = await runtimePromise;
+    loadingScreen.setProgress("Building world…");
 
     const client = new SimClient();
     setSimClient(client);
@@ -137,7 +152,10 @@ async function startGame(
     });
 
     const ambient = new AmbientLayer();
-    bakeStaticLayer(client, renderer, noiseGen, seed, ambient);
+    bakeStaticLayer(client, renderer, noiseGen, seed, ambient, () => {
+      staticBaked = true;
+      maybeDismiss();
+    });
 
     createSeedBadge(app, seed);
 
@@ -146,6 +164,7 @@ async function startGame(
     const particles = new ParticleSystem();
     const particleDirector = new ParticleDirector(particles, client);
 
+    loadingScreen.setProgress("Starting sim…");
     client.init({
       seed,
       tickRateHz: CONFIG.tickRateHz,
@@ -156,10 +175,15 @@ async function startGame(
     const renderFrame = createRenderLoop({
       client, renderer, keyboard, particles, particleDirector,
       canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
+      onFirstFrame: () => {
+        firstFrame = true;
+        maybeDismiss();
+      },
     });
 
     requestAnimationFrame(renderFrame);
   } catch (err) {
+    loadingScreen.hide();
     showFatal(fatal, err);
     throw err;
   }
