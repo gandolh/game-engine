@@ -1,6 +1,6 @@
 # Brief 67 — Pixel-snapped sprite draws + camera smoothing
 
-**Status:** todo (returned 2026-06-10 — was moved to done/ prematurely by a bulk save; no implementation exists on any branch) · **Area:** `packages/engine` (canvas2d renderer, camera) + `packages/farm-valley` (main/camera) · **Drafted:** 2026-06-10
+**Status:** Done (2026-06-11) · **Area:** `packages/engine` (canvas2d renderer, camera) + `packages/farm-valley` (main/camera) · **Drafted:** 2026-06-10
 
 Two structural game-feel fixes from the 2026-06-10 research pass (see [performance.md](../../../wiki/performance.md) Tier 3): sub-pixel sprite draws shimmer under nearest-neighbor scaling, and the camera *snaps* (focus jumps, wheel-zoom recenters hard) instead of easing. Render-only; **zero sim/determinism impact**.
 

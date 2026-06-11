@@ -1,6 +1,6 @@
 # Brief 74 — Weather station island (signal antenna)
 
-**Status:** todo · **Area:** `packages/farm-valley` (world generation + render) · **Drafted:** 2026-06-11
+**Status:** Done (2026-06-11) · **Area:** `packages/farm-valley` (world generation + render) · **Drafted:** 2026-06-11
 
 Add a small offshore island dedicated to a weather station — a squat building with a tall signal antenna mast. The island serves as a visual landmark that reinforces the existing seasons/weather arc and gives the archipelago a functional-flavour setpiece alongside the shrine, heritage landmarks, waterfall, and camping spots. **Render-only for the antenna/building assets; any weather-modifier mechanics are out of scope unless a follow-up brief covers them.**
 

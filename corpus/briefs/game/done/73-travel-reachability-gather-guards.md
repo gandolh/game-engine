@@ -1,6 +1,6 @@
 # Brief 73 — Travel reachability: gather-beat guards + the (29,69)→shrine connectivity hole
 
-**Status:** todo · **Area:** `packages/sim-core` (agents/watering/social.ts, travel, world grid) · **Drafted:** 2026-06-10
+**Status:** Done (2026-06-11; task 4 WASM allocator deferred) · **Area:** `packages/sim-core` (agents/watering/social.ts, travel, world grid) · **Drafted:** 2026-06-10
 
 `[travel] no path` warn spam was diagnosed 2026-06-10 (see [open-questions.md](../../../wiki/open-questions.md) and [probe-travel-nopath.ts](../../../../tools/run-sim/src/probe-travel-nopath.ts)). The log-artifact half (`region 'undefined'` for tile-targeted intents) is already fixed; what remains are the two sim-side causes plus an engine robustness item. ⚠️ **Every task below moves the sim-outcome baseline** (even skipping a doomed intent shifts tick timing) — gate on the fast 3-day/3-seed diff *expecting divergence*, then re-verify reproducibility (self-diff MATCH) and re-probe.
 

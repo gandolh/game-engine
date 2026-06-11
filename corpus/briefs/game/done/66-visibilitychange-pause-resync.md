@@ -1,6 +1,6 @@
 # Brief 66 — `visibilitychange` pause + resync in the WS sim client
 
-**Status:** todo (returned 2026-06-10 — was moved to done/ prematurely by a bulk save; no implementation exists on any branch) · **Area:** `packages/farm-valley` (worker/sim-client + main render loop) · **Drafted:** 2026-06-10
+**Status:** Done (2026-06-11) · **Area:** `packages/farm-valley` (worker/sim-client + main render loop) · **Drafted:** 2026-06-10
 
 While the tab is hidden the browser throttles/stops `requestAnimationFrame`, but WebSocket snapshots keep arriving from `@farm/server`. On return, the wall-clock `alpha` math spikes and the just-arrived snapshot pair can be seconds apart → a visible stutter or a burst of sprites lerping across the map. Render/transport-only; **zero sim/determinism impact**. Chosen direction (open-questions round 2026-06-10): **pause + full resync**, not just a clock reset.
 

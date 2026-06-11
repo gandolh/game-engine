@@ -1,6 +1,6 @@
 # Brief 72 — Shared-run server: one sim per run, broadcast to N spectators (lobby-ready)
 
-**Status:** todo · **Area:** `@farm/server` (run registry + broadcast) + `@farm/sim-core` (protocol) + `packages/farm-valley` (client attach) · **Drafted:** 2026-06-10
+**Status:** Done (2026-06-11; tasks 5-6 snapshot-slim+probe-perf deferred) · **Area:** `@farm/server` (run registry + broadcast) + `@farm/sim-core` (protocol) + `packages/farm-valley` (client attach) · **Drafted:** 2026-06-10
 
 ## Why
 

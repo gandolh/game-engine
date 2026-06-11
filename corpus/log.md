@@ -2,6 +2,24 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] done | `todo/` backlog cleared — briefs 66/67/68/69/72/73/74 all shipped + committed (Opus-plan/Sonnet-execute, one brief at a time)
+
+A checklist-loop session worked the entire `todo/` queue. Per brief: grill the design, write the plan, checkpoint, dispatch a Sonnet implementer, verify exit status directly, commit. Commits: `ab3e5e4` (render+world batch 66/67/68/74), `1d420de` (69), `606a24a` (73), `2271418` (72).
+
+- **66** — `SimClient` visibilitychange resync (drop snapshot pair on hide; reset interp clock on show). Render/transport-only.
+- **67** — engine `expSmooth` + `Canvas2dRenderer.pixelSnap` (integer-grid draws, bake path byte-identical) + farm-valley lock-follow camera with glide-on-jump (`stepFocusGlide`). Render-only.
+- **68** — seeded `AmbientLayer` (birds/leaves/chimney smoke), hard-capped pools, no `Math.random`; 4 new `decoration/*` atlas recipes (props sheet regenerated).
+- **74** — new bridged `weather-station` region with a new `'landmark'` `RegionKind` (excluded from farm-spoke pool to minimise baseline movement); building+antenna recipes + ~1 Hz beacon blink (render-loop, wall-clock). ⚠️ real region added → may move sim baseline; world-invariant tests (reachability/margins/grid=REGIONS+ROADS) green; no determinism diff run.
+- **69** — `Scheduler.stage()` labels + `stages()` + opt-in `MessageBus` same-stage write/read audit (throws naming stage+ontology); `markRead` hooks in snoop systems; bootstrap comment-bands → `.stage()` markers. Flattened order **byte-identical** (37-entry order-pin test). `drain()` excluded from audit reads (legitimate DISPATCH delivery).
+- **73** — see entry below (reachability guards + ocean-pointing gather-tile fix).
+- **72** — `RunRegistry` shared-run skeleton: one `SimHost` per seed/ticksPerDay/maxDays, encode-once fan-out, owner-only control (`WorkerAttachMsg{owner}`; client hides controls for spectators), late-join replay (cached static+snapshot+wealthSeries), zero-socket reaping. **Determinism untouched** — `sim-host`/`bootstrapSim`/scheduler unchanged (verified empty diff). Tasks 5 (snapshot slimming) + 6 (probe-perf run) deferred.
+
+Verification throughout: `npm run typecheck` clean; full vitest suite green at each step (ended ~893 across all workspaces); atlas idempotent. Determinism diffs/probe runs skipped by user decision (constrained hardware) — baseline-movers (73/74) rely on the unchanged deterministic architecture + world-invariant tests.
+
+**Incident:** the brief-74 agent ran `git reset --hard`, wiping the uncommitted 66/67/68 edits. Recovered (planner held the diffs; surviving test files encoded the APIs). Workflow lessons: forbid destructive git in subagent prompts, commit per-brief, verify exit status directly. Briefs moved `todo/`→`done/` together with their merges, per the rule that bit us on the prior 66–69 false-done.
+
+**Pending user sign-off:** in-browser feel-checks (66 hide-tab, 67 shimmer/glide, 68 ambient density, 72 two-tab shared world, 74 island placement + blink). Nothing pushed.
+
 ## [2026-06-11] done | Brief 73 landed — reachability guards on gather/pray beats; (29,69) diagnosis: CASE 3 (walkable, same-component as shrine in current radial world — stale finding)
 
 Connectivity-component map (`packages/sim-core/src/world/connectivity.ts`): pure-JS 4-connected floodfill over `buildWalkableGrid()`, lazy singleton, exports `componentOf` / `sameComponent`. Guards added to `deliberateShrineVisit`, `deliberateTavernGather`, and `deliberateFestivalGather` in `social.ts`: skip when `aboard` or `!sameComponent(farmerTile, targetTile)`. Stale tile constants in `shared.ts` also corrected: `TAVERN_GATHER_TILE` (44,35)→(82,78) and `FESTIVAL_PODIUM_TILE` (43,39)→(80,80). (29,69) turns out to be inside farm-3 (inner ring slot 7) — Case 3, no world-data fix needed. Sim-outcome baseline moves by design (skipping doomed intents shifts tick timing); no probe/determinism run per the constrained-hardware decision. Task 4 (WASM allocator fault) deferred per brief instructions.
