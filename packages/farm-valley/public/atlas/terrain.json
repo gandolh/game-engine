@@ -244,12 +244,30 @@
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/waterfall-fall-a": {
       "x": 86,
       "y": 86,
       "w": 16,
       "h": 16
+    },
+    "tile/waterfall-fall-b": {
+      "x": 103,
+      "y": 86,
+      "w": 16,
+      "h": 16
+    },
+    "tile/waterfall-fall-c": {
+      "x": 1,
+      "y": 103,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 18,
+      "y": 103,
+      "w": 16,
+      "h": 16
     }
   },
-  "inputsHash": "286791e8b3d33ba9de2b1fce83527424141ef82223de36c26ca0624422a9c7a8"
+  "inputsHash": "84179df229701b47b3bfb14d845d8f58f58899a7127b072cd63177189322daae"
 }

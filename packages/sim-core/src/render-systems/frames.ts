@@ -37,6 +37,13 @@ export const FORGE_CHIMNEY_PX = {
 } as const;
 
 /** 3-frame waterfall cascade animation. A→B→C streaks step down one row (continuously falling water). */
+/** Clean rock-sided cascade tiles (no foam) — stacked above the foam pool for a tall waterfall. */
+export const WATERFALL_FALL_FRAMES = [
+  "tile/waterfall-fall-a",
+  "tile/waterfall-fall-b",
+  "tile/waterfall-fall-c",
+] as const;
+
 export const WATERFALL_FRAMES = [
   "structure/waterfall-a",
   "structure/waterfall-b",

@@ -196,6 +196,12 @@ import r191 from "./tool/hoe";
 import r192 from "./tool/axe";
 import r193 from "./tool/pickaxe";
 import r194 from "./structure/bush";
+import r195 from "./tile/waterfall-fall-a";
+import r196 from "./tile/waterfall-fall-b";
+import r197 from "./tile/waterfall-fall-c";
+import r198 from "./decoration/duck-a";
+import r199 from "./decoration/duck-b";
+import r200 from "./decoration/whale";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -393,5 +399,11 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r192,
   r193,
   r194,
+  r195,
+  r196,
+  r197,
+  r198,
+  r199,
+  r200,
 ];
 

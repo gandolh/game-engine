@@ -13,7 +13,6 @@ import {
   FENCES,
   WALLS,
   SHORES,
-  BRIDGES,
   CORAL,
   BRIDGE_SET,
   CORAL_ALPHA,
@@ -142,18 +141,7 @@ export function* iterStaticSprites(
   }
 
   // Cliffs not baked: depth-sort against characters → occluders.ts.
-  for (const bridge of BRIDGES) {
-    yield {
-      x: bridge.tx * TILE + TILE / 2,
-      y: bridge.ty * TILE + TILE / 2,
-      width: TILE,
-      height: TILE,
-      frame: "tile/bridge-h",
-      rotation: bridge.rotation,
-      layer: 3,
-      alpha: 1,
-    };
-  }
+  // Bridges not baked either: pushed each frame (pushBridgeSprites) so they can sway slowly.
 
   // South-facing walls skipped: depth-sorted as occluders instead.
   for (const wall of WALLS) {

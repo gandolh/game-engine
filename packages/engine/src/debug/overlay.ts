@@ -14,6 +14,7 @@ export class DebugOverlay {
   private frameCount = 0;
   private fps = 0;
   private accumulatedMs = 0;
+  private frameMs = 0; // EMA of wall-clock frame time → always-on ms readout
 
   private workerReport: ProfileReport | null = null;
   private frameReport: ProfileReport | null = null;
@@ -43,6 +44,8 @@ export class DebugOverlay {
     this.lastWallMs = now;
     this.accumulatedMs += dt;
     this.frameCount += 1;
+    // EMA so the ms readout is responsive but not jittery (seed on first frame).
+    this.frameMs = this.frameMs === 0 ? dt : this.frameMs * 0.9 + dt * 0.1;
     if (this.accumulatedMs >= 500) {
       this.fps = (this.frameCount * 1000) / this.accumulatedMs;
       this.frameCount = 0;
@@ -50,6 +53,7 @@ export class DebugOverlay {
     }
     let text =
       `fps   ${this.fps.toFixed(1)}\n` +
+      `ms    ${this.frameMs.toFixed(1)}\n` +
       `tick  ${stats.tick}\n` +
       `alpha ${stats.alpha.toFixed(3)}\n` +
       `ents  ${stats.entityCount}`;

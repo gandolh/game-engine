@@ -1,7 +1,7 @@
 import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind } from "@engine/core";
-import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
 import { WATERFALL_TILE, CAMPFIRE_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -24,6 +24,7 @@ import {
   applyFocusAndPan,
 } from "./camera";
 import { screenToTile } from "./screen-to-tile";
+import { pushWaterDecor } from "../render/water-decor";
 import { frameDataUrl } from "./sprite-icon";
 import type { Panels } from "./panels";
 import type { ParticleDirector } from "./particles";
@@ -101,10 +102,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
   };
 
-  // Cap render at 60fps (rAF fires at display rate); epsilon avoids dropping a
+  // Cap render at 100fps (rAF fires at display rate, so this only lifts the ceiling on >60Hz
+  // displays); epsilon avoids dropping a
   // frame that lands a hair early on a 60Hz vsync boundary.
-  const TARGET_FPS = 60;
-  const MIN_FRAME_MS = 1000 / TARGET_FPS - 1; // ~15.67ms; epsilon = 1ms
+  const TARGET_FPS = 100;
+  const MIN_FRAME_MS = 1000 / TARGET_FPS - 1; // ~9ms; epsilon = 1ms
   let lastRenderMs = performance.now() - MIN_FRAME_MS;
 
   const frameProfiler = new Profiler({ enabled: PROFILE_ENABLED });
@@ -311,29 +313,36 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 0.55,
     });
 
-    // Animated waterfall: layer 41, ~540ms cycle; render-only.
+    // Waterfall: a tall cascade down a rock cleft — clean rock-sided stream tiles stacked above the
+    // foam pool (the static structure/waterfall entity at WATERFALL_TILE.y+2). Animated; render-only.
     const WATERFALL_PERIOD_MS = 540;
-    const waterfallFrame = WATERFALL_FRAMES[
-      Math.floor(nowMs / (WATERFALL_PERIOD_MS / WATERFALL_FRAMES.length)) % WATERFALL_FRAMES.length
-    ]!;
-    renderer.push({
-      x: WATERFALL_TILE.x * TILE + TILE / 2,
-      y: WATERFALL_TILE.y * TILE + TILE / 2,
-      width: TILE,
-      height: TILE,
-      frame: waterfallFrame,
-      atlasId: "buildings",
-      rotation: 0,
-      layer: 41,
-      alpha: 1,
-    });
+    const fallIdx =
+      Math.floor(nowMs / (WATERFALL_PERIOD_MS / WATERFALL_FALL_FRAMES.length)) % WATERFALL_FALL_FRAMES.length;
+    const WATERFALL_FALL_ROWS = 2;
+    for (let r = 0; r < WATERFALL_FALL_ROWS; r++) {
+      // Lower tiles step the frame back so the bright streak stays continuous across the 16px tile
+      // seam (16 rows % 3-row streak spacing = 1 → compensate by −1 frame per tile down).
+      const frame =
+        WATERFALL_FALL_FRAMES[(fallIdx + ((3 - (r % 3)) % 3)) % WATERFALL_FALL_FRAMES.length]!;
+      renderer.push({
+        x: WATERFALL_TILE.x * TILE + TILE / 2,
+        y: (WATERFALL_TILE.y + r) * TILE + TILE / 2,
+        width: TILE,
+        height: TILE,
+        frame,
+        atlasId: frameToAtlasId(frame),
+        rotation: 0,
+        layer: 41,
+        alpha: 1,
+      });
+    }
 
-    // Waterfall mist/spray at the foot of the falling water — fine droplets that arc back down plus a
-    // faint rising mist. Render-only (Math.random, display-only); gated to on-screen + throttled so the
-    // particle pool stays small. Ties the waterfall into the pseudo-3D splash language.
+    // Waterfall mist/spray at the foot of the falling water (the pool, two rows below the source) —
+    // fine droplets that arc back down plus a faint rising mist. Render-only (Math.random, display-
+    // only); gated to on-screen + throttled so the particle pool stays small.
     {
       const wfX = WATERFALL_TILE.x * TILE + TILE / 2;
-      const wfFootY = (WATERFALL_TILE.y + 1) * TILE;
+      const wfFootY = (WATERFALL_TILE.y + WATERFALL_FALL_ROWS + 1) * TILE;
       const wfInView =
         wfX >= viewLeft && wfX <= viewRight && wfFootY >= viewTop && wfFootY <= viewBottom;
       if (wfInView) {
@@ -467,6 +476,10 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       // Buildings: dynamic layer-50 occluders (sortY at base) so farmers behind them are occluded
       // and the player x-rays through, instead of being painted over the roof (old static layer 5).
       pushBuildingSprites(renderer);
+      // Bridges: dynamic at layer 3 with a slow rope-deck sway (no longer baked).
+      pushBridgeSprites(renderer, nowMs);
+      // Decorative water life: a duck trio flies in/lands/leaves; a whale glides L→R splashing.
+      pushWaterDecor(renderer, particles, nowMs, dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
     });
 
     // Follow arrow: layer 91 (above meet bubble 90), gentle sine bob.

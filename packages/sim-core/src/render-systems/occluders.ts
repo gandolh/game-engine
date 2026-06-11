@@ -1,9 +1,14 @@
 // Dynamic occluders: south-facing wall + cliff tiles pushed each frame at sortY = tile bottom edge.
 import type { Canvas2dRenderer } from "@engine/core";
-import { OCCLUDER_WALLS, CLIFFS, BIG_STRUCTURES } from "./geometry";
+import { OCCLUDER_WALLS, CLIFFS, BIG_STRUCTURES, BRIDGES } from "./geometry";
 import { frameToAtlasId } from "./frames";
 
 const TILE = 16;
+
+// Rope-bridge sway: the whole deck drifts laterally (perpendicular to crossing) with one slow shared
+// phase, so every plank of a span moves together — no inter-tile tearing. Render-only (wall-clock).
+const BRIDGE_SWAY_AMP = 1.3;        // world px
+const BRIDGE_SWAY_PERIOD_MS = 2400; // slow
 
 const ENTITY_LAYER = 50; // shared with characters so compareSprite y-sorts occluders against them
 
@@ -46,6 +51,30 @@ export function pushOccluderSprites(renderer: Pick<Canvas2dRenderer, "push">): v
  * in front. Replaces the old static bake at layer 5, which never occluded entities. Drawing geometry
  * matches the former bake exactly (bottom-anchored), so positions are pixel-identical.
  */
+/**
+ * Bridges, pushed each frame at layer 3 (under entities/crops/fences) with a slow lateral sway, so
+ * the rope deck gently swings. Sway axis follows the span's run direction: a deck that runs N–S
+ * (vertical, crossed up–down) sways left–right (x); one that runs E–W (horizontal) sways up–down (y).
+ * `runsVertical` is derived from deck extent (not `rotation`, which is 0 for 2-wide vertical spans).
+ * One shared phase moves a whole span together → no gaps between planks. Replaces the old static bake.
+ */
+export function pushBridgeSprites(renderer: Pick<Canvas2dRenderer, "push">, nowMs: number): void {
+  const sway = Math.sin((nowMs / BRIDGE_SWAY_PERIOD_MS) * Math.PI * 2) * BRIDGE_SWAY_AMP;
+  for (const b of BRIDGES) {
+    renderer.push({
+      x: b.tx * TILE + TILE / 2 + (b.runsVertical ? sway : 0),
+      y: b.ty * TILE + TILE / 2 + (b.runsVertical ? 0 : sway),
+      width: TILE,
+      height: TILE,
+      frame: "tile/bridge-h",
+      atlasId: frameToAtlasId("tile/bridge-h"),
+      rotation: b.rotation,
+      layer: 3,
+      alpha: 1,
+    });
+  }
+}
+
 export function pushBuildingSprites(renderer: Pick<Canvas2dRenderer, "push" | "pushShadow">): void {
   for (const b of BIG_STRUCTURES) {
     // Directional cast shadow at the south base — offset toward lower-right (sun from upper-left) and

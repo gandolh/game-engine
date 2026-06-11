@@ -56,9 +56,9 @@ describe("asset file path matches recipe name", () => {
     expect(mismatches, "path ↔ name mismatches:\n" + mismatches.join("\n")).toHaveLength(0);
   });
 
-  it("the barrel BASE_RECIPES has 195 entries (one per asset file)", () => {
-    expect(allAssetFiles).toHaveLength(195);
-    expect(BASE_RECIPES).toHaveLength(195);
+  it("the barrel BASE_RECIPES has 201 entries (one per asset file)", () => {
+    expect(allAssetFiles).toHaveLength(201);
+    expect(BASE_RECIPES).toHaveLength(201);
   });
 });
 

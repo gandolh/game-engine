@@ -177,7 +177,25 @@
       "y": 69,
       "w": 16,
       "h": 16
+    },
+    "decoration/duck-a": {
+      "x": 18,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/duck-b": {
+      "x": 35,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/whale": {
+      "x": 52,
+      "y": 69,
+      "w": 32,
+      "h": 16
     }
   },
-  "inputsHash": "4fd5c338acdc26e842b385ae6f11494c6c8755dcadd9e0edd223577b1722b88d"
+  "inputsHash": "411e8ec606d078d45c278fb01b79f2c98868b59b3a9bb6a6fdccbbdd3a476512"
 }

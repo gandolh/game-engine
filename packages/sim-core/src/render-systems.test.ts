@@ -115,7 +115,7 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     return world;
   }
 
-  it("contains the static backdrop: grass/dirt land tiles, bridges, island walls, and plot dirt (ocean is NOT baked)", () => {
+  it("contains the static backdrop: grass/dirt land tiles, island walls, and plot dirt (ocean + bridges NOT baked)", () => {
     const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
     const frames = new Set(sprites.map((s) => s.frame));
     // Grass is season-specific; default season is "spring".
@@ -123,7 +123,8 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     expect(frames.has("tile/dirt")).toBe(true);
     // Ocean tiles are not baked; Canvas2dRenderer fills water under islands.
     expect(frames.has("tile/ocean")).toBe(false);
-    expect(frames.has("tile/bridge-h")).toBe(true);
+    // Bridges are no longer baked — pushed dynamically each frame so they can sway (pushBridgeSprites).
+    expect(frames.has("tile/bridge-h")).toBe(false);
     expect(frames.has("tile/wall")).toBe(true); // blacksmith / quarries / etc.
     expect(frames.has("tile/wall-wood")).toBe(true); // carpentry
     expect(frames.has("tile/shore-sand")).toBe(true); // farm fields + fishing isles

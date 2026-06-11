@@ -8,6 +8,7 @@ export {
   FORGE_SMOKE_FRAMES,
   FORGE_CHIMNEY_PX,
   WATERFALL_FRAMES,
+  WATERFALL_FALL_FRAMES,
   CAMPFIRE_FRAMES,
   WEATHER_BEACON_FRAMES,
   WEATHER_BEACON_PX,
@@ -29,4 +30,4 @@ export {
 
 export { pushSnapshotSprites } from "./snapshot-sprites";
 
-export { pushOccluderSprites, pushBuildingSprites } from "./occluders";
+export { pushOccluderSprites, pushBuildingSprites, pushBridgeSprites } from "./occluders";

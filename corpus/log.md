@@ -2,6 +2,26 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] impl | Render polish batch: tall waterfall, bridge-sway fix, ducks + deep whales, 100fps, ms readout
+
+Several user-requested visual tweaks, all render-only (no determinism impact). Atlas rebuild touched only **terrain + props** sheets (buildings/characters cached → no collision with the concurrent buildings-sheet work).
+
+- **Tall waterfall:** new clean rock-sided stream frames `tile/waterfall-fall-a/b/c` ([recipes](../tools/atlas-builder/src/recipes/assets/tile/)) — no foam pool, so they stack. [render-loop.ts](../packages/farm-valley/src/main/render-loop.ts) now draws 2 fall tiles above the existing `structure/waterfall` foam-pool entity (cascade), bright streak shifting down A→B→C with a per-tile frame offset for seam continuity. Mist repositioned to the pool foot. (The old single thin `structure/waterfall-a/b/c` overlay is retired from render-loop.)
+- **Bridge sway fix:** the sway axis now keys off a new `BridgeTile.runsVertical` (derived from **deck extent** in `computeBridges`), not `rotation` — `rotation` is 0 for 2-wide vertical spans (a plank-texture quirk) which made them sway the wrong way. Now: vertical decks sway left–right (x), horizontal sway up–down (y), per the user's spec.
+- **Ducks + whales** ([water-decor.ts](../packages/farm-valley/src/render/water-decor.ts)): render-only **lifecycle events** (wall-clock + Math.random, like particles). A duck **trio** flies in from the left using the bird flap frames (`decoration/bird-a/b`, layer 60) → descends onto a shallow-water spot biased into the current view → paddles there (`decoration/duck-a/b`, layer 6) for ~9 s → climbs away to the right. A **whale** (`decoration/whale`, 32×16) glides L→R along a mostly-open deep-ocean row (layer 1, faint pulsing alpha → submerged), hidden while passing behind land, splashing a little water up (ParticleSystem) every few seconds. *(Updated from the initial fixed-anchor drift version per user spec.)*
+- **Bridge sand fix:** `computeShores` now only bands **region** edges (`regionAt !== null`), not road/bridge tiles — a swaying bridge over water was exposing a sandy shore baked under its deck. Under bridges now reads as water.
+- **FPS cap 60→100** ([render-loop.ts](../packages/farm-valley/src/main/render-loop.ts) `TARGET_FPS`) — only lifts the ceiling on >60Hz displays (rAF-bound otherwise). User will eval manually.
+- **Always-on ms readout** ([overlay.ts](../packages/engine/src/debug/overlay.ts)): a smoothed (EMA) frame-time `ms` line under `fps` in the DebugOverlay (previously frame-ms showed only under the profiler).
+- **Verified:** typecheck clean; engine 96, sim-core 667, farm-valley 140, atlas-builder 11 — all green (asset-count guard 195→201). Visual look is the user's to confirm.
+
+## [2026-06-11] impl | Rope-railed swaying bridges (art + dynamic sway)
+
+User ask: "make the bridge look like a wood bridge with ropes on left and right, with depth, moving slowly like swinging." Done as a unit (art + motion):
+
+- **Art:** rewrote the `tile/bridge-h` recipe ([bridge-h.ts](../tools/atlas-builder/src/recipes/assets/tile/bridge-h.ts)) — twisted-rope rails (`Hh`) on the long edges (→ left/right when rotated 90° for vertical spans), dark support beams, and depth-shaded plank slats (`hddD`: light left edge → body → dark gap). Both patterns tile seamlessly along x. Atlas rebuilt — **only the terrain sheet** changed (41 frames, count unchanged), so no collision with the concurrent session's buildings-sheet work.
+- **Sway:** bridges moved out of the static bake (`iterStaticSprites`) into [`pushBridgeSprites`](../packages/sim-core/src/render-systems/occluders.ts), pushed each frame at layer 3 with a slow (~2.4 s) lateral sway — one shared phase so a whole span moves together (no inter-plank tearing). Lateral axis by orientation: y for horizontal decks, x for vertical. ~1.3px amp (subtle, so farmers-on-bridge don't visibly mismatch).
+- **Verified:** typecheck clean; sim-core 667, farm-valley 140, atlas-builder 11 — all green (updated the static-layer backdrop test: `tile/bridge-h` is now expected absent from the bake). Render-only; no determinism impact. Visual check is the user's.
+
 ## [2026-06-11] impl | Coastal shallow-water depth + directional house cast-shadow (realistic-islands polish)
 
 User asks: "add depth to the houses" + "research how to make island margins look like they're under water." Did the web research (synthesis in chat; key finding: the realistic-islands look is a **distance-from-coast depth band**, achievable in code with no shaders/new art) and shipped the safe, code-only parts:

@@ -53,6 +53,10 @@ export interface BridgeTile {
   tx: number;
   ty: number;
   rotation: number;
+  /** True when the span runs N–S (you cross vertically). Drives the sway axis: vertical decks sway
+   *  left–right (x), horizontal decks sway up–down (y). Derived from deck extent, NOT `rotation`
+   *  (which is 0 for 2-wide vertical spans — a plank-texture quirk that would mis-key the sway). */
+  runsVertical: boolean;
 }
 
 export interface CoralTile {
@@ -154,7 +158,10 @@ function computeShores(): readonly ShoreTile[] {
   ];
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-      if (!isWalkable(tx, ty)) continue;
+      // Shores belong to island (region) edges only — NOT road/bridge tiles (regionAt null). A bridge
+      // deck sits over open water; a sandy shore band under it would show through the deck's gaps / as
+      // the deck sways, so bridges must read as water underneath.
+      if (regionAt(tx, ty) === null) continue;
       for (const [dx, dy, rotation] of dirs) {
         const nx = tx + dx;
         const ny = ty + dy;
@@ -212,13 +219,25 @@ function computeBridges(): readonly BridgeTile[] {
     }
   }
   const out: BridgeTile[] = [];
+  // Contiguous deck length from (tx,ty) in a direction (excludes the tile itself).
+  const deckRun = (tx: number, ty: number, dx: number, dy: number): number => {
+    let n = 0;
+    let x = tx + dx;
+    let y = ty + dy;
+    while (deck.has(key(x, y))) { n++; x += dx; y += dy; }
+    return n;
+  };
   for (const k of deck) {
     const tx = k % WORLD_WIDTH;
     const ty = Math.floor(k / WORLD_WIDTH);
     const vertical = isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1);
     const horizontal = isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
     const rotation = vertical && !horizontal ? Math.PI / 2 : 0;
-    out.push({ tx, ty, rotation });
+    // Span axis from deck extent (robust to the 2-wide rotation quirk); tie → land-adjacency.
+    const vExt = deckRun(tx, ty, 0, -1) + deckRun(tx, ty, 0, 1);
+    const hExt = deckRun(tx, ty, -1, 0) + deckRun(tx, ty, 1, 0);
+    const runsVertical = vExt !== hExt ? vExt > hExt : (vertical && !horizontal);
+    out.push({ tx, ty, rotation, runsVertical });
   }
   return out;
 }
