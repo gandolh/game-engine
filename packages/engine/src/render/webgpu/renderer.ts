@@ -12,6 +12,9 @@ import type { GpuSpriteInstance } from "./sprite-batch";
 import { Overlay2D } from "./overlay-2d";
 import { StaticLayerPass, WaterPass } from "./static-layer-pass";
 import type { VisibleRect } from "./static-layer-pass";
+import { ParticleBatch } from "./particle-batch";
+import { WeatherPass } from "./weather-pass";
+import { RainField } from "../rain-field";
 import { compareSprite, spritesOverlap } from "../canvas2d/draw";
 
 // ── Constants (mirrored from Canvas2dRenderer — keep in sync) ─────────────────
@@ -63,6 +66,13 @@ export class WebGpuRenderer implements RendererLike {
   private readonly _overlay: Overlay2D;
   private readonly _staticPass: StaticLayerPass;
   private readonly _waterPass: WaterPass;
+  private readonly _particleBatch: ParticleBatch;
+  private readonly _weatherPass: WeatherPass;
+
+  /** When true (default), particles + weather render on the GPU (Wave 4). Set false to
+   *  use the 2D-overlay fallback (Wave 2 behaviour) — an A/B/safety toggle in case a GPU
+   *  effect misbehaves on a given device. Shadows + wash always use the overlay. */
+  useGpuEffects = true;
 
   // CPU-side atlas map: required for bakeStaticLayer/bakeWaterPattern (StaticLayerPass/WaterPass
   // expect a Map<string, LoadedAtlasImage>) AND for getAtlas() (must survive GPU upload).
@@ -103,6 +113,8 @@ export class WebGpuRenderer implements RendererLike {
     overlay: Overlay2D,
     staticPass: StaticLayerPass,
     waterPass: WaterPass,
+    particleBatch: ParticleBatch,
+    weatherPass: WeatherPass,
   ) {
     this.camera = camera;
     this.clearColor = EDG.black;
@@ -114,6 +126,8 @@ export class WebGpuRenderer implements RendererLike {
     this._overlay = overlay;
     this._staticPass = staticPass;
     this._waterPass = waterPass;
+    this._particleBatch = particleBatch;
+    this._weatherPass = weatherPass;
 
     // Log device loss and stop the draw loop gracefully.
     gpuCtx.device.lost.then((info: GPUDeviceLostInfo) => {
@@ -132,7 +146,11 @@ export class WebGpuRenderer implements RendererLike {
     const overlay = new Overlay2D(canvas);
     const staticPass = new StaticLayerPass(gpuCtx);
     const waterPass = new WaterPass(gpuCtx);
-    return new WebGpuRenderer(canvas, camera, gpuCtx, store, batch, overlay, staticPass, waterPass);
+    const particleBatch = new ParticleBatch(gpuCtx);
+    const weatherPass = new WeatherPass(gpuCtx);
+    return new WebGpuRenderer(
+      canvas, camera, gpuCtx, store, batch, overlay, staticPass, waterPass, particleBatch, weatherPass,
+    );
   }
 
   // ── RendererLike: atlas management ────────────────────────────────────────────
@@ -405,6 +423,20 @@ export class WebGpuRenderer implements RendererLike {
       }
     }
 
+    // ── Step 6c: GPU particles + weather (Wave 4) — in-pass, on top of sprites ─
+    // View bind group (group 0) is still set on the pass. Order matches Canvas2D:
+    // particles first, then the weather curtain over them.
+    if (this.useGpuEffects) {
+      if (particles && particles.count > 0) {
+        this._particleBatch.draw(pass, particles);
+      }
+      // Only RainField carries the GPU read API (weatherKind/forEach*). Any other
+      // WeatherLike falls back to the overlay path below.
+      if (weather instanceof RainField && weather.count > 0) {
+        this._weatherPass.draw(pass, weather);
+      }
+    }
+
     // ── Step 7: end GPU pass ──────────────────────────────────────────────────
     pass.end();
     this._gpuCtx.queue.submit([encoder.finish()]);
@@ -436,13 +468,13 @@ export class WebGpuRenderer implements RendererLike {
       overlayCtx.globalCompositeOperation = "source-over";
     }
 
-    // Particles (world space — transform already applied).
-    if (particles && particles.count > 0) {
-      particles.draw(overlayCtx);
-    }
-
-    // Weather curtain (world space, drawn after particles).
-    if (weather && weather.count > 0) {
+    // Particles + weather: overlay fallback, used ONLY when GPU effects are disabled
+    // (Wave 4 renders these in the GPU pass above). Also catches any non-RainField
+    // WeatherLike, which the GPU weather pass can't read. Kept for A/B + safety.
+    if (!this.useGpuEffects) {
+      if (particles && particles.count > 0) particles.draw(overlayCtx);
+      if (weather && weather.count > 0) weather.draw(overlayCtx);
+    } else if (weather && !(weather instanceof RainField) && weather.count > 0) {
       weather.draw(overlayCtx);
     }
 
