@@ -1,3 +1,4 @@
+/// <reference types="@webgpu/types" />
 // TODO(wave-2): implement WebGpuRenderer body (orchestrates all collaborators)
 // TODO(wave-1): collaborator stubs below are filled by Wave 1a–1e
 import type { Camera2D } from "../camera";
