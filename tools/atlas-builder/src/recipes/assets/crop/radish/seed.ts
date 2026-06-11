@@ -26,3 +26,4 @@ const recipe: PixelRecipe =
 ;
 
 export default recipe;
+

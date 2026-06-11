@@ -19,7 +19,9 @@ export type FixedRegionId =
   | 'heritage-statue'                 // decorative — no behavior
   | 'waterfall'                       // decorative — ANIMATED cascade, no behavior
   | 'camp'                            // rest away from home without the unrested penalty
-  | 'weather-station';                // decorative — antenna mast + beacon blink, no behavior
+  | 'weather-station'                 // decorative — antenna mast + beacon blink, no behavior
+  | 'volcano'                         // scenic — volcanic islet off Pip's farm, no behavior
+  | 'casino';                         // scenic — casino islet off the fishing isle, no behavior
 
 /** `farm-0` .. `farm-(EXTRA_FARM_COUNT-1)` on the radial outer rings. */
 export type ExtraFarmRegionId = `farm-${number}`;
@@ -83,6 +85,12 @@ const CAMP_BOUNDS           = { minX: 109, minY: 105, maxX: 116, maxY: 112 }; //
 // ≥6-tile gap to camp (north), ≥3-tile gap to farm-1 worst-case (NE).
 // Bridged north-to-south (vertical bridge) to camp.
 const WEATHER_STATION_BOUNDS = { minX: 109, minY: 119, maxX: 115, maxY: 125 }; // S (7×7)
+
+// Scenic landmark islets (8×8) in open ocean, each a dead-end leaf bridged to a single
+// neighbour so no agent traffic routes through them. Placement + bridges verified clean
+// (no region overlap, ≥2-tile landmark gap). See decisions.md / log.md.
+const VOLCANO_BOUNDS = { minX: 76, minY: 9, maxX: 83, maxY: 16 };    // N — bridged S to farm-pip
+const CASINO_BOUNDS  = { minX: 74, minY: 116, maxX: 81, maxY: 123 }; // S — bridged N to fishing-isle
 
 // 21 farms on two concentric rings (R=52 inner n=9, R=72 outer n=12).
 // Named farms are 12×12; procedural are 10×10. Min farm-farm gap 7, min cluster-farm gap 3.
@@ -184,6 +192,16 @@ export const WATERFALL_TILE = { x: 83, y: 59 } as const;
 /** Weather-station region id. */
 export const WEATHER_STATION_REGION_ID: RegionId = 'weather-station';
 
+/** Scenic islet region ids (render anchors for the volcano / casino sprites). */
+export const VOLCANO_REGION_ID: RegionId = 'volcano';
+export const CASINO_REGION_ID: RegionId = 'casino';
+
+/** Volcano crater tile — smoke-plume emit anchor (render-loop only). */
+export const VOLCANO_CRATER_TILE = { x: 80, y: 11 } as const;
+
+/** Casino tower crown tile — neon-glint emit anchor (render-loop only). */
+export const CASINO_NEON_TILE = { x: 76, y: 116 } as const;
+
 /** Antenna tip anchor tile (top-right of island). Render-loop only. */
 export const WEATHER_STATION_TILE = { x: 114, y: 119 } as const;
 
@@ -231,6 +249,8 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'waterfall', kind: 'village', bounds: WATERFALL_BOUNDS, center: midpoint(WATERFALL_BOUNDS) },
   { id: 'camp', kind: 'village', bounds: CAMP_BOUNDS, center: midpoint(CAMP_BOUNDS) },
   { id: 'weather-station', kind: 'landmark', bounds: WEATHER_STATION_BOUNDS, center: midpoint(WEATHER_STATION_BOUNDS) },
+  { id: 'volcano', kind: 'landmark', bounds: VOLCANO_BOUNDS, center: midpoint(VOLCANO_BOUNDS) },
+  { id: 'casino',  kind: 'landmark', bounds: CASINO_BOUNDS,  center: midpoint(CASINO_BOUNDS) },
   ...EXTRA_FARM_REGIONS,
 ];
 
@@ -261,6 +281,8 @@ const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
   ['quarry-south', 'harbor'],
   ['harbor', 'camp'],
   ['camp', 'weather-station'],
+  ['farm-pip', 'volcano'],       // scenic islet, dead-end leaf off Pip's farm
+  ['fishing-isle', 'casino'],    // scenic islet, dead-end leaf off the fishing isle
 ];
 
 const boundsOf = (id: RegionId) => {

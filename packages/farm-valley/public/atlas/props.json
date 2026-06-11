@@ -2,7 +2,7 @@
   "id": "props",
   "imageUrl": "/atlas/props.png",
   "width": 128,
-  "height": 128,
+  "height": 256,
   "frames": {
     "decoration/scarecrow": {
       "x": 1,
@@ -195,7 +195,25 @@
       "y": 69,
       "w": 32,
       "h": 16
+    },
+    "decoration/volcano": {
+      "x": 85,
+      "y": 69,
+      "w": 32,
+      "h": 32
+    },
+    "decoration/casino": {
+      "x": 1,
+      "y": 102,
+      "w": 32,
+      "h": 48
+    },
+    "decoration/casino-hotel": {
+      "x": 34,
+      "y": 102,
+      "w": 32,
+      "h": 32
     }
   },
-  "inputsHash": "411e8ec606d078d45c278fb01b79f2c98868b59b3a9bb6a6fdccbbdd3a476512"
+  "inputsHash": "9726ff93994e3a0c87e61578657722d311f553570aaa89a5b9457d1bd0419b58"
 }

@@ -17,6 +17,7 @@ import {
   BRIDGE_SET,
   CORAL_ALPHA,
   FISHING_STATICS,
+  CASINO_STATICS,
   isOccluderWall,
 } from "./geometry";
 import { SET_PIECES, SET_PIECE_ALPHA } from "./set-pieces";
@@ -69,6 +70,8 @@ function backdropFrame(tx: number, ty: number, season: Season = "spring"): strin
   if (region === "waterfall") return grassFrame;
   if (region === "camp") return grassFrame;
   if (region === "weather-station") return grassFrame;
+  if (region === "volcano") return "tile/volcanic-floor"; // reddish volcanic rock
+  if (region === "casino") return "tile/stone-floor";   // paved casino terrace
   if (region === "village") {
     if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&
         ty >= TOWN_SQUARE.minY && ty <= TOWN_SQUARE.maxY) {
@@ -175,7 +178,7 @@ export function* iterStaticSprites(
   // (pushBuildingSprites) so they y-sort against entities: a farmer behind a building is occluded
   // (and the player x-rays through), instead of being painted over the roof at the old layer 5.
 
-  for (const fs of FISHING_STATICS) {
+  for (const fs of [...FISHING_STATICS, ...CASINO_STATICS]) {
     const isBoat = fs.frame === "structure/boat";
     yield {
       x: fs.tx * TILE + TILE / 2,

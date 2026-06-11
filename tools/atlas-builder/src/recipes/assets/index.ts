@@ -202,6 +202,10 @@ import r197 from "./tile/waterfall-fall-c";
 import r198 from "./decoration/duck-a";
 import r199 from "./decoration/duck-b";
 import r200 from "./decoration/whale";
+import r201 from "./decoration/volcano";
+import r202 from "./decoration/casino";
+import r203 from "./decoration/casino-hotel";
+import r204 from "./tile/volcanic-floor";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -405,5 +409,9 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r198,
   r199,
   r200,
+  r201,
+  r202,
+  r203,
+  r204,
 ];
 

@@ -526,6 +526,13 @@ export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
   // Taller (hPx 48) building — rises upward into tile rows 120-122, within island bounds (minY 119).
   { frame: "structure/weather-station", baseTileX: 109, baseTileY: 122, wPx: 48, hPx: 48 },
   { frame: "structure/weather-antenna", baseTileX: 114, baseTileY: 122, wPx: 16, hPx: 64 },
+  // Scenic islets — bottom-anchored, y-sorting sprites scaled at integer multiples (crisp pixels).
+  // Sprites are structure-only (transparent margins) so the island floor + sand shore show around them.
+  // Volcano: 32px cone @3× (96px), centered on the 8×8 island (x76–83) — reddish floor shows at edges.
+  { frame: "decoration/volcano", baseTileX: 77, baseTileY: 16, wPx: 96, hPx: 96 },
+  // Casino island (x74–81): neon tower (32×48 @2× = 64×96) left, hotel (32×32 @2× = 64×64) right.
+  { frame: "decoration/casino", baseTileX: 74, baseTileY: 121, wPx: 64, hPx: 96 },
+  { frame: "decoration/casino-hotel", baseTileX: 78, baseTileY: 121, wPx: 64, hPx: 64 },
   // One baked 3D cottage per farm region, bottom-anchored at the SE corner the old home used
   // (maxX-1,maxY-1 in setup.ts). 32px (2 tiles) wide ⇒ baseTileX = maxX-2.
   ...REGIONS.filter((r) => r.kind === "farm").map(
@@ -555,5 +562,14 @@ export const FISHING_STATICS: readonly FishingStaticTile[] = (() => {
   }
   return out;
 })();
+
+/** Casino marina — decorative boats + buoy moored in the open water south of the casino islet
+ *  (region y-max 123). Purely visual; these tiles are ocean (non-walkable), no sim coupling. */
+export const CASINO_STATICS: readonly FishingStaticTile[] = [
+  { tx: 75, ty: 124, frame: "structure/boat" },
+  { tx: 77, ty: 125, frame: "structure/boat" },
+  { tx: 79, ty: 124, frame: "structure/boat" },
+  { tx: 81, ty: 124, frame: "decoration/buoy" },
+];
 
 export { CORAL_ALPHA };

@@ -48,6 +48,10 @@ function getDeepRows(): number[] {
   return deepRows;
 }
 
+// NOTE: the volcano + casino are now real walkable landmark *regions* (see world/regions.ts),
+// rendered as scaled, bottom-anchored, y-sorting sprites via BIG_STRUCTURES — not the render-only
+// corner sprites that used to live here.
+
 // Math.random in a small range.
 const rand = (min: number, max: number): number => min + Math.random() * (max - min);
 const pick = <T>(arr: T[]): T | null => (arr.length ? arr[(Math.random() * arr.length) | 0]! : null);
@@ -64,7 +68,7 @@ const DUCK_FORMATION = [          // trio: a leader + two trailing
   { x: 0, y: 0 }, { x: -7, y: -5 }, { x: -7, y: 5 },
 ];
 let flock: DuckFlock | null = null;
-let duckCooldown = 4; // seconds until the next flock may spawn
+let duckCooldown = 1.5; // seconds until the next flock may spawn
 
 function ease(p: number): number { return p * p * (3 - 2 * p); } // smoothstep
 
@@ -83,7 +87,7 @@ function updateDucks(
       (s) => s.x >= view.left - m && s.x <= view.right + m && s.y >= view.top - m && s.y <= view.bottom + m,
     );
     const spot = pick(inView.length ? inView : getShallowSpots());
-    if (spot === null) { duckCooldown = 6; return; }
+    if (spot === null) { duckCooldown = 2; return; }
     flock = { phase: "in", t: 0, landX: spot.x, landY: spot.y };
   }
 
@@ -104,7 +108,7 @@ function updateDucks(
     baseX = flock.landX + ease(p) * DUCK_FLY_DIST; // leave to the right
     baseY = flock.landY - ease(p) * DUCK_ALT;       // climb
     flying = true;
-    if (p >= 1) { flock = null; duckCooldown = rand(8, 22); return; }
+    if (p >= 1) { flock = null; duckCooldown = rand(2.5, 7); return; }
   }
 
   // Flying → bird flap frames (no swimming-duck-with-wings sprite); landed → duck paddle frames.

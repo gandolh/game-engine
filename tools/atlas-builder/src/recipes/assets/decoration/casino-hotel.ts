@@ -1,0 +1,42 @@
+import { type PixelRecipe } from "../../types";
+
+const recipe: PixelRecipe = {
+  name: "decoration/casino-hotel",
+  size: 32,
+  pixels: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "....PPPPPPPPPPPPPPPPPPPPPPPPP...",
+    "...SUUUUUUUUUUUUUUUUUUUUUUSSSk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...SsyysoosyysoosyysoosyysdSdk..",
+    "...SssssssssssssssssssssssSSSk..",
+    "...Siiiiiiiiiiiiiiiiiiiiiiiiik..",
+    "................................",
+  ],
+};
+
+export default recipe;

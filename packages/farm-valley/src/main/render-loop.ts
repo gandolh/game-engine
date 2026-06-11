@@ -2,7 +2,7 @@ import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler, RainField, expSmo
 import { EDG } from "@engine/core";
 import type { WeatherKind } from "@engine/core";
 import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
-import { WATERFALL_TILE, CAMPFIRE_TILE, isWalkable } from "@farm/sim-core/world/regions";
+import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SIZE } from "@farm/sim-core/systems/player-control";
@@ -102,12 +102,13 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
   };
 
-  // Cap render at 100fps (rAF fires at display rate, so this only lifts the ceiling on >60Hz
-  // displays); epsilon avoids dropping a
-  // frame that lands a hair early on a 60Hz vsync boundary.
-  const TARGET_FPS = 100;
-  const MIN_FRAME_MS = 1000 / TARGET_FPS - 1; // ~9ms; epsilon = 1ms
-  let lastRenderMs = performance.now() - MIN_FRAME_MS;
+  // UNCAPPED render loop, DECOUPLED from the display refresh (vsync): re-scheduled via setTimeout(…, 0)
+  // so it runs as fast as the loop allows rather than at the monitor's Hz (requestAnimationFrame would
+  // hard-cap at the refresh). Practical ceiling is the browser's nested-setTimeout clamp (~4ms ⇒ a few
+  // hundred fps) plus per-frame work. NOTE: the browser still composites the canvas at vsync, so frames
+  // beyond the refresh are computed but never shown — the fps/ms overlay counts them and input latency
+  // drops slightly, but motion isn't visibly smoother on a 60Hz panel, and it pegs CPU/GPU. (First
+  // frame is kicked off via rAF in main.ts.)
 
   const frameProfiler = new Profiler({ enabled: PROFILE_ENABLED });
   if (PROFILE_ENABLED) {
@@ -183,15 +184,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
   function renderFrame(): void {
     const frameStart = performance.now();
-
-    // Skip work if rAF fired before the frame interval (high-refresh display).
-    // dt is measured from the last rendered frame so interpolation is smooth.
-    if (frameStart - lastRenderMs < MIN_FRAME_MS) {
-      requestAnimationFrame(renderFrame);
-      return;
-    }
-    lastRenderMs = frameStart;
-
     const nowMs = frameStart;
     const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
     lastFrameMs = nowMs;
@@ -406,6 +398,49 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 1,
     });
 
+    // Volcano: a dark smoke plume drifting up from the crater. Render-only (Math.random + wall-clock,
+    // like the waterfall mist); gated to on-screen + throttled so the particle pool stays small.
+    {
+      const vX = VOLCANO_CRATER_TILE.x * TILE + TILE / 2;
+      const vY = VOLCANO_CRATER_TILE.y * TILE + TILE / 2;
+      const inView = vX >= viewLeft - TILE && vX <= viewRight + TILE && vY >= viewTop - TILE * 4 && vY <= viewBottom + TILE;
+      if (inView && Math.random() < 0.6) {
+        particles.emit({
+          x: vX + (Math.random() - 0.5) * TILE * 0.7,
+          y: vY,
+          count: 1, shape: "circle",
+          color: EDG.steel, color2: EDG.slate, // grey volcanic smoke
+          speedMin: 6, speedMax: 16,
+          angleMin: -Math.PI * 0.62, angleMax: -Math.PI * 0.38, // rise, slight drift
+          lifetimeMin: 1.6, lifetimeMax: 2.8,
+          sizeMin: 1.2, sizeMax: 2.6,
+          gravity: -10, // billows upward, then fades
+        });
+      }
+    }
+
+    // Casino: neon glints sparkling off the tower crown. Render-only; gated to on-screen + throttled.
+    {
+      const cX = CASINO_NEON_TILE.x * TILE + TILE / 2;
+      const cY = CASINO_NEON_TILE.y * TILE + TILE / 2;
+      const inView = cX >= viewLeft - TILE && cX <= viewRight + TILE && cY >= viewTop - TILE && cY <= viewBottom + TILE;
+      if (inView && Math.random() < 0.5) {
+        const neon = [EDG.cyan, EDG.hotPink, EDG.gold, EDG.mauve];
+        const color = neon[(Math.random() * neon.length) | 0]!;
+        particles.emit({
+          x: cX + (Math.random() - 0.5) * TILE * 2.5,
+          y: cY + (Math.random() - 0.5) * TILE * 1.5,
+          count: 1, shape: "star",
+          color, color2: EDG.white,
+          speedMin: 2, speedMax: 8,
+          angleMin: 0, angleMax: Math.PI * 2, // twinkle outward in any direction
+          lifetimeMin: 0.3, lifetimeMax: 0.7,
+          sizeMin: 0.6, sizeMax: 1.4,
+          gravity: 0,
+        });
+      }
+    }
+
     const farmerPositions = new Map<number, { x: number; y: number }>();
     for (const s of interpolatedSprites) {
       if (s.id !== null && s.interpolate) {
@@ -609,7 +644,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
 
-    requestAnimationFrame(renderFrame);
+    // Uncapped: schedule the next frame ASAP (no fps target). Browsers clamp nested setTimeout to ~4ms.
+    setTimeout(renderFrame, 0);
   }
 
   return renderFrame;

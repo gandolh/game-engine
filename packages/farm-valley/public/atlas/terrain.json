@@ -262,12 +262,18 @@
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/volcanic-floor": {
       "x": 18,
+      "y": 103,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 35,
       "y": 103,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "84179df229701b47b3bfb14d845d8f58f58899a7127b072cd63177189322daae"
+  "inputsHash": "ead1c0543175ed09286ab41ec49d00b1a0bad75e54f000b4bd39afbde08f808c"
 }

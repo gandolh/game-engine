@@ -1,0 +1,42 @@
+import { type PixelRecipe } from "../../types";
+
+const recipe: PixelRecipe = {
+  name: "decoration/volcano",
+  size: 32,
+  pixels: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............kkkkkkkk............",
+    "............kRRRRRRk............",
+    "...........mfffRRfffx...........",
+    "...........mmHHffrxxx...........",
+    "..........mmddddfdrxxx..........",
+    "..........mmddddddrxxx..........",
+    "..........mmHHrrrrrxxx..........",
+    ".........mmddddddddrxxx.........",
+    ".........mmddddddddrxxx.........",
+    "........mmHHddddddddrxxx........",
+    "........mmrrrrrrrrrrrxxx........",
+    "........mmddddddddddrxxx........",
+    ".......mmHHddddddddddrxxx.......",
+    ".......mmddddddddddddrxxx.......",
+    "......mmrrrrrrrrrrrrrrrxxx......",
+    "......mmHHddddddddddddrxxx......",
+    "......mmddddddddddddddrxxx......",
+    ".....mmddddddddddddddddrxxx.....",
+    ".....mmHHrrrrrrrrrrrrrrrxxx.....",
+    "....mmddddddddddddddddddrxxx....",
+    "....mmddddddddddddddddddrxxx....",
+    "....mmHHddddddddddddddddrxxx....",
+    "...mmrrrrrrrrrrrrrrrrrrrrrxxx...",
+    "...mmddddddddddddddddddddrxxx...",
+    "..mmHHddddddddddddddddddddrxxx..",
+    "..MMMMMMMMMMMMMMMMMMMMMMMMMMMM..",
+    "................................",
+  ],
+};
+
+export default recipe;
