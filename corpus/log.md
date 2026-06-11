@@ -2,6 +2,17 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] done | Brief 75 shipped — principled economy model + crop re-tune
+
+Implemented [75-economy-rebalance-formula](briefs/game/done/75-economy-rebalance-formula.md). **⚠️ Sim-outcome baseline MOVED by design** (reproducibility re-verified REPRODUCIBLE ×3 at the new baseline; recorded run-descriptor URLs replay differently now).
+
+- **Deliverable: [wiki/economy.md](wiki/economy.md)** — the model the constants now derive from. Unit = **1 AP = one basic-labour action**; crop score `g_c = (2·P_c − S_c)/(G_c + 2)` gold-per-AP (yield is 2 units/plot per [harvest.ts](../packages/sim-core/src/systems/harvest.ts):80; growth only advances on watered days so waters ≈ grow-days, rain a flat discount). `P_c` = `CROP_SELL_PRICE` (net-worth basis); `SHOP_BUY_PRICE` is a separate ~64% liquidation channel; harbor auto-follows `CROP_SELL_PRICE`.
+- **Finding:** the *real* current crop g/AP spread was **2.64×** (radish 2.75 dead-weight → grape 7.27 dominant), not the naïve 3.6× — the fixed seed cost amortizes over the 2-unit yield. So the re-tune is a **small** change.
+- **Target shape B (mild gradient):** compressed to **1.59×** (radish 3.25 → grape 5.18), monotonic-by-tier. `CROP_SELL_PRICE`: radish 8→9, carrot 11→12, wheat 14→15, tomato 20, winter-squash 22→21, corn 26→25, pumpkin 35→30, grape 50→38. `SEED_COST`: corn 12→13, grape 20→19, winter-squash 9→11 (rest unchanged). `SHOP_BUY_PRICE` re-scaled to uniform ~64% (also synced into [shop-slate.ts](../packages/sim-core/src/agents/shop-slate.ts) `DEFAULT_PRICES`, which hardcodes its own copy).
+- **Not re-tuned (scored, intentional shape):** AP table / `AP_BASE_MAX`=100 / growth=2 (the AP table *defines* the unit); `startGold`/reserves (personality spread is character, brief 70; seed costs ≈ unchanged so day-1 affordability holds); livestock/fruit (a separate capital loop — richer per-AP by design; out of scope, flagged for a future pass). `AUCTION_RESERVE_PRICE`=50 / golden-bean ×3 unchanged (aspirational collectible above top crop).
+- **Probes (WASM, ticks=20):** reproducibility self-diff 3 seeds × 3 days = byte-identical ×3. Arc probe 3 seeds × 20 days: leaders grow 2.9–4.5×; top race tight (leader/2nd 1.00 / 1.41 / 1.01 — no runaway); field distributes (leader/median 1.3–2.5); different personalities win per seed. No flattening, no runaway, no day-1 buyout. AP/reserve behaviour unchanged from brief 70 (those axes untouched).
+- Fixtures updated: shopkeeper / shop-slate / aggressive / hoarder / opportunist / encounter-trade tests (shop-price thresholds + changed seed costs). typecheck clean; 647/647 sim-core tests pass.
+
 ## [2026-06-11] done | Brief 76 shipped — loading screen covers the boot flash
 
 Implemented [76-loading-screen](briefs/game/done/76-loading-screen.md). Strictly main-thread UI/boot — no worker/sim/seeded file touched, so `npm run sim` is byte-identical by construction (not re-run).

@@ -81,8 +81,8 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // radish buy price = 5/unit; 4 units → +20 gold, -4 radish
-    expect(farmer.inventory!.gold).toBe(20);
+    // radish buy price = 6/unit; 4 units → +24 gold, -4 radish
+    expect(farmer.inventory!.gold).toBe(24);
     expect(farmer.inventory!.crops.radish).toBe(0);
 
     bus.flush();
@@ -91,7 +91,7 @@ describe("ShopkeeperSystem", () => {
     expect(confirms[0]!.recipient).toBe(farmer.id);
     const body = confirms[0]!.body as { ok: boolean; goldDelta: number; itemDelta: { crop: string; quantity: number } };
     expect(body.ok).toBe(true);
-    expect(body.goldDelta).toBe(20);
+    expect(body.goldDelta).toBe(24);
     expect(body.itemDelta).toEqual({ crop: "radish", quantity: -4 });
   });
 
@@ -109,7 +109,7 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // wheat 8*3 = 24, pumpkin 22*2 = 44, total = 68
+    // wheat 10*3 = 30, pumpkin 19*2 = 38, total = 68
     expect(farmer.inventory!.gold).toBe(68);
     expect(farmer.inventory!.crops.wheat).toBe(0);
     expect(farmer.inventory!.crops.pumpkin).toBe(0);

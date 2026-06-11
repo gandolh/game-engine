@@ -8,14 +8,14 @@ export const ZERO_CROPS: Record<CropKind, number> = {
 
 /** Authoritative sell price per Normal-quality crop unit. ActSystem pays it out; agents use it for peer/shop reference. Quality multipliers apply on top. */
 export const CROP_SELL_PRICE: Record<CropKind, number> = {
-  radish:       8,
-  wheat:        14,
-  carrot:       11,
+  radish:       9,
+  wheat:        15,
+  carrot:       12,
   tomato:       20,
-  corn:         26,
-  pumpkin:      35,
-  grape:        50,
-  "winter-squash": 22,
+  corn:         25,
+  pumpkin:      30,
+  grape:        38,
+  "winter-squash": 21,
 };
 
 /** Seed purchase cost per crop. */
@@ -24,10 +24,10 @@ export const SEED_COST: Record<CropKind, number> = {
   wheat:        8,
   carrot:       6,
   tomato:       10,
-  corn:         12,
+  corn:         13,
   pumpkin:      15,
-  grape:        20,
-  "winter-squash": 9,
+  grape:        19,
+  "winter-squash": 11,
 };
 
 /** Days from planting until a crop is harvest-ready (in its native season). */

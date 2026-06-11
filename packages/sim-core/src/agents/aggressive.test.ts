@@ -77,7 +77,7 @@ describe("deliberateAggressive", () => {
     expect(post).toBeDefined();
     expect(post!.data["crop"]).toBe("pumpkin");
     expect(post!.data["quantity"]).toBe(5);
-    expect(post!.data["pricePerUnit"]).toBe(35);
+    expect(post!.data["pricePerUnit"]).toBe(30);
   });
 
   it("does not post on odd days", () => {
@@ -93,7 +93,7 @@ describe("deliberateAggressive", () => {
       sellerId: 99,
       crop: "wheat",
       quantity: 2,
-      pricePerUnit: 5, // shop=14; 90% threshold=12.6 → this is below
+      pricePerUnit: 5, // shop=15; 90% threshold=13.5 → this is below
       postedDay: 0,
     };
     const fair: MarketOffer = {
@@ -101,7 +101,7 @@ describe("deliberateAggressive", () => {
       sellerId: 98,
       crop: "wheat",
       quantity: 2,
-      pricePerUnit: 13,
+      pricePerUnit: 14, // above 13.5 threshold → not bought
       postedDay: 0,
     };
     const f = makeFarmer({ day: 2, gold: 1000, offers: [cheap, fair] });

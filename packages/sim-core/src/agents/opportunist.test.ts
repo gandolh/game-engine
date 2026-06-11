@@ -105,9 +105,9 @@ describe("deliberateOpportunist", () => {
     expect(buys[0]!.data["offerId"]).toBe("hi-trust");
   });
 
-  it("ignores offers priced above 110% of shop price (wheat shop=14, ceiling=15.4; 16 rejected)", () => {
+  it("ignores offers priced above 110% of shop price (wheat shop=15, ceiling=16.5; 17 rejected)", () => {
     const offers: MarketOffer[] = [
-      { offerId: "too-pricey", sellerId: 5, crop: "wheat", quantity: 1, pricePerUnit: 16, postedDay: 0 },
+      { offerId: "too-pricey", sellerId: 5, crop: "wheat", quantity: 1, pricePerUnit: 17, postedDay: 0 },
     ];
     const f = makeFarmer({ gold: 500, offers });
     deliberateOpportunist(f, { tick: 0 });

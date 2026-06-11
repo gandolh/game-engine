@@ -2,14 +2,14 @@ import type { CropKind } from "../../components";
 
 /** Price the shopkeeper PAYS to buy crops from farmers. */
 export const SHOP_BUY_PRICE: Record<CropKind, number> = {
-  radish:          5,
-  wheat:           8,
-  carrot:          7,
+  radish:          6,
+  wheat:           10,
+  carrot:          8,
   tomato:          13,
-  corn:            17,
-  pumpkin:         22,
-  grape:           32,
-  "winter-squash": 14,
+  corn:            16,
+  pumpkin:         19,
+  grape:           24,
+  "winter-squash": 13,
 };
 
 /** Seeds the shop can sell. golden_bean excluded (auction-only); gates "unknown seed" rejection before slate lookup. */

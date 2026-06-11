@@ -15,6 +15,7 @@ Catalog of everything in this corpus. Start here.
 - [wiki/world-generation.md](wiki/world-generation.md) — the rect-based archipelago model, the procedural southern farm band (21-farmer scale), and the ranked menu for more organic generation
 - [wiki/decisions.md](wiki/decisions.md) — locked tech choices
 - [wiki/performance.md](wiki/performance.md) — optimization opportunities filtered against actual code; what's already done; what's not worth doing at current scale
+- [wiki/economy.md](wiki/economy.md) — the prices ↔ AP ↔ initial-gold model (1 AP = one basic-labour action; crop g/AP formula + scoring table); the basis for any balance re-tune (brief 75)
 - [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — the bake principle, asset-cooking/caching research (cache keys, deterministic PNG, incremental per-sheet builds), atlas best practice for a Canvas2D pixel-art game; feeds brief 71
 - [wiki/system-ordering.md](wiki/system-ordering.md) — why each system in `bootstrapSim` is registered in its position; inbox lifecycle; cross-cutting ordering invariants
 - [wiki/status.md](wiki/status.md) — what's done, what's open (brief-by-brief, current state)

@@ -464,7 +464,7 @@ describe("EncounterTradeSystem", () => {
     it("MEET → OFFER_CROP → ACCEPT transfers crops + gold and bumps trust both ways", () => {
       // Hannah (hoarder, low id) holds a wheat-crop surplus → initiates a CROP
       // sell to Otto (opportunist, crop buyer). Hannah sells 2 wheat @ 0.95×
-      // CROP_SELL_PRICE.wheat (14) = 13.3 → Otto's crop ceiling 1.0×14=14 → accept.
+      // CROP_SELL_PRICE.wheat (15) = 14.25 → Otto's crop ceiling 1.0×15=15 → accept.
       const hannah = spawnFarmer(world, {
         personality: "hoarder",
         gold: 200,
@@ -481,11 +481,11 @@ describe("EncounterTradeSystem", () => {
       encounter.run({ tick: 1 });
       trade.run({ tick: 1 });
 
-      // 2 wheat @ 13.3 = 26.6 gold.
+      // 2 wheat @ 14.25 = 28.5 gold.
       expect(hannah.inventory!.crops.wheat).toBe(4);
       expect(otto.inventory!.crops.wheat).toBe(2);
-      expect(hannah.inventory!.gold).toBeCloseTo(226.6, 5);
-      expect(otto.inventory!.gold).toBeCloseTo(173.4, 5);
+      expect(hannah.inventory!.gold).toBeCloseTo(228.5, 5);
+      expect(otto.inventory!.gold).toBeCloseTo(171.5, 5);
 
       // Trust flows both ways: Otto (acceptor) → Hannah on accept; Hannah
       // (initiator) → Otto when TrustSystem snoops the ACCEPT (not run here),

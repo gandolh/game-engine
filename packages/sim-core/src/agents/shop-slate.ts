@@ -24,14 +24,14 @@ export interface PriceTable {
 
 /** Baseline prices: shop buys crops at SHOP_BUY_PRICE (shopkeeper.ts); sells seeds at SEED_COST (economy.ts). */
 export const DEFAULT_PRICES: PriceTable = {
-  radish:          { buy: 5,  sell: 5  },
-  wheat:           { buy: 8,  sell: 8  },
-  carrot:          { buy: 7,  sell: 6  },
+  radish:          { buy: 6,  sell: 5  },
+  wheat:           { buy: 10, sell: 8  },
+  carrot:          { buy: 8,  sell: 6  },
   tomato:          { buy: 13, sell: 10 },
-  corn:            { buy: 17, sell: 12 },
-  pumpkin:         { buy: 22, sell: 15 },
-  grape:           { buy: 32, sell: 20 },
-  "winter-squash": { buy: 14, sell: 9  },
+  corn:            { buy: 16, sell: 13 },
+  pumpkin:         { buy: 19, sell: 15 },
+  grape:           { buy: 24, sell: 19 },
+  "winter-squash": { buy: 13, sell: 11 },
 };
 
 export const SLATE_SIZE = 5;

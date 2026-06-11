@@ -77,10 +77,10 @@ describe("deliberateHoarder", () => {
     expect(buy!.data["crop"]).toBe("radish");
   });
 
-  it("buys radish offers from market wall up to 105% of shop price (shop=8, ceiling=8.4)", () => {
+  it("buys radish offers from market wall up to 105% of shop price (shop=9, ceiling=9.45)", () => {
     const offers: MarketOffer[] = [
-      { offerId: "ok", sellerId: 5, crop: "radish", quantity: 2, pricePerUnit: 8, postedDay: 0 },
-      { offerId: "too-pricey", sellerId: 6, crop: "radish", quantity: 2, pricePerUnit: 9, postedDay: 0 },
+      { offerId: "ok", sellerId: 5, crop: "radish", quantity: 2, pricePerUnit: 9, postedDay: 0 },
+      { offerId: "too-pricey", sellerId: 6, crop: "radish", quantity: 2, pricePerUnit: 10, postedDay: 0 },
     ];
     const f = makeFarmer({ gold: 500, offers, day: 1 });
     deliberateHoarder(f, { tick: 0 });
