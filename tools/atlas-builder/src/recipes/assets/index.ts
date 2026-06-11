@@ -195,6 +195,7 @@ import r190 from "./tool/can";
 import r191 from "./tool/hoe";
 import r192 from "./tool/axe";
 import r193 from "./tool/pickaxe";
+import r194 from "./structure/bush";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -391,5 +392,6 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r191,
   r192,
   r193,
+  r194,
 ];
 

@@ -1,6 +1,7 @@
 import { World } from "@engine/core";
 import type { GameEntity, CropKind, FarmerFsmState, Tool } from "./components";
 import { zeroFish } from "./components";
+import { defaultItemSlots } from "./systems/player-control/items";
 import { setupRegions } from "./world/region-setup";
 import type { RegionId } from "./world/regions";
 
@@ -64,6 +65,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
             pendingAction: false,
             selectedSlot: 0,
             pendingActionTile: null,
+            itemSlots: defaultItemSlots(),
           },
         }
       : {}),

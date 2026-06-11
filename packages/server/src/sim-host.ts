@@ -68,6 +68,7 @@ export class SimHost {
         actionTile: { x: number; y: number } | null,
       ) => void)
     | null = null;
+  private applySwapSlots: ((a: number, b: number) => void) | null = null;
 
   private ticksPerDay = 1200;
 
@@ -99,6 +100,9 @@ export class SimHost {
         return;
       case "input":
         this.applyInput?.(msg.moveX, msg.moveY, msg.action, msg.selectSlot, msg.actionTile ?? null);
+        return;
+      case "swap-slots":
+        this.applySwapSlots?.(msg.a, msg.b);
         return;
       case "skipToHighlight":
         this.pendingSkipToHighlight = true;
@@ -159,6 +163,18 @@ export class SimHost {
         if (action) e.player!.pendingAction = true;
         if (selectSlot !== null) e.player!.selectedSlot = selectSlot;
         e.player!.pendingActionTile = actionTile;
+        break; // single player entity
+      }
+    };
+
+    this.applySwapSlots = (a, b) => {
+      for (const e of world.query("player")) {
+        const slots = e.player!.itemSlots;
+        if (!slots) break;
+        if (a < 0 || b < 0 || a >= slots.length || b >= slots.length) break;
+        const tmp = slots[a]!;
+        slots[a] = slots[b]!;
+        slots[b] = tmp;
         break; // single player entity
       }
     };

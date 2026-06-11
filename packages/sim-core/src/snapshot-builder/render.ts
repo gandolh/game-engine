@@ -13,7 +13,7 @@ import { leaderboard } from "../sim-bootstrap";
 import { seasonForDay } from "../protocols";
 import { summarizeRun } from "../run-recap";
 
-import { buildSprites, buildPlayerHotbar, SnapshotSpriteState } from "./sprites";
+import { buildSprites, buildPlayerHotbar, buildPlayerInventory, SnapshotSpriteState } from "./sprites";
 import { buildMeets, buildEvents } from "./events";
 import { buildObserverSnapshot, countEntities } from "./observer";
 import {
@@ -62,7 +62,8 @@ export function buildRenderSnapshot(
   const recap = gameOver && finalSummary !== null
     ? summarizeRun(runHistoryRows, eventFeed.recent(), finalSummary, rivalries)
     : null;
-  const playerHotbar = buildPlayerHotbar(world);
+  const playerInventory = buildPlayerInventory(world);
+  const playerHotbar = buildPlayerHotbar(playerInventory);
 
   const station = (() => {
     for (const w of world.query("weatherStation")) return w.weatherStation;
@@ -103,6 +104,7 @@ export function buildRenderSnapshot(
     finalSummary,
     recap,
     playerHotbar,
+    playerInventory,
     relationships,
     rivalries,
     wealthSeries,

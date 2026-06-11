@@ -388,60 +388,66 @@
       "w": 32,
       "h": 48
     },
-    "structure/tavern": {
+    "structure/bush": {
       "x": 67,
       "y": 283,
       "w": 16,
       "h": 16
     },
-    "structure/coop": {
+    "structure/tavern": {
       "x": 84,
       "y": 283,
       "w": 16,
       "h": 16
     },
-    "structure/barn": {
+    "structure/coop": {
       "x": 101,
       "y": 283,
       "w": 16,
       "h": 16
     },
-    "structure/greenhouse": {
+    "structure/barn": {
       "x": 1,
       "y": 332,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-sapling": {
+    "structure/greenhouse": {
       "x": 18,
       "y": 332,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-growing": {
+    "structure/fruit-tree-sapling": {
       "x": 35,
       "y": 332,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-mature": {
+    "structure/fruit-tree-growing": {
       "x": 52,
       "y": 332,
       "w": 16,
       "h": 16
     },
-    "structure/dock": {
+    "structure/fruit-tree-mature": {
       "x": 69,
       "y": 332,
       "w": 16,
       "h": 16
     },
-    "structure/cargo-ship": {
+    "structure/dock": {
       "x": 86,
+      "y": 332,
+      "w": 16,
+      "h": 16
+    },
+    "structure/cargo-ship": {
+      "x": 103,
       "y": 332,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "079083304c75772294dd8145c8739078216a0a2c7d54f47f35f142999a6dd156"
+  "inputsHash": "e89e55402bc6a6b4e6344a8425b96468010997ce8507397bae5c42760c272dbf"
 }

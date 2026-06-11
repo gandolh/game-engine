@@ -7,6 +7,7 @@ import {
   SlateBillboardPanel,
   PlaybackControlsPanel,
   HotbarPanel,
+  InventoryPanel,
   EventFeedPanel,
   createRightColumn,
   WorldClockPanel,
@@ -24,6 +25,7 @@ export interface Panels {
   eventFeedPanel: EventFeedPanel;
   playback: PlaybackControlsPanel;
   hotbar: HotbarPanel;
+  inventory: InventoryPanel;
   gameOverPanel: GameOverPanel;
   relationshipMatrix: RelationshipMatrixPanel;
   wealthGraph: WealthGraphPanel;
@@ -45,6 +47,7 @@ export function buildPanels(app: HTMLElement): Panels {
   const relationshipMatrix = new RelationshipMatrixPanel(rightColumn);
   const wealthGraph = new WealthGraphPanel(rightColumn);
   const hotbar = new HotbarPanel(app);
+  const inventory = new InventoryPanel(app);
   const gameOverPanel = createGameOverPanel(app);
   return {
     overlay,
@@ -55,6 +58,7 @@ export function buildPanels(app: HTMLElement): Panels {
     eventFeedPanel,
     playback,
     hotbar,
+    inventory,
     gameOverPanel,
     relationshipMatrix,
     wealthGraph,

@@ -9,6 +9,7 @@ import { isWithinReach } from "../../proximity";
 import { REGIONS } from "../../../world/regions";
 import { seasonForDay } from "../../../protocols/weather";
 import { FORAGE_ZONES, STONE_IRON_CHANCE, STONE_GEODE_CHANCE } from "../constants";
+import { pickWeightedSeed, TREE_SEED_CHANCE } from "../seed-drops";
 import type { ActingFarmer } from "../types";
 
 export function handleChopTree(
@@ -16,6 +17,7 @@ export function handleChopTree(
   intent: Intention,
   featuresByTile: Map<string, GameEntity>,
   world: World<GameEntity>,
+  forageRng: Rng,
 ): void {
   if (farmer.id === undefined) return;
   const axe = (farmer.inventory.tools ?? []).find(t => t.kind === "axe" && t.durability > 0);
@@ -27,6 +29,11 @@ export function handleChopTree(
   if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") return;
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
   farmer.resources.wood += 2;
+  // Occasional seed bonus shaken loose from the canopy. Always draw (even when it
+  // misses) so the forked rng stream advances deterministically per chop.
+  if (forageRng.nextFloat() < TREE_SEED_CHANCE) {
+    farmer.inventory.seeds[pickWeightedSeed(forageRng)] += 1;
+  }
   world.despawn(feat);
   featuresByTile.delete(`${tileX},${tileY}`);
   axe.durability -= 1;
@@ -34,6 +41,29 @@ export function handleChopTree(
     const idx = (farmer.inventory.tools ?? []).indexOf(axe);
     if (idx >= 0) farmer.inventory.tools!.splice(idx, 1);
   }
+}
+
+/**
+ * Forage a berry-bush: no tool required, despawns the bush and grants one random
+ * (rarity-weighted) seed plus foraging XP. Pip and AI both route here.
+ */
+export function handleGatherBush(
+  farmer: ActingFarmer,
+  intent: Intention,
+  featuresByTile: Map<string, GameEntity>,
+  world: World<GameEntity>,
+  forageRng: Rng,
+): void {
+  if (farmer.id === undefined) return;
+  const tileX = intent.data.tileX as number;
+  const tileY = intent.data.tileY as number;
+  if (!isWithinReach(farmer.transform, tileX, tileY)) return;
+  const feat = featuresByTile.get(`${tileX},${tileY}`);
+  if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "bush") return;
+  farmer.inventory.seeds[pickWeightedSeed(forageRng)] += 1;
+  grantSkillXp(farmer, "foraging", 1);
+  world.despawn(feat);
+  featuresByTile.delete(`${tileX},${tileY}`);
 }
 
 export function handleMineStone(

@@ -6,9 +6,10 @@
 // Consumers needing tile index: Math.round(transform.x/y).
 
 import type { SimContext, System, World, Intention } from "@engine/core";
-import type { GameEntity } from "../../components";
+import type { GameEntity, ItemRef } from "../../components";
 import { regionAt, isWalkable, isFishingIsle, type RegionId } from "../../world/regions";
-import { DIR_DELTA, PLAYER_STEP_TICKS, HOTBAR_SLOTS, type HotbarSlot } from "./hotbar";
+import { DIR_DELTA, PLAYER_STEP_TICKS } from "./hotbar";
+import { defaultItemSlots, syncItemSlots } from "./items";
 
 /** Pip's movement speed: 1/PLAYER_STEP_TICKS tiles/tick. Exported for tests. */
 export const PLAYER_SPEED = 1 / PLAYER_STEP_TICKS;
@@ -28,6 +29,11 @@ export class PlayerControlSystem implements System {
 
       farmer.movedThisTick = false;
       farmer.renderPos = undefined; // transform IS the position; no residual renderPos needed
+
+      // Keep the item-grid layout in sync with current holdings (lazily seeded). Player-only
+      // and never read by AI/economy systems, so determinism is unaffected.
+      if (player.itemSlots === undefined) player.itemSlots = defaultItemSlots();
+      if (entity.inventory) syncItemSlots(player.itemSlots, entity.inventory, entity.resources);
 
       const mx = player.pendingMoveX;
       const my = player.pendingMoveY;
@@ -90,8 +96,11 @@ export class PlayerControlSystem implements System {
           ty = Math.round(transform.y) + dy;
         }
 
-        const slot = HOTBAR_SLOTS[player.selectedSlot];
-        const intent = slot ? this.slotIntent(entity, slot, tx, ty) : null;
+        // A berry-bush is foraged by hand — collect it on any click, whatever slot is held.
+        const ref = player.itemSlots[player.selectedSlot] ?? null;
+        const intent = this.bushAt(tx, ty)
+          ? { kind: "gather-bush", data: { tileX: tx, tileY: ty }, priority: 0 }
+          : ref ? this.refIntent(entity, ref, tx, ty) : null;
         if (intent !== null) {
           entity.intentions!.queue = [intent];
           entity.fsm!.current = "ACT";
@@ -141,22 +150,23 @@ export class PlayerControlSystem implements System {
     return { x, y };
   }
 
-  /** Build the intention for the selected hotbar slot on the faced tile, or null. */
-  private slotIntent(
+  /** Build the intention for the selected item on the faced tile, or null.
+   *  Only tools and seeds dispatch a field action; held crops/fish/resources are inert. */
+  private refIntent(
     entity: GameEntity,
-    slot: HotbarSlot,
+    ref: ItemRef,
     tx: number,
     ty: number,
   ): Intention | null {
-    if (slot.kind === "tool") {
-      switch (slot.tool) {
+    if (ref.kind === "tool") {
+      switch (ref.tool) {
         case "axe":
         case "pickaxe": {
-          const wantKind = slot.tool === "axe" ? "tree" : "stone";
+          const wantKind = ref.tool === "axe" ? "tree" : "stone";
           for (const f of this.world.query("tileFeature")) {
             if (f.tileFeature.tileX !== tx || f.tileFeature.tileY !== ty) continue;
             if (f.tileFeature.kind !== wantKind) return null;
-            const kind = slot.tool === "axe" ? "chop-tree" : "mine-stone";
+            const kind = ref.tool === "axe" ? "chop-tree" : "mine-stone";
             return { kind, data: { tileX: tx, tileY: ty }, priority: 0 };
           }
           return null;
@@ -192,14 +202,25 @@ export class PlayerControlSystem implements System {
       }
     }
 
+    if (ref.kind !== "seed") return null; // held crops/fish/resources are not actionable
     const plot = this.ownedPlotAt(entity, tx, ty); // seed slot: plant on empty owned plot
-    if (plot && plot.state.kind !== "planted" && (entity.inventory?.seeds[slot.crop] ?? 0) > 0) {
-      return { kind: "plant", data: { crop: slot.crop, tileX: tx, tileY: ty }, priority: 0 };
+    if (plot && plot.state.kind !== "planted" && (entity.inventory?.seeds[ref.crop] ?? 0) > 0) {
+      return { kind: "plant", data: { crop: ref.crop, tileX: tx, tileY: ty }, priority: 0 };
     }
     return null;
   }
 
-  /** True if a tileFeature (tree/stone) or solid obstacle occupies the tile. */
+  /** True if a forageable berry-bush occupies the tile. */
+  private bushAt(tx: number, ty: number): boolean {
+    for (const f of this.world.query("tileFeature")) {
+      if (f.tileFeature.tileX === tx && f.tileFeature.tileY === ty) {
+        return f.tileFeature.kind === "bush";
+      }
+    }
+    return false;
+  }
+
+  /** True if a tileFeature (tree/stone/bush) or solid obstacle occupies the tile. */
   private featureAt(tx: number, ty: number): boolean {
     for (const f of this.world.query("tileFeature")) {
       if (f.tileFeature.tileX === tx && f.tileFeature.tileY === ty) return true;

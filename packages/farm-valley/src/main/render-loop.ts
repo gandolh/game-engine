@@ -1,11 +1,11 @@
 import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind } from "@engine/core";
-import { pushSnapshotSprites, pushOccluderSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
 import { WATERFALL_TILE, CAMPFIRE_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
-import { HOTBAR_SLOTS } from "@farm/sim-core/systems/player-control";
+import { HOTBAR_SIZE } from "@farm/sim-core/systems/player-control";
 import { TILE, PROFILE_ENABLED } from "./config";
 import {
   focusedFarmerId,
@@ -58,9 +58,15 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   let firstFrameSignaled = false;
   const {
     overlay, worldClock, observer, leaderboardPanel,
-    slateBillboard, eventFeedPanel, hotbar, gameOverPanel, relationshipMatrix,
+    slateBillboard, eventFeedPanel, hotbar, inventory, gameOverPanel, relationshipMatrix,
     wealthGraph,
   } = panels;
+
+  // Inventory drag-drop: a swap is a layout change owned by the sim. Only the run owner
+  // may mutate Pip's grid (spectators can open the panel to look, not rearrange).
+  inventory.onSwap = (from, to) => {
+    if (client.owner) client.swapSlots(from, to);
+  };
 
   let lastFrameMs = performance.now();
   let gameOverShown = false;
@@ -160,7 +166,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
   function applyToolCursor(): void {
     const snap = client.playerHotbar;
-    const slot = snap ? HOTBAR_SLOTS[snap.selected] : undefined;
+    const slot = snap ? snap.slots[snap.selected] : undefined;
     const frame = slot?.frame;
     const key = frame ?? "default";
     if (key === lastCursorKey) return;
@@ -322,6 +328,44 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 1,
     });
 
+    // Waterfall mist/spray at the foot of the falling water — fine droplets that arc back down plus a
+    // faint rising mist. Render-only (Math.random, display-only); gated to on-screen + throttled so the
+    // particle pool stays small. Ties the waterfall into the pseudo-3D splash language.
+    {
+      const wfX = WATERFALL_TILE.x * TILE + TILE / 2;
+      const wfFootY = (WATERFALL_TILE.y + 1) * TILE;
+      const wfInView =
+        wfX >= viewLeft && wfX <= viewRight && wfFootY >= viewTop && wfFootY <= viewBottom;
+      if (wfInView) {
+        if (Math.random() < 0.5) {
+          particles.emit({
+            x: wfX + (Math.random() - 0.5) * TILE * 0.8,
+            y: wfFootY,
+            count: 1, shape: "circle",
+            color: EDG.white, color2: EDG.skyBlue,
+            speedMin: 10, speedMax: 26,
+            angleMin: -Math.PI * 0.85, angleMax: -Math.PI * 0.15, // upward spray fan
+            lifetimeMin: 0.3, lifetimeMax: 0.6,
+            sizeMin: 0.5, sizeMax: 1.1,
+            gravity: 90, // arcs back down
+          });
+        }
+        if (Math.random() < 0.25) {
+          particles.emit({
+            x: wfX + (Math.random() - 0.5) * TILE,
+            y: wfFootY - TILE * 0.3,
+            count: 1, shape: "circle",
+            color: EDG.white, color2: EDG.silver,
+            speedMin: 4, speedMax: 10,
+            angleMin: -Math.PI * 0.6, angleMax: -Math.PI * 0.4,
+            lifetimeMin: 0.8, lifetimeMax: 1.4,
+            sizeMin: 1, sizeMax: 2,
+            gravity: -6, // gentle rise, then fades
+          });
+        }
+      }
+    }
+
     // Animated campfire: layer 41, ~390ms cycle; render-only.
     const CAMPFIRE_PERIOD_MS = 390;
     const campfireFrame = CAMPFIRE_FRAMES[
@@ -420,6 +464,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       // Occluder sprites: south-facing wall/cliff faces; sortY at face base so
       // a character behind the edge has feet occluded, not painted over the parapet.
       pushOccluderSprites(renderer);
+      // Buildings: dynamic layer-50 occluders (sortY at base) so farmers behind them are occluded
+      // and the player x-rays through, instead of being painted over the roof (old static layer 5).
+      pushBuildingSprites(renderer);
     });
 
     // Follow arrow: layer 91 (above meet bubble 90), gentle sine bob.
@@ -456,10 +503,14 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         setFocusedFarmerId(playerFarmerId);
         setRecenteringOnPip(true);
       }
+      // E toggles the inventory panel; Esc closes it. Pure client-side UI (no sim message),
+      // so spectators can open it to look even though only the owner can rearrange.
+      if (keyboard.justPressed("KeyE")) inventory.toggle();
+      if (keyboard.justPressed("Escape") && inventory.isOpen()) inventory.setOpen(false);
       if (client.owner) {
         // Actions fire on left-click (see the click-to-act handler above), not a key.
         let selectSlot: number | null = null;
-        for (let n = 1; n <= HOTBAR_SLOTS.length && n <= 9; n++) {
+        for (let n = 1; n <= HOTBAR_SIZE && n <= 9; n++) {
           if (keyboard.justPressed(`Digit${n}`)) {
             selectSlot = n - 1;
             break;
@@ -518,6 +569,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       slateBillboard.update(client.slate, (frame) => frameDataUrl(renderer, frame, 2));
       eventFeedPanel.update(client.events);
       hotbar.update(client.playerHotbar, (frame) => frameDataUrl(renderer, frame, 2));
+      inventory.update(client.playerInventory, (frame) => frameDataUrl(renderer, frame, 2));
       applyToolCursor();
       frameProfiler.time("panels.relmatrix", () => relationshipMatrix.update(client.relationships));
       wealthGraph.update(client.wealthSeries, client.day);

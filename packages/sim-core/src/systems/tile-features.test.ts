@@ -22,7 +22,7 @@ function runDays(sim: ReturnType<typeof bootstrapSim>, days: number, startTick =
 }
 
 interface Feat {
-  kind: "tree" | "stone";
+  kind: "tree" | "stone" | "bush";
   x: number;
   y: number;
   regionId: string;
@@ -169,10 +169,10 @@ describe("TileFeatureSystem — organic clusters", () => {
     expect(fa).toEqual(fb);
   });
 
-  it("forest spawns trees only, quarry spawns stones only, farms are mixed-capable", () => {
+  it("forests spawn trees + berry-bushes (no stone), quarry spawns stones only, farms are mixed-capable", () => {
     const regions = longRun;
     for (const id of ["forest-north", "forest-south"]) {
-      for (const f of regions.get(id) ?? []) expect(f.kind).toBe("tree");
+      for (const f of regions.get(id) ?? []) expect(["tree", "bush"]).toContain(f.kind);
     }
     for (const id of ["quarry-north", "quarry-south"]) {
       for (const f of regions.get(id) ?? []) expect(f.kind).toBe("stone");

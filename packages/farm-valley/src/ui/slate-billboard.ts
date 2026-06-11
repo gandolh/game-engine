@@ -17,6 +17,29 @@ interface OfferRowEls {
   iconLoaded: boolean;
 }
 
+// Collapsed bubble — a gold-rimmed pill anchored bottom-right; click to open the slate.
+const BUBBLE_STYLES: Partial<CSSStyleDeclaration> = {
+  position: "fixed",
+  bottom: "12px",
+  right: "12px",
+  display: "flex",
+  alignItems: "center",
+  gap: "7px",
+  padding: "7px 12px",
+  background: EDG.black,
+  color: EDG.gold,
+  border: `2px solid ${EDG.gold}`,
+  borderRadius: "18px",
+  fontFamily: "monospace",
+  fontSize: "12px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  zIndex: "9998",
+  pointerEvents: "auto",
+  boxSizing: "border-box",
+};
+
+// Expanded panel — the full slate, anchored bottom-right.
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   position: "fixed",
   bottom: "0",
@@ -41,6 +64,8 @@ function capitalize(s: string): string {
 }
 
 export class SlateBillboardPanel {
+  private bubble: HTMLElement;
+  private bubbleCount: HTMLElement;
   private panel: HTMLElement;
   private headerEl: HTMLElement;
   private offersContainer: HTMLElement;
@@ -48,8 +73,47 @@ export class SlateBillboardPanel {
   /** Maps offerId -> cached row elements */
   private rowCache = new Map<string, OfferRowEls>();
 
+  /** User has expanded the bubble into the full panel. Closed by default. */
+  private open = false;
+  /** Master visibility (spectator hiding); combines with `hasOffers`/`open` in render(). */
+  private masterVisible = true;
+  /** Whether the last update carried any offers (nothing shows when there are none). */
+  private hasOffers = false;
+
   constructor(parent: HTMLElement) {
+    // --- Collapsed bubble (appended first so it is parent.children[0]) ---
+    this.bubble = createEl("div", { style: BUBBLE_STYLES });
+    this.bubble.dataset["slateBubble"] = "";
+    const coin = createEl("span", {
+      style: {
+        width: "11px",
+        height: "11px",
+        borderRadius: "50%",
+        background: EDG.gold,
+        flexShrink: "0",
+      },
+    });
+    const bubbleLabel = createEl("span", { text: "Shop Slate" });
+    this.bubbleCount = createEl("span", {
+      style: {
+        background: EDG.gold,
+        color: EDG.black,
+        borderRadius: "8px",
+        padding: "0 6px",
+        fontSize: "11px",
+      },
+    });
+    this.bubble.appendChild(coin);
+    this.bubble.appendChild(bubbleLabel);
+    this.bubble.appendChild(this.bubbleCount);
+    this.bubble.addEventListener("click", () => {
+      this.open = true;
+      this.render();
+    });
+
+    // --- Expanded panel ---
     this.panel = createEl("div");
+    this.panel.dataset["slatePanel"] = "";
     applyStyles(this.panel, PANEL_STYLES);
 
     this.headerEl = createEl("div", {
@@ -62,35 +126,62 @@ export class SlateBillboardPanel {
         paddingBottom: "4px",
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "baseline",
+        alignItems: "center",
       },
     });
     const headerTitle = createEl("span", { text: "Shop Slate" });
-    const headerHint = createEl("span", {
-      text: "buy / sell",
-      style: { fontSize: "9px", fontWeight: "normal", color: EDG.steel },
+    const closeBtn = createEl("span", {
+      text: "✕",
+      style: {
+        color: EDG.steel,
+        cursor: "pointer",
+        fontSize: "14px",
+        lineHeight: "1",
+        padding: "0 2px",
+      },
+    });
+    closeBtn.dataset["slateClose"] = "";
+    closeBtn.title = "Close";
+    closeBtn.addEventListener("click", () => {
+      this.open = false;
+      this.render();
     });
     this.headerEl.appendChild(headerTitle);
-    this.headerEl.appendChild(headerHint);
+    this.headerEl.appendChild(closeBtn);
 
     this.offersContainer = createEl("div");
 
     this.panel.appendChild(this.headerEl);
     this.panel.appendChild(this.offersContainer);
+
+    parent.appendChild(this.bubble);
     parent.appendChild(this.panel);
+
+    this.render();
+  }
+
+  /** Show the bubble, the panel, or neither, from open/hasOffers/masterVisible.
+   *  Explicit "flex"/"block" (not "") so showing again restores the intended layout
+   *  rather than reverting to the element's default display. */
+  private render(): void {
+    const showAny = this.masterVisible && this.hasOffers;
+    this.bubble.style.display = showAny && !this.open ? "flex" : "none";
+    this.panel.style.display = showAny && this.open ? "block" : "none";
   }
 
   update(slate: ReadonlyArray<SlateEntry>, iconFor?: SlateIconResolver): void {
-    if (slate.length === 0) {
+    this.hasOffers = slate.length > 0;
+
+    if (!this.hasOffers) {
       for (const row of this.rowCache.values()) {
         row.root.remove();
       }
       this.rowCache.clear();
-      this.panel.style.display = "none";
+      this.render();
       return;
     }
 
-    this.panel.style.display = "";
+    setText(this.bubbleCount, String(slate.length));
 
     const currentIds = new Set(slate.map((o) => o.offerId));
 
@@ -117,6 +208,8 @@ export class SlateBillboardPanel {
 
       this.updateOfferRow(row, offer, iconFor);
     });
+
+    this.render();
   }
 
   private buildOfferRow(offerId: string): OfferRowEls {
@@ -201,10 +294,12 @@ export class SlateBillboardPanel {
   }
 
   setVisible(v: boolean): void {
-    this.panel.style.display = v ? "" : "none";
+    this.masterVisible = v;
+    this.render();
   }
 
   destroy(): void {
+    this.bubble.remove();
     this.panel.remove();
     this.rowCache.clear();
   }

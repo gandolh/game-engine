@@ -10,6 +10,7 @@ import type {
   SnapshotRivalry,
   FinalStandingRow,
   PlayerHotbar,
+  PlayerInventory,
 } from "./panels";
 
 /** Full per-tick render + UI snapshot. */
@@ -43,8 +44,10 @@ export interface RenderSnapshot {
    * Present only when gameOver is true; null otherwise.
    */
   recap: RunRecap | null;
-  /** Player hotbar state, or null when there is no player-controlled farmer. */
+  /** Player hotbar state (bottom bar), or null when there is no player-controlled farmer. */
   playerHotbar: PlayerHotbar | null;
+  /** Player's full unified item grid (hotbar + backpack) for the inventory panel; null when no player. */
+  playerInventory: PlayerInventory | null;
   /** Trust matrix for the relationship grid panel. Plain Record — structured-clone-friendly. */
   relationships: RelationshipMatrixData;
   /** Active named rivalries (adverse history ≥ threshold) with resolved farmer names. */

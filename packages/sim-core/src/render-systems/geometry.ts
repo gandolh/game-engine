@@ -286,6 +286,59 @@ export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
   return out;
 })();
 
+/** Distance (in tiles) from each OCEAN tile to the nearest land, via multi-source BFS seeded from
+ *  every ocean tile that touches land (4-connected). 1 = touching land, 2 = one tile out, … Land and
+ *  out-of-grid read 0. Used to paint a shallow-water depth band hugging the coast (render-only).
+ *  Capped at COAST_DEPTH_MAX since only the near-shore ring is tinted — open ocean stays the base color. */
+export const COAST_DEPTH_MAX = 4;
+const OCEAN_DEPTH: Int16Array = (() => {
+  const depth = new Int16Array(WORLD_WIDTH * WORLD_HEIGHT); // 0 = land / not-yet-visited
+  const queue: number[] = [];
+  // Seed: ocean tiles with a land 4-neighbour are depth 1.
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      if (isWalkable(tx, ty)) continue; // land
+      const touchesLand =
+        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) ||
+        isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
+      if (touchesLand) {
+        depth[ty * WORLD_WIDTH + tx] = 1;
+        queue.push(ty * WORLD_WIDTH + tx);
+      }
+    }
+  }
+  // BFS outward through ocean only, stopping at COAST_DEPTH_MAX.
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head]!;
+    const d = depth[i]!;
+    if (d >= COAST_DEPTH_MAX) continue;
+    const x = i % WORLD_WIDTH;
+    const y = (i - x) / WORLD_WIDTH;
+    const nbrs = [
+      x + 1 < WORLD_WIDTH ? i + 1 : -1,
+      x - 1 >= 0 ? i - 1 : -1,
+      y + 1 < WORLD_HEIGHT ? i + WORLD_WIDTH : -1,
+      y - 1 >= 0 ? i - WORLD_WIDTH : -1,
+    ];
+    for (const ni of nbrs) {
+      if (ni < 0) continue;
+      if (depth[ni] !== 0) continue;        // visited or land(=0 but land never enqueued)
+      const nx = ni % WORLD_WIDTH;
+      const ny = (ni - nx) / WORLD_WIDTH;
+      if (isWalkable(nx, ny)) continue;      // don't bleed onto land
+      depth[ni] = d + 1;
+      queue.push(ni);
+    }
+  }
+  return depth;
+})();
+
+/** Distance from ocean tile (tx,ty) to nearest land, 1..COAST_DEPTH_MAX; 0 for land/open ocean/out-of-grid. */
+export function oceanDepthAt(tx: number, ty: number): number {
+  if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return 0;
+  return OCEAN_DEPTH[ty * WORLD_WIDTH + tx]!;
+}
+
 /** Ocean tiles touching land — animated foam bubbles drawn here. Cliff tiles excluded. */
 export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
   const out: Array<{ tx: number; ty: number }> = [];

@@ -1,30 +1,33 @@
 /**
- * TileFeatureSystem — manages trees and stones on farms and dedicated zones.
+ * TileFeatureSystem — manages trees, stones, and forageable berry-bushes on farms and dedicated zones.
  *
  * Spawn rates by region type:
- *   farm tiles:     2% tree / 1.5% stone per empty tile per day, cap 6
- *   forest-north/south (tree zones): 25% tree only, cap 20
+ *   farm tiles:     2% tree / 1.5% stone / 1% berry-bush per empty tile per day, cap 6
+ *   forest-north/south (tree zones): 25% tree + 8% berry-bush (understory), cap 20
  *   quarry-north/south (stone zones): 20% stone only, cap 20
  *
- * Forest zones always spawn trees; quarry zones always spawn stones. Farm
- * tiles can spawn either. Each zone's spawned features are attributed to the
- * nearest farm (by center distance) as a pathfinding-priority hint; any farmer
- * can chop/mine in any zone.
+ * Forest zones spawn trees + the odd berry-bush; quarry zones always spawn
+ * stones; farm tiles can spawn any of the three. Berry-bushes are forageable —
+ * collecting one yields a random seed (see handleGatherBush). Each zone's
+ * spawned features are attributed to the nearest farm (by center distance) as a
+ * pathfinding-priority hint; any farmer can chop/mine/forage in any zone.
  */
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
-import type { GameEntity } from "../components";
+import type { GameEntity, TileFeatureKind } from "../components";
 import { ONT_SIMULATION } from "../protocols";
 import { REGIONS } from "../world/regions";
 
 // Farm-tile rates (features supplement the dedicated zones)
 const FARM_TREE_CHANCE  = 0.02;
 const FARM_STONE_CHANCE = 0.015;
+const FARM_BUSH_CHANCE  = 0.01;
 const MAX_PER_FARM = 6;
 
 // Dedicated zone rates and caps
 const ZONE_TREE_CHANCE  = 0.25;
 const ZONE_STONE_CHANCE = 0.20;
+const ZONE_BUSH_CHANCE  = 0.08; // forests carry a berry-bush understory under the trees
 const MAX_PER_ZONE = 20;
 
 export class TileFeatureSystem implements System {
@@ -138,18 +141,20 @@ export class TileFeatureSystem implements System {
 
       // One roll per candidate (Binomial draw on the forked stream) to decide count;
       // farm tiles tag each slot tree-or-stone preserving the original tree/stone mix.
-      const slots: Array<"tree" | "stone"> = [];
+      const slots: Array<TileFeatureKind> = [];
       const room = maxFeatures - currentCount; // cap headroom (>0 here)
       for (const _candidate of candidates) {
         if (slots.length >= room) break;
         const r = this.cluster.nextFloat();
         if (isForest) {
           if (r < ZONE_TREE_CHANCE) slots.push("tree");
+          else if (r < ZONE_TREE_CHANCE + ZONE_BUSH_CHANCE) slots.push("bush");
         } else if (isQuarry) {
           if (r < ZONE_STONE_CHANCE) slots.push("stone");
         } else {
           if (r < FARM_TREE_CHANCE) slots.push("tree");
           else if (r < FARM_TREE_CHANCE + FARM_STONE_CHANCE) slots.push("stone");
+          else if (r < FARM_TREE_CHANCE + FARM_STONE_CHANCE + FARM_BUSH_CHANCE) slots.push("bush");
         }
       }
       if (slots.length === 0) continue;
@@ -163,7 +168,10 @@ export class TileFeatureSystem implements System {
       for (let i = 0; i < placements.length; i++) {
         const { x, y } = placements[i]!;
         const kind = slots[i]!;
-        const frame = kind === "tree" ? "structure/tree" : "structure/stone";
+        const frame =
+          kind === "tree" ? "structure/tree" :
+          kind === "stone" ? "structure/stone" :
+          "structure/bush";
         this.world.spawn({
           transform: { x, y, prevX: x, prevY: y, rotation: 0 },
           sprite: { atlasId: "main", frame, layer: 30, tintRgba: 0xffffffff },

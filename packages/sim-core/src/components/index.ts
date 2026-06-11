@@ -3,6 +3,7 @@ export * from "./crops";
 export * from "./tools";
 export * from "./fish";
 export * from "./inventory";
+export * from "./items";
 export * from "./livestock";
 export * from "./orchard";
 export * from "./skills";

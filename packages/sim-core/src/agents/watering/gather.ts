@@ -9,7 +9,7 @@ import { getRegion, nearestResourceZone, type RegionId } from "../../world/regio
 /** Queue chop/mine for visible farm features; travels to the nearest if none are in reach. */
 export function deliberateResourceGather(
   farmer: GameEntity,
-  tileFeatures: Array<{ kind: "tree" | "stone"; tileX: number; tileY: number; ownerId: number }>,
+  tileFeatures: Array<{ kind: "tree" | "stone" | "bush"; tileX: number; tileY: number; ownerId: number }>,
   maxActions: number,
   priority: number,
 ): void {
@@ -28,7 +28,8 @@ export function deliberateResourceGather(
   }
 
   const gatherable = ownFeatures
-    .filter(f => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick))
+    // Berry-bushes need no tool; trees/stones gate on holding a working axe/pickaxe.
+    .filter(f => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick) || f.kind === "bush")
     .slice()
     .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
 
@@ -54,7 +55,7 @@ export function deliberateResourceGather(
   for (const feat of inReach) {
     if (count >= maxActions) break;
     farmer.intentions.queue.push({
-      kind: feat.kind === "tree" ? "chop-tree" : "mine-stone",
+      kind: feat.kind === "tree" ? "chop-tree" : feat.kind === "stone" ? "mine-stone" : "gather-bush",
       data: { tileX: feat.tileX, tileY: feat.tileY },
       priority,
     });

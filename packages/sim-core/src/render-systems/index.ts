@@ -18,6 +18,8 @@ export {
   COASTLINE_BUBBLE_TILES,
   OCCLUDER_WALLS,
   isOccluderWall,
+  oceanDepthAt,
+  COAST_DEPTH_MAX,
 } from "./geometry";
 
 export {
@@ -27,4 +29,4 @@ export {
 
 export { pushSnapshotSprites } from "./snapshot-sprites";
 
-export { pushOccluderSprites } from "./occluders";
+export { pushOccluderSprites, pushBuildingSprites } from "./occluders";

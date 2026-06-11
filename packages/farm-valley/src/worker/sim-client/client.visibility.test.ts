@@ -54,6 +54,7 @@ function makeSnapshot(overrides: { tick?: number; sprites?: SnapshotSprite[] }):
     finalSummary: null,
     recap: null,
     playerHotbar: null,
+    playerInventory: null,
     relationships: { farmers: [], trust: {} },
     rivalries: [],
     wealthSeries: null,

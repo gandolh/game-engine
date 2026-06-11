@@ -3,6 +3,7 @@
 
 import type { RunHistoryRow } from "../systems/run-history";
 import type { LeaderboardRow } from "./ui-types";
+import type { ItemRef } from "../components/items";
 
 /** Per-farmer wealth time series for the wealth graph. Structured-clone-friendly. */
 export interface SnapshotWealthSeries {
@@ -42,4 +43,27 @@ export interface HotbarSlotState {
 export interface PlayerHotbar {
   slots: HotbarSlotState[];
   selected: number;
+}
+
+/** One item-grid slot for the inventory panel. `ref` is null for an empty slot. */
+export interface ItemSlotState {
+  ref: ItemRef | null;
+  label: string;
+  glyph: string;
+  frame: string;
+  text: string;
+  available: boolean;
+  /** True for tools/seeds — the hotbar can dispatch a field action from this slot. */
+  actionable: boolean;
+}
+
+/**
+ * Pip's full unified item grid. The first `hotbarSize` slots are the bottom hotbar row; the
+ * rest are the backpack shown by the inventory panel. null when no player entity exists.
+ */
+export interface PlayerInventory {
+  slots: ItemSlotState[];
+  hotbarSize: number;
+  selected: number;
+  gold: number;
 }

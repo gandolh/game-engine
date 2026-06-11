@@ -60,6 +60,17 @@ export interface WorkerInputMsg {
   actionTile?: { x: number; y: number } | null;
 }
 
+/**
+ * main → worker: swap two slots in the player's unified item grid (inventory drag-drop).
+ * Indices are 0-based into `player.itemSlots`; out-of-range indices are ignored server-side.
+ * Cosmetic layout only — never changes quantities, so the sim economy/determinism are untouched.
+ */
+export interface WorkerSwapSlotsMsg {
+  type: "swap-slots";
+  a: number;
+  b: number;
+}
+
 /** main → worker: turn the worker-side profiler on/off. Diagnostic only — never affects sim state or determinism. */
 export interface WorkerProfileToggleMsg {
   type: "profile";
@@ -78,6 +89,7 @@ export type WorkerInbound =
   | WorkerSpeedMsg
   | WorkerStepMsg
   | WorkerInputMsg
+  | WorkerSwapSlotsMsg
   | WorkerProfileToggleMsg
   | WorkerSkipToHighlightMsg;
 

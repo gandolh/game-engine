@@ -1,11 +1,11 @@
 import type { World } from "@engine/core";
-import type { GameEntity } from "../components";
+import type { GameEntity, ItemRef } from "../components";
 import type {
   SnapshotSprite,
 } from "../snapshot";
-import type { PlayerHotbar } from "../snapshot";
+import type { PlayerHotbar, PlayerInventory, ItemSlotState } from "../snapshot";
 import { pickFarmerFrame } from "../render-systems";
-import { HOTBAR_SLOTS } from "../systems/player-control";
+import { HOTBAR_SIZE, defaultItemSlots, resolveItem } from "../systems/player-control";
 import {
   BUBBLE_SHOW_TICKS,
   DECORATION_LABELS,
@@ -210,10 +210,13 @@ export function buildSprites(
     } else if (entity.tileFeature) {
       if (entity.tileFeature.kind === "tree") {
         label = "Tree";
-        description = "Chop with the axe (from the tile in front) for wood.";
-      } else {
+        description = "Chop with the axe (from the tile in front) for wood — and the odd seed.";
+      } else if (entity.tileFeature.kind === "stone") {
         label = "Stone";
         description = "Mine with the pickaxe (from the tile in front) for stone.";
+      } else {
+        label = "Berry Bush";
+        description = "Click to forage it for a random seed — no tool needed.";
       }
     } else {
       const deco = DECORATION_LABELS[frame];
@@ -245,26 +248,37 @@ export function buildSprites(
   return sprites;
 }
 
-/** Build Pip's hotbar state; null when no player entity. Seeds dim at zero; tools always available. */
-export function buildPlayerHotbar(world: World<GameEntity>): PlayerHotbar | null {
+/** Resolve one item-grid slot to its display state (null ref → empty slot). */
+function buildSlotState(
+  ref: ItemRef | null,
+  inv: NonNullable<GameEntity["inventory"]>,
+  resources: GameEntity["resources"],
+): ItemSlotState {
+  if (ref === null) {
+    return { ref: null, label: "", glyph: "", frame: "", text: "", available: false, actionable: false };
+  }
+  const r = resolveItem(ref, inv, resources);
+  return { ref, label: r.label, glyph: r.glyph, frame: r.frame, text: r.text, available: r.available, actionable: r.actionable };
+}
+
+/** Build Pip's full item grid; null when no player entity. Falls back to the default layout if unset. */
+export function buildPlayerInventory(world: World<GameEntity>): PlayerInventory | null {
   for (const e of world.query("player", "inventory")) {
     const inv = e.inventory;
-    const can = inv.wateringCan;
-    const slots = HOTBAR_SLOTS.map((slot) => {
-      if (slot.kind === "seed") {
-        const n = inv.seeds[slot.crop];
-        return { label: slot.label, glyph: slot.glyph, frame: slot.frame, text: `x${n}`, available: n > 0 };
-      }
-      if (slot.tool === "can") {
-        const text = can ? `${can.charges}/${can.maxCharges}` : "0/0";
-        return { label: slot.label, glyph: slot.glyph, frame: slot.frame, text, available: (can?.charges ?? 0) > 0 };
-      }
-      // hoe / axe / pickaxe — durable tools, no count.
-      return { label: slot.label, glyph: slot.glyph, frame: slot.frame, text: "", available: true };
-    });
-    return { slots, selected: e.player?.selectedSlot ?? 0 };
+    const layout = e.player?.itemSlots ?? defaultItemSlots();
+    const slots = layout.map((ref) => buildSlotState(ref, inv, e.resources));
+    return { slots, hotbarSize: HOTBAR_SIZE, selected: e.player?.selectedSlot ?? 0, gold: inv.gold };
   }
   return null;
+}
+
+/** Project the bottom hotbar (first HOTBAR_SIZE slots) from an already-built item grid. */
+export function buildPlayerHotbar(grid: PlayerInventory | null): PlayerHotbar | null {
+  if (grid === null) return null;
+  const slots = grid.slots.slice(0, grid.hotbarSize).map((s) => ({
+    label: s.label, glyph: s.glyph, frame: s.frame, text: s.text, available: s.available,
+  }));
+  return { slots, selected: grid.selected };
 }
 
 export { deriveRegionLabel };

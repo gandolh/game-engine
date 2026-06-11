@@ -6,6 +6,8 @@ export type {
   FinalStandingRow,
   HotbarSlotState,
   PlayerHotbar,
+  ItemSlotState,
+  PlayerInventory,
 } from "./panels";
 
 export type { RenderSnapshot } from "./render-snapshot";
@@ -16,6 +18,7 @@ export type {
   WorkerSpeedMsg,
   WorkerStepMsg,
   WorkerInputMsg,
+  WorkerSwapSlotsMsg,
   WorkerProfileToggleMsg,
   WorkerSkipToHighlightMsg,
   WorkerInbound,

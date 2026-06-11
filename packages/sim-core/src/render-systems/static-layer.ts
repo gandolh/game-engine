@@ -15,7 +15,6 @@ import {
   SHORES,
   BRIDGES,
   CORAL,
-  BIG_STRUCTURES,
   BRIDGE_SET,
   CORAL_ALPHA,
   FISHING_STATICS,
@@ -184,19 +183,9 @@ export function* iterStaticSprites(
     };
   }
 
-  // Big buildings: bottom-anchored at baseTileY; center offset places bottom edge at tile bottom.
-  for (const b of BIG_STRUCTURES) {
-    yield {
-      x: b.baseTileX * TILE + b.wPx / 2,
-      y: b.baseTileY * TILE + TILE - b.hPx / 2,
-      width: b.wPx,
-      height: b.hPx,
-      frame: b.frame,
-      rotation: 0,
-      layer: 5,
-      alpha: 1,
-    };
-  }
+  // Big buildings are NOT baked — they're pushed each frame as dynamic layer-50 occluders
+  // (pushBuildingSprites) so they y-sort against entities: a farmer behind a building is occluded
+  // (and the player x-rays through), instead of being painted over the roof at the old layer 5.
 
   for (const fs of FISHING_STATICS) {
     const isBoat = fs.frame === "structure/boat";

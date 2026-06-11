@@ -20,6 +20,7 @@ import {
 } from "./handlers/commerce";
 import {
   handleChopTree,
+  handleGatherBush,
   handleMineStone,
   handleRefillCan,
   handleCraftDecoration,
@@ -44,9 +45,10 @@ import { handlePrayAtShrine } from "./handlers/shrine";
 export class ActSystem implements System {
   readonly name = "ActSystem";
 
-  /** Seeded RNG for fishing and mining — never use Math.random() here (determinism). */
+  /** Seeded RNG for fishing, mining, and forage seed-drops — never use Math.random() here (determinism). */
   private readonly fishRng: Rng;
   private readonly mineRng: Rng;
+  private readonly forageRng: Rng;
 
   constructor(
     private readonly world: World<GameEntity>,
@@ -55,6 +57,7 @@ export class ActSystem implements System {
   ) {
     this.fishRng = rng.fork("fish");
     this.mineRng = rng.fork("mine");
+    this.forageRng = rng.fork("forage-seed");
   }
 
   private buildActContext(): ActContext {
@@ -182,7 +185,11 @@ export class ActSystem implements System {
             break;
           }
           case "chop-tree": {
-            handleChopTree(farmer, intent, actCtx.featuresByTile, this.world);
+            handleChopTree(farmer, intent, actCtx.featuresByTile, this.world, this.forageRng);
+            break;
+          }
+          case "gather-bush": {
+            handleGatherBush(farmer, intent, actCtx.featuresByTile, this.world, this.forageRng);
             break;
           }
           case "mine-stone": {

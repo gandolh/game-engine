@@ -16,9 +16,9 @@ export interface FountainTag {
   regionId: RegionId;
 }
 
-export type TileFeatureKind = "tree" | "stone";
+export type TileFeatureKind = "tree" | "stone" | "bush";
 
-/** A tree or stone tile on a farm's non-plot green area. */
+/** A tree, stone, or forageable berry-bush tile on a farm's non-plot green area. */
 export interface TileFeature {
   kind: TileFeatureKind;
   tileX: number;

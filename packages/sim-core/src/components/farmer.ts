@@ -1,4 +1,5 @@
 import type { RegionId } from "../world/regions";
+import type { ItemRef } from "./items";
 
 export type FarmerFsmState =
   | "WAIT_DAY"
@@ -49,4 +50,13 @@ export interface Player {
    * Defaults null — AI farmers and headless runs are completely inert.
    */
   pendingActionTile: { x: number; y: number } | null;
+  /**
+   * Unified item-grid layout: the first HOTBAR_SIZE entries are the bottom hotbar row,
+   * the rest are the backpack revealed by the inventory panel (E). Each entry references
+   * an item identity (`ItemRef`) or null (empty slot); the displayed count comes from the
+   * aggregate inventory. This is a player-owned COSMETIC layout — drag-drop swaps two
+   * entries but never changes quantities, so the sim economy and determinism are untouched
+   * (AI farmers carry no `player` tag, so no `itemSlots`). Lazily initialized by
+   * PlayerControlSystem from `defaultItemSlots()` when absent. */
+  itemSlots?: (ItemRef | null)[];
 }

@@ -284,6 +284,14 @@ export class SimClient {
     this.sendMsg({ type: "input", moveX, moveY, action, selectSlot, actionTile });
   }
 
+  /**
+   * Swap two slots in the player's unified item grid (inventory drag-drop). Indices are
+   * 0-based into the grid; the server ignores out-of-range indices. Owner-gated upstream.
+   */
+  swapSlots(a: number, b: number): void {
+    this.sendMsg({ type: "swap-slots", a, b });
+  }
+
   /** Terminate the worker (hard stop). */
   terminate(): void {
     // Brief 66 — detach the visibility listener so the client GC's cleanly.
@@ -485,6 +493,10 @@ export class SimClient {
 
   get playerHotbar(): RenderSnapshot["playerHotbar"] {
     return this.currentSnapshot?.playerHotbar ?? null;
+  }
+
+  get playerInventory(): RenderSnapshot["playerInventory"] {
+    return this.currentSnapshot?.playerInventory ?? null;
   }
 
   /** Brief 37 — trust matrix for the relationship grid panel. */

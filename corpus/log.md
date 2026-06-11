@@ -2,6 +2,46 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] impl | Coastal shallow-water depth + directional house cast-shadow (realistic-islands polish)
+
+User asks: "add depth to the houses" + "research how to make island margins look like they're under water." Did the web research (synthesis in chat; key finding: the realistic-islands look is a **distance-from-coast depth band**, achievable in code with no shaders/new art) and shipped the safe, code-only parts:
+
+- **Coastal shallow-water depth (the realistic-islands centerpiece, render-only):** `oceanDepthAt(tx,ty)` ([geometry.ts](../packages/sim-core/src/render-systems/geometry.ts)) — seeded multi-source BFS, distance-from-land for ocean tiles (1..`COAST_DEPTH_MAX`=4). [water-depth.ts](../packages/farm-valley/src/render/water-depth.ts) bakes a translucent `EDG.cyan` tint over near-shore ocean (brightest at depth 1, fading), composed after ground-noise in the static-layer bake. Composites over the animated water because the static layer (transparent at ocean) blits on top of the water fill. BFS-organic rings avoid bathtub-ring banding. New `geometry.test.ts` guards (land=0, coast=1, bounded to MAX, reaches MAX).
+- **House depth (code-only proxy):** `pushBuildingSprites` shadow changed from a centered pool to a **directional cast shadow** (offset lower-right, length scaling with building height).
+- **Deferred — needs new atlas art (and collides with the concurrent session actively rebuilding the atlas):** true 3D house side-faces/eaves; the **wood-plank-with-rope bridge** (look + slow swing); the tall waterfall. Flagged, not shipped — simultaneous atlas PNG rebuilds across sessions would conflict, and I can't view results to iterate (MCP Playwright screenshots aren't readable from this side; visual checks are the user's).
+- **Verified:** typecheck clean; farm-valley 140, sim-core 663 (incl. 4 new ocean-depth tests) — all green. Render-only; no determinism impact.
+
+## [2026-06-11] impl | Forageable berry-bushes + tree-chop seed bonus (random seed source)
+
+User ask: "bushes on the map; collecting gives random seeds (player or AI); pick a good spawn rate; cutting trees could give seeds too." Confirmed choices: distinct berry-bush sprite (atlas rebuild), rarity-weighted seeds, ~20% tree-chop seed bonus.
+
+- **New tileFeature kind `"bush"`** ([world-features.ts](../packages/sim-core/src/components/world-features.ts)) reuses the whole trees/stones lifecycle (daily spawn via [TileFeatureSystem](../packages/sim-core/src/systems/tile-features.ts), feature-collision blocking, despawn-on-collect, plot-sense → beliefs). **Spawn rates:** farm tiles +1% bush (alongside 2% tree / 1.5% stone, shared cap 6); forests +8% berry-bush understory (alongside 25% tree, cap 20); quarries stay stone-only. Drawn on the same forked `tile-cluster` rng.
+- **Seed drops** — new [systems/act/seed-drops.ts](../packages/sim-core/src/systems/act/seed-drops.ts): `SEED_WEIGHTS` (rarity-weighted, ∑=100: radish 30 … grape 1) + `pickWeightedSeed(rng)` (mirrors `pickWeightedFish`) + `TREE_SEED_CHANCE = 0.2`. ActSystem forks a dedicated `"forage-seed"` rng.
+- **Collect:** new `handleGatherBush` (no tool, +1 weighted seed, +1 foraging XP, despawn) dispatched on `gather-bush`. `handleChopTree` now also draws the forage rng each chop — 20% → +1 seed on top of the 2 wood (always draws, even on a miss, so the stream stays deterministic).
+- **Player:** [PlayerControlSystem](../packages/sim-core/src/systems/player-control/system.ts) `bushAt(tx,ty)` → clicking any bush emits `gather-bush` regardless of selected slot (foraged by hand). **AI:** [`deliberateResourceGather`](../packages/sim-core/src/agents/watering/gather.ts) widened to gather bushes with no tool gate (all 4 personalities forage automatically).
+- **Sprite:** new `structure/bush` recipe (green shrub + red berries, distinct from the flat `decoration/bush` scenery prop). Atlas rebuilt (buildings sheet 73→74). Hover label "Berry Bush" in [snapshot-builder/sprites.ts](../packages/sim-core/src/snapshot-builder/sprites.ts).
+- **Determinism:** all new randomness is forked Rng (never Math.random). Adding a per-chop rng draw **moves the sim baseline** (expected for a new mechanic) — a multi-seed `EXPORT=json` re-verify is warranted but I did NOT run a determinism check (per the user's standing "ask first" rule on this hardware).
+- **Verified:** typecheck clean; sim-core 663, farm-valley 140, atlas-builder 11 — all green. New tests in [resource.test.ts](../packages/sim-core/src/systems/act/handlers/resource.test.ts) (seed picker + gather + chop bonus); existing tile-features + atlas-count guards updated. **Visual check is the user's** (bushes accrue over in-game days).
+
+## [2026-06-11] impl | Brief 81 follow-up — building drop-shadows + waterfall mist (depth polish)
+
+Continues the pseudo-3D arc. Both render-only; no determinism impact.
+
+- **Building drop-shadows:** [`pushBuildingSprites`](../packages/sim-core/src/render-systems/occluders.ts) now feeds each `BIG_STRUCTURE` a width-scaled ground shadow ellipse at its south base (`pushShadow`), grounding it. Trees/entities already had shadows (any id'd sprite gets one in `pushSnapshotSprites`), so buildings were the gap.
+- **Waterfall mist:** the animated waterfall in [render-loop.ts](../packages/farm-valley/src/main/render-loop.ts) emits throttled, on-screen-gated mist/spray at its foot (upward droplets arcing back + faint rising mist) via `ParticleSystem` — ties it into the splash language.
+- **Deferred (needs new art + visual iteration):** the *structural* waterfall redesign (tall cascade from a rock wall + rocks backdrop). The existing `structure/waterfall` + `waterfall-a/b/c` frames bake a foam pool into every tile, so they can't stack into a continuous fall — a proper tall waterfall needs new clean-stream atlas frames. Flagged rather than shipped blind.
+- **Verified:** typecheck clean; engine 96, farm-valley 140, sim-core 658 — all green (alongside the concurrent inventory work). **Visual check is the user's:** the MCP Playwright server runs in its own sandbox, so its screenshots aren't readable from this side — I can drive the browser but can't see the result. Building-occlusion + shadow + waterfall-mist look is for the user to confirm in the running game.
+
+## [2026-06-11] impl | Inventory system + unified item grid (E opens; drag-drop hotbar↔inventory)
+
+User ask: "press E → inventory opens; drag-and-drop items between inventory and hotbar." Chosen model (confirmed with user): **full item-container** hotbar (the hotbar is the top row of one unified grid) showing **everything held**.
+
+- **Model:** the aggregate `Inventory`/`ResourceInventory` stays the source of truth for *quantities*; a new `player.itemSlots: (ItemRef|null)[]` ([components/items.ts](../packages/sim-core/src/components/items.ts), 32 slots = 8 hotbar + 3 backpack rows) is a player-owned *layout* over those counts. `ItemRef` = discriminated union (tool/seed/crop/fish/resource/product/fruit/goldenBeans). New `defaultItemSlots`/`syncItemSlots` (append-held, never-remove)/`resolveItem`/`allHeldRefs` in [systems/player-control/items.ts](../packages/sim-core/src/systems/player-control/items.ts).
+- **Dispatch:** `PlayerControlSystem.slotIntent`→`refIntent` reads the selected `ItemRef`; only tools/seeds act. Sync runs per-tick (player-only, nothing else reads `itemSlots`).
+- **Snapshot/UI:** new `playerInventory: PlayerInventory` field (whole grid) + `playerHotbar` projected from its first row. New [ui/inventory.ts](../packages/farm-valley/src/ui/inventory.ts) `InventoryPanel` (HTML5 drag-drop, EDG palette). **E** toggles it (E was freed when brief 79 moved action to left-click); Esc/backdrop close.
+- **Drag = swap:** new `{type:"swap-slots",a,b}` protocol message → `SimClient.swapSlots` → owner gate → `SimHost.applySwapSlots` (bounds-checked entry swap). Layout is sim-authoritative; panel re-renders from the next snapshot. Spectators can view, not rearrange.
+- **Determinism:** the grid never affects the economy (AI farmers have no `player` tag); no determinism check run — structurally inert. Verified: typecheck clean; sim-core 658 (incl. new `items.test.ts` ×4), farm-valley 140, server 21, palette guard 6 — all green. Wiki: [player-and-interaction.md](wiki/player-and-interaction.md) gained an *Inventory & the unified item grid* section.
+
 ## [2026-06-11] impl | Brief 81 — Pseudo-3D height (z) axis + persistent rain field with ground/water splashes
 
 [81-pseudo-3d-height-axis-and-rain](briefs/game/done/81-pseudo-3d-height-axis-and-rain.md). User report: rain "resets when walking." Root cause was **not** a coordinate bug (particles already draw in world space, camera transform active in `endFrame`) — the old code sprinkled drops along the **viewport's top edge every frame** with no persistent volume, so a panning camera's leading edge swept into never-seeded air. Fixed by making rain a persistent, camera-tracked, constant-density pool — which is also the pseudo-3D rain the user asked for.
@@ -12,12 +52,16 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 - **Determinism:** all render-only on the main thread (`Math.random`, like `ParticleSystem`); no sim/snapshot-tick impact; `isWalkable` is a pure query.
 - **Verified:** typecheck clean; engine 89 (incl. 7 new `rain-field.test.ts`, with a 120-frame camera-pan density-stability regression guard), farm-valley 135, sim-core 654 — all green; palette guard passes. Wiki: [architecture.md](wiki/architecture.md) Render section updated.
 
-## [2026-06-11] impl | Brief 81 follow-up — occlusion transparency (x-ray the player behind walls/buildings)
+## [2026-06-11] impl | Brief 81 follow-up — occlusion transparency (x-ray) + buildings as dynamic occluders
 
-Extends the pseudo-3D work. New optional `Canvas2dSprite.occludable`; the renderer runs an **x-ray pass** after the main sprite draw: for each occludable sprite, if a taller sprite drawn in front of it (later in sort order, layer < 80 so UI bubbles/arrows are excluded) overlaps its rect ([`spritesOverlap`](../packages/engine/src/render/canvas2d/draw.ts) — AABB on drawn rects incl. z-lift), re-draw it at `GHOST_ALPHA=0.4` on top. Flagged for the **player only** via `pushSnapshotSprites(..., playerId)` (scoped → cheap; extend by flagging more sprites). Works for layer-50 occluders (walls, cliff faces) + dynamic layer-50 structures.
+Extends the pseudo-3D work in two linked steps.
 
-- **Architectural finding (now in [architecture.md](wiki/architecture.md)):** big buildings (houses/forge/weather-station) are **baked at layer 5 < farmers' layer 50**, so they currently **never occlude entities** — a farmer behind a house is painted over the roof. Giving houses real occlusion (and thus x-ray) needs a dynamic layer-50 occluder face — an open follow-up the user asked about (pseudo-3D for buildings + a waterfall-from-a-wall redesign), pending scope decision.
-- **Verified:** typecheck clean; engine 96 (incl. 4 new `spritesOverlap` unit tests + 3 recording-context x-ray integration tests asserting the low-alpha re-draw), farm-valley 135, sim-core 654 — all green. Render-only; no determinism impact.
+**(1) X-ray pass.** New optional `Canvas2dSprite.occludable`; the renderer runs an x-ray pass after the main sprite draw: for each occludable sprite, if a taller sprite drawn in front of it (later in sort order, layer < 80 so UI bubbles/arrows are excluded) overlaps its rect ([`spritesOverlap`](../packages/engine/src/render/canvas2d/draw.ts) — AABB on drawn rects incl. z-lift), re-draw it at `GHOST_ALPHA=0.4` on top. Flagged for the **player only** via `pushSnapshotSprites(..., playerId)` (scoped → cheap; extend by flagging more sprites).
+
+**(2) Buildings occlude.** Root issue: `BIG_STRUCTURES` were **baked at layer 5 < farmers' layer 50**, so a farmer behind a house was painted over the roof and the x-ray never triggered for buildings. Moved them out of `iterStaticSprites` into [`pushBuildingSprites`](../packages/sim-core/src/render-systems/occluders.ts) — pushed each frame at layer 50 with `sortY` at the south base (same convention as wall/cliff occluders), geometry pixel-identical to the old bake. Now a farmer behind a building is occluded + the player x-rays through; in front, the farmer draws over. Draw-order safety: crops (10)/fences (20) the building now sorts above don't spatially overlap its body (they sit south/beside the footprint), so the layer change is invisible there; entities (50) y-sort correctly with it.
+
+- **Verified:** typecheck clean; engine 96 (incl. 4 new `spritesOverlap` unit tests + 3 recording-context x-ray integration tests asserting the low-alpha re-draw), farm-valley 135, sim-core 654 — all green. Render-only; no determinism impact. **Not yet visually run** — draw-order reasoning above is by inspection; a dev-server look is the remaining check.
+- **Still open** (user asked, deferred): ground drop-shadows under world objects; the waterfall-from-a-wall + rocks-backdrop redesign (pixel-art/world-gen).
 
 ## [2026-06-11] impl(wip) | Brief 80 — AI fishing fix: cast tiles derived from isle bounds + class-level guard test (tasks 1–2 done; baseline diff pending sign-off)
 

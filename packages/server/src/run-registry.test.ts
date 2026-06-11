@@ -108,6 +108,7 @@ function makeSnapshotMsg(day = 1): WorkerSnapshotMsg {
       shock: null,
       weather: { season: "spring", condition: "sunny" },
       playerHotbar: null,
+      playerInventory: null,
       observer: null,
     } as unknown as WorkerSnapshotMsg["snapshot"],
   };
