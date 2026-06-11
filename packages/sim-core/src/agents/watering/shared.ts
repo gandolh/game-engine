@@ -1,5 +1,5 @@
 import type { GameEntity } from "../../components";
-import { REGIONS } from "../../world/regions";
+import { REGIONS, FISHING_ISLE_IDS, getRegion, regionAt, isWalkable } from "../../world/regions";
 import type { Season } from "../../protocols/weather";
 
 export interface WateringStyle {
@@ -17,16 +17,35 @@ export const FORAGE_ZONES: Array<{ region: string; season: Season }> = [
 ];
 
 /**
- * Fishing-isle cast tiles — one edge tile per isle whose west neighbour is open
- * ocean, so a farmer standing here can cast (ActSystem scans the 4-neighbours
- * for water). AI farmers travel to the nearest one, then queue `fish`.
- *   fishing-isle   (40–47×68–75): west edge (40,71), ocean at (39,71)
- *   fishing-isle-2 (22–29×68–75): west edge (22,71), ocean at (21,71)
+ * Fishing-isle cast tiles — one per isle: an on-isle tile with an ocean
+ * (non-walkable) 4-neighbour to cast into (ActSystem scans the 4-neighbours for
+ * water). AI farmers travel to the nearest one, then queue `fish`.
+ *
+ * DERIVED from the live isle bounds (scanned y,x ascending → deterministic, picks
+ * a NW-ish edge tile), never hardcoded: a hardcoded literal silently drifted
+ * off-isle in the 2026-06-09 radial reorg and killed AI fishing (brief 80). The
+ * guard in shared.test.ts asserts every entry stays on a fishing isle.
  */
-export const FISHING_CAST_TILES = [
-  { x: 40, y: 71 },
-  { x: 22, y: 71 },
-] as const;
+function deriveFishingCastTiles(): ReadonlyArray<{ x: number; y: number }> {
+  const tiles: Array<{ x: number; y: number }> = [];
+  for (const id of FISHING_ISLE_IDS) {
+    const { bounds } = getRegion(id);
+    let pick: { x: number; y: number } | undefined;
+    for (let y = bounds.minY; y <= bounds.maxY && !pick; y++) {
+      for (let x = bounds.minX; x <= bounds.maxX && !pick; x++) {
+        if (regionAt(x, y) !== id) continue;
+        const oceanAdjacent =
+          !isWalkable(x - 1, y) || !isWalkable(x + 1, y) ||
+          !isWalkable(x, y - 1) || !isWalkable(x, y + 1);
+        if (oceanAdjacent) pick = { x, y };
+      }
+    }
+    if (pick) tiles.push(pick);
+  }
+  return tiles;
+}
+
+export const FISHING_CAST_TILES = deriveFishingCastTiles();
 
 /**
  * Tavern gathering tile inside the village hub (patron side of the bar: one tile

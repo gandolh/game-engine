@@ -30,7 +30,7 @@ export function deliberateFishing(
               (Math.abs(a.x - t.x) + Math.abs(a.y - t.y)) -
               (Math.abs(b.x - t.x) + Math.abs(b.y - t.y)),
           )[0]!
-        : FISHING_CAST_TILES[0];
+        : FISHING_CAST_TILES[0]!;
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetTile: { x: cast.x, y: cast.y } },

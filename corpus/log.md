@@ -2,9 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
-## [2026-06-11] todo | Brief 80 filed — AI fishing dead (stale `FISHING_CAST_TILES`) + a guard for the whole class
+## [2026-06-11] impl(wip) | Brief 80 — AI fishing fix: cast tiles derived from isle bounds + class-level guard test (tasks 1–2 done; baseline diff pending sign-off)
 
-Filed [80-fishing-cast-tiles-stale](briefs/game/todo/80-fishing-cast-tiles-stale.md) for the bug the wiki audit surfaced: `FISHING_CAST_TILES = [(40,71),(22,71)]` are pre-radial-reorg and now off-isle (isles at 75–82 / 59–66 × 105–112), so `deliberateFishing` can never satisfy the `fish` precondition → AI fishing silently dead (Pip unaffected). Same class as brief 73's tavern/festival ocean-tile fix, which missed this constant — root cause of the miss is that `social.test.ts` guards the reachability *logic*, not the target-tile *validity*. Brief: derive cast tiles from `FISHING_ISLE_BOUNDS` (self-correcting) + add a class-level guard asserting every AI-travel-target tile (`FISHING_CAST_TILES`/`TAVERN_GATHER_TILE`/`FESTIVAL_PODIUM_TILE`) is on its intended region with the needed adjacency. Baseline-mover (AI fishing resumes) → gates on the fast 3-seed `EXPORT=json` diff, **awaiting user sign-off** (resource rule). Spec only — no code changed.
+[80-fishing-cast-tiles-stale](briefs/game/todo/80-fishing-cast-tiles-stale.md), for the bug the wiki audit surfaced: `FISHING_CAST_TILES = [(40,71),(22,71)]` were pre-radial-reorg and off-isle (isles at 75–82 / 59–66 × 105–112), so `deliberateFishing` could never satisfy the `fish` precondition → AI fishing silently dead (Pip unaffected). Same class as brief 73's tavern/festival ocean-tile fix, which missed this constant; root cause of the miss is that `social.test.ts` guarded the reachability *logic*, not target-tile *validity*.
+
+- **Task 1 (done):** `FISHING_CAST_TILES` is now **derived** at module load — `deriveFishingCastTiles()` in [shared.ts](../packages/sim-core/src/agents/watering/shared.ts) scans each `FISHING_ISLE_IDS` region's bounds (y,x ascending → deterministic NW-edge pick) for an on-isle tile with an ocean 4-neighbour. Self-correcting across any future reorg. Consumer [fishing.ts](../packages/sim-core/src/agents/watering/fishing.ts) needed only a `[0]!` (array no longer a fixed tuple).
+- **Task 2 (done):** new [shared.test.ts](../packages/sim-core/src/agents/watering/shared.test.ts) — the missing class-level guard: asserts every AI-travel-target tile (`FISHING_CAST_TILES` on-isle + ocean-adjacent; `TAVERN_GATHER_TILE`/`FESTIVAL_PODIUM_TILE` walkable + `regionAt === "village"`). Fails loudly if a reorg orphans one.
+- **Verified:** sim-core typecheck clean; 122/122 agent tests pass (incl. 4 new guards).
+- **Task 3 (pending):** baseline-mover (AI fishing resumes) → the fast 3-seed/3-day `EXPORT=json` diff (expect DIVERGENCE from current baseline, then self-diff MATCH ×3) is **NOT yet run — awaiting user sign-off** (resource rule). Brief stays in `todo/` until verified + committed.
 
 ## [2026-06-11] lint+compress | Wiki audit + reorg for LLM use — fixed 88×80→160×160 drift everywhere, compressed open-questions/status, found a latent AI-fishing bug
 
