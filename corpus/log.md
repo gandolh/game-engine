@@ -2,6 +2,10 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] brief | 82-agent-movement-interpolation queued (movers snap tile-to-tile)
+
+User-reported: moving agents appear to teleport. Diagnosis (code-read only, nothing fixed): the sim-client interpolation pipeline ([interp.ts](../packages/farm-valley/src/worker/sim-client/interp.ts) lerp + smoothstep, prev/current snapshot pair, 2-tick render delay) is sound, but [snapshot-builder/sprites.ts](../packages/sim-core/src/snapshot-builder/sprites.ts) sets `interpolate: isFarmer` — so working NPCs, livestock, boats, and ambient movers ship `interpolate: false` and snap one tile per step ([work-npc.ts](../packages/sim-core/src/systems/work-npc.ts)'s header even states NPCs should share the farmers' interpolation). Queued as [briefs/game/todo/82-agent-movement-interpolation.md](briefs/game/todo/82-agent-movement-interpolation.md): widen the flag to all tile-stepping movers with stable ids + add a max-lerp-distance clamp so genuine jumps (travel/boarding/tab re-show) still snap instead of smearing. Render-only; no baseline move expected. status.md + index.md updated.
+
 ## [2026-06-12] fix | WebGPU renderer review — 5 bugs (instance-buffer clobber, weather alpha offset, water scroll sign, shadows-over-sprites, tint alpha)
 
 Full review of the `webgpu-migration` branch (waves 0–4) against the Canvas2D reference. Five real bugs found and fixed:

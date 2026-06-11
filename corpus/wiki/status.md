@@ -2,9 +2,10 @@
 
 Current-state **snapshot** (2026-06-11). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
 
-**Where things stand:** engine briefs 01–09 and game briefs 01–79 are **Done or Superseded**; the one queued brief is **[80-fishing-cast-tiles-stale](../briefs/game/todo/80-fishing-cast-tiles-stale.md)** (below). Tests + typecheck green. **Two open threads**, both diagnosed, neither fixed (each moves the sim baseline or needs a real-hardware reading → user sign-off):
+**Where things stand:** engine briefs 01–09 and game briefs 01–79 are **Done or Superseded**; queued briefs: **[80-fishing-cast-tiles-stale](../briefs/game/todo/80-fishing-cast-tiles-stale.md)** and **[82-agent-movement-interpolation](../briefs/game/todo/82-agent-movement-interpolation.md)** (below). Tests + typecheck green. **Three open threads**, all diagnosed, none fixed:
 1. **Tier-0 FPS regression** — canvas raster, not DOM/particles ([performance.md](performance.md) Tier 0); the relmatrix DOM-thrash fix shipped, but confirming the raster cause + picking fix #4 needs a real-GPU `?profile` reading.
-2. **AI fishing broken** (→ brief 80) — `FISHING_CAST_TILES` are pre-reorg and now off-isle, so AI `fish` never fires (Pip unaffected); same class as brief 73's tavern/festival fix, which missed this constant ([open-questions.md](open-questions.md)).
+2. **AI fishing broken** (→ brief 80) — `FISHING_CAST_TILES` are pre-reorg and now off-isle, so AI `fish` never fires (Pip unaffected); same class as brief 73's tavern/festival fix, which missed this constant ([open-questions.md](open-questions.md)). Baseline-mover → user sign-off.
+3. **Movers teleport** (→ brief 82, user-reported 2026-06-12) — snapshot `interpolate` flag is farmer-only (`sprites.ts` `interpolate: isFarmer`), so NPCs/livestock/boats snap tile-to-tile; fix is render-only (widen the flag + a max-lerp-distance clamp for genuine jumps).
 
 ## Recent briefs (one-liners; detail in log.md)
 
