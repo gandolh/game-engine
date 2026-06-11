@@ -2,6 +2,10 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] research | Book of Shaders → WebGPU shader-idea backlog
+
+Read [The Book of Shaders](https://thebookofshaders.com/) (ch. 5–13: shaping functions, colors, shapes/SDFs, matrices, patterns, random, noise, cellular noise, fBm) and filtered every technique against the actual WebGPU renderer state (`webgpu-migration` branch, waves 0–4). Result: new [wiki/shader-ideas.md](wiki/shader-ideas.md) — a TODO backlog with per-item file targets, plus the two EDG32-compliance strategies for procedural shaders (pre-parsed EDG uniforms modulating alpha only; UV-displacement-only sampling). Headline candidates: GPU day/night wash pass (replaces the overlay-2d wash, unblocks compositing), hash/noise UV-warp to de-tile the water, Voronoi caustics on the baked shallow-water band, fBm cloud shadows, and weather/particle parity fixes (round snow, streak taper, polar 8-point star). Ideas only — no code changed; promote to an engine brief before implementing.
+
 ## [2026-06-11] impl | Render polish batch: tall waterfall, bridge-sway fix, ducks + deep whales, 100fps, ms readout
 
 Several user-requested visual tweaks, all render-only (no determinism impact). Atlas rebuild touched only **terrain + props** sheets (buildings/characters cached → no collision with the concurrent buildings-sheet work).

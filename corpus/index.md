@@ -18,6 +18,7 @@ Catalog of everything in this corpus. Start here.
 - [wiki/economy.md](wiki/economy.md) — the prices ↔ AP ↔ initial-gold model (1 AP = one basic-labour action; crop g/AP formula + scoring table); the basis for any balance re-tune (brief 75)
 - [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — the bake principle, asset-cooking/caching research (cache keys, deterministic PNG, incremental per-sheet builds), atlas best practice for a Canvas2D pixel-art game; feeds brief 71
 - [wiki/system-ordering.md](wiki/system-ordering.md) — why each system in `bootstrapSim` is registered in its position; inbox lifecycle; cross-cutting ordering invariants
+- [wiki/shader-ideas.md](wiki/shader-ideas.md) — Book of Shaders techniques filtered against the WebGPU renderer: TODO backlog (water noise/Voronoi caustics, GPU day/night wash, cloud shadows, weather parity) + the EDG32-compliance strategies for procedural shaders
 - [wiki/status.md](wiki/status.md) — what's done, what's open (brief-by-brief, current state)
 - [wiki/open-questions.md](wiki/open-questions.md) — live list of gaps and unresolved questions
 
