@@ -26,6 +26,38 @@ Ranked by likelihood × impact-for-effort (each names the file:line so it can be
 
 **Likely root cause (pre-profile hypothesis):** #1 (DOM thrash, constant cost regardless of weather) + #2 (particle storm, intermittent) together. #1 explains a steady 30 fps; #2 explains drops to 15 during rain/storm/winter. Profile to confirm before committing effort.
 
+### ✅ PROFILED 2026-06-11 — hypothesis overturned: the bottleneck is canvas raster, not DOM/particles
+
+Profiled live via Playwright `?profile` (seed `0xc0ffee`, `#c0ffee-64-3c` → `ticksPerDay=60` so weather cycles fast; render loop still runs at 60 Hz). Added dev-only sub-timers in [render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts) (`weather.spawn`, `particles.update`, `pushSprites`, `ambient`, `render.endFrame`, `panels`, `panels.relmatrix`) gated by `PROFILE_ENABLED` (wall-clock, zero sim/determinism impact) + exposed `window.__frameProfile()` for a structured readout.
+
+> ⚠️ **Environment caveat.** Measured in **headless Chromium (WSL2, DPR 1, canvas 1428×590)**, which rasters the canvas on **SwiftShader (CPU)** — far slower at raster than a real GPU. So the *absolute* fps here is pessimistic; trust the **relative attribution**, and re-read `frame`/fps on a real-GPU browser (see "what the user should check").
+
+**Measured (mean / p95, ~640-frame window):**
+
+| metric | before fix | after relmatrix fix |
+|---|---|---|
+| bare `requestAnimationFrame` loop | **60.6 fps** (16.5 ms, steady) — vsync is healthy, not throttled | — |
+| game **true render fps** (frame-count / wall) | **40.7 fps** | **~40 fps (unchanged)** |
+| JS `frame` work | 7.1–7.8 / ~10–12 ms | 4–7 / 7–12 ms |
+| `panels` (all 9) | **3.28 ms** | **0.28 ms** |
+| ↳ `panels.relmatrix` | **~3.2 ms** (38% of the JS frame) | **0.015 ms** |
+| `render.endFrame` (canvas draw JS) | 2.5–3.3 ms | 2.4–3.6 ms |
+| `pushSprites` / `ambient` / `weather.spawn` / `interp` | 0.27 / 0.01 / 0.01 / 0.09 ms | same |
+| `particles.update` | ~0 (no storm landed; rain only) | ~0 |
+
+**What this means.** A do-nothing rAF hits a rock-steady 60 fps, but the game renders ~40 fps while doing only **~5–7 ms of JS per frame** — well under the 16.7 ms budget. The missing ~10 ms is **canvas raster + composite that runs *after* the JS callback** and is invisible to the JS profiler; when total (JS + raster) spills past a vsync, the browser halves to 30 fps, so the average bounces 60↔30 ≈ 40. At the **default zoom the camera spans the whole 160-tile (2560 px) world** ([config.ts](../../packages/farm-valley/src/main/config.ts) `worldUnitsX = WORLD_WIDTH*TILE`, `sx≈0.56` → zoomed *out*), so the viewport cull in [renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts#L177) `push()` drops nothing and every frame rasters the full static-layer blit + a **bilinear** water-pattern fill (two passes, `sx<1`) + ~470 sprites.
+
+**Verdicts on the ranked suspects:**
+- **#1 relationship matrix — REAL waste, FIXED, but not the headless straw.** Rebuilt 441 DOM cells every frame = ~3.2 ms JS (38% of the frame) + per-frame table reflow. Shipped a signature-based dirty guard ([relationship-matrix.ts](../../packages/farm-valley/src/ui/relationship-matrix.ts) `computeSignature`/`lastSignature`, mirrors wealth-graph's `lastDayDrawn`) → 3.2 ms → 0.015 ms, `panels` 3.28 → 0.28 ms. **But true fps did not move** (headless is raster-bound, which masks DOM-paint savings). On a real GPU where raster is cheap, this DOM cost is a plausible *actual* straw — so the fix is worth shipping regardless and the user should re-check fps with it in.
+- **#2 weather particles — NOT the bottleneck (as far as observed).** Could not land a storm in the probe window (spring drew sunny/normal/rainy); `particles.update` stayed ~0 and `weather.spawn` ~0.01 ms; fps unchanged across dry→rainy. The code issues (uncapped spawn, O(n) `splice` removal) are real but did not bite at observed levels — deferred, not shipped.
+- **#3 gate panels on tick — moot.** Per-panel guards (now incl. relmatrix) already make the whole `panels` block 0.28 ms; no need to gate the block.
+- **#4 dynamic-sprite culling / sort-on-dirty — this is where the real lever is.** Confirmed culling is a no-op at default zoom (whole world in view). The reducible raster cost is the full-world static blit, the two-pass bilinear water fill, and the per-frame whole-queue `compareSprite` sort. **Untouched** — these are bigger changes and headless SwiftShader can't validate them faithfully; needs a real-GPU before/after.
+- **#5 ambient — negligible** (0.01 ms JS; its raster is folded into the whole-world cost).
+
+**Shipped this round:** suspect #1 dirty guard only (safe, correct, zero-risk JS/DOM win). Step 0's dev-only sub-timers + `window.__frameProfile` are kept (gated by `?profile`; the overlay still only prints `frame`/`interp`, so use `window.__frameProfile()` for the full breakdown).
+
+**What the user should check (real GPU, disambiguates the remaining cost):** open the live game with `?profile`, read the overlay `fps` and `frame` mean/p95 with the relmatrix fix in. If `frame` JS is ~5–7 ms but fps is still 15–30 → it's GPU raster (do #4: clamp default zoom / cull / clip the static blit / sort-on-dirty / drop the second water pass at zoom-out). If `frame` JS is now ≥16 ms → a JS path regressed and we re-profile that. Capture before/after per fix.
+
 ## Already done — do not redo
 
 - **Query iteration is pooled.** `for...of` over a query borrows a scratch buffer and returns it; steady-state iteration allocates zero arrays — [world.ts:65-97](../../packages/engine/src/ecs/world.ts#L65-L97).

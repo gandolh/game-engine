@@ -72,6 +72,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   if (PROFILE_ENABLED) {
     client.setProfiling(true);
     client.onProfile((_tick, report) => overlay.setWorkerReport(report));
+    // Tier-0 FPS-regression diagnostic (2026-06-11): expose the frame report so a
+    // Playwright `?profile` pass can read structured per-section timings without
+    // OCR'ing the overlay. Wall-clock only; dev-only; remove once attributed.
+    (window as unknown as { __frameProfile?: () => unknown }).__frameProfile = () =>
+      frameProfiler.report();
   }
   // Emit frame report every ~60 frames to avoid per-frame string churn.
   let frameReportCounter = 0;
@@ -364,7 +369,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
 
     // Weather ambient: rain/snow particles across the viewport; render-only.
-    {
+    frameProfiler.time("weather.spawn", () => {
       const snap = client.latestSnapshot();
       const w = snap?.weather;
       if (w) {
@@ -403,22 +408,24 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           );
         }
       }
-    }
+    });
 
-    particles.update(dt);
+    frameProfiler.time("particles.update", () => particles.update(dt));
 
-    pushSnapshotSprites(
-      renderer,
-      interpolatedSprites,
-      client.meets,
-      farmerPositions,
-      nowMs,
-      seasonForDay(client.day), // season computed below; keep separate call for ordering
-    );
+    frameProfiler.time("pushSprites", () => {
+      pushSnapshotSprites(
+        renderer,
+        interpolatedSprites,
+        client.meets,
+        farmerPositions,
+        nowMs,
+        seasonForDay(client.day), // season computed below; keep separate call for ordering
+      );
 
-    // Occluder sprites: south-facing wall/cliff faces; sortY at face base so
-    // a character behind the edge has feet occluded, not painted over the parapet.
-    pushOccluderSprites(renderer);
+      // Occluder sprites: south-facing wall/cliff faces; sortY at face base so
+      // a character behind the edge has feet occluded, not painted over the parapet.
+      pushOccluderSprites(renderer);
+    });
 
     // Follow arrow: layer 91 (above meet bubble 90), gentle sine bob.
     if (focusedFarmerId !== null) {
@@ -497,9 +504,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     });
     const dtMs = dt * 1000;
     const view = { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom };
-    ambient.update(dtMs, nowMs, view, nightness, season);
-    ambient.pushSprites(renderer);
-    renderer.endFrame(wash, particles);
+    frameProfiler.time("ambient", () => {
+      ambient.update(dtMs, nowMs, view, nightness, season);
+      ambient.pushSprites(renderer);
+    });
+    frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles));
 
     const snap = client.latestSnapshot();
     const tick = client.tick;
@@ -510,12 +519,14 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const obs = client.observer;
     if (obs !== null) observer.update(obs);
 
-    leaderboardPanel.update(client.leaderboard);
-    slateBillboard.update(client.slate);
-    eventFeedPanel.update(client.events);
-    hotbar.update(client.playerHotbar);
-    relationshipMatrix.update(client.relationships);
-    wealthGraph.update(client.wealthSeries, client.day);
+    frameProfiler.time("panels", () => {
+      leaderboardPanel.update(client.leaderboard);
+      slateBillboard.update(client.slate);
+      eventFeedPanel.update(client.events);
+      hotbar.update(client.playerHotbar);
+      frameProfiler.time("panels.relmatrix", () => relationshipMatrix.update(client.relationships));
+      wealthGraph.update(client.wealthSeries, client.day);
+    });
 
     if (client.gameOver && !gameOverShown) {
       gameOverShown = true;

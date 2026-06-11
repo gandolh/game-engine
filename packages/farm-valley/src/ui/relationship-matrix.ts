@@ -72,6 +72,12 @@ export class RelationshipMatrixPanel {
   private panel: HTMLElement;
   private headerEl: HTMLElement;
   private tableContainer: HTMLElement;
+  /** Dirty guard: skip the full 441-cell rebuild + table reflow when nothing
+   *  rendered has changed. Trust shifts at most per-tick and usually per-day,
+   *  but update() is called every render frame (~60 Hz) — without this the
+   *  panel forced a full layout+paint every frame (the dominant Tier-0 cost;
+   *  see corpus/wiki/performance.md). Mirrors wealth-graph's `lastDayDrawn`. */
+  private lastSignature = "";
 
   constructor(parent: HTMLElement) {
     this.panel = createEl("div");
@@ -89,8 +95,33 @@ export class RelationshipMatrixPanel {
     parent.appendChild(this.panel);
   }
 
+  /** Cheap render-equivalence key: farmer identity + every trust value at the
+   *  2-decimal precision the tooltip shows. ~440 iterations of integer/char
+   *  concat — far below the 441-cell DOM rebuild it gates. */
+  private computeSignature(
+    farmers: RelationshipMatrixData["farmers"],
+    trust: RelationshipMatrixData["trust"],
+  ): string {
+    let s = `${farmers.length}:`;
+    for (const f of farmers) s += `${f.id}${initial(f.name)}${f.personality[0] ?? ""};`;
+    s += "|";
+    for (const from of farmers) {
+      const row = trust[from.id] ?? {};
+      for (const to of farmers) {
+        if (from.id === to.id) continue;
+        s += `${Math.round((row[to.id] ?? 0.5) * 100)},`;
+      }
+    }
+    return s;
+  }
+
   update(data: RelationshipMatrixData): void {
     const { farmers, trust } = data;
+
+    const signature = this.computeSignature(farmers, trust);
+    if (signature === this.lastSignature) return;
+    this.lastSignature = signature;
+
     if (farmers.length === 0) {
       this.tableContainer.replaceChildren();
       return;
