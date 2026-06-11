@@ -13,6 +13,9 @@ export interface SnapshotSprite {
   alpha: number;
   /** 0xRRGGBBAA tint. Absent = 0xffffffff (no tint). Used by indicators for state washes. */
   tintRgba?: number;
+  /** Pseudo-3D height above the ground in tile units (renderer lifts the sprite up by z·TILE and
+   *  shrinks/fades its drop-shadow). Absent/0 = grounded. Reserved for jumps/thrown items; inert today. */
+  z?: number;
   /** True for farmer entities — main thread interpolates these against prev. */
   interpolate: boolean;
   /** Current action (intentions head); used to pick work-pose. null for non-farmers. */

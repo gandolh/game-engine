@@ -2,6 +2,16 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-11] impl | Brief 81 — Pseudo-3D height (z) axis + persistent rain field with ground/water splashes
+
+[81-pseudo-3d-height-axis-and-rain](briefs/game/done/81-pseudo-3d-height-axis-and-rain.md). User report: rain "resets when walking." Root cause was **not** a coordinate bug (particles already draw in world space, camera transform active in `endFrame`) — the old code sprinkled drops along the **viewport's top edge every frame** with no persistent volume, so a panning camera's leading edge swept into never-seeded air. Fixed by making rain a persistent, camera-tracked, constant-density pool — which is also the pseudo-3D rain the user asked for.
+
+- **Engine z-axis (dormant foundation):** `Canvas2dSprite.z` + `SnapshotSprite.z` (optional). Renderer lifts the sprite (`screenY = y - z`); **y-sort key stays ground `y`** (depth unaffected — documented-correct base rule); entity shadow shrinks/fades with height. `z=0`/undefined = exact no-op; **nothing sets `z` yet** (the deterministic sim-side `Elevation`/`GravitySystem` for jumps/thrown items was deferred — render path is ready and rides the new snapshot field).
+- **`RainField`** ([rain-field.ts](../packages/engine/src/render/rain-field.ts)): render-only, world-space, persistent recycled pool; per-drop height falls at constant velocity; off-screen drops recycle into view at random height (fills revealed edges → no reset). Drawn in front via a new optional `weather` arg to `endFrame`. Hard cap 900 drops.
+- **Splashes:** `spawnRainSplash` in [render-loop.ts](../packages/farm-valley/src/main/render-loop.ts) — `isWalkable(tx,ty)` false ⇒ water ripple, true ⇒ land dust pop, via the existing `ParticleSystem`.
+- **Determinism:** all render-only on the main thread (`Math.random`, like `ParticleSystem`); no sim/snapshot-tick impact; `isWalkable` is a pure query.
+- **Verified:** typecheck clean; engine 89 (incl. 7 new `rain-field.test.ts`, with a 120-frame camera-pan density-stability regression guard), farm-valley 135, sim-core 654 — all green; palette guard passes. Wiki: [architecture.md](wiki/architecture.md) Render section updated.
+
 ## [2026-06-11] impl(wip) | Brief 80 — AI fishing fix: cast tiles derived from isle bounds + class-level guard test (tasks 1–2 done; baseline diff pending sign-off)
 
 [80-fishing-cast-tiles-stale](briefs/game/todo/80-fishing-cast-tiles-stale.md), for the bug the wiki audit surfaced: `FISHING_CAST_TILES = [(40,71),(22,71)]` were pre-radial-reorg and off-isle (isles at 75–82 / 59–66 × 105–112), so `deliberateFishing` could never satisfy the `fish` precondition → AI fishing silently dead (Pip unaffected). Same class as brief 73's tavern/festival ocean-tile fix, which missed this constant; root cause of the miss is that `social.test.ts` guarded the reachability *logic*, not target-tile *validity*.

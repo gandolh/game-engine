@@ -117,16 +117,10 @@ describe("PlayerControlSystem — movement", () => {
 
   it("wall-slides: moving into a blocked X axis slides along Y instead", () => {
     const { world, pip, control, act } = setup();
-    // Put Pip right against the right edge of its farm so moving right will be
-    // blocked after a few ticks; hold down+right to verify Y still advances.
-    // Simpler test: move right toward a tree while also holding down.
-    // Block the tile one full tile east of the starting position.
-    // We need to position Pip close enough to the tree to trigger the collision.
-    // Start Pip 0.6 tiles west of the tile boundary — so the next tick would
-    // push the AABB past the tree. Place Pip at PIP.x + 0.7 (AABB half-width=0.3,
-    // right edge = x + 0.3; next tick right edge = x + 0.3 + PLAYER_SPEED ≈
-    // PIP.x + 0.7 + 0.3 + 0.333 ≈ PIP.x + 1.33 which crosses PIP.x+1 boundary).
-    pip.transform!.x = PIP.x + 0.7;
+    // Hold down+right with a tree one tile east; X clamps but Y must still advance (wall-slide).
+    // Pip starts at his tile center (PIP.x). Moving right one tick (≈+0.333) pushes his AABB into
+    // the tree's tile, so X clamps at the shared tile edge: tree center (PIP.x+1) − 0.5 − AABB_HALF
+    // = PIP.x + 0.2 (integer coord = tile CENTER, cell spans [N−0.5, N+0.5)).
     const bx = PIP.x + 1, by = PIP.y;
     world.spawn({
       transform: { x: bx, y: by, prevX: bx, prevY: by, rotation: 0 },
@@ -135,9 +129,9 @@ describe("PlayerControlSystem — movement", () => {
     pip.player!.pendingMoveX = "right";
     pip.player!.pendingMoveY = "down";
     tick(world, control, act);
-    // X should be clamped (right edge at bx - 0.3 = PIP.x + 0.7),
+    // X clamped to PIP.x + 0.2 (right edge at the PIP.x+1 tile boundary),
     // but Y should still advance by PLAYER_SPEED (wall-slide).
-    expect(pip.transform!.x).toBeLessThanOrEqual(bx - 0.3 + 0.001);
+    expect(pip.transform!.x).toBeLessThanOrEqual(PIP.x + 0.2 + 0.001);
     expect(pip.transform!.y).toBeCloseTo(PIP.y + PLAYER_SPEED);
   });
 
@@ -210,9 +204,7 @@ describe("PlayerControlSystem — movement", () => {
 
   it("does not move into a tile blocked by a tree feature", () => {
     const { world, pip, control, act } = setup();
-    // Place tree far enough right that Pip can't cross it even with continuous
-    // sub-tile movement. Start Pip 0.1 tiles west of the tile boundary.
-    pip.transform!.x = PIP.x + 0.4;
+    // Tree one tile east of Pip's center. Pip starts at his tile center (PIP.x).
     const tx = PIP.x + 1, ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
@@ -221,9 +213,9 @@ describe("PlayerControlSystem — movement", () => {
     pip.player!.pendingMoveX = "right";
     // Run enough ticks that Pip would cross the boundary without collision.
     for (let t = 0; t < 6; t++) tick(world, control, act, t);
-    // AABB half-width = 0.3 → right edge must stay below tx (= PIP.x+1).
-    // x + 0.3 < PIP.x + 1 → x < PIP.x + 0.7
-    expect(pip.transform!.x).toBeLessThanOrEqual(PIP.x + 0.7 + 0.001);
+    // Integer coord = tile CENTER, cell spans [N−0.5, N+0.5). Pip's center stops at the shared
+    // tile edge: tree center (PIP.x+1) − 0.5 − AABB_HALF(0.3) = PIP.x + 0.2.
+    expect(pip.transform!.x).toBeLessThanOrEqual(PIP.x + 0.2 + 0.001);
     expect(pip.player!.facing).toBe("right"); // still turned to face it
   });
 
@@ -238,8 +230,9 @@ describe("PlayerControlSystem — movement", () => {
     pip.transform!.y = farmRegion.bounds.minY + 0.4;
     pip.player!.pendingMoveY = "up"; // ocean above minY
     for (let t = 0; t < 6; t++) tick(world, control, act, t);
-    // Pip must not have crossed above minY (AABB half-height 0.3 → y ≥ minY + 0.3 - ε).
-    expect(pip.transform!.y).toBeGreaterThanOrEqual(farmRegion.bounds.minY - 0.001);
+    // Integer coord = tile CENTER, cell spans [N−0.5, N+0.5). Pip's top edge stops at the north
+    // shore of his top tile row: ocean center (minY−1) + 0.5 + AABB_HALF(0.3) = minY − 0.2.
+    expect(pip.transform!.y).toBeGreaterThanOrEqual(farmRegion.bounds.minY - 0.2 - 0.001);
     expect(pip.player!.facing).toBe("up");
   });
 });

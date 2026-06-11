@@ -130,36 +130,60 @@
       "w": 16,
       "h": 16
     },
-    "product/egg": {
+    "tool/can": {
       "x": 1,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "product/milk": {
+    "tool/hoe": {
       "x": 18,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "product/wool": {
+    "tool/axe": {
       "x": 35,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "fruit/apple": {
+    "tool/pickaxe": {
       "x": 52,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "fruit/cherry": {
+    "product/egg": {
       "x": 69,
       "y": 52,
       "w": 16,
       "h": 16
+    },
+    "product/milk": {
+      "x": 86,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "product/wool": {
+      "x": 103,
+      "y": 52,
+      "w": 16,
+      "h": 16
+    },
+    "fruit/apple": {
+      "x": 1,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "fruit/cherry": {
+      "x": 18,
+      "y": 69,
+      "w": 16,
+      "h": 16
     }
   },
-  "inputsHash": "eb159b34ffc59b58a9aa9b9b989c6a0f37f08ff07d247170da445870185041ac"
+  "inputsHash": "d7dd890fbdfb286c8eafb08488706a9d6959e8b2c3497acb21721beefaa5483b"
 }

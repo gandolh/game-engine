@@ -5,8 +5,14 @@ import type { PlayerHotbar } from "@farm/sim-core/snapshot";
 /**
  * HotbarPanel — Pip's tool bar. Slots, order, and selection are owned by the sim
  * (HOTBAR_SLOTS + player.selectedSlot) and arrive via snapshot; this panel reflects them.
- * Keys 1-7 select slots (handled in main.ts); E performs the selected action.
+ * Keys 1-8 select slots (handled in main.ts); left-click performs the selected action.
+ *
+ * Each slot draws its atlas sprite (via the `iconFor` resolver passed to update); if the sprite
+ * can't be rasterized the slot falls back to the unicode `glyph`.
  */
+
+/** Resolves a slot's atlas frame to a pixel-art data URL, or null to fall back to text. */
+export type IconResolver = (frame: string) => string | null;
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   position: "fixed",
@@ -71,7 +77,20 @@ export class HotbarPanel {
         text: `${i + 1}`,
         style: { fontSize: "8px", color: EDG.slate, alignSelf: "flex-start", lineHeight: "1" },
       });
-      const glyph = createEl("div", { text: "", style: { fontSize: "16px", lineHeight: "1" } });
+      const glyph = createEl("div", {
+        text: "",
+        style: {
+          width: "26px",
+          height: "26px",
+          fontSize: "16px",
+          lineHeight: "26px",
+          textAlign: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          backgroundSize: "contain",
+          imageRendering: "pixelated",
+        },
+      });
       const caption = createEl("div", {
         text: "",
         style: { fontSize: "8px", color: EDG.steel, textAlign: "center", lineHeight: "1.1" },
@@ -89,7 +108,7 @@ export class HotbarPanel {
     }
   }
 
-  update(hotbar: PlayerHotbar | null): void {
+  update(hotbar: PlayerHotbar | null, iconFor?: IconResolver): void {
     if (hotbar === null) {
       this.panel.style.display = "none";
       return;
@@ -100,7 +119,15 @@ export class HotbarPanel {
     hotbar.slots.forEach((slot, i) => {
       const el = this.slots[i]!;
       const selected = i === hotbar.selected;
-      setText(el.glyph, slot.glyph);
+      // Prefer the atlas sprite; fall back to the unicode glyph when it can't be rasterized.
+      const iconUrl = iconFor ? iconFor(slot.frame) : null;
+      if (iconUrl) {
+        setText(el.glyph, "");
+        el.glyph.style.backgroundImage = `url(${iconUrl})`;
+      } else {
+        el.glyph.style.backgroundImage = "";
+        setText(el.glyph, slot.glyph);
+      }
       setText(el.caption, slot.label);
       setText(el.count, slot.text);
       applyStyles(el.root, {

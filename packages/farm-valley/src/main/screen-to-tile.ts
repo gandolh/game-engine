@@ -35,7 +35,12 @@ export function screenToWorld(
 }
 
 /**
- * Convert a CSS-pixel pointer position to the nearest world tile coordinate.
+ * Convert a CSS-pixel pointer position to the world tile coordinate under it.
+ *
+ * Tile N's sprite covers world pixels [N*TILE, (N+1)*TILE) (its center is drawn at
+ * N*TILE + TILE/2), so the tile under a pixel is `Math.floor(wx / TILE)`. Using
+ * Math.round here would bias the right/bottom half of every tile one cell over, so a
+ * click on an object's visual square would register on its neighbour (the "hitbox" bug).
  *
  * @param camera  The current Camera2D instance.
  * @param canvas  The game canvas element.
@@ -51,7 +56,7 @@ export function screenToTile(
 ): { x: number; y: number } {
   const { wx, wy } = screenToWorld(camera, canvas, clientX, clientY);
   return {
-    x: Math.round(wx / TILE),
-    y: Math.round(wy / TILE),
+    x: Math.floor(wx / TILE),
+    y: Math.floor(wy / TILE),
   };
 }

@@ -20,12 +20,21 @@ export function pushSnapshotSprites(
 
   for (const s of sprites) {
     const { frame, bobY } = resolveFrameAndBob(s, nowMs, season);
+    // Pseudo-3D height (tile units → px). z=0/undefined keeps the exact grounded behaviour.
+    const zPx = s.z ? s.z * TILE : 0;
     if (s.id !== null) {
-      renderer.pushShadow(s.x, s.y + TILE * 0.35, TILE * 0.32, TILE * 0.12, 0.45);
+      // Drop-shadow stays on the ground (no z lift) and shrinks/fades as the sprite rises.
+      // Fully gone by HEIGHT_FADE_PX so a high jump reads as airborne; clamped so it never inverts.
+      const HEIGHT_FADE_PX = TILE * 3;
+      const t = zPx > 0 ? Math.max(0, 1 - zPx / HEIGHT_FADE_PX) : 1;
+      if (t > 0) {
+        renderer.pushShadow(s.x, s.y + TILE * 0.35, TILE * 0.32 * t, TILE * 0.12 * t, 0.45 * t);
+      }
     }
     renderer.push({
       x: s.x,
       y: s.y + bobY,
+      ...(zPx > 0 ? { z: zPx } : {}),
       width: TILE,
       height: TILE,
       frame,

@@ -28,10 +28,12 @@ export interface FinalStandingRow extends LeaderboardRow {
   crops: Partial<Record<import("../components").CropKind, number>>;
 }
 
-/** `text` = readout (e.g. "10/10", "x3", or "" for durable); `available` dims when unusable. */
+/** `text` = readout (e.g. "10/10", "x3", or "" for durable); `available` dims when unusable.
+ *  `frame` = atlas sprite for the slot icon (UI blits it; falls back to `glyph` text if unavailable). */
 export interface HotbarSlotState {
   label: string;
   glyph: string;
+  frame: string;
   text: string;
   available: boolean;
 }

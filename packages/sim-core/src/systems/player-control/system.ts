@@ -112,12 +112,17 @@ export class PlayerControlSystem implements System {
     const nx = cx + vx;
     const ny = cy + vy;
 
+    // Position convention (see header): an INTEGER coordinate is the CENTER of that tile, so tile
+    // cell N spans world coords [N-0.5, N+0.5) and the cell index for a coord v is Math.round(v).
+    // Shift by +0.5 so the floor-based span math operates in tile-corner space; the push-out below
+    // shifts back by the same 0.5. (Without this, the AABB is offset half a tile from the sprite —
+    // Pip's center drifts onto ocean tiles at island right/bottom edges, "walking on water".)
     // EPS prevents an AABB edge exactly on a tile boundary from counting as overlapping.
     const EPS = 1e-6;
-    const minTX = Math.floor(nx - AABB_HALF + EPS);
-    const maxTX = Math.floor(nx + AABB_HALF - EPS);
-    const minTY = Math.floor(ny - AABB_HALF + EPS);
-    const maxTY = Math.floor(ny + AABB_HALF - EPS);
+    const minTX = Math.floor(nx + 0.5 - AABB_HALF + EPS);
+    const maxTX = Math.floor(nx + 0.5 + AABB_HALF - EPS);
+    const minTY = Math.floor(ny + 0.5 - AABB_HALF + EPS);
+    const maxTY = Math.floor(ny + 0.5 + AABB_HALF - EPS);
 
     let x = nx;
     let y = ny;
@@ -126,10 +131,10 @@ export class PlayerControlSystem implements System {
       for (let ty = minTY; ty <= maxTY; ty++) {
         if (this.canStand(tx, ty)) continue;
 
-        if (vx > 0) x = Math.min(x, tx - AABB_HALF);        // moving right: push left
-        else if (vx < 0) x = Math.max(x, tx + 1 + AABB_HALF); // moving left: push right
-        if (vy > 0) y = Math.min(y, ty - AABB_HALF);        // moving down: push up
-        else if (vy < 0) y = Math.max(y, ty + 1 + AABB_HALF); // moving up: push down
+        if (vx > 0) x = Math.min(x, tx - 0.5 - AABB_HALF);        // moving right: push left
+        else if (vx < 0) x = Math.max(x, tx + 0.5 + AABB_HALF); // moving left: push right
+        if (vy > 0) y = Math.min(y, ty - 0.5 - AABB_HALF);        // moving down: push up
+        else if (vy < 0) y = Math.max(y, ty + 0.5 + AABB_HALF); // moving up: push down
       }
     }
 

@@ -12,6 +12,10 @@ export interface Canvas2dSprite {
   /** Depth key for y-sort (defaults to `y`). For vertical-face sprites (walls, cliffs) set this to the
    *  face's bottom edge so characters behind it are correctly occluded. Drawing position is unchanged. */
   sortY?: number;
+  /** Pseudo-3D height above the ground, world px. The sprite is drawn lifted up the screen by `z`
+   *  (screenY = y - z) while `(x, y)` stays the ground/shadow point and the y-sort key is unchanged.
+   *  Defaults to 0 → exact non-elevated behaviour. Clamp callers to z ≥ 0. */
+  z?: number;
   flipX?: boolean;
   /** RGB multiply tint as 0xRRGGBBAA. 0xffffffff/absent = no tint. Applied via a pooled offscreen buffer — never leaks. */
   tintRgba?: number;

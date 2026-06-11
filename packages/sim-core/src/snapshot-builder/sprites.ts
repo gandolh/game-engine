@@ -253,14 +253,14 @@ export function buildPlayerHotbar(world: World<GameEntity>): PlayerHotbar | null
     const slots = HOTBAR_SLOTS.map((slot) => {
       if (slot.kind === "seed") {
         const n = inv.seeds[slot.crop];
-        return { label: slot.label, glyph: slot.glyph, text: `x${n}`, available: n > 0 };
+        return { label: slot.label, glyph: slot.glyph, frame: slot.frame, text: `x${n}`, available: n > 0 };
       }
       if (slot.tool === "can") {
         const text = can ? `${can.charges}/${can.maxCharges}` : "0/0";
-        return { label: slot.label, glyph: slot.glyph, text, available: (can?.charges ?? 0) > 0 };
+        return { label: slot.label, glyph: slot.glyph, frame: slot.frame, text, available: (can?.charges ?? 0) > 0 };
       }
       // hoe / axe / pickaxe — durable tools, no count.
-      return { label: slot.label, glyph: slot.glyph, text: "", available: true };
+      return { label: slot.label, glyph: slot.glyph, frame: slot.frame, text: "", available: true };
     });
     return { slots, selected: e.player?.selectedSlot ?? 0 };
   }

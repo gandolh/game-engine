@@ -71,6 +71,12 @@ export class Canvas2dRenderer {
     this.addAtlas(atlas);
   }
 
+  /** The loaded atlas registered under `id`, or undefined. Lets UI code blit individual
+   *  frames (e.g. hotbar icons, custom mouse cursors) without re-fetching the sheet. */
+  getAtlas(id: string): LoadedAtlasImage | undefined {
+    return this.atlases.get(id);
+  }
+
   private get hasAtlases(): boolean {
     return this.atlases.size > 0;
   }
@@ -197,8 +203,13 @@ export class Canvas2dRenderer {
   }
   private shadowQueue: Array<{ x: number; y: number; rx: number; ry: number; alpha: number }> = [];
 
-  /** `wash`: optional full-frame color overlay (day/night grade) applied last in screen space. color="#rrggbb"; alpha∈[0,1]. */
-  endFrame(wash?: { color: string; alpha: number }, particles?: ParticleSystem): void {
+  /** `wash`: optional full-frame color overlay (day/night grade) applied last in screen space. color="#rrggbb"; alpha∈[0,1].
+   *  `weather`: optional world-space overlay (rain/snow) drawn on top of sprites/particles, under the wash. */
+  endFrame(
+    wash?: { color: string; alpha: number },
+    particles?: ParticleSystem,
+    weather?: { count: number; draw(ctx: Ctx2D): void },
+  ): void {
     if (!this.hasAtlases) return;
 
     const { ctx, canvas, camera } = this;
@@ -291,14 +302,20 @@ export class Canvas2dRenderer {
     for (let i = 0; i < this.queueLen; i += 1) {
       const s = this.queue[i]!;
       ctx.globalAlpha = s.alpha;
+      // Pseudo-3D: lift the sprite up the screen by its height z (drawing only — compareSprite still
+      // sorts on the ground y, so depth order is unaffected). z=0/undefined is a no-op.
+      const origY = s.y;
+      const liftedY = s.z ? origY - s.z : origY;
       if (this.pixelSnap) {
-        const origX = s.x, origY = s.y;
+        const origX = s.x;
         s.x = (Math.round(origX * sx + ox) - ox) / sx;
-        s.y = (Math.round(origY * sy + oy) - oy) / sy;
+        s.y = (Math.round(liftedY * sy + oy) - oy) / sy;
         drawSprite(ctx, this.atlases, s);
         s.x = origX; s.y = origY;
       } else {
+        s.y = liftedY;
         drawSprite(ctx, this.atlases, s);
+        s.y = origY;
       }
     }
 
@@ -306,6 +323,12 @@ export class Canvas2dRenderer {
 
     if (particles && particles.count > 0) {
       particles.draw(ctx);
+    }
+
+    // Weather curtain (rain/snow) sits in front of the world, still in world space (camera transform
+    // active), so drops parallax with the scene. Drawn after particles so splash crowns read beneath it.
+    if (weather && weather.count > 0) {
+      weather.draw(ctx);
     }
 
     // Wash drawn in screen space (camera transform reset); composite/alpha restored so state never leaks.

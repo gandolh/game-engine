@@ -191,6 +191,10 @@ import r186 from "./structure/cottage-aggressive";
 import r187 from "./structure/cottage-hoarder";
 import r188 from "./structure/cottage-opportunist";
 import r189 from "./structure/cottage-pip";
+import r190 from "./tool/can";
+import r191 from "./tool/hoe";
+import r192 from "./tool/axe";
+import r193 from "./tool/pickaxe";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -383,5 +387,9 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r187,
   r188,
   r189,
+  r190,
+  r191,
+  r192,
+  r193,
 ];
 

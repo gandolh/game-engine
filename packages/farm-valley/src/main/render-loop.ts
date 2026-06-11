@@ -1,7 +1,8 @@
-import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler, expSmooth } from "@engine/core";
+import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
+import type { WeatherKind } from "@engine/core";
 import { pushSnapshotSprites, pushOccluderSprites, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
-import { WATERFALL_TILE, CAMPFIRE_TILE } from "@farm/sim-core/world/regions";
+import { WATERFALL_TILE, CAMPFIRE_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SLOTS } from "@farm/sim-core/systems/player-control";
@@ -23,6 +24,7 @@ import {
   applyFocusAndPan,
 } from "./camera";
 import { screenToTile } from "./screen-to-tile";
+import { frameDataUrl } from "./sprite-icon";
 import type { Panels } from "./panels";
 import type { ParticleDirector } from "./particles";
 import { renderGameOver } from "./game-over";
@@ -36,6 +38,7 @@ export interface RenderLoopDeps {
   keyboard: Keyboard;
   particles: ParticleSystem;
   particleDirector: ParticleDirector;
+  rain: RainField;
   canvas: HTMLCanvasElement;
   panels: Panels;
   tooltip: HTMLElement;
@@ -48,7 +51,7 @@ export interface RenderLoopDeps {
 
 export function createRenderLoop(deps: RenderLoopDeps): () => void {
   const {
-    client, renderer, keyboard, particles, particleDirector,
+    client, renderer, keyboard, particles, particleDirector, rain,
     canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
   } = deps;
 
@@ -61,6 +64,36 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
   let lastFrameMs = performance.now();
   let gameOverShown = false;
+
+  // Rain impact: a raindrop landed at world (wx, wy). Water tiles get a low, spreading ripple;
+  // land gets a small dust/droplet pop. isWalkable(tx,ty) is false over ocean. Render-only.
+  const spawnRainSplash = (wx: number, wy: number): void => {
+    const tx = Math.floor(wx / TILE);
+    const ty = Math.floor(wy / TILE);
+    if (!isWalkable(tx, ty)) {
+      // Water ripple — spreads sideways, near-flat arc, fades fast.
+      particles.emit({
+        x: wx, y: wy, count: 4, shape: "circle",
+        color: EDG.skyBlue, color2: EDG.white,
+        speedMin: 10, speedMax: 26,
+        angleMin: 0, angleMax: Math.PI, // hemisphere spread, hugging the surface
+        lifetimeMin: 0.25, lifetimeMax: 0.5,
+        sizeMin: 0.5, sizeMax: 1.1,
+        gravity: 24,
+      });
+    } else {
+      // Land splash — small droplets pop up and fall back (positive gravity arc).
+      particles.emit({
+        x: wx, y: wy, count: 3, shape: "rect",
+        color: EDG.silver, color2: EDG.skyBlue,
+        speedMin: 14, speedMax: 30,
+        angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, // upward fan
+        lifetimeMin: 0.2, lifetimeMax: 0.4,
+        sizeMin: 0.3, sizeMax: 0.7,
+        gravity: 130,
+      });
+    }
+  };
 
   // Cap render at 60fps (rAF fires at display rate); epsilon avoids dropping a
   // frame that lands a hair early on a 60Hz vsync boundary.
@@ -116,46 +149,29 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   });
 
   // ---------------------------------------------------------------------------
-  // Action-aware cursor: update canvas.style.cursor on mousemove based on the
-  // active hotbar slot. Only update when the computed cursor string changes.
+  // Per-tool cursor: the OS pointer becomes the selected tool/seed sprite, so the
+  // mouse reads as "what you're about to use". Hotspot is centered on the icon (the
+  // tile under the pointer is the one click-to-act targets). Falls back to a native
+  // crosshair if the sprite can't be rasterized. Recomputed only when the selection
+  // changes (cheap key compare); driven from the render loop so keyboard slot swaps
+  // update the cursor even without mouse movement.
   // ---------------------------------------------------------------------------
-  let lastCursor = "";
+  let lastCursorKey = "";
 
-  canvas.addEventListener("mousemove", () => {
-    const hotbarSnap = client.playerHotbar;
-    let nextCursor: string;
-
-    if (hotbarSnap === null) {
-      nextCursor = "default";
-    } else {
-      const slot = HOTBAR_SLOTS[hotbarSnap.selected];
-      if (slot === undefined) {
-        nextCursor = "default";
-      } else if (slot.kind === "tool") {
-        switch (slot.tool) {
-          case "axe":
-          case "pickaxe":
-          case "fishing-rod":
-            nextCursor = "crosshair";
-            break;
-          case "hoe":
-          case "can":
-            nextCursor = "cell";
-            break;
-          default:
-            nextCursor = "default";
-        }
-      } else {
-        // seed slot
-        nextCursor = "cell";
-      }
+  function applyToolCursor(): void {
+    const snap = client.playerHotbar;
+    const slot = snap ? HOTBAR_SLOTS[snap.selected] : undefined;
+    const frame = slot?.frame;
+    const key = frame ?? "default";
+    if (key === lastCursorKey) return;
+    lastCursorKey = key;
+    if (!frame) {
+      canvas.style.cursor = "default";
+      return;
     }
-
-    if (nextCursor !== lastCursor) {
-      lastCursor = nextCursor;
-      canvas.style.cursor = nextCursor;
-    }
-  });
+    const url = frameDataUrl(renderer, frame, 2); // 16px frame → 32px cursor
+    canvas.style.cursor = url ? `url(${url}) 16 16, crosshair` : "crosshair";
+  }
 
   function renderFrame(): void {
     const frameStart = performance.now();
@@ -368,46 +384,24 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
 
-    // Weather ambient: rain/snow particles across the viewport; render-only.
-    frameProfiler.time("weather.spawn", () => {
-      const snap = client.latestSnapshot();
-      const w = snap?.weather;
-      if (w) {
-        const vw = viewRight - viewLeft;
-        const spawnAcross = (count: number, fn: (x: number, y: number) => void): void => {
-          for (let i = 0; i < count; i++) {
-            fn(viewLeft + Math.random() * vw, viewTop - Math.random() * TILE * 2);
-          }
-        };
-        const isWinter = w.season === "winter";
-        if (isWinter) {
-          const flakes = Math.round((vw / TILE) * (w.condition === "storm" ? 0.9 : 0.5));
-          spawnAcross(flakes, (x, y) =>
-            particles.emit({
-              x, y, count: 1, shape: "circle",
-              color: EDG.white, color2: EDG.silver,
-              speedMin: 8, speedMax: 18,
-              angleMin: Math.PI * 0.45, angleMax: Math.PI * 0.55,
-              lifetimeMin: 1.6, lifetimeMax: 2.6,
-              sizeMin: 0.8, sizeMax: 1.6,
-              gravity: 6,
-            }),
-          );
-        } else if (w.condition === "rainy" || w.condition === "storm") {
-          const drops = Math.round((vw / TILE) * (w.condition === "storm" ? 2.2 : 1.2));
-          spawnAcross(drops, (x, y) =>
-            particles.emit({
-              x, y, count: 1, shape: "rect",
-              color: EDG.skyBlue, color2: EDG.silver,
-              speedMin: 220, speedMax: 320,
-              angleMin: Math.PI * 0.46, angleMax: Math.PI * 0.5,
-              lifetimeMin: 0.5, lifetimeMax: 0.9,
-              sizeMin: 0.4, sizeMax: 0.9,
-              gravity: 80,
-            }),
-          );
-        }
+    // Weather: persistent pseudo-3D rain/snow field (render-only). Drops carry a height and fall to
+    // the ground; rain lands with a splash (ripple on water, dust on land). World-space + camera-
+    // tracked density means walking no longer "resets" the curtain (was: per-frame top-edge sprinkle).
+    frameProfiler.time("weather", () => {
+      const w = client.latestSnapshot()?.weather;
+      const isWinter = w?.season === "winter";
+      const isWet = w?.condition === "rainy" || w?.condition === "storm";
+      const isStorm = w?.condition === "storm";
+      let kind: WeatherKind = "none";
+      let intensity = 0;
+      let color: string = EDG.skyBlue;
+      if (isWet && isWinter) {
+        kind = "snow"; intensity = isStorm ? 1.0 : 0.6; color = EDG.white;
+      } else if (isWet) {
+        kind = "rain"; intensity = isStorm ? 1.3 : 0.8; color = EDG.skyBlue;
       }
+      rain.setConfig({ kind, intensity, color, alpha: kind === "snow" ? 0.85 : 0.5 });
+      rain.update(dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom }, spawnRainSplash);
     });
 
     frameProfiler.time("particles.update", () => particles.update(dt));
@@ -462,7 +456,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         setRecenteringOnPip(true);
       }
       if (client.owner) {
-        const action = keyboard.justPressed("KeyE");
+        // Actions fire on left-click (see the click-to-act handler above), not a key.
         let selectSlot: number | null = null;
         for (let n = 1; n <= HOTBAR_SLOTS.length && n <= 9; n++) {
           if (keyboard.justPressed(`Digit${n}`)) {
@@ -478,10 +472,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         }
         if (
           moveChanged ||
-          action ||
           selectSlot !== null
         ) {
-          client.sendInput(moveX, moveY, action, selectSlot);
+          client.sendInput(moveX, moveY, false, selectSlot);
           setLastPlayerMoveX(moveX);
           setLastPlayerMoveY(moveY);
         }
@@ -508,7 +501,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       ambient.update(dtMs, nowMs, view, nightness, season);
       ambient.pushSprites(renderer);
     });
-    frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles));
+    frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain));
 
     const snap = client.latestSnapshot();
     const tick = client.tick;
@@ -523,7 +516,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       leaderboardPanel.update(client.leaderboard);
       slateBillboard.update(client.slate);
       eventFeedPanel.update(client.events);
-      hotbar.update(client.playerHotbar);
+      hotbar.update(client.playerHotbar, (frame) => frameDataUrl(renderer, frame, 2));
+      applyToolCursor();
       frameProfiler.time("panels.relmatrix", () => relationshipMatrix.update(client.relationships));
       wealthGraph.update(client.wealthSeries, client.day);
     });

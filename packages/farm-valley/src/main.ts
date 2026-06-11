@@ -5,6 +5,7 @@ import {
   EDG,
   Keyboard,
   ParticleSystem,
+  RainField,
   createNoiseGeneratorFromUrl,
 } from "@engine/core";
 import type { NoiseGenerator } from "@engine/core";
@@ -163,6 +164,7 @@ async function startGame(
 
     const particles = new ParticleSystem();
     const particleDirector = new ParticleDirector(particles, client);
+    const rain = new RainField();
 
     loadingScreen.setProgress("Starting sim…");
     client.init({
@@ -173,7 +175,7 @@ async function startGame(
     });
 
     const renderFrame = createRenderLoop({
-      client, renderer, keyboard, particles, particleDirector,
+      client, renderer, keyboard, particles, particleDirector, rain,
       canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
       onFirstFrame: () => {
         firstFrame = true;
