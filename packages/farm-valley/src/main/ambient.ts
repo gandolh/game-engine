@@ -358,7 +358,11 @@ export class AmbientLayer {
         bird.y = bird.baseY;
         bird.travelPx = 0;
         bird.totalDistPx = viewW + CONSTANTS.SPRITE_PX * 4 + i * 12;
-        bird.spawnMs = nowMs + i * 80; // stagger flap phase per bird
+        // Stagger flap phase per bird. Offset into the PAST, not the future —
+        // a future spawnMs makes `elapsed` negative on the next frames, so
+        // `floor(elapsed / halfPeriod) % 2` yields -1 and BIRD_FRAMES[-1] is
+        // undefined → render-loop crash. Past offset keeps elapsed ≥ 0.
+        bird.spawnMs = nowMs - i * 80;
       }
     }
   }

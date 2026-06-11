@@ -4,6 +4,28 @@ Optimization opportunities for the engine, filtered against what the code **actu
 
 > **Determinism guardrail.** Any of these is a refactor of *how* state moves, never *what* it computes. Prove behavior-preservation with multi-seed `EXPORT=json` diffs, not just `CHECK_DETERMINISM=1` (which only proves reproducibility). See [architecture.md](architecture.md) and the root [CLAUDE.md](../../CLAUDE.md).
 
+## Tier 0 — Live FPS regression: 15–30 fps (should be 60) — TODO (reported 2026-06-11)
+
+> **This contradicts the recorded baseline.** The 2026-06-05 and 2026-06-10 "Measured results" tables below show **~60 fps with the render frame at ~6–10 ms (≤60% of the 16.6 ms budget)**. A 15–30 fps report means a **regression after those measurements** — the prime candidates are the render-side features that landed right before it: **camera smoothing (brief 67), ambient idle life (brief 68), weather-station/weather particles (brief 74), tab-resync (brief 66)** — none existed at the 60 fps baseline, and the world is now 52-wide with 21 farmers. **All transport/render-only → sim untouched → determinism unaffected, but re-verify with the fast 3-day/3-seed diff anyway.**
+>
+> **⚠️ This section is reasoned from the code, not yet profiled.** Step 0 below is mandatory before fixing anything — measure which of these is the actual cost.
+
+Ranked by likelihood × impact-for-effort (each names the file:line so it can be confirmed):
+
+- [ ] **0. Re-profile first (gates everything else).** Run `npm run dev` + `?profile` ([config.ts](../../packages/farm-valley/src/main/config.ts) `PROFILE_ENABLED`); the [DebugOverlay](../../packages/engine/src/debug/overlay.ts) shows `frame` / `interp` mean+p95. Confirm `frame` ≫ 16.6 ms and identify whether the cost is DOM (panels), particles, or canvas draw. **Per the resource rule, ask the user before any longer perf probe.** Capture the before/after number for each fix.
+
+- [ ] **1. Relationship matrix rebuilds 441 DOM cells EVERY frame (top suspect).** [relationship-matrix.ts:92](../../packages/farm-valley/src/ui/relationship-matrix.ts#L92) has **no dirty guard** — `update()` rebuilds the full 21×21 `<table>` (`createEl` + `applyStyles` per cell, then `replaceChildren`) on every render frame (~60 Hz), though trust changes at most per-tick (20 Hz) and usually per-day. That's ~28k element creations/sec + full-table relayout. Contrast the panels that already gate: wealth-graph (`lastDayDrawn` guard, [panel.ts:79](../../packages/farm-valley/src/ui/wealth-graph/panel.ts#L79)), observer (row reuse), event-feed (node reuse). **Fix:** cache a trust signature (or gate on `client.tick` change) and early-return when unchanged; ideally reuse cells like the other panels. Highest-leverage single change.
+
+- [ ] **2. Unbounded weather-particle spawning (brief 74, new).** [render-loop.ts:279-319](../../packages/farm-valley/src/main/render-loop.ts#L279-L319) spawns `(viewWidth/TILE) × 2.2` rain rects (or `× 0.9` snow) **every frame** — at a ~52-tile viewport that's ~115 particles/frame ≈ **6,900/sec** during a storm, with no pool cap. Compounded by [particles.ts:93](../../packages/engine/src/render/particles.ts#L93) using `splice(i,1)` (O(n) shift per dead particle → O(n²)-ish churn) and a per-particle `arc()`/`fillRect()` draw. **Fix:** cap total particle count, budget spawns/frame, and swap-with-last + `pop()` instead of `splice`.
+
+- [ ] **3. Gate the whole panel-update block on tick change.** [render-loop.ts:419-431](../../packages/farm-valley/src/main/render-loop.ts#L419-L431) calls all 9 panel `update()`s every frame though their data changes at ≤20 Hz. Even with per-panel guards this re-reads client state 60×/s. Wrap the block in `if (client.tick !== lastPanelTick)`. Cheap, removes a class of future regressions.
+
+- [ ] **4. Tier 2 culling now actually bites (was deferred when world was small).** Dynamic sprites/shadows are still **not viewport-culled** and `this.queue.sort(compareSprite)` runs **every frame** ([canvas2d/renderer.ts](../../packages/engine/src/render/canvas2d/renderer.ts)); the static layer is blitted full-frame. With 52-wide world + 21 farmers + ambient + always-on animated pushes (foam culled, but forge fire/smoke/waterfall/campfire/beacon at [render-loop.ts:167-246](../../packages/farm-valley/src/main/render-loop.ts#L167-L246) are not), the deferred Tier 2 wins below are worth taking now: cull dynamic sprites to `[viewLeft,viewRight]×[viewTop,viewBottom]`, clip the static blit to the visible source rect, and sort-on-dirty.
+
+- [ ] **5. Ambient layer cost (brief 68).** `ambient.update` + `ambient.pushSprites` run every frame ([render-loop.ts:413-414](../../packages/farm-valley/src/main/render-loop.ts#L413-L414)). New since baseline; profile its sprite count and confirm it's culled to `view` (it's passed `view` — verify it uses it).
+
+**Likely root cause (pre-profile hypothesis):** #1 (DOM thrash, constant cost regardless of weather) + #2 (particle storm, intermittent) together. #1 explains a steady 30 fps; #2 explains drops to 15 during rain/storm/winter. Profile to confirm before committing effort.
+
 ## Already done — do not redo
 
 - **Query iteration is pooled.** `for...of` over a query borrows a scratch buffer and returns it; steady-state iteration allocates zero arrays — [world.ts:65-97](../../packages/engine/src/ecs/world.ts#L65-L97).

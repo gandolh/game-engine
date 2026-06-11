@@ -92,6 +92,43 @@ describe("AmbientLayer pool caps", () => {
 });
 
 // ---------------------------------------------------------------------------
+// 1b. Every pushed sprite has a valid atlas frame
+// ---------------------------------------------------------------------------
+describe("AmbientLayer frame validity", () => {
+  it("never pushes a sprite with an undefined/empty frame (multi-bird flock regression)", () => {
+    // Regression for the render-loop crash "Atlas frame not found: undefined
+    // (atlas props)": flock birds were spawned with spawnMs in the FUTURE
+    // (nowMs + i*80), so on their first rendered frames `elapsed` was negative
+    // and `floor(elapsed / halfPeriod) % 2` produced -1 → BIRD_FRAMES[-1] ===
+    // undefined. The fix staggers spawnMs into the past. This drives enough
+    // frames for several flocks (some with count >= 2) and asserts every pushed
+    // sprite carries a real frame name.
+    const sprites: Canvas2dSprite[] = [];
+    for (let i = 0; i < 20; i++) sprites.push(makeSprite("structure/tree", i * 32, 100));
+    sprites.push(makeSprite("structure/home", 200, 200, 32, 48));
+
+    const layer = new AmbientLayer();
+    layer.init(sprites, 42);
+
+    let birdsSeen = 0;
+    // ~128s at 16ms — long enough for multiple bird flocks (interval 20-60s).
+    for (let frame = 0; frame < 8000; frame++) {
+      layer.update(16, frame * 16, WIDE_VIEW, 0, "autumn");
+      const coll = makeCollector();
+      layer.pushSprites(coll);
+      for (const s of coll.sprites) {
+        expect(typeof s.frame).toBe("string");
+        expect(s.frame.length).toBeGreaterThan(0);
+      }
+      birdsSeen += coll.sprites.filter((s) => s.frame.startsWith("decoration/bird")).length;
+    }
+    // Sanity: the run actually exercised the bird path (otherwise the assertion
+    // above is vacuous).
+    expect(birdsSeen).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 2. Seeded determinism
 // ---------------------------------------------------------------------------
 describe("AmbientLayer seeded determinism", () => {
