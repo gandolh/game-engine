@@ -1,6 +1,6 @@
-import { Canvas2dRenderer, Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
+import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
-import type { WeatherKind } from "@engine/core";
+import type { WeatherKind, RendererLike } from "@engine/core";
 import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
 import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
@@ -35,7 +35,7 @@ import type { AmbientLayer } from "./ambient";
 
 export interface RenderLoopDeps {
   client: SimClient;
-  renderer: Canvas2dRenderer;
+  renderer: RendererLike;
   keyboard: Keyboard;
   particles: ParticleSystem;
   particleDirector: ParticleDirector;

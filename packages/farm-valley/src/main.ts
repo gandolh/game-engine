@@ -1,14 +1,14 @@
 import {
   loadAllAtlasSheets,
   Camera2D,
-  Canvas2dRenderer,
+  createRenderer,
   EDG,
   Keyboard,
   ParticleSystem,
   RainField,
   createNoiseGeneratorFromUrl,
 } from "@engine/core";
-import type { NoiseGenerator } from "@engine/core";
+import type { NoiseGenerator, RendererLike } from "@engine/core";
 import { HomeScreen, LoadingScreen } from "./screens";
 import { SimClient } from "./worker/sim-client";
 import { parseRun } from "@farm/sim-core/run-descriptor";
@@ -34,7 +34,7 @@ import { createRenderLoop } from "./main/render-loop";
 import { showFatal } from "./main/fatal";
 
 interface Runtime {
-  renderer: Canvas2dRenderer;
+  renderer: RendererLike;
   noiseGen: NoiseGenerator | null;
   keyboard: Keyboard;
 }
@@ -54,7 +54,7 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   const atlasMap = await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL);
   const camera = new Camera2D(CAMERA_CONFIG);
   setCamera(camera);
-  const renderer = new Canvas2dRenderer(canvas, camera);
+  const renderer = await createRenderer(canvas, camera, { onBackend: (b) => console.info("[render] backend:", b) });
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }

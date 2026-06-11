@@ -1,4 +1,4 @@
-import { Canvas2dRenderer } from "@engine/core";
+import type { RendererLike } from "@engine/core";
 import type { Season } from "../protocols/weather";
 import { frameToAtlasId, resolveFrameAndBob } from "./frames";
 
@@ -9,7 +9,7 @@ const TILE = 16;
  * Meet bubble takes priority over intention bubble for the same farmer.
  */
 export function pushSnapshotSprites(
-  renderer: Canvas2dRenderer,
+  renderer: RendererLike,
   sprites: import("../snapshot").SnapshotSprite[],
   meets: import("../snapshot").SnapshotMeet[],
   farmerPositions: Map<number, { x: number; y: number }>,

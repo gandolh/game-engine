@@ -1,4 +1,4 @@
-import type { Canvas2dRenderer } from "@engine/core";
+import type { RendererLike } from "@engine/core";
 import { frameToAtlasId } from "@farm/sim-core/render-systems";
 
 /**
@@ -10,7 +10,7 @@ import { frameToAtlasId } from "@farm/sim-core/render-systems";
 const cache = new Map<string, string | null>();
 
 export function frameDataUrl(
-  renderer: Canvas2dRenderer,
+  renderer: RendererLike,
   frame: string,
   scale = 2,
 ): string | null {
@@ -22,7 +22,7 @@ export function frameDataUrl(
   return url;
 }
 
-function rasterize(renderer: Canvas2dRenderer, frame: string, scale: number): string | null {
+function rasterize(renderer: RendererLike, frame: string, scale: number): string | null {
   if (typeof document === "undefined") return null;
   let atlasId: string;
   try {

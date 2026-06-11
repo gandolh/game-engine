@@ -1,4 +1,4 @@
-import { Canvas2dRenderer } from "@engine/core";
+import type { RendererLike } from "@engine/core";
 import type { NoiseGenerator } from "@engine/core";
 import { makeGroundNoiseDecorator, GROUND_NOISE_AMPLITUDE } from "../render/ground-noise";
 import { makeWaterDepthDecorator } from "../render/water-depth";
@@ -10,7 +10,7 @@ import type { AmbientLayer } from "./ambient";
 // hash, not fBm). noiseGen param kept for signature compatibility but unused.
 export function bakeStaticLayer(
   client: SimClient,
-  renderer: Canvas2dRenderer,
+  renderer: RendererLike,
   _noiseGen: NoiseGenerator | null,
   seed: number,
   ambient: AmbientLayer,
