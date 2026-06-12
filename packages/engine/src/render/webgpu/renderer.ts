@@ -15,6 +15,7 @@ import { StaticLayerPass, WaterPass } from "./static-layer-pass";
 import type { VisibleRect } from "./static-layer-pass";
 import { ParticleBatch } from "./particle-batch";
 import { WeatherPass } from "./weather-pass";
+import { TintPass } from "./tint-pass";
 import { RainField } from "../rain-field";
 import { compareSprite, spritesOverlap } from "../canvas2d/draw";
 
@@ -82,12 +83,13 @@ export class WebGpuRenderer implements RendererLike {
   private readonly _waterPass: WaterPass;
   private readonly _particleBatch: ParticleBatch;
   private readonly _weatherPass: WeatherPass;
+  private readonly _tintPass: TintPass;
 
   /** When true (default), particles + weather render on the GPU (Wave 4). Set false to
    *  use the 2D-overlay fallback (Wave 2 behaviour) — an A/B/safety toggle in case a GPU
    *  effect misbehaves on a given device. Shadows render GPU-side either way (they must
-   *  sit UNDER sprites, which the overlay — composited on top — cannot do); the wash
-   *  always uses the overlay. */
+   *  sit UNDER sprites, which the overlay — composited on top — cannot do). The tint
+   *  (day/night wash) always renders GPU-side via TintPass. */
   useGpuEffects = true;
 
   // CPU-side atlas map: required for bakeStaticLayer/bakeWaterPattern (StaticLayerPass/WaterPass
@@ -144,6 +146,7 @@ export class WebGpuRenderer implements RendererLike {
     waterPass: WaterPass,
     particleBatch: ParticleBatch,
     weatherPass: WeatherPass,
+    tintPass: TintPass,
   ) {
     this.camera = camera;
     this.clearColor = EDG.black;
@@ -158,6 +161,7 @@ export class WebGpuRenderer implements RendererLike {
     this._waterPass = waterPass;
     this._particleBatch = particleBatch;
     this._weatherPass = weatherPass;
+    this._tintPass = tintPass;
 
     // Log device loss and stop the draw loop gracefully.
     gpuCtx.device.lost.then((info: GPUDeviceLostInfo) => {
@@ -187,13 +191,14 @@ export class WebGpuRenderer implements RendererLike {
     const waterPass = new WaterPass(gpuCtx);
     const particleBatch = new ParticleBatch(gpuCtx);
     const weatherPass = new WeatherPass(gpuCtx);
+    const tintPass = new TintPass(gpuCtx);
     const validationError = await device.popErrorScope();
     if (validationError) {
       throw new Error(`webgpu: pipeline/shader validation failed — ${validationError.message}`);
     }
 
     return new WebGpuRenderer(
-      canvas, camera, gpuCtx, store, batch, shadowBatch, overlay, staticPass, waterPass, particleBatch, weatherPass,
+      canvas, camera, gpuCtx, store, batch, shadowBatch, overlay, staticPass, waterPass, particleBatch, weatherPass, tintPass,
     );
   }
 
@@ -510,14 +515,32 @@ export class WebGpuRenderer implements RendererLike {
       }
     }
 
+    // 4e. Full-screen tint (day/night + seasonal wash) — GPU-side, over the entire
+    // scene (water, static, shadows, sprites, particles, weather). Later in-scene
+    // passes (Voronoi caustics, cloud shadows — briefs 13/15) compose UNDER this tint.
+    // The view bind group (group 0) is NOT needed by TintPass; it uses its own group 0.
+    // We must unset the view bind group to avoid a layout mismatch: set a null-equivalent
+    // by resetting is not needed since setPipeline changes the layout and the old binding
+    // at slot 0 will be replaced by TintPass's setBindGroup(0, ...) below.
+    if (wash && wash.alpha > 0.001) {
+      this._tintPass.draw(pass, wash.color, wash.alpha);
+    }
+
     // ── Step 5: end GPU pass ──────────────────────────────────────────────────
     pass.end();
     this._gpuCtx.queue.submit([encoder.finish()]);
 
-    // ── Step 6: overlay (particle/weather fallback, wash) ─────────────────────
+    // ── Step 6: overlay (particle/weather fallback) ───────────────────────────
     // Shadows are NOT drawn here — the overlay composites on top of the GPU canvas,
     // which would put them above the sprites they belong under. They render in the
     // GPU pass (step 4b).
+    //
+    // The day/night wash has moved to step 4e (TintPass, GPU-side). The overlay
+    // retains its remaining jobs:
+    //   • Particle + weather Canvas2D fallback — when useGpuEffects is false, or for
+    //     non-RainField WeatherLike that the GPU weather pass cannot read.
+    // If neither job fires, beginFrame() is still called to keep the overlay canvas
+    // transparent each frame (avoids stale content on the rare frames without weather).
     this._overlay.beginFrame();
     const overlayCtx = this._overlay.ctx;
 
@@ -532,17 +555,6 @@ export class WebGpuRenderer implements RendererLike {
       } else if (weather && weather.count > 0) {
         weather.draw(overlayCtx);
       }
-    }
-
-    // Wash in screen space (transform reset).
-    this._overlay.resetTransform();
-    if (wash && wash.alpha > 0.001) {
-      overlayCtx.globalCompositeOperation = "source-over";
-      overlayCtx.globalAlpha = wash.alpha;
-      const [wr, wg, wb] = hexToRgbaFloats(wash.color); // runtime parse — no literal
-      overlayCtx.fillStyle = `rgb(${Math.round(wr * 255)},${Math.round(wg * 255)},${Math.round(wb * 255)})`;
-      overlayCtx.fillRect(0, 0, this._overlay.ctx.canvas.width, this._overlay.ctx.canvas.height);
-      overlayCtx.globalAlpha = 1;
     }
   }
 }
