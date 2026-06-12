@@ -24,6 +24,6 @@ export type { Edg32Color } from "./palette";
 // the ECS module already exports a different `Sprite` component type — re-exporting
 // both would cause a TS2308 ambiguity error. Consumers that need the render Sprite
 // type should import from "@engine/core/render" or from the renderer module directly.
-export type { RendererLike, WashOptions, WeatherLike, DecorateFn } from "./renderer";
+export type { RendererLike, WashOptions, WeatherLike, DecorateFn, CloudOptions } from "./renderer";
 export { createRenderer } from "./create-renderer";
 export type { CreateRendererOptions } from "./create-renderer";

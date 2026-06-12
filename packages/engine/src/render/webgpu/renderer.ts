@@ -16,6 +16,8 @@ import type { VisibleRect } from "./static-layer-pass";
 import { ParticleBatch } from "./particle-batch";
 import { WeatherPass } from "./weather-pass";
 import { TintPass } from "./tint-pass";
+import { CloudShadowPass } from "./cloud-shadow-pass";
+import type { CloudOptions } from "../renderer";
 import { RainField } from "../rain-field";
 import { compareSprite, spritesOverlap } from "../canvas2d/draw";
 
@@ -84,6 +86,9 @@ export class WebGpuRenderer implements RendererLike {
   private readonly _particleBatch: ParticleBatch;
   private readonly _weatherPass: WeatherPass;
   private readonly _tintPass: TintPass;
+  private readonly _cloudPass: CloudShadowPass;
+  // Pending cloud options for the current frame; undefined = no cloud overlay.
+  private _cloudOpts: CloudOptions | undefined = undefined;
 
   /** When true (default), particles + weather render on the GPU (Wave 4). Set false to
    *  use the 2D-overlay fallback (Wave 2 behaviour) — an A/B/safety toggle in case a GPU
@@ -147,6 +152,7 @@ export class WebGpuRenderer implements RendererLike {
     particleBatch: ParticleBatch,
     weatherPass: WeatherPass,
     tintPass: TintPass,
+    cloudPass: CloudShadowPass,
   ) {
     this.camera = camera;
     this.clearColor = EDG.black;
@@ -162,6 +168,7 @@ export class WebGpuRenderer implements RendererLike {
     this._particleBatch = particleBatch;
     this._weatherPass = weatherPass;
     this._tintPass = tintPass;
+    this._cloudPass = cloudPass;
 
     // Log device loss and stop the draw loop gracefully.
     gpuCtx.device.lost.then((info: GPUDeviceLostInfo) => {
@@ -192,13 +199,14 @@ export class WebGpuRenderer implements RendererLike {
     const particleBatch = new ParticleBatch(gpuCtx);
     const weatherPass = new WeatherPass(gpuCtx);
     const tintPass = new TintPass(gpuCtx);
+    const cloudPass = new CloudShadowPass(gpuCtx);
     const validationError = await device.popErrorScope();
     if (validationError) {
       throw new Error(`webgpu: pipeline/shader validation failed — ${validationError.message}`);
     }
 
     return new WebGpuRenderer(
-      canvas, camera, gpuCtx, store, batch, shadowBatch, overlay, staticPass, waterPass, particleBatch, weatherPass, tintPass,
+      canvas, camera, gpuCtx, store, batch, shadowBatch, overlay, staticPass, waterPass, particleBatch, weatherPass, tintPass, cloudPass,
     );
   }
 
@@ -266,6 +274,11 @@ export class WebGpuRenderer implements RendererLike {
     this._staticPass.clear();
     this._staticLayerW = 0;
     this._staticLayerH = 0;
+  }
+
+  /** Configure the fBm cloud-shadow overlay for the next endFrame (brief 15). */
+  setCloudOptions(opts: CloudOptions): void {
+    this._cloudOpts = opts;
   }
 
   // ── RendererLike: per-frame begin/push/end ────────────────────────────────────
@@ -527,9 +540,18 @@ export class WebGpuRenderer implements RendererLike {
       }
     }
 
-    // 4e. Full-screen tint (day/night + seasonal wash) — GPU-side, over the entire
-    // scene (water, static, shadows, sprites, particles, weather). Later in-scene
-    // passes (Voronoi caustics, cloud shadows — briefs 13/15) compose UNDER this tint.
+    // 4e. Cloud-shadow overlay (brief 15) — fBm world-anchored darken pass.
+    // Sits UNDER the tint so the day/night wash reads above the cloud darkening.
+    // group(0) is still set to the view bind group from the weather pass above.
+    if (this._cloudOpts !== undefined && this._cloudOpts.coverage > 0.001) {
+      this._cloudPass.draw(pass, this._cloudOpts);
+    }
+    // Clear pending opts so a missed setCloudOptions() call produces no clouds next frame.
+    this._cloudOpts = undefined;
+
+    // 4f. Full-screen tint (day/night + seasonal wash) — GPU-side, over the entire
+    // scene (water, static, shadows, sprites, particles, weather, clouds). Later in-scene
+    // passes compose UNDER this tint.
     // The view bind group (group 0) is NOT needed by TintPass; it uses its own group 0.
     // We must unset the view bind group to avoid a layout mismatch: set a null-equivalent
     // by resetting is not needed since setPipeline changes the layout and the old binding
