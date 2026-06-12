@@ -118,6 +118,12 @@ export class SimClient {
   private readonly prevById = new Map<number, SnapshotSprite>();
   private interpOut: SnapshotSprite[] = [];
 
+  // Brief 86 — hitstop: freeze the interpolation alpha for N render frames.
+  // Snapshot consumption continues unaffected; only the alpha used for lerping
+  // is pinned to the value captured when hitstop started. Set via freezeInterp().
+  private hitstopFramesLeft = 0;
+  private hitstopAlpha = 0;
+
   constructor(url: string = resolveServerUrl()) {
     this.ws = new WebSocket(url);
 
@@ -372,6 +378,24 @@ export class SimClient {
   // ---------------------------------------------------------------------------
 
   /**
+   * Brief 86 — freeze the render interpolation alpha for `frames` render frames.
+   * The alpha is pinned to the value computed at the time of this call, so
+   * farmers appear frozen in place for the duration (hitstop effect).
+   * Snapshot consumption continues unaffected — the 2-tick buffer never underruns.
+   */
+  freezeInterp(frames: number): void {
+    if (frames <= 0) return;
+    const now = performance.now();
+    const rawAlpha = clamp(
+      (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
+      0,
+      1,
+    );
+    this.hitstopAlpha = smoothstep(rawAlpha);
+    this.hitstopFramesLeft = frames;
+  }
+
+  /**
    * Returns the dynamic sprites for the current frame.
    *
    * For sprites with `interpolate: true` (farmers) a lerp between the
@@ -394,17 +418,24 @@ export class SimClient {
       return this.interpOut;
     }
 
-    const now = performance.now();
-    // Play the interpolation head one render-delay in the PAST. With the delay
-    // the alpha=1 endpoint is reached ~renderDelayMs after the next snapshot is
-    // due — so a slightly-late snapshot is absorbed by the margin instead of
-    // showing as a freeze-then-jump. Easing (smoothstep) softens tile entry/exit.
-    const rawAlpha = clamp(
-      (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
-      0,
-      1,
-    );
-    const alpha = smoothstep(rawAlpha);
+    let alpha: number;
+    // Brief 86 — hitstop: use the pinned alpha while frames remain.
+    if (this.hitstopFramesLeft > 0) {
+      this.hitstopFramesLeft -= 1;
+      alpha = this.hitstopAlpha;
+    } else {
+      const now = performance.now();
+      // Play the interpolation head one render-delay in the PAST. With the delay
+      // the alpha=1 endpoint is reached ~renderDelayMs after the next snapshot is
+      // due — so a slightly-late snapshot is absorbed by the margin instead of
+      // showing as a freeze-then-jump. Easing (smoothstep) softens tile entry/exit.
+      const rawAlpha = clamp(
+        (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
+        0,
+        1,
+      );
+      alpha = smoothstep(rawAlpha);
+    }
 
     const prev = this.prevSnapshot;
     const src = current.sprites;

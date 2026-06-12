@@ -31,6 +31,7 @@ import { createSeedBadge } from "./main/game-over";
 import { createTooltip } from "./main/tooltip";
 import { ParticleDirector } from "./main/particles";
 import { createRenderLoop } from "./main/render-loop";
+import { JuiceLayer } from "./main/juice";
 import { showFatal } from "./main/fatal";
 
 interface Runtime {
@@ -139,7 +140,29 @@ async function startGame(
     const panels = buildPanels(app);
     const { observer, playback } = panels;
 
+    const juice = new JuiceLayer(app);
+
     const playbackHandlers = wirePlayback(playback, client);
+
+    // Brief 86 — resync guard: signal juice when tab becomes visible again or
+    // when the player skips to a highlight (H key), so stale events aren't
+    // replayed as a burst of popups/shake.
+    const origSkip = playbackHandlers.doSkipToHighlight;
+    const juiceAwareSkip = (): void => {
+      juice.signalResync();
+      origSkip();
+    };
+    // Re-bind the skip handler so playback buttons and H hotkey both signal resync.
+    panels.playback.setOnSkipToHighlight(juiceAwareSkip);
+    // Override the exported handler reference so registerHotkeys uses the wrapped version.
+    playbackHandlers.doSkipToHighlight = juiceAwareSkip;
+
+    // Tab-hide resync: when the tab becomes visible again, the sim may have
+    // advanced many ticks. Signal resync so existing events are skipped.
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) juice.signalResync();
+    });
+
     registerHotkeys(playbackHandlers);
 
     // Brief 72 — when the server assigns owner=false (spectator), hide playback
@@ -184,7 +207,7 @@ async function startGame(
 
     const renderFrame = createRenderLoop({
       client, renderer, keyboard, particles, particleDirector, rain,
-      canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
+      canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient, juice,
       onFirstFrame: () => {
         firstFrame = true;
         maybeDismiss();
