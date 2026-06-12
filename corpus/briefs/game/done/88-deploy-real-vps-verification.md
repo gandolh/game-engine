@@ -1,5 +1,7 @@
 # Brief 88 — execute the deploy on a real VPS (close the dry-run gap)
 
+> **Closed 2026-06-12 — verified by the user on real hardware.** The user executed the deploy against a real VPS and confirmed it works ("i checked it, it works"). No code changes were needed this round; the runbook/capacity tasks below remain available if the deploy setup ever changes.
+
 Promoted from [wiki/open-questions.md](../../../wiki/open-questions.md): the pm2 + Caddy WS-reverse-proxy automation in [deploy/deploy.ts](../../../../deploy/deploy.ts) is **dry-run-verified only** — it has never executed against real hardware.
 
 ## Why
