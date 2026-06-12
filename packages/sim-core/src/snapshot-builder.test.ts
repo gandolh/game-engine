@@ -170,6 +170,33 @@ describe("buildRenderSnapshot", () => {
     }
   });
 
+  it("work-NPC sprites have interpolate=true (brief 82 — they tile-step like farmers)", () => {
+    const sim = bootAndTick(5);
+    const snap = buildRenderSnapshot(
+      sim.world,
+      sim.dayClock,
+      sim.meetIndicators,
+      sim.eventFeed,
+      5,
+      MAX_DAYS,
+      null,
+    );
+
+    // The walking craft NPCs (blacksmith/carpenter) carry a workNpc component and
+    // step a whole tile every few ticks; without the flag they snap (the bug).
+    const npcIds = new Set<number>();
+    for (const e of sim.world.query("workNpc")) {
+      if (e.id !== undefined) npcIds.add(e.id);
+    }
+    expect(npcIds.size).toBeGreaterThan(0);
+
+    const npcSprites = snap.sprites.filter((s) => s.id !== null && npcIds.has(s.id));
+    expect(npcSprites.length).toBe(npcIds.size);
+    for (const s of npcSprites) {
+      expect(s.interpolate).toBe(true);
+    }
+  });
+
   it("shock field is set when a pending shock is passed", () => {
     const sim = bootAndTick(5);
     const shock: SnapshotShock = {

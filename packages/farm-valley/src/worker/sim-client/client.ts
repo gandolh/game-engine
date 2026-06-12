@@ -41,6 +41,17 @@ import type { ShopOffer } from "@farm/sim-core/agents/shop-slate";
 import { clamp, lerp, smoothstep, copySprite } from "./interp";
 
 /**
+ * Max prev→current sprite movement (in pixels) that still lerps. Beyond this we
+ * treat the jump as a genuine discontinuity (region travel, ferry boarding,
+ * festival warp, day-reset reposition) and snap to current instead of smearing
+ * a fast lerp across the map (brief 82). 2 tiles (TILE=16) clears normal steps —
+ * farmers move <1 tile per tick, work NPCs step exactly 1 tile — while catching
+ * any teleport. Compared squared to avoid a per-sprite sqrt.
+ */
+const MAX_LERP_DIST_PX = 2 * 16;
+const MAX_LERP_DIST_SQ = MAX_LERP_DIST_PX * MAX_LERP_DIST_PX;
+
+/**
  * Resolve the sim server WebSocket URL, same-origin under the app's base path
  * (e.g. wss://host/farm-valley/sim in prod, reverse-proxied by Caddy). In dev,
  * Vite's server.proxy forwards this path to ws://localhost:8787. Falls back to a
@@ -415,8 +426,15 @@ export class SimClient {
       if (s.interpolate && s.id !== null && prev !== null) {
         const p = this.prevById.get(s.id);
         if (p !== undefined) {
-          dst.x = lerp(p.x, s.x, alpha);
-          dst.y = lerp(p.y, s.y, alpha);
+          // Teleport guard (brief 82): only lerp short hops. A large prev→current
+          // delta is a genuine jump (travel/ferry/warp/day-reset) — snap to current
+          // (dst already holds s.x/s.y from copySprite) instead of smearing across it.
+          const dx = s.x - p.x;
+          const dy = s.y - p.y;
+          if (dx * dx + dy * dy <= MAX_LERP_DIST_SQ) {
+            dst.x = lerp(p.x, s.x, alpha);
+            dst.y = lerp(p.y, s.y, alpha);
+          }
         }
       }
     }

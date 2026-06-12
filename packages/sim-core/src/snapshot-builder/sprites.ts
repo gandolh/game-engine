@@ -235,7 +235,16 @@ export function buildSprites(
       // Farmers: alpha+tint from state cue. Non-farmers: alpha from sprite tint's low byte.
       alpha: cue ? cue.alpha : (tint & 0xff) / 255,
       tintRgba: cue ? cue.tintRgba : UNTINTED_RGBA,
-      interpolate: isFarmer,
+      // Tile-stepping movers get snapshot interpolation so they glide instead of
+      // snapping one tile per step (brief 82). Today that is farmers + work NPCs
+      // (blacksmith/carpenter, whose transform steps a whole tile every few ticks).
+      // Deliberately NOT a shared-component predicate — there is no common movement
+      // marker to key off. Excluded by design: livestock (penned, never tile-step),
+      // boats (a farmer aboard already glides via farmer.renderPos on the BOAT grid),
+      // and ambient life (client-side render-only, can't snap). A future sim-side
+      // mover species must be added here or it will visibly teleport. The client
+      // clamps genuine jumps (>2 tiles) so a flagged sprite never smears on travel.
+      interpolate: isFarmer || npc !== undefined,
       action,
       label,
       description,

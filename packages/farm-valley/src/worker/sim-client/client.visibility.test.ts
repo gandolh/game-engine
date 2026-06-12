@@ -238,11 +238,12 @@ describe("SimClient — brief 66 visibilitychange resync", () => {
     document.dispatchEvent(new Event("visibilitychange"));
 
     // Deliver one fresh snapshot while visible. This becomes current; the old
-    // hidden snapshot becomes prev (snap at x=100 → x=200). prevById is rebuilt.
-    // After this delivery prevSnapshot = snap at x=100, currentSnapshot = snap at x=200.
+    // hidden snapshot becomes prev (snap at x=100 → x=120). prevById is rebuilt.
+    // After this delivery prevSnapshot = snap at x=100, currentSnapshot = snap at x=120.
+    // Delta is 20px (<2 tiles) so it stays within the brief-82 teleport clamp and lerps.
     const snapPost = makeSnapshot({
       tick: 2,
-      sprites: [makeSprite(farmerIdB, 200, 200)],
+      sprites: [makeSprite(farmerIdB, 120, 120)],
     });
     // Deliver it slightly after re-show so arrival timestamp is set.
     nowMs = 2010;
@@ -260,12 +261,64 @@ describe("SimClient — brief 66 visibilitychange resync", () => {
 
     expect(farmerSprite).toBeDefined();
 
-    // prevSprite.x = 100, currentSprite.x = 200, alpha = smoothstep(0.5) = 0.5.
-    // lerp(100, 200, 0.5) = 150.
+    // prevSprite.x = 100, currentSprite.x = 120, alpha = smoothstep(0.5) = 0.5.
+    // lerp(100, 120, 0.5) = 110.
     // It just needs to be strictly between prev and current (not snapped to either).
     expect(farmerSprite!.x).toBeGreaterThan(100);
-    expect(farmerSprite!.x).toBeLessThan(200);
+    expect(farmerSprite!.x).toBeLessThan(120);
 
     client.terminate();
+  });
+});
+
+describe("SimClient — brief 82 teleport-distance clamp", () => {
+  let nowMs = 1000;
+
+  beforeEach(() => {
+    nowMs = 1000;
+    vi.stubGlobal("performance", { now: () => nowMs });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Drive two snapshots and read back the interpolated sprite at an alpha=0.5
+   * window. `prevX`/`curX` set the prev→current delta under test.
+   */
+  function lerpedX(prevX: number, curX: number): number {
+    const { client, ws } = makeClient();
+    const id = 5;
+    // Move on x only (y fixed) so the prev→current distance equals |Δx| and the
+    // clamp boundary lines up with the asserted deltas.
+    nowMs = 1000;
+    deliverSnapshot(ws, makeSnapshot({ tick: 0, sprites: [makeSprite(id, prevX, 0)] }));
+    nowMs = 1050;
+    deliverSnapshot(ws, makeSnapshot({ tick: 1, sprites: [makeSprite(id, curX, 0)] }));
+    // lastSnapshotArrivalMs = 1050; renderDelayMs = 100; msPerTick = 50.
+    // now = 1050 + 100 + 25 = 1175 → rawAlpha = 0.5 → smoothstep(0.5) = 0.5.
+    nowMs = 1175;
+    const sprites = client.getInterpolatedSprites();
+    const s = sprites.find((sp) => sp.id === id)!;
+    const x = s.x;
+    client.terminate();
+    return x;
+  }
+
+  it("lerps a short hop (<= 2 tiles): a 1-tile (16px) step glides to the midpoint", () => {
+    // prev=100, current=116 (one tile). Within clamp → lerp(100,116,0.5)=108.
+    expect(lerpedX(100, 116)).toBeCloseTo(108, 5);
+  });
+
+  it("snaps a long jump (> 2 tiles): a travel-sized move skips the lerp and shows current", () => {
+    // prev=100, current=300 (200px ≫ 32px clamp). Snap → exactly current.
+    expect(lerpedX(100, 300)).toBe(300);
+  });
+
+  it("lerps right at the 2-tile boundary (32px): still glides, not snapped", () => {
+    // prev=100, current=132 → delta exactly 32px (= MAX_LERP_DIST_PX) → lerps.
+    expect(lerpedX(100, 132)).toBeCloseTo(116, 5);
   });
 });
