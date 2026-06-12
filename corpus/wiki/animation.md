@@ -14,20 +14,22 @@ Pip is **not** a recolored farmer — it has its own `farmer/pip/*` set (gold ha
 
 ## Where animation actually happens today (scattered, no abstraction)
 
+*(The table below is the **pre-brief-85 "before" picture** — the motivation. Current state: all four gaps are closed; see "Direction" / brief 85 status.)*
+
 | Effect | Side | Where | Mechanism | Quality |
 |---|---|---|---|---|
-| Walk cycle | sim | [`pickFarmerFrame`](../../packages/sim-core/src/render-systems/frames.ts) | `(tick>>1)&1` toggles walk-a/walk-b every 2 ticks; suffix baked into `SnapshotSprite.frame` | 2-frame A/B flip, no stride timing |
-| Facing | sim | [snapshot-builder/sprites.ts](../../packages/sim-core/src/snapshot-builder/sprites.ts) | 4-way `Player.facing` → 3-way + `flipX` | fine |
-| Action pose | render | [`resolveFrameAndBob`](../../packages/sim-core/src/render-systems/frames.ts) `ACTION_POSE` | `base + "/till"` etc — **one static frame for the whole action** | farmer *freezes* while working |
-| Idle bob | render | `resolveFrameAndBob` | per-entity `sin(nowMs/600 + id·1.3)·1.5px` | fine |
-| NPC work | sim | [work-npc.ts](../../packages/sim-core/src/systems/work-npc.ts) | 2-frame `pose-a`/`pose-b` swing every 8 ticks (deterministic) | **better than the farmers** |
-| Foam / forge-fire / forge-smoke / waterfall / campfire / beacon / fishing-spot | render | [frames.ts](../../packages/sim-core/src/render-systems/frames.ts) consts + inline math in [render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts) | each: `floor(nowMs/(period/len)) % len` | ~7 near-identical hand-rolled blocks |
+| Walk cycle | sim | `pickFarmerFrame` (now retired) | `(tick>>1)&1` toggles walk-a/walk-b every 2 ticks; suffix baked into `SnapshotSprite.frame` | 2-frame A/B flip, no stride timing |
+| Facing | sim | [snapshot-builder/sprites.ts](../../packages/sim-core/src/snapshot-builder/sprites.ts) | 4-way `Player.facing` → 3-way + `flipX` | fine (unchanged) |
+| Action pose | render | [`resolveFrameAndBob`](../../packages/sim-core/src/render-systems/frames.ts) `ACTION_POSE` | `base + "/till"` etc — **one static frame for the whole action** | farmer *froze* while working |
+| Idle bob | render | `resolveFrameAndBob` | per-entity `sin(nowMs/600 + id·1.3)·1.5px` | fine (unchanged) |
+| NPC work | sim | [work-npc.ts](../../packages/sim-core/src/systems/work-npc.ts) | 2-frame `pose-a`/`pose-b` swing every 8 ticks (deterministic) | the model the farmers now match |
+| Foam / forge-fire / forge-smoke / waterfall / campfire / beacon / fishing-spot | render | inline math in [render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts) | each: `floor(nowMs/(period/len)) % len` | ~7 near-identical hand-rolled blocks |
 
-**The gaps that matter:**
-1. **Action poses don't animate.** A farmer tilling/chopping/mining holds one frozen frame for its whole `busyUntilTick` window — while the background NPCs swing a hammer/saw. The protagonists are stiffer than the extras (atlas only has one frame per action, so a frame-swing needs new art).
-2. **Walk is a 2-frame flip**, not a timed stride.
-3. **No reusable abstraction** — every cyclic effect is reimplemented inline.
-4. **A dead stub already exists for this:** `SpriteAnim { clip, frame, elapsedMs, playing }` is declared in [trust.ts](../../packages/sim-core/src/components/trust.ts) and hung off the entity in [entity.ts](../../packages/sim-core/src/components/entity.ts) (`spriteAnim?`) — **never instantiated or read.**
+**The gaps that motivated brief 85 — all now closed:**
+1. ~~**Action poses don't animate**~~ → phase 2: `-b` strike frame per action, render-side swing.
+2. ~~**Walk is a 2-frame flip**~~ → phase 3: render-side 4-phase stride with a passing pose.
+3. ~~**No reusable abstraction**~~ → phase 1: `@engine/core/animation` + `cycle.ts`; the scattered cyclers + walk + action animation all flow through it.
+4. ~~**A dead `SpriteAnim` stub**~~ → removed in phase 1.
 
 ## The brief-04 ghost (important lesson)
 
@@ -41,9 +43,9 @@ Reintroduce the `AnimationClip` (immutable frames+durations, `sampleAt(elapsedMs
 
 **Phasing** (full detail + acceptance in [brief 85](../briefs/game/todo/85-animation-engine.md)):
 
-1. **Engine primitive + immediate consumers (no new art).** Recover `clip`/`animator` + tests; export `@engine/core/animation`. Replace the ~7 inline wall-clock cyclers with declarative `AnimationClip`s (so the abstraction has real consumers and won't rot). Give working farmers/Pip a render-side **action swing** so they stop freezing mid-action.
-2. **Action `-a/-b` art** → frame-based work swings for farmers/Pip (atlas-builder recipes), matching NPC quality; replaces the phase-1 swing hack.
-3. **4-frame walk art + render-side walk migration** — ship semantic walk state on the snapshot and resolve the stride render-side via the `Animator`, retiring `pickFarmerFrame`.
+1. **Engine primitive + immediate consumers (no new art).** ✅ **Done (2026-06-12).** Recovered `clip`/`animator` + tests, exported `@engine/core/animation`. The ~7 inline wall-clock cyclers now run through declarative `AnimationClip`s (`render-systems/{cycle,clips}.ts`) — the abstraction has real consumers so it won't rot like the brief-04 ghost. The dead `SpriteAnim` stub is removed.
+2. **Action `-a/-b` art** ✅ **Done (2026-06-12).** `ACTION_TEMPLATES_B` adds a `-b` strike frame per action (tool/arm moves, head identical); `farmer/<p>/<action>-b` generated for all 5 personalities incl. Pip (35 frames). `resolveFrameAndBob` alternates `pose ↔ pose-b` on the wall clock — working farmers/Pip now swing their tool like the NPCs, replacing the phase-1 bob-offset interim.
+3. **Render-side walk migration + 4-phase stride** ✅ **Done (2026-06-12).** The snapshot now carries a semantic `moving` flag (`frame` = the direction-less base look, no baked `/walk-a|b`); `resolveFrameAndBob` resolves facing + a 4-phase stride (contact-a → passing → contact-b → passing, the neutral frame as the passing pose) via the walk clip — wall-clock, decoupled from tick rate. `pickFarmerFrame` retired → `isFarmerMoving`. The interpolation `copySprite` propagates `moving` (and the pre-existing stale-`tintRgba`/`z` omission there is fixed). **No new art** — the 4-phase cycle reuses the three existing per-facing frames; truly-distinct extra poses are a deferred optional.
 
-Phase 1 is render-only and self-contained; 2–3 depend on new pixel art and can land independently.
+All three phases are shipped (render-only + generated atlas frames, no determinism impact). The animation is no longer ad-hoc: `pickFarmerFrame` + the bake/parse round-trip are gone, the scattered cyclers and the walk/action animations all flow through `@engine/core/animation` + the `cycle.ts` helpers. The **swing + stride feel still needs an in-browser look** (WebGPU won't render headless on the dev box) before brief 85 closes to done/.
 </content>

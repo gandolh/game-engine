@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { World } from "@engine/core";
-import { pickFarmerFrame, buildStaticLayerSprites } from "./render-systems";
+import { isFarmerMoving, buildStaticLayerSprites } from "./render-systems";
 import type { GameEntity } from "./components";
 
 function makeFarmerEntity(opts: {
@@ -38,58 +38,28 @@ function makeFarmerEntity(opts: {
   } as unknown as GameEntity;
 }
 
-describe("pickFarmerFrame", () => {
-  it("returns the base frame when the farmer is idle (no path)", () => {
+describe("isFarmerMoving", () => {
+  it("is false for an idle farmer (no path, never moved)", () => {
     const entity = makeFarmerEntity({ personality: "conservative", traveling: false });
-    const frame = pickFarmerFrame(entity, 42);
-    expect(frame).toBe("farmer/conservative");
+    expect(isFarmerMoving(entity)).toBe(false);
   });
 
-  it("returns a walk frame when the farmer has a path set", () => {
+  it("is true while the farmer has a path set (AI travel)", () => {
     const entity = makeFarmerEntity({ personality: "conservative", traveling: true });
-    const frame = pickFarmerFrame(entity, 0);
-    expect(frame).toMatch(/^farmer\/conservative\/walk-[ab]$/);
+    expect(isFarmerMoving(entity)).toBe(true);
   });
 
-  it("alternates between walk-a and walk-b across consecutive tick parities", () => {
-    const entity = makeFarmerEntity({ personality: "conservative", traveling: true });
-
-    // Collect frames for ticks 0-7 to observe the alternation pattern.
-    const frames = Array.from({ length: 8 }, (_, tick) =>
-      pickFarmerFrame(entity, tick),
-    );
-
-    // Each frame must be one of the two walk frames.
-    for (const f of frames) {
-      expect(f).toMatch(/^farmer\/conservative\/walk-[ab]$/);
-    }
-
-    // The phase changes every 2 ticks: ticks 0-1 same, ticks 2-3 different, etc.
-    expect(frames[0]).toBe(frames[1]);
-    expect(frames[2]).toBe(frames[3]);
-    expect(frames[4]).toBe(frames[5]);
-    expect(frames[0]).not.toBe(frames[2]);
-    expect(frames[2]).not.toBe(frames[4]);
+  it("is true when movedThisTick is set (Pip's continuous movement)", () => {
+    const entity = makeFarmerEntity({ personality: "hoarder", traveling: false });
+    entity.farmer!.movedThisTick = true;
+    expect(isFarmerMoving(entity)).toBe(true);
   });
 
-  it("works for all four farmer personalities", () => {
-    const personalities = ["conservative", "aggressive", "hoarder", "opportunist"];
-    for (const personality of personalities) {
-      const entity = makeFarmerEntity({ personality, traveling: true });
-      const frameA = pickFarmerFrame(entity, 0);
-      const frameB = pickFarmerFrame(entity, 2);
-      expect(frameA).toBe(`farmer/${personality}/walk-a`);
-      expect(frameB).toBe(`farmer/${personality}/walk-b`);
-    }
-  });
-
-  it("reverts to idle frame once path clears", () => {
+  it("reverts to not-moving once the path clears", () => {
     const entity = makeFarmerEntity({ personality: "hoarder", traveling: true });
-    expect(pickFarmerFrame(entity, 0)).toMatch(/walk-/);
-
-    // Clear path — simulate arrival.
-    entity.farmer!.path = undefined;
-    expect(pickFarmerFrame(entity, 0)).toBe("farmer/hoarder");
+    expect(isFarmerMoving(entity)).toBe(true);
+    entity.farmer!.path = undefined; // simulate arrival
+    expect(isFarmerMoving(entity)).toBe(false);
   });
 });
 

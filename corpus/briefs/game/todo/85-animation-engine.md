@@ -2,7 +2,11 @@
 
 Synthesis + current-state map: [wiki/animation.md](../../../wiki/animation.md). Read it first.
 
-> **Status (2026-06-12): Phase 1 implemented — awaiting in-browser feel-check.** `@engine/core/animation` (`AnimationClip`/`Animator` + tests) reintroduced; the six render-loop wall-clock cyclers + the fishing-spot cycler now run through declarative clips via `render-systems/{cycle,clips}.ts`; working farmers/Pip get a render-side action swing; the dead `SpriteAnim` stub is removed. typecheck + engine/render-systems tests green. **WebGPU-only won't render headless on this box → the action-swing feel needs a user look before this moves to done/.** Phases 2–3 (art) remain open.
+> **Status (2026-06-12): Phases 1 + 2 + 3 implemented — awaiting in-browser feel-check.**
+> - **Phase 1:** `@engine/core/animation` (`AnimationClip`/`Animator` + tests) reintroduced; the six render-loop wall-clock cyclers + the fishing-spot cycler now run through declarative clips via `render-systems/{cycle,clips}.ts`; the dead `SpriteAnim` stub is removed.
+> - **Phase 2:** `ACTION_TEMPLATES_B` adds a `-b` strike frame per action (7 actions × 5 personalities incl. Pip = 35 generated `farmer/<p>/<action>-b` frames; characters sheet 128 frames). `resolveFrameAndBob` alternates `pose ↔ pose-b` (per-entity phase, ~0.44s), **replacing** the phase-1 bob-offset — working farmers/Pip swing their tool like the NPCs. New `action-swing.test.ts` guards A≠B + head-identical + 16×16.
+> - **Phase 3:** walk resolution moved render-side. The snapshot now carries a semantic `moving` flag (`SnapshotSprite.moving`); `frame` is the direction-less base look (no baked `/walk-a|b`). `resolveFrameAndBob` resolves facing + a **4-phase stride** (contact-a → passing → contact-b → passing) via the walk clip — reusing the three existing per-facing frames (the neutral = the passing pose), **no new art**. `pickFarmerFrame` retired → `isFarmerMoving` predicate. `copySprite` now propagates `moving` (and the pre-existing stale-`tintRgba`/`z` omission in that pooled copy is fixed). Walk is now wall-clock + decoupled from tick rate.
+> - typecheck green (8 workspaces); engine 116 / sim-core 685 / farm-valley 152 / atlas-builder 15 tests green. **WebGPU-only won't render headless on this box → the swing + stride feel needs a user look before this moves to done/.** Optional follow-up: truly-distinct 4th/5th walk poses (the current 4-phase reuses existing art) — defer pending feel-check.
 
 ## Why
 
@@ -32,13 +36,13 @@ All of this is **render-only / wall-clock** → no determinism impact, no baseli
 - The `SpriteAnim` dead stub ([trust.ts](../../../../packages/sim-core/src/components/trust.ts) / `entity.ts`) is removed or repurposed (don't leave two unused animation abstractions).
 - In-browser feel-check pending (WebGPU-only won't render headless on this box).
 
-## Phase 2 — action `-a/-b` art (atlas; follow-up)
+## Phase 2 — action `-a/-b` art (atlas) ✅ DONE 2026-06-12
 
-Add a second frame per action pose to the farmer/Pip recipes ([tools/atlas-builder/src/recipes/](../../../../tools/atlas-builder/src/recipes/) templates + per-personality subs), rebuild the `characters` sheet, bump `assets.test.ts` count. Replace the phase-1 swing-offset with a real 2-frame work clip per action. Mirror the NPC swing cadence.
+Added `ACTION_TEMPLATES_B` to [templates.ts](../../../../tools/atlas-builder/src/recipes/templates.ts) (head/torso identical to the base pose; only the tool/arm moves — raised backswing for hoe/axe/pick, advanced water/seed stream; all tool pixels at rows ≥7 so the hat overlay never clips them). [recipes/index.ts](../../../../tools/atlas-builder/src/recipes/index.ts) generates `farmer/<p>/<action>-b` for all 5 personalities incl. Pip (35 frames). No `assets.test.ts` bump needed — these are *generated* frames, not files in `BASE_RECIPES` (which stays 215). [frames.ts](../../../../packages/sim-core/src/render-systems/frames.ts) alternates `pose ↔ pose-b` on the wall clock. Note: `ACTION_POSE` keys are intention names (`chop-tree`, `mine-stone`, `refill-can`), not the pose suffix.
 
-## Phase 3 — 4-frame walk + render-side walk migration (art + boundary)
+## Phase 3 — render-side walk migration + 4-phase stride ✅ DONE 2026-06-12
 
-Add a 4-frame walk per facing. Ship **semantic walk state** on `SnapshotSprite` (e.g. `moving: boolean` + keep `facing`) instead of the pre-baked `/walk-a|b` suffix, resolve the stride render-side via the `Animator`, and retire `pickFarmerFrame`. Watch the interpolation path (the `interpolate` flag) — frame phase must stay independent of position lerp.
+Shipped **semantic walk state** on `SnapshotSprite` (`moving?: boolean`, `facing` kept) instead of the pre-baked `/walk-a|b` suffix; `frame` is now the direction-less base. [resolveFrameAndBob](../../../../packages/sim-core/src/render-systems/frames.ts) resolves facing + a 4-phase stride (`["/walk-a","","/walk-b",""]` walk clip, `""` = neutral passing pose) via `sampleCycle`, wall-clock + per-entity phase. `pickFarmerFrame` retired → `isFarmerMoving`. The interpolation path stays position-only; `copySprite` ([interp.ts](../../../../packages/farm-valley/src/worker/sim-client/interp.ts)) now propagates `moving` so a warm pool slot can't carry a stale walk state (same fix applied to the pre-existing `tintRgba`/`z` omission). **No new art** — the 4-phase cycle reuses the three existing per-facing frames; authoring genuinely distinct extra poses is a deferred optional follow-up. Determinism unaffected (render-only; the snapshot frame string isn't a sim output).
 
 ## Notes / guardrails
 

@@ -2,6 +2,24 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] brief | 85 animation engine — phase 3 (render-side walk migration + 4-phase stride)
+
+Completed the third phase of [brief 85](briefs/game/todo/85-animation-engine.md); all three phases now implemented (awaiting one in-browser feel-check). Render-only — no determinism impact (the snapshot frame string isn't a sim output).
+
+- **Walk resolution moved render-side.** `SnapshotSprite` gained a semantic `moving?: boolean`; `frame` is now the direction-less base look ("farmer/<p>") with **no baked `/walk-a|b` suffix**. This retires the old round-trip (sim baked the suffix via `pickFarmerFrame`, render stripped it to re-insert facing). `pickFarmerFrame` → `isFarmerMoving` predicate (used by the snapshot builder); the walk frame is resolved in `resolveFrameAndBob`.
+- **4-phase stride, no new art.** `resolveFrameAndBob` resolves facing + a 4-phase walk via a `["/walk-a","","/walk-b",""]` clip (`""` = the neutral *passing* pose) through `sampleCycle` — contact-a → passing → contact-b → passing, reusing the three existing per-facing frames. Wall-clock, per-entity phase, decoupled from tick rate (the old cycle was `(tick>>1)&1`). Smoother than the prior 2-frame A/B flip (which never showed a passing pose). Genuinely-distinct extra walk poses are a deferred optional.
+- **Interp pool fix.** `copySprite` ([interp.ts](packages/farm-valley/src/worker/sim-client/interp.ts)) now propagates `moving` so a warm pool slot can't keep a stale walk state — and, while there, fixes the **pre-existing** omission of `tintRgba`/`z` from that pooled copy (the slot had frozen frame-0's tint after warm-up; now refreshed each frame, `?? 0xffffffff`/`?? 0` defaults = renderer no-op).
+- **Verified:** typecheck green (8 workspaces); engine 116 / sim-core 685 / farm-valley 152 / atlas-builder 15 tests green. New `resolveFrameAndBob` walk tests + `isFarmerMoving` tests (replacing the `pickFarmerFrame` suite). **Still needs an in-browser feel-check** of the stride + swing cadence (WebGPU-only won't render headless on this WSL2 box) before brief 85 closes to done/.
+
+## [2026-06-12] brief | 85 animation engine — phases 1 + 2 implemented (render-only)
+
+Implemented the first two phases of [brief 85](briefs/game/todo/85-animation-engine.md). All render-only — no sim/determinism impact, no `CHECK_DETERMINISM` run.
+
+- **Phase 1 — engine primitive + consumers.** Reintroduced `@engine/core/animation` (`AnimationClip` + `Animator`, recovered from the deleted commit `0919cbc`, with 15 tests; exported via the main barrel + `./animation` subpath). The six render-loop wall-clock cyclers (foam/forge-fire/forge-smoke/waterfall/campfire/beacon) + the fishing-spot cycler now run through declarative clips via new `render-systems/{cycle,clips}.ts` (`loopClip`/`sampleCycle`/`cycleIndex`) — a behaviour-preserving refactor (a test asserts byte-equivalence to the old `floor/modulo` math) that gives the primitive real consumers so it won't rot like the brief-04 ghost. Removed the dead `SpriteAnim` component stub.
+- **Phase 2 — action swing art.** `ACTION_TEMPLATES_B` adds a `-b` strike frame per action (head/torso identical to the base pose; only the tool/arm moves; tool pixels at rows ≥7 so the personality hat never clips them). Generated `farmer/<p>/<action>-b` for all 5 personalities incl. Pip = 35 new frames (characters sheet 128). No `assets.test.ts` count bump — generated frames aren't in `BASE_RECIPES` (still 215). `resolveFrameAndBob` alternates `pose ↔ pose-b` on the wall clock (per-entity phase, ~0.44s), replacing the phase-1 bob-offset interim → working farmers/Pip swing their tool like the NPCs. New `action-swing.test.ts` guards A≠B + head-identical + 16×16.
+- **Atlas.** Force rebuild produced a **byte-identical** `characters.png` (deterministic bake). Editing `templates.ts` (a shared cache input) also refreshed the `inputsHash` field in buildings/terrain/items-ui manifests — frame data + PNGs for those untouched (verified by diff).
+- **Verified:** typecheck green (8 workspaces); engine 116 / render-systems 46 / atlas-builder 15 tests green. **Phases 1–2 still need an in-browser feel-check** (WebGPU-only won't render headless on this WSL2 box). Phase 3 (4-frame walk + render-side walk migration) remains open.
+
 ## [2026-06-12] todo | improvement backlog — ten briefs filed (engine 10–16, game 86–88)
 
 Swept the corpus's own deferred-work ledgers ([wiki/open-questions.md](wiki/open-questions.md), [wiki/shader-ideas.md](wiki/shader-ideas.md), [wiki/performance.md](wiki/performance.md) Tier 3, status.md leftovers) and promoted everything actionable into individual todo briefs — no new speculation, every brief traces to an already-verified finding:

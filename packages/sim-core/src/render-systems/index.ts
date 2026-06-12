@@ -1,6 +1,6 @@
 export {
   frameToAtlasId,
-  pickFarmerFrame,
+  isFarmerMoving,
   FOAM_FRAMES,
   FISHING_SPOT_FRAMES,
   FORGE_FIRE_FRAMES,

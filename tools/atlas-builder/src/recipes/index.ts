@@ -7,6 +7,7 @@ import { type PixelRecipe } from "./types";
 import { BASE_RECIPES } from "./assets/index";
 import {
   ACTION_TEMPLATES,
+  ACTION_TEMPLATES_B,
   PERSONALITY_SUBS,
   applyPersonalitySubs,
   applyFarmerLook,
@@ -34,6 +35,18 @@ for (const [action, template] of Object.entries(ACTION_TEMPLATES)) {
   for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
     RECIPES.push({
       name: `farmer/${personality}/${action}`,
+      size: 16,
+      pixels: applyFarmerLook(template, personality, subs),
+    });
+  }
+}
+
+// Second swing frame per action (`farmer/<p>/<action>-b`) — alternated with the base pose
+// render-side to animate working farmers/Pip (brief 85 phase 2).
+for (const [action, template] of Object.entries(ACTION_TEMPLATES_B)) {
+  for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
+    RECIPES.push({
+      name: `farmer/${personality}/${action}-b`,
       size: 16,
       pixels: applyFarmerLook(template, personality, subs),
     });

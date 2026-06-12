@@ -26,8 +26,13 @@ export function copySprite(dst: SnapshotSprite, src: SnapshotSprite): void {
   dst.layer = src.layer;
   dst.frame = src.frame;
   dst.alpha = src.alpha;
+  // 0xffffffff/0 are the renderer's no-tint / grounded defaults, so this never alters
+  // appearance — it just stops a reused pool slot carrying a stale tint or height.
+  dst.tintRgba = src.tintRgba ?? 0xffffffff;
+  dst.z = src.z ?? 0;
   dst.interpolate = src.interpolate;
   dst.action = src.action;
+  dst.moving = src.moving ?? false;
   dst.label = src.label;
   dst.description = src.description ?? null;
   dst.facing = src.facing ?? null;

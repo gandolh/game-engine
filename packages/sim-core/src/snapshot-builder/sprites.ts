@@ -4,7 +4,7 @@ import type {
   SnapshotSprite,
 } from "../snapshot";
 import type { PlayerHotbar, PlayerInventory, ItemSlotState } from "../snapshot";
-import { pickFarmerFrame } from "../render-systems";
+import { isFarmerMoving } from "../render-systems";
 import { HOTBAR_SIZE, defaultItemSlots, resolveItem } from "../systems/player-control";
 import {
   BUBBLE_SHOW_TICKS,
@@ -122,6 +122,7 @@ export function buildSprites(
     let facing: "down" | "up" | "side" | null = null;
     let flipX = false;
     let frame = s.frame;
+    let moving = false;
     if (npc) {
       facing = npc.facing;
       flipX = npc.flipX;
@@ -141,7 +142,8 @@ export function buildSprites(
         facing = f.facing;
         flipX = f.flipX;
       }
-      frame = pickFarmerFrame(entity, tick);
+      // frame stays the base look ("farmer/<p>"); the renderer resolves the walk cycle.
+      moving = isFarmerMoving(entity);
     }
     const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
 
@@ -246,6 +248,7 @@ export function buildSprites(
       // clamps genuine jumps (>2 tiles) so a flagged sprite never smears on travel.
       interpolate: isFarmer || npc !== undefined,
       action,
+      moving,
       label,
       description,
       facing,

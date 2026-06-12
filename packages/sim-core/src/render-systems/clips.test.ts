@@ -54,25 +54,80 @@ function sprite(over: Partial<SnapshotSprite>): SnapshotSprite {
 }
 
 describe("resolveFrameAndBob — action swing", () => {
-  it("resolves the action pose frame and gives a non-frozen downward swing", () => {
-    const s = sprite({ action: "till" });
-    const a = resolveFrameAndBob(s, 0);
-    const b = resolveFrameAndBob(s, 55); // ~quarter cycle later (period factor 110)
+  it("alternates the action pose with its -b strike frame (no bob)", () => {
+    // id 0 → phase 0: t<220ms = base pose, t in [220,440) = -b.
+    const a = resolveFrameAndBob(sprite({ id: 0, action: "till" }), 0);
+    const b = resolveFrameAndBob(sprite({ id: 0, action: "till" }), 250);
     expect(a.frame).toBe("farmer/hoarder/till");
-    expect(b.frame).toBe("farmer/hoarder/till");
-    // The swing oscillates, so two distinct times give distinct offsets...
-    expect(a.bobY).not.toBe(b.bobY);
-    // ...and the dip is bounded to [0, ~2.5px] (never lifts the sprite up).
-    for (const t of [0, 20, 55, 110, 200, 333]) {
-      const { bobY } = resolveFrameAndBob(sprite({ action: "till" }), t);
-      expect(bobY).toBeGreaterThanOrEqual(-0.001);
-      expect(bobY).toBeLessThanOrEqual(2.5001);
+    expect(b.frame).toBe("farmer/hoarder/till-b");
+    expect(a.bobY).toBe(0);
+    expect(b.bobY).toBe(0);
+  });
+
+  it("maps each action to its pose and swings to a -b variant over time", () => {
+    for (const [action, pose] of [
+      ["chop-tree", "chop"],
+      ["mine-stone", "mine"],
+      ["water", "water"],
+      ["harvest", "work"], // harvest has no dedicated pose → /work
+    ] as const) {
+      const a = resolveFrameAndBob(sprite({ id: 0, action }), 0);
+      const b = resolveFrameAndBob(sprite({ id: 0, action }), 250);
+      expect(a.frame).toBe(`farmer/hoarder/${pose}`);
+      expect(b.frame).toBe(`farmer/hoarder/${pose}-b`);
     }
+  });
+
+  it("phase-shifts per entity id so two farmers don't swing in lockstep", () => {
+    const even = resolveFrameAndBob(sprite({ id: 0, action: "till" }), 0).frame;
+    const odd = resolveFrameAndBob(sprite({ id: 1, action: "till" }), 0).frame;
+    expect(even).not.toBe(odd);
   });
 
   it("idle (no action) does not use the work swing", () => {
     const idle = resolveFrameAndBob(sprite({ action: null }), 0);
     expect(idle.frame).toBe("farmer/hoarder");
+  });
+});
+
+describe("resolveFrameAndBob — walk cycle", () => {
+  it("idle (not moving) returns the directional base frame + a bob", () => {
+    const down = resolveFrameAndBob(sprite({ id: 0, moving: false, facing: "down" }), 0);
+    const up = resolveFrameAndBob(sprite({ id: 0, moving: false, facing: "up" }), 0);
+    const side = resolveFrameAndBob(sprite({ id: 0, moving: false, facing: "side" }), 0);
+    expect(down.frame).toBe("farmer/hoarder");
+    expect(up.frame).toBe("farmer/hoarder/up");
+    expect(side.frame).toBe("farmer/hoarder/side");
+    // idle bob is generally non-zero (sine), and there is no walk suffix
+    expect(down.frame).not.toMatch(/walk/);
+  });
+
+  it("walks a 4-phase stride: contact-a → passing → contact-b → passing", () => {
+    // id 0, phase 0, 110ms per phase. Sample the middle of each phase window.
+    const at = (t: number) => resolveFrameAndBob(sprite({ id: 0, moving: true, facing: "down" }), t).frame;
+    expect(at(55)).toBe("farmer/hoarder/walk-a"); // phase 0
+    expect(at(165)).toBe("farmer/hoarder"); // phase 1 — neutral passing pose
+    expect(at(275)).toBe("farmer/hoarder/walk-b"); // phase 2
+    expect(at(385)).toBe("farmer/hoarder"); // phase 3 — passing
+    expect(at(495)).toBe("farmer/hoarder/walk-a"); // wraps to phase 0
+  });
+
+  it("inserts the facing segment before the walk suffix", () => {
+    const up = resolveFrameAndBob(sprite({ id: 0, moving: true, facing: "up" }), 55);
+    const side = resolveFrameAndBob(sprite({ id: 0, moving: true, facing: "side" }), 55);
+    expect(up.frame).toBe("farmer/hoarder/up/walk-a");
+    expect(side.frame).toBe("farmer/hoarder/side/walk-a");
+  });
+
+  it("phase-shifts the stride per entity id", () => {
+    const a = resolveFrameAndBob(sprite({ id: 0, moving: true, facing: "down" }), 55).frame;
+    const b = resolveFrameAndBob(sprite({ id: 1, moving: true, facing: "down" }), 55).frame;
+    expect(a).not.toBe(b);
+  });
+
+  it("action takes priority over the walk cycle", () => {
+    const f = resolveFrameAndBob(sprite({ id: 0, moving: true, action: "till" }), 0).frame;
+    expect(f).toBe("farmer/hoarder/till");
   });
 
   it("cycles the fishing-spot bubbles over time", () => {

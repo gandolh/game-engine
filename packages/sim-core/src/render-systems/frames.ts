@@ -18,13 +18,12 @@ export const FISHING_SPOT_FRAMES = [
 const FISHING_SPOT_CLIP = loopClip("fishing-spot", FISHING_SPOT_FRAMES, 1200);
 
 /**
- * Action-pose "work swing": a small downward dip oscillating while a farmer/Pip
- * performs a physical action, so the static work pose visibly works instead of
- * freezing. Render-only; phase-shifted per entity. Faster + larger than idle bob.
- * Interim until per-action `-a/-b` frames land (brief 85, phase 2).
+ * Action-pose "work swing": alternate the base action pose with its `-b` strike
+ * frame so a working farmer/Pip swings their tool instead of freezing on one
+ * pose. Render-only, wall-clock; phase-shifted per entity so farmers desync.
+ * Mirrors the NPC `*-a`/`*-b` swing cadence (brief 85, phase 2).
  */
-const ACTION_SWING_PERIOD = 110; // ms factor (≈0.7s cycle) — quicker than the idle bob
-const ACTION_SWING_AMP = 2.5; // px downward dip
+const ACTION_SWING_HALF_MS = 220; // ms each pose holds (≈0.44s full A↔B cycle)
 
 /** Animated forge-fire frames, cycled in the blacksmith oven's mouth. */
 export const FORGE_FIRE_FRAMES = [
@@ -111,15 +110,24 @@ export function frameToAtlasId(frame: string): string {
   return sheetId;
 }
 
-/** Walk-cycle frame for a farmer. Alternates walk-a/b every 2 ticks while traveling. */
-export function pickFarmerFrame(entity: GameEntity, tick: number): string {
+/**
+ * Whether a farmer/Pip is walking this tick. Drives the snapshot `moving` flag;
+ * the walk-cycle frame itself is resolved render-side ([resolveFrameAndBob]) so the
+ * stride is wall-clock smooth and decoupled from the tick rate (brief 85 phase 3).
+ */
+export function isFarmerMoving(entity: GameEntity): boolean {
   const farmer = entity.farmer;
-  const baseFrame = entity.sprite?.frame ?? "";
-  const walking = farmer?.path !== undefined || farmer?.movedThisTick === true;
-  if (!walking) return baseFrame;
-  const suffix = (tick >> 1) & 1 ? "/walk-b" : "/walk-a";
-  return baseFrame + suffix;
+  return farmer?.path !== undefined || farmer?.movedThisTick === true;
 }
+
+/**
+ * Render-side 4-phase walk cycle for farmers/Pip: contact-a → passing → contact-b →
+ * passing. The suffix tokens (`""` = the neutral passing pose) are appended to the
+ * directional base frame, reusing the three existing per-facing frames (no new art).
+ * Wall-clock; sampled with a per-entity phase so farmers don't march in lockstep.
+ */
+const WALK_CYCLE_MS = 440; // 4 × 110ms
+const WALK_CLIP = loopClip("farmer-walk", ["/walk-a", "", "/walk-b", ""], WALK_CYCLE_MS);
 
 // Action → pose suffix. Unmapped actions fall back to walk/idle animation.
 export const ACTION_POSE: Record<string, string> = {
@@ -158,23 +166,25 @@ export function resolveFrameAndBob(
     return { frame: s.frame, bobY: 0 };
   }
 
-  const walkMatch = /\/walk-[ab]$/.exec(s.frame);
-  const isWalking = walkMatch !== null;
-  const walkSuffix = walkMatch ? walkMatch[0] : "";
-  const base = s.frame.replace(/\/walk-[ab]$/, ""); // e.g. "farmer/hoarder"
+  // The snapshot carries the base look ("farmer/<p>"); facing + walk are resolved here.
+  const base = s.frame;
 
   if (s.action !== null && s.action in ACTION_POSE) {
-    // Half-rectified cosine → a 0..AMP downward dip (a repeated "work strike").
-    const phase = (s.id ?? 0) * 1.7;
-    const swing = (0.5 - 0.5 * Math.cos(nowMs / ACTION_SWING_PERIOD + phase)) * ACTION_SWING_AMP;
-    return { frame: base + ACTION_POSE[s.action], bobY: swing };
+    const pose = base + ACTION_POSE[s.action];
+    // Toggle pose ↔ pose-b on the wall clock; per-entity phase so farmers don't sync.
+    const useB = (Math.floor(nowMs / ACTION_SWING_HALF_MS) + (s.id ?? 0)) % 2 === 1;
+    return { frame: useB ? `${pose}-b` : pose, bobY: 0 };
   }
 
   // "down" = base frame; "up"/"side" insert a facing segment.
   const facing = s.facing ?? "down";
-  const dirSeg = facing === "down" ? "" : `/${facing}`;
-  const frame = base + dirSeg + walkSuffix;
+  const dir = facing === "down" ? base : `${base}/${facing}`;
 
-  const bobY = isWalking ? 0 : Math.sin(nowMs / 600 + (s.id ?? 0) * 1.3) * 1.5;
-  return { frame, bobY };
+  if (s.moving === true) {
+    // 4-phase stride via the walk clip; "" phases hold the neutral passing pose.
+    return { frame: dir + sampleCycle(WALK_CLIP, nowMs, s.id ?? 0), bobY: 0 };
+  }
+
+  const bobY = Math.sin(nowMs / 600 + (s.id ?? 0) * 1.3) * 1.5;
+  return { frame: dir, bobY };
 }

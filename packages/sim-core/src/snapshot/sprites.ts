@@ -7,7 +7,8 @@ export interface SnapshotSprite {
   y: number;
   rotation: number;
   layer: number;
-  /** Resolved atlas frame (farmer walk-cycle already applied worker-side). */
+  /** Base atlas frame. For farmers/Pip this is the direction-less look ("farmer/<p>");
+   *  the renderer resolves facing + the walk/idle/action animation from it. */
   frame: string;
   /** Per-sprite alpha (from tint), 0..1. */
   alpha: number;
@@ -20,6 +21,8 @@ export interface SnapshotSprite {
   interpolate: boolean;
   /** Current action (intentions head); used to pick work-pose. null for non-farmers. */
   action: string | null;
+  /** True while a farmer/Pip is walking this tick — drives the render-side walk cycle. */
+  moving?: boolean;
   /** Display name shown in the hover tooltip. null for anonymous sprites (crops, plots). */
   label: string | null;
   /** Longer description shown under the label in the hover tooltip. null for none. */
