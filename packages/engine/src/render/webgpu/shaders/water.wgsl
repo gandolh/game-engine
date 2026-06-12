@@ -181,21 +181,41 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 
   // ── Depth mask sample ─────────────────────────────────────────────────────────────────────────
   // Sample the wide shore-proximity gradient (GRADIENT_DEPTH_MAX=14 tiles, CPU-side).
-  // UV = world-pixel position / world dimensions; LINEAR sampler interpolates sub-tile positions.
-  // clamp-to-edge: out-of-range positions read 0 (open ocean, no shore effects).
   // depthSample: 1.0 = tile immediately adjacent to land; 0.0 = ≥14 tiles from land.
-  let depthUV = p / vec2<f32>(water.worldWidthPx, water.worldHeightPx);
-  let depthSample = textureSample(depthMask, samplerDepth, depthUV).r;
+  //
+  // The mask is ONE R8 texel per tile, so a plain bilinear (LINEAR) sample reconstructs the
+  // gradient as piecewise-bilinear patches whose iso-contours are diamond/scalloped arcs aligned
+  // to the texel grid (the visible concentric rings around every island). Two cures applied here:
+  //   (a) WARP the sample coordinate in world space with low-frequency value noise BEFORE
+  //       sampling, so each iso-contour wanders by ~1 tile and never aligns to the grid; and
+  //   (b) average a small 4-tap rosette spaced by half a tile, which low-passes the bilinear
+  //       texel ridges into a smooth field (cheap poor-man's bicubic).
+  let texel = vec2<f32>(water.tilePx, water.tilePx);
+  // (a) Domain warp — coarse (≈90 px) + finer (≈40 px) octave, animated, ≈±1.1 tiles total.
+  let dWarp = (vec2<f32>(
+                 valueNoise(p * (1.0 / 90.0) + vec2<f32>(t * 0.035, 0.0)),
+                 valueNoise(p * (1.0 / 90.0) + vec2<f32>(0.0, t * 0.028))) - 0.5) * (texel * 1.4)
+            + (vec2<f32>(
+                 valueNoise(p * (1.0 / 40.0) + vec2<f32>(t * 0.05, 11.0)),
+                 valueNoise(p * (1.0 / 40.0) + vec2<f32>(7.0, t * 0.04))) - 0.5) * (texel * 0.8);
+  let pDepth = p + dWarp;
+  let invWorld = 1.0 / vec2<f32>(water.worldWidthPx, water.worldHeightPx);
+  // (b) 4-tap rosette average (half-tile offsets) to dissolve the bilinear texel ridges.
+  let o = texel * 0.5;
+  let depthSample =
+    ( textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>( o.x,  o.y)) * invWorld).r
+    + textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>(-o.x,  o.y)) * invWorld).r
+    + textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>( o.x, -o.y)) * invWorld).r
+    + textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>(-o.x, -o.y)) * invWorld).r
+    ) * 0.25;
 
   // ── Organic shore field ───────────────────────────────────────────────────────────────────────
-  // The raw bilinear sample of the tile-resolution mask has scalloped per-texel iso-contours
-  // (classic bilinear artifact) — any threshold on it draws rows of tile-sized arcs. Perturb it
-  // with two octaves of value noise BEFORE any use, so every shore-keyed boundary (gradient,
-  // foam, caustics) follows one organic, continuous coastline. ±0.13 ≈ ±1.8 tiles of wobble;
-  // the slow time drift makes the shore band breathe.
+  // The domain warp + rosette above already break the grid; a final scalar octave folds in dither
+  // so the wide gradient mix never bands on an 8-bit framebuffer. Kept small (±0.08) now that the
+  // contour geometry itself is smooth.
   let shoreNoise = (valueNoise(p * 0.045 + vec2<f32>(t * 0.040, t * 0.025)) - 0.5)
                  + (valueNoise(p * 0.012 + vec2<f32>(0.0, t * 0.020)) - 0.5) * 0.6;
-  let shoreField = clamp(depthSample + shoreNoise * 0.16, 0.0, 1.0);
+  let shoreField = clamp(depthSample + shoreNoise * 0.08, 0.0, 1.0);
 
   // ── Shore-to-deep gradient ────────────────────────────────────────────────────────────────────
   // Blend the base color toward shallowColor near shore (high shoreField). The noise folded into

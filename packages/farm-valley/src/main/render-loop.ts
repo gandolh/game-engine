@@ -65,7 +65,8 @@ const HELD_TOOL_ANCHOR: Record<"down" | "up" | "side", { dx: number; dy: number;
 };
 // Carried tools are hand-sized, not body-sized: draw at a fraction of the tile footprint.
 const HELD_TOOL_SCALE = 0.6;
-// The hotbar can icon is drawn mid-pour; swap to the upright at-rest sprite when merely carried.
+// Only the can needs a bespoke held sprite (its icon is mid-pour). The hoe/axe/pickaxe icons just
+// need a horizontal (X) mirror to read as carried — done via flipX below, no extra sprite.
 const HELD_TOOL_FRAME: Record<string, string> = { "tool/can": "tool/can-held" };
 
 export interface RenderLoopDeps {
@@ -609,11 +610,13 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           if (s.action !== null && s.action in ACTION_POSE) break; // baked tool pose is showing
           const facing = s.facing ?? "down";
           const a = HELD_TOOL_ANCHOR[facing];
-          const flip = facing === "side" ? (s.flipX ?? false) : false;
+          const facingLeft = facing === "side" && (s.flipX ?? false);
           const toolFrame = HELD_TOOL_FRAME[heldFrame] ?? heldFrame;
+          // Icon tools (hoe/axe/pickaxe) read held when mirrored on X; the bespoke can-held is correct as-is.
+          const carryFlip = heldFrame !== "tool/can";
           const size = TILE * HELD_TOOL_SCALE; // hand-sized, not body-sized
           renderer.push({
-            x: s.x + (flip ? -a.dx : a.dx),
+            x: s.x + (facingLeft ? -a.dx : a.dx), // held on the forward side
             y: s.y + a.dy,
             width: size,
             height: size,
@@ -624,7 +627,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
             // Sort just in front of / behind the body (behind when facing away).
             sortY: s.y + (a.behind ? -0.1 : 0.1),
             alpha: 1,
-            flipX: flip,
+            flipX: carryFlip !== facingLeft, // X-mirror the icon; mirror again when facing left
           });
           break;
         }
