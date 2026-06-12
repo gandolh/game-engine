@@ -7,7 +7,7 @@
  *              behind land, and now and then splashing a little water up.
  */
 
-import type { Canvas2dRenderer, ParticleSystem } from "@engine/core";
+import type { RendererLike, ParticleSystem } from "@engine/core";
 import { EDG } from "@engine/core";
 import { oceanDepthAt } from "@farm/sim-core/render-systems";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
@@ -73,7 +73,7 @@ let duckCooldown = 1.5; // seconds until the next flock may spawn
 function ease(p: number): number { return p * p * (3 - 2 * p); } // smoothstep
 
 function updateDucks(
-  renderer: Pick<Canvas2dRenderer, "push">,
+  renderer: Pick<RendererLike, "push">,
   nowMs: number,
   dt: number,
   view: View,
@@ -136,7 +136,7 @@ let whale: Whale | null = null;
 let whaleCooldown = 3;
 
 function updateWhales(
-  renderer: Pick<Canvas2dRenderer, "push">,
+  renderer: Pick<RendererLike, "push">,
   particles: ParticleSystem,
   nowMs: number,
   dt: number,
@@ -187,7 +187,7 @@ function updateWhales(
 }
 
 export function pushWaterDecor(
-  renderer: Pick<Canvas2dRenderer, "push">,
+  renderer: Pick<RendererLike, "push">,
   particles: ParticleSystem,
   nowMs: number,
   dt: number,

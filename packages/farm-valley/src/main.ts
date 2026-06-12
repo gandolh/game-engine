@@ -54,7 +54,13 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   const atlasMap = await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL);
   const camera = new Camera2D(CAMERA_CONFIG);
   setCamera(camera);
-  const renderer = await createRenderer(canvas, camera, { onBackend: (b) => console.info("[render] backend:", b) });
+  // Farm Valley is WebGPU-only — no Canvas2D fallback in the game (the Canvas2dRenderer stays in the
+  // engine for tests/other consumers). Forcing "webgpu" makes createRenderer throw if the GPU path is
+  // unavailable rather than silently dropping to Canvas2D.
+  const renderer = await createRenderer(canvas, camera, {
+    backend: "webgpu",
+    onBackend: (b) => console.info("[render] backend:", b),
+  });
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }
