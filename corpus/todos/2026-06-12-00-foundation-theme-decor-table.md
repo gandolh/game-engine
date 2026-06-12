@@ -1,13 +1,27 @@
 ---
 title: "FOUNDATION #0.5 — `theme` field on RegionDef + per-theme décor table"
 created: 2026-06-12
-status: open
+status: done
 tags: [world, render, foundation]
 blocks: [bigger-decorated-neutral-islands, per-farm-ranch-islands, casino-island-open-air, seasonal-trees-and-big-tree-island]
 depends_on: [foundation-grow-grid-to-240]
 ---
 
 # FOUNDATION #0.5 — `theme` field + per-theme interior décor scatter
+
+> **DONE 2026-06-12.** `RegionTheme` enum + optional `theme?` on `RegionDef`
+> (regions.ts; assigned via a `THEME_BY_ID` post-pass, farms default `'ring'`).
+> New [interior-decor.ts](../../packages/sim-core/src/render-systems/interior-decor.ts):
+> `THEME_TABLE` (theme→frames+density) + `computeInteriorDecor(world)` — blue-noise
+> rejection scatter INSIDE each themed region (walkable + `regionAt===id`), mirroring
+> set-pieces (fork `decor:<id>`, draw-all-fields each iter). Baked in static-layer.ts
+> (layer 2, opaque) — render-only, never an entity, never read by sim. Forbidden-set
+> unions plots/solids/stations/home/fountain/dock/board/coral docks + existing
+> decoration/structure sprites, and rejects any tile within Chebyshev 1 of a bridge
+> tile (mouths). 5 guard tests (zero functional overlap, inside-themed-region,
+> determinism, frames-in-table, blue-noise). typecheck + 703 sim-core tests green.
+> Render eyeball pending. Note: tall props bake below dynamic sprites (layer 2) — a
+> farmer draws over a lamp-post; fine for the substrate. See [log.md](../log.md) 2026-06-12.
 
 The shared substrate for every décor todo. This is the long-open world-gen
 "Variety" item, scoped concretely. **Strictly render-only.**

@@ -80,6 +80,23 @@ over every region pair; `regions.test.ts` asserts the band's count + per-farm
 centers + `nearestResourceZone` routing. Determinism: generation is pure (no
 RNG); `CHECK_DETERMINISM` MATCH ×21-farmers at both 20 and 1200 ticks/day.
 
+### Themed interior décor (render-only, 2026-06-12)
+
+`RegionDef.theme` is a typed enum (`RegionTheme`) assigned per region (forest /
+quarry / shrine / heritage / casino; farms default `'ring'`; `ranch` / `big-tree`
+reserved for later todos). **Render-only — sim code must never read `theme`;
+interactive features key off region id.** [interior-decor.ts](../../packages/sim-core/src/render-systems/interior-decor.ts)
+holds a per-theme `THEME_TABLE` (frames + density-per-100-walkable-tiles) and
+`computeInteriorDecor(world)`, which mirrors the open-water set-pieces idiom
+(blue-noise rejection, Chebyshev `MIN_SPACING`, `fork('decor:'+id)`,
+draw-all-rng-fields-every-iter) but **inverts eligibility**: props land on walkable
+region-interior tiles. The forbidden-set is assembled from world queries
+(plots/solids/stations/home/fountain/dock/board/coral docks + existing
+decoration/structure sprites) and rejects tiles within Chebyshev 1 of a bridge
+(mouths); accepted tiles feed back in so regions never overlap. Baked into the
+static layer (layer 2, opaque) — never an ECS entity, so it never enters the sim
+snapshot. This is the shared substrate the décor todos build on.
+
 ## Improving it further (research menu)
 
 The central decision: **decouple "island shape/placement" from "how the layout is

@@ -30,12 +30,18 @@ export type RegionId = FixedRegionId | ExtraFarmRegionId;
 
 export type RegionKind = 'village' | 'farm' | 'landmark';
 
+/** RENDER-ONLY theme key — selects an interior décor table. NEVER read by sim logic. */
+export type RegionTheme =
+  | 'ranch' | 'casino' | 'shrine' | 'heritage' | 'forest' | 'quarry' | 'big-tree' | 'ring';
+
 export interface RegionDef {
   id: RegionId;
   kind: RegionKind;
   ownerId?: number | undefined; // farmer entity id for farms; undefined for village
   bounds: { minX: number; minY: number; maxX: number; maxY: number }; // inclusive
   center: { x: number; y: number };
+  /** RENDER-ONLY décor theme. Optional — only present when assigned. Sim code must never read it. */
+  theme?: RegionTheme;
 }
 
 // 240×240 radial archipelago: isolated islands connected only by 2-wide bridges.
@@ -245,7 +251,7 @@ function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: numb
   };
 }
 
-export const REGIONS: readonly RegionDef[] = [
+const BASE_REGIONS: readonly RegionDef[] = [
   { id: 'village',        kind: 'village', bounds: VILLAGE_BOUNDS,         center: midpoint(VILLAGE_BOUNDS) },
   { id: 'farm-cora',      kind: 'farm',    bounds: FARM_CORA_BOUNDS,       center: midpoint(FARM_CORA_BOUNDS) },
   { id: 'farm-atticus',   kind: 'farm',    bounds: FARM_ATTICUS_BOUNDS,    center: midpoint(FARM_ATTICUS_BOUNDS) },
@@ -277,6 +283,21 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'casino',  kind: 'landmark', bounds: CASINO_BOUNDS,  center: midpoint(CASINO_BOUNDS) },
   ...EXTRA_FARM_REGIONS,
 ];
+
+// RENDER-ONLY theme assignment. Applied as a post-pass over BASE_REGIONS so the big
+// inline array stays untouched. Sim logic must NEVER read `theme` (see todo #0.5).
+const THEME_BY_ID: Partial<Record<RegionId, RegionTheme>> = {
+  'forest-north': 'forest', 'forest-south': 'forest',
+  'quarry-north': 'quarry', 'quarry-south': 'quarry',
+  'shrine': 'shrine',
+  'heritage-stones': 'heritage', 'heritage-ruin': 'heritage', 'heritage-statue': 'heritage',
+  'casino': 'casino',
+};
+
+export const REGIONS: readonly RegionDef[] = BASE_REGIONS.map((r) => {
+  const theme = THEME_BY_ID[r.id] ?? (r.kind === 'farm' ? 'ring' : undefined);
+  return theme ? { ...r, theme } : r;
+});
 
 /** Recover a region's hand-authored (160-scale) center from its live scaled center
  *  (inverse of the origin scaling applied to bounds). */

@@ -2,6 +2,17 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] feature | `theme` field + interior décor scatter (foundation #0.5)
+
+Render-only themed interior décor — the shared substrate for the décor todos (bigger neutral islands, ranch islands, casino, big-tree).
+
+- **`RegionTheme`** enum (`'ranch'|'casino'|'shrine'|'heritage'|'forest'|'quarry'|'big-tree'|'ring'`) + optional `theme?` on `RegionDef` (regions.ts). Assigned via a `THEME_BY_ID` post-pass over the region array (forest/quarry/shrine/heritage/casino); farms default to `'ring'`. **Never read by sim** — interactive features (casino-as-game, ranch animals) must key off region id, not theme.
+- **[interior-decor.ts](../../packages/sim-core/src/render-systems/interior-decor.ts)** (new): `THEME_TABLE` (theme→{frames, density per 100 walkable tiles}) using existing `decoration/*` atlas frames only, + `computeInteriorDecor(world)`. Mirrors set-pieces (rejection-sampled blue-noise, Chebyshev `MIN_SPACING=2`, `createRng(WORLD_GEN_SEED).fork('decor:'+id)`, draw-all-fields-every-iter) but **inverts eligibility**: props must land on walkable region-interior tiles (`regionAt===id`).
+- **Forbidden-set** (built from world queries at bake time, so it's exact and non-duplicative): plots, solids (footprints + prop solids), workNpc stations, home/fountain transforms, harbor dock/board, coral docks, and every already-placed `decoration/`/`structure/` sprite (no double-draw). Bridge **mouths**: reject any candidate within Chebyshev 1 of a `BRIDGE_SET` tile. Accepted tiles are added back to the forbidden set so regions never overlap each other's décor.
+- **Baked render-only** in static-layer.ts (`iterStaticSprites`, layer 2, opaque) right after the SET_PIECES loop — not an ECS entity, so it never enters the sim snapshot. Re-baked deterministically on season change (fixed seed + fixed geometry).
+- 5 guard tests (interior-decor.test.ts): zero overlap with functional tiles (+ no tile within Chebyshev 1 of a bridge), every tile inside its themed walkable region, determinism across fresh worlds, frames ∈ table, blue-noise spacing. typecheck + sim-core **703 tests** green; full repo typecheck clean.
+- Known nit: layer-2 baked props sit below dynamic sprites, so a farmer draws over a tall prop (lamp-post/torii). Acceptable for the substrate; revisit if a depth-sorted variant is wanted.
+
 ## [2026-06-12] feature | Grow world 160→240 (foundation #0 for land todos)
 
 Grew `WORLD_WIDTH`/`HEIGHT` 160→240, center 80→120, rings R 52/72→78/108. **Uniform position-only scale** (SCALE=1.5): chose to keep island sizes constant and only spread their centers, so inter-island gaps open ×1.5 (room for the 21 ranch islands / big-tree island / landmark enlargements the blocked todos need) while islands stay authored-size.

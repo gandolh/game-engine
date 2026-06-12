@@ -21,6 +21,7 @@ import {
   isOccluderWall,
 } from "./geometry";
 import { SET_PIECES, SET_PIECE_ALPHA } from "./set-pieces";
+import { computeInteriorDecor, INTERIOR_DECOR_ALPHA } from "./interior-decor";
 import { frameToAtlasId } from "./frames";
 
 const TILE = 16;
@@ -140,6 +141,21 @@ export function* iterStaticSprites(
       rotation: piece.rotation,
       layer: 2,
       alpha: SET_PIECE_ALPHA,
+    };
+  }
+
+  // Render-only themed interior props — opaque, on the ground (layer 2, below dynamic
+  // sprites). Computed from world queries so the scatter dodges every functional tile.
+  for (const decor of computeInteriorDecor(world)) {
+    yield {
+      x: decor.tx * TILE + TILE / 2,
+      y: decor.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: decor.frame,
+      rotation: decor.rotation,
+      layer: 2,
+      alpha: INTERIOR_DECOR_ALPHA,
     };
   }
 
