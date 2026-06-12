@@ -187,11 +187,20 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   let depthUV = p / vec2<f32>(water.worldWidthPx, water.worldHeightPx);
   let depthSample = textureSample(depthMask, samplerDepth, depthUV).r;
 
+  // ── Organic shore field ───────────────────────────────────────────────────────────────────────
+  // The raw bilinear sample of the tile-resolution mask has scalloped per-texel iso-contours
+  // (classic bilinear artifact) — any threshold on it draws rows of tile-sized arcs. Perturb it
+  // with two octaves of value noise BEFORE any use, so every shore-keyed boundary (gradient,
+  // foam, caustics) follows one organic, continuous coastline. ±0.13 ≈ ±1.8 tiles of wobble;
+  // the slow time drift makes the shore band breathe.
+  let shoreNoise = (valueNoise(p * 0.045 + vec2<f32>(t * 0.040, t * 0.025)) - 0.5)
+                 + (valueNoise(p * 0.012 + vec2<f32>(0.0, t * 0.020)) - 0.5) * 0.6;
+  let shoreField = clamp(depthSample + shoreNoise * 0.16, 0.0, 1.0);
+
   // ── Shore-to-deep gradient ────────────────────────────────────────────────────────────────────
-  // Blend the base color toward shallowColor near shore (high depthSample).
-  // A tiny valueNoise dither (±0.03) breaks any banding in the wide gradient.
-  let dither = (valueNoise(p * 0.015 + vec2<f32>(t * 0.03, 0.0)) - 0.5) * 0.06;
-  col = mix(col, water.shallowColor.rgb, clamp(depthSample * 0.45 + dither, 0.0, 1.0));
+  // Blend the base color toward shallowColor near shore (high shoreField). The noise folded into
+  // shoreField doubles as dither, so the wide gradient never bands.
+  col = mix(col, water.shallowColor.rgb, shoreField * 0.45);
 
   // ── Task 3: Quantized shore foam ─────────────────────────────────────────────────────────────
   // Noise-based band right at the depth boundary, step()-quantized to 2 alpha levels (pixel-art).
@@ -202,10 +211,10 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   let FOAM_NEAR = 0.91;
   let FOAM_FAR  = 0.83;
   let foamNoise = valueNoise(p * 0.055 + vec2<f32>(t * 0.25, t * 0.18));
-  // Level 1: strongest foam, closest to shore
-  let foam1 = step(FOAM_NEAR, depthSample) * step(0.62, foamNoise);
+  // Level 1: strongest foam, closest to shore (gated on the organic shoreField, not the raw mask)
+  let foam1 = step(FOAM_NEAR, shoreField) * step(0.62, foamNoise);
   // Level 2: lighter foam band slightly further out
-  let foam2 = step(FOAM_FAR, depthSample) * step(0.68, foamNoise) * (1.0 - foam1);
+  let foam2 = step(FOAM_FAR, shoreField) * step(0.68, foamNoise) * (1.0 - foam1);
   // Quantized alphas: 0 (none), 0.30 (light), 0.55 (strong).
   let foamAlpha = foam1 * 0.55 + foam2 * 0.30;
   col = mix(col, water.foamColor.rgb, foamAlpha);
@@ -223,7 +232,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   // Threshold to the cell edges: narrow band near edge (vd close to 0 = deep between cells,
   // vd near cell spacing = near edge). The caustic "lines" are at small vd values.
   // step()-quantize to 2 levels (pixel-art). Masked to depth band.
-  let inDepth = step(CAUSTICS_GATE, depthSample);
+  let inDepth = step(CAUSTICS_GATE, shoreField);
   // Two quantized alpha levels for the caustic band.
   let caustic1 = step(0.72, vd) * inDepth;  // brightest caustic lines (near cell edge)
   let caustic2 = step(0.64, vd) * inDepth * (1.0 - caustic1);  // secondary ring
