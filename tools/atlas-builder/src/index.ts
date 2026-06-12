@@ -96,149 +96,167 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(__dirname, "../../../packages/farm-valley/public/atlas");
 const recipesDir = resolve(__dirname, "recipes");
 const assetsDir = resolve(__dirname, "recipes/assets");
-mkdirSync(outDir, { recursive: true });
 
-const force = process.argv.includes("--force") || process.env["FORCE"] === "1";
+export interface BuildResult { built: string[]; cached: string[]; }
 
-const sheetRecipes = new Map<string, PixelRecipe[]>();
-const recipeAssetPaths = new Map<string, string>();
+/**
+ * Build all atlas sheets (incremental: a sheet is skipped when its content hash matches its manifest).
+ * Exported so tests can drive it IN-PROCESS — far faster + less flaky than spawning `tsx src/index.ts`
+ * per case. `force` bypasses the cache. Returns the sheet ids that were rebuilt vs served from cache.
+ */
+export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
+  const force = opts.force ?? false;
+  mkdirSync(outDir, { recursive: true });
 
-function assetFileForRecipe(name: string): string {
-  return resolve(assetsDir, ...name.split("/")) + ".ts";
-}
 
-for (const recipe of RECIPES) {
-  const sheetId = frameToSheetId(recipe.name);
-  let group = sheetRecipes.get(sheetId);
-  if (group === undefined) {
-    group = [];
-    sheetRecipes.set(sheetId, group);
-  }
-  group.push(recipe);
-  const assetPath = assetFileForRecipe(recipe.name); // only BASE_RECIPES have a file; generated frames come from templates.ts
-  if (existsSync(assetPath)) {
-    recipeAssetPaths.set(recipe.name, assetPath);
-  }
-}
+  const sheetRecipes = new Map<string, PixelRecipe[]>();
+  const recipeAssetPaths = new Map<string, string>();
 
-const sheetOrder = ["characters", "buildings", "terrain", "crops", "props", "items-ui"] as const;
-
-for (const sheetId of sheetRecipes.keys()) {
-  if (!(sheetOrder as readonly string[]).includes(sheetId)) {
-    throw new Error(`atlas-builder: unexpected sheet "${sheetId}" — add it to sheetOrder`);
-  }
-}
-
-// Characters: farmer action/facing poses. Buildings/terrain/items-ui: NPC_POSES from templates.ts.
-const SHEETS_WITH_GENERATED = new Set(["characters", "buildings", "terrain", "items-ui"]);
-
-const recipesIndexPath = resolve(recipesDir, "index.ts");
-const templatesPath = resolve(recipesDir, "templates.ts");
-
-interface SheetIndexEntry {
-  id: string;
-  imageUrl: string;
-  manifestUrl: string;
-}
-const indexEntries: SheetIndexEntry[] = [];
-let builtCount = 0;
-let cachedCount = 0;
-
-for (const sheetId of sheetOrder) {
-  const recipes = sheetRecipes.get(sheetId);
-  if (!recipes || recipes.length === 0) {
-    console.warn(`atlas-builder: sheet "${sheetId}" has no recipes — skipping`);
-    continue;
+  function assetFileForRecipe(name: string): string {
+    return resolve(assetsDir, ...name.split("/")) + ".ts";
   }
 
-  const sheetAssetFiles: string[] = [];
-  for (const recipe of recipes) {
-    const p = recipeAssetPaths.get(recipe.name);
-    if (p !== undefined) sheetAssetFiles.push(p);
-  }
-  sheetAssetFiles.sort(); // deterministic hash order
-
-  const hasGenerated = SHEETS_WITH_GENERATED.has(sheetId);
-  const inputsHash = computeSheetHash(
-    sheetId,
-    sheetAssetFiles,
-    recipesDir,
-    hasGenerated,
-    recipesIndexPath,
-    templatesPath,
-  );
-
-  const manifestPath = resolve(outDir, `${sheetId}.json`);
-
-  if (!force && existsSync(manifestPath)) {
-    try {
-      const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as { inputsHash?: string };
-      if (existing.inputsHash === inputsHash) {
-        console.log(`atlas-builder: [${sheetId}] cached (${recipes.length} frames)`);
-        cachedCount++;
-        indexEntries.push({
-          id: sheetId,
-          imageUrl: `/atlas/${sheetId}.png`,
-          manifestUrl: `/atlas/${sheetId}.json`,
-        });
-        continue;
-      }
-    } catch {
-      // If we can't read/parse the existing manifest, rebuild
+  for (const recipe of RECIPES) {
+    const sheetId = frameToSheetId(recipe.name);
+    let group = sheetRecipes.get(sheetId);
+    if (group === undefined) {
+      group = [];
+      sheetRecipes.set(sheetId, group);
+    }
+    group.push(recipe);
+    const assetPath = assetFileForRecipe(recipe.name); // only BASE_RECIPES have a file; generated frames come from templates.ts
+    if (existsSync(assetPath)) {
+      recipeAssetPaths.set(recipe.name, assetPath);
     }
   }
 
-  const packed = packShelf(recipes);
-  const png = rasterize(packed, recipes);
-  const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS }); // spread: pngjs mutates options in-place
-  writeFileSync(resolve(outDir, `${sheetId}.png`), pngBuffer);
+  const sheetOrder = ["characters", "buildings", "terrain", "crops", "props", "items-ui"] as const;
 
-  const manifest = {
-    id: sheetId,
-    imageUrl: `/atlas/${sheetId}.png`,
-    width: packed.width,
-    height: packed.height,
-    frames: packed.frames,
-    inputsHash,
-  };
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-
-  indexEntries.push({
-    id: sheetId,
-    imageUrl: `/atlas/${sheetId}.png`,
-    manifestUrl: `/atlas/${sheetId}.json`,
-  });
-
-  builtCount++;
-  console.log(
-    `atlas-builder: [${sheetId}] built — ${recipes.length} frames → ${packed.width}x${packed.height}`,
-  );
-}
-
-// runtime discovers sheets via /atlas/index.json — no hardcoded sheet list needed.
-const atlasIndex = { sheets: indexEntries };
-const newIndexJson = JSON.stringify(atlasIndex, null, 2);
-const indexPath = resolve(outDir, "index.json");
-const existingIndexJson = existsSync(indexPath)
-  ? readFileSync(indexPath, "utf8")
-  : null;
-
-if (existingIndexJson !== newIndexJson) {
-  writeFileSync(indexPath, newIndexJson);
-  console.log(`atlas-builder: wrote index.json (${indexEntries.length} sheets)`);
-} else {
-  console.log(`atlas-builder: index.json unchanged`);
-}
-
-for (const legacy of ["main.png", "main.json"]) {
-  const legacyPath = resolve(outDir, legacy);
-  if (existsSync(legacyPath)) {
-    rmSync(legacyPath);
-    console.log(`atlas-builder: removed superseded ${legacy}`);
+  for (const sheetId of sheetRecipes.keys()) {
+    if (!(sheetOrder as readonly string[]).includes(sheetId)) {
+      throw new Error(`atlas-builder: unexpected sheet "${sheetId}" — add it to sheetOrder`);
+    }
   }
+
+  // Characters: farmer action/facing poses. Buildings/terrain/items-ui: NPC_POSES from templates.ts.
+  const SHEETS_WITH_GENERATED = new Set(["characters", "buildings", "terrain", "items-ui"]);
+
+  const recipesIndexPath = resolve(recipesDir, "index.ts");
+  const templatesPath = resolve(recipesDir, "templates.ts");
+
+  interface SheetIndexEntry {
+    id: string;
+    imageUrl: string;
+    manifestUrl: string;
+  }
+  const indexEntries: SheetIndexEntry[] = [];
+  const built: string[] = [];
+  const cached: string[] = [];
+
+  for (const sheetId of sheetOrder) {
+    const recipes = sheetRecipes.get(sheetId);
+    if (!recipes || recipes.length === 0) {
+      console.warn(`atlas-builder: sheet "${sheetId}" has no recipes — skipping`);
+      continue;
+    }
+
+    const sheetAssetFiles: string[] = [];
+    for (const recipe of recipes) {
+      const p = recipeAssetPaths.get(recipe.name);
+      if (p !== undefined) sheetAssetFiles.push(p);
+    }
+    sheetAssetFiles.sort(); // deterministic hash order
+
+    const hasGenerated = SHEETS_WITH_GENERATED.has(sheetId);
+    const inputsHash = computeSheetHash(
+      sheetId,
+      sheetAssetFiles,
+      recipesDir,
+      hasGenerated,
+      recipesIndexPath,
+      templatesPath,
+    );
+
+    const manifestPath = resolve(outDir, `${sheetId}.json`);
+
+    if (!force && existsSync(manifestPath)) {
+      try {
+        const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as { inputsHash?: string };
+        if (existing.inputsHash === inputsHash) {
+          console.log(`atlas-builder: [${sheetId}] cached (${recipes.length} frames)`);
+          cached.push(sheetId);
+          indexEntries.push({
+            id: sheetId,
+            imageUrl: `/atlas/${sheetId}.png`,
+            manifestUrl: `/atlas/${sheetId}.json`,
+          });
+          continue;
+        }
+      } catch {
+        // If we can't read/parse the existing manifest, rebuild
+      }
+    }
+
+    const packed = packShelf(recipes);
+    const png = rasterize(packed, recipes);
+    const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS }); // spread: pngjs mutates options in-place
+    writeFileSync(resolve(outDir, `${sheetId}.png`), pngBuffer);
+
+    const manifest = {
+      id: sheetId,
+      imageUrl: `/atlas/${sheetId}.png`,
+      width: packed.width,
+      height: packed.height,
+      frames: packed.frames,
+      inputsHash,
+    };
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    indexEntries.push({
+      id: sheetId,
+      imageUrl: `/atlas/${sheetId}.png`,
+      manifestUrl: `/atlas/${sheetId}.json`,
+    });
+
+    built.push(sheetId);
+    console.log(
+      `atlas-builder: [${sheetId}] built — ${recipes.length} frames → ${packed.width}x${packed.height}`,
+    );
+  }
+
+  // runtime discovers sheets via /atlas/index.json — no hardcoded sheet list needed.
+  const atlasIndex = { sheets: indexEntries };
+  const newIndexJson = JSON.stringify(atlasIndex, null, 2);
+  const indexPath = resolve(outDir, "index.json");
+  const existingIndexJson = existsSync(indexPath)
+    ? readFileSync(indexPath, "utf8")
+    : null;
+
+  if (existingIndexJson !== newIndexJson) {
+    writeFileSync(indexPath, newIndexJson);
+    console.log(`atlas-builder: wrote index.json (${indexEntries.length} sheets)`);
+  } else {
+    console.log(`atlas-builder: index.json unchanged`);
+  }
+
+  for (const legacy of ["main.png", "main.json"]) {
+    const legacyPath = resolve(outDir, legacy);
+    if (existsSync(legacyPath)) {
+      rmSync(legacyPath);
+      console.log(`atlas-builder: removed superseded ${legacy}`);
+    }
+  }
+
+  const totalRecipes = [...sheetRecipes.values()].reduce((s, rs) => s + rs.length, 0);
+  console.log(
+    `atlas-builder: ${totalRecipes} recipes — ${built.length} sheet(s) built, ${cached.length} sheet(s) cached`,
+  );
+
+  return { built, cached };
 }
 
-const totalRecipes = [...sheetRecipes.values()].reduce((s, rs) => s + rs.length, 0);
-console.log(
-  `atlas-builder: ${totalRecipes} recipes — ${builtCount} sheet(s) built, ${cachedCount} sheet(s) cached`,
-);
+// CLI entry: run the build when invoked directly (`tsx src/index.ts [--force]`), not when imported.
+const __isMain = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (__isMain) {
+  buildAtlas({ force: process.argv.includes("--force") || process.env["FORCE"] === "1" });
+}

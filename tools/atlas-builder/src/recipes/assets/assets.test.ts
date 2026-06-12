@@ -10,9 +10,9 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
 import { BASE_RECIPES } from "./index";
 import { RECIPES } from "../index";
+import { buildAtlas } from "../../index";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = HERE;
@@ -88,100 +88,57 @@ describe("no duplicate recipe names", () => {
   });
 });
 
+// These drive the builder IN-PROCESS via buildAtlas() (no `tsx` subprocess per case — ~8 process
+// spawns became fast function calls, fixing the constrained-hardware timeout). The cache is still
+// filesystem-based (computeSheetHash hashes asset file CONTENTS read fresh from disk), so the
+// touch-a-file test exercises real incremental behavior even in-process.
 describe("deterministic PNG encode", () => {
   it("encodes the same pixels to identical PNG bytes in two runs (crops sheet)", () => {
     const cropsPngPath = join(ATLAS_OUT_DIR, "crops.png");
-    expect(existsSync(cropsPngPath), "crops.png must exist (run atlas builder first)").toBe(true);
-
+    buildAtlas({ force: true }); // baseline
+    expect(existsSync(cropsPngPath), "crops.png must exist after a build").toBe(true);
     const before = readFileSync(cropsPngPath);
 
-    execSync("npx tsx src/index.ts --force", {
-      cwd: ATLAS_BUILDER_DIR,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
+    buildAtlas({ force: true }); // rebuild
     const after = readFileSync(cropsPngPath);
+
     expect(after.length, "crops.png size changed on --force rebuild").toBe(before.length);
     expect(
       after.equals(before),
-      "crops.png is not byte-identical after --force rebuild (encoder non-determinism)",
+      "crops.png is not byte-identical after a --force rebuild (encoder non-determinism)",
     ).toBe(true);
   });
 });
 
 describe("per-sheet cache", () => {
-  it("a second builder run (no changes) reports all 6 sheets cached", () => {
-    execSync("npx tsx src/index.ts --force", {
-      cwd: ATLAS_BUILDER_DIR,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+  it("a second build (no changes) reports all 6 sheets cached", () => {
+    buildAtlas({ force: true });        // warm every sheet
+    const { built, cached } = buildAtlas(); // no-op incremental run
 
-    const output = execSync("npx tsx src/index.ts", {
-      cwd: ATLAS_BUILDER_DIR,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const builtLines = output.split("\n").filter((l) => /\[[^\]]+\] built/.test(l));
-    const cachedLines = output.split("\n").filter((l) => /\[[^\]]+\] cached/.test(l));
-
-    expect(
-      builtLines,
-      "no sheets should be rebuilt on a no-op run:\n" + output,
-    ).toHaveLength(0);
-    expect(cachedLines).toHaveLength(6);
+    expect(built, "no sheets should rebuild on a no-op run").toHaveLength(0);
+    expect(cached).toHaveLength(6);
   });
 
   it("touching one crop asset file rebuilds only the crops sheet", () => {
-    execSync("npx tsx src/index.ts --force", {
-      cwd: ATLAS_BUILDER_DIR,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    execSync("npx tsx src/index.ts", {
-      cwd: ATLAS_BUILDER_DIR,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    buildAtlas({ force: true });        // warm every sheet
 
     const cropFile = join(ASSETS_DIR, "crop/radish/seed.ts");
     const original = readFileSync(cropFile, "utf8");
-    writeFileSync(cropFile, original + "\n");
+    writeFileSync(cropFile, original + "\n"); // content change → crops hash changes
 
-    let output: string;
+    let result: { built: string[]; cached: string[] };
     try {
-      output = execSync("npx tsx src/index.ts", {
-        cwd: ATLAS_BUILDER_DIR,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
+      result = buildAtlas(); // incremental: only the crops sheet's hash moved
     } finally {
-      // Always restore the original file content
-      writeFileSync(cropFile, original);
+      writeFileSync(cropFile, original); // always restore
     }
 
-    const builtLines = output.split("\n").filter((l) => /\[[^\]]+\] built/.test(l));
-    const cachedLines = output.split("\n").filter((l) => /\[[^\]]+\] cached/.test(l));
+    expect(result.built, "exactly the crops sheet should rebuild").toEqual(["crops"]);
+    expect(result.cached, "the other 5 sheets stay cached").toHaveLength(5);
 
-    expect(
-      builtLines,
-      "expected exactly 1 sheet to rebuild:\n" + output,
-    ).toHaveLength(1);
-    expect(builtLines[0], "only the crops sheet should rebuild").toMatch(/crops/);
-    expect(
-      cachedLines,
-      "expected 5 sheets to remain cached:\n" + output,
-    ).toHaveLength(5);
-
-    execSync("npx tsx src/index.ts --force", {
-      cwd: ATLAS_BUILDER_DIR,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const output2 = execSync("npx tsx src/index.ts", {
-      cwd: ATLAS_BUILDER_DIR,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const builtLines2 = output2.split("\n").filter((l) => /\[[^\]]+\] built/.test(l));
-    expect(builtLines2, "after restoring + --force, all sheets should be cached:\n" + output2).toHaveLength(0);
+    // Reset: the rebuilt manifest now holds the touched-content hash; a --force restores the
+    // restored-content hash so a later no-op run is clean.
+    buildAtlas({ force: true });
+    expect(buildAtlas().built, "after restore + --force, a no-op run rebuilds nothing").toHaveLength(0);
   });
 });
