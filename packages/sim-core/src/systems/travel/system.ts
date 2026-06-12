@@ -93,13 +93,16 @@ export class TravelSystem implements System {
       const destLabel = targetTile
         ? `tile (${targetTile.x},${targetTile.y})${front.data.tavernGather ? " [tavern-gather]" : ""}`
         : `region '${targetRegionId}'`;
-      // Isolate pathfinder faults (WASM allocator can trap under heavy churn); drop intent rather than crashing the tick.
+      // Defensive catch: post-fix this should never fire. If it does, it is a new bug
+      // class (not the allocator leak fixed in brief 10) — escalate loudly so it is
+      // not silently swallowed. Drop the intent to avoid a stuck farmer, but log as error.
       let path: { x: number; y: number }[];
       try {
         path = this.pathfinder.findPath(grid, start, targetCenter);
       } catch (err) {
-        console.warn(
-          `[travel] pathfinder fault from (${start.x},${start.y}) to ${destLabel} for farmer ${entity.id}; dropping intent`,
+        console.error(
+          `[travel] pathfinder fault (unexpected — allocator bug was fixed in brief 10) ` +
+          `from (${start.x},${start.y}) to ${destLabel} for farmer ${entity.id}; dropping intent`,
           err,
         );
         intentions.queue.shift();

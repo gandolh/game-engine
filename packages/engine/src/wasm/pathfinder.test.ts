@@ -87,3 +87,31 @@ describe("Pathfinder (wasm A*)", () => {
     }
   });
 });
+
+describe("Pathfinder (wasm A*) — allocator churn regression (brief 10)", () => {
+  // Regression test for: stub-runtime bump allocator leak in findPath.
+  // Pre-fix, gridPtr (cells.length bytes) was freed before outPtr, making free a no-op
+  // for gridPtr (stub only reclaims the last-allocated chunk). With a 160×160 grid
+  // (~25.6 KB/call), the heap exhausted within ~655 calls → RuntimeError: unreachable.
+  // Post-fix: free in reverse allocation order (outPtr first, then gridPtr); both reclaimed.
+  it("survives 800 sequential findPath calls on a 160×160 grid without RuntimeError", async () => {
+    const bytes = await loadBytes();
+    // Fresh Pathfinder instance so prior-test state does not affect the call count.
+    const freshPf = await createPathfinderFromBytes(bytes);
+
+    const w = 160, h = 160;
+    const cells = new Uint8Array(w * h); // all walkable
+    const start = { x: 0, y: 0 };
+    const end = { x: w - 1, y: h - 1 };
+
+    // 800 calls > 655-call threshold where pre-fix code exhausted the WASM heap.
+    for (let i = 0; i < 800; i++) {
+      // Must not throw.
+      const path = freshPf.findPath({ cells, width: w, height: h }, start, end);
+      // Path must remain valid every iteration — allocator corruption would break this.
+      expect(path.length).toBeGreaterThan(0);
+      expect(path[0]).toEqual(start);
+      expect(path[path.length - 1]).toEqual(end);
+    }
+  });
+});
