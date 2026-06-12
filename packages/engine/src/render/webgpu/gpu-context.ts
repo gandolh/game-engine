@@ -34,10 +34,22 @@ export interface ViewUniform {
   scaleY: number;
   offsetX: number;
   offsetY: number;
+  /** Wall-clock time in seconds, for vertex-shader animation (e.g. foliage wind sway). */
+  timeSec: number;
+  /**
+   * Global wind-strength multiplier applied to all per-instance sway amplitudes in the vertex
+   * shader. 1.0 = full amp (calm breeze); 0.0 = no sway (all rigid). Allows whole-map gust
+   * waves by animating this value from the render loop. Default 1.0 if not set.
+   */
+  windStrength: number;
 }
 
-/** Size of the view UBO in bytes: 4 × f32. */
-const VIEW_UNIFORM_BYTES = 16;
+/**
+ * Size of the view UBO in bytes: 5 × f32 payload + 3 × f32 padding = 8 × f32 = 32 bytes.
+ * Padded to the next 16-byte boundary so the struct can be safely extended later and
+ * meets WebGPU minUniformBufferOffsetAlignment requirements.
+ */
+const VIEW_UNIFORM_BYTES = 32;
 
 export class GpuContext {
   readonly device: GPUDevice;
@@ -67,7 +79,7 @@ export class GpuContext {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-    this._scratch = new Float32Array(4);
+    this._scratch = new Float32Array(8);
 
     this._viewBindGroupLayout = device.createBindGroupLayout({
       label: "view-bgl",
@@ -157,6 +169,9 @@ export class GpuContext {
     this._scratch[1] = view.scaleY;
     this._scratch[2] = view.offsetX;
     this._scratch[3] = view.offsetY;
+    this._scratch[4] = view.timeSec;
+    this._scratch[5] = view.windStrength;
+    // [6], [7] are padding — leave as 0 (Float32Array initialises to zero).
     this.queue.writeBuffer(this._viewBuffer, 0, this._scratch);
   }
 

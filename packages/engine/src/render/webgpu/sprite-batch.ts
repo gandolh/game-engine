@@ -22,21 +22,23 @@
 // pass — all groups rendered the final group's instances. Packing the whole frame and
 // drawing disjoint ranges via firstInstance avoids that entirely.
 //
-// Per-instance buffer layout (all f32, stride = FLOATS_PER_INSTANCE × 4 = 56 bytes):
-//   offset  0: x        — world center X
-//   offset  4: y        — world center Y (z-lifted by orchestrator)
-//   offset  8: w        — world width
-//   offset 12: h        — world height
-//   offset 16: u0       — atlas UV left
-//   offset 20: v0       — atlas UV top
-//   offset 24: u1       — atlas UV right
-//   offset 28: v1       — atlas UV bottom
-//   offset 32: rotation — radians
-//   offset 36: flip_x   — 0.0 or 1.0
-//   offset 40: r        — tint red   (0..1)
-//   offset 44: g        — tint green (0..1)
-//   offset 48: b        — tint blue  (0..1)
-//   offset 52: a        — sprite alpha (0..1; tint alpha byte is ignored, like Canvas2D)
+// Per-instance buffer layout (all f32, stride = FLOATS_PER_INSTANCE × 4 = 64 bytes):
+//   offset  0: x          — world center X
+//   offset  4: y          — world center Y (z-lifted by orchestrator)
+//   offset  8: w          — world width
+//   offset 12: h          — world height
+//   offset 16: u0         — atlas UV left
+//   offset 20: v0         — atlas UV top
+//   offset 24: u1         — atlas UV right
+//   offset 28: v1         — atlas UV bottom
+//   offset 32: rotation   — radians
+//   offset 36: flip_x     — 0.0 or 1.0
+//   offset 40: r          — tint red   (0..1)
+//   offset 44: g          — tint green (0..1)
+//   offset 48: b          — tint blue  (0..1)
+//   offset 52: a          — sprite alpha (0..1; tint alpha byte is ignored, like Canvas2D)
+//   offset 56: sway_phase — per-sprite phase offset for wind sway (radians)
+//   offset 60: sway_amp   — peak horizontal displacement at the sprite top (world px); 0 = rigid
 
 import shaderSrc from "./shaders/sprite.wgsl?raw";
 import type { GpuContext } from "./gpu-context";
@@ -46,10 +48,18 @@ export interface GpuSpriteInstance {
   u0: number; v0: number; u1: number; v1: number; // atlas UVs
   rotation: number; flipX: 0 | 1;
   r: number; g: number; b: number; a: number;     // tint multiply rgb (0..1), a = sprite alpha
+  /** Per-sprite phase offset for wind sway (radians). Default 0. */
+  swayPhase: number;
+  /**
+   * Peak horizontal displacement applied to the TOP edge of the sprite (world px).
+   * 0 = exactly rigid (the sin is multiplied by amp, so amp=0 produces no displacement whatsoever).
+   * Typical values: ~0.5 for crops, ~1.0 for tree canopies.
+   */
+  swayAmp: number;
 }
 
-// Number of f32 values per instance (14 × 4 bytes = 56 bytes per instance)
-const FLOATS_PER_INSTANCE = 14;
+// Number of f32 values per instance (16 × 4 bytes = 64 bytes per instance)
+const FLOATS_PER_INSTANCE = 16;
 
 // Initial capacity in number of instances; grown by doubling when exceeded
 const INITIAL_CAPACITY = 512;
@@ -112,6 +122,8 @@ export class SpriteBatch {
     this.stagingData[base + 11] = inst.g;
     this.stagingData[base + 12] = inst.b;
     this.stagingData[base + 13] = inst.a;
+    this.stagingData[base + 14] = inst.swayPhase;
+    this.stagingData[base + 15] = inst.swayAmp;
     this.cursor = index + 1;
     return index;
   }
@@ -202,7 +214,7 @@ export class SpriteBatch {
       ],
     });
 
-    // Instance vertex buffer layout (array-stride = 14 floats × 4 bytes = 56)
+    // Instance vertex buffer layout (array-stride = 16 floats × 4 bytes = 64)
     // All attributes are per-instance (stepMode: "instance")
     const instanceBufferLayout: GPUVertexBufferLayout = {
       arrayStride: FLOATS_PER_INSTANCE * 4,
@@ -222,6 +234,10 @@ export class SpriteBatch {
         { shaderLocation: 5, offset: 36, format: "float32" },
         // location 6: tint (r, g, b, a) — float32x4 at offset 40
         { shaderLocation: 6, offset: 40, format: "float32x4" },
+        // location 7: sway_phase — float32 at offset 56
+        { shaderLocation: 7, offset: 56, format: "float32" },
+        // location 8: sway_amp — float32 at offset 60
+        { shaderLocation: 8, offset: 60, format: "float32" },
       ],
     };
 
