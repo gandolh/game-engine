@@ -85,11 +85,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   let pg = p + vec2<f32>(t * 3.5, t * 1.7);           // drift the sparkle field with the current
   let id = floor(pg / cell);
   let h = hash21(id);
-  let active = step(0.93, h);                          // ~7% of cells
+  let lit = step(0.93, h);                             // ~7% of cells (sparkle gate)
   let tw = max(0.0, sin(t * 1.7 + h * 40.0));          // twinkle, per-cell phase
   let local = fract(pg / cell) - vec2<f32>(0.5, 0.5);
-  let dot = smoothstep(0.34, 0.0, length(local));      // soft round sparkle
-  let glint = active * tw * dot * 0.85;
+  let spark = smoothstep(0.34, 0.0, length(local));    // soft round sparkle
+  let glint = lit * tw * spark * 0.85;
   col = mix(col, water.glintColor.rgb, glint);
 
   // Opaque base (the world rect floor); premultiplied for canvas alphaMode = "premultiplied".
