@@ -7,14 +7,8 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 ### AI fishing broken — stale cast tiles (found 2026-06-11) → **briefed: [game/todo/80](../briefs/game/todo/80-fishing-cast-tiles-stale.md)**
 `FISHING_CAST_TILES = [(40,71),(22,71)]` ([agents/watering/shared.ts](../../packages/sim-core/src/agents/watering/shared.ts)) are **pre-reorg**; the isles moved to 75–82 / 59–66 × 105–112, so those tiles are off-isle → `deliberateFishing` travels to non-isle ground and the `fish` precondition never passes → **AI fishing no longer fires** (Pip unaffected — it checks `isFishingIsle` dynamically). Exact class of brief 73's tavern/festival ocean-tile fix, which **missed this constant**. Brief 80 derives the cast tiles from the isle bounds (self-validating) + adds the class-level guard test whose absence let this through. Baseline-mover (re-verify like 73; awaiting sign-off). Detail in [player-and-interaction.md](player-and-interaction.md) → Fishing.
 
-### WASM pathfinder `unreachable` allocator fault (engine) → **briefed: [engine/todo/10](../briefs/engine/todo/10-wasm-pathfinder-allocator-fault.md)**
-`WasmHeap.alloc` intermittently throws `RuntimeError: unreachable` under churn, caught per-intent in [TravelSystem](../../packages/sim-core/src/systems/travel/system.ts). Deferred as **brief 73 task 4** (the gather-guard + connectivity-hole tasks 1–3/5 shipped 2026-06-11; the allocator was out of scope). Engine brief 10 filed 2026-06-12.
-
 ### Live-drama spare capacity (deliberately not pursued)
 Harbor contracts (46) — mostly only the hoarder reaches the commit gate. Skills (43) — lopsided to farming. Festival (45) — physical podium gathering thin. Early-game peer trades — gated by **encounter cadence + seller stock, NOT gold**: brief [70](../briefs/game/done/70-raise-starting-gold-peer-trade-liquidity.md) lifted the cash constraint (zero `would-breach-reserve` declines) but the 15-day-close target stayed unmet because the binding constraint is `no-stock` + farmers barely meeting early. The lever (if it matters) is encounter frequency / early surplus, not liquidity.
-
-### Deploy automation unproven on real hardware → **briefed: [game/todo/88](../briefs/game/todo/88-deploy-real-vps-verification.md)**
-pm2 + Caddy WS-reverse-proxy in `deploy/deploy.ts` is **dry-run-verified only**; a real VPS execution is still pending. Brief 88 filed 2026-06-12 (blocked on user-provided VPS access).
 
 ## Settled premises — don't re-litigate
 

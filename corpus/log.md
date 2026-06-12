@@ -2,6 +2,17 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] brief | 89 detailed 24×24 characters + held hotbar tool (design agreed, awaiting build sign-off)
+
+Grilled the "movable parts / detailed art / tool-in-hand" idea into a scoped design ([brief 89](briefs/game/todo/89-detailed-characters-and-held-tools.md)). Render-only.
+
+- **Decided against a skeletal/part rig** — pixel art + arbitrary part rotation breaks the grid and fights EDG32; the cast is small top-down. "Moving arms/legs" → richer hand-drawn 24×24 frames, not engine-driven parts.
+- **The prize = the selected hotbar tool visible in hand.** Hybrid: action poses keep their baked tool; a **carried-tool overlay** is added for idle/walk only, driven by Pip's selected slot (AI carry nothing between actions). Tools = tool-class items only.
+- **Resolution → 24×24 source, same on-screen footprint** — pure art change (renderer decouples src/dest size; packer already handles non-16 frames). Keep the template+subs+hat generation, re-authored at 24×24 (one body set → 5 personalities).
+- **Tool overlay is pixel-safe:** per-facing tool sprites + `flipX`, **no rotation**; positioned at a per-(facing,phase) hand-anchor; motion via anchor *translation*; front/behind layering by facing. No wire-format change (held tool derived render-side from the inventory snapshot).
+- **Order: B (24×24 re-author) then A (overlay)** — anchors are resolution-specific. **Staged:** feel-check existing brief-85/Tier-A-B work first; then one personality+facing at 24×24 to validate style-contrast vs the 16px world *before* redrawing the cast.
+
+## [2026-06-12] feature | animation Tier-B (frame-existence guard + formalized vocabulary)
 ## [2026-06-12] feature | animation Tier-B (frame-existence guard + formalized vocabulary)
 
 Implemented Tier B of the animation [backlog](wiki/animation.md). typecheck clean; sim-core 692 / farm-valley 152 / engine 139 green.

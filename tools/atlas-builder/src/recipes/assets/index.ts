@@ -20,18 +20,8 @@ import r15 from "./tile/fence-h";
 import r16 from "./structure/market-wall";
 import r17 from "./structure/shopkeeper";
 import r18 from "./tile/dirt";
-import r19 from "./farmer/conservative";
-import r20 from "./farmer/conservative/walk-a";
-import r21 from "./farmer/conservative/walk-b";
-import r22 from "./farmer/aggressive";
-import r23 from "./farmer/aggressive/walk-a";
-import r24 from "./farmer/aggressive/walk-b";
-import r25 from "./farmer/hoarder";
-import r26 from "./farmer/hoarder/walk-a";
-import r27 from "./farmer/hoarder/walk-b";
-import r28 from "./farmer/opportunist";
-import r29 from "./farmer/opportunist/walk-a";
-import r30 from "./farmer/opportunist/walk-b";
+// farmer down idle/walk files removed (brief 89): all farmer frames now generated from shared
+// 24×24 templates × PERSONALITY_SUBS in recipes/index.ts. Indices below are unchanged (gaps are fine).
 import r31 from "./indicator/meet";
 import r32 from "./indicator/follow";
 import r33 from "./indicator/intention-plant";
@@ -237,18 +227,6 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r16,
   r17,
   r18,
-  r19,
-  r20,
-  r21,
-  r22,
-  r23,
-  r24,
-  r25,
-  r26,
-  r27,
-  r28,
-  r29,
-  r30,
   r31,
   r32,
   r33,

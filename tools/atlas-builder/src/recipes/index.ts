@@ -8,67 +8,39 @@ import { BASE_RECIPES } from "./assets/index";
 import {
   ACTION_TEMPLATES,
   ACTION_TEMPLATES_B,
+  DOWN_TEMPLATES,
   PERSONALITY_SUBS,
-  applyPersonalitySubs,
   applyFarmerLook,
-  applyPersonalityHat,
   FACING_TEMPLATES,
-  PIP_DOWN_TEMPLATES,
   NPC_POSES,
 } from "./templates";
 
-function farmerPersonality(name: string): string | undefined {
-  const m = /^farmer\/([^/]+)/.exec(name);
-  return m ? m[1] : undefined;
-}
+// All farmer/Pip frames are generated from shared templates × PERSONALITY_SUBS + the hat overlay
+// (brief 89: down/Pip unified into the template pipeline; no per-personality down files remain in
+// BASE_RECIPES). Frame size follows the template's own grid (24 for locomotion, 16 for actions).
+export const RECIPES: PixelRecipe[] = [...BASE_RECIPES];
 
-// Stamp per-personality hat onto hand-authored idle/walk frames so they match generated action/facing poses.
-const hattedBase: PixelRecipe[] = BASE_RECIPES.map((r) => {
-  const personality = farmerPersonality(r.name);
-  if (personality === undefined) return r;
-  return { ...r, pixels: applyPersonalityHat(r.pixels, personality) };
-});
-
-export const RECIPES: PixelRecipe[] = [...hattedBase];
-
-for (const [action, template] of Object.entries(ACTION_TEMPLATES)) {
-  for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
-    RECIPES.push({
-      name: `farmer/${personality}/${action}`,
-      size: 16,
-      pixels: applyFarmerLook(template, personality, subs),
-    });
+function generateFarmer(
+  templates: Record<string, readonly string[]>,
+  nameFor: (personality: string, key: string) => string,
+): void {
+  for (const [key, template] of Object.entries(templates)) {
+    for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
+      RECIPES.push({
+        name: nameFor(personality, key),
+        size: template.length, // square grids → row count == side length (24 locomotion / 16 action)
+        pixels: applyFarmerLook(template, personality, subs),
+      });
+    }
   }
 }
 
-// Second swing frame per action (`farmer/<p>/<action>-b`) — alternated with the base pose
-// render-side to animate working farmers/Pip (brief 85 phase 2).
-for (const [action, template] of Object.entries(ACTION_TEMPLATES_B)) {
-  for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
-    RECIPES.push({
-      name: `farmer/${personality}/${action}-b`,
-      size: 16,
-      pixels: applyFarmerLook(template, personality, subs),
-    });
-  }
-}
-
-for (const [facing, template] of Object.entries(FACING_TEMPLATES)) {
-  for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
-    RECIPES.push({
-      name: `farmer/${personality}/${facing}`,
-      size: 16,
-      pixels: applyFarmerLook(template, personality, subs),
-    });
-  }
-}
-
-for (const [suffix, template] of Object.entries(PIP_DOWN_TEMPLATES)) {
-  RECIPES.push({
-    name: `farmer/pip${suffix}`,
-    size: 16,
-    pixels: applyFarmerLook(template, "pip", PERSONALITY_SUBS.pip!),
-  });
-}
+// Down (idle + walk) — `farmer/<p>` and `farmer/<p>/walk-a|b`; the "" key yields the bare base.
+generateFarmer(DOWN_TEMPLATES, (p, key) => `farmer/${p}${key}`);
+// Up / side facings — `farmer/<p>/up`, `/up/walk-a`, `/side`, …
+generateFarmer(FACING_TEMPLATES, (p, key) => `farmer/${p}/${key}`);
+// Action poses + their `-b` strike frames — `farmer/<p>/till`, `farmer/<p>/till-b`, …
+generateFarmer(ACTION_TEMPLATES, (p, key) => `farmer/${p}/${key}`);
+generateFarmer(ACTION_TEMPLATES_B, (p, key) => `farmer/${p}/${key}-b`);
 
 RECIPES.push(...NPC_POSES);
