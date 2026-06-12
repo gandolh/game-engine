@@ -155,6 +155,21 @@ export class Canvas2dRenderer implements RendererLike {
     }
   }
 
+  /**
+   * No-op on the Canvas2D backend — depth is already baked into the static layer.
+   * Implements the RendererLike contract added by brief 13.
+   */
+  setWaterDepthMask(
+    _data: Uint8Array,
+    _tilesX: number,
+    _tilesY: number,
+    _worldWidthPx: number,
+    _worldHeightPx: number,
+    _tilePxSize: number,
+  ): void {
+    // Canvas2D: depth tinting is baked into the static layer by makeWaterDepthDecorator.
+  }
+
   clearStaticLayer(): void {
     this.staticLayer = null;
     this.staticLayerW = 0;

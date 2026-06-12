@@ -28,6 +28,25 @@ export interface RendererLike {
   bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale?: number): void;
   setWaterScroll(offsetX: number, offsetY: number): void;
   setWaterSwell(alpha: number, offsetX: number, offsetY: number): void;
+  /**
+   * Upload a per-tile depth mask for shore foam and caustics (brief 13).
+   * No-op on the Canvas2D backend (depth is already baked into the static layer there).
+   *
+   * @param data          - Uint8Array, tilesX × tilesY, each byte = depth/COAST_DEPTH_MAX × 255.
+   * @param tilesX        - Tile grid width.
+   * @param tilesY        - Tile grid height.
+   * @param worldWidthPx  - Full world width in world pixels.
+   * @param worldHeightPx - Full world height in world pixels.
+   * @param tilePxSize    - Tile size in world pixels.
+   */
+  setWaterDepthMask(
+    data: Uint8Array,
+    tilesX: number,
+    tilesY: number,
+    worldWidthPx: number,
+    worldHeightPx: number,
+    tilePxSize: number,
+  ): void;
   clearStaticLayer(): void;
 
   beginFrame(): void;
