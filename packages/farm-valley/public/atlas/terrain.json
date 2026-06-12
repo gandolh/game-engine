@@ -268,18 +268,24 @@
       "w": 16,
       "h": 16
     },
-    "tile/bridge-rail-near": {
+    "tile/bridge-rail-posts": {
       "x": 35,
       "y": 103,
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/bridge-rail-rope": {
       "x": 52,
+      "y": 103,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 69,
       "y": 103,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "d13ee88a460e9ffc2c7a1f9accf1cba8d27952911a011d76c0ed9cd92ffaf378"
+  "inputsHash": "ac6ed905705242f076107ece27389f1f0e8d269f5e37da50a7ae99bcea0b3376"
 }

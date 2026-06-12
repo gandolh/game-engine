@@ -206,7 +206,8 @@ import r201 from "./decoration/volcano";
 import r202 from "./decoration/casino";
 import r203 from "./decoration/casino-hotel";
 import r204 from "./tile/volcanic-floor";
-import r205 from "./tile/bridge-rail-near";
+import r205 from "./tile/bridge-rail-posts";
+import r206 from "./tile/bridge-rail-rope";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -415,5 +416,6 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r203,
   r204,
   r205,
+  r206,
 ];
 

@@ -57,6 +57,9 @@ export interface BridgeTile {
    *  left–right (x), horizontal decks sway up–down (y). Derived from deck extent, NOT `rotation`
    *  (which is 0 for 2-wide vertical spans — a plank-texture quirk that would mis-key the sway). */
   runsVertical: boolean;
+  /** Normalized position along the span run, 0 at one end → 1 at the other (0.5 mid-span). Drives the
+   *  guard-rope sag (catenary): rope hangs lowest at mid-span, taut at the anchored ends (brief 83 it.1). */
+  spanT: number;
 }
 
 export interface CoralTile {
@@ -247,7 +250,12 @@ function computeBridges(): readonly BridgeTile[] {
     const vExt = deckRun(tx, ty, 0, -1) + deckRun(tx, ty, 0, 1);
     const hExt = deckRun(tx, ty, -1, 0) + deckRun(tx, ty, 1, 0);
     const runsVertical = vExt !== hExt ? vExt > hExt : (vertical && !horizontal);
-    out.push({ tx, ty, rotation, runsVertical });
+    // Position along the span run (back/(back+fwd)): 0 and 1 at the ends, ~0.5 mid-span. Measured on
+    // the run axis so the rope sag tracks distance to the nearest anchor. Lone tile (no run) → 0.5.
+    const back = runsVertical ? deckRun(tx, ty, 0, -1) : deckRun(tx, ty, -1, 0);
+    const fwd = runsVertical ? deckRun(tx, ty, 0, 1) : deckRun(tx, ty, 1, 0);
+    const spanT = back + fwd > 0 ? back / (back + fwd) : 0.5;
+    out.push({ tx, ty, rotation, runsVertical, spanT });
   }
   return out;
 }
