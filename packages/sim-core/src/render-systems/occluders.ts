@@ -61,15 +61,32 @@ export function pushOccluderSprites(renderer: Pick<Canvas2dRenderer, "push">): v
 export function pushBridgeSprites(renderer: Pick<Canvas2dRenderer, "push">, nowMs: number): void {
   const sway = Math.sin((nowMs / BRIDGE_SWAY_PERIOD_MS) * Math.PI * 2) * BRIDGE_SWAY_AMP;
   for (const b of BRIDGES) {
+    const dx = b.runsVertical ? sway : 0;
+    const dy = b.runsVertical ? 0 : sway;
+    const x = b.tx * TILE + TILE / 2 + dx;
+    const y = b.ty * TILE + TILE / 2 + dy;
+    // Deck under entities/crops/fences (layer 3) — farmers walk on top of it.
     renderer.push({
-      x: b.tx * TILE + TILE / 2 + (b.runsVertical ? sway : 0),
-      y: b.ty * TILE + TILE / 2 + (b.runsVertical ? 0 : sway),
+      x, y,
       width: TILE,
       height: TILE,
       frame: "tile/bridge-h",
       atlasId: frameToAtlasId("tile/bridge-h"),
       rotation: b.rotation,
       layer: 3,
+      alpha: 1,
+    });
+    // Brief 83 item 1 — raised camera-side guard rope ABOVE entities, so a crossing farmer reads as
+    // standing behind it (between this rope and the deck's flat far rope). Same sway + rotation as the
+    // deck so the rail swings with the planks. Mostly transparent → only the rope/posts paint over.
+    renderer.push({
+      x, y,
+      width: TILE,
+      height: TILE,
+      frame: "tile/bridge-rail-near",
+      atlasId: frameToAtlasId("tile/bridge-rail-near"),
+      rotation: b.rotation,
+      layer: ENTITY_LAYER + 2,
       alpha: 1,
     });
   }
