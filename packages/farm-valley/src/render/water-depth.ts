@@ -1,7 +1,6 @@
 /**
- * Shallow-water depth band, baked once into the static layer over ocean tiles. A translucent cyan
- * glow hugs every coastline and fades outward (strongest right at the shore), so islands read as
- * sitting in shallows that deepen to open ocean — the "margins under water" look. Render-only.
+ * Shallow-water speckle grain, baked once into the static layer over near-shore ocean tiles.
+ * Render-only.
  *
  * Why this composites correctly: the renderer fills the animated water pattern FIRST, then blits the
  * static layer on top (transparent at ocean tiles, so water shows through). A translucent fill baked
@@ -9,21 +8,19 @@
  * with the waves) — depth is a property of place, not the surface. Distance comes from the seeded
  * `oceanDepthAt` BFS (organic, follows the coast — avoids circular "bathtub ring" banding).
  *
- * Brief 83 item 4 — granular depth: on top of the flat band wash we scatter chunky seeded speckles
- * (EDG palette neighbours only). Speckle is denser + lighter near shore and sparser + darker out
- * deep, so each depth band reads as a textured *depth* rather than a flat tint ring. Both renderer
- * backends pick this up for free — the bake is a Canvas2D pass that Canvas2D draws directly and
- * WebGPU uploads as a static texture.
+ * Brief 83 item 4 introduced this as a flat per-tile cyan band wash + chunky seeded speckles
+ * (EDG palette neighbours only). The FLAT WASH was removed in the brief-13 follow-up: the WebGPU
+ * water shader now draws a smooth 14-tile shore→deep gradient (see water.wgsl `shoreField`), and
+ * the tile-quantized wash sat on top of it as hard-edged cyan rectangles that broke the water's
+ * continuity. Only the speckle grain remains baked — denser + lighter near shore, sparser + darker
+ * out deep, giving the gradient its pixel-art texture. (Canvas2dRenderer — tests only — loses the
+ * flat band too; the speckles still mark the shallows there.)
  */
 
 import { EDG } from "@engine/core";
 import { oceanDepthAt, COAST_DEPTH_MAX } from "@farm/sim-core/render-systems";
 
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-
-// Per-distance alpha for the shallows tint (index = distance-from-land; 0/≥len = untinted deep water).
-// Brightest right at the shore, fading out over COAST_DEPTH_MAX tiles.
-const SHALLOW_ALPHA = [0, 0.24, 0.16, 0.09, 0.04];
 
 /**
  * Per-depth speckle grain (index = distance-from-land). `density` = chance a sub-cell gets a speckle,
@@ -67,14 +64,8 @@ export function makeWaterDepthDecorator(
       for (let tx = 0; tx < cols; tx++) {
         const d = oceanDepthAt(tx, ty);
         if (d <= 0 || d > COAST_DEPTH_MAX) continue;
-        // 1) Flat band wash for cohesion (the original "shallows" tint).
-        const a = SHALLOW_ALPHA[d] ?? 0;
-        if (a > 0) {
-          ctx.globalAlpha = a;
-          ctx.fillStyle = EDG.cyan;
-          ctx.fillRect(tx * tilePx, ty * tilePx, tilePx, tilePx);
-        }
-        // 2) Seeded speckle grain on top — depth-graded density/lightness.
+        // Seeded speckle grain — depth-graded density/lightness. (The flat cyan band wash that
+        // used to be drawn under it moved into the water shader's smooth shore gradient.)
         const spec = SPECKLE[d];
         if (!spec) continue;
         const ox = tx * tilePx;
