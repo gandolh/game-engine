@@ -124,6 +124,7 @@ export class WebGpuRenderer implements RendererLike {
     u0: 0, v0: 0, u1: 0, v1: 0,
     rotation: 0, flipX: 0,
     r: 1, g: 1, b: 1, a: 1,
+    swayPhase: 0, swayAmp: 0,
   };
 
   // Viewport culling rect — generous defaults until first beginFrame.
@@ -366,6 +367,10 @@ export class WebGpuRenderer implements RendererLike {
     const [r, g, b, a] = tintFloats(s.tintRgba, alpha);
     inst.r = r; inst.g = g; inst.b = b; inst.a = a;
 
+    // Wind sway: optional fields; default to 0 (rigid) when absent.
+    inst.swayPhase = s.swayPhase ?? 0;
+    inst.swayAmp   = s.swayAmp   ?? 0;
+
     return this._batch.add(inst);
   }
 
@@ -391,11 +396,15 @@ export class WebGpuRenderer implements RendererLike {
     //   scaleX  =  sx * 2 / canvasW    scaleY  = -sy * 2 / canvasH
     //   offsetX =  ox * 2 / canvasW - 1         offsetY = 1 - oy * 2 / canvasH
     // Shader: clipPos = vec2(worldX * scaleX + offsetX, worldY * scaleY + offsetY)
+    const nowSec = performance.now() / 1000;
     const gpuView: ViewUniform = {
       scaleX:  sx * 2 / canvasW,
       scaleY: -sy * 2 / canvasH,
       offsetX: ox * 2 / canvasW - 1,
       offsetY: 1 - oy * 2 / canvasH,
+      timeSec: nowSec,
+      // Slow breathing gust: 0.85–1.15 on a ~17 s cycle, matching the bridge sway's breathe.
+      windStrength: 1.0 + 0.15 * Math.sin(nowSec * 0.37),
     };
     this._gpuCtx.setView(gpuView);
 
@@ -410,6 +419,9 @@ export class WebGpuRenderer implements RendererLike {
       scaleY:  sy, // positive: Canvas2D Y increases downward, matches world space
       offsetX: ox,
       offsetY: oy,
+      // timeSec/windStrength unused by Overlay2D (it only reads scaleX/Y, offsetX/Y).
+      timeSec: 0,
+      windStrength: 1,
     };
 
     // ── Step 2: visible rect (mirrors Canvas2dRenderer.endFrame) ─────────────

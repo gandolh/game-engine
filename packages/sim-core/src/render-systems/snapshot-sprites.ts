@@ -4,6 +4,46 @@ import { frameToAtlasId, resolveFrameAndBob } from "./frames";
 
 const TILE = 16;
 
+// ── Foliage wind-sway (brief 16) ─────────────────────────────────────────────
+//
+// Which frames sway: crops (prefix "crop/"), world trees (prefix "structure/tree"
+// or "structure/fruit-tree"), and bushes ("structure/bush", "decoration/bush").
+// Farmers, NPCs, buildings, UI, water tiles, and particles are rigid (amp 0).
+//
+// swayAmp is the peak horizontal displacement at the sprite's top edge (world px).
+// Subtle at typical zoom 2: crops ~0.5 px, tree canopies ~1.0 px.
+//
+// swayPhase: deterministic from tile position so every plant has a unique, stable
+// phase with NO Math.random(). Hash: (tx * 2654435761 ^ ty * 2246822519) & 0x7fffffff
+// mapped to [0, 2π). The large primes scatter phases across the grid without repeat.
+
+function foliageSway(
+  frame: string,
+  wx: number,
+  wy: number,
+): { swayAmp: number; swayPhase: number } | undefined {
+  const tx = Math.floor(wx / TILE);
+  const ty = Math.floor(wy / TILE);
+  // Integer hash → [0, 2π) — bitwise truncation keeps it inside 32-bit range.
+  const hash = ((Math.imul(tx, 2654435761) ^ Math.imul(ty, 2246822519)) >>> 0);
+  const phase = (hash / 0x100000000) * (Math.PI * 2);
+
+  if (frame.startsWith("crop/")) {
+    return { swayAmp: 0.5, swayPhase: phase };
+  }
+  if (
+    frame === "structure/tree" ||
+    frame === "structure/tree-autumn" ||
+    frame === "structure/tree-bare" ||
+    frame.startsWith("structure/fruit-tree") ||
+    frame === "structure/bush" ||
+    frame === "decoration/bush"
+  ) {
+    return { swayAmp: 1.0, swayPhase: phase };
+  }
+  return undefined;
+}
+
 /**
  * Push dynamic snapshot sprites, meet bubbles, and intention bubbles.
  * Meet bubble takes priority over intention bubble for the same farmer.
@@ -33,11 +73,16 @@ export function pushSnapshotSprites(
         renderer.pushShadow(s.x, s.y + TILE * 0.35, TILE * 0.32 * t, TILE * 0.12 * t, 0.45 * t);
       }
     }
+    // Apply sway to static foliage only (never to farmers, NPCs, or animated entities).
+    // Farmer/NPC frames start with "farmer/" or "npc/"; any other frame is a candidate.
+    const isAnimatedEntity = s.id !== null && (frame.startsWith("farmer/") || frame.startsWith("npc/"));
+    const sway = isAnimatedEntity ? undefined : foliageSway(frame, s.x, s.y);
     renderer.push({
       x: s.x,
       y: s.y + bobY,
       ...(zPx > 0 ? { z: zPx } : {}),
       ...(s.id !== null && s.id === playerId ? { occludable: true } : {}),
+      ...(sway !== undefined ? { swayAmp: sway.swayAmp, swayPhase: sway.swayPhase } : {}),
       width: size,
       height: size,
       frame,

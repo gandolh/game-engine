@@ -24,6 +24,19 @@ export interface Canvas2dSprite {
   flipX?: boolean;
   /** RGB multiply tint as 0xRRGGBBAA. 0xffffffff/absent = no tint. Applied via a pooled offscreen buffer — never leaks. */
   tintRgba?: number;
+  /**
+   * Per-sprite phase offset for vertex-shader wind sway (radians, WebGPU only).
+   * Derive deterministically from world position — never use Math.random().
+   * Canvas2D backend ignores this field.
+   */
+  swayPhase?: number;
+  /**
+   * Peak horizontal displacement applied to the TOP vertices of the sprite (world px, WebGPU only).
+   * 0 or absent = exactly rigid (multiply path, no FP drift on static structures).
+   * Typical values: ~0.5 for crops, ~1.0 for tree canopies.
+   * Canvas2D backend ignores this field.
+   */
+  swayAmp?: number;
 }
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
