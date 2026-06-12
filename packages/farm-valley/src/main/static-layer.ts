@@ -6,23 +6,78 @@ import { makeShoreDescentDecorator } from "../render/shore-descent";
 import { TILE } from "./config";
 import type { SimClient } from "../worker/sim-client";
 import type { AmbientLayer } from "./ambient";
-import { oceanDepthAt, COAST_DEPTH_MAX } from "@farm/sim-core/render-systems";
-import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable } from "@farm/sim-core/world/regions";
 
 /**
- * Build the per-tile depth mask for the GPU water pass (brief 13 tasks 3–4).
- * Returns a Uint8Array of tilesX × tilesY bytes. Each byte = round(depth/COAST_DEPTH_MAX × 255).
- * 0 = deep ocean (no shore effects); 255 = tile immediately adjacent to land.
+ * Maximum BFS depth for the wide shore-proximity gradient uploaded to the GPU depth mask.
+ * Chosen to be wide enough (14 tiles) for a smooth shore→deep color blend in the shader.
+ * Kept separate from COAST_DEPTH_MAX (4) so other consumers (water-depth.ts, water-decor.ts,
+ * oceanDepthAt) are unaffected.
+ */
+const GRADIENT_DEPTH_MAX = 14;
+
+/**
+ * Build the per-tile depth mask for the GPU water pass (brief 13 follow-up: wide gradient).
+ * Returns a Uint8Array of tilesX × tilesY bytes.
+ *
+ * Each byte encodes a normalized shore-proximity value (0..255):
+ *   255 = tile immediately adjacent to land (BFS distance 1)
+ *   0   = land tile, out-of-grid, or ≥ GRADIENT_DEPTH_MAX tiles from any land
+ *
+ * Uses a multi-source BFS seeded from coast-adjacent ocean tiles, matching the pattern of
+ * oceanDepthAt / OCEAN_DEPTH in geometry.ts but with a wider radius (GRADIENT_DEPTH_MAX=14
+ * vs COAST_DEPTH_MAX=4). Inlined here because @farm/sim-core resolves to the main-tree
+ * package at typecheck time and cannot surface new exports from the worktree (see CLAUDE.md
+ * "KNOWN QUIRK").
  */
 function buildDepthMask(tilesX: number, tilesY: number): Uint8Array {
-  const data = new Uint8Array(tilesX * tilesY);
+  // Step 1: BFS from coast — store raw integer distance (1 = adjacent to land).
+  const dist = new Int16Array(tilesX * tilesY); // 0 = land or unvisited
+  const queue: number[] = [];
+
   for (let ty = 0; ty < tilesY; ty++) {
     for (let tx = 0; tx < tilesX; tx++) {
-      const d = oceanDepthAt(tx, ty);
-      // d=0 means deep ocean or land; d>0 means coastal band (up to COAST_DEPTH_MAX).
-      const normalized = d > 0 ? Math.round((d / COAST_DEPTH_MAX) * 255) : 0;
-      data[ty * tilesX + tx] = normalized;
+      if (isWalkable(tx, ty)) continue; // land → leave at 0
+      const touchesLand =
+        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) ||
+        isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
+      if (touchesLand) {
+        dist[ty * tilesX + tx] = 1;
+        queue.push(ty * tilesX + tx);
+      }
     }
+  }
+
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head]!;
+    const d = dist[i]!;
+    if (d >= GRADIENT_DEPTH_MAX) continue;
+    const x = i % tilesX;
+    const y = (i - x) / tilesX;
+    const nbrs = [
+      x + 1 < tilesX  ? i + 1      : -1,
+      x - 1 >= 0      ? i - 1      : -1,
+      y + 1 < tilesY  ? i + tilesX : -1,
+      y - 1 >= 0      ? i - tilesX : -1,
+    ];
+    for (const ni of nbrs) {
+      if (ni < 0) continue;
+      if (dist[ni] !== 0) continue; // visited or land
+      const nx = ni % tilesX;
+      const ny = (ni - nx) / tilesX;
+      if (isWalkable(nx, ny)) continue; // don't bleed onto land
+      dist[ni] = d + 1;
+      queue.push(ni);
+    }
+  }
+
+  // Step 2: Normalize to 0..255.
+  // distance 1 → 255 (closest to shore); distance GRADIENT_DEPTH_MAX → floor(1/14*255)≈18.
+  // distance 0 (land / unvisited open ocean) → 0.
+  const data = new Uint8Array(tilesX * tilesY);
+  for (let i = 0; i < dist.length; i++) {
+    const d = dist[i]!;
+    data[i] = d > 0 ? Math.round(((GRADIENT_DEPTH_MAX - d + 1) / GRADIENT_DEPTH_MAX) * 255) : 0;
   }
   return data;
 }
@@ -78,7 +133,7 @@ export function bakeStaticLayer(
     // pixelScale 3: chunky wave pixels survive downscale at low zoom.
     renderer.bakeWaterPattern("tile/ocean", "terrain", TILE, 3);
 
-    // Brief 13 tasks 3–4: upload the per-tile depth mask for GPU foam + caustics.
+    // Brief 13 follow-up: upload the wide shore-proximity gradient as the GPU depth mask.
     // Only the WebGPU renderer supports this; Canvas2D bakes depth into the static layer.
     if (supportsDepthMask(renderer)) {
       const maskData = buildDepthMask(WORLD_WIDTH, WORLD_HEIGHT);

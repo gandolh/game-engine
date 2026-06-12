@@ -409,9 +409,11 @@ export class WaterPass {
     });
 
     // Depth sampler: clamp-to-edge (out-of-bounds = 0 = deep ocean, no effects).
+    // LINEAR filtering so the tile-resolution gradient mask interpolates smoothly between tiles
+    // (brief 13 follow-up: wide shore-to-deep gradient requires sub-tile interpolation).
     this.samplerDepth = device.createSampler({
-      magFilter: "nearest",
-      minFilter: "nearest",
+      magFilter: "linear",
+      minFilter: "linear",
       addressModeU: "clamp-to-edge",
       addressModeV: "clamp-to-edge",
     });
