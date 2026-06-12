@@ -84,8 +84,11 @@ export class Pathfinder {
       }
       return out;
     } finally {
-      this.heap.free(gridPtr);
+      // Free in reverse allocation order: stub runtime's bump allocator only reclaims
+      // the most-recently-allocated chunk. Freeing gridPtr first (allocated before outPtr)
+      // was a no-op, leaking ~cells.length bytes per call → heap exhaustion (unreachable).
       this.heap.free(outPtr);
+      this.heap.free(gridPtr);
     }
   }
 }
