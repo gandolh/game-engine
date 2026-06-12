@@ -206,6 +206,7 @@ import r211 from "./decoration/fish-blue-a";
 import r212 from "./decoration/fish-blue-b";
 import r213 from "./decoration/fish-yellow-a";
 import r214 from "./decoration/fish-yellow-b";
+import r215 from "./tool/can-held";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -411,5 +412,6 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r212,
   r213,
   r214,
+  r215,
 ];
 

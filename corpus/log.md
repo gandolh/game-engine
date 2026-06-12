@@ -2,6 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] feature | 89 Phase A — Pip's carried hotbar tool (render-side overlay)
+
+Wired the held-tool overlay (the brief-89 prize). Render-only, no wire-format change; typecheck + farm-valley 182 / atlas 15 / render-systems 57 green.
+
+- **Pip holds the selected hotbar tool while idle/walking.** Render-loop reads `client.playerHotbar.slots[selected].frame`; if it's a `tool/*` item and Pip isn't mid tool-action (`s.action in ACTION_POSE` → the pose's baked tool shows instead, so no double tool), it pushes the tool sprite at a per-facing **hand anchor** (`HELD_TOOL_ANCHOR` — world-px offsets, tunable after the feel-check), `flipX` for leftward `side`, **no rotation** (pixel-safe), sorted in-front/behind the body by facing. `ACTION_POSE` exported from the render-systems barrel for the gate.
+- **Hybrid honored:** AI farmers carry nothing between actions (no hotbar); their tool only appears baked in the action pose. Tools = `tool/*` only (seeds/crops/fish → empty hands).
+- **Open:** in-browser feel-check (tune anchor offsets); action poses + the tool sprites themselves are still 16px (deferred 24px passes).
+
 ## [2026-06-12] done | improvement backlog shipped — engine 10–16 + game 86–87 merged, 88 closed user-verified
 
 The ten-brief backlog filed earlier today was implemented the same day: one git worktree + branch per brief, Sonnet executor agents, each branch verified (typecheck + workspace tests) and merged to main individually before the next started. All nine code briefs landed green; brief 88 closed without code (the user executed the real-VPS deploy and confirmed it works). Briefs moved to `done/`; per-brief detail now in [wiki/status.md](wiki/status.md) "Where things stand".

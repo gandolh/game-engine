@@ -3,6 +3,7 @@ export {
   isFarmerMoving,
   walkStepsBetween,
   enumerateFarmerFrames,
+  ACTION_POSE,
   FOAM_FRAMES,
   FISHING_SPOT_FRAMES,
   FORGE_FIRE_FRAMES,

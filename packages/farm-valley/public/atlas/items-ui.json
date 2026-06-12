@@ -154,36 +154,42 @@
       "w": 16,
       "h": 16
     },
-    "product/egg": {
+    "tool/can-held": {
       "x": 69,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "product/milk": {
+    "product/egg": {
       "x": 86,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "product/wool": {
+    "product/milk": {
       "x": 103,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "fruit/apple": {
+    "product/wool": {
       "x": 1,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "fruit/cherry": {
+    "fruit/apple": {
       "x": 18,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "fruit/cherry": {
+      "x": 35,
       "y": 69,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "0215681ac13f9fbf5b76090f3600f78c0c3d64bfd801eb216341678974dbf109"
+  "inputsHash": "9a5e5cdfb6a95855592660ac8eb190997e1f95a7d028197711ac8cd9af8c7931"
 }

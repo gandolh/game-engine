@@ -1,7 +1,7 @@
 import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike } from "@engine/core";
-import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import type { JuiceLayer } from "./juice";
 import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
@@ -54,6 +54,19 @@ interface RendererWithCloudOptions {
 function supportsCloudOptions(r: RendererLike): r is RendererLike & RendererWithCloudOptions {
   return typeof (r as Partial<RendererWithCloudOptions>).setCloudOptions === "function";
 }
+
+// Where Pip's carried tool sits relative to the body, per facing (world px from sprite centre).
+// `behind` draws the tool behind the body (facing away). Hand-tuned against the 24×24 frames;
+// adjust here after an in-browser look (brief 89, Phase A). `side` mirrors via flipX.
+const HELD_TOOL_ANCHOR: Record<"down" | "up" | "side", { dx: number; dy: number; behind: boolean }> = {
+  down: { dx: 5, dy: 2, behind: false },
+  side: { dx: 5, dy: 2, behind: false },
+  up: { dx: 5, dy: 2, behind: true },
+};
+// Carried tools are hand-sized, not body-sized: draw at a fraction of the tile footprint.
+const HELD_TOOL_SCALE = 0.6;
+// The hotbar can icon is drawn mid-pour; swap to the upright at-rest sprite when merely carried.
+const HELD_TOOL_FRAME: Record<string, string> = { "tool/can": "tool/can-held" };
 
 export interface RenderLoopDeps {
   client: SimClient;
@@ -581,6 +594,40 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           sizeMin: 0.5, sizeMax: 1.1,
           gravity: 26, // settles back down
         });
+      }
+
+      // Carried hotbar tool (brief 89, Phase A): Pip visibly holds the selected tool while idle/
+      // walking. Hybrid — during a tool ACTION the pose's baked tool shows instead (skip overlay).
+      // Pixel-safe: a per-facing held sprite + flipX, no rotation; rides the body at a hand offset.
+      // AI farmers carry nothing between actions (no hotbar). Tune offsets in HELD_TOOL_ANCHOR.
+      const hb = client.playerHotbar;
+      const heldSlot = hb ? hb.slots[hb.selected] : undefined;
+      const heldFrame = heldSlot?.frame;
+      if (playerFarmerId !== null && heldFrame && heldFrame.startsWith("tool/")) {
+        for (const s of interpolatedSprites) {
+          if (s.id !== playerFarmerId) continue;
+          if (s.action !== null && s.action in ACTION_POSE) break; // baked tool pose is showing
+          const facing = s.facing ?? "down";
+          const a = HELD_TOOL_ANCHOR[facing];
+          const flip = facing === "side" ? (s.flipX ?? false) : false;
+          const toolFrame = HELD_TOOL_FRAME[heldFrame] ?? heldFrame;
+          const size = TILE * HELD_TOOL_SCALE; // hand-sized, not body-sized
+          renderer.push({
+            x: s.x + (flip ? -a.dx : a.dx),
+            y: s.y + a.dy,
+            width: size,
+            height: size,
+            frame: toolFrame,
+            atlasId: frameToAtlasId(toolFrame),
+            rotation: 0,
+            layer: s.layer,
+            // Sort just in front of / behind the body (behind when facing away).
+            sortY: s.y + (a.behind ? -0.1 : 0.1),
+            alpha: 1,
+            flipX: flip,
+          });
+          break;
+        }
       }
     });
 
