@@ -1,5 +1,11 @@
 /** Canvas-2D particle system. Decoupled from ECS — call emit() on events, update(dt)+draw(ctx) each frame.
- *  Coordinate space: world pixels (same as sprite x/y). Uses Math.random — display-only, not sim. */
+ *  Coordinate space: world pixels (same as sprite x/y). Uses Math.random — display-only, not sim.
+ *
+ *  Brief 14 (task 8) — CPU path fixes:
+ *    - Dead-particle removal uses swap-with-last + pop() instead of splice(i,1): O(1) vs O(n).
+ *    - Total particle pool capped at MAX_PARTICLES: emit() drops new particles when the pool is full
+ *      so a burst of splashes or waterfalls never blows up on weak hardware.
+ */
 
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -68,6 +74,10 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+// Hard cap on live particles. Prevents splash/waterfall bursts from blowing up on
+// weak hardware. The WebGPU path uploads this many instances per frame at most.
+const MAX_PARTICLES = 512;
+
 export class ParticleSystem {
   private particles: Particle[] = [];
 
@@ -79,6 +89,8 @@ export class ParticleSystem {
     const [r2, g2, b2] = opts.color2 ? hexToRgb(opts.color2) : [r1, g1, b1];
 
     for (let i = 0; i < opts.count; i++) {
+      // Drop new particles silently when the pool is full — keeps worst-case cost bounded.
+      if (this.particles.length >= MAX_PARTICLES) break;
       const t    = Math.random();
       const angle = rand(angleMin, angleMax);
       const speed = rand(opts.speedMin, opts.speedMax);
@@ -101,12 +113,22 @@ export class ParticleSystem {
   }
 
   update(dt: number): void {
+    // Iterate backwards so the swap-with-last + pop() removal doesn't skip elements:
+    // when we swap index i with the last element and pop, the new element at i is one
+    // we have NOT yet visited (it came from the end), so we must re-examine it.
+    // Backwards iteration naturally handles this — after the swap the element now at i
+    // is from the tail which we already processed (or is the same i if it's the last).
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       if (!p) continue;
       p.life -= dt;
       if (p.life <= 0) {
-        this.particles.splice(i, 1);
+        // Swap with last element and pop — O(1) removal, order-insensitive.
+        const last = this.particles.length - 1;
+        if (i !== last) {
+          this.particles[i] = this.particles[last]!;
+        }
+        this.particles.pop();
         continue;
       }
       p.x  += p.vx * dt;

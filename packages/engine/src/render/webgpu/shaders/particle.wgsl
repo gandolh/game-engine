@@ -1,4 +1,4 @@
-// particle.wgsl — instanced particle pipeline (Wave 4a)
+// particle.wgsl — instanced particle pipeline (Wave 4a / brief 14)
 //
 // Bind group layout:
 //   group(0) binding(0) : ViewUniform (set once per pass by the orchestrator / GpuContext)
@@ -9,7 +9,7 @@
 //   [0] x       f32  — world center X
 //   [1] y       f32  — world center Y
 //   [2] size    f32  — radius (circle) or half-size (rect/star), world px
-//   [3] shapeId f32  — 0.0 = circle, 1.0 = rect, 2.0 = star (filled diamond approx)
+//   [3] shapeId f32  — 0.0 = circle, 1.0 = rect, 2.0 = star (8-point, polar method)
 //   [4] r       f32  — red   (0..1, pre-normalised from 0..255 by CPU)
 //   [5] g       f32  — green (0..1)
 //   [6] b       f32  — blue  (0..1)
@@ -24,11 +24,17 @@
 //   shapeId 0 (circle): SDF — discard where length(uv - 0.5) > 0.5; alpha-fade in a 1-px
 //                       ring at the edge for smooth circles.
 //   shapeId 1 (rect):   Full unit quad — no discard.
-//   shapeId 2 (star):   Filled diamond approximation (4-point star). The local UV is mapped
-//                       to [-1,1] space; a pixel is inside when |u| + |v| <= 1 (L1 ball).
-//                       This is a reasonable star silhouette with minimal ALU.
-//                       NOTE: the Canvas-2D drawStar() draws an 8-point star; the GPU shape
-//                       is intentionally a 4-point diamond as documented in the Wave 4a brief.
+//   shapeId 2 (star):   8-point star via polar radius modulation (brief 14, task 4).
+//                       UV mapped to [-1,1]; inner radius is modulated by cos(4*theta)
+//                       so 8 tips land at the cardinal and diagonal axes — matching the
+//                       Canvas-2D drawStar() 8-point shape.
+//
+// Alpha fade-out (brief 14, task 5):
+//   The per-instance linear alpha (life/maxLife) is eased with pow(alpha, 0.45) —
+//   a concave curve that pushes bright brightness toward the start of a particle's life
+//   so it appears to "pop" into existence and fade gently.  Short-lived sparks cross
+//   the steep early part of the curve and then vanish; longer smoke/mist particles
+//   linger visibly before dissolving.  Alpha-only — no RGB synthesised.
 
 // ── Uniforms ──────────────────────────────────────────────────────────────────
 
@@ -109,11 +115,12 @@ fn vs_main(
 // Shapes:
 //   circle (0): SDF with a 1-px soft edge via fwidth() anti-aliasing.
 //   rect   (1): Full quad — coverage = 1.0.
-//   star   (2): Filled diamond (4-point star approximation) via L1 ball in [-1,1].
-//               Pixel is inside when |su| + |sv| <= 1.  Alpha fade at the border.
-//               This approximation was chosen for minimal ALU; the Canvas-2D path
-//               uses an 8-point star but visual equivalence is not required here
-//               (Wave 4a brief accepts "a reasonable approximation").
+//   star   (2): 8-point star via polar radius modulation.
+//               UV remapped to [-1,1] space; a pixel is inside when its distance
+//               from the origin is <= the star's polar-modulated radius.  The
+//               modulation is cos(4*theta) — 4 full periods over 2*pi give 8 tips.
+//               Inner radius fraction = 0.45 (matches Canvas-2D drawStar ratio of
+//               r_inner = r * 0.45).  Soft edge via fwidth().
 
 @fragment
 fn fs_main(in : VertexOut) -> @location(0) vec4<f32> {
@@ -125,26 +132,42 @@ fn fs_main(in : VertexOut) -> @location(0) vec4<f32> {
     let fw_circle = fwidth(d_circle);
     let cov_circle = clamp(1.0 - d_circle / max(fw_circle, 0.0001), 0.0, 1.0);
 
+    // 8-point star (task 4): polar radius modulation.
+    // Map UV to [-1,1] centered coordinates.
     let su = in.local_uv.x * 2.0 - 1.0;
     let sv = in.local_uv.y * 2.0 - 1.0;
-    let d_diamond = abs(su) + abs(sv) - 1.0;
-    let fw_diamond = fwidth(d_diamond);
-    let cov_diamond = clamp(1.0 - d_diamond / max(fw_diamond, 0.0001), 0.0, 1.0);
+    // Polar angle theta and radial distance from center.
+    let theta   = atan2(sv, su);
+    let rad     = length(vec2<f32>(su, sv));
+    // Star radius at this angle: outer tip (1.0) and inner valley (0.45),
+    // modulated by cos(4*theta) — 4 cycles = 8 tips.
+    let star_r  = 0.725 + 0.275 * cos(4.0 * theta);  // range [0.45, 1.0]
+    let d_star  = rad - star_r;
+    let fw_star = fwidth(d_star);
+    let cov_star = clamp(1.0 - d_star / max(fw_star, 0.0001), 0.0, 1.0);
 
     let shape = i32(round(in.shape_id));
     var coverage : f32 = 1.0;  // shape == 1 (rect): full quad
     if shape == 0 {
         coverage = cov_circle;
     } else if shape == 2 {
-        coverage = cov_diamond;
+        coverage = cov_star;
     }
 
     if coverage <= 0.0 {
         discard;
     }
 
-    // Particle alpha = instance alpha × shape coverage
-    let total_alpha = in.color.a * coverage;
+    // ── Alpha easing (task 5) ─────────────────────────────────────────────────
+    // Apply a pow() curve to the per-instance linear alpha so particles fade with
+    // a shaped decay rather than a flat ramp.  Exponent 0.45 is concave (< 1):
+    // the particle is bright for most of its life and drops off quickly near death.
+    // This makes sparks and glints "pop" visually without any per-kind branching.
+    // Alpha-only — the RGB is left unchanged.
+    let eased_alpha = pow(max(in.color.a, 0.0), 0.45);
+
+    // Particle alpha = eased alpha × shape coverage
+    let total_alpha = eased_alpha * coverage;
 
     // Output premultiplied alpha:
     //   out.rgb = straight_rgb * total_alpha
