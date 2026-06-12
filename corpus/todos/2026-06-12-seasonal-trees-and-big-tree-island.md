@@ -1,0 +1,44 @@
+---
+title: Seasonal trees + a detailed big-tree island
+created: 2026-06-12
+status: open
+tags: [render, world, seasons]
+depends_on: [foundation-grow-grid-to-240, foundation-theme-decor-table]
+---
+
+# Seasonal trees + a detailed big-tree island
+
+Two coupled pieces: trees change with the season, and a new island whose
+centerpiece is one large, detailed tree that also changes with the season.
+
+## Decisions (grilled 2026-06-12)
+
+### Piece 1 — 4-way seasonal trees (PARTIALLY BUILT)
+
+There is already a `seasonalTreeFrame(frame, season)` remap
+([frames.ts:193](../../packages/sim-core/src/render-systems/frames.ts)) and the
+snapshot already carries `season` — but it only has **two** variants today:
+`-autumn` and `-bare` (winter). **Spring and summer both render the same green
+tree.** The todo wants four distinct looks.
+
+- **Add `structure/tree-blossom` (spring)** atlas frame and **extend
+  `seasonalTreeFrame` to a 4-way map:** blossom (spring) / green (summer) / autumn
+  / bare (winter). Pure atlas recipe + ~2-line remap change. EDG32-only.
+
+### Piece 2 — bespoke multi-tile big-tree island
+
+- **Bespoke multi-tile big-tree sprite** (NOT scaled-up reuse — scaling looks
+  blocky for a showpiece). Author a dedicated large tree with its **own 4 seasonal
+  frames**, remapped the same way. Use the non-16×16 sprite pipeline already
+  proven by the 2×3 forge-house (`recipes.ts` `width`/`height`; `BIG_STRUCTURES`).
+- Static `solid` centerpiece on a **new `big-tree` themed island** — a grow-grid
+  leaf (rides on [grow-grid-to-240](2026-06-12-00-foundation-grow-grid-to-240.md);
+  `big-tree` theme in the [décor table](2026-06-12-00-foundation-theme-decor-table.md)).
+
+## Acceptance
+
+- Regular trees show **four** distinct seasonal looks (blossom/green/autumn/bare).
+- A new island exists with a single large, detailed bespoke tree as centerpiece.
+- The big tree changes across the four seasons alongside regular trees.
+- New island keeps ≥2-tile margin + clean bridge; EDG32 palette guard green;
+  determinism preserved.
