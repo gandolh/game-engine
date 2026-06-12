@@ -2,11 +2,12 @@
 
 Current-state **snapshot** (2026-06-11). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
 
-**Where things stand:** engine briefs 01–09 and game briefs 01–79 + **82** are **Done or Superseded**; queued briefs: **[80-fishing-cast-tiles-stale](../briefs/game/todo/80-fishing-cast-tiles-stale.md)** and **[83-visual-depth-polish](../briefs/game/todo/83-visual-depth-polish.md)** (render-only polish wave: bridge rope railings, sandy-shore descent, 3D house faces, granular near-shore water — no open-thread diagnosis needed, just art+code work). The `webgpu-migration` branch was fast-forward-merged into `main` (2026-06-12); since webgpu has landed, brief 83 item 4 (granular water) should take the shader path, not the Canvas2D bake. Tests + typecheck green. **Two open threads**, diagnosed, unfixed:
+**Where things stand:** engine briefs 01–09 and game briefs 01–80 + **82** are **Done or Superseded**; one queued brief: **[83-visual-depth-polish](../briefs/game/todo/83-visual-depth-polish.md)** (render-only polish wave: bridge rope railings, sandy-shore descent, 3D house faces, granular near-shore water — no open-thread diagnosis needed, just art+code work). The `webgpu-migration` branch was fast-forward-merged into `main` (2026-06-12); since webgpu has landed, brief 83 item 4 (granular water) should take the shader path, not the Canvas2D bake. Tests + typecheck green. **One open thread**, diagnosed, unfixed:
 1. **Tier-0 FPS regression** — canvas raster, not DOM/particles ([performance.md](performance.md) Tier 0); the relmatrix DOM-thrash fix shipped, but confirming the raster cause + picking fix #4 needs a real-GPU `?profile` reading.
-2. **AI fishing broken** (→ brief 80) — `FISHING_CAST_TILES` are pre-reorg and now off-isle, so AI `fish` never fires (Pip unaffected); same class as brief 73's tavern/festival fix, which missed this constant ([open-questions.md](open-questions.md)). Baseline-mover → user sign-off.
 
 *Resolved 2026-06-12 — **Movers teleport** (brief 82): the `interpolate` flag was farmer-only, so work NPCs snapped tile-to-tile. Fixed by widening the flag to work NPCs + a 2-tile teleport clamp in the client lerp path. Render-only, no baseline move. (Livestock/boats/ambient were ruled out by code-reading — they don't tile-step.)*
+
+*Resolved 2026-06-12 — **AI fishing broken** (brief 80): `FISHING_CAST_TILES` was already converted from the stale off-isle literal to a `deriveFishingCastTiles()` scan of the live isle bounds in commit `672cccd` (brief just wasn't closed). Verified + closed: live-world guard test passes and a new `fishing.test.ts` confirms `deliberateFishing` fires to a valid cast tile. Baseline already moved at `672cccd`, not this session.*
 
 ## Recent briefs (one-liners; detail in log.md)
 
