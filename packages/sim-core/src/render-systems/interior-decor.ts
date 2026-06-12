@@ -50,7 +50,7 @@ interface ThemeEntry {
 }
 
 /** Central per-theme décor table. Frames are existing `decoration/*` atlas ids only. */
-const THEME_TABLE: Record<RegionTheme, ThemeEntry> = {
+export const THEME_TABLE: Record<RegionTheme, ThemeEntry> = {
   forest: {
     frames: ["decoration/fern", "decoration/bush", "decoration/log-stack", "decoration/mushroom-cluster"],
     density: 6,
@@ -74,6 +74,21 @@ const THEME_TABLE: Record<RegionTheme, ThemeEntry> = {
   ring: {
     frames: ["decoration/hay-bale", "decoration/grain-sack", "decoration/flour-bag", "decoration/barrel", "decoration/crate"],
     density: 4,
+  },
+  // Campsite clutter (camp island).
+  camp: {
+    frames: ["decoration/log-stack", "decoration/barrel", "decoration/crate", "decoration/hay-bale"],
+    density: 5,
+  },
+  // Pond reeds (ice-pond — sparse, no snowy frames available).
+  pond: {
+    frames: ["decoration/cattail"],
+    density: 4,
+  },
+  // Volcanic rubble (volcano islet).
+  volcano: {
+    frames: ["decoration/rubble", "decoration/ore-cart", "decoration/crate"],
+    density: 6,
   },
   // Used by later décor todos (per-farm ranch islands, big-tree island).
   ranch: {

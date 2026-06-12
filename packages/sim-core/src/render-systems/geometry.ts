@@ -4,6 +4,7 @@ import {
   REGIONS,
   regionAt,
   isWalkable,
+  scaleAroundNearestIsland,
   type RegionId,
 } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
@@ -613,21 +614,39 @@ interface BigStructure {
   hPx: number;
 }
 
+// Baked-structure anchors are authored at the original 160-scale and locked to their
+// island (scaleAroundNearestIsland) so they ride with the grown/enlarged world instead
+// of floating at stale coordinates. Sprite px size (wPx/hPx) is NOT scaled — islands
+// keep their authored size under position-only scaling, so the art keeps its size too.
+// Casino building intentionally REMOVED (casino is open-air — see casino todo).
+function bakedAt(frame: string, x: number, y: number, wPx: number, hPx: number): BigStructure {
+  const t = scaleAroundNearestIsland({ x, y });
+  return { frame, baseTileX: t.x, baseTileY: t.y, wPx, hPx };
+}
+
 /** Large static buildings baked into the static layer. baseTileX = left col, baseTileY = bottom row. */
 export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
-  { frame: "structure/forge-house", baseTileX: 99, baseTileY: 78, wPx: 32, hPx: 48 },
-  { frame: "structure/carpenter-workshop", baseTileX: 59, baseTileY: 78, wPx: 32, hPx: 48 },
+  bakedAt("structure/forge-house", 99, 78, 32, 48),
+  bakedAt("structure/carpenter-workshop", 59, 78, 32, 48),
   // Weather-station island: building (3×2 tiles) left side, antenna mast (1×4 tiles) right side.
-  // Taller (hPx 48) building — rises upward into tile rows 120-122, within island bounds (minY 119).
-  { frame: "structure/weather-station", baseTileX: 109, baseTileY: 122, wPx: 48, hPx: 48 },
-  { frame: "structure/weather-antenna", baseTileX: 114, baseTileY: 122, wPx: 16, hPx: 64 },
+  bakedAt("structure/weather-station", 109, 122, 48, 48),
+  bakedAt("structure/weather-antenna", 114, 122, 16, 64),
   // Scenic islets — bottom-anchored, y-sorting sprites scaled at integer multiples (crisp pixels).
   // Sprites are structure-only (transparent margins) so the island floor + sand shore show around them.
-  // Volcano: 32px cone @3× (96px), centered on the 8×8 island (x76–83) — reddish floor shows at edges.
-  { frame: "decoration/volcano", baseTileX: 77, baseTileY: 16, wPx: 96, hPx: 96 },
-  // Casino island (x74–81): neon tower (32×48 @2× = 64×96) left, hotel (32×32 @2× = 64×64) right.
-  { frame: "decoration/casino", baseTileX: 74, baseTileY: 121, wPx: 64, hPx: 96 },
-  { frame: "decoration/casino-hotel", baseTileX: 78, baseTileY: 121, wPx: 64, hPx: 64 },
+  bakedAt("decoration/volcano", 77, 16, 96, 96),
+  // Big-tree island centerpiece (scaled coords — island authored directly in regions.ts).
+  // 48×64 (3×4 tiles) bespoke seasonal tree; pushBuildingSprites remaps the frame to the
+  // seasonal variant (blossom/green/autumn/bare) each frame.
+  { frame: "structure/big-tree", baseTileX: 130, baseTileY: 14, wPx: 48, hPx: 64 },
+  // Casino island (open-air gaming) — a deliberate layout of bigger gaming props,
+  // authored within the 160-scale casino footprint (x72–83, y114–125) and island-
+  // locked. Bottom-anchored, baseTileX = left col. No building.
+  bakedAt("decoration/slot-machine", 73, 117, 16, 32),   // slots row, top-left
+  bakedAt("decoration/slot-machine", 75, 117, 16, 32),
+  bakedAt("decoration/roulette", 77, 119, 32, 32),        // roulette centerpiece
+  bakedAt("decoration/blackjack-table", 73, 122, 32, 24), // blackjack lower-left
+  bakedAt("decoration/dice-table", 80, 119, 32, 24),      // dice right
+  bakedAt("decoration/shell-game", 78, 124, 32, 24),      // shell-game lower
   // One baked 3D cottage per farm region, bottom-anchored at the SE corner the old home used
   // (maxX-1,maxY-1 in setup.ts). 32px (2 tiles) wide ⇒ baseTileX = maxX-2.
   ...REGIONS.filter((r) => r.kind === "farm").map(
@@ -658,13 +677,17 @@ export const FISHING_STATICS: readonly FishingStaticTile[] = (() => {
   return out;
 })();
 
-/** Casino marina — decorative boats + buoy moored in the open water south of the casino islet
- *  (region y-max 123). Purely visual; these tiles are ocean (non-walkable), no sim coupling. */
+/** Casino marina — decorative boats + buoy moored in the open water just off the casino
+ *  islet. Authored at 160-scale, locked to the casino island so they ride with it. Purely
+ *  visual; these tiles are ocean (non-walkable), no sim coupling. */
 export const CASINO_STATICS: readonly FishingStaticTile[] = [
-  { tx: 75, ty: 124, frame: "structure/boat" },
-  { tx: 77, ty: 125, frame: "structure/boat" },
-  { tx: 79, ty: 124, frame: "structure/boat" },
-  { tx: 81, ty: 124, frame: "decoration/buoy" },
-];
+  { x: 75, y: 124, frame: "structure/boat" },
+  { x: 77, y: 125, frame: "structure/boat" },
+  { x: 79, y: 124, frame: "structure/boat" },
+  { x: 81, y: 124, frame: "decoration/buoy" },
+].map((s) => {
+  const t = scaleAroundNearestIsland({ x: s.x, y: s.y });
+  return { tx: t.x, ty: t.y, frame: s.frame };
+});
 
 export { CORAL_ALPHA };

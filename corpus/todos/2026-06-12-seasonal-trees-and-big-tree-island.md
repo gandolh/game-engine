@@ -1,12 +1,31 @@
 ---
 title: Seasonal trees + a detailed big-tree island
 created: 2026-06-12
-status: open
+status: done
 tags: [render, world, seasons]
 depends_on: [foundation-grow-grid-to-240, foundation-theme-decor-table]
 ---
 
 # Seasonal trees + a detailed big-tree island
+
+> **DONE 2026-06-12.** **Piece 1:** `seasonalTreeFrame` generalized to a 4-way map
+> over bases `structure/{tree,bush,fruit-tree,big-tree}` (suffix: spring `-blossom`,
+> summer `` , autumn `-autumn`, winter `-bare`); instant swap. New atlas recipes:
+> tree-blossom, bush-blossom/-autumn/-bare, fruit-tree (+ base, which didn't exist)
+> /-blossom/-autumn/-bare. `foliageSway` switched to prefix matches so variants sway.
+> **Fixed a latent bug:** mature orchard trees rendered as saplings (no frame swap) —
+> orchard.ts now sets `sprite.frame = structure/fruit-tree` on maturity, so the
+> seasonal remap applies. **Piece 2:** new `big-tree` landmark island (10×10, bridged
+> W to the volcano islet — placed by a grid-scan for a spot outside the farm spoke
+> web, authored in LIVE/scaled coords). Bespoke 48×64 `structure/big-tree` (+3 season
+> variants) baked as a `BIG_STRUCTURES` centerpiece; `pushBuildingSprites` now takes
+> `season` and remaps it each frame. 3-tile trunk footprint solids. theme `'big-tree'`.
+> Guard test (frames-seasonal.test.ts) + geometry/world guards green; full repo
+> **1081 tests** + typecheck + palette guard green.
+>
+> **Deferred (user, 2026-06-12):** ANIMATED season transitions (cross-fade via the
+> animation engine) instead of instant pop — done as a brief-85 consumer follow-up,
+> not here. Render-only / determinism-safe. See briefs/game/todo/85-animation-engine.md.
 
 Two coupled pieces: trees change with the season, and a new island whose
 centerpiece is one large, detailed tree that also changes with the season.

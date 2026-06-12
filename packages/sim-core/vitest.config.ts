@@ -16,5 +16,9 @@ export default defineConfig({
     environment: "node",
     pool: "threads",
     isolate: false,
+    // Constrained-hardware cap: bound peak workers so a run can't fan out to all
+    // cores at once (memory/CPU spike). See feedback_scope_test_runs.
+    maxWorkers: 4,
+    minWorkers: 1,
   },
 });

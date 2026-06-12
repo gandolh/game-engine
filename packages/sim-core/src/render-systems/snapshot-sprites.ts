@@ -32,11 +32,9 @@ function foliageSway(
     return { swayAmp: 0.5, swayPhase: phase };
   }
   if (
-    frame === "structure/tree" ||
-    frame === "structure/tree-autumn" ||
-    frame === "structure/tree-bare" ||
-    frame.startsWith("structure/fruit-tree") ||
-    frame === "structure/bush" ||
+    frame.startsWith("structure/tree") ||      // tree + -blossom/-autumn/-bare
+    frame.startsWith("structure/fruit-tree") || // fruit-tree + seasonal variants
+    frame.startsWith("structure/bush") ||       // bush + -blossom/-autumn/-bare
     frame === "decoration/bush"
   ) {
     return { swayAmp: 1.0, swayPhase: phase };

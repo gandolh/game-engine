@@ -2,6 +2,7 @@ import type { GameEntity } from "../../components";
 import { recordReason } from "../../components";
 import type { AnimalKind } from "../../components";
 import { PEN_BUILD_COST, ANIMAL_BUY_COST } from "../../economy";
+import { ranchForFarm } from "../../world/regions";
 
 /** Queue build-pen at carpentry when farmer has no pen of that kind and gold is above reserve. */
 export function deliberateBuildPen(
@@ -108,6 +109,32 @@ export function deliberateTendPens(
 
   const coopFed = farmer.beliefs?.data["coopFedToday"] as boolean | undefined;
   const barnFed = farmer.beliefs?.data["barnFedToday"] as boolean | undefined;
+
+  // Pens live on the farm's neighbouring ranch island — the farmer must CROSS THE
+  // BRIDGE to tend them (handleTend is gated on being in the pen's region). Queue a
+  // travel to the ranch first when away, so the daily tend gives the ranch real
+  // traffic instead of being a teleport-feed. (Fallback to the home farm if a farm
+  // somehow has no ranch.)
+  const homeRegion = farmer.farmer.homeRegion;
+  const needsTend = (hasCoop && !coopFed) || (hasBarn && !barnFed);
+  if (homeRegion && needsTend) {
+    const ranch = ranchForFarm(homeRegion) ?? homeRegion;
+    if (farmer.farmer.currentRegion !== ranch) {
+      const existing = farmer.intentions.queue.find(
+        i => i.kind === "travel" && i.data.targetRegionId === ranch,
+      );
+      const wanted = priority + 1;
+      if (existing) {
+        if (wanted < existing.priority) existing.priority = wanted;
+      } else {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetRegionId: ranch },
+          priority: wanted,
+        });
+      }
+    }
+  }
 
   if (hasCoop && !coopFed) {
     if (!farmer.intentions.queue.some(i => i.kind === "tend" && i.data.penKind === "coop")) {

@@ -2,7 +2,7 @@
   "id": "buildings",
   "imageUrl": "/atlas/buildings.png",
   "width": 128,
-  "height": 512,
+  "height": 1024,
   "frames": {
     "structure/market-wall": {
       "x": 1,
@@ -394,60 +394,132 @@
       "w": 16,
       "h": 16
     },
-    "structure/tavern": {
+    "structure/tree-blossom": {
       "x": 84,
       "y": 315,
       "w": 16,
       "h": 16
     },
-    "structure/coop": {
+    "structure/bush-blossom": {
       "x": 101,
       "y": 315,
       "w": 16,
       "h": 16
     },
-    "structure/barn": {
+    "structure/bush-autumn": {
       "x": 1,
       "y": 364,
       "w": 16,
       "h": 16
     },
-    "structure/greenhouse": {
+    "structure/bush-bare": {
       "x": 18,
       "y": 364,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-sapling": {
+    "structure/fruit-tree": {
       "x": 35,
       "y": 364,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-growing": {
+    "structure/fruit-tree-blossom": {
       "x": 52,
       "y": 364,
       "w": 16,
       "h": 16
     },
-    "structure/fruit-tree-mature": {
+    "structure/fruit-tree-autumn": {
       "x": 69,
       "y": 364,
       "w": 16,
       "h": 16
     },
-    "structure/dock": {
+    "structure/fruit-tree-bare": {
       "x": 86,
       "y": 364,
       "w": 16,
       "h": 16
     },
-    "structure/cargo-ship": {
+    "structure/big-tree": {
+      "x": 1,
+      "y": 381,
+      "w": 48,
+      "h": 64
+    },
+    "structure/big-tree-blossom": {
+      "x": 50,
+      "y": 381,
+      "w": 48,
+      "h": 64
+    },
+    "structure/big-tree-autumn": {
+      "x": 1,
+      "y": 446,
+      "w": 48,
+      "h": 64
+    },
+    "structure/big-tree-bare": {
+      "x": 50,
+      "y": 446,
+      "w": 48,
+      "h": 64
+    },
+    "structure/tavern": {
+      "x": 99,
+      "y": 446,
+      "w": 16,
+      "h": 16
+    },
+    "structure/coop": {
+      "x": 1,
+      "y": 511,
+      "w": 16,
+      "h": 16
+    },
+    "structure/barn": {
+      "x": 18,
+      "y": 511,
+      "w": 16,
+      "h": 16
+    },
+    "structure/greenhouse": {
+      "x": 35,
+      "y": 511,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-sapling": {
+      "x": 52,
+      "y": 511,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-growing": {
+      "x": 69,
+      "y": 511,
+      "w": 16,
+      "h": 16
+    },
+    "structure/fruit-tree-mature": {
+      "x": 86,
+      "y": 511,
+      "w": 16,
+      "h": 16
+    },
+    "structure/dock": {
       "x": 103,
-      "y": 364,
+      "y": 511,
+      "w": 16,
+      "h": 16
+    },
+    "structure/cargo-ship": {
+      "x": 1,
+      "y": 528,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "95665790ffc1827420f7a17f22ee523f6b9f69f728b7b81fa0e99c7eb8a1166a"
+  "inputsHash": "4718fb1039d712b608a298a7b95077187f07454e4c5eb779c8878c4e7f1421a8"
 }

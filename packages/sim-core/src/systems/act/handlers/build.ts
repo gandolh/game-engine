@@ -14,7 +14,7 @@ import {
 import {
   DECORATION_RECIPE,
 } from "../../../components";
-import { REGIONS } from "../../../world/regions";
+import { REGIONS, ranchForFarm } from "../../../world/regions";
 import {
   PERFORMATIVE,
 } from "../../../protocols";
@@ -146,25 +146,28 @@ export function handleBuildPen(
   }
   if (alreadyHas) return;
 
+  // Pens live on the farm's neighbouring RANCH island (the farmer crosses the bridge
+  // to tend/collect). Fall back to the home farm if a farm somehow has no ranch.
   const homeRegion = farmer.farmer.homeRegion;
-  const regionDef = REGIONS.find(r => r.id === homeRegion);
+  const penRegion = ranchForFarm(homeRegion) ?? homeRegion;
+  const regionDef = REGIONS.find(r => r.id === penRegion);
   if (!regionDef) return;
 
   const usedTiles = new Set<string>();
   for (const e of world.query("plot")) {
-    if (e.plot.regionId === homeRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
+    if (e.plot.regionId === penRegion) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
   }
   for (const e of world.query("farmDecoration")) {
-    if (e.farmDecoration.regionId === homeRegion) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
+    if (e.farmDecoration.regionId === penRegion) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
   }
   for (const e of world.query("tileFeature")) {
-    if (e.tileFeature.regionId === homeRegion) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);
+    if (e.tileFeature.regionId === penRegion) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);
   }
   for (const e of world.query("pen")) {
-    if (e.pen.regionId === homeRegion) usedTiles.add(`${e.pen.tileX},${e.pen.tileY}`);
+    if (e.pen.regionId === penRegion) usedTiles.add(`${e.pen.tileX},${e.pen.tileY}`);
   }
   for (const e of world.query("orchardTree")) {
-    if (e.orchardTree.regionId === homeRegion) usedTiles.add(`${e.orchardTree.tileX},${e.orchardTree.tileY}`);
+    if (e.orchardTree.regionId === penRegion) usedTiles.add(`${e.orchardTree.tileX},${e.orchardTree.tileY}`);
   }
 
   // SOLID tile — must be interior (one in from every bound) to avoid severing the only walkable exit.
@@ -182,7 +185,7 @@ export function handleBuildPen(
       world.spawn({
         transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
         sprite: { atlasId: "main", frame, layer: 30, tintRgba: 0xffffffff },
-        pen: { kind: penKind, animal: animalKind, count: 0, care: 0.5, fedToday: false, tileX: tx, tileY: ty, regionId: homeRegion, ownerId: farmer.id },
+        pen: { kind: penKind, animal: animalKind, count: 0, care: 0.5, fedToday: false, tileX: tx, tileY: ty, regionId: penRegion, ownerId: farmer.id },
         solid: { isSolid: true, tileX: tx, tileY: ty },
       });
       if (useWood && res) res.wood -= recipe.woodCost;
@@ -337,6 +340,11 @@ export function handleTend(
     break;
   }
   if (!penEntity) return;
+
+  // Pens live on the farm's ranch island: the farmer must be ON the pen's region to
+  // tend it (deliberateTendPens queues the bridge-crossing travel first). No-op when
+  // not there yet — care decays until the farmer actually crosses over.
+  if (farmer.farmer?.currentRegion !== penEntity.pen.regionId) return;
 
   penEntity.pen.fedToday = true;
   penEntity.pen.care = Math.min(1, penEntity.pen.care + CARE_TEND_BOOST);

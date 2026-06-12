@@ -47,6 +47,9 @@ export class OrchardSystem implements System {
         tree.daysGrown += 1;
         if (tree.daysGrown >= ORCHARD_MATURATION_DAYS) {
           tree.mature = true;
+          // Swap sapling → mature fruit-tree look. resolveFrameAndBob then remaps
+          // this to the seasonal variant (blossom/green/autumn/bare) at render time.
+          if (treeEntity.sprite) treeEntity.sprite.frame = "structure/fruit-tree";
         }
         continue;
       }

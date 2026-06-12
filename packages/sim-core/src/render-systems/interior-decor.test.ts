@@ -15,6 +15,7 @@ import { BRIDGE_SET } from "./geometry";
 import {
   computeInteriorDecor,
   MIN_SPACING,
+  THEME_TABLE,
 } from "./interior-decor";
 
 const TILE = 16;
@@ -82,14 +83,11 @@ describe("interior décor scatter", () => {
   it("only uses frames present in the theme table", () => {
     const world = bootWorld();
     const decor = computeInteriorDecor(world);
-    const allowed = new Set<string>([
-      "decoration/fern", "decoration/bush", "decoration/log-stack", "decoration/mushroom-cluster",
-      "decoration/ore-cart", "decoration/rubble", "decoration/crate",
-      "decoration/cairn", "decoration/stone-lantern",
-      "decoration/torii", "decoration/lamp-post",
-      "decoration/potted-plant", "decoration/barrel",
-      "decoration/hay-bale", "decoration/grain-sack", "decoration/flour-bag",
-    ]);
+    // Derive the allowed set from the table itself (not a hand-copied list) so new
+    // themes don't silently desync this guard.
+    const allowed = new Set<string>(
+      Object.values(THEME_TABLE).flatMap((e) => e.frames),
+    );
     for (const d of decor) expect(allowed.has(d.frame)).toBe(true);
   });
 

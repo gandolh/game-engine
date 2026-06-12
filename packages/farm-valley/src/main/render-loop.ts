@@ -3,7 +3,7 @@ import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike } from "@engine/core";
 import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import type { JuiceLayer } from "./juice";
-import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE, isWalkable } from "@farm/sim-core/world/regions";
+import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SIZE } from "@farm/sim-core/systems/player-control";
@@ -477,27 +477,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
 
-    // Casino: neon glints sparkling off the tower crown. Render-only; gated to on-screen + throttled.
-    {
-      const cX = CASINO_NEON_TILE.x * TILE + TILE / 2;
-      const cY = CASINO_NEON_TILE.y * TILE + TILE / 2;
-      const inView = cX >= viewLeft - TILE && cX <= viewRight + TILE && cY >= viewTop - TILE && cY <= viewBottom + TILE;
-      if (inView && Math.random() < 0.5) {
-        const neon = [EDG.cyan, EDG.hotPink, EDG.gold, EDG.mauve];
-        const color = neon[(Math.random() * neon.length) | 0]!;
-        particles.emit({
-          x: cX + (Math.random() - 0.5) * TILE * 2.5,
-          y: cY + (Math.random() - 0.5) * TILE * 1.5,
-          count: 1, shape: "star",
-          color, color2: EDG.white,
-          speedMin: 2, speedMax: 8,
-          angleMin: 0, angleMax: Math.PI * 2, // twinkle outward in any direction
-          lifetimeMin: 0.3, lifetimeMax: 0.7,
-          sizeMin: 0.6, sizeMax: 1.4,
-          gravity: 0,
-        });
-      }
-    }
+    // (Casino neon emitter removed — the casino is now an open-air gaming island with
+    // no neon tower/business, so the tower-crown glint no longer makes sense.)
 
     particleDirector.emitFromDiff(farmerPositions);
 
@@ -561,7 +542,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       pushOccluderSprites(renderer);
       // Buildings: dynamic layer-50 occluders (sortY at base) so farmers behind them are occluded
       // and the player x-rays through, instead of being painted over the roof (old static layer 5).
-      pushBuildingSprites(renderer);
+      pushBuildingSprites(renderer, seasonForDay(client.day));
       // Bridges: dynamic at layer 3 with a slow rope-deck sway (no longer baked).
       pushBridgeSprites(renderer, nowMs);
       // "Sea level" depth ordering is encoded in the sprite layer band (sprites sort by

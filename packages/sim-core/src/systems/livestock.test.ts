@@ -2,6 +2,10 @@ import { describe, it, expect } from "vitest";
 import { bootstrapSim, leaderboard } from "../sim-bootstrap";
 import { bankProduct, totalProductCount } from "../economy";
 import type { Inventory } from "../components";
+import type { Intention } from "@engine/core";
+import { ranchForFarm, getRegion } from "../world/regions";
+import { handleTend } from "./act/handlers/build";
+import { deliberateTendPens } from "../agents/watering/livestock";
 
 const TICKS_PER_DAY = 10;
 
@@ -118,6 +122,49 @@ describe("LivestockSystem", () => {
     expect(entry).toBeDefined();
     expect(entry!.assetValue).toBeGreaterThanOrEqual(30); // 2 chickens × 15
     expect(entry!.totalValue).toBeGreaterThan(entry!.gold);
+  });
+
+  it("tend is gated on being at the pen's ranch (relocation: pens live on the ranch island)", () => {
+    const sim = bootstrapSim({ seed: 7, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
+    const { world } = sim;
+    const farmer = [...world.query("farmer", "inventory")][0]!;
+    if (farmer.id === undefined) throw new Error("farmer has no id");
+
+    // Force a known home farm + its ranch; place an unfed coop on the ranch.
+    farmer.farmer!.homeRegion = "farm-cora";
+    const ranch = ranchForFarm("farm-cora");
+    expect(ranch).toBeDefined();
+    const ranchDef = getRegion(ranch!);
+    const penEntity = world.spawn({
+      pen: {
+        kind: "coop", animal: "chicken", count: 1, care: 0.8,
+        fedToday: false, tileX: ranchDef.center.x, tileY: ranchDef.center.y,
+        regionId: ranch!, ownerId: farmer.id,
+      },
+    });
+    const intent: Intention = { kind: "tend", data: { penKind: "coop" }, priority: 5 };
+
+    // OFF the ranch (on the home farm): handleTend must no-op.
+    farmer.farmer!.currentRegion = "farm-cora";
+    handleTend(farmer as never, intent, world);
+    expect(penEntity.pen!.fedToday).toBe(false);
+
+    // deliberateTendPens queues a travel to the ranch (the bridge-crossing trip).
+    farmer.intentions!.queue.length = 0;
+    farmer.beliefs!.data["hasPen_coop"] = true;
+    farmer.beliefs!.data["coopFedToday"] = false;
+    deliberateTendPens(farmer, 5);
+    const travel = farmer.intentions!.queue.find(
+      i => i.kind === "travel" && i.data.targetRegionId === ranch,
+    );
+    expect(travel, "should queue a travel to the ranch when away").toBeDefined();
+
+    // ON the ranch: handleTend feeds + boosts care.
+    farmer.farmer!.currentRegion = ranch!;
+    const careBefore = penEntity.pen!.care;
+    handleTend(farmer as never, intent, world);
+    expect(penEntity.pen!.fedToday).toBe(true);
+    expect(penEntity.pen!.care).toBeGreaterThan(careBefore);
   });
 
   it("bankProduct helper adds quality-tracked products to inventory", () => {

@@ -19,6 +19,13 @@ blocks: [bigger-decorated-neutral-islands, per-farm-ranch-islands, casino-island
 > coral.ts, shared.ts, regions.ts anchors). Full guard-tests + 1058 repo tests +
 > typecheck green; render eyeballed OK; determinism check waived by the user.
 > See [log.md](../log.md) 2026-06-12 + [world-generation.md](../wiki/world-generation.md).
+>
+> **Follow-up (2026-06-12, casino pass):** the grow MISSED `BIG_STRUCTURES` in
+> geometry.ts — baked building art (forge-house/carpenter/weather/volcano/casino) had
+> hardcoded 160-scale coords and baked in open ocean post-grow. The eyeball missed it
+> (only the derived per-farm cottages were correct). Fixed by locking them to their
+> island via `scaleAroundNearestIsland` + a geometry.test guard. Lesson: "render
+> parametric" must include BAKED static art, not just region bounds.
 
 **Prerequisite spike for all four land-adding/growing todos.** The current 160×160
 radial archipelago is packed to a worst-case 2-tile ocean gap and farms are

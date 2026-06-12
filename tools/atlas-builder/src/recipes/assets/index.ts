@@ -207,6 +207,23 @@ import r212 from "./decoration/fish-blue-b";
 import r213 from "./decoration/fish-yellow-a";
 import r214 from "./decoration/fish-yellow-b";
 import r215 from "./tool/can-held";
+import r216 from "./decoration/slot-machine";
+import r217 from "./decoration/blackjack-table";
+import r218 from "./decoration/roulette";
+import r219 from "./decoration/shell-game";
+import r220 from "./decoration/dice-table";
+import r221 from "./structure/tree-blossom";
+import r222 from "./structure/bush-blossom";
+import r223 from "./structure/bush-autumn";
+import r224 from "./structure/bush-bare";
+import r225 from "./structure/fruit-tree";
+import r226 from "./structure/fruit-tree-blossom";
+import r227 from "./structure/fruit-tree-autumn";
+import r228 from "./structure/fruit-tree-bare";
+import r229 from "./structure/big-tree";
+import r230 from "./structure/big-tree-blossom";
+import r231 from "./structure/big-tree-autumn";
+import r232 from "./structure/big-tree-bare";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -413,5 +430,22 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r213,
   r214,
   r215,
+  r216,
+  r217,
+  r218,
+  r219,
+  r220,
+  r221,
+  r222,
+  r223,
+  r224,
+  r225,
+  r226,
+  r227,
+  r228,
+  r229,
+  r230,
+  r231,
+  r232,
 ];
 

@@ -19,6 +19,9 @@ const DOM_FILES = [
 
 export default defineConfig({
   test: {
+    // Constrained-hardware cap (see feedback_scope_test_runs).
+    maxWorkers: 4,
+    minWorkers: 1,
     projects: [
       {
         test: {

@@ -1,7 +1,8 @@
 // Dynamic occluders: south-facing wall + cliff tiles pushed each frame at sortY = tile bottom edge.
 import type { Canvas2dRenderer } from "@engine/core";
 import { OCCLUDER_WALLS, CLIFFS, BIG_STRUCTURES, BRIDGES } from "./geometry";
-import { frameToAtlasId } from "./frames";
+import { frameToAtlasId, seasonalTreeFrame } from "./frames";
+import type { Season } from "../protocols/weather";
 
 const TILE = 16;
 
@@ -118,8 +119,13 @@ export function pushBridgeSprites(renderer: Pick<Canvas2dRenderer, "push">, nowM
   }
 }
 
-export function pushBuildingSprites(renderer: Pick<Canvas2dRenderer, "push" | "pushShadow">): void {
+export function pushBuildingSprites(
+  renderer: Pick<Canvas2dRenderer, "push" | "pushShadow">,
+  season: Season = "spring",
+): void {
   for (const b of BIG_STRUCTURES) {
+    // Foliage structures (the big tree) swap to their seasonal variant; others pass through.
+    const frame = seasonalTreeFrame(b.frame, season);
     // Directional cast shadow at the south base — offset toward lower-right (sun from upper-left) and
     // lengthened with the building's height, so taller structures throw a longer shadow → reads as 3D.
     renderer.pushShadow(
@@ -135,8 +141,8 @@ export function pushBuildingSprites(renderer: Pick<Canvas2dRenderer, "push" | "p
       sortY: (b.baseTileY + 1) * TILE,
       width: b.wPx,
       height: b.hPx,
-      frame: b.frame,
-      atlasId: frameToAtlasId(b.frame),
+      frame,
+      atlasId: frameToAtlasId(frame),
       rotation: 0,
       layer: ENTITY_LAYER,
       alpha: 1,

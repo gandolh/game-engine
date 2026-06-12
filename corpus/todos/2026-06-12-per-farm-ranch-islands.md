@@ -1,12 +1,29 @@
 ---
 title: Give each farm a neighbouring ranch island (hosts its livestock)
 created: 2026-06-12
-status: open
+status: done
 tags: [world, render, sim, livestock]
 depends_on: [foundation-grow-grid-to-240, foundation-theme-decor-table]
 ---
 
 # Give each farm a neighbouring ranch island (hosts its livestock)
+
+> **DONE 2026-06-12.** 21 ranch islands (`ranch-0..20`, kind `'ranch'`, theme
+> `'ranch'`), one per farm. **Placement deviates from "radial-outward":** the grow
+> (#0) left NO outer margin, so outer-ring farms can't fit a ranch outward (would
+> exceed 240). Instead each ranch is placed in the **cardinal direction that fits**
+> (outward-preferred → tangential → inward), 8×8, at center-distance D∈{12,11,13},
+> chosen by a deterministic per-farm search that requires in-bounds + ≥2 gap + a
+> clean straight farm↔ranch bridge. Result: 13 outward, 8 sideways, 0 inward; all
+> 21 placed without throw. `ranchForFarm(farmId)` exported. Pens **relocated** to the
+> ranch (`handleBuildPen` → `ranchForFarm(homeRegion)`). **Tend now requires crossing
+> the bridge:** `handleTend` gated on `currentRegion === pen.regionId`;
+> `deliberateTendPens` queues a travel to the ranch first — so ranches get real daily
+> AI traffic (decision A), not inert dead-ends. regions.ts was restructured (road
+> primitives + bridge generators moved above the ranch section; generators now take
+> a `regions` param). Guard test (ranch-islands.test.ts, 7 tests) + tend-gate test;
+> full repo **1071 tests** + typecheck green. Render eyeball pending. See
+> [log.md](../log.md) 2026-06-12.
 
 Each of the 21 farms gets its own **neighbouring ranch island** a short distance
 away — and the farm's **livestock lives there**. Cows + sheep (and chickens) in

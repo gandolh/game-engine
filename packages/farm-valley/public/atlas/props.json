@@ -249,7 +249,37 @@
       "y": 151,
       "w": 16,
       "h": 16
+    },
+    "decoration/slot-machine": {
+      "x": 52,
+      "y": 151,
+      "w": 16,
+      "h": 32
+    },
+    "decoration/blackjack-table": {
+      "x": 69,
+      "y": 151,
+      "w": 32,
+      "h": 24
+    },
+    "decoration/roulette": {
+      "x": 1,
+      "y": 184,
+      "w": 32,
+      "h": 32
+    },
+    "decoration/shell-game": {
+      "x": 34,
+      "y": 184,
+      "w": 32,
+      "h": 24
+    },
+    "decoration/dice-table": {
+      "x": 67,
+      "y": 184,
+      "w": 32,
+      "h": 24
     }
   },
-  "inputsHash": "0864fde755ed8fb457a0afc0d3ea5bcb8d924e286526513b960980b8b11b8694"
+  "inputsHash": "84150cbeb41dc2b1e0747825a3759e5cfbffbe37feb367fdd21e5d24f089b6f6"
 }

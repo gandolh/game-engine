@@ -9,8 +9,9 @@ import {
   COAST_DEPTH_MAX,
   oceanGradientAt,
   GRADIENT_DEPTH_MAX,
+  BIG_STRUCTURES,
 } from "./geometry";
-import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
+import { isWalkable, regionAt, WORLD_WIDTH, WORLD_HEIGHT, REGIONS } from "../world/regions";
 
 describe("computeCliffs", () => {
   it("TALL_ISLANDS has between 3 and 5 entries", () => {
@@ -206,5 +207,42 @@ describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", 
       }
     }
     expect(foundDeep, "expected at least one ocean tile with gradient=0 (far from land)").toBe(true);
+  });
+});
+
+describe("BIG_STRUCTURES are anchored on their island (not floating at stale coords)", () => {
+  // Guard against the 2026-06-12 grow regression: baked building art had hardcoded
+  // 160-scale coords and rendered in open ocean after the world grew. Each structure
+  // is bottom-anchored; at least one tile of its base row must sit inside a region.
+  it("every baked structure's base footprint touches a region (on land)", () => {
+    for (const s of BIG_STRUCTURES) {
+      const wTiles = Math.max(1, Math.round(s.wPx / 16));
+      let onLand = false;
+      for (let dx = 0; dx < wTiles && !onLand; dx++) {
+        if (regionAt(s.baseTileX + dx, s.baseTileY) !== null) onLand = true;
+      }
+      expect(onLand, `${s.frame} base row (${s.baseTileX},${s.baseTileY}) is not on any region`).toBe(true);
+    }
+  });
+
+  it("there is no casino building (casino is open-air)", () => {
+    for (const s of BIG_STRUCTURES) {
+      expect(s.frame).not.toMatch(/casino/);
+    }
+  });
+
+  it("a baked structure exists on the blacksmith, carpentry, weather-station and volcano islands", () => {
+    const must = ["blacksmith", "carpentry", "weather-station", "volcano"] as const;
+    for (const id of must) {
+      const reg = REGIONS.find((r) => r.id === id)!;
+      const here = BIG_STRUCTURES.some((s) => {
+        const wTiles = Math.max(1, Math.round(s.wPx / 16));
+        for (let dx = 0; dx < wTiles; dx++) {
+          if (regionAt(s.baseTileX + dx, s.baseTileY) === reg.id) return true;
+        }
+        return false;
+      });
+      expect(here, `expected a baked structure on ${id}`).toBe(true);
+    }
   });
 });

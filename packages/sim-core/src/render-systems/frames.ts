@@ -190,12 +190,31 @@ export function enumerateFarmerFrames(base: string): string[] {
   return [...out];
 }
 
-/** Remap `structure/tree` to the seasonal variant frame. Other frames pass through. */
+/** Foliage bases that get a 4-way seasonal look. The summer frame IS the base
+ *  (no suffix); the other three seasons append a suffix. Keep in sync with the
+ *  atlas recipes (structure/<base>{,-blossom,-autumn,-bare}). */
+const SEASONAL_FOLIAGE_BASES: ReadonlySet<string> = new Set([
+  "structure/tree",
+  "structure/bush",
+  "structure/fruit-tree",
+  "structure/big-tree",
+]);
+
+const SEASON_FOLIAGE_SUFFIX: Record<Season, string> = {
+  spring: "-blossom",
+  summer: "", // base frame = the lush green / mature look
+  autumn: "-autumn",
+  winter: "-bare",
+};
+
+/**
+ * Remap a foliage frame (tree / berry bush / orchard fruit-tree / big-tree) to its
+ * seasonal variant: blossom (spring) / green (summer) / autumn / bare (winter).
+ * Instant swap at the season boundary — no cross-fade. Non-foliage frames pass through.
+ */
 export function seasonalTreeFrame(frame: string, season: Season): string {
-  if (frame !== "structure/tree") return frame;
-  if (season === "autumn") return "structure/tree-autumn";
-  if (season === "winter") return "structure/tree-bare";
-  return frame; // spring/summer keep the green tree
+  if (!SEASONAL_FOLIAGE_BASES.has(frame)) return frame;
+  return frame + SEASON_FOLIAGE_SUFFIX[season];
 }
 
 /** Resolve the final atlas frame, idle-bob offset, and an optional scale punch for a snapshot sprite. */

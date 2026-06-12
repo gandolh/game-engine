@@ -21,18 +21,23 @@ export type FixedRegionId =
   | 'camp'                            // rest away from home without the unrested penalty
   | 'weather-station'                 // decorative — antenna mast + beacon blink, no behavior
   | 'volcano'                         // scenic — volcanic islet off Pip's farm, no behavior
-  | 'casino';                         // scenic — casino islet off the fishing isle, no behavior
+  | 'casino'                          // scenic — casino islet off the fishing isle, no behavior
+  | 'big-tree';                       // scenic — island whose centerpiece is one large seasonal tree
 
 /** `farm-0` .. `farm-(EXTRA_FARM_COUNT-1)` on the radial outer rings. */
 export type ExtraFarmRegionId = `farm-${number}`;
 
-export type RegionId = FixedRegionId | ExtraFarmRegionId;
+/** `ranch-0` .. `ranch-20` — one neighbouring ranch island per farm (hosts its livestock pens). */
+export type RanchRegionId = `ranch-${number}`;
 
-export type RegionKind = 'village' | 'farm' | 'landmark';
+export type RegionId = FixedRegionId | ExtraFarmRegionId | RanchRegionId;
+
+export type RegionKind = 'village' | 'farm' | 'landmark' | 'ranch';
 
 /** RENDER-ONLY theme key — selects an interior décor table. NEVER read by sim logic. */
 export type RegionTheme =
-  | 'ranch' | 'casino' | 'shrine' | 'heritage' | 'forest' | 'quarry' | 'big-tree' | 'ring';
+  | 'ranch' | 'casino' | 'shrine' | 'heritage' | 'forest' | 'quarry' | 'big-tree' | 'ring'
+  | 'camp' | 'pond' | 'volcano';
 
 export interface RegionDef {
   id: RegionId;
@@ -103,8 +108,10 @@ const QUARRY_NORTH_BOUNDS   = scaleB({ minX: 93, minY: 61, maxX: 100, maxY: 68 }
 const FOREST_SOUTH_BOUNDS   = scaleB({ minX: 61, minY: 93, maxX: 68, maxY: 100 }); // SW diagonal
 const QUARRY_SOUTH_BOUNDS   = scaleB({ minX: 93, minY: 93, maxX: 100, maxY: 100 }); // SE diagonal
 
-const MUSHROOM_GROVE_BOUNDS = scaleB({ minX: 59, minY: 47, maxX: 66, maxY: 54 }); // N — autumn
-const ICE_POND_BOUNDS       = scaleB({ minX: 95, minY: 47, maxX: 102, maxY: 54 }); // N — winter
+// Neutral islands enlarged 8×8→12×12 (grown about center) for the "bigger decorated
+// neutral islands" todo; gaps verified ≥2 + bridges clean after growth.
+const MUSHROOM_GROVE_BOUNDS = scaleB({ minX: 57, minY: 45, maxX: 68, maxY: 56 }); // N — autumn (12×12)
+const ICE_POND_BOUNDS       = scaleB({ minX: 93, minY: 45, maxX: 104, maxY: 56 }); // N — winter (12×12)
 
 const WELL_NORTH_BOUNDS     = scaleB({ minX: 103, minY: 62, maxX: 104, maxY: 63 }); // 2×2, by quarry-north
 const WELL_SOUTH_BOUNDS     = scaleB({ minX: 103, minY: 94, maxX: 104, maxY: 95 }); // 2×2, by quarry-south
@@ -117,25 +124,31 @@ const WELL_SOUTH_BOUNDS     = scaleB({ minX: 103, minY: 94, maxX: 104, maxY: 95 
 const SHRINE_BOUNDS         = scaleB({ minX: 73, minY: 58, maxX: 79, maxY: 64 }); // N-center (7×7), interactive
 const WATERFALL_BOUNDS      = scaleB({ minX: 80, minY: 58, maxX: 87, maxY: 65 }); // N-center-E (8×8), ANIMATED
 
-const HERITAGE_STONES_BOUNDS  = scaleB({ minX: 45, minY: 63, maxX: 52, maxY: 70 }); // W (8×8) decorative
-const HERITAGE_RUIN_BOUNDS    = scaleB({ minX: 109, minY: 63, maxX: 116, maxY: 70 }); // E (8×8) decorative
-const HERITAGE_STATUE_BOUNDS  = scaleB({ minX: 45, minY: 93, maxX: 52, maxY: 100 }); // SW (8×8) decorative
+const HERITAGE_STONES_BOUNDS  = scaleB({ minX: 43, minY: 61, maxX: 54, maxY: 72 }); // W (12×12) decorative
+const HERITAGE_RUIN_BOUNDS    = scaleB({ minX: 107, minY: 61, maxX: 118, maxY: 72 }); // E (12×12) decorative
+const HERITAGE_STATUE_BOUNDS  = scaleB({ minX: 43, minY: 91, maxX: 54, maxY: 102 }); // SW (12×12) decorative
 
 const FISHING_ISLE_BOUNDS   = scaleB({ minX: 75, minY: 105, maxX: 82, maxY: 112 }); // S-center (8×8 sand)
 const FISHING_ISLE_2_BOUNDS = scaleB({ minX: 59, minY: 105, maxX: 66, maxY: 112 }); // S-W (8×8 sand)
 const HARBOR_BOUNDS         = scaleB({ minX: 93, minY: 105, maxX: 100, maxY: 112 }); // S-E dock (8×8)
-const CAMP_BOUNDS           = scaleB({ minX: 109, minY: 105, maxX: 116, maxY: 112 }); // SE campsite (8×8)
+const CAMP_BOUNDS           = scaleB({ minX: 108, minY: 104, maxX: 117, maxY: 113 }); // SE campsite (10×10, tight pair w/ weather-station)
 
 // Weather station island: 7×7, south of camp, same x-band.
 // ≥6-tile gap to camp (north), ≥3-tile gap to farm-1 worst-case (NE).
 // Bridged north-to-south (vertical bridge) to camp.
-const WEATHER_STATION_BOUNDS = scaleB({ minX: 109, minY: 119, maxX: 115, maxY: 125 }); // S (7×7)
+const WEATHER_STATION_BOUNDS = scaleB({ minX: 108, minY: 119, maxX: 116, maxY: 127 }); // S (9×9, grown S+sides; keeps gap to camp)
 
 // Scenic landmark islets (8×8) in open ocean, each a dead-end leaf bridged to a single
 // neighbour so no agent traffic routes through them. Placement + bridges verified clean
 // (no region overlap, ≥2-tile landmark gap). See decisions.md / log.md.
-const VOLCANO_BOUNDS = scaleB({ minX: 76, minY: 9, maxX: 83, maxY: 16 });    // N — bridged S to farm-pip
-const CASINO_BOUNDS  = scaleB({ minX: 74, minY: 116, maxX: 81, maxY: 123 }); // S — bridged N to fishing-isle
+const VOLCANO_BOUNDS = scaleB({ minX: 74, minY: 7, maxX: 85, maxY: 18 });    // N — bridged S to farm-pip (12×12)
+const CASINO_BOUNDS  = scaleB({ minX: 72, minY: 114, maxX: 83, maxY: 125 }); // S — bridged N to fishing-isle (12×12)
+
+// Big-tree island: 10×10 leaf in the open water along the N edge, bridged W to the
+// volcano islet (a clear top-strip pocket outside the farm spoke web — authored in
+// LIVE/scaled coords since it's a brand-new island, not a 160-scale-authored body).
+// Centerpiece is a bespoke seasonal big tree (BIG_STRUCTURES in geometry.ts).
+const BIG_TREE_BOUNDS = { minX: 127, minY: 7, maxX: 136, maxY: 16 }; // N-edge, E of volcano (10×10)
 
 // 21 farms on two concentric rings (R=78 inner n=9, R=108 outer n=12 — radii are
 // the original 52/72 scaled out by SCALE). Named farms are 12×12; procedural are
@@ -281,8 +294,319 @@ const BASE_REGIONS: readonly RegionDef[] = [
   { id: 'weather-station', kind: 'landmark', bounds: WEATHER_STATION_BOUNDS, center: midpoint(WEATHER_STATION_BOUNDS) },
   { id: 'volcano', kind: 'landmark', bounds: VOLCANO_BOUNDS, center: midpoint(VOLCANO_BOUNDS) },
   { id: 'casino',  kind: 'landmark', bounds: CASINO_BOUNDS,  center: midpoint(CASINO_BOUNDS) },
+  { id: 'big-tree', kind: 'landmark', bounds: BIG_TREE_BOUNDS, center: midpoint(BIG_TREE_BOUNDS) },
   ...EXTRA_FARM_REGIONS,
 ];
+
+// --- Road geometry primitives (used by both ranch placement and bridge routing) ---
+// Declared here (above the ranch section) because ranch placement needs them BEFORE
+// the module-level REGIONS / ROADS exist. The cluster/spoke generators below reuse the
+// same helpers, passing the full region list explicitly.
+interface RoadDef {
+  minX: number; minY: number; maxX: number; maxY: number;
+}
+
+/** Do two inclusive rects overlap (share any tile)? */
+function rectsOverlap(a: RoadDef, b: RoadDef): boolean {
+  return !(a.maxX < b.minX || b.maxX < a.minX || a.maxY < b.minY || b.maxY < a.minY);
+}
+
+/** A candidate bridge rect is CLEAN against `regions` iff it overlaps no region body
+ *  and, when expanded by 1 tile, edge-touches exactly its two endpoint islands. */
+function bridgeIsCleanAgainst(
+  rect: RoadDef,
+  aId: RegionId,
+  bId: RegionId,
+  regions: readonly RegionDef[],
+): boolean {
+  for (const reg of regions) {
+    if (rectsOverlap(rect, reg.bounds)) return false;
+  }
+  const exp = { minX: rect.minX - 1, minY: rect.minY - 1, maxX: rect.maxX + 1, maxY: rect.maxY + 1 };
+  for (const reg of regions) {
+    if (reg.id === aId || reg.id === bId) continue;
+    if (rectsOverlap(exp, reg.bounds)) return false;
+  }
+  return true;
+}
+
+/** Find a clean straight 2-wide bridge between two explicit bounds (clear of `regions`), or null. */
+function straightBridgeBounds(
+  a: { minX: number; minY: number; maxX: number; maxY: number },
+  b: { minX: number; minY: number; maxX: number; maxY: number },
+  aId: RegionId,
+  bId: RegionId,
+  regions: readonly RegionDef[],
+): RoadDef | null {
+  const candidates: RoadDef[] = [];
+  const ox0 = Math.max(a.minX, b.minX);
+  const ox1 = Math.min(a.maxX, b.maxX);
+  for (let x0 = ox0; x0 + 1 <= ox1; x0++) {
+    if (a.maxY < b.minY) {
+      const r = { minX: x0, minY: a.maxY + 1, maxX: x0 + 1, maxY: b.minY - 1 };
+      if (r.minY <= r.maxY) candidates.push(r);
+    }
+    if (b.maxY < a.minY) {
+      const r = { minX: x0, minY: b.maxY + 1, maxX: x0 + 1, maxY: a.minY - 1 };
+      if (r.minY <= r.maxY) candidates.push(r);
+    }
+  }
+  const oy0 = Math.max(a.minY, b.minY);
+  const oy1 = Math.min(a.maxY, b.maxY);
+  for (let y0 = oy0; y0 + 1 <= oy1; y0++) {
+    if (a.maxX < b.minX) {
+      const r = { minX: a.maxX + 1, minY: y0, maxX: b.minX - 1, maxY: y0 + 1 };
+      if (r.minX <= r.maxX) candidates.push(r);
+    }
+    if (b.maxX < a.minX) {
+      const r = { minX: b.maxX + 1, minY: y0, maxX: a.minX - 1, maxY: y0 + 1 };
+      if (r.minX <= r.maxX) candidates.push(r);
+    }
+  }
+  for (const r of candidates) {
+    if (bridgeIsCleanAgainst(r, aId, bId, regions)) return r;
+  }
+  return null;
+}
+
+/** ≥2-tile ocean gap between two inclusive rects (negative ⇒ overlap/adjacent). */
+function oceanGapBetween(a: RoadDef, b: RoadDef): number {
+  const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
+  const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
+  return Math.max(gx, gy);
+}
+
+const boundsOfIn = (id: RegionId, regions: readonly RegionDef[]) => {
+  const r = regions.find((reg) => reg.id === id);
+  if (!r) throw new Error(`boundsOf: unknown region '${id}'`);
+  return r.bounds;
+};
+const centerOfIn = (id: RegionId, regions: readonly RegionDef[]) => {
+  const r = regions.find((reg) => reg.id === id);
+  if (!r) throw new Error(`centerOf: unknown region '${id}'`);
+  return r.center;
+};
+
+/** Find a clean straight 2-wide bridge between two islands in `regions` (clear of all), or null. */
+function straightBridgeIn(aId: RegionId, bId: RegionId, regions: readonly RegionDef[]): RoadDef | null {
+  return straightBridgeBounds(boundsOfIn(aId, regions), boundsOfIn(bId, regions), aId, bId, regions);
+}
+
+const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
+  ['village', 'carpentry'],
+  ['village', 'blacksmith'],
+  ['village', 'mill'],
+  ['village', 'shrine'],
+  ['shrine', 'waterfall'],
+  ['carpentry', 'forest-north'],
+  ['carpentry', 'forest-south'],
+  ['blacksmith', 'quarry-north'],
+  ['blacksmith', 'quarry-south'],
+  ['forest-north', 'mushroom-grove'],
+  ['quarry-north', 'ice-pond'],
+  ['quarry-north', 'well-north'],
+  ['quarry-south', 'well-south'],
+  ['quarry-north', 'heritage-ruin'],
+  ['forest-north', 'heritage-stones'],
+  ['forest-south', 'heritage-statue'],
+  ['mill', 'fishing-isle'],
+  ['forest-south', 'fishing-isle-2'],
+  ['quarry-south', 'harbor'],
+  ['harbor', 'camp'],
+  ['camp', 'weather-station'],
+  ['farm-pip', 'volcano'],       // scenic islet, dead-end leaf off Pip's farm
+  ['fishing-isle', 'casino'],    // scenic islet, dead-end leaf off the fishing isle
+  ['volcano', 'big-tree'], // scenic big-tree islet, dead-end leaf on the N edge E of the volcano
+];
+
+function generateClusterBridges(regions: readonly RegionDef[]): RoadDef[] {
+  const out: RoadDef[] = [];
+  for (const [aId, bId] of CLUSTER_BRIDGES) {
+    const r = straightBridgeIn(aId, bId, regions);
+    if (!r) throw new Error(`generateClusterBridges: no clean bridge ${aId}↔${bId}`);
+    out.push(r);
+  }
+  return out;
+}
+
+/** Connect each ring farm to the nearest island yielding a clean straight spoke. */
+function generateFarmSpokes(regions: readonly RegionDef[]): RoadDef[] {
+  const clusterIds = regions.filter((r) => r.kind === 'village').map((r) => r.id);
+  const innerFarmIds: RegionId[] = [
+    'farm-pip', 'farm-atticus', 'farm-hannah', 'farm-otto', 'farm-cora',
+    'farm-0', 'farm-1', 'farm-2', 'farm-3',
+  ];
+  const innerProcSlots = 4;
+  const out: RoadDef[] = [];
+
+  const connect = (fid: RegionId, pool: RegionId[]) => {
+    const fc = centerOfIn(fid, regions);
+    const sorted = [...pool].sort((A, B) => {
+      const a = centerOfIn(A, regions);
+      const b = centerOfIn(B, regions);
+      const da = (a.x - fc.x) ** 2 + (a.y - fc.y) ** 2;
+      const db = (b.x - fc.x) ** 2 + (b.y - fc.y) ** 2;
+      return da - db;
+    });
+    for (const t of sorted) {
+      const r = straightBridgeIn(fid, t, regions);
+      if (r) { out.push(r); return; }
+    }
+    throw new Error(`generateFarmSpokes: no clean spoke for ${fid}`);
+  };
+
+  for (const fid of innerFarmIds) connect(fid, clusterIds);
+  for (let i = innerProcSlots; i < EXTRA_FARM_COUNT; i++) {
+    connect(`farm-${i}` as RegionId, [...innerFarmIds, ...clusterIds]);
+  }
+  return out;
+}
+
+// --- Per-farm ranch islands ----------------------------------------------------
+// Each of the 21 farms gets a neighbouring 8×8 ranch island that hosts its livestock
+// pens (placement only — the livestock feature already exists). PURE geometry, no rng:
+// each ranch is placed in the first CLEAN cardinal direction (preferring outward, then
+// the two tangential cardinals, then inward) at a fixed gap from its farm, with a clean
+// straight 2-wide farm↔ranch bridge. Ranches are placed SEQUENTIALLY so each sees the
+// ranches already placed and never collides with them.
+const FARM_REGIONS: readonly RegionDef[] = BASE_REGIONS.filter((r) => r.kind === 'farm');
+
+const RANCH_SIZE = 8;
+const RANCH_HALF = 4; // RANCH_SIZE / 2
+
+type Cardinal = { ux: number; uy: number };
+const CARD_E: Cardinal = { ux: 1, uy: 0 };
+const CARD_W: Cardinal = { ux: -1, uy: 0 };
+const CARD_S: Cardinal = { ux: 0, uy: 1 };
+const CARD_N: Cardinal = { ux: 0, uy: -1 };
+
+/** Cardinal directions for a farm, ordered: outward, the two tangential, inward. */
+function rankedCardinals(farmCenter: { x: number; y: number }): Cardinal[] {
+  const dx = farmCenter.x - MAP_CX;
+  const dy = farmCenter.y - MAP_CY;
+  // Primary outward cardinal aligns with the larger-magnitude component (ties → x).
+  let outward: Cardinal;
+  let perpA: Cardinal;
+  let perpB: Cardinal;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    outward = dx >= 0 ? CARD_E : CARD_W;
+    perpA = dy >= 0 ? CARD_S : CARD_N;
+    perpB = dy >= 0 ? CARD_N : CARD_S;
+  } else {
+    outward = dy >= 0 ? CARD_S : CARD_N;
+    perpA = dx >= 0 ? CARD_E : CARD_W;
+    perpB = dx >= 0 ? CARD_W : CARD_E;
+  }
+  const inward: Cardinal = { ux: -outward.ux, uy: -outward.uy };
+  return [outward, perpA, perpB, inward];
+}
+
+/**
+ * Place all 21 ranches + their farm↔ranch bridges. Ranches are dead-end leaves, so
+ * they must not clip the cluster bridges / farm spokes already routed through open
+ * water — `baseRoads` carries those so a candidate ranch body / bridge that overlaps a
+ * road (expanded by 1) is rejected. The placement also records, per farm, whether it
+ * went outward / sideways / inward (for diagnostics). Throws if any farm can't be served.
+ *
+ * Center-to-center distance D is tried at 12 first, then 11, then 13 — the candidate
+ * order within each D is the ranked cardinals (outward first).
+ */
+function placeRanches(baseRoads: readonly RoadDef[]): {
+  ranches: RegionDef[];
+  bridges: RoadDef[];
+  cardinalByFarm: { farmId: RegionId; rank: number }[];
+} {
+  const ranches: RegionDef[] = [];
+  const bridges: RoadDef[] = [];
+  const cardinalByFarm: { farmId: RegionId; rank: number }[] = [];
+  // Growing region list the placement checks against (base + ranches placed so far).
+  const placed: RegionDef[] = [...BASE_REGIONS];
+  // Ranch bridges placed so far must not clip each other either.
+  const placedBridges: RoadDef[] = [...baseRoads];
+  const RANCH_DISTANCES = [12, 11, 13] as const;
+
+  /** A rect (expanded by 1) clear of every road in `placedBridges`. */
+  const clearOfRoads = (rect: RoadDef): boolean => {
+    const exp = { minX: rect.minX - 1, minY: rect.minY - 1, maxX: rect.maxX + 1, maxY: rect.maxY + 1 };
+    for (const road of placedBridges) {
+      if (rectsOverlap(exp, road)) return false;
+    }
+    return true;
+  };
+
+  FARM_REGIONS.forEach((farm, k) => {
+    const ranchId = `ranch-${k}` as RegionId;
+    let chosen: { bounds: RoadDef; bridge: RoadDef; rank: number } | null = null;
+    const cardinals = rankedCardinals(farm.center);
+
+    search: for (const dist of RANCH_DISTANCES) {
+      for (let rank = 0; rank < cardinals.length; rank++) {
+        const card = cardinals[rank]!;
+        const rcx = farm.center.x + card.ux * dist;
+        const rcy = farm.center.y + card.uy * dist;
+        const minX = Math.round(rcx - RANCH_HALF);
+        const minY = Math.round(rcy - RANCH_HALF);
+        const bounds: RoadDef = { minX, minY, maxX: minX + RANCH_SIZE - 1, maxY: minY + RANCH_SIZE - 1 };
+
+        // (a) fully in-world.
+        if (bounds.minX < 0 || bounds.minY < 0 || bounds.maxX >= WORLD_WIDTH || bounds.maxY >= WORLD_HEIGHT) {
+          continue;
+        }
+        // (b) ≥2-tile gap from every already-decided region (base + ranches so far).
+        let clearOfAll = true;
+        for (const reg of placed) {
+          if (oceanGapBetween(bounds, reg.bounds) < 2) { clearOfAll = false; break; }
+        }
+        if (!clearOfAll) continue;
+        // (b2) ranch body must not sit on/beside an existing road (cluster/spoke/ranch bridge).
+        if (!clearOfRoads(bounds)) continue;
+        // (c) a clean straight 2-wide bridge between farm and ranch, clear of all decided regions...
+        const ranchDef: RegionDef = { id: ranchId, kind: 'ranch', bounds, center: midpoint(bounds) };
+        const bridge = straightBridgeBounds(farm.bounds, bounds, farm.id, ranchId, [...placed, ranchDef]);
+        if (!bridge) continue;
+        // ...and clear of every existing road too.
+        if (!clearOfRoads(bridge)) continue;
+
+        chosen = { bounds, bridge, rank };
+        break search;
+      }
+    }
+
+    if (!chosen) {
+      throw new Error(
+        `placeRanches: no clean cardinal placement for ranch-${k} (farm ${farm.id} @ ${farm.center.x},${farm.center.y})`,
+      );
+    }
+    const ranchDef: RegionDef = { id: ranchId, kind: 'ranch', bounds: chosen.bounds, center: midpoint(chosen.bounds) };
+    ranches.push(ranchDef);
+    placed.push(ranchDef);
+    bridges.push(chosen.bridge);
+    placedBridges.push(chosen.bridge);
+    cardinalByFarm.push({ farmId: farm.id, rank: chosen.rank });
+  });
+
+  return { ranches, bridges, cardinalByFarm };
+}
+
+// Base roads (cluster bridges + farm spokes) computed BEFORE ranches exist — ranches
+// are dead-end leaves that must avoid these. Then ranches are placed against them.
+const BASE_ROADS: readonly RoadDef[] = [
+  ...generateClusterBridges(BASE_REGIONS),
+  ...generateFarmSpokes(BASE_REGIONS),
+];
+const RANCH_PLACEMENT = placeRanches(BASE_ROADS);
+const RANCH_REGIONS: readonly RegionDef[] = RANCH_PLACEMENT.ranches;
+const RANCH_BRIDGES: readonly RoadDef[] = RANCH_PLACEMENT.bridges;
+
+/** farmId → ranchId, built from FARM_REGIONS[k] ↔ ranch-${k}. */
+const RANCH_FOR_FARM = new Map<RegionId, RegionId>(
+  FARM_REGIONS.map((farm, k) => [farm.id, `ranch-${k}` as RegionId]),
+);
+
+/** The ranch island hosting a farm's livestock pens, or undefined if `farmId` is not a farm. */
+export function ranchForFarm(farmId: RegionId): RegionId | undefined {
+  return RANCH_FOR_FARM.get(farmId);
+}
 
 // RENDER-ONLY theme assignment. Applied as a post-pass over BASE_REGIONS so the big
 // inline array stays untouched. Sim logic must NEVER read `theme` (see todo #0.5).
@@ -291,11 +615,21 @@ const THEME_BY_ID: Partial<Record<RegionId, RegionTheme>> = {
   'quarry-north': 'quarry', 'quarry-south': 'quarry',
   'shrine': 'shrine',
   'heritage-stones': 'heritage', 'heritage-ruin': 'heritage', 'heritage-statue': 'heritage',
-  'casino': 'casino',
+  // NOTE: casino is intentionally NOT theme-scattered — its content is a deliberate
+  // layout of baked gaming props (slots/roulette/blackjack/dice/shell-game in
+  // geometry.ts BIG_STRUCTURES). Random scatter would clutter / overlap those.
+  // Enlarged neutral islands (bigger-decorated-neutral-islands todo) get décor themes.
+  'mushroom-grove': 'forest', 'waterfall': 'forest',
+  'ice-pond': 'pond',
+  'camp': 'camp',
+  'weather-station': 'quarry',
+  'volcano': 'volcano',
+  'big-tree': 'big-tree',
 };
 
-export const REGIONS: readonly RegionDef[] = BASE_REGIONS.map((r) => {
-  const theme = THEME_BY_ID[r.id] ?? (r.kind === 'farm' ? 'ring' : undefined);
+export const REGIONS: readonly RegionDef[] = [...BASE_REGIONS, ...RANCH_REGIONS].map((r) => {
+  const theme = THEME_BY_ID[r.id]
+    ?? (r.kind === 'farm' ? 'ring' : r.kind === 'ranch' ? 'ranch' : undefined);
   return theme ? { ...r, theme } : r;
 });
 
@@ -359,148 +693,13 @@ export const HARBOR_DOCK_TILE = scaleAroundNearestIsland({ x: 96, y: 105 });
 
 export const HARBOR_BOARD_TILE = scaleAroundNearestIsland({ x: 97, y: 108 });
 
-// Roads: 2-wide bridges spanning only water; tree rooted at village.
-interface RoadDef {
-  minX: number; minY: number; maxX: number; maxY: number;
-}
-
-const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
-  ['village', 'carpentry'],
-  ['village', 'blacksmith'],
-  ['village', 'mill'],
-  ['village', 'shrine'],
-  ['shrine', 'waterfall'],
-  ['carpentry', 'forest-north'],
-  ['carpentry', 'forest-south'],
-  ['blacksmith', 'quarry-north'],
-  ['blacksmith', 'quarry-south'],
-  ['forest-north', 'mushroom-grove'],
-  ['quarry-north', 'ice-pond'],
-  ['quarry-north', 'well-north'],
-  ['quarry-south', 'well-south'],
-  ['quarry-north', 'heritage-ruin'],
-  ['forest-north', 'heritage-stones'],
-  ['forest-south', 'heritage-statue'],
-  ['mill', 'fishing-isle'],
-  ['forest-south', 'fishing-isle-2'],
-  ['quarry-south', 'harbor'],
-  ['harbor', 'camp'],
-  ['camp', 'weather-station'],
-  ['farm-pip', 'volcano'],       // scenic islet, dead-end leaf off Pip's farm
-  ['fishing-isle', 'casino'],    // scenic islet, dead-end leaf off the fishing isle
-];
-
-const boundsOf = (id: RegionId) => {
-  const r = REGIONS.find((reg) => reg.id === id);
-  if (!r) throw new Error(`boundsOf: unknown region '${id}'`);
-  return r.bounds;
-};
-const centerOf = (id: RegionId) => {
-  const r = REGIONS.find((reg) => reg.id === id);
-  if (!r) throw new Error(`centerOf: unknown region '${id}'`);
-  return r.center;
-};
-
-/** Do two inclusive rects overlap (share any tile)? */
-function rectsOverlap(a: RoadDef, b: RoadDef): boolean {
-  return !(a.maxX < b.minX || b.maxX < a.minX || a.maxY < b.minY || b.maxY < a.minY);
-}
-
-/** A candidate bridge rect is CLEAN iff it overlaps no region body and, when
- *  expanded by 1 tile, edge-touches exactly its two endpoint islands. */
-function bridgeIsClean(rect: RoadDef, aId: RegionId, bId: RegionId): boolean {
-  for (const reg of REGIONS) {
-    if (rectsOverlap(rect, reg.bounds)) return false;
-  }
-  const exp = { minX: rect.minX - 1, minY: rect.minY - 1, maxX: rect.maxX + 1, maxY: rect.maxY + 1 };
-  for (const reg of REGIONS) {
-    if (reg.id === aId || reg.id === bId) continue;
-    if (rectsOverlap(exp, reg.bounds)) return false;
-  }
-  return true;
-}
-
-/** Find a clean straight 2-wide bridge between two islands, or null. */
-function straightBridge(aId: RegionId, bId: RegionId): RoadDef | null {
-  const a = boundsOf(aId);
-  const b = boundsOf(bId);
-  const candidates: RoadDef[] = [];
-  const ox0 = Math.max(a.minX, b.minX);
-  const ox1 = Math.min(a.maxX, b.maxX);
-  for (let x0 = ox0; x0 + 1 <= ox1; x0++) {
-    if (a.maxY < b.minY) {
-      const r = { minX: x0, minY: a.maxY + 1, maxX: x0 + 1, maxY: b.minY - 1 };
-      if (r.minY <= r.maxY) candidates.push(r);
-    }
-    if (b.maxY < a.minY) {
-      const r = { minX: x0, minY: b.maxY + 1, maxX: x0 + 1, maxY: a.minY - 1 };
-      if (r.minY <= r.maxY) candidates.push(r);
-    }
-  }
-  const oy0 = Math.max(a.minY, b.minY);
-  const oy1 = Math.min(a.maxY, b.maxY);
-  for (let y0 = oy0; y0 + 1 <= oy1; y0++) {
-    if (a.maxX < b.minX) {
-      const r = { minX: a.maxX + 1, minY: y0, maxX: b.minX - 1, maxY: y0 + 1 };
-      if (r.minX <= r.maxX) candidates.push(r);
-    }
-    if (b.maxX < a.minX) {
-      const r = { minX: b.maxX + 1, minY: y0, maxX: a.minX - 1, maxY: y0 + 1 };
-      if (r.minX <= r.maxX) candidates.push(r);
-    }
-  }
-  for (const r of candidates) {
-    if (bridgeIsClean(r, aId, bId)) return r;
-  }
-  return null;
-}
-
-function generateClusterBridges(): RoadDef[] {
-  const out: RoadDef[] = [];
-  for (const [aId, bId] of CLUSTER_BRIDGES) {
-    const r = straightBridge(aId, bId);
-    if (!r) throw new Error(`generateClusterBridges: no clean bridge ${aId}↔${bId}`);
-    out.push(r);
-  }
-  return out;
-}
-
-/** Connect each ring farm to the nearest island yielding a clean straight spoke. */
-function generateFarmSpokes(): RoadDef[] {
-  const clusterIds = REGIONS.filter((r) => r.kind === 'village').map((r) => r.id);
-  const innerFarmIds: RegionId[] = [
-    'farm-pip', 'farm-atticus', 'farm-hannah', 'farm-otto', 'farm-cora',
-    'farm-0', 'farm-1', 'farm-2', 'farm-3',
-  ];
-  const innerProcSlots = 4;
-  const out: RoadDef[] = [];
-
-  const connect = (fid: RegionId, pool: RegionId[]) => {
-    const fc = centerOf(fid);
-    const sorted = [...pool].sort((A, B) => {
-      const a = centerOf(A);
-      const b = centerOf(B);
-      const da = (a.x - fc.x) ** 2 + (a.y - fc.y) ** 2;
-      const db = (b.x - fc.x) ** 2 + (b.y - fc.y) ** 2;
-      return da - db;
-    });
-    for (const t of sorted) {
-      const r = straightBridge(fid, t);
-      if (r) { out.push(r); return; }
-    }
-    throw new Error(`generateFarmSpokes: no clean spoke for ${fid}`);
-  };
-
-  for (const fid of innerFarmIds) connect(fid, clusterIds);
-  for (let i = innerProcSlots; i < EXTRA_FARM_COUNT; i++) {
-    connect(`farm-${i}` as RegionId, [...innerFarmIds, ...clusterIds]);
-  }
-  return out;
-}
-
+// Roads: 2-wide bridges spanning only water; tree rooted at village. Cluster bridges +
+// farm spokes were computed into BASE_ROADS (before ranches existed); ranch leaf bridges
+// were computed during placeRanches. RoadDef, the bridge helpers, CLUSTER_BRIDGES, and
+// the generators are all declared ABOVE the ranch section (they ran before REGIONS).
 const ROADS: readonly RoadDef[] = [
-  ...generateClusterBridges(),
-  ...generateFarmSpokes(),
+  ...BASE_ROADS,
+  ...RANCH_BRIDGES,
 ];
 
 // Town square: inner 4×4 of village (auction podium + notice board)

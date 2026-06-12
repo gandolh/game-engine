@@ -410,6 +410,16 @@ export function setupRegions(
     });
   }
 
+  // Big-tree island: the bespoke tree is drawn as a baked BIG_STRUCTURE (geometry.ts,
+  // seasonal). Block its 3-wide trunk base so nobody stands inside the trunk. The trunk
+  // tiles are in LIVE/scaled coords (the island is authored directly in regions.ts), so
+  // spawn the solids directly — NOT via placeFootprint (which re-anchors 160-scale coords).
+  if (REGIONS.some((r) => r.id === "big-tree")) {
+    for (const tx of [130, 131, 132]) {
+      world.spawn({ solid: { isSolid: true, tileX: tx, tileY: 14 } });
+    }
+  }
+
   if (REGIONS.some((r) => r.id === "village")) {
     placeProps(world, [
       { x: 75, y: 75, frame: "decoration/lamp-post" },
