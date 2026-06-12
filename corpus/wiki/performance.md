@@ -4,9 +4,15 @@ Optimization opportunities for the engine, filtered against what the code **actu
 
 > **Determinism guardrail.** Any of these is a refactor of *how* state moves, never *what* it computes. Prove behavior-preservation with multi-seed `EXPORT=json` diffs, not just `CHECK_DETERMINISM=1` (which only proves reproducibility). See [architecture.md](architecture.md) and the root [CLAUDE.md](../../CLAUDE.md).
 
-## Tier 0 — Live FPS regression: 15–30 fps (should be 60) — reported 2026-06-11; **PROFILED (hypothesis overturned)**
+## Tier 0 — Live FPS regression — **✅ RESOLVED 2026-06-12 (not reproducible on real hardware; brief 84)**
 
-> **➡️ The measured truth is in the [PROFILED 2026-06-11](#-profiled-2026-06-11--hypothesis-overturned-the-bottleneck-is-canvas-raster-not-domparticles) subsection below — read it first.** The bottleneck is **canvas raster, not DOM/particles**. The ranked suspect list below is kept only because the verdicts reference it by number (#1–#5); treat it as "what we suspected," not fact.
+> **➡️ Read this banner first.** A user-supplied **real-GPU** `?profile` export (`gpu: ANGLE (AMD Radeon …, Direct3D11)` — a genuine GPU, not SwiftShader) shows the live WebGPU game at **fps 99.2, `frame` JS 5.0 ms mean / 7.5 ms p95** (`render.endFrame` 2.7/4.4 ms, `pushSprites` 0.93 ms, `panels` 0.51 ms / `relmatrix` 0.028 ms, `interp` 0.06 ms; server `tick` 1.06 ms). **The "15–30 fps" was a headless-Chromium-on-SwiftShader (CPU-raster) artifact** — exactly the caveat the 2026-06-11 profile flagged. On real hardware there is **no GPU-overdraw problem to fix.**
+>
+> **What shipped (brief 84):** (1) `DEFAULT_ZOOM = 2` ([config.ts](../../packages/farm-valley/src/main/config.ts)) — the camera opens framed-in (kept by user choice); its perf value is now *insurance* for weak/integrated GPUs + high-DPI, since on a real GPU full-world zoom-1 raster is also fine. (2) A `?profile` **profile-export** button + `window.__exportProfile()` + `DebugOverlay.exportReport()` + a WebGL GPU-identity probe ([profile-export.ts](../../packages/farm-valley/src/main/profile-export.ts)) — kept for future render work. **Not changed:** the uncapped setTimeout render loop (user kept it for input latency, accepting ~40% discarded frames vs a 60 Hz display). **Closed without action:** GPU-overdraw reduction (no problem on real HW) and sort-on-dirty (the sort never appears in the profile).
+>
+> ⚠️ **Lesson:** never diagnose a *raster/GPU* regression from a headless SwiftShader profile — its absolute fps is CPU-raster-pessimistic. Require a real-GPU `?profile` export (now one click) before chasing Tier-0 raster work.
+
+> **Historical (pre-migration, Canvas2D).** Everything below this line profiled the **Canvas2D** renderer on **2026-06-11**, before the WebGPU-only migration + the real-GPU reading above. Kept for the suspect-number references (#1–#5) and the relmatrix dirty-guard (which shipped and holds). The bottleneck it names — "canvas raster, not DOM/particles" — was a SwiftShader artifact; treat this whole subsection as superseded by the banner.
 
 > **Pre-profile reasoning (superseded).** The 2026-06-05/06-10 "Measured results" tables show ~60 fps at ~6–10 ms/frame, so 15–30 fps meant a regression after those — suspected the render-side features that landed since (camera smoothing 67, ambient 68, weather particles 74, tab-resync 66); the world is now 160-wide with 21 farmers. All transport/render-only.
 

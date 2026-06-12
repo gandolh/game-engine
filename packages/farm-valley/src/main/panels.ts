@@ -42,7 +42,9 @@ export function buildPanels(app: HTMLElement): Panels {
   const playback = new PlaybackControlsPanel(rightColumn);
   const observer = new ObserverPanel(rightColumn);
   const leaderboardPanel = new LeaderboardPanel(app);
-  const slateBillboard = new SlateBillboardPanel(app);
+  // Standings are hidden by default; the player toggles them with Tab.
+  leaderboardPanel.setVisible(false);
+  const slateBillboard = new SlateBillboardPanel(rightColumn);
   const eventFeedPanel = new EventFeedPanel(rightColumn);
   const relationshipMatrix = new RelationshipMatrixPanel(rightColumn);
   const wealthGraph = new WealthGraphPanel(rightColumn);

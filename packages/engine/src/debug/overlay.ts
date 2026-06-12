@@ -8,6 +8,16 @@ export interface OverlayStats {
   entityCount: number;
 }
 
+/** Snapshot of everything the overlay currently knows — for the dev-only profile export. */
+export interface OverlayExport {
+  fps: number;
+  frameMs: number;
+  tick: number;
+  entityCount: number;
+  worker: ProfileReport | null;
+  frame: ProfileReport | null;
+}
+
 export class DebugOverlay {
   private readonly element: HTMLElement;
   private lastWallMs = performance.now();
@@ -18,6 +28,8 @@ export class DebugOverlay {
 
   private workerReport: ProfileReport | null = null;
   private frameReport: ProfileReport | null = null;
+  private lastTick = 0;
+  private lastEntityCount = 0;
 
   constructor(parent: HTMLElement) {
     const el = document.createElement("div");
@@ -39,6 +51,8 @@ export class DebugOverlay {
   }
 
   update(stats: Omit<OverlayStats, "fps">): void {
+    this.lastTick = stats.tick;
+    this.lastEntityCount = stats.entityCount;
     const now = performance.now();
     const dt = now - this.lastWallMs;
     this.lastWallMs = now;
@@ -74,6 +88,19 @@ export class DebugOverlay {
       text += fmt("interp", this.frameReport, "interp", "ms");
     }
     this.element.textContent = text;
+  }
+
+  /** Current fps/frame-time + the latest worker & frame profiler reports.
+   *  Dev-only; reads display timing, never sim state → zero determinism impact. */
+  exportReport(): OverlayExport {
+    return {
+      fps: this.fps,
+      frameMs: this.frameMs,
+      tick: this.lastTick,
+      entityCount: this.lastEntityCount,
+      worker: this.workerReport,
+      frame: this.frameReport,
+    };
   }
 
   setWorkerReport(report: ProfileReport): void {

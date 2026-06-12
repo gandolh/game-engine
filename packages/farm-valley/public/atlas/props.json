@@ -213,7 +213,43 @@
       "y": 102,
       "w": 32,
       "h": 32
+    },
+    "decoration/fish-clown-a": {
+      "x": 67,
+      "y": 102,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-clown-b": {
+      "x": 84,
+      "y": 102,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-blue-a": {
+      "x": 101,
+      "y": 102,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-blue-b": {
+      "x": 1,
+      "y": 151,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-yellow-a": {
+      "x": 18,
+      "y": 151,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-yellow-b": {
+      "x": 35,
+      "y": 151,
+      "w": 16,
+      "h": 16
     }
   },
-  "inputsHash": "9726ff93994e3a0c87e61578657722d311f553570aaa89a5b9457d1bd0419b58"
+  "inputsHash": "0864fde755ed8fb457a0afc0d3ea5bcb8d924e286526513b960980b8b11b8694"
 }

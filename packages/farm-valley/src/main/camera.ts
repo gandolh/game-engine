@@ -1,12 +1,12 @@
 import { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
-import { TILE } from "./config";
+import { TILE, DEFAULT_ZOOM } from "./config";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 import type { SimClient } from "../worker/sim-client";
 
 export let focusedFarmerId: number | null = null;
 export let panOffset = { x: 0, y: 0 };
-export let zoom = 1;
+export let zoom = DEFAULT_ZOOM;
 // recenteringOnPip: eases panOffset→0 over several frames instead of snapping
 // (an instant setCenter read as "jumping back to a previous position").
 export let recenteringOnPip = false;
@@ -125,6 +125,11 @@ export function setupCameraListeners(
   canvas: HTMLCanvasElement,
   camera: Camera2D,
 ): void {
+  // Apply the initial zoom so the camera starts framed in (not on the whole
+  // world), keeping the module `zoom` var and the camera in sync before the
+  // first frame. See DEFAULT_ZOOM in config.ts / brief 84.
+  camera.setZoom(zoom);
+
   let isDragging = false;
   let dragStartX = 0;
   let dragStartY = 0;
@@ -142,10 +147,10 @@ export function setupCameraListeners(
     mousePos.y = -9999;
   });
 
-  // Pan starts only on MIDDLE (button 1) or RIGHT (button 2) click.
-  // Left click (button 0) is now reserved for click-to-act.
+  // Pan starts on LEFT (button 0) or MIDDLE (button 1) click.
+  // Right click (button 2) is reserved for click-to-act.
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
-    if (e.button !== 1 && e.button !== 2) return;
+    if (e.button !== 0 && e.button !== 1) return;
     isDragging = true;
     recenteringOnPip = false; // drag overrides smooth recenter
     dragStartX = e.clientX;
@@ -154,7 +159,7 @@ export function setupCameraListeners(
     camStartY = panOffset.y;
   });
 
-  // Prevent the context menu from appearing during right-drag panning.
+  // Prevent the context menu so right-click can drive click-to-act.
   canvas.addEventListener("contextmenu", (e: MouseEvent) => e.preventDefault());
 
   window.addEventListener("mousemove", (e: MouseEvent) => {

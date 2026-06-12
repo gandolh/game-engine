@@ -12,7 +12,8 @@
     "./render": "./src/render/index.ts",
     "./assets": "./src/assets/index.ts",
     "./debug": "./src/debug/index.ts",
-    "./wasm": "./src/wasm/index.ts"
+    "./wasm": "./src/wasm/index.ts",
+    "./animation": "./src/animation/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

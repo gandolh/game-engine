@@ -1,7 +1,7 @@
 import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike } from "@engine/core";
-import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FOAM_FRAMES, FORGE_FIRE_FRAMES, FORGE_OVEN_TILE, FORGE_SMOKE_FRAMES, FORGE_CHIMNEY_PX, WATERFALL_FALL_FRAMES, CAMPFIRE_FRAMES, WEATHER_BEACON_FRAMES, WEATHER_BEACON_PX } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -25,6 +25,7 @@ import {
 } from "./camera";
 import { screenToTile } from "./screen-to-tile";
 import { pushWaterDecor } from "../render/water-decor";
+import { pushFishSchools } from "../render/fish-decor";
 import { frameDataUrl } from "./sprite-icon";
 import type { Panels } from "./panels";
 import type { ParticleDirector } from "./particles";
@@ -32,6 +33,7 @@ import { renderGameOver } from "./game-over";
 import { updateTooltip } from "./tooltip";
 import type { SimClient } from "../worker/sim-client";
 import type { AmbientLayer } from "./ambient";
+import { setupProfileExport } from "./profile-export";
 
 export interface RenderLoopDeps {
   client: SimClient;
@@ -119,27 +121,38 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     // OCR'ing the overlay. Wall-clock only; dev-only; remove once attributed.
     (window as unknown as { __frameProfile?: () => unknown }).__frameProfile = () =>
       frameProfiler.report();
+    // One-click profile export (brief 84): a bottom-left button + window.__exportProfile()
+    // that downloads fps/frame timings + render context + a GPU-identity probe as JSON.
+    setupProfileExport({
+      parent: document.body,
+      overlay,
+      camera: renderer.camera,
+      canvas,
+      frameReport: () => frameProfiler.report(),
+      context: { seed, maxDays, ticksPerDay },
+    });
   }
   // Emit frame report every ~60 frames to avoid per-frame string churn.
   let frameReportCounter = 0;
 
   // ---------------------------------------------------------------------------
-  // Click-to-act: left-button press/release cycle sends action + tile to server.
+  // Click-to-act: right-button press/release cycle sends action + tile to server.
   // Only fires for the run owner; spectators cannot control Pip.
   // A press/release is treated as a click only when the pointer moved < 5px —
   // this also guards against accidental taps after the camera gained focus.
+  // (Left button is reserved for camera panning — see camera.ts.)
   // ---------------------------------------------------------------------------
   let clickStartX = 0;
   let clickStartY = 0;
 
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 2) return;
     clickStartX = e.clientX;
     clickStartY = e.clientY;
   });
 
   canvas.addEventListener("mouseup", (e: MouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 2) return;
     if (!client.owner) return;
 
     const dist = Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY);
@@ -242,8 +255,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     // Foam alpha is swell-synced (base 0.45 ± 0.25) with per-tile phase offset.
     const zoom = _camera!.zoom;
     const bubbleStride = zoom >= 1 ? 1 : zoom >= 0.75 ? 2 : zoom >= 0.6 ? 3 : 4;
-    const FOAM_PERIOD_MS = 1800;
-    const foamStep = nowMs / (FOAM_PERIOD_MS / FOAM_FRAMES.length);
     const viewLeft = _camera!.centerX - _camera!.worldUnitsX / 2 - TILE;
     const viewRight = _camera!.centerX + _camera!.worldUnitsX / 2 + TILE;
     const viewTop = _camera!.centerY - _camera!.worldUnitsY / 2 - TILE;
@@ -255,7 +266,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       const cy = ty * TILE + TILE / 2;
       if (cx < viewLeft || cx > viewRight || cy < viewTop || cy > viewBottom) continue;
       const phase = tx * 3 + ty * 5; // per-tile offset
-      const frame = FOAM_FRAMES[(Math.floor(foamStep) + phase) % FOAM_FRAMES.length]!;
+      const frame = sampleCycle(FOAM_CLIP, nowMs, phase);
       // Divide by 8 so tilePhase stays within ~2π over the tile grid.
       const tilePhase = phase * 0.125;
       const foamAlpha = 0.45 + 0.25 * Math.sin(swellPhase + tilePhase);
@@ -273,10 +284,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
 
     // Animated forge fire: layer 41 (above oven body 40, below NPC 50). ~0.4s cycle.
-    const FIRE_PERIOD_MS = 420;
-    const fireFrame = FORGE_FIRE_FRAMES[
-      Math.floor(nowMs / (FIRE_PERIOD_MS / FORGE_FIRE_FRAMES.length)) % FORGE_FIRE_FRAMES.length
-    ]!;
+    const fireFrame = sampleCycle(FORGE_FIRE_CLIP, nowMs);
     renderer.push({
       x: FORGE_OVEN_TILE.x * TILE + TILE / 2,
       y: FORGE_OVEN_TILE.y * TILE + TILE / 2,
@@ -290,9 +298,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     });
 
     // Chimney smoke: layer 6 (above forge-house base 5), alpha 0.55, bobs up ~2px.
-    const SMOKE_PERIOD_MS = 700;
-    const smokeIdx = Math.floor(nowMs / (SMOKE_PERIOD_MS / FORGE_SMOKE_FRAMES.length)) % FORGE_SMOKE_FRAMES.length;
-    const smokeFrame = FORGE_SMOKE_FRAMES[smokeIdx]!;
+    const smokeIdx = cycleIndex(FORGE_SMOKE_CLIP, nowMs);
+    const smokeFrame = sampleCycle(FORGE_SMOKE_CLIP, nowMs);
     renderer.push({
       x: FORGE_CHIMNEY_PX.x,
       y: FORGE_CHIMNEY_PX.y - smokeIdx * 2,
@@ -307,15 +314,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     // Waterfall: a tall cascade down a rock cleft — clean rock-sided stream tiles stacked above the
     // foam pool (the static structure/waterfall entity at WATERFALL_TILE.y+2). Animated; render-only.
-    const WATERFALL_PERIOD_MS = 540;
-    const fallIdx =
-      Math.floor(nowMs / (WATERFALL_PERIOD_MS / WATERFALL_FALL_FRAMES.length)) % WATERFALL_FALL_FRAMES.length;
     const WATERFALL_FALL_ROWS = 2;
     for (let r = 0; r < WATERFALL_FALL_ROWS; r++) {
       // Lower tiles step the frame back so the bright streak stays continuous across the 16px tile
       // seam (16 rows % 3-row streak spacing = 1 → compensate by −1 frame per tile down).
-      const frame =
-        WATERFALL_FALL_FRAMES[(fallIdx + ((3 - (r % 3)) % 3)) % WATERFALL_FALL_FRAMES.length]!;
+      const frame = sampleCycle(WATERFALL_FALL_CLIP, nowMs, (3 - (r % 3)) % 3);
       renderer.push({
         x: WATERFALL_TILE.x * TILE + TILE / 2,
         y: (WATERFALL_TILE.y + r) * TILE + TILE / 2,
@@ -368,10 +371,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
 
     // Animated campfire: layer 41, ~390ms cycle; render-only.
-    const CAMPFIRE_PERIOD_MS = 390;
-    const campfireFrame = CAMPFIRE_FRAMES[
-      Math.floor(nowMs / (CAMPFIRE_PERIOD_MS / CAMPFIRE_FRAMES.length)) % CAMPFIRE_FRAMES.length
-    ]!;
+    const campfireFrame = sampleCycle(CAMPFIRE_CLIP, nowMs);
     renderer.push({
       x: CAMPFIRE_TILE.x * TILE + TILE / 2,
       y: CAMPFIRE_TILE.y * TILE + TILE / 2,
@@ -385,7 +385,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     });
 
     // Beacon blink: layer 42, ~1 Hz on/off; wall-clock only, never seeded, never touches worker.
-    const beaconFrame = WEATHER_BEACON_FRAMES[Math.floor(nowMs / 500) % 2]!;
+    const beaconFrame = sampleCycle(WEATHER_BEACON_CLIP, nowMs);
     renderer.push({
       x: WEATHER_BEACON_PX.x,
       y: WEATHER_BEACON_PX.y,
@@ -513,8 +513,17 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       pushBuildingSprites(renderer);
       // Bridges: dynamic at layer 3 with a slow rope-deck sway (no longer baked).
       pushBridgeSprites(renderer, nowMs);
+      // "Sea level" depth ordering is encoded in the sprite layer band (sprites sort by
+      // (layer, y) over the animated water pass, which is the backdrop):
+      //   below the surface — whale (1), baked coral (2), reef fish (4);
+      //   at the surface     — bridges (3), foam + paddling ducks (6);
+      //   above the surface  — boats / characters / buildings (50+), flying birds (60+).
+      // Submerged things look "under" the water via translucency + a cool blue tint
+      // (the water shows through them) rather than a dedicated water-surface overpass.
       // Decorative water life: a duck trio flies in/lands/leaves; a whale glides L→R splashing.
       pushWaterDecor(renderer, particles, nowMs, dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
+      // Reef fish: shoals of colourful fish orbit the coral reefs, tinted + translucent (submerged).
+      pushFishSchools(renderer, nowMs, dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
     });
 
     // Follow arrow: layer 91 (above meet bubble 90), gentle sine bob.
@@ -555,8 +564,10 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       // so spectators can open it to look even though only the owner can rearrange.
       if (keyboard.justPressed("KeyE")) inventory.toggle();
       if (keyboard.justPressed("Escape") && inventory.isOpen()) inventory.setOpen(false);
+      // Tab shows/hides the standings panel (hidden by default).
+      if (keyboard.justPressed("Tab")) leaderboardPanel.toggle();
       if (client.owner) {
-        // Actions fire on left-click (see the click-to-act handler above), not a key.
+        // Actions fire on right-click (see the click-to-act handler above), not a key.
         let selectSlot: number | null = null;
         for (let n = 1; n <= HOTBAR_SIZE && n <= 9; n++) {
           if (keyboard.justPressed(`Digit${n}`)) {

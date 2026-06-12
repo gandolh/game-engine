@@ -92,7 +92,7 @@ describe("SlateBillboardPanel", () => {
     panel.destroy();
   });
 
-  it("hides cleanly when slate is empty", () => {
+  it("drops all offer rows when the slate empties but keeps the category", () => {
     const panel = new SlateBillboardPanel(parent);
     panel.update(makeSlate());
 
@@ -103,8 +103,9 @@ describe("SlateBillboardPanel", () => {
     panel.update([]);
 
     expect(parent.querySelectorAll("[data-offer-id]").length).toBe(0);
+    // The category itself stays visible (it's a persistent sidebar section).
     const panelEl = parent.children[0] as HTMLElement;
-    expect(panelEl.style.display).toBe("none");
+    expect(panelEl.style.display).not.toBe("none");
     panel.destroy();
   });
 
@@ -174,53 +175,42 @@ describe("SlateBillboardPanel", () => {
     expect(parent.children.length).toBe(0);
   });
 
-  const bubbleEl = () => parent.querySelector("[data-slate-bubble]") as HTMLElement;
-  const panelEl = () => parent.querySelector("[data-slate-panel]") as HTMLElement;
-  const closeEl = () => parent.querySelector("[data-slate-close]") as HTMLElement;
+  const headerEl = () => parent.querySelector("[data-slate-header]") as HTMLElement;
+  const bodyEl = () => headerEl().nextElementSibling as HTMLElement;
 
-  it("starts collapsed: bubble visible, panel hidden", () => {
+  it("starts collapsed: header visible, body hidden", () => {
     const panel = new SlateBillboardPanel(parent);
     panel.update(makeSlate());
-    expect(bubbleEl().style.display).not.toBe("none");
-    expect(panelEl().style.display).toBe("none");
+    expect(headerEl().style.display).not.toBe("none");
+    expect(bodyEl().style.display).toBe("none");
     panel.destroy();
   });
 
-  it("bubble shows the offer count", () => {
+  it("the header shows the offer count", () => {
     const panel = new SlateBillboardPanel(parent);
     panel.update(makeSlate()); // 5 offers
-    expect(bubbleEl().textContent).toContain("5");
+    expect(headerEl().textContent).toContain("5");
     panel.destroy();
   });
 
-  it("clicking the bubble opens the panel and hides the bubble", () => {
+  it("clicking the header expands the body, clicking again collapses it", () => {
     const panel = new SlateBillboardPanel(parent);
     panel.update(makeSlate());
-    bubbleEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(panelEl().style.display).not.toBe("none");
-    expect(bubbleEl().style.display).toBe("none");
+    headerEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(bodyEl().style.display).not.toBe("none");
+
+    headerEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(bodyEl().style.display).toBe("none");
     panel.destroy();
   });
 
-  it("the close button collapses the panel back to the bubble", () => {
+  it("stays expanded across data updates until collapsed again", () => {
     const panel = new SlateBillboardPanel(parent);
     panel.update(makeSlate());
-    bubbleEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(panelEl().style.display).not.toBe("none");
-
-    closeEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(panelEl().style.display).toBe("none");
-    expect(bubbleEl().style.display).not.toBe("none");
-    panel.destroy();
-  });
-
-  it("stays open across data updates until closed", () => {
-    const panel = new SlateBillboardPanel(parent);
+    headerEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    // A fresh slate update should not re-collapse the open body.
     panel.update(makeSlate());
-    bubbleEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    // A fresh slate update should not re-collapse the open panel.
-    panel.update(makeSlate());
-    expect(panelEl().style.display).not.toBe("none");
+    expect(bodyEl().style.display).not.toBe("none");
     panel.destroy();
   });
 });

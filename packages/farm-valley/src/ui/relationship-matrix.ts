@@ -114,7 +114,7 @@ export class RelationshipMatrixPanel {
   private headerEl: HTMLElement;
   private bodyEl: HTMLElement;
   private tableContainer: HTMLElement;
-  private collapsed = false;
+  private collapsed = true;
   /** Dirty guard: skip the full 441-cell rebuild + table reflow when nothing
    *  rendered has changed. Trust shifts at most per-tick and usually per-day,
    *  but update() is called every render frame (~60 Hz) — without this the
@@ -131,15 +131,15 @@ export class RelationshipMatrixPanel {
     this.headerEl = createEl("div", { style: HEADER_STYLES });
     const title = createEl("span", { text: "Relationships" });
     this.chevronEl = createEl("span", {
-      text: "▾",
+      text: "▸",
       style: { color: EDG.steel, fontSize: "10px" },
     });
     this.headerEl.appendChild(title);
     this.headerEl.appendChild(this.chevronEl);
     this.headerEl.addEventListener("click", () => this.toggle());
 
-    // Everything below the header collapses together.
-    this.bodyEl = createEl("div");
+    // Everything below the header collapses together. Collapsed by default.
+    this.bodyEl = createEl("div", { style: { display: "none" } });
 
     const caption = createEl("div", {
       style: CAPTION_STYLES,

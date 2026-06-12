@@ -1,10 +1,3 @@
-export interface SpriteAnim {
-  clip: string;
-  frame: number;
-  elapsedMs: number;
-  playing: boolean;
-}
-
 export interface TrustScores {
   byId: Map<number, number>;
 }

@@ -22,8 +22,9 @@ interface RowEls {
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   position: "fixed",
-  bottom: "0",
-  left: "0",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
   width: "220px",
   background: EDG.black,
   color: EDG.silver,
@@ -32,8 +33,7 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   padding: "8px",
   boxSizing: "border-box",
   zIndex: "9999",
-  borderTop: `1px solid ${EDG.black}`,
-  borderRight: `1px solid ${EDG.black}`,
+  border: `1px solid ${EDG.black}`,
 };
 
 const RANK_COLORS: Record<number, string> = {
@@ -52,6 +52,7 @@ export class LeaderboardPanel {
   private rowsContainer: HTMLElement;
 
   private rowCache = new Map<number, RowEls>();
+  private visible = true;
 
   constructor(parent: HTMLElement) {
     this.panel = createEl("div");
@@ -155,7 +156,16 @@ export class LeaderboardPanel {
   }
 
   setVisible(v: boolean): void {
+    this.visible = v;
     this.panel.style.display = v ? "" : "none";
+  }
+
+  get isVisible(): boolean {
+    return this.visible;
+  }
+
+  toggle(): void {
+    this.setVisible(!this.visible);
   }
 
   destroy(): void {

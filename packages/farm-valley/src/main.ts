@@ -72,6 +72,8 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   // Prevent Space/arrow scroll — these drive Pip; WASD already don't scroll.
   const SCROLL_KEYS = new Set([
     "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+    // Tab toggles the standings panel; suppress default focus traversal.
+    "Tab",
   ]);
   window.addEventListener("keydown", (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;

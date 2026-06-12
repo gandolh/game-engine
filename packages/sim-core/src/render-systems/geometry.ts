@@ -394,8 +394,10 @@ export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> =
   return out;
 })();
 
-// Coral alpha: semi-transparent so water shows through.
-const CORAL_ALPHA = 0.4;
+// Coral alpha: semi-transparent so the animated water shows through both the
+// transparent gaps in each tile and the coral heads themselves — the reef reads
+// as colourful coral submerged under clear water.
+const CORAL_ALPHA = 0.55;
 
 // Coral clusters on open-water tiles (no 8-ring land neighbor). Fixed-seed, no Math.random.
 function computeCoral(): readonly CoralTile[] {
@@ -467,6 +469,14 @@ function computeCoral(): readonly CoralTile[] {
 
   const HALF_PI = Math.PI / 2;
   const isCoral = (x: number, y: number) => taken.has(key(x, y));
+  // Interior fill tiles rotate through three colourways (warm / cool / sunny) so a
+  // reef reads as a varied garden, not one repeated stamp. Pick deterministically
+  // from the tile coords (no Math.random) so the same seed yields the same reef.
+  const FILL_VARIANTS = ["tile/coral-fill", "tile/coral-fill-b", "tile/coral-fill-c"] as const;
+  const fillFrameFor = (tx: number, ty: number): string => {
+    const h = (Math.imul(tx + 1, 0x27d4eb2f) ^ Math.imul(ty + 1, 0x165667b1)) >>> 0;
+    return FILL_VARIANTS[h % 3]!;
+  };
   const out: CoralTile[] = [];
   for (const k of taken) {
     const tx = k % WORLD_WIDTH;
@@ -478,7 +488,7 @@ function computeCoral(): readonly CoralTile[] {
     const openCount = (up ? 0 : 1) + (right ? 0 : 1) + (down ? 0 : 1) + (left ? 0 : 1);
 
     if (openCount === 0) {
-      out.push({ tx, ty, frame: "tile/coral-fill", rotation: 0 });
+      out.push({ tx, ty, frame: fillFrameFor(tx, ty), rotation: 0 });
       continue;
     }
     // Corner tile: TOP-LEFT open at rotation 0; rotate to match the open pair.

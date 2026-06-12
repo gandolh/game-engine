@@ -36,14 +36,13 @@ import type {
 import type { Pen } from "./livestock";
 import type { OrchardTree } from "./orchard";
 import type { Skills } from "./skills";
-import type { SpriteAnim, TrustScores, DecisionTrace } from "./trust";
+import type { TrustScores, DecisionTrace } from "./trust";
 import { DECISION_TRACE_CAP } from "./trust";
 
 export interface GameEntity {
   id?: number;
   transform?: Transform;
   sprite?: Sprite;
-  spriteAnim?: SpriteAnim;
   fsm?: FsmState<FarmerFsmState>;
   beliefs?: Beliefs;
   desires?: Desires;

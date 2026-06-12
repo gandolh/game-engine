@@ -1,5 +1,6 @@
 import type { GameEntity } from "../components";
 import type { Season } from "../protocols/weather";
+import { loopClip, sampleCycle } from "./cycle";
 
 const TILE = 16;
 
@@ -12,6 +13,18 @@ export const FISHING_SPOT_FRAMES = [
   "structure/fishing-spot-b",
   "structure/fishing-spot-c",
 ] as const;
+
+/** Wall-clock cycle for the fishing-spot bubbles (sampled with a per-tile phase). */
+const FISHING_SPOT_CLIP = loopClip("fishing-spot", FISHING_SPOT_FRAMES, 1200);
+
+/**
+ * Action-pose "work swing": a small downward dip oscillating while a farmer/Pip
+ * performs a physical action, so the static work pose visibly works instead of
+ * freezing. Render-only; phase-shifted per entity. Faster + larger than idle bob.
+ * Interim until per-action `-a/-b` frames land (brief 85, phase 2).
+ */
+const ACTION_SWING_PERIOD = 110; // ms factor (≈0.7s cycle) — quicker than the idle bob
+const ACTION_SWING_AMP = 2.5; // px downward dip
 
 /** Animated forge-fire frames, cycled in the blacksmith oven's mouth. */
 export const FORGE_FIRE_FRAMES = [
@@ -136,11 +149,8 @@ export function resolveFrameAndBob(
   const seasonal = seasonalTreeFrame(s.frame, season);
   if (seasonal !== s.frame) return { frame: seasonal, bobY: 0 };
   if (s.frame === "structure/fishing-spot") {
-    const SPOT_PERIOD_MS = 1200;
-    const step = nowMs / (SPOT_PERIOD_MS / FISHING_SPOT_FRAMES.length);
     const phase = Math.floor(s.x / TILE) * 2 + Math.floor(s.y / TILE) * 3;
-    const frame = FISHING_SPOT_FRAMES[(Math.floor(step) + phase) % FISHING_SPOT_FRAMES.length]!;
-    return { frame, bobY: 0 };
+    return { frame: sampleCycle(FISHING_SPOT_CLIP, nowMs, phase), bobY: 0 };
   }
   if (s.id === null) return { frame: s.frame, bobY: 0 };
 
@@ -154,7 +164,10 @@ export function resolveFrameAndBob(
   const base = s.frame.replace(/\/walk-[ab]$/, ""); // e.g. "farmer/hoarder"
 
   if (s.action !== null && s.action in ACTION_POSE) {
-    return { frame: base + ACTION_POSE[s.action], bobY: 0 };
+    // Half-rectified cosine → a 0..AMP downward dip (a repeated "work strike").
+    const phase = (s.id ?? 0) * 1.7;
+    const swing = (0.5 - 0.5 * Math.cos(nowMs / ACTION_SWING_PERIOD + phase)) * ACTION_SWING_AMP;
+    return { frame: base + ACTION_POSE[s.action], bobY: swing };
   }
 
   // "down" = base frame; "up"/"side" insert a facing segment.

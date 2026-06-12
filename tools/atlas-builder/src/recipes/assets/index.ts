@@ -208,6 +208,14 @@ import r203 from "./decoration/casino-hotel";
 import r204 from "./tile/volcanic-floor";
 import r205 from "./tile/bridge-rail-posts";
 import r206 from "./tile/bridge-rail-rope";
+import r207 from "./tile/coral-fill-b";
+import r208 from "./tile/coral-fill-c";
+import r209 from "./decoration/fish-clown-a";
+import r210 from "./decoration/fish-clown-b";
+import r211 from "./decoration/fish-blue-a";
+import r212 from "./decoration/fish-blue-b";
+import r213 from "./decoration/fish-yellow-a";
+import r214 from "./decoration/fish-yellow-b";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -417,5 +425,13 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r204,
   r205,
   r206,
+  r207,
+  r208,
+  r209,
+  r210,
+  r211,
+  r212,
+  r213,
+  r214,
 ];
 

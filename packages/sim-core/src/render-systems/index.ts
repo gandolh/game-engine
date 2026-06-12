@@ -14,6 +14,16 @@ export {
   WEATHER_BEACON_PX,
 } from "./frames";
 
+export { sampleCycle, cycleIndex, loopClip } from "./cycle";
+export {
+  FOAM_CLIP,
+  FORGE_FIRE_CLIP,
+  FORGE_SMOKE_CLIP,
+  WATERFALL_FALL_CLIP,
+  CAMPFIRE_CLIP,
+  WEATHER_BEACON_CLIP,
+} from "./clips";
+
 export {
   OCEAN_TILES,
   COASTLINE_BUBBLE_TILES,
@@ -22,8 +32,9 @@ export {
   oceanDepthAt,
   COAST_DEPTH_MAX,
   SAND_SHORES,
+  CORAL,
 } from "./geometry";
-export type { ShoreTile } from "./geometry";
+export type { ShoreTile, CoralTile } from "./geometry";
 
 export {
   iterStaticSprites,

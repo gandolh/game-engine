@@ -36,12 +36,23 @@ describe("right-column", () => {
     expect(second.style.position).not.toBe("fixed");
   });
 
-  it("lets the feed take leftover space while the observer keeps its content height", () => {
+  it("collapses the feed to its header by default", () => {
+    const col = createRightColumn(root);
+    new ObserverPanel(col);
+    new EventFeedPanel(col);
+    const feedEl = col.children[1] as HTMLElement;
+    // Collapsed → does not claim leftover flex space.
+    expect(feedEl.style.flex).toBe("0 0 auto");
+  });
+
+  it("lets the feed take leftover space once expanded, observer keeps content height", () => {
     const col = createRightColumn(root);
     new ObserverPanel(col);
     new EventFeedPanel(col);
     const observerEl = col.children[0] as HTMLElement;
     const feedEl = col.children[1] as HTMLElement;
+    // Clicking the header expands the (default-collapsed) feed.
+    (feedEl.children[0] as HTMLElement).click();
     expect(observerEl.style.flexShrink).toBe("0");
     expect(feedEl.style.flex).toContain("1");
   });

@@ -40,7 +40,9 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
 export class EventFeedPanel {
   private panel: HTMLElement;
   private headerEl: HTMLElement;
+  private chevronEl: HTMLElement;
   private linesContainer: HTMLElement;
+  private collapsed = true;
 
   private onFarmerClick: ((id: number) => void) | null = null;
 
@@ -54,6 +56,10 @@ export class EventFeedPanel {
 
     this.headerEl = createEl("div", {
       style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        cursor: "pointer",
         fontWeight: "bold",
         fontSize: "13px",
         marginBottom: "6px",
@@ -61,8 +67,15 @@ export class EventFeedPanel {
         borderBottom: `1px solid ${EDG.ink}`,
         paddingBottom: "4px",
       },
-      text: "Activity",
     });
+    const title = createEl("span", { text: "Activity" });
+    this.chevronEl = createEl("span", {
+      text: "▸",
+      style: { color: EDG.steel, fontSize: "10px" },
+    });
+    this.headerEl.appendChild(title);
+    this.headerEl.appendChild(this.chevronEl);
+    this.headerEl.addEventListener("click", () => this.toggle());
 
     this.linesContainer = createEl("div");
     this.linesContainer.dataset["eventFeedLines"] = "";
@@ -81,6 +94,22 @@ export class EventFeedPanel {
     this.panel.appendChild(this.headerEl);
     this.panel.appendChild(this.linesContainer);
     parent.appendChild(this.panel);
+
+    // Collapsed by default; clicking the header expands it.
+    this.applyCollapse();
+  }
+
+  private toggle(): void {
+    this.collapsed = !this.collapsed;
+    this.applyCollapse();
+  }
+
+  private applyCollapse(): void {
+    this.linesContainer.style.display = this.collapsed ? "none" : "";
+    this.chevronEl.textContent = this.collapsed ? "▸" : "▾";
+    // When collapsed, shrink to the header instead of holding the flex/minHeight space.
+    this.panel.style.flex = this.collapsed ? "0 0 auto" : "1 1 auto";
+    this.panel.style.minHeight = this.collapsed ? "0" : "180px";
   }
 
   /** Render newest-first. rows are oldest-first; reversed and capped here. */

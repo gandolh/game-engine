@@ -6,3 +6,4 @@ export * from "./assets";
 export * from "./debug";
 export * from "./wasm";
 export * from "./input";
+export * from "./animation";

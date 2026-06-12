@@ -280,12 +280,24 @@
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/coral-fill-b": {
       "x": 69,
+      "y": 103,
+      "w": 16,
+      "h": 16
+    },
+    "tile/coral-fill-c": {
+      "x": 86,
+      "y": 103,
+      "w": 16,
+      "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 103,
       "y": 103,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "ac6ed905705242f076107ece27389f1f0e8d269f5e37da50a7ae99bcea0b3376"
+  "inputsHash": "c35fb49e396ea1af57b93cfce7fb0f555fef86d4c367aed23d1de86e2d75b671"
 }
