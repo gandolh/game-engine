@@ -10,6 +10,20 @@ export interface WashOptions { color: string; alpha: number; }
 export interface WeatherLike { count: number; draw(ctx: Ctx2D): void; }
 export type DecorateFn = (ctx: Ctx2D, widthPx: number, heightPx: number) => void;
 
+/**
+ * Options for the GPU cloud-shadow overlay (brief 15).
+ * `color` must be an EDG hex string (e.g. EDG.ink); parsed to RGB floats on the CPU.
+ * `coverage` in [0..1]: 0 = clear sky, 1 = full overcast.
+ * `driftSpeed` in world px/s: horizontal cloud scroll rate (vertical is 38% of this).
+ * `timeSec`: wall-clock seconds, drives the fBm animation phase.
+ */
+export interface CloudOptions {
+  color: string;
+  coverage: number;
+  driftSpeed: number;
+  timeSec: number;
+}
+
 export interface RendererLike {
   readonly camera: Camera2D;
   clearColor: string;

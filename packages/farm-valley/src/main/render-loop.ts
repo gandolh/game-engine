@@ -35,6 +35,25 @@ import type { SimClient } from "../worker/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { setupProfileExport } from "./profile-export";
 
+// ── Cloud-shadow type guard (brief 15) ───────────────────────────────────────
+// Using a local interface + type guard avoids requiring RendererLike to declare
+// setCloudOptions, since RendererLike is resolved through shared node_modules at
+// typecheck time and may lag the engine worktree (same pattern as setWaterDepthMask
+// in static-layer.ts). The GPU renderer exposes the method; the Canvas2D backend
+// does not. Structural typing ensures both match at runtime.
+interface CloudOpts {
+  color: string;
+  coverage: number;
+  driftSpeed: number;
+  timeSec: number;
+}
+interface RendererWithCloudOptions {
+  setCloudOptions(opts: CloudOpts): void;
+}
+function supportsCloudOptions(r: RendererLike): r is RendererLike & RendererWithCloudOptions {
+  return typeof (r as Partial<RendererWithCloudOptions>).setCloudOptions === "function";
+}
+
 export interface RenderLoopDeps {
   client: SimClient;
   renderer: RendererLike;
@@ -633,6 +652,38 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       ambient.update(dtMs, nowMs, view, nightness, season);
       ambient.pushSprites(renderer);
     });
+    // Cloud-shadow coverage: render-side only — reads the already-snapshotted weather.
+    // sunny   → coverage 0.06, drift 3 px/s  (sparse slow wisps)
+    // normal  → coverage 0.22, drift 6 px/s  (scattered clouds)
+    // rainy   → coverage 0.52, drift 9 px/s  (overcast, active drift)
+    // storm   → coverage 0.72, drift 14 px/s (heavy cover, fast-moving)
+    // Guarded by supportsCloudOptions: no-op on Canvas2D backend.
+    if (supportsCloudOptions(renderer)) {
+      const wSnap = client.latestSnapshot()?.weather;
+      const condition = wSnap?.condition ?? "normal";
+      let cloudCoverage: number;
+      let cloudDrift: number;
+      if (condition === "sunny") {
+        cloudCoverage = 0.06;
+        cloudDrift = 3;
+      } else if (condition === "rainy") {
+        cloudCoverage = 0.52;
+        cloudDrift = 9;
+      } else if (condition === "storm") {
+        cloudCoverage = 0.72;
+        cloudDrift = 14;
+      } else {
+        // "normal"
+        cloudCoverage = 0.22;
+        cloudDrift = 6;
+      }
+      renderer.setCloudOptions({
+        color: EDG.ink,
+        coverage: cloudCoverage,
+        driftSpeed: cloudDrift,
+        timeSec: nowMs / 1000,
+      });
+    }
     frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain));
 
     const snap = client.latestSnapshot();
