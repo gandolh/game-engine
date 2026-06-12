@@ -21,7 +21,9 @@ export {
   isOccluderWall,
   oceanDepthAt,
   COAST_DEPTH_MAX,
+  SAND_SHORES,
 } from "./geometry";
+export type { ShoreTile } from "./geometry";
 
 export {
   iterStaticSprites,

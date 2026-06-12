@@ -176,6 +176,16 @@ function computeShores(): readonly ShoreTile[] {
 
 export const SHORES: readonly ShoreTile[] = computeShores();
 
+/**
+ * Shore tiles whose island edge is sand (farms + fishing isles) — the beaches that get a baked
+ * descent darkening toward the waterline (brief 83 item 2), so they read as rising out of the
+ * water rather than floating. Stone/wood edges read as cliffs/docks and are left alone.
+ */
+export const SAND_SHORES: readonly ShoreTile[] = SHORES.filter((s) => {
+  const region = regionAt(s.tx, s.ty);
+  return region !== null && edgeFrame(region) === "tile/shore-sand";
+});
+
 export function isBridge(tx: number, ty: number): boolean {
   if (!isWalkable(tx, ty)) return false;
   if (regionAt(tx, ty) !== null) return false; // region interiors are land
