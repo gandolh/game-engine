@@ -2,6 +2,7 @@ import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engin
 import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike } from "@engine/core";
 import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
+import type { JuiceLayer } from "./juice";
 import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -68,13 +69,14 @@ export interface RenderLoopDeps {
   maxDays: number;
   ticksPerDay: number;
   ambient: AmbientLayer;
+  juice: JuiceLayer;
   onFirstFrame?: () => void;
 }
 
 export function createRenderLoop(deps: RenderLoopDeps): () => void {
   const {
     client, renderer, keyboard, particles, particleDirector, rain,
-    canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient,
+    canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient, juice,
   } = deps;
 
   let firstFrameSignaled = false;
@@ -245,6 +247,29 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const sx = _camera !== null ? canvas.width / _camera.worldUnitsX : 1;
     if (_camera !== null) {
       applyFocusAndPan(_camera, interpolatedSprites, dt, sx);
+    }
+
+    // Brief 86 — juice: update popups, shake, hitstop. Must happen AFTER applyFocusAndPan
+    // (so shake is post-smoothing) and AFTER interpolatedSprites (so farmerPositions is fresh).
+    // Build farmerPositions here (moved up from later in the frame) so juice.update() can
+    // anchor popups to farmer sprites without a second pass.
+    const farmerPositions = new Map<number, { x: number; y: number }>();
+    for (const s of interpolatedSprites) {
+      if (s.id !== null && s.interpolate) {
+        farmerPositions.set(s.id, { x: s.x, y: s.y });
+      }
+    }
+
+    if (_camera !== null) {
+      juice.update(client.events, farmerPositions, _camera, canvas, dt);
+      const hitstopN = juice.consumeHitstopFrames();
+      if (hitstopN > 0) client.freezeInterp(hitstopN);
+      // Apply shake as a POST-smoothing offset (never fed back into the smooth state).
+      // The next frame's applyFocusAndPan will re-derive the smoothed center from scratch.
+      const shk = juice.shake;
+      if (shk.x !== 0 || shk.y !== 0) {
+        _camera.setCenter(_camera.centerX + shk.x, _camera.centerY + shk.y);
+      }
     }
 
     renderer.beginFrame();
@@ -457,13 +482,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           sizeMin: 0.6, sizeMax: 1.4,
           gravity: 0,
         });
-      }
-    }
-
-    const farmerPositions = new Map<number, { x: number; y: number }>();
-    for (const s of interpolatedSprites) {
-      if (s.id !== null && s.interpolate) {
-        farmerPositions.set(s.id, { x: s.x, y: s.y });
       }
     }
 

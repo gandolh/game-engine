@@ -13,6 +13,8 @@ const DOM_FILES = [
   "src/ui/slate-billboard.test.ts",
   "src/ui/wealth-graph.test.ts",
   "src/worker/sim-client/client.visibility.test.ts",
+  // Brief 86 — juice effects use DOM (popup overlay)
+  "src/main/juice.test.ts",
 ];
 
 export default defineConfig({
