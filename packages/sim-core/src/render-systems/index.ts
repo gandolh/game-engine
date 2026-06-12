@@ -33,6 +33,8 @@ export {
   isOccluderWall,
   oceanDepthAt,
   COAST_DEPTH_MAX,
+  oceanGradientAt,
+  GRADIENT_DEPTH_MAX,
   SAND_SHORES,
   CORAL,
 } from "./geometry";

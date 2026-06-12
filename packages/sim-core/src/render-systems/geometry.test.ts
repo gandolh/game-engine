@@ -7,6 +7,8 @@ import {
   COASTLINE_BUBBLE_TILES,
   oceanDepthAt,
   COAST_DEPTH_MAX,
+  oceanGradientAt,
+  GRADIENT_DEPTH_MAX,
 } from "./geometry";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "../world/regions";
 
@@ -134,5 +136,75 @@ describe("oceanDepthAt (coastal shallow-water bands)", () => {
       }
     }
     expect(sawMax).toBe(true);
+  });
+});
+
+describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", () => {
+  it("land tiles return 0", () => {
+    // Take a land neighbour of the first coastline-bubble tile.
+    const b = COASTLINE_BUBBLE_TILES[0]!;
+    const landNbr = [
+      [b.tx, b.ty - 1], [b.tx, b.ty + 1], [b.tx - 1, b.ty], [b.tx + 1, b.ty],
+    ].find(([x, y]) => isWalkable(x!, y!));
+    expect(landNbr, "expected a land neighbour").toBeDefined();
+    expect(oceanGradientAt(landNbr![0]!, landNbr![1]!)).toBe(0);
+  });
+
+  it("out-of-grid returns 0", () => {
+    expect(oceanGradientAt(-1, 0)).toBe(0);
+    expect(oceanGradientAt(WORLD_WIDTH, WORLD_HEIGHT)).toBe(0);
+  });
+
+  it("shore-adjacent ocean tiles return 1.0 (maximum proximity)", () => {
+    for (const b of COASTLINE_BUBBLE_TILES.slice(0, 50)) {
+      expect(
+        oceanGradientAt(b.tx, b.ty),
+        `coast-adjacent ocean (${b.tx},${b.ty}) should be 1.0`,
+      ).toBe(1.0);
+    }
+  });
+
+  it("all values are in [0, 1]", () => {
+    for (let ty = 0; ty < WORLD_HEIGHT; ty += 5) {
+      for (let tx = 0; tx < WORLD_WIDTH; tx += 5) {
+        const g = oceanGradientAt(tx, ty);
+        expect(g, `gradient at (${tx},${ty}) out of [0,1]`).toBeGreaterThanOrEqual(0);
+        expect(g, `gradient at (${tx},${ty}) out of [0,1]`).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("gradient is monotone: tiles further from land are not closer to 1.0 than tiles nearer", () => {
+    // Find a coast-adjacent tile and walk outward in one direction; the gradient should
+    // weakly decrease (non-increasing) as BFS distance grows.
+    const b = COASTLINE_BUBBLE_TILES[0]!;
+    // Walk rightward from b; stop when we hit land or go off-grid.
+    let prev = oceanGradientAt(b.tx, b.ty);
+    for (let dx = 1; dx < GRADIENT_DEPTH_MAX + 2; dx++) {
+      const tx = b.tx + dx;
+      if (tx >= WORLD_WIDTH) break;
+      if (isWalkable(tx, b.ty)) break; // hit land
+      const cur = oceanGradientAt(tx, b.ty);
+      expect(
+        cur,
+        `gradient at (${tx},${b.ty}) increased from prev=${prev} — should be non-increasing`,
+      ).toBeLessThanOrEqual(prev + 1e-9); // tolerance for float rounding
+      prev = cur;
+    }
+  });
+
+  it("tiles far from any land return 0 (open ocean)", () => {
+    // Walk inward from the world edge (all-ocean region) and verify that tiles
+    // beyond GRADIENT_DEPTH_MAX distance read 0.
+    let foundDeep = false;
+    for (let ty = 0; ty < WORLD_HEIGHT && !foundDeep; ty++) {
+      for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+        if (!isWalkable(tx, ty) && oceanGradientAt(tx, ty) === 0) {
+          foundDeep = true;
+          break;
+        }
+      }
+    }
+    expect(foundDeep, "expected at least one ocean tile with gradient=0 (far from land)").toBe(true);
   });
 });

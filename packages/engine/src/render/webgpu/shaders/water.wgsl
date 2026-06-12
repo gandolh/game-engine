@@ -5,8 +5,13 @@
 // from WaterPass; `time` is the wall-clock seconds for animation.
 //
 // Brief 13 additions (all palette-safe by construction):
-//   Task 1 — Cell-hash tiling break: floor() world UV into cells, hash each cell id, offset/flip
-//             the per-cell UV phase so the visible repeat period is broken.
+//   Task 1 — REMOVED (was harmful for a procedural field). The original cell-hash tiling break
+//             gave each water-tile-sized cell a random phase offset + X/Y flips. Because this
+//             water is fully PROCEDURAL (the bound texture is unused), the long-wavelength ripple
+//             sines (r1/r2, wavelengths >> cellSz) became DISCONTINUOUS at every cell border:
+//             adjacent cells rendered different brightness of the same wave → blocky patchwork.
+//             The noise-warp (Task 2) plus the incommensurate sine pair already prevent any
+//             visible periodicity without introducing grid-aligned discontinuities.
 //   Task 2 — Value-noise UV-warp: standard 2D bilinear value noise (~20 lines) drives a small
 //             animated displacement of the world-position sample coordinate.
 //   Task 3 — Quantized shore foam: step()-thresholded noise band at the depth boundary. EDG-white
@@ -14,6 +19,10 @@
 //   Task 4 — Voronoi caustics on the shallow band: 3×3-tile Voronoi distance field thresholded
 //             to cell edges, drifted over time, masked to the depth band; EDG cyan/white at
 //             quantized alpha. Composes UNDER the day/night tint (brief 12 TintPass).
+//   Depth gradient (brief 13 follow-up) — the depth mask is now a wide 0..1 shore-proximity
+//             gradient (GRADIENT_DEPTH_MAX=14 tiles, CPU-side), sampled LINEAR so the tile-
+//             resolution mask interpolates smoothly. Base color blends toward shallowColor near
+//             shore. Foam/caustics thresholds recalibrated to the new mask scale.
 //
 // ViewUniform layout (group 0, binding 0) — folded world->clip coefficients (scaleY is NEGATIVE).
 struct ViewUniform {
@@ -86,11 +95,6 @@ fn hash21(p: vec2<f32>) -> f32 {
   return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
 }
 
-// Cell-id hash → [0,1). Used to offset/flip each cell's UV phase (task 1).
-fn cellHash(c: vec2<f32>) -> f32 {
-  return fract(sin(dot(c, vec2<f32>(12.9898, 78.233))) * 43758.5453);
-}
-
 // ── Value-noise helpers (task 2) ─────────────────────────────────────────────────────────────────
 // Standard 2D bilinear value noise, Book of Shaders ch. 11 recipe, translated to WGSL.
 
@@ -142,34 +146,17 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   let p = in.worldPos;
   let t = water.time;
 
-  // ── Task 1: Cell-hash tiling break ───────────────────────────────────────────────────────────
-  // Floor the world pos into cells sized to the water tile. Hash each cell id and use the hash
-  // to offset/flip the UV phase, so adjacent cells use different phase offsets and the periodic
-  // repeat is broken without introducing a new visible grid.
-  let cellSz = max(water.tileSize, 1.0);
-  let cellId = floor(p / cellSz);
-  let ch = cellHash(cellId);
-  // Phase offset: each cell gets a random offset in [0, cellSz); also flip X and/or Y.
-  let flipX = step(0.5, fract(ch * 13.7));   // 0 or 1 — flip X in ~half the cells
-  let flipY = step(0.5, fract(ch * 29.3));   // 0 or 1 — flip Y in ~half the cells
-  let phaseOff = ch * cellSz;                // per-cell phase in [0, cellSz)
-  // Local position within cell (aligned to tile boundary so no new seam).
-  let localP = fract(p / cellSz) * cellSz;
-  // Apply flips symmetrically so the texture wraps cleanly at tile boundaries.
-  let flippedX = mix(localP.x, cellSz - localP.x, flipX);
-  let flippedY = mix(localP.y, cellSz - localP.y, flipY);
-  let pHash = cellId * cellSz + vec2<f32>(flippedX, flippedY) + phaseOff;
-
   // ── Task 2: Value-noise UV-warp ───────────────────────────────────────────────────────────────
   // Bilinear value noise at a coarse scale, animated by time, displaces the sample coordinate
   // by a few pixels — turns the flat repeating scroll into visible low-frequency undulation.
-  // Scale: 1 noise unit ≈ 80 world px (coarse); amplitude: ~3 world px (subtle, pixel-art safe).
+  // Computed from plain world-space `p` (no per-cell hashing) so it is CONTINUOUS across the
+  // whole ocean surface. Scale: 1 noise unit ≈ 80 world px (coarse); amplitude: ~3 px (subtle).
   let noiseScale = 1.0 / 80.0;
   let noiseAnim = t * 0.12;  // slow drift
-  let nX = valueNoise(pHash * noiseScale + vec2<f32>(noiseAnim, 0.0));
-  let nY = valueNoise(pHash * noiseScale + vec2<f32>(0.0, noiseAnim * 0.7));
+  let nX = valueNoise(p * noiseScale + vec2<f32>(noiseAnim, 0.0));
+  let nY = valueNoise(p * noiseScale + vec2<f32>(0.0, noiseAnim * 0.7));
   let warp = (vec2<f32>(nX, nY) - 0.5) * 6.0;   // ±3 world px
-  let pWarped = pHash + warp;
+  let pWarped = p + warp;
 
   // ── Ripples (original logic, applied to warped + hashed coordinate) ──────────────────────────
   let r1 = sin(pWarped.x * 0.060 + pWarped.y * 0.028 + t * 0.90);
@@ -193,21 +180,32 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   col = mix(col, water.glintColor.rgb, glint);
 
   // ── Depth mask sample ─────────────────────────────────────────────────────────────────────────
-  // Sample the per-tile depth mask uploaded from CPU (oceanDepthAt). UV = tile position / tileDims.
-  // clamp-to-edge so out-of-range world positions read 0 (deep ocean, no foam/caustics).
+  // Sample the wide shore-proximity gradient (GRADIENT_DEPTH_MAX=14 tiles, CPU-side).
+  // UV = world-pixel position / world dimensions; LINEAR sampler interpolates sub-tile positions.
+  // clamp-to-edge: out-of-range positions read 0 (open ocean, no shore effects).
+  // depthSample: 1.0 = tile immediately adjacent to land; 0.0 = ≥14 tiles from land.
   let depthUV = p / vec2<f32>(water.worldWidthPx, water.worldHeightPx);
   let depthSample = textureSample(depthMask, samplerDepth, depthUV).r;
-  // depthSample ≈ depth/COAST_DEPTH_MAX; 0 = deep ocean, ~1 = adjacent to shore.
+
+  // ── Shore-to-deep gradient ────────────────────────────────────────────────────────────────────
+  // Blend the base color toward shallowColor near shore (high depthSample).
+  // A tiny valueNoise dither (±0.03) breaks any banding in the wide gradient.
+  let dither = (valueNoise(p * 0.015 + vec2<f32>(t * 0.03, 0.0)) - 0.5) * 0.06;
+  col = mix(col, water.shallowColor.rgb, clamp(depthSample * 0.45 + dither, 0.0, 1.0));
 
   // ── Task 3: Quantized shore foam ─────────────────────────────────────────────────────────────
   // Noise-based band right at the depth boundary, step()-quantized to 2 alpha levels (pixel-art).
-  // The foam appears where depth is high (near shore) and the noise exceeds a threshold.
-  // Two levels: strong foam (near very shallow water) and weak foam (slightly deeper).
+  // Thresholds are calibrated to GRADIENT_DEPTH_MAX=14:
+  //   old mask 0.70 (within ~1.2 tiles) → new ≈ (14-1.2)/14 ≈ 0.91
+  //   old mask 0.40 (within ~2.4 tiles) → new ≈ (14-2.4)/14 ≈ 0.83
+  // FOAM_NEAR: within ~1.2 tiles of shore; FOAM_FAR: within ~2.4 tiles.
+  let FOAM_NEAR = 0.91;
+  let FOAM_FAR  = 0.83;
   let foamNoise = valueNoise(p * 0.055 + vec2<f32>(t * 0.25, t * 0.18));
-  // Level 1: strongest foam, closest to shore (depthSample ≥ 0.7, noise ≥ 0.62)
-  let foam1 = step(0.70, depthSample) * step(0.62, foamNoise);
-  // Level 2: lighter foam band slightly further out (depthSample ≥ 0.40, noise ≥ 0.68)
-  let foam2 = step(0.40, depthSample) * step(0.68, foamNoise) * (1.0 - foam1);
+  // Level 1: strongest foam, closest to shore
+  let foam1 = step(FOAM_NEAR, depthSample) * step(0.62, foamNoise);
+  // Level 2: lighter foam band slightly further out
+  let foam2 = step(FOAM_FAR, depthSample) * step(0.68, foamNoise) * (1.0 - foam1);
   // Quantized alphas: 0 (none), 0.30 (light), 0.55 (strong).
   let foamAlpha = foam1 * 0.55 + foam2 * 0.30;
   col = mix(col, water.foamColor.rgb, foamAlpha);
@@ -215,13 +213,17 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   // ── Task 4: Voronoi caustics on the shallow band ─────────────────────────────────────────────
   // 3×3-tile Voronoi distance field thresholded to cell edges, masked to the depth band.
   // Scale: 1 Voronoi unit ≈ 32 world px (tile-sized cells); drift: slow time.
+  // Caustics gate threshold calibrated to GRADIENT_DEPTH_MAX=14:
+  //   old gate (mask > 0.01, within 4 tiles) → new ≈ step(0.72, depthSample) (within ~4 tiles).
+  // CAUSTICS_GATE: within ~4 tiles of shore (= 1 - 4/14 ≈ 0.71, rounded up to 0.72).
+  let CAUSTICS_GATE = 0.72;
   let causticScale = 1.0 / 32.0;
   let drift = vec2<f32>(t * 0.06, t * 0.04);
   let vd = voronoiDist(p * causticScale, drift);
   // Threshold to the cell edges: narrow band near edge (vd close to 0 = deep between cells,
   // vd near cell spacing = near edge). The caustic "lines" are at small vd values.
-  // step()-quantize to 2 levels (pixel-art). Masked to depth band (depthSample > 0).
-  let inDepth = step(0.01, depthSample);
+  // step()-quantize to 2 levels (pixel-art). Masked to depth band.
+  let inDepth = step(CAUSTICS_GATE, depthSample);
   // Two quantized alpha levels for the caustic band.
   let caustic1 = step(0.72, vd) * inDepth;  // brightest caustic lines (near cell edge)
   let caustic2 = step(0.64, vd) * inDepth * (1.0 - caustic1);  // secondary ring

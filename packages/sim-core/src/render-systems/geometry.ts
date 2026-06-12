@@ -376,6 +376,73 @@ export function oceanDepthAt(tx: number, ty: number): number {
   return OCEAN_DEPTH[ty * WORLD_WIDTH + tx]!;
 }
 
+/**
+ * Wide gradient BFS for the GPU depth mask (brief 13 follow-up).
+ * Returns a normalized shore-proximity value in [0, 1]:
+ *   1.0 = ocean tile immediately adjacent to land (BFS distance 1)
+ *   0.0 = land tile, out-of-grid, or ≥ GRADIENT_DEPTH_MAX tiles from any land
+ * The wider range (vs COAST_DEPTH_MAX=4) lets the shader blend a smooth shore→deep gradient
+ * across the full visible coast band without changing COAST_DEPTH_MAX or oceanDepthAt.
+ */
+export const GRADIENT_DEPTH_MAX = 14;
+const OCEAN_GRADIENT: Float32Array = (() => {
+  const grad = new Float32Array(WORLD_WIDTH * WORLD_HEIGHT); // 0.0 = land / not-yet-visited
+  const queue: number[] = [];
+  // Seed: ocean tiles touching land get distance 1.
+  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+      if (isWalkable(tx, ty)) continue; // land → 0 (handled by default)
+      const touchesLand =
+        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) ||
+        isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
+      if (touchesLand) {
+        grad[ty * WORLD_WIDTH + tx] = 1; // store raw distance temporarily
+        queue.push(ty * WORLD_WIDTH + tx);
+      }
+    }
+  }
+  // BFS outward through ocean, stopping at GRADIENT_DEPTH_MAX.
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head]!;
+    const d = grad[i]!;
+    if (d >= GRADIENT_DEPTH_MAX) continue;
+    const x = i % WORLD_WIDTH;
+    const y = (i - x) / WORLD_WIDTH;
+    const nbrs = [
+      x + 1 < WORLD_WIDTH ? i + 1 : -1,
+      x - 1 >= 0 ? i - 1 : -1,
+      y + 1 < WORLD_HEIGHT ? i + WORLD_WIDTH : -1,
+      y - 1 >= 0 ? i - WORLD_WIDTH : -1,
+    ];
+    for (const ni of nbrs) {
+      if (ni < 0) continue;
+      if (grad[ni] !== 0) continue; // visited or land
+      const nx = ni % WORLD_WIDTH;
+      const ny = (ni - nx) / WORLD_WIDTH;
+      if (isWalkable(nx, ny)) continue; // don't bleed onto land
+      grad[ni] = d + 1;
+      queue.push(ni);
+    }
+  }
+  // Normalize: distance 1 → 1.0, distance GRADIENT_DEPTH_MAX → 1/GRADIENT_DEPTH_MAX,
+  // distance 0 (land or unvisited open ocean) → 0.
+  for (let i = 0; i < grad.length; i++) {
+    const d = grad[i]!;
+    grad[i] = d > 0 ? (GRADIENT_DEPTH_MAX - d + 1) / GRADIENT_DEPTH_MAX : 0;
+  }
+  return grad;
+})();
+
+/**
+ * Shore-proximity gradient at ocean tile (tx, ty), normalized to [0, 1].
+ * 1.0 = adjacent to land, decays to 0 at GRADIENT_DEPTH_MAX tiles out. Land and out-of-grid → 0.
+ * Used by buildDepthMask in static-layer.ts to fill the GPU R8 texture for the wide gradient.
+ */
+export function oceanGradientAt(tx: number, ty: number): number {
+  if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return 0;
+  return OCEAN_GRADIENT[ty * WORLD_WIDTH + tx]!;
+}
+
 /** Ocean tiles touching land — animated foam bubbles drawn here. Cliff tiles excluded. */
 export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
   const out: Array<{ tx: number; ty: number }> = [];
