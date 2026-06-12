@@ -2,6 +2,19 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] iteration | visual polish round 2 — WebGPU-only, organic bridge, procedural water, Stardew cottages (+ shader gotcha)
+
+User ran the brief-83 first pass and gave visual feedback; this round acted on it. **All render-only.**
+
+- **WebGPU-only game.** `farm-valley/main.ts` now forces `backend: "webgpu"` (createRenderer throws → `showFatal` if unavailable); the Canvas2dRenderer stays in `@engine/core` for tests/other consumers. `water-decor.ts` retyped to `RendererLike`. The static-layer bake (a Canvas2D OffscreenCanvas pass) still feeds both backends, so the brief-83 shore/water bakes survive.
+- **Bridge feel** ([occluders.ts](../packages/sim-core/src/render-systems/occluders.ts)): sway is now two incommensurate sines + a slow amplitude breathe (organic, one global phase → no tearing). The guard rail was split into a grounded `bridge-rail-posts` frame + a `bridge-rail-rope` frame whose Y is offset by a per-tile catenary sag (new `BridgeTile.spanT`) → the rope droops between posts. Terrain sheet 47 frames; asset count → 207.
+- **Procedural water** ([water.wgsl](../packages/engine/src/render/webgpu/shaders/water.wgsl)): replaced the tiled `tile/ocean` dot pattern (the "blue rectangles") with a deep→sky-blue gradient + two scrolling sine ripples + sparse drifting cyan glints. Colors are EDG-sourced uniforms (no WGSL color literals); `WaterUniform` grew to 24 floats; animation time = `performance.now()` (render-only).
+- **Stardew cottages** ([cottage-*.ts](../tools/atlas-builder/src/recipes/assets/structure/)): full restyle of all 5 — shingled gable roof + round gable window, warm log-plank walls with courses, green-framed windows, paneled door + gold knob, porch lip. One geometry (programmatically generated, row-validated 32-wide); only the roof palette keys the personality.
+
+**⚠️ Gotcha — WGSL is not validated by the build.** A `let active = …` (WGSL reserved keyword) compiled fine through `tsc`/`vitest` (shaders are opaque `?raw` strings; jsdom has no WebGPU) but failed shader compilation in the browser → the invalid pipeline blanked **every** frame → black canvas (HTML HUD unaffected). Fixed by renaming (`active`→`lit`, `dot`→`spark`). Added [wgsl-lint.test.ts](../packages/engine/src/render/webgpu/shaders/wgsl-lint.test.ts) — scans `*.wgsl` for reserved-keyword identifiers (verified it flags `active`). Lesson: **green tsc+vitest does NOT mean a shader compiles** — diagnose render-blackouts via the browser console (`CreateShaderModule` errors). A fuller validator (naga/Tint) + `showFatal` on `getCompilationInfo` errors are open follow-ups.
+
+> Note: the atlas `assets.test.ts` "rebuilds only the crops sheet" cache test does ~4 full `--force` rebuilds via execSync and **times out (5s) on constrained hardware when the dev server is running** — environmental, not a defect. Bumping its timeout is a candidate robustness fix.
+
 ## [2026-06-12] brief | 83-visual-depth-polish — first pass on all 4 items shipped (awaiting visual sign-off)
 
 Webgpu having landed in `main` reframed the brief: `bakeStaticLayer` takes a Canvas2D `decorate` callback that **both** backends consume (Canvas2D draws it; WebGPU uploads it as a static texture, [static-layer-pass.ts](../packages/engine/src/render/webgpu/static-layer-pass.ts)), so the "Canvas2D vs shader" split for item 4 was moot — the bake serves both, and the shader version stays a future backlog item.
