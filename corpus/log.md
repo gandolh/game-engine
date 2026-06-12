@@ -2,6 +2,37 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] feature | animation Tier-B (frame-existence guard + formalized vocabulary)
+
+Implemented Tier B of the animation [backlog](wiki/animation.md). typecheck clean; sim-core 692 / farm-valley 152 / engine 139 green.
+
+- **#6 atlas-existence guard** — added `enumerateFarmerFrames(base)` (single source of truth for every frame `resolveFrameAndBob` can emit: idle/passing, walk phases × facing, action poses + `-b`). `render-systems/farmer-frames.test.ts` reads the built `characters.json` and asserts each enumerated frame exists. Closes the silent-missing-frame gap (a constructed-but-absent name drew nothing). Bonus: confirms all phase-2/3 frames ship. (Placed in sim-core, not farm-valley, because farm-valley's tsconfig lacks node `fs` types; sim-core already reads cross-package artifacts in `travel.test.ts`.)
+- **#7 formalized vocabulary** — typed `FACING_SEG: Record<Facing,string>` replaces ad-hoc `facing==="down"?…:"/"+facing` string-building; emit-set centralized in `enumerateFarmerFrames`. **Deliberately did NOT build a stateful transition-FSM**: our renderer is stateless per-frame (the snapshot already encodes deterministic `action`/`moving`/`facing`), so the correct shape is a state→clip resolver (which `resolveFrameAndBob` is), not a per-entity transition machine. A transition-FSM only pays off for render-side one-shot triggers that outlive a tick (harvest flourish / hurt flash via `Animator.play`/`isFinished`) — deferred until concrete.
+- **#8 hit-pause** — deferred (needs per-entity freeze state; low payoff for a gentle farming sim).
+
+## [2026-06-12] feature | animation Tier-A juice pass (easing + frame events + dust + bob + pop)
+
+Implemented Tier A of the animation [improvement backlog](wiki/animation.md). Render-only; engine 139 / sim-core render-systems 55 / farm-valley 152 tests green; typecheck clean. Awaiting in-browser feel-check.
+
+- **Engine easing** (`@engine/core/animation/easing.ts`): `easeOutBack`/`easeOutQuad`/`easeOutCubic`/`easeOutElastic`/`smoothstep`/`linear` + tests.
+- **Frame events on `AnimationClip`**: optional `events: {atMs,name}[]` + stateless `eventsBetween(prevMs, curMs)` (half-open window, loop wrap, capped on huge dt). Chosen over a stateful per-entity Animator to fit our wall-clock sampling. `loopClip` gained an events param.
+- **Footstep dust**: `WALK_CLIP` fires a `step` event at each contact phase; `walkStepsBetween(id, prev, now)` (exported from render-systems) counts crossings with the per-entity phase offset; render-loop emits a pale 2-particle puff at the feet of moving, on-screen, on-land farmers.
+- **Asymmetric idle bob**: replaced the pure sine with a quick-lift / slow-settle breath (`easeOutQuad`, ~1.3px up) — less robotic (Slynyrd).
+- **Action scale-pop**: `resolveFrameAndBob` now returns an optional `scale`; on the action strike (`-b`) half it pops to ~1.10 and settles, applied to sprite `width`/`height` in `pushSnapshotSprites`. Per-strike + stateless.
+- **Caveat:** pixel-snap softens the scale tween sub-pixel at low res — verify in feel-check (opt-in character no-snap if it shimmers).
+
+## [2026-06-12] research | animation-engine improvement backlog (web research, filtered against our renderer)
+
+Web research on 2D animation architecture + pixel-art juice → a ranked, cited improvement backlog folded into [wiki/animation.md](wiki/animation.md) ("Research-backed improvement backlog"). Verified against the renderer first: `Sprite` honors per-sprite `width`/`height`/`rotation`/`flipX`; `pixelSnap` snaps position only (scale/rotation tweens render fine at zoom with mild softening); no easing utils beyond `smoothstep`; no frame-event system.
+
+- **Validated our current design:** logic↔animation decoupling via semantic snapshot (Unity Mecanim / Godot / DDAC paper), no-frame-interpolation + position-lerp-only (pixel-art consensus), and 4-way+flipX (Stardew) are all textbook-correct — don't relitigate.
+- **Tier A (cheap juice, mostly no art):** (1) engine easing module (easeOutBack/Quad/Elastic); (2) **frame events on `AnimationClip`** — the architectural unlock that turns scattered inline particle code into clip data; (3) footstep dust on the walk contact phase; (4) asymmetric idle bob (faster rise than fall — Slynyrd); (5) action/harvest scale-pop via width/height + easeOutBack.
+- **Tier B (structural):** (6) an atlas-existence guard test (we have NO guard that a constructed frame string exists — silent blank at render); (7) formalize a per-character "animation set" + tiny AnimFSM (typed per-facing clip maps, target-vs-trigger) to replace the if/else + string concat in `resolveFrameAndBob`, worthwhile as states grow; (8) optional hit-pause.
+- **Tier C (skip):** Aseprite-JSON import (N/A — code-authored recipes), hair-lag/trails/per-swing screenshake/8-way.
+- **Caveat recorded:** pixel-snap softens scale/rotation tweens at low res — verify in the brief-85 feel-check; opt-in character-layer no-snap if needed.
+
+No code changes this entry — backlog only, pending the user's pick of which tier to build.
+
 ## [2026-06-12] brief | 85 animation engine — phase 3 (render-side walk migration + 4-phase stride)
 
 Completed the third phase of [brief 85](briefs/game/todo/85-animation-engine.md); all three phases now implemented (awaiting one in-browser feel-check). Render-only — no determinism impact (the snapshot frame string isn't a sim output).

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loopClip, sampleCycle, cycleIndex } from "./cycle";
 import { FOAM_CLIP, WEATHER_BEACON_CLIP } from "./clips";
-import { resolveFrameAndBob } from "./frames";
+import { resolveFrameAndBob, walkStepsBetween } from "./frames";
 import type { SnapshotSprite } from "../snapshot";
 
 const FRAMES = ["a", "b", "c"] as const;
@@ -128,6 +128,45 @@ describe("resolveFrameAndBob — walk cycle", () => {
   it("action takes priority over the walk cycle", () => {
     const f = resolveFrameAndBob(sprite({ id: 0, moving: true, action: "till" }), 0).frame;
     expect(f).toBe("farmer/hoarder/till");
+  });
+});
+
+describe("resolveFrameAndBob — action scale-pop", () => {
+  it("is 1 on the base pose half and pops >1 on the strike (-b) half", () => {
+    const a = resolveFrameAndBob(sprite({ id: 0, action: "till" }), 0); // base half
+    const b = resolveFrameAndBob(sprite({ id: 0, action: "till" }), 220); // strike half, q≈0
+    expect(a.frame).toBe("farmer/hoarder/till");
+    expect(a.scale).toBe(1);
+    expect(b.frame).toBe("farmer/hoarder/till-b");
+    expect(b.scale!).toBeGreaterThan(1);
+    expect(b.scale!).toBeLessThanOrEqual(1.1001); // amp 0.1
+  });
+
+  it("the pop peaks at the start of the strike and settles toward 1", () => {
+    const peak = resolveFrameAndBob(sprite({ id: 0, action: "till" }), 220).scale!;
+    const settling = resolveFrameAndBob(sprite({ id: 0, action: "till" }), 430).scale!;
+    expect(peak).toBeGreaterThan(settling);
+  });
+});
+
+describe("resolveFrameAndBob — asymmetric idle bob", () => {
+  it("lifts the sprite up (bobY ≤ 0), bounded by the amplitude", () => {
+    for (const t of [0, 200, 600, 1000, 1500]) {
+      const { bobY } = resolveFrameAndBob(sprite({ id: 0, moving: false, action: null }), t);
+      expect(bobY).toBeLessThanOrEqual(0.0001);
+      expect(bobY).toBeGreaterThanOrEqual(-1.3001);
+    }
+  });
+});
+
+describe("walkStepsBetween", () => {
+  it("counts a footstep when the window crosses a contact phase", () => {
+    expect(walkStepsBetween(0, 210, 230)).toBe(1); // crosses the 220ms contact
+    expect(walkStepsBetween(0, 120, 160)).toBe(0); // inside a passing phase — no contact
+  });
+
+  it("fires twice per full 440ms cycle", () => {
+    expect(walkStepsBetween(0, 1, 441)).toBe(2);
   });
 
   it("cycles the fishing-spot bubbles over time", () => {

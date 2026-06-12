@@ -20,7 +20,8 @@ export function pushSnapshotSprites(
   const meetFarmerIds = new Set<number>(meets.map((m) => m.farmerId));
 
   for (const s of sprites) {
-    const { frame, bobY } = resolveFrameAndBob(s, nowMs, season);
+    const { frame, bobY, scale } = resolveFrameAndBob(s, nowMs, season);
+    const size = scale ? TILE * scale : TILE;
     // Pseudo-3D height (tile units → px). z=0/undefined keeps the exact grounded behaviour.
     const zPx = s.z ? s.z * TILE : 0;
     if (s.id !== null) {
@@ -37,8 +38,8 @@ export function pushSnapshotSprites(
       y: s.y + bobY,
       ...(zPx > 0 ? { z: zPx } : {}),
       ...(s.id !== null && s.id === playerId ? { occludable: true } : {}),
-      width: TILE,
-      height: TILE,
+      width: size,
+      height: size,
       frame,
       atlasId: frameToAtlasId(frame),
       rotation: s.rotation,

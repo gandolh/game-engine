@@ -13,6 +13,13 @@ export interface AnimationFrame {
   readonly durationMs: number;
 }
 
+/** A named marker fired when playback crosses `atMs` within the clip (e.g. "footstep"). */
+export interface AnimationEvent {
+  readonly name: string;
+  /** Offset from clip start, in ms; must be within [0, totalDurationMs). */
+  readonly atMs: number;
+}
+
 export interface SampledFrame {
   /** The atlas frame name resolved at the sample time. */
   readonly frameName: string;
@@ -30,11 +37,13 @@ export class AnimationClip {
   readonly frames: ReadonlyArray<AnimationFrame>;
   readonly loop: boolean;
   readonly totalDurationMs: number;
+  readonly events: ReadonlyArray<AnimationEvent>;
 
   constructor(params: {
     name: string;
     frames: ReadonlyArray<AnimationFrame>;
     loop: boolean;
+    events?: ReadonlyArray<AnimationEvent>;
   }) {
     if (params.frames.length === 0) {
       throw new Error(`AnimationClip "${params.name}": frames must not be empty`);
@@ -52,6 +61,47 @@ export class AnimationClip {
     this.frames = params.frames;
     this.loop = params.loop;
     this.totalDurationMs = total;
+    const events = params.events ?? [];
+    for (const e of events) {
+      if (!(e.atMs >= 0) || e.atMs >= total) {
+        throw new Error(
+          `AnimationClip "${params.name}": event "${e.name}" atMs ${e.atMs} out of [0, ${total})`,
+        );
+      }
+    }
+    this.events = events;
+  }
+
+  /**
+   * Names of events crossed in the half-open elapsed window `(prevMs, curMs]`.
+   * Stateless — the caller supplies the previous and current elapsed times (e.g.
+   * last frame's `nowMs` and this frame's). Handles loop wrap and windows that
+   * span multiple cycles; returns an empty array when no event lies in the window.
+   * For non-looping clips, only the first pass is considered.
+   */
+  eventsBetween(prevMs: number, curMs: number): string[] {
+    if (this.events.length === 0 || curMs <= prevMs) return [];
+    const out: string[] = [];
+    if (this.loop) {
+      // Walk forward in absolute time; an event at `atMs` recurs at atMs + k·total.
+      // Cap the span we scan so a huge dt (tab-restore) can't spin for ages.
+      const span = Math.min(curMs - prevMs, this.totalDurationMs);
+      const from = curMs - span;
+      for (const e of this.events) {
+        const firstK = Math.ceil((from - e.atMs) / this.totalDurationMs);
+        for (let k = firstK; ; k += 1) {
+          const t = e.atMs + k * this.totalDurationMs;
+          if (t <= from) continue;
+          if (t > curMs) break;
+          out.push(e.name);
+        }
+      }
+    } else {
+      for (const e of this.events) {
+        if (e.atMs > prevMs && e.atMs <= curMs) out.push(e.name);
+      }
+    }
+    return out;
   }
 
   /**

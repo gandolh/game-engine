@@ -1,5 +1,6 @@
 import type { GameEntity } from "../components";
 import type { Season } from "../protocols/weather";
+import { easeOutQuad } from "@engine/core";
 import { loopClip, sampleCycle } from "./cycle";
 
 const TILE = 16;
@@ -24,6 +25,14 @@ const FISHING_SPOT_CLIP = loopClip("fishing-spot", FISHING_SPOT_FRAMES, 1200);
  * Mirrors the NPC `*-a`/`*-b` swing cadence (brief 85, phase 2).
  */
 const ACTION_SWING_HALF_MS = 220; // ms each pose holds (≈0.44s full A↔B cycle)
+/** Scale punch on the action strike (the `-b` half): a brief grow that settles to 1. */
+const ACTION_POP_AMP = 0.1;
+
+// Asymmetric idle "breath": a quick lift then a slower settle, ~1.3px. Less robotic than a
+// pure sine (Slynyrd) — eased via easeOutQuad, phase-shifted per entity.
+const IDLE_BOB_MS = 1700;
+const IDLE_BOB_AMP = 1.3;
+const IDLE_BOB_RISE = 0.35; // fraction of the breath spent lifting
 
 /** Animated forge-fire frames, cycled in the blacksmith oven's mouth. */
 export const FORGE_FIRE_FRAMES = [
@@ -127,7 +136,22 @@ export function isFarmerMoving(entity: GameEntity): boolean {
  * Wall-clock; sampled with a per-entity phase so farmers don't march in lockstep.
  */
 const WALK_CYCLE_MS = 440; // 4 × 110ms
-const WALK_CLIP = loopClip("farmer-walk", ["/walk-a", "", "/walk-b", ""], WALK_CYCLE_MS);
+const WALK_PHASE_MS = WALK_CYCLE_MS / 4; // 110ms per phase
+// "step" fires at each contact phase (a foot plants) → footstep dust.
+const WALK_CLIP = loopClip("farmer-walk", ["/walk-a", "", "/walk-b", ""], WALK_CYCLE_MS, [
+  { name: "step", atMs: 0 },
+  { name: "step", atMs: WALK_PHASE_MS * 2 },
+]);
+
+/**
+ * Number of walk footstep "contacts" for entity `id` in the wall-clock window
+ * `(prevMs, nowMs]`. The renderer turns each into a dust puff. Per-entity phase
+ * matches the stride's `sampleCycle(..., id)` offset so dust lands on the foot-plant.
+ */
+export function walkStepsBetween(id: number, prevMs: number, nowMs: number): number {
+  const off = id * WALK_PHASE_MS;
+  return WALK_CLIP.eventsBetween(prevMs + off, nowMs + off).length;
+}
 
 // Action → pose suffix. Unmapped actions fall back to walk/idle animation.
 export const ACTION_POSE: Record<string, string> = {
@@ -140,6 +164,32 @@ export const ACTION_POSE: Record<string, string> = {
   harvest:       "/work",   // no dedicated harvest pose
 };
 
+export type Facing = "down" | "up" | "side";
+
+// Facing → frame segment. "down" is the bare base; the others insert a directional segment.
+// One typed table instead of ad-hoc `facing === "down" ? "" : "/"+facing` string-building.
+const FACING_SEG: Record<Facing, string> = { down: "", up: "/up", side: "/side" };
+
+/**
+ * Every atlas frame `resolveFrameAndBob` can emit for a farmer base ("farmer/<p>") —
+ * idle/passing, the walk-cycle phases per facing, and the action poses + their `-b` strikes.
+ * Single source of truth for the frame vocabulary; the atlas-existence guard test asserts
+ * each of these exists in the built `characters` sheet (catches a constructed-but-missing frame).
+ */
+export function enumerateFarmerFrames(base: string): string[] {
+  const out = new Set<string>();
+  for (const seg of Object.values(FACING_SEG)) {
+    const dir = base + seg;
+    out.add(dir); // idle / passing pose
+    for (const f of WALK_CLIP.frames) if (f.frame) out.add(dir + f.frame); // "/walk-a","/walk-b"
+  }
+  for (const suffix of new Set(Object.values(ACTION_POSE))) {
+    out.add(base + suffix); // action pose
+    out.add(base + suffix + "-b"); // strike frame
+  }
+  return [...out];
+}
+
 /** Remap `structure/tree` to the seasonal variant frame. Other frames pass through. */
 export function seasonalTreeFrame(frame: string, season: Season): string {
   if (frame !== "structure/tree") return frame;
@@ -148,12 +198,12 @@ export function seasonalTreeFrame(frame: string, season: Season): string {
   return frame; // spring/summer keep the green tree
 }
 
-/** Resolve the final atlas frame and idle-bob offset for a snapshot sprite. */
+/** Resolve the final atlas frame, idle-bob offset, and an optional scale punch for a snapshot sprite. */
 export function resolveFrameAndBob(
   s: import("../snapshot").SnapshotSprite,
   nowMs: number,
   season: Season = "spring",
-): { frame: string; bobY: number } {
+): { frame: string; bobY: number; scale?: number } {
   const seasonal = seasonalTreeFrame(s.frame, season);
   if (seasonal !== s.frame) return { frame: seasonal, bobY: 0 };
   if (s.frame === "structure/fishing-spot") {
@@ -173,18 +223,23 @@ export function resolveFrameAndBob(
     const pose = base + ACTION_POSE[s.action];
     // Toggle pose ↔ pose-b on the wall clock; per-entity phase so farmers don't sync.
     const useB = (Math.floor(nowMs / ACTION_SWING_HALF_MS) + (s.id ?? 0)) % 2 === 1;
-    return { frame: useB ? `${pose}-b` : pose, bobY: 0 };
+    // Scale punch on the strike: peak at the start of the -b half, settle to 1 across it.
+    const q = (nowMs % ACTION_SWING_HALF_MS) / ACTION_SWING_HALF_MS;
+    const scale = useB ? 1 + ACTION_POP_AMP * (1 - easeOutQuad(q)) : 1;
+    return { frame: useB ? `${pose}-b` : pose, bobY: 0, scale };
   }
 
-  // "down" = base frame; "up"/"side" insert a facing segment.
-  const facing = s.facing ?? "down";
-  const dir = facing === "down" ? base : `${base}/${facing}`;
+  const facing: Facing = s.facing ?? "down";
+  const dir = base + FACING_SEG[facing];
 
   if (s.moving === true) {
     // 4-phase stride via the walk clip; "" phases hold the neutral passing pose.
     return { frame: dir + sampleCycle(WALK_CLIP, nowMs, s.id ?? 0), bobY: 0 };
   }
 
-  const bobY = Math.sin(nowMs / 600 + (s.id ?? 0) * 1.3) * 1.5;
+  // Asymmetric idle breath: quick lift (eased), slower settle; negative = up.
+  const p = (((nowMs / IDLE_BOB_MS) + (s.id ?? 0) * 0.21) % 1 + 1) % 1;
+  const tri = p < IDLE_BOB_RISE ? p / IDLE_BOB_RISE : 1 - (p - IDLE_BOB_RISE) / (1 - IDLE_BOB_RISE);
+  const bobY = -easeOutQuad(tri) * IDLE_BOB_AMP;
   return { frame: dir, bobY };
 }

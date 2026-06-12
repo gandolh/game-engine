@@ -48,4 +48,35 @@ Reintroduce the `AnimationClip` (immutable frames+durations, `sampleAt(elapsedMs
 3. **Render-side walk migration + 4-phase stride** ✅ **Done (2026-06-12).** The snapshot now carries a semantic `moving` flag (`frame` = the direction-less base look, no baked `/walk-a|b`); `resolveFrameAndBob` resolves facing + a 4-phase stride (contact-a → passing → contact-b → passing, the neutral frame as the passing pose) via the walk clip — wall-clock, decoupled from tick rate. `pickFarmerFrame` retired → `isFarmerMoving`. The interpolation `copySprite` propagates `moving` (and the pre-existing stale-`tintRgba`/`z` omission there is fixed). **No new art** — the 4-phase cycle reuses the three existing per-facing frames; truly-distinct extra poses are a deferred optional.
 
 All three phases are shipped (render-only + generated atlas frames, no determinism impact). The animation is no longer ad-hoc: `pickFarmerFrame` + the bake/parse round-trip are gone, the scattered cyclers and the walk/action animations all flow through `@engine/core/animation` + the `cycle.ts` helpers. The **swing + stride feel still needs an in-browser look** (WebGPU won't render headless on the dev box) before brief 85 closes to done/.
+
+## Research-backed improvement backlog (2026-06-12)
+
+Web research on 2D animation architecture + pixel-art "juice", filtered against our actual renderer (`Sprite` honors per-sprite `width`/`height`/`rotation`/`flipX`; `pixelSnap=true` snaps *position* only, so scale/rotation tweens render fine at zoom with mild sub-pixel softness — the documented low-res caveat). Sources at the end.
+
+**Validated — what we already do right (don't relitigate):**
+- **Logic↔animation decoupling** via the semantic snapshot (`moving`/`facing`/`action` → render resolves the frame) is the textbook pattern (Unity Mecanim, Godot AnimationTree, the DDAC paper). Keep it.
+- **No frame interpolation; interpolate position only.** Pixel-art consensus: never blend between hand-drawn frames; lerp *placement* (we do, with `alpha`), snap *frame*. Timing nuance comes from per-frame durations, not tweening.
+- **4-way + flipX-for-left** is the Stardew convention; fine as-is.
+
+**Backlog, ranked (impact / effort / risk):**
+
+*Tier A — cheap juice pass, mostly no new art, low risk:* ✅ **DONE 2026-06-12** (render-only; awaiting feel-check)
+1. ✅ **Engine easing module** `@engine/core/animation/easing.ts` — `easeOutBack`/`easeOutQuad`/`easeOutCubic`/`easeOutElastic`/`smoothstep`/`linear` + tests.
+2. ✅ **Frame events on `AnimationClip`** — `events: {atMs, name}[]` + a stateless `eventsBetween(prevMs, curMs)` (handles loop wrap, caps huge windows). Fits our wall-clock sampling (no per-entity Animator needed). `loopClip` carries events.
+3. ✅ **Footstep dust** — `WALK_CLIP` fires a `step` event at each contact phase; `walkStepsBetween(id, prev, now)` counts crossings; render-loop emits a pale puff at the feet for moving, on-screen, on-land farmers.
+4. ✅ **Asymmetric idle bob** — replaced the pure sine with a quick-lift / slow-settle breath (`easeOutQuad`, ~1.3px up), per Slynyrd.
+5. ✅ **Action scale-pop** — `resolveFrameAndBob` returns an optional `scale`; on the action strike (`-b`) half it pops to ~1.10 and settles via `easeOutQuad`, applied to the sprite `width`/`height` in `pushSnapshotSprites`. (Per-strike, stateless; a discrete harvest-only item-pop is a later refinement.)
+
+*Tier B — structural, medium effort:* ✅ **DONE 2026-06-12** (the right-sized version — see note on the FSM)
+6. ✅ **Atlas-existence guard test** — `enumerateFarmerFrames(base)` ([frames.ts](../../packages/sim-core/src/render-systems/frames.ts)) is the single source of truth for every frame the resolver can emit (idle/passing, walk phases per facing, action poses + `-b`); `farmer-frames.test.ts` asserts each exists in the built `characters` manifest. Closes the silent-missing-frame gap. (As a bonus it confirms all the phase-2/3 frames ship.)
+7. ✅ **Formalized the frame vocabulary** — replaced ad-hoc `facing === "down" ? … : "/"+facing` string-building with a typed `FACING_SEG: Record<Facing, string>`, and centralized the emit-set in `enumerateFarmerFrames`. **Deliberately did NOT build a stateful transition-FSM**: our renderer is stateless per-frame (the snapshot already encodes the deterministic state — `action`/`moving`/`facing`), so the right shape is a *state→clip resolver* (which `resolveFrameAndBob` already is), not a per-entity transition machine. A transition-FSM only earns its keep with render-side one-shot triggers that outlive a tick (e.g. a harvest flourish / hurt flash via the existing `Animator.play`/`isFinished`) — deferred until such a need is concrete.
+8. ⏸️ **Hit-pause** — deferred. Needs per-entity render-side state (a freeze timer), which our stateless model doesn't carry; low payoff for a gentle farming sim. Revisit if combat-ish feedback is ever wanted.
+
+*Tier C — skip / N/A for us:*
+- **Aseprite-JSON clip import** — N/A; our atlas is code-authored pixel recipes, not Aseprite. The data-driven *principle* is covered by #7.
+- **Secondary motion (hair/hat lag), motion trails, per-action screenshake, 8-way** — 16px chars lack separable layers; trails muddy a slow sim (research warns); screenshake too aggressive per swing; we're deliberately 4-way.
+
+**Pixel-snap caveat:** scale (#5) and any rotation lean draw fractional dest sizes (position is snapped, size isn't) → slight softening at low res, generally fine at 3–4× zoom; if it shimmers, the option is an opt-in no-snap for the character layer. Verify in the same feel-check as brief 85.
+
+Sources — architecture: [Unity Animator](https://docs.unity3d.com/6000.3/Documentation/Manual/AnimationStateMachines.html) · [Godot AnimationTree](https://docs.godotengine.org/en/latest/tutorials/animation/animation_tree.html) · [Defold state machine](https://defold.com/examples/animation/animation_states/) · [Game Programming Patterns: State](https://gameprogrammingpatterns.com/state.html) · [Animancer frame events](https://kybernetik.com.au/animancer/docs/samples/events/footsteps/) · [Godot 8-direction recipe](https://kidscancode.org/godot_recipes/4.x/2d/8_direction/index.html). Juice/pixel-art: [Slynyrd Pixelblog 55 (top-down)](https://www.slynyrd.com/blog/2025/3/24/pixelblog-55-top-down-character-animation) · [Slynyrd 50 (walk cycle)](https://www.slynyrd.com/blog/2024/5/24/pixelblog-50-human-walk-cycle) · ["Juice it or Lose it"](https://www.youtube.com/watch?v=Fy0aCDmgnxg) · ["Art of Screenshake"](https://www.youtube.com/watch?v=AJdEqssNZ-U) · [easings.net](https://easings.net/) · [Penner easing](https://robertpenner.com/easing/) · [pixel-art animation fundamentals](https://www.pixel-editor.com/articles/sprite-animation-fundamentals).
 </content>

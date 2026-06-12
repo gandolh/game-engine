@@ -1,7 +1,7 @@
 import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike } from "@engine/core";
-import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -524,6 +524,27 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       pushWaterDecor(renderer, particles, nowMs, dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
       // Reef fish: shoals of colourful fish orbit the coral reefs, tinted + translucent (submerged).
       pushFishSchools(renderer, nowMs, dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
+
+      // Footstep dust: a pale puff on each walk-cycle foot-plant for moving farmers/Pip on land.
+      // walkStepsBetween counts contact events in this frame's window (per-entity walk phase).
+      const stepPrevMs = nowMs - dt * 1000;
+      for (const s of interpolatedSprites) {
+        if (s.id === null || s.moving !== true || !s.frame.startsWith("farmer/")) continue;
+        if (s.x < viewLeft || s.x > viewRight || s.y < viewTop || s.y > viewBottom) continue;
+        if (walkStepsBetween(s.id, stepPrevMs, nowMs) === 0) continue;
+        if (!isWalkable(Math.floor(s.x / TILE), Math.floor((s.y + TILE * 0.3) / TILE))) continue;
+        particles.emit({
+          x: s.x + (Math.random() - 0.5) * TILE * 0.3,
+          y: s.y + TILE * 0.42, // at the feet
+          count: 2, shape: "circle",
+          color: EDG.silver, color2: EDG.white,
+          speedMin: 3, speedMax: 10,
+          angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, // low upward fan
+          lifetimeMin: 0.22, lifetimeMax: 0.4,
+          sizeMin: 0.5, sizeMax: 1.1,
+          gravity: 26, // settles back down
+        });
+      }
     });
 
     // Follow arrow: layer 91 (above meet bubble 90), gentle sine bob.

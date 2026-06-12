@@ -1,4 +1,5 @@
 import { AnimationClip } from "@engine/core";
+import type { AnimationEvent } from "@engine/core";
 
 /**
  * Generic wall-clock cycling over an engine `AnimationClip`, plus a factory for
@@ -11,12 +12,18 @@ import { AnimationClip } from "@engine/core";
  */
 
 /** Build a looping clip whose frames each hold for `periodMs / frames.length`. */
-export function loopClip(name: string, frames: readonly string[], periodMs: number): AnimationClip {
+export function loopClip(
+  name: string,
+  frames: readonly string[],
+  periodMs: number,
+  events?: readonly AnimationEvent[],
+): AnimationClip {
   const durationMs = periodMs / frames.length;
   return new AnimationClip({
     name,
     loop: true,
     frames: frames.map((frame) => ({ frame, durationMs })),
+    ...(events ? { events } : {}),
   });
 }
 

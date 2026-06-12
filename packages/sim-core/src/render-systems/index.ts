@@ -1,6 +1,8 @@
 export {
   frameToAtlasId,
   isFarmerMoving,
+  walkStepsBetween,
+  enumerateFarmerFrames,
   FOAM_FRAMES,
   FISHING_SPOT_FRAMES,
   FORGE_FIRE_FRAMES,
