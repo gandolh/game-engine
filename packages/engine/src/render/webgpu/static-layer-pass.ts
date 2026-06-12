@@ -301,9 +301,24 @@ export class StaticLayerPass {
 // WaterPass
 // --------------------------------------------------------------------------
 
-/** Float32 size of WaterUniform: 12 scalars + 3 vec4 colors = 24 × f32 = 96 bytes (16-byte aligned). */
-const WATER_UNIFORM_FLOATS = 24;
+// Brief 13: WaterUniform extended with foam/caustics colors + world dimensions for depth UV mapping.
+// Layout (floats):
+//   [0..3]   left, top, right, bottom
+//   [4..7]   scrollX, scrollY, swellAlpha, swellScrollX
+//   [8..11]  swellScrollY, tileSize, useLinear, time
+//   [12..15] deepColor    (vec4)
+//   [16..19] shallowColor (vec4)
+//   [20..23] glintColor   (vec4)
+//   [24..27] foamColor    (vec4) — EDG white; tasks 3
+//   [28..31] causticsColor (vec4) — EDG cyan/white; task 4
+//   [32..35] worldWidthPx, worldHeightPx, tilePx, _pad0
+// Total: 36 × f32 = 144 bytes (16-byte aligned).
+const WATER_UNIFORM_FLOATS = 36;
 const WATER_UNIFORM_BYTES = WATER_UNIFORM_FLOATS * 4;
+
+// Foam/caustics EDG colors (brief 13 tasks 3–4).
+const WATER_FOAM     = hexToRgb(EDG.white);
+const WATER_CAUSTICS = hexToRgb(EDG.cyan);
 
 export class WaterPass {
   private readonly ctx: GpuContext;
@@ -316,6 +331,14 @@ export class WaterPass {
   private swellScrollX = 0;
   private swellScrollY = 0;
 
+  // Depth mask texture (brief 13 tasks 3–4). Null = no depth info (foam/caustics invisible).
+  private depthTexture: GPUTexture | null = null;
+  private depthTexW = 0;
+  private depthTexH = 0;
+  private worldWidthPx = 0;
+  private worldHeightPx = 0;
+  private tilePx = 0;
+
   // Pipeline objects (lazy init).
   private pipeline: GPURenderPipeline | null = null;
   private waterUniformBuf: GPUBuffer | null = null;
@@ -323,6 +346,7 @@ export class WaterPass {
   private waterBindGroup: GPUBindGroup | null = null;
   private samplerNearest: GPUSampler | null = null;
   private samplerLinear: GPUSampler | null = null;
+  private samplerDepth: GPUSampler | null = null;
 
   constructor(ctx: GpuContext) {
     this.ctx = ctx;
@@ -334,13 +358,15 @@ export class WaterPass {
 
     const module = device.createShaderModule({ code: waterWgsl });
 
-    // Group 1: WaterUniform + texture + 2 samplers.
+    // Group 1: WaterUniform + water texture + 2 water samplers + depth mask texture + depth sampler.
     this.waterBindGroupLayout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
         { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: "float" } },
         { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "filtering" } },
         { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "filtering" } },
+        { binding: 4, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: "float" } },
+        { binding: 5, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "filtering" } },
       ],
     });
 
@@ -382,14 +408,47 @@ export class WaterPass {
       addressModeV: "repeat",
     });
 
+    // Depth sampler: clamp-to-edge (out-of-bounds = 0 = deep ocean, no effects).
+    this.samplerDepth = device.createSampler({
+      magFilter: "nearest",
+      minFilter: "nearest",
+      addressModeU: "clamp-to-edge",
+      addressModeV: "clamp-to-edge",
+    });
+
     this.waterUniformBuf = device.createBuffer({
       size: WATER_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+
+    // Create a 1×1 fallback depth texture (all zeros = deep ocean everywhere).
+    // This ensures the bind group is always valid even before setDepthMask() is called.
+    this._ensureFallbackDepthTexture();
+  }
+
+  /** Create or replace the 1×1 all-zero fallback depth texture. */
+  private _ensureFallbackDepthTexture(): void {
+    if (this.depthTexture) return; // already set (either fallback or real mask)
+    const { device } = this.ctx;
+    const tex = device.createTexture({
+      size: [1, 1, 1],
+      format: "r8unorm",
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+    device.queue.writeTexture(
+      { texture: tex },
+      new Uint8Array([0]),
+      { bytesPerRow: 1 },
+      [1, 1, 1],
+    );
+    this.depthTexture = tex;
+    this.depthTexW = 1;
+    this.depthTexH = 1;
   }
 
   private rebuildWaterBindGroup(): void {
-    if (!this.waterBindGroupLayout || !this.waterTexture || !this.samplerNearest || !this.samplerLinear || !this.waterUniformBuf) return;
+    if (!this.waterBindGroupLayout || !this.waterTexture || !this.samplerNearest || !this.samplerLinear ||
+        !this.waterUniformBuf || !this.depthTexture || !this.samplerDepth) return;
     this.waterBindGroup = this.ctx.device.createBindGroup({
       layout: this.waterBindGroupLayout,
       entries: [
@@ -397,6 +456,8 @@ export class WaterPass {
         { binding: 1, resource: this.waterTexture.createView() },
         { binding: 2, resource: this.samplerNearest },
         { binding: 3, resource: this.samplerLinear },
+        { binding: 4, resource: this.depthTexture.createView() },
+        { binding: 5, resource: this.samplerDepth },
       ],
     });
   }
@@ -443,6 +504,65 @@ export class WaterPass {
   }
 
   /**
+   * Upload a per-tile depth mask for shore foam and caustics (brief 13 tasks 3–4).
+   *
+   * The mask is a single-channel (R8) float texture, tilesX × tilesY pixels, where each
+   * texel value is depth/COAST_DEPTH_MAX in [0, 1]:  0 = deep ocean, ~1 = adjacent to shore.
+   * The shader samples it by mapping worldPos → [0,1] UV using worldWidthPx/worldHeightPx.
+   *
+   * @param data          - Raw depth values as Uint8Array (0..255, where 255 = max depth).
+   * @param tilesX        - Width of the depth grid in tiles.
+   * @param tilesY        - Height of the depth grid in tiles.
+   * @param worldWidthPx  - Full world width in pixels (for UV mapping).
+   * @param worldHeightPx - Full world height in pixels (for UV mapping).
+   * @param tilePxSize    - Tile size in world pixels (for UV mapping).
+   */
+  setDepthMask(
+    data: Uint8Array,
+    tilesX: number,
+    tilesY: number,
+    worldWidthPx: number,
+    worldHeightPx: number,
+    tilePxSize: number,
+  ): void {
+    const w = Math.max(1, tilesX);
+    const h = Math.max(1, tilesY);
+    if (data.length < w * h) {
+      throw new Error(`WaterPass.setDepthMask: data too small (got ${data.length}, need ${w * h})`);
+    }
+    const { device } = this.ctx;
+
+    // Destroy old depth texture (whether fallback or previous real mask).
+    this.depthTexture?.destroy();
+
+    const tex = device.createTexture({
+      size: [w, h, 1],
+      format: "r8unorm",
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+    // writeTexture requires bytesPerRow ≥ width (here = w, since R8 = 1 byte/pixel).
+    device.queue.writeTexture(
+      { texture: tex },
+      data,
+      { bytesPerRow: w },
+      [w, h, 1],
+    );
+
+    this.depthTexture = tex;
+    this.depthTexW = w;
+    this.depthTexH = h;
+    this.worldWidthPx = worldWidthPx;
+    this.worldHeightPx = worldHeightPx;
+    this.tilePx = tilePxSize;
+
+    // Rebuild the bind group with the new depth texture (pipeline must already be inited).
+    if (this.pipeline) {
+      this.waterBindGroup = null;
+      this.rebuildWaterBindGroup();
+    }
+  }
+
+  /**
    * Set the water scroll offset (world px).
    * Wraps to tile size, matching Canvas2dRenderer.setWaterScroll.
    */
@@ -479,9 +599,7 @@ export class WaterPass {
     const visH = visB - visT;
     if (visW <= 0 || visH <= 0) return;
 
-    // Write WaterUniform (12 floats, 48 bytes) matching the struct layout in water.wgsl.
-    // Struct: left, top, right, bottom, scrollX, scrollY,
-    //         swellAlpha, swellScrollX, swellScrollY, tileSize, useLinear, _pad
+    // Write WaterUniform (WATER_UNIFORM_FLOATS × f32) matching the struct layout in water.wgsl.
     const data = new Float32Array(WATER_UNIFORM_FLOATS);
     data[0]  = visL;
     data[1]  = visT;
@@ -498,9 +616,17 @@ export class WaterPass {
     // so performance.now() here is correct; determinism is a sim-side property.
     data[11] = (typeof performance !== "undefined" ? performance.now() : 0) / 1000;
     // Procedural-water colors (vec4 slots; rgb used, a=1). EDG-sourced.
-    data[12] = WATER_DEEP[0];    data[13] = WATER_DEEP[1];    data[14] = WATER_DEEP[2];    data[15] = 1.0;
-    data[16] = WATER_SHALLOW[0]; data[17] = WATER_SHALLOW[1]; data[18] = WATER_SHALLOW[2]; data[19] = 1.0;
-    data[20] = WATER_GLINT[0];   data[21] = WATER_GLINT[1];   data[22] = WATER_GLINT[2];   data[23] = 1.0;
+    data[12] = WATER_DEEP[0];     data[13] = WATER_DEEP[1];     data[14] = WATER_DEEP[2];     data[15] = 1.0;
+    data[16] = WATER_SHALLOW[0];  data[17] = WATER_SHALLOW[1];  data[18] = WATER_SHALLOW[2];  data[19] = 1.0;
+    data[20] = WATER_GLINT[0];    data[21] = WATER_GLINT[1];    data[22] = WATER_GLINT[2];    data[23] = 1.0;
+    // Brief 13 additions: foam + caustics colors.
+    data[24] = WATER_FOAM[0];     data[25] = WATER_FOAM[1];     data[26] = WATER_FOAM[2];     data[27] = 1.0;
+    data[28] = WATER_CAUSTICS[0]; data[29] = WATER_CAUSTICS[1]; data[30] = WATER_CAUSTICS[2]; data[31] = 1.0;
+    // World dimensions for depth UV mapping.
+    data[32] = this.worldWidthPx > 0 ? this.worldWidthPx : 1.0;
+    data[33] = this.worldHeightPx > 0 ? this.worldHeightPx : 1.0;
+    data[34] = this.tilePx > 0 ? this.tilePx : 1.0;
+    data[35] = 0.0; // _pad0
 
     this.ctx.device.queue.writeBuffer(this.waterUniformBuf, 0, data);
 

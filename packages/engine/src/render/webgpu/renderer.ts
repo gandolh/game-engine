@@ -250,6 +250,18 @@ export class WebGpuRenderer implements RendererLike {
     this._waterPass.setSwell(alpha, offsetX, offsetY);
   }
 
+  setWaterDepthMask(
+    data: Uint8Array,
+    tilesX: number,
+    tilesY: number,
+    worldWidthPx: number,
+    worldHeightPx: number,
+    tilePxSize: number,
+  ): void {
+    if (this._deviceLost) return;
+    this._waterPass.setDepthMask(data, tilesX, tilesY, worldWidthPx, worldHeightPx, tilePxSize);
+  }
+
   clearStaticLayer(): void {
     this._staticPass.clear();
     this._staticLayerW = 0;
