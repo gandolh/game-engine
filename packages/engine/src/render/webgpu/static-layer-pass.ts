@@ -12,7 +12,23 @@ import type { DecorateFn, Sprite } from "../renderer";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import { createOffscreen, compareSprite, drawSprite } from "../canvas2d/draw";
 import type { Ctx2D } from "../canvas2d/types";
+import { EDG } from "../palette";
 import waterWgsl from "./shaders/water.wgsl?raw";
+
+/** EDG hex → [r,g,b] in 0..1. Called only with EDG.* constants (palette stays the source of truth). */
+function hexToRgb(hex: string): [number, number, number] {
+  let c = hex.trim();
+  if (c.startsWith("#")) c = c.slice(1);
+  if (c.length === 3) c = c[0]! + c[0]! + c[1]! + c[1]! + c[2]! + c[2]!;
+  const n = parseInt(c, 16);
+  return [((n >> 16) & 0xff) / 255, ((n >> 8) & 0xff) / 255, (n & 0xff) / 255];
+}
+
+// Procedural-water palette anchors (brief 83 water shader). Deep ocean base → sky-blue ripple crests
+// → cyan glints. Sourced from EDG so the WGSL stays free of color literals.
+const WATER_DEEP = hexToRgb(EDG.blue);
+const WATER_SHALLOW = hexToRgb(EDG.skyBlue);
+const WATER_GLINT = hexToRgb(EDG.cyan);
 
 // --------------------------------------------------------------------------
 // Shared helpers
@@ -285,8 +301,8 @@ export class StaticLayerPass {
 // WaterPass
 // --------------------------------------------------------------------------
 
-/** Float32 byte size of WaterUniform struct (12 × f32 = 48 bytes). */
-const WATER_UNIFORM_FLOATS = 12;
+/** Float32 size of WaterUniform: 12 scalars + 3 vec4 colors = 24 × f32 = 96 bytes (16-byte aligned). */
+const WATER_UNIFORM_FLOATS = 24;
 const WATER_UNIFORM_BYTES = WATER_UNIFORM_FLOATS * 4;
 
 export class WaterPass {
@@ -478,7 +494,13 @@ export class WaterPass {
     data[8]  = this.swellScrollY;
     data[9]  = this.tileSize;
     data[10] = zoomedOut ? 1.0 : 0.0;
-    data[11] = 0.0; // _pad
+    // Animation phase — wall-clock seconds. Display timing only (render-only, like the bridge sway),
+    // so performance.now() here is correct; determinism is a sim-side property.
+    data[11] = (typeof performance !== "undefined" ? performance.now() : 0) / 1000;
+    // Procedural-water colors (vec4 slots; rgb used, a=1). EDG-sourced.
+    data[12] = WATER_DEEP[0];    data[13] = WATER_DEEP[1];    data[14] = WATER_DEEP[2];    data[15] = 1.0;
+    data[16] = WATER_SHALLOW[0]; data[17] = WATER_SHALLOW[1]; data[18] = WATER_SHALLOW[2]; data[19] = 1.0;
+    data[20] = WATER_GLINT[0];   data[21] = WATER_GLINT[1];   data[22] = WATER_GLINT[2];   data[23] = 1.0;
 
     this.ctx.device.queue.writeBuffer(this.waterUniformBuf, 0, data);
 
