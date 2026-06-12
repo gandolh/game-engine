@@ -80,9 +80,9 @@ describe("coral geography + boat grid", () => {
   });
 
   it("nearestReef picks by dock proximity, deterministic tie-break by id", () => {
-    // reef-forest dock (62,112) is W, reef-mill dock (78,112) is E. A tile west
-    // of the midpoint picks forest; east picks mill.
-    expect(nearestReef(50, 100).id).toBe("reef-forest");
-    expect(nearestReef(95, 100).id).toBe("reef-mill");
+    // reef-forest dock (off fishing-isle-2) is W, reef-mill dock (off fishing-isle)
+    // is E. A tile west of the midpoint picks forest; east picks mill.
+    expect(nearestReef(80, 150).id).toBe("reef-forest");
+    expect(nearestReef(130, 150).id).toBe("reef-mill");
   });
 });

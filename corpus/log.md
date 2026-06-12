@@ -2,6 +2,19 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-12] feature | Grow world 160→240 (foundation #0 for land todos)
+
+Grew `WORLD_WIDTH`/`HEIGHT` 160→240, center 80→120, rings R 52/72→78/108. **Uniform position-only scale** (SCALE=1.5): chose to keep island sizes constant and only spread their centers, so inter-island gaps open ×1.5 (room for the 21 ranch islands / big-tree island / landmark enlargements the blocked todos need) while islands stay authored-size.
+
+- **`scaleB`** (regions.ts) scales a 160-authored bounds rect: center moves ×SCALE from design origin (80,80), width/height preserved. All `*_BOUNDS` + `TOWN_SQUARE` route through it.
+- **Two consequences position-only forced** (neither anticipated by the todo, which claimed "only one stray literal exists"):
+  1. *Edge-overlap bridges break.* village↔shrine had only 3 tiles of x-overlap at 160; spreading centers ×1.5 with constant size erased it → `generateClusterBridges` threw. Fix: shrine authored +2x (sole hand-tuned exception; collision math runs on scaled bounds, so its scaled gap to the waterfall stays clear).
+  2. *On-island content drifts off.* Content authored to fill a 160-era island (décor, NPC stations, building footprints, dock/delivery/tavern tiles, render-overlay anchors) spreads *wider* than the same-size scaled island if scaled about the map origin (e.g. a blacksmith prop landed 2 tiles out in ocean; the barkeep landed north of the village → unreachable station). Fix: **`scaleAroundNearestIsland`** — translate each tile by its nearest island's center displacement, so it rides with the island. Threaded through `placeProps`/`placeFootprint` (placement.ts), `scaleStations` (setup.ts), tiles.ts anchors, and the regions.ts overlay-anchor consts. `placeFootprint` fills the re-anchored bounding box so the blocker stays gap-free.
+- **Derived, not scaled:** coral reefs (coral.ts) recomputed from live fishing-isle bounds (docks pinned to the isle's south edge, which moves by `scaleB` not as a free point); tavern/festival tiles (watering/shared.ts) from live village center (festival aliased to the auction podium).
+- **Camera:** `DEFAULT_ZOOM` 2→3 to hold on-screen tile density; `CAMERA_CONFIG`/minimap already parametric off `WORLD_*`. MIN_ZOOM 0.5 still reaches a full-world view.
+- **Test churn:** ~9 sim-core test files re-derived their hardcoded coordinates from the new geometry (ocean/bridge picks, ring radii 52/72→78/108, ISLE_EDGE, nearestReef probes, connectivity tile → `farm-3` center, set-pieces inline snapshot regenerated). No assertions weakened.
+- **Gates:** full guard-test pass + repo-wide tests (1058) + typecheck green. Render eyeballed OK by the user. Determinism check waived by the user (would otherwise be a fast 3-day/3-seed `EXPORT=json` diff).
+
 ## [2026-06-12] feature | 89 Phase A — Pip's carried hotbar tool (render-side overlay)
 
 Wired the held-tool overlay (the brief-89 prize). Render-only, no wire-format change; typecheck + farm-valley 182 / atlas 15 / render-systems 57 green.

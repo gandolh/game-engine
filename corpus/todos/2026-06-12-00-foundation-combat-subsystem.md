@@ -34,6 +34,15 @@ all combat randomness flows through the seeded `Rng`, never `Math.random`/`Date.
 - **No eating mechanic in v1.** All recovery is via reset (see below). The
   "consume food to regenerate" idea is explicitly dropped — possible future todo.
 
+## Pip in combat (grilled 2026-06-12)
+
+- **Pip's fights AUTO-RESOLVE** — no manual combat minigame. The player's agency is
+  the *choice* to initiate/accept and who/when; once teleported in, Pip's combat
+  FSM swings on its own from HP/AP/weapon stats, identical to an AI bout. Keeps the
+  "you watch, you don't play" thesis, adds no combat input mode/UI, and keeps the
+  combat loop determinism-clean (no wall-clock player input mid-resolution). The
+  combat code runs both with and without Pip (headless sim has no player).
+
 ## Handshake + teleport (initiation)
 
 Mirror the existing encounter handshake
@@ -42,6 +51,43 @@ Mirror the existing encounter handshake
 new `CHALLENGE` / `ACCEPT` / `DECLINE`. Pip OR an AI can initiate. On accept,
 both are **teleported to the ring** at the agreed period (ring-box only; street
 fights happen in place).
+
+## Fight-end resolution (grilled 2026-06-12) — context-specific, no soft-lock
+
+The `FIGHTING` state MUST always terminate (else fighters soft-lock out of their
+day). Rules differ by context:
+
+- **Ring fight (always resolves to a winner):**
+  - First to **0 HP** loses (KO), OR
+  - First to **run out of AP** loses **immediately** — can't keep swinging in a
+    committed match. No draws. No fleeing (you committed to the bout).
+- **Street fight:**
+  - First to **0 HP** loses (KO) → eligible to be looted.
+  - If only one fighter runs out of AP, the other keeps swinging → likely KO.
+  - **Both** out of AP → **mutual forfeit: no KO, no loot.**
+  - **Small seeded per-tick flee chance** (`rng.fork('fight:'+pairKey+':'+tick)`):
+    either fighter may forfeit/flee mid-brawl even with AP left → fight ends, **no
+    KO, no loot**. (Street-only.)
+
+## Fight governors (grilled 2026-06-12) — prevent brawl/death-spiral
+
+Two autonomous triggers (rivals drawn to fight; below-cutoff witnesses attack
+on sight) are unbounded and would collapse the sim into a daily brawl loop (the
+degenerate emergent risk flagged by [project_leader_runaway] /
+[project_peer_interaction_inert]). **All four governors, lightweight:**
+
+- **Per-pair cooldown = 2 in-game days.** A settled fight stays settled — that pair
+  can't fight again for 2 days.
+- **AP-reserve gate.** A farmer won't *initiate* a fight if it would drop AP below
+  the reserve needed for the farming day — fighting competes with farming, and the
+  BDI should usually prefer farming.
+- **Per-farmer daily fight cap** (~1–2 initiations/day).
+- **Attack-on-sight fires once per cooldown window**, not every co-located tick.
+
+**Intended frequency: RARE DRAMA** (a few notable fights per run), not a regular
+feature of daily life. **Mandate: instrument fights/day + AP-spent-fighting in a
+real run and TUNE** — do not trust the design (per the peer-interaction memory:
+re-derive the premise from real runs).
 
 ## Recovery rules (differ by context)
 

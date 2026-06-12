@@ -16,7 +16,7 @@ The shared substrate for every décor todo. This is the long-open world-gen
 
 - Add a **typed `theme` enum** to `RegionDef`
   ([regions.ts](../../packages/sim-core/src/world/regions.ts)):
-  `theme?: 'ranch' | 'casino' | 'shrine' | 'heritage' | 'forest' | 'big-tree' | …`.
+  `theme?: 'ranch' | 'casino' | 'shrine' | 'heritage' | 'forest' | 'big-tree' | 'ring' | …`.
 - A **central per-theme décor table** maps theme → prop frames + density. New
   render-only **interior** décor scatter, mirroring the existing open-water
   [set-pieces.ts](../../packages/sim-core/src/render-systems/set-pieces.ts):
@@ -32,9 +32,21 @@ The shared substrate for every décor todo. This is the long-open world-gen
   off region id — not off `theme`. EDG32-only; the palette guard + a décor-table
   test enforce correctness.
 
+## Functional-tile avoidance (grilled 2026-06-12)
+
+Interior décor has far more to dodge than the open-water set-pieces (which only
+avoid coral). The forbidden-set must **union all functional anchors per region**:
+plots, NPC stations, building footprints (`solid` tiles), dock/board tiles, bridge
+mouths, AND (on ranch islands) **pen/barn footprints**. Décor is for "the feeling
+and story of the game" — but must never render on top of or visually block a
+gameplay tile. **Add a guard test:** no décor tile coincides with any
+plot/station/footprint/pen/bridge-mouth tile.
+
 ## Acceptance
 
 - `RegionDef.theme` typed enum exists; décor table + interior scatter implemented.
+- Guard test: zero décor tiles overlap functional tiles (plots/stations/footprints/
+  pens/dock/bridge mouths).
 - Décor is deterministic across seeds (positions stable per `WORLD_GEN_SEED`),
   EDG32-only (palette guard green), and provably never touched by sim code.
 - A region with a theme renders themed interior props; a themeless region renders

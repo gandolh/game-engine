@@ -24,6 +24,13 @@ tree.** The todo wants four distinct looks.
 - **Add `structure/tree-blossom` (spring)** atlas frame and **extend
   `seasonalTreeFrame` to a 4-way map:** blossom (spring) / green (summer) / autumn
   / bare (winter). Pure atlas recipe + ~2-line remap change. EDG32-only.
+- **Instant pop at the season boundary** (no cross-fade) — the frame swaps when the
+  season changes. Simplest, deterministic, no blend logic.
+- **Extend seasonal looks to orchard fruit-trees AND berry bushes too** (grilled
+  2026-06-12), not just forest/décor trees — for visual consistency. Orchard trees
+  already track `FRUIT_SEASON`; berry bushes are a `tileFeature` "bush" kind. Each
+  needs its own seasonal frame variants + remap entries. (More atlas frames than
+  the trees-only path.)
 
 ### Piece 2 — bespoke multi-tile big-tree island
 
@@ -37,7 +44,9 @@ tree.** The todo wants four distinct looks.
 
 ## Acceptance
 
-- Regular trees show **four** distinct seasonal looks (blossom/green/autumn/bare).
+- Regular trees, orchard fruit-trees, and berry bushes all show **four** distinct
+  seasonal looks (blossom/green/autumn/bare equivalents), swapping instantly at the
+  season boundary.
 - A new island exists with a single large, detailed bespoke tree as centerpiece.
 - The big tree changes across the four seasons alongside regular trees.
 - New island keeps ≥2-tile margin + clean bridge; EDG32 palette guard green;

@@ -14,15 +14,30 @@ bordering ocean, `computeBridges` decks road-only tiles touching ocean,
 `computeIslandEdges` themes margins. **So any walkable shape automatically gets
 foam + shore + bridge decking for free.**
 
-As of **2026-06-09** the layout is **RADIAL on a 160×160 map** (was an 88×80 core
-+ southern grid band): a central cluster of services, two concentric farm rings on
-the rim. Two halves:
+As of **2026-06-09** the layout is **RADIAL** (was an 88×80 core + southern grid
+band): a central cluster of services, two concentric farm rings on the rim. The
+map was **160×160** then **grown to 240×240 on 2026-06-12** (uniform position-only
+scale, SCALE=1.5, center 80→120) to open room for the land-adding todos. Two halves:
 
-- **Central cluster (hand-authored):** village hub at **dead-center (75–86 ×
-  75–86, center 80,80)**, craft islands flanking it E/W, resource zones on the
-  diagonals, seasonal zones north, shrine + waterfall on a north-center band,
-  fishing isles + harbor + camp south, heritage islets in the gaps. Literal
-  `bounds` consts.
+- **Central cluster (hand-authored at 160-scale, scaled out):** the `bounds`
+  consts are authored against the original 160 layout and run through
+  `scaleB({…})` — center moves ×SCALE from the design origin (80,80), island
+  **size is preserved** (so inter-island gaps open ×1.5 while islands stay the same
+  size). Village hub at **dead-center (now 115–126 × 115–126, center 120,120)**,
+  craft islands E/W, resource zones on the diagonals, seasonal zones north, shrine
+  + waterfall north-center, fishing isles + harbor + camp south, heritage islets in
+  the gaps. One hand-tuned exception: **shrine** authored +2x — position-only
+  scaling erased its thin x-overlap with the village and broke the village↔shrine
+  bridge.
+- **On-island content is island-locked, not map-locked:** because islands keep
+  their size, content authored to fill a 160-era island (décor, NPC stations,
+  building footprints, dock/delivery tiles) would spread *off* the same-size scaled
+  island if scaled about the map origin. `scaleAroundNearestIsland({…})`
+  (regions.ts) instead translates each tile by its nearest island's center
+  displacement, so it rides with the island. Used by `placeProps`/`placeFootprint`
+  (placement.ts), `scaleStations` (setup.ts), tiles.ts anchors, and the
+  render-overlay anchor tiles. Coral reefs (coral.ts) derive from live fishing-isle
+  bounds; tavern/festival tiles (watering/shared.ts) from the live village center.
 - **Radial farm rings:** all 21 farms (5 named + `EXTRA_FARM_COUNT`=16 procedural)
   ring the cluster near the edges. Scales the roster to **21 farmers (20 AI +
   Pip)** with the homesteads-on-the-frontier read.
@@ -35,10 +50,10 @@ In [regions.ts](../../packages/sim-core/src/world/regions.ts):
   \`farm-${number}\`` (`farm-0`..`farm-15`). Named farms (`farm-cora`…) keep their
   ids and ARE the inner ring's even slots.
 - `ringSlotBounds(ring, k, size)` places farm k of a ring of n at
-  `angle = φ + 2π·k/n`, `center = round(80 + R·{cos,sin}angle)`, then derives the
-  `size`-square bounds (12 named / 10 procedural). **Inner ring** n=9, R=52,
-  φ=−90° (named on even slots, farm-0..3 on odd); **outer ring** n=12, R=72,
-  φ=−75° (farm-4..15). `makeRadialFarmRegion(i)` does the index→slot mapping, then
+  `angle = φ + 2π·k/n`, `center = round(120 + R·{cos,sin}angle)`, then derives the
+  `size`-square bounds (12 named / 10 procedural). **Inner ring** n=9, **R=78**,
+  φ=−90° (named on even slots, farm-0..3 on odd); **outer ring** n=12, **R=108**,
+  φ=−75° (farm-4..15). Radii are the original 52/72 ×SCALE. `makeRadialFarmRegion(i)` does the index→slot mapping, then
   nudges each by a fixed-seed ±1 jitter (fork `farm-ring-jitter` off `WORLD_GEN_SEED`).
 - **No-adjacency by construction:** min farm-farm ocean gap **7** (≥2 holds after
   jitter), min cluster-to-farm gap **3**. `WORLD_WIDTH = WORLD_HEIGHT = 160` (plain

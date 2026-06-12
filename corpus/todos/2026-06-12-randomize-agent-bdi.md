@@ -21,6 +21,10 @@ every farmer of a personality kind behaving identically. Deterministic.
   `rng.fork('agent:'+id+':bdi')`, draw per-agent values, store on the agent.
   Deterministic, cheap, stable across the run. (NOT re-derived per tick — that
   thrashes intentions.)
+- **All 21 farmers jittered, including the 5 named** (grilled 2026-06-12) — jitter
+  *around each one's base values* (the named farmers' hand-tuned bases are the
+  center of their jitter, so their character is preserved but no two same-kind
+  farmers are identical). Procedural farms jitter around the kind default.
 - **Jitter SCALAR knobs only:**
   - `minGoldReserve` — ± spread around the kind's base.
   - a continuous `riskTolerance` — augment the 3-level `riskProfile` with a

@@ -30,7 +30,9 @@ Today it's scoped to **two fixed coral-reef lanes** — this todo generalizes it
 - **Render:** port structure + boat sprite/animation over the ocean gradient,
   EDG32-only. Ports are features on islands (consider placing on the grown islands
   if sequenced after [grow-grid](2026-06-12-00-foundation-grow-grid-to-240.md)).
-- Boat travel costs AP like other travel; deterministic (lanes are fixed geometry).
+- **Boat travel costs comparable AP/time to walking the bridges** (grilled
+  2026-06-12) — a scenic *alternative* route, NOT a shortcut. Keeps bridges relevant
+  and avoids a pathing/balance upheaval. Deterministic (lanes are fixed geometry).
 
 ## Acceptance
 

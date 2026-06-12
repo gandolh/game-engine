@@ -151,8 +151,8 @@ describe("deliberateFestivalGather — reachability guard", () => {
   }
 
   it("queues festival travel for a connected, on-foot farmer on a festival day", () => {
-    // Farmer is at (75,80) — inside village but NOT within Chebyshev-1 of FESTIVAL_PODIUM_TILE (80,80).
-    const farmer = makeFarmer({ tx: 75, ty: 80, ap: 50 });
+    // Farmer is at (116,116) — inside village but NOT within Chebyshev-1 of FESTIVAL_PODIUM_TILE (120,120).
+    const farmer = makeFarmer({ tx: 116, ty: 116, ap: 50 });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);
     const travel = farmer.intentions!.queue.find(

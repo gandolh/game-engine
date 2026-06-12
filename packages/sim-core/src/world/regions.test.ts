@@ -38,8 +38,8 @@ describe('regionAt', () => {
   it('returns null for open-ocean tiles between islands', () => {
     expect(regionAt(0, 0)).toBeNull();       // top-left corner ocean
     expect(regionAt(WORLD_WIDTH - 1, WORLD_HEIGHT - 1)).toBeNull(); // bottom-right corner ocean
-    expect(regionAt(80, 70)).toBeNull();     // open water just north of the village
-    expect(regionAt(40, 40)).toBeNull();     // open water between the cluster and the SW farms
+    expect(regionAt(120, 105)).toBeNull();   // open water just north of the village
+    expect(regionAt(60, 60)).toBeNull();     // open water between the cluster and the NW farms
   });
 
   it('returns the blacksmith / shrine / landmark islets at their centers (walkable)', () => {
@@ -61,18 +61,18 @@ describe('isWalkable', () => {
 
   it('is walkable for bridge (road) tiles', () => {
     // The village hub spokes are road-only tiles (regionAt null, walkable). Pick
-    // tiles on the village↔carpentry ({69-74,76-77}) and village↔mill
-    // ({76-77,87-92}) bridges (see ROADS).
-    expect(regionAt(70, 76)).toBeNull();
-    expect(isWalkable(70, 76)).toBe(true);  // village ↔ carpentry bridge
-    expect(regionAt(77, 90)).toBeNull();
-    expect(isWalkable(77, 90)).toBe(true);  // village ↔ mill bridge
+    // tiles on the village↔carpentry (horizontal bridge, y∈{116,117}) and
+    // village↔mill (vertical bridge, x∈{116,117}) spans (see ROADS).
+    expect(regionAt(108, 116)).toBeNull();
+    expect(isWalkable(108, 116)).toBe(true);  // village ↔ carpentry bridge
+    expect(regionAt(116, 132)).toBeNull();
+    expect(isWalkable(116, 132)).toBe(true);  // village ↔ mill bridge
   });
 
   it('is NOT walkable for open-ocean tiles', () => {
     expect(isWalkable(0, 0)).toBe(false);   // corner ocean
-    expect(isWalkable(80, 70)).toBe(false); // open water north of village
-    expect(isWalkable(40, 40)).toBe(false); // open water SW of cluster
+    expect(isWalkable(120, 105)).toBe(false); // open water north of village
+    expect(isWalkable(60, 60)).toBe(false); // open water NW of cluster
   });
 
   it('is walkable for blacksmith island tiles', () => {
@@ -127,13 +127,13 @@ describe('procedural farm band', () => {
   });
 
   it('every procedural farm sits on one of the two radial ring radii (jitter ≤1)', () => {
-    // The band is now RADIAL: farm-0..3 on the inner ring (R=52), farm-4..15 on
-    // the outer ring (R=72), each nudged by a fixed-seed ±1 organic jitter. We
+    // The band is now RADIAL: farm-0..3 on the inner ring (R=78), farm-4..15 on
+    // the outer ring (R=108), each nudged by a fixed-seed ±1 organic jitter. We
     // assert the PROPERTY that every procedural farm center lies on one of the
     // two ring radii within the jitter tolerance — rather than locking 16
     // coordinate pairs. Deterministic by design (fixed WORLD_GEN_SEED).
-    const CX = 80;
-    const CY = 80;
+    const CX = 120;
+    const CY = 120;
     // A 10×10 farm center is ~4.5–5 tiles off its bounds origin; the jitter is
     // ±1; so allow a generous radial tolerance of 3 tiles around each radius.
     const TOL = 3;
@@ -141,14 +141,14 @@ describe('procedural farm band', () => {
     for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
       const { center } = getRegion(`farm-${i}` as const);
       const r = Math.hypot(center.x - CX, center.y - CY);
-      const onInner = Math.abs(r - 52) <= TOL;
-      const onOuter = Math.abs(r - 72) <= TOL;
+      const onInner = Math.abs(r - 78) <= TOL;
+      const onOuter = Math.abs(r - 108) <= TOL;
       expect(onInner || onOuter, `farm-${i} radius ${r.toFixed(1)} on a ring`).toBe(true);
       // farm-0..3 are inner, farm-4..15 outer.
       if (i < 4) expect(onInner, `farm-${i} on inner ring`).toBe(true);
       else expect(onOuter, `farm-${i} on outer ring`).toBe(true);
       // jitter actually moved at least some bodies (not a perfect wheel).
-      const a = (i < 4 ? 52 : 72);
+      const a = (i < 4 ? 78 : 108);
       if (Math.abs(r - a) > 0.6) offRing++;
     }
     expect(offRing).toBeGreaterThan(0);

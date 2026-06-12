@@ -1,5 +1,5 @@
 import type { GameEntity } from "../../components";
-import { REGIONS, FISHING_ISLE_IDS, getRegion, regionAt, isWalkable } from "../../world/regions";
+import { REGIONS, FISHING_ISLE_IDS, getRegion, regionAt, isWalkable, AUCTION_PODIUM_TILE } from "../../world/regions";
 import type { Season } from "../../protocols/weather";
 
 export interface WateringStyle {
@@ -48,16 +48,19 @@ function deriveFishingCastTiles(): ReadonlyArray<{ x: number; y: number }> {
 export const FISHING_CAST_TILES = deriveFishingCastTiles();
 
 /**
- * Tavern gathering tile inside the village hub (patron side of the bar: one tile
- * south of the barkeep at (82,76), well inside village bounds (75–86, 75–86)).
+ * Tavern gathering tile inside the village hub (NE quadrant of the hub, patron
+ * side of the bar). DERIVED from the live village center (+3,-3) rather than a
+ * hardcoded literal — the world grid is parametric (see regions.ts) and a baked
+ * tile would silently drift off-hub on the next world scale (cf. FISHING_CAST_TILES).
  */
-export const TAVERN_GATHER_TILE = { x: 82, y: 78 } as const;
+const VILLAGE_CENTER = getRegion("village").center;
+export const TAVERN_GATHER_TILE = { x: VILLAGE_CENTER.x + 3, y: VILLAGE_CENTER.y - 3 } as const;
 
 /** How often (in days) a farmer makes a tavern gathering trip (a periodic luxury). */
 export const TAVERN_VISIT_PERIOD = 12;
 
-/** The festival gathering tile: auction podium in the town square (matches AUCTION_PODIUM_TILE). */
-export const FESTIVAL_PODIUM_TILE = { x: 80, y: 80 } as const;
+/** The festival gathering tile: auction podium in the town square (the same tile). */
+export const FESTIVAL_PODIUM_TILE = AUCTION_PODIUM_TILE;
 
 /**
  * Pick the nearest water source region to the farmer: their home farm (fountain)

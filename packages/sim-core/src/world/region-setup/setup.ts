@@ -1,8 +1,18 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../../components";
-import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, type RegionId, type RegionDef } from "../regions";
+import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, scaleAroundNearestIsland, type RegionId, type RegionDef } from "../regions";
 import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE } from "./tiles";
 import { fountainTile, placeProps, placeFootprint } from "./placement";
+
+/** Re-anchor work-NPC station tiles (authored at 160-scale) to their island so
+ *  they track the building they serve — see regions.ts scaleAroundNearestIsland. */
+type Station = { tileX: number; tileY: number; facing: "up" | "down" | "side"; flipX: boolean; pose: string | null };
+function scaleStations(stations: readonly Station[]): Station[] {
+  return stations.map((s) => {
+    const { x, y } = scaleAroundNearestIsland({ x: s.tileX, y: s.tileY });
+    return { ...s, tileX: x, tileY: y };
+  });
+}
 
 export interface SetupRegionsResult {
   regionEntities: Map<RegionId, GameEntity>;
@@ -132,14 +142,14 @@ export function setupRegions(
         inbox: { messages: [] },
         workNpc: {
           idlePose: "npc/blacksmith/idle",
-          stations: [
+          stations: scaleStations([
             // Stand below the anvil (99,81), face up, hammer.
             { tileX: 99, tileY: 82, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
             // Tend the oven (97,79) — stand below it, face up, no swing pose.
             { tileX: 97, tileY: 80, facing: "up", flipX: false, pose: null },
             // Quench at the tub (101,80) — stand left of it, face side/right.
             { tileX: 100, tileY: 80, facing: "side", flipX: false, pose: null },
-          ],
+          ]),
           stationIndex: 0,
           phase: "working",
           timer: 90,
@@ -177,14 +187,14 @@ export function setupRegions(
         inbox: { messages: [] },
         workNpc: {
           idlePose: "npc/carpenter/idle",
-          stations: [
+          stations: scaleStations([
             // Saw at the workbench (63,78) — stand below, face up.
             { tileX: 63, tileY: 79, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
             // Saw the log on the sawhorse (65,77) — stand below, face up.
             { tileX: 65, tileY: 78, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
             // Inspect the log pile (64,84) — stand above it, face down.
             { tileX: 64, tileY: 83, facing: "down", flipX: false, pose: null },
-          ],
+          ]),
           stationIndex: 0,
           phase: "working",
           timer: 90,
@@ -257,26 +267,28 @@ export function setupRegions(
   }
 
   if (REGIONS.some((r) => r.id === "village")) {
+    const tav = scaleAroundNearestIsland({ x: 82, y: 75 });
+    const bar = scaleAroundNearestIsland({ x: 82, y: 76 });
     world.spawn({
-      transform: { x: 82, y: 75, prevX: 82, prevY: 75, rotation: 0 },
+      transform: { x: tav.x, y: tav.y, prevX: tav.x, prevY: tav.y, rotation: 0 },
       sprite: { atlasId: "main", frame: "structure/tavern", layer: 50, tintRgba: 0xffffffff },
       tavern: { isTavern: true },
       inbox: { messages: [] },
-      solid: { isSolid: true, tileX: 82, tileY: 75 },
+      solid: { isSolid: true, tileX: tav.x, tileY: tav.y },
     });
     world.spawn({
-      transform: { x: 82, y: 76, prevX: 82, prevY: 76, rotation: 0 },
+      transform: { x: bar.x, y: bar.y, prevX: bar.x, prevY: bar.y, rotation: 0 },
       sprite: { atlasId: "main", frame: "npc/barkeep/idle", layer: 50, tintRgba: 0xffffffff },
       workNpc: {
         idlePose: "npc/barkeep/idle",
-        stations: [
+        stations: scaleStations([
           // Pour at the bar (stand at 82,76, face down toward patrons).
           { tileX: 82, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
           // Wipe the counter one tile west.
           { tileX: 81, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
           // Step back east and idle.
           { tileX: 83, tileY: 76, facing: "down", flipX: false, pose: null },
-        ],
+        ]),
         stationIndex: 0,
         phase: "working",
         timer: 90,
@@ -499,11 +511,11 @@ export function setupRegions(
     dockmaster: { isDockmaster: true },
     workNpc: {
       idlePose: "npc/dockmaster/idle",
-      stations: [
+      stations: scaleStations([
         { tileX: 96, tileY: 109, facing: "up", flipX: false, pose: null },   // at the board
         { tileX: 96, tileY: 106, facing: "down", flipX: false, pose: null }, // by the dock
         { tileX: 98, tileY: 110, facing: "side", flipX: false, pose: null }, // east end
-      ],
+      ]),
       stationIndex: 0,
       phase: "working",
       timer: 90,

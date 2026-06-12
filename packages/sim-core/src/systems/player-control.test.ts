@@ -425,9 +425,9 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
 });
 
 describe("PlayerControlSystem — fishing", () => {
-  // Fishing-isle west edge tile (75,108); its west neighbour (74,108) is ocean,
-  // its east neighbour (76,108) is isle land (radial 160×160 layout).
-  const ISLE_EDGE = { x: 75, y: 108 };
+  // Fishing-isle west edge tile (114,162); its west neighbour (113,162) is ocean,
+  // its east neighbour (115,162) is isle land (radial 240×240 layout).
+  const ISLE_EDGE = { x: 114, y: 162 };
 
   /** Stand Pip on the fishing-isle edge with a rod, facing the open water. */
   function standOnIsle(pip: GameEntity): void {
@@ -437,7 +437,7 @@ describe("PlayerControlSystem — fishing", () => {
     pip.transform!.y = ISLE_EDGE.y;
     pip.farmer!.currentRegion = "fishing-isle";
     pip.player!.selectedSlot = SLOT.rod;
-    pip.player!.facing = "left"; // faces (39,71) = ocean
+    pip.player!.facing = "left"; // faces (113,162) = ocean
   }
 
   it("fishes facing open water from the isle, banking gold and a fish", () => {
@@ -455,7 +455,7 @@ describe("PlayerControlSystem — fishing", () => {
   it("won't fish when facing land (not open water)", () => {
     const { world, pip, control, act } = setup();
     standOnIsle(pip);
-    pip.player!.facing = "right"; // (41,71) is still isle land, not ocean
+    pip.player!.facing = "right"; // (115,162) is still isle land, not ocean
     const goldBefore = pip.inventory!.gold;
     pip.player!.pendingAction = true;
     tick(world, control, act);

@@ -38,69 +38,108 @@ export interface RegionDef {
   center: { x: number; y: number };
 }
 
-// 160×160 radial archipelago: isolated islands connected only by 2-wide bridges.
+// 240×240 radial archipelago: isolated islands connected only by 2-wide bridges.
 // Central cluster (village hub + craft/resource/seasonal/landmark islands) surrounded by
 // two concentric rings of 21 farms. The renderer derives ocean/shores/bridges purely from
 // these bounds + ROADS.
-export const WORLD_WIDTH = 160;
-export const WORLD_HEIGHT = 160;
+export const WORLD_WIDTH = 240;
+export const WORLD_HEIGHT = 240;
 
-const MAP_CX = 80;
-const MAP_CY = 80;
+const MAP_CX = 120;
+const MAP_CY = 120;
+
+// The layout below is authored at the original 160×160 scale around (80,80) and
+// uniformly scaled out to the live world. Scaling position-offset-from-center
+// (NOT island size) opens every inter-body gap by SCALE while keeping islands the
+// same size. To grow the world again, bump WORLD_* / MAP_C* / SCALE together.
+const DESIGN_CX = 80;
+const DESIGN_CY = 80;
+const SCALE = 1.5; // 240 / 160
+
+/** Scale a hand-authored (160-scale) bounds rect out to the live world: the rect
+ *  center moves by SCALE from the design origin; width/height are preserved. */
+export function scaleB(b: { minX: number; minY: number; maxX: number; maxY: number }): {
+  minX: number; minY: number; maxX: number; maxY: number;
+} {
+  const w = b.maxX - b.minX + 1;
+  const h = b.maxY - b.minY + 1;
+  const cx = (b.minX + b.maxX) / 2;
+  const cy = (b.minY + b.maxY) / 2;
+  const ncx = MAP_CX + (cx - DESIGN_CX) * SCALE;
+  const ncy = MAP_CY + (cy - DESIGN_CY) * SCALE;
+  const minX = Math.round(ncx - w / 2);
+  const minY = Math.round(ncy - h / 2);
+  return { minX, minY, maxX: minX + w - 1, maxY: minY + h - 1 };
+}
+
+/** Scale a hand-authored (160-scale) render-anchor tile out to the live world.
+ *  Use for any single tile coordinate authored against the original layout
+ *  (décor anchors, NPC stations, structure tiles) so it tracks the scaled world. */
+export function scaleT(t: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: Math.round(MAP_CX + (t.x - DESIGN_CX) * SCALE),
+    y: Math.round(MAP_CY + (t.y - DESIGN_CY) * SCALE),
+  };
+}
 
 // Fixed (not the run seed): world geometry is immutable across runs.
 export const WORLD_GEN_SEED = 0x5eed_face;
 
 // Hand-authored bounds packed around (80,80); ≥1 ocean gap between any pair,
 // ≥2 for landmarks. Verified: min any-pair gap 1, min landmark gap 2.
-const VILLAGE_BOUNDS        = { minX: 75, minY: 75, maxX: 86, maxY: 86 }; // center hub (12×12)
-const CARPENTRY_BOUNDS      = { minX: 59, minY: 76, maxX: 68, maxY: 85 }; // W of village (10×10)
-const BLACKSMITH_BOUNDS     = { minX: 93, minY: 76, maxX: 102, maxY: 85 }; // E of village (10×10)
-const MILL_BOUNDS           = { minX: 76, minY: 93, maxX: 85, maxY: 100 }; // S of village (10×8)
+const VILLAGE_BOUNDS        = scaleB({ minX: 75, minY: 75, maxX: 86, maxY: 86 }); // center hub (12×12)
+const CARPENTRY_BOUNDS      = scaleB({ minX: 59, minY: 76, maxX: 68, maxY: 85 }); // W of village (10×10)
+const BLACKSMITH_BOUNDS     = scaleB({ minX: 93, minY: 76, maxX: 102, maxY: 85 }); // E of village (10×10)
+const MILL_BOUNDS           = scaleB({ minX: 76, minY: 93, maxX: 85, maxY: 100 }); // S of village (10×8)
 
-const FOREST_NORTH_BOUNDS   = { minX: 61, minY: 61, maxX: 68, maxY: 68 }; // NW diagonal (8×8)
-const QUARRY_NORTH_BOUNDS   = { minX: 93, minY: 61, maxX: 100, maxY: 68 }; // NE diagonal
-const FOREST_SOUTH_BOUNDS   = { minX: 61, minY: 93, maxX: 68, maxY: 100 }; // SW diagonal
-const QUARRY_SOUTH_BOUNDS   = { minX: 93, minY: 93, maxX: 100, maxY: 100 }; // SE diagonal
+const FOREST_NORTH_BOUNDS   = scaleB({ minX: 61, minY: 61, maxX: 68, maxY: 68 }); // NW diagonal (8×8)
+const QUARRY_NORTH_BOUNDS   = scaleB({ minX: 93, minY: 61, maxX: 100, maxY: 68 }); // NE diagonal
+const FOREST_SOUTH_BOUNDS   = scaleB({ minX: 61, minY: 93, maxX: 68, maxY: 100 }); // SW diagonal
+const QUARRY_SOUTH_BOUNDS   = scaleB({ minX: 93, minY: 93, maxX: 100, maxY: 100 }); // SE diagonal
 
-const MUSHROOM_GROVE_BOUNDS = { minX: 59, minY: 47, maxX: 66, maxY: 54 }; // N — autumn
-const ICE_POND_BOUNDS       = { minX: 95, minY: 47, maxX: 102, maxY: 54 }; // N — winter
+const MUSHROOM_GROVE_BOUNDS = scaleB({ minX: 59, minY: 47, maxX: 66, maxY: 54 }); // N — autumn
+const ICE_POND_BOUNDS       = scaleB({ minX: 95, minY: 47, maxX: 102, maxY: 54 }); // N — winter
 
-const WELL_NORTH_BOUNDS     = { minX: 103, minY: 62, maxX: 104, maxY: 63 }; // 2×2, by quarry-north
-const WELL_SOUTH_BOUNDS     = { minX: 103, minY: 94, maxX: 104, maxY: 95 }; // 2×2, by quarry-south
+const WELL_NORTH_BOUNDS     = scaleB({ minX: 103, minY: 62, maxX: 104, maxY: 63 }); // 2×2, by quarry-north
+const WELL_SOUTH_BOUNDS     = scaleB({ minX: 103, minY: 94, maxX: 104, maxY: 95 }); // 2×2, by quarry-south
 
-const SHRINE_BOUNDS         = { minX: 71, minY: 58, maxX: 77, maxY: 64 }; // N-center (7×7), interactive
-const WATERFALL_BOUNDS      = { minX: 80, minY: 58, maxX: 87, maxY: 65 }; // N-center-E (8×8), ANIMATED
+// Authored +2 in x (71→73) vs the pure 160-scale layout: position-only scaling
+// spreads centers without growing islands, which erased shrine's thin x-overlap
+// with the village and killed the village↔shrine bridge. The nudge restores a
+// ≥2-column scaled overlap with the village while keeping a 3-column gap to the
+// waterfall (the only other neighbour). Sole hand-tuned exception to the transform.
+const SHRINE_BOUNDS         = scaleB({ minX: 73, minY: 58, maxX: 79, maxY: 64 }); // N-center (7×7), interactive
+const WATERFALL_BOUNDS      = scaleB({ minX: 80, minY: 58, maxX: 87, maxY: 65 }); // N-center-E (8×8), ANIMATED
 
-const HERITAGE_STONES_BOUNDS  = { minX: 45, minY: 63, maxX: 52, maxY: 70 }; // W (8×8) decorative
-const HERITAGE_RUIN_BOUNDS    = { minX: 109, minY: 63, maxX: 116, maxY: 70 }; // E (8×8) decorative
-const HERITAGE_STATUE_BOUNDS  = { minX: 45, minY: 93, maxX: 52, maxY: 100 }; // SW (8×8) decorative
+const HERITAGE_STONES_BOUNDS  = scaleB({ minX: 45, minY: 63, maxX: 52, maxY: 70 }); // W (8×8) decorative
+const HERITAGE_RUIN_BOUNDS    = scaleB({ minX: 109, minY: 63, maxX: 116, maxY: 70 }); // E (8×8) decorative
+const HERITAGE_STATUE_BOUNDS  = scaleB({ minX: 45, minY: 93, maxX: 52, maxY: 100 }); // SW (8×8) decorative
 
-const FISHING_ISLE_BOUNDS   = { minX: 75, minY: 105, maxX: 82, maxY: 112 }; // S-center (8×8 sand)
-const FISHING_ISLE_2_BOUNDS = { minX: 59, minY: 105, maxX: 66, maxY: 112 }; // S-W (8×8 sand)
-const HARBOR_BOUNDS         = { minX: 93, minY: 105, maxX: 100, maxY: 112 }; // S-E dock (8×8)
-const CAMP_BOUNDS           = { minX: 109, minY: 105, maxX: 116, maxY: 112 }; // SE campsite (8×8)
+const FISHING_ISLE_BOUNDS   = scaleB({ minX: 75, minY: 105, maxX: 82, maxY: 112 }); // S-center (8×8 sand)
+const FISHING_ISLE_2_BOUNDS = scaleB({ minX: 59, minY: 105, maxX: 66, maxY: 112 }); // S-W (8×8 sand)
+const HARBOR_BOUNDS         = scaleB({ minX: 93, minY: 105, maxX: 100, maxY: 112 }); // S-E dock (8×8)
+const CAMP_BOUNDS           = scaleB({ minX: 109, minY: 105, maxX: 116, maxY: 112 }); // SE campsite (8×8)
 
 // Weather station island: 7×7, south of camp, same x-band.
 // ≥6-tile gap to camp (north), ≥3-tile gap to farm-1 worst-case (NE).
 // Bridged north-to-south (vertical bridge) to camp.
-const WEATHER_STATION_BOUNDS = { minX: 109, minY: 119, maxX: 115, maxY: 125 }; // S (7×7)
+const WEATHER_STATION_BOUNDS = scaleB({ minX: 109, minY: 119, maxX: 115, maxY: 125 }); // S (7×7)
 
 // Scenic landmark islets (8×8) in open ocean, each a dead-end leaf bridged to a single
 // neighbour so no agent traffic routes through them. Placement + bridges verified clean
 // (no region overlap, ≥2-tile landmark gap). See decisions.md / log.md.
-const VOLCANO_BOUNDS = { minX: 76, minY: 9, maxX: 83, maxY: 16 };    // N — bridged S to farm-pip
-const CASINO_BOUNDS  = { minX: 74, minY: 116, maxX: 81, maxY: 123 }; // S — bridged N to fishing-isle
+const VOLCANO_BOUNDS = scaleB({ minX: 76, minY: 9, maxX: 83, maxY: 16 });    // N — bridged S to farm-pip
+const CASINO_BOUNDS  = scaleB({ minX: 74, minY: 116, maxX: 81, maxY: 123 }); // S — bridged N to fishing-isle
 
-// 21 farms on two concentric rings (R=52 inner n=9, R=72 outer n=12).
-// Named farms are 12×12; procedural are 10×10. Min farm-farm gap 7, min cluster-farm gap 3.
-// Per-farm jitter (±EXTRA_FARM_JITTER, fixed-seed) makes the frontier organic.
+// 21 farms on two concentric rings (R=78 inner n=9, R=108 outer n=12 — radii are
+// the original 52/72 scaled out by SCALE). Named farms are 12×12; procedural are
+// 10×10. Per-farm jitter (±EXTRA_FARM_JITTER, fixed-seed) makes the frontier organic.
 export const EXTRA_FARM_COUNT: number = 16; // 5 named + 16 procedural = 21 farms
 const FARM_NAMED_SIZE = 12;
 const FARM_PROC_SIZE = 10;
 
-const INNER_RING = { n: 9, r: 52, phi: -Math.PI / 2 };
-const OUTER_RING = { n: 12, r: 72, phi: (-90 + 15) * (Math.PI / 180) };
+const INNER_RING = { n: 9, r: 52 * SCALE, phi: -Math.PI / 2 };
+const OUTER_RING = { n: 12, r: 72 * SCALE, phi: (-90 + 15) * (Math.PI / 180) };
 
 // Jitter bounded at 1: worst-case gap 7 - 2 = 5, well above the ≥2 invariant.
 const EXTRA_FARM_JITTER = 1;
@@ -183,12 +222,6 @@ export const WATERFALL_REGION_ID: RegionId = 'waterfall';
 /** A farmer here at nightfall sleeps RESTED (no away-from-home penalty). */
 export const CAMP_REGION_ID: RegionId = 'camp';
 
-/** Campfire-overlay anchor tile (cx+2 from island center). Render-loop only. */
-export const CAMPFIRE_TILE = { x: 114, y: 108 } as const;
-
-/** Waterfall cascade-overlay anchor tile (center column / top). Render-loop only. */
-export const WATERFALL_TILE = { x: 83, y: 59 } as const;
-
 /** Weather-station region id. */
 export const WEATHER_STATION_REGION_ID: RegionId = 'weather-station';
 
@@ -196,19 +229,10 @@ export const WEATHER_STATION_REGION_ID: RegionId = 'weather-station';
 export const VOLCANO_REGION_ID: RegionId = 'volcano';
 export const CASINO_REGION_ID: RegionId = 'casino';
 
-/** Volcano crater tile — smoke-plume emit anchor (render-loop only). */
-export const VOLCANO_CRATER_TILE = { x: 80, y: 11 } as const;
-
-/** Casino tower crown tile — neon-glint emit anchor (render-loop only). */
-export const CASINO_NEON_TILE = { x: 76, y: 116 } as const;
-
-/** Antenna tip anchor tile (top-right of island). Render-loop only. */
-export const WEATHER_STATION_TILE = { x: 114, y: 119 } as const;
-
-/** Harbor north-edge center — farmer stands here to deliver a contract. */
-export const HARBOR_DOCK_TILE = { x: 96, y: 105 } as const;
-
-export const HARBOR_BOARD_TILE = { x: 97, y: 108 } as const;
+// NOTE: render-overlay anchor tiles (campfire, waterfall, volcano crater, casino
+// neon, weather antenna) and the harbor dock/board tiles are defined further down
+// — they are island-relative (scaleAroundNearestIsland), which must be declared
+// after REGIONS exists.
 
 export function isFishingIsle(region: RegionId | null): boolean {
   return region === 'fishing-isle' || region === 'fishing-isle-2';
@@ -253,6 +277,66 @@ export const REGIONS: readonly RegionDef[] = [
   { id: 'casino',  kind: 'landmark', bounds: CASINO_BOUNDS,  center: midpoint(CASINO_BOUNDS) },
   ...EXTRA_FARM_REGIONS,
 ];
+
+/** Recover a region's hand-authored (160-scale) center from its live scaled center
+ *  (inverse of the origin scaling applied to bounds). */
+function authoredCenterOf(scaled: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: DESIGN_CX + (scaled.x - MAP_CX) / SCALE,
+    y: DESIGN_CY + (scaled.y - MAP_CY) / SCALE,
+  };
+}
+
+/**
+ * Re-anchor a hand-authored (160-scale) tile to the live world by locking it to
+ * its ISLAND rather than the global map: find the nearest island, then translate
+ * the tile by that island's center displacement. Because islands keep their size
+ * under position-only scaling, an on-island tile keeps its exact offset from the
+ * island center and never drifts off into the ocean (unlike a raw origin scale,
+ * which spreads on-island content wider than its same-size island).
+ *
+ * Use for every authored coordinate that sits on/beside an island: décor, NPC
+ * stations, building footprints, dock/delivery tiles.
+ */
+export function scaleAroundNearestIsland(t: { x: number; y: number }): { x: number; y: number } {
+  let bestDispX = 0;
+  let bestDispY = 0;
+  let bestD = Infinity;
+  for (const r of REGIONS) {
+    const a = authoredCenterOf(r.center);
+    const d = (a.x - t.x) ** 2 + (a.y - t.y) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      bestDispX = r.center.x - a.x;
+      bestDispY = r.center.y - a.y;
+    }
+  }
+  return { x: Math.round(t.x + bestDispX), y: Math.round(t.y + bestDispY) };
+}
+
+// Render-overlay + structure anchor tiles, authored at 160-scale and locked to
+// their island so they ride with it (declared here because scaleAroundNearestIsland
+// needs REGIONS). Render-loop only unless noted.
+
+/** Campfire-overlay anchor tile (cx+2 from island center). */
+export const CAMPFIRE_TILE = scaleAroundNearestIsland({ x: 114, y: 108 });
+
+/** Waterfall cascade-overlay anchor tile (center column / top). */
+export const WATERFALL_TILE = scaleAroundNearestIsland({ x: 83, y: 59 });
+
+/** Volcano crater tile — smoke-plume emit anchor. */
+export const VOLCANO_CRATER_TILE = scaleAroundNearestIsland({ x: 80, y: 11 });
+
+/** Casino tower crown tile — neon-glint emit anchor. */
+export const CASINO_NEON_TILE = scaleAroundNearestIsland({ x: 76, y: 116 });
+
+/** Antenna tip anchor tile (top-right of island). */
+export const WEATHER_STATION_TILE = scaleAroundNearestIsland({ x: 114, y: 119 });
+
+/** Harbor north-edge center — farmer stands here to deliver a contract. */
+export const HARBOR_DOCK_TILE = scaleAroundNearestIsland({ x: 96, y: 105 });
+
+export const HARBOR_BOARD_TILE = scaleAroundNearestIsland({ x: 97, y: 108 });
 
 // Roads: 2-wide bridges spanning only water; tree rooted at village.
 interface RoadDef {
@@ -399,9 +483,9 @@ const ROADS: readonly RoadDef[] = [
 ];
 
 // Town square: inner 4×4 of village (auction podium + notice board)
-export const TOWN_SQUARE = { minX: 78, minY: 79, maxX: 81, maxY: 82 };
-export const AUCTION_PODIUM_TILE = { x: 80, y: 80 } as const;
-export const NOTICE_BOARD_TILE = { x: 79, y: 80 } as const;
+export const TOWN_SQUARE = scaleB({ minX: 78, minY: 79, maxX: 81, maxY: 82 });
+export const AUCTION_PODIUM_TILE = scaleAroundNearestIsland({ x: 80, y: 80 });
+export const NOTICE_BOARD_TILE = scaleAroundNearestIsland({ x: 79, y: 80 });
 
 function inBounds(
   x: number,

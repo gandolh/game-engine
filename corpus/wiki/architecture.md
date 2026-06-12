@@ -65,7 +65,7 @@ Generic pub/sub at [packages/engine/src/sim/message-bus.ts](../../packages/engin
 
 ## World layout
 
-**160×160 tile radial archipelago** (`WORLD_WIDTH`/`WORLD_HEIGHT` in [world/regions.ts](../../packages/sim-core/src/world/regions.ts), 2026-06-09 reorg) — a central service cluster surrounded by two concentric rings of 21 farms, islands joined only by bridges. `walkable-grid.test.ts` recomputes the walkable count from `REGIONS + ROADS` (no hardcoded magic number) and BFS-asserts every region reachable. Region bounds, placement, and the bridge tree live in [player-and-interaction.md](player-and-interaction.md) → *RADIAL archipelago layout* (the source of truth for tile geometry) and [world-generation.md](world-generation.md). Resource zones (forest/quarry) spawn trees/stones.
+**240×240 tile radial archipelago** (`WORLD_WIDTH`/`WORLD_HEIGHT` in [world/regions.ts](../../packages/sim-core/src/world/regions.ts), 2026-06-09 reorg; grown 160→240 on 2026-06-12 via uniform position-only scaling, SCALE=1.5) — a central service cluster surrounded by two concentric rings of 21 farms, islands joined only by bridges. `walkable-grid.test.ts` recomputes the walkable count from `REGIONS + ROADS` (no hardcoded magic number) and BFS-asserts every region reachable. Region bounds, placement, and the bridge tree live in [player-and-interaction.md](player-and-interaction.md) → *RADIAL archipelago layout* (the source of truth for tile geometry) and [world-generation.md](world-generation.md). Resource zones (forest/quarry) spawn trees/stones.
 
 ## Game data flow per tick
 

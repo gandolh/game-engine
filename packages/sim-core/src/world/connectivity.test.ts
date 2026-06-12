@@ -62,22 +62,23 @@ describe("connectivity component map", () => {
   // Brief-73 diagnosed (29,69) as a walkable pocket disconnected from the shrine
   // (2026-06-10, pre-implementation probe). The probe predates the radial reorg.
   //
-  // After the radial reorg, (29,69) falls inside farm-3 (inner ring slot 7,
-  // center ≈ (29,69), proc size 10×10 ± jitter). It is walkable AND on the same
-  // land mass as the village and shrine — connected via the farm-3 bridge spoke.
+  // After the radial reorg, the brief-73 "isolated pocket" tile fell inside farm-3
+  // (inner ring slot 7). It is walkable AND on the same land mass as the village
+  // and shrine — connected via the farm-3 bridge spoke.
   //
-  // OUTCOME: CASE 3 — (29,69) is walkable and already same-component as the shrine.
-  // The brief-73 finding is STALE (it referred to the old non-radial world layout).
-  // No world-data fix required. The reachability guard (task 3) still protects
-  // against the aboard/boat case and any future isolated pocket.
-  it("tile (29,69) is walkable and same-component as shrine in current radial world (stale brief-73 finding)", () => {
-    // farm-3 (inner ring slot 7) contains this tile after the radial reorg.
-    // This pin ensures a future world change that disconnects (29,69) from the
-    // main land mass will be caught immediately.
-    const comp = componentOf(29, 69);
+  // OUTCOME: CASE 3 — the farm-3 interior is walkable and already same-component as
+  // the shrine. The brief-73 finding is STALE (it referred to the old non-radial
+  // world layout). No world-data fix required. The reachability guard (task 3)
+  // still protects against the aboard/boat case and any future isolated pocket.
+  it("farm-3 interior is walkable and same-component as shrine in current radial world (stale brief-73 finding)", () => {
+    // Pin farm-3's center (derived, not a magic literal — survives the world's
+    // parametric scale). This ensures a future world change that disconnects the
+    // farm-3 land mass from the main one will be caught immediately.
+    const f3 = getRegion("farm-3").center;
+    const comp = componentOf(f3.x, f3.y);
     expect(comp).toBeGreaterThanOrEqual(0); // walkable
     const shrine = getRegion(SHRINE_REGION_ID).center;
-    expect(sameComponent(29, 69, shrine.x, shrine.y)).toBe(true); // same land mass
+    expect(sameComponent(f3.x, f3.y, shrine.x, shrine.y)).toBe(true); // same land mass
   });
 
   it("shrine center is reachable from village (same component, never disconnected)", () => {

@@ -26,8 +26,8 @@ describe('buildWalkableGrid', () => {
 
   it('bridge (road) tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[76 * WORLD_WIDTH + 70]).toBe(0); // village ↔ carpentry bridge
-    expect(grid.cells[90 * WORLD_WIDTH + 77]).toBe(0); // village ↔ mill ({76-77,87-92})
+    expect(grid.cells[116 * WORLD_WIDTH + 108]).toBe(0); // village ↔ carpentry bridge (y∈{116,117})
+    expect(grid.cells[132 * WORLD_WIDTH + 116]).toBe(0); // village ↔ mill (x∈{116,117})
     for (const road of ROADS) {
       for (let y = road.minY; y <= road.maxY; y++) {
         for (let x = road.minX; x <= road.maxX; x++) {
@@ -121,14 +121,14 @@ describe('buildWalkableGrid', () => {
       .sort((a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)));
     expect(band).toHaveLength(EXTRA_FARM_COUNT);
 
-    const CX = 80;
-    const CY = 80;
+    const CX = 120;
+    const CY = 120;
     band.forEach((r, i) => {
       const ux = r.center.x - jitterA[i]!.dx;
       const uy = r.center.y - jitterA[i]!.dy;
       const radius = Math.hypot(ux - CX, uy - CY);
-      const expected = i < 4 ? 52 : 72;
-      // ±2 tolerance for integer rounding of the ring formula. The 20-tile gap cleanly separates inner/outer.
+      const expected = i < 4 ? 78 : 108;
+      // ±2 tolerance for integer rounding of the ring formula. The 30-tile gap cleanly separates inner/outer.
       expect(Math.abs(radius - expected), `farm-${i} un-jittered radius ${radius.toFixed(2)}`)
         .toBeLessThanOrEqual(2);
     });

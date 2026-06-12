@@ -1,7 +1,7 @@
 // Coral reef geography: water lanes south of the fishing isles, reachable only by boat.
 // TravelSystem pathfinds on the LAND grid normally, on the BOAT grid only while aboard.
 import type { PathfinderGrid } from "@engine/core";
-import { WORLD_WIDTH, WORLD_HEIGHT } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, getRegion } from "./regions";
 
 export interface CoralReef {
   /** Stable id, used in decision-trace + feed keys. */
@@ -14,25 +14,28 @@ export interface CoralReef {
   lane: ReadonlyArray<{ x: number; y: number }>;
 }
 
+// Reefs are derived from the fishing-isle bodies so they always sit on the live
+// isle's south edge (the world grid is parametric — see regions.ts). dock = a
+// column 3 tiles in from the isle's west edge, on its south row; the lane runs 2
+// tiles south into open water; the reef is 1 tile further south.
+function reefOffIsle(id: CoralReef["id"], isleId: "fishing-isle" | "fishing-isle-2"): CoralReef {
+  const b = getRegion(isleId).bounds;
+  const x = b.minX + 3;
+  const dockY = b.maxY;
+  return {
+    id,
+    dock: { x, y: dockY },
+    lane: [
+      { x, y: dockY + 1 },
+      { x, y: dockY + 2 },
+    ],
+    reef: { x, y: dockY + 3 },
+  };
+}
+
 export const CORAL_REEFS: readonly CoralReef[] = [
-  {
-    id: "reef-mill",
-    dock: { x: 78, y: 112 },
-    reef: { x: 78, y: 115 },
-    lane: [
-      { x: 78, y: 113 },
-      { x: 78, y: 114 },
-    ],
-  },
-  {
-    id: "reef-forest",
-    dock: { x: 62, y: 112 },
-    reef: { x: 62, y: 115 },
-    lane: [
-      { x: 62, y: 113 },
-      { x: 62, y: 114 },
-    ],
-  },
+  reefOffIsle("reef-mill", "fishing-isle"),
+  reefOffIsle("reef-forest", "fishing-isle-2"),
 ];
 
 /** All reef tiles, as a lookup set (`"x,y"`) — a farmer fishes coral when on one. */
