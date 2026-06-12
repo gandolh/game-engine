@@ -50,3 +50,15 @@ Shipped **semantic walk state** on `SnapshotSprite` (`moving?: boolean`, `facing
 - Keep the engine primitive game-agnostic (no farm-valley imports); clips that name farm atlas frames live in `sim-core/render-systems`, not the engine.
 - `nowMs` is passed in everywhere — never reintroduce `Date.now()` in sim-core/render-systems.
 </content>
+
+## Candidate consumer — animated season transitions (2026-06-12)
+
+The seasonal-trees todo shipped INSTANT season swaps (`seasonalTreeFrame`, frames.ts).
+The user asked for ANIMATED transitions instead. Deferred here as a flagship brief-85
+consumer: a render-only cross-fade between the old and new seasonal frame over a short
+window when `season` changes — for dynamic foliage (trees/bushes/orchard via
+`resolveFrameAndBob`) and the baked big-tree (`pushBuildingSprites`, which would need
+the big-tree drawn as a blendable sprite). Render-only / determinism-safe (season value
+is tick-derived; the blend is wall-clock alpha, like idle-bob/sway). The baked grass tint
++ baked big-tree are the awkward part (single re-baked canvas) — would push the big-tree
+to a dynamic sprite. Scope it with duration/easing when picking up brief 85.
