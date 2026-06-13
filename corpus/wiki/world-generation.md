@@ -165,7 +165,7 @@ and **authored set-pieces** — _track 6
 **partially shipped**: decorative open-water props
 ([render-systems/set-pieces.ts](../../packages/sim-core/src/render-systems/set-pieces.ts),
 blue-noise seabed accents, render-only) are done; the **interactive shrine
-landmark** half was split into [brief 50](../briefs/game/done/50-interactive-shrine-landmark.md)
+landmark** half was split into [brief 50](../briefs/game/done/50-54-more-islands.md)
 as a gameplay feature_ — (the handmade-procedural hybrid). Backed by an adversarially-verified research pass
 (PCG book / Red Blob Games / Quilez / GDC) — see [log.md](../log.md) 2026-06-08.
 

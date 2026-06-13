@@ -7,7 +7,7 @@ Two structural game-feel fixes from the 2026-06-10 research pass (see [performan
 ## Read first
 
 - [corpus/wiki/player-and-interaction.md](../../../wiki/player-and-interaction.md) — focus camera / pan / zoom behaviour.
-- Briefs [60](60-increase-max-zoom-in.md) and [63](63-zoom-out-water-artifact.md) — both touch the same camera/wheel code; coordinate merge order (whoever lands second rebases).
+- Briefs 60 + 63 ([60–65 render-polish wave](60-65-render-polish-wave.md)) — both touch the same camera/wheel code; coordinated merge order at the time.
 
 ## Current state (verified against code 2026-06-10)
 

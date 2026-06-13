@@ -1,6 +1,6 @@
 # Animation
 
-How farmers, **Pip**, NPCs, and animated scenery are made to move. This page is the synthesis; the live task is [briefs/game/todo/85-animation-engine.md](../briefs/game/todo/85-animation-engine.md).
+How farmers, **Pip**, NPCs, and animated scenery are made to move. This page is the synthesis; the animation-engine work shipped its phases under [brief 85](../briefs/game/superseded/85-animation-engine.md) (closed superseded — only an optional in-browser feel-check + a 24px action pass were left).
 
 ## The sprite art is richer than the code that drives it
 
@@ -41,7 +41,7 @@ Engine brief [04-spatial-anim](../briefs/engine/done/04-spatial-anim.md) fully s
 
 Reintroduce the `AnimationClip` (immutable frames+durations, `sampleAt(elapsedMs)`) + `Animator` (per-entity registry/`play`/`update`) under `@engine/core/animation` — **render-side, wall-clock driven**. Frame phase is cosmetic, so this carries **zero determinism risk** and the sim stops needing to bake art strings into the snapshot. (The same `Animator.update(stepMs)` could be tick-driven if determinism were ever wanted — brief 04 anticipated both modes.)
 
-**Phasing** (full detail + acceptance in [brief 85](../briefs/game/todo/85-animation-engine.md)):
+**Phasing** (full detail + acceptance in [brief 85](../briefs/game/superseded/85-animation-engine.md)):
 
 1. **Engine primitive + immediate consumers (no new art).** ✅ **Done (2026-06-12).** Recovered `clip`/`animator` + tests, exported `@engine/core/animation`. The ~7 inline wall-clock cyclers now run through declarative `AnimationClip`s (`render-systems/{cycle,clips}.ts`) — the abstraction has real consumers so it won't rot like the brief-04 ghost. The dead `SpriteAnim` stub is removed.
 2. **Action `-a/-b` art** ✅ **Done (2026-06-12).** `ACTION_TEMPLATES_B` adds a `-b` strike frame per action (tool/arm moves, head identical); `farmer/<p>/<action>-b` generated for all 5 personalities incl. Pip (35 frames). `resolveFrameAndBob` alternates `pose ↔ pose-b` on the wall clock — working farmers/Pip now swing their tool like the NPCs, replacing the phase-1 bob-offset interim.

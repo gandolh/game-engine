@@ -2,7 +2,7 @@
 
 Current-state **snapshot** (2026-06-12). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
 
-**Where things stand:** engine briefs **01–16** and game briefs **01–88** are **Done or Superseded**. **todo/:** [85-animation-engine](../briefs/game/todo/85-animation-engine.md) (reintroduce the `AnimationClip`/`Animator` primitive **with consumers** + an action swing; render-only — see [wiki/animation.md](animation.md)) · [89-detailed-characters-and-held-tools](../briefs/game/todo/89-detailed-characters-and-held-tools.md) (detailed 24×24 characters + held hotbar tool; design agreed, awaiting build sign-off; render-only).
+**Where things stand:** engine briefs **01–16** and game briefs **01–89** are **Done or Superseded** — both `todo/` dirs are empty (2026-06-13). Briefs 85 (animation engine) + 89 (detailed 24×24 characters + held hotbar tool) shipped their phases and were closed **superseded** with only an optional in-browser feel-check + a 24px action pass left (WebGPU-only render → can't feel-check headless). The 2026-06-12 build-order todos (grow→décor→combat→ports→BDI-jitter→underwater→walls/lights→seasonal trees) are all complete; the two unrun calibration todos (rival-cutoff, combat-frequency) were closed **won't-do** in `todos/closed/`.
 
 **Seasonal trees + big-tree island (2026-06-12)** — `seasonalTreeFrame` is now 4-way (blossom/green/autumn/bare) over tree/bush/fruit-tree/big-tree (instant swap); new atlas recipes for each; mature orchards now actually show the mature frame (was a latent sapling bug). New `big-tree` landmark island (bridged to the volcano) with a bespoke 48×64 seasonal big tree as a baked centerpiece. **World/render todo group COMPLETE** (grow, theme, bigger neutrals, ranches, casino, seasonal/big-tree). Animated season cross-fade deferred to a brief-85 consumer.
 
@@ -65,7 +65,7 @@ Current-state **snapshot** (2026-06-12). Terse one-liner per brief here; full im
 | [07-chunked-tile-layer](../briefs/engine/done/07-chunked-tile-layer.md) | **Done** — `bakeStaticLayer` bakes the backdrop once; chunking unneeded. |
 | [08-wasm-expansion](../briefs/engine/done/08-wasm-expansion.md) | **Done** — noise/rng/floodfill WASM; fixed the never-transferred-pathfinder bug. |
 | [09-perf-optimization](../briefs/engine/done/09-perf-optimization.md) | **Done** — closed 2026-06-10; measured analysis in [performance.md](performance.md). |
-| [10-wasm-pathfinder-allocator-fault](../briefs/engine/done/10-wasm-pathfinder-allocator-fault.md) · [11-wgsl-validation-guard](../briefs/engine/done/11-wgsl-validation-guard.md) · [12-gpu-day-night-wash](../briefs/engine/done/12-gpu-day-night-wash.md) · [13-living-water-shader](../briefs/engine/done/13-living-water-shader.md) · [14-weather-shader-parity](../briefs/engine/done/14-weather-shader-parity.md) · [15-cloud-shadows-and-mist](../briefs/engine/done/15-cloud-shadows-and-mist.md) · [16-foliage-wind-sway](../briefs/engine/done/16-foliage-wind-sway.md) | **Done** — 2026-06-12 improvement wave (one worktree branch per brief); details in "Where things stand" above + [log.md](../log.md). |
+| [10-wasm-pathfinder-allocator-fault](../briefs/engine/done/10-wasm-pathfinder-allocator-fault.md) · [11-wgsl-validation-guard](../briefs/engine/done/11-wgsl-validation-guard.md) · [12–16 shader-wave](../briefs/engine/done/12-16-shader-wave.md) (day/night wash · living water · weather parity · cloud shadows · foliage sway) | **Done** — 2026-06-12 improvement wave (one worktree branch per brief; 12–16 merged into one rollup); details in "Where things stand" above + [log.md](../log.md). |
 
 ## Game briefs 01–48 — all Done
 
@@ -74,7 +74,7 @@ Foundational (01–23): personalities, weather/crops, market/shop, observer UI, 
 | Brief | One-line |
 |---|---|
 | [24-auction-bidding-golden-bean](../briefs/game/done/24-auction-bidding-golden-bean.md) | Agents bid; `golden_bean` valuable (resell/gift). Fixed the "no winner" dead auction. |
-| [25-panel-overlap-fix](../briefs/game/done/25-panel-overlap-fix.md) | Observer + feed share one right-column flex container. |
+| [25 panel-overlap-fix](../briefs/game/done/11-25-spectator-ui.md) | Observer + feed share one right-column flex container. *(merged into the 11–20+25 spectator-UI rollup.)* |
 | [26-day-night-seasonal-grading](../briefs/game/done/26-day-night-seasonal-grading.md) | Render-side day/night + seasonal wash (tick-synced, sim untouched). |
 | [27-long-days-intraday-timeline](../briefs/game/done/27-long-days-intraday-timeline.md) | `ticksPerDay` 20→1200; intra-day phases + SLEEP; economy stays day-denominated. |
 | [28-ap-economy-rework](../briefs/game/done/28-ap-economy-rework.md) | AP `100+2·day`, sleep-gated, free travel, friend discounts. |
@@ -83,17 +83,8 @@ Foundational (01–23): personalities, weather/crops, market/shop, observer UI, 
 | [32-rendering-overhaul](../briefs/game/done/32-rendering-overhaul.md) | Y-sort, shadows, particles, walk/work/idle-bob, bigger atlas. Orthographic. |
 | [33-world-expansion](../briefs/game/done/33-world-expansion.md) | 11 regions, tool system, watering can, resource drops, decorations, plot decay. |
 | [35-player-activity](../briefs/game/done/35-player-activity.md) | Slower movement, action time cost, home/sleep routine, market visits, debug player. |
-| [36-end-of-run-recap](../briefs/game/done/36-end-of-run-recap.md) | Day-100 "Legends" recap; passive `RunHistorySystem` + pure `summarizeRun`. |
-| [37-rivalries-and-relationship-legibility](../briefs/game/done/37-rivalries-and-relationship-legibility.md) | Relationship matrix + `RivalrySystem`. *(Was DORMANT; brief 59 made peer events fire.)* |
-| [38-drama-scoring-and-narrative-escalation](../briefs/game/done/38-drama-scoring-and-narrative-escalation.md) | Per-event `drama` (act-band weighted) → feed ★ emphasis, rank-flip lines, recap headline. |
-| [39-wealth-over-time-graph](../briefs/game/done/39-wealth-over-time-graph.md) | Multi-line wealth chart + crossings; live `wealthSeries` on the snapshot (render-only). |
-| [40-thought-bubbles-and-highlight-skip](../briefs/game/done/40-thought-bubbles-and-highlight-skip.md) | Intention bubbles + `skipToHighlight` (H) + feed-click-to-zoom. *Completes 36–40.* |
-| [41-crop-roster-and-quality-tiers](../briefs/game/done/41-crop-roster-and-quality-tiers.md) | 8 season-gated crops + Normal/Silver/Gold quality (forked rng); quality-weighted net worth. **The spine.** |
-| [42-livestock-and-orchards](../briefs/game/done/42-livestock-and-orchards.md) | Coops/barns (care→product) + perennial orchards. Fires live. |
-| [43-greenhouse-and-farm-skill-progression](../briefs/game/done/43-greenhouse-and-farm-skill-progression.md) | Season-immune greenhouse + 4 per-farm skills. Fires live (skills lopsided to farming). |
-| [44-living-world-working-npcs-and-tavern](../briefs/game/done/44-living-world-working-npcs-and-tavern.md) | Carpenter/blacksmith fulfill real commissions; tavern (gossip + hire-help + gathering); notice-board demand. |
-| [45-seasonal-visual-identity-and-festivals](../briefs/game/done/45-seasonal-visual-identity-and-festivals.md) | Season-variant tiles + rain/snow (render) + 4 fixed festivals (days 13/38/63/88) with deterministic harvest contest. |
-| [46-harbor-shipping-and-contracts](../briefs/game/done/46-harbor-shipping-and-contracts.md) | Harbor island + dockmaster/dock/cargo-ship + seeded time-boxed contract economy (commit→deliver / miss→penalty). Hoarder fulfills live. |
+| [36–40 spectator-story-layer](../briefs/game/done/36-40-spectator-story-layer.md) | 36 day-100 "Legends" recap (`RunHistorySystem`/`summarizeRun`); 37 relationship matrix + `RivalrySystem` *(was DORMANT until brief 59)*; 38 per-event `drama` weighting → feed ★/rank-flip/recap headline; 39 multi-line `wealthSeries` chart + crossings; 40 intention bubbles + `skipToHighlight` (H) + feed-click-to-zoom. |
+| [41–46 gameplay-depth-wave](../briefs/game/done/41-46-gameplay-depth-wave.md) | 41 8 season-gated crops + Normal/Silver/Gold quality (forked rng) — **the spine**; 42 coops/barns + perennial orchards; 43 season-immune greenhouse + 4 per-farm skills; 44 working carpenter/blacksmith commissions + tavern + notice-board; 45 season-variant tiles + festivals (days 13/38/63/88, deterministic harvest contest); 46 harbor + dockmaster + time-boxed contract economy. |
 | [48-boats-and-coral-fishing](../briefs/game/done/48-boats-and-coral-fishing.md) | Per-farm boats + a separate boat-travel grid; two coral reefs with boat-only fish (`coral-trout`/`lobster`). `deliberateCoralFishing` in all 4 personalities. |
 
 *(Briefs 49–79 are one-lined in the "Recent briefs" section above.)*

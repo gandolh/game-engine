@@ -8,7 +8,7 @@ The world reads as frozen between farmer actions. Add a thin layer of ambient mo
 
 - Root [CLAUDE.md](../../../../CLAUDE.md) — **EDG32 palette is enforced**; every particle color must be an `EDG.*` constant (the guard test will fail otherwise).
 - [packages/farm-valley/src/main/render-loop.ts](../../../../packages/farm-valley/src/main/render-loop.ts) — where the dynamic draw queue is built; the foam-bubble stride logic there is the existing pattern for cheap ambient effects.
-- Brief [64](64-subtle-water-waves.md) (todo) — sibling ambient-water effect; share the same update slot if it lands first.
+- Brief 64 ([60–65 render-polish wave](60-65-render-polish-wave.md)) — sibling ambient-water effect; shared the same update slot.
 
 ## Current state
 

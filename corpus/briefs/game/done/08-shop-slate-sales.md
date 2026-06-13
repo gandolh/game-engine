@@ -39,17 +39,5 @@ You'll likely modify these. The plan is yours to define precisely:
 
 What happens when `ONT_SHOP.SELL` request quantity > a single matching offer's `remaining`, but the cumulative remaining across multiple matching offers covers it? Two reasonable options — pick one in your plan and document it: (a) one offer per request, reject if no single offer covers it; (b) consume across multiple offers in order (cheapest first benefits the farmer).
 
-## Workflow
-
-1. Read the brief + the relevant code (`shopkeeper.ts`, `shop-slate.ts`, `protocols/shop.ts`).
-2. Write a concrete implementation plan as a markdown file at `corpus/briefs/game/todo/08-shop-slate-sales-plan.md` (file paths, exact diffs/pseudocode, test cases).
-3. Dispatch ONE sonnet subagent to execute the plan — give it the plan and the same scope/no-touch list.
-4. Verify the sonnet's work: `npm run typecheck -w farm-valley` and `npm run test -w farm-valley` both pass.
-5. Report back with a summary.
-
-## Acceptance criteria
-
-- `npm run typecheck -w farm-valley` passes
-- `npm run test -w farm-valley` passes (no regressions; new tests added)
-- A 100-day `npm run sim` headless run still completes (no infinite loops, no unhandled errors). Skip this check if `run-sim` isn't trivially runnable in your environment.
+> **Status:** Done. Workflow/acceptance scaffolding trimmed 2026-06-13 (a `*-plan.md` companion was written during impl and has since been removed — git holds it). Outcome shipped per the design above; current behaviour lives in `ShopkeeperSystem`/`ShopSlateSystem`.
 - No `.js` import suffixes; no new runtime deps

@@ -8,7 +8,7 @@ Add a small offshore island dedicated to a weather station — a squat building 
 
 - [wiki/world-generation.md](../../../wiki/world-generation.md) — the rect-based archipelago model; how islands are placed and named.
 - [wiki/player-and-interaction.md](../../../wiki/player-and-interaction.md) — the 88×80 archipelago layout; reserved regions; where existing islands sit so placement doesn't collide.
-- Briefs [50](../done/50-shrine-island.md), [51](../done/51-heritage-landmark-islands.md), [52](../done/52-animated-waterfall-island.md), [54](../done/54-camping-island.md) — the "more islands" series; follow the same spawn/region/setpiece pattern.
+- Briefs 50/51/52/54 ([50–54 "more islands"](50-54-more-islands.md)) — the "more islands" series; follows the same spawn/region/setpiece pattern.
 - Root [CLAUDE.md](../../../../CLAUDE.md) — **EDG32 palette enforced**; every new pixel must use an `EDG.*` constant.
 
 ## Current state
