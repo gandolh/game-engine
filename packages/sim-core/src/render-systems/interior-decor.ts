@@ -99,6 +99,13 @@ export const THEME_TABLE: Record<RegionTheme, ThemeEntry> = {
     frames: ["decoration/fern", "decoration/bush", "decoration/mushroom-cluster"],
     density: 6,
   },
+  // Boxing-ring landmark (ring island). The ring posts + ropes are a deliberate baked
+  // BIG_STRUCTURES layout (geometry.ts); this theme only scatters crowd-stand spectators
+  // and a little ringside clutter around the ring.
+  boxing: {
+    frames: ["decoration/crowd-stand", "decoration/barrel", "decoration/crate", "decoration/lamp-post"],
+    density: 6,
+  },
 };
 
 const key = (x: number, y: number): number => y * WORLD_WIDTH + x;

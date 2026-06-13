@@ -163,6 +163,17 @@ export function buildSprites(
       }
     }
 
+    // Combat HP bar: surfaced only while the farmer is mid-bout (FIGHTING). Else omitted
+    // so no bar shows in normal play. current/max clamped to [0,1].
+    let healthFrac: number | undefined;
+    if (isFarmer && entity.fsm?.current === "FIGHTING" && entity.health) {
+      const { current, max } = entity.health;
+      if (max > 0) {
+        const frac = current / max;
+        healthFrac = frac < 0 ? 0 : frac > 1 ? 1 : frac;
+      }
+    }
+
     let label: string | null = null;
     let description: string | null = null;
     const cue = isFarmer ? farmerCue(entity, day) : null;
@@ -254,6 +265,8 @@ export function buildSprites(
       facing,
       flipX,
       bubble,
+      // exactOptionalPropertyTypes: omit the key entirely when not fighting.
+      ...(healthFrac !== undefined ? { healthFrac } : {}),
     });
   }
 

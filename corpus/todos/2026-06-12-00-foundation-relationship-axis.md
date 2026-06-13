@@ -4,7 +4,19 @@ created: 2026-06-12
 status: open
 tags: [sim, agents, relationships, foundation]
 blocks: [ring-box-rivalry-fights, steal-from-npcs-friendship-penalty]
+status: done
 ---
+
+> **✅ DONE 2026-06-13.** Trust IS the axis; the monotonic accumulator is gone —
+> `RivalrySystem` now derives rivalry/alliance from `trust` each tick. Rivalry is
+> **one-sided/directional** (from→to trust `< RIVAL_CUTOFF=0.25`) with **hysteresis**
+> (fresh fires once on cross-down; re-arms only above `RIVAL_REARM=0.40`). Friends get
+> a trust-scaled **sell-side discount** (`MAX_FRIEND_DISCOUNT=0.10`, baseline 0.5→0×,
+> 1.0→10%). Inert **fight-inclination hook** `deliberateRivalChallenge` added behind
+> `COMBAT_ENABLED=false` (wired, dormant until the combat subsystem). Rival-cutoff
+> empirical calibration **DEFERRED** → see
+> [calibrate-rival-cutoff](2026-06-13-calibrate-rival-cutoff.md). 726 sim-core tests
+> green; typecheck clean. No determinism run (per constrained-hardware decision).
 
 # FOUNDATION (sim) — Unified relationship axis
 

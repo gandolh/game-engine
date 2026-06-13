@@ -224,6 +224,12 @@ import r229 from "./structure/big-tree";
 import r230 from "./structure/big-tree-blossom";
 import r231 from "./structure/big-tree-autumn";
 import r232 from "./structure/big-tree-bare";
+import r233 from "./decoration/ring-post";
+import r234 from "./decoration/ring-ropes";
+import r235 from "./decoration/crowd-stand";
+import r236 from "./indicator/intention-hostile";
+import r237 from "./indicator/hpbar-bg";
+import r238 from "./indicator/hpbar-fill";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -447,5 +453,11 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r230,
   r231,
   r232,
+  r233,
+  r234,
+  r235,
+  r236,
+  r237,
+  r238,
 ];
 

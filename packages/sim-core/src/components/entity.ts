@@ -37,6 +37,7 @@ import type { Pen } from "./livestock";
 import type { OrchardTree } from "./orchard";
 import type { Skills } from "./skills";
 import type { TrustScores, DecisionTrace } from "./trust";
+import type { Health } from "./health";
 import { DECISION_TRACE_CAP } from "./trust";
 
 export interface GameEntity {
@@ -80,6 +81,7 @@ export interface GameEntity {
   greenhouse?: Greenhouse;
   harborBoard?: HarborBoardTag;
   dockmaster?: DockmasterTag;
+  health?: Health;
   [key: string]: unknown;
 }
 

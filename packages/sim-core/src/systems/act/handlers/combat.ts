@@ -1,0 +1,34 @@
+import type { MessageBus } from "@engine/core";
+import type { Intention } from "@engine/core";
+import type { ActingFarmer } from "../types";
+import { ONT_COMBAT, type CombatContext, type ChallengeBody } from "../../../protocols/combat";
+
+/**
+ * `challenge` intention → send a CHALLENGE to the target over the bus. CombatSystem
+ * (later in the tick chain; delivered next DISPATCH) decides accept/decline and starts
+ * the bout. The challenger does not spend AP to issue a challenge — AP is spent swinging.
+ *
+ * intent.data: { peerId: number, context?: "ring" | "street" } (default street).
+ */
+export function handleChallenge(
+  farmer: ActingFarmer,
+  intent: Intention,
+  bus: MessageBus | undefined,
+  tick: number,
+): void {
+  if (!bus) return;
+  const peerId = intent.data.peerId;
+  if (typeof peerId !== "number" || farmer.id === undefined) return;
+  const context: CombatContext = intent.data.context === "ring" ? "ring" : "street";
+  const body: ChallengeBody = { challengerId: farmer.id, context };
+  bus.send(
+    {
+      performative: "request",
+      ontology: ONT_COMBAT.CHALLENGE,
+      sender: farmer.id,
+      recipient: peerId,
+      body: body as unknown as Record<string, unknown>,
+    },
+    tick,
+  );
+}

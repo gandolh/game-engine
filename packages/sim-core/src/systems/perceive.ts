@@ -25,6 +25,9 @@ export class PerceiveSystem implements System {
   run(ctx: SimContext): void {
     const farmers = this.world.query("inbox", "beliefs", "fsm");
     for (const farmer of farmers) {
+      // A fighting farmer is frozen out of the normal day loop; CombatSystem owns it
+      // and releases it back to WAIT_DAY when the bout ends. Skip all perception.
+      if (farmer.fsm.current === "FIGHTING") continue;
       if (farmer.farmer?.busyUntilTick !== undefined && ctx.tick >= farmer.farmer.busyUntilTick) {
         delete farmer.farmer.busyUntilTick;
         const phase = farmer.beliefs.data.phase as string | undefined;

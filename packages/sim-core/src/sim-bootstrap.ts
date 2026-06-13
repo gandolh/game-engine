@@ -40,6 +40,7 @@ import { MeetIndicatorSystem } from "./systems/meet-indicator";
 import { EventFeedSystem } from "./systems/event-feed";
 import { RunHistorySystem } from "./systems/run-history";
 import { RivalrySystem } from "./systems/rivalry";
+import { CombatSystem, ChaseSystem, AggressionSystem } from "./systems/combat";
 import { ShopSlateSystem } from "./systems/shop-slate";
 import { NoticeBoardSystem } from "./systems/notice-board";
 import { FinishDaySystem } from "./systems/finish-day";
@@ -163,6 +164,7 @@ export interface BootedSim {
   eventFeed: EventFeedSystem;
   runHistory: RunHistorySystem;
   rivalry: RivalrySystem;
+  combat: CombatSystem;
 }
 
 export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
@@ -190,7 +192,8 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     maxDays,
   });
   const meetIndicators = new MeetIndicatorSystem(world);
-  const rivalry = new RivalrySystem(world, listCoordinators());
+  const rivalry = new RivalrySystem(world);
+  const combat = new CombatSystem(world, bus, rng, opts.ticksPerDay);
   const runHistory = new RunHistorySystem(world, bus);
   const eventFeed = new EventFeedSystem(world, dayClock, rivalry, runHistory);
   const scheduler = new Scheduler()
@@ -236,6 +239,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .stage("DELIBERATE")
     .add(new DeliberateSystem(world))
     .add(new PlayerControlSystem(world))
+    .add(new AggressionSystem(world, combat))
     .add(weatherFeature.apSystem);
 
   if (opts.pathfinder) {
@@ -244,6 +248,8 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     const boatGrid = buildBoatGrid();
     scheduler.stage("MOVE");
     scheduler.add(new FeatureCollisionSystem(world, grid));
+    // ChaseSystem (re)points the pursuit travel intent BEFORE TravelSystem steps it.
+    scheduler.add(new ChaseSystem(world, bus, combat, opts.ticksPerDay));
     scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, grid, bus, boatGrid));
   }
 
@@ -256,9 +262,10 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new CarpenterSystem(world, bus))
     .add(new NpcDeliberateSystem(world))
     .add(new WorkNpcSystem(world))
+    .add(combat)
     .add(new FinishDaySystem(world));
 
-  return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators, eventFeed, runHistory, rivalry };
+  return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators, eventFeed, runHistory, rivalry, combat };
 }
 
 export interface FarmerSummary {

@@ -4,7 +4,15 @@ created: 2026-06-12
 status: open
 tags: [sim, agents, economy, combat]
 depends_on: [foundation-combat-subsystem, foundation-relationship-axis, foundation-grow-grid-to-240, foundation-theme-decor-table]
+status: done
 ---
+
+> **✅ DONE 2026-06-13** (shipped with the combat subsystem). Dedicated ring island
+> (region `ring`, `boxing` theme décor, bridged to village); CHALLENGE/ACCEPT +
+> teleport; tick-by-tick HP bout → KO or AP-out; fixed 10g loser→winner; mutual-trust
+> bond (de-escalation via the relationship axis, not a rivalry decrement); HP reset to
+> full at bout end, AP spent stays spent. See
+> [combat foundation](2026-06-12-00-foundation-combat-subsystem.md) + log.md.
 
 # Ring box where farmers fight to reduce rivalry and win gold
 

@@ -1,17 +1,24 @@
 /**
- * rivalry.test.ts — unit tests for RivalrySystem.
+ * rivalry.test.ts — unit tests for RivalrySystem (trust-axis LABELER).
  *
- * Tests drive the accumulator logic directly by spawning farmer entities,
- * placing DECLINE messages in their inboxes, and calling rivalry.run().
- * This mirrors how event-feed.test.ts exercises EventFeedSystem.
+ * RivalrySystem no longer accumulates adverse events; rivalry/alliance are
+ * DERIVED each tick from the directional `trust` map. Tests set trust values
+ * directly and call rivalry.run().
+ *
+ *   rivalry  : DIRECTIONAL — from→to trust < RIVAL_CUTOFF (0.25).
+ *   hysteresis: fresh fires once on crossing down; re-arms only above RIVAL_REARM (0.40).
+ *   alliance : undirected mutual trust >= ALLIANCE_TRUST_THRESHOLD (0.8).
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { World } from "@engine/core";
 import type { GameEntity } from "../components";
-import { RivalrySystem, RIVALRY_THRESHOLD, ALLIANCE_TRUST_THRESHOLD } from "./rivalry";
-import { ONT_ENCOUNTER } from "../protocols/encounter";
-import { PERFORMATIVE } from "../protocols";
+import {
+  RivalrySystem,
+  RIVAL_CUTOFF,
+  RIVAL_REARM,
+  ALLIANCE_TRUST_THRESHOLD,
+} from "./rivalry";
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -19,25 +26,17 @@ function makeFarmer(world: World<GameEntity>, name: string): GameEntity {
   return world.spawn({
     farmer: { name, currentRegion: "village" },
     inbox: { messages: [] },
+    trust: { byId: new Map<number, number>() },
   });
 }
 
-function pushDecline(
-  entity: GameEntity,
-  senderFarmer: GameEntity,
-): void {
-  entity.inbox!.messages.push({
-    performative: PERFORMATIVE.INFORM,
-    ontology: ONT_ENCOUNTER.DECLINE,
-    sender: senderFarmer.id!,
-    body: { offerId: `offer-${Math.random()}` },
-    tickIssued: 0,
-  });
+function setTrust(from: GameEntity, to: GameEntity, value: number): void {
+  from.trust!.byId.set(to.id!, value);
 }
 
 // ---- tests -----------------------------------------------------------------
 
-describe("RivalrySystem — rivalry accumulation", () => {
+describe("RivalrySystem — directional rivalry labeling", () => {
   let world: World<GameEntity>;
   let rivalry: RivalrySystem;
 
@@ -46,117 +45,104 @@ describe("RivalrySystem — rivalry accumulation", () => {
     rivalry = new RivalrySystem(world);
   });
 
-  it("does not form a rivalry below threshold", () => {
-    const alice = makeFarmer(world, "Alice");
-    const bob = makeFarmer(world, "Bob");
-
-    // Push fewer declines than threshold.
-    for (let i = 0; i < RIVALRY_THRESHOLD - 1; i++) {
-      pushDecline(alice, bob); // alice received a DECLINE from bob
-      rivalry.run({ tick: i });
-      alice.inbox!.messages.length = 0;
-    }
-
+  it("no rivalry at baseline trust (0.5)", () => {
+    makeFarmer(world, "Alice");
+    makeFarmer(world, "Bob");
+    rivalry.run({ tick: 0 });
     expect(rivalry.activeRivalries()).toHaveLength(0);
   });
 
-  it("forms a rivalry when adverse events reach RIVALRY_THRESHOLD", () => {
+  it("no rivalry just above the cutoff", () => {
     const alice = makeFarmer(world, "Alice");
     const bob = makeFarmer(world, "Bob");
-
-    for (let i = 0; i < RIVALRY_THRESHOLD; i++) {
-      pushDecline(alice, bob);
-      rivalry.run({ tick: i });
-      alice.inbox!.messages.length = 0;
-    }
-
-    const rivalries = rivalry.activeRivalries();
-    expect(rivalries).toHaveLength(1);
-    expect(rivalries[0]!.score).toBeGreaterThanOrEqual(RIVALRY_THRESHOLD);
-    // Ordered pair: aId < bId
-    expect(rivalries[0]!.aId).toBeLessThan(rivalries[0]!.bId);
+    setTrust(alice, bob, RIVAL_CUTOFF + 0.01);
+    rivalry.run({ tick: 0 });
+    expect(rivalry.activeRivalries()).toHaveLength(0);
   });
 
-  it("pair key is ordered (aId < bId) regardless of message direction", () => {
+  it("labels a one-sided rivalry when my trust drops below the cutoff", () => {
     const alice = makeFarmer(world, "Alice");
     const bob = makeFarmer(world, "Bob");
-
-    // Declines in both directions accumulate to the same ordered pair.
-    for (let i = 0; i < RIVALRY_THRESHOLD; i++) {
-      if (i % 2 === 0) {
-        pushDecline(alice, bob); // alice inbox, sender=bob
-      } else {
-        pushDecline(bob, alice); // bob inbox, sender=alice
-      }
-      rivalry.run({ tick: i });
-      alice.inbox!.messages.length = 0;
-      bob.inbox!.messages.length = 0;
-    }
+    setTrust(alice, bob, RIVAL_CUTOFF - 0.05); // Alice resents Bob; Bob is neutral
+    rivalry.run({ tick: 0 });
 
     const rivalries = rivalry.activeRivalries();
-    expect(rivalries).toHaveLength(1);
-    // Exactly one unique ordered pair.
-    expect(rivalries[0]!.aId).toBeLessThan(rivalries[0]!.bId);
+    expect(rivalries).toHaveLength(1); // directional: only Alice→Bob
+    expect(rivalries[0]!.aId).toBe(alice.id);
+    expect(rivalries[0]!.bId).toBe(bob.id);
+    expect(rivalries[0]!.score).toBeLessThan(RIVAL_CUTOFF);
   });
 
-  it("freshlyFormedThisTick returns the new rivalry on the crossing tick", () => {
+  it("can label both directions independently (mutual grudge)", () => {
+    const alice = makeFarmer(world, "Alice");
+    const bob = makeFarmer(world, "Bob");
+    setTrust(alice, bob, 0.1);
+    setTrust(bob, alice, 0.2);
+    rivalry.run({ tick: 0 });
+    expect(rivalry.activeRivalries()).toHaveLength(2);
+  });
+
+  it("freshlyFormedThisTick fires on the crossing tick, once", () => {
     const alice = makeFarmer(world, "Alice");
     const bob = makeFarmer(world, "Bob");
 
-    // Warm up to threshold - 1.
-    for (let i = 0; i < RIVALRY_THRESHOLD - 1; i++) {
-      pushDecline(alice, bob);
-      rivalry.run({ tick: i });
-      alice.inbox!.messages.length = 0;
-      // Nothing fresh yet.
-      expect(rivalry.freshlyFormedThisTick()).toHaveLength(0);
-    }
+    // Above cutoff first → nothing fresh.
+    setTrust(alice, bob, 0.5);
+    rivalry.run({ tick: 0 });
+    expect(rivalry.freshlyFormedThisTick()).toHaveLength(0);
 
-    // The crossing tick.
-    pushDecline(alice, bob);
-    rivalry.run({ tick: RIVALRY_THRESHOLD });
-    alice.inbox!.messages.length = 0;
-
+    // Cross down → fresh fires.
+    setTrust(alice, bob, 0.1);
+    rivalry.run({ tick: 1 });
     const fresh = rivalry.freshlyFormedThisTick();
     expect(fresh).toHaveLength(1);
     expect(fresh[0]!.kind).toBe("rivalry");
+
+    // Still below, but latched → no re-fire.
+    rivalry.run({ tick: 2 });
+    expect(rivalry.freshlyFormedThisTick()).toHaveLength(0);
   });
 
-  it("does not re-announce an already-active rivalry on subsequent ticks", () => {
+  it("hysteresis: re-arms only after trust climbs above RIVAL_REARM", () => {
     const alice = makeFarmer(world, "Alice");
     const bob = makeFarmer(world, "Bob");
 
-    for (let i = 0; i < RIVALRY_THRESHOLD; i++) {
-      pushDecline(alice, bob);
-      rivalry.run({ tick: i });
-      alice.inbox!.messages.length = 0;
-    }
+    setTrust(alice, bob, 0.1);
+    rivalry.run({ tick: 0 });
+    expect(rivalry.freshlyFormedThisTick()).toHaveLength(1);
 
-    // After crossing, another decline should not re-fire freshlyFormed.
-    pushDecline(alice, bob);
-    rivalry.run({ tick: 99 });
+    // Recover into the hysteresis band (between cutoff and re-arm): still latched.
+    setTrust(alice, bob, (RIVAL_CUTOFF + RIVAL_REARM) / 2);
+    rivalry.run({ tick: 1 });
+    // Drop again — must NOT re-fire (never re-armed).
+    setTrust(alice, bob, 0.1);
+    rivalry.run({ tick: 2 });
     expect(rivalry.freshlyFormedThisTick()).toHaveLength(0);
+
+    // Now recover fully past the re-arm mark, then drop → fresh fires again.
+    setTrust(alice, bob, RIVAL_REARM + 0.05);
+    rivalry.run({ tick: 3 });
+    setTrust(alice, bob, 0.1);
+    rivalry.run({ tick: 4 });
+    expect(rivalry.freshlyFormedThisTick()).toHaveLength(1);
   });
 });
 
 describe("RivalrySystem — determinism", () => {
-  it("same adverse event sequence produces identical rivalries across two instances", () => {
+  it("same trust state produces identical rivalries across two instances", () => {
     function buildScenario(): RivalrySystem {
       const w = new World<GameEntity>();
       const r = new RivalrySystem(w);
       const alice = makeFarmer(w, "Alice");
       const bob = makeFarmer(w, "Bob");
-      for (let i = 0; i < RIVALRY_THRESHOLD; i++) {
-        pushDecline(alice, bob);
-        r.run({ tick: i });
-        alice.inbox!.messages.length = 0;
-      }
+      setTrust(alice, bob, 0.1);
+      setTrust(bob, alice, 0.15);
+      r.run({ tick: 0 });
       return r;
     }
 
     const r1 = buildScenario();
     const r2 = buildScenario();
-
     expect(r1.activeRivalries()).toEqual(r2.activeRivalries());
   });
 });

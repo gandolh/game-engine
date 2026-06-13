@@ -21,6 +21,8 @@ export const INTENTION_KIND_TO_GLYPH: Readonly<Record<string, string>> = {
   "mine":    "indicator/intention-mine",
   "work":    "indicator/intention-work",
   "idle":    "indicator/intention-idle",
+  // Combat: a farmer chasing/challenging a rival shows the hostile (angry) bubble.
+  "challenge": "indicator/intention-hostile",
 };
 
 // Hover label + description for decorative props, keyed by sprite.frame.

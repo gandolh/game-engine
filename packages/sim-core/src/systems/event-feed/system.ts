@@ -358,29 +358,30 @@ export class EventFeedSystem implements System {
   private snoopRivalrySystem(tick: number, day: number, out: EventEntry[]): void {
     if (!this.rivalry) return;
     for (const formed of this.rivalry.freshlyFormedThisTick()) {
-      const loId = formed.aId;
-      const hiId = formed.bId;
-      const pairStr = `${loId}:${hiId}`;
+      const aId = formed.aId;
+      const bId = formed.bId;
       if (formed.kind === "rivalry") {
-        const key = `rivalry-formed:${pairStr}`;
-        if (this.seen.has(key)) continue;
-        this.seen.add(key);
-        const nameA = this.nameOf(loId);
-        const nameB = this.nameOf(hiId);
+        // Directional (aId's trust toward bId dropped). The RivalrySystem owns
+        // hysteresis (latch + re-arm), so we do NOT permanently dedup here — a
+        // genuine re-rivalry after recovery is allowed to surface again. Key is
+        // per-tick-unique to satisfy EventEntry without suppressing re-fires.
+        const nameA = this.nameOf(aId);
+        const nameB = this.nameOf(bId);
         out.push({
           tick,
           day,
-          key,
-          text: `A rivalry is brewing: ${nameA} vs. ${nameB}`,
+          key: `rivalry-formed:${aId}->${bId}:${tick}`,
+          text: `A rivalry is brewing: ${nameA} resents ${nameB}`,
           drama: dramaScore("rivalry", { day, maxDays: this.dayClock.maxDays }),
           farmerId: null,
         });
       } else {
+        const pairStr = `${aId}:${bId}`;
         const key = `alliance-formed:${pairStr}`;
         if (this.seen.has(key)) continue;
         this.seen.add(key);
-        const nameA = this.nameOf(loId);
-        const nameB = this.nameOf(hiId);
+        const nameA = this.nameOf(aId);
+        const nameB = this.nameOf(bId);
         out.push({
           tick,
           day,

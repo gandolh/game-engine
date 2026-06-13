@@ -78,7 +78,20 @@ export function buildRivalriesData(
   if (!rivalrySystem) return [];
   const out: SnapshotRivalry[] = [];
 
+  // activeRivalries() is directional and may contain both A->B and B->A. Collapse
+  // to one display line per undirected pair, keeping the lower-trust direction
+  // (the stronger grudge) as the displayed accuser.
+  const byPair = new Map<string, { aId: number; bId: number; score: number }>();
   for (const r of rivalrySystem.activeRivalries()) {
+    const lo = r.aId < r.bId ? r.aId : r.bId;
+    const hi = r.aId < r.bId ? r.bId : r.aId;
+    const key = `${lo}:${hi}`;
+    const existing = byPair.get(key);
+    if (!existing || r.score < existing.score) {
+      byPair.set(key, { aId: r.aId, bId: r.bId, score: r.score });
+    }
+  }
+  for (const r of byPair.values()) {
     out.push({
       aId: r.aId,
       bId: r.bId,

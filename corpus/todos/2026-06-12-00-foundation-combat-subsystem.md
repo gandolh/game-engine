@@ -4,7 +4,23 @@ created: 2026-06-12
 status: open
 tags: [sim, agents, combat, foundation]
 blocks: [ring-box-rivalry-fights, steal-from-npcs-friendship-penalty]
+status: done
 ---
+
+> **✅ DONE 2026-06-13.** Full scope (foundation + ring + street) shipped in one
+> combat drop. `Health` component (HP 40), `FIGHTING` FSM state (Perceive/Deliberate/
+> Act skip it), `CombatSystem` (ACT stage) owns bouts: swing-interval cadence
+> (tick-derived, `swingIntervalTicks(ticksPerDay)`), AP-cost swings (bat > fists),
+> KO-not-death. **Ring**: CHALLENGE/ACCEPT handshake + teleport to the new ring island
+> + ±10g stake + mutual-trust bond + HP reset at bout end. **Street**: in-place, loot
+> ≤3 goods (no gold/tools), mutual-AP forfeit, seeded flee, witness trust penalties
+> (extra on loot) → retaliation via the relationship axis. AI initiation via
+> `AggressionSystem` (co-located rivals only) → `ChaseSystem` (pursuit window, flee,
+> CHALLENGE on reach). Pip attacks anyone via player-control; bouts auto-resolve.
+> Render: HP bar + hostile glyph. Governors: per-pair 2-day cooldown, daily cap,
+> AP-reserve gate. Frequency tuning DEFERRED →
+> [tune-combat-frequency](2026-06-13-tune-combat-frequency.md). 747 sim-core +
+> 182 farm-valley tests green; typecheck clean; no determinism run (constrained hw).
 
 # FOUNDATION #0 (sim) — Watchable real-time combat subsystem
 

@@ -6,6 +6,40 @@ import { TAVERN_GATHER_TILE, TAVERN_VISIT_PERIOD, FESTIVAL_PODIUM_TILE } from ".
 import { SHRINE_REGION_ID, getRegion } from "../../world/regions";
 import { SHRINE_COOLDOWN_DAYS } from "../../systems/ap";
 import { sameComponent } from "../../world/connectivity";
+import { RIVAL_CUTOFF } from "../../systems/rivalry";
+
+/**
+ * Combat capability flag. The combat subsystem (ChaseSystem + CombatSystem) is built
+ * (build-order goal #2). When true, deliberateRivalChallenge() lets an AI begin a
+ * street-fight pursuit of a rival.
+ */
+export const COMBAT_ENABLED = true;
+
+/** AP a farmer keeps in reserve before it will start a fight (fighting competes with farming). */
+const FIGHT_AP_RESERVE = 30;
+
+/**
+ * Fight-inclination hook. When my directional trust toward a known rival peer is below
+ * the rival cutoff, begin a street-fight CHASE (one-sided — no mutual agreement). The
+ * ChaseSystem pursues + issues the CHALLENGE on contact. Governors: skip if already
+ * chasing, if AP is below the fight reserve (farming wins), or if the peer isn't a rival.
+ * Pure reads → deterministic.
+ */
+export function deliberateRivalChallenge(
+  farmer: GameEntity,
+  peerId: number,
+  tick: number,
+): void {
+  if (!COMBAT_ENABLED) return;
+  if (!farmer.farmer || farmer.id === undefined) return;
+  if (farmer.farmer.chaseTarget) return; // already pursuing someone
+  const trust = farmer.trust?.byId.get(peerId) ?? 0.5;
+  if (trust >= RIVAL_CUTOFF) return; // not a rival in my eyes
+  // AP-reserve gate: don't pick a fight if it would starve the farming day.
+  if ((farmer.ap?.current ?? 0) < FIGHT_AP_RESERVE) return;
+  farmer.farmer.chaseTarget = { peerId, startTick: tick };
+  recordReason(farmer, `pursue rival #${peerId} (trust ${trust.toFixed(2)})`);
+}
 
 /** Queue craft-decoration when wood is available and boost cap not reached. */
 export function deliberateDecoration(

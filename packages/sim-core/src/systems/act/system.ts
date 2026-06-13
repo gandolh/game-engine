@@ -41,6 +41,7 @@ import {
 } from "./handlers/build";
 import { handleCommitContract, handleDeliverContract } from "./handlers/harbor";
 import { handlePrayAtShrine } from "./handlers/shrine";
+import { handleChallenge } from "./handlers/combat";
 
 export class ActSystem implements System {
   readonly name = "ActSystem";
@@ -166,6 +167,10 @@ export class ActSystem implements System {
           }
           case "read-offers": {
             handleReadOffers(farmer, intent, this.bus, actCtx.marketWallId, ctx.tick);
+            break;
+          }
+          case "challenge": {
+            handleChallenge(farmer, intent, this.bus, ctx.tick);
             break;
           }
           case "buy-from-wall": {

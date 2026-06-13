@@ -6,6 +6,7 @@ export type FarmerFsmState =
   | "PERCEIVE"
   | "DELIBERATE"
   | "ACT"
+  | "FIGHTING"
   | "FINISH_DAY"
   | "SLEEP";
 
@@ -33,6 +34,12 @@ export interface Farmer {
   committedContract?: import('../protocols/harbor').HarborContract | undefined;
   /** True while aboard a boat (TravelSystem uses the BOAT grid). Cleared on return-to-shore. */
   aboard?: boolean;
+  /** Carries a bat → higher per-swing combat damage (and higher AP cost). Default = bare fists. */
+  hasBat?: boolean;
+  /** Active street-fight pursuit: chasing `peerId` since `startTick`. ChaseSystem clears it on reach/timeout. */
+  chaseTarget?: { peerId: number; startTick: number };
+  /** Fleeing from `peerId` until this tick (set when a chaser is perceived). Render/AI hint. */
+  fleeingFrom?: { peerId: number; untilTick: number };
 }
 
 /** Tags Pip (player-controlled farmer). DeliberateSystem skips it; PlayerControlSystem drives it. */

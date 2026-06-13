@@ -22,7 +22,8 @@ export type FixedRegionId =
   | 'weather-station'                 // decorative — antenna mast + beacon blink, no behavior
   | 'volcano'                         // scenic — volcanic islet off Pip's farm, no behavior
   | 'casino'                          // scenic — casino islet off the fishing isle, no behavior
-  | 'big-tree';                       // scenic — island whose centerpiece is one large seasonal tree
+  | 'big-tree'                        // scenic — island whose centerpiece is one large seasonal tree
+  | 'ring';                           // scenic — boxing-ring landmark islet (ropes/posts/crowd stand), no behavior
 
 /** `farm-0` .. `farm-(EXTRA_FARM_COUNT-1)` on the radial outer rings. */
 export type ExtraFarmRegionId = `farm-${number}`;
@@ -37,7 +38,7 @@ export type RegionKind = 'village' | 'farm' | 'landmark' | 'ranch';
 /** RENDER-ONLY theme key — selects an interior décor table. NEVER read by sim logic. */
 export type RegionTheme =
   | 'ranch' | 'casino' | 'shrine' | 'heritage' | 'forest' | 'quarry' | 'big-tree' | 'ring'
-  | 'camp' | 'pond' | 'volcano';
+  | 'camp' | 'pond' | 'volcano' | 'boxing';
 
 export interface RegionDef {
   id: RegionId;
@@ -150,6 +151,14 @@ const CASINO_BOUNDS  = scaleB({ minX: 72, minY: 114, maxX: 83, maxY: 125 }); // 
 // Centerpiece is a bespoke seasonal big tree (BIG_STRUCTURES in geometry.ts).
 const BIG_TREE_BOUNDS = { minX: 127, minY: 7, maxX: 136, maxY: 16 }; // N-edge, E of volcano (10×10)
 
+// Ring-box island: 12×12 boxing-ring landmark leaf in the clear water pocket SE of the
+// village hub, bridged N to the village (the closest open-water pocket with ≥2-tile gaps
+// to every region + a clean straight 2-wide bridge — found by the same grid-scan idiom as
+// big-tree, authored in LIVE/scaled coords since it's a brand-new island). Centerpiece is a
+// deliberate baked layout of ring posts + ropes (BIG_STRUCTURES in geometry.ts), dressed
+// with crowd-stand décor (theme 'boxing'). Dead-end leaf — no agent traffic routes through.
+const RING_BOUNDS = { minX: 121, minY: 101, maxX: 132, maxY: 112 }; // SE of village (12×12)
+
 // 21 farms on two concentric rings (R=78 inner n=9, R=108 outer n=12 — radii are
 // the original 52/72 scaled out by SCALE). Named farms are 12×12; procedural are
 // 10×10. Per-farm jitter (±EXTRA_FARM_JITTER, fixed-seed) makes the frontier organic.
@@ -248,6 +257,9 @@ export const WEATHER_STATION_REGION_ID: RegionId = 'weather-station';
 export const VOLCANO_REGION_ID: RegionId = 'volcano';
 export const CASINO_REGION_ID: RegionId = 'casino';
 
+/** Boxing-ring landmark islet region id (render anchor for the baked ring structure). */
+export const RING_REGION_ID: RegionId = 'ring';
+
 // NOTE: render-overlay anchor tiles (campfire, waterfall, volcano crater, casino
 // neon, weather antenna) and the harbor dock/board tiles are defined further down
 // — they are island-relative (scaleAroundNearestIsland), which must be declared
@@ -295,6 +307,7 @@ const BASE_REGIONS: readonly RegionDef[] = [
   { id: 'volcano', kind: 'landmark', bounds: VOLCANO_BOUNDS, center: midpoint(VOLCANO_BOUNDS) },
   { id: 'casino',  kind: 'landmark', bounds: CASINO_BOUNDS,  center: midpoint(CASINO_BOUNDS) },
   { id: 'big-tree', kind: 'landmark', bounds: BIG_TREE_BOUNDS, center: midpoint(BIG_TREE_BOUNDS) },
+  { id: 'ring', kind: 'landmark', bounds: RING_BOUNDS, center: midpoint(RING_BOUNDS), theme: 'boxing' },
   ...EXTRA_FARM_REGIONS,
 ];
 
@@ -417,6 +430,7 @@ const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
   ['farm-pip', 'volcano'],       // scenic islet, dead-end leaf off Pip's farm
   ['fishing-isle', 'casino'],    // scenic islet, dead-end leaf off the fishing isle
   ['volcano', 'big-tree'], // scenic big-tree islet, dead-end leaf on the N edge E of the volcano
+  ['village', 'ring'],     // boxing-ring landmark islet, dead-end leaf SE of the village hub
 ];
 
 function generateClusterBridges(regions: readonly RegionDef[]): RoadDef[] {

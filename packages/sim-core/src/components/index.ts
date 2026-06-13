@@ -9,4 +9,5 @@ export * from "./orchard";
 export * from "./skills";
 export * from "./world-features";
 export * from "./trust";
+export * from "./health";
 export * from "./entity";

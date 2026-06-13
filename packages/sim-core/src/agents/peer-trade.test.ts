@@ -4,8 +4,10 @@ import type { GameEntity, CropKind } from "../components";
 import type { MeetBody, OfferSeedBody } from "../protocols/encounter";
 import {
   initiatePeerTradeHoarder,
+  initiateCropTradeHoarder,
   respondToPeerOfferHoarder,
 } from "./hoarder";
+import { MAX_FRIEND_DISCOUNT } from "./peer-trade-policy";
 import { respondToPeerOfferAggressive } from "./aggressive";
 import { respondToPeerOfferConservative } from "./conservative";
 import { respondToPeerOfferOpportunist } from "./opportunist";
@@ -255,5 +257,45 @@ describe("opportunist peer-trade hooks", () => {
         tick: 0,
       }).decision,
     ).toBe("decline");
+  });
+});
+
+describe("friend trust-discount on sell-surplus initiation", () => {
+  // CROP_SELL_PRICE.wheat=15, priceMult=0.95 → base unit price 14.25.
+  const BASE = 15 * 0.95;
+
+  function seller(trustTowardPeer?: number): GameEntity {
+    const f: GameEntity = {
+      id: 1,
+      farmer: { name: "F", currentRegion: "village" },
+      beliefs: { data: { currentDay: 3 }, revision: 0 },
+      desires: { data: { minGoldReserve: 30 } },
+      intentions: { queue: [] },
+      inventory: { gold: 200, crops: { ...ZERO, wheat: 10 }, seeds: { ...ZERO } },
+    };
+    if (trustTowardPeer !== undefined) {
+      f.trust = { byId: new Map([[MEET.peerId, trustTowardPeer]]) };
+    }
+    return f;
+  }
+
+  it("no discount at baseline trust (0.5) or when trust is unset", () => {
+    expect(initiateCropTradeHoarder(seller(), MEET, { tick: 1 })!.unitPrice).toBeCloseTo(BASE);
+    expect(initiateCropTradeHoarder(seller(0.5), MEET, { tick: 1 })!.unitPrice).toBeCloseTo(BASE);
+  });
+
+  it("full discount (MAX) at maximal trust (1.0)", () => {
+    const out = initiateCropTradeHoarder(seller(1.0), MEET, { tick: 1 })!;
+    expect(out.unitPrice).toBeCloseTo(BASE * (1 - MAX_FRIEND_DISCOUNT));
+  });
+
+  it("scales linearly between baseline and max trust", () => {
+    const out = initiateCropTradeHoarder(seller(0.75), MEET, { tick: 1 })!;
+    // halfway from 0.5→1.0 → half of MAX_FRIEND_DISCOUNT
+    expect(out.unitPrice).toBeCloseTo(BASE * (1 - MAX_FRIEND_DISCOUNT / 2));
+  });
+
+  it("no surcharge below baseline (a rival still pays base, not more)", () => {
+    expect(initiateCropTradeHoarder(seller(0.1), MEET, { tick: 1 })!.unitPrice).toBeCloseTo(BASE);
   });
 });

@@ -33,6 +33,9 @@ export interface SnapshotSprite {
   flipX?: boolean;
   /** Intention bubble frame shown for a window after an intention change. null = no bubble. */
   bubble?: string | null;
+  /** Combat HP fraction (current/max) in [0,1]; present only while the farmer is FIGHTING.
+   *  The renderer draws an over-sprite HP bar when set; absent/undefined = no bar (normal state). */
+  healthFrac?: number;
 }
 
 /** Active MEET indicator for a farmer this tick. */

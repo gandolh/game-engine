@@ -96,9 +96,14 @@ export class PlayerControlSystem implements System {
           ty = Math.round(transform.y) + dy;
         }
 
+        // A farmer on the target tile → Pip starts a street fight (player may attack
+        // anyone; the bout auto-resolves in CombatSystem). Takes precedence over acts.
+        const targetFarmer = this.farmerAt(tx, ty, entity.id);
         // A berry-bush is foraged by hand — collect it on any click, whatever slot is held.
         const ref = player.itemSlots[player.selectedSlot] ?? null;
-        const intent = this.bushAt(tx, ty)
+        const intent = targetFarmer !== undefined
+          ? { kind: "challenge", data: { peerId: targetFarmer, context: "street" }, priority: 0 }
+          : this.bushAt(tx, ty)
           ? { kind: "gather-bush", data: { tileX: tx, tileY: ty }, priority: 0 }
           : ref ? this.refIntent(entity, ref, tx, ty) : null;
         if (intent !== null) {
@@ -218,6 +223,15 @@ export class PlayerControlSystem implements System {
       }
     }
     return false;
+  }
+
+  /** Id of an AI farmer standing on the tile (excluding `selfId`), else undefined. */
+  private farmerAt(tx: number, ty: number, selfId: number | undefined): number | undefined {
+    for (const f of this.world.query("farmer", "transform")) {
+      if (f.id === undefined || f.id === selfId || f.player) continue;
+      if (Math.round(f.transform.x) === tx && Math.round(f.transform.y) === ty) return f.id;
+    }
+    return undefined;
   }
 
   /** True if a tileFeature (tree/stone/bush) or solid obstacle occupies the tile. */

@@ -92,12 +92,29 @@ export interface InitiatePeerTradeCfg {
   commodity?: TradeCommodity;
 }
 
+/** Max fraction shaved off a friend's sell price at full trust (1.0). Baseline 0.5 → no discount. */
+export const MAX_FRIEND_DISCOUNT = 0.1;
+
+/**
+ * Friend discount on the SELLER's unit price, scaled by the initiator's directional
+ * trust toward the peer. trust 0.5 (stranger) → 0×; trust 1.0 → MAX_FRIEND_DISCOUNT.
+ * Below baseline (a rival we'd still trade with) gets no surcharge — just no discount.
+ * Pure read of `trust`, so deterministic.
+ */
+function friendSellMultiplier(farmer: GameEntity, peerId: number): number {
+  const trust = farmer.trust?.byId.get(peerId) ?? 0.5;
+  const t = Math.max(0, Math.min(1, (trust - 0.5) / 0.5));
+  return 1 - t * MAX_FRIEND_DISCOUNT;
+}
+
 export function makeInitiatePeerTrade(cfg: InitiatePeerTradeCfg): InitiatePeerTradeFn {
   const { stance, crop, quantity, threshold, priceMult, reserveDefault } = cfg;
   const commodity: TradeCommodity = cfg.commodity ?? "seed";
   return (farmer, meet, ctx) => {
     if (!farmer.inventory || farmer.id === undefined) return null;
-    const unitPrice = priceRef(commodity, crop) * priceMult;
+    // Sellers gift friends a trust-scaled discount; buy-shortage bids are unchanged.
+    const discountMult = stance === "sell-surplus" ? friendSellMultiplier(farmer, meet.peerId) : 1;
+    const unitPrice = priceRef(commodity, crop) * priceMult * discountMult;
     const have = held(farmer, commodity, crop);
     const day =
       (farmer.beliefs?.data["currentDay"] as number | undefined) ?? ctx.tick;

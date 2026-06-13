@@ -1,6 +1,6 @@
 import { World } from "@engine/core";
 import type { GameEntity, CropKind, FarmerFsmState, Tool } from "./components";
-import { zeroFish } from "./components";
+import { zeroFish, HEALTH_MAX } from "./components";
 import { defaultItemSlots } from "./systems/player-control/items";
 import { setupRegions } from "./world/region-setup";
 import type { RegionId } from "./world/regions";
@@ -55,6 +55,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEnt
     },
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
       ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false }, // penaltyCapacity: legacy field
+    health: { current: HEALTH_MAX, max: HEALTH_MAX },
     ...(spec.player
       ? {
           player: {

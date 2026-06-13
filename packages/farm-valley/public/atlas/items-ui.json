@@ -160,36 +160,54 @@
       "w": 16,
       "h": 16
     },
-    "product/egg": {
+    "indicator/intention-hostile": {
       "x": 86,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "product/milk": {
+    "indicator/hpbar-bg": {
       "x": 103,
       "y": 52,
       "w": 16,
       "h": 16
     },
-    "product/wool": {
+    "indicator/hpbar-fill": {
       "x": 1,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "fruit/apple": {
+    "product/egg": {
       "x": 18,
       "y": 69,
       "w": 16,
       "h": 16
     },
-    "fruit/cherry": {
+    "product/milk": {
       "x": 35,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "product/wool": {
+      "x": 52,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "fruit/apple": {
+      "x": 69,
+      "y": 69,
+      "w": 16,
+      "h": 16
+    },
+    "fruit/cherry": {
+      "x": 86,
       "y": 69,
       "w": 16,
       "h": 16
     }
   },
-  "inputsHash": "9a5e5cdfb6a95855592660ac8eb190997e1f95a7d028197711ac8cd9af8c7931"
+  "inputsHash": "87121b0d10112e7ac40823cd9202b7833d52733b177759cbfdde4a45f40153c4"
 }

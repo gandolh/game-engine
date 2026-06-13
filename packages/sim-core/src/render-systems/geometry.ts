@@ -647,6 +647,16 @@ export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
   bakedAt("decoration/blackjack-table", 73, 122, 32, 24), // blackjack lower-left
   bakedAt("decoration/dice-table", 80, 119, 32, 24),      // dice right
   bakedAt("decoration/shell-game", 78, 124, 32, 24),      // shell-game lower
+  // Ring-box island (boxing-ring landmark) — a deliberate baked layout: four corner
+  // posts framing a square with rope spans along the top + bottom edges. Authored in
+  // LIVE/scaled coords (island authored directly in regions.ts, like big-tree) so NOT
+  // wrapped in bakedAt. Bottom-anchored, baseTileX = left col, baseTileY = bottom row.
+  { frame: "decoration/ring-post", baseTileX: 123, baseTileY: 105, wPx: 16, hPx: 32 }, // NW corner
+  { frame: "decoration/ring-post", baseTileX: 130, baseTileY: 105, wPx: 16, hPx: 32 }, // NE corner
+  { frame: "decoration/ring-post", baseTileX: 123, baseTileY: 110, wPx: 16, hPx: 32 }, // SW corner
+  { frame: "decoration/ring-post", baseTileX: 130, baseTileY: 110, wPx: 16, hPx: 32 }, // SE corner
+  { frame: "decoration/ring-ropes", baseTileX: 124, baseTileY: 104, wPx: 32, hPx: 16 }, // top rope span
+  { frame: "decoration/ring-ropes", baseTileX: 124, baseTileY: 111, wPx: 32, hPx: 16 }, // bottom rope span
   // One baked 3D cottage per farm region, bottom-anchored at the SE corner the old home used
   // (maxX-1,maxY-1 in setup.ts). 32px (2 tiles) wide ⇒ baseTileX = maxX-2.
   ...REGIONS.filter((r) => r.kind === "farm").map(

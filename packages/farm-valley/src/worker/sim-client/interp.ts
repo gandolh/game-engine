@@ -38,4 +38,7 @@ export function copySprite(dst: SnapshotSprite, src: SnapshotSprite): void {
   dst.facing = src.facing ?? null;
   dst.flipX = src.flipX ?? false;
   dst.bubble = src.bubble ?? null;
+  // exactOptionalPropertyTypes: carry the key only when present; clear a stale pool slot otherwise.
+  if (src.healthFrac !== undefined) dst.healthFrac = src.healthFrac;
+  else delete dst.healthFrac;
 }

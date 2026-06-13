@@ -2,6 +2,32 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-13] feature | Combat subsystem — HP fights, ring + street (foundation + both fight todos)
+
+Full combat scope landed in one drop: the [combat foundation](todos/2026-06-12-00-foundation-combat-subsystem.md), [ring-box](todos/2026-06-12-ring-box-rivalry-fights.md), and [steal-from-NPCs](todos/2026-06-12-steal-from-npcs-friendship-penalty.md) — the whole sim-fights group.
+
+- **Core** (`systems/combat/`): new `Health` component (HP 40, components/health.ts); `FIGHTING` FSM state (Perceive skips fighting farmers; Deliberate/Act gate them out). `CombatSystem` (ACT stage, after ActSystem) owns active bouts: a swing-exchange every `swingIntervalTicks(ticksPerDay)` ticks (≈24 @1200/day, 1 @20/day), seeded damage `rng.fork('fight:'+pairKey+':'+tick)`, swings cost AP (bat > fists, `hasBat` farmer flag), first to 0 HP is KO'd (never killed). Constants in `combat/constants.ts`; tuning is reasoned guesses (deferred — see below).
+- **Ring**: `CHALLENGE/ACCEPT/DECLINE/RESULT` protocol (protocols/combat.ts). New **ring island** (region `ring`, `boxing`-theme décor — ropes/posts/crowd-stand atlas, bridged to village; built by a subagent, world guards green). Ring bout: teleport both combatants to the ring + restore after; ±10g stake (loser→winner); **mutual trust bond** (de-escalation via `applyTrustDelta`, replacing the old "rivalry decrement" framing); HP reset to full at bout end, AP spent stays spent; AP-out = immediate loss.
+- **Street**: in place (no teleport/stake). KO → victor loots ≤3 individual goods units (`combat/loot.ts`; tools + gold never lootable). Mutual-AP-out → forfeit; per-tick seeded flee chance. **Witness trust**: every same-region farmer (and the victim) drops trust toward the initiator (`STREET_ATTACK_TRUST_PENALTY`, extra `STREET_LOOT_TRUST_PENALTY` on loot). When a witness's trust crosses below `RIVAL_CUTOFF`, the relationship axis labels them a one-sided rival → automatic **retaliation** next tick.
+- **AI initiation** (`AggressionSystem`, DELIBERATE band): scans co-located farmers, targets the lowest-id rival (my trust < cutoff), governors permitting → sets `farmer.chaseTarget`. RIVALRY-DRIVEN ONLY (no mugging strangers/friends). Pip excluded. `deliberateRivalChallenge` (social.ts) now active (`COMBAT_ENABLED=true`) with an AP-reserve gate.
+- **Chase + flee** (`ChaseSystem`, MOVE band before TravelSystem): re-points a pursuit travel intent at the rival's live tile each tick, marks the target `fleeingFrom`, and on Chebyshev-reach fires CHALLENGE(street). Fixed-tick pursuit window (`pursuitWindowTicks`, ~10s at viewing pace) → give up if it can't close. **Pip** attacks anyone via player-control (a farmer on the clicked/faced tile → street `challenge` intent); bouts auto-resolve.
+- **Governors**: per-pair 2-day cooldown + per-initiator daily cap (`CombatSystem.canFight`), AP-reserve gate, attack-on-sight gated by cooldown.
+- **Render**: `SnapshotSprite.healthFrac` (set only while FIGHTING) → HP bar over the sprite; `challenge` intention → `indicator/intention-hostile` glyph. New atlas recipes (hpbar-bg/fill + hostile), atlas rebuilt.
+- **Deferred**: combat frequency + damage/cooldown tuning against a real run → [tune-combat-frequency](todos/2026-06-13-tune-combat-frequency.md) (intended: RARE DRAMA, not a daily brawl loop — instrument before trusting the design).
+- **Verification**: typecheck clean all workspaces; `@farm/sim-core` 747/747, `farm-valley` 182/182, `atlas-builder` 15/15, `@engine/core` 142/142. scheduler-stages + set-pieces snapshot updated deliberately (new systems + ring-island prop shift). No determinism run (constrained hardware, per standing decision).
+
+## [2026-06-13] feature | Unified relationship axis (trust ⊕ rivalry)
+
+Foundation #0 for the fight todos. Collapsed trust + rivalry into one axis — `trust` IS the axis; the monotonic `rivalryScore` accumulator is gone.
+
+- **`RivalrySystem` is now a trust-axis LABELER** (`systems/rivalry/system.ts`), no inbox/CNP snooping. Each tick it derives labels from the directional `trust` map. Dropped the `cnpCoordinators` ctor arg (bootstrap updated).
+- **Rivalry is ONE-SIDED / directional** — `from→to` trust `< RIVAL_CUTOFF=0.25` means *from* treats *to* as a rival (the one-sided grudge the steal-retaliation needs). `activeRivalries()` may list both directions; `buildRivalriesData` (panels.ts) collapses to one display line per undirected pair keeping the lower-trust direction.
+- **Hysteresis** (`types.ts`): a fresh-rivalry fires once on crossing below 0.25, latches, and re-arms only after trust recovers above `RIVAL_REARM=0.40` — kills feed spam from trust oscillating near the cutoff. Event-feed no longer permanently dedups rivalry lines (system owns the latch); text now "X resents Y" (directional). Alliance detection unchanged (mutual ≥0.8, announce-once).
+- **Friend sell-discount** (`peer-trade-policy.ts`): `makeInitiatePeerTrade` scales a SELLER's unit price down by the initiator's trust toward the peer — `MAX_FRIEND_DISCOUNT=0.10`, baseline 0.5→0×, 1.0→10% off, no surcharge below baseline. Buy-shortage bids unchanged. Pure read → deterministic.
+- **Inert fight-inclination hook**: `deliberateRivalChallenge` (social.ts) queues a `challenge` intention for a co-located rival, gated behind `COMBAT_ENABLED=false` — wired but dormant until the combat subsystem (build-order goal #2) lands. Not yet called by any personality (ACT has no challenge handler).
+- **Calibration deferred:** `RIVAL_CUTOFF=0.25` is a guess; the old accumulator's ~2–5 rivalries/100-day won't map 1:1. New todo [calibrate-rival-cutoff](todos/2026-06-13-calibrate-rival-cutoff.md). Per constrained-hardware decision, no multi-seed run done this session.
+- **Verification:** `npm run typecheck` clean across all workspaces; full `@farm/sim-core` suite 726/726 green (rivalry + peer-trade tests rewritten to the derived model). Determinism check skipped (user direction).
+
 ## [2026-06-12] feature | Seasonal trees (4-way) + big-tree island
 
 Completes the world/render todo group.

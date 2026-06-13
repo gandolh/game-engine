@@ -279,7 +279,25 @@
       "y": 184,
       "w": 32,
       "h": 24
+    },
+    "decoration/ring-post": {
+      "x": 100,
+      "y": 184,
+      "w": 16,
+      "h": 32
+    },
+    "decoration/ring-ropes": {
+      "x": 1,
+      "y": 217,
+      "w": 32,
+      "h": 16
+    },
+    "decoration/crowd-stand": {
+      "x": 34,
+      "y": 217,
+      "w": 16,
+      "h": 16
     }
   },
-  "inputsHash": "84150cbeb41dc2b1e0747825a3759e5cfbffbe37feb367fdd21e5d24f089b6f6"
+  "inputsHash": "dd6187c995e4400486c85858398bd687dda6cd2eb33d8743cc6f62134cbfd05f"
 }

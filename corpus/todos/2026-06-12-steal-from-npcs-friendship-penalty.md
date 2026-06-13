@@ -4,7 +4,17 @@ created: 2026-06-12
 status: open
 tags: [sim, agents, interaction, combat]
 depends_on: [foundation-combat-subsystem, foundation-relationship-axis]
+status: done
 ---
+
+> **✅ DONE 2026-06-13** (shipped with the combat subsystem). Street fight in place
+> (no ring/teleport/stake); post-KO loot ≤3 goods units (tools + gold excluded);
+> same-region witnesses drop trust toward the initiator (extra on loot); retaliation =
+> one-sided grudge via the relationship axis (witness trust < 0.25 → rival → chases
+> back). AI attacks rivals only (`AggressionSystem`); Pip attacks anyone (player-control).
+> Chase = `ChaseSystem` with hostile indicator, flee marker, tick-based pursuit window
+> → CHALLENGE on reach. Governors: per-pair 2-day cooldown, daily cap, AP reserve.
+> See [combat foundation](2026-06-12-00-foundation-combat-subsystem.md) + log.md.
 
 # Kick/steal from NPCs with friendship penalties and retaliation
 

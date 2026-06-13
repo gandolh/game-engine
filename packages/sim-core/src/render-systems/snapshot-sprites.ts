@@ -110,6 +110,43 @@ export function pushSnapshotSprites(
         alpha: 1,
       });
     }
+
+    // Combat HP bar: drawn just above the head while a farmer is FIGHTING (healthFrac set).
+    // Red background track at full width, green fill scaled to the current HP fraction. The
+    // bar depletes from the right: the fill is left-aligned by shifting its center leftward.
+    if (s.healthFrac !== undefined && s.id !== null) {
+      const BAR_W = TILE * 0.875;        // ~14px wide
+      const BAR_H = TILE * 0.1875;       // ~3px tall
+      const barY = s.y - TILE * 0.75;    // above the head, just under the bubble band
+      renderer.push({
+        x: s.x,
+        y: barY,
+        width: BAR_W,
+        height: BAR_H,
+        frame: "indicator/hpbar-bg",
+        atlasId: "items-ui",
+        rotation: 0,
+        layer: 88, // just under the intention bubble (89)
+        alpha: 1,
+      });
+      const frac = s.healthFrac;
+      if (frac > 0) {
+        const fillW = BAR_W * frac;
+        // Left-align the fill inside the full-width track: its center sits left of the bar center
+        // by half the unfilled remainder.
+        renderer.push({
+          x: s.x - (BAR_W - fillW) / 2,
+          y: barY,
+          width: fillW,
+          height: BAR_H,
+          frame: "indicator/hpbar-fill",
+          atlasId: "items-ui",
+          rotation: 0,
+          layer: 88,
+          alpha: 1,
+        });
+      }
+    }
   }
 
   for (const meet of meets) {

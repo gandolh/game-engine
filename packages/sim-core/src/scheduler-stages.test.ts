@@ -45,8 +45,10 @@ const EXPECTED_STAGES: StageEntry[] = [
   { stage: "GROW",       name: "PlotSenseSystem" },
   { stage: "DELIBERATE", name: "DeliberateSystem" },
   { stage: "DELIBERATE", name: "PlayerControlSystem" },
+  { stage: "DELIBERATE", name: "AggressionSystem" },
   { stage: "DELIBERATE", name: "ApSystem" },
   { stage: "MOVE",       name: "FeatureCollisionSystem" },
+  { stage: "MOVE",       name: "ChaseSystem" },
   { stage: "MOVE",       name: "TravelSystem" },
   { stage: "ACT",        name: "ActSystem" },
   { stage: "ACT",        name: "MarketSystem" },
@@ -55,6 +57,7 @@ const EXPECTED_STAGES: StageEntry[] = [
   { stage: "ACT",        name: "CarpenterSystem" },
   { stage: "ACT",        name: "NpcDeliberateSystem" },
   { stage: "ACT",        name: "WorkNpcSystem" },
+  { stage: "ACT",        name: "CombatSystem" },
   { stage: "ACT",        name: "FinishDaySystem" },
 ];
 
