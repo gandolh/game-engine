@@ -21,6 +21,7 @@ import {
 } from "../world/regions";
 import { BRIDGE_SET } from "./geometry";
 import { CORAL_REEFS } from "../world/coral";
+import { PORTS } from "../world/ports";
 
 const TILE = 16;
 const QUARTER_TURN = Math.PI / 2;
@@ -161,6 +162,9 @@ function buildForbidden(world: World<GameEntity>): Set<number> {
   forbidden.add(key(HARBOR_BOARD_TILE.x, HARBOR_BOARD_TILE.y));
   for (const reef of CORAL_REEFS) {
     forbidden.add(key(reef.dock.x, reef.dock.y));
+  }
+  for (const p of PORTS) {
+    forbidden.add(key(p.dock.x, p.dock.y));
   }
 
   return forbidden;

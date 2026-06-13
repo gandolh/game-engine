@@ -7,6 +7,7 @@ import {
   nearestReef,
 } from "./coral";
 import { buildWalkableGrid } from "./walkable-grid";
+import { PORTS, portLaneTiles } from "./ports";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS, getRegion } from "./regions";
 
 const VILLAGE = getRegion("village").center; // a land tile, never on the boat grid
@@ -33,16 +34,24 @@ describe("coral geography + boat grid", () => {
     expect(g.cells.length).toBe(WORLD_WIDTH * WORLD_HEIGHT);
   });
 
-  it("boat grid is walkable ONLY on the dock+lane+reef tiles of each reef", () => {
+  it("boat grid is walkable ONLY on the coral dock+lane+reef tiles + the port network", () => {
     const g = buildBoatGrid();
+    const idx = (x: number, y: number) => y * WORLD_WIDTH + x;
+    // Recompute the expected open set independently: coral stubs ∪ port docks ∪ port lanes.
+    const open = new Set<number>();
+    for (const r of CORAL_REEFS) {
+      open.add(idx(r.dock.x, r.dock.y));
+      for (const l of r.lane) open.add(idx(l.x, l.y));
+      open.add(idx(r.reef.x, r.reef.y));
+    }
+    for (const p of PORTS) open.add(idx(p.dock.x, p.dock.y));
+    for (const t of portLaneTiles()) open.add(idx(t.x, t.y));
+
     let walkable = 0;
     for (let i = 0; i < g.cells.length; i++) if (g.cells[i] === 0) walkable++;
-    // Per reef: 1 dock + lane tiles + 1 reef. Both reefs have a 2-tile lane.
-    const expected = CORAL_REEFS.reduce((sum, r) => sum + 2 + r.lane.length, 0);
-    expect(walkable).toBe(expected);
+    expect(walkable).toBe(open.size);
     // Spot-check: the dock→reef corridor for reef 0 is fully connected (walkable).
     const r0 = CORAL_REEFS[0]!;
-    const idx = (x: number, y: number) => y * WORLD_WIDTH + x;
     expect(g.cells[idx(r0.dock.x, r0.dock.y)]).toBe(0);
     for (const l of r0.lane) expect(g.cells[idx(l.x, l.y)]).toBe(0);
     expect(g.cells[idx(r0.reef.x, r0.reef.y)]).toBe(0);

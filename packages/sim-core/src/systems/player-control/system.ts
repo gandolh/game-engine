@@ -8,6 +8,8 @@
 import type { SimContext, System, World, Intention } from "@engine/core";
 import type { GameEntity, ItemRef } from "../../components";
 import { regionAt, isWalkable, isFishingIsle, type RegionId } from "../../world/regions";
+import { isDockTile } from "../../world/coral";
+import { isPortDockTile, isPortLaneTile } from "../../world/ports";
 import { DIR_DELTA, PLAYER_STEP_TICKS } from "./hotbar";
 import { defaultItemSlots, syncItemSlots } from "./items";
 
@@ -44,9 +46,11 @@ export class PlayerControlSystem implements System {
         const vx = mx === "left" ? -PLAYER_SPEED : mx === "right" ? PLAYER_SPEED : 0;
         const vy = my === "up"   ? -PLAYER_SPEED : my === "down"  ? PLAYER_SPEED : 0;
 
+        // Aboard a boat → Pip steps on the boat lanes (ocean), not land.
+        const aboard = farmer.aboard === true;
         // Resolve X then Y independently for wall-slide.
-        const newX = this.resolveAxis(transform.x, transform.y, vx, 0).x;
-        const newY = this.resolveAxis(newX,          transform.y, 0,  vy).y;
+        const newX = this.resolveAxis(transform.x, transform.y, vx, 0, aboard).x;
+        const newY = this.resolveAxis(newX,          transform.y, 0,  vy, aboard).y;
 
         const moved = newX !== transform.x || newY !== transform.y;
         transform.x = newX;
@@ -101,11 +105,22 @@ export class PlayerControlSystem implements System {
         const targetFarmer = this.farmerAt(tx, ty, entity.id);
         // A berry-bush is foraged by hand — collect it on any click, whatever slot is held.
         const ref = player.itemSlots[player.selectedSlot] ?? null;
+        const itemIntent = ref ? this.refIntent(entity, ref, tx, ty) : null;
+        // Standing on a dock (port or coral) → board / disembark. Lower precedence
+        // than a valid held-item action (so a dock that's also a fishing-cast tile
+        // still casts when the rod is selected); used when no item action applies.
+        const px0 = Math.round(transform.x);
+        const py0 = Math.round(transform.y);
+        const onDock = isPortDockTile(px0, py0) || isDockTile(px0, py0);
         const intent = targetFarmer !== undefined
           ? { kind: "challenge", data: { peerId: targetFarmer, context: "street" }, priority: 0 }
           : this.bushAt(tx, ty)
           ? { kind: "gather-bush", data: { tileX: tx, tileY: ty }, priority: 0 }
-          : ref ? this.refIntent(entity, ref, tx, ty) : null;
+          : itemIntent
+          ? itemIntent
+          : onDock
+          ? { kind: farmer.aboard ? "return-to-shore" : "board-boat", data: {}, priority: 0 }
+          : null;
         if (intent !== null) {
           entity.intentions!.queue = [intent];
           entity.fsm!.current = "ACT";
@@ -120,6 +135,7 @@ export class PlayerControlSystem implements System {
     cy: number,
     vx: number,
     vy: number,
+    aboard: boolean,
   ): { x: number; y: number } {
     if (vx === 0 && vy === 0) return { x: cx, y: cy };
 
@@ -143,7 +159,7 @@ export class PlayerControlSystem implements System {
 
     for (let tx = minTX; tx <= maxTX; tx++) {
       for (let ty = minTY; ty <= maxTY; ty++) {
-        if (this.canStand(tx, ty)) continue;
+        if (this.canStand(tx, ty, aboard)) continue;
 
         if (vx > 0) x = Math.min(x, tx - 0.5 - AABB_HALF);        // moving right: push left
         else if (vx < 0) x = Math.max(x, tx + 0.5 + AABB_HALF); // moving left: push right
@@ -245,8 +261,12 @@ export class PlayerControlSystem implements System {
     return false;
   }
 
-  /** A tile is steppable iff walkable and free of a feature/solid obstacle. */
-  private canStand(tx: number, ty: number): boolean {
+  /** A tile is steppable. On foot: walkable land free of features. Aboard a boat:
+   *  the boat lanes (ocean) plus dock tiles (so Pip can pull back up to a dock). */
+  private canStand(tx: number, ty: number, aboard: boolean): boolean {
+    if (aboard) {
+      return isPortLaneTile(tx, ty) || isPortDockTile(tx, ty) || isDockTile(tx, ty);
+    }
     return isWalkable(tx, ty) && !this.featureAt(tx, ty);
   }
 

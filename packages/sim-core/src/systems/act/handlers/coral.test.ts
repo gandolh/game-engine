@@ -5,6 +5,7 @@ import { zeroFish, FISH_VALUE } from "../../../components";
 import { MessageBus } from "@engine/core";
 import { handleBoardBoat, handleFishCoral, handleReturnToShore } from "./coral";
 import { CORAL_REEFS } from "../../../world/coral";
+import { PORTS } from "../../../world/ports";
 import type { ActingFarmer } from "../types";
 
 function makeFarmer(over: Partial<GameEntity> = {}): ActingFarmer {
@@ -37,6 +38,15 @@ describe("coral act handlers", () => {
     const offDock = makeFarmer({ transform: { x: 10, y: 10, prevX: 10, prevY: 10, rotation: 0 } });
     handleBoardBoat(offDock);
     expect(offDock.farmer!.aboard).toBeUndefined();
+  });
+
+  it("board/disembark also work at a port dock (port network)", () => {
+    const portDock = PORTS[0]!.dock;
+    const at = makeFarmer({ transform: { x: portDock.x, y: portDock.y, prevX: portDock.x, prevY: portDock.y, rotation: 0 } });
+    handleBoardBoat(at);
+    expect(at.farmer!.aboard).toBe(true);
+    handleReturnToShore(at);
+    expect(at.farmer!.aboard).toBe(false);
   });
 
   it("fish-coral lands a special fish + banks its premium gold when aboard at the reef", () => {

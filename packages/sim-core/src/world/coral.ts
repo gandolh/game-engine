@@ -2,6 +2,7 @@
 // TravelSystem pathfinds on the LAND grid normally, on the BOAT grid only while aboard.
 import type { PathfinderGrid } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT, getRegion } from "./regions";
+import { openPortLanes } from "./ports";
 
 export interface CoralReef {
   /** Stable id, used in decision-trace + feed keys. */
@@ -71,7 +72,8 @@ export function nearestReef(x: number, y: number): CoralReef {
   return best;
 }
 
-/** Boat grid: all blocked except dock + lane + reef tiles. Used by TravelSystem while aboard. */
+/** Boat grid: all blocked except the coral dock→reef stubs AND the port network
+ *  lanes. Used by TravelSystem while a farmer is aboard. */
 export function buildBoatGrid(): PathfinderGrid {
   const cells = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
   cells.fill(1);
@@ -83,5 +85,6 @@ export function buildBoatGrid(): PathfinderGrid {
     for (const l of r.lane) open(l.x, l.y);
     open(r.reef.x, r.reef.y);
   }
+  openPortLanes(cells);
   return { cells, width: WORLD_WIDTH, height: WORLD_HEIGHT };
 }

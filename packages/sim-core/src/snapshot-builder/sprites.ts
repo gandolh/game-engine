@@ -119,6 +119,25 @@ export function buildSprites(
     const isFarmer = entity.farmer !== undefined;
     const npc = entity.workNpc;
 
+    // A farmer aboard a boat rides a hull sprite under them (layer 49, just below
+    // the actor at 50) — it glides with the farmer via the shared renderPos.
+    if (isFarmer && entity.farmer?.aboard) {
+      sprites.push({
+        id: null,
+        x: px,
+        y: py + TILE * 0.15, // nudge the hull down so the farmer sits "in" the boat
+        rotation: 0,
+        layer: 49,
+        frame: "structure/boat",
+        alpha: 1,
+        tintRgba: UNTINTED_RGBA,
+        interpolate: isFarmer,
+        action: null,
+        label: null,
+        description: null,
+      });
+    }
+
     let facing: "down" | "up" | "side" | null = null;
     let flipX = false;
     let frame = s.frame;

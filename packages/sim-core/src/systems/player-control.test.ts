@@ -6,6 +6,7 @@ import { zeroFish } from "../components";
 import { PlayerControlSystem } from "./player-control";
 import { ActSystem } from "./act";
 import { getRegion } from "../world/regions";
+import { PORTS } from "../world/ports";
 import { PLAYER_SPEED } from "./player-control";
 
 // Hotbar slot indices (see HOTBAR_SLOTS): 0 Can · 1 Hoe · 2 Axe · 3 Pickaxe ·
@@ -473,5 +474,55 @@ describe("PlayerControlSystem — fishing", () => {
     pip.player!.pendingAction = true;
     tick(world, control, act);
     expect(pip.inventory!.gold).toBe(goldBefore);
+  });
+});
+
+describe("PlayerControlSystem — port hop", () => {
+  const PORT = PORTS[0]!; // port-fishing-isle, dock (114,162)
+
+  function standOnDock(pip: GameEntity): void {
+    pip.transform!.x = PORT.dock.x;
+    pip.transform!.y = PORT.dock.y;
+    pip.farmer!.currentRegion = PORT.isle;
+  }
+
+  it("pressing action on a port dock boards the boat", () => {
+    const { world, pip, control, act } = setup();
+    standOnDock(pip);
+    pip.player!.pendingAction = true;
+    tick(world, control, act);
+    expect(pip.farmer!.aboard).toBe(true);
+  });
+
+  it("pressing action again (aboard, on a dock) disembarks", () => {
+    const { world, pip, control, act } = setup();
+    standOnDock(pip);
+    pip.player!.pendingAction = true;
+    tick(world, control, act);
+    expect(pip.farmer!.aboard).toBe(true);
+    pip.player!.pendingAction = true;
+    tick(world, control, act, 1);
+    expect(pip.farmer!.aboard).toBe(false);
+  });
+
+  it("aboard, Pip can step onto a boat lane (ocean) but is blocked from open ocean", () => {
+    const { world, pip, control, act } = setup();
+    standOnDock(pip);
+    pip.player!.pendingAction = true;
+    tick(world, control, act); // board
+    expect(pip.farmer!.aboard).toBe(true);
+    // The first lane tile west of the dock is (113,162) — steppable while aboard.
+    pip.player!.pendingMoveX = "left";
+    tick(world, control, act, 1);
+    expect(pip.transform!.x).toBeLessThan(PORT.dock.x); // moved onto the lane
+  });
+
+  it("on foot, Pip cannot step onto an ocean lane tile (only aboard)", () => {
+    const { world, pip, control, act } = setup();
+    standOnDock(pip); // NOT aboard
+    pip.player!.pendingMoveX = "left"; // toward ocean lane (113,162)
+    tick(world, control, act);
+    // AABB collision keeps Pip on the land dock; can't drift onto ocean.
+    expect(Math.round(pip.transform!.x)).toBe(PORT.dock.x);
   });
 });

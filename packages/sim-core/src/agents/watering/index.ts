@@ -26,6 +26,8 @@ export { deliberateFishing } from "./fishing";
 
 export { deliberateCoralFishing } from "./coral";
 
+export { deliberatePortHop } from "./port";
+
 export {
   deliberateSellProducts,
   deliberateSellFruit,

@@ -8,6 +8,7 @@ import {
   type RegionId,
 } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
+import { PORTS } from "../world/ports";
 
 /** Islands that get a cliff skirt south of their coastline. Render-only; cliffs sit on non-walkable ocean. */
 export const TALL_ISLANDS: ReadonlyArray<{ region: RegionId; rows: 1 | 2 }> = [
@@ -699,5 +700,18 @@ export const CASINO_STATICS: readonly FishingStaticTile[] = [
   const t = scaleAroundNearestIsland({ x: s.x, y: s.y });
   return { tx: t.x, ty: t.y, frame: s.frame };
 });
+
+/** Port statics: a dock floor on each port's land dock tile + a moored boat on the
+ *  first ocean lane tile, so every port reads as a jetty with a boat waiting.
+ *  PORTS are already derived from live (scaled) island bounds — no re-scaling. */
+export const PORT_STATICS: readonly FishingStaticTile[] = (() => {
+  const out: FishingStaticTile[] = [];
+  for (const p of PORTS) {
+    out.push({ tx: p.dock.x, ty: p.dock.y, frame: "tile/dock-floor" });
+    const moored = p.lane[0];
+    if (moored) out.push({ tx: moored.x, ty: moored.y, frame: "structure/boat" });
+  }
+  return out;
+})();
 
 export { CORAL_ALPHA };

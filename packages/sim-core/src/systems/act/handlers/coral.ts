@@ -2,6 +2,7 @@ import type { Rng, MessageBus } from "@engine/core";
 import { FISH_VALUE, CORAL_WEIGHTS, FISH_MIN_TICKS, FISH_MAX_TICKS, zeroFish } from "../../../components";
 import { grantSkillXp, fishingRarityBonus } from "../../skills";
 import { isCoralReefTile, isDockTile, nearestReef } from "../../../world/coral";
+import { isPortDockTile } from "../../../world/ports";
 import { applyCoralRarityBonus } from "../helpers";
 import { pickWeightedFish } from "./fishing";
 import { ONT_CORAL, type CoralCaughtBody } from "../../../protocols/coral";
@@ -13,7 +14,8 @@ export function handleBoardBoat(farmer: ActingFarmer): void {
   if (farmer.farmer.aboard) return;
   const fx = Math.round(farmer.transform.x);
   const fy = Math.round(farmer.transform.y);
-  if (!isDockTile(fx, fy)) return;
+  // Boardable at a coral dock OR any port dock.
+  if (!isDockTile(fx, fy) && !isPortDockTile(fx, fy)) return;
   farmer.farmer.aboard = true;
 }
 
@@ -22,7 +24,7 @@ export function handleReturnToShore(farmer: ActingFarmer): void {
   if (!farmer.farmer.aboard) return;
   const fx = Math.round(farmer.transform.x);
   const fy = Math.round(farmer.transform.y);
-  if (!isDockTile(fx, fy)) return;
+  if (!isDockTile(fx, fy) && !isPortDockTile(fx, fy)) return;
   farmer.farmer.aboard = false;
 }
 

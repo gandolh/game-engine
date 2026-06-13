@@ -18,6 +18,7 @@ import {
   CORAL_ALPHA,
   FISHING_STATICS,
   CASINO_STATICS,
+  PORT_STATICS,
   isOccluderWall,
 } from "./geometry";
 import { SET_PIECES, SET_PIECE_ALPHA } from "./set-pieces";
@@ -209,7 +210,7 @@ export function* iterStaticSprites(
   // (pushBuildingSprites) so they y-sort against entities: a farmer behind a building is occluded
   // (and the player x-rays through), instead of being painted over the roof at the old layer 5.
 
-  for (const fs of [...FISHING_STATICS, ...CASINO_STATICS]) {
+  for (const fs of [...FISHING_STATICS, ...CASINO_STATICS, ...PORT_STATICS]) {
     const isBoat = fs.frame === "structure/boat";
     yield {
       x: fs.tx * TILE + TILE / 2,
