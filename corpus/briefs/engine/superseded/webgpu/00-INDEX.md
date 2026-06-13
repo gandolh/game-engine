@@ -1,6 +1,6 @@
 # WebGPU Renderer Migration — Master Plan
 
-**Status:** TODO (planning complete, execution not started)
+**Status:** CLOSED / WON'T-DO (2026-06-13) — planning complete, execution never started; backlog closed by user decision. Reopen with a fresh brief if WebGPU is revisited.
 **Owner of plan:** opus (orchestrator). **Executors:** sonnet subagents, one per wave brief.
 **Branch:** all work happens on `webgpu-migration` (never commit to `main`).
 

@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-13] chore | Close out remaining backlog (won't-do)
+
+Build-order set (2026-06-12 todos) all complete. User asked to mark the remaining open items done; on review they were **not** implemented, so closed as **won't-do** instead of faking completion (corpus stays honest — code wins). No code changed.
+
+- `todos/closed/` (new) ← `2026-06-13-calibrate-rival-cutoff.md`, `2026-06-13-tune-combat-frequency.md` — `status: wontdo`. Both are unrun calibration tasks gated on multi-seed sim runs (resource limits + always-ask-before-determinism-check).
+- `briefs/game/superseded/` ← brief 85 (animation engine) + brief 89 (detailed characters/held tools) — phases shipped, only the optional in-browser feel-check + a 24px action pass were left; closed with a top-of-file note. WebGPU-only render → couldn't feel-check headless anyway.
+- `briefs/engine/superseded/webgpu/` ← whole WebGPU migration plan (planning complete, execution never started). 00-INDEX status → CLOSED/WON'T-DO.
+- `todos/2026-06-12-00-BUILD-ORDER.md` — added a "Backlog closed" section listing the five. Both `briefs/*/todo/` dirs now empty.
+
 ## [2026-06-13] feature | Island ports + boat travel — port-to-port network
 
 Sim+world+render goal [island-ports-boat-travel](todos/2026-06-12-island-ports-boat-travel.md). Generalises the coral dock→reef stubs into a connected port network over open ocean. Decisions (grilled): hub-and-spoke aim, neutral landmark islands, light AI hop. **Geometry forced a reframe** — probing `buildWalkableGrid` showed the grown world's bridge columns (x≈93,116,141) slice every south ocean channel top-to-bottom + a continuous E-W road wall at y=116-117 splits north/south ocean, so a 4-spoke hub is uncarvable without crossing bridges (would reopen [project_pathfinder_js_wasm_diverge]). User chose the honest "2-3 ports in the one open channel" over re-carving geometry.

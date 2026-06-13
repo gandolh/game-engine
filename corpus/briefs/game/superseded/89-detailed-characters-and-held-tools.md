@@ -1,5 +1,7 @@
 # Brief 89 — Detailed 24×24 characters + held hotbar tool
 
+> **CLOSED 2026-06-13 (won't-do):** B1+B2 locomotion + Phase A carried-tool shipped; remaining work was the optional 24px action-pose pass + feel-check. Backlog closed by user decision — reopen with a fresh brief if a 24px action pass is wanted.
+
 Synthesis/context: [wiki/animation.md](../../../wiki/animation.md). Builds on the brief-85 render-side animation engine. **Render-only — no sim/determinism impact, no baseline move.**
 
 > **Status (2026-06-12): B1 gate passed + B2 locomotion shipped (24×24) — awaiting in-browser feel-check. Actions still 16px; A (tool overlay) not started.**

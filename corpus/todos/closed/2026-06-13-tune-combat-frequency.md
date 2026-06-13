@@ -1,7 +1,8 @@
 ---
 title: "Tune combat frequency + damage against a real run"
 created: 2026-06-13
-status: open
+status: wontdo
+closed: 2026-06-13
 tags: [sim, combat, calibration, deferred]
 ---
 

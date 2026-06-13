@@ -1,7 +1,8 @@
 ---
 title: "Calibrate the rival cutoff against a multi-seed run"
 created: 2026-06-13
-status: open
+status: wontdo
+closed: 2026-06-13
 tags: [sim, relationships, calibration, deferred]
 ---
 

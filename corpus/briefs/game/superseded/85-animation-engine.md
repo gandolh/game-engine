@@ -1,5 +1,7 @@
 # Brief 85 — Animation engine (agents + Pip)
 
+> **CLOSED 2026-06-13 (won't-do):** Phases 1–3 shipped; remaining work was only an in-browser feel-check + optional distinct walk poses. Backlog closed by user decision — reopen with a fresh brief if the feel-check surfaces problems.
+
 Synthesis + current-state map: [wiki/animation.md](../../../wiki/animation.md). Read it first.
 
 > **Status (2026-06-12): Phases 1 + 2 + 3 implemented — awaiting in-browser feel-check.**
