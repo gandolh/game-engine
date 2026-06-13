@@ -74,13 +74,16 @@ describe("makeWaterDepthDecorator — granular water (brief 83.4)", () => {
     }
   });
 
-  it("grain is depth-graded — the shore band has more speckles than the deep band", () => {
+  it("grain hugs the shore — only the two nearest-shore depths get speckles", () => {
     const { ctx, calls } = makeRecordingCtx();
     makeWaterDepthDecorator(TILE, 0xc0ffee)(ctx, W, H);
     const speckles = calls.filter(isSpeckle);
-    // Column 0 = depth 1 (shore), column 3 = depth 4 (deep).
+    // Column 0 = depth 1 (shore) … column 3 = depth 4 (deep). Shallows are kept tight to land:
+    // d=1 denser than d=2, and d=3 / d=4 produce no grain (so it never blobs into open water).
     const inCol = (col: number) => speckles.filter((c) => Math.floor(c.x / TILE) === col).length;
-    expect(inCol(0)).toBeGreaterThan(inCol(3));
-    expect(inCol(3)).toBeGreaterThan(0);
+    expect(inCol(0)).toBeGreaterThan(inCol(1));
+    expect(inCol(1)).toBeGreaterThan(0);
+    expect(inCol(2)).toBe(0);
+    expect(inCol(3)).toBe(0);
   });
 });

@@ -3,7 +3,7 @@ import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike } from "@engine/core";
 import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import type { JuiceLayer } from "./juice";
-import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
+import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { makeLightOverlay } from "../render/lights";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -314,33 +314,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const viewRight = _camera!.centerX + _camera!.worldUnitsX / 2 + TILE;
     const viewTop = _camera!.centerY - _camera!.worldUnitsY / 2 - TILE;
     const viewBottom = _camera!.centerY + _camera!.worldUnitsY / 2 + TILE;
-
-    // Ocean-surface veil: a flat translucent water quad over EVERY visible ocean tile, at a layer
-    // above submerged sea-life (whale 1 / kelp 2 / jelly·turtle 3 / fish 4) but below land floors,
-    // buildings, and farmers — so creatures read as seen THROUGH water while islands + objectives
-    // stay crisp above it. Culled to !isWalkable tiles in the visible rect (land never veiled).
-    // Replaces the old coastline foam-speckle pass (the cyan/white blobs around shores/bridges).
-    const VEIL_ALPHA = 0.4;
-    const txLo = Math.max(0, Math.floor(viewLeft / TILE));
-    const txHi = Math.min(WORLD_WIDTH - 1, Math.ceil(viewRight / TILE));
-    const tyLo = Math.max(0, Math.floor(viewTop / TILE));
-    const tyHi = Math.min(WORLD_HEIGHT - 1, Math.ceil(viewBottom / TILE));
-    for (let ty = tyLo; ty <= tyHi; ty++) {
-      for (let tx = txLo; tx <= txHi; tx++) {
-        if (isWalkable(tx, ty)) continue; // only ocean tiles get the veil
-        renderer.push({
-          x: tx * TILE + TILE / 2,
-          y: ty * TILE + TILE / 2,
-          width: TILE,
-          height: TILE,
-          frame: "tile/ocean-veil",
-          atlasId: "terrain",
-          rotation: 0,
-          layer: 5,
-          alpha: VEIL_ALPHA,
-        });
-      }
-    }
+    // Ocean-surface veil is BAKED into the static layer (render/ocean-veil.ts) over submerged
+    // sea-life, not drawn per-frame — keeps it seamless (no per-tile sprite banding) and tints the
+    // baked seabed-life (coral / set-pieces / starfish) too.
 
     // Animated forge fire: layer 41 (above oven body 40, below NPC 50). ~0.4s cycle.
     const fireFrame = sampleCycle(FORGE_FIRE_CLIP, nowMs);

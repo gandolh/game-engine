@@ -27,12 +27,15 @@ type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
  * `alpha` = its opacity, `colors` = the EDG neighbours it's drawn from (a value is picked by a second
  * hash, so repeats bias the mix). Shallow → dense/light (white→cyan); deep → sparse/dark (blue→teal).
  */
+// Shallows hug the islands: only the two tiles nearest shore get speckle grain (d=3,4 nulled so the
+// effect doesn't reach into open water as cyan blobs). The brightest white was dropped — it read as
+// hard cyan/white specks over the water; skyBlue/cyan only, fading out by d=2.
 const SPECKLE: ReadonlyArray<{ density: number; alpha: number; colors: readonly string[] } | null> = [
   null, // d=0 — not ocean-adjacent
-  { density: 0.42, alpha: 0.42, colors: [EDG.white, EDG.cyan, EDG.cyan] },
-  { density: 0.32, alpha: 0.32, colors: [EDG.cyan, EDG.skyBlue] },
-  { density: 0.22, alpha: 0.26, colors: [EDG.skyBlue, EDG.blue] },
-  { density: 0.14, alpha: 0.22, colors: [EDG.blue, EDG.blue, EDG.teal] },
+  { density: 0.30, alpha: 0.26, colors: [EDG.cyan, EDG.skyBlue] },
+  { density: 0.16, alpha: 0.18, colors: [EDG.skyBlue, EDG.blue] },
+  null, // d=3 — keep shallows tight to shore
+  null, // d=4
 ];
 
 /** Chunky speckle size in px (matches the ground-noise/water-pattern grain so it survives downscale). */

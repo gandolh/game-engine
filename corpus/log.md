@@ -2,9 +2,20 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-13] tweak | Ocean veil → baked (fix banding / untinted sea stars / shallow blobs / bridges)
+
+Follow-up after a screenshot of the per-tile-sprite veil (entry below). Four fixes:
+
+- **Banding (horizontal lines)** — the veil was a per-visible-tile sprite quad at layer 5; adjacent translucent quads seamed at fractional zoom → stripes over open water. **Moved the veil into the static-layer bake**: new `render/ocean-veil.ts` `makeOceanVeilDecorator` runs LAST in the decorate chain (`groundNoise → shoreDescent → waterDepth → oceanVeil`), one `fillRect` per water tile on the world canvas → no seams. The `tile/ocean-veil` recipe added in the prior entry was reverted (a color fill needs no atlas frame); recipe count back to 239.
+- **Untinted sea stars** — baking the veil over the static canvas means it now paints over the **baked** seabed life (coral / set-pieces / starfish / crab / anemone), which the dynamic sprite pass couldn't reach. They read submerged now.
+- **Shallow blobs in open water** — the near-shore speckle (`water-depth.ts` `SPECKLE`) reached depth 4 and led with bright white; nulled d=3/d=4 and dropped white so shallows hug the islands (d=1 dense → d=2 faint → nothing).
+- **Bridges affecting water level** — veil now keys off `regionAt(tx,ty) === null` (ocean **and** bridge spans) instead of `!isWalkable`, so under-bridge water veils identically; land regions still skipped.
+
+Render-only. Tests: +`ocean-veil.test.ts` (2), `water-depth.test.ts` updated to the tighter shallows. Full suite green (engine 142, farm-valley 188, atlas 15, sim-core 751, server 21); typecheck + palette guard clean. In-browser look pending user sign-off.
+
 ## [2026-06-13] tweak | Ocean-surface veil replaces coastline foam blobs
 
-Render tuning on top of the underwater-ecosystem pass (user request).
+Render tuning on top of the underwater-ecosystem pass (user request). **(Sprite approach below was superseded same-day by the baked veil — see the entry above.)**
 
 - **Removed** the coastline foam-speckle pass (render-loop.ts): the `FOAM_CLIP` (`tile/foam-a/b/c`, cyan `e` + cream `w` specks) drawn on every `COASTLINE_BUBBLE_TILES` tile read as cyan/white blobs around shores + bridge mouths. Dropped the loop + its `COASTLINE_BUBBLE_TILES`/`FOAM_CLIP` imports (both still exported from render-systems for any future use).
 - **Added** a Stardew-style ocean-surface veil: a flat translucent water quad (`tile/ocean-veil` — new solid deep-ocean `V` recipe, no speckles) pushed per visible **ocean** tile (`!isWalkable`, culled to the visible rect) at **layer 5**, `alpha 0.4`. Sits ABOVE submerged sea-life (whale 1 / kelp 2 / jelly·turtle 3 / fish 4 — baked coral/set-pieces/seabed-life are in the static image, also below it) but BELOW land floors, walls, buildings, farmers, and objectives. Because the veil is culled to ocean tiles and all land/objects sit on walkable tiles, there's no spatial overlap — islands + objectives stay crisp while creatures read as seen THROUGH water. Bridges are walkable → not veiled.
