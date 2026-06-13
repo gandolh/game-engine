@@ -1,11 +1,20 @@
 ---
 title: Island ports + boat travel across water
 created: 2026-06-12
-status: open
+status: done
 tags: [world, render, interaction, navigation]
 ---
 
 # Island ports + boat travel across water
+
+> **✅ DONE 2026-06-13** (commit `3650075`). `world/ports.ts` `PORTS` (3 ports:
+> fishing-isle / fishing-isle-2 / casino) on the one verified-clear south ocean
+> channel (trunk x=105). Reframed from 4-spoke hub → 2-3 ports after probing showed
+> bridge columns slice every channel (a 4-spoke hub would reopen pathfinder parity).
+> Reuses `aboard`/boatGrid/TravelSystem; `deliberatePortHop` (opportunist) + Pip
+> board/disembark + aboard-steering. Render: dock-floor + moored/under-farmer boat.
+> Module-load guard asserts lanes stay ocean. Tests green (sim-core 773); real-run
+> diff skipped per user (constrained hw). See log.md.
 
 Add ports on islands; from a port a farmer can board a boat and travel across
 water to another port — a port-to-port network over the ocean.
