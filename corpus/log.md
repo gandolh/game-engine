@@ -2,6 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-13] feature | Escapists block walls + local night lights
+
+Render-only goal [escapists-walls-and-night-lighting](todos/2026-06-12-escapists-walls-and-night-lighting.md). Scope was #1 + #3; #2 (global wash) already shipped.
+
+- **#1 Escapists block walls** — rewrote the two wall tile recipes (`tile/wall` stone, `tile/wall-wood`) as chunky depth blocks: heavy black outer cap (`k`), a bright TOP FACE, a darker SHADED SIDE FACE below it, `k` block-seams + bottom outline; top half only, lower rows transparent so the wall still reads as an outer edge band. **Renderer/geometry untouched** — same recipe names, same 16px size, so the `WALLS` shape (`tx,ty,rotation,frame`) and `computeWalls()` (incl. the `regionAt!==null` bridge-mouth gate) are unchanged. Atlas rebuilt (terrain sheet). South-facing walls still depth-sorted as occluders, so the side-face depth reads correctly behind characters.
+- **#3 Local lights** — new generic `overlay?: OverlayFn` param on `RendererLike.endFrame` (engine), drawn LAST in world space after the day/night wash; the callback owns its composite/alpha (engine stays game-agnostic; WebGPU backend ignores it). Static `LIGHT_EMITTERS` table in `render-systems/lights.ts` (sim-core): forge, campfire, casino neon (cyan + mauve), ring, one lit window per farm cottage — positions resolved once from the already-scaled region/anchor geometry (rides the grown world). Farm-valley `render/lights.ts` (`makeLightOverlay`) draws additive (`"lighter"`) warm radial glows, brightness scaled solely by `nightnessFor()` (in-game clock, **never wall-clock** → deterministic), gated above a dusk threshold and view-culled. EDG32 anchor colors; gradient falloff not per-pixel palette-locked (same rule as the wash → palette guard green).
+- **Verification:** typecheck clean all workspaces; full suite green — `@engine/core` 142, `farm-valley` 186 (+4 new `lights.test.ts`), `atlas-builder` 15, `@farm/sim-core` 747, `@farm/server` 21. No browser/determinism run (render-only + standing constrained-hardware decision); in-browser feel-check (wall depth read, night glow warmth) pending user sign-off.
+
 ## [2026-06-13] feature | Combat subsystem — HP fights, ring + street (foundation + both fight todos)
 
 Full combat scope landed in one drop: the [combat foundation](todos/2026-06-12-00-foundation-combat-subsystem.md), [ring-box](todos/2026-06-12-ring-box-rivalry-fights.md), and [steal-from-NPCs](todos/2026-06-12-steal-from-npcs-friendship-penalty.md) — the whole sim-fights group.

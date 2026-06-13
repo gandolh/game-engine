@@ -1,9 +1,19 @@
 ---
 title: Escapists-style wall rendering + local light sources
 created: 2026-06-12
-status: open
+status: done
 tags: [render, art, lighting]
 ---
+
+> **✅ DONE 2026-06-13** (render-only). #1 Escapists block walls = enriched `tile/wall`
+> + `tile/wall-wood` recipes (top face + shaded side face + heavy `k` outline + block
+> seams, top half only); SAME recipe names/size so `WALLS` shape + `computeWalls()`
+> bridge-mouth gate are untouched; atlas rebuilt. #3 Local lights = generic
+> `endFrame(overlay)` hook (engine, world-space, after the wash) + static
+> `LIGHT_EMITTERS` table (`render-systems/lights.ts`) + `makeLightOverlay`
+> (`farm-valley/render/lights.ts`) drawing additive warm glows scaled by
+> `nightnessFor()` (in-game clock, deterministic), view-culled, EDG32 anchors.
+> #2 already existed (global wash). See log.md.
 
 # Escapists-style wall rendering + local light sources
 

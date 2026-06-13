@@ -5,6 +5,7 @@ import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBrid
 import type { JuiceLayer } from "./juice";
 import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
+import { makeLightOverlay } from "../render/lights";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SIZE } from "@farm/sim-core/systems/player-control";
 import { TILE, PROFILE_ENABLED } from "./config";
@@ -733,7 +734,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         timeSec: nowMs / 1000,
       });
     }
-    frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain));
+    const lightOverlay = makeLightOverlay(nightness, view);
+    frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain, lightOverlay));
 
     const snap = client.latestSnapshot();
     const tick = client.tick;

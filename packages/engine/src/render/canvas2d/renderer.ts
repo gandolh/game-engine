@@ -4,7 +4,7 @@ import { EDG } from "../palette";
 import type { ParticleSystem } from "../particles";
 import type { Canvas2dSprite, Ctx2D } from "./types";
 import { compareSprite, drawSprite, createOffscreen, spritesOverlap } from "./draw";
-import type { RendererLike } from "../renderer";
+import type { RendererLike, OverlayFn } from "../renderer";
 
 export class Canvas2dRenderer implements RendererLike {
   readonly camera: Camera2D;
@@ -248,6 +248,7 @@ export class Canvas2dRenderer implements RendererLike {
     wash?: { color: string; alpha: number },
     particles?: ParticleSystem,
     weather?: { count: number; draw(ctx: Ctx2D): void },
+    overlay?: OverlayFn,
   ): void {
     if (!this.hasAtlases) return;
 
@@ -386,6 +387,16 @@ export class Canvas2dRenderer implements RendererLike {
       ctx.globalAlpha = wash.alpha;
       ctx.fillStyle = wash.color;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    }
+
+    // Local-light overlay (warm glows) drawn LAST, over the wash, back in world space so glows
+    // sit on their emitter tiles and parallax with the scene. The callback owns its composite/alpha.
+    if (overlay) {
+      ctx.setTransform(sx, 0, 0, sy, ox, oy);
+      overlay(ctx, { sx, sy, ox, oy });
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = "source-over";
       ctx.globalAlpha = 1;
     }
   }

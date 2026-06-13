@@ -2,7 +2,7 @@
 import type { Camera2D } from "../camera";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import type { ParticleSystem } from "../particles";
-import type { RendererLike, WashOptions, WeatherLike, DecorateFn, Sprite } from "../renderer";
+import type { RendererLike, WashOptions, WeatherLike, DecorateFn, Sprite, OverlayFn } from "../renderer";
 import { EDG } from "../palette";
 import { GpuContext } from "./gpu-context";
 import type { ViewUniform } from "./gpu-context";
@@ -374,7 +374,8 @@ export class WebGpuRenderer implements RendererLike {
     return this._batch.add(inst);
   }
 
-  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike): void {
+  // overlay (local-light glows) is a Canvas2D-only feature; the WebGPU backend ignores it for now.
+  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, _overlay?: OverlayFn): void {
     if (this._deviceLost) return;
     if (this._atlases.size === 0) return;
 

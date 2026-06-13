@@ -48,4 +48,7 @@ export {
 
 export { pushSnapshotSprites } from "./snapshot-sprites";
 
+export { LIGHT_EMITTERS, emitterPx } from "./lights";
+export type { LightEmitter } from "./lights";
+
 export { pushOccluderSprites, pushBuildingSprites, pushBridgeSprites } from "./occluders";
