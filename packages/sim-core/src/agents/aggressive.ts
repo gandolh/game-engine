@@ -244,10 +244,11 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 
   deliberateHireHelp(farmer, reserve, 13, -2);
 
-  // riskTolerance 1.0 = speculative: commits even without goods in hand.
+  // riskTolerance baked per-agent (bdi-jitter.ts, ~1.0): speculative, commits even without goods.
   if (day >= 3) {
     const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
-    deliberateHarborContract(farmer, openContracts, 1.0, reserve, 4, -2);
+    const tol = (farmer.desires.data.riskTolerance as number | undefined) ?? 1.0;
+    deliberateHarborContract(farmer, openContracts, tol, reserve, 4, -2);
   }
 
   deliberateTavernGather(farmer, -2);

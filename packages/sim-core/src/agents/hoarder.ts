@@ -202,10 +202,11 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   deliberateHireHelp(farmer, reserve, 13, -2);
 
-  // riskTolerance 0.5: commits if goods on hand OR can grow in time.
+  // riskTolerance baked per-agent (bdi-jitter.ts, ~0.5): commits if goods on hand OR can grow in time.
   if (day >= 5) {
     const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
-    deliberateHarborContract(farmer, openContracts, 0.5, reserve, 5, -2);
+    const tol = (farmer.desires.data.riskTolerance as number | undefined) ?? 0.5;
+    deliberateHarborContract(farmer, openContracts, tol, reserve, 5, -2);
   }
 
   // Coral: steep AP floor (80), rare (every 12 days) — won't risk hoarding routine.

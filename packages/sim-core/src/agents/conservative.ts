@@ -182,10 +182,11 @@ export function deliberateConservative(farmer: GameEntity): void {
     }
   }
 
-  // riskTolerance 0.0 (only commits with goods on hand); relaxes to 0.5 after day 10.
+  // riskTolerance baked per-agent (bdi-jitter.ts, ~0.0); relaxes to ≥0.5 after day 10.
   const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
   if (day >= 3) {
-    const harborTolerance = day >= 10 ? 0.5 : 0.0;
+    const baked = (farmer.desires.data.riskTolerance as number | undefined) ?? 0.0;
+    const harborTolerance = day >= 10 ? Math.max(0.5, baked) : baked;
     deliberateHarborContract(farmer, openContracts, harborTolerance, reserve, 5, -2);
   }
 

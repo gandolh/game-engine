@@ -47,9 +47,12 @@ export function deliberateBean(
   options: { resell?: boolean } = {},
 ): void {
   const resell = options.resell ?? true;
+  // Per-agent baked jitter (bdi-jitter.ts) overrides the kind's literal when present.
+  const factor =
+    (farmer.desires?.data.beanValueFactor as number | undefined) ?? valueFactor;
   const open = farmer.beliefs?.data.openAuction as AuctionCfpBody | undefined;
   if (open) {
-    const bid = expectedBeanBid(farmer, open, { valueFactor });
+    const bid = expectedBeanBid(farmer, open, { valueFactor: factor });
     if (bid !== null) {
       // Contesting an auction costs 2 AP to enter (AP gate, no world effect).
       // Entry has higher priority number so it's dropped first by the pruner.

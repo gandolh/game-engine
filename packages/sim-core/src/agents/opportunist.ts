@@ -241,10 +241,11 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   // Shrine: opportunist only — AP top-up when starved + off-cooldown.
   deliberateShrineVisit(farmer, 12, -2);
 
-  // riskTolerance 0.7: most likely to speculate on grow-then-deliver contracts.
+  // riskTolerance baked per-agent (bdi-jitter.ts, ~0.7): most likely to speculate on grow-then-deliver.
   const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
   if (day >= 3) {
-    deliberateHarborContract(farmer, openContracts, 0.7, reserve, 5, -2);
+    const tol = (farmer.desires.data.riskTolerance as number | undefined) ?? 0.7;
+    deliberateHarborContract(farmer, openContracts, tol, reserve, 5, -2);
   }
 
   deliberateTavernGather(farmer, -2);

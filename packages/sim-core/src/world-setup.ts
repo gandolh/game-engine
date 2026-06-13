@@ -4,6 +4,7 @@ import { zeroFish, HEALTH_MAX } from "./components";
 import { defaultItemSlots } from "./systems/player-control/items";
 import { setupRegions } from "./world/region-setup";
 import type { RegionId } from "./world/regions";
+import { bakeBdiJitter } from "./agents/bdi-jitter";
 
 const ZERO_CROPS: Record<CropKind, number> = {
   radish: 0, wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0, grape: 0, "winter-squash": 0,
@@ -32,15 +33,25 @@ export interface FarmerSpec {
   player?: boolean;
 }
 
-export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec): GameEntity {
+export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec, seed: number): GameEntity {
   const sprite = `farmer/${spec.personality}`;
   const initialRegion = spec.homeRegion;
+  // Per-agent BDI jitter baked once at spawn (see agents/bdi-jitter.ts). Lands on
+  // desires.data so deliberation read-sites pick up the per-agent value.
+  const bdi = bakeBdiJitter(spec, seed);
   const farmer = world.spawn({
     transform: { x: spec.homeX, y: spec.homeY, prevX: spec.homeX, prevY: spec.homeY, rotation: 0 },
     sprite: { atlasId: "main", frame: sprite, layer: 100, tintRgba: 0xffffffff },
     fsm: { current: "WAIT_DAY" as FarmerFsmState, enteredTick: 0 },
     beliefs: { data: { currentDay: 0 }, revision: 0 },
-    desires: { data: { riskProfile: spec.riskProfile, minGoldReserve: spec.minGoldReserve } },
+    desires: {
+      data: {
+        riskProfile: spec.riskProfile,
+        minGoldReserve: bdi.minGoldReserve,
+        riskTolerance: bdi.riskTolerance,
+        beanValueFactor: bdi.beanValueFactor,
+      },
+    },
     intentions: { queue: [] },
     personality: { kind: spec.personality },
     inbox: { messages: [] },

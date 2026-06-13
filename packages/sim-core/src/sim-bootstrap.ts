@@ -175,7 +175,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   const specs = opts.farmerSpecs ?? DEFAULT_FARMER_SPECS;
   const farmers: GameEntity[] = [];
   for (const spec of specs) {
-    const farmer = setupFarmer(world, spec);
+    const farmer = setupFarmer(world, spec, opts.seed);
     if (farmer.id === undefined) throw new Error(`Farmer ${spec.name} id missing`);
     farmers.push(farmer);
   }
