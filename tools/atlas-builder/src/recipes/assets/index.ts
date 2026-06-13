@@ -242,6 +242,7 @@ import r247 from "./decoration/turtle-a";
 import r248 from "./decoration/turtle-b";
 import r249 from "./decoration/fish-green-a";
 import r250 from "./decoration/fish-green-b";
+import r251 from "./tile/ocean-veil";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -483,5 +484,6 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r248,
   r249,
   r250,
+  r251,
 ];
 

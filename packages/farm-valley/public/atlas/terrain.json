@@ -2,7 +2,7 @@
   "id": "terrain",
   "imageUrl": "/atlas/terrain.png",
   "width": 128,
-  "height": 128,
+  "height": 256,
   "frames": {
     "tile/shore": {
       "x": 1,
@@ -292,12 +292,18 @@
       "w": 16,
       "h": 16
     },
-    "tile/greenhouse-floor": {
+    "tile/ocean-veil": {
       "x": 103,
       "y": 103,
       "w": 16,
       "h": 16
+    },
+    "tile/greenhouse-floor": {
+      "x": 1,
+      "y": 120,
+      "w": 16,
+      "h": 16
     }
   },
-  "inputsHash": "3abf70e80f997b753f1c7eb53a53413eeb0405c82cb5b5ab9290953c5791c24f"
+  "inputsHash": "b136ecb330a9f6d33ca30766040193d49ba45147cdc516eae8bee37448ef3ed3"
 }

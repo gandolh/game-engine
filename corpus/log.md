@@ -2,6 +2,14 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-13] tweak | Ocean-surface veil replaces coastline foam blobs
+
+Render tuning on top of the underwater-ecosystem pass (user request).
+
+- **Removed** the coastline foam-speckle pass (render-loop.ts): the `FOAM_CLIP` (`tile/foam-a/b/c`, cyan `e` + cream `w` specks) drawn on every `COASTLINE_BUBBLE_TILES` tile read as cyan/white blobs around shores + bridge mouths. Dropped the loop + its `COASTLINE_BUBBLE_TILES`/`FOAM_CLIP` imports (both still exported from render-systems for any future use).
+- **Added** a Stardew-style ocean-surface veil: a flat translucent water quad (`tile/ocean-veil` — new solid deep-ocean `V` recipe, no speckles) pushed per visible **ocean** tile (`!isWalkable`, culled to the visible rect) at **layer 5**, `alpha 0.4`. Sits ABOVE submerged sea-life (whale 1 / kelp 2 / jelly·turtle 3 / fish 4 — baked coral/set-pieces/seabed-life are in the static image, also below it) but BELOW land floors, walls, buildings, farmers, and objectives. Because the veil is culled to ocean tiles and all land/objects sit on walkable tiles, there's no spatial overlap — islands + objectives stay crisp while creatures read as seen THROUGH water. Bridges are walkable → not veiled.
+- Recipe count guard bumped 239→240; terrain sheet rebuilt. Typecheck clean; full suite green (engine 142, farm-valley 186, atlas 15, sim-core 751, server 21); palette guard green (veil is `V`-only). Render-only, no determinism impact; in-browser look pending user sign-off.
+
 ## [2026-06-13] feature | Underwater ecosystem — seabed life + drifting water creatures
 
 Render-only additive pass [improve-underwater-ecosystem](todos/2026-06-12-improve-underwater-ecosystem.md). No sim/economy/determinism coupling. Decisions: full bestiary; scatter evenly across all open water (blue-noise, like the stone/sand set-pieces).

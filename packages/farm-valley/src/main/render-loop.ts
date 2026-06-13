@@ -1,9 +1,9 @@
 import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike } from "@engine/core";
-import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, COASTLINE_BUBBLE_TILES, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FOAM_CLIP, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import type { JuiceLayer } from "./juice";
-import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable } from "@farm/sim-core/world/regions";
+import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { washFor, nightnessFor } from "../render/day-night";
 import { makeLightOverlay } from "../render/lights";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -310,36 +310,36 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       Math.sin(t * 0.13) * SWELL_DRIFT,
     );
 
-    // Coastline foam: culled to visible rect, zoom-thinned at far zoom.
-    // Foam alpha is swell-synced (base 0.45 ± 0.25) with per-tile phase offset.
-    const zoom = _camera!.zoom;
-    const bubbleStride = zoom >= 1 ? 1 : zoom >= 0.75 ? 2 : zoom >= 0.6 ? 3 : 4;
     const viewLeft = _camera!.centerX - _camera!.worldUnitsX / 2 - TILE;
     const viewRight = _camera!.centerX + _camera!.worldUnitsX / 2 + TILE;
     const viewTop = _camera!.centerY - _camera!.worldUnitsY / 2 - TILE;
     const viewBottom = _camera!.centerY + _camera!.worldUnitsY / 2 + TILE;
-    for (let i = 0; i < COASTLINE_BUBBLE_TILES.length; i++) {
-      if (i % bubbleStride !== 0) continue; // thin out at low zoom
-      const { tx, ty } = COASTLINE_BUBBLE_TILES[i]!;
-      const cx = tx * TILE + TILE / 2;
-      const cy = ty * TILE + TILE / 2;
-      if (cx < viewLeft || cx > viewRight || cy < viewTop || cy > viewBottom) continue;
-      const phase = tx * 3 + ty * 5; // per-tile offset
-      const frame = sampleCycle(FOAM_CLIP, nowMs, phase);
-      // Divide by 8 so tilePhase stays within ~2π over the tile grid.
-      const tilePhase = phase * 0.125;
-      const foamAlpha = 0.45 + 0.25 * Math.sin(swellPhase + tilePhase);
-      renderer.push({
-        x: cx,
-        y: cy,
-        width: TILE,
-        height: TILE,
-        frame,
-        atlasId: "terrain",
-        rotation: 0,
-        layer: 1,
-        alpha: foamAlpha,
-      });
+
+    // Ocean-surface veil: a flat translucent water quad over EVERY visible ocean tile, at a layer
+    // above submerged sea-life (whale 1 / kelp 2 / jelly·turtle 3 / fish 4) but below land floors,
+    // buildings, and farmers — so creatures read as seen THROUGH water while islands + objectives
+    // stay crisp above it. Culled to !isWalkable tiles in the visible rect (land never veiled).
+    // Replaces the old coastline foam-speckle pass (the cyan/white blobs around shores/bridges).
+    const VEIL_ALPHA = 0.4;
+    const txLo = Math.max(0, Math.floor(viewLeft / TILE));
+    const txHi = Math.min(WORLD_WIDTH - 1, Math.ceil(viewRight / TILE));
+    const tyLo = Math.max(0, Math.floor(viewTop / TILE));
+    const tyHi = Math.min(WORLD_HEIGHT - 1, Math.ceil(viewBottom / TILE));
+    for (let ty = tyLo; ty <= tyHi; ty++) {
+      for (let tx = txLo; tx <= txHi; tx++) {
+        if (isWalkable(tx, ty)) continue; // only ocean tiles get the veil
+        renderer.push({
+          x: tx * TILE + TILE / 2,
+          y: ty * TILE + TILE / 2,
+          width: TILE,
+          height: TILE,
+          frame: "tile/ocean-veil",
+          atlasId: "terrain",
+          rotation: 0,
+          layer: 5,
+          alpha: VEIL_ALPHA,
+        });
+      }
     }
 
     // Animated forge fire: layer 41 (above oven body 40, below NPC 50). ~0.4s cycle.
