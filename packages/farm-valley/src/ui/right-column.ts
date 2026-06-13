@@ -1,7 +1,6 @@
 import { createEl, applyStyles } from "./dom";
 import { EDG } from "@engine/core/render";
 
-// Single fixed right-edge column; panels stack as flex children so they never overlap.
 const COLUMN_STYLES: Partial<CSSStyleDeclaration> = {
   position: "fixed",
   top: "0",
@@ -11,11 +10,9 @@ const COLUMN_STYLES: Partial<CSSStyleDeclaration> = {
   display: "flex",
   flexDirection: "column",
   alignItems: "stretch",
-  // Solid backdrop so the sidebar reads as one full-height surface even when every
-  // category is collapsed and the stacked panels don't reach the bottom.
+
   background: EDG.black,
-  // Safety net: if the stacked panels ever exceed the viewport, scroll the whole
-  // column rather than clipping the bottom panel off-screen.
+
   overflowY: "auto",
   pointerEvents: "none",
   zIndex: "9997",

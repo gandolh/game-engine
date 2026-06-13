@@ -3,9 +3,6 @@ import type { GameEntity } from "../components";
 import { ONT_SIMULATION } from "../protocols";
 import type { EventFeedSystem, EventEntry } from "./event-feed";
 
-/** Surfaces a daily gossip rumor from the event feed onto the tavern entity. No Math.random/Date.now. */
-
-/** Window of recent feed entries the barkeep draws a rumor from. */
 const GOSSIP_WINDOW = 12;
 
 export class TavernSystem implements System {
@@ -46,7 +43,6 @@ export class TavernSystem implements System {
   }
 }
 
-/** Highest-drama entry from the last GOSSIP_WINDOW feed entries; tie-broken by newest tick, then stable key. */
 export function pickGossip(feed: readonly EventEntry[]): string | undefined {
   if (feed.length === 0) return undefined;
   const window = feed.slice(Math.max(0, feed.length - GOSSIP_WINDOW));
@@ -55,7 +51,7 @@ export function pickGossip(feed: readonly EventEntry[]): string | undefined {
     if (best === undefined) { best = e; continue; }
     if (e.drama > best.drama) { best = e; continue; }
     if (e.drama < best.drama) continue;
-    // Tie on drama: prefer newer tick; final tie-break on stable key.
+
     if (e.tick > best.tick) { best = e; continue; }
     if (e.tick < best.tick) continue;
     if (e.key < best.key) best = e;

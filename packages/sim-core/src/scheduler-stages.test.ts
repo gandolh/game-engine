@@ -1,22 +1,9 @@
-/**
- * scheduler-stages.test.ts
- *
- * 1. ORDER-PIN — bootstrapSim with JsPathfinder must produce exactly this stage/name
- *    sequence. Any reorder or insertion will fail loudly.
- *
- * 2. AUDIT NEGATIVE — running several ticks with the real scheduler + stage audit
- *    enabled must NOT throw. If it does, that's a real same-stage write+read bug;
- *    report it rather than suppressing.
- */
+
 
 import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "./sim-bootstrap";
 import { JsPathfinder } from "./world/js-pathfinder";
 import type { StageEntry } from "@engine/core";
-
-// ---------------------------------------------------------------------------
-// 1. ORDER-PIN TEST
-// ---------------------------------------------------------------------------
 
 const EXPECTED_STAGES: StageEntry[] = [
   { stage: "CLOCK",      name: "DayClockSystem" },
@@ -73,10 +60,6 @@ describe("scheduler stage order pin", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 2. AUDIT NEGATIVE TEST
-// ---------------------------------------------------------------------------
-
 describe("stage audit on real scheduler", () => {
   it(
     "runs several ticks with audit enabled without throwing (real ordering is clean)",
@@ -92,7 +75,6 @@ describe("stage audit on real scheduler", () => {
       sim.bus.enableAudit();
       sim.scheduler.enableStageAudit(sim.bus);
 
-      // Run 3 full days (60 ticks) — exercises all stages including DAY_START broadcasts.
       expect(() => {
         for (let tick = 0; tick < 60; tick++) {
           sim.scheduler.tick({ tick });

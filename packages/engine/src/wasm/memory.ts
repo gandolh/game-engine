@@ -1,5 +1,4 @@
-// AS modules resize memory via TLSF; any typed-array view against memory.buffer is invalidated after a grow.
-// WasmHeap re-fetches the buffer on each view request to avoid stale references.
+
 
 export interface WasmAllocator {
   alloc(size: number): number;

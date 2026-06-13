@@ -7,7 +7,7 @@ import type { AuctionCfpBody } from "../protocols/shop";
 import { EncounterTradeSystem } from "../systems/encounter-trade";
 import { ONT_ENCOUNTER, type OfferBeanBody } from "../protocols/encounter";
 import { PERFORMATIVE } from "../protocols/performatives";
-// Side-effect imports register personality hooks needed for the gift handshake.
+
 import "./aggressive";
 import "./conservative";
 
@@ -95,7 +95,7 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
 
   beforeEach(() => {
     world = new World<GameEntity>();
-    new MessageBus(); // not needed by trade.run but mirrors other tests
+    new MessageBus(); 
     trade = new EncounterTradeSystem(world);
   });
 
@@ -128,7 +128,7 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
 
     expect(giver.inventory!.goldenBeans).toBe(0);
     expect(receiver.inventory!.goldenBeans).toBe(1);
-    expect(receiver.trust!.byId.get(giver.id!)!).toBeGreaterThan(0.6); // well above 0.5 default
+    expect(receiver.trust!.byId.get(giver.id!)!).toBeGreaterThan(0.6); 
   });
 
   it("is a no-op if the giver has no bean to give", () => {
@@ -147,4 +147,4 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
   });
 });
 
-void createRng; // keep import live
+void createRng;

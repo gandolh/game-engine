@@ -1,9 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Autumn variant of the big tree — IDENTICAL trunk+canopy silhouette to big-tree.ts,
-// foliage shifted to autumn tones (a gold base, A orange light, f flame accents, t deep
-// shade). A few stray f/A specks fall around the trunk as drifting leaves. Same outline
-// so the season swap reads as the same tree turning.
 const recipe: PixelRecipe = {
   name: "structure/big-tree-autumn",
   size: 48,

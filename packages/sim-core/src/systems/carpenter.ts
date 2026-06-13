@@ -10,10 +10,6 @@ import {
   type CommissionDoneBody,
 } from "../protocols/commission";
 
-// CarpenterSystem: validates commissions, escrows wood up-front, delivers structure after COMMISSION_BUILD_TICKS.
-// No Math.random/Date.now; delivery tile is first free farm tile in fixed row-major scan (deterministic replay).
-
-/** Build time before delivery (~1.5 s at 20 Hz). */
 export const COMMISSION_BUILD_TICKS = 30;
 
 export class CarpenterSystem implements System {
@@ -83,7 +79,7 @@ export class CarpenterSystem implements System {
       return;
     }
 
-    res.wood -= recipe.woodCost; // escrow: wood charged now, decoration spawned on delivery
+    res.wood -= recipe.woodCost; 
     if (!carpenter.carpenter!.pending) carpenter.carpenter!.pending = [];
     carpenter.carpenter!.pending.push({
       ownerId: farmer.id!,

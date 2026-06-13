@@ -41,7 +41,7 @@ function spawnPlot(world: World<GameEntity>, ownerId: number): GameEntity {
         daysGrowing: 0,
         readyAtDay: 5,
         weatherSum: 0,
-        // Start watered so the first day grows (mirrors planting, which marks the soil watered).
+
         daysSinceWater: 0,
         wateredToday: true,
       } satisfies PlotState,
@@ -86,10 +86,9 @@ describe("CropGrowthSystem", () => {
   it("accumulates weatherSum using the WeatherStation multiplier", () => {
     const plotEntity = spawnPlot(world, 1);
 
-    // Set multiplier directly on the WeatherStation
     const stations = world.query("weatherStation", "inbox");
     for (const s of stations) {
-      s.weatherStation!.multiplier = 1.2; // sunny
+      s.weatherStation!.multiplier = 1.2; 
     }
 
     sendDayStart(world, 1);
@@ -106,18 +105,16 @@ describe("CropGrowthSystem", () => {
   it("accumulates weatherSum over multiple days", () => {
     const plotEntity = spawnPlot(world, 1);
 
-    // Day 1: multiplier 1.2
     const stations = [...world.query("weatherStation", "inbox")];
     stations[0]!.weatherStation!.multiplier = 1.2;
     sendDayStart(world, 1);
     system.run(makeContext(10));
 
-    // Re-water before day 2 (watering is per-day).
     {
       const s = plotEntity.plot!.state;
       if (s.kind === "planted") s.wateredToday = true;
     }
-    // Day 2: multiplier 0.8
+
     stations[0]!.weatherStation!.multiplier = 0.8;
     sendDayStart(world, 2);
     system.run(makeContext(20));
@@ -169,7 +166,6 @@ describe("CropGrowthSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
 
-    // Send same day again — should be a no-op
     sendDayStart(world, 1);
     system.run(makeContext(11));
 
@@ -178,8 +174,6 @@ describe("CropGrowthSystem", () => {
       expect(state.daysGrowing).toBe(1);
     }
   });
-
-  // ---- irrigation & crop death ----------------------------------
 
   function setWeather(world: World<GameEntity>, cond: string, mult: number): void {
     for (const s of world.query("weatherStation")) {
@@ -195,7 +189,7 @@ describe("CropGrowthSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
     const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBe(0); // no progress on a dry day
+    expect(s.daysGrowing).toBe(0); 
     expect(s.daysSinceWater).toBe(1);
   });
 
@@ -206,36 +200,34 @@ describe("CropGrowthSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
     const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBe(1); // rain watered it
+    expect(s.daysGrowing).toBe(1); 
     expect(s.daysSinceWater).toBe(0);
   });
 
   it("a crop withers after exceeding the grace window of dry days", () => {
     const plot = spawnPlot(world, 1);
     setWeather(world, "sunny", 1.2);
-    // Day 1: planted-watered → grows, resets dry. Days 2,3: dry (1,2). Day 4: dry 3 > grace 2 → death.
+
     for (let day = 1; day <= 4; day++) {
       const s = plot.plot!.state;
-      if (s.kind === "planted" && day > 1) s.wateredToday = false; // never re-water after day 1
+      if (s.kind === "planted" && day > 1) s.wateredToday = false; 
       sendDayStart(world, day);
       system.run(makeContext(day * 10));
     }
-    expect(plot.plot!.state.kind).toBe("empty"); // withered, seed lost
+    expect(plot.plot!.state.kind).toBe("empty"); 
   });
 
-  // ---- season suitability & quality -----------------------------
-
   it("in-season crop grows at full rate (daysGrowing += 1 per day)", () => {
-    // Radish is a spring crop. Day 1 = spring → full rate.
+
     const plot = spawnPlot(world, 1);
     sendDayStart(world, 1);
     system.run(makeContext(10));
     const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBe(1); // full-rate increment
+    expect(s.daysGrowing).toBe(1); 
   });
 
   it("out-of-season crop grows at half rate (daysGrowing += 0.5 per day)", () => {
-    // Radish is a spring crop. Day 51 = autumn → half rate.
+
     const plotEntity = world.spawn({
       plot: {
         ownerId: 1,
@@ -253,13 +245,11 @@ describe("CropGrowthSystem", () => {
         } satisfies PlotState,
       },
     });
-    sendDayStart(world, 51); // autumn
+    sendDayStart(world, 51); 
     system.run(makeContext(100));
     const s = plotEntity.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBeCloseTo(0.5); // half-rate increment
+    expect(s.daysGrowing).toBeCloseTo(0.5); 
   });
-
-  // ---- greenhouse (season-immune) -------------------------------
 
   it("greenhouse plot grows an out-of-season crop at FULL rate (vs half for a normal plot)", () => {
     const mkOutOfSeasonRadish = (greenhouse: boolean, tileX: number): GameEntity =>
@@ -272,7 +262,7 @@ describe("CropGrowthSystem", () => {
           greenhouse,
           state: {
             kind: "planted",
-            crop: "radish", // spring crop
+            crop: "radish", 
             daysGrowing: 0,
             readyAtDay: 5,
             weatherSum: 0,
@@ -284,47 +274,44 @@ describe("CropGrowthSystem", () => {
     const normalPlot = mkOutOfSeasonRadish(false, 0);
     const greenhousePlot = mkOutOfSeasonRadish(true, 4);
 
-    sendDayStart(world, 51); // autumn — radish is OUT of season
+    sendDayStart(world, 51); 
     system.run(makeContext(100));
 
     const sNormal = normalPlot.plot!.state as Extract<PlotState, { kind: "planted" }>;
     const sGreen = greenhousePlot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(sNormal.daysGrowing).toBeCloseTo(0.5); // open field: half-rate out of season
-    expect(sGreen.daysGrowing).toBeCloseTo(1.0);   // greenhouse: full-rate regardless of season
+    expect(sNormal.daysGrowing).toBeCloseTo(0.5); 
+    expect(sGreen.daysGrowing).toBeCloseTo(1.0);   
   });
 });
-
-// ---- computeQuality (harvest) -------------------------------------
 
 describe("computeQuality", () => {
   it("produces deterministic gold quality for perfect husbandry", () => {
     const rng = createRng(999).fork("crop-quality");
-    // Perfect conditions: watered every day (daysSinceWater=0), full growth (daysGrowing>=growthDays),
-    // high weatherSum, decoration boost.
+
     const q1 = computeQuality(3, 3, 3.0, 0, 1, rng);
     const rng2 = createRng(999).fork("crop-quality");
     const q2 = computeQuality(3, 3, 3.0, 0, 1, rng2);
-    expect(q1).toBe(q2); // deterministic
+    expect(q1).toBe(q2); 
   });
 
   it("perfect husbandry yields gold quality", () => {
     const rng = createRng(42).fork("crop-quality");
-    // daysGrowing=growthDays (100%), weatherSum=growthDays (avg 1.0), daysSinceWater=0, decoration boost
+
     const q = computeQuality(4, 4, 4.0, 0, 1, rng);
     expect(q).toBe("gold");
   });
 
   it("neglected crop (never watered) yields normal quality", () => {
     const rng = createRng(1234).fork("crop-quality");
-    // daysSinceWater = growthDays (never watered, always dry)
+
     const growthDays = 4;
     const q = computeQuality(4, growthDays, 4.0, growthDays, 0, rng);
-    // Water score = 0 (worst); quality should be normal.
+
     expect(q).toBe("normal");
   });
 
   it("leaderboard values gold > normal for same crop", () => {
-    // Build two inventories: one normal, one gold. Same count, same crop.
+
     const seeds = { ...ZERO_CROPS };
     const invNormal = {
       gold: 0,

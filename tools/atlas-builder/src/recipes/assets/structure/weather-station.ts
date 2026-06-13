@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Brief 77: 3D weather-station — hipped roof (lit ridge s / body S / shadow N) over a
-// tall stone front wall (q/Q/N) with lit windows + central door. 48x48, 3x3 tiles,
-// bottom-anchored so it stands up off the island. Top-left light direction.
 const recipe: PixelRecipe = {
     name: "structure/weather-station",
     size: 32,

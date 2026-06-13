@@ -1,20 +1,7 @@
-/**
- * atlas.test.ts — brief 47: multi-sheet atlas grouping tests.
- *
- * Tests:
- *  1. frameToAtlasId routes every known frame prefix to the correct sheet.
- *  2. Unknown prefix throws clearly.
- *  3. All frame name prefixes from the known recipe set map to exactly one sheet.
- *
- * The consistency between builder PREFIX_TO_SHEET and runtime FRAME_PREFIX_TO_ATLAS
- * is validated indirectly: the runtime mapping is in render-systems.ts and must be
- * kept in sync with the builder mapping (guarded by this test).
- */
+
 import { describe, it, expect } from "vitest";
 import { frameToAtlasId } from "./render-systems";
 
-// The complete set of prefixes produced by the atlas-builder recipes.
-// brief 42 — added animal/*, product/*, fruit/*.
 const ALL_RECIPE_PREFIXES: Record<string, string> = {
   "farmer":     "characters",
   "npc":        "characters",
@@ -26,7 +13,7 @@ const ALL_RECIPE_PREFIXES: Record<string, string> = {
   "tool":       "items-ui",
   "indicator":  "items-ui",
   "debug":      "items-ui",
-  // brief 42 — livestock + orchard
+
   "animal":     "characters",
   "product":    "items-ui",
   "fruit":      "items-ui",

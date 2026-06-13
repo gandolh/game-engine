@@ -1,5 +1,5 @@
-// Parallel determinism check: 2N runs dispatched across a worker pool, results compared
-// in original seed order so stderr/exit-code are deterministic regardless of finish order.
+
+
 import { Worker } from "node:worker_threads";
 import { availableParallelism } from "node:os";
 import { fingerprint, describeDivergence, type RunResult } from "./run-core";
@@ -29,7 +29,7 @@ function runJobsInPool(jobs: DeterminismJob[]): Promise<DeterminismJobResult[]> 
     };
 
     const spawn = () => {
-      const worker = new Worker(WORKER_URL, { execArgv: ["--import", "tsx"] }); // tsx: import .ts directly in Node ≥20
+      const worker = new Worker(WORKER_URL, { execArgv: ["--import", "tsx"] }); 
 
       const dispatch = () => {
         if (next >= jobs.length) {

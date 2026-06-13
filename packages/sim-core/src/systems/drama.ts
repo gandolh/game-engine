@@ -1,7 +1,4 @@
-/**
- * Pure drama-scoring module. dramaScore is a pure function of (kind, ctx) —
- * no Date.now, no Math.random. Act bands are fractions of maxDays (1–30/31–70/71–100 at 100 days).
- */
+
 
 export type DramaEventKind =
   | "trade"
@@ -19,9 +16,9 @@ export type DramaEventKind =
   | "coral-catch";
 
 export interface DramaCtx {
-  /** Current sim day (1-based). */
+
   day: number;
-  /** Total number of sim days (from DayClockSystem.config.maxDays). */
+
   maxDays: number;
 }
 
@@ -35,7 +32,6 @@ export function actBandForDay(day: number, maxDays: number): ActBand {
   return "climax";
 }
 
-/** Base drama [0,1] per kind before act-band multiplier. rank-flip/race-on are high by design. */
 const BASE_DRAMA: Record<DramaEventKind, number> = {
   "trade":      0.10,
   "auction":    0.55,
@@ -52,7 +48,6 @@ const BASE_DRAMA: Record<DramaEventKind, number> = {
   "coral-catch":        0.50,
 };
 
-/** establishment: 0.80 (quiet early), competition: 1.00 (reference), climax: 1.20 (louder late). */
 const ACT_MULTIPLIER: Record<ActBand, number> = {
   "establishment": 0.80,
   "competition":   1.00,

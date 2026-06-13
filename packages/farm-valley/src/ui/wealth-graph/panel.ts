@@ -74,7 +74,6 @@ export class WealthGraphPanel {
     }
   }
 
-  /** Redraws only when the day changes; per-day frequency is sufficient. */
   update(series: SnapshotWealthSeries[], day: number): void {
     if (day === this.lastDayDrawn) return;
     this.lastDayDrawn = day;

@@ -3,7 +3,6 @@ import { EDG } from "@engine/core/render";
 import { personalityColor } from "./colors";
 import type { FarmerFsmState } from "@farm/sim-core/components/farmer";
 
-/** Keybindings shown in the help modal — [keys, what they do]. */
 const KEY_BINDINGS: ReadonlyArray<readonly [string, string]> = [
   ["W A S D · ↑ ↓ ← →", "Walk Pip one tile"],
   ["E", "Use the selected hotbar tool on the tile you face"],
@@ -16,7 +15,6 @@ const KEY_BINDINGS: ReadonlyArray<readonly [string, string]> = [
   ["Scroll", "Zoom in / out"],
 ];
 
-/** What each hotbar slot does — [glyph, name, effect]. Keep in sync with HOTBAR_SLOTS. */
 const TOOL_HELP: ReadonlyArray<readonly [string, string, string]> = [
   ["🪣", "Can", "Water a planted, un-watered plot"],
   ["⛏", "Hoe", "Till bare ground into soil"],
@@ -28,7 +26,6 @@ const TOOL_HELP: ReadonlyArray<readonly [string, string, string]> = [
   ["🎃", "Pumpkin", "Plant pumpkin seeds on your tilled plot"],
 ];
 
-/** Personality glosses grounded in deliberate* logic; swatch via personalityColor() stays on-palette. */
 const PERSONALITY_HELP: ReadonlyArray<readonly [string, string]> = [
   [
     "conservative",
@@ -59,14 +56,12 @@ const FSM_HELP: ReadonlyArray<readonly [FarmerFsmState, string]> = [
 
 export interface PlaybackState {
   paused: boolean;
-  /** Active speed multiplier (1, 2, 4). */
+
   speed: number;
 }
 
-/** Speed multipliers offered, in display order. */
 const SPEEDS = [1, 2, 4] as const;
 
-// Flex child of right-column; re-enables pointer-events (column sets none for canvas passthrough).
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   display: "flex",
   flexWrap: "wrap",
@@ -108,8 +103,6 @@ export class PlaybackControlsPanel {
   private onStep: (() => void) | null = null;
   private onSkipToHighlight: (() => void) | null = null;
 
-  // Local mirror of the last state pushed via update(), used so the pause
-  // button can toggle without the caller having to track it.
   private state: PlaybackState = { paused: false, speed: 1 };
 
   constructor(parent: HTMLElement) {
@@ -180,7 +173,7 @@ export class PlaybackControlsPanel {
         display: "none",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(24, 20, 37, 0.6)", // EDG.black, translucent
+        background: "rgba(24, 20, 37, 0.6)", 
         pointerEvents: "auto",
         zIndex: "10000",
       },

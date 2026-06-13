@@ -1,11 +1,7 @@
-/**
- * Procedural ground texture: subtle per-tile brightness variation, baked once
- * into the static layer (zero per-frame cost). Deterministic on (seed, tileX, tileY).
- */
+
 
 import { EDG } from "@engine/core/render";
 
-/** Deterministic hash → [0,1). Math.imul for true 32-bit multiply (plain * overflows 2^53). */
 function hash2(x: number, y: number, seed: number): number {
   let h = (seed ^ Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
@@ -13,7 +9,6 @@ function hash2(x: number, y: number, seed: number): number {
   return h / 4294967296;
 }
 
-/** Smooth value noise → [0,1). Bilinear interp of 4 lattice corners with smoothstep fade. */
 export function valueNoise2d(x: number, y: number, seed: number): number {
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);
@@ -34,7 +29,6 @@ export function valueNoise2d(x: number, y: number, seed: number): number {
   return top + (bottom - top) * uy;
 }
 
-/** fBm → [0,1), normalized. Each octave uses a distinct seed offset so lattices don't align. */
 export function fbm(
   x: number,
   y: number,
@@ -58,27 +52,19 @@ export function fbm(
   return ampSum > 0 ? sum / ampSum : 0;
 }
 
-/** Maximum fractional brightness swing (±). Small on purpose — texture, not noise. */
 export const GROUND_NOISE_AMPLITUDE = 0.12;
 
-// Base period ~8 tiles; 4 octaves (lacunarity 2, gain 0.5) add finer grain.
 const FBM_BASE_FREQUENCY = 1 / 8;
 const FBM_OCTAVES = 4;
 const FBM_LACUNARITY = 2;
 const FBM_GAIN = 0.5;
 
-// Domain warping (Inigo Quilez: https://iquilezles.org/articles/warp/).
-// Single warp layer: WARP_STRENGTH=1.5 (k in 1.0–2.0 band), WARP_FREQUENCY=1/16
-// (half texture freq → bends whole patches, not high-freq jitter).
-// dx/dy decorrelated via distinct seed forks AND a fixed coordinate offset so
-// the y-sample never collapses onto x even if seeds align at a lattice cell.
 const WARP_STRENGTH = 1.5;
 const WARP_FREQUENCY = 1 / 16;
 const WARP_SEED_X = 0x1b873593;
 const WARP_SEED_Y = 0xcc9e2d51;
 const WARP_OFFSET = 5.2;
 
-/** Warped sample coords for (x,y) in fBm-coordinate units. Warp bounded by ±k. */
 export function domainWarp(
   x: number,
   y: number,
@@ -87,7 +73,7 @@ export function domainWarp(
   const s = seed >>> 0;
   const dx =
     (fbm(
-      x * WARP_FREQUENCY * 8, // x/y in fBm units (×1/8) → re-scale to tile-space
+      x * WARP_FREQUENCY * 8, 
       y * WARP_FREQUENCY * 8,
       (s ^ WARP_SEED_X) >>> 0,
       FBM_OCTAVES,
@@ -112,7 +98,6 @@ export function domainWarp(
   return [x + dx, y + dy];
 }
 
-/** Brightness multiplier in [1-amplitude, 1+amplitude]; domain-warped fBm. */
 export function tileBrightness(
   tileX: number,
   tileY: number,
@@ -132,17 +117,12 @@ export function tileBrightness(
     FBM_OCTAVES,
     FBM_LACUNARITY,
     FBM_GAIN,
-  ); // [0,1)
+  ); 
   return 1 + (n * 2 - 1) * amplitude;
 }
 
-/** Matches the engine renderer's offscreen 2D context union. */
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-/**
- * Returns a decorate callback for Canvas2dRenderer.bakeStaticLayer.
- * Uses wasmBrightness array if supplied (~8× faster); falls back to tileBrightness.
- */
 export function makeGroundNoiseDecorator(
   seed: number,
   tilePx: number,

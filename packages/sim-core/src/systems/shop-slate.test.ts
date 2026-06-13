@@ -67,7 +67,6 @@ describe("ShopSlateSystem", () => {
     system.run(makeCtx(10));
     const firstSlate = shop.shopkeeper!.dailySlate;
 
-    // No DAY_START this tick — slate must remain unchanged.
     system.run(makeCtx(11));
     expect(shop.shopkeeper!.dailySlate).toBe(firstSlate);
   });
@@ -81,7 +80,6 @@ describe("ShopSlateSystem", () => {
     system.run(makeCtx(20));
     const slateDay2 = shop.shopkeeper!.dailySlate;
 
-    // Both valid slates, but the array reference must differ (new object each day).
     expect(slateDay2).not.toBe(slateDay1);
     expect(slateDay2!.length).toBe(SLATE_SIZE);
   });
@@ -90,7 +88,7 @@ describe("ShopSlateSystem", () => {
     sendDayStartToShop(shop, 1);
     system.run(makeCtx(10));
     bus.flush();
-    bus.drain(); // consume
+    bus.drain(); 
 
     sendDayStartToShop(shop, 1);
     system.run(makeCtx(11));
@@ -100,7 +98,7 @@ describe("ShopSlateSystem", () => {
   });
 
   it("is deterministic: same seed + same day sequence → same slate", () => {
-    // Run 1
+
     const w1 = new World<GameEntity>();
     const b1 = new MessageBus();
     const s1 = spawnShopkeeper(w1);
@@ -110,7 +108,6 @@ describe("ShopSlateSystem", () => {
     sys1.run(makeCtx(10));
     const slate1 = JSON.stringify(s1.shopkeeper!.dailySlate);
 
-    // Run 2
     const w2 = new World<GameEntity>();
     const b2 = new MessageBus();
     const s2 = spawnShopkeeper(w2);

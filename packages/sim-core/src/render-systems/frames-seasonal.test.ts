@@ -7,7 +7,7 @@ import type { Season } from "../protocols/weather";
 const SEASONS: Season[] = ["spring", "summer", "autumn", "winter"];
 
 describe("seasonalTreeFrame — 4-way foliage remap", () => {
-  // base → expected frame per season (summer = base, no suffix).
+
   const cases: Array<[string, Record<Season, string>]> = [
     ["structure/tree", {
       spring: "structure/tree-blossom", summer: "structure/tree",
@@ -31,7 +31,7 @@ describe("seasonalTreeFrame — 4-way foliage remap", () => {
     it(`${base} maps to 4 distinct seasonal frames`, () => {
       const got = SEASONS.map((s) => seasonalTreeFrame(base, s));
       expect(got).toEqual(SEASONS.map((s) => expected[s]));
-      // four DISTINCT looks (acceptance: blossom/green/autumn/bare)
+
       expect(new Set(got).size).toBe(4);
     });
   }
@@ -55,7 +55,7 @@ describe("big-tree island centerpiece", () => {
   it("a structure/big-tree BIG_STRUCTURE sits on the big-tree island", () => {
     const bt = BIG_STRUCTURES.find((b) => b.frame === "structure/big-tree");
     expect(bt, "expected a structure/big-tree baked centerpiece").toBeDefined();
-    // its base row sits on the big-tree region
+
     const wTiles = Math.max(1, Math.round(bt!.wPx / 16));
     let onIsland = false;
     for (let dx = 0; dx < wTiles; dx++) {

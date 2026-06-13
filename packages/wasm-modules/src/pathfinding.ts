@@ -1,7 +1,4 @@
-// AssemblyScript: 4-connected A* on a row-major u8 grid (0=walkable).
-// Output: i32 (x,y) waypoint pairs, start→end.
-// Scratch buffers (gScore, parent, closed, heapBuf) are allocated once and grown on-demand,
-// never freed between calls — eliminates alloc/free churn that caused "unreachable" traps.
+
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);
@@ -18,11 +15,11 @@ function manhattan(ax: i32, ay: i32, bx: i32, by: i32): i32 {
   return (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
 }
 
-let scratchGScore: usize = 0;  // i32[total]   — best known cost
-let scratchParent: usize = 0;  // i32[total]   — predecessor index
-let scratchClosed: usize = 0;  // u8[total]    — closed-set flags
-let scratchHeap:   usize = 0;  // i64[total+1] — binary-heap entries (f,idx)
-let scratchCap:    i32   = 0;  // cells the current buffers can hold; 0 = not yet allocated
+let scratchGScore: usize = 0;  
+let scratchParent: usize = 0;  
+let scratchClosed: usize = 0;  
+let scratchHeap:   usize = 0;  
+let scratchCap:    i32   = 0;  
 
 @inline
 function ensureScratch(total: i32): void {
@@ -35,10 +32,10 @@ function ensureScratch(total: i32): void {
     heap.free(scratchHeap);
   }
 
-  scratchGScore = heap.alloc(<usize>(total << 2));         // 4 bytes/i32
+  scratchGScore = heap.alloc(<usize>(total << 2));         
   scratchParent = heap.alloc(<usize>(total << 2));
-  scratchClosed = heap.alloc(<usize>total);                // 1 byte/u8
-  scratchHeap   = heap.alloc(<usize>((total + 1) << 3));  // 8 bytes/entry
+  scratchClosed = heap.alloc(<usize>total);                
+  scratchHeap   = heap.alloc(<usize>((total + 1) << 3));  
   scratchCap    = total;
 }
 
@@ -67,7 +64,6 @@ export function findPath(
 
   ensureScratch(total);
 
-  // gScore sentinel = i32.MAX_VALUE; parent sentinel = -1 (all-ones); closed = 0.
   memory.fill(scratchClosed, 0, <usize>total);
   for (let i: i32 = 0; i < total; i++) {
     store<i32>(scratchGScore + (<usize>i << 2), i32.MAX_VALUE);
@@ -93,7 +89,7 @@ export function findPath(
       found = true;
       break;
     }
-    // No decrease-key: push duplicates, drop on closed pop. `closed` covers stale entries.
+
     let _unused: i32 = topF;
     _unused = _unused;
 
@@ -127,7 +123,7 @@ export function findPath(
 
   let written: i32 = 0;
   if (found) {
-    // Walk parent chain end→start, then reverse into outPtr.
+
     let trace: i32 = endIdx;
     let length: i32 = 0;
     while (trace != -1) {
@@ -152,10 +148,8 @@ export function findPath(
     }
   }
 
-  // Scratch buffers intentionally NOT freed — reused by the next call.
   return written;
 }
-
 
 @inline
 function push(heapPtr: usize, heapLen: i32, f: i32, idx: i32): i32 {

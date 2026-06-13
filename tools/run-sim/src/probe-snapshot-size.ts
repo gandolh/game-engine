@@ -1,4 +1,4 @@
-/* Measure RenderSnapshot JSON payload per section + sprite composition. Run after roster/world changes. */
+
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { buildRenderSnapshot, SnapshotSpriteState } from "@farm/sim-core/snapshot-builder";
 

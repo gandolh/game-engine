@@ -6,7 +6,6 @@ import { nearestTile, FORAGE_ZONES } from "./shared";
 import { deliberateBuyTool } from "./tools";
 import { getRegion, nearestResourceZone, type RegionId } from "../../world/regions";
 
-/** Queue chop/mine for visible farm features; travels to the nearest if none are in reach. */
 export function deliberateResourceGather(
   farmer: GameEntity,
   tileFeatures: Array<{ kind: "tree" | "stone" | "bush"; tileX: number; tileY: number; ownerId: number }>,
@@ -18,7 +17,6 @@ export function deliberateResourceGather(
   const hasAxe    = tools.some(t => t.kind === "axe"     && t.durability > 0);
   const hasPick   = tools.some(t => t.kind === "pickaxe" && t.durability > 0);
 
-  // If the relevant tool is broken, buy a replacement before gathering stalls permanently.
   const ownFeatures = tileFeatures.filter((f) => f.ownerId === farmer.id);
   if (!hasAxe && ownFeatures.some((f) => f.kind === "tree")) {
     deliberateBuyTool(farmer, "axe", priority - 1);
@@ -28,7 +26,7 @@ export function deliberateResourceGather(
   }
 
   const gatherable = ownFeatures
-    // Berry-bushes need no tool; trees/stones gate on holding a working axe/pickaxe.
+
     .filter(f => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick) || f.kind === "bush")
     .slice()
     .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
@@ -75,7 +73,6 @@ export function deliberateResourceGather(
   if (count > 0) recordReason(farmer, `gather resources (${count} actions)`);
 }
 
-/** Queue a mill trip when holding ≥ minStock units of any crop for the premium price. */
 export function deliberateMillVisit(
   farmer: GameEntity,
   minStock: number,
@@ -109,7 +106,6 @@ export function deliberateMillVisit(
   recordReason(farmer, `mill ${best.crop} x${best.qty} for premium`);
 }
 
-/** Queue a forage trip to the mushroom-grove (autumn) or ice-pond (winter); no-op out of season. */
 export function deliberateSeasonalForage(
   farmer: GameEntity,
   priority: number,
@@ -118,7 +114,7 @@ export function deliberateSeasonalForage(
   const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
   const season = seasonForDay(day);
   const zone = FORAGE_ZONES.find((z) => z.season === season);
-  if (!zone) return; // no zone is in season right now
+  if (!zone) return; 
 
   if (farmer.intentions.queue.some(i => i.kind === "forage")) return;
 
@@ -139,7 +135,6 @@ export function deliberateSeasonalForage(
   recordReason(farmer, `forage ${zone.region} (in season: ${season})`);
 }
 
-/** Travel to nearest forest/quarry zone when own farm has no features left. */
 export function deliberateResourceZoneVisit(
   farmer: GameEntity,
   ownFarmFeatureCount: number,

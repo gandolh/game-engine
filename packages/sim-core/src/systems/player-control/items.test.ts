@@ -43,7 +43,7 @@ describe("item grid layout", () => {
       { kind: "seed", crop: "wheat" },
       { kind: "seed", crop: "pumpkin" },
     ]);
-    // Everything past the hotbar starts empty.
+
     expect(slots.slice(HOTBAR_SIZE).every((s) => s === null)).toBe(true);
   });
 
@@ -57,9 +57,8 @@ describe("item grid layout", () => {
 
     syncItemSlots(slots, inv, res);
 
-    // Hotbar row is untouched.
     expect(slots[5]).toEqual({ kind: "seed", crop: "radish" });
-    // Held crop / fish / resource appended to the first empty slots (order: crops, fish, resources).
+
     const appended = slots.slice(HOTBAR_SIZE).filter((s) => s !== null);
     expect(appended).toEqual([
       { kind: "crop", crop: "radish" },
@@ -75,7 +74,6 @@ describe("item grid layout", () => {
     const firstEmpty = slots.indexOf(null);
     expect(slots[HOTBAR_SIZE]).toEqual({ kind: "crop", crop: "wheat" });
 
-    // Sell it all, sync again — the slot stays (shows x0), nothing shifts.
     inv.crops.wheat = 0;
     syncItemSlots(slots, inv, NO_RES);
     expect(slots[HOTBAR_SIZE]).toEqual({ kind: "crop", crop: "wheat" });

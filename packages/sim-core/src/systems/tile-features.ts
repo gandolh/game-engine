@@ -1,40 +1,24 @@
-/**
- * TileFeatureSystem — manages trees, stones, and forageable berry-bushes on farms and dedicated zones.
- *
- * Spawn rates by region type:
- *   farm tiles:     2% tree / 1.5% stone / 1% berry-bush per empty tile per day, cap 6
- *   forest-north/south (tree zones): 25% tree + 8% berry-bush (understory), cap 20
- *   quarry-north/south (stone zones): 20% stone only, cap 20
- *
- * Forest zones spawn trees + the odd berry-bush; quarry zones always spawn
- * stones; farm tiles can spawn any of the three. Berry-bushes are forageable —
- * collecting one yields a random seed (see handleGatherBush). Each zone's
- * spawned features are attributed to the nearest farm (by center distance) as a
- * pathfinding-priority hint; any farmer can chop/mine/forage in any zone.
- */
+
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity, TileFeatureKind } from "../components";
 import { ONT_SIMULATION } from "../protocols";
 import { REGIONS } from "../world/regions";
 
-// Farm-tile rates (features supplement the dedicated zones)
 const FARM_TREE_CHANCE  = 0.02;
 const FARM_STONE_CHANCE = 0.015;
 const FARM_BUSH_CHANCE  = 0.01;
 const MAX_PER_FARM = 6;
 
-// Dedicated zone rates and caps
 const ZONE_TREE_CHANCE  = 0.25;
 const ZONE_STONE_CHANCE = 0.20;
-const ZONE_BUSH_CHANCE  = 0.08; // forests carry a berry-bush understory under the trees
+const ZONE_BUSH_CHANCE  = 0.08; 
 const MAX_PER_ZONE = 20;
 
 export class TileFeatureSystem implements System {
   readonly name = "TileFeatureSystem";
   private lastDayProcessed = -1;
 
-  // Dedicated rng stream for feature placement — forked so cluster draws never shift the main sim rng stream.
   private readonly cluster: Rng;
 
   constructor(
@@ -84,7 +68,7 @@ export class TileFeatureSystem implements System {
       occupiedByRegion.get(rid)!.add(key);
       featureCountByRegion.set(rid, (featureCountByRegion.get(rid) ?? 0) + 1);
     }
-    // Block farmer standing positions on their own farm.
+
     for (const e of this.world.query("farmer", "transform")) {
       const rid = e.farmer.homeRegion;
       if (!rid) continue;
@@ -106,7 +90,6 @@ export class TileFeatureSystem implements System {
 
       if (!isFarm && !isForest && !isQuarry) continue;
 
-      // Ownership = nearest farm by center distance (pathfinding-priority hint only; any farmer may gather).
       let ownerId: number | undefined;
       if (isFarm) {
         ownerId = farmOwnerByRegion.get(def.id);
@@ -139,10 +122,8 @@ export class TileFeatureSystem implements System {
       }
       if (candidates.length === 0) continue;
 
-      // One roll per candidate (Binomial draw on the forked stream) to decide count;
-      // farm tiles tag each slot tree-or-stone preserving the original tree/stone mix.
       const slots: Array<TileFeatureKind> = [];
-      const room = maxFeatures - currentCount; // cap headroom (>0 here)
+      const room = maxFeatures - currentCount; 
       for (const _candidate of candidates) {
         if (slots.length >= room) break;
         const r = this.cluster.nextFloat();
@@ -159,7 +140,6 @@ export class TileFeatureSystem implements System {
       }
       if (slots.length === 0) continue;
 
-      // Place in organic clusters: BFS outward from sqrt(count) seed centers, round-robin.
       const targetCount = slots.length;
       const centerCount = Math.max(1, Math.min(4, Math.round(Math.sqrt(targetCount))));
 
@@ -182,16 +162,6 @@ export class TileFeatureSystem implements System {
     }
   }
 
-  /**
-   * Grow up to `targetCount` cluster placements over the empty `candidates` of a
-   * region. Picks `centerCount` seed tiles, then expands each cluster by BFS into
-   * adjacent (4-neighbour) empty in-region tiles, round-robin across clusters so
-   * they fill evenly. All randomness is drawn from the forked `this.cluster`
-   * stream in a fixed order, so placement is fully deterministic.
-   *
-   * Returns at most `targetCount` distinct tile coords (fewer only if the region
-   * has fewer reachable empty tiles than requested).
-   */
   private growClusters(
     candidates: ReadonlyArray<{ x: number; y: number }>,
     occupied: ReadonlySet<string>,
@@ -221,7 +191,7 @@ export class TileFeatureSystem implements System {
       active = false;
       for (let f = 0; f < frontiers.length && result.length < targetCount; f++) {
         const frontier = frontiers[f]!;
-        // Pop the next unclaimed frontier tile for this cluster.
+
         let placed = false;
         while (frontier.length > 0 && !placed) {
           const tile = frontier.shift()!;
@@ -247,7 +217,6 @@ export class TileFeatureSystem implements System {
       }
     }
 
-    // Top up from unclaimed tiles if clusters ran dry (fragmented region).
     if (result.length < targetCount) {
       for (const c of candidates) {
         if (result.length >= targetCount) break;

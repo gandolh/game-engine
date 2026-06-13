@@ -78,7 +78,6 @@ export function buildRenderSnapshot(
     ? { id: todaysFestival.id, name: todaysFestival.name, contestCrop: todaysFestival.contestCrop }
     : null;
 
-  // Wealth series: rebuilt only when row count changed (server path); null otherwise.
   let wealthSeries: RenderSnapshot["wealthSeries"];
   if (spriteState === undefined) {
     wealthSeries = buildWealthSeries(world, runHistoryRows);

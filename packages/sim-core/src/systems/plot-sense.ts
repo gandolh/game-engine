@@ -1,18 +1,15 @@
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity, PlotState, TileFeature, FarmDecoration, AnimalKind } from "../components";
 
-/** Surfaces plot watering/planting state into beliefs for deliberation.
- *  Runs before DeliberateSystem (after HarvestSystem). Pure read of plot state.
- */
 export interface PlotWaterSense {
   planted: number;
   due: number;
   maxDrySoFar: number;
-  /** Sorted (tileY, tileX) list of plots that need watering today. */
+
   duePlots: Array<{ tileX: number; tileY: number }>;
-  /** Sorted (tileY, tileX) list of empty plots ready to plant. */
+
   emptyPlots: Array<{ tileX: number; tileY: number }>;
-  /** Tile coords of the farmer's home fountain, if found. */
+
   fountainTile?: { x: number; y: number };
 }
 
@@ -24,7 +21,7 @@ export class PlotSenseSystem implements System {
   run(_ctx: SimContext): void {
     const byOwnerPlanted = new Map<number, Array<{ tileX: number; tileY: number; state: Extract<PlotState, { kind: "planted" }> }>>();
     const byOwnerEmpty   = new Map<number, Array<{ tileX: number; tileY: number }>>();
-    // Empty greenhouse plots tracked separately for year-round planting deliberation.
+
     const byOwnerGreenhouseEmpty = new Map<number, Array<{ tileX: number; tileY: number }>>();
     const allTilesByOwner = new Map<number, string[]>();
     for (const p of this.world.query("plot")) {

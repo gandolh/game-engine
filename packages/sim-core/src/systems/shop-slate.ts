@@ -5,7 +5,6 @@ import { ONT_SHOP } from "../protocols/shop";
 import { ONT_SIMULATION, PERFORMATIVE } from "../protocols";
 import type { DailySlateBody } from "../protocols/shop";
 
-/** Generates a fresh daily offer slate for the shopkeeper on each DAY_START. */
 export class ShopSlateSystem implements System {
   readonly name = "ShopSlateSystem";
 

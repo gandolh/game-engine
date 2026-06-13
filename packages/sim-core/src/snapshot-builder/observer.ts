@@ -52,7 +52,7 @@ export function buildObserverSnapshot(
 
   return {
     day,
-    season: station?.season ?? seasonForDay(day), // fallback for pre-day-1 frame
+    season: station?.season ?? seasonForDay(day), 
     weather: {
       condition: station?.current ?? "normal",
       multiplier: station?.multiplier ?? 1,

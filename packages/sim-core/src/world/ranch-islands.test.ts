@@ -11,7 +11,6 @@ import type { ActingFarmer } from "../systems/act/types";
 const farmIds = REGIONS.filter((r) => r.kind === "farm").map((r) => r.id);
 const ranchIds = REGIONS.filter((r) => r.kind === "ranch").map((r) => r.id);
 
-/** ≥2-tile ocean gap between two inclusive rects (negative ⇒ overlap/adjacent). */
 function oceanGap(
   a: { minX: number; minY: number; maxX: number; maxY: number },
   b: { minX: number; minY: number; maxX: number; maxY: number },
@@ -21,7 +20,6 @@ function oceanGap(
   return Math.max(gx, gy);
 }
 
-/** Does a road rect edge-touch (expand-by-1 overlap) a region's bounds? */
 function roadTouches(
   road: { minX: number; minY: number; maxX: number; maxY: number },
   b: { minX: number; minY: number; maxX: number; maxY: number },
@@ -35,7 +33,7 @@ describe("per-farm ranch islands", () => {
     expect(farmIds).toHaveLength(21);
     expect(ranchIds).toHaveLength(21);
     for (const id of ranchIds) expect(id).toMatch(/^ranch-\d+$/);
-    // Distinct ids.
+
     expect(new Set(ranchIds).size).toBe(21);
   });
 
@@ -49,7 +47,7 @@ describe("per-farm ranch islands", () => {
       mapped.add(ranch!);
     }
     expect(mapped.size).toBe(21);
-    // ranchForFarm of a non-farm is undefined.
+
     expect(ranchForFarm("village" as RegionId)).toBeUndefined();
   });
 
@@ -130,7 +128,7 @@ describe("per-farm ranch islands", () => {
     const pen = pens[0]!.pen;
     expect(pen.regionId).toBe(expectedRanch);
     expect(pen.regionId).not.toBe(homeRegion);
-    // Pen tile is an interior, walkable tile of the ranch.
+
     expect(regionAt(pen.tileX, pen.tileY)).toBe(expectedRanch);
   });
 });

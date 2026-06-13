@@ -1,6 +1,4 @@
-// HarborSystem: posts contracts every HARBOR_POST_CADENCE days; resolves delivery/miss each tick.
-// Must run BEFORE EventFeedSystem (broadcasts snooped same tick) and BEFORE PerceiveSystem.
-// No Math.random/Date.now — contract ids keyed by day+slot for stable replay.
+
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -101,7 +99,7 @@ export class HarborSystem implements System {
         hb.committed.delete(contract.id);
         this.applyMissPenalty(committedFarmerId, contract, tick);
       } else {
-        // Open but never taken → EXPIRE (no penalty, just remove).
+
         const expBody: ContractExpiredBody = { contractId: contract.id, day: today };
         this.bus.send(
           {
@@ -173,7 +171,7 @@ export class HarborSystem implements System {
       hb.openContracts = hb.openContracts.filter((c) => c.id !== contract.id);
       hb.committed.delete(contract.id);
 
-      const day = Math.floor(tick / 20); // approximate; real day from beliefs not needed here
+      const day = Math.floor(tick / 20); 
       const body: ContractDeliveredBody = {
         contractId: contract.id,
         farmerId: f.id,

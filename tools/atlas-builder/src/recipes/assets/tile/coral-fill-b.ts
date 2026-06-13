@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// FILL-B (cool): companion interior reef — magenta, sky-blue, purple, green coral
-// heads in transparent water with navy undershadows. Same head layout as the warm
-// fill so the variants intermix into one organic, colourful, submerged reef.
 const recipe: PixelRecipe =
   {
     name: "tile/coral-fill-b",

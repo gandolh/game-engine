@@ -13,7 +13,6 @@ import type { TileFeature, FarmDecoration } from "../components";
 import { SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 
-/** Picks cheapest in-season crop; uses seeds on hand first; falls back to radish. */
 function pickConservativeCrop(
   day: number,
   gold: number,
@@ -35,11 +34,10 @@ function pickConservativeCrop(
     const cost = SEED_COST[crop];
     if (gold - cost >= reserve) return { crop, cost };
   }
-  // Fallback: radish is always affordable.
+
   return { crop: "radish", cost: SEED_COST.radish };
 }
 
-/** Picks highest-value crop whose native season is NOT the current one (the greenhouse's purpose). */
 function pickGreenhouseCrop(day: number): CropKind {
   const season = seasonForDay(day);
   const byValue: CropKind[] = ["grape", "pumpkin", "corn", "tomato", "winter-squash", "wheat", "carrot", "radish"];
@@ -63,7 +61,7 @@ export function deliberateConservative(farmer: GameEntity): void {
   const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
   const planWater = sense?.due ?? 0;
   deliberateRefillCan(farmer, planWater);
-  // Waters at dryThreshold 0 — never risks the grace window.
+
   deliberateWatering(farmer, { dryThreshold: 0 });
 
   const plotsOwned = (farmer.beliefs.data.plotWater as PlotWaterSense | undefined)?.planted ?? 0;
@@ -82,7 +80,7 @@ export function deliberateConservative(farmer: GameEntity): void {
   deliberateDecoration(farmer, decorations, 9);
 
   deliberateEarlyVillageVisit(farmer, 10);
-  // Upgrade hoe first (farms the most), then axe.
+
   deliberateUpgrade(farmer, "hoe", 11);
   deliberateUpgrade(farmer, "axe", 12);
   deliberateResourceZoneVisit(farmer, features.length, "tree", 13);
@@ -128,16 +126,12 @@ export function deliberateConservative(farmer: GameEntity): void {
     }
   }
 
-  // Bids cautiously (0.45 of resale) and flips beans held.
   deliberateBean(farmer, 0.45);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 
-  // Commit capital excursions only on a "quiet day": surplus gold + plots safe + AP headroom.
-  // Orchard (on-farm, plant early for ~20d maturation) and livestock (far carpentry trip)
-  // use separate quiet days so they don't compete for the single queue[0] travel slot.
   const surplusGold = gold >= reserve + 50;
-  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2; // grace is 2 dry days
+  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2; 
   const apHeadroom = (farmer.ap?.current ?? 0) >= 20;
   const quietInvestDay = surplusGold && !plotsUrgent && apHeadroom;
 
@@ -152,8 +146,6 @@ export function deliberateConservative(farmer: GameEntity): void {
     deliberateSellFruit(farmer, 5);
   }
 
-  // Greenhouse is prioritised over livestock — one carpentry trip per quiet day.
-  // Once built, grows premium off-season crop year-round (season-immune plots).
   const hasGreenhouse = (farmer.beliefs.data["hasGreenhouse"] as boolean | undefined) ?? false;
   const greenhouseSurplus = gold >= reserve + 90;
   const greenhouseQuietDay = greenhouseSurplus && !plotsUrgent && apHeadroom;
@@ -167,8 +159,6 @@ export function deliberateConservative(farmer: GameEntity): void {
     deliberateGreenhousePlant(farmer, ghCrop, SEED_COST[ghCrop], reserve, 2);
   }
 
-  // Tend + sell always run cheaply. Livestock excursion only after orchard planted,
-  // and not on a greenhouse-commit day (one carpentry trip at a time).
   if (day >= 8) {
     deliberateTendPens(farmer, 4);
     deliberateSellProducts(farmer, 5);
@@ -182,7 +172,6 @@ export function deliberateConservative(farmer: GameEntity): void {
     }
   }
 
-  // riskTolerance baked per-agent (bdi-jitter.ts, ~0.0); relaxes to ≥0.5 after day 10.
   const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
   if (day >= 3) {
     const baked = (farmer.desires.data.riskTolerance as number | undefined) ?? 0.0;
@@ -190,7 +179,6 @@ export function deliberateConservative(farmer: GameEntity): void {
     deliberateHarborContract(farmer, openContracts, harborTolerance, reserve, 5, -2);
   }
 
-  // Coral only on a very free day: steep AP floor (70), rare trips (every 12 days).
   deliberateCoralFishing(farmer, 12, 2, -2, 70);
 
   deliberateTavernGather(farmer, -2);
@@ -201,7 +189,7 @@ export function deliberateConservative(farmer: GameEntity): void {
 
 registerPersonality("conservative", deliberateConservative);
 
-const CONS_PEER_BUY_CEILING = 1.0; // never over shop price
+const CONS_PEER_BUY_CEILING = 1.0; 
 const CONS_PEER_SELL_FLOOR = 0.9;
 const CONS_BUFFER_SEEDS = 1;
 
@@ -212,10 +200,9 @@ export const respondToPeerOfferConservative = makeRespondPeerOffer({
   reserveDefault: 30,
 });
 
-// Only buys crops at a clear bargain (ceiling 0.9, well below shop); pure demand, not supply.
 export const respondCropOfferConservative = makeRespondPeerOffer({
   commodity: "crop",
-  buyCeiling: 0.9, // only buys a clear bargain (well below shop)
+  buyCeiling: 0.9, 
   sellFloor: 0.9,
   bufferSeeds: 0,
   reserveDefault: 30,

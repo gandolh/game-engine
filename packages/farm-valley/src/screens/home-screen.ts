@@ -8,13 +8,8 @@ export interface HomeScreenOptions {
   defaultSeed?: number;
 }
 
-/** Default run seed when the field is empty or invalid. */
 export const DEFAULT_SEED = 0xc0ffee;
 
-/**
- * Parse a seed from user input. Accepts hex (`0x...`) or decimal.
- * Empty / NaN / non-finite / negative input falls back to {@link DEFAULT_SEED}.
- */
 export function parseSeed(raw: string, fallback = DEFAULT_SEED): number {
   const s = raw.trim();
   if (s === "") return fallback;
@@ -23,7 +18,6 @@ export function parseSeed(raw: string, fallback = DEFAULT_SEED): number {
   return Math.floor(n);
 }
 
-/** Render a seed as a `0x`-prefixed hex string for display in the field. */
 export function formatSeed(seed: number): string {
   return `0x${(seed >>> 0).toString(16)}`;
 }
@@ -50,7 +44,7 @@ const TITLE_STYLES: Partial<CSSStyleDeclaration> = {
   letterSpacing: "0.08em",
   margin: "0",
   color: EDG.cream,
-  textShadow: "0 0 24px rgba(228, 166, 114, 0.45)", // EDG.tan
+  textShadow: "0 0 24px rgba(228, 166, 114, 0.45)", 
 };
 
 const SUBTITLE_STYLES: Partial<CSSStyleDeclaration> = {
@@ -74,7 +68,7 @@ const BUTTON_STYLES: Partial<CSSStyleDeclaration> = {
   border: `2px solid ${EDG.tan}`,
   borderRadius: "6px",
   cursor: "pointer",
-  boxShadow: "0 0 24px rgba(228, 166, 114, 0.35)", // EDG.tan
+  boxShadow: "0 0 24px rgba(228, 166, 114, 0.35)", 
   transition: "transform 120ms ease-out, background 120ms ease-out",
 };
 
@@ -96,7 +90,7 @@ const SEED_INPUT_STYLES: Partial<CSSStyleDeclaration> = {
   fontSize: "16px",
   fontFamily: "ui-monospace, monospace",
   color: EDG.cream,
-  background: "rgba(24, 20, 37, 0.8)", // EDG.black
+  background: "rgba(24, 20, 37, 0.8)", 
   border: `1px solid ${EDG.tan}`,
   borderRadius: "6px",
   width: "160px",
@@ -179,7 +173,7 @@ export class HomeScreen {
       randomizeBtn.style.color = EDG.tan;
     });
     randomizeBtn.addEventListener("click", () => {
-      // Math.random() is allowed here (pre-sim UI only — not in sim code).
+
       const fresh = Math.floor(Math.random() * 0x100000000) >>> 0;
       this.seedInput.value = formatSeed(fresh);
     });

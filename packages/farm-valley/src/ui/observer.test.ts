@@ -63,7 +63,6 @@ describe("ObserverPanel", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());
 
-    // Should have 2 farmer rows in the container
     const rows = parent.querySelectorAll("[data-farmer-id]");
     expect(rows.length).toBe(2);
     panel.destroy();
@@ -101,7 +100,7 @@ describe("ObserverPanel", () => {
     expect(text).toContain("Fo3");
     expect(text).toContain("Fi2");
     expect(text).toContain("Mi5");
-    expect(text).toContain("[GH]"); // greenhouse marker
+    expect(text).toContain("[GH]"); 
     panel.destroy();
   });
 
@@ -119,11 +118,9 @@ describe("ObserverPanel", () => {
     const snapshot = makeSnapshot();
     panel.update(snapshot);
 
-    // Collect all text-bearing leaf elements within farmer rows
     const rows = Array.from(parent.querySelectorAll("[data-farmer-id]")) as HTMLElement[];
     expect(rows.length).toBeGreaterThan(0);
 
-    // Spy on the textContent setter of each farmer row's children
     const setterCalls: string[] = [];
     const spies: (() => void)[] = [];
 
@@ -154,18 +151,16 @@ describe("ObserverPanel", () => {
       }
     }
 
-    // Second update with identical data — no textContent setter should be called
     panel.update(snapshot);
     expect(setterCalls.length).toBe(0);
 
-    // Restore
     for (const restore of spies) restore();
     panel.destroy();
   });
 
   it("sorts farmers by id ascending (id 3 before id 5)", () => {
     const panel = new ObserverPanel(parent);
-    // Provide farmers in reverse order
+
     const snapshot = makeSnapshot({
       farmers: [
         {
@@ -224,7 +219,6 @@ describe("ObserverPanel", () => {
     ) as HTMLElement[];
     expect(rows.length).toBe(2);
 
-    // Each row should have exactly one region field.
     const regionCells = parent.querySelectorAll('[data-field="region"]');
     expect(regionCells.length).toBe(2);
 
@@ -310,7 +304,6 @@ describe("ObserverPanel", () => {
     panel.setOnFarmerClick(cb);
     panel.update(makeSnapshot());
 
-    // Find the row for farmer id=3 (Alice)
     const row = parent.querySelector('[data-farmer-id="3"]') as HTMLElement | null;
     expect(row).not.toBeNull();
     row!.click();
@@ -340,14 +333,12 @@ describe("ObserverPanel", () => {
     const panel = new ObserverPanel(parent);
     panel.update(makeSnapshot());
 
-    // Initially nothing focused — both why panels hidden.
     let whyCells = Array.from(
       parent.querySelectorAll('[data-field="why"]'),
     ) as HTMLElement[];
     expect(whyCells.length).toBe(2);
     expect(whyCells.every((el) => el.style.display === "none")).toBe(true);
 
-    // Focus Alice (id=3) by clicking, then re-render with a fresh snapshot.
     const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
     aliceRow.click();
     panel.update(makeSnapshot());
@@ -358,7 +349,6 @@ describe("ObserverPanel", () => {
     expect(aliceWhy.textContent).toContain("Next: sell-shopkeeper");
     expect(aliceWhy.textContent).toContain("plant radish: gold 100 >= reserve 30");
 
-    // Bob (id=5) stays hidden.
     const bobRow = parent.querySelector('[data-farmer-id="5"]') as HTMLElement;
     const bobWhy = bobRow.querySelector('[data-field="why"]') as HTMLElement;
     expect(bobWhy.style.display).toBe("none");
@@ -372,16 +362,13 @@ describe("ObserverPanel", () => {
     const resetBtn = parent.querySelector("button") as HTMLButtonElement;
     expect(resetBtn.textContent).toBe("Reset view");
 
-    // Follow Alice (id=3).
     const aliceRow = parent.querySelector('[data-farmer-id="3"]') as HTMLElement;
     aliceRow.click();
     expect(resetBtn.textContent).toBe("Unfollow Alice");
 
-    // Label survives a re-render with a fresh snapshot.
     panel.update(makeSnapshot());
     expect(resetBtn.textContent).toBe("Unfollow Alice");
 
-    // Unfollow restores the default label.
     resetBtn.click();
     expect(resetBtn.textContent).toBe("Reset view");
     panel.destroy();
@@ -441,7 +428,7 @@ describe("ObserverPanel", () => {
     expect(strong).not.toBeNull();
     expect(strong!.textContent).toBe("Why:");
     expect(strong!.style.fontWeight).toBe("bold");
-    // Decision trace still renders alongside the header.
+
     expect(why.textContent).toContain("Now: plant");
     panel.destroy();
   });

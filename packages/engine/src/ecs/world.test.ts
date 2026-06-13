@@ -23,7 +23,7 @@ describe("World", () => {
       const world = new World();
       world.spawn({ id: 100 });
       const auto = world.spawn({});
-      // nextId should still be 1 after the explicit-id spawn
+
       expect(auto.id).toBe(1);
     });
   });

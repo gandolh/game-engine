@@ -43,7 +43,6 @@ class Mulberry32 implements Rng {
     return this.nextU32() / 0x1_0000_0000;
   }
 
-  /** Returns a float in [min, max). Callers must ensure min <= max. */
   range(min: number, max: number): number {
     return min + (max - min) * this.nextFloat();
   }

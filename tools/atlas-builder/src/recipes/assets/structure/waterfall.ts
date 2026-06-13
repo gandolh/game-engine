@@ -2,7 +2,7 @@ import { type PixelRecipe } from "../../types";
 
 const recipe: PixelRecipe =
   {
-    // Static base; waterfall-a/b/c cascade overlaid by render loop (no determinism impact).
+
     name: "structure/waterfall",
     size: 16,
     pixels: [

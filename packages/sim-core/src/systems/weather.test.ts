@@ -20,9 +20,6 @@ function makeContext(tick = 0) {
   return { tick, deltaMs: 16, totalMs: tick * 16 };
 }
 
-/**
- * Simulate inbox dispatch: push a day-start message directly into the station's inbox.
- */
 function sendDayStart(world: World<GameEntity>, day: number): void {
   const stations = world.query("weatherStation", "inbox");
   for (const s of stations) {
@@ -95,7 +92,7 @@ describe("WeatherSystem", () => {
   });
 
   it("writes weather into all farmers' beliefs", () => {
-    // Spawn two farmers with beliefs
+
     world.spawn({
       farmer: { name: "Alice", currentRegion: "farm-cora" as const },
       beliefs: { data: {}, revision: 0 },
@@ -123,9 +120,8 @@ describe("WeatherSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
     bus.flush();
-    bus.drain(); // consume
+    bus.drain(); 
 
-    // Send same day again — should be a no-op
     sendDayStart(world, 1);
     system.run(makeContext(11));
     bus.flush();
@@ -169,7 +165,7 @@ describe("WeatherSystem", () => {
   });
 
   it("stamps the current season onto the station and the now broadcast", () => {
-    sendDayStart(world, 30); // day 30 -> summer (second 25-day block)
+    sendDayStart(world, 30); 
     system.run(makeContext(10));
     bus.flush();
 
@@ -228,11 +224,7 @@ describe("seasonForDay schedule", () => {
 });
 
 describe("season biases the weather distribution", () => {
-  /**
-   * Run the WeatherSystem across an entire season's worth of days for a fixed
-   * seed and tally the conditions drawn. Distinct from the per-day determinism
-   * test: here we assert the *shape* of the distribution shifts by season.
-   */
+
   function tallySeason(firstDay: number): Record<WeatherCondition, number> {
     const w = new World<GameEntity>();
     const b = new MessageBus();
@@ -267,17 +259,17 @@ describe("season biases the weather distribution", () => {
   }
 
   it("summer is sunnier and stormier than winter; winter is rainier", () => {
-    const summer = tallySeason(26); // days 26..50
-    const winter = tallySeason(76); // days 76..100
+    const summer = tallySeason(26); 
+    const winter = tallySeason(76); 
 
     expect(summer.sunny).toBeGreaterThan(winter.sunny);
     expect(winter.rainy).toBeGreaterThan(summer.rainy);
-    // Winter's harsh storm bias outweighs summer's heat storms over a season.
+
     expect(winter.storm).toBeGreaterThanOrEqual(summer.storm);
   });
 
   it("spring sees more rain than summer", () => {
-    const spring = tallySeason(1); // days 1..25
+    const spring = tallySeason(1); 
     const summer = tallySeason(26);
     expect(spring.rainy).toBeGreaterThan(summer.rainy);
   });

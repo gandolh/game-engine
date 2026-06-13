@@ -83,7 +83,7 @@ describe("MeetIndicatorSystem", () => {
     const a = makeFarmer(world);
     const b = makeFarmer(world);
 
-    pushMeet(a, b.id!, 0); // issued at tick 0, run at tick 5 → old message, skip
+    pushMeet(a, b.id!, 0); 
     sys.run({ tick: 5 });
 
     expect(sys.active(5)).toHaveLength(0);
@@ -97,7 +97,7 @@ describe("MeetIndicatorSystem", () => {
     sys.run({ tick: 0 });
     expect(sys.active(0)[0]!.expiresAtTick).toBe(INDICATOR_DURATION_TICKS);
 
-    pushMeet(a, b.id!, 5); // new MEET overwrites the previous entry
+    pushMeet(a, b.id!, 5); 
     sys.run({ tick: 5 });
     expect(sys.active(5)).toHaveLength(1);
     expect(sys.active(5)[0]!.expiresAtTick).toBe(5 + INDICATOR_DURATION_TICKS);
@@ -114,6 +114,6 @@ describe("MeetIndicatorSystem", () => {
     pushMeet(c, a.id!, 0);
     sys.run({ tick: 0 });
 
-    expect(sys.active(0)).toHaveLength(4); // a↔b (2 sides) + a↔c (2 sides)
+    expect(sys.active(0)).toHaveLength(4); 
   });
 });

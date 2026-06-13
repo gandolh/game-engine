@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Forageable berry-bush (tileFeature kind "bush"): a full green shrub dotted with
-// red berries so it reads as "collectible", distinct from the flat decoration/bush
-// scenery prop. Collecting one yields a random seed (see handleGatherBush).
 const recipe: PixelRecipe =
   {
     name: "structure/bush",

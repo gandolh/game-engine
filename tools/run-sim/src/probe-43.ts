@@ -1,4 +1,4 @@
-/* brief 43 — acceptance probe: greenhouses built, out-of-season growth, skill leveling. */
+
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { skillLevel } from "@farm/sim-core/systems/skills";

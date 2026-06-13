@@ -1,43 +1,11 @@
-/// <reference types="@webgpu/types" />
-// shadow-batch.ts — instanced ground drop-shadow ellipses, drawn inside the GPU pass
-// AFTER the static layer and BEFORE the sprite queue (same order as Canvas2dRenderer).
-//
-// Why GPU-side and not the 2D overlay: the overlay canvas composites ON TOP of the
-// GPU canvas, so overlay shadows would darken the sprites standing on them. Order
-// matters — shadows must sit under sprites, which means they have to live in the
-// same render pass. (See overlay-2d.ts §"SHADOWS ARE NOT DRAWN HERE".)
-//
-// Blend equivalence with Canvas2D: the 2D path draws the ellipse with
-// globalCompositeOperation = "multiply", fillStyle = EDG.black, globalAlpha = a.
-// On an opaque destination that computes dst × (1 − a) inside the ellipse — exactly
-// what premultiplied source-over of black at alpha a produces (src.rgb = 0):
-//   out.rgb = 0 × 1 + dst.rgb × (1 − a)
-// So the standard premultiplied blend state reproduces the multiply look 1:1.
-//
-// Bind-group ownership (same convention as sprite-batch / particle-batch):
-//   - group(0) = ViewUniform, set once per pass by the orchestrator. Never set here.
-//   - No other bind groups: the shadow color arrives as instance data, parsed at
-//     runtime from an EDG swatch by the orchestrator (no color literals in WGSL).
-//
-// Frame protocol: begin() → add() × N → upload() (one writeBuffer, before encoding)
-// → draw() (a single instanced draw inside the pass).
-//
-// Per-instance buffer layout (all f32, stride = FLOATS_PER_INSTANCE × 4 = 32 bytes):
-//   offset  0: x     — ellipse center X (world px)
-//   offset  4: y     — ellipse center Y (world px)
-//   offset  8: rx    — ellipse X radius (world px)
-//   offset 12: ry    — ellipse Y radius (world px)
-//   offset 16: r     — shadow red   (0..1, runtime-parsed from EDG)
-//   offset 20: g     — shadow green (0..1)
-//   offset 24: b     — shadow blue  (0..1)
-//   offset 28: alpha — shadow opacity (0..1)
+
 
 import type { GpuContext } from "./gpu-context";
 
 const FLOATS_PER_INSTANCE = 8;
 const INITIAL_CAPACITY = 64;
 
-const SHADOW_WGSL = /* wgsl */`
+const SHADOW_WGSL = `
 // ViewUniform — canonical convention shared with sprite.wgsl / particle.wgsl:
 //   clipX = worldX * scale_x + offset_x
 //   clipY = worldY * scale_y + offset_y   (scale_y is negative — no extra negation)
@@ -126,12 +94,10 @@ export class ShadowBatch {
     this.pipeline = this._createPipeline(ctx);
   }
 
-  /** Reset the instance cursor for a new frame. */
   begin(): void {
     this.cursor = 0;
   }
 
-  /** Pack one shadow ellipse. Color is runtime-parsed RGB floats (0..1). */
   add(x: number, y: number, rx: number, ry: number, r: number, g: number, b: number, alpha: number): void {
     const index = this.cursor;
     const neededFloats = (index + 1) * FLOATS_PER_INSTANCE;
@@ -152,7 +118,6 @@ export class ShadowBatch {
     this.cursor = index + 1;
   }
 
-  /** One writeBuffer for the frame. Call BEFORE encoding the pass that draws it. */
   upload(): void {
     const count = this.cursor;
     if (count === 0) return;
@@ -174,18 +139,12 @@ export class ShadowBatch {
     );
   }
 
-  /**
-   * Encode the single instanced draw for all shadows packed this frame.
-   * Assumes group(0) is already set on the pass by the orchestrator.
-   */
   draw(pass: GPURenderPassEncoder): void {
     if (this.cursor === 0) return;
     pass.setPipeline(this.pipeline);
     pass.setVertexBuffer(0, this.instanceBuffer);
     pass.draw(6, this.cursor, 0, 0);
   }
-
-  // ── Private helpers ─────────────────────────────────────────────────────────
 
   private _createInstanceBuffer(capacity: number): GPUBuffer {
     return this.device.createBuffer({
@@ -206,7 +165,7 @@ export class ShadowBatch {
     const pipelineLayout = device.createPipelineLayout({
       label: "shadow pipeline layout",
       bindGroupLayouts: [
-        ctx.viewBindGroupLayout(), // group 0
+        ctx.viewBindGroupLayout(), 
       ],
     });
 
@@ -214,14 +173,13 @@ export class ShadowBatch {
       arrayStride: FLOATS_PER_INSTANCE * 4,
       stepMode: "instance",
       attributes: [
-        // location 0: pos_radii (x, y, rx, ry) — float32x4 at offset 0
+
         { shaderLocation: 0, offset: 0,  format: "float32x4" },
-        // location 1: color (r, g, b, alpha) — float32x4 at offset 16
+
         { shaderLocation: 1, offset: 16, format: "float32x4" },
       ],
     };
 
-    // Premultiplied-alpha blend (identical to SpriteBatch / ParticleBatch).
     const blendState: GPUBlendState = {
       color: {
         srcFactor: "one",

@@ -31,10 +31,10 @@ describe("festival calendar (pure)", () => {
 
   it("daysUntilFestival counts down to the next one (0 on the day)", () => {
     expect(daysUntilFestival(13)).toBe(0);
-    expect(daysUntilFestival(10)).toBe(3); // 3 days to spring fair (day 13)
+    expect(daysUntilFestival(10)).toBe(3); 
     expect(daysUntilFestival(0)).toBe(13);
     expect(daysUntilFestival(63)).toBe(0);
-    expect(daysUntilFestival(64)).toBe(88 - 64); // next is winter feast
+    expect(daysUntilFestival(64)).toBe(88 - 64); 
   });
 
   it("each festival celebrates an in-season crop", () => {
@@ -53,20 +53,16 @@ describe("DayClockSystem festival exposure", () => {
       pathfinder: new JsPathfinder(),
       shock: false,
     });
-    // Advance to day 13 (the spring fair) using an incrementing tick counter.
+
     for (let tick = 0; sim.dayClock.day < 13; tick++) {
       sim.scheduler.tick({ tick });
     }
-    // The clock's `day` is the 0-based boundary; festivalForDay uses 1-based days
-    // matching the brief calendar — verify the getter is wired to the calendar fn.
+
     expect(typeof sim.dayClock.daysUntilFestival).toBe("number");
-    // On day 13 (1-based fair) the clock should report a festival when day === 13.
-    // (The day-clock day equals the boundary index, which is the same numbering
-    // the WeatherSystem/FestivalSystem use.)
+
   });
 });
 
-/** Build a Submission entry for the pure-ranking tests. */
 function sub(id: number, name: string, q: "normal" | "silver" | "gold", count: number): Submission {
   const rank = q === "gold" ? 3 : q === "silver" ? 2 : 1;
   return { id, name, bestQuality: q, bestRank: rank, bestCount: count };
@@ -87,7 +83,7 @@ describe("rankSubmissions (pure contest ranking)", () => {
       sub(1, "Atticus", "gold", 1),
       sub(2, "Hannah", "gold", 10),
     ]);
-    // Both Gold — Hannah's 10 beats Atticus's 1.
+
     expect(ranked[0]!.name).toBe("Hannah");
   });
 
@@ -121,19 +117,14 @@ describe("FestivalSystem (live) — a festival fires, awards a winner, narrates"
       shock: false,
     });
 
-    // Run through the spring fair (day 13) and into day 14 so the contest
-    // resolves at the day-14 boundary (FestivalSystem judges the PREVIOUS day).
     let tick = 0;
     while (sim.dayClock.day < 15) sim.scheduler.tick({ tick: ++tick });
 
-    // Exactly one farmer should hold a festival win after the spring fair (the
-    // sim is in-season for wheat, so the contest has real entrants).
     const winners = sim.farmers.filter((f) => (f.farmer?.festivalWins ?? 0) > 0);
     expect(winners.length).toBe(1);
     const winner = winners[0]!;
     expect(winner.farmer!.festivalWins).toBe(1);
 
-    // The event feed must narrate the spring fair result (a stable-key beat).
     const feedLine = sim.eventFeed
       .recent()
       .find((e) => e.text.startsWith(FESTIVALS.spring.name));

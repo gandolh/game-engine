@@ -1,12 +1,10 @@
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 
-/** One {x,y} coordinate in canvas pixel space. */
 export interface ChartPoint {
   x: number;
   y: number;
 }
 
-/** Layout bounds for the chart's drawable area (inside padding). */
 export interface ChartBounds {
   left: number;
   top: number;
@@ -14,7 +12,6 @@ export interface ChartBounds {
   bottom: number;
 }
 
-/** Map wealth series to canvas pixel coords: day→x (left..right), gold→y (bottom..top). */
 export function computePoints(
   series: SnapshotWealthSeries[],
   bounds: ChartBounds,
@@ -41,19 +38,17 @@ export function computePoints(
   );
 }
 
-/** Crossing between two farmers between consecutive days; coordinates in data space (not pixels). */
 export interface WealthCrossing {
-  /** Earlier of the two days forming the crossing. */
+
   day: number;
   aId: number;
   bId: number;
-  /** Interpolated day fraction where the crossing occurs. */
+
   crossX: number;
-  /** Gold value at the crossing point (same for both farmers). */
+
   crossGold: number;
 }
 
-/** Detect all pairwise crossings (strict gold-order swaps) across consecutive days. O(N²·D). */
 export function detectCrossings(series: SnapshotWealthSeries[]): WealthCrossing[] {
   const crossings: WealthCrossing[] = [];
   const n = series.length;
@@ -88,10 +83,9 @@ export function detectCrossings(series: SnapshotWealthSeries[]): WealthCrossing[
         }
         const diff0 = ag0 - bg0;
         const diff1 = ag1 - bg1;
-        if (diff0 === 0 || diff1 === 0) continue; // touching, not crossing
-        if ((diff0 > 0 && diff1 > 0) || (diff0 < 0 && diff1 < 0)) continue; // no swap
+        if (diff0 === 0 || diff1 === 0) continue; 
+        if ((diff0 > 0 && diff1 > 0) || (diff0 < 0 && diff1 < 0)) continue; 
 
-        // t = diff0 / (diff0 − diff1) from linear interpolation of the gold-difference.
         const denom = diff0 - diff1;
         const t = denom === 0 ? 0.5 : diff0 / denom;
         const crossX = d0 + t * (d1 - d0);

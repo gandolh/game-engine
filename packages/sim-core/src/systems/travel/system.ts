@@ -1,17 +1,4 @@
-/**
- * TravelSystem — moves farmers tile-by-tile along WASM-pathfinder routes between regions.
- * Split from travel.ts.
- *
- * Per tick:
- *  - If the front intent in a farmer's queue is `{ kind: 'travel', data: { targetRegionId } }`
- *    and the farmer has no active `path`, compute one with the pathfinder.
- *    Empty result → drop intent + console.warn.
- *  - If a path is set, count down `ticksUntilStep`. When it hits 0, advance to
- *    the next waypoint and reset the counter to STEP_TICKS.
- *  - On arrival (nextIndex >= waypoints.length), update currentRegion via
- *    regionAt, clear the path, pop the travel intent, and emit ONT_TRAVEL.ARRIVED.
- *  - Same-region (path of length ≤ 1) resolves as instant arrival.
- */
+
 
 import type {
   SimContext,
@@ -35,7 +22,7 @@ export class TravelSystem implements System {
     private readonly pathfinder: Pathfinder,
     private readonly grid: PathfinderGrid,
     private readonly bus: MessageBus,
-    /** Boat grid (water lanes dock→reef); used when farmer.aboard. Optional; absent = no boat movement. */
+
     private readonly boatGrid?: PathfinderGrid,
   ) {}
 
@@ -60,10 +47,9 @@ export class TravelSystem implements System {
     const hasTravelIntent = front !== undefined && front.kind === "travel";
     const grid = this.gridFor(entity);
 
-    // Phase 1: start a new path if needed.
     if (hasTravelIntent && !farmer.path) {
       const targetRegionId = front.data.targetRegionId as RegionId | undefined;
-      // Tile target (targetTile) wins over regionId when both are present; used for adjacency-gated acts.
+
       const targetTile = front.data.targetTile as
         | { x: number; y: number }
         | undefined;
@@ -93,9 +79,7 @@ export class TravelSystem implements System {
       const destLabel = targetTile
         ? `tile (${targetTile.x},${targetTile.y})${front.data.tavernGather ? " [tavern-gather]" : ""}`
         : `region '${targetRegionId}'`;
-      // Defensive catch: post-fix this should never fire. If it does, it is a new bug
-      // class (not the allocator leak fixed in brief 10) — escalate loudly so it is
-      // not silently swallowed. Drop the intent to avoid a stuck farmer, but log as error.
+
       let path: { x: number; y: number }[];
       try {
         path = this.pathfinder.findPath(grid, start, targetCenter);
@@ -140,8 +124,6 @@ export class TravelSystem implements System {
       };
       mutablePath.ticksUntilStep -= 1;
 
-      // Sub-tile render glide: farmer.renderPos interpolates toward the next waypoint each tick.
-      // RENDER-ONLY — never mutates transform. Sim, AP, regions, determinism unchanged.
       const from = mutablePath.waypoints[mutablePath.nextIndex - 1];
       const next = mutablePath.waypoints[mutablePath.nextIndex];
       if (from && next) {
@@ -174,7 +156,6 @@ export class TravelSystem implements System {
     return cells[y * width + x] === 0;
   }
 
-  /** Walkable tile adjacent to (tileX, tileY); fixed scan order (N/E/S/W then diagonals) for determinism. */
   private resolveReachableTile(
     grid: PathfinderGrid,
     tileX: number,

@@ -4,14 +4,13 @@ import type { AnimalKind } from "../../components";
 import { PEN_BUILD_COST, ANIMAL_BUY_COST } from "../../economy";
 import { ranchForFarm } from "../../world/regions";
 
-/** Queue build-pen at carpentry when farmer has no pen of that kind and gold is above reserve. */
 export function deliberateBuildPen(
   farmer: GameEntity,
   penKind: "coop" | "barn",
   animal: AnimalKind,
   reserve: number,
   priority: number,
-  /** Winning travel priority on a quiet invest day so the carpentry trip actually lands; undefined = priority + 1. */
+
   travelPriority?: number,
 ): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
@@ -20,7 +19,6 @@ export function deliberateBuildPen(
   const hasPen = farmer.beliefs?.data["hasPen_" + penKind] as boolean | undefined;
   if (hasPen) return;
 
-  // Gold-funded; wood gives optional discount so a wood-poor farmer can still invest.
   const wood = farmer.resources?.wood ?? 0;
   const goldDue = wood >= recipe.woodCost ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
   if (farmer.inventory.gold - goldDue < reserve) return;
@@ -32,7 +30,7 @@ export function deliberateBuildPen(
     const wanted = travelPriority ?? priority + 1;
     const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "carpentry");
     if (existing) {
-      // On a commit day, upgrade a shadowing carpentry trip so the build wins queue[0].
+
       if (wanted < existing.priority) existing.priority = wanted;
     } else {
       farmer.intentions.queue.push({
@@ -53,30 +51,26 @@ export function deliberateBuildPen(
   );
 }
 
-/** Queue buy-animal when pen exists and herd count is below 3. */
 export function deliberateBuyAnimal(
   farmer: GameEntity,
   animal: AnimalKind,
   reserve: number,
   priority: number,
-  /** Winning travel priority for the village trip on an invest day (see deliberateBuildPen). */
+
   travelPriority?: number,
 ): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
 
-  // Need a pen first.
   const hasPen = farmer.beliefs?.data["hasPen_" + (animal === "chicken" ? "coop" : "barn")] as boolean | undefined;
   if (!hasPen) return;
 
   const cost = ANIMAL_BUY_COST[animal];
   if (farmer.inventory.gold - cost < reserve) return;
 
-  // Don't double-queue.
   if (farmer.intentions.queue.some(i => i.kind === "buy-animal" && i.data.animal === animal)) return;
   const penCount = farmer.beliefs?.data["penCount_" + animal] as number | undefined ?? 0;
   if (penCount >= 3) return;
 
-  // Animals can be bought at village OR carpenter (buy on the spot if already there).
   const atBuyRegion =
     farmer.farmer.currentRegion === "village" || farmer.farmer.currentRegion === "carpentry";
   if (!atBuyRegion) {
@@ -96,7 +90,6 @@ export function deliberateBuyAnimal(
   recordReason(farmer, `buy ${animal} (pen count ${penCount})`);
 }
 
-/** Queue a tend intent for each untended pen the farmer owns. */
 export function deliberateTendPens(
   farmer: GameEntity,
   priority: number,
@@ -110,11 +103,6 @@ export function deliberateTendPens(
   const coopFed = farmer.beliefs?.data["coopFedToday"] as boolean | undefined;
   const barnFed = farmer.beliefs?.data["barnFedToday"] as boolean | undefined;
 
-  // Pens live on the farm's neighbouring ranch island — the farmer must CROSS THE
-  // BRIDGE to tend them (handleTend is gated on being in the pen's region). Queue a
-  // travel to the ranch first when away, so the daily tend gives the ranch real
-  // traffic instead of being a teleport-feed. (Fallback to the home farm if a farm
-  // somehow has no ranch.)
   const homeRegion = farmer.farmer.homeRegion;
   const needsTend = (hasCoop && !coopFed) || (hasBarn && !barnFed);
   if (homeRegion && needsTend) {

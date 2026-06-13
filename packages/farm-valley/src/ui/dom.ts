@@ -1,4 +1,4 @@
-/** Small DOM helpers. */
+
 
 export interface CreateElOpts {
   text?: string;
@@ -23,7 +23,6 @@ export function createEl<T extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
-/** Sets textContent only if changed, avoiding unnecessary DOM writes. */
 export function setText(el: HTMLElement, text: string): void {
   if (el.textContent !== text) {
     el.textContent = text;

@@ -1,15 +1,11 @@
 import type { SimContext, System, World, PathfinderGrid } from "@engine/core";
 import type { GameEntity } from "./../components";
 
-/** Keeps the pathfinder grid in sync with dynamic tree/stone features and static solids.
- *  Runs after TileFeatureSystem/HarvestSystem and before DeliberateSystem/TravelSystem.
- */
 export class FeatureCollisionSystem implements System {
   readonly name = "FeatureCollisionSystem";
 
-  /** Immutable base walkability (regions + roads), captured at construction. */
   private readonly base: Uint8Array;
-  /** Tile indices currently blocked by a feature, so we can clear them next tick. */
+
   private blocked: number[] = [];
 
   constructor(

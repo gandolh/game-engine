@@ -56,7 +56,7 @@ describe("hoarder peer-trade hooks", () => {
       expect(out!.crop).toBe("radish");
       expect(out!.direction).toBe("buy");
       expect(out!.quantity).toBe(3);
-      expect(out!.unitPrice).toBe(5); // SEED_COST.radish × 1.0
+      expect(out!.unitPrice).toBe(5); 
       expect(out!.offerId).toBe("peer-1-99-42-2-radish");
     });
 
@@ -261,7 +261,7 @@ describe("opportunist peer-trade hooks", () => {
 });
 
 describe("friend trust-discount on sell-surplus initiation", () => {
-  // CROP_SELL_PRICE.wheat=15, priceMult=0.95 → base unit price 14.25.
+
   const BASE = 15 * 0.95;
 
   function seller(trustTowardPeer?: number): GameEntity {
@@ -291,7 +291,7 @@ describe("friend trust-discount on sell-surplus initiation", () => {
 
   it("scales linearly between baseline and max trust", () => {
     const out = initiateCropTradeHoarder(seller(0.75), MEET, { tick: 1 })!;
-    // halfway from 0.5→1.0 → half of MAX_FRIEND_DISCOUNT
+
     expect(out.unitPrice).toBeCloseTo(BASE * (1 - MAX_FRIEND_DISCOUNT / 2));
   });
 

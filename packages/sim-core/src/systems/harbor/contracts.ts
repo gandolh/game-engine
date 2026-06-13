@@ -11,7 +11,6 @@ import { CROP_SELL_PRICE } from "../../economy";
 import type { CropKind, CropQuality } from "../../components";
 import type { HarborContract } from "../../protocols/harbor";
 
-// Sorted by sell price; higher-value crops appear more often in gold contracts.
 export const CONTRACT_CROPS: readonly CropKind[] = [
   "radish", "wheat", "carrot", "tomato", "corn",
   "pumpkin", "grape", "winter-squash",
@@ -23,8 +22,8 @@ export const CONTRACT_CROPS_HIGH: readonly CropKind[] = [
 
 export const TIER_MIN_QUALITY: Record<"normal" | "silver" | "gold", CropQuality> = {
   normal: "normal",
-  silver: "normal",  // silver contracts: any quality acceptable
-  gold:   "silver",  // gold contracts: need at least silver
+  silver: "normal",  
+  gold:   "silver",  
 };
 
 export const TIER_QTY: Record<"normal" | "silver" | "gold", [number, number]> = {
@@ -33,7 +32,6 @@ export const TIER_QTY: Record<"normal" | "silver" | "gold", [number, number]> = 
   gold:   [8,  16],
 };
 
-/** Pure deterministic contract generation for a batch posted on `day`. */
 export function generateContracts(
   day: number,
   count: number,
@@ -76,7 +74,6 @@ export function generateContracts(
   return contracts;
 }
 
-/** Returns true if the farmer's inventory can fulfill the contract's crop/quality/quantity. */
 export function canFulfillContract(
   inv: GameEntity["inventory"],
   contract: HarborContract,
@@ -88,12 +85,12 @@ export function canFulfillContract(
 
   const quality = inv.cropQuality?.[crop];
   if (!quality) {
-    // No quality breakdown → all Normal. If minQuality is normal, OK.
+
     return minQuality === "normal";
   }
   let qualifying = 0;
   if (minQuality === "normal") qualifying = quality.normal + quality.silver + quality.gold;
   else if (minQuality === "silver") qualifying = quality.silver + quality.gold;
-  else qualifying = quality.gold;  // minQuality === "gold"
+  else qualifying = quality.gold;  
   return qualifying >= quantity;
 }

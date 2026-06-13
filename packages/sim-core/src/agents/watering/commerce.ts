@@ -2,9 +2,6 @@ import type { GameEntity } from "../../components";
 import { recordReason } from "../../components";
 import { totalProductCount, totalFruitCount } from "../../economy";
 
-/**
- * Queue sell intents for any held livestock products.
- */
 export function deliberateSellProducts(
   farmer: GameEntity,
   priority: number,
@@ -37,9 +34,6 @@ export function deliberateSellProducts(
   }
 }
 
-/**
- * Queue sell-fruit intents for any held fruit.
- */
 export function deliberateSellFruit(
   farmer: GameEntity,
   priority: number,
@@ -72,10 +66,6 @@ export function deliberateSellFruit(
   }
 }
 
-/**
- * Every PERIOD days, send the farmer to the village to check the market,
- * even if they have nothing to sell. Keeps all farmers circulating.
- */
 export function deliberatePeriodicMarketVisit(
   farmer: GameEntity,
   period: number,
@@ -83,7 +73,7 @@ export function deliberatePeriodicMarketVisit(
 ): void {
   if (!farmer.intentions || !farmer.beliefs || !farmer.farmer) return;
   const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
-  if (day === 0) return; // early visit already handled by deliberateEarlyVillageVisit
+  if (day === 0) return; 
   if (day % period !== 0) return;
   if (farmer.farmer.currentRegion === "village") return;
   if (farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) return;

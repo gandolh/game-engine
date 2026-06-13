@@ -2,8 +2,6 @@ import type { AuctionCfpBody } from "../../protocols/shop";
 
 export type SealedBid = { bidderId: number; amount: number; tickReceived: number };
 
-/** Deterministic sealed-bid comparator: amount desc, tickReceived asc, bidderId asc.
- *  This ordering is the determinism anchor — do not alter it. */
 export const compareSealedBids = (x: SealedBid, y: SealedBid): number => {
   if (y.amount !== x.amount) return y.amount - x.amount;
   if (x.tickReceived !== y.tickReceived) return x.tickReceived - y.tickReceived;
@@ -30,8 +28,8 @@ export interface DutchState {
   startPrice: number;
   decrementPerTick: number;
   floor: number;
-  startTick: number | null; // anchored on first observation
-  winner: { bidderId: number; paidPrice: number } | null; // null if open
+  startTick: number | null; 
+  winner: { bidderId: number; paidPrice: number } | null; 
   participants: Set<number>;
   resolved: boolean;
 }
@@ -42,9 +40,9 @@ export interface EnglishState {
   startPrice: number;
   incrementPerTick: number;
   noBidTimeout: number;
-  startTick: number | null; // anchored on first observation
-  leader: { bidderId: number; paidPrice: number } | null; // last affirmer at current ask
-  lastBidTick: number | null; // drives no-bid timeout
+  startTick: number | null; 
+  leader: { bidderId: number; paidPrice: number } | null; 
+  lastBidTick: number | null; 
   participants: Set<number>;
   resolved: boolean;
 }

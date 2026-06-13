@@ -8,7 +8,6 @@ export interface OverlayStats {
   entityCount: number;
 }
 
-/** Snapshot of everything the overlay currently knows — for the dev-only profile export. */
 export interface OverlayExport {
   fps: number;
   frameMs: number;
@@ -24,7 +23,7 @@ export class DebugOverlay {
   private frameCount = 0;
   private fps = 0;
   private accumulatedMs = 0;
-  private frameMs = 0; // EMA of wall-clock frame time → always-on ms readout
+  private frameMs = 0; 
 
   private workerReport: ProfileReport | null = null;
   private frameReport: ProfileReport | null = null;
@@ -40,8 +39,8 @@ export class DebugOverlay {
       "padding: 6px 8px",
       "font: 12px/1.4 ui-monospace, monospace",
       `color: ${EDG.silver}`,
-      "background: rgba(24, 20, 37, 0.55)", // EDG.black
-      "border: 1px solid rgba(255, 255, 255, 0.08)", // EDG.white
+      "background: rgba(24, 20, 37, 0.55)", 
+      "border: 1px solid rgba(255, 255, 255, 0.08)", 
       "border-radius: 4px",
       "pointer-events: none",
       "white-space: pre",
@@ -58,7 +57,7 @@ export class DebugOverlay {
     this.lastWallMs = now;
     this.accumulatedMs += dt;
     this.frameCount += 1;
-    // EMA so the ms readout is responsive but not jittery (seed on first frame).
+
     this.frameMs = this.frameMs === 0 ? dt : this.frameMs * 0.9 + dt * 0.1;
     if (this.accumulatedMs >= 500) {
       this.fps = (this.frameCount * 1000) / this.accumulatedMs;
@@ -90,8 +89,6 @@ export class DebugOverlay {
     this.element.textContent = text;
   }
 
-  /** Current fps/frame-time + the latest worker & frame profiler reports.
-   *  Dev-only; reads display timing, never sim state → zero determinism impact. */
   exportReport(): OverlayExport {
     return {
       fps: this.fps,

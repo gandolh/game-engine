@@ -1,5 +1,5 @@
 export const MIN_ZOOM = 0.5;
-/** At 6× a 16px tile = 96 canvas px — crisp under nearest-neighbor. */
+
 export const MAX_ZOOM = 6;
 
 export interface CameraConfig {
@@ -10,13 +10,13 @@ export interface CameraConfig {
 }
 
 export class Camera2D {
-  private readonly baseUnitsX: number; // unzoomed world-unit dimensions
+  private readonly baseUnitsX: number; 
   private readonly baseUnitsY: number;
   worldUnitsX: number;
   worldUnitsY: number;
   centerX: number;
   centerY: number;
-  zoom: number = 1; // higher = closer in
+  zoom: number = 1; 
 
   constructor(cfg: CameraConfig) {
     this.baseUnitsX = cfg.worldUnitsX;
@@ -40,7 +40,6 @@ export class Camera2D {
 
 }
 
-/** Frame-rate-independent exponential approach toward `target`. k≈8–12 (per-second rate). */
 export function expSmooth(current: number, target: number, k: number, dtSec: number): number {
   return current + (target - current) * (1 - Math.exp(-k * dtSec));
 }

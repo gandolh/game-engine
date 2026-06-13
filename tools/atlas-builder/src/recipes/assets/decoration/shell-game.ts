@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Shell game: a small wooden street table (d/D/H top, legs) with three
-// cream/stone cup domes (w/q/Q) in a row and a tiny red pea (r) beside one.
-// 32×24, bottom-anchored.
 const recipe: PixelRecipe = {
   name: "decoration/shell-game",
   size: 32,

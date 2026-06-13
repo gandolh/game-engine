@@ -32,7 +32,7 @@ describe("static layer exclusions", () => {
       expect(s.frame.startsWith("tile/cliff-face")).toBe(false);
       const tx = Math.floor(s.x / TILE);
       const ty = Math.floor(s.y / TILE);
-      // N/E/W bands on the same tile stay baked; only the south band is an occluder.
+
       if (s.frame === "tile/wall" || s.frame === "tile/wall-wood") {
         expect(
           occluderKeys.has(`${tx},${ty},${s.rotation}`),
@@ -59,8 +59,8 @@ describe("pushOccluderSprites", () => {
 
     expect(pushed.length).toBe(OCCLUDER_WALLS.length + CLIFFS.length);
     for (const s of pushed) {
-      expect(s.layer).toBe(50); // entity layer for y-sorting with farmers/NPCs
-      expect(s.sortY).toBe(s.y + TILE / 2); // sortY = bottom edge of tile
+      expect(s.layer).toBe(50); 
+      expect(s.sortY).toBe(s.y + TILE / 2); 
       expect(s.sortY!).toBeGreaterThanOrEqual(s.y);
     }
   });

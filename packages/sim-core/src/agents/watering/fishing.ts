@@ -3,10 +3,6 @@ import { recordReason } from "../../components";
 import { isFishingIsle } from "../../world/regions";
 import { FISHING_CAST_TILES } from "./shared";
 
-/**
- * Queue a fishing trip every `period` days when AP is comfortable (≥30).
- * Low priority — drops first under AP pressure. Deterministic: day + region + AP.
- */
 export function deliberateFishing(
   farmer: GameEntity,
   period: number,

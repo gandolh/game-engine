@@ -1,18 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { bootstrapSim, leaderboard, DEFAULT_FARMER_SPECS, type FarmerSummary } from "./sim-bootstrap";
 
-/**
- * Determinism regression guard.
- *
- * The entire architecture rests on the sim being fully deterministic
- * (seed + tick count → identical outputs). This test boots two sims with the
- * same seed, ticks both to completion, and asserts the per-day leaderboard
- * snapshots and final standings are byte-for-byte identical. A stray
- * `Math.random` / `Date.now` / Map-iteration-order bug would fail this loudly.
- *
- * It compares SIM OUTPUTS only — never wall-clock timings.
- */
-
 interface DaySnapshot {
   day: number;
   weather: string;
@@ -48,8 +36,7 @@ function runOnce(seed: number, ticksPerDay: number, maxDays: number): RunResult 
 }
 
 describe("sim determinism", () => {
-  // Smaller than a full 100-day run to keep the test fast, but long enough to
-  // exercise the deterministic blight shock and multiple market days.
+
   const TICKS_PER_DAY = 20;
   const MAX_DAYS = 30;
 
@@ -58,19 +45,15 @@ describe("sim determinism", () => {
     const a = runOnce(seed, TICKS_PER_DAY, MAX_DAYS);
     const b = runOnce(seed, TICKS_PER_DAY, MAX_DAYS);
 
-    // Per-day snapshots match exactly.
     expect(b.perDay).toEqual(a.perDay);
-    // Final standings match exactly.
+
     expect(b.finalStandings).toEqual(a.finalStandings);
     expect(b.finalDay).toBe(a.finalDay);
 
-    // Sanity: the run actually did something (not an empty/degenerate run).
     expect(a.perDay.length).toBeGreaterThan(1);
     expect(a.finalStandings.length).toBe(DEFAULT_FARMER_SPECS.length);
   });
 
-  // brief 45 — FestivalSystem adds belief-write overhead each tick; 4 seeds × 2
-  // replays × 30 days ≈ 9 s in CI (node env, no JsPathfinder). Extend timeout.
   it("is internally reproducible across several seeds", { timeout: 30_000 }, () => {
     for (const seed of [1, 42, 0xbeef, 123456]) {
       const a = runOnce(seed, TICKS_PER_DAY, MAX_DAYS);
@@ -81,7 +64,7 @@ describe("sim determinism", () => {
   });
 
   it("different seeds generally produce different outcomes", () => {
-    // Guards against the harness accidentally ignoring the seed entirely.
+
     const a = runOnce(1, TICKS_PER_DAY, MAX_DAYS);
     const b = runOnce(999, TICKS_PER_DAY, MAX_DAYS);
     expect(JSON.stringify(b.finalStandings)).not.toBe(JSON.stringify(a.finalStandings));

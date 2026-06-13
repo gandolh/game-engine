@@ -1,12 +1,6 @@
 import type { RendererLike } from "@engine/core";
 import { frameToAtlasId } from "@farm/sim-core/render-systems";
 
-/**
- * Rasterize a single atlas frame to a magnified PNG data URL (nearest-neighbor), so it can be
- * used as an <img>/background icon in the DOM hotbar or as a CSS `cursor: url(...)`. Results are
- * cached per (frame, scale) since atlas pixels never change after load. Returns null when the
- * atlas/frame isn't loaded or canvas APIs are unavailable (e.g. jsdom) — callers fall back to text.
- */
 const cache = new Map<string, string | null>();
 
 export function frameDataUrl(

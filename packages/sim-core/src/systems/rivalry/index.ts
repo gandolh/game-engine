@@ -1,4 +1,4 @@
-// Barrel: re-exports the full public surface of rivalry.ts
+
 export {
   RIVAL_CUTOFF,
   RIVAL_REARM,

@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Seabed life — sea turtle from above, olive shell + 4 flippers + head. Stroke frame A.
 const recipe: PixelRecipe =
   {
     name: "decoration/turtle-a",

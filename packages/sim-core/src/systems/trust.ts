@@ -1,19 +1,5 @@
-// TrustSystem — passive snooper that applies trust deltas based on resolving
-// peer-interaction events. Runs between InboxDispatchSystem and PerceiveSystem
-// so it can observe messages routed to farmer inboxes before PerceiveSystem
-// clears them, and before MarketSystem drains the market wall's inbox.
-//
-// Trust matrix (see corpus/briefs/game/todo/10-trust-and-endgame.md):
-//   Peer ACCEPTed our OFFER_SEED  → toward peer: +0.05
-//   Peer DECLINEd our OFFER_SEED  → toward peer: -0.05
-//   Successful market trade       → buyer → seller: +0.05
-//   CNP broken commitment         → initiator → winner: -0.10
-//
-// All updates clamp to [0, 1]. Trust map is lazy-initialized on first delta.
-//
-// The responder-side OFFER_SEED ACCEPT delta (we ACCEPTed peer's offer →
-// +0.05 toward peer) is applied directly in EncounterTradeSystem.handleOffer,
-// so the trust matrix is fully live across all four cases.
+
+
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_ENCOUNTER } from "../protocols/encounter";
@@ -25,7 +11,7 @@ export interface TrustConfig {
   declineDelta: number;
   brokenDelta: number;
   tradeDelta: number;
-  /** How many ticks after `deadlineTick` an awarded task counts as broken. */
+
   brokenCommitmentWindow: number;
 }
 
@@ -37,7 +23,6 @@ export const DEFAULT_TRUST_CONFIG: TrustConfig = {
   brokenCommitmentWindow: 4,
 };
 
-/** Minimal shape of a TRADE_COMPLETED body that TrustSystem cares about. */
 interface TradeCompletedBody {
   offerId?: string;
   buyerId?: number;
@@ -115,7 +100,6 @@ export class TrustSystem implements System {
   }
 }
 
-/** Apply trust delta toward peerId; lazy-init map, clamp to [0,1]. Baseline 0.5 = unseen peer default. */
 export function applyTrustDelta(farmer: GameEntity, peerId: number, delta: number): void {
   if (!farmer.trust) {
     farmer.trust = { byId: new Map<number, number>() };

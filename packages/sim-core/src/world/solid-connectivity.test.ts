@@ -3,16 +3,12 @@ import { bootstrapSim } from "../sim-bootstrap";
 import { buildWalkableGrid } from "./walkable-grid";
 import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, getRegion } from "./regions";
 
-const VILLAGE = getRegion("village").center; // BFS seed for reachability floods
-
-// Connectivity guard: overlay every solid tile onto the walkable grid and assert no region,
-// farm plot, or work-NPC station was walled off, and no solid covers a bridge/road tile.
+const VILLAGE = getRegion("village").center; 
 
 function idx(x: number, y: number): number {
   return y * WORLD_WIDTH + x;
 }
 
-/** Base grid (regions + roads) with every world `solid` tile blocked. */
 function gridWithSolids(world: ReturnType<typeof bootstrapSim>["world"]): Uint8Array {
   const cells = Uint8Array.from(buildWalkableGrid().cells);
   for (const e of world.query("solid")) {
@@ -23,7 +19,6 @@ function gridWithSolids(world: ReturnType<typeof bootstrapSim>["world"]): Uint8A
   return cells;
 }
 
-/** Flood-fill walkable (0) tiles from a seed, 4-connected. Returns the visited set. */
 function flood(cells: Uint8Array, seedX: number, seedY: number): Uint8Array {
   const seen = new Uint8Array(cells.length);
   const stack: number[] = [idx(seedX, seedY)];
@@ -55,7 +50,7 @@ describe("solid-obstacle connectivity", () => {
     const cells = gridWithSolids(world);
     const reachable = flood(cells, VILLAGE.x, VILLAGE.y);
     for (const r of REGIONS) {
-      // Wells are 2×2 micro-regions; use their center like any other region.
+
       expect(reachable[idx(r.center.x, r.center.y)], `region ${r.id} center unreachable`).toBe(1);
     }
   });

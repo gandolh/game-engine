@@ -10,12 +10,12 @@ describe("day-phase", () => {
   const TPD = 1200;
 
   it("maps ticks to the four phases in order across a day", () => {
-    expect(phaseForTick(0, TPD)).toBe("morning"); // 0.00
+    expect(phaseForTick(0, TPD)).toBe("morning"); 
     expect(phaseForTick(TPD * 0.1, TPD)).toBe("morning");
-    expect(phaseForTick(TPD * 0.2, TPD)).toBe("work"); // 0.15..0.65
+    expect(phaseForTick(TPD * 0.2, TPD)).toBe("work"); 
     expect(phaseForTick(TPD * 0.6, TPD)).toBe("work");
-    expect(phaseForTick(TPD * 0.7, TPD)).toBe("evening"); // 0.65..0.85
-    expect(phaseForTick(TPD * 0.9, TPD)).toBe("night"); // 0.85..1.0
+    expect(phaseForTick(TPD * 0.7, TPD)).toBe("evening"); 
+    expect(phaseForTick(TPD * 0.9, TPD)).toBe("night"); 
   });
 
   it("wraps per day — tick TPD is morning of the next day", () => {
@@ -34,7 +34,7 @@ describe("day-phase", () => {
   });
 
   it("is deterministic and independent of day length", () => {
-    // Same fraction → same phase regardless of ticksPerDay.
-    expect(phaseForTick(60, 1200)).toBe(phaseForTick(300, 6000)); // both 0.05
+
+    expect(phaseForTick(60, 1200)).toBe(phaseForTick(300, 6000)); 
   });
 });

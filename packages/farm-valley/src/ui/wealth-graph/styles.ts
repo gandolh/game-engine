@@ -37,11 +37,9 @@ export const CANVAS_WRAPPER_STYLES: Partial<CSSStyleDeclaration> = {
   padding: "4px 8px 6px",
 };
 
-/** Canvas size constants (fits the 300px right column). */
 export const CHART_WIDTH = 276;
 export const CHART_HEIGHT = 120;
 
-/** Padding inside the canvas for axes/labels. */
 export const PAD_LEFT = 28;
 export const PAD_RIGHT = 6;
 export const PAD_TOP = 6;

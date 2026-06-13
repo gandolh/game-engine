@@ -18,4 +18,3 @@ export function registerPersonality(name: string, fn: DeliberateFn): void {
 export function getDeliberate(name: string): DeliberateFn | undefined {
   return registry.get(name);
 }
-

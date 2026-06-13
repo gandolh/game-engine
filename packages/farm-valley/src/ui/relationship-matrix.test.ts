@@ -44,7 +44,7 @@ describe("RelationshipMatrixPanel", () => {
     panel.update(data);
 
     const rows = container.querySelectorAll("tbody tr");
-    expect(rows).toHaveLength(n); // n data rows
+    expect(rows).toHaveLength(n); 
 
     const cells = container.querySelectorAll("tbody td");
     expect(cells).toHaveLength(n * (n + 1));
@@ -67,7 +67,6 @@ describe("RelationshipMatrixPanel", () => {
     expect(cells).toHaveLength(n * (n + 1));
   });
 
-  // jsdom normalizes hex to rgb(r, g, b) on .style.background.
   function hexToRgb(hex: string): string {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -76,14 +75,13 @@ describe("RelationshipMatrixPanel", () => {
   }
 
   it("hostile trust (< 0.35) → cell background is EDG.red", () => {
-    // 2×2: farmer 1→2 trust = 0.1 (hostile)
+
     const data = makeData([
       [1, 0.1],
       [0.5, 1],
     ]);
     panel.update(data);
 
-    // Row 0, data cell index 1 (col 1, skipping label col) = farmer1→farmer2
     const rows = container.querySelectorAll("tbody tr");
     const firstRow = rows[0]!;
     const cellTo2 = firstRow.querySelectorAll("td")[2] as HTMLElement | undefined;
@@ -92,7 +90,7 @@ describe("RelationshipMatrixPanel", () => {
   });
 
   it("neutral trust (0.5) → cell background is EDG.steel", () => {
-    // 2×2: farmer 1→2 trust = 0.5 (neutral)
+
     const data = makeData([
       [1, 0.5],
       [0.5, 1],
@@ -107,7 +105,7 @@ describe("RelationshipMatrixPanel", () => {
   });
 
   it("high trust (> 0.65) → cell background is EDG.green", () => {
-    // 2×2: farmer 1→2 trust = 0.9 (allied)
+
     const data = makeData([
       [1, 0.9],
       [0.5, 1],
@@ -129,7 +127,7 @@ describe("RelationshipMatrixPanel", () => {
     panel.update(data);
 
     const rows = container.querySelectorAll("tbody tr");
-    // Row 0, cell 1 (index 1 in td list = diagonal for farmer 1)
+
     const diagCell = rows[0]!.querySelectorAll("td")[1] as HTMLElement;
     expect(diagCell.textContent).toBe("·");
   });
@@ -149,7 +147,7 @@ describe("RelationshipMatrixPanel", () => {
 
   it("renders empty without crashing when no farmers", () => {
     panel.update({ farmers: [], trust: {} });
-    // Should not throw; table container should be cleared.
+
     const tables = container.querySelectorAll("table");
     expect(tables).toHaveLength(0);
   });

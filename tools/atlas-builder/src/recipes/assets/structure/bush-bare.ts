@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Winter variant of structure/bush — the shrub stripped to bare twigs (m/M trunk dark,
-// D wood) within the same footprint, sparse, with a few snow flecks (n). No leaves.
 const recipe: PixelRecipe =
   {
     name: "structure/bush-bare",

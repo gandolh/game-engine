@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Seabed life — little crab, top-down, red/rust body + claws + legs. Static.
 const recipe: PixelRecipe =
   {
     name: "decoration/seabed-crab",

@@ -17,7 +17,6 @@ function entry(partial: Partial<EventEntry> & Pick<EventEntry, "text" | "drama">
   };
 }
 
-/** Minimal EventFeedSystem stand-in exposing recent(). */
 function feedStub(entries: EventEntry[]): EventFeedSystem {
   return { recent: () => entries } as unknown as EventFeedSystem;
 }
@@ -42,7 +41,7 @@ describe("pickGossip", () => {
       entry({ text: "beta", drama: 0.5, tick: 9, key: "b" }),
       entry({ text: "gamma", drama: 0.5, tick: 9, key: "c" }),
     ];
-    // Both beta/gamma are newest (tick 9) and tie on drama; key "b" < "c" wins.
+
     expect(pickGossip(feed)).toBe('"beta," says the barkeep.');
   });
 });

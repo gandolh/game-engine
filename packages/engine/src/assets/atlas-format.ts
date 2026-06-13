@@ -11,7 +11,7 @@ export interface AtlasManifest {
   width: number;
   height: number;
   frames: Record<string, AtlasFrame>;
-  /** SHA-256 of the inputs that produced this sheet; stamped by atlas-builder, ignored by the runtime loader. */
+
   inputsHash?: string;
 }
 

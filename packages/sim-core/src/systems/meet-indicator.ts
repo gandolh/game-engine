@@ -2,8 +2,6 @@ import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_ENCOUNTER, type MeetBody } from "../protocols/encounter";
 
-// Polls farmer inboxes for MEET messages (inbox-poll, not bus-subscribe — EncounterSystem
-// pushes MEET directly into inboxes, bypassing the bus subscriber path).
 export const INDICATOR_DURATION_TICKS = 10;
 
 export interface MeetIndicatorEntry {
@@ -15,7 +13,7 @@ export interface MeetIndicatorEntry {
 export class MeetIndicatorSystem implements System {
   readonly name = "MeetIndicatorSystem";
 
-  private readonly indicators = new Map<string, MeetIndicatorEntry>(); // keyed by "farmerId:peerId"
+  private readonly indicators = new Map<string, MeetIndicatorEntry>(); 
 
   constructor(private readonly world: World<GameEntity>) {}
 

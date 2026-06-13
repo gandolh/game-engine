@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Spring variant of structure/bush — SAME shrub silhouette as bush.ts, with little
-// flowers (P petal pink, w cream, U bloom) dotted across the leaves instead of berries.
 const recipe: PixelRecipe =
   {
     name: "structure/bush-blossom",

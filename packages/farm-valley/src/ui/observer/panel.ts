@@ -11,14 +11,13 @@ export class ObserverPanel {
   private forecastEl: HTMLElement;
   private farmersContainer: HTMLElement;
   private resetBtn: HTMLElement;
-  // Persistent dim hint shown while nothing is followed.
+
   private hintEl: HTMLElement;
   private onFarmerClick: ((id: number | null) => void) | null = null;
   private focusedId: number | null = null;
-  /** Name of the currently focused farmer, for the dynamic Unfollow label. */
+
   private focusedName: string | null = null;
 
-  /** Maps farmer id -> cached row elements */
   private rowCache = new Map<number, FarmerRowEls>();
 
   constructor(parent: HTMLElement) {
@@ -128,7 +127,6 @@ export class ObserverPanel {
       }
     }
 
-    // insertBefore on an existing node is a move; live HTMLCollection stays valid.
     const liveChildren = this.farmersContainer.children;
     sorted.forEach((farmer, index) => {
       let row = this.rowCache.get(farmer.id);
@@ -152,7 +150,7 @@ export class ObserverPanel {
       const focused = id === this.focusedId;
       applyStyles(row.root, {
         borderBottom: `1px solid ${EDG.black}`,
-        // Gold outline + faint gold tint; palette guard ignores 8-digit #rrggbbaa.
+
         outline: focused ? `2px solid ${EDG.gold}` : "",
         background: focused ? `${EDG.gold}22` : "",
         cursor: "pointer",
@@ -193,7 +191,7 @@ export class ObserverPanel {
         this.onFarmerClick?.(null);
       } else {
         this.focusedId = id;
-        // Capture the name so the Unfollow label is correct before the next snapshot.
+
         this.focusedName = name.textContent ?? null;
         this._updateRowHighlights();
         this.onFarmerClick?.(id);
@@ -232,7 +230,6 @@ export class ObserverPanel {
     skills.dataset["field"] = "skills";
     root.appendChild(skills);
 
-    // "Why" trace: hidden unless this row is the focused farmer.
     const why = createEl("div", {
       style: {
         marginTop: "4px",
@@ -296,7 +293,7 @@ export class ObserverPanel {
         farmer.reasons.length > 0
           ? farmer.reasons.map((r) => `  - ${r}`).join("\n")
           : "  (no reason)";
-      // "Why:" header is a static child; only the body text updates.
+
       setText(
         row.whyBody,
         `Now: ${current}\nNext: ${next}\n${reasonLines}`,

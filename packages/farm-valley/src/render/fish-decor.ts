@@ -1,11 +1,4 @@
-/**
- * Decorative fish schools — render-only reef life (wall-clock + Math.random, like
- * water-decor / the particle system; no sim or determinism impact). Shoals of one
- * reef-fish type drift around the coral reefs: each school is bound to a reef and
- * slowly orbits it (weaving through/around the coral), each fish undulating with a
- * two-frame tail-wiggle. Rendered with a cool blue tint + reduced alpha + a depth
- * pulse so the fish read as *below* the water surface. Hidden over land/off-screen.
- */
+
 
 import type { RendererLike } from "@engine/core";
 import { CORAL, LAYER } from "@farm/sim-core/render-systems";
@@ -18,11 +11,9 @@ interface View { left: number; right: number; top: number; bottom: number; }
 const rand = (min: number, max: number): number => min + Math.random() * (max - min);
 const pick = <T>(arr: readonly T[]): T | null => (arr.length ? arr[(Math.random() * arr.length) | 0]! : null);
 
-// Underwater rendering: a cool blue RGB multiply tint (submerged cast) + base alpha.
-const UNDERWATER_TINT = 0xb4ccea_ff; // 0xRRGGBBAA — cool, slightly darkened
+const UNDERWATER_TINT = 0xb4ccea_ff; 
 const BASE_ALPHA = 0.72;
 
-// Reef-fish kinds: each is a pair of swim frames (tail-wiggle) under decoration/.
 const FISH_KINDS = [
   { a: "decoration/fish-clown-a", b: "decoration/fish-clown-b" },
   { a: "decoration/fish-blue-a", b: "decoration/fish-blue-b" },
@@ -30,7 +21,6 @@ const FISH_KINDS = [
   { a: "decoration/fish-green-a", b: "decoration/fish-green-b" },
 ] as const;
 
-// Loose wedge formation (local px; y = vertical spread within the shoal).
 const FORMATION = [
   { x: 0, y: 0 },
   { x: -9, y: -6 }, { x: -9, y: 6 },
@@ -38,7 +28,6 @@ const FORMATION = [
   { x: -18, y: -11 }, { x: -27, y: -7 }, { x: -27, y: 8 },
 ] as const;
 
-// Coral reefs (connected coral clusters) — center + half-extent, collected once.
 interface Reef { x: number; y: number; rx: number; ry: number; }
 let reefs: Reef[] | null = null;
 function getReefs(): Reef[] {
@@ -69,7 +58,7 @@ function getReefs(): Reef[] {
           if (coralSet.has(nk) && !seen.has(nk)) { seen.add(nk); stack.push(nk); }
         }
       }
-      if (n < 4) continue; // skip tiny specks — not worth a school
+      if (n < 4) continue; 
       reefs.push({
         x: (sumX / n + 0.5) * TILE,
         y: (sumY / n + 0.5) * TILE,
@@ -82,20 +71,20 @@ function getReefs(): Reef[] {
 }
 
 interface School {
-  kind: number;       // index into FISH_KINDS
+  kind: number;       
   reef: Reef;
-  theta: number;      // orbit angle around the reef
-  thetaSpeed: number; // rad/sec (sign = orbit direction)
-  age: number;        // seconds alive
-  life: number;       // seconds before departing
-  phase: number;      // per-school wiggle phase offset
-  prevX: number;      // last lead-x, for facing
+  theta: number;      
+  thetaSpeed: number; 
+  age: number;        
+  life: number;       
+  phase: number;      
+  prevX: number;      
 }
 
 const MAX_SCHOOLS = 3;
 const schools: School[] = [];
 let spawnCd = 1;
-const FADE = 2.5; // seconds to fade in / out
+const FADE = 2.5; 
 
 function spawnSchool(): School | null {
   const reef = pick(getReefs());
@@ -134,35 +123,33 @@ export function pushFishSchools(
     if (s.age >= s.life) { schools.splice(si, 1); continue; }
     s.theta += s.thetaSpeed * dt;
 
-    // School center orbits the reef (a slow breathing ellipse → weaves the coral).
     const breathe = 1 + 0.12 * Math.sin(nowMs * 0.0006 + s.phase);
     const cx = s.reef.x + Math.cos(s.theta) * s.reef.rx * breathe;
     const cy = s.reef.y + Math.sin(s.theta) * s.reef.ry * breathe;
     const facingLeft = cx < s.prevX;
     s.prevX = cx;
 
-    // Fade in on spawn, out before departing.
     const fade = Math.min(1, s.age / FADE, (s.life - s.age) / FADE);
     const kind = FISH_KINDS[s.kind]!;
 
     for (let i = 0; i < FORMATION.length; i++) {
       const f = FORMATION[i]!;
-      const fx = cx + (facingLeft ? -f.x : f.x); // trail behind travel
+      const fx = cx + (facingLeft ? -f.x : f.x); 
       const fy = cy + f.y + Math.sin(nowMs * 0.004 + s.phase + i * 0.9) * 2.5;
 
       const tx = Math.floor(fx / TILE);
       const ty = Math.floor(fy / TILE);
-      if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT || isWalkable(tx, ty)) continue; // over land
+      if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT || isWalkable(tx, ty)) continue; 
       if (fx < view.left - TILE || fx > view.right + TILE || fy < view.top - TILE || fy > view.bottom + TILE) continue;
 
       const depthPulse = 0.88 + 0.12 * Math.sin(nowMs * 0.0012 + i);
-      // Tail-wiggle: alternate a/b, staggered per fish so the shoal doesn't beat in unison.
+
       const frame = (Math.floor(nowMs / 180 + i * 0.5) & 1) === 0 ? kind.a : kind.b;
       renderer.push({
         x: fx, y: fy, width: TILE, height: TILE,
         frame, atlasId: "props",
         rotation: 0, layer: LAYER.REEF_FISH, alpha: BASE_ALPHA * fade * depthPulse,
-        flipX: facingLeft, // sprites face right; flip when swimming left
+        flipX: facingLeft, 
         tintRgba: UNDERWATER_TINT,
       });
     }

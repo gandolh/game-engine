@@ -24,19 +24,14 @@ import {
 } from "./constants";
 
 export interface ShopkeeperSystemOptions {
-  /** How often (in days) the shopkeeper opens a Golden-Bean auction. */
+
   auctionEveryDays?: number;
-  /** Reserve price for the periodic Golden-Bean auction. */
+
   auctionReservePrice?: number;
-  /** Duration (in ticks) between CFP and close. */
+
   auctionDurationTicks?: number;
 }
 
-/**
- * ShopkeeperSystem — fixed-price BUY + slate-driven SELL + periodic Golden-Bean auction trigger.
- * Direct mutation: mutates farmer inventory/gold on BUY/SELL, replies CONFIRM as audit record.
- * Auction trigger: broadcasts AUCTION_CFP and calls auctionSystem.openAuction() directly.
- */
 export class ShopkeeperSystem implements System {
   readonly name = "ShopkeeperSystem";
 
@@ -63,7 +58,6 @@ export class ShopkeeperSystem implements System {
     const shop = firstEntity(this.world, "shopkeeper", "inbox");
     if (!shop || !shop.inbox) return;
 
-    // Only drain ontologies this system owns; AuctionSystem drains AUCTION_BID etc. separately.
     const remaining: AgentMessage[] = [];
     for (const msg of shop.inbox.messages) {
       switch (msg.ontology) {
@@ -77,7 +71,7 @@ export class ShopkeeperSystem implements System {
           this.handleResaleBean(msg, ctx);
           break;
         case ONT_SHOP.AUCTION_RESULT:
-          // Snoop-only: credit the winner, then re-push for other observers.
+
           this.creditAuctionWinner(msg);
           remaining.push(msg);
           break;
@@ -143,7 +137,7 @@ export class ShopkeeperSystem implements System {
       const b = f.beliefs?.data.bounty as { crop: CropKind; multiplier: number } | undefined;
       if (b) {
         if (b.crop !== crop) return 1;
-        // Guard: only use the multiplier if it's a valid number to prevent NaN gold.
+
         if (typeof b.multiplier === "number") return b.multiplier;
         return 1;
       }

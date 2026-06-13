@@ -39,8 +39,8 @@ describe("Animator", () => {
     const a = new Animator();
     a.addClip(clip("walk", ["a", "b", "c"]));
     a.play("walk");
-    a.update(120); // → b
-    a.play("walk"); // same clip, no reset
+    a.update(120); 
+    a.play("walk"); 
     expect(a.currentFrameName()).toBe("b");
     a.play("walk", { reset: true });
     expect(a.currentFrameName()).toBe("a");

@@ -25,8 +25,7 @@ export class PerceiveSystem implements System {
   run(ctx: SimContext): void {
     const farmers = this.world.query("inbox", "beliefs", "fsm");
     for (const farmer of farmers) {
-      // A fighting farmer is frozen out of the normal day loop; CombatSystem owns it
-      // and releases it back to WAIT_DAY when the bout ends. Skip all perception.
+
       if (farmer.fsm.current === "FIGHTING") continue;
       if (farmer.farmer?.busyUntilTick !== undefined && ctx.tick >= farmer.farmer.busyUntilTick) {
         delete farmer.farmer.busyUntilTick;
@@ -37,8 +36,6 @@ export class PerceiveSystem implements System {
         }
       }
 
-      // Re-arm a settled, idle, non-travelling farmer during an active phase
-      // so walk→act→walk chains can execute within a day without waiting for phase boundaries.
       if (
         farmer.fsm.current === "WAIT_DAY" &&
         farmer.farmer?.busyUntilTick === undefined &&
@@ -56,7 +53,7 @@ export class PerceiveSystem implements System {
           farmer.beliefs.data.currentDay = body.day;
           farmer.beliefs.data.daysRemaining = body.daysRemaining;
           farmer.beliefs.revision += 1;
-          // morning PHASE_START (same tick) drives first deliberation; DAY_START alone doesn't flip FSM
+
         } else if (msg.ontology === ONT_SIMULATION.PHASE_START) {
           this.handlePhaseStart(farmer, msg.body as unknown as PhaseStartBody);
         } else if (msg.ontology === ONT_SHOP.AUCTION_CFP) {
@@ -114,9 +111,6 @@ export class PerceiveSystem implements System {
     }
   }
 
-  // morning: refill AP (rested=max, unrested=half) then deliberate.
-  // work/evening: deliberate again; AP carries across phases.
-  // night: sleep; flag unrested if not home or camp. Only re-arms from WAIT_DAY/SLEEP.
   private handlePhaseStart(farmer: GameEntity, body: PhaseStartBody): void {
     if (!farmer.beliefs || !farmer.fsm) return;
     farmer.beliefs.data.phase = body.phase;
@@ -128,7 +122,7 @@ export class PerceiveSystem implements System {
         farmer.ap.max = maxApForDay(body.day);
         const rested = farmer.ap.unrested !== true;
         farmer.ap.current = rested ? farmer.ap.max : Math.floor(farmer.ap.max / 2);
-        // helperHiredDay is a once-per-day cooldown marker; boost applied same-day at hire
+
         farmer.ap.unrested = false;
         farmer.ap.away = false;
         farmer.ap.penaltyPending = false;
@@ -138,7 +132,7 @@ export class PerceiveSystem implements System {
     }
 
     if (isNightPhase(body.phase)) {
-      // Rested if home or camped on the camping island (same as home, no partial tier).
+
       const settledTile = farmer.farmer?.path === undefined;
       const home =
         farmer.farmer?.homeRegion !== undefined &&

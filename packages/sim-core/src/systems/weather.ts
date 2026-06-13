@@ -16,11 +16,6 @@ import type {
 
 type WeatherWeights = ReadonlyArray<{ condition: WeatherCondition; weight: number }>;
 
-/**
- * Per-season weather weights (spring/summer/autumn/winter). sunny→1.2 and storm→0.5 multipliers
- * feed crop-growth's weatherSum: summer grows fast but is risky; winter is a slow grind.
- * spring: .35/.35/.25/.05 | summer: .55/.25/.08/.12 | autumn: .30/.40/.25/.05 | winter: .15/.25/.35/.25
- */
 const SEASON_WEATHER_WEIGHTS: Record<Season, WeatherWeights> = {
   spring: [
     { condition: "sunny", weight: 0.35 },
@@ -48,7 +43,6 @@ const SEASON_WEATHER_WEIGHTS: Record<Season, WeatherWeights> = {
   ],
 };
 
-/** One-line hint per season for the broadcast forecast so agents can plan. */
 const SEASON_TREND: Record<Season, string> = {
   spring: "mild with frequent rain — good growing weather",
   summer: "hot and dry with the odd heat storm",
@@ -56,15 +50,10 @@ const SEASON_TREND: Record<Season, string> = {
   winter: "harsh — expect storms and cold rain",
 };
 
-/**
- * Forecast weights soften the season bias slightly (pull a little toward the
- * mean) to model reduced confidence in the exact future condition while still
- * reflecting the season's trend.
- */
 function forecastWeights(season: Season): WeatherWeights {
   const base = SEASON_WEATHER_WEIGHTS[season];
   const flat = 1 / base.length;
-  const blend = 0.25; // 25% toward uniform
+  const blend = 0.25; 
   return base.map((e) => ({
     condition: e.condition,
     weight: e.weight * (1 - blend) + flat * blend,
@@ -74,7 +63,7 @@ function forecastWeights(season: Season): WeatherWeights {
 const FORECAST_DAYS = 3;
 
 function rollWeighted(rng: Rng, weights: WeatherWeights): WeatherCondition {
-  // Weights are not guaranteed to sum to exactly 1 (forecast blend), so scale r.
+
   let total = 0;
   for (const entry of weights) total += entry.weight;
   const r = rng.nextFloat() * total;
@@ -83,7 +72,7 @@ function rollWeighted(rng: Rng, weights: WeatherWeights): WeatherCondition {
     cumulative += entry.weight;
     if (r < cumulative) return entry.condition;
   }
-  // Fallback (floating-point edge): return last entry
+
   return weights[weights.length - 1]!.condition;
 }
 
@@ -121,7 +110,6 @@ export class WeatherSystem implements System {
       station.weatherStation.multiplier = multiplier;
       station.weatherStation.season = season;
 
-      // Each forecast day uses its own season's softened weights (handles season-boundary crossings).
       const forecast: Array<{ condition: WeatherCondition; confidence: number }> = [];
       for (let i = 1; i <= FORECAST_DAYS; i++) {
         const fcSeason = seasonForDay(newDay + i);

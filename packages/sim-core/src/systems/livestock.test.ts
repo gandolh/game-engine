@@ -72,7 +72,7 @@ describe("LivestockSystem", () => {
     const milk = totalProductCount(farmer.inventory, "milk");
     expect(milk).toBe(0);
 
-    const careDecay = careBefore - penEntity.pen!.care; // unfed decay > fed decay (0.05)
+    const careDecay = careBefore - penEntity.pen!.care; 
     expect(careDecay).toBeGreaterThan(0.05);
   });
 
@@ -120,7 +120,7 @@ describe("LivestockSystem", () => {
     const board = leaderboard(world);
     const entry = board.find(e => e.id === farmer.id);
     expect(entry).toBeDefined();
-    expect(entry!.assetValue).toBeGreaterThanOrEqual(30); // 2 chickens × 15
+    expect(entry!.assetValue).toBeGreaterThanOrEqual(30); 
     expect(entry!.totalValue).toBeGreaterThan(entry!.gold);
   });
 
@@ -130,7 +130,6 @@ describe("LivestockSystem", () => {
     const farmer = [...world.query("farmer", "inventory")][0]!;
     if (farmer.id === undefined) throw new Error("farmer has no id");
 
-    // Force a known home farm + its ranch; place an unfed coop on the ranch.
     farmer.farmer!.homeRegion = "farm-cora";
     const ranch = ranchForFarm("farm-cora");
     expect(ranch).toBeDefined();
@@ -144,12 +143,10 @@ describe("LivestockSystem", () => {
     });
     const intent: Intention = { kind: "tend", data: { penKind: "coop" }, priority: 5 };
 
-    // OFF the ranch (on the home farm): handleTend must no-op.
     farmer.farmer!.currentRegion = "farm-cora";
     handleTend(farmer as never, intent, world);
     expect(penEntity.pen!.fedToday).toBe(false);
 
-    // deliberateTendPens queues a travel to the ranch (the bridge-crossing trip).
     farmer.intentions!.queue.length = 0;
     farmer.beliefs!.data["hasPen_coop"] = true;
     farmer.beliefs!.data["coopFedToday"] = false;
@@ -159,7 +156,6 @@ describe("LivestockSystem", () => {
     );
     expect(travel, "should queue a travel to the ranch when away").toBeDefined();
 
-    // ON the ranch: handleTend feeds + boosts care.
     farmer.farmer!.currentRegion = ranch!;
     const careBefore = penEntity.pen!.care;
     handleTend(farmer as never, intent, world);

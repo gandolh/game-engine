@@ -25,14 +25,12 @@ function makeFighter(
   });
 }
 
-// ticksPerDay=50 → swingInterval=1 (a swing every tick): bouts resolve fast in tests.
 function newCombat(world: World<GameEntity>, seed = 1): { combat: CombatSystem; bus: MessageBus } {
   const bus = new MessageBus();
   const combat = new CombatSystem(world, bus, createRng(seed), 50);
   return { combat, bus };
 }
 
-/** Advance the combat system until no bout is active or a tick cap is hit. */
 function runToEnd(combat: CombatSystem, a: GameEntity, b: GameEntity, startTick = 0): number {
   let tick = startTick;
   while ((combat.isFighting(a.id!) || combat.isFighting(b.id!)) && tick < 1000) {
@@ -69,7 +67,7 @@ describe("CombatSystem — bout lifecycle", () => {
     expect(combat.isFighting(a.id!)).toBe(false);
     expect(a.fsm!.current).toBe("WAIT_DAY");
     expect(b.fsm!.current).toBe("WAIT_DAY");
-    // Ring resets BOTH to full HP at bout end.
+
     expect(a.health!.current).toBe(a.health!.max);
     expect(b.health!.current).toBe(b.health!.max);
   });
@@ -81,7 +79,7 @@ describe("CombatSystem — bout lifecycle", () => {
     combat.startBout(a.id!, b.id!, "ring", 0);
     runToEnd(combat, a, b);
     const total = a.inventory!.gold + b.inventory!.gold;
-    expect(total).toBe(200); // conserved
+    expect(total).toBe(200); 
     expect(Math.abs(a.inventory!.gold - 100)).toBe(RING_STAKE_GOLD);
   });
 
@@ -96,12 +94,12 @@ describe("CombatSystem — bout lifecycle", () => {
   });
 
   it("ring AP-out: a fighter with no AP loses immediately", () => {
-    const a = makeFighter(world, { ap: 0 });   // can't swing
+    const a = makeFighter(world, { ap: 0 });   
     const b = makeFighter(world, { ap: 100 });
     const { combat } = newCombat(world);
     combat.startBout(a.id!, b.id!, "ring", 0);
     runToEnd(combat, a, b);
-    // b wins → b gained the stake.
+
     expect(b.inventory!.gold).toBe(110);
     expect(a.inventory!.gold).toBe(90);
   });
@@ -112,7 +110,7 @@ describe("CombatSystem — bout lifecycle", () => {
     const { combat } = newCombat(world);
     combat.startBout(a.id!, b.id!, "ring", 0);
     runToEnd(combat, a, b);
-    expect(a.inventory!.gold).toBe(110); // bat-wielder won the stake
+    expect(a.inventory!.gold).toBe(110); 
   });
 });
 
@@ -126,7 +124,7 @@ describe("CombatSystem — street fights", () => {
     const { combat } = newCombat(world);
     combat.startBout(a.id!, b.id!, "street", 0);
     runToEnd(combat, a, b);
-    // a KO'd b and looted 3 wheat; gold untouched.
+
     expect(a.inventory!.crops.wheat).toBe(3);
     expect(b.inventory!.crops.wheat).toBe(7);
     expect(a.inventory!.gold).toBe(100);
@@ -139,7 +137,7 @@ describe("CombatSystem — street fights", () => {
     const { combat } = newCombat(world);
     combat.startBout(a.id!, b.id!, "street", 0);
     runToEnd(combat, a, b);
-    // The KO'd loser stays at 0 (no bout-end heal); winner keeps whatever HP remained.
+
     expect(b.health!.current).toBe(0);
     expect(a.health!.current).toBeLessThanOrEqual(a.health!.max);
   });
@@ -184,11 +182,11 @@ describe("CombatSystem — ring teleport + handshake + governors", () => {
     const b = withTransform(makeFighter(world), 20, 20, "farm-cora");
     const { combat } = newCombat(world);
     combat.startBout(a.id!, b.id!, "ring", 0);
-    // While fighting, they're on the ring island.
+
     expect(a.farmer!.currentRegion).toBe("ring");
     expect(b.farmer!.currentRegion).toBe("ring");
     runToEnd(combat, a, b);
-    // Restored to pre-bout spot + region.
+
     expect(a.transform!.x).toBe(10);
     expect(a.transform!.y).toBe(10);
     expect(a.farmer!.currentRegion).toBe("village");
@@ -222,7 +220,7 @@ describe("CombatSystem — ring teleport + handshake + governors", () => {
     pushChallenge(b, a.id!, "ring");
     combat.run({ tick: 0 });
     runToEnd(combat, a, b, 1);
-    // Same day → cooldown blocks a re-challenge.
+
     expect(combat.canFight(a.id!, b.id!)).toBe(false);
   });
 
@@ -231,14 +229,14 @@ describe("CombatSystem — ring teleport + handshake + governors", () => {
     const b = makeFighter(world);
     const c = makeFighter(world);
     const { combat } = newCombat(world);
-    // a initiates against b, then c, then a third → cap is DAILY_FIGHT_CAP (2).
+
     pushChallenge(b, a.id!, "ring");
     combat.run({ tick: 0 });
     runToEnd(combat, a, b, 1);
     pushChallenge(c, a.id!, "ring");
     combat.run({ tick: 50 });
     runToEnd(combat, a, c, 51);
-    // a has now initiated 2 fights today → at the cap.
+
     const d = makeFighter(world);
     expect(combat.canFight(a.id!, d.id!)).toBe(false);
   });
@@ -263,12 +261,11 @@ describe("CombatSystem — street witness trust penalties", () => {
     combat.startBout(attacker.id!, victim.id!, "street", 0);
     runToEnd(combat, attacker, victim);
 
-    // Attacker KO'd victim and looted → witness drops trust by attack+loot penalty.
     const wTrust = witness.trust!.byId.get(attacker.id!)!;
     expect(wTrust).toBeLessThan(0.5);
-    // Off-region farmer is unaffected.
+
     expect(elsewhere.trust!.byId.get(attacker.id!) ?? 0.5).toBe(0.5);
-    // Loot makes the drop bigger than a no-loot witness penalty alone (< 0.5 - 0.08).
+
     expect(wTrust).toBeLessThan(0.5 - 0.08);
   });
 });

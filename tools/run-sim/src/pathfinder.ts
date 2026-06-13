@@ -5,8 +5,6 @@ import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { createPathfinderFromBytes } from "@engine/core";
 import type { PathfinderLike } from "./run-core";
 
-// JS and WASM pathfinders are NOT route-equivalent (different equal-cost tie-breaks).
-// Use PATHFINDER=wasm to match browser/server behavior; default `js` matches legacy headless runs.
 export async function makePathfinder(): Promise<PathfinderLike> {
   const kind = (process.env["PATHFINDER"] ?? "js").toLowerCase();
   if (kind === "wasm") {

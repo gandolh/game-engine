@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "./types";
 
-// Tool chars (m q Q W o s e) are excluded from substitution so they keep their colour across all personalities.
-
 export const ACTION_TEMPLATES: Record<string, readonly string[]> = {
   work: [
     "................",
@@ -137,10 +135,6 @@ export const ACTION_TEMPLATES: Record<string, readonly string[]> = {
   ],
 };
 
-// Second swing frame per action. Same head/torso as ACTION_TEMPLATES; only the tool/arms move
-// (raised backswing for hoe/axe/pick, advanced water/seed stream) so alternating A↔B reads as a
-// work motion — mirroring the NPC `*-a`/`*-b` tool swings. Tool pixels stay at rows ≥7 so the
-// personality hat (rows 0–3) never clips them. Generated as `farmer/<p>/<action>-b`.
 export const ACTION_TEMPLATES_B: Record<string, readonly string[]> = {
   work: [
     "................",
@@ -276,7 +270,6 @@ export const ACTION_TEMPLATES_B: Record<string, readonly string[]> = {
   ],
 };
 
-// Per-personality colour substitutions. Pip (player): gold hair (y→o) + green tunic (r→G).
 export const PERSONALITY_SUBS: Record<string, Record<string, string>> = {
   conservative: {},
   aggressive:   { y: "k", D: "k" },
@@ -298,8 +291,6 @@ export function applyPersonalitySubs(
   );
 }
 
-// Hat overlay: rows 0–3 only (clear of tool pixels at rows 7+). '.' = leave pixel; any other char = stamp.
-// Each hat contrasts its personality's hair: conservative w/y, aggressive r/k, hoarder o/D, opportunist r+o/s, pip r/o.
 export const PERSONALITY_HATS: Record<string, readonly string[]> = {
   conservative: [
     "................",
@@ -333,8 +324,6 @@ export const PERSONALITY_HATS: Record<string, readonly string[]> = {
   ],
 };
 
-// 24×24 hats for the locomotion frames (down/up/side). Overlay top rows over the hair head.
-// Chosen by frame size in applyPersonalityHat so 16px action frames keep the 16px hats above.
 export const PERSONALITY_HATS_24: Record<string, readonly string[]> = {
   conservative: [
     "........................",
@@ -387,7 +376,6 @@ export function applyPersonalityHat(
   });
 }
 
-// Canonical farmer-frame transform: colour subs then hat. Applied uniformly across idle/walk/facing/action.
 export function applyFarmerLook(
   pixels: readonly string[],
   personality: string,
@@ -396,8 +384,6 @@ export function applyFarmerLook(
   return applyPersonalityHat(applyPersonalitySubs(pixels, subs), personality);
 }
 
-// UP/SIDE facing variants (idle + 2 walk frames) generated per personality via PERSONALITY_SUBS.
-// Renderer mirrors side frame for leftward movement (flipX). Authored in conservative chars.
 export const FACING_TEMPLATES: Record<string, readonly string[]> = {
   up: [
     "........................",
@@ -557,9 +543,6 @@ export const FACING_TEMPLATES: Record<string, readonly string[]> = {
   ],
 };
 
-// Down-facing frames (idle + 2 walk), 24×24, generated for ALL personalities (incl. Pip) via
-// PERSONALITY_SUBS + the 24px hat overlay — unifying what used to be per-personality down files
-// + a separate PIP_DOWN set. Hair-only heads; the cap/hat comes from PERSONALITY_HATS_24.
 export const DOWN_TEMPLATES: Record<string, readonly string[]> = {
   "": [
     "........................",
@@ -641,7 +624,6 @@ export const DOWN_TEMPLATES: Record<string, readonly string[]> = {
   ],
 };
 
-// NPC poses: standalone frames, not personality-substituted. Blacksmith: apron (D), hammer (m/Q). Carpenter: tunic (G/g), saw (q/m).
 export const NPC_POSES: PixelRecipe[] = [
   {
     name: "npc/blacksmith/idle",

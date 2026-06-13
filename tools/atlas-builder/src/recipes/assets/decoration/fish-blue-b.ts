@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// School fish — blue tang, swim frame B (forked-tail flick + body nudged forward).
 const recipe: PixelRecipe =
   {
     name: "decoration/fish-blue-b",

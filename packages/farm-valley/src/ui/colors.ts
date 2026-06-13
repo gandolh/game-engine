@@ -1,4 +1,4 @@
-// Single source of truth for personality colors; legacy aliases kept for snapshot compat.
+
 
 import { EDG } from "@engine/core/render";
 
@@ -7,7 +7,7 @@ export const PERSONALITY_COLORS: Record<string, string> = {
   aggressive: EDG.orange,
   hoarder: EDG.green,
   opportunist: EDG.mauve,
-  // legacy aliases
+
   cautious: EDG.skyBlue,
   bold: EDG.orange,
   social: EDG.green,

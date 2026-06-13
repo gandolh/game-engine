@@ -85,7 +85,6 @@ export interface GameEntity {
   [key: string]: unknown;
 }
 
-/** Reset decisionTrace at the start of each deliberation tick. Lazily initializes. */
 export function resetDecisionTrace(farmer: GameEntity): void {
   if (farmer.decisionTrace === undefined) {
     farmer.decisionTrace = { reasons: [] };
@@ -94,7 +93,6 @@ export function resetDecisionTrace(farmer: GameEntity): void {
   }
 }
 
-/** Append a reason to decisionTrace, capped at DECISION_TRACE_CAP. Lazily initializes. */
 export function recordReason(farmer: GameEntity, reason: string): void {
   if (farmer.decisionTrace === undefined) {
     farmer.decisionTrace = { reasons: [] };

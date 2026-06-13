@@ -29,8 +29,7 @@ export function handleChopTree(
   if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "tree") return;
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
   farmer.resources.wood += 2;
-  // Occasional seed bonus shaken loose from the canopy. Always draw (even when it
-  // misses) so the forked rng stream advances deterministically per chop.
+
   if (forageRng.nextFloat() < TREE_SEED_CHANCE) {
     farmer.inventory.seeds[pickWeightedSeed(forageRng)] += 1;
   }
@@ -43,10 +42,6 @@ export function handleChopTree(
   }
 }
 
-/**
- * Forage a berry-bush: no tool required, despawns the bush and grants one random
- * (rarity-weighted) seed plus foraging XP. Pip and AI both route here.
- */
 export function handleGatherBush(
   farmer: ActingFarmer,
   intent: Intention,
@@ -82,7 +77,7 @@ export function handleMineStone(
   const feat = featuresByTile.get(`${tileX},${tileY}`);
   if (!feat || !feat.tileFeature || feat.tileFeature.kind !== "stone") return;
   if (!farmer.resources) farmer.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
-  // Mining skill widens geode/iron bands (pure fn of XP); forked mineRng for determinism.
+
   const mineBonus = miningRarityBonus(farmer.skills?.mining ?? 0);
   const geodeChance = STONE_GEODE_CHANCE + mineBonus * 0.5;
   const ironChance = STONE_IRON_CHANCE + mineBonus * 0.5;
@@ -109,7 +104,7 @@ export function handleRefillCan(
   _intent: Intention,
   fountainByRegion: Map<string, GameEntity>,
 ): void {
-  // Chebyshev ≤ 1 from home fountain or a well center.
+
   const can = farmer.inventory.wateringCan;
   if (!can) return;
 
@@ -203,10 +198,9 @@ export function handleForage(farmer: ActingFarmer, day: number): void {
   if (!region) return;
   const zone = FORAGE_ZONES[region];
   if (!zone) return;
-  if (seasonForDay(day) !== zone.season) return; // out-of-season → no reward
-  // Foraging skill multiplies the reward; pure function of XP.
+  if (seasonForDay(day) !== zone.season) return; 
+
   const mult = foragingGoldMultiplier(farmer.skills?.foraging ?? 0);
   farmer.inventory.gold += Math.round(zone.reward * mult);
   grantSkillXp(farmer, "foraging", 1);
 }
-

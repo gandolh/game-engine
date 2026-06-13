@@ -4,13 +4,8 @@ import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
 import { bankHarvest } from "../economy";
 import { farmingQualityBonus, grantSkillXp } from "./skills";
 
-export const HARVEST_FARMING_XP = 2; // farming XP per harvested plot
+export const HARVEST_FARMING_XP = 2; 
 
-/**
- * Compute quality tier deterministically at harvest from husbandry inputs + seeded rng.
- * Husbandry score (0–1): water recency (50%), growth completeness (30%), weather avg (20%).
- * Gold threshold = 0.82, silver = 0.52; decorationBoost and farmingBonus shift the score.
- */
 export function computeQuality(
   daysGrowing: number,
   growthDays: number,
@@ -18,10 +13,10 @@ export function computeQuality(
   daysSinceWater: number,
   decorationBoost: number,
   rng: Rng,
-  farmingBonus = 0, // additive shift from owner's farming skill; see farmingQualityBonus
+  farmingBonus = 0, 
 ): CropQuality {
   const dryDays = daysSinceWater;
-  const waterScore = Math.max(0, 1 - dryDays * 0.4); // 1.0 if watered last day, degrades linearly
+  const waterScore = Math.max(0, 1 - dryDays * 0.4); 
   const growthScore = Math.min(1, daysGrowing / Math.max(1, growthDays));
   const weatherScore = daysGrowing > 0 ? Math.min(1, (weatherSum / daysGrowing) / 1.2) : 0.5;
 
@@ -83,7 +78,7 @@ export class HarvestSystem implements System {
       if (this.qualityRng) {
         quality = computeQuality(
           state.daysGrowing,
-          currentDay - (state.readyAtDay - (state.daysGrowing | 0)), // approx growthDays
+          currentDay - (state.readyAtDay - (state.daysGrowing | 0)), 
           state.weatherSum,
           state.daysSinceWater ?? 0,
           boost,

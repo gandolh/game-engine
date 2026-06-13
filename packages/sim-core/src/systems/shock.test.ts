@@ -40,7 +40,6 @@ function collectShocks(bus: MessageBus): ShockBody[] {
   return out;
 }
 
-/** Run a fresh sim through `days` days. Returns the shock bodies broadcast. */
 function runSim(seed: number, days: number, shockDay: number): {
   world: World<GameEntity>;
   shocks: ShockBody[];
@@ -50,7 +49,7 @@ function runSim(seed: number, days: number, shockDay: number): {
   const bus = new MessageBus();
   const f1 = spawnFarmer(world, "Cora");
   const f2 = spawnFarmer(world, "Atticus");
-  // Two planted plots each.
+
   plantPlot(world, f1.id!, 16);
   plantPlot(world, f1.id!, 17);
   plantPlot(world, f2.id!, 30);
@@ -90,17 +89,16 @@ describe("ShockSystem (mid-game blight)", () => {
     const shock = shocks[0]!;
     expect(shock.kind).toBe("blight");
     expect(shock.day).toBe(3);
-    expect(shock.plotsWiped).toBe(2); // the target had 2 planted plots
+    expect(shock.plotsWiped).toBe(2); 
     expect(["Cora", "Atticus"]).toContain(shock.targetName);
 
-    // Exactly 2 of the 4 planted plots survive (the non-targeted farmer's).
     expect(plantedRemaining()).toBe(2);
   });
 
   it("does not fire before the shock day", () => {
-    // Stop the run at day 2 (before shockDay 3).
+
     const { shocks, plantedRemaining } = runSim(0xc0ffee, 3, 3);
-    // Day boundaries 0,1,2 only → shock day 3 not reached.
+
     expect(shocks.length).toBe(0);
     expect(plantedRemaining()).toBe(4);
   });
@@ -113,7 +111,7 @@ describe("ShockSystem (mid-game blight)", () => {
   });
 
   it("different seeds can strike different farmers", () => {
-    // Scan a handful of seeds; at least one should differ from seed 1's target.
+
     const base = runSim(1, 6, 3).shocks[0]!;
     const targets = new Set<number>([base.targetFarmerId]);
     for (const seed of [2, 3, 4, 5, 6, 7, 8]) {
@@ -123,9 +121,7 @@ describe("ShockSystem (mid-game blight)", () => {
   });
 
   it("prefers a farmer with planted crops so the blight always lands", () => {
-    // Cora has 2 planted plots; Atticus has none. Across several seeds the
-    // blight must always hit Cora (the only farmer with crops) and wipe a
-    // non-zero count — proving the "prefer farmers with crops" filter.
+
     for (const seed of [1, 2, 3, 4, 5]) {
       const w2 = new World<GameEntity>();
       const b2 = new MessageBus();
@@ -162,7 +158,7 @@ describe("ShockSystem (mid-game blight)", () => {
     const bus = new MessageBus();
     const f = spawnFarmer(world, "Solo");
     plantPlot(world, f.id!, 16);
-    // An already-empty plot for the same farmer.
+
     world.spawn({
       plot: {
         ownerId: f.id!,

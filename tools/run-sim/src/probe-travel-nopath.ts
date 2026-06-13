@@ -1,11 +1,4 @@
-/** probe-travel-nopath.ts — diagnose `[travel] no path` intent drops
- * (open-questions: "travel intents dropped en masse in short headless runs").
- * Intercepts the warn at fire time — the intent is still queue[0] — and records
- * the farmer's state + the destination the pathfinder rejected. Already solved
- * one subset with it (2026-06-10): tile-targeted tavern-gather intents queued
- * for farmers stranded on the reef islet (no land-grid route to the village).
- * Run: npx tsx tools/run-sim/src/probe-travel-nopath.ts
- */
+
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -47,7 +40,7 @@ const origWarn = console.warn.bind(console);
 console.warn = (...args: unknown[]) => {
   const msg = String(args[0] ?? "");
   if (!msg.includes("[travel] no path")) return origWarn(...args);
-  // Region-targeted drops (harbor/carpentry/…): count by destination only.
+
   if (!msg.includes("to tile")) {
     otherNoPath++;
     const region = /to region '([^']*)'/.exec(msg)?.[1] ?? "?";

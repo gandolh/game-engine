@@ -1,28 +1,4 @@
-// RivalrySystem — passive, read-only LABELER over the unified trust axis. It no
-// longer accumulates adverse events; rivalry/friendship/alliance are derived each
-// tick from the directional `trust` map maintained by TrustSystem.
-//
-// Split from rivalry.ts.
-//
-// Placement (see sim-bootstrap): runs in the read-only snoop band — after
-// TrustSystem (which moves the trust axis) and BEFORE EventFeedSystem so
-// EventFeedSystem can read freshlyFormedThisTick() in the same tick. Both come
-// after InboxDispatch and before PerceiveSystem.
-//
-// Labeling (see ./types):
-//   - rivalry : DIRECTIONAL — `from`'s trust toward `to` < RIVAL_CUTOFF.
-//   - alliance: undirected mutual trust >= ALLIANCE_TRUST_THRESHOLD.
-//
-// Hysteresis: a fresh rivalry fires once when a directed pair first drops below
-// RIVAL_CUTOFF, then latches. It only re-arms (eligible to fire fresh again) once
-// trust climbs back above RIVAL_REARM. Alliances announce once (no un-announce).
-//
-// Determinism guarantees:
-//   - No Date.now / Math.random.
-//   - Query iteration order is stable within a run (ECS world insertion-order),
-//     and farmer scans are id-sorted.
-//   - freshThisTick is sorted by key before being returned.
-//   - Same seed → same labels (derived purely from trust, which is deterministic).
+
 
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -40,13 +16,10 @@ import {
 export class RivalrySystem implements System {
   readonly name = "RivalrySystem";
 
-  /** Directed keys that have fired a fresh-rivalry and are latched (awaiting re-arm). */
   private readonly latchedRivalKeys = new Set<string>();
 
-  /** Alliance pair keys we have already announced (one-shot feed lines). */
   private readonly announcedAllianceKeys = new Set<string>();
 
-  /** Relationships that crossed a boundary THIS tick (sorted on read, rebuilt each tick). */
   private readonly freshThisTick: FreshRivalry[] = [];
 
   constructor(private readonly world: World<GameEntity>) {}
@@ -58,7 +31,6 @@ export class RivalrySystem implements System {
     this.detectNewAlliances(farmers);
   }
 
-  /** Directional: for each ordered (from, to), read from→to trust and label/latch. */
   private detectRivalries(farmers: ReadonlyArray<{ id: number; entity: GameEntity }>): void {
     for (const from of farmers) {
       for (const to of farmers) {
@@ -71,10 +43,10 @@ export class RivalrySystem implements System {
             this.freshThisTick.push({ aId: from.id, bId: to.id, score: trust, kind: "rivalry" });
           }
         } else if (trust > RIVAL_REARM) {
-          // Recovered past the re-arm mark → eligible to fire fresh again later.
+
           this.latchedRivalKeys.delete(key);
         }
-        // In the hysteresis band [RIVAL_CUTOFF, RIVAL_REARM]: hold the latch as-is.
+
       }
     }
   }
@@ -111,7 +83,6 @@ export class RivalrySystem implements System {
     return this.freshThisTick.slice().sort(compareFresh);
   }
 
-  /** All currently-active directional rivalries (from→to trust < RIVAL_CUTOFF). */
   activeRivalries(): readonly ActiveRivalry[] {
     const farmers = this.sortedFarmers();
     const out: ActiveRivalry[] = [];
@@ -155,7 +126,7 @@ export class RivalrySystem implements System {
 }
 
 function compareFresh(a: FreshRivalry, b: FreshRivalry): number {
-  // Group rivalries (directed key) and alliances (undirected key) by their string key.
+
   const ka = a.kind === "rivalry" ? directedKey(a.aId, a.bId) : pairKey(a.aId, a.bId);
   const kb = b.kind === "rivalry" ? directedKey(b.aId, b.bId) : pairKey(b.aId, b.bId);
   return ka < kb ? -1 : ka > kb ? 1 : 0;

@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Seabed life — pale sand dollar, round with a faint 5-petal star. Static.
 const recipe: PixelRecipe =
   {
     name: "decoration/seabed-sand-dollar",

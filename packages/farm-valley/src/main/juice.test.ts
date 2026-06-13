@@ -1,12 +1,4 @@
-/**
- * juice.test.ts — unit tests for brief-86 juice effects (jsdom env).
- *
- * Tests cover:
- *   1. Popup pool cap (per-kind cap + total pool cap).
- *   2. Resync / skip guard: no popups or shake emitted for stale events.
- *   3. Trauma decay math (pure function).
- *   4. Hitstop: fires on rank-flip / auction win, not on routine events.
- */
+
 
 import { describe, it, expect, beforeEach } from "vitest";
 import {
@@ -19,14 +11,9 @@ import {
   POPUP_KIND_CAP,
   MAX_SHAKE_PX,
 } from "./juice";
-// NOTE: JuiceLayer.consumeHitstopFrames() is the production API; it resets the
-// frame count after reading. Tests use it directly for clear assertions.
+
 import type { SnapshotEvent } from "@farm/sim-core/snapshot";
 import { Camera2D } from "@engine/core";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function makeCamera(): Camera2D {
   return new Camera2D({
@@ -41,7 +28,7 @@ function makeCanvas(): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 512;
-  // clientWidth/clientHeight are 0 in jsdom by default; override via Object.defineProperty.
+
   Object.defineProperty(c, "clientWidth", { value: 512, configurable: true });
   Object.defineProperty(c, "clientHeight", { value: 512, configurable: true });
   return c;
@@ -118,10 +105,6 @@ function routineAcceptEvent(): SnapshotEvent {
 
 const EMPTY_MAP: ReadonlyMap<number, { x: number; y: number }> = new Map();
 
-// ---------------------------------------------------------------------------
-// Pure math tests
-// ---------------------------------------------------------------------------
-
 describe("easing math", () => {
   it("easeOutCubic(0) = 0, easeOutCubic(1) = 1", () => {
     expect(easeOutCubic(0)).toBe(0);
@@ -142,9 +125,9 @@ describe("easing math", () => {
   });
 
   it("easeOutBack overshoots between 0 and 1 (> 1 at some midpoint)", () => {
-    // The overshoot happens around t ≈ 0.7–0.9
+
     const values = [0.5, 0.6, 0.7, 0.8, 0.9].map(easeOutBack);
-    // At least one midpoint value should be > 1 (overshoot).
+
     expect(values.some((v) => v > 1)).toBe(true);
   });
 });
@@ -172,10 +155,6 @@ describe("trauma decay", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// JuiceLayer DOM tests (jsdom)
-// ---------------------------------------------------------------------------
-
 describe("JuiceLayer — popup pool cap", () => {
   let parent: HTMLElement;
   let layer: JuiceLayer;
@@ -190,7 +169,7 @@ describe("JuiceLayer — popup pool cap", () => {
   });
 
   function countActivePopups(): number {
-    // Active popups have display !== "none"
+
     const overlay = parent.firstChild as HTMLElement;
     let count = 0;
     for (const child of overlay.children) {
@@ -213,7 +192,7 @@ describe("JuiceLayer — popup pool cap", () => {
 
   it("per-kind cap: gold events stop at POPUP_KIND_CAP.gold", () => {
     const cap = POPUP_KIND_CAP.gold;
-    // Flood with cap + 5 gold events
+
     const events: SnapshotEvent[] = [];
     for (let i = 0; i < cap + 5; i++) {
       events.push(tradeEvent(10 + i));
@@ -229,7 +208,7 @@ describe("JuiceLayer — popup pool cap", () => {
   });
 
   it("total pool never exceeds POPUP_POOL_SIZE active popups", () => {
-    // Mix of different kinds to fill the pool
+
     const events: SnapshotEvent[] = [];
     for (let i = 0; i < POPUP_POOL_SIZE + 10; i++) {
       events.push(tradeEvent(10 + i));
@@ -289,43 +268,40 @@ describe("JuiceLayer — resync / skip guard", () => {
   }
 
   it("after signalResync, stale events do NOT spawn popups", () => {
-    // Scenario: 10 events arrive while tab was hidden → resync signal → update
+
     const events: SnapshotEvent[] = [];
     for (let i = 0; i < 10; i++) {
       events.push(tradeEvent(5 + i));
     }
     layer.signalResync();
     layer.update(events, EMPTY_MAP, camera, canvas, 0.016);
-    // After resync, the cursor jumped to events.length → no new events processed
+
     expect(countActivePopups()).toBe(0);
   });
 
   it("after signalResync, NEW events arriving after resync DO spawn popups", () => {
-    // First: 5 stale events arrive (before resync)
+
     const staleBatch: SnapshotEvent[] = [];
     for (let i = 0; i < 5; i++) staleBatch.push(tradeEvent(i + 1));
 
-    // Signal resync; stale events are skipped
     layer.signalResync();
     layer.update(staleBatch, EMPTY_MAP, camera, canvas, 0.016);
     expect(countActivePopups()).toBe(0);
 
-    // Now 2 genuinely new events arrive (cursor is at 5, events.length becomes 7)
     const newBatch = [...staleBatch, rankFlipEvent(), festivalEvent()];
     layer.update(newBatch, EMPTY_MAP, camera, canvas, 0.016);
-    // Should have spawned 2 new popups
+
     expect(countActivePopups()).toBeGreaterThan(0);
   });
 
   it("after signalResync, trauma is reset to zero", () => {
-    // Rank-flip events build trauma
+
     const events: SnapshotEvent[] = [rankFlipEvent(), festivalEvent()];
     layer.update(events, EMPTY_MAP, camera, canvas, 0.016);
-    // Trauma should have been added (shake offset non-zero)
-    // Now resync
+
     layer.signalResync();
     layer.update(events, EMPTY_MAP, camera, canvas, 0.016);
-    // After resync: shake should be zeroed
+
     expect(layer.shake.x).toBe(0);
     expect(layer.shake.y).toBe(0);
   });
@@ -335,7 +311,6 @@ describe("JuiceLayer — resync / skip guard", () => {
     layer.signalResync();
     layer.update(stale, EMPTY_MAP, camera, canvas, 0.016);
 
-    // Second update with same events (cursor already at 2)
     layer.update(stale, EMPTY_MAP, camera, canvas, 0.016);
     expect(countActivePopups()).toBe(0);
   });
@@ -374,15 +349,15 @@ describe("JuiceLayer — hitstop", () => {
   it("hitstop frame count is within the cozy range (2–4 frames)", () => {
     layer.update([rankFlipEvent()], EMPTY_MAP, camera, canvas, 0.016);
     const frames = layer.consumeHitstopFrames();
-    // 4 frames at 60 Hz = 66ms freeze — short but perceptible
+
     expect(frames).toBeGreaterThanOrEqual(2);
     expect(frames).toBeLessThanOrEqual(4);
   });
 
   it("consumeHitstopFrames resets to 0 after first call", () => {
     layer.update([rankFlipEvent()], EMPTY_MAP, camera, canvas, 0.016);
-    layer.consumeHitstopFrames(); // consume
-    expect(layer.consumeHitstopFrames()).toBe(0); // already consumed
+    layer.consumeHitstopFrames(); 
+    expect(layer.consumeHitstopFrames()).toBe(0); 
   });
 });
 
@@ -401,7 +376,7 @@ describe("JuiceLayer — shake on positive beats", () => {
 
   it("rank-flip adds trauma (shake.x or shake.y non-zero after update)", () => {
     layer.update([rankFlipEvent()], EMPTY_MAP, camera, canvas, 0.016);
-    // Trauma is set; shake offset computed in update
+
     const hasShake = Math.abs(layer.shake.x) > 0 || Math.abs(layer.shake.y) > 0;
     expect(hasShake).toBe(true);
   });
@@ -413,9 +388,9 @@ describe("JuiceLayer — shake on positive beats", () => {
   });
 
   it("routine trade does NOT add shake", () => {
-    // Only low-drama trade
+
     layer.update([tradeEvent(10, 0.1)], EMPTY_MAP, camera, canvas, 0.016);
-    // Trauma is zero → shake should be zero
+
     expect(layer.shake.x).toBe(0);
     expect(layer.shake.y).toBe(0);
   });
@@ -435,7 +410,7 @@ describe("JuiceLayer — drama-weighted intensity", () => {
   });
 
   it("high-drama popup has larger font than low-drama popup", () => {
-    // Low drama
+
     layer.update([tradeEvent(10, 0.0)], EMPTY_MAP, camera, canvas, 0.016);
     const overlay = parent.firstChild as HTMLElement;
     const lowEl = Array.from(overlay.children).find(
@@ -443,11 +418,10 @@ describe("JuiceLayer — drama-weighted intensity", () => {
     ) as HTMLElement | undefined;
     const lowFont = lowEl ? parseInt(lowEl.style.fontSize, 10) : 0;
 
-    // Destroy and recreate for clean slate
     layer.destroy();
     const parent2 = makeParent();
     const layer2 = new JuiceLayer(parent2);
-    // High drama
+
     layer2.update([tradeEvent(100, 1.0)], EMPTY_MAP, camera, canvas, 0.016);
     const overlay2 = parent2.firstChild as HTMLElement;
     const highEl = Array.from(overlay2.children).find(

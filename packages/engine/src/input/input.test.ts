@@ -51,7 +51,7 @@ describe("Keyboard", () => {
   it("holding a key does not re-trigger justPressed across frames", () => {
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "ShiftLeft", bubbles: true }));
     kb.endFrame();
-    // browser keydown repeat — code guards with !_pressed.has so justPressed stays false
+
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "ShiftLeft", bubbles: true }));
     expect(kb.justPressed("ShiftLeft")).toBe(false);
   });
@@ -62,9 +62,8 @@ describe("Keyboard", () => {
     expect(kb.isDown("KeyZ")).toBe(false);
 
     kb.attach(win as Window);
-    kb.attach(win as Window); // second attach detaches the first (no double-listener)
+    kb.attach(win as Window); 
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "KeyZ", bubbles: true }));
     expect(kb.isDown("KeyZ")).toBe(true);
   });
 });
-

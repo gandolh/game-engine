@@ -37,10 +37,6 @@ export function buildFinalStandings(summaries: FarmerSummary[]): FinalStandingRo
   }));
 }
 
-/**
- * Build the relationship matrix. Missing trust entries fall back to 0.5 baseline
- * (same convention as applyTrustDelta in trust.ts).
- */
 export function buildRelationshipsData(world: World<GameEntity>): RelationshipMatrixData {
   const farmerList: Array<{ id: number; name: string; personality: string; entity: GameEntity }> = [];
   for (const f of world.query("farmer", "personality")) {
@@ -61,7 +57,7 @@ export function buildRelationshipsData(world: World<GameEntity>): RelationshipMa
     trust[from.id] = {};
     for (const to of farmerList) {
       if (from.id === to.id) {
-        trust[from.id]![to.id] = 1.0; // diagonal: self-trust sentinel for blank cell rendering
+        trust[from.id]![to.id] = 1.0; 
       } else {
         trust[from.id]![to.id] = from.entity.trust?.byId.get(to.id) ?? 0.5;
       }
@@ -71,16 +67,12 @@ export function buildRelationshipsData(world: World<GameEntity>): RelationshipMa
   return { farmers, trust };
 }
 
-/** Build active rivalries list from RivalrySystem with resolved farmer names. Returns [] if no system. */
 export function buildRivalriesData(
   rivalrySystem: RivalrySystem | undefined,
 ): SnapshotRivalry[] {
   if (!rivalrySystem) return [];
   const out: SnapshotRivalry[] = [];
 
-  // activeRivalries() is directional and may contain both A->B and B->A. Collapse
-  // to one display line per undirected pair, keeping the lower-trust direction
-  // (the stronger grudge) as the displayed accuser.
   const byPair = new Map<string, { aId: number; bId: number; score: number }>();
   for (const r of rivalrySystem.activeRivalries()) {
     const lo = r.aId < r.bId ? r.aId : r.bId;

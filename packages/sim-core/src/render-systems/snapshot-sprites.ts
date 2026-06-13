@@ -4,19 +4,6 @@ import { frameToAtlasId, resolveFrameAndBob } from "./frames";
 
 const TILE = 16;
 
-// ── Foliage wind-sway (brief 16) ─────────────────────────────────────────────
-//
-// Which frames sway: crops (prefix "crop/"), world trees (prefix "structure/tree"
-// or "structure/fruit-tree"), and bushes ("structure/bush", "decoration/bush").
-// Farmers, NPCs, buildings, UI, water tiles, and particles are rigid (amp 0).
-//
-// swayAmp is the peak horizontal displacement at the sprite's top edge (world px).
-// Subtle at typical zoom 2: crops ~0.5 px, tree canopies ~1.0 px.
-//
-// swayPhase: deterministic from tile position so every plant has a unique, stable
-// phase with NO Math.random(). Hash: (tx * 2654435761 ^ ty * 2246822519) & 0x7fffffff
-// mapped to [0, 2π). The large primes scatter phases across the grid without repeat.
-
 function foliageSway(
   frame: string,
   wx: number,
@@ -24,7 +11,7 @@ function foliageSway(
 ): { swayAmp: number; swayPhase: number } | undefined {
   const tx = Math.floor(wx / TILE);
   const ty = Math.floor(wy / TILE);
-  // Integer hash → [0, 2π) — bitwise truncation keeps it inside 32-bit range.
+
   const hash = ((Math.imul(tx, 2654435761) ^ Math.imul(ty, 2246822519)) >>> 0);
   const phase = (hash / 0x100000000) * (Math.PI * 2);
 
@@ -32,9 +19,9 @@ function foliageSway(
     return { swayAmp: 0.5, swayPhase: phase };
   }
   if (
-    frame.startsWith("structure/tree") ||      // tree + -blossom/-autumn/-bare
-    frame.startsWith("structure/fruit-tree") || // fruit-tree + seasonal variants
-    frame.startsWith("structure/bush") ||       // bush + -blossom/-autumn/-bare
+    frame.startsWith("structure/tree") ||      
+    frame.startsWith("structure/fruit-tree") || 
+    frame.startsWith("structure/bush") ||       
     frame === "decoration/bush"
   ) {
     return { swayAmp: 1.0, swayPhase: phase };
@@ -42,10 +29,6 @@ function foliageSway(
   return undefined;
 }
 
-/**
- * Push dynamic snapshot sprites, meet bubbles, and intention bubbles.
- * Meet bubble takes priority over intention bubble for the same farmer.
- */
 export function pushSnapshotSprites(
   renderer: RendererLike,
   sprites: import("../snapshot").SnapshotSprite[],
@@ -60,19 +43,17 @@ export function pushSnapshotSprites(
   for (const s of sprites) {
     const { frame, bobY, scale } = resolveFrameAndBob(s, nowMs, season);
     const size = scale ? TILE * scale : TILE;
-    // Pseudo-3D height (tile units → px). z=0/undefined keeps the exact grounded behaviour.
+
     const zPx = s.z ? s.z * TILE : 0;
     if (s.id !== null) {
-      // Drop-shadow stays on the ground (no z lift) and shrinks/fades as the sprite rises.
-      // Fully gone by HEIGHT_FADE_PX so a high jump reads as airborne; clamped so it never inverts.
+
       const HEIGHT_FADE_PX = TILE * 3;
       const t = zPx > 0 ? Math.max(0, 1 - zPx / HEIGHT_FADE_PX) : 1;
       if (t > 0) {
         renderer.pushShadow(s.x, s.y + TILE * 0.35, TILE * 0.32 * t, TILE * 0.12 * t, 0.45 * t);
       }
     }
-    // Apply sway to static foliage only (never to farmers, NPCs, or animated entities).
-    // Farmer/NPC frames start with "farmer/" or "npc/"; any other frame is a candidate.
+
     const isAnimatedEntity = s.id !== null && (frame.startsWith("farmer/") || frame.startsWith("npc/"));
     const sway = isAnimatedEntity ? undefined : foliageSway(frame, s.x, s.y);
     renderer.push({
@@ -106,18 +87,15 @@ export function pushSnapshotSprites(
         frame: s.bubble,
         atlasId: "items-ui",
         rotation: 0,
-        layer: 89, // below meet bubble (90) so meet always wins visually
+        layer: 89, 
         alpha: 1,
       });
     }
 
-    // Combat HP bar: drawn just above the head while a farmer is FIGHTING (healthFrac set).
-    // Red background track at full width, green fill scaled to the current HP fraction. The
-    // bar depletes from the right: the fill is left-aligned by shifting its center leftward.
     if (s.healthFrac !== undefined && s.id !== null) {
-      const BAR_W = TILE * 0.875;        // ~14px wide
-      const BAR_H = TILE * 0.1875;       // ~3px tall
-      const barY = s.y - TILE * 0.75;    // above the head, just under the bubble band
+      const BAR_W = TILE * 0.875;        
+      const BAR_H = TILE * 0.1875;       
+      const barY = s.y - TILE * 0.75;    
       renderer.push({
         x: s.x,
         y: barY,
@@ -126,14 +104,13 @@ export function pushSnapshotSprites(
         frame: "indicator/hpbar-bg",
         atlasId: "items-ui",
         rotation: 0,
-        layer: 88, // just under the intention bubble (89)
+        layer: 88, 
         alpha: 1,
       });
       const frac = s.healthFrac;
       if (frac > 0) {
         const fillW = BAR_W * frac;
-        // Left-align the fill inside the full-width track: its center sits left of the bar center
-        // by half the unfilled remainder.
+
         renderer.push({
           x: s.x - (BAR_W - fillW) / 2,
           y: barY,

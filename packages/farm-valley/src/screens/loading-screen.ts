@@ -2,7 +2,6 @@ import { createEl, applyStyles } from "../ui/dom";
 import { EDG } from "@engine/core/render";
 import { formatSeed } from "./home-screen";
 
-/** Inject the dot-pulse keyframes once into the document head. */
 function ensurePulseKeyframes(): void {
   const STYLE_ID = "__loading-screen-pulse__";
   if (document.getElementById(STYLE_ID)) return;

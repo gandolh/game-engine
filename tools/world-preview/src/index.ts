@@ -68,7 +68,6 @@ function clearToColor(r: number, g: number, b: number, a: number): void {
   }
 }
 
-// rotation ±90° transposes src (used for vertical fence segments).
 function blitFrame(
   atlas: PNG,
   frame: Frame,
@@ -172,7 +171,7 @@ function computeFences(): FenceTile[] {
   return out;
 }
 
-clearToColor(24, 20, 37, 255); // EDG.black (#181425)
+clearToColor(24, 20, 37, 255); 
 for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
   for (let tx = 0; tx < WORLD_WIDTH; tx++) {
     const frame = backdropFrame(tx, ty);
@@ -204,7 +203,7 @@ for (const e of world.query("sprite", "transform")) {
 }
 sprites.sort((a, b) => a.layer - b.layer);
 for (const s of sprites) {
-  // tolerate atlas frame drift — if the sheet or frame is missing, skip
+
   try {
     const sid = frameSheetId(s.frame);
     const sm = sheetManifests.get(sid);

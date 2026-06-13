@@ -5,7 +5,6 @@ import { REGIONS } from "../../world/regions";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestTile } from "./shared";
 
-/** Queue buy-tool when no usable tool of the kind exists; travels to village if needed. */
 export function deliberateBuyTool(
   farmer: GameEntity,
   toolKind: ToolKind,
@@ -19,7 +18,6 @@ export function deliberateBuyTool(
   const price = TOOL_PRICE["wooden"];
   if (farmer.inventory.gold < price) return;
 
-  // Don't double-queue.
   if (farmer.intentions.queue.some(i => i.kind === "buy-tool" && i.data.toolKind === toolKind)) return;
 
   const inVillage = farmer.farmer.currentRegion === "village";
@@ -40,10 +38,6 @@ export function deliberateBuyTool(
   recordReason(farmer, `buy replacement ${toolKind} (broken, gold: ${farmer.inventory.gold})`);
 }
 
-/**
- * Queue till intents for up to maxNewPlots new farm tiles. Picks closest unoccupied tiles;
- * travels to the nearest candidate when none are in reach.
- */
 export function deliberateTill(
   farmer: GameEntity,
   occupiedTiles: Set<string>,
@@ -52,7 +46,7 @@ export function deliberateTill(
 ): void {
   if (!farmer.farmer?.homeRegion || !farmer.intentions || farmer.id === undefined) return;
   const hoe = (farmer.inventory?.tools ?? []).find(t => t.kind === "hoe" && t.durability > 0);
-  if (!hoe) return; // no usable hoe
+  if (!hoe) return; 
 
   const farmDef = REGIONS.find(r => r.id === farmer.farmer!.homeRegion);
   if (!farmDef || farmDef.kind !== "farm") return;
@@ -63,7 +57,7 @@ export function deliberateTill(
       const key = `${tx},${ty}`;
       if (occupiedTiles.has(key)) continue;
       candidates.push({ tileX: tx, tileY: ty });
-      if (candidates.length >= maxNewPlots * 3) break outer; // collect some extras for proximity selection
+      if (candidates.length >= maxNewPlots * 3) break outer; 
     }
   }
   if (candidates.length === 0) return;
@@ -110,7 +104,6 @@ export function deliberateTill(
   if (count > 0) recordReason(farmer, `till ${count} new plot${count > 1 ? "s" : ""}`);
 }
 
-/** Queue upgrade-tool at the blacksmith when affordable (above reserve + cost). */
 export function deliberateUpgrade(
   farmer: GameEntity,
   toolKind: ToolKind,
@@ -122,7 +115,7 @@ export function deliberateUpgrade(
   const best = tools
     .filter(t => t.kind === toolKind)
     .sort((a, b) => (tierOrder[b.tier] ?? 0) - (tierOrder[a.tier] ?? 0))[0];
-  if (!best || best.tier === "iron") return; // already max
+  if (!best || best.tier === "iron") return; 
 
   const upgradeCost: Record<string, number> = { stone: 15, iron: 25 };
   const nextTier = best.tier === "wooden" ? "stone" : "iron";

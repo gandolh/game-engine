@@ -1,6 +1,4 @@
-/** Endesga-32 (EDG32) — the project's mandatory palette. https://lospec.com/palette-list/endesga-32
- *  All drawn colors MUST come from `EDG.*`. palette.test.ts scans the source tree and fails on
- *  any raw "#rrggbb" not in EDG32. To use a non-literal value (blend anchor, etc.) use `rgbOf()`. */
+
 
 export const EDG32 = [
   "#be4a2f",
@@ -40,38 +38,38 @@ export const EDG32 = [
 export type Edg32Color = (typeof EDG32)[number];
 
 export const EDG = {
-  rust: "#be4a2f", //  0  brick / rust red-orange
-  clay: "#d77643", //  1  clay / pumpkin orange
-  cream: "#ead4aa", //  2  cream / parchment
-  tan: "#e4a672", //  3  tan / wheat
-  wood: "#b86f50", //  4  light wood
-  woodDark: "#733e39", //  5  dark wood / leather
-  bark: "#3e2731", //  6  near-black brown / bark
-  crimson: "#a22633", //  7  deep crimson
-  red: "#e43b44", //  8  bright red
-  orange: "#f77622", //  9  saturated orange
-  gold: "#feae34", // 10  gold / amber
-  yellow: "#fee761", // 11  bright yellow
-  green: "#63c74d", // 12  leaf / grass light
-  greenMid: "#3e8948", // 13  grass / forest
-  greenDark: "#265c42", // 14  deep green
-  teal: "#193c3e", // 15  dark teal
-  blue: "#124e89", // 16  deep ocean blue
-  skyBlue: "#0099db", // 17  bright sky / water blue
-  cyan: "#2ce8f5", // 18  bright cyan
-  white: "#ffffff", // 19  pure white
-  silver: "#c0cbdc", // 20  light blue-grey
-  steel: "#8b9bb4", // 21  steel blue-grey
-  slate: "#5a6988", // 22  slate blue-grey
-  navy: "#3a4466", // 23  dark slate-navy
-  ink: "#262b44", // 24  ink / dark navy
-  black: "#181425", // 25  near-black (darkest)
-  hotPink: "#ff0044", // 26  hot pink-red
-  plum: "#68386c", // 27  plum / purple
-  mauve: "#b55088", // 28  mauve / magenta
-  salmon: "#f6757a", // 29  salmon / pink
-  skin: "#e8b796", // 30  light skin / sand
-  skinMid: "#c28569", // 31  mid skin / tan-brown
+  rust: "#be4a2f", 
+  clay: "#d77643", 
+  cream: "#ead4aa", 
+  tan: "#e4a672", 
+  wood: "#b86f50", 
+  woodDark: "#733e39", 
+  bark: "#3e2731", 
+  crimson: "#a22633", 
+  red: "#e43b44", 
+  orange: "#f77622", 
+  gold: "#feae34", 
+  yellow: "#fee761", 
+  green: "#63c74d", 
+  greenMid: "#3e8948", 
+  greenDark: "#265c42", 
+  teal: "#193c3e", 
+  blue: "#124e89", 
+  skyBlue: "#0099db", 
+  cyan: "#2ce8f5", 
+  white: "#ffffff", 
+  silver: "#c0cbdc", 
+  steel: "#8b9bb4", 
+  slate: "#5a6988", 
+  navy: "#3a4466", 
+  ink: "#262b44", 
+  black: "#181425", 
+  hotPink: "#ff0044", 
+  plum: "#68386c", 
+  mauve: "#b55088", 
+  salmon: "#f6757a", 
+  skin: "#e8b796", 
+  skinMid: "#c28569", 
 } as const satisfies Record<string, Edg32Color>;
 
 export const EDG32_SET: ReadonlySet<string> = new Set(EDG32);

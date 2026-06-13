@@ -37,9 +37,8 @@ const SEASON_ICON: Record<Season, string> = {
   winter: "❄",
 };
 
-// Day fraction 0.0 = 6:00 AM, 1.0 = next 6:00 AM (20 in-game hours).
 function fractionToTimeLabel(f: number): string {
-  const totalMinutes = Math.floor(f * 20 * 60); // 20 in-game hours in a day
+  const totalMinutes = Math.floor(f * 20 * 60); 
   const hour = (6 + Math.floor(totalMinutes / 60)) % 24;
   const min = totalMinutes % 60;
   const suffix = hour < 12 ? "AM" : "PM";
@@ -57,8 +56,8 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   fontSize: "13px",
   fontWeight: "bold",
   color: EDG.cream,
-  background: "rgba(24, 20, 37, 0.88)", // EDG.black
-  border: "1px solid rgba(228, 166, 114, 0.55)", // EDG.tan
+  background: "rgba(24, 20, 37, 0.88)", 
+  border: "1px solid rgba(228, 166, 114, 0.55)", 
   borderTop: "none",
   borderRadius: "0 0 8px 8px",
   zIndex: "9998",

@@ -34,7 +34,7 @@ export function handlePlant(
       readyAtDay: day + GROWTH_DAYS[crop],
       weatherSum: 0,
       daysSinceWater: 0,
-      wateredToday: true, // freshly-planted counts as watered
+      wateredToday: true, 
     } satisfies PlotState;
     grantSkillXp(farmer, "farming", 1);
   }

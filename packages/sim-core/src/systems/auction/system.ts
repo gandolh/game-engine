@@ -23,11 +23,6 @@ import {
 
 export type { DutchAuctionOptions, EnglishAuctionOptions };
 
-/**
- * State machine for four auction formats (Vickrey, FPSB, Dutch, English).
- * ShopkeeperSystem opens auctions via openAuction(); bids arrive in the shopkeeper inbox.
- * Tests may call submitBid() directly. Results broadcast on the bus when closed.
- */
 export class AuctionSystem implements System {
   readonly name = "AuctionSystem";
 
@@ -43,7 +38,7 @@ export class AuctionSystem implements System {
     dutchDefaults: DutchAuctionOptions = {},
     englishDefaults: EnglishAuctionOptions = {},
   ) {
-    this._rng = rng.fork("auction"); // forked now so any future use stays deterministic
+    this._rng = rng.fork("auction"); 
     void this._rng;
     this.dutchDefaults = {
       startPrice: dutchDefaults.startPrice ?? 200,
@@ -86,7 +81,7 @@ export class AuctionSystem implements System {
           if (auction.winner !== null) {
             this.resolveDutch(auction, ctx);
           } else if (ctx.tick >= auction.cfp.closesAtTick) {
-            this.resolveDutch(auction, ctx); // no taker → null winner
+            this.resolveDutch(auction, ctx); 
           }
           break;
         }
@@ -101,7 +96,6 @@ export class AuctionSystem implements System {
     }
   }
 
-  /** Idempotent — re-opening an existing auctionId is a no-op. */
   openAuction(
     cfp: AuctionCfpBody,
     dutch?: DutchAuctionOptions,
@@ -155,7 +149,6 @@ export class AuctionSystem implements System {
     }
   }
 
-  /** Returns false if the auction doesn't exist or is already resolved. */
   submitBid(bid: AuctionBidBody, tick: number): boolean {
     const a = this.auctions.get(bid.auctionId);
     if (!a || a.resolved) return false;
@@ -191,7 +184,6 @@ export class AuctionSystem implements System {
     }
   }
 
-  /** Current price of a Dutch auction at the given tick. */
   currentDutchPrice(a: DutchState, tick: number): number {
     if (a.startTick === null) a.startTick = tick;
     const elapsed = Math.max(0, tick - a.startTick);
@@ -199,7 +191,6 @@ export class AuctionSystem implements System {
     return Math.max(a.floor, raw);
   }
 
-  /** Current ask of an English auction at the given tick. */
   currentEnglishPrice(a: EnglishState, tick: number): number {
     if (a.startTick === null) a.startTick = tick;
     const elapsed = Math.max(0, tick - a.startTick);
@@ -230,7 +221,6 @@ export class AuctionSystem implements System {
       return;
     }
 
-    // compareSealedBids: amount desc, tickReceived asc, bidderId asc — deterministic regardless of inbox order.
     const sorted = a.bids.slice().sort(compareSealedBids);
 
     const top = sorted[0]!;
@@ -314,7 +304,6 @@ export class AuctionSystem implements System {
     }, ctx.tick);
   }
 
-  // Closes on fixed timeout OR noBidTimeout ticks after the last affirm.
   private englishShouldClose(a: EnglishState, tick: number): boolean {
     if (tick >= a.cfp.closesAtTick) return true;
     const since = a.lastBidTick ?? a.startTick ?? tick;

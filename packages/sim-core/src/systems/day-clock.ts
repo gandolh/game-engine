@@ -36,12 +36,10 @@ export class DayClockSystem implements System {
     return this.config.maxDays;
   }
 
-  /** Festival on the current day, or null. Pure function of day index. */
   get festivalToday(): FestivalDef | null {
     return festivalForDay(this.currentDay);
   }
 
-  /** Days until the next festival (0 if today is one). */
   get daysUntilFestival(): number {
     return daysUntilFestivalForDay(this.currentDay);
   }
@@ -63,7 +61,7 @@ export class DayClockSystem implements System {
         },
         ctx.tick,
       );
-      // Re-emit PHASE_START at every day boundary so morning PHASE_START fires even if phase label is unchanged.
+
       this.lastPhase = null;
     }
 

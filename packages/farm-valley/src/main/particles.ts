@@ -12,18 +12,17 @@ import {
 } from "./camera";
 import type { SimClient } from "../worker/sim-client";
 
-/** Manages coin-burst and shock-explosion particle events. */
 export class ParticleDirector {
   private readonly particles: ParticleSystem;
   private readonly client: SimClient;
-  private prevGold = new Map<number, number>(); // farmerId → gold last tick
+  private prevGold = new Map<number, number>(); 
 
   constructor(particles: ParticleSystem, client: SimClient) {
     this.particles = particles;
     this.client = client;
 
     client.onSnapshot((snap) => {
-      // Learn Pip's entity id once from the first snapshot; focus camera on it.
+
       if (playerFarmerId === null) {
         for (const s of snap.sprites) {
           if (s.id !== null && s.interpolate && s.label === "Pip") {

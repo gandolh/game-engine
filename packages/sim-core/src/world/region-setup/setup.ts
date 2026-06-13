@@ -4,8 +4,6 @@ import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HAR
 import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE } from "./tiles";
 import { fountainTile, placeProps, placeFootprint } from "./placement";
 
-/** Re-anchor work-NPC station tiles (authored at 160-scale) to their island so
- *  they track the building they serve — see regions.ts scaleAroundNearestIsland. */
 type Station = { tileX: number; tileY: number; facing: "up" | "down" | "side"; flipX: boolean; pose: string | null };
 function scaleStations(stations: readonly Station[]): Station[] {
   return stations.map((s) => {
@@ -52,10 +50,9 @@ export function setupRegions(
     regionEntities.set(def.id, regionEntity);
 
     if (def.kind === "farm" && farmer !== undefined && ownerId !== undefined) {
-      // Plots 3 apart on each axis (2-cell gap), centered in the farm.
+
       const PLOT_OFFSETS = [-2, 1] as const;
 
-      // Pip starts on its first plot tile instead of bare center.
       const start = farmer.player
         ? { x: def.center.x + PLOT_OFFSETS[0], y: def.center.y + PLOT_OFFSETS[0] }
         : def.center;
@@ -103,7 +100,7 @@ export function setupRegions(
       if (ownerId !== undefined) {
         const hx = def.bounds.maxX - 1;
         const hy = def.bounds.maxY - 1;
-        // render: the farmhouse is now drawn as a baked cottage in BIG_STRUCTURES (geometry.ts); the home entity stays for the snapshot 'Farmhouse' hover label + sim home semantics, but carries no sprite to avoid double-draw.
+
         world.spawn({
           transform: { x: hx, y: hy, prevX: hx, prevY: hy, rotation: 0 },
           home: { isHome: true, regionId: def.id as RegionId, ownerId },
@@ -111,7 +108,6 @@ export function setupRegions(
       }
     }
 
-    // Blacksmith: road spine x93–94 must stay CLEAR (village bridge + quarry bridges land here).
     if (def.id === "blacksmith") {
       placeProps(world, [
         { x: 97, y: 79, frame: "structure/forge-oven" },
@@ -123,7 +119,7 @@ export function setupRegions(
         { x: 101, y: 82, frame: "structure/ingot-rack" },
         { x: 100, y: 83, frame: "structure/anvil" },
       ]);
-      // Forge-house footprint x99–100 × y76–78 (baked art); block so nobody walks through it.
+
       placeFootprint(world, [
         { x: 99, y: 76 }, { x: 100, y: 76 },
         { x: 99, y: 77 }, { x: 100, y: 77 },
@@ -143,11 +139,11 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/blacksmith/idle",
           stations: scaleStations([
-            // Stand below the anvil (99,81), face up, hammer.
+
             { tileX: 99, tileY: 82, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
-            // Tend the oven (97,79) — stand below it, face up, no swing pose.
+
             { tileX: 97, tileY: 80, facing: "up", flipX: false, pose: null },
-            // Quench at the tub (101,80) — stand left of it, face side/right.
+
             { tileX: 100, tileY: 80, facing: "side", flipX: false, pose: null },
           ]),
           stationIndex: 0,
@@ -160,7 +156,6 @@ export function setupRegions(
       });
     }
 
-    // Carpenter: road spine x61–62 must stay CLEAR (village + forest bridges). Open lane through east yard.
     if (def.id === "carpentry") {
       const cx = def.center.x;
       const cy = def.center.y;
@@ -174,7 +169,7 @@ export function setupRegions(
         { x: 66, y: 85, frame: "structure/shavings-pile" },
         { x: 67, y: 85, frame: "structure/log-pile" },
       ]);
-      // Workshop footprint x59–60 × y76–78 (baked art); block.
+
       placeFootprint(world, [
         { x: 59, y: 76 }, { x: 60, y: 76 },
         { x: 59, y: 77 }, { x: 60, y: 77 },
@@ -188,11 +183,11 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/carpenter/idle",
           stations: scaleStations([
-            // Saw at the workbench (63,78) — stand below, face up.
+
             { tileX: 63, tileY: 79, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Saw the log on the sawhorse (65,77) — stand below, face up.
+
             { tileX: 65, tileY: 78, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
-            // Inspect the log pile (64,84) — stand above it, face down.
+
             { tileX: 64, tileY: 83, facing: "down", flipX: false, pose: null },
           ]),
           stationIndex: 0,
@@ -282,11 +277,11 @@ export function setupRegions(
       workNpc: {
         idlePose: "npc/barkeep/idle",
         stations: scaleStations([
-          // Pour at the bar (stand at 82,76, face down toward patrons).
+
           { tileX: 82, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
-          // Wipe the counter one tile west.
+
           { tileX: 81, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
-          // Step back east and idle.
+
           { tileX: 83, tileY: 76, facing: "down", flipX: false, pose: null },
         ]),
         stationIndex: 0,
@@ -403,17 +398,13 @@ export function setupRegions(
       transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
       sprite: { atlasId: "main", frame: "structure/tent", layer: 50, tintRgba: 0xffffffff },
     });
-    // Campfire base (cx+2) matches CAMPFIRE_TILE; layer 40 so layer-41 flame overlay sits above.
+
     world.spawn({
       transform: { x: cx + 2, y: cy, prevX: cx + 2, prevY: cy, rotation: 0 },
       sprite: { atlasId: "main", frame: "structure/campfire", layer: 40, tintRgba: 0xffffffff },
     });
   }
 
-  // Big-tree island: the bespoke tree is drawn as a baked BIG_STRUCTURE (geometry.ts,
-  // seasonal). Block its 3-wide trunk base so nobody stands inside the trunk. The trunk
-  // tiles are in LIVE/scaled coords (the island is authored directly in regions.ts), so
-  // spawn the solids directly — NOT via placeFootprint (which re-anchors 160-scale coords).
   if (REGIONS.some((r) => r.id === "big-tree")) {
     for (const tx of [130, 131, 132]) {
       world.spawn({ solid: { isSolid: true, tileX: tx, tileY: 14 } });
@@ -522,9 +513,9 @@ export function setupRegions(
     workNpc: {
       idlePose: "npc/dockmaster/idle",
       stations: scaleStations([
-        { tileX: 96, tileY: 109, facing: "up", flipX: false, pose: null },   // at the board
-        { tileX: 96, tileY: 106, facing: "down", flipX: false, pose: null }, // by the dock
-        { tileX: 98, tileY: 110, facing: "side", flipX: false, pose: null }, // east end
+        { tileX: 96, tileY: 109, facing: "up", flipX: false, pose: null },   
+        { tileX: 96, tileY: 106, facing: "down", flipX: false, pose: null }, 
+        { tileX: 98, tileY: 110, facing: "side", flipX: false, pose: null }, 
       ]),
       stationIndex: 0,
       phase: "working",

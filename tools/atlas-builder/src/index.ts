@@ -1,6 +1,5 @@
-// Per-sheet incremental build: SHA-256 fingerprint per sheet; skip when manifest hash matches.
-// Pinned PNG encoder (filterType:0, deflateLevel:9, deflateStrategy:3) → deterministic bytes across machines.
-// --force / FORCE=1 bypasses all skips. index.json rewritten only on content change.
+
+
 import { writeFileSync, mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,8 +36,7 @@ function nextPow2(n: number): number {
 }
 
 function packShelf(recipes: readonly PixelRecipe[]): Packed {
-  // Widen the atlas enough that the widest frame fits on a shelf (big multi-tile
-  // structures are 32px wide; 16px frames still pack the same as before).
+
   const widest = recipes.reduce((m, r) => Math.max(m, recipeWidth(r)), 0);
   const targetWidth = Math.max(128, nextPow2(widest + PADDING * 2));
   const frames: Record<string, PackedFrame> = {};
@@ -99,15 +97,9 @@ const assetsDir = resolve(__dirname, "recipes/assets");
 
 export interface BuildResult { built: string[]; cached: string[]; }
 
-/**
- * Build all atlas sheets (incremental: a sheet is skipped when its content hash matches its manifest).
- * Exported so tests can drive it IN-PROCESS — far faster + less flaky than spawning `tsx src/index.ts`
- * per case. `force` bypasses the cache. Returns the sheet ids that were rebuilt vs served from cache.
- */
 export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
   const force = opts.force ?? false;
   mkdirSync(outDir, { recursive: true });
-
 
   const sheetRecipes = new Map<string, PixelRecipe[]>();
   const recipeAssetPaths = new Map<string, string>();
@@ -124,7 +116,7 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
       sheetRecipes.set(sheetId, group);
     }
     group.push(recipe);
-    const assetPath = assetFileForRecipe(recipe.name); // only BASE_RECIPES have a file; generated frames come from templates.ts
+    const assetPath = assetFileForRecipe(recipe.name); 
     if (existsSync(assetPath)) {
       recipeAssetPaths.set(recipe.name, assetPath);
     }
@@ -138,7 +130,6 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
     }
   }
 
-  // Characters: farmer action/facing poses. Buildings/terrain/items-ui: NPC_POSES from templates.ts.
   const SHEETS_WITH_GENERATED = new Set(["characters", "buildings", "terrain", "items-ui"]);
 
   const recipesIndexPath = resolve(recipesDir, "index.ts");
@@ -165,7 +156,7 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
       const p = recipeAssetPaths.get(recipe.name);
       if (p !== undefined) sheetAssetFiles.push(p);
     }
-    sheetAssetFiles.sort(); // deterministic hash order
+    sheetAssetFiles.sort(); 
 
     const hasGenerated = SHEETS_WITH_GENERATED.has(sheetId);
     const inputsHash = computeSheetHash(
@@ -193,13 +184,13 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
           continue;
         }
       } catch {
-        // If we can't read/parse the existing manifest, rebuild
+
       }
     }
 
     const packed = packShelf(recipes);
     const png = rasterize(packed, recipes);
-    const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS }); // spread: pngjs mutates options in-place
+    const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS }); 
     writeFileSync(resolve(outDir, `${sheetId}.png`), pngBuffer);
 
     const manifest = {
@@ -224,7 +215,6 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
     );
   }
 
-  // runtime discovers sheets via /atlas/index.json — no hardcoded sheet list needed.
   const atlasIndex = { sheets: indexEntries };
   const newIndexJson = JSON.stringify(atlasIndex, null, 2);
   const indexPath = resolve(outDir, "index.json");
@@ -255,7 +245,6 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
   return { built, cached };
 }
 
-// CLI entry: run the build when invoked directly (`tsx src/index.ts [--force]`), not when imported.
 const __isMain = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (__isMain) {
   buildAtlas({ force: process.argv.includes("--force") || process.env["FORCE"] === "1" });

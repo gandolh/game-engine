@@ -7,24 +7,19 @@ import type { SimClient } from "../worker/sim-client";
 export let focusedFarmerId: number | null = null;
 export let panOffset = { x: 0, y: 0 };
 export let zoom = DEFAULT_ZOOM;
-// recenteringOnPip: eases panOffset→0 over several frames instead of snapping
-// (an instant setCenter read as "jumping back to a previous position").
+
 export let recenteringOnPip = false;
 
-// Hover tooltip — tracks raw canvas-relative mouse position in CSS pixels.
 export const mousePos = { x: -9999, y: -9999 };
 
-// WASD/arrows hold directions; step cadence lives in PlayerControlSystem.
-// Main thread reports held direction only when it changes.
 export let lastPlayerMoveX: "left" | "right" | null = null;
 export let lastPlayerMoveY: "up" | "down" | null = null;
-// playerFarmerId: learned from the first snapshot (sprite labeled "Pip").
+
 export let playerFarmerId: number | null = null;
 
 export let _simClient: SimClient | null = null;
 export let _camera: Camera2D | null = null;
 
-// Setters for mutable state (used by render-loop and bootstrap)
 export function setFocusedFarmerId(id: number | null): void { focusedFarmerId = id; }
 export function setPanOffset(o: { x: number; y: number }): void { panOffset = o; }
 export function setZoom(z: number): void { zoom = z; }
@@ -35,7 +30,6 @@ export function setPlayerFarmerId(id: number | null): void { playerFarmerId = id
 export function setSimClient(c: SimClient | null): void { _simClient = c; }
 export function setCamera(c: Camera2D | null): void { _camera = c; }
 
-// ---------- Focus glide state (module-private; accessed only via stepFocusGlide) ----------
 let _prevFocusId: number | null = null;
 let _gliding = false;
 let _glideElapsedSec = 0;
@@ -46,13 +40,6 @@ export interface GlideState {
   elapsedSec: number;
 }
 
-/**
- * Returns the new camera center + glide state for this frame.
- *  rawTarget = base(focus)+panOffset (already computed by caller).
- *  focusChanged: did focusedFarmerId change since last frame.
- *  sx: world→screen scale (canvas.width / camera.worldUnitsX) for the 0.5px rest test.
- *  k≈10. Force-lock after 0.6s cap so a fast-moving target can't trap a permanent trail.
- */
 export function stepFocusGlide(
   prevCenter: { x: number; y: number },
   rawTarget: { x: number; y: number },
@@ -63,7 +50,7 @@ export function stepFocusGlide(
 ): GlideState {
   const K = 10;
   const MAX_ELAPSED = 0.6;
-  const REST_THRESHOLD = 0.5; // screen pixels
+  const REST_THRESHOLD = 0.5; 
   if (focusChanged) { state.gliding = true; state.elapsedSec = 0; }
   if (state.gliding) {
     let cx = expSmooth(prevCenter.x, rawTarget.x, K, dtSec);
@@ -78,7 +65,6 @@ export function stepFocusGlide(
   return { center: { x: rawTarget.x, y: rawTarget.y }, gliding: false, elapsedSec: 0 };
 }
 
-// sprites: pass the interpolated list for this frame, or omit to fetch lazily.
 export function applyFocusAndPan(
   camera: Camera2D,
   sprites?: SnapshotSprite[],
@@ -125,9 +111,7 @@ export function setupCameraListeners(
   canvas: HTMLCanvasElement,
   camera: Camera2D,
 ): void {
-  // Apply the initial zoom so the camera starts framed in (not on the whole
-  // world), keeping the module `zoom` var and the camera in sync before the
-  // first frame. See DEFAULT_ZOOM in config.ts / brief 84.
+
   camera.setZoom(zoom);
 
   let isDragging = false;
@@ -147,24 +131,21 @@ export function setupCameraListeners(
     mousePos.y = -9999;
   });
 
-  // Pan starts on LEFT (button 0) or MIDDLE (button 1) click.
-  // Right click (button 2) is reserved for click-to-act.
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
     isDragging = true;
-    recenteringOnPip = false; // drag overrides smooth recenter
+    recenteringOnPip = false; 
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     camStartX = panOffset.x;
     camStartY = panOffset.y;
   });
 
-  // Prevent the context menu so right-click can drive click-to-act.
   canvas.addEventListener("contextmenu", (e: MouseEvent) => e.preventDefault());
 
   window.addEventListener("mousemove", (e: MouseEvent) => {
     if (!isDragging) return;
-    // Screen-pixel delta → world-pixel delta
+
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
     const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
@@ -181,7 +162,7 @@ export function setupCameraListeners(
 
   canvas.addEventListener("wheel", (e: WheelEvent) => {
     e.preventDefault();
-    // Multiplicative step keeps perceived zoom speed constant in log-zoom space.
+
     const factor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
     zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
     camera.setZoom(zoom);

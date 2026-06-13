@@ -2,11 +2,6 @@ import type { GameEntity } from "../../components";
 import type { CropKind } from "../../components";
 import { MAX_LOOT_UNITS } from "./constants";
 
-/**
- * Transfer up to MAX_LOOT_UNITS individual goods units from `victim` to `victor`.
- * Tools and gold are NEVER lootable. Iteration order is fixed (crops, then seeds)
- * and key order is the record's own order → deterministic. Returns units taken.
- */
 export function lootGoods(victor: GameEntity, victim: GameEntity): number {
   if (!victor.inventory || !victim.inventory) return 0;
   let taken = 0;
@@ -25,8 +20,6 @@ export function lootGoods(victor: GameEntity, victim: GameEntity): number {
     }
   };
 
-  // Crops first, then seeds. (Fish/products/fruit are optional records; cropped to
-  // these two staple goods pools in v1 — tools and gold are off-limits by design.)
   moveFrom(
     victim.inventory.crops as Record<CropKind, number>,
     victor.inventory.crops as Record<CropKind, number>,

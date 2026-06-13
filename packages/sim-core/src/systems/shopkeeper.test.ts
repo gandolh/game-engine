@@ -81,7 +81,6 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // radish buy price = 6/unit; 4 units → +24 gold, -4 radish
     expect(farmer.inventory!.gold).toBe(24);
     expect(farmer.inventory!.crops.radish).toBe(0);
 
@@ -109,7 +108,6 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // wheat 10*3 = 30, pumpkin 19*2 = 38, total = 68
     expect(farmer.inventory!.gold).toBe(68);
     expect(farmer.inventory!.crops.wheat).toBe(0);
     expect(farmer.inventory!.crops.pumpkin).toBe(0);
@@ -126,15 +124,13 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // unitPrice = 5/unit (from the seeded slate, not a hard-coded table);
-    // 2 units → -10 gold, +2 seeds, offer.remaining 10 → 8.
     expect(farmer.inventory!.gold).toBe(90);
     expect(farmer.inventory!.seeds.radish).toBe(2);
     expect(radishOffer.remaining).toBe(8);
   });
 
   it("SELL uses the slate unit price, not the legacy fixed price", () => {
-    // Jittered price: 7 (not the legacy SHOP_SEED_PRICE.radish=5).
+
     const farmer = makeFarmer(world, { gold: 100 });
     seedSlate(shop, [offer({ crop: "radish", unitPrice: 7, remaining: 10 })]);
     pushToShop(shop, {
@@ -144,7 +140,6 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // Cost = 7 * 2 = 14.
     expect(farmer.inventory!.gold).toBe(86);
     expect(farmer.inventory!.seeds.radish).toBe(2);
 
@@ -179,7 +174,7 @@ describe("ShopkeeperSystem", () => {
 
   it("SELL fails with no-matching-offer when slate is missing entirely", () => {
     const farmer = makeFarmer(world, { gold: 100 });
-    // Do not seed the slate — `shop.shopkeeper.dailySlate` is undefined.
+
     pushToShop(shop, {
       ontology: ONT_SHOP.SELL,
       sender: farmer.id!,
@@ -203,11 +198,10 @@ describe("ShopkeeperSystem", () => {
     pushToShop(shop, {
       ontology: ONT_SHOP.SELL,
       sender: farmer.id!,
-      body: { item: "seed", crop: "radish", quantity: 5 }, // 5 > 2 + 2
+      body: { item: "seed", crop: "radish", quantity: 5 }, 
     });
     sys.run({ tick: 1 });
 
-    // Atomic: no mutation on stock failure.
     expect(farmer.inventory!.gold).toBe(1000);
     expect(farmer.inventory!.seeds.radish).toBe(0);
     expect(o1.remaining).toBe(2);
@@ -222,7 +216,7 @@ describe("ShopkeeperSystem", () => {
 
   it("SELL fills across multiple matching offers cheapest-first", () => {
     const farmer = makeFarmer(world, { gold: 1000 });
-    // Slate-order is expensive-first; cheapest-first sort flips the consumption.
+
     const expensive = offer({ crop: "radish", unitPrice: 8, remaining: 3 });
     const cheap = offer({ crop: "radish", unitPrice: 5, remaining: 4 });
     seedSlate(shop, [expensive, cheap]);
@@ -233,7 +227,6 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // Cheap (5) takes 4, expensive (8) takes 1 → cost = 4*5 + 1*8 = 28.
     expect(farmer.inventory!.gold).toBe(972);
     expect(farmer.inventory!.seeds.radish).toBe(5);
     expect(cheap.remaining).toBe(0);
@@ -259,7 +252,6 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // 3 wheat all come from cheapest (a). b untouched.
     expect(a.remaining).toBe(1);
     expect(b.remaining).toBe(2);
     expect(farmer.inventory!.gold).toBe(1000 - 3 * 6);
@@ -275,7 +267,6 @@ describe("ShopkeeperSystem", () => {
     });
     sys.run({ tick: 1 });
 
-    // Gold unchanged.
     expect(farmer.inventory!.gold).toBe(100000);
 
     bus.flush();
@@ -288,7 +279,7 @@ describe("ShopkeeperSystem", () => {
   });
 
   it("SELL with insufficient gold fails and does not mutate farmer or offers", () => {
-    const farmer = makeFarmer(world, { gold: 4 }); // need 5 for one radish seed
+    const farmer = makeFarmer(world, { gold: 4 }); 
     const radishOffer = offer({ crop: "radish", unitPrice: 5, remaining: 10 });
     seedSlate(shop, [radishOffer]);
     pushToShop(shop, {
@@ -300,7 +291,7 @@ describe("ShopkeeperSystem", () => {
 
     expect(farmer.inventory!.gold).toBe(4);
     expect(farmer.inventory!.seeds.radish).toBe(0);
-    // Atomic: offer.remaining must not have decremented on gold failure.
+
     expect(radishOffer.remaining).toBe(10);
 
     bus.flush();
@@ -311,7 +302,7 @@ describe("ShopkeeperSystem", () => {
   });
 
   it("triggers an auction every K days and registers it with AuctionSystem", () => {
-    // Default interval is 5 days; first eligible day relative to -Infinity is day 0.
+
     const sys2 = new ShopkeeperSystem(bus, world, auction, {
       auctionEveryDays: 2,
       auctionDurationTicks: 10,
@@ -320,17 +311,14 @@ describe("ShopkeeperSystem", () => {
     sys2.run({ tick: 0 });
     expect(auction.auctions.size).toBe(1);
 
-    // Day 1 — too soon, no new auction.
     farmer.beliefs!.data.currentDay = 1;
     sys2.run({ tick: 1 });
     expect(auction.auctions.size).toBe(1);
 
-    // Day 2 — interval elapsed, another auction.
     farmer.beliefs!.data.currentDay = 2;
     sys2.run({ tick: 2 });
     expect(auction.auctions.size).toBe(2);
 
-    // Confirm CFP broadcast was sent.
     bus.flush();
     const cfps = bus.drain().filter((m) => m.ontology === ONT_SHOP.AUCTION_CFP);
     expect(cfps.length).toBeGreaterThanOrEqual(1);

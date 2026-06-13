@@ -1,26 +1,17 @@
 import { createEl, setText, applyStyles } from "./dom";
 import { EDG } from "@engine/core/render";
 
-/** Maximum lines the panel shows (newest-first). */
 export const EVENT_FEED_PANEL_CAP = 30;
 
-/** A renderable feed line. `day` drives the "Day N —" prefix. */
 export interface EventFeedRow {
   day: number;
   text: string;
-  /**
-   * Drama score from drama.ts, [0, 1]. Optional for back-compat with code
-   * that builds rows without a score (e.g. older tests). Undefined is treated
-   * as 0 (routine).
-   */
+
   drama?: number;
-  /** Clicking a row with a farmerId focuses the camera on that farmer. */
+
   farmerId?: number | null;
 }
 
-// Flows below the observer in the shared right column; takes leftover space. minHeight keeps
-// it readable (~10+ lines) even when the panels below it are expanded, so it never collapses
-// to a sliver the way it did under minHeight:0.
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   width: "100%",
   flex: "1 1 auto",
@@ -80,7 +71,6 @@ export class EventFeedPanel {
     this.linesContainer = createEl("div");
     this.linesContainer.dataset["eventFeedLines"] = "";
 
-    // Delegated click: data-farmer-id on a line fires onFarmerClick.
     this.linesContainer.addEventListener("click", (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -95,7 +85,6 @@ export class EventFeedPanel {
     this.panel.appendChild(this.linesContainer);
     parent.appendChild(this.panel);
 
-    // Collapsed by default; clicking the header expands it.
     this.applyCollapse();
   }
 
@@ -107,16 +96,14 @@ export class EventFeedPanel {
   private applyCollapse(): void {
     this.linesContainer.style.display = this.collapsed ? "none" : "";
     this.chevronEl.textContent = this.collapsed ? "▸" : "▾";
-    // When collapsed, shrink to the header instead of holding the flex/minHeight space.
+
     this.panel.style.flex = this.collapsed ? "0 0 auto" : "1 1 auto";
     this.panel.style.minHeight = this.collapsed ? "0" : "180px";
   }
 
-  /** Render newest-first. rows are oldest-first; reversed and capped here. */
   update(rows: ReadonlyArray<EventFeedRow>): void {
     const shown = rows.slice(-EVENT_FEED_PANEL_CAP).reverse();
 
-    // Reconcile DOM line count to `shown.length`.
     while (this.linesContainer.children.length < shown.length) {
       this.linesContainer.appendChild(this.buildLine());
     }
@@ -127,7 +114,7 @@ export class EventFeedPanel {
     shown.forEach((row, i) => {
       const lineEl = this.linesContainer.children[i] as HTMLElement;
       const isHighDrama = (row.drama ?? 0) >= 0.7;
-      // Set color on every update so a reused DOM node toggles correctly.
+
       lineEl.style.color = isHighDrama ? EDG.gold : EDG.green;
       const prefix = isHighDrama ? "★ " : "";
       setText(lineEl, `${prefix}Day ${row.day} — ${row.text}`);

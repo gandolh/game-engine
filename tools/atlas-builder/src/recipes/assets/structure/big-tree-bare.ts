@@ -1,9 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Winter variant of the big tree — SAME thick trunk + buttressed base (rows below the
-// crown are pixel-identical to big-tree.ts), but the canopy is stripped to bare branches
-// (m/M trunk dark, D/d wood) fanning up from the trunk top, with snow flecks (n) caught on
-// the limbs. Reads as the same tree gone dormant.
 const recipe: PixelRecipe = {
   name: "structure/big-tree-bare",
   size: 48,

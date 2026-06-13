@@ -1,23 +1,20 @@
-// BubbleSystem: re-rolls fishingSpot entities around the fishing isle each new day.
-// Casting into a bubble tile skews toward rarer fish. Deterministic via forked seeded Rng.
+
 
 import type { SimContext, System, World, Rng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_SIMULATION } from "../protocols";
 import { getRegion, isWalkable, FISHING_ISLE_IDS } from "../world/regions";
 
-/** How many bubbles drift around EACH fishing isle at once. */
 export const BUBBLE_COUNT = 5;
 
-/** Non-walkable ocean tiles adjacent to a walkable isle edge — castable from shore. */
 function ringTilesFor(isleId: (typeof FISHING_ISLE_IDS)[number]): Array<{ x: number; y: number }> {
   const b = getRegion(isleId).bounds;
   const out: Array<{ x: number; y: number }> = [];
   for (let y = b.minY - 1; y <= b.maxY + 1; y++) {
     for (let x = b.minX - 1; x <= b.maxX + 1; x++) {
       if (x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY) continue;
-      if (isWalkable(x, y)) continue; // must be ocean (bridge tiles are walkable → skipped)
-      // Must touch at least one walkable isle tile (so it's castable from shore).
+      if (isWalkable(x, y)) continue; 
+
       const touchesIsle =
         (x >= b.minX && x <= b.maxX && (y === b.minY - 1 || y === b.maxY + 1)) ||
         (y >= b.minY && y <= b.maxY && (x === b.minX - 1 || x === b.maxX + 1));
@@ -27,7 +24,6 @@ function ringTilesFor(isleId: (typeof FISHING_ISLE_IDS)[number]): Array<{ x: num
   return out;
 }
 
-/** Per-isle candidate rings, computed once (the isles never move). */
 function bubbleRingsByIsle(): ReadonlyArray<ReadonlyArray<{ x: number; y: number }>> {
   return FISHING_ISLE_IDS.map((id) => ringTilesFor(id));
 }
@@ -61,7 +57,6 @@ export class BubbleSystem implements System {
 
     for (const e of this.world.query("fishingSpot")) this.world.despawn(e);
 
-    // Rings processed in fixed order (FISHING_ISLE_IDS) — rng draws stay deterministic.
     for (const ring of this.rings) {
       if (ring.length === 0) continue;
       const pool = ring.slice();

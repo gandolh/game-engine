@@ -40,12 +40,12 @@ describe("AuctionSystem — Vickrey", () => {
     sys.submitBid({ auctionId: "v1", bidderId: 102, amount: 90 }, 2);
     sys.submitBid({ auctionId: "v1", bidderId: 103, amount: 70 }, 3);
 
-    sys.run({ tick: 5 }); // closes inclusive at closesAtTick
+    sys.run({ tick: 5 }); 
 
     const res = findResult(bus, "v1");
     expect(res).toBeDefined();
     expect(res!.winnerId).toBe(102);
-    expect(res!.paidPrice).toBe(70); // second-highest
+    expect(res!.paidPrice).toBe(70); 
     expect(res!.participants.sort()).toEqual([101, 102, 103]);
   });
 
@@ -102,9 +102,9 @@ describe("AuctionSystem — Vickrey", () => {
 
     const res = findResult(bus, "v4");
     expect(res).toBeDefined();
-    // 301 arrived first; tie-break by tickReceived → 301 wins.
+
     expect(res!.winnerId).toBe(301);
-    // Second-highest equals top here, so paid = 50 (clamped to >= reserve).
+
     expect(res!.paidPrice).toBe(50);
   });
 
@@ -117,8 +117,7 @@ describe("AuctionSystem — Vickrey", () => {
       closesAtTick: 10,
     };
     sys.openAuction(cfp);
-    // Equal amount, equal tickReceived — submit higher id first so a stable
-    // result can't come from insertion order; only the bidderId key decides.
+
     sys.submitBid({ auctionId: "v4b", bidderId: 502, amount: 60 }, 3);
     sys.submitBid({ auctionId: "v4b", bidderId: 501, amount: 60 }, 3);
 
@@ -126,7 +125,7 @@ describe("AuctionSystem — Vickrey", () => {
 
     const res = findResult(bus, "v4b");
     expect(res).toBeDefined();
-    expect(res!.winnerId).toBe(501); // lowest bidderId wins the tie
+    expect(res!.winnerId).toBe(501); 
   });
 
   it("top bid below reserve → no winner", () => {
@@ -157,7 +156,7 @@ describe("AuctionSystem — Vickrey", () => {
     };
     sys.openAuction(cfp);
     sys.submitBid({ auctionId: "v6", bidderId: 1, amount: 50 }, 1);
-    sys.run({ tick: 5 }); // before close
+    sys.run({ tick: 5 }); 
 
     const res = findResult(bus, "v6");
     expect(res).toBeUndefined();
@@ -186,7 +185,7 @@ describe("AuctionSystem — Vickrey", () => {
     };
     sys.openAuction(cfp);
     sys.submitBid({ auctionId: "v8", bidderId: 1, amount: 50 }, 1);
-    sys.openAuction(cfp); // duplicate — should NOT reset
+    sys.openAuction(cfp); 
     sys.run({ tick: 3 });
     const res = findResult(bus, "v8");
     expect(res!.winnerId).toBe(1);
@@ -218,13 +217,12 @@ describe("AuctionSystem — Dutch", () => {
       closesAtTick: 20,
     };
     sys.openAuction(cfp);
-    // Need one run to anchor startTick.
+
     sys.run({ tick: 0 });
-    // At tick 3, price = 100 - 30 = 70.
+
     const ok = sys.submitBid({ auctionId: "d1", bidderId: 7, amount: 80 }, 3);
     expect(ok).toBe(true);
 
-    // Resolve on the next system run.
     sys.run({ tick: 3 });
 
     const res = findResult(bus, "d1");
@@ -242,10 +240,10 @@ describe("AuctionSystem — Dutch", () => {
       closesAtTick: 20,
     };
     sys.openAuction(cfp);
-    sys.run({ tick: 0 }); // startTick = 0
-    // At tick 1, price = 90. Bid of 50 rejected.
+    sys.run({ tick: 0 }); 
+
     expect(sys.submitBid({ auctionId: "d2", bidderId: 9, amount: 50 }, 1)).toBe(false);
-    // At tick 6, price = 100 - 60 = 40. Bid of 50 accepted at 40.
+
     expect(sys.submitBid({ auctionId: "d2", bidderId: 9, amount: 50 }, 6)).toBe(true);
     sys.run({ tick: 6 });
 
@@ -283,7 +281,7 @@ describe("AuctionSystem — Dutch", () => {
     };
     sys.openAuction(cfp);
     sys.run({ tick: 0 });
-    // Way past the floor — price should clamp at 20.
+
     expect(sys.submitBid({ auctionId: "d4", bidderId: 1, amount: 20 }, 50)).toBe(true);
     sys.run({ tick: 50 });
     const res = findResult(bus, "d4");
@@ -321,7 +319,7 @@ describe("AuctionSystem — FPSB", () => {
     const res = findResult(bus, "f1");
     expect(res).toBeDefined();
     expect(res!.winnerId).toBe(102);
-    expect(res!.paidPrice).toBe(90); // first-price: pays own bid, not second-highest
+    expect(res!.paidPrice).toBe(90); 
     expect(res!.participants.sort()).toEqual([101, 102, 103]);
   });
 
@@ -352,7 +350,7 @@ describe("AuctionSystem — FPSB", () => {
       closesAtTick: 10,
     };
     sys.openAuction(cfp);
-    // Same amount, same tick → tie-break falls through to lowest bidder id.
+
     sys.submitBid({ auctionId: "f3", bidderId: 302, amount: 50 }, 2);
     sys.submitBid({ auctionId: "f3", bidderId: 301, amount: 50 }, 2);
 
@@ -360,8 +358,8 @@ describe("AuctionSystem — FPSB", () => {
 
     const res = findResult(bus, "f3");
     expect(res).toBeDefined();
-    expect(res!.winnerId).toBe(301); // lowest id wins the tie
-    expect(res!.paidPrice).toBe(50); // first-price: pays own bid
+    expect(res!.winnerId).toBe(301); 
+    expect(res!.paidPrice).toBe(50); 
   });
 
   it("no bids → no winner, paid = reserve", () => {
@@ -407,22 +405,20 @@ describe("AuctionSystem — English", () => {
       closesAtTick: 50,
     };
     sys.openAuction(cfp);
-    sys.run({ tick: 0 }); // anchor startTick = 0
+    sys.run({ tick: 0 }); 
 
-    // tick 1: ask = 20 + 10*1 = 30. Bidder 7 affirms (valuation covers it).
     expect(sys.submitBid({ auctionId: "e1", bidderId: 7, amount: 30 }, 1)).toBe(true);
-    // tick 2: ask = 20 + 10*2 = 40. Bidder 8 affirms higher.
+
     expect(sys.submitBid({ auctionId: "e1", bidderId: 8, amount: 40 }, 2)).toBe(true);
-    // tick 3: ask = 50. Bidder 7's valuation (45) no longer covers it → rejected.
+
     expect(sys.submitBid({ auctionId: "e1", bidderId: 7, amount: 45 }, 3)).toBe(false);
 
-    // No affirm for noBidTimeout (3) ticks after the last bid at tick 2 → close.
     sys.run({ tick: 5 });
 
     const res = findResult(bus, "e1");
     expect(res).toBeDefined();
-    expect(res!.winnerId).toBe(8); // last affirmer
-    expect(res!.paidPrice).toBe(40); // ask at the affirming tick
+    expect(res!.winnerId).toBe(8); 
+    expect(res!.paidPrice).toBe(40); 
     expect(res!.participants.sort()).toEqual([7, 8]);
   });
 
@@ -436,7 +432,7 @@ describe("AuctionSystem — English", () => {
     };
     sys.openAuction(cfp);
     sys.run({ tick: 0 });
-    sys.run({ tick: 4 }); // fixed clock runs out with no affirming bid
+    sys.run({ tick: 4 }); 
 
     const res = findResult(bus, "e2");
     expect(res).toBeDefined();
@@ -451,18 +447,17 @@ describe("AuctionSystem — English", () => {
       type: "english",
       item: "golden_bean",
       reservePrice: 20,
-      closesAtTick: 100, // far away — the timeout must drive the close
+      closesAtTick: 100, 
     };
     sys.openAuction(cfp);
-    sys.run({ tick: 0 }); // anchor startTick = 0
+    sys.run({ tick: 0 }); 
 
-    // tick 1: ask = 30. Bidder 5 affirms.
     expect(sys.submitBid({ auctionId: "e3", bidderId: 5, amount: 30 }, 1)).toBe(true);
-    // No further bids. Last bid at tick 1; timeout = 3 → closes at tick 4.
-    sys.run({ tick: 3 }); // 3 - 1 = 2 < 3 → still open
+
+    sys.run({ tick: 3 }); 
     expect(findResult(bus, "e3")).toBeUndefined();
 
-    sys.run({ tick: 4 }); // 4 - 1 = 3 >= 3 → close
+    sys.run({ tick: 4 }); 
     const res = findResult(bus, "e3");
     expect(res).toBeDefined();
     expect(res!.winnerId).toBe(5);

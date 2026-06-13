@@ -187,14 +187,14 @@ describe("MarketSystem", () => {
     const idsA = collect();
     const idsB = collect();
     expect(idsA).toEqual(idsB);
-    expect(new Set(idsA).size).toBe(idsA.length); // all unique
+    expect(new Set(idsA).size).toBe(idsA.length); 
   });
 
   it("POST_OFFER from a non-existent farmer is silently ignored", () => {
     const sys = new MarketSystem(bus, world, createRng(1));
     pushToWall(wall, {
       ontology: ONT_MARKET.POST_OFFER,
-      sender: 9999, // no such farmer
+      sender: 9999, 
       body: { offer: { crop: "radish", quantity: 1, pricePerUnit: 5 } },
     });
     sys.run({ tick: 1 });

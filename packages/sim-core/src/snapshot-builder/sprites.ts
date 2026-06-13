@@ -15,11 +15,6 @@ import { cropCue, farmerCue, UNTINTED_RGBA } from "./indicators";
 
 const TILE = 16;
 
-/**
- * Per-RUN render memo (last intention + facing per entity id). Must be per-run so the
- * Node server (multiple sims in one process) can't cross-contaminate facing/bubble state.
- * Callers that omit it (browser worker, tests) fall back to a module singleton.
- */
 export class SnapshotSpriteState {
   readonly lastIntention = new Map<
     number,
@@ -29,14 +24,12 @@ export class SnapshotSpriteState {
     number,
     { facing: "down" | "up" | "side"; flipX: boolean }
   >();
-  /** Row count at the last snapshot that carried wealthSeries; -1 forces the first send. */
+
   wealthRowsSent = -1;
 }
 
-/** Shared fallback for callers that don't supply their own per-run state. */
 const defaultSpriteState = new SnapshotSpriteState();
 
-// Vertical dominates ties; flipX mirrors the right-facing side profile for leftward movement.
 function resolveFacing(
   state: SnapshotSpriteState,
   id: number,
@@ -50,7 +43,7 @@ function resolveFacing(
   let flipX = false;
   if (Math.abs(dx) > Math.abs(dy)) {
     facing = "side";
-    flipX = dx < 0; // side frame is authored right-facing; mirror for leftward
+    flipX = dx < 0; 
   } else {
     facing = dy < 0 ? "up" : "down";
   }
@@ -100,15 +93,14 @@ export function buildSprites(
       interpolate: false,
       action: null,
       label: `${cap} crop`,
-      // toFixed(1) avoids a new float-string per tick for every crop sprite in the snapshot.
+
       description: `${stageWord} · ${watered} · day ${daysGrowing.toFixed(1)}/${readyAtDay}${cue.suffix}`,
     });
   }
 
-  // Entity sprites (farmers, shopkeeper, market-wall, etc.).
   for (const entity of world.query("sprite", "transform")) {
     const t = entity.transform;
-    // AI farmers use renderPos (sub-tile glide set by TravelSystem); Pip uses continuous transform.
+
     const rp = entity.farmer?.renderPos;
     const posX = rp ? rp.x : t.x;
     const posY = rp ? rp.y : t.y;
@@ -119,13 +111,11 @@ export function buildSprites(
     const isFarmer = entity.farmer !== undefined;
     const npc = entity.workNpc;
 
-    // A farmer aboard a boat rides a hull sprite under them (layer 49, just below
-    // the actor at 50) — it glides with the farmer via the shared renderPos.
     if (isFarmer && entity.farmer?.aboard) {
       sprites.push({
         id: null,
         x: px,
-        y: py + TILE * 0.15, // nudge the hull down so the farmer sits "in" the boat
+        y: py + TILE * 0.15, 
         rotation: 0,
         layer: 49,
         frame: "structure/boat",
@@ -145,28 +135,27 @@ export function buildSprites(
     if (npc) {
       facing = npc.facing;
       flipX = npc.flipX;
-      frame = npc.poseFrame ?? s.frame; // poseFrame overrides the base frame
+      frame = npc.poseFrame ?? s.frame; 
     } else if (isFarmer) {
-      // Pip carries authoritative 4-way facing from PlayerControlSystem; map to 3-way + flipX.
+
       if (entity.player) {
         const pf = entity.player.facing;
         if (pf === "left" || pf === "right") {
           facing = "side";
           flipX = pf === "left";
         } else {
-          facing = pf; // "up" | "down"
+          facing = pf; 
         }
       } else {
         const f = resolveFacing(state, entity.id ?? -1, t.x - t.prevX, t.y - t.prevY);
         facing = f.facing;
         flipX = f.flipX;
       }
-      // frame stays the base look ("farmer/<p>"); the renderer resolves the walk cycle.
+
       moving = isFarmerMoving(entity);
     }
     const action = isFarmer ? (entity.intentions?.queue[0]?.kind ?? null) : null;
 
-    // Intention bubble: shown for BUBBLE_SHOW_TICKS after a change; AI farmers only (not Pip).
     let bubble: string | null = null;
     const isAiFarmer = isFarmer && !entity.player;
     if (isAiFarmer && entity.id !== undefined) {
@@ -182,8 +171,6 @@ export function buildSprites(
       }
     }
 
-    // Combat HP bar: surfaced only while the farmer is mid-bout (FIGHTING). Else omitted
-    // so no bar shows in normal play. current/max clamped to [0,1].
     let healthFrac: number | undefined;
     if (isFarmer && entity.fsm?.current === "FIGHTING" && entity.health) {
       const { current, max } = entity.health;
@@ -227,7 +214,7 @@ export function buildSprites(
       label = "Auction Podium";
       description = "Where farmers gather to bid on the daily contract.";
     } else if (entity.noticeBoard) {
-      // Show today's posted bounty on hover (or a default when none yet).
+
       label = "Notice Board";
       description = entity.noticeBoard.bountyText ?? "Today's bounty is posted here.";
     } else if (entity.fishingSpot) {
@@ -264,18 +251,10 @@ export function buildSprites(
       rotation: t.rotation,
       layer: s.layer,
       frame,
-      // Farmers: alpha+tint from state cue. Non-farmers: alpha from sprite tint's low byte.
+
       alpha: cue ? cue.alpha : (tint & 0xff) / 255,
       tintRgba: cue ? cue.tintRgba : UNTINTED_RGBA,
-      // Tile-stepping movers get snapshot interpolation so they glide instead of
-      // snapping one tile per step (brief 82). Today that is farmers + work NPCs
-      // (blacksmith/carpenter, whose transform steps a whole tile every few ticks).
-      // Deliberately NOT a shared-component predicate — there is no common movement
-      // marker to key off. Excluded by design: livestock (penned, never tile-step),
-      // boats (a farmer aboard already glides via farmer.renderPos on the BOAT grid),
-      // and ambient life (client-side render-only, can't snap). A future sim-side
-      // mover species must be added here or it will visibly teleport. The client
-      // clamps genuine jumps (>2 tiles) so a flagged sprite never smears on travel.
+
       interpolate: isFarmer || npc !== undefined,
       action,
       moving,
@@ -284,7 +263,7 @@ export function buildSprites(
       facing,
       flipX,
       bubble,
-      // exactOptionalPropertyTypes: omit the key entirely when not fighting.
+
       ...(healthFrac !== undefined ? { healthFrac } : {}),
     });
   }
@@ -292,7 +271,6 @@ export function buildSprites(
   return sprites;
 }
 
-/** Resolve one item-grid slot to its display state (null ref → empty slot). */
 function buildSlotState(
   ref: ItemRef | null,
   inv: NonNullable<GameEntity["inventory"]>,
@@ -305,7 +283,6 @@ function buildSlotState(
   return { ref, label: r.label, glyph: r.glyph, frame: r.frame, text: r.text, available: r.available, actionable: r.actionable };
 }
 
-/** Build Pip's full item grid; null when no player entity. Falls back to the default layout if unset. */
 export function buildPlayerInventory(world: World<GameEntity>): PlayerInventory | null {
   for (const e of world.query("player", "inventory")) {
     const inv = e.inventory;
@@ -316,7 +293,6 @@ export function buildPlayerInventory(world: World<GameEntity>): PlayerInventory 
   return null;
 }
 
-/** Project the bottom hotbar (first HOTBAR_SIZE slots) from an already-built item grid. */
 export function buildPlayerHotbar(grid: PlayerInventory | null): PlayerHotbar | null {
   if (grid === null) return null;
   const slots = grid.slots.slice(0, grid.hotbarSize).map((s) => ({

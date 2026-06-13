@@ -8,7 +8,6 @@ import {
   GROUND_NOISE_AMPLITUDE,
 } from "./ground-noise";
 
-// WARP_STRENGTH (k) from ground-noise.ts; mirrored for boundedness assertions.
 const WARP_K = 1.5;
 const FBM_BASE_FREQUENCY = 1 / 8;
 
@@ -74,8 +73,8 @@ describe("tileBrightness", () => {
 
   it("varies across tiles and across seeds", () => {
     const t1 = tileBrightness(3, 7, 0xc0ffee);
-    const t2 = tileBrightness(4, 7, 0xc0ffee); // neighbor
-    const t3 = tileBrightness(3, 7, 1); // different seed
+    const t2 = tileBrightness(4, 7, 0xc0ffee); 
+    const t3 = tileBrightness(3, 7, 1); 
     expect(t1).not.toBe(t2);
     expect(t1).not.toBe(t3);
   });
@@ -104,8 +103,6 @@ describe("tileBrightness", () => {
     expect(Math.abs(mean - 1)).toBeLessThan(0.01);
   });
 
-  // Known-vector regression: values from the domain-warped implementation.
-  // Changing these means the baked texture moved — re-capture after intentional refactors.
   it("matches captured known-vectors", () => {
     expect(tileBrightness(5, 7, 12345)).toBeCloseTo(1.0118082820199261, 12);
     expect(tileBrightness(0, 0, 12345)).toBeCloseTo(1.0537431249204061, 12);
@@ -153,9 +150,7 @@ describe("domainWarp", () => {
   });
 
   it("is actually wired into tileBrightness (warp changes output)", () => {
-    // Compare warped tileBrightness against an unwarped direct fBm brightness
-    // at the same tiles. At least one tile must differ, proving the warp has a
-    // real effect on the baked texture.
+
     const seed = 12345;
     const amp = GROUND_NOISE_AMPLITUDE;
     let differing = 0;
@@ -194,15 +189,14 @@ describe("spatial coherence (fBm vs hash)", () => {
     }
     const adjacentAvg = adjacentSum / count;
     const farAvg = farSum / count;
-    // Adjacent delta should be well under half the far delta.
-    // If this fails, WARP_STRENGTH is too high.
+
     expect(adjacentAvg).toBeLessThan(farAvg * 0.5);
   });
 });
 
 describe("makeGroundNoiseDecorator", () => {
   it("stamps per-tile fills and restores composite state", () => {
-    // Minimal fake 2D context recording the ops it sees.
+
     const ops: string[] = [];
     let composite = "source-over";
     let alpha = 1;
@@ -226,13 +220,13 @@ describe("makeGroundNoiseDecorator", () => {
     } as unknown as CanvasRenderingContext2D;
 
     const decorate = makeGroundNoiseDecorator(0xc0ffee, 16);
-    decorate(fakeCtx, 64, 64); // 4x4 tiles
+    decorate(fakeCtx, 64, 64); 
 
     expect(ops.length).toBeGreaterThan(0);
-    // Composite + alpha restored to defaults afterward.
+
     expect(composite).toBe("source-over");
     expect(alpha).toBe(1);
-    // Uses multiply (darken) and/or screen (lighten).
+
     expect(ops.some((o) => /multiply|screen/.test(o))).toBe(true);
   });
 });

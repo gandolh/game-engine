@@ -59,7 +59,7 @@ describe("computePoints", () => {
       { farmerId: 1, rows: [{ day: 0, gold: 10 }, { day: 10, gold: 50 }] },
     ]);
     const pts = computePoints(series, BOUNDS);
-    // Day 10 is maxDay → x = bounds.right
+
     expect(pts[0]![1]!.x).toBe(BOUNDS.right);
   });
 
@@ -74,42 +74,41 @@ describe("computePoints", () => {
       { farmerId: 1, rows: [{ day: 1, gold: 100 }, { day: 2, gold: 50 }] },
     ]);
     const pts = computePoints(series, BOUNDS);
-    // Day 1 gold=100 = maxGold → y = bounds.top
+
     expect(pts[0]![0]!.y).toBe(BOUNDS.top);
   });
 
   it("maps a mid-range gold to y between top and bottom", () => {
-    // gold 50 with maxGold 100 → y = bottom - (50/100)*(bottom-top) = 50
+
     const series = makeSeries([
       { farmerId: 1, rows: [{ day: 1, gold: 50 }, { day: 2, gold: 100 }] },
     ]);
     const pts = computePoints(series, BOUNDS);
-    // Day 1 gold=50 = half max → y = 50 (midpoint of 0–100)
+
     expect(pts[0]![0]!.y).toBeCloseTo(50, 5);
   });
 
   it("maps a mid-range day to x between left and right", () => {
-    // day 5 out of maxDay 10 → x = left + 0.5 * (right - left) = 50
+
     const series = makeSeries([
       { farmerId: 1, rows: [{ day: 5, gold: 10 }, { day: 10, gold: 20 }] },
     ]);
     const pts = computePoints(series, BOUNDS);
-    // Day 5 = half max → x = 50
+
     expect(pts[0]![0]!.x).toBeCloseTo(50, 5);
   });
 
   it("handles multiple farmers independently using the shared domain", () => {
-    // Two farmers: A has [day1 g10, day5 g100], B has [day3 g50]
-    // maxDay=5, maxGold=100
+
     const series = makeSeries([
       { farmerId: 1, rows: [{ day: 1, gold: 10 }, { day: 5, gold: 100 }] },
       { farmerId: 2, rows: [{ day: 3, gold: 50 }] },
     ]);
     const pts = computePoints(series, BOUNDS);
     expect(pts).toHaveLength(2);
-    // Farmer B at day 3: x = (3/5)*100 = 60
+
     expect(pts[1]![0]!.x).toBeCloseTo(60, 5);
-    // Farmer B at gold 50: y = 100 - (50/100)*100 = 50
+
     expect(pts[1]![0]!.y).toBeCloseTo(50, 5);
   });
 });
@@ -127,9 +126,7 @@ describe("detectCrossings", () => {
   });
 
   it("detects a crossing when two farmers swap gold order", () => {
-    // A: day1=100, day2=10  (A drops)
-    // B: day1=10,  day2=100 (B rises)
-    // → they cross between day 1 and day 2
+
     const series = makeSeries([
       { farmerId: 1, rows: [{ day: 1, gold: 100 }, { day: 2, gold: 10 }] },
       { farmerId: 2, rows: [{ day: 1, gold: 10 }, { day: 2, gold: 100 }] },
@@ -138,11 +135,11 @@ describe("detectCrossings", () => {
     expect(crossings).toHaveLength(1);
     expect(crossings[0]!.aId).toBe(1);
     expect(crossings[0]!.bId).toBe(2);
-    expect(crossings[0]!.day).toBe(1); // crossing starts from day 1
+    expect(crossings[0]!.day).toBe(1); 
   });
 
   it("does not report a crossing when lines do not swap order", () => {
-    // A is always above B.
+
     const series = makeSeries([
       { farmerId: 1, rows: [{ day: 1, gold: 100 }, { day: 2, gold: 80 }] },
       { farmerId: 2, rows: [{ day: 1, gold: 50 }, { day: 2, gold: 60 }] },
@@ -161,7 +158,7 @@ describe("detectCrossings", () => {
   });
 
   it("reports crossing gold at the midpoint for symmetric swap", () => {
-    // A: day1=100, day2=0  B: day1=0, day2=100 → crossing at t=0.5 → gold=50
+
     const series = makeSeries([
       { farmerId: 1, rows: [{ day: 1, gold: 100 }, { day: 2, gold: 0 }] },
       { farmerId: 2, rows: [{ day: 1, gold: 0 }, { day: 2, gold: 100 }] },
@@ -169,12 +166,11 @@ describe("detectCrossings", () => {
     const crossings = detectCrossings(series);
     expect(crossings).toHaveLength(1);
     expect(crossings[0]!.crossGold).toBeCloseTo(50, 5);
-    expect(crossings[0]!.crossX).toBeCloseTo(1.5, 5); // midpoint of [1,2]
+    expect(crossings[0]!.crossX).toBeCloseTo(1.5, 5); 
   });
 
   it("detects multiple crossings across multiple day pairs", () => {
-    // A: day1=10, day2=90, day3=10   → A and B cross twice
-    // B: day1=90, day2=10, day3=90
+
     const series = makeSeries([
       {
         farmerId: 1,

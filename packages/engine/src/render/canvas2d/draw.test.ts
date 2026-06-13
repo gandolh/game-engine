@@ -32,8 +32,7 @@ describe("compareSprite", () => {
   });
 
   it("uses sortY over y as the depth key when present", () => {
-    // A face whose draw center (y=8) is ABOVE a character (y=12), but whose
-    // base (sortY=16) is below — the face must draw after (over) the character.
+
     const face = sprite({ layer: 50, y: 8, sortY: 16 });
     const character = sprite({ layer: 50, y: 12 });
     expect(compareSprite(character, face)).toBeLessThan(0);
@@ -41,7 +40,7 @@ describe("compareSprite", () => {
   });
 
   it("compares sortY against the other sprite's plain y when only one has it", () => {
-    // Character south of the face's base still draws on top of it.
+
     const face = sprite({ layer: 50, y: 8, sortY: 16 });
     const characterInFront = sprite({ layer: 50, y: 24 });
     expect(compareSprite(face, characterInFront)).toBeLessThan(0);
@@ -56,22 +55,22 @@ describe("spritesOverlap (x-ray pass)", () => {
   });
 
   it("edge-adjacent tiles do not overlap (strict)", () => {
-    const a = sprite({ x: 100, y: 100 });        // [92,108]
-    const b = sprite({ x: 116, y: 100 });        // [108,124] — shares the 108 edge only
+    const a = sprite({ x: 100, y: 100 });        
+    const b = sprite({ x: 116, y: 100 });        
     expect(spritesOverlap(a, b)).toBe(false);
   });
 
   it("a tall occluder (e.g. a wall/building) covers a player one tile north", () => {
-    const player = sprite({ x: 100, y: 84 });                      // ground at y=84
-    const wall = sprite({ x: 100, y: 100, height: 48, sortY: 108 }); // 48px tall, base south of player
+    const player = sprite({ x: 100, y: 84 });                      
+    const wall = sprite({ x: 100, y: 100, height: 48, sortY: 108 }); 
     expect(spritesOverlap(player, wall)).toBe(true);
   });
 
   it("z lift is accounted for — a high-z drop is tested at its lifted screen rect", () => {
-    const lifted = sprite({ x: 100, y: 200, z: 100 }); // drawn around screen-y 100
+    const lifted = sprite({ x: 100, y: 200, z: 100 }); 
     const atScreen = sprite({ x: 100, y: 100 });
     expect(spritesOverlap(lifted, atScreen)).toBe(true);
     const atGround = sprite({ x: 100, y: 200 });
-    expect(spritesOverlap(lifted, atGround)).toBe(false); // not where it's drawn
+    expect(spritesOverlap(lifted, atGround)).toBe(false); 
   });
 });

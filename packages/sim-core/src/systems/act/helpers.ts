@@ -1,7 +1,6 @@
 import type { FishKind } from "../../components";
 import { TOOL_WORK_TICKS } from "../../components";
 
-/** Physical-action time cost in ticks (@20 Hz): wooden=60t, stone=40t, iron=20t. Social/travel=0. */
 export function actionTicks(kind: string, tools: import("../../components").Tool[]): number {
   const physicalActions = new Set(["plant","water","till","chop-tree","mine-stone","harvest","refill-can"]);
   if (!physicalActions.has(kind)) return 0;
@@ -9,7 +8,7 @@ export function actionTicks(kind: string, tools: import("../../components").Tool
   if (kind === "till") toolKind = "hoe";
   else if (kind === "chop-tree") toolKind = "axe";
   else if (kind === "mine-stone") toolKind = "pickaxe";
-  else toolKind = "hoe"; // plant/water/harvest — hoe is the reference
+  else toolKind = "hoe"; 
   const tierOrder: Record<string, number> = { wooden: 0, stone: 1, iron: 2 };
   const best = tools
     .filter(t => t.kind === toolKind && t.durability > 0)
@@ -18,7 +17,6 @@ export function actionTicks(kind: string, tools: import("../../components").Tool
   return TOOL_WORK_TICKS[tier];
 }
 
-/** Shift `bonus` fraction of minnow weight toward bass+salmon (pure; bonus=0 is identity). */
 export function applyFishingRarityBonus(
   weights: Record<FishKind, number>,
   bonus: number,
@@ -33,7 +31,6 @@ export function applyFishingRarityBonus(
   };
 }
 
-/** Shift `bonus` fraction of coral-trout weight toward lobster (pure; bonus=0 is identity). */
 export function applyCoralRarityBonus(
   weights: Record<FishKind, number>,
   bonus: number,

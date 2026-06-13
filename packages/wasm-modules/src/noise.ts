@@ -1,6 +1,4 @@
-// AssemblyScript: hash-based per-tile brightness noise. Host alloc→fillNoise→free.
-// Output: cols*rows f32 brightness multipliers in [1-amplitude, 1+amplitude], row-major.
-// Matches hash2/tileBrightness in farm-valley/src/render/ground-noise.ts.
+
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);
@@ -18,7 +16,6 @@ function hash2(x: i32, y: i32, seed: i32): f32 {
   return <f32>h / <f32>4294967296.0;
 }
 
-// amplitudeX1000: amplitude scaled by 1000 (e.g. 120 = 0.12) to avoid floats in the signature.
 export function fillNoise(
   outPtr: usize,
   cols: i32,

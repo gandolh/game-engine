@@ -55,9 +55,7 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   const atlasMap = await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL);
   const camera = new Camera2D(CAMERA_CONFIG);
   setCamera(camera);
-  // Farm Valley is WebGPU-only — no Canvas2D fallback in the game (the Canvas2dRenderer stays in the
-  // engine for tests/other consumers). Forcing "webgpu" makes createRenderer throw if the GPU path is
-  // unavailable rather than silently dropping to Canvas2D.
+
   const renderer = await createRenderer(canvas, camera, {
     backend: "webgpu",
     onBackend: (b) => console.info("[render] backend:", b),
@@ -65,15 +63,15 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }
-  // Ocean backdrop beyond the world edge (deep water, not black).
+
   renderer.clearColor = EDG.blue;
   setupCameraListeners(canvas, camera);
   const keyboard = new Keyboard();
   keyboard.attach(window);
-  // Prevent Space/arrow scroll — these drive Pip; WASD already don't scroll.
+
   const SCROLL_KEYS = new Set([
     "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
-    // Tab toggles the standings panel; suppress default focus traversal.
+
     "Tab",
   ]);
   window.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -92,7 +90,6 @@ async function boot(): Promise<void> {
   const fatal = document.getElementById("fatal") as HTMLElement | null;
   if (!canvas || !app || !fatal) throw new Error("Missing #canvas/#app/#fatal");
 
-  // Shared run URL: pre-fill seed from hash; don't auto-start.
   const shared = parseRun(location.hash);
   const defaultSeed = shared?.seed ?? CONFIG.seed;
   const maxDays = shared?.maxDays ?? CONFIG.maxDays;
@@ -144,29 +141,22 @@ async function startGame(
 
     const playbackHandlers = wirePlayback(playback, client);
 
-    // Brief 86 — resync guard: signal juice when tab becomes visible again or
-    // when the player skips to a highlight (H key), so stale events aren't
-    // replayed as a burst of popups/shake.
     const origSkip = playbackHandlers.doSkipToHighlight;
     const juiceAwareSkip = (): void => {
       juice.signalResync();
       origSkip();
     };
-    // Re-bind the skip handler so playback buttons and H hotkey both signal resync.
+
     panels.playback.setOnSkipToHighlight(juiceAwareSkip);
-    // Override the exported handler reference so registerHotkeys uses the wrapped version.
+
     playbackHandlers.doSkipToHighlight = juiceAwareSkip;
 
-    // Tab-hide resync: when the tab becomes visible again, the sim may have
-    // advanced many ticks. Signal resync so existing events are skipped.
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) juice.signalResync();
     });
 
     registerHotkeys(playbackHandlers);
 
-    // Brief 72 — when the server assigns owner=false (spectator), hide playback
-    // controls so the spectator cannot issue control commands to the shared run.
     client.onAttach((isOwner) => {
       playback.setVisible(isOwner);
     });

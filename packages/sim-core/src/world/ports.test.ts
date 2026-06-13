@@ -1,16 +1,4 @@
-/**
- * Port-to-port boat network (todo: island-ports-boat-travel).
- *
- * Geometry is the load-bearing part, so assert it directly (instant — no sim run):
- *   1. Every ocean lane tile is genuinely ocean (also enforced by the module-load
- *      guard, but pinned here as a regression test against world-geometry drift).
- *   2. Dock tiles are LAND on the walkable grid (a farmer reaches them on foot)
- *      and OPEN on the boat grid (a boarded farmer can leave the island).
- *   3. The boat grid is connected: the pathfinder finds a port→port route along
- *      the lanes for every ordered pair of ports (this IS "travel along a water
- *      lane to another port").
- *   4. The coral stubs still pathfind on the same (unioned) boat grid.
- */
+
 import { describe, it, expect } from "vitest";
 import { JsPathfinder } from "./js-pathfinder";
 import { buildBoatGrid, CORAL_REEFS } from "./coral";

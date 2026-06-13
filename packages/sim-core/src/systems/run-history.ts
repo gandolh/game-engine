@@ -1,4 +1,4 @@
-/** Passive per-day rank collector. Runs in snoop band (after InboxDispatch, before PerceiveSystem). */
+
 
 import type { SimContext, System, World, MessageBus } from "@engine/core";
 import type { GameEntity } from "../components";
@@ -35,7 +35,7 @@ export class RunHistorySystem implements System {
           }
         }
       }
-      break; // single weatherStation entity
+      break; 
     }
     if (newDay === null) return;
     this.lastDayProcessed = newDay;
@@ -52,7 +52,6 @@ export class RunHistorySystem implements System {
       });
     }
 
-    // Ranked by totalValue desc → farmerId asc (matches live leaderboard; lower id breaks ties).
     standings.sort((a, b) => {
       const diff = b.totalValue - a.totalValue;
       if (diff !== 0) return diff;

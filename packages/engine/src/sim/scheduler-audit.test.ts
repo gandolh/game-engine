@@ -1,10 +1,4 @@
-/**
- * scheduler-audit.test.ts
- *
- * AUDIT POSITIVE — a tiny synthetic scheduler where system A sends ontology
- * "test-onto" and system B calls bus.markRead("test-onto"), both in the SAME
- * stage. The audit must THROW naming the stage and ontology.
- */
+
 
 import { describe, it, expect } from "vitest";
 import { Scheduler } from "./scheduler";
@@ -15,7 +9,6 @@ describe("stage audit throws on same-stage write + read", () => {
     const bus = new MessageBus();
     const scheduler = new Scheduler();
 
-    // Both systems share the same stage "TEST-STAGE".
     scheduler
       .stage("TEST-STAGE")
       .add({

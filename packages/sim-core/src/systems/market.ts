@@ -14,8 +14,6 @@ import {
 } from "../protocols/market";
 import { PERFORMATIVE } from "../protocols/performatives";
 
-// Bulletin-board market. offerId stream: rng.fork("market.offerId") → same id sequence per seed.
-// BUY_REQUEST forwarded to seller as REQUEST; unknown refs silently ignored.
 export class MarketSystem implements System {
   readonly name = "MarketSystem";
 
@@ -69,14 +67,13 @@ export class MarketSystem implements System {
     if (!offer || typeof offer.quantity !== "number" || typeof offer.pricePerUnit !== "number") {
       return;
     }
-    if (msg.sender === "world") return; // world cannot post farmer offers
+    if (msg.sender === "world") return; 
     const sellerId = msg.sender;
 
     const seller = findById(this.world, sellerId, "farmer", "inventory");
     if (!seller || !seller.inventory) return;
     if (seller.inventory.crops[offer.crop as CropKind] === undefined) return;
 
-    // Location-gated: posting requires being in the village.
     if (seller.farmer && seller.farmer.currentRegion !== "village") {
       this.sendRejection(sellerId, ONT_MARKET.POST_OFFER, ctx.tick);
       return;
@@ -121,7 +118,7 @@ export class MarketSystem implements System {
     if (!body.offerId) return;
     const offer = this.offersById.get(body.offerId);
     if (!offer) return;
-    if (msg.sender === "world" || msg.sender !== offer.sellerId) return; // only seller may cancel
+    if (msg.sender === "world" || msg.sender !== offer.sellerId) return; 
 
     const seller = findById(this.world, msg.sender, "farmer", "inventory");
     if (seller?.farmer && seller.farmer.currentRegion !== "village") {

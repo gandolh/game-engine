@@ -13,7 +13,6 @@ export interface PixelRect {
   h: number;
 }
 
-/** Prefix a root-absolute atlas URL with the deployment base; http(s):// or non-rooted URLs pass through unchanged. */
 export function resolveAssetUrl(url: string, baseUrl = "/"): string {
   if (!url.startsWith("/") || url.startsWith("//")) return url;
   const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;

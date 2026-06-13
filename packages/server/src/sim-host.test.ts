@@ -33,7 +33,7 @@ async function runHostToCompletion(
     (out as unknown as { push: (m: WorkerOutbound) => number }).push = (m) => {
       const n = orig(m);
       if (m.type === "snapshot" && m.snapshot.gameOver) {
-        // Defer so the host's own stop() runs first.
+
         setTimeout(resolveDone, 0);
       }
       return n;

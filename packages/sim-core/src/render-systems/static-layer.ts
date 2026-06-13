@@ -28,7 +28,6 @@ import { frameToAtlasId } from "./frames";
 
 const TILE = 16;
 
-/** Per-season grass tile variant. Static layer is re-baked on season change. */
 const SEASON_GRASS: Record<Season, string> = {
   spring: "tile/grass-spring",
   summer: "tile/grass-summer",
@@ -47,7 +46,6 @@ interface LogicalSprite {
   alpha: number;
 }
 
-/** Background frame for a tile, or null for ocean/bridge tiles (water shows through). */
 function backdropFrame(tx: number, ty: number, season: Season = "spring"): string | null {
   const grassFrame = SEASON_GRASS[season];
   if (!isWalkable(tx, ty)) return null;
@@ -73,8 +71,8 @@ function backdropFrame(tx: number, ty: number, season: Season = "spring"): strin
   if (region === "waterfall") return grassFrame;
   if (region === "camp") return grassFrame;
   if (region === "weather-station") return grassFrame;
-  if (region === "volcano") return "tile/volcanic-floor"; // reddish volcanic rock
-  if (region === "casino") return "tile/stone-floor";   // paved casino terrace
+  if (region === "volcano") return "tile/volcanic-floor"; 
+  if (region === "casino") return "tile/stone-floor";   
   if (region === "village") {
     if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&
         ty >= TOWN_SQUARE.minY && ty <= TOWN_SQUARE.maxY) {
@@ -82,10 +80,9 @@ function backdropFrame(tx: number, ty: number, season: Season = "spring"): strin
     }
     return "tile/dirt";
   }
-  return "tile/dirt"; // fallback for any future region
+  return "tile/dirt"; 
 }
 
-/** Enumerate all static (never-changing) tiles: backdrop, shores, coral, bridges, walls, fences, buildings, plots. */
 export function* iterStaticSprites(
   world: World<GameEntity>,
   season: Season = "spring",
@@ -146,7 +143,6 @@ export function* iterStaticSprites(
     };
   }
 
-  // Static seabed life (starfish/crab/sand-dollar/anemone) — seeded scatter, same seabed layer.
   for (const life of SEABED_LIFE) {
     yield {
       x: life.tx * TILE + TILE / 2,
@@ -160,8 +156,6 @@ export function* iterStaticSprites(
     };
   }
 
-  // Render-only themed interior props — opaque, on the ground (layer 2, below dynamic
-  // sprites). Computed from world queries so the scatter dodges every functional tile.
   for (const decor of computeInteriorDecor(world)) {
     yield {
       x: decor.tx * TILE + TILE / 2,
@@ -175,10 +169,6 @@ export function* iterStaticSprites(
     };
   }
 
-  // Cliffs not baked: depth-sort against characters → occluders.ts.
-  // Bridges not baked either: pushed each frame (pushBridgeSprites) so they can sway slowly.
-
-  // South-facing walls skipped: depth-sorted as occluders instead.
   for (const wall of WALLS) {
     if (isOccluderWall(wall)) continue;
     yield {
@@ -205,10 +195,6 @@ export function* iterStaticSprites(
       alpha: 1,
     };
   }
-
-  // Big buildings are NOT baked — they're pushed each frame as dynamic layer-50 occluders
-  // (pushBuildingSprites) so they y-sort against entities: a farmer behind a building is occluded
-  // (and the player x-rays through), instead of being painted over the roof at the old layer 5.
 
   for (const fs of [...FISHING_STATICS, ...CASINO_STATICS, ...PORT_STATICS]) {
     const isBoat = fs.frame === "structure/boat";
@@ -238,7 +224,6 @@ export function* iterStaticSprites(
   }
 }
 
-/** Materialize the static backdrop sprites for a one-time bake (or a season re-bake). */
 export function buildStaticLayerSprites(
   world: World<GameEntity>,
   season: Season = "spring",
@@ -259,4 +244,3 @@ export function buildStaticLayerSprites(
   }
   return out;
 }
-

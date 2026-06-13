@@ -1,7 +1,6 @@
 import type { With } from "@engine/core";
 import type { GameEntity } from "../../components";
 
-/** Narrowed from `query("fsm", "intentions", "inventory")` — handlers can skip re-guarding those fields. */
 export type ActingFarmer = With<GameEntity, "fsm" | "intentions" | "inventory">;
 
 export interface ActContext {

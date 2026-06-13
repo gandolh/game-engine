@@ -20,9 +20,8 @@ import type { HarborContract } from "../protocols/harbor";
 
 export { _resetCnpCoordinatorsForTests };
 
-const BUY_PRICE_MULTIPLIER = 1.05; // up to 105% of shop price
+const BUY_PRICE_MULTIPLIER = 1.05; 
 
-/** Picks highest-value in-season crop affordable above reserve; falls back to radish. */
 function pickHoarderCrop(day: number, gold: number, reserve: number): CropKind {
   const season = seasonForDay(day);
   const seasonPrefs: Record<import("../protocols/weather").Season, CropKind[]> = {
@@ -50,7 +49,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
   deliberateRefillCan(farmer, sense?.due ?? 0);
-  // Waters everything at dryThreshold 0 — religiously.
+
   deliberateWatering(farmer, { dryThreshold: 0 });
 
   const plotsOwned = sense?.planted ?? 0;
@@ -68,7 +67,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   deliberateSeasonalForage(farmer, 8);
 
   deliberateEarlyVillageVisit(farmer, 8);
-  // Upgrades all tools evenly (more yield = more to hoard).
+
   deliberateUpgrade(farmer, "hoe",     9);
   deliberateUpgrade(farmer, "axe",     10);
   deliberateUpgrade(farmer, "pickaxe", 11);
@@ -90,7 +89,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     chosen = preferred;
     chosenMode = "buy-seed";
   } else {
-    // Try other available seeds.
+
     for (const crop of Object.keys(farmer.inventory.seeds) as CropKind[]) {
       if (crop !== preferred && farmer.inventory.seeds[crop] >= 1) {
         chosen = crop;
@@ -118,7 +117,6 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     }
   }
 
-  // Buy radish offers up to 105% of shop price; ranked by trust (highest first).
   farmer.intentions.queue.push({
     kind: "read-offers",
     data: { ontology: ONT_MARKET.READ_OFFERS, filter: { crop: "radish" } },
@@ -128,14 +126,14 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
   const trust = farmer.trust?.byId;
-  // Default 0.5 trust for unseen peers.
+
   const ranked = offers
     .filter((o) => o.sellerId !== farmer.id)
     .filter((o) => o.pricePerUnit <= CROP_SELL_PRICE[o.crop] * BUY_PRICE_MULTIPLIER)
     .map((o) => ({ o, t: trust?.get(o.sellerId) ?? 0.5 }))
     .sort((a, b) => {
       if (b.t !== a.t) return b.t - a.t;
-      // Tie-break by lowest seller id for determinism.
+
       return a.o.sellerId - b.o.sellerId;
     });
 
@@ -164,12 +162,10 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     budget -= cost;
   }
 
-  // Bids hard (0.9) to win the bean and HOLDS it — no resale.
   deliberateBean(farmer, 0.9, { resell: false });
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 
-  // Capital excursions only when genuinely flush (hoarder is the poorest live).
   const surplusGold = farmer.inventory.gold >= reserve + 50;
   const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2;
   const apHeadroom = (farmer.ap?.current ?? 0) >= 20;
@@ -193,7 +189,6 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     }
   }
 
-  // Greenhouse: heaviest sink — requires large cushion (reserve + 220).
   const hasGreenhouse = (farmer.beliefs.data["hasGreenhouse"] as boolean | undefined) ?? false;
   const greenhouseQuietDay = farmer.inventory.gold >= reserve + 220 && !plotsUrgent && apHeadroom;
   if (day >= 12 && !hasGreenhouse && greenhouseQuietDay) {
@@ -202,14 +197,12 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   deliberateHireHelp(farmer, reserve, 13, -2);
 
-  // riskTolerance baked per-agent (bdi-jitter.ts, ~0.5): commits if goods on hand OR can grow in time.
   if (day >= 5) {
     const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
     const tol = (farmer.desires.data.riskTolerance as number | undefined) ?? 0.5;
     deliberateHarborContract(farmer, openContracts, tol, reserve, 5, -2);
   }
 
-  // Coral: steep AP floor (80), rare (every 12 days) — won't risk hoarding routine.
   deliberateCoralFishing(farmer, 12, 2, -2, 80);
 
   deliberateTavernGather(farmer, -2);
@@ -221,7 +214,7 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 registerPersonality("hoarder", deliberateHoarder);
 
 const HOARDER_INITIATE_QTY = 3;
-// Bids at SEED_COST (1.0×) — a fair price peers will take, below hoarder's own 1.05 wall ceiling.
+
 const HOARDER_INITIATE_PRICE_MULT = 1.0;
 const HOARDER_BUFFER_SEEDS = 2;
 const HOARDER_PEER_BUY_CEILING = 1.05;
@@ -261,8 +254,6 @@ export const respondToPeerOfferHoarder = makeRespondPeerOffer({
   reserveDefault: 80,
 });
 
-// Sells crop surplus peer-to-peer at 0.95× shop (threshold 6 units; 2-unit parcels).
-// The hoarder is the natural supply side — peak wheat accumulation far exceeds other farmers.
 export const initiateCropTradeHoarder = makeInitiatePeerTrade({
   stance: "sell-surplus",
   commodity: "crop",

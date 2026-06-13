@@ -2,16 +2,10 @@ import type { World } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { scaleAroundNearestIsland, type RegionDef } from "../regions";
 
-/** Fountain is placed at the top-left corner of each farm (minX+1, minY+1).
- *  Derived from already-scaled bounds, so it is NOT re-scaled here. */
 export function fountainTile(bounds: RegionDef["bounds"]): { x: number; y: number } {
   return { x: bounds.minX + 1, y: bounds.minY + 1 };
 }
 
-/** Spawn decorative props (layer 40, solid by default). Pass `solid: false` to leave a tile walkable.
- *  Prop coordinates are authored against the original 160-scale layout and locked
- *  to their island (not the global map) so they ride with it and never drift off
- *  into the ocean — see regions.ts scaleAroundNearestIsland. */
 export function placeProps(
   world: World<GameEntity>,
   props: ReadonlyArray<{ x: number; y: number; frame: string; solid?: boolean }>,
@@ -29,10 +23,6 @@ export function placeProps(
   }
 }
 
-/** Invisible solid blockers for a building footprint (baked art in render-systems).
- *  The authored tiles form a contiguous block; re-anchoring each tile to its island
- *  preserves the block's position, and we FILL the resulting bounding box so the
- *  blocker stays gap-free and covers the building art. */
 export function placeFootprint(
   world: World<GameEntity>,
   tiles: ReadonlyArray<{ x: number; y: number }>,

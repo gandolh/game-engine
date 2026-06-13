@@ -1,9 +1,4 @@
-/**
- * Port-hop deliberation phase machine (todo: island-ports-boat-travel).
- * Drives deliberatePortHop against a stub farmer (no scheduler) and asserts the
- * phase progression: walk-to-dock → board → sail-to-target → disembark. Cheap +
- * deterministic. Board/disembark handlers are exercised in act/handlers/port.test.
- */
+
 import { describe, it, expect } from "vitest";
 import type { GameEntity } from "../../components";
 import { PORTS } from "../../world/ports";
@@ -26,7 +21,7 @@ function makeFarmer(x: number, y: number, day: number, over: Partial<GameEntity>
 
 describe("deliberatePortHop", () => {
   const start = PORTS[0]!;
-  const target = PORTS[1]!; // pickTarget = next port after nearest
+  const target = PORTS[1]!; 
 
   it("on foot away from a port on a trip day → walks to the nearest port dock", () => {
     const f = makeFarmer(start.dock.x + 5, start.dock.y + 5, PERIOD);
@@ -53,7 +48,7 @@ describe("deliberatePortHop", () => {
   });
 
   it("aboard, at the target dock → disembarks", () => {
-    // Pre-seed the trip target so portAtDockTile(target) matches the persisted target.
+
     const f = makeFarmer(target.dock.x, target.dock.y, PERIOD, {
       farmer: { name: "Hopper", currentRegion: target.isle, homeRegion: "fishing-isle", aboard: true },
       beliefs: { data: { currentDay: PERIOD, portHopDay: PERIOD, portHopTarget: target.id }, revision: 0 },
@@ -63,7 +58,7 @@ describe("deliberatePortHop", () => {
   });
 
   it("does not start a hop off the period cadence", () => {
-    const f = makeFarmer(start.dock.x, start.dock.y, PERIOD + 1); // not a multiple of period
+    const f = makeFarmer(start.dock.x, start.dock.y, PERIOD + 1); 
     deliberatePortHop(f, PERIOD, 6, 140);
     expect(f.intentions!.queue.length).toBe(0);
   });

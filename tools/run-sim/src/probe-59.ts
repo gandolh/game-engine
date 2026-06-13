@@ -1,4 +1,4 @@
-/* brief 59 — P0 premise check: (A) peer-interaction layer activity, (B) leader-runaway spread. Run with PATHFINDER=wasm. */
+
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import type { GameEntity } from "@farm/sim-core/components";
 import {

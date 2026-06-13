@@ -1,23 +1,9 @@
-/**
- * run-registry.test.ts — headless tests for RunRegistry (brief 72).
- *
- * All tests use:
- *   - FakeSocket: a lightweight ClientSocket stub that records sent payloads
- *   - StubHost: a minimal SimHost-shaped stub that records calls and allows the
- *     test to drive fan-out messages directly (no real simulation, no WASM).
- *
- * The registry is the system under test; SimHost and WebSocket are not involved
- * so the suite runs fast and deterministically.
- */
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RunRegistry } from "./run-registry";
 import type { ClientSocket, MakeHostFn } from "./run-registry";
 import type { WorkerInitMsg, WorkerOutbound, WorkerStaticLayerMsg, WorkerSnapshotMsg } from "@farm/sim-core/protocol";
 import type { SendFn } from "./sim-host";
-
-// ---------------------------------------------------------------------------
-// Fake socket
-// ---------------------------------------------------------------------------
 
 class FakeSocket implements ClientSocket {
   readonly OPEN = 1;
@@ -40,16 +26,11 @@ class FakeSocket implements ClientSocket {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Stub host
-// ---------------------------------------------------------------------------
-
 class StubHost {
   stopped = false;
   inboundLog: WorkerInitMsg[] = [];
   controlLog: Array<WorkerOutbound | { type: string }> = [];
 
-  /** The send function provided at construction; call it to simulate server output. */
   _send: SendFn;
 
   constructor(send: SendFn) {
@@ -69,10 +50,6 @@ class StubHost {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeInit(seed = 1, ticksPerDay = 20, maxDays = 5): WorkerInitMsg {
   return { type: "init", seed, ticksPerDay, maxDays, tickRateHz: 20 };
 }
@@ -90,7 +67,7 @@ function makeSnapshotMsg(day = 1): WorkerSnapshotMsg {
   return {
     type: "snapshot",
     snapshot: {
-      // Minimal shape — only the fields the registry reads (wealthSeries).
+
       wealthSeries: [{ farmerId: 1, name: "Alice", personality: "conservative", rows: [] }],
       day,
       tick: day * 20,
@@ -121,16 +98,12 @@ function makeRegistry(reapGraceMs = 50): { registry: RunRegistry; stubs: StubHos
   const makeHost: MakeHostFn = (send, _init) => {
     const stub = new StubHost(send);
     stubs.push(stub);
-    // Return the stub cast as the expected SimHost type
+
     return stub as unknown as ReturnType<MakeHostFn>;
   };
   const registry = new RunRegistry(makeHost, { reapGraceMs });
   return { registry, stubs };
 }
-
-// ---------------------------------------------------------------------------
-// Test suite 1 — same run key shares one host; fan-out reaches both sockets
-// ---------------------------------------------------------------------------
 
 describe("RunRegistry — run sharing", () => {
   it("two attachInit with identical params → one run, one host; both sockets receive the same fan-out payload", () => {
@@ -142,22 +115,19 @@ describe("RunRegistry — run sharing", () => {
     registry.attachInit(a, init);
     registry.attachInit(b, init);
 
-    // One run should exist.
     expect(registry.runCount()).toBe(1);
-    // One stub host should have been created.
+
     expect(stubs.length).toBe(1);
 
-    // Drive a fan-out message through the run's send callback.
     const stub = stubs[0]!;
     const staticMsg = makeStaticMsg();
     stub._send(staticMsg);
 
-    // Both sockets should have received the same payload.
     const lastA = a.sent[a.sent.length - 1];
     const lastB = b.sent[b.sent.length - 1];
     expect(lastA).toBeDefined();
     expect(lastB).toBeDefined();
-    expect(lastA).toBe(lastB); // identical payload string (stringify-once)
+    expect(lastA).toBe(lastB); 
   });
 
   it("two different run keys → two separate runs and hosts", () => {
@@ -166,16 +136,12 @@ describe("RunRegistry — run sharing", () => {
     const b = new FakeSocket();
 
     registry.attachInit(a, makeInit(1));
-    registry.attachInit(b, makeInit(2)); // different seed
+    registry.attachInit(b, makeInit(2)); 
 
     expect(registry.runCount()).toBe(2);
     expect(stubs.length).toBe(2);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Test suite 2 — ownership and control routing
-// ---------------------------------------------------------------------------
 
 describe("RunRegistry — owner control", () => {
   let registry: RunRegistry;
@@ -215,13 +181,6 @@ describe("RunRegistry — owner control", () => {
     expect(stub.controlLog).toHaveLength(0);
   });
 
-  // Brief 78 — Pip-movement regression guard. The reported "Pip doesn't move"
-  // symptom traced to duplicate dev processes producing a second socket that
-  // attached as a spectator (owner:false), whose input the render-loop swallows.
-  // These lock the invariant the single-player path depends on: the OWNER's
-  // input reaches the host (→ applyInput → pendingMove → PlayerControlSystem),
-  // while a spectator's input is dropped. A regression that gated the owner's
-  // input (or ungated a spectator's) would fail here headlessly.
   it("input from owner IS forwarded to the host", () => {
     registry.handleControl(owner, { type: "input", moveX: "right", moveY: null, action: false, selectSlot: null });
     expect(stub.controlLog).toHaveLength(1);
@@ -239,31 +198,23 @@ describe("RunRegistry — owner control", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Test suite 3 — late-join replay
-// ---------------------------------------------------------------------------
-
 describe("RunRegistry — late-join replay", () => {
   it("a late joiner receives the cached static-layer and patched snapshot", () => {
     const { registry } = makeRegistry();
     const init = makeInit();
     const first = new FakeSocket();
 
-    // First socket creates the run.
     registry.attachInit(first, init);
     const stub = stubs[0]!;
 
-    // Simulate the host emitting a static-layer then a snapshot.
     const staticMsg = makeStaticMsg();
     const snapMsg = makeSnapshotMsg(3);
     stub._send(staticMsg);
     stub._send(snapMsg);
 
-    // Now a second socket attaches (late joiner).
     const late = new FakeSocket();
     registry.attachInit(late, init);
 
-    // The late joiner should have received: attach, static-layer, snapshot (in that order).
     const parsed = late.sentParsed();
     expect(parsed[0]).toEqual({ type: "attach", owner: false });
 
@@ -274,7 +225,6 @@ describe("RunRegistry — late-join replay", () => {
     expect(snapReceived).toBeDefined();
     expect(snapReceived?.type).toBe("snapshot");
 
-    // The snapshot's wealthSeries should be patched with lastWealthSeries (non-null).
     if (snapReceived?.type === "snapshot") {
       expect(snapReceived.snapshot.wealthSeries).toEqual(snapMsg.snapshot.wealthSeries);
     }
@@ -288,23 +238,19 @@ describe("RunRegistry — late-join replay", () => {
 
     registry.attachInit(first, init);
     const stub = stubs[0]!;
-    // After first attach, handleInbound should have been called once (with the init).
+
     expect(stub.inboundLog).toHaveLength(1);
 
     registry.attachInit(second, init);
-    // Should still be 1 — second attach is replay-only, not a new sim start.
+
     expect(stub.inboundLog).toHaveLength(1);
   });
 });
 
-// ---------------------------------------------------------------------------
-// Test suite 4 — zero-socket reaping
-// ---------------------------------------------------------------------------
-
 describe("RunRegistry — zero-socket reaping", () => {
   it("detaching the last socket → host.stop() called after grace; run removed", async () => {
     vi.useFakeTimers();
-    const { registry } = makeRegistry(100 /* reapGraceMs */);
+    const { registry } = makeRegistry(100 );
     const socket = new FakeSocket();
     const init = makeInit();
 
@@ -312,7 +258,7 @@ describe("RunRegistry — zero-socket reaping", () => {
     expect(registry.runCount()).toBe(1);
 
     registry.detach(socket);
-    // Not yet reaped (timer pending).
+
     expect(stubs[0]!.stopped).toBe(false);
     expect(registry.runCount()).toBe(1);
 
@@ -332,13 +278,11 @@ describe("RunRegistry — zero-socket reaping", () => {
 
     registry.attachInit(a, init);
     registry.detach(a);
-    // Timer started but not fired yet.
+
     expect(stubs[0]!.stopped).toBe(false);
 
-    // A new socket attaches before the grace period expires.
     registry.attachInit(b, init);
 
-    // Advance past the original grace — timer should have been cancelled.
     vi.advanceTimersByTime(201);
     expect(stubs[0]!.stopped).toBe(false);
     expect(registry.runCount()).toBe(1);
@@ -355,22 +299,16 @@ describe("RunRegistry — zero-socket reaping", () => {
     registry.attachInit(a, init);
     registry.attachInit(b, init);
 
-    // a is owner; detach a.
     registry.detach(a);
 
-    // b should have received a fresh attach:true.
     const msgs = b.sentParsed();
     const attachMsgs = msgs.filter((m) => m.type === "attach");
-    // First attach was owner:false, second should be owner:true.
+
     expect(attachMsgs).toHaveLength(2);
     expect(attachMsgs[0]).toEqual({ type: "attach", owner: false });
     expect(attachMsgs[1]).toEqual({ type: "attach", owner: true });
   });
 });
-
-// ---------------------------------------------------------------------------
-// Test suite 5 — drop-stale: slow sockets skipped for snapshots
-// ---------------------------------------------------------------------------
 
 describe("RunRegistry — drop-stale", () => {
   it("snapshot not sent to socket with bufferedAmount > 1 MB", () => {
@@ -378,7 +316,7 @@ describe("RunRegistry — drop-stale", () => {
     const init = makeInit();
     const fast = new FakeSocket();
     const slow = new FakeSocket();
-    slow.bufferedAmount = 1_100_000; // over the 1 MB threshold
+    slow.bufferedAmount = 1_100_000; 
 
     registry.attachInit(fast, init);
     registry.attachInit(slow, init);
@@ -386,7 +324,6 @@ describe("RunRegistry — drop-stale", () => {
     const stub = stubs[0]!;
     stub._send(makeSnapshotMsg());
 
-    // fast should have received the snapshot; slow should not.
     const fastMsgs = fast.sentParsed().filter((m) => m.type === "snapshot");
     const slowMsgs = slow.sentParsed().filter((m) => m.type === "snapshot");
     expect(fastMsgs).toHaveLength(1);

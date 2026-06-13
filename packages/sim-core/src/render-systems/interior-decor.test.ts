@@ -26,7 +26,6 @@ function bootWorld(): World<GameEntity> {
   return bootstrapSim({ seed: 0xc0ffee, ticksPerDay: 1200, maxDays: 1 }).world;
 }
 
-/** The same functional-tile union the scatter dodges, rebuilt independently for the guard. */
 function functionalTiles(world: World<GameEntity>): Set<number> {
   const forbidden = new Set<number>();
   for (const e of world.query("plot")) forbidden.add(key(e.plot.tileX, e.plot.tileY));
@@ -50,7 +49,7 @@ describe("interior décor scatter", () => {
     const decor = computeInteriorDecor(world);
     for (const d of decor) {
       expect(forbidden.has(key(d.tx, d.ty))).toBe(false);
-      // No décor within Chebyshev 1 of a bridge/road tile (bridge-mouth avoidance).
+
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           expect(BRIDGE_SET.has(key(d.tx + dx, d.ty + dy))).toBe(false);
@@ -83,8 +82,7 @@ describe("interior décor scatter", () => {
   it("only uses frames present in the theme table", () => {
     const world = bootWorld();
     const decor = computeInteriorDecor(world);
-    // Derive the allowed set from the table itself (not a hand-copied list) so new
-    // themes don't silently desync this guard.
+
     const allowed = new Set<string>(
       Object.values(THEME_TABLE).flatMap((e) => e.frames),
     );

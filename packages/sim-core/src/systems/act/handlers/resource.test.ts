@@ -51,7 +51,7 @@ describe("pickWeightedSeed", () => {
       const k = pickWeightedSeed(rng);
       counts[k] = (counts[k] ?? 0) + 1;
     }
-    // radish weight 30 vs grape weight 1 — radish must dominate.
+
     expect(counts.radish!).toBeGreaterThan(counts.grape! * 5);
     expect(SEED_WEIGHTS.radish).toBeGreaterThan(SEED_WEIGHTS.grape);
   });
@@ -61,7 +61,7 @@ describe("gather-bush act handler", () => {
   it("forages an adjacent bush for exactly one seed and despawns it", () => {
     const world = new World<GameEntity>();
     const sys = new ActSystem(world, createRng(1));
-    const farmer = spawnFarmer(world, 5, 4); // adjacent to (5,5)
+    const farmer = spawnFarmer(world, 5, 4); 
     const bush = spawnFeature(world, "bush", 5, 5);
 
     farmer.intentions!.queue.push({ kind: "gather-bush", data: { tileX: 5, tileY: 5 }, priority: 0 });
@@ -74,7 +74,7 @@ describe("gather-bush act handler", () => {
   it("does nothing when the bush is out of reach", () => {
     const world = new World<GameEntity>();
     const sys = new ActSystem(world, createRng(1));
-    const farmer = spawnFarmer(world, 0, 0); // far from (5,5)
+    const farmer = spawnFarmer(world, 0, 0); 
     spawnFeature(world, "bush", 5, 5);
 
     farmer.intentions!.queue.push({ kind: "gather-bush", data: { tileX: 5, tileY: 5 }, priority: 0 });
@@ -101,7 +101,7 @@ describe("chop-tree seed bonus", () => {
 
     expect(farmer.resources!.wood).toBe(2 * N);
     const seeds = totalSeeds(farmer);
-    // ~20% drop rate — deterministic for this seed, but assert a sane band rather than a magic count.
+
     expect(seeds).toBeGreaterThan(N * 0.1);
     expect(seeds).toBeLessThan(N * 0.32);
   });

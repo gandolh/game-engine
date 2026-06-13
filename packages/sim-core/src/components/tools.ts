@@ -1,7 +1,6 @@
 export type ToolKind = "hoe" | "axe" | "pickaxe" | "fishing-rod";
 export type ToolTier = "wooden" | "stone" | "iron";
 
-/** Work-ticks (at 20 Hz) per action by tier. 3s / 2s / 1s. */
 export const TOOL_WORK_TICKS: Record<ToolTier, number> = {
   wooden: 60,
   stone:  40,
@@ -17,10 +16,10 @@ export const TOOL_PRICE: Record<ToolTier, number> = {
 export interface Tool {
   kind: ToolKind;
   tier: ToolTier;
-  durability: number; // remaining uses
+  durability: number; 
 }
 
 export interface WateringCan {
-  charges: number;    // remaining uses before refill
-  maxCharges: number; // always 10
+  charges: number;    
+  maxCharges: number; 
 }

@@ -1,4 +1,4 @@
-/** Region-gated + cooldown-gated AP top-up. Clamped to maxApForDay — can't snowball a leader. Pure (no RNG). */
+
 import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS } from "../../ap";
 import { SHRINE_REGION_ID } from "../../../world/regions";
 import type { ActingFarmer } from "../types";

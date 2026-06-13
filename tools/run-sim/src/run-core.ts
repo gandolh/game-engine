@@ -1,5 +1,5 @@
-// Side-effect-free headless runner core: no wall-clock, no env vars.
-// Shared by index.ts (CLI) and determinism-worker.ts so the worker doesn't trigger main().
+
+
 import {
   bootstrapSim,
   leaderboard,

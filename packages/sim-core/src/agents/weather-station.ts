@@ -5,7 +5,6 @@ import { WeatherSystem } from "../systems/weather";
 import { CropGrowthSystem } from "../systems/crop-growth";
 import { ApSystem } from "../systems/ap";
 
-/** Spawn the singleton WeatherStation tag entity (no transform, no sprite). */
 export function spawnWeatherStation(world: World<GameEntity>): GameEntity {
   return world.spawn({
     weatherStation: {
@@ -18,7 +17,6 @@ export function spawnWeatherStation(world: World<GameEntity>): GameEntity {
   });
 }
 
-/** Create and wire WeatherSystem, CropGrowthSystem, and ApSystem. */
 export function setupWeatherFeature(
   world: World<GameEntity>,
   bus: MessageBus,

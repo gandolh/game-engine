@@ -1,4 +1,4 @@
-// Root barrel — Node-safe + browser-safe (no DOM at module load). Deep subpaths in package.json exports.
+
 
 export {
   bootstrapSim,

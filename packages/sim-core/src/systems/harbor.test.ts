@@ -24,8 +24,8 @@ describe("generateContracts (pure, deterministic)", () => {
   it("differs across different days (different call sequence yields different results)", () => {
     const rng = createRng(1).fork("harbor");
     const day3 = generateContracts(3, 2, rng, [0]);
-    const day6 = generateContracts(6, 2, rng, [0]); // same rng, advanced
-    // At least one contract should differ
+    const day6 = generateContracts(6, 2, rng, [0]); 
+
     const allSame = day3.every((c, i) => c.id === day6[i]?.id);
     expect(allSame).toBe(false);
   });
@@ -38,7 +38,7 @@ describe("generateContracts (pure, deterministic)", () => {
   });
 
   it("normal tier contracts have quantity in [4,8]", () => {
-    // With no reputation, only normal tier is available.
+
     const rng = createRng(77).fork("harbor");
     const contracts = generateContracts(3, 10, rng, [0]);
     for (const c of contracts) {
@@ -50,15 +50,15 @@ describe("generateContracts (pure, deterministic)", () => {
 
   it("silver tier available when max rep >= 5", () => {
     const rng = createRng(99).fork("harbor");
-    const contracts = generateContracts(6, 20, rng, [8]); // rep=8 ≥ 5
+    const contracts = generateContracts(6, 20, rng, [8]); 
     const hasSilver = contracts.some((c) => c.tier === "silver");
-    // With 20 contracts and available silver tier, probability is high
+
     expect(hasSilver).toBe(true);
   });
 
   it("gold tier available when max rep >= 15", () => {
     const rng = createRng(123).fork("harbor");
-    const contracts = generateContracts(6, 30, rng, [20]); // rep=20 ≥ 15
+    const contracts = generateContracts(6, 30, rng, [20]); 
     const hasGold = contracts.some((c) => c.tier === "gold");
     expect(hasGold).toBe(true);
   });
@@ -109,9 +109,7 @@ describe("canFulfillContract (pure)", () => {
   });
 
   it("respects quality floor: silver-min contract requires silver or gold in stock", () => {
-    // Build a gold-tier contract manually to get minQuality = 'silver'
-    // (we can't easily force this from generateContracts without high rep, so
-    //  we test via a hand-crafted contract)
+
     const contract = {
       id: "test-q-1",
       goods: { crop: "wheat" as const, minQuality: "silver" as const, quantity: 3 },
@@ -122,21 +120,19 @@ describe("canFulfillContract (pure)", () => {
       minReputation: 5,
       tier: "silver" as const,
     };
-    // Only normal wheat → fails
+
     const invNormal = makeInv({
       crops: { ...ZERO_CROPS, wheat: 10 },
       cropQuality: { wheat: { normal: 10, silver: 0, gold: 0 } },
     });
     expect(canFulfillContract(invNormal, contract)).toBe(false);
 
-    // 3 silver wheat → passes
     const invSilver = makeInv({
       crops: { ...ZERO_CROPS, wheat: 10 },
       cropQuality: { wheat: { normal: 7, silver: 3, gold: 0 } },
     });
     expect(canFulfillContract(invSilver, contract)).toBe(true);
 
-    // 3 gold wheat also passes (gold >= silver)
     const invGold = makeInv({
       crops: { ...ZERO_CROPS, wheat: 10 },
       cropQuality: { wheat: { normal: 7, silver: 0, gold: 3 } },
@@ -200,7 +196,7 @@ describe("HarborSystem integration (live sim)", () => {
 
     const farmers = [...sim.world.query("farmer", "beliefs")];
     for (const f of farmers) {
-      if (f.player) continue; // skip player
+      if (f.player) continue; 
       const openContracts = f.beliefs.data.harborOpenContracts;
       expect(Array.isArray(openContracts)).toBe(true);
     }

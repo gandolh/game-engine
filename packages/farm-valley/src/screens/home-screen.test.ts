@@ -88,7 +88,7 @@ describe("HomeScreen", () => {
     const before = input.value;
     randomizeButton(parent).click();
     expect(input.value).not.toBe(before);
-    // 0.5 * 0x100000000 = 0x80000000
+
     expect(input.value).toBe(formatSeed(0x80000000));
   });
 

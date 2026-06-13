@@ -1,5 +1,5 @@
-// Worker isolation is load-bearing: the sim has module-level mutable state (coordinator Map,
-// World.nextId) that would collide if two runs shared a JS context.
+
+
 import { parentPort } from "node:worker_threads";
 import { runOnce, type RunResult } from "./run-core";
 import { makePathfinder } from "./pathfinder";

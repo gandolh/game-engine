@@ -77,7 +77,6 @@ export function handleSellShopkeeper(
   const available = Math.min(qty, farmer.inventory.crops[crop]);
   if (available <= 0) return;
 
-  // Quality-weighted: sell gold-tier first, then silver, then normal.
   const basePrice = SELL_PRICE[crop];
   const quality = farmer.inventory.cropQuality;
   if (quality?.[crop]) {
@@ -236,7 +235,7 @@ export function handleProcessCrop(
   farmer: ActingFarmer,
   intent: Intention,
 ): void {
-  if (farmer.farmer?.currentRegion !== "mill") return; // pays MILL_PRICE premium
+  if (farmer.farmer?.currentRegion !== "mill") return; 
   const crop = intent.data.crop as CropKind;
   if (!(crop in MILL_PRICE)) return;
   const have = farmer.inventory.crops[crop];

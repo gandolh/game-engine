@@ -6,7 +6,6 @@ import { TREE_PLANT_COST, GREENHOUSE_BUILD_COST } from "../../economy";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestTile } from "./shared";
 
-/** Queue a plant intent on the nearest empty plot, or travel to it. Returns false if no empty plots. */
 export function deliberatePlantNearby(
   farmer: GameEntity,
   crop: import("../../components").CropKind,
@@ -41,14 +40,13 @@ export function deliberatePlantNearby(
   return false;
 }
 
-/** Queue plant-tree on a free farm tile when affordable (above reserve) and under maxTrees. */
 export function deliberatePlantOrchard(
   farmer: GameEntity,
   kind: FruitKind,
   maxTrees: number,
   reserve: number,
   priority: number,
-  /** Winning travel priority to reach the planting tile on an invest day (see deliberateBuildPen). */
+
   travelPriority?: number,
 ): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
@@ -66,7 +64,6 @@ export function deliberatePlantOrchard(
 
   const occupied = new Set<string>((farmer.beliefs?.data["occupiedTiles"] as string[] | undefined) ?? []);
 
-  // Pick the nearest free tile (not top-left-first) so the plant trip lands same-day at low ticks.
   const free: Array<{ tileX: number; tileY: number }> = [];
   for (let ty = farmDef.bounds.minY; ty <= farmDef.bounds.maxY; ty++) {
     for (let tx = farmDef.bounds.minX; tx <= farmDef.bounds.maxX; tx++) {
@@ -82,7 +79,7 @@ export function deliberatePlantOrchard(
     const wanted = travelPriority ?? -1;
     const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetTile);
     if (existing) {
-      // On a commit day, retarget+upgrade any existing tile-travel to the orchard tile.
+
       if (wanted < existing.priority) {
         existing.priority = wanted;
         existing.data = { targetTile: { x: target.x, y: target.y } };
@@ -105,7 +102,6 @@ export function deliberatePlantOrchard(
   recordReason(farmer, `plant ${kind} tree (orchards: ${treeCount}/${maxTrees})`);
 }
 
-/** Queue harvest-fruit for any ready trees on the farmer's farm. */
 export function deliberateHarvestFruit(
   farmer: GameEntity,
   priority: number,
@@ -137,10 +133,6 @@ export function deliberateHarvestFruit(
   }
 }
 
-/**
- * Plant a premium crop in an empty greenhouse plot (season-immune; grows at full rate year-round).
- * Buys seed first if not on hand; one plot per call; travels to the greenhouse tile when out of reach.
- */
 export function deliberateGreenhousePlant(
   farmer: GameEntity,
   crop: import("../../components").CropKind,
@@ -177,10 +169,6 @@ export function deliberateGreenhousePlant(
   }
 }
 
-/**
- * Queue build-greenhouse at the carpenter. Gold-funded; wood+stone are an optional discount.
- * `travelPriority` — winning carpentry-travel priority; undefined = non-committal (priority + 1).
- */
 export function deliberateBuildGreenhouse(
   farmer: GameEntity,
   reserve: number,
@@ -189,7 +177,6 @@ export function deliberateBuildGreenhouse(
 ): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer || farmer.id === undefined) return;
 
-  // Already has one? (surfaced into beliefs by PlotSenseSystem)
   const hasGreenhouse = farmer.beliefs?.data["hasGreenhouse"] as boolean | undefined;
   if (hasGreenhouse) return;
 

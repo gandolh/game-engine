@@ -11,8 +11,7 @@ export class DeliberateSystem implements System {
     const farmers = this.world.query("fsm", "personality", "intentions", "beliefs", "desires");
     for (const farmer of farmers) {
       if (farmer.fsm.current !== "PERCEIVE") continue;
-      // The player-controlled farmer (Pip) is driven by PlayerControlSystem, not
-      // an AI personality. Skip it here so its intentions come from input only.
+
       if (farmer.player !== undefined) continue;
       const fn = getDeliberate(farmer.personality.kind);
       if (fn) {

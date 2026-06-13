@@ -145,9 +145,9 @@ export interface SimBootstrapOptions {
   ticksPerDay: number;
   maxDays?: number;
   farmerSpecs?: FarmerSpec[];
-  /** Accepts WASM Pathfinder or pure-JS JsPathfinder (duck-typed). Null/undefined omits TravelSystem. */
+
   pathfinder?: PathfinderLike | Pathfinder | null;
-  /** Mid-game shock. Defaults to a blight at the run midpoint. Pass `false` to disable. */
+
   shock?: false | { shockDay?: number; kind?: "blight" };
 }
 
@@ -274,11 +274,11 @@ export interface FarmerSummary {
   personality: string;
   gold: number;
   crops: Partial<Record<import("./components").CropKind, number>>;
-  /** Quality-weighted value of all held crops. */
+
   unsoldValue: number;
-  /** Value of held products + fruit. */
+
   livestockValue: number;
-  /** Value of pens (animal count × buy cost) + mature orchards (× avg fruit value). */
+
   assetValue: number;
   totalValue: number;
 }

@@ -1,11 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Brief 83 item 3 (Stardew restyle) — conservative / sky-blue cottage. 32x48, 2 tiles wide, rises 3,
-// bottom-anchored. Shingled gable roof (skyBlue e / ocean v / deep V) with a round gable window, warm
-// log-plank walls (wood d / dark D, lit-left h) with horizontal log courses, two green-framed windows
-// with a warm glow, a paneled door with an upper light + gold knob, and a tan porch lip. The roof
-// palette keys the personality (e/v/V here); other cottages reuse this geometry with their roof chars.
-// EDG32 only. Generated row-validated (every row is 32 wide).
 const recipe: PixelRecipe = {
     name: "structure/cottage-conservative",
     size: 32,

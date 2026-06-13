@@ -10,15 +10,10 @@ import { ONT_SIMULATION } from "../protocols/simulation";
 import { ONT_ENCOUNTER } from "../protocols/encounter";
 import { PERFORMATIVE } from "../protocols";
 
-/** Minimal DayClock stub — EventFeedSystem reads `.day` and `.maxDays`. */
 function fakeClock(day: number, maxDays = 100): DayClockSystem {
   return { day, maxDays } as unknown as DayClockSystem;
 }
 
-/**
- * Minimal RunHistorySystem stub — returns a fixed set of history rows.
- * EventFeedSystem only calls `.history()`.
- */
 function fakeHistory(rows: RunHistoryRow[]): RunHistorySystem {
   return { history: () => rows } as unknown as RunHistorySystem;
 }
@@ -131,13 +126,13 @@ describe("EventFeedSystem", () => {
 
     const feed = new EventFeedSystem(world, fakeClock(1));
     feed.run({ tick: 1 });
-    feed.run({ tick: 2 }); // same message still in inbox — must not re-add
+    feed.run({ tick: 2 }); 
 
     expect(feed.recent()).toHaveLength(1);
   });
 
   it("orders events captured in the same tick deterministically by key", () => {
-    // Two distinct auctions captured on the same tick must sort by key.
+
     const a = makeFarmer(world, "Cora");
     const b = makeFarmer(world, "Otto");
     const wall = makeWall(world);
@@ -164,7 +159,7 @@ describe("EventFeedSystem", () => {
   it("caps the internal list at EVENT_FEED_CAP", () => {
     const wall = makeWall(world);
     const feed = new EventFeedSystem(world, fakeClock(0));
-    // Each tick pushes one fresh, unique auction result.
+
     for (let i = 0; i < EVENT_FEED_CAP + 20; i += 1) {
       wall.inbox!.messages.length = 0;
       push(wall, ONT_SHOP.AUCTION_RESULT, "world", {
@@ -178,13 +173,11 @@ describe("EventFeedSystem", () => {
     expect(feed.recent()).toHaveLength(EVENT_FEED_CAP);
   });
 
-  // ---- drama score ---------------------------------------------------
-
   it("every captured entry carries a drama score in [0, 1]", () => {
     const buyer = makeFarmer(world, "Hannah");
     const seller = makeFarmer(world, "Otto");
     const wall = makeWall(world);
-    // Push one of each observable event type.
+
     push(wall, ONT_MARKET.TRADE_COMPLETED, seller.id!, {
       offerId: "t1",
       buyerId: buyer.id!,
@@ -250,13 +243,10 @@ describe("EventFeedSystem", () => {
     expect(shock!.drama).toBeGreaterThan(trade!.drama);
   });
 
-  // ---- rank-change detection -------------------------------------------
-
   it("emits a rank-flip line when the top-rank farmer changes day-over-day", () => {
     const farmerA = makeFarmer(world, "Cora");
     const farmerB = makeFarmer(world, "Otto");
 
-    // Day 9: Cora is rank 1. Day 10: Otto is rank 1 — a flip occurs.
     const historyRows: RunHistoryRow[] = [
       { day: 9, farmerId: farmerA.id!, gold: 200, rank: 1 },
       { day: 9, farmerId: farmerB.id!, gold: 180, rank: 2 },
@@ -265,21 +255,17 @@ describe("EventFeedSystem", () => {
     ];
     const hist = fakeHistory(historyRows);
 
-    // Day 9: first check, no flip yet (no previous leader recorded).
     const feed = new EventFeedSystem(world, fakeClock(9), undefined, hist);
-    feed.run({ tick: 100 }); // day 9 tick
+    feed.run({ tick: 100 }); 
 
     let entries = feed.recent();
     const rankFlip9 = entries.find((e) => e.key.startsWith("rankflip:"));
-    expect(rankFlip9).toBeUndefined(); // first observation, no previous leader
+    expect(rankFlip9).toBeUndefined(); 
 
-    // Day 10: Otto is now rank 1 — expect flip event.
-    // Simulate the clock advancing to day 10.
     const feed2 = new EventFeedSystem(world, fakeClock(10), undefined, hist);
-    // Prime the last leader by running day 9 first.
-    feed2.run({ tick: 100 });  // day 10 check (fakeClock returns 10, history has day 10 rows)
 
-    // Directly verify: create a fresh feed, prime day 9, then advance to day 10.
+    feed2.run({ tick: 100 });  
+
     const histRows2: RunHistoryRow[] = [
       { day: 1, farmerId: farmerA.id!, gold: 200, rank: 1 },
       { day: 1, farmerId: farmerB.id!, gold: 180, rank: 2 },
@@ -288,7 +274,6 @@ describe("EventFeedSystem", () => {
     ];
     const hist2 = fakeHistory(histRows2);
 
-    // Feed that starts at day 1 (Cora leads), then day 2 (Otto leads).
     let currentDay = 1;
     const clock: DayClockSystem = {
       get day() { return currentDay; },
@@ -296,13 +281,13 @@ describe("EventFeedSystem", () => {
     } as unknown as DayClockSystem;
 
     const feed3 = new EventFeedSystem(world, clock, undefined, hist2);
-    feed3.run({ tick: 10 }); // day 1: Cora recorded as initial leader, no flip
+    feed3.run({ tick: 10 }); 
 
     entries = feed3.recent();
     expect(entries.find((e) => e.key.startsWith("rankflip:"))).toBeUndefined();
 
     currentDay = 2;
-    feed3.run({ tick: 20 }); // day 2: Otto overtakes Cora → rank flip
+    feed3.run({ tick: 20 }); 
 
     entries = feed3.recent();
     const flip = entries.find((e) => e.key.startsWith("rankflip:"));
@@ -316,7 +301,7 @@ describe("EventFeedSystem", () => {
 
   it("does not emit a rank-flip when runHistory is not injected", () => {
     const wall = makeWall(world);
-    // Feed with no runHistory — no rank-flip lines should appear.
+
     const feed = new EventFeedSystem(world, fakeClock(50));
     push(wall, ONT_SHOP.AUCTION_RESULT, "world", {
       auctionId: "auc-x",

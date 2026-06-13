@@ -1,12 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Brief 87 restyle — Stardew cottage vocabulary. Pip's plain farmhouse; 32×48, 2 tiles wide,
-// rises 3, bottom-anchored. Shingled gable roof in warm straw/hay palette (W tan / h warm highlight /
-// H wicker shadow), same gable-window geometry as the personality cottages (round kqqk/kqnk),
-// warm log-plank walls (d / D / h lit-left / H right), two green-framed windows with warm glow,
-// a paneled door with upper light + gold knob, and a tan porch lip.
-// Neutral "plain" roof distinguishes home from the personality-keyed cottage variants.
-// EDG32 only. Generated row-validated (every row is 32 wide).
 const recipe: PixelRecipe = {
     name: "structure/home",
     size: 32,

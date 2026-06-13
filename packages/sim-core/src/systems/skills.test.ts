@@ -27,14 +27,14 @@ describe("skill curve (pure)", () => {
       prev = lv;
     }
     expect(skillLevel(SKILL_LEVEL_XP[MAX_SKILL_LEVEL - 1]!)).toBe(MAX_SKILL_LEVEL);
-    expect(skillLevel(1_000_000)).toBe(MAX_SKILL_LEVEL); // never exceeds cap
+    expect(skillLevel(1_000_000)).toBe(MAX_SKILL_LEVEL); 
   });
 
   it("each threshold lands exactly on its level boundary", () => {
     for (let level = 1; level <= MAX_SKILL_LEVEL; level++) {
       expect(skillLevel(SKILL_LEVEL_XP[level - 1]!)).toBe(level);
       if (level > 1) {
-        // One XP below the threshold is still the previous level.
+
         expect(skillLevel(SKILL_LEVEL_XP[level - 1]! - 1)).toBe(level - 1);
       }
     }
@@ -80,11 +80,11 @@ describe("grantSkillXp", () => {
   it("lazily initializes Skills and accumulates per axis (level rises)", () => {
     const farmer: GameEntity = {};
     expect(farmerSkillLevel(farmer, "farming")).toBe(1);
-    // Grant enough farming XP to clear level 2 (10 XP) and 3 (30 XP).
+
     for (let i = 0; i < 30; i++) grantSkillXp(farmer, "farming", 1);
     expect(farmer.skills?.farming).toBe(30);
     expect(farmerSkillLevel(farmer, "farming")).toBe(3);
-    // Other axes untouched.
+
     expect(farmerSkillLevel(farmer, "fishing")).toBe(1);
   });
 
@@ -98,16 +98,14 @@ describe("grantSkillXp", () => {
 
 describe("farming skill measurably raises quality odds (deterministic)", () => {
   it("a high-farming farmer earns more Silver/Gold over the same plots + seed than a novice", () => {
-    // Same husbandry inputs, same rng stream, same plot count — only the farming
-    // bonus differs. The skilled farmer must net at least as many (and, across a
-    // batch, strictly more) non-Normal harvests. Deterministic: identical seed.
+
     const N = 200;
     const novice = createRng(7).fork("crop-quality");
     const master = createRng(7).fork("crop-quality");
     let noviceUp = 0;
     let masterUp = 0;
-    // Mediocre husbandry so the bonus has room to move the needle.
-    const inputs = [3, 4, 2.4, 1, 0] as const; // daysGrowing, growthDays, weatherSum, daysSinceWater, decoBoost
+
+    const inputs = [3, 4, 2.4, 1, 0] as const; 
     for (let i = 0; i < N; i++) {
       const qN = computeQuality(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], novice, 0);
       const qM = computeQuality(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], master, farmingQualityBonus(SKILL_LEVEL_XP[MAX_SKILL_LEVEL - 1]!));

@@ -1,17 +1,12 @@
-// Cache key per sheet = SHA-256 over: BUILDER_VERSION, PNG_OPTIONS, PACK_CONSTANTS, sheet id,
-// palette/sheet-map/types content, sorted asset file contents, and (if generated) index+templates.
-// Files hashed by CONTENT (not mtime — mtimes lie after git checkout).
+
+
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-// Bump BUILDER_VERSION when packing/rasterizer/encoder logic changes output.
 export const BUILDER_VERSION = 1;
 
-// Pinned encoder options — must stay in sync with index.ts write call.
-// Always spread when passing to PNG.sync.write: pngjs mutates the options object it receives.
 export const PNG_OPTIONS = { filterType: 0, deflateLevel: 9, deflateStrategy: 3 } as const;
 
-// Must stay in sync with packShelf in index.ts.
 export const PACK_CONSTANTS = { PADDING: 1, pow2: true } as const;
 
 function hashFile(filePath: string, h: ReturnType<typeof createHash>): void {

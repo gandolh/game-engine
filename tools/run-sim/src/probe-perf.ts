@@ -1,4 +1,4 @@
-/* brief 09 — WS server load profile: ramp 1→5→10 clients, measure CPU/RSS, snapshot rate, deflate ratio. (~3 min) */
+
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -22,16 +22,16 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 interface ProcStat {
   pid: number;
   ppid: number;
-  jiffies: number; // utime + stime
+  jiffies: number; 
   rssPages: number;
 }
 
 function readProcStat(pid: number): ProcStat | null {
   try {
     const raw = readFileSync(`/proc/${pid}/stat`, "utf8");
-    const close = raw.lastIndexOf(")"); // comm (field 2) may contain spaces
+    const close = raw.lastIndexOf(")"); 
     const rest = raw.slice(close + 2).split(" ");
-    // rest: [state, ppid, ...] fields 3+; utime=rest[11], stime=rest[12], rss=rest[21]
+
     const ppid = Number(rest[1]);
     const utime = Number(rest[11]);
     const stime = Number(rest[12]);
@@ -74,11 +74,11 @@ function sampleTree(rootPid: number): { jiffies: number; rssMb: number } {
   return { jiffies, rssMb: (rssPages * 4096) / (1024 * 1024) };
 }
 
-const HZ = 100; // kernel USER_HZ; 100 on all mainstream Linux distros
+const HZ = 100; 
 
 interface ClientStats {
   snapshots: number;
-  payloadBytes: number; // decompressed JSON length
+  payloadBytes: number; 
   lastProfile: Record<string, { mean: number; p95: number; count: number }> | null;
 }
 
@@ -95,7 +95,7 @@ class DrainClient {
     this.ws.on("message", (data) => {
       const text = data.toString();
       this.stats.payloadBytes += text.length;
-      if (text.startsWith('{"type":"snapshot"')) { // cheap sniff — avoid full JSON.parse per snapshot
+      if (text.startsWith('{"type":"snapshot"')) { 
         this.stats.snapshots += 1;
       } else if (text.startsWith('{"type":"profile"')) {
         const msg = JSON.parse(text) as {
@@ -107,7 +107,7 @@ class DrainClient {
     this.ws.on("error", (e) => console.error(`[client ${id}] error:`, e.message));
   }
 
-  wireBytes(): number { // compressed bytes on the TCP socket (incl. WS framing)
+  wireBytes(): number { 
     const sock = (this.ws as unknown as { _socket?: { bytesRead: number } })._socket;
     return sock?.bytesRead ?? 0;
   }
@@ -130,7 +130,7 @@ function startServer(): Promise<ChildProcess> {
     const child = spawn("npx", ["tsx", "src/index.ts"], {
       cwd: resolve(repoRoot, "packages/server"),
       stdio: ["ignore", "pipe", "pipe"],
-      detached: true, // own process group → SIGTERM kills the whole tree
+      detached: true, 
     });
     const onData = (buf: Buffer): void => {
       const line = buf.toString();
@@ -223,7 +223,7 @@ async function main(): Promise<void> {
     try {
       process.kill(-serverPid, "SIGTERM");
     } catch {
-      /* already gone */
+
     }
   }
   console.log("[probe] done");

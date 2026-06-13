@@ -1,14 +1,4 @@
-/**
- * rivalry.test.ts — unit tests for RivalrySystem (trust-axis LABELER).
- *
- * RivalrySystem no longer accumulates adverse events; rivalry/alliance are
- * DERIVED each tick from the directional `trust` map. Tests set trust values
- * directly and call rivalry.run().
- *
- *   rivalry  : DIRECTIONAL — from→to trust < RIVAL_CUTOFF (0.25).
- *   hysteresis: fresh fires once on crossing down; re-arms only above RIVAL_REARM (0.40).
- *   alliance : undirected mutual trust >= ALLIANCE_TRUST_THRESHOLD (0.8).
- */
+
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { World } from "@engine/core";
@@ -19,8 +9,6 @@ import {
   RIVAL_REARM,
   ALLIANCE_TRUST_THRESHOLD,
 } from "./rivalry";
-
-// ---- helpers ---------------------------------------------------------------
 
 function makeFarmer(world: World<GameEntity>, name: string): GameEntity {
   return world.spawn({
@@ -33,8 +21,6 @@ function makeFarmer(world: World<GameEntity>, name: string): GameEntity {
 function setTrust(from: GameEntity, to: GameEntity, value: number): void {
   from.trust!.byId.set(to.id!, value);
 }
-
-// ---- tests -----------------------------------------------------------------
 
 describe("RivalrySystem — directional rivalry labeling", () => {
   let world: World<GameEntity>;
@@ -63,11 +49,11 @@ describe("RivalrySystem — directional rivalry labeling", () => {
   it("labels a one-sided rivalry when my trust drops below the cutoff", () => {
     const alice = makeFarmer(world, "Alice");
     const bob = makeFarmer(world, "Bob");
-    setTrust(alice, bob, RIVAL_CUTOFF - 0.05); // Alice resents Bob; Bob is neutral
+    setTrust(alice, bob, RIVAL_CUTOFF - 0.05); 
     rivalry.run({ tick: 0 });
 
     const rivalries = rivalry.activeRivalries();
-    expect(rivalries).toHaveLength(1); // directional: only Alice→Bob
+    expect(rivalries).toHaveLength(1); 
     expect(rivalries[0]!.aId).toBe(alice.id);
     expect(rivalries[0]!.bId).toBe(bob.id);
     expect(rivalries[0]!.score).toBeLessThan(RIVAL_CUTOFF);
@@ -86,19 +72,16 @@ describe("RivalrySystem — directional rivalry labeling", () => {
     const alice = makeFarmer(world, "Alice");
     const bob = makeFarmer(world, "Bob");
 
-    // Above cutoff first → nothing fresh.
     setTrust(alice, bob, 0.5);
     rivalry.run({ tick: 0 });
     expect(rivalry.freshlyFormedThisTick()).toHaveLength(0);
 
-    // Cross down → fresh fires.
     setTrust(alice, bob, 0.1);
     rivalry.run({ tick: 1 });
     const fresh = rivalry.freshlyFormedThisTick();
     expect(fresh).toHaveLength(1);
     expect(fresh[0]!.kind).toBe("rivalry");
 
-    // Still below, but latched → no re-fire.
     rivalry.run({ tick: 2 });
     expect(rivalry.freshlyFormedThisTick()).toHaveLength(0);
   });
@@ -111,15 +94,13 @@ describe("RivalrySystem — directional rivalry labeling", () => {
     rivalry.run({ tick: 0 });
     expect(rivalry.freshlyFormedThisTick()).toHaveLength(1);
 
-    // Recover into the hysteresis band (between cutoff and re-arm): still latched.
     setTrust(alice, bob, (RIVAL_CUTOFF + RIVAL_REARM) / 2);
     rivalry.run({ tick: 1 });
-    // Drop again — must NOT re-fire (never re-armed).
+
     setTrust(alice, bob, 0.1);
     rivalry.run({ tick: 2 });
     expect(rivalry.freshlyFormedThisTick()).toHaveLength(0);
 
-    // Now recover fully past the re-arm mark, then drop → fresh fires again.
     setTrust(alice, bob, RIVAL_REARM + 0.05);
     rivalry.run({ tick: 3 });
     setTrust(alice, bob, 0.1);
@@ -163,7 +144,6 @@ describe("RivalrySystem — alliances", () => {
       trust: { byId: new Map() },
     });
 
-    // Set mutual trust above threshold.
     alice.trust!.byId.set(bob.id!, ALLIANCE_TRUST_THRESHOLD + 0.01);
     bob.trust!.byId.set(alice.id!, ALLIANCE_TRUST_THRESHOLD + 0.01);
 
@@ -189,9 +169,7 @@ describe("RivalrySystem — alliances", () => {
       trust: { byId: new Map() },
     });
 
-    // Only Alice trusts Bob.
     alice.trust!.byId.set(bob.id!, ALLIANCE_TRUST_THRESHOLD + 0.01);
-    // Bob trusts Alice at baseline (0.5).
 
     rivalry2.run({ tick: 0 });
 
@@ -222,7 +200,6 @@ describe("RivalrySystem — alliances", () => {
     const allianceFresh = fresh.filter((f) => f.kind === "alliance");
     expect(allianceFresh).toHaveLength(1);
 
-    // Second tick: should NOT re-announce.
     rivalry2.run({ tick: 1 });
     const fresh2 = rivalry2.freshlyFormedThisTick().filter((f) => f.kind === "alliance");
     expect(fresh2).toHaveLength(0);

@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Seabed life — tall kelp strand, sway frame B (fronds swayed sideways a couple px).
 const recipe: PixelRecipe =
   {
     name: "decoration/kelp-b",

@@ -1,10 +1,8 @@
-/** Drama score threshold; events at or above this are "highlights". */
+
 export const HIGHLIGHT_THRESHOLD = 0.7;
 
-/** Ticks a bubble stays visible after an intention change (on-change-only). */
 export const BUBBLE_SHOW_TICKS = 10;
 
-/** Maps intention.kind → indicator glyph frame name. AI farmers only; Pip never gets a bubble. Unmapped kinds return null. */
 export const INTENTION_KIND_TO_GLYPH: Readonly<Record<string, string>> = {
   "plant":   "indicator/intention-plant",
   "water":   "indicator/intention-water",
@@ -21,11 +19,10 @@ export const INTENTION_KIND_TO_GLYPH: Readonly<Record<string, string>> = {
   "mine":    "indicator/intention-mine",
   "work":    "indicator/intention-work",
   "idle":    "indicator/intention-idle",
-  // Combat: a farmer chasing/challenging a rival shows the hostile (angry) bubble.
+
   "challenge": "indicator/intention-hostile",
 };
 
-// Hover label + description for decorative props, keyed by sprite.frame.
 export const DECORATION_LABELS: Record<string, { label: string; description: string }> = {
   "decoration/barrel": { label: "Barrel", description: "A storage barrel — just scenery." },
   "decoration/crate": { label: "Crate", description: "A wooden crate — just scenery." },
@@ -52,13 +49,11 @@ export const DECORATION_LABELS: Record<string, { label: string; description: str
   "structure/heritage-ruin": { label: "Ruined Tower", description: "The crumbling remains of an old watchtower. Just a landmark." },
   "structure/heritage-statue": { label: "Weathered Statue", description: "A worn monument to someone long forgotten. Just a landmark." },
   "structure/waterfall": { label: "Waterfall", description: "Water tumbles down a mossy cliff into the sea — a scenic landmark." },
-  // Campsite: sleeping here avoids the away-from-home AP penalty.
+
   "structure/tent": { label: "Campsite Tent", description: "A traveller's tent. Sleep here when caught far from home and you wake fully rested." },
   "structure/campfire": { label: "Campfire", description: "A crackling campfire warms the campsite — sleep here to wake rested." },
 };
 
-/** How many feed lines to ship in the snapshot (panel shows ~30). */
 export const EVENT_SNAPSHOT_CAP = 30;
 
-/** Cap on total wealth-series rows (100 days × 5 farmers = 500 max). */
 export const MAX_WEALTH_ROWS = 500;

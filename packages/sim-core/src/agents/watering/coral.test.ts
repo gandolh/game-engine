@@ -3,7 +3,6 @@ import type { GameEntity } from "../../components";
 import { deliberateCoralFishing } from "./coral";
 import { CORAL_REEFS } from "../../world/coral";
 
-/** Minimal farmer with the fields deliberateCoralFishing reads. */
 function makeFarmer(over: Partial<GameEntity> = {}): GameEntity {
   return {
     id: 1,
@@ -28,7 +27,7 @@ describe("deliberateCoralFishing", () => {
     deliberateCoralFishing(f, 6, 3, 12, 40);
     const travel = f.intentions!.queue.find((i) => i.kind === "travel");
     expect(travel).toBeDefined();
-    // Nearest dock to farm-cora (NW) is the forest reef dock (25,75).
+
     const forest = CORAL_REEFS.find((r) => r.id === "reef-forest")!;
     expect(travel!.data.targetTile).toEqual({ x: forest.dock.x, y: forest.dock.y });
   });
@@ -66,7 +65,7 @@ describe("deliberateCoralFishing", () => {
   it("always queues return-to-shore when aboard back at the dock, even off a period day", () => {
     const dock = CORAL_REEFS[0]!.dock;
     const f = makeFarmer({
-      beliefs: { data: { currentDay: 7 }, revision: 0 }, // off-period day
+      beliefs: { data: { currentDay: 7 }, revision: 0 }, 
       transform: { x: dock.x, y: dock.y, prevX: dock.x, prevY: dock.y, rotation: 0 },
       farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },
     });

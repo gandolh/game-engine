@@ -1,7 +1,5 @@
 import { defineConfig } from "vitest/config";
 
-// Two test projects: jsdom only for files that touch DOM; node for everything else.
-// A new UI test must be added to DOM_FILES or it will fail on missing DOM globals.
 const DOM_FILES = [
   "src/screens/home-screen.test.ts",
   "src/ui/event-feed-panel.test.ts",
@@ -13,13 +11,13 @@ const DOM_FILES = [
   "src/ui/slate-billboard.test.ts",
   "src/ui/wealth-graph.test.ts",
   "src/worker/sim-client/client.visibility.test.ts",
-  // Brief 86 — juice effects use DOM (popup overlay)
+
   "src/main/juice.test.ts",
 ];
 
 export default defineConfig({
   test: {
-    // Constrained-hardware cap (see feedback_scope_test_runs).
+
     maxWorkers: 4,
     minWorkers: 1,
     projects: [

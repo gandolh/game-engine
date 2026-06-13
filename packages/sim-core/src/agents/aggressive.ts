@@ -15,9 +15,8 @@ import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
-const UNDERCUT_THRESHOLD = 0.9; // buy offers below 90% of shop price
+const UNDERCUT_THRESHOLD = 0.9; 
 
-/** Picks highest-value in-season crop; downgrades to cheapest in-season under storm/rain. */
 function chooseTargetCrop(
   farmer: GameEntity,
   reserve: number,
@@ -30,7 +29,7 @@ function chooseTargetCrop(
 
   const allCrops: CropKind[] = ["grape", "corn", "pumpkin", "tomato", "winter-squash", "wheat", "carrot", "radish"];
   const isBadWeather = weather === "storm" || weather === "rainy";
-  // reverse() = cheapest-first under bad weather; natural order = most profitable first
+
   const order: CropKind[] = isBadWeather
     ? allCrops.filter(c => CROP_SEASON[c] === season).reverse()
     : allCrops.filter(c => CROP_SEASON[c] === season);
@@ -63,7 +62,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   resetDecisionTrace(farmer);
 
   const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
-  // Watery lazily (threshold 1): may let a marginal plot die rather than tend every one.
+
   const planWater = Math.min(sense?.due ?? 0, 3);
   deliberateRefillCan(farmer, planWater);
   deliberateWatering(farmer, { dryThreshold: 1, maxWaterPerDay: 3 });
@@ -86,17 +85,16 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   deliberateMillVisit(farmer, 10, 6);
 
   deliberateEarlyVillageVisit(farmer, 5);
-  // Upgrade axe first (aggressive chops heavily for wood/decorations).
+
   deliberateUpgrade(farmer, "axe", 6);
   deliberateUpgrade(farmer, "pickaxe", 7);
   deliberateUpgrade(farmer, "hoe", 8);
   deliberateResourceZoneVisit(farmer, features.length, "tree", 9);
   deliberateResourceZoneVisit(farmer, features.length, "stone", 10);
   deliberateFishing(farmer, 7, 2, 11);
-  // Coral: bigger AP floor and fewer trips than opportunist (a bet, not routine).
+
   deliberateCoralFishing(farmer, 8, 3, -2, 50);
 
-  // Last 2 days: liquidate everything to the shopkeeper.
   if (daysRemaining !== undefined && daysRemaining <= 2) {
     let anyToSell = false;
     for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
@@ -112,7 +110,7 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
       }
     }
     if (anyToSell && !inVillage) {
-      // Unshift so this travel lands before all priority-0 sell intents.
+
       farmer.intentions.queue.unshift({
         kind: "travel",
         data: { targetRegionId: "village" },
@@ -142,7 +140,6 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     }
   }
 
-  // Post inventory on market wall every 2 days.
   if (day % 2 === 0) {
     for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
       const qty = farmer.inventory.crops[crop];
@@ -208,7 +205,6 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     }
   }
 
-  // On odd days, sell crops directly to keep gold flowing.
   if (day % 2 !== 0) {
     for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
       const qty = farmer.inventory.crops[crop];
@@ -231,12 +227,10 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     }
   }
 
-  // Bids near full expected resale (0.95) and flips beans.
   deliberateBean(farmer, 0.95);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 
-  // Skips livestock build; only tends if already has pens.
   deliberateTendPens(farmer, 12);
   deliberateSellProducts(farmer, 12);
   deliberateHarvestFruit(farmer, 12);
@@ -244,7 +238,6 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 
   deliberateHireHelp(farmer, reserve, 13, -2);
 
-  // riskTolerance baked per-agent (bdi-jitter.ts, ~1.0): speculative, commits even without goods.
   if (day >= 3) {
     const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
     const tol = (farmer.desires.data.riskTolerance as number | undefined) ?? 1.0;
@@ -261,8 +254,8 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 
 registerPersonality("aggressive", deliberateAggressive);
 
-const AGGR_PEER_BUY_CEILING = 0.95; // discount buyer
-const AGGR_PEER_SELL_FLOOR = 1.0;   // sells at shopkeeper ceiling
+const AGGR_PEER_BUY_CEILING = 0.95; 
+const AGGR_PEER_SELL_FLOOR = 1.0;   
 
 export const respondToPeerOfferAggressive = makeRespondPeerOffer({
   buyCeiling: AGGR_PEER_BUY_CEILING,
@@ -271,7 +264,6 @@ export const respondToPeerOfferAggressive = makeRespondPeerOffer({
   reserveDefault: 10,
 });
 
-// Buys radish seeds peer-to-peer when short (growth over reserve); seeds rarely surplus so seldom closes.
 export const initiatePeerTradeAggressive = makeInitiatePeerTrade({
   stance: "buy-shortage",
   crop: "radish",
@@ -281,7 +273,6 @@ export const initiatePeerTradeAggressive = makeInitiatePeerTrade({
   reserveDefault: 10,
 });
 
-// Snaps up surplus harvested crops at discount (ceiling 0.95) to resell at the wall.
 export const respondCropOfferAggressive = makeRespondPeerOffer({
   commodity: "crop",
   buyCeiling: 0.95,
@@ -290,7 +281,6 @@ export const respondCropOfferAggressive = makeRespondPeerOffer({
   reserveDefault: 10,
 });
 
-// Gifts bean to most-trusted peer (>= 0.6) to cement the alliance rather than flip for gold.
 export const initiateBeanGiftAggressive: InitiateBeanGiftFn = (
   farmer,
   meet,

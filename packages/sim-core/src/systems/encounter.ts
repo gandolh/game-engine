@@ -4,23 +4,6 @@ import { REGIONS, type RegionId } from "../world/regions";
 import { ONT_ENCOUNTER, type MeetBody } from "../protocols/encounter";
 import { PERFORMATIVE } from "../protocols/performatives";
 
-/**
- * EncounterSystem — detects co-located farmer pairs and emits MEET into each
- * farmer's inbox. Personalities can then react with OFFER_SEED / ACCEPT /
- * DECLINE messages handled elsewhere.
- *
- * Determinism notes:
- *   - Region groups are iterated in `REGIONS` order.
- *   - Within a region, farmers are sorted by id ascending; pairs always carry
- *     the lower id first in the key.
- *   - `lastMet` is keyed by `min(a,b):max(a,b)` → tick of the most recent MEET.
- *     A pair re-emits only after `MEET_COOLDOWN_TICKS` have elapsed.
- *
- * The MessageBus is taken to keep the system signature consistent with other
- * systems and to leave a hook for future broadcast events; the current
- * implementation pushes MEET directly into each peer's inbox so the message
- * is observable on the very next inbox-processing tick.
- */
 export const MEET_COOLDOWN_TICKS = 20;
 
 export class EncounterSystem implements System {
@@ -28,8 +11,6 @@ export class EncounterSystem implements System {
 
   private readonly lastMet = new Map<string, number>();
 
-  // The bus is currently unused but accepted so the signature matches other
-  // systems and leaves a hook for future encounter-broadcast events.
   constructor(
     private readonly world: World<GameEntity>,
     private readonly bus: MessageBus,

@@ -58,7 +58,7 @@ describe("isFarmerMoving", () => {
   it("reverts to not-moving once the path clears", () => {
     const entity = makeFarmerEntity({ personality: "hoarder", traveling: true });
     expect(isFarmerMoving(entity)).toBe(true);
-    entity.farmer!.path = undefined; // simulate arrival
+    entity.farmer!.path = undefined; 
     expect(isFarmerMoving(entity)).toBe(false);
   });
 });
@@ -66,8 +66,7 @@ describe("isFarmerMoving", () => {
 describe("buildStaticLayerSprites (cached backdrop)", () => {
   function makeWorldWithOnePlot(): World<GameEntity> {
     const world = new World<GameEntity>();
-    // A plot (dirt is static); a planted crop on it (dynamic, must NOT appear);
-    // a farmer sprite (dynamic, must NOT appear).
+
     world.spawn({
       plot: {
         ownerId: 1,
@@ -88,16 +87,16 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
   it("contains the static backdrop: grass/dirt land tiles, island walls, and plot dirt (ocean + bridges NOT baked)", () => {
     const sprites = buildStaticLayerSprites(makeWorldWithOnePlot());
     const frames = new Set(sprites.map((s) => s.frame));
-    // Grass is season-specific; default season is "spring".
+
     expect(frames.has("tile/grass-spring")).toBe(true);
     expect(frames.has("tile/dirt")).toBe(true);
-    // Ocean tiles are not baked; Canvas2dRenderer fills water under islands.
+
     expect(frames.has("tile/ocean")).toBe(false);
-    // Bridges are no longer baked — pushed dynamically each frame so they can sway (pushBridgeSprites).
+
     expect(frames.has("tile/bridge-h")).toBe(false);
-    expect(frames.has("tile/wall")).toBe(true); // blacksmith / quarries / etc.
-    expect(frames.has("tile/wall-wood")).toBe(true); // carpentry
-    expect(frames.has("tile/shore-sand")).toBe(true); // farm fields + fishing isles
+    expect(frames.has("tile/wall")).toBe(true); 
+    expect(frames.has("tile/wall-wood")).toBe(true); 
+    expect(frames.has("tile/shore-sand")).toBe(true); 
     expect(frames.has("tile/fence-h")).toBe(false);
     expect(frames.has("tile/coral-fill")).toBe(true);
     expect(frames.has("tile/coral-edge")).toBe(true);

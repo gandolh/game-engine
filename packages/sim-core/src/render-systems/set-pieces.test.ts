@@ -18,8 +18,7 @@ const key = (x: number, y: number): number => y * WORLD_WIDTH + x;
 
 describe("set-pieces (decorative open-water props)", () => {
   it("places a sane, fixed number of props", () => {
-    // The scatter is seeded + capped, so the count is stable. If a future change
-    // shifts placement, update this number deliberately.
+
     expect(SET_PIECES.length).toBe(28);
     expect(SET_PIECES.length).toBeGreaterThan(0);
     expect(SET_PIECE_ALPHA).toBeGreaterThan(0);
@@ -27,7 +26,7 @@ describe("set-pieces (decorative open-water props)", () => {
   });
 
   it("is deterministic: a snapshot of the first few props is stable", () => {
-    // A future Math.random / Date.now regression in the generator must fail here.
+
     const first = SET_PIECES.slice(0, 4).map((p) => ({
       tx: p.tx,
       ty: p.ty,
@@ -123,8 +122,7 @@ describe("set-pieces (decorative open-water props)", () => {
   });
 
   it("prop tiles are disjoint from REGIONS/ROADS (guard-test grids unaffected)", () => {
-    // No prop lands inside any region (regionAt null) and none is walkable, so
-    // the region/road/walkability model the guard tests assert is untouched.
+
     for (const p of SET_PIECES) {
       expect(regionAt(p.tx, p.ty)).toBeNull();
       expect(isWalkable(p.tx, p.ty)).toBe(false);

@@ -1,4 +1,4 @@
-/* brief 70 — peer OFFER_CROP/ACCEPT/DECLINE counts by day-band; confirm startGold bump produces early closes. Run with PATHFINDER=wasm. */
+
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import {
   ONT_ENCOUNTER,
@@ -8,7 +8,7 @@ import { makePathfinder } from "./pathfinder";
 
 const TICKS_PER_DAY = 20;
 const MAX_DAYS = 20;
-// Day bands: [0..4], [5..9], [10..14], [15..19]
+
 const BANDS = [
   { label: "d00-04", from: 0,  to: 4  },
   { label: "d05-09", from: 5,  to: 9  },

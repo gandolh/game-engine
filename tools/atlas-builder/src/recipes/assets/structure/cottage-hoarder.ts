@@ -1,9 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Brief 83 item 3 (Stardew restyle) — hoarder / green — shingled gable roof (leaf g / grass G / deep l). 32x48, 2 tiles wide, rises 3, bottom-anchored.
-// Same geometry as cottage-conservative (round gable window, warm log-plank walls with courses, two
-// green-framed windows, paneled door + gold knob, tan porch lip); only the roof palette keys the
-// personality. Generated row-validated (every row 32 wide). EDG32 only.
 const recipe: PixelRecipe = {
     name: "structure/cottage-hoarder",
     size: 32,

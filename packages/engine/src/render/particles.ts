@@ -1,48 +1,36 @@
-/** Canvas-2D particle system. Decoupled from ECS — call emit() on events, update(dt)+draw(ctx) each frame.
- *  Coordinate space: world pixels (same as sprite x/y). Uses Math.random — display-only, not sim.
- *
- *  Brief 14 (task 8) — CPU path fixes:
- *    - Dead-particle removal uses swap-with-last + pop() instead of splice(i,1): O(1) vs O(n).
- *    - Total particle pool capped at MAX_PARTICLES: emit() drops new particles when the pool is full
- *      so a burst of splashes or waterfalls never blows up on weak hardware.
- */
+
 
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 export type ParticleShape = "circle" | "rect" | "star";
 
-/**
- * Read-only snapshot of a single live particle, consumed by GPU renderers.
- * Colors are in the same 0..255 range as stored internally; alpha is derived
- * as max(0, life/maxLife) — identical to the computation in draw().
- */
 export interface GpuParticleView {
   x: number;
   y: number;
   size: number;
   shape: ParticleShape;
-  r: number; // 0..255
-  g: number; // 0..255
-  b: number; // 0..255
-  alpha: number; // 0..1, = max(0, life/maxLife)
+  r: number; 
+  g: number; 
+  b: number; 
+  alpha: number; 
 }
 
 export interface ParticleEmitOptions {
-  x: number;          // world-pixel origin
+  x: number;          
   y: number;
   count: number;
   shape: ParticleShape;
-  color: string;      // EDG32 swatch recommended
-  color2?: string;    // random lerp between color and color2
-  speedMin: number;   // world-px / second
+  color: string;      
+  color2?: string;    
+  speedMin: number;   
   speedMax: number;
-  angleMin?: number;  // radians; 0 = right, -PI/2 = up; default full circle
+  angleMin?: number;  
   angleMax?: number;
-  lifetimeMin: number; // seconds
+  lifetimeMin: number; 
   lifetimeMax: number;
-  sizeMin: number;    // radius (circle) or half-size (rect/star), world px
+  sizeMin: number;    
   sizeMax: number;
-  gravity?: number;   // world-px / s², positive = downward
+  gravity?: number;   
 }
 
 interface Particle {
@@ -50,7 +38,7 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
-  life: number;    // remaining seconds
+  life: number;    
   maxLife: number;
   size: number;
   shape: ParticleShape;
@@ -74,8 +62,6 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-// Hard cap on live particles. Prevents splash/waterfall bursts from blowing up on
-// weak hardware. The WebGPU path uploads this many instances per frame at most.
 const MAX_PARTICLES = 512;
 
 export class ParticleSystem {
@@ -89,7 +75,7 @@ export class ParticleSystem {
     const [r2, g2, b2] = opts.color2 ? hexToRgb(opts.color2) : [r1, g1, b1];
 
     for (let i = 0; i < opts.count; i++) {
-      // Drop new particles silently when the pool is full — keeps worst-case cost bounded.
+
       if (this.particles.length >= MAX_PARTICLES) break;
       const t    = Math.random();
       const angle = rand(angleMin, angleMax);
@@ -113,17 +99,13 @@ export class ParticleSystem {
   }
 
   update(dt: number): void {
-    // Iterate backwards so the swap-with-last + pop() removal doesn't skip elements:
-    // when we swap index i with the last element and pop, the new element at i is one
-    // we have NOT yet visited (it came from the end), so we must re-examine it.
-    // Backwards iteration naturally handles this — after the swap the element now at i
-    // is from the tail which we already processed (or is the same i if it's the last).
+
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       if (!p) continue;
       p.life -= dt;
       if (p.life <= 0) {
-        // Swap with last element and pop — O(1) removal, order-insensitive.
+
         const last = this.particles.length - 1;
         if (i !== last) {
           this.particles[i] = this.particles[last]!;
@@ -162,12 +144,6 @@ export class ParticleSystem {
     return this.particles.length;
   }
 
-  /**
-   * Iterate over all live particles, exposing a read-only view for GPU renderers.
-   * The visitor is called synchronously; the view object is reused across calls —
-   * do not retain a reference beyond the callback.
-   * Alpha is computed identically to draw(): max(0, life / maxLife).
-   */
   forEachParticle(visit: (v: GpuParticleView) => void): void {
     const view: GpuParticleView = {
       x: 0, y: 0, size: 0,

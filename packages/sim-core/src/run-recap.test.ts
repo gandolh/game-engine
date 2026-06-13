@@ -1,9 +1,4 @@
-/**
- * run-recap.test.ts — pure unit tests for summarizeRun.
- *
- * No sim boot required — we construct synthetic history/events/standings.
- * All assertions are about the pure function output shape and content.
- */
+
 
 import { describe, it, expect } from "vitest";
 import { ZERO_CROPS } from "./economy";
@@ -12,15 +7,10 @@ import type { RunHistoryRow } from "./systems/run-history";
 import type { EventEntry } from "./systems/event-feed";
 import type { FinalStandingRow, SnapshotRivalry } from "./snapshot";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Build a synthetic history: one row per farmer per day. */
 function makeHistory(
   days: number,
   farmerCount: number,
-  /** rankFn(farmerId, day) → rank for that farmer on that day. */
+
   rankFn: (farmerId: number, day: number) => number,
 ): RunHistoryRow[] {
   const rows: RunHistoryRow[] = [];
@@ -44,21 +34,16 @@ function makeEvent(text: string, day = 1, drama = 0): EventEntry {
   return { tick: day * 20, day, text, key: `${day}:${text}`, drama };
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("summarizeRun — arc patterns", () => {
   it("produces a surge arc for a farmer that was last for most days then won", () => {
     const DAYS = 100;
     const FARMERS = 4;
 
-    // Farmer 1 (id=1) is last (rank 4) for days 1..79, then rank 1 for 80..100.
     const history = makeHistory(DAYS, FARMERS, (id, day) => {
       if (id === 1) return day >= 80 ? 1 : 4;
-      // Others split 1/2/3 among themselves (ids 2,3,4)
-      if (day >= 80) return id; // id 2→rank2, 3→rank3, 4→rank4
-      return id - 1; // id 2→rank1, 3→rank2, 4→rank3
+
+      if (day >= 80) return id; 
+      return id - 1; 
     });
 
     const standings = makeStandings([
@@ -70,7 +55,6 @@ describe("summarizeRun — arc patterns", () => {
 
     const recap = summarizeRun(history, [], standings);
 
-    // Otto was last for 79/100 days (≥ 50%) and finished 1st → surge arc.
     expect(recap.arcs[0]).toContain("Otto");
     expect(recap.arcs[0]).toMatch(/surged to 1st/);
   });
@@ -79,16 +63,15 @@ describe("summarizeRun — arc patterns", () => {
     const DAYS = 100;
     const FARMERS = 4;
 
-    // Hannah (id=3) is rank 1 for days 1..70, then rank 3 for 71..100.
     const history = makeHistory(DAYS, FARMERS, (id, day) => {
       if (id === 3) return day <= 70 ? 1 : 3;
       if (day <= 70) {
-        // ids 1,2,4 → ranks 2,3,4 respectively
+
         if (id === 1) return 2;
         if (id === 2) return 3;
-        return 4; // id=4
+        return 4; 
       } else {
-        // days 71+: id=1→1, id=2→2, id=4→4
+
         if (id === 1) return 1;
         if (id === 2) return 2;
         return 4;
@@ -104,7 +87,6 @@ describe("summarizeRun — arc patterns", () => {
 
     const recap = summarizeRun(history, [], standings);
 
-    // Hannah finished at rank 3 in standings (index 2 in arcs).
     expect(recap.arcs[2]).toContain("Hannah");
     expect(recap.arcs[2]).toMatch(/led for \d+ days.*collapsed/);
   });
@@ -113,7 +95,6 @@ describe("summarizeRun — arc patterns", () => {
     const DAYS = 100;
     const FARMERS = 4;
 
-    // Farmer id=2 is always rank 2 (top half = rank ≤ 2).
     const history = makeHistory(DAYS, FARMERS, (id, _day) => id);
 
     const standings = makeStandings([
@@ -125,7 +106,6 @@ describe("summarizeRun — arc patterns", () => {
 
     const recap = summarizeRun(history, [], standings);
 
-    // Atticus (rank 2 final, always rank 2) → steady arc.
     expect(recap.arcs[1]).toContain("Atticus");
     expect(recap.arcs[1]).toMatch(/steady|consistent/);
   });
@@ -134,13 +114,12 @@ describe("summarizeRun — arc patterns", () => {
 describe("summarizeRun — standings with midRankDelta", () => {
   it("computes midRankDelta correctly", () => {
     const DAYS = 100;
-    // Farmer 1: rank 3 at mid (day 50), rank 1 at end → delta = +2.
-    // Farmer 2: rank 1 at mid (day 50), rank 2 at end → delta = -1.
+
     const history = makeHistory(DAYS, 2, (id, day) => {
-      if (id === 1) return day <= 50 ? 3 : 1; // but there are only 2 farmers...
+      if (id === 1) return day <= 50 ? 3 : 1; 
       return day <= 50 ? 1 : 2;
     });
-    // Correct rank ranges for 2 farmers (1 and 2 only).
+
     const history2 = makeHistory(DAYS, 2, (id, day) => {
       if (id === 1) return day <= 50 ? 2 : 1;
       return day <= 50 ? 1 : 2;
@@ -153,9 +132,8 @@ describe("summarizeRun — standings with midRankDelta", () => {
 
     const recap = summarizeRun(history2, [], standings);
 
-    // Farmer A: mid rank 2, final rank 1 → delta = 2 - 1 = +1.
     expect(recap.standings[0]!.midRankDelta).toBe(1);
-    // Farmer B: mid rank 1, final rank 2 → delta = 1 - 2 = -1.
+
     expect(recap.standings[1]!.midRankDelta).toBe(-1);
   });
 
@@ -164,7 +142,7 @@ describe("summarizeRun — standings with midRankDelta", () => {
       { id: 1, name: "A", personality: "conservative", rank: 1, totalValue: 200, gold: 200 },
     ]);
     const recap = summarizeRun([], [], standings);
-    // No history → midRankDelta defaults to 0 (midRank falls back to row.rank).
+
     expect(recap.standings[0]!.midRankDelta).toBe(0);
   });
 });
@@ -210,7 +188,7 @@ describe("summarizeRun — headline drama-based selection (brief 38)", () => {
   ]);
 
   it("prefers the highest-drama event as the headline source", () => {
-    // drama=0.9 rank-flip should win over drama=0.1 trade.
+
     const events: EventEntry[] = [
       makeEvent("Cora bought 5 wheat from Otto (70g)", 10, 0.1),
       makeEvent("Atticus overtakes Hannah for 1st!", 80, 0.9),
@@ -225,7 +203,7 @@ describe("summarizeRun — headline drama-based selection (brief 38)", () => {
       makeEvent("Cora overtakes Otto for 1st!", 90, 0.85),
     ];
     const recap = summarizeRun([], events, standings);
-    // Day 90 is later than day 30 — should be chosen.
+
     expect(recap.headline).toContain("Cora overtakes Otto for 1st!");
   });
 
@@ -235,7 +213,7 @@ describe("summarizeRun — headline drama-based selection (brief 38)", () => {
       makeEvent("Drought! Hannah lost 2 crops", 50, 0),
     ];
     const recap = summarizeRun([], events, standings);
-    // Both drama=0, so text-based path runs. Has both trade and drought → combo.
+
     expect(recap.headline.toLowerCase()).toContain("drought");
     expect(recap.headline.toLowerCase()).toContain("70g");
   });

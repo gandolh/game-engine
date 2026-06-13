@@ -27,19 +27,18 @@ describe("RainField", () => {
     expect(storm.count).toBeGreaterThan(rainy.count);
   });
 
-  // The bug this whole field fixes: panning the camera must NOT reset/thin the curtain.
   it("keeps density stable as the camera pans (no reset on walk)", () => {
     const f = new RainField();
     f.setConfig(cfg("rain"));
     f.update(0.016, VIEW);
     const baseline = f.count;
-    // Walk the viewport a long way over many frames.
+
     let view = { ...VIEW };
     for (let i = 0; i < 120; i++) {
       view = { left: view.left + 8, right: view.right + 8, top: view.top + 4, bottom: view.bottom + 4 };
       f.update(0.016, view);
     }
-    // Count stays at target (drops recycle into view rather than draining away).
+
     expect(f.count).toBe(baseline);
   });
 
@@ -47,7 +46,7 @@ describe("RainField", () => {
     const f = new RainField();
     f.setConfig(cfg("rain"));
     let impacts = 0;
-    // Many frames at a coarse dt so plenty of drops cross z=0.
+
     for (let i = 0; i < 200; i++) f.update(0.05, VIEW, () => { impacts++; });
     expect(impacts).toBeGreaterThan(0);
   });

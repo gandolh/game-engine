@@ -33,16 +33,15 @@ export interface Panels {
 
 export type { GameOverPanel };
 
-// Construct all UI panels and mount them into `app`.
 export function buildPanels(app: HTMLElement): Panels {
   const overlay = new DebugOverlay(app);
   const worldClock = new WorldClockPanel(app);
-  // Observer + feed share a right-edge flex column so they stack, not overlap.
+
   const rightColumn = createRightColumn(app);
   const playback = new PlaybackControlsPanel(rightColumn);
   const observer = new ObserverPanel(rightColumn);
   const leaderboardPanel = new LeaderboardPanel(app);
-  // Standings are hidden by default; the player toggles them with Tab.
+
   leaderboardPanel.setVisible(false);
   const slateBillboard = new SlateBillboardPanel(rightColumn);
   const eventFeedPanel = new EventFeedPanel(rightColumn);

@@ -3,7 +3,6 @@ import { CROP_SELL_PRICE, QUALITY_MULTIPLIER } from "./crops";
 import { PRODUCT_SELL_PRICE } from "./livestock";
 import { FRUIT_SELL_PRICE } from "./fruit";
 
-/** Quality-weighted sell value of all crops. Falls back to Normal quality if breakdown absent. */
 export function cropInventoryValue(inv: Inventory): number {
   let total = 0;
   const crops = inv.crops;
@@ -24,12 +23,10 @@ export function cropInventoryValue(inv: Inventory): number {
   return total;
 }
 
-/** Total units of a crop regardless of quality. */
 export function totalCropCount(inv: Inventory, crop: CropKind): number {
   return inv.crops[crop];
 }
 
-/** Add harvested crops to inventory; increments both total count and quality breakdown. */
 export function bankHarvest(inv: Inventory, crop: CropKind, qty: number, quality: CropQuality): void {
   inv.crops[crop] += qty;
   if (!inv.cropQuality) inv.cropQuality = {};
@@ -37,35 +34,30 @@ export function bankHarvest(inv: Inventory, crop: CropKind, qty: number, quality
   inv.cropQuality[crop]![quality] += qty;
 }
 
-/** Total count of a product kind in inventory (sum across quality tiers). */
 export function totalProductCount(inv: Inventory, kind: ProductKind): number {
   const q = inv.products?.[kind];
   if (!q) return 0;
   return q.normal + q.silver + q.gold;
 }
 
-/** Total count of a fruit kind in inventory (sum across quality tiers). */
 export function totalFruitCount(inv: Inventory, kind: FruitKind): number {
   const q = inv.fruit?.[kind];
   if (!q) return 0;
   return q.normal + q.silver + q.gold;
 }
 
-/** Add product units at a given quality tier to inventory. */
 export function bankProduct(inv: Inventory, kind: ProductKind, qty: number, quality: CropQuality): void {
   if (!inv.products) inv.products = {};
   if (!inv.products[kind]) inv.products[kind] = { normal: 0, silver: 0, gold: 0 };
   inv.products[kind]![quality] += qty;
 }
 
-/** Add fruit units at a given quality tier to inventory. */
 export function bankFruit(inv: Inventory, kind: FruitKind, qty: number, quality: CropQuality): void {
   if (!inv.fruit) inv.fruit = {};
   if (!inv.fruit[kind]) inv.fruit[kind] = { normal: 0, silver: 0, gold: 0 };
   inv.fruit[kind]![quality] += qty;
 }
 
-/** Quality-weighted sell value of all held products. */
 export function productInventoryValue(inv: Inventory): number {
   if (!inv.products) return 0;
   let total = 0;
@@ -78,7 +70,6 @@ export function productInventoryValue(inv: Inventory): number {
   return total;
 }
 
-/** Quality-weighted sell value of all held fruit. */
 export function fruitInventoryValue(inv: Inventory): number {
   if (!inv.fruit) return 0;
   let total = 0;
@@ -91,7 +82,6 @@ export function fruitInventoryValue(inv: Inventory): number {
   return total;
 }
 
-/** Deduct crops from inventory respecting quality split; preferred tier first. Returns amount deducted. */
 export function deductCrops(inv: Inventory, crop: CropKind, qty: number, preferQuality?: CropQuality): number {
   const have = inv.crops[crop];
   const taken = Math.min(qty, have);

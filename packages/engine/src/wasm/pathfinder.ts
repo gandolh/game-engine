@@ -26,7 +26,7 @@ export interface PathPoint {
 }
 
 export interface PathfinderGrid {
-  /** Row-major u8: 0 = walkable, anything else = blocked. */
+
   cells: Uint8Array;
   width: number;
   height: number;
@@ -36,7 +36,6 @@ export class Pathfinder {
   private readonly exports: PathfindingExports;
   private readonly heap: WasmHeap;
 
-  /** Maximum waypoints any single `findPath` call can return. */
   readonly maxWaypoints: number;
 
   constructor(loaded: LoadedWasm<PathfindingExports>, opts?: { maxWaypoints?: number }) {
@@ -48,10 +47,6 @@ export class Pathfinder {
     this.maxWaypoints = opts?.maxWaypoints ?? 4096;
   }
 
-  /**
-   * Find a 4-connected shortest path through a grid.
-   * Returns an empty array when no path exists or inputs are out of bounds.
-   */
   findPath(grid: PathfinderGrid, start: PathPoint, end: PathPoint): PathPoint[] {
     const { width, height, cells } = grid;
     if (cells.length !== width * height) {
@@ -84,9 +79,7 @@ export class Pathfinder {
       }
       return out;
     } finally {
-      // Free in reverse allocation order: stub runtime's bump allocator only reclaims
-      // the most-recently-allocated chunk. Freeing gridPtr first (allocated before outPtr)
-      // was a no-op, leaking ~cells.length bytes per call → heap exhaustion (unreachable).
+
       this.heap.free(outPtr);
       this.heap.free(gridPtr);
     }

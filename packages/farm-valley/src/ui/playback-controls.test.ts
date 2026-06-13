@@ -5,7 +5,6 @@ import { personalityColor } from "./colors";
 const PERSONALITY_KINDS = ["conservative", "aggressive", "hoarder", "opportunist"] as const;
 const FSM_STATES = ["WAIT_DAY", "PERCEIVE", "DELIBERATE", "ACT", "FINISH_DAY", "SLEEP"] as const;
 
-/** jsdom normalizes a CSS color to rgb(...); convert an EDG hex the same way. */
 function normalizeColor(value: string): string {
   const probe = document.createElement("span");
   probe.style.color = value;

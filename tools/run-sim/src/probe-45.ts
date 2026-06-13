@@ -1,4 +1,4 @@
-/* brief 45 — acceptance probe: festivals fired, contest winners, event-feed lines, podium gatherings. */
+
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { isWithinReach } from "@farm/sim-core/systems/proximity";
@@ -26,7 +26,6 @@ function nameOf(id: number): string {
   return findFarmer(id)?.farmer?.name ?? `#${id}`;
 }
 
-// Tracking state
 interface FestivalResult {
   day: number;
   festivalId: string;
@@ -82,8 +81,7 @@ for (let tick = 0; tick < totalTicks; tick++) {
 
 for (const entry of eventFeed.recent()) {
   const text = entry.text;
-  // Festival result lines: "Spring Planting Fair — ...", "Summer Market Day — ...",
-  // "Autumn Harvest Fair — ...", "Winter Feast — ..."
+
   if (
     text.startsWith("Spring Planting Fair") ||
     text.startsWith("Summer Market Day") ||
@@ -91,9 +89,7 @@ for (const entry of eventFeed.recent()) {
     text.startsWith("Winter Feast")
   ) {
     feedFestivalLines++;
-    // Parse the result into our tracking struct (from the narration line).
-    // Format: "<FestivalName> — <WinnerName> wins with a <Quality> <crop>"
-    // or:     "<FestivalName> — no contest entries this year"
+
     const dashIdx = text.indexOf(" — ");
     if (dashIdx !== -1) {
       const festName = text.slice(0, dashIdx);
@@ -106,7 +102,7 @@ for (const entry of eventFeed.recent()) {
         if (winsMatch) {
           winnerName = winsMatch[1] ?? null;
           winnerQuality = winsMatch[2]?.toLowerCase() ?? null;
-          // Resolve id from the known farmers.
+
           for (const f of world.query("farmer")) {
             if (f.farmer?.name === winnerName) { winnerId = f.id ?? null; break; }
           }
@@ -119,7 +115,7 @@ for (const entry of eventFeed.recent()) {
         winnerId,
         winnerName,
         winnerQuality,
-        prize: 0, // not in narration; we know it from the FestivalDef
+        prize: 0, 
         participants: [],
       });
       console.log(`[day ${entry.day}] FEED FESTIVAL LINE: "${text}"`);

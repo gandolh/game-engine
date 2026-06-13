@@ -1,5 +1,4 @@
-// AssemblyScript: BFS flood-fill on a row-major u8 grid (0=walkable).
-// Host alloc→floodFill→free; output is i32 (x,y) pairs.
+
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);
@@ -33,7 +32,7 @@ export function floodFill(
     store<u8>(visitedPtr + <usize>i, 0);
   }
 
-  const maxOut: i32 = outCap >> 1; // maximum tile pairs
+  const maxOut: i32 = outCap >> 1; 
   let qHead: i32 = 0;
   let qTail: i32 = 0;
   let found: i32 = 0;
@@ -50,7 +49,7 @@ export function floodFill(
     const cx: i32 = idx - cy * width;
 
     if (found < maxOut) {
-      const off: usize = outPtr + <usize>(found << 3); // found * 8 bytes (2 i32s)
+      const off: usize = outPtr + <usize>(found << 3); 
       store<i32>(off, cx);
       store<i32>(off + 4, cy);
     }

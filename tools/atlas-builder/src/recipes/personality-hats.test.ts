@@ -1,13 +1,4 @@
-/**
- * personality-hats.test.ts — guards the per-personality HAT SILHOUETTE overlay.
- *
- * Background: an audit found the four AI farmers' WORK/action frames were
- * effectively pixel-identical during the core farming loop — they shared one
- * silhouette and differed only by a weak head-colour swap. We now stamp a
- * distinct hat SHAPE onto every farmer frame. These tests assert the work/till
- * action frames are now pairwise NON-IDENTICAL, and that the hat never disturbs
- * the tool pixels in any action pose.
- */
+
 import { describe, it, expect } from "vitest";
 import { RECIPES } from "./index";
 import { ACTION_TEMPLATES, PERSONALITY_SUBS, applyPersonalitySubs } from "./templates";

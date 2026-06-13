@@ -3,25 +3,13 @@ import { EDG } from "@engine/core/render";
 import type { PlayerInventory } from "@farm/sim-core/snapshot";
 import type { IconResolver } from "./hotbar";
 
-/**
- * InventoryPanel — Pip's full unified item grid, opened with **E**. The first row mirrors the
- * bottom hotbar; the rows below are the backpack. Every item the player holds (tools, seeds,
- * harvested crops, fish, resources, livestock products, fruit, golden beans) shows here with a
- * live count from the snapshot.
- *
- * Drag a non-empty slot onto any other slot to swap them (HTML5 drag-and-drop). Dropping a
- * hotbar slot into the backpack (and vice-versa) is just a swap — that's how items move between
- * the hotbar and the inventory. The swap is sent to the sim via `onSwap`; layout is owned by the
- * sim, so the panel re-renders from the next snapshot (optimistic local state is unnecessary).
- */
-
 const OVERLAY_STYLES: Partial<CSSStyleDeclaration> = {
   position: "fixed",
   inset: "0",
   display: "none",
   alignItems: "center",
   justifyContent: "center",
-  background: "rgba(24, 20, 37, 0.55)", // EDG.black, translucent
+  background: "rgba(24, 20, 37, 0.55)", 
   zIndex: "9998",
 };
 
@@ -70,16 +58,15 @@ export class InventoryPanel {
   private hint: HTMLElement;
   private slots: SlotEls[] = [];
   private open = false;
-  /** Index a drag started from, for the drop handler. */
+
   private dragFrom: number | null = null;
 
-  /** Called with (from, to) when the user drops one slot onto another. */
   onSwap: ((from: number, to: number) => void) | null = null;
 
   constructor(parent: HTMLElement) {
     this.overlay = createEl("div");
     applyStyles(this.overlay, OVERLAY_STYLES);
-    // Click on the dimmed backdrop (outside the panel) closes the inventory.
+
     this.overlay.addEventListener("mousedown", (e) => {
       if (e.target === this.overlay) this.setOpen(false);
     });
@@ -194,7 +181,7 @@ export class InventoryPanel {
       setText(el.count, slot.text);
 
       applyStyles(el.root, {
-        // The hotbar row reads slightly warmer so it's distinct from the backpack.
+
         background: selected ? EDG.navy : inHotbar ? EDG.ink : EDG.black,
         borderColor: selected ? EDG.gold : inHotbar ? EDG.steel : EDG.navy,
         opacity: empty || (!slot.available && !selected) ? "0.5" : "1",

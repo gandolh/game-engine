@@ -1,4 +1,4 @@
-/* brief 46 — acceptance probe: harbor board spawns, contracts posted/delivered, rep gained. */
+
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import type { GameEntity } from "@farm/sim-core/components";
@@ -19,7 +19,6 @@ function findFarmer(id: number): GameEntity | undefined {
   return undefined;
 }
 
-// Tracking state
 interface ContractEvent {
   kind: "posted" | "committed" | "delivered" | "missed" | "expired";
   day: number;
@@ -30,13 +29,12 @@ interface ContractEvent {
 }
 
 const contractEvents: ContractEvent[] = [];
-const contractsPostedByDay = new Map<number, number>(); // day → count
+const contractsPostedByDay = new Map<number, number>(); 
 let totalContractsPosted = 0;
 let totalCommits = 0;
 let totalDeliveries = 0;
 let totalMisses = 0;
 
-// Snapshot harbor board state each day
 const boardSnapshots: Array<{ day: number; openCount: number; committedCount: number }> = [];
 let lastSnapshotDay = -1;
 

@@ -1,4 +1,4 @@
-// Order is packing-sensitive — do not reorder.
+
 import { type PixelRecipe } from "../types";
 
 import r0 from "./tile/shore";
@@ -20,8 +20,7 @@ import r15 from "./tile/fence-h";
 import r16 from "./structure/market-wall";
 import r17 from "./structure/shopkeeper";
 import r18 from "./tile/dirt";
-// farmer down idle/walk files removed (brief 89): all farmer frames now generated from shared
-// 24×24 templates × PERSONALITY_SUBS in recipes/index.ts. Indices below are unchanged (gaps are fine).
+
 import r31 from "./indicator/meet";
 import r32 from "./indicator/follow";
 import r33 from "./indicator/intention-plant";
@@ -484,4 +483,3 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r249,
   r250,
 ];
-

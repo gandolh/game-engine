@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Seabed life — 5-arm starfish, top-down, warm orange/red. Static (baked).
 const recipe: PixelRecipe =
   {
     name: "decoration/seabed-starfish",

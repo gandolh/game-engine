@@ -14,7 +14,7 @@ export function handleBoardBoat(farmer: ActingFarmer): void {
   if (farmer.farmer.aboard) return;
   const fx = Math.round(farmer.transform.x);
   const fy = Math.round(farmer.transform.y);
-  // Boardable at a coral dock OR any port dock.
+
   if (!isDockTile(fx, fy) && !isPortDockTile(fx, fy)) return;
   farmer.farmer.aboard = true;
 }
@@ -28,7 +28,6 @@ export function handleReturnToShore(farmer: ActingFarmer): void {
   farmer.farmer.aboard = false;
 }
 
-/** Requires fishing rod + aboard + on coral reef tile. Feed broadcast only for jackpot lobster. */
 export function handleFishCoral(
   farmer: ActingFarmer,
   tick: number,
@@ -53,7 +52,7 @@ export function handleFishCoral(
   if (!farmer.inventory.fish) farmer.inventory.fish = zeroFish();
   farmer.inventory.fish[fish] += 1;
   farmer.inventory.gold += FISH_VALUE[fish];
-  grantSkillXp(farmer, "fishing", 2); // 2 XP vs 1 for shore casts
+  grantSkillXp(farmer, "fishing", 2); 
 
   farmer.farmer.busyUntilTick = tick + busyTicks;
 

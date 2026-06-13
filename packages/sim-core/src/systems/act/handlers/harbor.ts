@@ -3,7 +3,6 @@ import type { GameEntity } from "../../../components";
 import { ONT_HARBOR } from "../../../protocols/harbor";
 import type { ActingFarmer } from "../types";
 
-/** Commit to an open harbor contract. Location-gated; reputation checked against contract minimum. */
 export function handleCommitContract(
   farmer: ActingFarmer,
   intent: Intention,
@@ -44,8 +43,6 @@ export function handleCommitContract(
   );
 }
 
-// HarborSystem resolves delivery automatically each tick; this intent just pays AP and signals intent.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function handleDeliverContract(_farmer: ActingFarmer, _intent: Intention): void {
 }
 

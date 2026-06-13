@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// FILL-C (sunny): companion interior reef — gold, yellow, orange, green coral
-// heads in transparent water with navy undershadows. Same head layout as the
-// other fills so all three intermix into one organic, submerged reef.
 const recipe: PixelRecipe =
   {
     name: "tile/coral-fill-c",

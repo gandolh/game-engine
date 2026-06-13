@@ -14,7 +14,6 @@ import { isFishingIsle, isWalkable } from "../../../world/regions";
 import { applyFishingRarityBonus } from "../helpers";
 import type { ActingFarmer } from "../types";
 
-/** Draw a fish kind by weights. Must use the forked fish rng (determinism). */
 export function pickWeightedFish(
   weights: Record<FishKind, number>,
   fishRng: Rng,
@@ -41,7 +40,7 @@ export function handleFish(
 
   const fx = Math.round(farmer.transform.x);
   const fy = Math.round(farmer.transform.y);
-  // Any non-walkable 4-neighbour is open water to cast into.
+
   const NEIGHBOURS = [
     { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
   ];
@@ -57,7 +56,6 @@ export function handleFish(
   }
   if (castX === null) return;
 
-  // Fishing skill reallocates minnow weight toward bass+salmon (pure function of XP).
   const baseWeights = nearBubble ? FISH_WEIGHTS_BUBBLE : FISH_WEIGHTS_CALM;
   const weights = applyFishingRarityBonus(baseWeights, fishingRarityBonus(farmer.skills?.fishing ?? 0));
   const fish = pickWeightedFish(weights, fishRng);

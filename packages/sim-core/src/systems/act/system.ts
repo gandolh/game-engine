@@ -3,7 +3,6 @@ import type { GameEntity } from "../../components";
 import { actionTicks } from "./helpers";
 import type { ActContext, ActingFarmer } from "./types";
 
-
 import { handlePlant, handleWater, handleTill } from "./handlers/farming";
 import {
   handleBuySeed,
@@ -46,7 +45,6 @@ import { handleChallenge } from "./handlers/combat";
 export class ActSystem implements System {
   readonly name = "ActSystem";
 
-  /** Seeded RNG for fishing, mining, and forage seed-drops — never use Math.random() here (determinism). */
   private readonly fishRng: Rng;
   private readonly mineRng: Rng;
   private readonly forageRng: Rng;
@@ -100,7 +98,6 @@ export class ActSystem implements System {
       fountainByRegion.set(f.fountain.regionId, f);
     }
 
-    // Bubble spot tiles drift daily; BubbleSystem refreshes them each morning.
     const bubbleTiles = new Set<string>();
     for (const f of this.world.query("fishingSpot")) {
       bubbleTiles.add(`${f.fishingSpot.tileX},${f.fishingSpot.tileY}`);

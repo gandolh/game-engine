@@ -6,7 +6,6 @@ import { seasonForDay } from "../protocols/weather";
 import { CROP_SEASON, OUT_OF_SEASON_GROWTH_RATE } from "../economy";
 import { farmingGrowthMultiplier } from "./skills";
 
-/** Crop dies after this many consecutive dry days; single missed watering is recoverable. */
 export const DRY_DEATH_GRACE_DAYS = 2;
 
 export class CropGrowthSystem implements System {
@@ -31,7 +30,7 @@ export class CropGrowthSystem implements System {
           }
         }
       }
-      break; // Only one WeatherStation singleton
+      break; 
     }
 
     if (newDay === null) return;
@@ -41,7 +40,7 @@ export class CropGrowthSystem implements System {
     let raining = false;
     for (const station of stations) {
       weatherMultiplier = station.weatherStation.multiplier;
-      // Rain (rainy/storm) auto-waters every plot this day.
+
       const cond = station.weatherStation.current;
       raining = cond === "rainy" || cond === "storm";
       break;
@@ -52,7 +51,6 @@ export class CropGrowthSystem implements System {
       if (f.id !== undefined) farmingXpByOwner.set(f.id, f.skills?.farming ?? 0);
     }
 
-    // Iterate plots in entity-id order for determinism.
     const plots = this.plotScratch;
     plots.length = 0;
     for (const p of this.world.query("plot")) plots.push(p);
@@ -62,15 +60,13 @@ export class CropGrowthSystem implements System {
       const state = plotEntity.plot.state;
       if (state.kind !== "planted") continue;
 
-      // Watered today = agent-watered OR rained; dry past the grace window → wither (seed lost).
       const wateredToday = state.wateredToday === true || raining;
       if (wateredToday) {
         state.daysSinceWater = 0;
-        // In-season: advance 1 day; out-of-season: OUT_OF_SEASON_GROWTH_RATE (0.5) days.
-        // daysGrowing accumulates as a float; effective grow time extends naturally off-season.
+
         const currentSeason = seasonForDay(newDay);
         const cropSeason = CROP_SEASON[state.crop];
-        // Greenhouse plots grow at 1.0 year-round; open-field keeps the season multiplier.
+
         const inGreenhouse = plotEntity.plot.greenhouse === true;
         const seasonMultiplier = inGreenhouse || currentSeason === cropSeason
           ? 1.0
@@ -95,7 +91,7 @@ export class CropGrowthSystem implements System {
     for (const plotEntity of plots) {
       const state = plotEntity.plot.state;
       if (state.kind !== "empty") continue;
-      // Greenhouse plots never decay (permanent infrastructure).
+
       if (plotEntity.plot.greenhouse === true) continue;
       const days = (state.daysSinceTended ?? 0) + 1;
       if (days > PLOT_DECAY_DAYS) {

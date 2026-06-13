@@ -1,4 +1,4 @@
-// Pure synthesis — no side effects, no Date.now/Math.random; same inputs → byte-identical output.
+
 
 import type { RunHistoryRow } from "../systems/run-history";
 import type { FinalStandingRow, SnapshotRivalry } from "../snapshot";
@@ -20,7 +20,7 @@ export function summarizeRun(
 
   const standings: RecapStanding[] = finalStandings.map((row) => {
     const midRank = midDayMap.get(row.id) ?? row.rank;
-    // midRankDelta: positive = improved since mid-season (e.g. midRank 3 → finalRank 1: delta = +2).
+
     const midRankDelta = midRank - row.rank;
     return {
       rank: row.rank,

@@ -1,4 +1,4 @@
-// Frame-name prefix → sheet id. Unknown prefix fails loudly at build time. Add new prefixes here.
+
 export const PREFIX_TO_SHEET: Readonly<Record<string, string>> = {
   "farmer":     "characters",
   "npc":        "characters",

@@ -55,16 +55,14 @@ describe("CarpenterSystem", () => {
   });
 
   it("delivers a commissioned decoration after the build-time and escrows the wood", () => {
-    const farmer = makeFarmer(world, { wood: 5 }); // scarecrow needs 3 wood
+    const farmer = makeFarmer(world, { wood: 5 }); 
     commission(world, carpenter, farmer.id!, "scarecrow");
 
-    // Tick 1: accept the order — wood escrowed now, no decoration yet.
     sys.run({ tick: 0 } as never);
-    expect(farmer.resources!.wood).toBe(2); // 5 - 3 escrowed
+    expect(farmer.resources!.wood).toBe(2); 
     expect([...world.query("farmDecoration")].length).toBe(0);
     expect(carpenter.carpenter!.pending!.length).toBe(1);
 
-    // Run out the build-time; the decoration appears on delivery.
     for (let t = 1; t <= COMMISSION_BUILD_TICKS; t++) sys.run({ tick: t } as never);
     const decorations = [...world.query("farmDecoration")];
     expect(decorations.length).toBe(1);
@@ -75,10 +73,10 @@ describe("CarpenterSystem", () => {
   });
 
   it("rejects a commission when the farmer lacks the wood (no escrow, no build)", () => {
-    const farmer = makeFarmer(world, { wood: 1 }); // scarecrow needs 3
+    const farmer = makeFarmer(world, { wood: 1 }); 
     commission(world, carpenter, farmer.id!, "scarecrow");
     sys.run({ tick: 0 } as never);
-    expect(farmer.resources!.wood).toBe(1); // untouched
+    expect(farmer.resources!.wood).toBe(1); 
     expect(carpenter.carpenter!.pending ?? []).toHaveLength(0);
   });
 
@@ -88,11 +86,10 @@ describe("CarpenterSystem", () => {
     const farmer = makeFarmer(world, { wood: 12 });
     farmer.intentions!.queue.push({ kind: "commission-build", data: { kind: "windmill" }, priority: 0 });
 
-    // ActSystem sends the BUILD message via the bus.
     act.run({ tick: 0 } as never);
-    // InboxDispatchSystem flushes it into the carpenter inbox next tick.
+
     dispatch.run({ tick: 1 } as never);
-    // CarpenterSystem accepts + builds.
+
     for (let t = 1; t <= COMMISSION_BUILD_TICKS + 1; t++) sys.run({ tick: t } as never);
 
     const decorations = [...world.query("farmDecoration")];

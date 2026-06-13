@@ -1,4 +1,4 @@
-/* brief 44 — acceptance probe: carpenter commissions, blacksmith upgrades, tavern hires/gossip. */
+
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { isWithinReach } from "@farm/sim-core/systems/proximity";

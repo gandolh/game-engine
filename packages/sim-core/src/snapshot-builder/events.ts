@@ -7,7 +7,6 @@ export function buildMeets(meetIndicators: MeetIndicatorSystem, tick: number): S
   return meetIndicators.active(tick).map((entry) => ({ farmerId: entry.farmerId }));
 }
 
-// ⚠️ Pooled buffer reused each call. Same-thread callers (tests) must not retain .events across two builds.
 const eventsScratch: SnapshotEvent[] = [];
 
 export function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {

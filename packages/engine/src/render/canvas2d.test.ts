@@ -1,5 +1,5 @@
-// Tests cover only the atlas-map path (addAtlas/setAtlas + error throws before any canvas call).
-// Canvas rendering itself (drawSprite, endFrame) requires a real browser context.
+
+
 import { describe, it, expect } from "vitest";
 import type { LoadedAtlasImage } from "../assets/loader";
 import type { AtlasManifest } from "../assets/atlas-format";
@@ -14,7 +14,7 @@ function makeAtlasStub(id: string, frames: Record<string, { x: number; y: number
   };
   return {
     manifest,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub, no real ImageBitmap
+
     bitmap: {} as any,
     frameRect(name: string) {
       const f = manifest.frames[name];
@@ -25,12 +25,12 @@ function makeAtlasStub(id: string, frames: Record<string, { x: number; y: number
 }
 
 describe("Canvas2dRenderer atlas map", () => {
-  // Dynamic import avoids top-level DOM requirement in node env.
+
   let Canvas2dRenderer: typeof import("./canvas2d").Canvas2dRenderer;
   let Camera2D: typeof import("./camera").Camera2D;
 
   function makeCanvasStub() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub
+
     return {
       getContext: () => ({
         imageSmoothingEnabled: false,
@@ -98,24 +98,19 @@ describe("Canvas2dRenderer atlas map", () => {
 });
 
 describe("pixelSnap formula", () => {
-  /**
-   * The pixel-snap formula used in the renderer's sprite draw loop:
-   *   snappedWorld = (Math.round(worldCoord * sx + ox) - ox) / sx
-   * where sx = canvas.width / worldUnitsX and ox = Math.round(-left * sx).
-   * This ensures the sprite center maps to an integer screen pixel.
-   */
+
   function snapWorld(worldCoord: number, sx: number, ox: number): number {
     return (Math.round(worldCoord * sx + ox) - ox) / sx;
   }
 
   it("a fractional world coord maps to an integer screen position", () => {
-    const sx = 2; // 2 screen pixels per world pixel
-    const ox = 0; // no camera offset
+    const sx = 2; 
+    const ox = 0; 
     const worldCoord = 10.3;
     const snapped = snapWorld(worldCoord, sx, ox);
     const screenPos = snapped * sx + ox;
     expect(Number.isInteger(Math.round(screenPos))).toBe(true);
-    // More precisely: the screen position is an exact integer (no fraction)
+
     expect(screenPos % 1).toBeCloseTo(0, 10);
   });
 
@@ -123,14 +118,14 @@ describe("pixelSnap formula", () => {
     const sx = 2;
     const ox = 0;
     const worldCoord = 10.3;
-    const rawScreenPos = worldCoord * sx + ox; // 20.6 — not integer
+    const rawScreenPos = worldCoord * sx + ox; 
     expect(rawScreenPos % 1).not.toBeCloseTo(0, 2);
   });
 
   it("no-op when world coord is already on a pixel boundary", () => {
     const sx = 2;
     const ox = 0;
-    const worldCoord = 10; // exact integer → no change
+    const worldCoord = 10; 
     const snapped = snapWorld(worldCoord, sx, ox);
     expect(snapped).toBe(worldCoord);
   });
@@ -138,18 +133,17 @@ describe("pixelSnap formula", () => {
   it("handles non-zero camera origin offset (ox != 0)", () => {
     const sx = 3;
     const left = 5.7;
-    const ox = Math.round(-left * sx); // rounded camera offset
+    const ox = Math.round(-left * sx); 
     const worldCoord = 12.4;
     const snapped = snapWorld(worldCoord, sx, ox);
     const screenPos = snapped * sx + ox;
-    // Screen position must be an integer (within floating-point epsilon)
+
     expect(screenPos % 1).toBeCloseTo(0, 10);
   });
 });
 
 describe("x-ray (occlusion-transparency) pass", () => {
-  // A recording 2D context that captures globalAlpha at each drawImage call, so we can detect the
-  // extra low-alpha "ghost" re-draw of an occluded sprite. Only the methods endFrame touches.
+
   function makeRecordingCtx(): { ctx: unknown; drawAlphas: number[] } {
     const drawAlphas: number[] = [];
     const ctx = {
@@ -203,10 +197,10 @@ describe("x-ray (occlusion-transparency) pass", () => {
   async function setup(ctx: unknown) {
     const { Canvas2dRenderer: Renderer } = await import("./canvas2d");
     const renderer = new Renderer(makeCanvas(ctx), makeCamera());
-    // Inline atlas stub — every frame maps to a 16×16 rect.
+
     renderer.addAtlas({
       manifest: { id: "terrain", imageUrl: "", width: 64, height: 64, frames: {} },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub bitmap
+
       bitmap: {} as any,
       frameRect: () => ({ x: 0, y: 0, w: 16, h: 16 }),
     } as unknown as import("../assets/loader").LoadedAtlasImage);
@@ -216,11 +210,11 @@ describe("x-ray (occlusion-transparency) pass", () => {
   it("re-draws an occludable sprite at low alpha when a taller sprite covers it", async () => {
     const { ctx, drawAlphas } = makeRecordingCtx();
     const renderer = await setup(ctx);
-    // Player (occludable) one tile north of a 48px-tall wall whose base is south of it → covered.
+
     renderer.push(base({ x: 320, y: 220, occludable: true }));
     renderer.push(base({ x: 320, y: 240, height: 48, sortY: 264 }));
     renderer.endFrame();
-    // 2 normal draws + 1 ghost re-draw; the ghost is at 0.4 alpha.
+
     expect(drawAlphas.length).toBe(3);
     expect(drawAlphas).toContain(0.4);
   });
@@ -229,7 +223,7 @@ describe("x-ray (occlusion-transparency) pass", () => {
     const { ctx, drawAlphas } = makeRecordingCtx();
     const renderer = await setup(ctx);
     renderer.push(base({ x: 320, y: 220, occludable: true }));
-    renderer.push(base({ x: 100, y: 240, height: 48, sortY: 264 })); // far away in x
+    renderer.push(base({ x: 100, y: 240, height: 48, sortY: 264 })); 
     renderer.endFrame();
     expect(drawAlphas.length).toBe(2);
     expect(drawAlphas).not.toContain(0.4);
@@ -239,8 +233,8 @@ describe("x-ray (occlusion-transparency) pass", () => {
     const { ctx, drawAlphas } = makeRecordingCtx();
     const renderer = await setup(ctx);
     renderer.push(base({ x: 320, y: 220, occludable: true }));
-    renderer.push(base({ x: 320, y: 208, layer: 90 })); // meet bubble above the head, overlapping
+    renderer.push(base({ x: 320, y: 208, layer: 90 })); 
     renderer.endFrame();
-    expect(drawAlphas.length).toBe(2); // no ghost
+    expect(drawAlphas.length).toBe(2); 
   });
 });

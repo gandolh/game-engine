@@ -6,7 +6,6 @@ import type { MarketOffer } from "../protocols/market";
 import type { WeatherCondition } from "../protocols/weather";
 import type { RegionId } from "../world/regions";
 
-// Farmer transform (0,0); tile (0,0) is always within Chebyshev reach.
 const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
 
 function makeFarmer(overrides: {

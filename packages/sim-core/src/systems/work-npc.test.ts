@@ -34,12 +34,10 @@ describe("WorkNpcSystem", () => {
     const { world, e } = makeNpc();
     const sys = new WorkNpcSystem(world);
 
-    // First step moves x toward 2 (x first, then y).
     tick(world, sys, 1);
     expect(e.transform!.x).toBe(1);
     expect(e.transform!.y).toBe(0);
 
-    // A few more steps to arrive at (2,0) and flip to working.
     tick(world, sys, 12);
     expect(e.transform!.x).toBe(2);
     expect(e.transform!.y).toBe(0);
@@ -51,24 +49,22 @@ describe("WorkNpcSystem", () => {
   it("advances to the next station after dwelling", () => {
     const { world, e } = makeNpc();
     const sys = new WorkNpcSystem(world);
-    // Walk to station 0 and dwell out the whole timer (90+ ticks), then it should
-    // target station 1.
+
     tick(world, sys, 13 + 95);
     expect(e.workNpc!.stationIndex).toBe(1);
   });
 
   it("a pose:null station shows the idle figure, never the building sprite", () => {
     const { world, e } = makeNpc();
-    e.workNpc!.stationIndex = 1; // station with pose:null (e.g. the oven)
+    e.workNpc!.stationIndex = 1; 
     e.workNpc!.phase = "walking";
     e.workNpc!.timer = 1;
     const sys = new WorkNpcSystem(world);
-    tick(world, sys, 20); // walk to (2,2) and start working
+    tick(world, sys, 20); 
     expect(e.transform!.x).toBe(2);
     expect(e.transform!.y).toBe(2);
     expect(e.workNpc!.phase).toBe("working");
-    // Regression: previously this cleared poseFrame to null, so the snapshot
-    // fell back to the structure sprite and the NPC "became the building".
+
     expect(e.workNpc!.poseFrame).toBe("npc/blacksmith/idle");
     expect(e.workNpc!.facing).toBe("up");
   });
@@ -76,7 +72,7 @@ describe("WorkNpcSystem", () => {
   it("shows the idle figure while walking between stations", () => {
     const { world, e } = makeNpc();
     const sys = new WorkNpcSystem(world);
-    tick(world, sys, 1); // mid-walk toward station 0
+    tick(world, sys, 1); 
     expect(e.workNpc!.phase).toBe("walking");
     expect(e.workNpc!.poseFrame).toBe("npc/blacksmith/idle");
   });

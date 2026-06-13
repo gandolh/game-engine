@@ -4,7 +4,6 @@ import { deliberateConservative } from "./conservative";
 import type { GameEntity, CropKind } from "../components";
 import type { RegionId } from "../world/regions";
 
-// Farmer transform (0,0); tile (0,0) is always within Chebyshev reach.
 const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
 
 function makeFarmer(overrides: {
@@ -88,7 +87,7 @@ describe("deliberateConservative", () => {
     f.beliefs!.data["penCount_chicken"] = 0;
     f.beliefs!.data["orchardCount"] = 1;
     f.beliefs!.data["occupiedTiles"] = [];
-    // Greenhouse takes priority over livestock on a quiet day; mark it built so coop excursion fires.
+
     f.beliefs!.data["hasGreenhouse"] = true;
     f.beliefs!.data["greenhouseEmptyPlots"] = [];
     f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
@@ -103,7 +102,7 @@ describe("deliberateConservative", () => {
     );
     expect(buildIdx).toBeGreaterThan(-1);
     expect(carpTravel).toBeDefined();
-    expect(carpTravel!.priority).toBeLessThan(0); // committed: wins queue[0]
+    expect(carpTravel!.priority).toBeLessThan(0); 
     expect(
       f.decisionTrace!.reasons.some((r) => r.startsWith("building coop")),
     ).toBe(true);
@@ -126,7 +125,7 @@ describe("deliberateConservative", () => {
     );
     expect(buildIdx).toBeGreaterThan(-1);
     expect(carpTravel).toBeDefined();
-    expect(carpTravel!.priority).toBeLessThan(0); // committed: wins queue[0]
+    expect(carpTravel!.priority).toBeLessThan(0); 
     expect(
       f.decisionTrace!.reasons.some((r) => r.startsWith("build greenhouse")),
     ).toBe(true);
@@ -138,7 +137,7 @@ describe("deliberateConservative", () => {
     f.beliefs!.data["hasGreenhouse"] = false;
     f.beliefs!.data["occupiedTiles"] = [];
     f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
-    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 }; // gold-only: 150−140=10 < reserve 30
+    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 }; 
 
     deliberateConservative(f);
     expect(
@@ -157,7 +156,7 @@ describe("deliberateConservative", () => {
     f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
 
     deliberateConservative(f);
-    // gold 60 with reserve 30 is below reserve+cost → no committed build trip.
+
     expect(
       f.intentions!.queue.some((i) => i.kind === "build-pen"),
     ).toBe(false);

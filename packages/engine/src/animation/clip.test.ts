@@ -43,7 +43,7 @@ describe("AnimationClip", () => {
 
   it("wraps past total duration when looping and reports loops", () => {
     const c = walk();
-    const s = c.sampleAt(350); // one full loop + 50ms → frame a, loop 1
+    const s = c.sampleAt(350); 
     expect(s.frameName).toBe("a");
     expect(s.loopsCompleted).toBe(1);
     expect(s.finished).toBe(false);
@@ -96,26 +96,26 @@ describe("AnimationClip frame events", () => {
 
   it("fires an event when the half-open window crosses its time", () => {
     const c = clip(true);
-    expect(c.eventsBetween(100, 200)).toEqual(["right"]); // 150 ∈ (100,200]
-    expect(c.eventsBetween(160, 200)).toEqual([]); // 150 already passed
+    expect(c.eventsBetween(100, 200)).toEqual(["right"]); 
+    expect(c.eventsBetween(160, 200)).toEqual([]); 
   });
 
   it("is half-open: (prev, cur], so the boundary fires once", () => {
     const c = clip(true);
-    expect(c.eventsBetween(140, 150)).toEqual(["right"]); // 150 == cur → included
-    expect(c.eventsBetween(150, 160)).toEqual([]); // 150 == prev → excluded
+    expect(c.eventsBetween(140, 150)).toEqual(["right"]); 
+    expect(c.eventsBetween(150, 160)).toEqual([]); 
   });
 
   it("handles loop wrap (event at 0 recurs each cycle)", () => {
     const c = clip(true);
-    // window (290,310] crosses 300 = the next cycle's atMs-0 event ("left")
+
     expect(c.eventsBetween(290, 310)).toEqual(["left"]);
   });
 
   it("caps a huge window to one cycle (no spin / no spam)", () => {
     const c = clip(true);
     const names = c.eventsBetween(0, 100_000);
-    // bounded: at most one of each event from the final scanned cycle
+
     expect(names.length).toBeLessThanOrEqual(2);
   });
 

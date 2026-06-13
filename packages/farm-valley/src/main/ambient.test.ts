@@ -1,36 +1,16 @@
-/**
- * AmbientLayer unit tests (node environment — no DOM/canvas needed).
- *
- * Three assertion targets:
- *   1. Pool caps — active counts never exceed hard caps.
- *   2. Seeded determinism — two layers with the same seed and identical
- *      update sequences produce identical pushed sprite data.
- *   3. Anchor extraction — tree / building anchors are extracted correctly;
- *      forge-house is excluded from smoke anchors; empty input is safe.
- */
+
 
 import { describe, it, expect } from "vitest";
 import { AmbientLayer } from "./ambient";
 import type { ViewRect } from "./ambient";
 import type { Canvas2dSprite } from "@engine/core/render";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Build a minimal Canvas2dSprite record for use as synthetic static-layer input. */
 function makeSprite(frame: string, x = 0, y = 0, width = 16, height = 16): Canvas2dSprite {
   return { x, y, width, height, frame, atlasId: "test", rotation: 0, layer: 0, alpha: 1 };
 }
 
-/** A wide view that contains everything. */
 const WIDE_VIEW: ViewRect = { left: -10000, right: 10000, top: -10000, bottom: 10000 };
 
-/**
- * Collector renderer: captures every push() call and returns the list.
- * Each call returns a fresh array (reuse is expected inside AmbientLayer,
- * so we snapshot the values at push time).
- */
 function makeCollector(): { push(s: Canvas2dSprite): void; sprites: Array<{ x: number; y: number; frame: string; alpha: number }> } {
   const sprites: Array<{ x: number; y: number; frame: string; alpha: number }> = [];
   return {
@@ -41,18 +21,15 @@ function makeCollector(): { push(s: Canvas2dSprite): void; sprites: Array<{ x: n
   };
 }
 
-// ---------------------------------------------------------------------------
-// 1. Pool caps
-// ---------------------------------------------------------------------------
 describe("AmbientLayer pool caps", () => {
   it("bird active count never exceeds BIRD_CAP (6) across many frames", () => {
     const layer = new AmbientLayer();
-    // Many tree anchors so leaves can also spawn freely (stress test)
+
     const sprites: Canvas2dSprite[] = [];
     for (let i = 0; i < 50; i++) {
       sprites.push(makeSprite("structure/tree", i * 32, 100));
     }
-    // A few smoke-producing buildings
+
     sprites.push(makeSprite("structure/home", 200, 200, 32, 48));
     sprites.push(makeSprite("structure/shopkeeper", 400, 200, 32, 32));
     layer.init(sprites, 42);
@@ -61,10 +38,8 @@ describe("AmbientLayer pool caps", () => {
     const MAX_LEAVES = 20;
     const MAX_SMOKE = 12;
 
-    // Simulate 500 frames at ~16ms each (≈8 seconds wall-clock)
-    // Use a large dtMs to rapidly exercise spawn logic.
     for (let frame = 0; frame < 500; frame++) {
-      const nowMs = frame * 50; // 50ms steps — faster than real time to hammer spawn paths
+      const nowMs = frame * 50; 
       layer.update(50, nowMs, WIDE_VIEW, 0, "spring");
 
       const collector = makeCollector();
@@ -91,18 +66,9 @@ describe("AmbientLayer pool caps", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 1b. Every pushed sprite has a valid atlas frame
-// ---------------------------------------------------------------------------
 describe("AmbientLayer frame validity", () => {
   it("never pushes a sprite with an undefined/empty frame (multi-bird flock regression)", () => {
-    // Regression for the render-loop crash "Atlas frame not found: undefined
-    // (atlas props)": flock birds were spawned with spawnMs in the FUTURE
-    // (nowMs + i*80), so on their first rendered frames `elapsed` was negative
-    // and `floor(elapsed / halfPeriod) % 2` produced -1 → BIRD_FRAMES[-1] ===
-    // undefined. The fix staggers spawnMs into the past. This drives enough
-    // frames for several flocks (some with count >= 2) and asserts every pushed
-    // sprite carries a real frame name.
+
     const sprites: Canvas2dSprite[] = [];
     for (let i = 0; i < 20; i++) sprites.push(makeSprite("structure/tree", i * 32, 100));
     sprites.push(makeSprite("structure/home", 200, 200, 32, 48));
@@ -111,7 +77,7 @@ describe("AmbientLayer frame validity", () => {
     layer.init(sprites, 42);
 
     let birdsSeen = 0;
-    // ~128s at 16ms — long enough for multiple bird flocks (interval 20-60s).
+
     for (let frame = 0; frame < 8000; frame++) {
       layer.update(16, frame * 16, WIDE_VIEW, 0, "autumn");
       const coll = makeCollector();
@@ -122,15 +88,11 @@ describe("AmbientLayer frame validity", () => {
       }
       birdsSeen += coll.sprites.filter((s) => s.frame.startsWith("decoration/bird")).length;
     }
-    // Sanity: the run actually exercised the bird path (otherwise the assertion
-    // above is vacuous).
+
     expect(birdsSeen).toBeGreaterThan(0);
   });
 });
 
-// ---------------------------------------------------------------------------
-// 2. Seeded determinism
-// ---------------------------------------------------------------------------
 describe("AmbientLayer seeded determinism", () => {
   it("two layers with the same seed produce identical sprite snapshots after N updates", () => {
     const anchors: Canvas2dSprite[] = [
@@ -146,7 +108,6 @@ describe("AmbientLayer seeded determinism", () => {
 
     const view: ViewRect = { left: 0, right: 800, top: 0, bottom: 600 };
 
-    // Drive both through 200 identical update steps
     for (let frame = 0; frame < 200; frame++) {
       const nowMs = frame * 30;
       layerA.update(30, nowMs, view, 0.5, "autumn");
@@ -158,10 +119,8 @@ describe("AmbientLayer seeded determinism", () => {
     layerA.pushSprites(collA);
     layerB.pushSprites(collB);
 
-    // Same number of active sprites
     expect(collA.sprites.length).toBe(collB.sprites.length);
 
-    // Same positions, frames, and alphas
     for (let i = 0; i < collA.sprites.length; i++) {
       expect(collA.sprites[i]).toEqual(collB.sprites[i]);
     }
@@ -191,7 +150,6 @@ describe("AmbientLayer seeded determinism", () => {
     layerA.pushSprites(collA);
     layerB.pushSprites(collB);
 
-    // At least one position differs (overwhelming probability with different seeds)
     const allMatch =
       collA.sprites.length === collB.sprites.length &&
       collA.sprites.every((sa, i) => sa.x === collB.sprites[i]?.x && sa.y === collB.sprites[i]?.y);
@@ -199,9 +157,6 @@ describe("AmbientLayer seeded determinism", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 3. Anchor extraction
-// ---------------------------------------------------------------------------
 describe("AmbientLayer anchor extraction", () => {
   it("extracts tree anchors from structure/tree* frames", () => {
     const sprites: Canvas2dSprite[] = [
@@ -215,8 +170,6 @@ describe("AmbientLayer anchor extraction", () => {
     const layer = new AmbientLayer();
     layer.init(sprites, 7);
 
-    // After many updates with a wide view, leaves should eventually spawn
-    // (they need at least one tree anchor).
     let leafSeen = false;
     for (let frame = 0; frame < 600 && !leafSeen; frame++) {
       layer.update(30, frame * 30, WIDE_VIEW, 0, "spring");
@@ -237,7 +190,6 @@ describe("AmbientLayer anchor extraction", () => {
     const layer = new AmbientLayer();
     layer.init(sprites, 0);
 
-    // Run many frames — no smoke should ever appear (forge-house excluded)
     for (let frame = 0; frame < 500; frame++) {
       layer.update(30, frame * 30, WIDE_VIEW, 0, "summer");
       const coll = makeCollector();

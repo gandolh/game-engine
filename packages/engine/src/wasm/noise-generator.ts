@@ -28,8 +28,6 @@ export class NoiseGenerator {
     });
   }
 
-  /** Returns row-major Float32Array of `cols*rows` brightness multipliers in [1-amplitude, 1+amplitude].
-   *  The array is a copy — safe to use after the call returns. */
   fillNoise(cols: number, rows: number, seed: number, amplitude: number): Float32Array {
     const count = cols * rows;
     const outPtr = this.heap.alloc(count * 4);
@@ -41,7 +39,7 @@ export class NoiseGenerator {
         seed >>> 0,
         Math.round(amplitude * 1000),
       );
-      return new Float32Array(this.heap.f32(outPtr, count)); // copy before free — memory.buffer may move
+      return new Float32Array(this.heap.f32(outPtr, count)); 
     } finally {
       this.heap.free(outPtr);
     }

@@ -21,22 +21,19 @@ import type { TradeCommodity } from "../../agents/peer-trade-policy";
 import { applyTrustDelta, DEFAULT_TRUST_CONFIG } from "../trust";
 import { OFFER_TTL_TICKS, GIFT_TRUST_DELTA, ENCOUNTER_ONTOLOGIES } from "./constants";
 
-// EncounterSystem → EncounterTradeSystem → PerceiveSystem (ordering constraint: PerceiveSystem wipes inboxes).
-// Handshake resolves in a single tick via iterated inbox sweeps (id-ascending for determinism).
-
 interface PendingOffer {
   offer: OfferSeedBody;
   senderId: number;
   recipientId: number;
   tick: number;
-  commodity: TradeCommodity; // "seed" or "crop" — selects the inventory slot on accept
+  commodity: TradeCommodity; 
 }
 
 export class EncounterTradeSystem implements System {
   readonly name = "EncounterTradeSystem";
 
   private readonly pendingOffers = new Map<string, PendingOffer>();
-  private readonly resolvedHandshakes = new Set<string>(); // prevent double-resolve in one tick
+  private readonly resolvedHandshakes = new Set<string>(); 
 
   constructor(private readonly world: World<GameEntity>) {}
 
@@ -51,7 +48,7 @@ export class EncounterTradeSystem implements System {
     this.resolvedHandshakes.clear();
     let didWork = true;
     let safety = 0;
-    while (didWork && safety < 8) { // safety cap prevents infinite loops
+    while (didWork && safety < 8) { 
       didWork = this.processInboxes(ctx);
       safety += 1;
     }
@@ -65,7 +62,6 @@ export class EncounterTradeSystem implements System {
     }
   }
 
-  /** Returns true if any encounter message was consumed (caller loops again). */
   private processInboxes(ctx: SimContext): boolean {
     const farmers: GameEntity[] = [];
     for (const f of this.world.query("farmer", "inbox", "personality")) {
@@ -79,12 +75,11 @@ export class EncounterTradeSystem implements System {
     for (const farmer of farmers) {
       if (!farmer.inbox) continue;
       const inbox = farmer.inbox.messages;
-      for (let i = inbox.length - 1; i >= 0; i--) { // reverse so splice is safe
+      for (let i = inbox.length - 1; i >= 0; i--) { 
         const msg = inbox[i];
         if (!msg) continue;
         if (!ENCOUNTER_ONTOLOGIES.has(msg.ontology)) continue;
 
-        // MEET/OFFER_* are consumed; ACCEPT/DECLINE are left for TrustSystem to snoop.
         const consume =
           msg.ontology === ONT_ENCOUNTER.MEET ||
           msg.ontology === ONT_ENCOUNTER.OFFER_SEED ||
@@ -160,8 +155,6 @@ export class EncounterTradeSystem implements System {
     const hooks = getPeerTradeHooks(personality);
     if (!hooks) return;
 
-    // Seed offer is lower-id gated (prevents duplicate offers from one pair).
-    // Gifts and crop offers are independent — both sides may fire them.
     if (hooks.initiateGift && (farmer.inventory?.goldenBeans ?? 0) > 0) {
       const gift = hooks.initiateGift(farmer, meet, { tick: ctx.tick });
       if (gift) {
@@ -183,7 +176,7 @@ export class EncounterTradeSystem implements System {
       if (cropOffer) this.sendOffer(farmer.id, meet.peerId, cropOffer, "crop", ctx.tick);
     }
 
-    if (farmer.id > meet.peerId) return; // seed offer: lower-id side only
+    if (farmer.id > meet.peerId) return; 
     if (!hooks.initiate) return;
     const offer = hooks.initiate(farmer, meet, { tick: ctx.tick });
     if (!offer) return;
@@ -197,7 +190,7 @@ export class EncounterTradeSystem implements System {
     commodity: TradeCommodity,
     tick: number,
   ): void {
-    if (this.pendingOffers.has(offer.offerId)) return; // idempotent
+    if (this.pendingOffers.has(offer.offerId)) return; 
 
     const peer = findById(this.world, toId, "farmer", "inbox");
     if (!peer || !peer.inbox) return;
@@ -229,7 +222,6 @@ export class EncounterTradeSystem implements System {
     if (farmer.id === undefined) return;
     if (sender === "world" || typeof sender !== "number") return;
 
-    // Track offers injected directly by tests so ACCEPT can still resolve.
     if (!this.pendingOffers.has(offer.offerId)) {
       this.pendingOffers.set(offer.offerId, {
         offer,
@@ -275,7 +267,6 @@ export class EncounterTradeSystem implements System {
     }
   }
 
-  /** One-way bean gift — no ACCEPT round-trip. Receiver gains large trust toward giver. */
   private handleBeanGift(
     farmer: GameEntity,
     body: OfferBeanBody,
@@ -302,8 +293,8 @@ export class EncounterTradeSystem implements System {
     const pending = this.pendingOffers.get(body.offerId);
     if (!pending) return;
     if (farmer.id === undefined) return;
-    if (sender !== pending.recipientId) return; // ACCEPT must come from the offer's recipient
-    if (farmer.id !== pending.senderId) return; // we must be the original initiator
+    if (sender !== pending.recipientId) return; 
+    if (farmer.id !== pending.senderId) return; 
 
     const initiator = findById(this.world, pending.senderId, "farmer", "inbox");
     const acceptor = findById(this.world, pending.recipientId, "farmer", "inbox");
@@ -318,7 +309,6 @@ export class EncounterTradeSystem implements System {
     this.pendingOffers.delete(body.offerId);
   }
 
-  /** Atomic transfer. direction="buy": initiator pays, acceptor gives stock. Skipped silently if unfulfillable. */
   private applyTransfer(
     initiator: GameEntity,
     acceptor: GameEntity,
@@ -414,7 +404,6 @@ export class EncounterTradeSystem implements System {
   }
 }
 
-// Traded crop units count as Normal quality. Clamps to avoid negatives.
 function moveNormalQuality(
   giver: Inventory,
   receiver: Inventory,

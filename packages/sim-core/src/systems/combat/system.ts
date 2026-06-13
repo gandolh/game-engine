@@ -1,17 +1,4 @@
-// CombatSystem — owns all active bouts. While a farmer is in the FIGHTING FSM
-// state, PerceiveSystem/DeliberateSystem/ActSystem skip it; this system advances
-// each bout one swing-exchange per `swingInterval` ticks until it resolves, then
-// releases both fighters back to WAIT_DAY (PerceiveSystem re-arms them next tick).
-//
-// Placement: ACT stage, AFTER ActSystem (so an act-tick that starts a bout this
-// tick is resolved from here onward). Runs before FinishDaySystem.
-//
-// Determinism:
-//   - Damage + street flee use rng.fork('fight:'+pairKey+':'+tick) — tick-derived,
-//     never wall-clock / Math.random.
-//   - Bouts are stored in a Map and iterated in insertion order; a per-tick snapshot
-//     array is taken before mutation so ending a bout mid-loop is safe.
-//   - HP day-start reset reads the DAY_START message (street recovery).
+
 
 import type { SimContext, System, World, Rng, MessageBus } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -44,15 +31,14 @@ interface Bout {
   aId: number;
   bId: number;
   context: CombatContext;
-  /** Who threw the first punch (the initiator) — used for street trust penalties. */
+
   initiatorId: number;
   nextSwingTick: number;
-  /** Pre-bout positions to restore after a RING bout (combatants teleport to the ring and back). */
+
   returnA?: ReturnSpot;
   returnB?: ReturnSpot;
 }
 
-/** Stable ordered key for a pair (also the rng-fork label seed). */
 function pairKey(a: number, b: number): string {
   const lo = a < b ? a : b;
   const hi = a < b ? b : a;
@@ -64,13 +50,13 @@ export class CombatSystem implements System {
 
   private readonly bouts = new Map<string, Bout>();
   private readonly swingInterval: number;
-  /** Current tick, set at the top of run() so endBout can stamp the RESULT message. */
+
   private currentTick = 0;
-  /** Governor: day a pair last fought (ordered key → day). Blocks re-fights for FIGHT_COOLDOWN_DAYS. */
+
   private readonly lastFoughtDay = new Map<string, number>();
-  /** Governor: fights a farmer has initiated today (id → count); reset at day start. */
+
   private readonly initiationsToday = new Map<number, number>();
-  /** Latest day seen (from DAY_START), for cooldown math. */
+
   private currentDay = 0;
 
   constructor(
@@ -82,7 +68,6 @@ export class CombatSystem implements System {
     this.swingInterval = swingIntervalTicks(ticksPerDay);
   }
 
-  /** True if either farmer is already in a bout (used by initiation to avoid double-booking). */
   isFighting(id: number): boolean {
     for (const b of this.bouts.values()) {
       if (b.aId === id || b.bId === id) return true;
@@ -90,10 +75,6 @@ export class CombatSystem implements System {
     return false;
   }
 
-  /**
-   * Begin a bout. Both fighters flip to FIGHTING; their normal day loop is frozen.
-   * Returns false if either is missing, already fighting, or lacks HP/AP components.
-   */
   startBout(
     initiatorId: number,
     targetId: number,
@@ -116,7 +97,7 @@ export class CombatSystem implements System {
       initiatorId,
       nextSwingTick: tick + this.swingInterval,
     };
-    // Ring bouts teleport both combatants onto the ring island; street fights happen in place.
+
     if (context === "ring") {
       bout.returnA = this.teleportToRing(a, -1);
       bout.returnB = this.teleportToRing(b, +1);
@@ -125,7 +106,6 @@ export class CombatSystem implements System {
     return true;
   }
 
-  /** Move a fighter onto the ring (offset so the two stand apart). Returns its pre-bout spot. */
   private teleportToRing(f: GameEntity, dx: number): ReturnSpot {
     const ring = getRegion(RING_REGION_ID).center;
     const prev: ReturnSpot = {
@@ -143,7 +123,6 @@ export class CombatSystem implements System {
     return prev;
   }
 
-  /** Restore a fighter to its pre-bout spot after a ring bout ends. */
   private teleportBack(f: GameEntity | undefined, spot: ReturnSpot | undefined): void {
     if (!f || !spot) return;
     if (f.transform) {
@@ -159,17 +138,12 @@ export class CombatSystem implements System {
     this.currentTick = ctx.tick;
     this.processDayStartReset();
     this.processChallenges(ctx.tick);
-    // Snapshot bouts so ending one mid-iteration is safe.
+
     for (const bout of [...this.bouts.values()]) {
       this.stepBout(bout, ctx.tick);
     }
   }
 
-  /**
-   * Inbox CHALLENGE → accept (governors permitting) and start the bout. v1 accept
-   * policy: always accept if governors pass (Pip auto-resolves too — no minigame).
-   * Iterates farmers in stable world order; challenges per farmer in inbox order.
-   */
   private processChallenges(tick: number): void {
     for (const target of this.world.query("farmer", "inbox")) {
       if (target.id === undefined) continue;
@@ -187,7 +161,6 @@ export class CombatSystem implements System {
     }
   }
 
-  /** Governors: per-pair 2-day cooldown + per-initiator daily cap. */
   canFight(initiatorId: number, targetId: number): boolean {
     if (this.isFighting(initiatorId) || this.isFighting(targetId)) return false;
     const last = this.lastFoughtDay.get(pairKey(initiatorId, targetId));
@@ -196,7 +169,6 @@ export class CombatSystem implements System {
     return true;
   }
 
-  /** Street recovery: HP back to full at day start (ring resets at bout end instead). */
   private processDayStartReset(): void {
     for (const f of this.world.query("inbox", "health")) {
       for (const msg of f.inbox.messages) {
@@ -224,7 +196,6 @@ export class CombatSystem implements System {
 
     const fork = this.rng.fork(`fight:${pairKey(bout.aId, bout.bId)}:${tick}`);
 
-    // Street-only: either fighter may flee mid-brawl (no KO, no loot).
     if (bout.context === "street" && fork.nextFloat() < STREET_FLEE_CHANCE) {
       const fledId = fork.nextFloat() < 0.5 ? bout.aId : bout.bId;
       this.endBout(bout, { context: "street", winnerId: null, loserId: null, koed: false, fledId, looted: 0 });
@@ -232,7 +203,7 @@ export class CombatSystem implements System {
     }
 
     const aCanSwing = this.swing(a, b, fork);
-    // If A's swing already KO'd B, resolve before B swings back.
+
     if (b.health.current <= 0) {
       this.resolveKo(bout, a, b);
       return;
@@ -243,7 +214,6 @@ export class CombatSystem implements System {
       return;
     }
 
-    // Neither KO'd this exchange — handle AP exhaustion per context.
     if (!aCanSwing || !bCanSwing) {
       this.resolveExhaustion(bout, a, b, aCanSwing, bCanSwing);
       return;
@@ -252,7 +222,6 @@ export class CombatSystem implements System {
     bout.nextSwingTick = tick + this.swingInterval;
   }
 
-  /** Attacker swings at defender if it can afford the AP. Returns false if AP-starved (no swing). */
   private swing(attacker: GameEntity, defender: GameEntity, fork: Rng): boolean {
     const bat = attacker.farmer?.hasBat === true;
     const apCost = bat ? AP_PER_SWING.bat : AP_PER_SWING.fist;
@@ -270,7 +239,7 @@ export class CombatSystem implements System {
     if (bout.context === "ring") {
       this.applyRingOutcome(winner, loser);
     } else {
-      looted = lootGoods(winner, loser); // street KO → victor loots goods
+      looted = lootGoods(winner, loser); 
       this.applyWitnessPenalties(bout.initiatorId, loser, looted > 0);
     }
     this.endBout(bout, {
@@ -283,7 +252,6 @@ export class CombatSystem implements System {
     });
   }
 
-  /** AP-out resolution. Ring: the AP-starved fighter loses immediately. Street: mutual → forfeit; one-sided → other keeps swinging (so re-arm next swing). */
   private resolveExhaustion(
     bout: Bout,
     a: GameEntity,
@@ -292,7 +260,7 @@ export class CombatSystem implements System {
     bCanSwing: boolean,
   ): void {
     if (bout.context === "ring") {
-      // First to run out of AP loses immediately (no draws in a committed match).
+
       const aOut = !aCanSwing;
       const winner = aOut ? b : a;
       const loser = aOut ? a : b;
@@ -307,15 +275,14 @@ export class CombatSystem implements System {
       });
       return;
     }
-    // Street: both out → mutual forfeit (no KO, no loot). Only one out → keep going.
+
     if (!aCanSwing && !bCanSwing) {
       this.endBout(bout, { context: "street", winnerId: null, loserId: null, koed: false, fledId: null, looted: 0 });
       return;
     }
-    bout.nextSwingTick += this.swingInterval; // one side keeps swinging next exchange
+    bout.nextSwingTick += this.swingInterval; 
   }
 
-  /** Ring stake + de-escalation + HP-to-full reset (AP spent stays spent). */
   private applyRingOutcome(winner: GameEntity, loser: GameEntity): void {
     if (winner.inventory && loser.inventory) {
       const stake = Math.min(RING_STAKE_GOLD, loser.inventory.gold);
@@ -330,20 +297,12 @@ export class CombatSystem implements System {
     if (loser.health) loser.health.current = loser.health.max;
   }
 
-  /**
-   * Every same-region witness (and the victim) loses trust toward the street-fight
-   * initiator: a base attack penalty, plus an extra drop if the initiator also looted.
-   * When a witness's trust toward the initiator falls below the rival cutoff, the
-   * relationship axis (RivalrySystem) labels them a one-sided rival → they become
-   * eligible to retaliate (chase-and-attack) via their own BDI. Iterates farmers in
-   * stable world order. Pure trust math → deterministic.
-   */
   private applyWitnessPenalties(initiatorId: number, victim: GameEntity, looted: boolean): void {
     const penalty = STREET_ATTACK_TRUST_PENALTY + (looted ? STREET_LOOT_TRUST_PENALTY : 0);
     const region = victim.farmer?.currentRegion;
     for (const w of this.world.query("farmer", "trust")) {
       if (w.id === undefined || w.id === initiatorId) continue;
-      // The victim always reacts; other farmers only if they share the fight's region.
+
       const isVictim = w.id === victim.id;
       if (!isVictim && w.farmer?.currentRegion !== region) continue;
       applyTrustDelta(w, initiatorId, penalty);

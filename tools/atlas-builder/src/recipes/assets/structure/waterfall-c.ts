@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// See waterfall-a for overlay contract.
 const recipe: PixelRecipe =
   {
     name: "structure/waterfall-c",

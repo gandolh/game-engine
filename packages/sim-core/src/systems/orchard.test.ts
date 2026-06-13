@@ -52,22 +52,19 @@ describe("OrchardSystem", () => {
       return end;
     };
 
-    // Day 0 is spring; cherry fruits on day 0.
     let tick = runDays(1, 0);
     cherryFirstFruit = matureCherry.orchardTree!.fruitReady;
     boardAfterDay1 = leaderboard(world);
-    matureCherry.orchardTree!.fruitReady = 0; // simulate harvest; lastHarvestDay remains set
+    matureCherry.orchardTree!.fruitReady = 0; 
 
     tick = runDays(ORCHARD_MATURATION_DAYS - 1, tick);
     matureAtMaturationDay = growing.orchardTree!.mature;
     daysGrownAtMaturationDay = growing.orchardTree!.daysGrown;
 
-    // Autumn starts at day 51 (seasonForDay: d = day-1, Math.floor(50/25)=2 = autumn).
     tick = runDays(53 - ORCHARD_MATURATION_DAYS, tick);
     appleFruitByDay53 = matureApple.orchardTree!.fruitReady;
     appleLastHarvestByDay53 = matureApple.orchardTree!.lastHarvestDay;
 
-    // Day 103 = second spring (d=102, block 4 % 4=0) → re-fruit.
     runDays(50, tick);
     cherrySecondFruit = matureCherry.orchardTree!.fruitReady;
   });

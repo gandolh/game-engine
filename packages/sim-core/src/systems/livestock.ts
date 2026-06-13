@@ -1,5 +1,5 @@
-// Runs once per day (DAY_START pattern). Produces count×yield into owner inventory
-// at quality from care score + seeded rng, then decays care and resets fedToday.
+
+
 import type { SimContext, System, World, Rng, With } from "@engine/core";
 import type { GameEntity, CropQuality } from "../components";
 import { ONT_SIMULATION } from "../protocols";
@@ -11,7 +11,7 @@ import {
   bankProduct,
 } from "../economy";
 
-const GOLD_CARE_THRESHOLD   = 0.82; // care is 0–1
+const GOLD_CARE_THRESHOLD   = 0.82; 
 const SILVER_CARE_THRESHOLD = 0.55;
 
 function computeProductQuality(care: number, rng: Rng): CropQuality {
@@ -53,7 +53,7 @@ export class LivestockSystem implements System {
       if (f.id !== undefined) inventoryByOwner.set(f.id, f);
     }
 
-    const pens: With<GameEntity, "pen">[] = []; // sorted by entity-id for determinism
+    const pens: With<GameEntity, "pen">[] = []; 
     for (const p of this.world.query("pen")) pens.push(p);
     pens.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
 
@@ -71,7 +71,7 @@ export class LivestockSystem implements System {
         bankProduct(owner.inventory, productKind, qty, quality);
         pen.care = Math.max(0, pen.care - CARE_DECAY_RATE);
       } else {
-        pen.care = Math.max(0, pen.care - CARE_DECAY_UNFED); // unfed: faster decay, no yield
+        pen.care = Math.max(0, pen.care - CARE_DECAY_UNFED); 
       }
 
       pen.fedToday = false;

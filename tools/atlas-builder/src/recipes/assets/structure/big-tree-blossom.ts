@@ -1,9 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Spring variant of the big tree — IDENTICAL trunk+canopy silhouette to big-tree.ts
-// (same k outline, same trunk pixels), the lush green canopy densely speckled with
-// pink/white blossom (P petal, n white, w cream) so the season swap reads as the same
-// tree blooming. Blossom placement is a stable sine-hash scatter (no periodic stripes).
 const recipe: PixelRecipe = {
   name: "structure/big-tree-blossom",
   size: 48,

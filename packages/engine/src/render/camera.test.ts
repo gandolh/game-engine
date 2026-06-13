@@ -68,7 +68,7 @@ describe("expSmooth", () => {
     for (let i = 0; i < 100; i++) {
       val = expSmooth(val, target, 10, 0.016);
     }
-    // After 100 frames at ~16ms, must be very close to target
+
     expect(val).toBeCloseTo(target, 1);
   });
 
@@ -91,11 +91,11 @@ describe("expSmooth", () => {
   it("frame-rate independence — one 32ms step ≈ two 16ms steps (within ~1e-3 of gap)", () => {
     const current = 0;
     const target = 100;
-    // One 32ms step
+
     const oneStep = expSmooth(current, target, 10, 0.032);
-    // Two 16ms steps
+
     const twoSteps = expSmooth(expSmooth(current, target, 10, 0.016), target, 10, 0.016);
-    // The gap between them should be small
+
     expect(Math.abs(oneStep - twoSteps)).toBeLessThan(1e-3 * (target - current));
   });
 

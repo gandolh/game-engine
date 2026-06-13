@@ -1,19 +1,17 @@
-// (seed, maxDays, ticksPerDay) → byte-identical replay.
-/** Everything needed to reproduce a deterministic run. */
+
+
 export interface RunDescriptor {
   seed: number;
   maxDays: number;
   ticksPerDay: number;
 }
 
-/** Serialize to `seed-maxDays-ticksPerDay` (unsigned-32-bit hex). No `#` or `run=` prefix. */
 export function serializeRun(desc: RunDescriptor): string {
   return [desc.seed, desc.maxDays, desc.ticksPerDay]
     .map((n) => (n >>> 0).toString(16))
     .join("-");
 }
 
-/** Parse from URL hash. Tolerates leading `#` and optional `run=` prefix. Returns null if malformed. */
 export function parseRun(hash: string): RunDescriptor | null {
   if (typeof hash !== "string") return null;
 
@@ -35,7 +33,6 @@ export function parseRun(hash: string): RunDescriptor | null {
   return { seed, maxDays, ticksPerDay };
 }
 
-/** Parse one hex field; returns null unless it's a clean non-negative hex int. */
 function parseHexField(raw: string | undefined): number | null {
   if (raw === undefined || !/^[0-9a-fA-F]+$/.test(raw)) return null;
   const n = Number.parseInt(raw, 16);

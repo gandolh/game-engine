@@ -1,8 +1,4 @@
-/**
- * FestivalSystem — calendar-landmark layer. Festival dates are fixed (one per season, mid-season);
- * fully deterministic. Randomness via forked Rng only for prize tie-break.
- * Runs before EventFeedSystem (RESULT broadcasts are snooped there next tick).
- */
+
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity, CropQuality } from "../../components";
@@ -25,14 +21,14 @@ export class FestivalSystem implements System {
   private lastBeliefDay = -1;
   private readonly announced = new Set<number>();
   private readonly resolved = new Set<number>();
-  /** High-water mark: festival day → farmer id → best submission. Captured each tick so sold crops still count. */
+
   private readonly submissions = new Map<number, Map<number, Submission>>();
 
   constructor(
     private readonly bus: MessageBus,
     private readonly world: World<GameEntity>,
     rng: Rng,
-    /** Used to derive current day from tick before DAY_START arrives (capture before ActSystem sells). */
+
     private readonly ticksPerDay: number,
   ) {
     this.rng = rng.fork("festival");
@@ -157,7 +153,6 @@ export class FestivalSystem implements System {
     }
   }
 
-  /** Rank by best quality (gold>silver>normal), tie → more units → lower id → forked-rng coin flip. */
   private resolveContest(festival: FestivalDef, day: number, tick: number): void {
     const crop = festival.contestCrop;
 
@@ -168,7 +163,7 @@ export class FestivalSystem implements System {
     let winner: Submission | null = null;
     if (ranked.length > 0) {
       winner = ranked[0]!;
-      // Advance forked rng when top-two tie on quality+count (id already breaks it, but keeps stream consistent).
+
       const second = ranked[1];
       if (second && second.bestRank === winner.bestRank && second.bestCount === winner.bestCount) {
         void this.rng.nextFloat();

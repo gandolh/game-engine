@@ -2,7 +2,6 @@ import type { RunHistoryRow } from "../systems/run-history";
 import type { EventEntry } from "../systems/event-feed";
 import type { RecapStanding } from "./types";
 
-/** Returns floor(maxDay / 2) from history; 0 if empty. */
 export function midpointDay(history: readonly RunHistoryRow[]): number {
   if (history.length === 0) return 0;
   let maxDay = 0;
@@ -12,7 +11,6 @@ export function midpointDay(history: readonly RunHistoryRow[]): number {
   return Math.floor(maxDay / 2);
 }
 
-/** { day → { farmerId → rank } }, deterministic insertion order. */
 export function buildRankMap(
   history: readonly RunHistoryRow[],
 ): Map<number, Map<number, number>> {
@@ -28,7 +26,6 @@ export function buildRankMap(
   return out;
 }
 
-/** Ordinal suffix for a rank number (1 → "st", 2 → "nd", 3 → "rd", N → "th"). */
 export function rankSuffix(rank: number): string {
   if (rank === 1) return "st";
   if (rank === 2) return "nd";
@@ -36,7 +33,6 @@ export function rankSuffix(rank: number): string {
   return "th";
 }
 
-/** Short trajectory label from sorted rank rows. */
 export function describeTrajectory(rows: readonly RunHistoryRow[]): string {
   if (rows.length < 2) return "brief";
   const first = rows[0]!.rank;
@@ -46,7 +42,6 @@ export function describeTrajectory(rows: readonly RunHistoryRow[]): string {
   return "consistent";
 }
 
-/** Terse arc sentence: surge (last→1st), collapse (led→3rd+), steady (top-half ≥75%), or generic. */
 export function farmerArc(
   farmerId: number,
   name: string,
@@ -100,7 +95,6 @@ export function farmerArc(
   return `${name} — finished ${finalRank}${rankSuffix(finalRank)} after a ${describeTrajectory(farmerRows)} run.`;
 }
 
-/** Headline from highest-drama event (threshold >0.1); falls back to biggest trade / drought; then winner. */
 export function buildHeadline(
   events: readonly EventEntry[],
   winner: RecapStanding | undefined,

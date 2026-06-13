@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Static base; campfire-a/b/c flame layered on top (wall-clock overlay, no determinism impact).
 const recipe: PixelRecipe =
   {
     name: "structure/campfire",

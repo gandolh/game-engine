@@ -2,16 +2,6 @@ import { createEl, setText, applyStyles } from "./dom";
 import { EDG } from "@engine/core/render";
 import type { PlayerHotbar } from "@farm/sim-core/snapshot";
 
-/**
- * HotbarPanel — Pip's tool bar. Slots, order, and selection are owned by the sim
- * (HOTBAR_SLOTS + player.selectedSlot) and arrive via snapshot; this panel reflects them.
- * Keys 1-8 select slots (handled in main.ts); left-click performs the selected action.
- *
- * Each slot draws its atlas sprite (via the `iconFor` resolver passed to update); if the sprite
- * can't be rasterized the slot falls back to the unicode `glyph`.
- */
-
-/** Resolves a slot's atlas frame to a pixel-art data URL, or null to fall back to text. */
 export type IconResolver = (frame: string) => string | null;
 
 const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
@@ -119,7 +109,7 @@ export class HotbarPanel {
     hotbar.slots.forEach((slot, i) => {
       const el = this.slots[i]!;
       const selected = i === hotbar.selected;
-      // Prefer the atlas sprite; fall back to the unicode glyph when it can't be rasterized.
+
       const iconUrl = iconFor ? iconFor(slot.frame) : null;
       if (iconUrl) {
         setText(el.glyph, "");
@@ -133,8 +123,7 @@ export class HotbarPanel {
       applyStyles(el.root, {
         borderColor: selected ? EDG.gold : EDG.navy,
         background: selected ? EDG.navy : EDG.ink,
-        // Dim unusable slots, but never the selected one (so the player can see
-        // what they've picked even when it's out of stock).
+
         opacity: !slot.available && !selected ? "0.45" : "1",
       });
     });

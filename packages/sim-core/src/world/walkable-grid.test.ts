@@ -4,7 +4,7 @@ import { buildWalkableGrid } from './walkable-grid';
 import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, EXTRA_FARM_COUNT, WORLD_GEN_SEED, getRegion } from './regions';
 import { CLIFFS } from '../render-systems/geometry';
 
-const VILLAGE = getRegion('village').center; // (80,80) in the radial layout
+const VILLAGE = getRegion('village').center; 
 
 describe('buildWalkableGrid', () => {
   it('grid size matches WORLD_WIDTH * WORLD_HEIGHT', () => {
@@ -16,7 +16,7 @@ describe('buildWalkableGrid', () => {
 
   it('village center is walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[VILLAGE.y * WORLD_WIDTH + VILLAGE.x]).toBe(0); // village center
+    expect(grid.cells[VILLAGE.y * WORLD_WIDTH + VILLAGE.x]).toBe(0); 
   });
 
   it('ocean tile at (0,0) is blocked', () => {
@@ -26,8 +26,8 @@ describe('buildWalkableGrid', () => {
 
   it('bridge (road) tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[116 * WORLD_WIDTH + 108]).toBe(0); // village ↔ carpentry bridge (y∈{116,117})
-    expect(grid.cells[132 * WORLD_WIDTH + 116]).toBe(0); // village ↔ mill (x∈{116,117})
+    expect(grid.cells[116 * WORLD_WIDTH + 108]).toBe(0); 
+    expect(grid.cells[132 * WORLD_WIDTH + 116]).toBe(0); 
     for (const road of ROADS) {
       for (let y = road.minY; y <= road.maxY; y++) {
         for (let x = road.minX; x <= road.maxX; x++) {
@@ -82,7 +82,7 @@ describe('buildWalkableGrid', () => {
   });
 
   it('jittered band farm bodies keep a ≥2-tile ocean margin (jitter budget holds)', () => {
-    // Procedural band jitter ±1/axis from a 4-tile gutter; worst-case gap = 4−2×1 = 2.
+
     const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id));
     const oceanGap = (
       a: { minX: number; minY: number; maxX: number; maxY: number },
@@ -105,7 +105,7 @@ describe('buildWalkableGrid', () => {
   });
 
   it('ring jitter is deterministic and the band sits on the two ring radii', () => {
-    // Jitter is fork('farm-ring-jitter'); dx then dy, ±1. A seed/fork/draw-order change diverges here.
+
     const drawJitter = () => {
       const rng = createRng(WORLD_GEN_SEED).fork('farm-ring-jitter');
       return Array.from({ length: EXTRA_FARM_COUNT }, () => ({
@@ -115,7 +115,7 @@ describe('buildWalkableGrid', () => {
     };
     const jitterA = drawJitter();
     const jitterB = drawJitter();
-    expect(jitterB).toEqual(jitterA); // stable across independent draws
+    expect(jitterB).toEqual(jitterA); 
 
     const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id))
       .sort((a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)));
@@ -128,7 +128,7 @@ describe('buildWalkableGrid', () => {
       const uy = r.center.y - jitterA[i]!.dy;
       const radius = Math.hypot(ux - CX, uy - CY);
       const expected = i < 4 ? 78 : 108;
-      // ±2 tolerance for integer rounding of the ring formula. The 30-tile gap cleanly separates inner/outer.
+
       expect(Math.abs(radius - expected), `farm-${i} un-jittered radius ${radius.toFixed(2)}`)
         .toBeLessThanOrEqual(2);
     });

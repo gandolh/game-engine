@@ -8,23 +8,10 @@ import { SHRINE_COOLDOWN_DAYS } from "../../systems/ap";
 import { sameComponent } from "../../world/connectivity";
 import { RIVAL_CUTOFF } from "../../systems/rivalry";
 
-/**
- * Combat capability flag. The combat subsystem (ChaseSystem + CombatSystem) is built
- * (build-order goal #2). When true, deliberateRivalChallenge() lets an AI begin a
- * street-fight pursuit of a rival.
- */
 export const COMBAT_ENABLED = true;
 
-/** AP a farmer keeps in reserve before it will start a fight (fighting competes with farming). */
 const FIGHT_AP_RESERVE = 30;
 
-/**
- * Fight-inclination hook. When my directional trust toward a known rival peer is below
- * the rival cutoff, begin a street-fight CHASE (one-sided — no mutual agreement). The
- * ChaseSystem pursues + issues the CHALLENGE on contact. Governors: skip if already
- * chasing, if AP is below the fight reserve (farming wins), or if the peer isn't a rival.
- * Pure reads → deterministic.
- */
 export function deliberateRivalChallenge(
   farmer: GameEntity,
   peerId: number,
@@ -32,16 +19,15 @@ export function deliberateRivalChallenge(
 ): void {
   if (!COMBAT_ENABLED) return;
   if (!farmer.farmer || farmer.id === undefined) return;
-  if (farmer.farmer.chaseTarget) return; // already pursuing someone
+  if (farmer.farmer.chaseTarget) return; 
   const trust = farmer.trust?.byId.get(peerId) ?? 0.5;
-  if (trust >= RIVAL_CUTOFF) return; // not a rival in my eyes
-  // AP-reserve gate: don't pick a fight if it would starve the farming day.
+  if (trust >= RIVAL_CUTOFF) return; 
+
   if ((farmer.ap?.current ?? 0) < FIGHT_AP_RESERVE) return;
   farmer.farmer.chaseTarget = { peerId, startTick: tick };
   recordReason(farmer, `pursue rival #${peerId} (trust ${trust.toFixed(2)})`);
 }
 
-/** Queue craft-decoration when wood is available and boost cap not reached. */
 export function deliberateDecoration(
   farmer: GameEntity,
   existingDecorations: FarmDecoration[],
@@ -49,7 +35,6 @@ export function deliberateDecoration(
 ): void {
   if (!farmer.intentions || !farmer.resources || !farmer.farmer?.homeRegion) return;
 
-  // Check current total boost for this farmer.
   let totalBoost = 0;
   for (const d of existingDecorations) {
     if (d.ownerId === farmer.id) totalBoost += DECORATION_RECIPE[d.kind]?.yieldBoost ?? 0;
@@ -84,7 +69,6 @@ export function deliberateDecoration(
   recordReason(farmer, `craft ${kind} decoration (wood: ${wood})`);
 }
 
-/** Queue a village visit on day 0–1 so farmers see market prices and reach position to sell day 2. */
 export function deliberateEarlyVillageVisit(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer) return;
   const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
@@ -105,10 +89,6 @@ export function deliberateEarlyVillageVisit(farmer: GameEntity, priority: number
   recordReason(farmer, "early village visit: scout market");
 }
 
-/**
- * Hire a day-helper at the tavern when AP-starved (≤40% left) AND gold above reserve + hire cost.
- * Only fires if already in the village — no special cross-map trip.
- */
 export function deliberateHireHelp(
   farmer: GameEntity,
   reserve: number,
@@ -123,12 +103,12 @@ export function deliberateHireHelp(
   const apFraction = farmer.ap.max > 0 ? farmer.ap.current / farmer.ap.max : 1;
   if (apFraction > 0.4) return;
 
-  const HIRE_COST = 25; // mirrors HIRE_HELP_GOLD_COST in act.ts
+  const HIRE_COST = 25; 
   if (farmer.inventory.gold - HIRE_COST < reserve) return;
 
   if (farmer.intentions.queue.some(i => i.kind === "hire-help")) return;
   if (farmer.farmer.currentRegion !== "village") return;
-  void travelPriority; // kept for call-site symmetry; hire is in-village only
+  void travelPriority; 
 
   farmer.intentions.queue.push({
     kind: "hire-help",
@@ -138,14 +118,6 @@ export function deliberateHireHelp(
   recordReason(farmer, `hire day-helper at tavern (AP ${farmer.ap.current}/${farmer.ap.max}, gold ${farmer.inventory.gold})`);
 }
 
-/**
- * Visit the shrine for a small AP top-up. Opportunist only. Gated on: off-cooldown,
- * morning/work phase, AP ≤ 55% of max, no wilting plots, same land component as the
- * shrine (skips farmers aboard a boat or stranded on a disconnected island), and not
- * currently mid-boat-trip. Commits a winning travel leg.
- * Deterministic: pure read of day / phase / AP fraction / region / plot-sense /
- * connectivity-map lookup.
- */
 export function deliberateShrineVisit(
   farmer: GameEntity,
   priority: number,
@@ -164,7 +136,6 @@ export function deliberateShrineVisit(
   if (sense && sense.maxDrySoFar >= 2) return;
   if (farmer.intentions.queue.some((i) => i.kind === "pray-at-shrine")) return;
 
-  // Reachability guard: skip if aboard a boat or on a disconnected land pocket.
   if (farmer.farmer.aboard) return;
   if (farmer.transform) {
     const fx = Math.round(farmer.transform.x);
@@ -196,12 +167,6 @@ export function deliberateShrineVisit(
   recordReason(farmer, `pray at shrine (AP ${farmer.ap.current}/${farmer.ap.max})`);
 }
 
-/**
- * Periodic tavern visit (every TAVERN_VISIT_PERIOD days, staggered by entity id).
- * Pure flavor; AP-free travel; morning/work phase only. Gated to the same land
- * component as the tavern and not mid-boat-trip (replaces the old "gated to the
- * village" claim — it is now gated by same-land-component + not-aboard).
- */
 export function deliberateTavernGather(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || !farmer.beliefs || !farmer.inventory) return;
   const phase = farmer.beliefs.data.phase as string | undefined;
@@ -216,7 +181,6 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   if (isWithinReach(farmer.transform, TAVERN_GATHER_TILE.x, TAVERN_GATHER_TILE.y)) return;
   if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile && i.data.tavernGather)) return;
 
-  // Reachability guard: skip if aboard a boat or on a disconnected land pocket.
   if (farmer.farmer.aboard) return;
   if (farmer.transform) {
     const fx = Math.round(farmer.transform.x);
@@ -232,12 +196,6 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   recordReason(farmer, "visit the tavern (gathering beat)");
 }
 
-/**
- * Travel to the festival podium on a festival day (morning/work phase, AP ≥ 40, no
- * wilting). AP-free; contest judged from end-of-day inventory by FestivalSystem. Gated
- * to the same land component as the podium and not mid-boat-trip (same-land-component +
- * not-aboard guard, mirroring deliberateTavernGather).
- */
 export function deliberateFestivalGather(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || !farmer.beliefs) return;
   const festival = farmer.beliefs.data.festivalToday as
@@ -251,7 +209,6 @@ export function deliberateFestivalGather(farmer: GameEntity, priority: number): 
   if (isWithinReach(farmer.transform, FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)) return;
   if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.festivalGather)) return;
 
-  // Reachability guard: skip if aboard a boat or on a disconnected land pocket.
   if (farmer.farmer.aboard) return;
   if (farmer.transform) {
     const fx = Math.round(farmer.transform.x);
@@ -274,7 +231,6 @@ export function deliberateFestivalGather(farmer: GameEntity, priority: number): 
   );
 }
 
-/** Commission a decoration at the carpenter on a commit day (boost not maxed, wood on hand). Commits a winning carpentry-travel leg. */
 export function deliberateCommissionBuild(
   farmer: GameEntity,
   existingDecorations: FarmDecoration[],

@@ -47,7 +47,7 @@ describe("SlateBillboardPanel", () => {
     ]);
 
     const text = parent.textContent ?? "";
-    // Crop name (capitalized), price, and remaining/quantity each render in their own element.
+
     expect(text).toContain("Radish");
     expect(text).toContain("5g");
     expect(text).toContain("7/10 left");
@@ -62,13 +62,11 @@ describe("SlateBillboardPanel", () => {
     const slate = makeSlate();
     panel.update(slate);
 
-    // Capture the row element references
     const rowsBefore = Array.from(
       parent.querySelectorAll("[data-offer-id]"),
     ) as HTMLElement[];
     expect(rowsBefore.length).toBe(5);
 
-    // Decrement remaining on the first offer
     const updatedSlate = slate.map((o, i) =>
       i === 0 ? { ...o, remaining: o.remaining - 3 } : o,
     );
@@ -79,12 +77,10 @@ describe("SlateBillboardPanel", () => {
     ) as HTMLElement[];
     expect(rowsAfter.length).toBe(5);
 
-    // Same DOM elements — no recreation
     for (let i = 0; i < 5; i++) {
       expect(rowsAfter[i]).toBe(rowsBefore[i]);
     }
 
-    // Updated text is reflected
     const text = parent.textContent ?? "";
     expect(text).toContain("Radish");
     expect(text).toContain("5g");
@@ -96,14 +92,12 @@ describe("SlateBillboardPanel", () => {
     const panel = new SlateBillboardPanel(parent);
     panel.update(makeSlate());
 
-    // Confirm rows were rendered
     expect(parent.querySelectorAll("[data-offer-id]").length).toBe(5);
 
-    // Now clear
     panel.update([]);
 
     expect(parent.querySelectorAll("[data-offer-id]").length).toBe(0);
-    // The category itself stays visible (it's a persistent sidebar section).
+
     const panelEl = parent.children[0] as HTMLElement;
     expect(panelEl.style.display).not.toBe("none");
     panel.destroy();
@@ -149,7 +143,6 @@ describe("SlateBillboardPanel", () => {
       }
     }
 
-    // Second update with identical data — no textContent setter should fire
     panel.update(slate);
     expect(setterCalls.length).toBe(0);
 
@@ -188,7 +181,7 @@ describe("SlateBillboardPanel", () => {
 
   it("the header shows the offer count", () => {
     const panel = new SlateBillboardPanel(parent);
-    panel.update(makeSlate()); // 5 offers
+    panel.update(makeSlate()); 
     expect(headerEl().textContent).toContain("5");
     panel.destroy();
   });
@@ -208,7 +201,7 @@ describe("SlateBillboardPanel", () => {
     const panel = new SlateBillboardPanel(parent);
     panel.update(makeSlate());
     headerEl().dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    // A fresh slate update should not re-collapse the open body.
+
     panel.update(makeSlate());
     expect(bodyEl().style.display).not.toBe("none");
     panel.destroy();

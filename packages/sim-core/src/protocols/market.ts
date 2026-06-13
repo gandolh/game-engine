@@ -56,7 +56,6 @@ export interface TradeRejectBody {
   reason: string;
 }
 
-/** Sent when MarketSystem refuses a message (e.g. POST_OFFER while not in the village). */
 export interface MarketRejectedBody {
   reason: "not-in-village";
   originalOntology: MarketOntology;

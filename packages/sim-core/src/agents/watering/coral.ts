@@ -2,15 +2,6 @@ import type { GameEntity } from "../../components";
 import { recordReason } from "../../components";
 import { CORAL_REEFS, isCoralReefTile, isDockTile, nearestReef } from "../../world/coral";
 
-/**
- * Discretionary coral-fishing trip every `period` days (coral-trout=12g, lobster=20g vs salmon=5g).
- * Emits one phase per deliberation cycle (not a linear script):
- *   on foot, not at dock → travel to dock; at dock → board-boat
- *   aboard, not at reef  → travel to reef; at reef → fish-coral × casts
- *   aboard, back at dock → return-to-shore
- * board-boat and reef-travel are on SEPARATE cycles (board flips `aboard`; travel reads it next tick).
- * Deterministic: gated on day + AP + position.
- */
 export function deliberateCoralFishing(
   farmer: GameEntity,
   period: number,
@@ -20,7 +11,7 @@ export function deliberateCoralFishing(
 ): void {
   if (!farmer.intentions || !farmer.beliefs || !farmer.farmer || !farmer.ap || !farmer.transform) return;
   const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
-  // Don't re-plan a coral step while one's already queued (avoids double-queue).
+
   if (
     farmer.intentions.queue.some(
       (i) => i.kind === "board-boat" || i.kind === "fish-coral" || i.kind === "return-to-shore",
@@ -36,9 +27,8 @@ export function deliberateCoralFishing(
   const onReef = isCoralReefTile(fx, fy);
   const hasRod = (farmer.inventory?.tools ?? []).some((t) => t.kind === "fishing-rod");
 
-  // Aboard logic runs unconditionally so a farmer is never stranded if AP runs out.
   if (aboard) {
-    // Cast cap tracked in beliefs by day; resets implicitly when day changes.
+
     const castDay = farmer.beliefs.data["coralCastDay"] as number | undefined;
     const castsDone = castDay === day ? ((farmer.beliefs.data["coralCastsDone"] as number | undefined) ?? 0) : 0;
     const tripStillWorth =
@@ -53,7 +43,7 @@ export function deliberateCoralFishing(
       recordReason(farmer, `fish coral reef (day ${day}, ${n} casts)`);
       return;
     }
-    // Dock is both start and end of the trip; disambiguate by tripStillWorth.
+
     const reef = nearestReef(fx, fy) ?? CORAL_REEFS[0]!;
     if (onDock && tripStillWorth) {
       farmer.intentions.queue.push({
@@ -69,7 +59,7 @@ export function deliberateCoralFishing(
       recordReason(farmer, `return to shore (day ${day})`);
       return;
     }
-    // In open water: row to reef if trip still on, else back to dock.
+
     const target = onReef || !tripStillWorth ? reef.dock : reef.reef;
     farmer.intentions.queue.push({
       kind: "travel",
@@ -89,7 +79,7 @@ export function deliberateCoralFishing(
     recordReason(farmer, `board boat at dock (day ${day})`);
     return;
   }
-  // Winning priority so the dock travel claims queue[0] over routine farm work.
+
   const reef = nearestReef(fx, fy);
   farmer.intentions.queue.push({
     kind: "travel",

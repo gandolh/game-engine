@@ -1,24 +1,16 @@
 import { EDG } from "@engine/core";
 import type { Camera2D, DebugOverlay, ProfileReport } from "@engine/core";
 
-// Dev-only profile exporter (gated by `?profile`). Bundles the overlay readout
-// (fps / frame-ms) + the live frame-profiler report + render context + a GPU
-// identity probe into one JSON file the user can hand back for the brief-84
-// FPS-regression analysis. Wall-clock only; never reads sim state.
-
 export interface ProfileExportDeps {
   parent: HTMLElement;
   overlay: DebugOverlay;
   camera: Camera2D;
   canvas: HTMLCanvasElement;
-  /** Live frame-profiler report (fresher than the overlay's ~60-frame cache). */
+
   frameReport: () => ProfileReport;
   context: { seed: number; maxDays: number; ticksPerDay: number };
 }
 
-/** Probe the GPU identity via WebGL's debug-renderer-info. The string distinguishes
- *  a real GPU from software raster (e.g. "SwiftShader" / "llvmpipe"), which is the
- *  single most important piece of context for interpreting the fps numbers. */
 function probeGpu(): { vendor: string; renderer: string } | null {
   try {
     const c = document.createElement("canvas");
@@ -42,7 +34,7 @@ function collect(deps: ProfileExportDeps): unknown {
   const ov = overlay.exportReport();
   return {
     schema: "farm-valley-profile/1",
-    // Browser-side wall clock — diagnostic label only, never feeds the sim.
+
     collectedAt: new Date().toISOString(),
     backend: "webgpu",
     run: context,
@@ -68,7 +60,7 @@ function collect(deps: ProfileExportDeps): unknown {
     },
     gpu: probeGpu(),
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-    // The headline number: `frame` JS mean/p95 ≪ 16.6ms while fps is low ⇒ GPU-raster bound.
+
     frameProfile: frameReport(),
     workerProfile: ov.worker,
   };
@@ -86,8 +78,6 @@ function download(data: unknown, seed: number): void {
   URL.revokeObjectURL(url);
 }
 
-/** Mount a dev-only "Export profile" button (bottom-left) and expose
- *  window.__exportProfile(). Returns a teardown fn. */
 export function setupProfileExport(deps: ProfileExportDeps): () => void {
   (window as unknown as { __exportProfile?: () => unknown }).__exportProfile = () => {
     const data = collect(deps);
@@ -105,7 +95,7 @@ export function setupProfileExport(deps: ProfileExportDeps): () => void {
     "padding: 6px 10px",
     "font: 12px/1 ui-monospace, monospace",
     `color: ${EDG.white}`,
-    "background: rgba(24, 20, 37, 0.78)", // EDG.black, translucent
+    "background: rgba(24, 20, 37, 0.78)", 
     `border: 1px solid ${EDG.silver}`,
     "border-radius: 4px",
     "cursor: pointer",

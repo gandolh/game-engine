@@ -1,11 +1,4 @@
-/**
- * Decorative water life — render-only, no sim/determinism impact (wall-clock + Math.random, like the
- * particle system). Lifecycle events rather than static props:
- *   • Ducks  — a trio flies in from the left (bird flap frames), descends onto a shallow-water spot,
- *              paddles there a while (duck frames), then flies off to the right.
- *   • Whales — a faint deep silhouette swims left→right across the open ocean, hidden while passing
- *              behind land, and now and then splashing a little water up.
- */
+
 
 import type { RendererLike, ParticleSystem } from "@engine/core";
 import { EDG, createRng } from "@engine/core";
@@ -14,13 +7,10 @@ import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT, WORLD_GEN_SEED } from "@farm/sim
 
 const TILE = 16;
 
-// Submerged cast: a cool blue RGB multiply tint + reduced alpha so drifting life reads as below
-// the surface (matches the fish-decor convention).
-const UNDERWATER_TINT = 0xb4ccea_ff; // 0xRRGGBBAA
+const UNDERWATER_TINT = 0xb4ccea_ff; 
 
 interface View { left: number; right: number; top: number; bottom: number; }
 
-// ── Shared world geometry (collected once) ───────────────────────────────────
 let shallowSpots: Array<{ x: number; y: number }> | null = null;
 function getShallowSpots(): Array<{ x: number; y: number }> {
   if (shallowSpots === null) {
@@ -35,7 +25,6 @@ function getShallowSpots(): Array<{ x: number; y: number }> {
   return shallowSpots;
 }
 
-// Deep-ocean y rows (have a long open-water stretch) for whale lanes.
 let deepRows: number[] | null = null;
 function getDeepRows(): number[] {
   if (deepRows === null) {
@@ -45,36 +34,30 @@ function getDeepRows(): number[] {
       for (let tx = 0; tx < WORLD_WIDTH; tx++) {
         if (!isWalkable(tx, ty) && oceanDepthAt(tx, ty) === 0) oceanRun++;
       }
-      if (oceanRun > WORLD_WIDTH * 0.4) rows.add(ty); // mostly-open rows make good lanes
+      if (oceanRun > WORLD_WIDTH * 0.4) rows.add(ty); 
     }
     deepRows = [...rows];
   }
   return deepRows;
 }
 
-// NOTE: the volcano + casino are now real walkable landmark *regions* (see world/regions.ts),
-// rendered as scaled, bottom-anchored, y-sorting sprites via BIG_STRUCTURES — not the render-only
-// corner sprites that used to live here.
-
-// Math.random in a small range.
 const rand = (min: number, max: number): number => min + Math.random() * (max - min);
 const pick = <T>(arr: T[]): T | null => (arr.length ? arr[(Math.random() * arr.length) | 0]! : null);
 
-// ── Ducks ────────────────────────────────────────────────────────────────────
 type DuckPhase = "in" | "stay" | "out";
 interface DuckFlock { phase: DuckPhase; t: number; landX: number; landY: number; }
-const DUCK_FLY_DIST = TILE * 10;  // horizontal travel of the fly in/out
-const DUCK_ALT = TILE * 7;        // how high above the water they start/end
-const DUCK_IN_DUR = 3.2;          // seconds: glide down
-const DUCK_STAY_DUR = 9;          // seconds: paddling
-const DUCK_OUT_DUR = 3.2;         // seconds: climb away
-const DUCK_FORMATION = [          // trio: a leader + two trailing
+const DUCK_FLY_DIST = TILE * 10;  
+const DUCK_ALT = TILE * 7;        
+const DUCK_IN_DUR = 3.2;          
+const DUCK_STAY_DUR = 9;          
+const DUCK_OUT_DUR = 3.2;         
+const DUCK_FORMATION = [          
   { x: 0, y: 0 }, { x: -7, y: -5 }, { x: -7, y: 5 },
 ];
 let flock: DuckFlock | null = null;
-let duckCooldown = 1.5; // seconds until the next flock may spawn
+let duckCooldown = 1.5; 
 
-function ease(p: number): number { return p * p * (3 - 2 * p); } // smoothstep
+function ease(p: number): number { return p * p * (3 - 2 * p); } 
 
 function updateDucks(
   renderer: Pick<RendererLike, "push">,
@@ -85,7 +68,7 @@ function updateDucks(
   if (flock === null) {
     duckCooldown -= dt;
     if (duckCooldown > 0) return;
-    // Spawn: land on a shallow spot within (or near) the current view so the arrival is seen.
+
     const m = TILE * 4;
     const inView = getShallowSpots().filter(
       (s) => s.x >= view.left - m && s.x <= view.right + m && s.y >= view.top - m && s.y <= view.bottom + m,
@@ -101,21 +84,20 @@ function updateDucks(
   let flying = false;
   if (flock.phase === "in") {
     const p = Math.min(1, flock.t / DUCK_IN_DUR);
-    baseX = flock.landX - (1 - ease(p)) * DUCK_FLY_DIST; // approach from the left
-    baseY = flock.landY - (1 - ease(p)) * DUCK_ALT;       // descend
+    baseX = flock.landX - (1 - ease(p)) * DUCK_FLY_DIST; 
+    baseY = flock.landY - (1 - ease(p)) * DUCK_ALT;       
     flying = p < 1;
     if (p >= 1) { flock.phase = "stay"; flock.t = 0; }
   } else if (flock.phase === "stay") {
     if (flock.t >= DUCK_STAY_DUR) { flock.phase = "out"; flock.t = 0; }
   } else {
     const p = Math.min(1, flock.t / DUCK_OUT_DUR);
-    baseX = flock.landX + ease(p) * DUCK_FLY_DIST; // leave to the right
-    baseY = flock.landY - ease(p) * DUCK_ALT;       // climb
+    baseX = flock.landX + ease(p) * DUCK_FLY_DIST; 
+    baseY = flock.landY - ease(p) * DUCK_ALT;       
     flying = true;
     if (p >= 1) { flock = null; duckCooldown = rand(2.5, 7); return; }
   }
 
-  // Flying → bird flap frames (no swimming-duck-with-wings sprite); landed → duck paddle frames.
   const flap = (Math.floor(nowMs / 120) & 1) === 0 ? "decoration/bird-a" : "decoration/bird-b";
   const paddle = (Math.floor(nowMs / 360) & 1) === 0 ? "decoration/duck-a" : "decoration/duck-b";
   const frame = flying ? flap : paddle;
@@ -128,14 +110,13 @@ function updateDucks(
     if (x < view.left - TILE || x > view.right + TILE || y < view.top - TILE || y > view.bottom + TILE) continue;
     renderer.push({
       x, y, width: TILE, height: TILE, frame, atlasId,
-      rotation: 0, layer: flying ? LAYER.DUCK_FLY : LAYER.DUCK, alpha: 1, // airborne above the world, landed on the water
+      rotation: 0, layer: flying ? LAYER.DUCK_FLY : LAYER.DUCK, alpha: 1, 
     });
   }
 }
 
-// ── Whales ─────────────────────────────────────────────────────────────────
 interface Whale { x: number; y: number; splashCd: number; }
-const WHALE_SPEED = TILE * 0.9; // world px/sec — slow glide
+const WHALE_SPEED = TILE * 0.9; 
 let whale: Whale | null = null;
 let whaleCooldown = 3;
 
@@ -151,15 +132,15 @@ function updateWhales(
     if (whaleCooldown > 0) return;
     const lane = pick(getDeepRows());
     if (lane === null) { whaleCooldown = 8; return; }
-    whale = { x: -TILE * 2, y: lane * TILE + TILE / 2, splashCd: rand(2, 5) }; // enter from the left
+    whale = { x: -TILE * 2, y: lane * TILE + TILE / 2, splashCd: rand(2, 5) }; 
   }
 
   whale.x += WHALE_SPEED * dt;
-  if (whale.x > WORLD_WIDTH * TILE + TILE * 2) { whale = null; whaleCooldown = rand(12, 30); return; } // exit right
+  if (whale.x > WORLD_WIDTH * TILE + TILE * 2) { whale = null; whaleCooldown = rand(12, 30); return; } 
 
   const tx = Math.floor(whale.x / TILE);
   const ty = Math.floor(whale.y / TILE);
-  const overOcean = !isWalkable(tx, ty); // hide while passing behind land
+  const overOcean = !isWalkable(tx, ty); 
   const onScreen =
     whale.x >= view.left - TILE * 2 && whale.x <= view.right + TILE * 2 &&
     whale.y >= view.top - TILE && whale.y <= view.bottom + TILE;
@@ -169,9 +150,9 @@ function updateWhales(
     renderer.push({
       x: whale.x, y: whale.y, width: 32, height: 16,
       frame: "decoration/whale", atlasId: "props",
-      rotation: 0, layer: LAYER.WHALE, alpha: 0.18 + 0.16 * depthPulse, // faint = deep under the surface
+      rotation: 0, layer: LAYER.WHALE, alpha: 0.18 + 0.16 * depthPulse, 
     });
-    // Occasional spout/splash: a little water thrown up just ahead of the whale.
+
     whale.splashCd -= dt;
     if (whale.splashCd <= 0) {
       whale.splashCd = rand(3, 7);
@@ -179,19 +160,17 @@ function updateWhales(
         x: whale.x + 10, y: whale.y - 4, count: 7, shape: "circle",
         color: EDG.white, color2: EDG.skyBlue,
         speedMin: 14, speedMax: 40,
-        angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, // upward fountain
+        angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, 
         lifetimeMin: 0.4, lifetimeMax: 0.9,
         sizeMin: 0.6, sizeMax: 1.4,
         gravity: 70,
       });
     }
   } else {
-    whale.splashCd -= dt; // keep the timer ticking so it doesn't dump on reveal
+    whale.splashCd -= dt; 
   }
 }
 
-// ── Open-water tiles (seeded scatter base) ───────────────────────────────────
-// Open ocean = non-walkable with no adjacent land (so a sprite never overlaps a shore/bridge).
 let openWaterTiles: Array<{ x: number; y: number }> | null = null;
 function getOpenWater(): Array<{ x: number; y: number }> {
   if (openWaterTiles === null) {
@@ -212,13 +191,12 @@ function getOpenWater(): Array<{ x: number; y: number }> {
   return openWaterTiles;
 }
 
-// ── Kelp (seeded static positions, animated sway) ─────────────────────────────
 interface Kelp { x: number; y: number; phase: number; flip: boolean; }
 let kelpBeds: Kelp[] | null = null;
 const KELP_TARGET = 90;
 function getKelp(): Kelp[] {
   if (kelpBeds === null) {
-    // Positions seed off WORLD_GEN_SEED → stable per world (brief requirement). Distinct fork.
+
     const rng = createRng(WORLD_GEN_SEED).fork("kelp-beds");
     const water = getOpenWater();
     kelpBeds = [];
@@ -253,7 +231,6 @@ function pushKelp(renderer: Pick<RendererLike, "push">, nowMs: number, view: Vie
   }
 }
 
-// ── Bubble columns (seeded seabed vents, periodic upward particle bursts) ──────
 interface Vent { x: number; y: number; cd: number; }
 let vents: Vent[] | null = null;
 const VENT_TARGET = 14;
@@ -287,15 +264,14 @@ function updateBubbles(particles: ParticleSystem, dt: number, view: View): void 
       x: v.x, y: v.y + 4, count: 5, shape: "circle",
       color: EDG.skyBlue, color2: EDG.silver,
       speedMin: 6, speedMax: 16,
-      angleMin: -Math.PI * 0.6, angleMax: -Math.PI * 0.4, // rise straight up
+      angleMin: -Math.PI * 0.6, angleMax: -Math.PI * 0.4, 
       lifetimeMin: 1.0, lifetimeMax: 2.0,
       sizeMin: 0.5, sizeMax: 1.2,
-      gravity: -8, // negative = float upward
+      gravity: -8, 
     });
   }
 }
 
-// ── Jellyfish (transient drifting roamers) ────────────────────────────────────
 interface Jelly { x: number; y: number; vx: number; phase: number; t: number; life: number; }
 const jellies: Jelly[] = [];
 const MAX_JELLIES = 4;
@@ -314,13 +290,13 @@ function updateJellies(renderer: Pick<RendererLike, "push">, nowMs: number, dt: 
     const j = jellies[i]!;
     j.t += dt;
     if (j.t >= j.life) { jellies.splice(i, 1); continue; }
-    // Pulse-propelled bob: drift slowly up-and-along, with a vertical pulse.
+
     const pulse = Math.sin(nowMs * 0.004 + j.phase);
     j.x += j.vx * dt;
-    j.y -= (4 + 3 * pulse) * dt; // rise gently
+    j.y -= (4 + 3 * pulse) * dt; 
     const tx = Math.floor(j.x / TILE), ty = Math.floor(j.y / TILE);
     if (j.x < 0 || j.y < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT || isWalkable(tx, ty)) {
-      // wandered over land / off-world → retire early
+
       jellies.splice(i, 1);
       continue;
     }
@@ -337,7 +313,6 @@ function updateJellies(renderer: Pick<RendererLike, "push">, nowMs: number, dt: 
   }
 }
 
-// ── Sea turtles (transient lane gliders, like whales but nearer the surface) ──
 interface Turtle { x: number; y: number; dir: 1 | -1; }
 let turtle: Turtle | null = null;
 let turtleCd = 6;

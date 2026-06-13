@@ -37,12 +37,6 @@ import type { SimClient } from "../worker/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { setupProfileExport } from "./profile-export";
 
-// ── Cloud-shadow type guard (brief 15) ───────────────────────────────────────
-// Using a local interface + type guard avoids requiring RendererLike to declare
-// setCloudOptions, since RendererLike is resolved through shared node_modules at
-// typecheck time and may lag the engine worktree (same pattern as setWaterDepthMask
-// in static-layer.ts). The GPU renderer exposes the method; the Canvas2D backend
-// does not. Structural typing ensures both match at runtime.
 interface CloudOpts {
   color: string;
   coverage: number;
@@ -56,18 +50,14 @@ function supportsCloudOptions(r: RendererLike): r is RendererLike & RendererWith
   return typeof (r as Partial<RendererWithCloudOptions>).setCloudOptions === "function";
 }
 
-// Where Pip's carried tool sits relative to the body, per facing (world px from sprite centre).
-// `behind` draws the tool behind the body (facing away). Hand-tuned against the 24×24 frames;
-// adjust here after an in-browser look (brief 89, Phase A). `side` mirrors via flipX.
 const HELD_TOOL_ANCHOR: Record<"down" | "up" | "side", { dx: number; dy: number; behind: boolean }> = {
   down: { dx: 5, dy: 2, behind: false },
   side: { dx: 5, dy: 2, behind: false },
   up: { dx: 5, dy: 2, behind: true },
 };
-// Carried tools are hand-sized, not body-sized: draw at a fraction of the tile footprint.
+
 const HELD_TOOL_SCALE = 0.6;
-// Only the can needs a bespoke held sprite (its icon is mid-pour). The hoe/axe/pickaxe icons just
-// need a horizontal (X) mirror to read as carried — done via flipX below, no extra sprite.
+
 const HELD_TOOL_FRAME: Record<string, string> = { "tool/can": "tool/can-held" };
 
 export interface RenderLoopDeps {
@@ -101,8 +91,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     wealthGraph,
   } = panels;
 
-  // Inventory drag-drop: a swap is a layout change owned by the sim. Only the run owner
-  // may mutate Pip's grid (spectators can open the panel to look, not rearrange).
   inventory.onSwap = (from, to) => {
     if (client.owner) client.swapSlots(from, to);
   };
@@ -110,29 +98,27 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   let lastFrameMs = performance.now();
   let gameOverShown = false;
 
-  // Rain impact: a raindrop landed at world (wx, wy). Water tiles get a low, spreading ripple;
-  // land gets a small dust/droplet pop. isWalkable(tx,ty) is false over ocean. Render-only.
   const spawnRainSplash = (wx: number, wy: number): void => {
     const tx = Math.floor(wx / TILE);
     const ty = Math.floor(wy / TILE);
     if (!isWalkable(tx, ty)) {
-      // Water ripple — spreads sideways, near-flat arc, fades fast.
+
       particles.emit({
         x: wx, y: wy, count: 4, shape: "circle",
         color: EDG.skyBlue, color2: EDG.white,
         speedMin: 10, speedMax: 26,
-        angleMin: 0, angleMax: Math.PI, // hemisphere spread, hugging the surface
+        angleMin: 0, angleMax: Math.PI, 
         lifetimeMin: 0.25, lifetimeMax: 0.5,
         sizeMin: 0.5, sizeMax: 1.1,
         gravity: 24,
       });
     } else {
-      // Land splash — small droplets pop up and fall back (positive gravity arc).
+
       particles.emit({
         x: wx, y: wy, count: 3, shape: "rect",
         color: EDG.silver, color2: EDG.skyBlue,
         speedMin: 14, speedMax: 30,
-        angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, // upward fan
+        angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, 
         lifetimeMin: 0.2, lifetimeMax: 0.4,
         sizeMin: 0.3, sizeMax: 0.7,
         gravity: 130,
@@ -140,25 +126,14 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
   };
 
-  // UNCAPPED render loop, DECOUPLED from the display refresh (vsync): re-scheduled via setTimeout(…, 0)
-  // so it runs as fast as the loop allows rather than at the monitor's Hz (requestAnimationFrame would
-  // hard-cap at the refresh). Practical ceiling is the browser's nested-setTimeout clamp (~4ms ⇒ a few
-  // hundred fps) plus per-frame work. NOTE: the browser still composites the canvas at vsync, so frames
-  // beyond the refresh are computed but never shown — the fps/ms overlay counts them and input latency
-  // drops slightly, but motion isn't visibly smoother on a 60Hz panel, and it pegs CPU/GPU. (First
-  // frame is kicked off via rAF in main.ts.)
-
   const frameProfiler = new Profiler({ enabled: PROFILE_ENABLED });
   if (PROFILE_ENABLED) {
     client.setProfiling(true);
     client.onProfile((_tick, report) => overlay.setWorkerReport(report));
-    // Tier-0 FPS-regression diagnostic (2026-06-11): expose the frame report so a
-    // Playwright `?profile` pass can read structured per-section timings without
-    // OCR'ing the overlay. Wall-clock only; dev-only; remove once attributed.
+
     (window as unknown as { __frameProfile?: () => unknown }).__frameProfile = () =>
       frameProfiler.report();
-    // One-click profile export (brief 84): a bottom-left button + window.__exportProfile()
-    // that downloads fps/frame timings + render context + a GPU-identity probe as JSON.
+
     setupProfileExport({
       parent: document.body,
       overlay,
@@ -168,16 +143,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       context: { seed, maxDays, ticksPerDay },
     });
   }
-  // Emit frame report every ~60 frames to avoid per-frame string churn.
+
   let frameReportCounter = 0;
 
-  // ---------------------------------------------------------------------------
-  // Click-to-act: right-button press/release cycle sends action + tile to server.
-  // Only fires for the run owner; spectators cannot control Pip.
-  // A press/release is treated as a click only when the pointer moved < 5px —
-  // this also guards against accidental taps after the camera gained focus.
-  // (Left button is reserved for camera panning — see camera.ts.)
-  // ---------------------------------------------------------------------------
   let clickStartX = 0;
   let clickStartY = 0;
 
@@ -192,7 +160,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     if (!client.owner) return;
 
     const dist = Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY);
-    if (dist >= 5) return; // dragged — not a click
+    if (dist >= 5) return; 
 
     const cam = _camera;
     if (cam === null) return;
@@ -202,18 +170,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const cy = e.clientY - rect.top;
     const tile = screenToTile(cam, canvas, cx, cy);
 
-    // Pass held movement axes so we don't zero out in-progress movement.
     client.sendInput(lastPlayerMoveX, lastPlayerMoveY, true, null, tile);
   });
 
-  // ---------------------------------------------------------------------------
-  // Per-tool cursor: the OS pointer becomes the selected tool/seed sprite, so the
-  // mouse reads as "what you're about to use". Hotspot is centered on the icon (the
-  // tile under the pointer is the one click-to-act targets). Falls back to a native
-  // crosshair if the sprite can't be rasterized. Recomputed only when the selection
-  // changes (cheap key compare); driven from the render loop so keyboard slot swaps
-  // update the cursor even without mouse movement.
-  // ---------------------------------------------------------------------------
   let lastCursorKey = "";
 
   function applyToolCursor(): void {
@@ -227,27 +186,25 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       canvas.style.cursor = "default";
       return;
     }
-    const url = frameDataUrl(renderer, frame, 2); // 16px frame → 32px cursor
+    const url = frameDataUrl(renderer, frame, 2); 
     canvas.style.cursor = url ? `url(${url}) 16 16, crosshair` : "crosshair";
   }
 
   function renderFrame(): void {
     const frameStart = performance.now();
     const nowMs = frameStart;
-    const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); // cap at 100ms
+    const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); 
     lastFrameMs = nowMs;
 
     const interpolatedSprites = frameProfiler.time("interp", () =>
       client.getInterpolatedSprites(),
     );
 
-    // Signal the first frame that contains real world content (sprites present).
     if (!firstFrameSignaled && interpolatedSprites.length > 0) {
       firstFrameSignaled = true;
       deps.onFirstFrame?.();
     }
 
-    // Exponential ease panOffset→0 while recentering (avoids snap jump).
     if (recenteringOnPip) {
       setPanOffset({
         x: expSmooth(panOffset.x, 0, 12, dt),
@@ -264,10 +221,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       applyFocusAndPan(_camera, interpolatedSprites, dt, sx);
     }
 
-    // Brief 86 — juice: update popups, shake, hitstop. Must happen AFTER applyFocusAndPan
-    // (so shake is post-smoothing) and AFTER interpolatedSprites (so farmerPositions is fresh).
-    // Build farmerPositions here (moved up from later in the frame) so juice.update() can
-    // anchor popups to farmer sprites without a second pass.
     const farmerPositions = new Map<number, { x: number; y: number }>();
     for (const s of interpolatedSprites) {
       if (s.id !== null && s.interpolate) {
@@ -279,8 +232,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       juice.update(client.events, farmerPositions, _camera, canvas, dt);
       const hitstopN = juice.consumeHitstopFrames();
       if (hitstopN > 0) client.freezeInterp(hitstopN);
-      // Apply shake as a POST-smoothing offset (never fed back into the smooth state).
-      // The next frame's applyFocusAndPan will re-derive the smoothed center from scratch.
+
       const shk = juice.shake;
       if (shk.x !== 0 || shk.y !== 0) {
         _camera.setCenter(_camera.centerX + shk.x, _camera.centerY + shk.y);
@@ -289,24 +241,22 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     renderer.beginFrame();
 
-    // Water scroll: sin/cos drift for a non-linear current; render-only.
     const t = nowMs / 1000;
-    const WATER_DRIFT = TILE * 0.6; // peak scroll amplitude, world px
+    const WATER_DRIFT = TILE * 0.6; 
     renderer.setWaterScroll(
       Math.sin(t * 0.25) * WATER_DRIFT,
       Math.cos(t * 0.17) * WATER_DRIFT,
     );
 
-    // Swell: slow brightness pulse (~7.5s period, alpha 0.06–0.10); render-only.
     const SWELL_PERIOD_S = 7.5;
-    const swellPhase = (t * (2 * Math.PI)) / SWELL_PERIOD_S; // [0, 2π) cycling
+    const swellPhase = (t * (2 * Math.PI)) / SWELL_PERIOD_S; 
     const SWELL_ALPHA_MID = 0.08;
-    const SWELL_ALPHA_AMP = 0.02; // total range 0.06–0.10
+    const SWELL_ALPHA_AMP = 0.02; 
     const swellAlpha = SWELL_ALPHA_MID + SWELL_ALPHA_AMP * Math.sin(swellPhase);
-    const SWELL_DRIFT = TILE * 0.4; // offset amplitude, world px — less than base
+    const SWELL_DRIFT = TILE * 0.4; 
     renderer.setWaterSwell(
       swellAlpha,
-      Math.cos(t * 0.19) * SWELL_DRIFT, // cos/sin at different rates → orthogonal feel
+      Math.cos(t * 0.19) * SWELL_DRIFT, 
       Math.sin(t * 0.13) * SWELL_DRIFT,
     );
 
@@ -314,7 +264,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const viewRight = _camera!.centerX + _camera!.worldUnitsX / 2 + TILE;
     const viewTop = _camera!.centerY - _camera!.worldUnitsY / 2 - TILE;
     const viewBottom = _camera!.centerY + _camera!.worldUnitsY / 2 + TILE;
-    // Animated forge fire: layer 41 (above oven body 40, below NPC 50). ~0.4s cycle.
+
     const fireFrame = sampleCycle(FORGE_FIRE_CLIP, nowMs);
     renderer.push({
       x: FORGE_OVEN_TILE.x * TILE + TILE / 2,
@@ -328,7 +278,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 1,
     });
 
-    // Chimney smoke: layer 6 (above forge-house base 5), alpha 0.55, bobs up ~2px.
     const smokeIdx = cycleIndex(FORGE_SMOKE_CLIP, nowMs);
     const smokeFrame = sampleCycle(FORGE_SMOKE_CLIP, nowMs);
     renderer.push({
@@ -343,12 +292,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 0.55,
     });
 
-    // Waterfall: a tall cascade down a rock cleft — clean rock-sided stream tiles stacked above the
-    // foam pool (the static structure/waterfall entity at WATERFALL_TILE.y+2). Animated; render-only.
     const WATERFALL_FALL_ROWS = 2;
     for (let r = 0; r < WATERFALL_FALL_ROWS; r++) {
-      // Lower tiles step the frame back so the bright streak stays continuous across the 16px tile
-      // seam (16 rows % 3-row streak spacing = 1 → compensate by −1 frame per tile down).
+
       const frame = sampleCycle(WATERFALL_FALL_CLIP, nowMs, (3 - (r % 3)) % 3);
       renderer.push({
         x: WATERFALL_TILE.x * TILE + TILE / 2,
@@ -363,9 +309,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       });
     }
 
-    // Waterfall mist/spray at the foot of the falling water (the pool, two rows below the source) —
-    // fine droplets that arc back down plus a faint rising mist. Render-only (Math.random, display-
-    // only); gated to on-screen + throttled so the particle pool stays small.
     {
       const wfX = WATERFALL_TILE.x * TILE + TILE / 2;
       const wfFootY = (WATERFALL_TILE.y + WATERFALL_FALL_ROWS + 1) * TILE;
@@ -379,10 +322,10 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
             count: 1, shape: "circle",
             color: EDG.white, color2: EDG.skyBlue,
             speedMin: 10, speedMax: 26,
-            angleMin: -Math.PI * 0.85, angleMax: -Math.PI * 0.15, // upward spray fan
+            angleMin: -Math.PI * 0.85, angleMax: -Math.PI * 0.15, 
             lifetimeMin: 0.3, lifetimeMax: 0.6,
             sizeMin: 0.5, sizeMax: 1.1,
-            gravity: 90, // arcs back down
+            gravity: 90, 
           });
         }
         if (Math.random() < 0.25) {
@@ -395,13 +338,12 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
             angleMin: -Math.PI * 0.6, angleMax: -Math.PI * 0.4,
             lifetimeMin: 0.8, lifetimeMax: 1.4,
             sizeMin: 1, sizeMax: 2,
-            gravity: -6, // gentle rise, then fades
+            gravity: -6, 
           });
         }
       }
     }
 
-    // Animated campfire: layer 41, ~390ms cycle; render-only.
     const campfireFrame = sampleCycle(CAMPFIRE_CLIP, nowMs);
     renderer.push({
       x: CAMPFIRE_TILE.x * TILE + TILE / 2,
@@ -415,7 +357,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 1,
     });
 
-    // Beacon blink: layer 42, ~1 Hz on/off; wall-clock only, never seeded, never touches worker.
     const beaconFrame = sampleCycle(WEATHER_BEACON_CLIP, nowMs);
     renderer.push({
       x: WEATHER_BEACON_PX.x,
@@ -429,8 +370,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       alpha: 1,
     });
 
-    // Volcano: a dark smoke plume drifting up from the crater. Render-only (Math.random + wall-clock,
-    // like the waterfall mist); gated to on-screen + throttled so the particle pool stays small.
     {
       const vX = VOLCANO_CRATER_TILE.x * TILE + TILE / 2;
       const vY = VOLCANO_CRATER_TILE.y * TILE + TILE / 2;
@@ -440,18 +379,15 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           x: vX + (Math.random() - 0.5) * TILE * 0.7,
           y: vY,
           count: 1, shape: "circle",
-          color: EDG.steel, color2: EDG.slate, // grey volcanic smoke
+          color: EDG.steel, color2: EDG.slate, 
           speedMin: 6, speedMax: 16,
-          angleMin: -Math.PI * 0.62, angleMax: -Math.PI * 0.38, // rise, slight drift
+          angleMin: -Math.PI * 0.62, angleMax: -Math.PI * 0.38, 
           lifetimeMin: 1.6, lifetimeMax: 2.8,
           sizeMin: 1.2, sizeMax: 2.6,
-          gravity: -10, // billows upward, then fades
+          gravity: -10, 
         });
       }
     }
-
-    // (Casino neon emitter removed — the casino is now an open-air gaming island with
-    // no neon tower/business, so the tower-crown glint no longer makes sense.)
 
     particleDirector.emitFromDiff(farmerPositions);
 
@@ -477,9 +413,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
 
-    // Weather: persistent pseudo-3D rain/snow field (render-only). Drops carry a height and fall to
-    // the ground; rain lands with a splash (ripple on water, dust on land). World-space + camera-
-    // tracked density means walking no longer "resets" the curtain (was: per-frame top-edge sprinkle).
     frameProfiler.time("weather", () => {
       const w = client.latestSnapshot()?.weather;
       const isWinter = w?.season === "winter";
@@ -506,32 +439,20 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         client.meets,
         farmerPositions,
         nowMs,
-        seasonForDay(client.day), // season computed below; keep separate call for ordering
-        playerFarmerId, // x-ray the player when occluded by walls/buildings
+        seasonForDay(client.day), 
+        playerFarmerId, 
       );
 
-      // Occluder sprites: south-facing wall/cliff faces; sortY at face base so
-      // a character behind the edge has feet occluded, not painted over the parapet.
       pushOccluderSprites(renderer);
-      // Buildings: dynamic layer-50 occluders (sortY at base) so farmers behind them are occluded
-      // and the player x-rays through, instead of being painted over the roof (old static layer 5).
+
       pushBuildingSprites(renderer, seasonForDay(client.day));
-      // Bridges: dynamic at layer 3 with a slow rope-deck sway (no longer baked).
+
       pushBridgeSprites(renderer, nowMs);
-      // "Sea level" depth ordering is encoded in the sprite layer band (sprites sort by
-      // (layer, y) over the animated water pass, which is the backdrop):
-      //   below the surface — whale (1), baked coral (2), reef fish (4);
-      //   at the surface     — bridges (3), foam + paddling ducks (6);
-      //   above the surface  — boats / characters / buildings (50+), flying birds (60+).
-      // Submerged things look "under" the water via translucency + a cool blue tint
-      // (the water shows through them) rather than a dedicated water-surface overpass.
-      // Decorative water life: a duck trio flies in/lands/leaves; a whale glides L→R splashing.
+
       pushWaterDecor(renderer, particles, nowMs, dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
-      // Reef fish: shoals of colourful fish orbit the coral reefs, tinted + translucent (submerged).
+
       pushFishSchools(renderer, nowMs, dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
 
-      // Footstep dust: a pale puff on each walk-cycle foot-plant for moving farmers/Pip on land.
-      // walkStepsBetween counts contact events in this frame's window (per-entity walk phase).
       const stepPrevMs = nowMs - dt * 1000;
       for (const s of interpolatedSprites) {
         if (s.id === null || s.moving !== true || !s.frame.startsWith("farmer/")) continue;
@@ -540,37 +461,33 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         if (!isWalkable(Math.floor(s.x / TILE), Math.floor((s.y + TILE * 0.3) / TILE))) continue;
         particles.emit({
           x: s.x + (Math.random() - 0.5) * TILE * 0.3,
-          y: s.y + TILE * 0.42, // at the feet
+          y: s.y + TILE * 0.42, 
           count: 2, shape: "circle",
           color: EDG.silver, color2: EDG.white,
           speedMin: 3, speedMax: 10,
-          angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, // low upward fan
+          angleMin: -Math.PI * 0.75, angleMax: -Math.PI * 0.25, 
           lifetimeMin: 0.22, lifetimeMax: 0.4,
           sizeMin: 0.5, sizeMax: 1.1,
-          gravity: 26, // settles back down
+          gravity: 26, 
         });
       }
 
-      // Carried hotbar tool (brief 89, Phase A): Pip visibly holds the selected tool while idle/
-      // walking. Hybrid — during a tool ACTION the pose's baked tool shows instead (skip overlay).
-      // Pixel-safe: a per-facing held sprite + flipX, no rotation; rides the body at a hand offset.
-      // AI farmers carry nothing between actions (no hotbar). Tune offsets in HELD_TOOL_ANCHOR.
       const hb = client.playerHotbar;
       const heldSlot = hb ? hb.slots[hb.selected] : undefined;
       const heldFrame = heldSlot?.frame;
       if (playerFarmerId !== null && heldFrame && heldFrame.startsWith("tool/")) {
         for (const s of interpolatedSprites) {
           if (s.id !== playerFarmerId) continue;
-          if (s.action !== null && s.action in ACTION_POSE) break; // baked tool pose is showing
+          if (s.action !== null && s.action in ACTION_POSE) break; 
           const facing = s.facing ?? "down";
           const a = HELD_TOOL_ANCHOR[facing];
           const facingLeft = facing === "side" && (s.flipX ?? false);
           const toolFrame = HELD_TOOL_FRAME[heldFrame] ?? heldFrame;
-          // Icon tools (hoe/axe/pickaxe) read held when mirrored on X; the bespoke can-held is correct as-is.
+
           const carryFlip = heldFrame !== "tool/can";
-          const size = TILE * HELD_TOOL_SCALE; // hand-sized, not body-sized
+          const size = TILE * HELD_TOOL_SCALE; 
           renderer.push({
-            x: s.x + (facingLeft ? -a.dx : a.dx), // held on the forward side
+            x: s.x + (facingLeft ? -a.dx : a.dx), 
             y: s.y + a.dy,
             width: size,
             height: size,
@@ -578,17 +495,16 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
             atlasId: frameToAtlasId(toolFrame),
             rotation: 0,
             layer: s.layer,
-            // Sort just in front of / behind the body (behind when facing away).
+
             sortY: s.y + (a.behind ? -0.1 : 0.1),
             alpha: 1,
-            flipX: carryFlip !== facingLeft, // X-mirror the icon; mirror again when facing left
+            flipX: carryFlip !== facingLeft, 
           });
           break;
         }
       }
     });
 
-    // Follow arrow: layer 91 (above meet bubble 90), gentle sine bob.
     if (focusedFarmerId !== null) {
       const followed = farmerPositions.get(focusedFarmerId);
       if (followed) {
@@ -607,10 +523,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
 
-    // Player input: report held direction; worker paces the step cadence.
-    // Brief 72 — only forward input when this client is the run owner; spectators
-    // can still read the keyboard for camera controls (Space recentre) but must
-    // not send Pip movement/action to the shared run.
     {
       let moveX: "left" | "right" | null = null;
       let moveY: "up" | "down" | null = null;
@@ -622,14 +534,13 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         setFocusedFarmerId(playerFarmerId);
         setRecenteringOnPip(true);
       }
-      // E toggles the inventory panel; Esc closes it. Pure client-side UI (no sim message),
-      // so spectators can open it to look even though only the owner can rearrange.
+
       if (keyboard.justPressed("KeyE")) inventory.toggle();
       if (keyboard.justPressed("Escape") && inventory.isOpen()) inventory.setOpen(false);
-      // Tab shows/hides the standings panel (hidden by default).
+
       if (keyboard.justPressed("Tab")) leaderboardPanel.toggle();
       if (client.owner) {
-        // Actions fire on right-click (see the click-to-act handler above), not a key.
+
         let selectSlot: number | null = null;
         for (let n = 1; n <= HOTBAR_SIZE && n <= 9; n++) {
           if (keyboard.justPressed(`Digit${n}`)) {
@@ -637,7 +548,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
             break;
           }
         }
-        // Resend only when held axis changes; avoids flooding the worker every frame.
+
         const moveChanged = moveX !== lastPlayerMoveX || moveY !== lastPlayerMoveY;
         if (moveChanged && (moveX !== null || moveY !== null) && playerFarmerId !== null) {
           setFocusedFarmerId(playerFarmerId);
@@ -674,12 +585,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       ambient.update(dtMs, nowMs, view, nightness, season);
       ambient.pushSprites(renderer);
     });
-    // Cloud-shadow coverage: render-side only — reads the already-snapshotted weather.
-    // sunny   → coverage 0.06, drift 3 px/s  (sparse slow wisps)
-    // normal  → coverage 0.22, drift 6 px/s  (scattered clouds)
-    // rainy   → coverage 0.52, drift 9 px/s  (overcast, active drift)
-    // storm   → coverage 0.72, drift 14 px/s (heavy cover, fast-moving)
-    // Guarded by supportsCloudOptions: no-op on Canvas2D backend.
+
     if (supportsCloudOptions(renderer)) {
       const wSnap = client.latestSnapshot()?.weather;
       const condition = wSnap?.condition ?? "normal";
@@ -695,7 +601,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         cloudCoverage = 0.72;
         cloudDrift = 14;
       } else {
-        // "normal"
+
         cloudCoverage = 0.22;
         cloudDrift = 6;
       }
@@ -750,7 +656,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
 
-    // Uncapped: schedule the next frame ASAP (no fps target). Browsers clamp nested setTimeout to ~4ms.
     setTimeout(renderFrame, 0);
   }
 

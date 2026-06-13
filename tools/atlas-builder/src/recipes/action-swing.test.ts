@@ -1,10 +1,4 @@
-/**
- * action-swing.test.ts — guards the per-action two-frame work swing (brief 85
- * phase 2). Every farmer/Pip action pose `farmer/<p>/<action>` must have a
- * companion `-b` strike frame, and the two must differ (else the swing would
- * read as a freeze). The head/torso stay identical to the base pose; only the
- * tool/arm region moves, all at rows ≥7 (clear of the hat overlay).
- */
+
 import { describe, it, expect } from "vitest";
 import { RECIPES } from "./index";
 import { ACTION_TEMPLATES, ACTION_TEMPLATES_B, PERSONALITY_SUBS } from "./templates";

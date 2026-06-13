@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Tall signal antenna mast: ~1×4 tiles (16×64 px).
-// Metal-grey (q/Q) vertical pole with cross-struts; beacon tip left empty for overlay.
 const recipe: PixelRecipe = {
   name: "structure/weather-antenna",
   size: 16,

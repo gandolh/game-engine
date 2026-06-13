@@ -3,7 +3,7 @@ import type { CropKind } from "../components";
 
 export interface ShopOffer {
   offerId: string;
-  /** Always "sell" — models seed sales (shop → farmer) only; crop-buy uses a fixed-price handler. */
+
   kind: "sell";
   crop: import("../components").CropKind;
   unitPrice: number;
@@ -22,7 +22,6 @@ export interface PriceTable {
   readonly "winter-squash": { buy: number; sell: number };
 }
 
-/** Baseline prices: shop buys crops at SHOP_BUY_PRICE (shopkeeper.ts); sells seeds at SEED_COST (economy.ts). */
 export const DEFAULT_PRICES: PriceTable = {
   radish:          { buy: 6,  sell: 5  },
   wheat:           { buy: 10, sell: 8  },
@@ -35,7 +34,7 @@ export const DEFAULT_PRICES: PriceTable = {
 };
 
 export const SLATE_SIZE = 5;
-export const PRICE_JITTER = 0.2; // ±20%
+export const PRICE_JITTER = 0.2; 
 
 const CROPS = [
   "radish", "wheat", "carrot", "tomato", "corn", "pumpkin", "grape", "winter-squash",
@@ -48,14 +47,10 @@ export interface SlateConsumeResult {
 }
 
 export interface SlateConsumeOptions {
-  /** When true, return result without mutating any offer.remaining. */
+
   dryRun?: boolean;
 }
 
-/**
- * Reserve `quantity` units of `crop` cheapest-first. Decrements `remaining` on success;
- * leaves slate untouched on failure. `dryRun` checks cost without mutating.
- */
 export function consumeFromSlate(
   slate: ShopOffer[] | undefined,
   crop: CropKind,
@@ -103,7 +98,6 @@ export function consumeFromSlate(
   return { ok: true, totalCost };
 }
 
-/** Generate a deterministic daily slate of SLATE_SIZE shop offers. */
 export function generateDailySlate(rng: Rng, prices?: Partial<PriceTable>): ShopOffer[] {
   const table = prices ?? DEFAULT_PRICES;
   const idFork = rng.fork("shop.offerId");

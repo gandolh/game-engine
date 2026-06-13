@@ -1,15 +1,12 @@
-/** 8 ticks @ 20Hz = 2.5 tiles/sec. */
+
 export const STEP_TICKS = 8;
 
-/** String-pull then re-rasterize a 4-connected path into diagonal-cutting dense 1-tile steps.
- *  isWalkable must match the pathfinder grid to avoid clipping blocked tiles. */
 export function smoothPath(
   path: ReadonlyArray<{ x: number; y: number }>,
   isWalkable: (x: number, y: number) => boolean,
 ): { x: number; y: number }[] {
   if (path.length <= 2) return path.map(p => ({ x: p.x, y: p.y }));
 
-  // Supercover line-of-sight: diagonal moves also require both orthogonal cells open (no corner-clipping).
   const lineOfSight = (a: { x: number; y: number }, b: { x: number; y: number }) => {
     let x = a.x;
     let y = a.y;
@@ -45,8 +42,6 @@ export function smoothPath(
     anchor = farthest;
   }
 
-  // Pass 2: re-rasterize each anchor→anchor segment into one-tile steps
-  // (8-connected). Skip each segment's start tile to avoid duplicates.
   const dense: { x: number; y: number }[] = [{ x: anchors[0]!.x, y: anchors[0]!.y }];
   for (let i = 0; i < anchors.length - 1; i += 1) {
     const a = anchors[i]!;

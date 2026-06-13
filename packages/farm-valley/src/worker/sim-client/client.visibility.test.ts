@@ -1,17 +1,8 @@
-/**
- * client.visibility.test.ts — brief 66 — jsdom tests for the visibilitychange
- * resync logic in SimClient.
- *
- * Runs in the jsdom vitest project (listed in vitest.config.ts DOM_FILES).
- */
+
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SimClient } from "./client";
 import type { RenderSnapshot, SnapshotSprite } from "@farm/sim-core/snapshot";
-
-// ---------------------------------------------------------------------------
-// Minimal RenderSnapshot factory — only the fields SimClient actually reads.
-// ---------------------------------------------------------------------------
 
 function makeSprite(id: number, x: number, y: number): SnapshotSprite {
   return {
@@ -63,10 +54,6 @@ function makeSnapshot(overrides: { tick?: number; sprites?: SnapshotSprite[] }):
   };
 }
 
-// ---------------------------------------------------------------------------
-// Minimal WebSocket stub — synchronous, no real network.
-// ---------------------------------------------------------------------------
-
 type WsEventHandler = ((event: MessageEvent) => void) | null;
 
 interface StubWs {
@@ -77,7 +64,7 @@ interface StubWs {
   readyState: number;
   close(): void;
   send(_data: string): void;
-  /** Fire a message frame (as the server would). */
+
   deliver(data: unknown): void;
 }
 
@@ -89,7 +76,7 @@ function makeStubWebSocket(): StubWs {
     onerror: null,
     readyState: WebSocket.OPEN,
     close() { this.readyState = WebSocket.CLOSED; },
-    send(_data: string) { /* no-op */ },
+    send(_data: string) {  },
     deliver(data: unknown) {
       const event = new MessageEvent("message", { data: JSON.stringify(data) });
       this.onmessage?.(event);
@@ -98,32 +85,18 @@ function makeStubWebSocket(): StubWs {
   return ws;
 }
 
-// ---------------------------------------------------------------------------
-// Test setup helpers
-// ---------------------------------------------------------------------------
-
-/** Send a snapshot frame through the stub socket. */
 function deliverSnapshot(ws: StubWs, snapshot: RenderSnapshot): void {
   ws.deliver({ type: "snapshot", snapshot });
 }
 
-/**
- * Construct a SimClient backed by the stub socket.
- * Returns the client and the stub so tests can drive messages.
- */
 function makeClient(): { client: SimClient; ws: StubWs } {
   const ws = makeStubWebSocket();
   vi.stubGlobal("WebSocket", function() { return ws; });
   const client = new SimClient("ws://test-stub");
-  // Simulate the socket opening so sendMsg goes through (not strictly required
-  // for snapshot delivery, but realistic).
+
   ws.onopen?.();
   return { client, ws };
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("SimClient — brief 66 visibilitychange resync", () => {
   let nowMs = 1000;
@@ -138,13 +111,9 @@ describe("SimClient — brief 66 visibilitychange resync", () => {
     vi.restoreAllMocks();
   });
 
-  // -------------------------------------------------------------------------
-  // Case A — no lerp from a pre-hidden sprite after tab returns
-  // -------------------------------------------------------------------------
   it("Case A: after hide→snapshots→visible, getInterpolatedSprites returns CURRENT positions (no lerp from pre-hidden prev)", () => {
     const { client, ws } = makeClient();
 
-    // Deliver two snapshots before hiding so there is a live prev/current pair.
     const farmerIdA = 42;
     const snap0 = makeSnapshot({
       tick: 0,
@@ -160,11 +129,9 @@ describe("SimClient — brief 66 visibilitychange resync", () => {
     nowMs = 1050;
     deliverSnapshot(ws, snap1);
 
-    // -- Tab hides --
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
     document.dispatchEvent(new Event("visibilitychange"));
 
-    // Deliver 3 backlogged snapshots while hidden (simulating a burst of server traffic).
     const snap2 = makeSnapshot({
       tick: 2,
       sprites: [makeSprite(farmerIdA, 30, 30)],
@@ -185,36 +152,27 @@ describe("SimClient — brief 66 visibilitychange resync", () => {
     nowMs = 1200;
     deliverSnapshot(ws, snap4);
 
-    // -- Tab becomes visible again --
     Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
-    // Set now to the moment of becoming visible so lastSnapshotArrivalMs is reset.
+
     nowMs = 2000;
     document.dispatchEvent(new Event("visibilitychange"));
 
-    // Call getInterpolatedSprites at now=2000 (right after visible event).
-    // With prevSnapshot null, alpha=0 path → sprites snap to current positions.
     const sprites = client.getInterpolatedSprites();
 
-    // The latest snapshot was snap4 (x=50, y=50 for farmer 42).
     const farmerSprite = sprites.find((s) => s.id === farmerIdA);
     expect(farmerSprite).toBeDefined();
 
-    // prevSnapshot is null → no lerp; sprite should be exactly at current (snap4) position.
     expect(farmerSprite!.x).toBe(50);
     expect(farmerSprite!.y).toBe(50);
 
     client.terminate();
   });
 
-  // -------------------------------------------------------------------------
-  // Case B — interpolation resumes after one normal snapshot follows re-show
-  // -------------------------------------------------------------------------
   it("Case B: after the first normal snapshot post-visible, interpolation resumes (sprite x strictly between prev and current)", () => {
     const { client, ws } = makeClient();
 
     const farmerIdB = 7;
 
-    // -- Setup: hide, deliver snapshots, re-show (same as Case A) --
     const snapBefore = makeSnapshot({
       tick: 0,
       sprites: [makeSprite(farmerIdB, 0, 0)],
@@ -232,28 +190,18 @@ describe("SimClient — brief 66 visibilitychange resync", () => {
     nowMs = 1500;
     deliverSnapshot(ws, snapHidden);
 
-    // Re-show — onVisibilityChange sets lastSnapshotArrivalMs = performance.now() = 2000.
     Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
     nowMs = 2000;
     document.dispatchEvent(new Event("visibilitychange"));
 
-    // Deliver one fresh snapshot while visible. This becomes current; the old
-    // hidden snapshot becomes prev (snap at x=100 → x=120). prevById is rebuilt.
-    // After this delivery prevSnapshot = snap at x=100, currentSnapshot = snap at x=120.
-    // Delta is 20px (<2 tiles) so it stays within the brief-82 teleport clamp and lerps.
     const snapPost = makeSnapshot({
       tick: 2,
       sprites: [makeSprite(farmerIdB, 120, 120)],
     });
-    // Deliver it slightly after re-show so arrival timestamp is set.
+
     nowMs = 2010;
     deliverSnapshot(ws, snapPost);
 
-    // msPerTick defaults to 50 ms; renderDelayMs = 2 * 50 = 100 ms.
-    // To get alpha in the interpolation window (0 < alpha < 1), advance time so
-    // (now - lastSnapshotArrivalMs - renderDelayMs) / msPerTick is between 0 and 1.
-    // lastSnapshotArrivalMs was set to 2010 by the snapshot delivery.
-    // Choose now = 2010 + 100 + 25 = 2135 → rawAlpha = 25/50 = 0.5 → smoothstep(0.5) = 0.5.
     nowMs = 2135;
 
     const sprites = client.getInterpolatedSprites();
@@ -261,9 +209,6 @@ describe("SimClient — brief 66 visibilitychange resync", () => {
 
     expect(farmerSprite).toBeDefined();
 
-    // prevSprite.x = 100, currentSprite.x = 120, alpha = smoothstep(0.5) = 0.5.
-    // lerp(100, 120, 0.5) = 110.
-    // It just needs to be strictly between prev and current (not snapped to either).
     expect(farmerSprite!.x).toBeGreaterThan(100);
     expect(farmerSprite!.x).toBeLessThan(120);
 
@@ -284,21 +229,15 @@ describe("SimClient — brief 82 teleport-distance clamp", () => {
     vi.restoreAllMocks();
   });
 
-  /**
-   * Drive two snapshots and read back the interpolated sprite at an alpha=0.5
-   * window. `prevX`/`curX` set the prev→current delta under test.
-   */
   function lerpedX(prevX: number, curX: number): number {
     const { client, ws } = makeClient();
     const id = 5;
-    // Move on x only (y fixed) so the prev→current distance equals |Δx| and the
-    // clamp boundary lines up with the asserted deltas.
+
     nowMs = 1000;
     deliverSnapshot(ws, makeSnapshot({ tick: 0, sprites: [makeSprite(id, prevX, 0)] }));
     nowMs = 1050;
     deliverSnapshot(ws, makeSnapshot({ tick: 1, sprites: [makeSprite(id, curX, 0)] }));
-    // lastSnapshotArrivalMs = 1050; renderDelayMs = 100; msPerTick = 50.
-    // now = 1050 + 100 + 25 = 1175 → rawAlpha = 0.5 → smoothstep(0.5) = 0.5.
+
     nowMs = 1175;
     const sprites = client.getInterpolatedSprites();
     const s = sprites.find((sp) => sp.id === id)!;
@@ -308,17 +247,17 @@ describe("SimClient — brief 82 teleport-distance clamp", () => {
   }
 
   it("lerps a short hop (<= 2 tiles): a 1-tile (16px) step glides to the midpoint", () => {
-    // prev=100, current=116 (one tile). Within clamp → lerp(100,116,0.5)=108.
+
     expect(lerpedX(100, 116)).toBeCloseTo(108, 5);
   });
 
   it("snaps a long jump (> 2 tiles): a travel-sized move skips the lerp and shows current", () => {
-    // prev=100, current=300 (200px ≫ 32px clamp). Snap → exactly current.
+
     expect(lerpedX(100, 300)).toBe(300);
   });
 
   it("lerps right at the 2-tile boundary (32px): still glides, not snapped", () => {
-    // prev=100, current=132 → delta exactly 32px (= MAX_LERP_DIST_PX) → lerps.
+
     expect(lerpedX(100, 132)).toBeCloseTo(116, 5);
   });
 });

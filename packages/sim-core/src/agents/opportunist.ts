@@ -15,7 +15,6 @@ import type { PlotWaterSense } from "../systems/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
 
-// Fair-price posting: between cost and shop ceiling (intentionally below CROP_SELL_PRICE).
 const FAIR_PRICE: Record<CropKind, number> = {
   radish:          7,
   wheat:           12,
@@ -27,9 +26,8 @@ const FAIR_PRICE: Record<CropKind, number> = {
   "winter-squash": 19,
 };
 const LOW_SUPPLY_THRESHOLD = 3;
-const BUY_PRICE_MULTIPLIER = 1.1; // willing to pay up to 110% of shop price
+const BUY_PRICE_MULTIPLIER = 1.1; 
 
-/** Picks best in-season crop, adjusted for weather forecast. */
 function pickCropFromWeatherAndSeason(
   forecast: WeatherCondition | undefined,
   day: number,
@@ -43,9 +41,9 @@ function pickCropFromWeatherAndSeason(
   };
   const candidates = inSeason[season];
   if (forecast === "storm" || forecast === "rainy") {
-    return candidates[candidates.length - 1]!; // cheapest/fastest in-season
+    return candidates[candidates.length - 1]!; 
   }
-  return candidates[0]!; // most valuable in-season
+  return candidates[0]!; 
 }
 
 function fallbackCrop(crop: CropKind, gold: number, reserve: number): CropKind {
@@ -79,7 +77,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   const sense = farmer.beliefs.data.plotWater as PlotWaterSense | undefined;
   deliberateRefillCan(farmer, Math.min(sense?.due ?? 0, 2));
-  // Waters lazily (threshold 1), banking AP for trades.
+
   deliberateWatering(farmer, { dryThreshold: 1 });
 
   const plotsOwned = sense?.planted ?? 0;
@@ -97,11 +95,11 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   deliberateMillVisit(farmer, 8, 6);
   deliberateSeasonalForage(farmer, 7);
   deliberateFishing(farmer, 5, 3, 13);
-  // Coral: fishing-leaning archetype — most frequent trips, modest AP floor (40).
+
   deliberateCoralFishing(farmer, 6, 3, -2, 40);
 
   deliberateEarlyVillageVisit(farmer, 5);
-  // Upgrade pickaxe first (stones → geodes = high value).
+
   deliberateUpgrade(farmer, "pickaxe", 9);
   deliberateUpgrade(farmer, "hoe",     10);
   deliberateResourceZoneVisit(farmer, features.length, "stone", 11);
@@ -126,8 +124,6 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     recordReason(farmer, `buy seed ${target}: ${seasonNote}, short on seeds`);
   }
 
-  // Post at fair price when supply < threshold; dump to shopkeeper when high supply
-  // or gold < half reserve (liquidity fallback).
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
   const needsLiquidity = farmer.inventory.gold < reserve * 0.5;
   for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
@@ -173,7 +169,6 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   });
   recordReason(farmer, `read offers: check market`);
 
-  // Buy at most one wall offer per day — highest-trust seller at ≤110% of shop.
   const trust = farmer.trust?.byId;
   let best: { offer: MarketOffer; trust: number } | null = null;
   for (const offer of offers) {
@@ -182,7 +177,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     if (offer.pricePerUnit > ceiling) continue;
     const cost = offer.pricePerUnit * offer.quantity;
     if (farmer.inventory.gold - cost < reserve) continue;
-    const t = trust?.get(offer.sellerId) ?? 0.5; // default 0.5 for unseen peers
+    const t = trust?.get(offer.sellerId) ?? 0.5; 
     if (best === null || t > best.trust) {
       best = { offer, trust: t };
     }
@@ -211,12 +206,10 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     );
   }
 
-  // Bids for arbitrage at 0.7 of resale and flips beans for the spread.
   deliberateBean(farmer, 0.7);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 
-  // Diversifies with a modest coop + single apple orchard on genuine surplus only.
   const oppSurplus = farmer.inventory.gold >= reserve + 50;
   const oppUrgent = (sense?.maxDrySoFar ?? 0) >= 2;
   const oppAp = (farmer.ap?.current ?? 0) >= 20;
@@ -238,10 +231,9 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   }
 
   deliberateHireHelp(farmer, reserve, 13, -2);
-  // Shrine: opportunist only — AP top-up when starved + off-cooldown.
+
   deliberateShrineVisit(farmer, 12, -2);
 
-  // riskTolerance baked per-agent (bdi-jitter.ts, ~0.7): most likely to speculate on grow-then-deliver.
   const openContracts = (farmer.beliefs?.data.harborOpenContracts as HarborContract[] | undefined) ?? [];
   if (day >= 3) {
     const tol = (farmer.desires.data.riskTolerance as number | undefined) ?? 0.7;
@@ -250,8 +242,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   deliberateTavernGather(farmer, -2);
   deliberateFestivalGather(farmer, -2);
-  // Light periodic port-hop — discretionary, high AP floor, low precedence so it
-  // never preempts real work but adds visible boat traffic.
+
   deliberatePortHop(farmer, 9, 6, 140);
   deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
@@ -259,7 +250,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
 registerPersonality("opportunist", deliberateOpportunist);
 
-const OPP_PEER_BUY_CEILING = 1.1; // matches wall heuristic
+const OPP_PEER_BUY_CEILING = 1.1; 
 const OPP_PEER_SELL_FLOOR = 0.9;
 const OPP_BUFFER_SEEDS = 1;
 
@@ -270,10 +261,9 @@ export const respondToPeerOfferOpportunist = makeRespondPeerOffer({
   reserveDefault: 50,
 });
 
-// Keenest crop buyer: snaps up peers' surplus at ≤ shop value (1.0) to resell at the wall.
 export const respondCropOfferOpportunist = makeRespondPeerOffer({
   commodity: "crop",
-  buyCeiling: 1.0, // buys crops at or below shop value (resale margin)
+  buyCeiling: 1.0, 
   sellFloor: 0.9,
   bufferSeeds: 0,
   reserveDefault: 50,

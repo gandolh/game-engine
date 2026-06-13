@@ -8,7 +8,7 @@ export const ONT_SHOP = {
   AUCTION_BID: "auction-bid",
   AUCTION_RESULT: "auction-result",
   DAILY_SLATE: "shop.daily-slate",
-  /** Winner resells a won golden bean back to the shop. */
+
   RESALE_BEAN: "shop.resale-bean",
 } as const;
 
@@ -55,7 +55,6 @@ export interface AuctionResultBody {
   participants: number[];
 }
 
-/** Farmer offers to resell golden beans to the shop. */
 export interface ResaleBeanBody {
   quantity: number;
 }

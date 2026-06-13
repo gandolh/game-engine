@@ -11,8 +11,8 @@ export function createTooltip(parent: HTMLElement): HTMLElement {
     "padding: 3px 8px",
     "font: 11px/1.4 ui-monospace, monospace",
     `color: ${EDG.cream}`,
-    "background: rgba(24, 20, 37, 0.88)", // EDG.black
-    "border: 1px solid rgba(228, 166, 114, 0.6)", // EDG.tan
+    "background: rgba(24, 20, 37, 0.88)", 
+    "border: 1px solid rgba(228, 166, 114, 0.6)", 
     "border-radius: 4px",
     "pointer-events: none",
     "z-index: 180",
@@ -34,7 +34,6 @@ export function updateTooltip(
     return;
   }
 
-  // CSS pixel mouse → world pixels via shared helper (dpr capped at 2).
   const { wx, wy } = screenToWorld(camera, canvas, mousePos.x, mousePos.y);
 
   const HALF_TILE = TILE / 2;

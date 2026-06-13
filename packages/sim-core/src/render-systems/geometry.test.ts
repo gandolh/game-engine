@@ -99,7 +99,7 @@ describe("computeCliffs", () => {
 
 describe("oceanDepthAt (coastal shallow-water bands)", () => {
   it("land tiles read 0 (untinted)", () => {
-    // Every coastline-bubble tile is ocean touching land, so its 4-neighbours include a land tile at 0.
+
     const b = COASTLINE_BUBBLE_TILES[0]!;
     const landNbr = [
       [b.tx, b.ty - 1], [b.tx, b.ty + 1], [b.tx - 1, b.ty], [b.tx + 1, b.ty],
@@ -142,7 +142,7 @@ describe("oceanDepthAt (coastal shallow-water bands)", () => {
 
 describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", () => {
   it("land tiles return 0", () => {
-    // Take a land neighbour of the first coastline-bubble tile.
+
     const b = COASTLINE_BUBBLE_TILES[0]!;
     const landNbr = [
       [b.tx, b.ty - 1], [b.tx, b.ty + 1], [b.tx - 1, b.ty], [b.tx + 1, b.ty],
@@ -176,27 +176,25 @@ describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", 
   });
 
   it("gradient is monotone: tiles further from land are not closer to 1.0 than tiles nearer", () => {
-    // Find a coast-adjacent tile and walk outward in one direction; the gradient should
-    // weakly decrease (non-increasing) as BFS distance grows.
+
     const b = COASTLINE_BUBBLE_TILES[0]!;
-    // Walk rightward from b; stop when we hit land or go off-grid.
+
     let prev = oceanGradientAt(b.tx, b.ty);
     for (let dx = 1; dx < GRADIENT_DEPTH_MAX + 2; dx++) {
       const tx = b.tx + dx;
       if (tx >= WORLD_WIDTH) break;
-      if (isWalkable(tx, b.ty)) break; // hit land
+      if (isWalkable(tx, b.ty)) break; 
       const cur = oceanGradientAt(tx, b.ty);
       expect(
         cur,
         `gradient at (${tx},${b.ty}) increased from prev=${prev} — should be non-increasing`,
-      ).toBeLessThanOrEqual(prev + 1e-9); // tolerance for float rounding
+      ).toBeLessThanOrEqual(prev + 1e-9); 
       prev = cur;
     }
   });
 
   it("tiles far from any land return 0 (open ocean)", () => {
-    // Walk inward from the world edge (all-ocean region) and verify that tiles
-    // beyond GRADIENT_DEPTH_MAX distance read 0.
+
     let foundDeep = false;
     for (let ty = 0; ty < WORLD_HEIGHT && !foundDeep; ty++) {
       for (let tx = 0; tx < WORLD_WIDTH; tx++) {
@@ -211,9 +209,7 @@ describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", 
 });
 
 describe("BIG_STRUCTURES are anchored on their island (not floating at stale coords)", () => {
-  // Guard against the 2026-06-12 grow regression: baked building art had hardcoded
-  // 160-scale coords and rendered in open ocean after the world grew. Each structure
-  // is bottom-anchored; at least one tile of its base row must sit inside a region.
+
   it("every baked structure's base footprint touches a region (on land)", () => {
     for (const s of BIG_STRUCTURES) {
       const wTiles = Math.max(1, Math.round(s.wPx / 16));

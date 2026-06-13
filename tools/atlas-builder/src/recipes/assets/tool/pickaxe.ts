@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Pickaxe: curved double-pointed steel head across the top, wooden haft down the center.
 const recipe: PixelRecipe = {
   name: "tool/pickaxe",
   size: 16,

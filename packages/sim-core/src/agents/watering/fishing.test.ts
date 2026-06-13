@@ -4,13 +4,6 @@ import { deliberateFishing } from "./fishing";
 import { FISHING_CAST_TILES } from "./shared";
 import { isFishingIsle, regionAt } from "../../world/regions";
 
-/**
- * Brief 80 task 3 — confirm AI fishing actually fires now that FISHING_CAST_TILES
- * is derived from the live isle bounds (the stale literal silently sent farmers
- * off-isle after the radial reorg, so the `fish` precondition never passed).
- */
-
-/** Minimal farmer with the fields deliberateFishing reads. Off-isle by default. */
 function makeFarmer(over: Partial<GameEntity> = {}): GameEntity {
   return {
     id: 1,
@@ -41,8 +34,7 @@ describe("deliberateFishing (brief 80)", () => {
     const travel = f.intentions!.queue.find((i) => i.kind === "travel");
     expect(travel).toBeDefined();
     const target = travel!.data.targetTile as { x: number; y: number };
-    // The travel target must be one of the derived cast tiles — i.e. a tile that
-    // is actually on a fishing isle (the bug was targeting an off-isle stale tile).
+
     expect(FISHING_CAST_TILES.some((t) => t.x === target.x && t.y === target.y)).toBe(true);
     expect(isFishingIsle(regionAt(target.x, target.y))).toBe(true);
 

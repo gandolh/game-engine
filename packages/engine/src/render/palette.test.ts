@@ -9,14 +9,12 @@ const REPO_ROOT = join(HERE, "..", "..", "..", "..");
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git"]);
 const SOURCE_EXT = /\.(ts|js|mjs|cjs)$/;
-const SKIP_FILE = /\.(test|spec)\.(ts|js)$/; // test files may reference off-palette colors deliberately
+const SKIP_FILE = /\.(test|spec)\.(ts|js)$/; 
 
-// Files allowed to contain non-EDG32 literals (keep this list tiny).
 const ALLOWLIST_FILES: Record<string, string> = {
-  // (none — every drawn color currently maps to EDG32)
+
 };
 
-// #abc or #aabbcc, not followed by another hex digit (avoids splitting #rrggbbaa).
 const HEX_RE = /#[0-9a-fA-F]{6}(?![0-9a-fA-F])|#[0-9a-fA-F]{3}(?![0-9a-fA-F])/g;
 
 function walk(dir: string, out: string[]): void {
@@ -43,7 +41,7 @@ describe("EDG32 palette is the single source of truth", () => {
 
   it("isEdg32 / nearestEdg32 behave", () => {
     expect(isEdg32("#63c74d")).toBe(true);
-    expect(isEdg32("#63C74D")).toBe(true); // case-insensitive
+    expect(isEdg32("#63C74D")).toBe(true); 
     expect(isEdg32("#123456")).toBe(false);
     expect(nearestEdg32("#63c64c")).toBe("#63c74d");
   });
@@ -86,12 +84,12 @@ describe("no source file uses an off-palette color literal", () => {
     let count = 0;
     while ((m = rowRe.exec(text))) {
       const [, r, g, b, a] = m.map(Number);
-      if (a === 0) continue; // fully transparent (the "." empty swatch)
+      if (a === 0) continue; 
       count++;
       const hex = toHex(r!, g!, b!);
       if (!EDG32_SET.has(hex)) bad.push(`${hex} (rgb ${r},${g},${b}) → nearest ${nearestEdg32(hex)}`);
     }
-    expect(count).toBeGreaterThan(10); // sanity: we actually parsed the table
+    expect(count).toBeGreaterThan(10); 
     expect(bad, bad.length ? `Off-palette SWATCH colors:\n  ${bad.join("\n  ")}` : "").toEqual([]);
   });
 

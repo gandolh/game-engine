@@ -1,5 +1,5 @@
-// Transport-agnostic Node port of sim-worker.ts: postMessage→send callback, onmessage→handleInbound().
-// setInterval is wall-clock pacing only; the sim depends solely on tick count (fully deterministic).
+
+
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { buildStaticLayerSprites } from "@farm/sim-core/render-systems";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
@@ -30,13 +30,12 @@ import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
 const TILE = 16;
 const PROFILE_REPORT_EVERY = 60;
 
-/** Callback the host uses to emit a message toward the connected client. */
 export type SendFn = (msg: WorkerOutbound) => void;
 
 export interface SimHostOptions {
-  /** WASM pathfinder (matches browser) or JsPathfinder (tests); null → travel no-ops. */
+
   pathfinder?: PathfinderLike | null;
-  /** Instantiate pathfinder from these bytes instead of a pre-built instance. */
+
   pathfinderWasm?: ArrayBuffer | null;
 }
 
@@ -47,7 +46,6 @@ export class SimHost {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private stopped = false;
 
-  // Wall-clock pacing only — never affects what a tick computes.
   private paused = false;
   private speedMultiplier = 1;
   private pendingStep = false;
@@ -124,7 +122,7 @@ export class SimHost {
   private async resolvePathfinder(
     init: WorkerInitMsg,
   ): Promise<PathfinderLike | null> {
-    // Precedence: injected instance → opts bytes → init bytes → none.
+
     if (this.opts.pathfinder) return this.opts.pathfinder;
     const bytes = this.opts.pathfinderWasm ?? init.pathfinderWasm ?? null;
     if (bytes) {
@@ -163,7 +161,7 @@ export class SimHost {
         if (action) e.player!.pendingAction = true;
         if (selectSlot !== null) e.player!.selectedSlot = selectSlot;
         e.player!.pendingActionTile = actionTile;
-        break; // single player entity
+        break; 
       }
     };
 
@@ -175,11 +173,10 @@ export class SimHost {
         const tmp = slots[a]!;
         slots[a] = slots[b]!;
         slots[b] = tmp;
-        break; // single player entity
+        break; 
       }
     };
 
-    // Re-post static layer on season change (4× per run); client re-bakes its backdrop.
     let lastBakedSeason = seasonForDay(dayClock.day);
     const postStaticLayer = (season: Season): void => {
       const staticSprites = buildStaticLayerSprites(world, season);
@@ -208,7 +205,6 @@ export class SimHost {
 
     let tick = 0;
 
-    // Per-connection sprite state so concurrent sims never share cosmetic state.
     const spriteState = new SnapshotSpriteState();
 
     this.getEventFeedInfo = () => {
@@ -284,7 +280,6 @@ export class SimHost {
   private onInterval(): void {
     if (this.stopped || this.runOneTick === null) return;
 
-    // Skip-to-highlight: run ticks until a high-drama event or the safety cap.
     if (this.pendingSkipToHighlight && this.getEventFeedInfo !== null) {
       this.pendingSkipToHighlight = false;
       const capTicks = SKIP_MAX_DAYS * this.ticksPerDay;

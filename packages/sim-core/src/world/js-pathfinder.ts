@@ -5,7 +5,6 @@ interface PathPoint {
   y: number;
 }
 
-/** Pure-JS BFS satisfying the same `findPath` interface as the WASM Pathfinder. Returns path inclusive, or []. */
 export class JsPathfinder {
   findPath(
     grid: PathfinderGrid,

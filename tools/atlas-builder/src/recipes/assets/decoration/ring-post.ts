@@ -1,8 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Boxing-ring corner post, 1×2 tiles (16×32), bottom-anchored. A padded wood
-// turnbuckle post: red padded cap (R/x) on top, wood shaft (D/d/h) below, with
-// three rope-tie rings (w) where the ropes lash on, on a dark base (k/Q).
 const recipe: PixelRecipe = {
   name: "decoration/ring-post",
   size: 16,

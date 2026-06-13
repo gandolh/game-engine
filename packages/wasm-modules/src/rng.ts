@@ -1,5 +1,4 @@
-// AssemblyScript: Mulberry32 batch f32 fill. Host alloc→fillRandom→free; output [0,1).
-// Algorithm matches packages/engine/src/runtime/rng.ts.
+
 
 export function alloc(size: i32): usize {
   return heap.alloc(<usize>size);

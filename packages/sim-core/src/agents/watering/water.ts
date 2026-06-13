@@ -6,14 +6,10 @@ import { isWithinReach } from "../../systems/proximity";
 import { nearestWaterSource, nearestTile } from "./shared";
 import type { WateringStyle } from "./shared";
 
-/**
- * Queue a refill-can intent if needed. Must be called BEFORE deliberateWatering.
- * Prefers the fountain tile from beliefs; falls back to nearest water-source region center.
- */
 export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number): void {
   const can = farmer.inventory?.wateringCan;
   if (!can || !farmer.intentions || !farmer.farmer) return;
-  // If we plan to water more plots than remaining charges, refill first.
+
   if (can.charges >= planWaterCount && can.charges !== 0) return;
 
   const sense = farmer.beliefs?.data.plotWater as PlotWaterSense | undefined;
@@ -57,7 +53,7 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
 export function deliberateWatering(farmer: GameEntity, style: WateringStyle): void {
   const sense = farmer.beliefs?.data.plotWater as PlotWaterSense | undefined;
   if (!sense || sense.due <= 0) return;
-  const urgent = sense.maxDrySoFar >= 2; // grace is 2 dry days; at 2 it's last chance
+  const urgent = sense.maxDrySoFar >= 2; 
   if (!urgent && sense.maxDrySoFar < style.dryThreshold) return;
 
   const cap = style.maxWaterPerDay ?? sense.due;
@@ -68,7 +64,6 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
 
   const transform = farmer.transform;
 
-  // Split into: plots the farmer can reach NOW vs the rest.
   const inReach = candidatePlots.filter(p => isWithinReach(transform, p.tileX, p.tileY));
   const outOfReach = candidatePlots.filter(p => !isWithinReach(transform, p.tileX, p.tileY));
 

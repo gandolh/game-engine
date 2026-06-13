@@ -57,7 +57,7 @@ describe("coral act handlers", () => {
     const rng = createRng(0xc0ffee).fork("fish");
     handleFishCoral(f, 100, rng);
     const fish = f.inventory.fish!;
-    expect(fish["coral-trout"] + fish.lobster).toBe(1); // exactly one special fish
+    expect(fish["coral-trout"] + fish.lobster).toBe(1); 
     expect(fish.minnow + fish.bass + fish.salmon).toBe(0);
     const expectedKind = fish.lobster === 1 ? "lobster" : "coral-trout";
     expect(f.inventory.gold).toBe(FISH_VALUE[expectedKind]);
@@ -66,7 +66,7 @@ describe("coral act handlers", () => {
   });
 
   it("fish-coral no-ops when NOT aboard or not on a reef", () => {
-    // aboard but not on reef
+
     const notReef = makeFarmer({
       transform: { x: dock.x, y: dock.y, prevX: dock.x, prevY: dock.y, rotation: 0 },
       farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },
@@ -74,7 +74,6 @@ describe("coral act handlers", () => {
     handleFishCoral(notReef, 100, createRng(1).fork("fish"));
     expect(notReef.inventory.gold).toBe(0);
 
-    // on reef but not aboard
     const notAboard = makeFarmer({
       transform: { x: reef.x, y: reef.y, prevX: reef.x, prevY: reef.y, rotation: 0 },
     });

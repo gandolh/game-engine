@@ -1,13 +1,11 @@
-// Decorative open-water seabed props. Render-only; scatter computed once at module load.
+
 import { createRng } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, WORLD_GEN_SEED } from "../world/regions";
 import { CORAL } from "./geometry";
 import { CORAL_REEFS } from "../world/coral";
 
-/** Semi-transparent so water shows through — seabed accent rather than surface object. */
 export const SET_PIECE_ALPHA = 0.45;
 
-/** A single decorative open-water prop (frame at a tile coordinate). */
 export interface SetPieceTile {
   tx: number;
   ty: number;
@@ -18,7 +16,7 @@ export interface SetPieceTile {
 const PROP_FRAMES = ["structure/stone", "tile/sand", "tile/shore-sand"] as const;
 
 const TARGET_COUNT = 28;
-/** Chebyshev min-distance between props (blue-noise scatter). */
+
 export const MIN_SPACING = 3;
 const MAX_ATTEMPTS = 4000;
 const QUARTER_TURN = Math.PI / 2;
@@ -60,7 +58,7 @@ function computeSetPieces(): readonly SetPieceTile[] {
   };
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS && placed.length < TARGET_COUNT; attempt++) {
-    // Draw all four rng fields every iteration to keep the stream aligned regardless of acceptance.
+
     const tx = rng.int(0, WORLD_WIDTH);
     const ty = rng.int(0, WORLD_HEIGHT);
     const frame = rng.pick(PROP_FRAMES);

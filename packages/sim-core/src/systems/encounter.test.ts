@@ -46,7 +46,7 @@ describe("EncounterSystem", () => {
 
   it("does not emit MEET when a farmer is alone in a region", () => {
     const a = makeFarmer(world, "village", "A");
-    // Different region.
+
     makeFarmer(world, "farm-cora", "B");
     sys.run({ tick: 0 });
     expect(meetMessages(a)).toHaveLength(0);
@@ -59,12 +59,10 @@ describe("EncounterSystem", () => {
     sys.run({ tick: 0 });
     expect(meetMessages(a)).toHaveLength(1);
 
-    // Inside the cooldown window — no new MEET.
     sys.run({ tick: MEET_COOLDOWN_TICKS });
     expect(meetMessages(a)).toHaveLength(1);
     expect(meetMessages(b)).toHaveLength(1);
 
-    // After cooldown expires — new MEET emitted to both.
     sys.run({ tick: MEET_COOLDOWN_TICKS + 1 });
     expect(meetMessages(a)).toHaveLength(2);
     expect(meetMessages(b)).toHaveLength(2);
@@ -76,7 +74,6 @@ describe("EncounterSystem", () => {
     const c = makeFarmer(world, "village", "C");
     sys.run({ tick: 0 });
 
-    // 3 unique pairs: (a,b) (a,c) (b,c) → each farmer in 2 pairs → 2 MEETs each.
     expect(meetMessages(a)).toHaveLength(2);
     expect(meetMessages(b)).toHaveLength(2);
     expect(meetMessages(c)).toHaveLength(2);

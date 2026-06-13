@@ -1,6 +1,4 @@
-// EventFeedSystem — read-only snoop; must run BEFORE PerceiveSystem clears inboxes and before MarketSystem drains the wall.
-// MUST NOT consume or mutate messages. No Math.random/Date.now. Events sorted by key before append for deterministic replay.
-// Snoop surface: market-wall inbox (TRADE_COMPLETED, AUCTION_RESULT, SHOCK) + farmer inboxes (ENCOUNTER.ACCEPT).
+
 
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -28,14 +26,14 @@ import { type EventEntry, type TradeCompletedBody, EVENT_FEED_CAP } from "./type
 export class EventFeedSystem implements System {
   readonly name = "EventFeedSystem";
 
-  private readonly events: EventEntry[] = []; // newest-LAST, capped at EVENT_FEED_CAP
-  private readonly seen = new Set<string>(); // dedup re-observed inbox messages across ticks
-  private readonly fresh: EventEntry[] = []; // reused per-tick scratch
+  private readonly events: EventEntry[] = []; 
+  private readonly seen = new Set<string>(); 
+  private readonly fresh: EventEntry[] = []; 
 
-  private lastTopFarmerId: number | null = null; // rank-1 as of last check day
+  private lastTopFarmerId: number | null = null; 
   private lastRankCheckDay = -1;
 
-  private raceOnEmitted = false; // one-shot per run
+  private raceOnEmitted = false; 
 
   constructor(
     private readonly world: World<GameEntity>,
@@ -226,7 +224,7 @@ export class EventFeedSystem implements System {
     day: number,
     out: EventEntry[],
   ): void {
-    const key = `death:${body.day}:${body.ownerId}:${body.crop}`; // same-day same-crop collapses to one line
+    const key = `death:${body.day}:${body.ownerId}:${body.crop}`; 
     if (this.seen.has(key)) return;
     this.seen.add(key);
     const name = this.nameOf(body.ownerId);
@@ -255,7 +253,7 @@ export class EventFeedSystem implements System {
       text = `${body.name} — no contest entries this year`;
     } else {
       const quality = body.winnerQuality ?? "normal";
-      // e.g. "Autumn Harvest Fair — Atticus wins with a Gold pumpkin"
+
       const qLabel = quality.charAt(0).toUpperCase() + quality.slice(1);
       text = `${body.name} — ${body.winnerName} wins with a ${qLabel} ${body.contestCrop}`;
     }
@@ -276,7 +274,7 @@ export class EventFeedSystem implements System {
     out: EventEntry[],
   ): void {
     if (typeof body.farmerId !== "number") return;
-    // Keyed by farmer+tick: two lobsters on same day each get a line; re-snoop deduped.
+
     const key = `coral:${body.farmerId}:${tick}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
@@ -361,10 +359,7 @@ export class EventFeedSystem implements System {
       const aId = formed.aId;
       const bId = formed.bId;
       if (formed.kind === "rivalry") {
-        // Directional (aId's trust toward bId dropped). The RivalrySystem owns
-        // hysteresis (latch + re-arm), so we do NOT permanently dedup here — a
-        // genuine re-rivalry after recovery is allowed to surface again. Key is
-        // per-tick-unique to satisfy EventEntry without suppressing re-fires.
+
         const nameA = this.nameOf(aId);
         const nameB = this.nameOf(bId);
         out.push({
@@ -412,7 +407,7 @@ export class EventFeedSystem implements System {
     const prevLeaderId = this.lastTopFarmerId;
     this.lastTopFarmerId = currentLeaderId;
 
-    if (prevLeaderId === null) return; // no previous to compare on first day
+    if (prevLeaderId === null) return; 
     if (prevLeaderId === currentLeaderId) return;
 
     const newLeaderName = this.nameOf(currentLeaderId);
@@ -430,7 +425,6 @@ export class EventFeedSystem implements System {
     });
   }
 
-  // One-shot: day ≥ 90% of maxDays AND top-2 gold gap ≤ 8%.
   private snoopRaceOn(tick: number, day: number, out: EventEntry[]): void {
     if (this.raceOnEmitted) return;
     if (!this.runHistory) return;
@@ -484,7 +478,6 @@ export class EventFeedSystem implements System {
     return `#${id}`;
   }
 
-  /** Returns a defensive copy of the feed (newest-LAST / chronological). */
   recent(): readonly EventEntry[] {
     return this.events.slice();
   }

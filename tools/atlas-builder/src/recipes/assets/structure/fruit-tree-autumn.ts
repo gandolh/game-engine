@@ -1,7 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Autumn variant of structure/fruit-tree — SAME canopy+trunk silhouette as fruit-tree.ts,
-// foliage shifted to autumn tones (a gold, A orange, f flame) with a few late fruit (R/o).
 const recipe: PixelRecipe =
   {
     name: "structure/fruit-tree-autumn",

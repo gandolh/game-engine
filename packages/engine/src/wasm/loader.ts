@@ -1,4 +1,4 @@
-// Platform-agnostic wasm loader (browser fetch + Node fs.readFile both work).
+
 
 export type WasmImports = WebAssembly.Imports;
 
@@ -48,7 +48,6 @@ export async function fetchWasmModule<T extends WebAssembly.Exports = WebAssembl
   return loadWasmModule<T>(imports ? { bytes, imports } : { bytes });
 }
 
-// AssemblyScript calls env.abort on runtime failure (unreachable, OOM); throw as a JS error.
 function defaultEnvImports(): WebAssembly.ModuleImports {
   return {
     abort(msgPtr: number, filePtr: number, line: number, col: number): void {

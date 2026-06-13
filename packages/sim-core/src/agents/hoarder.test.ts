@@ -5,7 +5,6 @@ import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
 import type { RegionId } from "../world/regions";
 
-// Farmer transform (0,0); tile (0,0) is always within Chebyshev reach.
 const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
 
 function makeFarmer(overrides: {
@@ -60,7 +59,7 @@ describe("deliberateHoarder", () => {
   });
 
   it("falls back to seed on hand when no preferred crop can be bought (day 60, gold barely above reserve)", () => {
-    // gold=82, reserve=80: grape(20) and pumpkin(15) both dip below reserve; pumpkin seed in hand → plants it.
+
     const f = makeFarmer({ seeds: { pumpkin: 1 }, plotId: 0, day: 60, gold: 82, reserve: 80 });
     deliberateHoarder(f, { tick: 1200 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
@@ -69,7 +68,7 @@ describe("deliberateHoarder", () => {
   });
 
   it("falls back to radish only when no high-tier crop is affordable", () => {
-    // gold=85, reserve=80: only radish(5) fits (85-5=80≥80); high-tier seeds would dip below.
+
     const f = makeFarmer({ gold: 85, reserve: 80, seeds: {}, plotId: 0 });
     deliberateHoarder(f, { tick: 0 });
     const buy = f.intentions!.queue.find((i) => i.kind === "buy-seed");

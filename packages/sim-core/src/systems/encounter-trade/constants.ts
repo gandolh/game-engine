@@ -2,7 +2,6 @@ import { ONT_ENCOUNTER } from "../../protocols/encounter";
 
 export const OFFER_TTL_TICKS = 5;
 
-/** Trust gained by receiver toward bean giver. Large vs ±0.05 seed-trade deltas — gift is a strong loyalty signal. */
 export const GIFT_TRUST_DELTA = 0.2;
 
 type EncounterOntologyValue = (typeof ONT_ENCOUNTER)[keyof typeof ONT_ENCOUNTER];

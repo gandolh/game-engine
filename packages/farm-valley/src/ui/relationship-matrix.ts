@@ -2,15 +2,13 @@ import { createEl, applyStyles } from "./dom";
 import { personalityColor } from "./colors";
 import { EDG } from "@engine/core/render";
 
-/** Structured-clone-friendly (no Maps); missing trust entries fall back to 0.5. */
 export interface RelationshipMatrixData {
-  /** Farmers sorted by id asc. */
+
   farmers: Array<{ id: number; name: string; personality: string }>;
-  /** trust[fromId][toId] ∈ [0,1]. */
+
   trust: Record<number, Record<number, number>>;
 }
 
-// Trust bands: <0.35 hostile (EDG.red), 0.35–0.65 neutral (EDG.steel), >0.65 allied (EDG.green).
 function trustColor(value: number): string {
   if (value < 0.35) return EDG.red;
   if (value > 0.65) return EDG.green;
@@ -29,7 +27,7 @@ const PANEL_STYLES: Partial<CSSStyleDeclaration> = {
   padding: "6px 8px",
   boxSizing: "border-box",
   borderTop: `1px solid ${EDG.ink}`,
-  // pointerEvents inherited from right-column (none); enable for hover
+
   pointerEvents: "auto",
 };
 
@@ -88,7 +86,6 @@ const DATA_CELL_STYLES: Partial<CSSStyleDeclaration> = {
   padding: "1px",
 };
 
-/** A "■ label" legend chip in the given swatch color. */
 function legendChip(color: string, label: string): HTMLElement {
   const chip = createEl("div", {
     style: { display: "flex", alignItems: "center", gap: "3px" },
@@ -115,11 +112,7 @@ export class RelationshipMatrixPanel {
   private bodyEl: HTMLElement;
   private tableContainer: HTMLElement;
   private collapsed = true;
-  /** Dirty guard: skip the full 441-cell rebuild + table reflow when nothing
-   *  rendered has changed. Trust shifts at most per-tick and usually per-day,
-   *  but update() is called every render frame (~60 Hz) — without this the
-   *  panel forced a full layout+paint every frame (the dominant Tier-0 cost;
-   *  see corpus/wiki/performance.md). Mirrors wealth-graph's `lastDayDrawn`. */
+
   private lastSignature = "";
 
   private chevronEl: HTMLElement;
@@ -138,7 +131,6 @@ export class RelationshipMatrixPanel {
     this.headerEl.appendChild(this.chevronEl);
     this.headerEl.addEventListener("click", () => this.toggle());
 
-    // Everything below the header collapses together. Collapsed by default.
     this.bodyEl = createEl("div", { style: { display: "none" } });
 
     const caption = createEl("div", {
@@ -168,9 +160,6 @@ export class RelationshipMatrixPanel {
     this.chevronEl.textContent = this.collapsed ? "▸" : "▾";
   }
 
-  /** Cheap render-equivalence key: farmer identity + every trust value at the
-   *  2-decimal precision the tooltip shows. ~440 iterations of integer/char
-   *  concat — far below the 441-cell DOM rebuild it gates. */
   private computeSignature(
     farmers: RelationshipMatrixData["farmers"],
     trust: RelationshipMatrixData["trust"],

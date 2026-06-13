@@ -1,6 +1,5 @@
-// Farm Valley sim server: shared-run registry — one SimHost per unique run key,
-// broadcast to all attached sockets. Disconnect of the last socket stops after
-// a grace period; disconnect of the owner transfers control to the next socket.
+
+
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -38,7 +37,6 @@ async function main(): Promise<void> {
 
   const registry = new RunRegistry((send, _init) => new SimHost(send, { pathfinderWasm }));
 
-  // permessage-deflate: ~70-80% size reduction on repetitive JSON snapshots; threshold skips tiny frames.
   const wss = new WebSocketServer({
     port: PORT,
     perMessageDeflate: { threshold: 1024 },
@@ -46,13 +44,11 @@ async function main(): Promise<void> {
   console.log(`[server] Farm Valley sim server listening on ws://localhost:${PORT}`);
 
   wss.on("connection", (ws: WebSocket) => {
-    // setNoDelay: no-op for large frames today, but required before any small-frame codec (Nagle+ACK ≈ 40ms).
-    // `_socket` is exposed by `ws` but absent from its public types — narrowed to avoid `any`.
+
     const rawSocket = (ws as { _socket?: { setNoDelay(b: boolean): void } })
       ._socket;
     rawSocket?.setNoDelay(true);
 
-    // ws satisfies ClientSocket: readyState, OPEN, bufferedAmount, send are all present.
     const socket: ClientSocket = ws;
 
     ws.on("message", (data) => {

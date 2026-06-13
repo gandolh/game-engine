@@ -62,7 +62,6 @@ describe("DayClockSystem", () => {
     const captured = captureDayStarts(bus);
     const sys = new DayClockSystem(bus, { ticksPerDay: 20, maxDays: 100 });
 
-    // Five ticks within the same day → still only one boundary crossed.
     for (let t = 0; t < 5; t += 1) tickAndDeliver(bus, sys, t);
 
     expect(captured).toHaveLength(1);

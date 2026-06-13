@@ -10,14 +10,14 @@ import { buildWalkableGrid } from "./walkable-grid";
 import { PORTS, portLaneTiles } from "./ports";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS, getRegion } from "./regions";
 
-const VILLAGE = getRegion("village").center; // a land tile, never on the boat grid
+const VILLAGE = getRegion("village").center; 
 
 describe("coral geography + boat grid", () => {
   it("reef + lane tiles sit on open OCEAN (not land/road)", () => {
-    // The whole point of the boat trip: reefs are unreachable on foot.
+
     for (const r of CORAL_REEFS) {
-      expect(isWalkable(r.reef.x, r.reef.y)).toBe(false); // reef is ocean
-      for (const l of r.lane) expect(isWalkable(l.x, l.y)).toBe(false); // lane is ocean
+      expect(isWalkable(r.reef.x, r.reef.y)).toBe(false); 
+      for (const l of r.lane) expect(isWalkable(l.x, l.y)).toBe(false); 
     }
   });
 
@@ -37,7 +37,7 @@ describe("coral geography + boat grid", () => {
   it("boat grid is walkable ONLY on the coral dock+lane+reef tiles + the port network", () => {
     const g = buildBoatGrid();
     const idx = (x: number, y: number) => y * WORLD_WIDTH + x;
-    // Recompute the expected open set independently: coral stubs ∪ port docks ∪ port lanes.
+
     const open = new Set<number>();
     for (const r of CORAL_REEFS) {
       open.add(idx(r.dock.x, r.dock.y));
@@ -50,19 +50,17 @@ describe("coral geography + boat grid", () => {
     let walkable = 0;
     for (let i = 0; i < g.cells.length; i++) if (g.cells[i] === 0) walkable++;
     expect(walkable).toBe(open.size);
-    // Spot-check: the dock→reef corridor for reef 0 is fully connected (walkable).
+
     const r0 = CORAL_REEFS[0]!;
     expect(g.cells[idx(r0.dock.x, r0.dock.y)]).toBe(0);
     for (const l of r0.lane) expect(g.cells[idx(l.x, l.y)]).toBe(0);
     expect(g.cells[idx(r0.reef.x, r0.reef.y)]).toBe(0);
-    // An arbitrary land tile (village center) is BLOCKED on the boat grid.
+
     expect(g.cells[idx(VILLAGE.x, VILLAGE.y)]).toBe(1);
   });
 
   it("the LAND walkable grid is exactly REGIONS + ROADS — no coral leakage", () => {
-    // Coral reefs are NOT regions and the boat grid is separate, so the land
-    // grid is precisely the island bodies + bridges. Recompute that set
-    // independently and assert the builder agrees (self-tracks the farm count).
+
     const expected = new Set<number>();
     const mark = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
       for (let y = b.minY; y <= b.maxY; y++) {
@@ -85,12 +83,11 @@ describe("coral geography + boat grid", () => {
       expect(isCoralReefTile(r.dock.x, r.dock.y)).toBe(false);
       expect(isDockTile(r.reef.x, r.reef.y)).toBe(false);
     }
-    expect(isCoralReefTile(VILLAGE.x, VILLAGE.y)).toBe(false); // village center
+    expect(isCoralReefTile(VILLAGE.x, VILLAGE.y)).toBe(false); 
   });
 
   it("nearestReef picks by dock proximity, deterministic tie-break by id", () => {
-    // reef-forest dock (off fishing-isle-2) is W, reef-mill dock (off fishing-isle)
-    // is E. A tile west of the midpoint picks forest; east picks mill.
+
     expect(nearestReef(80, 150).id).toBe("reef-forest");
     expect(nearestReef(130, 150).id).toBe("reef-mill");
   });

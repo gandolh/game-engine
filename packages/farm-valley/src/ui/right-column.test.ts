@@ -26,7 +26,6 @@ describe("right-column", () => {
     new ObserverPanel(col);
     new EventFeedPanel(col);
 
-    // Two children, observer first, feed second.
     expect(col.children.length).toBe(2);
     const [first, second] = [
       col.children[0] as HTMLElement,
@@ -41,7 +40,7 @@ describe("right-column", () => {
     new ObserverPanel(col);
     new EventFeedPanel(col);
     const feedEl = col.children[1] as HTMLElement;
-    // Collapsed → does not claim leftover flex space.
+
     expect(feedEl.style.flex).toBe("0 0 auto");
   });
 
@@ -51,7 +50,7 @@ describe("right-column", () => {
     new EventFeedPanel(col);
     const observerEl = col.children[0] as HTMLElement;
     const feedEl = col.children[1] as HTMLElement;
-    // Clicking the header expands the (default-collapsed) feed.
+
     (feedEl.children[0] as HTMLElement).click();
     expect(observerEl.style.flexShrink).toBe("0");
     expect(feedEl.style.flex).toContain("1");

@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Seabed life — jellyfish, pulse frame B (bell narrower/taller + tentacles drawn in).
 const recipe: PixelRecipe =
   {
     name: "decoration/jelly-b",

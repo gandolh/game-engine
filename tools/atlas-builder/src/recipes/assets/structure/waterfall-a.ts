@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Transparent base; drawn over structure/waterfall (wall-clock overlay, no determinism impact). Rows step down A→B→C.
 const recipe: PixelRecipe =
   {
     name: "structure/waterfall-a",

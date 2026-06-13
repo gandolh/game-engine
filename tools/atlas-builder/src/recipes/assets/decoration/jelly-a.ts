@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Seabed life — jellyfish, translucent-reading bell + trailing tentacles. Pulse frame A (relaxed bell).
 const recipe: PixelRecipe =
   {
     name: "decoration/jelly-a",

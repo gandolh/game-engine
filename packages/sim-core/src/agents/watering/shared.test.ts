@@ -11,14 +11,6 @@ import {
   isFishingIsle,
 } from "../../world/regions";
 
-/**
- * Brief 80 — the guard whose absence let stale AI-travel-target tiles slip through.
- * These constants drive where AI farmers travel to fish / gather; if a world reorg
- * moves a region and the constant isn't updated, the farmer travels to ocean/empty
- * ground and the action's precondition silently never fires (no error, no test
- * failure). This asserts every such tile is still VALID in the live world, so a
- * future reorg fails loudly here instead of killing a feature in the dark.
- */
 function hasOceanNeighbour(x: number, y: number): boolean {
   return (
     !isWalkable(x - 1, y) ||

@@ -48,7 +48,7 @@ describe("EventFeedPanel", () => {
 
     const texts = lineTexts(parent);
     expect(texts).toHaveLength(EVENT_FEED_PANEL_CAP);
-    // Newest (last appended) shows first.
+
     const newest = rows[rows.length - 1]!;
     expect(texts[0]).toBe(`Day ${newest.day} — ${newest.text}`);
   });
@@ -65,8 +65,6 @@ describe("EventFeedPanel", () => {
     expect(lineTexts(parent)).toEqual(["Day 4 — d"]);
   });
 
-  // jsdom normalizes hex colors to rgb(r, g, b); convert EDG hex for comparison.
-  /** Convert "#rrggbb" to "rgb(r, g, b)". */
   function hexToRgb(hex: string): string {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -113,7 +111,6 @@ describe("EventFeedPanel", () => {
     panel.update([{ day: 1, text: "event", drama: 0.9 }]);
     expect(lineTexts(parent)[0]).toContain("★");
 
-    // Same DOM node, now routine.
     panel.update([{ day: 1, text: "event", drama: 0.1 }]);
     expect(lineTexts(parent)[0]).not.toContain("★");
     expect(lineColors(parent)[0]).toBe(hexToRgb(EDG.green));

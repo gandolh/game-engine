@@ -1,4 +1,4 @@
-/* brief 59 — diagnose which crop seeds farmers accumulate; radish consumed instantly. Run with PATHFINDER=wasm. */
+
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import type { CropKind } from "@farm/sim-core/components";
 import { makePathfinder } from "./pathfinder";
@@ -20,7 +20,7 @@ async function main(): Promise<void> {
 
   const peakSingle: Record<string, number> = {};
   const peakWheatByKind: Record<string, number> = {};
-  const surplusFarmerDays: Record<string, number> = {}; // farmer-days with ≥3 seeds (tradeable surplus)
+  const surplusFarmerDays: Record<string, number> = {}; 
   let lastDay = -1;
 
   const totalTicks = MAX_DAYS * TICKS_PER_DAY;

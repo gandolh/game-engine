@@ -5,7 +5,6 @@ import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
 import type { RegionId } from "../world/regions";
 
-// Farmer transform (0,0); tile (0,0) is always within Chebyshev reach.
 const EMPTY_PLOT_IN_REACH = [{ tileX: 0, tileY: 0 }];
 
 function makeFarmer(overrides: {
@@ -93,7 +92,7 @@ describe("deliberateAggressive", () => {
       sellerId: 99,
       crop: "wheat",
       quantity: 2,
-      pricePerUnit: 5, // shop=15; 90% threshold=13.5 → this is below
+      pricePerUnit: 5, 
       postedDay: 0,
     };
     const fair: MarketOffer = {
@@ -101,7 +100,7 @@ describe("deliberateAggressive", () => {
       sellerId: 98,
       crop: "wheat",
       quantity: 2,
-      pricePerUnit: 14, // above 13.5 threshold → not bought
+      pricePerUnit: 14, 
       postedDay: 0,
     };
     const f = makeFarmer({ day: 2, gold: 1000, offers: [cheap, fair] });

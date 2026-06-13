@@ -1,8 +1,4 @@
-/**
- * drama.test.ts — pure unit tests for dramaScore and actBandForDay.
- *
- * No sim boot required — all functions are pure; inputs are constructed inline.
- */
+
 
 import { describe, it, expect } from "vitest";
 import { dramaScore, actBandForDay, type DramaCtx } from "./drama";
@@ -27,27 +23,25 @@ describe("actBandForDay", () => {
   });
 
   it("generalises to maxDays=50", () => {
-    // establishment: days 1–15 (≤ 30% of 50)
+
     expect(actBandForDay(1, 50)).toBe("establishment");
     expect(actBandForDay(15, 50)).toBe("establishment");
-    // competition: days 16–35
+
     expect(actBandForDay(16, 50)).toBe("competition");
     expect(actBandForDay(35, 50)).toBe("competition");
-    // climax: days 36–50
+
     expect(actBandForDay(36, 50)).toBe("climax");
     expect(actBandForDay(50, 50)).toBe("climax");
   });
 
   it("handles day 0 and degenerate maxDays gracefully", () => {
-    expect(actBandForDay(0, 100)).toBe("establishment"); // 0/100 = 0 ≤ 0.3
-    expect(actBandForDay(5, 0)).toBe("climax");           // guard: maxDays ≤ 0
+    expect(actBandForDay(0, 100)).toBe("establishment"); 
+    expect(actBandForDay(5, 0)).toBe("climax");           
   });
 });
 
 describe("dramaScore", () => {
   const maxDays = 100;
-
-  // ---- act-band multiplier tests -------------------------------------------
 
   it("a rank-flip on day 95 (climax) scores higher than the same flip on day 5 (establishment)", () => {
     const earlyCtx: DramaCtx = { day: 5, maxDays };
@@ -64,8 +58,6 @@ describe("dramaScore", () => {
     expect(midScore).toBeGreaterThan(earlyScore);
     expect(lateScore).toBeGreaterThan(midScore);
   });
-
-  // ---- absolute level tests ------------------------------------------------
 
   it("a trade scores low (< 0.3) regardless of act band", () => {
     expect(dramaScore("trade", { day: 1, maxDays })).toBeLessThan(0.3);
@@ -102,8 +94,6 @@ describe("dramaScore", () => {
       }
     }
   });
-
-  // ---- determinism ---------------------------------------------------------
 
   it("same inputs produce identical scores across two calls", () => {
     const ctx: DramaCtx = { day: 77, maxDays: 100 };

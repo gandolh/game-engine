@@ -1,6 +1,5 @@
-// CNP coordinator — pure data + functions for Contract Net Protocol state machines.
-// Used by the Hoarder personality (initiator). No system loop here; the personality
-// calls into these functions from its deliberate step.
+
+
 import type { CropKind } from "../components";
 
 export type CnpTaskStatus = "open" | "collecting" | "awarded" | "completed";
@@ -21,7 +20,7 @@ export interface CnpTask {
   status: CnpTaskStatus;
   proposals: CnpProposal[];
   winnerId: number | null;
-  /** True once the trust system has emitted a broken-commitment delta for this task. */
+
   brokenReported?: boolean;
 }
 
@@ -56,11 +55,6 @@ export class CnpCoordinator {
     return task;
   }
 
-  /**
-   * Close a task after its deadline. Returns the winning bidderId (or null if no
-   * proposals). Deterministic: lowest pricePerUnit, tie-broken by lowest bidderId.
-   * No-op if the task is already past the collecting stage.
-   */
   closeTask(taskId: string, currentTick: number): number | null {
     const task = this.tasks.get(taskId);
     if (!task) return null;
@@ -92,7 +86,6 @@ export class CnpCoordinator {
     return this.tasks.get(taskId);
   }
 
-  /** Tasks that have reached their deadline and are still collecting. */
   dueTasks(currentTick: number): readonly CnpTask[] {
     const out: CnpTask[] = [];
     for (const task of this.tasks.values()) {
@@ -103,16 +96,6 @@ export class CnpCoordinator {
     return out;
   }
 
-  /**
-   * Tasks whose winners were ACCEPTed at the deadline but never marked as
-   * completed within `commitmentWindow` ticks of the deadline. Treated as
-   * broken commitments by the trust system.
-   *
-   * Excludes:
-   *   - tasks with `winnerId === null` (no winner picked, nothing to break)
-   *   - tasks already in `completed` status (delivery happened)
-   *   - tasks already reported via `markBrokenCommitmentReported`
-   */
   findBrokenCommitments(currentTick: number, commitmentWindow: number): readonly CnpTask[] {
     const out: CnpTask[] = [];
     for (const task of this.tasks.values()) {
@@ -125,7 +108,6 @@ export class CnpCoordinator {
     return out;
   }
 
-  /** Mark a task as having had its broken-commitment trust delta applied. */
   markBrokenCommitmentReported(taskId: string): void {
     const task = this.tasks.get(taskId);
     if (!task) return;

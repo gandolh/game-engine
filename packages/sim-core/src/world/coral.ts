@@ -1,24 +1,20 @@
-// Coral reef geography: water lanes south of the fishing isles, reachable only by boat.
-// TravelSystem pathfinds on the LAND grid normally, on the BOAT grid only while aboard.
+
+
 import type { PathfinderGrid } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT, getRegion } from "./regions";
 import { openPortLanes } from "./ports";
 
 export interface CoralReef {
-  /** Stable id, used in decision-trace + feed keys. */
+
   id: "reef-mill" | "reef-forest";
-  /** The land dock tile (on the isle's south edge) where the boat is moored. */
+
   dock: { x: number; y: number };
-  /** The reef tile out in open water where the farmer fishes. */
+
   reef: { x: number; y: number };
-  /** The water lane tiles connecting dock → reef (exclusive of dock + reef). */
+
   lane: ReadonlyArray<{ x: number; y: number }>;
 }
 
-// Reefs are derived from the fishing-isle bodies so they always sit on the live
-// isle's south edge (the world grid is parametric — see regions.ts). dock = a
-// column 3 tiles in from the isle's west edge, on its south row; the lane runs 2
-// tiles south into open water; the reef is 1 tile further south.
 function reefOffIsle(id: CoralReef["id"], isleId: "fishing-isle" | "fishing-isle-2"): CoralReef {
   const b = getRegion(isleId).bounds;
   const x = b.minX + 3;
@@ -39,12 +35,10 @@ export const CORAL_REEFS: readonly CoralReef[] = [
   reefOffIsle("reef-forest", "fishing-isle-2"),
 ];
 
-/** All reef tiles, as a lookup set (`"x,y"`) — a farmer fishes coral when on one. */
 export const CORAL_REEF_TILES: ReadonlySet<string> = new Set(
   CORAL_REEFS.map((r) => `${r.reef.x},${r.reef.y}`),
 );
 
-/** All dock tiles, as a lookup set (`"x,y"`). */
 export const CORAL_DOCK_TILES: ReadonlySet<string> = new Set(
   CORAL_REEFS.map((r) => `${r.dock.x},${r.dock.y}`),
 );
@@ -57,8 +51,6 @@ export function isDockTile(x: number, y: number): boolean {
   return CORAL_DOCK_TILES.has(`${Math.round(x)},${Math.round(y)}`);
 }
 
-/** The reef whose dock is nearest the given tile, by Manhattan distance.
- *  Tie-break by reef id for determinism. */
 export function nearestReef(x: number, y: number): CoralReef {
   let best = CORAL_REEFS[0]!;
   let bestD = Infinity;
@@ -72,8 +64,6 @@ export function nearestReef(x: number, y: number): CoralReef {
   return best;
 }
 
-/** Boat grid: all blocked except the coral dock→reef stubs AND the port network
- *  lanes. Used by TravelSystem while a farmer is aboard. */
 export function buildBoatGrid(): PathfinderGrid {
   const cells = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
   cells.fill(1);

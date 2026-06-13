@@ -3,7 +3,6 @@ import { formatSeed } from "../screens";
 import { serializeRun, type RunDescriptor } from "@farm/sim-core/run-descriptor";
 import type { FinalStandingRow, RunRecap } from "@farm/sim-core/snapshot";
 
-/** Game-over panel element handles. */
 export interface GameOverPanel {
   panel: HTMLElement;
   standings: HTMLElement;
@@ -25,10 +24,10 @@ export function createGameOverPanel(parent: HTMLElement): GameOverPanel {
     "padding: 24px 32px",
     "font: 13px/1.5 ui-monospace, monospace",
     `color: ${EDG.cream}`,
-    "background: rgba(24, 20, 37, 0.95)", // EDG.black
+    "background: rgba(24, 20, 37, 0.95)", 
     `border: 2px solid ${EDG.tan}`,
     "border-radius: 8px",
-    "box-shadow: 0 0 60px rgba(228, 166, 114, 0.35)", // EDG.tan
+    "box-shadow: 0 0 60px rgba(228, 166, 114, 0.35)", 
     "z-index: 200",
     "display: none",
     "overflow-y: auto",
@@ -116,8 +115,8 @@ export function createSeedBadge(parent: HTMLElement, seed: number): HTMLElement 
     "padding: 4px 10px",
     "font: 12px/1 ui-monospace, monospace",
     `color: ${EDG.tan}`,
-    "background: rgba(24, 20, 37, 0.8)", // EDG.black
-    "border: 1px solid rgba(228, 166, 114, 0.5)", // EDG.tan
+    "background: rgba(24, 20, 37, 0.8)", 
+    "border: 1px solid rgba(228, 166, 114, 0.5)", 
     "border-radius: 5px",
     "z-index: 150",
     "pointer-events: none",

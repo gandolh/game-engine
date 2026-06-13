@@ -1,6 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Felling axe: steel head upper-left, wooden haft running down the center.
 const recipe: PixelRecipe = {
   name: "tool/axe",
   size: 16,

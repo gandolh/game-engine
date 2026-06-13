@@ -1,8 +1,7 @@
-/** Rolling-stats sampler. No DOM/globals — runs identically in the Worker and on the main thread.
- *  Wall-clock only; never touches sim state → zero determinism impact. */
+
 
 export interface MetricStats {
-  count: number; // total ever added, not the ring size
+  count: number; 
   mean: number;
   min: number;
   max: number;
@@ -15,20 +14,20 @@ export type ProfileReport = Record<string, MetricStats>;
 
 interface Ring {
   readonly buf: Float64Array;
-  head: number;   // next write index (wraps)
-  size: number;   // live element count (<= capacity)
-  total: number;  // total samples ever added
+  head: number;   
+  size: number;   
+  total: number;  
   last: number;
 }
 
-const DEFAULT_CAPACITY = 240; // ~4 s at 60 Hz
+const DEFAULT_CAPACITY = 240; 
 
 export class Profiler {
-  enabled: boolean; // false → add()/time() are no-ops
+  enabled: boolean; 
 
   private readonly capacity: number;
   private readonly rings = new Map<string, Ring>();
-  private scratch: Float64Array; // reused by stats() for sorting — no per-call alloc
+  private scratch: Float64Array; 
 
   constructor(opts: { enabled?: boolean; capacity?: number } = {}) {
     this.enabled = opts.enabled ?? false;

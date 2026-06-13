@@ -1,9 +1,5 @@
 import { type PixelRecipe } from "../../types";
 
-// Roulette wheel at a slight angle, 2×2 tiles (32×32), bottom-anchored.
-// Outer wood rim (d/D), a ring of alternating red (R/x) and black (k)
-// number pockets, a gold (o) hub at the center, sitting on a small
-// green-felt base (G/g/l).
 const recipe: PixelRecipe = {
   name: "decoration/roulette",
   size: 32,

@@ -3,15 +3,12 @@ import type { GameEntity } from "../components";
 import { PERFORMATIVE, ONT_SIMULATION, type ShockBody, type ShockKind } from "../protocols";
 
 export interface ShockConfig {
-  /** Day the shock fires on. Defaults to the run midpoint (floor(maxDays / 2)). */
+
   shockDay: number;
-  /** Which shock to apply. Only "blight" exists today. */
+
   kind: ShockKind;
 }
 
-/** One-time mid-game blight: wipes all planted plots of a deterministically chosen farmer.
- *  Target chosen via rng.fork("shock"); same seed → same target, same day, every replay.
- */
 export class ShockSystem implements System {
   readonly name = "ShockSystem";
 
@@ -51,7 +48,6 @@ export class ShockSystem implements System {
     }
     if (farmers.length === 0) return;
 
-    // Prefer farmers with planted crops (a whiff shock isn't a "moment").
     const plantedByOwner = new Map<number, number>();
     for (const plot of this.world.query("plot")) {
       if (plot.plot.state.kind === "planted") {
@@ -94,7 +90,6 @@ export class ShockSystem implements System {
   }
 }
 
-/** Default shock day = run midpoint. */
 export function defaultShockDay(maxDays: number): number {
   return Math.floor(maxDays / 2);
 }

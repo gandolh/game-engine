@@ -1,4 +1,4 @@
-// Headless CLI: CHECK_DETERMINISM=1 → parallel determinism check; EXPORT=csv|json → machine-readable rows; default → human-readable run.
+
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { ONT_SIMULATION, type ShockBody } from "@farm/sim-core/protocols";
 import { runOnce, summarize } from "./run-core";
