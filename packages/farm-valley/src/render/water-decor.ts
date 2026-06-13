@@ -9,7 +9,7 @@
 
 import type { RendererLike, ParticleSystem } from "@engine/core";
 import { EDG, createRng } from "@engine/core";
-import { oceanDepthAt } from "@farm/sim-core/render-systems";
+import { oceanDepthAt, LAYER } from "@farm/sim-core/render-systems";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT, WORLD_GEN_SEED } from "@farm/sim-core/world/regions";
 
 const TILE = 16;
@@ -128,7 +128,7 @@ function updateDucks(
     if (x < view.left - TILE || x > view.right + TILE || y < view.top - TILE || y > view.bottom + TILE) continue;
     renderer.push({
       x, y, width: TILE, height: TILE, frame, atlasId,
-      rotation: 0, layer: flying ? 60 : 6, alpha: 1, // airborne above the world, landed on the water
+      rotation: 0, layer: flying ? LAYER.DUCK_FLY : LAYER.DUCK, alpha: 1, // airborne above the world, landed on the water
     });
   }
 }
@@ -169,7 +169,7 @@ function updateWhales(
     renderer.push({
       x: whale.x, y: whale.y, width: 32, height: 16,
       frame: "decoration/whale", atlasId: "props",
-      rotation: 0, layer: 1, alpha: 0.18 + 0.16 * depthPulse, // faint = deep under the surface
+      rotation: 0, layer: LAYER.WHALE, alpha: 0.18 + 0.16 * depthPulse, // faint = deep under the surface
     });
     // Occasional spout/splash: a little water thrown up just ahead of the whale.
     whale.splashCd -= dt;
@@ -247,7 +247,7 @@ function pushKelp(renderer: Pick<RendererLike, "push">, nowMs: number, view: Vie
     const frame = sway >= 0 ? "decoration/kelp-a" : "decoration/kelp-b";
     renderer.push({
       x: k.x + sway * 1.5, y: k.y, width: TILE, height: TILE,
-      frame, atlasId: "props", rotation: 0, layer: 2, alpha: 0.6,
+      frame, atlasId: "props", rotation: 0, layer: LAYER.KELP, alpha: 0.6,
       tintRgba: UNDERWATER_TINT, flipX: k.flip,
     });
   }
@@ -331,7 +331,7 @@ function updateJellies(renderer: Pick<RendererLike, "push">, nowMs: number, dt: 
     renderer.push({
       x: j.x, y: j.y, width: TILE, height: TILE,
       frame, atlasId: "props", rotation: 0,
-      layer: 3, alpha: 0.55 * Math.min(fadeIn, fadeOut),
+      layer: LAYER.JELLY, alpha: 0.55 * Math.min(fadeIn, fadeOut),
       tintRgba: UNDERWATER_TINT,
     });
   }
@@ -364,7 +364,7 @@ function updateTurtles(renderer: Pick<RendererLike, "push">, nowMs: number, dt: 
     renderer.push({
       x: turtle.x, y: turtle.y, width: TILE, height: TILE,
       frame, atlasId: "props", rotation: 0,
-      layer: 3, alpha: 0.5, tintRgba: UNDERWATER_TINT, flipX: turtle.dir === -1,
+      layer: LAYER.TURTLE, alpha: 0.5, tintRgba: UNDERWATER_TINT, flipX: turtle.dir === -1,
     });
   }
 }

@@ -8,7 +8,7 @@
  */
 
 import type { RendererLike } from "@engine/core";
-import { CORAL } from "@farm/sim-core/render-systems";
+import { CORAL, LAYER } from "@farm/sim-core/render-systems";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 
 const TILE = 16;
@@ -161,7 +161,7 @@ export function pushFishSchools(
       renderer.push({
         x: fx, y: fy, width: TILE, height: TILE,
         frame, atlasId: "props",
-        rotation: 0, layer: 4, alpha: BASE_ALPHA * fade * depthPulse,
+        rotation: 0, layer: LAYER.REEF_FISH, alpha: BASE_ALPHA * fade * depthPulse,
         flipX: facingLeft, // sprites face right; flip when swimming left
         tintRgba: UNDERWATER_TINT,
       });

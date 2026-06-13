@@ -115,31 +115,7 @@ fn valueNoise(p: vec2<f32>) -> f32 {
   return mix(mix(a, b, u.x), mix(c2, d, u.x), u.y);
 }
 
-// ── Voronoi helpers (task 4) ─────────────────────────────────────────────────────────────────────
-// 3×3-tile Voronoi: returns distance to nearest cell point. Classic Book of Shaders ch. 12 recipe.
-
-fn voronoiCellPt(cell: vec2<f32>, drift: vec2<f32>) -> vec2<f32> {
-  // Per-cell random point in [0.15, 0.85]^2 so it stays near the cell center,
-  // animated slowly by drift so the caustic pattern drifts over time.
-  let h1 = hash21(cell + vec2<f32>(17.0, 0.0));
-  let h2 = hash21(cell + vec2<f32>(0.0, 31.0));
-  return cell + vec2<f32>(0.15 + 0.70 * h1, 0.15 + 0.70 * h2) + drift;
-}
-
-fn voronoiDist(p: vec2<f32>, drift: vec2<f32>) -> f32 {
-  let cellP = floor(p);
-  let fr = fract(p);
-  var minDist = 8.0;
-  for (var jj: i32 = -1; jj <= 1; jj++) {
-    for (var ii: i32 = -1; ii <= 1; ii++) {
-      let nb = cellP + vec2<f32>(f32(ii), f32(jj));
-      let pt = voronoiCellPt(nb, drift);
-      let d = distance(p, pt);
-      if (d < minDist) { minDist = d; }
-    }
-  }
-  return minDist;
-}
+// (Voronoi caustics helpers removed with the shore-FX pass — see fs_main.)
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
@@ -179,85 +155,10 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   let glint = lit * tw * spark * 0.85;
   col = mix(col, water.glintColor.rgb, glint);
 
-  // ── Depth mask sample ─────────────────────────────────────────────────────────────────────────
-  // Sample the wide shore-proximity gradient (GRADIENT_DEPTH_MAX=14 tiles, CPU-side).
-  // depthSample: 1.0 = tile immediately adjacent to land; 0.0 = ≥14 tiles from land.
-  //
-  // The mask is ONE R8 texel per tile, so a plain bilinear (LINEAR) sample reconstructs the
-  // gradient as piecewise-bilinear patches whose iso-contours are diamond/scalloped arcs aligned
-  // to the texel grid (the visible concentric rings around every island). Two cures applied here:
-  //   (a) WARP the sample coordinate in world space with low-frequency value noise BEFORE
-  //       sampling, so each iso-contour wanders by ~1 tile and never aligns to the grid; and
-  //   (b) average a small 4-tap rosette spaced by half a tile, which low-passes the bilinear
-  //       texel ridges into a smooth field (cheap poor-man's bicubic).
-  let texel = vec2<f32>(water.tilePx, water.tilePx);
-  // (a) Domain warp — coarse (≈90 px) + finer (≈40 px) octave, animated, ≈±1.1 tiles total.
-  let dWarp = (vec2<f32>(
-                 valueNoise(p * (1.0 / 90.0) + vec2<f32>(t * 0.035, 0.0)),
-                 valueNoise(p * (1.0 / 90.0) + vec2<f32>(0.0, t * 0.028))) - 0.5) * (texel * 1.4)
-            + (vec2<f32>(
-                 valueNoise(p * (1.0 / 40.0) + vec2<f32>(t * 0.05, 11.0)),
-                 valueNoise(p * (1.0 / 40.0) + vec2<f32>(7.0, t * 0.04))) - 0.5) * (texel * 0.8);
-  let pDepth = p + dWarp;
-  let invWorld = 1.0 / vec2<f32>(water.worldWidthPx, water.worldHeightPx);
-  // (b) 4-tap rosette average (half-tile offsets) to dissolve the bilinear texel ridges.
-  let o = texel * 0.5;
-  let depthSample =
-    ( textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>( o.x,  o.y)) * invWorld).r
-    + textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>(-o.x,  o.y)) * invWorld).r
-    + textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>( o.x, -o.y)) * invWorld).r
-    + textureSample(depthMask, samplerDepth, (pDepth + vec2<f32>(-o.x, -o.y)) * invWorld).r
-    ) * 0.25;
-
-  // ── Organic shore field ───────────────────────────────────────────────────────────────────────
-  // The domain warp + rosette above already break the grid; a final scalar octave folds in dither
-  // so the wide gradient mix never bands on an 8-bit framebuffer. Kept small (±0.08) now that the
-  // contour geometry itself is smooth.
-  let shoreNoise = (valueNoise(p * 0.045 + vec2<f32>(t * 0.040, t * 0.025)) - 0.5)
-                 + (valueNoise(p * 0.012 + vec2<f32>(0.0, t * 0.020)) - 0.5) * 0.6;
-  let shoreField = clamp(depthSample + shoreNoise * 0.08, 0.0, 1.0);
-
-  // ── Shore-to-deep gradient ────────────────────────────────────────────────────────────────────
-  // Blend the base color toward shallowColor near shore (high shoreField). The noise folded into
-  // shoreField doubles as dither, so the wide gradient never bands.
-  col = mix(col, water.shallowColor.rgb, shoreField * 0.45);
-
-  // ── Task 3: Quantized shore foam ─────────────────────────────────────────────────────────────
-  // Noise-based band right at the depth boundary, step()-quantized to 2 alpha levels (pixel-art).
-  // Thresholds are calibrated to GRADIENT_DEPTH_MAX=14:
-  //   old mask 0.70 (within ~1.2 tiles) → new ≈ (14-1.2)/14 ≈ 0.91
-  //   old mask 0.40 (within ~2.4 tiles) → new ≈ (14-2.4)/14 ≈ 0.83
-  // FOAM_NEAR: within ~1.2 tiles of shore; FOAM_FAR: within ~2.4 tiles.
-  let FOAM_NEAR = 0.91;
-  let FOAM_FAR  = 0.83;
-  let foamNoise = valueNoise(p * 0.055 + vec2<f32>(t * 0.25, t * 0.18));
-  // Level 1: strongest foam, closest to shore (gated on the organic shoreField, not the raw mask)
-  let foam1 = step(FOAM_NEAR, shoreField) * step(0.62, foamNoise);
-  // Level 2: lighter foam band slightly further out
-  let foam2 = step(FOAM_FAR, shoreField) * step(0.68, foamNoise) * (1.0 - foam1);
-  // Quantized alphas: 0 (none), 0.30 (light), 0.55 (strong).
-  let foamAlpha = foam1 * 0.55 + foam2 * 0.30;
-  col = mix(col, water.foamColor.rgb, foamAlpha);
-
-  // ── Task 4: Voronoi caustics on the shallow band ─────────────────────────────────────────────
-  // 3×3-tile Voronoi distance field thresholded to cell edges, masked to the depth band.
-  // Scale: 1 Voronoi unit ≈ 32 world px (tile-sized cells); drift: slow time.
-  // Caustics gate threshold calibrated to GRADIENT_DEPTH_MAX=14:
-  //   old gate (mask > 0.01, within 4 tiles) → new ≈ step(0.72, depthSample) (within ~4 tiles).
-  // CAUSTICS_GATE: within ~4 tiles of shore (= 1 - 4/14 ≈ 0.71, rounded up to 0.72).
-  let CAUSTICS_GATE = 0.72;
-  let causticScale = 1.0 / 32.0;
-  let drift = vec2<f32>(t * 0.06, t * 0.04);
-  let vd = voronoiDist(p * causticScale, drift);
-  // Threshold to the cell edges: narrow band near edge (vd close to 0 = deep between cells,
-  // vd near cell spacing = near edge). The caustic "lines" are at small vd values.
-  // step()-quantize to 2 levels (pixel-art). Masked to depth band.
-  let inDepth = step(CAUSTICS_GATE, shoreField);
-  // Two quantized alpha levels for the caustic band.
-  let caustic1 = step(0.72, vd) * inDepth;  // brightest caustic lines (near cell edge)
-  let caustic2 = step(0.64, vd) * inDepth * (1.0 - caustic1);  // secondary ring
-  let causticAlpha = caustic1 * 0.50 + caustic2 * 0.25;
-  col = mix(col, water.causticsColor.rgb, causticAlpha);
+  // Shore FX (depth-gradient blend, quantized foam, Voronoi caustics) intentionally removed:
+  // the ocean is now a uniform deep tone modulated only by ripple + glint, with no shore awareness
+  // (no near-shore shallow halo). The depth mask / shore uniforms remain bound but unused — dormant
+  // plumbing, kept to avoid churning the WaterPass bind-group layout and render-loop drivers.
 
   // Opaque base (the world rect floor); premultiplied for canvas alphaMode = "premultiplied".
   return vec4<f32>(col, 1.0);

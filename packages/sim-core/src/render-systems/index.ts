@@ -55,3 +55,6 @@ export { SEABED_LIFE, SEABED_LIFE_ALPHA } from "./seabed-life";
 export type { SeabedLifeTile } from "./seabed-life";
 
 export { pushOccluderSprites, pushBuildingSprites, pushBridgeSprites } from "./occluders";
+
+export { LAYER } from "./layers";
+export type { LayerName } from "./layers";

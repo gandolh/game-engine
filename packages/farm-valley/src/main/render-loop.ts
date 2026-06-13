@@ -314,10 +314,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const viewRight = _camera!.centerX + _camera!.worldUnitsX / 2 + TILE;
     const viewTop = _camera!.centerY - _camera!.worldUnitsY / 2 - TILE;
     const viewBottom = _camera!.centerY + _camera!.worldUnitsY / 2 + TILE;
-    // Ocean-surface veil is BAKED into the static layer (render/ocean-veil.ts) over submerged
-    // sea-life, not drawn per-frame — keeps it seamless (no per-tile sprite banding) and tints the
-    // baked seabed-life (coral / set-pieces / starfish) too.
-
     // Animated forge fire: layer 41 (above oven body 40, below NPC 50). ~0.4s cycle.
     const fireFrame = sampleCycle(FORGE_FIRE_CLIP, nowMs);
     renderer.push({

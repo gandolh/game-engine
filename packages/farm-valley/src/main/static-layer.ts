@@ -3,7 +3,6 @@ import type { NoiseGenerator } from "@engine/core";
 import { makeGroundNoiseDecorator, GROUND_NOISE_AMPLITUDE } from "../render/ground-noise";
 import { makeWaterDepthDecorator } from "../render/water-depth";
 import { makeShoreDescentDecorator } from "../render/shore-descent";
-import { makeOceanVeilDecorator } from "../render/ocean-veil";
 import { TILE } from "./config";
 import type { SimClient } from "../worker/sim-client";
 import type { AmbientLayer } from "./ambient";
@@ -66,15 +65,13 @@ export function bakeStaticLayer(
   const groundNoise = makeGroundNoiseDecorator(seed, TILE, GROUND_NOISE_AMPLITUDE);
   const shoreDescent = makeShoreDescentDecorator(TILE);
   const waterDepth = makeWaterDepthDecorator(TILE, seed);
-  const oceanVeil = makeOceanVeilDecorator(TILE);
   // Combined post-bake pass: per-tile ground brightness, the sandy-shore descent darkening on the
-  // land side of beaches, the coastal shallow-water speckle over ocean, then the translucent ocean-
-  // surface veil over ALL water (incl. bridge spans) so baked seabed life reads as submerged.
+  // land side of beaches, then the coastal shallow-water speckle over ocean. (The translucent ocean-
+  // surface veil was removed — baked seabed life now renders crisp over bare water.)
   const decorate = (ctx: Parameters<typeof groundNoise>[0], w: number, h: number): void => {
     groundNoise(ctx, w, h);
     shoreDescent(ctx, w, h);
     waterDepth(ctx, w, h);
-    oceanVeil(ctx, w, h);
   };
   client.onStaticLayer((msg) => {
     renderer.bakeStaticLayer(
