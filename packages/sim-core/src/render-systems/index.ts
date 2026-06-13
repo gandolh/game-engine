@@ -51,4 +51,7 @@ export { pushSnapshotSprites } from "./snapshot-sprites";
 export { LIGHT_EMITTERS, emitterPx } from "./lights";
 export type { LightEmitter } from "./lights";
 
+export { SEABED_LIFE, SEABED_LIFE_ALPHA } from "./seabed-life";
+export type { SeabedLifeTile } from "./seabed-life";
+
 export { pushOccluderSprites, pushBuildingSprites, pushBridgeSprites } from "./occluders";

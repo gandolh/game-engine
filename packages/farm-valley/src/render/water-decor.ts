@@ -8,11 +8,15 @@
  */
 
 import type { RendererLike, ParticleSystem } from "@engine/core";
-import { EDG } from "@engine/core";
+import { EDG, createRng } from "@engine/core";
 import { oceanDepthAt } from "@farm/sim-core/render-systems";
-import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
+import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT, WORLD_GEN_SEED } from "@farm/sim-core/world/regions";
 
 const TILE = 16;
+
+// Submerged cast: a cool blue RGB multiply tint + reduced alpha so drifting life reads as below
+// the surface (matches the fish-decor convention).
+const UNDERWATER_TINT = 0xb4ccea_ff; // 0xRRGGBBAA
 
 interface View { left: number; right: number; top: number; bottom: number; }
 
@@ -186,6 +190,185 @@ function updateWhales(
   }
 }
 
+// ── Open-water tiles (seeded scatter base) ───────────────────────────────────
+// Open ocean = non-walkable with no adjacent land (so a sprite never overlaps a shore/bridge).
+let openWaterTiles: Array<{ x: number; y: number }> | null = null;
+function getOpenWater(): Array<{ x: number; y: number }> {
+  if (openWaterTiles === null) {
+    openWaterTiles = [];
+    for (let ty = 1; ty < WORLD_HEIGHT - 1; ty++) {
+      for (let tx = 1; tx < WORLD_WIDTH - 1; tx++) {
+        if (isWalkable(tx, ty)) continue;
+        let nearLand = false;
+        for (let dy = -1; dy <= 1 && !nearLand; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (isWalkable(tx + dx, ty + dy)) { nearLand = true; break; }
+          }
+        }
+        if (!nearLand) openWaterTiles.push({ x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 });
+      }
+    }
+  }
+  return openWaterTiles;
+}
+
+// ── Kelp (seeded static positions, animated sway) ─────────────────────────────
+interface Kelp { x: number; y: number; phase: number; flip: boolean; }
+let kelpBeds: Kelp[] | null = null;
+const KELP_TARGET = 90;
+function getKelp(): Kelp[] {
+  if (kelpBeds === null) {
+    // Positions seed off WORLD_GEN_SEED → stable per world (brief requirement). Distinct fork.
+    const rng = createRng(WORLD_GEN_SEED).fork("kelp-beds");
+    const water = getOpenWater();
+    kelpBeds = [];
+    if (water.length > 0) {
+      const want = Math.min(KELP_TARGET, water.length);
+      const used = new Set<number>();
+      let guard = 0;
+      while (kelpBeds.length < want && guard < want * 30) {
+        guard++;
+        const i = rng.int(0, water.length);
+        if (used.has(i)) continue;
+        used.add(i);
+        const spot = water[i]!;
+        kelpBeds.push({ x: spot.x, y: spot.y, phase: rng.nextFloat() * Math.PI * 2, flip: rng.nextFloat() < 0.5 });
+      }
+    }
+  }
+  return kelpBeds;
+}
+
+function pushKelp(renderer: Pick<RendererLike, "push">, nowMs: number, view: View): void {
+  const t = nowMs * 0.0016;
+  for (const k of getKelp()) {
+    if (k.x < view.left - TILE || k.x > view.right + TILE || k.y < view.top - TILE || k.y > view.bottom + TILE) continue;
+    const sway = Math.sin(t + k.phase);
+    const frame = sway >= 0 ? "decoration/kelp-a" : "decoration/kelp-b";
+    renderer.push({
+      x: k.x + sway * 1.5, y: k.y, width: TILE, height: TILE,
+      frame, atlasId: "props", rotation: 0, layer: 2, alpha: 0.6,
+      tintRgba: UNDERWATER_TINT, flipX: k.flip,
+    });
+  }
+}
+
+// ── Bubble columns (seeded seabed vents, periodic upward particle bursts) ──────
+interface Vent { x: number; y: number; cd: number; }
+let vents: Vent[] | null = null;
+const VENT_TARGET = 14;
+function getVents(): Vent[] {
+  if (vents === null) {
+    const rng = createRng(WORLD_GEN_SEED).fork("bubble-vents");
+    const water = getOpenWater();
+    vents = [];
+    const want = Math.min(VENT_TARGET, water.length);
+    const used = new Set<number>();
+    let guard = 0;
+    while (vents.length < want && guard < want * 30) {
+      guard++;
+      const i = rng.int(0, water.length);
+      if (used.has(i)) continue;
+      used.add(i);
+      const spot = water[i]!;
+      vents.push({ x: spot.x, y: spot.y, cd: rand(1, 5) });
+    }
+  }
+  return vents;
+}
+
+function updateBubbles(particles: ParticleSystem, dt: number, view: View): void {
+  for (const v of getVents()) {
+    v.cd -= dt;
+    if (v.cd > 0) continue;
+    v.cd = rand(3, 8);
+    if (v.x < view.left - TILE || v.x > view.right + TILE || v.y < view.top - TILE || v.y > view.bottom + TILE) continue;
+    particles.emit({
+      x: v.x, y: v.y + 4, count: 5, shape: "circle",
+      color: EDG.skyBlue, color2: EDG.silver,
+      speedMin: 6, speedMax: 16,
+      angleMin: -Math.PI * 0.6, angleMax: -Math.PI * 0.4, // rise straight up
+      lifetimeMin: 1.0, lifetimeMax: 2.0,
+      sizeMin: 0.5, sizeMax: 1.2,
+      gravity: -8, // negative = float upward
+    });
+  }
+}
+
+// ── Jellyfish (transient drifting roamers) ────────────────────────────────────
+interface Jelly { x: number; y: number; vx: number; phase: number; t: number; life: number; }
+const jellies: Jelly[] = [];
+const MAX_JELLIES = 4;
+let jellyCd = 2;
+const JELLY_FADE = 2;
+function updateJellies(renderer: Pick<RendererLike, "push">, nowMs: number, dt: number, view: View): void {
+  jellyCd -= dt;
+  if (jellyCd <= 0 && jellies.length < MAX_JELLIES) {
+    jellyCd = rand(4, 11);
+    const spot = pick(getOpenWater());
+    if (spot !== null) {
+      jellies.push({ x: spot.x, y: spot.y, vx: rand(-6, 6), phase: rand(0, Math.PI * 2), t: 0, life: rand(14, 26) });
+    }
+  }
+  for (let i = jellies.length - 1; i >= 0; i--) {
+    const j = jellies[i]!;
+    j.t += dt;
+    if (j.t >= j.life) { jellies.splice(i, 1); continue; }
+    // Pulse-propelled bob: drift slowly up-and-along, with a vertical pulse.
+    const pulse = Math.sin(nowMs * 0.004 + j.phase);
+    j.x += j.vx * dt;
+    j.y -= (4 + 3 * pulse) * dt; // rise gently
+    const tx = Math.floor(j.x / TILE), ty = Math.floor(j.y / TILE);
+    if (j.x < 0 || j.y < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT || isWalkable(tx, ty)) {
+      // wandered over land / off-world → retire early
+      jellies.splice(i, 1);
+      continue;
+    }
+    if (j.x < view.left - TILE || j.x > view.right + TILE || j.y < view.top - TILE || j.y > view.bottom + TILE) continue;
+    const fadeIn = Math.min(1, j.t / JELLY_FADE);
+    const fadeOut = Math.min(1, (j.life - j.t) / JELLY_FADE);
+    const frame = pulse >= 0 ? "decoration/jelly-a" : "decoration/jelly-b";
+    renderer.push({
+      x: j.x, y: j.y, width: TILE, height: TILE,
+      frame, atlasId: "props", rotation: 0,
+      layer: 3, alpha: 0.55 * Math.min(fadeIn, fadeOut),
+      tintRgba: UNDERWATER_TINT,
+    });
+  }
+}
+
+// ── Sea turtles (transient lane gliders, like whales but nearer the surface) ──
+interface Turtle { x: number; y: number; dir: 1 | -1; }
+let turtle: Turtle | null = null;
+let turtleCd = 6;
+const TURTLE_SPEED = TILE * 1.2;
+function updateTurtles(renderer: Pick<RendererLike, "push">, nowMs: number, dt: number, view: View): void {
+  if (turtle === null) {
+    turtleCd -= dt;
+    if (turtleCd > 0) return;
+    const lane = pick(getDeepRows());
+    if (lane === null) { turtleCd = 8; return; }
+    const dir: 1 | -1 = (Math.floor(nowMs / 1000) & 1) === 0 ? 1 : -1;
+    const startX = dir === 1 ? -TILE * 2 : WORLD_WIDTH * TILE + TILE * 2;
+    turtle = { x: startX, y: lane * TILE + TILE / 2, dir };
+  }
+  turtle.x += TURTLE_SPEED * dt * turtle.dir;
+  if (turtle.x < -TILE * 3 || turtle.x > WORLD_WIDTH * TILE + TILE * 3) { turtle = null; turtleCd = rand(10, 24); return; }
+  const tx = Math.floor(turtle.x / TILE), ty = Math.floor(turtle.y / TILE);
+  const overOcean = tx >= 0 && tx < WORLD_WIDTH && !isWalkable(tx, ty);
+  const onScreen =
+    turtle.x >= view.left - TILE * 2 && turtle.x <= view.right + TILE * 2 &&
+    turtle.y >= view.top - TILE && turtle.y <= view.bottom + TILE;
+  if (overOcean && onScreen) {
+    const frame = (Math.floor(nowMs / 420) & 1) === 0 ? "decoration/turtle-a" : "decoration/turtle-b";
+    renderer.push({
+      x: turtle.x, y: turtle.y, width: TILE, height: TILE,
+      frame, atlasId: "props", rotation: 0,
+      layer: 3, alpha: 0.5, tintRgba: UNDERWATER_TINT, flipX: turtle.dir === -1,
+    });
+  }
+}
+
 export function pushWaterDecor(
   renderer: Pick<RendererLike, "push">,
   particles: ParticleSystem,
@@ -193,6 +376,10 @@ export function pushWaterDecor(
   dt: number,
   view: View,
 ): void {
+  pushKelp(renderer, nowMs, view);
+  updateBubbles(particles, dt, view);
+  updateJellies(renderer, nowMs, dt, view);
+  updateTurtles(renderer, nowMs, dt, view);
   updateWhales(renderer, particles, nowMs, dt, view);
   updateDucks(renderer, nowMs, dt, view);
 }

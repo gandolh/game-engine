@@ -27,6 +27,7 @@ const FISH_KINDS = [
   { a: "decoration/fish-clown-a", b: "decoration/fish-clown-b" },
   { a: "decoration/fish-blue-a", b: "decoration/fish-blue-b" },
   { a: "decoration/fish-yellow-a", b: "decoration/fish-yellow-b" },
+  { a: "decoration/fish-green-a", b: "decoration/fish-green-b" },
 ] as const;
 
 // Loose wedge formation (local px; y = vertical spread within the shoal).

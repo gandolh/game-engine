@@ -21,6 +21,7 @@ import {
   isOccluderWall,
 } from "./geometry";
 import { SET_PIECES, SET_PIECE_ALPHA } from "./set-pieces";
+import { SEABED_LIFE, SEABED_LIFE_ALPHA } from "./seabed-life";
 import { computeInteriorDecor, INTERIOR_DECOR_ALPHA } from "./interior-decor";
 import { frameToAtlasId } from "./frames";
 
@@ -141,6 +142,20 @@ export function* iterStaticSprites(
       rotation: piece.rotation,
       layer: 2,
       alpha: SET_PIECE_ALPHA,
+    };
+  }
+
+  // Static seabed life (starfish/crab/sand-dollar/anemone) — seeded scatter, same seabed layer.
+  for (const life of SEABED_LIFE) {
+    yield {
+      x: life.tx * TILE + TILE / 2,
+      y: life.ty * TILE + TILE / 2,
+      width: TILE,
+      height: TILE,
+      frame: life.frame,
+      rotation: life.rotation,
+      layer: 2,
+      alpha: SEABED_LIFE_ALPHA,
     };
   }
 

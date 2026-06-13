@@ -2,7 +2,7 @@
   "id": "props",
   "imageUrl": "/atlas/props.png",
   "width": 128,
-  "height": 256,
+  "height": 512,
   "frames": {
     "decoration/scarecrow": {
       "x": 1,
@@ -297,7 +297,79 @@
       "y": 217,
       "w": 16,
       "h": 16
+    },
+    "decoration/seabed-starfish": {
+      "x": 51,
+      "y": 217,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/seabed-crab": {
+      "x": 68,
+      "y": 217,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/seabed-sand-dollar": {
+      "x": 85,
+      "y": 217,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/seabed-anemone": {
+      "x": 102,
+      "y": 217,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/kelp-a": {
+      "x": 1,
+      "y": 234,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/kelp-b": {
+      "x": 18,
+      "y": 234,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/jelly-a": {
+      "x": 35,
+      "y": 234,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/jelly-b": {
+      "x": 52,
+      "y": 234,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/turtle-a": {
+      "x": 69,
+      "y": 234,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/turtle-b": {
+      "x": 86,
+      "y": 234,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-green-a": {
+      "x": 103,
+      "y": 234,
+      "w": 16,
+      "h": 16
+    },
+    "decoration/fish-green-b": {
+      "x": 1,
+      "y": 251,
+      "w": 16,
+      "h": 16
     }
   },
-  "inputsHash": "dd6187c995e4400486c85858398bd687dda6cd2eb33d8743cc6f62134cbfd05f"
+  "inputsHash": "597e5263e5c5ad88361e53289d46c02652d821cb38f035ddc50c3f376d8a5aca"
 }

@@ -230,6 +230,18 @@ import r235 from "./decoration/crowd-stand";
 import r236 from "./indicator/intention-hostile";
 import r237 from "./indicator/hpbar-bg";
 import r238 from "./indicator/hpbar-fill";
+import r239 from "./decoration/seabed-starfish";
+import r240 from "./decoration/seabed-crab";
+import r241 from "./decoration/seabed-sand-dollar";
+import r242 from "./decoration/seabed-anemone";
+import r243 from "./decoration/kelp-a";
+import r244 from "./decoration/kelp-b";
+import r245 from "./decoration/jelly-a";
+import r246 from "./decoration/jelly-b";
+import r247 from "./decoration/turtle-a";
+import r248 from "./decoration/turtle-b";
+import r249 from "./decoration/fish-green-a";
+import r250 from "./decoration/fish-green-b";
 
 export const BASE_RECIPES: readonly PixelRecipe[] = [
   r0,
@@ -459,5 +471,17 @@ export const BASE_RECIPES: readonly PixelRecipe[] = [
   r236,
   r237,
   r238,
+  r239,
+  r240,
+  r241,
+  r242,
+  r243,
+  r244,
+  r245,
+  r246,
+  r247,
+  r248,
+  r249,
+  r250,
 ];
 

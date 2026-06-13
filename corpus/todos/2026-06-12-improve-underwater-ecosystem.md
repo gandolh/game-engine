@@ -1,9 +1,16 @@
 ---
 title: Improve the underwater ecosystem
 created: 2026-06-12
-status: open
+status: done
 tags: [render, world]
 ---
+
+> **✅ DONE 2026-06-13** (render-only, additive). Static seabed life = `SEABED_LIFE`
+> seeded scatter (starfish/crab/sand-dollar/anemone, distinct `WORLD_GEN_SEED` fork,
+> blue-noise all open water, baked layer 2 @0.5 alpha; `render-systems/seabed-life.ts`
+> + test). Animated = kelp sway, bubble-column vents, drifting jellyfish, lane-gliding
+> sea-turtles (seeded positions, wall-clock animation) in `farm-valley/render/water-decor.ts`,
+> plus a new `fish-green` shoal species. 12 new EDG32 `decoration/*` frames. See log.md.
 
 # Improve the underwater ecosystem
 

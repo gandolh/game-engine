@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-13] feature | Underwater ecosystem — seabed life + drifting water creatures
+
+Render-only additive pass [improve-underwater-ecosystem](todos/2026-06-12-improve-underwater-ecosystem.md). No sim/economy/determinism coupling. Decisions: full bestiary; scatter evenly across all open water (blue-noise, like the stone/sand set-pieces).
+
+- **Static seabed life** (`render-systems/seabed-life.ts`, sim-core) — `SEABED_LIFE` seeded scatter (starfish, crab, sand-dollar, anemone) off `WORLD_GEN_SEED` via a **distinct `fork("seabed-life")`** so it never shifts the `SET_PIECES` stream; blue-noise (`MIN_SPACING=2`, target 70) over open-water tiles only (non-walkable + no adjacent land), forbidden from coral/reef-lanes/docks **and every `SET_PIECES` tile** (no overlap). Baked into the static layer at layer 2, `SEABED_LIFE_ALPHA=0.5` (submerged read). Tested (`seabed-life.test.ts`, 4): open-water-only, spacing, frame prefix + alpha, no SET_PIECES collision.
+- **Animated water life** (`farm-valley/render/water-decor.ts`) — positions seed off `WORLD_GEN_SEED`, animation is wall-clock/`Math.random` (render-only, never sim): **kelp** (seeded `fork("kelp-beds")`, target 90, sin sway via a/b frame swap + x-skew, `flipX` variety, `UNDERWATER_TINT`), **bubble columns** (seeded `fork("bubble-vents")` seabed vents, periodic upward particle bursts, negative-gravity float), **jellyfish** (transient pool ≤4, pulse-bob drift + fade in/out, retire over land), **sea-turtles** (transient lane gliders like whales, both directions, flipper a/b). Plus a new **`fish-green`** species appended to the fish-decor `FISH_KINDS` shoal list.
+- **Art** — 12 new EDG32 `decoration/*` frames (seabed-starfish/crab/sand-dollar/anemone + kelp-a/b, jelly-a/b, turtle-a/b, fish-green-a/b), props sheet rebuilt (49→61 frames); `assets.test.ts` recipe-count literal bumped 227→239 (self-consistency guard, both sides moved together — expected for additive recipes).
+- **Verification:** typecheck clean all workspaces; full suite green — `@engine/core` 142, `farm-valley` 186, `atlas-builder` 15, `@farm/sim-core` 751 (+4), `@farm/server` 21. No browser run (render-only + standing constrained-hardware decision); in-browser feel-check (variety/density read) pending user sign-off.
+
 ## [2026-06-13] feature | Escapists block walls + local night lights
 
 Render-only goal [escapists-walls-and-night-lighting](todos/2026-06-12-escapists-walls-and-night-lighting.md). Scope was #1 + #3; #2 (global wash) already shipped.
