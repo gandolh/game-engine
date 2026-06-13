@@ -1,11 +1,19 @@
 ---
 title: Randomize agent BDI models so each agent is unique
 created: 2026-06-12
-status: open
+status: done
 tags: [sim, agents, bdi]
 ---
 
 # Randomize agent BDI models so each agent is unique
+
+> **✅ DONE 2026-06-13** (commit `f55baba`). `agents/bdi-jitter.ts` `bakeBdiJitter(spec, seed)`
+> bakes three scalar knobs (`minGoldReserve` ±30%, continuous `riskTolerance` ±0.15,
+> `beanValueFactor` ±0.1) onto `desires.data` once at spawn via a per-agent
+> `createRng(seed).fork("bdi:"+name)` (order-independent; never perturbs a tick stream).
+> No queue reorder. Read-sites in `bean-valuation.ts` + each personality's harbor call
+> prefer the baked value. Unit-tested (5); real-run diff skipped per user (constrained hw).
+> See log.md.
 
 Parameterize the BDI model per-agent so same-`kind` farmers diverge, instead of
 every farmer of a personality kind behaving identically. Deterministic.

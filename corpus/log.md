@@ -2,6 +2,15 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
+## [2026-06-13] feature | Per-agent BDI jitter — same-kind farmers diverge
+
+Sim goal [randomize-agent-bdi](todos/2026-06-12-randomize-agent-bdi.md). Spike + proposal scope: bake a small per-agent jitter on three scalar BDI knobs ONCE at spawn so same-`kind` farmers (the 16 procedural farms shared the kind default; the 5 named shared hand-tuned constants) no longer behave identically. Decisions (grilled): own rng fork per agent (isolation); moderate spread ±15–20%.
+
+- **New `agents/bdi-jitter.ts`** — `bakeBdiJitter(spec, seed)` returns `{minGoldReserve, riskTolerance, beanValueFactor}`. Each agent's rng is `createRng(seed).fork("bdi:"+name)` — derived **solely from `(seed, name)`**, so adding/removing/reordering a farmer never shifts another agent's draws and **no tick-time RNG stream is perturbed** (the fork advances only a throwaway base). Named farmers' values are the CENTRE of their jitter → character preserved.
+- **Three SCALAR knobs** (no queue reordering — same decision *structure*, shifted *thresholds*): `minGoldReserve` ±30% around the spec base; `riskTolerance` continuous [0,1] ±0.15 around a per-kind base (conservative 0.0 / hoarder 0.5 / opportunist 0.7 / aggressive 1.0; augments the 3-level `riskProfile`, drives harbor-contract speculation); `beanValueFactor` golden-bean bid scale ±0.1 around a per-kind base (0.45/0.9/0.7/0.95).
+- **Seam.** `setupFarmer(world, spec, seed)` now takes the seed and writes all three onto `desires.data` (open `Record<string,unknown>` bag — no component type change). Read-sites prefer the baked value over the kind literal: `bean-valuation.ts deliberateBean` reads `desires.data.beanValueFactor`; each personality's `deliberateHarborContract` call reads `desires.data.riskTolerance`. Conservative keeps its day-10 relaxation as `Math.max(0.5, baked)` (floor over the baked value).
+- **Verification:** typecheck clean all workspaces; full sim-core suite green (756, +5 new `bdi-jitter.test.ts`: determinism, order-independence, same-kind divergence, valid ranges, base-centring mean≈base). Real-run divergence + 3-day/3-seed determinism diff **skipped per user** (constrained hardware) — the unit tests prove the bake is deterministic + order-independent and the per-agent fork guarantees no stream perturbation. Real-run feel-check deferred.
+
 ## [2026-06-13] tweak | Ocean veil → baked (fix banding / untinted sea stars / shallow blobs / bridges)
 
 Follow-up after a screenshot of the per-tile-sprite veil (entry below). Four fixes:
