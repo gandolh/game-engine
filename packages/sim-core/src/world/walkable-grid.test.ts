@@ -50,8 +50,9 @@ describe('buildWalkableGrid', () => {
 
   it('bridge (road) tiles are walkable', () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[116 * WORLD_WIDTH + 108]).toBe(0); 
-    expect(grid.cells[132 * WORLD_WIDTH + 116]).toBe(0); 
+    // There is at least one bridge, and every road tile is walkable. (Specific
+    // tile coords aren't pinned — region scatter moves the bridges per seed.)
+    expect(ROADS.length).toBeGreaterThan(0);
     for (const road of ROADS) {
       for (let y = road.minY; y <= road.maxY; y++) {
         for (let x = road.minX; x <= road.maxX; x++) {

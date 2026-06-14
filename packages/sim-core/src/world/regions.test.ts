@@ -60,11 +60,22 @@ describe('isWalkable', () => {
   });
 
   it('is walkable for bridge (road) tiles', () => {
-
-    expect(regionAt(108, 116)).toBeNull();
-    expect(isWalkable(108, 116)).toBe(true);  
-    expect(regionAt(116, 132)).toBeNull();
-    expect(isWalkable(116, 132)).toBe(true);  
+    // Sample a road tile that sits outside every region's bounds (a true bridge
+    // deck) and assert it is walkable but region-less. Coords aren't hardcoded —
+    // region scatter moves bridges per seed — so we find one from ROADS.
+    let checked = 0;
+    for (const road of ROADS) {
+      for (let y = road.minY; y <= road.maxY && checked < 5; y++) {
+        for (let x = road.minX; x <= road.maxX && checked < 5; x++) {
+          if (regionAt(x, y) === null) {
+            expect(isWalkable(x, y)).toBe(true);
+            checked++;
+          }
+        }
+      }
+      if (checked >= 5) break;
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 
   it('is NOT walkable for open-ocean tiles', () => {

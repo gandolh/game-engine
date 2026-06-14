@@ -61,6 +61,31 @@ const DESIGN_CX = 80;
 const DESIGN_CY = 80;
 const SCALE = 1.5; 
 
+/**
+ * Per-axis inflation (in world tiles, added to EACH side) applied to a scaled
+ * landmark/village bounds to push total land toward the ~60% archipelago target
+ * (repack stage 2). Inflation is symmetric about the rect center so all
+ * bounds-relative anchors (forcedCoreTiles, dock derivations) stay valid, and
+ * clamped to the world edges. Cluster regions sit in tight design-space packs,
+ * so this is deliberately modest (the gen-loop adjacency guard + ≥2-gap checks
+ * keep channels open); the bulk of the land gain comes from the larger, sparser
+ * farm/ranch growth (FARM_*_SIZE / RANCH_SIZE below) plus higher mask fill.
+ */
+const LANDMARK_GROW = 0;
+
+/** Inflates a bounds rect by `grow` on every side, clamped to the world. */
+function growBounds(
+  b: { minX: number; minY: number; maxX: number; maxY: number },
+  grow: number,
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  return {
+    minX: Math.max(0, b.minX - grow),
+    minY: Math.max(0, b.minY - grow),
+    maxX: Math.min(WORLD_WIDTH - 1, b.maxX + grow),
+    maxY: Math.min(WORLD_HEIGHT - 1, b.maxY + grow),
+  };
+}
+
 export function scaleB(b: { minX: number; minY: number; maxX: number; maxY: number }): {
   minX: number; minY: number; maxX: number; maxY: number;
 } {
@@ -72,7 +97,7 @@ export function scaleB(b: { minX: number; minY: number; maxX: number; maxY: numb
   const ncy = MAP_CY + (cy - DESIGN_CY) * SCALE;
   const minX = Math.round(ncx - w / 2);
   const minY = Math.round(ncy - h / 2);
-  return { minX, minY, maxX: minX + w - 1, maxY: minY + h - 1 };
+  return growBounds({ minX, minY, maxX: minX + w - 1, maxY: minY + h - 1 }, LANDMARK_GROW);
 }
 
 export function scaleT(t: { x: number; y: number }): { x: number; y: number } {
@@ -260,6 +285,9 @@ function bridgeIsCleanAgainst(
   bId: RegionId,
   regions: readonly RegionDef[],
 ): boolean {
+  // No bridge/road may cover the south shipping channel (ports.ts owns those
+  // open-water lanes and module-throws if land/bridge covers them).
+  if (rectsOverlap(rect, SOUTH_CHANNEL_KEEPOUT)) return false;
   for (const reg of regions) {
     if (rectsOverlap(rect, reg.bounds)) return false;
   }
@@ -318,6 +346,16 @@ function straightBridgeBounds(
  * scatter rewrite), falls back to an L-shaped route: two 2-wide legs meeting at a
  * 2x2 corner. Returns null if nothing clean routes.
  */
+/**
+ * Enables the corridor-BFS bridge fallback (step 3 in elbowBridge). OFF for now:
+ * the corridor router can produce a bridge that dead-ends on a mask-carved ocean
+ * tile, stranding a region (caught by assertAllRegionsReachable, but it makes the
+ * whole placement fail). Re-enabled + fixed in the 60%-packing stage, where dense
+ * layouts actually need it. With it off, only straight + L bridges are used (the
+ * proven path for the current sparse layout).
+ */
+const CORRIDOR_ROUTING = true;
+
 function elbowBridge(
   aId: RegionId,
   bId: RegionId,
@@ -367,7 +405,139 @@ function elbowBridge(
     }
     if (allClean) return route;
   }
+
+  // 3. Corridor BFS fallback. When the layout is dense (big regions packed with
+  //    only 2-tile channels) neither the straight nor the centre-staircase L can
+  //    find a clean span — they cut through neighbours. Search instead for the
+  //    shortest 2-wide path of ocean tiles weaving between regions.
+  //
+  //    A "block" is the 2x2 RoadDef whose top-left is (x,y). A block is OPEN if
+  //    it is in-world and clean against all regions (bridgeIsCleanAgainst already
+  //    enforces a 1-tile halo from every non-endpoint region, so adjacent blocks
+  //    form a corridor with guaranteed ocean walls). We BFS over block top-lefts,
+  //    seeding from blocks orthogonally adjacent to A and accepting any block
+  //    adjacent to B, then merge the reconstructed block chain into runs.
+  if (CORRIDOR_ROUTING) {
+    const corridor = corridorBridge(a, b, aId, bId, regions);
+    if (corridor) return corridor;
+  }
+
   return null;
+}
+
+/** 2-wide block (top-left x,y) → RoadDef. */
+const blockRect = (x: number, y: number): RoadDef => ({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 });
+
+/**
+ * True if a 2x2 block at (x,y) is ORTHOGONALLY adjacent to region bounds `r` —
+ * i.e. the block sits immediately N/S/E/W of the bounds and overlaps its span on
+ * the other axis (so the block shares a full tile edge with the region, not just
+ * a diagonal corner). Diagonal-only contact would leave the bridge 4-disconnected
+ * from the region's land (the dead-end bug), so it does NOT count as touching.
+ */
+function blockTouchesBounds(x: number, y: number, r: { minX: number; minY: number; maxX: number; maxY: number }): boolean {
+  const xOverlap = x <= r.maxX && x + 1 >= r.minX;
+  const yOverlap = y <= r.maxY && y + 1 >= r.minY;
+  // Block sits immediately E/W of r (its near column exactly borders r's edge).
+  const xAdjacent = x === r.maxX + 1 || x + 1 === r.minX - 1;
+  // Block sits immediately N/S of r.
+  const yAdjacent = y === r.maxY + 1 || y + 1 === r.minY - 1;
+  return (yOverlap && xAdjacent) || (xOverlap && yAdjacent);
+}
+
+/**
+ * Shortest 2-wide ocean corridor between regions `aId` and `bId`, found by BFS
+ * over 2x2 block top-left corners. Returns the merged run-rects, or null if no
+ * clean corridor exists. Deterministic: neighbours are explored in a fixed order
+ * and BFS first-reach is unique for a given (a,b,regions).
+ */
+function corridorBridge(
+  a: { minX: number; minY: number; maxX: number; maxY: number },
+  b: { minX: number; minY: number; maxX: number; maxY: number },
+  aId: RegionId,
+  bId: RegionId,
+  regions: readonly RegionDef[],
+): RoadDef[] | null {
+  const maxX0 = WORLD_WIDTH - 2;
+  const maxY0 = WORLD_HEIGHT - 2;
+  const W = maxX0 + 1;
+  const key = (x: number, y: number) => y * W + x;
+
+  // openCache: -1 unknown, 0 blocked, 1 open. A block is open if clean against
+  // all regions (the 1-tile halo keeps it off every island except as it abuts an
+  // endpoint, which bridgeIsCleanAgainst already exempts for aId/bId).
+  const open = new Int8Array(W * (maxY0 + 1)).fill(-1);
+  const isOpen = (x: number, y: number): boolean => {
+    if (x < 0 || y < 0 || x > maxX0 || y > maxY0) return false;
+    const k = key(x, y);
+    let v = open[k]!;
+    if (v === -1) {
+      v = bridgeIsCleanAgainst(blockRect(x, y), aId, bId, regions) ? 1 : 0;
+      open[k] = v;
+    }
+    return v === 1;
+  };
+
+  const prev = new Int32Array(W * (maxY0 + 1)).fill(-2); // -2 unvisited, -1 root
+  const queue: number[] = [];
+  let head = 0;
+
+  // Seed: every open block orthogonally abutting A's bounds.
+  for (let y = a.minY - 2; y <= a.maxY + 1; y++) {
+    for (let x = a.minX - 2; x <= a.maxX + 1; x++) {
+      if (!isOpen(x, y)) continue;
+      if (!blockTouchesBounds(x, y, a)) continue;
+      const k = key(x, y);
+      if (prev[k] === -2) { prev[k] = -1; queue.push(k); }
+    }
+  }
+
+  const STEPS: ReadonlyArray<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  let goal = -1;
+  bfs: while (head < queue.length) {
+    const ck = queue[head++]!;
+    const cx = ck % W;
+    const cy = (ck - cx) / W;
+    if (blockTouchesBounds(cx, cy, b)) { goal = ck; break bfs; }
+    for (const [dx, dy] of STEPS) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (!isOpen(nx, ny)) continue;
+      const nk = key(nx, ny);
+      if (prev[nk] !== -2) continue;
+      prev[nk] = ck;
+      queue.push(nk);
+    }
+  }
+  if (goal === -1) return null;
+
+  // Reconstruct the block chain (goal → root), then merge collinear blocks into
+  // run-rects so the deck-inference stitches one clean bridge.
+  const chain: { x: number; y: number }[] = [];
+  for (let k = goal; k !== -1; k = prev[k]!) {
+    const x = k % W;
+    chain.push({ x, y: (k - x) / W });
+  }
+  chain.reverse();
+
+  const rects: RoadDef[] = [];
+  let runMinX = chain[0]!.x, runMinY = chain[0]!.y, runMaxX = chain[0]!.x, runMaxY = chain[0]!.y;
+  const flush = () => rects.push({ minX: runMinX, minY: runMinY, maxX: runMaxX + 1, maxY: runMaxY + 1 });
+  for (let i = 1; i < chain.length; i++) {
+    const c = chain[i]!;
+    // Extend the current run if it stays a straight line (same row OR same col).
+    const sameRow = runMinY === runMaxY && c.y === runMinY;
+    const sameCol = runMinX === runMaxX && c.x === runMinX;
+    if (sameRow || sameCol) {
+      runMinX = Math.min(runMinX, c.x); runMaxX = Math.max(runMaxX, c.x);
+      runMinY = Math.min(runMinY, c.y); runMaxY = Math.max(runMaxY, c.y);
+    } else {
+      flush();
+      runMinX = runMaxX = c.x; runMinY = runMaxY = c.y;
+    }
+  }
+  flush();
+  return rects;
 }
 
 function oceanGapBetween(a: RoadDef, b: RoadDef): number {
@@ -431,34 +601,34 @@ const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
  * positions after placement, so they ride along automatically.
  */
 export const PINNED_REGION_IDS: ReadonlySet<RegionId> = new Set<RegionId>([
+  // Reachability root — anchored dead-centre at 120,120.
   'village',
-  'blacksmith', 'carpentry',
-  'harbor',
-  'fishing-isle', 'fishing-isle-2',
-  'casino',
-  'mill',
-  'shrine',
-  'waterfall',
-  'forest-north', 'forest-south',
-  'quarry-north', 'quarry-south',
-  'mushroom-grove',
-  'ice-pond',
-  'well-north', 'well-south',
-  'heritage-stones', 'heritage-ruin', 'heritage-statue',
-  'camp',
-  'weather-station',
-  'volcano',
-  'big-tree',
-  'ring',
+  // South port/coral infrastructure: ports.ts derives the south shipping channel
+  // + casino north-port dock col from these bounds, and coral.ts derives reefs/
+  // lanes from the fishing isles. Moving them breaks the (untouched) ports/coral
+  // modules, so they stay frozen at their authored south-shore positions.
+  'fishing-isle', 'fishing-isle-2', 'casino',
+  // Authored interiors: setup.ts hardcodes prop layouts + FUNCTIONAL work-NPC
+  // stations (scaleStations throws on off-land) at design coords for these — they
+  // rely on the region sitting at its authored position, so they stay pinned.
+  // (blacksmith forge / carpentry workshop / harbor dockmaster.)
+  'blacksmith', 'carpentry', 'harbor',
+  // Player home — kept stable for the interaction systems built around Pip.
   'farm-pip',
-  // All CLUSTER_BRIDGES endpoints (deduped by the Set).
-  ...CLUSTER_BRIDGES.flatMap(([a, b]) => [a, b]),
 ]);
 
+/**
+ * Bounding rect of the south shipping-channel lane network (ports.ts) plus a
+ * halo, off-limits to scattered regions. Covers the vertical trunk (x≈105),
+ * the casino dock column (x=110), and the horizontal isle approach lanes that
+ * feed them, from just above the isles down to the trunk's south end.
+ */
+const SOUTH_CHANNEL_KEEPOUT = { minX: 100, minY: 144, maxX: 114, maxY: 180 } as const;
+
 /** Max per-axis jitter (in tiles) applied to a non-pinned region's bounds. */
-const PLACE_JITTER = 8;
+const PLACE_JITTER = 40;
 /** Number of jitter attempts before a region falls back to its base position. */
-const PLACE_ATTEMPTS = 8;
+const PLACE_ATTEMPTS = 24;
 
 /**
  * Applies seeded jitter to every non-pinned region's position. Runs AFTER
@@ -517,6 +687,12 @@ export function placeRegions(
       if (bounds.minX < 0 || bounds.minY < 0 || bounds.maxX >= WORLD_WIDTH || bounds.maxY >= WORLD_HEIGHT) {
         continue;
       }
+      // South shipping-channel keep-out: ports.ts routes a fixed lane network down
+      // the south (TRUNK_X≈105 / casino col 110, JOIN_Y 162 → TRUNK_Y1 173) and
+      // module-throws if any lane tile is covered by land/bridge. A scattered
+      // region must not intrude on that corridor (+1 halo). The frozen isles/casino
+      // own their own docks, so this only blocks the open water lanes.
+      if (rectsOverlap(bounds, SOUTH_CHANNEL_KEEPOUT)) continue;
       let clear = true;
       for (const o of placed) {
         if (oceanGapBetween(bounds, o.bounds) < 2) { clear = false; break; }
@@ -648,6 +824,7 @@ function placeRanches(
         if (bounds.minX < 0 || bounds.minY < 0 || bounds.maxX >= WORLD_WIDTH || bounds.maxY >= WORLD_HEIGHT) {
           continue;
         }
+        if (rectsOverlap(bounds, SOUTH_CHANNEL_KEEPOUT)) continue;
 
         let clearOfAll = true;
         for (const reg of placed) {
@@ -797,6 +974,59 @@ export function generateWorld(seed: number): GeneratedWorld {
   // Exhausted: build the un-jittered baseline (must succeed — it's the known-good
   // layout the whole project shipped with before placement jitter).
   return buildWorldFromRegions(seed, baseRegions);
+}
+
+/**
+ * Throws if any region center is not reachable (4-connected over land+road
+ * tiles) from the village center. Operates on the freshly-built `regions`
+ * (with masks) + `roads` — NOT the global REGIONS — so it can gate a candidate
+ * placement before it is returned. Deterministic (BFS order is fixed).
+ */
+function assertAllRegionsReachable(
+  regions: readonly RegionDef[],
+  roads: readonly RoadDef[],
+): void {
+  const walk = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT); // 1 = walkable
+  for (const reg of regions) {
+    forEachLandTile(reg, (x, y) => { walk[y * WORLD_WIDTH + x] = 1; });
+  }
+  for (const road of roads) {
+    for (let y = road.minY; y <= road.maxY; y++) {
+      for (let x = road.minX; x <= road.maxX; x++) {
+        if (x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT) walk[y * WORLD_WIDTH + x] = 1;
+      }
+    }
+  }
+
+  const village = regions.find((r) => r.id === 'village');
+  if (!village) throw new Error('assertAllRegionsReachable: no village');
+  const start = village.center;
+  const seen = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
+  const queue: number[] = [];
+  let head = 0;
+  const sk = start.y * WORLD_WIDTH + start.x;
+  if (walk[sk] !== 1) throw new Error('assertAllRegionsReachable: village center not walkable');
+  seen[sk] = 1;
+  queue.push(sk);
+  while (head < queue.length) {
+    const k = queue[head++]!;
+    const x = k % WORLD_WIDTH;
+    const y = (k - x) / WORLD_WIDTH;
+    const nbrs = [k - 1, k + 1, k - WORLD_WIDTH, k + WORLD_WIDTH];
+    if (x === 0) nbrs[0] = -1;
+    if (x === WORLD_WIDTH - 1) nbrs[1] = -1;
+    for (const nk of nbrs) {
+      if (nk < 0 || nk >= walk.length) continue;
+      if (walk[nk] === 1 && seen[nk] === 0) { seen[nk] = 1; queue.push(nk); }
+    }
+  }
+
+  for (const reg of regions) {
+    const c = reg.center;
+    if (seen[c.y * WORLD_WIDTH + c.x] !== 1) {
+      throw new Error(`assertAllRegionsReachable: region '${reg.id}' center (${c.x},${c.y}) unreachable from village`);
+    }
+  }
 }
 
 function buildWorldFromRegions(seed: number, baseRegions: readonly RegionDef[]): GeneratedWorld {
@@ -963,6 +1193,14 @@ function buildWorldFromRegions(seed: number, baseRegions: readonly RegionDef[]):
 
     regions.push({ ...themed, mask });
   }
+
+  // 9. Reachability guard. A placement can ROUTE every bridge yet still strand a
+  //    region whose only bridge dead-ends on a mask-carved ocean tile (the
+  //    corridor router exposes this). BFS over land+road tiles from the village
+  //    center and throw if any region center is unreachable — generateWorld's
+  //    salt loop then rejects this placement and tries the next. This is the
+  //    single guarantee that "routes" ⇒ "connected".
+  assertAllRegionsReachable(regions, roads);
 
   // 10. Derived tile consts — read the built (themed) regions.
   // Each design coordinate is scaled to world space, then SNAPPED onto the

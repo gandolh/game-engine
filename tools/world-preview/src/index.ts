@@ -142,10 +142,12 @@ function blitCentered(frameName: string, cx: number, cy: number, rotation = 0): 
 function backdropFrame(tx: number, ty: number): string | null {
   if (!isWalkable(tx, ty)) return null;
   const region = regionAt(tx, ty);
-  if (region === null) return "tile/path";
+  if (region === null) return "tile/path"; // road / bridge deck
   if (region === "village") return "tile/dirt";
   if (region.startsWith("farm-")) return "tile/grass";
-  return null;
+  // Every other region (landmarks, clusters, ranches) is LAND too — tint it so
+  // the rendered density matches the measured land %. Use dirt as a neutral land.
+  return "tile/dirt";
 }
 
 interface FenceTile {

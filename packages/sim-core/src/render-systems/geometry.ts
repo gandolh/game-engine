@@ -6,6 +6,8 @@ import {
   isWalkable,
   scaleAroundNearestIsland,
   snapPropToLand,
+  getRegion,
+  nearestLandTile,
   type RegionId,
 } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
@@ -580,16 +582,36 @@ function bakedFixed(frame: string, x: number, y: number, wPx: number, hPx: numbe
   return { frame, baseTileX: t.x, baseTileY: t.y, wPx, hPx };
 }
 
+/**
+ * Anchors a baked structure to a region that can SCATTER per seed (its authored
+ * design coords are no longer reliable). Places the base at the region's centre
+ * (offset by dx/dy tiles), snapped onto the region's own mask land so the
+ * structure follows the island wherever it lands. Use for landmark set-pieces on
+ * non-pinned regions (volcano, weather-station, big-tree, ring).
+ */
+function bakedOnRegion(
+  frame: string,
+  regionId: RegionId,
+  dx: number,
+  dy: number,
+  wPx: number,
+  hPx: number,
+): BigStructure {
+  const reg = getRegion(regionId);
+  const t = nearestLandTile(reg, { x: reg.center.x + dx, y: reg.center.y + dy });
+  return { frame, baseTileX: t.x, baseTileY: t.y, wPx, hPx };
+}
+
 export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
   bakedAt("structure/forge-house", 99, 78, 32, 48),
   bakedAt("structure/carpenter-workshop", 59, 78, 32, 48),
 
-  bakedAt("structure/weather-station", 109, 122, 48, 48),
-  bakedAt("structure/weather-antenna", 114, 122, 16, 64),
+  bakedOnRegion("structure/weather-station", "weather-station", -1, 0, 48, 48),
+  bakedOnRegion("structure/weather-antenna", "weather-station", 1, 0, 16, 64),
 
-  bakedAt("decoration/volcano", 77, 16, 96, 96),
+  bakedOnRegion("decoration/volcano", "volcano", 0, 0, 96, 96),
 
-  bakedFixed("structure/big-tree", 130, 14, 48, 64),
+  bakedOnRegion("structure/big-tree", "big-tree", 0, 0, 48, 64),
 
   bakedAt("decoration/slot-machine", 73, 117, 16, 32),   
   bakedAt("decoration/slot-machine", 75, 117, 16, 32),
@@ -598,12 +620,12 @@ export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
   bakedAt("decoration/dice-table", 80, 119, 32, 24),      
   bakedAt("decoration/shell-game", 78, 124, 32, 24),      
 
-  bakedFixed("decoration/ring-post", 123, 105, 16, 32),
-  bakedFixed("decoration/ring-post", 130, 105, 16, 32),
-  bakedFixed("decoration/ring-post", 123, 110, 16, 32),
-  bakedFixed("decoration/ring-post", 130, 110, 16, 32),
-  bakedFixed("decoration/ring-ropes", 124, 104, 32, 16),
-  bakedFixed("decoration/ring-ropes", 124, 111, 32, 16),
+  bakedOnRegion("decoration/ring-post", "ring", -3, -2, 16, 32),
+  bakedOnRegion("decoration/ring-post", "ring", 3, -2, 16, 32),
+  bakedOnRegion("decoration/ring-post", "ring", -3, 3, 16, 32),
+  bakedOnRegion("decoration/ring-post", "ring", 3, 3, 16, 32),
+  bakedOnRegion("decoration/ring-ropes", "ring", -2, -3, 32, 16),
+  bakedOnRegion("decoration/ring-ropes", "ring", -2, 4, 32, 16),
 
   // Per-farm cottage base (maxX-2, maxY-1). This tile is pinned as forced-core
   // land by anchors.ts (forcedCoreTiles), so the organic mask never carves it
