@@ -27,6 +27,8 @@ export interface RunOptions {
   ticksPerDay: number;
   maxDays: number;
   pathfinder?: PathfinderLike | null;
+  /** World-gen seed (brief 92/93). Defaults to the fixed WORLD_GEN_SEED inside bootstrap. */
+  worldSeed?: number;
 }
 
 function currentWeather(world: ReturnType<typeof bootstrapSim>["world"]): string {
@@ -48,6 +50,7 @@ export function runOnce(opts: RunOptions): RunResult {
     ticksPerDay: opts.ticksPerDay,
     maxDays: opts.maxDays,
     pathfinder: opts.pathfinder ?? null,
+    ...(opts.worldSeed !== undefined ? { worldSeed: opts.worldSeed } : {}),
   });
 
   const perDay: DaySnapshot[] = [];

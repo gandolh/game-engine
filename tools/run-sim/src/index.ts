@@ -7,6 +7,7 @@ import { runDeterminismCheck } from "./determinism";
 import { printDayLine, printFinalLeaderboard, emitExport } from "./format";
 import {
   SEED,
+  WORLD_SEED,
   TICKS_PER_DAY,
   MAX_DAYS,
   PROGRESS_EVERY,
@@ -16,12 +17,15 @@ import {
   determinismSeeds,
 } from "./env";
 
+const WORLD_SEED_OPT = WORLD_SEED !== undefined ? { worldSeed: WORLD_SEED } : {};
+
 async function main(): Promise<void> {
   if (CHECK_DETERMINISM) {
     const passed = await runDeterminismCheck({
       seeds: determinismSeeds(),
       ticksPerDay: TICKS_PER_DAY,
       maxDays: MAX_DAYS,
+      ...WORLD_SEED_OPT,
     });
     process.exit(passed ? 0 : 1);
   } else if (EXPORT === "csv" || EXPORT === "json") {
@@ -30,6 +34,7 @@ async function main(): Promise<void> {
       ticksPerDay: TICKS_PER_DAY,
       maxDays: MAX_DAYS,
       pathfinder: await makePathfinder(),
+      ...WORLD_SEED_OPT,
     });
     emitExport(EXPORT, result, EXPORT_FILE);
   } else {
@@ -38,6 +43,7 @@ async function main(): Promise<void> {
       ticksPerDay: TICKS_PER_DAY,
       maxDays: MAX_DAYS,
       pathfinder: await makePathfinder(),
+      ...WORLD_SEED_OPT,
     });
 
     bus.subscribeOntology(ONT_SIMULATION.SHOCK, (msg) => {

@@ -9,6 +9,7 @@ export interface DeterminismJob {
   pass: 0 | 1;
   ticksPerDay: number;
   maxDays: number;
+  worldSeed?: number;
 }
 
 export interface DeterminismJobResult {
@@ -27,6 +28,7 @@ parentPort.on("message", async (job: DeterminismJob) => {
     ticksPerDay: job.ticksPerDay,
     maxDays: job.maxDays,
     pathfinder: await makePathfinder(),
+    ...(job.worldSeed !== undefined ? { worldSeed: job.worldSeed } : {}),
   });
   const out: DeterminismJobResult = { seed: job.seed, pass: job.pass, result };
   parentPort!.postMessage(out);

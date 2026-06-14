@@ -9,6 +9,7 @@ interface CheckOptions {
   seeds: number[];
   ticksPerDay: number;
   maxDays: number;
+  worldSeed?: number;
 }
 
 const WORKER_URL = new URL("./determinism-worker.ts", import.meta.url);
@@ -59,7 +60,8 @@ function runJobsInPool(jobs: DeterminismJob[]): Promise<DeterminismJobResult[]> 
 }
 
 export async function runDeterminismCheck(opts: CheckOptions): Promise<boolean> {
-  const { seeds, ticksPerDay, maxDays } = opts;
+  const { seeds, ticksPerDay, maxDays, worldSeed } = opts;
+  const ws = worldSeed !== undefined ? { worldSeed } : {};
 
   console.error(
     `Determinism check — ${seeds.length} seed(s), ${maxDays} days @ ${ticksPerDay} ticks/day` +
@@ -68,8 +70,8 @@ export async function runDeterminismCheck(opts: CheckOptions): Promise<boolean> 
 
   const jobs: DeterminismJob[] = [];
   for (const seed of seeds) {
-    jobs.push({ seed, pass: 0, ticksPerDay, maxDays });
-    jobs.push({ seed, pass: 1, ticksPerDay, maxDays });
+    jobs.push({ seed, pass: 0, ticksPerDay, maxDays, ...ws });
+    jobs.push({ seed, pass: 1, ticksPerDay, maxDays, ...ws });
   }
 
   const finished = await runJobsInPool(jobs);
