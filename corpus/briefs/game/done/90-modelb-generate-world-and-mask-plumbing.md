@@ -1,6 +1,20 @@
 # Game Task 90 — Model B prep: pure `generateWorld(seed)` + per-region mask plumbing
 
-**Status:** Todo
+> **✅ DONE 2026-06-14.** Both pure refactors shipped, zero behavior change.
+> Part A: `generateWorld(seed): GeneratedWorld` wraps all eager gen in `world/regions.ts`;
+> `DEFAULT_WORLD = generateWorld(WORLD_GEN_SEED)` called once at module scope, re-exports every
+> prior named symbol (`REGIONS`/`ROADS`/9 tiles/`TOWN_SQUARE`/`ranchForFarm`) so ~118 callers
+> didn't churn. `makeRadialFarmRegion`/`placeRanches`/`scaleAroundNearestIsland` param-threaded off
+> the passed seed (stable `'farm-ring-jitter'` fork label preserved). Part B: `RegionDef.mask?:
+> Uint8Array` (all-1 this brief) + `regionMaskAt`/`forEachLandTile`; `regionAt` now mask-aware (the
+> central lever — sites routed through it auto-adapt). Direct bounds-iterators converted in
+> `walkable-grid.ts`/`resource.ts`/`carpenter.ts` (roads loop stays rect; `placeFootprint` + bubbles
+> margin-ring left as-is). Masks never enter the snapshot. **Verification:** typecheck adds zero new
+> errors; 45 sim-core unit tests green incl. new `generateWorld` deep-equal + determinism + all-1-mask
+> tests. The multi-seed `EXPORT=json` byte-identity diff was **skipped** (user call, constrained
+> hardware) — unit tests + review stood in. → unblocks [91](91-modelb-ca-shapes-and-mask-derived-anchors.md).
+
+**Status:** Done
 **Epic:** Organic world gen (Model B). Brief 1 of 3 → [91](91-modelb-ca-shapes-and-mask-derived-anchors.md), [92](92-modelb-runtime-varying-seed.md).
 **Design:** locked in a grill-me session 2026-06-13; see decision table at bottom.
 

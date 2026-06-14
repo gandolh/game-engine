@@ -1,7 +1,7 @@
 import type { SimContext, System, MessageBus, World, AgentMessage } from "@engine/core";
 import type { GameEntity, DecorationKind, PendingCommission } from "../components";
 import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../components";
-import { REGIONS } from "../world/regions";
+import { REGIONS, forEachLandTile } from "../world/regions";
 import { findById } from "./entity-helpers";
 import { PERFORMATIVE } from "../protocols/performatives";
 import {
@@ -115,20 +115,17 @@ export class CarpenterSystem implements System {
       if (e.pen.regionId === job.regionId) usedTiles.add(`${e.pen.tileX},${e.pen.tileY}`);
     }
 
-    const b = regionDef.bounds;
     let placed = false;
-    outer: for (let ty = b.minY; ty <= b.maxY; ty++) {
-      for (let tx = b.minX; tx <= b.maxX; tx++) {
-        if (usedTiles.has(`${tx},${ty}`)) continue;
-        this.world.spawn({
-          transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
-          sprite: { atlasId: "main", frame: `decoration/${job.kind}`, layer: 20, tintRgba: 0xffffffff },
-          farmDecoration: { kind: job.kind, tileX: tx, tileY: ty, regionId: job.regionId, ownerId: job.ownerId },
-        });
-        placed = true;
-        break outer;
-      }
-    }
+    forEachLandTile(regionDef, (tx, ty) => {
+      if (placed) return;
+      if (usedTiles.has(`${tx},${ty}`)) return;
+      this.world.spawn({
+        transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+        sprite: { atlasId: "main", frame: `decoration/${job.kind}`, layer: 20, tintRgba: 0xffffffff },
+        farmDecoration: { kind: job.kind, tileX: tx, tileY: ty, regionId: job.regionId, ownerId: job.ownerId },
+      });
+      placed = true;
+    });
 
     this.replyDone(ctx.tick, job.ownerId, {
       ok: placed,

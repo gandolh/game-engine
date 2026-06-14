@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   regionAt, isWalkable, REGIONS, EXTRA_FARM_COUNT, nearestResourceZone, getRegion,
   WORLD_WIDTH, WORLD_HEIGHT,
+  generateWorld, WORLD_GEN_SEED, regionMaskAt, forEachLandTile,
+  CAMPFIRE_TILE, WATERFALL_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE,
+  WEATHER_STATION_TILE, HARBOR_DOCK_TILE, HARBOR_BOARD_TILE,
+  AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, TOWN_SQUARE, ROADS,
 } from './regions';
 
 const centerOf = (id: string) => getRegion(id as never).center;
@@ -144,6 +148,80 @@ describe('procedural farm band', () => {
       if (Math.abs(r - a) > 0.6) offRing++;
     }
     expect(offRing).toBeGreaterThan(0);
+  });
+});
+
+describe('generateWorld', () => {
+  it('default seed deep-equals the re-exported default world', () => {
+    const w = generateWorld(WORLD_GEN_SEED);
+    expect(w.regions).toEqual(REGIONS);
+    expect(w.roads).toEqual(ROADS);
+    expect(w.campfireTile).toEqual(CAMPFIRE_TILE);
+    expect(w.waterfallTile).toEqual(WATERFALL_TILE);
+    expect(w.volcanoCraterTile).toEqual(VOLCANO_CRATER_TILE);
+    expect(w.casinoNeonTile).toEqual(CASINO_NEON_TILE);
+    expect(w.weatherStationTile).toEqual(WEATHER_STATION_TILE);
+    expect(w.harborDockTile).toEqual(HARBOR_DOCK_TILE);
+    expect(w.harborBoardTile).toEqual(HARBOR_BOARD_TILE);
+    expect(w.auctionPodiumTile).toEqual(AUCTION_PODIUM_TILE);
+    expect(w.noticeBoardTile).toEqual(NOTICE_BOARD_TILE);
+    expect(w.townSquare).toEqual(TOWN_SQUARE);
+  });
+
+  it('is deterministic for a fixed seed', () => {
+    const a = generateWorld(12345);
+    const b = generateWorld(12345);
+    expect(a).toEqual(b);
+  });
+
+  it('produces valid worlds for distinct seeds (every region center is walkable)', () => {
+    for (const seed of [1, 7, 0xabcdef]) {
+      const w = generateWorld(seed);
+      expect(w.regions.length).toBeGreaterThan(0);
+      for (const region of w.regions) {
+        // regionAt on default REGIONS won't match arbitrary-seed regions, so test
+        // mask self-consistency at each center instead.
+        expect(regionMaskAt(region, region.center.x, region.center.y)).toBe(true);
+      }
+    }
+  });
+});
+
+describe('region masks', () => {
+  it('every region has an all-1 mask sized to its bounds', () => {
+    for (const region of REGIONS) {
+      const { minX, minY, maxX, maxY } = region.bounds;
+      const w = maxX - minX + 1;
+      const h = maxY - minY + 1;
+      expect(region.mask, `${region.id} mask`).toBeDefined();
+      expect(region.mask!.length, `${region.id} length`).toBe(w * h);
+      for (const byte of region.mask!) expect(byte).toBe(1);
+    }
+  });
+
+  it('regionMaskAt matches inBounds for sampled tiles', () => {
+    for (const region of REGIONS) {
+      const { minX, minY, maxX, maxY } = region.bounds;
+      const samples = [
+        { x: minX, y: minY }, { x: maxX, y: maxY },
+        { x: Math.floor((minX + maxX) / 2), y: Math.floor((minY + maxY) / 2) },
+        { x: minX - 1, y: minY }, { x: maxX + 1, y: maxY },
+      ];
+      for (const s of samples) {
+        const inBounds = s.x >= minX && s.x <= maxX && s.y >= minY && s.y <= maxY;
+        expect(regionMaskAt(region, s.x, s.y), `${region.id} (${s.x},${s.y})`).toBe(inBounds);
+      }
+    }
+  });
+
+  it('forEachLandTile visits exactly the bounds area', () => {
+    for (const region of REGIONS) {
+      const { minX, minY, maxX, maxY } = region.bounds;
+      const area = (maxX - minX + 1) * (maxY - minY + 1);
+      let count = 0;
+      forEachLandTile(region, () => { count++; });
+      expect(count, `${region.id}`).toBe(area);
+    }
   });
 });
 

@@ -45,6 +45,8 @@ export interface RegionDef {
   center: { x: number; y: number };
 
   theme?: RegionTheme;
+  /** Row-major (maxX-minX+1)*(maxY-minY+1), 1=land. */
+  mask?: Uint8Array;
 }
 
 export const WORLD_WIDTH = 240;
@@ -125,14 +127,6 @@ const INNER_RING = { n: 9, r: 52 * SCALE, phi: -Math.PI / 2 };
 const OUTER_RING = { n: 12, r: 72 * SCALE, phi: (-90 + 15) * (Math.PI / 180) };
 
 const EXTRA_FARM_JITTER = 1;
-const farmJitterRng = createRng(WORLD_GEN_SEED).fork('farm-ring-jitter');
-const FARM_JITTER: readonly { dx: number; dy: number }[] = Array.from(
-  { length: EXTRA_FARM_COUNT },
-  () => ({
-    dx: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
-    dy: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
-  }),
-);
 
 function ringSlotBounds(
   ring: { n: number; r: number; phi: number },
@@ -164,7 +158,7 @@ const FARM_HANNAH_BOUNDS  = namedFarmBounds('farm-hannah');
 const FARM_OTTO_BOUNDS    = namedFarmBounds('farm-otto');
 const FARM_CORA_BOUNDS    = namedFarmBounds('farm-cora');
 
-function makeRadialFarmRegion(i: number): RegionDef {
+function makeRadialFarmRegion(i: number, jitter: readonly { dx: number; dy: number }[]): RegionDef {
   const INNER_PROC_SLOTS = [1, 3, 5, 7];
   let base: { minX: number; minY: number; maxX: number; maxY: number };
   if (i < INNER_PROC_SLOTS.length) {
@@ -172,7 +166,7 @@ function makeRadialFarmRegion(i: number): RegionDef {
   } else {
     base = ringSlotBounds(OUTER_RING, i - INNER_PROC_SLOTS.length, FARM_PROC_SIZE);
   }
-  const j = FARM_JITTER[i]!;
+  const j = jitter[i]!;
   const bounds = {
     minX: base.minX + j.dx,
     minY: base.minY + j.dy,
@@ -181,11 +175,6 @@ function makeRadialFarmRegion(i: number): RegionDef {
   };
   return { id: `farm-${i}` as RegionId, kind: 'farm', bounds, center: midpoint(bounds) };
 }
-
-const EXTRA_FARM_REGIONS: readonly RegionDef[] = Array.from(
-  { length: EXTRA_FARM_COUNT },
-  (_unused, i) => makeRadialFarmRegion(i),
-);
 
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
 
@@ -218,7 +207,8 @@ function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: numb
   };
 }
 
-const BASE_REGIONS: readonly RegionDef[] = [
+function buildBaseRegions(extraFarmRegions: readonly RegionDef[]): readonly RegionDef[] {
+  return [
   { id: 'village',        kind: 'village', bounds: VILLAGE_BOUNDS,         center: midpoint(VILLAGE_BOUNDS) },
   { id: 'farm-cora',      kind: 'farm',    bounds: FARM_CORA_BOUNDS,       center: midpoint(FARM_CORA_BOUNDS) },
   { id: 'farm-atticus',   kind: 'farm',    bounds: FARM_ATTICUS_BOUNDS,    center: midpoint(FARM_ATTICUS_BOUNDS) },
@@ -250,8 +240,9 @@ const BASE_REGIONS: readonly RegionDef[] = [
   { id: 'casino',  kind: 'landmark', bounds: CASINO_BOUNDS,  center: midpoint(CASINO_BOUNDS) },
   { id: 'big-tree', kind: 'landmark', bounds: BIG_TREE_BOUNDS, center: midpoint(BIG_TREE_BOUNDS) },
   { id: 'ring', kind: 'landmark', bounds: RING_BOUNDS, center: midpoint(RING_BOUNDS), theme: 'boxing' },
-  ...EXTRA_FARM_REGIONS,
-];
+  ...extraFarmRegions,
+  ];
+}
 
 interface RoadDef {
   minX: number; minY: number; maxX: number; maxY: number;
@@ -407,8 +398,6 @@ function generateFarmSpokes(regions: readonly RegionDef[]): RoadDef[] {
   return out;
 }
 
-const FARM_REGIONS: readonly RegionDef[] = BASE_REGIONS.filter((r) => r.kind === 'farm');
-
 const RANCH_SIZE = 8;
 const RANCH_HALF = 4; 
 
@@ -438,7 +427,11 @@ function rankedCardinals(farmCenter: { x: number; y: number }): Cardinal[] {
   return [outward, perpA, perpB, inward];
 }
 
-function placeRanches(baseRoads: readonly RoadDef[]): {
+function placeRanches(
+  baseRoads: readonly RoadDef[],
+  baseRegions: readonly RegionDef[],
+  farmRegions: readonly RegionDef[],
+): {
   ranches: RegionDef[];
   bridges: RoadDef[];
   cardinalByFarm: { farmId: RegionId; rank: number }[];
@@ -447,7 +440,7 @@ function placeRanches(baseRoads: readonly RoadDef[]): {
   const bridges: RoadDef[] = [];
   const cardinalByFarm: { farmId: RegionId; rank: number }[] = [];
 
-  const placed: RegionDef[] = [...BASE_REGIONS];
+  const placed: RegionDef[] = [...baseRegions];
 
   const placedBridges: RoadDef[] = [...baseRoads];
   const RANCH_DISTANCES = [12, 11, 13] as const;
@@ -460,7 +453,7 @@ function placeRanches(baseRoads: readonly RoadDef[]): {
     return true;
   };
 
-  FARM_REGIONS.forEach((farm, k) => {
+  farmRegions.forEach((farm, k) => {
     const ranchId = `ranch-${k}` as RegionId;
     let chosen: { bounds: RoadDef; bridge: RoadDef; rank: number } | null = null;
     const cardinals = rankedCardinals(farm.center);
@@ -513,22 +506,6 @@ function placeRanches(baseRoads: readonly RoadDef[]): {
   return { ranches, bridges, cardinalByFarm };
 }
 
-const BASE_ROADS: readonly RoadDef[] = [
-  ...generateClusterBridges(BASE_REGIONS),
-  ...generateFarmSpokes(BASE_REGIONS),
-];
-const RANCH_PLACEMENT = placeRanches(BASE_ROADS);
-const RANCH_REGIONS: readonly RegionDef[] = RANCH_PLACEMENT.ranches;
-const RANCH_BRIDGES: readonly RoadDef[] = RANCH_PLACEMENT.bridges;
-
-const RANCH_FOR_FARM = new Map<RegionId, RegionId>(
-  FARM_REGIONS.map((farm, k) => [farm.id, `ranch-${k}` as RegionId]),
-);
-
-export function ranchForFarm(farmId: RegionId): RegionId | undefined {
-  return RANCH_FOR_FARM.get(farmId);
-}
-
 const THEME_BY_ID: Partial<Record<RegionId, RegionTheme>> = {
   'forest-north': 'forest', 'forest-south': 'forest',
   'quarry-north': 'quarry', 'quarry-south': 'quarry',
@@ -543,12 +520,6 @@ const THEME_BY_ID: Partial<Record<RegionId, RegionTheme>> = {
   'big-tree': 'big-tree',
 };
 
-export const REGIONS: readonly RegionDef[] = [...BASE_REGIONS, ...RANCH_REGIONS].map((r) => {
-  const theme = THEME_BY_ID[r.id]
-    ?? (r.kind === 'farm' ? 'ring' : r.kind === 'ranch' ? 'ranch' : undefined);
-  return theme ? { ...r, theme } : r;
-});
-
 function authoredCenterOf(scaled: { x: number; y: number }): { x: number; y: number } {
   return {
     x: DESIGN_CX + (scaled.x - MAP_CX) / SCALE,
@@ -556,11 +527,24 @@ function authoredCenterOf(scaled: { x: number; y: number }): { x: number; y: num
   };
 }
 
-export function scaleAroundNearestIsland(t: { x: number; y: number }): { x: number; y: number } {
+/** Returns `{ ...region, mask }` with an all-land mask sized to the region bounds. */
+function withAllLandMask(region: RegionDef): RegionDef {
+  const { minX, minY, maxX, maxY } = region.bounds;
+  const w = maxX - minX + 1;
+  const h = maxY - minY + 1;
+  const mask = new Uint8Array(w * h);
+  mask.fill(1);
+  return { ...region, mask };
+}
+
+function scaleAroundNearestIslandIn(
+  t: { x: number; y: number },
+  regions: readonly RegionDef[],
+): { x: number; y: number } {
   let bestDispX = 0;
   let bestDispY = 0;
   let bestD = Infinity;
-  for (const r of REGIONS) {
+  for (const r of regions) {
     const a = authoredCenterOf(r.center);
     const d = (a.x - t.x) ** 2 + (a.y - t.y) ** 2;
     if (d < bestD) {
@@ -572,28 +556,113 @@ export function scaleAroundNearestIsland(t: { x: number; y: number }): { x: numb
   return { x: Math.round(t.x + bestDispX), y: Math.round(t.y + bestDispY) };
 }
 
-export const CAMPFIRE_TILE = scaleAroundNearestIsland({ x: 114, y: 108 });
+export interface GeneratedWorld {
+  regions: readonly RegionDef[];
+  roads: readonly RoadDef[];
+  ranchForFarm: Map<RegionId, RegionId>;
+  campfireTile: { x: number; y: number };
+  waterfallTile: { x: number; y: number };
+  volcanoCraterTile: { x: number; y: number };
+  casinoNeonTile: { x: number; y: number };
+  weatherStationTile: { x: number; y: number };
+  harborDockTile: { x: number; y: number };
+  harborBoardTile: { x: number; y: number };
+  auctionPodiumTile: { x: number; y: number };
+  noticeBoardTile: { x: number; y: number };
+  townSquare: { minX: number; minY: number; maxX: number; maxY: number };
+}
 
-export const WATERFALL_TILE = scaleAroundNearestIsland({ x: 83, y: 59 });
+export function generateWorld(seed: number): GeneratedWorld {
+  // 1. Seeded farm-ring jitter (dx drawn before dy, per element).
+  const farmJitterRng = createRng(seed).fork('farm-ring-jitter');
+  const farmJitter: readonly { dx: number; dy: number }[] = Array.from(
+    { length: EXTRA_FARM_COUNT },
+    () => ({
+      dx: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
+      dy: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
+    }),
+  );
 
-export const VOLCANO_CRATER_TILE = scaleAroundNearestIsland({ x: 80, y: 11 });
+  // 2. Extra (procedural) farm regions.
+  const extraFarmRegions: readonly RegionDef[] = Array.from(
+    { length: EXTRA_FARM_COUNT },
+    (_unused, i) => makeRadialFarmRegion(i, farmJitter),
+  );
 
-export const CASINO_NEON_TILE = scaleAroundNearestIsland({ x: 76, y: 116 });
+  // 3. Base regions (pre-theme, pre-ranch).
+  const baseRegions = buildBaseRegions(extraFarmRegions);
 
-export const WEATHER_STATION_TILE = scaleAroundNearestIsland({ x: 114, y: 119 });
+  // 4. Farm subset.
+  const farmRegions = baseRegions.filter((r) => r.kind === 'farm');
 
-export const HARBOR_DOCK_TILE = scaleAroundNearestIsland({ x: 96, y: 105 });
+  // 5. Base roads.
+  const baseRoads: readonly RoadDef[] = [
+    ...generateClusterBridges(baseRegions),
+    ...generateFarmSpokes(baseRegions),
+  ];
 
-export const HARBOR_BOARD_TILE = scaleAroundNearestIsland({ x: 97, y: 108 });
+  // 6. Ranch placement.
+  const ranchPlacement = placeRanches(baseRoads, baseRegions, farmRegions);
+  const ranchRegions = ranchPlacement.ranches;
+  const ranchBridges = ranchPlacement.bridges;
 
-const ROADS: readonly RoadDef[] = [
-  ...BASE_ROADS,
-  ...RANCH_BRIDGES,
-];
+  // 7. ranch-for-farm map.
+  const ranchForFarmMap = new Map<RegionId, RegionId>(
+    farmRegions.map((farm, k) => [farm.id, `ranch-${k}` as RegionId]),
+  );
 
-export const TOWN_SQUARE = scaleB({ minX: 78, minY: 79, maxX: 81, maxY: 82 });
-export const AUCTION_PODIUM_TILE = scaleAroundNearestIsland({ x: 80, y: 80 });
-export const NOTICE_BOARD_TILE = scaleAroundNearestIsland({ x: 79, y: 80 });
+  // 8. Themed regions (and all-land mask applied here, in one place).
+  const regions: readonly RegionDef[] = [...baseRegions, ...ranchRegions].map((r) => {
+    const theme = THEME_BY_ID[r.id]
+      ?? (r.kind === 'farm' ? 'ring' : r.kind === 'ranch' ? 'ranch' : undefined);
+    const themed = theme ? { ...r, theme } : r;
+    return withAllLandMask(themed);
+  });
+
+  // 9. Roads.
+  const roads: readonly RoadDef[] = [...baseRoads, ...ranchBridges];
+
+  // 10. Derived tile consts — read the built (themed) regions.
+  return {
+    regions,
+    roads,
+    ranchForFarm: ranchForFarmMap,
+    campfireTile: scaleAroundNearestIslandIn({ x: 114, y: 108 }, regions),
+    waterfallTile: scaleAroundNearestIslandIn({ x: 83, y: 59 }, regions),
+    volcanoCraterTile: scaleAroundNearestIslandIn({ x: 80, y: 11 }, regions),
+    casinoNeonTile: scaleAroundNearestIslandIn({ x: 76, y: 116 }, regions),
+    weatherStationTile: scaleAroundNearestIslandIn({ x: 114, y: 119 }, regions),
+    harborDockTile: scaleAroundNearestIslandIn({ x: 96, y: 105 }, regions),
+    harborBoardTile: scaleAroundNearestIslandIn({ x: 97, y: 108 }, regions),
+    auctionPodiumTile: scaleAroundNearestIslandIn({ x: 80, y: 80 }, regions),
+    noticeBoardTile: scaleAroundNearestIslandIn({ x: 79, y: 80 }, regions),
+    townSquare: scaleB({ minX: 78, minY: 79, maxX: 81, maxY: 82 }),
+  };
+}
+
+const DEFAULT_WORLD = generateWorld(WORLD_GEN_SEED);
+
+export const REGIONS: readonly RegionDef[] = DEFAULT_WORLD.regions;
+const ROADS: readonly RoadDef[] = DEFAULT_WORLD.roads;
+
+export const CAMPFIRE_TILE = DEFAULT_WORLD.campfireTile;
+export const WATERFALL_TILE = DEFAULT_WORLD.waterfallTile;
+export const VOLCANO_CRATER_TILE = DEFAULT_WORLD.volcanoCraterTile;
+export const CASINO_NEON_TILE = DEFAULT_WORLD.casinoNeonTile;
+export const WEATHER_STATION_TILE = DEFAULT_WORLD.weatherStationTile;
+export const HARBOR_DOCK_TILE = DEFAULT_WORLD.harborDockTile;
+export const HARBOR_BOARD_TILE = DEFAULT_WORLD.harborBoardTile;
+export const AUCTION_PODIUM_TILE = DEFAULT_WORLD.auctionPodiumTile;
+export const NOTICE_BOARD_TILE = DEFAULT_WORLD.noticeBoardTile;
+export const TOWN_SQUARE = DEFAULT_WORLD.townSquare;
+
+export function ranchForFarm(farmId: RegionId): RegionId | undefined {
+  return DEFAULT_WORLD.ranchForFarm.get(farmId);
+}
+
+export function scaleAroundNearestIsland(t: { x: number; y: number }): { x: number; y: number } {
+  return scaleAroundNearestIslandIn(t, DEFAULT_WORLD.regions);
+}
 
 function inBounds(
   x: number,
@@ -603,9 +672,26 @@ function inBounds(
   return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
 }
 
+export function regionMaskAt(region: RegionDef, x: number, y: number): boolean {
+  if (!inBounds(x, y, region.bounds)) return false;
+  if (region.mask === undefined) return true;
+  const { minX, minY, maxX } = region.bounds;
+  const w = maxX - minX + 1;
+  return region.mask[(y - minY) * w + (x - minX)] === 1;
+}
+
+export function forEachLandTile(region: RegionDef, fn: (x: number, y: number) => void): void {
+  const { minX, minY, maxX, maxY } = region.bounds;
+  for (let ty = minY; ty <= maxY; ty++) {
+    for (let tx = minX; tx <= maxX; tx++) {
+      if (regionMaskAt(region, tx, ty)) fn(tx, ty);
+    }
+  }
+}
+
 export function regionAt(x: number, y: number): RegionId | null {
   for (const region of REGIONS) {
-    if (inBounds(x, y, region.bounds)) return region.id;
+    if (regionMaskAt(region, x, y)) return region.id;
   }
   return null;
 }

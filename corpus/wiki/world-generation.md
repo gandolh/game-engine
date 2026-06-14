@@ -150,6 +150,13 @@ Ranked techniques (all must thread `rng.fork(label)` — never `Math.random`):
 next) — jittered placement, MST bridges, multi-seed property tests, biome/décor.
 Phase 2 (future) — Model B organic shapes via CA + center-floodfill.
 
+> **Status update (2026-06-14):** Phase 0 **shipped** in [brief 90](../briefs/game/done/90-modelb-generate-world-and-mask-plumbing.md) —
+> `generateWorld(seed): GeneratedWorld` is now the pure factory (default-called once as `DEFAULT_WORLD`,
+> all named exports re-exported, zero caller churn). Brief 90 also added `RegionDef.mask?: Uint8Array`
+> (all-1 for now), `regionMaskAt`/`forEachLandTile`, and a mask-aware `regionAt` — the plumbing the
+> Model-B *shapes* land on. The seed param is tests-only until brief 92. Next: [brief 91](../briefs/game/todo/91-modelb-ca-shapes-and-mask-derived-anchors.md)
+> (CA-fill shapes + mask-derived anchors), then [brief 92](../briefs/game/todo/92-modelb-runtime-varying-seed.md) (runtime-varying seed).
+
 The actionable cut of this menu is filed as
 [brief 49 — organic procgen](../briefs/game/done/49-organic-procgen-noise-and-authored-detail.md):
 it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on

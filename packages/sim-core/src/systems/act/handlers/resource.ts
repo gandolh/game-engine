@@ -6,7 +6,7 @@ import {
 } from "../../../components";
 import { grantSkillXp, foragingGoldMultiplier, miningRarityBonus } from "../../skills";
 import { isWithinReach } from "../../proximity";
-import { REGIONS } from "../../../world/regions";
+import { REGIONS, forEachLandTile } from "../../../world/regions";
 import { seasonForDay } from "../../../protocols/weather";
 import { FORAGE_ZONES, STONE_IRON_CHANCE, STONE_GEODE_CHANCE } from "../constants";
 import { pickWeightedSeed, TREE_SEED_CHANCE } from "../seed-drops";
@@ -141,6 +141,7 @@ export function handleCraftDecoration(
   world: World<GameEntity>,
 ): void {
   if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
+  const farmerId = farmer.id;
   const kind = intent.data.kind as DecorationKind;
   const recipe = DECORATION_RECIPE[kind];
   if (!recipe) return;
@@ -176,20 +177,17 @@ export function handleCraftDecoration(
   }
 
   let placed = false;
-  const b = regionDef.bounds;
-  outer: for (let ty = b.minY; ty <= b.maxY; ty++) {
-    for (let tx = b.minX; tx <= b.maxX; tx++) {
-      if (usedTiles.has(`${tx},${ty}`)) continue;
-      world.spawn({
-        transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
-        sprite: { atlasId: "main", frame: `decoration/${kind}`, layer: 20, tintRgba: 0xffffffff },
-        farmDecoration: { kind, tileX: tx, tileY: ty, regionId: homeRegion, ownerId: farmer.id },
-      });
-      res.wood -= recipe.woodCost;
-      placed = true;
-      break outer;
-    }
-  }
+  forEachLandTile(regionDef, (tx, ty) => {
+    if (placed) return;
+    if (usedTiles.has(`${tx},${ty}`)) return;
+    world.spawn({
+      transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+      sprite: { atlasId: "main", frame: `decoration/${kind}`, layer: 20, tintRgba: 0xffffffff },
+      farmDecoration: { kind, tileX: tx, tileY: ty, regionId: homeRegion, ownerId: farmerId },
+    });
+    res.wood -= recipe.woodCost;
+    placed = true;
+  });
   if (!placed) return;
 }
 
