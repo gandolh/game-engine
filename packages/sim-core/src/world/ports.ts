@@ -1,4 +1,4 @@
-import { WORLD_WIDTH, WORLD_HEIGHT, getRegion, regionAt, onWorldSwap, type RegionId } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, getRegion, regionAt, isWalkable, onWorldSwap, type RegionId } from "./regions";
 
 export interface Port {
   id: "port-fishing-isle" | "port-fishing-isle-2" | "port-casino";
@@ -55,19 +55,40 @@ function portForIsle(id: Port["id"], isle: RegionId): Port {
   }
   const midX = Math.floor((b.minX + b.maxX) / 2);
   const midY = Math.floor((b.minY + b.maxY) / 2);
-  let dock: Vec;
-  let outward: Vec;
-  switch (best) {
-    case "N": dock = { x: midX, y: b.minY }; outward = { x: 0, y: -1 }; break;
-    case "S": dock = { x: midX, y: b.maxY }; outward = { x: 0, y: 1 }; break;
-    case "E": dock = { x: b.maxX, y: midY }; outward = { x: 1, y: 0 }; break;
-    default: dock = { x: b.minX, y: midY }; outward = { x: -1, y: 0 }; break;
+  const outward: Vec =
+    best === "N" ? { x: 0, y: -1 } :
+    best === "S" ? { x: 0, y: 1 } :
+    best === "E" ? { x: 1, y: 0 } : { x: -1, y: 0 };
+
+  // Scan the chosen side for a dock: an island LAND edge tile whose seaward
+  // neighbour is OPEN OCEAN. Prefer the candidate nearest the side midpoint
+  // (deterministic) so the dock sits centrally where it can. This avoids putting
+  // the dock on a carved corner or facing a neighbouring island.
+  const edgeTiles: Vec[] = [];
+  if (best === "N" || best === "S") {
+    const y = best === "N" ? b.minY : b.maxY;
+    for (let x = b.minX; x <= b.maxX; x++) edgeTiles.push({ x, y });
+    edgeTiles.sort((a, c) => Math.abs(a.x - midX) - Math.abs(c.x - midX) || a.x - c.x);
+  } else {
+    const x = best === "W" ? b.minX : b.maxX;
+    for (let y = b.minY; y <= b.maxY; y++) edgeTiles.push({ x, y });
+    edgeTiles.sort((a, c) => Math.abs(a.y - midY) - Math.abs(c.y - midY) || a.y - c.y);
   }
+  const isOpenOcean = (x: number, y: number): boolean =>
+    x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT && !isWalkable(x, y);
+
+  let dock: Vec = edgeTiles[0]!;
+  for (const e of edgeTiles) {
+    const onLand = regionAt(e.x, e.y) === isle;
+    // Seaward neighbour must be OPEN OCEAN — not land and not a bridge/road deck.
+    if (onLand && isOpenOcean(e.x + outward.x, e.y + outward.y)) { dock = e; break; }
+  }
+
   const lane: Vec[] = [];
   for (let i = 1; i <= 2; i++) {
     const lx = dock.x + outward.x * i;
     const ly = dock.y + outward.y * i;
-    if (lx < 0 || ly < 0 || lx >= WORLD_WIDTH || ly >= WORLD_HEIGHT) break;
+    if (!isOpenOcean(lx, ly)) break; // lane is open ocean only (not land, not bridge)
     lane.push({ x: lx, y: ly });
   }
   return { id, isle, dock, lane };

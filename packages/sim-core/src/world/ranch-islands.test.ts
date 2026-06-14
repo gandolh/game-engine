@@ -64,16 +64,22 @@ describe("per-farm ranch islands", () => {
     }
   });
 
-  it("every ranch is bridged to its farm: a road edge-touches both", () => {
+  it("every ranch is reachable from its farm over the bridge graph", () => {
+    // Brief 93: ranches are placed islands connected by the world's overlap
+    // bridge graph — not by a dedicated farm↔ranch bridge. The requirement is
+    // that a farmer can WALK from a farm to its ranch, i.e. they share a walkable
+    // component (proven below). This replaces the old direct-edge assertion.
+    _resetComponentMap();
     for (const farmId of farmIds) {
       const ranchId = ranchForFarm(farmId)!;
-      const farm = REGIONS.find((r) => r.id === farmId)!;
-      const ranch = REGIONS.find((r) => r.id === ranchId)!;
-      const bridged = ROADS.some(
-        (road) => roadTouches(road, farm.bounds) && roadTouches(road, ranch.bounds),
-      );
-      expect(bridged, `${farmId} ↔ ${ranchId} bridge`).toBe(true);
+      const farm = REGIONS.find((r) => r.id === farmId)!.center;
+      const ranch = REGIONS.find((r) => r.id === ranchId)!.center;
+      expect(
+        sameComponent(farm.x, farm.y, ranch.x, ranch.y),
+        `${farmId} reachable from ${ranchId}`,
+      ).toBe(true);
     }
+    _resetComponentMap();
   });
 
   it("every ranch center is in the same walkable component as its farm center", () => {

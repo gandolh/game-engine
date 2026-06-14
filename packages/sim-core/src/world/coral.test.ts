@@ -34,29 +34,25 @@ describe("coral geography + boat grid", () => {
     expect(g.cells.length).toBe(WORLD_WIDTH * WORLD_HEIGHT);
   });
 
-  it("boat grid is walkable ONLY on the coral dock+lane+reef tiles + the port network", () => {
+  it("boat grid: open over ocean (incl. under bridges), blocked on island land", () => {
+    // Brief 93: boats navigate ALL open water, passing under bridges; only island
+    // land blocks them. Dock/reef tiles are force-opened.
     const g = buildBoatGrid();
     const idx = (x: number, y: number) => y * WORLD_WIDTH + x;
 
-    const open = new Set<number>();
+    // Coral dock/lane/reef + port docks are open.
     for (const r of CORAL_REEFS) {
-      open.add(idx(r.dock.x, r.dock.y));
-      for (const l of r.lane) open.add(idx(l.x, l.y));
-      open.add(idx(r.reef.x, r.reef.y));
+      expect(g.cells[idx(r.dock.x, r.dock.y)]).toBe(0);
+      for (const l of r.lane) expect(g.cells[idx(l.x, l.y)]).toBe(0);
+      expect(g.cells[idx(r.reef.x, r.reef.y)]).toBe(0);
     }
-    for (const p of PORTS) open.add(idx(p.dock.x, p.dock.y));
-    for (const t of portLaneTiles()) open.add(idx(t.x, t.y));
+    for (const p of PORTS) expect(g.cells[idx(p.dock.x, p.dock.y)]).toBe(0);
 
-    let walkable = 0;
-    for (let i = 0; i < g.cells.length; i++) if (g.cells[i] === 0) walkable++;
-    expect(walkable).toBe(open.size);
-
-    const r0 = CORAL_REEFS[0]!;
-    expect(g.cells[idx(r0.dock.x, r0.dock.y)]).toBe(0);
-    for (const l of r0.lane) expect(g.cells[idx(l.x, l.y)]).toBe(0);
-    expect(g.cells[idx(r0.reef.x, r0.reef.y)]).toBe(0);
-
+    // The village interior (island land, not a dock) is blocked for boats.
     expect(g.cells[idx(VILLAGE.x, VILLAGE.y)]).toBe(1);
+
+    // A map corner (open ocean) is navigable.
+    expect(g.cells[idx(0, 0)]).toBe(0);
   });
 
   it("the LAND walkable grid is exactly REGIONS + ROADS — no coral leakage", () => {
@@ -88,9 +84,15 @@ describe("coral geography + boat grid", () => {
     expect(isCoralReefTile(VILLAGE.x, VILLAGE.y)).toBe(false); 
   });
 
-  it("nearestReef picks by dock proximity, deterministic tie-break by id", () => {
-
-    expect(nearestReef(80, 150).id).toBe("reef-forest");
-    expect(nearestReef(130, 150).id).toBe("reef-mill");
+  it("nearestReef picks the closest reef dock (deterministic)", () => {
+    // Derive expectations from the actual generated reef positions (brief 93 —
+    // no hardcoded coords). A point AT each reef's dock returns that reef.
+    for (const r of CORAL_REEFS) {
+      expect(nearestReef(r.dock.x, r.dock.y).id).toBe(r.id);
+    }
+    // Deterministic + stable across calls.
+    const a = nearestReef(VILLAGE.x, VILLAGE.y).id;
+    const b = nearestReef(VILLAGE.x, VILLAGE.y).id;
+    expect(a).toBe(b);
   });
 });

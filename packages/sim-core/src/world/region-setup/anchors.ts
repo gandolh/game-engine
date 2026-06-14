@@ -53,19 +53,13 @@ export function forcedCoreTiles(
     tiles.push({ x: bounds.maxX - 2, y: bounds.maxY - 1 });
   }
 
-  // Dock anchor tiles — functional boarding tiles that ports.ts (sidePort/
-  // northPort) and coral.ts (reefOffIsle) derive from this region's bounds.
-  // They MUST stay land or boats dock on ocean. Formulas mirror those modules
-  // exactly (pure bounds math — no circularity with the mask).
-  const midY = Math.floor((bounds.minY + bounds.maxY) / 2);
-  if (region.id === "fishing-isle") {
-    tiles.push({ x: bounds.minX, y: midY }); // port (W side)
-    tiles.push({ x: bounds.minX + 3, y: bounds.maxY }); // coral reef dock
-  } else if (region.id === "fishing-isle-2") {
-    tiles.push({ x: bounds.maxX, y: midY }); // port (E side)
-    tiles.push({ x: bounds.minX + 3, y: bounds.maxY }); // coral reef dock
-  } else if (region.id === "casino") {
-    tiles.push({ x: 110, y: bounds.minY }); // north port dock column
+  // Coral-reef dock anchor (brief 93): coral.ts hangs the reef off the south
+  // edge at x = min(maxX, minX+3). Pin that edge tile so the carve never removes
+  // the boarding tile. Port docks pick the island's most-open side at runtime
+  // (always a bounds-edge tile, kept land away from carved corners), so they do
+  // not need a pin here.
+  if (region.id === "fishing-isle" || region.id === "fishing-isle-2") {
+    tiles.push({ x: Math.min(bounds.maxX, bounds.minX + 3), y: bounds.maxY });
   }
 
   // Deduplicate (same tile may appear multiple times for small regions).

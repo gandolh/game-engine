@@ -264,8 +264,15 @@ function buildWorldFromPlacement(
   inventory: readonly InventoryRow[],
   specs: readonly RegionSpec[],
 ): GeneratedWorld {
-  // 1. BSP placement: rect bounds + center per region (brief 93).
+  // 1. BSP placement: rect bounds + center per region (brief 93). Reject a
+  //    placement that couldn't reach the coverage band (a degenerate BSP
+  //    partition with tiny leaves) so generateWorld's salt loop retries with a
+  //    different partition. The post-carve guard test allows >0.45, so gate the
+  //    raw rect coverage a touch above that.
   const placement = placeIslands(seed, specs);
+  if (placement.coverage < 0.5) {
+    throw new Error(`buildWorldFromPlacement: coverage ${(placement.coverage * 100).toFixed(1)}% below band`);
+  }
   const islandById = new Map<RegionId, (typeof placement.islands)[number]>(
     placement.islands.map((i) => [i.id, i]),
   );

@@ -1,14 +1,27 @@
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { JsPathfinder } from "./js-pathfinder";
 import { buildBoatGrid, CORAL_REEFS } from "./coral";
 import { buildWalkableGrid } from "./walkable-grid";
-import { WORLD_WIDTH } from "./regions";
+import { WORLD_WIDTH, setActiveWorld, generateWorld, WORLD_GEN_SEED, type GeneratedWorld } from "./regions";
 import { PORTS, portLaneTiles, isPortDockTile, nearestPort, portAtDockTile } from "./ports";
 
 describe("port network geometry", () => {
-  const land = buildWalkableGrid();
-  const boat = buildBoatGrid();
+  // Pin the default world at TEST time (not collection time) so this suite is
+  // independent of run order — another file may install a runtime world via
+  // setActiveWorld/bootstrapSim, and grids must be built against the same world
+  // the lazy port/lane derivations see.
+  // beforeEach (not beforeAll): vitest runs sim-core with isolate:false, so the
+  // shared world singleton can be swapped by another file BETWEEN this suite's
+  // tests. Re-pin + rebuild grids before EVERY test so each is self-consistent.
+  let land: ReturnType<typeof buildWalkableGrid>;
+  let boat: ReturnType<typeof buildBoatGrid>;
+  beforeEach(() => {
+    const w: GeneratedWorld = generateWorld(WORLD_GEN_SEED);
+    setActiveWorld(w);
+    land = buildWalkableGrid();
+    boat = buildBoatGrid();
+  });
   const isOceanOnLand = (x: number, y: number) => land.cells[y * land.width + x] === 1;
   const isOpenOnBoat = (x: number, y: number) => boat.cells[y * boat.width + x] === 0;
 

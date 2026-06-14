@@ -280,8 +280,10 @@ export function placeIslands(seed: number, specs: readonly RegionSpec[]): Placem
       scale *= Math.min(2.0, Math.max(0.6, COVERAGE_TARGET / Math.max(0.01, r.coverage)));
       scale = Math.min(scale, 8);
     } else {
-      // Sizing failed — shrink and retry.
-      scale *= 0.9;
+      // Sizing failed for some leaf at this scale — back off only slightly and
+      // retry with a fresh partition/positions (different attempt fork), rather
+      // than collapsing scale (which would tank coverage).
+      scale = Math.max(1.2, scale * 0.95);
     }
   }
   if (best === null) {
