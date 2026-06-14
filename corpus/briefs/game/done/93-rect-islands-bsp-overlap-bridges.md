@@ -1,6 +1,6 @@
 # Game Task 93 — Rectangular islands, BSP placement, overlap-bridge graph + runtime seed
 
-**Status:** Plan (awaiting approval)
+**Status:** ✅ Done 2026-06-14 (commits 5d93543 A · 4972db8 B · 9861ae5+9bf4153 C · 4a55db5+5f5548d D · 20385ab run-sim). Folds in brief 92 (runtime-varying seed). Full repo green (sim-core 795, farm-valley 186, engine 142). Implementation notes in [world-generation.md](../../../wiki/world-generation.md) + log.md.
 **Supersedes:** the just-committed ring/scatter arc (commits 7099a40, 327bb25, 5444deb) and folds in/closes **brief 92** (runtime-varying seed). Replaces the radial ring model in [world-generation.md](../../../wiki/world-generation.md).
 **Research:** web-search agent, 2026-06-14 (sources in the wiki update on completion). Recommended pipeline: **BSP placement + side-overlap-filtered complete graph + MST + δ extra-edges**, all integer-only.
 

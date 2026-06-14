@@ -14,71 +14,94 @@ bordering ocean, `computeBridges` decks road-only tiles touching ocean,
 `computeIslandEdges` themes margins. **So any walkable shape automatically gets
 foam + shore + bridge decking for free.**
 
-As of **2026-06-09** the layout is **RADIAL** (was an 88×80 core + southern grid
-band): a central cluster of services, two concentric farm rings on the rim. The
-map was **160×160** then **grown to 240×240 on 2026-06-12** (uniform position-only
-scale, SCALE=1.5, center 80→120) to open room for the land-adding todos. Two halves:
+As of **2026-06-14 (briefs 92 + 93)** the layout is **FULLY GENERATED PER SEED**:
+every island is a rectangle the generator places on a 240×240 map, connected by a
+straight-bridge graph. The radial-ring model (2026-06-09) and the hand-authored
+`scaleB`/ring-slot machinery are **retired**. `generateWorld(seed)` is the single
+funnel; bootstrap installs the result via `setActiveWorld`.
 
-- **Central cluster (hand-authored at 160-scale, scaled out):** the `bounds`
-  consts are authored against the original 160 layout and run through
-  `scaleB({…})` — center moves ×SCALE from the design origin (80,80), island
-  **size is preserved** (so inter-island gaps open ×1.5 while islands stay the same
-  size). Village hub at **dead-center (now 115–126 × 115–126, center 120,120)**,
-  craft islands E/W, resource zones on the diagonals, seasonal zones north, shrine
-  + waterfall north-center, fishing isles + harbor + camp south, heritage islets in
-  the gaps. One hand-tuned exception: **shrine** authored +2x — position-only
-  scaling erased its thin x-overlap with the village and broke the village↔shrine
-  bridge.
-- **On-island content is island-locked, not map-locked:** because islands keep
-  their size, content authored to fill a 160-era island (décor, NPC stations,
-  building footprints, dock/delivery tiles) would spread *off* the same-size scaled
-  island if scaled about the map origin. `scaleAroundNearestIsland({…})`
-  (regions.ts) instead translates each tile by its nearest island's center
-  displacement, so it rides with the island. Used by `placeProps`/`placeFootprint`
-  (placement.ts), `scaleStations` (setup.ts), tiles.ts anchors, and the
-  render-overlay anchor tiles. Coral reefs (coral.ts) derive from live fishing-isle
-  bounds; tavern/festival tiles (watering/shared.ts) from the live village center.
-- **Radial farm rings:** all 21 farms (5 named + `EXTRA_FARM_COUNT`=16 procedural)
-  ring the cluster near the edges. Scales the roster to **21 farmers (20 AI +
-  Pip)** with the homesteads-on-the-frontier read.
+### The generation pipeline (deterministic, integer-only)
 
-### Radial rings + spoke bridges (implemented)
+Web-search-researched (2026-06-14); recommended pipeline **BSP placement →
+side-overlap-filtered graph → MST + δ-loops**. Sources in log.md.
 
-In [regions.ts](../../packages/sim-core/src/world/regions.ts):
+- **Placement — [island-placement.ts](../../packages/sim-core/src/world/island-placement.ts).**
+  BSP-split the map into one leaf cell per region (largest leaf split on its long
+  axis at a seeded central-third cut), assign largest footprints to largest leaves,
+  size each island inside its leaf, and place it at a seeded interior offset ≥`GAP`
+  (=2) from each leaf wall — so the ≥2-tile inter-island ocean gap holds **by
+  construction**. **Farms keep a FIXED area with a seed-chosen aspect** (varied
+  W/H, same area); other regions take a target area the coverage loop scales to
+  hit the **~60% land band** (`COVERAGE_MIN/MAX` 0.55–0.65). `generateWorld`
+  rejects a <50% placement so its salt loop retries a different partition.
+- **Region inventory — [region-inventory.ts](../../packages/sim-core/src/world/region-inventory.ts).**
+  The canonical list of all ~73 regions (village + ~25 fixed services/landmarks +
+  21 farms + 21 ranches), each with a sizing `RegionSpec` and an **authored
+  design-space center** (the old 160-era frame). The authored center → generated
+  center displacement is how on-island content rides with its island (below).
+- **Bridge graph — [bridge-graph.ts](../../packages/sim-core/src/world/bridge-graph.ts).**
+  Straight, axis-aligned **2-wide** bridges connect two islands ONLY where their
+  facing sides share an orthogonal overlap, at the overlap midpoint. Build the
+  side-overlap-filtered complete graph (O(n²)), take a Kruskal **MST** (weight =
+  ocean gap) for guaranteed connectivity, then add non-tree edges with seeded
+  probability **`BRIDGE_LOOP_DELTA`=0.18** to create **loops**. Drops any bridge
+  that crosses a third island or another bridge. If the layout can't connect with
+  straight bridges, `buildBridgeGraph` returns null and the seed-salt loop retries
+  (no L-bend fallback — BSP siblings reliably overlap, so this is rare).
+- **Light edge-carve (regions.ts `carveCorners`).** Islands are **rects with a few
+  notched corners** (seeded depth ≤3 wedges) so they don't read as perfect squares
+  — NOT organic CA blobs (the brief-91 organic mask is retired). Carve never
+  removes a forced-core or bridge-attach tile.
+- **Content riders.** On-island content (décor, NPC stations, footprints, dock
+  tiles) is authored in design space and translated to the generated position by
+  its owning island's displacement: `scaleAroundNearestIsland` (regions.ts) now
+  reads the per-world `displacement` map. Fixes applied for generated geometry:
+  **stations snap into their region's land** (`scaleStations`), **footprints
+  translate rigidly** (one displacement, no per-tile ballooning), and a
+  **reserved-tile set** (`forcedCoreTiles` ∪ bridge halo, in setup.ts) keeps props
+  from dropping a solid on a plot/station/dock/bridge tile.
 
-- `RegionId = FixedRegionId | ExtraFarmRegionId` where `ExtraFarmRegionId =
-  \`farm-${number}\`` (`farm-0`..`farm-15`). Named farms (`farm-cora`…) keep their
-  ids and ARE the inner ring's even slots.
-- `ringSlotBounds(ring, k, size)` places farm k of a ring of n at
-  `angle = φ + 2π·k/n`, `center = round(120 + R·{cos,sin}angle)`, then derives the
-  `size`-square bounds (12 named / 10 procedural). **Inner ring** n=9, **R=78**,
-  φ=−90° (named on even slots, farm-0..3 on odd); **outer ring** n=12, **R=108**,
-  φ=−75° (farm-4..15). Radii are the original 52/72 ×SCALE. `makeRadialFarmRegion(i)` does the index→slot mapping, then
-  nudges each by a fixed-seed ±1 jitter (fork `farm-ring-jitter` off `WORLD_GEN_SEED`).
-- **No-adjacency by construction:** min farm-farm ocean gap **7** (≥2 holds after
-  jitter), min cluster-to-farm gap **3**. `WORLD_WIDTH = WORLD_HEIGHT = 160` (plain
-  consts now — the old band-height derivation + `EXTRA_FARM_COLS/SIZE/GAP/PITCH` are
-  gone).
-- **Bridge tree:** `CLUSTER_BRIDGES` (≈20 hand-authored pairs) + `generateFarmSpokes()`
-  (one spoke per farm to the nearest island that yields a clean straight bridge —
-  inner farms target cluster islands, outer farms target inner-farms∪cluster).
-  `straightBridge(a,b)` scans every 2-wide window along the islands' overlap and
-  returns the first rect that overlaps no island and edge-touches only its two
-  endpoints, so a spoke auto-dodges a third island (e.g. well-north sitting between
-  quarry-north and heritage-ruin). 41 bridges, full BFS connectivity from village.
-- Farmer→farm assignment is **by `homeRegion` carried on each `FarmerSpec`**
-  (set in `makeExtraFarmerSpecs`, [sim-bootstrap.ts](../../packages/sim-core/src/sim-bootstrap.ts)),
-  replacing the old `PERSONALITY_TO_REGION` map. Extra farmers cycle the four AI
-  archetypes (named `Cora-0`, `Atticus-1`, …).
-- Resource-zone routing/ownership uses `nearestResourceZone(farmCenter, kind)`
-  (replaces the hardcoded N/S corner pairs in `tile-features.ts` + `gather.ts`),
-  so the far-south band correctly routes to the south forest/quarry.
+### Runtime-varying seed (brief 92) + the active-world singleton
 
-Guard tests: `walkable-grid.test.ts` recomputes the expected walkable count from
-`REGIONS + ROADS` (no more magic `2065`) and asserts a **no-adjacency invariant**
-over every region pair; `regions.test.ts` asserts the band's count + per-farm
-centers + `nearestResourceZone` routing. Determinism: generation is pure (no
-RNG); `CHECK_DETERMINISM` MATCH ×21-farmers at both 20 and 1200 ticks/day.
+- `generateWorld(seed)` is pure. **`setActiveWorld(world)`** installs it for the
+  process (sim-core runs one world per process); `REGIONS`/`ROADS`/anchor-tile
+  exports are **`let` live bindings** refreshed on swap, and `onWorldSwap`
+  listeners rebuild downstream caches. `bootstrapSim({worldSeed})` threads the
+  seed (defaults to fixed `WORLD_GEN_SEED` → stable default map); run-sim honors a
+  **`WORLD_SEED`** env var. `world-dims.ts` holds `WORLD_WIDTH/HEIGHT` so
+  placement/bridge modules don't import regions.ts (breaks the init cycle).
+- **Live-binding hazard (fixed):** any consumer that snapshotted an anchor-tile
+  const into its own module-load `const` froze it to the default world. Found +
+  fixed in `watering/shared.ts` (now `tavernGatherTile()`/`festivalPodiumTile()`/
+  `fishingCastTiles()` functions). When adding code that reads an anchor tile,
+  read it at call time, never capture at import.
+
+### Boat / port network (open-ocean, brief 93)
+
+Boats navigate **all open water and pass UNDER bridges** (a bridge is an elevated
+deck) — only island land blocks them (`buildBoatGrid` in coral.ts). This keeps
+the ocean one connected basin so port-to-port + dock→reef trips always route,
+regardless of how bridges partition the *land* graph. Ports
+([ports.ts](../../packages/sim-core/src/world/ports.ts)) and coral reefs
+([coral.ts](../../packages/sim-core/src/world/coral.ts)) derive **lazily** from
+the generated isle positions (rebuilt on world swap): a port's dock scans the
+island's most-open-ocean side for a land tile whose seaward neighbour is open
+ocean. The pre-carved shipping-lane network is retired (lanes are a short seaward
+render/steer stub only).
+
+### Guard + property tests
+
+`island-placement.test.ts` + `bridge-graph.test.ts` (Phase A/B properties);
+`generate-world.property.test.ts` is the **multi-seed accept-check** (30 seeds:
+never throws, ≥2 gap, BFS-connected from village, forced cores on land, in-bounds,
+full roster, coverage band); `regions.test.ts`/`walkable-grid`/`connectivity`/
+`solid-connectivity`/`ranch-islands`/`ports`/`coral` rewritten for the generated
+model. Determinism verified by fast 3-day/ticks=20 JSON export diff: **same
+`WORLD_SEED` → byte-identical; different/unset → different world**.
+
+> **Note (sim-core vitest `isolate:false`):** the world singleton is shared
+> across test files in a worker. Files asserting default-world geometry pin it in
+> `beforeEach` (e.g. ports.test). Watch for cross-file world-state leaks.
 
 ### Themed interior décor (render-only, 2026-06-12)
 
@@ -150,10 +173,14 @@ Ranked techniques (all must thread `rng.fork(label)` — never `Math.random`):
 next) — jittered placement, MST bridges, multi-seed property tests, biome/décor.
 Phase 2 (future) — Model B organic shapes via CA + center-floodfill.
 
-> **Status update (2026-06-14):** Phases 0 + 2-shapes **shipped**.
-> - [brief 90](../briefs/game/done/90-modelb-generate-world-and-mask-plumbing.md): `generateWorld(seed): GeneratedWorld` pure factory + `RegionDef.mask` plumbing (`regionMaskAt`/`forEachLandTile`/mask-aware `regionAt`), all-1 masks.
-> - [brief 91](../briefs/game/done/91-modelb-ca-shapes-and-mask-derived-anchors.md): masks are now **organic** on the default seed. `world/organic-mask.ts` = two-rule CA (born≥5/survive≥3, P=0.60, 2 passes) + array-queue floodfill from a pinned core; 100% of regions area≥36 go organic, fallbackCount=0. `world/region-setup/anchors.ts` `forcedCoreTiles` is the shared must-be-land set (mask-pinner ⊕ entity-spawner). Bridges stay on bounds rects but their attachment tiles + an L-path-to-center corridor are pinned into the core so reachability holds. Fixed tiles derived via `nearestLandTile`/`snapPropToLand`. **Pinned seed only.**
-> - Next: [brief 92](../briefs/game/todo/92-modelb-runtime-varying-seed.md) — flip the seed to runtime-varying + multi-seed property tests.
+> **Status update (2026-06-14) — the research menu below is HISTORICAL.** The
+> "Model A vs B / organic-shape" framing was **superseded** by the brief-92/93
+> decision to make islands **rectangles (lightly carved)** placed by BSP per seed
+> (see the pipeline section at the top — that is now authoritative). The
+> brief-90/91 plumbing was reused; the brief-91 **organic CA mask was retired**.
+> - [brief 90](../briefs/game/done/90-modelb-generate-world-and-mask-plumbing.md): `generateWorld(seed): GeneratedWorld` pure factory + `RegionDef.mask` plumbing (`regionMaskAt`/`forEachLandTile`/mask-aware `regionAt`). **Kept** (the mask now carries the light corner-carve).
+> - [brief 91](../briefs/game/done/91-modelb-ca-shapes-and-mask-derived-anchors.md): organic CA masks. **Retired by brief 93** — `organic-mask.ts` no longer feeds generation (rect + `carveCorners` instead). `forcedCoreTiles` (anchors.ts) survives as the shared must-be-land set.
+> - [brief 92](../briefs/game/done/92-modelb-runtime-varying-seed.md) + [brief 93](../briefs/game/done/93-rect-islands-bsp-overlap-bridges.md): **DONE** — BSP rect placement, overlap bridge graph with loops, runtime-varying `WORLD_SEED`, open-ocean boats, multi-seed property tests. Model B is **implemented**.
 
 The actionable cut of this menu is filed as
 [brief 49 — organic procgen](../briefs/game/done/49-organic-procgen-noise-and-authored-detail.md):
