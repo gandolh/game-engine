@@ -3,7 +3,7 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity, TileFeatureKind } from "../components";
 import { ONT_SIMULATION } from "../protocols";
-import { REGIONS } from "../world/regions";
+import { REGIONS, forEachLandTile } from "../world/regions";
 
 const FARM_TREE_CHANCE  = 0.02;
 const FARM_STONE_CHANCE = 0.015;
@@ -114,12 +114,14 @@ export class TileFeatureSystem implements System {
 
       const occupied = occupiedByRegion.get(rid) ?? new Set<string>();
 
+      // Organic mask: only land tiles are plantable (brief 91b). This shrinks the
+      // candidate list vs the old full-bounds scan, which changes how many
+      // cluster.nextFloat() draws fire below — an intentional sim-output shift.
+      // forEachLandTile preserves the y-outer/x-inner scan order.
       const candidates: Array<{ x: number; y: number }> = [];
-      for (let ty = def.bounds.minY; ty <= def.bounds.maxY; ty++) {
-        for (let tx = def.bounds.minX; tx <= def.bounds.maxX; tx++) {
-          if (!occupied.has(`${tx},${ty}`)) candidates.push({ x: tx, y: ty });
-        }
-      }
+      forEachLandTile(def, (tx, ty) => {
+        if (!occupied.has(`${tx},${ty}`)) candidates.push({ x: tx, y: ty });
+      });
       if (candidates.length === 0) continue;
 
       const slots: Array<TileFeatureKind> = [];
