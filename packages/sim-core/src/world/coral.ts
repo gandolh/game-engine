@@ -1,23 +1,35 @@
-
-
 import type { PathfinderGrid } from "@engine/core";
-import { WORLD_WIDTH, WORLD_HEIGHT, getRegion } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, getRegion, onWorldSwap } from "./regions";
 import { openPortLanes } from "./ports";
 
 export interface CoralReef {
-
   id: "reef-mill" | "reef-forest";
-
   dock: { x: number; y: number };
-
   reef: { x: number; y: number };
-
   lane: ReadonlyArray<{ x: number; y: number }>;
 }
 
+/**
+ * Coral reefs sit off the GENERATED fishing-isle positions (brief 93), so they
+ * are derived lazily and rebuilt when setActiveWorld swaps the world (via
+ * invalidateCoralCache). The reef hangs off the isle's south edge.
+ */
+let _reefs: readonly CoralReef[] | undefined;
+let _reefTiles: ReadonlySet<string> | undefined;
+let _dockTiles: ReadonlySet<string> | undefined;
+
+export function invalidateCoralCache(): void {
+  _reefs = undefined;
+  _reefTiles = undefined;
+  _dockTiles = undefined;
+}
+
+// Rebuild reefs from the new isle positions whenever the world is swapped.
+onWorldSwap(invalidateCoralCache);
+
 function reefOffIsle(id: CoralReef["id"], isleId: "fishing-isle" | "fishing-isle-2"): CoralReef {
   const b = getRegion(isleId).bounds;
-  const x = b.minX + 3;
+  const x = Math.min(b.maxX, b.minX + 3);
   const dockY = b.maxY;
   return {
     id,
@@ -30,31 +42,46 @@ function reefOffIsle(id: CoralReef["id"], isleId: "fishing-isle" | "fishing-isle
   };
 }
 
-export const CORAL_REEFS: readonly CoralReef[] = [
-  reefOffIsle("reef-mill", "fishing-isle"),
-  reefOffIsle("reef-forest", "fishing-isle-2"),
-];
+export function coralReefs(): readonly CoralReef[] {
+  if (!_reefs) {
+    _reefs = [
+      reefOffIsle("reef-mill", "fishing-isle"),
+      reefOffIsle("reef-forest", "fishing-isle-2"),
+    ];
+  }
+  return _reefs;
+}
 
-export const CORAL_REEF_TILES: ReadonlySet<string> = new Set(
-  CORAL_REEFS.map((r) => `${r.reef.x},${r.reef.y}`),
-);
+/** @deprecated prefer coralReefs() — live-binding getter for legacy importers. */
+export const CORAL_REEFS: readonly CoralReef[] = new Proxy([] as CoralReef[], {
+  get(_t, prop) {
+    return Reflect.get(coralReefs() as CoralReef[], prop);
+  },
+}) as readonly CoralReef[];
 
-export const CORAL_DOCK_TILES: ReadonlySet<string> = new Set(
-  CORAL_REEFS.map((r) => `${r.dock.x},${r.dock.y}`),
-);
+function reefTiles(): ReadonlySet<string> {
+  if (!_reefTiles) _reefTiles = new Set(coralReefs().map((r) => `${r.reef.x},${r.reef.y}`));
+  return _reefTiles;
+}
+
+function dockTiles(): ReadonlySet<string> {
+  if (!_dockTiles) _dockTiles = new Set(coralReefs().map((r) => `${r.dock.x},${r.dock.y}`));
+  return _dockTiles;
+}
 
 export function isCoralReefTile(x: number, y: number): boolean {
-  return CORAL_REEF_TILES.has(`${Math.round(x)},${Math.round(y)}`);
+  return reefTiles().has(`${Math.round(x)},${Math.round(y)}`);
 }
 
 export function isDockTile(x: number, y: number): boolean {
-  return CORAL_DOCK_TILES.has(`${Math.round(x)},${Math.round(y)}`);
+  return dockTiles().has(`${Math.round(x)},${Math.round(y)}`);
 }
 
 export function nearestReef(x: number, y: number): CoralReef {
-  let best = CORAL_REEFS[0]!;
+  const rs = coralReefs();
+  let best = rs[0]!;
   let bestD = Infinity;
-  for (const r of CORAL_REEFS) {
+  for (const r of rs) {
     const d = Math.abs(r.dock.x - x) + Math.abs(r.dock.y - y);
     if (d < bestD || (d === bestD && r.id < best.id)) {
       best = r;
@@ -70,7 +97,7 @@ export function buildBoatGrid(): PathfinderGrid {
   const open = (x: number, y: number) => {
     cells[y * WORLD_WIDTH + x] = 0;
   };
-  for (const r of CORAL_REEFS) {
+  for (const r of coralReefs()) {
     open(r.dock.x, r.dock.y);
     for (const l of r.lane) open(l.x, l.y);
     open(r.reef.x, r.reef.y);

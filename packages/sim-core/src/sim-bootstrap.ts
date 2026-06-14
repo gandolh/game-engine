@@ -17,7 +17,7 @@ export interface PathfinderLike {
 }
 import type { GameEntity } from "./components";
 import { setupFarmer, setupWorldRegions, type FarmerSpec } from "./world-setup";
-import { EXTRA_FARM_COUNT, type RegionId } from "./world/regions";
+import { EXTRA_FARM_COUNT, setActiveWorld, generateWorld, WORLD_GEN_SEED, type RegionId } from "./world/regions";
 import { buildWalkableGrid } from "./world/walkable-grid";
 import { buildBoatGrid } from "./world/coral";
 import { DayClockSystem } from "./systems/day-clock";
@@ -149,6 +149,14 @@ export interface SimBootstrapOptions {
   pathfinder?: PathfinderLike | Pathfinder | null;
 
   shock?: false | { shockDay?: number; kind?: "blight" };
+
+  /**
+   * World-generation seed (brief 92/93). The map layout is generated from this
+   * seed; pass a per-run value for a fresh archipelago each run. Defaults to the
+   * fixed WORLD_GEN_SEED so existing callers/tests get the stable default map.
+   * Persist this with run results so a replay regenerates the same world.
+   */
+  worldSeed?: number;
 }
 
 const DEFAULT_MAX_DAYS = 100;
@@ -168,6 +176,10 @@ export interface BootedSim {
 }
 
 export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
+  // Install the world for this run BEFORE any region/road/anchor read (brief
+  // 92/93). Defaults to the fixed WORLD_GEN_SEED for stable existing behaviour.
+  setActiveWorld(generateWorld(opts.worldSeed ?? WORLD_GEN_SEED));
+
   const rng = createRng(opts.seed);
   const world = new World<GameEntity>();
   const bus = new MessageBus();

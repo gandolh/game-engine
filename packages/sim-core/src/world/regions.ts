@@ -1,6 +1,9 @@
-import { createRng } from '@engine/core';
+import { createRng, type Rng } from '@engine/core';
+import { WORLD_WIDTH, WORLD_HEIGHT } from './world-dims';
 import { forcedCoreTiles } from './region-setup/anchors';
-import { buildOrganicMaskAttempt, MAX_ATTEMPTS } from './organic-mask';
+import { placeIslands, type RegionSpec } from './island-placement';
+import { buildBridgeGraph } from './bridge-graph';
+import { buildInventory, type InventoryRow } from './region-inventory';
 
 export type FixedRegionId =
   | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
@@ -51,157 +54,12 @@ export interface RegionDef {
   mask?: Uint8Array;
 }
 
-export const WORLD_WIDTH = 240;
-export const WORLD_HEIGHT = 240;
-
-const MAP_CX = 120;
-const MAP_CY = 120;
-
-const DESIGN_CX = 80;
-const DESIGN_CY = 80;
-const SCALE = 1.5; 
-
-/**
- * Per-axis inflation (in world tiles, added to EACH side) applied to a scaled
- * landmark/village bounds to push total land toward the ~60% archipelago target
- * (repack stage 2). Inflation is symmetric about the rect center so all
- * bounds-relative anchors (forcedCoreTiles, dock derivations) stay valid, and
- * clamped to the world edges. Cluster regions sit in tight design-space packs,
- * so this is deliberately modest (the gen-loop adjacency guard + ≥2-gap checks
- * keep channels open); the bulk of the land gain comes from the larger, sparser
- * farm/ranch growth (FARM_*_SIZE / RANCH_SIZE below) plus higher mask fill.
- */
-const LANDMARK_GROW = 0;
-
-/** Inflates a bounds rect by `grow` on every side, clamped to the world. */
-function growBounds(
-  b: { minX: number; minY: number; maxX: number; maxY: number },
-  grow: number,
-): { minX: number; minY: number; maxX: number; maxY: number } {
-  return {
-    minX: Math.max(0, b.minX - grow),
-    minY: Math.max(0, b.minY - grow),
-    maxX: Math.min(WORLD_WIDTH - 1, b.maxX + grow),
-    maxY: Math.min(WORLD_HEIGHT - 1, b.maxY + grow),
-  };
-}
-
-export function scaleB(b: { minX: number; minY: number; maxX: number; maxY: number }): {
-  minX: number; minY: number; maxX: number; maxY: number;
-} {
-  const w = b.maxX - b.minX + 1;
-  const h = b.maxY - b.minY + 1;
-  const cx = (b.minX + b.maxX) / 2;
-  const cy = (b.minY + b.maxY) / 2;
-  const ncx = MAP_CX + (cx - DESIGN_CX) * SCALE;
-  const ncy = MAP_CY + (cy - DESIGN_CY) * SCALE;
-  const minX = Math.round(ncx - w / 2);
-  const minY = Math.round(ncy - h / 2);
-  return growBounds({ minX, minY, maxX: minX + w - 1, maxY: minY + h - 1 }, LANDMARK_GROW);
-}
-
-export function scaleT(t: { x: number; y: number }): { x: number; y: number } {
-  return {
-    x: Math.round(MAP_CX + (t.x - DESIGN_CX) * SCALE),
-    y: Math.round(MAP_CY + (t.y - DESIGN_CY) * SCALE),
-  };
-}
+export { WORLD_WIDTH, WORLD_HEIGHT };
 
 export const WORLD_GEN_SEED = 0x5eed_face;
 
-const VILLAGE_BOUNDS        = scaleB({ minX: 75, minY: 75, maxX: 86, maxY: 86 }); 
-const CARPENTRY_BOUNDS      = scaleB({ minX: 59, minY: 76, maxX: 68, maxY: 85 }); 
-const BLACKSMITH_BOUNDS     = scaleB({ minX: 93, minY: 76, maxX: 102, maxY: 85 }); 
-const MILL_BOUNDS           = scaleB({ minX: 76, minY: 93, maxX: 85, maxY: 100 }); 
-
-const FOREST_NORTH_BOUNDS   = scaleB({ minX: 61, minY: 61, maxX: 68, maxY: 68 }); 
-const QUARRY_NORTH_BOUNDS   = scaleB({ minX: 93, minY: 61, maxX: 100, maxY: 68 }); 
-const FOREST_SOUTH_BOUNDS   = scaleB({ minX: 61, minY: 93, maxX: 68, maxY: 100 }); 
-const QUARRY_SOUTH_BOUNDS   = scaleB({ minX: 93, minY: 93, maxX: 100, maxY: 100 }); 
-
-const MUSHROOM_GROVE_BOUNDS = scaleB({ minX: 57, minY: 45, maxX: 68, maxY: 56 }); 
-const ICE_POND_BOUNDS       = scaleB({ minX: 93, minY: 45, maxX: 104, maxY: 56 }); 
-
-const WELL_NORTH_BOUNDS     = scaleB({ minX: 103, minY: 62, maxX: 104, maxY: 63 }); 
-const WELL_SOUTH_BOUNDS     = scaleB({ minX: 103, minY: 94, maxX: 104, maxY: 95 }); 
-
-const SHRINE_BOUNDS         = scaleB({ minX: 73, minY: 58, maxX: 79, maxY: 64 }); 
-const WATERFALL_BOUNDS      = scaleB({ minX: 80, minY: 58, maxX: 87, maxY: 65 }); 
-
-const HERITAGE_STONES_BOUNDS  = scaleB({ minX: 43, minY: 61, maxX: 54, maxY: 72 }); 
-const HERITAGE_RUIN_BOUNDS    = scaleB({ minX: 107, minY: 61, maxX: 118, maxY: 72 }); 
-const HERITAGE_STATUE_BOUNDS  = scaleB({ minX: 43, minY: 91, maxX: 54, maxY: 102 }); 
-
-const FISHING_ISLE_BOUNDS   = scaleB({ minX: 75, minY: 105, maxX: 82, maxY: 112 }); 
-const FISHING_ISLE_2_BOUNDS = scaleB({ minX: 59, minY: 105, maxX: 66, maxY: 112 }); 
-const HARBOR_BOUNDS         = scaleB({ minX: 93, minY: 105, maxX: 100, maxY: 112 }); 
-const CAMP_BOUNDS           = scaleB({ minX: 108, minY: 104, maxX: 117, maxY: 113 }); 
-
-const WEATHER_STATION_BOUNDS = scaleB({ minX: 108, minY: 119, maxX: 116, maxY: 127 }); 
-
-const VOLCANO_BOUNDS = scaleB({ minX: 74, minY: 7, maxX: 85, maxY: 18 });    
-const CASINO_BOUNDS  = scaleB({ minX: 72, minY: 114, maxX: 83, maxY: 125 }); 
-
-const BIG_TREE_BOUNDS = { minX: 127, minY: 7, maxX: 136, maxY: 16 }; 
-
-const RING_BOUNDS = { minX: 121, minY: 101, maxX: 132, maxY: 112 }; 
-
-export const EXTRA_FARM_COUNT: number = 16; 
-const FARM_NAMED_SIZE = 12;
-const FARM_PROC_SIZE = 10;
-
-const INNER_RING = { n: 9, r: 52 * SCALE, phi: -Math.PI / 2 };
-const OUTER_RING = { n: 12, r: 72 * SCALE, phi: (-90 + 15) * (Math.PI / 180) };
-
-const EXTRA_FARM_JITTER = 1;
-
-function ringSlotBounds(
-  ring: { n: number; r: number; phi: number },
-  k: number,
-  size: number,
-): { minX: number; minY: number; maxX: number; maxY: number } {
-  const angle = ring.phi + (Math.PI * 2 * k) / ring.n;
-  const fcx = Math.round(MAP_CX + ring.r * Math.cos(angle));
-  const fcy = Math.round(MAP_CY + ring.r * Math.sin(angle));
-  const minX = Math.round(fcx - size / 2);
-  const minY = Math.round(fcy - size / 2);
-  return { minX, minY, maxX: minX + size - 1, maxY: minY + size - 1 };
-}
-
-const NAMED_FARM_SLOT: Record<string, number> = {
-  'farm-pip': 0,
-  'farm-atticus': 2,
-  'farm-hannah': 4,
-  'farm-otto': 6,
-  'farm-cora': 8,
-};
-function namedFarmBounds(id: keyof typeof NAMED_FARM_SLOT) {
-  return ringSlotBounds(INNER_RING, NAMED_FARM_SLOT[id]!, FARM_NAMED_SIZE);
-}
-
-const FARM_PIP_BOUNDS     = namedFarmBounds('farm-pip');
-const FARM_ATTICUS_BOUNDS = namedFarmBounds('farm-atticus');
-const FARM_HANNAH_BOUNDS  = namedFarmBounds('farm-hannah');
-const FARM_OTTO_BOUNDS    = namedFarmBounds('farm-otto');
-const FARM_CORA_BOUNDS    = namedFarmBounds('farm-cora');
-
-function makeRadialFarmRegion(i: number, jitter: readonly { dx: number; dy: number }[]): RegionDef {
-  const INNER_PROC_SLOTS = [1, 3, 5, 7];
-  let base: { minX: number; minY: number; maxX: number; maxY: number };
-  if (i < INNER_PROC_SLOTS.length) {
-    base = ringSlotBounds(INNER_RING, INNER_PROC_SLOTS[i]!, FARM_PROC_SIZE);
-  } else {
-    base = ringSlotBounds(OUTER_RING, i - INNER_PROC_SLOTS.length, FARM_PROC_SIZE);
-  }
-  const j = jitter[i]!;
-  const bounds = {
-    minX: base.minX + j.dx,
-    minY: base.minY + j.dy,
-    maxX: base.maxX + j.dx,
-    maxY: base.maxY + j.dy,
-  };
-  return { id: `farm-${i}` as RegionId, kind: 'farm', bounds, center: midpoint(bounds) };
-}
+/** Re-exported from the region inventory (number of procedural extra farms). */
+export { EXTRA_FARM_COUNT } from './region-inventory';
 
 export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
 
@@ -227,685 +85,23 @@ export function isFishingIsle(region: RegionId | null): boolean {
   return region === 'fishing-isle' || region === 'fishing-isle-2';
 }
 
-function midpoint(bounds: { minX: number; minY: number; maxX: number; maxY: number }): { x: number; y: number } {
-  return {
-    x: Math.floor((bounds.minX + bounds.maxX) / 2),
-    y: Math.floor((bounds.minY + bounds.maxY) / 2),
-  };
-}
-
-function buildBaseRegions(extraFarmRegions: readonly RegionDef[]): readonly RegionDef[] {
-  return [
-  { id: 'village',        kind: 'village', bounds: VILLAGE_BOUNDS,         center: midpoint(VILLAGE_BOUNDS) },
-  { id: 'farm-cora',      kind: 'farm',    bounds: FARM_CORA_BOUNDS,       center: midpoint(FARM_CORA_BOUNDS) },
-  { id: 'farm-atticus',   kind: 'farm',    bounds: FARM_ATTICUS_BOUNDS,    center: midpoint(FARM_ATTICUS_BOUNDS) },
-  { id: 'farm-hannah',    kind: 'farm',    bounds: FARM_HANNAH_BOUNDS,     center: midpoint(FARM_HANNAH_BOUNDS) },
-  { id: 'farm-otto',      kind: 'farm',    bounds: FARM_OTTO_BOUNDS,       center: midpoint(FARM_OTTO_BOUNDS) },
-  { id: 'farm-pip',       kind: 'farm',    bounds: FARM_PIP_BOUNDS,        center: midpoint(FARM_PIP_BOUNDS) },
-  { id: 'blacksmith',     kind: 'village', bounds: BLACKSMITH_BOUNDS,      center: midpoint(BLACKSMITH_BOUNDS) },
-  { id: 'carpentry',      kind: 'village', bounds: CARPENTRY_BOUNDS,       center: midpoint(CARPENTRY_BOUNDS) },
-  { id: 'forest-north',   kind: 'village', bounds: FOREST_NORTH_BOUNDS,    center: midpoint(FOREST_NORTH_BOUNDS) },
-  { id: 'quarry-north',   kind: 'village', bounds: QUARRY_NORTH_BOUNDS,    center: midpoint(QUARRY_NORTH_BOUNDS) },
-  { id: 'forest-south',   kind: 'village', bounds: FOREST_SOUTH_BOUNDS,    center: midpoint(FOREST_SOUTH_BOUNDS) },
-  { id: 'quarry-south',   kind: 'village', bounds: QUARRY_SOUTH_BOUNDS,    center: midpoint(QUARRY_SOUTH_BOUNDS) },
-  { id: 'mill',           kind: 'village', bounds: MILL_BOUNDS,            center: midpoint(MILL_BOUNDS) },
-  { id: 'well-north',     kind: 'village', bounds: WELL_NORTH_BOUNDS,      center: midpoint(WELL_NORTH_BOUNDS) },
-  { id: 'well-south',     kind: 'village', bounds: WELL_SOUTH_BOUNDS,      center: midpoint(WELL_SOUTH_BOUNDS) },
-  { id: 'mushroom-grove', kind: 'village', bounds: MUSHROOM_GROVE_BOUNDS,  center: midpoint(MUSHROOM_GROVE_BOUNDS) },
-  { id: 'ice-pond',       kind: 'village', bounds: ICE_POND_BOUNDS,        center: midpoint(ICE_POND_BOUNDS) },
-  { id: 'fishing-isle',   kind: 'village', bounds: FISHING_ISLE_BOUNDS,    center: midpoint(FISHING_ISLE_BOUNDS) },
-  { id: 'fishing-isle-2', kind: 'village', bounds: FISHING_ISLE_2_BOUNDS,  center: midpoint(FISHING_ISLE_2_BOUNDS) },
-  { id: 'harbor',         kind: 'village', bounds: HARBOR_BOUNDS,          center: midpoint(HARBOR_BOUNDS) },
-  { id: 'shrine',         kind: 'village', bounds: SHRINE_BOUNDS,          center: midpoint(SHRINE_BOUNDS) },
-  { id: 'heritage-stones', kind: 'village', bounds: HERITAGE_STONES_BOUNDS, center: midpoint(HERITAGE_STONES_BOUNDS) },
-  { id: 'heritage-ruin',   kind: 'village', bounds: HERITAGE_RUIN_BOUNDS,   center: midpoint(HERITAGE_RUIN_BOUNDS) },
-  { id: 'heritage-statue', kind: 'village', bounds: HERITAGE_STATUE_BOUNDS, center: midpoint(HERITAGE_STATUE_BOUNDS) },
-  { id: 'waterfall', kind: 'village', bounds: WATERFALL_BOUNDS, center: midpoint(WATERFALL_BOUNDS) },
-  { id: 'camp', kind: 'village', bounds: CAMP_BOUNDS, center: midpoint(CAMP_BOUNDS) },
-  { id: 'weather-station', kind: 'landmark', bounds: WEATHER_STATION_BOUNDS, center: midpoint(WEATHER_STATION_BOUNDS) },
-  { id: 'volcano', kind: 'landmark', bounds: VOLCANO_BOUNDS, center: midpoint(VOLCANO_BOUNDS) },
-  { id: 'casino',  kind: 'landmark', bounds: CASINO_BOUNDS,  center: midpoint(CASINO_BOUNDS) },
-  { id: 'big-tree', kind: 'landmark', bounds: BIG_TREE_BOUNDS, center: midpoint(BIG_TREE_BOUNDS) },
-  { id: 'ring', kind: 'landmark', bounds: RING_BOUNDS, center: midpoint(RING_BOUNDS), theme: 'boxing' },
-  ...extraFarmRegions,
-  ];
-}
-
 interface RoadDef {
   minX: number; minY: number; maxX: number; maxY: number;
 }
 
-function rectsOverlap(a: RoadDef, b: RoadDef): boolean {
-  return !(a.maxX < b.minX || b.maxX < a.minX || a.maxY < b.minY || b.maxY < a.minY);
-}
-
-function bridgeIsCleanAgainst(
-  rect: RoadDef,
-  aId: RegionId,
-  bId: RegionId,
-  regions: readonly RegionDef[],
-): boolean {
-  // No bridge/road may cover the south shipping channel (ports.ts owns those
-  // open-water lanes and module-throws if land/bridge covers them).
-  if (rectsOverlap(rect, SOUTH_CHANNEL_KEEPOUT)) return false;
-  for (const reg of regions) {
-    if (rectsOverlap(rect, reg.bounds)) return false;
-  }
-  const exp = { minX: rect.minX - 1, minY: rect.minY - 1, maxX: rect.maxX + 1, maxY: rect.maxY + 1 };
-  for (const reg of regions) {
-    if (reg.id === aId || reg.id === bId) continue;
-    if (rectsOverlap(exp, reg.bounds)) return false;
-  }
-  return true;
-}
-
-function straightBridgeBounds(
-  a: { minX: number; minY: number; maxX: number; maxY: number },
-  b: { minX: number; minY: number; maxX: number; maxY: number },
-  aId: RegionId,
-  bId: RegionId,
-  regions: readonly RegionDef[],
-): RoadDef | null {
-  const candidates: RoadDef[] = [];
-  const ox0 = Math.max(a.minX, b.minX);
-  const ox1 = Math.min(a.maxX, b.maxX);
-  for (let x0 = ox0; x0 + 1 <= ox1; x0++) {
-    if (a.maxY < b.minY) {
-      const r = { minX: x0, minY: a.maxY + 1, maxX: x0 + 1, maxY: b.minY - 1 };
-      if (r.minY <= r.maxY) candidates.push(r);
-    }
-    if (b.maxY < a.minY) {
-      const r = { minX: x0, minY: b.maxY + 1, maxX: x0 + 1, maxY: a.minY - 1 };
-      if (r.minY <= r.maxY) candidates.push(r);
-    }
-  }
-  const oy0 = Math.max(a.minY, b.minY);
-  const oy1 = Math.min(a.maxY, b.maxY);
-  for (let y0 = oy0; y0 + 1 <= oy1; y0++) {
-    if (a.maxX < b.minX) {
-      const r = { minX: a.maxX + 1, minY: y0, maxX: b.minX - 1, maxY: y0 + 1 };
-      if (r.minX <= r.maxX) candidates.push(r);
-    }
-    if (b.maxX < a.minX) {
-      const r = { minX: b.maxX + 1, minY: y0, maxX: a.minX - 1, maxY: y0 + 1 };
-      if (r.minX <= r.maxX) candidates.push(r);
-    }
-  }
-  for (const r of candidates) {
-    if (bridgeIsCleanAgainst(r, aId, bId, regions)) return r;
-  }
-  return null;
-}
-
-/**
- * Routes a road between two regions, returning one or more RoadDef rects (the
- * deck-inference in render-systems/geometry.ts stitches multiple rects into one
- * visible bridge). Tries a STRAIGHT 2-wide bridge first (the only kind today's
- * axis-aligned layout needs — so output is byte-identical until islands scatter).
- * If no straight bridge is clean (regions not axis-overlapping, e.g. after the
- * scatter rewrite), falls back to an L-shaped route: two 2-wide legs meeting at a
- * 2x2 corner. Returns null if nothing clean routes.
- */
-/**
- * Enables the corridor-BFS bridge fallback (step 3 in elbowBridge). OFF for now:
- * the corridor router can produce a bridge that dead-ends on a mask-carved ocean
- * tile, stranding a region (caught by assertAllRegionsReachable, but it makes the
- * whole placement fail). Re-enabled + fixed in the 60%-packing stage, where dense
- * layouts actually need it. With it off, only straight + L bridges are used (the
- * proven path for the current sparse layout).
- */
-const CORRIDOR_ROUTING = true;
-
-function elbowBridge(
-  aId: RegionId,
-  bId: RegionId,
-  regions: readonly RegionDef[],
-): RoadDef[] | null {
-  const a = boundsOfIn(aId, regions);
-  const b = boundsOfIn(bId, regions);
-
-  // 1. Straight first — identical to the legacy path when it exists.
-  const straight = straightBridgeBounds(a, b, aId, bId, regions);
-  if (straight) return [straight];
-
-  // 2. L-shaped fallback. Build a 2-wide horizontal leg + 2-wide vertical leg
-  //    meeting at a 2x2 corner. Two corner choices; try each, pick first clean.
-  const ac = { x: Math.floor((a.minX + a.maxX) / 2), y: Math.floor((a.minY + a.maxY) / 2) };
-  const bc = { x: Math.floor((b.minX + b.maxX) / 2), y: Math.floor((b.minY + b.maxY) / 2) };
-
-  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-  // Keep legs 2 wide and inside the world.
-  const hRect = (x0: number, x1: number, y: number): RoadDef => ({
-    minX: Math.min(x0, x1), maxX: Math.max(x0, x1),
-    minY: clamp(y, 0, WORLD_HEIGHT - 2), maxY: clamp(y, 0, WORLD_HEIGHT - 2) + 1,
-  });
-  const vRect = (y0: number, y1: number, x: number): RoadDef => ({
-    minY: Math.min(y0, y1), maxY: Math.max(y0, y1),
-    minX: clamp(x, 0, WORLD_WIDTH - 2), maxX: clamp(x, 0, WORLD_WIDTH - 2) + 1,
-  });
-
-  // Corner candidates: bend under A's column / B's row, then the mirror.
-  const corners = [
-    { cx: ac.x, cy: bc.y },
-    { cx: bc.x, cy: ac.y },
-  ];
-  for (const { cx, cy } of corners) {
-    // A staircase of 2-wide segments from A's center to B's center via the corner:
-    // up/down A's column to the corner row, across to the corner column, up/down to
-    // B's row, across into B. Each segment is cleaned against all other regions.
-    const route: RoadDef[] = [
-      vRect(ac.y, cy, ac.x),
-      hRect(ac.x, cx, cy),
-      vRect(cy, bc.y, cx),
-      hRect(cx, bc.x, bc.y),
-    ];
-    let allClean = true;
-    for (const seg of route) {
-      if (!bridgeIsCleanAgainst(seg, aId, bId, regions)) { allClean = false; break; }
-    }
-    if (allClean) return route;
-  }
-
-  // 3. Corridor BFS fallback. When the layout is dense (big regions packed with
-  //    only 2-tile channels) neither the straight nor the centre-staircase L can
-  //    find a clean span — they cut through neighbours. Search instead for the
-  //    shortest 2-wide path of ocean tiles weaving between regions.
-  //
-  //    A "block" is the 2x2 RoadDef whose top-left is (x,y). A block is OPEN if
-  //    it is in-world and clean against all regions (bridgeIsCleanAgainst already
-  //    enforces a 1-tile halo from every non-endpoint region, so adjacent blocks
-  //    form a corridor with guaranteed ocean walls). We BFS over block top-lefts,
-  //    seeding from blocks orthogonally adjacent to A and accepting any block
-  //    adjacent to B, then merge the reconstructed block chain into runs.
-  if (CORRIDOR_ROUTING) {
-    const corridor = corridorBridge(a, b, aId, bId, regions);
-    if (corridor) return corridor;
-  }
-
-  return null;
-}
-
-/** 2-wide block (top-left x,y) → RoadDef. */
-const blockRect = (x: number, y: number): RoadDef => ({ minX: x, minY: y, maxX: x + 1, maxY: y + 1 });
-
-/**
- * True if a 2x2 block at (x,y) is ORTHOGONALLY adjacent to region bounds `r` —
- * i.e. the block sits immediately N/S/E/W of the bounds and overlaps its span on
- * the other axis (so the block shares a full tile edge with the region, not just
- * a diagonal corner). Diagonal-only contact would leave the bridge 4-disconnected
- * from the region's land (the dead-end bug), so it does NOT count as touching.
- */
-function blockTouchesBounds(x: number, y: number, r: { minX: number; minY: number; maxX: number; maxY: number }): boolean {
-  const xOverlap = x <= r.maxX && x + 1 >= r.minX;
-  const yOverlap = y <= r.maxY && y + 1 >= r.minY;
-  // Block sits immediately E/W of r (its near column exactly borders r's edge).
-  const xAdjacent = x === r.maxX + 1 || x + 1 === r.minX - 1;
-  // Block sits immediately N/S of r.
-  const yAdjacent = y === r.maxY + 1 || y + 1 === r.minY - 1;
-  return (yOverlap && xAdjacent) || (xOverlap && yAdjacent);
-}
-
-/**
- * Shortest 2-wide ocean corridor between regions `aId` and `bId`, found by BFS
- * over 2x2 block top-left corners. Returns the merged run-rects, or null if no
- * clean corridor exists. Deterministic: neighbours are explored in a fixed order
- * and BFS first-reach is unique for a given (a,b,regions).
- */
-function corridorBridge(
-  a: { minX: number; minY: number; maxX: number; maxY: number },
-  b: { minX: number; minY: number; maxX: number; maxY: number },
-  aId: RegionId,
-  bId: RegionId,
-  regions: readonly RegionDef[],
-): RoadDef[] | null {
-  const maxX0 = WORLD_WIDTH - 2;
-  const maxY0 = WORLD_HEIGHT - 2;
-  const W = maxX0 + 1;
-  const key = (x: number, y: number) => y * W + x;
-
-  // openCache: -1 unknown, 0 blocked, 1 open. A block is open if clean against
-  // all regions (the 1-tile halo keeps it off every island except as it abuts an
-  // endpoint, which bridgeIsCleanAgainst already exempts for aId/bId).
-  const open = new Int8Array(W * (maxY0 + 1)).fill(-1);
-  const isOpen = (x: number, y: number): boolean => {
-    if (x < 0 || y < 0 || x > maxX0 || y > maxY0) return false;
-    const k = key(x, y);
-    let v = open[k]!;
-    if (v === -1) {
-      v = bridgeIsCleanAgainst(blockRect(x, y), aId, bId, regions) ? 1 : 0;
-      open[k] = v;
-    }
-    return v === 1;
-  };
-
-  const prev = new Int32Array(W * (maxY0 + 1)).fill(-2); // -2 unvisited, -1 root
-  const queue: number[] = [];
-  let head = 0;
-
-  // Seed: every open block orthogonally abutting A's bounds.
-  for (let y = a.minY - 2; y <= a.maxY + 1; y++) {
-    for (let x = a.minX - 2; x <= a.maxX + 1; x++) {
-      if (!isOpen(x, y)) continue;
-      if (!blockTouchesBounds(x, y, a)) continue;
-      const k = key(x, y);
-      if (prev[k] === -2) { prev[k] = -1; queue.push(k); }
-    }
-  }
-
-  const STEPS: ReadonlyArray<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  let goal = -1;
-  bfs: while (head < queue.length) {
-    const ck = queue[head++]!;
-    const cx = ck % W;
-    const cy = (ck - cx) / W;
-    if (blockTouchesBounds(cx, cy, b)) { goal = ck; break bfs; }
-    for (const [dx, dy] of STEPS) {
-      const nx = cx + dx;
-      const ny = cy + dy;
-      if (!isOpen(nx, ny)) continue;
-      const nk = key(nx, ny);
-      if (prev[nk] !== -2) continue;
-      prev[nk] = ck;
-      queue.push(nk);
-    }
-  }
-  if (goal === -1) return null;
-
-  // Reconstruct the block chain (goal → root), then merge collinear blocks into
-  // run-rects so the deck-inference stitches one clean bridge.
-  const chain: { x: number; y: number }[] = [];
-  for (let k = goal; k !== -1; k = prev[k]!) {
-    const x = k % W;
-    chain.push({ x, y: (k - x) / W });
-  }
-  chain.reverse();
-
-  const rects: RoadDef[] = [];
-  let runMinX = chain[0]!.x, runMinY = chain[0]!.y, runMaxX = chain[0]!.x, runMaxY = chain[0]!.y;
-  const flush = () => rects.push({ minX: runMinX, minY: runMinY, maxX: runMaxX + 1, maxY: runMaxY + 1 });
-  for (let i = 1; i < chain.length; i++) {
-    const c = chain[i]!;
-    // Extend the current run if it stays a straight line (same row OR same col).
-    const sameRow = runMinY === runMaxY && c.y === runMinY;
-    const sameCol = runMinX === runMaxX && c.x === runMinX;
-    if (sameRow || sameCol) {
-      runMinX = Math.min(runMinX, c.x); runMaxX = Math.max(runMaxX, c.x);
-      runMinY = Math.min(runMinY, c.y); runMaxY = Math.max(runMaxY, c.y);
-    } else {
-      flush();
-      runMinX = runMaxX = c.x; runMinY = runMaxY = c.y;
-    }
-  }
-  flush();
-  return rects;
-}
-
-function oceanGapBetween(a: RoadDef, b: RoadDef): number {
-  const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
-  const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
-  return Math.max(gx, gy);
-}
-
-const boundsOfIn = (id: RegionId, regions: readonly RegionDef[]) => {
-  const r = regions.find((reg) => reg.id === id);
-  if (!r) throw new Error(`boundsOf: unknown region '${id}'`);
-  return r.bounds;
-};
-const centerOfIn = (id: RegionId, regions: readonly RegionDef[]) => {
-  const r = regions.find((reg) => reg.id === id);
-  if (!r) throw new Error(`centerOf: unknown region '${id}'`);
-  return r.center;
-};
-
-
-const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
-  ['village', 'carpentry'],
-  ['village', 'blacksmith'],
-  ['village', 'mill'],
-  ['village', 'shrine'],
-  ['shrine', 'waterfall'],
-  ['carpentry', 'forest-north'],
-  ['carpentry', 'forest-south'],
-  ['blacksmith', 'quarry-north'],
-  ['blacksmith', 'quarry-south'],
-  ['forest-north', 'mushroom-grove'],
-  ['quarry-north', 'ice-pond'],
-  ['quarry-north', 'well-north'],
-  ['quarry-south', 'well-south'],
-  ['quarry-north', 'heritage-ruin'],
-  ['forest-north', 'heritage-stones'],
-  ['forest-south', 'heritage-statue'],
-  ['mill', 'fishing-isle'],
-  ['forest-south', 'fishing-isle-2'],
-  ['quarry-south', 'harbor'],
-  ['harbor', 'camp'],
-  ['camp', 'weather-station'],
-  ['farm-pip', 'volcano'],       
-  ['fishing-isle', 'casino'],    
-  ['volcano', 'big-tree'], 
-  ['village', 'ring'],     
-];
-
-/**
- * Regions that MUST NOT move under placeRegions jitter. Includes:
- *  - the village (anchored dead-center at 120,120),
- *  - every landmark / service islet whose bounds feed hardcoded geometry
- *    (ports.ts / coral.ts derive dock+lane tiles from fishing-isle, fishing-isle-2,
- *    casino, harbor bounds; setup.ts places set-piece sprites at landmark centers),
- *  - farm-pip (the playable farmer's home — kept stable for interaction systems),
- *  - and EVERY endpoint of a CLUSTER_BRIDGES pair (these bridges are generated by
- *    elbowBridge and we keep their endpoints fixed so the cluster skeleton is stable).
- *
- * The net effect: only the farm BAND (the 4 non-pip named farms + the procedural
- * farm-N regions) is eligible for placement jitter. Ranches are derived from farm
- * positions after placement, so they ride along automatically.
- */
-export const PINNED_REGION_IDS: ReadonlySet<RegionId> = new Set<RegionId>([
-  // Reachability root — anchored dead-centre at 120,120.
-  'village',
-  // South port/coral infrastructure: ports.ts derives the south shipping channel
-  // + casino north-port dock col from these bounds, and coral.ts derives reefs/
-  // lanes from the fishing isles. Moving them breaks the (untouched) ports/coral
-  // modules, so they stay frozen at their authored south-shore positions.
-  'fishing-isle', 'fishing-isle-2', 'casino',
-  // Authored interiors: setup.ts hardcodes prop layouts + FUNCTIONAL work-NPC
-  // stations (scaleStations throws on off-land) at design coords for these — they
-  // rely on the region sitting at its authored position, so they stay pinned.
-  // (blacksmith forge / carpentry workshop / harbor dockmaster.)
-  'blacksmith', 'carpentry', 'harbor',
-  // Player home — kept stable for the interaction systems built around Pip.
-  'farm-pip',
-]);
-
-/**
- * Bounding rect of the south shipping-channel lane network (ports.ts) plus a
- * halo, off-limits to scattered regions. Covers the vertical trunk (x≈105),
- * the casino dock column (x=110), and the horizontal isle approach lanes that
- * feed them, from just above the isles down to the trunk's south end.
- */
-const SOUTH_CHANNEL_KEEPOUT = { minX: 100, minY: 144, maxX: 114, maxY: 180 } as const;
-
-/** Max per-axis jitter (in tiles) applied to a non-pinned region's bounds. */
-const PLACE_JITTER = 40;
-/** Number of jitter attempts before a region falls back to its base position. */
-const PLACE_ATTEMPTS = 24;
-
-/**
- * Applies seeded jitter to every non-pinned region's position. Runs AFTER
- * buildBaseRegions but BEFORE any road/bridge/mask generation, so the jittered
- * bounds are what the rest of the pipeline sees.
- *
- * For each non-pinned region (in the fixed array order) it tries up to
- * PLACE_ATTEMPTS offsets drawn from a per-region forked RNG; a candidate is
- * accepted only if its bounds stay in-world AND keep a ≥2-tile ocean gap from
- * every already-placed region (pinned + previously-jittered). On exhaustion the
- * region keeps its original bounds (always valid, since the un-jittered layout
- * is a known-good baseline).
- *
- * `salt` lets buildPlacedWorld retry the whole pipeline with a fresh placement
- * if downstream road/ranch generation cannot route a clean world.
- */
-export function placeRegions(
-  seed: number,
-  regions: readonly RegionDef[],
-  salt: number,
-): RegionDef[] {
-  const saltRng = createRng(seed).fork('place:salt-' + salt);
-  // Placed regions accumulate as we go; gap checks run against this growing set.
-  const placed: RegionDef[] = [];
-  // Seed `placed` with all PINNED regions first so jittered regions never collide
-  // with a fixed islet regardless of array order.
-  for (const r of regions) {
-    if (PINNED_REGION_IDS.has(r.id)) placed.push(r);
-  }
-
-  const out: RegionDef[] = [];
-  for (const r of regions) {
-    if (PINNED_REGION_IDS.has(r.id)) {
-      out.push(r);
-      continue;
-    }
-
-    const regionRng = saltRng.fork('place:' + r.id);
-    let chosen: RegionDef | null = null;
-
-    for (let n = 0; n < PLACE_ATTEMPTS; n++) {
-      const attemptRng = regionRng.fork('attempt-' + n);
-      const dx = attemptRng.int(-PLACE_JITTER, PLACE_JITTER + 1);
-      const dy = attemptRng.int(-PLACE_JITTER, PLACE_JITTER + 1);
-      if (dx === 0 && dy === 0) {
-        // No-op jitter is always valid (matches the base layout) — accept it.
-        chosen = r;
-        break;
-      }
-      const bounds = {
-        minX: r.bounds.minX + dx,
-        minY: r.bounds.minY + dy,
-        maxX: r.bounds.maxX + dx,
-        maxY: r.bounds.maxY + dy,
-      };
-      if (bounds.minX < 0 || bounds.minY < 0 || bounds.maxX >= WORLD_WIDTH || bounds.maxY >= WORLD_HEIGHT) {
-        continue;
-      }
-      // South shipping-channel keep-out: ports.ts routes a fixed lane network down
-      // the south (TRUNK_X≈105 / casino col 110, JOIN_Y 162 → TRUNK_Y1 173) and
-      // module-throws if any lane tile is covered by land/bridge. A scattered
-      // region must not intrude on that corridor (+1 halo). The frozen isles/casino
-      // own their own docks, so this only blocks the open water lanes.
-      if (rectsOverlap(bounds, SOUTH_CHANNEL_KEEPOUT)) continue;
-      let clear = true;
-      for (const o of placed) {
-        if (oceanGapBetween(bounds, o.bounds) < 2) { clear = false; break; }
-      }
-      if (!clear) continue;
-      chosen = { ...r, bounds, center: midpoint(bounds) };
-      break;
-    }
-
-    const finalRegion = chosen ?? r;
-    out.push(finalRegion);
-    placed.push(finalRegion);
-  }
-
-  return out;
-}
-
-function generateClusterBridges(regions: readonly RegionDef[]): RoadDef[] {
-  const out: RoadDef[] = [];
-  for (const [aId, bId] of CLUSTER_BRIDGES) {
-    const r = elbowBridge(aId, bId, regions);
-    if (!r) throw new Error(`generateClusterBridges: no clean bridge ${aId}↔${bId}`);
-    out.push(...r);
-  }
-  return out;
-}
-
-function generateFarmSpokes(regions: readonly RegionDef[]): RoadDef[] {
-  const clusterIds = regions.filter((r) => r.kind === 'village').map((r) => r.id);
-  const innerFarmIds: RegionId[] = [
-    'farm-pip', 'farm-atticus', 'farm-hannah', 'farm-otto', 'farm-cora',
-    'farm-0', 'farm-1', 'farm-2', 'farm-3',
-  ];
-  const innerProcSlots = 4;
-  const out: RoadDef[] = [];
-
-  const connect = (fid: RegionId, pool: RegionId[]) => {
-    const fc = centerOfIn(fid, regions);
-    const sorted = [...pool].sort((A, B) => {
-      const a = centerOfIn(A, regions);
-      const b = centerOfIn(B, regions);
-      const da = (a.x - fc.x) ** 2 + (a.y - fc.y) ** 2;
-      const db = (b.x - fc.x) ** 2 + (b.y - fc.y) ** 2;
-      return da - db;
-    });
-    for (const t of sorted) {
-      const r = elbowBridge(fid, t, regions);
-      if (r) { out.push(...r); return; }
-    }
-    throw new Error(`generateFarmSpokes: no clean spoke for ${fid}`);
-  };
-
-  for (const fid of innerFarmIds) connect(fid, clusterIds);
-  for (let i = innerProcSlots; i < EXTRA_FARM_COUNT; i++) {
-    connect(`farm-${i}` as RegionId, [...innerFarmIds, ...clusterIds]);
-  }
-  return out;
-}
-
-const RANCH_SIZE = 8;
-const RANCH_HALF = 4; 
-
-type Cardinal = { ux: number; uy: number };
-const CARD_E: Cardinal = { ux: 1, uy: 0 };
-const CARD_W: Cardinal = { ux: -1, uy: 0 };
-const CARD_S: Cardinal = { ux: 0, uy: 1 };
-const CARD_N: Cardinal = { ux: 0, uy: -1 };
-
-function rankedCardinals(farmCenter: { x: number; y: number }): Cardinal[] {
-  const dx = farmCenter.x - MAP_CX;
-  const dy = farmCenter.y - MAP_CY;
-
-  let outward: Cardinal;
-  let perpA: Cardinal;
-  let perpB: Cardinal;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    outward = dx >= 0 ? CARD_E : CARD_W;
-    perpA = dy >= 0 ? CARD_S : CARD_N;
-    perpB = dy >= 0 ? CARD_N : CARD_S;
-  } else {
-    outward = dy >= 0 ? CARD_S : CARD_N;
-    perpA = dx >= 0 ? CARD_E : CARD_W;
-    perpB = dx >= 0 ? CARD_W : CARD_E;
-  }
-  const inward: Cardinal = { ux: -outward.ux, uy: -outward.uy };
-  return [outward, perpA, perpB, inward];
-}
-
-function placeRanches(
-  baseRoads: readonly RoadDef[],
-  baseRegions: readonly RegionDef[],
-  farmRegions: readonly RegionDef[],
-): {
-  ranches: RegionDef[];
-  bridges: RoadDef[];
-  cardinalByFarm: { farmId: RegionId; rank: number }[];
-} {
-  const ranches: RegionDef[] = [];
-  const bridges: RoadDef[] = [];
-  const cardinalByFarm: { farmId: RegionId; rank: number }[] = [];
-
-  const placed: RegionDef[] = [...baseRegions];
-
-  const placedBridges: RoadDef[] = [...baseRoads];
-  const RANCH_DISTANCES = [12, 11, 13] as const;
-
-  const clearOfRoads = (rect: RoadDef): boolean => {
-    const exp = { minX: rect.minX - 1, minY: rect.minY - 1, maxX: rect.maxX + 1, maxY: rect.maxY + 1 };
-    for (const road of placedBridges) {
-      if (rectsOverlap(exp, road)) return false;
-    }
-    return true;
-  };
-
-  farmRegions.forEach((farm, k) => {
-    const ranchId = `ranch-${k}` as RegionId;
-    let chosen: { bounds: RoadDef; bridge: RoadDef; rank: number } | null = null;
-    const cardinals = rankedCardinals(farm.center);
-
-    search: for (const dist of RANCH_DISTANCES) {
-      for (let rank = 0; rank < cardinals.length; rank++) {
-        const card = cardinals[rank]!;
-        const rcx = farm.center.x + card.ux * dist;
-        const rcy = farm.center.y + card.uy * dist;
-        const minX = Math.round(rcx - RANCH_HALF);
-        const minY = Math.round(rcy - RANCH_HALF);
-        const bounds: RoadDef = { minX, minY, maxX: minX + RANCH_SIZE - 1, maxY: minY + RANCH_SIZE - 1 };
-
-        if (bounds.minX < 0 || bounds.minY < 0 || bounds.maxX >= WORLD_WIDTH || bounds.maxY >= WORLD_HEIGHT) {
-          continue;
-        }
-        if (rectsOverlap(bounds, SOUTH_CHANNEL_KEEPOUT)) continue;
-
-        let clearOfAll = true;
-        for (const reg of placed) {
-          if (oceanGapBetween(bounds, reg.bounds) < 2) { clearOfAll = false; break; }
-        }
-        if (!clearOfAll) continue;
-
-        if (!clearOfRoads(bounds)) continue;
-
-        const ranchDef: RegionDef = { id: ranchId, kind: 'ranch', bounds, center: midpoint(bounds) };
-        const bridge = straightBridgeBounds(farm.bounds, bounds, farm.id, ranchId, [...placed, ranchDef]);
-        if (!bridge) continue;
-
-        if (!clearOfRoads(bridge)) continue;
-
-        chosen = { bounds, bridge, rank };
-        break search;
-      }
-    }
-
-    if (!chosen) {
-      throw new Error(
-        `placeRanches: no clean cardinal placement for ranch-${k} (farm ${farm.id} @ ${farm.center.x},${farm.center.y})`,
-      );
-    }
-    const ranchDef: RegionDef = { id: ranchId, kind: 'ranch', bounds: chosen.bounds, center: midpoint(chosen.bounds) };
-    ranches.push(ranchDef);
-    placed.push(ranchDef);
-    bridges.push(chosen.bridge);
-    placedBridges.push(chosen.bridge);
-    cardinalByFarm.push({ farmId: farm.id, rank: chosen.rank });
-  });
-
-  return { ranches, bridges, cardinalByFarm };
-}
-
-const THEME_BY_ID: Partial<Record<RegionId, RegionTheme>> = {
-  'forest-north': 'forest', 'forest-south': 'forest',
-  'quarry-north': 'quarry', 'quarry-south': 'quarry',
-  'shrine': 'shrine',
-  'heritage-stones': 'heritage', 'heritage-ruin': 'heritage', 'heritage-statue': 'heritage',
-
-  'mushroom-grove': 'forest', 'waterfall': 'forest',
-  'ice-pond': 'pond',
-  'camp': 'camp',
-  'weather-station': 'quarry',
-  'volcano': 'volcano',
-  'big-tree': 'big-tree',
-};
-
-function authoredCenterOf(scaled: { x: number; y: number }): { x: number; y: number } {
-  return {
-    x: DESIGN_CX + (scaled.x - MAP_CX) / SCALE,
-    y: DESIGN_CY + (scaled.y - MAP_CY) / SCALE,
-  };
-}
-
-/** Returns `{ ...region, mask }` with an all-land mask sized to the region bounds. */
-function withAllLandMask(region: RegionDef): RegionDef {
-  const { minX, minY, maxX, maxY } = region.bounds;
-  const w = maxX - minX + 1;
-  const h = maxY - minY + 1;
-  const mask = new Uint8Array(w * h);
-  mask.fill(1);
-  return { ...region, mask };
-}
-
 function scaleAroundNearestIslandIn(
   t: { x: number; y: number },
-  regions: readonly RegionDef[],
+  _regions: readonly RegionDef[],
 ): { x: number; y: number } {
   let bestDispX = 0;
   let bestDispY = 0;
   let bestD = Infinity;
-  for (const r of regions) {
-    const a = authoredCenterOf(r.center);
-    const d = (a.x - t.x) ** 2 + (a.y - t.y) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      bestDispX = r.center.x - a.x;
-      bestDispY = r.center.y - a.y;
+  for (const d of ISLAND_DISPLACEMENT.values()) {
+    const dd = (d.authored.x - t.x) ** 2 + (d.authored.y - t.y) ** 2;
+    if (dd < bestD) {
+      bestD = dd;
+      bestDispX = d.dispX;
+      bestDispY = d.dispY;
     }
   }
   return { x: Math.round(t.x + bestDispX), y: Math.round(t.y + bestDispY) };
@@ -927,53 +123,38 @@ export interface GeneratedWorld {
   townSquare: { minX: number; minY: number; maxX: number; maxY: number };
   /** Number of regions that fell back to all-land rect mask (organic generation failed). */
   fallbackCount: number;
+  /** Per-region authored→generated displacement (drives scaleAroundNearestIsland). */
+  displacement: ReadonlyMap<RegionId, { authored: { x: number; y: number }; dispX: number; dispY: number }>;
 }
 
-/** Builds the un-jittered base region array for a seed (pre-placement). */
-function buildBaseRegionsForSeed(seed: number): readonly RegionDef[] {
-  // 1. Seeded farm-ring jitter (dx drawn before dy, per element).
-  const farmJitterRng = createRng(seed).fork('farm-ring-jitter');
-  const farmJitter: readonly { dx: number; dy: number }[] = Array.from(
-    { length: EXTRA_FARM_COUNT },
-    () => ({
-      dx: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
-      dy: farmJitterRng.int(-EXTRA_FARM_JITTER, EXTRA_FARM_JITTER + 1),
-    }),
-  );
+/**
+ * Loop-density for the overlap bridge graph (brief 93). 0 = spanning tree only;
+ * higher adds more cyclic shortcut bridges. ~0.18 gives a connected world with a
+ * handful of loops without crossing clutter.
+ */
+const BRIDGE_LOOP_DELTA = 0.18;
 
-  // 2. Extra (procedural) farm regions.
-  const extraFarmRegions: readonly RegionDef[] = Array.from(
-    { length: EXTRA_FARM_COUNT },
-    (_unused, i) => makeRadialFarmRegion(i, farmJitter),
-  );
-
-  // 3. Base regions (pre-theme, pre-ranch).
-  return buildBaseRegions(extraFarmRegions);
-}
-
-/** The default world's un-jittered base regions, exported for determinism tests. */
-export const BASE_REGIONS: readonly RegionDef[] = buildBaseRegionsForSeed(WORLD_GEN_SEED);
-
-/** Number of placement salts buildPlacedWorld tries before falling back to salt-less baseline. */
-const PLACE_SALT_BUDGET = 12;
+/** Number of seed-salts generateWorld tries before giving up on a connectable layout. */
+const PLACE_SALT_BUDGET = 40;
 
 export function generateWorld(seed: number): GeneratedWorld {
-  const baseRegions = buildBaseRegionsForSeed(seed);
+  const inventory = buildInventory();
+  const specs = inventory.map((r) => r.spec);
 
-  // Try jittered placements with successive salts; fall back to the un-jittered
-  // baseline (the same baseRegions, no jitter) if every salted attempt throws
-  // during downstream road/ranch routing.
+  let lastErr: unknown = null;
   for (let salt = 0; salt < PLACE_SALT_BUDGET; salt++) {
-    const placed = placeRegions(seed, baseRegions, salt);
+    const saltSeed = (seed ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
     try {
-      return buildWorldFromRegions(seed, placed);
-    } catch {
-      // Routing failed for this placement — try the next salt.
+      return buildWorldFromPlacement(saltSeed, inventory, specs);
+    } catch (e) {
+      lastErr = e;
+      // This salt produced an unconnectable / unbuildable layout — try the next.
     }
   }
-  // Exhausted: build the un-jittered baseline (must succeed — it's the known-good
-  // layout the whole project shipped with before placement jitter).
-  return buildWorldFromRegions(seed, baseRegions);
+  throw new Error(
+    `generateWorld: no connectable layout in ${PLACE_SALT_BUDGET} salts (seed ${seed}). ` +
+      `Last: ${(lastErr as Error)?.message ?? lastErr}`,
+  );
 }
 
 /**
@@ -1029,28 +210,107 @@ function assertAllRegionsReachable(
   }
 }
 
-function buildWorldFromRegions(seed: number, baseRegions: readonly RegionDef[]): GeneratedWorld {
-  // 4. Farm subset.
-  const farmRegions = baseRegions.filter((r) => r.kind === 'farm');
+/**
+ * The ACTIVE world's per-region authored→generated displacement (brief 93). On-
+ * island content authored in design space is translated by its owning island's
+ * displacement so it rides with the island. Points at the active world's map
+ * (set by setActiveWorld) — never diverges from REGIONS.
+ */
+type DisplacementMap = ReadonlyMap<RegionId, { authored: { x: number; y: number }; dispX: number; dispY: number }>;
+let ISLAND_DISPLACEMENT: DisplacementMap = new Map();
 
-  // 5. Base roads.
-  const baseRoads: readonly RoadDef[] = [
-    ...generateClusterBridges(baseRegions),
-    ...generateFarmSpokes(baseRegions),
+/**
+ * Light edge-carve: notch a seeded handful of the island's four corner regions
+ * so the rect doesn't read as a perfect square. Carves at most a small triangle
+ * from each corner, and NEVER clears a forced-core / bridge-attach tile.
+ * Deterministic via the passed Rng.
+ */
+function carveCorners(
+  mask: Uint8Array,
+  minX: number,
+  minY: number,
+  w: number,
+  h: number,
+  coreSet: ReadonlySet<string>,
+  rng: Rng,
+): void {
+  // Max carve depth scales with the smaller dimension but stays small (rect feel).
+  const maxDepth = Math.max(1, Math.min(3, Math.floor(Math.min(w, h) / 6)));
+  const corners: Array<[number, number]> = [
+    [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1],
   ];
+  for (const [cxLocal, cyLocal] of corners) {
+    const depth = rng.int(0, maxDepth + 1); // 0 = leave this corner square
+    if (depth === 0) continue;
+    const sx = cxLocal === 0 ? 1 : -1;
+    const sy = cyLocal === 0 ? 1 : -1;
+    // Carve the triangular wedge: tiles within (depth - manhattan) of the corner.
+    for (let dy = 0; dy < depth; dy++) {
+      for (let dx = 0; dx < depth - dy; dx++) {
+        const lx = cxLocal + sx * dx;
+        const ly = cyLocal + sy * dy;
+        if (lx < 0 || lx >= w || ly < 0 || ly >= h) continue;
+        const wx = minX + lx;
+        const wy = minY + ly;
+        if (coreSet.has(`${wx},${wy}`)) continue; // never carve a pinned tile
+        mask[ly * w + lx] = 0;
+      }
+    }
+  }
+}
 
-  // 6. Ranch placement.
-  const ranchPlacement = placeRanches(baseRoads, baseRegions, farmRegions);
-  const ranchRegions = ranchPlacement.ranches;
-  const ranchBridges = ranchPlacement.bridges;
-
-  // 7. ranch-for-farm map.
-  const ranchForFarmMap = new Map<RegionId, RegionId>(
-    farmRegions.map((farm, k) => [farm.id, `ranch-${k}` as RegionId]),
+function buildWorldFromPlacement(
+  seed: number,
+  inventory: readonly InventoryRow[],
+  specs: readonly RegionSpec[],
+): GeneratedWorld {
+  // 1. BSP placement: rect bounds + center per region (brief 93).
+  const placement = placeIslands(seed, specs);
+  const islandById = new Map<RegionId, (typeof placement.islands)[number]>(
+    placement.islands.map((i) => [i.id, i]),
   );
 
-  // 7b. All roads (needed for road-attachment core pinning in step 8).
-  const roads: readonly RoadDef[] = [...baseRoads, ...ranchBridges];
+  // 2. Authored→generated displacement map: each region's authored design-space
+  //    center maps to its generated center, so on-island content rides along.
+  //    Stored on the returned world (NOT a module global) so it never diverges
+  //    from the active REGIONS when setActiveWorld swaps worlds.
+  const displacement = new Map<RegionId, { authored: { x: number; y: number }; dispX: number; dispY: number }>();
+  for (const row of inventory) {
+    const isl = islandById.get(row.id);
+    if (!isl) throw new Error(`buildWorldFromPlacement: region '${row.id}' was not placed`);
+    displacement.set(row.id, {
+      authored: row.authoredCenter,
+      dispX: isl.center.x - row.authoredCenter.x,
+      dispY: isl.center.y - row.authoredCenter.y,
+    });
+  }
+
+  // 3. Themed, unmasked region defs from the placement.
+  const themeById = new Map<RegionId, RegionTheme | undefined>(
+    inventory.map((r) => [r.id, r.theme]),
+  );
+  const allThemedUnmasked: RegionDef[] = placement.islands.map((isl) => {
+    const theme = themeById.get(isl.id);
+    const base: RegionDef = { id: isl.id, kind: isl.kind, bounds: isl.bounds, center: isl.center };
+    return theme ? { ...base, theme } : base;
+  });
+
+  // 4. ranch-for-farm map (ranch-k pairs with the k-th farm by id order).
+  const farmIds = allThemedUnmasked.filter((r) => r.kind === 'farm').map((r) => r.id);
+  const ranchForFarmMap = new Map<RegionId, RegionId>(
+    farmIds.map((id, k) => [id, `ranch-${k}` as RegionId]),
+  );
+
+  // 5. Bridge graph: straight axis-aligned overlap bridges + loops (brief 93).
+  const bridge = buildBridgeGraph(
+    placement.islands,
+    createRng(seed).fork('bridges'),
+    BRIDGE_LOOP_DELTA,
+  );
+  if (bridge === null) {
+    throw new Error('buildWorldFromPlacement: islands not connectable with straight overlap bridges');
+  }
+  const roads: readonly RoadDef[] = bridge.roads.map((r) => ({ ...r }));
 
   // 8. Organic masks — sequential so each region can check adjacency against
   //    already-finalized masks. Fork per region, attempt per try, for stable determinism.
@@ -1073,11 +333,6 @@ function buildWorldFromRegions(seed: number, baseRegions: readonly RegionDef[]):
   };
 
   let fallbackCount = 0;
-  const allThemedUnmasked = [...baseRegions, ...ranchRegions].map((r) => {
-    const theme = THEME_BY_ID[r.id]
-      ?? (r.kind === 'farm' ? 'ring' : r.kind === 'ranch' ? 'ranch' : undefined);
-    return theme ? { ...r, theme } : r;
-  });
 
   const regions: RegionDef[] = [];
   for (const themed of allThemedUnmasked) {
@@ -1132,55 +387,14 @@ function buildWorldFromRegions(seed: number, baseRegions: readonly RegionDef[]):
       core.push({ x: cx0, y: cy0 });
     }
 
-    const forkBase = 'region:' + themed.id;
-    const regionRng = maskRng.fork(forkBase);
-
-    let chosenMask: Uint8Array | null = null;
-    for (let n = 0; n < MAX_ATTEMPTS; n++) {
-      const attemptRng = regionRng.fork('attempt-' + n);
-      const candidate = buildOrganicMaskAttempt(themed, core, attemptRng);
-      if (candidate === null) continue;
-
-      // Cross-region adjacency check: no land tile of this region (that is OUTSIDE
-      // this region's own bounds) may be within Chebyshev 1 of a land tile of any
-      // already-finalized region. Tiles inside the bounds are allowed to touch the
-      // halo of prior regions that are also within those bounds (e.g. road attachment
-      // tiles clamped to bounds). We only reject if a land tile of this region is in the
-      // halo AND the land tile is inside this region's bounds (own-bounds tiles are
-      // always the right side of a boundary).
-      //
-      // NOTE: The check is deliberately lenient: only INSET-edge tiles that lie within
-      // Chebyshev 1 of a PRIOR region's land are blocked. INSET already puts 1 ocean tile
-      // at the outer ring, so overlaps are rare; this catches the pathological case where
-      // core tiles push land to the bounds edge.
-      let adjacencyOk = true;
-      outer: for (let ty = minY; ty <= maxY; ty++) {
-        for (let tx = minX; tx <= maxX; tx++) {
-          if (candidate[(ty - minY) * w + (tx - minX)] === 1) {
-            // Only check tiles that are ON the INSET edge ring (outermost tiles that
-            // could be core-pinned to land and potentially collide with a neighbour).
-            const onEdge = tx === minX || tx === maxX || ty === minY || ty === maxY;
-            if (onEdge && adjacencyBlockedArr[ty * WORLD_WIDTH + tx] === 1) {
-              adjacencyOk = false;
-              break outer;
-            }
-          }
-        }
-      }
-      if (!adjacencyOk) continue;
-
-      chosenMask = candidate;
-      break;
-    }
-
-    let mask: Uint8Array;
-    if (chosenMask !== null) {
-      mask = chosenMask;
-    } else {
-      // Fallback: all-land rect.
-      mask = new Uint8Array(w * h).fill(1);
-      fallbackCount++;
-    }
+    // Light edge-carve (brief 93): islands are rects with a few notched/rounded
+    // corner tiles so they don't read as perfect squares — NOT organic blobs.
+    // Start all-land, then carve a seeded number of corner tiles, never touching
+    // a forced-core or bridge-attach tile (those must stay land).
+    const mask = new Uint8Array(w * h).fill(1);
+    const coreSet = new Set(core.map((t) => `${t.x},${t.y}`));
+    const carveRng = maskRng.fork('carve:' + themed.id);
+    carveCorners(mask, minX, minY, w, h, coreSet, carveRng);
 
     // Register this region's land tiles into the adjacency buffer.
     for (let ty = minY; ty <= maxY; ty++) {
@@ -1202,65 +416,121 @@ function buildWorldFromRegions(seed: number, baseRegions: readonly RegionDef[]):
   //    single guarantee that "routes" ⇒ "connected".
   assertAllRegionsReachable(regions, roads);
 
-  // 10. Derived tile consts — read the built (themed) regions.
-  // Each design coordinate is scaled to world space, then SNAPPED onto the
-  // owning region's organic-mask land so it never lands on a carved-out ocean
-  // tile. Owning region by id; throws if the region is missing (a real bug).
+  // 10. Derived tile consts. With seed-generated positions there is no fixed
+  // world coordinate per anchor, so each is taken at a small offset from its
+  // owning region's GENERATED center, then snapped onto that region's land (so
+  // a carved corner never strands an anchor). Owning region by id; throws if
+  // missing (a real bug). Offsets are deterministic and small.
   const regionById = (id: RegionId): RegionDef => {
     const r = regions.find((reg) => reg.id === id);
     if (!r) throw new Error(`generateWorld: missing region '${id}' for tile-const snap`);
     return r;
   };
-  const snapTo = (id: RegionId, design: { x: number; y: number }): { x: number; y: number } =>
-    nearestLandTile(regionById(id), scaleAroundNearestIslandIn(design, regions));
+  const snapNear = (id: RegionId, dx: number, dy: number): { x: number; y: number } => {
+    const r = regionById(id);
+    return nearestLandTile(r, { x: r.center.x + dx, y: r.center.y + dy });
+  };
 
-  // TOWN_SQUARE is left as a raw scaled bounds rect (NOT snapped): its only
-  // consumer (render-systems/static-layer.ts backdropFrame) is gated by both
-  // isWalkable() and regionAt(...)==='village' before the rect is tested, so
-  // ocean tiles inside the rect are never tinted.
+  const village = regionById('village');
+  // TOWN_SQUARE: a small rect around the village center. Its only consumer
+  // (static-layer backdropFrame) is gated by isWalkable() + regionAt==='village'
+  // before the rect is tested, so ocean tiles inside it are never tinted.
+  const townSquare = {
+    minX: village.center.x - 2, minY: village.center.y - 1,
+    maxX: village.center.x + 1, maxY: village.center.y + 2,
+  };
+
   return {
     regions,
     roads,
     ranchForFarm: ranchForFarmMap,
-    campfireTile: snapTo('camp', { x: 114, y: 108 }),
-    waterfallTile: snapTo('waterfall', { x: 83, y: 59 }),
-    volcanoCraterTile: snapTo('volcano', { x: 80, y: 11 }),
-    casinoNeonTile: snapTo('casino', { x: 76, y: 116 }),
-    weatherStationTile: snapTo('weather-station', { x: 114, y: 119 }),
-    harborDockTile: snapTo('harbor', { x: 96, y: 105 }),
-    harborBoardTile: snapTo('harbor', { x: 97, y: 108 }),
-    auctionPodiumTile: snapTo('village', { x: 80, y: 80 }),
-    noticeBoardTile: snapTo('village', { x: 79, y: 80 }),
-    townSquare: scaleB({ minX: 78, minY: 79, maxX: 81, maxY: 82 }),
+    campfireTile: snapNear('camp', 1, 0),
+    waterfallTile: snapNear('waterfall', 0, 0),
+    volcanoCraterTile: snapNear('volcano', 0, -1),
+    casinoNeonTile: snapNear('casino', 0, 0),
+    weatherStationTile: snapNear('weather-station', 0, 0),
+    harborDockTile: snapNear('harbor', 0, -1),
+    harborBoardTile: snapNear('harbor', 1, 1),
+    auctionPodiumTile: snapNear('village', 0, 0),
+    noticeBoardTile: snapNear('village', -1, 0),
+    townSquare,
     fallbackCount,
+    displacement,
   };
 }
 
-const DEFAULT_WORLD = generateWorld(WORLD_GEN_SEED);
+/**
+ * The ACTIVE world (brief 93). sim-core runs one world per process; bootstrap
+ * calls setActiveWorld(generateWorld(seed)) to install a runtime-varying world.
+ * Until then, the default-seed world is lazily generated on first access so a
+ * runtime seed can replace it without ever building the default. The exported
+ * REGIONS/ROADS/anchor-tile bindings are `let` so ES live-bindings propagate the
+ * swap to every importer that reads them at call time.
+ */
+let ACTIVE_WORLD: GeneratedWorld | null = null;
 
-export const REGIONS: readonly RegionDef[] = DEFAULT_WORLD.regions;
-const ROADS: readonly RoadDef[] = DEFAULT_WORLD.roads;
-/** Number of regions in the default world that fell back to all-land rect mask. */
-export const WORLD_FALLBACK_COUNT: number = DEFAULT_WORLD.fallbackCount;
+export let REGIONS: readonly RegionDef[] = [];
+export let ROADS: readonly RoadDef[] = [];
+/** Number of regions in the active world that fell back to all-land rect mask. */
+export let WORLD_FALLBACK_COUNT = 0;
+export let CAMPFIRE_TILE = { x: 0, y: 0 };
+export let WATERFALL_TILE = { x: 0, y: 0 };
+export let VOLCANO_CRATER_TILE = { x: 0, y: 0 };
+export let CASINO_NEON_TILE = { x: 0, y: 0 };
+export let WEATHER_STATION_TILE = { x: 0, y: 0 };
+export let HARBOR_DOCK_TILE = { x: 0, y: 0 };
+export let HARBOR_BOARD_TILE = { x: 0, y: 0 };
+export let AUCTION_PODIUM_TILE = { x: 0, y: 0 };
+export let NOTICE_BOARD_TILE = { x: 0, y: 0 };
+export let TOWN_SQUARE = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
 
-export const CAMPFIRE_TILE = DEFAULT_WORLD.campfireTile;
-export const WATERFALL_TILE = DEFAULT_WORLD.waterfallTile;
-export const VOLCANO_CRATER_TILE = DEFAULT_WORLD.volcanoCraterTile;
-export const CASINO_NEON_TILE = DEFAULT_WORLD.casinoNeonTile;
-export const WEATHER_STATION_TILE = DEFAULT_WORLD.weatherStationTile;
-export const HARBOR_DOCK_TILE = DEFAULT_WORLD.harborDockTile;
-export const HARBOR_BOARD_TILE = DEFAULT_WORLD.harborBoardTile;
-export const AUCTION_PODIUM_TILE = DEFAULT_WORLD.auctionPodiumTile;
-export const NOTICE_BOARD_TILE = DEFAULT_WORLD.noticeBoardTile;
-export const TOWN_SQUARE = DEFAULT_WORLD.townSquare;
+/** Installs the world for this process and refreshes all derived bindings. */
+export function setActiveWorld(world: GeneratedWorld): void {
+  ACTIVE_WORLD = world;
+  REGIONS = world.regions;
+  ROADS = world.roads;
+  WORLD_FALLBACK_COUNT = world.fallbackCount;
+  CAMPFIRE_TILE = world.campfireTile;
+  WATERFALL_TILE = world.waterfallTile;
+  VOLCANO_CRATER_TILE = world.volcanoCraterTile;
+  CASINO_NEON_TILE = world.casinoNeonTile;
+  WEATHER_STATION_TILE = world.weatherStationTile;
+  HARBOR_DOCK_TILE = world.harborDockTile;
+  HARBOR_BOARD_TILE = world.harborBoardTile;
+  AUCTION_PODIUM_TILE = world.auctionPodiumTile;
+  NOTICE_BOARD_TILE = world.noticeBoardTile;
+  TOWN_SQUARE = world.townSquare;
+  ISLAND_DISPLACEMENT = world.displacement;
+  // Invalidate downstream module caches derived from region geometry. These are
+  // registered by ports.ts/coral.ts AFTER their own module init, so the default
+  // world built during regions.ts module-load (when those modules may be mid-
+  // init in an import cycle) invalidates nothing — avoiding a TDZ on their cache
+  // vars. Real per-run swaps from bootstrap run them.
+  for (const cb of WORLD_SWAP_LISTENERS) cb();
+}
+
+const WORLD_SWAP_LISTENERS: Array<() => void> = [];
+/** Register a callback invoked whenever setActiveWorld installs a new world. */
+export function onWorldSwap(cb: () => void): void {
+  WORLD_SWAP_LISTENERS.push(cb);
+}
+
+function activeWorld(): GeneratedWorld {
+  if (ACTIVE_WORLD === null) setActiveWorld(generateWorld(WORLD_GEN_SEED));
+  return ACTIVE_WORLD!;
+}
 
 export function ranchForFarm(farmId: RegionId): RegionId | undefined {
-  return DEFAULT_WORLD.ranchForFarm.get(farmId);
+  return activeWorld().ranchForFarm.get(farmId);
 }
 
 export function scaleAroundNearestIsland(t: { x: number; y: number }): { x: number; y: number } {
-  return scaleAroundNearestIslandIn(t, DEFAULT_WORLD.regions);
+  return scaleAroundNearestIslandIn(t, activeWorld().regions);
 }
+
+// Initialize the default-seed world at module load so importers that read the
+// bindings without ever calling setActiveWorld (tests, tools) see a valid world.
+activeWorld();
 
 function inBounds(
   x: number,
@@ -1387,5 +657,4 @@ export function nearestResourceZone(
   return best;
 }
 
-export { ROADS };
 export type { RoadDef };

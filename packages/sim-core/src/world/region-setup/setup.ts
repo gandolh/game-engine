@@ -1,9 +1,9 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../../components";
-import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, scaleAroundNearestIsland, regionAt, type RegionId, type RegionDef } from "../regions";
+import { REGIONS, ROADS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, scaleAroundNearestIsland, snapPropToLand, regionAt, type RegionId, type RegionDef } from "../regions";
 import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE } from "./tiles";
-import { fountainTile, placeProps, placeFootprint } from "./placement";
-import { PLOT_OFFSETS } from "./anchors";
+import { fountainTile, placeProps, placeFootprint, setReservedSolidTiles } from "./placement";
+import { PLOT_OFFSETS, forcedCoreTiles } from "./anchors";
 
 type Station = { tileX: number; tileY: number; facing: "up" | "down" | "side"; flipX: boolean; pose: string | null };
 // Work-NPC stations are FUNCTIONAL (agents path to them, see proximity/act).
@@ -11,14 +11,21 @@ type Station = { tileX: number; tileY: number; facing: "up" | "down" | "side"; f
 // worker. forcedCoreTiles already pins region centers, but station tiles are
 // off-center — so we assert land here and throw loudly if the mask carved one
 // out (a real bug to fix in anchors.ts, not to paper over).
+// Mutable reserved-tile set (string "x,y") shared with placement.ts so props
+// never drop a solid on a functional tile. Seeded from forcedCoreTiles + the
+// scaled station tiles below.
+const RESERVED = new Set<string>();
+
 function scaleStations(stations: readonly Station[]): Station[] {
   return stations.map((s) => {
-    const { x, y } = scaleAroundNearestIsland({ x: s.tileX, y: s.tileY });
-    if (regionAt(x, y) === null) {
-      throw new Error(
-        `scaleStations: functional station at world (${x},${y}) (design ${s.tileX},${s.tileY}) is not on mask land`,
-      );
-    }
+    // Ride the station to its island's generated position, then snap onto that
+    // island's land. With seed-generated islands (brief 93) a station's authored
+    // offset can fall outside the (possibly smaller / carved) island, so we snap
+    // into the nearest region's land rather than asserting — the station stays in
+    // its region, never on ocean.
+    const ridden = scaleAroundNearestIsland({ x: s.tileX, y: s.tileY });
+    const { x, y } = snapPropToLand(ridden);
+    RESERVED.add(`${x},${y}`); // never let a prop block this station
     return { ...s, tileX: x, tileY: y };
   });
 }
@@ -39,6 +46,25 @@ export function setupRegions(
   const regionEntities = new Map<RegionId, GameEntity>();
   const plotEntities: GameEntity[] = [];
   const fountainEntities: GameEntity[] = [];
+
+  // Seed the reserved-tile set from every region's forced-core tiles (plots,
+  // home, fountain, cottage, dock anchors) so decorative props never drop a
+  // solid on a functional tile. scaleStations adds station tiles as it runs.
+  // placement.ts holds the live reference, so later mutations are visible.
+  RESERVED.clear();
+  for (const def of REGIONS) {
+    for (const t of forcedCoreTiles(def)) RESERVED.add(`${t.x},${t.y}`);
+  }
+  // Bridge tiles (+1 halo) must never get a solid — a 2-wide bridge severed by a
+  // prop would disconnect the world (brief 93).
+  for (const road of ROADS) {
+    for (let y = road.minY - 1; y <= road.maxY + 1; y++) {
+      for (let x = road.minX - 1; x <= road.maxX + 1; x++) {
+        RESERVED.add(`${x},${y}`);
+      }
+    }
+  }
+  setReservedSolidTiles(RESERVED);
 
   const farmerByRegion = new Map<RegionId, GameEntity>();
   for (const farmer of farmers) {

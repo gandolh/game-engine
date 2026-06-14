@@ -26,7 +26,8 @@
 
 import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
-import { WORLD_WIDTH, WORLD_HEIGHT, type RegionId, type RegionKind } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "./world-dims";
+import type { RegionId, RegionKind } from "./regions";
 
 // ── Tunables ─────────────────────────────────────────────────────────────────
 

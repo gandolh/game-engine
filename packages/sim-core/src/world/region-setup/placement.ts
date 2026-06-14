@@ -6,6 +6,21 @@ export function fountainTile(bounds: RegionDef["bounds"]): { x: number; y: numbe
   return { x: bounds.minX + 1, y: bounds.minY + 1 };
 }
 
+/**
+ * Tiles that must stay walkable (plots, home/cottage, fountain, dock anchors,
+ * NPC stations). A decorative prop may render here but must NOT emit a solid
+ * onto one — that would block a functional tile. With seed-generated islands
+ * (brief 93), snapped props can land on these, so the guard is required.
+ * setup.ts populates this from forcedCoreTiles + station tiles before placing props.
+ */
+let RESERVED_SOLID_TILES: ReadonlySet<string> = new Set();
+export function setReservedSolidTiles(tiles: ReadonlySet<string>): void {
+  RESERVED_SOLID_TILES = tiles;
+}
+function isReserved(x: number, y: number): boolean {
+  return RESERVED_SOLID_TILES.has(`${x},${y}`);
+}
+
 export function placeProps(
   world: World<GameEntity>,
   props: ReadonlyArray<{ x: number; y: number; frame: string; solid?: boolean }>,
@@ -25,7 +40,7 @@ export function placeProps(
     // prop that was carved into the ocean had its solid on a non-walkable tile
     // anyway; relocating that solid onto land could block a functional station,
     // so we keep the snapped sprite but drop the solid.
-    if (p.solid !== false && onLand) {
+    if (p.solid !== false && onLand && !isReserved(x, y)) {
       entity.solid = { isSolid: true, tileX: x, tileY: y };
     }
     world.spawn(entity);
@@ -38,22 +53,21 @@ export function placeFootprint(
 ): void {
   if (tiles.length === 0) return;
   // Footprint solids are non-walkable occlusion backing for a decorative
-  // structure. Keep the scaled rect (do NOT snap individual tiles — snapping a
-  // carved-out corner would balloon the rect onto unrelated tiles, e.g. a work
-  // NPC station). Only emit a solid where the tile is actual mask land; ocean
-  // tiles in the rect are already non-walkable, so skipping them is harmless.
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  // structure. Ride the footprint RIGIDLY: translate every authored tile by the
+  // SAME displacement (taken from the footprint's first tile) so the rect keeps
+  // its authored shape instead of ballooning across the whole island (brief 93 —
+  // per-tile nearest-island mapping could scatter tiles and fill a farm with
+  // solids, severing it). Only emit a solid on actual mask land that isn't a
+  // reserved (plot/station/dock/bridge) tile.
+  const anchor = tiles[0]!;
+  const ridden0 = scaleAroundNearestIsland(anchor);
+  const dx = ridden0.x - anchor.x;
+  const dy = ridden0.y - anchor.y;
   for (const t of tiles) {
-    const { x, y } = scaleAroundNearestIsland(t);
-    if (x < minX) minX = x;
-    if (y < minY) minY = y;
-    if (x > maxX) maxX = x;
-    if (y > maxY) maxY = y;
-  }
-  for (let y = minY; y <= maxY; y++) {
-    for (let x = minX; x <= maxX; x++) {
-      if (regionAt(x, y) === null) continue; // skip ocean tiles in the rect
-      world.spawn({ solid: { isSolid: true, tileX: x, tileY: y } });
-    }
+    const x = t.x + dx;
+    const y = t.y + dy;
+    if (regionAt(x, y) === null) continue; // skip ocean tiles
+    if (isReserved(x, y)) continue; // never block a plot/station/dock/bridge tile
+    world.spawn({ solid: { isSolid: true, tileX: x, tileY: y } });
   }
 }
