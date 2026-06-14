@@ -1,7 +1,6 @@
 ---
 title: "FOUNDATION #0 (sim) — Watchable combat subsystem (HP + AP swings)"
 created: 2026-06-12
-status: open
 tags: [sim, agents, combat, foundation]
 blocks: [ring-box-rivalry-fights, steal-from-npcs-friendship-penalty]
 status: done

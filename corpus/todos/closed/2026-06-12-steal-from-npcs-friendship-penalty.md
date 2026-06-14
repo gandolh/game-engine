@@ -1,7 +1,6 @@
 ---
 title: Kick/steal from NPCs with friendship penalties and retaliation
 created: 2026-06-12
-status: open
 tags: [sim, agents, interaction, combat]
 depends_on: [foundation-combat-subsystem, foundation-relationship-axis]
 status: done

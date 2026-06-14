@@ -1,7 +1,6 @@
 ---
 title: Ring box where farmers fight to reduce rivalry and win gold
 created: 2026-06-12
-status: open
 tags: [sim, agents, economy, combat]
 depends_on: [foundation-combat-subsystem, foundation-relationship-axis, foundation-grow-grid-to-240, foundation-theme-decor-table]
 status: done

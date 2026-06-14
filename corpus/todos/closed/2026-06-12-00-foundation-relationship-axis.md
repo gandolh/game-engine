@@ -1,7 +1,6 @@
 ---
 title: "FOUNDATION (sim) — Unified relationship axis (trust ⊕ rivalry)"
 created: 2026-06-12
-status: open
 tags: [sim, agents, relationships, foundation]
 blocks: [ring-box-rivalry-fights, steal-from-npcs-friendship-penalty]
 status: done
