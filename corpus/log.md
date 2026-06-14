@@ -4,6 +4,10 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-13] plan | Model B organic world gen — 3-brief epic filed (90/91/92)
+
+Grill-me design session locked the long-deferred **Model B** (stored organic island shapes, not just rect placement) from [world-generation.md](wiki/world-generation.md). Decisions: **all** regions organic (cluster+farms+landmarks); data model = rect `bounds` + per-region `Uint8Array` mask, generated on a global grid then sliced; shape algo = **CA-fill + center-floodfill** (plain TS, sim-core); constraints constructive (core-pin + bounds-inset) with **rect fallback** on retry-exhaustion (must log/count); **runtime-varying seed** via a pure `generateWorld(seed)` called once at bootstrap; **all** hand-authored anchors (podium/docks/stations/footprints/coral) re-derived from the mask. Sequenced into 3 todo briefs, each independently verifiable: [90](briefs/game/todo/90-modelb-generate-world-and-mask-plumbing.md) (pure `generateWorld(seed)` + mask plumbing, zero behavior change), [91](briefs/game/todo/91-modelb-ca-shapes-and-mask-derived-anchors.md) (CA shapes + mask-derived anchors, pinned seed), [92](briefs/game/todo/92-modelb-runtime-varying-seed.md) (runtime-varying seed + multi-seed property tests). No code yet — design only.
+
 ## [2026-06-13] chore | Corpus compaction — log, indexes, done-brief archive
 
 Full compaction pass (user-requested). Corpus **10995 → 7290 lines, 152 → 138 files** (−34%). Everything trimmed is in git history; treat that archived prose as obsolete — re-derive from current code + wiki + the (condensed) brief if an old decision resurfaces.
