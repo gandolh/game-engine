@@ -1,6 +1,6 @@
 import type { PathfinderGrid } from "@engine/core";
-import { WORLD_WIDTH, WORLD_HEIGHT, getRegion, onWorldSwap } from "./regions";
-import { openPortLanes } from "./ports";
+import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, getRegion, forEachLandTile, onWorldSwap } from "./regions";
+import { ports } from "./ports";
 
 export interface CoralReef {
   id: "reef-mill" | "reef-forest";
@@ -91,17 +91,27 @@ export function nearestReef(x: number, y: number): CoralReef {
   return best;
 }
 
+/**
+ * Boat grid (brief 93): boats navigate ALL open water, including UNDER bridges
+ * (a bridge is an elevated deck — ocean flows beneath). So only ISLAND land
+ * blocks boats, never roads/bridges; otherwise a fully bridge-connected land
+ * graph could wall the ocean into disconnected basins and strand port-to-port
+ * trips. Dock and reef tiles (island edge / just offshore) are force-opened so a
+ * boat can reach the dock and the reef stub even though the dock tile is land.
+ */
 export function buildBoatGrid(): PathfinderGrid {
-  const cells = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
-  cells.fill(1);
+  const cells = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT); // 0 = navigable
+  for (const region of REGIONS) {
+    forEachLandTile(region, (x, y) => { cells[y * WORLD_WIDTH + x] = 1; }); // island land blocks boats
+  }
   const open = (x: number, y: number) => {
-    cells[y * WORLD_WIDTH + x] = 0;
+    if (x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT) cells[y * WORLD_WIDTH + x] = 0;
   };
   for (const r of coralReefs()) {
     open(r.dock.x, r.dock.y);
     for (const l of r.lane) open(l.x, l.y);
     open(r.reef.x, r.reef.y);
   }
-  openPortLanes(cells);
+  for (const p of ports()) open(p.dock.x, p.dock.y);
   return { cells, width: WORLD_WIDTH, height: WORLD_HEIGHT };
 }
