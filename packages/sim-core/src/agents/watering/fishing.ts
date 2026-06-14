@@ -1,7 +1,7 @@
 import type { GameEntity } from "../../components";
 import { recordReason } from "../../components";
 import { isFishingIsle } from "../../world/regions";
-import { FISHING_CAST_TILES } from "./shared";
+import { fishingCastTiles } from "./shared";
 
 export function deliberateFishing(
   farmer: GameEntity,
@@ -20,13 +20,14 @@ export function deliberateFishing(
   if (!isFishingIsle(farmer.farmer.currentRegion ?? null)) {
     if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
       const t = farmer.transform;
+      const castTiles = fishingCastTiles();
       const cast = t
-        ? [...FISHING_CAST_TILES].sort(
+        ? [...castTiles].sort(
             (a, b) =>
               (Math.abs(a.x - t.x) + Math.abs(a.y - t.y)) -
               (Math.abs(b.x - t.x) + Math.abs(b.y - t.y)),
           )[0]!
-        : FISHING_CAST_TILES[0]!;
+        : castTiles[0]!;
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetTile: { x: cast.x, y: cast.y } },

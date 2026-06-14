@@ -400,16 +400,24 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
 
 describe("PlayerControlSystem — fishing", () => {
 
-  const ISLE_EDGE = { x: 114, y: 162 };
+  // Derive a fishing-isle edge tile (seed-generated positions, brief 93) whose
+  // LEFT neighbour is open ocean and RIGHT neighbour is land: facing "left" =
+  // water (fishes), facing "right" = land (won't fish).
+  function isleWaterEdge(): { x: number; y: number } {
+    const b = getRegion("fishing-isle").bounds;
+    const midY = Math.floor((b.minY + b.maxY) / 2);
+    return { x: b.minX, y: midY }; // left edge tile; b.minX-1 is ocean, b.minX+1 is land
+  }
 
   function standOnIsle(pip: GameEntity): void {
     pip.inventory!.tools!.push({ kind: "fishing-rod", tier: "wooden", durability: Infinity });
     pip.inventory!.fish = zeroFish();
-    pip.transform!.x = ISLE_EDGE.x;
-    pip.transform!.y = ISLE_EDGE.y;
+    const edge = isleWaterEdge();
+    pip.transform!.x = edge.x;
+    pip.transform!.y = edge.y;
     pip.farmer!.currentRegion = "fishing-isle";
     pip.player!.selectedSlot = SLOT.rod;
-    pip.player!.facing = "left"; 
+    pip.player!.facing = "left";
   }
 
   it("fishes facing open water from the isle, banking gold and a fish", () => {

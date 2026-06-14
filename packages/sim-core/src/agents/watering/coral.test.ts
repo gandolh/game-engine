@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GameEntity } from "../../components";
 import { deliberateCoralFishing } from "./coral";
-import { CORAL_REEFS } from "../../world/coral";
+import { CORAL_REEFS, nearestReef } from "../../world/coral";
 
 function makeFarmer(over: Partial<GameEntity> = {}): GameEntity {
   return {
@@ -28,8 +28,10 @@ describe("deliberateCoralFishing", () => {
     const travel = f.intentions!.queue.find((i) => i.kind === "travel");
     expect(travel).toBeDefined();
 
-    const forest = CORAL_REEFS.find((r) => r.id === "reef-forest")!;
-    expect(travel!.data.targetTile).toEqual({ x: forest.dock.x, y: forest.dock.y });
+    // Targets the dock of whichever reef is nearest the farmer (positions are
+    // seed-generated, so derive the expectation rather than hardcoding a reef).
+    const near = nearestReef(f.transform!.x, f.transform!.y);
+    expect(travel!.data.targetTile).toEqual({ x: near.dock.x, y: near.dock.y });
   });
 
   it("queues board-boat when standing on a dock tile on foot", () => {

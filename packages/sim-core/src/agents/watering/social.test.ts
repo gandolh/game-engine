@@ -143,7 +143,11 @@ describe("deliberateFestivalGather — reachability guard", () => {
 
   it("queues festival travel for a connected, on-foot farmer on a festival day", () => {
 
-    const farmer = makeFarmer({ tx: 116, ty: 116, ap: 50 });
+    // On their home farm (bridge-connected to the podium) but NOT already at the
+    // podium, so a travel intent is queued. (If the farmer stands ON the podium,
+    // isWithinReach short-circuits — see deliberateFestivalGather.)
+    const farm = getRegion("farm-pip").center;
+    const farmer = makeFarmer({ tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50 });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);
     const travel = farmer.intentions!.queue.find(

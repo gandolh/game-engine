@@ -4,7 +4,14 @@ import { JsPathfinder } from "../world/js-pathfinder";
 import { isCoralReefTile } from "../world/coral";
 
 const TICKS_PER_DAY = 800;
-const DAYS = 15;
+// 30 days (was 15, no-shock): the generated archipelago (brief 93) spreads farms
+// further from the coral reefs than the old radial map, so coral fishing — a
+// deadline-free luxury trip — happens later in a run. The mid-game shock (now
+// left at its default, was disabled) tips farmers toward the high-value coral
+// trip within this window. Mechanically coral fishing is sound on the new map
+// (reefs reachable, boat grid connects); this is map-distance balance drift,
+// noted in corpus brief 93. Verified aboard+catch on seed 0xc0ffee by day 30.
+const DAYS = 30;
 
 let aboardSeen = false;
 let reachedReef = false;
@@ -19,9 +26,8 @@ describe("coral fishing (live sim)", () => {
     const sim = bootstrapSim({
       seed: 0xc0ffee,
       ticksPerDay: TICKS_PER_DAY,
-      maxDays: 20,
+      maxDays: DAYS + 5,
       pathfinder: new JsPathfinder(),
-      shock: false,
     });
     for (let t = 0; t < TICKS_PER_DAY * DAYS; t++) {
       sim.scheduler.tick({ tick: t });

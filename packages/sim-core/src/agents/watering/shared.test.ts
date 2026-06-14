@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  FISHING_CAST_TILES,
-  TAVERN_GATHER_TILE,
-  FESTIVAL_PODIUM_TILE,
+  fishingCastTiles,
+  tavernGatherTile,
+  festivalPodiumTile,
 } from "./shared";
 import {
   FISHING_ISLE_IDS,
@@ -22,23 +22,25 @@ function hasOceanNeighbour(x: number, y: number): boolean {
 
 describe("AI travel-target tiles are valid in the live world (brief 80)", () => {
   it("derives exactly one fishing cast tile per isle", () => {
-    expect(FISHING_CAST_TILES.length).toBe(FISHING_ISLE_IDS.length);
+    expect(fishingCastTiles().length).toBe(FISHING_ISLE_IDS.length);
   });
 
   it("every fishing cast tile is ON a fishing isle with an ocean tile to cast into", () => {
-    for (const { x, y } of FISHING_CAST_TILES) {
+    for (const { x, y } of fishingCastTiles()) {
       expect(isFishingIsle(regionAt(x, y))).toBe(true);
       expect(hasOceanNeighbour(x, y)).toBe(true);
     }
   });
 
   it("the tavern gather tile is walkable and inside the village", () => {
-    expect(isWalkable(TAVERN_GATHER_TILE.x, TAVERN_GATHER_TILE.y)).toBe(true);
-    expect(regionAt(TAVERN_GATHER_TILE.x, TAVERN_GATHER_TILE.y)).toBe("village");
+    const t = tavernGatherTile();
+    expect(isWalkable(t.x, t.y)).toBe(true);
+    expect(regionAt(t.x, t.y)).toBe("village");
   });
 
   it("the festival podium tile is walkable and inside the village", () => {
-    expect(isWalkable(FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)).toBe(true);
-    expect(regionAt(FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)).toBe("village");
+    const t = festivalPodiumTile();
+    expect(isWalkable(t.x, t.y)).toBe(true);
+    expect(regionAt(t.x, t.y)).toBe("village");
   });
 });

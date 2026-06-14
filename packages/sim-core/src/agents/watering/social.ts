@@ -2,7 +2,7 @@ import type { GameEntity } from "../../components";
 import { recordReason, DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../components";
 import type { DecorationKind, FarmDecoration } from "../../components";
 import { isWithinReach } from "../../systems/proximity";
-import { TAVERN_GATHER_TILE, TAVERN_VISIT_PERIOD, FESTIVAL_PODIUM_TILE } from "./shared";
+import { tavernGatherTile, TAVERN_VISIT_PERIOD, festivalPodiumTile } from "./shared";
 import { SHRINE_REGION_ID, getRegion } from "../../world/regions";
 import { SHRINE_COOLDOWN_DAYS } from "../../systems/ap";
 import { sameComponent } from "../../world/connectivity";
@@ -178,19 +178,20 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   if ((farmer.ap?.current ?? 0) < 40) return;
   const sense = farmer.beliefs.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
   if (sense && sense.maxDrySoFar >= 2) return;
-  if (isWithinReach(farmer.transform, TAVERN_GATHER_TILE.x, TAVERN_GATHER_TILE.y)) return;
+  const tavern = tavernGatherTile();
+  if (isWithinReach(farmer.transform, tavern.x, tavern.y)) return;
   if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile && i.data.tavernGather)) return;
 
   if (farmer.farmer.aboard) return;
   if (farmer.transform) {
     const fx = Math.round(farmer.transform.x);
     const fy = Math.round(farmer.transform.y);
-    if (!sameComponent(fx, fy, TAVERN_GATHER_TILE.x, TAVERN_GATHER_TILE.y)) return;
+    if (!sameComponent(fx, fy, tavern.x, tavern.y)) return;
   }
 
   farmer.intentions.queue.push({
     kind: "travel",
-    data: { targetTile: { x: TAVERN_GATHER_TILE.x, y: TAVERN_GATHER_TILE.y }, tavernGather: true },
+    data: { targetTile: { x: tavern.x, y: tavern.y }, tavernGather: true },
     priority,
   });
   recordReason(farmer, "visit the tavern (gathering beat)");
@@ -206,21 +207,22 @@ export function deliberateFestivalGather(farmer: GameEntity, priority: number): 
   if ((farmer.ap?.current ?? 0) < 40) return;
   const sense = farmer.beliefs.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
   if (sense && sense.maxDrySoFar >= 2) return;
-  if (isWithinReach(farmer.transform, FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)) return;
+  const podium = festivalPodiumTile();
+  if (isWithinReach(farmer.transform, podium.x, podium.y)) return;
   if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.festivalGather)) return;
 
   if (farmer.farmer.aboard) return;
   if (farmer.transform) {
     const fx = Math.round(farmer.transform.x);
     const fy = Math.round(farmer.transform.y);
-    if (!sameComponent(fx, fy, FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)) return;
+    if (!sameComponent(fx, fy, podium.x, podium.y)) return;
   }
 
   const held = farmer.inventory?.crops[festival.contestCrop as import("../../components").CropKind] ?? 0;
 
   farmer.intentions.queue.push({
     kind: "travel",
-    data: { targetTile: { x: FESTIVAL_PODIUM_TILE.x, y: FESTIVAL_PODIUM_TILE.y }, festivalGather: true },
+    data: { targetTile: { x: podium.x, y: podium.y }, festivalGather: true },
     priority,
   });
   recordReason(

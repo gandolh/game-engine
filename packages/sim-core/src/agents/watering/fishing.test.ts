@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GameEntity } from "../../components";
 import { deliberateFishing } from "./fishing";
-import { FISHING_CAST_TILES } from "./shared";
+import { fishingCastTiles } from "./shared";
 import { isFishingIsle, regionAt } from "../../world/regions";
 
 function makeFarmer(over: Partial<GameEntity> = {}): GameEntity {
@@ -35,7 +35,7 @@ describe("deliberateFishing (brief 80)", () => {
     expect(travel).toBeDefined();
     const target = travel!.data.targetTile as { x: number; y: number };
 
-    expect(FISHING_CAST_TILES.some((t) => t.x === target.x && t.y === target.y)).toBe(true);
+    expect(fishingCastTiles().some((t) => t.x === target.x && t.y === target.y)).toBe(true);
     expect(isFishingIsle(regionAt(target.x, target.y))).toBe(true);
 
     const casts = f.intentions!.queue.filter((i) => i.kind === "fish");
@@ -43,7 +43,7 @@ describe("deliberateFishing (brief 80)", () => {
   });
 
   it("already on a fishing isle: queues fish casts with no travel", () => {
-    const isle = FISHING_CAST_TILES[0]!;
+    const isle = fishingCastTiles()[0]!;
     const f = makeFarmer({
       transform: { x: isle.x, y: isle.y, prevX: isle.x, prevY: isle.y, rotation: 0 },
       farmer: { name: "Tester", currentRegion: regionAt(isle.x, isle.y) ?? "fishing-isle" },

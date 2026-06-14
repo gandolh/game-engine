@@ -45,7 +45,12 @@ function deriveFishingCastTiles(): ReadonlyArray<{ x: number; y: number }> {
   return tiles;
 }
 
-export const FISHING_CAST_TILES = deriveFishingCastTiles();
+// A function (not a module-load const) so it reflects the ACTIVE world — the
+// world is seed-generated and swappable at runtime (brief 92/93); a snapshot
+// would point at the default-world isles after a swap.
+export function fishingCastTiles(): ReadonlyArray<{ x: number; y: number }> {
+  return deriveFishingCastTiles();
+}
 
 /**
  * Tavern gathering tile inside the village hub (NE quadrant of the hub, patron
@@ -53,14 +58,22 @@ export const FISHING_CAST_TILES = deriveFishingCastTiles();
  * hardcoded literal — the world grid is parametric (see regions.ts) and a baked
  * tile would silently drift off-hub on the next world scale (cf. FISHING_CAST_TILES).
  */
-const VILLAGE_CENTER = getRegion("village").center;
-export const TAVERN_GATHER_TILE = { x: VILLAGE_CENTER.x + 3, y: VILLAGE_CENTER.y - 3 } as const;
+// Derived from the LIVE village center / auction podium each call (brief 93):
+// the world is seed-generated and swappable at runtime via setActiveWorld, so a
+// module-load snapshot would point at the wrong (default-world) tile after a
+// swap. Functions read the current active world.
+export function tavernGatherTile(): { x: number; y: number } {
+  const c = getRegion("village").center;
+  return { x: c.x + 3, y: c.y - 3 };
+}
 
 /** How often (in days) a farmer makes a tavern gathering trip (a periodic luxury). */
 export const TAVERN_VISIT_PERIOD = 12;
 
-/** The festival gathering tile: auction podium in the town square (the same tile). */
-export const FESTIVAL_PODIUM_TILE = AUCTION_PODIUM_TILE;
+/** The festival gathering tile: the auction podium in the town square. */
+export function festivalPodiumTile(): { x: number; y: number } {
+  return AUCTION_PODIUM_TILE;
+}
 
 /**
  * Pick the nearest water source region to the farmer: their home farm (fountain)
