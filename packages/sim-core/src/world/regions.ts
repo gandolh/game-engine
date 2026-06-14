@@ -309,6 +309,67 @@ function straightBridgeBounds(
   return null;
 }
 
+/**
+ * Routes a road between two regions, returning one or more RoadDef rects (the
+ * deck-inference in render-systems/geometry.ts stitches multiple rects into one
+ * visible bridge). Tries a STRAIGHT 2-wide bridge first (the only kind today's
+ * axis-aligned layout needs — so output is byte-identical until islands scatter).
+ * If no straight bridge is clean (regions not axis-overlapping, e.g. after the
+ * scatter rewrite), falls back to an L-shaped route: two 2-wide legs meeting at a
+ * 2x2 corner. Returns null if nothing clean routes.
+ */
+function elbowBridge(
+  aId: RegionId,
+  bId: RegionId,
+  regions: readonly RegionDef[],
+): RoadDef[] | null {
+  const a = boundsOfIn(aId, regions);
+  const b = boundsOfIn(bId, regions);
+
+  // 1. Straight first — identical to the legacy path when it exists.
+  const straight = straightBridgeBounds(a, b, aId, bId, regions);
+  if (straight) return [straight];
+
+  // 2. L-shaped fallback. Build a 2-wide horizontal leg + 2-wide vertical leg
+  //    meeting at a 2x2 corner. Two corner choices; try each, pick first clean.
+  const ac = { x: Math.floor((a.minX + a.maxX) / 2), y: Math.floor((a.minY + a.maxY) / 2) };
+  const bc = { x: Math.floor((b.minX + b.maxX) / 2), y: Math.floor((b.minY + b.maxY) / 2) };
+
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  // Keep legs 2 wide and inside the world.
+  const hRect = (x0: number, x1: number, y: number): RoadDef => ({
+    minX: Math.min(x0, x1), maxX: Math.max(x0, x1),
+    minY: clamp(y, 0, WORLD_HEIGHT - 2), maxY: clamp(y, 0, WORLD_HEIGHT - 2) + 1,
+  });
+  const vRect = (y0: number, y1: number, x: number): RoadDef => ({
+    minY: Math.min(y0, y1), maxY: Math.max(y0, y1),
+    minX: clamp(x, 0, WORLD_WIDTH - 2), maxX: clamp(x, 0, WORLD_WIDTH - 2) + 1,
+  });
+
+  // Corner candidates: bend under A's column / B's row, then the mirror.
+  const corners = [
+    { cx: ac.x, cy: bc.y },
+    { cx: bc.x, cy: ac.y },
+  ];
+  for (const { cx, cy } of corners) {
+    // A staircase of 2-wide segments from A's center to B's center via the corner:
+    // up/down A's column to the corner row, across to the corner column, up/down to
+    // B's row, across into B. Each segment is cleaned against all other regions.
+    const route: RoadDef[] = [
+      vRect(ac.y, cy, ac.x),
+      hRect(ac.x, cx, cy),
+      vRect(cy, bc.y, cx),
+      hRect(cx, bc.x, bc.y),
+    ];
+    let allClean = true;
+    for (const seg of route) {
+      if (!bridgeIsCleanAgainst(seg, aId, bId, regions)) { allClean = false; break; }
+    }
+    if (allClean) return route;
+  }
+  return null;
+}
+
 function oceanGapBetween(a: RoadDef, b: RoadDef): number {
   const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
   const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
@@ -326,9 +387,6 @@ const centerOfIn = (id: RegionId, regions: readonly RegionDef[]) => {
   return r.center;
 };
 
-function straightBridgeIn(aId: RegionId, bId: RegionId, regions: readonly RegionDef[]): RoadDef | null {
-  return straightBridgeBounds(boundsOfIn(aId, regions), boundsOfIn(bId, regions), aId, bId, regions);
-}
 
 const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
   ['village', 'carpentry'],
@@ -361,9 +419,9 @@ const CLUSTER_BRIDGES: readonly [RegionId, RegionId][] = [
 function generateClusterBridges(regions: readonly RegionDef[]): RoadDef[] {
   const out: RoadDef[] = [];
   for (const [aId, bId] of CLUSTER_BRIDGES) {
-    const r = straightBridgeIn(aId, bId, regions);
+    const r = elbowBridge(aId, bId, regions);
     if (!r) throw new Error(`generateClusterBridges: no clean bridge ${aId}↔${bId}`);
-    out.push(r);
+    out.push(...r);
   }
   return out;
 }
@@ -387,8 +445,8 @@ function generateFarmSpokes(regions: readonly RegionDef[]): RoadDef[] {
       return da - db;
     });
     for (const t of sorted) {
-      const r = straightBridgeIn(fid, t, regions);
-      if (r) { out.push(r); return; }
+      const r = elbowBridge(fid, t, regions);
+      if (r) { out.push(...r); return; }
     }
     throw new Error(`generateFarmSpokes: no clean spoke for ${fid}`);
   };
