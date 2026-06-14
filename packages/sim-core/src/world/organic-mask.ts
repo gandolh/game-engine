@@ -4,7 +4,7 @@
  * Produces a Uint8Array land/ocean mask for a RegionDef via:
  *   1. Random seeding (with edge inset to enforce inter-region ocean gap)
  *   2. Core tile pinning (forced-land tiles from anchors.ts)
- *   3. Cellular-automata smoothing (two-rule born>=5 / survive>=3)
+ *   3. Cellular-automata smoothing (two-rule born>=5 / survive>=2)
  *   4. Flood-fill from core tiles (keeps only the main connected land body)
  *   5. Validation (all core tiles land, minimum land coverage)
  *
@@ -12,10 +12,11 @@
  * forked per attempt with a stable label. No Math.random() is used.
  *
  * Parameters tuned empirically (2026-06-14): 100% of regions with area >= 36
- * generate an organic (non-rect) mask on the default seed, ~45% avg land
- * retained (min 34%) so islands read as carved but stay functional. A single
- * threshold>=5 rule was too erosive (~50% organic); two-rule born>=5/survive>=3
- * with P=0.60 + 2 passes + a 35% min-land floor is the balanced point.
+ * generate an organic (non-rect) mask on the default seed, ~57% avg land
+ * retained (min ~49%) so islands have a generous land surface but still read as
+ * carved. A single threshold>=5 rule was too erosive (~50% organic); two-rule
+ * born>=5/survive>=2 with P=0.70 + 2 passes + a 50% min-land floor is the
+ * balanced point (raised from the original 45%-avg tuning to enlarge islands).
  */
 
 import type { RegionDef } from "./regions";
@@ -30,21 +31,21 @@ export const INSET = 1;
 export const N_PASSES = 2;
 
 /** Initial land probability for interior tiles (pre-pinning). */
-export const LAND_PROBABILITY = 0.6;
+export const LAND_PROBABILITY = 0.7;
 
 /** Two-rule CA: an ocean tile becomes land with >= BORN land neighbours (8-conn). */
 const BORN_THRESHOLD = 5;
 /** A land tile stays land with >= SURVIVE land neighbours; else erodes to ocean. */
-const SURVIVE_THRESHOLD = 3;
+const SURVIVE_THRESHOLD = 2;
 
 /**
- * Minimum land fraction required for a valid mask. At 0.35 the surviving
- * core-connected blob is always a substantial island (no slivers) while still
- * leaving 100% of area>=36 regions able to generate organically on the default
- * seed. Below this the floodfill can leave a thin strand; above it some regions
- * fall back to rect.
+ * Minimum land fraction required for a valid mask. At 0.50 islands keep a
+ * substantial land surface (~57% avg, min ~49%) while still reading as carved
+ * (not near-rect) and keeping 100% of area>=36 regions organic on the default
+ * seed. Raised from 0.35 (avg ~45%) to give farmers/landmarks more usable land;
+ * pushing past ~0.55 starts forcing some regions to rect fallback.
  */
-const MIN_LAND_FRAC = 0.35;
+const MIN_LAND_FRAC = 0.5;
 const MIN_LAND_ABS = 4;
 
 /** Maximum generation attempts before falling back to all-land rect. */
