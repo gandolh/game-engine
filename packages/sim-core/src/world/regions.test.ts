@@ -6,6 +6,7 @@ import {
   CAMPFIRE_TILE, WATERFALL_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE,
   WEATHER_STATION_TILE, HARBOR_DOCK_TILE, HARBOR_BOARD_TILE,
   AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, TOWN_SQUARE, ROADS,
+  placeRegions, BASE_REGIONS,
 } from './regions';
 import { forcedCoreTiles } from './region-setup/anchors';
 
@@ -123,27 +124,25 @@ describe('procedural farm band', () => {
     }
   });
 
-  it('every procedural farm sits on one of the two radial ring radii (jitter ≤1)', () => {
+  it('placeRegions(seed) is deterministic (twice deep-equals)', () => {
+    // placeRegions applies seeded jitter; the same seed+salt must reproduce the
+    // exact same placement. (Ring-radius position is no longer guaranteed — the
+    // band is jittered up to PLACE_JITTER tiles off its base ring slot.)
+    const a = placeRegions(WORLD_GEN_SEED, BASE_REGIONS, 0);
+    const b = placeRegions(WORLD_GEN_SEED, BASE_REGIONS, 0);
+    expect(b).toEqual(a);
+  });
 
-    const CX = 120;
-    const CY = 120;
-
-    const TOL = 3;
-    let offRing = 0;
+  it('every procedural farm center is distinct and walkable', () => {
+    const centers = new Set<string>();
     for (let i = 0; i < EXTRA_FARM_COUNT; i++) {
       const { center } = getRegion(`farm-${i}` as const);
-      const r = Math.hypot(center.x - CX, center.y - CY);
-      const onInner = Math.abs(r - 78) <= TOL;
-      const onOuter = Math.abs(r - 108) <= TOL;
-      expect(onInner || onOuter, `farm-${i} radius ${r.toFixed(1)} on a ring`).toBe(true);
-
-      if (i < 4) expect(onInner, `farm-${i} on inner ring`).toBe(true);
-      else expect(onOuter, `farm-${i} on outer ring`).toBe(true);
-
-      const a = (i < 4 ? 78 : 108);
-      if (Math.abs(r - a) > 0.6) offRing++;
+      const key = `${center.x},${center.y}`;
+      expect(centers.has(key), `farm-${i} center (${key}) is distinct`).toBe(false);
+      centers.add(key);
+      expect(isWalkable(center.x, center.y), `farm-${i} center walkable`).toBe(true);
+      expect(regionAt(center.x, center.y), `farm-${i} center resolves to itself`).toBe(`farm-${i}`);
     }
-    expect(offRing).toBeGreaterThan(0);
   });
 });
 
