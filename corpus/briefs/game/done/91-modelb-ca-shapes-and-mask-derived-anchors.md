@@ -1,6 +1,27 @@
 # Game Task 91 — Model B: CA organic shapes + mask-derived anchors
 
-**Status:** Todo
+> **✅ DONE 2026-06-14** (shipped as 91a `0f6bf26` + 91b `e6bdba9`, pinned default seed).
+> **CA primitive** `world/organic-mask.ts`: per-region two-rule CA (born≥5 / survive≥3,
+> P=0.60, 2 passes, snapshot-read/new-buffer per pass) + array-queue floodfill from a
+> pinned core. Tuned empirically — a single threshold≥5 only got ~50% organic; the two-rule
+> form gets **100% of regions with area≥36 organic** (~45% avg land, no slivers),
+> **fallbackCount=0** on the default seed. **Shared core** `world/region-setup/anchors.ts`
+> `forcedCoreTiles` is the single source of truth for must-be-land tiles (plot grid, fountain,
+> home, cottage base, port/coral dock anchors), pinned by the mask AND used by the spawner so
+> they can't diverge. generateWorld builds masks sequentially with a cross-region ≥2-ocean
+> adjacency check and pins bridge-attachment tiles + an **L-path corridor** from each road
+> entry to the region center (keeps every region pass-through; reachability BFS holds).
+> **Anchors** derived via `nearestLandTile`/`snapPropToLand` (9 tile consts + baked
+> BIG_STRUCTURES); watering till/orchard, pen/greenhouse placement, cliffs, and the bubble
+> ring made mask-aware; stations fail loud off-land. Guard tests rewritten over masks
+> (walkable count, ≥2-ocean gaps, corner→center+core) + new guards (≥80% organic, bounded
+> fallback, core+tile-consts on land, determinism). **91b** isolated the one RNG-stream-
+> sensitive site (`tile-features.ts` candidate count → `cluster.nextFloat()` draws). Full
+> suite green: sim-core 784/784, farm-valley 186/186, typecheck clean. The 1200-tick headless
+> determinism check was **skipped** (user call, constrained hardware) — unit suite +
+> deterministic-mask derivation stood in. → unblocks [92](92-modelb-runtime-varying-seed.md).
+
+**Status:** Done
 **Epic:** Organic world gen (Model B). Brief 2 of 3. **Depends on [90](90-modelb-generate-world-and-mask-plumbing.md)** (pure `generateWorld(seed)` + mask plumbing must land first).
 **Design:** grill-me 2026-06-13 (decision table in [90](90-modelb-generate-world-and-mask-plumbing.md)).
 

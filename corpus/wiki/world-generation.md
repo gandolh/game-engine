@@ -150,12 +150,10 @@ Ranked techniques (all must thread `rng.fork(label)` — never `Math.random`):
 next) — jittered placement, MST bridges, multi-seed property tests, biome/décor.
 Phase 2 (future) — Model B organic shapes via CA + center-floodfill.
 
-> **Status update (2026-06-14):** Phase 0 **shipped** in [brief 90](../briefs/game/done/90-modelb-generate-world-and-mask-plumbing.md) —
-> `generateWorld(seed): GeneratedWorld` is now the pure factory (default-called once as `DEFAULT_WORLD`,
-> all named exports re-exported, zero caller churn). Brief 90 also added `RegionDef.mask?: Uint8Array`
-> (all-1 for now), `regionMaskAt`/`forEachLandTile`, and a mask-aware `regionAt` — the plumbing the
-> Model-B *shapes* land on. The seed param is tests-only until brief 92. Next: [brief 91](../briefs/game/todo/91-modelb-ca-shapes-and-mask-derived-anchors.md)
-> (CA-fill shapes + mask-derived anchors), then [brief 92](../briefs/game/todo/92-modelb-runtime-varying-seed.md) (runtime-varying seed).
+> **Status update (2026-06-14):** Phases 0 + 2-shapes **shipped**.
+> - [brief 90](../briefs/game/done/90-modelb-generate-world-and-mask-plumbing.md): `generateWorld(seed): GeneratedWorld` pure factory + `RegionDef.mask` plumbing (`regionMaskAt`/`forEachLandTile`/mask-aware `regionAt`), all-1 masks.
+> - [brief 91](../briefs/game/done/91-modelb-ca-shapes-and-mask-derived-anchors.md): masks are now **organic** on the default seed. `world/organic-mask.ts` = two-rule CA (born≥5/survive≥3, P=0.60, 2 passes) + array-queue floodfill from a pinned core; 100% of regions area≥36 go organic, fallbackCount=0. `world/region-setup/anchors.ts` `forcedCoreTiles` is the shared must-be-land set (mask-pinner ⊕ entity-spawner). Bridges stay on bounds rects but their attachment tiles + an L-path-to-center corridor are pinned into the core so reachability holds. Fixed tiles derived via `nearestLandTile`/`snapPropToLand`. **Pinned seed only.**
+> - Next: [brief 92](../briefs/game/todo/92-modelb-runtime-varying-seed.md) — flip the seed to runtime-varying + multi-seed property tests.
 
 The actionable cut of this menu is filed as
 [brief 49 — organic procgen](../briefs/game/done/49-organic-procgen-noise-and-authored-detail.md):
