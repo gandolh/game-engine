@@ -3,21 +3,25 @@
 import type { SimContext, System, World, Rng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ONT_SIMULATION } from "../protocols";
-import { getRegion, isWalkable, FISHING_ISLE_IDS } from "../world/regions";
+import { getRegion, isWalkable, regionAt, FISHING_ISLE_IDS } from "../world/regions";
 
 export const BUBBLE_COUNT = 5;
 
 function ringTilesFor(isleId: (typeof FISHING_ISLE_IDS)[number]): Array<{ x: number; y: number }> {
   const b = getRegion(isleId).bounds;
   const out: Array<{ x: number; y: number }> = [];
+  // Organic masks: the isle perimeter is no longer the bounds rect. A candidate
+  // ocean tile (non-walkable) belongs to the ring if any of its 4 neighbours is
+  // a LAND tile of this isle. Walk the expanded bounds, y-outer then x-inner for
+  // a deterministic order.
+  const isIsleLand = (x: number, y: number): boolean => regionAt(x, y) === isleId;
   for (let y = b.minY - 1; y <= b.maxY + 1; y++) {
     for (let x = b.minX - 1; x <= b.maxX + 1; x++) {
-      if (x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY) continue;
-      if (isWalkable(x, y)) continue; 
+      if (isWalkable(x, y)) continue; // only ocean tiles can hold a fishing spot
 
       const touchesIsle =
-        (x >= b.minX && x <= b.maxX && (y === b.minY - 1 || y === b.maxY + 1)) ||
-        (y >= b.minY && y <= b.maxY && (x === b.minX - 1 || x === b.maxX + 1));
+        isIsleLand(x - 1, y) || isIsleLand(x + 1, y) ||
+        isIsleLand(x, y - 1) || isIsleLand(x, y + 1);
       if (touchesIsle) out.push({ x, y });
     }
   }

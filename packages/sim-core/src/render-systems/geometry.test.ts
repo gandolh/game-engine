@@ -175,21 +175,32 @@ describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", 
     }
   });
 
-  it("gradient is monotone: tiles further from land are not closer to 1.0 than tiles nearer", () => {
-
+  it("gradient falls off offshore: deep open ocean is dimmer than the coastline tile", () => {
+    // With organic (concave) coastlines the per-step gradient along a row is NOT
+    // strictly monotone — moving away from one land bulge can move you toward
+    // another. The invariant that still holds is the overall offshore falloff:
+    // a tile GRADIENT_DEPTH_MAX+ tiles past the coast (and not near other land)
+    // is no brighter than the coastline tile itself.
     const b = COASTLINE_BUBBLE_TILES[0]!;
+    const start = oceanGradientAt(b.tx, b.ty);
 
-    let prev = oceanGradientAt(b.tx, b.ty);
+    let last = start;
+    let steps = 0;
     for (let dx = 1; dx < GRADIENT_DEPTH_MAX + 2; dx++) {
       const tx = b.tx + dx;
       if (tx >= WORLD_WIDTH) break;
-      if (isWalkable(tx, b.ty)) break; 
-      const cur = oceanGradientAt(tx, b.ty);
+      if (isWalkable(tx, b.ty)) break;
+      last = oceanGradientAt(tx, b.ty);
+      steps++;
+    }
+
+    // If we walked the full depth without hitting other land, the far tile must
+    // have fallen off to (near) open ocean — strictly dimmer than the coast.
+    if (steps >= GRADIENT_DEPTH_MAX) {
       expect(
-        cur,
-        `gradient at (${tx},${b.ty}) increased from prev=${prev} — should be non-increasing`,
-      ).toBeLessThanOrEqual(prev + 1e-9); 
-      prev = cur;
+        last,
+        `gradient ${steps} tiles offshore (${start} -> ${last}) should fall off`,
+      ).toBeLessThanOrEqual(start + 1e-9);
     }
   });
 

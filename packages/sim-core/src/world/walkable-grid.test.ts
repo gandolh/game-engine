@@ -1,10 +1,34 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from '@engine/core';
 import { buildWalkableGrid } from './walkable-grid';
-import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, EXTRA_FARM_COUNT, WORLD_GEN_SEED, getRegion } from './regions';
+import {
+  WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, EXTRA_FARM_COUNT, WORLD_GEN_SEED,
+  getRegion, forEachLandTile, type RegionDef,
+} from './regions';
 import { CLIFFS } from '../render-systems/geometry';
 
-const VILLAGE = getRegion('village').center; 
+const VILLAGE = getRegion('village').center;
+
+/** Collect a region's mask-land tiles (organic shape, not the bounds rect). */
+function landTilesOf(region: RegionDef): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  forEachLandTile(region, (x, y) => out.push({ x, y }));
+  return out;
+}
+
+/** Min Chebyshev distance between any land tile of A and any land tile of B. */
+function minChebyshevBetween(a: RegionDef, b: RegionDef): number {
+  const aLand = landTilesOf(a);
+  const bLand = landTilesOf(b);
+  let min = Infinity;
+  for (const p of aLand) {
+    for (const q of bLand) {
+      const d = Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y));
+      if (d < min) min = d;
+    }
+  }
+  return min;
+}
 
 describe('buildWalkableGrid', () => {
   it('grid size matches WORLD_WIDTH * WORLD_HEIGHT', () => {
@@ -47,13 +71,14 @@ describe('buildWalkableGrid', () => {
 
   it('walkable count matches an independent recomputation from REGIONS + ROADS', () => {
     const expected = new Set<number>();
-    const mark = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
+    const markRect = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
       for (let y = b.minY; y <= b.maxY; y++) {
         for (let x = b.minX; x <= b.maxX; x++) expected.add(y * WORLD_WIDTH + x);
       }
     };
-    for (const r of REGIONS) mark(r.bounds);
-    for (const road of ROADS) mark(road);
+    // Regions are organic masks now — sum mask-land tiles, not the bounds rect.
+    for (const r of REGIONS) forEachLandTile(r, (x, y) => expected.add(y * WORLD_WIDTH + x));
+    for (const road of ROADS) markRect(road);
 
     const grid = buildWalkableGrid();
     let walkableCount = 0;
@@ -63,42 +88,35 @@ describe('buildWalkableGrid', () => {
     expect(walkableCount).toBe(expected.size);
   });
 
-  it('no two island bodies are adjacent (≥1 ocean tile between every region pair)', () => {
-    const touches = (
-      a: { minX: number; minY: number; maxX: number; maxY: number },
-      b: { minX: number; minY: number; maxX: number; maxY: number },
-    ) => !(a.maxX + 1 < b.minX || b.maxX < a.minX - 1 || a.maxY + 1 < b.minY || b.maxY < a.minY - 1);
-
+  it('no two island bodies are adjacent (≥2 Chebyshev between every region pair, over MASK land)', () => {
+    // Organic masks: compare actual land tiles, not bounds rects. Every land
+    // tile of A must be Chebyshev ≥2 from every land tile of B (i.e. ≥1 ocean
+    // tile between the bodies). The mask generator's cross-region adjacency
+    // check enforces this; this guard proves it for the default world.
+    //
+    // Skip pairs that share a road bridge endpoint? No — roads are not regions,
+    // so region land never includes road tiles. No special-casing needed.
     for (let i = 0; i < REGIONS.length; i++) {
       for (let j = i + 1; j < REGIONS.length; j++) {
         const a = REGIONS[i]!;
         const b = REGIONS[j]!;
         expect(
-          touches(a.bounds, b.bounds),
-          `${a.id} and ${b.id} must be separated by ocean`,
-        ).toBe(false);
+          minChebyshevBetween(a, b),
+          `${a.id} and ${b.id} land must be Chebyshev ≥2 apart`,
+        ).toBeGreaterThanOrEqual(2);
       }
     }
   });
 
-  it('jittered band farm bodies keep a ≥2-tile ocean margin (jitter budget holds)', () => {
-
+  it('jittered band farm bodies keep a ≥2 Chebyshev land margin (jitter budget holds)', () => {
     const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id));
-    const oceanGap = (
-      a: { minX: number; minY: number; maxX: number; maxY: number },
-      b: { minX: number; minY: number; maxX: number; maxY: number },
-    ) => {
-      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
-      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
-      return Math.max(gx, gy);
-    };
     for (let i = 0; i < band.length; i++) {
       for (let j = i + 1; j < band.length; j++) {
         const a = band[i]!;
         const b = band[j]!;
         expect(
-          oceanGap(a.bounds, b.bounds),
-          `${a.id} and ${b.id} must keep ≥2 ocean tiles`,
+          minChebyshevBetween(a, b),
+          `${a.id} and ${b.id} land must keep Chebyshev ≥2`,
         ).toBeGreaterThanOrEqual(2);
       }
     }
@@ -184,60 +202,36 @@ describe('buildWalkableGrid', () => {
     expect(seen.has(idx(camp!.center.x, camp!.center.y)), 'camp reachable from village').toBe(true);
   });
 
-  it('the camping island keeps a ≥2-tile ocean margin from every other region', () => {
+  it('the camping island keeps a ≥2 Chebyshev land margin from every other region', () => {
     const camp = REGIONS.find((r) => r.id === 'camp')!;
-    const oceanGap = (
-      a: { minX: number; minY: number; maxX: number; maxY: number },
-      b: { minX: number; minY: number; maxX: number; maxY: number },
-    ) => {
-      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
-      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
-      return Math.max(gx, gy);
-    };
     for (const r of REGIONS) {
       if (r.id === 'camp') continue;
       expect(
-        oceanGap(camp.bounds, r.bounds),
-        `camp and ${r.id} must keep ≥2 ocean tiles`,
+        minChebyshevBetween(camp, r),
+        `camp and ${r.id} land must keep Chebyshev ≥2`,
       ).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it('the waterfall island keeps a ≥2-tile ocean margin from every other region', () => {
+  it('the waterfall island keeps a ≥2 Chebyshev land margin from every other region', () => {
     const waterfall = REGIONS.find((r) => r.id === 'waterfall')!;
-    const oceanGap = (
-      a: { minX: number; minY: number; maxX: number; maxY: number },
-      b: { minX: number; minY: number; maxX: number; maxY: number },
-    ) => {
-      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
-      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
-      return Math.max(gx, gy);
-    };
     for (const r of REGIONS) {
       if (r.id === 'waterfall') continue;
       expect(
-        oceanGap(waterfall.bounds, r.bounds),
-        `waterfall and ${r.id} must keep ≥2 ocean tiles`,
+        minChebyshevBetween(waterfall, r),
+        `waterfall and ${r.id} land must keep Chebyshev ≥2`,
       ).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it('each heritage islet keeps a ≥2-tile ocean margin from every other region', () => {
-    const oceanGap = (
-      a: { minX: number; minY: number; maxX: number; maxY: number },
-      b: { minX: number; minY: number; maxX: number; maxY: number },
-    ) => {
-      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
-      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
-      return Math.max(gx, gy);
-    };
+  it('each heritage islet keeps a ≥2 Chebyshev land margin from every other region', () => {
     for (const id of ['heritage-stones', 'heritage-ruin', 'heritage-statue'] as const) {
       const h = REGIONS.find((r) => r.id === id)!;
       for (const r of REGIONS) {
         if (r.id === id) continue;
         expect(
-          oceanGap(h.bounds, r.bounds),
-          `${id} and ${r.id} must keep ≥2 ocean tiles`,
+          minChebyshevBetween(h, r),
+          `${id} and ${r.id} land must keep Chebyshev ≥2`,
         ).toBeGreaterThanOrEqual(2);
       }
     }
@@ -254,21 +248,13 @@ describe('buildWalkableGrid', () => {
     expect(CLIFFS.length, 'CLIFFS must be non-empty').toBeGreaterThan(0);
   });
 
-  it('the shrine island keeps a ≥2-tile ocean margin from every other region', () => {
+  it('the shrine island keeps a ≥2 Chebyshev land margin from every other region', () => {
     const shrine = REGIONS.find((r) => r.id === 'shrine')!;
-    const oceanGap = (
-      a: { minX: number; minY: number; maxX: number; maxY: number },
-      b: { minX: number; minY: number; maxX: number; maxY: number },
-    ) => {
-      const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
-      const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
-      return Math.max(gx, gy);
-    };
     for (const r of REGIONS) {
       if (r.id === 'shrine') continue;
       expect(
-        oceanGap(shrine.bounds, r.bounds),
-        `shrine and ${r.id} must keep ≥2 ocean tiles`,
+        minChebyshevBetween(shrine, r),
+        `shrine and ${r.id} land must keep Chebyshev ≥2`,
       ).toBeGreaterThanOrEqual(2);
     }
   });

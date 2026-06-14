@@ -2,29 +2,25 @@ import { describe, it, expect } from 'vitest';
 import {
   regionAt, isWalkable, REGIONS, EXTRA_FARM_COUNT, nearestResourceZone, getRegion,
   WORLD_WIDTH, WORLD_HEIGHT,
-  generateWorld, WORLD_GEN_SEED, regionMaskAt, forEachLandTile,
+  generateWorld, WORLD_GEN_SEED, regionMaskAt, forEachLandTile, WORLD_FALLBACK_COUNT,
   CAMPFIRE_TILE, WATERFALL_TILE, VOLCANO_CRATER_TILE, CASINO_NEON_TILE,
   WEATHER_STATION_TILE, HARBOR_DOCK_TILE, HARBOR_BOARD_TILE,
   AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, TOWN_SQUARE, ROADS,
 } from './regions';
+import { forcedCoreTiles } from './region-setup/anchors';
 
 const centerOf = (id: string) => getRegion(id as never).center;
 
-const cornersOf = (id: string) => {
-  const { minX, minY, maxX, maxY } = getRegion(id as never).bounds;
-  return [
-    { x: minX, y: minY }, { x: maxX, y: minY },
-    { x: minX, y: maxY }, { x: maxX, y: maxY },
-  ];
-};
-
 describe('regionAt', () => {
-  it('resolves every region center and every corner to that region', () => {
+  it('resolves every region center and every forced-core tile to that region', () => {
+    // Organic masks carve out bounds corners (they may be ocean), so we assert
+    // the CENTER and every forcedCoreTiles tile — the tiles the mask guarantees
+    // to keep as land — resolve to the region.
     for (const region of REGIONS) {
       const c = region.center;
       expect(regionAt(c.x, c.y), `${region.id} center`).toBe(region.id);
-      for (const corner of cornersOf(region.id)) {
-        expect(regionAt(corner.x, corner.y), `${region.id} corner`).toBe(region.id);
+      for (const core of forcedCoreTiles(region)) {
+        expect(regionAt(core.x, core.y), `${region.id} core (${core.x},${core.y})`).toBe(region.id);
       }
     }
   });
@@ -188,39 +184,109 @@ describe('generateWorld', () => {
 });
 
 describe('region masks', () => {
-  it('every region has an all-1 mask sized to its bounds', () => {
+  it('every region has a mask sized to its bounds with at least its core land', () => {
     for (const region of REGIONS) {
       const { minX, minY, maxX, maxY } = region.bounds;
       const w = maxX - minX + 1;
       const h = maxY - minY + 1;
       expect(region.mask, `${region.id} mask`).toBeDefined();
       expect(region.mask!.length, `${region.id} length`).toBe(w * h);
-      for (const byte of region.mask!) expect(byte).toBe(1);
+      let landCount = 0;
+      for (const byte of region.mask!) if (byte === 1) landCount++;
+      expect(landCount, `${region.id} has land`).toBeGreaterThan(0);
     }
   });
 
-  it('regionMaskAt matches inBounds for sampled tiles', () => {
+  it('regionMaskAt is false for tiles outside the bounds rect', () => {
     for (const region of REGIONS) {
       const { minX, minY, maxX, maxY } = region.bounds;
-      const samples = [
-        { x: minX, y: minY }, { x: maxX, y: maxY },
-        { x: Math.floor((minX + maxX) / 2), y: Math.floor((minY + maxY) / 2) },
+      const outside = [
         { x: minX - 1, y: minY }, { x: maxX + 1, y: maxY },
+        { x: minX, y: minY - 1 }, { x: maxX, y: maxY + 1 },
       ];
-      for (const s of samples) {
-        const inBounds = s.x >= minX && s.x <= maxX && s.y >= minY && s.y <= maxY;
-        expect(regionMaskAt(region, s.x, s.y), `${region.id} (${s.x},${s.y})`).toBe(inBounds);
+      for (const s of outside) {
+        expect(regionMaskAt(region, s.x, s.y), `${region.id} (${s.x},${s.y}) OOB`).toBe(false);
       }
     }
   });
 
-  it('forEachLandTile visits exactly the bounds area', () => {
+  it('forEachLandTile only visits mask-land tiles (subset of bounds area)', () => {
     for (const region of REGIONS) {
       const { minX, minY, maxX, maxY } = region.bounds;
       const area = (maxX - minX + 1) * (maxY - minY + 1);
       let count = 0;
-      forEachLandTile(region, () => { count++; });
-      expect(count, `${region.id}`).toBe(area);
+      forEachLandTile(region, (x, y) => {
+        count++;
+        expect(regionMaskAt(region, x, y), `${region.id} (${x},${y}) is land`).toBe(true);
+      });
+      expect(count, `${region.id} land count > 0`).toBeGreaterThan(0);
+      expect(count, `${region.id} land count <= area`).toBeLessThanOrEqual(area);
+    }
+  });
+
+  // ── New Wave-2 guards ────────────────────────────────────────────────────
+
+  it('(a) ≥80% of regions with area ≥36 have a non-all-1 (organic) mask', () => {
+    let big = 0;
+    let organic = 0;
+    for (const region of REGIONS) {
+      const { minX, minY, maxX, maxY } = region.bounds;
+      const area = (maxX - minX + 1) * (maxY - minY + 1);
+      if (area < 36) continue;
+      big++;
+      const allOnes = region.mask!.every((v) => v === 1);
+      if (!allOnes) organic++;
+    }
+    const pct = (organic / big) * 100;
+    // eslint-disable-next-line no-console
+    console.log(`Organic (area>=36): ${organic}/${big} (${pct.toFixed(1)}%), WORLD_FALLBACK_COUNT=${WORLD_FALLBACK_COUNT}`);
+    expect(pct).toBeGreaterThanOrEqual(80);
+  });
+
+  it('(b) WORLD_FALLBACK_COUNT is bounded (<= 4)', () => {
+    expect(WORLD_FALLBACK_COUNT).toBeLessThanOrEqual(4);
+  });
+
+  it('(c) every forced-core tile of every region is mask land', () => {
+    for (const region of REGIONS) {
+      for (const core of forcedCoreTiles(region)) {
+        expect(
+          regionMaskAt(region, core.x, core.y),
+          `${region.id} core (${core.x},${core.y}) must be land`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('(d) every exported tile const sits on land (regionAt !== null)', () => {
+    const consts: Array<[string, { x: number; y: number }]> = [
+      ['CAMPFIRE_TILE', CAMPFIRE_TILE],
+      ['WATERFALL_TILE', WATERFALL_TILE],
+      ['VOLCANO_CRATER_TILE', VOLCANO_CRATER_TILE],
+      ['CASINO_NEON_TILE', CASINO_NEON_TILE],
+      ['WEATHER_STATION_TILE', WEATHER_STATION_TILE],
+      ['HARBOR_DOCK_TILE', HARBOR_DOCK_TILE],
+      ['HARBOR_BOARD_TILE', HARBOR_BOARD_TILE],
+      ['AUCTION_PODIUM_TILE', AUCTION_PODIUM_TILE],
+      ['NOTICE_BOARD_TILE', NOTICE_BOARD_TILE],
+    ];
+    for (const [name, t] of consts) {
+      expect(regionAt(t.x, t.y), `${name} (${t.x},${t.y}) on land`).not.toBeNull();
+    }
+  });
+
+  it('(e) generateWorld(WORLD_GEN_SEED) twice produces identical masks', () => {
+    const a = generateWorld(WORLD_GEN_SEED);
+    const b = generateWorld(WORLD_GEN_SEED);
+    expect(a.regions.length).toBe(b.regions.length);
+    for (let i = 0; i < a.regions.length; i++) {
+      const ra = a.regions[i]!;
+      const rb = b.regions[i]!;
+      expect(ra.id).toBe(rb.id);
+      expect(ra.mask!.length).toBe(rb.mask!.length);
+      for (let j = 0; j < ra.mask!.length; j++) {
+        expect(ra.mask![j], `${ra.id} mask[${j}]`).toBe(rb.mask![j]);
+      }
     }
   });
 });

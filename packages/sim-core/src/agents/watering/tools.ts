@@ -1,7 +1,7 @@
 import type { GameEntity } from "../../components";
 import { recordReason, TOOL_PRICE } from "../../components";
 import type { ToolKind } from "../../components";
-import { REGIONS } from "../../world/regions";
+import { REGIONS, forEachLandTile } from "../../world/regions";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestTile } from "./shared";
 
@@ -51,15 +51,18 @@ export function deliberateTill(
   const farmDef = REGIONS.find(r => r.id === farmer.farmer!.homeRegion);
   if (!farmDef || farmDef.kind !== "farm") return;
 
+  // Only offer mask-land tiles (forEachLandTile skips carved-out ocean tiles).
+  // forEachLandTile has no break, so a `full` guard stops collecting once we
+  // have enough candidates (preserves the old maxNewPlots*3 early-out).
   const candidates: Array<{ tileX: number; tileY: number }> = [];
-  outer: for (let ty = farmDef.bounds.minY; ty <= farmDef.bounds.maxY; ty++) {
-    for (let tx = farmDef.bounds.minX; tx <= farmDef.bounds.maxX; tx++) {
-      const key = `${tx},${ty}`;
-      if (occupiedTiles.has(key)) continue;
-      candidates.push({ tileX: tx, tileY: ty });
-      if (candidates.length >= maxNewPlots * 3) break outer; 
-    }
-  }
+  let full = false;
+  forEachLandTile(farmDef, (tx, ty) => {
+    if (full) return;
+    const key = `${tx},${ty}`;
+    if (occupiedTiles.has(key)) return;
+    candidates.push({ tileX: tx, tileY: ty });
+    if (candidates.length >= maxNewPlots * 3) full = true;
+  });
   if (candidates.length === 0) return;
 
   const transform = farmer.transform;

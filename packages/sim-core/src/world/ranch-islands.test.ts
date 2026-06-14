@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { World } from "@engine/core";
-import { REGIONS, ROADS, ranchForFarm, regionAt, WORLD_WIDTH, WORLD_HEIGHT } from "./regions";
+import { REGIONS, ROADS, ranchForFarm, regionAt, WORLD_WIDTH, WORLD_HEIGHT, forEachLandTile } from "./regions";
 import type { RegionId } from "./regions";
 import { sameComponent, _resetComponentMap } from "./connectivity";
 import { ZERO_CROPS } from "../economy";
@@ -90,15 +90,19 @@ describe("per-farm ranch islands", () => {
     _resetComponentMap();
   });
 
-  it("every ranch tile is walkable and regionAt === its ranch id", () => {
+  it("every ranch LAND tile is walkable and regionAt === its ranch id", () => {
+    // Ranches are organic masks now: only the mask LAND tiles are the ranch.
+    // Each must be in-world and resolve to its id; every ranch must keep a
+    // substantial land body (its forced core + carved blob).
     for (const id of ranchIds) {
-      const { bounds } = REGIONS.find((r) => r.id === id)!;
-      for (let y = bounds.minY; y <= bounds.maxY; y++) {
-        for (let x = bounds.minX; x <= bounds.maxX; x++) {
-          expect(x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT, `${id} (${x},${y}) in-world`).toBe(true);
-          expect(regionAt(x, y), `${id} tile (${x},${y})`).toBe(id);
-        }
-      }
+      const region = REGIONS.find((r) => r.id === id)!;
+      let land = 0;
+      forEachLandTile(region, (x, y) => {
+        expect(x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT, `${id} (${x},${y}) in-world`).toBe(true);
+        expect(regionAt(x, y), `${id} tile (${x},${y})`).toBe(id);
+        land++;
+      });
+      expect(land, `${id} should keep a substantial land body`).toBeGreaterThanOrEqual(16);
     }
   });
 

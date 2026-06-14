@@ -5,6 +5,7 @@ import {
   regionAt,
   isWalkable,
   scaleAroundNearestIsland,
+  snapPropToLand,
   type RegionId,
 } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
@@ -252,13 +253,21 @@ function computeCliffs(): readonly CliffTile[] {
   for (const { region, rows } of TALL_ISLANDS) {
     const reg = REGIONS.find((r) => r.id === region);
     if (!reg) continue;
-    const { minX, maxX, maxY } = reg.bounds;
+    const { minX, maxX, minY, maxY } = reg.bounds;
 
+    // Organic masks don't fill the bounds rect, so the bottom land edge varies
+    // per column. For each column find the LOWEST land tile y (scan up from
+    // maxY) and place cliff rows just below it. Columns with no land are skipped.
     for (let tx = minX; tx <= maxX; tx++) {
+      let lowestLandY = -1;
+      for (let ty = maxY; ty >= minY; ty--) {
+        if (regionAt(tx, ty) === region) { lowestLandY = ty; break; }
+      }
+      if (lowestLandY < 0) continue; // no land in this column
       for (let row = 0; row < rows; row++) {
-        const ty = maxY + 1 + row;
-        if (ty >= WORLD_HEIGHT) continue;   
-        if (isWalkable(tx, ty)) continue;   
+        const ty = lowestLandY + 1 + row;
+        if (ty >= WORLD_HEIGHT) continue;
+        if (isWalkable(tx, ty)) continue;
         allPositions.push({ tx, ty, row });
       }
     }
@@ -559,7 +568,15 @@ interface BigStructure {
 }
 
 function bakedAt(frame: string, x: number, y: number, wPx: number, hPx: number): BigStructure {
-  const t = scaleAroundNearestIsland({ x, y });
+  // Scale design coords, then snap the base tile onto real mask land so the
+  // structure never floats on a carved-out ocean tile (organic masks, brief 91).
+  const t = snapPropToLand(scaleAroundNearestIsland({ x, y }));
+  return { frame, baseTileX: t.x, baseTileY: t.y, wPx, hPx };
+}
+
+/** Like a literal baked structure, but snaps the (already world-space) base to land. */
+function bakedFixed(frame: string, x: number, y: number, wPx: number, hPx: number): BigStructure {
+  const t = snapPropToLand({ x, y });
   return { frame, baseTileX: t.x, baseTileY: t.y, wPx, hPx };
 }
 
@@ -572,7 +589,7 @@ export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
 
   bakedAt("decoration/volcano", 77, 16, 96, 96),
 
-  { frame: "structure/big-tree", baseTileX: 130, baseTileY: 14, wPx: 48, hPx: 64 },
+  bakedFixed("structure/big-tree", 130, 14, 48, 64),
 
   bakedAt("decoration/slot-machine", 73, 117, 16, 32),   
   bakedAt("decoration/slot-machine", 75, 117, 16, 32),
@@ -581,13 +598,16 @@ export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
   bakedAt("decoration/dice-table", 80, 119, 32, 24),      
   bakedAt("decoration/shell-game", 78, 124, 32, 24),      
 
-  { frame: "decoration/ring-post", baseTileX: 123, baseTileY: 105, wPx: 16, hPx: 32 }, 
-  { frame: "decoration/ring-post", baseTileX: 130, baseTileY: 105, wPx: 16, hPx: 32 }, 
-  { frame: "decoration/ring-post", baseTileX: 123, baseTileY: 110, wPx: 16, hPx: 32 }, 
-  { frame: "decoration/ring-post", baseTileX: 130, baseTileY: 110, wPx: 16, hPx: 32 }, 
-  { frame: "decoration/ring-ropes", baseTileX: 124, baseTileY: 104, wPx: 32, hPx: 16 }, 
-  { frame: "decoration/ring-ropes", baseTileX: 124, baseTileY: 111, wPx: 32, hPx: 16 }, 
+  bakedFixed("decoration/ring-post", 123, 105, 16, 32),
+  bakedFixed("decoration/ring-post", 130, 105, 16, 32),
+  bakedFixed("decoration/ring-post", 123, 110, 16, 32),
+  bakedFixed("decoration/ring-post", 130, 110, 16, 32),
+  bakedFixed("decoration/ring-ropes", 124, 104, 32, 16),
+  bakedFixed("decoration/ring-ropes", 124, 111, 32, 16),
 
+  // Per-farm cottage base (maxX-2, maxY-1). This tile is pinned as forced-core
+  // land by anchors.ts (forcedCoreTiles), so the organic mask never carves it
+  // out — no mask-aware snap needed here.
   ...REGIONS.filter((r) => r.kind === "farm").map(
     (r): BigStructure => ({
       frame: farmCottageFrame(r.id),

@@ -1,7 +1,7 @@
 import type { GameEntity } from "../../components";
 import { recordReason } from "../../components";
 import type { FruitKind } from "../../components";
-import { REGIONS } from "../../world/regions";
+import { REGIONS, forEachLandTile } from "../../world/regions";
 import { TREE_PLANT_COST, GREENHOUSE_BUILD_COST } from "../../economy";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestTile } from "./shared";
@@ -64,12 +64,11 @@ export function deliberatePlantOrchard(
 
   const occupied = new Set<string>((farmer.beliefs?.data["occupiedTiles"] as string[] | undefined) ?? []);
 
+  // Only consider mask-land tiles for orchard planting (skip carved-out ocean).
   const free: Array<{ tileX: number; tileY: number }> = [];
-  for (let ty = farmDef.bounds.minY; ty <= farmDef.bounds.maxY; ty++) {
-    for (let tx = farmDef.bounds.minX; tx <= farmDef.bounds.maxX; tx++) {
-      if (!occupied.has(`${tx},${ty}`)) free.push({ tileX: tx, tileY: ty });
-    }
-  }
+  forEachLandTile(farmDef, (tx, ty) => {
+    if (!occupied.has(`${tx},${ty}`)) free.push({ tileX: tx, tileY: ty });
+  });
   const near = nearestTile(farmer.transform, free);
   const target: { x: number; y: number } | null = near ? { x: near.tileX, y: near.tileY } : null;
   if (!target) return;

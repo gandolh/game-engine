@@ -1,13 +1,24 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../../components";
-import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, scaleAroundNearestIsland, type RegionId, type RegionDef } from "../regions";
+import { REGIONS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, scaleAroundNearestIsland, regionAt, type RegionId, type RegionDef } from "../regions";
 import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE } from "./tiles";
 import { fountainTile, placeProps, placeFootprint } from "./placement";
+import { PLOT_OFFSETS } from "./anchors";
 
 type Station = { tileX: number; tileY: number; facing: "up" | "down" | "side"; flipX: boolean; pose: string | null };
+// Work-NPC stations are FUNCTIONAL (agents path to them, see proximity/act).
+// They MUST sit on organic-mask land; snapping would silently relocate the
+// worker. forcedCoreTiles already pins region centers, but station tiles are
+// off-center — so we assert land here and throw loudly if the mask carved one
+// out (a real bug to fix in anchors.ts, not to paper over).
 function scaleStations(stations: readonly Station[]): Station[] {
   return stations.map((s) => {
     const { x, y } = scaleAroundNearestIsland({ x: s.tileX, y: s.tileY });
+    if (regionAt(x, y) === null) {
+      throw new Error(
+        `scaleStations: functional station at world (${x},${y}) (design ${s.tileX},${s.tileY}) is not on mask land`,
+      );
+    }
     return { ...s, tileX: x, tileY: y };
   });
 }
@@ -50,8 +61,6 @@ export function setupRegions(
     regionEntities.set(def.id, regionEntity);
 
     if (def.kind === "farm" && farmer !== undefined && ownerId !== undefined) {
-
-      const PLOT_OFFSETS = [-2, 1] as const;
 
       const start = farmer.player
         ? { x: def.center.x + PLOT_OFFSETS[0], y: def.center.y + PLOT_OFFSETS[0] }

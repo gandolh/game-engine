@@ -8,7 +8,7 @@ import {
 } from "./coral";
 import { buildWalkableGrid } from "./walkable-grid";
 import { PORTS, portLaneTiles } from "./ports";
-import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS, getRegion } from "./regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS, getRegion, forEachLandTile } from "./regions";
 
 const VILLAGE = getRegion("village").center; 
 
@@ -67,7 +67,9 @@ describe("coral geography + boat grid", () => {
         for (let x = b.minX; x <= b.maxX; x++) expected.add(y * WORLD_WIDTH + x);
       }
     };
-    for (const r of REGIONS) mark(r.bounds);
+    // Regions are organic masks now — only the land tiles count (matches
+    // buildWalkableGrid, which fills via forEachLandTile). Roads stay rects.
+    for (const r of REGIONS) forEachLandTile(r, (x, y) => expected.add(y * WORLD_WIDTH + x));
     for (const road of ROADS) mark(road);
 
     const grid = buildWalkableGrid();

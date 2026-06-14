@@ -14,7 +14,7 @@ import {
 import {
   DECORATION_RECIPE,
 } from "../../../components";
-import { REGIONS, ranchForFarm } from "../../../world/regions";
+import { REGIONS, ranchForFarm, regionMaskAt } from "../../../world/regions";
 import {
   PERFORMATIVE,
 } from "../../../protocols";
@@ -181,6 +181,7 @@ export function handleBuildPen(
   outer: for (let ty = innerMinY; ty <= innerMaxY; ty++) {
     for (let tx = innerMinX; tx <= innerMaxX; tx++) {
       if (usedTiles.has(`${tx},${ty}`)) continue;
+      if (!regionMaskAt(regionDef, tx, ty)) continue; // organic mask: skip carved-out ocean tiles
       const frame = penKind === "coop" ? "structure/coop" : "structure/barn";
       world.spawn({
         transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
@@ -255,6 +256,7 @@ export function handleBuildGreenhouse(
   outer: for (let ty = innerMinY; ty <= innerMaxY; ty++) {
     for (let tx = innerMinX; tx <= innerMaxX; tx++) {
       if (usedTiles.has(`${tx},${ty}`)) continue;
+      if (!regionMaskAt(regionDef, tx, ty)) continue; // organic mask: skip carved ocean
       structTile = { x: tx, y: ty };
       break outer;
     }
@@ -266,6 +268,7 @@ export function handleBuildGreenhouse(
   plot: for (let ty = innerMinY; ty <= innerMaxY; ty++) {
     for (let tx = innerMinX; tx <= innerMaxX; tx++) {
       if (usedTiles.has(`${tx},${ty}`)) continue;
+      if (!regionMaskAt(regionDef, tx, ty)) continue; // organic mask: skip carved ocean
       plotTiles.push({ x: tx, y: ty });
       usedTiles.add(`${tx},${ty}`);
       if (plotTiles.length >= GREENHOUSE_PLOT_COUNT) break plot;

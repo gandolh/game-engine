@@ -1,4 +1,6 @@
 import { createRng } from '@engine/core';
+import { forcedCoreTiles } from './region-setup/anchors';
+import { buildOrganicMaskAttempt, MAX_ATTEMPTS } from './organic-mask';
 
 export type FixedRegionId =
   | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
@@ -570,6 +572,8 @@ export interface GeneratedWorld {
   auctionPodiumTile: { x: number; y: number };
   noticeBoardTile: { x: number; y: number };
   townSquare: { minX: number; minY: number; maxX: number; maxY: number };
+  /** Number of regions that fell back to all-land rect mask (organic generation failed). */
+  fallbackCount: number;
 }
 
 export function generateWorld(seed: number): GeneratedWorld {
@@ -611,32 +615,182 @@ export function generateWorld(seed: number): GeneratedWorld {
     farmRegions.map((farm, k) => [farm.id, `ranch-${k}` as RegionId]),
   );
 
-  // 8. Themed regions (and all-land mask applied here, in one place).
-  const regions: readonly RegionDef[] = [...baseRegions, ...ranchRegions].map((r) => {
-    const theme = THEME_BY_ID[r.id]
-      ?? (r.kind === 'farm' ? 'ring' : r.kind === 'ranch' ? 'ranch' : undefined);
-    const themed = theme ? { ...r, theme } : r;
-    return withAllLandMask(themed);
-  });
-
-  // 9. Roads.
+  // 7b. All roads (needed for road-attachment core pinning in step 8).
   const roads: readonly RoadDef[] = [...baseRoads, ...ranchBridges];
 
+  // 8. Organic masks — sequential so each region can check adjacency against
+  //    already-finalized masks. Fork per region, attempt per try, for stable determinism.
+  const maskRng = createRng(seed).fork('region-masks');
+
+  // Chebyshev-1 halo of all finalized regions' land tiles. Used for the edge-tile
+  // adjacency check: a candidate's bound-edge land tile must not touch a prior region's land.
+  // Stored as a flat Uint8Array (WORLD_HEIGHT * WORLD_WIDTH) for O(1) lookup.
+  const adjacencyBlockedArr = new Uint8Array(WORLD_HEIGHT * WORLD_WIDTH);
+  const blockLandTile = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < WORLD_WIDTH && ny >= 0 && ny < WORLD_HEIGHT) {
+          adjacencyBlockedArr[ny * WORLD_WIDTH + nx] = 1;
+        }
+      }
+    }
+  };
+
+  let fallbackCount = 0;
+  const allThemedUnmasked = [...baseRegions, ...ranchRegions].map((r) => {
+    const theme = THEME_BY_ID[r.id]
+      ?? (r.kind === 'farm' ? 'ring' : r.kind === 'ranch' ? 'ranch' : undefined);
+    return theme ? { ...r, theme } : r;
+  });
+
+  const regions: RegionDef[] = [];
+  for (const themed of allThemedUnmasked) {
+    const { minX, minY, maxX, maxY } = themed.bounds;
+    const w = maxX - minX + 1;
+    const h = maxY - minY + 1;
+
+    // Forced core = geometry-derived tiles + road-attachment tiles (road tiles
+    // adjacent to this region's bounds). Over-pinning is always safe.
+    const core: { x: number; y: number }[] = forcedCoreTiles(themed);
+
+    // Add road-attachment tiles: any tile in any road rect that is
+    // adjacent (Chebyshev 1) to this region's bounds. Collect the clamped
+    // in-bounds attach tiles so we can pin a land PATH from each to the region
+    // center below.
+    const attachTiles: { x: number; y: number }[] = [];
+    for (const road of roads) {
+      // Quick reject: expanded bounds of road must overlap region's expanded bounds.
+      if (
+        road.maxX < minX - 1 || road.minX > maxX + 1 ||
+        road.maxY < minY - 1 || road.minY > maxY + 1
+      ) continue;
+      // Add all road tiles adjacent to the region bounds.
+      for (let ry = road.minY; ry <= road.maxY; ry++) {
+        for (let rx = road.minX; rx <= road.maxX; rx++) {
+          // Is this road tile adjacent (Chebyshev 1) to the region's bounding box?
+          const adjX = rx >= minX - 1 && rx <= maxX + 1;
+          const adjY = ry >= minY - 1 && ry <= maxY + 1;
+          if (adjX && adjY) {
+            // Clamp to region bounds (only in-bounds tiles can be pinned in mask).
+            const cx = Math.max(minX, Math.min(maxX, rx));
+            const cy = Math.max(minY, Math.min(maxY, ry));
+            core.push({ x: cx, y: cy });
+            attachTiles.push({ x: cx, y: cy });
+          }
+        }
+      }
+    }
+
+    // Pin an L-shaped land path from every road-attachment tile to the region
+    // center. Without this, the organic mask can carve out the interior between
+    // two road entries, leaving the region a non-pass-through and disconnecting
+    // the world (Wave-2 reachability fix). The path is deterministic (x first,
+    // then y) and clamped to bounds; over-pinning is always safe.
+    const cx0 = themed.center.x;
+    const cy0 = themed.center.y;
+    for (const a of attachTiles) {
+      const stepX = a.x < cx0 ? 1 : -1;
+      for (let x = a.x; x !== cx0; x += stepX) core.push({ x, y: a.y });
+      const stepY = a.y < cy0 ? 1 : -1;
+      for (let y = a.y; y !== cy0; y += stepY) core.push({ x: cx0, y });
+      core.push({ x: cx0, y: cy0 });
+    }
+
+    const forkBase = 'region:' + themed.id;
+    const regionRng = maskRng.fork(forkBase);
+
+    let chosenMask: Uint8Array | null = null;
+    for (let n = 0; n < MAX_ATTEMPTS; n++) {
+      const attemptRng = regionRng.fork('attempt-' + n);
+      const candidate = buildOrganicMaskAttempt(themed, core, attemptRng);
+      if (candidate === null) continue;
+
+      // Cross-region adjacency check: no land tile of this region (that is OUTSIDE
+      // this region's own bounds) may be within Chebyshev 1 of a land tile of any
+      // already-finalized region. Tiles inside the bounds are allowed to touch the
+      // halo of prior regions that are also within those bounds (e.g. road attachment
+      // tiles clamped to bounds). We only reject if a land tile of this region is in the
+      // halo AND the land tile is inside this region's bounds (own-bounds tiles are
+      // always the right side of a boundary).
+      //
+      // NOTE: The check is deliberately lenient: only INSET-edge tiles that lie within
+      // Chebyshev 1 of a PRIOR region's land are blocked. INSET already puts 1 ocean tile
+      // at the outer ring, so overlaps are rare; this catches the pathological case where
+      // core tiles push land to the bounds edge.
+      let adjacencyOk = true;
+      outer: for (let ty = minY; ty <= maxY; ty++) {
+        for (let tx = minX; tx <= maxX; tx++) {
+          if (candidate[(ty - minY) * w + (tx - minX)] === 1) {
+            // Only check tiles that are ON the INSET edge ring (outermost tiles that
+            // could be core-pinned to land and potentially collide with a neighbour).
+            const onEdge = tx === minX || tx === maxX || ty === minY || ty === maxY;
+            if (onEdge && adjacencyBlockedArr[ty * WORLD_WIDTH + tx] === 1) {
+              adjacencyOk = false;
+              break outer;
+            }
+          }
+        }
+      }
+      if (!adjacencyOk) continue;
+
+      chosenMask = candidate;
+      break;
+    }
+
+    let mask: Uint8Array;
+    if (chosenMask !== null) {
+      mask = chosenMask;
+    } else {
+      // Fallback: all-land rect.
+      mask = new Uint8Array(w * h).fill(1);
+      fallbackCount++;
+    }
+
+    // Register this region's land tiles into the adjacency buffer.
+    for (let ty = minY; ty <= maxY; ty++) {
+      for (let tx = minX; tx <= maxX; tx++) {
+        if (mask[(ty - minY) * w + (tx - minX)] === 1) {
+          blockLandTile(tx, ty);
+        }
+      }
+    }
+
+    regions.push({ ...themed, mask });
+  }
+
   // 10. Derived tile consts — read the built (themed) regions.
+  // Each design coordinate is scaled to world space, then SNAPPED onto the
+  // owning region's organic-mask land so it never lands on a carved-out ocean
+  // tile. Owning region by id; throws if the region is missing (a real bug).
+  const regionById = (id: RegionId): RegionDef => {
+    const r = regions.find((reg) => reg.id === id);
+    if (!r) throw new Error(`generateWorld: missing region '${id}' for tile-const snap`);
+    return r;
+  };
+  const snapTo = (id: RegionId, design: { x: number; y: number }): { x: number; y: number } =>
+    nearestLandTile(regionById(id), scaleAroundNearestIslandIn(design, regions));
+
+  // TOWN_SQUARE is left as a raw scaled bounds rect (NOT snapped): its only
+  // consumer (render-systems/static-layer.ts backdropFrame) is gated by both
+  // isWalkable() and regionAt(...)==='village' before the rect is tested, so
+  // ocean tiles inside the rect are never tinted.
   return {
     regions,
     roads,
     ranchForFarm: ranchForFarmMap,
-    campfireTile: scaleAroundNearestIslandIn({ x: 114, y: 108 }, regions),
-    waterfallTile: scaleAroundNearestIslandIn({ x: 83, y: 59 }, regions),
-    volcanoCraterTile: scaleAroundNearestIslandIn({ x: 80, y: 11 }, regions),
-    casinoNeonTile: scaleAroundNearestIslandIn({ x: 76, y: 116 }, regions),
-    weatherStationTile: scaleAroundNearestIslandIn({ x: 114, y: 119 }, regions),
-    harborDockTile: scaleAroundNearestIslandIn({ x: 96, y: 105 }, regions),
-    harborBoardTile: scaleAroundNearestIslandIn({ x: 97, y: 108 }, regions),
-    auctionPodiumTile: scaleAroundNearestIslandIn({ x: 80, y: 80 }, regions),
-    noticeBoardTile: scaleAroundNearestIslandIn({ x: 79, y: 80 }, regions),
+    campfireTile: snapTo('camp', { x: 114, y: 108 }),
+    waterfallTile: snapTo('waterfall', { x: 83, y: 59 }),
+    volcanoCraterTile: snapTo('volcano', { x: 80, y: 11 }),
+    casinoNeonTile: snapTo('casino', { x: 76, y: 116 }),
+    weatherStationTile: snapTo('weather-station', { x: 114, y: 119 }),
+    harborDockTile: snapTo('harbor', { x: 96, y: 105 }),
+    harborBoardTile: snapTo('harbor', { x: 97, y: 108 }),
+    auctionPodiumTile: snapTo('village', { x: 80, y: 80 }),
+    noticeBoardTile: snapTo('village', { x: 79, y: 80 }),
     townSquare: scaleB({ minX: 78, minY: 79, maxX: 81, maxY: 82 }),
+    fallbackCount,
   };
 }
 
@@ -644,6 +798,8 @@ const DEFAULT_WORLD = generateWorld(WORLD_GEN_SEED);
 
 export const REGIONS: readonly RegionDef[] = DEFAULT_WORLD.regions;
 const ROADS: readonly RoadDef[] = DEFAULT_WORLD.roads;
+/** Number of regions in the default world that fell back to all-land rect mask. */
+export const WORLD_FALLBACK_COUNT: number = DEFAULT_WORLD.fallbackCount;
 
 export const CAMPFIRE_TILE = DEFAULT_WORLD.campfireTile;
 export const WATERFALL_TILE = DEFAULT_WORLD.waterfallTile;
@@ -689,6 +845,38 @@ export function forEachLandTile(region: RegionDef, fn: (x: number, y: number) =>
   }
 }
 
+/**
+ * Returns the mask=1 (land) tile within `region` nearest to `target` by
+ * Euclidean distance. Tie-break: lowest y, then lowest x (deterministic).
+ * If `target` is already on this region's land, returns it directly.
+ *
+ * Throws if the region has zero land tiles — that is a real bug (every region
+ * keeps at least its forced-core tiles as land), never a silent fallback.
+ */
+export function nearestLandTile(
+  region: RegionDef,
+  target: { x: number; y: number },
+): { x: number; y: number } {
+  if (regionMaskAt(region, target.x, target.y)) return { x: target.x, y: target.y };
+
+  let best: { x: number; y: number } | null = null;
+  let bestD = Infinity;
+  forEachLandTile(region, (tx, ty) => {
+    const d = (tx - target.x) ** 2 + (ty - target.y) ** 2;
+    // Strict <: ties keep the earlier (lower y, then lower x) tile because
+    // forEachLandTile iterates y-outer then x-inner ascending.
+    if (d < bestD) {
+      bestD = d;
+      best = { x: tx, y: ty };
+    }
+  });
+
+  if (best === null) {
+    throw new Error(`nearestLandTile: region '${region.id}' has zero land tiles`);
+  }
+  return best;
+}
+
 export function regionAt(x: number, y: number): RegionId | null {
   for (const region of REGIONS) {
     if (regionMaskAt(region, x, y)) return region.id;
@@ -702,6 +890,31 @@ export function isWalkable(x: number, y: number): boolean {
     if (inBounds(x, y, road)) return true;
   }
   return false;
+}
+
+/**
+ * Snaps a world-space point onto the nearest land tile, for DECORATIVE props
+ * that have no fixed owning region. If the point is already walkable land it is
+ * returned unchanged; otherwise it picks the region whose bounds-center is
+ * nearest (Euclidean) and returns that region's nearest land tile.
+ *
+ * Used by placeProps/placeFootprint so cosmetic decorations never sit on a
+ * carved-out ocean tile. Functional entities (stations) must NOT use this —
+ * they assert land instead (see setup.ts).
+ */
+export function snapPropToLand(p: { x: number; y: number }): { x: number; y: number } {
+  if (isWalkable(p.x, p.y) && regionAt(p.x, p.y) !== null) return { x: p.x, y: p.y };
+  let bestRegion: RegionDef | null = null;
+  let bestD = Infinity;
+  for (const region of REGIONS) {
+    const d = (region.center.x - p.x) ** 2 + (region.center.y - p.y) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      bestRegion = region;
+    }
+  }
+  if (bestRegion === null) return { x: p.x, y: p.y };
+  return nearestLandTile(bestRegion, p);
 }
 
 export function getRegion(id: RegionId): RegionDef {
