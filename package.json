@@ -10,11 +10,13 @@
   "scripts": {
     "dev": "node tools/dev.mjs",
     "dev:client": "npm run dev -w farm-valley",
+    "dev:citadel": "npm run dev -w citadel",
     "build": "npm run build -w farm-valley",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "atlas": "npm run build -w atlas-builder",
     "sim": "npm start -w run-sim",
+    "sim:citadel": "npm start -w citadel-sim",
     "server": "npm start -w @farm/server",
     "preview": "npm start -w world-preview",
     "build-wasm": "npm run build -w @engine/wasm-modules"
