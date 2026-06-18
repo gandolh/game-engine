@@ -1,9 +1,15 @@
 ---
 title: "Citadel Phase 0 — package skeleton + rendering empty plot"
 created: 2026-06-18
-status: open
+status: done
 tags: [citadel, phase0, foundation]
 ---
+
+> **DONE 2026-06-18** (commit `5260bc0`). Two packages (`@citadel/sim-core`, `citadel`) +
+> `tools/citadel-sim`. Seeded 96×96 Perlin terrain (Grass/Water/Forest/Stone/Rough),
+> `isWalkable`, Worker-agnostic `bootstrapSim`, Camera2D pan/zoom, EDG32 placeholder
+> terrain rects, pause+speed, headless runner. Gate: sim-core 9/9, palette guard 6/6,
+> headless sim exits 0, citadel-source typecheck clean. See log.md.
 
 # Phase 0 — Skeleton
 
