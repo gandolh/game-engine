@@ -1,9 +1,18 @@
 ---
 title: "Citadel Phase 1 — command queue + footprint placement"
 created: 2026-06-18
-status: open
+status: done
 tags: [citadel, phase1, engine-substrate, placement]
 ---
+
+> **DONE 2026-06-18** (merged to main). Engine substrate `@engine/core/commands`
+> (`CommandQueue<C>` FIFO + `CommandSystem<C>` drain/dispatch per tick — ordered log =
+> save/replay/MP) and `@engine/core/placement` (`OccupancyGrid`, `checkPlacement` w/
+> injected terrain predicate + unused adjacency hook, `rebuildWalkable`). Game: House 2×2
+> ECS building, `placeBuilding`/`demolish` handlers, `BuildingSnapshot[]`, client toolbar +
+> tile-snapped valid/invalid ghost, click→command→worker→applied-next-tick. Gate:
+> sim-core 16/16 (incl. replay-determinism + walkable rebuild), engine 156/156 incl.
+> palette guard, typecheck clean, vite build OK, headless exits 0. See log.md.
 
 # Phase 1 — Command queue + placement
 
