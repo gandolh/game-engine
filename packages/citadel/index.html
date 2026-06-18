@@ -7,21 +7,29 @@
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
-      #game-canvas { display: block; flex: 1; }
-      #hud { height: 40px; background: #262b44; color: #c0cbdc; font-family: monospace; font-size: 13px; display: flex; align-items: center; gap: 16px; padding: 0 12px; user-select: none; }
+      #canvas { display: block; flex: 1; }
+      #hud { background: #262b44; color: #c0cbdc; font-family: monospace; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 12px; user-select: none; border-top: 1px solid #3a4466; }
       #hud button { background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988; padding: 2px 10px; cursor: pointer; font-family: monospace; font-size: 13px; }
       #hud button:hover { background: #5a6988; }
+      #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
+      #lbl-mode { color: #fee761; min-width: 160px; }
     </style>
   </head>
   <body>
-    <canvas id="game-canvas"></canvas>
+    <canvas id="canvas"></canvas>
     <div id="hud">
       <span id="hud-day">Day 1</span>
       <span id="hud-tick">Tick 0</span>
+      <div class="sep"></div>
       <button id="btn-pause">Pause</button>
-      <button id="btn-1x">1×</button>
-      <button id="btn-2x">2×</button>
-      <button id="btn-4x">4×</button>
+      <button id="btn-1x">1x</button>
+      <button id="btn-2x">2x</button>
+      <button id="btn-4x">4x</button>
+      <div class="sep"></div>
+      <button id="btn-build-house">Build House</button>
+      <button id="btn-demolish">Demolish</button>
+      <button id="btn-cancel">Cancel</button>
+      <span id="lbl-mode">Mode: None</span>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

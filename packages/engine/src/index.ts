@@ -1,4 +1,6 @@
 export * from "./runtime";
+export * from "./commands";
+export * from "./placement";
 export * from "./ecs";
 export * from "./sim";
 export * from "./render";
