@@ -2,8 +2,8 @@
  * Citadel sim worker — runs the deterministic scheduler at 20 ticks/sec,
  * posting a RenderSnapshot after each tick.
  *
- * Phase 0: snapshot is minimal (tick + day). Terrain is static and sent once
- * at startup via the "ready" message.
+ * Phase 1: handles "command" messages, includes buildings in the snapshot.
+ * Terrain is static and sent once at startup via the "ready" message.
  */
 import { bootstrapSim } from "@citadel/sim-core/sim-bootstrap";
 import type { WorkerInbound, WorkerOutbound } from "@citadel/sim-core/snapshot";
@@ -32,6 +32,7 @@ function startLoop(ticksPerDay: number, dayClock: { day: number }): void {
         tick,
         day: dayClock.day,
         speed,
+        buildings: getBuildings(),
       },
     };
     self.postMessage(snapshot);
@@ -40,6 +41,8 @@ function startLoop(ticksPerDay: number, dayClock: { day: number }): void {
 
 let scheduler: ReturnType<typeof bootstrapSim>["scheduler"];
 let dayClock: ReturnType<typeof bootstrapSim>["dayClock"];
+let commands: ReturnType<typeof bootstrapSim>["commands"];
+let getBuildings: ReturnType<typeof bootstrapSim>["getBuildings"];
 
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
@@ -52,6 +55,8 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       });
       scheduler = result.scheduler;
       dayClock = result.dayClock;
+      commands = result.commands;
+      getBuildings = result.getBuildings;
       tick = 0;
       paused = false;
       speed = 1;
@@ -76,6 +81,11 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       if (intervalId !== null && scheduler) {
         startLoop(DEFAULT_TICKS_PER_DAY, dayClock);
       }
+      break;
+    }
+    case "command": {
+      // Enqueue into the command queue; CommandSystem will drain it next tick.
+      commands.enqueue(msg.command);
       break;
     }
   }
