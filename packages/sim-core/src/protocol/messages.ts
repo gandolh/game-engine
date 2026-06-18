@@ -11,6 +11,14 @@ export interface WorkerInitMsg {
   tickRateHz: number;
 
   pathfinderWasm?: ArrayBuffer;
+
+  /**
+   * Optional per-client identity. Folded into the server's run key so each
+   * connection gets its own private run (and is therefore always its own
+   * owner). Never enters sim logic — determinism is unaffected. Absent →
+   * clients sharing seed/ticksPerDay/maxDays collapse onto one shared run.
+   */
+  clientId?: string;
 }
 
 export interface WorkerStopMsg {

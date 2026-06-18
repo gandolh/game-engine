@@ -44,7 +44,10 @@ export class RunRegistry {
   }
 
   runKeyFor(init: WorkerInitMsg): string {
-    return `${init.seed}:${init.ticksPerDay}:${init.maxDays}`;
+    const base = `${init.seed}:${init.ticksPerDay}:${init.maxDays}`;
+    // A clientId isolates the connection into its own private run, so every
+    // visitor is always the owner of their own Pip. Absent → shared run.
+    return init.clientId !== undefined ? `${base}:${init.clientId}` : base;
   }
 
   attachInit(socket: ClientSocket, init: WorkerInitMsg): void {

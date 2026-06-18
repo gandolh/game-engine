@@ -193,6 +193,10 @@ async function startGame(
       tickRateHz: CONFIG.tickRateHz,
       ticksPerDay,
       maxDays,
+      // Unique per tab so each visitor gets a private server run and always
+      // owns their own Pip. UI-side only — never reaches sim logic, so
+      // determinism is unaffected.
+      clientId: crypto.randomUUID(),
     });
 
     const renderFrame = createRenderLoop({

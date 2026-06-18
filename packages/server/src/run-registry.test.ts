@@ -130,6 +130,23 @@ describe("RunRegistry — run sharing", () => {
     expect(lastA).toBe(lastB); 
   });
 
+  it("same seed/params but distinct clientId → separate runs, each socket owns its own Pip", () => {
+    const { registry } = makeRegistry();
+    const a = new FakeSocket();
+    const b = new FakeSocket();
+
+    registry.attachInit(a, { ...makeInit(), clientId: "tab-a" });
+    registry.attachInit(b, { ...makeInit(), clientId: "tab-b" });
+
+    expect(registry.runCount()).toBe(2);
+    expect(stubs.length).toBe(2);
+
+    const attachA = JSON.parse(a.sent[0]!) as { type: string; owner: boolean };
+    const attachB = JSON.parse(b.sent[0]!) as { type: string; owner: boolean };
+    expect(attachA).toEqual({ type: "attach", owner: true });
+    expect(attachB).toEqual({ type: "attach", owner: true });
+  });
+
   it("two different run keys → two separate runs and hosts", () => {
     const { registry } = makeRegistry();
     const a = new FakeSocket();
