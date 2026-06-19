@@ -64,3 +64,53 @@ later adopt them:
 - Engine never imports game; `citadel` never imports `farm-valley`/`@farm/sim-core`.
 - No `Math.random`/`Date.now` in sim — all randomness via seeded `Rng`.
 - bootstrapSim stays Worker-agnostic (headless run-sim + tests drive it directly).
+
+## Depth pass — post-v1 (2026-06-19)
+
+Citadel is feature-complete (Phases 0–5). This **depth pass** was scoped by grilling
+(2026-06-19) after mining ideas from `jasonkneen/tiny-world-builder`. Direction: **depth-first**.
+Sequence: **07 → 08**, then **09 + 10 in parallel**. Every brief is sim-touching → each gates
+on a fast multi-seed `EXPORT=json` determinism re-proof (run only with user OK).
+
+- **[07 — Enforce tier-lock](2026-06-19-citadel-07-tier-lock-enforcement.md)** *(do first)* — `TIER_LOCK` is dead code; Phase-5 progression is currently cosmetic. Enforce at placement + grey/tooltip palette + EDG-guard the citadel package.
+- **[08 — Building upgrades](2026-06-19-citadel-08-building-upgrades.md)** *(needs 07)* — material-cost, tier-gated L1→L3 (House/production/defense). tiny-world's *stacking* mechanic; gives the refining chain a sink.
+- **[09 — Interlocking decrees](2026-06-19-citadel-09-interlocking-decrees.md)** — make the `tithe`/`conscription` stubs real (goods-reserve→trade/relief; villagers→raid-defense @ production cost). No coin (APR #28).
+- **[10 — Hauler rerouting](2026-06-19-citadel-10-hauler-rerouting.md)** — lazy next-step path validation + deterministic FIFO replan budget. tiny-world's *vehicle dynamic-rerouting*, recast.
+
+## Renderer pivot + render wave (mined 2026-06-19; reshaped by a second grilling)
+
+**Strategic decision (grilled 2026-06-19): Citadel goes WebGPU-only — drop Canvas2D.** The
+foundational port **leads the render track**; the sim-side **depth pass (07–10) is
+renderer-agnostic and runs in PARALLEL**. The `@engine` WebGPU stack (renderer + tint / weather /
+cloud / static-layer / sprite-batch / particle-batch passes + WGSL) is consumed directly; generic
+FV-side helpers (light pool, ambient layer, focus-cam, day/night controller) are **promoted up
+into `@engine/*`** so both games share them (no game→game import). All render-wave briefs are
+**WebGPU-native, render-only, EDG32-safe, off-sim RNG → zero determinism risk** unless noted.
+
+**▶ FOUNDATIONAL — first on the render track:**
+- **[27 — WebGPU renderer port](2026-06-19-citadel-27-webgpu-renderer-port.md)** — drop Canvas2D; render via the `@engine` WebGPU renderer; placeholder rects → quads. **Unblocks everything below.**
+
+*Interleave with the depth pass (chosen 2026-06-19) — ride on 27:*
+- **[11 — Adjacency autotiling](2026-06-19-citadel-11-adjacency-autotiling.md)** — roads/walls 4-neighbour bitmask → variant quads via `sprite-batch`. Crib FV `computeShores`/`computeWalls`.
+- **[13 — Sub-tile terrain variation](2026-06-19-citadel-13-subtile-terrain-variation.md)** — bake-time dither into the `static-layer-pass` texture off the existing `SeededNoise` table.
+- **[15 — Day/night wash + light pool](2026-06-19-citadel-15-daynight-wash-light-pool.md)** — engine `tint-pass` + **promote a light pool to `@engine`**; near-direct FV reuse.
+- **[18 — Ambient crowd](2026-06-19-citadel-18-instanced-ambient-crowd.md)** — **promote FV `AmbientLayer` to `@engine`**; WebGPU-instanced; density by tier; NOT ECS entities.
+
+*Backlog — ride on 27:*
+- **[16 — Weather FX](2026-06-19-citadel-16-weather-particle-fx.md)** — consume engine `weather-pass` + `cloud-shadow-pass`. *(visual only — weather events stay APR-parked #25)*
+- **[17 — Placement + idle easing](2026-06-19-citadel-17-placement-idle-easing.md)** — ease-in placement; smoke via `particle-batch`; sway/bob.
+- **[19 — Follow-cam](2026-06-19-citadel-19-follow-cam.md)** — **promote FV focus-cam to `@engine`**; lock-follow a villager. *(first-person walk = 3D-only, scoped out)*
+- **[20 — Batched sprite draws](2026-06-19-citadel-20-sprite-batch-renderer.md)** — building/villager draws via engine `sprite-batch`. *(un-gated by the WebGPU decision)*
+- **[24 — Wear/decay overlay](2026-06-19-citadel-24-wear-decay-shader-overlay.md)** — engine `tint-pass` + WGSL noise; ties into fire damage. *(un-gated)*
+- **[25 — Settings modal](2026-06-19-citadel-25-settings-modal.md)** — tabbed/a11y/search; toggles the render features. *(chrome; after 15/16/18)*
+- **[12 — BFS building clustering](2026-06-19-citadel-12-bfs-building-clustering.md)** — adjacent houses → composite silhouette. *(speculative; low priority)*
+
+*Sim-side (determinism re-proof) — independent of the renderer:*
+- **[14 — Edge-coherent terrain](2026-06-19-citadel-14-edge-coherent-terrain.md)** — rivers read as continuing off-map (pure-coord edge fns). Touches `terrain.ts`. *(NOT infinite terrain — fixed 96×96)*
+
+*⚠️ Parked — premature on WORLD SIZE (not the renderer); revisit only if a larger world is committed:*
+- **[21 — Render-windowed sparse grid](2026-06-19-citadel-21-render-windowed-grid.md)** · **[22 — Incremental build queue](2026-06-19-citadel-22-incremental-build-queue.md)** — no consumer at 96×96.
+
+*✖ Cut / deferred:*
+- **[23 — Quantized opacity caches](2026-06-19-citadel-23-quantized-opacity-caches.md)** — **WON'T DO**: Canvas2D `globalAlpha` micro-opt, moot under WebGPU-only.
+- **[26 — Multiplayer epic](2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md)** — APR-deferred (#14); future epic needing its own grilling. Web3 wallet/auth out of scope.
