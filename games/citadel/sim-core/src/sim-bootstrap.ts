@@ -17,6 +17,7 @@ import type { VillagerEntity } from "./entities/villager";
 import type { SimState, Stockpiles } from "./sim-state";
 import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
+import { TerritorySystem, canBuildAt, DEFAULT_TERRITORY_RADIUS } from "./systems/territory";
 import { ProductionSystem } from "./systems/production";
 import { VillagerSystem, villagerPos } from "./systems/villager-system";
 import { ImmigrationSystem } from "./systems/immigration";
@@ -43,6 +44,14 @@ export interface CitadelSimOptions {
    */
   worldWidth?: number;
   worldHeight?: number;
+  /**
+   * Citadel 30: enforce influence-radius territory build-gating (place only
+   * within your territory ∪ adjacent-unclaimed). Default false → solo builds
+   * freely (unchanged). The MP server enables it. `territoryRadius` is the
+   * influence radius in tiles (Manhattan) per owned building.
+   */
+  enforceTerritory?: boolean;
+  territoryRadius?: number;
 }
 
 const DAYS_PER_YEAR = 16;
@@ -145,6 +154,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const WORLD_WIDTH = opts.worldWidth ?? DEFAULT_WORLD_WIDTH;
   const WORLD_HEIGHT = opts.worldHeight ?? DEFAULT_WORLD_HEIGHT;
 
+  // Citadel 30: territory build-gating (opt-in; off in solo so play is unchanged).
+  const enforceTerritory = opts.enforceTerritory ?? false;
+  const territoryRadius = opts.territoryRadius ?? DEFAULT_TERRITORY_RADIUS;
+
   const terrain = generateTerrain(seed, WORLD_WIDTH, WORLD_HEIGHT);
 
   const buildingWorld = new World<BuildingEntity>();
@@ -243,6 +256,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const required = TIER_LOCK[buildingType];
     if (required !== undefined && !tierAtLeast(lp.tier, required)) {
       pushEvent(state, `Day ${state.day}: A ${buildingType} requires ${required} tier.`);
+      return false;
+    }
+
+    // Citadel 30: territory build-gating (MP). Place only within your territory
+    // ∪ adjacent-unclaimed; never into a rival's claim. Off in solo.
+    if (enforceTerritory && !canBuildAt(state, lp, x, y, def.w, def.h)) {
+      pushEvent(state, `Day ${state.day}: can't build a ${buildingType} there — outside your territory.`);
       return false;
     }
 
@@ -484,6 +504,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     },
   };
 
+  const territorySystem = new TerritorySystem(state, territoryRadius);
   const roadConnSystem = new RoadConnectivitySystem(state);
   const productionSystem = new ProductionSystem(state);
   const villagerSystem = new VillagerSystem(state);
@@ -505,6 +526,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("commands").add(commandSystem);
   scheduler.stage("clock").add(dayClock);
   scheduler.stage("clock").add(daySync);
+  // Territory recompute runs BEFORE connectivity (which clears connectivityDirty).
+  scheduler.stage("connectivity").add(territorySystem);
   scheduler.stage("connectivity").add(roadConnSystem);
   scheduler.stage("economy").add(productionSystem);
   scheduler.stage("villagers").add(villagerSystem);
