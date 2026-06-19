@@ -31,3 +31,18 @@ is the *sparse-allocation* step beyond it.
 
 - Render objects allocated for the camera window only; off-window cells virtualised; memory flat as the logical grid grows.
 - Render-only; no determinism change.
+
+## ⏳ STATUS (2026-06-19) — cores shipped + tested; GPU integration pending
+
+The PURE, testable algorithmic core is implemented and unit-tested in the citadel
+client render layer:
+- 21 → `games/citadel/client/src/render/render-window.ts` (`visibleTileWindow` +
+  `getCellOr` virtualisation) + `render-window.test.ts`.
+- 22 → `games/citadel/client/src/render/build-budget.ts` (`IncrementalQueue` with
+  a per-frame budget + dedup gate) + `build-budget.test.ts`.
+
+**Remaining (NOT done):** wiring these into the engine WebGPU static-layer bake —
+`bakeStaticLayer` currently bakes the whole world as one texture and has no
+sub-region/offset parameter, so a windowed bake re-run on pan needs an engine
+change. That integration + the runtime memory/smoothness/visual acceptance are
+verifiable only on a real GPU, which this headless host lacks. Left OPEN.
