@@ -49,6 +49,8 @@ import {
 import { CitadelWeather } from "./render/weather";
 import { CitadelAmbientCrowd } from "./render/ambient-crowd";
 import { PlacementStateManager } from "./ui/placement-state";
+import { SettingsModal } from "./ui/settings-modal";
+import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 
 const SEED = 0x1a2b3c4d;
 const TICKS_PER_DAY = 20;
@@ -111,6 +113,16 @@ let renderer: RendererLike;
 const weather = new CitadelWeather();
 const ambientCrowd = new CitadelAmbientCrowd();
 let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT sim)
+
+// Brief 25: render-feature toggles (all default ON), driven by the settings
+// modal. Each gates its layer in loop() — purely cosmetic, zero sim impact.
+const renderToggles = {
+  wash: true,        // day/night + seasonal wash (brief 15)
+  lightPool: true,   // night light pool (brief 15)
+  weather: true,     // weather particle FX (brief 16)
+  ambientCrowd: true, // instanced ambient crowd (brief 18)
+  smoke: true,       // chimney smoke (brief 17)
+};
 
 // Render-side juice (briefs 17 + 19). All off-sim:
 //  - particles: chimney smoke, rendered by the WebGPU particle pass via endFrame
@@ -528,6 +540,64 @@ btn1x.addEventListener("click", () => client.setSpeed(1));
 btn2x.addEventListener("click", () => client.setSpeed(2));
 btn4x.addEventListener("click", () => client.setSpeed(4));
 
+// ---------------------------------------------------------------------------
+// Brief 25: Settings modal — tabbed (Display / Atmosphere / Simulation),
+// a11y tablist with roving tabindex + keyword search. UI-only; wires the
+// render-feature toggles, sim speed, and camera zoom via getters/setters.
+// ---------------------------------------------------------------------------
+const settingsModal = new SettingsModal({
+  toggles: [
+    {
+      id: "wash",
+      label: "Day/night wash",
+      keywords: "wash daynight tint colour color seasonal atmosphere lighting",
+      get: () => renderToggles.wash,
+      set: (v) => { renderToggles.wash = v; },
+    },
+    {
+      id: "lightPool",
+      label: "Night light pool",
+      keywords: "light pool glow lamp night windows warm atmosphere",
+      get: () => renderToggles.lightPool,
+      set: (v) => { renderToggles.lightPool = v; },
+    },
+    {
+      id: "weather",
+      label: "Weather effects",
+      keywords: "weather rain snow particles storm fx atmosphere",
+      get: () => renderToggles.weather,
+      set: (v) => { renderToggles.weather = v; },
+    },
+    {
+      id: "ambientCrowd",
+      label: "Ambient crowd",
+      keywords: "crowd pedestrians villagers people ambient bustle atmosphere",
+      get: () => renderToggles.ambientCrowd,
+      set: (v) => { renderToggles.ambientCrowd = v; },
+    },
+    {
+      id: "smoke",
+      label: "Chimney smoke",
+      keywords: "smoke chimney bakery smith woodcutter particles atmosphere",
+      get: () => renderToggles.smoke,
+      set: (v) => { renderToggles.smoke = v; },
+    },
+  ],
+  setSpeed: (n) => client.setSpeed(n),
+  getZoom: () => camera.zoom,
+  setZoom: (z) => camera.setZoom(clampZoom(z)),
+  minZoom: MIN_ZOOM,
+  maxZoom: MAX_ZOOM,
+});
+
+const btnSettings = document.getElementById("btn-settings")!;
+btnSettings.addEventListener("click", () => settingsModal.toggle());
+// Global Escape: close the settings modal if open (placement/follow Escape
+// handlers remain; this just adds modal dismissal at the window level too).
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && settingsModal.isOpen()) settingsModal.close();
+});
+
 let latestSnapshot: RenderSnapshot | null = null;
 
 client.onSnapshot((snap) => {
@@ -736,11 +806,17 @@ function loop(): void {
   const nightFactor = nightFactorOf(dayFraction);
 
   // Night light pool: warm glow quads over emitter buildings (sprite-batch).
-  pushLightPool(renderer, lightPoolQuads(emittersOf(currentBuildings), nightFactor));
+  // Brief 25: gated — when off, skip the push entirely (no quads emitted).
+  if (renderToggles.lightPool) {
+    pushLightPool(renderer, lightPoolQuads(emittersOf(currentBuildings), nightFactor));
+  }
 
   // Ambient crowd: wandering pedestrians, density by tier (sprite-batch).
-  if (latestSnapshot !== null) ambientCrowd.update(dt, latestSnapshot);
-  pushAmbientCrowd(renderer, ambientCrowd.quads());
+  // Brief 25: gated — when off, skip both the update and the push.
+  if (renderToggles.ambientCrowd) {
+    if (latestSnapshot !== null) ambientCrowd.update(dt, latestSnapshot);
+    pushAmbientCrowd(renderer, ambientCrowd.quads());
+  }
 
   const ghost = placementState.ghost();
   const dragging = (placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad;
@@ -748,25 +824,33 @@ function loop(): void {
 
   // Weather field (engine RainField → GPU WeatherPass). Update against the
   // visible world rect, then hand it to endFrame.
-  const halfX = camera.worldUnitsX / 2;
-  const halfY = camera.worldUnitsY / 2;
-  weather.update(dt, season, day, {
-    left: camera.centerX - halfX,
-    right: camera.centerX + halfX,
-    top: camera.centerY - halfY,
-    bottom: camera.centerY + halfY,
-  });
+  // Brief 25: gated — when weather is off, skip the field update so endFrame
+  // receives no weather pass below.
+  if (renderToggles.weather) {
+    const halfX = camera.worldUnitsX / 2;
+    const halfY = camera.worldUnitsY / 2;
+    weather.update(dt, season, day, {
+      left: camera.centerX - halfX,
+      right: camera.centerX + halfX,
+      top: camera.centerY - halfY,
+      bottom: camera.centerY + halfY,
+    });
+  }
 
   // Brief 17 chimney smoke: emit rising grey puffs from bakery/smith/woodcutter
   // (render-side RNG jitter only), advance the pool, hand it to endFrame so the
   // WebGPU particle pass draws it natively (the overlay callback is a no-op).
-  smoke.update(currentBuildings, nowMs);
+  // Brief 25: gated — when off, skip emission (existing puffs still advance/age
+  // out via particles.update so the pool drains cleanly).
+  if (renderToggles.smoke) smoke.update(currentBuildings, nowMs);
   particles.update(dt);
 
   // Day/night + seasonal wash (GPU TintPass via endFrame), then particles +
   // weather (both rendered natively by the WebGPU backend).
-  const wash = computeWash(season, dayFraction);
-  renderer.endFrame(wash, particles, weather.field);
+  // Brief 25: gated — pass undefined wash/weather when their toggles are off.
+  const wash = renderToggles.wash ? computeWash(season, dayFraction) : undefined;
+  const weatherField = renderToggles.weather ? weather.field : undefined;
+  renderer.endFrame(wash, particles, weatherField);
 
   requestAnimationFrame(loop);
 }
