@@ -1,7 +1,8 @@
 import { Scheduler, World, CommandQueue, CommandSystem, OccupancyGrid, checkPlacement, rebuildWalkable, createRng } from "@engine/core";
 import type { System, SimContext } from "@engine/core";
-import type { CitadelCommand, BuildingSnapshot, VillagerSnapshot, RenderSnapshot } from "./snapshot/index";
+import type { CitadelCommand, BuildingSnapshot, VillagerSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
 import { DayClockSystem } from "./systems/day-clock";
+import { TierSystem } from "./systems/tiers";
 import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
@@ -54,6 +55,63 @@ export interface CitadelSimResult {
   walkable: Uint8Array;
   /** Full sim state — exposed for Phase 3 tests and systems that need direct access. */
   state: SimState;
+  /**
+   * Phase 5 Save/Load: serialize the command log to a JSON-compatible object.
+   * @param currentTick - The tick at which the save is taken (used by loadFromSave to
+   *   replay up to this exact tick, reconstructing identical state).
+   */
+  serializeSave(currentTick: number): CitadelSave;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Save / Load via command-log replay
+// ---------------------------------------------------------------------------
+// CitadelSave is defined in snapshot/index.ts and re-exported from index.ts.
+
+/**
+ * Load a saved citadel by replaying its command log into a fresh bootstrapSim().
+ *
+ * Replay drives the scheduler tick-by-tick from 0 up to the highest tick in
+ * the command log, injecting each command at the exact tick it was originally
+ * applied.  The final state is identical to the original (deterministic).
+ *
+ * @param save - The serialized save returned by `serializeSave()`.
+ * @returns A fully-bootstrapped CitadelSimResult at the saved tick.
+ */
+export function loadFromSave(save: CitadelSave): CitadelSimResult {
+  const maxDays = Math.ceil(save.currentTick / save.ticksPerDay) + 10;
+  const sim = bootstrapSim({
+    seed: save.seed,
+    ticksPerDay: save.ticksPerDay,
+    maxDays,
+    startDay: save.startDay,
+  });
+
+  // Group commands by tick for O(1) lookup during replay.
+  const byTick = new Map<number, CitadelCommand[]>();
+  for (const entry of save.commandLog) {
+    let list = byTick.get(entry.tick);
+    if (list === undefined) {
+      list = [];
+      byTick.set(entry.tick, list);
+    }
+    list.push(entry.command);
+  }
+
+  // Replay: tick 0 .. currentTick.  Inject commands BEFORE the tick that applies them.
+  // CommandSystem drains the queue at the start of each tick — so we enqueue
+  // just before scheduler.tick(tick) to get the same dispatch tick.
+  for (let tick = 0; tick <= save.currentTick; tick++) {
+    const cmds = byTick.get(tick);
+    if (cmds !== undefined) {
+      for (const cmd of cmds) {
+        sim.commands.enqueue(cmd);
+      }
+    }
+    sim.scheduler.tick({ tick });
+  }
+
+  return sim;
 }
 
 /**
@@ -125,6 +183,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     fireState: new Map<number, BuildingFireState>(),
     sickVillagers: 0,
     outbreakActive: false,
+    // Phase 5: settlement tier + command log
+    tier: "Hamlet",
+    commandLog: [],
   };
 
   /** Mark a building's footprint tiles in the buildingTiles set. */
@@ -160,6 +221,21 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // ---------------------------------------------------------------------------
   const commands = new CommandQueue<CitadelCommand>();
   const commandSystem = new CommandSystem<CitadelCommand>(commands);
+
+  /**
+   * Helper: wrap a command handler to also append the command to state.commandLog
+   * at the current tick.  This is the Phase 5 save-log tap — every applied command
+   * is recorded so the log can be serialized and replayed verbatim.
+   */
+  function logged<T extends CitadelCommand["type"]>(
+    type: T,
+    handler: (cmd: Extract<CitadelCommand, { type: T }>, ctx: import("@engine/core").SimContext) => void,
+  ): void {
+    commandSystem.register(type, (cmd, ctx) => {
+      state.commandLog.push({ tick: ctx.tick, command: cmd as CitadelCommand });
+      handler(cmd as Extract<CitadelCommand, { type: T }>, ctx);
+    });
+  }
 
   function placeOne(buildingType: string, x: number, y: number): boolean {
     const def = getBuildingDef(buildingType);
@@ -240,23 +316,23 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     return true;
   }
 
-  commandSystem.register("placeBuilding", (cmd) => {
+  logged("placeBuilding", (cmd) => {
     placeOne(cmd.payload.buildingType, cmd.payload.x, cmd.payload.y);
   });
 
-  commandSystem.register("placeRoad", (cmd) => {
+  logged("placeRoad", (cmd) => {
     for (const tile of cmd.payload.tiles) {
       placeOne("road", tile.x, tile.y);
     }
   });
 
-  commandSystem.register("placeWall", (cmd) => {
+  logged("placeWall", (cmd) => {
     for (const tile of cmd.payload.tiles) {
       placeOne("wall", tile.x, tile.y);
     }
   });
 
-  commandSystem.register("setDecree", (cmd) => {
+  logged("setDecree", (cmd) => {
     const { decree, active } = cmd.payload;
     if (active) {
       state.activeDecrees.add(decree);
@@ -265,7 +341,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     }
   });
 
-  commandSystem.register("barter", (cmd) => {
+  logged("barter", (cmd) => {
     const { offerIndex } = cmd.payload;
     if (!state.traderPresent) return;
     const offer = state.traderOffers[offerIndex];
@@ -277,7 +353,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     pushEvent(state, `Day ${state.day}: traded ${offer.giveQty} ${offer.give} for ${offer.receiveQty} ${offer.receive}.`);
   });
 
-  commandSystem.register("demolish", (cmd) => {
+  logged("demolish", (cmd) => {
     const { x, y } = cmd.payload;
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
@@ -346,6 +422,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const raidSpawnSystem = new RaidSpawnSystem(state, terrain);
   const raiderMovementSystem = new RaiderMovementSystem(state, terrain);
   const siegeResolutionSystem = new SiegeResolutionSystem(state);
+  // Phase 5: tier system (runs AFTER population and siege, so it sees the final state for the day).
+  const tierSystem = new TierSystem(state);
 
   scheduler.stage("commands").add(commandSystem);
   scheduler.stage("clock").add(dayClock);
@@ -363,6 +441,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("siege-spawn").add(raidSpawnSystem);
   scheduler.stage("siege-move").add(raiderMovementSystem);
   scheduler.stage("siege-resolve").add(siegeResolutionSystem);
+  // Phase 5: tier evaluation LAST — sees updated pop + defense + buildings.
+  scheduler.stage("tiers").add(tierSystem);
 
   // ---------------------------------------------------------------------------
   // Snapshot helpers
@@ -440,6 +520,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       sickVillagers: state.sickVillagers,
       outbreakActive: state.outbreakActive,
       activeFires: countActiveFires(state),
+      // Phase 5: tier
+      tier: state.tier,
     };
   }
 
@@ -470,5 +552,15 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       return walkable;
     },
     state,
+    serializeSave(currentTick: number): CitadelSave {
+      return {
+        version: 1,
+        seed,
+        ticksPerDay,
+        startDay: opts.startDay ?? 0,
+        currentTick,
+        commandLog: state.commandLog.map((e) => ({ tick: e.tick, command: e.command })),
+      };
+    },
   };
 }

@@ -815,6 +815,7 @@ function main(): void {
         : "";
       console.log(
         `  Day ${String(snap.day + 1).padStart(2)}/${MAX_DAYS} [${snap.season.padEnd(6)}] ` +
+          `[${snap.tier}] ` +
           `pop ${snap.population}/${snap.popCap}  ` +
           `grain=${String(snap.stockpiles.grain ?? 0).padStart(3)} ` +
           `flour=${String(snap.stockpiles.flour ?? 0).padStart(3)} ` +
@@ -826,11 +827,11 @@ function main(): void {
           decreesStr + traderStr + siegeStr + refinStr + hazardStr +
           (snap.gameOver ? " *** GAME OVER ***" : ""),
       );
-      // Print NEW events that arrived since the last day print (siege + hazards).
+      // Print NEW events that arrived since the last day print (siege + hazards + tier).
       const newEvents = snap.recentEvents.slice(printedEventCount);
       printedEventCount = snap.recentEvents.length;
       for (const ev of newEvents) {
-        if (/Raid|REPELLED|SACKED|DAMAGE|sacked outer|spotted|fire|burned|disease|outbreak|villager.*died/i.test(ev)) {
+        if (/Raid|REPELLED|SACKED|DAMAGE|sacked outer|spotted|fire|burned|disease|outbreak|villager.*died|risen from|Hamlet|Village|Town|Citadel|Fortress/i.test(ev)) {
           console.log(`    >> ${ev}`);
         }
       }

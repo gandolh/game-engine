@@ -5,9 +5,11 @@
  *          trader panel.
  * Phase 4: quarry/sawmill/smith/mine refiners; wall (drag-paint) + gate;
  *          tower/garrison/keep defenses; threat/defense/keep HUD; raider dots.
+ * Phase 5: settlement tier HUD; save/load via command-log replay (localStorage
+ *          + downloadable JSON blob).
  */
 import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef } from "@citadel/sim-core";
-import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
+import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave } from "@citadel/sim-core";
 import { CitadelSimClient } from "./worker/sim-client";
 import { bakeTerrainLayer, drawTerrain, clampZoom } from "./render/terrain-renderer";
 import { drawBuildings, drawGhost, drawVillagers, drawRaiders } from "./render/building-renderer";
@@ -25,6 +27,7 @@ const ctxMaybe = canvas.getContext("2d");
 if (!ctxMaybe) throw new Error("Failed to acquire 2d context");
 const ctx: CanvasRenderingContext2D = ctxMaybe;
 
+const hudTier = document.getElementById("hud-tier")!;
 const hudDay = document.getElementById("hud-day")!;
 const hudPop = document.getElementById("hud-pop")!;
 const hudBread = document.getElementById("hud-bread")!;
@@ -47,6 +50,10 @@ const btnRoad = document.getElementById("btn-build-road")!;
 const btnWall = document.getElementById("btn-build-wall")!;
 const btnCancel = document.getElementById("btn-cancel")!;
 const lblMode = document.getElementById("lbl-mode")!;
+// Phase 5: save/load UI
+const btnSave = document.getElementById("btn-save")!;
+const btnLoad = document.getElementById("btn-load")!;
+const loadFileInput = document.getElementById("load-file-input")! as HTMLInputElement;
 
 // Phase 3: decrees
 const decreWorkHours     = document.getElementById("decree-workHours")     as HTMLInputElement;
@@ -217,6 +224,59 @@ btnCancel.addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 5: Save / Load
+// ---------------------------------------------------------------------------
+
+/**
+ * Download the current save as a JSON file.
+ * Uses Date.now() for the filename only (not in sim code — UI thread only).
+ */
+btnSave.addEventListener("click", () => {
+  client.requestSave((save: CitadelSave) => {
+    const json = JSON.stringify(save, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    // Date.now() is fine on the main thread (UI, not sim code).
+    a.href = url;
+    a.download = `citadel-save-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+});
+
+/**
+ * Load a save from a JSON file.  Opens a file picker, reads the JSON,
+ * sends it to the Worker which replays the command log.
+ */
+btnLoad.addEventListener("click", () => {
+  loadFileInput.click();
+});
+
+loadFileInput.addEventListener("change", () => {
+  const file = loadFileInput.files?.[0];
+  if (file === undefined) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const text = ev.target?.result;
+      if (typeof text !== "string") return;
+      const save = JSON.parse(text) as CitadelSave;
+      if (save.version !== 1) {
+        console.warn("Citadel: unrecognized save version", save.version);
+        return;
+      }
+      client.loadSave(save);
+    } catch (err) {
+      console.error("Citadel: failed to parse save file", err);
+    }
+  };
+  reader.readAsText(file);
+  // Reset input so the same file can be selected again.
+  loadFileInput.value = "";
+});
+
+// ---------------------------------------------------------------------------
 // Phase 3: Decree toggles
 // ---------------------------------------------------------------------------
 function wireDecree(checkbox: HTMLInputElement, decree: string): void {
@@ -237,6 +297,7 @@ const client = new CitadelSimClient();
 let paused = false;
 let day = 1;
 let season = "spring";
+let tier = "Hamlet"; // Phase 5: settlement tier
 let population = 0;
 let popCap = 0;
 let bread = 0;
@@ -278,6 +339,7 @@ btn4x.addEventListener("click", () => client.setSpeed(4));
 client.onSnapshot((snap) => {
   day = snap.day + 1;
   season = snap.season;
+  tier = snap.tier;  // Phase 5
   population = snap.population;
   popCap = snap.popCap;
   bread = snap.stockpiles.bread ?? 0;
@@ -338,6 +400,16 @@ const bakedTerrain = bakeTerrainLayer(terrain);
 // ---------------------------------------------------------------------------
 function loop(): void {
   const surplusSign = foodSurplus >= 0 ? "+" : "";
+  // Phase 5: tier display — color by tier level
+  hudTier.textContent = tier;
+  const tierColors: Record<string, string> = {
+    "Hamlet": "#8b9bb4",
+    "Village": "#63c74d",
+    "Town": "#2ce8f5",
+    "Citadel": "#fee761",
+    "Fortress-City": "#e43b44",
+  };
+  hudTier.style.color = tierColors[tier] ?? "#c0cbdc";
   hudDay.textContent = `Day ${day} (${season})`;
   hudPop.textContent = `Pop ${population}/${popCap}`;
   hudBread.textContent = `Bread: ${bread} (${surplusSign}${foodSurplus})`;

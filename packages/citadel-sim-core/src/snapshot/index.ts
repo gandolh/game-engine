@@ -67,12 +67,30 @@ export interface RenderSnapshot {
   readonly sickVillagers: number;
   readonly outbreakActive: boolean;
   readonly activeFires: number;          // count of burning buildings
+  // Phase 5: settlement tier
+  readonly tier: string;                 // e.g. "Hamlet", "Village", "Town", …
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: save/load types (live here so snapshot + sim-bootstrap both use them)
+// ---------------------------------------------------------------------------
+
+/** Serializable save format — just the ordered command log and sim options. */
+export interface CitadelSave {
+  readonly version: 1;
+  readonly seed: number;
+  readonly ticksPerDay: number;
+  readonly startDay: number;
+  /** The tick at which the save was taken — loadFromSave replays up to this tick. */
+  readonly currentTick: number;
+  readonly commandLog: ReadonlyArray<{ tick: number; command: CitadelCommand }>;
 }
 
 // Messages sent from Worker → main thread
 export type WorkerOutbound =
   | { type: "snapshot"; snapshot: RenderSnapshot }
-  | { type: "ready" }; // emitted once after bootstrap
+  | { type: "ready" }                              // emitted once after bootstrap
+  | { type: "save-data"; save: CitadelSave };      // Phase 5: save response
 
 // Messages sent from main thread → Worker
 export type WorkerInbound =
@@ -80,7 +98,9 @@ export type WorkerInbound =
   | { type: "pause" }
   | { type: "resume" }
   | { type: "speed"; multiplier: number }
-  | { type: "command"; command: CitadelCommand };
+  | { type: "command"; command: CitadelCommand }
+  | { type: "request-save" }                       // Phase 5: request a save blob
+  | { type: "load-save"; save: CitadelSave };      // Phase 5: load from save
 
 // ---------------------------------------------------------------------------
 // Concrete citadel command union (lives in sim-core, not in @engine/core)

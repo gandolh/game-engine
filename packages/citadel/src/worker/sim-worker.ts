@@ -4,9 +4,11 @@
  *
  * Phase 2: snapshot is produced by result.getSnapshot(); handles place/road/
  * demolish commands. Terrain is static (regenerated on the main thread).
+ * Phase 5: handles request-save (returns CitadelSave blob) and load-save
+ * (replays a CitadelSave to reconstruct identical sim state).
  */
-import { bootstrapSim } from "@citadel/sim-core/sim-bootstrap";
-import type { WorkerInbound, WorkerOutbound } from "@citadel/sim-core/snapshot";
+import { bootstrapSim, loadFromSave } from "@citadel/sim-core/sim-bootstrap";
+import type { WorkerInbound, WorkerOutbound, CitadelSave } from "@citadel/sim-core/snapshot";
 
 let paused = false;
 let speed = 1;
@@ -15,21 +17,21 @@ let tick = 0;
 
 const DEFAULT_TICKS_PER_DAY = 20;
 
-let scheduler: ReturnType<typeof bootstrapSim>["scheduler"];
-let commands: ReturnType<typeof bootstrapSim>["commands"];
-let getSnapshot: ReturnType<typeof bootstrapSim>["getSnapshot"];
+let simResult: ReturnType<typeof bootstrapSim> | null = null;
 
 function startLoop(): void {
+  if (simResult === null) return;
   if (intervalId !== null) clearInterval(intervalId);
 
   const msPerTick = 1000 / (20 * speed);
+  const result = simResult;
 
   intervalId = setInterval(() => {
     if (paused) return;
-    scheduler.tick({ tick });
+    result.scheduler.tick({ tick });
     tick++;
 
-    const snap = getSnapshot(tick);
+    const snap = result.getSnapshot(tick);
     const snapshot: WorkerOutbound = {
       type: "snapshot",
       snapshot: { ...snap, speed },
@@ -42,14 +44,11 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
   switch (msg.type) {
     case "init": {
-      const result = bootstrapSim({
+      simResult = bootstrapSim({
         seed: msg.seed,
         ticksPerDay: msg.ticksPerDay,
         maxDays: 365,
       });
-      scheduler = result.scheduler;
-      commands = result.commands;
-      getSnapshot = result.getSnapshot;
       tick = 0;
       paused = false;
       speed = 1;
@@ -70,13 +69,38 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     }
     case "speed": {
       speed = msg.multiplier;
-      if (intervalId !== null && scheduler) {
+      if (intervalId !== null && simResult !== null) {
         startLoop();
       }
       break;
     }
     case "command": {
-      commands.enqueue(msg.command);
+      simResult?.commands.enqueue(msg.command);
+      break;
+    }
+
+    // Phase 5: Save — serialize and send the command log back to the main thread.
+    case "request-save": {
+      if (simResult === null) break;
+      const save = simResult.serializeSave(tick);
+      const out: WorkerOutbound = { type: "save-data", save };
+      self.postMessage(out);
+      break;
+    }
+
+    // Phase 5: Load — replay a CitadelSave to reconstruct identical sim state.
+    // Pauses before replay, restores speed after.
+    case "load-save": {
+      if (intervalId !== null) clearInterval(intervalId);
+      const loaded = loadFromSave(msg.save);
+      simResult = loaded;
+      // Resume from the tick that was the save point.
+      tick = msg.save.currentTick;
+      paused = false;
+
+      const ready: WorkerOutbound = { type: "ready" };
+      self.postMessage(ready);
+      startLoop();
       break;
     }
   }

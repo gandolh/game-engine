@@ -12,6 +12,8 @@ import { OccupancyGrid } from "@engine/core";
 import type { GoodType, BuildingRuntimeState, BuildingEntity } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
 import type { Rng } from "@engine/core";
+import type { SettlementTier } from "./systems/tiers";
+import type { CitadelCommand } from "./snapshot/index";
 
 /** Phase 4.5: per-building fire hazard state. */
 export interface BuildingFireState {
@@ -128,6 +130,16 @@ export interface SimState {
   readonly fireState: Map<number, BuildingFireState>; // keyed by building ECS id
   sickVillagers: number;    // count of sick villagers
   outbreakActive: boolean;  // true if disease spreading
+
+  // Phase 5: settlement tier
+  tier: SettlementTier;
+
+  /**
+   * Phase 5: command log for save/load.
+   * Every CitadelCommand that passes through the CommandSystem is appended here
+   * with its tick number, enabling deterministic replay from a fresh bootstrap.
+   */
+  readonly commandLog: Array<{ tick: number; command: CitadelCommand }>;
 }
 
 const MAX_EVENTS = 20;

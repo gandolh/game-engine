@@ -1,5 +1,7 @@
-export { bootstrapSim } from "./sim-bootstrap";
+export { bootstrapSim, loadFromSave } from "./sim-bootstrap";
 export type { CitadelSimOptions, CitadelSimResult } from "./sim-bootstrap";
+export { computeTier, tierAtLeast, TierSystem, TIER_ORDER, TIER_THRESHOLDS, TIER_LOCK } from "./systems/tiers";
+export type { SettlementTier } from "./systems/tiers";
 export { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE } from "./world/terrain";
 export type { TerrainGrid } from "./world/terrain";
 export { DayClockSystem } from "./systems/day-clock";
@@ -19,6 +21,7 @@ export type {
   VillagerSnapshot,
   RaiderSnapshot,
   CitadelCommand,
+  CitadelSave,
   RenderSnapshot,
   WorkerInbound,
   WorkerOutbound,

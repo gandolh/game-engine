@@ -3,14 +3,16 @@
  * Posts WorkerInbound messages, receives WorkerOutbound messages.
  *
  * Phase 1: adds sendCommand() for place/demolish building commands.
+ * Phase 5: adds requestSave() and loadSave() for save/load via command-log replay.
  */
-import type { RenderSnapshot, WorkerInbound, WorkerOutbound, CitadelCommand } from "@citadel/sim-core/snapshot";
+import type { RenderSnapshot, WorkerInbound, WorkerOutbound, CitadelCommand, CitadelSave } from "@citadel/sim-core/snapshot";
 
 export class CitadelSimClient {
   private readonly worker: Worker;
   private currentSnapshot: RenderSnapshot | null = null;
   private readyCallback: (() => void) | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
+  private saveCallback: ((save: CitadelSave) => void) | null = null;
 
   constructor() {
     this.worker = new Worker(new URL("./sim-worker.ts", import.meta.url), {
@@ -26,6 +28,10 @@ export class CitadelSimClient {
         case "snapshot":
           this.currentSnapshot = msg.snapshot;
           this.snapshotCallback?.(msg.snapshot);
+          break;
+        case "save-data":
+          this.saveCallback?.(msg.save);
+          this.saveCallback = null; // one-shot callback
           break;
       }
     };
@@ -54,6 +60,24 @@ export class CitadelSimClient {
    */
   sendCommand(command: CitadelCommand): void {
     this.send({ type: "command", command });
+  }
+
+  /**
+   * Phase 5 Save: request the worker to serialize its command log.
+   * The callback fires once with the CitadelSave object.
+   */
+  requestSave(cb: (save: CitadelSave) => void): void {
+    this.saveCallback = cb;
+    this.send({ type: "request-save" });
+  }
+
+  /**
+   * Phase 5 Load: send a CitadelSave to the worker, which replays it
+   * into a fresh bootstrapSim() and resumes from the saved tick.
+   * The worker emits "ready" when replay is complete.
+   */
+  loadSave(save: CitadelSave): void {
+    this.send({ type: "load-save", save });
   }
 
   onReady(cb: () => void): void {

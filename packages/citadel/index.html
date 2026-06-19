@@ -25,11 +25,19 @@
       #trader-panel.visible { display: flex; flex-direction: column; gap: 4px; }
       .trade-offer-btn { background: #5a6988; color: #c0cbdc; border: 1px solid #fee761; padding: 2px 8px; cursor: pointer; font-family: monospace; font-size: 12px; }
       .trade-offer-btn:hover { background: #fee761; color: #181425; }
+      /* Phase 5: tier display */
+      #hud-tier { color: #fee761; font-weight: bold; }
+      /* Phase 4.5: hazard HUD */
+      #hud-fire { color: #8b9bb4; }
+      #hud-disease { color: #8b9bb4; }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
     <div id="hud">
+      <!-- Phase 5: tier display — always visible, shows current settlement rank -->
+      <span id="hud-tier">Hamlet</span>
+      <div class="sep"></div>
       <span id="hud-day">Day 1 (spring)</span>
       <span id="hud-pop">Pop 0/0</span>
       <span id="hud-bread">Bread: 0</span>
@@ -40,6 +48,9 @@
       <span id="hud-threat">Threat: 0</span>
       <span id="hud-defense">Defense: 0</span>
       <span id="hud-keep">Keep: none</span>
+      <!-- Phase 4.5 hazard status -->
+      <span id="hud-fire">Fire: none</span>
+      <span id="hud-disease">Disease: none</span>
       <div class="sep"></div>
       <button id="btn-pause">Pause</button>
       <button id="btn-1x">1x</button>
@@ -72,6 +83,12 @@
       <button id="btn-demolish">Demolish</button>
       <button id="btn-cancel">Cancel</button>
       <span id="lbl-mode">Mode: None</span>
+      <div class="sep"></div>
+      <!-- Phase 5: Save / Load -->
+      <button id="btn-save">Save</button>
+      <button id="btn-load">Load</button>
+      <!-- Hidden file input for loading JSON saves -->
+      <input type="file" id="load-file-input" accept=".json" style="display:none">
       <div class="sep"></div>
       <!-- Phase 3: Decrees panel -->
       <div id="decrees-panel">
