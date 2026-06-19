@@ -668,7 +668,7 @@ export interface SceneInput {
 }
 
 /** Build the Sprite the sprite-batch consumes from a QuadSpec + layer. */
-function quadToSprite(q: QuadSpec, layer: number): Canvas2dSprite {
+function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSprite {
   return {
     atlasId: QUAD_ATLAS_ID,
     frame: QUAD_FRAME,
@@ -678,25 +678,52 @@ function quadToSprite(q: QuadSpec, layer: number): Canvas2dSprite {
     height: q.height,
     rotation: 0,
     layer,
-    alpha: 1,
+    alpha,
     tintRgba: q.tintRgba,
   };
 }
 
 /**
+ * Optional render-side FX hooks (briefs 17/18) the caller threads into
+ * `pushScene` without `citadel-renderer` depending on the FX module. Both are
+ * pure-callback shaped: given a building / villager, return how to bend its
+ * quad. Omitting `fx` (or returning null/identity) draws the plain scene.
+ *
+ *  - `building(b, quad)` → adjusted quad + alpha for the placement ease-in. The
+ *    callback already has the base `buildingQuad(b)` result so it can scale
+ *    about the footprint centre.
+ *  - `villagerYOffset(v)` → vertical bob offset in world px (idle bob).
+ */
+export interface SceneFx {
+  building?: (b: BuildingSnapshot, quad: QuadSpec) => { quad: QuadSpec; alpha: number };
+  villagerYOffset?: (v: VillagerSnapshot) => number;
+}
+
+/**
  * Push one frame's worth of building / villager / raider quads. Does NOT call
  * begin/endFrame — the caller owns the frame lifecycle so it can attach the
- * overlay. Pure-ish: only calls `renderer.push`.
+ * overlay. Pure-ish: only calls `renderer.push`. The optional `fx` hooks apply
+ * the placement ease-in (building scale/alpha) and idle bob (villager Y).
  */
-export function pushScene(renderer: RendererLike, scene: SceneInput): void {
+export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneFx): void {
   // Roads + walls draw as autotiled connected networks (brief 11), not per-tile
   // through buildingQuad. Gates still draw their distinct gold block here.
   pushNetworks(renderer, scene.buildings);
   for (const b of scene.buildings) {
     if (b.type === "road" || b.type === "wall") continue; // handled by pushNetworks
-    renderer.push(quadToSprite(buildingQuad(b), LAYER_BUILDING));
+    const base = buildingQuad(b);
+    if (fx?.building !== undefined) {
+      const { quad, alpha } = fx.building(b, base);
+      renderer.push(quadToSprite(quad, LAYER_BUILDING, alpha));
+    } else {
+      renderer.push(quadToSprite(base, LAYER_BUILDING));
+    }
   }
-  for (const v of scene.villagers) renderer.push(quadToSprite(villagerQuad(v), LAYER_VILLAGER));
+  for (const v of scene.villagers) {
+    const q = villagerQuad(v);
+    const dy = fx?.villagerYOffset !== undefined ? fx.villagerYOffset(v) : 0;
+    renderer.push(quadToSprite(dy !== 0 ? { ...q, y: q.y + dy } : q, LAYER_VILLAGER));
+  }
   for (const r of scene.raiders) renderer.push(quadToSprite(raiderQuad(r), LAYER_RAIDER));
 }
 

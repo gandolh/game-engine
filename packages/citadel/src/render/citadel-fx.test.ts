@@ -1,0 +1,213 @@
+/**
+ * Pure-function tests for the citadel render-side juice (briefs 17 + 19).
+ *
+ * Like citadel-renderer.test.ts these never touch the GPU — they exercise the
+ * pure helpers: placement ease curve, idle bob bounds/determinism, the
+ * appear-map diff, and the follow-cam nearest-pick + release predicate.
+ */
+import { describe, it, expect } from "vitest";
+import { TILE_SIZE } from "@citadel/sim-core";
+import type { BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";
+import {
+  placementScale,
+  PLACEMENT_EASE_MS,
+  PLACEMENT_MIN_SCALE,
+  easeQuad,
+  syncAppearMap,
+  buildingKey,
+  bobOffset,
+  BOB_AMPLITUDE_PX,
+  nearestVillager,
+  followReleaseId,
+  villagerById,
+  destinationLabel,
+} from "./citadel-fx";
+import { buildingQuad } from "./citadel-renderer";
+
+function building(over: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y">): BuildingSnapshot {
+  return {
+    w: 1, h: 1, connected: true, outputBuffer: 0, workerCount: 0,
+    onFire: false, burning: false, level: 1, ...over,
+  };
+}
+
+function villager(over: Partial<VillagerSnapshot> & Pick<VillagerSnapshot, "id" | "x" | "y">): VillagerSnapshot {
+  return { fsm: "idle", carryGood: null, ...over };
+}
+
+// ---------------------------------------------------------------------------
+// Placement ease-in
+// ---------------------------------------------------------------------------
+
+describe("placementScale", () => {
+  it("at 0ms is small + transparent", () => {
+    const fx = placementScale(0);
+    expect(fx.scale).toBeCloseTo(PLACEMENT_MIN_SCALE, 5);
+    expect(fx.alpha).toBeCloseTo(0, 5);
+  });
+
+  it("clamps negative ages to the start of the curve", () => {
+    expect(placementScale(-50)).toEqual(placementScale(0));
+  });
+
+  it("at the end (>=200ms) is fully settled: scale 1, alpha 1", () => {
+    expect(placementScale(PLACEMENT_EASE_MS)).toEqual({ scale: 1, alpha: 1 });
+    expect(placementScale(PLACEMENT_EASE_MS + 1000)).toEqual({ scale: 1, alpha: 1 });
+  });
+
+  it("is monotonic + bounded through the tween", () => {
+    let prevScale = -1;
+    let prevAlpha = -1;
+    for (let ms = 0; ms <= PLACEMENT_EASE_MS; ms += 10) {
+      const { scale, alpha } = placementScale(ms);
+      expect(scale).toBeGreaterThanOrEqual(PLACEMENT_MIN_SCALE - 1e-9);
+      expect(scale).toBeLessThanOrEqual(1 + 1e-9);
+      expect(alpha).toBeGreaterThanOrEqual(0 - 1e-9);
+      expect(alpha).toBeLessThanOrEqual(1 + 1e-9);
+      expect(scale).toBeGreaterThanOrEqual(prevScale - 1e-9);
+      expect(alpha).toBeGreaterThanOrEqual(prevAlpha - 1e-9);
+      prevScale = scale;
+      prevAlpha = alpha;
+    }
+  });
+
+  it("easeQuad scales about the footprint centre (centre is preserved)", () => {
+    const b = building({ type: "bakery", x: 3, y: 4, w: 2, h: 2 });
+    const base = buildingQuad(b);
+    const baseCx = base.x + base.width / 2;
+    const baseCy = base.y + base.height / 2;
+    const eased = easeQuad(base, placementScale(0));
+    expect(eased.width).toBeCloseTo(base.width * PLACEMENT_MIN_SCALE, 5);
+    expect(eased.x + eased.width / 2).toBeCloseTo(baseCx, 5);
+    expect(eased.y + eased.height / 2).toBeCloseTo(baseCy, 5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Appear map diff
+// ---------------------------------------------------------------------------
+
+describe("syncAppearMap", () => {
+  it("records first-seen ms for new buildings only", () => {
+    const map = new Map<string, number>();
+    const a = building({ type: "house", x: 1, y: 1 });
+    syncAppearMap(map, [a], 100);
+    expect(map.get(buildingKey(a))).toBe(100);
+    // Re-seen at a later time keeps the original timestamp.
+    syncAppearMap(map, [a], 500);
+    expect(map.get(buildingKey(a))).toBe(100);
+  });
+
+  it("drops keys for demolished buildings (so rebuild re-triggers)", () => {
+    const map = new Map<string, number>();
+    const a = building({ type: "house", x: 1, y: 1 });
+    syncAppearMap(map, [a], 100);
+    syncAppearMap(map, [], 200);
+    expect(map.has(buildingKey(a))).toBe(false);
+    // Rebuild at the same cell gets a fresh timestamp.
+    syncAppearMap(map, [a], 300);
+    expect(map.get(buildingKey(a))).toBe(300);
+  });
+
+  it("keys distinguish position and type", () => {
+    expect(buildingKey({ x: 1, y: 2, type: "farm" })).not.toBe(buildingKey({ x: 1, y: 2, type: "mill" }));
+    expect(buildingKey({ x: 1, y: 2, type: "farm" })).not.toBe(buildingKey({ x: 2, y: 2, type: "farm" }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Idle bob
+// ---------------------------------------------------------------------------
+
+describe("bobOffset", () => {
+  it("is deterministic for the same (time,id)", () => {
+    expect(bobOffset(1.23, 7)).toBe(bobOffset(1.23, 7));
+  });
+
+  it("stays within ±BOB_AMPLITUDE_PX", () => {
+    for (let id = 0; id < 50; id++) {
+      for (let t = 0; t < 10; t += 0.13) {
+        const o = bobOffset(t, id);
+        expect(Math.abs(o)).toBeLessThanOrEqual(BOB_AMPLITUDE_PX + 1e-9);
+      }
+    }
+  });
+
+  it("phase differs across ids (not in lockstep)", () => {
+    // At t=0 the offset is amp*sin(phase); distinct phases → distinct offsets.
+    const a = bobOffset(0, 1);
+    const b = bobOffset(0, 2);
+    const c = bobOffset(0, 3);
+    expect(a === b && b === c).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Follow-cam pure helpers
+// ---------------------------------------------------------------------------
+
+describe("nearestVillager", () => {
+  const vs = [
+    villager({ id: 10, x: 5, y: 5 }),
+    villager({ id: 11, x: 8, y: 8 }),
+    villager({ id: 12, x: 5.4, y: 5.2 }),
+  ];
+
+  it("picks the nearest villager within the radius", () => {
+    // Tile (5,5): id 10 is exact (d=0), id 12 is ~0.45 away — 10 wins.
+    expect(nearestVillager(vs, 5, 5)).toBe(10);
+  });
+
+  it("returns null when nothing is within the radius", () => {
+    expect(nearestVillager(vs, 0, 0)).toBeNull();
+    expect(nearestVillager(vs, 20, 20)).toBeNull();
+  });
+
+  it("respects a wider explicit radius", () => {
+    // (8,8) within 1 tile → id 11; from (6.5,6.5) only a wider radius reaches.
+    expect(nearestVillager(vs, 6.5, 6.5, 0.5)).toBeNull();
+    expect(nearestVillager(vs, 6.5, 6.5, 3)).not.toBeNull();
+  });
+
+  it("empty list → null", () => {
+    expect(nearestVillager([], 5, 5)).toBeNull();
+  });
+});
+
+describe("followReleaseId", () => {
+  const vs = [villager({ id: 1, x: 0, y: 0 }), villager({ id: 2, x: 1, y: 1 })];
+
+  it("keeps the id while the villager exists", () => {
+    expect(followReleaseId(2, vs)).toBe(2);
+  });
+
+  it("releases (null) when the followed villager despawned", () => {
+    expect(followReleaseId(99, vs)).toBeNull();
+  });
+
+  it("null stays null", () => {
+    expect(followReleaseId(null, vs)).toBeNull();
+  });
+
+  it("villagerById finds or returns null", () => {
+    expect(villagerById(vs, 1)?.id).toBe(1);
+    expect(villagerById(vs, 99)).toBeNull();
+  });
+});
+
+describe("destinationLabel", () => {
+  it("maps known fsm states to readable destinations", () => {
+    expect(destinationLabel("walkToWork")).toContain("work");
+    expect(destinationLabel("haulToStore")).toContain("storehouse");
+    expect(destinationLabel("walkHome")).toContain("home");
+  });
+
+  it("falls back to the raw fsm for unknown states", () => {
+    expect(destinationLabel("flying")).toBe("flying");
+  });
+});
+
+// Sanity: TILE_SIZE import wired (used by the follow glide target math in main).
+it("TILE_SIZE is a positive number", () => {
+  expect(TILE_SIZE).toBeGreaterThan(0);
+});

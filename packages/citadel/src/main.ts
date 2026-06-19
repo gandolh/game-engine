@@ -8,9 +8,9 @@
  * Phase 5: settlement tier HUD; save/load via command-log replay (localStorage
  *          + downloadable JSON blob).
  */
-import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost } from "@citadel/sim-core";
+import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot } from "@citadel/sim-core";
-import { EDG } from "@engine/core";
+import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
 import { CitadelSimClient } from "./worker/sim-client";
 import {
@@ -24,7 +24,19 @@ import {
   eventToDevicePx,
   screenToWorld,
   transformOf,
+  screenToTile,
 } from "./render/citadel-renderer";
+import {
+  CitadelSmoke,
+  syncAppearMap,
+  placementScale,
+  easeQuad,
+  bobOffset,
+  nearestVillager,
+  followReleaseId,
+  villagerById,
+  destinationLabel,
+} from "./render/citadel-fx";
 import {
   computeWash,
   dayFractionOf,
@@ -83,6 +95,10 @@ const decreConscription  = document.getElementById("decree-conscription")   as H
 const traderPanel  = document.getElementById("trader-panel")!;
 const traderOffers = document.getElementById("trader-offers")!;
 
+// Brief 19: follow-cam HUD strip (DOM, since the WebGPU overlay callback is a
+// no-op). Shows the followed villager's id / fsm / cargo / destination.
+const followHud = document.getElementById("follow-hud")!;
+
 // ---------------------------------------------------------------------------
 // Camera + renderer (Camera2D + engine WebGPU renderer; created async in boot)
 // ---------------------------------------------------------------------------
@@ -93,6 +109,19 @@ let renderer: RendererLike;
 const weather = new CitadelWeather();
 const ambientCrowd = new CitadelAmbientCrowd();
 let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT sim)
+
+// Render-side juice (briefs 17 + 19). All off-sim:
+//  - particles: chimney smoke, rendered by the WebGPU particle pass via endFrame
+//  - fxRng: render-side RNG (seeded off a constant) for smoke jitter ONLY —
+//    never the sim RNG, never Math.random in sim-construable code.
+//  - appearAt: building-key → first-seen render-clock ms, for the placement ease.
+const particles = new ParticleSystem();
+const fxRng = createRng(0x5117_c0de);
+const smoke = new CitadelSmoke(particles, fxRng);
+const appearAt = new Map<string, number>();
+
+// Follow-cam (brief 19): id of the villager the camera is locked onto, or null.
+let followId: number | null = null;
 
 let isPanning = false;
 let lastMouseX = 0;
@@ -183,6 +212,73 @@ canvas.addEventListener("click", (e) => {
     client.sendCommand({ type: "upgradeBuilding", payload: { x: tx, y: ty } });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Follow-cam (brief 19): right-click a villager to lock-follow; left-click on
+// empty space or Escape releases. Release-on-despawn is handled in the loop.
+// ---------------------------------------------------------------------------
+
+/** Resolve a mouse event to the tile under the cursor (device-px → tile). */
+function eventTile(e: MouseEvent): { tx: number; ty: number } {
+  const { sx, sy } = eventToDevicePx(e, canvas);
+  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  return screenToTile(transformOf(camera, canvas.width, canvas.height), sx, sy);
+}
+
+canvas.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  const { tx, ty } = eventTile(e);
+  const picked = nearestVillager(currentVillagers, tx, ty);
+  if (picked !== null) {
+    followId = picked;
+    updateFollowHud();
+  }
+});
+
+// Left-click on empty space (no placement mode, no villager hit) releases the
+// follow. The placement `click` handler above already returns early for its own
+// modes, so only wire release for the idle "none" / pan case.
+canvas.addEventListener("click", (e) => {
+  if (followId === null) return;
+  if (isPanning) return; // tail of a pan, not a release click
+  if (placementState.mode !== "none") return; // placement clicks aren't a release
+  const { tx, ty } = eventTile(e);
+  // Clicking the followed villager (or any villager in range) keeps following;
+  // clicking empty space releases.
+  if (nearestVillager(currentVillagers, tx, ty) === null) clearFollow();
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && followId !== null) clearFollow();
+});
+
+function clearFollow(): void {
+  followId = null;
+  updateFollowHud();
+}
+
+/**
+ * Refresh the follow HUD strip (brief 19). Hidden when not following; otherwise
+ * shows the followed villager's id, fsm, cargo, and fsm-derived destination.
+ * Called on right-click pick, on release, and each snapshot (state may change).
+ */
+function updateFollowHud(): void {
+  if (followId === null) {
+    followHud.classList.remove("visible");
+    followHud.textContent = "";
+    return;
+  }
+  const v = villagerById(currentVillagers, followId);
+  if (v === null) {
+    // Will be released by the loop's despawn check; hide pre-emptively.
+    followHud.classList.remove("visible");
+    return;
+  }
+  const cargo = v.carryGood !== null ? v.carryGood : "—";
+  followHud.textContent =
+    `Following #${v.id}  ·  ${v.fsm}  ·  cargo: ${cargo}  ·  ${destinationLabel(v.fsm)}  ·  [Esc to release]`;
+  followHud.classList.add("visible");
+}
 
 /** Building whose footprint contains (tx,ty) in the latest snapshot, or null. */
 function buildingAt(tx: number, ty: number): BuildingSnapshot | null {
@@ -483,6 +579,11 @@ client.onSnapshot((snap) => {
   } else {
     traderPanel.classList.remove("visible");
   }
+
+  // Brief 19: release the follow if its villager despawned (night / starvation),
+  // else refresh the HUD strip with the latest fsm / cargo.
+  followId = followReleaseId(followId, currentVillagers);
+  updateFollowHud();
 });
 
 // ---------------------------------------------------------------------------
@@ -549,8 +650,28 @@ function loop(): void {
 
   // --- Render clock (performance.now is main-thread only — never the sim).
   const nowMs = performance.now();
+  const timeSec = nowMs / 1000;
   const dt = lastFrameMs === 0 ? 0 : Math.min(0.1, (nowMs - lastFrameMs) / 1000);
   lastFrameMs = nowMs;
+
+  // --- Brief 17 placement ease-in: diff the building set against the appear map
+  // (records first-seen render-clock ms per x,y,type; drops demolished keys).
+  syncAppearMap(appearAt, currentBuildings, nowMs);
+
+  // --- Brief 19 follow-cam glide: lerp the camera centre toward the followed
+  // villager's world position with expSmooth (a smooth glide, not a snap). The
+  // villager dot tile-steps (no interpolation yet), so the cam is the smoothing.
+  if (followId !== null) {
+    const fv = villagerById(currentVillagers, followId);
+    if (fv !== null) {
+      const targetX = fv.x * TILE_SIZE + TILE_SIZE / 2;
+      const targetY = fv.y * TILE_SIZE + TILE_SIZE / 2;
+      camera.setCenter(
+        expSmooth(camera.centerX, targetX, 6, dt),
+        expSmooth(camera.centerY, targetY, 6, dt),
+      );
+    }
+  }
 
   // --- WebGPU scene: terrain is the baked static layer; entities + ghost are
   // sprite-batch quads. beginFrame sizes the canvas backing store, so fit the
@@ -558,11 +679,25 @@ function loop(): void {
   renderer.beginFrame();
   fitCameraToCanvas(camera, canvas.width, canvas.height);
 
-  pushScene(renderer, {
-    buildings: currentBuildings,
-    villagers: currentVillagers,
-    raiders: currentRaiders,
-  });
+  // Brief 17 FX hooks: placement ease-in (building scale/alpha) + idle bob
+  // (villager Y). Both pure; the appear map + render clock feed them here.
+  pushScene(
+    renderer,
+    {
+      buildings: currentBuildings,
+      villagers: currentVillagers,
+      raiders: currentRaiders,
+    },
+    {
+      building: (b, quad) => {
+        const born = appearAt.get(`${b.x},${b.y},${b.type}`);
+        if (born === undefined) return { quad, alpha: 1 };
+        const fx = placementScale(nowMs - born);
+        return { quad: easeQuad(quad, fx), alpha: fx.alpha };
+      },
+      villagerYOffset: (v) => bobOffset(timeSec, v.id),
+    },
+  );
 
   // --- Atmosphere (render-only). Day/night wash + night light pool (brief 15),
   // ambient crowd (brief 18), weather (brief 16). All driven off snapshot
@@ -592,9 +727,16 @@ function loop(): void {
     bottom: camera.centerY + halfY,
   });
 
-  // Day/night + seasonal wash (GPU TintPass via endFrame), then weather.
+  // Brief 17 chimney smoke: emit rising grey puffs from bakery/smith/woodcutter
+  // (render-side RNG jitter only), advance the pool, hand it to endFrame so the
+  // WebGPU particle pass draws it natively (the overlay callback is a no-op).
+  smoke.update(currentBuildings, nowMs);
+  particles.update(dt);
+
+  // Day/night + seasonal wash (GPU TintPass via endFrame), then particles +
+  // weather (both rendered natively by the WebGPU backend).
   const wash = computeWash(season, dayFraction);
-  renderer.endFrame(wash, undefined, weather.field);
+  renderer.endFrame(wash, particles, weather.field);
 
   requestAnimationFrame(loop);
 }

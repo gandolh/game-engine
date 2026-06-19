@@ -32,10 +32,21 @@
       /* Phase 4.5: hazard HUD */
       #hud-fire { color: #8b9bb4; }
       #hud-disease { color: #8b9bb4; }
+      /* Brief 19: follow-cam HUD strip — floats over the canvas top-left, shown
+         only while locked onto a villager. Colors mirror EDG (cyan accent). */
+      #follow-hud {
+        position: absolute; top: 8px; left: 8px; display: none;
+        background: #262b44; color: #2ce8f5; border: 1px solid #2ce8f5;
+        font-family: monospace; font-size: 13px; padding: 4px 10px;
+        border-radius: 3px; user-select: none; pointer-events: none;
+      }
+      #follow-hud.visible { display: block; }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
+    <!-- Brief 19: follow-cam HUD strip (DOM; the WebGPU overlay callback is a no-op) -->
+    <div id="follow-hud"></div>
     <div id="hud">
       <!-- Phase 5: tier display — always visible, shows current settlement rank -->
       <span id="hud-tier">Hamlet</span>
