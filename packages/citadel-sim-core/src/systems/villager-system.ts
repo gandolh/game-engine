@@ -33,8 +33,25 @@ import { bfsPath } from "../world/pathfinder";
 /** Ticks a villager spends "working" before hauling output to a store. */
 const WORK_TICKS = 5;
 
+/**
+ * Max replans drained per tick. Bounds the per-tick BFS cost so a siege-time
+ * mass road-break can't spike a single frame; over-budget villagers stay queued
+ * and retry on a later tick. Measured comfortable at Town tier — bump if Town's
+ * hauler count grows substantially.
+ */
+const REPLAN_BUDGET_PER_TICK = 8;
+
 export class VillagerSystem implements System {
   readonly name = "VillagerSystem";
+
+  /**
+   * Ids of villagers whose immediate next path tile became non-walkable (road
+   * demolished/burned mid-haul). Drained FIFO-by-id (sorted ascending) at the
+   * end of run() — NOT in ECS query order — which is the load-bearing
+   * determinism rule. Instance state (not serialized): loadFromSave replays the
+   * command log through a fresh bootstrap, reconstructing this set identically.
+   */
+  private readonly pendingReplan = new Set<number>();
 
   constructor(private readonly state: SimState) {}
 
@@ -43,6 +60,94 @@ export class VillagerSystem implements System {
     for (const entity of state.villagerWorld.query("villager")) {
       this.step(entity.villager, ctx);
     }
+    this.drainReplans();
+  }
+
+  /**
+   * Recompute paths for villagers flagged by next-step detection. Drains the
+   * pending set in ascending villager-id order (deterministic, independent of
+   * ECS iteration order) up to REPLAN_BUDGET_PER_TICK per tick. A successful
+   * replan installs the new path and removes the villager from the queue; a
+   * no-route result leaves the villager in place (it HOLDS — never teleports)
+   * and stays queued to retry when a road may be rebuilt.
+   */
+  private drainReplans(): void {
+    if (this.pendingReplan.size === 0) return;
+    // Map id -> villager for the ids currently queued.
+    const byId = new Map<number, VillagerComponent>();
+    for (const entity of this.state.villagerWorld.query("villager")) {
+      if (this.pendingReplan.has(entity.villager.id)) byId.set(entity.villager.id, entity.villager);
+    }
+    // Drop any queued ids that no longer correspond to a living villager.
+    for (const id of [...this.pendingReplan]) {
+      if (!byId.has(id)) this.pendingReplan.delete(id);
+    }
+    const sortedIds = [...this.pendingReplan].sort((a, b) => a - b);
+    let budget = REPLAN_BUDGET_PER_TICK;
+    for (const id of sortedIds) {
+      if (budget <= 0) break;
+      const v = byId.get(id);
+      if (v === undefined) {
+        this.pendingReplan.delete(id);
+        continue;
+      }
+      budget--;
+      const target = this.fsmTarget(v);
+      if (target === null) {
+        // No meaningful target for the current FSM state — stop tracking.
+        this.pendingReplan.delete(id);
+        continue;
+      }
+      const pos = villagerPos(v);
+      const route = this.replanRoute(pos.x, pos.y, target.x, target.y);
+      if (route === null) {
+        // Disconnected: HOLD in place (keep cargo), stay queued, retry later.
+        continue;
+      }
+      // Prepend the current tile so villagerPos stays continuous (pathStep=1
+      // points at the current position, not a stale home/work fallback) and the
+      // next advance() peeks the first new route tile. bfsPath excludes the
+      // start, so route[0] is already one tile away from pos.
+      v.pathX = [pos.x, ...route.x];
+      v.pathY = [pos.y, ...route.y];
+      v.pathStep = 1;
+      this.pendingReplan.delete(id);
+    }
+  }
+
+  /** The destination tile for the villager's current movement FSM state, or null. */
+  private fsmTarget(v: VillagerComponent): { x: number; y: number } | null {
+    switch (v.fsm) {
+      case "walkToWork":
+        return { x: v.workX, y: v.workY };
+      case "haulToStore":
+        return { x: v.storeX, y: v.storeY };
+      case "walkHome":
+        return { x: v.homeX, y: v.homeY };
+      default:
+        return null;
+    }
+  }
+
+  /** Compute a BFS route; returns parallel arrays, or null if no route exists. */
+  private replanRoute(
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+  ): { x: number[]; y: number[] } | null {
+    const state = this.state;
+    const path = bfsPath(
+      fromX,
+      fromY,
+      toX,
+      toY,
+      (tx, ty) => villagerWalkable(state, tx, ty),
+      state.width,
+      state.height,
+    );
+    if (path === null || path.length === 0) return null;
+    return { x: path.map((p) => p.x), y: path.map((p) => p.y) };
   }
 
   private step(v: VillagerComponent, ctx: SimContext): void {
@@ -219,9 +324,28 @@ export class VillagerSystem implements System {
     v.pathY = path.map((p) => p.y);
   }
 
-  /** Advance one step along the path. Returns true when the path is exhausted. */
+  /**
+   * Advance one step along the path. Returns true when the path is exhausted.
+   *
+   * Before stepping, peek the immediate next tile (O(1)). If it became
+   * non-walkable mid-haul (road demolished/burned), do NOT advance: flag the
+   * villager for a bounded deterministic replan (drained at end of run()) and
+   * stay in place this tick. The final tile of a path is the target itself
+   * (a building footprint or the goal): bfsPath treats the goal as always
+   * enterable, so we exempt the final step from the walkability gate to keep
+   * arrivals at building tiles identical to pre-existing behavior.
+   */
   private advance(v: VillagerComponent): boolean {
     if (v.pathStep >= v.pathX.length) return true;
+    const nextX = v.pathX[v.pathStep]!;
+    const nextY = v.pathY[v.pathStep]!;
+    const isFinalStep = v.pathStep === v.pathX.length - 1;
+    if (!isFinalStep && !villagerWalkable(this.state, nextX, nextY)) {
+      // Next tile is blocked and is not the destination — request a replan and
+      // hold position this tick (do not walk through the now-blocked tile).
+      this.pendingReplan.add(v.id);
+      return false;
+    }
     v.pathStep++;
     return v.pathStep >= v.pathX.length;
   }
