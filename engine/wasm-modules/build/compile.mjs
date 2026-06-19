@@ -1,5 +1,5 @@
 // Compile every AssemblyScript module under src/ to dist/, then copy the
-// resulting .wasm binaries into farm-valley's public/wasm so the game can
+// resulting .wasm binaries into the farm client's public/wasm so the game can
 // fetch them at /wasm/<name>.wasm.
 
 import { mkdir, readdir, copyFile } from "node:fs/promises";
@@ -11,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(__dirname, "..");
 const srcDir = resolve(pkgRoot, "src");
 const distDir = resolve(pkgRoot, "dist");
-const publicWasmDir = resolve(pkgRoot, "../farm-valley/public/wasm");
+const publicWasmDir = resolve(pkgRoot, "../../games/farm/client/public/wasm");
 
 await mkdir(distDir, { recursive: true });
 await mkdir(publicWasmDir, { recursive: true });

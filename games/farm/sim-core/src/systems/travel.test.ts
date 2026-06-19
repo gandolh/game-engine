@@ -21,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const wasmPath = resolve(
   __dirname,
-  "../../../wasm-modules/dist/pathfinding.wasm",
+  "../../../../../engine/wasm-modules/dist/pathfinding.wasm",
 );
 
 function loadBytes(): ArrayBuffer {

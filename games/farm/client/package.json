@@ -1,5 +1,5 @@
 {
-  "name": "farm-valley",
+  "name": "@farm/client",
   "version": "0.0.0",
   "private": true,
   "type": "module",

@@ -13,7 +13,7 @@ import { spawn } from "node:child_process";
 
 const procs = [
   { name: "server", cmd: "npm", args: ["run", "server"], color: "\x1b[36m" },
-  { name: "client", cmd: "npm", args: ["run", "dev", "-w", "farm-valley"], color: "\x1b[35m" },
+  { name: "client", cmd: "npm", args: ["run", "dev", "-w", "@farm/client"], color: "\x1b[35m" },
 ];
 
 const children = [];

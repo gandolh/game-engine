@@ -15,7 +15,7 @@ async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
   const here = dirname(fileURLToPath(import.meta.url));
   const wasmPath = resolve(
     here,
-    "../../wasm-modules/dist/pathfinding.wasm",
+    "../../../../engine/wasm-modules/dist/pathfinding.wasm",
   );
   try {
     const buf = await readFile(wasmPath);

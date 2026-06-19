@@ -15,7 +15,8 @@
     "./wasm": "./src/wasm/index.ts",
     "./animation": "./src/animation/index.ts",
     "./commands": "./src/commands/index.ts",
-    "./placement": "./src/placement/index.ts"
+    "./placement": "./src/placement/index.ts",
+    "./input": "./src/input/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

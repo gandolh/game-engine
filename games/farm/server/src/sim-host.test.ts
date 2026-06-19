@@ -10,7 +10,7 @@ import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
 import { SimHost } from "./sim-host";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const WASM_PATH = resolve(here, "../../wasm-modules/dist/pathfinding.wasm");
+const WASM_PATH = resolve(here, "../../../../engine/wasm-modules/dist/pathfinding.wasm");
 
 function loadWasmBytes(): ArrayBuffer {
   const buf = readFileSync(WASM_PATH);

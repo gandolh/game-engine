@@ -4,22 +4,23 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "packages/*",
+    "engine/*",
+    "games/*/*",
     "tools/*"
   ],
   "scripts": {
-    "dev": "node tools/dev.mjs",
-    "dev:client": "npm run dev -w farm-valley",
-    "dev:citadel": "npm run dev -w citadel",
-    "citadel": "npm run dev -w citadel",
-    "build": "npm run build -w farm-valley",
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "npm run dev -w @farm/client",
+    "dev:citadel": "npm run dev -w @citadel/client",
+    "citadel": "npm run dev -w @citadel/client",
+    "build": "npm run build -w @farm/client",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "atlas": "npm run build -w atlas-builder",
-    "sim": "npm start -w run-sim",
-    "sim:citadel": "npm start -w citadel-sim",
+    "atlas": "npm run build -w @tool/atlas-builder",
+    "sim": "npm start -w @tool/run-sim",
+    "sim:citadel": "npm start -w @tool/citadel-sim",
     "server": "npm start -w @farm/server",
-    "preview": "npm start -w world-preview",
+    "preview": "npm start -w @tool/world-preview",
     "build-wasm": "npm run build -w @engine/wasm-modules"
   },
   "devDependencies": {

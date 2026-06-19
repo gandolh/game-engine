@@ -91,7 +91,7 @@ function rasterize(packed: Packed, recipes: readonly PixelRecipe[]): PNG {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(__dirname, "../../../packages/farm-valley/public/atlas");
+const outDir = resolve(__dirname, "../../../games/farm/client/public/atlas");
 const recipesDir = resolve(__dirname, "recipes");
 const assetsDir = resolve(__dirname, "recipes/assets");
 

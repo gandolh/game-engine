@@ -128,7 +128,7 @@ class DrainClient {
 function startServer(): Promise<ChildProcess> {
   return new Promise((res, reject) => {
     const child = spawn("npx", ["tsx", "src/index.ts"], {
-      cwd: resolve(repoRoot, "packages/server"),
+      cwd: resolve(repoRoot, "games/farm/server"),
       stdio: ["ignore", "pipe", "pipe"],
       detached: true, 
     });

@@ -1,5 +1,5 @@
 {
-  "name": "world-preview",
+  "name": "@tool/world-preview",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   "dependencies": {
     "@engine/core": "0.0.0",
     "@farm/sim-core": "0.0.0",
-    "farm-valley": "0.0.0",
+    "@farm/client": "0.0.0",
     "pngjs": "7.0.0"
   },
   "devDependencies": {

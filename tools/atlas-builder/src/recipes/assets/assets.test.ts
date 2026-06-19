@@ -10,7 +10,7 @@ import { buildAtlas } from "../../index";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = HERE;
 const ATLAS_BUILDER_DIR = join(HERE, "../../..");
-const ATLAS_OUT_DIR = join(ATLAS_BUILDER_DIR, "../../packages/farm-valley/public/atlas");
+const ATLAS_OUT_DIR = join(ATLAS_BUILDER_DIR, "../../games/farm/client/public/atlas");
 
 function collectAssetFiles(dir: string, out: string[]): void {
   for (const name of readdirSync(dir)) {

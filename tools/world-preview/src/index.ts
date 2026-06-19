@@ -36,15 +36,15 @@ interface BlitSprite {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
-const atlasDir = resolve(repoRoot, "packages/farm-valley/public/atlas");
+const atlasDir = resolve(repoRoot, "games/farm/client/public/atlas");
 
 interface AtlasIndex { sheets: Array<{ id: string; manifestUrl: string; imageUrl: string }> }
 const atlasIndex = JSON.parse(readFileSync(resolve(atlasDir, "index.json"), "utf8")) as AtlasIndex;
 const sheetManifests = new Map<string, AtlasManifest>();
 const sheetPngs = new Map<string, PNG>();
 for (const entry of atlasIndex.sheets) {
-  const manifestPath = resolve(repoRoot, "packages/farm-valley/public", entry.manifestUrl.slice(1));
-  const pngPath = resolve(repoRoot, "packages/farm-valley/public", entry.imageUrl.slice(1));
+  const manifestPath = resolve(repoRoot, "games/farm/client/public", entry.manifestUrl.slice(1));
+  const pngPath = resolve(repoRoot, "games/farm/client/public", entry.imageUrl.slice(1));
   sheetManifests.set(entry.id, JSON.parse(readFileSync(manifestPath, "utf8")) as AtlasManifest);
   sheetPngs.set(entry.id, PNG.sync.read(readFileSync(pngPath)));
 }

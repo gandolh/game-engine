@@ -34,10 +34,8 @@
  *   SCENARIO=fire   MAX_DAYS=40 npm run sim:citadel
  *   SCENARIO=disease MAX_DAYS=40 npm run sim:citadel
  */
-// Use relative path to ensure the worktree's fire/disease systems are included,
-// not the main-repo symlink that may be missing Phase 4.5 systems.
-import { bootstrapSim, isWalkable, TerrainType } from "../../../packages/citadel-sim-core/src/index";
-import type { CitadelCommand, TerrainGrid } from "../../../packages/citadel-sim-core/src/index";
+import { bootstrapSim, isWalkable, TerrainType } from "@citadel/sim-core";
+import type { CitadelCommand, TerrainGrid } from "@citadel/sim-core";
 
 const SEED = parseInt(process.env.SEED ?? "0x1a2b3c4d", 16) >>> 0;
 const MAX_DAYS = parseInt(process.env.MAX_DAYS ?? "40", 10);

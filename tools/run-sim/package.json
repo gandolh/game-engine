@@ -1,5 +1,5 @@
 {
-  "name": "run-sim",
+  "name": "@tool/run-sim",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@farm/sim-core": "0.0.0",
-    "farm-valley": "0.0.0"
+    "@farm/sim-core": "0.0.0"
   },
   "devDependencies": {
     "tsx": "4.22.3"

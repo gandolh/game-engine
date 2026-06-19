@@ -49,7 +49,8 @@ describe("EDG32 palette is the single source of truth", () => {
 
 describe("no source file uses an off-palette color literal", () => {
   const files: string[] = [];
-  walk(join(REPO_ROOT, "packages"), files);
+  walk(join(REPO_ROOT, "engine"), files);
+  walk(join(REPO_ROOT, "games"), files);
   walk(join(REPO_ROOT, "tools"), files);
 
   const violations: string[] = [];
@@ -98,7 +99,7 @@ describe("no source file uses an off-palette color literal", () => {
       violations,
       violations.length
         ? `\nOff-palette colors found — replace with an EDG.* constant ` +
-            `(see packages/engine/src/render/palette.ts):\n  ${violations.join("\n  ")}\n`
+            `(see engine/core/src/render/palette.ts):\n  ${violations.join("\n  ")}\n`
         : "",
     ).toEqual([]);
   });
