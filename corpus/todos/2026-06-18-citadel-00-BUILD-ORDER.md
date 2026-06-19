@@ -125,3 +125,33 @@ into `@engine/*`** so both games share them (no game→game import). All render-
 *✖ Cut / deferred:*
 - **[23 — Quantized opacity caches](2026-06-19-citadel-23-quantized-opacity-caches.md)** — **WON'T DO**: Canvas2D `globalAlpha` micro-opt, moot under WebGPU-only.
 - **[26 — Multiplayer epic](2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md)** — APR-deferred (#14); future epic needing its own grilling. Web3 wallet/auth out of scope.
+
+## ✅ MP-RTS EPIC STATUS (2026-06-19) — spine 28→37 shipped; 21/22 cores
+
+The decomposed multiplayer-RTS epic was ground end-to-end. **10 of 12 items DONE +
+verified + closed**; the 2 render-perf items have their cores shipped + tested
+(engine WebGPU integration is GPU-pending). Every sim-touching change was proven
+behavior-preserving: solo Citadel (1-player) is **byte-identical** to the pre-epic
+baseline across grow/siege/sack/fire/disease (seeds 1,7) at `TICKS_PER_DAY=20`.
+
+- **A 28** PlayerState[] refactor + ownerId — DONE (closed). Determinism proof.
+- **B 29** 256×256 configurable world + town-hall anchor — DONE (closed).
+- **C 30** influence-radius territory + (opt-in) build-gating — DONE (closed).
+- **D 31** pathfinder perf (persistent buffer, route-equivalent) — DONE (closed).
+- **H 35** @citadel/server multi-writer netcode + client WS transport — DONE (closed).
+- **E 32** PvP armies (launch-attack, siege-math resolution, town-hall sack =
+  elimination) — DONE (closed).
+- **F 33** per-player PvE (raiders/hazards already per-player from 28) + independent
+  per-player raid/hazard RNG — DONE (closed).
+- **G 34** one-way gift/transfer — DONE (closed).
+- **I 36** presence/roster/emotes (ephemeral, OFF the command log) — DONE (closed).
+- **J 37** seeded NPC lobby bots (join as peers; reproducible) — DONE (closed).
+- **K 21/22** render-window + per-frame build-budget — **CORES shipped + tested**
+  (`games/citadel/client/src/render/render-window.ts`, `build-budget.ts`); engine
+  WebGPU static-layer windowed-bake integration + GPU-runtime verification LEFT
+  OPEN (this host is headless / no GPU). Todos remain in `todos/` (not closed).
+
+**Verification ceiling:** the sim + netcode + bot logic is unit-tested +
+determinism-proven headless. NOT verified here (no GPU / no live multi-client):
+the WebGPU render of the new MP entities (armies, team colours, presence cursors),
+live WS multiplayer across real browser peers, and the 21/22 windowed-bake runtime.
