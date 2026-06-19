@@ -18,6 +18,12 @@ import type {
   VillagerSnapshot,
   RaiderSnapshot,
 } from "@citadel/sim-core";
+import {
+  BUILDING_SPRITE_TYPES,
+  buildingFrameName,
+  VILLAGER_FRAME,
+  RAIDER_FRAME,
+} from "./sprites/recipes";
 
 // ---------------------------------------------------------------------------
 // Color maps (EDG only) — ported verbatim from the deleted Canvas2D renderers.
@@ -100,6 +106,13 @@ export interface QuadSpec {
   height: number;
   /** Packed 0xRRGGBBAA tint. */
   tintRgba: number;
+  /**
+   * Atlas frame to sample. Defaults to the 1×1 white `px` frame (so all the
+   * tinted-box paths — ghost, light-pool, wear, autotile networks, cluster
+   * border, ambient crowd — are unchanged). Per-entity sprite quads set this to
+   * a real frame (`bld/<type>`, `vil/person`, `raider`).
+   */
+  frame?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +128,7 @@ export const QUAD_FRAME = "px";
 export function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSprite {
   return {
     atlasId: QUAD_ATLAS_ID,
-    frame: QUAD_FRAME,
+    frame: q.frame ?? QUAD_FRAME,
     x: q.x,
     y: q.y,
     width: q.width,
@@ -132,12 +145,14 @@ export function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSpr
 // ---------------------------------------------------------------------------
 
 /**
- * Map a building snapshot to its solid colored quad (position, footprint, tint).
- *
- * Burning buildings tint orange (matches the old Canvas2D behavior). Roads draw
- * as a centered inset band; gates as a slightly inset gold block; everything
- * else fills its full footprint. Pure — no GPU, returns the quad spec the
- * sprite-batch consumes.
+ * Map a building snapshot to its quad. Buildings with a sprite recipe fill their
+ * full footprint and sample the real `bld/<type>` frame at full opacity (tint =
+ * white, so the recipe's own colors show); a burning building multiplies its
+ * tint toward orange (preserving the old fire cue, on top of the soot/wear
+ * overlay). Roads draw as a centered inset band and gates as an inset gold
+ * block (both keep the tinted 1×1 `px` path — no sprite). A type without a
+ * recipe falls back to a solid tinted box (never requesting a missing frame).
+ * Pure — no GPU.
  */
 export function buildingQuad(b: BuildingSnapshot): QuadSpec {
   const px = b.x * TILE_SIZE;
@@ -167,26 +182,44 @@ export function buildingQuad(b: BuildingSnapshot): QuadSpec {
     };
   }
 
+  if (BUILDING_SPRITE_TYPES.has(b.type)) {
+    // Real sprite: tint white so the recipe colors show; orange-multiply when
+    // burning. Footprint-sized so the frame scales 1:1 (nearest-crisp).
+    return {
+      x: px,
+      y: py,
+      width: pw,
+      height: ph,
+      tintRgba: packTint(b.burning ? EDG.orange : EDG.white),
+      frame: buildingFrameName(b.type),
+    };
+  }
+
+  // Fallback: a type with no recipe (e.g. a future building) → tinted box.
   const hex = b.burning ? EDG.orange : (BUILDING_COLORS[b.type] ?? FALLBACK_BUILDING_COLOR);
   return { x: px, y: py, width: pw, height: ph, tintRgba: packTint(hex) };
 }
 
-/** Map a villager snapshot to a small centered quad (color by FSM state). */
+/**
+ * Map a villager snapshot to a small centered sprite quad. The `vil/person`
+ * frame is a grey-ramp silhouette; the FSM-state color is applied as the tint
+ * (texture × tint), so state still reads at a glance but now on a shaded figure.
+ */
 export function villagerQuad(v: VillagerSnapshot): QuadSpec {
   const size = TILE_SIZE * 0.7;
   const cx = v.x * TILE_SIZE + TILE_SIZE / 2;
   const cy = v.y * TILE_SIZE + TILE_SIZE / 2;
   const hex = VILLAGER_COLORS[v.fsm] ?? FALLBACK_VILLAGER_COLOR;
-  return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex) };
+  return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex), frame: VILLAGER_FRAME };
 }
 
-/** Map a raider snapshot to a red quad sized by strength. */
+/** Map a raider snapshot to a red-tinted sprite quad sized by strength. */
 export function raiderQuad(r: RaiderSnapshot): QuadSpec {
   // Strength grows the footprint (matches old radius scaling: 0.4..1.0 tiles).
   const half = TILE_SIZE * (0.4 + Math.min(0.6, r.strength / 60));
   const cx = r.x * TILE_SIZE + TILE_SIZE / 2;
   const cy = r.y * TILE_SIZE + TILE_SIZE / 2;
-  return { x: cx - half, y: cy - half, width: half * 2, height: half * 2, tintRgba: packTint(EDG.red) };
+  return { x: cx - half, y: cy - half, width: half * 2, height: half * 2, tintRgba: packTint(EDG.red), frame: RAIDER_FRAME };
 }
 
 // ---------------------------------------------------------------------------

@@ -47,8 +47,10 @@ import {
   ghostQuad,
 } from "./quads";
 import { networkQuads } from "./autotile";
-import { clusterBuildings, clusterQuads } from "./clustering";
+import { clusterBuildings, clusterBorderQuads } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
+import { RenderWindowController } from "./window-controller";
+import { createCitadelSpriteAtlas } from "./sprites/atlas";
 
 // ---------------------------------------------------------------------------
 // Re-export the full prior public surface so existing imports keep resolving.
@@ -60,6 +62,7 @@ export * from "./autotile";
 export * from "./clustering";
 export * from "./transform";
 export * from "./terrain-dither";
+export * from "./window-controller";
 
 import type { TerrainGrid } from "@citadel/sim-core";
 import { WORLD_PX_W, WORLD_PX_H } from "./transform";
@@ -126,13 +129,18 @@ export async function createQuadAtlas(): Promise<LoadedAtlasImage> {
 export interface CitadelRenderer {
   renderer: RendererLike;
   camera: Camera2D;
+  /** Drives the windowed static-layer bake (Citadel 21/22). Call `update(camera)`
+   *  each frame after fitting the camera; a no-op on small (solo) worlds. */
+  windowController: RenderWindowController;
 }
 
 /**
  * Create the WebGPU-backed citadel renderer: force the WebGPU backend (the FV
  * pattern), register the generated quad atlas, set the clear color, and bake
- * the terrain backdrop once. Throws if WebGPU is unavailable (no silent
- * Canvas2D fallback — Citadel is WebGPU-only at runtime).
+ * the terrain backdrop. On the large MP world the bake is render-windowed (only
+ * the camera window is textured, re-baked on pan via the controller); on the
+ * small solo world it bakes whole-world once (identical to before). Throws if
+ * WebGPU is unavailable (no silent Canvas2D fallback — Citadel is WebGPU-only).
  */
 export async function createCitadelRenderer(
   canvas: HTMLCanvasElement,
@@ -154,13 +162,19 @@ export async function createCitadelRenderer(
   // Pixel art — keep crisp quad edges.
   renderer.pixelSnap = true;
 
-  const atlas = await createQuadAtlas();
+  // Real pixel-art sprite atlas (buildings/villagers/raiders), generated
+  // in-process at boot. Retains the 1×1 white `px` frame the tinted-quad paths
+  // (ghost, light-pool, wear, autotile, cluster border, crowd) still use.
+  const atlas = await createCitadelSpriteAtlas();
   renderer.addAtlas(atlas);
 
-  // Bake terrain once into the static layer (texture on WebGPU).
-  renderer.bakeStaticLayer([], WORLD_PX_W, WORLD_PX_H, makeTerrainDecorate(terrain));
+  // Bake the terrain static layer. The controller decides whole-world (small
+  // map) vs render-windowed (large MP map); the initial bake uses the camera's
+  // boot framing (fully zoomed out → whole world either way).
+  const windowController = new RenderWindowController(renderer, terrain);
+  windowController.bakeInitial(camera);
 
-  return { renderer, camera };
+  return { renderer, camera, windowController };
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +203,17 @@ export interface SceneFx {
   villagerYOffset?: (v: VillagerSnapshot) => number;
 }
 
+/** Push one building's sprite quad, applying the optional placement ease-in fx. */
+function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx): void {
+  const base = buildingQuad(b);
+  if (fx?.building !== undefined) {
+    const { quad, alpha } = fx.building(b, base);
+    renderer.push(quadToSprite(quad, LAYER_BUILDING, alpha));
+  } else {
+    renderer.push(quadToSprite(base, LAYER_BUILDING));
+  }
+}
+
 /**
  * Push one frame's worth of building / villager / raider quads. Does NOT call
  * begin/endFrame — the caller owns the frame lifecycle so it can attach the
@@ -200,37 +225,24 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
   // through buildingQuad. Gates still draw their distinct gold block here.
   pushNetworks(renderer, scene.buildings);
 
-  // Houses route through the BFS clustering path (brief 12): a cluster of >=2
-  // draws as one composite union-fill + unifying border; singletons fall back
-  // to the normal buildingQuad. The fx ease-in hook only applies to the
-  // per-building (non-clustered) path — composite blocks draw plain.
+  // Houses route through the BFS clustering path (brief 12): each house now
+  // draws as its own pixel-art sprite (via buildingQuad), and a cluster of >=2
+  // additionally gets a subtle unifying border so a block reads as one
+  // neighbourhood. The border draws first (below the sprites); the fx ease-in
+  // hook applies to every house sprite.
   for (const cluster of clusterBuildings(scene.buildings, "house")) {
-    if (cluster.members.length >= 2) {
-      for (const q of clusterQuads(cluster, "house")) {
-        renderer.push(quadToSprite(q, LAYER_BUILDING));
-      }
-    } else if (cluster.members.length === 1) {
-      const b = cluster.members[0]!;
-      const base = buildingQuad(b);
-      if (fx?.building !== undefined) {
-        const { quad, alpha } = fx.building(b, base);
-        renderer.push(quadToSprite(quad, LAYER_BUILDING, alpha));
-      } else {
-        renderer.push(quadToSprite(base, LAYER_BUILDING));
-      }
+    for (const q of clusterBorderQuads(cluster)) {
+      renderer.push(quadToSprite(q, LAYER_BUILDING));
+    }
+    for (const b of cluster.members) {
+      pushBuilding(renderer, b, fx);
     }
   }
 
   for (const b of scene.buildings) {
     if (b.type === "road" || b.type === "wall") continue; // handled by pushNetworks
     if (b.type === "house") continue; // handled by the cluster path above
-    const base = buildingQuad(b);
-    if (fx?.building !== undefined) {
-      const { quad, alpha } = fx.building(b, base);
-      renderer.push(quadToSprite(quad, LAYER_BUILDING, alpha));
-    } else {
-      renderer.push(quadToSprite(base, LAYER_BUILDING));
-    }
+    pushBuilding(renderer, b, fx);
   }
   for (const v of scene.villagers) {
     const q = villagerQuad(v);

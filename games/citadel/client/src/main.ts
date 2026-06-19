@@ -28,6 +28,7 @@ import {
   transformOf,
   screenToTile,
 } from "./render/citadel-renderer";
+import type { RenderWindowController } from "./render/citadel-renderer";
 import {
   CitadelSmoke,
   syncAppearMap,
@@ -117,6 +118,7 @@ const followHud = document.getElementById("follow-hud")!;
 // ---------------------------------------------------------------------------
 let camera: Camera2D;
 let renderer: RendererLike;
+let windowController: RenderWindowController;
 
 // Atmosphere (render-only, off-sim): day/night wash, weather FX, ambient crowd.
 const weather = new CitadelWeather();
@@ -784,6 +786,11 @@ function loop(): void {
   renderer.beginFrame();
   fitCameraToCanvas(camera, canvas.width, canvas.height);
 
+  // Brief 21/22: on the large MP world, re-bake the camera-windowed static
+  // layer when the window shifts (drained at a per-frame budget so a fast pan
+  // never triggers a synchronous re-bake). No-op on the small solo world.
+  windowController.update(camera);
+
   // Brief 17 FX hooks: placement ease-in (building scale/alpha) + idle bob
   // (villager Y). Both pure; the appear map + render clock feed them here.
   pushScene(
@@ -878,6 +885,7 @@ async function boot(): Promise<void> {
   const created = await createCitadelRenderer(canvas, terrain);
   renderer = created.renderer;
   camera = created.camera;
+  windowController = created.windowController;
 
   client.init(SEED, TICKS_PER_DAY);
   updateModeLabel();

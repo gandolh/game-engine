@@ -2,6 +2,7 @@ import type { Camera2D } from "./camera";
 import type { LoadedAtlasImage } from "../assets/loader";
 import type { ParticleSystem } from "./particles";
 import type { Canvas2dSprite, Ctx2D } from "./canvas2d/types";
+import type { StaticRegion } from "./static-region";
 
 export type Sprite = Canvas2dSprite;
 
@@ -35,6 +36,7 @@ export interface RendererLike {
     worldWidth: number,
     worldHeight: number,
     decorate?: DecorateFn,
+    region?: StaticRegion,
   ): void;
   bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale?: number): void;
   setWaterScroll(offsetX: number, offsetY: number): void;

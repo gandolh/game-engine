@@ -5,6 +5,8 @@ import type { ParticleSystem } from "../particles";
 import type { Canvas2dSprite, Ctx2D } from "./types";
 import { compareSprite, drawSprite, createOffscreen, spritesOverlap } from "./draw";
 import type { RendererLike, OverlayFn } from "../renderer";
+import { resolveStaticRegion, staticBlitRect } from "../static-region";
+import type { StaticRegion } from "../static-region";
 
 export class Canvas2dRenderer implements RendererLike {
   readonly camera: Camera2D;
@@ -28,8 +30,12 @@ export class Canvas2dRenderer implements RendererLike {
   private occludableIdx: number[] = [];          
 
   private staticLayer: OffscreenCanvas | HTMLCanvasElement | null = null;
+  // staticLayerW/H are the LOGICAL world extent (for the visible-rect clamp),
+  // not the texture size — they differ when a windowed sub-region is baked.
   private staticLayerW = 0;
   private staticLayerH = 0;
+  // The baked region (origin + texture size). null until first bake.
+  private staticRegion: StaticRegion | null = null;
 
   private waterPattern: CanvasPattern | null = null;
   private waterTileSize = 0;
@@ -74,23 +80,32 @@ export class Canvas2dRenderer implements RendererLike {
     worldWidth: number,
     worldHeight: number,
     decorate?: (ctx: Ctx2D, widthPx: number, heightPx: number) => void,
+    region?: StaticRegion,
   ): void {
     if (!this.hasAtlases) throw new Error("bakeStaticLayer: addAtlas must be called first");
-    const w = Math.max(1, Math.ceil(worldWidth));
-    const h = Math.max(1, Math.ceil(worldHeight));
+    const reg = resolveStaticRegion(worldWidth, worldHeight, region);
+    const w = reg.width;
+    const h = reg.height;
     const surface = createOffscreen(w, h);
     const ctx = surface.getContext("2d") as Ctx2D | null;
     if (!ctx) throw new Error("bakeStaticLayer: failed to acquire offscreen 2d context");
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, w, h);
+    // Sprites + decorate draw in WORLD coordinates; translating by -origin maps
+    // them onto the windowed texture (no-op for a whole-world bake, so Farm /
+    // solo Citadel stay byte-identical).
+    const offset = reg.originX !== 0 || reg.originY !== 0;
+    if (offset) ctx.translate(-reg.originX, -reg.originY);
     const sorted = sprites.slice().sort(compareSprite);
     for (const s of sorted) {
       drawSprite(ctx, this.atlases, s);
     }
     if (decorate) decorate(ctx, w, h);
+    if (offset) ctx.translate(reg.originX, reg.originY);
     this.staticLayer = surface;
-    this.staticLayerW = w;
-    this.staticLayerH = h;
+    this.staticLayerW = Math.max(1, Math.ceil(worldWidth));
+    this.staticLayerH = Math.max(1, Math.ceil(worldHeight));
+    this.staticRegion = reg;
   }
 
   bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale = 1): void {
@@ -140,6 +155,7 @@ export class Canvas2dRenderer implements RendererLike {
     this.staticLayer = null;
     this.staticLayerW = 0;
     this.staticLayerH = 0;
+    this.staticRegion = null;
   }
 
   beginFrame(): void {
@@ -265,9 +281,16 @@ export class Canvas2dRenderer implements RendererLike {
       if (waterSmooth) ctx.imageSmoothingEnabled = false;
     }
 
-    if (this.staticLayer && visW > 0 && visH > 0) {
-      ctx.globalAlpha = 1;
-      ctx.drawImage(this.staticLayer, visL, visT, visW, visH, visL, visT, visW, visH);
+    if (this.staticLayer && this.staticRegion && visW > 0 && visH > 0) {
+      const blit = staticBlitRect(visL, visT, visR, visB, this.staticRegion);
+      if (blit) {
+        ctx.globalAlpha = 1;
+        ctx.drawImage(
+          this.staticLayer,
+          blit.srcX, blit.srcY, blit.srcW, blit.srcH,
+          blit.dstL, blit.dstT, blit.dstW, blit.dstH,
+        );
+      }
     }
 
     if (this.queue.length !== this.queueLen) this.queue.length = this.queueLen;

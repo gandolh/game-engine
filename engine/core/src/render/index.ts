@@ -18,6 +18,8 @@ export {
 export type { Edg32Color } from "./palette";
 
 export type { RendererLike, WashOptions, WeatherLike, DecorateFn, CloudOptions, OverlayFn } from "./renderer";
+export { resolveStaticRegion, staticBlitRect } from "./static-region";
+export type { StaticRegion, StaticBlit } from "./static-region";
 export type { Ctx2D } from "./canvas2d/types";
 export { createRenderer } from "./create-renderer";
 export type { CreateRendererOptions } from "./create-renderer";

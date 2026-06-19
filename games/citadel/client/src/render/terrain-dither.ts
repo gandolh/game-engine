@@ -14,6 +14,7 @@ import type { Ctx2D } from "@engine/core";
 import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TERRAIN_COLORS } from "./quads";
+import type { TileWindow } from "./render-window";
 
 // ---------------------------------------------------------------------------
 // makeTerrainDecorate (static-layer bake callback)
@@ -21,19 +22,32 @@ import { TERRAIN_COLORS } from "./quads";
 
 /**
  * Build the decorate callback that paints the terrain grid into the baked
- * static layer (a one-time texture on the WebGPU backend). Each cell is a
- * TILE_SIZE×TILE_SIZE EDG-colored rect — same logic as the old
- * `bakeTerrainLayer`, but drawn into the engine's bake surface.
+ * static layer (a texture on the WebGPU backend). Each cell is a
+ * TILE_SIZE×TILE_SIZE EDG-colored rect plus sub-tile dither.
+ *
+ * Tiles are always drawn in WORLD coordinates (`tx * TILE_SIZE`). For a windowed
+ * sub-region bake (Citadel 21), the engine translates the bake ctx by -origin so
+ * the world-coord fills land on the smaller texture — and passing `window` here
+ * restricts the loop to just those tiles so a re-bake costs window-many fills,
+ * not whole-grid-many. Omitting `window` paints the entire grid (byte-identical
+ * to the whole-world bake).
  */
-export function makeTerrainDecorate(grid: TerrainGrid): (ctx: Ctx2D, wpx: number, hpx: number) => void {
+export function makeTerrainDecorate(
+  grid: TerrainGrid,
+  window?: TileWindow,
+): (ctx: Ctx2D, wpx: number, hpx: number) => void {
+  const minTx = window ? Math.max(0, window.minTx) : 0;
+  const minTy = window ? Math.max(0, window.minTy) : 0;
+  const maxTx = window ? Math.min(grid.width - 1, window.maxTx) : grid.width - 1;
+  const maxTy = window ? Math.min(grid.height - 1, window.maxTy) : grid.height - 1;
   return (ctx: Ctx2D): void => {
-    for (let ty = 0; ty < grid.height; ty++) {
-      for (let tx = 0; tx < grid.width; tx++) {
+    for (let ty = minTy; ty <= maxTy; ty++) {
+      for (let tx = minTx; tx <= maxTx; tx++) {
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
         ctx.fillStyle = TERRAIN_COLORS[t] ?? EDG.green;
         ctx.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         // Sub-tile dither (brief 13): deterministic darker/lighter clusters so
-        // same-type cells don't look stamped. Baked once — zero per-frame cost.
+        // same-type cells don't look stamped. Baked — zero per-frame cost.
         for (const c of ditherClusters(tx, ty, t)) {
           ctx.fillStyle = c.hex;
           ctx.fillRect(tx * TILE_SIZE + c.x, ty * TILE_SIZE + c.y, c.size, c.size);

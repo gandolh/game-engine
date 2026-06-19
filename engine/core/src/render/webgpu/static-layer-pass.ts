@@ -6,6 +6,8 @@ import type { LoadedAtlasImage } from "../../assets/loader";
 import { createOffscreen, compareSprite, drawSprite } from "../canvas2d/draw";
 import type { Ctx2D } from "../canvas2d/types";
 import { EDG } from "../palette";
+import { resolveStaticRegion, staticBlitRect } from "../static-region";
+import type { StaticRegion } from "../static-region";
 import waterWgsl from "./shaders/water.wgsl?raw";
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -117,6 +119,9 @@ export class StaticLayerPass {
   private texture: GPUTexture | null = null;
   private textureW = 0;
   private textureH = 0;
+  // World-px origin the baked texture covers (0,0 for a whole-world bake).
+  private regionOriginX = 0;
+  private regionOriginY = 0;
 
   private pipeline: GPURenderPipeline | null = null;
   private quadBuf: GPUBuffer | null = null;
@@ -182,26 +187,35 @@ export class StaticLayerPass {
     worldWidth: number,
     worldHeight: number,
     decorate?: DecorateFn,
+    region?: StaticRegion,
   ): void {
-    const w = Math.max(1, Math.ceil(worldWidth));
-    const h = Math.max(1, Math.ceil(worldHeight));
+    const reg = resolveStaticRegion(worldWidth, worldHeight, region);
+    const w = reg.width;
+    const h = reg.height;
     const surface = createOffscreen(w, h);
     const bakeCtx = surface.getContext("2d") as Ctx2D | null;
     if (!bakeCtx) throw new Error("StaticLayerPass.bake: failed to acquire offscreen 2d context");
     bakeCtx.imageSmoothingEnabled = false;
     bakeCtx.clearRect(0, 0, w, h);
+    // Sprites + decorate draw in WORLD coords; translate by -origin onto the
+    // windowed texture (no-op for a whole-world bake → byte-identical).
+    const offset = reg.originX !== 0 || reg.originY !== 0;
+    if (offset) bakeCtx.translate(-reg.originX, -reg.originY);
     const sorted = sprites.slice().sort(compareSprite);
     for (const s of sorted) {
       drawSprite(bakeCtx, atlases, s);
     }
     if (decorate) decorate(bakeCtx, w, h);
+    if (offset) bakeCtx.translate(reg.originX, reg.originY);
 
     this.texture?.destroy();
     this.texture = uploadToTexture(this.ctx.device, surface, w, h);
     this.textureW = w;
     this.textureH = h;
+    this.regionOriginX = reg.originX;
+    this.regionOriginY = reg.originY;
 
-    this.texBindGroup = null; 
+    this.texBindGroup = null;
     this.initPipeline();
     this.rebuildTexBindGroup();
   }
@@ -223,22 +237,34 @@ export class StaticLayerPass {
     this.texture = null;
     this.textureW = 0;
     this.textureH = 0;
+    this.regionOriginX = 0;
+    this.regionOriginY = 0;
     this.texBindGroup = null;
   }
 
   draw(pass: GPURenderPassEncoder, _view: ViewUniform, visRect: VisibleRect): void {
     if (!this.texture || !this.pipeline || !this.texBindGroup || !this.quadBuf) return;
     const { visL, visT, visR, visB } = visRect;
-    const visW = visR - visL;
-    const visH = visB - visT;
-    if (visW <= 0 || visH <= 0) return;
+    // Clamp the visible rect to the baked region (handles a windowed bake; a
+    // whole-world bake leaves src == dst == the visible rect, byte-identical).
+    const blit = staticBlitRect(visL, visT, visR, visB, {
+      originX: this.regionOriginX,
+      originY: this.regionOriginY,
+      width: this.textureW,
+      height: this.textureH,
+    });
+    if (!blit) return;
 
-    const srcU0 = visL / this.textureW;
-    const srcV0 = visT / this.textureH;
-    const srcU1 = visR / this.textureW;
-    const srcV1 = visB / this.textureH;
+    const srcU0 = blit.srcX / this.textureW;
+    const srcV0 = blit.srcY / this.textureH;
+    const srcU1 = (blit.srcX + blit.srcW) / this.textureW;
+    const srcV1 = (blit.srcY + blit.srcH) / this.textureH;
+    const dstL = blit.dstL;
+    const dstT = blit.dstT;
+    const dstR = blit.dstL + blit.dstW;
+    const dstB = blit.dstT + blit.dstH;
 
-    const data = new Float32Array([srcU0, srcV0, srcU1, srcV1, visL, visT, visR, visB]);
+    const data = new Float32Array([srcU0, srcV0, srcU1, srcV1, dstL, dstT, dstR, dstB]);
     this.ctx.device.queue.writeBuffer(this.quadBuf, 0, data);
 
     pass.setPipeline(this.pipeline);

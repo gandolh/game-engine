@@ -13,10 +13,10 @@
  * houses fall through to the normal `buildingQuad` path. Cheap: the union is
  * computed from the same tile-key set the BFS already builds.
  */
-import { TILE_SIZE, WORLD_WIDTH } from "@citadel/sim-core";
+import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
 import { EDG } from "@engine/core";
-import { packTint, buildingQuad, BUILDING_COLORS, FALLBACK_BUILDING_COLOR } from "./quads";
+import { packTint } from "./quads";
 import type { QuadSpec } from "./quads";
 import { tileKey } from "./autotile";
 
@@ -108,44 +108,27 @@ export function clusterBuildings(
 }
 
 /**
- * Render quads for a multi-member cluster: the UNION of member footprints
- * filled in the cluster type's color (one quad per covered tile), plus a subtle
- * unifying border drawn as a slightly inset frame around the bounding region.
- * For a singleton cluster returns the normal `buildingQuad` (so callers can use
- * one path). Pure. EDG-only via BUILDING_COLORS.
+ * Render the subtle unifying border for a multi-member cluster: a darker,
+ * semi-transparent frame around the cluster's bounding region, so a block of
+ * adjacent houses reads as one neighbourhood. Returns `[]` for singletons (and
+ * empty clusters) — each individual house is now drawn as its own sprite by the
+ * caller, so there is no union-fill any more, just this framing accent.
+ *
+ * Drawn on the 1×1 `px` frame (no `frame` set → tinted box). Pure. EDG-only.
  */
-export function clusterQuads(cluster: Cluster, type = "house"): QuadSpec[] {
-  if (cluster.members.length < 2) {
-    // Singleton — normal per-building draw.
-    return cluster.members.length === 1 ? [buildingQuad(cluster.members[0]!)] : [];
-  }
-  const hex = BUILDING_COLORS[type] ?? FALLBACK_BUILDING_COLOR;
-  const fill = packTint(hex);
-  const quads: QuadSpec[] = [];
+export function clusterBorderQuads(cluster: Cluster): QuadSpec[] {
+  if (cluster.members.length < 2) return [];
 
-  // Union fill: one quad per covered tile → reads as a single contiguous block.
-  for (const key of cluster.tiles) {
-    const tx = key % WORLD_WIDTH;
-    const ty = Math.floor(key / WORLD_WIDTH);
-    quads.push({
-      x: tx * TILE_SIZE,
-      y: ty * TILE_SIZE,
-      width: TILE_SIZE,
-      height: TILE_SIZE,
-      tintRgba: fill,
-    });
-  }
-
-  // Subtle unifying border: a darker inset frame around the bounding rect.
   const bx = cluster.minTx * TILE_SIZE;
   const by = cluster.minTy * TILE_SIZE;
   const bw = (cluster.maxTx - cluster.minTx) * TILE_SIZE;
   const bh = (cluster.maxTy - cluster.minTy) * TILE_SIZE;
   const border = packTint(EDG.woodDark, Math.round(0xff * 0.5));
   const t = Math.max(1, TILE_SIZE * 0.1);
-  quads.push({ x: bx, y: by, width: bw, height: t, tintRgba: border }); // top
-  quads.push({ x: bx, y: by + bh - t, width: bw, height: t, tintRgba: border }); // bottom
-  quads.push({ x: bx, y: by, width: t, height: bh, tintRgba: border }); // left
-  quads.push({ x: bx + bw - t, y: by, width: t, height: bh, tintRgba: border }); // right
-  return quads;
+  return [
+    { x: bx, y: by, width: bw, height: t, tintRgba: border }, // top
+    { x: bx, y: by + bh - t, width: bw, height: t, tintRgba: border }, // bottom
+    { x: bx, y: by, width: t, height: bh, tintRgba: border }, // left
+    { x: bx + bw - t, y: by, width: t, height: bh, tintRgba: border }, // right
+  ];
 }

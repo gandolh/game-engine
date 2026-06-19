@@ -3,6 +3,7 @@ import type { Camera2D } from "../camera";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import type { ParticleSystem } from "../particles";
 import type { RendererLike, WashOptions, WeatherLike, DecorateFn, Sprite, OverlayFn } from "../renderer";
+import type { StaticRegion } from "../static-region";
 import { EDG } from "../palette";
 import { GpuContext } from "./gpu-context";
 import type { ViewUniform } from "./gpu-context";
@@ -194,10 +195,13 @@ export class WebGpuRenderer implements RendererLike {
     worldWidth: number,
     worldHeight: number,
     decorate?: DecorateFn,
+    region?: StaticRegion,
   ): void {
     if (this._atlases.size === 0) throw new Error("bakeStaticLayer: addAtlas must be called first");
-    if (this._deviceLost) return; 
-    this._staticPass.bake(sprites, this._atlases, worldWidth, worldHeight, decorate);
+    if (this._deviceLost) return;
+    this._staticPass.bake(sprites, this._atlases, worldWidth, worldHeight, decorate, region);
+    // _staticLayerW/H stay the LOGICAL world extent (visible-rect clamp); the
+    // baked texture may be a smaller sub-region (the pass tracks that itself).
     this._staticLayerW = Math.max(1, Math.ceil(worldWidth));
     this._staticLayerH = Math.max(1, Math.ceil(worldHeight));
   }

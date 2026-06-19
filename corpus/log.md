@@ -4,6 +4,92 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-19] audit | Citadel implementation review — problems filed as todo 38
+
+Read-only review of `@citadel/sim-core` + `@citadel/client` + `@citadel/server`
+(three subagent passes, load-bearing findings hand-verified; no tests/sims run).
+Solo Citadel looks healthy; the problems cluster in the **MP-RTS epic (28–37)**,
+which is headless-tested but never run live. Findings → new todo
+[2026-06-19-citadel-38-implementation-review-problems.md](todos/2026-06-19-citadel-38-implementation-review-problems.md):
+**P0** server-authoritative command handlers trust the sender — `demolish` /
+`upgradeBuilding` have no ownership check (raze/drain a rival's city), `setActivePlayer`
+is client-sendable, pause/resume/speed are un-gated. **P1** VillagerSystem ignores
+`ownerId` (cross-player staffing/hauling in MP); the Citadel-36 social layer
+(presence/emote/roster) is dead client-side; one global SimHost with no RunRegistry
+(reconnect = frozen sim); the 21/22 windowed-bake `RenderWindowController` is built +
+`bakeInitial`-d but `update()` is never ticked in the frame loop (MP map won't repaint
+on pan). **P2** wall-spam inflates settlement tier; tier-demotion says "risen"; tower/
+garrison safety radii feed nothing; `keepPresent` misses `town-hall`. **P3** siege
+forks an unused RNG (load-bearing-for-replay dead fork), no WS error handling, dead
+fields. **Corpus corrections:** `bakeStaticLayer(region?)` IS implemented (engine
+`static-region.ts`) — the BUILD-ORDER/21/22 "engine integration left open" claim is
+**stale**; and the 21/22 cores are consumed (not dead), just not pan-ticked.
+
+## [2026-06-19] feature | Citadel entity sprites — runtime-generated pixel-art atlas
+
+Replaced Citadel's flat EDG-colored boxes (buildings/villagers/raiders sampled a
+generated 1×1 white pixel) with real pixel-art sprites. New self-contained module
+[games/citadel/client/src/render/sprites/](../../games/citadel/client/src/render/sprites/):
+ASCII `PixelRecipe`s (a small procedural generator — `makeBuilding`/`makeFort` + bespoke
+farm/mine/quarry/well shapes — keeps the ~20 building sprites correct-by-construction and
+visually cohesive: one light direction, dark outline, hue-shifted ramps), an EDG-derived
+swatch palette, a pure rasterizer + shelf-packer, and `createCitadelSpriteAtlas` which
+bakes them (plus a retained 1×1 `px` frame) into ONE in-process atlas at boot. No
+committed PNGs, no new build step — deliberately unlike Farm's committed-PNG
+`@farm/atlas-recipes`/`npm run atlas` pipeline (can't import it: games never import each
+other), and a better fit for Citadel's in-process-atlas + WebGPU + Worker setup.
+
+`quads.ts` now sets a `frame` per entity (`bld/<type>` white-tinted; `vil/person` /
+`raider` grey-ramp tinted by FSM-state / red). The WebGPU `SpriteBatch` already sampled
+real frames, so no renderer change was needed. House clustering kept (each house draws as
+its own sprite + a unifying neighbourhood border; `clusterQuads`→`clusterBorderQuads`,
+union-fill dropped). Determinism untouched (recipes static, rasterize pure, render-only).
+Verified: client typecheck + all 155 client tests + engine palette guard green; art
+eyeballed via a Node-rendered contact sheet (GPU render not verifiable headless on WSL2).
+Synthesis in [wiki/citadel-overview.md](wiki/citadel-overview.md#rendering--assets).
+Phase 2 left open: terrain tiles, road/wall autotile sprites, gate sprite, MP owner color.
+
+## [2026-06-19] feature | Citadel 21/22 render-windowed static-layer bake (MP spine K — integration shipped)
+
+Finished the spine-K cores (21 render-window, 22 incremental-build-budget) that
+were shipped as pure helpers but left inert (imported only by their own tests).
+The missing piece was an engine capability: `bakeStaticLayer` baked the whole
+world as one texture with no sub-region parameter.
+
+- **Engine (shared, backward-compatible).** `bakeStaticLayer` gained an optional
+  `region?: StaticRegion` ({originX, originY, width, height}) on `RendererLike` +
+  both renderers. New pure module `engine/core/src/render/static-region.ts`
+  (`resolveStaticRegion` / `staticBlitRect`) drives the Canvas2D blit AND the
+  WebGPU `StaticLayerPass` src-UV math in lockstep. Bake sizes the offscreen to
+  the region and `translate(-origin)`s so sprites/decorate keep drawing in WORLD
+  coords; `draw` clamps the visible rect to the baked region. **Region omitted ⇒
+  whole world ⇒ src == dst, translate skipped ⇒ byte-identical** — Farm Valley +
+  solo Citadel provably unchanged (asserted directly in `static-region.test.ts`:
+  "full-world region is the pre-windowing identity").
+- **Citadel wiring.** `render/window-controller.ts` `RenderWindowController` joins
+  the two cores: `visibleTileWindow` (21) → `windowRegion` → re-bake gated through
+  the `IncrementalQueue` (22) at `REBAKE_BUDGET=1`/frame, coalesced to the latest
+  window (clear+enqueue) so a fast pan never triggers a synchronous re-bake.
+  `makeTerrainDecorate(grid, window?)` loops only the window's tiles. A texel
+  threshold (2048²) keeps small worlds (solo 96²) on the proven whole-world
+  bake-once path (`update` is a no-op); only the 256² MP world windows. Wired into
+  `createCitadelRenderer` (`bakeInitial`) + the `main.ts` loop (`update` after
+  `fitCameraToCanvas`).
+- **Verified headless:** engine render 73/73 + new static-region 9/9; new
+  window-controller 8/8 (windowed vs whole-world, no-rebake on unchanged window,
+  ≤1 bake/frame, fast-pan coalescing); engine + @citadel/sim-core + (my)
+  @citadel/client files typecheck clean. **⚠️ Real-GPU acceptance pending** (this
+  headless box can't render WebGPU): memory-flat-as-grid-grows + pan smoothness +
+  no seam; possible 1-frame trailing black margin if a re-bake lags past
+  `WINDOW_PAD=8` tiles on a very fast pan (raise pad/budget if seen). Briefs 21/22
+  → [todos/closed/](todos/closed/).
+- **Concurrent-session note:** a parallel session was mid-flight on Citadel sprite
+  assets in the same tree (`render/sprites/`, `quads.ts`, `citadel-renderer.ts`).
+  The harness merged my windowController wiring into their `citadel-renderer.ts`
+  edits cleanly. The 5 red `citadel-renderer.test.ts` color tests + the lone
+  `sprites/atlas.ts` typecheck error are THEIR in-flight work, not this change
+  (my files are isolated; their `quads.ts`/`clustering.ts` are untouched by me).
+
 ## [2026-06-19] code | Citadel dev runner (`npm run citadel`) + render polish (slow wash, softer terrain)
 
 Two small post-epic follow-ups (user-driven, not briefs), shipped to main:

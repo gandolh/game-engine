@@ -32,17 +32,17 @@ this is **un-parked**. Spine position **K (depends on
 - Heavy geometry rebuilds drain on a per-frame budget; panning a streaming world stays smooth.
 - Render-only; deterministic order if it ever feeds anything sim-visible.
 
-## ⏳ STATUS (2026-06-19) — cores shipped + tested; GPU integration pending
+## ✅ INTEGRATION SHIPPED (2026-06-19) — paired with brief 21; GPU runtime acceptance pending
 
-The PURE, testable algorithmic core is implemented and unit-tested in the citadel
-client render layer:
-- 21 → `games/citadel/client/src/render/render-window.ts` (`visibleTileWindow` +
-  `getCellOr` virtualisation) + `render-window.test.ts`.
-- 22 → `games/citadel/client/src/render/build-budget.ts` (`IncrementalQueue` with
-  a per-frame budget + dedup gate) + `build-budget.test.ts`.
+Shipped together with [21](2026-06-19-citadel-21-render-windowed-grid.md) (see its
+status for the full write-up). The `IncrementalQueue` (22) is the re-bake gate in
+`RenderWindowController`: each frame the controller computes the desired camera
+window; if it changed it coalesces (clear + enqueue the latest — only the newest
+window matters) and drains `REBAKE_BUDGET=1` re-bake. So a fast pan enqueues work
+that drains on the NEXT frame at the budget cap — never a synchronous re-bake in
+the input handler (the brief's "panning never triggers a synchronous rebuild").
+`drain` is FIFO, so if the budget is ever raised the order stays deterministic.
 
-**Remaining (NOT done):** wiring these into the engine WebGPU static-layer bake —
-`bakeStaticLayer` currently bakes the whole world as one texture and has no
-sub-region/offset parameter, so a windowed bake re-run on pan needs an engine
-change. That integration + the runtime memory/smoothness/visual acceptance are
-verifiable only on a real GPU, which this headless host lacks. Left OPEN.
+**Verified headless** (engine + controller tests, typecheck) per brief 21.
+**Remaining (real-GPU only):** the actual per-frame smoothness under a streaming
+pan — verifiable only in the browser, deferred to the user.

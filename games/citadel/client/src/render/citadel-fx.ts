@@ -97,7 +97,17 @@ export function easeQuad(q: QuadSpec, fx: PlacementFx): QuadSpec {
   const cy = q.y + q.height / 2;
   const w = q.width * fx.scale;
   const h = q.height * fx.scale;
-  return { x: cx - w / 2, y: cy - h / 2, width: w, height: h, tintRgba: q.tintRgba };
+  // Preserve `frame` so a building keeps its sprite (not the white `px` box)
+  // through the placement ease-in. Conditional spread keeps it absent (not
+  // `undefined`) under exactOptionalPropertyTypes.
+  return {
+    x: cx - w / 2,
+    y: cy - h / 2,
+    width: w,
+    height: h,
+    tintRgba: q.tintRgba,
+    ...(q.frame !== undefined ? { frame: q.frame } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------

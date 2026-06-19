@@ -39,7 +39,7 @@ import {
   wearFactor,
   wearOverlayQuads,
   clusterBuildings,
-  clusterQuads,
+  clusterBorderQuads,
 } from "./citadel-renderer";
 
 function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">): BuildingSnapshot {
@@ -72,44 +72,50 @@ describe("packTint", () => {
 });
 
 describe("buildingQuad", () => {
-  it("maps a house to its EDG color and full footprint", () => {
+  it("maps a house to its sprite frame at full footprint (white tint = recipe colors show)", () => {
     const q = buildingQuad(building({ type: "house", x: 3, y: 4, w: 2, h: 2 }));
-    expect(q.tintRgba).toBe(packTint(EDG.clay));
+    expect(q.frame).toBe("bld/house");
+    expect(q.tintRgba).toBe(packTint(EDG.white));
     expect(q).toMatchObject({ x: 3 * TILE_SIZE, y: 4 * TILE_SIZE, width: 2 * TILE_SIZE, height: 2 * TILE_SIZE });
   });
 
-  it("maps a keep to plum and a 1x1 storehouse footprint correctly", () => {
+  it("maps a keep + a 3x2 storehouse to their sprite frames and footprints", () => {
     const keep = buildingQuad(building({ type: "keep", x: 0, y: 0, w: 3, h: 3 }));
-    expect(keep.tintRgba).toBe(packTint(EDG.plum));
+    expect(keep.frame).toBe("bld/keep");
+    expect(keep.tintRgba).toBe(packTint(EDG.white));
     expect(keep.width).toBe(3 * TILE_SIZE);
-    const store = buildingQuad(building({ type: "storehouse", x: 1, y: 1, w: 1, h: 1 }));
-    expect(store.tintRgba).toBe(packTint(EDG.steel));
-    expect(store.width).toBe(TILE_SIZE);
+    const store = buildingQuad(building({ type: "storehouse", x: 1, y: 1, w: 3, h: 2 }));
+    expect(store.frame).toBe("bld/storehouse");
+    expect(store.width).toBe(3 * TILE_SIZE);
   });
 
-  it("tints a burning building orange regardless of type", () => {
+  it("multiplies a burning building's sprite toward orange (keeps the frame)", () => {
     const q = buildingQuad(building({ type: "house", x: 0, y: 0, w: 2, h: 2, burning: true }));
+    expect(q.frame).toBe("bld/house");
     expect(q.tintRgba).toBe(packTint(EDG.orange));
   });
 
-  it("draws a road as a centered inset band", () => {
+  it("draws a road as a centered inset band on the px frame", () => {
     const q = buildingQuad(building({ type: "road", x: 5, y: 5, w: 1, h: 1 }));
     const inset = TILE_SIZE * 0.25;
     expect(q.x).toBe(5 * TILE_SIZE + inset);
     expect(q.width).toBe(TILE_SIZE - inset * 2);
     expect(q.tintRgba).toBe(packTint(EDG.navy));
+    expect(q.frame).toBeUndefined(); // tinted box → default px frame
   });
 
-  it("draws a gate slightly inset in gold", () => {
+  it("draws a gate slightly inset in gold on the px frame", () => {
     const q = buildingQuad(building({ type: "gate", x: 2, y: 2, w: 1, h: 1 }));
     const inset = TILE_SIZE * 0.15;
     expect(q.x).toBe(2 * TILE_SIZE + inset);
     expect(q.tintRgba).toBe(packTint(EDG.gold));
+    expect(q.frame).toBeUndefined();
   });
 
-  it("falls back to steel for an unknown type", () => {
+  it("falls back to a steel box (no frame) for a type without a recipe", () => {
     const q = buildingQuad(building({ type: "mystery", x: 0, y: 0, w: 1, h: 1 }));
     expect(q.tintRgba).toBe(packTint(EDG.steel));
+    expect(q.frame).toBeUndefined();
   });
 });
 
@@ -117,7 +123,8 @@ describe("villagerQuad / raiderQuad / ghostQuad", () => {
   it("colors a villager by FSM state and centers a small quad", () => {
     const v: VillagerSnapshot = { id: 1, x: 4, y: 6, fsm: "work", carryGood: null };
     const q = villagerQuad(v);
-    expect(q.tintRgba).toBe(packTint(EDG.orange));
+    expect(q.tintRgba).toBe(packTint(EDG.orange)); // FSM-state tint over the figure
+    expect(q.frame).toBe("vil/person");
     const size = TILE_SIZE * 0.7;
     expect(q.width).toBe(size);
     // Centered on the tile center.
@@ -130,6 +137,7 @@ describe("villagerQuad / raiderQuad / ghostQuad", () => {
     expect(weak.strength).toBeLessThan(strong.strength);
     expect(raiderQuad(weak).width).toBeLessThan(raiderQuad(strong).width);
     expect(raiderQuad(strong).tintRgba).toBe(packTint(EDG.red));
+    expect(raiderQuad(strong).frame).toBe("raider");
   });
 
   it("tints the ghost green when valid, red when invalid, both translucent", () => {
@@ -604,23 +612,24 @@ describe("clusterBuildings (brief 12)", () => {
   });
 });
 
-describe("clusterQuads (brief 12)", () => {
-  it("draws a singleton via the normal buildingQuad path", () => {
+describe("clusterBorderQuads (brief 12)", () => {
+  it("returns no border for a singleton (each house draws as its own sprite)", () => {
     const houses = [building({ type: "house", x: 1, y: 1, w: 1, h: 1 })];
     const [cluster] = clusterBuildings(houses, "house");
-    const quads = clusterQuads(cluster!, "house");
-    expect(quads).toEqual([buildingQuad(houses[0]!)]);
+    expect(clusterBorderQuads(cluster!)).toEqual([]);
   });
 
-  it("draws a multi-member cluster as a union fill plus a border frame", () => {
+  it("draws a multi-member cluster's unifying border as four frame quads", () => {
     const houses = [
       building({ type: "house", x: 0, y: 0, w: 1, h: 1 }),
       building({ type: "house", x: 1, y: 0, w: 1, h: 1 }),
     ];
     const [cluster] = clusterBuildings(houses, "house");
-    const quads = clusterQuads(cluster!, "house");
-    // 2 union-fill tiles + 4 border frame quads.
-    expect(quads.length).toBe(6);
+    const quads = clusterBorderQuads(cluster!);
+    // top + bottom + left + right border bands, no union fill.
+    expect(quads.length).toBe(4);
+    // All tinted boxes → default px frame (no sprite frame set).
+    for (const q of quads) expect(q.frame).toBeUndefined();
   });
 
   it("uses only EDG colors", () => {
@@ -629,7 +638,7 @@ describe("clusterQuads (brief 12)", () => {
       building({ type: "house", x: 1, y: 0, w: 1, h: 1 }),
     ];
     const [cluster] = clusterBuildings(houses, "house");
-    for (const q of clusterQuads(cluster!, "house")) {
+    for (const q of clusterBorderQuads(cluster!)) {
       expect(EDG_RGB24.has(rgb24Of(q.tintRgba))).toBe(true);
     }
   });
