@@ -7,6 +7,10 @@ tags: [citadel, render, wontdo]
 
 # Citadel 23 — Quantized opacity caches — WON'T DO
 
+> **WON'T-DO (2026-06-19)** — a Canvas2D `globalAlpha` micro-opt, moot under the shipped
+> WebGPU-only renderer ([citadel-27](2026-06-19-citadel-27-webgpu-renderer-port.md)).
+> Original content below.
+
 **Lineage:** tiny-world-builder buckets per-particle opacity into shared quantized material
 caches to skip a Three.js material re-upload per opacity step (the Canvas2D analogue is
 `ctx.globalAlpha` churn).
@@ -15,7 +19,7 @@ caches to skip a Three.js material re-upload per opacity step (the Canvas2D anal
 
 This was a **Canvas2D micro-optimization**. The 2026-06-19 decision makes Citadel
 **WebGPU-only** ([citadel-27](2026-06-19-citadel-27-webgpu-renderer-port.md)), where per-particle
-alpha flows through the `@engine` [particle-batch](../../packages/engine/src/render/webgpu/particle-batch.ts)
+alpha flows through the `@engine` [particle-batch](../../../packages/engine/src/render/webgpu/particle-batch.ts)
 via per-instance attributes — there is **no `globalAlpha` state churn to coalesce**. The premise
 no longer exists, so this brief is **superseded**.
 

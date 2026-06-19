@@ -1,8 +1,8 @@
 ---
 title: "Citadel 22 — Incremental build queue + per-frame budget"
 created: 2026-06-19
-status: deferred
-tags: [citadel, engine, render, perf, premature]
+status: open
+tags: [citadel, engine, render, perf, multiplayer]
 ---
 
 # Citadel 22 — Incremental build queue with a per-frame budget
@@ -19,15 +19,15 @@ A generic per-frame work budget for incremental geometry/bake builds, so heavy r
 (re-bake on placement, future terrain streaming) are spread across frames and never hitch
 on a pan.
 
-## ⚠️ PREMATURE — capture only, do not implement now
+## ✅ UN-PARKED (2026-06-19) — spine item K
 
-This is tied to **ghost-world streaming** ([citadel-21](2026-06-19-citadel-21-render-windowed-grid.md))
-and large maps, neither of which we're building. Citadel bakes its small static layer once and
-re-bakes placements cheaply — there is **no current hitch to fix**. Implement only when a
-streaming or large-world consumer exists. Keep the *pattern* (budgeted incremental work) in
-mind; the engine scheduler already proves the general idea.
+Was parked: tied to ghost-world streaming ([citadel-21](2026-06-19-citadel-21-render-windowed-grid.md))
+and large maps with no consumer. The **256×256 MP world**
+([citadel-29](2026-06-19-citadel-29-world-256-townhall.md)) is now the committed consumer, so
+this is **un-parked**. Spine position **K (depends on
+[29](2026-06-19-citadel-29-world-256-townhall.md))**, paired with brief 21.
 
-## Acceptance (only if unblocked)
+## Acceptance
 
 - Heavy geometry rebuilds drain on a per-frame budget; panning a streaming world stays smooth.
 - Render-only; deterministic order if it ever feeds anything sim-visible.

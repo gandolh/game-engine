@@ -7,6 +7,13 @@ tags: [citadel, server, multiplayer, epic, gated]
 
 # Citadel 26 — Multiplayer epic
 
+> **SUPERSEDED (2026-06-19)** — decomposed into the grilled MP-epic briefs
+> [28](../2026-06-19-citadel-28-playerstate-refactor.md)–[37](../2026-06-19-citadel-37-npc-lobby-bots.md).
+> The grilled competitive/co-op RTS design subsumes this brief and reorders its
+> presence/bots/emotes scope into briefs
+> [36](../2026-06-19-citadel-36-presence-roster-emotes.md) (presence + roster + emotes) and
+> [37](../2026-06-19-citadel-37-npc-lobby-bots.md) (NPC lobby bots). Original content below.
+
 **Lineage:** tiny-world-builder ships real multiplayer: PartyKit rooms; **presence** (ephemeral
 cursor / active-tool state sent separately from durable `setCell` edits); **seeded-LCG NPC lobby
 bots** (`lobby-bots.mjs`/`51-worlds-bots.js`) that join as invisible peers, move/chat via LLM
