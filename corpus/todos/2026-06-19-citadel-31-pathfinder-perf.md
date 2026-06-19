@@ -17,7 +17,7 @@ Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-
 
 ## The problem (verified 2026-06-19)
 
-`bfsPath` in [pathfinder.ts:39](../../packages/citadel-sim-core/src/world/pathfinder.ts)
+`bfsPath` in [pathfinder.ts:39](../../games/citadel/sim-core/src/world/pathfinder.ts)
 allocates a `new Uint32Array(width*height)` **per call**. At 256² that is ~256KB per
 pathfind, churned ×N players × (raiders + armies + haulers) every tick — a GC storm.
 
