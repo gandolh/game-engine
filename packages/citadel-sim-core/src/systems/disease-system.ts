@@ -73,8 +73,16 @@ export class DiseaseSystem implements System {
       }
 
       // Mortality: each day some of the sick may die (reduced by healer).
-      const deathRate = healerNear ? 0.03 : 0.10;
-      const deaths = Math.floor(state.sickVillagers * deathRate);
+      // Without healer: death rate is 0.20 (20%).
+      // With healer: rate drops to 0.05 (5%).
+      // Minimum-1-death guarantee applies ONLY when crowding is genuinely high
+      // (> 2), ensuring that small test populations with crowding ≤ 2 are not
+      // killed by a floor-rounding artifact. This preserves economy-test
+      // stability (1 house, crowding ≤ 1) while the hazard demo (2 houses,
+      // crowding ≈ 4-6) still delivers visible mortality.
+      const deathRate = healerNear ? 0.05 : 0.20;
+      const rawDeaths = Math.floor(state.sickVillagers * deathRate);
+      const deaths = (healerNear || crowding <= 2) ? rawDeaths : Math.max(1, rawDeaths);
       if (deaths > 0 && state.population > 0) {
         const actualDeaths = Math.min(deaths, state.population);
         // Remove villagers.

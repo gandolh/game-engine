@@ -34,8 +34,10 @@
  *   SCENARIO=fire   MAX_DAYS=40 npm run sim:citadel
  *   SCENARIO=disease MAX_DAYS=40 npm run sim:citadel
  */
-import { bootstrapSim, isWalkable, TerrainType } from "@citadel/sim-core";
-import type { CitadelCommand, TerrainGrid } from "@citadel/sim-core";
+// Use relative path to ensure the worktree's fire/disease systems are included,
+// not the main-repo symlink that may be missing Phase 4.5 systems.
+import { bootstrapSim, isWalkable, TerrainType } from "../../../packages/citadel-sim-core/src/index";
+import type { CitadelCommand, TerrainGrid } from "../../../packages/citadel-sim-core/src/index";
 
 const SEED = parseInt(process.env.SEED ?? "0x1a2b3c4d", 16) >>> 0;
 const MAX_DAYS = parseInt(process.env.MAX_DAYS ?? "40", 10);
@@ -519,54 +521,76 @@ function buildSackScenario(terrain: TerrainGrid): CitadelCommand[] {
  * When `withWell=false`: no mitigation → high fire risk.
  * When `withWell=true`: a Well placed in range → ignition chance cut 80%.
  *
- * The cluster is 10 wooden buildings packed within 4 tiles of each other.
- * Each building has 5-9 wooden neighbors → well above the density threshold (≥3).
- * Expect fire events within 10-15 days with no well.
+ * Layout: a storehouse and food chain (farm + mill + bakery) are placed to
+ * the SOUTH of the cluster and connected by a road that runs BELOW the dense
+ * wooden district. The cluster itself uses the proven 4-col × 3-row grid at
+ * 3-tile spacing (same geometry as the integration test). No road tiles pass
+ * through the cluster interior, so there are no firebreaks between buildings.
+ *
+ * Expect fire ignition within 5-15 days with no well.
  */
 function buildFireCommands(terrain: TerrainGrid, withWell: boolean): CitadelCommand[] {
   const cx = Math.floor(terrain.width / 2);
-  const cy = Math.floor(terrain.height / 2);
+  // Shift north so the cluster has room for roads below it.
+  const cy = Math.floor(terrain.height / 2) - 8;
 
-  // 3×3 grid of 2×2 buildings, placed at 3-tile spacing → centers 3 tiles apart.
-  // Within a 4-tile Manhattan radius every building sees its 4 direct neighbors.
-  const positions: Array<{ x: number; y: number; type: string }> = [];
-  const types = ["house", "house", "bakery", "bakery", "mill", "mill",
-                 "house", "storehouse", "chapel", "market"];
-  let i = 0;
-  for (let row = 0; row < 3 && i < types.length; row++) {
-    for (let col = 0; col < 4 && i < types.length; col++) {
-      positions.push({ x: cx + col * 3, y: cy + row * 3, type: types[i]! });
-      i++;
-    }
-  }
-
-  // Farm off to the side for food supply.
-  const farmPos = findClear(terrain, 3, 3, cx - 8, cy);
-  // Road connection spine.
+  // Dense wooden cluster: 10 buildings in a 4-col × 3-row grid at 3-tile spacing.
+  // This layout matches the integration test that proves fire occurs within 60 days.
+  // Middle buildings (col=1,2,row=1) see 4 wooden neighbors → ignition chance 0.60/day.
+  // CRITICAL: no road carpet through the cluster.
+  const clusterTypes = [
+    "house", "house", "bakery", "bakery",   // row 0
+    "mill",  "mill",  "house",  "house",    // row 1
+    "chapel","market","house",  "house",    // row 2 (3rd row adds more density)
+  ];
   const cmds: CitadelCommand[] = [];
+  const clusterPositions: Array<{ x: number; y: number }> = [];
 
-  // Place the dense cluster first. Use placeBuilding with explicit coords.
-  // (findClear will spiral to find buildable spots near requested coords.)
-  for (const p of positions) {
-    const spot = findClear(terrain, 2, 2, p.x, p.y);
-    cmds.push({ type: "placeBuilding", payload: { buildingType: p.type, x: spot.x, y: spot.y } });
+  for (let i = 0; i < clusterTypes.length; i++) {
+    const row = Math.floor(i / 4);
+    const col = i % 4;
+    const pos = findClear(terrain, 2, 2, cx + col * 3, cy + row * 3);
+    clusterPositions.push(pos);
+    cmds.push({ type: "placeBuilding", payload: { buildingType: clusterTypes[i]!, x: pos.x, y: pos.y } });
   }
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm", x: farmPos.x, y: farmPos.y } });
 
-  // Well placed inside the cluster when mitigation is active.
+  // Economy: storehouse + farm + mill + bakery south of the cluster.
+  // Road connects them without passing through the dense district.
+  const econY = cy + 12; // below the 3-row cluster
+  const store  = findClear(terrain, 3, 2, cx,     econY);
+  const farm1  = findClear(terrain, 3, 3, cx - 5, econY);
+  const farm2  = findClear(terrain, 3, 3, cx + 4, econY);
+  const mill   = findClear(terrain, 2, 2, cx - 2, econY + 4);
+  const bakery = findClear(terrain, 2, 2, cx + 2, econY + 4);
+
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,  y: store.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm",       x: farm1.x,  y: farm1.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm",       x: farm2.x,  y: farm2.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "mill",       x: mill.x,   y: mill.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery.x, y: bakery.y } });
+
+  // Wells placed across the cluster when mitigation is active.
+  // The cluster is ~11 tiles wide; three wells spaced 4 tiles apart give
+  // full coverage with the 5-tile radius: every building is within 5 tiles
+  // of at least one well, cutting ignition chance by 80%.
   if (withWell) {
-    const wellSpot = findClear(terrain, 1, 1, cx + 4, cy + 4);
-    cmds.push({ type: "placeBuilding", payload: { buildingType: "well", x: wellSpot.x, y: wellSpot.y } });
+    const well1 = findClear(terrain, 1, 1, cx + 1, cy + 4);
+    const well2 = findClear(terrain, 1, 1, cx + 5, cy + 4);
+    const well3 = findClear(terrain, 1, 1, cx + 9, cy + 4);
+    cmds.push({ type: "placeBuilding", payload: { buildingType: "well", x: well1.x, y: well1.y } });
+    cmds.push({ type: "placeBuilding", payload: { buildingType: "well", x: well2.x, y: well2.y } });
+    cmds.push({ type: "placeBuilding", payload: { buildingType: "well", x: well3.x, y: well3.y } });
   }
 
-  // Road carpet connecting the whole area.
+  // Road: economy carpet BELOW the cluster only (econY-1 downward).
+  // The cluster at cy..cy+8 is safely above and has no roads through it.
   const roadTiles: Array<{ x: number; y: number }> = [];
-  const left  = cx - 10;
-  const right = cx + 14;
-  const top   = cy - 1;
-  const bot   = cy + 10;
-  for (let ry = top; ry <= bot; ry++) {
-    for (let rx = left; rx <= right; rx++) {
+  const roadTop  = econY - 1;
+  const roadBot  = Math.max(mill.y + 1, bakery.y + 1);
+  const roadLeft  = Math.min(farm1.x, store.x) - 1;
+  const roadRight = Math.max(farm2.x + 2, store.x + 2) + 1;
+  for (let ry = roadTop; ry <= roadBot; ry++) {
+    for (let rx = roadLeft; rx <= roadRight; rx++) {
       if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });
     }
   }
@@ -575,52 +599,62 @@ function buildFireCommands(terrain: TerrainGrid, withWell: boolean): CitadelComm
 }
 
 /**
- * "Disease" scenario: crowded housing (6 houses packed together) + an initial
- * happiness deficit from lack of faith/safety/goods coverage.
- * Crowding = pop / houseCount → high onset chance.
+ * "Disease" scenario: deliberately OVERCROWDED housing to guarantee outbreak.
+ *
+ * Key insight: crowding = population / houseCount. To get high crowding we
+ * need FEW houses (low denominator) and a strong food chain that fills the
+ * population cap quickly (high numerator).
+ *
+ * Setup: 2 houses (popCap=12) + 2 farms + 1 mill + 1 bakery.
+ * Workers fill slots over 5-6 "founding" days. By day 10-12, pop reaches 8-10.
+ * Crowding = 8/2 = 4 → onsetChance = (4-1)*0.12 = 0.36 per day.
+ * No service buildings → happiness stays low (25-40) → unhappyFactor amplifies.
+ *
+ * IMPORTANT: Buildings are kept SPARSE enough that no building has ≥3 wooden
+ * neighbors within 4 tiles, so fire hazard does NOT trigger (this scenario
+ * demonstrates DISEASE only, not both hazards simultaneously).
+ *
  * When withHealer=true: a Healer is placed to demonstrate mortality reduction.
+ * With healer: death rate 0.05% + no min death guaranteed → far fewer deaths.
  */
 function buildDiseaseScenario(terrain: TerrainGrid, withHealer = true): CitadelCommand[] {
-  const cx = Math.floor(terrain.width / 2) + 5;
-  const cy = Math.floor(terrain.height / 2) + 5;
+  // Offset far from center to avoid overlap with other scenarios.
+  const cx = Math.floor(terrain.width / 2) - 20;
+  const cy = Math.floor(terrain.height / 2) + 15;
 
-  // Lots of housing (raises pop cap quickly → crowding rises).
-  const store   = findClear(terrain, 3, 2, cx,     cy);
-  const house1  = findClear(terrain, 2, 2, cx - 4, cy);
-  const house2  = findClear(terrain, 2, 2, cx - 4, cy + 2);
-  const house3  = findClear(terrain, 2, 2, cx - 4, cy + 4);
-  const house4  = findClear(terrain, 2, 2, cx - 4, cy + 6);
-  const house5  = findClear(terrain, 2, 2, cx - 4, cy + 8);
-  const house6  = findClear(terrain, 2, 2, cx - 4, cy + 10);
-  // Minimal food chain — barely enough bread to survive.
-  const farm    = findClear(terrain, 3, 3, cx + 4, cy);
-  const mill    = findClear(terrain, 2, 2, cx + 4, cy + 4);
-  const bakery  = findClear(terrain, 2, 2, cx + 4, cy + 7);
-  // Healer for disease mitigation.
-  const healer  = findClear(terrain, 2, 2, cx,     cy + 5);
+  // 2 houses → popCap=12, crowding = pop/2.
+  // Economy buildings placed FAR APART (>5 tiles) so fire density threshold stays < 3.
+  const store  = findClear(terrain, 3, 2, cx,      cy);
+  const house1 = findClear(terrain, 2, 2, cx - 7,  cy);
+  const house2 = findClear(terrain, 2, 2, cx - 7,  cy + 5);
+  // Food chain: 2 farms (north, spaced 10 apart), 1 mill, 1 bakery.
+  // All wooden buildings are ≥5 tiles apart so no wooden building has 3 neighbors.
+  const farm1  = findClear(terrain, 3, 3, cx + 5,  cy - 3);
+  const farm2  = findClear(terrain, 3, 3, cx + 5,  cy + 4);
+  const mill   = findClear(terrain, 2, 2, cx,      cy - 6);  // ≥5 tiles from nearest wooden
+  const bakery = findClear(terrain, 2, 2, cx - 7,  cy - 6);  // ≥5 tiles from mill
+  // Healer placed between the two houses.
+  const healer = findClear(terrain, 2, 2, cx - 7,  cy + 2);
 
   const cmds: CitadelCommand[] = [
     { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,  y: store.y } },
     { type: "placeBuilding", payload: { buildingType: "house",      x: house1.x, y: house1.y } },
     { type: "placeBuilding", payload: { buildingType: "house",      x: house2.x, y: house2.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house3.x, y: house3.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house4.x, y: house4.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house5.x, y: house5.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house6.x, y: house6.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm.x,   y: farm.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm1.x,  y: farm1.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm2.x,  y: farm2.y } },
     { type: "placeBuilding", payload: { buildingType: "mill",       x: mill.x,   y: mill.y } },
     { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery.x, y: bakery.y } },
   ];
-  // Healer placed in range of most housing — only when mitigation is active.
+  // Healer placed near both houses — only when mitigation is active.
   if (withHealer) {
     cmds.push({ type: "placeBuilding", payload: { buildingType: "healer", x: healer.x, y: healer.y } });
   }
 
   const roadTiles: Array<{ x: number; y: number }> = [];
-  const left  = house1.x - 1;
-  const right = Math.max(farm.x + 2, bakery.x + 2) + 1;
-  const top   = cy - 1;
-  const bot   = Math.max(house6.y + 1, bakery.y + 2);
+  const left  = Math.min(house1.x, bakery.x) - 1;
+  const right = Math.max(farm1.x + 2, farm2.x + 2) + 1;
+  const top   = Math.min(mill.y, bakery.y) - 1;
+  const bot   = Math.max(farm2.y + 2, house2.y + 1);
   for (let ry = top; ry <= bot; ry++) {
     for (let rx = left; rx <= right; rx++) {
       if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });

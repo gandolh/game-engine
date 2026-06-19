@@ -162,14 +162,15 @@ export class FireSystem implements System {
       const nearbyWooden = this._nearbyWoodenCount(cx, cy, id, 4);
 
       // Fire only becomes a risk in DENSE wooden districts (≥ 3 neighbors).
-      // This preserves test stability for small/sparse setups while ensuring
-      // dense town layouts face real fire risk. Base chance: 0.08 per neighbor
-      // above the threshold, capped at 0.35.
+      // Base chance: 0.20 per neighbor above the threshold, capped at 0.70.
+      // This ensures dense districts (5+ wooden neighbors) ignite reliably
+      // within 10-20 days, while sparse layouts (< 3 neighbors) are safe.
+      // A Well nearby cuts this by 80% (×0.2), demonstrating clear mitigation.
       if (nearbyWooden < 3) continue;
-      let chance = (nearbyWooden - 2) * 0.08;
-      chance = Math.min(0.35, chance);
+      let chance = (nearbyWooden - 2) * 0.20;
+      chance = Math.min(0.70, chance);
 
-      // Well mitigation.
+      // Well mitigation: 80% reduction in ignition chance.
       if (this._hasWellNear(cx, cy)) chance *= 0.2;
 
       if (this.rng.nextFloat() < chance) {

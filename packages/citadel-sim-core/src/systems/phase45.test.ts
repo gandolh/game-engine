@@ -348,17 +348,16 @@ describe("FireSystem — well mitigation", () => {
     const denseNoWell  = buildDenseCluster(terrain, false);
     const denseWithWell = buildDenseCluster(terrain, true);
 
-    // Run 40 days each.
-    runDays(denseNoWell,   40, 1);
-    runDays(denseWithWell, 40, 1);
+    // Run 60 days each (dense integration test confirms fire within 60 days with this seed).
+    runDays(denseNoWell,   60, 1);
+    runDays(denseWithWell, 60, 1);
 
     // Count fire-related events.
     const fireEventsNoWell  = denseNoWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
     const fireEventsWithWell = denseWithWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
 
-    // Both counts should be non-negative.
-    expect(fireEventsNoWell).toBeGreaterThanOrEqual(0);
-    expect(fireEventsWithWell).toBeGreaterThanOrEqual(0);
+    // No-well sim MUST have produced at least 1 fire (same seed + layout as integration test).
+    expect(fireEventsNoWell).toBeGreaterThan(0);
 
     // The no-well sim should have at least as many fire events as the with-well sim.
     // (Well can only reduce, not increase fire risk.)
@@ -459,14 +458,15 @@ describe("DiseaseSystem — disease onset", () => {
     // The disease system must run without error and fields must be valid.
     expect(sim.state.sickVillagers).toBeGreaterThanOrEqual(0);
     expect(sim.state.sickVillagers).toBeLessThanOrEqual(sim.state.population);
-    // Log result for inspection.
-    // With high crowding and no happiness services, outbreak should occur.
-    // If the seed doesn't trigger it in 40 days, at minimum verify the system is healthy.
+    // System state fields must be valid types.
+    expect(typeof sim.state.outbreakActive).toBe("boolean");
+    // If outbreak happened, the sick/death counts must be consistent.
     if (outbreakEverHappened) {
       expect(diseaseDeaths + sim.state.sickVillagers).toBeGreaterThanOrEqual(0);
     }
-    // At minimum: system ran without error and fields are valid.
-    expect(typeof sim.state.outbreakActive).toBe("boolean");
+    // NOTE: outbreak is probabilistic; this test verifies the system runs correctly,
+    // not that outbreak always occurs. See "overcrowded 2-house settlement" for the
+    // guaranteed-outbreak strict assertion.
   });
 });
 
@@ -545,18 +545,130 @@ describe("DiseaseSystem — healer mitigation", () => {
 });
 
 // ---------------------------------------------------------------------------
-// (h) Fire in dense town — integration: dense wooden cluster (no stone firebreaks)
+// (h-disease) Disease strict: force-triggered outbreak produces deaths > 0 when
+//     there is no healer, and fewer deaths with a healer present. Uses direct
+//     state manipulation to guarantee the outbreak, making the test deterministic
+//     regardless of onset probability (which is tested separately above).
+// ---------------------------------------------------------------------------
+
+describe("DiseaseSystem — strict mortality (force-triggered outbreak)", () => {
+  /**
+   * Build a small town with 2 houses (popCap=12) and a food chain.
+   * Let it run long enough to grow some population (≥ 5 people).
+   * Then force-trigger the outbreak by setting state.outbreakActive = true
+   * and state.sickVillagers = 4. Run 5 more days.
+   * Without healer: deaths = max(1, floor(4*0.20)) = max(1, 0) = 1 per day (crowding > 2).
+   * With healer: deaths = floor(4*0.05) = 0 (healer suppresses mortality).
+   *
+   * This test is strictly deterministic — no probabilistic onset needed.
+   */
+  /**
+   * A town with 2 farms + mill + bakery + storehouse + 2 houses (popCap=12).
+   * This layout is proven to grow population > 3 over 60 days (same as the
+   * economy test "a town grows population over time when food surplus is
+   * consistently positive"). By day 30, population should be 4-6.
+   *
+   * Seed 0xc17ade1, buildings on grass at y=14, road at y=13 — the same
+   * proven layout as economy.test.ts, reused for disease outbreak testing.
+   * Buildings spaced 3-4 tiles apart horizontally: distances are ≤4 tiles
+   * which is below the ≥3-neighbor fire threshold for this layout.
+   */
+  function buildProvenTown(withHealer: boolean): CitadelSimResult {
+    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 60 });
+    // Road at y=13 from x=10..45.
+    const roadTiles: Array<{ x: number; y: number }> = [];
+    for (let x = 10; x <= 45; x++) roadTiles.push({ x, y: 13 });
+    sim.commands.enqueue({ type: "placeRoad", payload: { tiles: roadTiles } });
+    // All buildings from the proven economy test layout.
+    const buildings: Array<{ type: string; x: number; y: number }> = [
+      { type: "storehouse", x: 10, y: 11 },
+      { type: "farm",       x: 14, y: 14 },
+      { type: "farm",       x: 18, y: 14 },
+      { type: "mill",       x: 22, y: 14 },
+      { type: "bakery",     x: 25, y: 14 },
+      { type: "house",      x: 28, y: 14 },
+      { type: "house",      x: 32, y: 14 },
+    ];
+    if (withHealer) {
+      // Healer placed near the houses but away from the food-chain cluster.
+      buildings.push({ type: "healer", x: 36, y: 14 });
+    }
+    for (const it of buildings) {
+      sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: it.type, x: it.x, y: it.y } });
+    }
+    sim.scheduler.tick({ tick: 0 });
+    return sim;
+  }
+
+  it("force-triggered outbreak without healer causes population to decrease (disease mortality)", () => {
+    /**
+     * Run 30 days to grow population. Record popBefore.
+     * Force-sustain an outbreak for 5 more days (set outbreakActive + sickVillagers
+     * before each tick so recovery cannot end it early).
+     * Measure popAfter. With pop=5 and 20% death rate: floor(5*0.20)=1 death/day.
+     * Population MUST decrease. This is measured via population count, not the events
+     * ring buffer (which only holds 20 events and may have displaced death events).
+     */
+    const sim = buildProvenTown(false);
+    for (let t = 1; t <= 30 * TICKS_PER_DAY; t++) sim.scheduler.tick({ tick: t });
+    const popBefore = sim.state.population;
+    expect(popBefore).toBeGreaterThan(0); // sanity: town is alive
+
+    // Force 5 days of sustained outbreak (re-set before each tick, before disease runs).
+    for (let t = 30 * TICKS_PER_DAY + 1; t <= 35 * TICKS_PER_DAY; t++) {
+      if (sim.state.population > 0) {
+        // Set before tick so DiseaseSystem sees active outbreak in this tick.
+        sim.state.outbreakActive = true;
+        sim.state.sickVillagers = sim.state.population; // everyone infected
+      }
+      sim.scheduler.tick({ tick: t });
+    }
+    const popAfter = sim.state.population;
+    // Population must have dropped due to disease mortality.
+    // With pop=5 (proven by seed), 20% rate → 1 death/day over 5 days = -5 pop.
+    // Even 1 death is sufficient to pass.
+    expect(popBefore - popAfter).toBeGreaterThan(0);
+  });
+
+  it("force-triggered outbreak WITH healer causes fewer or equal population losses vs without healer", () => {
+    function measurePopLoss(withHealer: boolean): { before: number; after: number } {
+      const sim = buildProvenTown(withHealer);
+      for (let t = 1; t <= 30 * TICKS_PER_DAY; t++) sim.scheduler.tick({ tick: t });
+      const before = sim.state.population;
+      for (let t = 30 * TICKS_PER_DAY + 1; t <= 35 * TICKS_PER_DAY; t++) {
+        if (sim.state.population > 0) {
+          sim.state.outbreakActive = true;
+          sim.state.sickVillagers = sim.state.population;
+        }
+        sim.scheduler.tick({ tick: t });
+      }
+      return { before, after: sim.state.population };
+    }
+    const noHealer  = measurePopLoss(false);
+    const withHealer = measurePopLoss(true);
+    const lossNoHealer  = noHealer.before - noHealer.after;
+    const lossWithHealer = withHealer.before - withHealer.after;
+    // Unmitigated MUST have killed at least 1 person.
+    expect(lossNoHealer).toBeGreaterThan(0);
+    // Healer must not cause MORE losses than no healer.
+    // (With healer: rate 0.05 vs 0.20 → floor(5*0.05)=0 deaths most days → fewer losses.)
+    expect(lossWithHealer).toBeLessThanOrEqual(lossNoHealer);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// (i) Fire in dense town — integration: dense wooden cluster (no stone firebreaks)
 //     triggers fire spontaneously within enough days
 // ---------------------------------------------------------------------------
 
 describe("FireSystem — dense town fires (integration)", () => {
-  it("dense wooden district (10 buildings, 4-tile spacing) fires within 60 days (seeded)", () => {
+  it("dense wooden district (10 buildings, 3-tile spacing) fires within 60 days (seeded)", () => {
     /**
      * 10 wooden buildings packed together at 3-tile center spacing.
      * Each building has 3-5 wooden neighbors within the 4-tile Manhattan radius.
-     * Ignition chance ≈ 0.08-0.24 per qualifying building per day.
-     * Over 60 days with 5 qualifying buildings: P(at least 1 fire) ≈ 1-(1-0.16)^60 ≈ ~99%.
-     * This is a seeded test — with seed 0x1234_5678 + 60 days it MUST fire.
+     * Ignition chance ≈ 0.20-0.60 per qualifying building per day.
+     * Over 60 days: P(at least 1 fire) ≈ near-certain.
+     * This is a strict seeded test — with seed 0x1234_5678 + 60 days it MUST fire.
      */
     const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });
     const { terrain } = sim;
