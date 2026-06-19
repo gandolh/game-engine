@@ -15,7 +15,7 @@ import {
 } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
 import type { SimState, BuildingFireState, Stockpiles } from "./sim-state";
-import { emptyStockpiles, pushEvent } from "./sim-state";
+import { emptyStockpiles, pushEvent, totalGoods } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
 import { ProductionSystem } from "./systems/production";
 import { VillagerSystem, villagerPos } from "./systems/villager-system";
@@ -38,6 +38,9 @@ export interface CitadelSimOptions {
 }
 
 const DAYS_PER_YEAR = 16;
+
+/** Citadel 09: relief reserve total-goods threshold above which the tithe sweetens barter. */
+const RELIEF_BARTER_THRESHOLD = 20;
 
 /** Mutable sim state exposed to callers (worker + headless + tests). */
 export interface CitadelSimResult {
@@ -154,6 +157,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     buildingTiles: new Set<number>(),
     buildingState: new Map<number, BuildingRuntimeState>(),
     stockpiles: emptyStockpiles(),
+    reliefReserve: emptyStockpiles(),
     nextVillagerId: 1,
     connectivityDirty: true,
     population: 0,
@@ -364,8 +368,17 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const have = state.stockpiles[offer.give];
     if (have < offer.giveQty) return;
     state.stockpiles[offer.give] = have - offer.giveQty;
-    state.stockpiles[offer.receive] = state.stockpiles[offer.receive] + offer.receiveQty;
-    pushEvent(state, `Day ${state.day}: traded ${offer.giveQty} ${offer.give} for ${offer.receiveQty} ${offer.receive}.`);
+    // Citadel 09 — TITHE better barter terms: a well-stocked relief reserve
+    // (goodwill the merchant respects) sweetens the deal by +1 received good.
+    // Applied here (not in trader.ts) so the canonical offers stay clean and the
+    // bonus reflects the reserve state at trade time.
+    const reserveBonus =
+      state.activeDecrees.has("tithe") && totalGoods(state.reliefReserve) >= RELIEF_BARTER_THRESHOLD
+        ? 1
+        : 0;
+    const received = offer.receiveQty + reserveBonus;
+    state.stockpiles[offer.receive] = state.stockpiles[offer.receive] + received;
+    pushEvent(state, `Day ${state.day}: traded ${offer.giveQty} ${offer.give} for ${received} ${offer.receive}.`);
   });
 
   logged("demolish", (cmd) => {
@@ -594,6 +607,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       activeFires: countActiveFires(state),
       // Phase 5: tier
       tier: state.tier,
+      // Citadel 09: relief reserve total (tithe payoff buffer)
+      reliefReserve: totalGoods(state.reliefReserve),
     };
   }
 

@@ -14,6 +14,9 @@ import { getProductionDef, effectiveDefenseStrength } from "../entities/building
 
 type SiegeResult = "repelled" | "damage" | "sacked";
 
+/** Citadel 09: each available (conscripted) villager adds this much defense during a raid. */
+const CONSCRIPTION_DEFENSE_FACTOR = 0.5;
+
 /** Sum defenseStrength of all defended buildings + 1 per wall adjacent to one. */
 export function computeDefensiveStrength(state: SimState): number {
   let total = 0;
@@ -54,6 +57,14 @@ export function computeDefensiveStrength(state: SimState): number {
         break;
       }
     }
+  }
+
+  // Citadel 09 — CONSCRIPTION: while a raid is active, available villagers are
+  // called to man the walls, adding a modest defense term (so it complements
+  // towers/walls rather than replacing them). Production pauses in return
+  // (see production.ts). Deterministic: pure integer arithmetic on population.
+  if (state.activeDecrees.has("conscription") && state.raiders.length > 0) {
+    total += Math.floor(state.population * CONSCRIPTION_DEFENSE_FACTOR);
   }
 
   return total;

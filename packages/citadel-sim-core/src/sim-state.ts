@@ -35,6 +35,13 @@ export function emptyStockpiles(): Stockpiles {
   return { grain: 0, flour: 0, bread: 0, wood: 0, stone: 0, planks: 0, tools: 0 };
 }
 
+/** Sum of all goods in a Stockpiles pool. */
+export function totalGoods(s: Stockpiles): number {
+  let total = 0;
+  for (const k of Object.keys(s) as GoodType[]) total += s[k];
+  return total;
+}
+
 /** Phase 4: an active raider group marching on the citadel. */
 export interface RaiderState {
   id: number;
@@ -72,6 +79,13 @@ export interface SimState {
 
   /** Global goods pool. */
   readonly stockpiles: Stockpiles;
+
+  /**
+   * Citadel 09 (tithe decree): a second goods pool, separate from `stockpiles`.
+   * Filled daily by the tithe siphon; drawn down to cushion starvation and to
+   * improve Trading Post barter terms. NOT money (APR #28: no coin economy).
+   */
+  readonly reliefReserve: Stockpiles;
 
   /** Monotonic id allocator for villagers. */
   nextVillagerId: number;

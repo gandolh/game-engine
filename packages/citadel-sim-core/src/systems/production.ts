@@ -32,6 +32,13 @@ export class ProductionSystem implements System {
   run(ctx: SimContext): void {
     const state = this.state;
 
+    // Citadel 09 — CONSCRIPTION: while a raid is active, conscripted villagers
+    // man the walls (see siege-resolution.ts defense term) and production halts
+    // for the siege window. Skip all production this tick.
+    if (state.activeDecrees.has("conscription") && state.raiders.length > 0) {
+      return;
+    }
+
     for (const entity of state.buildingWorld.query("building")) {
       const id = entity.id;
       if (id === undefined) continue;

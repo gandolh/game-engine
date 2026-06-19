@@ -21,6 +21,10 @@ import type { VillagerComponent } from "../entities/villager";
 import type { SimState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import type { Rng } from "@engine/core";
+import type { GoodType } from "../entities/building";
+
+/** Citadel 09: fraction of each stored good siphoned to the relief reserve per day under the tithe. */
+const TITHE_SIPHON_RATE = 0.1;
 
 export class ImmigrationSystem implements System {
   readonly name = "ImmigrationSystem";
@@ -28,6 +32,7 @@ export class ImmigrationSystem implements System {
   private lastDay = -1;
   private startDay = -1;
   private hadPopulation = false;
+  private tithedOnce = false;
   private readonly rng: Rng;
 
   constructor(private readonly state: SimState) {
@@ -46,6 +51,25 @@ export class ImmigrationSystem implements System {
       return;
     }
 
+    // Citadel 09 — TITHE: before consumption, siphon a small % (10%, floored)
+    // of every stored good from the global pool into the relief reserve. This
+    // is a real cost (the global pool shrinks). The reserve later cushions
+    // starvation and improves barter terms. Pure integer arithmetic — no rng.
+    if (state.activeDecrees.has("tithe")) {
+      let siphonedAny = false;
+      for (const good of Object.keys(state.stockpiles) as GoodType[]) {
+        const take = Math.floor(state.stockpiles[good] * TITHE_SIPHON_RATE);
+        if (take <= 0) continue;
+        state.stockpiles[good] -= take;
+        state.reliefReserve[good] += take;
+        siphonedAny = true;
+      }
+      if (siphonedAny && !this.tithedOnce) {
+        this.tithedOnce = true;
+        pushEvent(state, `Day ${state.day}: the tithe fills the relief reserve.`);
+      }
+    }
+
     // Bread produced since last day boundary (before consumption).
     const breadNow = state.stockpiles.bread;
 
@@ -55,13 +79,34 @@ export class ImmigrationSystem implements System {
     const actualConsumption = state.activeDecrees.has("rationing")
       ? Math.floor(consumption * 0.75)
       : consumption;
-    const afterConsumption = breadNow - actualConsumption;
+    let afterConsumption = breadNow - actualConsumption;
+
+    // Citadel 09 — TITHE starvation cushion: if the day's bread can't feed the
+    // population, draw the shortfall from the relief reserve's bread before the
+    // population suffers. Deterministic pure arithmetic.
+    let cushioned = 0;
+    if (afterConsumption < 0 && state.reliefReserve.bread > 0) {
+      const shortfall = -afterConsumption;
+      cushioned = Math.min(shortfall, state.reliefReserve.bread);
+      state.reliefReserve.bread -= cushioned;
+      afterConsumption += cushioned;
+      if (cushioned > 0) {
+        pushEvent(state, `Day ${state.day}: relief reserve fed ${cushioned} bread to the hungry.`);
+      }
+    }
+
     if (afterConsumption >= 0) {
       state.stockpiles.bread = afterConsumption;
     } else {
       state.stockpiles.bread = 0;
     }
-    state.foodSurplus = breadNow - state.lastDayBreadStart - actualConsumption;
+    const rawSurplus = breadNow - state.lastDayBreadStart - actualConsumption;
+    // foodSurplus drives the starvation path (deficit when < 0). The reserve
+    // cushion feeds the hungry, so a day whose deficit was fully absorbed
+    // (post-cushion afterConsumption >= 0) is treated as break-even, never a
+    // starvation day. With no tithe, cushioned is 0 and afterConsumption keeps
+    // its original sign — so this reduces exactly to the original formula.
+    state.foodSurplus = cushioned > 0 && afterConsumption >= 0 ? Math.max(0, rawSurplus + cushioned) : rawSurplus;
 
     // --- Open worker slots across all buildings ---
     let openSlots = 0;

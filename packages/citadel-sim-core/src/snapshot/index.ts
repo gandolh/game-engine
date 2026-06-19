@@ -71,6 +71,8 @@ export interface RenderSnapshot {
   readonly activeFires: number;          // count of burning buildings
   // Phase 5: settlement tier
   readonly tier: string;                 // e.g. "Hamlet", "Village", "Town", …
+  // Citadel 09: total goods held in the tithe relief reserve (0 if no tithe accrued).
+  readonly reliefReserve: number;
 }
 
 // ---------------------------------------------------------------------------
