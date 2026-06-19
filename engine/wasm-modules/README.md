@@ -7,7 +7,7 @@ AssemblyScript sources compiled to `.wasm` and consumed by `@engine/core/wasm`.
 - `src/<name>.ts` — one AssemblyScript module per file (each becomes a `.wasm`).
 - `asconfig.json` — `asc` compiler options shared by every module.
 - `build/compile.mjs` — invokes `asc` for every `src/*.ts`, emits to `dist/`,
-  then copies each `.wasm` into `packages/farm-valley/public/wasm/`.
+  then copies each `.wasm` into `games/farm/client/public/wasm/`.
 
 ## Building
 
@@ -21,7 +21,7 @@ Or from the repo root:
 npm run build-wasm
 ```
 
-The output is committed in `packages/farm-valley/public/wasm/` so a fresh
+The output is committed in `games/farm/client/public/wasm/` so a fresh
 clone can `npm run dev` without first building wasm. Re-run the build after
 editing any `src/*.ts`.
 
@@ -29,7 +29,7 @@ editing any `src/*.ts`.
 
 1. Drop a new file at `src/<name>.ts`.
 2. Export raw exports (numbers/usize). Use `heap.alloc(size)` for scratch.
-3. Run the build. A new `/wasm/<name>.wasm` will appear in farm-valley's
+3. Run the build. A new `/wasm/<name>.wasm` will appear in the farm client's
    public assets and the engine loader can fetch it.
 
 ## Why AssemblyScript

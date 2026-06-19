@@ -1,6 +1,6 @@
 # Farm Valley
 
-A tiny top-down farming sim where four AI farmers — each with their own personality — plant, harvest, trade, and try to out-earn each other across 100 in-game days. You don't play; you watch them play.
+A tiny top-down farming sim where a valley of AI farmers — each driven by one of four personalities — plant, harvest, trade, and try to out-earn each other across 100 in-game days. You mostly watch them play; one farmer, **Pip**, is playable.
 
 Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder. The simulation runs in a Node.js server and streams render snapshots to the browser over a WebSocket; the browser is a pure client that renders + interpolates them. All art is drawn from a single 32-color palette ([EDG32](https://lospec.com/palette-list/endesga-32)), enforced across sprites, UI, and effects.
 
@@ -44,32 +44,35 @@ Each farmer is a [BDI agent](https://en.wikipedia.org/wiki/Belief%E2%80%93desire
 
 ## Art direction
 
-Every color in the project — sprites, tiles, particles, the day/night wash, and all HTML/canvas UI — comes from the 32-color [EDG32 (Endesga-32)](https://lospec.com/palette-list/endesga-32) palette. The palette is a single source of truth in [packages/engine/src/render/palette.ts](packages/engine/src/render/palette.ts) (use the named `EDG.*` constants), and a guard test scans the whole source tree and fails CI on any off-palette color literal — so new assets stay on-palette by construction.
+Every color in the project — sprites, tiles, particles, the day/night wash, and all HTML/canvas UI — comes from the 32-color [EDG32 (Endesga-32)](https://lospec.com/palette-list/endesga-32) palette. The palette is a single source of truth in [palette.ts](engine/core/src/render/palette.ts) (use the named `EDG.*` constants), and a guard test scans the whole source tree and fails CI on any off-palette color literal — so new assets stay on-palette by construction.
 
 ## Project layout
 
 ```
-packages/
-  engine/          shared engine (ECS, renderer, input, sim, wasm bindings)
-  sim-core/        the deterministic simulation (systems, agents, world, snapshot)
-  farm-valley/     the renderer / client (screens, UI panels, render loop)
-  server/          the Node sim server (hosts the sim, streams it over a WebSocket)
-  wasm-modules/    AssemblyScript pathfinder compiled to WASM
+engine/
+  core/            shared engine (ECS, renderer, input, sim, wasm bindings)
+  wasm-modules/    AssemblyScript pathfinder + kernels compiled to WASM
+games/
+  farm/
+    sim-core/      the deterministic simulation (systems, agents, world, snapshot)
+    client/        the renderer / client (screens, UI panels, render loop)
+    server/        the Node sim server (hosts the sim, streams it over a WebSocket)
+  citadel/         a second game (settlement/RTS) on the same engine
 tools/
-  atlas-builder/   packs sprite source images into the runtime atlas
+  atlas-builder/   packs sprite recipes into the runtime atlas
   run-sim/         headless simulation runner (no rendering)
   world-preview/   standalone world snapshot viewer
 corpus/            design notes and TODO milestones
 ```
 
-The renderer lives in [packages/farm-valley/src/](packages/farm-valley/src/); the simulation in [packages/sim-core/src/](packages/sim-core/src/), hosted by [packages/server/](packages/server/). Notable bits:
+The renderer lives in [games/farm/client/src/](games/farm/client/src/); the simulation in [games/farm/sim-core/src/](games/farm/sim-core/src/), hosted by [games/farm/server/](games/farm/server/). Notable bits:
 
-- [main.ts](packages/farm-valley/src/main.ts) — boot, home → game wiring, render loop
-- [worker/sim-client/](packages/farm-valley/src/worker/sim-client/) — the WebSocket client that talks to the sim server and interpolates + renders snapshots
-- [screens/](packages/farm-valley/src/screens/) — full-screen views (home screen, game over, …)
-- [ui/](packages/farm-valley/src/ui/) — in-game overlays (observer, debug, config)
-- [agents/](packages/farm-valley/src/agents/) — one file per personality
-- [systems/](packages/farm-valley/src/systems/) — ECS systems that run each tick
+- [main.ts](games/farm/client/src/main.ts) — boot, home → game wiring, render loop
+- [worker/sim-client/](games/farm/client/src/worker/sim-client/) — the WebSocket client that talks to the sim server and interpolates + renders snapshots
+- [screens/](games/farm/client/src/screens/) — full-screen views (home screen, game over, …)
+- [ui/](games/farm/client/src/ui/) — in-game overlays (observer, debug, config)
+- [agents/](games/farm/sim-core/src/agents/) — one file per personality
+- [systems/](games/farm/sim-core/src/systems/) — ECS systems that run each tick
 
 ## Common commands
 
