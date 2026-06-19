@@ -54,7 +54,7 @@ npm install
 npm run build-wasm     # NOT required after clone — wasm artifacts are committed
 npm run dev            # Farm Valley: sim server + browser client together (vite :5173)
 npm run server         # just the Farm sim server (WebSocket :8787)
-npm run citadel        # Citadel client (vite :5174) — sim runs in its own Web Worker
+npm run citadel        # Citadel: sim server (:8788) + client (vite :5174) together; open ?mp for online MP (solo runs in a Web Worker, no server)
 npm run build          # production build of the Farm client
 npm run typecheck      # tsc --noEmit across all workspaces — run before committing
 npm run test           # vitest run across all workspaces

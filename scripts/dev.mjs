@@ -2,19 +2,41 @@
 /**
  * dev.mjs — zero-dep concurrent dev runner (brief 58).
  *
- * `npm run dev` now needs BOTH the Node sim server and the Vite client, since
- * the sim lives in the server and the browser is a pure client. This spawns
- * both, prefixes their output, and tears both down when either exits or on
- * Ctrl-C — so there's one command and no orphaned processes.
+ * Spawns a game's Node sim server + its Vite client together, prefixes their
+ * output, and tears both down when either exits or on Ctrl-C — so there's one
+ * command and no orphaned processes. Kept dependency-free (no `concurrently`).
  *
- * Kept dependency-free (no `concurrently`) to honor the repo's zero-dep stance.
+ * Usage: `node scripts/dev.mjs [farm|citadel]` (default: farm).
+ *   farm    — `npm run dev` (Farm sim runs server-side; client always needs it).
+ *   citadel — `npm run citadel` (server + client; open the client with `?mp`
+ *             for online multiplayer — solo Citadel runs in an in-browser Worker
+ *             and doesn't need the server).
  */
 import { spawn } from "node:child_process";
 
-const procs = [
-  { name: "server", cmd: "npm", args: ["run", "server"], color: "\x1b[36m" },
-  { name: "client", cmd: "npm", args: ["run", "dev", "-w", "@farm/client"], color: "\x1b[35m" },
-];
+const TARGETS = {
+  farm: {
+    procs: [
+      { name: "server", cmd: "npm", args: ["run", "server"], color: "\x1b[36m" },
+      { name: "client", cmd: "npm", args: ["run", "dev", "-w", "@farm/client"], color: "\x1b[35m" },
+    ],
+  },
+  citadel: {
+    procs: [
+      { name: "server", cmd: "npm", args: ["run", "server:citadel"], color: "\x1b[36m" },
+      { name: "client", cmd: "npm", args: ["run", "dev", "-w", "@citadel/client"], color: "\x1b[35m" },
+    ],
+    note: "Citadel: open http://localhost:5174/?mp for online multiplayer (solo needs no server).",
+  },
+};
+
+const target = process.argv[2] ?? "farm";
+const config = TARGETS[target];
+if (config === undefined) {
+  console.error(`dev.mjs: unknown target "${target}" (expected: ${Object.keys(TARGETS).join(", ")})`);
+  process.exit(1);
+}
+if (config.note) console.log(`\x1b[33m${config.note}\x1b[0m`);
 
 const children = [];
 let shuttingDown = false;
@@ -28,7 +50,7 @@ function shutdown(code) {
   process.exit(code ?? 0);
 }
 
-for (const p of procs) {
+for (const p of config.procs) {
   const child = spawn(p.cmd, p.args, { stdio: ["inherit", "pipe", "pipe"], env: process.env });
   children.push(child);
   const tag = `${p.color}[${p.name}]\x1b[0m `;
