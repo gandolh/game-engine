@@ -21,6 +21,7 @@ import {
   pushGhost,
   pushLightPool,
   pushAmbientCrowd,
+  pushWearOverlay,
   eventToDevicePx,
   screenToWorld,
   transformOf,
@@ -29,6 +30,7 @@ import {
 import {
   CitadelSmoke,
   syncAppearMap,
+  buildingKey,
   placementScale,
   easeQuad,
   bobOffset,
@@ -119,6 +121,9 @@ const particles = new ParticleSystem();
 const fxRng = createRng(0x5117_c0de);
 const smoke = new CitadelSmoke(particles, fxRng);
 const appearAt = new Map<string, number>();
+//  - burningSince: building-key → render-clock ms a fire first started, so the
+//    brief-24 soot overlay can ramp ("accumulate") while a building burns.
+const burningSince = new Map<string, number>();
 
 // Follow-cam (brief 19): id of the villager the camera is locked onto, or null.
 let followId: number | null = null;
@@ -658,6 +663,22 @@ function loop(): void {
   // (records first-seen render-clock ms per x,y,type; drops demolished keys).
   syncAppearMap(appearAt, currentBuildings, nowMs);
 
+  // --- Brief 24 wear/decay (render-only): track when each building first started
+  // burning so the soot overlay can ramp from ignition. Drop keys once the fire
+  // is out (so a re-ignite re-ramps) or the building is gone.
+  {
+    const burningKeys = new Set<string>();
+    for (const b of currentBuildings) {
+      if (!b.burning && !b.onFire) continue;
+      const key = buildingKey(b);
+      burningKeys.add(key);
+      if (!burningSince.has(key)) burningSince.set(key, nowMs);
+    }
+    for (const key of burningSince.keys()) {
+      if (!burningKeys.has(key)) burningSince.delete(key);
+    }
+  }
+
   // --- Brief 19 follow-cam glide: lerp the camera centre toward the followed
   // villager's world position with expSmooth (a smooth glide, not a snap). The
   // villager dot tile-steps (no interpolation yet), so the cam is the smoothing.
@@ -698,6 +719,15 @@ function loop(): void {
       villagerYOffset: (v) => bobOffset(timeSec, v.id),
     },
   );
+
+  // --- Brief 24 wear/decay soot overlay (render-only). For each burning
+  // building, stamp soot ramped by how long it's been on fire (per-building
+  // render clock from burningSince). Healthy buildings emit nothing.
+  for (const b of currentBuildings) {
+    if (!b.burning && !b.onFire) continue;
+    const since = burningSince.get(buildingKey(b)) ?? nowMs;
+    pushWearOverlay(renderer, [b], nowMs - since);
+  }
 
   // --- Atmosphere (render-only). Day/night wash + night light pool (brief 15),
   // ambient crowd (brief 18), weather (brief 16). All driven off snapshot

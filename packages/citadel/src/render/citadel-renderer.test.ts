@@ -36,6 +36,10 @@ import {
   ditherAccents,
   DITHER_ACCENTS,
   type QuadSpec,
+  wearFactor,
+  wearOverlayQuads,
+  clusterBuildings,
+  clusterQuads,
 } from "./citadel-renderer";
 
 function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">): BuildingSnapshot {
@@ -461,5 +465,171 @@ describe("DITHER_ACCENTS", () => {
     }
     // Record-level coverage too.
     expect(Object.keys(DITHER_ACCENTS).length).toBe(5);
+  });
+});
+
+// Set of packed-RGB (top 24 bits) for every EDG color — lets us assert a quad's
+// tint resolves to an EDG hue regardless of its alpha byte.
+const EDG_RGB24 = new Set(
+  Object.values(EDG).map((h) => {
+    const [r, g, b] = rgbOf(String(h));
+    return ((r << 16) | (g << 8) | b) >>> 0;
+  }),
+);
+function rgb24Of(tint: number): number {
+  return (tint >>> 8) >>> 0;
+}
+function alphaOf(tint: number): number {
+  return tint & 0xff;
+}
+
+describe("wearFactor (brief 24)", () => {
+  it("is 0 for a healthy building", () => {
+    expect(wearFactor(building({ type: "house", x: 0, y: 0, w: 1, h: 1 }))).toBe(0);
+  });
+
+  it("gives a baseline scorch for onFire (ignited, not yet burning)", () => {
+    const f = wearFactor(building({ type: "house", x: 0, y: 0, w: 1, h: 1, onFire: true }));
+    expect(f).toBeGreaterThan(0);
+    expect(f).toBeLessThan(0.4);
+  });
+
+  it("floors burning at 0.4 and ramps toward 1 with the render clock", () => {
+    const b = building({ type: "house", x: 0, y: 0, w: 1, h: 1, burning: true });
+    expect(wearFactor(b, 0)).toBeCloseTo(0.4, 5);
+    expect(wearFactor(b, 4000)).toBeCloseTo(1, 5);
+    // Monotonic in clock; clamped at 1.
+    expect(wearFactor(b, 2000)).toBeGreaterThan(wearFactor(b, 0));
+    expect(wearFactor(b, 999999)).toBeCloseTo(1, 5);
+  });
+});
+
+describe("wearOverlayQuads (brief 24)", () => {
+  it("emits no quads for a healthy building (factor 0)", () => {
+    const b = building({ type: "house", x: 2, y: 3, w: 1, h: 1 });
+    expect(wearOverlayQuads(b, 0)).toEqual([]);
+    expect(wearOverlayQuads(b, wearFactor(b))).toEqual([]);
+  });
+
+  it("emits a soot fill for a burning building", () => {
+    const b = building({ type: "house", x: 2, y: 3, w: 2, h: 2, burning: true });
+    const quads = wearOverlayQuads(b, wearFactor(b, 4000));
+    expect(quads.length).toBeGreaterThanOrEqual(1);
+    // First quad is the full-footprint soot wash, translucent.
+    const soot = quads[0]!;
+    expect(soot.x).toBe(2 * TILE_SIZE);
+    expect(soot.y).toBe(3 * TILE_SIZE);
+    expect(soot.width).toBe(2 * TILE_SIZE);
+    expect(soot.height).toBe(2 * TILE_SIZE);
+    expect(alphaOf(soot.tintRgba)).toBeGreaterThan(0);
+    expect(alphaOf(soot.tintRgba)).toBeLessThan(0xff);
+  });
+
+  it("adds cracked-edge accents only past a moderate factor", () => {
+    const b = building({ type: "house", x: 0, y: 0, w: 1, h: 1, burning: true });
+    const low = wearOverlayQuads(b, 0.3); // below crack threshold
+    const high = wearOverlayQuads(b, 0.9); // above
+    expect(low.length).toBe(1); // soot only
+    expect(high.length).toBeGreaterThan(1); // soot + cracks
+  });
+
+  it("uses only EDG colors", () => {
+    const b = building({ type: "house", x: 0, y: 0, w: 1, h: 1, burning: true });
+    for (const q of wearOverlayQuads(b, 1)) {
+      expect(EDG_RGB24.has(rgb24Of(q.tintRgba))).toBe(true);
+    }
+  });
+});
+
+describe("clusterBuildings (brief 12)", () => {
+  it("groups two orthogonally-adjacent houses into one cluster", () => {
+    const houses = [
+      building({ type: "house", x: 0, y: 0, w: 1, h: 1 }),
+      building({ type: "house", x: 1, y: 0, w: 1, h: 1 }), // east neighbour
+    ];
+    const clusters = clusterBuildings(houses, "house");
+    expect(clusters.length).toBe(1);
+    expect(clusters[0]!.members.length).toBe(2);
+    expect(clusters[0]!.tiles.size).toBe(2);
+  });
+
+  it("leaves diagonally-touching (non-orthogonal) houses as separate clusters", () => {
+    const houses = [
+      building({ type: "house", x: 0, y: 0, w: 1, h: 1 }),
+      building({ type: "house", x: 1, y: 1, w: 1, h: 1 }), // only corner-touching
+    ];
+    const clusters = clusterBuildings(houses, "house");
+    expect(clusters.length).toBe(2);
+  });
+
+  it("keeps isolated houses as singleton clusters", () => {
+    const houses = [
+      building({ type: "house", x: 0, y: 0, w: 1, h: 1 }),
+      building({ type: "house", x: 5, y: 5, w: 1, h: 1 }),
+      building({ type: "house", x: 5, y: 6, w: 1, h: 1 }), // adjacent to the 2nd
+    ];
+    const clusters = clusterBuildings(houses, "house");
+    // {h0} alone, {h1,h2} together → 2 components.
+    expect(clusters.length).toBe(2);
+    const sizes = clusters.map((c) => c.members.length).sort();
+    expect(sizes).toEqual([1, 2]);
+  });
+
+  it("ignores non-house building types entirely", () => {
+    const buildings = [
+      building({ type: "house", x: 0, y: 0, w: 1, h: 1 }),
+      building({ type: "farm", x: 1, y: 0, w: 1, h: 1 }), // adjacent but wrong type
+      building({ type: "mill", x: 0, y: 1, w: 1, h: 1 }),
+    ];
+    const clusters = clusterBuildings(buildings, "house");
+    expect(clusters.length).toBe(1);
+    expect(clusters[0]!.members.length).toBe(1);
+  });
+
+  it("merges an L-shaped run of three adjacent houses into one cluster", () => {
+    const houses = [
+      building({ type: "house", x: 2, y: 2, w: 1, h: 1 }),
+      building({ type: "house", x: 3, y: 2, w: 1, h: 1 }),
+      building({ type: "house", x: 3, y: 3, w: 1, h: 1 }),
+    ];
+    const clusters = clusterBuildings(houses, "house");
+    expect(clusters.length).toBe(1);
+    expect(clusters[0]!.members.length).toBe(3);
+    // Bounding region spans x:[2,4) y:[2,4).
+    expect(clusters[0]!.minTx).toBe(2);
+    expect(clusters[0]!.minTy).toBe(2);
+    expect(clusters[0]!.maxTx).toBe(4);
+    expect(clusters[0]!.maxTy).toBe(4);
+  });
+});
+
+describe("clusterQuads (brief 12)", () => {
+  it("draws a singleton via the normal buildingQuad path", () => {
+    const houses = [building({ type: "house", x: 1, y: 1, w: 1, h: 1 })];
+    const [cluster] = clusterBuildings(houses, "house");
+    const quads = clusterQuads(cluster!, "house");
+    expect(quads).toEqual([buildingQuad(houses[0]!)]);
+  });
+
+  it("draws a multi-member cluster as a union fill plus a border frame", () => {
+    const houses = [
+      building({ type: "house", x: 0, y: 0, w: 1, h: 1 }),
+      building({ type: "house", x: 1, y: 0, w: 1, h: 1 }),
+    ];
+    const [cluster] = clusterBuildings(houses, "house");
+    const quads = clusterQuads(cluster!, "house");
+    // 2 union-fill tiles + 4 border frame quads.
+    expect(quads.length).toBe(6);
+  });
+
+  it("uses only EDG colors", () => {
+    const houses = [
+      building({ type: "house", x: 0, y: 0, w: 1, h: 1 }),
+      building({ type: "house", x: 1, y: 0, w: 1, h: 1 }),
+    ];
+    const [cluster] = clusterBuildings(houses, "house");
+    for (const q of clusterQuads(cluster!, "house")) {
+      expect(EDG_RGB24.has(rgb24Of(q.tintRgba))).toBe(true);
+    }
   });
 });

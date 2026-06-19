@@ -16,6 +16,13 @@
  *
  * All colors route through `EDG.*`; quad tints are packed `0xRRGGBBAA` ints
  * built from `rgbOf(EDG.*)`, so the palette guard stays clean.
+ *
+ * BRIEF 24 DEFERRAL (wear/decay): the full procedural-noise WGSL wear shader and
+ * time-based aging are DEFERRED — they require an engine tint-pass/WGSL
+ * extension AND a sim-side `age`/`wear` field (which would touch @citadel/
+ * sim-core + determinism). This module ships only the render-only slice: a
+ * fire-damage soot/scorch overlay (`wearFactor`/`wearOverlayQuads`/
+ * `pushWearOverlay`) driven by the snapshot's existing `burning`/`onFire`.
  */
 import {
   EDG,
@@ -189,6 +196,132 @@ export function buildingQuad(b: BuildingSnapshot): QuadSpec {
 }
 
 // ---------------------------------------------------------------------------
+// Procedural wear / decay overlay (brief 24) — pure, tested, render-only
+// ---------------------------------------------------------------------------
+//
+// SCOPE NOTE / DEFERRAL. The brief's ideal is a per-building procedural-noise
+// WGSL wear shader (cracks/erosion/soot via fxHash/fxNoise/fxFbm) injected into
+// the engine tint-pass and driven by a continuous `wear`/`age` UNIFORM. That
+// ideal is DEFERRED here because it needs two things this brief deliberately
+// does NOT touch:
+//   (a) an engine-side WGSL / tint-pass extension (out of scope — @engine/core),
+//   (b) a sim-side `age`/`wear` field on the building (out of scope — it would
+//       touch @citadel/sim-core and the determinism surface).
+// What ships instead is the achievable RENDER-ONLY slice: a fire-damage soot /
+// scorch overlay driven entirely by data the snapshot ALREADY carries
+// (`burning` / `onFire`). `wearOverlayQuads` is pure given (building, factor),
+// returns extra translucent dark quads to stamp just above the building, and is
+// empty for a healthy building. Intensity ramps with an optional render-clock
+// `factor` (0..1) so soot appears to accumulate visually while a fire burns —
+// the ramp is render-side only and never persisted or fed back into the sim.
+
+/** Soot/scorch layer — just above buildings, below villagers. */
+const LAYER_WEAR = 11;
+
+/** Max alpha of the soot fill at full intensity (translucent dark wash). */
+const WEAR_SOOT_MAX_ALPHA = 0.55;
+/** Alpha of the cracked-edge accent quads at full intensity. */
+const WEAR_CRACK_MAX_ALPHA = 0.5;
+
+/**
+ * Compute the render-only wear factor (0..1) a building currently shows. Driven
+ * purely by snapshot fire state: a `burning` building ramps toward full soot
+ * over `clockMs` (render clock, e.g. performance.now since it ignited — passed
+ * in by the caller so this stays pure/deterministic for a given input); a
+ * building merely `onFire` (ignited but not yet actively burning) shows a light
+ * baseline scorch; a healthy building is 0. Pure.
+ */
+export function wearFactor(b: BuildingSnapshot, clockMs = 0): number {
+  if (b.burning) {
+    // Ramp 0→1 over ~4s of burning so soot "accumulates" visually.
+    const ramped = Math.min(1, Math.max(0, clockMs) / 4000);
+    // Floor at 0.4 so an actively-burning building always reads as damaged.
+    return 0.4 + 0.6 * ramped;
+  }
+  if (b.onFire) return 0.25;
+  return 0;
+}
+
+/**
+ * Produce the soot/scorch overlay quads for a building, given a wear `factor`
+ * (0..1, typically from `wearFactor`). Returns an EMPTY array when the building
+ * is undamaged (factor <= 0) so healthy buildings add zero draws. Otherwise:
+ *   - one dark translucent soot fill over the full footprint (EDG.ink), its
+ *     alpha scaled by `factor`;
+ *   - two short cracked-edge accent quads (EDG.woodDark) along the top and a
+ *     diagonal-ish corner, appearing only past a moderate factor — the "cracks"
+ *     stand-in for the deferred procedural-noise cracks.
+ * Pure — no GPU, no clock, deterministic in (building, factor). EDG-only.
+ */
+export function wearOverlayQuads(b: BuildingSnapshot, factor: number): QuadSpec[] {
+  if (factor <= 0) return [];
+  const f = Math.min(1, factor);
+  const px = b.x * TILE_SIZE;
+  const py = b.y * TILE_SIZE;
+  const pw = b.w * TILE_SIZE;
+  const ph = b.h * TILE_SIZE;
+
+  const quads: QuadSpec[] = [];
+
+  // Soot wash over the whole footprint.
+  const sootAlpha = Math.round(0xff * WEAR_SOOT_MAX_ALPHA * f);
+  quads.push({
+    x: px,
+    y: py,
+    width: pw,
+    height: ph,
+    tintRgba: packTint(EDG.ink, sootAlpha),
+  });
+
+  // Cracked-edge accents — appear once damage is past a threshold.
+  if (f >= 0.5) {
+    const crackAlpha = Math.round(0xff * WEAR_CRACK_MAX_ALPHA * f);
+    const crackHex = EDG.woodDark;
+    const thick = Math.max(1, TILE_SIZE * 0.12);
+    // Top edge crack — a thin dark line inset from the corners.
+    quads.push({
+      x: px + pw * 0.2,
+      y: py,
+      width: pw * 0.6,
+      height: thick,
+      tintRgba: packTint(crackHex, crackAlpha),
+    });
+    // Corner scorch — small block at the bottom-right (where fire "pools").
+    const corner = Math.min(pw, ph) * 0.3;
+    quads.push({
+      x: px + pw - corner,
+      y: py + ph - corner,
+      width: corner,
+      height: corner,
+      tintRgba: packTint(crackHex, crackAlpha),
+    });
+  }
+  return quads;
+}
+
+/**
+ * Push the wear/decay soot overlay for the scene (brief 24). For each building
+ * with fire damage, stamps `wearOverlayQuads` on the wear layer (above the
+ * building). `clockMs` is an optional render clock (e.g. performance.now) used
+ * to ramp soot intensity while burning — render-side only, never persisted.
+ * Healthy buildings emit nothing. Call inside the same begin/endFrame as
+ * `pushScene`.
+ */
+export function pushWearOverlay(
+  renderer: RendererLike,
+  buildings: readonly BuildingSnapshot[],
+  clockMs = 0,
+): void {
+  for (const b of buildings) {
+    const factor = wearFactor(b, clockMs);
+    if (factor <= 0) continue;
+    for (const q of wearOverlayQuads(b, factor)) {
+      renderer.push(quadToSprite(q, LAYER_WEAR));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Adjacency autotiling for roads & walls (brief 11) — pure, tested
 // ---------------------------------------------------------------------------
 //
@@ -330,6 +463,152 @@ export function networkQuads(buildings: readonly BuildingSnapshot[]): QuadSpec[]
   for (const { tx, ty } of wallTiles) {
     quads.push(...autotileQuads(tx, ty, neighbourMask(tx, ty, wallSet), wallHex, WALL_BAND));
   }
+  return quads;
+}
+
+// ---------------------------------------------------------------------------
+// BFS building clustering into composite silhouettes (brief 12) — pure, tested
+// ---------------------------------------------------------------------------
+//
+// SPECULATIVE / LOW-PRIORITY (per the brief). Flood-fill adjacent same-type
+// buildings (default: houses) over 4-adjacency of their footprints, then draw
+// each multi-member cluster as ONE composite fill instead of N separate
+// stamps, so a housing block reads as a unified shape rather than a grid.
+//
+// SIMPLIFICATION (documented & accepted by the brief): we do NOT synthesize
+// L/T/+/square composite silhouettes. A cluster of >=2 draws as the UNION of
+// its member footprints (every covered tile filled in the house color) plus a
+// subtle unifying border, which reads as one block. Single (un-clustered)
+// houses fall through to the normal `buildingQuad` path. Cheap: the union is
+// computed from the same tile-key set the BFS already builds.
+
+/** A connected cluster of same-type buildings + its bounding region. */
+export interface Cluster {
+  /** The member buildings (in input order). */
+  members: BuildingSnapshot[];
+  /** Bounding region in tile coords (min inclusive, max exclusive). */
+  minTx: number;
+  minTy: number;
+  maxTx: number; // exclusive
+  maxTy: number; // exclusive
+  /** Set of every tile key (`ty*WORLD_WIDTH+tx`) the cluster's footprints cover. */
+  tiles: Set<number>;
+}
+
+/**
+ * Connected-components over 4-adjacency of same-`type` building footprints. Two
+ * buildings join a cluster when any of their covered tiles are orthogonally
+ * adjacent or overlapping. Buildings of other types are ignored entirely.
+ * Returns one `Cluster` per component (including singletons). Pure.
+ */
+export function clusterBuildings(
+  buildings: readonly BuildingSnapshot[],
+  type = "house",
+): Cluster[] {
+  const subjects = buildings.filter((b) => b.type === type);
+
+  // Map every covered tile key → index of its owning subject building.
+  const tileOwner = new Map<number, number>();
+  for (let i = 0; i < subjects.length; i++) {
+    const b = subjects[i]!;
+    for (let dy = 0; dy < b.h; dy++) {
+      for (let dx = 0; dx < b.w; dx++) {
+        tileOwner.set(tileKey(b.x + dx, b.y + dy), i);
+      }
+    }
+  }
+
+  const seen = new Array<boolean>(subjects.length).fill(false);
+  const clusters: Cluster[] = [];
+
+  for (let start = 0; start < subjects.length; start++) {
+    if (seen[start]) continue;
+    // BFS over building indices, where edges are 4-adjacent covered tiles.
+    const queue = [start];
+    seen[start] = true;
+    const members: BuildingSnapshot[] = [];
+    const tiles = new Set<number>();
+    let minTx = Infinity;
+    let minTy = Infinity;
+    let maxTx = -Infinity;
+    let maxTy = -Infinity;
+
+    while (queue.length > 0) {
+      const idx = queue.pop()!;
+      const b = subjects[idx]!;
+      members.push(b);
+      minTx = Math.min(minTx, b.x);
+      minTy = Math.min(minTy, b.y);
+      maxTx = Math.max(maxTx, b.x + b.w);
+      maxTy = Math.max(maxTy, b.y + b.h);
+      for (let dy = 0; dy < b.h; dy++) {
+        for (let dx = 0; dx < b.w; dx++) {
+          const tx = b.x + dx;
+          const ty = b.y + dy;
+          tiles.add(tileKey(tx, ty));
+          // 4-neighbour tiles owned by another (unseen) subject → same cluster.
+          const neighbours = [
+            tileKey(tx, ty - 1),
+            tileKey(tx + 1, ty),
+            tileKey(tx, ty + 1),
+            tileKey(tx - 1, ty),
+          ];
+          for (const nk of neighbours) {
+            const owner = tileOwner.get(nk);
+            if (owner !== undefined && !seen[owner]) {
+              seen[owner] = true;
+              queue.push(owner);
+            }
+          }
+        }
+      }
+    }
+
+    clusters.push({ members, tiles, minTx, minTy, maxTx, maxTy });
+  }
+  return clusters;
+}
+
+/**
+ * Render quads for a multi-member cluster: the UNION of member footprints
+ * filled in the cluster type's color (one quad per covered tile), plus a subtle
+ * unifying border drawn as a slightly inset frame around the bounding region.
+ * For a singleton cluster returns the normal `buildingQuad` (so callers can use
+ * one path). Pure. EDG-only via BUILDING_COLORS.
+ */
+export function clusterQuads(cluster: Cluster, type = "house"): QuadSpec[] {
+  if (cluster.members.length < 2) {
+    // Singleton — normal per-building draw.
+    return cluster.members.length === 1 ? [buildingQuad(cluster.members[0]!)] : [];
+  }
+  const hex = BUILDING_COLORS[type] ?? FALLBACK_BUILDING_COLOR;
+  const fill = packTint(hex);
+  const quads: QuadSpec[] = [];
+
+  // Union fill: one quad per covered tile → reads as a single contiguous block.
+  for (const key of cluster.tiles) {
+    const tx = key % WORLD_WIDTH;
+    const ty = Math.floor(key / WORLD_WIDTH);
+    quads.push({
+      x: tx * TILE_SIZE,
+      y: ty * TILE_SIZE,
+      width: TILE_SIZE,
+      height: TILE_SIZE,
+      tintRgba: fill,
+    });
+  }
+
+  // Subtle unifying border: a darker inset frame around the bounding rect.
+  const bx = cluster.minTx * TILE_SIZE;
+  const by = cluster.minTy * TILE_SIZE;
+  const bw = (cluster.maxTx - cluster.minTx) * TILE_SIZE;
+  const bh = (cluster.maxTy - cluster.minTy) * TILE_SIZE;
+  const border = packTint(EDG.woodDark, Math.round(0xff * 0.5));
+  const t = Math.max(1, TILE_SIZE * 0.1);
+  quads.push({ x: bx, y: by, width: bw, height: t, tintRgba: border }); // top
+  quads.push({ x: bx, y: by + bh - t, width: bw, height: t, tintRgba: border }); // bottom
+  quads.push({ x: bx, y: by, width: t, height: bh, tintRgba: border }); // left
+  quads.push({ x: bx + bw - t, y: by, width: t, height: bh, tintRgba: border }); // right
   return quads;
 }
 
@@ -709,8 +988,31 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
   // Roads + walls draw as autotiled connected networks (brief 11), not per-tile
   // through buildingQuad. Gates still draw their distinct gold block here.
   pushNetworks(renderer, scene.buildings);
+
+  // Houses route through the BFS clustering path (brief 12): a cluster of >=2
+  // draws as one composite union-fill + unifying border; singletons fall back
+  // to the normal buildingQuad. The fx ease-in hook only applies to the
+  // per-building (non-clustered) path — composite blocks draw plain.
+  for (const cluster of clusterBuildings(scene.buildings, "house")) {
+    if (cluster.members.length >= 2) {
+      for (const q of clusterQuads(cluster, "house")) {
+        renderer.push(quadToSprite(q, LAYER_BUILDING));
+      }
+    } else if (cluster.members.length === 1) {
+      const b = cluster.members[0]!;
+      const base = buildingQuad(b);
+      if (fx?.building !== undefined) {
+        const { quad, alpha } = fx.building(b, base);
+        renderer.push(quadToSprite(quad, LAYER_BUILDING, alpha));
+      } else {
+        renderer.push(quadToSprite(base, LAYER_BUILDING));
+      }
+    }
+  }
+
   for (const b of scene.buildings) {
     if (b.type === "road" || b.type === "wall") continue; // handled by pushNetworks
+    if (b.type === "house") continue; // handled by the cluster path above
     const base = buildingQuad(b);
     if (fx?.building !== undefined) {
       const { quad, alpha } = fx.building(b, base);
