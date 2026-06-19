@@ -65,6 +65,10 @@ later adopt them:
 - No `Math.random`/`Date.now` in sim — all randomness via seeded `Rng`.
 - bootstrapSim stays Worker-agnostic (headless run-sim + tests drive it directly).
 
+## ✅ STATUS (updated 2026-06-19): depth pass + render wave SHIPPED
+
+All 17 actionable post-v1 briefs are **Done** and merged to main (07/08/09/10/14 + 11/12/13/15/16/17/18/19/20/24/25/27) — closed in [todos/closed/](closed/), logged in [../log.md](../log.md). **20** was satisfied by construction (27 already routes every draw through the sprite-batch); **24** shipped only its render-only fire-soot slice (full WGSL wear shader + sim age field deferred). Verified: `@citadel/sim-core` 120/120, `citadel` 124/124, palette 6/6, typecheck + `build -w citadel` clean. **⚠️ Render visuals are unverified — WebGPU can't render headless here; a real-GPU eyeball is pending (per-brief lists in the closed briefs).** Still open (intentionally): **21/22** (parked on world-size), **23** (won't-do), **26** (MP epic, deferred).
+
 ## Depth pass — post-v1 (2026-06-19)
 
 Citadel is feature-complete (Phases 0–5). This **depth pass** was scoped by grilling
