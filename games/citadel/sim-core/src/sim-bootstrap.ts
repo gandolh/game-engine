@@ -557,6 +557,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     pushEvent(state, `Day ${state.day + 1}: player ${sender.id} gifted ${amount} ${good} to player ${to}.`);
   });
 
+  // Citadel 35 (netcode): route subsequent commands to player `id` (multi-writer
+  // server injects this before each peer's command). localPlayer-based handlers
+  // then act on the sending player. Logged → deterministic replay.
+  logged("setActivePlayer", (cmd) => {
+    if (playerById(state, cmd.payload.id) !== undefined) state.localId = cmd.payload.id;
+  });
+
   // ---------------------------------------------------------------------------
   // Scheduler + systems
   // ---------------------------------------------------------------------------
@@ -636,6 +643,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         y: b.y,
         w: b.w,
         h: b.h,
+        ownerId: b.ownerId,
         connected: rs?.connected ?? false,
         outputBuffer: rs?.outputBuffer ?? 0,
         workerCount: rs?.workerCount ?? 0,

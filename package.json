@@ -20,6 +20,7 @@
     "sim": "npm start -w @tool/run-sim",
     "sim:citadel": "npm start -w @tool/citadel-sim",
     "server": "npm start -w @farm/server",
+    "server:citadel": "npm start -w @citadel/server",
     "preview": "npm start -w @tool/world-preview",
     "build-wasm": "npm run build -w @engine/wasm-modules"
   },

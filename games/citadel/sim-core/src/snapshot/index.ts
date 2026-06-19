@@ -13,6 +13,8 @@ export interface BuildingSnapshot {
   readonly connected: boolean;
   readonly outputBuffer: number;
   readonly workerCount: number;
+  // Citadel 28/35: owning player id (for MP team-colour rendering + routing).
+  readonly ownerId: number;
   // Phase 4.5: hazard state
   readonly onFire: boolean;
   readonly burning: boolean;
@@ -133,4 +135,8 @@ export type CitadelCommand =
   // Citadel 32: launch a PvP army at a targeted enemy building / town-hall.
   | { type: "launchAttack"; payload: { targetX: number; targetY: number; strength: number } }
   // Citadel 34: one-way gift of goods to another player (no alliance state).
-  | { type: "gift"; payload: { to: number; good: string; amount: number } };
+  | { type: "gift"; payload: { to: number; good: string; amount: number } }
+  // Citadel 35 (netcode): the server injects this before a peer's command to
+  // route subsequent commands to that peer's player (multi-writer). Part of the
+  // deterministic command stream so the log replays byte-identically.
+  | { type: "setActivePlayer"; payload: { id: number } };

@@ -11,7 +11,7 @@ import type { BuildingSnapshot, RaiderSnapshot, RenderSnapshot } from "@citadel/
 function mkRoad(x: number, y: number): BuildingSnapshot {
   return {
     type: "road", x, y, w: 1, h: 1,
-    connected: true, outputBuffer: 0, workerCount: 0,
+    connected: true, outputBuffer: 0, workerCount: 0, ownerId: 0,
     onFire: false, burning: false, level: 1,
   };
 }

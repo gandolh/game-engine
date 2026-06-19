@@ -26,7 +26,7 @@ import { buildingQuad } from "./citadel-renderer";
 
 function building(over: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y">): BuildingSnapshot {
   return {
-    w: 1, h: 1, connected: true, outputBuffer: 0, workerCount: 0,
+    w: 1, h: 1, connected: true, outputBuffer: 0, workerCount: 0, ownerId: 0,
     onFire: false, burning: false, level: 1, ...over,
   };
 }

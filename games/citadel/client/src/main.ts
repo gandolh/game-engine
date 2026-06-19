@@ -13,6 +13,7 @@ import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, C
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
 import { CitadelSimClient } from "./worker/sim-client";
+import { CitadelServerClient } from "./worker/server-client";
 import {
   createCitadelRenderer,
   fitCameraToCanvas,
@@ -493,9 +494,14 @@ wireDecree(decreTithe,        "tithe");
 wireDecree(decreConscription, "conscription");
 
 // ---------------------------------------------------------------------------
-// Sim client (Worker)
+// Sim client — solo runs the sim in an in-browser Worker; `?mp` drives it over
+// a WebSocket to the multi-writer @citadel/server (Citadel 35). Both transports
+// share one interface, so the rest of main.ts is transport-agnostic.
 // ---------------------------------------------------------------------------
-const client = new CitadelSimClient();
+const useServer = typeof location !== "undefined" && new URLSearchParams(location.search).has("mp");
+const client: CitadelSimClient | CitadelServerClient = useServer
+  ? new CitadelServerClient()
+  : new CitadelSimClient();
 
 let paused = false;
 let day = 1;

@@ -1,0 +1,21 @@
+{
+  "name": "@citadel/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@engine/core": "0.0.0",
+    "@citadel/sim-core": "0.0.0",
+    "ws": "8.21.0"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.1",
+    "@webgpu/types": "0.1.70",
+    "tsx": "4.22.3"
+  }
+}
