@@ -104,11 +104,18 @@ export interface CitadelSave {
   readonly commandLog: ReadonlyArray<{ tick: number; command: CitadelCommand }>;
 }
 
-// Messages sent from Worker → main thread
+/** Citadel 36: ephemeral relay messages — NEVER stamped into the command log. */
+export interface RosterEntry { readonly playerId: number; readonly alive: boolean }
+
+// Messages sent from Worker / server → main thread
 export type WorkerOutbound =
   | { type: "snapshot"; snapshot: RenderSnapshot }
   | { type: "ready" }                              // emitted once after bootstrap
-  | { type: "save-data"; save: CitadelSave };      // Phase 5: save response
+  | { type: "save-data"; save: CitadelSave }       // Phase 5: save response
+  // Citadel 36: ephemeral social layer (relayed, OFF the command log)
+  | { type: "roster"; players: readonly RosterEntry[] }
+  | { type: "presence"; playerId: number; cursorX: number; cursorY: number; tool: string }
+  | { type: "emote"; playerId: number; emote: string };
 
 // Messages sent from main thread → Worker
 export type WorkerInbound =
@@ -118,7 +125,10 @@ export type WorkerInbound =
   | { type: "speed"; multiplier: number }
   | { type: "command"; command: CitadelCommand }
   | { type: "request-save" }                       // Phase 5: request a save blob
-  | { type: "load-save"; save: CitadelSave };      // Phase 5: load from save
+  | { type: "load-save"; save: CitadelSave }        // Phase 5: load from save
+  // Citadel 36: ephemeral social layer (relayed, NEVER enqueued into the log)
+  | { type: "presence"; cursorX: number; cursorY: number; tool: string }
+  | { type: "emote"; emote: string };
 
 // ---------------------------------------------------------------------------
 // Concrete citadel command union (lives in sim-core, not in @engine/core)

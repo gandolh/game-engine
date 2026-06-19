@@ -17,7 +17,8 @@
  */
 import { bootstrapSim, makePlayerState } from "@citadel/sim-core";
 import type { CitadelSimResult } from "@citadel/sim-core/sim-bootstrap";
-import type { WorkerInbound, WorkerOutbound, RenderSnapshot } from "@citadel/sim-core/snapshot";
+import type { WorkerInbound, WorkerOutbound, RenderSnapshot, RosterEntry } from "@citadel/sim-core/snapshot";
+import { CitadelBot } from "./bot";
 
 export type SendFn = (msg: WorkerOutbound) => void;
 
@@ -45,8 +46,20 @@ export class CitadelSimHost {
   private speed = 1;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private nextPlayerId = 0;
+  private readonly bots: CitadelBot[] = [];
 
   constructor(private readonly opts: CitadelSimHostOptions = {}) {}
+
+  /**
+   * Citadel 37: add a seeded NPC bot — joins as a peer and plays through the
+   * same command surface as a human (its commands enter the authoritative log,
+   * so a bot-filled match is reproducible from `seed`). Outbound to the bot is
+   * dropped (a bot doesn't render).
+   */
+  addBot(seed: number): void {
+    const peer = this.attach(() => {});
+    this.bots.push(new CitadelBot(this, peer, seed));
+  }
 
   /** Number of connected peers (test/diagnostic helper). */
   get peerCount(): number {
@@ -62,6 +75,7 @@ export class CitadelSimHost {
       // Late join into a running room: ensure a PlayerState exists, then snapshot.
       this.ensurePlayer(playerId);
       this.sendSnapshotTo(peer);
+      this.broadcastRoster();
     }
     send({ type: "ready" });
     return peer;
@@ -101,7 +115,36 @@ export class CitadelSimHost {
       case "load-save":
         // Not supported on a shared multi-writer room (would desync live peers).
         return;
+      // Citadel 36: ephemeral social layer — RELAYED, never enqueued into the
+      // command stream, so the authoritative log + saves/replay stay deterministic.
+      case "presence": {
+        const relay: WorkerOutbound = {
+          type: "presence",
+          playerId: peer.playerId,
+          cursorX: msg.cursorX,
+          cursorY: msg.cursorY,
+          tool: msg.tool,
+        };
+        for (const other of this.peers) if (other !== peer) other.send(relay);
+        return;
+      }
+      case "emote": {
+        const relay: WorkerOutbound = { type: "emote", playerId: peer.playerId, emote: msg.emote };
+        for (const other of this.peers) other.send(relay);
+        return;
+      }
     }
+  }
+
+  /** Citadel 36: broadcast the live roster (who's present + alive). Ephemeral. */
+  private broadcastRoster(): void {
+    if (this.sim === null) return;
+    const present = new Set([...this.peers].map((p) => p.playerId));
+    const players: RosterEntry[] = this.sim.state.players
+      .filter((p) => present.has(p.id))
+      .map((p) => ({ playerId: p.id, alive: !p.gameOver }));
+    const msg: WorkerOutbound = { type: "roster", players };
+    for (const peer of this.peers) peer.send(msg);
   }
 
   /** The authoritative sim (test/diagnostic accessor). */
@@ -143,9 +186,12 @@ export class CitadelSimHost {
   /** Advance the sim one tick + fan out snapshots. Drained: queued commands. */
   step(): void {
     if (this.sim === null) return;
+    // Citadel 37: bots decide + submit commands BEFORE the tick drains the queue.
+    for (const bot of this.bots) bot.update();
     this.sim.scheduler.tick({ tick: this.tick });
     this.tick += 1;
     this.broadcastSnapshot();
+    this.broadcastRoster();
   }
 
   stop(): void {
