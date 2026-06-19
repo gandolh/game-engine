@@ -1,5 +1,5 @@
 
-import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS } from "../../ap";
+import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS } from "../../economy/ap";
 import { SHRINE_REGION_ID } from "../../../world/regions";
 import type { ActingFarmer } from "../types";
 

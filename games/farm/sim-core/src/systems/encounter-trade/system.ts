@@ -18,7 +18,7 @@ import {
 import { PERFORMATIVE } from "../../protocols/performatives";
 import { getPeerTradeHooks } from "../../agents/peer-trade-registry";
 import type { TradeCommodity } from "../../agents/peer-trade-policy";
-import { applyTrustDelta, DEFAULT_TRUST_CONFIG } from "../trust";
+import { applyTrustDelta, DEFAULT_TRUST_CONFIG } from "../cognition/trust";
 import { OFFER_TTL_TICKS, GIFT_TRUST_DELTA, ENCOUNTER_ONTOLOGIES } from "./constants";
 
 interface PendingOffer {

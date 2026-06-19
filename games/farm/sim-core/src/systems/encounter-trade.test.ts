@@ -2,7 +2,7 @@ import { ZERO_CROPS } from "../economy";
 import { describe, expect, it, beforeEach } from "vitest";
 import { MessageBus, World } from "@engine/core";
 import type { GameEntity, CropKind } from "../components";
-import { EncounterSystem } from "./encounter";
+import { EncounterSystem } from "./social/encounter";
 import { EncounterTradeSystem, OFFER_TTL_TICKS } from "./encounter-trade";
 import { ONT_ENCOUNTER, type OfferSeedBody } from "../protocols/encounter";
 import { PERFORMATIVE } from "../protocols/performatives";

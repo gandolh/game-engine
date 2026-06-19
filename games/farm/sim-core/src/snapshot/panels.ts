@@ -1,6 +1,6 @@
 
 
-import type { RunHistoryRow } from "../systems/run-history";
+import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { LeaderboardRow } from "./ui-types";
 import type { ItemRef } from "../components/items";
 

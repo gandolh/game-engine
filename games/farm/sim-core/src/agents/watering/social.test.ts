@@ -7,7 +7,7 @@ import {
 import { _resetComponentMap } from "../../world/connectivity";
 import type { GameEntity } from "../../components";
 import { SHRINE_REGION_ID, getRegion } from "../../world/regions";
-import { SHRINE_COOLDOWN_DAYS } from "../../systems/ap";
+import { SHRINE_COOLDOWN_DAYS } from "../../systems/economy/ap";
 
 afterEach(() => {
   _resetComponentMap();

@@ -1,9 +1,9 @@
 import { World } from "@engine/core";
 import type { MessageBus, Rng } from "@engine/core";
 import type { GameEntity } from "../components";
-import { WeatherSystem } from "../systems/weather";
-import { CropGrowthSystem } from "../systems/crop-growth";
-import { ApSystem } from "../systems/ap";
+import { WeatherSystem } from "../systems/world-time/weather";
+import { CropGrowthSystem } from "../systems/farming/crop-growth";
+import { ApSystem } from "../systems/economy/ap";
 
 export function spawnWeatherStation(world: World<GameEntity>): GameEntity {
   return world.spawn({

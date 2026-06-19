@@ -25,7 +25,7 @@ import {
   UPGRADE_MATERIAL,
   HIRE_HELP_GOLD_COST,
 } from "../constants";
-import { maxApForDay, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "../../ap";
+import { maxApForDay, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "../../economy/ap";
 import type { ActingFarmer } from "../types";
 
 function sendBusMessage(

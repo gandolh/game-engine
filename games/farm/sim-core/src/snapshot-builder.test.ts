@@ -458,7 +458,7 @@ describe("AI farmer sprites carry a bubble field", () => {
   });
 });
 
-import { DRY_DEATH_GRACE_DAYS } from "./systems/crop-growth";
+import { DRY_DEATH_GRACE_DAYS } from "./systems/farming/crop-growth";
 import {
   UNTINTED_RGBA,
   EXHAUSTED_AP_FRACTION,

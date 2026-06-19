@@ -29,5 +29,5 @@ export type {
 } from "../protocol/messages";
 
 export type { LeaderboardRow, RelationshipMatrixData } from "./ui-types";
-export type { RunHistoryRow } from "../systems/run-history";
+export type { RunHistoryRow } from "../systems/messaging/run-history";
 export type { RunRecap } from "../run-recap";

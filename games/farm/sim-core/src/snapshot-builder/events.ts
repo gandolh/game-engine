@@ -1,4 +1,4 @@
-import type { MeetIndicatorSystem } from "../systems/meet-indicator";
+import type { MeetIndicatorSystem } from "../systems/social/meet-indicator";
 import type { EventFeedSystem } from "../systems/event-feed";
 import type { SnapshotMeet, SnapshotEvent } from "../snapshot";
 import { EVENT_SNAPSHOT_CAP } from "./constants";

@@ -1,6 +1,6 @@
 
 
-import type { RunHistoryRow } from "../systems/run-history";
+import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { FinalStandingRow, SnapshotRivalry } from "../snapshot";
 import type { EventEntry } from "../systems/event-feed";
 import { midpointDay, buildRankMap, farmerArc, buildHeadline } from "./internal";

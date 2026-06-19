@@ -8,7 +8,7 @@ import type {
   SnapshotRivalry,
   SnapshotWealthSeries,
 } from "../snapshot";
-import type { RunHistoryRow } from "../systems/run-history";
+import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { RivalrySystem } from "../systems/rivalry";
 import { MAX_WEALTH_ROWS } from "./constants";
 

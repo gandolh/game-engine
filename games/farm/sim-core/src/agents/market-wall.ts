@@ -1,6 +1,6 @@
 import type { World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity } from "../components";
-import { MarketSystem } from "../systems/market";
+import { MarketSystem } from "../systems/economy/market";
 import { ShopkeeperSystem } from "../systems/shopkeeper";
 import { AuctionSystem } from "../systems/auction";
 

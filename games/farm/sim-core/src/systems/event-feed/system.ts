@@ -17,10 +17,10 @@ import {
   type ContractMissedBody,
 } from "../../protocols/harbor";
 import { ONT_CORAL, type CoralCaughtBody } from "../../protocols/coral";
-import type { DayClockSystem } from "../day-clock";
+import type { DayClockSystem } from "../world-time/day-clock";
 import type { RivalrySystem } from "../rivalry";
-import type { RunHistorySystem } from "../run-history";
-import { dramaScore } from "../drama";
+import type { RunHistorySystem } from "../messaging/run-history";
+import { dramaScore } from "../social/drama";
 import { type EventEntry, type TradeCompletedBody, EVENT_FEED_CAP } from "./types";
 
 export class EventFeedSystem implements System {

@@ -1,9 +1,9 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
-import type { DayClockSystem } from "../systems/day-clock";
-import type { MeetIndicatorSystem } from "../systems/meet-indicator";
+import type { DayClockSystem } from "../systems/world-time/day-clock";
+import type { MeetIndicatorSystem } from "../systems/social/meet-indicator";
 import type { EventFeedSystem } from "../systems/event-feed";
-import type { RunHistoryRow } from "../systems/run-history";
+import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { RivalrySystem } from "../systems/rivalry";
 import type {
   RenderSnapshot,

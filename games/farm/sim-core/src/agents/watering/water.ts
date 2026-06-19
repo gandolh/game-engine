@@ -1,6 +1,6 @@
 import type { GameEntity } from "../../components";
 import { recordReason } from "../../components";
-import type { PlotWaterSense } from "../../systems/plot-sense";
+import type { PlotWaterSense } from "../../systems/farming/plot-sense";
 import { REGIONS } from "../../world/regions";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestWaterSource, nearestTile } from "./shared";

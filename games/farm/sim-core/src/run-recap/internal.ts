@@ -1,4 +1,4 @@
-import type { RunHistoryRow } from "../systems/run-history";
+import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { EventEntry } from "../systems/event-feed";
 import type { RecapStanding } from "./types";
 

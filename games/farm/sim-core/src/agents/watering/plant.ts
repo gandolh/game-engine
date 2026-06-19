@@ -12,7 +12,7 @@ export function deliberatePlantNearby(
   priority: number,
 ): boolean {
   if (!farmer.intentions) return false;
-  const sense = farmer.beliefs?.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
+  const sense = farmer.beliefs?.data.plotWater as import("../../systems/farming/plot-sense").PlotWaterSense | undefined;
   const emptyPlots = sense?.emptyPlots ?? [];
   if (emptyPlots.length === 0) return false;
 

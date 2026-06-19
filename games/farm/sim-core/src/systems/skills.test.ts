@@ -13,7 +13,7 @@ import {
   grantSkillXp,
   farmerSkillLevel,
 } from "./skills";
-import { computeQuality } from "./harvest";
+import { computeQuality } from "./farming/harvest";
 import type { GameEntity } from "../components";
 
 describe("skill curve (pure)", () => {

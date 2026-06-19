@@ -4,7 +4,7 @@ import type { DecorationKind, FarmDecoration } from "../../components";
 import { isWithinReach } from "../../systems/proximity";
 import { tavernGatherTile, TAVERN_VISIT_PERIOD, festivalPodiumTile } from "./shared";
 import { SHRINE_REGION_ID, getRegion } from "../../world/regions";
-import { SHRINE_COOLDOWN_DAYS } from "../../systems/ap";
+import { SHRINE_COOLDOWN_DAYS } from "../../systems/economy/ap";
 import { sameComponent } from "../../world/connectivity";
 import { RIVAL_CUTOFF } from "../../systems/rivalry";
 
@@ -132,7 +132,7 @@ export function deliberateShrineVisit(
   if (last !== undefined && day - last < SHRINE_COOLDOWN_DAYS) return;
   const apFraction = farmer.ap.max > 0 ? farmer.ap.current / farmer.ap.max : 1;
   if (apFraction > 0.55) return;
-  const sense = farmer.beliefs.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
+  const sense = farmer.beliefs.data.plotWater as import("../../systems/farming/plot-sense").PlotWaterSense | undefined;
   if (sense && sense.maxDrySoFar >= 2) return;
   if (farmer.intentions.queue.some((i) => i.kind === "pray-at-shrine")) return;
 
@@ -176,7 +176,7 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   const offset = ((farmer.id ?? 0) % TAVERN_VISIT_PERIOD);
   if (day % TAVERN_VISIT_PERIOD !== offset) return;
   if ((farmer.ap?.current ?? 0) < 40) return;
-  const sense = farmer.beliefs.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
+  const sense = farmer.beliefs.data.plotWater as import("../../systems/farming/plot-sense").PlotWaterSense | undefined;
   if (sense && sense.maxDrySoFar >= 2) return;
   const tavern = tavernGatherTile();
   if (isWithinReach(farmer.transform, tavern.x, tavern.y)) return;
@@ -205,7 +205,7 @@ export function deliberateFestivalGather(farmer: GameEntity, priority: number): 
   const phase = farmer.beliefs.data.phase as string | undefined;
   if (phase !== "morning" && phase !== "work") return;
   if ((farmer.ap?.current ?? 0) < 40) return;
-  const sense = farmer.beliefs.data.plotWater as import("../../systems/plot-sense").PlotWaterSense | undefined;
+  const sense = farmer.beliefs.data.plotWater as import("../../systems/farming/plot-sense").PlotWaterSense | undefined;
   if (sense && sense.maxDrySoFar >= 2) return;
   const podium = festivalPodiumTile();
   if (isWithinReach(farmer.transform, podium.x, podium.y)) return;

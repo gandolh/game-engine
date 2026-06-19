@@ -2,7 +2,7 @@
 
 import type { SimContext, System, World, Rng, MessageBus } from "@engine/core";
 import type { GameEntity } from "../../components";
-import { applyTrustDelta } from "../trust";
+import { applyTrustDelta } from "../cognition/trust";
 import { ONT_SIMULATION } from "../../protocols/simulation";
 import { ONT_COMBAT, type CombatContext, type CombatResultBody } from "../../protocols/combat";
 import { getRegion, RING_REGION_ID } from "../../world/regions";

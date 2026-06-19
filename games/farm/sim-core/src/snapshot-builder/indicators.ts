@@ -1,8 +1,8 @@
 
 import { EDG, rgbOf } from "@engine/core/render";
 import type { GameEntity, PlotState } from "../components";
-import { DRY_DEATH_GRACE_DAYS } from "../systems/crop-growth";
-import { maxApForDay } from "../systems/ap";
+import { DRY_DEATH_GRACE_DAYS } from "../systems/farming/crop-growth";
+import { maxApForDay } from "../systems/economy/ap";
 
 export const UNTINTED_RGBA = 0xffffffff;
 
