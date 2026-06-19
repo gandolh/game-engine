@@ -127,10 +127,10 @@ export interface RiverParams {
   readonly width: number;
 }
 
-/** Derive the river parameters as a pure function of the seed. */
-export function riverParams(seed: number): RiverParams {
+/** Derive the river parameters as a pure function of the seed (+ world width). */
+export function riverParams(seed: number, w: number = WORLD_WIDTH): RiverParams {
   const rng = createRng(seed).fork("terrain-gen");
-  const centerX = rng.range(WORLD_WIDTH * 0.3, WORLD_WIDTH * 0.7);
+  const centerX = rng.range(w * 0.3, w * 0.7);
   const amplitude = rng.range(4, 12);
   const freq = rng.range(0.03, 0.07);
   const width = rng.range(3, 6);
@@ -151,15 +151,14 @@ export function riverParams(seed: number): RiverParams {
  * The steering is a cosine falloff confined to a thin band near each edge, so
  * interior rows (where buildings are placed) keep the original sine path.
  */
-export function riverColAtRow(seed: number, ty: number): number {
-  const { centerX, amplitude, freq } = riverParams(seed);
+export function riverColAtRow(seed: number, ty: number, w: number = WORLD_WIDTH, h: number = WORLD_HEIGHT): number {
+  const { centerX, amplitude, freq } = riverParams(seed, w);
   const base = centerX + Math.sin(ty * freq) * amplitude;
 
-  const [topMouth, bottomMouth] = edgeWaterColumns(seed);
+  const [topMouth, bottomMouth] = edgeWaterColumns(seed, w, h);
 
   // Steer toward the mouth columns only within `band` rows of each edge.
   const band = 6;
-  const h = WORLD_HEIGHT;
 
   if (ty <= band) {
     // Weight 1 at ty=0 → 0 at ty=band (smooth cosine ease).
@@ -181,16 +180,16 @@ export function riverColAtRow(seed: number, ty: number): number {
  * align with the coherent edge gaps. Both are clamped a couple tiles inside the
  * border so a full-width river band stays on-map.
  */
-export function edgeWaterColumns(seed: number): readonly [number, number] {
-  const { centerX, amplitude, freq, width } = riverParams(seed);
+export function edgeWaterColumns(seed: number, w: number = WORLD_WIDTH, h: number = WORLD_HEIGHT): readonly [number, number] {
+  const { centerX, amplitude, freq, width } = riverParams(seed, w);
   const margin = Math.ceil(width) + 1;
   const lo = margin;
-  const hi = WORLD_WIDTH - 1 - margin;
+  const hi = w - 1 - margin;
   const clamp = (v: number) => Math.max(lo, Math.min(hi, v));
   // The natural sine positions at the two edges, rounded to whole columns so
   // the carved mouth is a stable integer target.
   const top = clamp(Math.round(centerX + Math.sin(0 * freq) * amplitude));
-  const bottom = clamp(Math.round(centerX + Math.sin((WORLD_HEIGHT - 1) * freq) * amplitude));
+  const bottom = clamp(Math.round(centerX + Math.sin((h - 1) * freq) * amplitude));
   return [top, bottom];
 }
 
@@ -202,8 +201,12 @@ export function edgeWaterColumns(seed: number): readonly [number, number] {
  * Generate a deterministic 96×96 terrain grid from a seed.
  * Same seed → identical grid; different seeds → different grids.
  */
-export function generateTerrain(seed: number): TerrainGrid {
-  const cells = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
+export function generateTerrain(
+  seed: number,
+  width: number = WORLD_WIDTH,
+  height: number = WORLD_HEIGHT,
+): TerrainGrid {
+  const cells = new Uint8Array(width * height);
 
   // Separate noise instances for different layers
   const baseNoise = new SeededNoise((seed ^ 0xdeadbeef) >>> 0);
@@ -218,26 +221,26 @@ export function generateTerrain(seed: number): TerrainGrid {
   // The river channel geometry itself is owned by the pure riverColAtRow()
   // helper, which rederives the same draws from the seed via riverParams().
   const rng = createRng(seed).fork("terrain-gen");
-  rng.range(WORLD_WIDTH * 0.3, WORLD_WIDTH * 0.7); // river centerX
+  rng.range(width * 0.3, width * 0.7); // river centerX
   rng.range(4, 12); // river amplitude
   rng.range(0.03, 0.07); // river freq
   const riverWidth = rng.range(3, 6);
 
   // Lake: a circular body of water somewhere in the world.
-  const lakeCX = rng.range(10, WORLD_WIDTH - 10);
-  const lakeCY = rng.range(10, WORLD_HEIGHT - 10);
+  const lakeCX = rng.range(10, width - 10);
+  const lakeCY = rng.range(10, height - 10);
   const lakeR = rng.range(5, 10);
 
-  for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+  for (let ty = 0; ty < height; ty++) {
     // River center column at this row — pure function of (seed, ty), with
     // guaranteed mouth contact at the top and bottom edges.
-    const riverX = riverColAtRow(seed, ty);
+    const riverX = riverColAtRow(seed, ty, width, height);
 
-    for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-      const idx = ty * WORLD_WIDTH + tx;
+    for (let tx = 0; tx < width; tx++) {
+      const idx = ty * width + tx;
 
-      const nx = tx / WORLD_WIDTH;
-      const ny = ty / WORLD_HEIGHT;
+      const nx = tx / width;
+      const ny = ty / height;
 
       // --- Water: river + lake ---
       const distToRiver = Math.abs(tx - riverX);
@@ -281,7 +284,7 @@ export function generateTerrain(seed: number): TerrainGrid {
     }
   }
 
-  return { cells, width: WORLD_WIDTH, height: WORLD_HEIGHT };
+  return { cells, width, height };
 }
 
 /**

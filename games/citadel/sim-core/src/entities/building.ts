@@ -83,6 +83,8 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   tower:    { w: 2, h: 2 }, // defensive strength contributor
   garrison: { w: 3, h: 2 }, // houses soldiers, worker/pop sink
   keep:     { w: 3, h: 3 }, // the heart; if sacked → game-over
+  // Citadel 29 (MP): each player's match-start anchor; sacked → elimination.
+  "town-hall": { w: 3, h: 3 },
   // Phase 4.5: hazard mitigation
   well:    { w: 1, h: 1 }, // reduces fire ignition chance nearby
   healer:  { w: 2, h: 2 }, // reduces disease onset and mortality
@@ -97,6 +99,7 @@ export const SERVICE_RADII: Readonly<Record<string, number>> = {
   tower: 6,
   garrison: 8,
   keep: 10,
+  "town-hall": 10,
   // Phase 4.5: hazard mitigation radii
   well: 5,
   healer: 8,
@@ -282,6 +285,18 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
   },
   keep: {
     workerSlots: 2,
+    isKeep: true,
+    ticksPerCycle: 20,
+    defenseStrength: 8,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  // Citadel 29 (MP): the town-hall is each player's anchor — placed at match
+  // start on an unclaimed tile, NOT tier-locked (so it's the first building).
+  // Reuses the keep's anchor semantics (sets keepPosition; sacking it ends the
+  // player's run — the elimination point consumed by brief 32).
+  "town-hall": {
+    workerSlots: 0,
     isKeep: true,
     ticksPerCycle: 20,
     defenseStrength: 8,

@@ -3,7 +3,7 @@ import type { System, SimContext } from "@engine/core";
 import type { CitadelCommand, BuildingSnapshot, VillagerSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
 import { DayClockSystem } from "./systems/day-clock";
 import { TierSystem, TIER_LOCK, tierAtLeast } from "./systems/tiers";
-import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "./world/terrain";
+import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH as DEFAULT_WORLD_WIDTH, WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
 import {
@@ -35,6 +35,14 @@ export interface CitadelSimOptions {
   maxDays: number;
   /** Starting day offset (default 0). Used to begin the sim partway through the year. */
   startDay?: number;
+  /**
+   * Citadel 29: world dimensions. Default to the engine constants (96×96) so
+   * solo play + tests + the determinism baseline are unchanged. The MP server
+   * passes a larger world (e.g. 256×256) — every grid-sized allocation, the
+   * pathfinder, region baking, and the snapshot extents track this size.
+   */
+  worldWidth?: number;
+  worldHeight?: number;
 }
 
 const DAYS_PER_YEAR = 16;
@@ -131,7 +139,13 @@ export function loadFromSave(save: CitadelSave): CitadelSimResult {
 export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const { seed, ticksPerDay } = opts;
 
-  const terrain = generateTerrain(seed);
+  // Citadel 29: configurable world size. These locals shadow the engine
+  // defaults so every WORLD_WIDTH/WORLD_HEIGHT use below tracks the configured
+  // dimensions (terrain, occupancy, road grid, pathfinder, snapshot extents).
+  const WORLD_WIDTH = opts.worldWidth ?? DEFAULT_WORLD_WIDTH;
+  const WORLD_HEIGHT = opts.worldHeight ?? DEFAULT_WORLD_HEIGHT;
+
+  const terrain = generateTerrain(seed, WORLD_WIDTH, WORLD_HEIGHT);
 
   const buildingWorld = new World<BuildingEntity>();
   const villagerWorld = new World<VillagerEntity>();
