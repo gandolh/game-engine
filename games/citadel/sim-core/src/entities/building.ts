@@ -38,6 +38,12 @@ export interface BuildingComponent {
   readonly w: number;
   /** Footprint height in tiles */
   readonly h: number;
+  /**
+   * Owning player id (Citadel 28). Single-player is the 1-player case where
+   * every building is owned by player 0. Per-player systems group buildings by
+   * this id; iteration over players is in stable id order for determinism.
+   */
+  readonly ownerId: number;
 }
 
 /** ECS entity shape for buildings in Citadel. */

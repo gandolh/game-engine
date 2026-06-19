@@ -17,6 +17,8 @@ export type VillagerFsm =
 
 export interface VillagerComponent {
   id: number;
+  /** Owning player id (Citadel 28). Solo = all villagers owned by player 0. */
+  ownerId: number;
   homeX: number;
   homeY: number;
   workX: number;

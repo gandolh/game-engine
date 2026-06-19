@@ -698,7 +698,7 @@ function runOneSim(
         }
       }
     }
-    if (sim.state.gameOver) break;
+    if (sim.gameOver) break;
   }
   const final = sim.getSnapshot(totalTicks);
   return { fires: fireEvents, deaths: deathEvents, finalPop: final.population, events: allEvents };
@@ -789,8 +789,8 @@ function main(): void {
     // Inject raw materials before each day boundary so converters always have input.
     // Both injections are deterministic: fixed amounts, same every day.
     if (tick % TICKS_PER_DAY === 0) {
-      if (injectWoodPerDay > 0) sim.state.stockpiles.wood  += injectWoodPerDay;
-      if (injectStonePerDay > 0) sim.state.stockpiles.stone += injectStonePerDay;
+      if (injectWoodPerDay > 0) sim.stockpiles.wood  += injectWoodPerDay;
+      if (injectStonePerDay > 0) sim.stockpiles.stone += injectStonePerDay;
     }
 
     scheduler.tick({ tick });
@@ -835,7 +835,7 @@ function main(): void {
       }
     }
 
-    if (sim.state.gameOver) break;
+    if (sim.gameOver) break;
   }
 
   const final = getSnapshot(totalTicks);

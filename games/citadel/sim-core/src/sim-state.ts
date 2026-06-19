@@ -1,11 +1,17 @@
 /**
- * Shared mutable sim state for Citadel Phase 2.
+ * Shared mutable sim state for Citadel.
  *
  * The SimContext from @engine/core only carries `tick`, so cross-system state
- * (stockpiles, road grid, building runtime state, population) lives here. The
- * bootstrap constructs one SimState and hands a reference to every system;
- * systems read & mutate it in place. Everything in here is deterministic —
- * no wall-clock, no Math.random.
+ * lives here. The bootstrap constructs one SimState and hands a reference to
+ * every system; systems read & mutate it in place. Everything in here is
+ * deterministic — no wall-clock, no Math.random.
+ *
+ * Citadel 28 (MP foundation): per-player economy/needs/territory/army/hazard
+ * state moved onto a first-class `PlayerState`; `SimState.players` holds one per
+ * player. Single-player is the `players.length === 1` case — no separate path.
+ * SHARED (not per-player): terrain, the world grid/occupancy/roads, the tick
+ * clock, the ECS worlds, the command log, the event ring. Per-player systems
+ * iterate `state.players` in stable id order (determinism).
  */
 import type { World } from "@engine/core";
 import { OccupancyGrid } from "@engine/core";
@@ -55,31 +61,17 @@ export interface RaiderState {
   resolved: boolean; // whether this raid has been resolved
 }
 
-export interface SimState {
-  readonly width: number;
-  readonly height: number;
-  readonly ticksPerDay: number;
-  readonly daysPerYear: number;
+/**
+ * Citadel 28: all per-player state. One per player; single-player owns exactly
+ * one (`id === 0`). Per-player systems loop `state.players` and act on each
+ * player's own fields + the buildings/villagers carrying its `ownerId`.
+ */
+export interface PlayerState {
+  /** Stable player id. Solo = 0. Iteration order = ascending id (determinism). */
+  readonly id: number;
 
-  /** ECS worlds (separate for buildings vs villagers). */
-  readonly buildingWorld: World<BuildingEntity>;
-  readonly villagerWorld: World<VillagerEntity>;
-
-  /** Footprint occupancy (buildings + roads). */
-  readonly occupancy: OccupancyGrid;
-
-  /** Road grid: 1 = road tile, 0 = not road. Length width*height. */
-  readonly roadGrid: Uint8Array;
-
-  /** Set of tile indices (ty*width+tx) covered by building footprints. */
-  readonly buildingTiles: Set<number>;
-
-  /** Per-building runtime economy state, keyed by ECS entity id. */
-  readonly buildingState: Map<number, BuildingRuntimeState>;
-
-  /** Global goods pool. */
+  /** Goods pool. */
   readonly stockpiles: Stockpiles;
-
   /**
    * Citadel 09 (tithe decree): a second goods pool, separate from `stockpiles`.
    * Filled daily by the tithe siphon; drawn down to cushion starvation and to
@@ -87,32 +79,17 @@ export interface SimState {
    */
   readonly reliefReserve: Stockpiles;
 
-  /** Monotonic id allocator for villagers. */
-  nextVillagerId: number;
-
-  /** Connectivity dirty flag — set when buildings/roads change. */
-  connectivityDirty: boolean;
-
   /** Population bookkeeping. */
   population: number;
   popCap: number;
   hungerDays: number;
+  /** This player's run is over (starved out / sacked). Solo: the whole game. */
   gameOver: boolean;
 
   /** Food surplus (bread produced minus consumed) over the last day. */
   foodSurplus: number;
-
   /** Per-day bread consumption snapshot (for surplus reporting). */
   lastDayBreadStart: number;
-
-  /** Event ring buffer (max 20 entries). */
-  readonly events: string[];
-
-  /** Seeded RNG root (forked per-system by label). */
-  readonly rng: Rng;
-
-  /** Current day, mirrored from the day clock for systems that need it. */
-  day: number;
 
   // Phase 3: happiness + needs
   happiness: number;          // 0..100
@@ -136,8 +113,8 @@ export interface SimState {
   nextRaidTick: number;               // tick when next raid spawns (-1 = unscheduled)
   raidCount: number;                  // total raids spawned so far
   defensiveStrength: number;          // computed each tick: walls + towers + garrison
-  readonly raiders: RaiderState[];    // active raider entities
-  keepPosition: { x: number; y: number } | null; // where the keep is (for raider pathing)
+  readonly raiders: RaiderState[];    // active raider entities targeting this player
+  keepPosition: { x: number; y: number } | null; // where the keep / town-hall is
   keepSacked: boolean;                // true if keep was destroyed
 
   // Phase 4.5: hazard state
@@ -147,6 +124,94 @@ export interface SimState {
 
   // Phase 5: settlement tier
   tier: SettlementTier;
+
+  /**
+   * Citadel 30: this player's claimed territory — tile indices (ty*width+tx)
+   * within influence radius of the player's owned buildings. Derived pass;
+   * empty until brief 30 fills it.
+   */
+  readonly territory: Set<number>;
+}
+
+/** Initial per-player state — matches the historical single-player init. */
+export function makePlayerState(id: number): PlayerState {
+  return {
+    id,
+    stockpiles: emptyStockpiles(),
+    reliefReserve: emptyStockpiles(),
+    population: 0,
+    popCap: 0,
+    hungerDays: 0,
+    gameOver: false,
+    foodSurplus: 0,
+    lastDayBreadStart: 0,
+    happiness: 40,
+    faithCoverage: 0,
+    safetyCoverage: 0,
+    goodsCoverage: 0,
+    activeDecrees: new Set<string>(),
+    traderPresent: false,
+    traderArrivalDay: -1,
+    traderDepartDay: 0,
+    traderOffers: [],
+    wallTiles: new Set<number>(),
+    gateTiles: new Set<number>(),
+    threatLevel: 0,
+    nextRaidTick: -1,
+    raidCount: 0,
+    defensiveStrength: 0,
+    raiders: [],
+    keepPosition: null,
+    keepSacked: false,
+    fireState: new Map<number, BuildingFireState>(),
+    sickVillagers: 0,
+    outbreakActive: false,
+    tier: "Hamlet",
+    territory: new Set<number>(),
+  };
+}
+
+export interface SimState {
+  readonly width: number;
+  readonly height: number;
+  readonly ticksPerDay: number;
+  readonly daysPerYear: number;
+
+  /** ECS worlds (separate for buildings vs villagers). */
+  readonly buildingWorld: World<BuildingEntity>;
+  readonly villagerWorld: World<VillagerEntity>;
+
+  /** Footprint occupancy (buildings + roads). Shared physical grid. */
+  readonly occupancy: OccupancyGrid;
+
+  /** Road grid: 1 = road tile, 0 = not road. Length width*height. Shared. */
+  readonly roadGrid: Uint8Array;
+
+  /** Set of tile indices (ty*width+tx) covered by building footprints. Shared. */
+  readonly buildingTiles: Set<number>;
+
+  /** Per-building runtime economy state, keyed by ECS entity id. */
+  readonly buildingState: Map<number, BuildingRuntimeState>;
+
+  /** Monotonic id allocator for villagers. */
+  nextVillagerId: number;
+
+  /** Connectivity dirty flag — set when buildings/roads change. */
+  connectivityDirty: boolean;
+
+  /** Event ring buffer (max 20 entries). Shared across players. */
+  readonly events: string[];
+
+  /** Seeded RNG root (forked per-system by label). */
+  readonly rng: Rng;
+
+  /** Current day, mirrored from the day clock for systems that need it. */
+  day: number;
+
+  /** Players (Citadel 28). Solo = `[player0]`. Stable ascending-id order. */
+  readonly players: PlayerState[];
+  /** The local player's id (the solo player / this client). Default 0. */
+  localId: number;
 
   /**
    * Phase 5: command log for save/load.
@@ -161,6 +226,18 @@ const MAX_EVENTS = 20;
 export function pushEvent(state: SimState, msg: string): void {
   state.events.push(msg);
   while (state.events.length > MAX_EVENTS) state.events.shift();
+}
+
+/** The local / single player. In solo this is the one and only player. */
+export function localPlayer(state: SimState): PlayerState {
+  const p = state.players[state.localId] ?? state.players.find((q) => q.id === state.localId);
+  if (p === undefined) throw new Error(`no local player (id ${state.localId})`);
+  return p;
+}
+
+/** Look up a player by id (stable). */
+export function playerById(state: SimState, id: number): PlayerState | undefined {
+  return state.players.find((p) => p.id === id);
 }
 
 /** Walkability predicate for villagers: road tiles OR building footprint tiles. */

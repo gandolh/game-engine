@@ -7,7 +7,7 @@
  * per tick — so the schedule is fully deterministic for a given seed.
  */
 import type { System, SimContext, Rng } from "@engine/core";
-import type { SimState, RaiderState } from "../sim-state";
+import type { SimState, RaiderState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import { bfsPath } from "../world/pathfinder";
 import { isWalkable } from "../world/terrain";
@@ -15,11 +15,15 @@ import type { TerrainGrid } from "../world/terrain";
 
 const EDGE_NAMES = ["north", "east", "south", "west"] as const;
 
-/** Raider walkability: any terrain-walkable, non-wall tile. Gates are passable. */
-export function raiderWalkable(state: SimState, terrain: TerrainGrid, tx: number, ty: number): boolean {
+/**
+ * Raider walkability: any terrain-walkable, non-wall tile. Gates are passable.
+ * Citadel 28: blocked by the TARGET player `p`'s walls (raiders besiege one
+ * player's settlement).
+ */
+export function raiderWalkable(state: SimState, p: PlayerState, terrain: TerrainGrid, tx: number, ty: number): boolean {
   if (tx < 0 || ty < 0 || tx >= state.width || ty >= state.height) return false;
   const idx = ty * state.width + tx;
-  if (state.wallTiles.has(idx)) return false; // walls block raiders
+  if (p.wallTiles.has(idx)) return false; // the target player's walls block raiders
   return isWalkable(terrain, tx, ty); // terrain walkability (no water/rough)
 }
 
@@ -48,19 +52,20 @@ export function pickEdgeSpawn(
   return { x: 0, y: Math.floor(height / 2) };
 }
 
-/** The raider target: the keep if placed, otherwise the map center. */
-export function findRaiderTarget(state: SimState): { x: number; y: number } {
-  if (state.keepPosition !== null) return state.keepPosition;
+/** The raider target: player `p`'s keep if placed, otherwise the map center. */
+export function findRaiderTarget(state: SimState, p: PlayerState): { x: number; y: number } {
+  if (p.keepPosition !== null) return p.keepPosition;
   return { x: Math.floor(state.width / 2), y: Math.floor(state.height / 2) };
 }
 
-/** Compute a raider path from (sx,sy) toward (gx,gy) using the wall-aware predicate. */
+/** Compute a raider path from (sx,sy) toward (gx,gy) using `p`'s wall-aware predicate. */
 export function computeRaiderPath(
   sx: number,
   sy: number,
   gx: number,
   gy: number,
   state: SimState,
+  p: PlayerState,
   terrain: TerrainGrid,
 ): Array<{ x: number; y: number }> | null {
   return bfsPath(
@@ -68,7 +73,7 @@ export function computeRaiderPath(
     sy,
     gx,
     gy,
-    (tx, ty) => raiderWalkable(state, terrain, tx, ty),
+    (tx, ty) => raiderWalkable(state, p, terrain, tx, ty),
     state.width,
     state.height,
   );
@@ -86,60 +91,65 @@ export class RaidSpawnSystem implements System {
   run(ctx: SimContext): void {
     const state = this.state;
 
-    // The siege game is opt-in: raids only begin once a keep exists. A pure
-    // economy town (no keep) is never raided, which keeps Phase 2/3 behavior
-    // intact. The raid clock is (re)anchored to the moment the keep appears.
-    if (state.keepPosition === null) {
-      state.nextRaidTick = -1;
-      return;
+    // Citadel 28: per-player PvE raids. Each player with a keep gets their own
+    // escalating raid schedule. ONE shared raids RNG pulled in stable player-id
+    // order → solo (player 0) byte-identical to the pre-refactor schedule.
+    for (const p of state.players) {
+      // The siege game is opt-in: raids only begin once this player has a keep.
+      // A pure economy town (no keep) is never raided. The raid clock is
+      // (re)anchored to the moment the keep appears.
+      if (p.keepPosition === null) {
+        p.nextRaidTick = -1;
+        continue;
+      }
+
+      // Schedule first raid if not yet scheduled.
+      if (p.nextRaidTick < 0) {
+        // First raid arrives around day 5.
+        p.nextRaidTick = 5 * state.ticksPerDay + this.rng.int(0, state.ticksPerDay);
+      }
+
+      if (ctx.tick < p.nextRaidTick) continue;
+
+      // Spawn a raid.
+      p.raidCount++;
+      const raidNum = p.raidCount;
+
+      // Escalating strength: base 10, +5 per raid.
+      const strength = 10 + (raidNum - 1) * 5;
+
+      // Spawn from a random map edge (N=0, E=1, S=2, W=3).
+      const edge = this.rng.int(0, 4);
+      const { x: spawnX, y: spawnY } = pickEdgeSpawn(edge, state.width, state.height, this.terrain, this.rng);
+
+      const target = findRaiderTarget(state, p);
+      const path = computeRaiderPath(spawnX, spawnY, target.x, target.y, state, p, this.terrain);
+
+      const raider: RaiderState = {
+        id: raidNum,
+        x: spawnX,
+        y: spawnY,
+        tileX: spawnX,
+        tileY: spawnY,
+        path: path ?? [],
+        pathStep: 0,
+        strength,
+        resolved: false,
+      };
+      p.raiders.push(raider);
+
+      // Update threat level.
+      p.threatLevel = Math.min(100, p.threatLevel + 15);
+
+      // Schedule next raid: base interval 8 days, shrinking 0.5 days per raid, min 3.
+      const intervalDays = Math.max(3, 8 - (raidNum - 1) * 0.5);
+      const intervalTicks = Math.floor(intervalDays * state.ticksPerDay);
+      p.nextRaidTick = ctx.tick + intervalTicks + this.rng.int(0, state.ticksPerDay);
+
+      pushEvent(
+        state,
+        `Day ${state.day + 1}: Raid ${raidNum} spotted! Strength ${strength}. Raiders approach from the ${EDGE_NAMES[edge]!}.`,
+      );
     }
-
-    // Schedule first raid if not yet scheduled.
-    if (state.nextRaidTick < 0) {
-      // First raid arrives around day 5.
-      state.nextRaidTick = 5 * state.ticksPerDay + this.rng.int(0, state.ticksPerDay);
-    }
-
-    if (ctx.tick < state.nextRaidTick) return;
-
-    // Spawn a raid.
-    state.raidCount++;
-    const raidNum = state.raidCount;
-
-    // Escalating strength: base 10, +5 per raid.
-    const strength = 10 + (raidNum - 1) * 5;
-
-    // Spawn from a random map edge (N=0, E=1, S=2, W=3).
-    const edge = this.rng.int(0, 4);
-    const { x: spawnX, y: spawnY } = pickEdgeSpawn(edge, state.width, state.height, this.terrain, this.rng);
-
-    const target = findRaiderTarget(state);
-    const path = computeRaiderPath(spawnX, spawnY, target.x, target.y, state, this.terrain);
-
-    const raider: RaiderState = {
-      id: raidNum,
-      x: spawnX,
-      y: spawnY,
-      tileX: spawnX,
-      tileY: spawnY,
-      path: path ?? [],
-      pathStep: 0,
-      strength,
-      resolved: false,
-    };
-    state.raiders.push(raider);
-
-    // Update threat level.
-    state.threatLevel = Math.min(100, state.threatLevel + 15);
-
-    // Schedule next raid: base interval 8 days, shrinking 0.5 days per raid, min 3.
-    const intervalDays = Math.max(3, 8 - (raidNum - 1) * 0.5);
-    const intervalTicks = Math.floor(intervalDays * state.ticksPerDay);
-    state.nextRaidTick = ctx.tick + intervalTicks + this.rng.int(0, state.ticksPerDay);
-
-    pushEvent(
-      state,
-      `Day ${state.day + 1}: Raid ${raidNum} spotted! Strength ${strength}. Raiders approach from the ${EDGE_NAMES[edge]!}.`,
-    );
   }
 }

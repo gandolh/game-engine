@@ -14,8 +14,8 @@ import {
   BUILDING_MAX_LEVEL,
 } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
-import type { SimState, BuildingFireState, Stockpiles } from "./sim-state";
-import { emptyStockpiles, pushEvent, totalGoods } from "./sim-state";
+import type { SimState, Stockpiles } from "./sim-state";
+import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
 import { ProductionSystem } from "./systems/production";
 import { VillagerSystem, villagerPos } from "./systems/villager-system";
@@ -156,45 +156,15 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     roadGrid: new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT),
     buildingTiles: new Set<number>(),
     buildingState: new Map<number, BuildingRuntimeState>(),
-    stockpiles: emptyStockpiles(),
-    reliefReserve: emptyStockpiles(),
     nextVillagerId: 1,
     connectivityDirty: true,
-    population: 0,
-    popCap: 0,
-    hungerDays: 0,
-    gameOver: false,
-    foodSurplus: 0,
-    lastDayBreadStart: 0,
     events: [],
     rng: createRng(seed).fork("citadel-sim"),
     day: 0,
-    // Phase 3: happiness + needs
-    happiness: 40,
-    faithCoverage: 0,
-    safetyCoverage: 0,
-    goodsCoverage: 0,
-    activeDecrees: new Set<string>(),
-    traderPresent: false,
-    traderArrivalDay: -1,
-    traderDepartDay: 0,
-    traderOffers: [],
-    // Phase 4: siege state
-    wallTiles: new Set<number>(),
-    gateTiles: new Set<number>(),
-    threatLevel: 0,
-    nextRaidTick: -1,
-    raidCount: 0,
-    defensiveStrength: 0,
-    raiders: [],
-    keepPosition: null,
-    keepSacked: false,
-    // Phase 4.5: hazard state
-    fireState: new Map<number, BuildingFireState>(),
-    sickVillagers: 0,
-    outbreakActive: false,
-    // Phase 5: settlement tier + command log
-    tier: "Hamlet",
+    // Citadel 28: per-player state. Solo = one player (id 0); all per-player
+    // economy/needs/siege/hazard/tier fields now live on this PlayerState.
+    players: [makePlayerState(0)],
+    localId: 0,
     commandLog: [],
   };
 
@@ -251,9 +221,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const def = getBuildingDef(buildingType);
     if (def === undefined) return false;
 
+    // Citadel 28: solo commands act on the local player. (Brief 35 will route
+    // each command to its sender's player; for now there is one writer.)
+    const lp = localPlayer(state);
+
     // Tier-lock: some building types are gated behind a minimum settlement tier.
     const required = TIER_LOCK[buildingType];
-    if (required !== undefined && !tierAtLeast(state.tier, required)) {
+    if (required !== undefined && !tierAtLeast(lp.tier, required)) {
       pushEvent(state, `Day ${state.day}: A ${buildingType} requires ${required} tier.`);
       return false;
     }
@@ -308,7 +282,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     addBuildingTiles(x, y, def.w, def.h);
 
     const entity = buildingWorld.spawn({
-      building: { type: buildingType, x, y, w: def.w, h: def.h },
+      building: { type: buildingType, x, y, w: def.w, h: def.h, ownerId: lp.id },
     });
     if (entity.id !== undefined) {
       state.buildingState.set(entity.id, freshRuntime());
@@ -318,18 +292,18 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     }
     if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
       // New buildings are L1 → base capacity (unchanged behavior).
-      state.popCap += effectiveHousingCapacity(prod, 1);
+      lp.popCap += effectiveHousingCapacity(prod, 1);
     }
-    // Phase 4: special tile tracking
+    // Phase 4: special tile tracking (per-player)
     if (prod?.isGate === true) {
-      state.gateTiles.add(y * WORLD_WIDTH + x);
+      lp.gateTiles.add(y * WORLD_WIDTH + x);
     }
     if (prod?.isWall === true) {
-      state.wallTiles.add(y * WORLD_WIDTH + x);
+      lp.wallTiles.add(y * WORLD_WIDTH + x);
     }
     if (prod?.isKeep === true) {
       // Center of the 3×3 footprint.
-      state.keepPosition = { x: x + Math.floor(def.w / 2), y: y + Math.floor(def.h / 2) };
+      lp.keepPosition = { x: x + Math.floor(def.w / 2), y: y + Math.floor(def.h / 2) };
     }
     state.connectivityDirty = true;
     return true;
@@ -352,32 +326,34 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   });
 
   logged("setDecree", (cmd) => {
+    const lp = localPlayer(state);
     const { decree, active } = cmd.payload;
     if (active) {
-      state.activeDecrees.add(decree);
+      lp.activeDecrees.add(decree);
     } else {
-      state.activeDecrees.delete(decree);
+      lp.activeDecrees.delete(decree);
     }
   });
 
   logged("barter", (cmd) => {
+    const lp = localPlayer(state);
     const { offerIndex } = cmd.payload;
-    if (!state.traderPresent) return;
-    const offer = state.traderOffers[offerIndex];
+    if (!lp.traderPresent) return;
+    const offer = lp.traderOffers[offerIndex];
     if (offer === undefined) return;
-    const have = state.stockpiles[offer.give];
+    const have = lp.stockpiles[offer.give];
     if (have < offer.giveQty) return;
-    state.stockpiles[offer.give] = have - offer.giveQty;
+    lp.stockpiles[offer.give] = have - offer.giveQty;
     // Citadel 09 — TITHE better barter terms: a well-stocked relief reserve
     // (goodwill the merchant respects) sweetens the deal by +1 received good.
     // Applied here (not in trader.ts) so the canonical offers stay clean and the
     // bonus reflects the reserve state at trade time.
     const reserveBonus =
-      state.activeDecrees.has("tithe") && totalGoods(state.reliefReserve) >= RELIEF_BARTER_THRESHOLD
+      lp.activeDecrees.has("tithe") && totalGoods(lp.reliefReserve) >= RELIEF_BARTER_THRESHOLD
         ? 1
         : 0;
     const received = offer.receiveQty + reserveBonus;
-    state.stockpiles[offer.receive] = state.stockpiles[offer.receive] + received;
+    lp.stockpiles[offer.receive] = lp.stockpiles[offer.receive] + received;
     pushEvent(state, `Day ${state.day}: traded ${offer.giveQty} ${offer.give} for ${received} ${offer.receive}.`);
   });
 
@@ -387,6 +363,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       const b = entity.building;
       if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) {
         const prod = getProductionDef(b.type);
+        // Per-player fields belong to the building's owner.
+        const owner = playerById(state, b.ownerId);
         // Gates were never applied to occupancy; everything else was.
         if (prod?.isGate !== true) {
           occupancy.remove({ x: b.x, y: b.y, w: b.w, h: b.h });
@@ -396,19 +374,19 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         if (prod?.isRoad === true) {
           state.roadGrid[b.y * WORLD_WIDTH + b.x] = 0;
         }
-        if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
+        if (owner !== undefined && prod?.isHousing === true && prod.housingCapacity !== undefined) {
           // Subtract the building's level-effective capacity (read level before rs is deleted).
           const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
-          state.popCap = Math.max(0, state.popCap - effectiveHousingCapacity(prod, rs?.level ?? 1));
+          owner.popCap = Math.max(0, owner.popCap - effectiveHousingCapacity(prod, rs?.level ?? 1));
         }
-        if (prod?.isGate === true) {
-          state.gateTiles.delete(b.y * WORLD_WIDTH + b.x);
+        if (owner !== undefined && prod?.isGate === true) {
+          owner.gateTiles.delete(b.y * WORLD_WIDTH + b.x);
         }
-        if (prod?.isWall === true) {
-          state.wallTiles.delete(b.y * WORLD_WIDTH + b.x);
+        if (owner !== undefined && prod?.isWall === true) {
+          owner.wallTiles.delete(b.y * WORLD_WIDTH + b.x);
         }
-        if (prod?.isKeep === true) {
-          state.keepPosition = null;
+        if (owner !== undefined && prod?.isKeep === true) {
+          owner.keepPosition = null;
         }
         if (entity.id !== undefined) state.buildingState.delete(entity.id);
         buildingWorld.despawn(entity);
@@ -426,6 +404,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
 
       const prod = getProductionDef(b.type);
       if (prod === undefined) return;
+      const owner = playerById(state, b.ownerId);
+      if (owner === undefined) return;
       const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
       if (rs === undefined) return;
 
@@ -438,16 +418,16 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       const nextLevel = level + 1;
       // L2 = Village, L3 = Town. Reuse the enforced tier ladder via tierAtLeast.
       const reqTier = level === 1 ? "Village" : "Town";
-      if (!tierAtLeast(state.tier, reqTier)) {
+      if (!tierAtLeast(owner.tier, reqTier)) {
         pushEvent(state, `Day ${state.day}: upgrading ${b.type} to L${nextLevel} requires ${reqTier} tier.`);
         return;
       }
 
       const cost = upgradeCost(b.type, nextLevel);
-      // Affordability check across the global stockpile pool.
+      // Affordability check across the owner's stockpile pool.
       for (const [good, qty] of Object.entries(cost)) {
         if (qty === undefined) continue;
-        if (state.stockpiles[good as GoodType] < qty) {
+        if (owner.stockpiles[good as GoodType] < qty) {
           const parts = Object.entries(cost)
             .map(([g, q]) => `${q ?? 0} ${g}`)
             .join(", ");
@@ -459,12 +439,12 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       // Deduct materials.
       for (const [good, qty] of Object.entries(cost)) {
         if (qty === undefined) continue;
-        state.stockpiles[good as GoodType] -= qty;
+        owner.stockpiles[good as GoodType] -= qty;
       }
 
       rs.level = nextLevel;
       if (prod.isHousing === true && prod.housingCapacity !== undefined) {
-        state.popCap += effectiveHousingCapacity(prod, nextLevel) - effectiveHousingCapacity(prod, level);
+        owner.popCap += effectiveHousingCapacity(prod, nextLevel) - effectiveHousingCapacity(prod, level);
       }
       pushEvent(state, `Day ${state.day}: upgraded ${b.type} to L${nextLevel}.`);
       return;
@@ -535,7 +515,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
       const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
-      const fs = entity.id !== undefined ? state.fireState.get(entity.id) : undefined;
+      const owner = playerById(state, b.ownerId);
+      const fs = entity.id !== undefined ? owner?.fireState.get(entity.id) : undefined;
       result.push({
         type: b.type,
         x: b.x,
@@ -566,13 +547,17 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   }
 
   function getSnapshot(tick = 0): RenderSnapshot {
+    // Citadel 28: the snapshot shows the LOCAL player's view (solo = player 0).
+    // A later brief (36) adds a per-player roster; the top-level fields stay the
+    // local player's so the existing HUD + headless digest are unchanged.
+    const lp = localPlayer(state);
     const stock: Record<string, number> = {};
-    for (const k of Object.keys(state.stockpiles) as GoodType[]) stock[k] = state.stockpiles[k];
+    for (const k of Object.keys(lp.stockpiles) as GoodType[]) stock[k] = lp.stockpiles[k];
     let keepPresent = false;
     for (const entity of buildingWorld.query("building")) {
-      if (entity.building.type === "keep") { keepPresent = true; break; }
+      if (entity.building.ownerId === lp.id && entity.building.type === "keep") { keepPresent = true; break; }
     }
-    const nextRaidDay = state.nextRaidTick < 0 ? -1 : Math.floor(state.nextRaidTick / state.ticksPerDay);
+    const nextRaidDay = lp.nextRaidTick < 0 ? -1 : Math.floor(lp.nextRaidTick / state.ticksPerDay);
     return {
       tick,
       day: dayClock.day,
@@ -581,34 +566,34 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       buildings: getBuildings(),
       villagers: getVillagers(),
       stockpiles: stock,
-      population: state.population,
-      popCap: state.popCap,
-      foodSurplus: state.foodSurplus,
-      gameOver: state.gameOver,
+      population: lp.population,
+      popCap: lp.popCap,
+      foodSurplus: lp.foodSurplus,
+      gameOver: lp.gameOver,
       recentEvents: [...state.events],
       // Phase 3
-      happiness: state.happiness,
-      faithCoverage: state.faithCoverage,
-      safetyCoverage: state.safetyCoverage,
-      goodsCoverage: state.goodsCoverage,
-      activeDecrees: [...state.activeDecrees],
-      traderPresent: state.traderPresent,
-      traderOffers: [...state.traderOffers],
+      happiness: lp.happiness,
+      faithCoverage: lp.faithCoverage,
+      safetyCoverage: lp.safetyCoverage,
+      goodsCoverage: lp.goodsCoverage,
+      activeDecrees: [...lp.activeDecrees],
+      traderPresent: lp.traderPresent,
+      traderOffers: [...lp.traderOffers],
       // Phase 4
-      raiders: state.raiders.map((r) => ({ id: r.id, x: r.x, y: r.y, strength: r.strength })),
-      threatLevel: state.threatLevel,
+      raiders: lp.raiders.map((r) => ({ id: r.id, x: r.x, y: r.y, strength: r.strength })),
+      threatLevel: lp.threatLevel,
       nextRaidDay,
-      defensiveStrength: state.defensiveStrength,
+      defensiveStrength: lp.defensiveStrength,
       keepPresent,
-      keepSacked: state.keepSacked,
+      keepSacked: lp.keepSacked,
       // Phase 4.5: hazards
-      sickVillagers: state.sickVillagers,
-      outbreakActive: state.outbreakActive,
+      sickVillagers: lp.sickVillagers,
+      outbreakActive: lp.outbreakActive,
       activeFires: countActiveFires(state),
       // Phase 5: tier
-      tier: state.tier,
+      tier: lp.tier,
       // Citadel 09: relief reserve total (tithe payoff buffer)
-      reliefReserve: totalGoods(state.reliefReserve),
+      reliefReserve: totalGoods(lp.reliefReserve),
     };
   }
 
@@ -624,13 +609,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     getBuildings,
     getSnapshot,
     get stockpiles() {
-      return state.stockpiles;
+      return localPlayer(state).stockpiles;
     },
     get population() {
-      return state.population;
+      return localPlayer(state).population;
     },
     get gameOver() {
-      return state.gameOver;
+      return localPlayer(state).gameOver;
     },
     get roadGrid() {
       return state.roadGrid;

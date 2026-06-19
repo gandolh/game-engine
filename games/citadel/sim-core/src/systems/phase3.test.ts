@@ -5,6 +5,7 @@
  * reference allows direct inspection of Phase 3 fields.
  */
 import { describe, it, expect } from "vitest";
+import { localPlayer } from "../sim-state";
 import { bootstrapSim } from "../sim-bootstrap";
 import type { CitadelCommand } from "../snapshot/index";
 
@@ -62,7 +63,7 @@ describe("Phase 3 — happiness", () => {
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     // After one day with no service buildings: happiness = 40
-    expect(sim.state.happiness).toBe(40);
+    expect(localPlayer(sim.state).happiness).toBe(40);
   });
 
   it("chapel near a house raises faithCoverage and increases happiness", () => {
@@ -72,9 +73,9 @@ describe("Phase 3 — happiness", () => {
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",  x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "chapel", x: 13, y: 10 } });
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
-    expect(sim.state.faithCoverage).toBe(1);
+    expect(localPlayer(sim.state).faithCoverage).toBe(1);
     // happiness = 40 + 20*1 = 60 (no food surplus adjustment yet since no bread chain)
-    expect(sim.state.happiness).toBe(60);
+    expect(localPlayer(sim.state).happiness).toBe(60);
   });
 
   it("watchpost near a house raises safetyCoverage", () => {
@@ -82,8 +83,8 @@ describe("Phase 3 — happiness", () => {
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",     x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost", x: 13, y: 10 } });
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
-    expect(sim.state.safetyCoverage).toBe(1);
-    expect(sim.state.happiness).toBe(60);
+    expect(localPlayer(sim.state).safetyCoverage).toBe(1);
+    expect(localPlayer(sim.state).happiness).toBe(60);
   });
 
   it("all three service buildings near a house brings happiness to 80 without goods", () => {
@@ -95,10 +96,10 @@ describe("Phase 3 — happiness", () => {
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "market",     x: 13, y: 13 } });
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     // With no bread/grain yet, goodsCoverage = 0 (no goods in stockpile)
-    expect(sim.state.faithCoverage).toBe(1);
-    expect(sim.state.safetyCoverage).toBe(1);
-    expect(sim.state.goodsCoverage).toBe(0);
-    expect(sim.state.happiness).toBe(80); // 40 + 20 + 20 + 0
+    expect(localPlayer(sim.state).faithCoverage).toBe(1);
+    expect(localPlayer(sim.state).safetyCoverage).toBe(1);
+    expect(localPlayer(sim.state).goodsCoverage).toBe(0);
+    expect(localPlayer(sim.state).happiness).toBe(80); // 40 + 20 + 20 + 0
   });
 });
 
@@ -110,11 +111,11 @@ describe("Phase 3 — decrees", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
     sim.commands.enqueue({ type: "setDecree", payload: { decree: "workHours", active: true } });
     sim.scheduler.tick({ tick: 0 });
-    expect(sim.state.activeDecrees.has("workHours")).toBe(true);
+    expect(localPlayer(sim.state).activeDecrees.has("workHours")).toBe(true);
 
     sim.commands.enqueue({ type: "setDecree", payload: { decree: "workHours", active: false } });
     sim.scheduler.tick({ tick: 1 });
-    expect(sim.state.activeDecrees.has("workHours")).toBe(false);
+    expect(localPlayer(sim.state).activeDecrees.has("workHours")).toBe(false);
   });
 
   it("workHours decree reduces happiness by 12", () => {
@@ -124,7 +125,7 @@ describe("Phase 3 — decrees", () => {
     // Run 2 full days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     // 40 base - 12 workHours = 28
-    expect(sim.state.happiness).toBe(28);
+    expect(localPlayer(sim.state).happiness).toBe(28);
   });
 
   it("rationing decree reduces happiness by 10", () => {
@@ -134,7 +135,7 @@ describe("Phase 3 — decrees", () => {
     // Run 2 full days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     // 40 base - 10 rationing = 30
-    expect(sim.state.happiness).toBe(30);
+    expect(localPlayer(sim.state).happiness).toBe(30);
   });
 
   it("workHours decree boosts farm grain output by 30%", () => {
@@ -183,7 +184,7 @@ describe("Phase 3 — decrees", () => {
     expect(simBase.population).toBeGreaterThan(0);
     expect(simRation.population).toBeGreaterThan(0);
     // Rationing reduces consumption by 25% — verify it's reflected in the flag
-    expect(simRation.state.activeDecrees.has("rationing")).toBe(true);
+    expect(localPlayer(simRation.state).activeDecrees.has("rationing")).toBe(true);
   });
 });
 
@@ -193,8 +194,8 @@ describe("Phase 3 — decrees", () => {
 describe("Phase 3 — trader", () => {
   it("no tradingpost → trader never arrives", () => {
     const sim = run(economyCmds(), TICKS_PER_DAY * 15);
-    expect(sim.state.traderPresent).toBe(false);
-    expect(sim.state.traderOffers).toHaveLength(0);
+    expect(localPlayer(sim.state).traderPresent).toBe(false);
+    expect(localPlayer(sim.state).traderOffers).toHaveLength(0);
   });
 
   it("tradingpost causes a caravan to arrive within ~10 days", () => {
@@ -213,44 +214,44 @@ describe("Phase 3 — trader", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
 
     // Manually put grain into stockpile so we can barter
-    sim.state.stockpiles.grain = 10;
+    localPlayer(sim.state).stockpiles.grain = 10;
     // Manually inject trader state (bypassing the system)
-    sim.state.traderPresent = true;
-    sim.state.traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
+    localPlayer(sim.state).traderPresent = true;
+    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
 
     // Enqueue barter command (offerIndex 0)
     sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
     sim.scheduler.tick({ tick: 0 });
 
     // Grain should have decreased by 5; bread should have increased by 2
-    expect(sim.state.stockpiles.grain).toBe(5);
-    expect(sim.state.stockpiles.bread).toBe(2);
+    expect(localPlayer(sim.state).stockpiles.grain).toBe(5);
+    expect(localPlayer(sim.state).stockpiles.bread).toBe(2);
   });
 
   it("barter command is ignored when trader is not present", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    sim.state.stockpiles.grain = 10;
+    localPlayer(sim.state).stockpiles.grain = 10;
     // traderPresent is false by default
 
     sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
     sim.scheduler.tick({ tick: 0 });
 
     // Nothing should have changed
-    expect(sim.state.stockpiles.grain).toBe(10);
-    expect(sim.state.stockpiles.bread).toBe(0);
+    expect(localPlayer(sim.state).stockpiles.grain).toBe(10);
+    expect(localPlayer(sim.state).stockpiles.bread).toBe(0);
   });
 
   it("barter command is ignored when not enough goods", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    sim.state.stockpiles.grain = 2; // need 5
-    sim.state.traderPresent = true;
-    sim.state.traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
+    localPlayer(sim.state).stockpiles.grain = 2; // need 5
+    localPlayer(sim.state).traderPresent = true;
+    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
 
     sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
     sim.scheduler.tick({ tick: 0 });
 
-    expect(sim.state.stockpiles.grain).toBe(2); // unchanged
-    expect(sim.state.stockpiles.bread).toBe(0);
+    expect(localPlayer(sim.state).stockpiles.grain).toBe(2); // unchanged
+    expect(localPlayer(sim.state).stockpiles.bread).toBe(0);
   });
 });
 

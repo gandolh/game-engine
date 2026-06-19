@@ -6,7 +6,7 @@
  * Stage: "needs" (after economy/villagers, before immigration).
  */
 import type { System, SimContext } from "@engine/core";
-import type { SimState } from "../sim-state";
+import type { SimState, PlayerState } from "../sim-state";
 import { SERVICE_RADII } from "../entities/building";
 
 export class NeedsHappinessSystem implements System {
@@ -23,6 +23,14 @@ export class NeedsHappinessSystem implements System {
   }
 
   private _computeNeeds(): void {
+    // Citadel 28: per-player needs/happiness. Each player's coverage is computed
+    // from the houses + service buildings THEY own. Stable id-order iteration.
+    for (const p of this.state.players) {
+      this._computeNeedsFor(p);
+    }
+  }
+
+  private _computeNeedsFor(p: PlayerState): void {
     const state = this.state;
     const buildings = [...state.buildingWorld.query("building")];
 
@@ -34,6 +42,7 @@ export class NeedsHappinessSystem implements System {
     const markets: ServicePoint[] = [];
 
     for (const entity of buildings) {
+      if (entity.building.ownerId !== p.id) continue;
       const b = entity.building;
       const cx = b.x + Math.floor(b.w / 2);
       const cy = b.y + Math.floor(b.h / 2);
@@ -51,14 +60,14 @@ export class NeedsHappinessSystem implements System {
     }
 
     if (houses.length === 0) {
-      state.faithCoverage = 0;
-      state.safetyCoverage = 0;
-      state.goodsCoverage = 0;
-      this._updateHappiness();
+      p.faithCoverage = 0;
+      p.safetyCoverage = 0;
+      p.goodsCoverage = 0;
+      this._updateHappiness(p);
       return;
     }
 
-    const hasGoods = state.stockpiles.bread > 0 || state.stockpiles.grain > 0;
+    const hasGoods = p.stockpiles.bread > 0 || p.stockpiles.grain > 0;
 
     let faithMet = 0;
     let safetyMet = 0;
@@ -82,33 +91,31 @@ export class NeedsHappinessSystem implements System {
       if (hasGoodsAccess) goodsMet++;
     }
 
-    state.faithCoverage = faithMet / houses.length;
-    state.safetyCoverage = safetyMet / houses.length;
-    state.goodsCoverage = goodsMet / houses.length;
+    p.faithCoverage = faithMet / houses.length;
+    p.safetyCoverage = safetyMet / houses.length;
+    p.goodsCoverage = goodsMet / houses.length;
 
-    this._updateHappiness();
+    this._updateHappiness(p);
   }
 
-  private _updateHappiness(): void {
-    const state = this.state;
-
+  private _updateHappiness(p: PlayerState): void {
     // Base 40 (no needs met); each need coverage adds up to 20 → max 100
     let h = 40;
-    h += state.faithCoverage * 20;
-    h += state.safetyCoverage * 20;
-    h += state.goodsCoverage * 20;
+    h += p.faithCoverage * 20;
+    h += p.safetyCoverage * 20;
+    h += p.goodsCoverage * 20;
 
     // Food surplus: +10 max for surplus, -15 max for deficit
-    if (state.foodSurplus > 0) h += Math.min(10, state.foodSurplus * 2);
-    if (state.foodSurplus < 0) h += Math.max(-15, state.foodSurplus * 3);
+    if (p.foodSurplus > 0) h += Math.min(10, p.foodSurplus * 2);
+    if (p.foodSurplus < 0) h += Math.max(-15, p.foodSurplus * 3);
 
     // Decree penalties
-    if (state.activeDecrees.has("rationing"))    h -= 10;
-    if (state.activeDecrees.has("tithe"))        h -= 8;
-    if (state.activeDecrees.has("workHours"))    h -= 12;
-    if (state.activeDecrees.has("conscription")) h -= 5;
+    if (p.activeDecrees.has("rationing"))    h -= 10;
+    if (p.activeDecrees.has("tithe"))        h -= 8;
+    if (p.activeDecrees.has("workHours"))    h -= 12;
+    if (p.activeDecrees.has("conscription")) h -= 5;
 
-    state.happiness = Math.max(0, Math.min(100, Math.round(h)));
+    p.happiness = Math.max(0, Math.min(100, Math.round(h)));
   }
 }
 

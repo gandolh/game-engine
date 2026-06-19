@@ -7,6 +7,7 @@
  *   (c) save → reload → replay yields a deep-equal snapshot (round-trip).
  */
 import { describe, it, expect } from "vitest";
+import { localPlayer } from "../sim-state";
 import { bootstrapSim, loadFromSave } from "../sim-bootstrap";
 import { computeTier, tierAtLeast, TIER_LOCK } from "./tiers";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/terrain";
@@ -126,7 +127,7 @@ describe("tierAtLeast", () => {
 describe("TierSystem", () => {
   it("starts at Hamlet", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
-    expect(sim.state.tier).toBe("Hamlet");
+    expect(localPlayer(sim.state).tier).toBe("Hamlet");
     const snap = sim.getSnapshot(0);
     expect(snap.tier).toBe("Hamlet");
   });
@@ -135,22 +136,22 @@ describe("TierSystem", () => {
     // We bypass command placement (terrain variability) and directly set population
     // to simulate the tier crossing.  The TierSystem reads state.population directly.
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
-    expect(sim.state.tier).toBe("Hamlet");
+    expect(localPlayer(sim.state).tier).toBe("Hamlet");
 
     // Force population to 8 (the Village threshold).
-    sim.state.population = 8;
+    localPlayer(sim.state).population = 8;
 
     // Tick one full day — TierSystem evaluates at tick 0 of each day.
     runDays(sim, 1);
 
-    expect(sim.state.tier).toBe("Village");
+    expect(localPlayer(sim.state).tier).toBe("Village");
     const snap = sim.getSnapshot(TPD);
     expect(snap.tier).toBe("Village");
   });
 
   it("pushes a promotion event when tier advances", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
-    sim.state.population = 8;
+    localPlayer(sim.state).population = 8;
     runDays(sim, 1);
 
     const promotionEvents = sim.state.events.filter((e) => /Village/i.test(e));
@@ -159,24 +160,24 @@ describe("TierSystem", () => {
 
   it("does not promote when thresholds are not met", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
-    sim.state.population = 5; // < 8 → stays Hamlet
+    localPlayer(sim.state).population = 5; // < 8 → stays Hamlet
     runDays(sim, 2);
-    expect(sim.state.tier).toBe("Hamlet");
+    expect(localPlayer(sim.state).tier).toBe("Hamlet");
   });
 
   it("promotes to Town when population crosses 20", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
-    sim.state.population = 20;
+    localPlayer(sim.state).population = 20;
     runDays(sim, 1);
-    expect(sim.state.tier).toBe("Town");
+    expect(localPlayer(sim.state).tier).toBe("Town");
   });
 
   it("snapshot tier matches state.tier", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
-    sim.state.population = 50; // → Citadel
+    localPlayer(sim.state).population = 50; // → Citadel
     runDays(sim, 1);
     const snap = sim.getSnapshot(TPD);
-    expect(snap.tier).toBe(sim.state.tier);
+    expect(snap.tier).toBe(localPlayer(sim.state).tier);
     expect(snap.tier).toBe("Citadel");
   });
 });
@@ -289,7 +290,7 @@ describe("save/load round-trip", () => {
       commandLog: [],
     };
     const sim = loadFromSave(save);
-    expect(sim.state.tier).toBe("Hamlet");
-    expect(sim.state.population).toBe(0);
+    expect(localPlayer(sim.state).tier).toBe("Hamlet");
+    expect(localPlayer(sim.state).population).toBe(0);
   });
 });

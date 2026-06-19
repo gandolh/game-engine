@@ -150,26 +150,25 @@ export class TierSystem implements System {
     if (day === this.lastCheckedDay) return;
     this.lastCheckedDay = day;
 
-    // Count only non-road buildings: roads are infrastructure and must not
-    // inflate the tier before settlers arrive.
-    let nonRoadBuildingCount = 0;
-    for (const entity of this.state.buildingWorld.query("building")) {
-      const prod = getProductionDef(entity.building.type);
-      if (prod?.isRoad !== true) nonRoadBuildingCount++;
-    }
-    const newTier = computeTier(
-      this.state.population,
-      nonRoadBuildingCount,
-      this.state.defensiveStrength,
-    );
+    // Citadel 28: tier is per-player. Evaluate each player's tier from the
+    // buildings THEY own (roads excluded — infrastructure, not settlement size).
+    for (const p of this.state.players) {
+      let nonRoadBuildingCount = 0;
+      for (const entity of this.state.buildingWorld.query("building")) {
+        if (entity.building.ownerId !== p.id) continue;
+        const prod = getProductionDef(entity.building.type);
+        if (prod?.isRoad !== true) nonRoadBuildingCount++;
+      }
+      const newTier = computeTier(p.population, nonRoadBuildingCount, p.defensiveStrength);
 
-    if (newTier !== this.state.tier) {
-      const old = this.state.tier;
-      this.state.tier = newTier;
-      pushEvent(
-        this.state,
-        `Day ${day}: Your settlement has risen from ${old} to ${newTier}! Hail, ${newTier}!`,
-      );
+      if (newTier !== p.tier) {
+        const old = p.tier;
+        p.tier = newTier;
+        pushEvent(
+          this.state,
+          `Day ${day}: Your settlement has risen from ${old} to ${newTier}! Hail, ${newTier}!`,
+        );
+      }
     }
   }
 }

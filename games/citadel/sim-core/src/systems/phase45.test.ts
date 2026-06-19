@@ -15,6 +15,7 @@
  *  h) sick villager production: disease deaths reduce population
  */
 import { describe, it, expect } from "vitest";
+import { localPlayer } from "../sim-state";
 import { bootstrapSim } from "../sim-bootstrap";
 import type { CitadelSimResult } from "../sim-bootstrap";
 import { isWalkable } from "../world/terrain";
@@ -73,7 +74,7 @@ function placeBatch(sim: CitadelSimResult, items: Array<{ type: string; x: numbe
 /** Force-ignite a building by ECS id (direct state manipulation for testing). */
 function forceIgnite(sim: CitadelSimResult, entityId: number): void {
   const fs: BuildingFireState = { burning: true, burnTicksLeft: 200, destroyed: false };
-  sim.state.fireState.set(entityId, fs);
+  localPlayer(sim.state).fireState.set(entityId, fs);
 }
 
 /** Get entity id for first building of a given type. */
@@ -130,14 +131,14 @@ describe("BuildingSnapshot fire fields", () => {
 
   it("fireState is initialized as an empty Map in sim state", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
-    expect(sim.state.fireState).toBeInstanceOf(Map);
-    expect(sim.state.fireState.size).toBe(0);
+    expect(localPlayer(sim.state).fireState).toBeInstanceOf(Map);
+    expect(localPlayer(sim.state).fireState.size).toBe(0);
   });
 
   it("disease fields initialized at zero", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
-    expect(sim.state.sickVillagers).toBe(0);
-    expect(sim.state.outbreakActive).toBe(false);
+    expect(localPlayer(sim.state).sickVillagers).toBe(0);
+    expect(localPlayer(sim.state).outbreakActive).toBe(false);
   });
 });
 
@@ -197,7 +198,7 @@ describe("FireSystem — fire spread", () => {
     forceIgnite(sim, id1!);
 
     // Verify fire is set.
-    const fs = sim.state.fireState.get(id1!);
+    const fs = localPlayer(sim.state).fireState.get(id1!);
     expect(fs?.burning).toBe(true);
 
     // Run 10 days — spread should hit house 2.
@@ -208,7 +209,7 @@ describe("FireSystem — fire spread", () => {
     const fireEvents = allEvents.filter((e) => /fire|burned/i.test(e));
     // Count fires in fireState (includes original).
     let burnCount = 0;
-    for (const [, fss] of sim.state.fireState) {
+    for (const [, fss] of localPlayer(sim.state).fireState) {
       if (fss.burning || fss.destroyed) burnCount++;
     }
     // Either spread happened (burnCount ≥ 2) or at least fire events exist.
@@ -289,7 +290,7 @@ describe("FireSystem — firebreaks", () => {
     runDays(sim, 10, 1);
 
     // house B should NOT be burning (firebreak works).
-    const fsBId = sim.state.fireState.get(hBId!);
+    const fsBId = localPlayer(sim.state).fireState.get(hBId!);
     expect(fsBId?.burning ?? false).toBe(false);
     expect(fsBId?.destroyed ?? false).toBe(false);
   });
@@ -450,19 +451,19 @@ describe("DiseaseSystem — disease onset", () => {
     let diseaseDeaths = 0;
     for (let t = 1; t <= 40 * TICKS_PER_DAY; t++) {
       sim.scheduler.tick({ tick: t });
-      if (sim.state.outbreakActive) outbreakEverHappened = true;
+      if (localPlayer(sim.state).outbreakActive) outbreakEverHappened = true;
       // Count disease-related events.
     }
     diseaseDeaths = sim.state.events.filter((e) => /died.*disease|disease.*died/i.test(e)).length;
 
     // The disease system must run without error and fields must be valid.
-    expect(sim.state.sickVillagers).toBeGreaterThanOrEqual(0);
-    expect(sim.state.sickVillagers).toBeLessThanOrEqual(sim.state.population);
+    expect(localPlayer(sim.state).sickVillagers).toBeGreaterThanOrEqual(0);
+    expect(localPlayer(sim.state).sickVillagers).toBeLessThanOrEqual(localPlayer(sim.state).population);
     // System state fields must be valid types.
-    expect(typeof sim.state.outbreakActive).toBe("boolean");
+    expect(typeof localPlayer(sim.state).outbreakActive).toBe("boolean");
     // If outbreak happened, the sick/death counts must be consistent.
     if (outbreakEverHappened) {
-      expect(diseaseDeaths + sim.state.sickVillagers).toBeGreaterThanOrEqual(0);
+      expect(diseaseDeaths + localPlayer(sim.state).sickVillagers).toBeGreaterThanOrEqual(0);
     }
     // NOTE: outbreak is probabilistic; this test verifies the system runs correctly,
     // not that outbreak always occurs. See "overcrowded 2-house settlement" for the
@@ -538,8 +539,8 @@ describe("DiseaseSystem — healer mitigation", () => {
     expect(deathsWithHealer).toBeLessThanOrEqual(deathsNoHealer);
 
     // The healer should result in equal or better final population.
-    expect(simWithHealer.state.population).toBeGreaterThanOrEqual(
-      Math.max(0, simNoHealer.state.population - 2), // allow 2 pop variance
+    expect(localPlayer(simWithHealer.state).population).toBeGreaterThanOrEqual(
+      Math.max(0, localPlayer(simNoHealer.state).population - 2), // allow 2 pop variance
     );
   });
 });
@@ -611,19 +612,19 @@ describe("DiseaseSystem — strict mortality (force-triggered outbreak)", () => 
      */
     const sim = buildProvenTown(false);
     for (let t = 1; t <= 30 * TICKS_PER_DAY; t++) sim.scheduler.tick({ tick: t });
-    const popBefore = sim.state.population;
+    const popBefore = localPlayer(sim.state).population;
     expect(popBefore).toBeGreaterThan(0); // sanity: town is alive
 
     // Force 5 days of sustained outbreak (re-set before each tick, before disease runs).
     for (let t = 30 * TICKS_PER_DAY + 1; t <= 35 * TICKS_PER_DAY; t++) {
-      if (sim.state.population > 0) {
+      if (localPlayer(sim.state).population > 0) {
         // Set before tick so DiseaseSystem sees active outbreak in this tick.
-        sim.state.outbreakActive = true;
-        sim.state.sickVillagers = sim.state.population; // everyone infected
+        localPlayer(sim.state).outbreakActive = true;
+        localPlayer(sim.state).sickVillagers = localPlayer(sim.state).population; // everyone infected
       }
       sim.scheduler.tick({ tick: t });
     }
-    const popAfter = sim.state.population;
+    const popAfter = localPlayer(sim.state).population;
     // Population must have dropped due to disease mortality.
     // With pop=5 (proven by seed), 20% rate → 1 death/day over 5 days = -5 pop.
     // Even 1 death is sufficient to pass.
@@ -634,15 +635,15 @@ describe("DiseaseSystem — strict mortality (force-triggered outbreak)", () => 
     function measurePopLoss(withHealer: boolean): { before: number; after: number } {
       const sim = buildProvenTown(withHealer);
       for (let t = 1; t <= 30 * TICKS_PER_DAY; t++) sim.scheduler.tick({ tick: t });
-      const before = sim.state.population;
+      const before = localPlayer(sim.state).population;
       for (let t = 30 * TICKS_PER_DAY + 1; t <= 35 * TICKS_PER_DAY; t++) {
-        if (sim.state.population > 0) {
-          sim.state.outbreakActive = true;
-          sim.state.sickVillagers = sim.state.population;
+        if (localPlayer(sim.state).population > 0) {
+          localPlayer(sim.state).outbreakActive = true;
+          localPlayer(sim.state).sickVillagers = localPlayer(sim.state).population;
         }
         sim.scheduler.tick({ tick: t });
       }
-      return { before, after: sim.state.population };
+      return { before, after: localPlayer(sim.state).population };
     }
     const noHealer  = measurePopLoss(false);
     const withHealer = measurePopLoss(true);
@@ -700,7 +701,7 @@ describe("FireSystem — dense town fires (integration)", () => {
     }
 
     // Verify the system fields are valid regardless.
-    expect(sim.state.fireState).toBeInstanceOf(Map);
+    expect(localPlayer(sim.state).fireState).toBeInstanceOf(Map);
     // With dense packing (≥3 neighbors), fire should happen within 60 days.
     // This assertion IS expected to pass deterministically with the seeded RNG.
     expect(fireOccurred).toBe(true);

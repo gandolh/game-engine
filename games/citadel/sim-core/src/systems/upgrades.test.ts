@@ -12,6 +12,7 @@
  *   - defense cap guard: an upgraded tower only gains a modest additive bonus.
  */
 import { describe, it, expect } from "vitest";
+import { localPlayer } from "../sim-state";
 import { bootstrapSim } from "../sim-bootstrap";
 import { TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
@@ -72,13 +73,13 @@ describe("building upgrades", () => {
     expect(placed, "house should be placed on grass").toBeDefined();
     expect(placed!.level).toBe(1);
 
-    const popCapBefore = sim.state.popCap;
+    const popCapBefore = localPlayer(sim.state).popCap;
 
     // Town tier + plenty of materials.
-    sim.state.tier = "Town";
-    sim.state.stockpiles.planks = 10;
-    sim.state.stockpiles.stone = 10;
-    sim.state.stockpiles.tools = 5;
+    localPlayer(sim.state).tier = "Town";
+    localPlayer(sim.state).stockpiles.planks = 10;
+    localPlayer(sim.state).stockpiles.stone = 10;
+    localPlayer(sim.state).stockpiles.tools = 5;
 
     sim.commands.enqueue(upgradeAt(x, y));
     sim.scheduler.tick({ tick: 1 });
@@ -86,11 +87,11 @@ describe("building upgrades", () => {
     const after = sim.getBuildings().find((b) => b.type === "house" && b.x === x && b.y === y)!;
     expect(after.level).toBe(2);
     // L2 house = base 6 + 3 = 9 → +3 over base.
-    expect(sim.state.popCap).toBe(popCapBefore + 3);
+    expect(localPlayer(sim.state).popCap).toBe(popCapBefore + 3);
     // L2 cost = { planks: 4, stone: 4 }.
-    expect(sim.state.stockpiles.planks).toBe(6);
-    expect(sim.state.stockpiles.stone).toBe(6);
-    expect(sim.state.stockpiles.tools).toBe(5); // untouched at L2
+    expect(localPlayer(sim.state).stockpiles.planks).toBe(6);
+    expect(localPlayer(sim.state).stockpiles.stone).toBe(6);
+    expect(localPlayer(sim.state).stockpiles.tools).toBe(5); // untouched at L2
   });
 
   it("rejects upgrade with insufficient materials: level stays 1, no deduction", () => {
@@ -100,19 +101,19 @@ describe("building upgrades", () => {
     sim.scheduler.tick({ tick: 0 });
     expect(sim.getBuildings().find((b) => b.x === x && b.y === y)!.level).toBe(1);
 
-    const popCapBefore = sim.state.popCap;
-    sim.state.tier = "Town";
-    sim.state.stockpiles.planks = 1; // need 4
-    sim.state.stockpiles.stone = 1; // need 4
+    const popCapBefore = localPlayer(sim.state).popCap;
+    localPlayer(sim.state).tier = "Town";
+    localPlayer(sim.state).stockpiles.planks = 1; // need 4
+    localPlayer(sim.state).stockpiles.stone = 1; // need 4
 
     sim.commands.enqueue(upgradeAt(x, y));
     sim.scheduler.tick({ tick: 1 });
 
     const after = sim.getBuildings().find((b) => b.x === x && b.y === y)!;
     expect(after.level).toBe(1);
-    expect(sim.state.popCap).toBe(popCapBefore);
-    expect(sim.state.stockpiles.planks).toBe(1);
-    expect(sim.state.stockpiles.stone).toBe(1);
+    expect(localPlayer(sim.state).popCap).toBe(popCapBefore);
+    expect(localPlayer(sim.state).stockpiles.planks).toBe(1);
+    expect(localPlayer(sim.state).stockpiles.stone).toBe(1);
   });
 
   it("rejects upgrade when tier too low (Hamlet): level stays 1, no deduction", () => {
@@ -121,17 +122,17 @@ describe("building upgrades", () => {
     sim.commands.enqueue(place("house", x, y));
     sim.scheduler.tick({ tick: 0 });
 
-    expect(sim.state.tier).toBe("Hamlet");
-    sim.state.stockpiles.planks = 10;
-    sim.state.stockpiles.stone = 10;
+    expect(localPlayer(sim.state).tier).toBe("Hamlet");
+    localPlayer(sim.state).stockpiles.planks = 10;
+    localPlayer(sim.state).stockpiles.stone = 10;
 
     sim.commands.enqueue(upgradeAt(x, y));
     sim.scheduler.tick({ tick: 1 });
 
     const after = sim.getBuildings().find((b) => b.x === x && b.y === y)!;
     expect(after.level).toBe(1);
-    expect(sim.state.stockpiles.planks).toBe(10);
-    expect(sim.state.stockpiles.stone).toBe(10);
+    expect(localPlayer(sim.state).stockpiles.planks).toBe(10);
+    expect(localPlayer(sim.state).stockpiles.stone).toBe(10);
   });
 
   it("rejects upgrade at max level (L3): no further change", () => {
@@ -140,10 +141,10 @@ describe("building upgrades", () => {
     sim.commands.enqueue(place("house", x, y));
     sim.scheduler.tick({ tick: 0 });
 
-    sim.state.tier = "Town";
-    sim.state.stockpiles.planks = 100;
-    sim.state.stockpiles.stone = 100;
-    sim.state.stockpiles.tools = 100;
+    localPlayer(sim.state).tier = "Town";
+    localPlayer(sim.state).stockpiles.planks = 100;
+    localPlayer(sim.state).stockpiles.stone = 100;
+    localPlayer(sim.state).stockpiles.tools = 100;
 
     // L1→L2→L3 over three ticks.
     sim.commands.enqueue(upgradeAt(x, y));
@@ -152,14 +153,14 @@ describe("building upgrades", () => {
     sim.scheduler.tick({ tick: 2 });
     expect(sim.getBuildings().find((b) => b.x === x && b.y === y)!.level).toBe(3);
 
-    const planksBefore = sim.state.stockpiles.planks;
+    const planksBefore = localPlayer(sim.state).stockpiles.planks;
     // Fourth attempt — already max.
     sim.commands.enqueue(upgradeAt(x, y));
     sim.scheduler.tick({ tick: 3 });
 
     const after = sim.getBuildings().find((b) => b.x === x && b.y === y)!;
     expect(after.level).toBe(3);
-    expect(sim.state.stockpiles.planks).toBe(planksBefore); // no deduction at max
+    expect(localPlayer(sim.state).stockpiles.planks).toBe(planksBefore); // no deduction at max
   });
 });
 

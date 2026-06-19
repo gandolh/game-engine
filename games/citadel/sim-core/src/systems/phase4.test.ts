@@ -5,6 +5,7 @@
  * All tests drive bootstrapSim() directly (no Worker).
  */
 import { describe, it, expect } from "vitest";
+import { localPlayer } from "../sim-state";
 import { bootstrapSim } from "../sim-bootstrap";
 import { TerrainType, WORLD_WIDTH } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
@@ -65,7 +66,7 @@ function findStone(terrain: TerrainGrid): { x: number; y: number } | null {
 describe("Phase 4 — walls & gates", () => {
   it("wall blocks the walkable grid; gate stays passable", () => {
     const sim = boot();
-    sim.state.tier = "Town"; // unlock wall/gate (Village) + siege (Town) for placement
+    localPlayer(sim.state).tier = "Town"; // unlock wall/gate (Village) + siege (Town) for placement
     const g = findGrass(sim.terrain, 1, 1, 20, 20);
     const wallX = g.x;
     const wallY = g.y;
@@ -81,11 +82,11 @@ describe("Phase 4 — walls & gates", () => {
 
     // Wall blocks the walkable grid.
     expect(sim.walkable[wallIdx]).toBe(0);
-    expect(sim.state.wallTiles.has(wallIdx)).toBe(true);
+    expect(localPlayer(sim.state).wallTiles.has(wallIdx)).toBe(true);
 
     // Gate does NOT block the walkable grid (stays 1) and is tracked as a gate.
     expect(sim.walkable[gateIdx]).toBe(1);
-    expect(sim.state.gateTiles.has(gateIdx)).toBe(true);
+    expect(localPlayer(sim.state).gateTiles.has(gateIdx)).toBe(true);
   });
 });
 
@@ -95,27 +96,27 @@ describe("Phase 4 — walls & gates", () => {
 describe("Phase 4 — raid spawning", () => {
   it("raiders spawn on the expected deterministic tick and have a path", () => {
     const sim = boot();
-    sim.state.tier = "Town"; // keep requires Town tier to place
+    localPlayer(sim.state).tier = "Town"; // keep requires Town tier to place
     // Raids are gated on a keep existing — place one so the siege game begins.
     const g = findGrass(sim.terrain, 3, 3, 36, 36);
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
     // No raids before day 5.
     for (let tick = 0; tick < 5 * TICKS_PER_DAY; tick++) sim.scheduler.tick({ tick });
-    expect(sim.state.raiders.length).toBe(0);
-    expect(sim.state.nextRaidTick).toBeGreaterThanOrEqual(5 * TICKS_PER_DAY);
+    expect(localPlayer(sim.state).raiders.length).toBe(0);
+    expect(localPlayer(sim.state).nextRaidTick).toBeGreaterThanOrEqual(5 * TICKS_PER_DAY);
 
-    const firstRaidTick = sim.state.nextRaidTick;
+    const firstRaidTick = localPlayer(sim.state).nextRaidTick;
     for (let tick = 5 * TICKS_PER_DAY; tick <= firstRaidTick; tick++) sim.scheduler.tick({ tick });
 
-    expect(sim.state.raidCount).toBe(1);
-    expect(sim.state.raiders.length).toBeGreaterThanOrEqual(1);
-    const r = sim.state.raiders[0]!;
+    expect(localPlayer(sim.state).raidCount).toBe(1);
+    expect(localPlayer(sim.state).raiders.length).toBeGreaterThanOrEqual(1);
+    const r = localPlayer(sim.state).raiders[0]!;
     expect(r.strength).toBe(10);
     // A raider spawned on a map edge; its BFS path toward the keep is non-empty
     // unless water/terrain fully isolates the spawn edge (rare). pathStep starts
     // at 0 either way.
     expect(r.pathStep).toBe(0);
-    expect(sim.state.threatLevel).toBeGreaterThan(0);
+    expect(localPlayer(sim.state).threatLevel).toBeGreaterThan(0);
   });
 });
 
@@ -125,18 +126,18 @@ describe("Phase 4 — raid spawning", () => {
 describe("Phase 4 — siege resolution math", () => {
   it("computes defensive strength from defensive buildings and adjacent walls", () => {
     const sim = boot();
-    sim.state.tier = "Town"; // keep requires Town tier to place
+    localPlayer(sim.state).tier = "Town"; // keep requires Town tier to place
     const g = findGrass(sim.terrain, 3, 3, 30, 30);
     // Keep (def 8) + tower (def 5) adjacent walls.
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
     sim.scheduler.tick({ tick: 0 });
     // Resolution system recomputed defensiveStrength on tick 0.
-    expect(sim.state.defensiveStrength).toBeGreaterThanOrEqual(8);
+    expect(localPlayer(sim.state).defensiveStrength).toBeGreaterThanOrEqual(8);
   });
 
   it("strong defenses repel a raid; the keep survives", () => {
     const sim = boot();
-    sim.state.tier = "Town"; // keep/garrison/tower require Town/Village tier to place
+    localPlayer(sim.state).tier = "Town"; // keep/garrison/tower require Town/Village tier to place
     const g = findGrass(sim.terrain, 3, 3, 40, 40);
     // Keep + garrison + 2 towers → defense >> first raid strength (10).
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
@@ -147,9 +148,9 @@ describe("Phase 4 — siege resolution math", () => {
     // Run long enough for the first raid to spawn AND reach the keep.
     for (let tick = 0; tick < 30 * TICKS_PER_DAY; tick++) sim.scheduler.tick({ tick });
 
-    expect(sim.state.defensiveStrength).toBeGreaterThan(15);
+    expect(localPlayer(sim.state).defensiveStrength).toBeGreaterThan(15);
     // Keep was never sacked; game not over from siege.
-    expect(sim.state.keepSacked).toBe(false);
+    expect(localPlayer(sim.state).keepSacked).toBe(false);
   });
 });
 
@@ -159,7 +160,7 @@ describe("Phase 4 — siege resolution math", () => {
 describe("Phase 4 — keep sacked", () => {
   it("an undefended keep is eventually sacked → gameOver", () => {
     const sim = boot();
-    sim.state.tier = "Town"; // keep requires Town tier to place
+    localPlayer(sim.state).tier = "Town"; // keep requires Town tier to place
     const g = findGrass(sim.terrain, 3, 3, 48, 48);
     // Place ONLY a keep — defenseStrength 8, but raids escalate (10,15,20,...).
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
@@ -167,10 +168,10 @@ describe("Phase 4 — keep sacked", () => {
     let sacked = false;
     for (let tick = 0; tick < 60 * TICKS_PER_DAY; tick++) {
       sim.scheduler.tick({ tick });
-      if (sim.state.keepSacked) { sacked = true; break; }
+      if (localPlayer(sim.state).keepSacked) { sacked = true; break; }
     }
     expect(sacked).toBe(true);
-    expect(sim.state.gameOver).toBe(true);
+    expect(localPlayer(sim.state).gameOver).toBe(true);
   });
 });
 
@@ -180,7 +181,7 @@ describe("Phase 4 — keep sacked", () => {
 describe("Phase 4 — refining chains", () => {
   it("quarry on stone → stone; sawmill wood → planks; smith stone → tools", () => {
     const sim = boot();
-    sim.state.tier = "Town"; // quarry/sawmill/smith require Village tier to place
+    localPlayer(sim.state).tier = "Town"; // quarry/sawmill/smith require Village tier to place
     const terrain = sim.terrain;
     const stoneSpot = findStone(terrain);
     expect(stoneSpot).not.toBeNull();
@@ -236,16 +237,16 @@ describe("Phase 4 — refining chains", () => {
     // economy to sustain ongoing immigration. Inject wood each day so the
     // sawmill always has input (the woodcutter chain isn't part of this test).
     for (let tick = 0; tick < 20 * TICKS_PER_DAY; tick++) {
-      if (tick % TICKS_PER_DAY === 0) sim.state.stockpiles.wood += 4;
+      if (tick % TICKS_PER_DAY === 0) localPlayer(sim.state).stockpiles.wood += 4;
       sim.scheduler.tick({ tick });
     }
 
     // Quarry should have produced stone (hauled to the global pool).
-    expect(sim.state.stockpiles.stone).toBeGreaterThan(0);
+    expect(localPlayer(sim.state).stockpiles.stone).toBeGreaterThan(0);
     // Sawmill should have produced planks from the injected wood.
-    expect(sim.state.stockpiles.planks).toBeGreaterThan(0);
+    expect(localPlayer(sim.state).stockpiles.planks).toBeGreaterThan(0);
     // Smith consumes stone → tools; with stone available it should make some.
-    expect(sim.state.stockpiles.tools).toBeGreaterThan(0);
+    expect(localPlayer(sim.state).stockpiles.tools).toBeGreaterThan(0);
   });
 });
 
@@ -255,7 +256,7 @@ describe("Phase 4 — refining chains", () => {
 describe("Phase 4 — determinism", () => {
   function runScenario(): RenderSnapshot {
     const sim = boot();
-    sim.state.tier = "Town"; // keep/tower/wall require Town/Village tier to place
+    localPlayer(sim.state).tier = "Town"; // keep/tower/wall require Town/Village tier to place
     const g = findGrass(sim.terrain, 3, 3, 40, 40);
     const cmds: CitadelCommand[] = [
       { type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } },
@@ -299,7 +300,7 @@ describe("Phase 4 — wall reroutes raiders", () => {
     };
 
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    sim.state.tier = "Town"; // keep (Town) + wall (Village) require unlock to place
+    localPlayer(sim.state).tier = "Town"; // keep (Town) + wall (Village) require unlock to place
 
     // Place keep at (18, 28) so raiders target it.
     const keepX = 18;
@@ -339,6 +340,7 @@ describe("Phase 4 — wall reroutes raiders", () => {
       spawnX, spawnY,
       targetX, targetY,
       sim.state,
+      localPlayer(sim.state),
       sim.terrain, // the actual terrain from bootstrapSim
     );
 

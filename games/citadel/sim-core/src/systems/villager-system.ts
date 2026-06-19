@@ -27,7 +27,7 @@ import { getProductionDef } from "../entities/building";
 import type { BuildingEntity } from "../entities/building";
 import type { VillagerComponent } from "../entities/villager";
 import type { SimState } from "../sim-state";
-import { villagerWalkable } from "../sim-state";
+import { villagerWalkable, playerById } from "../sim-state";
 import { bfsPath } from "../world/pathfinder";
 
 /** Ticks a villager spends "working" before hauling output to a store. */
@@ -181,10 +181,12 @@ export class VillagerSystem implements System {
         break;
       case "haulToStore":
         if (this.advance(v)) {
-          // Deposit carried goods into the global stockpile. This is the
-          // load-bearing step — goods only enter the economy via this deposit.
+          // Deposit carried goods into the OWNER's stockpile (Citadel 28). This
+          // is the load-bearing step — goods only enter the economy via this
+          // deposit.
           if (v.carryGood !== null && v.carryAmount > 0) {
-            this.state.stockpiles[v.carryGood] += v.carryAmount;
+            const owner = playerById(this.state, v.ownerId);
+            if (owner !== undefined) owner.stockpiles[v.carryGood] += v.carryAmount;
           }
           v.carryGood = null;
           v.carryAmount = 0;

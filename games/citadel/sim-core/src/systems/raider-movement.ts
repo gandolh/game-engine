@@ -22,32 +22,37 @@ export class RaiderMovementSystem implements System {
   run(ctx: SimContext): void {
     if (ctx.tick % MOVE_INTERVAL !== 0) return;
 
-    for (const raider of this.state.raiders) {
-      if (raider.resolved) continue;
+    // Citadel 28: per-player raiders, marching on their target player's keep
+    // through that player's walls. Stable player-id order.
+    for (const p of this.state.players) {
+      for (const raider of p.raiders) {
+        if (raider.resolved) continue;
 
-      if (raider.pathStep < raider.path.length) {
-        const next = raider.path[raider.pathStep]!;
-        raider.tileX = next.x;
-        raider.tileY = next.y;
-        raider.x = next.x;
-        raider.y = next.y;
-        raider.pathStep++;
-      } else {
-        // Reached end of path (or never had one) — try to recompute toward target.
-        const target = findRaiderTarget(this.state);
-        const newPath = computeRaiderPath(
-          raider.tileX,
-          raider.tileY,
-          target.x,
-          target.y,
-          this.state,
-          this.terrain,
-        );
-        if (newPath !== null && newPath.length > 0) {
-          raider.path = newPath;
-          raider.pathStep = 0;
+        if (raider.pathStep < raider.path.length) {
+          const next = raider.path[raider.pathStep]!;
+          raider.tileX = next.x;
+          raider.tileY = next.y;
+          raider.x = next.x;
+          raider.y = next.y;
+          raider.pathStep++;
+        } else {
+          // Reached end of path (or never had one) — recompute toward target.
+          const target = findRaiderTarget(this.state, p);
+          const newPath = computeRaiderPath(
+            raider.tileX,
+            raider.tileY,
+            target.x,
+            target.y,
+            this.state,
+            p,
+            this.terrain,
+          );
+          if (newPath !== null && newPath.length > 0) {
+            raider.path = newPath;
+            raider.pathStep = 0;
+          }
+          // If still no path, the raider is fully walled off — wait in place.
         }
-        // If still no path, the raider is fully walled off — wait in place.
       }
     }
   }

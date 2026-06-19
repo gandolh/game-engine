@@ -149,6 +149,7 @@ function spawnHauler(
   const id = state.nextVillagerId++;
   const v: VillagerComponent = {
     id,
+    ownerId: 0,
     homeX: opts.from.x,
     homeY: opts.from.y,
     workX: opts.to.x,

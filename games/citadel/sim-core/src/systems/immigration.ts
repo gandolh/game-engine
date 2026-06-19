@@ -1,24 +1,26 @@
 /**
  * ImmigrationSystem — daily population dynamics.
  *
- * Once per in-game day boundary:
- *   - Consume bread for the current population (1 bread / villager / day).
- *   - foodSurplus = bread in stockpile this day minus consumption since last
- *     day boundary.
- *   - BOOTSTRAP: if pop=0 and there are connected worker slots, spawn the
- *     first pioneer villager unconditionally (settlers arrive when there is
- *     work to do, regardless of food).
- *   - If bread is in surplus AND there are open worker slots, spawn one
- *     immigrant villager (using rng.fork("immigration")).
+ * Once per in-game day boundary, FOR EACH PLAYER (Citadel 28):
+ *   - Consume bread for the player's population (1 bread / villager / day).
+ *   - foodSurplus = bread in the player's stockpile this day minus consumption.
+ *   - BOOTSTRAP: if the player's pop=0 and they have connected worker slots,
+ *     spawn the first pioneer villager unconditionally.
+ *   - If bread is in surplus AND there are open worker slots, spawn one immigrant.
  *   - If bread was in deficit for 3 consecutive days, remove one villager.
- *   - gameOver becomes true when population hits 0 (after having had any).
+ *   - The player's gameOver becomes true when its population hits 0 (after >0).
+ *
+ * Single-player is the 1-player case → byte-identical. The day-boundary guard +
+ * founding-window anchor are shared (the clock is shared); per-player "had pop"
+ * and "tithed once" flags are tracked by player id. One immigration RNG fork,
+ * pulled in stable player-id order, keeps solo replays identical.
  *
  * Stage: "population" (after villagers).
  */
 import type { System, SimContext } from "@engine/core";
 import { getProductionDef } from "../entities/building";
 import type { VillagerComponent } from "../entities/villager";
-import type { SimState } from "../sim-state";
+import type { SimState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import type { Rng } from "@engine/core";
 import type { GoodType } from "../entities/building";
@@ -31,8 +33,8 @@ export class ImmigrationSystem implements System {
 
   private lastDay = -1;
   private startDay = -1;
-  private hadPopulation = false;
-  private tithedOnce = false;
+  private readonly hadPopulation = new Set<number>(); // player ids that have had >0 pop
+  private readonly tithedOnce = new Set<number>();     // player ids that fired the tithe event
   private readonly rng: Rng;
 
   constructor(private readonly state: SimState) {
@@ -47,48 +49,53 @@ export class ImmigrationSystem implements System {
     this.lastDay = state.day;
     if (firstDay) {
       // Establish baseline; no consumption on the very first observed day.
-      state.lastDayBreadStart = state.stockpiles.bread;
+      for (const p of state.players) p.lastDayBreadStart = p.stockpiles.bread;
       return;
     }
 
+    // Per-player day processing in stable id order (determinism).
+    for (const p of state.players) this._runDayFor(p);
+
+    void ctx;
+  }
+
+  private _runDayFor(p: PlayerState): void {
+    const state = this.state;
+
     // Citadel 09 — TITHE: before consumption, siphon a small % (10%, floored)
-    // of every stored good from the global pool into the relief reserve. This
-    // is a real cost (the global pool shrinks). The reserve later cushions
-    // starvation and improves barter terms. Pure integer arithmetic — no rng.
-    if (state.activeDecrees.has("tithe")) {
+    // of every stored good from the player's pool into its relief reserve.
+    if (p.activeDecrees.has("tithe")) {
       let siphonedAny = false;
-      for (const good of Object.keys(state.stockpiles) as GoodType[]) {
-        const take = Math.floor(state.stockpiles[good] * TITHE_SIPHON_RATE);
+      for (const good of Object.keys(p.stockpiles) as GoodType[]) {
+        const take = Math.floor(p.stockpiles[good] * TITHE_SIPHON_RATE);
         if (take <= 0) continue;
-        state.stockpiles[good] -= take;
-        state.reliefReserve[good] += take;
+        p.stockpiles[good] -= take;
+        p.reliefReserve[good] += take;
         siphonedAny = true;
       }
-      if (siphonedAny && !this.tithedOnce) {
-        this.tithedOnce = true;
+      if (siphonedAny && !this.tithedOnce.has(p.id)) {
+        this.tithedOnce.add(p.id);
         pushEvent(state, `Day ${state.day}: the tithe fills the relief reserve.`);
       }
     }
 
     // Bread produced since last day boundary (before consumption).
-    const breadNow = state.stockpiles.bread;
+    const breadNow = p.stockpiles.bread;
 
     // Consume bread for the population (1 bread/person/day).
-    const consumption = state.population;
+    const consumption = p.population;
     // Rationing decree: reduce consumption by 25%
-    const actualConsumption = state.activeDecrees.has("rationing")
+    const actualConsumption = p.activeDecrees.has("rationing")
       ? Math.floor(consumption * 0.75)
       : consumption;
     let afterConsumption = breadNow - actualConsumption;
 
-    // Citadel 09 — TITHE starvation cushion: if the day's bread can't feed the
-    // population, draw the shortfall from the relief reserve's bread before the
-    // population suffers. Deterministic pure arithmetic.
+    // Citadel 09 — TITHE starvation cushion.
     let cushioned = 0;
-    if (afterConsumption < 0 && state.reliefReserve.bread > 0) {
+    if (afterConsumption < 0 && p.reliefReserve.bread > 0) {
       const shortfall = -afterConsumption;
-      cushioned = Math.min(shortfall, state.reliefReserve.bread);
-      state.reliefReserve.bread -= cushioned;
+      cushioned = Math.min(shortfall, p.reliefReserve.bread);
+      p.reliefReserve.bread -= cushioned;
       afterConsumption += cushioned;
       if (cushioned > 0) {
         pushEvent(state, `Day ${state.day}: relief reserve fed ${cushioned} bread to the hungry.`);
@@ -96,21 +103,17 @@ export class ImmigrationSystem implements System {
     }
 
     if (afterConsumption >= 0) {
-      state.stockpiles.bread = afterConsumption;
+      p.stockpiles.bread = afterConsumption;
     } else {
-      state.stockpiles.bread = 0;
+      p.stockpiles.bread = 0;
     }
-    const rawSurplus = breadNow - state.lastDayBreadStart - actualConsumption;
-    // foodSurplus drives the starvation path (deficit when < 0). The reserve
-    // cushion feeds the hungry, so a day whose deficit was fully absorbed
-    // (post-cushion afterConsumption >= 0) is treated as break-even, never a
-    // starvation day. With no tithe, cushioned is 0 and afterConsumption keeps
-    // its original sign — so this reduces exactly to the original formula.
-    state.foodSurplus = cushioned > 0 && afterConsumption >= 0 ? Math.max(0, rawSurplus + cushioned) : rawSurplus;
+    const rawSurplus = breadNow - p.lastDayBreadStart - actualConsumption;
+    p.foodSurplus = cushioned > 0 && afterConsumption >= 0 ? Math.max(0, rawSurplus + cushioned) : rawSurplus;
 
-    // --- Open worker slots across all buildings ---
+    // --- Open worker slots across the player's buildings ---
     let openSlots = 0;
     for (const entity of state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
       if (id === undefined) continue;
       const rs = state.buildingState.get(id);
@@ -120,77 +123,64 @@ export class ImmigrationSystem implements System {
       openSlots += Math.max(0, def.workerSlots - rs.workerCount);
     }
 
-    // Founding phase: during the first (daysPerYear/4 + 2) days since sim start,
-    // spawn one pioneer per production building type to seed the chain. Founders
-    // bring bread rations. After the founding window closes, no more founders —
-    // starvation-driven departures are permanent until food is restored.
+    // Founding phase.
     const daysSinceStart = state.day - this.startDay;
     const foundingWindow = daysSinceStart <= Math.floor(state.daysPerYear / 4) + 2;
-    const unstaffedTypes = foundingWindow ? this.countUnstaffedProductionTypes() : 0;
-    const needsFounder = unstaffedTypes > 0 && openSlots > 0 && state.popCap > 0;
+    const unstaffedTypes = foundingWindow ? this.countUnstaffedProductionTypes(p) : 0;
+    const needsFounder = unstaffedTypes > 0 && openSlots > 0 && p.popCap > 0;
 
     if (needsFounder) {
-      // Spawn a founder regardless of food supply — one per unstaffed type, max 1/day.
-      // Each founder arrives with a small bread ration to sustain themselves
-      // while the production chain gets established.
-      this.spawnVillager();
-      state.stockpiles.bread += 5;
-      state.hungerDays = 0;
-    } else if (state.foodSurplus > 0 && state.population < state.popCap) {
-      // High happiness boosts immigration probability; low happiness suppresses it.
-      // Formula: 0.7 + happiness * 0.3 / 100 ensures ~0.82 at base happiness=40,
-      // 0.7 at minimum, 1.0 at maximum — reliably recovers from starvation dips
-      // while still making happiness meaningfully affect immigration rate.
-      const happinessFactor = 0.7 + (state.happiness / 100) * 0.3;
+      this.spawnVillager(p);
+      p.stockpiles.bread += 5;
+      p.hungerDays = 0;
+    } else if (p.foodSurplus > 0 && p.population < p.popCap) {
+      const happinessFactor = 0.7 + (p.happiness / 100) * 0.3;
       const immigrationRoll = this.rng.nextFloat();
       if (immigrationRoll < happinessFactor) {
-        this.spawnVillager();
+        this.spawnVillager(p);
       }
-      state.hungerDays = 0;
-    } else if (state.foodSurplus < 0) {
-      state.hungerDays++;
-      if (state.hungerDays >= 3) {
-        this.removeVillager();
-        state.hungerDays = 0;
+      p.hungerDays = 0;
+    } else if (p.foodSurplus < 0) {
+      p.hungerDays++;
+      if (p.hungerDays >= 3) {
+        this.removeVillager(p);
+        p.hungerDays = 0;
       }
-    } else if (state.stockpiles.bread === 0 && state.foodSurplus === 0) {
-      // Bread stockpile is empty even though surplus is technically 0
-      // (production exactly matched consumption). Persistent empty bread is
-      // still hunger — don't reset the counter.
+    } else if (p.stockpiles.bread === 0 && p.foodSurplus === 0) {
+      // Persistent empty bread is still hunger — don't reset the counter.
     } else {
-      state.hungerDays = 0;
+      p.hungerDays = 0;
     }
 
     // Low happiness: even with food, villagers may leave
-    if (state.happiness < 30 && state.population > 0) {
+    if (p.happiness < 30 && p.population > 0) {
       const departRoll = this.rng.nextFloat();
       if (departRoll < 0.2) {
-        this.removeVillager();
-        pushEvent(state, `Day ${state.day}: a villager left (low morale, pop ${state.population}).`);
+        this.removeVillager(p);
+        pushEvent(state, `Day ${state.day}: a villager left (low morale, pop ${p.population}).`);
       }
     }
 
-    state.lastDayBreadStart = state.stockpiles.bread;
+    p.lastDayBreadStart = p.stockpiles.bread;
 
-    if (state.population > 0) this.hadPopulation = true;
+    if (p.population > 0) this.hadPopulation.add(p.id);
 
-    // Game over only once a town that existed dies out completely.
-    if (this.hadPopulation && state.population === 0 && !state.gameOver) {
-      state.gameOver = true;
+    // Game over (for this player) only once a town that existed dies out.
+    if (this.hadPopulation.has(p.id) && p.population === 0 && !p.gameOver) {
+      p.gameOver = true;
       pushEvent(state, `Day ${state.day}: the town has died out.`);
     }
-
-    void ctx;
   }
 
-  private spawnVillager(): void {
+  private spawnVillager(p: PlayerState): void {
     const state = this.state;
     // Use rng to keep a deterministic decision hook even though placement is fixed.
     this.rng.nextU32();
-    const home = this.firstHousing();
+    const home = this.firstHousing(p);
     const id = state.nextVillagerId++;
     const v: VillagerComponent = {
       id,
+      ownerId: p.id,
       homeX: home.x,
       homeY: home.y,
       workX: home.x,
@@ -206,15 +196,16 @@ export class ImmigrationSystem implements System {
       ticksAtWork: 0,
     };
     state.villagerWorld.spawn({ villager: v });
-    state.population++;
-    pushEvent(state, `Day ${state.day}: an immigrant arrived (pop ${state.population}).`);
+    p.population++;
+    pushEvent(state, `Day ${state.day}: an immigrant arrived (pop ${p.population}).`);
   }
 
-  private removeVillager(): void {
+  private removeVillager(p: PlayerState): void {
     const state = this.state;
-    // Remove the highest-id villager (deterministic), freeing its worker slot.
+    // Remove the highest-id villager OWNED BY p (deterministic), freeing its slot.
     let victim: { id: number; entity: { villager: VillagerComponent; id?: number } } | null = null;
     for (const entity of state.villagerWorld.query("villager")) {
+      if (entity.villager.ownerId !== p.id) continue;
       const vid = entity.villager.id;
       if (victim === null || vid > victim.id) victim = { id: vid, entity };
     }
@@ -227,8 +218,8 @@ export class ImmigrationSystem implements System {
       if (rs !== undefined && rs.workerCount > 0) rs.workerCount--;
     }
     state.villagerWorld.despawn(victim.entity);
-    state.population = Math.max(0, state.population - 1);
-    pushEvent(state, `Day ${state.day}: a villager starved (pop ${state.population}).`);
+    p.population = Math.max(0, p.population - 1);
+    pushEvent(state, `Day ${state.day}: a villager starved (pop ${p.population}).`);
   }
 
   private buildingIdAt(tx: number, ty: number): number | null {
@@ -242,15 +233,15 @@ export class ImmigrationSystem implements System {
   }
 
   /**
-   * Count how many distinct production building types have at least one
-   * connected building with NO assigned worker. Used for founding-phase
-   * bootstrapping so every building type gets its first worker.
+   * Count how many distinct production building types owned by `p` have at least
+   * one connected building with NO assigned worker.
    */
-  private countUnstaffedProductionTypes(): number {
+  private countUnstaffedProductionTypes(p: PlayerState): number {
     const state = this.state;
     const staffed = new Set<string>();
     const present = new Set<string>();
     for (const entity of state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
       if (id === undefined) continue;
       const def = getProductionDef(entity.building.type);
@@ -267,9 +258,10 @@ export class ImmigrationSystem implements System {
     return unstaffed;
   }
 
-  /** First house center, else map center. */
-  private firstHousing(): { x: number; y: number } {
+  /** First house center owned by `p`, else map center. */
+  private firstHousing(p: PlayerState): { x: number; y: number } {
     for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
       const def = getProductionDef(entity.building.type);
       if (def?.isHousing === true) {
         const b = entity.building;

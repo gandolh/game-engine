@@ -10,6 +10,7 @@
  * then tick the scheduler — the canonical way to exercise sim behavior headless.
  */
 import { describe, it, expect } from "vitest";
+import { localPlayer } from "../sim-state";
 import { bootstrapSim } from "../sim-bootstrap";
 import { totalGoods } from "../sim-state";
 import { computeDefensiveStrength } from "./siege-resolution";
@@ -43,13 +44,14 @@ function seedVillagers(sim: ReturnType<typeof boot>, n: number): void {
     sim.state.villagerWorld.spawn({
       villager: {
         id: sim.state.nextVillagerId++,
+        ownerId: 0,
         homeX: 1, homeY: 1, workX: 1, workY: 1, storeX: 1, storeY: 1,
         fsm: "idle", pathX: [], pathY: [], pathStep: 0,
         carryGood: null, carryAmount: 0, ticksAtWork: 0,
       },
     });
   }
-  sim.state.population = n;
+  localPlayer(sim.state).population = n;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,31 +63,31 @@ describe("Citadel 09 — tithe siphon", () => {
     sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
 
     // Seed the global pool with goods (population 0 → no consumption to confound).
-    sim.state.stockpiles.grain = 100;
-    sim.state.stockpiles.wood = 50;
-    sim.state.stockpiles.bread = 30;
+    localPlayer(sim.state).stockpiles.grain = 100;
+    localPlayer(sim.state).stockpiles.wood = 50;
+    localPlayer(sim.state).stockpiles.bread = 30;
 
     // Tick across two day boundaries. ImmigrationSystem establishes a baseline on
     // the first observed day boundary, then siphons on subsequent ones.
     tickRange(sim, 0, 3 * TICKS_PER_DAY);
 
     // Reserve accumulated goods; the global pool dropped by the same amounts.
-    expect(totalGoods(sim.state.reliefReserve)).toBeGreaterThan(0);
-    expect(sim.state.reliefReserve.grain).toBeGreaterThan(0);
+    expect(totalGoods(localPlayer(sim.state).reliefReserve)).toBeGreaterThan(0);
+    expect(localPlayer(sim.state).reliefReserve.grain).toBeGreaterThan(0);
     // grain started at 100; with no consumption it can only have shrunk via tithe.
-    expect(sim.state.stockpiles.grain).toBeLessThan(100);
+    expect(localPlayer(sim.state).stockpiles.grain).toBeLessThan(100);
     // Conservation: grain in pool + reserve never exceeds the original 100.
-    expect(sim.state.stockpiles.grain + sim.state.reliefReserve.grain).toBeLessThanOrEqual(100);
+    expect(localPlayer(sim.state).stockpiles.grain + localPlayer(sim.state).reliefReserve.grain).toBeLessThanOrEqual(100);
     // Snapshot exposes the reserve total.
-    expect(sim.getSnapshot().reliefReserve).toBe(totalGoods(sim.state.reliefReserve));
+    expect(sim.getSnapshot().reliefReserve).toBe(totalGoods(localPlayer(sim.state).reliefReserve));
   });
 
   it("does NOT siphon when the tithe decree is inactive", () => {
     const sim = boot();
-    sim.state.stockpiles.grain = 100;
+    localPlayer(sim.state).stockpiles.grain = 100;
     tickRange(sim, 0, 3 * TICKS_PER_DAY);
-    expect(totalGoods(sim.state.reliefReserve)).toBe(0);
-    expect(sim.state.stockpiles.grain).toBe(100);
+    expect(totalGoods(localPlayer(sim.state).reliefReserve)).toBe(0);
+    expect(localPlayer(sim.state).stockpiles.grain).toBe(100);
   });
 });
 
@@ -108,12 +110,12 @@ describe("Citadel 09 — tithe starvation cushion", () => {
       sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
     }
     seedVillagers(sim, 4); // 4 villagers → 4 bread/day needed
-    sim.state.reliefReserve.bread = opts.reserveBread;
+    localPlayer(sim.state).reliefReserve.bread = opts.reserveBread;
     // Day 0 boundary: baseline. Day 1 boundary: real consumption with 1 bread
     // available vs 4 needed → deficit of 3.
-    sim.state.stockpiles.bread = 1;
+    localPlayer(sim.state).stockpiles.bread = 1;
     tickRange(sim, 0, TICKS_PER_DAY);   // baseline day
-    sim.state.stockpiles.bread = 1;
+    localPlayer(sim.state).stockpiles.bread = 1;
     tickRange(sim, TICKS_PER_DAY, 2 * TICKS_PER_DAY); // deficit day
     return sim;
   }
@@ -121,18 +123,18 @@ describe("Citadel 09 — tithe starvation cushion", () => {
   it("reserve bread absorbs a deficit that would otherwise register as starvation", () => {
     // WITHOUT a reserve: the deficit registers — foodSurplus negative, hunger rises.
     const without = deficitDay({ tithe: false, reserveBread: 0 });
-    expect(without.state.foodSurplus).toBeLessThan(0);
-    expect(without.state.hungerDays).toBe(1);
+    expect(localPlayer(without.state).foodSurplus).toBeLessThan(0);
+    expect(localPlayer(without.state).hungerDays).toBe(1);
 
     // WITH tithe + a generous reserve: the cushion covers the gap — no deficit,
     // no hunger accrued, and reserve bread was actually drawn down.
     const withReserve = deficitDay({ tithe: true, reserveBread: 100 });
-    expect(withReserve.state.foodSurplus).toBe(0);
-    expect(withReserve.state.hungerDays).toBe(0);
+    expect(localPlayer(withReserve.state).foodSurplus).toBe(0);
+    expect(localPlayer(withReserve.state).hungerDays).toBe(0);
     // Reserve bread was drawn down to cover the shortfall (a few loaves), but a
     // generous reserve is far from exhausted.
-    expect(withReserve.state.reliefReserve.bread).toBeLessThan(100);
-    expect(withReserve.state.reliefReserve.bread).toBeGreaterThan(90);
+    expect(localPlayer(withReserve.state).reliefReserve.bread).toBeLessThan(100);
+    expect(localPlayer(withReserve.state).reliefReserve.bread).toBeGreaterThan(90);
   });
 
   it("over repeated deficit days the cushion suppresses the starvation removal path", () => {
@@ -143,13 +145,13 @@ describe("Citadel 09 — tithe starvation cushion", () => {
       const sim = boot();
       if (tithe) sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
       seedVillagers(sim, 4);
-      sim.state.reliefReserve.bread = reserveBread;
+      localPlayer(sim.state).reliefReserve.bread = reserveBread;
       let peakHunger = 0;
       let starved = 0;
       for (let day = 0; day < 6; day++) {
-        sim.state.stockpiles.bread = 1;
+        localPlayer(sim.state).stockpiles.bread = 1;
         tickRange(sim, day * TICKS_PER_DAY, (day + 1) * TICKS_PER_DAY);
-        peakHunger = Math.max(peakHunger, sim.state.hungerDays);
+        peakHunger = Math.max(peakHunger, localPlayer(sim.state).hungerDays);
         for (const e of sim.state.events) if (e.includes("starved")) starved = 1;
       }
       return { peakHunger, starvedEvents: starved };
@@ -181,18 +183,18 @@ describe("Citadel 09 — tithe better barter terms", () => {
       sim.scheduler.tick({ tick: 0 });
     }
     // Force trader state + a deterministic offer.
-    sim.state.traderPresent = true;
-    sim.state.traderOffers.length = 0;
-    sim.state.traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
-    sim.state.stockpiles.grain = 20;
-    sim.state.stockpiles.bread = 0;
+    localPlayer(sim.state).traderPresent = true;
+    localPlayer(sim.state).traderOffers.length = 0;
+    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
+    localPlayer(sim.state).stockpiles.grain = 20;
+    localPlayer(sim.state).stockpiles.bread = 0;
     // Stock the reserve above/below the barter threshold (20).
-    sim.state.reliefReserve.grain = opts.reserve;
+    localPlayer(sim.state).reliefReserve.grain = opts.reserve;
 
-    const breadBefore = sim.state.stockpiles.bread;
+    const breadBefore = localPlayer(sim.state).stockpiles.bread;
     sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
     sim.scheduler.tick({ tick: 1 });
-    return sim.state.stockpiles.bread - breadBefore;
+    return localPlayer(sim.state).stockpiles.bread - breadBefore;
   }
 
   it("a sufficiently stocked reserve yields more received good than without", () => {
@@ -215,14 +217,14 @@ describe("Citadel 09 — tithe better barter terms", () => {
 describe("Citadel 09 — conscription defense", () => {
   it("raises defensive strength when a raid is active and conscription is on", () => {
     const sim = boot();
-    sim.state.population = 12;
-    sim.state.raiders.push(dummyRaider(1));
+    localPlayer(sim.state).population = 12;
+    localPlayer(sim.state).raiders.push(dummyRaider(1));
 
     // Conscription OFF → baseline (no defensive buildings → 0 here).
-    const baseline = computeDefensiveStrength(sim.state);
+    const baseline = computeDefensiveStrength(sim.state, localPlayer(sim.state));
 
-    sim.state.activeDecrees.add("conscription");
-    const withConscription = computeDefensiveStrength(sim.state);
+    localPlayer(sim.state).activeDecrees.add("conscription");
+    const withConscription = computeDefensiveStrength(sim.state, localPlayer(sim.state));
 
     // floor(12 * 0.5) = 6 added.
     expect(withConscription).toBe(baseline + 6);
@@ -231,10 +233,10 @@ describe("Citadel 09 — conscription defense", () => {
 
   it("adds NO defense when conscription is on but no raid is active", () => {
     const sim = boot();
-    sim.state.population = 12;
-    sim.state.activeDecrees.add("conscription");
+    localPlayer(sim.state).population = 12;
+    localPlayer(sim.state).activeDecrees.add("conscription");
     // No raiders present.
-    expect(computeDefensiveStrength(sim.state)).toBe(0);
+    expect(computeDefensiveStrength(sim.state, localPlayer(sim.state))).toBe(0);
   });
 });
 
@@ -267,8 +269,8 @@ describe("Citadel 09 — conscription production pause", () => {
     rs.outputBuffer = 0;
     rs.productionTick = 0;
 
-    if (opts.conscription) sim.state.activeDecrees.add("conscription");
-    if (opts.raid) sim.state.raiders.push(dummyRaider(99));
+    if (opts.conscription) localPlayer(sim.state).activeDecrees.add("conscription");
+    if (opts.raid) localPlayer(sim.state).raiders.push(dummyRaider(99));
 
     const before = rs.outputBuffer;
     // Advance several full production cycles (mill cycle = 10 ticks).
@@ -276,7 +278,7 @@ describe("Citadel 09 — conscription production pause", () => {
       // Keep the producer connected/staffed + fed (no haulers in this scenario).
       rs.connected = true;
       rs.workerCount = 1;
-      sim.state.stockpiles.grain += 10;
+      localPlayer(sim.state).stockpiles.grain += 10;
       sim.scheduler.tick({ tick });
     }
     return rs.outputBuffer - before;
