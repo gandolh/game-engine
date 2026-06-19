@@ -56,6 +56,11 @@ const LAYER_BUILDING = 10;
 const LAYER_VILLAGER = 20;
 const LAYER_RAIDER = 30;
 const LAYER_GHOST = 40;
+/** Atmosphere layers (brief 15/18). Light pool sits just above buildings so the
+ *  warm glow pools over the ground + structures; the ambient crowd walks below
+ *  the real villagers but above buildings. */
+const LAYER_LIGHT_POOL = 12;
+const LAYER_AMBIENT_CROWD = 15;
 
 /** Ghost / drag-paint preview alpha (translucent over the world). */
 const GHOST_ALPHA = Math.round(0xff * 0.45);
@@ -749,4 +754,27 @@ export function pushGhost(
   for (const t of dragTiles) {
     renderer.push(quadToSprite(ghostQuad(t.x, t.y, 1, 1, true), LAYER_GHOST));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Atmosphere push helpers (brief 15 light pool, brief 18 ambient crowd)
+// ---------------------------------------------------------------------------
+
+/**
+ * Push pre-computed night light-pool glow quads (brief 15). The caller computes
+ * them via `lightPoolQuads(...)` in atmosphere.ts; here we just stamp them onto
+ * the light-pool layer (above buildings). Each quad already carries its own
+ * translucent warm tint. Call inside the same begin/endFrame as `pushScene`.
+ */
+export function pushLightPool(renderer: RendererLike, quads: readonly QuadSpec[]): void {
+  for (const q of quads) renderer.push(quadToSprite(q, LAYER_LIGHT_POOL));
+}
+
+/**
+ * Push the ambient crowd's pedestrian quads (brief 18) on the crowd layer
+ * (below real villagers, above buildings). The caller pulls them from
+ * `CitadelAmbientCrowd.quads()`.
+ */
+export function pushAmbientCrowd(renderer: RendererLike, quads: readonly QuadSpec[]): void {
+  for (const q of quads) renderer.push(quadToSprite(q, LAYER_AMBIENT_CROWD));
 }

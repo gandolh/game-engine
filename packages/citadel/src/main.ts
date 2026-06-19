@@ -9,7 +9,7 @@
  *          + downloadable JSON blob).
  */
 import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost } from "@citadel/sim-core";
-import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier } from "@citadel/sim-core";
+import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot } from "@citadel/sim-core";
 import { EDG } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
 import { CitadelSimClient } from "./worker/sim-client";
@@ -19,10 +19,21 @@ import {
   clampZoom,
   pushScene,
   pushGhost,
+  pushLightPool,
+  pushAmbientCrowd,
   eventToDevicePx,
   screenToWorld,
   transformOf,
 } from "./render/citadel-renderer";
+import {
+  computeWash,
+  dayFractionOf,
+  nightFactorOf,
+  emittersOf,
+  lightPoolQuads,
+} from "./render/atmosphere";
+import { CitadelWeather } from "./render/weather";
+import { CitadelAmbientCrowd } from "./render/ambient-crowd";
 import { PlacementStateManager } from "./ui/placement-state";
 
 const SEED = 0x1a2b3c4d;
@@ -77,6 +88,11 @@ const traderOffers = document.getElementById("trader-offers")!;
 // ---------------------------------------------------------------------------
 let camera: Camera2D;
 let renderer: RendererLike;
+
+// Atmosphere (render-only, off-sim): day/night wash, weather FX, ambient crowd.
+const weather = new CitadelWeather();
+const ambientCrowd = new CitadelAmbientCrowd();
+let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT sim)
 
 let isPanning = false;
 let lastMouseX = 0;
@@ -370,6 +386,7 @@ const client = new CitadelSimClient();
 
 let paused = false;
 let day = 1;
+let tick = 0;            // render-side mirror of snap.tick (for the day/night wash)
 let season = "spring";
 let tier = "Hamlet"; // Phase 5: settlement tier
 let population = 0;
@@ -410,7 +427,11 @@ btn1x.addEventListener("click", () => client.setSpeed(1));
 btn2x.addEventListener("click", () => client.setSpeed(2));
 btn4x.addEventListener("click", () => client.setSpeed(4));
 
+let latestSnapshot: RenderSnapshot | null = null;
+
 client.onSnapshot((snap) => {
+  latestSnapshot = snap;
+  tick = snap.tick;
   day = snap.day + 1;
   season = snap.season;
   tier = snap.tier;  // Phase 5
@@ -526,6 +547,11 @@ function loop(): void {
     hudDisease.style.color = EDG.steel;
   }
 
+  // --- Render clock (performance.now is main-thread only — never the sim).
+  const nowMs = performance.now();
+  const dt = lastFrameMs === 0 ? 0 : Math.min(0.1, (nowMs - lastFrameMs) / 1000);
+  lastFrameMs = nowMs;
+
   // --- WebGPU scene: terrain is the baked static layer; entities + ghost are
   // sprite-batch quads. beginFrame sizes the canvas backing store, so fit the
   // camera to it first.
@@ -538,11 +564,37 @@ function loop(): void {
     raiders: currentRaiders,
   });
 
+  // --- Atmosphere (render-only). Day/night wash + night light pool (brief 15),
+  // ambient crowd (brief 18), weather (brief 16). All driven off snapshot
+  // fields (tick/season/tier/day) + the render clock — zero sim impact.
+  const dayFraction = dayFractionOf(tick, TICKS_PER_DAY);
+  const nightFactor = nightFactorOf(dayFraction);
+
+  // Night light pool: warm glow quads over emitter buildings (sprite-batch).
+  pushLightPool(renderer, lightPoolQuads(emittersOf(currentBuildings), nightFactor));
+
+  // Ambient crowd: wandering pedestrians, density by tier (sprite-batch).
+  if (latestSnapshot !== null) ambientCrowd.update(dt, latestSnapshot);
+  pushAmbientCrowd(renderer, ambientCrowd.quads());
+
   const ghost = placementState.ghost();
   const dragging = (placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad;
   pushGhost(renderer, ghost, dragging ? placementState.roadTiles : []);
 
-  renderer.endFrame();
+  // Weather field (engine RainField → GPU WeatherPass). Update against the
+  // visible world rect, then hand it to endFrame.
+  const halfX = camera.worldUnitsX / 2;
+  const halfY = camera.worldUnitsY / 2;
+  weather.update(dt, season, day, {
+    left: camera.centerX - halfX,
+    right: camera.centerX + halfX,
+    top: camera.centerY - halfY,
+    bottom: camera.centerY + halfY,
+  });
+
+  // Day/night + seasonal wash (GPU TintPass via endFrame), then weather.
+  const wash = computeWash(season, dayFraction);
+  renderer.endFrame(wash, undefined, weather.field);
 
   requestAnimationFrame(loop);
 }
