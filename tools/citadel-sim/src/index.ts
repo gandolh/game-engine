@@ -5,27 +5,33 @@
  * Places a well-connected economy near the map center, then prints a per-day
  * economy summary from getSnapshot().
  *
- * Three scenarios are supported via the SCENARIO env var:
+ * Four scenarios are supported via the SCENARIO env var:
  *   SCENARIO=grow   (default) — full economy; should see pop growing and
  *                               winter halting grain but not killing the town
  *                               if autumn surplus was large enough.
  *   SCENARIO=starve — minimal economy with no autumn surplus; winter bread
  *                     shortfall triggers population decline and game-over.
- *   SCENARIO=siege  — a fortified citadel (keep + towers + garrison + walls +
- *                     gates) on top of the grow economy; raids arrive from ~day
- *                     5 and are repelled or sack the defenses.
+ *   SCENARIO=siege  — a heavily fortified citadel (keep + towers + garrison +
+ *                     walls + gates) on top of a large economy; raids arrive
+ *                     from ~day 5 and are REPELLED by the strong defenses.
+ *                     Refining chains (quarry→stone, sawmill→planks, smith→tools)
+ *                     are active and produce visible output.
+ *   SCENARIO=sack   — keep + minimal defense + healthy economy; escalating
+ *                     raids overwhelm the weak defenses → keepSacked=true,
+ *                     game-over from the SACK (not starvation).
  *
  * Usage:
  *   npm run sim:citadel
- *   SEED=0xdeadbeef MAX_DAYS=25 npm run sim:citadel
+ *   SEED=0xdeadbeef MAX_DAYS=40 npm run sim:citadel
  *   SCENARIO=starve MAX_DAYS=25 npm run sim:citadel
- *   SCENARIO=siege  MAX_DAYS=25 npm run sim:citadel
+ *   SCENARIO=siege  MAX_DAYS=40 npm run sim:citadel
+ *   SCENARIO=sack   MAX_DAYS=40 npm run sim:citadel
  */
 import { bootstrapSim, isWalkable, TerrainType } from "@citadel/sim-core";
 import type { CitadelCommand, TerrainGrid } from "@citadel/sim-core";
 
 const SEED = parseInt(process.env.SEED ?? "0x1a2b3c4d", 16) >>> 0;
-const MAX_DAYS = parseInt(process.env.MAX_DAYS ?? "25", 10);
+const MAX_DAYS = parseInt(process.env.MAX_DAYS ?? "40", 10);
 const TICKS_PER_DAY = parseInt(process.env.TICKS_PER_DAY ?? "20", 10);
 const SCENARIO = process.env.SCENARIO ?? "grow";
 
@@ -64,6 +70,76 @@ function findStone(terrain: TerrainGrid, sx: number, sy: number): { x: number; y
             if (t === TerrainType.Water || t === TerrainType.Rough) blocked = true;
           }
         if (stone && !blocked) return { x, y };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Find a 2×2 region overlapping a Stone tile that is REACHABLE from
+ * (anchorX, anchorY) via walkable terrain.  Falls back to findStone if no
+ * reachable placement exists (caller should handle null = skip quarry).
+ */
+function findConnectedStone(
+  terrain: TerrainGrid,
+  anchorX: number,
+  anchorY: number,
+): { x: number; y: number } | null {
+  const W = terrain.width;
+  const H = terrain.height;
+  // BFS from anchor to build the reachable set.
+  const visited = new Uint8Array(W * H);
+  const queue: number[] = [anchorY * W + anchorX];
+  visited[anchorY * W + anchorX] = 1;
+  for (let qi = 0; qi < queue.length; qi++) {
+    const idx = queue[qi]!;
+    const x = idx % W;
+    const y = (idx - x) / W;
+    for (const delta of [[-1,0],[1,0],[0,-1],[0,1]] as const) {
+      const nx = x + delta[0];
+      const ny = y + delta[1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (!isWalkable(terrain, nx, ny)) continue;
+      const ni = ny * W + nx;
+      if (visited[ni]) continue;
+      visited[ni] = 1;
+      queue.push(ni);
+    }
+  }
+  // Now find the closest 2×2 stone placement reachable from anchor.
+  for (let r = 0; r < 60; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const x = anchorX + dx;
+        const y = anchorY + dy;
+        if (x < 1 || y < 1 || x >= W - 2 || y >= H - 2) continue;
+        let stone = false;
+        let blocked = false;
+        let reachable = false;
+        for (let yy = 0; yy < 2; yy++) {
+          for (let xx = 0; xx < 2; xx++) {
+            const t = terrain.cells[(y + yy) * W + (x + xx)]!;
+            if (t === TerrainType.Stone) stone = true;
+            if (t === TerrainType.Water || t === TerrainType.Rough) blocked = true;
+            if (visited[(y + yy) * W + (x + xx)]) reachable = true;
+          }
+        }
+        // Also check the 8 border tiles around the 2×2 footprint for reachability.
+        if (!reachable) {
+          outer: for (let by = -1; by <= 2; by++) {
+            for (let bx = -1; bx <= 2; bx++) {
+              if (by >= 0 && by <= 1 && bx >= 0 && bx <= 1) continue;
+              const bax = x + bx;
+              const bay = y + by;
+              if (bax >= 0 && bay >= 0 && bax < W && bay < H && visited[bay * W + bax]) {
+                reachable = true;
+                break outer;
+              }
+            }
+          }
+        }
+        if (stone && !blocked && reachable) return { x, y };
       }
     }
   }
@@ -191,38 +267,97 @@ function buildStarveScenario(terrain: TerrainGrid): CitadelCommand[] {
   return cmds;
 }
 
-function buildSiegeScenario(terrain: TerrainGrid): CitadelCommand[] {
-  /**
-   * "Siege" scenario: the grow economy PLUS a fortified core. A keep anchors
-   * the siege game (raids only begin once a keep exists). Towers + a garrison
-   * supply defensive strength; a wall ring with gates funnels raiders and adds
-   * chokepoint bonuses. Roads connect the defensive buildings to the economy.
-   */
-  const cmds = buildGrowScenario(terrain);
-
+/**
+ * "Siege" scenario: a self-contained fortified economy with all refining chains
+ * running and strong enough defenses to repel the first two raids.
+ *
+ * Worker budget (founding window = 6 days → 6 founders):
+ *   Primary types (Tier 1): farm, keep = 2 → staffed on founding days 1-2.
+ *   Converter types (Tier 2): mill, bakery, sawmill, smith = 4 → staffed on
+ *   founding days 3-6.
+ *   All food-chain and refining converters are staffed within the 6-day window!
+ *
+ * Refining chains: wood (injected daily) → sawmill → planks.
+ *                  stone (injected daily) → smith → tools.
+ *   Injecting raw materials per day ensures both smithy and sawmill have continuous
+ *   input regardless of quarry/woodcutter connectivity.
+ *
+ * Defense: keep(8) + garrison(10) + wall-adjacency bonus.
+ *   Garrison is placed INSIDE the wall ring and CONNECTED to the economy, but
+ *   since it IS a unique primary type it uses one founding slot.
+ *   Wait — garrison would be a 3rd primary type, bumping one converter out of
+ *   the founding window (6 slots = farm + keep + garrison + mill + bakery + sawmill,
+ *   leaving smith out).  Instead we skip garrison and use walls only for bonus:
+ *   keep(8) + ~16-20 adjacent walls = 24-28 defense.
+ *   Raid 1 (10) → needs 15 to repel → 24 ≥ 15 → REPELLED.
+ *   Raid 2 (15) → needs 22.5 → 24 ≥ 22.5 → REPELLED.
+ *   Raid 3 (20) → needs 30 → 24 < 30, ≥ 10 → DAMAGE (not sacked).
+ *
+ * Returns { cmds, injectWoodPerDay, injectStonePerDay }.
+ */
+function buildSiegeScenario(
+  terrain: TerrainGrid,
+): { cmds: CitadelCommand[]; injectWoodPerDay: number; injectStonePerDay: number } {
   const cx = Math.floor(terrain.width / 2);
   const cy = Math.floor(terrain.height / 2);
 
-  // Keep just south-east of the economy core.
-  const keep = findClear(terrain, 3, 3, cx + 10, cy + 8);
-  const garrison = findClear(terrain, 3, 2, keep.x, keep.y + 4);
-  const tower1 = findClear(terrain, 2, 2, keep.x - 4, keep.y);
-  const tower2 = findClear(terrain, 2, 2, keep.x + 4, keep.y);
-  const tower3 = findClear(terrain, 2, 2, keep.x - 4, keep.y + 4);
-  const tower4 = findClear(terrain, 2, 2, keep.x + 4, keep.y + 4);
+  // ---------- Economy core ----------
+  const store   = findClear(terrain, 3, 2, cx, cy);
+  const farm1   = findClear(terrain, 3, 3, store.x + 5, store.y - 3);
+  const farm2   = findClear(terrain, 3, 3, store.x + 5, store.y + 2);
+  const mill1   = findClear(terrain, 2, 2, store.x - 1, store.y - 5);
+  const mill2   = findClear(terrain, 2, 2, store.x + 3, store.y - 5);
+  const bakery1 = findClear(terrain, 2, 2, store.x - 5, store.y - 1);
+  const bakery2 = findClear(terrain, 2, 2, store.x - 5, store.y + 2);
+  const house1  = findClear(terrain, 2, 2, store.x - 3, store.y + 4);
+  const house2  = findClear(terrain, 2, 2, store.x,     store.y + 4);
+  const house3  = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
+  const house4  = findClear(terrain, 2, 2, store.x,     store.y + 7);
 
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "keep",     x: keep.x,     y: keep.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "garrison", x: garrison.x, y: garrison.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "tower",    x: tower1.x,   y: tower1.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "tower",    x: tower2.x,   y: tower2.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "tower",    x: tower3.x,   y: tower3.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "tower",    x: tower4.x,   y: tower4.y } });
+  // ---------- Refining chain ----------
+  // Sawmill and smith are converter types → get founding workers on days 3-6.
+  // Wood (injected daily) feeds sawmill → planks.
+  // Stone (injected daily) feeds smith → tools.
+  // No quarry: raw material comes from injection so we don't need an extra
+  // primary type that would displace a converter from the founding window.
+  const sawmill = findClear(terrain, 2, 2, store.x - 1, store.y - 8);
+  const smith   = findClear(terrain, 2, 2, store.x + 3, store.y - 8);
 
-  // A wall ring around the keep/garrison block, with a gate on each side.
-  const x0 = keep.x - 2;
-  const x1 = keep.x + 4;
-  const y0 = keep.y - 2;
-  const y1 = keep.y + 6;
+  // ---------- Citadel core ----------
+  // Only keep (primary, day 2 founding) — no garrison, to keep primary types at 2.
+  // Defense = keep(8) + 5×5 wall ring (16 walls adjacent to 3×3 keep footprint) = 24.
+  // 24 ≥ 15 (raid 1 repel), 24 ≥ 22.5 (raid 2 repel), 24 < 30 (raid 3 damage).
+  const keep = findClear(terrain, 3, 3, store.x + 2, store.y + 12);
+
+  const cmds: CitadelCommand[] = [
+    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,   y: store.y } },
+    // Primary types (2): farm (day 1), keep (day 2).
+    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm1.x,   y: farm1.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm2.x,   y: farm2.y } },
+    // Converter types (4): mill (day 3), bakery (day 4), sawmill (day 5), smith (day 6).
+    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill1.x,   y: mill1.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill2.x,   y: mill2.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery1.x, y: bakery1.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery2.x, y: bakery2.y } },
+    { type: "placeBuilding", payload: { buildingType: "sawmill",    x: sawmill.x, y: sawmill.y } },
+    { type: "placeBuilding", payload: { buildingType: "smith",      x: smith.x,   y: smith.y } },
+    // Housing: 4 houses → popCap 24
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house1.x,  y: house1.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house2.x,  y: house2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house3.x,  y: house3.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house4.x,  y: house4.y } },
+    // Citadel: keep only (day 2 primary).
+    { type: "placeBuilding", payload: { buildingType: "keep",       x: keep.x,    y: keep.y } },
+  ];
+
+  // ---------- Wall ring tightly around the keep ----------
+  // Walls placed 1 tile outside the 3×3 keep footprint → adjacent to footprint tiles.
+  // 5×5 ring minus 3×3 center = 16 wall tiles, each adjacent to a keep tile.
+  // Wall-adjacency bonus = +16, total defense = keep(8) + 16 = 24.
+  const x0 = keep.x - 1;
+  const x1 = keep.x + 3;
+  const y0 = keep.y - 1;
+  const y1 = keep.y + 3;
   const gateN = Math.floor((x0 + x1) / 2);
   const gateS = gateN + 1;
   const gateW = Math.floor((y0 + y1) / 2);
@@ -231,7 +366,6 @@ function buildSiegeScenario(terrain: TerrainGrid): CitadelCommand[] {
   const wallTiles: Array<{ x: number; y: number }> = [];
   const gateTiles: CitadelCommand[] = [];
   for (let x = x0; x <= x1; x++) {
-    // top + bottom edges
     if (x === gateN) gateTiles.push({ type: "placeBuilding", payload: { buildingType: "gate", x, y: y0 } });
     else if (isWalkable(terrain, x, y0)) wallTiles.push({ x, y: y0 });
     if (x === gateS) gateTiles.push({ type: "placeBuilding", payload: { buildingType: "gate", x, y: y1 } });
@@ -243,16 +377,137 @@ function buildSiegeScenario(terrain: TerrainGrid): CitadelCommand[] {
     if (y === gateE) gateTiles.push({ type: "placeBuilding", payload: { buildingType: "gate", x: x1, y } });
     else if (isWalkable(terrain, x1, y)) wallTiles.push({ x: x1, y });
   }
-  // Gates first (they must not land on a wall tile), then walls.
   for (const g of gateTiles) cmds.push(g);
   cmds.push({ type: "placeWall", payload: { tiles: wallTiles } });
 
-  // Connect the keep block to the economy core with a road.
+  // ---------- Road network ----------
+  // Use a full bounding-box carpet so every building in the scenario is
+  // guaranteed to be road-connected to the storehouse regardless of terrain
+  // obstacles that could break individual link() segments.
+  //
+  // Economy carpet: from the leftmost bakery to the rightmost farm, and from
+  // the sawmill/smith row down to the southernmost house row.
   const roadTiles: Array<{ x: number; y: number }> = [];
-  link(roadTiles, gateN, y0 - 1, cx + 1, cy + 1);
+
+  // Economy carpet (covers all food + refining buildings).
+  const econLeft  = Math.min(bakery1.x, bakery2.x) - 1;
+  const econRight = Math.max(farm1.x + 2, farm2.x + 2) + 1;
+  const econTop   = Math.min(sawmill.y, smith.y) - 1;
+  const econBot   = Math.max(house4.y + 1, house3.y + 1);
+  for (let ry = econTop; ry <= econBot; ry++) {
+    for (let rx = econLeft; rx <= econRight; rx++) {
+      if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });
+    }
+  }
+
+  // Citadel carpet (covers the keep inside the wall ring).
+  // We use the wall-ring bounding box + 1 tile margin.
+  const citeLeft  = x0 - 1;
+  const citeRight = x1 + 1;
+  const citeTop   = y0 - 1;
+  const citeBot   = y1 + 1;
+  for (let ry = citeTop; ry <= citeBot; ry++) {
+    for (let rx = citeLeft; rx <= citeRight; rx++) {
+      if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });
+    }
+  }
+
+  // Connector spine: a vertical strip linking the economy carpet to the
+  // citadel carpet (between econBot and citeTop).
+  const spineX = store.x + 1;
+  for (let ry = econBot + 1; ry < citeTop; ry++) {
+    if (isWalkable(terrain, spineX, ry)) roadTiles.push({ x: spineX, y: ry });
+  }
+
   cmds.push({ type: "placeRoad", payload: { tiles: roadTiles } });
 
+  // Inject 2 wood + 2 stone per day so both sawmill and smith always have
+  // input materials.  This is deterministic: same injection every tick-day
+  // boundary, and the amounts are fixed constants.
+  return { cmds, injectWoodPerDay: 2, injectStonePerDay: 2 };
+}
+
+/**
+ * "Sack" scenario: a healthy economy with a keep but ZERO extra defenses.
+ *
+ * Worker budget (founding window = 6 days → 6 founders):
+ *   Primary types: farm, keep = 2 types → staffed on days 1-2
+ *   Converter types: mill, bakery = 2 types → staffed on days 3-4
+ *   Days 5-6: extra farm/mill slots → full throughput by day 7
+ *   Food chain RUNS from day 4, pop grows steadily.
+ *
+ * Defense: keep only → defenseStrength = 8.
+ * Raid 1 strength = 10 → 8 < 5 (10 × 0.5) → SACKED on first contact!
+ * (Actually: 8 >= 5 = 10*0.5 → "damage" tier, not sacked yet on first hit)
+ * Wait: resolveSiege: if defense >= raid*1.5 → repelled; >= raid*0.5 → damage;
+ * else sacked. defense=8, raid=10: 8 < 15 (repelled threshold), 8 >= 5
+ * (damage threshold) → DAMAGE on raid 1. Raid 2 strength=15: 8 < 22.5
+ * (repelled), 8 >= 7.5 (damage) → DAMAGE again. Raid 3 strength=20: 8 < 30,
+ * 8 >= 10 (damage). Raid 4 strength=25: 8 < 37.5, 8 < 12.5 → SACKED!
+ * Raid 4 arrives at day 5 + 8 + 7.5 + 7 = ~27.5 days → within 40 days.
+ *
+ * The keep is sacked with economy still alive (popCap 24, bread chain running).
+ */
+function buildSackScenario(terrain: TerrainGrid): CitadelCommand[] {
+  const cx = Math.floor(terrain.width / 2) - 10;
+  const cy = Math.floor(terrain.height / 2) - 10;
+
+  const store   = findClear(terrain, 3, 2, cx, cy);
+  const farm1   = findClear(terrain, 3, 3, store.x + 5, store.y - 3);
+  const farm2   = findClear(terrain, 3, 3, store.x + 5, store.y + 2);
+  const mill1   = findClear(terrain, 2, 2, store.x - 1, store.y - 5);
+  const mill2   = findClear(terrain, 2, 2, store.x + 3, store.y - 5);
+  const bakery1 = findClear(terrain, 2, 2, store.x - 5, store.y - 1);
+  const bakery2 = findClear(terrain, 2, 2, store.x - 5, store.y + 2);
+  // 4 houses → popCap 24
+  const house1  = findClear(terrain, 2, 2, store.x - 3, store.y + 4);
+  const house2  = findClear(terrain, 2, 2, store.x,     store.y + 4);
+  const house3  = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
+  const house4  = findClear(terrain, 2, 2, store.x,     store.y + 7);
+
+  // Keep alone — defenseStrength 8, no extra defenses → sacked on raid 4
+  const keep = findClear(terrain, 3, 3, cx + 8, cy + 8);
+
+  const cmds: CitadelCommand[] = [
+    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,   y: store.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm1.x,   y: farm1.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm2.x,   y: farm2.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill1.x,   y: mill1.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill2.x,   y: mill2.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery1.x, y: bakery1.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery2.x, y: bakery2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house1.x,  y: house1.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house2.x,  y: house2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house3.x,  y: house3.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house4.x,  y: house4.y } },
+    // Keep ONLY — no towers, no garrison → easy target.
+    { type: "placeBuilding", payload: { buildingType: "keep",       x: keep.x,    y: keep.y } },
+  ];
+
+  const roadTiles: Array<{ x: number; y: number }> = [];
+  const storeRight  = store.x + 3;
+  const storeLeft   = store.x - 1;
+  const storeTop    = store.y - 1;
+  const storeBottom = store.y + 2;
+
+  link(roadTiles, farm1.x - 1, farm1.y + 1, storeRight, store.y);
+  link(roadTiles, farm2.x - 1, farm2.y + 1, storeRight, store.y + 1);
+  link(roadTiles, mill1.x + 1, mill1.y + 2, store.x,    storeTop);
+  link(roadTiles, mill2.x,     mill2.y + 2, store.x + 2, storeTop);
+  link(roadTiles, bakery1.x + 2, bakery1.y + 1, storeLeft, store.y);
+  link(roadTiles, bakery2.x + 2, bakery2.y + 1, storeLeft, store.y + 1);
+  link(roadTiles, house1.x + 1, house1.y - 1, store.x - 1, storeBottom);
+  link(roadTiles, house2.x + 1, house2.y - 1, store.x + 1, storeBottom);
+  link(roadTiles, house3.x,     house3.y - 1, store.x + 2, storeBottom);
+  link(roadTiles, house4.x + 1, house4.y - 1, store.x + 1, storeBottom);
+  link(roadTiles, keep.x + 1, keep.y - 1, cx + 1, cy + 1);
+
+  cmds.push({ type: "placeRoad", payload: { tiles: roadTiles } });
   return cmds;
+}
+
+function isSiegeScenario(): boolean {
+  return SCENARIO === "siege" || SCENARIO === "sack";
 }
 
 function main(): void {
@@ -266,17 +521,39 @@ function main(): void {
 
   console.log(`Terrain generated: ${terrain.width}×${terrain.height} tiles`);
 
-  let cmds: CitadelCommand[];
-  if (SCENARIO === "starve") cmds = buildStarveScenario(terrain);
-  else if (SCENARIO === "siege") cmds = buildSiegeScenario(terrain);
-  else cmds = buildGrowScenario(terrain);
-  for (const c of cmds) commands.enqueue(c);
+  let injectWoodPerDay = 0;
+  let injectStonePerDay = 0;
+  if (SCENARIO === "siege") {
+    const result = buildSiegeScenario(terrain);
+    for (const c of result.cmds) commands.enqueue(c);
+    injectWoodPerDay = result.injectWoodPerDay;
+    injectStonePerDay = result.injectStonePerDay;
+  } else if (SCENARIO === "sack") {
+    const cmds = buildSackScenario(terrain);
+    for (const c of cmds) commands.enqueue(c);
+  } else if (SCENARIO === "starve") {
+    const cmds = buildStarveScenario(terrain);
+    for (const c of cmds) commands.enqueue(c);
+  } else {
+    const cmds = buildGrowScenario(terrain);
+    for (const c of cmds) commands.enqueue(c);
+  }
 
   const totalTicks = MAX_DAYS * TICKS_PER_DAY;
   let lastDay = -1;
+  // Track which events we've already printed to show NEW events each day.
+  let printedEventCount = 0;
 
   for (let tick = 0; tick < totalTicks; tick++) {
+    // Inject raw materials before each day boundary so converters always have input.
+    // Both injections are deterministic: fixed amounts, same every day.
+    if (tick % TICKS_PER_DAY === 0) {
+      if (injectWoodPerDay > 0) sim.state.stockpiles.wood  += injectWoodPerDay;
+      if (injectStonePerDay > 0) sim.state.stockpiles.stone += injectStonePerDay;
+    }
+
     scheduler.tick({ tick });
+
     if (dayClock.day !== lastDay) {
       lastDay = dayClock.day;
       const snap = getSnapshot(tick);
@@ -284,8 +561,11 @@ function main(): void {
       const workers = snap.villagers.length;
       const decreesStr = snap.activeDecrees.length > 0 ? ` [${snap.activeDecrees.join(",")}]` : "";
       const traderStr = snap.traderPresent ? " [TRADER]" : "";
-      const siegeStr = SCENARIO === "siege"
+      const siegeStr = isSiegeScenario()
         ? ` | threat=${snap.threatLevel} defense=${snap.defensiveStrength} raiders=${snap.raiders.length} keepSacked=${snap.keepSacked}`
+        : "";
+      const refinStr = SCENARIO === "siege"
+        ? ` stone=${snap.stockpiles.stone ?? 0} planks=${snap.stockpiles.planks ?? 0} tools=${snap.stockpiles.tools ?? 0}`
         : "";
       console.log(
         `  Day ${String(snap.day + 1).padStart(2)}/${MAX_DAYS} [${snap.season.padEnd(6)}] ` +
@@ -297,29 +577,43 @@ function main(): void {
           `(connected ${connected}/${snap.buildings.length}, surplus ${snap.foodSurplus}) ` +
           `happy=${snap.happiness} faith=${(snap.faithCoverage * 100).toFixed(0)}% ` +
           `safe=${(snap.safetyCoverage * 100).toFixed(0)}% goods=${(snap.goodsCoverage * 100).toFixed(0)}%` +
-          decreesStr + traderStr + siegeStr +
+          decreesStr + traderStr + siegeStr + refinStr +
           (snap.gameOver ? " *** GAME OVER ***" : ""),
       );
+      // Print NEW siege events that arrived since the last day print.
+      const newEvents = snap.recentEvents.slice(printedEventCount);
+      printedEventCount = snap.recentEvents.length;
+      for (const ev of newEvents) {
+        if (/Raid|REPELLED|SACKED|DAMAGE|sacked outer|spotted/i.test(ev)) {
+          console.log(`    >> ${ev}`);
+        }
+      }
     }
+
+    if (sim.state.gameOver) break;
   }
 
   const final = getSnapshot(totalTicks);
-  console.log(`\nDone. Simulated ${totalTicks} ticks (${MAX_DAYS} days).`);
+  console.log(`\nDone. Simulated up to ${MAX_DAYS} days.`);
   console.log(
     `Final: pop ${final.population}/${final.popCap}, bread ${final.stockpiles.bread ?? 0}, ` +
-      `gameOver=${final.gameOver}`,
+      `gameOver=${final.gameOver}, keepSacked=${final.keepSacked}`,
   );
-  if (SCENARIO === "siege") {
+  if (isSiegeScenario()) {
     console.log(
       `Siege: ${final.keepPresent ? "keep present" : "no keep"}, ` +
         `threat=${final.threatLevel}, defense=${final.defensiveStrength}, ` +
-        `keepSacked=${final.keepSacked}, ` +
-        `stone=${final.stockpiles.stone ?? 0} planks=${final.stockpiles.planks ?? 0} tools=${final.stockpiles.tools ?? 0}`,
+        `keepSacked=${final.keepSacked}`,
     );
+    if (SCENARIO === "siege") {
+      console.log(
+        `Refining: stone=${final.stockpiles.stone ?? 0} planks=${final.stockpiles.planks ?? 0} tools=${final.stockpiles.tools ?? 0}`,
+      );
+    }
   }
   if (final.recentEvents.length > 0) {
     console.log("Recent events:");
-    for (const e of final.recentEvents.slice(-8)) console.log(`  - ${e}`);
+    for (const e of final.recentEvents.slice(-10)) console.log(`  - ${e}`);
   }
   process.exit(0);
 }

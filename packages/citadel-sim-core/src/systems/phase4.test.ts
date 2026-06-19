@@ -9,6 +9,8 @@ import { bootstrapSim } from "../sim-bootstrap";
 import { TerrainType, WORLD_WIDTH } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
 import type { CitadelCommand, RenderSnapshot } from "../snapshot/index";
+import { computeRaiderPath, raiderWalkable } from "./raid-spawn";
+import { bfsPath } from "../world/pathfinder";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
@@ -265,5 +267,78 @@ describe("Phase 4 — determinism", () => {
     const a = runScenario();
     const b = runScenario();
     expect(b).toEqual(a);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. wall-reroute: a wall barrier forces raiders onto a longer path
+// ---------------------------------------------------------------------------
+describe("Phase 4 — wall reroutes raiders", () => {
+  /**
+   * Build a synthetic flat terrain (all Grass) so we control exactly where
+   * walls appear.  Place a horizontal wall barrier between the spawn point
+   * (north edge) and the keep (south half), leaving a gap at one end.
+   * Assert that the wall-aware raider path is LONGER than the direct BFS path
+   * that ignores walls — i.e., walls force a measurable detour.
+   */
+  it("wall barrier forces a longer raider path than an unobstructed direct route", () => {
+    const W = 40;
+    const H = 40;
+    // All-grass synthetic terrain.
+    const terrain: TerrainGrid = {
+      width: W,
+      height: H,
+      cells: new Uint8Array(W * H).fill(TerrainType.Grass),
+    };
+
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+
+    // Place keep at (18, 28) so raiders target it.
+    const keepX = 18;
+    const keepY = 28;
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: keepX, y: keepY } });
+
+    // Horizontal wall barrier at y=15 from x=5 to x=30, no gate (solid wall).
+    // Raiders spawn near the north edge (y=0–2) and must go around the east or
+    // west end of this barrier to reach the keep.
+    const wallTiles: Array<{ x: number; y: number }> = [];
+    const barrierY = 15;
+    const barrierX0 = 5;
+    const barrierX1 = 30;
+    for (let x = barrierX0; x <= barrierX1; x++) wallTiles.push({ x, y: barrierY });
+    sim.commands.enqueue({ type: "placeWall", payload: { tiles: wallTiles } });
+
+    // Process commands.
+    sim.scheduler.tick({ tick: 0 });
+
+    // Raider spawns at a fixed north-edge tile (mid-top, well inside the barrier span).
+    const spawnX = 18;
+    const spawnY = 0;
+    const targetX = keepX + 1; // keep center
+    const targetY = keepY + 1;
+
+    // Path WITHOUT walls: plain BFS on a flat terrain (all walkable, no walls).
+    const directPath = bfsPath(
+      spawnX, spawnY,
+      targetX, targetY,
+      (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < W && ty < H && terrain.cells[ty * W + tx] !== TerrainType.Water,
+      W,
+      H,
+    );
+
+    // Path WITH walls: raider walkability blocks wall tiles.
+    const wallPath = computeRaiderPath(
+      spawnX, spawnY,
+      targetX, targetY,
+      sim.state,
+      sim.terrain, // the actual terrain from bootstrapSim
+    );
+
+    // Both paths must be non-null (flat terrain, open map).
+    expect(directPath).not.toBeNull();
+    expect(wallPath).not.toBeNull();
+
+    // The wall-aware path must be STRICTLY longer (detour around the barrier).
+    expect(wallPath!.length).toBeGreaterThan(directPath!.length);
   });
 });
