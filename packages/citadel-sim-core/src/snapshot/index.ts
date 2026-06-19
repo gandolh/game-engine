@@ -16,6 +16,8 @@ export interface BuildingSnapshot {
   // Phase 4.5: hazard state
   readonly onFire: boolean;
   readonly burning: boolean;
+  // Citadel 08: upgrade level (1..3)
+  readonly level: number;
 }
 
 /** One villager as seen by the renderer. */
@@ -112,4 +114,5 @@ export type CitadelCommand =
   | { type: "placeRoad"; payload: { tiles: Array<{ x: number; y: number }> } }
   | { type: "placeWall"; payload: { tiles: Array<{ x: number; y: number }> } }
   | { type: "setDecree"; payload: { decree: string; active: boolean } }
-  | { type: "barter"; payload: { offerIndex: number } };
+  | { type: "barter"; payload: { offerIndex: number } }
+  | { type: "upgradeBuilding"; payload: { x: number; y: number } };

@@ -20,7 +20,7 @@
  * Stage: "economy" (after connectivity).
  */
 import type { System, SimContext } from "@engine/core";
-import { getProductionDef } from "../entities/building";
+import { getProductionDef, effectiveOutputPerCycle } from "../entities/building";
 import type { SimState } from "../sim-state";
 import { getSeason, grainMultiplier } from "../world/seasons";
 
@@ -60,7 +60,7 @@ export class ProductionSystem implements System {
 
       if (def.outputGood === undefined || def.outputPerCycle <= 0) continue;
 
-      let amount = def.outputPerCycle;
+      let amount = effectiveOutputPerCycle(def, rs.level);
       if (def.outputGood === "grain") {
         const season = getSeason(state.day, state.daysPerYear);
         amount = Math.floor(amount * grainMultiplier(season));

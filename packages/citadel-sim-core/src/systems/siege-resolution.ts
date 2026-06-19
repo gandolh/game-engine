@@ -10,7 +10,7 @@
 import type { System, SimContext, Rng } from "@engine/core";
 import type { SimState, RaiderState } from "../sim-state";
 import { pushEvent } from "../sim-state";
-import { getProductionDef } from "../entities/building";
+import { getProductionDef, effectiveDefenseStrength } from "../entities/building";
 
 type SiegeResult = "repelled" | "damage" | "sacked";
 
@@ -23,7 +23,8 @@ export function computeDefensiveStrength(state: SimState): number {
     const b = entity.building;
     const def = getProductionDef(b.type);
     if (def === undefined || def.defenseStrength === undefined) continue;
-    total += def.defenseStrength;
+    const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
+    total += effectiveDefenseStrength(def, rs?.level ?? 1);
     // Mark this building's footprint tiles as "defended".
     for (let dy = 0; dy < b.h; dy++) {
       for (let dx = 0; dx < b.w; dx++) {

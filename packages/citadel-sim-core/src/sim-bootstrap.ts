@@ -6,7 +6,13 @@ import { TierSystem, TIER_LOCK, tierAtLeast } from "./systems/tiers";
 import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
-import { getBuildingDef, getProductionDef } from "./entities/building";
+import {
+  getBuildingDef,
+  getProductionDef,
+  effectiveHousingCapacity,
+  upgradeCost,
+  BUILDING_MAX_LEVEL,
+} from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
 import type { SimState, BuildingFireState, Stockpiles } from "./sim-state";
 import { emptyStockpiles, pushEvent } from "./sim-state";
@@ -213,7 +219,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   }
 
   function freshRuntime(): BuildingRuntimeState {
-    return { outputBuffer: 0, inputBuffer: 0, workerCount: 0, connected: false, productionTick: 0 };
+    return { outputBuffer: 0, inputBuffer: 0, workerCount: 0, connected: false, productionTick: 0, level: 1 };
   }
 
   // ---------------------------------------------------------------------------
@@ -307,7 +313,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       state.roadGrid[y * WORLD_WIDTH + x] = 1;
     }
     if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
-      state.popCap += prod.housingCapacity;
+      // New buildings are L1 → base capacity (unchanged behavior).
+      state.popCap += effectiveHousingCapacity(prod, 1);
     }
     // Phase 4: special tile tracking
     if (prod?.isGate === true) {
@@ -377,7 +384,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
           state.roadGrid[b.y * WORLD_WIDTH + b.x] = 0;
         }
         if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
-          state.popCap = Math.max(0, state.popCap - prod.housingCapacity);
+          // Subtract the building's level-effective capacity (read level before rs is deleted).
+          const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
+          state.popCap = Math.max(0, state.popCap - effectiveHousingCapacity(prod, rs?.level ?? 1));
         }
         if (prod?.isGate === true) {
           state.gateTiles.delete(b.y * WORLD_WIDTH + b.x);
@@ -393,6 +402,59 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         state.connectivityDirty = true;
         break;
       }
+    }
+  });
+
+  logged("upgradeBuilding", (cmd) => {
+    const { x, y } = cmd.payload;
+    for (const entity of buildingWorld.query("building")) {
+      const b = entity.building;
+      if (!(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h)) continue;
+
+      const prod = getProductionDef(b.type);
+      if (prod === undefined) return;
+      const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
+      if (rs === undefined) return;
+
+      const level = rs.level;
+      if (level >= BUILDING_MAX_LEVEL) {
+        pushEvent(state, `Day ${state.day}: ${b.type} is already at max level.`);
+        return;
+      }
+
+      const nextLevel = level + 1;
+      // L2 = Village, L3 = Town. Reuse the enforced tier ladder via tierAtLeast.
+      const reqTier = level === 1 ? "Village" : "Town";
+      if (!tierAtLeast(state.tier, reqTier)) {
+        pushEvent(state, `Day ${state.day}: upgrading ${b.type} to L${nextLevel} requires ${reqTier} tier.`);
+        return;
+      }
+
+      const cost = upgradeCost(b.type, nextLevel);
+      // Affordability check across the global stockpile pool.
+      for (const [good, qty] of Object.entries(cost)) {
+        if (qty === undefined) continue;
+        if (state.stockpiles[good as GoodType] < qty) {
+          const parts = Object.entries(cost)
+            .map(([g, q]) => `${q ?? 0} ${g}`)
+            .join(", ");
+          pushEvent(state, `Day ${state.day}: not enough materials to upgrade ${b.type} (need ${parts}).`);
+          return;
+        }
+      }
+
+      // Deduct materials.
+      for (const [good, qty] of Object.entries(cost)) {
+        if (qty === undefined) continue;
+        state.stockpiles[good as GoodType] -= qty;
+      }
+
+      rs.level = nextLevel;
+      if (prod.isHousing === true && prod.housingCapacity !== undefined) {
+        state.popCap += effectiveHousingCapacity(prod, nextLevel) - effectiveHousingCapacity(prod, level);
+      }
+      pushEvent(state, `Day ${state.day}: upgraded ${b.type} to L${nextLevel}.`);
+      return;
     }
   });
 
@@ -473,6 +535,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         // Phase 4.5: fire state
         onFire: fs?.burning ?? false,
         burning: fs?.burning ?? false,
+        // Citadel 08: upgrade level
+        level: rs?.level ?? 1,
       });
     }
     return result;

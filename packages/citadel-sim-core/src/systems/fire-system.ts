@@ -30,7 +30,7 @@
 import type { System, SimContext } from "@engine/core";
 import type { SimState, BuildingFireState } from "../sim-state";
 import { pushEvent } from "../sim-state";
-import { getProductionDef, SERVICE_RADII } from "../entities/building";
+import { getProductionDef, SERVICE_RADII, effectiveHousingCapacity } from "../entities/building";
 import type { Rng } from "@engine/core";
 
 /** Building types that are wooden (can burn). Stone/defensive types cannot. */
@@ -214,7 +214,9 @@ export class FireSystem implements System {
       }
       if (prod?.isRoad === true) state.roadGrid[b.y * state.width + b.x] = 0;
       if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
-        state.popCap = Math.max(0, state.popCap - prod.housingCapacity);
+        // Subtract the building's level-effective capacity (read level before rs is deleted).
+        const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
+        state.popCap = Math.max(0, state.popCap - effectiveHousingCapacity(prod, rs?.level ?? 1));
       }
       if (prod?.isGate === true) state.gateTiles.delete(b.y * state.width + b.x);
       if (prod?.isWall === true) state.wallTiles.delete(b.y * state.width + b.x);

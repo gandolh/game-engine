@@ -10,7 +10,7 @@ import { isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE } from "@
 import type { TerrainGrid, BuildingSnapshot } from "@citadel/sim-core";
 import type { Camera } from "../render/terrain-renderer";
 
-export type PlacementMode = "none" | "place" | "demolish" | "road" | "wall";
+export type PlacementMode = "none" | "place" | "demolish" | "road" | "wall" | "upgrade";
 
 export interface GhostState {
   tileX: number;

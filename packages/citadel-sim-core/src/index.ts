@@ -14,7 +14,17 @@ export type {
   GoodType,
   TerrainReq,
 } from "./entities/building";
-export { getBuildingDef, getProductionDef, PRODUCTION_DEFS, SERVICE_RADII } from "./entities/building";
+export {
+  getBuildingDef,
+  getProductionDef,
+  PRODUCTION_DEFS,
+  SERVICE_RADII,
+  BUILDING_MAX_LEVEL,
+  upgradeCost,
+  effectiveOutputPerCycle,
+  effectiveHousingCapacity,
+  effectiveDefenseStrength,
+} from "./entities/building";
 export type { VillagerComponent, VillagerEntity, VillagerFsm } from "./entities/villager";
 export type {
   BuildingSnapshot,

@@ -8,7 +8,7 @@
  * Phase 5: settlement tier HUD; save/load via command-log replay (localStorage
  *          + downloadable JSON blob).
  */
-import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast } from "@citadel/sim-core";
+import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier } from "@citadel/sim-core";
 import { EDG } from "@engine/core";
 import { CitadelSimClient } from "./worker/sim-client";
@@ -47,6 +47,7 @@ const btn1x = document.getElementById("btn-1x")!;
 const btn2x = document.getElementById("btn-2x")!;
 const btn4x = document.getElementById("btn-4x")!;
 const btnDemolish = document.getElementById("btn-demolish")!;
+const btnUpgrade = document.getElementById("btn-upgrade")!;
 const btnRoad = document.getElementById("btn-build-road")!;
 const btnWall = document.getElementById("btn-build-wall")!;
 const btnCancel = document.getElementById("btn-cancel")!;
@@ -127,6 +128,8 @@ canvas.addEventListener("mousemove", (e) => {
     lastMouseY = e.clientY;
   }
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+  // Live upgrade hint: refresh the mode label as the cursor moves over buildings.
+  if (placementState.mode === "upgrade") updateModeLabel();
 });
 
 canvas.addEventListener("wheel", (e) => {
@@ -150,8 +153,36 @@ canvas.addEventListener("click", (e) => {
   } else if (placementState.mode === "demolish") {
     const { tx, ty } = placementState.cursorTile();
     client.sendCommand({ type: "demolish", payload: { x: tx, y: ty } });
+  } else if (placementState.mode === "upgrade") {
+    const { tx, ty } = placementState.cursorTile();
+    client.sendCommand({ type: "upgradeBuilding", payload: { x: tx, y: ty } });
   }
 });
+
+/** Building whose footprint contains (tx,ty) in the latest snapshot, or null. */
+function buildingAt(tx: number, ty: number): BuildingSnapshot | null {
+  for (const b of currentBuildings) {
+    if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) return b;
+  }
+  return null;
+}
+
+/** Lightweight upgrade hint for the hovered building (cost + valid/locked). */
+function upgradeHint(): string {
+  const { tx, ty } = placementState.cursorTile();
+  const b = buildingAt(tx, ty);
+  if (b === null) return "Mode: Upgrade (click a building)";
+  if (b.level >= BUILDING_MAX_LEVEL) return `Mode: Upgrade — ${b.type} is max level (L${b.level})`;
+  const nextLevel = b.level + 1;
+  const reqTier = b.level === 1 ? "Village" : "Town";
+  const cost = upgradeCost(b.type, nextLevel);
+  const costStr = Object.entries(cost)
+    .map(([g, q]) => `${q} ${g}`)
+    .join(", ");
+  const locked = !tierAtLeast(tier as SettlementTier, reqTier);
+  const status = locked ? ` [LOCKED: needs ${reqTier}]` : "";
+  return `Mode: Upgrade ${b.type} → L${nextLevel} (${costStr})${status}`;
+}
 
 function updateModeLabel(): void {
   const mode = placementState.mode;
@@ -159,6 +190,7 @@ function updateModeLabel(): void {
   else if (mode === "demolish") lblMode.textContent = "Mode: Demolish";
   else if (mode === "road") lblMode.textContent = "Mode: Road (drag)";
   else if (mode === "wall") lblMode.textContent = "Mode: Wall (drag)";
+  else if (mode === "upgrade") lblMode.textContent = upgradeHint();
   else lblMode.textContent = "Mode: None";
 }
 
@@ -245,6 +277,10 @@ btnWall.addEventListener("click", () => {
 });
 btnDemolish.addEventListener("click", () => {
   placementState.mode = "demolish";
+  updateModeLabel();
+});
+btnUpgrade.addEventListener("click", () => {
+  placementState.mode = "upgrade";
   updateModeLabel();
 });
 btnCancel.addEventListener("click", () => {

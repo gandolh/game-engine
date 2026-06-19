@@ -23,6 +23,8 @@ export interface BuildingRuntimeState {
   workerCount: number;
   connected: boolean;
   productionTick: number;
+  /** Upgrade level 1..BUILDING_MAX_LEVEL. New buildings start at 1. */
+  level: number;
 }
 
 export interface BuildingComponent {
@@ -299,4 +301,64 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
 
 export function getProductionDef(type: string): BuildingProductionDef | undefined {
   return PRODUCTION_DEFS[type];
+}
+
+// ---------------------------------------------------------------------------
+// Citadel 08: building upgrades (level 1 → 3, material-cost, tier-gated)
+// ---------------------------------------------------------------------------
+
+/** Buildings upgrade L1 → L2 → L3. */
+export const BUILDING_MAX_LEVEL = 3;
+
+/**
+ * Settlement tier (by name) required to upgrade INTO a given level.
+ * Kept as plain strings here — building.ts must NOT import tiers.ts
+ * (tiers.ts already imports getProductionDef from this module; importing
+ * back would create a cycle). The call site converts to SettlementTier.
+ *
+ * L2 = Village, L3 = Town.
+ */
+export function tierNameRequiredForLevel(level: 2 | 3): "Village" | "Town" {
+  return level === 2 ? "Village" : "Town";
+}
+
+/**
+ * Material cost (drawn from the global stockpile) to upgrade INTO `toLevel`.
+ * Rising cost gives the refining chain (planks/stone/tools) a demand sink:
+ *   L2 = { planks: 4, stone: 4 }
+ *   L3 = { planks: 8, stone: 6, tools: 2 }
+ * Cost is uniform across building types this round (tunable per-type later).
+ */
+export function upgradeCost(_type: string, toLevel: number): Partial<Record<GoodType, number>> {
+  if (toLevel === 2) return { planks: 4, stone: 4 };
+  if (toLevel === 3) return { planks: 8, stone: 6, tools: 2 };
+  return {};
+}
+
+/** Output multiplier per level: L1=1, L2=1.5, L3=2 (floored at the call site). */
+function outputMultiplierForLevel(level: number): number {
+  if (level >= 3) return 2;
+  if (level === 2) return 1.5;
+  return 1;
+}
+
+/** Effective per-cycle output for a building at `level` (floored). */
+export function effectiveOutputPerCycle(def: BuildingProductionDef, level: number): number {
+  return Math.floor(def.outputPerCycle * outputMultiplierForLevel(level));
+}
+
+/** Effective housing capacity for a housing building at `level` (+3 per level above 1). */
+export function effectiveHousingCapacity(def: BuildingProductionDef, level: number): number {
+  if (def.isHousing !== true || def.housingCapacity === undefined) return 0;
+  return def.housingCapacity + (level - 1) * 3;
+}
+
+/**
+ * Effective defense strength for a building at `level`.
+ * CAPPED / gentle additive curve (+2 per level above 1) — NOT multiplicative —
+ * so upgrading towers/keeps does not trivialize the siege layer.
+ */
+export function effectiveDefenseStrength(def: BuildingProductionDef, level: number): number {
+  if (def.defenseStrength === undefined) return 0;
+  return def.defenseStrength + (level - 1) * 2;
 }
