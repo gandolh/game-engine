@@ -131,4 +131,6 @@ export type CitadelCommand =
   | { type: "barter"; payload: { offerIndex: number } }
   | { type: "upgradeBuilding"; payload: { x: number; y: number } }
   // Citadel 32: launch a PvP army at a targeted enemy building / town-hall.
-  | { type: "launchAttack"; payload: { targetX: number; targetY: number; strength: number } };
+  | { type: "launchAttack"; payload: { targetX: number; targetY: number; strength: number } }
+  // Citadel 34: one-way gift of goods to another player (no alliance state).
+  | { type: "gift"; payload: { to: number; good: string; amount: number } };

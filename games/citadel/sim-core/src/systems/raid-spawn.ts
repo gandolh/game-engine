@@ -7,6 +7,7 @@
  * per tick — so the schedule is fully deterministic for a given seed.
  */
 import type { System, SimContext, Rng } from "@engine/core";
+import { createRng } from "@engine/core";
 import type { SimState, RaiderState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import { bfsPath } from "../world/pathfinder";
@@ -81,20 +82,41 @@ export function computeRaiderPath(
 
 export class RaidSpawnSystem implements System {
   readonly name = "RaidSpawnSystem";
-  private readonly rng: Rng;
+  private readonly baseRng: Rng;
+  private readonly rivalBase: Rng;
+  private readonly perPlayerRng = new Map<number, Rng>();
 
   constructor(private readonly state: SimState, private readonly terrain: TerrainGrid) {
-    // Fork the RNG ONCE at construction — never per tick.
-    this.rng = state.rng.fork("raids");
+    // Fork the base RNG ONCE at construction — never per tick.
+    this.baseRng = state.rng.fork("raids");
+    // Citadel 33: rival streams come from a SEPARATE tree (createRng), so
+    // deriving them never consumes `state.rng` (fork() pulls the parent) — that
+    // keeps player 0's stream + all downstream state.rng forks byte-identical.
+    this.rivalBase = createRng(state.rng.snapshot().seed).fork("raids-rivals");
+  }
+
+  /**
+   * Citadel 33: per-player raid RNG so adding/removing a player never perturbs
+   * another player's raid schedule. Player 0 uses the legacy base stream (solo
+   * byte-identical); each other player derives an independent sub-stream off a
+   * separate rival tree (cached, so a late-joining player can't shift earlier
+   * players' already-derived streams).
+   */
+  private rngFor(p: PlayerState): Rng {
+    let r = this.perPlayerRng.get(p.id);
+    if (r === undefined) {
+      r = p.id === 0 ? this.baseRng : this.rivalBase.fork(`p${p.id}`);
+      this.perPlayerRng.set(p.id, r);
+    }
+    return r;
   }
 
   run(ctx: SimContext): void {
     const state = this.state;
 
-    // Citadel 28: per-player PvE raids. Each player with a keep gets their own
-    // escalating raid schedule. ONE shared raids RNG pulled in stable player-id
-    // order → solo (player 0) byte-identical to the pre-refactor schedule.
+    // Citadel 28/33: per-player PvE raids, each on an INDEPENDENT seeded stream.
     for (const p of state.players) {
+      const rng = this.rngFor(p);
       // The siege game is opt-in: raids only begin once this player has a keep.
       // A pure economy town (no keep) is never raided. The raid clock is
       // (re)anchored to the moment the keep appears.
@@ -106,7 +128,7 @@ export class RaidSpawnSystem implements System {
       // Schedule first raid if not yet scheduled.
       if (p.nextRaidTick < 0) {
         // First raid arrives around day 5.
-        p.nextRaidTick = 5 * state.ticksPerDay + this.rng.int(0, state.ticksPerDay);
+        p.nextRaidTick = 5 * state.ticksPerDay + rng.int(0, state.ticksPerDay);
       }
 
       if (ctx.tick < p.nextRaidTick) continue;
@@ -119,8 +141,8 @@ export class RaidSpawnSystem implements System {
       const strength = 10 + (raidNum - 1) * 5;
 
       // Spawn from a random map edge (N=0, E=1, S=2, W=3).
-      const edge = this.rng.int(0, 4);
-      const { x: spawnX, y: spawnY } = pickEdgeSpawn(edge, state.width, state.height, this.terrain, this.rng);
+      const edge = rng.int(0, 4);
+      const { x: spawnX, y: spawnY } = pickEdgeSpawn(edge, state.width, state.height, this.terrain, rng);
 
       const target = findRaiderTarget(state, p);
       const path = computeRaiderPath(spawnX, spawnY, target.x, target.y, state, p, this.terrain);
@@ -144,7 +166,7 @@ export class RaidSpawnSystem implements System {
       // Schedule next raid: base interval 8 days, shrinking 0.5 days per raid, min 3.
       const intervalDays = Math.max(3, 8 - (raidNum - 1) * 0.5);
       const intervalTicks = Math.floor(intervalDays * state.ticksPerDay);
-      p.nextRaidTick = ctx.tick + intervalTicks + this.rng.int(0, state.ticksPerDay);
+      p.nextRaidTick = ctx.tick + intervalTicks + rng.int(0, state.ticksPerDay);
 
       pushEvent(
         state,

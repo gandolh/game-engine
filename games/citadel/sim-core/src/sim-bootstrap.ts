@@ -537,6 +537,26 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     pushEvent(state, `Day ${state.day + 1}: player ${attacker.id} launched an army (str ${strength}) at player ${defenderId}'s ${target.building.type}.`);
   });
 
+  // Citadel 34: one-way gift/transfer — move goods from the sender to player
+  // `to`. Pure stockpile arithmetic; no alliance/trust state. (Sender = local
+  // player until brief 35 routes commands per sender.)
+  logged("gift", (cmd) => {
+    const sender = localPlayer(state);
+    const { to, good, amount } = cmd.payload;
+    if (amount <= 0) return;
+    const recipient = playerById(state, to);
+    if (recipient === undefined || recipient.id === sender.id) return;
+    const g = good as GoodType;
+    if (sender.stockpiles[g] === undefined) return; // unknown good
+    if (sender.stockpiles[g] < amount) {
+      pushEvent(state, `Day ${state.day}: not enough ${good} to gift (have ${sender.stockpiles[g]}, need ${amount}).`);
+      return;
+    }
+    sender.stockpiles[g] -= amount;
+    recipient.stockpiles[g] += amount;
+    pushEvent(state, `Day ${state.day + 1}: player ${sender.id} gifted ${amount} ${good} to player ${to}.`);
+  });
+
   // ---------------------------------------------------------------------------
   // Scheduler + systems
   // ---------------------------------------------------------------------------

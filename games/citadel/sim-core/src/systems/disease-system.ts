@@ -19,16 +19,32 @@ import { pushEvent } from "../sim-state";
 import { getProductionDef, SERVICE_RADII } from "../entities/building";
 import type { VillagerEntity } from "../entities/villager";
 import type { Rng } from "@engine/core";
+import { createRng } from "@engine/core";
 
 export class DiseaseSystem implements System {
   readonly name = "DiseaseSystem";
 
   private lastDay = -1;
-  private readonly rng: Rng;
+  private readonly baseRng: Rng;
+  private readonly rivalBase: Rng;
+  private readonly perPlayerRng = new Map<number, Rng>();
 
   constructor(private readonly state: SimState) {
-    // Fork ONCE in constructor, never per-tick.
-    this.rng = state.rng.fork("disease");
+    // Fork the base RNG ONCE in constructor, never per-tick.
+    this.baseRng = state.rng.fork("disease");
+    // Citadel 33: rival hazard streams from a separate createRng tree (no
+    // state.rng consumption → solo byte-identical).
+    this.rivalBase = createRng(state.rng.snapshot().seed).fork("disease-rivals");
+  }
+
+  /** Citadel 33: per-player hazard RNG (player 0 = legacy stream → solo unchanged). */
+  private rngFor(p: PlayerState): Rng {
+    let r = this.perPlayerRng.get(p.id);
+    if (r === undefined) {
+      r = p.id === 0 ? this.baseRng : this.rivalBase.fork(`p${p.id}`);
+      this.perPlayerRng.set(p.id, r);
+    }
+    return r;
   }
 
   run(ctx: SimContext): void {
@@ -56,7 +72,7 @@ export class DiseaseSystem implements System {
       onsetChance = Math.min(0.5, onsetChance);
       if (healerNear) onsetChance *= 0.25;
 
-      if (this.rng.nextFloat() < onsetChance) {
+      if (this.rngFor(p).nextFloat() < onsetChance) {
         p.outbreakActive = true;
         p.sickVillagers = Math.max(1, Math.floor(p.population * 0.25));
         pushEvent(state, `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.`);
@@ -64,7 +80,7 @@ export class DiseaseSystem implements System {
     } else {
       // Active outbreak: spread + mortality + recovery.
       const spreadChance = Math.min(0.5, (crowding - 1) * 0.1);
-      if (this.rng.nextFloat() < (healerNear ? spreadChance * 0.3 : spreadChance)) {
+      if (this.rngFor(p).nextFloat() < (healerNear ? spreadChance * 0.3 : spreadChance)) {
         const newSick = Math.ceil(p.population * 0.1);
         p.sickVillagers = Math.min(p.population, p.sickVillagers + newSick);
       }
@@ -82,7 +98,7 @@ export class DiseaseSystem implements System {
       }
 
       const recoveryChance = healerNear ? 0.3 : 0.1;
-      if (this.rng.nextFloat() < recoveryChance) {
+      if (this.rngFor(p).nextFloat() < recoveryChance) {
         p.sickVillagers = Math.max(0, p.sickVillagers - Math.ceil(p.sickVillagers * 0.4));
       }
       if (p.sickVillagers <= 0) {

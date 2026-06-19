@@ -22,6 +22,7 @@ import type { SimState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import { getProductionDef, SERVICE_RADII, effectiveHousingCapacity } from "../entities/building";
 import type { Rng } from "@engine/core";
+import { createRng } from "@engine/core";
 
 /** Building types that are wooden (can burn). Stone/defensive types cannot. */
 const WOODEN_TYPES = new Set([
@@ -41,11 +42,26 @@ export class FireSystem implements System {
   readonly name = "FireSystem";
 
   private lastDay = -1;
-  private readonly rng: Rng;
+  private readonly baseRng: Rng;
+  private readonly rivalBase: Rng;
+  private readonly perPlayerRng = new Map<number, Rng>();
 
   constructor(private readonly state: SimState) {
-    // Fork ONCE in constructor, never per-tick.
-    this.rng = state.rng.fork("fire");
+    // Fork the base RNG ONCE in constructor, never per-tick.
+    this.baseRng = state.rng.fork("fire");
+    // Citadel 33: rival hazard streams come from a separate createRng tree so
+    // deriving them never consumes state.rng (keeps solo byte-identical).
+    this.rivalBase = createRng(state.rng.snapshot().seed).fork("fire-rivals");
+  }
+
+  /** Citadel 33: per-player hazard RNG (player 0 = legacy stream → solo unchanged). */
+  private rngFor(p: PlayerState): Rng {
+    let r = this.perPlayerRng.get(p.id);
+    if (r === undefined) {
+      r = p.id === 0 ? this.baseRng : this.rivalBase.fork(`p${p.id}`);
+      this.perPlayerRng.set(p.id, r);
+    }
+    return r;
   }
 
   run(ctx: SimContext): void {
@@ -124,7 +140,7 @@ export class FireSystem implements System {
         const wellNear = this._hasWellNear(p, tcx, tcy);
         if (wellNear) spreadChance *= 0.3;
 
-        if (this.rng.nextFloat() < spreadChance) {
+        if (this.rngFor(p).nextFloat() < spreadChance) {
           this._igniteBuilding(p, id, b.type, "spread");
         }
       }
@@ -154,7 +170,7 @@ export class FireSystem implements System {
 
       if (this._hasWellNear(p, cx, cy)) chance *= 0.2;
 
-      if (this.rng.nextFloat() < chance) {
+      if (this.rngFor(p).nextFloat() < chance) {
         this._igniteBuilding(p, id, b.type, "ignition");
       }
     }
