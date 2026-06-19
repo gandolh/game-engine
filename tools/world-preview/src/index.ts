@@ -12,7 +12,7 @@ import {
 } from "@farm/sim-core/world/regions";
 import type { AtlasManifest } from "@engine/core";
 import type { GameEntity } from "@farm/sim-core/components";
-import { PREFIX_TO_SHEET } from "../../atlas-builder/src/recipes";
+import { PREFIX_TO_SHEET } from "@farm/atlas-recipes";
 
 const TILE = 16;
 const WORLD_W = WORLD_WIDTH * TILE;

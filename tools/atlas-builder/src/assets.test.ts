@@ -3,14 +3,12 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BASE_RECIPES } from "./index";
-import { RECIPES } from "../index";
-import { buildAtlas } from "../../index";
+import { BASE_RECIPES, RECIPES, RECIPES_SRC_DIR } from "@farm/atlas-recipes";
+import { buildAtlas } from "./index";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ASSETS_DIR = HERE;
-const ATLAS_BUILDER_DIR = join(HERE, "../../..");
-const ATLAS_OUT_DIR = join(ATLAS_BUILDER_DIR, "../../games/farm/client/public/atlas");
+const ASSETS_DIR = join(RECIPES_SRC_DIR, "assets");
+const ATLAS_OUT_DIR = join(HERE, "../../../games/farm/client/public/atlas");
 
 function collectAssetFiles(dir: string, out: string[]): void {
   for (const name of readdirSync(dir)) {
@@ -83,11 +81,11 @@ describe("no duplicate recipe names", () => {
 describe("deterministic PNG encode", () => {
   it("encodes the same pixels to identical PNG bytes in two runs (crops sheet)", () => {
     const cropsPngPath = join(ATLAS_OUT_DIR, "crops.png");
-    buildAtlas({ force: true }); 
+    buildAtlas({ force: true });
     expect(existsSync(cropsPngPath), "crops.png must exist after a build").toBe(true);
     const before = readFileSync(cropsPngPath);
 
-    buildAtlas({ force: true }); 
+    buildAtlas({ force: true });
     const after = readFileSync(cropsPngPath);
 
     expect(after.length, "crops.png size changed on --force rebuild").toBe(before.length);
@@ -100,25 +98,25 @@ describe("deterministic PNG encode", () => {
 
 describe("per-sheet cache", () => {
   it("a second build (no changes) reports all 6 sheets cached", () => {
-    buildAtlas({ force: true });        
-    const { built, cached } = buildAtlas(); 
+    buildAtlas({ force: true });
+    const { built, cached } = buildAtlas();
 
     expect(built, "no sheets should rebuild on a no-op run").toHaveLength(0);
     expect(cached).toHaveLength(6);
   });
 
   it("touching one crop asset file rebuilds only the crops sheet", () => {
-    buildAtlas({ force: true });        
+    buildAtlas({ force: true });
 
     const cropFile = join(ASSETS_DIR, "crop/radish/seed.ts");
     const original = readFileSync(cropFile, "utf8");
-    writeFileSync(cropFile, original + "\n"); 
+    writeFileSync(cropFile, original + "\n");
 
     let result: { built: string[]; cached: string[] };
     try {
-      result = buildAtlas(); 
+      result = buildAtlas();
     } finally {
-      writeFileSync(cropFile, original); 
+      writeFileSync(cropFile, original);
     }
 
     expect(result.built, "exactly the crops sheet should rebuild").toEqual(["crops"]);

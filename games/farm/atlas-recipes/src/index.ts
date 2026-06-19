@@ -3,6 +3,15 @@ export { PREFIX_TO_SHEET, frameToSheetId, recipeWidth, recipeHeight } from "./sh
 export { colorOf } from "./palette";
 export { BASE_RECIPES } from "./assets/index";
 
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/** Absolute path to this package's `src/` directory.
+ *  Consumed by `@tool/atlas-builder` to locate recipe source files for
+ *  fingerprint hashing without a deep cross-package path.
+ */
+export const RECIPES_SRC_DIR: string = dirname(fileURLToPath(import.meta.url));
+
 import { type PixelRecipe } from "./types";
 import { BASE_RECIPES } from "./assets/index";
 import {

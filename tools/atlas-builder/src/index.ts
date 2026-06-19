@@ -10,8 +10,9 @@ import {
   recipeWidth,
   recipeHeight,
   frameToSheetId,
+  RECIPES_SRC_DIR,
   type PixelRecipe,
-} from "./recipes";
+} from "@farm/atlas-recipes";
 import { computeSheetHash, PNG_OPTIONS } from "./fingerprint";
 
 interface PackedFrame {
@@ -92,8 +93,8 @@ function rasterize(packed: Packed, recipes: readonly PixelRecipe[]): PNG {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(__dirname, "../../../games/farm/client/public/atlas");
-const recipesDir = resolve(__dirname, "recipes");
-const assetsDir = resolve(__dirname, "recipes/assets");
+const recipesDir = RECIPES_SRC_DIR;
+const assetsDir = resolve(RECIPES_SRC_DIR, "assets");
 
 export interface BuildResult { built: string[]; cached: string[]; }
 

@@ -75,7 +75,7 @@ describe("no source file uses an off-palette color literal", () => {
   });
 
   it("atlas-builder SWATCH RGB tuples are all EDG32 colors", () => {
-    const recipes = join(REPO_ROOT, "tools", "atlas-builder", "src", "recipes", "palette.ts");
+    const recipes = join(REPO_ROOT, "games", "farm", "atlas-recipes", "src", "palette.ts");
     const text = readFileSync(recipes, "utf8");
     const rowRe = /^\s*[A-Za-z.]:\s*\[\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\s*\]/gm;
     const toHex = (r: number, g: number, b: number) =>
