@@ -29,7 +29,7 @@ export const TERRAIN_COLORS: Record<TerrainType, string> = {
   [TerrainType.Water]: EDG.skyBlue,
   [TerrainType.Forest]: EDG.greenDark,
   [TerrainType.Stone]: EDG.slate,
-  [TerrainType.Rough]: EDG.wood,
+  [TerrainType.Rough]: EDG.tan, // sandy scrubland — softer/more natural than the salmon `wood` brown
 };
 
 /** EDG color per building type. */

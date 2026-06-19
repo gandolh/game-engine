@@ -108,7 +108,9 @@ export interface DitherCluster {
 export function ditherClusters(tx: number, ty: number, type: TerrainType): DitherCluster[] {
   const accents = ditherAccents(type);
   const h = ditherHash(tx, ty, type);
-  const count = 1 + (h & 0x3) % 3; // 1..3
+  // Bias toward FEWER specks (mostly 1) so the field reads as a calm surface
+  // with occasional texture rather than dense noise when the map is zoomed out.
+  const count = 1 + ((h & 0x7) === 0 ? 1 : 0) + ((h & 0x38) === 0 ? 1 : 0); // mostly 1, rarely 2-3
   const clusters: DitherCluster[] = [];
   // 4px sub-grid → 4 columns/rows of cells at TILE_SIZE=16, keeps stamps inset.
   const cells = TILE_SIZE / 4; // 4
@@ -118,7 +120,8 @@ export function ditherClusters(tx: number, ty: number, type: TerrainType): Dithe
     const gx = slice & 0x3; // 0..3 grid col
     const gy = (slice >>> 2) & 0x3; // 0..3 grid row
     const size = 1 + ((slice >>> 4) & 0x1); // 1..2 px
-    const light = ((slice >>> 5) & 0x1) === 1;
+    // Bias toward the LIGHT accent — soft highlights read gentler than dark specks.
+    const light = ((slice >>> 5) & 0x3) !== 0; // ~75% light, ~25% dark
     clusters.push({
       x: gx * cells,
       y: gy * cells,

@@ -55,6 +55,14 @@ import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 
 const SEED = 0x1a2b3c4d;
 const TICKS_PER_DAY = 20;
+/**
+ * Render-only day/night wash period (ticks). The sim day is very short
+ * (TICKS_PER_DAY=20 ≈ 1 s of real time at 1× → the tint would strobe), so the
+ * atmospheric wash is decoupled onto a much slower visual cycle: ~1800 ticks ≈
+ * 90 s at 1× speed, so the map colour eases gently through dawn→dusk→night.
+ * Purely cosmetic — never touches the sim or determinism.
+ */
+const VISUAL_DAY_TICKS = 1800;
 
 // ---------------------------------------------------------------------------
 // DOM references
@@ -808,7 +816,7 @@ function loop(): void {
   // --- Atmosphere (render-only). Day/night wash + night light pool (brief 15),
   // ambient crowd (brief 18), weather (brief 16). All driven off snapshot
   // fields (tick/season/tier/day) + the render clock — zero sim impact.
-  const dayFraction = dayFractionOf(tick, TICKS_PER_DAY);
+  const dayFraction = dayFractionOf(tick, VISUAL_DAY_TICKS);
   const nightFactor = nightFactorOf(dayFraction);
 
   // Night light pool: warm glow quads over emitter buildings (sprite-batch).
