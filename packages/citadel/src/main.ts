@@ -1,17 +1,15 @@
 /**
- * Citadel — Phase 1 browser entry point.
+ * Citadel — Phase 2 browser entry point.
  *
- * Sets up the canvas, initialises the sim Worker, bakes terrain, and runs
- * the animation loop. Phase 1 adds:
- *   - Toolbar: "Build House" / "Demolish" / "Cancel" buttons
- *   - Ghost preview follows cursor (green=valid, red=invalid)
- *   - Click to place a building or demolish
+ * Toolbar for every building type + road drag-paint, ghost preview, an economy
+ * HUD (day/season, population, bread/wood, event feed), and rendering of
+ * buildings + villagers from the worker snapshot.
  */
-import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef } from "@citadel/sim-core";
-import type { TerrainGrid, BuildingSnapshot } from "@citadel/sim-core";
+import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef } from "@citadel/sim-core";
+import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";
 import { CitadelSimClient } from "./worker/sim-client";
 import { bakeTerrainLayer, drawTerrain, clampZoom } from "./render/terrain-renderer";
-import { drawBuildings, drawGhost } from "./render/building-renderer";
+import { drawBuildings, drawGhost, drawVillagers } from "./render/building-renderer";
 import { PlacementStateManager } from "./ui/placement-state";
 import type { Camera } from "./render/terrain-renderer";
 
@@ -27,13 +25,16 @@ if (!ctxMaybe) throw new Error("Failed to acquire 2d context");
 const ctx: CanvasRenderingContext2D = ctxMaybe;
 
 const hudDay = document.getElementById("hud-day")!;
-const hudTick = document.getElementById("hud-tick")!;
+const hudPop = document.getElementById("hud-pop")!;
+const hudBread = document.getElementById("hud-bread")!;
+const hudWood = document.getElementById("hud-wood")!;
+const hudEvents = document.getElementById("hud-events")!;
 const btnPause = document.getElementById("btn-pause")!;
 const btn1x = document.getElementById("btn-1x")!;
 const btn2x = document.getElementById("btn-2x")!;
 const btn4x = document.getElementById("btn-4x")!;
-const btnBuildHouse = document.getElementById("btn-build-house")!;
 const btnDemolish = document.getElementById("btn-demolish")!;
+const btnRoad = document.getElementById("btn-build-road")!;
 const btnCancel = document.getElementById("btn-cancel")!;
 const lblMode = document.getElementById("lbl-mode")!;
 
@@ -46,20 +47,40 @@ const camera: Camera = {
   zoom: 1,
 };
 
-// Pan & zoom interaction
-let isDragging = false;
+let isPanning = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
+const placementState = new PlacementStateManager();
+let currentBuildings: readonly BuildingSnapshot[] = [];
+let currentVillagers: readonly VillagerSnapshot[] = [];
+
 canvas.addEventListener("mousedown", (e) => {
-  isDragging = true;
+  placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+  if (placementState.mode === "road") {
+    placementState.startRoadDrag();
+    return;
+  }
+  // Otherwise begin a camera pan.
+  isPanning = true;
   lastMouseX = e.clientX;
   lastMouseY = e.clientY;
 });
-canvas.addEventListener("mouseup", () => { isDragging = false; });
-canvas.addEventListener("mouseleave", () => { isDragging = false; });
+
+canvas.addEventListener("mouseup", (e) => {
+  if (placementState.mode === "road" && placementState.isDraggingRoad) {
+    placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+    const tiles = placementState.endRoadDrag();
+    if (tiles.length > 0) {
+      client.sendCommand({ type: "placeRoad", payload: { tiles } });
+    }
+  }
+  isPanning = false;
+});
+canvas.addEventListener("mouseleave", () => { isPanning = false; });
+
 canvas.addEventListener("mousemove", (e) => {
-  if (isDragging) {
+  if (isPanning) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const cw = canvas.clientWidth * dpr;
     const worldPxW = WORLD_WIDTH * TILE_SIZE;
@@ -72,23 +93,17 @@ canvas.addEventListener("mousemove", (e) => {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
   }
-  // Update ghost cursor position
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
 });
+
 canvas.addEventListener("wheel", (e) => {
   e.preventDefault();
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
   camera.zoom = clampZoom(camera.zoom * factor);
 }, { passive: false });
 
-// ---------------------------------------------------------------------------
-// Placement UX
-// ---------------------------------------------------------------------------
-const placementState = new PlacementStateManager();
-let currentBuildings: readonly BuildingSnapshot[] = [];
-
 canvas.addEventListener("click", (e) => {
-  if (isDragging) return;
+  if (isPanning) return;
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
 
   if (placementState.mode === "place") {
@@ -96,11 +111,7 @@ canvas.addEventListener("click", (e) => {
     if (ghost !== null && ghost.valid) {
       client.sendCommand({
         type: "placeBuilding",
-        payload: {
-          buildingType: placementState.selectedType,
-          x: ghost.tileX,
-          y: ghost.tileY,
-        },
+        payload: { buildingType: placementState.selectedType, x: ghost.tileX, y: ghost.tileY },
       });
     }
   } else if (placementState.mode === "demolish") {
@@ -111,20 +122,38 @@ canvas.addEventListener("click", (e) => {
 
 function updateModeLabel(): void {
   const mode = placementState.mode;
-  if (mode === "place") {
-    lblMode.textContent = `Mode: Place ${placementState.selectedType}`;
-  } else if (mode === "demolish") {
-    lblMode.textContent = "Mode: Demolish";
-  } else {
-    lblMode.textContent = "Mode: None";
-  }
+  if (mode === "place") lblMode.textContent = `Mode: Place ${placementState.selectedType}`;
+  else if (mode === "demolish") lblMode.textContent = "Mode: Demolish";
+  else if (mode === "road") lblMode.textContent = "Mode: Road (drag)";
+  else lblMode.textContent = "Mode: None";
 }
 
-btnBuildHouse.addEventListener("click", () => {
+function selectBuild(type: string): void {
   placementState.mode = "place";
-  placementState.selectedType = "house";
-  const def = getBuildingDef("house");
+  placementState.selectedType = type;
+  const def = getBuildingDef(type);
   if (def !== undefined) placementState.setFootprint(def.w, def.h);
+  const prod = getProductionDef(type);
+  placementState.setRequiresForest(prod?.terrainReq === "forest");
+  updateModeLabel();
+}
+
+const BUILD_BUTTONS: ReadonlyArray<readonly [string, string]> = [
+  ["btn-build-house", "house"],
+  ["btn-build-farm", "farm"],
+  ["btn-build-mill", "mill"],
+  ["btn-build-bakery", "bakery"],
+  ["btn-build-woodcutter", "woodcutter"],
+  ["btn-build-storehouse", "storehouse"],
+];
+for (const [id, type] of BUILD_BUTTONS) {
+  const btn = document.getElementById(id);
+  if (btn !== null) btn.addEventListener("click", () => selectBuild(type));
+}
+
+btnRoad.addEventListener("click", () => {
+  placementState.mode = "road";
+  placementState.setRequiresForest(false);
   updateModeLabel();
 });
 btnDemolish.addEventListener("click", () => {
@@ -143,7 +172,13 @@ const client = new CitadelSimClient();
 
 let paused = false;
 let day = 1;
-let tick = 0;
+let season = "spring";
+let population = 0;
+let popCap = 0;
+let bread = 0;
+let wood = 0;
+let foodSurplus = 0;
+let events: readonly string[] = [];
 
 btnPause.addEventListener("click", () => {
   if (paused) {
@@ -161,8 +196,15 @@ btn4x.addEventListener("click", () => client.setSpeed(4));
 
 client.onSnapshot((snap) => {
   day = snap.day + 1;
-  tick = snap.tick;
+  season = snap.season;
+  population = snap.population;
+  popCap = snap.popCap;
+  bread = snap.stockpiles.bread ?? 0;
+  wood = snap.stockpiles.wood ?? 0;
+  foodSurplus = snap.foodSurplus;
+  events = snap.recentEvents;
   currentBuildings = snap.buildings;
+  currentVillagers = snap.villagers;
 });
 
 // ---------------------------------------------------------------------------
@@ -175,22 +217,31 @@ const bakedTerrain = bakeTerrainLayer(terrain);
 // Animation loop
 // ---------------------------------------------------------------------------
 function loop(): void {
-  hudDay.textContent = `Day ${day}`;
-  hudTick.textContent = `Tick ${tick}`;
+  const surplusSign = foodSurplus >= 0 ? "+" : "";
+  hudDay.textContent = `Day ${day} (${season})`;
+  hudPop.textContent = `Pop ${population}/${popCap}`;
+  hudBread.textContent = `Bread: ${bread} (${surplusSign}${foodSurplus})`;
+  hudWood.textContent = `Wood: ${wood}`;
+  hudEvents.textContent = events.length > 0 ? events[events.length - 1]! : "";
 
   drawTerrain(ctx, canvas, bakedTerrain, camera);
   drawBuildings(ctx, canvas, currentBuildings, camera);
+  drawVillagers(ctx, canvas, currentVillagers, camera);
 
-  // Ghost preview
   const ghost = placementState.ghost();
   if (ghost !== null) {
     drawGhost(ctx, canvas, camera, ghost.tileX, ghost.tileY, ghost.w, ghost.h, ghost.valid);
+  }
+  // Preview the road being painted.
+  if (placementState.mode === "road" && placementState.isDraggingRoad) {
+    for (const t of placementState.roadTiles) {
+      drawGhost(ctx, canvas, camera, t.x, t.y, 1, 1, true);
+    }
   }
 
   requestAnimationFrame(loop);
 }
 
-// Start worker, then begin loop
 client.init(SEED, TICKS_PER_DAY);
 updateModeLabel();
 requestAnimationFrame(loop);

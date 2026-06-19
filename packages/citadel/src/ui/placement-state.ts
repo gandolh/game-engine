@@ -6,11 +6,11 @@
  * no sim state here; it reads from the latest RenderSnapshot.
  */
 import { checkPlacement, OccupancyGrid } from "@engine/core";
-import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE } from "@citadel/sim-core";
+import { isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot } from "@citadel/sim-core";
 import type { Camera } from "../render/terrain-renderer";
 
-export type PlacementMode = "none" | "place" | "demolish";
+export type PlacementMode = "none" | "place" | "demolish" | "road";
 
 export interface GhostState {
   tileX: number;
@@ -27,15 +27,59 @@ export class PlacementStateManager {
   /** Footprint dims for selected type */
   private _ghostW = 2;
   private _ghostH = 2;
+  /** Whether selected type requires a forest tile (woodcutter). */
+  private _requiresForest = false;
 
   private _cursorTileX = 0;
   private _cursorTileY = 0;
   private _ghostValid = false;
 
+  /** Road drag state */
+  private _dragging = false;
+  private readonly _roadTiles: Array<{ x: number; y: number }> = [];
+
   /** Set the footprint size for the active selection */
   setFootprint(w: number, h: number): void {
     this._ghostW = w;
     this._ghostH = h;
+  }
+
+  setRequiresForest(req: boolean): void {
+    this._requiresForest = req;
+  }
+
+  // --- Road drag-paint -----------------------------------------------------
+  startRoadDrag(): void {
+    this._dragging = true;
+    this._roadTiles.length = 0;
+    this._addRoadTile(this._cursorTileX, this._cursorTileY);
+  }
+
+  continueRoadDrag(): void {
+    if (!this._dragging) return;
+    this._addRoadTile(this._cursorTileX, this._cursorTileY);
+  }
+
+  /** End the drag and return the painted tiles (deduped). */
+  endRoadDrag(): Array<{ x: number; y: number }> {
+    this._dragging = false;
+    const tiles = this._roadTiles.slice();
+    this._roadTiles.length = 0;
+    return tiles;
+  }
+
+  get isDraggingRoad(): boolean {
+    return this._dragging;
+  }
+
+  get roadTiles(): ReadonlyArray<{ x: number; y: number }> {
+    return this._roadTiles;
+  }
+
+  private _addRoadTile(x: number, y: number): void {
+    if (x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT) return;
+    if (this._roadTiles.some((t) => t.x === x && t.y === y)) return;
+    this._roadTiles.push({ x, y });
   }
 
   /**
@@ -74,6 +118,8 @@ export class PlacementStateManager {
 
     if (this.mode === "place") {
       this._ghostValid = this._checkValid(terrain, buildings);
+    } else if (this.mode === "road" && this._dragging) {
+      this.continueRoadDrag();
     }
   }
 
@@ -91,7 +137,24 @@ export class PlacementStateManager {
       w: this._ghostW,
       h: this._ghostH,
     };
-    return checkPlacement(fp, occ, buildable).valid;
+    if (!checkPlacement(fp, occ, buildable).valid) return false;
+
+    if (this._requiresForest) {
+      let onForest = false;
+      for (let dy = 0; dy < this._ghostH && !onForest; dy++) {
+        for (let dx = 0; dx < this._ghostW; dx++) {
+          const tx = this._cursorTileX + dx;
+          const ty = this._cursorTileY + dy;
+          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
+          if (terrain.cells[ty * WORLD_WIDTH + tx] === TerrainType.Forest) {
+            onForest = true;
+            break;
+          }
+        }
+      }
+      if (!onForest) return false;
+    }
+    return true;
   }
 
   ghost(): GhostState | null {
