@@ -23,6 +23,19 @@ import {
   WORLD_PX_W,
   WORLD_PX_H,
   type CameraTransform,
+  autotileQuads,
+  neighbourMask,
+  networkQuads,
+  tileKey,
+  DIR_N,
+  DIR_E,
+  DIR_S,
+  DIR_W,
+  ditherHash,
+  ditherClusters,
+  ditherAccents,
+  DITHER_ACCENTS,
+  type QuadSpec,
 } from "./citadel-renderer";
 
 function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">): BuildingSnapshot {
@@ -218,5 +231,235 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
   it("world dimensions are the expected 96x96 tiles", () => {
     expect(WORLD_PX_W).toBe(WORLD_WIDTH * TILE_SIZE);
     expect(WORLD_PX_H).toBe(WORLD_HEIGHT * TILE_SIZE);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 11 — adjacency autotiling
+// ---------------------------------------------------------------------------
+
+describe("neighbourMask", () => {
+  it("isolated tile has mask 0 (no neighbours)", () => {
+    const set = new Set<number>([tileKey(5, 5)]);
+    expect(neighbourMask(5, 5, set)).toBe(0);
+  });
+
+  it("vertical straight sets N|S", () => {
+    const set = new Set<number>([tileKey(5, 4), tileKey(5, 5), tileKey(5, 6)]);
+    expect(neighbourMask(5, 5, set)).toBe(DIR_N | DIR_S);
+  });
+
+  it("L-corner (member above + to the right) sets N|E", () => {
+    const set = new Set<number>([tileKey(5, 5), tileKey(5, 4), tileKey(6, 5)]);
+    expect(neighbourMask(5, 5, set)).toBe(DIR_N | DIR_E);
+  });
+
+  it("T-junction (W,E,S) sets W|E|S", () => {
+    const set = new Set<number>([tileKey(5, 5), tileKey(4, 5), tileKey(6, 5), tileKey(5, 6)]);
+    expect(neighbourMask(5, 5, set)).toBe(DIR_W | DIR_E | DIR_S);
+  });
+
+  it("cross (all four) sets N|E|S|W", () => {
+    const set = new Set<number>([
+      tileKey(5, 5), tileKey(5, 4), tileKey(5, 6), tileKey(4, 5), tileKey(6, 5),
+    ]);
+    expect(neighbourMask(5, 5, set)).toBe(DIR_N | DIR_E | DIR_S | DIR_W);
+  });
+});
+
+/** Does the quad set contain a quad strictly above the tile's vertical center? */
+function hasArm(quads: QuadSpec[], tileX: number, tileY: number, dir: number): boolean {
+  const px = tileX * TILE_SIZE;
+  const py = tileY * TILE_SIZE;
+  const cx = px + TILE_SIZE / 2;
+  const cy = py + TILE_SIZE / 2;
+  return quads.some((q) => {
+    const qcx = q.x + q.width / 2;
+    const qcy = q.y + q.height / 2;
+    // Only consider quads whose center lies within the queried tile.
+    if (qcx < px || qcx >= px + TILE_SIZE || qcy < py || qcy >= py + TILE_SIZE) return false;
+    switch (dir) {
+      case DIR_N: return qcy < cy - 0.01 && Math.abs(qcx - cx) < 0.01;
+      case DIR_S: return qcy > cy + 0.01 && Math.abs(qcx - cx) < 0.01;
+      case DIR_W: return qcx < cx - 0.01 && Math.abs(qcy - cy) < 0.01;
+      case DIR_E: return qcx > cx + 0.01 && Math.abs(qcy - cy) < 0.01;
+      default: return false;
+    }
+  });
+}
+
+describe("autotileQuads", () => {
+  it("isolated tile (mask 0) emits only a centered block, no arms", () => {
+    const q = autotileQuads(3, 3, 0, EDG.navy, 0.5);
+    expect(q).toHaveLength(1);
+    // The single quad is centered in the tile.
+    const c = q[0]!;
+    expect(c.x + c.width / 2).toBeCloseTo(3 * TILE_SIZE + TILE_SIZE / 2);
+    expect(c.y + c.height / 2).toBeCloseTo(3 * TILE_SIZE + TILE_SIZE / 2);
+  });
+
+  it("vertical straight (N|S) emits center + N arm + S arm, no E/W", () => {
+    const q = autotileQuads(3, 3, DIR_N | DIR_S, EDG.navy, 0.5);
+    expect(q).toHaveLength(3); // center + 2 arms
+    expect(hasArm(q, 3, 3, DIR_N)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_S)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_E)).toBe(false);
+    expect(hasArm(q, 3, 3, DIR_W)).toBe(false);
+  });
+
+  it("L-corner (N|E) emits center + N arm + E arm only", () => {
+    const q = autotileQuads(3, 3, DIR_N | DIR_E, EDG.navy, 0.5);
+    expect(q).toHaveLength(3);
+    expect(hasArm(q, 3, 3, DIR_N)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_E)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_S)).toBe(false);
+    expect(hasArm(q, 3, 3, DIR_W)).toBe(false);
+  });
+
+  it("T-junction (W|E|S) emits center + 3 arms, no N", () => {
+    const q = autotileQuads(3, 3, DIR_W | DIR_E | DIR_S, EDG.navy, 0.5);
+    expect(q).toHaveLength(4);
+    expect(hasArm(q, 3, 3, DIR_W)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_E)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_S)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_N)).toBe(false);
+  });
+
+  it("cross (all) emits center + 4 arms", () => {
+    const q = autotileQuads(3, 3, DIR_N | DIR_E | DIR_S | DIR_W, EDG.navy, 0.5);
+    expect(q).toHaveLength(5);
+    expect(hasArm(q, 3, 3, DIR_N)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_E)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_S)).toBe(true);
+    expect(hasArm(q, 3, 3, DIR_W)).toBe(true);
+  });
+
+  it("wall band is thicker than road band (center block larger)", () => {
+    const road = autotileQuads(0, 0, 0, EDG.navy, 0.5)[0]!;
+    const wall = autotileQuads(0, 0, 0, EDG.steel, 0.8)[0]!;
+    expect(wall.width).toBeGreaterThan(road.width);
+  });
+});
+
+describe("networkQuads", () => {
+  it("fuses adjacent roads (each non-end tile gets arms toward the other)", () => {
+    const buildings: BuildingSnapshot[] = [
+      building({ type: "road", x: 2, y: 2, w: 1, h: 1 }),
+      building({ type: "road", x: 3, y: 2, w: 1, h: 1 }),
+    ];
+    const q = networkQuads(buildings);
+    // Left road (2,2) connects East; right road (3,2) connects West.
+    expect(hasArm(q, 2, 2, DIR_E)).toBe(true);
+    expect(hasArm(q, 3, 2, DIR_W)).toBe(true);
+  });
+
+  it("a wall run continues THROUGH a gate (gate counts as wall neighbour)", () => {
+    // wall(5,5) - gate(5,6) - wall(5,7): the walls should each connect toward the gate.
+    const buildings: BuildingSnapshot[] = [
+      building({ type: "wall", x: 5, y: 5, w: 1, h: 1 }),
+      building({ type: "gate", x: 5, y: 6, w: 1, h: 1 }),
+      building({ type: "wall", x: 5, y: 7, w: 1, h: 1 }),
+    ];
+    const q = networkQuads(buildings);
+    // Top wall connects South (toward the gate); bottom wall connects North.
+    expect(hasArm(q, 5, 5, DIR_S)).toBe(true);
+    expect(hasArm(q, 5, 7, DIR_N)).toBe(true);
+    // The gate tile itself emits no wall autotile quads (drawn by buildingQuad).
+    const gateBlock = q.filter((qq) => qq.x >= 5 * TILE_SIZE && qq.x < 6 * TILE_SIZE && qq.y >= 6 * TILE_SIZE && qq.y < 7 * TILE_SIZE);
+    expect(gateBlock).toHaveLength(0);
+  });
+
+  it("roads do NOT connect to walls (independent networks)", () => {
+    const buildings: BuildingSnapshot[] = [
+      building({ type: "road", x: 2, y: 2, w: 1, h: 1 }),
+      building({ type: "wall", x: 3, y: 2, w: 1, h: 1 }),
+    ];
+    const q = networkQuads(buildings);
+    // Road at (2,2) should NOT have an East arm (its E neighbour is a wall).
+    expect(hasArm(q, 2, 2, DIR_E)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 13 — sub-tile terrain dither
+// ---------------------------------------------------------------------------
+
+const EDG_HEXES = new Set(Object.values(EDG).map((h) => String(h).toLowerCase()));
+
+describe("ditherHash", () => {
+  it("is deterministic: same coords+type yield the same hash across calls", () => {
+    expect(ditherHash(12, 34, 2)).toBe(ditherHash(12, 34, 2));
+  });
+
+  it("diverges for adjacent cells and differing types", () => {
+    expect(ditherHash(12, 34, 2)).not.toBe(ditherHash(13, 34, 2));
+    expect(ditherHash(12, 34, 2)).not.toBe(ditherHash(12, 35, 2));
+    expect(ditherHash(12, 34, 2)).not.toBe(ditherHash(12, 34, 3));
+  });
+
+  it("returns an unsigned 32-bit int", () => {
+    const h = ditherHash(7, 7, 1);
+    expect(h).toBeGreaterThanOrEqual(0);
+    expect(h).toBeLessThanOrEqual(0xffffffff);
+    expect(Number.isInteger(h)).toBe(true);
+  });
+});
+
+describe("ditherClusters", () => {
+  const allTypes: TerrainType[] = [
+    TerrainType.Grass, TerrainType.Water, TerrainType.Forest, TerrainType.Stone, TerrainType.Rough,
+  ];
+
+  it("is deterministic: identical cluster set across calls", () => {
+    const a = ditherClusters(8, 8, TerrainType.Grass);
+    const b = ditherClusters(8, 8, TerrainType.Grass);
+    expect(b).toEqual(a);
+  });
+
+  it("emits 1-3 clusters per cell", () => {
+    for (const t of allTypes) {
+      for (let i = 0; i < 50; i++) {
+        const n = ditherClusters(i, i * 2, t).length;
+        expect(n).toBeGreaterThanOrEqual(1);
+        expect(n).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it("every cluster color is a valid EDG swatch, for every terrain type", () => {
+    for (const t of allTypes) {
+      for (let i = 0; i < 40; i++) {
+        for (const c of ditherClusters(i * 3, i, t)) {
+          expect(EDG_HEXES.has(c.hex.toLowerCase())).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("clusters stay inside the tile bounds", () => {
+    for (const t of allTypes) {
+      for (let i = 0; i < 30; i++) {
+        for (const c of ditherClusters(i, i + 5, t)) {
+          expect(c.x).toBeGreaterThanOrEqual(0);
+          expect(c.y).toBeGreaterThanOrEqual(0);
+          expect(c.x + c.size).toBeLessThanOrEqual(TILE_SIZE);
+          expect(c.y + c.size).toBeLessThanOrEqual(TILE_SIZE);
+        }
+      }
+    }
+  });
+});
+
+describe("DITHER_ACCENTS", () => {
+  it("covers every TerrainType with valid EDG dark+light swatches", () => {
+    for (const t of [TerrainType.Grass, TerrainType.Water, TerrainType.Forest, TerrainType.Stone, TerrainType.Rough]) {
+      const a = ditherAccents(t);
+      expect(EDG_HEXES.has(a.dark.toLowerCase())).toBe(true);
+      expect(EDG_HEXES.has(a.light.toLowerCase())).toBe(true);
+      // dark and light differ.
+      expect(a.dark).not.toBe(a.light);
+    }
+    // Record-level coverage too.
+    expect(Object.keys(DITHER_ACCENTS).length).toBe(5);
   });
 });

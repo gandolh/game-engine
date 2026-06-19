@@ -183,6 +183,151 @@ export function buildingQuad(b: BuildingSnapshot): QuadSpec {
   return { x: px, y: py, width: pw, height: ph, tintRgba: packTint(hex) };
 }
 
+// ---------------------------------------------------------------------------
+// Adjacency autotiling for roads & walls (brief 11) — pure, tested
+// ---------------------------------------------------------------------------
+//
+// Roads and walls render as connected runs instead of loose squares by
+// computing a 4-neighbour bitmask per tile and drawing a center block plus an
+// "arm" quad toward each connected neighbour. Adjacent tiles' arms meet at the
+// shared edge, so a network visually fuses into straight / L / T / cross /
+// dead-end shapes.
+//
+// Bitmask bit layout (N|E|S|W):
+//   N = 1, E = 2, S = 4, W = 8
+// so e.g. mask 0b0101 = N|S = a vertical straight; 0b0011 = N|E = an L-corner.
+//
+// GATE DECISION: gates count as wall neighbours, so a wall run continues
+// *through* a gate (reads better — the perimeter looks unbroken). Roads do NOT
+// treat gates as road, and walls do NOT treat roads as wall — each network is
+// independent, except walls additionally absorb gate tiles into their set.
+//
+// PERF: masks are recomputed every frame from the building snapshot. The world
+// is <=96×96 and road+wall tiles are a small fraction, well under the brief's
+// ~1000-tile budget, so recompute-per-frame is fine and avoids cache
+// invalidation on placement commands.
+
+/** Direction bits for the 4-neighbour autotile mask. */
+export const DIR_N = 1;
+export const DIR_E = 2;
+export const DIR_S = 4;
+export const DIR_W = 8;
+
+/** Road network layer (drawn above terrain, below buildings). */
+const LAYER_NETWORK = 5;
+
+/** Build a Set of packed tile keys (`ty*WORLD_WIDTH+tx`) for a 1×1 tile list. */
+export function tileKey(tx: number, ty: number): number {
+  return ty * WORLD_WIDTH + tx;
+}
+
+/**
+ * Compute the 4-neighbour connectivity mask for the tile (tx,ty) given the set
+ * of connected-network tile keys. Pure.
+ */
+export function neighbourMask(tx: number, ty: number, members: ReadonlySet<number>): number {
+  let mask = 0;
+  if (members.has(tileKey(tx, ty - 1))) mask |= DIR_N;
+  if (members.has(tileKey(tx + 1, ty))) mask |= DIR_E;
+  if (members.has(tileKey(tx, ty + 1))) mask |= DIR_S;
+  if (members.has(tileKey(tx - 1, ty))) mask |= DIR_W;
+  return mask;
+}
+
+/**
+ * Expand a tile + connectivity mask into autotile quads: a center block plus an
+ * arm quad toward each connected neighbour. `band` is the fraction of the tile
+ * occupied by the band thickness (roads thinner, walls thicker). Pure — no GPU.
+ *
+ * The center block is `band`-sized and centered; each arm fills from the center
+ * to the tile edge in its direction, at `band` thickness. Two adjacent tiles'
+ * arms therefore meet exactly at the shared tile edge and read as fused.
+ */
+export function autotileQuads(tileX: number, tileY: number, mask: number, hex: string, band: number): QuadSpec[] {
+  const tint = packTint(hex);
+  const px = tileX * TILE_SIZE;
+  const py = tileY * TILE_SIZE;
+  const thick = TILE_SIZE * band;
+  const off = (TILE_SIZE - thick) / 2; // inset of the band from the tile edge
+  const quads: QuadSpec[] = [];
+
+  // Center block — always present (an isolated tile renders as just this).
+  quads.push({ x: px + off, y: py + off, width: thick, height: thick, tintRgba: tint });
+
+  // North arm: from the tile's top edge down to the center block top.
+  if (mask & DIR_N) {
+    quads.push({ x: px + off, y: py, width: thick, height: off, tintRgba: tint });
+  }
+  // South arm: from the center block bottom down to the tile's bottom edge.
+  if (mask & DIR_S) {
+    quads.push({ x: px + off, y: py + off + thick, width: thick, height: off, tintRgba: tint });
+  }
+  // West arm: from the tile's left edge to the center block left.
+  if (mask & DIR_W) {
+    quads.push({ x: px, y: py + off, width: off, height: thick, tintRgba: tint });
+  }
+  // East arm: from the center block right to the tile's right edge.
+  if (mask & DIR_E) {
+    quads.push({ x: px + off + thick, y: py + off, width: off, height: thick, tintRgba: tint });
+  }
+  return quads;
+}
+
+/** Road band fraction (thin) and wall band fraction (thick). */
+const ROAD_BAND = 0.5;
+const WALL_BAND = 0.8;
+
+/**
+ * Pull road / wall tiles out of the building snapshot, compute connectivity
+ * masks, and return the autotile quads for both networks. Gates are added to
+ * the wall set (continuous-through-gate) but the gate's own tile keeps its
+ * distinct gold draw via `buildingQuad`, so we don't emit wall quads for gate
+ * cells themselves — only the wall tiles get autotile quads, computed against a
+ * member set that *includes* gates.
+ *
+ * Returns the quads so `pushNetworks` (and the tests) can consume them. Pure.
+ */
+export function networkQuads(buildings: readonly BuildingSnapshot[]): QuadSpec[] {
+  const roadTiles: Array<{ tx: number; ty: number }> = [];
+  const wallTiles: Array<{ tx: number; ty: number }> = [];
+  const roadSet = new Set<number>();
+  const wallSet = new Set<number>();
+
+  // First pass: build membership sets. Walls + gates both join the wall set so
+  // a run continues through a gate; roads are their own set.
+  for (const b of buildings) {
+    // Footprints can exceed 1×1; key every covered tile.
+    for (let dy = 0; dy < b.h; dy++) {
+      for (let dx = 0; dx < b.w; dx++) {
+        const tx = b.x + dx;
+        const ty = b.y + dy;
+        const key = tileKey(tx, ty);
+        if (b.type === "road") {
+          roadSet.add(key);
+          roadTiles.push({ tx, ty });
+        } else if (b.type === "wall") {
+          wallSet.add(key);
+          wallTiles.push({ tx, ty });
+        } else if (b.type === "gate") {
+          // Gate joins the wall set (continuous run) but is drawn by buildingQuad.
+          wallSet.add(key);
+        }
+      }
+    }
+  }
+
+  const quads: QuadSpec[] = [];
+  const roadHex = BUILDING_COLORS.road ?? FALLBACK_BUILDING_COLOR;
+  const wallHex = BUILDING_COLORS.wall ?? FALLBACK_BUILDING_COLOR;
+  for (const { tx, ty } of roadTiles) {
+    quads.push(...autotileQuads(tx, ty, neighbourMask(tx, ty, roadSet), roadHex, ROAD_BAND));
+  }
+  for (const { tx, ty } of wallTiles) {
+    quads.push(...autotileQuads(tx, ty, neighbourMask(tx, ty, wallSet), wallHex, WALL_BAND));
+  }
+  return quads;
+}
+
 /** Map a villager snapshot to a small centered quad (color by FSM state). */
 export function villagerQuad(v: VillagerSnapshot): QuadSpec {
   const size = TILE_SIZE * 0.7;
@@ -362,9 +507,105 @@ export function makeTerrainDecorate(grid: TerrainGrid): (ctx: Ctx2D, wpx: number
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
         ctx.fillStyle = TERRAIN_COLORS[t] ?? EDG.green;
         ctx.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        // Sub-tile dither (brief 13): deterministic darker/lighter clusters so
+        // same-type cells don't look stamped. Baked once — zero per-frame cost.
+        for (const c of ditherClusters(tx, ty, t)) {
+          ctx.fillStyle = c.hex;
+          ctx.fillRect(tx * TILE_SIZE + c.x, ty * TILE_SIZE + c.y, c.size, c.size);
+        }
       }
     }
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sub-tile terrain dither (brief 13) — pure, deterministic, tested
+// ---------------------------------------------------------------------------
+//
+// Each terrain cell gets 1–3 small darker/lighter pixel clusters, chosen by a
+// pure integer hash of (tx, ty, type). No RNG, no Math.random — identical every
+// frame, never persisted to save data (it's a render-only bake decoration).
+
+/**
+ * Cheap pure integer coordinate hash → unsigned 32-bit int. Mixes tx, ty, type
+ * with distinct odd multipliers + an xorshift finalizer so adjacent cells and
+ * different types diverge. Self-contained (no sim dependency) by design.
+ */
+export function ditherHash(tx: number, ty: number, type: number): number {
+  let h = (tx * 0x1f1f1f1f) ^ (ty * 0x8da6b343) ^ (type * 0xd2511f53);
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+  h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
+  h ^= h >>> 15;
+  return h >>> 0;
+}
+
+/** A darker + lighter EDG accent swatch per terrain type. */
+export interface DitherAccents {
+  /** Darker EDG swatch hex. */
+  dark: string;
+  /** Lighter EDG swatch hex. */
+  light: string;
+}
+
+/**
+ * Per-terrain-type dither accents: a darker and a lighter EDG swatch flanking
+ * the base TERRAIN_COLORS hue. Covers every TerrainType. EDG-only.
+ */
+export const DITHER_ACCENTS: Record<TerrainType, DitherAccents> = {
+  [TerrainType.Grass]: { dark: EDG.greenDark, light: EDG.green },
+  [TerrainType.Water]: { dark: EDG.blue, light: EDG.cyan },
+  [TerrainType.Forest]: { dark: EDG.teal, light: EDG.greenMid },
+  [TerrainType.Stone]: { dark: EDG.ink, light: EDG.steel },
+  [TerrainType.Rough]: { dark: EDG.woodDark, light: EDG.tan },
+};
+
+const FALLBACK_ACCENTS: DitherAccents = { dark: EDG.ink, light: EDG.white };
+
+/** Resolve the dither accents for a terrain type (pure, total). */
+export function ditherAccents(type: TerrainType): DitherAccents {
+  return DITHER_ACCENTS[type] ?? FALLBACK_ACCENTS;
+}
+
+/** A single dither cluster: a small filled square at (x,y) within the cell. */
+export interface DitherCluster {
+  /** X offset within the cell, px. */
+  x: number;
+  /** Y offset within the cell, px. */
+  y: number;
+  /** Square side length, px. */
+  size: number;
+  /** EDG accent hex (dark or light). */
+  hex: string;
+}
+
+/**
+ * Deterministically derive the 1–3 dither clusters for a cell from the pure
+ * coordinate hash. Cluster count, positions (snapped to a 4px sub-grid so they
+ * stay crisp at TILE_SIZE=16), sizes (1–2px), and dark/light choice all come
+ * from disjoint bit-fields of the hash → identical every call. Pure.
+ */
+export function ditherClusters(tx: number, ty: number, type: TerrainType): DitherCluster[] {
+  const accents = ditherAccents(type);
+  const h = ditherHash(tx, ty, type);
+  const count = 1 + (h & 0x3) % 3; // 1..3
+  const clusters: DitherCluster[] = [];
+  // 4px sub-grid → 4 columns/rows of cells at TILE_SIZE=16, keeps stamps inset.
+  const cells = TILE_SIZE / 4; // 4
+  for (let i = 0; i < count; i++) {
+    // Each cluster consumes a fresh 8-bit slice of the hash.
+    const slice = (h >>> (i * 8)) & 0xff;
+    const gx = slice & 0x3; // 0..3 grid col
+    const gy = (slice >>> 2) & 0x3; // 0..3 grid row
+    const size = 1 + ((slice >>> 4) & 0x1); // 1..2 px
+    const light = ((slice >>> 5) & 0x1) === 1;
+    clusters.push({
+      x: gx * cells,
+      y: gy * cells,
+      size,
+      hex: light ? accents.light : accents.dark,
+    });
+  }
+  return clusters;
 }
 
 // ---------------------------------------------------------------------------
@@ -443,9 +684,24 @@ function quadToSprite(q: QuadSpec, layer: number): Canvas2dSprite {
  * overlay. Pure-ish: only calls `renderer.push`.
  */
 export function pushScene(renderer: RendererLike, scene: SceneInput): void {
-  for (const b of scene.buildings) renderer.push(quadToSprite(buildingQuad(b), LAYER_BUILDING));
+  // Roads + walls draw as autotiled connected networks (brief 11), not per-tile
+  // through buildingQuad. Gates still draw their distinct gold block here.
+  pushNetworks(renderer, scene.buildings);
+  for (const b of scene.buildings) {
+    if (b.type === "road" || b.type === "wall") continue; // handled by pushNetworks
+    renderer.push(quadToSprite(buildingQuad(b), LAYER_BUILDING));
+  }
   for (const v of scene.villagers) renderer.push(quadToSprite(villagerQuad(v), LAYER_VILLAGER));
   for (const r of scene.raiders) renderer.push(quadToSprite(raiderQuad(r), LAYER_RAIDER));
+}
+
+/**
+ * Push the road + wall autotile networks (brief 11). Pulls the network quads
+ * via `networkQuads` and pushes them on the network layer (above terrain, below
+ * buildings). Recomputes per frame — cheap at this world size.
+ */
+export function pushNetworks(renderer: RendererLike, buildings: readonly BuildingSnapshot[]): void {
+  for (const q of networkQuads(buildings)) renderer.push(quadToSprite(q, LAYER_NETWORK));
 }
 
 export interface GhostPreview {
