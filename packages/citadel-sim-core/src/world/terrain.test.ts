@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "./terrain";
+import {
+  generateTerrain,
+  isWalkable,
+  riverColAtRow,
+  edgeWaterColumns,
+  TerrainType,
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+} from "./terrain";
 
 describe("generateTerrain", () => {
   it("produces a grid of the correct dimensions", () => {
@@ -50,6 +58,51 @@ describe("generateTerrain", () => {
     expect(seen.has(TerrainType.Grass)).toBe(true);
     expect(seen.has(TerrainType.Water)).toBe(true);
     expect(seen.has(TerrainType.Forest)).toBe(true);
+  });
+});
+
+describe("edge-coherent river", () => {
+  const seeds = [0, 1, 42, 999, 0xdeadbeef, 0xffffffff];
+
+  it("riverColAtRow is a pure function of (seed, ty)", () => {
+    for (const seed of seeds) {
+      for (const ty of [0, 7, 48, WORLD_HEIGHT - 1]) {
+        expect(riverColAtRow(seed, ty)).toBe(riverColAtRow(seed, ty));
+      }
+    }
+  });
+
+  it("the river mouth column at top/bottom edges equals edgeWaterColumns(seed)", () => {
+    for (const seed of seeds) {
+      const [top, bottom] = edgeWaterColumns(seed);
+      expect(riverColAtRow(seed, 0)).toBeCloseTo(top, 6);
+      expect(riverColAtRow(seed, WORLD_HEIGHT - 1)).toBeCloseTo(bottom, 6);
+    }
+  });
+
+  it("water touches both the top and bottom edges (river enters/exits the map)", () => {
+    for (const seed of seeds) {
+      const grid = generateTerrain(seed);
+      let topWater = false;
+      let bottomWater = false;
+      for (let tx = 0; tx < WORLD_WIDTH; tx++) {
+        if (grid.cells[0 * WORLD_WIDTH + tx] === TerrainType.Water) topWater = true;
+        if (grid.cells[(WORLD_HEIGHT - 1) * WORLD_WIDTH + tx] === TerrainType.Water) {
+          bottomWater = true;
+        }
+      }
+      expect(topWater).toBe(true);
+      expect(bottomWater).toBe(true);
+    }
+  });
+
+  it("the carved top/bottom mouth columns are water", () => {
+    for (const seed of seeds) {
+      const grid = generateTerrain(seed);
+      const [top, bottom] = edgeWaterColumns(seed);
+      expect(grid.cells[0 * WORLD_WIDTH + top]).toBe(TerrainType.Water);
+      expect(grid.cells[(WORLD_HEIGHT - 1) * WORLD_WIDTH + bottom]).toBe(TerrainType.Water);
+    }
   });
 });
 

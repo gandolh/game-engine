@@ -107,6 +107,94 @@ class SeededNoise {
 }
 
 // ---------------------------------------------------------------------------
+// River geometry — pure single-coordinate functions of (seed, row)
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-seed river parameters, derived purely from the seed via a labeled RNG
+ * fork. Splitting this out (rather than inlining the rng.range calls) lets both
+ * the carve loop and the pure {@link riverColAtRow} helper share one definition
+ * of the river without re-rolling the RNG or drifting apart.
+ *
+ * The draw order of the rng.range() calls is preserved exactly (center,
+ * amplitude, freq, width) so the seeded outcome of this fork is unchanged from
+ * the original inline form.
+ */
+export interface RiverParams {
+  readonly centerX: number;
+  readonly amplitude: number;
+  readonly freq: number;
+  readonly width: number;
+}
+
+/** Derive the river parameters as a pure function of the seed. */
+export function riverParams(seed: number): RiverParams {
+  const rng = createRng(seed).fork("terrain-gen");
+  const centerX = rng.range(WORLD_WIDTH * 0.3, WORLD_WIDTH * 0.7);
+  const amplitude = rng.range(4, 12);
+  const freq = rng.range(0.03, 0.07);
+  const width = rng.range(3, 6);
+  return { centerX, amplitude, freq, width };
+}
+
+/**
+ * The river's center column at row `ty`, as a PURE function of (seed, ty).
+ *
+ * This is the Citadel recast of tiny-world-builder's `riverXForCol(boardX)`:
+ * the river position at any row depends only on the seed and that row, so the
+ * water reads as a single coherent channel entering the top edge and exiting
+ * the bottom edge — it never depends on neighbouring rows or mutable state.
+ *
+ * Base shape is the original `centerX + sin(ty*freq)*amplitude`. To make the
+ * off-map cue explicit and GUARANTEED, the channel is smoothly steered toward a
+ * fixed per-seed "river mouth" column at each vertical edge (ty=0 and ty=H-1).
+ * The steering is a cosine falloff confined to a thin band near each edge, so
+ * interior rows (where buildings are placed) keep the original sine path.
+ */
+export function riverColAtRow(seed: number, ty: number): number {
+  const { centerX, amplitude, freq } = riverParams(seed);
+  const base = centerX + Math.sin(ty * freq) * amplitude;
+
+  const [topMouth, bottomMouth] = edgeWaterColumns(seed);
+
+  // Steer toward the mouth columns only within `band` rows of each edge.
+  const band = 6;
+  const h = WORLD_HEIGHT;
+
+  if (ty <= band) {
+    // Weight 1 at ty=0 → 0 at ty=band (smooth cosine ease).
+    const w = 0.5 * (1 + Math.cos((ty / band) * Math.PI));
+    return base + (topMouth - base) * w;
+  }
+  if (ty >= h - 1 - band) {
+    const d = h - 1 - ty; // 0 at bottom edge → band at the band's inner rim
+    const w = 0.5 * (1 + Math.cos((d / band) * Math.PI));
+    return base + (bottomMouth - base) * w;
+  }
+  return base;
+}
+
+/**
+ * The river-mouth columns where water enters the top edge (index 0) and exits
+ * the bottom edge (index 1), as a PURE function of the seed. Exported so spawn
+ * geography (raiders/traders arriving through the river mouth) and rendering can
+ * align with the coherent edge gaps. Both are clamped a couple tiles inside the
+ * border so a full-width river band stays on-map.
+ */
+export function edgeWaterColumns(seed: number): readonly [number, number] {
+  const { centerX, amplitude, freq, width } = riverParams(seed);
+  const margin = Math.ceil(width) + 1;
+  const lo = margin;
+  const hi = WORLD_WIDTH - 1 - margin;
+  const clamp = (v: number) => Math.max(lo, Math.min(hi, v));
+  // The natural sine positions at the two edges, rounded to whole columns so
+  // the carved mouth is a stable integer target.
+  const top = clamp(Math.round(centerX + Math.sin(0 * freq) * amplitude));
+  const bottom = clamp(Math.round(centerX + Math.sin((WORLD_HEIGHT - 1) * freq) * amplitude));
+  return [top, bottom];
+}
+
+// ---------------------------------------------------------------------------
 // Terrain generation
 // ---------------------------------------------------------------------------
 
@@ -124,20 +212,27 @@ export function generateTerrain(seed: number): TerrainGrid {
   const stoneNoise = new SeededNoise((seed ^ 0xabcdef01) >>> 0);
   const roughNoise = new SeededNoise((seed ^ 0x0f0f0f0f) >>> 0);
 
+  // One labeled fork drives both river and lake control points; the draw order
+  // (river center, amplitude, freq, width, then lake CX/CY/R) is preserved
+  // exactly from the original inline form, so non-river terrain is unchanged.
+  // The river channel geometry itself is owned by the pure riverColAtRow()
+  // helper, which rederives the same draws from the seed via riverParams().
   const rng = createRng(seed).fork("terrain-gen");
-
-  // River: a winding path across the map — seeded random control points
-  const riverCenterX = rng.range(WORLD_WIDTH * 0.3, WORLD_WIDTH * 0.7);
-  const riverAmplitude = rng.range(4, 12);
-  const riverFreq = rng.range(0.03, 0.07);
+  rng.range(WORLD_WIDTH * 0.3, WORLD_WIDTH * 0.7); // river centerX
+  rng.range(4, 12); // river amplitude
+  rng.range(0.03, 0.07); // river freq
   const riverWidth = rng.range(3, 6);
 
-  // Lake: a circular body of water somewhere in the world
+  // Lake: a circular body of water somewhere in the world.
   const lakeCX = rng.range(10, WORLD_WIDTH - 10);
   const lakeCY = rng.range(10, WORLD_HEIGHT - 10);
   const lakeR = rng.range(5, 10);
 
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
+    // River center column at this row — pure function of (seed, ty), with
+    // guaranteed mouth contact at the top and bottom edges.
+    const riverX = riverColAtRow(seed, ty);
+
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
       const idx = ty * WORLD_WIDTH + tx;
 
@@ -145,7 +240,6 @@ export function generateTerrain(seed: number): TerrainGrid {
       const ny = ty / WORLD_HEIGHT;
 
       // --- Water: river + lake ---
-      const riverX = riverCenterX + Math.sin(ty * riverFreq) * riverAmplitude;
       const distToRiver = Math.abs(tx - riverX);
       const inRiver = distToRiver < riverWidth;
 
