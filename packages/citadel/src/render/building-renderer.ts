@@ -33,6 +33,9 @@ const BUILDING_COLORS: Record<string, string> = {
   tower: EDG.navy,
   garrison: EDG.blue,
   keep: EDG.plum,
+  // Phase 4.5 hazard mitigation
+  well: EDG.skyBlue,
+  healer: EDG.green,
 };
 
 const BUILDING_BORDER: Record<string, string> = {
@@ -53,6 +56,9 @@ const BUILDING_BORDER: Record<string, string> = {
   tower: EDG.ink,
   garrison: EDG.navy,
   keep: EDG.bark,
+  // Phase 4.5 hazard mitigation
+  well: EDG.cyan,
+  healer: EDG.teal,
 };
 
 /** EDG color per villager FSM state. */
@@ -86,12 +92,15 @@ function applyCameraTransform(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasE
  * Draw all placed buildings on top of the terrain.
  * Must be called after `drawTerrain` within the same animation frame,
  * while the camera transform is still set on `ctx`.
+ *
+ * Phase 4.5: burning buildings get an orange tint overlay.
  */
 export function drawBuildings(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   buildings: readonly BuildingSnapshot[],
   camera: Camera,
+  outbreakActive = false,
 ): void {
   if (buildings.length === 0) return;
 
@@ -132,14 +141,32 @@ export function drawBuildings(
       continue;
     }
 
-    ctx.fillStyle = BUILDING_COLORS[b.type] ?? FALLBACK_COLOR;
+    // Phase 4.5: burning buildings override fill color with orange.
+    const baseColor = b.burning ? EDG.orange : (BUILDING_COLORS[b.type] ?? FALLBACK_COLOR);
+    ctx.fillStyle = baseColor;
     ctx.fillRect(px, py, pw, ph);
 
-    // Disconnected buildings get a red border to flag they are not on the network.
-    ctx.strokeStyle = b.connected
-      ? BUILDING_BORDER[b.type] ?? FALLBACK_BORDER
-      : DISCONNECTED_BORDER;
-    ctx.lineWidth = b.connected ? 1 : 2;
+    // Phase 4.5: disease tint — mauve semi-transparent overlay on non-burning buildings
+    // when an outbreak is active (only for buildings that can house people).
+    if (outbreakActive && !b.burning) {
+      const prevAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = EDG.mauve;
+      ctx.fillRect(px, py, pw, ph);
+      ctx.globalAlpha = prevAlpha;
+    }
+
+    // Burning buildings get an orange border; disconnected get red; else normal.
+    if (b.burning) {
+      ctx.strokeStyle = EDG.red;
+      ctx.lineWidth = 2;
+    } else if (!b.connected) {
+      ctx.strokeStyle = DISCONNECTED_BORDER;
+      ctx.lineWidth = 2;
+    } else {
+      ctx.strokeStyle = BUILDING_BORDER[b.type] ?? FALLBACK_BORDER;
+      ctx.lineWidth = 1;
+    }
     ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
   }
 }

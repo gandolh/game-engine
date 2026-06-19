@@ -7,7 +7,7 @@ import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
 import { getBuildingDef, getProductionDef } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
-import type { SimState, Stockpiles } from "./sim-state";
+import type { SimState, BuildingFireState, Stockpiles } from "./sim-state";
 import { emptyStockpiles, pushEvent } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
 import { ProductionSystem } from "./systems/production";
@@ -18,6 +18,8 @@ import { TraderSystem } from "./systems/trader";
 import { RaidSpawnSystem } from "./systems/raid-spawn";
 import { RaiderMovementSystem } from "./systems/raider-movement";
 import { SiegeResolutionSystem } from "./systems/siege-resolution";
+import { FireSystem, countActiveFires } from "./systems/fire-system";
+import { DiseaseSystem } from "./systems/disease-system";
 import { getSeason } from "./world/seasons";
 
 export interface CitadelSimOptions {
@@ -119,6 +121,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     raiders: [],
     keepPosition: null,
     keepSacked: false,
+    // Phase 4.5: hazard state
+    fireState: new Map<number, BuildingFireState>(),
+    sickVillagers: 0,
+    outbreakActive: false,
   };
 
   /** Mark a building's footprint tiles in the buildingTiles set. */
@@ -333,6 +339,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // and trader (AFTER production, to see fresh stockpiles)
   const needsHappinessSystem = new NeedsHappinessSystem(state, ticksPerDay);
   const traderSystem = new TraderSystem(state, ticksPerDay);
+  // Phase 4.5: hazard systems (run AFTER needs/happiness, BEFORE immigration).
+  const fireSystem = new FireSystem(state);
+  const diseaseSystem = new DiseaseSystem(state);
   // Phase 4: siege systems (run AFTER population so they see fresh state).
   const raidSpawnSystem = new RaidSpawnSystem(state, terrain);
   const raiderMovementSystem = new RaiderMovementSystem(state, terrain);
@@ -346,6 +355,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("villagers").add(villagerSystem);
   scheduler.stage("needs").add(needsHappinessSystem);
   scheduler.stage("trader").add(traderSystem);
+  // Phase 4.5: hazard stages run AFTER needs, BEFORE population/immigration.
+  scheduler.stage("hazards").add(fireSystem);
+  scheduler.stage("hazards").add(diseaseSystem);
   scheduler.stage("population").add(immigrationSystem);
   // Phase 4 siege stages, in dependency order: spawn → move → resolve.
   scheduler.stage("siege-spawn").add(raidSpawnSystem);
@@ -360,6 +372,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
       const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
+      const fs = entity.id !== undefined ? state.fireState.get(entity.id) : undefined;
       result.push({
         type: b.type,
         x: b.x,
@@ -369,6 +382,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         connected: rs?.connected ?? false,
         outputBuffer: rs?.outputBuffer ?? 0,
         workerCount: rs?.workerCount ?? 0,
+        // Phase 4.5: fire state
+        onFire: fs?.burning ?? false,
+        burning: fs?.burning ?? false,
       });
     }
     return result;
@@ -420,6 +436,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       defensiveStrength: state.defensiveStrength,
       keepPresent,
       keepSacked: state.keepSacked,
+      // Phase 4.5: hazards
+      sickVillagers: state.sickVillagers,
+      outbreakActive: state.outbreakActive,
+      activeFires: countActiveFires(state),
     };
   }
 

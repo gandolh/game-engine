@@ -35,6 +35,9 @@ const hudEvents = document.getElementById("hud-events")!;
 const hudThreat = document.getElementById("hud-threat")!;
 const hudDefense = document.getElementById("hud-defense")!;
 const hudKeep = document.getElementById("hud-keep")!;
+// Phase 4.5 hazard HUD
+const hudFire = document.getElementById("hud-fire")!;
+const hudDisease = document.getElementById("hud-disease")!;
 const btnPause = document.getElementById("btn-pause")!;
 const btn1x = document.getElementById("btn-1x")!;
 const btn2x = document.getElementById("btn-2x")!;
@@ -183,6 +186,9 @@ const BUILD_BUTTONS: ReadonlyArray<readonly [string, string]> = [
   ["btn-build-tower",        "tower"],
   ["btn-build-garrison",     "garrison"],
   ["btn-build-keep",         "keep"],
+  // Phase 4.5 hazard mitigation
+  ["btn-build-well",         "well"],
+  ["btn-build-healer",       "healer"],
 ];
 for (const [id, type] of BUILD_BUTTONS) {
   const btn = document.getElementById(id);
@@ -250,6 +256,10 @@ let defensiveStrength = 0;
 let keepPresent = false;
 let keepSacked = false;
 let nextRaidDay = -1;
+// Phase 4.5 hazard state
+let sickVillagers = 0;
+let outbreakActive = false;
+let activeFires = 0;
 
 btnPause.addEventListener("click", () => {
   if (paused) {
@@ -288,6 +298,10 @@ client.onSnapshot((snap) => {
   keepPresent = snap.keepPresent;
   keepSacked = snap.keepSacked;
   nextRaidDay = snap.nextRaidDay;
+  // Phase 4.5 hazards
+  sickVillagers = snap.sickVillagers;
+  outbreakActive = snap.outbreakActive;
+  activeFires = snap.activeFires;
 
   // Sync decree checkboxes with server state (in case decrees change externally)
   decreWorkHours.checked    = activeDecrees.includes("workHours");
@@ -349,8 +363,24 @@ function loop(): void {
   }
   hudEvents.textContent = events.length > 0 ? events[events.length - 1]! : "";
 
+  // Phase 4.5: hazard HUD
+  if (activeFires > 0) {
+    hudFire.textContent = `Fire: ${activeFires} building(s) burning!`;
+    hudFire.style.color = "#feae34";
+  } else {
+    hudFire.textContent = "Fire: none";
+    hudFire.style.color = "#8b9bb4";
+  }
+  if (outbreakActive) {
+    hudDisease.textContent = `Disease: ${sickVillagers} sick!`;
+    hudDisease.style.color = "#b55088";
+  } else {
+    hudDisease.textContent = "Disease: none";
+    hudDisease.style.color = "#8b9bb4";
+  }
+
   drawTerrain(ctx, canvas, bakedTerrain, camera);
-  drawBuildings(ctx, canvas, currentBuildings, camera);
+  drawBuildings(ctx, canvas, currentBuildings, camera, outbreakActive);
   drawVillagers(ctx, canvas, currentVillagers, camera);
   drawRaiders(ctx, canvas, currentRaiders, camera);
 

@@ -5,7 +5,7 @@
  * Places a well-connected economy near the map center, then prints a per-day
  * economy summary from getSnapshot().
  *
- * Four scenarios are supported via the SCENARIO env var:
+ * Six scenarios are supported via the SCENARIO env var:
  *   SCENARIO=grow   (default) — full economy; should see pop growing and
  *                               winter halting grain but not killing the town
  *                               if autumn surplus was large enough.
@@ -19,6 +19,11 @@
  *   SCENARIO=sack   — keep + minimal defense + healthy economy; escalating
  *                     raids overwhelm the weak defenses → keepSacked=true,
  *                     game-over from the SACK (not starvation).
+ *   SCENARIO=fire   — dense wooden buildings packed close together → fire
+ *                     ignites and spreads. Second half places wells to show
+ *                     reduced fire spread. Expect fire events in the log.
+ *   SCENARIO=disease — crowded housing + low happiness → disease outbreak.
+ *                      Second half places a healer to show reduced mortality.
  *
  * Usage:
  *   npm run sim:citadel
@@ -26,6 +31,8 @@
  *   SCENARIO=starve MAX_DAYS=25 npm run sim:citadel
  *   SCENARIO=siege  MAX_DAYS=40 npm run sim:citadel
  *   SCENARIO=sack   MAX_DAYS=40 npm run sim:citadel
+ *   SCENARIO=fire   MAX_DAYS=40 npm run sim:citadel
+ *   SCENARIO=disease MAX_DAYS=40 npm run sim:citadel
  */
 import { bootstrapSim, isWalkable, TerrainType } from "@citadel/sim-core";
 import type { CitadelCommand, TerrainGrid } from "@citadel/sim-core";
@@ -506,6 +513,199 @@ function buildSackScenario(terrain: TerrainGrid): CitadelCommand[] {
   return cmds;
 }
 
+/**
+ * "Fire" scenario: builds a DENSE wooden district.
+ *
+ * When `withWell=false`: no mitigation → high fire risk.
+ * When `withWell=true`: a Well placed in range → ignition chance cut 80%.
+ *
+ * The cluster is 10 wooden buildings packed within 4 tiles of each other.
+ * Each building has 5-9 wooden neighbors → well above the density threshold (≥3).
+ * Expect fire events within 10-15 days with no well.
+ */
+function buildFireCommands(terrain: TerrainGrid, withWell: boolean): CitadelCommand[] {
+  const cx = Math.floor(terrain.width / 2);
+  const cy = Math.floor(terrain.height / 2);
+
+  // 3×3 grid of 2×2 buildings, placed at 3-tile spacing → centers 3 tiles apart.
+  // Within a 4-tile Manhattan radius every building sees its 4 direct neighbors.
+  const positions: Array<{ x: number; y: number; type: string }> = [];
+  const types = ["house", "house", "bakery", "bakery", "mill", "mill",
+                 "house", "storehouse", "chapel", "market"];
+  let i = 0;
+  for (let row = 0; row < 3 && i < types.length; row++) {
+    for (let col = 0; col < 4 && i < types.length; col++) {
+      positions.push({ x: cx + col * 3, y: cy + row * 3, type: types[i]! });
+      i++;
+    }
+  }
+
+  // Farm off to the side for food supply.
+  const farmPos = findClear(terrain, 3, 3, cx - 8, cy);
+  // Road connection spine.
+  const cmds: CitadelCommand[] = [];
+
+  // Place the dense cluster first. Use placeBuilding with explicit coords.
+  // (findClear will spiral to find buildable spots near requested coords.)
+  for (const p of positions) {
+    const spot = findClear(terrain, 2, 2, p.x, p.y);
+    cmds.push({ type: "placeBuilding", payload: { buildingType: p.type, x: spot.x, y: spot.y } });
+  }
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm", x: farmPos.x, y: farmPos.y } });
+
+  // Well placed inside the cluster when mitigation is active.
+  if (withWell) {
+    const wellSpot = findClear(terrain, 1, 1, cx + 4, cy + 4);
+    cmds.push({ type: "placeBuilding", payload: { buildingType: "well", x: wellSpot.x, y: wellSpot.y } });
+  }
+
+  // Road carpet connecting the whole area.
+  const roadTiles: Array<{ x: number; y: number }> = [];
+  const left  = cx - 10;
+  const right = cx + 14;
+  const top   = cy - 1;
+  const bot   = cy + 10;
+  for (let ry = top; ry <= bot; ry++) {
+    for (let rx = left; rx <= right; rx++) {
+      if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });
+    }
+  }
+  cmds.push({ type: "placeRoad", payload: { tiles: roadTiles } });
+  return cmds;
+}
+
+/**
+ * "Disease" scenario: crowded housing (6 houses packed together) + an initial
+ * happiness deficit from lack of faith/safety/goods coverage.
+ * Crowding = pop / houseCount → high onset chance.
+ * When withHealer=true: a Healer is placed to demonstrate mortality reduction.
+ */
+function buildDiseaseScenario(terrain: TerrainGrid, withHealer = true): CitadelCommand[] {
+  const cx = Math.floor(terrain.width / 2) + 5;
+  const cy = Math.floor(terrain.height / 2) + 5;
+
+  // Lots of housing (raises pop cap quickly → crowding rises).
+  const store   = findClear(terrain, 3, 2, cx,     cy);
+  const house1  = findClear(terrain, 2, 2, cx - 4, cy);
+  const house2  = findClear(terrain, 2, 2, cx - 4, cy + 2);
+  const house3  = findClear(terrain, 2, 2, cx - 4, cy + 4);
+  const house4  = findClear(terrain, 2, 2, cx - 4, cy + 6);
+  const house5  = findClear(terrain, 2, 2, cx - 4, cy + 8);
+  const house6  = findClear(terrain, 2, 2, cx - 4, cy + 10);
+  // Minimal food chain — barely enough bread to survive.
+  const farm    = findClear(terrain, 3, 3, cx + 4, cy);
+  const mill    = findClear(terrain, 2, 2, cx + 4, cy + 4);
+  const bakery  = findClear(terrain, 2, 2, cx + 4, cy + 7);
+  // Healer for disease mitigation.
+  const healer  = findClear(terrain, 2, 2, cx,     cy + 5);
+
+  const cmds: CitadelCommand[] = [
+    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,  y: store.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house1.x, y: house1.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house2.x, y: house2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house3.x, y: house3.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house4.x, y: house4.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house5.x, y: house5.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",      x: house6.x, y: house6.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm.x,   y: farm.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill.x,   y: mill.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery.x, y: bakery.y } },
+  ];
+  // Healer placed in range of most housing — only when mitigation is active.
+  if (withHealer) {
+    cmds.push({ type: "placeBuilding", payload: { buildingType: "healer", x: healer.x, y: healer.y } });
+  }
+
+  const roadTiles: Array<{ x: number; y: number }> = [];
+  const left  = house1.x - 1;
+  const right = Math.max(farm.x + 2, bakery.x + 2) + 1;
+  const top   = cy - 1;
+  const bot   = Math.max(house6.y + 1, bakery.y + 2);
+  for (let ry = top; ry <= bot; ry++) {
+    for (let rx = left; rx <= right; rx++) {
+      if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });
+    }
+  }
+  cmds.push({ type: "placeRoad", payload: { tiles: roadTiles } });
+  return cmds;
+}
+
+/** Run a single headless sim with the given commands and return fire + event stats. */
+function runOneSim(
+  cmds: CitadelCommand[],
+  label: string,
+): { fires: number; deaths: number; finalPop: number; events: string[] } {
+  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  for (const c of cmds) sim.commands.enqueue(c);
+  const totalTicks = MAX_DAYS * TICKS_PER_DAY;
+  let fireEvents = 0;
+  let deathEvents = 0;
+  let lastDay = -1;
+  const allEvents: string[] = [];
+  console.log(`\n--- ${label} ---`);
+  for (let tick = 0; tick < totalTicks; tick++) {
+    sim.scheduler.tick({ tick });
+    if (sim.dayClock.day !== lastDay) {
+      lastDay = sim.dayClock.day;
+      const snap = sim.getSnapshot(tick);
+      const hazardStr = (snap.activeFires > 0 || snap.outbreakActive)
+        ? ` | fires=${snap.activeFires} sick=${snap.sickVillagers}${snap.outbreakActive ? " [OUTBREAK]" : ""}`
+        : "";
+      console.log(
+        `  Day ${String(snap.day + 1).padStart(2)}/${MAX_DAYS} pop=${snap.population}/${snap.popCap}` +
+        ` bread=${snap.stockpiles.bread ?? 0} happy=${snap.happiness}${hazardStr}`,
+      );
+      for (const ev of snap.recentEvents) {
+        if (!allEvents.includes(ev)) {
+          allEvents.push(ev);
+          if (/fire|burned|disease|outbreak|died/i.test(ev)) {
+            console.log(`    >> ${ev}`);
+            if (/fire|burned/i.test(ev)) fireEvents++;
+            if (/died/i.test(ev)) deathEvents++;
+          }
+        }
+      }
+    }
+    if (sim.state.gameOver) break;
+  }
+  const final = sim.getSnapshot(totalTicks);
+  return { fires: fireEvents, deaths: deathEvents, finalPop: final.population, events: allEvents };
+}
+
+/** Run two disease sims (no-healer vs with-healer) and print a comparison. */
+function runDiseaseComparison(terrain: TerrainGrid): void {
+  console.log(`\n=== DISEASE COMPARISON: crowded housing (seed=0x${SEED.toString(16)}) ===`);
+  const resultCrowded   = runOneSim(buildDiseaseScenario(terrain, false), "CROWDED — no healer (unmitigated)");
+  const resultMitigated = runOneSim(buildDiseaseScenario(terrain, true),  "MITIGATED — healer in range");
+  console.log("\n=== DISEASE COMPARISON SUMMARY ===");
+  console.log(`  Unmitigated: ${resultCrowded.deaths} disease deaths, final pop ${resultCrowded.finalPop}`);
+  console.log(`  Mitigated:   ${resultMitigated.deaths} disease deaths, final pop ${resultMitigated.finalPop}`);
+  if (resultCrowded.deaths > resultMitigated.deaths) {
+    console.log(`  RESULT: Healer REDUCED deaths (${resultCrowded.deaths} → ${resultMitigated.deaths}). Disease hazard proven!`);
+  } else if (resultCrowded.deaths > 0) {
+    console.log(`  RESULT: Disease deaths occurred in both runs; healer provided partial mitigation.`);
+  } else {
+    console.log(`  RESULT: No disease deaths in this seed/day count — try higher MAX_DAYS or more crowding.`);
+  }
+}
+
+/** Run two fire sims (no-well vs with-well) and print a comparison. */
+function runFireComparison(terrain: TerrainGrid): void {
+  console.log(`\n=== FIRE COMPARISON: dense wooden district (seed=0x${SEED.toString(16)}) ===`);
+  const resultDense    = runOneSim(buildFireCommands(terrain, false), "DENSE — no well (unmitigated)");
+  const resultMitigated = runOneSim(buildFireCommands(terrain, true),  "MITIGATED — well inside district");
+  console.log("\n=== FIRE COMPARISON SUMMARY ===");
+  console.log(`  Unmitigated: ${resultDense.fires} fire events, final pop ${resultDense.finalPop}`);
+  console.log(`  Mitigated:   ${resultMitigated.fires} fire events, final pop ${resultMitigated.finalPop}`);
+  if (resultDense.fires > resultMitigated.fires) {
+    console.log(`  RESULT: Well REDUCED fire events (${resultDense.fires} → ${resultMitigated.fires}). Fire hazard proven!`);
+  } else if (resultDense.fires > 0) {
+    console.log(`  RESULT: Fire occurred in both runs (hazard proven); well provided partial mitigation.`);
+  } else {
+    console.log(`  RESULT: No fires in this seed/day count — try a higher MAX_DAYS or denser layout.`);
+  }
+}
+
 function isSiegeScenario(): boolean {
   return SCENARIO === "siege" || SCENARIO === "sack";
 }
@@ -534,6 +734,15 @@ function main(): void {
   } else if (SCENARIO === "starve") {
     const cmds = buildStarveScenario(terrain);
     for (const c of cmds) commands.enqueue(c);
+  } else if (SCENARIO === "fire") {
+    // Fire scenario: run two sims — dense WITHOUT well vs dense WITH well.
+    // This is a standalone comparison; main loop below is skipped for this branch.
+    runFireComparison(terrain);
+    return;
+  } else if (SCENARIO === "disease") {
+    // Disease scenario: run two sims — crowded without healer vs with healer.
+    runDiseaseComparison(terrain);
+    return;
   } else {
     const cmds = buildGrowScenario(terrain);
     for (const c of cmds) commands.enqueue(c);
@@ -567,6 +776,9 @@ function main(): void {
       const refinStr = SCENARIO === "siege"
         ? ` stone=${snap.stockpiles.stone ?? 0} planks=${snap.stockpiles.planks ?? 0} tools=${snap.stockpiles.tools ?? 0}`
         : "";
+      const hazardStr = (snap.activeFires > 0 || snap.outbreakActive)
+        ? ` | fires=${snap.activeFires} sick=${snap.sickVillagers}${snap.outbreakActive ? " [OUTBREAK]" : ""}`
+        : "";
       console.log(
         `  Day ${String(snap.day + 1).padStart(2)}/${MAX_DAYS} [${snap.season.padEnd(6)}] ` +
           `pop ${snap.population}/${snap.popCap}  ` +
@@ -577,14 +789,14 @@ function main(): void {
           `(connected ${connected}/${snap.buildings.length}, surplus ${snap.foodSurplus}) ` +
           `happy=${snap.happiness} faith=${(snap.faithCoverage * 100).toFixed(0)}% ` +
           `safe=${(snap.safetyCoverage * 100).toFixed(0)}% goods=${(snap.goodsCoverage * 100).toFixed(0)}%` +
-          decreesStr + traderStr + siegeStr + refinStr +
+          decreesStr + traderStr + siegeStr + refinStr + hazardStr +
           (snap.gameOver ? " *** GAME OVER ***" : ""),
       );
-      // Print NEW siege events that arrived since the last day print.
+      // Print NEW events that arrived since the last day print (siege + hazards).
       const newEvents = snap.recentEvents.slice(printedEventCount);
       printedEventCount = snap.recentEvents.length;
       for (const ev of newEvents) {
-        if (/Raid|REPELLED|SACKED|DAMAGE|sacked outer|spotted/i.test(ev)) {
+        if (/Raid|REPELLED|SACKED|DAMAGE|sacked outer|spotted|fire|burned|disease|outbreak|villager.*died/i.test(ev)) {
           console.log(`    >> ${ev}`);
         }
       }

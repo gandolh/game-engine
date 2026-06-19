@@ -75,6 +75,9 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   tower:    { w: 2, h: 2 }, // defensive strength contributor
   garrison: { w: 3, h: 2 }, // houses soldiers, worker/pop sink
   keep:     { w: 3, h: 3 }, // the heart; if sacked → game-over
+  // Phase 4.5: hazard mitigation
+  well:    { w: 1, h: 1 }, // reduces fire ignition chance nearby
+  healer:  { w: 2, h: 2 }, // reduces disease onset and mortality
 };
 
 /** Service radius for buildings that provide needs coverage (in tiles, Manhattan). */
@@ -86,6 +89,9 @@ export const SERVICE_RADII: Readonly<Record<string, number>> = {
   tower: 6,
   garrison: 8,
   keep: 10,
+  // Phase 4.5: hazard mitigation radii
+  well: 5,
+  healer: 8,
 };
 
 export function getBuildingDef(type: string): BuildingDef | undefined {
@@ -114,6 +120,9 @@ export interface BuildingProductionDef {
   readonly isGarrison?: boolean;
   readonly isKeep?: boolean;
   readonly defenseStrength?: number;
+  // Phase 4.5: hazard service flags
+  readonly isWell?: boolean;
+  readonly isHealer?: boolean;
 }
 
 export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = {
@@ -268,6 +277,21 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
     isKeep: true,
     ticksPerCycle: 20,
     defenseStrength: 8,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  // Phase 4.5: hazard mitigation buildings
+  well: {
+    workerSlots: 0,
+    isWell: true,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  healer: {
+    workerSlots: 1,
+    isHealer: true,
+    ticksPerCycle: 20,
     inputPerCycle: 0,
     outputPerCycle: 0,
   },

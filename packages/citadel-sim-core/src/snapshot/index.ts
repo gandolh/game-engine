@@ -13,6 +13,9 @@ export interface BuildingSnapshot {
   readonly connected: boolean;
   readonly outputBuffer: number;
   readonly workerCount: number;
+  // Phase 4.5: hazard state
+  readonly onFire: boolean;
+  readonly burning: boolean;
 }
 
 /** One villager as seen by the renderer. */
@@ -60,6 +63,10 @@ export interface RenderSnapshot {
   readonly defensiveStrength: number;
   readonly keepPresent: boolean;
   readonly keepSacked: boolean;
+  // Phase 4.5: hazards
+  readonly sickVillagers: number;
+  readonly outbreakActive: boolean;
+  readonly activeFires: number;          // count of burning buildings
 }
 
 // Messages sent from Worker → main thread

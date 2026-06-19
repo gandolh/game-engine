@@ -13,6 +13,13 @@ import type { GoodType, BuildingRuntimeState, BuildingEntity } from "./entities/
 import type { VillagerEntity } from "./entities/villager";
 import type { Rng } from "@engine/core";
 
+/** Phase 4.5: per-building fire hazard state. */
+export interface BuildingFireState {
+  burning: boolean;        // currently on fire
+  burnTicksLeft: number;   // ticks until destroyed (0 if not burning)
+  destroyed: boolean;      // has been burned down already
+}
+
 export interface BarterOffer {
   give: GoodType;
   giveQty: number;
@@ -116,6 +123,11 @@ export interface SimState {
   readonly raiders: RaiderState[];    // active raider entities
   keepPosition: { x: number; y: number } | null; // where the keep is (for raider pathing)
   keepSacked: boolean;                // true if keep was destroyed
+
+  // Phase 4.5: hazard state
+  readonly fireState: Map<number, BuildingFireState>; // keyed by building ECS id
+  sickVillagers: number;    // count of sick villagers
+  outbreakActive: boolean;  // true if disease spreading
 }
 
 const MAX_EVENTS = 20;
