@@ -19,6 +19,8 @@ export interface CitadelSimOptions {
   seed: number;
   ticksPerDay: number;
   maxDays: number;
+  /** Starting day offset (default 0). Used to begin the sim partway through the year. */
+  startDay?: number;
 }
 
 const DAYS_PER_YEAR = 16;
@@ -206,6 +208,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // ---------------------------------------------------------------------------
   const scheduler = new Scheduler();
   const dayClock = new DayClockSystem(ticksPerDay);
+  // Apply starting day offset (used for scenarios that begin mid-year).
+  if (opts.startDay !== undefined && opts.startDay > 0) {
+    dayClock.day = opts.startDay;
+    state.day = opts.startDay;
+  }
 
   // Mirror the day clock into shared state so economy systems can read it.
   const daySync: System = {

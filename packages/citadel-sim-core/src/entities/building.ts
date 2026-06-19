@@ -88,7 +88,7 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
   house: {
     workerSlots: 0,
     isHousing: true,
-    housingCapacity: 4,
+    housingCapacity: 6,
     ticksPerCycle: 20,
     inputPerCycle: 0,
     outputPerCycle: 0,
@@ -96,25 +96,29 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
   farm: {
     workerSlots: 2,
     outputGood: "grain",
+    // 3 grain/cycle × 2 cycles/day = 6 grain/day in summer
+    // spring×0.5=1.5→floor=1/cycle, autumn×1.2=3.6→floor=3/cycle, winter×0=0
     outputPerCycle: 3,
-    ticksPerCycle: 20,
+    ticksPerCycle: 10,
     inputPerCycle: 0,
   },
   mill: {
     workerSlots: 1,
     inputGood: "grain",
     outputGood: "flour",
-    inputPerCycle: 2,
-    outputPerCycle: 1,
-    ticksPerCycle: 20,
+    // Converts 1 grain → 2 flour per cycle (2 cycles/day = 4 flour/day)
+    inputPerCycle: 1,
+    outputPerCycle: 2,
+    ticksPerCycle: 10,
   },
   bakery: {
     workerSlots: 1,
     inputGood: "flour",
     outputGood: "bread",
+    // Converts 1 flour → 3 bread per cycle (2 cycles/day = 6 bread/day)
     inputPerCycle: 1,
-    outputPerCycle: 2,
-    ticksPerCycle: 20,
+    outputPerCycle: 3,
+    ticksPerCycle: 10,
   },
   woodcutter: {
     workerSlots: 2,

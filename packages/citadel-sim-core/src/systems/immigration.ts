@@ -3,8 +3,11 @@
  *
  * Once per in-game day boundary:
  *   - Consume bread for the current population (1 bread / villager / day).
- *   - foodSurplus = bread produced this day minus consumption (tracked via the
- *     stockpile delta since the last day boundary).
+ *   - foodSurplus = bread in stockpile this day minus consumption since last
+ *     day boundary.
+ *   - BOOTSTRAP: if pop=0 and there are connected worker slots, spawn the
+ *     first pioneer villager unconditionally (settlers arrive when there is
+ *     work to do, regardless of food).
  *   - If bread is in surplus AND there are open worker slots, spawn one
  *     immigrant villager (using rng.fork("immigration")).
  *   - If bread was in deficit for 3 consecutive days, remove one villager.
@@ -23,6 +26,7 @@ export class ImmigrationSystem implements System {
   readonly name = "ImmigrationSystem";
 
   private lastDay = -1;
+  private startDay = -1;
   private hadPopulation = false;
   private readonly rng: Rng;
 
@@ -34,6 +38,7 @@ export class ImmigrationSystem implements System {
     const state = this.state;
     if (state.day === this.lastDay) return;
     const firstDay = this.lastDay === -1;
+    if (firstDay) this.startDay = state.day;
     this.lastDay = state.day;
     if (firstDay) {
       // Establish baseline; no consumption on the very first observed day.
@@ -44,7 +49,7 @@ export class ImmigrationSystem implements System {
     // Bread produced since last day boundary (before consumption).
     const breadNow = state.stockpiles.bread;
 
-    // Consume bread for the population.
+    // Consume bread for the population (1 bread/person/day).
     const consumption = state.population;
     const afterConsumption = breadNow - consumption;
     if (afterConsumption >= 0) {
@@ -66,9 +71,23 @@ export class ImmigrationSystem implements System {
       openSlots += Math.max(0, def.workerSlots - rs.workerCount);
     }
 
-    const surplus = state.foodSurplus > 0;
+    // Founding phase: during the first (daysPerYear/4 + 2) days since sim start,
+    // spawn one pioneer per production building type to seed the chain. Founders
+    // bring bread rations. After the founding window closes, no more founders —
+    // starvation-driven departures are permanent until food is restored.
+    const daysSinceStart = state.day - this.startDay;
+    const foundingWindow = daysSinceStart <= Math.floor(state.daysPerYear / 4) + 2;
+    const unstaffedTypes = foundingWindow ? this.countUnstaffedProductionTypes() : 0;
+    const needsFounder = unstaffedTypes > 0 && openSlots > 0 && state.popCap > 0;
 
-    if (surplus && openSlots > 0 && state.population < state.popCap) {
+    if (needsFounder) {
+      // Spawn a founder regardless of food supply — one per unstaffed type, max 1/day.
+      // Each founder arrives with a small bread ration to sustain themselves
+      // while the production chain gets established.
+      this.spawnVillager();
+      state.stockpiles.bread += 5;
+      state.hungerDays = 0;
+    } else if (state.foodSurplus > 0 && state.population < state.popCap) {
       this.spawnVillager();
       state.hungerDays = 0;
     } else if (state.foodSurplus < 0) {
@@ -77,6 +96,10 @@ export class ImmigrationSystem implements System {
         this.removeVillager();
         state.hungerDays = 0;
       }
+    } else if (state.stockpiles.bread === 0 && state.foodSurplus === 0) {
+      // Bread stockpile is empty even though surplus is technically 0
+      // (production exactly matched consumption). Persistent empty bread is
+      // still hunger — don't reset the counter.
     } else {
       state.hungerDays = 0;
     }
@@ -150,6 +173,32 @@ export class ImmigrationSystem implements System {
       }
     }
     return null;
+  }
+
+  /**
+   * Count how many distinct production building types have at least one
+   * connected building with NO assigned worker. Used for founding-phase
+   * bootstrapping so every building type gets its first worker.
+   */
+  private countUnstaffedProductionTypes(): number {
+    const state = this.state;
+    const staffed = new Set<string>();
+    const present = new Set<string>();
+    for (const entity of state.buildingWorld.query("building")) {
+      const id = entity.id;
+      if (id === undefined) continue;
+      const def = getProductionDef(entity.building.type);
+      if (def === undefined || def.workerSlots <= 0) continue;
+      const rs = state.buildingState.get(id);
+      if (rs === undefined || !rs.connected) continue;
+      present.add(entity.building.type);
+      if (rs.workerCount > 0) staffed.add(entity.building.type);
+    }
+    let unstaffed = 0;
+    for (const t of present) {
+      if (!staffed.has(t)) unstaffed++;
+    }
+    return unstaffed;
   }
 
   /** First house center, else map center. */

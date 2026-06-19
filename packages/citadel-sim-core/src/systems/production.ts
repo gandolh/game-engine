@@ -1,16 +1,21 @@
 /**
  * ProductionSystem — runs the goods economy each tick.
  *
- * For every connected building with at least one worker slot, once per
- * production cycle (ticksPerCycle):
- *   - Producers (no input good): emit outputPerCycle of their output good.
- *       Farms additionally scale by the seasonal grain multiplier.
- *   - Converters (input good set): consume inputPerCycle from the global pool
- *       (only if available) and emit outputPerCycle.
+ * For every connected building with at least one REAL assigned worker
+ * (workerCount > 0), once per production cycle (ticksPerCycle):
+ *   - Producers (no input good): emit outputPerCycle into the building's
+ *       LOCAL outputBuffer. Farms additionally scale by the seasonal grain
+ *       multiplier (0 in winter → no output).
+ *   - Converters (input good set): consume inputPerCycle from the GLOBAL
+ *       stockpile (the Storehouse pool), then emit outputPerCycle into their
+ *       local outputBuffer. Converters also only run with a real worker.
  *
- * Output is added both to the global stockpile (so the chain can proceed
- * deterministically without requiring hauling) and tracked in the building's
- * `outputBuffer` for display / villager-hauling flavor.
+ * Goods only reach the global stockpile when a VillagerSystem hauler carries
+ * them from the building's outputBuffer to a connected Storehouse. This means:
+ *   - A building with NO assigned worker produces nothing.
+ *   - A building disconnected from a Storehouse produces nothing.
+ *   - Physical hauling is the mechanism; production.ts never writes to
+ *     state.stockpiles directly.
  *
  * Stage: "economy" (after connectivity).
  */
@@ -35,18 +40,19 @@ export class ProductionSystem implements System {
       const def = getProductionDef(entity.building.type);
       if (def === undefined) continue;
       if (def.workerSlots <= 0) continue; // storage / housing / road
-      if (!rs.connected) continue;
 
-      // Effective workers: assigned villagers, falling back to full slots so the
-      // economy still runs before immigration populates the town.
-      const workers = rs.workerCount > 0 ? rs.workerCount : def.workerSlots;
-      if (workers <= 0) continue;
+      // A building only produces if it has at least one real assigned worker.
+      if (rs.workerCount <= 0) continue;
+
+      // A building only produces if it is connected to a Storehouse.
+      if (!rs.connected) continue;
 
       // Cycle timer — first fire after a full cycle has elapsed.
       if (ctx.tick - rs.productionTick < def.ticksPerCycle) continue;
       rs.productionTick = ctx.tick;
 
-      // Converters need their input good from the global pool.
+      // Converters draw their input good from the global stockpile (goods
+      // previously hauled to a Storehouse by workers from upstream producers).
       if (def.inputGood !== undefined && def.inputPerCycle > 0) {
         if (state.stockpiles[def.inputGood] < def.inputPerCycle) continue;
         state.stockpiles[def.inputGood] -= def.inputPerCycle;
@@ -61,7 +67,8 @@ export class ProductionSystem implements System {
       }
       if (amount <= 0) continue;
 
-      state.stockpiles[def.outputGood] += amount;
+      // Output goes into the building's LOCAL buffer. It does NOT enter the
+      // global stockpile until a villager hauls it to a Storehouse.
       rs.outputBuffer += amount;
     }
   }

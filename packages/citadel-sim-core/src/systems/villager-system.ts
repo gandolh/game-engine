@@ -2,11 +2,23 @@
  * VillagerSystem — drives villager movement + worker assignment via a per-tick
  * FSM. Villagers are the visible labor layer; they assign themselves to open
  * connected workplaces (incrementing the building's workerCount), walk there
- * along roads/building tiles, "work", periodically haul the workplace's output
- * buffer to a storehouse, and return.
+ * along roads/building tiles, "work", then haul the workplace's output buffer
+ * to a storehouse where goods enter the global stockpile.
  *
- * Movement is one tile per tick along a precomputed BFS path. All decisions are
- * deterministic (fixed iteration order, no RNG, no wall-clock).
+ * Movement is one tile per tick along a precomputed BFS path. All decisions
+ * are deterministic (fixed iteration order, no RNG, no wall-clock).
+ *
+ * The haul cycle is the LOAD-BEARING mechanism for the economy:
+ *   1. Villager walks to their assigned workplace (walkToWork).
+ *   2. Villager "works" for WORK_TICKS ticks (work state).
+ *   3. Villager picks up the building's outputBuffer into carryAmount.
+ *   4. Villager walks to the storehouse (haulToStore).
+ *   5. On arrival the carryAmount is deposited into state.stockpiles.
+ *   6. Villager returns to work (walkToWork loop).
+ *
+ * If a building has no assigned villager its workerCount stays 0 and
+ * ProductionSystem will not run it — so disconnected or unassigned buildings
+ * produce nothing.
  *
  * Stage: "villagers" (after economy).
  */
@@ -18,8 +30,8 @@ import type { SimState } from "../sim-state";
 import { villagerWalkable } from "../sim-state";
 import { bfsPath } from "../world/pathfinder";
 
-/** Ticks a villager spends "working" before hauling output home to a store. */
-const WORK_TICKS = 20;
+/** Ticks a villager spends "working" before hauling output to a store. */
+const WORK_TICKS = 5;
 
 export class VillagerSystem implements System {
   readonly name = "VillagerSystem";
@@ -47,7 +59,7 @@ export class VillagerSystem implements System {
       case "work":
         v.ticksAtWork++;
         if (v.ticksAtWork >= WORK_TICKS) {
-          // Haul the workplace's accumulated output buffer to the store.
+          // Pick up the workplace's accumulated output buffer.
           const wb = this.buildingAt(v.workX, v.workY);
           if (wb !== null) {
             const rs = this.state.buildingState.get(wb.id ?? -1);
@@ -64,8 +76,11 @@ export class VillagerSystem implements System {
         break;
       case "haulToStore":
         if (this.advance(v)) {
-          // Goods are already in the global pool (production deposits directly);
-          // hauling clears the carried flavor amount on arrival.
+          // Deposit carried goods into the global stockpile. This is the
+          // load-bearing step — goods only enter the economy via this deposit.
+          if (v.carryGood !== null && v.carryAmount > 0) {
+            this.state.stockpiles[v.carryGood] += v.carryAmount;
+          }
           v.carryGood = null;
           v.carryAmount = 0;
           this.planPath(v, v.storeX, v.storeY, v.workX, v.workY);
@@ -81,49 +96,85 @@ export class VillagerSystem implements System {
     void ctx;
   }
 
-  /** Try to assign an idle villager to the nearest open connected workplace. */
+  /** Try to assign an idle villager to the nearest open connected workplace.
+   *
+   * Assignment priority (four tiers, nearest within each tier wins):
+   *   1. Primary producers (no inputGood) whose type has 0 workers anywhere.
+   *   2. Converters (have inputGood) whose type has 0 workers anywhere.
+   *   3. Primary producers with open slots (2nd+ worker on a type).
+   *   4. Converters with open slots.
+   *
+   * This ensures each building type gets its first worker before any type
+   * gets additional workers, bootstrapping the full production chain with
+   * minimal founders.
+   */
   private assign(v: VillagerComponent): void {
     const state = this.state;
-    let best: BuildingEntity | null = null;
-    let bestDist = Infinity;
+
+    // Pre-compute which building types have at least one worker.
+    const staffedTypes = new Set<string>();
     for (const entity of state.buildingWorld.query("building")) {
       const id = entity.id;
       if (id === undefined) continue;
       const rs = state.buildingState.get(id);
-      if (rs === undefined || !rs.connected) continue;
-      const def = getProductionDef(entity.building.type);
-      if (def === undefined || def.workerSlots <= 0) continue;
-      if (rs.workerCount >= def.workerSlots) continue;
-      const b = entity.building;
-      const cx = b.x + Math.floor(b.w / 2);
-      const cy = b.y + Math.floor(b.h / 2);
-      const d = Math.abs(cx - v.homeX) + Math.abs(cy - v.homeY);
-      // Tie-break on id (deterministic) via the dist-only comparison + iteration order.
-      if (d < bestDist) {
-        bestDist = d;
-        best = entity;
+      if (rs !== undefined && rs.workerCount > 0) staffedTypes.add(entity.building.type);
+    }
+
+    // Four tiers (defined by [wantPrimary, wantUnstaffedType]).
+    const tiers: Array<[boolean, boolean]> = [
+      [true, true],   // primary, type not yet staffed
+      [false, true],  // converter, type not yet staffed
+      [true, false],  // primary, type already has workers
+      [false, false], // converter, type already has workers
+    ];
+
+    for (const [wantPrimary, wantUnstaffedType] of tiers) {
+      let best: BuildingEntity | null = null;
+      let bestDist = Infinity;
+      for (const entity of state.buildingWorld.query("building")) {
+        const id = entity.id;
+        if (id === undefined) continue;
+        const rs = state.buildingState.get(id);
+        if (rs === undefined || !rs.connected) continue;
+        const def = getProductionDef(entity.building.type);
+        if (def === undefined || def.workerSlots <= 0) continue;
+        if (rs.workerCount >= def.workerSlots) continue;
+        const isPrimary = def.inputGood === undefined;
+        if (wantPrimary !== isPrimary) continue;
+        const typeStaffed = staffedTypes.has(entity.building.type);
+        if (wantUnstaffedType !== !typeStaffed) continue;
+        const b = entity.building;
+        const cx = b.x + Math.floor(b.w / 2);
+        const cy = b.y + Math.floor(b.h / 2);
+        const d = Math.abs(cx - v.homeX) + Math.abs(cy - v.homeY);
+        if (d < bestDist) {
+          bestDist = d;
+          best = entity;
+        }
+      }
+      if (best !== null) {
+        const id = best.id;
+        if (id === undefined) return;
+        const rs = state.buildingState.get(id);
+        if (rs === undefined) return;
+        rs.workerCount++;
+        const b = best.building;
+        v.workX = b.x + Math.floor(b.w / 2);
+        v.workY = b.y + Math.floor(b.h / 2);
+        const store = this.firstStore();
+        if (store !== null) {
+          v.storeX = store.x;
+          v.storeY = store.y;
+        } else {
+          v.storeX = v.workX;
+          v.storeY = v.workY;
+        }
+        this.planPath(v, v.homeX, v.homeY, v.workX, v.workY);
+        v.fsm = "walkToWork";
+        return;
       }
     }
-    if (best === null) return;
-    const id = best.id;
-    if (id === undefined) return;
-    const rs = state.buildingState.get(id);
-    if (rs === undefined) return;
-    rs.workerCount++;
-    const b = best.building;
-    v.workX = b.x + Math.floor(b.w / 2);
-    v.workY = b.y + Math.floor(b.h / 2);
-    // Find a store (first connected storehouse) to haul to.
-    const store = this.firstStore();
-    if (store !== null) {
-      v.storeX = store.x;
-      v.storeY = store.y;
-    } else {
-      v.storeX = v.workX;
-      v.storeY = v.workY;
-    }
-    this.planPath(v, v.homeX, v.homeY, v.workX, v.workY);
-    v.fsm = "walkToWork";
+    // No open slot found anywhere — remain idle.
   }
 
   private firstStore(): { x: number; y: number } | null {
