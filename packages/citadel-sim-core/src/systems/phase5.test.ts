@@ -39,38 +39,67 @@ function place(type: string, x: number, y: number): CitadelCommand {
 describe("computeTier", () => {
   it("returns Hamlet when pop and buildings are minimal", () => {
     expect(computeTier(0, 0, 0)).toBe("Hamlet");
-    expect(computeTier(5, 5, 0)).toBe("Hamlet");
+    expect(computeTier(4, 5, 0)).toBe("Hamlet"); // pop < 8 AND pop < minPopForBuildings(5) is fine at buildings=5
+  });
+
+  it("returns Hamlet just below Village pop threshold", () => {
+    expect(computeTier(7, 0, 0)).toBe("Hamlet"); // pop=7 < 8
   });
 
   it("promotes to Village at pop ≥ 8", () => {
     expect(computeTier(8, 0, 0)).toBe("Village");
   });
 
-  it("promotes to Village at buildings ≥ 8", () => {
-    expect(computeTier(0, 8, 0)).toBe("Village");
+  it("promotes to Village via buildings path: buildings ≥ 8 AND pop ≥ 5", () => {
+    // Strictly at the threshold.
+    expect(computeTier(5, 8, 0)).toBe("Village");
+    // Just below pop requirement for buildings path — stays Hamlet.
+    expect(computeTier(4, 8, 0)).toBe("Hamlet");
+    // Just below building count for buildings path — stays Hamlet.
+    expect(computeTier(5, 7, 0)).toBe("Hamlet");
+  });
+
+  it("does NOT promote to Village at buildings ≥ 8 with pop = 0 (empty shell city)", () => {
+    // An empty-but-pre-built settlement must not skip the tier ladder.
+    expect(computeTier(0, 8, 0)).toBe("Hamlet");
+    expect(computeTier(0, 20, 0)).toBe("Hamlet");
+  });
+
+  it("returns Village just below Town pop threshold", () => {
+    expect(computeTier(19, 0, 0)).toBe("Village"); // pop=19 < 20
   });
 
   it("promotes to Town at pop ≥ 20", () => {
     expect(computeTier(20, 0, 0)).toBe("Town");
   });
 
-  it("promotes to Town at buildings ≥ 15", () => {
-    expect(computeTier(0, 15, 0)).toBe("Town");
+  it("promotes to Town via buildings path: buildings ≥ 15 AND pop ≥ 10", () => {
+    expect(computeTier(10, 15, 0)).toBe("Town");
+    // Just below pop for buildings path → stays Village (if Village threshold also met by pop).
+    expect(computeTier(9, 15, 0)).toBe("Village"); // pop=9 ≥ 8 → Village; < 10 → not Town via buildings
+    // Just below building count for buildings path → stays Village.
+    expect(computeTier(10, 14, 0)).toBe("Village"); // pop=10 ≥ 8 → Village; buildings=14 < 15 → not Town
   });
 
   it("promotes to Citadel at pop ≥ 40 with no defense requirement", () => {
-    // Citadel requires defense ≥ 20 OR pop ≥ 40 (any+defense>=0).
+    // Citadel via pop path: pop ≥ 40.
     expect(computeTier(40, 0, 0)).toBe("Citadel");
   });
 
-  it("promotes to Citadel at buildings ≥ 25 with defense ≥ 20", () => {
-    expect(computeTier(0, 25, 20)).toBe("Citadel");
+  it("promotes to Citadel via buildings path: buildings ≥ 25, defense ≥ 20, pop ≥ 20", () => {
+    expect(computeTier(20, 25, 20)).toBe("Citadel");
+    // Missing defense → not Citadel (falls back to Town since pop=20 meets Town via pop).
+    expect(computeTier(20, 25, 0)).toBe("Town");
+    // Missing pop for buildings path → not Citadel via buildings.
+    // pop=19 < 40 (Citadel pop path) and < 20 (Citadel minPopForBuildings) → Citadel fails.
+    // But pop=19 ≥ 8 (Village pop path) and buildings=25 ≥ 15 AND pop=19 ≥ 10 (Town buildings path) → Town.
+    expect(computeTier(19, 25, 20)).toBe("Town");
   });
 
   it("does NOT promote to Citadel at buildings ≥ 25 with defense < 20", () => {
-    // buildings=25 but defense=0 → Citadel needs defenseOk too.
-    // Since pop=0 < 40, popOk is false; buildingsOk=true but defenseOk=false → stuck at Town.
-    expect(computeTier(0, 25, 0)).toBe("Town");
+    // buildings=25 but defense=0 → Citadel needs both defenseOk and popOk too.
+    // pop=0 < 40, popOk false; buildingsOk true but defenseOk false → Hamlet (no threshold met).
+    expect(computeTier(0, 25, 0)).toBe("Hamlet");
   });
 
   it("promotes to Fortress-City at pop ≥ 60", () => {
