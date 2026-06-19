@@ -1,0 +1,219 @@
+/**
+ * Quad primitive: color maps (EDG), tint packing, QuadSpec, and the per-entity
+ * quad builders (building, villager, raider, ghost). All pure — no GPU, no
+ * renderer dependency. Also owns the generated 1×1 atlas id/frame constants and
+ * the quadToSprite helper that wraps a QuadSpec for the sprite-batch.
+ */
+import {
+  EDG,
+  rgbOf,
+} from "@engine/core";
+import type { Canvas2dSprite } from "@engine/core";
+import {
+  TerrainType,
+  TILE_SIZE,
+} from "@citadel/sim-core";
+import type {
+  BuildingSnapshot,
+  VillagerSnapshot,
+  RaiderSnapshot,
+} from "@citadel/sim-core";
+
+// ---------------------------------------------------------------------------
+// Color maps (EDG only) — ported verbatim from the deleted Canvas2D renderers.
+// ---------------------------------------------------------------------------
+
+/** EDG palette color per terrain type. Covers every TerrainType. */
+export const TERRAIN_COLORS: Record<TerrainType, string> = {
+  [TerrainType.Grass]: EDG.greenMid,
+  [TerrainType.Water]: EDG.skyBlue,
+  [TerrainType.Forest]: EDG.greenDark,
+  [TerrainType.Stone]: EDG.slate,
+  [TerrainType.Rough]: EDG.wood,
+};
+
+/** EDG color per building type. */
+export const BUILDING_COLORS: Record<string, string> = {
+  house: EDG.clay,
+  farm: EDG.greenMid,
+  mill: EDG.cream,
+  bakery: EDG.tan,
+  woodcutter: EDG.wood,
+  storehouse: EDG.steel,
+  road: EDG.navy,
+  chapel: EDG.white,
+  market: EDG.gold,
+  watchpost: EDG.silver,
+  tradingpost: EDG.mauve,
+  quarry: EDG.slate,
+  sawmill: EDG.greenDark,
+  smith: EDG.crimson,
+  mine: EDG.ink,
+  wall: EDG.steel,
+  gate: EDG.gold,
+  tower: EDG.navy,
+  garrison: EDG.blue,
+  keep: EDG.plum,
+  well: EDG.skyBlue,
+  healer: EDG.green,
+};
+
+/** EDG color per villager FSM state. */
+export const VILLAGER_COLORS: Record<string, string> = {
+  idle: EDG.silver,
+  walkToWork: EDG.yellow,
+  work: EDG.orange,
+  haulToStore: EDG.cyan,
+  walkHome: EDG.salmon,
+};
+
+export const FALLBACK_BUILDING_COLOR = EDG.steel;
+export const FALLBACK_VILLAGER_COLOR = EDG.white;
+
+// ---------------------------------------------------------------------------
+// Color packing
+// ---------------------------------------------------------------------------
+
+/**
+ * Pack an EDG hex string into a `0xRRGGBBAA` int for `Sprite.tintRgba`.
+ * `alpha` defaults to fully opaque (0xff). Pure — used by both the renderer
+ * and the tests.
+ */
+export function packTint(hex: string, alpha = 0xff): number {
+  const [r, g, b] = rgbOf(hex);
+  // >>> 0 keeps the result an unsigned 32-bit int.
+  return (((r << 24) | (g << 16) | (b << 8) | (alpha & 0xff)) >>> 0);
+}
+
+// ---------------------------------------------------------------------------
+// QuadSpec
+// ---------------------------------------------------------------------------
+
+export interface QuadSpec {
+  /** World-px X of the quad's top-left. */
+  x: number;
+  /** World-px Y of the quad's top-left. */
+  y: number;
+  /** Quad width in world px. */
+  width: number;
+  /** Quad height in world px. */
+  height: number;
+  /** Packed 0xRRGGBBAA tint. */
+  tintRgba: number;
+}
+
+// ---------------------------------------------------------------------------
+// Atlas constants + quadToSprite
+// ---------------------------------------------------------------------------
+
+/** The atlas id for the generated 1×1 white quad sheet. */
+export const QUAD_ATLAS_ID = "citadel-quads";
+/** The single frame name in that atlas. */
+export const QUAD_FRAME = "px";
+
+/** Build the Sprite the sprite-batch consumes from a QuadSpec + layer. */
+export function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSprite {
+  return {
+    atlasId: QUAD_ATLAS_ID,
+    frame: QUAD_FRAME,
+    x: q.x,
+    y: q.y,
+    width: q.width,
+    height: q.height,
+    rotation: 0,
+    layer,
+    alpha,
+    tintRgba: q.tintRgba,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Building → quad mapping (pure, tested)
+// ---------------------------------------------------------------------------
+
+/**
+ * Map a building snapshot to its solid colored quad (position, footprint, tint).
+ *
+ * Burning buildings tint orange (matches the old Canvas2D behavior). Roads draw
+ * as a centered inset band; gates as a slightly inset gold block; everything
+ * else fills its full footprint. Pure — no GPU, returns the quad spec the
+ * sprite-batch consumes.
+ */
+export function buildingQuad(b: BuildingSnapshot): QuadSpec {
+  const px = b.x * TILE_SIZE;
+  const py = b.y * TILE_SIZE;
+  const pw = b.w * TILE_SIZE;
+  const ph = b.h * TILE_SIZE;
+
+  if (b.type === "road") {
+    const inset = TILE_SIZE * 0.25;
+    return {
+      x: px + inset,
+      y: py + inset,
+      width: pw - inset * 2,
+      height: ph - inset * 2,
+      tintRgba: packTint(BUILDING_COLORS.road ?? FALLBACK_BUILDING_COLOR),
+    };
+  }
+
+  if (b.type === "gate") {
+    const inset = TILE_SIZE * 0.15;
+    return {
+      x: px + inset,
+      y: py + inset,
+      width: pw - inset * 2,
+      height: ph - inset * 2,
+      tintRgba: packTint(BUILDING_COLORS.gate ?? FALLBACK_BUILDING_COLOR),
+    };
+  }
+
+  const hex = b.burning ? EDG.orange : (BUILDING_COLORS[b.type] ?? FALLBACK_BUILDING_COLOR);
+  return { x: px, y: py, width: pw, height: ph, tintRgba: packTint(hex) };
+}
+
+/** Map a villager snapshot to a small centered quad (color by FSM state). */
+export function villagerQuad(v: VillagerSnapshot): QuadSpec {
+  const size = TILE_SIZE * 0.7;
+  const cx = v.x * TILE_SIZE + TILE_SIZE / 2;
+  const cy = v.y * TILE_SIZE + TILE_SIZE / 2;
+  const hex = VILLAGER_COLORS[v.fsm] ?? FALLBACK_VILLAGER_COLOR;
+  return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex) };
+}
+
+/** Map a raider snapshot to a red quad sized by strength. */
+export function raiderQuad(r: RaiderSnapshot): QuadSpec {
+  // Strength grows the footprint (matches old radius scaling: 0.4..1.0 tiles).
+  const half = TILE_SIZE * (0.4 + Math.min(0.6, r.strength / 60));
+  const cx = r.x * TILE_SIZE + TILE_SIZE / 2;
+  const cy = r.y * TILE_SIZE + TILE_SIZE / 2;
+  return { x: cx - half, y: cy - half, width: half * 2, height: half * 2, tintRgba: packTint(EDG.red) };
+}
+
+// ---------------------------------------------------------------------------
+// Ghost preview quad
+// ---------------------------------------------------------------------------
+
+/** Ghost / drag-paint preview alpha (translucent over the world). */
+export const GHOST_ALPHA = Math.round(0xff * 0.45);
+
+/**
+ * Map a ghost-preview cell to a translucent colored quad (green = valid,
+ * red = invalid). Pure — used by `pushGhost` and the tests.
+ *
+ * NOTE: the ghost is drawn as a **sprite-batch quad**, not via the `endFrame`
+ * overlay callback. The WebGPU renderer's `endFrame(overlay)` parameter is a
+ * no-op (it only uses its overlay canvas for particles / weather / wash — see
+ * webgpu/renderer.ts), so an OverlayFn would never render on the backend
+ * Citadel actually uses at runtime. A translucent quad in the sprite-batch is
+ * the path that works on WebGPU and keeps everything going through brief 20's
+ * batch.
+ */
+export function ghostQuad(tileX: number, tileY: number, w: number, h: number, valid: boolean): QuadSpec {
+  return {
+    x: tileX * TILE_SIZE,
+    y: tileY * TILE_SIZE,
+    width: w * TILE_SIZE,
+    height: h * TILE_SIZE,
+    tintRgba: packTint(valid ? EDG.green : EDG.red, GHOST_ALPHA),
+  };
+}
