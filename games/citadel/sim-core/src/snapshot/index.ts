@@ -37,6 +37,16 @@ export interface RaiderSnapshot {
   readonly strength: number;
 }
 
+/** Citadel 32: one in-flight PvP army as seen by the renderer. */
+export interface ArmySnapshot {
+  readonly id: number;
+  readonly x: number;
+  readonly y: number;
+  readonly strength: number;
+  readonly attackerId: number;
+  readonly targetPlayerId: number;
+}
+
 export interface RenderSnapshot {
   readonly tick: number;
   readonly day: number;
@@ -60,6 +70,8 @@ export interface RenderSnapshot {
   readonly traderOffers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[];
   // Phase 4: siege
   readonly raiders: readonly RaiderSnapshot[];
+  // Citadel 32: in-flight PvP armies (empty in solo)
+  readonly armies: readonly ArmySnapshot[];
   readonly threatLevel: number;
   readonly nextRaidDay: number;          // approximate day of next raid (-1 if unscheduled)
   readonly defensiveStrength: number;
@@ -117,4 +129,6 @@ export type CitadelCommand =
   | { type: "placeWall"; payload: { tiles: Array<{ x: number; y: number }> } }
   | { type: "setDecree"; payload: { decree: string; active: boolean } }
   | { type: "barter"; payload: { offerIndex: number } }
-  | { type: "upgradeBuilding"; payload: { x: number; y: number } };
+  | { type: "upgradeBuilding"; payload: { x: number; y: number } }
+  // Citadel 32: launch a PvP army at a targeted enemy building / town-hall.
+  | { type: "launchAttack"; payload: { targetX: number; targetY: number; strength: number } };

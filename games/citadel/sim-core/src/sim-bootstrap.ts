@@ -14,7 +14,7 @@ import {
   BUILDING_MAX_LEVEL,
 } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
-import type { SimState, Stockpiles } from "./sim-state";
+import type { SimState, Stockpiles, ArmyState } from "./sim-state";
 import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
 import { TerritorySystem, canBuildAt, DEFAULT_TERRITORY_RADIUS } from "./systems/territory";
@@ -23,7 +23,8 @@ import { VillagerSystem, villagerPos } from "./systems/villager-system";
 import { ImmigrationSystem } from "./systems/immigration";
 import { NeedsHappinessSystem } from "./systems/needs-happiness";
 import { TraderSystem } from "./systems/trader";
-import { RaidSpawnSystem } from "./systems/raid-spawn";
+import { RaidSpawnSystem, computeRaiderPath } from "./systems/raid-spawn";
+import { ArmySystem } from "./systems/army";
 import { RaiderMovementSystem } from "./systems/raider-movement";
 import { SiegeResolutionSystem } from "./systems/siege-resolution";
 import { FireSystem, countActiveFires } from "./systems/fire-system";
@@ -192,6 +193,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     // economy/needs/siege/hazard/tier fields now live on this PlayerState.
     players: [makePlayerState(0)],
     localId: 0,
+    armies: [],
+    nextArmyId: 1,
     commandLog: [],
   };
 
@@ -485,6 +488,55 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     }
   });
 
+  // Citadel 32: launch a PvP army at a targeted enemy building / town-hall.
+  // Solo never issues this; in MP brief 35 routes it to the sending player.
+  logged("launchAttack", (cmd) => {
+    const attacker = localPlayer(state);
+    const { targetX, targetY, strength } = cmd.payload;
+    if (strength <= 0) return;
+    // Need an anchor (town-hall/keep) to march from.
+    if (attacker.keepPosition === null) {
+      pushEvent(state, `Day ${state.day}: no town hall to launch an army from.`);
+      return;
+    }
+    // Cost: `strength` tools (the army's materiel). Reject if unaffordable.
+    if (attacker.stockpiles.tools < strength) {
+      pushEvent(state, `Day ${state.day}: not enough tools to field an army (need ${strength}).`);
+      return;
+    }
+    // Find the targeted building + its owner.
+    let target: BuildingEntity | undefined;
+    for (const entity of buildingWorld.query("building")) {
+      const b = entity.building;
+      if (targetX >= b.x && targetX < b.x + b.w && targetY >= b.y && targetY < b.y + b.h) { target = entity; break; }
+    }
+    if (target === undefined) {
+      pushEvent(state, `Day ${state.day}: no building to attack at (${targetX}, ${targetY}).`);
+      return;
+    }
+    const defenderId = target.building.ownerId;
+    if (defenderId === attacker.id) return; // no friendly fire
+    const defender = playerById(state, defenderId);
+    if (defender === undefined) return;
+
+    attacker.stockpiles.tools -= strength;
+    const spawn = attacker.keepPosition;
+    // Auto-path to the target via the one authoritative pathfinder, routed around
+    // the DEFENDER's walls (like a raider besieging that player).
+    const path = computeRaiderPath(spawn.x, spawn.y, target.building.x, target.building.y, state, defender, terrain) ?? [];
+    const army: ArmyState = {
+      id: state.nextArmyId++,
+      attackerId: attacker.id,
+      targetPlayerId: defenderId,
+      targetX: target.building.x,
+      targetY: target.building.y,
+      x: spawn.x, y: spawn.y, tileX: spawn.x, tileY: spawn.y,
+      path, pathStep: 0, strength, resolved: false,
+    };
+    state.armies.push(army);
+    pushEvent(state, `Day ${state.day + 1}: player ${attacker.id} launched an army (str ${strength}) at player ${defenderId}'s ${target.building.type}.`);
+  });
+
   // ---------------------------------------------------------------------------
   // Scheduler + systems
   // ---------------------------------------------------------------------------
@@ -520,6 +572,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const raidSpawnSystem = new RaidSpawnSystem(state, terrain);
   const raiderMovementSystem = new RaiderMovementSystem(state, terrain);
   const siegeResolutionSystem = new SiegeResolutionSystem(state);
+  // Citadel 32: PvP army movement + resolution (no-op in solo — empty army list).
+  const armySystem = new ArmySystem(state);
   // Phase 5: tier system (runs AFTER population and siege, so it sees the final state for the day).
   const tierSystem = new TierSystem(state);
 
@@ -541,6 +595,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("siege-spawn").add(raidSpawnSystem);
   scheduler.stage("siege-move").add(raiderMovementSystem);
   scheduler.stage("siege-resolve").add(siegeResolutionSystem);
+  // Citadel 32: PvP armies resolve after PvE siege, before tier eval.
+  scheduler.stage("armies").add(armySystem);
   // Phase 5: tier evaluation LAST — sees updated pop + defense + buildings.
   scheduler.stage("tiers").add(tierSystem);
 
@@ -618,6 +674,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       traderOffers: [...lp.traderOffers],
       // Phase 4
       raiders: lp.raiders.map((r) => ({ id: r.id, x: r.x, y: r.y, strength: r.strength })),
+      // Citadel 32: in-flight PvP armies (global; empty in solo)
+      armies: state.armies.map((a) => ({
+        id: a.id, x: a.x, y: a.y, strength: a.strength,
+        attackerId: a.attackerId, targetPlayerId: a.targetPlayerId,
+      })),
       threatLevel: lp.threatLevel,
       nextRaidDay,
       defensiveStrength: lp.defensiveStrength,

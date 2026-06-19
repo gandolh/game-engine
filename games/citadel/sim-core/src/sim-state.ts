@@ -62,6 +62,29 @@ export interface RaiderState {
 }
 
 /**
+ * Citadel 32: a PvP army marching from its attacker toward a targeted enemy
+ * building / town-hall. Cross-player (spans territories) → lives on SimState,
+ * not PlayerState. Resolved by the shared siege math (army strength vs the
+ * defender's defensiveStrength). MP-only: solo never launches attacks, so the
+ * army list stays empty and the ArmySystem is a no-op (solo determinism intact).
+ */
+export interface ArmyState {
+  id: number;
+  attackerId: number;       // player who launched the army
+  targetPlayerId: number;   // owner of the targeted building
+  targetX: number;          // targeted building's origin tile
+  targetY: number;
+  x: number;                // current position (float)
+  y: number;
+  tileX: number;            // integer tile
+  tileY: number;
+  path: Array<{ x: number; y: number }>;
+  pathStep: number;
+  strength: number;
+  resolved: boolean;
+}
+
+/**
  * Citadel 28: all per-player state. One per player; single-player owns exactly
  * one (`id === 0`). Per-player systems loop `state.players` and act on each
  * player's own fields + the buildings/villagers carrying its `ownerId`.
@@ -212,6 +235,11 @@ export interface SimState {
   readonly players: PlayerState[];
   /** The local player's id (the solo player / this client). Default 0. */
   localId: number;
+
+  /** Citadel 32: in-flight PvP armies (cross-player; empty in solo). */
+  readonly armies: ArmyState[];
+  /** Monotonic id allocator for armies. */
+  nextArmyId: number;
 
   /**
    * Phase 5: command log for save/load.

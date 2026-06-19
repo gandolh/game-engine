@@ -25,7 +25,7 @@ function mkSnapshot(tier: string, roads: number, raiders: RaiderSnapshot[] = [])
     foodSurplus: 0, gameOver: false, recentEvents: [],
     happiness: 50, faithCoverage: 0, safetyCoverage: 0, goodsCoverage: 0,
     activeDecrees: [], traderPresent: false, traderOffers: [],
-    raiders, threatLevel: 0, nextRaidDay: -1, defensiveStrength: 0,
+    raiders, armies: [], threatLevel: 0, nextRaidDay: -1, defensiveStrength: 0,
     keepPresent: false, keepSacked: false,
     sickVillagers: 0, outbreakActive: false, activeFires: 0,
     tier, reliefReserve: 0,
