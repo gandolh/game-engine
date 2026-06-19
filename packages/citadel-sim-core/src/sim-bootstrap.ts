@@ -13,6 +13,8 @@ import { RoadConnectivitySystem } from "./systems/road-connectivity";
 import { ProductionSystem } from "./systems/production";
 import { VillagerSystem, villagerPos } from "./systems/villager-system";
 import { ImmigrationSystem } from "./systems/immigration";
+import { NeedsHappinessSystem } from "./systems/needs-happiness";
+import { TraderSystem } from "./systems/trader";
 import { getSeason } from "./world/seasons";
 
 export interface CitadelSimOptions {
@@ -45,6 +47,8 @@ export interface CitadelSimResult {
   roadGrid: Uint8Array;
   /** Current walkable grid — Uint8Array (1=walkable, 0=blocked), rebuilt on change. */
   walkable: Uint8Array;
+  /** Full sim state — exposed for Phase 3 tests and systems that need direct access. */
+  state: SimState;
 }
 
 /**
@@ -92,6 +96,16 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     events: [],
     rng: createRng(seed).fork("citadel-sim"),
     day: 0,
+    // Phase 3: happiness + needs
+    happiness: 40,
+    faithCoverage: 0,
+    safetyCoverage: 0,
+    goodsCoverage: 0,
+    activeDecrees: new Set<string>(),
+    traderPresent: false,
+    traderArrivalDay: -1,
+    traderDepartDay: 0,
+    traderOffers: [],
   };
 
   /** Mark a building's footprint tiles in the buildingTiles set. */
@@ -180,6 +194,27 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     }
   });
 
+  commandSystem.register("setDecree", (cmd) => {
+    const { decree, active } = cmd.payload;
+    if (active) {
+      state.activeDecrees.add(decree);
+    } else {
+      state.activeDecrees.delete(decree);
+    }
+  });
+
+  commandSystem.register("barter", (cmd) => {
+    const { offerIndex } = cmd.payload;
+    if (!state.traderPresent) return;
+    const offer = state.traderOffers[offerIndex];
+    if (offer === undefined) return;
+    const have = state.stockpiles[offer.give];
+    if (have < offer.giveQty) return;
+    state.stockpiles[offer.give] = have - offer.giveQty;
+    state.stockpiles[offer.receive] = state.stockpiles[offer.receive] + offer.receiveQty;
+    pushEvent(state, `Day ${state.day}: traded ${offer.giveQty} ${offer.give} for ${offer.receiveQty} ${offer.receive}.`);
+  });
+
   commandSystem.register("demolish", (cmd) => {
     const { x, y } = cmd.payload;
     for (const entity of buildingWorld.query("building")) {
@@ -226,6 +261,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const productionSystem = new ProductionSystem(state);
   const villagerSystem = new VillagerSystem(state);
   const immigrationSystem = new ImmigrationSystem(state);
+  // Phase 3: needs/happiness (AFTER production, BEFORE immigration)
+  // and trader (AFTER production, to see fresh stockpiles)
+  const needsHappinessSystem = new NeedsHappinessSystem(state, ticksPerDay);
+  const traderSystem = new TraderSystem(state, ticksPerDay);
 
   scheduler.stage("commands").add(commandSystem);
   scheduler.stage("clock").add(dayClock);
@@ -233,6 +272,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("connectivity").add(roadConnSystem);
   scheduler.stage("economy").add(productionSystem);
   scheduler.stage("villagers").add(villagerSystem);
+  scheduler.stage("needs").add(needsHappinessSystem);
+  scheduler.stage("trader").add(traderSystem);
   scheduler.stage("population").add(immigrationSystem);
 
   // ---------------------------------------------------------------------------
@@ -283,6 +324,14 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       foodSurplus: state.foodSurplus,
       gameOver: state.gameOver,
       recentEvents: [...state.events],
+      // Phase 3
+      happiness: state.happiness,
+      faithCoverage: state.faithCoverage,
+      safetyCoverage: state.safetyCoverage,
+      goodsCoverage: state.goodsCoverage,
+      activeDecrees: [...state.activeDecrees],
+      traderPresent: state.traderPresent,
+      traderOffers: [...state.traderOffers],
     };
   }
 
@@ -312,5 +361,6 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     get walkable() {
       return walkable;
     },
+    state,
   };
 }

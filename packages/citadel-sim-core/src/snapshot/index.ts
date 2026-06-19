@@ -37,6 +37,14 @@ export interface RenderSnapshot {
   readonly foodSurplus: number;
   readonly gameOver: boolean;
   readonly recentEvents: readonly string[];
+  // Phase 3: happiness + needs + decrees + trader
+  readonly happiness: number;
+  readonly faithCoverage: number;
+  readonly safetyCoverage: number;
+  readonly goodsCoverage: number;
+  readonly activeDecrees: readonly string[];
+  readonly traderPresent: boolean;
+  readonly traderOffers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[];
 }
 
 // Messages sent from Worker → main thread
@@ -59,4 +67,6 @@ export type WorkerInbound =
 export type CitadelCommand =
   | { type: "placeBuilding"; payload: { buildingType: string; x: number; y: number } }
   | { type: "demolish"; payload: { x: number; y: number } }
-  | { type: "placeRoad"; payload: { tiles: Array<{ x: number; y: number }> } };
+  | { type: "placeRoad"; payload: { tiles: Array<{ x: number; y: number }> } }
+  | { type: "setDecree"; payload: { decree: string; active: boolean } }
+  | { type: "barter"; payload: { offerIndex: number } };

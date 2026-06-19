@@ -12,7 +12,7 @@ export type {
   GoodType,
   TerrainReq,
 } from "./entities/building";
-export { getBuildingDef, getProductionDef, PRODUCTION_DEFS } from "./entities/building";
+export { getBuildingDef, getProductionDef, PRODUCTION_DEFS, SERVICE_RADII } from "./entities/building";
 export type { VillagerComponent, VillagerEntity, VillagerFsm } from "./entities/villager";
 export type {
   BuildingSnapshot,
@@ -26,7 +26,7 @@ export { bfsPath } from "./world/pathfinder";
 export type { PathNode } from "./world/pathfinder";
 export { getSeason, grainMultiplier } from "./world/seasons";
 export type { Season } from "./world/seasons";
-export type { SimState, Stockpiles } from "./sim-state";
+export type { SimState, Stockpiles, BarterOffer } from "./sim-state";
 export { villagerWalkable } from "./sim-state";
 export { RoadConnectivitySystem } from "./systems/road-connectivity";
 export { ProductionSystem } from "./systems/production";

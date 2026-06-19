@@ -13,6 +13,13 @@ import type { GoodType, BuildingRuntimeState, BuildingEntity } from "./entities/
 import type { VillagerEntity } from "./entities/villager";
 import type { Rng } from "@engine/core";
 
+export interface BarterOffer {
+  give: GoodType;
+  giveQty: number;
+  receive: GoodType;
+  receiveQty: number;
+}
+
 export type Stockpiles = Record<GoodType, number>;
 
 export function emptyStockpiles(): Stockpiles {
@@ -70,6 +77,21 @@ export interface SimState {
 
   /** Current day, mirrored from the day clock for systems that need it. */
   day: number;
+
+  // Phase 3: happiness + needs
+  happiness: number;          // 0..100
+  faithCoverage: number;      // 0..1 fraction of houses in faith range
+  safetyCoverage: number;     // 0..1 fraction of houses in safety range
+  goodsCoverage: number;      // 0..1 fraction of houses in goods range
+
+  // Decrees
+  readonly activeDecrees: Set<string>;
+
+  // Trader
+  traderPresent: boolean;
+  traderArrivalDay: number;   // -1 if not scheduled
+  traderDepartDay: number;
+  readonly traderOffers: BarterOffer[];
 }
 
 const MAX_EVENTS = 20;

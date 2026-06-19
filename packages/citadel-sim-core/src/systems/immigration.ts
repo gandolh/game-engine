@@ -51,13 +51,17 @@ export class ImmigrationSystem implements System {
 
     // Consume bread for the population (1 bread/person/day).
     const consumption = state.population;
-    const afterConsumption = breadNow - consumption;
+    // Rationing decree: reduce consumption by 25%
+    const actualConsumption = state.activeDecrees.has("rationing")
+      ? Math.floor(consumption * 0.75)
+      : consumption;
+    const afterConsumption = breadNow - actualConsumption;
     if (afterConsumption >= 0) {
       state.stockpiles.bread = afterConsumption;
     } else {
       state.stockpiles.bread = 0;
     }
-    state.foodSurplus = breadNow - state.lastDayBreadStart - consumption;
+    state.foodSurplus = breadNow - state.lastDayBreadStart - actualConsumption;
 
     // --- Open worker slots across all buildings ---
     let openSlots = 0;
@@ -88,7 +92,15 @@ export class ImmigrationSystem implements System {
       state.stockpiles.bread += 5;
       state.hungerDays = 0;
     } else if (state.foodSurplus > 0 && state.population < state.popCap) {
-      this.spawnVillager();
+      // High happiness boosts immigration probability; low happiness suppresses it.
+      // Formula: 0.7 + happiness * 0.3 / 100 ensures ~0.82 at base happiness=40,
+      // 0.7 at minimum, 1.0 at maximum — reliably recovers from starvation dips
+      // while still making happiness meaningfully affect immigration rate.
+      const happinessFactor = 0.7 + (state.happiness / 100) * 0.3;
+      const immigrationRoll = this.rng.nextFloat();
+      if (immigrationRoll < happinessFactor) {
+        this.spawnVillager();
+      }
       state.hungerDays = 0;
     } else if (state.foodSurplus < 0) {
       state.hungerDays++;
@@ -102,6 +114,15 @@ export class ImmigrationSystem implements System {
       // still hunger — don't reset the counter.
     } else {
       state.hungerDays = 0;
+    }
+
+    // Low happiness: even with food, villagers may leave
+    if (state.happiness < 30 && state.population > 0) {
+      const departRoll = this.rng.nextFloat();
+      if (departRoll < 0.2) {
+        this.removeVillager();
+        pushEvent(state, `Day ${state.day}: a villager left (low morale, pop ${state.population}).`);
+      }
     }
 
     state.lastDayBreadStart = state.stockpiles.bread;

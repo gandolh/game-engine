@@ -58,6 +58,8 @@ function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
    * 2 houses, 1 storehouse — enough workers to fill all slots and build a
    * real bread surplus. Population should grow past 8+ by summer/autumn.
    * Winter halts grain but a surplus stockpile should carry the town through.
+   * Phase 3: also places a chapel, market, watchpost, and tradingpost for
+   * needs coverage and barter opportunities.
    */
   const cx = Math.floor(terrain.width / 2);
   const cy = Math.floor(terrain.height / 2);
@@ -82,17 +84,27 @@ function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
   // Two houses to the south (popCap = 12)
   const house1 = findClear(terrain, 2, 2, store.x - 2, store.y + 4);
   const house2 = findClear(terrain, 2, 2, store.x + 2, store.y + 4);
+  // Phase 3: service buildings
+  const chapel     = findClear(terrain, 2, 2, store.x - 8, store.y - 1);
+  const market     = findClear(terrain, 2, 2, store.x - 8, store.y + 2);
+  const watchpost  = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
+  const tradingpost = findClear(terrain, 3, 2, store.x + 7, store.y);
 
   const cmds: CitadelCommand[] = [
-    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x, y: store.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm", x: farm1.x, y: farm1.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm", x: farm2.x, y: farm2.y } },
-    { type: "placeBuilding", payload: { buildingType: "mill", x: mill1.x, y: mill1.y } },
-    { type: "placeBuilding", payload: { buildingType: "mill", x: mill2.x, y: mill2.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery", x: bakery1.x, y: bakery1.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery", x: bakery2.x, y: bakery2.y } },
-    { type: "placeBuilding", payload: { buildingType: "house", x: house1.x, y: house1.y } },
-    { type: "placeBuilding", payload: { buildingType: "house", x: house2.x, y: house2.y } },
+    { type: "placeBuilding", payload: { buildingType: "storehouse",  x: store.x,      y: store.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",        x: farm1.x,      y: farm1.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm",        x: farm2.x,      y: farm2.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill",        x: mill1.x,      y: mill1.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill",        x: mill2.x,      y: mill2.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery",      x: bakery1.x,    y: bakery1.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery",      x: bakery2.x,    y: bakery2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",       x: house1.x,     y: house1.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",       x: house2.x,     y: house2.y } },
+    // Phase 3 service buildings
+    { type: "placeBuilding", payload: { buildingType: "chapel",      x: chapel.x,     y: chapel.y } },
+    { type: "placeBuilding", payload: { buildingType: "market",      x: market.x,     y: market.y } },
+    { type: "placeBuilding", payload: { buildingType: "watchpost",   x: watchpost.x,  y: watchpost.y } },
+    { type: "placeBuilding", payload: { buildingType: "tradingpost", x: tradingpost.x, y: tradingpost.y } },
   ];
 
   // Road network: connect all buildings to the storehouse.
@@ -114,6 +126,11 @@ function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
   // Houses → store bottom
   link(roadTiles, house1.x + 1, house1.y - 1, store.x, storeBottom);
   link(roadTiles, house2.x, house2.y - 1, store.x + 2, storeBottom);
+  // Phase 3: connect service buildings to storehouse
+  link(roadTiles, chapel.x + 2,      chapel.y + 1,      storeLeft,  store.y);
+  link(roadTiles, market.x + 2,      market.y + 1,      storeLeft,  store.y + 1);
+  link(roadTiles, watchpost.x,       watchpost.y - 1,   store.x + 2, storeBottom);
+  link(roadTiles, tradingpost.x,     tradingpost.y + 1, storeRight,  store.y);
 
   cmds.push({ type: "placeRoad", payload: { tiles: roadTiles } });
   return cmds;
@@ -194,6 +211,8 @@ function main(): void {
       const snap = getSnapshot(tick);
       const connected = snap.buildings.filter((b) => b.connected).length;
       const workers = snap.villagers.length;
+      const decreesStr = snap.activeDecrees.length > 0 ? ` [${snap.activeDecrees.join(",")}]` : "";
+      const traderStr = snap.traderPresent ? " [TRADER]" : "";
       console.log(
         `  Day ${String(snap.day + 1).padStart(2)}/${MAX_DAYS} [${snap.season.padEnd(6)}] ` +
           `pop ${snap.population}/${snap.popCap}  ` +
@@ -201,7 +220,10 @@ function main(): void {
           `flour=${String(snap.stockpiles.flour ?? 0).padStart(3)} ` +
           `bread=${String(snap.stockpiles.bread ?? 0).padStart(3)}  ` +
           `workers=${workers} ` +
-          `(connected ${connected}/${snap.buildings.length}, surplus ${snap.foodSurplus})` +
+          `(connected ${connected}/${snap.buildings.length}, surplus ${snap.foodSurplus}) ` +
+          `happy=${snap.happiness} faith=${(snap.faithCoverage * 100).toFixed(0)}% ` +
+          `safe=${(snap.safetyCoverage * 100).toFixed(0)}% goods=${(snap.goodsCoverage * 100).toFixed(0)}%` +
+          decreesStr + traderStr +
           (snap.gameOver ? " *** GAME OVER ***" : ""),
       );
     }

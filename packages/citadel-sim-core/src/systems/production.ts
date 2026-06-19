@@ -67,6 +67,11 @@ export class ProductionSystem implements System {
       }
       if (amount <= 0) continue;
 
+      // workHours decree: +30% output (floors down); costs happiness (handled by NeedsHappinessSystem)
+      if (state.activeDecrees.has("workHours") && def.outputGood !== undefined) {
+        amount = Math.floor(amount * 1.3);
+      }
+
       // Output goes into the building's LOCAL buffer. It does NOT enter the
       // global stockpile until a villager hauls it to a Storehouse.
       rs.outputBuffer += amount;

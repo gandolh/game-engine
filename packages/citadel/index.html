@@ -13,6 +13,14 @@
       #hud button:hover { background: #5a6988; }
       #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
       #lbl-mode { color: #fee761; min-width: 160px; }
+      /* Phase 3 UI */
+      #hud-happiness { color: #fee761; }
+      #decrees-panel { display: flex; gap: 6px; align-items: center; }
+      #decrees-panel label { cursor: pointer; display: flex; align-items: center; gap: 3px; }
+      #trader-panel { background: #3a4466; border: 1px solid #fee761; padding: 4px 8px; display: none; }
+      #trader-panel.visible { display: flex; flex-direction: column; gap: 4px; }
+      .trade-offer-btn { background: #5a6988; color: #c0cbdc; border: 1px solid #fee761; padding: 2px 8px; cursor: pointer; font-family: monospace; font-size: 12px; }
+      .trade-offer-btn:hover { background: #fee761; color: #181425; }
     </style>
   </head>
   <body>
@@ -22,6 +30,7 @@
       <span id="hud-pop">Pop 0/0</span>
       <span id="hud-bread">Bread: 0</span>
       <span id="hud-wood">Wood: 0</span>
+      <span id="hud-happiness">Happy: 40</span>
       <div class="sep"></div>
       <button id="btn-pause">Pause</button>
       <button id="btn-1x">1x</button>
@@ -34,12 +43,30 @@
       <button id="btn-build-bakery">Bakery</button>
       <button id="btn-build-woodcutter">Woodcutter</button>
       <button id="btn-build-storehouse">Storehouse</button>
+      <button id="btn-build-chapel">Chapel</button>
+      <button id="btn-build-market">Market</button>
+      <button id="btn-build-watchpost">Watchpost</button>
+      <button id="btn-build-tradingpost">Trading Post</button>
       <button id="btn-build-road">Road</button>
       <button id="btn-demolish">Demolish</button>
       <button id="btn-cancel">Cancel</button>
       <span id="lbl-mode">Mode: None</span>
       <div class="sep"></div>
+      <!-- Phase 3: Decrees panel -->
+      <div id="decrees-panel">
+        <span>Decrees:</span>
+        <label><input type="checkbox" id="decree-workHours"> Work Hours</label>
+        <label><input type="checkbox" id="decree-rationing"> Rationing</label>
+        <label><input type="checkbox" id="decree-tithe"> Tithe</label>
+        <label><input type="checkbox" id="decree-conscription"> Conscription</label>
+      </div>
+      <div class="sep"></div>
       <span id="hud-events"></span>
+      <!-- Phase 3: Trader panel (shown when trader is present) -->
+      <div id="trader-panel">
+        <span id="trader-title">⚔ Merchant Caravan</span>
+        <div id="trader-offers"></div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

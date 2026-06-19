@@ -60,6 +60,18 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   woodcutter: { w: 2, h: 2 },
   storehouse: { w: 3, h: 2 },
   road: { w: 1, h: 1 },
+  // Phase 3: service buildings
+  chapel:      { w: 2, h: 2 },
+  market:      { w: 2, h: 2 },
+  watchpost:   { w: 2, h: 2 },
+  tradingpost: { w: 3, h: 2 },
+};
+
+/** Service radius for buildings that provide needs coverage (in tiles, Manhattan). */
+export const SERVICE_RADII: Readonly<Record<string, number>> = {
+  chapel: 8,
+  watchpost: 8,
+  market: 8,
 };
 
 export function getBuildingDef(type: string): BuildingDef | undefined {
@@ -138,6 +150,31 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
   road: {
     workerSlots: 0,
     isRoad: true,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  // Phase 3: service buildings (worker slots but no goods production)
+  chapel: {
+    workerSlots: 1,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  market: {
+    workerSlots: 1,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  watchpost: {
+    workerSlots: 1,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  tradingpost: {
+    workerSlots: 1,
     ticksPerCycle: 20,
     inputPerCycle: 0,
     outputPerCycle: 0,

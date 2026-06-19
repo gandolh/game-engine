@@ -1,9 +1,9 @@
 /**
- * Citadel — Phase 2 browser entry point.
+ * Citadel — Phase 3 browser entry point.
  *
- * Toolbar for every building type + road drag-paint, ghost preview, an economy
- * HUD (day/season, population, bread/wood, event feed), and rendering of
- * buildings + villagers from the worker snapshot.
+ * Phase 3 additions: chapel, market, watchpost, tradingpost toolbar buttons;
+ * decrees panel (workHours, rationing, tithe, conscription); happiness HUD;
+ * trader panel (shown only when traderPresent).
  */
 import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";
@@ -28,6 +28,7 @@ const hudDay = document.getElementById("hud-day")!;
 const hudPop = document.getElementById("hud-pop")!;
 const hudBread = document.getElementById("hud-bread")!;
 const hudWood = document.getElementById("hud-wood")!;
+const hudHappiness = document.getElementById("hud-happiness")!;
 const hudEvents = document.getElementById("hud-events")!;
 const btnPause = document.getElementById("btn-pause")!;
 const btn1x = document.getElementById("btn-1x")!;
@@ -37,6 +38,16 @@ const btnDemolish = document.getElementById("btn-demolish")!;
 const btnRoad = document.getElementById("btn-build-road")!;
 const btnCancel = document.getElementById("btn-cancel")!;
 const lblMode = document.getElementById("lbl-mode")!;
+
+// Phase 3: decrees
+const decreWorkHours     = document.getElementById("decree-workHours")     as HTMLInputElement;
+const decreRationing     = document.getElementById("decree-rationing")      as HTMLInputElement;
+const decreTithe         = document.getElementById("decree-tithe")           as HTMLInputElement;
+const decreConscription  = document.getElementById("decree-conscription")   as HTMLInputElement;
+
+// Phase 3: trader panel
+const traderPanel  = document.getElementById("trader-panel")!;
+const traderOffers = document.getElementById("trader-offers")!;
 
 // ---------------------------------------------------------------------------
 // Camera state
@@ -139,12 +150,17 @@ function selectBuild(type: string): void {
 }
 
 const BUILD_BUTTONS: ReadonlyArray<readonly [string, string]> = [
-  ["btn-build-house", "house"],
-  ["btn-build-farm", "farm"],
-  ["btn-build-mill", "mill"],
-  ["btn-build-bakery", "bakery"],
-  ["btn-build-woodcutter", "woodcutter"],
-  ["btn-build-storehouse", "storehouse"],
+  ["btn-build-house",        "house"],
+  ["btn-build-farm",         "farm"],
+  ["btn-build-mill",         "mill"],
+  ["btn-build-bakery",       "bakery"],
+  ["btn-build-woodcutter",   "woodcutter"],
+  ["btn-build-storehouse",   "storehouse"],
+  // Phase 3 service buildings
+  ["btn-build-chapel",       "chapel"],
+  ["btn-build-market",       "market"],
+  ["btn-build-watchpost",    "watchpost"],
+  ["btn-build-tradingpost",  "tradingpost"],
 ];
 for (const [id, type] of BUILD_BUTTONS) {
   const btn = document.getElementById(id);
@@ -166,6 +182,19 @@ btnCancel.addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 3: Decree toggles
+// ---------------------------------------------------------------------------
+function wireDecree(checkbox: HTMLInputElement, decree: string): void {
+  checkbox.addEventListener("change", () => {
+    client.sendCommand({ type: "setDecree", payload: { decree, active: checkbox.checked } });
+  });
+}
+wireDecree(decreWorkHours,    "workHours");
+wireDecree(decreRationing,    "rationing");
+wireDecree(decreTithe,        "tithe");
+wireDecree(decreConscription, "conscription");
+
+// ---------------------------------------------------------------------------
 // Sim client (Worker)
 // ---------------------------------------------------------------------------
 const client = new CitadelSimClient();
@@ -178,7 +207,13 @@ let popCap = 0;
 let bread = 0;
 let wood = 0;
 let foodSurplus = 0;
+let happiness = 40;
 let events: readonly string[] = [];
+
+// Phase 3 state
+let traderPresent = false;
+let traderOffersList: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[] = [];
+let activeDecrees: readonly string[] = [];
 
 btnPause.addEventListener("click", () => {
   if (paused) {
@@ -205,6 +240,34 @@ client.onSnapshot((snap) => {
   events = snap.recentEvents;
   currentBuildings = snap.buildings;
   currentVillagers = snap.villagers;
+  // Phase 3
+  happiness = snap.happiness;
+  traderPresent = snap.traderPresent;
+  traderOffersList = snap.traderOffers;
+  activeDecrees = snap.activeDecrees;
+
+  // Sync decree checkboxes with server state (in case decrees change externally)
+  decreWorkHours.checked    = activeDecrees.includes("workHours");
+  decreRationing.checked    = activeDecrees.includes("rationing");
+  decreTithe.checked        = activeDecrees.includes("tithe");
+  decreConscription.checked = activeDecrees.includes("conscription");
+
+  // Update trader panel
+  if (traderPresent) {
+    traderPanel.classList.add("visible");
+    traderOffers.innerHTML = "";
+    traderOffersList.forEach((offer, i) => {
+      const btn = document.createElement("button");
+      btn.className = "trade-offer-btn";
+      btn.textContent = `${offer.giveQty} ${offer.give} → ${offer.receiveQty} ${offer.receive}`;
+      btn.addEventListener("click", () => {
+        client.sendCommand({ type: "barter", payload: { offerIndex: i } });
+      });
+      traderOffers.appendChild(btn);
+    });
+  } else {
+    traderPanel.classList.remove("visible");
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -222,6 +285,10 @@ function loop(): void {
   hudPop.textContent = `Pop ${population}/${popCap}`;
   hudBread.textContent = `Bread: ${bread} (${surplusSign}${foodSurplus})`;
   hudWood.textContent = `Wood: ${wood}`;
+  // Phase 3: happiness display with color coding
+  const happinessColor = happiness >= 60 ? "#73eff7" : happiness >= 40 ? "#fee761" : "#e43b44";
+  hudHappiness.textContent = `Happy: ${happiness}`;
+  hudHappiness.style.color = happinessColor;
   hudEvents.textContent = events.length > 0 ? events[events.length - 1]! : "";
 
   drawTerrain(ctx, canvas, bakedTerrain, camera);
