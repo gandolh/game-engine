@@ -4,6 +4,13 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-19] code | Citadel dev runner (`npm run citadel`) + render polish (slow wash, softer terrain)
+
+Two small post-epic follow-ups (user-driven, not briefs), shipped to main:
+
+- **`npm run citadel` now runs server + client together** (parity with Farm's `npm run dev`). Generalized [scripts/dev.mjs](scripts/dev.mjs) from a single hardcoded pair into a `TARGETS = {farm, citadel}` map keyed by `process.argv[2] ?? "farm"`; the `citadel` target spawns `npm run server:citadel` (`@citadel/server` on :8788) + `npm run dev -w @citadel/client` (vite :5174) with the same prefixed-output + teardown-on-either-exit behavior, and prints a note that solo needs no server (open `?mp` for online MP). Root `package.json`: `"citadel": "node scripts/dev.mjs citadel"` + `"server:citadel": "npm start -w @citadel/server"`. Commit `7da2350`.
+- **Render polish — slow the day/night wash + soften terrain** (render-only, zero determinism impact). The wash was strobing (~1 s/cycle) because it tracked the 20-tick *sim* day 1:1; decoupled it onto a slow **visual** cycle — `VISUAL_DAY_TICKS = 1800` in [games/citadel/client/src/main.ts](../../games/citadel/client/src/main.ts) (~90 s dawn→night at 1×), the sim day clock untouched. Terrain read as harsh zoomed-out noise, so [terrain-dither.ts](../../games/citadel/client/src/render/terrain-dither.ts) `ditherClusters` is biased toward **fewer** specks (mostly 1/cell) and **lighter** accents (~75%), and the jarring salmon `wood` "Rough" ground became sandy `EDG.tan` in [quads.ts](../../games/citadel/client/src/render/quads.ts) `TERRAIN_COLORS`. Verified: `@citadel/client` typecheck clean, 132/132 tests, build clean. Commit `2d99e63`. **⚠️ GPU-unverifiable on this headless host — the wash period + dither bias are one-line constants to tune once eyeballed at a GPU (`npm run citadel`).**
+
 ## [2026-06-19] code | Citadel 28 PlayerState[] refactor shipped (MP epic spine A) + by-game monorepo reorg
 
 Two things this session:
