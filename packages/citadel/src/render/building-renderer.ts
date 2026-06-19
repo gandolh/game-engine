@@ -6,7 +6,7 @@
  */
 import { EDG } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
-import type { BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";
+import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import type { Camera } from "./terrain-renderer";
 
 /** EDG color per building type. */
@@ -18,6 +18,21 @@ const BUILDING_COLORS: Record<string, string> = {
   woodcutter: EDG.wood,
   storehouse: EDG.steel,
   road: EDG.navy,
+  // Phase 3 service buildings
+  chapel: EDG.white,
+  market: EDG.gold,
+  watchpost: EDG.silver,
+  tradingpost: EDG.mauve,
+  // Phase 4 refining + siege
+  quarry: EDG.slate,
+  sawmill: EDG.greenDark,
+  smith: EDG.crimson,
+  mine: EDG.ink,
+  wall: EDG.steel,
+  gate: EDG.gold,
+  tower: EDG.navy,
+  garrison: EDG.blue,
+  keep: EDG.plum,
 };
 
 const BUILDING_BORDER: Record<string, string> = {
@@ -28,6 +43,16 @@ const BUILDING_BORDER: Record<string, string> = {
   woodcutter: EDG.bark,
   storehouse: EDG.slate,
   road: EDG.ink,
+  // Phase 4
+  quarry: EDG.ink,
+  sawmill: EDG.teal,
+  smith: EDG.woodDark,
+  mine: EDG.black,
+  wall: EDG.slate,
+  gate: EDG.orange,
+  tower: EDG.ink,
+  garrison: EDG.navy,
+  keep: EDG.bark,
 };
 
 /** EDG color per villager FSM state. */
@@ -43,15 +68,24 @@ const FALLBACK_COLOR = EDG.steel;
 const FALLBACK_BORDER = EDG.slate;
 const DISCONNECTED_BORDER = EDG.red;
 
+/** Compute the shared camera→pixel transform and apply it to ctx. */
+function applyCameraTransform(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, camera: Camera): void {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cw = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  const ch = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  const WORLD_PX_W = 96 * TILE_SIZE;
+  const WORLD_PX_H = 96 * TILE_SIZE;
+  const baseS = Math.min(cw / WORLD_PX_W, ch / WORLD_PX_H);
+  const s = baseS * camera.zoom;
+  const originX = cw / 2 - camera.centerX * s;
+  const originY = ch / 2 - camera.centerY * s;
+  ctx.setTransform(s, 0, 0, s, originX, originY);
+}
+
 /**
  * Draw all placed buildings on top of the terrain.
  * Must be called after `drawTerrain` within the same animation frame,
  * while the camera transform is still set on `ctx`.
- *
- * @param ctx      2D context (transform already applied by drawTerrain)
- * @param buildings  Buildings from the latest RenderSnapshot
- * @param canvas   The main canvas (used to compute camera transform)
- * @param camera   Current camera state
  */
 export function drawBuildings(
   ctx: CanvasRenderingContext2D,
@@ -61,22 +95,7 @@ export function drawBuildings(
 ): void {
   if (buildings.length === 0) return;
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const cw = Math.max(1, Math.floor(canvas.clientWidth * dpr));
-  const ch = Math.max(1, Math.floor(canvas.clientHeight * dpr));
-
-  // Recompute the same transform that drawTerrain uses
-  // (WORLD_WIDTH * TILE_SIZE and WORLD_HEIGHT * TILE_SIZE → computed from imports)
-  const WORLD_PX_W = 96 * TILE_SIZE;
-  const WORLD_PX_H = 96 * TILE_SIZE;
-  const baseSx = cw / WORLD_PX_W;
-  const baseSy = ch / WORLD_PX_H;
-  const baseS = Math.min(baseSx, baseSy);
-  const s = baseS * camera.zoom;
-  const originX = cw / 2 - camera.centerX * s;
-  const originY = ch / 2 - camera.centerY * s;
-
-  ctx.setTransform(s, 0, 0, s, originX, originY);
+  applyCameraTransform(ctx, canvas, camera);
 
   for (const b of buildings) {
     const px = b.x * TILE_SIZE;
@@ -89,6 +108,27 @@ export function drawBuildings(
       ctx.fillStyle = BUILDING_COLORS.road ?? FALLBACK_COLOR;
       const inset = TILE_SIZE * 0.25;
       ctx.fillRect(px + inset, py + inset, pw - inset * 2, ph - inset * 2);
+      continue;
+    }
+
+    if (b.type === "wall") {
+      // Solid stone block, full tile, slate border.
+      ctx.fillStyle = BUILDING_COLORS.wall ?? FALLBACK_COLOR;
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = BUILDING_BORDER.wall ?? FALLBACK_BORDER;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+      continue;
+    }
+
+    if (b.type === "gate") {
+      // Gold opening flanked by darker posts to read as "passable".
+      ctx.fillStyle = BUILDING_COLORS.gate ?? FALLBACK_COLOR;
+      const inset = TILE_SIZE * 0.15;
+      ctx.fillRect(px + inset, py + inset, pw - inset * 2, ph - inset * 2);
+      ctx.strokeStyle = BUILDING_BORDER.gate ?? FALLBACK_BORDER;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
       continue;
     }
 
@@ -116,18 +156,7 @@ export function drawVillagers(
 ): void {
   if (villagers.length === 0) return;
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const cw = Math.max(1, Math.floor(canvas.clientWidth * dpr));
-  const ch = Math.max(1, Math.floor(canvas.clientHeight * dpr));
-
-  const WORLD_PX_W = 96 * TILE_SIZE;
-  const WORLD_PX_H = 96 * TILE_SIZE;
-  const baseS = Math.min(cw / WORLD_PX_W, ch / WORLD_PX_H);
-  const s = baseS * camera.zoom;
-  const originX = cw / 2 - camera.centerX * s;
-  const originY = ch / 2 - camera.centerY * s;
-
-  ctx.setTransform(s, 0, 0, s, originX, originY);
+  applyCameraTransform(ctx, canvas, camera);
 
   const radius = TILE_SIZE * 0.35;
   for (const v of villagers) {
@@ -144,16 +173,42 @@ export function drawVillagers(
 }
 
 /**
+ * Phase 4: draw raider groups as red dots scaled by strength.
+ * Sets its own camera transform (call after drawVillagers).
+ */
+export function drawRaiders(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  raiders: readonly RaiderSnapshot[],
+  camera: Camera,
+): void {
+  if (raiders.length === 0) return;
+
+  applyCameraTransform(ctx, canvas, camera);
+
+  for (const r of raiders) {
+    const px = r.x * TILE_SIZE + TILE_SIZE / 2;
+    const py = r.y * TILE_SIZE + TILE_SIZE / 2;
+    // Radius grows with strength (10 → small, 40 → ~1 tile).
+    const radius = TILE_SIZE * (0.4 + Math.min(0.6, r.strength / 60));
+    ctx.fillStyle = EDG.red;
+    ctx.beginPath();
+    ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = EDG.crimson;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Strength label.
+    ctx.fillStyle = EDG.white;
+    ctx.font = `${TILE_SIZE * 0.8}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(r.strength), px, py);
+  }
+}
+
+/**
  * Draw the placement ghost (follows cursor, tinted green=valid / red=invalid).
- *
- * @param ctx       2D context (raw — will set its own transform)
- * @param canvas    The main canvas
- * @param camera    Current camera
- * @param tileX     Ghost top-left tile column
- * @param tileY     Ghost top-left tile row
- * @param w         Ghost footprint width in tiles
- * @param h         Ghost footprint height in tiles
- * @param valid     Whether placement is valid at this position
  */
 export function drawGhost(
   ctx: CanvasRenderingContext2D,
@@ -165,28 +220,13 @@ export function drawGhost(
   h: number,
   valid: boolean,
 ): void {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const cw = Math.max(1, Math.floor(canvas.clientWidth * dpr));
-  const ch = Math.max(1, Math.floor(canvas.clientHeight * dpr));
-
-  const WORLD_PX_W = 96 * TILE_SIZE;
-  const WORLD_PX_H = 96 * TILE_SIZE;
-  const baseSx = cw / WORLD_PX_W;
-  const baseSy = ch / WORLD_PX_H;
-  const baseS = Math.min(baseSx, baseSy);
-  const s = baseS * camera.zoom;
-  const originX = cw / 2 - camera.centerX * s;
-  const originY = ch / 2 - camera.centerY * s;
-
-  ctx.setTransform(s, 0, 0, s, originX, originY);
+  applyCameraTransform(ctx, canvas, camera);
 
   const px = tileX * TILE_SIZE;
   const py = tileY * TILE_SIZE;
   const pw = w * TILE_SIZE;
   const ph = h * TILE_SIZE;
 
-  // Semi-transparent fill: green (valid) or red (invalid) — EDG palette only
-  // We achieve translucency by drawing with globalAlpha, colors from EDG.*
   const prevAlpha = ctx.globalAlpha;
   ctx.globalAlpha = 0.45;
   ctx.fillStyle = valid ? EDG.green : EDG.red;

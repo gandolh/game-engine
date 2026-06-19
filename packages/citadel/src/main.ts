@@ -1,15 +1,16 @@
 /**
- * Citadel — Phase 3 browser entry point.
+ * Citadel — browser entry point.
  *
- * Phase 3 additions: chapel, market, watchpost, tradingpost toolbar buttons;
- * decrees panel (workHours, rationing, tithe, conscription); happiness HUD;
- * trader panel (shown only when traderPresent).
+ * Phase 3: chapel, market, watchpost, tradingpost; decrees; happiness HUD;
+ *          trader panel.
+ * Phase 4: quarry/sawmill/smith/mine refiners; wall (drag-paint) + gate;
+ *          tower/garrison/keep defenses; threat/defense/keep HUD; raider dots.
  */
 import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef } from "@citadel/sim-core";
-import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";
+import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import { CitadelSimClient } from "./worker/sim-client";
 import { bakeTerrainLayer, drawTerrain, clampZoom } from "./render/terrain-renderer";
-import { drawBuildings, drawGhost, drawVillagers } from "./render/building-renderer";
+import { drawBuildings, drawGhost, drawVillagers, drawRaiders } from "./render/building-renderer";
 import { PlacementStateManager } from "./ui/placement-state";
 import type { Camera } from "./render/terrain-renderer";
 
@@ -30,12 +31,17 @@ const hudBread = document.getElementById("hud-bread")!;
 const hudWood = document.getElementById("hud-wood")!;
 const hudHappiness = document.getElementById("hud-happiness")!;
 const hudEvents = document.getElementById("hud-events")!;
+// Phase 4 siege HUD
+const hudThreat = document.getElementById("hud-threat")!;
+const hudDefense = document.getElementById("hud-defense")!;
+const hudKeep = document.getElementById("hud-keep")!;
 const btnPause = document.getElementById("btn-pause")!;
 const btn1x = document.getElementById("btn-1x")!;
 const btn2x = document.getElementById("btn-2x")!;
 const btn4x = document.getElementById("btn-4x")!;
 const btnDemolish = document.getElementById("btn-demolish")!;
 const btnRoad = document.getElementById("btn-build-road")!;
+const btnWall = document.getElementById("btn-build-wall")!;
 const btnCancel = document.getElementById("btn-cancel")!;
 const lblMode = document.getElementById("lbl-mode")!;
 
@@ -65,10 +71,11 @@ let lastMouseY = 0;
 const placementState = new PlacementStateManager();
 let currentBuildings: readonly BuildingSnapshot[] = [];
 let currentVillagers: readonly VillagerSnapshot[] = [];
+let currentRaiders: readonly RaiderSnapshot[] = [];
 
 canvas.addEventListener("mousedown", (e) => {
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
-  if (placementState.mode === "road") {
+  if (placementState.mode === "road" || placementState.mode === "wall") {
     placementState.startRoadDrag();
     return;
   }
@@ -79,11 +86,15 @@ canvas.addEventListener("mousedown", (e) => {
 });
 
 canvas.addEventListener("mouseup", (e) => {
-  if (placementState.mode === "road" && placementState.isDraggingRoad) {
+  if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
     placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
     const tiles = placementState.endRoadDrag();
     if (tiles.length > 0) {
-      client.sendCommand({ type: "placeRoad", payload: { tiles } });
+      if (placementState.mode === "wall") {
+        client.sendCommand({ type: "placeWall", payload: { tiles } });
+      } else {
+        client.sendCommand({ type: "placeRoad", payload: { tiles } });
+      }
     }
   }
   isPanning = false;
@@ -136,6 +147,7 @@ function updateModeLabel(): void {
   if (mode === "place") lblMode.textContent = `Mode: Place ${placementState.selectedType}`;
   else if (mode === "demolish") lblMode.textContent = "Mode: Demolish";
   else if (mode === "road") lblMode.textContent = "Mode: Road (drag)";
+  else if (mode === "wall") lblMode.textContent = "Mode: Wall (drag)";
   else lblMode.textContent = "Mode: None";
 }
 
@@ -146,6 +158,7 @@ function selectBuild(type: string): void {
   if (def !== undefined) placementState.setFootprint(def.w, def.h);
   const prod = getProductionDef(type);
   placementState.setRequiresForest(prod?.terrainReq === "forest");
+  placementState.setRequiresStone(prod?.terrainReq === "stone");
   updateModeLabel();
 }
 
@@ -161,6 +174,15 @@ const BUILD_BUTTONS: ReadonlyArray<readonly [string, string]> = [
   ["btn-build-market",       "market"],
   ["btn-build-watchpost",    "watchpost"],
   ["btn-build-tradingpost",  "tradingpost"],
+  // Phase 4 refiners + siege structures
+  ["btn-build-quarry",       "quarry"],
+  ["btn-build-sawmill",      "sawmill"],
+  ["btn-build-smith",        "smith"],
+  ["btn-build-mine",         "mine"],
+  ["btn-build-gate",         "gate"],
+  ["btn-build-tower",        "tower"],
+  ["btn-build-garrison",     "garrison"],
+  ["btn-build-keep",         "keep"],
 ];
 for (const [id, type] of BUILD_BUTTONS) {
   const btn = document.getElementById(id);
@@ -170,6 +192,13 @@ for (const [id, type] of BUILD_BUTTONS) {
 btnRoad.addEventListener("click", () => {
   placementState.mode = "road";
   placementState.setRequiresForest(false);
+  placementState.setRequiresStone(false);
+  updateModeLabel();
+});
+btnWall.addEventListener("click", () => {
+  placementState.mode = "wall";
+  placementState.setRequiresForest(false);
+  placementState.setRequiresStone(false);
   updateModeLabel();
 });
 btnDemolish.addEventListener("click", () => {
@@ -215,6 +244,13 @@ let traderPresent = false;
 let traderOffersList: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[] = [];
 let activeDecrees: readonly string[] = [];
 
+// Phase 4 state
+let threatLevel = 0;
+let defensiveStrength = 0;
+let keepPresent = false;
+let keepSacked = false;
+let nextRaidDay = -1;
+
 btnPause.addEventListener("click", () => {
   if (paused) {
     client.resume();
@@ -245,6 +281,13 @@ client.onSnapshot((snap) => {
   traderPresent = snap.traderPresent;
   traderOffersList = snap.traderOffers;
   activeDecrees = snap.activeDecrees;
+  // Phase 4
+  currentRaiders = snap.raiders;
+  threatLevel = snap.threatLevel;
+  defensiveStrength = snap.defensiveStrength;
+  keepPresent = snap.keepPresent;
+  keepSacked = snap.keepSacked;
+  nextRaidDay = snap.nextRaidDay;
 
   // Sync decree checkboxes with server state (in case decrees change externally)
   decreWorkHours.checked    = activeDecrees.includes("workHours");
@@ -285,22 +328,38 @@ function loop(): void {
   hudPop.textContent = `Pop ${population}/${popCap}`;
   hudBread.textContent = `Bread: ${bread} (${surplusSign}${foodSurplus})`;
   hudWood.textContent = `Wood: ${wood}`;
-  // Phase 3: happiness display with color coding
-  const happinessColor = happiness >= 60 ? "#73eff7" : happiness >= 40 ? "#fee761" : "#e43b44";
+  // Phase 3: happiness display with color coding (EDG cyan / yellow / red)
+  const happinessColor = happiness >= 60 ? "#2ce8f5" : happiness >= 40 ? "#fee761" : "#e43b44";
   hudHappiness.textContent = `Happy: ${happiness}`;
   hudHappiness.style.color = happinessColor;
+  // Phase 4: siege HUD
+  const threatColor = threatLevel >= 60 ? "#e43b44" : threatLevel >= 30 ? "#feae34" : "#63c74d";
+  hudThreat.textContent = `Threat: ${threatLevel}` + (nextRaidDay >= 0 ? ` (next ~d${nextRaidDay + 1})` : "");
+  hudThreat.style.color = threatColor;
+  hudDefense.textContent = `Defense: ${defensiveStrength}`;
+  if (keepSacked) {
+    hudKeep.textContent = "KEEP SACKED";
+    hudKeep.style.color = "#e43b44";
+  } else if (keepPresent) {
+    hudKeep.textContent = "Keep: standing";
+    hudKeep.style.color = "#63c74d";
+  } else {
+    hudKeep.textContent = "Keep: none";
+    hudKeep.style.color = "#8b9bb4";
+  }
   hudEvents.textContent = events.length > 0 ? events[events.length - 1]! : "";
 
   drawTerrain(ctx, canvas, bakedTerrain, camera);
   drawBuildings(ctx, canvas, currentBuildings, camera);
   drawVillagers(ctx, canvas, currentVillagers, camera);
+  drawRaiders(ctx, canvas, currentRaiders, camera);
 
   const ghost = placementState.ghost();
   if (ghost !== null) {
     drawGhost(ctx, canvas, camera, ghost.tileX, ghost.tileY, ghost.w, ghost.h, ghost.valid);
   }
-  // Preview the road being painted.
-  if (placementState.mode === "road" && placementState.isDraggingRoad) {
+  // Preview the road/wall being painted.
+  if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
     for (const t of placementState.roadTiles) {
       drawGhost(ctx, canvas, camera, t.x, t.y, 1, 1, true);
     }

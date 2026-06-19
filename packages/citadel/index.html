@@ -15,6 +15,10 @@
       #lbl-mode { color: #fee761; min-width: 160px; }
       /* Phase 3 UI */
       #hud-happiness { color: #fee761; }
+      /* Phase 4 siege HUD */
+      #hud-threat { color: #63c74d; }
+      #hud-defense { color: #2ce8f5; }
+      #hud-keep { color: #8b9bb4; }
       #decrees-panel { display: flex; gap: 6px; align-items: center; }
       #decrees-panel label { cursor: pointer; display: flex; align-items: center; gap: 3px; }
       #trader-panel { background: #3a4466; border: 1px solid #fee761; padding: 4px 8px; display: none; }
@@ -32,6 +36,11 @@
       <span id="hud-wood">Wood: 0</span>
       <span id="hud-happiness">Happy: 40</span>
       <div class="sep"></div>
+      <!-- Phase 4 siege status -->
+      <span id="hud-threat">Threat: 0</span>
+      <span id="hud-defense">Defense: 0</span>
+      <span id="hud-keep">Keep: none</span>
+      <div class="sep"></div>
       <button id="btn-pause">Pause</button>
       <button id="btn-1x">1x</button>
       <button id="btn-2x">2x</button>
@@ -48,6 +57,18 @@
       <button id="btn-build-watchpost">Watchpost</button>
       <button id="btn-build-tradingpost">Trading Post</button>
       <button id="btn-build-road">Road</button>
+      <div class="sep"></div>
+      <!-- Phase 4: refiners + siege structures -->
+      <button id="btn-build-quarry">Quarry</button>
+      <button id="btn-build-sawmill">Sawmill</button>
+      <button id="btn-build-smith">Smith</button>
+      <button id="btn-build-mine">Mine</button>
+      <button id="btn-build-wall">Wall</button>
+      <button id="btn-build-gate">Gate</button>
+      <button id="btn-build-tower">Tower</button>
+      <button id="btn-build-garrison">Garrison</button>
+      <button id="btn-build-keep">Keep</button>
+      <div class="sep"></div>
       <button id="btn-demolish">Demolish</button>
       <button id="btn-cancel">Cancel</button>
       <span id="lbl-mode">Mode: None</span>
@@ -64,7 +85,7 @@
       <span id="hud-events"></span>
       <!-- Phase 3: Trader panel (shown when trader is present) -->
       <div id="trader-panel">
-        <span id="trader-title">⚔ Merchant Caravan</span>
+        <span id="trader-title">Merchant Caravan</span>
         <div id="trader-offers"></div>
       </div>
     </div>

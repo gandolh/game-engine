@@ -24,6 +24,14 @@ export interface VillagerSnapshot {
   readonly carryGood: string | null;
 }
 
+/** Phase 4: one raider group as seen by the renderer. */
+export interface RaiderSnapshot {
+  readonly id: number;
+  readonly x: number;
+  readonly y: number;
+  readonly strength: number;
+}
+
 export interface RenderSnapshot {
   readonly tick: number;
   readonly day: number;
@@ -45,6 +53,13 @@ export interface RenderSnapshot {
   readonly activeDecrees: readonly string[];
   readonly traderPresent: boolean;
   readonly traderOffers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[];
+  // Phase 4: siege
+  readonly raiders: readonly RaiderSnapshot[];
+  readonly threatLevel: number;
+  readonly nextRaidDay: number;          // approximate day of next raid (-1 if unscheduled)
+  readonly defensiveStrength: number;
+  readonly keepPresent: boolean;
+  readonly keepSacked: boolean;
 }
 
 // Messages sent from Worker → main thread
@@ -68,5 +83,6 @@ export type CitadelCommand =
   | { type: "placeBuilding"; payload: { buildingType: string; x: number; y: number } }
   | { type: "demolish"; payload: { x: number; y: number } }
   | { type: "placeRoad"; payload: { tiles: Array<{ x: number; y: number }> } }
+  | { type: "placeWall"; payload: { tiles: Array<{ x: number; y: number }> } }
   | { type: "setDecree"; payload: { decree: string; active: boolean } }
   | { type: "barter"; payload: { offerIndex: number } };

@@ -8,10 +8,10 @@
 import type { EngineEntity } from "@engine/core";
 
 /** Goods that flow through the Citadel economy. */
-export type GoodType = "grain" | "flour" | "bread" | "wood";
+export type GoodType = "grain" | "flour" | "bread" | "wood" | "stone" | "planks" | "tools";
 
 /** Terrain requirements a building may impose on its tiles. */
-export type TerrainReq = "forest";
+export type TerrainReq = "forest" | "stone";
 
 /**
  * Mutable per-building runtime economy state. NOT readonly — mutated in place
@@ -65,6 +65,16 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   market:      { w: 2, h: 2 },
   watchpost:   { w: 2, h: 2 },
   tradingpost: { w: 3, h: 2 },
+  // Phase 4: refining + siege
+  quarry:   { w: 2, h: 2 }, // terrain-locked on Stone terrain
+  sawmill:  { w: 2, h: 2 }, // wood → planks
+  smith:    { w: 2, h: 2 }, // stone → tools
+  mine:     { w: 2, h: 2 }, // produces stone (same terrain req as quarry)
+  wall:     { w: 1, h: 1 }, // impassable, drag-paint
+  gate:     { w: 1, h: 1 }, // passable to villagers (NOT wall-blocked)
+  tower:    { w: 2, h: 2 }, // defensive strength contributor
+  garrison: { w: 3, h: 2 }, // houses soldiers, worker/pop sink
+  keep:     { w: 3, h: 3 }, // the heart; if sacked → game-over
 };
 
 /** Service radius for buildings that provide needs coverage (in tiles, Manhattan). */
@@ -72,6 +82,10 @@ export const SERVICE_RADII: Readonly<Record<string, number>> = {
   chapel: 8,
   watchpost: 8,
   market: 8,
+  // Phase 4: defensive buildings extend a safety footprint too
+  tower: 6,
+  garrison: 8,
+  keep: 10,
 };
 
 export function getBuildingDef(type: string): BuildingDef | undefined {
@@ -94,6 +108,12 @@ export interface BuildingProductionDef {
   readonly isRoad?: boolean;
   readonly isHousing?: boolean;
   readonly housingCapacity?: number;
+  // Phase 4: siege flags
+  readonly isWall?: boolean;
+  readonly isGate?: boolean;
+  readonly isGarrison?: boolean;
+  readonly isKeep?: boolean;
+  readonly defenseStrength?: number;
 }
 
 export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = {
@@ -176,6 +196,78 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
   tradingpost: {
     workerSlots: 1,
     ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  // Phase 4: refining chains
+  quarry: {
+    workerSlots: 2,
+    outputGood: "stone",
+    outputPerCycle: 2,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    terrainReq: "stone",
+  },
+  sawmill: {
+    workerSlots: 1,
+    inputGood: "wood",
+    outputGood: "planks",
+    inputPerCycle: 1,
+    outputPerCycle: 2,
+    ticksPerCycle: 10,
+  },
+  smith: {
+    workerSlots: 1,
+    inputGood: "stone",
+    outputGood: "tools",
+    inputPerCycle: 1,
+    outputPerCycle: 1,
+    ticksPerCycle: 20,
+  },
+  mine: {
+    workerSlots: 2,
+    outputGood: "stone",
+    outputPerCycle: 1,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    terrainReq: "stone",
+  },
+  // Phase 4: siege structures
+  wall: {
+    workerSlots: 0,
+    isWall: true,
+    isRoad: false,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  gate: {
+    workerSlots: 0,
+    isGate: true,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  tower: {
+    workerSlots: 1,
+    ticksPerCycle: 20,
+    defenseStrength: 5,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  garrison: {
+    workerSlots: 4,
+    isGarrison: true,
+    ticksPerCycle: 20,
+    defenseStrength: 10,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  keep: {
+    workerSlots: 2,
+    isKeep: true,
+    ticksPerCycle: 20,
+    defenseStrength: 8,
     inputPerCycle: 0,
     outputPerCycle: 0,
   },

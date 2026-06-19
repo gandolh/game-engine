@@ -23,7 +23,20 @@ export interface BarterOffer {
 export type Stockpiles = Record<GoodType, number>;
 
 export function emptyStockpiles(): Stockpiles {
-  return { grain: 0, flour: 0, bread: 0, wood: 0 };
+  return { grain: 0, flour: 0, bread: 0, wood: 0, stone: 0, planks: 0, tools: 0 };
+}
+
+/** Phase 4: an active raider group marching on the citadel. */
+export interface RaiderState {
+  id: number;
+  x: number; // current tile X (float for sub-tile position)
+  y: number; // current tile Y (float)
+  tileX: number; // integer tile X
+  tileY: number; // integer tile Y
+  path: Array<{ x: number; y: number }>; // BFS path to keep
+  pathStep: number; // current step in path
+  strength: number; // raider group strength
+  resolved: boolean; // whether this raid has been resolved
 }
 
 export interface SimState {
@@ -92,6 +105,17 @@ export interface SimState {
   traderArrivalDay: number;   // -1 if not scheduled
   traderDepartDay: number;
   readonly traderOffers: BarterOffer[];
+
+  // Phase 4: siege state
+  readonly wallTiles: Set<number>;    // tile indices that are walls (impassable to raiders)
+  readonly gateTiles: Set<number>;    // tile indices that are gates (passable)
+  threatLevel: number;                // 0..100, escalates over time
+  nextRaidTick: number;               // tick when next raid spawns (-1 = unscheduled)
+  raidCount: number;                  // total raids spawned so far
+  defensiveStrength: number;          // computed each tick: walls + towers + garrison
+  readonly raiders: RaiderState[];    // active raider entities
+  keepPosition: { x: number; y: number } | null; // where the keep is (for raider pathing)
+  keepSacked: boolean;                // true if keep was destroyed
 }
 
 const MAX_EVENTS = 20;

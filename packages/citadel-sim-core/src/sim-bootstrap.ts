@@ -15,6 +15,9 @@ import { VillagerSystem, villagerPos } from "./systems/villager-system";
 import { ImmigrationSystem } from "./systems/immigration";
 import { NeedsHappinessSystem } from "./systems/needs-happiness";
 import { TraderSystem } from "./systems/trader";
+import { RaidSpawnSystem } from "./systems/raid-spawn";
+import { RaiderMovementSystem } from "./systems/raider-movement";
+import { SiegeResolutionSystem } from "./systems/siege-resolution";
 import { getSeason } from "./world/seasons";
 
 export interface CitadelSimOptions {
@@ -106,6 +109,16 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     traderArrivalDay: -1,
     traderDepartDay: 0,
     traderOffers: [],
+    // Phase 4: siege state
+    wallTiles: new Set<number>(),
+    gateTiles: new Set<number>(),
+    threatLevel: 0,
+    nextRaidTick: -1,
+    raidCount: 0,
+    defensiveStrength: 0,
+    raiders: [],
+    keepPosition: null,
+    keepSacked: false,
   };
 
   /** Mark a building's footprint tiles in the buildingTiles set. */
@@ -148,24 +161,50 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const prod = getProductionDef(buildingType);
     const fp = { x, y, w: def.w, h: def.h };
 
-    // Terrain requirement (e.g. woodcutter on forest): at least one footprint
-    // tile must match the required terrain.
-    const result = checkPlacement(fp, occupancy, buildable);
-    if (!result.valid) return false;
+    const isGate = prod?.isGate === true;
 
-    if (prod?.terrainReq === "forest") {
-      let onForest = false;
-      for (let dy = 0; dy < def.h && !onForest; dy++) {
+    if (isGate) {
+      // Gates stay walkable: bounds + terrain check only, no occupancy entry.
+      for (let dy = 0; dy < def.h; dy++) {
         for (let dx = 0; dx < def.w; dx++) {
-          const t = terrain.cells[(y + dy) * WORLD_WIDTH + (x + dx)];
-          if (t === TerrainType.Forest) { onForest = true; break; }
+          const tx = x + dx;
+          const ty = y + dy;
+          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return false;
+          if (!buildable(tx, ty)) return false;
+          // Can't place a gate on an already-occupied tile.
+          if (state.buildingTiles.has(ty * WORLD_WIDTH + tx)) return false;
         }
       }
-      if (!onForest) return false;
+    } else {
+      const result = checkPlacement(fp, occupancy, buildable);
+      if (!result.valid) return false;
+
+      // Terrain requirement (forest / stone): at least one footprint tile matches.
+      if (prod?.terrainReq === "forest") {
+        let onForest = false;
+        for (let dy = 0; dy < def.h && !onForest; dy++) {
+          for (let dx = 0; dx < def.w; dx++) {
+            const t = terrain.cells[(y + dy) * WORLD_WIDTH + (x + dx)];
+            if (t === TerrainType.Forest) { onForest = true; break; }
+          }
+        }
+        if (!onForest) return false;
+      }
+      if (prod?.terrainReq === "stone") {
+        let onStone = false;
+        for (let dy = 0; dy < def.h && !onStone; dy++) {
+          for (let dx = 0; dx < def.w; dx++) {
+            const t = terrain.cells[(y + dy) * WORLD_WIDTH + (x + dx)];
+            if (t === TerrainType.Stone) { onStone = true; break; }
+          }
+        }
+        if (!onStone) return false;
+      }
+
+      occupancy.apply(fp);
+      walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
     }
 
-    occupancy.apply(fp);
-    walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
     addBuildingTiles(x, y, def.w, def.h);
 
     const entity = buildingWorld.spawn({
@@ -180,6 +219,17 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
       state.popCap += prod.housingCapacity;
     }
+    // Phase 4: special tile tracking
+    if (prod?.isGate === true) {
+      state.gateTiles.add(y * WORLD_WIDTH + x);
+    }
+    if (prod?.isWall === true) {
+      state.wallTiles.add(y * WORLD_WIDTH + x);
+    }
+    if (prod?.isKeep === true) {
+      // Center of the 3×3 footprint.
+      state.keepPosition = { x: x + Math.floor(def.w / 2), y: y + Math.floor(def.h / 2) };
+    }
     state.connectivityDirty = true;
     return true;
   }
@@ -191,6 +241,12 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   commandSystem.register("placeRoad", (cmd) => {
     for (const tile of cmd.payload.tiles) {
       placeOne("road", tile.x, tile.y);
+    }
+  });
+
+  commandSystem.register("placeWall", (cmd) => {
+    for (const tile of cmd.payload.tiles) {
+      placeOne("wall", tile.x, tile.y);
     }
   });
 
@@ -220,15 +276,27 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
       if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) {
-        occupancy.remove({ x: b.x, y: b.y, w: b.w, h: b.h });
-        walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
-        removeBuildingTiles(b.x, b.y, b.w, b.h);
         const prod = getProductionDef(b.type);
+        // Gates were never applied to occupancy; everything else was.
+        if (prod?.isGate !== true) {
+          occupancy.remove({ x: b.x, y: b.y, w: b.w, h: b.h });
+          walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
+        }
+        removeBuildingTiles(b.x, b.y, b.w, b.h);
         if (prod?.isRoad === true) {
           state.roadGrid[b.y * WORLD_WIDTH + b.x] = 0;
         }
         if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
           state.popCap = Math.max(0, state.popCap - prod.housingCapacity);
+        }
+        if (prod?.isGate === true) {
+          state.gateTiles.delete(b.y * WORLD_WIDTH + b.x);
+        }
+        if (prod?.isWall === true) {
+          state.wallTiles.delete(b.y * WORLD_WIDTH + b.x);
+        }
+        if (prod?.isKeep === true) {
+          state.keepPosition = null;
         }
         if (entity.id !== undefined) state.buildingState.delete(entity.id);
         buildingWorld.despawn(entity);
@@ -265,6 +333,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // and trader (AFTER production, to see fresh stockpiles)
   const needsHappinessSystem = new NeedsHappinessSystem(state, ticksPerDay);
   const traderSystem = new TraderSystem(state, ticksPerDay);
+  // Phase 4: siege systems (run AFTER population so they see fresh state).
+  const raidSpawnSystem = new RaidSpawnSystem(state, terrain);
+  const raiderMovementSystem = new RaiderMovementSystem(state, terrain);
+  const siegeResolutionSystem = new SiegeResolutionSystem(state);
 
   scheduler.stage("commands").add(commandSystem);
   scheduler.stage("clock").add(dayClock);
@@ -275,6 +347,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("needs").add(needsHappinessSystem);
   scheduler.stage("trader").add(traderSystem);
   scheduler.stage("population").add(immigrationSystem);
+  // Phase 4 siege stages, in dependency order: spawn → move → resolve.
+  scheduler.stage("siege-spawn").add(raidSpawnSystem);
+  scheduler.stage("siege-move").add(raiderMovementSystem);
+  scheduler.stage("siege-resolve").add(siegeResolutionSystem);
 
   // ---------------------------------------------------------------------------
   // Snapshot helpers
@@ -311,6 +387,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   function getSnapshot(tick = 0): RenderSnapshot {
     const stock: Record<string, number> = {};
     for (const k of Object.keys(state.stockpiles) as GoodType[]) stock[k] = state.stockpiles[k];
+    let keepPresent = false;
+    for (const entity of buildingWorld.query("building")) {
+      if (entity.building.type === "keep") { keepPresent = true; break; }
+    }
+    const nextRaidDay = state.nextRaidTick < 0 ? -1 : Math.floor(state.nextRaidTick / state.ticksPerDay);
     return {
       tick,
       day: dayClock.day,
@@ -332,6 +413,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       activeDecrees: [...state.activeDecrees],
       traderPresent: state.traderPresent,
       traderOffers: [...state.traderOffers],
+      // Phase 4
+      raiders: state.raiders.map((r) => ({ id: r.id, x: r.x, y: r.y, strength: r.strength })),
+      threatLevel: state.threatLevel,
+      nextRaidDay,
+      defensiveStrength: state.defensiveStrength,
+      keepPresent,
+      keepSacked: state.keepSacked,
     };
   }
 

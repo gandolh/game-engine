@@ -17,6 +17,7 @@ export type { VillagerComponent, VillagerEntity, VillagerFsm } from "./entities/
 export type {
   BuildingSnapshot,
   VillagerSnapshot,
+  RaiderSnapshot,
   CitadelCommand,
   RenderSnapshot,
   WorkerInbound,
@@ -26,9 +27,12 @@ export { bfsPath } from "./world/pathfinder";
 export type { PathNode } from "./world/pathfinder";
 export { getSeason, grainMultiplier } from "./world/seasons";
 export type { Season } from "./world/seasons";
-export type { SimState, Stockpiles, BarterOffer } from "./sim-state";
+export type { SimState, Stockpiles, BarterOffer, RaiderState } from "./sim-state";
 export { villagerWalkable } from "./sim-state";
 export { RoadConnectivitySystem } from "./systems/road-connectivity";
 export { ProductionSystem } from "./systems/production";
 export { VillagerSystem } from "./systems/villager-system";
 export { ImmigrationSystem } from "./systems/immigration";
+export { RaidSpawnSystem } from "./systems/raid-spawn";
+export { RaiderMovementSystem } from "./systems/raider-movement";
+export { SiegeResolutionSystem } from "./systems/siege-resolution";
