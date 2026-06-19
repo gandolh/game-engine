@@ -8,8 +8,9 @@
  * Phase 5: settlement tier HUD; save/load via command-log replay (localStorage
  *          + downloadable JSON blob).
  */
-import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef } from "@citadel/sim-core";
-import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave } from "@citadel/sim-core";
+import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast } from "@citadel/sim-core";
+import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier } from "@citadel/sim-core";
+import { EDG } from "@engine/core";
 import { CitadelSimClient } from "./worker/sim-client";
 import { bakeTerrainLayer, drawTerrain, clampZoom } from "./render/terrain-renderer";
 import { drawBuildings, drawGhost, drawVillagers, drawRaiders } from "./render/building-renderer";
@@ -197,9 +198,37 @@ const BUILD_BUTTONS: ReadonlyArray<readonly [string, string]> = [
   ["btn-build-well",         "well"],
   ["btn-build-healer",       "healer"],
 ];
+/** DOM elements for tier-lockable build buttons, keyed by building type. */
+const buildButtonsByType = new Map<string, HTMLButtonElement>();
 for (const [id, type] of BUILD_BUTTONS) {
   const btn = document.getElementById(id);
-  if (btn !== null) btn.addEventListener("click", () => selectBuild(type));
+  if (btn !== null) {
+    btn.addEventListener("click", () => selectBuild(type));
+    buildButtonsByType.set(type, btn as HTMLButtonElement);
+  }
+}
+// The wall button drives a "wall" placement type and is tier-locked too.
+buildButtonsByType.set("wall", btnWall as HTMLButtonElement);
+
+/**
+ * Grey out / disable build buttons whose building type is locked behind a
+ * settlement tier the player hasn't reached yet. Keeps buttons VISIBLE so the
+ * player can see what climbing the tier ladder unlocks. The Road button is
+ * never locked. Mirrors the sim-side reject guard (defense in depth).
+ */
+function refreshBuildButtonLocks(): void {
+  for (const [type, btn] of buildButtonsByType) {
+    const required = TIER_LOCK[type];
+    if (required !== undefined && !tierAtLeast(tier as SettlementTier, required)) {
+      btn.disabled = true;
+      btn.classList.add("tier-locked");
+      btn.title = `Requires ${required}`;
+    } else {
+      btn.disabled = false;
+      btn.classList.remove("tier-locked");
+      btn.title = "";
+    }
+  }
 }
 
 btnRoad.addEventListener("click", () => {
@@ -340,6 +369,7 @@ client.onSnapshot((snap) => {
   day = snap.day + 1;
   season = snap.season;
   tier = snap.tier;  // Phase 5
+  refreshBuildButtonLocks();
   population = snap.population;
   popCap = snap.popCap;
   bread = snap.stockpiles.bread ?? 0;
@@ -403,52 +433,52 @@ function loop(): void {
   // Phase 5: tier display — color by tier level
   hudTier.textContent = tier;
   const tierColors: Record<string, string> = {
-    "Hamlet": "#8b9bb4",
-    "Village": "#63c74d",
-    "Town": "#2ce8f5",
-    "Citadel": "#fee761",
-    "Fortress-City": "#e43b44",
+    "Hamlet": EDG.steel,
+    "Village": EDG.green,
+    "Town": EDG.cyan,
+    "Citadel": EDG.yellow,
+    "Fortress-City": EDG.red,
   };
-  hudTier.style.color = tierColors[tier] ?? "#c0cbdc";
+  hudTier.style.color = tierColors[tier] ?? EDG.silver;
   hudDay.textContent = `Day ${day} (${season})`;
   hudPop.textContent = `Pop ${population}/${popCap}`;
   hudBread.textContent = `Bread: ${bread} (${surplusSign}${foodSurplus})`;
   hudWood.textContent = `Wood: ${wood}`;
   // Phase 3: happiness display with color coding (EDG cyan / yellow / red)
-  const happinessColor = happiness >= 60 ? "#2ce8f5" : happiness >= 40 ? "#fee761" : "#e43b44";
+  const happinessColor = happiness >= 60 ? EDG.cyan : happiness >= 40 ? EDG.yellow : EDG.red;
   hudHappiness.textContent = `Happy: ${happiness}`;
   hudHappiness.style.color = happinessColor;
   // Phase 4: siege HUD
-  const threatColor = threatLevel >= 60 ? "#e43b44" : threatLevel >= 30 ? "#feae34" : "#63c74d";
+  const threatColor = threatLevel >= 60 ? EDG.red : threatLevel >= 30 ? EDG.gold : EDG.green;
   hudThreat.textContent = `Threat: ${threatLevel}` + (nextRaidDay >= 0 ? ` (next ~d${nextRaidDay + 1})` : "");
   hudThreat.style.color = threatColor;
   hudDefense.textContent = `Defense: ${defensiveStrength}`;
   if (keepSacked) {
     hudKeep.textContent = "KEEP SACKED";
-    hudKeep.style.color = "#e43b44";
+    hudKeep.style.color = EDG.red;
   } else if (keepPresent) {
     hudKeep.textContent = "Keep: standing";
-    hudKeep.style.color = "#63c74d";
+    hudKeep.style.color = EDG.green;
   } else {
     hudKeep.textContent = "Keep: none";
-    hudKeep.style.color = "#8b9bb4";
+    hudKeep.style.color = EDG.steel;
   }
   hudEvents.textContent = events.length > 0 ? events[events.length - 1]! : "";
 
   // Phase 4.5: hazard HUD
   if (activeFires > 0) {
     hudFire.textContent = `Fire: ${activeFires} building(s) burning!`;
-    hudFire.style.color = "#feae34";
+    hudFire.style.color = EDG.gold;
   } else {
     hudFire.textContent = "Fire: none";
-    hudFire.style.color = "#8b9bb4";
+    hudFire.style.color = EDG.steel;
   }
   if (outbreakActive) {
     hudDisease.textContent = `Disease: ${sickVillagers} sick!`;
-    hudDisease.style.color = "#b55088";
+    hudDisease.style.color = EDG.mauve;
   } else {
     hudDisease.textContent = "Disease: none";
-    hudDisease.style.color = "#8b9bb4";
+    hudDisease.style.color = EDG.steel;
   }
 
   drawTerrain(ctx, canvas, bakedTerrain, camera);

@@ -2,7 +2,7 @@ import { Scheduler, World, CommandQueue, CommandSystem, OccupancyGrid, checkPlac
 import type { System, SimContext } from "@engine/core";
 import type { CitadelCommand, BuildingSnapshot, VillagerSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
 import { DayClockSystem } from "./systems/day-clock";
-import { TierSystem } from "./systems/tiers";
+import { TierSystem, TIER_LOCK, tierAtLeast } from "./systems/tiers";
 import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
@@ -240,6 +240,14 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   function placeOne(buildingType: string, x: number, y: number): boolean {
     const def = getBuildingDef(buildingType);
     if (def === undefined) return false;
+
+    // Tier-lock: some building types are gated behind a minimum settlement tier.
+    const required = TIER_LOCK[buildingType];
+    if (required !== undefined && !tierAtLeast(state.tier, required)) {
+      pushEvent(state, `Day ${state.day}: A ${buildingType} requires ${required} tier.`);
+      return false;
+    }
+
     const prod = getProductionDef(buildingType);
     const fp = { x, y, w: def.w, h: def.h };
 

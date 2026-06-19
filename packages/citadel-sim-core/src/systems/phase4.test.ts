@@ -65,6 +65,7 @@ function findStone(terrain: TerrainGrid): { x: number; y: number } | null {
 describe("Phase 4 — walls & gates", () => {
   it("wall blocks the walkable grid; gate stays passable", () => {
     const sim = boot();
+    sim.state.tier = "Town"; // unlock wall/gate (Village) + siege (Town) for placement
     const g = findGrass(sim.terrain, 1, 1, 20, 20);
     const wallX = g.x;
     const wallY = g.y;
@@ -94,6 +95,7 @@ describe("Phase 4 — walls & gates", () => {
 describe("Phase 4 — raid spawning", () => {
   it("raiders spawn on the expected deterministic tick and have a path", () => {
     const sim = boot();
+    sim.state.tier = "Town"; // keep requires Town tier to place
     // Raids are gated on a keep existing — place one so the siege game begins.
     const g = findGrass(sim.terrain, 3, 3, 36, 36);
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
@@ -123,6 +125,7 @@ describe("Phase 4 — raid spawning", () => {
 describe("Phase 4 — siege resolution math", () => {
   it("computes defensive strength from defensive buildings and adjacent walls", () => {
     const sim = boot();
+    sim.state.tier = "Town"; // keep requires Town tier to place
     const g = findGrass(sim.terrain, 3, 3, 30, 30);
     // Keep (def 8) + tower (def 5) adjacent walls.
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
@@ -133,6 +136,7 @@ describe("Phase 4 — siege resolution math", () => {
 
   it("strong defenses repel a raid; the keep survives", () => {
     const sim = boot();
+    sim.state.tier = "Town"; // keep/garrison/tower require Town/Village tier to place
     const g = findGrass(sim.terrain, 3, 3, 40, 40);
     // Keep + garrison + 2 towers → defense >> first raid strength (10).
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
@@ -155,6 +159,7 @@ describe("Phase 4 — siege resolution math", () => {
 describe("Phase 4 — keep sacked", () => {
   it("an undefended keep is eventually sacked → gameOver", () => {
     const sim = boot();
+    sim.state.tier = "Town"; // keep requires Town tier to place
     const g = findGrass(sim.terrain, 3, 3, 48, 48);
     // Place ONLY a keep — defenseStrength 8, but raids escalate (10,15,20,...).
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
@@ -175,6 +180,7 @@ describe("Phase 4 — keep sacked", () => {
 describe("Phase 4 — refining chains", () => {
   it("quarry on stone → stone; sawmill wood → planks; smith stone → tools", () => {
     const sim = boot();
+    sim.state.tier = "Town"; // quarry/sawmill/smith require Village tier to place
     const terrain = sim.terrain;
     const stoneSpot = findStone(terrain);
     expect(stoneSpot).not.toBeNull();
@@ -249,6 +255,7 @@ describe("Phase 4 — refining chains", () => {
 describe("Phase 4 — determinism", () => {
   function runScenario(): RenderSnapshot {
     const sim = boot();
+    sim.state.tier = "Town"; // keep/tower/wall require Town/Village tier to place
     const g = findGrass(sim.terrain, 3, 3, 40, 40);
     const cmds: CitadelCommand[] = [
       { type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } },
@@ -292,6 +299,7 @@ describe("Phase 4 — wall reroutes raiders", () => {
     };
 
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    sim.state.tier = "Town"; // keep (Town) + wall (Village) require unlock to place
 
     // Place keep at (18, 28) so raiders target it.
     const keepX = 18;

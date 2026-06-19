@@ -17,5 +17,8 @@
   },
   "dependencies": {
     "@engine/core": "0.0.0"
+  },
+  "devDependencies": {
+    "@webgpu/types": "0.1.70"
   }
 }

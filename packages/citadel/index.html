@@ -11,6 +11,8 @@
       #hud { background: #262b44; color: #c0cbdc; font-family: monospace; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 12px; user-select: none; border-top: 1px solid #3a4466; }
       #hud button { background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988; padding: 2px 10px; cursor: pointer; font-family: monospace; font-size: 13px; }
       #hud button:hover { background: #5a6988; }
+      /* Citadel 07: tier-locked build buttons — greyed, not hidden (teaches progression). */
+      #hud button.tier-locked, #hud button.tier-locked:hover { opacity: 0.4; cursor: not-allowed; }
       #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
       #lbl-mode { color: #fee761; min-width: 160px; }
       /* Phase 3 UI */
