@@ -6,9 +6,10 @@
  * only — no sim state here; it reads from the latest RenderSnapshot.
  */
 import { checkPlacement, OccupancyGrid } from "@engine/core";
-import { isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE } from "@citadel/sim-core";
+import type { Camera2D } from "@engine/core";
+import { isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot } from "@citadel/sim-core";
-import type { Camera } from "../render/terrain-renderer";
+import { eventToDevicePx, screenToTile, transformOf } from "../render/citadel-renderer";
 
 export type PlacementMode = "none" | "place" | "demolish" | "road" | "wall" | "upgrade";
 
@@ -95,32 +96,19 @@ export class PlacementStateManager {
   updateCursor(
     e: MouseEvent,
     canvas: HTMLCanvasElement,
-    camera: Camera,
+    camera: Camera2D,
     terrain: TerrainGrid,
     buildings: readonly BuildingSnapshot[],
   ): void {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const cw = Math.max(1, Math.floor(canvas.clientWidth * dpr));
-    const ch = Math.max(1, Math.floor(canvas.clientHeight * dpr));
-
-    const WORLD_PX_W = WORLD_WIDTH * TILE_SIZE;
-    const WORLD_PX_H = WORLD_HEIGHT * TILE_SIZE;
-    const baseSx = cw / WORLD_PX_W;
-    const baseSy = ch / WORLD_PX_H;
-    const baseS = Math.min(baseSx, baseSy);
-    const s = baseS * camera.zoom;
-    const originX = cw / 2 - camera.centerX * s;
-    const originY = ch / 2 - camera.centerY * s;
-
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) * dpr;
-    const mouseY = (e.clientY - rect.top) * dpr;
-
-    const worldX = (mouseX - originX) / s;
-    const worldY = (mouseY - originY) / s;
-
-    this._cursorTileX = Math.floor(worldX / TILE_SIZE);
-    this._cursorTileY = Math.floor(worldY / TILE_SIZE);
+    // Derive the tile under the cursor from the SAME transform the WebGPU
+    // renderer uses (Camera2D + canvas backing-store size). `eventToDevicePx`
+    // applies the renderer's dpr clamp; `screenToTile` inverts the GPU
+    // world→screen transform. See render/citadel-renderer.ts.
+    const { sx, sy } = eventToDevicePx(e, canvas);
+    const t = transformOf(camera, canvas.width, canvas.height);
+    const { tx, ty } = screenToTile(t, sx, sy);
+    this._cursorTileX = tx;
+    this._cursorTileY = ty;
 
     if (this.mode === "place") {
       this._ghostValid = this._checkValid(terrain, buildings);

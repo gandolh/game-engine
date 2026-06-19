@@ -8,14 +8,22 @@
  * Phase 5: settlement tier HUD; save/load via command-log replay (localStorage
  *          + downloadable JSON blob).
  */
-import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost } from "@citadel/sim-core";
+import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier } from "@citadel/sim-core";
 import { EDG } from "@engine/core";
+import type { Camera2D, RendererLike } from "@engine/core";
 import { CitadelSimClient } from "./worker/sim-client";
-import { bakeTerrainLayer, drawTerrain, clampZoom } from "./render/terrain-renderer";
-import { drawBuildings, drawGhost, drawVillagers, drawRaiders } from "./render/building-renderer";
+import {
+  createCitadelRenderer,
+  fitCameraToCanvas,
+  clampZoom,
+  pushScene,
+  pushGhost,
+  eventToDevicePx,
+  screenToWorld,
+  transformOf,
+} from "./render/citadel-renderer";
 import { PlacementStateManager } from "./ui/placement-state";
-import type { Camera } from "./render/terrain-renderer";
 
 const SEED = 0x1a2b3c4d;
 const TICKS_PER_DAY = 20;
@@ -24,9 +32,6 @@ const TICKS_PER_DAY = 20;
 // DOM references
 // ---------------------------------------------------------------------------
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-const ctxMaybe = canvas.getContext("2d");
-if (!ctxMaybe) throw new Error("Failed to acquire 2d context");
-const ctx: CanvasRenderingContext2D = ctxMaybe;
 
 const hudTier = document.getElementById("hud-tier")!;
 const hudDay = document.getElementById("hud-day")!;
@@ -68,13 +73,10 @@ const traderPanel  = document.getElementById("trader-panel")!;
 const traderOffers = document.getElementById("trader-offers")!;
 
 // ---------------------------------------------------------------------------
-// Camera state
+// Camera + renderer (Camera2D + engine WebGPU renderer; created async in boot)
 // ---------------------------------------------------------------------------
-const camera: Camera = {
-  centerX: (WORLD_WIDTH * TILE_SIZE) / 2,
-  centerY: (WORLD_HEIGHT * TILE_SIZE) / 2,
-  zoom: 1,
-};
+let camera: Camera2D;
+let renderer: RendererLike;
 
 let isPanning = false;
 let lastMouseX = 0;
@@ -115,15 +117,15 @@ canvas.addEventListener("mouseleave", () => { isPanning = false; });
 
 canvas.addEventListener("mousemove", (e) => {
   if (isPanning) {
+    // Convert CSS-px mouse delta to world-px using the live GPU scale.
+    // sx = canvas.width (device px) / camera.worldUnitsX. dpr maps CSS→device.
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const cw = canvas.clientWidth * dpr;
-    const worldPxW = WORLD_WIDTH * TILE_SIZE;
-    const baseS = Math.min(cw / worldPxW, (canvas.clientHeight * dpr) / (WORLD_HEIGHT * TILE_SIZE));
-    const s = baseS * camera.zoom;
-    const dx = (e.clientX - lastMouseX) / s * dpr;
-    const dy = (e.clientY - lastMouseY) / s * dpr;
-    camera.centerX -= dx;
-    camera.centerY -= dy;
+    fitCameraToCanvas(camera, canvas.width, canvas.height);
+    const sx = canvas.width / camera.worldUnitsX;
+    const sy = canvas.height / camera.worldUnitsY;
+    const dx = ((e.clientX - lastMouseX) * dpr) / sx;
+    const dy = ((e.clientY - lastMouseY) * dpr) / sy;
+    camera.setCenter(camera.centerX - dx, camera.centerY - dy);
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
   }
@@ -134,8 +136,15 @@ canvas.addEventListener("mousemove", (e) => {
 
 canvas.addEventListener("wheel", (e) => {
   e.preventDefault();
+  // Zoom toward the cursor: keep the world point under the pointer fixed.
+  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  const { sx, sy } = eventToDevicePx(e, canvas);
+  const before = screenToWorld(transformOf(camera, canvas.width, canvas.height), sx, sy);
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
-  camera.zoom = clampZoom(camera.zoom * factor);
+  camera.setZoom(clampZoom(camera.zoom * factor));
+  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  const after = screenToWorld(transformOf(camera, canvas.width, canvas.height), sx, sy);
+  camera.setCenter(camera.centerX + (before.worldX - after.worldX), camera.centerY + (before.worldY - after.worldY));
 }, { passive: false });
 
 canvas.addEventListener("click", (e) => {
@@ -456,10 +465,10 @@ client.onSnapshot((snap) => {
 });
 
 // ---------------------------------------------------------------------------
-// Terrain
+// Terrain (generated at module scope; baked into the static layer by the
+// renderer during boot, and read by placement validation).
 // ---------------------------------------------------------------------------
 const terrain: TerrainGrid = generateTerrain(SEED);
-const bakedTerrain = bakeTerrainLayer(terrain);
 
 // ---------------------------------------------------------------------------
 // Animation loop
@@ -517,25 +526,42 @@ function loop(): void {
     hudDisease.style.color = EDG.steel;
   }
 
-  drawTerrain(ctx, canvas, bakedTerrain, camera);
-  drawBuildings(ctx, canvas, currentBuildings, camera, outbreakActive);
-  drawVillagers(ctx, canvas, currentVillagers, camera);
-  drawRaiders(ctx, canvas, currentRaiders, camera);
+  // --- WebGPU scene: terrain is the baked static layer; entities + ghost are
+  // sprite-batch quads. beginFrame sizes the canvas backing store, so fit the
+  // camera to it first.
+  renderer.beginFrame();
+  fitCameraToCanvas(camera, canvas.width, canvas.height);
+
+  pushScene(renderer, {
+    buildings: currentBuildings,
+    villagers: currentVillagers,
+    raiders: currentRaiders,
+  });
 
   const ghost = placementState.ghost();
-  if (ghost !== null) {
-    drawGhost(ctx, canvas, camera, ghost.tileX, ghost.tileY, ghost.w, ghost.h, ghost.valid);
-  }
-  // Preview the road/wall being painted.
-  if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
-    for (const t of placementState.roadTiles) {
-      drawGhost(ctx, canvas, camera, t.x, t.y, 1, 1, true);
-    }
-  }
+  const dragging = (placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad;
+  pushGhost(renderer, ghost, dragging ? placementState.roadTiles : []);
+
+  renderer.endFrame();
 
   requestAnimationFrame(loop);
 }
 
-client.init(SEED, TICKS_PER_DAY);
-updateModeLabel();
-requestAnimationFrame(loop);
+// ---------------------------------------------------------------------------
+// Boot: create the WebGPU renderer (bakes terrain), then start sim + loop.
+// Citadel is WebGPU-only at runtime — if WebGPU is unavailable this throws and
+// the surface stays blank (matches the FV pattern; no Canvas2D fallback).
+// ---------------------------------------------------------------------------
+async function boot(): Promise<void> {
+  const created = await createCitadelRenderer(canvas, terrain);
+  renderer = created.renderer;
+  camera = created.camera;
+
+  client.init(SEED, TICKS_PER_DAY);
+  updateModeLabel();
+  requestAnimationFrame(loop);
+}
+
+void boot().catch((err) => {
+  console.error("[citadel] boot failed", err);
+});
