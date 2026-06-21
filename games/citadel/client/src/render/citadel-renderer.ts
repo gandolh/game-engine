@@ -29,7 +29,8 @@ import {
   Camera2D,
   createRenderer,
 } from "@engine/core";
-import type { RendererLike, LoadedAtlasImage } from "@engine/core";
+import type { RendererLike, LoadedAtlasImage, Canvas2dSprite } from "@engine/core";
+import { TILE_SIZE } from "@citadel/sim-core";
 import type {
   BuildingSnapshot,
   VillagerSnapshot,
@@ -41,13 +42,18 @@ import {
   QUAD_ATLAS_ID,
   QUAD_FRAME,
   quadToSprite,
+  packTint,
   buildingQuad,
   buildingShadowQuad,
+  SHADOW_OFFSET,
+  SHADOW_ALPHA,
   villagerQuad,
   raiderQuad,
   ghostQuad,
 } from "./quads";
-import { networkQuads } from "./autotile";
+import { isoFootprintBox, isoFootprintDiamondBox, isoPointBox, isoProjectTilePxBox, ISO_TILE_H } from "./iso";
+import { isoNetworkTiles } from "./autotile";
+import { FRAME_DIAMOND } from "./sprites/recipes";
 import { clusterBuildings, clusterBorderQuads } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
 import { RenderWindowController } from "./window-controller";
@@ -57,6 +63,7 @@ import { createCitadelSpriteAtlas } from "./sprites/atlas";
 // Re-export the full prior public surface so existing imports keep resolving.
 // citadel-renderer.test.ts and main.ts import everything from this file.
 // ---------------------------------------------------------------------------
+export * from "./iso";
 export * from "./quads";
 export * from "./wear";
 export * from "./autotile";
@@ -71,9 +78,10 @@ import { WORLD_PX_W, WORLD_PX_H } from "./transform";
 // Sprite layers — higher draws on top. Terrain is the baked static layer
 // (below everything); these stack buildings < villagers < raiders < ghost.
 const LAYER_SHADOW = 8;
-const LAYER_BUILDING = 10;
-const LAYER_VILLAGER = 20;
-const LAYER_RAIDER = 30;
+// Isometric: buildings, villagers, and raiders share ONE entity layer so they
+// inter-sort back-to-front by their iso depth (set as each sprite's `sortY`),
+// which is what makes a villager in front correctly occlude a building behind.
+const LAYER_ENTITY = 10;
 const LAYER_GHOST = 40;
 /** Atmosphere layers (brief 15/18). Light pool sits just above buildings so the
  *  warm glow pools over the ground + structures; the ambient crowd walks below
@@ -205,18 +213,63 @@ export interface SceneFx {
   villagerYOffset?: (v: VillagerSnapshot) => number;
 }
 
+/**
+ * Per-type sprite art height in tiles (how far the building "rises" above its
+ * ground diamond in the iso view). Taller structures loom; flat features stay
+ * ground-height. Falls back to 1. Render-only.
+ */
+const BUILDING_HEIGHT_TILES: Record<string, number> = {
+  keep: 3, tower: 3, garrison: 2, watchpost: 2, chapel: 2.5, mill: 2.5,
+  "town-hall": 2.5, storehouse: 1.5, market: 1.2, smith: 1.5, bakery: 1.5,
+  wall: 1, gate: 1.2, road: 0,
+};
+function buildingHeightTiles(type: string): number {
+  return BUILDING_HEIGHT_TILES[type] ?? 1;
+}
+
+/**
+ * Project a building's logical quad into an iso-placed sprite quad. The frame +
+ * tint come from `buildingQuad`; position/size come from `isoFootprintBox`
+ * (anchored at the footprint diamond, risen by the per-type art height). Returns
+ * the iso quad + its painter's-order depth.
+ */
+function isoBuildingPlacement(b: BuildingSnapshot, base: QuadSpec): { quad: QuadSpec; depth: number } {
+  const box = isoFootprintBox(b.x, b.y, b.w, b.h, buildingHeightTiles(b.type));
+  return {
+    quad: { x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: base.tintRgba, ...(base.frame !== undefined ? { frame: base.frame } : {}) },
+    depth: box.depth,
+  };
+}
+
+/**
+ * Build a flat iso ground sprite stamping the `fx/diamond` frame (a real 2:1
+ * diamond) at an iso-world-px box, tinted. Used for road/wall tiles, footprint
+ * shadows, cluster borders, and the placement ghost — everything that should sit
+ * FLAT on the iso grid rather than billboard upright.
+ */
+function isoDiamondSprite(x: number, y: number, width: number, height: number, tintRgba: number, layer: number, sortY: number): Canvas2dSprite {
+  return { atlasId: QUAD_ATLAS_ID, frame: FRAME_DIAMOND, x, y, width, height, rotation: 0, layer, alpha: 1, tintRgba, sortY };
+}
+
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
 function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx): void {
-  // Directional ground shadow (faked NW sun) first, so it lands under the
-  // sprite. Flat features (road/wall/gate) return null and cast nothing.
-  const shadow = buildingShadowQuad(b);
-  if (shadow !== null) renderer.push(quadToSprite(shadow, LAYER_SHADOW));
   const base = buildingQuad(b);
+  const { quad: isoBase, depth } = isoBuildingPlacement(b, base);
+
+  // Directional ground shadow: a flat iso diamond-ish box under the footprint.
+  // Flat features (road/wall/gate) cast none.
+  if (buildingShadowQuad(b) !== null) {
+    const d = isoFootprintDiamondBox(b.x, b.y, b.w, b.h, 0);
+    renderer.push(isoDiamondSprite(d.x + SHADOW_OFFSET, d.y + SHADOW_OFFSET, d.width, d.height, packTint(EDG.ink, SHADOW_ALPHA), LAYER_ENTITY, depth - 0.0001));
+  }
+
   if (fx?.building !== undefined) {
-    const { quad, alpha } = fx.building(b, base);
-    renderer.push(quadToSprite(quad, LAYER_BUILDING, alpha));
+    // The fx ease-in scales/fades about the footprint centre — apply it to the
+    // iso-placed quad so the animation still reads.
+    const { quad, alpha } = fx.building(b, isoBase);
+    renderer.push(quadToSprite(quad, LAYER_ENTITY, alpha, depth));
   } else {
-    renderer.push(quadToSprite(base, LAYER_BUILDING));
+    renderer.push(quadToSprite(isoBase, LAYER_ENTITY, 1, depth));
   }
 }
 
@@ -236,9 +289,12 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
   // additionally gets a subtle unifying border so a block reads as one
   // neighbourhood. The border draws first (below the sprites); the fx ease-in
   // hook applies to every house sprite.
+  // House cluster borders draw as a flat iso diamond ring under each member,
+  // just below it in depth (so the sprite lands on top).
   for (const cluster of clusterBuildings(scene.buildings, "house")) {
-    for (const q of clusterBorderQuads(cluster)) {
-      renderer.push(quadToSprite(q, LAYER_BUILDING));
+    for (const m of cluster.members) {
+      const d = isoFootprintDiamondBox(m.x, m.y, m.w, m.h, 0);
+      renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(EDG.cream, Math.round(0xff * 0.18)), LAYER_ENTITY, d.depth - 0.0002));
     }
     for (const b of cluster.members) {
       pushBuilding(renderer, b, fx);
@@ -251,11 +307,22 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
     pushBuilding(renderer, b, fx);
   }
   for (const v of scene.villagers) {
-    const q = villagerQuad(v);
+    const base = villagerQuad(v);
     const dy = fx?.villagerYOffset !== undefined ? fx.villagerYOffset(v) : 0;
-    renderer.push(quadToSprite(dy !== 0 ? { ...q, y: q.y + dy } : q, LAYER_VILLAGER));
+    const box = isoPointBox(v.x + 0.5, v.y + 0.5, base.width);
+    renderer.push(quadToSprite(
+      { x: box.x, y: box.y + dy, width: box.width, height: box.height, tintRgba: base.tintRgba, ...(base.frame !== undefined ? { frame: base.frame } : {}) },
+      LAYER_ENTITY, 1, box.depth,
+    ));
   }
-  for (const r of scene.raiders) renderer.push(quadToSprite(raiderQuad(r), LAYER_RAIDER));
+  for (const r of scene.raiders) {
+    const base = raiderQuad(r);
+    const box = isoPointBox(r.x + 0.5, r.y + 0.5, base.width);
+    renderer.push(quadToSprite(
+      { x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: base.tintRgba, ...(base.frame !== undefined ? { frame: base.frame } : {}) },
+      LAYER_ENTITY, 1, box.depth + 0.0001,
+    ));
+  }
 }
 
 /**
@@ -264,7 +331,19 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
  * buildings). Recomputes per frame — cheap at this world size.
  */
 export function pushNetworks(renderer: RendererLike, buildings: readonly BuildingSnapshot[]): void {
-  for (const q of networkQuads(buildings)) renderer.push(quadToSprite(q, LAYER_NETWORK));
+  // Iso: each road/wall tile draws as a flat diamond filling (a band fraction
+  // of) its tile. Adjacent same-network diamonds abut → a run reads continuous
+  // without arm geometry. Drawn on the network layer just above terrain.
+  for (const t of isoNetworkTiles(buildings)) {
+    const d = isoFootprintDiamondBox(t.tx, t.ty, 1, 1, 0);
+    // Shrink the diamond toward its centre by the band fraction (roads thinner).
+    const insetX = (d.width * (1 - t.band)) / 2;
+    const insetY = (d.height * (1 - t.band)) / 2;
+    renderer.push(isoDiamondSprite(
+      d.x + insetX, d.y + insetY, d.width * t.band, d.height * t.band,
+      packTint(t.hex), LAYER_NETWORK, d.depth - 0.5,
+    ));
+  }
 }
 
 export interface GhostPreview {
@@ -284,12 +363,15 @@ export function pushGhost(
   ghost: GhostPreview | null,
   dragTiles: ReadonlyArray<{ x: number; y: number }>,
 ): void {
-  if (ghost !== null) {
-    renderer.push(quadToSprite(ghostQuad(ghost.tileX, ghost.tileY, ghost.w, ghost.h, ghost.valid), LAYER_GHOST));
-  }
-  for (const t of dragTiles) {
-    renderer.push(quadToSprite(ghostQuad(t.x, t.y, 1, 1, true), LAYER_GHOST));
-  }
+  // Iso ghost: a flat translucent diamond box over the hovered footprint. Use
+  // the logical ghostQuad only for its tint, then iso-place it.
+  const pushIso = (tileX: number, tileY: number, w: number, h: number, valid: boolean): void => {
+    const d = isoFootprintDiamondBox(tileX, tileY, w, h, 0);
+    const base = ghostQuad(tileX, tileY, w, h, valid);
+    renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, base.tintRgba, LAYER_GHOST, d.depth));
+  };
+  if (ghost !== null) pushIso(ghost.tileX, ghost.tileY, ghost.w, ghost.h, ghost.valid);
+  for (const t of dragTiles) pushIso(t.x, t.y, 1, 1, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -303,7 +385,10 @@ export function pushGhost(
  * translucent warm tint. Call inside the same begin/endFrame as `pushScene`.
  */
 export function pushLightPool(renderer: RendererLike, quads: readonly QuadSpec[]): void {
-  for (const q of quads) renderer.push(quadToSprite(q, LAYER_LIGHT_POOL));
+  for (const q of quads) {
+    const box = isoProjectTilePxBox(q.x, q.y, q.width, q.height, TILE_SIZE);
+    renderer.push(quadToSprite({ x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: q.tintRgba }, LAYER_LIGHT_POOL));
+  }
 }
 
 /**
@@ -312,5 +397,8 @@ export function pushLightPool(renderer: RendererLike, quads: readonly QuadSpec[]
  * `CitadelAmbientCrowd.quads()`.
  */
 export function pushAmbientCrowd(renderer: RendererLike, quads: readonly QuadSpec[]): void {
-  for (const q of quads) renderer.push(quadToSprite(q, LAYER_AMBIENT_CROWD));
+  for (const q of quads) {
+    const box = isoProjectTilePxBox(q.x, q.y, q.width, q.height, TILE_SIZE);
+    renderer.push(quadToSprite({ x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: q.tintRgba }, LAYER_AMBIENT_CROWD));
+  }
 }

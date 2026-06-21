@@ -22,10 +22,15 @@ import {
   screenToTile,
   WORLD_PX_W,
   WORLD_PX_H,
+  tileCenterToIso,
+  ISO_TILE_W,
+  ISO_WORLD_W,
+  ISO_WORLD_H,
   type CameraTransform,
   autotileQuads,
   neighbourMask,
   networkQuads,
+  isoNetworkTiles,
   tileKey,
   DIR_N,
   DIR_E,
@@ -233,25 +238,23 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
     expect(back.worldY).toBeCloseTo(worldY, 6);
   });
 
-  it("round-trips a tile center back to its tile", () => {
+  it("round-trips an ISO tile center back to its tile (the placement pick path)", () => {
     for (const [tileX, tileY] of [[0, 0], [12, 47], [95, 95], [48, 48]] as const) {
-      const centerWorldX = (tileX + 0.5) * TILE_SIZE;
-      const centerWorldY = (tileY + 0.5) * TILE_SIZE;
-      const { sx, sy } = worldToScreen(transform, centerWorldX, centerWorldY);
+      const c = tileCenterToIso(tileX, tileY); // iso world-px of the diamond centre
+      const { sx, sy } = worldToScreen(transform, c.x, c.y);
       const { tx, ty } = screenToTile(transform, sx, sy);
       expect([tx, ty]).toEqual([tileX, tileY]);
     }
   });
 
-  it("respects pan: shifting centerX shifts which tile a fixed screen point hits", () => {
+  it("respects pan: panning the iso camera shifts which tile a fixed screen point hits", () => {
     const mid = { sx: 400, sy: 400 };
     const atCenter = screenToTile(transform, mid.sx, mid.sy);
-    const panned: CameraTransform = { ...transform, centerX: transform.centerX + 10 * TILE_SIZE };
+    // Pan the camera by one tile's worth of +X iso world-px (= one diamond step
+    // along the tileX-minus-tileY axis): the picked tile must change.
+    const panned: CameraTransform = { ...transform, centerX: transform.centerX + ISO_TILE_W };
     const afterPan = screenToTile(panned, mid.sx, mid.sy);
-    // Panning the camera +10 tiles right means the screen-center now sits 10
-    // tiles further right in the world.
-    expect(afterPan.tx).toBe(atCenter.tx + 10);
-    expect(afterPan.ty).toBe(atCenter.ty);
+    expect([afterPan.tx, afterPan.ty]).not.toEqual([atCenter.tx, atCenter.ty]);
   });
 
   it("respects zoom: a zoomed-in view maps the same screen span to fewer tiles", () => {
@@ -263,9 +266,9 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
     expect(b.worldX).toBeGreaterThan(a.worldX);
   });
 
-  it("world dimensions are the expected 96x96 tiles", () => {
-    expect(WORLD_PX_W).toBe(WORLD_WIDTH * TILE_SIZE);
-    expect(WORLD_PX_H).toBe(WORLD_HEIGHT * TILE_SIZE);
+  it("world dimensions are the iso world extents", () => {
+    expect(WORLD_PX_W).toBe(ISO_WORLD_W);
+    expect(WORLD_PX_H).toBe(ISO_WORLD_H);
   });
 });
 
@@ -412,6 +415,26 @@ describe("networkQuads", () => {
     const q = networkQuads(buildings);
     // Road at (2,2) should NOT have an East arm (its E neighbour is a wall).
     expect(hasArm(q, 2, 2, DIR_E)).toBe(false);
+  });
+});
+
+describe("isoNetworkTiles (iso diamond road/wall tiles)", () => {
+  it("emits one tile per road/wall cell with the right band; gates excluded", () => {
+    const buildings: BuildingSnapshot[] = [
+      building({ type: "road", x: 2, y: 2, w: 2, h: 1 }), // 2 road cells
+      building({ type: "wall", x: 5, y: 5, w: 1, h: 1 }), // 1 wall cell
+      building({ type: "gate", x: 5, y: 6, w: 1, h: 1 }), // excluded (drawn by buildingQuad)
+      building({ type: "house", x: 9, y: 9, w: 1, h: 1 }), // not a network type
+    ];
+    const tiles = isoNetworkTiles(buildings);
+    expect(tiles).toHaveLength(3); // 2 road + 1 wall
+    const roads = tiles.filter((t) => t.band < 0.7);
+    const walls = tiles.filter((t) => t.band >= 0.7);
+    expect(roads).toHaveLength(2);
+    expect(walls).toHaveLength(1);
+    // No gate/house tiles leak in.
+    expect(tiles.some((t) => t.tx === 5 && t.ty === 6)).toBe(false);
+    expect(tiles.some((t) => t.tx === 9 && t.ty === 9)).toBe(false);
   });
 });
 

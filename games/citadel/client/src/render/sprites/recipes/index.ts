@@ -7,12 +7,14 @@
 import type { PixelRecipe } from "../types";
 import { BUILDING_RECIPES } from "./buildings";
 import { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER } from "./units";
+import { FX_RECIPES, FRAME_DIAMOND } from "./fx";
 
 export { BUILDING_RECIPES } from "./buildings";
 export { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER } from "./units";
+export { FRAME_DIAMOND } from "./fx";
 
-/** Every recipe baked into the runtime atlas (buildings + units). */
-export const ALL_RECIPES: readonly PixelRecipe[] = [...BUILDING_RECIPES, ...UNIT_RECIPES];
+/** Every recipe baked into the runtime atlas (buildings + units + fx). */
+export const ALL_RECIPES: readonly PixelRecipe[] = [...BUILDING_RECIPES, ...UNIT_RECIPES, ...FX_RECIPES];
 
 /** The frame-name prefix for building sprites. */
 export const BUILDING_FRAME_PREFIX = "bld/";

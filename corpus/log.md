@@ -4,6 +4,45 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] plan | Citadel true-isometric epic — brief filed (render+art, sim untouched)
+
+Decided to convert Citadel from top-down axis-aligned to a **true isometric
+(diamond-grid) projection**. Scoped as a staged brief
+([todos/2026-06-21-citadel-true-isometric.md](todos/2026-06-21-citadel-true-isometric.md))
+*before* any code, per the CLAUDE.md workflow — a partial projection swap breaks
+placement (ghost/drag/click) for every player, so it must not land half-done.
+
+Key framing: this is a **render + input + art** epic fully inside `@citadel/client`.
+`@citadel/sim-core` is untouched — the world stays an axis-aligned tile grid, iso is a
+*display* of it; determinism is unaffected (all downstream of the RenderSnapshot), and
+`CHECK_DETERMINISM=1` should stay byte-identical (the proof the sim wasn't touched).
+Cost split ≈ **70% art, 30% code**; the two risk centres are the `screenToTile`
+*inverse* (powers all placement/selection) and the volume of sprite re-authoring.
+Five stages, each independently shippable+tested: (1) iso projection+inverse in
+`transform.ts`, (2) renderer CPU pre-projection + painter's-order depth sort, (3) iso
+terrain bake + diamond render-window cull, (4) **re-author the sprite library at the
+iso angle** (the bulk), (5) autotile/cluster iso geometry. Convention to lock first:
+**2:1 dimetric** (integer-friendly, keeps `pixelSnap` crisp) over true 30°. Rejected
+"Option C" (3D camera) — this is iso 2.5D, not 3D.
+
+## [2026-06-21] render | Citadel visual polish — terrain relief, building shadows, dusk wash, asset detail
+
+Borrowed specific visual ideas from `tiny-world-builder` (a Three.js voxel toy) into
+Citadel's existing 2D WebGPU pipeline — render-only, deterministic, EDG32-clean,
+no sim change. Four landed: **(1)** `elevationField` value-noise in
+[terrain-dither.ts](../games/citadel/client/src/render/terrain-dither.ts) biases the
+sub-tile dither light/dark mix by coarse elevation (sun-lit highs lighter, valleys
+darker) — a 2D echo of iso height-strata, baked → zero per-frame cost. **(2)**
+`buildingShadowQuad` in [quads.ts](../games/citadel/client/src/render/quads.ts) casts a
+soft SE-offset ink shadow (fake NW sun) on a new `LAYER_SHADOW` below buildings; flat
+features (road/wall/gate) cast none. **(3)** Deepened night + stronger golden-hour dusk
+in [atmosphere.ts](../games/citadel/client/src/render/atmosphere.ts). **(4)** Asset
+detail in the shared generators ([sprites/recipes/draw.ts](../games/citadel/client/src/render/sprites/recipes/draw.ts)):
+roof shingle striations, wall masonry/timber seams, ground-contact corner shadow,
+stone doorstep, fort ashlar courses — flows through all ~20 building recipes at once.
+All 160 `@citadel/client` tests + the palette guard green. Not yet eyeballed in
+`npm run citadel`. These carry over conceptually into the iso epic above.
+
 ## [2026-06-21] fix | Citadel first real-GPU playtest — 3 solo-blocking playability bugs fixed
 
 First time Citadel was driven on a host with a working GPU (prior reviews were

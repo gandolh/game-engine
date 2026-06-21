@@ -124,8 +124,13 @@ export const QUAD_ATLAS_ID = "citadel-quads";
 /** The single frame name in that atlas. */
 export const QUAD_FRAME = "px";
 
-/** Build the Sprite the sprite-batch consumes from a QuadSpec + layer. */
-export function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSprite {
+/**
+ * Build the Sprite the sprite-batch consumes from a QuadSpec + layer. `sortY`
+ * (optional) overrides the within-layer painter's-order key — for isometric we
+ * set it to the iso depth so entities on the same layer occlude back-to-front
+ * regardless of their (already-projected) screen Y.
+ */
+export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: number): Canvas2dSprite {
   return {
     atlasId: QUAD_ATLAS_ID,
     frame: q.frame ?? QUAD_FRAME,
@@ -137,6 +142,7 @@ export function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSpr
     layer,
     alpha,
     tintRgba: q.tintRgba,
+    ...(sortY !== undefined ? { sortY } : {}),
   };
 }
 

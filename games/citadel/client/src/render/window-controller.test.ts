@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { RendererLike, StaticRegion, DecorateFn, Sprite } from "@engine/core";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TILE_SIZE } from "@citadel/sim-core";
+import { ISO_WORLD_W, ISO_WORLD_H } from "./iso";
 import {
   RenderWindowController,
   windowRegion,
@@ -75,7 +76,9 @@ describe("RenderWindowController — small world (whole-world bake)", () => {
 
     ctrl.bakeInitial(cam(768, 768, 1536, 1536));
     expect(bakes).toHaveLength(1);
-    expect(bakes[0]).toEqual({ worldWidth: 96 * 16, worldHeight: 96 * 16, region: undefined });
+    // Iso: the whole-world bake uses the ISO-world-sized texture (diamonds),
+    // not the axis-aligned 96·16 grid.
+    expect(bakes[0]).toEqual({ worldWidth: ISO_WORLD_W, worldHeight: ISO_WORLD_H, region: undefined });
 
     // Panning never re-bakes a whole-world map.
     expect(ctrl.update(cam(100, 100, 400, 400))).toBe(false);

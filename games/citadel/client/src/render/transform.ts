@@ -6,13 +6,17 @@
  * owns WORLD_PX_W / WORLD_PX_H since they're consumed here and by the renderer.
  */
 import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "@engine/core";
-import { TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
+import { ISO_WORLD_W, ISO_WORLD_H, isoToTile } from "./iso";
 
 // ---------------------------------------------------------------------------
 // World px dimensions
 // ---------------------------------------------------------------------------
-export const WORLD_PX_W = WORLD_WIDTH * TILE_SIZE;
-export const WORLD_PX_H = WORLD_HEIGHT * TILE_SIZE;
+// Citadel renders ISOMETRIC: the engine's linear Camera2D pans/zooms the *iso
+// world-px* space (a diamond), so the world dims the camera frames are the iso
+// world dims, not the axis-aligned tile grid. `screenToWorld` therefore returns
+// iso world-px, and `screenToTile` inverts the iso projection (see iso.ts).
+export const WORLD_PX_W = ISO_WORLD_W;
+export const WORLD_PX_H = ISO_WORLD_H;
 
 // ---------------------------------------------------------------------------
 // Camera transform snapshot
@@ -66,10 +70,15 @@ export function screenToWorld(t: CameraTransform, screenX: number, screenY: numb
   };
 }
 
-/** Convert a screen-space point (device px) to integer tile coords. */
+/**
+ * Convert a screen-space point (device px) to integer tile coords. `screenToWorld`
+ * yields ISO world-px (the space the camera frames); `isoToTile` inverts the
+ * diamond projection to the tile under the cursor. This is the placement /
+ * ghost / drag-paint / click-select pick path.
+ */
 export function screenToTile(t: CameraTransform, screenX: number, screenY: number): { tx: number; ty: number } {
   const { worldX, worldY } = screenToWorld(t, screenX, screenY);
-  return { tx: Math.floor(worldX / TILE_SIZE), ty: Math.floor(worldY / TILE_SIZE) };
+  return isoToTile(worldX, worldY);
 }
 
 /**

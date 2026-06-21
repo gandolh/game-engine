@@ -147,5 +147,38 @@ export function networkQuads(buildings: readonly BuildingSnapshot[]): QuadSpec[]
   return quads;
 }
 
+/**
+ * Iso road/wall tiles: the connected road + wall network as a flat list of
+ * `(tx, ty, hex, band)` tiles for the ISO renderer, which draws each as a
+ * diamond filling (a fraction of) its tile. Adjacent same-network diamonds abut,
+ * so a run reads continuous without explicit arm geometry — the autotile mask is
+ * no longer needed once tiles are diamonds. Gates keep their distinct
+ * `buildingQuad` draw (and so are excluded here, as before). Pure.
+ */
+export interface IsoNetworkTile {
+  tx: number;
+  ty: number;
+  hex: string;
+  /** Diamond inset fraction (roads thinner than walls), matching the old bands. */
+  band: number;
+}
+
+export function isoNetworkTiles(buildings: readonly BuildingSnapshot[]): IsoNetworkTile[] {
+  const roadHex = BUILDING_COLORS.road ?? FALLBACK_BUILDING_COLOR;
+  const wallHex = BUILDING_COLORS.wall ?? FALLBACK_BUILDING_COLOR;
+  const out: IsoNetworkTile[] = [];
+  for (const b of buildings) {
+    const hex = b.type === "road" ? roadHex : b.type === "wall" ? wallHex : null;
+    if (hex === null) continue;
+    const band = b.type === "road" ? ROAD_BAND : WALL_BAND;
+    for (let dy = 0; dy < b.h; dy++) {
+      for (let dx = 0; dx < b.w; dx++) {
+        out.push({ tx: b.x + dx, ty: b.y + dy, hex, band });
+      }
+    }
+  }
+  return out;
+}
+
 /** Re-export LAYER_NETWORK so citadel-renderer.ts can push network quads. */
 export { LAYER_NETWORK };

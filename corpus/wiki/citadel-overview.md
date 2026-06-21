@@ -68,6 +68,22 @@ pack are pure (deterministic, headlessly tested); only the canvas/`createImageBi
 step is browser-only. **Phase 2 (not done):** textured terrain tiles, road/wall autotile
 sprites, a gate sprite, MP owner-color differentiation.
 
+**Visual polish (2026-06-21).** Render-only ideas borrowed from `tiny-world-builder`:
+elevation-biased terrain dither, a directional NW-sun building drop-shadow
+(`LAYER_SHADOW`), a deeper-night/stronger-dusk wash, and extra procedural detail in the
+sprite generators (roof shingles, wall seams, doorstep, fort ashlar courses). All
+render-only, EDG32-clean, sim untouched. See the 2026-06-21 log entry.
+
+**PLANNED — true isometric (render+art epic).** A staged brief
+([../todos/2026-06-21-citadel-true-isometric.md](../todos/2026-06-21-citadel-true-isometric.md))
+scopes converting Citadel to a true isometric (2:1 dimetric diamond-grid) projection.
+It is **render + input + art only — `@citadel/sim-core` and determinism are
+untouched** (iso is a *display* of the existing axis-aligned tile grid). Cost ≈ 70%
+art (re-authoring the top-down sprite library at the iso angle) / 30% code (the
+`screenToTile` inverse in `transform.ts` + painter's-order depth sort are the risk
+centres). Must not land half-done — a partial projection swap breaks placement. The
+sprite library described above is still **top-down**; Stage 4 re-authors it.
+
 ## Briefs & todos
 
 There is no Farm-Valley-style "done brief" archive for Citadel yet; work is tracked as todos. See [briefs/citadel-apr.md](../briefs/citadel-apr.md) and the `corpus/todos/*citadel-*` files (e.g. the `citadel-00-BUILD-ORDER` epic and the 21–33 series: windowed-grid render, incremental build queue, PlayerState refactor, territory/influence, PvP armies, per-player PvE). Fold durable Citadel findings into this page as the design settles.

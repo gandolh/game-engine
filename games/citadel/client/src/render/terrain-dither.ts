@@ -15,6 +15,7 @@ import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TERRAIN_COLORS } from "./quads";
 import type { TileWindow } from "./render-window";
+import { tileDiamond, tileCenterToIso, ISO_HW, ISO_HH } from "./iso";
 
 // ---------------------------------------------------------------------------
 // makeTerrainDecorate (static-layer bake callback)
@@ -41,16 +42,41 @@ export function makeTerrainDecorate(
   const maxTx = window ? Math.min(grid.width - 1, window.maxTx) : grid.width - 1;
   const maxTy = window ? Math.min(grid.height - 1, window.maxTy) : grid.height - 1;
   return (ctx: Ctx2D): void => {
+    // Paint each terrain cell as an ISO DIAMOND at its projected position, back
+    // (top) to front (bottom) so a tiny diamond-edge overlap covers seams. The
+    // bake canvas is the iso-world-px texture (origin 0,0), so tileToIso coords
+    // land directly. Render-only; the elevation field now drives a small real
+    // height lift for relief.
     for (let ty = minTy; ty <= maxTy; ty++) {
       for (let tx = minTx; tx <= maxTx; tx++) {
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
+        const elev = elevationField(tx, ty); // [0,1]
+        // Lift up to one height-step on the highest ground for subtle relief.
+        const lift = Math.round(elev * 1);
+        const [top, right, bottom, left] = tileDiamond(tx, ty, lift) as [
+          { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
+        ];
         ctx.fillStyle = TERRAIN_COLORS[t] ?? EDG.green;
-        ctx.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        // Sub-tile dither (brief 13): deterministic darker/lighter clusters so
-        // same-type cells don't look stamped. Baked — zero per-frame cost.
+        ctx.beginPath();
+        ctx.moveTo(top.x, top.y);
+        ctx.lineTo(right.x, right.y);
+        ctx.lineTo(bottom.x, bottom.y);
+        ctx.lineTo(left.x, left.y);
+        ctx.closePath();
+        ctx.fill();
+        // Sub-tile dither: place the deterministic clusters around the diamond
+        // centre (kept inside the diamond by scaling their tile-space offset to
+        // the diamond's half extents).
+        const c0 = tileCenterToIso(tx, ty, lift);
         for (const c of ditherClusters(tx, ty, t)) {
+          // Map the cluster's in-tile (x,y)∈[0,TILE_SIZE) to a diamond-local
+          // offset: shrink toward centre so specks stay on the diamond face.
+          const fx = (c.x + c.size / 2) / TILE_SIZE - 0.5; // [-0.5,0.5]
+          const fy = (c.y + c.size / 2) / TILE_SIZE - 0.5;
+          const px = c0.x + fx * ISO_HW;
+          const py = c0.y + fy * ISO_HH;
           ctx.fillStyle = c.hex;
-          ctx.fillRect(tx * TILE_SIZE + c.x, ty * TILE_SIZE + c.y, c.size, c.size);
+          ctx.fillRect(Math.round(px), Math.round(py), c.size, c.size);
         }
       }
     }
