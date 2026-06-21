@@ -130,13 +130,21 @@ export const QUAD_FRAME = "px";
  * (optional) overrides the within-layer painter's-order key — for isometric we
  * set it to the iso depth so entities on the same layer occlude back-to-front
  * regardless of their (already-projected) screen Y.
+ *
+ * Coordinate convention bridge: a `QuadSpec` (like every iso box helper) is a
+ * TOP-LEFT rect (x,y = top-left, +width/height down-right), but the engine
+ * sprite-batch anchors sprites by their CENTRE (both backends draw `pos ±
+ * 0.5·size` — see sprite.wgsl / canvas2d draw.ts). So we convert here by adding
+ * half-extents; without this every iso sprite renders shifted up-left by half
+ * its size (buildings float off their footprint, the ghost sits left of the
+ * cursor).
  */
 export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: number): Canvas2dSprite {
   return {
     atlasId: QUAD_ATLAS_ID,
     frame: q.frame ?? QUAD_FRAME,
-    x: q.x,
-    y: q.y,
+    x: q.x + q.width / 2,
+    y: q.y + q.height / 2,
     width: q.width,
     height: q.height,
     rotation: 0,

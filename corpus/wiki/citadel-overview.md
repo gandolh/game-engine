@@ -84,7 +84,23 @@ at 32-based resolution + 32×32 units. The single source of truth is
 `isoToTile`, `isoFootprintBox`, `isoSpriteDims`, `isoDepth`). **Sim + determinism
 untouched** — iso is a pure render/input/art change; `CHECK_DETERMINISM` stays
 byte-identical. Verified in-browser; 174 client tests + iso-volume guard + EDG32
-guard green. Brief:
+guard green.
+
+> ⚠️ **Sprite anchor convention (load-bearing).** The engine sprite-batch anchors
+> every sprite by its **CENTRE** (both backends draw `pos ± 0.5·size`). The iso
+> helpers in `iso.ts` return **top-left** rects, so the conversion to a sprite must
+> add half-extents — this happens in exactly two choke points, `quadToSprite` and
+> `isoFlatSprite`. Skipping it shifts every iso sprite up-left by half its size
+> (ghost lands left of the cursor, buildings float off their footprint). Relatedly
+> `isoSpriteDims.height` is `roofH + wallH + diaH/2` (not full `diaH`) because
+> `iso-draw.ts` centres the ground diamond on the wall-bottom mid-line. (Both fixed
+> 2026-06-21; see log.) **Terrain is baked FLAT** (elevation 0) — a former 0/1-step
+> relief lift in `makeTerrainDecorate` desynced the ground from the (flat) sprites,
+> roads/bridges, and `isoToTile` pick, floating bridges off the water grid and
+> opening dark seams; the elevation field now only tints the dither, never offsets
+> geometry. Keep terrain, sprites, network tiles, and the pick all at elevation 0.
+
+Brief:
 [../todos/2026-06-21-citadel-true-isometric.md](../todos/2026-06-21-citadel-true-isometric.md)
 (`mostly-done`). **Open anomaly:** a subset of building types
 (market/storehouse/bakery/woodcutter) intermittently render as a flat box on the

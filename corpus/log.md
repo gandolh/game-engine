@@ -4,6 +4,46 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] render | Citadel iso sprites — fixed up-left offset (engine anchors sprites by CENTRE) + building float
+
+Two render bugs from the true-iso conversion, both browser-confirmed via Playwright
+and fixed:
+
+1. **Up-left offset (ghost sat left of cursor, buildings floated off their footprint).**
+   Root cause: the engine sprite-batch anchors every sprite by its **CENTRE** — both
+   backends draw `pos ± 0.5·size` ([sprite.wgsl](../engine/core/src/render/webgpu/shaders/sprite.wgsl)
+   vs `drawImage(x − w/2, y − h/2, …)` in [canvas2d/draw.ts](../engine/core/src/render/canvas2d/draw.ts);
+   `spritesOverlap` agrees). But **every** Citadel iso helper (`isoFootprintBox`,
+   `isoFootprintDiamondBox`, `isoPointBox`, `isoProjectTilePxBox`) returns a **top-left**
+   rect, passed straight through `quadToSprite`/`isoFlatSprite`. So each sprite drew
+   shifted up-left by half its own size; taller buildings shifted more than their
+   (flat) shadow diamond → the float/gap. Pick was never wrong (verified: picked-tile
+   centres round-trip to the cursor within a few px). Fix = add half-extents at the two
+   rect→sprite choke points only (`quadToSprite`, `isoFlatSprite`); the pure iso math
+   stays top-left (its tests untouched). Farm already passes centres (`x: tile*TILE + TILE/2`),
+   confirming the engine convention — the fix belongs in Citadel's conversion layer, not the engine.
+2. **Blank band under buildings.** `isoSpriteDims.height` budgeted a full `diaH` below
+   the walls, but `iso-draw.ts` centres the ground diamond on the wall-bottom mid-line
+   (`yBotMid`), so only its lower half sits below the walls → a blank `diaH/2` band that
+   `isoFootprintBox` pinned to the diamond bottom and floated the art. Fix = `height =
+   roofH + wallH + diaH/2`. Both fixes are needed (centring alone still floats via the band).
+
+Also fixed an HTML layout bug: the full-window build menu was clipped because `#canvas`
+(`flex:1`) lacked `min-height:0` (its `auto` min-height = intrinsic backing-store height
+grew past `100vh` under `overflow:hidden`).
+
+3. **Terrain elevation lift desynced roads/bridges from the grid.** `makeTerrainDecorate`
+   baked each diamond at a 0/1-step relief *lift* (`Math.round(elevationField)`), but every
+   sprite, the road/bridge network, and the `isoToTile` pick live at elevation 0 — so on
+   lifted tiles the ground floated 8px above its own bridge/road and opened dark seams at
+   elevation steps (a bridge visibly offset from the water grid). Fix = bake terrain FLAT
+   (drop the geometric lift); the elevation field still tints the dither (light highs / dark
+   valleys) for a flat-2D sense of relief, just no offset. Citadel tiles are flat
+   gameplay-wise and the pick can't cheaply account for per-tile height, so flat-everywhere
+   is the consistent choice. Browser-confirmed: seams gone, bridge sits on the water grid.
+
+164 client render tests + typecheck green.
+
 ## [2026-06-21] game+render | Citadel bridges — roads over water transform into non-overlapping bridges
 
 A road dragged onto a Water tile now auto-converts to a new `bridge` building

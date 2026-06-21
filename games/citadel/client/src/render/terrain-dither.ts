@@ -45,15 +45,20 @@ export function makeTerrainDecorate(
     // Paint each terrain cell as an ISO DIAMOND at its projected position, back
     // (top) to front (bottom) so a tiny diamond-edge overlap covers seams. The
     // bake canvas is the iso-world-px texture (origin 0,0), so tileToIso coords
-    // land directly. Render-only; the elevation field now drives a small real
-    // height lift for relief.
+    // land directly. Render-only.
+    //
+    // Tiles are baked FLAT (elevation 0). Citadel's tiles are flat gameplay-wise
+    // and everything else — buildings, roads/bridges, the ghost, and the
+    // `isoToTile` pick — lives at elevation 0, so a per-tile relief LIFT here
+    // (which we used to apply) desynced the ground from all of them: lifted tiles
+    // floated a road/bridge below their own terrain and opened dark seams at
+    // elevation steps. The elevation field still tints the dither (light highs /
+    // dark valleys, computed inside `ditherClusters`) for a flat-2D sense of
+    // relief — just no geometric offset.
     for (let ty = minTy; ty <= maxTy; ty++) {
       for (let tx = minTx; tx <= maxTx; tx++) {
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
-        const elev = elevationField(tx, ty); // [0,1]
-        // Lift up to one height-step on the highest ground for subtle relief.
-        const lift = Math.round(elev * 1);
-        const [top, right, bottom, left] = tileDiamond(tx, ty, lift) as [
+        const [top, right, bottom, left] = tileDiamond(tx, ty) as [
           { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
         ];
         ctx.fillStyle = TERRAIN_COLORS[t] ?? EDG.green;
@@ -67,7 +72,7 @@ export function makeTerrainDecorate(
         // Sub-tile dither: place the deterministic clusters around the diamond
         // centre (kept inside the diamond by scaling their tile-space offset to
         // the diamond's half extents).
-        const c0 = tileCenterToIso(tx, ty, lift);
+        const c0 = tileCenterToIso(tx, ty);
         for (const c of ditherClusters(tx, ty, t)) {
           // Map the cluster's in-tile (x,y)∈[0,TILE_SIZE) to a diamond-local
           // offset: shrink toward centre so specks stay on the diamond face.

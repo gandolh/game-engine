@@ -254,9 +254,14 @@ function isoDiamondSprite(x: number, y: number, width: number, height: number, t
 }
 
 /** Like `isoDiamondSprite` but stamps an arbitrary flat frame (cobble road /
- *  plank bridge / plain diamond) — same iso-flat ground-plane placement. */
+ *  plank bridge / plain diamond) — same iso-flat ground-plane placement.
+ *
+ *  `x,y` arrive as the TOP-LEFT of the iso box (every iso helper returns
+ *  top-left); the engine sprite-batch anchors by CENTRE, so we add half-extents
+ *  here — mirroring `quadToSprite`. Skipping this shifts the diamond up-left by
+ *  half its size (the ghost/shadow then sit off the cursor / building base). */
 function isoFlatSprite(x: number, y: number, width: number, height: number, frame: string, tintRgba: number, layer: number, sortY: number): Canvas2dSprite {
-  return { atlasId: QUAD_ATLAS_ID, frame, x, y, width, height, rotation: 0, layer, alpha: 1, tintRgba, sortY };
+  return { atlasId: QUAD_ATLAS_ID, frame, x: x + width / 2, y: y + height / 2, width, height, rotation: 0, layer, alpha: 1, tintRgba, sortY };
 }
 
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
