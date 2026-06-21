@@ -1,6 +1,8 @@
 // Ambient typing for import.meta.env and import.meta.url in Worker construction.
 interface ImportMetaEnv {
   readonly BASE_URL: string;
+  /** Vite dev-mode flag — true under `vite dev`, false in a production build. */
+  readonly DEV: boolean;
 }
 
 interface ImportMeta {

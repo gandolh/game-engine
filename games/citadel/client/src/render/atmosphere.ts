@@ -83,13 +83,21 @@ const SEASON_WASH: Record<string, SeasonWash> = {
 
 const FALLBACK_SEASON_WASH: SeasonWash = { dayColor: EDG.skyBlue, dayAlpha: 0.05 };
 
-/** Night tint: deep ink-navy, alpha scales with night factor. */
+/**
+ * Night tint: deep ink-navy, alpha scales with night factor. Deepened slightly
+ * (0.55 → 0.60) so deep night reads cooler/darker — closer to the strong
+ * day→night contrast that sells tiny-world-builder's atmosphere.
+ */
 const NIGHT_COLOR = EDG.ink;
-const NIGHT_MAX_ALPHA = 0.55;
+const NIGHT_MAX_ALPHA = 0.6;
 
-/** Dusk/dawn warm accent: peaks at the day→night transition bands. */
+/**
+ * Dusk/dawn warm accent: peaks at the day→night transition bands. Strengthened
+ * (0.18 → 0.24) so the golden-hour wash is more pronounced — the low warm sun is
+ * the single most recognisable beat of tiny-world-builder's look.
+ */
 const DUSK_COLOR = EDG.orange;
-const DUSK_MAX_ALPHA = 0.18;
+const DUSK_MAX_ALPHA = 0.24;
 
 /**
  * Strength of the warm dusk accent over the day fraction. Peaks around dawn

@@ -513,6 +513,17 @@ const client: CitadelSimClient | CitadelServerClient = useServer
   ? new CitadelServerClient()
   : new CitadelSimClient();
 
+// Dev-only test hook: lets an automated harness (Playwright) drive the same
+// command channel the UI uses, for deterministic end-to-end validation. Guarded
+// by import.meta.env.DEV so it never ships in a production build.
+if (import.meta.env.DEV) {
+  (window as unknown as { __citadel?: unknown }).__citadel = {
+    send: (cmd: unknown) => client.sendCommand(cmd as never),
+    terrain: () => terrain,
+    buildings: () => currentBuildings,
+  };
+}
+
 let paused = false;
 let day = 1;
 let tick = 0;            // render-side mirror of snap.tick (for the day/night wash)
@@ -552,9 +563,18 @@ btnPause.addEventListener("click", () => {
   }
   paused = !paused;
 });
-btn1x.addEventListener("click", () => client.setSpeed(1));
-btn2x.addEventListener("click", () => client.setSpeed(2));
-btn4x.addEventListener("click", () => client.setSpeed(4));
+/** Picking a speed also resumes if paused (standard city-builder behaviour). */
+function setSpeedAndResume(n: number): void {
+  client.setSpeed(n);
+  if (paused) {
+    client.resume();
+    btnPause.textContent = "Pause";
+    paused = false;
+  }
+}
+btn1x.addEventListener("click", () => setSpeedAndResume(1));
+btn2x.addEventListener("click", () => setSpeedAndResume(2));
+btn4x.addEventListener("click", () => setSpeedAndResume(4));
 
 // ---------------------------------------------------------------------------
 // Brief 25: Settings modal — tabbed (Display / Atmosphere / Simulation),

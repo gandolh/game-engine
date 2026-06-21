@@ -42,6 +42,7 @@ import {
   QUAD_FRAME,
   quadToSprite,
   buildingQuad,
+  buildingShadowQuad,
   villagerQuad,
   raiderQuad,
   ghostQuad,
@@ -69,6 +70,7 @@ import { WORLD_PX_W, WORLD_PX_H } from "./transform";
 
 // Sprite layers — higher draws on top. Terrain is the baked static layer
 // (below everything); these stack buildings < villagers < raiders < ghost.
+const LAYER_SHADOW = 8;
 const LAYER_BUILDING = 10;
 const LAYER_VILLAGER = 20;
 const LAYER_RAIDER = 30;
@@ -205,6 +207,10 @@ export interface SceneFx {
 
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
 function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx): void {
+  // Directional ground shadow (faked NW sun) first, so it lands under the
+  // sprite. Flat features (road/wall/gate) return null and cast nothing.
+  const shadow = buildingShadowQuad(b);
+  if (shadow !== null) renderer.push(quadToSprite(shadow, LAYER_SHADOW));
   const base = buildingQuad(b);
   if (fx?.building !== undefined) {
     const { quad, alpha } = fx.building(b, base);

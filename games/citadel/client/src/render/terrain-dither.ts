@@ -74,6 +74,48 @@ export function ditherHash(tx: number, ty: number, type: number): number {
   return h >>> 0;
 }
 
+// ---------------------------------------------------------------------------
+// Coarse elevation relief (idea ported from tiny-world-builder's height strata)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cheap value-noise sample in [0,1] at a continuous (x, y). Pure — same
+ * `ditherHash` corner hashes bilinearly blended with a smoothstep, so it has no
+ * dependency on the sim, no RNG, and is identical every call. Used only as a
+ * render decoration (see `elevationField`).
+ */
+function valueNoise(x: number, y: number): number {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  // smoothstep weights for cr-soft interpolation between cell corners.
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  // Corner hashes → [0,1). Reuse ditherHash (type arg fixed) for the corners.
+  const c00 = ditherHash(x0, y0, 0) / 0xffffffff;
+  const c10 = ditherHash(x0 + 1, y0, 0) / 0xffffffff;
+  const c01 = ditherHash(x0, y0 + 1, 0) / 0xffffffff;
+  const c11 = ditherHash(x0 + 1, y0 + 1, 0) / 0xffffffff;
+  const top = c00 + (c10 - c00) * sx;
+  const bot = c01 + (c11 - c01) * sx;
+  return top + (bot - top) * sy;
+}
+
+/**
+ * Coarse elevation field in [0,1] for a terrain cell: a low-frequency
+ * `valueNoise` sample so neighbouring cells share a smooth "height". The
+ * `ELEVATION_SCALE` divisor sets the wavelength — smaller = broader hills.
+ * 0 ≈ shaded valley, 1 ≈ sun-lit high ground. Pure, render-only — never
+ * persisted, never touches the sim. Inspired by tiny-world-builder's
+ * height-strata terrain tinting, adapted to our flat 2D dither.
+ */
+export const ELEVATION_SCALE = 9;
+
+export function elevationField(tx: number, ty: number): number {
+  return valueNoise(tx / ELEVATION_SCALE, ty / ELEVATION_SCALE);
+}
+
 /** A darker + lighter EDG accent swatch per terrain type. */
 export interface DitherAccents {
   /** Darker EDG swatch hex. */
@@ -128,14 +170,22 @@ export function ditherClusters(tx: number, ty: number, type: TerrainType): Dithe
   const clusters: DitherCluster[] = [];
   // 4px sub-grid → 4 columns/rows of cells at TILE_SIZE=16, keeps stamps inset.
   const cells = TILE_SIZE / 4; // 4
+  // Coarse elevation tilts the light/dark mix: sun-lit high ground gets more
+  // light highlights, shaded low ground more dark specks — a flat-2D echo of
+  // tiny-world-builder's height-banded terrain. The threshold the per-cluster
+  // bits race against slides with elevation (high elev → low threshold → almost
+  // always light; low elev → high threshold → more dark).
+  const elev = elevationField(tx, ty); // [0,1]
+  const lightThreshold = Math.round(3 - elev * 3); // 3 (low) … 0 (high), over a 0..3 field
   for (let i = 0; i < count; i++) {
     // Each cluster consumes a fresh 8-bit slice of the hash.
     const slice = (h >>> (i * 8)) & 0xff;
     const gx = slice & 0x3; // 0..3 grid col
     const gy = (slice >>> 2) & 0x3; // 0..3 grid row
     const size = 1 + ((slice >>> 4) & 0x1); // 1..2 px
-    // Bias toward the LIGHT accent — soft highlights read gentler than dark specks.
-    const light = ((slice >>> 5) & 0x3) !== 0; // ~75% light, ~25% dark
+    // Elevation-biased light/dark choice — a 2-bit field (0..3) compared against
+    // the elevation-derived threshold. Highs skew light, valleys skew dark.
+    const light = ((slice >>> 5) & 0x3) >= lightThreshold;
     clusters.push({
       x: gx * cells,
       y: gy * cells,

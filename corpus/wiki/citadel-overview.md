@@ -23,6 +23,21 @@ Citadel obeys the same engine-level rules as Farm Valley:
 - **Determinism** via the seeded [`Rng`](../../engine/core/src/runtime/rng.ts) — no `Math.random`/`Date.now` in sim code; tick output depends only on tick count. `bootstrapSim()` stays transport-agnostic (Worker, headless).
 - **EDG32 palette** enforced by the same guard test (it now walks `engine/`, `games/`, `tools/`).
 
+## Status notes (verified 2026-06-21)
+
+First real-GPU solo playtest (prior reviews were headless): **WebGPU renders correctly**
+(terrain + sub-tile dither, building/villager sprites, HUD, day/night) and the full v1
+loop works — spaced, road-connected economy → founder → bread chain → immigration →
+stable growth (verified to Day 199). Three solo-blocking bugs were fixed (see the
+2026-06-21 log entry): Well/Healer were missing from the toolbar (the only fire/disease
+mitigation, unbuildable); placement commands were dropped while paused; speed buttons
+didn't resume. **Plan-while-paused** now works via `CitadelSimResult.applyCommands(ctx)`
+(off-tick, determinism-safe). Two gotchas remain for players (not bugs): bootstrap is
+**founding-window-gated** (place a connected economy early or deadlock), and **fire
+punishes tight clusters** by design — space buildings ~5–8 tiles and connect with roads
+(roads are firebreaks). MP-RTS live wiring holes from [todo 38](../todos/2026-06-19-citadel-38-implementation-review-problems.md)
+are still open (solo is unaffected).
+
 ## Rendering & assets
 
 Citadel is **WebGPU-only** at runtime (no Canvas2D fallback). Terrain is baked into

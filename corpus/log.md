@@ -4,6 +4,49 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] fix | Citadel first real-GPU playtest — 3 solo-blocking playability bugs fixed
+
+First time Citadel was driven on a host with a working GPU (prior reviews were
+headless — see the verification-debt note in todo 38). Opened the solo client
+(`npm run dev -w @citadel/client`, :5174) in Playwright and ran a check→fix→recheck
+loop. **WebGPU renders fine** — terrain (river/forest/stone with sub-tile dither),
+building + villager sprites, HUD, day/night all look healthy. But three bugs made the
+game effectively unplayable for a new player:
+
+1. **Well + Healer were unbuildable.** `main.ts` wires `btn-build-well`/`btn-build-healer`
+   but the buttons were **missing from `index.html`** — so the *only* fire and disease
+   mitigations couldn't be placed. The wiring silently no-ops on the missing element
+   (`if (btn !== null)`). Fix: added both buttons to the toolbar (after Trading Post).
+   They are correctly un-tier-locked (available from Hamlet).
+2. **Commands were dropped while paused.** The Worker loop did `if (paused) return;`
+   *before* `scheduler.tick()`, and commands are only drained **inside** the tick —
+   so placement while paused queued forever and never applied. A city-builder must let
+   you plan while paused. Fix: added `applyCommands(ctx)` to `CitadelSimResult`
+   ([sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts)) — runs the
+   `CommandSystem` + `RoadConnectivitySystem` only (no sim systems, no day clock); the
+   worker calls it + re-emits a snapshot when paused. **Purely additive — the normal
+   tick path is byte-identical, so determinism is untouched** (all 133 sim-core tests
+   still pass; headless runner never calls it).
+3. **Speed buttons didn't resume.** `1x/2x/4x` only called `setSpeed`; if you'd paused,
+   the sim stayed frozen. Fix: `setSpeedAndResume()` resumes if paused (standard
+   city-builder behaviour).
+
+**Bootstrap is founding-window-gated and easy to miss.** The founder villager only
+spawns while `daysSinceStart <= daysPerYear/4 + 2`; after that, immigration needs a
+food surplus that needs workers that need population — a hard deadlock if you didn't
+place a connected economy in time. Combined with the always-running clock (20 ticks/day
+≈ 1 s/day at 1×), a new player races the window. Now mitigated by plan-while-paused.
+**Fire balance is working-as-designed, not a bug:** ignition needs ≥3 wooden buildings
+within Manhattan range 4; the intended layout (cf. the headless `grow` scenario) spaces
+buildings ~5–8 tiles apart and connects them with roads (roads = firebreaks). A naive
+"place everything touching to share connectivity" layout self-immolates — but a spaced,
+road-linked town thrives indefinitely (verified to Day 199: pop stable, bread surplus,
+Fire none). New hooks: `import.meta.env.DEV`-guarded `window.__citadel` (send/terrain/
+buildings) in `main.ts` for automated harness testing only. Touched: `@citadel/client`
+(index.html, main.ts, sim-worker.ts, vite-env.d.ts) + `@citadel/sim-core`
+(sim-bootstrap.ts). typecheck + 133 sim-core + 155 client tests green. (Pre-existing,
+unrelated: `@tool/world-preview` fails typecheck on clean HEAD — missing `@webgpu/types`.)
+
 ## [2026-06-19] audit | Citadel implementation review — problems filed as todo 38
 
 Read-only review of `@citadel/sim-core` + `@citadel/client` + `@citadel/server`

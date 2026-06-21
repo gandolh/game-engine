@@ -31,10 +31,15 @@ import {
   DIR_E,
   DIR_S,
   DIR_W,
+  buildingShadowQuad,
+  SHADOW_OFFSET,
+  SHADOW_ALPHA,
   ditherHash,
   ditherClusters,
   ditherAccents,
   DITHER_ACCENTS,
+  elevationField,
+  ELEVATION_SCALE,
   type QuadSpec,
   wearFactor,
   wearOverlayQuads,
@@ -116,6 +121,23 @@ describe("buildingQuad", () => {
     const q = buildingQuad(building({ type: "mystery", x: 0, y: 0, w: 1, h: 1 }));
     expect(q.tintRgba).toBe(packTint(EDG.steel));
     expect(q.frame).toBeUndefined();
+  });
+});
+
+describe("buildingShadowQuad (directional NW-sun ground shadow)", () => {
+  it("offsets a soft ink shadow to the SE of a rising building's footprint", () => {
+    const s = buildingShadowQuad(building({ type: "house", x: 3, y: 4, w: 2, h: 2 }));
+    expect(s).not.toBeNull();
+    expect(s!.x).toBe(3 * TILE_SIZE + SHADOW_OFFSET);
+    expect(s!.y).toBe(4 * TILE_SIZE + SHADOW_OFFSET);
+    expect(s!.width).toBe(2 * TILE_SIZE);
+    expect(s!.tintRgba).toBe(packTint(EDG.ink, SHADOW_ALPHA));
+  });
+
+  it("casts no shadow for flat ground features (road, wall, gate)", () => {
+    for (const type of ["road", "wall", "gate"]) {
+      expect(buildingShadowQuad(building({ type, x: 0, y: 0, w: 1, h: 1 }))).toBeNull();
+    }
   });
 });
 
@@ -460,6 +482,57 @@ describe("ditherClusters", () => {
         }
       }
     }
+  });
+});
+
+describe("elevationField (relief, ported from tiny-world-builder strata)", () => {
+  it("is deterministic and stays in [0,1]", () => {
+    for (let i = 0; i < 60; i++) {
+      const a = elevationField(i, i * 2);
+      const b = elevationField(i, i * 2);
+      expect(b).toBe(a);
+      expect(a).toBeGreaterThanOrEqual(0);
+      expect(a).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("varies smoothly: adjacent cells differ less than far-apart cells (on average)", () => {
+    let adjacentDelta = 0;
+    let farDelta = 0;
+    for (let i = 0; i < 40; i++) {
+      adjacentDelta += Math.abs(elevationField(i, 5) - elevationField(i + 1, 5));
+      farDelta += Math.abs(elevationField(i, 5) - elevationField(i + ELEVATION_SCALE, 5));
+    }
+    expect(adjacentDelta).toBeLessThan(farDelta);
+  });
+
+  it("biases the dither light/dark mix by elevation: highs skew lighter than valleys", () => {
+    // Find a clearly-high and a clearly-low cell, then compare light-speck share.
+    const lightShare = (tx: number, ty: number): number => {
+      const cs = ditherClusters(tx, ty, TerrainType.Grass);
+      const lightHex = ditherAccents(TerrainType.Grass).light;
+      return cs.filter((c) => c.hex === lightHex).length / cs.length;
+    };
+    let highShare = 0;
+    let lowShare = 0;
+    let n = 0;
+    for (let tx = 0; tx < 60; tx++) {
+      for (let ty = 0; ty < 4; ty++) {
+        const e = elevationField(tx, ty);
+        if (e > 0.7) { highShare += lightShare(tx, ty); n++; }
+      }
+    }
+    let m = 0;
+    for (let tx = 0; tx < 60; tx++) {
+      for (let ty = 0; ty < 4; ty++) {
+        const e = elevationField(tx, ty);
+        if (e < 0.3) { lowShare += lightShare(tx, ty); m++; }
+      }
+    }
+    // Sanity: we sampled both bands, and high ground is on-average lighter.
+    expect(n).toBeGreaterThan(0);
+    expect(m).toBeGreaterThan(0);
+    expect(highShare / n).toBeGreaterThan(lowShare / m);
   });
 });
 

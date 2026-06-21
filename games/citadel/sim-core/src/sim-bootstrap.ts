@@ -68,6 +68,12 @@ export interface CitadelSimResult {
   world: World<BuildingEntity>;
   villagerWorld: World<VillagerEntity>;
   commands: CommandQueue<CitadelCommand>;
+  /**
+   * Drain + apply queued commands WITHOUT advancing the simulation (city-builder
+   * "plan while paused"): runs the CommandSystem then recomputes connectivity so
+   * the snapshot reflects the new layout, but no sim systems or the day clock run.
+   */
+  applyCommands(ctx: SimContext): void;
   /** Snapshot of placed buildings — updated synchronously by command handlers. */
   getBuildings(): readonly BuildingSnapshot[];
   /** Full render snapshot for the current tick. */
@@ -732,6 +738,19 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     world: buildingWorld,
     villagerWorld,
     commands,
+    /**
+     * Drain + apply queued commands WITHOUT advancing the simulation.
+     * Lets the host apply placements/demolitions while paused (city-builder
+     * "plan while paused"): only the CommandSystem runs, so connectivity is
+     * recomputed for the snapshot but no sim systems or the day clock advance.
+     */
+    applyCommands(ctx: SimContext): void {
+      commandSystem.run(ctx);
+      // Recompute connectivity so the snapshot reflects the new layout
+      // (placement sets state.connectivityDirty; this is normally consumed by
+      // the connectivity system inside a full tick).
+      roadConnSystem.run(ctx);
+    },
     getBuildings,
     getSnapshot,
     get stockpiles() {

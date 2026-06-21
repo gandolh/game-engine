@@ -200,6 +200,44 @@ export function buildingQuad(b: BuildingSnapshot): QuadSpec {
   return { x: px, y: py, width: pw, height: ph, tintRgba: packTint(hex) };
 }
 
+// ---------------------------------------------------------------------------
+// Directional building shadow (idea ported from tiny-world-builder's low sun)
+// ---------------------------------------------------------------------------
+
+/** Shadow tint alpha — soft, so it reads as ground-shade not a black box. */
+export const SHADOW_ALPHA = Math.round(0xff * 0.22);
+/** Shadow offset toward the SE (sun from the NW), as a fraction of TILE_SIZE. */
+export const SHADOW_OFFSET = TILE_SIZE * 0.18;
+
+/**
+ * Building types that DON'T cast a drop-shadow: flat ground features (road,
+ * wall, gate) that sit in the terrain plane rather than rising out of it.
+ */
+const FLAT_TYPES = new Set(["road", "wall", "gate"]);
+
+/**
+ * A soft SE-offset ground shadow behind a building, faking a low NW sun so every
+ * structure reads with a little volume — the 2D echo of tiny-world-builder's
+ * directional sun shading. Returns `null` for flat ground features (roads,
+ * walls, gates), which sit in the terrain plane and cast nothing. The quad is
+ * footprint-sized, ink-tinted, and translucent; the caller pushes it on a layer
+ * just below the building sprite. Pure — no GPU.
+ */
+export function buildingShadowQuad(b: BuildingSnapshot): QuadSpec | null {
+  if (FLAT_TYPES.has(b.type)) return null;
+  const px = b.x * TILE_SIZE;
+  const py = b.y * TILE_SIZE;
+  const pw = b.w * TILE_SIZE;
+  const ph = b.h * TILE_SIZE;
+  return {
+    x: px + SHADOW_OFFSET,
+    y: py + SHADOW_OFFSET,
+    width: pw,
+    height: ph,
+    tintRgba: packTint(EDG.ink, SHADOW_ALPHA),
+  };
+}
+
 /**
  * Map a villager snapshot to a small centered sprite quad. The `vil/person`
  * frame is a grey-ramp silhouette; the FSM-state color is applied as the tint
