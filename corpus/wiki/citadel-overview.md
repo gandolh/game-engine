@@ -98,14 +98,16 @@ their own proportions**, authored at **4×** resolution, with an **animated mill
   units/terrain. The `ISO_ART_SCALE` knob stays so the authoring math is
   scale-independent. (This retired the "upscale units/terrain to 4×" follow-up,
   brief 94.)
-- **Reference restyle (in progress, brief
-  [95](../briefs/game/todo/95-citadel-building-restyle-reference-look.md)).** Per
+- **Reference restyle (done, brief
+  [95](../briefs/game/done/95-citadel-building-restyle-reference-look.md)).** Per
   user reference art (Reiner "Isometric Buildings" + zatoart/xilurus itch packs),
-  the forms are being restyled toward warm **terracotta tile roofs** (ridge cap +
-  eave-overhang shadow + tile courses), **half-timber** framing (oak studs +
-  diagonal cross-braces over cream infill), and 3-step wall shading — EDG32-only
-  (clay/rust/salmon, cream/tan, bark/woodDark). Roof + framing + wall-shading
-  landed; ground-prop bases + cleaner outlines + full-set verification remain.
+  the forms were restyled toward warm **terracotta tile roofs** (`drawGableRoof`:
+  ridge cap + eave-overhang shadow + tile courses), **half-timber** framing
+  (`drawTimberFrame`: oak studs + diagonal cross-braces over cream infill),
+  **ashlar stone** coursing on forts (`drawAshlarCourses`: staggered blocks, not a
+  per-pixel checkerboard), and small **ground-prop plots** (`isoGroundProps`:
+  dirt apron + barrel + sack). EDG32-only (clay/rust/salmon, cream/tan,
+  bark/woodDark, slate/steel). Verified in-game.
 - **Form builders** live in [iso-draw.ts](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
   mapped per type in [buildings.ts](../../games/citadel/client/src/render/sprites/recipes/buildings.ts):
   `cottage` (half-timbered, steep peaked hip roof, studs+window+door — house /

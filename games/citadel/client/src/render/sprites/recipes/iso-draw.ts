@@ -128,30 +128,20 @@ export function isoMetrics(w: number, h: number, heightTiles: number): IsoMetric
  */
 function drawWalls(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   const { cx, halfW, diaH, yTopMid, yBotMid } = m;
-  const aoBand = R(3 * ISO_ART_SCALE / 4); // ambient-occlusion band near the sill
-  // Left-front face: left point → front point.
+  // Left-front face (lit): left point → front point.
   for (let x = cx - halfW; x <= cx; x++) {
     const t = (x - (cx - halfW)) / halfW;
     const topEdgeY = yTopMid + (diaH / 2) * t;
     const botEdgeY = yBotMid + (diaH / 2) * t;
-    for (let y = topEdgeY; y <= botEdgeY; y++) {
-      // richer shading: lit infill, a soft mid band, and a darker sill band so
-      // the wall has 3 tones rather than a flat fill.
-      const nearSill = y > botEdgeY - aoBand;
-      const nearTop = y < topEdgeY + 2;
-      g.set(x, y, nearSill ? pal.wallR : nearTop ? pal.wallEdge : pal.wallL);
-    }
+    for (let y = topEdgeY; y <= botEdgeY; y++) g.set(x, y, pal.wallL);
     g.set(x, botEdgeY, pal.outline);
   }
-  // Right-front face: front point → right point (shaded side).
+  // Right-front face (shaded): front point → right point.
   for (let x = cx; x <= cx + halfW; x++) {
     const t = (x - cx) / halfW;
     const topEdgeY = yTopMid + (diaH / 2) * (1 - t);
     const botEdgeY = yBotMid + (diaH / 2) * (1 - t);
-    for (let y = topEdgeY; y <= botEdgeY; y++) {
-      const nearSill = y > botEdgeY - aoBand;
-      g.set(x, y, nearSill ? pal.outline : pal.wallR);
-    }
+    for (let y = topEdgeY; y <= botEdgeY; y++) g.set(x, y, pal.wallR);
     g.set(x, botEdgeY, pal.outline);
   }
   // Near vertical corner highlight.
@@ -240,11 +230,12 @@ function drawGableRoof(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, overhang = 0,
  *  both faces read as braced toward the near corner. */
 function drawTimberFrame(g: IsoGrid, m: IsoMetrics, beam = "%"): void {
   const { cx, halfW, diaH, yTopMid, yBotMid } = m;
-  const stud = R(9 * ISO_ART_SCALE / 4);
+  const stud = Math.max(6, R(9 * ISO_ART_SCALE / 4)); // ≥6px panels so studs read
   const edgeAt = (x: number) => {
     const t = x <= cx ? (x - (cx - halfW)) / halfW : (cx + halfW - x) / halfW;
     return { top: yTopMid + (diaH / 2) * t, bot: yBotMid + (diaH / 2) * t };
   };
+  const wallTall = (yBotMid - yTopMid) >= 14; // only brace if the face has room
   for (let x = R(cx - halfW); x <= R(cx + halfW); x++) {
     const { top: topEdgeY, bot: botEdgeY } = edgeAt(x);
     if ((x - R(cx - halfW)) % stud === 0) for (let y = R(topEdgeY); y <= R(botEdgeY); y++) g.set(x, y, beam);
@@ -252,19 +243,18 @@ function drawTimberFrame(g: IsoGrid, m: IsoMetrics, beam = "%"): void {
     g.set(x, R(botEdgeY) - 1, beam); // sill plate
     g.set(x, R((topEdgeY + botEdgeY) / 2), beam); // mid rail
   }
-  // Diagonal cross-braces: for each panel [x0,x0+stud], draw a beam from the sill
-  // at the outer stud up to the mid/top at the inner stud (a leaning timber).
-  for (let x0 = R(cx - halfW); x0 < R(cx + halfW); x0 += stud) {
-    const onLeft = x0 + stud / 2 < cx;
-    const a = onLeft ? x0 : x0 + stud;            // foot (toward the near corner)
-    const b = onLeft ? x0 + stud : x0;            // head (toward the far corner)
-    const steps = stud;
-    for (let i = 0; i <= steps; i++) {
-      const x = R(a + (b - a) * (i / steps));
-      const e = edgeAt(x);
-      // foot at sill, head at top plate → a corner-to-corner brace
-      const y = R(e.bot - (e.bot - e.top) * (i / steps));
-      if (x >= R(cx - halfW) && x <= R(cx + halfW)) g.set(x, y, beam);
+  // Diagonal cross-braces only when the wall is tall enough to read them.
+  if (wallTall) {
+    for (let x0 = R(cx - halfW); x0 < R(cx + halfW); x0 += stud) {
+      const onLeft = x0 + stud / 2 < cx;
+      const a = onLeft ? x0 : x0 + stud, b = onLeft ? x0 + stud : x0;
+      const steps = stud;
+      for (let i = 0; i <= steps; i++) {
+        const x = R(a + (b - a) * (i / steps));
+        const e = edgeAt(x);
+        const y = R(e.bot - (e.bot - e.top) * (i / steps));
+        if (x >= R(cx - halfW) && x <= R(cx + halfW)) g.set(x, y, beam);
+      }
     }
   }
   // near corner post (over the wallEdge highlight)
@@ -286,6 +276,35 @@ function drawWindow(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   for (let y = wy - 1; y <= wy + wh + 1; y++) { g.set(x - 1, y, pal.outline); g.set(x + ww + 1, y, pal.outline); }
   for (let y = wy; y <= wy + wh; y++) g.set(R(x + ww / 2), y, pal.outline);
   span(g, x, x + ww, R(wy + wh / 2), pal.outline);
+}
+
+/**
+ * A small dirt apron + a barrel and a sack at the building's front base — the
+ * reference packs sit each building on a little plot with a prop or two. Drawn at
+ * the very bottom of the sprite, flanking the door, within the footprint so it
+ * never clips. Deterministic; `seed` varies which side the props land. */
+export function isoGroundProps(g: IsoGrid, m: IsoMetrics, seed = 0): void {
+  const cx = m.cx;
+  const baseY = m.H - 2;
+  // a thin dirt apron hugging the front V (two short trodden patches)
+  for (let dx = -R(m.halfW * 0.5); dx <= R(m.halfW * 0.5); dx++) {
+    const x = cx + dx;
+    const edgeDrop = R(Math.abs(dx) * HH / HW);
+    const y = baseY - edgeDrop + 1;
+    if (Math.abs(dx) > R(5 * ISO_ART_SCALE / 4) && (dx + seed) % 2 === 0) g.set(x, y, "%");
+  }
+  // a barrel on one side
+  const bx = cx + (seed % 2 === 0 ? -1 : 1) * R(m.halfW * 0.62);
+  const by = baseY - R(Math.abs(bx - cx) * HH / HW) - 1;
+  for (let dy = -R(4 * ISO_ART_SCALE / 4); dy <= 0; dy++) {
+    g.set(bx, by + dy, "%"); g.set(bx + 1, by + dy, "w"); g.set(bx + 2, by + dy, "%");
+  }
+  g.set(bx, by - R(4 * ISO_ART_SCALE / 4), "%"); g.set(bx + 1, by - R(4 * ISO_ART_SCALE / 4), "W"); g.set(bx + 2, by - R(4 * ISO_ART_SCALE / 4), "%");
+  g.set(bx + 1, by - R(2 * ISO_ART_SCALE / 4), "W"); // hoop
+  // a sack on the other side
+  const sx = cx + (seed % 2 === 0 ? 1 : -1) * R(m.halfW * 0.66);
+  const sy = baseY - R(Math.abs(sx - cx) * HH / HW) - 1;
+  g.set(sx, sy - 2, "t"); span(g, sx - 1, sx + 1, sy - 1, "c"); span(g, sx - 1, sx + 1, sy, "t");
 }
 
 /** A door centred on the near vertical edge, arched, following the front V. */
@@ -314,6 +333,10 @@ export function drawDoorFront(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void 
 
 export interface FormOpts {
   accent?: (g: IsoGrid, pal: IsoPalette, m: IsoMetrics) => void;
+  /** Draw a small dirt apron + barrel + sack at the front base (reference look). */
+  ground?: boolean;
+  /** Seed for ground-prop placement (which side props land). */
+  groundSeed?: number;
 }
 
 /** Allocate a grid + metrics for a footprint. */
@@ -334,6 +357,7 @@ export function cottage(name: string, w: number, h: number, heightTiles: number,
   drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4), 2.1);
   drawWindow(g, m, pal);
   drawDoorFront(g, m, pal);
+  if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
   opts.accent?.(g, pal, m);
   return g.toRecipe(name);
 }
@@ -351,57 +375,124 @@ export function boxBuilding(name: string, w: number, h: number, heightTiles: num
 }
 
 /**
- * A tall post-MILL: a narrow boxy body raised on a central post + angled struts,
- * a small cap, and (drawn by `accent`) four sails. The body is much taller than
- * a cottage so the mill looms. `sailAccent` paints the sails for this frame.
+ * A WELL: a small circular stone well-head (a low cylinder ring, NOT a building
+ * box), two timber posts carrying a little pitched roof, a windlass crossbar, and
+ * a bucket on a rope. Sits low on its 1×1 ground diamond so it reads as a small
+ * ground object, not a house. EDG32 stone + wood + clay-roof.
+ */
+export function wellForm(name: string, pal: IsoPalette): PixelRecipe {
+  const { g, m } = begin(1, 1, 1);
+  const { cx, halfW, diaH, yBotMid } = m;
+  const groundY = yBotMid + diaH / 2;
+  const ringR = R(halfW * 0.62);
+  const ringTopY = groundY - R(diaH * 0.55); // top rim of the well kerb
+  // --- Stone kerb: a short cylinder (top ellipse rim + a band of wall) ---
+  const kerbH = R(diaH * 0.5);
+  for (let y = ringTopY; y <= ringTopY + kerbH; y++) {
+    // half-width of the ellipse at this row (a vertical cylinder)
+    for (let x = cx - ringR; x <= cx + ringR; x++) {
+      const f = (x - cx) / ringR;
+      g.set(x, y, f < -0.5 ? "l" : f < 0.15 ? "s" : f < 0.6 ? "S" : "#"); // round stone shading
+    }
+    g.set(cx - ringR, y, pal.outline); g.set(cx + ringR, y, pal.outline);
+    if ((y - ringTopY) % 3 === 0) span(g, cx - ringR + 1, cx + ringR - 1, y, pal.outline); // courses
+  }
+  // top rim ellipse + dark water hole
+  for (let dx = -ringR; dx <= ringR; dx++) {
+    const ey = R(Math.sqrt(Math.max(0, ringR * ringR - dx * dx)) * 0.42); // ellipse
+    g.set(cx + dx, ringTopY - ey, "l"); g.set(cx + dx, ringTopY + ey, pal.outline);
+  }
+  disc(g, cx, ringTopY, R(ringR * 0.6), 2.2, "#");      // dark shaft mouth
+  disc(g, cx, ringTopY, R(ringR * 0.4), 2.2, "b");      // water glint
+  // --- Two posts + a little pitched roof over the well ---
+  const postH = R(diaH * 0.9);
+  const postTopY = ringTopY - postH;
+  for (let dy = 0; dy <= postH; dy++) { g.set(cx - ringR + 1, ringTopY - dy, "%"); g.set(cx + ringR - 1, ringTopY - dy, "%"); }
+  // pitched clay roof (a small gable spanning the two posts)
+  const roofHalf = ringR + 1;
+  const roofPeakY = postTopY - R(diaH * 0.45);
+  for (let dx = -roofHalf; dx <= roofHalf; dx++) {
+    const t = Math.abs(dx) / roofHalf;
+    const ry = R(postTopY - (postTopY - roofPeakY) * (1 - t));
+    g.set(cx + dx, ry, "#");
+    g.set(cx + dx, ry + 1, dx < 0 ? pal.roofLight : pal.roof);
+    g.set(cx + dx, ry + 2, dx < 0 ? pal.roof : pal.roofDark);
+  }
+  // windlass crossbar between the posts + bucket on a rope
+  span(g, cx - ringR + 1, cx + ringR - 1, postTopY + R(diaH * 0.25), "w");
+  const ropeX = cx, ropeTop = postTopY + R(diaH * 0.25);
+  for (let y = ropeTop; y < ringTopY - 1; y++) g.set(ropeX, y, "#"); // rope
+  g.set(ropeX, ringTopY - 2, "W"); g.set(ropeX - 1, ringTopY - 2, "W"); g.set(ropeX + 1, ringTopY - 2, "W"); // bucket
+  g.set(ropeX, ringTopY - 1, "%");
+  return g.toRecipe(name);
+}
+
+/**
+ * A TOWER MILL: a tall, slightly-tapered ROUND stone tower (drawn as a real iso
+ * volume — a curved lit-left/shaded-right cylinder with stone coursing), a small
+ * domed timber cap, a door + window, and four big sails (drawn by `sailAccent`).
+ * Reads as a windmill, not a sign/scarecrow. Fills a 2×2 footprint, tall.
  */
 export function postMill(name: string, pal: IsoPalette, sailAccent: (g: IsoGrid, m: IsoMetrics) => void): PixelRecipe {
   const w = 2, h = 2, heightTiles = 3;
   const { g, m } = begin(w, h, heightTiles);
-  const { cx, halfW, diaH, yBotMid } = m;
+  const { cx, diaH, yBotMid } = m;
   const groundY = yBotMid + diaH / 2;
 
-  // --- Roundhouse base + central post + quarter-bar struts under the body ---
-  const baseHalf = R(halfW * 0.5);
-  const baseY = groundY - 2;
-  // a low stone roundhouse mound so the trestle sits on something solid
-  disc(g, cx, baseY, baseHalf, 2.2, "S");
-  for (let dx = -baseHalf; dx <= baseHalf; dx++) g.set(cx + dx, baseY - R(2 * ISO_ART_SCALE / 4), "l");
-  const postTop = R(m.yTopMid + m.wallH * 0.45);
-  // fat central post (3px)
-  for (let y = postTop; y <= baseY; y++) { g.set(cx - 1, y, "%"); g.set(cx, y, "W"); g.set(cx + 1, y, "#"); }
-  // two diagonal quarter-bar struts bracing the post to the base rim
-  for (let i = 0; i <= baseHalf; i++) {
-    const yy = R(postTop + (baseY - postTop) * (i / Math.max(1, baseHalf)));
-    g.set(cx - i, yy, "%"); g.set(cx - i, yy + 1, "#");
-    g.set(cx + i, yy, "%"); g.set(cx + i, yy + 1, "#");
+  // The cylindrical tower body: wide at the base, tapering toward the cap.
+  const baseR = R(m.halfW * 0.6);
+  const topR = R(m.halfW * 0.42);
+  const bodyTopY = R(m.roofH * 0.7);   // where the body starts (cap sits above)
+  const bodyBotY = groundY - 1;
+  for (let y = bodyTopY; y <= bodyBotY; y++) {
+    const t = (y - bodyTopY) / Math.max(1, bodyBotY - bodyTopY);
+    const rr = R(baseR * t + topR * (1 - t)); // taper
+    for (let x = cx - rr; x <= cx + rr; x++) {
+      // round shading across the cylinder: bright left rim → lit → mid → shaded
+      // right rim, all from the WALL tones (never the cap/roof colour).
+      const f = (x - cx) / rr; // -1..1
+      let ch: string;
+      if (f < -0.55) ch = pal.wallEdge;   // bright left rim highlight
+      else if (f < 0.15) ch = pal.wallL;  // lit body
+      else if (f < 0.65) ch = pal.wallR;  // mid shade
+      else ch = "%";                       // brown shaded right rim (not black)
+      g.set(x, y, ch);
+    }
+    g.set(cx - rr, y, pal.outline);
+    g.set(cx + rr, y, pal.outline);
+    // stone coursing every few rows (subtle brown line, not heavy outline)
+    if ((y - bodyTopY) % R(Math.max(5, 6 * ISO_ART_SCALE / 4)) === 0) span(g, cx - rr + 1, cx + rr - 1, y, "%");
+  }
+  // base footing: a slightly wider stone plinth (mid-stone, not black)
+  disc(g, cx, bodyBotY, baseR + 1, 2.4, pal.wallR);
+  for (let x = cx - baseR - 1; x <= cx + baseR + 1; x++) g.set(x, bodyBotY, pal.outline);
+
+  // small arched door at the foot + a couple of windows up the tower
+  const bodyH = bodyBotY - bodyTopY;
+  const dh = R(Math.min(bodyH * 0.28, m.wallH * 0.45));
+  for (let dx = -2; dx <= 2; dx++) {
+    const arch = R(Math.sqrt(Math.max(0, 4 - dx * dx)));
+    for (let y = bodyBotY - dh - arch; y < bodyBotY - 1; y++) g.set(cx + dx, y, pal.door);
+  }
+  // two small windows stacked on the lit front
+  for (const fy of [0.32, 0.58]) {
+    const wy = R(bodyTopY + bodyH * fy);
+    g.set(cx, wy, pal.glass); g.set(cx, wy - 1, pal.glass);
+    g.set(cx - 1, wy, pal.outline); g.set(cx + 1, wy, pal.outline);
+    g.set(cx, wy - 2, pal.outline); g.set(cx, wy + 1, pal.outline);
   }
 
-  // --- The mill BODY: a narrow tapered box sitting high on the post ---
-  const bodyHalf = R(halfW * 0.52);
-  const bodyTop = R(m.roofH * 0.55);
-  const bodyBot = postTop + 2;
-  for (let y = bodyTop; y <= bodyBot; y++) {
-    const taper = 1 - 0.12 * ((y - bodyTop) / Math.max(1, bodyBot - bodyTop));
-    const bh = R(bodyHalf * taper);
-    for (let x = cx - bh; x <= cx + bh; x++) g.set(x, y, x < cx ? pal.wallL : pal.wallR);
-    g.set(cx - bh, y, pal.outline);
-    g.set(cx + bh, y, pal.outline);
-    // horizontal weatherboard lines
-    if ((y - bodyTop) % R(6 * ISO_ART_SCALE / 4) === 0) span(g, cx - bh + 1, cx + bh - 1, y, "%");
-  }
-  // body door + window
-  rect(g, cx - 1, bodyBot - R(10 * ISO_ART_SCALE / 4), cx + 1, bodyBot - 2, pal.door);
-  g.set(cx - R(bodyHalf * 0.5), R(bodyTop + (bodyBot - bodyTop) * 0.4), pal.glass);
-
-  // --- Cap (a small domed/conical roof over the body) ---
-  const capH = R(m.roofH * 0.55);
+  // --- Domed timber CAP over the body ---
+  const capH = R(m.roofH * 0.7);
+  const capBaseR = topR + 1;
   for (let i = 0; i <= capH; i++) {
-    const half = R(bodyHalf * (1 - i / capH) * 0.9);
-    for (let x = cx - half; x <= cx + half; x++) g.set(x, bodyTop - capH + i, x < cx ? pal.roofLight : pal.roof);
-    g.set(cx - half, bodyTop - capH + i, pal.outline);
-    g.set(cx + half, bodyTop - capH + i, pal.roofDark);
+    const half = R(capBaseR * Math.cos((i / capH) * (Math.PI / 2))); // domed profile
+    for (let x = cx - half; x <= cx + half; x++) g.set(x, bodyTopY - i, x < cx ? pal.roofLight : pal.roof);
+    g.set(cx - half, bodyTopY - i, pal.outline);
+    g.set(cx + half, bodyTopY - i, pal.roofDark);
   }
+  // little finial / windshaft stub at the cap front
+  g.set(cx, bodyTopY - capH - 1, "%");
 
   sailAccent(g, m);
   return g.toRecipe(name);
@@ -415,30 +506,31 @@ export function postMill(name: string, pal: IsoPalette, sailAccent: (g: IsoGrid,
  */
 export function isoWindmillSails(g: IsoGrid, m: IsoMetrics, phase01 = 0): void {
   const hubX = m.cx;
-  const hubY = R(m.roofH * 0.62);
-  const r = R(m.halfW * 0.95);
-  const inner = R(5 * ISO_ART_SCALE / 4); // bare stock near the hub
-  const blade = R(6 * ISO_ART_SCALE / 4); // sail width to ONE side of the spar
+  const hubY = R(m.roofH * 0.5);
+  const r = R(m.halfW * 0.85);             // sail arm length (big, front-facing X)
+  const inner = R(3 * ISO_ART_SCALE / 4);  // bare windshaft near the hub
+  const blade = Math.max(3, R(5 * ISO_ART_SCALE / 4)); // sail width to ONE side
   const ang = phase01 * (Math.PI / 2);
-  // four arms 90° apart — each a latticed SAIL blade (a thick spar + canvas
-  // slats forming a rectangle on the leading side, like a real windmill sail).
+  // Four sail arms 90° apart, drawn in the SCREEN plane (front-facing, no iso
+  // squash) so they read as a bold windmill cross, with a latticed canvas blade
+  // hanging off the leading side of each spar.
   for (let k = 0; k < 4; k++) {
     const a = ang + k * (Math.PI / 2);
-    const dx = Math.cos(a), dy = Math.sin(a) * 0.5; // 2:1 iso squash
-    const px = -Math.sin(a), py = Math.cos(a) * 0.5; // perpendicular (sail width dir)
+    const dx = Math.cos(a), dy = Math.sin(a);
+    const px = -Math.sin(a), py = Math.cos(a); // perpendicular (blade width dir)
     for (let i = inner; i <= r; i++) {
       const x = hubX + dx * i, y = hubY + dy * i;
-      // thick spar
-      g.set(x, y, "#"); g.set(x + R(px), y + R(py), "#");
-      // canvas + lattice ribs on the leading side
-      for (let s = 1; s <= blade; s++) {
-        const cxp = x + px * s, cyp = y + py * s;
-        g.set(cxp, cyp, (s % R(3 * ISO_ART_SCALE / 4) === 0) ? "%" : (i % R(4 * ISO_ART_SCALE / 4) < 2 ? "v" : "c"));
+      g.set(R(x), R(y), "#");                       // dark spar
+      g.set(R(x + px), R(y + py), "#");             // 2px thick
+      // canvas blade: a filled strip with periodic dark sail-bars (lattice)
+      for (let s = 2; s <= blade + 1; s++) {
+        const bar = (i % R(Math.max(3, 4 * ISO_ART_SCALE / 4))) < 1; // sail bars
+        g.set(R(x + px * s), R(y + py * s), bar ? "%" : (s === blade + 1 ? "c" : "v"));
       }
     }
   }
-  // hub cap last (on top of the spars).
-  disc(g, hubX, hubY, R(3 * ISO_ART_SCALE / 4), 1, "#");
+  // bright brass hub cap last.
+  disc(g, hubX, hubY, Math.max(2, R(3 * ISO_ART_SCALE / 4)), 1, "#");
   g.set(hubX, hubY, "O");
 }
 
@@ -613,6 +705,7 @@ export function warehouse(name: string, w: number, h: number, heightTiles: numbe
   g.set(cx, frontBaseY - dh, pal.outline); // central seam
   for (let y = frontBaseY - dh; y < frontBaseY; y += 2) g.set(cx, y, "%");
   isoGableDormer(g, m, pal);
+  if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
   opts.accent?.(g, pal, m);
   return g.toRecipe(name);
 }
@@ -633,18 +726,26 @@ export function fort(name: string, w: number, h: number, heightTiles: number, pa
   return g.toRecipe(name);
 }
 
-/** Ashlar (cut-stone) course lines on the front wall faces. */
+/** Ashlar (cut-stone) coursing on the front wall faces: sparse horizontal mortar
+ *  lines + a few staggered vertical joints, so it reads as big cut blocks (NOT a
+ *  per-pixel checkerboard). Spacing is a fixed minimum so it stays legible at 1×. */
 function drawAshlarCourses(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   const { cx, halfW, diaH, yTopMid, yBotMid } = m;
-  const course = R(8 * ISO_ART_SCALE / 4);
-  for (let x = cx - halfW; x <= cx + halfW; x++) {
+  const course = Math.max(5, R(8 * ISO_ART_SCALE / 4)); // ≥5px tall blocks
+  const brick = Math.max(8, R(14 * ISO_ART_SCALE / 4)); // ≥8px wide blocks
+  for (let x = R(cx - halfW); x <= R(cx + halfW); x++) {
     const t = x <= cx ? (x - (cx - halfW)) / halfW : (cx + halfW - x) / halfW;
     const topEdgeY = yTopMid + (diaH / 2) * t;
     const botEdgeY = yBotMid + (diaH / 2) * t;
     for (let y = R(topEdgeY); y <= R(botEdgeY); y++) {
-      // horizontal mortar line + staggered vertical joints
-      if ((y - R(topEdgeY)) % course === 0) g.set(x, y, pal.outline);
-      else if ((x % course === 0) && ((Math.floor((y - R(topEdgeY)) / course) % 2 === 0))) g.set(x, y, pal.roofDark);
+      const row = Math.floor((y - R(topEdgeY)) / course);
+      const onCourse = (y - R(topEdgeY)) % course === 0;
+      // staggered vertical joint: every `brick` px, offset half a brick on odd rows
+      const phase = (row % 2) * R(brick / 2);
+      const onJoint = ((x + phase) % brick === 0);
+      if (onCourse) g.set(x, y, pal.outline);        // horizontal mortar
+      else if (onJoint) g.set(x, y, pal.roofDark);   // vertical joint (one per block)
+      else if (onCourse === false && (y - R(topEdgeY)) % course === 1) g.set(x, y, x < cx ? pal.wallEdge : pal.wallR); // top-of-block highlight
     }
   }
 }

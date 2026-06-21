@@ -4,6 +4,42 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] render | Citadel mill + well rebuilt (were the two weak forms)
+
+User flagged the mill + well as looking bad vs the reference packs. Both were
+oddball custom shapes that didn't follow the clean iso-volume language:
+- **Mill** was a flat front-facing weatherboard billboard on a thin trestle with a
+  tiny clumped sail. Rebuilt `postMill` as a real **tower mill**: a tall tapered
+  ROUND stone cylinder (lit-left/shaded-right body shading + stone coursing), a
+  domed terracotta cap, small arched door + stacked windows, on a stone plinth.
+  New `MILL` palette (warm cream/tan stone + clay cap) replaces WOOD (whose black
+  `roofDark` made the heavy black silhouette). `isoWindmillSails` redrawn as a
+  bold front-facing X of latticed canvas blades (no iso-squash) — reads as a
+  windmill; the 8-frame rotation still animates.
+- **Well** was a full STONE building box with a tiny hood. New `wellForm`: a small
+  round stone well-head (low cylinder kerb + rim ellipse + dark shaft + blue
+  water) with two posts, a pitched clay roof, a windlass crossbar, and a bucket on
+  a rope — a small ground object, not a house. `isoWellHood` retired from use.
+Verified by raster zoom (mill/well + 4 mill rotation frames) — both now match the
+reference look. typecheck + 187 @citadel/client tests + EDG32 guard green.
+
+## [2026-06-21] render | Citadel buildings — reference restyle FINISHED (brief 95 → done)
+
+Completed the remaining brief-95 items at 32-based: fixed the fort **ashlar
+coursing** (`drawAshlarCourses` — sparse staggered blocks ≥5px courses/≥8px
+bricks, killing the per-pixel checkerboard the 4×→1× revert had exposed); made
+**half-timber** legible at 32px (min stud spacing, diagonal braces gated to tall
+walls); added **ground-prop plots** (`isoGroundProps` — dirt apron + barrel + sack
+via a `ground` FormOpt on house/bakery/healer); simplified `drawWalls` to clean
+lit/shaded faces (dropped palette-fragile AO bands). Verified: typecheck + 187
+@citadel/client tests + EDG32 guard green; Playwright in-game pass (terracotta
+half-timber cottages render correctly at game zoom). Brief 95 moved to
+[done](briefs/game/done/95-citadel-building-restyle-reference-look.md). (Pre-
+existing `transform.ts`/`placement-state.ts` `centerX` console errors are from
+unrelated in-flight work on those files, not this brief.) Files this session:
+[iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
+[buildings.ts](../games/citadel/client/src/render/sprites/recipes/buildings.ts).
+
 ## [2026-06-21] render | Citadel buildings — reference restyle (terracotta/half-timber) + revert to 32-based
 
 User supplied reference art (Reiner "Isometric Buildings" CC-BY-SA + zatoart/

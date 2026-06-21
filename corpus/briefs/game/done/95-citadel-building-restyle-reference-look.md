@@ -1,6 +1,29 @@
 # Brief 95 — Citadel building restyle toward the "Isometric Buildings" reference look
 
-Status: **todo / in-progress** (partial landed 2026-06-21; remaining items below).
+Status: **DONE 2026-06-21** — all items below landed + verified in-game. (Kept the
+number; moved to done/. Future polish can open a new brief.)
+
+## Completion note (2026-06-21)
+
+All five "Remaining" items were implemented and verified:
+- **Stronger half-timber bracing** — `drawTimberFrame` min stud spacing (≥6px) +
+  diagonal cross-braces gated to tall-enough walls (reads cleanly at 32-based).
+- **Ground props** — `isoGroundProps` (dirt apron + barrel + sack at the front
+  base) via a `ground`/`groundSeed` FormOpt; enabled on house/bakery/healer.
+- **Cleaner outlines / fixed fort coursing** — `drawAshlarCourses` rewritten to
+  sparse staggered blocks (≥5px courses, ≥8px bricks) instead of a per-pixel
+  checkerboard; `drawWalls` simplified to clean lit/shaded faces (dropped the
+  palette-fragile AO bands).
+- **Consistency across all 20 forms** — verified via a raster sweep; forts read as
+  ashlar castles, cottages as terracotta-roofed half-timber, etc.
+- **Verification** — typecheck + 187 @citadel/client tests + EDG32 guard green;
+  Playwright in-game pass (placed houses/chapel/market; terracotta cottages
+  render correctly at game zoom). Note: the in-game `transform.ts`/`placement-
+  state.ts` `centerX` console errors are PRE-EXISTING (uncommitted in-flight work
+  on those files at session start), not from this brief.
+
+---
+_Original brief follows._
 
 ## Why
 

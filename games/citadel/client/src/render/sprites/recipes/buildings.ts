@@ -19,6 +19,7 @@ import {
   cottage,
   boxBuilding,
   postMill,
+  wellForm,
   openField,
   marketStalls,
   church,
@@ -37,7 +38,6 @@ import {
   isoCrates,
   isoShaftMouth,
   isoQuarryPit,
-  isoWellHood,
   type IsoPalette,
   type IsoMetrics,
   type FormOpts,
@@ -60,6 +60,10 @@ const STONE: IsoPalette = {
 const WOOD: IsoPalette = {
   roof: "d", roofLight: "G", roofDark: "#",
   wallL: "t", wallR: "w", wallEdge: "c", outline: "#", door: "W", glass: "B",
+};
+const MILL: IsoPalette = { // tower mill: warm tan/cream stone body + clay cap
+  roof: "r", roofLight: "P", roofDark: "R",      // terracotta clay cap
+  wallL: "c", wallR: "t", wallEdge: "v", outline: "%", door: "W", glass: "B",
 };
 const CREAM: IsoPalette = { // church stone (light)
   roof: "n", roofLight: "S", roofDark: "i",
@@ -100,20 +104,20 @@ function millFrames(): PixelRecipe[] {
   const out: PixelRecipe[] = [];
   for (let i = 0; i < MILL_FRAME_COUNT; i++) {
     const phase = i / MILL_FRAME_COUNT;
-    out.push(postMill(millFrameName(i), WOOD, (g, m) => isoWindmillSails(g, m, phase)));
+    out.push(postMill(millFrameName(i), MILL, (g, m) => isoWindmillSails(g, m, phase)));
   }
   return out;
 }
 
 export const BUILDING_RECIPES: readonly PixelRecipe[] = [
-  // Dwelling — half-timbered medieval cottage (the reference form).
-  cottage("bld/house", 2, 2, 1, PLASTER),
+  // Dwelling — half-timbered medieval cottage (the reference form) on a plot.
+  cottage("bld/house", 2, 2, 1, PLASTER, { ground: true }),
   // Farm — an open fenced field, not a building.
   openField("bld/farm", 3, 3, WOOD),
   // Mill — frame 0 (base `bld/mill`) + rotated sail frames.
   ...millFrames(),
-  // Bakery — cottage + a smoking brick oven chimney.
-  cottage("bld/bakery", 2, 2, 1, PLASTER, { accent: (g, p, m) => isoChimney(g, p, m, true) }),
+  // Bakery — cottage + a smoking brick oven chimney + a sack/barrel on the plot.
+  cottage("bld/bakery", 2, 2, 1, PLASTER, { ground: true, groundSeed: 1, accent: (g, p, m) => isoChimney(g, p, m, true) }),
   // Woodcutter — timber cottage + chopping block + log pile.
   cottage("bld/woodcutter", 2, 2, 1, WOOD, accents(
     (g, _p, m) => isoLogPile(g, m),
@@ -154,8 +158,8 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   fort("bld/keep", 3, 3, 3, FORT, { accent: (g, _p, m) => isoBanner(g, m, "p") }),
   // Town hall — large civic timber-frame hall (warehouse form) + banner.
   warehouse("bld/town-hall", 3, 3, 2, PLASTER, { accent: (g, _p, m) => isoBanner(g, m, "p") }),
-  // Healer — cottage + a red medical cross.
-  cottage("bld/healer", 2, 2, 1, GREENROOF, { accent: (g, _p, m) => isoCross(g, m, "e") }),
-  // Well — stone ring under a gabled hood with a bucket.
-  boxBuilding("bld/well", 1, 1, 1, STONE, { accent: (g, _p, m) => isoWellHood(g, m) }),
+  // Healer — cottage + a red medical cross + plot props.
+  cottage("bld/healer", 2, 2, 1, GREENROOF, { ground: true, groundSeed: 1, accent: (g, _p, m) => isoCross(g, m, "e") }),
+  // Well — a small round stone well-head with a roofed windlass + bucket.
+  wellForm("bld/well", STONE),
 ];
