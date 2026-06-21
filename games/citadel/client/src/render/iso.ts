@@ -235,6 +235,37 @@ export function isoSpriteDims(w: number, h: number, heightTiles: number): { widt
 }
 
 /**
+ * Authoring-resolution multiplier for BUILDING sprite art. The renderer sizes a
+ * building's quad in **world-px** via `isoSpriteDims` and the GPU samples the
+ * frame texture into that box (nearest-neighbour) — so a frame authored at N×
+ * the pixel dimensions draws into the SAME world box, just with N× the detail.
+ * Buildings are authored at 1× (32-based) — the same density as units/terrain.
+ * (An earlier pass tried 4×; in practice the 32-based grid is already dense
+ * enough, so we keep buildings at native resolution. The constant stays as the
+ * single knob so the authoring math is scale-independent if we revisit it.)
+ */
+export const ISO_ART_SCALE = 1;
+
+/**
+ * Pixel dimensions for AUTHORING a building recipe — `isoSpriteDims` scaled up by
+ * `ISO_ART_SCALE`. Used by `iso-draw.ts` so the recipe grid is high-res; the
+ * renderer keeps using the unscaled `isoSpriteDims` for the world-px quad, and
+ * the proportional scale means the high-res art still maps 1:1 onto the quad.
+ * Pure.
+ */
+export function isoArtDims(w: number, h: number, heightTiles: number): { width: number; height: number; roofH: number; wallH: number; diaH: number } {
+  const d = isoSpriteDims(w, h, heightTiles);
+  const s = ISO_ART_SCALE;
+  return {
+    width: d.width * s,
+    height: d.height * s,
+    roofH: d.roofH * s,
+    wallH: d.wallH * s,
+    diaH: d.diaH * s,
+  };
+}
+
+/**
  * The axis-aligned bounding box (in iso world-px) of a `w×h`-tile footprint's
  * FLAT diamond at `(tx, ty)` — i.e. the quad to stamp the `fx/diamond` frame
  * into so it covers the footprint's ground diamond exactly. Top-left at the

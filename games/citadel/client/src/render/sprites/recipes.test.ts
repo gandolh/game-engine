@@ -15,6 +15,8 @@ import {
   UNIT_RECIPES,
   BUILDING_SPRITE_TYPES,
   buildingFrameName,
+  millFrameAt,
+  MILL_FRAME_COUNT,
   VILLAGER_FRAME,
   RAIDER_FRAME,
   FRAME_PEDESTRIAN,
@@ -71,18 +73,38 @@ describe("recipes integrity", () => {
     // Guards the iso generators: a real diamond+roof silhouette has TRANSPARENT
     // corners (the top-left corner pixel must be `.`), and a substantial but
     // not-full filled body (so it's neither a blank nor a solid rectangle).
+    //
+    // Open forms (the fenced farm FIELD, the open market STALLS, the tall narrow
+    // post-MILL) are deliberately sparse — they're not solid boxes — so they get
+    // a lower opaque floor. The mill's extra sail-rotation frames share its floor.
+    const LOW_FLOOR = new Set(["farm", "market", "mill"]);
+    const floorFor = (name: string): number => {
+      const type = name.slice("bld/".length).split("@")[0]!;
+      return LOW_FLOOR.has(type) ? 0.06 : 0.2;
+    };
     for (const r of BUILDING_RECIPES) {
       const raster = rasterizeRecipe(r);
       // Top-left corner is outside the diamond → transparent.
       expect(raster.rgba[3], `${r.name} top-left corner should be transparent`).toBe(0);
-      // Count opaque pixels: between ~25% and ~85% of the frame (a diamond-capped
-      // volume), never 0 (blank) and never ~100% (a solid box).
+      // Count opaque pixels: never 0 (blank) and never ~100% (a solid box).
       let opaque = 0;
       for (let i = 3; i < raster.rgba.length; i += 4) if (raster.rgba[i]! > 0) opaque++;
       const frac = opaque / (r.width * r.height);
-      expect(frac, `${r.name} opaque fraction`).toBeGreaterThan(0.2);
+      expect(frac, `${r.name} opaque fraction`).toBeGreaterThan(floorFor(r.name));
       expect(frac, `${r.name} opaque fraction`).toBeLessThan(0.9);
     }
+  });
+
+  it("the mill has a base frame + rotated-sail animation frames that all rasterize", () => {
+    const millFrames = BUILDING_RECIPES.filter((r) => r.name === "bld/mill" || r.name.startsWith("bld/mill@"));
+    expect(millFrames.length, "mill frame count").toBe(MILL_FRAME_COUNT);
+    expect(millFrames.some((r) => r.name === "bld/mill"), "base bld/mill exists").toBe(true);
+    for (const r of millFrames) expect(() => rasterizeRecipe(r), r.name).not.toThrow();
+    // millFrameAt cycles within the frame set and includes the base frame.
+    const seen = new Set<string>();
+    for (let t = 0; t < 4000; t += 100) seen.add(millFrameAt(t));
+    expect(seen.has("bld/mill"), "cycles through base frame").toBe(true);
+    for (const f of seen) expect(millFrames.some((r) => r.name === f), `${f} is a real frame`).toBe(true);
   });
 });
 

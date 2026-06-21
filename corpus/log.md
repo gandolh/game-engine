@@ -4,6 +4,71 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] render | Citadel buildings — reference restyle (terracotta/half-timber) + revert to 32-based
+
+User supplied reference art (Reiner "Isometric Buildings" CC-BY-SA + zatoart/
+xilurus itch packs) and asked the generated buildings to evoke that look:
+**terracotta tile roofs** (clay/salmon/rust ramp, tile-course banding, ridge cap,
+eave-overhang shadow), **half-timber** framing (oak studs + diagonal cross-braces
+over cream infill), 3-step wall shading. Implemented in `drawGableRoof` /
+`drawTimberFrame` / `drawWalls` ([iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts)),
+`PLASTER` palette retargeted ([buildings.ts](../games/citadel/client/src/render/sprites/recipes/buildings.ts)).
+EDG32-only (inspiration, not imported art). **Also reverted buildings from 4× back
+to 32-based** (`ISO_ART_SCALE = 1`, [iso.ts](../games/citadel/client/src/render/iso.ts))
+— user judged 32 dense enough in practice; this retires brief 94's "upscale
+units/terrain" premise. Verified at 1× (raster): house/storehouse/chapel read with
+roofs + framing; typecheck + recipes.test green. **Not finished** — captured as
+todo brief [95](briefs/game/todo/95-citadel-building-restyle-reference-look.md):
+remaining = stronger visible bracing at 1×, ground-prop bases, cleaner outlines,
+full-set consistency + Playwright/in-game verification. Wiki:
+[citadel-overview.md](wiki/citadel-overview.md).
+
+## [2026-06-21] render | Citadel buildings — distinct medieval FORMS at 4×, animated mill
+
+Follow-on to the per-type-accent pass below: rebuilt the buildings as **distinct
+forms with their own proportions** (not one box + accents), authored at **4×**
+(`ISO_ART_SCALE`), with an **animated mill**. Decoupled authoring resolution from
+world size in [iso.ts](../games/citadel/client/src/render/iso.ts) (`isoArtDims =
+isoSpriteDims × 4`; renderer keeps world-px, GPU samples the high-res texture into
+the same quad). New form builders in
+[iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts):
+`cottage` (half-timbered steep-roof house/bakery/smith/woodcutter/sawmill/healer),
+`postMill` (tall trestle-mounted body + sails), `openField` (fenced tilled farm),
+`marketStalls` (open striped stalls), `church` (nave + bell tower + spire),
+`warehouse` (barn + hayloft — storehouse/tradingpost/town-hall), `fort` (ashlar +
+crenellated deck + arrow slits — watchpost/tower/garrison/keep), `boxBuilding`
+(mine/quarry/well). Mill animation: `bld/mill@0..7` rotated-sail frames +
+`millFrameAt(clockMs)` threaded `buildingQuad(b,clockMs)` → `pushScene(...,clockMs)`
+→ `main.ts` `performance.now` — **render-only, sim/determinism untouched**.
+`BUILDING_SPRITE_TYPES` filters `@` frames; `BUILDING_HEIGHT_TILES.mill`→3.
+Verified by rasterizing recipes to PNG, a Playwright gallery on the real runtime
+atlas (mill sails confirmed turning across frames), and placing buildings in the
+actual game. Green: typecheck, 187 @citadel/client tests (new mill-frame test +
+relaxed opaque-fraction floor for the sparse open farm/market/mill), EDG32 palette
+test. **Units + terrain stay 1×** — upscaling them to match is brief
+[94](briefs/game/todo/94-upscale-units-terrain-to-match-buildings.md). Wiki:
+[citadel-overview.md](wiki/citadel-overview.md) "Per-building FORMS + 4× detail".
+
+## [2026-06-21] render | Citadel buildings — per-type silhouettes so they don't all read as a house
+
+Every iso building was the same hipped-roof box differing only in colour/size, so
+a mill, market, mine, and house were indistinguishable. Added a feature library to
+[iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts) and
+assigned one iconic feature per type in
+[buildings.ts](../games/citadel/client/src/render/sprites/recipes/buildings.ts).
+Two silhouette-level breaks via new `makeIsoBuilding` opts: `flatTop` (a flat
+**crenellated rooftop** for tower/keep/garrison/watchpost — reads as a castle) and
+`noDoor` (mine/quarry get a timbered **shaft mouth + A-frame pithead** in place of
+the door). Smaller per-type cues: windmill sails (mill), water wheel (sawmill),
+striped awning (market), hayloft dormer (storehouse/tradingpost/farm), brick
+chimney+ember (bakery/smith), log pile (woodcutter), grain sacks (farm/mill),
+gabled hood+bucket (well), roof cross (chapel white / healer red), banners. `house`
+stays the plain reference box. Render-only, EDG32-clean (all colours via `SWATCH`),
+sim/determinism untouched. Verified by rasterizing each recipe to a PNG grid and
+eyeballing; `npm run typecheck`, 186 @citadel/client tests, the iso-volume
+opaque-fraction guard, and the EDG32 palette guard all green. Wiki:
+[citadel-overview.md](wiki/citadel-overview.md) "Per-building visual language".
+
 ## [2026-06-21] render | Citadel iso sprites — fixed up-left offset (engine anchors sprites by CENTRE) + building float
 
 Two render bugs from the true-iso conversion, both browser-confirmed via Playwright

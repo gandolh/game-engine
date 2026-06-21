@@ -86,6 +86,51 @@ untouched** — iso is a pure render/input/art change; `CHECK_DETERMINISM` stays
 byte-identical. Verified in-browser; 174 client tests + iso-volume guard + EDG32
 guard green.
 
+**Per-building FORMS + 4× detail + animated mill (2026-06-21).** Buildings were
+all the same hipped iso box ("everything looks like a house"). A first pass added
+per-type accents; a second pass (this one) rebuilt **distinct medieval forms with
+their own proportions**, authored at **4×** resolution, with an **animated mill**.
+
+- **Authoring resolution: 32-based (`ISO_ART_SCALE = 1`).** The renderer sizes a
+  building's quad in world-px via `isoSpriteDims` (iso.ts); recipes author at
+  `isoArtDims` = `isoSpriteDims × ISO_ART_SCALE`. A pass tried 4×, but the user
+  judged 32 dense enough in practice, so buildings stay native res like
+  units/terrain. The `ISO_ART_SCALE` knob stays so the authoring math is
+  scale-independent. (This retired the "upscale units/terrain to 4×" follow-up,
+  brief 94.)
+- **Reference restyle (in progress, brief
+  [95](../briefs/game/todo/95-citadel-building-restyle-reference-look.md)).** Per
+  user reference art (Reiner "Isometric Buildings" + zatoart/xilurus itch packs),
+  the forms are being restyled toward warm **terracotta tile roofs** (ridge cap +
+  eave-overhang shadow + tile courses), **half-timber** framing (oak studs +
+  diagonal cross-braces over cream infill), and 3-step wall shading — EDG32-only
+  (clay/rust/salmon, cream/tan, bark/woodDark). Roof + framing + wall-shading
+  landed; ground-prop bases + cleaner outlines + full-set verification remain.
+- **Form builders** live in [iso-draw.ts](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
+  mapped per type in [buildings.ts](../../games/citadel/client/src/render/sprites/recipes/buildings.ts):
+  `cottage` (half-timbered, steep peaked hip roof, studs+window+door — house /
+  bakery / woodcutter / sawmill / smith / healer), `postMill` (tall weatherboarded
+  body on a trestle + roundhouse base + 4 sails), `openField` (tilled furrows +
+  post-and-rail fence + gate + crops + hay bale — farm), `marketStalls`
+  (red-striped awnings + tables + goods — market), `church` (nave + bell tower +
+  spire + cross — chapel), `warehouse` (barn doors + hayloft dormer — storehouse /
+  tradingpost / town-hall), `fort` (ashlar courses + flat crenellated deck + arrow
+  slits — watchpost / tower / garrison / keep), `boxBuilding` (mine pithead /
+  quarry pit / well).
+- **Animated mill (render-only).** Recipes `bld/mill` + `bld/mill@1..7` are the
+  post-mill with sails rotated through a 90° sweep (4-fold symmetry).
+  `millFrameAt(clockMs)` (index.ts) picks the frame; `buildingQuad(b, clockMs)` →
+  `pushScene(..., clockMs)` → `main.ts` passes the existing `performance.now`
+  render clock. **No sim/determinism impact** (wall-clock pacing, render-only).
+  `BUILDING_SPRITE_TYPES` excludes `@`-suffixed frames so they aren't mistaken for
+  building types; `BUILDING_HEIGHT_TILES.mill` raised to 3 to match the form.
+
+All render-only, EDG32-clean (every char via `SWATCH`). Guards green: 187 client
+tests (incl. mill-frame test + per-type opaque-fraction floors — open farm/market/
+mill get a lower floor since they're intentionally sparse), EDG32 palette test,
+typecheck. Verified in-browser (gallery harness + the actual game): forms render
+distinctly through the real atlas pipeline and the mill's sails turn.
+
 > ⚠️ **Sprite anchor convention (load-bearing).** The engine sprite-batch anchors
 > every sprite by its **CENTRE** (both backends draw `pos ± 0.5·size`). The iso
 > helpers in `iso.ts` return **top-left** rects, so the conversion to a sprite must

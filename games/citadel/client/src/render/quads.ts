@@ -21,6 +21,7 @@ import type {
 import {
   BUILDING_SPRITE_TYPES,
   buildingFrameName,
+  millFrameAt,
   VILLAGER_FRAME,
   RAIDER_FRAME,
 } from "./sprites/recipes";
@@ -169,7 +170,7 @@ export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: numb
  * recipe falls back to a solid tinted box (never requesting a missing frame).
  * Pure — no GPU.
  */
-export function buildingQuad(b: BuildingSnapshot): QuadSpec {
+export function buildingQuad(b: BuildingSnapshot, clockMs?: number): QuadSpec {
   const px = b.x * TILE_SIZE;
   const py = b.y * TILE_SIZE;
   const pw = b.w * TILE_SIZE;
@@ -199,14 +200,18 @@ export function buildingQuad(b: BuildingSnapshot): QuadSpec {
 
   if (BUILDING_SPRITE_TYPES.has(b.type)) {
     // Real sprite: tint white so the recipe colors show; orange-multiply when
-    // burning. Footprint-sized so the frame scales 1:1 (nearest-crisp).
+    // burning. Footprint-sized so the frame scales 1:1 (nearest-crisp). The mill
+    // animates: when a render clock is supplied, pick its rotated-sail frame.
+    const frame = b.type === "mill" && clockMs !== undefined
+      ? millFrameAt(clockMs)
+      : buildingFrameName(b.type);
     return {
       x: px,
       y: py,
       width: pw,
       height: ph,
       tintRgba: packTint(b.burning ? EDG.orange : EDG.white),
-      frame: buildingFrameName(b.type),
+      frame,
     };
   }
 

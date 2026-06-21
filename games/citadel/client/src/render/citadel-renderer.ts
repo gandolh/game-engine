@@ -221,7 +221,7 @@ export interface SceneFx {
 // MUST match the `heightTiles` authored per type in sprites/recipes/buildings.ts
 // so the sprite art maps 1:1 onto the quad (shared isoSpriteDims).
 const BUILDING_HEIGHT_TILES: Record<string, number> = {
-  keep: 3, tower: 3, garrison: 2, watchpost: 2, chapel: 2, mill: 2,
+  keep: 3, tower: 3, garrison: 2, watchpost: 2, chapel: 2, mill: 3,
   "town-hall": 2,
   wall: 1, gate: 1, road: 0,
 };
@@ -265,8 +265,8 @@ function isoFlatSprite(x: number, y: number, width: number, height: number, fram
 }
 
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
-function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx): void {
-  const base = buildingQuad(b);
+function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx, clockMs?: number): void {
+  const base = buildingQuad(b, clockMs);
   const { quad: isoBase, depth } = isoBuildingPlacement(b, base);
 
   // Directional ground shadow: a flat iso diamond-ish box under the footprint.
@@ -292,7 +292,7 @@ function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx)
  * overlay. Pure-ish: only calls `renderer.push`. The optional `fx` hooks apply
  * the placement ease-in (building scale/alpha) and idle bob (villager Y).
  */
-export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneFx): void {
+export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneFx, clockMs?: number): void {
   // Roads + walls draw as autotiled connected networks (brief 11), not per-tile
   // through buildingQuad. Gates still draw their distinct gold block here.
   pushNetworks(renderer, scene.buildings);
@@ -310,14 +310,14 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
       renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(EDG.cream, Math.round(0xff * 0.18)), LAYER_ENTITY, d.depth - 0.0002));
     }
     for (const b of cluster.members) {
-      pushBuilding(renderer, b, fx);
+      pushBuilding(renderer, b, fx, clockMs);
     }
   }
 
   for (const b of scene.buildings) {
     if (b.type === "road" || b.type === "wall" || b.type === "bridge") continue; // handled by pushNetworks
     if (b.type === "house") continue; // handled by the cluster path above
-    pushBuilding(renderer, b, fx);
+    pushBuilding(renderer, b, fx, clockMs);
   }
   for (const v of scene.villagers) {
     const base = villagerQuad(v);

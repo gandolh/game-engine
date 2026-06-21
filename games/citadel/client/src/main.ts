@@ -161,15 +161,18 @@ let currentVillagers: readonly VillagerSnapshot[] = [];
 let currentRaiders: readonly RaiderSnapshot[] = [];
 
 canvas.addEventListener("mousedown", (e) => {
+  // Right button (2) pans the camera; left button (0) interacts/builds.
+  if (e.button === 2) {
+    isPanning = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    return;
+  }
+  if (e.button !== 0) return;
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
   if (placementState.mode === "road" || placementState.mode === "wall") {
     placementState.startRoadDrag();
-    return;
   }
-  // Otherwise begin a camera pan.
-  isPanning = true;
-  lastMouseX = e.clientX;
-  lastMouseY = e.clientY;
 });
 
 canvas.addEventListener("mouseup", (e) => {
@@ -242,8 +245,9 @@ canvas.addEventListener("click", (e) => {
 });
 
 // ---------------------------------------------------------------------------
-// Follow-cam (brief 19): right-click a villager to lock-follow; left-click on
+// Follow-cam (brief 19): left-click a villager to lock-follow; left-click on
 // empty space or Escape releases. Release-on-despawn is handled in the loop.
+// (Right-click is the camera pan gesture.)
 // ---------------------------------------------------------------------------
 
 /** Resolve a mouse event to the tile under the cursor (device-px → tile). */
@@ -253,27 +257,27 @@ function eventTile(e: MouseEvent): { tx: number; ty: number } {
   return screenToTile(transformOf(camera, canvas.width, canvas.height), sx, sy);
 }
 
+// Right-click is the pan gesture, so suppress the browser context menu over
+// the canvas (otherwise a right-drag pan pops the menu on release).
 canvas.addEventListener("contextmenu", (e) => {
   e.preventDefault();
+});
+
+// In idle ("none") mode, left-click is the follow-cam gesture: clicking a
+// villager locks the camera to it, clicking empty space releases. Placement
+// modes have their own `click` handler above, so only the idle case is wired
+// here.
+canvas.addEventListener("click", (e) => {
+  if (isPanning) return; // tail of a pan, not a click
+  if (placementState.mode !== "none") return; // placement clicks aren't follow-cam
   const { tx, ty } = eventTile(e);
   const picked = nearestVillager(currentVillagers, tx, ty);
   if (picked !== null) {
     followId = picked;
     updateFollowHud();
+  } else if (followId !== null) {
+    clearFollow();
   }
-});
-
-// Left-click on empty space (no placement mode, no villager hit) releases the
-// follow. The placement `click` handler above already returns early for its own
-// modes, so only wire release for the idle "none" / pan case.
-canvas.addEventListener("click", (e) => {
-  if (followId === null) return;
-  if (isPanning) return; // tail of a pan, not a release click
-  if (placementState.mode !== "none") return; // placement clicks aren't a release
-  const { tx, ty } = eventTile(e);
-  // Clicking the followed villager (or any villager in range) keeps following;
-  // clicking empty space releases.
-  if (nearestVillager(currentVillagers, tx, ty) === null) clearFollow();
 });
 
 window.addEventListener("keydown", (e) => {
@@ -864,6 +868,9 @@ function loop(): void {
       },
       villagerYOffset: (v) => bobOffset(timeSec, v.id),
     },
+    // Render clock drives render-only animation (the mill's rotating sails).
+    // performance.now — main-thread only, never the sim.
+    nowMs,
   );
 
   // --- Brief 24 wear/decay soot overlay (render-only). For each burning
