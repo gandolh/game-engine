@@ -47,6 +47,7 @@ export const BUILDING_COLORS: Record<string, string> = {
   woodcutter: EDG.wood,
   storehouse: EDG.steel,
   road: EDG.navy,
+  bridge: EDG.wood,
   chapel: EDG.white,
   market: EDG.gold,
   watchpost: EDG.silver,
@@ -219,7 +220,7 @@ export const SHADOW_OFFSET = TILE_SIZE * 0.18;
  * Building types that DON'T cast a drop-shadow: flat ground features (road,
  * wall, gate) that sit in the terrain plane rather than rising out of it.
  */
-const FLAT_TYPES = new Set(["road", "wall", "gate"]);
+const FLAT_TYPES = new Set(["road", "wall", "gate", "bridge"]);
 
 /**
  * A soft SE-offset ground shadow behind a building, faking a low NW sun so every

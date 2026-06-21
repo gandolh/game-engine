@@ -17,6 +17,7 @@ import {
   buildingFrameName,
   VILLAGER_FRAME,
   RAIDER_FRAME,
+  FRAME_PEDESTRIAN,
 } from "./recipes";
 
 const EDG32_SET = new Set<string>(EDG32);
@@ -46,7 +47,7 @@ describe("recipes integrity", () => {
     }
   });
 
-  it("iso building frames have diamond-aligned width and positive height; units are 32×32", () => {
+  it("iso building frames have diamond-aligned width and positive height; villager/raider are 32×32, pedestrian is 16×16", () => {
     for (const r of BUILDING_RECIPES) {
       // Iso sprite width = (w+h)·ISO_HW, always a multiple of 16 (ISO_HW). Height
       // is roof+walls+diamond — positive, not tile-quantised.
@@ -54,7 +55,10 @@ describe("recipes integrity", () => {
       expect(r.height, `${r.name} height`).toBeGreaterThan(0);
     }
     for (const r of UNIT_RECIPES) {
-      expect([r.width, r.height]).toEqual([32, 32]);
+      // The two main figures are 32×32; the ambient-crowd commoner is half-res
+      // (16×16) so it reads as a smaller background person.
+      const expected = r.name === FRAME_PEDESTRIAN ? [16, 16] : [32, 32];
+      expect([r.width, r.height], r.name).toEqual(expected);
     }
   });
 
@@ -107,5 +111,6 @@ describe("building-type → frame mapping", () => {
     const names = new Set(ALL_RECIPES.map((r) => r.name));
     expect(names.has(VILLAGER_FRAME)).toBe(true);
     expect(names.has(RAIDER_FRAME)).toBe(true);
+    expect(names.has(FRAME_PEDESTRIAN)).toBe(true);
   });
 });

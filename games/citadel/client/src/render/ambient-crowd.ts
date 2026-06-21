@@ -19,6 +19,7 @@ import type { Rng } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot, RenderSnapshot } from "@citadel/sim-core";
 import { packTint, type QuadSpec } from "./citadel-renderer";
+import { FRAME_PEDESTRIAN } from "./sprites/recipes";
 
 /** Fixed render seed — distinct from any sim seed; keeps the crowd reproducible
  *  frame-to-frame without ever reading the sim RNG. */
@@ -28,15 +29,27 @@ const CROWD_RENDER_SEED = 0x0c1ade17 >>> 0;
  *  cheaper but fewer make sense — pick 96). */
 export const CROWD_CAP = 96;
 
-/** Pedestrian dot size, in world px. */
-const PED_SIZE = TILE_SIZE * 0.35;
+/** Pedestrian billboard size, in world px. The figure is the small 16px
+ *  `vil/pedestrian` sprite; ~0.8 tiles tall reads as a background commoner
+ *  (smaller than the 1.1-tile villager). */
+const PED_SIZE = TILE_SIZE * 0.8;
 
 /** Walk speed range, world px/s. */
 const SPEED_MIN = 8;
 const SPEED_MAX = 18;
 
-/** EDG swatches the pedestrians are tinted with (muted commoner colors). */
-const PED_COLORS: readonly string[] = [EDG.tan, EDG.cream, EDG.salmon, EDG.steel, EDG.clay];
+/**
+ * Clothing tints for the pedestrians — a broad spread of EDG commoner colors.
+ * The shared `vil/pedestrian` sprite has a WHITE tunic that this tint recolors
+ * (texture × tint), so one base figure yields a visibly varied crowd. Skin and
+ * boots are baked into the sprite and stay roughly fixed across tints. Wider
+ * than before (was 5 muted swatches) so a dense street doesn't look uniform.
+ */
+const PED_COLORS: readonly string[] = [
+  EDG.tan, EDG.cream, EDG.salmon, EDG.steel, EDG.clay,
+  EDG.wood, EDG.green, EDG.blue, EDG.mauve, EDG.gold,
+  EDG.crimson, EDG.teal,
+];
 
 /**
  * Target active pedestrian count per settlement tier. MONOTONIC non-decreasing
@@ -194,17 +207,24 @@ export class CitadelAmbientCrowd {
     p.ty = dest.y;
   }
 
-  /** Emit a quad per active pedestrian (centered dot). */
+  /**
+   * Emit a quad per active pedestrian. The quad is the small `vil/pedestrian`
+   * billboard, clothing-tinted; `x/y` is the figure's world-px FOOT position
+   * (tile-center on the road) — `pushAmbientCrowd` iso-projects that and stands
+   * the sprite upright on it. Size is square (the 16px sprite is square).
+   */
   quads(): QuadSpec[] {
     const out: QuadSpec[] = [];
     for (const p of this.pool) {
       if (!p.active) continue;
       out.push({
-        x: p.x - PED_SIZE / 2,
-        y: p.y - PED_SIZE / 2,
+        // Foot position (not top-left) — the billboard is anchored bottom-centre.
+        x: p.x,
+        y: p.y,
         width: PED_SIZE,
         height: PED_SIZE,
         tintRgba: p.tint,
+        frame: FRAME_PEDESTRIAN,
       });
     }
     return out;

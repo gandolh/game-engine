@@ -51,6 +51,7 @@ import {
   clusterBuildings,
   clusterBorderQuads,
 } from "./citadel-renderer";
+import { FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
 
 function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">): BuildingSnapshot {
   return {
@@ -435,6 +436,26 @@ describe("isoNetworkTiles (iso diamond road/wall tiles)", () => {
     // No gate/house tiles leak in.
     expect(tiles.some((t) => t.tx === 5 && t.ty === 6)).toBe(false);
     expect(tiles.some((t) => t.tx === 9 && t.ty === 9)).toBe(false);
+  });
+
+  it("emits bridge tiles and stamps the textured road/bridge frames when given", () => {
+    const buildings: BuildingSnapshot[] = [
+      building({ type: "road", x: 1, y: 1, w: 1, h: 1 }),
+      building({ type: "bridge", x: 2, y: 1, w: 1, h: 1 }),
+      building({ type: "wall", x: 3, y: 1, w: 1, h: 1 }),
+    ];
+    const tiles = isoNetworkTiles(buildings, { road: FRAME_ROAD, bridge: FRAME_BRIDGE });
+    const road = tiles.find((t) => t.type === "road");
+    const bridge = tiles.find((t) => t.type === "bridge");
+    const wall = tiles.find((t) => t.type === "wall");
+    // Road + bridge carry their textured frames and fill the whole tile (band 1).
+    expect(road?.frame).toBe(FRAME_ROAD);
+    expect(road?.band).toBe(1);
+    expect(bridge?.frame).toBe(FRAME_BRIDGE);
+    expect(bridge?.band).toBe(1);
+    // Walls stay solid-tinted (no frame), banded.
+    expect(wall?.frame).toBeUndefined();
+    expect(wall?.band).toBeGreaterThan(0.7);
   });
 });
 

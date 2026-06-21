@@ -66,8 +66,41 @@ function raider(): PixelRecipe {
   return g.toRecipe("raider");
 }
 
-export const UNIT_RECIPES: readonly PixelRecipe[] = [villager(), raider()];
+/**
+ * A small 16×16 commoner for the ambient road crowd. ONE shared base figure: a
+ * skin (`k`) head + hands, a WHITE (`v`) tunic body, and dark (`#`/`S`)
+ * trousers/boots. Only the tunic is white, so the per-instance clothing tint
+ * (texture × tint) recolors the SHIRT strongly while the skin and boots stay
+ * roughly fixed — a few dozen pedestrians sharing this sprite read as a diverse
+ * crowd just by varying that tint. Half the resolution of the 32px villager, so
+ * the figures read as smaller background folk.
+ */
+function pedestrian(): PixelRecipe {
+  const g = new Grid(16, 16);
+  const cx = 8;
+  // Head (4 wide) — skin, with a 1px darker shaded right edge.
+  g.fillRect(cx - 2, 2, 4, 4, "k");
+  g.vLine(cx + 1, 2, 4, "K"); // shaded right of face
+  g.set(cx - 1, 4, "#"); // eye
+  // Tunic / torso (6 tall) — WHITE so the clothing tint colors it.
+  g.fillRect(cx - 3, 6, 6, 6, "v");
+  g.vLine(cx - 3, 6, 6, "l"); // lit left highlight
+  g.vLine(cx + 2, 6, 6, "S"); // shaded right
+  // Arms with skin hands at the cuff.
+  g.vLine(cx - 4, 7, 4, "v"); g.set(cx - 4, 10, "k");
+  g.vLine(cx + 3, 7, 4, "v"); g.set(cx + 3, 10, "k");
+  // Legs + feet — dark trousers, darker boots.
+  g.fillRect(cx - 2, 12, 2, 3, "S");
+  g.fillRect(cx + 1, 12, 2, 3, "S");
+  g.hLine(cx - 2, 14, 2, "#"); // left boot
+  g.hLine(cx + 1, 14, 2, "#"); // right boot
+  return g.toRecipe("vil/pedestrian");
+}
+
+export const UNIT_RECIPES: readonly PixelRecipe[] = [villager(), raider(), pedestrian()];
 
 /** Frame names for the unit sprites (referenced from quads.ts). */
 export const FRAME_VILLAGER = "vil/person";
 export const FRAME_RAIDER = "raider";
+/** Frame name for the small ambient-crowd commoner (clothing-tinted billboard). */
+export const FRAME_PEDESTRIAN = "vil/pedestrian";

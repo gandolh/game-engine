@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CitadelAmbientCrowd, densityForTier, CROWD_CAP } from "./ambient-crowd";
+import { FRAME_PEDESTRIAN } from "./sprites/recipes";
 import type { BuildingSnapshot, RaiderSnapshot, RenderSnapshot } from "@citadel/sim-core";
 
 function mkRoad(x: number, y: number): BuildingSnapshot {
@@ -83,6 +84,17 @@ describe("CitadelAmbientCrowd", () => {
     expect(crowd.activeCount).toBeGreaterThan(0);
     crowd.update(0.016, mkSnapshot("Town", 0));
     expect(crowd.activeCount).toBe(0);
+  });
+
+  it("emits the shared pedestrian billboard frame with diverse clothing tints", () => {
+    const crowd = new CitadelAmbientCrowd(123);
+    crowd.update(0.016, mkSnapshot("Town", 200));
+    const quads = crowd.quads();
+    expect(quads.length).toBeGreaterThan(1);
+    // Every pedestrian shares ONE base sprite...
+    for (const q of quads) expect(q.frame).toBe(FRAME_PEDESTRIAN);
+    // ...but the clothing tint varies across the crowd (not all identical).
+    expect(new Set(quads.map((q) => q.tintRgba)).size).toBeGreaterThan(1);
   });
 
   it("pedestrians move over time", () => {

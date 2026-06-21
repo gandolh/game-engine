@@ -6,12 +6,12 @@
  */
 import type { PixelRecipe } from "../types";
 import { BUILDING_RECIPES } from "./buildings";
-import { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER } from "./units";
+import { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN } from "./units";
 import { FX_RECIPES, FRAME_DIAMOND } from "./fx";
 
 export { BUILDING_RECIPES } from "./buildings";
-export { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER } from "./units";
-export { FRAME_DIAMOND } from "./fx";
+export { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN } from "./units";
+export { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE } from "./fx";
 
 /** Every recipe baked into the runtime atlas (buildings + units + fx). */
 export const ALL_RECIPES: readonly PixelRecipe[] = [...BUILDING_RECIPES, ...UNIT_RECIPES, ...FX_RECIPES];

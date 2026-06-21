@@ -91,6 +91,25 @@ guard green. Brief:
 dev GPU despite byte-correct sprite data — suspected WebGPU driver artifact, see
 the brief's OUTCOME note. Iso windowing for the large MP map is still deferred.
 
+**BRIDGES — roads over water (2026-06-21).** A road dragged onto a **Water** tile
+auto-converts to a `bridge` (new building type + production def `isBridge`, both 1×1)
+in [`placeOne`](../../games/citadel/sim-core/src/sim-bootstrap.ts): roads on land stay
+roads, the water tiles of the same drag become bridges. A bridge is the **only** way
+to place anything on water — it bypasses the `buildable` (terrain-walkable) check but
+requires the tile to BE water and **unoccupied**, so **bridges cannot overlap** (nor
+sit on a building/road). It joins `roadGrid` (so `villagerWalkable` + road-connectivity
+treat it as a road) and a new `walkablePred` (terrain-buildable **OR** road tile) keeps
+the decked water tile walkable in the rebuilt raider/path grid. Demolish clears
+`roadGrid` *before* rebuilding so a removed bridge stops reading walkable. **Render:**
+two new textured flat-diamond fx frames — `fx/road` (cobblestone) and `fx/bridge`
+(railed wooden plank deck) in [sprites/recipes/fx.ts](../../games/citadel/client/src/render/sprites/recipes/fx.ts);
+`isoNetworkTiles` now emits `bridge` tiles (and carries each tile's `type` + optional
+`frame`), and `pushNetworks` stamps the textured frame white-tinted (walls keep the
+solid tinted diamond), with bridges depth-sorted just under roads so a bridge mouth
+tucks beneath the road it meets. Determinism untouched (terrain/placement only; the
+art is render-only). Guarded by `systems/bridges.test.ts` (road→bridge on water, road
+stays road on land, bridge walkable, no-overlap) + an `isoNetworkTiles` bridge-frame case.
+
 ## Briefs & todos
 
 There is no Farm-Valley-style "done brief" archive for Citadel yet; work is tracked as todos. See [briefs/citadel-apr.md](../briefs/citadel-apr.md) and the `corpus/todos/*citadel-*` files (e.g. the `citadel-00-BUILD-ORDER` epic and the 21–33 series: windowed-grid render, incremental build queue, PlayerState refactor, territory/influence, PvP armies, per-player PvE). Fold durable Citadel findings into this page as the design settles.

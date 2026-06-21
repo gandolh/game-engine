@@ -53,7 +53,7 @@ import {
 } from "./quads";
 import { isoFootprintBox, isoFootprintDiamondBox, isoPointBox, isoProjectTilePxBox, ISO_TILE_H } from "./iso";
 import { isoNetworkTiles } from "./autotile";
-import { FRAME_DIAMOND } from "./sprites/recipes";
+import { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
 import { clusterBuildings, clusterBorderQuads } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
 import { RenderWindowController } from "./window-controller";
@@ -250,7 +250,13 @@ function isoBuildingPlacement(b: BuildingSnapshot, base: QuadSpec): { quad: Quad
  * FLAT on the iso grid rather than billboard upright.
  */
 function isoDiamondSprite(x: number, y: number, width: number, height: number, tintRgba: number, layer: number, sortY: number): Canvas2dSprite {
-  return { atlasId: QUAD_ATLAS_ID, frame: FRAME_DIAMOND, x, y, width, height, rotation: 0, layer, alpha: 1, tintRgba, sortY };
+  return isoFlatSprite(x, y, width, height, FRAME_DIAMOND, tintRgba, layer, sortY);
+}
+
+/** Like `isoDiamondSprite` but stamps an arbitrary flat frame (cobble road /
+ *  plank bridge / plain diamond) — same iso-flat ground-plane placement. */
+function isoFlatSprite(x: number, y: number, width: number, height: number, frame: string, tintRgba: number, layer: number, sortY: number): Canvas2dSprite {
+  return { atlasId: QUAD_ATLAS_ID, frame, x, y, width, height, rotation: 0, layer, alpha: 1, tintRgba, sortY };
 }
 
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
@@ -304,7 +310,7 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
   }
 
   for (const b of scene.buildings) {
-    if (b.type === "road" || b.type === "wall") continue; // handled by pushNetworks
+    if (b.type === "road" || b.type === "wall" || b.type === "bridge") continue; // handled by pushNetworks
     if (b.type === "house") continue; // handled by the cluster path above
     pushBuilding(renderer, b, fx);
   }
@@ -333,17 +339,23 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
  * buildings). Recomputes per frame — cheap at this world size.
  */
 export function pushNetworks(renderer: RendererLike, buildings: readonly BuildingSnapshot[]): void {
-  // Iso: each road/wall tile draws as a flat diamond filling (a band fraction
-  // of) its tile. Adjacent same-network diamonds abut → a run reads continuous
-  // without arm geometry. Drawn on the network layer just above terrain.
-  for (const t of isoNetworkTiles(buildings)) {
+  // Iso: each road/wall/bridge tile draws as a flat diamond filling (a band
+  // fraction of) its tile. Adjacent same-network diamonds abut → a run reads
+  // continuous without arm geometry. Roads stamp a cobblestone texture and
+  // bridges a plank-deck texture (white-tinted so the recipe colors show); walls
+  // keep the solid tinted diamond. Drawn on the network layer above terrain.
+  for (const t of isoNetworkTiles(buildings, { road: FRAME_ROAD, bridge: FRAME_BRIDGE })) {
     const d = isoFootprintDiamondBox(t.tx, t.ty, 1, 1, 0);
     // Shrink the diamond toward its centre by the band fraction (roads thinner).
     const insetX = (d.width * (1 - t.band)) / 2;
     const insetY = (d.height * (1 - t.band)) / 2;
-    renderer.push(isoDiamondSprite(
+    // Bridges sit just above the terrain water but BELOW roads/walls so a bridge
+    // mouth tucks under the road it meets; textured tiles draw white-tinted.
+    const depth = t.type === "bridge" ? d.depth - 0.6 : d.depth - 0.5;
+    renderer.push(isoFlatSprite(
       d.x + insetX, d.y + insetY, d.width * t.band, d.height * t.band,
-      packTint(t.hex), LAYER_NETWORK, d.depth - 0.5,
+      t.frame ?? FRAME_DIAMOND, t.frame !== undefined ? packTint(EDG.white) : packTint(t.hex),
+      LAYER_NETWORK, depth,
     ));
   }
 }
@@ -396,11 +408,18 @@ export function pushLightPool(renderer: RendererLike, quads: readonly QuadSpec[]
 /**
  * Push the ambient crowd's pedestrian quads (brief 18) on the crowd layer
  * (below real villagers, above buildings). The caller pulls them from
- * `CitadelAmbientCrowd.quads()`.
+ * `CitadelAmbientCrowd.quads()`. Each quad's `x/y` is the figure's world-px
+ * FOOT position (a road tile centre); we iso-project that tile point and stand
+ * the small `vil/pedestrian` billboard upright on it (like a villager), so the
+ * crowd reads as little walking people rather than flat dots. The clothing tint
+ * carried on the quad recolors the shared sprite's white tunic.
  */
 export function pushAmbientCrowd(renderer: RendererLike, quads: readonly QuadSpec[]): void {
   for (const q of quads) {
-    const box = isoProjectTilePxBox(q.x, q.y, q.width, q.height, TILE_SIZE);
-    renderer.push(quadToSprite({ x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: q.tintRgba }, LAYER_AMBIENT_CROWD));
+    const box = isoPointBox(q.x / TILE_SIZE, q.y / TILE_SIZE, q.width);
+    renderer.push(quadToSprite(
+      { x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: q.tintRgba, ...(q.frame !== undefined ? { frame: q.frame } : {}) },
+      LAYER_AMBIENT_CROWD, 1, box.depth,
+    ));
   }
 }

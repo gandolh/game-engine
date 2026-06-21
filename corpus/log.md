@@ -4,6 +4,22 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] game+render | Citadel bridges — roads over water transform into non-overlapping bridges
+
+A road dragged onto a Water tile now auto-converts to a new `bridge` building
+type (sim: `entities/building.ts` def + `isBridge` production flag; `placeOne` in
+`sim-bootstrap.ts` does the road→bridge substitution and gates bridges to
+unoccupied water → **bridges cannot overlap**). Bridges join `roadGrid` (so
+villagers/connectivity cross them) and a new `walkablePred` keeps the decked
+water tile walkable in the raider/path grid; demolish clears the road tile before
+rebuilding. Render: two textured flat-diamond fx frames `fx/road` (cobblestone)
+and `fx/bridge` (railed plank deck) replace the flat navy road lozenge;
+`isoNetworkTiles`/`pushNetworks` emit + stamp them (bridges depth-tucked under
+roads). Determinism untouched (terrain/placement + render-only art). Tests:
+`systems/bridges.test.ts` (4) + an `isoNetworkTiles` bridge-frame case; all
+citadel suites green (137 sim-core, 177 client), both workspaces typecheck clean.
+Wiki: [wiki/citadel-overview.md](wiki/citadel-overview.md) BRIDGES section.
+
 ## [2026-06-21] render | Citadel true-isometric epic — IMPLEMENTED + browser-verified (one open anomaly)
 
 Built the whole iso stack from the brief
