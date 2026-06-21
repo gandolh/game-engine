@@ -4,6 +4,41 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] render | Citadel true-isometric epic — IMPLEMENTED + browser-verified (one open anomaly)
+
+Built the whole iso stack from the brief
+([todos/2026-06-21-citadel-true-isometric.md](todos/2026-06-21-citadel-true-isometric.md),
+now `mostly-done`). New `render/iso.ts` is the single source of truth: 2:1
+dimetric projection (`tileToIso`), the placement-critical inverse (`isoToTile`,
+exhaustively round-trip tested for all 9216 tiles), `isoFootprintBox` /
+`isoSpriteDims` (shared by renderer + sprite generators so art maps 1:1), and
+`isoDepth`. `transform.ts` `screenToTile` now routes through the iso inverse;
+the camera frames iso-world space. The renderer CPU-pre-projects every quad and
+relies on the engine's existing within-layer `sortY` for painter's order
+(buildings/villagers/raiders share one entity layer + iso-depth `sortY`).
+Terrain bakes as **diamonds** (`makeTerrainDecorate` rewrite, whole-iso-world
+texture; iso windowing for the big MP map deferred). Roads/walls/ghost/shadow/
+cluster draw via a new `fx/diamond` atlas frame so they sit flat on the grid
+(`isoNetworkTiles`). **Sprites re-authored true-iso** (`sprites/recipes/iso-draw.ts`:
+diamond base + two shaded wall faces + hip roof) at 32-based res; units redrawn
+32×32. The sim, determinism, and EDG32 guard are untouched.
+
+Browser-verified via Playwright (solo client): diamond terrain, correct
+placement/ghost picking on the diamond, depth-correct occlusion, iso roads, and
+house/chapel/tower/storehouse rendering as proper iso volumes (screenshots in
+repo root: `iso-village.png`, `iso-sprites-fixed.png`). **174 client tests + a
+new iso-volume guard + palette guard all green.**
+
+**One open anomaly (documented in the brief, not blocking):** a subset of
+building types (market/storehouse/bakery/woodcutter) intermittently render as a
+flat 2-tone box on this dev GPU. Proved the sprite DATA is correct end-to-end
+(recipe→rasterize→alpha→pack→blit→UV→render-quad all byte-identical to the
+working house; the guard test passes for market). Not reproducible from code →
+suspected WebGPU driver/texture-sampling artifact on this host; flagged for
+repro on another GPU. Pre-existing unrelated `@farm/sim-core` test failures
+(bridge-graph, interior-decor, coral-fishing, travel, farmer-frames) were
+confirmed independent of this Citadel-only work.
+
 ## [2026-06-21] plan | Citadel true-isometric epic — brief filed (render+art, sim untouched)
 
 Decided to convert Citadel from top-down axis-aligned to a **true isometric

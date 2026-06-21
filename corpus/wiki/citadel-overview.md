@@ -74,15 +74,22 @@ elevation-biased terrain dither, a directional NW-sun building drop-shadow
 sprite generators (roof shingles, wall seams, doorstep, fort ashlar courses). All
 render-only, EDG32-clean, sim untouched. See the 2026-06-21 log entry.
 
-**PLANNED — true isometric (render+art epic).** A staged brief
-([../todos/2026-06-21-citadel-true-isometric.md](../todos/2026-06-21-citadel-true-isometric.md))
-scopes converting Citadel to a true isometric (2:1 dimetric diamond-grid) projection.
-It is **render + input + art only — `@citadel/sim-core` and determinism are
-untouched** (iso is a *display* of the existing axis-aligned tile grid). Cost ≈ 70%
-art (re-authoring the top-down sprite library at the iso angle) / 30% code (the
-`screenToTile` inverse in `transform.ts` + painter's-order depth sort are the risk
-centres). Must not land half-done — a partial projection swap breaks placement. The
-sprite library described above is still **top-down**; Stage 4 re-authors it.
+**TRUE ISOMETRIC — IMPLEMENTED (2026-06-21).** Citadel now renders **2:1 dimetric
+isometric**: diamond terrain, iso projection with a working `screenToTile` inverse
+(placement/ghost pick the right diamond), painter's-order depth sort, iso
+road/wall diamonds (`fx/diamond` frame), and **true-iso building sprites**
+(diamond base + two shaded wall faces + hip roof, `sprites/recipes/iso-draw.ts`)
+at 32-based resolution + 32×32 units. The single source of truth is
+[render/iso.ts](../../games/citadel/client/src/render/iso.ts) (`tileToIso`,
+`isoToTile`, `isoFootprintBox`, `isoSpriteDims`, `isoDepth`). **Sim + determinism
+untouched** — iso is a pure render/input/art change; `CHECK_DETERMINISM` stays
+byte-identical. Verified in-browser; 174 client tests + iso-volume guard + EDG32
+guard green. Brief:
+[../todos/2026-06-21-citadel-true-isometric.md](../todos/2026-06-21-citadel-true-isometric.md)
+(`mostly-done`). **Open anomaly:** a subset of building types
+(market/storehouse/bakery/woodcutter) intermittently render as a flat box on the
+dev GPU despite byte-correct sprite data — suspected WebGPU driver artifact, see
+the brief's OUTCOME note. Iso windowing for the large MP map is still deferred.
 
 ## Briefs & todos
 

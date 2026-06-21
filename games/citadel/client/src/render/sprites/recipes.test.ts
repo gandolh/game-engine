@@ -46,19 +46,39 @@ describe("recipes integrity", () => {
     }
   });
 
-  it("building frames are sized to whole tiles; units are 16×16", () => {
+  it("iso building frames have diamond-aligned width and positive height; units are 32×32", () => {
     for (const r of BUILDING_RECIPES) {
-      expect(r.width % TILE_SIZE, `${r.name} width`).toBe(0);
-      expect(r.height % TILE_SIZE, `${r.name} height`).toBe(0);
+      // Iso sprite width = (w+h)·ISO_HW, always a multiple of 16 (ISO_HW). Height
+      // is roof+walls+diamond — positive, not tile-quantised.
+      expect(r.width % (TILE_SIZE), `${r.name} width`).toBe(0);
+      expect(r.height, `${r.name} height`).toBeGreaterThan(0);
     }
     for (const r of UNIT_RECIPES) {
-      expect([r.width, r.height]).toEqual([TILE_SIZE, TILE_SIZE]);
+      expect([r.width, r.height]).toEqual([32, 32]);
     }
   });
 
   it("frame names are unique", () => {
     const names = ALL_RECIPES.map((r) => r.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("every iso building sprite is a non-degenerate volume (transparent corners + a filled body)", () => {
+    // Guards the iso generators: a real diamond+roof silhouette has TRANSPARENT
+    // corners (the top-left corner pixel must be `.`), and a substantial but
+    // not-full filled body (so it's neither a blank nor a solid rectangle).
+    for (const r of BUILDING_RECIPES) {
+      const raster = rasterizeRecipe(r);
+      // Top-left corner is outside the diamond → transparent.
+      expect(raster.rgba[3], `${r.name} top-left corner should be transparent`).toBe(0);
+      // Count opaque pixels: between ~25% and ~85% of the frame (a diamond-capped
+      // volume), never 0 (blank) and never ~100% (a solid box).
+      let opaque = 0;
+      for (let i = 3; i < raster.rgba.length; i += 4) if (raster.rgba[i]! > 0) opaque++;
+      const frac = opaque / (r.width * r.height);
+      expect(frac, `${r.name} opaque fraction`).toBeGreaterThan(0.2);
+      expect(frac, `${r.name} opaque fraction`).toBeLessThan(0.9);
+    }
   });
 });
 

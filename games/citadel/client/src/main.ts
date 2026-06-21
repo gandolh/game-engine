@@ -341,6 +341,29 @@ function updateModeLabel(): void {
   else if (mode === "wall") lblMode.textContent = "Mode: Wall (drag)";
   else if (mode === "upgrade") lblMode.textContent = upgradeHint();
   else lblMode.textContent = "Mode: None";
+  highlightActiveBuildButton();
+}
+
+/**
+ * Highlight the build-toolbar button matching the active placement mode so the
+ * current tool is visually obvious (selection used to live only in the text
+ * label). `place` maps to the selected building's button; the standalone modes
+ * map to their dedicated buttons. `none` clears all highlights.
+ */
+function highlightActiveBuildButton(): void {
+  const active: HTMLElement | null =
+    placementState.mode === "place"
+      ? buildButtonsByType.get(placementState.selectedType) ?? null
+      : placementState.mode === "road"
+        ? btnRoad
+        : placementState.mode === "wall"
+          ? btnWall
+          : placementState.mode === "demolish"
+            ? btnDemolish
+            : placementState.mode === "upgrade"
+              ? btnUpgrade
+              : null;
+  for (const btn of buildModeButtons) btn.classList.toggle("selected", btn === active);
 }
 
 function selectBuild(type: string): void {
@@ -390,6 +413,18 @@ for (const [id, type] of BUILD_BUTTONS) {
 }
 // The wall button drives a "wall" placement type and is tier-locked too.
 buildButtonsByType.set("wall", btnWall as HTMLButtonElement);
+
+/**
+ * Every toolbar button that maps to a placement mode — used to toggle the
+ * `.selected` highlight. Includes the type buttons plus the standalone
+ * road/demolish/upgrade tools (wall is already in buildButtonsByType).
+ */
+const buildModeButtons: HTMLElement[] = [
+  ...buildButtonsByType.values(),
+  btnRoad,
+  btnDemolish,
+  btnUpgrade,
+];
 
 /**
  * Grey out / disable build buttons whose building type is locked behind a

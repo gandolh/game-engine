@@ -218,10 +218,12 @@ export interface SceneFx {
  * ground diamond in the iso view). Taller structures loom; flat features stay
  * ground-height. Falls back to 1. Render-only.
  */
+// MUST match the `heightTiles` authored per type in sprites/recipes/buildings.ts
+// so the sprite art maps 1:1 onto the quad (shared isoSpriteDims).
 const BUILDING_HEIGHT_TILES: Record<string, number> = {
-  keep: 3, tower: 3, garrison: 2, watchpost: 2, chapel: 2.5, mill: 2.5,
-  "town-hall": 2.5, storehouse: 1.5, market: 1.2, smith: 1.5, bakery: 1.5,
-  wall: 1, gate: 1.2, road: 0,
+  keep: 3, tower: 3, garrison: 2, watchpost: 2, chapel: 2, mill: 2,
+  "town-hall": 2,
+  wall: 1, gate: 1, road: 0,
 };
 function buildingHeightTiles(type: string): number {
   return BUILDING_HEIGHT_TILES[type] ?? 1;

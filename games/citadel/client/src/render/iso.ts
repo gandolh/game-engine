@@ -191,19 +191,47 @@ export function isoFootprintBox(
   elevation = 0,
 ): IsoBox {
   const top = tileToIso(tx, ty, elevation); // diamond top corner
-  const bottom = tileToIso(tx + w, ty + h, elevation); // diamond bottom corner
-  const spanW = (w + h) * ISO_HW; // diamond width
   const leftX = top.x - h * ISO_HW; // leftmost diamond point
-  const artH = heightTiles * ISO_TILE_H; // pixels of "rise" above the diamond top
-  const boxTopY = top.y - artH;
+  const dims = isoSpriteDims(w, h, heightTiles);
+  // The sprite's bottom sits at the footprint diamond's BOTTOM point; its top is
+  // `dims.height` above that. This matches the authored sprite exactly so the
+  // art maps 1:1 (roof at the top of the box, ground diamond at the bottom).
+  const bottomY = top.y + (w + h) * ISO_HH;
   return {
     x: leftX,
-    y: boxTopY,
-    width: spanW,
-    height: bottom.y - boxTopY,
+    y: bottomY - dims.height,
+    width: dims.width,
+    height: dims.height,
     // Depth by the front-most tile so a building occludes things behind it.
     depth: isoDepth(tx + w - 1, ty + h - 1, elevation),
   };
+}
+
+/**
+ * Sprite pixel dimensions for a `w×h`-tile building `heightTiles` tall — the
+ * SINGLE source of truth shared by the renderer (`isoFootprintBox`) and the iso
+ * sprite generators (`iso-draw.ts`), so the authored art maps 1:1 onto the quad.
+ *   width  = (w + h) · ISO_HW                  (full footprint diamond width)
+ *   height = roof + walls + diamond            (top of roof → bottom diamond point)
+ * Pure.
+ */
+export function isoSpriteDims(w: number, h: number, heightTiles: number): { width: number; height: number; roofH: number; wallH: number; diaH: number } {
+  const width = (w + h) * ISO_HW;
+  const diaH = (w + h) * ISO_HH;
+  // Walls rise ~1 tile-height per storey so a multi-storey building is clearly
+  // taller; floored so even a 1-storey shack has a readable wall band.
+  const wallH = Math.max(ISO_TILE_H, Math.round(heightTiles * ISO_TILE_H));
+  // Roof is a shallow hip capping the full width: peak rises ~¼ the diamond
+  // width. Kept modest so the WALLS stay visible (roof ≈ a third of the body),
+  // unlike a full half-width diamond which would swallow the walls.
+  const roofH = Math.round(width * 0.22);
+  // Height budget below the roof: the wall band (top→ground mid-line) plus only
+  // the LOWER half of the ground diamond. The diamond is drawn centred on the
+  // wall-bottom mid-line (yBotMid), so its upper half sits *behind* the walls,
+  // not below them — counting the full diaH here left a blank diaH/2 band at the
+  // sprite bottom, which `isoFootprintBox` pinned to the diamond's bottom point
+  // and so floated the whole building up half a tile. Use diaH/2.
+  return { width, height: roofH + wallH + Math.round(diaH / 2), roofH, wallH, diaH };
 }
 
 /**

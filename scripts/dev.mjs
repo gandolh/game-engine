@@ -51,7 +51,8 @@ function shutdown(code) {
 }
 
 for (const p of config.procs) {
-  const child = spawn(p.cmd, p.args, { stdio: ["inherit", "pipe", "pipe"], env: process.env });
+  // shell: true so Windows resolves `npm` → `npm.cmd` (plain spawn fails with ENOENT otherwise).
+  const child = spawn(p.cmd, p.args, { stdio: ["inherit", "pipe", "pipe"], env: process.env, shell: true });
   children.push(child);
   const tag = `${p.color}[${p.name}]\x1b[0m `;
   const pipe = (stream, out) => {

@@ -250,7 +250,8 @@ export function buildingShadowQuad(b: BuildingSnapshot): QuadSpec | null {
  * (texture × tint), so state still reads at a glance but now on a shaded figure.
  */
 export function villagerQuad(v: VillagerSnapshot): QuadSpec {
-  const size = TILE_SIZE * 0.7;
+  // Sized up for the 32×32 iso figure art (was 0.7 tiles for the old 16px sprite).
+  const size = TILE_SIZE * 1.1;
   const cx = v.x * TILE_SIZE + TILE_SIZE / 2;
   const cy = v.y * TILE_SIZE + TILE_SIZE / 2;
   const hex = VILLAGER_COLORS[v.fsm] ?? FALLBACK_VILLAGER_COLOR;

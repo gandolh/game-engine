@@ -152,7 +152,7 @@ describe("villagerQuad / raiderQuad / ghostQuad", () => {
     const q = villagerQuad(v);
     expect(q.tintRgba).toBe(packTint(EDG.orange)); // FSM-state tint over the figure
     expect(q.frame).toBe("vil/person");
-    const size = TILE_SIZE * 0.7;
+    const size = TILE_SIZE * 1.1; // sized up for the 32×32 iso figure
     expect(q.width).toBe(size);
     // Centered on the tile center.
     expect(q.x).toBeCloseTo(4 * TILE_SIZE + TILE_SIZE / 2 - size / 2);

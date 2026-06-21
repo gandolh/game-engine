@@ -1,9 +1,34 @@
 ---
 title: "Citadel — true isometric projection (render + art epic)"
 created: 2026-06-21
-status: open
+status: mostly-done
 tags: [citadel, render, art, projection, epic]
 ---
+
+# Citadel — true isometric projection
+
+> **OUTCOME (2026-06-21).** Implemented and browser-verified. Citadel now renders
+> true isometric (2:1 dimetric): diamond terrain, iso projection + working
+> `screenToTile` inverse (placement/ghost land on the right diamond), painter's
+> depth sort, iso road/wall diamonds, and **true-iso building sprites** (diamond
+> base + two shaded wall faces + hip roof) at 32-based resolution + 32×32 units.
+> All 174 `@citadel/client` tests + a new iso-volume guard test + the EDG32
+> palette guard are green; the sim was untouched (determinism intact).
+>
+> **OPEN ANOMALY (not yet root-caused).** On the dev test machine, a *subset* of
+> building types (market, storehouse, bakery, woodcutter) intermittently render
+> as a **flat 2-tone box** instead of their iso volume, while house/chapel/tower
+> all render correctly. Exhaustively verified that the **sprite data is correct**:
+> recipe ascii, rasterized RGBA + alpha, shelf-pack rects (no overlap), atlas
+> blit, UV, and the final render quad are all byte-identical between a working
+> (house) and a broken (market) sprite — and the new
+> `recipes.test.ts` guard asserts every building sprite is a non-degenerate
+> diamond-cornered volume (passes for market). The on-screen difference is
+> therefore **not reproducible from the code** and is suspected to be a
+> WebGPU texture-sampling / driver artifact on this host (first-real-GPU
+> territory — see the 2026-06-21 playtest log). **Follow-up:** reproduce on
+> another GPU; if real, instrument `copyExternalImageToTexture` / try per-frame
+> sub-textures or a padded atlas. Tracked here, not blocking the iso landing.
 
 # Citadel — true isometric projection
 
