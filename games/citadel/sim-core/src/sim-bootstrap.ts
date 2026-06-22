@@ -68,6 +68,12 @@ export interface CitadelSimResult {
   world: World<BuildingEntity>;
   villagerWorld: World<VillagerEntity>;
   commands: CommandQueue<CitadelCommand>;
+  /**
+   * Drain + apply queued commands WITHOUT advancing the simulation (city-builder
+   * "plan while paused"): runs the CommandSystem then recomputes connectivity so
+   * the snapshot reflects the new layout, but no sim systems or the day clock run.
+   */
+  applyCommands(ctx: SimContext): void;
   /** Snapshot of placed buildings — updated synchronously by command handlers. */
   getBuildings(): readonly BuildingSnapshot[];
   /** Full render snapshot for the current tick. */
@@ -168,6 +174,15 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
 
   const buildable = (tx: number, ty: number): boolean => isWalkable(terrain, tx, ty);
 
+  // Walkability for the path/raider grid: buildable terrain OR a road/bridge
+  // tile. Bridges sit on (non-buildable) water but are crossable once decked, so
+  // they must read as walkable here. Placement validity still uses `buildable`.
+  // (defined as a function so it can reference `state`, assigned just below,
+  // without a temporal-dead-zone hazard at the initial bake — no roads exist yet.)
+  function walkablePred(tx: number, ty: number): boolean {
+    return buildable(tx, ty) || state.roadGrid[ty * WORLD_WIDTH + tx] === 1;
+  }
+
   let walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
 
   // ---------------------------------------------------------------------------
@@ -247,7 +262,19 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     });
   }
 
+  /** Whether tile (tx,ty) is in-bounds and water. */
+  function isWaterTile(tx: number, ty: number): boolean {
+    if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return false;
+    return terrain.cells[ty * WORLD_WIDTH + tx] === TerrainType.Water;
+  }
+
   function placeOne(buildingType: string, x: number, y: number): boolean {
+    // A road dragged onto water becomes a bridge (a walkable span). This is the
+    // ONLY way bridges are created, so a "road" command across a river auto-decks
+    // the water tiles and lays plain road on the land tiles. (A bridge command
+    // off-water falls through to the normal water/occupancy rejection below.)
+    if (buildingType === "road" && isWaterTile(x, y)) buildingType = "bridge";
+
     const def = getBuildingDef(buildingType);
     if (def === undefined) return false;
 
@@ -273,8 +300,22 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const fp = { x, y, w: def.w, h: def.h };
 
     const isGate = prod?.isGate === true;
+    const isBridge = prod?.isBridge === true;
 
-    if (isGate) {
+    if (isBridge) {
+      // A bridge decks exactly one water tile. It must BE water (else it would
+      // just be a road), and must not overlap any existing building/road/bridge
+      // footprint — bridges cannot overlap.
+      if (!isWaterTile(x, y)) return false;
+      if (occupancy.isOccupied(x, y)) return false;
+      if (state.buildingTiles.has(y * WORLD_WIDTH + x)) return false;
+      occupancy.apply(fp);
+      // Mark the deck as road BEFORE rebuilding so walkablePred (which ORs in
+      // road tiles) keeps the bridged water tile walkable; the generic isRoad
+      // block below re-sets the same cell, harmlessly.
+      state.roadGrid[y * WORLD_WIDTH + x] = 1;
+      walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, walkablePred);
+    } else if (isGate) {
       // Gates stay walkable: bounds + terrain check only, no occupancy entry.
       for (let dy = 0; dy < def.h; dy++) {
         for (let dx = 0; dx < def.w; dx++) {
@@ -407,14 +448,16 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         const prod = getProductionDef(b.type);
         // Per-player fields belong to the building's owner.
         const owner = playerById(state, b.ownerId);
+        removeBuildingTiles(b.x, b.y, b.w, b.h);
+        // Clear the road/bridge tile BEFORE rebuilding walkable so a demolished
+        // bridge stops reading as walkable (walkablePred ORs in road tiles).
+        if (prod?.isRoad === true) {
+          state.roadGrid[b.y * WORLD_WIDTH + b.x] = 0;
+        }
         // Gates were never applied to occupancy; everything else was.
         if (prod?.isGate !== true) {
           occupancy.remove({ x: b.x, y: b.y, w: b.w, h: b.h });
-          walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
-        }
-        removeBuildingTiles(b.x, b.y, b.w, b.h);
-        if (prod?.isRoad === true) {
-          state.roadGrid[b.y * WORLD_WIDTH + b.x] = 0;
+          walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, walkablePred);
         }
         if (owner !== undefined && prod?.isHousing === true && prod.housingCapacity !== undefined) {
           // Subtract the building's level-effective capacity (read level before rs is deleted).
@@ -748,6 +791,19 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     world: buildingWorld,
     villagerWorld,
     commands,
+    /**
+     * Drain + apply queued commands WITHOUT advancing the simulation.
+     * Lets the host apply placements/demolitions while paused (city-builder
+     * "plan while paused"): only the CommandSystem runs, so connectivity is
+     * recomputed for the snapshot but no sim systems or the day clock advance.
+     */
+    applyCommands(ctx: SimContext): void {
+      commandSystem.run(ctx);
+      // Recompute connectivity so the snapshot reflects the new layout
+      // (placement sets state.connectivityDirty; this is normally consumed by
+      // the connectivity system inside a full tick).
+      roadConnSystem.run(ctx);
+    },
     getBuildings,
     getSnapshot,
     get stockpiles() {

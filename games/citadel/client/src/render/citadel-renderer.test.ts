@@ -22,25 +22,36 @@ import {
   screenToTile,
   WORLD_PX_W,
   WORLD_PX_H,
+  tileCenterToIso,
+  ISO_TILE_W,
+  ISO_WORLD_W,
+  ISO_WORLD_H,
   type CameraTransform,
   autotileQuads,
   neighbourMask,
   networkQuads,
+  isoNetworkTiles,
   tileKey,
   DIR_N,
   DIR_E,
   DIR_S,
   DIR_W,
+  buildingShadowQuad,
+  SHADOW_OFFSET,
+  SHADOW_ALPHA,
   ditherHash,
   ditherClusters,
   ditherAccents,
   DITHER_ACCENTS,
+  elevationField,
+  ELEVATION_SCALE,
   type QuadSpec,
   wearFactor,
   wearOverlayQuads,
   clusterBuildings,
   clusterBorderQuads,
 } from "./citadel-renderer";
+import { FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
 
 function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">): BuildingSnapshot {
   return {
@@ -119,13 +130,30 @@ describe("buildingQuad", () => {
   });
 });
 
+describe("buildingShadowQuad (directional NW-sun ground shadow)", () => {
+  it("offsets a soft ink shadow to the SE of a rising building's footprint", () => {
+    const s = buildingShadowQuad(building({ type: "house", x: 3, y: 4, w: 2, h: 2 }));
+    expect(s).not.toBeNull();
+    expect(s!.x).toBe(3 * TILE_SIZE + SHADOW_OFFSET);
+    expect(s!.y).toBe(4 * TILE_SIZE + SHADOW_OFFSET);
+    expect(s!.width).toBe(2 * TILE_SIZE);
+    expect(s!.tintRgba).toBe(packTint(EDG.ink, SHADOW_ALPHA));
+  });
+
+  it("casts no shadow for flat ground features (road, wall, gate)", () => {
+    for (const type of ["road", "wall", "gate"]) {
+      expect(buildingShadowQuad(building({ type, x: 0, y: 0, w: 1, h: 1 }))).toBeNull();
+    }
+  });
+});
+
 describe("villagerQuad / raiderQuad / ghostQuad", () => {
   it("colors a villager by FSM state and centers a small quad", () => {
     const v: VillagerSnapshot = { id: 1, x: 4, y: 6, fsm: "work", carryGood: null };
     const q = villagerQuad(v);
     expect(q.tintRgba).toBe(packTint(EDG.orange)); // FSM-state tint over the figure
     expect(q.frame).toBe("vil/person");
-    const size = TILE_SIZE * 0.7;
+    const size = TILE_SIZE * 1.1; // sized up for the 32×32 iso figure
     expect(q.width).toBe(size);
     // Centered on the tile center.
     expect(q.x).toBeCloseTo(4 * TILE_SIZE + TILE_SIZE / 2 - size / 2);
@@ -211,25 +239,23 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
     expect(back.worldY).toBeCloseTo(worldY, 6);
   });
 
-  it("round-trips a tile center back to its tile", () => {
+  it("round-trips an ISO tile center back to its tile (the placement pick path)", () => {
     for (const [tileX, tileY] of [[0, 0], [12, 47], [95, 95], [48, 48]] as const) {
-      const centerWorldX = (tileX + 0.5) * TILE_SIZE;
-      const centerWorldY = (tileY + 0.5) * TILE_SIZE;
-      const { sx, sy } = worldToScreen(transform, centerWorldX, centerWorldY);
+      const c = tileCenterToIso(tileX, tileY); // iso world-px of the diamond centre
+      const { sx, sy } = worldToScreen(transform, c.x, c.y);
       const { tx, ty } = screenToTile(transform, sx, sy);
       expect([tx, ty]).toEqual([tileX, tileY]);
     }
   });
 
-  it("respects pan: shifting centerX shifts which tile a fixed screen point hits", () => {
+  it("respects pan: panning the iso camera shifts which tile a fixed screen point hits", () => {
     const mid = { sx: 400, sy: 400 };
     const atCenter = screenToTile(transform, mid.sx, mid.sy);
-    const panned: CameraTransform = { ...transform, centerX: transform.centerX + 10 * TILE_SIZE };
+    // Pan the camera by one tile's worth of +X iso world-px (= one diamond step
+    // along the tileX-minus-tileY axis): the picked tile must change.
+    const panned: CameraTransform = { ...transform, centerX: transform.centerX + ISO_TILE_W };
     const afterPan = screenToTile(panned, mid.sx, mid.sy);
-    // Panning the camera +10 tiles right means the screen-center now sits 10
-    // tiles further right in the world.
-    expect(afterPan.tx).toBe(atCenter.tx + 10);
-    expect(afterPan.ty).toBe(atCenter.ty);
+    expect([afterPan.tx, afterPan.ty]).not.toEqual([atCenter.tx, atCenter.ty]);
   });
 
   it("respects zoom: a zoomed-in view maps the same screen span to fewer tiles", () => {
@@ -241,9 +267,9 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
     expect(b.worldX).toBeGreaterThan(a.worldX);
   });
 
-  it("world dimensions are the expected 96x96 tiles", () => {
-    expect(WORLD_PX_W).toBe(WORLD_WIDTH * TILE_SIZE);
-    expect(WORLD_PX_H).toBe(WORLD_HEIGHT * TILE_SIZE);
+  it("world dimensions are the iso world extents", () => {
+    expect(WORLD_PX_W).toBe(ISO_WORLD_W);
+    expect(WORLD_PX_H).toBe(ISO_WORLD_H);
   });
 });
 
@@ -393,6 +419,46 @@ describe("networkQuads", () => {
   });
 });
 
+describe("isoNetworkTiles (iso diamond road/wall tiles)", () => {
+  it("emits one tile per road/wall cell with the right band; gates excluded", () => {
+    const buildings: BuildingSnapshot[] = [
+      building({ type: "road", x: 2, y: 2, w: 2, h: 1 }), // 2 road cells
+      building({ type: "wall", x: 5, y: 5, w: 1, h: 1 }), // 1 wall cell
+      building({ type: "gate", x: 5, y: 6, w: 1, h: 1 }), // excluded (drawn by buildingQuad)
+      building({ type: "house", x: 9, y: 9, w: 1, h: 1 }), // not a network type
+    ];
+    const tiles = isoNetworkTiles(buildings);
+    expect(tiles).toHaveLength(3); // 2 road + 1 wall
+    const roads = tiles.filter((t) => t.band < 0.7);
+    const walls = tiles.filter((t) => t.band >= 0.7);
+    expect(roads).toHaveLength(2);
+    expect(walls).toHaveLength(1);
+    // No gate/house tiles leak in.
+    expect(tiles.some((t) => t.tx === 5 && t.ty === 6)).toBe(false);
+    expect(tiles.some((t) => t.tx === 9 && t.ty === 9)).toBe(false);
+  });
+
+  it("emits bridge tiles and stamps the textured road/bridge frames when given", () => {
+    const buildings: BuildingSnapshot[] = [
+      building({ type: "road", x: 1, y: 1, w: 1, h: 1 }),
+      building({ type: "bridge", x: 2, y: 1, w: 1, h: 1 }),
+      building({ type: "wall", x: 3, y: 1, w: 1, h: 1 }),
+    ];
+    const tiles = isoNetworkTiles(buildings, { road: FRAME_ROAD, bridge: FRAME_BRIDGE });
+    const road = tiles.find((t) => t.type === "road");
+    const bridge = tiles.find((t) => t.type === "bridge");
+    const wall = tiles.find((t) => t.type === "wall");
+    // Road + bridge carry their textured frames and fill the whole tile (band 1).
+    expect(road?.frame).toBe(FRAME_ROAD);
+    expect(road?.band).toBe(1);
+    expect(bridge?.frame).toBe(FRAME_BRIDGE);
+    expect(bridge?.band).toBe(1);
+    // Walls stay solid-tinted (no frame), banded.
+    expect(wall?.frame).toBeUndefined();
+    expect(wall?.band).toBeGreaterThan(0.7);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Brief 13 — sub-tile terrain dither
 // ---------------------------------------------------------------------------
@@ -460,6 +526,57 @@ describe("ditherClusters", () => {
         }
       }
     }
+  });
+});
+
+describe("elevationField (relief, ported from tiny-world-builder strata)", () => {
+  it("is deterministic and stays in [0,1]", () => {
+    for (let i = 0; i < 60; i++) {
+      const a = elevationField(i, i * 2);
+      const b = elevationField(i, i * 2);
+      expect(b).toBe(a);
+      expect(a).toBeGreaterThanOrEqual(0);
+      expect(a).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("varies smoothly: adjacent cells differ less than far-apart cells (on average)", () => {
+    let adjacentDelta = 0;
+    let farDelta = 0;
+    for (let i = 0; i < 40; i++) {
+      adjacentDelta += Math.abs(elevationField(i, 5) - elevationField(i + 1, 5));
+      farDelta += Math.abs(elevationField(i, 5) - elevationField(i + ELEVATION_SCALE, 5));
+    }
+    expect(adjacentDelta).toBeLessThan(farDelta);
+  });
+
+  it("biases the dither light/dark mix by elevation: highs skew lighter than valleys", () => {
+    // Find a clearly-high and a clearly-low cell, then compare light-speck share.
+    const lightShare = (tx: number, ty: number): number => {
+      const cs = ditherClusters(tx, ty, TerrainType.Grass);
+      const lightHex = ditherAccents(TerrainType.Grass).light;
+      return cs.filter((c) => c.hex === lightHex).length / cs.length;
+    };
+    let highShare = 0;
+    let lowShare = 0;
+    let n = 0;
+    for (let tx = 0; tx < 60; tx++) {
+      for (let ty = 0; ty < 4; ty++) {
+        const e = elevationField(tx, ty);
+        if (e > 0.7) { highShare += lightShare(tx, ty); n++; }
+      }
+    }
+    let m = 0;
+    for (let tx = 0; tx < 60; tx++) {
+      for (let ty = 0; ty < 4; ty++) {
+        const e = elevationField(tx, ty);
+        if (e < 0.3) { lowShare += lightShare(tx, ty); m++; }
+      }
+    }
+    // Sanity: we sampled both bands, and high ground is on-average lighter.
+    expect(n).toBeGreaterThan(0);
+    expect(m).toBeGreaterThan(0);
+    expect(highShare / n).toBeGreaterThan(lowShare / m);
   });
 });
 

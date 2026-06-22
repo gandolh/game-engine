@@ -147,5 +147,61 @@ export function networkQuads(buildings: readonly BuildingSnapshot[]): QuadSpec[]
   return quads;
 }
 
+/**
+ * Iso road/wall tiles: the connected road + wall network as a flat list of
+ * `(tx, ty, hex, band)` tiles for the ISO renderer, which draws each as a
+ * diamond filling (a fraction of) its tile. Adjacent same-network diamonds abut,
+ * so a run reads continuous without explicit arm geometry — the autotile mask is
+ * no longer needed once tiles are diamonds. Gates keep their distinct
+ * `buildingQuad` draw (and so are excluded here, as before). Pure.
+ */
+export interface IsoNetworkTile {
+  tx: number;
+  ty: number;
+  /** The network kind ("road" | "wall" | "bridge") this tile belongs to. */
+  type: string;
+  hex: string;
+  /** Diamond inset fraction (roads thinner than walls), matching the old bands. */
+  band: number;
+  /**
+   * Optional textured frame to stamp instead of the flat tinted diamond. Roads
+   * use a cobblestone diamond and bridges a plank-deck diamond; walls keep the
+   * solid tinted diamond (frame omitted). When set, the tile is drawn white-tint
+   * so the recipe's own colors show.
+   */
+  frame?: string;
+}
+
+export function isoNetworkTiles(
+  buildings: readonly BuildingSnapshot[],
+  frames?: { road?: string; bridge?: string },
+): IsoNetworkTile[] {
+  const roadHex = BUILDING_COLORS.road ?? FALLBACK_BUILDING_COLOR;
+  const wallHex = BUILDING_COLORS.wall ?? FALLBACK_BUILDING_COLOR;
+  const out: IsoNetworkTile[] = [];
+  for (const b of buildings) {
+    // Roads and bridges fill the whole tile (band 1) when textured — the cobble
+    // / plank art carries the visual, so no inset is needed; walls stay banded.
+    let hex: string | null = null;
+    let band = WALL_BAND;
+    let frame: string | undefined;
+    if (b.type === "road") {
+      hex = roadHex; band = frames?.road !== undefined ? 1 : ROAD_BAND; frame = frames?.road;
+    } else if (b.type === "bridge") {
+      hex = roadHex; band = 1; frame = frames?.bridge;
+    } else if (b.type === "wall") {
+      hex = wallHex; band = WALL_BAND;
+    } else {
+      continue;
+    }
+    for (let dy = 0; dy < b.h; dy++) {
+      for (let dx = 0; dx < b.w; dx++) {
+        out.push({ tx: b.x + dx, ty: b.y + dy, type: b.type, hex, band, ...(frame !== undefined ? { frame } : {}) });
+      }
+    }
+  }
+  return out;
+}
+
 /** Re-export LAYER_NETWORK so citadel-renderer.ts can push network quads. */
 export { LAYER_NETWORK };

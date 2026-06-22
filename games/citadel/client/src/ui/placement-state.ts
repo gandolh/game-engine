@@ -13,6 +13,46 @@ import { eventToDevicePx, screenToTile, transformOf } from "../render/citadel-re
 
 export type PlacementMode = "none" | "place" | "demolish" | "road" | "wall" | "upgrade";
 
+/**
+ * Shortest grid path between two endpoints for road/wall drag-paint.
+ *
+ * On a 4-connected grid every monotone staircase between the endpoints has the
+ * same (Manhattan) length, so we emit a single L-shaped path: run along the
+ * axis with the larger delta first, then turn. Endpoints are integer tiles
+ * (the cursor is floored to a tile); tiles outside the world are dropped and
+ * the corner is deduped. Exported for testing.
+ */
+export function shortestRoadPath(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Array<{ x: number; y: number }> {
+  const tiles: Array<{ x: number; y: number }> = [];
+  const push = (x: number, y: number): void => {
+    if (x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT) return;
+    const last = tiles[tiles.length - 1];
+    if (last && last.x === x && last.y === y) return;
+    tiles.push({ x, y });
+  };
+
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x1 >= x0 ? 1 : -1;
+  const sy = y1 >= y0 ? 1 : -1;
+
+  if (dx >= dy) {
+    // Horizontal leg first, then vertical.
+    for (let x = x0; x !== x1 + sx; x += sx) push(x, y0);
+    for (let y = y0 + sy; y !== y1 + sy; y += sy) push(x1, y);
+  } else {
+    // Vertical leg first, then horizontal.
+    for (let y = y0; y !== y1 + sy; y += sy) push(x0, y);
+    for (let x = x0 + sx; x !== x1 + sx; x += sx) push(x, y1);
+  }
+  return tiles;
+}
+
 export interface GhostState {
   tileX: number;
   tileY: number;
@@ -39,7 +79,11 @@ export class PlacementStateManager {
 
   /** Drag-paint state (shared by road + wall modes). */
   private _dragging = false;
-  private readonly _dragTiles: Array<{ x: number; y: number }> = [];
+  /** Tile where the current drag started (the road's first endpoint). */
+  private _dragStartX = 0;
+  private _dragStartY = 0;
+  /** Tiles of the shortest path from the drag start to the cursor. */
+  private _dragTiles: Array<{ x: number; y: number }> = [];
 
   /** Set the footprint size for the active selection */
   setFootprint(w: number, h: number): void {
@@ -56,22 +100,27 @@ export class PlacementStateManager {
   }
 
   // --- Drag-paint (road + wall) --------------------------------------------
+  // A road is defined by two endpoints: the tile under the cursor when the
+  // drag began, and the tile under the cursor now. The painted tiles are the
+  // shortest grid path between them (recomputed on every cursor move), not an
+  // accumulation of every tile the mouse happened to pass over.
   startRoadDrag(): void {
     this._dragging = true;
-    this._dragTiles.length = 0;
-    this._addDragTile(this._cursorTileX, this._cursorTileY);
+    this._dragStartX = this._cursorTileX;
+    this._dragStartY = this._cursorTileY;
+    this._recomputePath();
   }
 
   continueRoadDrag(): void {
     if (!this._dragging) return;
-    this._addDragTile(this._cursorTileX, this._cursorTileY);
+    this._recomputePath();
   }
 
-  /** End the drag and return the painted tiles (deduped). */
+  /** End the drag and return the path tiles. */
   endRoadDrag(): Array<{ x: number; y: number }> {
     this._dragging = false;
-    const tiles = this._dragTiles.slice();
-    this._dragTiles.length = 0;
+    const tiles = this._dragTiles;
+    this._dragTiles = [];
     return tiles;
   }
 
@@ -83,10 +132,14 @@ export class PlacementStateManager {
     return this._dragTiles;
   }
 
-  private _addDragTile(x: number, y: number): void {
-    if (x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT) return;
-    if (this._dragTiles.some((t) => t.x === x && t.y === y)) return;
-    this._dragTiles.push({ x, y });
+  /** Recompute the shortest grid path from the drag start to the cursor. */
+  private _recomputePath(): void {
+    this._dragTiles = shortestRoadPath(
+      this._dragStartX,
+      this._dragStartY,
+      this._cursorTileX,
+      this._cursorTileY,
+    );
   }
 
   /**

@@ -15,8 +15,11 @@ import {
   UNIT_RECIPES,
   BUILDING_SPRITE_TYPES,
   buildingFrameName,
+  millFrameAt,
+  MILL_FRAME_COUNT,
   VILLAGER_FRAME,
   RAIDER_FRAME,
+  FRAME_PEDESTRIAN,
 } from "./recipes";
 
 const EDG32_SET = new Set<string>(EDG32);
@@ -46,19 +49,62 @@ describe("recipes integrity", () => {
     }
   });
 
-  it("building frames are sized to whole tiles; units are 16×16", () => {
+  it("iso building frames have diamond-aligned width and positive height; villager/raider are 32×32, pedestrian is 16×16", () => {
     for (const r of BUILDING_RECIPES) {
-      expect(r.width % TILE_SIZE, `${r.name} width`).toBe(0);
-      expect(r.height % TILE_SIZE, `${r.name} height`).toBe(0);
+      // Iso sprite width = (w+h)·ISO_HW, always a multiple of 16 (ISO_HW). Height
+      // is roof+walls+diamond — positive, not tile-quantised.
+      expect(r.width % (TILE_SIZE), `${r.name} width`).toBe(0);
+      expect(r.height, `${r.name} height`).toBeGreaterThan(0);
     }
     for (const r of UNIT_RECIPES) {
-      expect([r.width, r.height]).toEqual([TILE_SIZE, TILE_SIZE]);
+      // The two main figures are 32×32; the ambient-crowd commoner is half-res
+      // (16×16) so it reads as a smaller background person.
+      const expected = r.name === FRAME_PEDESTRIAN ? [16, 16] : [32, 32];
+      expect([r.width, r.height], r.name).toEqual(expected);
     }
   });
 
   it("frame names are unique", () => {
     const names = ALL_RECIPES.map((r) => r.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("every iso building sprite is a non-degenerate volume (transparent corners + a filled body)", () => {
+    // Guards the iso generators: a real diamond+roof silhouette has TRANSPARENT
+    // corners (the top-left corner pixel must be `.`), and a substantial but
+    // not-full filled body (so it's neither a blank nor a solid rectangle).
+    //
+    // Open forms (the fenced farm FIELD, the open market STALLS, the tall narrow
+    // post-MILL) are deliberately sparse — they're not solid boxes — so they get
+    // a lower opaque floor. The mill's extra sail-rotation frames share its floor.
+    const LOW_FLOOR = new Set(["farm", "market", "mill"]);
+    const floorFor = (name: string): number => {
+      const type = name.slice("bld/".length).split("@")[0]!;
+      return LOW_FLOOR.has(type) ? 0.06 : 0.2;
+    };
+    for (const r of BUILDING_RECIPES) {
+      const raster = rasterizeRecipe(r);
+      // Top-left corner is outside the diamond → transparent.
+      expect(raster.rgba[3], `${r.name} top-left corner should be transparent`).toBe(0);
+      // Count opaque pixels: never 0 (blank) and never ~100% (a solid box).
+      let opaque = 0;
+      for (let i = 3; i < raster.rgba.length; i += 4) if (raster.rgba[i]! > 0) opaque++;
+      const frac = opaque / (r.width * r.height);
+      expect(frac, `${r.name} opaque fraction`).toBeGreaterThan(floorFor(r.name));
+      expect(frac, `${r.name} opaque fraction`).toBeLessThan(0.9);
+    }
+  });
+
+  it("the mill has a base frame + rotated-sail animation frames that all rasterize", () => {
+    const millFrames = BUILDING_RECIPES.filter((r) => r.name === "bld/mill" || r.name.startsWith("bld/mill@"));
+    expect(millFrames.length, "mill frame count").toBe(MILL_FRAME_COUNT);
+    expect(millFrames.some((r) => r.name === "bld/mill"), "base bld/mill exists").toBe(true);
+    for (const r of millFrames) expect(() => rasterizeRecipe(r), r.name).not.toThrow();
+    // millFrameAt cycles within the frame set and includes the base frame.
+    const seen = new Set<string>();
+    for (let t = 0; t < 4000; t += 100) seen.add(millFrameAt(t));
+    expect(seen.has("bld/mill"), "cycles through base frame").toBe(true);
+    for (const f of seen) expect(millFrames.some((r) => r.name === f), `${f} is a real frame`).toBe(true);
   });
 });
 
@@ -87,5 +133,6 @@ describe("building-type → frame mapping", () => {
     const names = new Set(ALL_RECIPES.map((r) => r.name));
     expect(names.has(VILLAGER_FRAME)).toBe(true);
     expect(names.has(RAIDER_FRAME)).toBe(true);
+    expect(names.has(FRAME_PEDESTRIAN)).toBe(true);
   });
 });

@@ -68,6 +68,9 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   woodcutter: { w: 2, h: 2 },
   storehouse: { w: 3, h: 2 },
   road: { w: 1, h: 1 },
+  // A road carried over a water tile: same 1×1 connector, rendered as a bridge.
+  // Auto-substituted for `road` when the target tile is Water (see placeOne).
+  bridge: { w: 1, h: 1 },
   // Phase 3: service buildings
   chapel:      { w: 2, h: 2 },
   market:      { w: 2, h: 2 },
@@ -123,6 +126,8 @@ export interface BuildingProductionDef {
   readonly terrainReq?: TerrainReq;
   readonly isStorage?: boolean;
   readonly isRoad?: boolean;
+  /** A road spanning water — walkable connector, only placeable on Water. */
+  readonly isBridge?: boolean;
   readonly isHousing?: boolean;
   readonly housingCapacity?: number;
   // Phase 4: siege flags
@@ -190,6 +195,15 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
   road: {
     workerSlots: 0,
     isRoad: true,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
+  // A bridge IS a road for connectivity/pathing (isRoad) but only spans water.
+  bridge: {
+    workerSlots: 0,
+    isRoad: true,
+    isBridge: true,
     ticksPerCycle: 20,
     inputPerCycle: 0,
     outputPerCycle: 0,

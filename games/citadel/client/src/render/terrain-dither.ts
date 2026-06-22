@@ -15,6 +15,7 @@ import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TERRAIN_COLORS } from "./quads";
 import type { TileWindow } from "./render-window";
+import { tileDiamond, tileCenterToIso, ISO_HW, ISO_HH } from "./iso";
 
 // ---------------------------------------------------------------------------
 // makeTerrainDecorate (static-layer bake callback)
@@ -41,16 +42,46 @@ export function makeTerrainDecorate(
   const maxTx = window ? Math.min(grid.width - 1, window.maxTx) : grid.width - 1;
   const maxTy = window ? Math.min(grid.height - 1, window.maxTy) : grid.height - 1;
   return (ctx: Ctx2D): void => {
+    // Paint each terrain cell as an ISO DIAMOND at its projected position, back
+    // (top) to front (bottom) so a tiny diamond-edge overlap covers seams. The
+    // bake canvas is the iso-world-px texture (origin 0,0), so tileToIso coords
+    // land directly. Render-only.
+    //
+    // Tiles are baked FLAT (elevation 0). Citadel's tiles are flat gameplay-wise
+    // and everything else — buildings, roads/bridges, the ghost, and the
+    // `isoToTile` pick — lives at elevation 0, so a per-tile relief LIFT here
+    // (which we used to apply) desynced the ground from all of them: lifted tiles
+    // floated a road/bridge below their own terrain and opened dark seams at
+    // elevation steps. The elevation field still tints the dither (light highs /
+    // dark valleys, computed inside `ditherClusters`) for a flat-2D sense of
+    // relief — just no geometric offset.
     for (let ty = minTy; ty <= maxTy; ty++) {
       for (let tx = minTx; tx <= maxTx; tx++) {
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
+        const [top, right, bottom, left] = tileDiamond(tx, ty) as [
+          { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
+        ];
         ctx.fillStyle = TERRAIN_COLORS[t] ?? EDG.green;
-        ctx.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        // Sub-tile dither (brief 13): deterministic darker/lighter clusters so
-        // same-type cells don't look stamped. Baked — zero per-frame cost.
+        ctx.beginPath();
+        ctx.moveTo(top.x, top.y);
+        ctx.lineTo(right.x, right.y);
+        ctx.lineTo(bottom.x, bottom.y);
+        ctx.lineTo(left.x, left.y);
+        ctx.closePath();
+        ctx.fill();
+        // Sub-tile dither: place the deterministic clusters around the diamond
+        // centre (kept inside the diamond by scaling their tile-space offset to
+        // the diamond's half extents).
+        const c0 = tileCenterToIso(tx, ty);
         for (const c of ditherClusters(tx, ty, t)) {
+          // Map the cluster's in-tile (x,y)∈[0,TILE_SIZE) to a diamond-local
+          // offset: shrink toward centre so specks stay on the diamond face.
+          const fx = (c.x + c.size / 2) / TILE_SIZE - 0.5; // [-0.5,0.5]
+          const fy = (c.y + c.size / 2) / TILE_SIZE - 0.5;
+          const px = c0.x + fx * ISO_HW;
+          const py = c0.y + fy * ISO_HH;
           ctx.fillStyle = c.hex;
-          ctx.fillRect(tx * TILE_SIZE + c.x, ty * TILE_SIZE + c.y, c.size, c.size);
+          ctx.fillRect(Math.round(px), Math.round(py), c.size, c.size);
         }
       }
     }
@@ -72,6 +103,48 @@ export function ditherHash(tx: number, ty: number, type: number): number {
   h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
   h ^= h >>> 15;
   return h >>> 0;
+}
+
+// ---------------------------------------------------------------------------
+// Coarse elevation relief (idea ported from tiny-world-builder's height strata)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cheap value-noise sample in [0,1] at a continuous (x, y). Pure — same
+ * `ditherHash` corner hashes bilinearly blended with a smoothstep, so it has no
+ * dependency on the sim, no RNG, and is identical every call. Used only as a
+ * render decoration (see `elevationField`).
+ */
+function valueNoise(x: number, y: number): number {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  // smoothstep weights for cr-soft interpolation between cell corners.
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  // Corner hashes → [0,1). Reuse ditherHash (type arg fixed) for the corners.
+  const c00 = ditherHash(x0, y0, 0) / 0xffffffff;
+  const c10 = ditherHash(x0 + 1, y0, 0) / 0xffffffff;
+  const c01 = ditherHash(x0, y0 + 1, 0) / 0xffffffff;
+  const c11 = ditherHash(x0 + 1, y0 + 1, 0) / 0xffffffff;
+  const top = c00 + (c10 - c00) * sx;
+  const bot = c01 + (c11 - c01) * sx;
+  return top + (bot - top) * sy;
+}
+
+/**
+ * Coarse elevation field in [0,1] for a terrain cell: a low-frequency
+ * `valueNoise` sample so neighbouring cells share a smooth "height". The
+ * `ELEVATION_SCALE` divisor sets the wavelength — smaller = broader hills.
+ * 0 ≈ shaded valley, 1 ≈ sun-lit high ground. Pure, render-only — never
+ * persisted, never touches the sim. Inspired by tiny-world-builder's
+ * height-strata terrain tinting, adapted to our flat 2D dither.
+ */
+export const ELEVATION_SCALE = 9;
+
+export function elevationField(tx: number, ty: number): number {
+  return valueNoise(tx / ELEVATION_SCALE, ty / ELEVATION_SCALE);
 }
 
 /** A darker + lighter EDG accent swatch per terrain type. */
@@ -128,14 +201,22 @@ export function ditherClusters(tx: number, ty: number, type: TerrainType): Dithe
   const clusters: DitherCluster[] = [];
   // 4px sub-grid → 4 columns/rows of cells at TILE_SIZE=16, keeps stamps inset.
   const cells = TILE_SIZE / 4; // 4
+  // Coarse elevation tilts the light/dark mix: sun-lit high ground gets more
+  // light highlights, shaded low ground more dark specks — a flat-2D echo of
+  // tiny-world-builder's height-banded terrain. The threshold the per-cluster
+  // bits race against slides with elevation (high elev → low threshold → almost
+  // always light; low elev → high threshold → more dark).
+  const elev = elevationField(tx, ty); // [0,1]
+  const lightThreshold = Math.round(3 - elev * 3); // 3 (low) … 0 (high), over a 0..3 field
   for (let i = 0; i < count; i++) {
     // Each cluster consumes a fresh 8-bit slice of the hash.
     const slice = (h >>> (i * 8)) & 0xff;
     const gx = slice & 0x3; // 0..3 grid col
     const gy = (slice >>> 2) & 0x3; // 0..3 grid row
     const size = 1 + ((slice >>> 4) & 0x1); // 1..2 px
-    // Bias toward the LIGHT accent — soft highlights read gentler than dark specks.
-    const light = ((slice >>> 5) & 0x3) !== 0; // ~75% light, ~25% dark
+    // Elevation-biased light/dark choice — a 2-bit field (0..3) compared against
+    // the elevation-derived threshold. Highs skew light, valleys skew dark.
+    const light = ((slice >>> 5) & 0x3) >= lightThreshold;
     clusters.push({
       x: gx * cells,
       y: gy * cells,

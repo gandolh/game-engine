@@ -126,6 +126,11 @@ export function makeBuilding(
   // Ridge highlight + dark eave row.
   for (let x = topInset; x <= W - 1 - topInset; x++) g.set(x, 0, pal.roofLight);
   for (let x = 0; x < W; x++) if (g.get(x, roofH - 1) === pal.roof) g.set(x, roofH - 1, pal.roofDark);
+  // Shingle striations: every 3rd roof row gets a darker course so the roof
+  // reads as overlapping tiles rather than a flat slab (texture pass).
+  for (let ry = 2; ry < roofH - 1; ry += 3) {
+    for (let x = 0; x < W; x++) if (g.get(x, ry) === pal.roof) g.set(x, ry, pal.roofDark);
+  }
 
   // --- Walls ---
   const wy0 = roofH;
@@ -138,6 +143,14 @@ export function makeBuilding(
   g.hLine(wx0, H - 1, wx1 - wx0 + 1, pal.outline);
   g.vLine(wx0 + 1, wy0, H - wy0 - 1, pal.wallLight); // top-left highlight column
   g.hLine(wx0 + 1, wy0, wx1 - wx0 - 1, pal.wallLight); // lit top edge under eave
+  // Faint masonry/timber seams: a darker column every 5px across the wall body
+  // (skips the lit highlight column) so large walls aren't a flat fill.
+  for (let sx = wx0 + 4; sx < wx1 - 1; sx += 5) {
+    for (let sy = wy0 + 2; sy < H - 2; sy++) if (g.get(sx, sy) === pal.wall) g.set(sx, sy, pal.wallDark);
+  }
+  // Ground-contact shadow: darken the bottom-right corner so the building reads
+  // as sitting ON the ground (matches the NW-sun shadow drawn in the renderer).
+  g.hLine(wx0 + round((wx1 - wx0) / 2), H - 1, round((wx1 - wx0) / 2), pal.outline);
 
   // --- Windows (flanking, upper) ---
   const winY = wy0 + 2;
@@ -153,6 +166,8 @@ export function makeBuilding(
   g.rectOutline(dx, dy, dW, dH, pal.outline);
   g.set(dx + round(dW / 2), dy, pal.outline); // arch notch at the lintel
   g.set(dx + dW - 2, dy + round(dH / 2), "O"); // brass knob
+  // Stone doorstep: a 1px lit threshold strip just below the door.
+  g.hLine(dx - 1, H - 1, dW + 2, pal.wallLight);
 
   accent?.(g, pal);
   return g.toRecipe(name);
@@ -210,6 +225,12 @@ export function makeFort(
     if (Math.floor(x / merlonW) % 2 === 0) {
       g.set(x, 0, g.get(x, 0) === "." ? "." : pal.stoneLight);
     }
+  }
+
+  // Ashlar courses: a darker mortar line every 4px down the body so the stone
+  // reads as stacked blocks instead of one flat face (texture pass).
+  for (let cy = crenH + 3; cy < H - 2; cy += 4) {
+    for (let x = 1; x < W - 1; x++) if (g.get(x, cy) === pal.stone) g.set(x, cy, pal.stoneDark);
   }
 
   // Arrow slits.

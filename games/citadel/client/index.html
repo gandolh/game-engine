@@ -7,12 +7,48 @@
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
-      #canvas { display: block; flex: 1; }
+      /* min-height: 0 lets flex:1 actually shrink the canvas below its intrinsic
+         backing-store size; without it a large (maximized) window grows the
+         canvas past 100vh and pushes #build-bar / #hud below the clipped fold. */
+      #canvas { display: block; flex: 1; min-height: 0; }
+      /* Build/HUD bars must never be squeezed away — keep their content height. */
+      #build-bar, #hud { flex: none; }
       #hud { background: #262b44; color: #c0cbdc; font-family: monospace; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 12px; user-select: none; border-top: 1px solid #3a4466; }
       #hud button { background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988; padding: 2px 10px; cursor: pointer; font-family: monospace; font-size: 13px; }
       #hud button:hover { background: #5a6988; }
       /* Citadel 07: tier-locked build buttons — greyed, not hidden (teaches progression). */
       #hud button.tier-locked, #hud button.tier-locked:hover { opacity: 0.4; cursor: not-allowed; }
+
+      /* Citadel build toolbar: build buttons grouped by purpose with icons. */
+      #build-bar {
+        background: #262b44; color: #c0cbdc; font-family: monospace;
+        display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px;
+        padding: 6px 12px; user-select: none; border-top: 1px solid #3a4466;
+      }
+      .build-group {
+        display: flex; flex-direction: column; gap: 4px;
+        padding: 0 8px; border-right: 1px solid #3a4466;
+      }
+      .build-group:last-child { border-right: none; }
+      .build-group-label {
+        font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+        color: #8b9bb4;
+      }
+      .build-group-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+      #build-bar button {
+        display: inline-flex; align-items: center; gap: 5px;
+        background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988;
+        padding: 3px 9px; cursor: pointer; font-family: monospace; font-size: 13px;
+        border-radius: 3px;
+      }
+      #build-bar button:hover { background: #5a6988; }
+      #build-bar button.selected {
+        background: #5a6988; border-color: #fee761; color: #fee761;
+      }
+      #build-bar button .bi { font-size: 14px; line-height: 1; }
+      #build-bar button.tier-locked, #build-bar button.tier-locked:hover {
+        opacity: 0.4; cursor: not-allowed;
+      }
       #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
       #lbl-mode { color: #fee761; min-width: 160px; }
       /* Phase 3 UI */
@@ -115,6 +151,68 @@
     <canvas id="canvas"></canvas>
     <!-- Brief 19: follow-cam HUD strip (DOM; the WebGPU overlay callback is a no-op) -->
     <div id="follow-hud"></div>
+
+    <!-- Citadel build toolbar: build buttons grouped by purpose, each with an
+         icon glyph. Lives in its own strip above the HUD so the readout row
+         stays uncluttered. Button IDs are unchanged — main.ts wires them by id. -->
+    <div id="build-bar">
+      <div class="build-group">
+        <span class="build-group-label">Housing</span>
+        <div class="build-group-btns">
+          <button id="btn-build-house"><span class="bi">🏠</span>House</button>
+          <button id="btn-build-storehouse"><span class="bi">📦</span>Storehouse</button>
+          <button id="btn-build-well"><span class="bi">💧</span>Well</button>
+        </div>
+      </div>
+      <div class="build-group">
+        <span class="build-group-label">Food</span>
+        <div class="build-group-btns">
+          <button id="btn-build-farm"><span class="bi">🌾</span>Farm</button>
+          <button id="btn-build-mill"><span class="bi">🌀</span>Mill</button>
+          <button id="btn-build-bakery"><span class="bi">🍞</span>Bakery</button>
+          <button id="btn-build-woodcutter"><span class="bi">🪓</span>Woodcutter</button>
+        </div>
+      </div>
+      <div class="build-group">
+        <span class="build-group-label">Refining</span>
+        <div class="build-group-btns">
+          <button id="btn-build-sawmill"><span class="bi">🪵</span>Sawmill</button>
+          <button id="btn-build-quarry"><span class="bi">⛏️</span>Quarry</button>
+          <button id="btn-build-mine"><span class="bi">🕳️</span>Mine</button>
+          <button id="btn-build-smith"><span class="bi">🔨</span>Smith</button>
+        </div>
+      </div>
+      <div class="build-group">
+        <span class="build-group-label">Services</span>
+        <div class="build-group-btns">
+          <button id="btn-build-chapel"><span class="bi">⛪</span>Chapel</button>
+          <button id="btn-build-market"><span class="bi">🏪</span>Market</button>
+          <button id="btn-build-watchpost"><span class="bi">🔭</span>Watchpost</button>
+          <button id="btn-build-tradingpost"><span class="bi">⚖️</span>Trading Post</button>
+          <button id="btn-build-healer"><span class="bi">⚕️</span>Healer</button>
+        </div>
+      </div>
+      <div class="build-group">
+        <span class="build-group-label">Defense</span>
+        <div class="build-group-btns">
+          <button id="btn-build-wall"><span class="bi">🧱</span>Wall</button>
+          <button id="btn-build-gate"><span class="bi">🚪</span>Gate</button>
+          <button id="btn-build-tower"><span class="bi">🗼</span>Tower</button>
+          <button id="btn-build-garrison"><span class="bi">🛡️</span>Garrison</button>
+          <button id="btn-build-keep"><span class="bi">🏰</span>Keep</button>
+        </div>
+      </div>
+      <div class="build-group">
+        <span class="build-group-label">Tools</span>
+        <div class="build-group-btns">
+          <button id="btn-build-road"><span class="bi">🛤️</span>Road</button>
+          <button id="btn-upgrade"><span class="bi">⬆️</span>Upgrade</button>
+          <button id="btn-demolish"><span class="bi">💥</span>Demolish</button>
+          <button id="btn-cancel"><span class="bi">✖️</span>Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <div id="hud">
       <!-- Phase 5: tier display — always visible, shows current settlement rank -->
       <span id="hud-tier">Hamlet</span>
@@ -139,32 +237,6 @@
       <button id="btn-4x">4x</button>
       <button id="btn-settings">Settings</button>
       <div class="sep"></div>
-      <button id="btn-build-house">House</button>
-      <button id="btn-build-farm">Farm</button>
-      <button id="btn-build-mill">Mill</button>
-      <button id="btn-build-bakery">Bakery</button>
-      <button id="btn-build-woodcutter">Woodcutter</button>
-      <button id="btn-build-storehouse">Storehouse</button>
-      <button id="btn-build-chapel">Chapel</button>
-      <button id="btn-build-market">Market</button>
-      <button id="btn-build-watchpost">Watchpost</button>
-      <button id="btn-build-tradingpost">Trading Post</button>
-      <button id="btn-build-road">Road</button>
-      <div class="sep"></div>
-      <!-- Phase 4: refiners + siege structures -->
-      <button id="btn-build-quarry">Quarry</button>
-      <button id="btn-build-sawmill">Sawmill</button>
-      <button id="btn-build-smith">Smith</button>
-      <button id="btn-build-mine">Mine</button>
-      <button id="btn-build-wall">Wall</button>
-      <button id="btn-build-gate">Gate</button>
-      <button id="btn-build-tower">Tower</button>
-      <button id="btn-build-garrison">Garrison</button>
-      <button id="btn-build-keep">Keep</button>
-      <div class="sep"></div>
-      <button id="btn-demolish">Demolish</button>
-      <button id="btn-upgrade">Upgrade</button>
-      <button id="btn-cancel">Cancel</button>
       <span id="lbl-mode">Mode: None</span>
       <div class="sep"></div>
       <!-- Phase 5: Save / Load -->

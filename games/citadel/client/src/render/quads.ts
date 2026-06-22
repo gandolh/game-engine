@@ -21,6 +21,7 @@ import type {
 import {
   BUILDING_SPRITE_TYPES,
   buildingFrameName,
+  millFrameAt,
   VILLAGER_FRAME,
   RAIDER_FRAME,
 } from "./sprites/recipes";
@@ -47,6 +48,7 @@ export const BUILDING_COLORS: Record<string, string> = {
   woodcutter: EDG.wood,
   storehouse: EDG.steel,
   road: EDG.navy,
+  bridge: EDG.wood,
   chapel: EDG.white,
   market: EDG.gold,
   watchpost: EDG.silver,
@@ -124,19 +126,33 @@ export const QUAD_ATLAS_ID = "citadel-quads";
 /** The single frame name in that atlas. */
 export const QUAD_FRAME = "px";
 
-/** Build the Sprite the sprite-batch consumes from a QuadSpec + layer. */
-export function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSprite {
+/**
+ * Build the Sprite the sprite-batch consumes from a QuadSpec + layer. `sortY`
+ * (optional) overrides the within-layer painter's-order key — for isometric we
+ * set it to the iso depth so entities on the same layer occlude back-to-front
+ * regardless of their (already-projected) screen Y.
+ *
+ * Coordinate convention bridge: a `QuadSpec` (like every iso box helper) is a
+ * TOP-LEFT rect (x,y = top-left, +width/height down-right), but the engine
+ * sprite-batch anchors sprites by their CENTRE (both backends draw `pos ±
+ * 0.5·size` — see sprite.wgsl / canvas2d draw.ts). So we convert here by adding
+ * half-extents; without this every iso sprite renders shifted up-left by half
+ * its size (buildings float off their footprint, the ghost sits left of the
+ * cursor).
+ */
+export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: number): Canvas2dSprite {
   return {
     atlasId: QUAD_ATLAS_ID,
     frame: q.frame ?? QUAD_FRAME,
-    x: q.x,
-    y: q.y,
+    x: q.x + q.width / 2,
+    y: q.y + q.height / 2,
     width: q.width,
     height: q.height,
     rotation: 0,
     layer,
     alpha,
     tintRgba: q.tintRgba,
+    ...(sortY !== undefined ? { sortY } : {}),
   };
 }
 
@@ -154,7 +170,7 @@ export function quadToSprite(q: QuadSpec, layer: number, alpha = 1): Canvas2dSpr
  * recipe falls back to a solid tinted box (never requesting a missing frame).
  * Pure — no GPU.
  */
-export function buildingQuad(b: BuildingSnapshot): QuadSpec {
+export function buildingQuad(b: BuildingSnapshot, clockMs?: number): QuadSpec {
   const px = b.x * TILE_SIZE;
   const py = b.y * TILE_SIZE;
   const pw = b.w * TILE_SIZE;
@@ -184,14 +200,18 @@ export function buildingQuad(b: BuildingSnapshot): QuadSpec {
 
   if (BUILDING_SPRITE_TYPES.has(b.type)) {
     // Real sprite: tint white so the recipe colors show; orange-multiply when
-    // burning. Footprint-sized so the frame scales 1:1 (nearest-crisp).
+    // burning. Footprint-sized so the frame scales 1:1 (nearest-crisp). The mill
+    // animates: when a render clock is supplied, pick its rotated-sail frame.
+    const frame = b.type === "mill" && clockMs !== undefined
+      ? millFrameAt(clockMs)
+      : buildingFrameName(b.type);
     return {
       x: px,
       y: py,
       width: pw,
       height: ph,
       tintRgba: packTint(b.burning ? EDG.orange : EDG.white),
-      frame: buildingFrameName(b.type),
+      frame,
     };
   }
 
@@ -200,13 +220,52 @@ export function buildingQuad(b: BuildingSnapshot): QuadSpec {
   return { x: px, y: py, width: pw, height: ph, tintRgba: packTint(hex) };
 }
 
+// ---------------------------------------------------------------------------
+// Directional building shadow (idea ported from tiny-world-builder's low sun)
+// ---------------------------------------------------------------------------
+
+/** Shadow tint alpha — soft, so it reads as ground-shade not a black box. */
+export const SHADOW_ALPHA = Math.round(0xff * 0.22);
+/** Shadow offset toward the SE (sun from the NW), as a fraction of TILE_SIZE. */
+export const SHADOW_OFFSET = TILE_SIZE * 0.18;
+
+/**
+ * Building types that DON'T cast a drop-shadow: flat ground features (road,
+ * wall, gate) that sit in the terrain plane rather than rising out of it.
+ */
+const FLAT_TYPES = new Set(["road", "wall", "gate", "bridge"]);
+
+/**
+ * A soft SE-offset ground shadow behind a building, faking a low NW sun so every
+ * structure reads with a little volume — the 2D echo of tiny-world-builder's
+ * directional sun shading. Returns `null` for flat ground features (roads,
+ * walls, gates), which sit in the terrain plane and cast nothing. The quad is
+ * footprint-sized, ink-tinted, and translucent; the caller pushes it on a layer
+ * just below the building sprite. Pure — no GPU.
+ */
+export function buildingShadowQuad(b: BuildingSnapshot): QuadSpec | null {
+  if (FLAT_TYPES.has(b.type)) return null;
+  const px = b.x * TILE_SIZE;
+  const py = b.y * TILE_SIZE;
+  const pw = b.w * TILE_SIZE;
+  const ph = b.h * TILE_SIZE;
+  return {
+    x: px + SHADOW_OFFSET,
+    y: py + SHADOW_OFFSET,
+    width: pw,
+    height: ph,
+    tintRgba: packTint(EDG.ink, SHADOW_ALPHA),
+  };
+}
+
 /**
  * Map a villager snapshot to a small centered sprite quad. The `vil/person`
  * frame is a grey-ramp silhouette; the FSM-state color is applied as the tint
  * (texture × tint), so state still reads at a glance but now on a shaded figure.
  */
 export function villagerQuad(v: VillagerSnapshot): QuadSpec {
-  const size = TILE_SIZE * 0.7;
+  // Sized up for the 32×32 iso figure art (was 0.7 tiles for the old 16px sprite).
+  const size = TILE_SIZE * 1.1;
   const cx = v.x * TILE_SIZE + TILE_SIZE / 2;
   const cy = v.y * TILE_SIZE + TILE_SIZE / 2;
   const hex = VILLAGER_COLORS[v.fsm] ?? FALLBACK_VILLAGER_COLOR;

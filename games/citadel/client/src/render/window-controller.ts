@@ -24,6 +24,7 @@ import { TILE_SIZE } from "@citadel/sim-core";
 import { visibleTileWindow, type TileWindow } from "./render-window";
 import { IncrementalQueue } from "./build-budget";
 import { makeTerrainDecorate } from "./terrain-dither";
+import { ISO_WORLD_W, ISO_WORLD_H } from "./iso";
 
 /** Tiles of margin baked beyond the viewport so a tile entering the screen edge
  *  is already on the texture before the next re-bake lands. */
@@ -99,6 +100,10 @@ export class RenderWindowController {
     this.worldPxH = terrain.height * TILE_SIZE;
     this.pad = opts.pad ?? WINDOW_PAD;
     this.budget = opts.budget ?? REBAKE_BUDGET;
+    // The whole-world (small / solo) bake paints the terrain as ISO DIAMONDS into
+    // an iso-world-sized texture. The windowed path (large MP world) still bakes
+    // axis-aligned tile-window sub-regions — iso windowing is DEFERRED (brief: MP
+    // only), so on a large world the windowed terrain is not yet iso-correct.
     this.windowed = opts.windowed ?? shouldWindow(this.worldPxW, this.worldPxH);
   }
 
@@ -144,11 +149,12 @@ export class RenderWindowController {
     if (this.windowed) {
       this.bakeWindow(this.currentWindow(camera));
     } else {
-      // Whole world, no region → identical to the pre-windowing bake.
+      // Whole iso world: the terrain bakes as diamonds into an ISO-world-sized
+      // texture (origin 0,0), which the engine camera then frames in iso space.
       this.renderer.bakeStaticLayer(
         [],
-        this.worldPxW,
-        this.worldPxH,
+        ISO_WORLD_W,
+        ISO_WORLD_H,
         makeTerrainDecorate(this.terrain),
       );
       this.baked = { minTx: 0, minTy: 0, maxTx: this.worldTilesW - 1, maxTy: this.worldTilesH - 1 };

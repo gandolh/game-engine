@@ -83,6 +83,316 @@ STALE** — `windowController.update(camera)` already runs each frame at `main.t
 (landed in the "improvements" commit alongside the audit). Marked resolved in brief 38.
 Still open from the audit: P1 #5/#6/#7/#9, P2 #10–#12, P3 #14–#19.
 
+## [2026-06-21] brief | Citadel building art-style reference filed (todo 96)
+
+Filed [brief 96](briefs/game/todo/96-citadel-building-art-style-reference.md) — a
+standing art-direction reference for Citadel building sprites: the user's example
+assets (Reiner "Isometric Buildings" CC-BY-SA + zatoart/xilurus itch packs,
+inspiration-only), the target look (clean 2:1 iso, warm terracotta tile roofs,
+half-timber + ashlar coursing, ground plots + props, animated tower mill), the
+EDG32 `SWATCH` colour roles, the per-type FORM builders, and the hard constraints
+(EDG32 guard, render-only, recipe tests). Living doc to keep new/restyled buildings
+on-theme; not a one-shot task.
+
+## [2026-06-21] render | Citadel night light-pool fix — emitters no longer render as orange BOXES
+
+In-game Playwright testing showed the **market** (and other glow emitters: bakery,
+chapel) rendering as a hard **orange box** over the building. Root cause (found via
+a live `renderer.push` capture hook): the night light-pool glow
+([atmosphere.ts](../games/citadel/client/src/render/atmosphere.ts) `lightPoolQuads`
++ `pushLightPool` in [citadel-renderer.ts](../games/citadel/client/src/render/citadel-renderer.ts))
+stamped concentric **solid `px` squares** at `LAYER_LIGHT_POOL = 12` (ABOVE
+buildings, layer 10), tinted EDG.gold/orange. Stacked at full night they washed a
+boxy orange tint over each emitter's sprite — NOT a sprite-art bug (the `bld/market`
+recipe + atlas frame were verified correct end-to-end).
+
+Fix (render-only): `pushLightPool` now stamps the soft **`fx/diamond`** frame (a
+real iso 2:1 diamond, transparent corners) projected onto the iso ground via
+`tileCenterToIso`, instead of `isoProjectTilePxBox` + the solid `px` square; moved
+`LAYER_LIGHT_POOL` to **9** (just above the drop-shadow, BELOW buildings) so the
+glow pools on the GROUND around each emitter's base like lamplight rather than over
+the sprite; and lowered `GLOW_RINGS` alphas (~0.045–0.06, retuned for solid
+diamonds vs the old transparent-cornered squares). Verified in-game: market/bakery/
+chapel now render their sprites with a subtle ground glow; depth-sort + footprint
+alignment confirmed correct across the full tier-1 set. typecheck + 187
+@citadel/client tests (incl. 15 atmosphere tests) green. The pre-existing
+`transform.ts`/`placement-state.ts` `centerX` console errors are unrelated in-flight
+work, untouched.
+
+## [2026-06-21] render | Citadel mill + well rebuilt (were the two weak forms)
+
+User flagged the mill + well as looking bad vs the reference packs. Both were
+oddball custom shapes that didn't follow the clean iso-volume language:
+- **Mill** was a flat front-facing weatherboard billboard on a thin trestle with a
+  tiny clumped sail. Rebuilt `postMill` as a real **tower mill**: a tall tapered
+  ROUND stone cylinder (lit-left/shaded-right body shading + stone coursing), a
+  domed terracotta cap, small arched door + stacked windows, on a stone plinth.
+  New `MILL` palette (warm cream/tan stone + clay cap) replaces WOOD (whose black
+  `roofDark` made the heavy black silhouette). `isoWindmillSails` redrawn as a
+  bold front-facing X of latticed canvas blades (no iso-squash) — reads as a
+  windmill; the 8-frame rotation still animates.
+- **Well** was a full STONE building box with a tiny hood. New `wellForm`: a small
+  round stone well-head (low cylinder kerb + rim ellipse + dark shaft + blue
+  water) with two posts, a pitched clay roof, a windlass crossbar, and a bucket on
+  a rope — a small ground object, not a house. `isoWellHood` retired from use.
+Verified by raster zoom (mill/well + 4 mill rotation frames) — both now match the
+reference look. typecheck + 187 @citadel/client tests + EDG32 guard green.
+
+## [2026-06-21] render | Citadel buildings — reference restyle FINISHED (brief 95 → done)
+
+Completed the remaining brief-95 items at 32-based: fixed the fort **ashlar
+coursing** (`drawAshlarCourses` — sparse staggered blocks ≥5px courses/≥8px
+bricks, killing the per-pixel checkerboard the 4×→1× revert had exposed); made
+**half-timber** legible at 32px (min stud spacing, diagonal braces gated to tall
+walls); added **ground-prop plots** (`isoGroundProps` — dirt apron + barrel + sack
+via a `ground` FormOpt on house/bakery/healer); simplified `drawWalls` to clean
+lit/shaded faces (dropped palette-fragile AO bands). Verified: typecheck + 187
+@citadel/client tests + EDG32 guard green; Playwright in-game pass (terracotta
+half-timber cottages render correctly at game zoom). Brief 95 moved to
+[done](briefs/game/done/95-citadel-building-restyle-reference-look.md). (Pre-
+existing `transform.ts`/`placement-state.ts` `centerX` console errors are from
+unrelated in-flight work on those files, not this brief.) Files this session:
+[iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
+[buildings.ts](../games/citadel/client/src/render/sprites/recipes/buildings.ts).
+
+## [2026-06-21] render | Citadel buildings — reference restyle (terracotta/half-timber) + revert to 32-based
+
+User supplied reference art (Reiner "Isometric Buildings" CC-BY-SA + zatoart/
+xilurus itch packs) and asked the generated buildings to evoke that look:
+**terracotta tile roofs** (clay/salmon/rust ramp, tile-course banding, ridge cap,
+eave-overhang shadow), **half-timber** framing (oak studs + diagonal cross-braces
+over cream infill), 3-step wall shading. Implemented in `drawGableRoof` /
+`drawTimberFrame` / `drawWalls` ([iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts)),
+`PLASTER` palette retargeted ([buildings.ts](../games/citadel/client/src/render/sprites/recipes/buildings.ts)).
+EDG32-only (inspiration, not imported art). **Also reverted buildings from 4× back
+to 32-based** (`ISO_ART_SCALE = 1`, [iso.ts](../games/citadel/client/src/render/iso.ts))
+— user judged 32 dense enough in practice; this retires brief 94's "upscale
+units/terrain" premise. Verified at 1× (raster): house/storehouse/chapel read with
+roofs + framing; typecheck + recipes.test green. **Not finished** — captured as
+todo brief [95](briefs/game/todo/95-citadel-building-restyle-reference-look.md):
+remaining = stronger visible bracing at 1×, ground-prop bases, cleaner outlines,
+full-set consistency + Playwright/in-game verification. Wiki:
+[citadel-overview.md](wiki/citadel-overview.md).
+
+## [2026-06-21] render | Citadel buildings — distinct medieval FORMS at 4×, animated mill
+
+Follow-on to the per-type-accent pass below: rebuilt the buildings as **distinct
+forms with their own proportions** (not one box + accents), authored at **4×**
+(`ISO_ART_SCALE`), with an **animated mill**. Decoupled authoring resolution from
+world size in [iso.ts](../games/citadel/client/src/render/iso.ts) (`isoArtDims =
+isoSpriteDims × 4`; renderer keeps world-px, GPU samples the high-res texture into
+the same quad). New form builders in
+[iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts):
+`cottage` (half-timbered steep-roof house/bakery/smith/woodcutter/sawmill/healer),
+`postMill` (tall trestle-mounted body + sails), `openField` (fenced tilled farm),
+`marketStalls` (open striped stalls), `church` (nave + bell tower + spire),
+`warehouse` (barn + hayloft — storehouse/tradingpost/town-hall), `fort` (ashlar +
+crenellated deck + arrow slits — watchpost/tower/garrison/keep), `boxBuilding`
+(mine/quarry/well). Mill animation: `bld/mill@0..7` rotated-sail frames +
+`millFrameAt(clockMs)` threaded `buildingQuad(b,clockMs)` → `pushScene(...,clockMs)`
+→ `main.ts` `performance.now` — **render-only, sim/determinism untouched**.
+`BUILDING_SPRITE_TYPES` filters `@` frames; `BUILDING_HEIGHT_TILES.mill`→3.
+Verified by rasterizing recipes to PNG, a Playwright gallery on the real runtime
+atlas (mill sails confirmed turning across frames), and placing buildings in the
+actual game. Green: typecheck, 187 @citadel/client tests (new mill-frame test +
+relaxed opaque-fraction floor for the sparse open farm/market/mill), EDG32 palette
+test. **Units + terrain stay 1×** — upscaling them to match is brief
+[94](briefs/game/todo/94-upscale-units-terrain-to-match-buildings.md). Wiki:
+[citadel-overview.md](wiki/citadel-overview.md) "Per-building FORMS + 4× detail".
+
+## [2026-06-21] render | Citadel buildings — per-type silhouettes so they don't all read as a house
+
+Every iso building was the same hipped-roof box differing only in colour/size, so
+a mill, market, mine, and house were indistinguishable. Added a feature library to
+[iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts) and
+assigned one iconic feature per type in
+[buildings.ts](../games/citadel/client/src/render/sprites/recipes/buildings.ts).
+Two silhouette-level breaks via new `makeIsoBuilding` opts: `flatTop` (a flat
+**crenellated rooftop** for tower/keep/garrison/watchpost — reads as a castle) and
+`noDoor` (mine/quarry get a timbered **shaft mouth + A-frame pithead** in place of
+the door). Smaller per-type cues: windmill sails (mill), water wheel (sawmill),
+striped awning (market), hayloft dormer (storehouse/tradingpost/farm), brick
+chimney+ember (bakery/smith), log pile (woodcutter), grain sacks (farm/mill),
+gabled hood+bucket (well), roof cross (chapel white / healer red), banners. `house`
+stays the plain reference box. Render-only, EDG32-clean (all colours via `SWATCH`),
+sim/determinism untouched. Verified by rasterizing each recipe to a PNG grid and
+eyeballing; `npm run typecheck`, 186 @citadel/client tests, the iso-volume
+opaque-fraction guard, and the EDG32 palette guard all green. Wiki:
+[citadel-overview.md](wiki/citadel-overview.md) "Per-building visual language".
+
+## [2026-06-21] render | Citadel iso sprites — fixed up-left offset (engine anchors sprites by CENTRE) + building float
+
+Two render bugs from the true-iso conversion, both browser-confirmed via Playwright
+and fixed:
+
+1. **Up-left offset (ghost sat left of cursor, buildings floated off their footprint).**
+   Root cause: the engine sprite-batch anchors every sprite by its **CENTRE** — both
+   backends draw `pos ± 0.5·size` ([sprite.wgsl](../engine/core/src/render/webgpu/shaders/sprite.wgsl)
+   vs `drawImage(x − w/2, y − h/2, …)` in [canvas2d/draw.ts](../engine/core/src/render/canvas2d/draw.ts);
+   `spritesOverlap` agrees). But **every** Citadel iso helper (`isoFootprintBox`,
+   `isoFootprintDiamondBox`, `isoPointBox`, `isoProjectTilePxBox`) returns a **top-left**
+   rect, passed straight through `quadToSprite`/`isoFlatSprite`. So each sprite drew
+   shifted up-left by half its own size; taller buildings shifted more than their
+   (flat) shadow diamond → the float/gap. Pick was never wrong (verified: picked-tile
+   centres round-trip to the cursor within a few px). Fix = add half-extents at the two
+   rect→sprite choke points only (`quadToSprite`, `isoFlatSprite`); the pure iso math
+   stays top-left (its tests untouched). Farm already passes centres (`x: tile*TILE + TILE/2`),
+   confirming the engine convention — the fix belongs in Citadel's conversion layer, not the engine.
+2. **Blank band under buildings.** `isoSpriteDims.height` budgeted a full `diaH` below
+   the walls, but `iso-draw.ts` centres the ground diamond on the wall-bottom mid-line
+   (`yBotMid`), so only its lower half sits below the walls → a blank `diaH/2` band that
+   `isoFootprintBox` pinned to the diamond bottom and floated the art. Fix = `height =
+   roofH + wallH + diaH/2`. Both fixes are needed (centring alone still floats via the band).
+
+Also fixed an HTML layout bug: the full-window build menu was clipped because `#canvas`
+(`flex:1`) lacked `min-height:0` (its `auto` min-height = intrinsic backing-store height
+grew past `100vh` under `overflow:hidden`).
+
+3. **Terrain elevation lift desynced roads/bridges from the grid.** `makeTerrainDecorate`
+   baked each diamond at a 0/1-step relief *lift* (`Math.round(elevationField)`), but every
+   sprite, the road/bridge network, and the `isoToTile` pick live at elevation 0 — so on
+   lifted tiles the ground floated 8px above its own bridge/road and opened dark seams at
+   elevation steps (a bridge visibly offset from the water grid). Fix = bake terrain FLAT
+   (drop the geometric lift); the elevation field still tints the dither (light highs / dark
+   valleys) for a flat-2D sense of relief, just no offset. Citadel tiles are flat
+   gameplay-wise and the pick can't cheaply account for per-tile height, so flat-everywhere
+   is the consistent choice. Browser-confirmed: seams gone, bridge sits on the water grid.
+
+164 client render tests + typecheck green.
+
+## [2026-06-21] game+render | Citadel bridges — roads over water transform into non-overlapping bridges
+
+A road dragged onto a Water tile now auto-converts to a new `bridge` building
+type (sim: `entities/building.ts` def + `isBridge` production flag; `placeOne` in
+`sim-bootstrap.ts` does the road→bridge substitution and gates bridges to
+unoccupied water → **bridges cannot overlap**). Bridges join `roadGrid` (so
+villagers/connectivity cross them) and a new `walkablePred` keeps the decked
+water tile walkable in the raider/path grid; demolish clears the road tile before
+rebuilding. Render: two textured flat-diamond fx frames `fx/road` (cobblestone)
+and `fx/bridge` (railed plank deck) replace the flat navy road lozenge;
+`isoNetworkTiles`/`pushNetworks` emit + stamp them (bridges depth-tucked under
+roads). Determinism untouched (terrain/placement + render-only art). Tests:
+`systems/bridges.test.ts` (4) + an `isoNetworkTiles` bridge-frame case; all
+citadel suites green (137 sim-core, 177 client), both workspaces typecheck clean.
+Wiki: [wiki/citadel-overview.md](wiki/citadel-overview.md) BRIDGES section.
+
+## [2026-06-21] render | Citadel true-isometric epic — IMPLEMENTED + browser-verified (one open anomaly)
+
+Built the whole iso stack from the brief
+([todos/2026-06-21-citadel-true-isometric.md](todos/2026-06-21-citadel-true-isometric.md),
+now `mostly-done`). New `render/iso.ts` is the single source of truth: 2:1
+dimetric projection (`tileToIso`), the placement-critical inverse (`isoToTile`,
+exhaustively round-trip tested for all 9216 tiles), `isoFootprintBox` /
+`isoSpriteDims` (shared by renderer + sprite generators so art maps 1:1), and
+`isoDepth`. `transform.ts` `screenToTile` now routes through the iso inverse;
+the camera frames iso-world space. The renderer CPU-pre-projects every quad and
+relies on the engine's existing within-layer `sortY` for painter's order
+(buildings/villagers/raiders share one entity layer + iso-depth `sortY`).
+Terrain bakes as **diamonds** (`makeTerrainDecorate` rewrite, whole-iso-world
+texture; iso windowing for the big MP map deferred). Roads/walls/ghost/shadow/
+cluster draw via a new `fx/diamond` atlas frame so they sit flat on the grid
+(`isoNetworkTiles`). **Sprites re-authored true-iso** (`sprites/recipes/iso-draw.ts`:
+diamond base + two shaded wall faces + hip roof) at 32-based res; units redrawn
+32×32. The sim, determinism, and EDG32 guard are untouched.
+
+Browser-verified via Playwright (solo client): diamond terrain, correct
+placement/ghost picking on the diamond, depth-correct occlusion, iso roads, and
+house/chapel/tower/storehouse rendering as proper iso volumes (screenshots in
+repo root: `iso-village.png`, `iso-sprites-fixed.png`). **174 client tests + a
+new iso-volume guard + palette guard all green.**
+
+**One open anomaly (documented in the brief, not blocking):** a subset of
+building types (market/storehouse/bakery/woodcutter) intermittently render as a
+flat 2-tone box on this dev GPU. Proved the sprite DATA is correct end-to-end
+(recipe→rasterize→alpha→pack→blit→UV→render-quad all byte-identical to the
+working house; the guard test passes for market). Not reproducible from code →
+suspected WebGPU driver/texture-sampling artifact on this host; flagged for
+repro on another GPU. Pre-existing unrelated `@farm/sim-core` test failures
+(bridge-graph, interior-decor, coral-fishing, travel, farmer-frames) were
+confirmed independent of this Citadel-only work.
+
+## [2026-06-21] plan | Citadel true-isometric epic — brief filed (render+art, sim untouched)
+
+Decided to convert Citadel from top-down axis-aligned to a **true isometric
+(diamond-grid) projection**. Scoped as a staged brief
+([todos/2026-06-21-citadel-true-isometric.md](todos/2026-06-21-citadel-true-isometric.md))
+*before* any code, per the CLAUDE.md workflow — a partial projection swap breaks
+placement (ghost/drag/click) for every player, so it must not land half-done.
+
+Key framing: this is a **render + input + art** epic fully inside `@citadel/client`.
+`@citadel/sim-core` is untouched — the world stays an axis-aligned tile grid, iso is a
+*display* of it; determinism is unaffected (all downstream of the RenderSnapshot), and
+`CHECK_DETERMINISM=1` should stay byte-identical (the proof the sim wasn't touched).
+Cost split ≈ **70% art, 30% code**; the two risk centres are the `screenToTile`
+*inverse* (powers all placement/selection) and the volume of sprite re-authoring.
+Five stages, each independently shippable+tested: (1) iso projection+inverse in
+`transform.ts`, (2) renderer CPU pre-projection + painter's-order depth sort, (3) iso
+terrain bake + diamond render-window cull, (4) **re-author the sprite library at the
+iso angle** (the bulk), (5) autotile/cluster iso geometry. Convention to lock first:
+**2:1 dimetric** (integer-friendly, keeps `pixelSnap` crisp) over true 30°. Rejected
+"Option C" (3D camera) — this is iso 2.5D, not 3D.
+
+## [2026-06-21] render | Citadel visual polish — terrain relief, building shadows, dusk wash, asset detail
+
+Borrowed specific visual ideas from `tiny-world-builder` (a Three.js voxel toy) into
+Citadel's existing 2D WebGPU pipeline — render-only, deterministic, EDG32-clean,
+no sim change. Four landed: **(1)** `elevationField` value-noise in
+[terrain-dither.ts](../games/citadel/client/src/render/terrain-dither.ts) biases the
+sub-tile dither light/dark mix by coarse elevation (sun-lit highs lighter, valleys
+darker) — a 2D echo of iso height-strata, baked → zero per-frame cost. **(2)**
+`buildingShadowQuad` in [quads.ts](../games/citadel/client/src/render/quads.ts) casts a
+soft SE-offset ink shadow (fake NW sun) on a new `LAYER_SHADOW` below buildings; flat
+features (road/wall/gate) cast none. **(3)** Deepened night + stronger golden-hour dusk
+in [atmosphere.ts](../games/citadel/client/src/render/atmosphere.ts). **(4)** Asset
+detail in the shared generators ([sprites/recipes/draw.ts](../games/citadel/client/src/render/sprites/recipes/draw.ts)):
+roof shingle striations, wall masonry/timber seams, ground-contact corner shadow,
+stone doorstep, fort ashlar courses — flows through all ~20 building recipes at once.
+All 160 `@citadel/client` tests + the palette guard green. Not yet eyeballed in
+`npm run citadel`. These carry over conceptually into the iso epic above.
+
+## [2026-06-21] fix | Citadel first real-GPU playtest — 3 solo-blocking playability bugs fixed
+
+First time Citadel was driven on a host with a working GPU (prior reviews were
+headless — see the verification-debt note in todo 38). Opened the solo client
+(`npm run dev -w @citadel/client`, :5174) in Playwright and ran a check→fix→recheck
+loop. **WebGPU renders fine** — terrain (river/forest/stone with sub-tile dither),
+building + villager sprites, HUD, day/night all look healthy. But three bugs made the
+game effectively unplayable for a new player:
+
+1. **Well + Healer were unbuildable.** `main.ts` wires `btn-build-well`/`btn-build-healer`
+   but the buttons were **missing from `index.html`** — so the *only* fire and disease
+   mitigations couldn't be placed. The wiring silently no-ops on the missing element
+   (`if (btn !== null)`). Fix: added both buttons to the toolbar (after Trading Post).
+   They are correctly un-tier-locked (available from Hamlet).
+2. **Commands were dropped while paused.** The Worker loop did `if (paused) return;`
+   *before* `scheduler.tick()`, and commands are only drained **inside** the tick —
+   so placement while paused queued forever and never applied. A city-builder must let
+   you plan while paused. Fix: added `applyCommands(ctx)` to `CitadelSimResult`
+   ([sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts)) — runs the
+   `CommandSystem` + `RoadConnectivitySystem` only (no sim systems, no day clock); the
+   worker calls it + re-emits a snapshot when paused. **Purely additive — the normal
+   tick path is byte-identical, so determinism is untouched** (all 133 sim-core tests
+   still pass; headless runner never calls it).
+3. **Speed buttons didn't resume.** `1x/2x/4x` only called `setSpeed`; if you'd paused,
+   the sim stayed frozen. Fix: `setSpeedAndResume()` resumes if paused (standard
+   city-builder behaviour).
+
+**Bootstrap is founding-window-gated and easy to miss.** The founder villager only
+spawns while `daysSinceStart <= daysPerYear/4 + 2`; after that, immigration needs a
+food surplus that needs workers that need population — a hard deadlock if you didn't
+place a connected economy in time. Combined with the always-running clock (20 ticks/day
+≈ 1 s/day at 1×), a new player races the window. Now mitigated by plan-while-paused.
+**Fire balance is working-as-designed, not a bug:** ignition needs ≥3 wooden buildings
+within Manhattan range 4; the intended layout (cf. the headless `grow` scenario) spaces
+buildings ~5–8 tiles apart and connects them with roads (roads = firebreaks). A naive
+"place everything touching to share connectivity" layout self-immolates — but a spaced,
+road-linked town thrives indefinitely (verified to Day 199: pop stable, bread surplus,
+Fire none). New hooks: `import.meta.env.DEV`-guarded `window.__citadel` (send/terrain/
+buildings) in `main.ts` for automated harness testing only. Touched: `@citadel/client`
+(index.html, main.ts, sim-worker.ts, vite-env.d.ts) + `@citadel/sim-core`
+(sim-bootstrap.ts). typecheck + 133 sim-core + 155 client tests green. (Pre-existing,
+unrelated: `@tool/world-preview` fails typecheck on clean HEAD — missing `@webgpu/types`.)
+
 ## [2026-06-19] audit | Citadel implementation review — problems filed as todo 38
 
 Read-only review of `@citadel/sim-core` + `@citadel/client` + `@citadel/server`

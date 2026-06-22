@@ -14,6 +14,9 @@ let paused = false;
 let speed = 1;
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let tick = 0;
+// Set when a command arrives; lets the paused loop know there is work to apply
+// (so we only re-bake/re-snapshot when something actually changed).
+let commandsPending = false;
 
 const DEFAULT_TICKS_PER_DAY = 20;
 
@@ -27,7 +30,18 @@ function startLoop(): void {
   const result = simResult;
 
   intervalId = setInterval(() => {
-    if (paused) return;
+    if (paused) {
+      // Plan-while-paused: apply queued placement/demolish commands without
+      // advancing the sim or the day clock, then re-emit a snapshot so the new
+      // layout shows immediately. No tick increment, no sim systems run.
+      if (commandsPending) {
+        commandsPending = false;
+        result.applyCommands({ tick });
+        const snap = result.getSnapshot(tick);
+        self.postMessage({ type: "snapshot", snapshot: { ...snap, speed } } satisfies WorkerOutbound);
+      }
+      return;
+    }
     result.scheduler.tick({ tick });
     tick++;
 
@@ -76,6 +90,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     }
     case "command": {
       simResult?.commands.enqueue(msg.command);
+      commandsPending = true;
       break;
     }
 
