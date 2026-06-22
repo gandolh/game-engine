@@ -36,6 +36,12 @@ export interface CitadelSimHostOptions {
   /** Run a wall-clock tick interval (production). Tests drive step() instead. */
   realtime?: boolean;
   tickRateHz?: number;
+  /**
+   * Citadel 38 P1#7: how long the room stays alive after the last peer leaves
+   * before it's torn down (lets a refresh/blip reconnect into the same game).
+   * Default 10s (mirrors the Farm RunRegistry reap grace).
+   */
+  reapGraceMs?: number;
 }
 
 export class CitadelSimHost {
@@ -51,8 +57,17 @@ export class CitadelSimHost {
   // resume / change speed of the shared room (peers can't freeze/fast-forward
   // each other). Migrates to the next-remaining peer if the host disconnects.
   private hostPeer: Peer | null = null;
+  // Citadel 38 P1#7: when the room empties we arm a grace timer rather than
+  // tearing down immediately, so a reconnect within the window rejoins the same
+  // live sim. If it fires while still empty, reset() nulls `sim` so the NEXT
+  // `init` starts a clean room (the old bug: detach stopped the interval but left
+  // `sim` set → a reconnect got a snapshot of a frozen, non-ticking sim).
+  private readonly reapGraceMs: number;
+  private reapTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly opts: CitadelSimHostOptions = {}) {}
+  constructor(private readonly opts: CitadelSimHostOptions = {}) {
+    this.reapGraceMs = opts.reapGraceMs ?? 10_000;
+  }
 
   /**
    * Citadel 37: add a seeded NPC bot — joins as a peer and plays through the
@@ -87,6 +102,11 @@ export class CitadelSimHost {
 
   /** Attach a peer; assigns it a stable player id (first peer = player 0). */
   attach(send: SendFn): Peer {
+    // A peer arrived — cancel any pending teardown so we keep the live room.
+    if (this.reapTimer !== null) {
+      clearTimeout(this.reapTimer);
+      this.reapTimer = null;
+    }
     const playerId = this.nextPlayerId++;
     const peer: Peer = { send, playerId };
     this.peers.add(peer);
@@ -107,7 +127,34 @@ export class CitadelSimHost {
     // Citadel 38 P0#4: if the host leaves, promote the next-remaining peer so
     // room control isn't frozen (Set preserves attach order → oldest survivor).
     if (peer === this.hostPeer) this.hostPeer = [...this.peers][0] ?? null;
-    if (this.peers.size === 0) this.stop();
+    // Citadel 38 P1#7: don't tear down immediately — arm the reap grace. The sim
+    // keeps ticking during the window so a quick reconnect rejoins it.
+    if (this.peers.size === 0) this.armReap();
+  }
+
+  /** Schedule a teardown if the room is still empty after the grace window. */
+  private armReap(): void {
+    if (this.reapTimer !== null) return; // already armed
+    this.reapTimer = setTimeout(() => {
+      this.reapTimer = null;
+      if (this.peers.size === 0) this.reset();
+    }, this.reapGraceMs);
+  }
+
+  /**
+   * Fully tear the room down so the NEXT `init` starts a clean, ticking sim.
+   * Stops the interval AND nulls `sim` (the missing step that left reconnects
+   * frozen), and clears all per-room state.
+   */
+  private reset(): void {
+    this.stop();
+    this.sim = null;
+    this.tick = 0;
+    this.hostPeer = null;
+    this.paused = false;
+    this.speed = 1;
+    this.nextPlayerId = 0;
+    this.bots.length = 0;
   }
 
   handleInbound(peer: Peer, msg: WorkerInbound): void {

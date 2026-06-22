@@ -4,6 +4,31 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-22] fix | Citadel 38 — P1#7 reconnect-frozen-sim (reap-grace + reset)
+
+Third fix wave off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 4). `CitadelSimHost.detach` stopped the tick interval but
+never nulled `sim`, so once every peer left, a reconnecting peer's `init` took the
+"already running" branch and got a snapshot of a frozen (non-ticking) sim.
+
+- [sim-host.ts](../games/citadel/server/src/sim-host.ts): adopted the Farm
+  `RunRegistry` reap pattern, adapted to Citadel's single-room-per-process host. The
+  last departure now **arms a grace timer** (`reapGraceMs`, default 10s) instead of
+  tearing down immediately — the sim keeps ticking during the window so a refresh/blip
+  reconnect rejoins the same live game. If the timer fires while still empty, `reset()`
+  nulls `sim` and clears tick/hostPeer/bots/paused/speed/nextPlayerId, so the next
+  `init` starts a clean, ticking room. `attach` cancels any pending reap.
+- **Scope:** kept single-room-per-process (the keyed multi-room registry that Farm has
+  is the deliberate follow-up per index.ts). This is a transport/lifecycle change only —
+  the deterministic sim is untouched, so no determinism concern.
+- Test: [run-lifecycle.test.ts](../games/citadel/server/src/run-lifecycle.test.ts) —
+  fake-timer reap → reconnect gets a *fresh* ticking sim (distinct instance, clean
+  building set); within-grace reconnect → *same* live sim, reap canceled. `@citadel/server`
+  9/9, typecheck clean.
+
+Still open from the audit: P1 #6 (social layer — GPU/live), #9 (MP render — GPU); P2
+#10–#12; P3 #14–#19.
+
 ## [2026-06-22] fix | Citadel 38 — P1#5 villager owner filter
 
 Second fix wave off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
