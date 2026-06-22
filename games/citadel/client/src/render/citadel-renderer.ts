@@ -51,7 +51,7 @@ import {
   raiderQuad,
   ghostQuad,
 } from "./quads";
-import { isoFootprintBox, isoFootprintDiamondBox, isoPointBox, isoProjectTilePxBox, ISO_TILE_H } from "./iso";
+import { isoFootprintBox, isoFootprintDiamondBox, isoPointBox, tileCenterToIso, ISO_TILE_W, ISO_TILE_H } from "./iso";
 import { isoNetworkTiles } from "./autotile";
 import { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
 import { clusterBuildings, clusterBorderQuads } from "./clustering";
@@ -83,10 +83,12 @@ const LAYER_SHADOW = 8;
 // which is what makes a villager in front correctly occlude a building behind.
 const LAYER_ENTITY = 10;
 const LAYER_GHOST = 40;
-/** Atmosphere layers (brief 15/18). Light pool sits just above buildings so the
- *  warm glow pools over the ground + structures; the ambient crowd walks below
- *  the real villagers but above buildings. */
-const LAYER_LIGHT_POOL = 12;
+/** Atmosphere layers (brief 15/18). The light pool sits on the GROUND (just
+ *  above the drop-shadow, BELOW buildings) so the warm glow pools around each
+ *  emitter's base like lamplight on the ground, instead of washing a hard tint
+ *  over the building sprite. The ambient crowd walks below the real villagers
+ *  but above buildings. */
+const LAYER_LIGHT_POOL = 9;
 const LAYER_AMBIENT_CROWD = 15;
 
 // Re-import LAYER_NETWORK for use in pushNetworks.
@@ -405,8 +407,22 @@ export function pushGhost(
  */
 export function pushLightPool(renderer: RendererLike, quads: readonly QuadSpec[]): void {
   for (const q of quads) {
-    const box = isoProjectTilePxBox(q.x, q.y, q.width, q.height, TILE_SIZE);
-    renderer.push(quadToSprite({ x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: q.tintRgba }, LAYER_LIGHT_POOL));
+    // The glow is a flat pool ON THE GROUND, so stamp the soft `fx/diamond`
+    // frame (an iso 2:1 diamond, transparent corners) instead of the `px` solid
+    // square — otherwise it reads as a hard orange BOX sitting over the building
+    // rather than a radial light pool on the iso grid. Convert the tile-px
+    // centre+size the emitter produced into an iso ground box.
+    const cxTile = (q.x + q.width / 2) / TILE_SIZE;
+    const cyTile = (q.y + q.height / 2) / TILE_SIZE;
+    const radiusTiles = Math.max(q.width, q.height) / TILE_SIZE / 2;
+    const c = tileCenterToIso(cxTile - 0.5, cyTile - 0.5);
+    // An iso diamond spanning `radiusTiles` each way: width = 2·r·ISO_HW, height = 2·r·ISO_HH.
+    const halfW = radiusTiles * (ISO_TILE_W / 2);
+    const halfH = radiusTiles * (ISO_TILE_H / 2);
+    renderer.push(isoFlatSprite(
+      c.x - halfW, c.y - halfH, halfW * 2, halfH * 2,
+      FRAME_DIAMOND, q.tintRgba, LAYER_LIGHT_POOL, c.y,
+    ));
   }
 }
 

@@ -51,8 +51,10 @@ rasterized + shelf-packed into **one in-process atlas at client boot**
 (`createCitadelSpriteAtlas` in `sprites/atlas.ts`) — no committed PNGs, no `npm run`
 build step (unlike Farm Valley's `@farm/atlas-recipes` → `npm run atlas` committed-PNG
 pipeline, which Citadel can't import: games never import each other). The atlas keeps a
-1×1 white `px` frame that every tinted-box path still uses (ghost, light-pool, wear,
-road/wall autotile, house-cluster border, ambient crowd). Per-type frame mapping +
+1×1 white `px` frame that the tinted-box paths still use (ghost, wear, house-cluster
+border). The night **light-pool** glow instead stamps the soft `fx/diamond` frame on
+a GROUND layer below buildings (so emitters like the market glow on the ground, not
+as a hard orange box over the sprite — 2026-06-21 fix). Per-type frame mapping +
 tinting live in `quads.ts`:
 - **Buildings** sample `bld/<type>` tinted white (recipe colors show); a burning
   building multiplies its tint toward orange. ~20 building types have art; a type without

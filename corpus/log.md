@@ -4,6 +4,31 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] render | Citadel night light-pool fix — emitters no longer render as orange BOXES
+
+In-game Playwright testing showed the **market** (and other glow emitters: bakery,
+chapel) rendering as a hard **orange box** over the building. Root cause (found via
+a live `renderer.push` capture hook): the night light-pool glow
+([atmosphere.ts](../games/citadel/client/src/render/atmosphere.ts) `lightPoolQuads`
++ `pushLightPool` in [citadel-renderer.ts](../games/citadel/client/src/render/citadel-renderer.ts))
+stamped concentric **solid `px` squares** at `LAYER_LIGHT_POOL = 12` (ABOVE
+buildings, layer 10), tinted EDG.gold/orange. Stacked at full night they washed a
+boxy orange tint over each emitter's sprite — NOT a sprite-art bug (the `bld/market`
+recipe + atlas frame were verified correct end-to-end).
+
+Fix (render-only): `pushLightPool` now stamps the soft **`fx/diamond`** frame (a
+real iso 2:1 diamond, transparent corners) projected onto the iso ground via
+`tileCenterToIso`, instead of `isoProjectTilePxBox` + the solid `px` square; moved
+`LAYER_LIGHT_POOL` to **9** (just above the drop-shadow, BELOW buildings) so the
+glow pools on the GROUND around each emitter's base like lamplight rather than over
+the sprite; and lowered `GLOW_RINGS` alphas (~0.045–0.06, retuned for solid
+diamonds vs the old transparent-cornered squares). Verified in-game: market/bakery/
+chapel now render their sprites with a subtle ground glow; depth-sort + footprint
+alignment confirmed correct across the full tier-1 set. typecheck + 187
+@citadel/client tests (incl. 15 atmosphere tests) green. The pre-existing
+`transform.ts`/`placement-state.ts` `centerX` console errors are unrelated in-flight
+work, untouched.
+
 ## [2026-06-21] render | Citadel mill + well rebuilt (were the two weak forms)
 
 User flagged the mill + well as looking bad vs the reference packs. Both were

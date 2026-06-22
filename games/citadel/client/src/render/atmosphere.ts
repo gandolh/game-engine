@@ -171,11 +171,16 @@ const GLOW_RING = EDG.orange;
  * radius (in tiles, beyond the footprint edge) and base alpha. A true radial
  * gradient isn't available in the flat-quad sprite-batch, so we stack a few
  * translucent rings (largest+faintest first, drawn back-to-front) to fake one.
+ *
+ * Alphas are deliberately LOW: the rings are stamped as solid `fx/diamond`
+ * pools on the ground (see `pushLightPool`), so three stacked rings compound —
+ * keep each faint so the result reads as soft lamplight, not a bright orange
+ * diamond. (Earlier values were tuned for transparent-cornered squares.)
  */
 const GLOW_RINGS: ReadonlyArray<{ radiusTiles: number; alpha: number; hex: string }> = [
-  { radiusTiles: 2.0, alpha: 0.10, hex: GLOW_RING },
-  { radiusTiles: 1.2, alpha: 0.16, hex: GLOW_RING },
-  { radiusTiles: 0.6, alpha: 0.22, hex: GLOW_CORE },
+  { radiusTiles: 2.2, alpha: 0.045, hex: GLOW_RING },
+  { radiusTiles: 1.3, alpha: 0.05, hex: GLOW_RING },
+  { radiusTiles: 0.7, alpha: 0.06, hex: GLOW_CORE },
 ];
 
 /** A light emitter as the pool needs it: footprint + type. */
