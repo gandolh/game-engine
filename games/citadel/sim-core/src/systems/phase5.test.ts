@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import { localPlayer } from "../sim-state";
 import { bootstrapSim, loadFromSave } from "../sim-bootstrap";
-import { computeTier, tierAtLeast, TIER_LOCK } from "./tiers";
+import { computeTier, tierAtLeast, TIER_LOCK, countsTowardTier } from "./tiers";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "../world/terrain";
 import type { CitadelCommand } from "../snapshot/index";
 
@@ -121,6 +121,25 @@ describe("tierAtLeast", () => {
 });
 
 // ---------------------------------------------------------------------------
+// (a.2) countsTowardTier: roads/walls/gates are NOT settlement structures
+//        (audit 38 P2#10 — wall-spam must not climb the tier ladder).
+// ---------------------------------------------------------------------------
+
+describe("countsTowardTier", () => {
+  it("excludes roads, walls, and gates", () => {
+    expect(countsTowardTier("road")).toBe(false);
+    expect(countsTowardTier("wall")).toBe(false);
+    expect(countsTowardTier("gate")).toBe(false);
+  });
+
+  it("counts real settlement structures", () => {
+    for (const t of ["house", "farm", "mill", "bakery", "storehouse", "chapel", "market", "tower", "keep"]) {
+      expect(countsTowardTier(t)).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // (b) TierSystem integration test: tier advances in a live sim + event
 // ---------------------------------------------------------------------------
 
@@ -179,6 +198,47 @@ describe("TierSystem", () => {
     const snap = sim.getSnapshot(TPD);
     expect(snap.tier).toBe(localPlayer(sim.state).tier);
     expect(snap.tier).toBe("Citadel");
+  });
+
+  // audit 38 P2#11 — a demotion must NOT re-lock unlocked buildings, and the
+  // event copy must be direction-aware.
+  it("demotion lowers tier but never lowers peakTier (high-water mark)", () => {
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const lp = localPlayer(sim.state);
+    // Continuous absolute tick — the day clock only advances on tick>0 at a day
+    // boundary, so the two tier evaluations must land on distinct days.
+    let t = 0;
+    const tickDays = (n: number): void => { for (let i = 0; i < n * TPD; i++) sim.scheduler.tick({ tick: t++ }); };
+
+    lp.population = 20; // → Town
+    tickDays(1);
+    expect(lp.tier).toBe("Town");
+    expect(lp.peakTier).toBe("Town");
+
+    // Lose population (disease/starvation) → tier demotes, peakTier holds.
+    lp.population = 8; // → Village
+    tickDays(1);
+    expect(lp.tier).toBe("Village");
+    expect(lp.peakTier).toBe("Town"); // unlocked buildings stay unlocked
+
+    const snap = sim.getSnapshot(t);
+    expect(snap.tier).toBe("Village");
+    expect(snap.peakTier).toBe("Town");
+  });
+
+  it("fires a 'risen' event on promotion and a 'fallen' event on demotion", () => {
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const lp = localPlayer(sim.state);
+    let t = 0;
+    const tickDays = (n: number): void => { for (let i = 0; i < n * TPD; i++) sim.scheduler.tick({ tick: t++ }); };
+
+    lp.population = 20; // → Town
+    tickDays(1);
+    expect(sim.state.events.some((e) => /risen.*Town/i.test(e))).toBe(true);
+
+    lp.population = 8; // → Village (demotion)
+    tickDays(1);
+    expect(sim.state.events.some((e) => /fallen.*Village/i.test(e))).toBe(true);
   });
 });
 

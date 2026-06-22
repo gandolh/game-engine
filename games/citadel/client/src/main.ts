@@ -332,7 +332,7 @@ function upgradeHint(): string {
   const costStr = Object.entries(cost)
     .map(([g, q]) => `${q} ${g}`)
     .join(", ");
-  const locked = !tierAtLeast(tier as SettlementTier, reqTier);
+  const locked = !tierAtLeast(peakTier as SettlementTier, reqTier);
   const status = locked ? ` [LOCKED: needs ${reqTier}]` : "";
   return `Mode: Upgrade ${b.type} → L${nextLevel} (${costStr})${status}`;
 }
@@ -439,7 +439,7 @@ const buildModeButtons: HTMLElement[] = [
 function refreshBuildButtonLocks(): void {
   for (const [type, btn] of buildButtonsByType) {
     const required = TIER_LOCK[type];
-    if (required !== undefined && !tierAtLeast(tier as SettlementTier, required)) {
+    if (required !== undefined && !tierAtLeast(peakTier as SettlementTier, required)) {
       btn.disabled = true;
       btn.classList.add("tier-locked");
       btn.title = `Requires ${required}`;
@@ -567,7 +567,8 @@ let paused = false;
 let day = 1;
 let tick = 0;            // render-side mirror of snap.tick (for the day/night wash)
 let season = "spring";
-let tier = "Hamlet"; // Phase 5: settlement tier
+let tier = "Hamlet"; // Phase 5: settlement tier (current; displayed in HUD)
+let peakTier = "Hamlet"; // highest tier ever reached; gates build/upgrade buttons
 let population = 0;
 let popCap = 0;
 let bread = 0;
@@ -681,6 +682,7 @@ client.onSnapshot((snap) => {
   day = snap.day + 1;
   season = snap.season;
   tier = snap.tier;  // Phase 5
+  peakTier = snap.peakTier;  // gates build/upgrade buttons (never demotes)
   refreshBuildButtonLocks();
   population = snap.population;
   popCap = snap.popCap;

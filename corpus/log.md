@@ -4,6 +4,38 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-22] fix | Citadel 38 — P2#10/#11 tier balance + real-GPU verification
+
+First session driving Citadel **live on a real GPU** (the dev box is native Windows, not
+WSL — WebGPU renders). Toolchain: Playwright + **system Chrome** (`--enable-unsafe-webgpu`).
+Note the **Playwright-bundled Chromium can't create a WebGPU device here** (`dxil.dll`
+Windows error 87 — the bundle lacks the DXC shader-compiler DLLs); installed Chrome/Edge
+work (`channel: "chrome"`) → backend `webgpu`, iso terrain + buildings render.
+
+Fixes off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 5, the single-player-visible balance bugs):
+- **P2#10** — `TierSystem` counted wall/gate tiles as settlement buildings → wall-spam
+  alone climbed to Town. Extracted pure `countsTowardTier(type)` (excludes
+  `isRoad`/`isWall`/`isGate`); walls still feed `defensiveStrength`, not settlement size.
+  [tiers.ts](../games/citadel/sim-core/src/systems/tiers.ts).
+- **P2#11** — (a) tier-change event is now direction-aware ("risen"/"fallen"); (b) added a
+  per-player `peakTier` high-water mark ([sim-state.ts](../games/citadel/sim-core/src/sim-state.ts))
+  — build/upgrade tier-locks gate on `unlockTier(p)` = max(tier, peakTier), so a demotion
+  (disease/starvation) never re-locks an already-unlocked building. `peakTier` added to the
+  snapshot; client gates buttons/upgrade-hint on it, HUD still shows current `tier`.
+- **Determinism:** sim-touching (wall-exclusion changes tier counting; `peakTier` is new
+  monotone derived state feeding gating only). Solo `EXPORT=json` re-proof NOT run
+  (ask-first / constrained-hardware rule) — carried forward. It's a deliberate balance move
+  regardless. Tests: [phase5.test.ts](../games/citadel/sim-core/src/systems/phase5.test.ts)
+  +4. `@citadel/sim-core` 146/146, client 187/187, server 9/9; citadel typecheck clean.
+  (Pre-existing, unrelated: `@tool/world-preview` typecheck fails on `@webgpu/types` /
+  `.wgsl?raw` in engine `weather-pass.ts` — reproduces on a clean tree, not from this change.)
+
+**Verification win:** the **true-iso flat-box anomaly** (market/storehouse/bakery/woodcutter
+allegedly flat) **does not reproduce on this real GPU** — all render as iso volumes; only
+`market` is flat, by design (`marketStalls`). Confirms the host-specific-driver hypothesis;
+note added to [the iso epic](todos/2026-06-21-citadel-true-isometric.md).
+
 ## [2026-06-22] fix | Citadel 38 — P1#7 reconnect-frozen-sim (reap-grace + reset)
 
 Third fix wave off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)

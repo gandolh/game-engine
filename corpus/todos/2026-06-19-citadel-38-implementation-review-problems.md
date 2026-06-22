@@ -25,9 +25,42 @@ the commit). `@citadel/sim-core` 136/136, `@citadel/server` 7/7, both typecheck 
 - **P1#8 (windowController.update) — was ALREADY fixed** before this pass: `windowController.update(camera)` runs each frame at [main.ts:792](../../games/citadel/client/src/main.ts#L792). The finding below is **stale**.
 - Tests: [sim-core/systems/mp-authority.test.ts](../../games/citadel/sim-core/src/systems/mp-authority.test.ts) (3), [server/mp-authority.test.ts](../../games/citadel/server/src/mp-authority.test.ts) (2).
 
+## ✅ RESOLVED (2026-06-22 — second session) — P2#10 + P2#11 (tier-system balance)
+
+Real-GPU session (WebGPU now renders — dev box is native Windows, not WSL). Drove
+Citadel live via Playwright + system Chrome (`--enable-unsafe-webgpu`); the Playwright
+**bundled** Chromium can't create a WebGPU device here (`dxil.dll` Win error 87 — no DXC
+libs), but **system Chrome/Edge work** → backend `webgpu`, iso terrain + buildings render.
+
+- **P2#10 wall-spam tier inflation** — `TierSystem` counted every wall/gate tile as a
+  settlement building, so wall-spam alone could climb to Town. Fixed: extracted a pure
+  `countsTowardTier(type)` (excludes `isRoad`/`isWall`/`isGate`) and used it in the count
+  ([tiers.ts](../../games/citadel/sim-core/src/systems/tiers.ts)). Walls still feed
+  `defensiveStrength`, just not settlement size.
+- **P2#11 demotion message + re-lock** — (a) direction-aware event copy ("risen"/"fallen");
+  (b) added a per-player `peakTier` high-water mark ([sim-state.ts](../../games/citadel/sim-core/src/sim-state.ts));
+  build/upgrade tier-locks now gate on `unlockTier(p)` = max(tier, peakTier) so a demotion
+  (disease/starvation) never re-locks an already-unlocked building type. `peakTier` added to
+  the snapshot; client gates buttons + upgrade hint on it, HUD still shows current `tier`.
+- **Determinism:** sim-touching. `peakTier` is new derived state that only ever climbs and
+  feeds gating, not the tick math; the wall-exclusion changes which structures count toward
+  tier. Solo determinism re-proof NOT run this session (ask-first rule) — **carry forward**:
+  fast multi-seed `EXPORT=json` before relying on byte-identity. The change is a deliberate
+  balance move regardless (wall-spam no longer climbs tiers).
+- Tests: [phase5.test.ts](../../games/citadel/sim-core/src/systems/phase5.test.ts) +4
+  (countsTowardTier ×2, peakTier-survives-demotion, risen/fallen copy). `@citadel/sim-core`
+  146/146, `@citadel/client` 187/187, `@citadel/server` 9/9; citadel workspaces typecheck clean.
+
+**Verification win (no fix needed):** the **true-iso flat-box anomaly**
+([2026-06-21-citadel-true-isometric.md](2026-06-21-citadel-true-isometric.md) OPEN ANOMALY)
+**does NOT reproduce on this real GPU** (system Chrome). Placed house/chapel/storehouse/
+bakery/woodcutter + market live: all five render as correct iso volumes; only `market` is
+flat — and that's **by design** (`market → marketStalls(...)`, open stalls, no height arg,
+unlike `cottage`/`warehouse`). Confirms the todo's host-specific-driver hypothesis.
+
 **Still open from this audit:** P1 #6 (social layer client consume/send + render —
-needs GPU/live verification), #9 (MP render entities — GPU); P2 #10/#11/#12; P3 #14
-(siege RNG fork — needs a deliberate baseline move), #15/#16/#17/#18/#19.
+needs GPU/live verification), #9 (MP render entities — GPU); P2 #12 (dead SERVICE_RADII);
+P3 #14 (siege RNG fork — needs a deliberate baseline move), #15/#16/#17/#18/#19.
 
 ---
 
@@ -148,12 +181,12 @@ any peer's command into the one authoritative stream after a
 
 ## P2 — sim balance / wrong feedback (single-player visible)
 
-10. **Tier advancement counts every wall tile as a building → wall-spam reaches Citadel/Fortress tier with no real infrastructure.** **[agent-cited]**
+10. ✅ **FIXED 2026-06-22.** **Tier advancement counts every wall tile as a building → wall-spam reaches Citadel/Fortress tier with no real infrastructure.** **[agent-cited]**
     [tiers.ts:160](../../games/citadel/sim-core/src/systems/tiers.ts#L160) — `if (prod?.isRoad !== true) nonRoadBuildingCount++`; `wall` is `isRoad:false`, so each
     wall tile counts. `minBuildings` 25/40 can be met by laying walls. **Fix:** also
     exclude `isWall`/`isGate` from the tier building count.
 
-11. **Tier-change event says "risen from X to Y" even on demotion, and a demotion retroactively re-locks buildings.** **[agent-cited]**
+11. ✅ **FIXED 2026-06-22** (direction-aware copy + `peakTier` high-water mark gating). **Tier-change event says "risen from X to Y" even on demotion, and a demotion retroactively re-locks buildings.** **[agent-cited]**
     [tiers.ts:164–170](../../games/citadel/sim-core/src/systems/tiers.ts#L164-L170).
     Losing pop (disease/starvation) drops the tier; the message still says "risen",
     and `TIER_LOCK` then blocks placing keep/garrison until the tier is regained

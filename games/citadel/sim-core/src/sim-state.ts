@@ -147,6 +147,12 @@ export interface PlayerState {
 
   // Phase 5: settlement tier
   tier: SettlementTier;
+  /**
+   * Highest tier ever reached (never decreases). Building/upgrade tier-locks
+   * gate on this, not on `tier`, so a demotion (pop lost to disease/starvation)
+   * never re-locks a building type the player already unlocked.
+   */
+  peakTier: SettlementTier;
 
   /**
    * Citadel 30: this player's claimed territory — tile indices (ty*width+tx)
@@ -190,6 +196,7 @@ export function makePlayerState(id: number): PlayerState {
     sickVillagers: 0,
     outbreakActive: false,
     tier: "Hamlet",
+    peakTier: "Hamlet",
     territory: new Set<number>(),
   };
 }

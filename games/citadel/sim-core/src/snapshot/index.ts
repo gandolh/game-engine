@@ -84,7 +84,8 @@ export interface RenderSnapshot {
   readonly outbreakActive: boolean;
   readonly activeFires: number;          // count of burning buildings
   // Phase 5: settlement tier
-  readonly tier: string;                 // e.g. "Hamlet", "Village", "Town", …
+  readonly tier: string;                 // e.g. "Hamlet", "Village", "Town", … (current; can demote)
+  readonly peakTier: string;             // highest tier ever reached; gates build/upgrade buttons
   // Citadel 09: total goods held in the tithe relief reserve (0 if no tithe accrued).
   readonly reliefReserve: number;
 }

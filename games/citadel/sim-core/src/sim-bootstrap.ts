@@ -2,7 +2,7 @@ import { Scheduler, World, CommandQueue, CommandSystem, OccupancyGrid, checkPlac
 import type { System, SimContext } from "@engine/core";
 import type { CitadelCommand, BuildingSnapshot, VillagerSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
 import { DayClockSystem } from "./systems/day-clock";
-import { TierSystem, TIER_LOCK, tierAtLeast } from "./systems/tiers";
+import { TierSystem, TIER_LOCK, tierAtLeast, unlockTier } from "./systems/tiers";
 import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH as DEFAULT_WORLD_WIDTH, WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
@@ -284,7 +284,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
 
     // Tier-lock: some building types are gated behind a minimum settlement tier.
     const required = TIER_LOCK[buildingType];
-    if (required !== undefined && !tierAtLeast(lp.tier, required)) {
+    if (required !== undefined && !tierAtLeast(unlockTier(lp), required)) {
       pushEvent(state, `Day ${state.day}: A ${buildingType} requires ${required} tier.`);
       return false;
     }
@@ -508,7 +508,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       const nextLevel = level + 1;
       // L2 = Village, L3 = Town. Reuse the enforced tier ladder via tierAtLeast.
       const reqTier = level === 1 ? "Village" : "Town";
-      if (!tierAtLeast(owner.tier, reqTier)) {
+      if (!tierAtLeast(unlockTier(owner), reqTier)) {
         pushEvent(state, `Day ${state.day}: upgrading ${b.type} to L${nextLevel} requires ${reqTier} tier.`);
         return;
       }
@@ -775,8 +775,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       sickVillagers: lp.sickVillagers,
       outbreakActive: lp.outbreakActive,
       activeFires: countActiveFires(state),
-      // Phase 5: tier
+      // Phase 5: tier — `tier` is the current (display) tier; `peakTier` is the
+      // high-water mark the client gates build/upgrade buttons on (audit 38 P2#11).
       tier: lp.tier,
+      peakTier: lp.peakTier,
       // Citadel 09: relief reserve total (tithe payoff buffer)
       reliefReserve: totalGoods(lp.reliefReserve),
     };

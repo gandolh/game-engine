@@ -29,6 +29,18 @@ tags: [citadel, render, art, projection, epic]
 > territory — see the 2026-06-21 playtest log). **Follow-up:** reproduce on
 > another GPU; if real, instrument `copyExternalImageToTexture` / try per-frame
 > sub-textures or a padded atlas. Tracked here, not blocking the iso landing.
+>
+> **UPDATE (2026-06-22) — DOES NOT REPRODUCE on a real GPU.** Drove Citadel live
+> via Playwright + **system Chrome** (`--enable-unsafe-webgpu`; the Playwright-
+> bundled Chromium can't create a device here — `dxil.dll` Win error 87, no DXC
+> libs — but installed Chrome/Edge do). Placed house/chapel/storehouse/bakery/
+> woodcutter + market and zoomed in: **all five render as correct iso volumes**;
+> only `market` is flat — and that is **by design** (`market → marketStalls(...)`
+> in [buildings.ts](../../games/citadel/client/src/render/sprites/recipes/buildings.ts),
+> open stalls with no height arg, unlike `cottage`/`warehouse`). So the earlier
+> flat-box report was a host-specific WebGPU artifact, as suspected — not a code
+> bug. If it resurfaces on another GPU, the `copyExternalImageToTexture` /
+> padded-atlas follow-up above still applies.
 
 # Citadel — true isometric projection
 
