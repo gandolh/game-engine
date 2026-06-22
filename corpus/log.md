@@ -4,6 +4,37 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-22] research | OpenTTD influence — 4 todo briefs filed
+
+Researched OpenTTD (transport-network sim) vs. our two games and filed four
+`corpus/todos/` briefs capturing the borrowable ideas. The throughline: OpenTTD's
+depth is a set of **legible cause→effect loops** (service quality drives production;
+catchment areas are drawn; cargo pays on distance×freshness; towns visibly grow when
+served) — exactly the layer our one-directional, auto-distributing economies skip.
+
+- **[catchment-coverage-overlay](todos/2026-06-22-citadel-catchment-coverage-overlay.md)**
+  (Citadel, render/UI only) — draw service radius rings + a coverage overlay toggle +
+  "covers 0 homes" toast. Direct fix for **P2** in
+  [playtest-findings](todos/2026-06-22-citadel-playtest-findings.md) (services land
+  out of range with zero feedback). Legibility, not re-tuning — the spacing tension
+  is intended.
+- **[two-way-service-economy](todos/2026-06-22-citadel-two-way-service-economy.md)**
+  (Citadel, sim) — production reacts to whether output is collected/consumed
+  (OpenTTD's >60%/>80% banded growth + stockpile spoilage), plus service-driven
+  settlement growth. Makes roads *matter*. (NB: the P0/P1 growth deadlock was already
+  fixed in the entry below — coordinate the growth-signal half with that, don't
+  re-tune the same numbers.)
+- **[farm-perishability-distance-pricing](todos/2026-06-22-farm-perishability-distance-pricing.md)**
+  (Farm Valley, sim) — produce decays in value over time; far harbors pay more but
+  risk decay. Turns AP-throughput into a where/when decision; leverages existing
+  harbor/boat infra. Main cost = teaching the BDI personalities to react; re-balance
+  [economy.md](wiki/economy.md).
+- **[openttd-art-and-gameplay-influence](todos/2026-06-22-openttd-art-and-gameplay-influence.md)**
+  (both, research note) — OpenGFX validates Citadel's existing iso/EDG32/silhouette-
+  first direction ([brief 96](briefs/game/todo/96-citadel-building-art-style-reference.md));
+  borrow read-at-any-zoom discipline + "world visibly reacts to the player" feel.
+  No iso conversion for top-down Farm Valley.
+
 ## [2026-06-22] fix | Citadel — resolved growth deadlock + road-routing + minimap-rotate + placement feedback
 
 Worked the three 2026-06-22 todos. All sim changes re-proved deterministic
