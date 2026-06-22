@@ -23,6 +23,7 @@ import {
   pushLightPool,
   pushAmbientCrowd,
   pushWearOverlay,
+  pushCatchment,
   eventToDevicePx,
   screenToWorld,
   transformOf,
@@ -50,6 +51,14 @@ import {
 } from "./render/atmosphere";
 import { CitadelWeather } from "./render/weather";
 import { CitadelAmbientCrowd } from "./render/ambient-crowd";
+import {
+  COVERAGE_SERVICE,
+  serviceRadius,
+  serviceTint,
+  catchmentTiles,
+  housesInRadius,
+  coverageByNeed,
+} from "./render/coverage";
 import { PlacementStateManager } from "./ui/placement-state";
 import { SettingsModal } from "./ui/settings-modal";
 import { ToastManager, newEventsSince } from "./ui/toast";
@@ -174,6 +183,9 @@ let lastMouseX = 0;
 let lastMouseY = 0;
 
 const placementState = new PlacementStateManager();
+// OpenTTD-influence coverage overlay (2026-06-22): toggled with `C`, tints the
+// faith/safety/goods catchments across the map so gaps are visible at a glance.
+let coverageOverlay = false;
 let currentBuildings: readonly BuildingSnapshot[] = [];
 let currentVillagers: readonly VillagerSnapshot[] = [];
 let currentRaiders: readonly RaiderSnapshot[] = [];
@@ -252,10 +264,20 @@ canvas.addEventListener("click", (e) => {
   if (placementState.mode === "place") {
     const ghost = placementState.ghost();
     if (ghost !== null && ghost.valid) {
+      const type = placementState.selectedType;
       client.sendCommand({
         type: "placeBuilding",
-        payload: { buildingType: placementState.selectedType, x: ghost.tileX, y: ghost.tileY },
+        payload: { buildingType: type, x: ghost.tileX, y: ghost.tileY },
       });
+      // OpenTTD-influence: a service that reaches no homes is an invisible
+      // no-op — say so. Reuses the same centre/radius the sim scores against.
+      if (COVERAGE_SERVICE[type] !== undefined) {
+        const cx = ghost.tileX + Math.floor(ghost.w / 2);
+        const cy = ghost.tileY + Math.floor(ghost.h / 2);
+        if (housesInRadius(currentBuildings, cx, cy, serviceRadius(type)) === 0) {
+          toasts.push(`${type} covers 0 homes — move it closer`, performance.now());
+        }
+      }
     }
   } else if (placementState.mode === "demolish") {
     const { tx, ty } = placementState.cursorTile();
@@ -304,6 +326,20 @@ canvas.addEventListener("click", (e) => {
 
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && followId !== null) clearFollow();
+});
+
+// `C` toggles the service-coverage overlay (OpenTTD-influence brief). Ignore it
+// while typing in a form control or with a modifier held (keeps Ctrl+C copy).
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "c" && e.key !== "C") return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target as HTMLElement | null;
+  if (t !== null && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  coverageOverlay = !coverageOverlay;
+  toasts.push(
+    coverageOverlay ? "Coverage overlay ON — faith/safety/goods" : "Coverage overlay OFF",
+    performance.now(),
+  );
 });
 
 function clearFollow(): void {
@@ -582,6 +618,21 @@ if (import.meta.env.DEV) {
     send: (cmd: unknown) => client.sendCommand(cmd as never),
     terrain: () => terrain,
     buildings: () => currentBuildings,
+    // Project a tile centre to a CSS-px point (relative to the viewport) so a
+    // test harness can drive REAL UI gestures — hovering the placement ghost,
+    // clicking a specific tile — not just the command channel. Mirrors the
+    // renderer's world→screen transform.
+    tileToScreenCss: (tx: number, ty: number) => {
+      const c = tileToIso(tx + 0.5, ty + 0.5);
+      fitCameraToCanvas(camera, canvas.width, canvas.height);
+      const sx = canvas.width / camera.worldUnitsX;
+      const sy = canvas.height / camera.worldUnitsY;
+      const left = camera.centerX - camera.worldUnitsX / 2;
+      const top = camera.centerY - camera.worldUnitsY / 2;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      return { x: rect.left + ((c.x - left) * sx) / dpr, y: rect.top + ((c.y - top) * sy) / dpr };
+    },
   };
 }
 
@@ -928,6 +979,24 @@ function loop(): void {
   }
 
   const ghost = placementState.ghost();
+
+  // --- Service coverage (OpenTTD-influence brief, 2026-06-22). Two paths share
+  // one ground-tile decal: the full overlay (toggled with `C`) washes every
+  // catchment by need so gaps show; the placement ring previews the selected
+  // service's reach around the ghost BEFORE committing. Render-only — the tile
+  // geometry mirrors the sim's coverage math (render/coverage.ts).
+  if (coverageOverlay) {
+    for (const grp of coverageByNeed(currentBuildings)) pushCatchment(renderer, grp.tiles, grp.hex);
+  }
+  if (placementState.mode === "place" && ghost !== null) {
+    const radius = serviceRadius(placementState.selectedType);
+    if (radius > 0) {
+      const cx = ghost.tileX + Math.floor(ghost.w / 2);
+      const cy = ghost.tileY + Math.floor(ghost.h / 2);
+      pushCatchment(renderer, catchmentTiles(cx, cy, radius), serviceTint(placementState.selectedType));
+    }
+  }
+
   const dragging = (placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad;
   pushGhost(renderer, ghost, dragging ? placementState.roadTiles : []);
 

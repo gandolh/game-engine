@@ -90,6 +90,11 @@ const LAYER_GHOST = 40;
  *  but above buildings. */
 const LAYER_LIGHT_POOL = 9;
 const LAYER_AMBIENT_CROWD = 15;
+// Service catchment tints (placement ring + coverage overlay, 2026-06-22). Sits
+// just below the ghost (40) and above everything else, so the coverage wash
+// reads ON TOP of buildings like an OpenTTD catchment highlight rather than
+// hiding under them.
+const LAYER_COVERAGE = 38;
 
 // Re-import LAYER_NETWORK for use in pushNetworks.
 import { LAYER_NETWORK } from "./autotile";
@@ -393,6 +398,27 @@ export function pushGhost(
   };
   if (ghost !== null) pushIso(ghost.tileX, ghost.tileY, ghost.w, ghost.h, ghost.valid);
   for (const t of dragTiles) pushIso(t.x, t.y, 1, 1, true);
+}
+
+/**
+ * Push a service catchment as flat iso ground tiles (OpenTTD-influence brief,
+ * 2026-06-22). Each tile stamps a translucent diamond on the coverage layer;
+ * perimeter tiles (`edge`) draw brighter so a single building's reach reads as a
+ * crisp ring with a faint fill, while a multi-building overlay region (all
+ * `edge:false`) reads as a flat wash. The geometry comes from
+ * `render/coverage.ts`, which mirrors the sim's coverage math. Call inside the
+ * same begin/endFrame as `pushScene`.
+ */
+export function pushCatchment(
+  renderer: RendererLike,
+  tiles: ReadonlyArray<{ tx: number; ty: number; edge: boolean }>,
+  hex: string,
+): void {
+  for (const t of tiles) {
+    const d = isoFootprintDiamondBox(t.tx, t.ty, 1, 1, 0);
+    const alpha = Math.round(0xff * (t.edge ? 0.34 : 0.16));
+    renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(hex, alpha), LAYER_COVERAGE, d.depth));
+  }
 }
 
 // ---------------------------------------------------------------------------

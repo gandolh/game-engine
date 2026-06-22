@@ -4,6 +4,26 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-22] citadel | Coverage overlay + placement ring shipped (OpenTTD brief 1/3)
+
+Implemented the first of the three OpenTTD-influence briefs:
+[catchment-coverage-overlay](todos/2026-06-22-citadel-catchment-coverage-overlay.md)
+— render/UI only, no sim change. New pure `games/citadel/client/src/render/coverage.ts`
+mirrors the sim's coverage geometry (`serviceCenter`, `SERVICE_RADII`, Manhattan test)
+so the visuals can't drift from `needs-happiness.ts`; `pushCatchment` stamps flat iso
+ground diamonds on a new `LAYER_COVERAGE`. Three pieces: **placement ring** (a service
+building's reach drawn around the ghost, tinted by need), **"covers 0 homes" toast** on
+placing a chapel/market/watchpost that reaches no houses, and a **`C` overlay toggle**
+that washes the union of faith/safety/goods catchments so gaps show. Unit-tested
+(`coverage.test.ts`); client typecheck + 202 tests + palette guard green. Directly
+addresses **P2** in the playtest findings (services placed out of range, zero feedback).
+**Playtested live (Chrome+WebGPU)**: ring, `C` overlay (three distinct washes), and the
+"covers 0 homes" toast all confirmed; the overlay made a stranded faith catchment's gap
+obvious at a glance. Added a DEV-only `__citadel.tileToScreenCss` hook so the harness can
+drive real UI gestures (hover/click specific tiles), not just the command channel.
+The two sibling briefs (two-way service economy; farm perishability) remain open — both
+are sim-side and carry determinism cost, so they're deliberately not bundled here.
+
 ## [2026-06-22] research | OpenTTD influence — 4 todo briefs filed
 
 Researched OpenTTD (transport-network sim) vs. our two games and filed four

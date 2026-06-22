@@ -4,7 +4,36 @@ created: 2026-06-22
 status: open
 tags: [citadel, ux, gameplay, ui, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
+status: done
 ---
+
+> **✅ DONE 2026-06-22.** All three scope items shipped, render/UI-only (no sim
+> change). New pure `render/coverage.ts` mirrors the sim's coverage geometry
+> (same `serviceCenter` = `b.x+floor(w/2)`, same `SERVICE_RADII`, same Manhattan
+> test) so the visuals can't drift; `pushCatchment` in
+> [citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts)
+> stamps flat iso ground diamonds on a new `LAYER_COVERAGE` (just below the
+> ghost). **(1) Placement ring** — selecting any service building (chapel/market/
+> watchpost/tower/garrison/keep/town-hall/well/healer) draws its Manhattan reach
+> around the ghost (perimeter brighter = ring, faint fill inside), tinted by need
+> (faith=mauve / safety=skyBlue / goods=gold), neutral cream otherwise. **(2)
+> Post-place toast** — placing a chapel/market/watchpost that covers 0 homes
+> toasts `"<type> covers 0 homes — move it closer"`. **(3) Overlay toggle** —
+> `C` washes the union of all faith/safety/goods catchments by need so gaps show
+> at a glance (guarded against form-field focus + Ctrl/Cmd). Unit-tested in
+> `render/coverage.test.ts`; client typecheck + 202 client tests + palette guard
+> all green. Kept in `todos/` (not moved to `closed/`) so the sibling briefs'
+> relative links stay valid.
+>
+> **Playtested 2026-06-22 (live client, Chrome+WebGPU).** All three confirmed in
+> the real renderer: the chapel placement ring draws a tinted Manhattan reach
+> around the ghost; `C` toggles three distinct faith/safety/goods washes; placing
+> a chapel ~14 tiles from the houses fired `"chapel covers 0 homes — move it
+> closer"` and the overlay then showed the faith catchment visibly stranded off
+> the houses (the exact P2 gap, now legible). Drove real UI gestures via a new
+> DEV-only `__citadel.tileToScreenCss(tx,ty)` hook in
+> [main.ts](../../games/citadel/client/src/main.ts) (projects a tile to a CSS-px
+> point so a harness can hover/click specific tiles, not just send commands).
 
 # Citadel — service catchment radius + coverage overlay
 
