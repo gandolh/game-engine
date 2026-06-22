@@ -1,0 +1,113 @@
+# Brief 96 — Citadel building art-style reference (the look + example assets)
+
+Status: **todo / living reference.** This is the standing art-direction spec for
+Citadel building sprites — the look to match when adding/restyling any building.
+It captures the reference assets the user provided and the rules the current
+generators follow. Not a one-shot task; keep it open and update as the style
+evolves. (Implementation history: briefs
+[95](../done/95-citadel-building-restyle-reference-look.md) restyle + the
+2026-06-21 log entries for the FORMS pass, mill/well rebuild, and light-pool fix.)
+
+## Why
+
+Citadel buildings are **procedurally generated pixel-art recipes** (ASCII grids,
+not committed PNGs). To keep ~20 building types visually coherent and on-theme as
+the set grows, the art direction needs a written reference: the target look, the
+example assets it's modelled on, the palette, and the structural rules. Without it,
+each new building drifts.
+
+## Reference assets (inspiration only — NOT imported)
+
+The user supplied these as the visual target. We **evoke** them procedurally and
+stay EDG32-only; we do **not** import the art (keeps "assets are code" + the EDG32
+guard intact, no licensing/attribution burden).
+
+- **Reiner's "Isometric Buildings"** (CC-BY-SA, OpenGameArt) — the primary
+  reference. Warm terracotta tile roofs with visible ridge + eave overhang;
+  half-timbered (dark oak frame + diagonal cross-braces over cream/wattle infill);
+  weathered timber; each building on a small ground plot with scattered props
+  (barrels, sacks, fences); tall timber-lattice watchtower/mill; an open fenced
+  crop/flower field; a market with red-striped stalls.
+- **zatoart "Isometric Isolation"** — 32×32 true-iso, clean medieval, 100+ tiles.
+- **zatoart "Isoverse Medieval Outdoors"** — 2:1 true-iso, "clean & readable",
+  cohesive blended palette, modular buildings w/ visible entrances, market stalls,
+  barrels, fences, walls, towers, lamps/torches.
+- **xilurus "Pixel Isometric Village"** — 16×16 iso; ground/slope/slab variants,
+  minerals, flora, structures.
+
+Common thread across all four (the target): **clean, readable 2:1 dimetric iso;
+warm terracotta tile roofs; timber/stone modular bodies; props + ground bases;
+fences, market stalls, towers; a cohesive multi-step (not flat) palette.**
+
+## Art-style rules (what the generators do — keep matching this)
+
+- **Projection:** true 2:1 dimetric iso. Each building is a real volume — a
+  diamond ground footprint + two shaded wall faces (lit-LEFT, shaded-RIGHT; one
+  committed sun from the upper-left) + a roof. Silhouette, not just colour, must
+  distinguish a type (see FORMS below).
+- **Resolution:** 32-based (`ISO_ART_SCALE = 1` in
+  [iso.ts](../../../games/citadel/client/src/render/iso.ts)) — same density as
+  units/terrain. (4× was tried and reverted; 32 is dense enough.)
+- **Palette: EDG32 only**, via the `SWATCH` chars in
+  [palette.ts](../../../games/citadel/client/src/render/sprites/palette.ts) (a
+  guard test fails on any off-palette colour). Key roles:
+  - Terracotta tile roof: `R` rust (shadow) → `r` clay (mid) → `P` salmon (lit);
+    ridge cap + dark eave-overhang line in `%` bark / `#` black.
+  - Plaster/wattle wall infill: `c` cream / `t` tan; **oak half-timber framing**
+    in `%` bark / `W` woodDark (studs + sill/top plates + a diagonal cross-brace).
+  - Stone (forts/quarry/mine/well): `s` steel / `S` slate / `l` silver / `i` ink,
+    ashlar coursing as sparse staggered blocks (NOT a per-pixel checkerboard).
+  - Accents: `O` gold / `o` orange / `y` yellow (fire, brass), `e` red + `v` white
+    (market awning stripes), `g`/`G`/`d` greens (fields, healer roof), `b`/`B`/`C`
+    blues (glass, water).
+- **Shading:** ≥3 steps per surface (lit / mid / shadow) — avoid flat fills.
+  Selective dark outline around the silhouette + eaves; avoid noisy interior lines.
+- **Ground + props:** emitters/dwellings get a small dirt apron + a barrel/sack at
+  the front base (`isoGroundProps`), like the reference plots.
+- **Per-type FORMS** (builders in
+  [iso-draw.ts](../../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
+  mapped in
+  [buildings.ts](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts)):
+  - `cottage` — half-timber + steep terracotta hip roof + window/door:
+    house, bakery, woodcutter, sawmill, smith, healer.
+  - `postMill` (tower mill) — tall tapered round stone tower, domed clay cap,
+    big front-facing **animated** sail X (`bld/mill@0..7`, `millFrameAt`).
+  - `openField` — tilled furrows + post-and-rail fence + gate + crops + hay: farm.
+  - `marketStalls` — cobble plaza + red/white striped stall awnings + goods.
+  - `church` — nave + bell tower + spire + cross: chapel.
+  - `warehouse` — long body + barn doors + hayloft dormer: storehouse,
+    tradingpost, town-hall.
+  - `fort` — ashlar stone + flat **crenellated** deck + arrow slits + banner:
+    watchpost, tower, garrison, keep.
+  - `boxBuilding` — mine pithead / quarry pit / well (`wellForm`: small roofed
+    well-head, not a building box).
+- **FX:** the night light-pool glow is a soft `fx/diamond` pool on the GROUND
+  (below buildings), warm gold/orange, low alpha — lamplight, never a hard box
+  over the sprite ([atmosphere.ts](../../../games/citadel/client/src/render/atmosphere.ts)).
+
+## Hard constraints
+
+- **Render-only / deterministic** — recipes + atlas are pure; no sim impact. Mill
+  animation uses the main-thread render clock only.
+- **EDG32 guard** + **recipes.test.ts** (rectangular rows; width % TILE_SIZE === 0;
+  per-type opaque-fraction floors, with farm/market/mill relaxed as sparse forms;
+  unique frame names; `@`-frames excluded from `BUILDING_SPRITE_TYPES`).
+- `isoSpriteDims` is the renderer's world-px source of truth; `BUILDING_HEIGHT_TILES`
+  in citadel-renderer.ts must match each form's `heightTiles` or the art floats.
+
+## How to verify a new/changed building matches the style
+
+1. Rasterize the recipe to a PNG (temp `tsx` script over `rasterizeRecipe`) and
+   eyeball: terracotta roof? timber/stone coursing? readable silhouette vs the
+   other types? on-plot props?
+2. In-game Playwright pass (real runtime atlas + actual client): place it, zoom in,
+   confirm it renders its sprite (no orange/grey fallback box), sits on its
+   footprint, depth-sorts, and the night glow reads as a ground pool.
+3. `npm run typecheck -w @citadel/client` + `npm run test -w @citadel/client` +
+   the engine EDG32 palette test — all green.
+
+## Out of scope
+
+- New standalone prop/decor sprites (barrels, lamps, trees as placeable objects) —
+  would need sim/placement hooks; separate brief.
+- Units + terrain restyle (their own track; brief 94 is likely obsolete).

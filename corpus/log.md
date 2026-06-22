@@ -4,6 +4,17 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-21] brief | Citadel building art-style reference filed (todo 96)
+
+Filed [brief 96](briefs/game/todo/96-citadel-building-art-style-reference.md) — a
+standing art-direction reference for Citadel building sprites: the user's example
+assets (Reiner "Isometric Buildings" CC-BY-SA + zatoart/xilurus itch packs,
+inspiration-only), the target look (clean 2:1 iso, warm terracotta tile roofs,
+half-timber + ashlar coursing, ground plots + props, animated tower mill), the
+EDG32 `SWATCH` colour roles, the per-type FORM builders, and the hard constraints
+(EDG32 guard, render-only, recipe tests). Living doc to keep new/restyled buildings
+on-theme; not a one-shot task.
+
 ## [2026-06-21] render | Citadel night light-pool fix — emitters no longer render as orange BOXES
 
 In-game Playwright testing showed the **market** (and other glow emitters: bakery,
