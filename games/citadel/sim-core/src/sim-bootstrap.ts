@@ -268,7 +268,12 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     return terrain.cells[ty * WORLD_WIDTH + tx] === TerrainType.Water;
   }
 
-  function placeOne(buildingType: string, x: number, y: number): boolean {
+    // Why a placement was rejected — lets callers emit ONE descriptive message
+    // (P1-live: silent rejects gave the player no feedback) and coalesce a
+    // drag's per-tile rejections into a single summary (P2: tier-locked drags
+    // dumped ~20 near-identical toasts). "ok" means the building was placed.
+    type PlaceReason = "ok" | "tier" | "territory" | "occupied" | "terrain" | "bounds" | "invalid";
+    function placeOne(buildingType: string, x: number, y: number): PlaceReason {
     // A road dragged onto water becomes a bridge (a walkable span). This is the
     // ONLY way bridges are created, so a "road" command across a river auto-decks
     // the water tiles and lays plain road on the land tiles. (A bridge command
@@ -276,7 +281,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     if (buildingType === "road" && isWaterTile(x, y)) buildingType = "bridge";
 
     const def = getBuildingDef(buildingType);
-    if (def === undefined) return false;
+    if (def === undefined) return "invalid";
 
     // Citadel 28: solo commands act on the local player. (Brief 35 will route
     // each command to its sender's player; for now there is one writer.)
@@ -285,15 +290,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     // Tier-lock: some building types are gated behind a minimum settlement tier.
     const required = TIER_LOCK[buildingType];
     if (required !== undefined && !tierAtLeast(unlockTier(lp), required)) {
-      pushEvent(state, `Day ${state.day}: A ${buildingType} requires ${required} tier.`);
-      return false;
+      return "tier";
     }
 
     // Citadel 30: territory build-gating (MP). Place only within your territory
     // ∪ adjacent-unclaimed; never into a rival's claim. Off in solo.
     if (enforceTerritory && !canBuildAt(state, lp, x, y, def.w, def.h)) {
-      pushEvent(state, `Day ${state.day}: can't build a ${buildingType} there — outside your territory.`);
-      return false;
+      return "territory";
     }
 
     const prod = getProductionDef(buildingType);
@@ -306,9 +309,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       // A bridge decks exactly one water tile. It must BE water (else it would
       // just be a road), and must not overlap any existing building/road/bridge
       // footprint — bridges cannot overlap.
-      if (!isWaterTile(x, y)) return false;
-      if (occupancy.isOccupied(x, y)) return false;
-      if (state.buildingTiles.has(y * WORLD_WIDTH + x)) return false;
+      if (!isWaterTile(x, y)) return "terrain";
+      if (occupancy.isOccupied(x, y)) return "occupied";
+      if (state.buildingTiles.has(y * WORLD_WIDTH + x)) return "occupied";
       occupancy.apply(fp);
       // Mark the deck as road BEFORE rebuilding so walkablePred (which ORs in
       // road tiles) keeps the bridged water tile walkable; the generic isRoad
@@ -321,15 +324,17 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         for (let dx = 0; dx < def.w; dx++) {
           const tx = x + dx;
           const ty = y + dy;
-          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return false;
-          if (!buildable(tx, ty)) return false;
+          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return "bounds";
+          if (!buildable(tx, ty)) return "terrain";
           // Can't place a gate on an already-occupied tile.
-          if (state.buildingTiles.has(ty * WORLD_WIDTH + tx)) return false;
+          if (state.buildingTiles.has(ty * WORLD_WIDTH + tx)) return "occupied";
         }
       }
     } else {
       const result = checkPlacement(fp, occupancy, buildable);
-      if (!result.valid) return false;
+      if (!result.valid) {
+        return result.reason !== undefined && result.reason.includes("bounds") ? "bounds" : "occupied";
+      }
 
       // Terrain requirement (forest / stone): at least one footprint tile matches.
       if (prod?.terrainReq === "forest") {
@@ -340,7 +345,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
             if (t === TerrainType.Forest) { onForest = true; break; }
           }
         }
-        if (!onForest) return false;
+        if (!onForest) return "terrain";
       }
       if (prod?.terrainReq === "stone") {
         let onStone = false;
@@ -350,7 +355,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
             if (t === TerrainType.Stone) { onStone = true; break; }
           }
         }
-        if (!onStone) return false;
+        if (!onStone) return "terrain";
       }
 
       occupancy.apply(fp);
@@ -384,23 +389,74 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       lp.keepPosition = { x: x + Math.floor(def.w / 2), y: y + Math.floor(def.h / 2) };
     }
     state.connectivityDirty = true;
-    return true;
+    return "ok";
+  }
+
+  /** Human-readable reason for a single-building rejection (P1-live feedback). */
+  function describeReject(buildingType: string, reason: PlaceReason): string | null {
+    switch (reason) {
+      case "tier": {
+        const req = TIER_LOCK[buildingType];
+        return `Day ${state.day}: a ${buildingType} needs ${req ?? "a higher"} tier — unlock it first.`;
+      }
+      case "territory":
+        return `Day ${state.day}: can't build a ${buildingType} there — outside your territory.`;
+      case "occupied":
+        return `Day ${state.day}: can't build a ${buildingType} there — those tiles are taken.`;
+      case "terrain":
+        return `Day ${state.day}: a ${buildingType} can't sit on that ground.`;
+      case "bounds":
+        return `Day ${state.day}: can't build a ${buildingType} there — off the map.`;
+      default:
+        return null; // "invalid" (unknown type) — no actionable message.
+    }
   }
 
   logged("placeBuilding", (cmd) => {
-    placeOne(cmd.payload.buildingType, cmd.payload.x, cmd.payload.y);
+    const r = placeOne(cmd.payload.buildingType, cmd.payload.x, cmd.payload.y);
+    if (r !== "ok") {
+      const msg = describeReject(cmd.payload.buildingType, r);
+      if (msg !== null) pushEvent(state, msg);
+    }
   });
 
-  logged("placeRoad", (cmd) => {
-    for (const tile of cmd.payload.tiles) {
-      placeOne("road", tile.x, tile.y);
+  // Road/wall drags stamp many tiles; rather than one toast per rejected tile
+  // (P2: a tier-locked wall drag dumped ~20 near-identical messages), tally the
+  // rejection reasons and emit at most one coalesced summary per reason.
+  function placeDragged(buildingType: string, tiles: ReadonlyArray<{ x: number; y: number }>): void {
+    const counts = new Map<PlaceReason, number>();
+    let placed = 0;
+    for (const tile of tiles) {
+      const r = placeOne(buildingType, tile.x, tile.y);
+      if (r === "ok") placed++;
+      else counts.set(r, (counts.get(r) ?? 0) + 1);
     }
+    const tierBlocked = counts.get("tier") ?? 0;
+    if (tierBlocked > 0) {
+      const req = TIER_LOCK[buildingType];
+      pushEvent(
+        state,
+        `Day ${state.day}: ${tierBlocked} ${buildingType}${tierBlocked === 1 ? "" : "s"} need ${req ?? "a higher"} tier — unlock it first.`,
+      );
+    }
+    // Tiles blocked by occupancy/terrain/bounds — the drag gapped here. Only
+    // worth a word if some of the drag actually landed (a fully-rejected tier
+    // drag is already explained above).
+    const blocked = (counts.get("occupied") ?? 0) + (counts.get("terrain") ?? 0) + (counts.get("bounds") ?? 0);
+    if (blocked > 0 && (placed > 0 || tierBlocked === 0)) {
+      pushEvent(
+        state,
+        `Day ${state.day}: ${blocked} ${buildingType} tile${blocked === 1 ? "" : "s"} blocked — the run has a gap.`,
+      );
+    }
+  }
+
+  logged("placeRoad", (cmd) => {
+    placeDragged("road", cmd.payload.tiles);
   });
 
   logged("placeWall", (cmd) => {
-    for (const tile of cmd.payload.tiles) {
-      placeOne("wall", tile.x, tile.y);
-    }
+    placeDragged("wall", cmd.payload.tiles);
   });
 
   logged("setDecree", (cmd) => {

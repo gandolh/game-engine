@@ -53,6 +53,164 @@ export function shortestRoadPath(
   return tiles;
 }
 
+/**
+ * Tile passability for road routing. Returns `true` if a road may NOT pass
+ * through this tile. Building footprints (other than road/bridge/gate, which a
+ * road may re-stamp harmlessly) and non-buildable terrain are blocked; water is
+ * *passable* because a road tile on water auto-decks into a bridge.
+ */
+export type TileBlockedFn = (x: number, y: number) => boolean;
+
+/** Search window margin (tiles) around the drag's bounding box for `routeRoadPath`. */
+const ROUTE_MARGIN = 16;
+/**
+ * Per-turn penalty in the A* cost. Strictly < 1 so total path length still
+ * dominates (a detour is never traded for a longer one just to save a turn),
+ * but ties between equal-length routes prefer the one with fewer turns — so a
+ * detour hugs straight lines and reads like the old L wherever it can.
+ */
+const TURN_PENALTY = 0.4;
+
+const ROUTE_DIRS: ReadonlyArray<readonly [number, number]> = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+/**
+ * Obstacle-aware road path between two endpoints (4-connected grid).
+ *
+ * When the straight L from {@link shortestRoadPath} is unobstructed this returns
+ * it unchanged, so simple drags look identical to before. When the L would clip
+ * a building (or other un-roadable tile) this runs a bounded A* that routes
+ * *around* the obstacle, staying connected end-to-end. The endpoints themselves
+ * are always traversable (the sim is the source of truth for whether they're
+ * legal); only interior tiles are checked. Returns `null` when no route exists
+ * within the search window — the caller should fall back to the straight L and
+ * surface a "no clear route" message rather than silently gapping. Pure;
+ * exported for testing.
+ */
+export function routeRoadPath(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  isBlocked: TileBlockedFn,
+): Array<{ x: number; y: number }> | null {
+  const inBounds = (x: number, y: number): boolean =>
+    x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT;
+  // Out-of-bounds endpoints can't seed a search; defer to the L (which clips
+  // them) — matches today's behaviour for off-map drags.
+  if (!inBounds(x0, y0) || !inBounds(x1, y1)) return shortestRoadPath(x0, y0, x1, y1);
+
+  // Fast path: if the straight L's interior is clear, keep it verbatim.
+  const l = shortestRoadPath(x0, y0, x1, y1);
+  let clear = true;
+  for (let i = 1; i < l.length - 1; i++) {
+    if (isBlocked(l[i]!.x, l[i]!.y)) {
+      clear = false;
+      break;
+    }
+  }
+  if (clear) return l;
+
+  // A* within a window around the endpoints (keeps a long drag cheap).
+  const minX = Math.max(0, Math.min(x0, x1) - ROUTE_MARGIN);
+  const maxX = Math.min(WORLD_WIDTH - 1, Math.max(x0, x1) + ROUTE_MARGIN);
+  const minY = Math.max(0, Math.min(y0, y1) - ROUTE_MARGIN);
+  const maxY = Math.min(WORLD_HEIGHT - 1, Math.max(y0, y1) + ROUTE_MARGIN);
+
+  const key = (x: number, y: number): number => y * WORLD_WIDTH + x;
+  const startK = key(x0, y0);
+  const goalK = key(x1, y1);
+  const gScore = new Map<number, number>();
+  const cameFrom = new Map<number, number>();
+  const dirOf = new Map<number, number>(); // direction index used to arrive
+  gScore.set(startK, 0);
+  dirOf.set(startK, -1);
+
+  // Minimal binary min-heap keyed by f-score.
+  const heapF: number[] = [];
+  const heapN: number[] = [];
+  const heapPush = (f: number, n: number): void => {
+    heapF.push(f);
+    heapN.push(n);
+    let i = heapF.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (heapF[p]! <= heapF[i]!) break;
+      [heapF[p], heapF[i]] = [heapF[i]!, heapF[p]!];
+      [heapN[p], heapN[i]] = [heapN[i]!, heapN[p]!];
+      i = p;
+    }
+  };
+  const heapPop = (): number => {
+    const top = heapN[0]!;
+    const lastF = heapF.pop()!;
+    const lastN = heapN.pop()!;
+    if (heapF.length > 0) {
+      heapF[0] = lastF;
+      heapN[0] = lastN;
+      let i = 0;
+      const len = heapF.length;
+      for (;;) {
+        const lft = 2 * i + 1;
+        const rgt = 2 * i + 2;
+        let s = i;
+        if (lft < len && heapF[lft]! < heapF[s]!) s = lft;
+        if (rgt < len && heapF[rgt]! < heapF[s]!) s = rgt;
+        if (s === i) break;
+        [heapF[s], heapF[i]] = [heapF[i]!, heapF[s]!];
+        [heapN[s], heapN[i]] = [heapN[i]!, heapN[s]!];
+        i = s;
+      }
+    }
+    return top;
+  };
+
+  const heuristic = (x: number, y: number): number => Math.abs(x - x1) + Math.abs(y - y1);
+  heapPush(heuristic(x0, y0), startK);
+
+  while (heapF.length > 0) {
+    const u = heapPop();
+    if (u === goalK) {
+      // Reconstruct.
+      const path: Array<{ x: number; y: number }> = [];
+      let cur: number | undefined = goalK;
+      while (cur !== undefined) {
+        path.push({ x: cur % WORLD_WIDTH, y: Math.floor(cur / WORLD_WIDTH) });
+        cur = cameFrom.get(cur);
+      }
+      path.reverse();
+      return path;
+    }
+    const ux = u % WORLD_WIDTH;
+    const uy = Math.floor(u / WORLD_WIDTH);
+    const ug = gScore.get(u)!;
+    const udir = dirOf.get(u)!;
+    for (let d = 0; d < ROUTE_DIRS.length; d++) {
+      const nx = ux + ROUTE_DIRS[d]![0];
+      const ny = uy + ROUTE_DIRS[d]![1];
+      if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
+      const nk = key(nx, ny);
+      // The goal is always reachable even if it sits on a blocked tile (the sim
+      // decides if the endpoint is legal); every interior tile must be clear.
+      if (nk !== goalK && isBlocked(nx, ny)) continue;
+      const turn = udir >= 0 && udir !== d ? TURN_PENALTY : 0;
+      const tentative = ug + 1 + turn;
+      const known = gScore.get(nk);
+      if (known === undefined || tentative < known) {
+        gScore.set(nk, tentative);
+        cameFrom.set(nk, u);
+        dirOf.set(nk, d);
+        heapPush(tentative + heuristic(nx, ny), nk);
+      }
+    }
+  }
+  return null;
+}
+
 export interface GhostState {
   tileX: number;
   tileY: number;
@@ -84,6 +242,15 @@ export class PlacementStateManager {
   private _dragStartY = 0;
   /** Tiles of the shortest path from the drag start to the cursor. */
   private _dragTiles: Array<{ x: number; y: number }> = [];
+  /**
+   * True when the last road recompute could find no clear route and fell back
+   * to the straight L (which the sim will gap). Drives a "no clear route" toast.
+   */
+  private _routeBlocked = false;
+
+  /** Latest snapshot terrain/buildings, stashed so road drags can route around obstacles. */
+  private _terrain: TerrainGrid | null = null;
+  private _buildings: readonly BuildingSnapshot[] = [];
 
   /** Set the footprint size for the active selection */
   setFootprint(w: number, h: number): void {
@@ -132,14 +299,76 @@ export class PlacementStateManager {
     return this._dragTiles;
   }
 
-  /** Recompute the shortest grid path from the drag start to the cursor. */
+  /**
+   * Whether the most recent road drag could not be routed and fell back to a
+   * straight L (the sim will gap it). Consumed by the caller on drag-end to
+   * surface a "no clear road route" toast.
+   */
+  get lastRouteBlocked(): boolean {
+    return this._routeBlocked;
+  }
+
+  /**
+   * Recompute the drag path from the start to the cursor. Roads route *around*
+   * building footprints and un-roadable terrain (water decks into a bridge, so
+   * it stays passable); walls keep the deliberate straight L (a wall is placed
+   * *on* a perimeter, not routed around it).
+   */
   private _recomputePath(): void {
+    if (this.mode === "road" && this._terrain !== null) {
+      const isBlocked = this._blockedForRoad(this._terrain, this._buildings);
+      const routed = routeRoadPath(
+        this._dragStartX,
+        this._dragStartY,
+        this._cursorTileX,
+        this._cursorTileY,
+        isBlocked,
+      );
+      if (routed !== null) {
+        this._dragTiles = routed;
+        this._routeBlocked = false;
+        return;
+      }
+      // No clear route — fall back to the straight L and flag it.
+      this._routeBlocked = true;
+    } else {
+      this._routeBlocked = false;
+    }
     this._dragTiles = shortestRoadPath(
       this._dragStartX,
       this._dragStartY,
       this._cursorTileX,
       this._cursorTileY,
     );
+  }
+
+  /** Build a road-passability predicate from the current snapshot. */
+  private _blockedForRoad(
+    terrain: TerrainGrid,
+    buildings: readonly BuildingSnapshot[],
+  ): TileBlockedFn {
+    // Footprints a road may NOT cross. Roads/bridges/gates are re-stampable, so
+    // they stay passable (chaining a new road through them is harmless).
+    const occupied = new Set<number>();
+    for (const b of buildings) {
+      if (b.type === "road" || b.type === "bridge" || b.type === "gate") continue;
+      for (let dy = 0; dy < b.h; dy++) {
+        for (let dx = 0; dx < b.w; dx++) {
+          const tx = b.x + dx;
+          const ty = b.y + dy;
+          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
+          occupied.add(ty * WORLD_WIDTH + tx);
+        }
+      }
+    }
+    return (x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT) return true;
+      if (occupied.has(y * WORLD_WIDTH + x)) return true;
+      // Water is passable — a road tile on water auto-decks into a bridge.
+      if (terrain.cells[y * WORLD_WIDTH + x] === TerrainType.Water) return false;
+      // Otherwise mirror the sim's buildable rule (grass/forest/stone ok; rough no).
+      return !isWalkable(terrain, x, y);
+    };
   }
 
   /**
@@ -162,6 +391,9 @@ export class PlacementStateManager {
     const { tx, ty } = screenToTile(t, sx, sy);
     this._cursorTileX = tx;
     this._cursorTileY = ty;
+    // Stash for road routing (recompute reads these to detour around buildings).
+    this._terrain = terrain;
+    this._buildings = buildings;
 
     if (this.mode === "place") {
       this._ghostValid = this._checkValid(terrain, buildings);

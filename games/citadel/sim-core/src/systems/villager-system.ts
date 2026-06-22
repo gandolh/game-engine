@@ -205,15 +205,19 @@ export class VillagerSystem implements System {
 
   /** Try to assign an idle villager to the nearest open connected workplace.
    *
-   * Assignment priority (four tiers, nearest within each tier wins):
-   *   1. Primary producers (no inputGood) whose type has 0 workers anywhere.
-   *   2. Converters (have inputGood) whose type has 0 workers anywhere.
-   *   3. Primary producers with open slots (2nd+ worker on a type).
-   *   4. Converters with open slots.
-   *
-   * This ensures each building type gets its first worker before any type
-   * gets additional workers, bootstrapping the full production chain with
-   * minimal founders.
+   * Assignment priority (nearest within each tier wins). The TOP discriminator
+   * is whether a building produces/converts GOODS (a farm, mill, bakery,
+   * woodcutter, refiner) versus a pure SERVICE (chapel/market/watchpost/tower/…,
+   * which have a worker slot but no inputGood/outputGood): the goods chain — the
+   * town's food supply — must be fully staffed before a villager mans a service,
+   * or with limited population the services siphon labour off the bread chain and
+   * the town starves into a death-spiral (playtest P1/P2). Within each goods/
+   * service group: primary producers first, then converters, then 2nd+ workers —
+   * so each type gets its first worker before any type gets a second.
+   *   1. goods, primary, type unstaffed        5. service, primary, type unstaffed
+   *   2. goods, converter, type unstaffed       6. service, converter, type unstaffed
+   *   3. goods, primary, open slot              7. service, primary, open slot
+   *   4. goods, converter, open slot            8. service, converter, open slot
    */
   private assign(v: VillagerComponent): void {
     const state = this.state;
@@ -230,15 +234,20 @@ export class VillagerSystem implements System {
       if (rs !== undefined && rs.workerCount > 0) staffedTypes.add(entity.building.type);
     }
 
-    // Four tiers (defined by [wantPrimary, wantUnstaffedType]).
-    const tiers: Array<[boolean, boolean]> = [
-      [true, true],   // primary, type not yet staffed
-      [false, true],  // converter, type not yet staffed
-      [true, false],  // primary, type already has workers
-      [false, false], // converter, type already has workers
+    // Tiers defined by [wantGoods, wantPrimary, wantUnstaffedType]. Goods-first
+    // so the food/production chain always out-prioritises pure services.
+    const tiers: Array<[boolean, boolean, boolean]> = [
+      [true, true, true],    // goods, primary, type not yet staffed
+      [true, false, true],   // goods, converter, type not yet staffed
+      [true, true, false],   // goods, primary, type already has workers
+      [true, false, false],  // goods, converter, type already has workers
+      [false, true, true],   // service, primary, type not yet staffed
+      [false, false, true],  // service, converter, type not yet staffed
+      [false, true, false],  // service, primary, type already has workers
+      [false, false, false], // service, converter, type already has workers
     ];
 
-    for (const [wantPrimary, wantUnstaffedType] of tiers) {
+    for (const [wantGoods, wantPrimary, wantUnstaffedType] of tiers) {
       let best: BuildingEntity | null = null;
       let bestDist = Infinity;
       for (const entity of state.buildingWorld.query("building")) {
@@ -251,6 +260,8 @@ export class VillagerSystem implements System {
         const def = getProductionDef(entity.building.type);
         if (def === undefined || def.workerSlots <= 0) continue;
         if (rs.workerCount >= def.workerSlots) continue;
+        const producesGoods = def.outputGood !== undefined || def.inputGood !== undefined;
+        if (wantGoods !== producesGoods) continue;
         const isPrimary = def.inputGood === undefined;
         if (wantPrimary !== isPrimary) continue;
         const typeStaffed = staffedTypes.has(entity.building.type);

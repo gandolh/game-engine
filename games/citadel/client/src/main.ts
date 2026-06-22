@@ -52,6 +52,9 @@ import { CitadelWeather } from "./render/weather";
 import { CitadelAmbientCrowd } from "./render/ambient-crowd";
 import { PlacementStateManager } from "./ui/placement-state";
 import { SettingsModal } from "./ui/settings-modal";
+import { ToastManager, newEventsSince } from "./ui/toast";
+import { CitadelMinimap } from "./ui/minimap";
+import { tileToIso } from "./render/iso";
 import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 
 const SEED = 0x1a2b3c4d;
@@ -76,7 +79,6 @@ const hudPop = document.getElementById("hud-pop")!;
 const hudBread = document.getElementById("hud-bread")!;
 const hudWood = document.getElementById("hud-wood")!;
 const hudHappiness = document.getElementById("hud-happiness")!;
-const hudEvents = document.getElementById("hud-events")!;
 // Phase 4 siege HUD
 const hudThreat = document.getElementById("hud-threat")!;
 const hudDefense = document.getElementById("hud-defense")!;
@@ -112,6 +114,22 @@ const traderOffers = document.getElementById("trader-offers")!;
 // Brief 19: follow-cam HUD strip (DOM, since the WebGPU overlay callback is a
 // no-op). Shows the followed villager's id / fsm / cargo / destination.
 const followHud = document.getElementById("follow-hud")!;
+
+// Event toasts (top-center) replace the old inline #hud-events span — events no
+// longer reflow the bottom bar. Created at module scope so it exists before the
+// first snapshot arrives (the minimap waits for the camera, so it's made in boot).
+const toasts = new ToastManager(document.getElementById("toast-container")!);
+let lastEventShown: string | null = null;
+let minimap: CitadelMinimap | null = null;
+
+// Build toolbar is icon-only (condensed for laptops); surface each button's name
+// as a hover tooltip so the glyphs stay discoverable. Derives the label from the
+// button text minus its icon glyph.
+for (const btn of document.querySelectorAll<HTMLButtonElement>("#build-bar button")) {
+  const icon = btn.querySelector(".bi")?.textContent ?? "";
+  const label = (btn.textContent ?? "").replace(icon, "").trim();
+  if (label !== "") btn.title = label;
+}
 
 // ---------------------------------------------------------------------------
 // Camera + renderer (Camera2D + engine WebGPU renderer; created async in boot)
@@ -178,11 +196,15 @@ canvas.addEventListener("mousedown", (e) => {
 canvas.addEventListener("mouseup", (e) => {
   if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
     placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+    const routeBlocked = placementState.lastRouteBlocked;
     const tiles = placementState.endRoadDrag();
     if (tiles.length > 0) {
       if (placementState.mode === "wall") {
         client.sendCommand({ type: "placeWall", payload: { tiles } });
       } else {
+        // Roads route around buildings; if none could be found the path falls
+        // back to a straight line the sim will gap — tell the player why.
+        if (routeBlocked) toasts.push("No clear road route — blocked", performance.now());
         client.sendCommand({ type: "placeRoad", payload: { tiles } });
       }
     }
@@ -690,6 +712,10 @@ client.onSnapshot((snap) => {
   wood = snap.stockpiles.wood ?? 0;
   foodSurplus = snap.foodSurplus;
   events = snap.recentEvents;
+  // Toast only the freshly-appended events (the rest is backlog already shown).
+  // performance.now() is the render clock — main-thread only, never the sim.
+  for (const e of newEventsSince(lastEventShown, events)) toasts.push(e, performance.now());
+  if (events.length > 0) lastEventShown = events[events.length - 1]!;
   currentBuildings = snap.buildings;
   currentVillagers = snap.villagers;
   // Phase 3
@@ -782,8 +808,6 @@ function loop(): void {
     hudKeep.textContent = "Keep: none";
     hudKeep.style.color = EDG.steel;
   }
-  hudEvents.textContent = events.length > 0 ? events[events.length - 1]! : "";
-
   // Phase 4.5: hazard HUD
   if (activeFires > 0) {
     hudFire.textContent = `Fire: ${activeFires} building(s) burning!`;
@@ -937,6 +961,17 @@ function loop(): void {
   const weatherField = renderToggles.weather ? weather.field : undefined;
   renderer.endFrame(wash, particles, weatherField);
 
+  // Minimap overview + event-toast aging (both render-only overlays).
+  if (minimap !== null) {
+    minimap.draw({
+      buildings: currentBuildings,
+      villagers: currentVillagers,
+      raiders: currentRaiders,
+      transform: transformOf(camera, canvas.width, canvas.height),
+    });
+  }
+  toasts.tick(nowMs);
+
   requestAnimationFrame(loop);
 }
 
@@ -950,6 +985,17 @@ async function boot(): Promise<void> {
   renderer = created.renderer;
   camera = created.camera;
   windowController = created.windowController;
+
+  // Minimap (top-right): clicking it recentres the camera on that tile and
+  // releases any follow-cam lock. Camera centre is in iso world-px, so map the
+  // clicked tile through the iso projection.
+  const minimapCanvas = document.getElementById("minimap") as HTMLCanvasElement;
+  minimap = new CitadelMinimap(minimapCanvas, terrain, (tx, ty) => {
+    followId = null;
+    updateFollowHud();
+    const c = tileToIso(tx, ty);
+    camera.setCenter(c.x, c.y);
+  });
 
   client.init(SEED, TICKS_PER_DAY);
   updateModeLabel();
