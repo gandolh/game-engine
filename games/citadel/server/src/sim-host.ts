@@ -47,6 +47,10 @@ export class CitadelSimHost {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private nextPlayerId = 0;
   private readonly bots: CitadelBot[] = [];
+  // Citadel 38 P0#4: the host is the first peer to attach; only it may pause /
+  // resume / change speed of the shared room (peers can't freeze/fast-forward
+  // each other). Migrates to the next-remaining peer if the host disconnects.
+  private hostPeer: Peer | null = null;
 
   constructor(private readonly opts: CitadelSimHostOptions = {}) {}
 
@@ -66,11 +70,28 @@ export class CitadelSimHost {
     return this.peers.size;
   }
 
+  /** Whether the shared room is paused (test/diagnostic helper). */
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** The current speed multiplier (test/diagnostic helper). */
+  get speedMultiplier(): number {
+    return this.speed;
+  }
+
+  /** The host peer's player id, or null if the room is empty (test/diagnostic). */
+  get hostPlayerId(): number | null {
+    return this.hostPeer?.playerId ?? null;
+  }
+
   /** Attach a peer; assigns it a stable player id (first peer = player 0). */
   attach(send: SendFn): Peer {
     const playerId = this.nextPlayerId++;
     const peer: Peer = { send, playerId };
     this.peers.add(peer);
+    if (this.hostPeer === null) this.hostPeer = peer; // first peer = room host
+
     if (this.sim !== null) {
       // Late join into a running room: ensure a PlayerState exists, then snapshot.
       this.ensurePlayer(playerId);
@@ -83,6 +104,9 @@ export class CitadelSimHost {
 
   detach(peer: Peer): void {
     this.peers.delete(peer);
+    // Citadel 38 P0#4: if the host leaves, promote the next-remaining peer so
+    // room control isn't frozen (Set preserves attach order → oldest survivor).
+    if (peer === this.hostPeer) this.hostPeer = [...this.peers][0] ?? null;
     if (this.peers.size === 0) this.stop();
   }
 
@@ -94,19 +118,28 @@ export class CitadelSimHost {
         return;
       case "command": {
         if (this.sim === null) return;
+        // Citadel 38 P0#3: setActivePlayer is a server-internal routing marker —
+        // a peer must never inject one (it would mis-route the FOLLOWING command
+        // to another player). Drop it; the host stamps the trusted marker below.
+        if (msg.command.type === "setActivePlayer") return;
         // Multi-writer: route this peer's command to ITS player, then enqueue.
         // Both go into the one authoritative command stream (logged + replayable).
         this.sim.commands.enqueue({ type: "setActivePlayer", payload: { id: peer.playerId } });
         this.sim.commands.enqueue(msg.command);
         return;
       }
+      // Citadel 38 P0#4: room-control is host-only — a non-host peer can't freeze
+      // or fast-forward the shared sim for everyone.
       case "pause":
+        if (peer !== this.hostPeer) return;
         this.paused = true;
         return;
       case "resume":
+        if (peer !== this.hostPeer) return;
         this.paused = false;
         return;
       case "speed":
+        if (peer !== this.hostPeer) return;
         this.speed = Number.isFinite(msg.multiplier) && msg.multiplier >= 1 ? Math.floor(msg.multiplier) : 1;
         return;
       case "request-save":

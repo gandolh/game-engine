@@ -219,8 +219,11 @@ export class VillagerSystem implements System {
     const state = this.state;
 
     // Pre-compute which building types have at least one worker.
+    // Citadel 38 P1#5: scope to the villager's OWN buildings — in MP a player's
+    // assignment priority must not be perturbed by a rival's staffing. Solo no-op.
     const staffedTypes = new Set<string>();
     for (const entity of state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== v.ownerId) continue;
       const id = entity.id;
       if (id === undefined) continue;
       const rs = state.buildingState.get(id);
@@ -239,6 +242,8 @@ export class VillagerSystem implements System {
       let best: BuildingEntity | null = null;
       let bestDist = Infinity;
       for (const entity of state.buildingWorld.query("building")) {
+        // Citadel 38 P1#5: a villager only staffs its OWN player's buildings. Solo no-op.
+        if (entity.building.ownerId !== v.ownerId) continue;
         const id = entity.id;
         if (id === undefined) continue;
         const rs = state.buildingState.get(id);
@@ -268,7 +273,7 @@ export class VillagerSystem implements System {
         const b = best.building;
         v.workX = b.x + Math.floor(b.w / 2);
         v.workY = b.y + Math.floor(b.h / 2);
-        const store = this.firstStore();
+        const store = this.firstStore(v.ownerId);
         if (store !== null) {
           v.storeX = store.x;
           v.storeY = store.y;
@@ -284,8 +289,10 @@ export class VillagerSystem implements System {
     // No open slot found anywhere — remain idle.
   }
 
-  private firstStore(): { x: number; y: number } | null {
+  private firstStore(ownerId: number): { x: number; y: number } | null {
     for (const entity of this.state.buildingWorld.query("building")) {
+      // Citadel 38 P1#5: haul only to your OWN storehouse (MP). Solo no-op.
+      if (entity.building.ownerId !== ownerId) continue;
       const def = getProductionDef(entity.building.type);
       if (def?.isStorage === true) {
         const b = entity.building;

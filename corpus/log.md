@@ -4,6 +4,60 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-22] fix | Citadel 38 — P1#5 villager owner filter
+
+Second fix wave off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 2). `VillagerSystem` ignored `ownerId`: in MP a player's
+villagers would take the nearest *rival* workplace, haul to a rival store, and — since
+the deposit credits `v.ownerId` — siphon the rival's output into their own pool.
+
+- [villager-system.ts](../games/citadel/sim-core/src/systems/villager-system.ts):
+  `assign()` (both the `staffedTypes` precompute and the workplace tier loop) and
+  `firstStore()` now skip buildings where `building.ownerId !== v.ownerId`. `firstStore`
+  took an `ownerId` param (call site passes `v.ownerId`).
+- **Determinism:** no-op in solo (single owner → every building matches the villager) →
+  byte-identical; no determinism check run (ask-first rule). The full solo economy +
+  hauler-reroute suites still pass, confirming the no-op.
+- Test: [villager-owner.test.ts](../games/citadel/sim-core/src/systems/villager-owner.test.ts)
+  — drives `VillagerSystem` directly (no scheduler → no connectivity recompute) with a
+  two-owner set; a player-1 villager skips the *nearer* player-0 farm for its own farther
+  one, the rival farm stays unstaffed, and hauling targets the owned store. Plus a
+  same-owner nearest-assignment control. `@citadel/sim-core` 138/138, typecheck clean.
+
+Still open from the audit: P1 #6 (social layer — GPU/live), #7 (RunRegistry), #9; P2
+#10–#12; P3 #14–#19.
+
+## [2026-06-22] fix | Citadel 38 — P0 MP-authority pass (+ #13, P1#8 correction)
+
+First fix wave off the [implementation-review audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 1 + the trivial wins). Closed the four P0 server-authority
+holes that trusted the sender in a live MP room:
+
+- **P0#1 demolish** + **P0#2 upgradeBuilding** ([sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts)):
+  added `b.ownerId !== localPlayer(state).id` guards so a peer can't raze a rival's
+  town-hall (= instant elimination) or force-upgrade and drain a rival's stockpiles.
+- **P0#3** ([sim-host.ts](../games/citadel/server/src/sim-host.ts)): the host now drops any
+  client-injected `setActivePlayer` (server-internal routing marker only) and stamps its
+  own trusted one for real commands.
+- **P0#4** (sim-host.ts): room control (pause/resume/speed) is host-only — `hostPeer` =
+  first attached peer, migrates to the next survivor on host detach; non-host control
+  messages are ignored. Added `isPaused`/`speedMultiplier`/`hostPlayerId` test getters.
+- **#13** (sim-bootstrap.ts `getSnapshot`): `keepPresent` now tests
+  `getProductionDef(type)?.isKeep` so the MP `town-hall` anchor counts (was a literal
+  `type === "keep"` → MP always read "no keep").
+
+**Determinism:** the whole set is byte-identical in solo by construction — the
+ownership guards are no-ops under a single owner, and `keepPresent` is render-only with
+`town-hall` never spawning in solo (only `keep` and `town-hall` carry `isKeep`). No
+determinism check run (constrained hardware; ask-first rule). New tests:
+`mp-authority.test.ts` in sim-core (3) + server (2). Verified: `@citadel/sim-core`
+136/136, `@citadel/server` 7/7, both typecheck clean.
+
+**Corpus correction:** the audit's **P1#8 ("windowController.update never ticked") is
+STALE** — `windowController.update(camera)` already runs each frame at `main.ts:792`
+(landed in the "improvements" commit alongside the audit). Marked resolved in brief 38.
+Still open from the audit: P1 #5/#6/#7/#9, P2 #10–#12, P3 #14–#19.
+
 ## [2026-06-19] audit | Citadel implementation review — problems filed as todo 38
 
 Read-only review of `@citadel/sim-core` + `@citadel/client` + `@citadel/server`

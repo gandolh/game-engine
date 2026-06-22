@@ -7,6 +7,30 @@ tags: [citadel, audit, multiplayer, render, sim, bug]
 
 # Citadel 38 — implementation-review problems
 
+## ✅ RESOLVED (2026-06-22) — P0 MP-authority pass + P1#5 + #13 + P1#8 correction
+
+First fix wave shipped (the suggested-fix-order item 1 + the trivial wins). All
+sim-touching changes are **byte-identical in solo by construction** (the guards are
+no-ops under a single owner; `keepPresent` is render-only and `town-hall` never
+spawns in solo) — no determinism re-proof run (constrained hardware; reasoning in
+the commit). `@citadel/sim-core` 136/136, `@citadel/server` 7/7, both typecheck clean.
+
+- **P0#1 demolish** — owner guard added ([sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts), demolish handler): `if (b.ownerId !== localPlayer(state).id) break;`.
+- **P0#2 upgradeBuilding** — owner guard added (same file, upgrade handler): `if (b.ownerId !== localPlayer(state).id) return;`.
+- **P0#3 setActivePlayer** — host drops any client-injected `setActivePlayer` in the `command` case ([sim-host.ts](../../games/citadel/server/src/sim-host.ts)).
+- **P0#4 pause/resume/speed** — host-only now: `hostPeer` = first attached peer (migrates on host detach); the three control messages gate on `peer === this.hostPeer`. Test/diag getters `isPaused`/`speedMultiplier`/`hostPlayerId` added.
+- **#13 keepPresent** — snapshot now tests `getProductionDef(type)?.isKeep`, so MP's `town-hall` anchor counts.
+- **P1#5 villager owner filter** — `assign()` (both `staffedTypes` and the workplace tier loop) and `firstStore()` now filter by `entity.building.ownerId === v.ownerId` ([villager-system.ts](../../games/citadel/sim-core/src/systems/villager-system.ts)). A player's villagers no longer staff/haul to a rival's buildings. Test: [villager-owner.test.ts](../../games/citadel/sim-core/src/systems/villager-owner.test.ts) (a player-1 villager skips the *nearer* rival farm for its own).
+- **P1#8 (windowController.update) — was ALREADY fixed** before this pass: `windowController.update(camera)` runs each frame at [main.ts:792](../../games/citadel/client/src/main.ts#L792). The finding below is **stale**.
+- Tests: [sim-core/systems/mp-authority.test.ts](../../games/citadel/sim-core/src/systems/mp-authority.test.ts) (3), [server/mp-authority.test.ts](../../games/citadel/server/src/mp-authority.test.ts) (2).
+
+**Still open from this audit:** P1 #6 (social layer client consume/send + render —
+needs GPU/live verification), #7 (RunRegistry parity), #9 (MP render entities); P2
+#10/#11/#12; P3 #14 (siege RNG fork — needs a deliberate baseline move),
+#15/#16/#17/#18/#19.
+
+---
+
 **Method.** Read-only review (2026-06-19) of `@citadel/sim-core`, `@citadel/client`,
 `@citadel/server` against the [APR](../briefs/citadel-apr.md) and the
 [BUILD-ORDER](2026-06-18-citadel-00-BUILD-ORDER.md). Three subagent passes

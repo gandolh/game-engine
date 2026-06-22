@@ -399,6 +399,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
       if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) {
+        // Citadel 38 P0#1: only the owner may demolish. Without this any MP peer
+        // could raze a rival's city — incl. their town-hall (= instant sack/
+        // elimination). Footprints are uniquely tiled, so a non-owning match means
+        // reject. Solo is single-owner → always true → no behavior change.
+        if (b.ownerId !== localPlayer(state).id) break;
         const prod = getProductionDef(b.type);
         // Per-player fields belong to the building's owner.
         const owner = playerById(state, b.ownerId);
@@ -438,6 +443,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
       if (!(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h)) continue;
+
+      // Citadel 38 P0#2: only the owner may upgrade their building. The cost is
+      // charged to the building's owner, so without this an MP peer could drain a
+      // rival's stockpiles and mutate their building. Solo is single-owner → no-op.
+      if (b.ownerId !== localPlayer(state).id) return;
 
       const prod = getProductionDef(b.type);
       if (prod === undefined) return;
@@ -676,7 +686,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const k of Object.keys(lp.stockpiles) as GoodType[]) stock[k] = lp.stockpiles[k];
     let keepPresent = false;
     for (const entity of buildingWorld.query("building")) {
-      if (entity.building.ownerId === lp.id && entity.building.type === "keep") { keepPresent = true; break; }
+      // Citadel 38 #13: match the production def's isKeep, not the literal "keep"
+      // type — the MP anchor is the town-hall (isKeep:true), so a string compare
+      // made MP players always read "no keep" (siege/elimination already use isKeep).
+      if (entity.building.ownerId === lp.id && getProductionDef(entity.building.type)?.isKeep === true) {
+        keepPresent = true;
+        break;
+      }
     }
     const nextRaidDay = lp.nextRaidTick < 0 ? -1 : Math.floor(lp.nextRaidTick / state.ticksPerDay);
     return {
