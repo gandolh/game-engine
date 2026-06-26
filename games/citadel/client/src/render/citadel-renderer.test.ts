@@ -15,6 +15,7 @@ import {
   buildingQuad,
   villagerQuad,
   raiderQuad,
+  raiderTier,
   ghostQuad,
   TERRAIN_COLORS,
   BUILDING_COLORS,
@@ -159,13 +160,29 @@ describe("villagerQuad / raiderQuad / ghostQuad", () => {
     expect(q.x).toBeCloseTo(4 * TILE_SIZE + TILE_SIZE / 2 - size / 2);
   });
 
-  it("grows the raider footprint with strength and is always red", () => {
+  it("grows the raider footprint with strength and shapes it by tier", () => {
     const weak: RaiderSnapshot = { id: 1, x: 0, y: 0, strength: 6 };
     const strong: RaiderSnapshot = { id: 2, x: 0, y: 0, strength: 60 };
     expect(weak.strength).toBeLessThan(strong.strength);
+    // Bigger raid → bigger footprint (size still scales with strength).
     expect(raiderQuad(weak).width).toBeLessThan(raiderQuad(strong).width);
-    expect(raiderQuad(strong).tintRgba).toBe(packTint(EDG.red));
     expect(raiderQuad(strong).frame).toBe("raider");
+    // Silhouette legibility: a weak raider is narrow red; an elite (≥50) reads as
+    // a taller crimson champion — shape + tint communicate the tier, not just size.
+    expect(raiderQuad(weak).tintRgba).toBe(packTint(EDG.red));
+    expect(raiderQuad(strong).tintRgba).toBe(packTint(EDG.crimson)); // elite
+    // Elite is taller-than-it-is-wide; a mid "strong" raider is broader than tall.
+    const elite = raiderQuad(strong);
+    expect(elite.height).toBeGreaterThan(elite.width);
+    const broad = raiderQuad({ id: 3, x: 0, y: 0, strength: 35 }); // "strong" tier
+    expect(broad.width).toBeGreaterThan(broad.height);
+  });
+
+  it("classifies raider strength into legible tiers", () => {
+    expect(raiderTier(5)).toBe("weak");
+    expect(raiderTier(20)).toBe("normal");
+    expect(raiderTier(35)).toBe("strong");
+    expect(raiderTier(60)).toBe("elite");
   });
 
   it("tints the ghost green when valid, red when invalid, both translucent", () => {

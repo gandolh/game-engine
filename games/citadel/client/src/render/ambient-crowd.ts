@@ -308,6 +308,16 @@ export class CitadelAmbientCrowd {
       const bob = p.moving
         ? Math.abs(Math.sin(this.walkTime * BOB_SPEED + p.phase)) * BOB_AMPLITUDE
         : 0;
+      // Entity legibility: lean into the heading so a moving pedestrian reads as
+      // walking with purpose. Heading is the (known) vector toward its target tile;
+      // a stationary pedestrian stands upright. Pure render — never touches the sim.
+      let lean = 0;
+      if (p.moving) {
+        const dx = p.tx - p.x;
+        const dy = p.ty - p.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 0.5) lean = (dx / d) * 0.16;
+      }
       out.push({
         // Foot position (not top-left) — the billboard is anchored bottom-centre.
         x: p.x,
@@ -316,6 +326,7 @@ export class CitadelAmbientCrowd {
         height: PED_SIZE,
         tintRgba: p.tint,
         frame: FRAME_PEDESTRIAN,
+        lean,
       });
     }
     return out;

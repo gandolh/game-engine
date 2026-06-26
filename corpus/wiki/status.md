@@ -1,6 +1,19 @@
 # Project Status
 
-Current-state **snapshot** (2026-06-12). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
+Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
+
+> **2026-06-26 Citadel pass** (see [log.md](../log.md) for detail). Closed a batch of `todos/`:
+> engine GC-churn hygiene (prealloc WebGPU draw scratch + double-buffer CommandQueue);
+> the **citadel-38 audit** P0 MP-authority + P1#5 + P2 balance + P3 cleanup (P1#6/#7/#9
+> social-layer/RunRegistry/MP-render still need live-MP verification; **P1#8 windowed-bake
+> is already wired** in main.ts);
+> the **gameplay-depth trio** (siege probability bands + morale, scout/garrison-interceptor
+> counterplay, threat→cadence/decree-gating/defense-pressure, hazard interlocks, festival +
+> stacking decree counterplay, dynamic trader) — baseline moved by design, reproducible;
+> and the **Citadel art todos** (entity-silhouette-legibility **built**; real-sprite-assets +
+> procedural-building-detail **superseded** — the 2026-06-21 true-iso sprite library already
+> delivers them). Only open Citadel todo: [true-isometric](../todos/2026-06-21-citadel-true-isometric.md)
+> (mostly-done; one un-root-caused GPU flat-box anomaly on the dev host).
 
 **Where things stand:** engine briefs **01–16** and game briefs **01–89** are **Done or Superseded** — both `todo/` dirs are empty (2026-06-13). Briefs 85 (animation engine) + 89 (detailed 24×24 characters + held hotbar tool) shipped their phases and were closed **superseded** with only an optional in-browser feel-check + a 24px action pass left (WebGPU-only render → can't feel-check headless). The 2026-06-12 build-order todos (grow→décor→combat→ports→BDI-jitter→underwater→walls/lights→seasonal trees) are all complete; the two unrun calibration todos (rival-cutoff, combat-frequency) were closed **won't-do** in `todos/closed/`.
 

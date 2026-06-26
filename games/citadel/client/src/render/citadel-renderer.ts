@@ -289,6 +289,56 @@ function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx,
 }
 
 /**
+ * Frame-to-frame screen-space heading tracker for villagers. RENDER-ONLY: keyed
+ * by villager id, it remembers the last projected screen position and derives a
+ * smoothed heading from the delta — so a moving figure can lean + squash along
+ * its travel direction. Never reads/writes the sim. Entries for vanished ids are
+ * pruned lazily (a villager that stops being sampled simply ages out of `seen`).
+ */
+class VillagerHeadingTracker {
+  private readonly last = new Map<number, { x: number; y: number; sx: number; sy: number; lean: number }>();
+  private seen = new Set<number>();
+
+  /** Sample id at screen (sx,sy); returns scale-x, scale-y, lean (radians). */
+  sample(id: number, sx: number, sy: number): { sx: number; sy: number; lean: number } {
+    const prev = this.last.get(id);
+    this.seen.add(id);
+    let scaleX = 1;
+    let scaleY = 1;
+    let lean = 0;
+    if (prev !== undefined) {
+      const dx = sx - prev.x;
+      const dy = sy - prev.y;
+      const speed = Math.hypot(dx, dy);
+      if (speed > 0.15) {
+        // Lean into the horizontal heading (max ~0.18 rad), squash/stretch a touch:
+        // wider when moving sideways, taller when moving up/down screen.
+        const ux = dx / speed;
+        const uy = dy / speed;
+        lean = ux * 0.18;
+        scaleX = 1 + Math.abs(ux) * 0.12;
+        scaleY = 1 + Math.abs(uy) * 0.12;
+      }
+      // Smooth so interpolation jitter doesn't make the figure twitch.
+      scaleX = prev.sx + (scaleX - prev.sx) * 0.3;
+      scaleY = prev.sy + (scaleY - prev.sy) * 0.3;
+      lean = prev.lean + (lean - prev.lean) * 0.3;
+    }
+    this.last.set(id, { x: sx, y: sy, sx: scaleX, sy: scaleY, lean });
+    return { sx: scaleX, sy: scaleY, lean };
+  }
+
+  /** Drop tracking for ids not sampled since the last sweep (call once/frame). */
+  sweep(): void {
+    for (const id of this.last.keys()) if (!this.seen.has(id)) this.last.delete(id);
+    this.seen.clear();
+  }
+}
+
+/** Per-client render-only heading tracker (the renderer is a single instance). */
+const villagerHeading = new VillagerHeadingTracker();
+
+/**
  * Push one frame's worth of building / villager / raider quads. Does NOT call
  * begin/endFrame — the caller owns the frame lifecycle so it can attach the
  * overlay. Pure-ish: only calls `renderer.push`. The optional `fx` hooks apply
@@ -325,11 +375,25 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
     const base = villagerQuad(v);
     const dy = fx?.villagerYOffset !== undefined ? fx.villagerYOffset(v) : 0;
     const box = isoPointBox(v.x + 0.5, v.y + 0.5, base.width);
-    renderer.push(quadToSprite(
-      { x: box.x, y: box.y + dy, width: box.width, height: box.height, tintRgba: base.tintRgba, ...(base.frame !== undefined ? { frame: base.frame } : {}) },
-      LAYER_ENTITY, 1, box.depth,
-    ));
+    // Entity legibility: lean + squash the figure along its screen-space heading
+    // (tracked frame-to-frame, pure render — never read by the sim) so a moving
+    // villager reads as walking-with-purpose instead of a static dot.
+    const o = villagerHeading.sample(v.id, box.x, box.y);
+    renderer.push({
+      atlasId: QUAD_ATLAS_ID,
+      frame: base.frame ?? QUAD_FRAME,
+      x: box.x + box.width / 2,
+      y: box.y + dy + box.height / 2,
+      width: box.width * o.sx,
+      height: box.height * o.sy,
+      rotation: o.lean,
+      layer: LAYER_ENTITY,
+      alpha: 1,
+      tintRgba: base.tintRgba,
+      sortY: box.depth,
+    });
   }
+  villagerHeading.sweep();
   for (const r of scene.raiders) {
     const base = raiderQuad(r);
     const box = isoPointBox(r.x + 0.5, r.y + 0.5, base.width);
@@ -438,9 +502,18 @@ export function pushLightPool(renderer: RendererLike, quads: readonly QuadSpec[]
 export function pushAmbientCrowd(renderer: RendererLike, quads: readonly QuadSpec[]): void {
   for (const q of quads) {
     const box = isoPointBox(q.x / TILE_SIZE, q.y / TILE_SIZE, q.width);
-    renderer.push(quadToSprite(
-      { x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: q.tintRgba, ...(q.frame !== undefined ? { frame: q.frame } : {}) },
-      LAYER_AMBIENT_CROWD, 1, box.depth,
-    ));
+    renderer.push({
+      atlasId: QUAD_ATLAS_ID,
+      frame: q.frame ?? QUAD_FRAME,
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2,
+      width: box.width,
+      height: box.height,
+      rotation: q.lean ?? 0, // entity-legibility lean along heading
+      layer: LAYER_AMBIENT_CROWD,
+      alpha: 1,
+      tintRgba: q.tintRgba,
+      sortY: box.depth,
+    });
   }
 }
