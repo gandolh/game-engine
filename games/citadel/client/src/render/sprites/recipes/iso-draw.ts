@@ -128,24 +128,40 @@ export function isoMetrics(w: number, h: number, heightTiles: number): IsoMetric
  */
 function drawWalls(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   const { cx, halfW, diaH, yTopMid, yBotMid } = m;
-  // Left-front face (lit): left point → front point.
+  // Left-front face (lit): left point → front point. A 1px AMBIENT-OCCLUSION band
+  // along the wall-top (just under the roof eave) deepens the volume read.
   for (let x = cx - halfW; x <= cx; x++) {
     const t = (x - (cx - halfW)) / halfW;
     const topEdgeY = yTopMid + (diaH / 2) * t;
     const botEdgeY = yBotMid + (diaH / 2) * t;
     for (let y = topEdgeY; y <= botEdgeY; y++) g.set(x, y, pal.wallL);
+    g.set(x, R(topEdgeY), pal.wallR);        // eave AO: top row of the lit face shaded
     g.set(x, botEdgeY, pal.outline);
   }
-  // Right-front face (shaded): front point → right point.
+  // Right-front face (shaded): front point → right point. Per the iso references a
+  // valley/shadow face should be a distinct DARKER value (not collapsed to the
+  // outline): the near-corner third gets an extra shade so the two faces clearly
+  // separate in value.
   for (let x = cx; x <= cx + halfW; x++) {
     const t = (x - cx) / halfW;
     const topEdgeY = yTopMid + (diaH / 2) * (1 - t);
     const botEdgeY = yBotMid + (diaH / 2) * (1 - t);
-    for (let y = topEdgeY; y <= botEdgeY; y++) g.set(x, y, pal.wallR);
+    // Deeper shade in the near-corner band (the part furthest from the sun).
+    const deep = t < 0.4;
+    for (let y = topEdgeY; y <= botEdgeY; y++) g.set(x, y, deep ? pal.roofDark : pal.wallR);
+    g.set(x, R(topEdgeY), pal.outline);      // eave AO line on the shaded face
     g.set(x, botEdgeY, pal.outline);
   }
-  // Near vertical corner highlight.
-  for (let y = yTopMid + diaH / 2; y <= yBotMid + diaH / 2; y++) g.set(cx, y, pal.wallEdge);
+  // Near vertical corner: a bright highlight catching the light. A subtle 1px AO
+  // seam sits just right of it, but only on tall-enough walls (so short cottages
+  // don't get a dark stripe down the corner).
+  const cornerTop = yTopMid + diaH / 2;
+  const cornerBot = yBotMid + diaH / 2;
+  const tallWall = (yBotMid - yTopMid) >= 12;
+  for (let y = cornerTop; y <= cornerBot; y++) {
+    g.set(cx, y, pal.wallEdge);
+    if (tallWall) g.set(cx + 1, y, pal.wallR); // gentle AO (mid shade, not dark)
+  }
 }
 
 /** Hipped roof diamond capping the wall-top, lit-left / dark-right. */
@@ -342,7 +358,45 @@ export interface FormOpts {
 /** Allocate a grid + metrics for a footprint. */
 function begin(w: number, h: number, heightTiles: number): { g: IsoGrid; m: IsoMetrics } {
   const m = isoMetrics(w, h, heightTiles);
-  return { g: new IsoGrid(m.W, m.H), m };
+  const g = new IsoGrid(m.W, m.H);
+  // Bake a ground CONTACT SHADOW first (under everything) so each building reads as
+  // ANCHORED to the terrain instead of a floating cut-out — the single biggest
+  // legibility win per the iso-art references (a grid-aligned cast shadow). The
+  // committed sun is upper-left, so the shadow falls to the lower-right (SE).
+  isoContactShadow(g, m);
+  return { g, m };
+}
+
+/**
+ * A soft ground-contact shadow: the footprint diamond, flattened and pushed a
+ * few px toward the lower-right (SE — opposite the upper-left sun), stamped in a
+ * cool dark (`i` ink) BELOW the building. Drawn first so walls/roof paint over the
+ * part the building covers, leaving only the SE sliver of shadow visible — exactly
+ * how a real cast shadow reads on the iso grid. Kept inside the front/SE half of
+ * the sprite so the top-left corner stays transparent (recipe-guard invariant).
+ */
+export function isoContactShadow(g: IsoGrid, m: IsoMetrics): void {
+  const { cx, halfW, diaH, yBotMid } = m;
+  const midY = yBotMid;               // ground diamond mid-line
+  const offX = Math.max(2, R(3 * ISO_ART_SCALE / 4)); // SE push
+  const offY = Math.max(1, R(2 * ISO_ART_SCALE / 4));
+  for (let dyAbs = -diaH / 2; dyAbs <= diaH / 2; dyAbs++) {
+    const frac = 1 - Math.abs(dyAbs) / (diaH / 2);
+    const half = halfW * frac;
+    const y = R(midY + dyAbs) + offY;
+    const xL = R(cx - half) + offX;
+    const xR = R(cx + half) + offX;
+    for (let x = xL; x <= xR; x++) {
+      // Only the lower (front) half of the diamond casts a visible ground shadow;
+      // the back half sits under the building.
+      if (dyAbs < -1) continue;
+      // Feather the SE rim: the outermost 2px and the very front tip dither out
+      // (checkered) so the shadow reads soft, not as a hard bar.
+      const edge = x >= xR - 1 || dyAbs >= diaH / 2 - 1;
+      if (edge && ((x + y) & 1)) continue;
+      g.set(x, y, "i");
+    }
+  }
 }
 
 /**

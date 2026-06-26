@@ -4,6 +4,37 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-26] art | Citadel iso building grounding pass — contact shadows + AO seams + roof value separation
+
+Researched iso pixel-art art direction (SLYNYRD Pixelblog 41/54, PixelParmesan
+"Fundamentals of Isometric Pixel Art", PixNote) and applied the highest-impact,
+**uniform** improvements across all 20 building sprites — done in the shared
+primitives so every form benefits without per-form edits. Diagnosis was driven by
+rendering a 6× per-building contact sheet (`rasterizeRecipe`) and measuring it
+against the references; the gaps were: buildings floated (no ground anchor), roof
+faces lacked value separation, shadow faces collapsed toward pure black, no AO at
+the eave/corner seams.
+
+Changes ([iso-draw.ts](../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
+[buildings.ts](../games/citadel/client/src/render/sprites/recipes/buildings.ts)):
+- **Contact shadow** (`isoContactShadow`, called from `begin()` first → under
+  every building): footprint diamond flattened + pushed SE (opposite the upper-left
+  sun) in `i` ink; the body overpaints all but the SE sliver, dithered/feathered rim
+  so it reads soft. Anchors each building to the terrain — the single biggest lift.
+- **AO seams** in `drawWalls`: 1px shaded band along the wall-top under the eave;
+  near-corner highlight flanked by a gentle mid-shade AO (tall walls only, so short
+  cottages don't get a dark stripe). Shaded right-face near-corner band deepened so
+  the two wall faces separate in value.
+- **Roof value separation**: `STONE`/`WOOD` palettes' `roofDark` moved `#`(black)→`i`
+  (ink) per the iso "valley = darkest-shade-not-black" rule; STONE roof ramp regraded
+  (slate/silver/ink) so the three faces read distinctly.
+
+Recipe-guard invariants held (top-left corner transparent; opaque fraction < 0.88
+for all 20 — checked during render). EDG32 palette guard green (every new pixel
+routes through `SWATCH`/`i` ink). `@citadel/client` typecheck + 188 tests green;
+determinism untouched (sprites are pure/render-only). Brief 96 art reference updated
+with the grounding/AO rules. Branch `art/citadel-iso-grounding` → main.
+
 ## [2026-06-26] art | Citadel entity legibility built; the two sprite art-todos closed superseded by the iso library
 
 Re-scoped the three 2026-06-19 Citadel art todos against the **current** renderer
