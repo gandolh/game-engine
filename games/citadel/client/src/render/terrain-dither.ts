@@ -61,7 +61,13 @@ export function makeTerrainDecorate(
         const [top, right, bottom, left] = tileDiamond(tx, ty) as [
           { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
         ];
-        ctx.fillStyle = TERRAIN_COLORS[t] ?? EDG.green;
+        // Elevation-banded base fill: instead of one flat color per terrain type,
+        // pick a darker/base/lighter EDG swatch by the cell's coarse elevation so
+        // the ground reads as gently rolling land (sun-lit highs, shaded valleys)
+        // — broad cohesive value variation, not just sparse specks. Fully EDG32
+        // (the dark/light come from DITHER_ACCENTS, all EDG swatches), and the
+        // wavelength matches the dither's so band and specks agree.
+        ctx.fillStyle = elevationFill(t, tx, ty);
         ctx.beginPath();
         ctx.moveTo(top.x, top.y);
         ctx.lineTo(right.x, right.y);
@@ -172,6 +178,24 @@ const FALLBACK_ACCENTS: DitherAccents = { dark: EDG.ink, light: EDG.white };
 /** Resolve the dither accents for a terrain type (pure, total). */
 export function ditherAccents(type: TerrainType): DitherAccents {
   return DITHER_ACCENTS[type] ?? FALLBACK_ACCENTS;
+}
+
+/**
+ * Base diamond fill for a cell, banded by coarse elevation: deep valleys take the
+ * type's DARK accent, high ground the LIGHT accent, the broad middle the base hue.
+ * Thresholds are conservative (most cells stay the base colour) so the field reads
+ * as gently rolling, not stripy. Pure + EDG32 (every branch is an EDG swatch). The
+ * elevation source + wavelength match `ditherClusters`, so band and specks agree.
+ */
+export function elevationFill(type: TerrainType, tx: number, ty: number): string {
+  const base = TERRAIN_COLORS[type] ?? EDG.green;
+  // Water bands by its own shimmer rather than terrain height — keep it as-is.
+  if (type === TerrainType.Water) return base;
+  const elev = elevationField(tx, ty); // [0,1]
+  const acc = ditherAccents(type);
+  if (elev < 0.30) return acc.dark;   // shaded valley floor
+  if (elev > 0.74) return acc.light;  // sun-lit high ground
+  return base;
 }
 
 /** A single dither cluster: a small filled square at (x,y) within the cell. */

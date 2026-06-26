@@ -120,8 +120,21 @@ fences, market stalls, towers; a cohesive multi-step (not flat) palette.**
 3. `npm run typecheck -w @citadel/client` + `npm run test -w @citadel/client` +
    the engine EDG32 palette test — all green.
 
+## Units + terrain (the same grounding/value rules apply)
+
+The 2026-06-26 grounding pass was extended to units + terrain, so the look is now
+cohesive across all three surfaces:
+- **Units** ([units.ts](../../../games/citadel/client/src/render/sprites/recipes/units.ts)):
+  authored as a GREY RAMP (`#`→`S`→`l`→`v`) so the per-instance state/strength tint
+  multiplies in. They carry a **`footShadow`** ground anchor (darkest ramp chars, so
+  it stays shadow under any tint) and a **3-value body** (lit-left/mid/shaded-right)
+  so a tinted figure reads as volume, not a flat cut-out.
+- **Terrain** ([terrain-dither.ts](../../../games/citadel/client/src/render/terrain-dither.ts)):
+  the base diamond fill is **elevation-banded** (`elevationFill`: dark accent in
+  valleys, light on highs, base in the middle) so the ground reads as gently rolling
+  land; the existing sub-tile dither specks share the same elevation field.
+
 ## Out of scope
 
 - New standalone prop/decor sprites (barrels, lamps, trees as placeable objects) —
   would need sim/placement hooks; separate brief.
-- Units + terrain restyle (their own track; brief 94 is likely obsolete).
