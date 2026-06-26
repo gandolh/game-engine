@@ -238,7 +238,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   }
 
   function freshRuntime(): BuildingRuntimeState {
-    return { outputBuffer: 0, inputBuffer: 0, workerCount: 0, connected: false, productionTick: 0, level: 1 };
+    return { outputBuffer: 0, workerCount: 0, connected: false, productionTick: 0, level: 1 };
   }
 
   // ---------------------------------------------------------------------------
@@ -440,6 +440,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
       if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) {
+        // MP authority (citadel-38 P0#1): only the OWNER may raze a building.
+        // Without this any peer could demolish a rival's town-hall = instant
+        // elimination. Solo is unaffected (sender == owner always).
+        if (b.ownerId !== localPlayer(state).id) return;
         const prod = getProductionDef(b.type);
         // Per-player fields belong to the building's owner.
         const owner = playerById(state, b.ownerId);
@@ -482,6 +486,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       const b = entity.building;
       if (!(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h)) continue;
 
+      // MP authority (citadel-38 P0#2): only the OWNER may upgrade — otherwise a
+      // peer drains the *victim's* stockpiles to mutate the victim's building.
+      // Solo is unaffected (sender == owner always).
+      if (b.ownerId !== localPlayer(state).id) return;
       const prod = getProductionDef(b.type);
       if (prod === undefined) return;
       const owner = playerById(state, b.ownerId);
@@ -717,9 +725,15 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const lp = localPlayer(state);
     const stock: Record<string, number> = {};
     for (const k of Object.keys(lp.stockpiles) as GoodType[]) stock[k] = lp.stockpiles[k];
+    // citadel-38 P2#13: test the production def's isKeep, not the literal "keep"
+    // type — the MP anchor is `town-hall` (also isKeep), so the old string match made
+    // every MP player see "no keep" even with a standing town-hall.
     let keepPresent = false;
     for (const entity of buildingWorld.query("building")) {
-      if (entity.building.ownerId === lp.id && entity.building.type === "keep") { keepPresent = true; break; }
+      if (entity.building.ownerId === lp.id && getProductionDef(entity.building.type)?.isKeep === true) {
+        keepPresent = true;
+        break;
+      }
     }
     const nextRaidDay = lp.nextRaidTick < 0 ? -1 : Math.floor(lp.nextRaidTick / state.ticksPerDay);
     return {

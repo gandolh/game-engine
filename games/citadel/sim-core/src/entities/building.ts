@@ -19,7 +19,6 @@ export type TerrainReq = "forest" | "stone";
  */
 export interface BuildingRuntimeState {
   outputBuffer: number;
-  inputBuffer: number;
   workerCount: number;
   connected: boolean;
   productionTick: number;

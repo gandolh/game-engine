@@ -218,9 +218,16 @@ export class VillagerSystem implements System {
   private assign(v: VillagerComponent): void {
     const state = this.state;
 
-    // Pre-compute which building types have at least one worker.
+    // citadel-38 P1#5: a villager only staffs / hauls to buildings owned by ITS
+    // player. Without this, in MP a player's villager assigns to the nearest rival
+    // workplace and walks into enemy territory (deposit silently lands in its own
+    // pool). Solo is a no-op (single owner).
+    const owns = (e: BuildingEntity): boolean => e.building.ownerId === v.ownerId;
+
+    // Pre-compute which building types have at least one worker (own buildings only).
     const staffedTypes = new Set<string>();
     for (const entity of state.buildingWorld.query("building")) {
+      if (!owns(entity)) continue;
       const id = entity.id;
       if (id === undefined) continue;
       const rs = state.buildingState.get(id);
@@ -239,6 +246,7 @@ export class VillagerSystem implements System {
       let best: BuildingEntity | null = null;
       let bestDist = Infinity;
       for (const entity of state.buildingWorld.query("building")) {
+        if (!owns(entity)) continue;
         const id = entity.id;
         if (id === undefined) continue;
         const rs = state.buildingState.get(id);
@@ -268,7 +276,7 @@ export class VillagerSystem implements System {
         const b = best.building;
         v.workX = b.x + Math.floor(b.w / 2);
         v.workY = b.y + Math.floor(b.h / 2);
-        const store = this.firstStore();
+        const store = this.firstStore(v.ownerId);
         if (store !== null) {
           v.storeX = store.x;
           v.storeY = store.y;
@@ -284,8 +292,9 @@ export class VillagerSystem implements System {
     // No open slot found anywhere — remain idle.
   }
 
-  private firstStore(): { x: number; y: number } | null {
+  private firstStore(ownerId: number): { x: number; y: number } | null {
     for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== ownerId) continue;
       const def = getProductionDef(entity.building.type);
       if (def?.isStorage === true) {
         const b = entity.building;

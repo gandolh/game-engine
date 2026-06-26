@@ -39,10 +39,17 @@ export class CitadelBot {
     this.updates += 1;
 
     if (!this.placedAnchor) {
-      // Anchor in this bot's quadrant of the world (spreads bots apart).
+      // citadel-38 P3#18: spread anchors over a grid of cells keyed by playerId so
+      // bots 4/5+ don't collide on the same 4 quadrants. A √-sized grid keeps cells
+      // roughly square; cell centres stay inside the world margins.
       const { width, height } = sim.state;
-      const qx = (this.peer.playerId % 2) === 0 ? Math.floor(width * 0.25) : Math.floor(width * 0.75);
-      const qy = this.peer.playerId < 2 ? Math.floor(height * 0.25) : Math.floor(height * 0.75);
+      const id = this.peer.playerId;
+      const cols = Math.max(2, Math.ceil(Math.sqrt(id + 1)));
+      const cx = id % cols;
+      const cy = Math.floor(id / cols);
+      const rows = Math.max(2, cy + 1);
+      const qx = Math.floor((width * (cx + 0.5)) / cols);
+      const qy = Math.floor((height * (cy + 0.5)) / rows);
       const spot = this.findGrass(sim.terrain, 3, 3, qx, qy);
       this.anchor = { x: spot.x, y: spot.y };
       this.submit({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });

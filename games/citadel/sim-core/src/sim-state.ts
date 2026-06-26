@@ -258,7 +258,9 @@ export function pushEvent(state: SimState, msg: string): void {
 
 /** The local / single player. In solo this is the one and only player. */
 export function localPlayer(state: SimState): PlayerState {
-  const p = state.players[state.localId] ?? state.players.find((q) => q.id === state.localId);
+  // citadel-38 P3#17: look up by id, not array index — index==id only holds while
+  // ids stay contiguous from 0 (fragile if a player ever leaves and ids reorder).
+  const p = state.players.find((q) => q.id === state.localId);
   if (p === undefined) throw new Error(`no local player (id ${state.localId})`);
   return p;
 }
