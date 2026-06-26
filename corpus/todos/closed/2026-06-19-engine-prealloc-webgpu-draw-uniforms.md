@@ -1,11 +1,16 @@
 ---
 title: "Engine — pre-allocate per-draw WebGPU uniform scratch buffers"
 created: 2026-06-19
-status: open
+status: done
 tags: [engine, render, webgpu, perf]
 ---
 
 # Engine — pre-allocate per-draw WebGPU uniform scratch buffers
+
+> **DONE (2026-06-26).** Both draw sites use a `readonly` field scratch array
+> (`StaticLayerPass.quadScratch` [8], `WaterPass.waterScratch` [36]) mutated in place.
+> No `new Float32Array` in any `draw()` body. Typecheck clean; render parity by
+> construction; determinism diff byte-identical. See log.md 2026-06-26.
 
 Two WebGPU passes allocate a fresh `Float32Array` **inside `draw()`** — i.e. every
 frame, per viewer — just to `writeBuffer` it and throw it away. Classic avoidable

@@ -21,17 +21,22 @@ export interface Command<T extends string = string, P = unknown> {
  *   commands in insertion order and clears the queue.
  */
 export class CommandQueue<C extends Command = Command> {
-  private readonly pending: C[] = [];
+  // Double-buffered like MessageBus.flush(): drain() swaps pending↔drained and
+  // returns the live `drained` view (zero allocation), so the caller must consume
+  // it before the next drain(). CommandSystem applies it within the same tick.
+  private pending: C[] = [];
+  private drained: C[] = [];
 
   enqueue(cmd: C): void {
     this.pending.push(cmd);
   }
 
-  drain(): C[] {
-    if (this.pending.length === 0) return [];
-    const batch = this.pending.slice();
+  drain(): readonly C[] {
+    const tmp = this.drained;
+    this.drained = this.pending;
+    this.pending = tmp;
     this.pending.length = 0;
-    return batch;
+    return this.drained;
   }
 
   get length(): number {
