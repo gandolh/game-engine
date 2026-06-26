@@ -9,6 +9,9 @@ import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
 import { SERVICE_RADII } from "../entities/building";
 
+/** Happiness lift per day while a festival is active. */
+const FESTIVAL_HAPPINESS_BONUS = 15;
+
 /**
  * Building types that project a safety footprint (lower fear → higher happiness).
  * watchpost is the dedicated safety building; the fortifications also count
@@ -32,7 +35,20 @@ export class NeedsHappinessSystem implements System {
 
   run(ctx: SimContext): void {
     if (ctx.tick === 0 || ctx.tick % this.ticksPerDay !== 0) return;
+    this._maintainDecrees();
     this._computeNeeds();
+  }
+
+  /**
+   * Decree counterplay (daily): tick down a pending festival. (A decree the player
+   * deliberately set persists until they lift it — the counterplay is the festival
+   * upside + the stacking penalty in _updateHappiness, not silent auto-expiry,
+   * which surprised players who set a standing decree on purpose.)
+   */
+  private _maintainDecrees(): void {
+    for (const p of this.state.players) {
+      if (p.festivalDaysLeft > 0) p.festivalDaysLeft--;
+    }
   }
 
   private _computeNeeds(): void {
@@ -127,10 +143,20 @@ export class NeedsHappinessSystem implements System {
     if (p.foodSurplus < 0) h += Math.max(-15, p.foodSurplus * 3);
 
     // Decree penalties
-    if (p.activeDecrees.has("rationing"))    h -= 10;
-    if (p.activeDecrees.has("tithe"))        h -= 8;
-    if (p.activeDecrees.has("workHours"))    h -= 12;
-    if (p.activeDecrees.has("conscription")) h -= 5;
+    let activeStrain = 0;
+    if (p.activeDecrees.has("rationing"))    { h -= 10; activeStrain++; }
+    if (p.activeDecrees.has("tithe"))        { h -= 8;  activeStrain++; }
+    if (p.activeDecrees.has("workHours"))    { h -= 12; activeStrain++; }
+    if (p.activeDecrees.has("conscription")) { h -= 5;  activeStrain++; }
+
+    // Decree counterplay (stacking penalty): panic-stacking every strain decree
+    // hurts more than the sum of its parts — an extra escalating penalty per decree
+    // beyond the first, so overcommitting can spiral (the todo's intended tension).
+    if (activeStrain > 1) h -= (activeStrain - 1) * 3;
+
+    // Decree counterplay (festival): a proclaimed festival lifts spirits while it
+    // lasts — the repayable upside that makes strain a loop, not permanent debt.
+    if (p.festivalDaysLeft > 0) h += FESTIVAL_HAPPINESS_BONUS;
 
     p.happiness = Math.max(0, Math.min(100, Math.round(h)));
   }

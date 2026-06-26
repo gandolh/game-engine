@@ -60,6 +60,12 @@ const DAYS_PER_YEAR = 16;
 /** Citadel 09: relief reserve total-goods threshold above which the tithe sweetens barter. */
 const RELIEF_BARTER_THRESHOLD = 20;
 
+/** Decree counterplay: bread cost + duration of a "festival" (repayable happiness). */
+const FESTIVAL_BREAD_COST = 8;
+const FESTIVAL_DAYS = 2;
+/** Threat consequence: conscription can only be ordered at/above this threat (or during a raid). */
+const CONSCRIPTION_THREAT_GATE = 40;
+
 /** Mutable sim state exposed to callers (worker + headless + tests). */
 export interface CitadelSimResult {
   scheduler: Scheduler;
@@ -406,7 +412,32 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   logged("setDecree", (cmd) => {
     const lp = localPlayer(state);
     const { decree, active } = cmd.payload;
+
+    // Decree counterplay: "festival" is a one-shot repayable lever, not a standing
+    // strain decree. It costs stored bread now and grants a happiness bump over the
+    // next FESTIVAL_DAYS (applied in needs-happiness) — so overcommitting strain
+    // decrees is a loop you can pay back, not permanent debt.
+    if (decree === "festival") {
+      if (!active) return; // festivals only turn on
+      if (lp.festivalDaysLeft > 0) return; // one at a time
+      if (lp.stockpiles.bread < FESTIVAL_BREAD_COST) {
+        pushEvent(state, `Day ${state.day}: not enough bread for a festival (need ${FESTIVAL_BREAD_COST}).`);
+        return;
+      }
+      lp.stockpiles.bread -= FESTIVAL_BREAD_COST;
+      lp.festivalDaysLeft = FESTIVAL_DAYS;
+      pushEvent(state, `Day ${state.day}: a festival is proclaimed! Spirits will lift.`);
+      return;
+    }
+
     if (active) {
+      // Threat consequence (decree gating): conscription is an EMERGENCY lever —
+      // it can only be enacted while a raid is active or threat is high. This
+      // forces the happiness-vs-safety trade to actually track the danger.
+      if (decree === "conscription" && lp.raiders.length === 0 && lp.threatLevel < CONSCRIPTION_THREAT_GATE) {
+        pushEvent(state, `Day ${state.day}: conscription can only be ordered under threat (raid or high alarm).`);
+        return;
+      }
       lp.activeDecrees.add(decree);
     } else {
       lp.activeDecrees.delete(decree);

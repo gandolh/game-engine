@@ -38,6 +38,9 @@ const STONE_TYPES = new Set([
 /** Ticks a building burns before being destroyed (at ticksPerDay=20 → 3 days). */
 const BURN_TICKS = 60;
 
+/** Interlock: a burning building suppresses output of neighbours within this radius. */
+const FIRE_SUPPRESS_RADIUS = 2;
+
 export class FireSystem implements System {
   readonly name = "FireSystem";
 
@@ -80,6 +83,7 @@ export class FireSystem implements System {
   private _tickBurning(p: PlayerState, tick: number): void {
     const state = this.state;
     const toDestroy: number[] = [];
+    const burningCentres: Array<{ x: number; y: number }> = [];
     for (const entity of state.buildingWorld.query("building")) {
       if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
@@ -89,10 +93,35 @@ export class FireSystem implements System {
       // Suppress production while burning.
       const rs = state.buildingState.get(id);
       if (rs !== undefined) rs.workerCount = 0;
+      const b = entity.building;
+      burningCentres.push({ x: b.x + Math.floor(b.w / 2), y: b.y + Math.floor(b.h / 2) });
       fs.burnTicksLeft = Math.max(0, fs.burnTicksLeft - 1);
       if (fs.burnTicksLeft === 0) {
         fs.destroyed = true;
         toDestroy.push(id);
+      }
+    }
+    // Interlock (burning → adjacent suppression): a fire doesn't just halt its own
+    // building — workers flee the neighbours too. Zero the workerCount of any of
+    // p's non-burning buildings within FIRE_SUPPRESS_RADIUS of a burning one this
+    // tick (re-staffed naturally by VillagerSystem once the fire is out).
+    if (burningCentres.length > 0) {
+      for (const entity of state.buildingWorld.query("building")) {
+        if (entity.building.ownerId !== p.id) continue;
+        const id = entity.id;
+        if (id === undefined) continue;
+        const fs = p.fireState.get(id);
+        if (fs?.burning === true) continue; // already zeroed above
+        const b = entity.building;
+        const cx = b.x + Math.floor(b.w / 2);
+        const cy = b.y + Math.floor(b.h / 2);
+        for (const c of burningCentres) {
+          if (Math.abs(cx - c.x) + Math.abs(cy - c.y) <= FIRE_SUPPRESS_RADIUS) {
+            const rs = state.buildingState.get(id);
+            if (rs !== undefined) rs.workerCount = 0;
+            break;
+          }
+        }
       }
     }
     for (const id of toDestroy) {
@@ -281,6 +310,30 @@ export class FireSystem implements System {
     }
     return null;
   }
+}
+
+/** Wooden building types (exported for the raid→fire interlock). */
+export const FIRE_WOODEN_TYPES: ReadonlySet<string> = WOODEN_TYPES;
+/** Burn duration in ticks (exported so the raid→fire interlock matches fire spread). */
+export const FIRE_BURN_TICKS = BURN_TICKS;
+
+/**
+ * Interlock helper (siege→fire): ignite a wooden building by ECS id if it isn't
+ * already burning/destroyed. Returns true if it newly caught. Used by
+ * applyRaidDamage so a siege can set a building alight (wells/firebreaks become
+ * tactical). Mirrors FireSystem._igniteBuilding's fireState bookkeeping.
+ */
+export function igniteBuildingById(state: SimState, p: PlayerState, id: number, type: string): boolean {
+  let fs = p.fireState.get(id);
+  if (fs === undefined) {
+    fs = { burning: false, burnTicksLeft: 0, destroyed: false };
+    p.fireState.set(id, fs);
+  }
+  if (fs.burning || fs.destroyed) return false;
+  fs.burning = true;
+  fs.burnTicksLeft = BURN_TICKS;
+  pushEvent(state, `Day ${state.day + 1}: raiders set a ${type} ablaze!`);
+  return true;
 }
 
 /** Public helper: count currently burning buildings across all players. */

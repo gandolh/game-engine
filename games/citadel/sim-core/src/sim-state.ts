@@ -57,8 +57,21 @@ export interface RaiderState {
   tileY: number; // integer tile Y
   path: Array<{ x: number; y: number }>; // BFS path to keep
   pathStep: number; // current step in path
-  strength: number; // raider group strength
+  strength: number; // raider group strength (mutable: interceptors shave it)
   resolved: boolean; // whether this raid has been resolved
+  /**
+   * Citadel siege-variance: morale 0..100. Starts high; decays when the player
+   * repairs/strengthens defenses mid-march (represents besiegers losing nerve).
+   * Low morale biases the seeded outcome toward repel. Optional for back-compat
+   * with inline test constructors; raid-spawn always sets it.
+   */
+  morale?: number;
+  /** Peak defensiveStrength seen since spawn — morale decays as defense climbs past it. */
+  defenseAtSpawn?: number;
+  /** True once a scout has revealed this raider (legible early warning). */
+  scouted?: boolean;
+  /** True once a garrison sortie has intercepted this raider (one shave per raider). */
+  intercepted?: boolean;
 }
 
 /**
@@ -122,6 +135,12 @@ export interface PlayerState {
 
   // Decrees
   readonly activeDecrees: Set<string>;
+  /**
+   * Citadel decree-counterplay: a one-shot "festival" decree (costs stored bread,
+   * grants a happiness bump for the next few days). > 0 means a festival is active
+   * for that many more days. Repayable strain, not permanent debt.
+   */
+  festivalDaysLeft: number;
 
   // Trader
   traderPresent: boolean;
@@ -134,6 +153,7 @@ export interface PlayerState {
   readonly gateTiles: Set<number>;    // tile indices that are gates (passable)
   threatLevel: number;                // 0..100, escalates over time
   nextRaidTick: number;               // tick when next raid spawns (-1 = unscheduled)
+  scoutWarned: boolean;               // true once the scout has warned of the pending raid
   raidCount: number;                  // total raids spawned so far
   defensiveStrength: number;          // computed each tick: walls + towers + garrison
   readonly raiders: RaiderState[];    // active raider entities targeting this player
@@ -173,6 +193,7 @@ export function makePlayerState(id: number): PlayerState {
     safetyCoverage: 0,
     goodsCoverage: 0,
     activeDecrees: new Set<string>(),
+    festivalDaysLeft: 0,
     traderPresent: false,
     traderArrivalDay: -1,
     traderDepartDay: 0,
@@ -181,6 +202,7 @@ export function makePlayerState(id: number): PlayerState {
     gateTiles: new Set<number>(),
     threatLevel: 0,
     nextRaidTick: -1,
+    scoutWarned: false,
     raidCount: 0,
     defensiveStrength: 0,
     raiders: [],

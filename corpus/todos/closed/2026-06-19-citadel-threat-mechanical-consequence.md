@@ -1,11 +1,16 @@
 ---
 title: "Citadel — give the threat level a mechanical consequence (it's currently cosmetic)"
 created: 2026-06-19
-status: open
+status: done
 tags: [citadel, sim, gameplay, balance]
 ---
 
 # Citadel — give the threat level a mechanical consequence
+
+> **DONE (2026-06-26).** Threat now drives ALL THREE listed levers: raid cadence
+> (higher threat → shorter interval), decree gating (conscription locked unless raid
+> active or threat ≥ 40), and defense pressure (+0..20% defensive strength scaled by
+> threat). Deterministic. See log.md 2026-06-26.
 
 `threatLevel` is tracked, escalated, decayed, and shown in the event log + snapshot,
 but it **drives nothing**. Raids spawn on a fixed schedule independent of it, and the
