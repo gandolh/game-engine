@@ -4,6 +4,47 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-26] art | Citadel entity legibility built; the two sprite art-todos closed superseded by the iso library
+
+Re-scoped the three 2026-06-19 Citadel art todos against the **current** renderer
+(they were written against the pre-iso top-down flat-quad renderer, which the
+2026-06-21 true-isometric work replaced) and resolved all three:
+
+- **[real-sprite-assets](todos/closed/2026-06-19-citadel-real-sprite-assets.md) →
+  SUPERSEDED.** Its premise ("100% procedural flat quads, no sprites, 1×1 white
+  atlas") is **stale**: Citadel now has a full baked iso pixel-art library —
+  `sprites/recipes/{buildings,units,fx,iso-draw}.ts` produce diamond-based iso
+  building volumes (two shaded faces + hipped roof, terracotta/green roofs,
+  half-timber + stone coursing), an animated 8-frame windmill, a 32px villager, a
+  horned axe raider, and a 16px pedestrian, packed through `rasterize.ts` +
+  `atlas.ts`. **Eyeballed a 33-sprite contact sheet** (rendered via `rasterizeRecipe`)
+  — reads as a coherent iso settlement, type-distinct, well-shaded. Done.
+- **[procedural-building-detail](todos/closed/2026-06-19-citadel-procedural-building-detail.md)
+  → SUPERSEDED.** It was explicitly the "no-new-assets INTERIM slice toward sprites";
+  real iso sprites (with roof shading + wall detail baked in) shipped, so the interim
+  is moot — the goal it was a stepping-stone to is met directly.
+- **[entity-silhouette-legibility](todos/closed/2026-06-19-citadel-entity-silhouette-legibility.md)
+  → DONE (built this pass).** The one genuinely-open render-only task. Implemented:
+  - **Raider strength tiers** ([quads.ts](../games/citadel/client/src/render/quads.ts)
+    `raiderTier` + `raiderQuad`): weak→narrow, normal→baseline, strong→broad/blocky,
+    elite (≥50)→taller + crimson. Shape + tint communicate threat, not just size.
+  - **Villager orientation** ([citadel-renderer.ts](../games/citadel/client/src/render/citadel-renderer.ts)
+    `VillagerHeadingTracker`): a render-only, per-id frame-to-frame **screen-space**
+    heading tracker leans + squashes the billboard along travel direction (smoothed;
+    swept for vanished ids). Never read/written by the sim.
+  - **Ambient-crowd orientation** ([ambient-crowd.ts](../games/citadel/client/src/render/ambient-crowd.ts)):
+    pedestrians lean into their known heading-to-target (new optional `QuadSpec.lean`,
+    applied in `pushAmbientCrowd`).
+
+All render-only, EDG32 palette guard green, determinism untouched (downstream of the
+snapshot). Tests: client **188** (+ `raiderTier` tier test; updated the old
+"always red" raider assertion to the tier-aware expectation), typecheck clean.
+Branch `feat/citadel-entity-legibility` → main.
+
+> Side-note found during the re-scope: the audit's **P1#8** (windowController.update
+> not ticked) is **already wired** in [main.ts:851](../games/citadel/client/src/main.ts#L851)
+> — that deferred audit item is effectively closed.
+
 ## [2026-06-26] feat | Citadel gameplay depth — siege variance + threat consequence + interlocks + decree counterplay (full menu)
 
 Closed three coupled gameplay todos (full-menu scope, user mandate) on branch

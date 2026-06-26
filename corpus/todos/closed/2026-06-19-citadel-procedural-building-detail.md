@@ -1,11 +1,18 @@
 ---
 title: "Citadel — cheap procedural building detail (roofs/doors/windows + silhouettes)"
 created: 2026-06-19
-status: open
+status: superseded
 tags: [citadel, render, art, quick-win]
 ---
 
 # Citadel — cheap procedural building detail
+
+> **SUPERSEDED (2026-06-26).** This was the explicit *no-new-assets INTERIM slice
+> toward sprites*. The 2026-06-21 true-isometric work shipped real iso building
+> sprites with roof shading + wall detail baked in (`sprites/recipes/buildings.ts`),
+> so the interim is moot — its goal (depth/legible type cues without a sprite
+> pipeline) is met directly by the actual sprites. Nothing to build. See log.md
+> 2026-06-26.
 
 The **no-new-assets** interim slice toward Citadel visual quality (the full sprite
 pass is [citadel-real-sprite-assets](2026-06-19-citadel-real-sprite-assets.md)).

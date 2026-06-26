@@ -115,6 +115,11 @@ export interface QuadSpec {
    * a real frame (`bld/<type>`, `vil/person`, `raider`).
    */
   frame?: string;
+  /**
+   * Optional render-only billboard lean (radians) along the figure's heading —
+   * set by moving units (ambient crowd) for legibility. Defaults to 0 (upright).
+   */
+  lean?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -272,13 +277,44 @@ export function villagerQuad(v: VillagerSnapshot): QuadSpec {
   return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex), frame: VILLAGER_FRAME };
 }
 
-/** Map a raider snapshot to a red-tinted sprite quad sized by strength. */
+/** Raider strength tiers — the silhouette cue, not just size (legibility todo). */
+export type RaiderTier = "weak" | "normal" | "strong" | "elite";
+
+/** Classify a raider by strength so its shape communicates threat at a glance. */
+export function raiderTier(strength: number): RaiderTier {
+  if (strength < 15) return "weak";
+  if (strength < 30) return "normal";
+  if (strength < 50) return "strong";
+  return "elite";
+}
+
+/**
+ * Map a raider snapshot to a red-tinted sprite quad whose SHAPE — not only size —
+ * communicates strength (entity-silhouette-legibility todo):
+ *   weak   → thin & small
+ *   normal → baseline figure
+ *   strong → wide & blocky
+ *   elite  → tall + a brighter crimson, reading as a champion
+ * Size still scales with strength so big raids loom; the aspect/tint make the
+ * tier readable during the march. Pure — derives only from snapshot strength.
+ */
 export function raiderQuad(r: RaiderSnapshot): QuadSpec {
-  // Strength grows the footprint (matches old radius scaling: 0.4..1.0 tiles).
-  const half = TILE_SIZE * (0.4 + Math.min(0.6, r.strength / 60));
+  const tier = raiderTier(r.strength);
+  // Base size still grows with strength (0.4..1.0 tiles), as before.
+  const base = TILE_SIZE * (0.4 + Math.min(0.6, r.strength / 60));
+  // Per-tier aspect: weak is narrow, strong is broad, elite is tall.
+  const aspect: Record<RaiderTier, { wx: number; hy: number; hex: string }> = {
+    weak:   { wx: 0.7, hy: 0.85, hex: EDG.red },
+    normal: { wx: 1.0, hy: 1.0,  hex: EDG.red },
+    strong: { wx: 1.3, hy: 1.0,  hex: EDG.red },
+    elite:  { wx: 1.15, hy: 1.3, hex: EDG.crimson },
+  };
+  const a = aspect[tier];
+  const w = base * a.wx;
+  const h = base * a.hy;
   const cx = r.x * TILE_SIZE + TILE_SIZE / 2;
   const cy = r.y * TILE_SIZE + TILE_SIZE / 2;
-  return { x: cx - half, y: cy - half, width: half * 2, height: half * 2, tintRgba: packTint(EDG.red), frame: RAIDER_FRAME };
+  return { x: cx - w / 2, y: cy - h / 2, width: w, height: h, tintRgba: packTint(a.hex), frame: RAIDER_FRAME };
 }
 
 // ---------------------------------------------------------------------------

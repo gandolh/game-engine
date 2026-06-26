@@ -1,11 +1,17 @@
 ---
 title: "Citadel — entity legibility via orientation + silhouette (villagers, crowd, raiders)"
 created: 2026-06-19
-status: open
+status: done
 tags: [citadel, render, art, quick-win]
 ---
 
 # Citadel — entity legibility via orientation + silhouette
+
+> **DONE (2026-06-26).** Raiders shaped by strength tier (weak→narrow, strong→broad,
+> elite→tall+crimson) via `raiderTier`/`raiderQuad`. Villagers lean+squash along a
+> render-only frame-to-frame screen heading (`VillagerHeadingTracker`). Ambient crowd
+> leans into its heading-to-target. All render-only/EDG32/determinism-safe; client
+> tests + palette guard green. See log.md 2026-06-26.
 
 Moving entities are featureless squares: villagers and ambient pedestrians are
 direction-less dots; raiders differ only by size. Cheap render-only changes make

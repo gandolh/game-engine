@@ -1,11 +1,21 @@
 ---
 title: "Citadel — give it real pixel-art sprites (buildings/villagers), not flat quads"
 created: 2026-06-19
-status: open
+status: superseded
 tags: [citadel, render, assets, art]
 ---
 
 # Citadel — real pixel-art sprite assets
+
+> **SUPERSEDED / DONE (2026-06-26).** The premise ("100% procedural flat quads, no
+> sprites, 1×1 white atlas") is **stale** — the 2026-06-21 true-isometric epic built
+> the full library this todo asked for: `sprites/recipes/{buildings,units,fx}.ts`
+> author every building type as an iso volume (diamond base + two shaded faces + hip
+> roof), an animated 8-frame windmill, a 32px villager, a horned axe raider, and a
+> 16px pedestrian — packed via `rasterize.ts` + `atlas.ts`. Eyeballed a 33-sprite
+> contact sheet (2026-06-26): coherent, type-distinct, well-shaded iso settlement.
+> The renderer resolves real `bld/<type>`/`vil/person`/`raider` frames. Nothing left
+> to author. See log.md 2026-06-26.
 
 **The headline asset-quality gap:** Citadel currently renders **100% procedural
 flat-colored quads** — there are no sprites at all. Buildings, villagers, raiders,
