@@ -17,14 +17,20 @@ function defaultServerUrl(): string {
   return `${proto}//${location.host}/sim`;
 }
 
+// citadel-38 P3#15: cap pre-connect queued messages so an unreachable server
+// can't grow the buffer unbounded; drop the oldest on overflow.
+const MAX_QUEUED = 256;
+
 export class CitadelServerClient {
   private readonly ws: WebSocket;
   private currentSnapshot: RenderSnapshot | null = null;
   private readyCallback: (() => void) | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
   private saveCallback: ((save: CitadelSave) => void) | null = null;
+  private disconnectCallback: ((reason: string) => void) | null = null;
   private readonly queued: WorkerInbound[] = [];
   private open = false;
+  private closed = false;
 
   constructor(url: string = defaultServerUrl()) {
     this.ws = new WebSocket(url);
@@ -32,6 +38,15 @@ export class CitadelServerClient {
       this.open = true;
       for (const m of this.queued) this.ws.send(JSON.stringify(m));
       this.queued.length = 0;
+    };
+    // citadel-38 P3#15: surface transport failure instead of a silent blank screen.
+    this.ws.onerror = (): void => {
+      if (!this.closed) this.disconnectCallback?.("connection error");
+    };
+    this.ws.onclose = (): void => {
+      this.open = false;
+      this.closed = true;
+      this.disconnectCallback?.("disconnected");
     };
     this.ws.onmessage = (event: MessageEvent): void => {
       let msg: WorkerOutbound;
@@ -93,14 +108,21 @@ export class CitadelServerClient {
     this.snapshotCallback = cb;
   }
 
+  /** citadel-38 P3#15: notified on transport error/close so the UI can show it. */
+  onDisconnect(cb: (reason: string) => void): void {
+    this.disconnectCallback = cb;
+  }
+
   get snapshot(): RenderSnapshot | null {
     return this.currentSnapshot;
   }
 
   private send(msg: WorkerInbound): void {
+    if (this.closed) return;
     if (this.open && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
     } else {
+      if (this.queued.length >= MAX_QUEUED) this.queued.shift();
       this.queued.push(msg);
     }
   }

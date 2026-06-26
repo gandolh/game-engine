@@ -157,16 +157,25 @@ export class TierSystem implements System {
       for (const entity of this.state.buildingWorld.query("building")) {
         if (entity.building.ownerId !== p.id) continue;
         const prod = getProductionDef(entity.building.type);
-        if (prod?.isRoad !== true) nonRoadBuildingCount++;
+        // citadel-38 P2#10: walls/gates are fortification tiles, not settlement
+        // structures — counting them let wall-spam reach Citadel/Fortress tier with
+        // no real infrastructure. Exclude road/wall/gate alike from the tier count.
+        if (prod?.isRoad === true || prod?.isWall === true || prod?.isGate === true) continue;
+        nonRoadBuildingCount++;
       }
       const newTier = computeTier(p.population, nonRoadBuildingCount, p.defensiveStrength);
 
       if (newTier !== p.tier) {
         const old = p.tier;
+        const rose = TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(old);
         p.tier = newTier;
+        // citadel-38 P2#11: direction-aware message — a demotion (pop lost to
+        // disease/starvation) must not say "risen".
         pushEvent(
           this.state,
-          `Day ${day}: Your settlement has risen from ${old} to ${newTier}! Hail, ${newTier}!`,
+          rose
+            ? `Day ${day}: Your settlement has risen from ${old} to ${newTier}! Hail, ${newTier}!`
+            : `Day ${day}: Your settlement has fallen from ${old} to ${newTier}.`,
         );
       }
     }

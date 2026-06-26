@@ -1,11 +1,23 @@
 ---
 title: "Citadel 38 — implementation review: problems found (audit, pre-fix)"
 created: 2026-06-19
-status: open
+status: partly-done
 tags: [citadel, audit, multiplayer, render, sim, bug]
 ---
 
 # Citadel 38 — implementation-review problems
+
+> **WORKED (2026-06-26).** Fixed **P0 #1–4** (MP authority: demolish/upgrade owner
+> checks, setActivePlayer inbound reject, owner-gated pause/resume/speed), **P1 #5**
+> (villager owner filter), **P2 #10–13** (tier wall-spam exclusion, direction-aware
+> tier message, defensive-building safety coverage, keepPresent isKeep), and **P3
+> #15–19** (server-client error handling + queue cap, dead inputBuffer removed,
+> localPlayer find-only, bot anchor spread, dead constant). All Citadel workspaces
+> typecheck clean; tests green; headless scenarios byte-identical before/after.
+> **DEFERRED:** P3 #14 → folded into the siege-variance gameplay todo (makes siege
+> consume the dead fork). P1 #6/#7/#8/#9 (social-layer consume, RunRegistry parity,
+> windowed-bake per-frame wire, MP render entities) need live-MP / real-GPU
+> verification — carry forward. See log.md 2026-06-26.
 
 **Method.** Read-only review (2026-06-19) of `@citadel/sim-core`, `@citadel/client`,
 `@citadel/server` against the [APR](../briefs/citadel-apr.md) and the

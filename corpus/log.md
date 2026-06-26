@@ -4,6 +4,49 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-26] fix | Citadel-38 audit — P0 MP-authority + P1#5 + P2 balance + P3 cleanup
+
+Worked the [citadel-38 implementation-review todo](todos/closed/2026-06-19-citadel-38-implementation-review-problems.md)
+(P0 + P1#5 + P2 + P3), per user mandate. Branch `fix/citadel-38-audit` → main.
+
+**P0 — MP authority (server-authoritative griefing):**
+- #1/#2 `demolish`/`upgradeBuilding` now reject unless `b.ownerId === localPlayer(state).id`
+  — closes "any peer razes any city / drains a rival's stockpiles." [sim-bootstrap.ts].
+- #3 host rejects an inbound `command` whose type is `setActivePlayer` (server-internal
+  routing marker must not be client-forgeable). [sim-host.ts].
+- #4 added a room **owner** (first non-bot peer) and gated `pause`/`resume`/`speed` to
+  it; owner re-promotes on detach. [sim-host.ts].
+
+**P1#5 (MP correctness, solo no-op):** VillagerSystem `assign()` + `firstStore()` now
+filter by `ownerId === v.ownerId` — villagers only staff/haul to their own buildings.
+
+**P2 (single-player-visible balance):**
+- #10 tier count excludes wall/gate (not just road) — wall-spam can no longer reach
+  Citadel/Fortress tier. [tiers.ts].
+- #11 direction-aware tier message ("fallen from" on demotion, not "risen"). [tiers.ts].
+- #12 tower/garrison/keep/town-hall now feed `safetyCoverage` (their `SERVICE_RADII`
+  were dead data) via a `SAFETY_PROVIDERS` set. [needs-happiness.ts].
+- #13 snapshot `keepPresent` tests the production def's `isKeep`, not the literal
+  `"keep"` type, so MP's `town-hall` anchor registers. [sim-bootstrap.ts].
+
+**P3 (cleanup/robustness):** #15 `CitadelServerClient` onerror/onclose + `onDisconnect`
++ queue cap (256). #16 removed dead `BuildingRuntimeState.inputBuffer` (write-once,
+3 sites). #17 `localPlayer()` is `find()`-only (no index fast-path). #18 bot anchors
+spread over a √-grid keyed by playerId (no collision >4 bots). #19 removed dead
+`DEFAULT_TICKS_PER_DAY` + its `void` keep-alive.
+
+**Deferred:** P3#14 (siege dead-fork determinism trap) → resolved naturally by the
+siege-variance gameplay todo (which makes siege *consume* the fork). P1#6/#7/#8/#9
+(social-layer consume, RunRegistry, windowed-bake wire, MP render entities) need
+live-MP / real-GPU verification — out of this pass per mandate.
+
+**Verified:** all 4 Citadel workspaces typecheck clean; tests green (sim-core 137,
+client 187, server 5). Headless `SCENARIO=grow|siege|sack|starve` (SEED=1, 40d)
+**byte-identical** before/after — even the sim-touching P2#12/#10 + P1#5 changes
+produce no behavior change in the standard scenarios (solo single-owner + scripted
+layouts don't trip the new paths); P2#12 is latent capability, not a baseline move.
+Same-seed re-run reproducible.
+
 ## [2026-06-26] perf | Engine GC-churn hygiene — prealloc WebGPU draw scratch + double-buffer CommandQueue
 
 Closed two engine perf todos (`engine-prealloc-webgpu-draw-uniforms`,

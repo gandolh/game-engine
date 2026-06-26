@@ -18,8 +18,6 @@ let tick = 0;
 // (so we only re-bake/re-snapshot when something actually changed).
 let commandsPending = false;
 
-const DEFAULT_TICKS_PER_DAY = 20;
-
 let simResult: ReturnType<typeof bootstrapSim> | null = null;
 
 function startLoop(): void {
@@ -120,5 +118,3 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     }
   }
 };
-
-void DEFAULT_TICKS_PER_DAY;

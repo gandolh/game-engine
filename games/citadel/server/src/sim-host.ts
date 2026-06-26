@@ -47,6 +47,9 @@ export class CitadelSimHost {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private nextPlayerId = 0;
   private readonly bots: CitadelBot[] = [];
+  // citadel-38 P0#4: the room owner (first human peer) is the only one allowed to
+  // pause/resume/change speed. Farm's RunRegistry has the same owner concept.
+  private owner: Peer | null = null;
 
   constructor(private readonly opts: CitadelSimHostOptions = {}) {}
 
@@ -57,7 +60,7 @@ export class CitadelSimHost {
    * dropped (a bot doesn't render).
    */
   addBot(seed: number): void {
-    const peer = this.attach(() => {});
+    const peer = this.attach(() => {}, true);
     this.bots.push(new CitadelBot(this, peer, seed));
   }
 
@@ -67,10 +70,12 @@ export class CitadelSimHost {
   }
 
   /** Attach a peer; assigns it a stable player id (first peer = player 0). */
-  attach(send: SendFn): Peer {
+  attach(send: SendFn, isBot = false): Peer {
     const playerId = this.nextPlayerId++;
     const peer: Peer = { send, playerId };
     this.peers.add(peer);
+    // citadel-38 P0#4: first non-bot peer becomes the room owner (control authority).
+    if (this.owner === null && !isBot) this.owner = peer;
     if (this.sim !== null) {
       // Late join into a running room: ensure a PlayerState exists, then snapshot.
       this.ensurePlayer(playerId);
@@ -83,6 +88,12 @@ export class CitadelSimHost {
 
   detach(peer: Peer): void {
     this.peers.delete(peer);
+    // citadel-38 P0#4: if the owner leaves, promote the next remaining peer so the
+    // room doesn't get stuck with no control authority.
+    if (peer === this.owner) {
+      const next = this.peers.values().next();
+      this.owner = next.done ? null : next.value;
+    }
     if (this.peers.size === 0) this.stop();
   }
 
@@ -94,19 +105,28 @@ export class CitadelSimHost {
         return;
       case "command": {
         if (this.sim === null) return;
+        // citadel-38 P0#3: `setActivePlayer` is a server-internal routing marker;
+        // a client must not be able to forge one to impersonate another player.
+        // Reject it at the edge (the server injects its own below).
+        if (msg.command.type === "setActivePlayer") return;
         // Multi-writer: route this peer's command to ITS player, then enqueue.
         // Both go into the one authoritative command stream (logged + replayable).
         this.sim.commands.enqueue({ type: "setActivePlayer", payload: { id: peer.playerId } });
         this.sim.commands.enqueue(msg.command);
         return;
       }
+      // citadel-38 P0#4: control messages mutate the single shared room clock —
+      // only the owner may issue them, else any peer could freeze/fast-forward all.
       case "pause":
+        if (peer !== this.owner) return;
         this.paused = true;
         return;
       case "resume":
+        if (peer !== this.owner) return;
         this.paused = false;
         return;
       case "speed":
+        if (peer !== this.owner) return;
         this.speed = Number.isFinite(msg.multiplier) && msg.multiplier >= 1 ? Math.floor(msg.multiplier) : 1;
         return;
       case "request-save":

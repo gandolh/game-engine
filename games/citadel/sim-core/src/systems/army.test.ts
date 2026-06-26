@@ -19,7 +19,7 @@ function placeTownHall(sim: CitadelSimResult, ownerId: number, x: number, y: num
   const e = sim.world.spawn({ building: { type: "town-hall", x, y, w: 3, h: 3, ownerId } });
   if (e.id !== undefined) {
     sim.state.buildingState.set(e.id, {
-      outputBuffer: 0, inputBuffer: 0, workerCount: 0, connected: false, productionTick: 0, level: 1,
+      outputBuffer: 0, workerCount: 0, connected: false, productionTick: 0, level: 1,
     });
   }
   const p = sim.state.players.find((q) => q.id === ownerId)!;

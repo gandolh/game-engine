@@ -9,6 +9,19 @@ import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
 import { SERVICE_RADII } from "../entities/building";
 
+/**
+ * Building types that project a safety footprint (lower fear → higher happiness).
+ * watchpost is the dedicated safety building; the fortifications also count
+ * (citadel-38 P2#12 — their SERVICE_RADII were previously dead data).
+ */
+const SAFETY_PROVIDERS: ReadonlySet<string> = new Set([
+  "watchpost",
+  "tower",
+  "garrison",
+  "keep",
+  "town-hall",
+]);
+
 export class NeedsHappinessSystem implements System {
   readonly name = "NeedsHappinessSystem";
 
@@ -52,7 +65,11 @@ export class NeedsHappinessSystem implements System {
         houses.push({ cx, cy });
       } else if (b.type === "chapel") {
         chapels.push({ cx, cy, radius });
-      } else if (b.type === "watchpost") {
+      } else if (SAFETY_PROVIDERS.has(b.type)) {
+        // citadel-38 P2#12: tower/garrison/keep/town-hall had SERVICE_RADII entries
+        // (and a comment promising a "safety footprint") that fed nothing — only
+        // watchpost provided coverage. Treat all defensive buildings as safety
+        // providers so building a tower/garrison actually lowers fear.
         watchposts.push({ cx, cy, radius });
       } else if (b.type === "market") {
         markets.push({ cx, cy, radius });
