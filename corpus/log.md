@@ -4,6 +4,39 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-26] art | Citadel units + terrain grounding/value pass (follow-up to the building grounding)
+
+Extended the building grounding pass (same iso-art research) to **units** and
+**terrain** — the two surfaces left flat after the building work.
+
+**Units** ([units.ts](../games/citadel/client/src/render/sprites/recipes/units.ts)):
+diagnosed by rendering each figure under simulated runtime multiply-tints (orange
+villager / red raider / blue pedestrian). Both gaps were the building gaps: figures
+floated, and the body was ~one value (flat after tint). Fixes:
+- **`footShadow`** — a flattened, feathered ground ellipse in the darkest ramp chars
+  (`#`/`S`), drawn first so the body overpaints it; under any multiply-tint it stays
+  the darkest pixels → reads as a colored ground shadow (dark-orange under an orange
+  villager, etc.). Sized per figure (villager 7, raider 9, pedestrian 4).
+- **Deeper 3-value body ramp** (lit-left `v`/`l` → mid `l` → shaded-right `S`/`#`) on
+  head/torso/arms/legs of villager + raider, so the tint reads as rounded volume
+  instead of a paper cut-out. Dims unchanged (32×32 / 16×16 — recipe guard holds).
+
+**Terrain** ([terrain-dither.ts](../games/citadel/client/src/render/terrain-dither.ts)):
+the base diamond was one flat color per type with sparse specks. Added
+**`elevationFill`** — the base fill is now banded by the existing coarse
+`elevationField`: deep valleys take the type's DARK accent, high ground the LIGHT
+accent, the broad middle the base hue (conservative thresholds: <0.30 dark, >0.74
+light). The bands share the dither's elevation source, so they form coherent
+contiguous hills and the specks agree. Grass/forest/stone/rough now read as gently
+rolling land, not flat planes (eyeballed a rasterized iso patch). Water is left to
+its own shimmer. Fully EDG32 — every band is a `DITHER_ACCENTS`/`TERRAIN_COLORS`
+swatch.
+
+Verified: `@citadel/client` typecheck + **191** tests green (+3 new `elevationFill`
+tests: deterministic, on-palette, bands grass, leaves water flat); EDG32 palette
+guard green; render-only/determinism untouched. Branch `art/citadel-units-terrain`
+→ main. (See the building grounding entry below for the shared rationale + sources.)
+
 ## [2026-06-26] art | Citadel iso building grounding pass — contact shadows + AO seams + roof value separation
 
 Researched iso pixel-art art direction (SLYNYRD Pixelblog 41/54, PixelParmesan

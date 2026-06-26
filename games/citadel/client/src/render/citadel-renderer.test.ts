@@ -45,6 +45,7 @@ import {
   ditherAccents,
   DITHER_ACCENTS,
   elevationField,
+  elevationFill,
   ELEVATION_SCALE,
   type QuadSpec,
   wearFactor,
@@ -542,6 +543,39 @@ describe("ditherClusters", () => {
           expect(c.y + c.size).toBeLessThanOrEqual(TILE_SIZE);
         }
       }
+    }
+  });
+});
+
+describe("elevationFill (elevation-banded base diamond fill)", () => {
+  const allTypes: TerrainType[] = [
+    TerrainType.Grass, TerrainType.Water, TerrainType.Forest, TerrainType.Stone, TerrainType.Rough,
+  ];
+
+  it("is deterministic and always an EDG swatch", () => {
+    for (const t of allTypes) {
+      for (let i = 0; i < 60; i++) {
+        const a = elevationFill(t, i, i * 2);
+        expect(elevationFill(t, i, i * 2)).toBe(a); // deterministic
+        expect(EDG_HEXES.has(a.toLowerCase())).toBe(true); // on-palette
+      }
+    }
+  });
+
+  it("bands grass by elevation: valleys dark, highs light, middle base", () => {
+    // Sweep a grid; assert all three bands appear (dark/base/light) for grass.
+    const seen = new Set<string>();
+    for (let ty = 0; ty < 40; ty++) for (let tx = 0; tx < 40; tx++) {
+      seen.add(elevationFill(TerrainType.Grass, tx, ty));
+    }
+    expect(seen.has(DITHER_ACCENTS[TerrainType.Grass].dark)).toBe(true);
+    expect(seen.has(DITHER_ACCENTS[TerrainType.Grass].light)).toBe(true);
+    expect(seen.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it("leaves water unbanded (its own shimmer handles it)", () => {
+    for (let i = 0; i < 30; i++) {
+      expect(elevationFill(TerrainType.Water, i, i)).toBe(TERRAIN_COLORS[TerrainType.Water]);
     }
   });
 });

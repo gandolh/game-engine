@@ -12,51 +12,80 @@ import type { PixelRecipe } from "../types";
 
 const SIZE = 32;
 
-/** A standing villager — tunic, head, arms, legs, feet, with simple shading. */
+/**
+ * A flattened ground CONTACT SHADOW ellipse centred at the figure's feet — the
+ * same anchoring move the buildings got (2026-06-26 grounding pass). Drawn in the
+ * darkest ramp chars (`#`/`S`) so that under any per-instance multiply-tint it
+ * stays the darkest pixels and reads as shadow, not body. `footY` is the row the
+ * feet stand on; `rx` the ellipse half-width.
+ */
+function footShadow(g: Grid, cx: number, footY: number, rx: number): void {
+  const ry = Math.max(1, Math.round(rx * 0.45));
+  for (let dy = -ry; dy <= ry; dy++) {
+    for (let dx = -rx; dx <= rx; dx++) {
+      if ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) > 1) continue;
+      // Soft rim: outer ring dithers out so it doesn't read as a hard disc.
+      const edge = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) > 0.55;
+      if (edge && ((cx + dx + footY + dy) & 1)) continue;
+      g.set(cx + dx, footY + dy, edge ? "S" : "#");
+    }
+  }
+}
+
+/** A standing villager — tunic, head, arms, legs, feet, with deeper 3-value
+ *  shading (lit-left `v`, mid `l`, shaded-right `S`) so the multiply-tint reads
+ *  as volume, on a ground contact shadow. */
 function villager(): PixelRecipe {
   const g = new Grid(SIZE, SIZE);
   const cx = 16;
-  // Head (6 wide), with a lit left and shaded right.
-  g.fillRect(cx - 3, 4, 6, 6, "v");
-  g.vLine(cx - 3, 4, 6, "l");
-  g.vLine(cx + 2, 4, 6, "S");
+  footShadow(g, cx, 30, 7); // ground anchor (drawn first; body paints over)
+  // Head (6 wide): lit left, mid centre, shaded right.
+  g.fillRect(cx - 3, 4, 6, 6, "l");
+  g.vLine(cx - 3, 4, 6, "v"); // lit highlight edge
+  g.vLine(cx + 1, 4, 6, "S");
+  g.vLine(cx + 2, 4, 6, "#"); // shaded right edge
   g.set(cx - 1, 7, "#"); // eye
   g.set(cx + 1, 7, "#");
-  // Torso / tunic (10 tall).
-  g.fillRect(cx - 4, 11, 8, 10, "v");
-  g.vLine(cx - 4, 11, 10, "l"); // lit left
-  g.vLine(cx + 3, 11, 10, "#"); // shaded right
+  // Torso / tunic (10 tall): three vertical value bands → reads round when tinted.
+  g.fillRect(cx - 4, 11, 8, 10, "l");   // mid base
+  g.vLine(cx - 4, 11, 10, "v");          // lit left highlight
+  g.vLine(cx - 3, 11, 10, "v");
+  g.vLine(cx + 2, 11, 10, "S");          // shaded
+  g.vLine(cx + 3, 11, 10, "#");          // shaded-right edge
   g.hLine(cx - 4, 16, 8, "S"); // belt
-  // Arms.
-  g.fillRect(cx - 6, 12, 2, 7, "v"); g.vLine(cx - 6, 12, 7, "l");
-  g.fillRect(cx + 4, 12, 2, 7, "v"); g.vLine(cx + 5, 12, 7, "#");
+  // Arms (lit left / shaded right).
+  g.fillRect(cx - 6, 12, 2, 7, "l"); g.vLine(cx - 6, 12, 7, "v");
+  g.fillRect(cx + 4, 12, 2, 7, "S"); g.vLine(cx + 5, 12, 7, "#");
   // Legs + feet.
-  g.fillRect(cx - 3, 21, 2, 8, "v");
-  g.fillRect(cx + 1, 21, 2, 8, "v");
+  g.fillRect(cx - 3, 21, 2, 8, "l"); g.vLine(cx - 3, 21, 8, "v");
+  g.fillRect(cx + 1, 21, 2, 8, "S"); g.vLine(cx + 2, 21, 8, "#");
   g.hLine(cx - 4, 29, 3, "#");
   g.hLine(cx + 1, 29, 3, "#");
   return g.toRecipe("vil/person");
 }
 
-/** A bulkier horned raider hefting an axe. */
+/** A bulkier horned raider hefting an axe — deeper 3-value body shading + a
+ *  ground contact shadow (wider than the villager's, it's a bulkier figure). */
 function raider(): PixelRecipe {
   const g = new Grid(SIZE, SIZE);
   const cx = 16;
-  // Horned helmet.
-  g.fillRect(cx - 4, 4, 8, 6, "v");
-  g.vLine(cx - 4, 4, 6, "l");
+  footShadow(g, cx, 30, 9); // wider anchor for the bulkier raider
+  // Horned helmet (lit/mid/shaded).
+  g.fillRect(cx - 4, 4, 8, 6, "l");
+  g.vLine(cx - 4, 4, 6, "v");
+  g.vLine(cx + 2, 4, 6, "S");
   g.vLine(cx + 3, 4, 6, "#");
   g.set(cx - 6, 2, "l"); g.set(cx - 5, 3, "l"); // left horn
   g.set(cx + 5, 2, "l"); g.set(cx + 4, 3, "l"); // right horn
   g.hLine(cx - 3, 8, 6, "#"); // visor
-  // Broad torso.
-  g.fillRect(cx - 6, 11, 12, 10, "v");
-  g.vLine(cx - 6, 11, 10, "l");
-  g.vLine(cx + 5, 11, 10, "#");
+  // Broad torso: three value bands so the bulk reads round when tinted.
+  g.fillRect(cx - 6, 11, 12, 10, "l");
+  g.vLine(cx - 6, 11, 10, "v"); g.vLine(cx - 5, 11, 10, "v");
+  g.vLine(cx + 4, 11, 10, "S"); g.vLine(cx + 5, 11, 10, "#");
   g.hLine(cx - 6, 17, 12, "#"); // belt
-  // Legs + feet.
-  g.fillRect(cx - 4, 21, 3, 8, "v");
-  g.fillRect(cx + 1, 21, 3, 8, "v");
+  // Legs + feet (lit/shaded).
+  g.fillRect(cx - 4, 21, 3, 8, "l"); g.vLine(cx - 4, 21, 8, "v");
+  g.fillRect(cx + 1, 21, 3, 8, "S"); g.vLine(cx + 3, 21, 8, "#");
   g.hLine(cx - 5, 29, 4, "#");
   g.hLine(cx + 1, 29, 4, "#");
   // Axe: haft down the right, blade up top.
@@ -78,6 +107,7 @@ function raider(): PixelRecipe {
 function pedestrian(): PixelRecipe {
   const g = new Grid(16, 16);
   const cx = 8;
+  footShadow(g, cx, 15, 4); // small ground anchor for the background commoner
   // Head (4 wide) — skin, with a 1px darker shaded right edge.
   g.fillRect(cx - 2, 2, 4, 4, "k");
   g.vLine(cx + 1, 2, 4, "K"); // shaded right of face
