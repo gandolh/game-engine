@@ -16,6 +16,11 @@ import type { TerrainGrid } from "../world/terrain";
 
 const EDGE_NAMES = ["north", "east", "south", "west"] as const;
 
+/** A scout (watchpost/garrison owner) reveals an incoming raid this many days early. */
+const SCOUT_LEAD_DAYS = 2;
+/** Each active garrison stretches the next-raid interval by this many days (patrols deter). */
+const GARRISON_DETER_DAYS = 1;
+
 /**
  * Raider walkability: any terrain-walkable, non-wall tile. Gates are passable.
  * Citadel 28: blocked by the TARGET player `p`'s walls (raiders besiege one
@@ -131,6 +136,25 @@ export class RaidSpawnSystem implements System {
         p.nextRaidTick = 5 * state.ticksPerDay + rng.int(0, state.ticksPerDay);
       }
 
+      // Counterplay (scout): if this player has a watchpost or garrison, the next
+      // raid is revealed SCOUT_LEAD_DAYS early — a legible warning the player can
+      // act on (build/repair defenses, which decays raider morale). Fire once.
+      const scoutLead = SCOUT_LEAD_DAYS * state.ticksPerDay;
+      if (
+        !p.scoutWarned &&
+        p.nextRaidTick >= 0 &&
+        ctx.tick >= p.nextRaidTick - scoutLead &&
+        ctx.tick < p.nextRaidTick &&
+        this.hasScout(p)
+      ) {
+        const incoming = 10 + p.raidCount * 5; // strength of the raid about to spawn
+        pushEvent(
+          state,
+          `Day ${state.day + 1}: Scouts report raiders massing — strength ~${incoming} in ~${SCOUT_LEAD_DAYS} days.`,
+        );
+        p.scoutWarned = true;
+      }
+
       if (ctx.tick < p.nextRaidTick) continue;
 
       // Spawn a raid.
@@ -164,14 +188,41 @@ export class RaidSpawnSystem implements System {
       p.threatLevel = Math.min(100, p.threatLevel + 15);
 
       // Schedule next raid: base interval 8 days, shrinking 0.5 days per raid, min 3.
-      const intervalDays = Math.max(3, 8 - (raidNum - 1) * 0.5);
+      let intervalDays = Math.max(3, 8 - (raidNum - 1) * 0.5);
+      // Threat consequence: high threat shortens the interval (a visible escalation
+      // the player races to defuse) — up to −3 days at threat 100.
+      intervalDays -= (p.threatLevel / 100) * 3;
+      // Garrison purpose: each active garrison deters, stretching the interval.
+      intervalDays += this.garrisonCount(p) * GARRISON_DETER_DAYS;
+      intervalDays = Math.max(2, intervalDays);
       const intervalTicks = Math.floor(intervalDays * state.ticksPerDay);
       p.nextRaidTick = ctx.tick + intervalTicks + rng.int(0, state.ticksPerDay);
+      p.scoutWarned = false; // re-arm the scout for the next raid
 
       pushEvent(
         state,
         `Day ${state.day + 1}: Raid ${raidNum} spotted! Strength ${strength}. Raiders approach from the ${EDGE_NAMES[edge]!}.`,
       );
     }
+  }
+
+  /** True if player `p` owns a watchpost or garrison (can scout incoming raids). */
+  private hasScout(p: PlayerState): boolean {
+    for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      const t = entity.building.type;
+      if (t === "watchpost" || t === "garrison") return true;
+    }
+    return false;
+  }
+
+  /** Count of player `p`'s garrison buildings (deters → fewer raids). */
+  private garrisonCount(p: PlayerState): number {
+    let n = 0;
+    for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      if (entity.building.type === "garrison") n++;
+    }
+    return n;
   }
 }

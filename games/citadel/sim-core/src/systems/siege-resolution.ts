@@ -15,6 +15,10 @@ import type { System, SimContext, Rng } from "@engine/core";
 import type { SimState, RaiderState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import { getProductionDef, effectiveDefenseStrength } from "../entities/building";
+import { igniteBuildingById, FIRE_WOODEN_TYPES } from "./fire-system";
+
+/** Chance a damaging/sacking raid sets a surviving wooden building ablaze. */
+const RAID_IGNITE_CHANCE = 0.4;
 
 type SiegeResult = "repelled" | "damage" | "sacked";
 
@@ -68,17 +72,73 @@ export function computeDefensiveStrength(state: SimState, p: PlayerState): numbe
   // called to man the walls, adding a modest defense term (so it complements
   // towers/walls rather than replacing them). Production pauses in return
   // (see production.ts). Deterministic: pure integer arithmetic on population.
+  // Interlock: a disease outbreak makes sick conscripts desert — the conscription
+  // term is scaled down by the sick fraction of the population.
   if (p.activeDecrees.has("conscription") && p.raiders.length > 0) {
-    total += Math.floor(p.population * CONSCRIPTION_DEFENSE_FACTOR);
+    let conscripts = Math.floor(p.population * CONSCRIPTION_DEFENSE_FACTOR);
+    if (p.outbreakActive && p.population > 0) {
+      const sickFrac = Math.min(1, p.sickVillagers / p.population);
+      conscripts = Math.floor(conscripts * (1 - sickFrac));
+    }
+    total += conscripts;
+  }
+
+  // Threat consequence (defense pressure): under high threat the garrison drills
+  // and walls are manned — defensive buildings gain a small effectiveness bonus
+  // (up to +20% at threat 100), so rising threat both pressures AND rewards the
+  // defender who invested early. Floor so the HUD number stays integer-stable.
+  if (p.threatLevel > 0 && total > 0) {
+    total = Math.floor(total * (1 + (p.threatLevel / 100) * 0.2));
   }
 
   return total;
 }
 
-export function resolveSiege(raidStrength: number, defenseStrength: number, _rng: Rng): SiegeResult {
-  if (defenseStrength >= raidStrength * 1.5) return "repelled";
-  if (defenseStrength >= raidStrength * 0.5) return "damage";
-  return "sacked";
+/**
+ * Resolve a siege as SEEDED probability bands (citadel siege-variance todo +
+ * resolves the citadel-38 P3#14 dead-fork trap — the fork is now consumed).
+ *
+ * The defense:strength ratio picks a band; within the band we roll the seeded
+ * `rng` so a player AT a threshold gets real variance (clutch defenses / unlucky
+ * breaches) instead of a guaranteed fixed result. `morale` (0..100, default 100)
+ * shifts the odds toward the defender as it falls — a besieging force that lost
+ * its nerve (player repaired defenses mid-march) is likelier to be repelled.
+ *
+ * Fully deterministic: same seed + same inputs → same result.
+ */
+export function resolveSiege(
+  raidStrength: number,
+  defenseStrength: number,
+  rng: Rng,
+  morale = 100,
+): SiegeResult {
+  const ratio = defenseStrength / Math.max(1, raidStrength);
+  // Morale below 100 nudges every outcome toward the defender (up to +0.25 repel).
+  const moraleBonus = (100 - clamp(morale, 0, 100)) / 100 * 0.25;
+  const roll = rng.nextFloat(); // single seeded draw — the fork is now load-bearing.
+
+  // High defense (ratio ≥ 1.5): mostly repel.
+  if (ratio >= 1.5) {
+    return roll < 0.9 + moraleBonus * 0.4 ? "repelled" : "damage";
+  }
+  // Solid defense (ratio ≥ 1.0): repel-leaning, some damage.
+  if (ratio >= 1.0) {
+    const pRepel = 0.55 + moraleBonus;
+    return roll < pRepel ? "repelled" : "damage";
+  }
+  // Mid defense (ratio ≥ 0.5): mostly damage, a chance to repel, a chance to fall.
+  if (ratio >= 0.5) {
+    const pRepel = 0.2 + moraleBonus;
+    if (roll < pRepel) return "repelled";
+    return roll < 0.9 ? "damage" : "sacked";
+  }
+  // Weak defense (ratio < 0.5): mostly sacked, but morale can still save the day.
+  const pSaved = 0.15 + moraleBonus; // damage instead of sacked
+  return roll < pSaved ? "damage" : "sacked";
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
 }
 
 /** True if the raider is on or orthogonally adjacent to player `p`'s keep footprint. */
@@ -172,6 +232,24 @@ function applyRaidDamage(state: SimState, p: PlayerState, raidStrength: number, 
   const popLoss = 1 + rng.int(0, 2);
   p.population = Math.max(0, p.population - popLoss);
   p.happiness = Math.max(0, p.happiness - 8);
+
+  // Interlock (siege→fire): a raid can set a surviving wooden building ablaze, so
+  // wells/firebreaks become tactical against raids, not just accidental fires.
+  if (rng.nextFloat() < RAID_IGNITE_CHANCE) {
+    const woodCandidates: Array<{ id: number; type: string }> = [];
+    for (const entity of state.buildingWorld.query("building")) {
+      if (entity.id === undefined || entity.building.ownerId !== p.id) continue;
+      if (!FIRE_WOODEN_TYPES.has(entity.building.type)) continue;
+      const fs = p.fireState.get(entity.id);
+      if (fs?.burning === true || fs?.destroyed === true) continue;
+      woodCandidates.push({ id: entity.id, type: entity.building.type });
+    }
+    if (woodCandidates.length > 0) {
+      const pick = woodCandidates[rng.int(0, woodCandidates.length)]!;
+      igniteBuildingById(state, p, pick.id, pick.type);
+    }
+  }
+
   state.connectivityDirty = true;
 }
 
@@ -195,6 +273,17 @@ export class SiegeResolutionSystem implements System {
         const raider = p.raiders[i]!;
         if (raider.resolved) { toRemove.push(i); continue; }
 
+        // Siege-variance: morale decays while the player strengthens defenses
+        // mid-march (besiegers lose nerve). Each point of defense gained since the
+        // raider last "saw" the wall costs 2 morale; defense decay does not raise it.
+        if (raider.morale === undefined) raider.morale = 100;
+        if (raider.defenseAtSpawn === undefined) raider.defenseAtSpawn = p.defensiveStrength;
+        const gained = p.defensiveStrength - raider.defenseAtSpawn;
+        if (gained > 0) {
+          raider.morale = Math.max(0, raider.morale - gained * 2);
+          raider.defenseAtSpawn = p.defensiveStrength; // re-anchor so it's not double-counted
+        }
+
         const atKeep = isAtKeep(raider, state, p);
         const atDefense = isAtDefense(raider, state, p);
 
@@ -211,7 +300,8 @@ export class SiegeResolutionSystem implements System {
         const result = resolveSiege(
           raider.strength,
           p.defensiveStrength,
-          state.rng.fork(`siege-${raider.id}`),
+          state.rng.fork(`siege-${p.id}-${raider.id}`),
+          raider.morale,
         );
         raider.resolved = true;
 

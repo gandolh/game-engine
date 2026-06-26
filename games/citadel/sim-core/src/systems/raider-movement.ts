@@ -8,11 +8,15 @@
  * waits in place.
  */
 import type { System, SimContext } from "@engine/core";
-import type { SimState } from "../sim-state";
+import type { SimState, PlayerState } from "../sim-state";
+import { pushEvent } from "../sim-state";
 import type { TerrainGrid } from "../world/terrain";
+import { SERVICE_RADII } from "../entities/building";
 import { computeRaiderPath, findRaiderTarget } from "./raid-spawn";
 
 const MOVE_INTERVAL = 3; // one tile every 3 ticks
+/** Fraction of strength a garrison sortie shaves off an intercepted raider. */
+const INTERCEPT_SHAVE = 0.25;
 
 export class RaiderMovementSystem implements System {
   readonly name = "RaiderMovementSystem";
@@ -25,8 +29,29 @@ export class RaiderMovementSystem implements System {
     // Citadel 28: per-player raiders, marching on their target player's keep
     // through that player's walls. Stable player-id order.
     for (const p of this.state.players) {
+      // Pre-collect this player's garrison sortie points (centre + radius).
+      const garrisons = this.garrisonsOf(p);
       for (const raider of p.raiders) {
         if (raider.resolved) continue;
+
+        // Counterplay: a garrison whose coverage includes the raider's tile sends
+        // interceptors that shave raider strength — once per raider (a sortie).
+        // Siting a garrison on the likely approach is now a real decision.
+        if (garrisons.length > 0 && raider.intercepted !== true) {
+          for (const g of garrisons) {
+            const d = Math.abs(raider.tileX - g.cx) + Math.abs(raider.tileY - g.cy);
+            if (d <= g.radius) {
+              const shave = Math.max(1, Math.round(raider.strength * INTERCEPT_SHAVE));
+              raider.strength = Math.max(1, raider.strength - shave);
+              raider.intercepted = true;
+              pushEvent(
+                this.state,
+                `Day ${this.state.day + 1}: Garrison interceptors harried Raid ${raider.id} (strength −${shave}).`,
+              );
+              break;
+            }
+          }
+        }
 
         if (raider.pathStep < raider.path.length) {
           const next = raider.path[raider.pathStep]!;
@@ -55,5 +80,21 @@ export class RaiderMovementSystem implements System {
         }
       }
     }
+  }
+
+  /** Player `p`'s garrison sortie points (footprint centre + service radius). */
+  private garrisonsOf(p: PlayerState): Array<{ cx: number; cy: number; radius: number }> {
+    const out: Array<{ cx: number; cy: number; radius: number }> = [];
+    for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      if (entity.building.type !== "garrison") continue;
+      const b = entity.building;
+      out.push({
+        cx: b.x + Math.floor(b.w / 2),
+        cy: b.y + Math.floor(b.h / 2),
+        radius: SERVICE_RADII["garrison"] ?? 8,
+      });
+    }
+    return out;
   }
 }

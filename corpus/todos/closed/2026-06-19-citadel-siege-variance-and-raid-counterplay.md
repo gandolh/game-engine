@@ -1,11 +1,18 @@
 ---
 title: "Citadel — make the raid/siege loop interactive (siege variance + counterplay + garrison purpose)"
 created: 2026-06-19
-status: open
+status: done
 tags: [citadel, sim, gameplay, combat]
 ---
 
 # Citadel — make the raid/siege loop interactive
+
+> **DONE (2026-06-26).** Siege resolves via seeded probability bands (consumes the
+> fork → also fixes citadel-38 P3#14) + per-raider morale that decays when the player
+> repairs defenses mid-march. Scout (watchpost/garrison) reveals incoming strength ~2
+> days early; garrison interceptors shave 25% off covered raiders. Garrison now has
+> pre-raid value (deters raid cadence + safety radius). Deterministic, reproducible
+> across seeds. See log.md 2026-06-26.
 
 The raid → siege loop is currently "build walls, then wait and pray." Three coupled
 gaps remove player agency from the game's main tension source. Address them together

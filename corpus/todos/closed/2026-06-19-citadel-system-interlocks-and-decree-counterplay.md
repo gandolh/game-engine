@@ -1,11 +1,19 @@
 ---
 title: "Citadel — interlock hazards/economy + give decrees counterplay"
 created: 2026-06-19
-status: open
+status: done
 tags: [citadel, sim, gameplay, economy]
 ---
 
 # Citadel — interlock hazards/economy + give decrees counterplay
+
+> **DONE (2026-06-26).** Hazard interlocks: raid→fire ignition (wells/firebreaks now
+> tactical vs raids), disease→conscription desertion, burning→adjacent output
+> suppression. Decree counterplay: one-shot festival (costs bread, +happiness) +
+> stacking penalty for panic-stacking strain decrees (silent auto-expiry tried &
+> dropped — broke a standing-decree contract). Trader offers now scarcity-dynamic
+> (give surplus, receive scarce, gap-scaled rate). Deterministic across seeds. See
+> log.md 2026-06-26.
 
 Citadel's threat/economy systems run as parallel independent dials with few
 interlocks, and decrees are one-way happiness debt with no repayment. Sim depth comes

@@ -4,6 +4,64 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-26] feat | Citadel gameplay depth — siege variance + threat consequence + interlocks + decree counterplay (full menu)
+
+Closed three coupled gameplay todos (full-menu scope, user mandate) on branch
+`feat/citadel-gameplay-depth` → main:
+[siege-variance-and-raid-counterplay](todos/closed/2026-06-19-citadel-siege-variance-and-raid-counterplay.md),
+[threat-mechanical-consequence](todos/closed/2026-06-19-citadel-threat-mechanical-consequence.md),
+[system-interlocks-and-decree-counterplay](todos/closed/2026-06-19-citadel-system-interlocks-and-decree-counterplay.md).
+
+**Siege variance** ([siege-resolution.ts](../games/citadel/sim-core/src/systems/siege-resolution.ts)):
+`resolveSiege` now *consumes* its seeded fork into probability bands (ratio ≥1.5 →
+~90% repel; 1.0 → 55% repel; 0.5 → mostly damage w/ a tail to sacked; <0.5 → mostly
+sacked) — **this also resolves citadel-38 P3#14** (the dead fork is now load-bearing
+*and* read). Per-raider `morale` (0..100) decays when the player strengthens defense
+mid-march and biases the roll toward the defender. Fork label keyed `siege-${p.id}-${id}`.
+
+**Raid counterplay** ([raider-movement.ts](../games/citadel/sim-core/src/systems/raider-movement.ts),
+[raid-spawn.ts](../games/citadel/sim-core/src/systems/raid-spawn.ts)): a **scout**
+(watchpost/garrison) reveals the next raid's strength ~2 days early; **garrison
+interceptors** shave 25% off a raider whose tile falls in garrison coverage (once
+per raider, `intercepted` flag).
+
+**Threat consequence**: threat now drives (a) **raid cadence** — higher threat
+shortens the next-raid interval (−3 days at 100); (b) **decree gating** — conscription
+is blocked unless a raid is active or threat ≥ 40 (emergency lever); (c) **defense
+pressure** — defensive strength gets +0..20% scaled by threat.
+
+**Garrison purpose**: each active garrison stretches the raid interval (+1 day,
+patrols deter) and provides a safety radius (via the citadel-38 P2#12 SAFETY_PROVIDERS
+set) — so siting it early is a real decision.
+
+**Interlocks** ([fire-system.ts](../games/citadel/sim-core/src/systems/fire-system.ts)):
+raid `applyRaidDamage` can **ignite** a surviving wooden building (40%; `igniteBuildingById`
+export — wells/firebreaks now tactical vs raids); **disease** scales down the
+conscription defense term by the sick fraction (sick conscripts desert); a **burning
+building suppresses adjacent** non-burning buildings' output within radius 2.
+
+**Decree counterplay** ([needs-happiness.ts](../games/citadel/sim-core/src/systems/needs-happiness.ts),
+setDecree handler): a one-shot **festival** decree (costs 8 bread, +15 happiness for
+2 days) makes strain a repayable loop; a **stacking penalty** (−3 per strain decree
+beyond the first) punishes panic-stacking. *Silent auto-expiry was tried and dropped*
+— it surprised players who set a standing decree on purpose and broke an existing
+phase3 test's contract; festival + stacking deliver the todo's "strain is no longer
+permanent" without that surprise.
+
+**Trader dynamic pricing** ([trader.ts](../games/citadel/sim-core/src/systems/trader.ts)):
+offers are generated from the player's stockpiles — give your plentiful goods,
+receive your scarce ones, rate sweetening with the surplus→scarcity gap (seeded ±1
+jitter). Replaces the three hardcoded (often strictly-worse) offers.
+
+**Determinism**: all sim-side, every random choice via `state.rng.fork`/`nextFloat`.
+Verified **reproducible** across seeds {1,42,0xc0ffee} × scenarios {grow,siege,sack,
+fire,disease}. Baseline **moved by design** (siege fork relabel + new mechanics) — the
+project contract is same-seed reproducibility, re-proven, not equality to old numbers.
+Tests: sim-core **148** (137 + 11 new [gameplay-depth.test.ts](../games/citadel/sim-core/src/systems/gameplay-depth.test.ts)),
+client 187, server 5 — all green; all 4 workspaces typecheck clean. New PlayerState
+fields: `festivalDaysLeft`, `scoutWarned`; RaiderState: `morale`/`defenseAtSpawn`/
+`scouted`/`intercepted` (optional, back-compat with inline test constructors).
+
 ## [2026-06-26] fix | Citadel-38 audit — P0 MP-authority + P1#5 + P2 balance + P3 cleanup
 
 Worked the [citadel-38 implementation-review todo](todos/closed/2026-06-19-citadel-38-implementation-review-problems.md)
