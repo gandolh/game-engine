@@ -4,6 +4,34 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-26] perf | Engine GC-churn hygiene — prealloc WebGPU draw scratch + double-buffer CommandQueue
+
+Closed two engine perf todos (`engine-prealloc-webgpu-draw-uniforms`,
+`engine-reuse-transport-queue-buffers`) → [todos/closed/](todos/closed/).
+
+- **WebGPU draw scratch:** `StaticLayerPass.draw()` and `WaterPass.draw()` each
+  allocated a fresh `Float32Array` (8 / 36 floats) per frame just to `writeBuffer`
+  it. Now a `readonly quadScratch`/`waterScratch` field mutated in place each frame
+  (`writeBuffer` copies synchronously → reuse is safe).
+  [static-layer-pass.ts](../engine/core/src/render/webgpu/static-layer-pass.ts).
+- **CommandQueue double-buffer:** `drain()` did `pending.slice()` per tick (alloc even
+  when empty). Now the same swap-buffer dance as `MessageBus.flush()` — `pending`↔`drained`
+  swap, return the live `readonly` view. Sole consumer `CommandSystem.run()` fully
+  iterates and retains nothing, so the swap is safe; re-entrant `enqueue()` during
+  dispatch correctly defers to next tick (matches old `slice` semantics).
+  [command-queue.ts](../engine/core/src/commands/command-queue.ts).
+- **MessageBus.send() freelist:** deliberately **deferred** per the todo — a
+  `QueuedMessage` freelist is more involved than the array swap and unjustified at
+  current message volume (sim tick ~0.7% of budget). Note the decision; revisit only
+  if a profile shows message churn matters.
+
+Verified: `@engine/core` typecheck clean; 157/157 non-wasm engine tests green (the
+1 `pathfinder.test.ts` failure is a pre-existing missing `dist/pathfinding.wasm`
+artifact on this checkout, not a regression — fails identically on clean main).
+Headless 3-day `EXPORT=json` (SEED=0xc0ffee) **byte-identical** before/after →
+transport change is behavior-preserving. Render parity is by construction (same
+float values uploaded). Branch `perf/engine-prealloc-buffers` → main.
+
 ## [2026-06-21] brief | Citadel building art-style reference filed (todo 96)
 
 Filed [brief 96](briefs/game/todo/96-citadel-building-art-style-reference.md) — a

@@ -129,6 +129,10 @@ export class StaticLayerPass {
   private texBindGroup: GPUBindGroup | null = null;
   private nearestSampler: GPUSampler | null = null;
 
+  // Per-draw uniform scratch, reused every frame (writeBuffer copies synchronously,
+  // so a single field-level array is safe). Avoids per-frame GC churn.
+  private readonly quadScratch = new Float32Array(8);
+
   constructor(ctx: GpuContext) {
     this.ctx = ctx;
   }
@@ -264,7 +268,9 @@ export class StaticLayerPass {
     const dstR = blit.dstL + blit.dstW;
     const dstB = blit.dstT + blit.dstH;
 
-    const data = new Float32Array([srcU0, srcV0, srcU1, srcV1, dstL, dstT, dstR, dstB]);
+    const data = this.quadScratch;
+    data[0] = srcU0; data[1] = srcV0; data[2] = srcU1; data[3] = srcV1;
+    data[4] = dstL;  data[5] = dstT;  data[6] = dstR;  data[7] = dstB;
     this.ctx.device.queue.writeBuffer(this.quadBuf, 0, data);
 
     pass.setPipeline(this.pipeline);
@@ -305,6 +311,9 @@ export class WaterPass {
   private samplerNearest: GPUSampler | null = null;
   private samplerLinear: GPUSampler | null = null;
   private samplerDepth: GPUSampler | null = null;
+
+  // Per-draw uniform scratch, reused every frame (writeBuffer copies synchronously).
+  private readonly waterScratch = new Float32Array(WATER_UNIFORM_FLOATS);
 
   constructor(ctx: GpuContext) {
     this.ctx = ctx;
@@ -509,7 +518,7 @@ export class WaterPass {
     const visH = visB - visT;
     if (visW <= 0 || visH <= 0) return;
 
-    const data = new Float32Array(WATER_UNIFORM_FLOATS);
+    const data = this.waterScratch;
     data[0]  = visL;
     data[1]  = visT;
     data[2]  = visR;

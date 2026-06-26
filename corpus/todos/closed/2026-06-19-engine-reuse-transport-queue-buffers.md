@@ -1,11 +1,17 @@
 ---
 title: "Engine — reuse per-tick transport queue buffers (CommandQueue + MessageBus)"
 created: 2026-06-19
-status: open
+status: done
 tags: [engine, sim, perf]
 ---
 
 # Engine — reuse per-tick transport queue buffers
+
+> **DONE (2026-06-26).** `CommandQueue.drain()` now double-buffers (swap `pending`↔
+> `drained`, return `readonly` view) like `MessageBus.flush()` — zero alloc per tick.
+> Sole consumer `CommandSystem.run()` fully iterates, retains nothing; safe.
+> MessageBus.send() freelist **deferred** (unjustified at current volume — noted).
+> Multi-seed determinism byte-identical; typecheck + tests green. See log.md 2026-06-26.
 
 Two engine transport paths allocate every tick where the [MessageBus](../../engine/core/src/sim/message-bus.ts)
 already shows the zero-alloc swap-buffer pattern to copy. Bring them in line.
