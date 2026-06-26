@@ -62,6 +62,20 @@ fences, market stalls, towers; a cohesive multi-step (not flat) palette.**
     blues (glass, water).
 - **Shading:** ≥3 steps per surface (lit / mid / shadow) — avoid flat fills.
   Selective dark outline around the silhouette + eaves; avoid noisy interior lines.
+  **Roof faces must read as three distinct VALUES** (lit / mid / shadow); never let
+  the shadow side collapse to pure black — use a dark *shade* (`i` ink) instead, per
+  the iso-art "valley corners = darkest-shade-not-black" rule (2026-06-26 grounding
+  pass: `STONE`/`WOOD` `roofDark` moved `#`→`i`).
+- **Ground anchoring + AO (2026-06-26, applies to every `begin()` form):** each
+  building bakes a **contact shadow** — the footprint diamond flattened + pushed
+  SE (opposite the upper-left sun), in `i` ink, drawn FIRST so the body paints over
+  all but the SE sliver, with a dithered/feathered rim so it reads soft not as a bar
+  (`isoContactShadow`). Plus **ambient-occlusion seams**: a 1px shaded band along the
+  wall-top under the roof eave, and a gentle mid-shade seam right of the lit near
+  corner (tall walls only). This is the single biggest legibility lift — buildings
+  read as planted on the terrain, not floating cut-outs. (Reference: SLYNYRD
+  Pixelblog 41/54, PixelParmesan "Fundamentals of Isometric Pixel Art" — a
+  grid-aligned cast shadow + distinct per-face values are the core iso reads.)
 - **Ground + props:** emitters/dwellings get a small dirt apron + a barrel/sack at
   the front base (`isoGroundProps`), like the reference plots.
 - **Per-type FORMS** (builders in

@@ -54,11 +54,14 @@ const PLASTER: IsoPalette = { // cream half-timbered house, terracotta tile roof
   wallL: "c", wallR: "t", wallEdge: "W", outline: "#", door: "W", glass: "B",
 };
 const STONE: IsoPalette = {
-  roof: "i", roofLight: "S", roofDark: "#",
+  // roofDark lifted off pure black to ink (a real dark shade) per the iso-art
+  // "valley corners = darkest-shade, not black" rule — keeps roof faces reading as
+  // three distinct values.
+  roof: "S", roofLight: "l", roofDark: "i",
   wallL: "s", wallR: "S", wallEdge: "l", outline: "#", door: "#", glass: "o",
 };
 const WOOD: IsoPalette = {
-  roof: "d", roofLight: "G", roofDark: "#",
+  roof: "d", roofLight: "G", roofDark: "i",
   wallL: "t", wallR: "w", wallEdge: "c", outline: "#", door: "W", glass: "B",
 };
 const MILL: IsoPalette = { // tower mill: warm tan/cream stone body + clay cap
