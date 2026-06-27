@@ -17,12 +17,39 @@
  *   - Physical hauling is the mechanism; production.ts never writes to
  *     state.stockpiles directly.
  *
+ * STOCKPILE PRESSURE (two-way service loop, 2026-06-27). OpenTTD's defining loop
+ * is that production reacts to whether the output is actually moved: under-served
+ * industries throttle, well-served ones keep flowing. We model the downside half
+ * deterministically (no RNG): a building's local outputBuffer is capped at a few
+ * cycles' worth of output; once it's full (no hauler has drawn it down — i.e. no
+ * road-connected collection), the building STOPS producing that cycle instead of
+ * overflowing an infinite pool. So a chronically unserved building idles, and the
+ * road/hauling quality that empties the buffer is the lever that keeps it running.
+ * A converter still doesn't consume its input when blocked (the `continue` is
+ * before the input draw), so nothing is wasted. Purely a function of buffer state
+ * → determinism is preserved (proven by the byte-identical headless diff).
+ *
  * Stage: "economy" (after connectivity).
  */
 import type { System, SimContext } from "@engine/core";
 import { getProductionDef, effectiveOutputPerCycle } from "../entities/building";
 import type { SimState } from "../sim-state";
 import { getSeason, grainMultiplier } from "../world/seasons";
+
+/**
+ * Stockpile-pressure cap: how many cycles' worth of output a building may hold in
+ * its local buffer before it stops producing (waiting for a hauler to draw it
+ * down). Small enough that a never-collected building idles within ~a day, large
+ * enough that ordinary hauling latency never stalls a served building. The cap is
+ * computed per-building from its effective output so big producers get
+ * proportional headroom; floored so a 0-output edge case can't divide oddly.
+ */
+const OUTPUT_BUFFER_CYCLES = 5;
+
+/** The output-buffer cap for a building producing `perCycle` each cycle. */
+export function outputBufferCap(perCycle: number): number {
+  return Math.max(1, perCycle) * OUTPUT_BUFFER_CYCLES;
+}
 
 export class ProductionSystem implements System {
   readonly name = "ProductionSystem";
@@ -57,6 +84,17 @@ export class ProductionSystem implements System {
 
         // A building only produces if it is connected to a Storehouse.
         if (!rs.connected) continue;
+
+        // Stockpile pressure: if the local buffer is full (uncollected output has
+        // piled up — no hauler is draining it), stop producing until it's drawn
+        // down. Only meaningful for producers (those with a positive output); a
+        // pure consumer/no-output building has cap 0-ish and is skipped below
+        // anyway. Checked BEFORE the cycle timer + input draw so a blocked
+        // building neither advances its timer oddly nor wastes input.
+        if (def.outputGood !== undefined && def.outputPerCycle > 0) {
+          const cap = outputBufferCap(effectiveOutputPerCycle(def, rs.level));
+          if (rs.outputBuffer >= cap) continue;
+        }
 
         // Cycle timer — first fire after a full cycle has elapsed.
         if (ctx.tick - rs.productionTick < def.ticksPerCycle) continue;
