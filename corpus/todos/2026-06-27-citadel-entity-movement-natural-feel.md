@@ -1,9 +1,25 @@
 ---
 title: "Citadel — make entities moving through the map feel more natural"
 created: 2026-06-27
-status: todo
+status: partial
 tags: [citadel, render, juice, movement, ux, villagers, raiders]
 ---
+
+> **Partial — 2026-06-27.** Shipped the biggest win: **render-only position
+> interpolation**. New pure `EntityInterpolator` ([entity-interp.ts](../../games/citadel/client/src/render/entity-interp.ts))
+> remembers each unit's prev+cur snapshot tile and lerps between them at a render
+> `alpha` measured from the inter-snapshot interval (adapts to 1×/2×/4×).
+> `pushScene` gained `villagerPos`/`raiderPos` hooks; `main.ts` ingests per
+> snapshot and feeds interpolated tiles. Teleports (load/replay, despawn+respawn),
+> fresh ids, and pause are SNAPPED, never smeared. The existing screen-space
+> heading tracker (lean/squash) now reads continuous deltas → figures lean into
+> travel every frame, not just on the snap. Render-only, zero determinism impact.
+> 9 interp unit tests + 215 @citadel/client suite green; live-verified. Commit
+> `3b19275`. See [log.md](../log.md).
+>
+> **Still open (deferred):** walk-cadence gait (vs the current idle bob),
+> explicit facing/flip, and diagonal rendered-path corner-cutting. The
+> interpolation alone already removes the tile-snap; these are polish on top.
 
 # Citadel — entity movement should feel more natural
 

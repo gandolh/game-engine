@@ -4,6 +4,25 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] feat | Citadel — entity movement interpolation (units glide, no longer tile-snap)
+
+Made villagers/raiders feel more natural to watch (playtest todo
+[entity-movement-natural-feel](todos/2026-06-27-citadel-entity-movement-natural-feel.md),
+now **partial**). The sim steps units one tile per tick and posts integer tile
+positions, so drawn straight they snapped tile-to-tile (~6 idle render frames per
+snapshot at 1×, then a jump). Added a render-only `EntityInterpolator`
+([entity-interp.ts](../games/citadel/client/src/render/entity-interp.ts)): it keeps
+each unit's prev+cur snapshot tile and lerps between them at a render `alpha`
+measured from the inter-snapshot interval (so the glide adapts to 1×/2×/4× and
+jitter). `pushScene` gained `villagerPos`/`raiderPos` hooks; `main.ts` ingests per
+snapshot + feeds interpolated tiles. `isoPointBox` already takes fractional tiles,
+so projection + iso depth just work, and the existing heading tracker (lean/squash)
+now gets continuous deltas. Teleports (load/replay, despawn+respawn reusing an id),
+fresh ids, and pause are SNAPPED, never smeared. Pure render-only — zero sim/
+determinism impact. 9 interp unit tests + 215 @citadel/client suite green;
+live-verified. Commit `3b19275`. Deferred polish: walk-cadence gait, explicit
+facing/flip, diagonal corner-cutting.
+
 ## [2026-06-27] fix | Citadel — P2: founding grace before fire can ignite a starter cluster
 
 Fixed the playtest P2 ([fire-ignites-before-player-control](todos/2026-06-27-citadel-fire-ignites-before-player-control.md),
