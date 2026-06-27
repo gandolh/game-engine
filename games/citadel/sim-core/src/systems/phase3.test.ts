@@ -142,11 +142,19 @@ describe("Phase 3 — decrees", () => {
     // Run two sims: one with workHours decree, one without.
     // Both have the same economy: storehouse + farm + house (pioneer staffs farm).
     // After 20 days, sim with workHours should have produced more grain.
+    //
+    // The chapel is a CONTROL, not part of the economy: workHours costs 12
+    // happiness (→28, below the 30 morale-departure floor), so without it the
+    // boosted run would bleed its only farmer to morale departures and produce
+    // LESS grain — masking the output multiplier this test targets. Faith
+    // coverage (+20, presence-based) keeps both runs above the floor so neither
+    // loses the farmer, isolating the +30% production effect.
     const baseCmds: ScheduledCmd[] = [
       { atTick: 0, cmd: roadRow(13, 10, 22) },
       { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 11 } } },
       { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "farm",       x: 18, y: 14 } } },
       { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "house",      x: 22, y: 11 } } },
+      { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "chapel",     x: 15, y: 11 } } },
     ];
 
     const cmdsWithDecree: ScheduledCmd[] = [

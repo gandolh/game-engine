@@ -38,6 +38,30 @@ punishes tight clusters** by design — space buildings ~5–8 tiles and connect
 (roads are firebreaks). MP-RTS live wiring holes from [todo 38](../todos/2026-06-19-citadel-38-implementation-review-problems.md)
 are still open (solo is unaffected).
 
+## HUD & overlays (2026-06-22)
+
+The Citadel client UI is **DOM overlays over a single WebGPU canvas** (no Canvas2D
+for the world). Layout: `<body>` is a flex column — canvas (`flex:1`), then a
+`#build-bar` strip, then a `#hud` readout row. Three changes on 2026-06-22 reclaim
+laptop vertical space and stop a layout shift:
+- **Event toasts** ([ui/toast.ts](../../games/citadel/client/src/ui/toast.ts)) —
+  the old inline `#hud-events` span grew the HUD height when text wrapped, shoving
+  the canvas up on every event. Events now surface as transient top-center toasts
+  in a fixed, pointer-transparent `#toast-container` (out of flow). `newEventsSince()`
+  diffs the rolling `recentEvents` window so only freshly-appended events toast;
+  aging is on the render clock (`performance.now`), never the sim.
+- **Minimap** ([ui/minimap.ts](../../games/citadel/client/src/ui/minimap.ts)) — a
+  top-right 2D-canvas overview drawn in **axis-aligned tile space** (not iso).
+  Terrain baked once at 1px/tile and scaled; buildings/villagers/raiders stamped
+  per frame; the camera viewport is the four screen corners inverted via
+  `screenToWorld` + `isoToTileContinuous` (a diamond in tile space). Click recentres
+  the camera (`tileToIso` → `camera.setCenter`) and drops any follow-cam lock.
+- **Condensed build bar** — groups laid out in a single row with vertical labels;
+  buttons are icon-only (`font-size:0` collapses the label, name moved to a `title`
+  tooltip set in `main.ts`). The `#hud` row is now `nowrap` + `overflow-x:auto` so it
+  keeps a fixed height. The trader panel floats over the canvas instead of living in
+  the HUD flex row, so its appearance no longer resizes the bar either.
+
 ## Rendering & assets
 
 Citadel is **WebGPU-only** at runtime (no Canvas2D fallback). Terrain is baked into
@@ -178,3 +202,39 @@ stays road on land, bridge walkable, no-overlap) + an `isoNetworkTiles` bridge-f
 ## Briefs & todos
 
 There is no Farm-Valley-style "done brief" archive for Citadel yet; work is tracked as todos. See [briefs/citadel-apr.md](../briefs/citadel-apr.md) and the `corpus/todos/*citadel-*` files (e.g. the `citadel-00-BUILD-ORDER` epic and the 21–33 series: windowed-grid render, incremental build queue, PlayerState refactor, territory/influence, PvP armies, per-player PvE). Fold durable Citadel findings into this page as the design settles.
+
+**Design — spacing-vs-density tension is intentional (2026-06-22).** Fire
+"punishes tight clusters" (space wooden buildings ≥5 tiles, connect with roads as
+firebreaks), while happiness service-radius (8) and road-connectivity reward
+keeping buildings *close*. These pressures pull against each other **by design** —
+managing that tradeoff (spread for fire-safety, but not so far that coverage/
+connectivity break, and use wells) is core to the game, not a bug to tune away.
+The `playtest-citadel` skill's default build plan is laid out with this in mind
+(≥6-tile grid + wells). Legibility of *where* coverage fails is still a fair
+ask (see the playtest-findings P2 todo).
+
+**Economy — load-bearing facts (verified 2026-06-22).** Production output is
+**per-building, gated only on `workerCount > 0`** — a building's *second* worker
+slot adds a population mouth with **zero extra output**, so growth tracks the
+number of *staffed buildings*, not filled slots. One bakery caps the food supply
+at **6 bread/day** (feeds ~6); to grow past that, build *more bakeries* (the mill
+already out-produces one bakery). Worker assignment (`villager-system.ts`) staffs
+**goods-producing buildings before pure services** (chapel/market/watchpost have a
+worker slot but no `inputGood`/`outputGood`) — otherwise services starve the bread
+chain of labour and the town death-spirals. Founding spawns one worker **per
+unstaffed connected building**; the per-founder `+5` bread ration is load-bearing
+for bootstrap (the 3-building bread chain produces nothing until all three are
+staffed). See the 2026-06-22 fix log entry.
+
+**Playtest/UX todos (2026-06-22):**
+- [playtest-findings](../todos/2026-06-22-citadel-playtest-findings.md) **(partial)**
+  — growth death-spiral, silent placement rejects, and tier-lock cold-open spam are
+  **fixed**; `grow` now holds pop 10–11/12 through a full year. Root cause was
+  goods-vs-service worker priority (above), *not* the service-range hypothesis.
+  Still open: zero-coverage service feedback (P2) and disease counterplay (P3).
+- [road-routing-around-buildings](../todos/2026-06-22-citadel-road-routing-around-buildings.md)
+  **(done)** — road drag now detours around footprints via a bounded A*
+  (`routeRoadPath`), treats water as bridge-passable, falls back to L + toast.
+- [minimap-rotate-viewport-rectangle](../todos/2026-06-22-citadel-minimap-rotate-viewport-rectangle.md)
+  **(done)** — minimap redrawn in iso world-px; the camera viewport is now an
+  upright rectangle.

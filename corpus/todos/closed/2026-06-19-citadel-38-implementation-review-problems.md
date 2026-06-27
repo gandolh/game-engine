@@ -19,6 +19,66 @@ tags: [citadel, audit, multiplayer, render, sim, bug]
 > windowed-bake per-frame wire, MP render entities) need live-MP / real-GPU
 > verification — carry forward. See log.md 2026-06-26.
 
+<!-- Earlier per-fix detail from the 2026-06-22 fix waves (merged from origin/main),
+     retained for its test references and determinism notes. -->
+
+## ✅ RESOLVED (2026-06-22) — P0 MP-authority pass + P1#5 + P1#7 + #13 + P1#8 correction
+
+First fix wave shipped (the suggested-fix-order item 1 + the trivial wins). All
+sim-touching changes are **byte-identical in solo by construction** (the guards are
+no-ops under a single owner; `keepPresent` is render-only and `town-hall` never
+spawns in solo) — no determinism re-proof run (constrained hardware; reasoning in
+the commit). `@citadel/sim-core` 136/136, `@citadel/server` 7/7, both typecheck clean.
+
+- **P0#1 demolish** — owner guard added ([sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts), demolish handler): `if (b.ownerId !== localPlayer(state).id) break;`.
+- **P0#2 upgradeBuilding** — owner guard added (same file, upgrade handler): `if (b.ownerId !== localPlayer(state).id) return;`.
+- **P0#3 setActivePlayer** — host drops any client-injected `setActivePlayer` in the `command` case ([sim-host.ts](../../games/citadel/server/src/sim-host.ts)).
+- **P0#4 pause/resume/speed** — host-only now: `hostPeer` = first attached peer (migrates on host detach); the three control messages gate on `peer === this.hostPeer`. Test/diag getters `isPaused`/`speedMultiplier`/`hostPlayerId` added.
+- **#13 keepPresent** — snapshot now tests `getProductionDef(type)?.isKeep`, so MP's `town-hall` anchor counts.
+- **P1#5 villager owner filter** — `assign()` (both `staffedTypes` and the workplace tier loop) and `firstStore()` now filter by `entity.building.ownerId === v.ownerId` ([villager-system.ts](../../games/citadel/sim-core/src/systems/villager-system.ts)). A player's villagers no longer staff/haul to a rival's buildings. Test: [villager-owner.test.ts](../../games/citadel/sim-core/src/systems/villager-owner.test.ts) (a player-1 villager skips the *nearer* rival farm for its own).
+- **P1#7 reconnect-frozen-sim** — `CitadelSimHost` now arms a **reap-grace timer** on the last departure instead of stopping immediately; if it fires while still empty, `reset()` nulls `sim` (+ clears tick/host/bots/paused/speed/nextPlayerId) so the next `init` starts a clean, ticking room. A reconnect within the grace cancels the reap and rejoins the same live sim. Single-room-per-process kept (keyed multi-room registry stays the documented follow-up). Test: [run-lifecycle.test.ts](../../games/citadel/server/src/run-lifecycle.test.ts) (fake-timer reap → fresh sim; within-grace reconnect → same sim).
+- **P1#8 (windowController.update) — was ALREADY fixed** before this pass: `windowController.update(camera)` runs each frame at [main.ts:792](../../games/citadel/client/src/main.ts#L792). The finding below is **stale**.
+- Tests: [sim-core/systems/mp-authority.test.ts](../../games/citadel/sim-core/src/systems/mp-authority.test.ts) (3), [server/mp-authority.test.ts](../../games/citadel/server/src/mp-authority.test.ts) (2).
+
+## ✅ RESOLVED (2026-06-22 — second session) — P2#10 + P2#11 (tier-system balance)
+
+Real-GPU session (WebGPU now renders — dev box is native Windows, not WSL). Drove
+Citadel live via Playwright + system Chrome (`--enable-unsafe-webgpu`); the Playwright
+**bundled** Chromium can't create a WebGPU device here (`dxil.dll` Win error 87 — no DXC
+libs), but **system Chrome/Edge work** → backend `webgpu`, iso terrain + buildings render.
+
+- **P2#10 wall-spam tier inflation** — `TierSystem` counted every wall/gate tile as a
+  settlement building, so wall-spam alone could climb to Town. Fixed: extracted a pure
+  `countsTowardTier(type)` (excludes `isRoad`/`isWall`/`isGate`) and used it in the count
+  ([tiers.ts](../../games/citadel/sim-core/src/systems/tiers.ts)). Walls still feed
+  `defensiveStrength`, just not settlement size.
+- **P2#11 demotion message + re-lock** — (a) direction-aware event copy ("risen"/"fallen");
+  (b) added a per-player `peakTier` high-water mark ([sim-state.ts](../../games/citadel/sim-core/src/sim-state.ts));
+  build/upgrade tier-locks now gate on `unlockTier(p)` = max(tier, peakTier) so a demotion
+  (disease/starvation) never re-locks an already-unlocked building type. `peakTier` added to
+  the snapshot; client gates buttons + upgrade hint on it, HUD still shows current `tier`.
+- **Determinism:** sim-touching. `peakTier` is new derived state that only ever climbs and
+  feeds gating, not the tick math; the wall-exclusion changes which structures count toward
+  tier. Solo determinism re-proof NOT run this session (ask-first rule) — **carry forward**:
+  fast multi-seed `EXPORT=json` before relying on byte-identity. The change is a deliberate
+  balance move regardless (wall-spam no longer climbs tiers).
+- Tests: [phase5.test.ts](../../games/citadel/sim-core/src/systems/phase5.test.ts) +4
+  (countsTowardTier ×2, peakTier-survives-demotion, risen/fallen copy). `@citadel/sim-core`
+  146/146, `@citadel/client` 187/187, `@citadel/server` 9/9; citadel workspaces typecheck clean.
+
+**Verification win (no fix needed):** the **true-iso flat-box anomaly**
+([2026-06-21-citadel-true-isometric.md](2026-06-21-citadel-true-isometric.md) OPEN ANOMALY)
+**does NOT reproduce on this real GPU** (system Chrome). Placed house/chapel/storehouse/
+bakery/woodcutter + market live: all five render as correct iso volumes; only `market` is
+flat — and that's **by design** (`market → marketStalls(...)`, open stalls, no height arg,
+unlike `cottage`/`warehouse`). Confirms the todo's host-specific-driver hypothesis.
+
+**Still open from this audit:** P1 #6 (social layer client consume/send + render —
+needs GPU/live verification), #9 (MP render entities — GPU); P2 #12 (dead SERVICE_RADII);
+P3 #14 (siege RNG fork — needs a deliberate baseline move), #15/#16/#17/#18/#19.
+
+---
+
 **Method.** Read-only review (2026-06-19) of `@citadel/sim-core`, `@citadel/client`,
 `@citadel/server` against the [APR](../briefs/citadel-apr.md) and the
 [BUILD-ORDER](2026-06-18-citadel-00-BUILD-ORDER.md). Three subagent passes
@@ -136,12 +196,12 @@ any peer's command into the one authoritative stream after a
 
 ## P2 — sim balance / wrong feedback (single-player visible)
 
-10. **Tier advancement counts every wall tile as a building → wall-spam reaches Citadel/Fortress tier with no real infrastructure.** **[agent-cited]**
+10. ✅ **FIXED 2026-06-22.** **Tier advancement counts every wall tile as a building → wall-spam reaches Citadel/Fortress tier with no real infrastructure.** **[agent-cited]**
     [tiers.ts:160](../../games/citadel/sim-core/src/systems/tiers.ts#L160) — `if (prod?.isRoad !== true) nonRoadBuildingCount++`; `wall` is `isRoad:false`, so each
     wall tile counts. `minBuildings` 25/40 can be met by laying walls. **Fix:** also
     exclude `isWall`/`isGate` from the tier building count.
 
-11. **Tier-change event says "risen from X to Y" even on demotion, and a demotion retroactively re-locks buildings.** **[agent-cited]**
+11. ✅ **FIXED 2026-06-22** (direction-aware copy + `peakTier` high-water mark gating). **Tier-change event says "risen from X to Y" even on demotion, and a demotion retroactively re-locks buildings.** **[agent-cited]**
     [tiers.ts:164–170](../../games/citadel/sim-core/src/systems/tiers.ts#L164-L170).
     Losing pop (disease/starvation) drops the tier; the message still says "risen",
     and `TIER_LOCK` then blocks placing keep/garrison until the tier is regained

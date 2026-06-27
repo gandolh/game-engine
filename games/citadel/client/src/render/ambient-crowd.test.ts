@@ -30,7 +30,7 @@ function mkSnapshot(tier: string, roads: number, raiders: RaiderSnapshot[] = [])
     raiders, armies: [], threatLevel: 0, nextRaidDay: -1, defensiveStrength: 0,
     keepPresent: false, keepSacked: false,
     sickVillagers: 0, outbreakActive: false, activeFires: 0,
-    tier, reliefReserve: 0,
+    tier, peakTier: tier, reliefReserve: 0,
   };
 }
 

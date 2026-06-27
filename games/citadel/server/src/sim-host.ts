@@ -36,6 +36,12 @@ export interface CitadelSimHostOptions {
   /** Run a wall-clock tick interval (production). Tests drive step() instead. */
   realtime?: boolean;
   tickRateHz?: number;
+  /**
+   * Citadel 38 P1#7: how long the room stays alive after the last peer leaves
+   * before it's torn down (lets a refresh/blip reconnect into the same game).
+   * Default 10s (mirrors the Farm RunRegistry reap grace).
+   */
+  reapGraceMs?: number;
 }
 
 export class CitadelSimHost {
@@ -47,11 +53,21 @@ export class CitadelSimHost {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private nextPlayerId = 0;
   private readonly bots: CitadelBot[] = [];
-  // citadel-38 P0#4: the room owner (first human peer) is the only one allowed to
-  // pause/resume/change speed. Farm's RunRegistry has the same owner concept.
-  private owner: Peer | null = null;
+  // Citadel 38 P0#4: the host is the first peer to attach; only it may pause /
+  // resume / change speed of the shared room (peers can't freeze/fast-forward
+  // each other). Migrates to the next-remaining peer if the host disconnects.
+  private hostPeer: Peer | null = null;
+  // Citadel 38 P1#7: when the room empties we arm a grace timer rather than
+  // tearing down immediately, so a reconnect within the window rejoins the same
+  // live sim. If it fires while still empty, reset() nulls `sim` so the NEXT
+  // `init` starts a clean room (the old bug: detach stopped the interval but left
+  // `sim` set → a reconnect got a snapshot of a frozen, non-ticking sim).
+  private readonly reapGraceMs: number;
+  private reapTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly opts: CitadelSimHostOptions = {}) {}
+  constructor(private readonly opts: CitadelSimHostOptions = {}) {
+    this.reapGraceMs = opts.reapGraceMs ?? 10_000;
+  }
 
   /**
    * Citadel 37: add a seeded NPC bot — joins as a peer and plays through the
@@ -60,7 +76,9 @@ export class CitadelSimHost {
    * dropped (a bot doesn't render).
    */
   addBot(seed: number): void {
-    const peer = this.attach(() => {}, true);
+    // Bots attach only after the human host is present (the first human peer is
+    // the room host), so a bot never becomes host. Outbound is dropped.
+    const peer = this.attach(() => {});
     this.bots.push(new CitadelBot(this, peer, seed));
   }
 
@@ -69,13 +87,33 @@ export class CitadelSimHost {
     return this.peers.size;
   }
 
+  /** Whether the shared room is paused (test/diagnostic helper). */
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** The current speed multiplier (test/diagnostic helper). */
+  get speedMultiplier(): number {
+    return this.speed;
+  }
+
+  /** The host peer's player id, or null if the room is empty (test/diagnostic). */
+  get hostPlayerId(): number | null {
+    return this.hostPeer?.playerId ?? null;
+  }
+
   /** Attach a peer; assigns it a stable player id (first peer = player 0). */
-  attach(send: SendFn, isBot = false): Peer {
+  attach(send: SendFn): Peer {
+    // A peer arrived — cancel any pending teardown so we keep the live room.
+    if (this.reapTimer !== null) {
+      clearTimeout(this.reapTimer);
+      this.reapTimer = null;
+    }
     const playerId = this.nextPlayerId++;
     const peer: Peer = { send, playerId };
     this.peers.add(peer);
-    // citadel-38 P0#4: first non-bot peer becomes the room owner (control authority).
-    if (this.owner === null && !isBot) this.owner = peer;
+    if (this.hostPeer === null) this.hostPeer = peer; // first peer = room host
+
     if (this.sim !== null) {
       // Late join into a running room: ensure a PlayerState exists, then snapshot.
       this.ensurePlayer(playerId);
@@ -88,13 +126,37 @@ export class CitadelSimHost {
 
   detach(peer: Peer): void {
     this.peers.delete(peer);
-    // citadel-38 P0#4: if the owner leaves, promote the next remaining peer so the
-    // room doesn't get stuck with no control authority.
-    if (peer === this.owner) {
-      const next = this.peers.values().next();
-      this.owner = next.done ? null : next.value;
-    }
-    if (this.peers.size === 0) this.stop();
+    // Citadel 38 P0#4: if the host leaves, promote the next-remaining peer so
+    // room control isn't frozen (Set preserves attach order → oldest survivor).
+    if (peer === this.hostPeer) this.hostPeer = [...this.peers][0] ?? null;
+    // Citadel 38 P1#7: don't tear down immediately — arm the reap grace. The sim
+    // keeps ticking during the window so a quick reconnect rejoins it.
+    if (this.peers.size === 0) this.armReap();
+  }
+
+  /** Schedule a teardown if the room is still empty after the grace window. */
+  private armReap(): void {
+    if (this.reapTimer !== null) return; // already armed
+    this.reapTimer = setTimeout(() => {
+      this.reapTimer = null;
+      if (this.peers.size === 0) this.reset();
+    }, this.reapGraceMs);
+  }
+
+  /**
+   * Fully tear the room down so the NEXT `init` starts a clean, ticking sim.
+   * Stops the interval AND nulls `sim` (the missing step that left reconnects
+   * frozen), and clears all per-room state.
+   */
+  private reset(): void {
+    this.stop();
+    this.sim = null;
+    this.tick = 0;
+    this.hostPeer = null;
+    this.paused = false;
+    this.speed = 1;
+    this.nextPlayerId = 0;
+    this.bots.length = 0;
   }
 
   handleInbound(peer: Peer, msg: WorkerInbound): void {
@@ -105,9 +167,9 @@ export class CitadelSimHost {
         return;
       case "command": {
         if (this.sim === null) return;
-        // citadel-38 P0#3: `setActivePlayer` is a server-internal routing marker;
-        // a client must not be able to forge one to impersonate another player.
-        // Reject it at the edge (the server injects its own below).
+        // Citadel 38 P0#3: setActivePlayer is a server-internal routing marker —
+        // a peer must never inject one (it would mis-route the FOLLOWING command
+        // to another player). Drop it; the host stamps the trusted marker below.
         if (msg.command.type === "setActivePlayer") return;
         // Multi-writer: route this peer's command to ITS player, then enqueue.
         // Both go into the one authoritative command stream (logged + replayable).
@@ -115,18 +177,18 @@ export class CitadelSimHost {
         this.sim.commands.enqueue(msg.command);
         return;
       }
-      // citadel-38 P0#4: control messages mutate the single shared room clock —
-      // only the owner may issue them, else any peer could freeze/fast-forward all.
+      // Citadel 38 P0#4: room-control is host-only — a non-host peer can't freeze
+      // or fast-forward the shared sim for everyone.
       case "pause":
-        if (peer !== this.owner) return;
+        if (peer !== this.hostPeer) return;
         this.paused = true;
         return;
       case "resume":
-        if (peer !== this.owner) return;
+        if (peer !== this.hostPeer) return;
         this.paused = false;
         return;
       case "speed":
-        if (peer !== this.owner) return;
+        if (peer !== this.hostPeer) return;
         this.speed = Number.isFinite(msg.multiplier) && msg.multiplier >= 1 ? Math.floor(msg.multiplier) : 1;
         return;
       case "request-save":

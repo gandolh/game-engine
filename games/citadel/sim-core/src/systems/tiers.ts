@@ -12,8 +12,10 @@
  *   Citadel       — pop ≥ 40 OR (non-road buildings ≥ 25 AND defense ≥ 20 AND pop ≥ 20)
  *   Fortress-City — pop ≥ 60 OR (non-road buildings ≥ 40 AND defense ≥ 50 AND pop ≥ 35)
  *
- * Roads are excluded from the building count so that pre-laid road networks do
- * not artificially inflate the settlement tier before any settlers arrive.
+ * Roads, walls, and gates are excluded from the building count: roads are
+ * infrastructure and walls/gates are a fortification line (they raise defense,
+ * not settlement size), so neither pre-laid roads nor wall-spam can inflate the
+ * settlement tier before real structures and settlers arrive.
  *
  * Population is always required alongside the buildings path so that an
  * empty-but-pre-built settlement cannot skip tiers before the first settler
@@ -133,6 +135,28 @@ export function tierAtLeast(candidate: SettlementTier, minimum: SettlementTier):
 }
 
 /**
+ * The tier a player's build/upgrade unlocks gate on: the highest tier they
+ * have reached. `peakTier` is maintained ≥ `tier` by {@link TierSystem}, so in
+ * the real sim this is just `peakTier`; taking the max is defensive (and keeps
+ * a demotion from re-locking already-unlocked buildings — audit 38 P2#11).
+ */
+export function unlockTier(p: { tier: SettlementTier; peakTier: SettlementTier }): SettlementTier {
+  return TIER_ORDER.indexOf(p.peakTier) >= TIER_ORDER.indexOf(p.tier) ? p.peakTier : p.tier;
+}
+
+/**
+ * Whether a building type counts as a settlement STRUCTURE for tier advancement.
+ * Roads are infrastructure; walls/gates are a fortification line (they raise
+ * defensiveStrength, not settlement size). Excluding them stops pre-laid roads
+ * or wall-spam from climbing the tier ladder with no real settlement (audit 38
+ * P2#10).
+ */
+export function countsTowardTier(buildingType: string): boolean {
+  const prod = getProductionDef(buildingType);
+  return prod?.isRoad !== true && prod?.isWall !== true && prod?.isGate !== true;
+}
+
+/**
  * TierSystem: re-evaluates the settlement tier once per day (at the first
  * tick of each day) and fires a pushEvent on promotion.
  */
@@ -153,24 +177,26 @@ export class TierSystem implements System {
     // Citadel 28: tier is per-player. Evaluate each player's tier from the
     // buildings THEY own (roads excluded — infrastructure, not settlement size).
     for (const p of this.state.players) {
-      let nonRoadBuildingCount = 0;
+      // Count only settlement STRUCTURES toward the tier. Roads are
+      // infrastructure; walls/gates are a fortification line (they contribute
+      // to defensiveStrength, not to settlement size) — counting them let
+      // wall-spam alone climb to Town tier (audit 38 P2#10).
+      let settlementBuildingCount = 0;
       for (const entity of this.state.buildingWorld.query("building")) {
         if (entity.building.ownerId !== p.id) continue;
-        const prod = getProductionDef(entity.building.type);
-        // citadel-38 P2#10: walls/gates are fortification tiles, not settlement
-        // structures — counting them let wall-spam reach Citadel/Fortress tier with
-        // no real infrastructure. Exclude road/wall/gate alike from the tier count.
-        if (prod?.isRoad === true || prod?.isWall === true || prod?.isGate === true) continue;
-        nonRoadBuildingCount++;
+        if (countsTowardTier(entity.building.type)) settlementBuildingCount++;
       }
-      const newTier = computeTier(p.population, nonRoadBuildingCount, p.defensiveStrength);
+      const newTier = computeTier(p.population, settlementBuildingCount, p.defensiveStrength);
 
       if (newTier !== p.tier) {
         const old = p.tier;
         const rose = TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(old);
         p.tier = newTier;
-        // citadel-38 P2#11: direction-aware message — a demotion (pop lost to
-        // disease/starvation) must not say "risen".
+        // Direction-aware message — a demotion (pop lost to disease/starvation)
+        // must not say "risen" (audit 38 P2#11).
+        // High-water mark only ever climbs — a later demotion must not re-lock
+        // building types the player already unlocked.
+        if (TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(p.peakTier)) p.peakTier = newTier;
         pushEvent(
           this.state,
           rose

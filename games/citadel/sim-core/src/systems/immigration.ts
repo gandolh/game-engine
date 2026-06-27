@@ -110,8 +110,12 @@ export class ImmigrationSystem implements System {
     const rawSurplus = breadNow - p.lastDayBreadStart - actualConsumption;
     p.foodSurplus = cushioned > 0 && afterConsumption >= 0 ? Math.max(0, rawSurplus + cushioned) : rawSurplus;
 
-    // --- Open worker slots across the player's buildings ---
-    let openSlots = 0;
+    // --- Unstaffed connected production buildings ---
+    // One villager fully runs a building (output is per-building, gated only on
+    // workerCount > 0 — see ProductionSystem); a building's *second* slot adds a
+    // mouth with no extra output. So growth tracks the number of buildings with
+    // ZERO workers (e.g. a freshly-placed second bakery), NOT every empty slot.
+    let unstaffedBuildings = 0;
     for (const entity of state.buildingWorld.query("building")) {
       if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
@@ -120,20 +124,44 @@ export class ImmigrationSystem implements System {
       if (rs === undefined || !rs.connected) continue;
       const def = getProductionDef(entity.building.type);
       if (def === undefined || def.workerSlots <= 0) continue;
-      openSlots += Math.max(0, def.workerSlots - rs.workerCount);
+      if (rs.workerCount === 0) unstaffedBuildings++;
     }
 
-    // Founding phase.
+    // Founding phase. Keep arriving while production buildings sit UNSTAFFED
+    // (capped by housing) — the old gate stopped once each building *type* had a
+    // worker, so a second farm/bakery of an existing type never got staffed, the
+    // food chain stayed at one-building throughput, broke even on bread, and
+    // growth deadlocked at the founding size forever (playtest P0).
     const daysSinceStart = state.day - this.startDay;
     const foundingWindow = daysSinceStart <= Math.floor(state.daysPerYear / 4) + 2;
-    const unstaffedTypes = foundingWindow ? this.countUnstaffedProductionTypes(p) : 0;
-    const needsFounder = unstaffedTypes > 0 && openSlots > 0 && p.popCap > 0;
+    // The very first pioneer always lands (bootstrap); further founders need some
+    // bread on hand, so a starving colony stops attracting them (founders don't
+    // keep marching into a town with an empty larder) — without this gate the
+    // founding window endlessly refilled buildings that starvation had emptied.
+    const bootstrapping = p.population === 0;
+    const needsFounder =
+      foundingWindow &&
+      unstaffedBuildings > 0 &&
+      p.population < p.popCap &&
+      (bootstrapping || p.stockpiles.bread > 0);
+
+    // Post-founding immigration: a town that isn't in deficit and either grew
+    // its bread today OR has a healthy buffer banked (≥1 day of food) should
+    // keep attracting immigrants. Gating on a strictly-positive *daily* surplus
+    // alone deadlocked break-even-but-stocked towns (playtest P0).
+    const fed = p.foodSurplus >= 0;
+    const healthyBuffer = p.stockpiles.bread >= p.population;
 
     if (needsFounder) {
+      // Each founder arrives with a small bread ration. This is load-bearing for
+      // bootstrap: a fresh bread chain (farm→mill→bakery) needs all three staffed
+      // before any bread flows, so the founders must survive the spin-up on
+      // rations. The ration is finite, so a colony that can't get a chain running
+      // (e.g. founded in winter, grain=0) still starves once rations run out.
       this.spawnVillager(p);
       p.stockpiles.bread += 5;
       p.hungerDays = 0;
-    } else if (p.foodSurplus > 0 && p.population < p.popCap) {
+    } else if (p.population < p.popCap && fed && (p.foodSurplus > 0 || healthyBuffer)) {
       const happinessFactor = 0.7 + (p.happiness / 100) * 0.3;
       const immigrationRoll = this.rng.nextFloat();
       if (immigrationRoll < happinessFactor) {
@@ -230,32 +258,6 @@ export class ImmigrationSystem implements System {
       }
     }
     return null;
-  }
-
-  /**
-   * Count how many distinct production building types owned by `p` have at least
-   * one connected building with NO assigned worker.
-   */
-  private countUnstaffedProductionTypes(p: PlayerState): number {
-    const state = this.state;
-    const staffed = new Set<string>();
-    const present = new Set<string>();
-    for (const entity of state.buildingWorld.query("building")) {
-      if (entity.building.ownerId !== p.id) continue;
-      const id = entity.id;
-      if (id === undefined) continue;
-      const def = getProductionDef(entity.building.type);
-      if (def === undefined || def.workerSlots <= 0) continue;
-      const rs = state.buildingState.get(id);
-      if (rs === undefined || !rs.connected) continue;
-      present.add(entity.building.type);
-      if (rs.workerCount > 0) staffed.add(entity.building.type);
-    }
-    let unstaffed = 0;
-    for (const t of present) {
-      if (!staffed.has(t)) unstaffed++;
-    }
-    return unstaffed;
   }
 
   /** First house center owned by `p`, else map center. */

@@ -4,6 +4,38 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] playtest | Citadel live browser test — tooling note + 5 new todos
+
+Ran a live browser test of the Citadel solo client (`npm run citadel`). Intended
+to use **vercel-labs/agent-browser** but it **hangs on every command in this
+environment** (even `open about:blank`, headless and headed — the Rust daemon
+handshake stalls under the background-shell harness). Fell back to **Playwright**,
+whose Chromium **supports WebGPU** (Citadel is WebGPU-only, no Canvas2D fallback),
+and drove the game through the DEV-only `window.__citadel` hook
+([main.ts:558](../games/citadel/client/src/main.ts#L558)).
+
+- **Asset audit clean.** Procedural atlas (256×1024, 34 frames); 19/21 build types
+  have bespoke iso sprites (wall/gate render as autotiled network quads by design);
+  191/191 @citadel/client tests + the EDG32 palette guard pass.
+- **Most features verified working** live: placement (with footprint/overlap +
+  tier-lock rejection + the "requires Village tier" event), road connectivity,
+  demolish, decrees, settings modal (3 tabs, Esc-close), pause/resume, speed
+  1/2/4×, save (valid command-log `CitadelSave`), fire HUD.
+- **P0 found:** solo cold-start can never leave **pop 0** — the 6-day founding
+  window (`DAYS_PER_YEAR=16`) closes during the ~15-day page/WebGPU boot before the
+  player can build a connected settlement, and the surplus-immigration fallback
+  can't bootstrap from zero. Distinct from the *resolved* pop-6 plateau.
+
+New todos filed:
+[founding-window-expires-before-boot](todos/2026-06-27-citadel-founding-window-expires-before-boot.md)
+(the P0 above),
+[entity-movement-natural-feel](todos/2026-06-27-citadel-entity-movement-natural-feel.md)
+(render-only interpolation/gait/facing — units tile-snap today),
+[road-builder-ux-research](todos/2026-06-27-citadel-road-builder-ux-research.md)
+(research-first: how reference city-builders make road drawing friendly), and
+[fire-ignites-before-player-control](todos/2026-06-27-citadel-fire-ignites-before-player-control.md)
+(density-based ignition fires on an unattended starter cluster pre-agency).
+
 ## [2026-06-26] art | Citadel units + terrain grounding/value pass (follow-up to the building grounding)
 
 Extended the building grounding pass (same iso-art research) to **units** and
@@ -237,6 +269,277 @@ artifact on this checkout, not a regression — fails identically on clean main)
 Headless 3-day `EXPORT=json` (SEED=0xc0ffee) **byte-identical** before/after →
 transport change is behavior-preserving. Render parity is by construction (same
 float values uploaded). Branch `perf/engine-prealloc-buffers` → main.
+
+## [2026-06-22] citadel | Coverage overlay + placement ring shipped (OpenTTD brief 1/3)
+
+Implemented the first of the three OpenTTD-influence briefs:
+[catchment-coverage-overlay](todos/2026-06-22-citadel-catchment-coverage-overlay.md)
+— render/UI only, no sim change. New pure `games/citadel/client/src/render/coverage.ts`
+mirrors the sim's coverage geometry (`serviceCenter`, `SERVICE_RADII`, Manhattan test)
+so the visuals can't drift from `needs-happiness.ts`; `pushCatchment` stamps flat iso
+ground diamonds on a new `LAYER_COVERAGE`. Three pieces: **placement ring** (a service
+building's reach drawn around the ghost, tinted by need), **"covers 0 homes" toast** on
+placing a chapel/market/watchpost that reaches no houses, and a **`C` overlay toggle**
+that washes the union of faith/safety/goods catchments so gaps show. Unit-tested
+(`coverage.test.ts`); client typecheck + 202 tests + palette guard green. Directly
+addresses **P2** in the playtest findings (services placed out of range, zero feedback).
+**Playtested live (Chrome+WebGPU)**: ring, `C` overlay (three distinct washes), and the
+"covers 0 homes" toast all confirmed; the overlay made a stranded faith catchment's gap
+obvious at a glance. Added a DEV-only `__citadel.tileToScreenCss` hook so the harness can
+drive real UI gestures (hover/click specific tiles), not just the command channel.
+The two sibling briefs (two-way service economy; farm perishability) remain open — both
+are sim-side and carry determinism cost, so they're deliberately not bundled here.
+
+## [2026-06-22] research | OpenTTD influence — 4 todo briefs filed
+
+Researched OpenTTD (transport-network sim) vs. our two games and filed four
+`corpus/todos/` briefs capturing the borrowable ideas. The throughline: OpenTTD's
+depth is a set of **legible cause→effect loops** (service quality drives production;
+catchment areas are drawn; cargo pays on distance×freshness; towns visibly grow when
+served) — exactly the layer our one-directional, auto-distributing economies skip.
+
+- **[catchment-coverage-overlay](todos/2026-06-22-citadel-catchment-coverage-overlay.md)**
+  (Citadel, render/UI only) — draw service radius rings + a coverage overlay toggle +
+  "covers 0 homes" toast. Direct fix for **P2** in
+  [playtest-findings](todos/2026-06-22-citadel-playtest-findings.md) (services land
+  out of range with zero feedback). Legibility, not re-tuning — the spacing tension
+  is intended.
+- **[two-way-service-economy](todos/2026-06-22-citadel-two-way-service-economy.md)**
+  (Citadel, sim) — production reacts to whether output is collected/consumed
+  (OpenTTD's >60%/>80% banded growth + stockpile spoilage), plus service-driven
+  settlement growth. Makes roads *matter*. (NB: the P0/P1 growth deadlock was already
+  fixed in the entry below — coordinate the growth-signal half with that, don't
+  re-tune the same numbers.)
+- **[farm-perishability-distance-pricing](todos/2026-06-22-farm-perishability-distance-pricing.md)**
+  (Farm Valley, sim) — produce decays in value over time; far harbors pay more but
+  risk decay. Turns AP-throughput into a where/when decision; leverages existing
+  harbor/boat infra. Main cost = teaching the BDI personalities to react; re-balance
+  [economy.md](wiki/economy.md).
+- **[openttd-art-and-gameplay-influence](todos/2026-06-22-openttd-art-and-gameplay-influence.md)**
+  (both, research note) — OpenGFX validates Citadel's existing iso/EDG32/silhouette-
+  first direction ([brief 96](briefs/game/todo/96-citadel-building-art-style-reference.md));
+  borrow read-at-any-zoom discipline + "world visibly reacts to the player" feel.
+  No iso conversion for top-down Farm Valley.
+
+## [2026-06-22] fix | Citadel — resolved growth deadlock + road-routing + minimap-rotate + placement feedback
+
+Worked the three 2026-06-22 todos. All sim changes re-proved deterministic
+(`grow`, seeds `0x1a2b3c4d` / `0xdeadbeef` / `0x99`, byte-identical across paired
+runs); full citadel suite green (146 sim + 193 client tests).
+
+- **Growth deadlock (playtest P0/P1) — fixed.** Root cause was deeper than the
+  todo's "founders stop one-per-type": Citadel production output is **per-building,
+  gated only on `workerCount > 0`** (a 2nd worker on a multi-slot building is a
+  mouth with zero extra output — see [production.ts](../games/citadel/sim-core/src/systems/production.ts)),
+  AND the worker-assignment tiers in [villager-system.ts](../games/citadel/sim-core/src/systems/villager-system.ts)
+  treated **pure services** (chapel/market/watchpost — no `inputGood`) as "primary
+  producers", so they were staffed in **tier 1, ahead of the bakery** (a converter
+  in tier 2). With limited pop the services siphoned labour off the bread chain →
+  flour piled up, bread stayed ~0, town starved. Three coupled fixes:
+  (1) assignment now staffs **goods buildings before pure services** (new top
+  discriminator `wantGoods`); (2) founding spawns one worker **per unstaffed
+  connected building** (not per type — so a 2nd bakery gets staffed), gated
+  `bootstrapping || bread>0` so a starving colony stops attracting founders;
+  (3) post-founding immigration fires on a **healthy bread buffer** (`bread ≥ pop`),
+  not only a strictly-positive daily surplus. Result: `grow` rises to Village by
+  day 5 and **holds pop 10–11/12 through a full 80-day year** with a banked bread
+  surplus, surviving winter + recurring disease. The per-founder `+5` bread ration
+  is **load-bearing** for bootstrap (the 3-building bread chain produces nothing
+  until all three are staffed) — winter colonies still die because rations are
+  finite and grain is 0. Two tests updated to the corrected model: the
+  `workHours`-grain test gained a chapel **control** (faith coverage keeps both
+  runs above the 30 morale-departure floor, isolating the +30% output effect from
+  morale churn).
+- **Silent placement reject (P1-live) + tier-lock toast spam (P2) — fixed.**
+  [sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts) `placeOne` now
+  returns a **reason code** (`tier`/`territory`/`occupied`/`terrain`/`bounds`)
+  instead of a silent `false`; a single building emits one descriptive event, and
+  a road/wall **drag coalesces** per-tile rejections into one summary ("12 walls
+  need Village tier", "N tiles blocked — the run has a gap") instead of ~20 toasts.
+- **Road drag routes around buildings — done (client-only).** New pure
+  `routeRoadPath` (bounded A*, turn-penalty tie-break) in
+  [placement-state.ts](../games/citadel/client/src/ui/placement-state.ts): keeps
+  the straight L when clear, detours around footprints when blocked, treats water
+  as passable (decks to a bridge), falls back to the L + a "no clear route" toast
+  when fully walled. Unit-covered (clear-L / detour / water / no-route / blocked
+  endpoint).
+- **Minimap viewport now a rectangle — done (render-only).**
+  [minimap.ts](../games/citadel/client/src/ui/minimap.ts) redrawn in iso world-px
+  (terrain re-baked as iso diamonds; entities projected through `tileToIso`;
+  click-to-seek inverts the same fit transform), so the inverse-projected camera
+  viewport reads as an upright rectangle instead of a diamond. EDG32-clean.
+
+Still **open** in the playtest todo: P2 service-coverage placement feedback
+(radius ring / "covers 0 houses" cue) and P3 disease counterplay — both untouched.
+The two render/client todos should still get a live real-GPU pass (the
+playtest-citadel skill) to confirm feel.
+
+## [2026-06-22] tooling | playtest-citadel skill + live-run findings + spacing-design note
+
+Added a tracked project skill **`.claude/skills/playtest-citadel/`** (`SKILL.md` +
+`play.mjs`) so Claude can play Citadel end-to-end in the real client (Playwright +
+system Chrome, WebGPU) with a pre-defined build plan, climb tiers, attempt
+upgrades/barters, record a `report.json` timeline + screenshots, report findings into
+the corpus, and end by **grilling the user** to turn ambiguities into decisions.
+`.gitignore` now tracks `.claude/skills/` (rest of `.claude/` stays local);
+`citadel-playtest-out/` is ignored.
+
+Hardening the driver surfaced two operational facts, now in SKILL.md: (1) the driver
+must **place buildings → verify against the snapshot → retry → then lay roads**, because
+sending buildings + a big road carpet in one burst lets the carpet claim tiles before
+the buildings resolve, silently dropping them; (2) **Vite HMR full-reloads the client
+(wiping the Worker sim to day 1) when any watched game file changes mid-run** — the
+driver now detects the reset and re-bootstraps. A packed default plan also **burned down
+by ~day 25** (fire), confirming the spacing pressure — fixed by a ≥6-tile grid + wells.
+
+Design call recorded (user-confirmed): the **fire-spacing vs service-radius/connectivity
+tension is intentional**, not a bug — documented in
+[citadel-overview.md](wiki/citadel-overview.md); the playtest-findings P2 item is
+re-scoped to coverage *legibility*, not re-tuning. The live run also confirmed the P0
+immigration deadlock first-hand (pop pinned at the founding size); a parallel session is
+already implementing the founder-slot fix in `immigration.ts`.
+
+## [2026-06-22] todo | Citadel — headless playtest findings + road-routing + minimap-rotate
+
+Playtest pass driving the headless runner (`npm run sim:citadel`, `grow` + `siege`,
+40–60 days). Filed three new todos in [todos/](todos/):
+
+- **[playtest-findings](todos/2026-06-22-citadel-playtest-findings.md)** — the
+  default `grow` scenario does **not** grow: pop pins at 6/12 then collapses to 2
+  (Village→Hamlet) by day 60, against its documented "grow past 8+". Also: services
+  give **no feedback** when they cover zero houses ("built a chapel, nothing
+  happened"); recurring 1-villager disease has no real counterplay in a sparse
+  town; and `siege` day-0 dumps ~20 tier-lock rejection toasts (unreadable
+  cold-open). **Extended with a live real-GPU run** (Playwright + system Chrome,
+  WebGPU; 565 in-game days at 4× via the `window.__citadel.send` dev hook) which
+  pinned the root cause (new **P0**): an **immigration deadlock** — founders stop
+  once each building *type* has one worker (not when slots fill), so the food chain
+  runs half-staffed at break-even, daily `foodSurplus` sits at 0, and post-founding
+  immigration (gated on surplus > 0) never fires. Pop freezes at the founding size
+  forever. Consequence: **Town tier (pop ≥ 10) is unreachable via normal play, so
+  keep/garrison never unlock and L3 upgrades are impossible** — i.e. "unlock +
+  upgrade all buildings" can't currently be completed legitimately. Live also
+  confirmed placement fails **silently** (no toast on occupancy/terrain reject).
+- **[road-routing-around-buildings](todos/2026-06-22-citadel-road-routing-around-buildings.md)**
+  — road drag lays a fixed L (`shortestRoadPath`) with no obstacle awareness; when
+  it clips a building the sim silently rejects those tiles, **gapping** the road and
+  breaking connectivity. Make the client-side path search route *around* footprints
+  (water still decks into a bridge); sim placement rules unchanged.
+- **[minimap-rotate-viewport-rectangle](todos/2026-06-22-citadel-minimap-rotate-viewport-rectangle.md)**
+  — minimap draws in axis-aligned tile space so the iso camera viewport reads as a
+  diamond; rotate the minimap into iso/screen space so the viewport box is an upright
+  rectangle. Render-only.
+
+## [2026-06-22] fix | Citadel 38 — P2#10/#11 tier balance + real-GPU verification
+
+First session driving Citadel **live on a real GPU** (the dev box is native Windows, not
+WSL — WebGPU renders). Toolchain: Playwright + **system Chrome** (`--enable-unsafe-webgpu`).
+Note the **Playwright-bundled Chromium can't create a WebGPU device here** (`dxil.dll`
+Windows error 87 — the bundle lacks the DXC shader-compiler DLLs); installed Chrome/Edge
+work (`channel: "chrome"`) → backend `webgpu`, iso terrain + buildings render.
+
+Fixes off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 5, the single-player-visible balance bugs):
+- **P2#10** — `TierSystem` counted wall/gate tiles as settlement buildings → wall-spam
+  alone climbed to Town. Extracted pure `countsTowardTier(type)` (excludes
+  `isRoad`/`isWall`/`isGate`); walls still feed `defensiveStrength`, not settlement size.
+  [tiers.ts](../games/citadel/sim-core/src/systems/tiers.ts).
+- **P2#11** — (a) tier-change event is now direction-aware ("risen"/"fallen"); (b) added a
+  per-player `peakTier` high-water mark ([sim-state.ts](../games/citadel/sim-core/src/sim-state.ts))
+  — build/upgrade tier-locks gate on `unlockTier(p)` = max(tier, peakTier), so a demotion
+  (disease/starvation) never re-locks an already-unlocked building. `peakTier` added to the
+  snapshot; client gates buttons/upgrade-hint on it, HUD still shows current `tier`.
+- **Determinism:** sim-touching (wall-exclusion changes tier counting; `peakTier` is new
+  monotone derived state feeding gating only). Solo `EXPORT=json` re-proof NOT run
+  (ask-first / constrained-hardware rule) — carried forward. It's a deliberate balance move
+  regardless. Tests: [phase5.test.ts](../games/citadel/sim-core/src/systems/phase5.test.ts)
+  +4. `@citadel/sim-core` 146/146, client 187/187, server 9/9; citadel typecheck clean.
+  (Pre-existing, unrelated: `@tool/world-preview` typecheck fails on `@webgpu/types` /
+  `.wgsl?raw` in engine `weather-pass.ts` — reproduces on a clean tree, not from this change.)
+
+**Verification win:** the **true-iso flat-box anomaly** (market/storehouse/bakery/woodcutter
+allegedly flat) **does not reproduce on this real GPU** — all render as iso volumes; only
+`market` is flat, by design (`marketStalls`). Confirms the host-specific-driver hypothesis;
+note added to [the iso epic](todos/2026-06-21-citadel-true-isometric.md).
+
+## [2026-06-22] fix | Citadel 38 — P1#7 reconnect-frozen-sim (reap-grace + reset)
+
+Third fix wave off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 4). `CitadelSimHost.detach` stopped the tick interval but
+never nulled `sim`, so once every peer left, a reconnecting peer's `init` took the
+"already running" branch and got a snapshot of a frozen (non-ticking) sim.
+
+- [sim-host.ts](../games/citadel/server/src/sim-host.ts): adopted the Farm
+  `RunRegistry` reap pattern, adapted to Citadel's single-room-per-process host. The
+  last departure now **arms a grace timer** (`reapGraceMs`, default 10s) instead of
+  tearing down immediately — the sim keeps ticking during the window so a refresh/blip
+  reconnect rejoins the same live game. If the timer fires while still empty, `reset()`
+  nulls `sim` and clears tick/hostPeer/bots/paused/speed/nextPlayerId, so the next
+  `init` starts a clean, ticking room. `attach` cancels any pending reap.
+- **Scope:** kept single-room-per-process (the keyed multi-room registry that Farm has
+  is the deliberate follow-up per index.ts). This is a transport/lifecycle change only —
+  the deterministic sim is untouched, so no determinism concern.
+- Test: [run-lifecycle.test.ts](../games/citadel/server/src/run-lifecycle.test.ts) —
+  fake-timer reap → reconnect gets a *fresh* ticking sim (distinct instance, clean
+  building set); within-grace reconnect → *same* live sim, reap canceled. `@citadel/server`
+  9/9, typecheck clean.
+
+Still open from the audit: P1 #6 (social layer — GPU/live), #9 (MP render — GPU); P2
+#10–#12; P3 #14–#19.
+
+## [2026-06-22] fix | Citadel 38 — P1#5 villager owner filter
+
+Second fix wave off the [audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 2). `VillagerSystem` ignored `ownerId`: in MP a player's
+villagers would take the nearest *rival* workplace, haul to a rival store, and — since
+the deposit credits `v.ownerId` — siphon the rival's output into their own pool.
+
+- [villager-system.ts](../games/citadel/sim-core/src/systems/villager-system.ts):
+  `assign()` (both the `staffedTypes` precompute and the workplace tier loop) and
+  `firstStore()` now skip buildings where `building.ownerId !== v.ownerId`. `firstStore`
+  took an `ownerId` param (call site passes `v.ownerId`).
+- **Determinism:** no-op in solo (single owner → every building matches the villager) →
+  byte-identical; no determinism check run (ask-first rule). The full solo economy +
+  hauler-reroute suites still pass, confirming the no-op.
+- Test: [villager-owner.test.ts](../games/citadel/sim-core/src/systems/villager-owner.test.ts)
+  — drives `VillagerSystem` directly (no scheduler → no connectivity recompute) with a
+  two-owner set; a player-1 villager skips the *nearer* player-0 farm for its own farther
+  one, the rival farm stays unstaffed, and hauling targets the owned store. Plus a
+  same-owner nearest-assignment control. `@citadel/sim-core` 138/138, typecheck clean.
+
+Still open from the audit: P1 #6 (social layer — GPU/live), #7 (RunRegistry), #9; P2
+#10–#12; P3 #14–#19.
+
+## [2026-06-22] fix | Citadel 38 — P0 MP-authority pass (+ #13, P1#8 correction)
+
+First fix wave off the [implementation-review audit](todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(suggested-fix-order item 1 + the trivial wins). Closed the four P0 server-authority
+holes that trusted the sender in a live MP room:
+
+- **P0#1 demolish** + **P0#2 upgradeBuilding** ([sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts)):
+  added `b.ownerId !== localPlayer(state).id` guards so a peer can't raze a rival's
+  town-hall (= instant elimination) or force-upgrade and drain a rival's stockpiles.
+- **P0#3** ([sim-host.ts](../games/citadel/server/src/sim-host.ts)): the host now drops any
+  client-injected `setActivePlayer` (server-internal routing marker only) and stamps its
+  own trusted one for real commands.
+- **P0#4** (sim-host.ts): room control (pause/resume/speed) is host-only — `hostPeer` =
+  first attached peer, migrates to the next survivor on host detach; non-host control
+  messages are ignored. Added `isPaused`/`speedMultiplier`/`hostPlayerId` test getters.
+- **#13** (sim-bootstrap.ts `getSnapshot`): `keepPresent` now tests
+  `getProductionDef(type)?.isKeep` so the MP `town-hall` anchor counts (was a literal
+  `type === "keep"` → MP always read "no keep").
+
+**Determinism:** the whole set is byte-identical in solo by construction — the
+ownership guards are no-ops under a single owner, and `keepPresent` is render-only with
+`town-hall` never spawning in solo (only `keep` and `town-hall` carry `isKeep`). No
+determinism check run (constrained hardware; ask-first rule). New tests:
+`mp-authority.test.ts` in sim-core (3) + server (2). Verified: `@citadel/sim-core`
+136/136, `@citadel/server` 7/7, both typecheck clean.
+
+**Corpus correction:** the audit's **P1#8 ("windowController.update never ticked") is
+STALE** — `windowController.update(camera)` already runs each frame at `main.ts:792`
+(landed in the "improvements" commit alongside the audit). Marked resolved in brief 38.
+Still open from the audit: P1 #5/#6/#7/#9, P2 #10–#12, P3 #14–#19.
 
 ## [2026-06-21] brief | Citadel building art-style reference filed (todo 96)
 
@@ -893,3 +1196,4 @@ Trimmed to keep this log minimal. **Full entry text is in git history** (`git lo
 - **06-05 → 06-06 — Spectator/story + gameplay-depth waves.** Briefs 36–48: end-of-run recap, rivalries/relationship matrix, drama scoring, wealth graph, thought bubbles; crop roster + quality (the spine), livestock + orchards, greenhouse + skills, working NPCs + tavern, festivals, harbor + contracts, atlas split (47), boats + coral fishing (48). Engine brief 09 perf pass; monolith→module-dir refactor; mining `Math.random` determinism fix.
 - **06-08 → 06-09 — 21 farmers + organic procgen + more islands + radial reorg.** Service NPCs lightly deliberate; scaled to 21 farmers; brief 49 organic procgen (fBm + domain-warp, clustered features, open-water props; Simplex deferred); briefs 50–54 islands (shrine, heritage, waterfall, camping; 53 superseded); spectator-UX audit P1a–d; **the 160×160 radial map reorg.**
 - **06-10 — Client/server split + polish + perf re-measure.** Briefs 55–58 (extract `@farm/sim-core` → Node WS server → renderer-as-WS-client → deploy); brief 59 peer-interaction fix (price-bug + `OFFER_CROP`); briefs 60–65 render-polish wave; brief 70 +30 startgold; brief 71 per-asset atlas recipes + cached builds; edge depth-sorting; perf re-measure; brief 09 closed; the FPS-regression triage that became performance.md Tier 0.
+- **06-22 — Citadel HUD declutter.** Bottom bars were eating laptop vertical space and the HUD reflowed (canvas-shift) whenever an event appeared. Fixes: events → transient top-center toasts (`ui/toast.ts`, out-of-flow overlay); new top-right minimap drawn in tile-space with click-to-recenter (`ui/minimap.ts`); condensed icon-only build bar + `nowrap` HUD row; trader panel floated out of the HUD flex row. See [citadel-overview.md](wiki/citadel-overview.md) "HUD & overlays".

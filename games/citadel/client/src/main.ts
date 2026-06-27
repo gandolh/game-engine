@@ -23,6 +23,7 @@ import {
   pushLightPool,
   pushAmbientCrowd,
   pushWearOverlay,
+  pushCatchment,
   eventToDevicePx,
   screenToWorld,
   transformOf,
@@ -50,8 +51,19 @@ import {
 } from "./render/atmosphere";
 import { CitadelWeather } from "./render/weather";
 import { CitadelAmbientCrowd } from "./render/ambient-crowd";
+import {
+  COVERAGE_SERVICE,
+  serviceRadius,
+  serviceTint,
+  catchmentTiles,
+  housesInRadius,
+  coverageByNeed,
+} from "./render/coverage";
 import { PlacementStateManager } from "./ui/placement-state";
 import { SettingsModal } from "./ui/settings-modal";
+import { ToastManager, newEventsSince } from "./ui/toast";
+import { CitadelMinimap } from "./ui/minimap";
+import { tileToIso } from "./render/iso";
 import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 
 const SEED = 0x1a2b3c4d;
@@ -76,7 +88,6 @@ const hudPop = document.getElementById("hud-pop")!;
 const hudBread = document.getElementById("hud-bread")!;
 const hudWood = document.getElementById("hud-wood")!;
 const hudHappiness = document.getElementById("hud-happiness")!;
-const hudEvents = document.getElementById("hud-events")!;
 // Phase 4 siege HUD
 const hudThreat = document.getElementById("hud-threat")!;
 const hudDefense = document.getElementById("hud-defense")!;
@@ -112,6 +123,22 @@ const traderOffers = document.getElementById("trader-offers")!;
 // Brief 19: follow-cam HUD strip (DOM, since the WebGPU overlay callback is a
 // no-op). Shows the followed villager's id / fsm / cargo / destination.
 const followHud = document.getElementById("follow-hud")!;
+
+// Event toasts (top-center) replace the old inline #hud-events span — events no
+// longer reflow the bottom bar. Created at module scope so it exists before the
+// first snapshot arrives (the minimap waits for the camera, so it's made in boot).
+const toasts = new ToastManager(document.getElementById("toast-container")!);
+let lastEventShown: string | null = null;
+let minimap: CitadelMinimap | null = null;
+
+// Build toolbar is icon-only (condensed for laptops); surface each button's name
+// as a hover tooltip so the glyphs stay discoverable. Derives the label from the
+// button text minus its icon glyph.
+for (const btn of document.querySelectorAll<HTMLButtonElement>("#build-bar button")) {
+  const icon = btn.querySelector(".bi")?.textContent ?? "";
+  const label = (btn.textContent ?? "").replace(icon, "").trim();
+  if (label !== "") btn.title = label;
+}
 
 // ---------------------------------------------------------------------------
 // Camera + renderer (Camera2D + engine WebGPU renderer; created async in boot)
@@ -156,6 +183,9 @@ let lastMouseX = 0;
 let lastMouseY = 0;
 
 const placementState = new PlacementStateManager();
+// OpenTTD-influence coverage overlay (2026-06-22): toggled with `C`, tints the
+// faith/safety/goods catchments across the map so gaps are visible at a glance.
+let coverageOverlay = false;
 let currentBuildings: readonly BuildingSnapshot[] = [];
 let currentVillagers: readonly VillagerSnapshot[] = [];
 let currentRaiders: readonly RaiderSnapshot[] = [];
@@ -178,11 +208,15 @@ canvas.addEventListener("mousedown", (e) => {
 canvas.addEventListener("mouseup", (e) => {
   if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
     placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+    const routeBlocked = placementState.lastRouteBlocked;
     const tiles = placementState.endRoadDrag();
     if (tiles.length > 0) {
       if (placementState.mode === "wall") {
         client.sendCommand({ type: "placeWall", payload: { tiles } });
       } else {
+        // Roads route around buildings; if none could be found the path falls
+        // back to a straight line the sim will gap — tell the player why.
+        if (routeBlocked) toasts.push("No clear road route — blocked", performance.now());
         client.sendCommand({ type: "placeRoad", payload: { tiles } });
       }
     }
@@ -230,10 +264,20 @@ canvas.addEventListener("click", (e) => {
   if (placementState.mode === "place") {
     const ghost = placementState.ghost();
     if (ghost !== null && ghost.valid) {
+      const type = placementState.selectedType;
       client.sendCommand({
         type: "placeBuilding",
-        payload: { buildingType: placementState.selectedType, x: ghost.tileX, y: ghost.tileY },
+        payload: { buildingType: type, x: ghost.tileX, y: ghost.tileY },
       });
+      // OpenTTD-influence: a service that reaches no homes is an invisible
+      // no-op — say so. Reuses the same centre/radius the sim scores against.
+      if (COVERAGE_SERVICE[type] !== undefined) {
+        const cx = ghost.tileX + Math.floor(ghost.w / 2);
+        const cy = ghost.tileY + Math.floor(ghost.h / 2);
+        if (housesInRadius(currentBuildings, cx, cy, serviceRadius(type)) === 0) {
+          toasts.push(`${type} covers 0 homes — move it closer`, performance.now());
+        }
+      }
     }
   } else if (placementState.mode === "demolish") {
     const { tx, ty } = placementState.cursorTile();
@@ -284,6 +328,20 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && followId !== null) clearFollow();
 });
 
+// `C` toggles the service-coverage overlay (OpenTTD-influence brief). Ignore it
+// while typing in a form control or with a modifier held (keeps Ctrl+C copy).
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "c" && e.key !== "C") return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target as HTMLElement | null;
+  if (t !== null && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  coverageOverlay = !coverageOverlay;
+  toasts.push(
+    coverageOverlay ? "Coverage overlay ON — faith/safety/goods" : "Coverage overlay OFF",
+    performance.now(),
+  );
+});
+
 function clearFollow(): void {
   followId = null;
   updateFollowHud();
@@ -332,7 +390,7 @@ function upgradeHint(): string {
   const costStr = Object.entries(cost)
     .map(([g, q]) => `${q} ${g}`)
     .join(", ");
-  const locked = !tierAtLeast(tier as SettlementTier, reqTier);
+  const locked = !tierAtLeast(peakTier as SettlementTier, reqTier);
   const status = locked ? ` [LOCKED: needs ${reqTier}]` : "";
   return `Mode: Upgrade ${b.type} → L${nextLevel} (${costStr})${status}`;
 }
@@ -439,7 +497,7 @@ const buildModeButtons: HTMLElement[] = [
 function refreshBuildButtonLocks(): void {
   for (const [type, btn] of buildButtonsByType) {
     const required = TIER_LOCK[type];
-    if (required !== undefined && !tierAtLeast(tier as SettlementTier, required)) {
+    if (required !== undefined && !tierAtLeast(peakTier as SettlementTier, required)) {
       btn.disabled = true;
       btn.classList.add("tier-locked");
       btn.title = `Requires ${required}`;
@@ -560,6 +618,21 @@ if (import.meta.env.DEV) {
     send: (cmd: unknown) => client.sendCommand(cmd as never),
     terrain: () => terrain,
     buildings: () => currentBuildings,
+    // Project a tile centre to a CSS-px point (relative to the viewport) so a
+    // test harness can drive REAL UI gestures — hovering the placement ghost,
+    // clicking a specific tile — not just the command channel. Mirrors the
+    // renderer's world→screen transform.
+    tileToScreenCss: (tx: number, ty: number) => {
+      const c = tileToIso(tx + 0.5, ty + 0.5);
+      fitCameraToCanvas(camera, canvas.width, canvas.height);
+      const sx = canvas.width / camera.worldUnitsX;
+      const sy = canvas.height / camera.worldUnitsY;
+      const left = camera.centerX - camera.worldUnitsX / 2;
+      const top = camera.centerY - camera.worldUnitsY / 2;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      return { x: rect.left + ((c.x - left) * sx) / dpr, y: rect.top + ((c.y - top) * sy) / dpr };
+    },
   };
 }
 
@@ -567,7 +640,8 @@ let paused = false;
 let day = 1;
 let tick = 0;            // render-side mirror of snap.tick (for the day/night wash)
 let season = "spring";
-let tier = "Hamlet"; // Phase 5: settlement tier
+let tier = "Hamlet"; // Phase 5: settlement tier (current; displayed in HUD)
+let peakTier = "Hamlet"; // highest tier ever reached; gates build/upgrade buttons
 let population = 0;
 let popCap = 0;
 let bread = 0;
@@ -681,6 +755,7 @@ client.onSnapshot((snap) => {
   day = snap.day + 1;
   season = snap.season;
   tier = snap.tier;  // Phase 5
+  peakTier = snap.peakTier;  // gates build/upgrade buttons (never demotes)
   refreshBuildButtonLocks();
   population = snap.population;
   popCap = snap.popCap;
@@ -688,6 +763,10 @@ client.onSnapshot((snap) => {
   wood = snap.stockpiles.wood ?? 0;
   foodSurplus = snap.foodSurplus;
   events = snap.recentEvents;
+  // Toast only the freshly-appended events (the rest is backlog already shown).
+  // performance.now() is the render clock — main-thread only, never the sim.
+  for (const e of newEventsSince(lastEventShown, events)) toasts.push(e, performance.now());
+  if (events.length > 0) lastEventShown = events[events.length - 1]!;
   currentBuildings = snap.buildings;
   currentVillagers = snap.villagers;
   // Phase 3
@@ -780,8 +859,6 @@ function loop(): void {
     hudKeep.textContent = "Keep: none";
     hudKeep.style.color = EDG.steel;
   }
-  hudEvents.textContent = events.length > 0 ? events[events.length - 1]! : "";
-
   // Phase 4.5: hazard HUD
   if (activeFires > 0) {
     hudFire.textContent = `Fire: ${activeFires} building(s) burning!`;
@@ -902,6 +979,24 @@ function loop(): void {
   }
 
   const ghost = placementState.ghost();
+
+  // --- Service coverage (OpenTTD-influence brief, 2026-06-22). Two paths share
+  // one ground-tile decal: the full overlay (toggled with `C`) washes every
+  // catchment by need so gaps show; the placement ring previews the selected
+  // service's reach around the ghost BEFORE committing. Render-only — the tile
+  // geometry mirrors the sim's coverage math (render/coverage.ts).
+  if (coverageOverlay) {
+    for (const grp of coverageByNeed(currentBuildings)) pushCatchment(renderer, grp.tiles, grp.hex);
+  }
+  if (placementState.mode === "place" && ghost !== null) {
+    const radius = serviceRadius(placementState.selectedType);
+    if (radius > 0) {
+      const cx = ghost.tileX + Math.floor(ghost.w / 2);
+      const cy = ghost.tileY + Math.floor(ghost.h / 2);
+      pushCatchment(renderer, catchmentTiles(cx, cy, radius), serviceTint(placementState.selectedType));
+    }
+  }
+
   const dragging = (placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad;
   pushGhost(renderer, ghost, dragging ? placementState.roadTiles : []);
 
@@ -935,6 +1030,17 @@ function loop(): void {
   const weatherField = renderToggles.weather ? weather.field : undefined;
   renderer.endFrame(wash, particles, weatherField);
 
+  // Minimap overview + event-toast aging (both render-only overlays).
+  if (minimap !== null) {
+    minimap.draw({
+      buildings: currentBuildings,
+      villagers: currentVillagers,
+      raiders: currentRaiders,
+      transform: transformOf(camera, canvas.width, canvas.height),
+    });
+  }
+  toasts.tick(nowMs);
+
   requestAnimationFrame(loop);
 }
 
@@ -948,6 +1054,17 @@ async function boot(): Promise<void> {
   renderer = created.renderer;
   camera = created.camera;
   windowController = created.windowController;
+
+  // Minimap (top-right): clicking it recentres the camera on that tile and
+  // releases any follow-cam lock. Camera centre is in iso world-px, so map the
+  // clicked tile through the iso projection.
+  const minimapCanvas = document.getElementById("minimap") as HTMLCanvasElement;
+  minimap = new CitadelMinimap(minimapCanvas, terrain, (tx, ty) => {
+    followId = null;
+    updateFollowHud();
+    const c = tileToIso(tx, ty);
+    camera.setCenter(c.x, c.y);
+  });
 
   client.init(SEED, TICKS_PER_DAY);
   updateModeLabel();
