@@ -1,9 +1,24 @@
 ---
 title: "Citadel — solo cold-start: founding window expires during boot, pop can never leave 0"
 created: 2026-06-27
-status: todo
+status: done
+resolved: 2026-06-27
 tags: [citadel, sim, gameplay, immigration, boot, p0, live-finding]
 ---
+
+> **Done 2026-06-27.** Anchored the founding window PER PLAYER to the first
+> observed day they have a connected, unstaffed production building (something to
+> found), set in `ImmigrationSystem.run()` including on the baseline day — instead
+> of the old global `startDay` measured from the first observed sim day. A town
+> built at tick 0 anchors to the baseline day exactly as before (headless/replay
+> founding timing + determinism unchanged; the winter-starvation economy test
+> still holds), while a town first built late (the live client's post-boot day
+> ~15) anchors then instead of having already missed the window. Removed the now
+> dead `startDay` field. Added an economy regression test (settlement built at
+> ~day 20 still bootstraps). **Live-confirmed**: a settlement built at day 11 now
+> reaches Pop 6/6 by day 36 (was stuck at 0 indefinitely). sim-core 158/158;
+> headless determinism identical (Final pop/bread unchanged).
+> Commit `699620d`. See [log.md](../log.md).
 
 # Citadel — founding window closes before the player can build (live solo client)
 
