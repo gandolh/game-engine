@@ -16,3 +16,6 @@ declare module "*.wgsl?raw" {
   const src: string;
   export default src;
 }
+
+// CSS imported for its side effect (Vite injects it). `import "./style.css"`.
+declare module "*.css";

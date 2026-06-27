@@ -8,6 +8,7 @@
  * Phase 5: settlement tier HUD; save/load via command-log replay (localStorage
  *          + downloadable JSON blob).
  */
+import "./style.css";
 import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot } from "@citadel/sim-core";
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";

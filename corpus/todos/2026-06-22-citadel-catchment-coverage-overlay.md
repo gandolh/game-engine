@@ -1,10 +1,10 @@
 ---
 title: "Citadel — OpenTTD-style service catchment radius + coverage overlay (legibility fix)"
 created: 2026-06-22
-status: open
+status: done
+resolved: 2026-06-22
 tags: [citadel, ux, gameplay, ui, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
-status: done
 ---
 
 > **✅ DONE 2026-06-22.** All three scope items shipped, render/UI-only (no sim
