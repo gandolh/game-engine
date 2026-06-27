@@ -84,6 +84,31 @@ describe("Citadel Phase 2 — economy", () => {
     expect(sim.population).toBeGreaterThan(0);
   });
 
+  it("a settlement built LATE (after the founding window's worth of days) still bootstraps population", () => {
+    // Regression for playtest P0 (2026-06-27): the live client runs the sim
+    // during page/WebGPU boot, so the player can't place a connected settlement
+    // until ~day 15 — long after a founding window measured from sim-day 0 would
+    // have closed. The window must anchor to the first day there's something to
+    // found, not to sim start. Build everything at tick 400 (~day 20, well past
+    // floor(DAYS_PER_YEAR/4)+2 days) and assert founders still arrive.
+    const LATE_TICK = TICKS_PER_DAY * 20; // ~day 20, far past the founding window
+    const cmds: ScheduledCmd[] = [
+      { atTick: LATE_TICK, cmd: roadRow(13, 10, 40) },
+      { atTick: LATE_TICK, cmd: { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 11 } } },
+      { atTick: LATE_TICK, cmd: { type: "placeBuilding", payload: { buildingType: "farm", x: 14, y: 14 } } },
+      { atTick: LATE_TICK, cmd: { type: "placeBuilding", payload: { buildingType: "mill", x: 18, y: 14 } } },
+      { atTick: LATE_TICK, cmd: { type: "placeBuilding", payload: { buildingType: "bakery", x: 21, y: 14 } } },
+      { atTick: LATE_TICK, cmd: { type: "placeBuilding", payload: { buildingType: "house", x: 24, y: 14 } } },
+    ];
+    const sim = run(cmds, TICKS_PER_DAY * 80);
+    const bakery = sim.getBuildings().find((b) => b.type === "bakery");
+    expect(bakery).toBeDefined();
+    expect(bakery!.connected).toBe(true);
+    // The founding window opened when the settlement was actually built, so the
+    // colony bootstrapped off pop 0 despite starting ~20 days into the sim.
+    expect(sim.population).toBeGreaterThan(0);
+  });
+
   it("road connectivity: building is disconnected until a road links it", () => {
     // No road: a farm far from the store is not connected.
     const noRoad: ScheduledCmd[] = [

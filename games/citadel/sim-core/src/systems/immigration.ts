@@ -32,9 +32,17 @@ export class ImmigrationSystem implements System {
   readonly name = "ImmigrationSystem";
 
   private lastDay = -1;
-  private startDay = -1;
   private readonly hadPopulation = new Set<number>(); // player ids that have had >0 pop
   private readonly tithedOnce = new Set<number>();     // player ids that fired the tithe event
+  // Per-player founding anchor: the day this player FIRST had a connected,
+  // unstaffed production building (i.e. the first day there was anything to
+  // found). The founding window is measured from here, NOT from the first
+  // observed sim day — otherwise the window expires during the live client's
+  // multi-second page/WebGPU boot, before the player can place a connected
+  // settlement, and the colony can never bootstrap off pop 0 (playtest P0,
+  // 2026-06-27). In headless tests / replay this is tick-0 day, so behaviour is
+  // unchanged; it only differs when building starts late (the live client).
+  private readonly foundingAnchorDay = new Map<number, number>();
   private readonly rng: Rng;
 
   constructor(private readonly state: SimState) {
@@ -45,8 +53,21 @@ export class ImmigrationSystem implements System {
     const state = this.state;
     if (state.day === this.lastDay) return;
     const firstDay = this.lastDay === -1;
-    if (firstDay) this.startDay = state.day;
     this.lastDay = state.day;
+
+    // Anchor each player's founding window to the FIRST observed day they have a
+    // connected, unstaffed production building (something to found) — checked on
+    // every observed day INCLUDING the baseline day, so a town built at tick 0
+    // anchors to the baseline day exactly as the old global `startDay` did
+    // (founding timing unchanged), while a town first built late (the live
+    // client's post-boot day ~15) anchors then instead of having already missed
+    // the window (playtest P0, 2026-06-27).
+    for (const p of state.players) {
+      if (!this.foundingAnchorDay.has(p.id) && this.hasFoundableBuilding(p)) {
+        this.foundingAnchorDay.set(p.id, state.day);
+      }
+    }
+
     if (firstDay) {
       // Establish baseline; no consumption on the very first observed day.
       for (const p of state.players) p.lastDayBreadStart = p.stockpiles.bread;
@@ -57,6 +78,23 @@ export class ImmigrationSystem implements System {
     for (const p of state.players) this._runDayFor(p);
 
     void ctx;
+  }
+
+  /** True if `p` owns at least one connected production building with no worker
+   *  (i.e. there is something a founder could be sent to staff). */
+  private hasFoundableBuilding(p: PlayerState): boolean {
+    const state = this.state;
+    for (const entity of state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      const id = entity.id;
+      if (id === undefined) continue;
+      const rs = state.buildingState.get(id);
+      if (rs === undefined || !rs.connected) continue;
+      const def = getProductionDef(entity.building.type);
+      if (def === undefined || def.workerSlots <= 0) continue;
+      if (rs.workerCount === 0) return true;
+    }
+    return false;
   }
 
   private _runDayFor(p: PlayerState): void {
@@ -132,7 +170,13 @@ export class ImmigrationSystem implements System {
     // worker, so a second farm/bakery of an existing type never got staffed, the
     // food chain stayed at one-building throughput, broke even on bread, and
     // growth deadlocked at the founding size forever (playtest P0).
-    const daysSinceStart = state.day - this.startDay;
+    //
+    // The window is anchored (in run()) to the first observed day THIS player had
+    // something to found, not the first observed sim day — so it survives the live
+    // client's boot delay (playtest P0, 2026-06-27). Headless/replay build at
+    // tick 0, so the anchor is the baseline day and founding timing is unchanged.
+    const anchorDay = this.foundingAnchorDay.get(p.id) ?? state.day;
+    const daysSinceStart = state.day - anchorDay;
     const foundingWindow = daysSinceStart <= Math.floor(state.daysPerYear / 4) + 2;
     // The very first pioneer always lands (bootstrap); further founders need some
     // bread on hand, so a starving colony stops attracting them (founders don't
