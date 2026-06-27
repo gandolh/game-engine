@@ -300,6 +300,29 @@ export class PlacementStateManager {
   }
 
   /**
+   * The current drag-paint tiles tagged with whether the sim will ACCEPT each
+   * one, for the red/green preview tint. A tile is invalid if it's blocked for a
+   * road (building footprint / un-roadable terrain) — except the two endpoints,
+   * which the sim itself validates (so they stay green in the preview rather than
+   * flashing red while the player is still choosing where to drop them). Walls
+   * use the same passability rule. Pure read over the stashed terrain/buildings.
+   */
+  roadTilesWithValidity(): Array<{ x: number; y: number; valid: boolean }> {
+    const tiles = this._dragTiles;
+    if (tiles.length === 0 || this._terrain === null) {
+      return tiles.map((t) => ({ x: t.x, y: t.y, valid: true }));
+    }
+    const isBlocked = this._blockedForRoad(this._terrain, this._buildings);
+    const lastIdx = tiles.length - 1;
+    return tiles.map((t, i) => {
+      // Endpoints are the player's chosen drop tiles — the sim is the authority
+      // on whether they're legal, so don't pre-flag them red mid-drag.
+      const isEndpoint = i === 0 || i === lastIdx;
+      return { x: t.x, y: t.y, valid: isEndpoint ? true : !isBlocked(t.x, t.y) };
+    });
+  }
+
+  /**
    * Whether the most recent road drag could not be routed and fell back to a
    * straight L (the sim will gap it). Consumed by the caller on drag-end to
    * surface a "no clear road route" toast.

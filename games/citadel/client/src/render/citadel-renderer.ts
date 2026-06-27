@@ -58,6 +58,7 @@ import { clusterBuildings, clusterBorderQuads } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
 import { RenderWindowController } from "./window-controller";
 import { createCitadelSpriteAtlas } from "./sprites/atlas";
+import { disconnectedBuildings } from "./road-feedback";
 
 // ---------------------------------------------------------------------------
 // Re-export the full prior public surface so existing imports keep resolving.
@@ -95,6 +96,10 @@ const LAYER_AMBIENT_CROWD = 15;
 // reads ON TOP of buildings like an OpenTTD catchment highlight rather than
 // hiding under them.
 const LAYER_COVERAGE = 38;
+// Disconnected-building "no road" marker — floats above its building, just under
+// the ghost/coverage so it reads as a HUD pip over the world (road-builder
+// feedback, 2026-06-27).
+const LAYER_DISCONNECT = 39;
 
 // Re-import LAYER_NETWORK for use in pushNetworks.
 import { LAYER_NETWORK } from "./autotile";
@@ -461,7 +466,7 @@ export interface GhostPreview {
 export function pushGhost(
   renderer: RendererLike,
   ghost: GhostPreview | null,
-  dragTiles: ReadonlyArray<{ x: number; y: number }>,
+  dragTiles: ReadonlyArray<{ x: number; y: number; valid?: boolean }>,
 ): void {
   // Iso ghost: a flat translucent diamond box over the hovered footprint. Use
   // the logical ghostQuad only for its tint, then iso-place it.
@@ -471,7 +476,9 @@ export function pushGhost(
     renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, base.tintRgba, LAYER_GHOST, d.depth));
   };
   if (ghost !== null) pushIso(ghost.tileX, ghost.tileY, ghost.w, ghost.h, ghost.valid);
-  for (const t of dragTiles) pushIso(t.x, t.y, 1, 1, true);
+  // Drag-paint preview: each tile green (valid) / red (the sim will reject it).
+  // `valid` defaults to true so existing callers are unchanged.
+  for (const t of dragTiles) pushIso(t.x, t.y, 1, 1, t.valid ?? true);
 }
 
 /**
@@ -492,6 +499,47 @@ export function pushCatchment(
     const d = isoFootprintDiamondBox(t.tx, t.ty, 1, 1, 0);
     const alpha = Math.round(0xff * (t.edge ? 0.34 : 0.16));
     renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(hex, alpha), LAYER_COVERAGE, d.depth));
+  }
+}
+
+/**
+ * Stamp a "no road" marker over every building that should be connected to the
+ * road network but isn't (road-builder feedback, 2026-06-27). The set comes from
+ * `road-feedback.ts` (production / housing / storage that is `connected:false`);
+ * infrastructure is never marked. The marker is a small gold chip floating just
+ * above the building's roof, gently pulsing on the render clock so it draws the
+ * eye without flashing. Render-only — reads the snapshot's `connected` flag.
+ * Call inside the same begin/endFrame as `pushScene`.
+ */
+export function pushDisconnectedMarkers(
+  renderer: RendererLike,
+  buildings: readonly BuildingSnapshot[],
+  clockMs = 0,
+): void {
+  // Gentle 0.6..1.0 alpha pulse (~1.4 s period) — attention without strobing.
+  const pulse = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(clockMs / 1000 * (Math.PI * 2 / 1.4)));
+  const alpha = Math.round(0xff * pulse);
+  const tint = packTint(EDG.gold, alpha);
+  const chip = ISO_TILE_H * 0.55; // small chip, ~half a tile-height square
+  for (const b of disconnectedBuildings(buildings)) {
+    const box = isoFootprintBox(b.x, b.y, b.w, b.h, buildingHeightTiles(b.type));
+    // Centre horizontally on the footprint; float a little above the roof top.
+    const cx = box.x + box.width / 2;
+    const top = box.y - chip * 0.9;
+    // Draw on the disconnect layer with a depth that keeps it above its building.
+    renderer.push({
+      atlasId: QUAD_ATLAS_ID,
+      frame: QUAD_FRAME,
+      x: cx,
+      y: top,
+      width: chip,
+      height: chip,
+      rotation: Math.PI / 4, // diamond-oriented chip (rhombus pip)
+      layer: LAYER_DISCONNECT,
+      alpha: 1,
+      tintRgba: tint,
+      sortY: box.depth + 0.0005,
+    });
   }
 }
 

@@ -24,6 +24,7 @@ import {
   pushAmbientCrowd,
   pushWearOverlay,
   pushCatchment,
+  pushDisconnectedMarkers,
   eventToDevicePx,
   screenToWorld,
   transformOf,
@@ -211,6 +212,7 @@ canvas.addEventListener("mousedown", (e) => {
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
   if (placementState.mode === "road" || placementState.mode === "wall") {
     placementState.startRoadDrag();
+    updateModeLabel(); // show the initial drag length readout
   }
 });
 
@@ -229,6 +231,7 @@ canvas.addEventListener("mouseup", (e) => {
         client.sendCommand({ type: "placeRoad", payload: { tiles } });
       }
     }
+    updateModeLabel(); // drag ended → drop the length readout from the label
   }
   isPanning = false;
 });
@@ -251,6 +254,8 @@ canvas.addEventListener("mousemove", (e) => {
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
   // Live upgrade hint: refresh the mode label as the cursor moves over buildings.
   if (placementState.mode === "upgrade") updateModeLabel();
+  // Live road/wall length readout: refresh the label while a drag is in progress.
+  if (placementState.isDraggingRoad) updateModeLabel();
 });
 
 canvas.addEventListener("wheel", (e) => {
@@ -404,12 +409,25 @@ function upgradeHint(): string {
   return `Mode: Upgrade ${b.type} → L${nextLevel} (${costStr})${status}`;
 }
 
+/**
+ * While a road/wall drag is active, a " — N tiles" (with " · blocked" when the
+ * route couldn't be cleared) suffix for the mode label, so the player sees the
+ * run's length + legality live before releasing. Empty when not dragging.
+ */
+function dragLengthSuffix(): string {
+  if (!placementState.isDraggingRoad) return "";
+  const n = placementState.roadTiles.length;
+  if (n === 0) return "";
+  const blocked = placementState.lastRouteBlocked ? " · blocked" : "";
+  return ` — ${n} tile${n === 1 ? "" : "s"}${blocked}`;
+}
+
 function updateModeLabel(): void {
   const mode = placementState.mode;
   if (mode === "place") lblMode.textContent = `Mode: Place ${placementState.selectedType}`;
   else if (mode === "demolish") lblMode.textContent = "Mode: Demolish";
-  else if (mode === "road") lblMode.textContent = "Mode: Road (drag)";
-  else if (mode === "wall") lblMode.textContent = "Mode: Wall (drag)";
+  else if (mode === "road") lblMode.textContent = `Mode: Road (drag)${dragLengthSuffix()}`;
+  else if (mode === "wall") lblMode.textContent = `Mode: Wall (drag)${dragLengthSuffix()}`;
   else if (mode === "upgrade") lblMode.textContent = upgradeHint();
   else lblMode.textContent = "Mode: None";
   highlightActiveBuildButton();
@@ -1031,8 +1049,15 @@ function loop(): void {
     }
   }
 
+  // --- Road-builder feedback: float a "no road" pip over any production/housing/
+  // storage building that isn't connected to the network, so the connectivity the
+  // economy depends on is visible (the `connected` flag was previously unsurfaced).
+  // Render-only; reads the snapshot flag. nowMs drives the gentle attention pulse.
+  pushDisconnectedMarkers(renderer, currentBuildings, nowMs);
+
   const dragging = (placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad;
-  pushGhost(renderer, ghost, dragging ? placementState.roadTiles : []);
+  // Drag preview tints each tile green/red by whether the sim will accept it.
+  pushGhost(renderer, ghost, dragging ? placementState.roadTilesWithValidity() : []);
 
   // Weather field (engine RainField → GPU WeatherPass). Update against the
   // visible world rect, then hand it to endFrame.
