@@ -1,9 +1,18 @@
 ---
 title: "Citadel — true isometric projection (render + art epic)"
 created: 2026-06-21
-status: mostly-done
+status: done
+resolved: 2026-06-22
 tags: [citadel, render, art, projection, epic]
 ---
+
+> **Done.** Iso projection + input + art all landed (see the OUTCOME note below);
+> the one "OPEN ANOMALY" (intermittent flat-box buildings) was root-caused as a
+> host-specific WebGPU artifact and **does not reproduce on a real GPU** (the
+> 2026-06-22 update below; `market` being flat is by-design). Re-confirmed
+> 2026-06-27: live Playwright+WebGPU sessions render all building types as correct
+> iso volumes. Status moved mostly-done → done; the padded-atlas follow-up remains
+> noted below only as a contingency if it ever resurfaces on another GPU.
 
 # Citadel — true isometric projection
 

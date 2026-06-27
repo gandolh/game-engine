@@ -4,6 +4,37 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] backlog | Citadel — autonomous backlog pass (CSS extract, two-way economy, walk gait, todo triage)
+
+A "finish the backlog" pass. Shipped three more items and triaged the rest:
+
+- **CSS extraction** ([extract-client-css](todos/2026-06-22-citadel-extract-client-css.md),
+  done): moved the inline `<style>` block out of index.html into
+  [src/style.css](../games/citadel/client/src/style.css), imported from main.ts;
+  `*.css` ambient decl added. Styling live-verified identical. Commit `b9121e5`.
+- **Two-way service economy — downside half** ([two-way-service-economy](todos/2026-06-22-citadel-two-way-service-economy.md),
+  partial): stockpile pressure caps each producer's outputBuffer at 5 cycles; a
+  building with no hauler draining it stops producing instead of overflowing. RNG-
+  free → determinism preserved. Commit `2279575`. Graded service-ratio + service-
+  growth (#1/#3) deferred to a combined economy-growth pass (don't double-tune the
+  immigration numbers).
+- **Entity-movement walk gait** ([entity-movement-natural-feel](todos/2026-06-27-citadel-entity-movement-natural-feel.md),
+  still partial): walking villagers get a springy step hop, idle ones the gentle
+  sway, via `gaitOffset` + `EntityInterpolator.isMoving`. Render-only. Commit
+  `393f4b5`. Facing/flip (needs directional art) + diagonal corner-cutting still
+  deferred.
+
+Triage of the remainder: **true-isometric** marked done (the "open anomaly" was a
+host WebGPU artifact, doesn't reproduce on real GPU; re-confirmed live).
+**coverage-overlay** + the playtest **P2 service-coverage feedback** marked
+resolved (coverage overlay + the road disconnected-marker close it). **openttd-art**
+relabelled `reference` (standing note, not a task). **Farm perishability + distance
+pricing DELIBERATELY left open** — it's large + balance-sensitive (needs a harvest-
+timestamp threaded through the inventory + g/AP economy re-run + BDI-AI integration)
+and isn't a safe unattended ship; documented in that todo. Remaining genuinely-open
+work: Farm perishability and the playtest **P3 disease counterplay** — both want a
+focused, reviewed session.
+
 ## [2026-06-27] feat | Citadel — road-builder feedback tier (connectivity marker + drag length + legality tint)
 
 Implemented the cheap, high-value tier from the road-builder UX research

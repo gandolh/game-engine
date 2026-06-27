@@ -6,6 +6,22 @@ tags: [farm, sim, gameplay, economy, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
 
+> **Deliberately NOT auto-implemented (2026-06-27).** Assessed during the autonomous
+> backlog pass and left open on purpose — this is a large, balance-sensitive
+> feature, not a safe auto-ship. Crops bank into per-quality buckets
+> (`inv.cropQuality[crop][quality]`) with **no harvest timestamp**
+> ([economy/helpers.ts](../../games/farm/sim-core/src/economy/helpers.ts)
+> `bankHarvest`/`bankProduct`/`bankFruit`), so adding decay means threading a time
+> dimension through the inventory model, the sale pricing, AND the g/AP economy
+> formula ([wiki/economy.md](../wiki/economy.md)) — which the todo itself says
+> "will move by design" and needs the principled model re-run. It ALSO requires the
+> BDI AI personalities to react in their `deliberate*` helpers (the todo flags this
+> as the main integration cost) or the sim looks dumb. That economy-rebalancing +
+> AI-integration judgment shouldn't be exercised unattended. Needs a focused,
+> reviewed session. (Citadel's sibling decay idea — stockpile pressure — WAS
+> shipped, since it's RNG-free and doesn't touch a priced market;
+> [two-way-service-economy](2026-06-22-citadel-two-way-service-economy.md).)
+
 # Farm Valley — perishability + distance pricing
 
 **OpenTTD-influence brief.** OpenTTD cargo pays on **type, amount, distance, and

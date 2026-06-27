@@ -13,8 +13,17 @@ tags: [citadel, sim, gameplay, balance, ux, playtest]
 > mouth) and **services were staffed before the bread chain**; the fix was
 > goods-before-services worker assignment + per-unstaffed-building founding +
 > buffer-based immigration. `grow` now holds pop 10–11/12 through a full year;
-> determinism re-proved across 3 seeds. **Still open: P2 service-coverage feedback
-> and P3 disease counterplay** (both untouched).
+> determinism re-proved across 3 seeds.
+>
+> **Update 2026-06-27.** **P2 service-coverage feedback is now RESOLVED** — the
+> [coverage overlay](2026-06-22-citadel-catchment-coverage-overlay.md) (placement
+> ring + `C` overlay + "covers 0 homes" toast) and the road
+> [disconnected-building marker](closed/2026-06-27-citadel-road-feedback-connectivity-indicator.md)
+> together make "I built X and nothing happened" legible (service reach AND road
+> connectivity). Also shipped the OpenTTD two-way loop's downside
+> ([stockpile pressure](2026-06-22-citadel-two-way-service-economy.md)). **Still
+> open: P3 disease counterplay** (the only untouched finding — a healer exists but
+> there's no proactive lever; left for a dedicated balance pass).
 
 # Citadel — playtest findings
 

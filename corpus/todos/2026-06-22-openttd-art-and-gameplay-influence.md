@@ -1,10 +1,16 @@
 ---
 title: "OpenTTD art-style & gameplay-feel influence (research note for both games)"
 created: 2026-06-22
-status: open
+status: reference
 tags: [citadel, farm, art, ux, research, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
+
+> **Standing reference note** (not a one-shot task — kept `reference`, not `open`).
+> Its concrete child briefs have largely shipped: coverage overlay (done), road
+> connectivity feedback (done), Citadel two-way stockpile pressure (done). Farm
+> perishability remains deliberately deferred (see that todo). Leave this as the
+> durable "why OpenTTD" rationale both games draw on.
 
 # OpenTTD — art-style & gameplay-feel influence
 

@@ -1,9 +1,20 @@
 ---
 title: "Citadel — extract a separate style.css instead of baking CSS into index.html"
 created: 2026-06-22
-status: open
+status: done
+resolved: 2026-06-27
 tags: [citadel, client, css, refactor, ux]
 ---
+
+> **Done 2026-06-27.** Moved the ~186-line inline `<style>` block from
+> [index.html](../../games/citadel/client/index.html) into
+> [src/style.css](../../games/citadel/client/src/style.css), imported from
+> [main.ts](../../games/citadel/client/src/main.ts) via `import "./style.css"`
+> (Vite). Added a `*.css` ambient module decl to vite-env.d.ts. Colours stay EDG32
+> hex — the palette guard only scans .ts/.js, so CSS is outside its scope (same as
+> when inline). Live-verified styling identical (HUD bg #262b44, monospace,
+> build-bar flex-wrap, settings modal position:fixed). typecheck + palette guard
+> green. Commit `b9121e5`. See [log.md](../log.md).
 
 # Citadel — extract client CSS into a separate `style.css`
 

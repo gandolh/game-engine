@@ -1,10 +1,24 @@
 ---
 title: "Citadel — two-way economy: production responds to whether output is collected/consumed (OpenTTD service loop)"
 created: 2026-06-22
-status: open
+status: partial
 tags: [citadel, sim, gameplay, economy, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
+
+> **Partial — 2026-06-27.** Shipped the deterministic **downside half (scope #2,
+> stockpile pressure)**: each producer's local outputBuffer is capped at 5 cycles
+> of its output; once full (no hauler drawing it down → weak/no road-connected
+> collection) the building stops producing instead of overflowing an infinite
+> pool. A blocked converter wastes no input. So an unserved building idles and
+> road/hauling quality is the lever — "roads matter" is now a mechanic, not an
+> assertion. No RNG → determinism preserved (headless `grow` byte-identical, still
+> Final pop 11/12 bread 108 — it's well-served so the cap doesn't bite there).
+> [production.ts](../../games/citadel/sim-core/src/systems/production.ts), commit
+> `2279575`. **Deferred:** scope #1 (graded service-RATIO that nudges output rate
+> up when well-served) and #3 (service-driven growth trickle) — both overlap the
+> immigration/founding model and the todo says coordinate, not double-tune; left
+> for a combined economy-growth pass so the same numbers aren't tuned twice.
 
 # Citadel — two-way economy (production responds to service)
 
