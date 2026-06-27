@@ -707,6 +707,51 @@ describe("FireSystem — dense town fires (integration)", () => {
     expect(fireOccurred).toBe(true);
   });
 
+  it("founding grace: a dense cluster does NOT ignite during the grace window, but does after", () => {
+    /**
+     * Regression for playtest P2 (2026-06-27): a starter cluster must not
+     * spontaneously combust before the player has had a chance to react. A dense
+     * wooden district built at the start should have NO fresh ignition for the
+     * first floor(daysPerYear/4)+2 days, then burn normally once the grace ends.
+     * (Spread is unaffected; this only holds off fresh ignition.)
+     */
+    const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });
+    const { terrain } = sim;
+    const cx = Math.floor(terrain.width / 2);
+    const cy = Math.floor(terrain.height / 2);
+    const types = [
+      "house", "house", "bakery", "bakery",
+      "mill", "mill", "house", "storehouse",
+      "chapel", "market",
+    ];
+    const items: Array<{ type: string; x: number; y: number }> = [];
+    for (let i = 0; i < types.length; i++) {
+      const pos = findClear(terrain, 2, 2, cx + (i % 4) * 3, cy + Math.floor(i / 4) * 3);
+      items.push({ type: types[i]!, x: pos.x, y: pos.y });
+    }
+    placeBatch(sim, items);
+
+    // Buildings placed at tick 0 → the founding-grace anchor is the start day.
+    const startDay = sim.state.day;
+    const graceDays = Math.floor(sim.state.daysPerYear / 4) + 2;
+    const fireEvent = (): boolean => sim.state.events.some((e) => /fire|burned/i.test(e));
+
+    // Run the full span. No fresh ignition may occur during the grace window;
+    // after it, the dense cluster must still burn (density mechanic intact).
+    let igniteDuringGrace = false;
+    let fireAfterGrace = false;
+    for (let t = 1; t <= 80 * TICKS_PER_DAY; t++) {
+      sim.scheduler.tick({ tick: t });
+      if (fireEvent()) {
+        if (sim.state.day - startDay <= graceDays) igniteDuringGrace = true;
+        else fireAfterGrace = true;
+        break;
+      }
+    }
+    expect(igniteDuringGrace).toBe(false);
+    expect(fireAfterGrace).toBe(true);
+  });
+
   it("a dense district WITH a well has fewer or equal fires than WITHOUT (same seed)", () => {
     function buildDense(withWell: boolean): CitadelSimResult {
       const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });

@@ -48,6 +48,15 @@ export class FireSystem implements System {
   private readonly baseRng: Rng;
   private readonly rivalBase: Rng;
   private readonly perPlayerRng = new Map<number, Rng>();
+  // Per-player founding grace: the first observed day this player owned any
+  // building. Ignition is suppressed for a short window after it so a player's
+  // starter cluster can't spontaneously combust before they've had any chance to
+  // react (space it out, drop a well). The live client runs the sim through the
+  // multi-second page/WebGPU boot, so without this a freshly-built starter town
+  // could already be on fire the moment the player first sees the map (playtest
+  // P2, 2026-06-27). Density still drives fire after the grace; an unpopulated
+  // built district still burns (the grace is temporal, not population-gated).
+  private readonly firstBuildDay = new Map<number, number>();
 
   constructor(private readonly state: SimState) {
     // Fork the base RNG ONCE in constructor, never per-tick.
@@ -67,6 +76,27 @@ export class FireSystem implements System {
     return r;
   }
 
+  /** True once `p` owns at least one building (any type). */
+  private ownsAnyBuilding(p: PlayerState): boolean {
+    for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId === p.id) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Founding grace: no fresh ignition for the first few days after a player's
+   * first building, so a starter cluster can't burn before the player has had a
+   * chance to react. Window mirrors the immigration founding window
+   * (floor(daysPerYear/4)+2). Spread is unaffected (handled in run()).
+   */
+  private inFoundingGrace(p: PlayerState): boolean {
+    const start = this.firstBuildDay.get(p.id);
+    if (start === undefined) return true; // no buildings yet → nothing to ignite anyway
+    const graceDays = Math.floor(this.state.daysPerYear / 4) + 2;
+    return this.state.day - start <= graceDays;
+  }
+
   run(ctx: SimContext): void {
     // Advance burn timers every tick (per player).
     for (const p of this.state.players) this._tickBurning(p, ctx.tick);
@@ -74,8 +104,14 @@ export class FireSystem implements System {
     if (this.state.day === this.lastDay) return;
     this.lastDay = this.state.day;
     for (const p of this.state.players) {
+      // Record the first day this player has any building (founding-grace anchor).
+      if (!this.firstBuildDay.has(p.id) && this.ownsAnyBuilding(p)) {
+        this.firstBuildDay.set(p.id, this.state.day);
+      }
+      // Spread is always allowed (a fire already underway must propagate); only
+      // fresh ignition is held off during the founding grace.
       this._spreadFire(p);
-      this._checkIgnition(p);
+      if (!this.inFoundingGrace(p)) this._checkIgnition(p);
     }
   }
 
