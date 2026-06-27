@@ -4,6 +4,30 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] feat | Citadel — road-builder feedback tier (connectivity marker + drag length + legality tint)
+
+Implemented the cheap, high-value tier from the road-builder UX research
+([road-feedback-connectivity-indicator](todos/2026-06-27-citadel-road-feedback-connectivity-indicator.md),
+now **done**). All client render/UI over the existing deterministic
+`placeRoad`/`placeWall` — no sim change, no determinism impact.
+
+1. **Disconnected-building marker** (the headline gap): the road network is the
+   economy's spine (founders only staff `connected` buildings) but the flag was
+   never shown. New pure [road-feedback.ts](../games/citadel/client/src/render/road-feedback.ts)
+   (`needsRoadConnection`/`disconnectedBuildings`) + renderer `pushDisconnectedMarkers`
+   float a pulsing EDG-gold pip over each production/housing/storage building that
+   is `connected:false` (infra excluded), Anno/Settlers style.
+2. **Drag length readout**: mode label shows "Mode: Road (drag) — N tiles"
+   (· blocked) live, resets on release.
+3. **Red/green legality tint**: `pushGhost` takes per-tile validity;
+   `roadTilesWithValidity` tags interior drag tiles via `_blockedForRoad`
+   (endpoints stay green). Clear auto-route = all green; no-clear-route = red.
+
+7 road-feedback unit tests + 222 @citadel/client suite green; typecheck clean;
+live-verified all three (pips over a disconnected farm+house not the connected
+storehouse; "— 28 tiles" readout). Commit `9b1d702`. Deferred follow-ups
+(snap/auto-extend, in-tool undo) noted in the todo + wiki.
+
 ## [2026-06-27] research | Citadel — road-builder UX note + scoped feedback todo
 
 Completed the research phase of the road-builder playtest todo
