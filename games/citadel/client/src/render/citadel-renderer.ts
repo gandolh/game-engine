@@ -214,10 +214,15 @@ export interface SceneInput {
  *    callback already has the base `buildingQuad(b)` result so it can scale
  *    about the footprint centre.
  *  - `villagerYOffset(v)` → vertical bob offset in world px (idle bob).
+ *  - `villagerPos(v)` / `raiderPos(r)` → render-only interpolated TILE position
+ *    (x,y) for a moving unit, so it glides between snapshots instead of snapping
+ *    tile-to-tile. Omit (or return the snapshot's own x/y) to draw un-interpolated.
  */
 export interface SceneFx {
   building?: (b: BuildingSnapshot, quad: QuadSpec) => { quad: QuadSpec; alpha: number };
   villagerYOffset?: (v: VillagerSnapshot) => number;
+  villagerPos?: (v: VillagerSnapshot) => { x: number; y: number };
+  raiderPos?: (r: RaiderSnapshot) => { x: number; y: number };
 }
 
 /**
@@ -379,7 +384,11 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
   for (const v of scene.villagers) {
     const base = villagerQuad(v);
     const dy = fx?.villagerYOffset !== undefined ? fx.villagerYOffset(v) : 0;
-    const box = isoPointBox(v.x + 0.5, v.y + 0.5, base.width);
+    // Render-only position interpolation: glide between snapshot tiles instead of
+    // snapping. The hook returns a fractional tile position; isoPointBox handles
+    // fractional coords (and derives the correct iso depth from them).
+    const p = fx?.villagerPos !== undefined ? fx.villagerPos(v) : { x: v.x, y: v.y };
+    const box = isoPointBox(p.x + 0.5, p.y + 0.5, base.width);
     // Entity legibility: lean + squash the figure along its screen-space heading
     // (tracked frame-to-frame, pure render — never read by the sim) so a moving
     // villager reads as walking-with-purpose instead of a static dot.
@@ -401,7 +410,8 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
   villagerHeading.sweep();
   for (const r of scene.raiders) {
     const base = raiderQuad(r);
-    const box = isoPointBox(r.x + 0.5, r.y + 0.5, base.width);
+    const rp = fx?.raiderPos !== undefined ? fx.raiderPos(r) : { x: r.x, y: r.y };
+    const box = isoPointBox(rp.x + 0.5, rp.y + 0.5, base.width);
     renderer.push(quadToSprite(
       { x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: base.tintRgba, ...(base.frame !== undefined ? { frame: base.frame } : {}) },
       LAYER_ENTITY, 1, box.depth + 0.0001,

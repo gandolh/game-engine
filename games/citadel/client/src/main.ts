@@ -51,6 +51,7 @@ import {
 } from "./render/atmosphere";
 import { CitadelWeather } from "./render/weather";
 import { CitadelAmbientCrowd } from "./render/ambient-crowd";
+import { EntityInterpolator, snapshotAlpha } from "./render/entity-interp";
 import {
   COVERAGE_SERVICE,
   serviceRadius,
@@ -151,6 +152,14 @@ let windowController: RenderWindowController;
 const weather = new CitadelWeather();
 const ambientCrowd = new CitadelAmbientCrowd();
 let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT sim)
+
+// Render-only entity position interpolation: glide villagers/raiders between
+// snapshot tiles instead of snapping (units step one tile per sim tick). Driven
+// by the measured interval between snapshot arrivals — see entity-interp.ts.
+const villagerInterp = new EntityInterpolator();
+const raiderInterp = new EntityInterpolator();
+let lastSnapshotMs = 0;   // render clock when the latest snapshot arrived
+let snapshotIntervalMs = 0; // measured ms between the last two snapshot arrivals
 
 // Brief 25: render-feature toggles (all default ON), driven by the settings
 // modal. Each gates its layer in loop() — purely cosmetic, zero sim impact.
@@ -776,6 +785,22 @@ client.onSnapshot((snap) => {
   activeDecrees = snap.activeDecrees;
   // Phase 4
   currentRaiders = snap.raiders;
+  // Render-only interpolation bookkeeping: feed the new snapshot's unit positions
+  // and measure the inter-snapshot interval (so the glide adapts to 1×/2×/4× and
+  // jitter). performance.now() is the render clock — main-thread only, never sim.
+  {
+    const nowMs = performance.now();
+    if (lastSnapshotMs > 0) {
+      const dt = nowMs - lastSnapshotMs;
+      // Light smoothing so one late frame doesn't lengthen the glide; clamp out
+      // pauses/tab-throttle (a multi-second gap must not stretch the lerp).
+      const clamped = Math.min(dt, 1000);
+      snapshotIntervalMs = snapshotIntervalMs === 0 ? clamped : snapshotIntervalMs * 0.6 + clamped * 0.4;
+    }
+    lastSnapshotMs = nowMs;
+    villagerInterp.ingest(currentVillagers);
+    raiderInterp.ingest(currentRaiders);
+  }
   threatLevel = snap.threatLevel;
   defensiveStrength = snap.defensiveStrength;
   keepPresent = snap.keepPresent;
@@ -927,8 +952,15 @@ function loop(): void {
   // never triggers a synchronous re-bake). No-op on the small solo world.
   windowController.update(camera);
 
+  // Render-only movement interpolation: fraction through the gap between the two
+  // latest snapshots, from the measured inter-snapshot interval. Units glide to
+  // their new tile instead of snapping. When paused there are no new snapshots,
+  // so alpha pins to 1 (entities rest at their current tile).
+  const interpAlpha = paused ? 1 : snapshotAlpha(nowMs, lastSnapshotMs, snapshotIntervalMs);
+
   // Brief 17 FX hooks: placement ease-in (building scale/alpha) + idle bob
-  // (villager Y). Both pure; the appear map + render clock feed them here.
+  // (villager Y) + render-only position interpolation (villager/raider glide).
+  // All pure; the appear map + render clock + interpolators feed them here.
   pushScene(
     renderer,
     {
@@ -944,6 +976,8 @@ function loop(): void {
         return { quad: easeQuad(quad, fx), alpha: fx.alpha };
       },
       villagerYOffset: (v) => bobOffset(timeSec, v.id),
+      villagerPos: (v) => villagerInterp.positionOf(v.id, interpAlpha, v.x, v.y),
+      raiderPos: (r) => raiderInterp.positionOf(r.id, interpAlpha, r.x, r.y),
     },
     // Render clock drives render-only animation (the mill's rotating sails).
     // performance.now — main-thread only, never the sim.
