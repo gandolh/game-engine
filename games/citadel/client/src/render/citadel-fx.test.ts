@@ -17,6 +17,8 @@ import {
   buildingKey,
   bobOffset,
   BOB_AMPLITUDE_PX,
+  gaitOffset,
+  WALK_AMPLITUDE_PX,
   nearestVillager,
   followReleaseId,
   villagerById,
@@ -139,6 +141,31 @@ describe("bobOffset", () => {
     const b = bobOffset(0, 2);
     const c = bobOffset(0, 3);
     expect(a === b && b === c).toBe(false);
+  });
+});
+
+describe("gaitOffset", () => {
+  it("falls back to the idle sway when not moving", () => {
+    for (let t = 0; t < 5; t += 0.31) {
+      expect(gaitOffset(t, 9, false)).toBe(bobOffset(t, 9));
+    }
+  });
+
+  it("walking is a non-negative hop bounded by WALK_AMPLITUDE_PX", () => {
+    let sawPositive = false;
+    for (let id = 0; id < 30; id++) {
+      for (let t = 0; t < 6; t += 0.07) {
+        const o = gaitOffset(t, id, true);
+        expect(o).toBeGreaterThanOrEqual(0);                 // never sinks below ground
+        expect(o).toBeLessThanOrEqual(WALK_AMPLITUDE_PX + 1e-9);
+        if (o > 0.5) sawPositive = true;
+      }
+    }
+    expect(sawPositive).toBe(true); // the hop actually rises
+  });
+
+  it("is deterministic for the same (time,id,moving)", () => {
+    expect(gaitOffset(2.5, 4, true)).toBe(gaitOffset(2.5, 4, true));
   });
 });
 

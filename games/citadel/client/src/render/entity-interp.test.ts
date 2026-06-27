@@ -65,6 +65,27 @@ describe("EntityInterpolator", () => {
     interp.ingest([{ id: 1, x: 40, y: 40 }]); // reused id, far away → fresh, snap
     expect(interp.positionOf(1, 0.5, 40, 40)).toEqual({ x: 40, y: 40 });
   });
+
+  describe("isMoving", () => {
+    it("is false for a stationary entity and true after a real step", () => {
+      const interp = new EntityInterpolator();
+      interp.ingest([{ id: 1, x: 5, y: 5 }]); // fresh → not moving
+      expect(interp.isMoving(1)).toBe(false);
+      interp.ingest([{ id: 1, x: 5, y: 5 }]); // same tile → not moving
+      expect(interp.isMoving(1)).toBe(false);
+      interp.ingest([{ id: 1, x: 6, y: 5 }]); // stepped east → moving
+      expect(interp.isMoving(1)).toBe(true);
+    });
+
+    it("is false on a teleport (snap) and for unknown ids", () => {
+      const interp = new EntityInterpolator();
+      interp.ingest([{ id: 1, x: 0, y: 0 }]);
+      interp.ingest([{ id: 1, x: 0, y: 0 }]);
+      interp.ingest([{ id: 1, x: 50, y: 50 }]); // teleport → snap, not "moving"
+      expect(interp.isMoving(1)).toBe(false);
+      expect(interp.isMoving(999)).toBe(false);
+    });
+  });
 });
 
 describe("snapshotAlpha", () => {

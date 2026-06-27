@@ -104,6 +104,17 @@ export class EntityInterpolator {
     };
   }
 
+  /**
+   * Whether `id` is moving this snapshot gap — its previous and current tiles
+   * differ and the step wasn't a teleport (so it's a real walk, not a respawn).
+   * Drives the walk-vs-idle gait. Unknown ids read as not moving.
+   */
+  isMoving(id: number): boolean {
+    const t = this.tracks.get(id);
+    if (t === undefined || t.snap) return false;
+    return t.prevX !== t.curX || t.prevY !== t.curY;
+  }
+
   /** Number of tracked entities (test/diagnostic helper). */
   get size(): number {
     return this.tracks.size;

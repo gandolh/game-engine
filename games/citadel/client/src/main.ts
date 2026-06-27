@@ -38,7 +38,7 @@ import {
   buildingKey,
   placementScale,
   easeQuad,
-  bobOffset,
+  gaitOffset,
   nearestVillager,
   followReleaseId,
   villagerById,
@@ -994,7 +994,9 @@ function loop(): void {
         const fx = placementScale(nowMs - born);
         return { quad: easeQuad(quad, fx), alpha: fx.alpha };
       },
-      villagerYOffset: (v) => bobOffset(timeSec, v.id),
+      // Movement-aware gait: walking villagers get a springy step hop, idle ones
+      // keep the gentle sway. `isMoving` comes from the interpolator (prev≠cur).
+      villagerYOffset: (v) => gaitOffset(timeSec, v.id, villagerInterp.isMoving(v.id)),
       villagerPos: (v) => villagerInterp.positionOf(v.id, interpAlpha, v.x, v.y),
       raiderPos: (r) => raiderInterp.positionOf(r.id, interpAlpha, r.x, r.y),
     },

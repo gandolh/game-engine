@@ -136,6 +136,24 @@ export function bobOffset(timeSec: number, id: number): number {
   return Math.sin(timeSec * BOB_OMEGA + bobPhase(id)) * BOB_AMPLITUDE_PX;
 }
 
+/** Walk-gait cadence: faster than the idle sway so a step reads as a step. */
+export const WALK_OMEGA = 8.5;
+/** Walk-gait bob amplitude (world px) — a bit springier than the idle sway. */
+export const WALK_AMPLITUDE_PX = 2.4;
+
+/**
+ * Movement-aware vertical bob. A WALKING villager gets a faster, springier step
+ * cadence (a `|sin|` hop — feet down twice per stride, always ≥0 so the figure
+ * rises off the ground rather than sinking into it); an idle villager keeps the
+ * gentle ±sway from {@link bobOffset}. Phase-offset per id so a crowd doesn't
+ * march in lockstep. Pure + deterministic (no RNG, render clock only).
+ */
+export function gaitOffset(timeSec: number, id: number, moving: boolean): number {
+  if (!moving) return bobOffset(timeSec, id);
+  // |sin| gives a 2-per-cycle hop that never dips below the ground line.
+  return Math.abs(Math.sin(timeSec * WALK_OMEGA + bobPhase(id))) * WALK_AMPLITUDE_PX;
+}
+
 /** Villager quad with the idle bob applied to Y. Pure. */
 export function bobbedVillagerQuad(v: VillagerSnapshot, timeSec: number): QuadSpec {
   const q = villagerQuad(v);
