@@ -4,6 +4,26 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] fix | Citadel — cold-start P0: founding window now anchors to first foundable day
+
+Fixed the playtest P0 below ([founding-window-expires-before-boot](todos/2026-06-27-citadel-founding-window-expires-before-boot.md),
+now **done**). A fresh solo game could never leave pop 0: the ~6-day founding
+window (`DAYS_PER_YEAR=16`) was measured from `ImmigrationSystem`'s first observed
+sim day (day 0), but the live client runs the sim through the ~15-day page/WebGPU
+boot before the player can place a connected settlement — so the window had
+already closed, and the surplus path can't bootstrap off pop 0.
+
+Anchored the window **per player** to the first observed day they have a
+connected, unstaffed production building (set in `run()`, incl. the baseline day).
+Tick-0 builds anchor to the baseline day exactly as the old global `startDay` did
+→ headless/replay founding timing + determinism unchanged (winter-starvation test
+holds); late builds anchor when building actually starts. Removed the dead
+`startDay`. Added an economy regression test (settlement built ~day 20 still
+bootstraps). **Live-confirmed**: a day-11 settlement now reaches Pop 6/6 by day 36
+(was 0 forever). sim-core 158/158; headless determinism identical (Final pop/bread
+unchanged). [immigration.ts](../games/citadel/sim-core/src/systems/immigration.ts),
+commit `699620d`.
+
 ## [2026-06-27] playtest | Citadel live browser test — tooling note + 5 new todos
 
 Ran a live browser test of the Citadel solo client (`npm run citadel`). Intended
