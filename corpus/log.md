@@ -4,6 +4,26 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] research | Citadel — road-builder UX note + scoped feedback todo
+
+Completed the research phase of the road-builder playtest todo
+([road-builder-ux-research](todos/2026-06-27-citadel-road-builder-ux-research.md),
+now **done**). Wrote [wiki/citadel-road-builder-ux.md](wiki/citadel-road-builder-ux.md):
+how OpenTTD / Cities:Skylines / Factorio / Anno / Settlers / organic builders
+handle road drawing, mapped onto Citadel's 4-connected iso tile grid + the
+existing two-endpoint drag + obstacle-aware A* auto-route. **Key finding:** the
+biggest hole isn't the routing (that's good) — it's **no connectivity feedback**:
+every building snapshot carries `connected`, but it's never shown, so a player can
+lay a road and not notice a building stayed unhooked (and the economy's founders
+only staff `connected` buildings). Ranked recommendation: do the cheap, high-value
+tier first — (1) disconnected-building indicator, (2) drag length readout,
+(3) red/green legality tint on the preview — all client preview/feedback over the
+existing deterministic `placeRoad`/`placeWall`, no sim change. Snap/auto-extend +
+in-tool undo deferred; curved/freeform roads explicitly rejected (fight the tile
+grid). Carved items 1–3 into
+[road-feedback-connectivity-indicator](todos/2026-06-27-citadel-road-feedback-connectivity-indicator.md);
+linked the note in index.md.
+
 ## [2026-06-27] feat | Citadel — entity movement interpolation (units glide, no longer tile-snap)
 
 Made villagers/raiders feel more natural to watch (playtest todo

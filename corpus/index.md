@@ -11,6 +11,7 @@ Catalog of everything in this corpus. Start here.
 
 - [wiki/overview.md](wiki/overview.md) — what Farm Valley is; lineage; cast
 - [wiki/citadel-overview.md](wiki/citadel-overview.md) — **Citadel**, the second game on the shared engine (settlement/RTS sim): packages, systems, worker topology, briefs/todos
+- [wiki/citadel-road-builder-ux.md](wiki/citadel-road-builder-ux.md) — road/wall drawing UX: cross-game research (OpenTTD/Skylines/Factorio/Anno) + ranked recommendation; current drag-build state, gaps (esp. no connectivity feedback), and the scoped feedback todo
 - [wiki/architecture.md](wiki/architecture.md) — workspaces, layers, sim loop, ECS, message bus, module-directory convention, data flow
 - [wiki/player-and-interaction.md](wiki/player-and-interaction.md) — the playable farmer Pip, hotbar, hover tooltips, feature collision, bridges, plot layout, the 160×160 radial archipelago layout (source of truth for tile geometry)
 - [wiki/world-generation.md](wiki/world-generation.md) — the rect-based radial archipelago model (central cluster + two concentric farm rings, 21-farmer scale), and the ranked menu for more organic generation
