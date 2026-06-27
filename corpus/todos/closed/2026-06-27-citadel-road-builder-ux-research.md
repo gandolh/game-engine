@@ -1,9 +1,23 @@
 ---
 title: "Citadel — research how to make the road builder more user-friendly"
 created: 2026-06-27
-status: todo
+status: done
+resolved: 2026-06-27
 tags: [citadel, ux, roads, research, input, build-tools]
 ---
+
+> **Done 2026-06-27 (research phase).** Wrote the cross-game research note +
+> ranked recommendation: [wiki/citadel-road-builder-ux.md](../wiki/citadel-road-builder-ux.md)
+> (OpenTTD / Cities:Skylines / Factorio / Anno / Settlers / organic builders,
+> mapped onto our 4-connected iso tile grid). Key finding: the biggest hole is
+> **no road-connectivity feedback** — the `connected` flag exists on every
+> building snapshot but is never shown, so a player can lay a road and not notice
+> a building stayed unhooked (the economy's spine). Carved the cheap, high-value
+> tier (disconnected-building indicator + drag length readout + red/green legality
+> tint) into a scoped implementation todo:
+> [road-feedback-connectivity-indicator](2026-06-27-citadel-road-feedback-connectivity-indicator.md).
+> Snap/auto-extend + in-tool undo deferred there; curved/freeform roads explicitly
+> rejected (fight the tile grid). See [log.md](../log.md).
 
 # Citadel — make the road builder more user-friendly (research-first)
 
