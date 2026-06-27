@@ -1,11 +1,25 @@
 ---
 title: "Citadel — road builder feedback: disconnected-building indicator + drag length + legality tint"
 created: 2026-06-27
-status: todo
+status: done
+resolved: 2026-06-27
 tags: [citadel, ux, roads, render, feedback, connectivity]
 source: "carved from wiki/citadel-road-builder-ux.md (research, 2026-06-27)"
 ---
 
+> **Done 2026-06-27.** Shipped all three items. (1) New pure
+> [road-feedback.ts](../../games/citadel/client/src/render/road-feedback.ts)
+> (`needsRoadConnection`/`disconnectedBuildings`) + renderer `pushDisconnectedMarkers`
+> floats a pulsing EDG-gold pip over each production/housing/storage building that
+> is `connected:false` (infrastructure excluded). (2) Mode label shows
+> "Mode: Road (drag) — N tiles" (· blocked) live via `dragLengthSuffix` +
+> `roadTiles.length`. (3) `pushGhost` takes per-tile validity;
+> `PlacementStateManager.roadTilesWithValidity` tags interior tiles via
+> `_blockedForRoad` (endpoints stay green) → red/green drag preview. All client
+> render/UI over the existing deterministic commands — no sim change. 7 road-feedback
+> unit tests + 222 @citadel/client suite green; live-verified all three. Commit
+> `9b1d702`. See [log.md](../log.md). **Deferred follow-ups stand:** snap/auto-extend
+> + in-tool undo (noted below).
 # Citadel — road-builder feedback (the cheap, high-value tier)
 
 Scoped implementation todo carved from the research in
