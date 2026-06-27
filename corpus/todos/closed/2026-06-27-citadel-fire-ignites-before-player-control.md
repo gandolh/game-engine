@@ -1,9 +1,22 @@
 ---
 title: "Citadel — fires ignite during boot / on a player-less cluster, before the player can react"
 created: 2026-06-27
-status: todo
+status: done
+resolved: 2026-06-27
 tags: [citadel, sim, gameplay, fire, hazard, boot, live-finding, minor]
 ---
+
+> **Done 2026-06-27.** Took the **temporal grace** option (not the population
+> gate — the dense-town density mechanic must still burn an unpopulated built
+> district). `FireSystem` records the first observed day each player owns any
+> building and suppresses fresh ignition for `floor(daysPerYear/4)+2` days after
+> it (mirrors the immigration founding window). Spread is unaffected — a fire
+> already underway still propagates. Live-confirmed: a dense cluster built at
+> day 11 stays fire-free through day ~18, ignites day 24. Regression test
+> (phase45) asserts no ignition during grace + fire after, and fails without the
+> fix. sim-core 159/159; determinism identical. Commit `573d9c8`.
+> See [log.md](../log.md). Pairs with the cold-start P0
+> [founding-window-expires-before-boot](closed/2026-06-27-citadel-founding-window-expires-before-boot.md).
 
 # Citadel — fire ignites on an unattended cluster before the player has control
 

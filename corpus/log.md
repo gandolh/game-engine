@@ -4,6 +4,22 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] fix | Citadel — P2: founding grace before fire can ignite a starter cluster
+
+Fixed the playtest P2 ([fire-ignites-before-player-control](todos/2026-06-27-citadel-fire-ignites-before-player-control.md),
+now **done**). Density-driven fire ignition rolled every day from sim start, so a
+freshly-built wooden district could already be burning the moment the player first
+saw the map (the live client runs the sim through the ~15-day boot). Added a
+per-player **founding grace**: `FireSystem` records the first observed day a player
+owns any building and suppresses fresh ignition for `floor(daysPerYear/4)+2` days
+after it. Spread is unaffected (a fire underway still propagates); the grace is
+temporal, not population-gated, so an unpopulated dense district still burns after
+the window — the density mechanic + its tests are intact. Live-confirmed: a dense
+cluster built day 11 stays fire-free through day ~18, ignites day 24. Regression
+test (phase45) fails without the fix. sim-core 159/159; determinism identical.
+[fire-system.ts](../games/citadel/sim-core/src/systems/fire-system.ts), commit
+`573d9c8`. Pairs with the cold-start P0 below.
+
 ## [2026-06-27] fix | Citadel — cold-start P0: founding window now anchors to first foundable day
 
 Fixed the playtest P0 below ([founding-window-expires-before-boot](todos/2026-06-27-citadel-founding-window-expires-before-boot.md),
