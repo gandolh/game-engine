@@ -1,6 +1,28 @@
 # Citadel — overview
 
-**Citadel** is the second game in this monorepo, built on the same shared `@engine/core` as Farm Valley. It is a settlement / light-RTS sim: grow a town's economy through settlement *tiers*, keep villagers fed and happy, and survive raids, sieges, fire, and disease. It is younger and more actively-evolving than Farm Valley — treat the briefs/todos below as the live spec and **verify against code** before relying on any detail here.
+**Citadel** is the second game in this monorepo, built on the same shared `@engine/core` as Farm Valley. It is a settlement sim: grow a town's economy through settlement *tiers*, keep villagers fed and happy. (It *began* as a settlement/light-RTS with sharp raids/sieges/fire/disease; the **2026-06-28 cozy pivot** — see banner below — reframes those threats as gentle, recoverable texture.) It is younger and more actively-evolving than Farm Valley — treat the briefs/todos below as the live spec and **verify against code** before relying on any detail here.
+
+> **⚠️ DESIGN OF RECORD (2026-06-28): the cozy pivot.** A grilling session resolved
+> *what Citadel is for* and reoriented the open work. The design is now:
+> **a cozy placement puzzle you read by watching the town live** — arrange a town
+> well on terrain (primary heart), watch it breathe (secondary), with **diegetic**
+> feedback (mood/smoke/light, not a HUD). The **cozy contract**: *nothing you built
+> is taken from you.* Threats don't destroy — they **dent local happiness, which
+> taxes productivity to a ~60–70% floor (never zero)**, so recovery is guaranteed
+> (no death spiral). The 2026-06-26 sharp-pressure systems (siege morale, interceptors,
+> hazard interlocks, fire-as-razing) are **off-spec — frozen, not deleted** (re-wireable
+> into a future optional Challenge mode); MP/PvP is a future *mode*, not the core.
+> Further locked decisions: **motivation** is emergent player-set goals + diegetic
+> recognition, **no score / no quest list** (#7); the player's hand is **placement +
+> economic intent**, the town runs all **behavior** autonomously (#8, with a
+> *player-operated but staffed* trading post as the clearest example); the **downside
+> rule** — every problem is a throttle-to-floor, never a loss (#9); and **terrain is
+> the puzzle** — clustered resources + a solvability guarantee (#10).
+> Full plan + dependency order:
+> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+> **Where this page contradicts the cozy pivot below (esp. the "fire punishes tight
+> clusters / spacing-vs-density tension is intentional" note), the pivot wins** —
+> that was a pressure-game stance.
 
 ## Packages
 
@@ -203,7 +225,15 @@ stays road on land, bridge walkable, no-overlap) + an `isoNetworkTiles` bridge-f
 
 There is no Farm-Valley-style "done brief" archive for Citadel yet; work is tracked as todos. See [briefs/citadel-apr.md](../briefs/citadel-apr.md) and the `corpus/todos/*citadel-*` files (e.g. the `citadel-00-BUILD-ORDER` epic and the 21–33 series: windowed-grid render, incremental build queue, PlayerState refactor, territory/influence, PvP armies, per-player PvE). Fold durable Citadel findings into this page as the design settles.
 
-**Design — spacing-vs-density tension is intentional (2026-06-22).** Fire
+> **⛔ SUPERSEDED by the 2026-06-28 cozy pivot.** The two notes below describe the
+> **pressure-game** design and its tuning. The pivot reframes both — kept here for
+> history, but **do not treat them as current intent.** Current design of record:
+> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+
+**~~Design — spacing-vs-density tension is intentional (2026-06-22).~~** *(SUPERSEDED:
+under the cozy pivot, fire is gentle texture — a building smoulders and dents happiness,
+**never razes**, so density is no longer punished. The placement puzzle's tension now
+rests on **terrain** (decision #10), not on fire. See pivot Phase D + decision #5.)* Fire
 "punishes tight clusters" (space wooden buildings ≥5 tiles, connect with roads as
 firebreaks), while happiness service-radius (8) and road-connectivity reward
 keeping buildings *close*. These pressures pull against each other **by design** —
@@ -213,7 +243,11 @@ The `playtest-citadel` skill's default build plan is laid out with this in mind
 (≥6-tile grid + wells). Legibility of *where* coverage fails is still a fair
 ask (see the playtest-findings P2 todo).
 
-**Economy — load-bearing facts (verified 2026-06-22).** Production output is
+**~~Economy — load-bearing facts (verified 2026-06-22).~~** *(SUPERSEDED by pivot Phase
+H: buildings go **single-slot** (no wasted-mouth trap), winter grain is floored ~×0.5
+(**never 0**), and unhappiness throttles output to a ~60–70% floor (**never 0**) — the
+old "death-spiral" framings below no longer apply. The per-building / one-bakery-caps-food
+facts are still accurate to the **current** code until Phase H ships.)* Production output is
 **per-building, gated only on `workerCount > 0`** — a building's *second* worker
 slot adds a population mouth with **zero extra output**, so growth tracks the
 number of *staffed buildings*, not filled slots. One bakery caps the food supply

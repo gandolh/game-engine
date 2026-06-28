@@ -7,6 +7,14 @@ tags: [citadel, ux, gameplay, ui, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
 
+> **♻️ RATIONALE PARTLY SUPERSEDED (2026-06-28 cozy pivot).** The shipped overlay
+> **stands and is kept** (the cozy pivot leans on it harder — see pivot Phase F). But
+> this todo's *justification* cites the "fire pushes buildings ≥5 apart / spacing
+> tension is intended design" stance, which the pivot **retired** (fire is now gentle
+> texture, density isn't punished). Read the overlay work as current; read its
+> spacing-tension rationale as historical. Current design of record:
+> [2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+
 > **✅ DONE 2026-06-22.** All three scope items shipped, render/UI-only (no sim
 > change). New pure `render/coverage.ts` mirrors the sim's coverage geometry
 > (same `serviceCenter` = `b.x+floor(w/2)`, same `SERVICE_RADII`, same Manhattan

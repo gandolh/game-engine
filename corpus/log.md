@@ -4,6 +4,180 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-28] research | Citadel — cozy pivot: hardened the briefs against the code
+
+Read the systems each phase touches (`needs-happiness.ts`, `seasons.ts`, `building.ts`,
+re-read `production.ts`) to turn vague phase steps into named files/constants. Updated
+the [build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md) Phases A/B/G/H +
+decision #8. Three corrections the research forced (grilled where it changed design):
+
+- **Phase A is a refactor, not a field-surface.** `_computeNeedsFor` already computes the
+  per-house `hasFaith/hasSafety/hasGoods` booleans but **discards** them, keeping only
+  per-player aggregate ratios. Phase A = *stop throwing them away* + write
+  `{lacksFaith,lacksSafety,lacksGoods,mood}` onto each house snapshot. Cheap, deterministic.
+- **Single-slot is a rebalance (decision #8/Phase H).** Data: farm/woodcutter/quarry/mine
+  are 2-slot and the bread chain is balanced on it. **Grilled → keep daily throughput**:
+  set those to `workerSlots:1` **and** bump farm `outputPerCycle` 3→6 (preserves 6 grain/
+  day summer). Otherwise single-slot silently halves food and re-spawns the death spiral.
+- **Trading post keeps its worker (decision #8 refinement).** `tradingpost` already has
+  `workerSlots:1`. **Grilled → keep it**: cleaner statement of #8 is *player sets intent,
+  NPCs execute* — a staffed trader villager fulfills the player's chosen exchange. The
+  round-3b "no NPC interaction" wording was wrong; correct constraint is "no NPC
+  *autonomy*". Trading post becomes the clearest *example* of #8, not an exception.
+
+Also caught a brief gap: **decrees live in TWO sites** — purging `production.ts` alone
+leaves the decree happiness penalties + `FESTIVAL_HAPPINESS_BONUS` in
+`needs-happiness.ts:_updateHappiness`; Phase H now names both. And pinned Phase B's home
+(`production.ts:112`, multiply `amount` by `lerp(0.6,1.0,happiness/100)`) and winter's
+(`seasons.ts:32`, `0.0`→`~0.5`). Design/brief-hardening only — no code changed.
+
+## [2026-06-28] design | Citadel — cozy pivot round 5: terrain is the puzzle's difficulty knob
+
+Fifth grilling round (terrain, against `world/terrain.ts`). Added decision #10 + Phase I.
+Because placement is the whole game (#8) and no building-side tension was added (round 1
+Q4), **the puzzle's weight rests on the terrain** — so terrain quality *is* puzzle quality.
+
+Finding: the generator makes a coherent **river + lake** (real "bridge/build-around"
+decisions, keep) but scatters **forest/stone/rough as per-tile noise sprinkle** —
+*texture, not places* (a woodcutter almost always finds a forest tile nearby → no spatial
+decision). **Decision #10:** cluster resources into **groves / ore-veins** you build
+*toward* (cheap noise-tuning) — this turns terrain into the puzzle AND gives the trading
+post a real job (resource-poor maps now happen; trade is the answer). **Guaranteed
+solvable** (workable start; each resource reachable or trade-backfillable) but varied —
+**cozy = no frustration, not no thought**; target feeling *"ooh, tricky,"* never *"unfair."*
+Trade is the safety valve that *permits* bolder terrain.
+
+Meta-finding across rounds 1–5: the **same shape recurred independently in four branches**
+— threats (#5), economy (#9), and terrain (#10) all resolved to **"a guaranteed-safe floor
++ rich texture above it."** That convergence (not designed, emergent) is the strongest
+evidence the cozy spine is coherent. Also fixed an out-of-scope contradiction (terrain-as-
+puzzle was listed declined; #10 makes it in-scope as *bite via terrain*, not new building
+mechanics) and refreshed the A–I prioritization note. Design only — no code changed.
+
+## [2026-06-28] design | Citadel — cozy pivot round 4: economy under the cozy contract
+
+Fourth grilling round (the economy, against `production.ts`). The economy was tuned
+**entirely for the pressure game** and contradicted the locked spine in four places;
+all resolved into one rule. Added decision #9 + Phase H to the
+[build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+
+**Decision #9 — the downside rule (generalizes #5 to the whole game):** *nothing ever
+fully stops or is taken away — every problem is a throttle toward a ~60–70% floor,
+always recoverable, always shown in the world.* Threat, winter, neglect, unhappiness
+are now the **same kind of thing** — one rule the player learns once.
+
+Resolutions:
+- **Winter grain floored ~×0.5, never 0** (was 0 → starvation; violated the anti-spiral
+  floor). Banking surplus helps but is never required.
+- **Stockpile-pressure → throttle, not halt, + diegetic** (was a hard production stop
+  when output uncollected — illegible pressure loop). Hauling/roads stay a placement
+  dimension; neglect = slowdown, never shutdown.
+- **Single-slot buildings** (was multi-slot, 2nd worker a wasted mouth — the old
+  death-spiral root). **Growth = placing more buildings** (spatial, fits the heart).
+- **Purge decrees from production**: delete conscription-halt; re-home `workHours` as an
+  automatic **town-hall coverage bonus** (decree → placement bonus, the round-3 move).
+
+Notable: every economic mechanic resolved the *same way* the threats did — the economy
+folds into the spine (throttle-to-floor + influence-via-placement) rather than being a
+separate system. Design only — no code changed; Phase H re-proves determinism.
+
+## [2026-06-28] design | Citadel — cozy pivot round 3b: autonomy boundary redrawn
+
+Follow-on to round 3. The round-3 "placement is the player's *only* lever" wording was
+**too pure and is superseded.** Redrawn boundary (decision #8 updated in the
+[build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)): **the player sets
+*placement* + *economic intent*; the town autonomously handles all *behavior*.** The
+player decides *what the town pursues* (where buildings go, what a building produces,
+what to trade for); the town decides *how it lives* (labour/governance/festivals/
+hazards — all autonomous, no behavior micromanagement).
+
+Trigger: the **trading post** is a **player-operated, clickable building** (tiny
+exchange menu, **no spatial reach, no NPC interaction**) — the player's *window to the
+outside world*, distinct from the town's autonomous internal life. That's a real
+exception to "placement only", so the boundary moved to admit **economic-intent**
+levers (trade + production choice) while still barring **behavior** levers. Operating
+is **per-building**, under a hard discipline: **operable buildings stay FEW, menus stay
+TINY** (2–3 glanceable choices) — else the cozy "watch it live" heart erodes into a
+management sim. Design only — no code changed.
+
+## [2026-06-28] design | Citadel — cozy pivot round 3: scope pass + the autonomy principle
+
+Third grilling round (scope: what to cut). Added decision #8 + a scope table +
+Phase G to the [build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+
+Resolved a principle strong enough to sort every system: **behavior is autonomous &
+read-only to the player; placement is the player's *only* lever.** The old pressure
+game's decree/policy layer (rationing/conscription/tithe/work-hours/festivals) is
+**demoted, not deleted** — these still happen, but **the player has no policy menu**;
+they're run by **civic buildings the player places** (a **town hall** = rations/
+work-hours, a **public square** = festivals). Autonomy is total for *behavior* but
+each civic building has a **spatial reach**, so *where you place it* is a new coverage
+layer — the player's entire decision space stays spatial. Generalizes decision #3.
+
+Scope verdicts (one rule: *spatial stake or autonomous behavior? else cut*):
+**Core** — economy/growth/puzzle systems. **Texture** (keep, gentle) — fire/disease/
+raids. **Demote** — decrees → town hall + public square (autonomous, with reach).
+**Keep, reframed** — trader → an autonomous **trading post** with a reach that trades
+surplus for goods you **lack or can't yet access** (economy is *open*, a bad map is
+smoothed by trade, not fatal; strip the relief-valve framing). **Freeze** — `territory`
+(MP land-claim) + `army` (PvP/PvE combat), off-spec, unregister from cozy bootstrap.
+Design only — no code changed.
+
+## [2026-06-28] design | Citadel — cozy pivot round 2: the motivation layer
+
+Second grilling round, resolving the hole round 1 left: **a cozy un-loseable game
+still needs a reason to *continue*.** Added decision #7 + Phase F to the
+[build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+
+Resolved: motivation is **emergent goals + diegetic recognition**, with **NO score
+and NO quest list**. The player invents their own targets against a town whose health
+they can read; the game's only role is (a) making the *gap* legible **on demand** —
+the player *pulls* the already-shipped coverage/connectivity overlay, which lights up
+uncovered/disconnected things as *inviting* goals — and (b) **diegetic recognition**
+when a nice state is reached (the town visibly settles into contentment + one gentle
+banner). A visible "town quality" *number* was explicitly **rejected** (it's the
+un-cozy, spreadsheet path that would undermine the diegetic-feedback keystone). The
+whole layer costs almost no new mechanism — it lands on the keystone (per-house signal)
+and the shipped overlays. Notable: every round-2 requirement resolved back *onto
+existing structure* rather than adding a system — the mark of a coherent spine.
+
+## [2026-06-28] design | Citadel — the cozy pivot (grilled to shared understanding)
+
+A grilling session resolved **what Citadel is for**. Outcome: Citadel is **a cozy
+placement puzzle you read by watching the town live**, not a pressure/survival
+strategy game and not a competitive RTS. Six locked decisions (full plan +
+dependency-ordered build order in
+[todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)):
+
+1. **Cozy builder, committed** (chosen against pressure-strategy and RTS).
+2. **Two fused hearts** — placement-puzzle (primary) + watch-it-live (secondary),
+   made one act by diegetic feedback.
+3. **Diegetic feedback** — read town health by watching villagers/buildings behave
+   (mood/smoke/light), not a HUD.
+4. **Cozy contract** — nothing you built is taken from you; threats cost time/
+   regenerating resources, never placed things.
+5. **One unifying threat mechanic** — threats **dent local happiness**, and
+   **happiness taxes productivity to a ~60–70% floor, never zero**, so recovery is a
+   *property of the math* (no death spiral). The per-house/villager mood signal is
+   simultaneously the diegetic scoreboard AND the threat-consequence layer.
+6. **Sharp 2026-06-26 systems frozen, not deleted** (off-spec for cozy core;
+   re-wireable into a future Challenge mode); MP/PvP is a future mode, not the core.
+
+**Key finding:** the watch-it-live render substrate already exists (ambient crowd,
+FSM tints, true-iso art) but is **pretty, not legible** — the crowd is render-only
+seeded off a constant; villagers tint by FSM state, not happiness. The reactive
+legibility layer (coverage overlay/rings/road feedback) is also already shipped. So
+the keystone work is **connecting existing render to town-health**, not new art:
+add a *spatial* per-house mood/coverage signal to the snapshot and express it
+diegetically. Build order A (per-house signal) → B (happiness→productivity floor) →
+C (forgiving diegetic cold-open that doubles as tutorial) → D (demote threats to
+texture, freeze the bite) → E (villager-mood polish, later).
+
+Wiki updated: [citadel-overview.md](wiki/citadel-overview.md) carries a design-of-record
+banner; the prior "fire punishes tight clusters / spacing-vs-density is intentional"
+note is **superseded** (it was a pressure-game stance). No code changed this session —
+design only.
+
 ## [2026-06-27] feat | Citadel — villagers on roads only when travelling + per-building occupancy badges
 
 Shipped the fourth item from the 2026-06-27 todo batch (the last one open):

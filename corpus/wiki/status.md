@@ -1,6 +1,14 @@
 # Project Status
 
-Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
+Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26; **cozy-pivot 2026-06-28**). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
+
+> **2026-06-28 Citadel cozy pivot (design of record).** A grilling session resolved
+> Citadel as **a cozy placement puzzle you read by watching the town live** — diegetic
+> feedback, a cozy contract (nothing you built is taken from you), threats unified as
+> happiness dips with a productivity floor (no spiral), and the 2026-06-26 sharp-pressure
+> systems frozen (off-spec for the cozy core). Build order:
+> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+> Supersedes the "fire punishes tight clusters by design" stance. Design only — no code changed.
 
 > **2026-06-26 Citadel pass** (see [log.md](../log.md) for detail). Closed a batch of `todos/`:
 > engine GC-churn hygiene (prealloc WebGPU draw scratch + double-buffer CommandQueue);
