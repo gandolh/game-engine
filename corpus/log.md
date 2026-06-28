@@ -4,6 +4,17 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-28] todo | Citadel — render ALL GUI in-game (WebGPU, not DOM)
+
+Filed [render-all-gui-in-game](todos/2026-06-28-citadel-ui-all-rendered-in-game.md). The
+client UI is currently **DOM overlays** (build-bar/HUD/toasts/badges/settings) + a
+**Canvas2D minimap** over the WebGPU world canvas; this todo moves the whole UI into the
+WebGPU render path (textured-quad UI layer + bitmap/SDF font in the EDG32 atlas +
+canvas-space input + an a11y plan). Flagged as a **large architectural shift** and noted
+the **sequencing conflict** with the six 2026-06-28 UI todos (all DOM-assuming) — decide
+before building them whether to do DOM-now-port-later or stand up the in-game UI first
+(grill recommended). Determinism untouched (render/input only).
+
 ## [2026-06-28] design+todos | Citadel — cozy pivot round 6 (open-Qs) + 6 UI todos filed
 
 **Round-6 grill (open questions)** — resolved three open mechanics the earlier rounds
