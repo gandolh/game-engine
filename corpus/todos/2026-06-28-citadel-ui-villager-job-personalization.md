@@ -7,6 +7,12 @@ tags: [citadel, ui, art, villagers, cozy-pivot]
 
 # Personalize villagers by job; click a villager to see its job
 
+> **⛓️ Click-to-show-job UI BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The
+> job label/badge is in-game UI → built in the framework, not DOM. Depends on
+> [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
+> The **sim half** (a `job` snapshot field) and the **per-job sprite art** have no UI
+> dependency and can proceed now.
+
 Walking villagers should **look like the job they do** (a baker reads as a baker, a
 woodcutter as a woodcutter), and **clicking one** should show what job it has.
 

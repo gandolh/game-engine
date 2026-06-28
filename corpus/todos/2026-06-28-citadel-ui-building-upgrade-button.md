@@ -7,6 +7,11 @@ tags: [citadel, ui, economy, building, upgrades]
 
 # Click a building → floating Upgrade button with cost
 
+> **⛓️ BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The floating button +
+> selection UI are in-game UI → built in the framework, not DOM. Depends on
+> [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
+> (The sim mechanic it surfaces — `upgradeBuilding` / `upgradeCost` — already exists.)
+
 Clicking a building should surface an **Upgrade button** over it, labelled with the
 **resource cost** to upgrade to the next level.
 

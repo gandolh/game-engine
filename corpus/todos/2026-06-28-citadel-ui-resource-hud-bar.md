@@ -7,6 +7,11 @@ tags: [citadel, ui, hud, economy]
 
 # Resource HUD — show how much of each resource the player has
 
+> **⛓️ BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The readout is in-game
+> UI → built in the framework, not the DOM `#hud` row. Depends on
+> [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
+> (Data is ready: `snapshot.stockpiles` already carries every good.)
+
 Display the player's current stockpile of **each resource** in the in-game UI (top of
 screen), not just the two shown today.
 

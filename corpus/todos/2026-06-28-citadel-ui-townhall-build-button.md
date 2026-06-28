@@ -7,6 +7,11 @@ tags: [citadel, ui, art, building, cozy-pivot]
 
 # Town Hall — build button + iso sprite
 
+> **⛓️ BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The toolbar button is
+> a UI widget → it must be built in the in-game UI framework, NOT in DOM. Depends on
+> [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
+> The **iso sprite** half has no such dependency and can proceed now.
+
 Make the **town hall** placeable from the build bar with its own iso art. This is a
 prerequisite for the cozy pivot's **autonomy pass** (Phase G of
 [the cozy-pivot build order](2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)) — under the

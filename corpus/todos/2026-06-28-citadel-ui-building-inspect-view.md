@@ -7,6 +7,13 @@ tags: [citadel, ui, building, legibility, cozy-pivot]
 
 # Click a building → inspect view (description + production rate + scope)
 
+> **⛓️ BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The inspect panel is
+> the **richest** in-game UI surface → it's the recommended *pilot consumer* that proves
+> the framework's primitives (text, layout, embedded button). Built in the framework, not
+> DOM. Depends on
+> [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
+> (Most of its data already exists in `PRODUCTION_DEFS` / runtime state.)
+
 Clicking a building should open a view describing it: a short **description**, its
 **production rate**, and details about its **scope** (coverage radius, inputs/outputs,
 workers, level).

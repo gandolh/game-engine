@@ -7,6 +7,12 @@ tags: [citadel, ui, economy, building]
 
 # Build cost on hover + affordability-gated build buttons
 
+> **⛓️ UI half BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The hover-price
+> + disabled-button widgets are in-game UI → built in the framework, not DOM. Depends on
+> [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
+> The **sim half** (introducing a `BUILD_COST` + debit in `placeOne`) has no UI
+> dependency and can proceed now.
+
 When the player hovers a building in the build menu, show **what it costs to build**;
 **disable** (grey out) the button when the player can't afford it.
 

@@ -4,6 +4,32 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-28] design | Citadel/engine — round 7: the in-game UI becomes `@engine/ui` (cross-game framework)
+
+Grilled the "all GUI in-game" todo to four locked decisions; it is **no longer a small
+Citadel task** but a first-class engine subsystem. Updated
+[the framework todo](todos/2026-06-28-citadel-ui-all-rendered-in-game.md) + added a
+"BLOCKED ON `@engine/ui`" banner to all six 2026-06-28 Citadel UI consumer todos.
+
+1. **Sequencing:** build the in-game UI layer **first**; the six UI todos are
+   **consumers** of it (not DOM). Rationale: "all GUI in-game" is a **hard aesthetic
+   requirement**, so DOM-first is throwaway *design*, not just code.
+2. **A11y:** a **hidden DOM mirror** (invisible `<button>`/ARIA/focus driving the same
+   commands) is a *required deliverable* — keeps 100% in-canvas visuals + real a11y.
+3. **Scope:** a **full reusable UI toolkit** (layout/scroll/text/theming/animation),
+   justified by a large, ongoing, **cross-game** UI surface (investment, not six-panel
+   over-engineering).
+4. **Architecture:** new **`@engine/ui` package** — **game-agnostic** + **render-backend
+   -agnostic** (WebGPU **and** Canvas2D fallback, so Farm + the headless test renderer can
+   use it). Game panels live in each game's client, built from `@engine/ui`. Honors
+   "engine never imports a game."
+
+Verified the cost basis: there is **no in-canvas text rendering today** and the renderer's
+layers are all **world-space** (no screen-space UI quad path) — so this is genuinely a
+from-scratch subsystem (~60 DOM-id'd UI elements to replace). Sim-side prerequisites of
+the consumers (`BUILD_COST`, a villager `job` field) + sprite art can proceed independently.
+Design/todos only — no code changed.
+
 ## [2026-06-28] todo | Citadel — render ALL GUI in-game (WebGPU, not DOM)
 
 Filed [render-all-gui-in-game](todos/2026-06-28-citadel-ui-all-rendered-in-game.md). The
