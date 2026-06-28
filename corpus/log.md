@@ -4,6 +4,46 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-28] design+todos | Citadel — cozy pivot round 6 (open-Qs) + 6 UI todos filed
+
+**Round-6 grill (open questions)** — resolved three open mechanics the earlier rounds
+left, folded into [the build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+(new "Happiness mechanic — resolved" block after Phase B):
+- **Stateful, asymmetric-drift happiness.** Today `_updateHappiness` recomputes happiness
+  statelessly each day → a threat "dent" would flicker, not breathe. Make happiness a
+  persistent per-house/per-villager field easing toward a target; **heals faster than it
+  falls** (so #9's floor is a property of the update rule). Recover ~2–3 in-game days.
+- **Radius-local dent with falloff** ("local" in #5 = small radius around the event,
+  not whole-town, not only-the-entity) → the per-house signal becomes a readable map of
+  where the town is troubled; spacing/cures become resilience levers.
+- **Dent radius ≈ the cure's reach** (fire dents ≈ a well's coverage; disease ≈ a
+  Healer's) → the cure is a clean spatial answer; coverage overlays double as
+  threat-resilience maps.
+- **Production-choice CUT.** Decision #8's "set what a building produces" lever had no
+  referent (the economy is a fixed single-output chain); inventing multi-output buildings
+  to justify it fought "one building, one obvious job". **Trade is now the SOLE
+  economic-intent lever.** Propagated through #8, the round-3b note, and Phase G.
+  (Q4 — the determinism-baseline / hard-cutover-vs-flag question — was left open,
+  interrupted.)
+
+**Six UI todos filed** (each verified against current code):
+- [townhall-build-button](todos/2026-06-28-citadel-ui-townhall-build-button.md) — toolbar
+  button + iso sprite (`town-hall` type exists; not on the bar; needs a civic-hall recipe).
+- [build-cost-hover-affordability](todos/2026-06-28-citadel-ui-build-cost-hover-affordability.md)
+  — ⚠️ there is **no build cost today** (placement is free); needs a sim `BUILD_COST` +
+  debit, then client hover-price + disabled-when-unaffordable.
+- [building-upgrade-button](todos/2026-06-28-citadel-ui-building-upgrade-button.md) —
+  client surfacing of the **existing** `upgradeBuilding` cmd + `upgradeCost`.
+- [resource-hud-bar](todos/2026-06-28-citadel-ui-resource-hud-bar.md) — show all
+  `snapshot.stockpiles` goods (HUD shows only bread+wood today); pure client render.
+- [villager-job-personalization](todos/2026-06-28-citadel-ui-villager-job-personalization.md)
+  — ⚠️ villagers carry only `fsm`, no job; needs a snapshot job field + per-job art +
+  click-to-show-job; coordinate with pivot Phase E (mood).
+- [building-inspect-view](todos/2026-06-28-citadel-ui-building-inspect-view.md) — click a
+  building → panel with description + production rate + scope (most data already in defs).
+
+Design/todos only — no code changed.
+
 ## [2026-06-28] lint | Citadel — cozy-pivot stress-test: fixed wrong/under-specified claims + archived 2 stragglers
 
 Stress-tested the cozy-pivot corpus against the code. All cited line refs verified

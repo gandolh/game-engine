@@ -55,8 +55,9 @@ around it. Grilled to shared understanding — every branch points the same way.
 8. **The autonomy boundary: the player sets *placement* + *economic intent*; the town
    autonomously handles all *behavior*.** (Grilled 2026-06-28, round 3 — scope pass;
    **boundary redrawn in round 3b**, see note below.) The line: the player decides
-   *what the town pursues* (where buildings go, **what a building produces**, **what to
-   trade for**); the town decides *how it lives* (labour assignment, governance,
+   *what the town pursues* (where buildings go + **what to trade for** — *production
+   choice was cut in round 6, see the round-3b note*); the town decides *how it lives*
+   (labour assignment, governance,
    rations/work-hours, festivals, who fights fires/disease) — all autonomous, diegetic,
    **no behavior micromanagement, ever.** Governance still lives in **civic buildings
    the player places**: a **town hall** runs rations/work-hours (building exists today),
@@ -66,11 +67,14 @@ around it. Grilled to shared understanding — every branch points the same way.
    and read-only; the player's hand is *placement + economic intent*, nothing more.
 
    > **Round-3b correction (supersedes the round-3 "placement is the player's *only*
-   > lever" wording).** That was too pure. The player *does* get a few hands-on levers
-   > — but only **economic-intent** ones (production choice, trade), never *behavior*
-   > ones. **Operating is per-building** (click a building → set its output; click the
-   > trading post → trade) **under a hard discipline: operable buildings stay FEW and
-   > their menus stay TINY** (2–3 glanceable choices, never a spreadsheet). The
+   > lever" wording).** That was too pure. The player *does* get a hands-on lever — but
+   > only an **economic-intent** one (**trade**), never *behavior* ones. **Operating is
+   > per-building** (click the trading post → trade) **under a hard discipline: operable
+   > buildings stay FEW and their menus stay TINY** (2–3 glanceable choices, never a
+   > spreadsheet). *(Round-6 note: **production-choice was CUT** — the current economy
+   > has no multi-output building for it to act on, and inventing one to justify the
+   > lever fights "one building, one obvious job / growth is spatial". **Trade is the
+   > sole economic-intent lever.** The economy is a fixed chain.)* The
    > **trading post** is the clearest case — a clickable building with **no spatial
    > reach**, the **player's window to the *outside* world** (reaching out for what the
    > map denied), distinct from the town's autonomous *internal* life. Risk to watch: if
@@ -193,6 +197,27 @@ Makes the signal *mechanical*, not just decorative; implements threat consequenc
   it can never spiral. Determinism re-proved across 3 seeds (baseline moves by
   design — log it).
 
+> **Happiness mechanic — resolved (grilled 2026-06-28, round 6).** Three sub-decisions
+> the earlier rounds left open, all feeding Phase A/B:
+> - **Stateful, asymmetric-drift happiness.** Today `_updateHappiness` *recomputes*
+>   happiness from scratch each day (stateless) → a "dent" would vanish next tick and the
+>   diegetic mood signal would *flicker*, not breathe. Make happiness a **persistent
+>   per-house/per-villager field** that eases toward a target each day
+>   (`h += (target − h) × rate`); a threat subtracts a chunk that then recovers.
+>   **decayRate < recoveryRate** (heals faster than it falls) → every dip over-recovers →
+>   the #9 floor becomes a property of the update rule. Seeded, deterministic mutation
+>   (no `Math.random`). **Tuning:** recover from a typical dent in **~2–3 in-game days**;
+>   let a dent *land* over ~1–2 days (no jump-scare). Cozy forgives quickly.
+> - **Radius-local dent with falloff.** "Local" (#5) = a threat dents the happiness
+>   *target* of houses within a small radius of the event, fading with distance (not
+>   whole-town, not only-the-one-entity). Makes the per-house signal a **readable map of
+>   where the town is troubled**, and makes spacing/cures-in-reach a real resilience
+>   lever (placement-puzzle reinforcement, *not* fire-as-destruction).
+> - **Dent radius ≈ the cure's service reach.** A fire dents ≈ a **well's** coverage; a
+>   disease dents ≈ a **Healer's** reach. So the cure is a *clean spatial answer* ("this
+>   area keeps getting troubled → drop a well, its coverage matches the trouble zone"),
+>   and the shipped coverage overlays double as threat-resilience maps (free legibility).
+
 ### Phase C — Forgiving diegetic cold open (doubles as the tutorial)
 Showcases Phases A+B; fixes the corpus-flagged hostile opening (founding-window
 deadlock + day-0 rejection-toast wall).
@@ -276,18 +301,19 @@ Implements the autonomy principle. Pairs naturally with Phase D's cleanup.
   [:518](../../games/citadel/sim-core/src/sim-bootstrap.ts#L518)), **not** in `trader.ts`.
   The trading post is the player's *window to the outside* + the canonical intent/execute
   example (decision #8). **No NPC *autonomy*** (no auto-barter caravan).
-- **Production choice (economic-intent lever).** A handful of building types that can
-  make >1 good become **clickable to set output** (a tiny 2–3-choice menu). Discipline:
-  operable types stay **few**, menus stay **glanceable** — never per-building
-  micromanagement of the whole town. (Most buildings keep a sensible default and are
-  never clicked.)
+- **Production choice — CUT (round 6).** The original Phase G listed a "set what a
+  building produces" lever, but the current economy is a **fixed single-output chain**
+  (mill→flour, bakery→bread, smith→tools — no building forks). Authoring multi-output
+  buildings purely to justify the lever fights "one building, one obvious job" and
+  "growth is spatial". So **trade is the sole economic-intent lever**; the player never
+  sets a building's output.
 - **Freeze** `territory` + `army` (unregister from the cozy bootstrap; keep the code).
 - *Acceptance:* the player never opens a *policy/behavior* menu (rations/work-hours/
   festivals happen autonomously, influenced **only** by where town hall / public square
-  are placed); the player *can* click the trading post to trade and click the few
-  multi-output buildings to set production; a terrain-poor town can trade for what it
-  lacks. Determinism re-proved (autonomous systems + player commands are deterministic
-  reads/writes — no `Math.random`/wall-clock).
+  are placed); the player *can* click the trading post to trade (the **sole**
+  economic-intent lever); a terrain-poor town can trade for what it lacks. Determinism
+  re-proved (autonomous systems + player commands are deterministic reads/writes — no
+  `Math.random`/wall-clock).
 
 ### Phase H — Economy under the cozy contract (decision #9)
 The economy in [production.ts](../../games/citadel/sim-core/src/systems/production.ts)
