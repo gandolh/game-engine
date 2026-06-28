@@ -58,7 +58,7 @@ import {
   COVERAGE_SERVICE,
   serviceRadius,
   serviceTint,
-  catchmentTiles,
+  serviceCatchment,
   housesInRadius,
   coverageByNeed,
 } from "./render/coverage";
@@ -226,8 +226,8 @@ canvas.addEventListener("mouseup", (e) => {
       if (placementState.mode === "wall") {
         client.sendCommand({ type: "placeWall", payload: { tiles } });
       } else {
-        // Roads route around buildings; if none could be found the path falls
-        // back to a straight line the sim will gap — tell the player why.
+        // Roads are drawn freehand; if the trail crosses an un-roadable tile the
+        // sim will gap it there — tell the player why.
         if (routeBlocked) toasts.push("No clear road route — blocked", performance.now());
         client.sendCommand({ type: "placeRoad", payload: { tiles } });
       }
@@ -1044,11 +1044,13 @@ function loop(): void {
     for (const grp of coverageByNeed(currentBuildings)) pushCatchment(renderer, grp.tiles, grp.hex);
   }
   if (placementState.mode === "place" && ghost !== null) {
-    const radius = serviceRadius(placementState.selectedType);
-    if (radius > 0) {
-      const cx = ghost.tileX + Math.floor(ghost.w / 2);
-      const cy = ghost.tileY + Math.floor(ghost.h / 2);
-      pushCatchment(renderer, catchmentTiles(cx, cy, radius), serviceTint(placementState.selectedType));
+    const cx = ghost.tileX + Math.floor(ghost.w / 2);
+    const cy = ghost.tileY + Math.floor(ghost.h / 2);
+    // serviceCatchment dispatches on shape: the well previews its 8×6 rectangle;
+    // diamond services preview their Manhattan ring. Empty for non-services.
+    const ring = serviceCatchment(placementState.selectedType, cx, cy);
+    if (ring.length > 0) {
+      pushCatchment(renderer, ring, serviceTint(placementState.selectedType));
     }
   }
 

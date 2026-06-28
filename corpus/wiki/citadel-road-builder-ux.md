@@ -8,14 +8,19 @@ with a **ranked recommendation** and a scoped follow-up implementation todo.
 
 The drag-build already works and is better than most first passes:
 
-- **Two-endpoint drag.** Press = first endpoint, release = second; the painted
-  run is the *path between them*, recomputed on cursor move — not an accumulation
-  of every tile the mouse crossed ([placement-state.ts](../../games/citadel/client/src/ui/placement-state.ts) `startRoadDrag`/`continueRoadDrag`/`endRoadDrag`).
-- **Obstacle-aware auto-route.** A bounded A* (turn-penalty tie-break) keeps the
-  straight L when clear and detours around building footprints / un-roadable
-  terrain; water stays passable (decks into a bridge). Falls back to the straight
-  L + a `_routeBlocked` flag → "no clear road route" toast when fully walled
-  (`routeRoadPath`).
+- **Freehand drag (roads).** As of 2026-06-27 roads FOLLOW THE MOUSE: the painted
+  run is the *sequence of tiles the cursor actually travels through* during the
+  drag (`extendTrail` in [placement-state.ts](../../games/citadel/client/src/ui/placement-state.ts),
+  driven by `startRoadDrag`/`continueRoadDrag`/`endRoadDrag`). Dragging back over
+  the trail trims it; a fast drag is gap-filled with a short L connector to stay
+  4-connected. This **replaced** the old two-endpoint auto-route — see
+  [todos/closed/2026-06-27-citadel-road-path-follows-mouse.md](../todos/closed/2026-06-27-citadel-road-path-follows-mouse.md).
+- **Walls keep the straight L.** A wall drag is still the deliberate two-endpoint
+  Manhattan L (`shortestRoadPath` via `_recomputePath`) — a wall is placed *on* a
+  perimeter, so freehand isn't wanted. The old obstacle-aware A* (`routeRoadPath`)
+  was retired with the freehand switch. A freehand road trail that crosses an
+  un-roadable interior tile still sets `_routeBlocked` → "no clear road route"
+  toast (the sim gaps that tile).
 - **Live ghost preview.** The candidate tiles render as a translucent drag preview
   (`roadTiles` → `pushGhost`).
 - **Sim authority.** `placeRoad` / `placeWall` are deterministic commands over
@@ -119,15 +124,17 @@ Do the cheap, high-leverage feedback first; defer the heavier editing model.
    to an existing road tile or a building edge, snap that endpoint and show a snap
    marker. Useful but more involved; carve into its own todo after 1–3 land.
 
-5. **In-tool undo (medium, defer).** Either Factorio-style drag-back-to-remove, or
-   a "Ctrl-Z removes the last placed run" (the command log already exists for
-   save/load — an undo could pop the last `placeRoad`/`placeWall` and re-derive).
-   Determinism-sensitive (it mutates the command stream) — design carefully.
+5. **In-tool undo (medium, defer).** Factorio-style **drag-back-to-remove now
+   ships** as part of the freehand road trail (dragging back over the trail trims
+   it). Still open: a "Ctrl-Z removes the last placed run" (the command log already
+   exists for save/load — an undo could pop the last `placeRoad`/`placeWall` and
+   re-derive). Determinism-sensitive (it mutates the command stream) — design carefully.
 
-**Explicitly NOT recommended:** curved/freeform roads and a node-drag segment
-editor (Skylines-style). They fight the 4-connected tile grid that the sim, the
-autotile renderer, and `routeRoadPath` all assume; the cost far exceeds the payoff.
-Keep roads tile-grid + auto-routed.
+**Explicitly NOT recommended:** truly *curved* roads and a node-drag segment
+editor (Skylines-style). They fight the 4-connected tile grid that the sim and the
+autotile renderer assume; the cost far exceeds the payoff. Note the freehand model
+(2026-06-27) is still **tile-grid, 4-connected** — the trail follows the mouse but
+snaps to tile centres; it is not a freeform spline. Keep roads tile-grid.
 
 ## Constraints any implementation must respect
 

@@ -4,6 +4,64 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] feat | Citadel — freehand roads, villager↔population parity fix, well 8×6 rectangle
+
+Shipped three of the newly-filed items (the fourth — road-only-when-moving +
+per-building occupancy badge — is still open, deferred to its own render/HUD
+session):
+
+- **Freehand roads** ([road-path-follows-mouse](todos/closed/2026-06-27-citadel-road-path-follows-mouse.md),
+  done; **overrides + supersedes** [road-routing-around-buildings](todos/closed/2026-06-22-citadel-road-routing-around-buildings.md)).
+  Roads now follow the mouse: pure `extendTrail` accumulates the tiles the cursor
+  travels through, gap-fills fast drags (stays 4-connected), trims on drag-back.
+  Walls keep the deliberate two-endpoint straight L. Retired the endpoint A*
+  `routeRoadPath` + its turn-penalty heap. Client/input only — sim untouched. 8
+  new `extendTrail` tests. Wiki [citadel-road-builder-ux](wiki/citadel-road-builder-ux.md)
+  updated.
+- **Villager↔population parity** ([entity-count-matches-population](todos/2026-06-27-citadel-entity-count-matches-population.md),
+  partial — the on-map mismatch is FIXED). Root cause: **siege-resolution
+  decremented `p.population` after a sacking WITHOUT despawning villager
+  entities**, leaving phantom villagers. Extracted one source of truth
+  `removeOneVillager(state, p)` (sim-state.ts) and routed all three loss paths
+  (immigration starvation/morale, disease deaths, raid casualties) through it;
+  also fixed a pre-existing double-event on the morale path. New phase-4 invariant
+  test asserts `ownedVillagers == population` every tick across a casualty-
+  inflicting raid. Determinism preserved (deterministic despawn; phase-4 deep-equal
+  test still green). Deferred: ambient-crowd "reads as population" question +
+  owner-filtering `getVillagers()` for MP.
+- **Well coverage = 8×6 rectangle** ([well-coverage-rectangle](todos/closed/2026-06-27-citadel-well-coverage-rectangle.md),
+  done). Was a Manhattan radius-5 diamond; now a rectangle. Added `SERVICE_RECTS`
+  + `coversRect` (sim-core, single source of truth), removed `well` from
+  `SERVICE_RADII`, fire system uses `coversRect`, client `serviceCatchment`
+  dispatches shape so the placement ring previews the rectangle. RNG-free →
+  determinism preserved. `coversRect` + `rectCatchmentTiles`/`serviceCatchment`
+  tests added.
+
+All @citadel/sim-core (165) + @citadel/client (236) tests green; both workspaces
+typecheck clean (the pre-existing @tool/world-preview WebGPU-types failure is
+unrelated). Commit pending.
+
+## [2026-06-27] todo | Citadel — three new todos (road-follows-mouse override, entity↔population parity, road-only-when-moving + building occupancy badge)
+
+Filed three Citadel todos from user direction:
+
+- **[road-path-follows-mouse](todos/2026-06-27-citadel-road-path-follows-mouse.md)**
+  (open) — road drag should **follow the actual mouse path**, not be computed
+  between the first and last tile. **Explicitly overrides** the
+  endpoint-routing decision in
+  [road-routing-around-buildings](todos/2026-06-22-citadel-road-routing-around-buildings.md)
+  (done 2026-06-22, the L-then-A* `routeRoadPath`); when this ships, move that todo
+  to superseded and update
+  [wiki/citadel-road-builder-ux.md](wiki/citadel-road-builder-ux.md).
+- **[entity-count-matches-population](todos/2026-06-27-citadel-entity-count-matches-population.md)**
+  (open) — villager entity count on the map must equal `population`; audit
+  population↔entity lifecycle and the ambient-crowd layer so the visible crowd
+  isn't more than the count.
+- **[villagers-on-road-when-moving + occupancy badge](todos/2026-06-27-citadel-villagers-on-road-when-moving-building-occupancy-badge.md)**
+  (open) — villagers appear on roads **only while travelling**; each building shows
+  a **per-building headcount badge** (unassigned over houses, workers over farms,
+  etc.). Mostly render/HUD; ties into the entity↔population parity todo.
+
 ## [2026-06-27] backlog | Citadel — autonomous backlog pass (CSS extract, two-way economy, walk gait, todo triage)
 
 A "finish the backlog" pass. Shipped three more items and triaged the rest:

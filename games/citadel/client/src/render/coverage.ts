@@ -10,7 +10,7 @@
  *
  * No GPU, no RNG, no sim mutation — unit-tested headlessly.
  */
-import { SERVICE_RADII, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
+import { SERVICE_RADII, SERVICE_RECTS, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
 import { EDG } from "@engine/core";
 
@@ -75,6 +75,42 @@ export function catchmentTiles(cx: number, cy: number, radius: number): Catchmen
     }
   }
   return tiles;
+}
+
+/**
+ * All tiles inside the `w`×`h` RECTANGLE centred on `(cx,cy)`, clamped to the
+ * world grid. Even spans are anchored the same half-open way as the sim's
+ * `coversRect` (extra column/row on the +x / +y side), so the preview matches
+ * the gameplay area exactly. `edge` marks the rectangle's border for a crisp
+ * ring with a faint interior fill.
+ */
+export function rectCatchmentTiles(cx: number, cy: number, w: number, h: number): CatchmentTile[] {
+  const tiles: CatchmentTile[] = [];
+  if (w <= 0 || h <= 0) return tiles;
+  const x0 = cx - Math.floor(w / 2);
+  const x1 = cx + Math.ceil(w / 2) - 1;
+  const y0 = cy - Math.floor(h / 2);
+  const y1 = cy + Math.ceil(h / 2) - 1;
+  for (let ty = y0; ty <= y1; ty++) {
+    if (ty < 0 || ty >= WORLD_HEIGHT) continue;
+    for (let tx = x0; tx <= x1; tx++) {
+      if (tx < 0 || tx >= WORLD_WIDTH) continue;
+      tiles.push({ tx, ty, edge: tx === x0 || tx === x1 || ty === y0 || ty === y1 });
+    }
+  }
+  return tiles;
+}
+
+/**
+ * The placement-ring tiles for a service of `type` centred at `(cx,cy)`,
+ * dispatching on shape: a rectangle for types in `SERVICE_RECTS` (the well),
+ * otherwise the Manhattan diamond from `SERVICE_RADII`. Empty if the type has no
+ * coverage. One accessor so callers don't special-case the well's shape.
+ */
+export function serviceCatchment(type: string, cx: number, cy: number): CatchmentTile[] {
+  const rect = SERVICE_RECTS[type];
+  if (rect !== undefined) return rectCatchmentTiles(cx, cy, rect.w, rect.h);
+  return catchmentTiles(cx, cy, serviceRadius(type));
 }
 
 /**

@@ -21,7 +21,7 @@ import type { System, SimContext } from "@engine/core";
 import { getProductionDef } from "../entities/building";
 import type { VillagerComponent } from "../entities/villager";
 import type { SimState, PlayerState } from "../sim-state";
-import { pushEvent } from "../sim-state";
+import { pushEvent, removeOneVillager } from "../sim-state";
 import type { Rng } from "@engine/core";
 import type { GoodType } from "../entities/building";
 
@@ -215,7 +215,9 @@ export class ImmigrationSystem implements System {
     } else if (p.foodSurplus < 0) {
       p.hungerDays++;
       if (p.hungerDays >= 3) {
-        this.removeVillager(p);
+        if (removeOneVillager(state, p)) {
+          pushEvent(state, `Day ${state.day}: a villager starved (pop ${p.population}).`);
+        }
         p.hungerDays = 0;
       }
     } else if (p.stockpiles.bread === 0 && p.foodSurplus === 0) {
@@ -228,8 +230,9 @@ export class ImmigrationSystem implements System {
     if (p.happiness < 30 && p.population > 0) {
       const departRoll = this.rng.nextFloat();
       if (departRoll < 0.2) {
-        this.removeVillager(p);
-        pushEvent(state, `Day ${state.day}: a villager left (low morale, pop ${p.population}).`);
+        if (removeOneVillager(state, p)) {
+          pushEvent(state, `Day ${state.day}: a villager left (low morale, pop ${p.population}).`);
+        }
       }
     }
 
@@ -270,38 +273,6 @@ export class ImmigrationSystem implements System {
     state.villagerWorld.spawn({ villager: v });
     p.population++;
     pushEvent(state, `Day ${state.day}: an immigrant arrived (pop ${p.population}).`);
-  }
-
-  private removeVillager(p: PlayerState): void {
-    const state = this.state;
-    // Remove the highest-id villager OWNED BY p (deterministic), freeing its slot.
-    let victim: { id: number; entity: { villager: VillagerComponent; id?: number } } | null = null;
-    for (const entity of state.villagerWorld.query("villager")) {
-      if (entity.villager.ownerId !== p.id) continue;
-      const vid = entity.villager.id;
-      if (victim === null || vid > victim.id) victim = { id: vid, entity };
-    }
-    if (victim === null) return;
-    const v = victim.entity.villager;
-    // Free worker slot if assigned.
-    const wb = this.buildingIdAt(v.workX, v.workY);
-    if (wb !== null) {
-      const rs = state.buildingState.get(wb);
-      if (rs !== undefined && rs.workerCount > 0) rs.workerCount--;
-    }
-    state.villagerWorld.despawn(victim.entity);
-    p.population = Math.max(0, p.population - 1);
-    pushEvent(state, `Day ${state.day}: a villager starved (pop ${p.population}).`);
-  }
-
-  private buildingIdAt(tx: number, ty: number): number | null {
-    for (const entity of this.state.buildingWorld.query("building")) {
-      const b = entity.building;
-      if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) {
-        return entity.id ?? null;
-      }
-    }
-    return null;
   }
 
   /** First house center owned by `p`, else map center. */

@@ -16,6 +16,13 @@ tags: [citadel, sim, ux, pathfinding, roads]
 > (clear-L unchanged / single-building detour / water pass-through / no-route
 > fallback / blocked endpoint). Client-only; sim placement rules untouched.
 > Still worth a live real-GPU pass for drag feel.
+>
+> **SUPERSEDED 2026-06-27.** The road path now **follows the actual mouse motion**
+> (freehand `extendTrail`) instead of being computed between the first and last
+> tile, so the endpoint-to-endpoint `routeRoadPath` this todo shipped was retired.
+> See [road-path-follows-mouse](../2026-06-27-citadel-road-path-follows-mouse.md)
+> and [log.md](../log.md). This file is kept for history; its A* approach is no
+> longer in the code.
 
 # Citadel — road drag must route *around* buildings
 

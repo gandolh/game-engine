@@ -19,6 +19,8 @@ export {
   getProductionDef,
   PRODUCTION_DEFS,
   SERVICE_RADII,
+  SERVICE_RECTS,
+  coversRect,
   BUILDING_MAX_LEVEL,
   upgradeCost,
   effectiveOutputPerCycle,

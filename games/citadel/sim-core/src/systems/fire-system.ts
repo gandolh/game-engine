@@ -20,7 +20,7 @@
 import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
-import { getProductionDef, SERVICE_RADII, effectiveHousingCapacity } from "../entities/building";
+import { getProductionDef, coversRect, effectiveHousingCapacity } from "../entities/building";
 import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
 
@@ -325,16 +325,19 @@ export class FireSystem implements System {
     return count;
   }
 
-  /** Check if a Well owned by p is within its service radius of position (cx, cy). */
+  /**
+   * Check if a Well owned by p covers position (cx, cy). A well's reach is an
+   * 8×6 RECTANGLE centred on the well (see SERVICE_RECTS / coversRect), not a
+   * Manhattan radius.
+   */
   private _hasWellNear(p: PlayerState, cx: number, cy: number): boolean {
-    const wellRadius = SERVICE_RADII["well"] ?? 5;
     for (const entity of this.state.buildingWorld.query("building")) {
       if (entity.building.ownerId !== p.id) continue;
       if (entity.building.type !== "well") continue;
       const b = entity.building;
       const wx = b.x + Math.floor(b.w / 2);
       const wy = b.y + Math.floor(b.h / 2);
-      if (Math.abs(cx - wx) + Math.abs(cy - wy) <= wellRadius) return true;
+      if (coversRect("well", wx, wy, cx, cy)) return true;
     }
     return false;
   }

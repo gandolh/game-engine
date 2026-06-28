@@ -305,3 +305,48 @@ export function villagerWalkable(state: SimState, tx: number, ty: number): boole
   const idx = ty * state.width + tx;
   return state.roadGrid[idx] === 1 || state.buildingTiles.has(idx);
 }
+
+/**
+ * Despawn one villager entity owned by `p` and decrement `p.population`, keeping
+ * the entity count and the population counter in lockstep. Picks the highest-id
+ * owned villager (deterministic — no rng), frees its worker slot if it was
+ * assigned, and returns `true` if one was removed.
+ *
+ * This is the single source of truth for population loss: immigration
+ * (starvation / morale departure), disease deaths, and raid casualties all route
+ * through it so the on-map villager count always equals `population`. Decrementing
+ * `p.population` without going through here (or an equivalent despawn) leaves
+ * phantom villagers on the map.
+ */
+export function removeOneVillager(state: SimState, p: PlayerState): boolean {
+  let victimId = -1;
+  let victim: VillagerEntity | null = null;
+  for (const entity of state.villagerWorld.query("villager")) {
+    if (entity.villager.ownerId !== p.id) continue;
+    const vid = entity.villager.id;
+    if (vid > victimId) {
+      victimId = vid;
+      victim = entity;
+    }
+  }
+  if (victim === null) return false;
+  const v = victim.villager;
+  // Free the worker slot if this villager was assigned to a workplace building.
+  const idx = v.workY * state.width + v.workX;
+  if (idx >= 0 && idx < state.width * state.height) {
+    for (const be of state.buildingWorld.query("building")) {
+      const b = be.building;
+      if (v.workX >= b.x && v.workX < b.x + b.w && v.workY >= b.y && v.workY < b.y + b.h) {
+        const bid = be.id;
+        if (bid !== undefined) {
+          const rs = state.buildingState.get(bid);
+          if (rs !== undefined && rs.workerCount > 0) rs.workerCount--;
+        }
+        break;
+      }
+    }
+  }
+  state.villagerWorld.despawn(victim);
+  p.population = Math.max(0, p.population - 1);
+  return true;
+}

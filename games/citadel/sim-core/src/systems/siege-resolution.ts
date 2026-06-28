@@ -13,7 +13,7 @@
  */
 import type { System, SimContext, Rng } from "@engine/core";
 import type { SimState, RaiderState, PlayerState } from "../sim-state";
-import { pushEvent } from "../sim-state";
+import { pushEvent, removeOneVillager } from "../sim-state";
 import { getProductionDef, effectiveDefenseStrength } from "../entities/building";
 import { igniteBuildingById, FIRE_WOODEN_TYPES } from "./fire-system";
 
@@ -228,9 +228,13 @@ function applyRaidDamage(state: SimState, p: PlayerState, raidStrength: number, 
     }
   }
 
-  // Lose 1-2 population.
+  // Lose 1-2 population. Despawn the matching villager ENTITIES (not just the
+  // counter) so the on-map crowd stays equal to `population` after a raid —
+  // decrementing population alone left phantom villagers walking the map.
   const popLoss = 1 + rng.int(0, 2);
-  p.population = Math.max(0, p.population - popLoss);
+  for (let i = 0; i < popLoss; i++) {
+    if (!removeOneVillager(state, p)) break;
+  }
   p.happiness = Math.max(0, p.happiness - 8);
 
   // Interlock (siege→fire): a raid can set a surviving wooden building ablaze, so

@@ -15,9 +15,8 @@
  */
 import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
-import { pushEvent } from "../sim-state";
+import { pushEvent, removeOneVillager } from "../sim-state";
 import { getProductionDef, SERVICE_RADII } from "../entities/building";
-import type { VillagerEntity } from "../entities/villager";
 import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
 
@@ -91,7 +90,7 @@ export class DiseaseSystem implements System {
       if (deaths > 0 && p.population > 0) {
         const actualDeaths = Math.min(deaths, p.population);
         for (let i = 0; i < actualDeaths; i++) {
-          this._removeOneVillager(p);
+          if (!removeOneVillager(this.state, p)) break;
         }
         p.sickVillagers = Math.max(0, p.sickVillagers - actualDeaths);
         pushEvent(state, `Day ${state.day}: ${actualDeaths} villager(s) died from disease (pop ${p.population}).`);
@@ -141,35 +140,4 @@ export class DiseaseSystem implements System {
     return false;
   }
 
-  private _removeOneVillager(p: PlayerState): void {
-    const state = this.state;
-    // Find the highest-id villager owned by p (same pattern as immigration removal).
-    let victimId = -1;
-    let victimEntity: VillagerEntity | null = null;
-    for (const entity of state.villagerWorld.query("villager")) {
-      if (entity.villager.ownerId !== p.id) continue;
-      const vid = entity.villager.id;
-      if (vid > victimId) {
-        victimId = vid;
-        victimEntity = entity;
-      }
-    }
-    if (victimEntity === null) return;
-    const v = victimEntity.villager;
-    const wb = this._buildingIdAt(v.workX, v.workY);
-    if (wb !== null) {
-      const rs = state.buildingState.get(wb);
-      if (rs !== undefined && rs.workerCount > 0) rs.workerCount--;
-    }
-    state.villagerWorld.despawn(victimEntity);
-    p.population = Math.max(0, p.population - 1);
-  }
-
-  private _buildingIdAt(tx: number, ty: number): number | null {
-    for (const entity of this.state.buildingWorld.query("building")) {
-      const b = entity.building;
-      if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) return entity.id ?? null;
-    }
-    return null;
-  }
 }

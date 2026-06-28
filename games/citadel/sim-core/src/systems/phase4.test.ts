@@ -155,6 +155,60 @@ describe("Phase 4 — siege resolution math", () => {
 });
 
 // ---------------------------------------------------------------------------
+// 3b. raid casualties despawn villager ENTITIES, keeping count == population
+// ---------------------------------------------------------------------------
+describe("Phase 4 — raid casualties keep entity count == population", () => {
+  /** Count villagers owned by the local player currently on the map. */
+  function ownedVillagers(state: import("../sim-state").SimState, ownerId: number): number {
+    let n = 0;
+    for (const e of state.villagerWorld.query("villager")) {
+      if (e.villager.ownerId === ownerId) n++;
+    }
+    return n;
+  }
+
+  it("the on-map villager count equals population across a raid that inflicts casualties", () => {
+    const sim = boot();
+    const lp = localPlayer(sim.state);
+    lp.tier = "Town"; // keep requires Town tier
+
+    // Undefended keep so a raid lands and inflicts population loss (the path that
+    // previously decremented population WITHOUT despawning entities).
+    const g = findGrass(sim.terrain, 3, 3, 48, 48);
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
+    // Seed a handful of villagers so there's a population to lose.
+    sim.scheduler.tick({ tick: 0 });
+    for (let i = 0; i < 8; i++) {
+      sim.state.villagerWorld.spawn({
+        villager: {
+          id: sim.state.nextVillagerId++, ownerId: lp.id,
+          homeX: g.x, homeY: g.y, workX: g.x, workY: g.y, storeX: g.x, storeY: g.y,
+          fsm: "idle", pathX: [], pathY: [], pathStep: 0,
+          carryGood: null, carryAmount: 0, ticksAtWork: 0,
+        },
+      });
+      lp.population++;
+    }
+    expect(ownedVillagers(sim.state, lp.id)).toBe(lp.population);
+
+    // Run until at least one raid has resolved (casualties applied).
+    let sawCasualty = false;
+    let prevPop = lp.population;
+    for (let tick = 1; tick < 60 * TICKS_PER_DAY; tick++) {
+      sim.scheduler.tick({ tick });
+      // Invariant holds every tick: entities track population exactly.
+      expect(ownedVillagers(sim.state, lp.id)).toBe(lp.population);
+      if (lp.population < prevPop) sawCasualty = true;
+      prevPop = lp.population;
+      if (lp.gameOver) break;
+    }
+    // The undefended keep guarantees raids; population should have dropped at
+    // some point (raid casualties and/or starvation) — and stayed in lockstep.
+    expect(sawCasualty).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 4. keep sacked → gameOver (undefended keep)
 // ---------------------------------------------------------------------------
 describe("Phase 4 — keep sacked", () => {

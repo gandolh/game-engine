@@ -103,9 +103,46 @@ export const SERVICE_RADII: Readonly<Record<string, number>> = {
   keep: 10,
   "town-hall": 10,
   // Phase 4.5: hazard mitigation radii
-  well: 5,
   healer: 8,
 };
+
+/**
+ * Rectangular coverage areas (in tiles) for services whose reach is a RECTANGLE
+ * rather than a Manhattan diamond. `w`×`h` is the total footprint of the area,
+ * centred on the service centre tile (`b.x+floor(b.w/2)`, `b.y+floor(b.h/2)`).
+ *
+ * The WELL covers an 8-wide × 6-tall rectangle (not a radius/diamond): an even
+ * span is anchored so the extra column/row falls on the +x / +y side of centre
+ * — columns `cx-4 … cx+3`, rows `cy-3 … cy+2`. This is the single source of
+ * truth for the well's reach; the fire system and the client overlay both
+ * derive their geometry from {@link coversRect} / this constant so they can't
+ * drift.
+ */
+export const SERVICE_RECTS: Readonly<Record<string, { w: number; h: number }>> = {
+  well: { w: 8, h: 6 },
+};
+
+/**
+ * Whether the point `(px,py)` lies inside the rectangular coverage of a service
+ * of `type` centred at `(cx,cy)`. Returns `false` for types with no rectangular
+ * coverage. Half-open even-span anchoring: for an even `w`, columns run
+ * `cx - floor(w/2) … cx + ceil(w/2) - 1` (same for rows with `h`).
+ */
+export function coversRect(
+  type: string,
+  cx: number,
+  cy: number,
+  px: number,
+  py: number,
+): boolean {
+  const rect = SERVICE_RECTS[type];
+  if (rect === undefined) return false;
+  const x0 = cx - Math.floor(rect.w / 2);
+  const x1 = cx + Math.ceil(rect.w / 2) - 1;
+  const y0 = cy - Math.floor(rect.h / 2);
+  const y1 = cy + Math.ceil(rect.h / 2) - 1;
+  return px >= x0 && px <= x1 && py >= y0 && py <= y1;
+}
 
 export function getBuildingDef(type: string): BuildingDef | undefined {
   return BUILDING_DEFS[type];

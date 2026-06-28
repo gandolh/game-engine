@@ -61,154 +61,59 @@ export function shortestRoadPath(
  */
 export type TileBlockedFn = (x: number, y: number) => boolean;
 
-/** Search window margin (tiles) around the drag's bounding box for `routeRoadPath`. */
-const ROUTE_MARGIN = 16;
 /**
- * Per-turn penalty in the A* cost. Strictly < 1 so total path length still
- * dominates (a detour is never traded for a longer one just to save a turn),
- * but ties between equal-length routes prefer the one with fewer turns — so a
- * detour hugs straight lines and reads like the old L wherever it can.
- */
-const TURN_PENALTY = 0.4;
-
-const ROUTE_DIRS: ReadonlyArray<readonly [number, number]> = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-];
-
-/**
- * Obstacle-aware road path between two endpoints (4-connected grid).
+ * Extend a freehand road trail toward a newly-entered tile (the cursor's
+ * current tile), mutating `trail` in place. The trail is the sequence of tiles
+ * the cursor has actually travelled through during the drag, kept contiguous
+ * (consecutive tiles 4-adjacent) and free of duplicates.
  *
- * When the straight L from {@link shortestRoadPath} is unobstructed this returns
- * it unchanged, so simple drags look identical to before. When the L would clip
- * a building (or other un-roadable tile) this runs a bounded A* that routes
- * *around* the obstacle, staying connected end-to-end. The endpoints themselves
- * are always traversable (the sim is the source of truth for whether they're
- * legal); only interior tiles are checked. Returns `null` when no route exists
- * within the search window — the caller should fall back to the straight L and
- * surface a "no clear route" message rather than silently gapping. Pure;
- * exported for testing.
+ * Three cases:
+ *  - The tile is already the trail's tail → nothing to do (cursor hasn't left
+ *    its tile).
+ *  - The tile is somewhere earlier in the trail → the player has dragged back
+ *    over the trail, so trim it back to that tile (Factorio-style erase).
+ *  - Otherwise it's new → fill any gap between the old tail and the new tile
+ *    with a short L connector (a fast drag / low frame rate can skip tiles), so
+ *    the trail stays 4-connected, then the new tile becomes the tail.
+ *
+ * The connector is a *local* gap-fill between two consecutive samples — it is
+ * NOT a global re-route between the drag's first and last tile. Out-of-world
+ * tiles are dropped. Pure; exported for testing.
  */
-export function routeRoadPath(
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  isBlocked: TileBlockedFn,
-): Array<{ x: number; y: number }> | null {
-  const inBounds = (x: number, y: number): boolean =>
-    x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT;
-  // Out-of-bounds endpoints can't seed a search; defer to the L (which clips
-  // them) — matches today's behaviour for off-map drags.
-  if (!inBounds(x0, y0) || !inBounds(x1, y1)) return shortestRoadPath(x0, y0, x1, y1);
+export function extendTrail(
+  trail: Array<{ x: number; y: number }>,
+  tx: number,
+  ty: number,
+): void {
+  if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return;
+  if (trail.length === 0) {
+    trail.push({ x: tx, y: ty });
+    return;
+  }
+  const tail = trail[trail.length - 1]!;
+  if (tail.x === tx && tail.y === ty) return;
 
-  // Fast path: if the straight L's interior is clear, keep it verbatim.
-  const l = shortestRoadPath(x0, y0, x1, y1);
-  let clear = true;
-  for (let i = 1; i < l.length - 1; i++) {
-    if (isBlocked(l[i]!.x, l[i]!.y)) {
-      clear = false;
-      break;
+  // Drag-back: if the cursor re-entered a tile already on the trail, pop back to
+  // it instead of branching.
+  for (let i = trail.length - 2; i >= 0; i--) {
+    if (trail[i]!.x === tx && trail[i]!.y === ty) {
+      trail.length = i + 1;
+      return;
     }
   }
-  if (clear) return l;
 
-  // A* within a window around the endpoints (keeps a long drag cheap).
-  const minX = Math.max(0, Math.min(x0, x1) - ROUTE_MARGIN);
-  const maxX = Math.min(WORLD_WIDTH - 1, Math.max(x0, x1) + ROUTE_MARGIN);
-  const minY = Math.max(0, Math.min(y0, y1) - ROUTE_MARGIN);
-  const maxY = Math.min(WORLD_HEIGHT - 1, Math.max(y0, y1) + ROUTE_MARGIN);
-
-  const key = (x: number, y: number): number => y * WORLD_WIDTH + x;
-  const startK = key(x0, y0);
-  const goalK = key(x1, y1);
-  const gScore = new Map<number, number>();
-  const cameFrom = new Map<number, number>();
-  const dirOf = new Map<number, number>(); // direction index used to arrive
-  gScore.set(startK, 0);
-  dirOf.set(startK, -1);
-
-  // Minimal binary min-heap keyed by f-score.
-  const heapF: number[] = [];
-  const heapN: number[] = [];
-  const heapPush = (f: number, n: number): void => {
-    heapF.push(f);
-    heapN.push(n);
-    let i = heapF.length - 1;
-    while (i > 0) {
-      const p = (i - 1) >> 1;
-      if (heapF[p]! <= heapF[i]!) break;
-      [heapF[p], heapF[i]] = [heapF[i]!, heapF[p]!];
-      [heapN[p], heapN[i]] = [heapN[i]!, heapN[p]!];
-      i = p;
-    }
-  };
-  const heapPop = (): number => {
-    const top = heapN[0]!;
-    const lastF = heapF.pop()!;
-    const lastN = heapN.pop()!;
-    if (heapF.length > 0) {
-      heapF[0] = lastF;
-      heapN[0] = lastN;
-      let i = 0;
-      const len = heapF.length;
-      for (;;) {
-        const lft = 2 * i + 1;
-        const rgt = 2 * i + 2;
-        let s = i;
-        if (lft < len && heapF[lft]! < heapF[s]!) s = lft;
-        if (rgt < len && heapF[rgt]! < heapF[s]!) s = rgt;
-        if (s === i) break;
-        [heapF[s], heapF[i]] = [heapF[i]!, heapF[s]!];
-        [heapN[s], heapN[i]] = [heapN[i]!, heapN[s]!];
-        i = s;
-      }
-    }
-    return top;
-  };
-
-  const heuristic = (x: number, y: number): number => Math.abs(x - x1) + Math.abs(y - y1);
-  heapPush(heuristic(x0, y0), startK);
-
-  while (heapF.length > 0) {
-    const u = heapPop();
-    if (u === goalK) {
-      // Reconstruct.
-      const path: Array<{ x: number; y: number }> = [];
-      let cur: number | undefined = goalK;
-      while (cur !== undefined) {
-        path.push({ x: cur % WORLD_WIDTH, y: Math.floor(cur / WORLD_WIDTH) });
-        cur = cameFrom.get(cur);
-      }
-      path.reverse();
-      return path;
-    }
-    const ux = u % WORLD_WIDTH;
-    const uy = Math.floor(u / WORLD_WIDTH);
-    const ug = gScore.get(u)!;
-    const udir = dirOf.get(u)!;
-    for (let d = 0; d < ROUTE_DIRS.length; d++) {
-      const nx = ux + ROUTE_DIRS[d]![0];
-      const ny = uy + ROUTE_DIRS[d]![1];
-      if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
-      const nk = key(nx, ny);
-      // The goal is always reachable even if it sits on a blocked tile (the sim
-      // decides if the endpoint is legal); every interior tile must be clear.
-      if (nk !== goalK && isBlocked(nx, ny)) continue;
-      const turn = udir >= 0 && udir !== d ? TURN_PENALTY : 0;
-      const tentative = ug + 1 + turn;
-      const known = gScore.get(nk);
-      if (known === undefined || tentative < known) {
-        gScore.set(nk, tentative);
-        cameFrom.set(nk, u);
-        dirOf.set(nk, d);
-        heapPush(tentative + heuristic(nx, ny), nk);
-      }
-    }
+  // New tile — connect from the tail with the shortest L (covers the common
+  // one-tile step and any gap a fast drag skipped). Skip the connector's first
+  // tile (it's the tail, already present) and any tile already on the trail.
+  const seen = new Set(trail.map((t) => t.y * WORLD_WIDTH + t.x));
+  const connector = shortestRoadPath(tail.x, tail.y, tx, ty);
+  for (let i = 1; i < connector.length; i++) {
+    const c = connector[i]!;
+    const k = c.y * WORLD_WIDTH + c.x;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    trail.push({ x: c.x, y: c.y });
   }
-  return null;
 }
 
 export interface GhostState {
@@ -240,11 +145,17 @@ export class PlacementStateManager {
   /** Tile where the current drag started (the road's first endpoint). */
   private _dragStartX = 0;
   private _dragStartY = 0;
-  /** Tiles of the shortest path from the drag start to the cursor. */
+  /**
+   * The painted drag tiles. For roads this is the freehand trail of tiles the
+   * cursor travelled through; for walls it's the straight L between the two
+   * endpoints.
+   */
   private _dragTiles: Array<{ x: number; y: number }> = [];
   /**
-   * True when the last road recompute could find no clear route and fell back
-   * to the straight L (which the sim will gap). Drives a "no clear route" toast.
+   * True when the current drag can't be cleanly placed: for walls, the route
+   * could find no clear path and fell back to the straight L; for roads, the
+   * freehand trail crosses an un-roadable interior tile (the sim will gap it).
+   * Drives a "no clear route" toast.
    */
   private _routeBlocked = false;
 
@@ -267,20 +178,52 @@ export class PlacementStateManager {
   }
 
   // --- Drag-paint (road + wall) --------------------------------------------
-  // A road is defined by two endpoints: the tile under the cursor when the
-  // drag began, and the tile under the cursor now. The painted tiles are the
-  // shortest grid path between them (recomputed on every cursor move), not an
-  // accumulation of every tile the mouse happened to pass over.
+  // ROADS are FREEHAND: the painted tiles are the sequence of tiles the cursor
+  // actually travels through during the drag (accumulated via `extendTrail`),
+  // so the player draws the road by hand and dragging back trims it. This
+  // overrides the older "route an L/A* between the first and last tile" model.
+  // WALLS keep the deliberate two-endpoint straight L (a wall is placed *on* a
+  // perimeter, so a freehand wobble isn't wanted) — see `_recomputePath`.
   startRoadDrag(): void {
     this._dragging = true;
     this._dragStartX = this._cursorTileX;
     this._dragStartY = this._cursorTileY;
-    this._recomputePath();
+    this._dragTiles = [];
+    this._routeBlocked = false;
+    if (this.mode === "road") {
+      extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY);
+    } else {
+      this._recomputePath();
+    }
   }
 
   continueRoadDrag(): void {
     if (!this._dragging) return;
+    if (this.mode === "road") {
+      // Freehand: append the tile the cursor just entered (or trim on drag-back).
+      extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY);
+      // A freehand trail can still cross un-roadable tiles; flag whether any
+      // interior tile is blocked so the caller can toast on release.
+      this._routeBlocked = this._trailHasBlockedInterior();
+      return;
+    }
     this._recomputePath();
+  }
+
+  /**
+   * Whether the current freehand trail has any blocked interior tile (a tile the
+   * sim will reject for a road). Endpoints are excluded — the sim is the
+   * authority on whether the drop tiles are legal. Mirrors the per-tile validity
+   * rule used for the red/green preview.
+   */
+  private _trailHasBlockedInterior(): boolean {
+    if (this._dragTiles.length < 3 || this._terrain === null) return false;
+    const isBlocked = this._blockedForRoad(this._terrain, this._buildings);
+    for (let i = 1; i < this._dragTiles.length - 1; i++) {
+      const t = this._dragTiles[i]!;
+      if (isBlocked(t.x, t.y)) return true;
+    }
+    return false;
   }
 
   /** End the drag and return the path tiles. */
@@ -332,31 +275,13 @@ export class PlacementStateManager {
   }
 
   /**
-   * Recompute the drag path from the start to the cursor. Roads route *around*
-   * building footprints and un-roadable terrain (water decks into a bridge, so
-   * it stays passable); walls keep the deliberate straight L (a wall is placed
-   * *on* a perimeter, not routed around it).
+   * Recompute the WALL drag path: the deliberate straight L between the two
+   * endpoints (a wall is placed *on* a perimeter, so it is not freehand and is
+   * not routed around obstacles). Roads are freehand and never come through
+   * here — they accumulate via `extendTrail` in {@link continueRoadDrag}.
    */
   private _recomputePath(): void {
-    if (this.mode === "road" && this._terrain !== null) {
-      const isBlocked = this._blockedForRoad(this._terrain, this._buildings);
-      const routed = routeRoadPath(
-        this._dragStartX,
-        this._dragStartY,
-        this._cursorTileX,
-        this._cursorTileY,
-        isBlocked,
-      );
-      if (routed !== null) {
-        this._dragTiles = routed;
-        this._routeBlocked = false;
-        return;
-      }
-      // No clear route — fall back to the straight L and flag it.
-      this._routeBlocked = true;
-    } else {
-      this._routeBlocked = false;
-    }
+    this._routeBlocked = false;
     this._dragTiles = shortestRoadPath(
       this._dragStartX,
       this._dragStartY,

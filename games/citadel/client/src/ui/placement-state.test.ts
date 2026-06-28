@@ -1,32 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
-import { routeRoadPath, shortestRoadPath, type TileBlockedFn } from "./placement-state";
+import { extendTrail, shortestRoadPath } from "./placement-state";
 
 function manhattan(x0: number, y0: number, x1: number, y1: number): number {
   return Math.abs(x1 - x0) + Math.abs(y1 - y0);
 }
 
-/** A blocked predicate from an explicit set of "x,y" obstacle tiles. */
-function blockedFrom(...tiles: Array<[number, number]>): TileBlockedFn {
-  const set = new Set(tiles.map(([x, y]) => `${x},${y}`));
-  return (x, y) => set.has(`${x},${y}`);
-}
-
-/** Assert a path is contiguous (consecutive tiles 4-adjacent) and hits both ends. */
-function assertConnected(
-  path: Array<{ x: number; y: number }>,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-): void {
-  expect(path[0]).toEqual({ x: x0, y: y0 });
-  expect(path[path.length - 1]).toEqual({ x: x1, y: y1 });
-  for (let i = 1; i < path.length; i++) {
-    const a = path[i - 1]!;
-    const b = path[i]!;
+/** Assert a trail is contiguous (consecutive tiles 4-adjacent) and duplicate-free. */
+function assertTrailValid(trail: Array<{ x: number; y: number }>): void {
+  const keys = new Set(trail.map((t) => `${t.x},${t.y}`));
+  expect(keys.size).toBe(trail.length);
+  for (let i = 1; i < trail.length; i++) {
+    const a = trail[i - 1]!;
+    const b = trail[i]!;
     expect(Math.abs(a.x - b.x) + Math.abs(a.y - b.y)).toBe(1);
   }
+}
+
+/** Drive a freehand trail through a sequence of cursor tiles. */
+function trailThrough(...tiles: Array<[number, number]>): Array<{ x: number; y: number }> {
+  const trail: Array<{ x: number; y: number }> = [];
+  for (const [x, y] of tiles) extendTrail(trail, x, y);
+  return trail;
 }
 
 describe("shortestRoadPath", () => {
@@ -100,57 +95,98 @@ describe("shortestRoadPath", () => {
   });
 });
 
-describe("routeRoadPath", () => {
-  const nothingBlocked: TileBlockedFn = () => false;
-
-  it("returns the straight L unchanged when nothing is in the way", () => {
-    const route = routeRoadPath(1, 1, 4, 6, nothingBlocked);
-    expect(route).toEqual(shortestRoadPath(1, 1, 4, 6));
+describe("extendTrail (freehand road)", () => {
+  it("seeds the trail with the first tile", () => {
+    expect(trailThrough([5, 5])).toEqual([{ x: 5, y: 5 }]);
   });
 
-  it("ignores obstacles that don't lie on the straight L (stays the L)", () => {
-    // Block a tile far from the L; the fast path should still return the L.
-    const route = routeRoadPath(1, 3, 6, 3, blockedFrom([3, 9]));
-    expect(route).toEqual(shortestRoadPath(1, 3, 6, 3));
+  it("appends one tile per cursor step, following the cursor's actual path", () => {
+    // An L-shaped freehand drag: right then down. The trail is exactly the tiles
+    // the cursor passed through, NOT a recomputed endpoint-to-endpoint route.
+    const trail = trailThrough([0, 0], [1, 0], [2, 0], [2, 1], [2, 2]);
+    expect(trail).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 },
+    ]);
+    assertTrailValid(trail);
   });
 
-  it("detours around a single building blocking the straight run", () => {
-    // Horizontal run y=3 from x=1..6; block the middle two tiles.
-    const route = routeRoadPath(1, 3, 6, 3, blockedFrom([3, 3], [4, 3]))!;
-    expect(route).not.toBeNull();
-    assertConnected(route, 1, 3, 6, 3);
-    // No interior tile sits on a blocked cell.
-    for (let i = 1; i < route.length - 1; i++) {
-      const t = route[i]!;
-      expect(t.x === 3 && t.y === 3).toBe(false);
-      expect(t.x === 4 && t.y === 3).toBe(false);
+  it("ignores repeated samples on the same tile (cursor hasn't left its tile)", () => {
+    const trail = trailThrough([3, 3], [3, 3], [4, 3], [4, 3]);
+    expect(trail).toEqual([
+      { x: 3, y: 3 },
+      { x: 4, y: 3 },
+    ]);
+  });
+
+  it("gap-fills a fast drag that skipped tiles, staying 4-connected", () => {
+    // Cursor jumped from (0,0) to (3,0) in one sample — fill the gap.
+    const trail = trailThrough([0, 0], [3, 0]);
+    expect(trail).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 3, y: 0 },
+    ]);
+    assertTrailValid(trail);
+  });
+
+  it("follows a different route between the same endpoints than a straight L would", () => {
+    // Drag up-and-over instead of the L's over-then-up. The trail records the
+    // cursor's actual path; the endpoint-routed L would differ.
+    const trail = trailThrough([0, 2], [0, 1], [0, 0], [1, 0], [2, 0]);
+    expect(trail).toEqual([
+      { x: 0, y: 2 },
+      { x: 0, y: 1 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+    ]);
+    // shortestRoadPath (endpoint model) would go over-first along y=2 — different.
+    expect(trail).not.toEqual(shortestRoadPath(0, 2, 2, 0));
+  });
+
+  it("trims back when the cursor drags back over the trail", () => {
+    const trail = trailThrough([0, 0], [1, 0], [2, 0], [3, 0]);
+    // Drag back to (1,0): the trail trims, dropping (2,0) and (3,0).
+    extendTrail(trail, 1, 0);
+    expect(trail).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+    ]);
+    assertTrailValid(trail);
+  });
+
+  it("trims to the start when dragged all the way back", () => {
+    const trail = trailThrough([4, 4], [5, 4], [6, 4]);
+    extendTrail(trail, 4, 4);
+    expect(trail).toEqual([{ x: 4, y: 4 }]);
+  });
+
+  it("drops cursor tiles outside the world bounds", () => {
+    const before = trailThrough([0, 0]);
+    extendTrail(before, -1, 0);
+    extendTrail(before, 0, WORLD_HEIGHT);
+    expect(before).toEqual([{ x: 0, y: 0 }]);
+    for (const t of before) {
+      expect(t.x).toBeGreaterThanOrEqual(0);
+      expect(t.x).toBeLessThan(WORLD_WIDTH);
+      expect(t.y).toBeGreaterThanOrEqual(0);
+      expect(t.y).toBeLessThan(WORLD_HEIGHT);
     }
   });
 
-  it("treats water as passable (path may cross it — it decks into a bridge)", () => {
-    // The blocked predicate models water as NOT blocked, so a straight run over
-    // a water tile is kept rather than detoured.
-    const water: TileBlockedFn = () => false; // water is never blocked
-    const route = routeRoadPath(2, 2, 5, 2, water)!;
-    expect(route).toEqual(shortestRoadPath(2, 2, 5, 2));
-  });
-
-  it("returns null when the destination is fully walled off", () => {
-    // Wall off the goal (5,5) on all four sides.
-    const route = routeRoadPath(
-      1,
-      5,
-      5,
-      5,
-      blockedFrom([4, 5], [6, 5], [5, 4], [5, 6]),
-    );
-    expect(route).toBeNull();
-  });
-
-  it("keeps the endpoint reachable even if it sits on a blocked tile", () => {
-    // Goal tile itself is blocked but has a clear neighbour — path still lands on it.
-    const route = routeRoadPath(1, 5, 5, 5, blockedFrom([5, 5]))!;
-    expect(route).not.toBeNull();
-    assertConnected(route, 1, 5, 5, 5);
+  it("does not re-add a tile already on the trail when gap-filling a loop", () => {
+    // Draw a small loop that would re-enter (0,0) via the connector; the trail
+    // stays duplicate-free (the drag-back/seen guards handle it).
+    const trail = trailThrough([0, 0], [1, 0], [1, 1], [0, 1]);
+    // Jump back near the start; connector from (0,1)→(0,0) re-enters (0,0).
+    extendTrail(trail, 0, 0);
+    assertTrailValid(trail);
+    // (0,0) trims the trail back to its first tile.
+    expect(trail).toEqual([{ x: 0, y: 0 }]);
   });
 });
