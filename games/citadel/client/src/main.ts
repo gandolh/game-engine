@@ -53,6 +53,7 @@ import {
 } from "./render/atmosphere";
 import { CitadelWeather } from "./render/weather";
 import { CitadelAmbientCrowd } from "./render/ambient-crowd";
+import { OccupancyBadgeLayer } from "./render/occupancy-badges";
 import { EntityInterpolator, snapshotAlpha } from "./render/entity-interp";
 import {
   COVERAGE_SERVICE,
@@ -133,6 +134,10 @@ const followHud = document.getElementById("follow-hud")!;
 const toasts = new ToastManager(document.getElementById("toast-container")!);
 let lastEventShown: string | null = null;
 let minimap: CitadelMinimap | null = null;
+
+// Per-building occupancy badges (Part B): headcount chips floated over each
+// building that has people at it. DOM overlay, pooled + positioned each frame.
+const occupancyBadges = new OccupancyBadgeLayer(document.getElementById("occupancy-badges")!);
 
 // Build toolbar is icon-only (condensed for laptops); surface each button's name
 // as a hover tooltip so the glyphs stay discoverable. Derives the label from the
@@ -650,18 +655,26 @@ if (import.meta.env.DEV) {
     // test harness can drive REAL UI gestures — hovering the placement ghost,
     // clicking a specific tile — not just the command channel. Mirrors the
     // renderer's world→screen transform.
-    tileToScreenCss: (tx: number, ty: number) => {
-      const c = tileToIso(tx + 0.5, ty + 0.5);
-      fitCameraToCanvas(camera, canvas.width, canvas.height);
-      const sx = canvas.width / camera.worldUnitsX;
-      const sy = canvas.height / camera.worldUnitsY;
-      const left = camera.centerX - camera.worldUnitsX / 2;
-      const top = camera.centerY - camera.worldUnitsY / 2;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvas.getBoundingClientRect();
-      return { x: rect.left + ((c.x - left) * sx) / dpr, y: rect.top + ((c.y - top) * sy) / dpr };
-    },
+    tileToScreenCss: (tx: number, ty: number) => tileToScreenCss(tx + 0.5, ty + 0.5),
   };
+}
+
+/**
+ * Project an iso TILE point (fractional tile coords) to a CSS-px point relative
+ * to the viewport, using the live camera + canvas transform. Mirrors the
+ * renderer's world→screen mapping. Used for DOM overlays anchored to the world
+ * (occupancy badges) and the dev-hook test harness. Render-only.
+ */
+function tileToScreenCss(tileX: number, tileY: number): { x: number; y: number } {
+  const c = tileToIso(tileX, tileY);
+  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  const sx = canvas.width / camera.worldUnitsX;
+  const sy = canvas.height / camera.worldUnitsY;
+  const left = camera.centerX - camera.worldUnitsX / 2;
+  const top = camera.centerY - camera.worldUnitsY / 2;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  return { x: rect.left + ((c.x - left) * sx) / dpr, y: rect.top + ((c.y - top) * sy) / dpr };
 }
 
 let paused = false;
@@ -672,6 +685,7 @@ let tier = "Hamlet"; // Phase 5: settlement tier (current; displayed in HUD)
 let peakTier = "Hamlet"; // highest tier ever reached; gates build/upgrade buttons
 let population = 0;
 let popCap = 0;
+let localPlayerId = 0; // owner id the snapshot is the view of (solo = 0)
 let bread = 0;
 let wood = 0;
 let foodSurplus = 0;
@@ -797,6 +811,7 @@ client.onSnapshot((snap) => {
   if (events.length > 0) lastEventShown = events[events.length - 1]!;
   currentBuildings = snap.buildings;
   currentVillagers = snap.villagers;
+  localPlayerId = snap.localPlayerId;
   // Phase 3
   happiness = snap.happiness;
   traderPresent = snap.traderPresent;
@@ -1093,6 +1108,12 @@ function loop(): void {
   const wash = renderToggles.wash ? computeWash(season, dayFraction) : undefined;
   const weatherField = renderToggles.weather ? weather.field : undefined;
   renderer.endFrame(wash, particles, weatherField);
+
+  // Part B: per-building occupancy badges. Headcount chips over each of the local
+  // player's buildings that has people at it (idle residents / workers). DOM
+  // overlay positioned via the world→screen map; in-transit villagers are drawn
+  // on roads instead (Part A), so badges + road dots == population.
+  occupancyBadges.update(currentBuildings, localPlayerId, (tx, ty) => tileToScreenCss(tx, ty));
 
   // Minimap overview + event-toast aging (both render-only overlays).
   if (minimap !== null) {

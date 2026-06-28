@@ -13,7 +13,7 @@ import type { BuildingSnapshot, RaiderSnapshot, RenderSnapshot } from "@citadel/
 function mkRoad(x: number, y: number): BuildingSnapshot {
   return {
     type: "road", x, y, w: 1, h: 1,
-    connected: true, outputBuffer: 0, workerCount: 0, ownerId: 0,
+    connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
     onFire: false, burning: false, level: 1,
   };
 }
@@ -22,7 +22,7 @@ function mkSnapshot(tier: string, roads: number, raiders: RaiderSnapshot[] = [])
   const buildings: BuildingSnapshot[] = [];
   for (let i = 0; i < roads; i++) buildings.push(mkRoad(i % 90, Math.floor(i / 90)));
   return {
-    tick: 0, day: 0, season: "spring", speed: 1,
+    tick: 0, localPlayerId: 0, day: 0, season: "spring", speed: 1,
     buildings, villagers: [], stockpiles: {}, population: 0, popCap: 0,
     foodSurplus: 0, gameOver: false, recentEvents: [],
     happiness: 50, faithCoverage: 0, safetyCoverage: 0, goodsCoverage: 0,

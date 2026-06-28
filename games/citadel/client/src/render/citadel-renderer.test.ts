@@ -60,6 +60,7 @@ function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "t
     connected: true,
     outputBuffer: 0,
     workerCount: 0,
+    occupancy: 0,
     ownerId: 0,
     onFire: false,
     burning: false,

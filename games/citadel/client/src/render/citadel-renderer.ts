@@ -30,7 +30,7 @@ import {
   createRenderer,
 } from "@engine/core";
 import type { RendererLike, LoadedAtlasImage, Canvas2dSprite } from "@engine/core";
-import { TILE_SIZE } from "@citadel/sim-core";
+import { TILE_SIZE, isTravellingFsm } from "@citadel/sim-core";
 import type {
   BuildingSnapshot,
   VillagerSnapshot,
@@ -387,6 +387,12 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
     pushBuilding(renderer, b, fx, clockMs);
   }
   for (const v of scene.villagers) {
+    // Part A: a villager appears on the map ONLY while travelling between places.
+    // A stationary villager (idle at home / working) is represented by its
+    // building's occupancy badge instead of a free dot on the road. Same rule the
+    // snapshot uses to tally occupancy, so a villager is shown in exactly one
+    // place (road OR a building), never both.
+    if (!isTravellingFsm(v.fsm)) continue;
     const base = villagerQuad(v);
     const dy = fx?.villagerYOffset !== undefined ? fx.villagerYOffset(v) : 0;
     // Render-only position interpolation: glide between snapshot tiles instead of

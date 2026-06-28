@@ -13,6 +13,9 @@
     <canvas id="minimap" width="168" height="168" title="Click to jump the camera"></canvas>
     <!-- Event toasts: top-center transient notifications (populated in main.ts) -->
     <div id="toast-container"></div>
+    <!-- Per-building occupancy badges: headcount chips floated over buildings
+         (DOM overlay, pooled + positioned in main.ts via the world→screen map) -->
+    <div id="occupancy-badges"></div>
 
     <!-- Citadel build toolbar: build buttons grouped by purpose, each with an
          icon glyph. Lives in its own strip above the HUD so the readout row

@@ -14,6 +14,7 @@ import {
   BUILDING_MAX_LEVEL,
 } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
+import { isTravellingFsm } from "./entities/villager";
 import type { SimState, Stockpiles, ArmyState } from "./sim-state";
 import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
@@ -771,6 +772,36 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // Snapshot helpers
   // ---------------------------------------------------------------------------
   function getBuildings(): readonly BuildingSnapshot[] {
+    // Per-building occupancy (render/HUD): tally STATIONARY villagers onto the
+    // building they're at — idle residents at their home tile, workers at their
+    // workplace tile. Travelling villagers (the walk states) are on the road and
+    // counted nowhere here, so Σ occupancy + in-transit == population. Build a
+    // footprint tile→entityId index once, then one pass over villagers.
+    const occByBuilding = new Map<number, number>();
+    const tileToBuilding = new Map<number, number>();
+    for (const entity of buildingWorld.query("building")) {
+      if (entity.id === undefined) continue;
+      const b = entity.building;
+      for (let dy = 0; dy < b.h; dy++) {
+        for (let dx = 0; dx < b.w; dx++) {
+          const tx = b.x + dx;
+          const ty = b.y + dy;
+          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
+          tileToBuilding.set(ty * WORLD_WIDTH + tx, entity.id);
+        }
+      }
+    }
+    for (const entity of villagerWorld.query("villager")) {
+      const v = entity.villager;
+      if (isTravellingFsm(v.fsm)) continue; // on the road, not at a building
+      // idle → at home; work → at workplace. (Other stationary cases fall back
+      // to home so a villager is always attributed somewhere it's standing.)
+      const at = v.fsm === "work" ? { x: v.workX, y: v.workY } : { x: v.homeX, y: v.homeY };
+      const bid = tileToBuilding.get(at.y * WORLD_WIDTH + at.x);
+      if (bid === undefined) continue;
+      occByBuilding.set(bid, (occByBuilding.get(bid) ?? 0) + 1);
+    }
+
     const result: BuildingSnapshot[] = [];
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
@@ -787,6 +818,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         connected: rs?.connected ?? false,
         outputBuffer: rs?.outputBuffer ?? 0,
         workerCount: rs?.workerCount ?? 0,
+        occupancy: entity.id !== undefined ? occByBuilding.get(entity.id) ?? 0 : 0,
         // Phase 4.5: fire state
         onFire: fs?.burning ?? false,
         burning: fs?.burning ?? false,
@@ -827,6 +859,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const nextRaidDay = lp.nextRaidTick < 0 ? -1 : Math.floor(lp.nextRaidTick / state.ticksPerDay);
     return {
       tick,
+      localPlayerId: lp.id,
       day: dayClock.day,
       season: getSeason(dayClock.day, DAYS_PER_YEAR),
       speed: 1,

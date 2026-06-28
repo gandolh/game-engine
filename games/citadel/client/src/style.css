@@ -124,6 +124,22 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 }
 #follow-hud.visible { display: block; }
 
+/* Per-building occupancy badges — headcount chips floated over each building
+   that has people at it (DOM overlay, pooled + positioned in main.ts). The
+   container is a full-viewport pass-through layer; each chip is centred on its
+   projected anchor point. Colors on the EDG palette. */
+#occupancy-badges {
+  position: absolute; inset: 0; z-index: 18;
+  pointer-events: none; overflow: hidden;
+}
+.occupancy-badge {
+  position: absolute; transform: translate(-50%, -100%);
+  font-family: monospace; font-size: 11px; font-weight: bold; line-height: 1;
+  color: #fee761; background: #262b44; border: 1px solid #5a6988;
+  border-radius: 7px; padding: 1px 5px; min-width: 8px; text-align: center;
+  box-shadow: 0 2px 5px rgba(24, 20, 37, 0.55); user-select: none;
+}
+
 /* Brief 25: Settings modal. Colors on EDG palette (the .ts guard does not
    scan HTML, but we keep CSS on-palette for consistency). */
 .settings-modal {

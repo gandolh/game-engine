@@ -18,6 +18,7 @@ function bld(partial: Partial<BuildingSnapshot> & { type: string }): BuildingSna
     connected: partial.connected ?? false,
     outputBuffer: 0,
     workerCount: 0,
+    occupancy: partial.occupancy ?? 0,
     ownerId: 0,
     onFire: false,
     burning: false,

@@ -18,7 +18,7 @@ import {
 function b(type: string, x: number, y: number, w = 1, h = 1): BuildingSnapshot {
   return {
     type, x, y, w, h,
-    connected: true, outputBuffer: 0, workerCount: 0, ownerId: 0,
+    connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
     onFire: false, burning: false, level: 1,
   };
 }

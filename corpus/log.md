@@ -4,6 +4,33 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-27] feat | Citadel — villagers on roads only when travelling + per-building occupancy badges
+
+Shipped the fourth item from the 2026-06-27 todo batch (the last one open):
+[villagers-on-road-when-moving + occupancy badge](todos/closed/2026-06-27-citadel-villagers-on-road-when-moving-building-occupancy-badge.md),
+done. One shared rule keeps both halves consistent: `isTravellingFsm(fsm)`
+(sim-core, exported) — walk states are in-transit, `idle`/`work` are stationary.
+
+- **Part A (road-only-when-moving):** `pushScene` skips drawing any non-travelling
+  villager, so idle/working villagers no longer loiter as dots on the road; only
+  in-transit villagers appear there.
+- **Part B (occupancy badges):** new read-only `BuildingSnapshot.occupancy` tallied
+  in `getBuildings()` (idle→home tile, work→workplace tile, via a footprint
+  tile→building index). New pooled DOM overlay `OccupancyBadgeLayer` floats a
+  headcount chip over each of the local player's occupied buildings, positioned
+  via a shared `tileToScreenCss` (extracted from the dev hook). Snapshot also
+  gained `localPlayerId` so badges scope to the local seat (MP-safe; also closes
+  one of the MP gaps noted in the parity todo).
+- **Invariant:** Σ occupancy + travelling villagers == population, asserted every
+  tick in the new occupancy.test.ts (+ villager-entity == population parity).
+  Render/HUD + a read-only snapshot field → determinism untouched (phase-4
+  deep-equal still green). EDG-palette chip (guard green).
+
+Live-verified on the real-GPU playtest driver: at pop 9, the badge probe read 3
+occupancy chips positioned over buildings while 6 villagers walked the roads; chip
+visible in the screenshot. 168 @citadel/sim-core + 236 @citadel/client tests green.
+All four 2026-06-27 todos now closed. Commit pending.
+
 ## [2026-06-27] feat | Citadel — freehand roads, villager↔population parity fix, well 8×6 rectangle
 
 Shipped three of the newly-filed items (the fourth — road-only-when-moving +

@@ -1,9 +1,41 @@
 ---
 title: "Citadel — villagers only on roads while travelling; per-building occupancy badge (count of people)"
 created: 2026-06-27
-status: open
+status: done
+resolved: 2026-06-27
 tags: [citadel, render, sim, villagers, roads, hud, ux]
 ---
+
+> **Done 2026-06-27.** Both parts shipped, consistent by one shared rule.
+>
+> **The rule:** `isTravellingFsm(fsm)` ([villager.ts](../../../games/citadel/sim-core/src/entities/villager.ts),
+> exported from sim-core) — the three walk states (`walkToWork`/`haulToStore`/
+> `walkHome`) are in-transit; `idle`/`work` are stationary. Every villager is
+> counted in exactly one place each snapshot: a transit villager is a road dot, a
+> stationary one is folded into its building's badge.
+>
+> **Part A** — `pushScene` ([citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts))
+> skips drawing any non-travelling villager, so idle/working villagers no longer
+> loiter as road dots.
+>
+> **Part B** — the snapshot now carries a read-only `BuildingSnapshot.occupancy`
+> ([snapshot/index.ts](../../../games/citadel/sim-core/src/snapshot/index.ts)),
+> tallied in `getBuildings()` ([sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts)):
+> idle villagers counted at their home tile, workers at their workplace tile,
+> attributed via a footprint tile→building index. A new pooled DOM overlay
+> `OccupancyBadgeLayer` ([occupancy-badges.ts](../../../games/citadel/client/src/render/occupancy-badges.ts))
+> floats a headcount chip over each of the local player's occupied buildings,
+> positioned via a shared world→screen `tileToScreenCss` (extracted from the dev
+> hook). Snapshot also gained `localPlayerId` so the badge layer scopes to the
+> local seat (MP-safe). Chip CSS is EDG-palette (palette guard green).
+>
+> **Invariant:** Σ occupancy + travelling villagers == population, asserted every
+> tick in [occupancy.test.ts](../../../games/citadel/sim-core/src/systems/occupancy.test.ts)
+> (+ the villager-entity == population parity from the sibling todo). Render/HUD +
+> a read-only snapshot field → determinism untouched (phase-4 deep-equal still
+> green). **Live-verified** (real-GPU playtest): at pop 9, 3 occupancy badges over
+> buildings + 6 villagers walking the roads; badge chip visible over the
+> settlement. 168 sim-core + 236 client tests green. See [log.md](../../log.md).
 
 # Citadel — villagers on roads only when moving; show building occupancy
 
@@ -32,8 +64,8 @@ in-transit population.
 - Drive road presence off the villager's **movement state**, not its position
   snapshot alone. The sim already steps units tile-to-tile and the client has an
   `EntityInterpolator.isMoving` notion
-  ([entity-interp.ts](../../games/citadel/client/src/render/entity-interp.ts),
-  added in [entity-movement-natural-feel](2026-06-27-citadel-entity-movement-natural-feel.md)) —
+  ([entity-interp.ts](../../../games/citadel/client/src/render/entity-interp.ts),
+  added in [entity-movement-natural-feel](../2026-06-27-citadel-entity-movement-natural-feel.md)) —
   use "is this unit currently travelling?" to decide whether to draw it on the
   road at all, vs. fold it into its building's occupancy badge (Part B).
 - A stationary villager at a building should not be rendered as a free dot on a
@@ -59,7 +91,7 @@ building**:
 
 The sum of all building badges (plus anyone genuinely in-transit on roads) should
 equal the population — ties into
-[entity-count-matches-population](2026-06-27-citadel-entity-count-matches-population.md).
+[entity-count-matches-population](../2026-06-27-citadel-entity-count-matches-population.md).
 
 ### Approach
 
@@ -70,7 +102,7 @@ equal the population — ties into
   space (reuse the existing building-label / overlay anchoring used by the
   coverage overlay and disconnected-road marker). Must stay on-palette (the
   `palette.test.ts` guard) and within the per-frame budget
-  ([build-budget.ts](../../games/citadel/client/src/render/build-budget.ts)).
+  ([build-budget.ts](../../../games/citadel/client/src/render/build-budget.ts)).
 - Badge should update live as workers are (re)assigned and as villagers leave to
   travel (Part A) — a villager in transit is *not* counted in its destination's
   badge until it arrives (or count it at its current "owning" building; pick one

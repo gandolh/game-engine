@@ -13,6 +13,14 @@ export interface BuildingSnapshot {
   readonly connected: boolean;
   readonly outputBuffer: number;
   readonly workerCount: number;
+  /**
+   * How many villagers are CURRENTLY AT this building (render/HUD only): idle
+   * residents counted at their home, workers counted at their workplace. A
+   * villager in transit (walking) is on the road, not in any building's count —
+   * so Σ occupancy + villagers-in-transit == population. Drives the per-building
+   * occupancy badge. Render-derived; never read back by the sim.
+   */
+  readonly occupancy: number;
   // Citadel 28/35: owning player id (for MP team-colour rendering + routing).
   readonly ownerId: number;
   // Phase 4.5: hazard state
@@ -51,6 +59,8 @@ export interface ArmySnapshot {
 
 export interface RenderSnapshot {
   readonly tick: number;
+  /** The owner id this snapshot is the view of (solo = 0; MP = the local seat). */
+  readonly localPlayerId: number;
   readonly day: number;
   readonly season: string;
   readonly speed: number; // ticks per second (for display)
