@@ -4,6 +4,37 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-28] lint | Citadel — cozy-pivot stress-test: fixed wrong/under-specified claims + archived 2 stragglers
+
+Stress-tested the cozy-pivot corpus against the code. All cited line refs verified
+exact (`building.ts:266`, `production.ts:68/96/112/120`, `needs-happiness.ts:147-159`,
+`seasons.ts:32`). Found and fixed **four real problems** in the brief + **two unmarked
+contradictions** elsewhere:
+
+In [the build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md):
+- **"public square" was written as if it exists — it does NOT.** Festivals are a
+  *decree* (`festivalDaysLeft`), not a building; only `town-hall` exists. Marked the
+  public square as a **net-new building to author** (defs + sprite + toolbar) in #8,
+  the scope table, and Phase G.
+- **`RELIEF_BARTER_THRESHOLD` was located in `trader.ts` — it's actually in
+  `sim-bootstrap.ts:62`** (used :518, tithe-gated). Corrected.
+- **The trader reframe is bigger than "strip a constant".** `TraderSystem` is an
+  *autonomous periodic caravan* (`TRADER_INTERVAL_DAYS=7`, seeded RNG, auto-barter);
+  the pivot must *convert it to player-driven*. Phase G now says so explicitly.
+- Tightened the scope-table trader row to name `TraderSystem` + `tradingpost` distinctly.
+
+Archived two stragglers that still asserted the pre-pivot design without a marker:
+- **`briefs/citadel-apr.md`** ("Agreed plan of record", "No win; fail = collapse") —
+  added an ⛔ SUPERSEDED-as-design-of-record banner (kept for mechanical-substrate value).
+- **`todos/2026-06-22-citadel-two-way-service-economy.md`** (live, ships the
+  stockpile-pressure *hard stop*) — ♻️ re-scoped banner: the hard stop softens to a
+  throttle under pivot Phase H.
+
+Verified clean: all "already shipped" render files exist; the "villagers tint by
+`v.fsm` not happiness" gap claim is accurate (`quads.ts:276`); bootstrap stages match
+the freeze list (army/territory/siege-* registered → unregisterable). Design/lint only —
+no code changed.
+
 ## [2026-06-28] research | Citadel — cozy pivot: hardened the briefs against the code
 
 Read the systems each phase touches (`needs-happiness.ts`, `seasons.ts`, `building.ts`,

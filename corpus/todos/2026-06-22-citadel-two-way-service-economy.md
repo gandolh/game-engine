@@ -6,6 +6,14 @@ tags: [citadel, sim, gameplay, economy, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
 
+> **♻️ RE-SCOPED by the 2026-06-28 cozy pivot.** The shipped stockpile-pressure
+> mechanic **stays**, but the **hard stop** ("the building stops producing") is
+> scheduled to soften into a **throttle toward a ~60–70% floor (never halt) + diegetic
+> cue** — the pivot's universal "downside rule" (#9), see pivot **Phase H**. Hauling/
+> road quality still matters; neglect just becomes a *slowdown*, not a *shutdown*. Read
+> the description below as the *current* (pre-Phase-H) behavior. Design of record:
+> [2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+
 > **Partial — 2026-06-27.** Shipped the deterministic **downside half (scope #2,
 > stockpile pressure)**: each producer's local outputBuffer is capped at 5 cycles
 > of its output; once full (no hauler drawing it down → weak/no road-connected

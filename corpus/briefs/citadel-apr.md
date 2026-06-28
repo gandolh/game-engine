@@ -1,6 +1,15 @@
 # APR — "Citadel" (medieval city/fortress builder)
 
-**Status:** Agreed plan of record. Date: 2026-06-18. Owner: gandolh.
+> **⛔ SUPERSEDED as design-of-record by the 2026-06-28 cozy pivot.** This APR is the
+> **original pressure-game** spec (note "No win; fail = collapse" in decision #3 — the
+> *opposite* of the current cozy contract). It remains an accurate record of how Citadel
+> was first built and is still useful for the **mechanical substrate** (command queue,
+> road connectivity, job-driven walkers, footprints — all unchanged). But for **design
+> intent / what Citadel is for**, the current design of record is
+> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+> Where they disagree (fail-states, threats-as-bite, player decree levers), the pivot wins.
+
+**Status:** ~~Agreed plan of record~~ → **superseded design-of-record** (see banner). Date: 2026-06-18. Owner: gandolh.
 **One-liner:** A medieval *player-planner* city/fortress builder on the existing TS ECS engine. You start with a bounded plot and grow a citadel in real time — lay roads, place multi-tile buildings, run a food+materials economy, keep people happy, and survive periodic sieges.
 
 This is **not** Farm Valley. Farm Valley is an observer sim (you watch BDI agents). Citadel is the inverse: **you** are the omniscient planner; villagers are simulated labor, not competitors.

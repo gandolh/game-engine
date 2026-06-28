@@ -59,11 +59,11 @@ around it. Grilled to shared understanding — every branch points the same way.
    trade for**); the town decides *how it lives* (labour assignment, governance,
    rations/work-hours, festivals, who fights fires/disease) — all autonomous, diegetic,
    **no behavior micromanagement, ever.** Governance still lives in **civic buildings
-   the player places**: a **town hall** runs rations/work-hours, a **public square**
-   throws festivals — both autonomous, both with a **spatial reach** (so *where* you
-   place them is a coverage layer in the puzzle). Generalizes #3: the town's behavioral
-   inner life is autonomous and read-only; the player's hand is *placement + economic
-   intent*, nothing more.
+   the player places**: a **town hall** runs rations/work-hours (building exists today),
+   a **public square** throws festivals (a *net-new* building — see Phase G) — both
+   autonomous, both with a **spatial reach** (so *where* you place them is a coverage
+   layer in the puzzle). Generalizes #3: the town's behavioral inner life is autonomous
+   and read-only; the player's hand is *placement + economic intent*, nothing more.
 
    > **Round-3b correction (supersedes the round-3 "placement is the player's *only*
    > lever" wording).** That was too pure. The player *does* get a few hands-on levers
@@ -127,8 +127,8 @@ with consequences), or is it an *autonomous behavior*? If neither — cut it.**
 | roadConnectivity / production / villager / immigration / needsHappiness / tiers | **Core** | This *is* the placement puzzle + growth. |
 | fire / disease | **Texture** (keep, demote — Phase D) | Recoverable happiness dips, never destroy/kill. |
 | raidSpawn / raiderMovement / siegeResolution | **Texture** (keep gentle — Phase D) | Pilfer-and-leave; never sack. |
-| **decrees / policy layer** (rationing/conscription/tithe/work-hours/festivals) | **Demote** (autonomy principle) | Player lever removed → run by **town hall** (rations/work-hours) + **public square** (festivals), both autonomous, both with a spatial reach. |
-| **trader** | **Keep, reframed** (Phase G) | The existing **`tradingpost`** (3×2, **keeps `workerSlots:1`**) becomes **player-operated**: a clickable building whose tiny menu lets the *player* pick **what** to trade for (goods they **lack or can't yet access**); the **staffed trader villager executes** it. **No spatial reach** (not a coverage layer); the player's *window to the outside*. The constraint is **no NPC *autonomy*** (the town never auto-trades), not "no villager works here". Strip the `RELIEF_BARTER_THRESHOLD` framing. Economy is **open, not self-sufficient** — a bad map is smoothed by trade. |
+| **decrees / policy layer** (rationing/conscription/tithe/work-hours/festivals) | **Demote** (autonomy principle) | Player lever removed → rations/work-hours run by **town hall** (`town-hall` building **already exists**, 3×3, `SERVICE_RADII` 10); festivals run by a **`public square`** (⚠️ **NET-NEW building — does not exist yet**; today "festival" is a *decree* `festivalDaysLeft`, not a building). Both autonomous, both with a spatial reach. |
+| **trader** (`TraderSystem` + `tradingpost`) | **Keep, reframed** (Phase G) | ⚠️ Bigger than "strip a constant": `TraderSystem` ([systems/trader.ts](../../games/citadel/sim-core/src/systems/trader.ts)) is today an **autonomous periodic caravan** (`TRADER_INTERVAL_DAYS=7`, seeded RNG, auto-barter offers) that *requires* a `tradingpost`. The reframe **converts it to player-driven**: the existing `tradingpost` (3×2, **keeps `workerSlots:1`**) becomes a clickable building whose tiny menu lets the *player* pick **what** to trade for; the **staffed trader villager executes** it. **No spatial reach.** Constraint is **no NPC *autonomy*** (no auto-barter), not "no villager works here". Also retire the tithe-gated `RELIEF_BARTER_THRESHOLD` sweetener (see Phase G for its real location). Economy is **open** — a bad map is smoothed by trade. |
 | **territory** (influence-radius build-gating) | **Freeze** | MP land-claim; solo already runs `enforceTerritory:false`. No cozy spatial stake. |
 | **army** (ArmyState / ArmySystem) | **Freeze** | Pure PvP/PvE combat; off-spec, no placement role. |
 
@@ -251,20 +251,31 @@ keystone (A) and the already-shipped overlays. **No score, no quest list.**
 ### Phase G — Autonomy pass: civic buildings + reframed trading post (decision #8)
 Implements the autonomy principle. Pairs naturally with Phase D's cleanup.
 
-- **Remove the player's decree/policy lever entirely** (no policy menu / commands).
-  Rations & work-hours become **autonomous, run by a placed `town hall`** with a
-  **spatial reach** (homes in range governed/steadier; out of range not). Festivals
-  become **autonomous, thrown at a placed `public square`** with a reach (homes in
-  range get the festival happiness lift). Both are new **coverage layers** in the
-  puzzle — place them well or some homes miss out.
-- **Reframe the trader → `trading post`** — the existing **`tradingpost` building**
-  (already in `BUILDING_DEFS`/`PRODUCTION_DEFS`, 3×2, `workerSlots:1` — **keep the
-  worker**). A **player-operated, clickable building** with a **tiny exchange menu**, no
-  spatial reach: the *player* picks **what** to trade for (goods they **lack or can't
-  yet access**); the **staffed trader villager executes** it (you watch them fulfill the
-  exchange). Strip the `RELIEF_BARTER_THRESHOLD`/threat framing from `trader.ts`. It's
-  the player's *window to the outside* + the canonical intent/execute example (decision
-  #8 round-5 refinement). **Not** an autonomous trader (the town never auto-trades).
+- **Remove the player's decree/policy lever entirely** (no policy menu / commands —
+  retire the `setDecree` command path). Two civic buildings carry the effects:
+  - **Rations & work-hours → `town-hall`** (the building **already exists**: 3×3,
+    `SERVICE_RADII["town-hall"] = 10`, already a safety provider in
+    `needs-happiness.ts`). Give it the autonomous rations/work-hours effect within its
+    existing reach. Re-home the old `workHours` +30% here as the steady output lift.
+  - **Festivals → `public square`** — ⚠️ **NET-NEW building, must be authored** (defs in
+    `BUILDING_DEFS`/`PRODUCTION_DEFS`/`SERVICE_RADII`, a sprite recipe, a toolbar entry).
+    Today "festival" is only a **decree** (`festivalDaysLeft` + `FESTIVAL_HAPPINESS_BONUS`
+    in `needs-happiness.ts`, `FESTIVAL_BREAD_COST`/`FESTIVAL_DAYS` in `sim-bootstrap.ts`):
+    move that lift to fire **autonomously** for homes within the public square's reach.
+- **Reframe the trader → player-driven `tradingpost`.** ⚠️ Today
+  [systems/trader.ts](../../games/citadel/sim-core/src/systems/trader.ts) `TraderSystem`
+  is an **autonomous periodic caravan** (`TRADER_INTERVAL_DAYS=7`, `TRADER_STAY_DAYS=3`,
+  seeded `rng.fork("trader")`, auto-generated barter offers) gated on a `tradingpost`
+  existing. The reframe is a real conversion, not a flag flip: make trading
+  **player-initiated** — the existing `tradingpost` building (3×2, `workerSlots:1` —
+  **keep the worker**) becomes clickable; its tiny menu lets the *player* pick **what**
+  to trade for (goods they **lack or can't yet access**); the **staffed trader villager
+  executes** it. **No spatial reach.** Also retire the tithe-gated barter sweetener
+  `RELIEF_BARTER_THRESHOLD` — it lives in
+  [sim-bootstrap.ts:62](../../games/citadel/sim-core/src/sim-bootstrap.ts#L62) (used at
+  [:518](../../games/citadel/sim-core/src/sim-bootstrap.ts#L518)), **not** in `trader.ts`.
+  The trading post is the player's *window to the outside* + the canonical intent/execute
+  example (decision #8). **No NPC *autonomy*** (no auto-barter caravan).
 - **Production choice (economic-intent lever).** A handful of building types that can
   make >1 good become **clickable to set output** (a tiny 2–3-choice menu). Discipline:
   operable types stay **few**, menus stay **glanceable** — never per-building
