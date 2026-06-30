@@ -4,6 +4,23 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] playtest | @engine/ui HUD verified in-browser (Playwright + WebGPU)
+
+Drove the live Citadel client (`playtest-citadel`, system Chrome + WebGPU, seed
+`0x1a2b3c4d`, speed 4) to verify the in-canvas resource HUD (brief 17). **Verdict:
+pass.** The top HUD bar renders in-canvas and legible (tier/day/pop/bread/wood/happy),
+values update live (pop climbed to 15/24, tier reached Town, upgrades ran), and the
+Pause/1×/2×/4× buttons display correctly — proper padding + separation, selected speed
+showing the pressed state (the earlier "crammed/merged" bug, fixed in `5b8ec11`, is gone).
+Two issues found + fixed during verification: (1) the button padding bug above; (2) an
+A/B (driver on the pre-UI parent had 0 of these) caught a **boot-race regression** — the
+canvas world input handlers deref `camera.centerX` for pointer/wheel events arriving in
+the ~1s async-renderer-boot gap (8 page errors); fixed by an `inputReady` guard
+([main.ts](../games/citadel/client/src/main.ts), commit `80d0cdc`) → 0 errors. The driver's
+HUD timeline now reads `null` (it scraped the removed DOM `#hud-*` ids) — a known
+scraper limitation, not a sim issue; values are confirmed via screenshots. Determinism
+untouched (render/input only). Pre-existing 404 page error unrelated (present pre-UI too).
+
 ## [2026-06-30] build | @engine/ui framework shipped + Citadel resource-HUD pilot (brief 17)
 
 Built the `@engine/ui` framework resolved in the 2026-06-28 round-7 grilling
