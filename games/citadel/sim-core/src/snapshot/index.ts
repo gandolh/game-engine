@@ -124,6 +124,13 @@ export interface CitadelSave {
   /** The tick at which the save was taken — loadFromSave replays up to this tick. */
   readonly currentTick: number;
   readonly commandLog: ReadonlyArray<{ tick: number; command: CitadelCommand }>;
+  /**
+   * Cozy-pivot economy options, persisted so replay reconstructs identical state
+   * (a save taken with build costs on must replay with them on). Optional for
+   * backward-compat with pre-feature saves (absent ⇒ free placement, no grant).
+   */
+  readonly chargeBuildCost?: boolean;
+  readonly startingStock?: Readonly<Record<string, number>>;
 }
 
 /** Citadel 36: ephemeral relay messages — NEVER stamped into the command log. */

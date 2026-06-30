@@ -473,6 +473,44 @@ export function upgradeCost(_type: string, toLevel: number): Partial<Record<Good
   return {};
 }
 
+/**
+ * Material cost (drawn from the owner's stockpile) to PLACE a building, by type.
+ * Mirrors {@link upgradeCost}. Cold-open buildings are cheap and **wood-only** (the
+ * early renewable) so the forgiving cozy start (cozy-pivot Phase C) isn't gated behind
+ * a refining grind; stone/tools costs appear only on the late refiner/defence buildings
+ * (a demand sink for the planks/stone/tools chains). Types absent here are **free**
+ * (roads/gates/walls/bridges — infrastructure drag tools; charging per-tile would punish
+ * layout). Charging is opt-in per `bootstrapSim({ chargeBuildCost })` — the real client
+ * enables it (with a starting `startingStock` wood grant); headless/tests default off.
+ */
+export const BUILD_COST: Readonly<Record<string, Partial<Record<GoodType, number>>>> = {
+  woodcutter:  { wood: 2 },
+  farm:        { wood: 3 },
+  house:       { wood: 4 },
+  well:        { wood: 4 },
+  storehouse:  { wood: 5 },
+  mill:        { wood: 6 },
+  bakery:      { wood: 6 },
+  market:      { wood: 6 },
+  watchpost:   { wood: 6 },
+  sawmill:     { wood: 6 },
+  quarry:      { wood: 6 },
+  chapel:      { wood: 8 },
+  tradingpost: { wood: 8 },
+  healer:      { wood: 8 },
+  mine:        { wood: 8 },
+  smith:       { wood: 8, stone: 2 },
+  "town-hall": { wood: 12 },
+  tower:       { wood: 8, stone: 4 },
+  garrison:    { wood: 10, stone: 6 },
+  keep:        { wood: 12, stone: 8 },
+};
+
+/** Material cost to place `type` (empty = free). See {@link BUILD_COST}. */
+export function buildCost(type: string): Partial<Record<GoodType, number>> {
+  return BUILD_COST[type] ?? {};
+}
+
 /** Output multiplier per level: L1=1, L2=1.5, L3=2 (floored at the call site). */
 function outputMultiplierForLevel(level: number): number {
   if (level >= 3) return 2;

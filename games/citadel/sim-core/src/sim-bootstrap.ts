@@ -11,6 +11,7 @@ import {
   getProductionDef,
   effectiveHousingCapacity,
   upgradeCost,
+  buildCost,
   BUILDING_MAX_LEVEL,
   jobForBuildingType,
   JOB_IDLE,
@@ -56,6 +57,41 @@ export interface CitadelSimOptions {
    */
   enforceTerritory?: boolean;
   territoryRadius?: number;
+  /**
+   * Charge the per-type material cost (`BUILD_COST`) to the owner's stockpile when a
+   * building is placed, rejecting unaffordable placements with the `"cost"` reason.
+   * Default false → placement is free (the determinism baseline + the bulk-place headless
+   * demos and tests are unchanged). The real client enables it (paired with `startingStock`).
+   */
+  chargeBuildCost?: boolean;
+  /**
+   * A founding stockpile grant applied to every player at bootstrap (e.g. `{ wood: 40 }`).
+   * Paired with `chargeBuildCost` so the cozy cold-open has the materials to place the first
+   * buildings. Default none (every good starts at 0). Deterministic (a constant grant).
+   */
+  startingStock?: Partial<Record<GoodType, number>>;
+}
+
+/** True if `stock` holds at least every good in `cost`. */
+function canAfford(stock: Stockpiles, cost: Partial<Record<GoodType, number>>): boolean {
+  for (const g of Object.keys(cost) as GoodType[]) {
+    if (stock[g] < (cost[g] ?? 0)) return false;
+  }
+  return true;
+}
+
+/** Subtract `cost` from `stock` in place (caller has already checked {@link canAfford}). */
+function debitStock(stock: Stockpiles, cost: Partial<Record<GoodType, number>>): void {
+  for (const g of Object.keys(cost) as GoodType[]) {
+    stock[g] -= cost[g] ?? 0;
+  }
+}
+
+/** Add `grant` to `stock` in place (the founding `startingStock` grant). */
+function creditStock(stock: Stockpiles, grant: Partial<Record<GoodType, number>>): void {
+  for (const g of Object.keys(grant) as GoodType[]) {
+    stock[g] += grant[g] ?? 0;
+  }
 }
 
 const DAYS_PER_YEAR = 16;
@@ -127,6 +163,9 @@ export function loadFromSave(save: CitadelSave): CitadelSimResult {
     ticksPerDay: save.ticksPerDay,
     maxDays,
     startDay: save.startDay,
+    // Replay with the saved economy rules so the reconstructed state matches the original.
+    chargeBuildCost: save.chargeBuildCost ?? false,
+    ...(save.startingStock !== undefined ? { startingStock: save.startingStock } : {}),
   });
 
   // Group commands by tick for O(1) lookup during replay.
@@ -173,6 +212,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // Citadel 30: territory build-gating (opt-in; off in solo so play is unchanged).
   const enforceTerritory = opts.enforceTerritory ?? false;
   const territoryRadius = opts.territoryRadius ?? DEFAULT_TERRITORY_RADIUS;
+  const chargeBuildCost = opts.chargeBuildCost ?? false;
+  const startingStock = opts.startingStock;
 
   const terrain = generateTerrain(seed, WORLD_WIDTH, WORLD_HEIGHT);
 
@@ -221,6 +262,12 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     nextArmyId: 1,
     commandLog: [],
   };
+
+  // Founding stockpile grant (paired with chargeBuildCost so the cozy cold-open can
+  // afford its first buildings). Applied to every player present at bootstrap. Deterministic.
+  if (startingStock !== undefined) {
+    for (const p of state.players) creditStock(p.stockpiles, startingStock);
+  }
 
   /** Mark a building's footprint tiles in the buildingTiles set. */
   function addBuildingTiles(x: number, y: number, w: number, h: number): void {
@@ -281,7 +328,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     // (P1-live: silent rejects gave the player no feedback) and coalesce a
     // drag's per-tile rejections into a single summary (P2: tier-locked drags
     // dumped ~20 near-identical toasts). "ok" means the building was placed.
-    type PlaceReason = "ok" | "tier" | "territory" | "occupied" | "terrain" | "bounds" | "invalid";
+    type PlaceReason = "ok" | "tier" | "territory" | "occupied" | "terrain" | "bounds" | "invalid" | "cost";
     /**
      * Does placing this `isKeep` building adopt the keep/raid anchor (sets `keepPosition`,
      * sacking it ends the player's run)?
@@ -317,6 +364,15 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const required = TIER_LOCK[buildingType];
     if (required !== undefined && !tierAtLeast(unlockTier(lp), required)) {
       return "tier";
+    }
+
+    // Build cost (opt-in). Check affordability UP FRONT so an unaffordable click is rejected
+    // cleanly without mutating; the DEBIT happens only on success (below), so a placement that
+    // fails a later validity check (occupied/terrain/…) is never charged. Stockpiles don't
+    // change between here and the debit (one writer per tick), so the two stay consistent.
+    const cost = chargeBuildCost ? buildCost(buildingType) : undefined;
+    if (cost !== undefined && !canAfford(lp.stockpiles, cost)) {
+      return "cost";
     }
 
     // Citadel 30: territory build-gating (MP). Place only within your territory
@@ -414,6 +470,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       // Center of the 3×3 footprint.
       lp.keepPosition = { x: x + Math.floor(def.w / 2), y: y + Math.floor(def.h / 2) };
     }
+    // Charge the build cost now that placement has succeeded (affordability was checked above).
+    if (cost !== undefined) debitStock(lp.stockpiles, cost);
     state.connectivityDirty = true;
     return "ok";
   }
@@ -433,6 +491,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         return `Day ${state.day}: a ${buildingType} can't sit on that ground.`;
       case "bounds":
         return `Day ${state.day}: can't build a ${buildingType} there — off the map.`;
+      case "cost": {
+        const need = Object.entries(buildCost(buildingType)).map(([g, q]) => `${q} ${g}`).join(", ");
+        return `Day ${state.day}: can't afford a ${buildingType} — need ${need}.`;
+      }
       default:
         return null; // "invalid" (unknown type) — no actionable message.
     }
@@ -991,6 +1053,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         startDay: opts.startDay ?? 0,
         currentTick,
         commandLog: state.commandLog.map((e) => ({ tick: e.tick, command: e.command })),
+        // Persist the cozy economy options so loadFromSave replays with the same rules.
+        chargeBuildCost,
+        ...(startingStock !== undefined ? { startingStock } : {}),
       };
     },
   };

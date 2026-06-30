@@ -58,6 +58,10 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 #build-bar button.tier-locked, #build-bar button.tier-locked:hover {
   opacity: 0.4; cursor: not-allowed;
 }
+/* Citadel build-cost: unaffordable buttons greyed (distinct from tier-locked, same affordance). */
+#build-bar button.unaffordable, #build-bar button.unaffordable:hover {
+  opacity: 0.5; cursor: not-allowed;
+}
 #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
 #lbl-mode { color: #fee761; min-width: 160px; }
 /* Phase 4 siege HUD */

@@ -60,6 +60,11 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         seed: msg.seed,
         ticksPerDay: msg.ticksPerDay,
         maxDays: 365,
+        // Solo (cozy) economy: buildings cost materials, with a founding wood grant so the
+        // cold-open can place its first buildings. MP (the @citadel/server bootstrap) keeps
+        // placement free for now. See BUILD_COST in @citadel/sim-core.
+        chargeBuildCost: true,
+        startingStock: { wood: 40 },
       });
       tick = 0;
       paused = false;

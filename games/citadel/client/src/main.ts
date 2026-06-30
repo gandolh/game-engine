@@ -9,7 +9,7 @@
  *          + downloadable JSON blob).
  */
 import "./style.css";
-import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE } from "@citadel/sim-core";
+import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, buildCost, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot } from "@citadel/sim-core";
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
@@ -714,23 +714,48 @@ const buildModeButtons: HTMLElement[] = [
   btnUpgrade,
 ];
 
+/** "4 wood, 2 stone" (or "free") — the material cost of placing `type`. */
+function costLabel(type: string): string {
+  const entries = Object.entries(buildCost(type));
+  return entries.length === 0 ? "free" : entries.map(([g, q]) => `${q} ${g}`).join(", ");
+}
+
+/** Can the player currently afford `type` from the live stockpile? */
+function canAffordBuild(type: string): boolean {
+  for (const [g, q] of Object.entries(buildCost(type))) {
+    if ((stockpiles[g] ?? 0) < (q ?? 0)) return false;
+  }
+  return true;
+}
+
 /**
- * Grey out / disable build buttons whose building type is locked behind a
- * settlement tier the player hasn't reached yet. Keeps buttons VISIBLE so the
- * player can see what climbing the tier ladder unlocks. The Road button is
- * never locked. Mirrors the sim-side reject guard (defense in depth).
+ * Refresh each build button's disabled state + tooltip from the live snapshot:
+ *  - tier-locked types (settlement tier not yet reached) → greyed, "Requires <tier>";
+ *  - otherwise, when solo build costs are on, unaffordable types → greyed,
+ *    "<type> — needs <cost>" (re-enabled live as the stockpile grows);
+ *  - affordable / free → enabled, tooltip shows the cost on hover.
+ * Buttons stay VISIBLE so the player can see the cost + what climbing the ladder unlocks.
+ * Mirrors the sim-side reject guards (tier + cost) — defense in depth.
  */
 function refreshBuildButtonLocks(): void {
   for (const [type, btn] of buildButtonsByType) {
     const required = TIER_LOCK[type];
+    const cost = CHARGE_BUILD_COST ? costLabel(type) : null;
     if (required !== undefined && !tierAtLeast(peakTier as SettlementTier, required)) {
       btn.disabled = true;
       btn.classList.add("tier-locked");
-      btn.title = `Requires ${required}`;
+      btn.classList.remove("unaffordable");
+      btn.title = cost !== null ? `${type} — requires ${required} (costs ${cost})` : `Requires ${required}`;
+    } else if (CHARGE_BUILD_COST && !canAffordBuild(type)) {
+      btn.disabled = true;
+      btn.classList.remove("tier-locked");
+      btn.classList.add("unaffordable");
+      btn.title = `${type} — needs ${cost}`;
     } else {
       btn.disabled = false;
       btn.classList.remove("tier-locked");
-      btn.title = "";
+      btn.classList.remove("unaffordable");
+      btn.title = cost !== null ? `${type} — costs ${cost}` : "";
     }
   }
 }
@@ -836,6 +861,8 @@ wireDecree(decreConscription, "conscription");
 // share one interface, so the rest of main.ts is transport-agnostic.
 // ---------------------------------------------------------------------------
 const useServer = typeof location !== "undefined" && new URLSearchParams(location.search).has("mp");
+/** Build cost is charged only in solo (the cozy economy, set in the Worker bootstrap); MP keeps placement free. */
+const CHARGE_BUILD_COST = !useServer;
 const client: CitadelSimClient | CitadelServerClient = useServer
   ? new CitadelServerClient()
   : new CitadelSimClient();

@@ -23,6 +23,8 @@ export {
   coversRect,
   BUILDING_MAX_LEVEL,
   upgradeCost,
+  BUILD_COST,
+  buildCost,
   tierNameRequiredForLevel,
   effectiveOutputPerCycle,
   effectiveHousingCapacity,
