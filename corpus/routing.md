@@ -3,7 +3,7 @@
 
 **Implement skill:** plan-split-dispatch
 **Review skill:** /code-review (repo skill) over the diff; `npm run typecheck` + `npm run test` are the gates
-**PR skill:** propose git commands (gh CLI available) — never commit/push without the user's say-so
+**PR skill:** propose git commands (gh CLI available). **Commit completed briefs at closeout** (one commit for code + one for the corpus change); never push / open a PR / tag without the user's say-so.
 **Issue tracker:** none — the work queue is `corpus/todos/` (ready/todo specs); archives live in `corpus/briefs/{engine,game}/{done,superseded}`
 **Code host:** GitHub (gh) — github.com/gandolh/game-engine
 
@@ -34,4 +34,4 @@
 - EDG32 palette enforced (palette.test guard) — every color from `EDG.*`.
 - Engine never imports a game; the two games never import each other.
 - Determinism is load-bearing — no `Math.random`/`Date.now` in sim; all randomness via seeded `Rng.fork(label)`.
-- `npm run typecheck` + `npm run test` before any commit. Never commit/push without the user's go.
+- `npm run typecheck` + `npm run test` before any commit. Commit completed briefs at closeout (code + corpus as separate commits); never push without the user's go.
