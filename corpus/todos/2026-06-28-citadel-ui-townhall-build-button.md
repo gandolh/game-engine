@@ -7,8 +7,7 @@ tags: [citadel, ui, art, building, cozy-pivot]
 
 # Town Hall — build button + iso sprite
 
-> **⛓️ BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The toolbar button is
-> a UI widget → it must be built in the in-game UI framework, NOT in DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > The **iso sprite** half has no such dependency and can proceed now.
 

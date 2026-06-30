@@ -62,6 +62,13 @@ are still open (solo is unaffected).
 
 ## HUD & overlays (2026-06-22)
 
+> **2026-06-30 update:** the **top HUD bar** (resource readout: tier/day/pop/bread/wood/
+> happiness + speed/pause buttons) now renders **in-canvas** via the new `@engine/ui`
+> framework ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)), replacing the
+> DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`. The rest of the UI (build bar,
+> settings modal, minimap, toasts, occupancy badges, follow-HUD) is still DOM;
+> migration in progress (the 6 Citadel UI panel todos are now unblocked).
+
 The Citadel client UI is **DOM overlays over a single WebGPU canvas** (no Canvas2D
 for the world). Layout: `<body>` is a flex column — canvas (`flex:1`), then a
 `#build-bar` strip, then a `#hud` readout row. Three changes on 2026-06-22 reclaim

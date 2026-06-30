@@ -2,6 +2,8 @@
 
 Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26; **cozy-pivot 2026-06-28**). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
 
+> **2026-06-30 `@engine/ui` framework + Citadel resource-HUD pilot shipped** ([brief 17](../briefs/engine/done/17-engine-ui-framework.md), branch `engine-ui-framework`). Dual-backend (WebGPU + Canvas2D) in-canvas UI package; Citadel top HUD bar (resource readout + speed/pause) now renders in-canvas. Pending: in-browser WebGPU visual check. The 6 Citadel UI panel todos are now unblocked.
+
 > **2026-06-28 Citadel cozy pivot (design of record).** A grilling session resolved
 > Citadel as **a cozy placement puzzle you read by watching the town live** — diegetic
 > feedback, a cozy contract (nothing you built is taken from you), threats unified as

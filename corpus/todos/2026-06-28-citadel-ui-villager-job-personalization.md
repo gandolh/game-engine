@@ -7,8 +7,7 @@ tags: [citadel, ui, art, villagers, cozy-pivot]
 
 # Personalize villagers by job; click a villager to see its job
 
-> **⛓️ Click-to-show-job UI BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The
-> job label/badge is in-game UI → built in the framework, not DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > The **sim half** (a `job` snapshot field) and the **per-job sprite art** have no UI
 > dependency and can proceed now.

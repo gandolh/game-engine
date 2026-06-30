@@ -4,6 +4,45 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | @engine/ui framework shipped + Citadel resource-HUD pilot (brief 17)
+
+Built the `@engine/ui` framework resolved in the 2026-06-28 round-7 grilling
+([brief 17](briefs/engine/done/17-engine-ui-framework.md)) via plan-split-dispatch
+(7 chunks, opus controller). A new game-agnostic, **dual-backend (WebGPU + Canvas2D
+fallback)** in-canvas UI package at `engine/ui/`:
+- **Render seam** — `RendererLike.beginUI/pushUI/endUI`, flushed in `endFrame` in screen
+  px (Canvas2D via the previously-unused `overlay` callback; WebGPU via `Overlay2D`).
+- **Bitmap font** (`@engine/ui/text`) — deterministic 5×7 raster, measure/layout/wrap/draw,
+  glyphs tinted to any `EDG.*` (implemented the textured-quad tint the seam had left inert).
+- **Widgets + layout + theme** (`/widget`,`/layout`,`/theme`) — retained-mode panel/box/
+  label/button, two-pass flex `computeLayout`, EDG32 `DEFAULT_THEME`/`makeTheme`.
+- **Input** (`/input`) — `createInputDispatcher`: hit-test, hover/active/focus, drag,
+  keyboard activation, a `consumed` signal for intercept-before-world ordering.
+- **Scroll + animation** (`/scroll`,`/anim`) — scroll viewport + injected-time tweens
+  (linear/easeOutCubic re-used from `@engine/core/animation`).
+- **Hidden-DOM a11y mirror** (`/a11y`) — `createA11yMirror`: invisible `<button>`/ARIA/
+  focus tree, keyboard-operable, driving the **same** `onActivate` commands as the canvas
+  (required deliverable #2). sr-only (clip-rect), focus bridge to the dispatcher.
+
+**Pilot consumer:** Citadel's top HUD bar (tier/day/pop/bread/wood/happiness + speed/pause
+buttons) now renders **in-canvas** via `@engine/ui`, replacing the DOM `#hud` readout +
+`#btn-pause/-1x/-2x/-4x`. Pointer events route to the dispatcher first (press-time gesture
+ownership so world pan / road-wall drags aren't eaten); a11y mirror mounted; pause/speed
+drive the same `client` commands via mouse, keyboard, and screen reader.
+
+A high-effort code review found + fixed 6 issues: 3 Citadel pointer-interception bugs
+(pan-freeze over HUD, road/wall drag lost on release over HUD, click mis-routed to release
+point — fixed with press-time gesture ownership), WebGPU UI `imageSmoothingEnabled=false`
+(crisp pixels matching Canvas2D), `uiLen` reset in `beginFrame` (no stale UI when a consumer
+stops calling `beginUI`), `drawUIQuad` graceful skip on missing atlas/frame (no render-loop
+crash), easing dedup vs `@engine/core/animation`, and a per-frame relayout/a11y-update gate.
+
+Gates: `@engine/ui` 96 tests, `@citadel/client` 247 tests, typecheck clean
+(`@engine/ui`+`@engine/core`+`@citadel/client`); EDG32 guard clean; layering preserved
+(`@engine/ui` imports no game). Determinism untouched (render/input only). **Pending:** an
+in-browser WebGPU visual check / `playtest-citadel` pass — WebGPU can't render headless.
+The six 2026-06-28 Citadel UI panel todos are now **unblocked** (consumers of the framework).
+
 ## [2026-06-28] design | Citadel/engine — round 7: the in-game UI becomes `@engine/ui` (cross-game framework)
 
 Grilled the "all GUI in-game" todo to four locked decisions; it is **no longer a small

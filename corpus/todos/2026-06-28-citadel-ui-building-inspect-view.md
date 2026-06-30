@@ -7,10 +7,7 @@ tags: [citadel, ui, building, legibility, cozy-pivot]
 
 # Click a building → inspect view (description + production rate + scope)
 
-> **⛓️ BLOCKED ON `@engine/ui` (grilled 2026-06-28, round 7).** The inspect panel is
-> the **richest** in-game UI surface → it's the recommended *pilot consumer* that proves
-> the framework's primitives (text, layout, embedded button). Built in the framework, not
-> DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > (Most of its data already exists in `PRODUCTION_DEFS` / runtime state.)
 
