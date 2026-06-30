@@ -156,6 +156,14 @@ with consequences), or is it an *autonomous behavior*? If neither — cut it.**
 ## Build order (dependency-ordered)
 
 ### Phase A — The keystone: per-house diegetic mood/coverage signal *(first domino)*
+> **✅ SHIPPED 2026-06-30** (see [log.md](../log.md)). Sim writes per-house
+> `{lacksFaith,lacksSafety,lacksGoods,mood}` onto `BuildingRuntimeState`; surfaced read-only on
+> `BuildingSnapshot`; renderer expresses it diegetically (warm `EDG.gold` glow scaled by mood +
+> mood sprite-dim + mood-gated `EDG.cream` hearth smoke). Glow is **constant-warm v1** (no
+> day/night plumbing in `pushScene`). Determinism preserved (aggregate outputs byte-identical).
+> Gates green (sim-core 184/184, client 381/381 incl. EDG32 + wiring tests). **Not yet
+> eyeballed in real WebGPU.** Phase B reads this per-house mood.
+
 The load-bearing piece; **three other decisions depend on it** (it is also the
 threat-consequence layer of #5 and the tutorial payload of Phase C).
 

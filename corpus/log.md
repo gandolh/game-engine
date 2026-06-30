@@ -4,6 +4,51 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel cozy pivot Phase A — per-house diegetic mood/coverage signal (the keystone)
+
+First gameplay phase of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+shipped — the **keystone** that three later phases (B/C/F) read. The sim already computed a
+per-house `hasFaith/hasSafety/hasGoodsAccess` in `_computeNeedsFor` and **threw it away**, keeping
+only the town-aggregate coverage ratios; Phase A stops discarding it and makes the town's health
+**legible by looking at the houses**, no overlay needed.
+
+- **Sim** ([needs-happiness.ts](../games/citadel/sim-core/src/systems/needs-happiness.ts)): the
+  per-house loop now writes `{lacksFaith, lacksSafety, lacksGoods, mood}` back onto each house's
+  `BuildingRuntimeState` (keyed by entity id in `state.buildingState`). Per-house `mood` derives
+  from the **same** base-40 + `PER_NEED_HAPPINESS` (20) per met need as `_updateHappiness`, but
+  evaluated for *that house's* met needs (faith/safety/goods only — the town-aggregate
+  food/decree/festival terms stay aggregate). Fields are optional on `BuildingRuntimeState`,
+  neutral-defaulted in `freshRuntime()` (all `lacks` true, mood 40) so non-houses read neutral.
+  **Determinism preserved**: the aggregate `faithCoverage/safetyCoverage/goodsCoverage/happiness`
+  outputs are byte-identical (the `20`→`PER_NEED_HAPPINESS` swap is numerically identical; the
+  per-house write is a pure side effect after the aggregate counters increment). No
+  `Math.random`/`Date.now`.
+- **Snapshot** ([snapshot/index.ts](../games/citadel/sim-core/src/snapshot/index.ts) +
+  [sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts) `getBuildings`): `BuildingSnapshot`
+  grows the four read-only fields, populated `rs?.X ?? default` (lacks→true, mood→40).
+- **Render** ([citadel-renderer.ts](../games/citadel/client/src/render/citadel-renderer.ts) +
+  [citadel-fx.ts](../games/citadel/client/src/render/citadel-fx.ts)): diegetic expression —
+  a warm **`EDG.gold` glow pool** under each house scaled by mood (`glowAlphaForMood`, 0 at/below
+  mood 40, peak at 80), a **mood sprite-dim** (`houseAlphaForMood`, 1.0 at/above 50 → 0.65 at/below
+  10, composed multiplicatively with the placement ease-in alpha), and a mood-gated **hearth-smoke
+  wisp** (`houseEmitsHearthSmoke`, mood ≥ 65; cozy cadence 1500ms vs 420ms industrial; `EDG.cream`;
+  own per-frame cap `maxHearthEmitters=16` so a town of houses can't swamp the 512-particle pool).
+  Glow approach is **constant-warm v1** (not night-modulated) — `pushScene` has no day/night signal
+  threaded in, and the existing night light-pool composes over the glow so warmth still reads
+  strongest at night. EDG32 guard passed.
+- **Built model-routed** (plan-split-dispatch via orchestrate): 2 senior (sim refactor, render) +
+  1 junior (snapshot threading) chunks, serial chain. **Scoped 2-finder review** (sim-correctness +
+  render/integration) found no correctness bugs; folded in the one worthwhile follow-up — renderer
+  **wiring** test coverage (the pure helpers were tested, the push-into-renderer wiring wasn't) plus
+  a comment clarifying the smoke-loop `break`→`continue` change.
+- **Gates**: `@citadel/sim-core` 184/184, `@citadel/client` 381/381 (incl. EDG32 guard + 3 new
+  wiring tests), both workspaces typecheck-clean (only the pre-existing `@engine/core`/`@tool/*`
+  WebGPU lib-type noise remains, present on a clean tree). Determinism contract intact (render is
+  off-sim; sim change is read-only re-surfacing).
+- **Not in-browser-verified yet** (WebGPU can't render headless on this box) — the diegetic glow/dim/
+  smoke wants an eyeball pass in the real client, same caveat as the prior render waves. Phase B
+  (happiness → productivity floor) is the natural next domino; it reads this per-house mood.
+
 ## [2026-06-30] build | Citadel DOM-overlay removal COMPLETE — all GUI in-canvas (surfaces 3–5/5)
 
 The last three DOM UI surfaces migrated onto `@engine/ui`, completing the "all GUI in-game"
