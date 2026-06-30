@@ -59,6 +59,11 @@ import { makeTerrainDecorate } from "./terrain-dither";
 import { RenderWindowController } from "./window-controller";
 import { createCitadelSpriteAtlas } from "./sprites/atlas";
 import { disconnectedBuildings } from "./road-feedback";
+// Phase A cozy pivot: pure mood→cue mappings (warm glow strength + sprite dim).
+// fx imports a couple of helpers back from this module (villagerQuad/QuadSpec);
+// the resulting ES-module cycle is safe — every binding is used at call time,
+// never at module-eval time.
+import { glowAlphaForMood, houseAlphaForMood } from "./citadel-fx";
 
 // ---------------------------------------------------------------------------
 // Re-export the full prior public surface so existing imports keep resolving.
@@ -293,13 +298,18 @@ function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx,
     renderer.push(isoDiamondSprite(d.x + SHADOW_OFFSET, d.y + SHADOW_OFFSET, d.width, d.height, packTint(EDG.ink, SHADOW_ALPHA), LAYER_ENTITY, depth - 0.0001));
   }
 
+  // Phase A cozy pivot: a neglected house (low mood) reads dimmer/cooler than a
+  // content one. We modulate the sprite alpha by mood (houses only); non-houses
+  // keep full opacity. Composes with the placement ease-in alpha below.
+  const moodAlpha = b.type === "house" ? houseAlphaForMood(b.mood) : 1;
+
   if (fx?.building !== undefined) {
     // The fx ease-in scales/fades about the footprint centre — apply it to the
     // iso-placed quad so the animation still reads.
     const { quad, alpha } = fx.building(b, isoBase);
-    renderer.push(quadToSprite(quad, LAYER_ENTITY, alpha, depth));
+    renderer.push(quadToSprite(quad, LAYER_ENTITY, alpha * moodAlpha, depth));
   } else {
-    renderer.push(quadToSprite(isoBase, LAYER_ENTITY, 1, depth));
+    renderer.push(quadToSprite(isoBase, LAYER_ENTITY, moodAlpha, depth));
   }
 }
 
@@ -375,6 +385,17 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
     for (const m of cluster.members) {
       const d = isoFootprintDiamondBox(m.x, m.y, m.w, m.h, 0);
       renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(EDG.cream, Math.round(0xff * 0.18)), LAYER_ENTITY, d.depth - 0.0002));
+      // Phase A cozy pivot: a warm hearth light-pool whose strength scales with
+      // the house's mood — a content home glows amber, a neglected one stays
+      // dark/cold (alpha 0). Same flat iso-diamond pattern as the cluster border,
+      // stacked just ABOVE it (and still below the sprite) so the warmth pools on
+      // the ground around the house. v1 is a CONSTANT subtle glow (not
+      // night-modulated): `pushScene` has no day/night signal threaded in, and the
+      // separate night light-pool layer (pushLightPool) composes over this anyway.
+      const glow = glowAlphaForMood(m.mood);
+      if (glow > 0) {
+        renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(EDG.gold, Math.round(0xff * glow)), LAYER_ENTITY, d.depth - 0.0001));
+      }
     }
     for (const b of cluster.members) {
       pushBuilding(renderer, b, fx, clockMs);

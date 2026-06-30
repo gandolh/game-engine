@@ -294,7 +294,19 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   }
 
   function freshRuntime(): BuildingRuntimeState {
-    return { outputBuffer: 0, workerCount: 0, connected: false, productionTick: 0, level: 1 };
+    return {
+      outputBuffer: 0,
+      workerCount: 0,
+      connected: false,
+      productionTick: 0,
+      level: 1,
+      // Per-house needs/mood (house-only; NeedsHappinessSystem overwrites for houses).
+      // Neutral defaults: fully-lacking, base mood 40 (the no-needs-met floor).
+      lacksFaith: true,
+      lacksSafety: true,
+      lacksGoods: true,
+      mood: 40,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -905,6 +917,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         burning: fs?.burning ?? false,
         // Citadel 08: upgrade level
         level: rs?.level ?? 1,
+        // Phase A cozy pivot: per-house diegetic signal
+        lacksFaith: rs?.lacksFaith ?? true,
+        lacksSafety: rs?.lacksSafety ?? true,
+        lacksGoods: rs?.lacksGoods ?? true,
+        mood: rs?.mood ?? 40,
       });
     }
     return result;

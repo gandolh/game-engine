@@ -22,13 +22,24 @@ import {
   nearestVillager,
   followReleaseId,
   villagerById,
+  glowAlphaForMood,
+  MOOD_GLOW_FULL,
+  MOOD_GLOW_NONE,
+  MOOD_GLOW_MAX_ALPHA,
+  houseAlphaForMood,
+  MOOD_DIM_FULL,
+  MOOD_DIM_NONE,
+  MOOD_DIM_MAX,
+  houseEmitsHearthSmoke,
+  MOOD_HEARTH_SMOKE,
 } from "./citadel-fx";
 import { buildingQuad } from "./citadel-renderer";
 
 function building(over: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y">): BuildingSnapshot {
   return {
     w: 1, h: 1, connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
-    onFire: false, burning: false, level: 1, ...over,
+    onFire: false, burning: false, level: 1,
+    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, ...over,
   };
 }
 
@@ -218,6 +229,76 @@ describe("followReleaseId", () => {
   it("villagerById finds or returns null", () => {
     expect(villagerById(vs, 1)?.id).toBe(1);
     expect(villagerById(vs, 99)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// House mood → diegetic cues (Phase A cozy pivot)
+// ---------------------------------------------------------------------------
+
+describe("glowAlphaForMood", () => {
+  it("a neglected house (low mood) has no warm glow", () => {
+    expect(glowAlphaForMood(0)).toBe(0);
+    expect(glowAlphaForMood(MOOD_GLOW_NONE)).toBe(0);
+    expect(glowAlphaForMood(MOOD_GLOW_NONE - 50)).toBe(0); // clamps negatives
+  });
+
+  it("a content house glows at peak warm strength", () => {
+    expect(glowAlphaForMood(MOOD_GLOW_FULL)).toBeCloseTo(MOOD_GLOW_MAX_ALPHA, 5);
+    expect(glowAlphaForMood(100)).toBeCloseTo(MOOD_GLOW_MAX_ALPHA, 5); // clamps over-range
+  });
+
+  it("ramps monotonically between the thresholds", () => {
+    let prev = -1;
+    for (let m = 0; m <= 100; m += 5) {
+      const a = glowAlphaForMood(m);
+      expect(a).toBeGreaterThanOrEqual(prev);
+      expect(a).toBeGreaterThanOrEqual(0);
+      expect(a).toBeLessThanOrEqual(MOOD_GLOW_MAX_ALPHA);
+      prev = a;
+    }
+  });
+
+  it("a mid-mood house glows, but dimmer than a happy one", () => {
+    const mid = glowAlphaForMood((MOOD_GLOW_NONE + MOOD_GLOW_FULL) / 2);
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(glowAlphaForMood(MOOD_GLOW_FULL));
+  });
+});
+
+describe("houseAlphaForMood", () => {
+  it("a content house keeps full brightness", () => {
+    expect(houseAlphaForMood(MOOD_DIM_FULL)).toBe(1);
+    expect(houseAlphaForMood(100)).toBe(1);
+  });
+
+  it("a neglected house reads dimmest (capped dim)", () => {
+    expect(houseAlphaForMood(0)).toBeCloseTo(1 - MOOD_DIM_MAX, 5);
+    expect(houseAlphaForMood(MOOD_DIM_NONE)).toBeCloseTo(1 - MOOD_DIM_MAX, 5);
+  });
+
+  it("a neglected house is always dimmer than a content one, monotonic", () => {
+    expect(houseAlphaForMood(0)).toBeLessThan(houseAlphaForMood(MOOD_DIM_FULL));
+    let prev = -1;
+    for (let m = 0; m <= 100; m += 5) {
+      const a = houseAlphaForMood(m);
+      expect(a).toBeGreaterThanOrEqual(prev);
+      expect(a).toBeLessThanOrEqual(1);
+      prev = a;
+    }
+  });
+});
+
+describe("houseEmitsHearthSmoke", () => {
+  it("content houses (mood ≥ threshold) breathe a hearth wisp", () => {
+    expect(houseEmitsHearthSmoke(MOOD_HEARTH_SMOKE)).toBe(true);
+    expect(houseEmitsHearthSmoke(100)).toBe(true);
+  });
+
+  it("neglected houses below the threshold stay smokeless", () => {
+    expect(houseEmitsHearthSmoke(MOOD_HEARTH_SMOKE - 1)).toBe(false);
+    expect(houseEmitsHearthSmoke(40)).toBe(false); // the neutral default mood
+    expect(houseEmitsHearthSmoke(0)).toBe(false);
   });
 });
 

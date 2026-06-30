@@ -24,6 +24,23 @@ export interface BuildingRuntimeState {
   productionTick: number;
   /** Upgrade level 1..BUILDING_MAX_LEVEL. New buildings start at 1. */
   level: number;
+  /**
+   * Per-house needs/mood, written by NeedsHappinessSystem's daily pass.
+   * HOUSE-ONLY: non-house buildings keep the neutral defaults below; the snapshot
+   * layer treats `mood` as meaningful only for houses. `lacksX === !hasX` for the
+   * three per-house needs the system already computes (faith/safety/goods access).
+   * `mood` is base 40 + up to 20 per met need (faith/safety/goods only — the
+   * town-aggregate food/decree/festival terms stay in `_updateHappiness`), clamped
+   * and rounded to an integer 0..100. Defaults: fully-lacking, base mood 40.
+   *
+   * Optional so the many existing `BuildingRuntimeState` literals (tests, etc.)
+   * stay valid; `freshRuntime()` populates the neutral defaults and the system
+   * overwrites them for houses each day. Readers must `?? <default>`.
+   */
+  lacksFaith?: boolean;
+  lacksSafety?: boolean;
+  lacksGoods?: boolean;
+  mood?: number;
 }
 
 export interface BuildingComponent {

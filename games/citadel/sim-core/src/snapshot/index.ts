@@ -28,6 +28,11 @@ export interface BuildingSnapshot {
   readonly burning: boolean;
   // Citadel 08: upgrade level (1..3)
   readonly level: number;
+  // Phase A cozy pivot: per-house diegetic signal (render-only, house-meaningful).
+  readonly lacksFaith: boolean;
+  readonly lacksSafety: boolean;
+  readonly lacksGoods: boolean;
+  readonly mood: number;
 }
 
 /** One villager as seen by the renderer. */

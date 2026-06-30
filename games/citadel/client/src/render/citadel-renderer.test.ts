@@ -8,6 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { EDG, rgbOf } from "@engine/core";
+import type { RendererLike, Canvas2dSprite } from "@engine/core";
 import { TerrainType, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import {
@@ -53,7 +54,10 @@ import {
   wearOverlayQuads,
   clusterBuildings,
   clusterBorderQuads,
+  type SceneInput,
+  pushScene,
 } from "./citadel-renderer";
+import { glowAlphaForMood, houseAlphaForMood } from "./citadel-fx";
 import { FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
 
 function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">): BuildingSnapshot {
@@ -66,6 +70,10 @@ function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "t
     onFire: false,
     burning: false,
     level: 1,
+    lacksFaith: true,
+    lacksSafety: true,
+    lacksGoods: true,
+    mood: 40,
     ...partial,
   };
 }
@@ -656,11 +664,11 @@ const EDG_RGB24 = new Set(
     return ((r << 16) | (g << 8) | b) >>> 0;
   }),
 );
-function rgb24Of(tint: number): number {
-  return (tint >>> 8) >>> 0;
+function rgb24Of(tint: number | undefined): number {
+  return ((tint ?? 0) >>> 8) >>> 0;
 }
-function alphaOf(tint: number): number {
-  return tint & 0xff;
+function alphaOf(tint: number | undefined): number {
+  return (tint ?? 0) & 0xff;
 }
 
 describe("wearFactor (brief 24)", () => {
@@ -812,5 +820,108 @@ describe("clusterBorderQuads (brief 12)", () => {
     for (const q of clusterBorderQuads(cluster!)) {
       expect(EDG_RGB24.has(rgb24Of(q.tintRgba))).toBe(true);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase A cozy pivot — mood→render wiring (brief 15)
+// ---------------------------------------------------------------------------
+
+describe("pushScene mood wiring", () => {
+  it("a high-mood house receives a warm glow quad pushed with alpha > 0", () => {
+    // Record all pushed quads to assert the mood wiring.
+    const pushed: Canvas2dSprite[] = [];
+    const fakeRenderer: RendererLike = {
+      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+    } as unknown as RendererLike;
+
+    // High-mood house: should emit a glow quad.
+    const highMood = building({ type: "house", x: 5, y: 5, w: 1, h: 1, mood: 90 });
+    const scene: SceneInput = { buildings: [highMood], villagers: [], raiders: [] };
+
+    // Compute expected glow alpha using the imported helper.
+    const expectedGlowAlpha = glowAlphaForMood(90);
+
+    // Push the scene with the fake renderer.
+    pushScene(fakeRenderer, scene);
+
+    // Assert: at least one quad is a gold-tinted glow quad (the house sprite
+    // itself will also be pushed, so we look for the extra glow).
+    // The glow is tinted with EDG.gold at an alpha proportional to the mood.
+    const glowQuads = pushed.filter((s) => {
+      // Glow quads are tinted gold. Extract RGB24 from the tintRgba.
+      const rgb24 = rgb24Of(s.tintRgba);
+      const goldRgb24 = rgb24Of(packTint(EDG.gold));
+      const glowAlpha = alphaOf(s.tintRgba);
+      // Glow quad: gold tint + positive alpha (and the house sprite at full opaque).
+      return rgb24 === goldRgb24 && glowAlpha > 0 && glowAlpha < 0xff;
+    });
+
+    expect(glowQuads.length).toBeGreaterThan(0);
+    // Verify the alpha is in the ballpark of the expected mood glow.
+    const firstGlow = glowQuads[0]!;
+    const glowAlpha = alphaOf(firstGlow.tintRgba) / 0xff;
+    expect(glowAlpha).toBeCloseTo(expectedGlowAlpha, 1); // within ~2% tolerance
+  });
+
+  it("a neglected house has no warm glow quad and a dimmer sprite", () => {
+    const pushed: Canvas2dSprite[] = [];
+    const fakeRenderer: RendererLike = {
+      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+    } as unknown as RendererLike;
+
+    // Low-mood house: no glow, dimmer sprite.
+    const lowMood = building({ type: "house", x: 5, y: 5, w: 1, h: 1, mood: 10 });
+    const scene: SceneInput = { buildings: [lowMood], villagers: [], raiders: [] };
+
+    const expectedGlowAlpha = glowAlphaForMood(10);
+    const expectedHouseAlpha = houseAlphaForMood(10);
+
+    pushScene(fakeRenderer, scene);
+
+    // Assert: no glow quad (glow alpha should be 0 for low-mood houses).
+    expect(expectedGlowAlpha).toBe(0);
+    const glowQuads = pushed.filter((s) => {
+      const rgb24 = rgb24Of(s.tintRgba);
+      const goldRgb24 = rgb24Of(packTint(EDG.gold));
+      const glowAlpha = alphaOf(s.tintRgba);
+      return rgb24 === goldRgb24 && glowAlpha > 0;
+    });
+    expect(glowQuads.length).toBe(0);
+
+    // Find the house sprite quad (the building sprite itself, not the glow or shadow).
+    // It should have a reduced alpha compared to a high-mood house.
+    const houseSprites = pushed.filter((s) => {
+      // House sprite carries the house frame ("bld/house").
+      return s.frame === "bld/house";
+    });
+    expect(houseSprites.length).toBeGreaterThan(0);
+    const houseSprite = houseSprites[0]!;
+    // The sprite's alpha should match the mood-based dim factor.
+    const spriteAlpha = houseSprite.alpha ?? 1; // default to 1 if not set
+    expect(spriteAlpha).toBeCloseTo(expectedHouseAlpha, 2);
+  });
+
+  it("a high-mood house has higher sprite alpha than a neglected one", () => {
+    const pushed: Canvas2dSprite[] = [];
+    const fakeRenderer: RendererLike = {
+      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+    } as unknown as RendererLike;
+
+    // High-mood house.
+    const highMood = building({ type: "house", x: 0, y: 0, w: 1, h: 1, mood: 90 });
+    pushScene(fakeRenderer, { buildings: [highMood], villagers: [], raiders: [] });
+    const highHouseSprites = pushed.filter((s) => s.frame === "bld/house");
+    const highAlpha = highHouseSprites[0]?.alpha ?? 1;
+
+    // Clear and test low-mood.
+    pushed.length = 0;
+    const lowMood = building({ type: "house", x: 0, y: 0, w: 1, h: 1, mood: 10 });
+    pushScene(fakeRenderer, { buildings: [lowMood], villagers: [], raiders: [] });
+    const lowHouseSprites = pushed.filter((s) => s.frame === "bld/house");
+    const lowAlpha = lowHouseSprites[0]?.alpha ?? 1;
+
+    expect(highAlpha).toBeGreaterThan(lowAlpha);
+    expect(houseAlphaForMood(90)).toBeGreaterThan(houseAlphaForMood(10));
   });
 });

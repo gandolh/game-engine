@@ -216,6 +216,68 @@ export function villagerById(
 }
 
 // ---------------------------------------------------------------------------
+// House mood → diegetic cues (pure, tested) — Phase A cozy pivot
+// ---------------------------------------------------------------------------
+//
+// A player should read a house's wellbeing WITHOUT opening an overlay:
+//  - well-served (high `mood`) houses glow warm + breathe a cozy hearth wisp;
+//  - neglected (low `mood`) houses sit dim/cool with no smoke.
+// `mood` is 0..100 (house-meaningful; non-houses default 40). These helpers map
+// that scalar to the render cues and are unit-tested headlessly — they never
+// touch the GPU (the renderer/smoke emitter consume them).
+
+/** Mood (0..100) at/above which a happy house glows at full warm strength. */
+export const MOOD_GLOW_FULL = 80;
+/** Mood (0..100) at/below which a house's warm glow is fully extinguished. */
+export const MOOD_GLOW_NONE = 40;
+/** Peak warm-glow alpha multiplier (0..1) at MOOD_GLOW_FULL. Subtle by design. */
+export const MOOD_GLOW_MAX_ALPHA = 0.3;
+
+/**
+ * Warm light-pool alpha (0..1) for a house of the given `mood`. Zero at/below
+ * MOOD_GLOW_NONE (a neglected hearth is cold/dark), ramping linearly up to
+ * MOOD_GLOW_MAX_ALPHA at/above MOOD_GLOW_FULL. Pure + total (clamps any range).
+ * Monotonic non-decreasing in `mood`.
+ */
+export function glowAlphaForMood(mood: number): number {
+  if (mood <= MOOD_GLOW_NONE) return 0;
+  if (mood >= MOOD_GLOW_FULL) return MOOD_GLOW_MAX_ALPHA;
+  const t = (mood - MOOD_GLOW_NONE) / (MOOD_GLOW_FULL - MOOD_GLOW_NONE); // 0..1
+  return t * MOOD_GLOW_MAX_ALPHA;
+}
+
+/** Mood (0..100) at/above which a house keeps full sprite brightness. */
+export const MOOD_DIM_FULL = 50;
+/** Mood (0..100) at/below which a neglected house reads its dimmest. */
+export const MOOD_DIM_NONE = 10;
+/** How far a fully-neglected house's sprite alpha drops from 1 (cold/untended). */
+export const MOOD_DIM_MAX = 0.35;
+
+/**
+ * Sprite alpha multiplier (MOOD_DIM_MIN..1) for a house of the given `mood`. A
+ * neglected house (low mood) reads dimmer/cooler; a content house stays full.
+ * 1.0 at/above MOOD_DIM_FULL, dropping linearly to (1 - MOOD_DIM_MAX) at/below
+ * MOOD_DIM_NONE. Pure + total; monotonic non-decreasing in `mood`.
+ */
+export function houseAlphaForMood(mood: number): number {
+  if (mood >= MOOD_DIM_FULL) return 1;
+  if (mood <= MOOD_DIM_NONE) return 1 - MOOD_DIM_MAX;
+  const t = (mood - MOOD_DIM_NONE) / (MOOD_DIM_FULL - MOOD_DIM_NONE); // 0..1
+  return 1 - MOOD_DIM_MAX * (1 - t);
+}
+
+/** Mood (0..100) at/above which a house emits a gentle hearth-smoke wisp. */
+export const MOOD_HEARTH_SMOKE = 65;
+
+/**
+ * Does a house of the given `mood` breathe a cozy hearth wisp? Only content
+ * houses (mood ≥ MOOD_HEARTH_SMOKE) do; neglected ones stay smokeless. Pure.
+ */
+export function houseEmitsHearthSmoke(mood: number): boolean {
+  return mood >= MOOD_HEARTH_SMOKE;
+}
+
+// ---------------------------------------------------------------------------
 // Chimney smoke (stateful — owns a render-side RNG, never the sim's)
 // ---------------------------------------------------------------------------
 
@@ -225,6 +287,8 @@ export const SMOKE_BUILDINGS: ReadonlySet<string> = new Set(["bakery", "smith", 
 /** Smoke greys (EDG). */
 const SMOKE_COLOR = EDG.silver;
 const SMOKE_COLOR2 = EDG.slate;
+/** Warm hearth-wisp tint (EDG) — smoke catching the fireside glow. */
+const HEARTH_COLOR = EDG.cream;
 
 /**
  * Capped chimney-smoke emitter. Drips a few rising grey particles per emitter
@@ -243,8 +307,18 @@ export class CitadelSmoke {
   private readonly nextEmitAt = new Map<string, number>();
   /** Base cadence between puffs per chimney (ms); jittered ±50%. */
   private readonly cadenceMs = 420;
-  /** Hard cap on emitter buildings considered per frame (perf guard). */
+  /** Hard cap on industrial-chimney emitter buildings considered per frame. */
   private readonly maxEmitters = 24;
+  /**
+   * Cozy hearth cadence (ms): a content house breathes far slower than an
+   * industrial chimney, so it reads as a fireside wisp, not a factory plume.
+   */
+  private readonly hearthCadenceMs = 1500;
+  /**
+   * Separate, tighter cap on hearth emitters per frame (there can be MANY
+   * houses — keep the particle pool from being swamped by cozy wisps).
+   */
+  private readonly maxHearthEmitters = 16;
 
   constructor(particles: ParticleSystem, rng: Rng) {
     this.particles = particles;
@@ -257,26 +331,40 @@ export class CitadelSmoke {
    */
   update(buildings: readonly BuildingSnapshot[], nowMs: number): void {
     const present = new Set<string>();
-    let considered = 0;
+    let considered = 0; // industrial chimneys this frame
+    let hearths = 0; // cozy house hearths this frame
+    // Loop scans all buildings (no early break) so both industrial and hearth
+    // emitters are considered independently up to their own caps.
     for (const b of buildings) {
-      if (!SMOKE_BUILDINGS.has(b.type)) continue;
-      if (considered >= this.maxEmitters) break;
-      considered++;
+      // A building emits EITHER an industrial chimney plume (bakery/smith/…) OR,
+      // if it's a content house, a gentle hearth wisp — never both. Each path
+      // keeps its own per-frame cap so neither floods the shared particle pool.
+      const isChimney = SMOKE_BUILDINGS.has(b.type);
+      const isHearth = b.type === "house" && houseEmitsHearthSmoke(b.mood);
+      if (!isChimney && !isHearth) continue;
+      if (isChimney && considered >= this.maxEmitters) continue;
+      if (isHearth && hearths >= this.maxHearthEmitters) continue;
+      if (isChimney) considered++;
+      else hearths++;
+
+      const cadence = isChimney ? this.cadenceMs : this.hearthCadenceMs;
       const key = buildingKey(b);
       present.add(key);
       const due = this.nextEmitAt.get(key);
       if (due === undefined) {
-        // Stagger first puff so chimneys don't all fire on frame 1.
-        this.nextEmitAt.set(key, nowMs + this.rng.nextFloat() * this.cadenceMs);
+        // Stagger first puff so emitters don't all fire on frame 1.
+        this.nextEmitAt.set(key, nowMs + this.rng.nextFloat() * cadence);
         continue;
       }
       if (nowMs >= due) {
-        this.emitPuff(b);
-        const jitter = (0.75 + this.rng.nextFloat() * 0.5) * this.cadenceMs;
+        if (isChimney) this.emitPuff(b);
+        else this.emitHearthPuff(b);
+        const jitter = (0.75 + this.rng.nextFloat() * 0.5) * cadence;
         this.nextEmitAt.set(key, nowMs + jitter);
       }
     }
-    // Drop bookkeeping for demolished emitters.
+    // Drop bookkeeping for demolished emitters (and houses that fell below the
+    // hearth-smoke mood threshold — they stop being `present`, so they age out).
     for (const key of this.nextEmitAt.keys()) {
       if (!present.has(key)) this.nextEmitAt.delete(key);
     }
@@ -303,6 +391,34 @@ export class CitadelSmoke {
       sizeMin: 1,
       sizeMax: 2.2,
       gravity: -6,
+    });
+  }
+
+  /**
+   * A single small, slow, warm-tinted wisp from a content house's roof — a cozy
+   * hearth, not a factory. One particle (vs the chimney's two), a gentler rise,
+   * and a firelit cream→grey fade so it reads as smoke catching the hearth glow.
+   */
+  private emitHearthPuff(b: BuildingSnapshot): void {
+    const cx = (b.x + b.w / 2) * TILE_SIZE;
+    const top = b.y * TILE_SIZE + TILE_SIZE * 0.1;
+    this.particles.emit({
+      x: cx,
+      y: top,
+      count: 1,
+      shape: "circle",
+      color: HEARTH_COLOR,
+      color2: SMOKE_COLOR,
+      // Slower, lazier rise than a chimney; tight upward cone.
+      speedMin: 2,
+      speedMax: 6,
+      angleMin: -Math.PI * 0.58,
+      angleMax: -Math.PI * 0.42,
+      lifetimeMin: 1.4,
+      lifetimeMax: 2.6,
+      sizeMin: 0.8,
+      sizeMax: 1.6,
+      gravity: -5,
     });
   }
 }

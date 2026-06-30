@@ -13,6 +13,14 @@ import { SERVICE_RADII } from "../entities/building";
 const FESTIVAL_HAPPINESS_BONUS = 15;
 
 /**
+ * Happiness lift per met need (faith/safety/goods). Base mood is 40 and each met
+ * need adds this, so all three met → 100. Shared by the town-aggregate
+ * _updateHappiness (× coverage ratio) and the per-house mood (× the house's own
+ * met/unmet boolean) so the two can't drift.
+ */
+const PER_NEED_HAPPINESS = 20;
+
+/**
  * Building types that project a safety footprint (lower fear → higher happiness).
  * watchpost is the dedicated safety building; the fortifications also count
  * (citadel-38 P2#12 — their SERVICE_RADII were previously dead data).
@@ -65,7 +73,9 @@ export class NeedsHappinessSystem implements System {
 
     type ServicePoint = { cx: number; cy: number; radius: number };
 
-    const houses: Array<{ cx: number; cy: number }> = [];
+    // Carry the entity id alongside each house centre so we can write the
+    // per-house mood/needs back into state.buildingState (keyed by id) below.
+    const houses: Array<{ cx: number; cy: number; id: number | undefined }> = [];
     const chapels: ServicePoint[] = [];
     const watchposts: ServicePoint[] = [];
     const markets: ServicePoint[] = [];
@@ -78,7 +88,7 @@ export class NeedsHappinessSystem implements System {
       const radius = SERVICE_RADII[b.type] ?? 0;
 
       if (b.type === "house") {
-        houses.push({ cx, cy });
+        houses.push({ cx, cy, id: entity.id });
       } else if (b.type === "chapel") {
         chapels.push({ cx, cy, radius });
       } else if (SAFETY_PROVIDERS.has(b.type)) {
@@ -122,6 +132,26 @@ export class NeedsHappinessSystem implements System {
       if (hasFaith) faithMet++;
       if (hasSafety) safetyMet++;
       if (hasGoodsAccess) goodsMet++;
+
+      // Citadel: keep the per-house booleans the aggregate loop used to discard,
+      // and derive a per-house mood from them. Same math shape as
+      // _updateHappiness (base 40 + up to 20 per met need) but evaluated for THIS
+      // house's met needs only (faith/safety/goods). The town-aggregate
+      // food/decree/festival terms intentionally stay out of the per-house mood.
+      // This is a pure read of already-computed values; no aggregate output changes.
+      if (house.id !== undefined) {
+        const rs = state.buildingState.get(house.id);
+        if (rs !== undefined) {
+          rs.lacksFaith = !hasFaith;
+          rs.lacksSafety = !hasSafety;
+          rs.lacksGoods = !hasGoodsAccess;
+          let mood = 40;
+          if (hasFaith) mood += PER_NEED_HAPPINESS;
+          if (hasSafety) mood += PER_NEED_HAPPINESS;
+          if (hasGoodsAccess) mood += PER_NEED_HAPPINESS;
+          rs.mood = Math.max(0, Math.min(100, Math.round(mood)));
+        }
+      }
     }
 
     p.faithCoverage = faithMet / houses.length;
@@ -134,9 +164,9 @@ export class NeedsHappinessSystem implements System {
   private _updateHappiness(p: PlayerState): void {
     // Base 40 (no needs met); each need coverage adds up to 20 → max 100
     let h = 40;
-    h += p.faithCoverage * 20;
-    h += p.safetyCoverage * 20;
-    h += p.goodsCoverage * 20;
+    h += p.faithCoverage * PER_NEED_HAPPINESS;
+    h += p.safetyCoverage * PER_NEED_HAPPINESS;
+    h += p.goodsCoverage * PER_NEED_HAPPINESS;
 
     // Food surplus: +10 max for surplus, -15 max for deficit
     if (p.foodSurplus > 0) h += Math.min(10, p.foodSurplus * 2);

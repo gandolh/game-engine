@@ -23,6 +23,10 @@ function bld(partial: Partial<BuildingSnapshot> & { type: string }): BuildingSna
     onFire: false,
     burning: false,
     level: 1,
+    lacksFaith: true,
+    lacksSafety: true,
+    lacksGoods: true,
+    mood: 40,
   };
 }
 
