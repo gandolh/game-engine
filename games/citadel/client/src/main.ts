@@ -17,6 +17,10 @@ import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11y
 import type { InputDispatcher, A11yMirror } from "@engine/ui";
 import { createResourceHud } from "./ui/resource-hud";
 import type { ResourceHud } from "./ui/resource-hud";
+import { createInspectPanel } from "./ui/inspect-panel";
+import type { InspectPanel } from "./ui/inspect-panel";
+import { buildingAtTile, findSelected } from "./ui/selection";
+import type { BuildingSelection } from "./ui/selection";
 import { CitadelSimClient } from "./worker/sim-client";
 import { CitadelServerClient } from "./worker/server-client";
 import {
@@ -169,6 +173,41 @@ let a11yMirror: A11yMirror | undefined;
 // module scope so the keydown guard can test "is focus currently inside the mirror?".
 const a11yMount = document.getElementById("ui-a11y-mirror");
 
+// Inspect panel (Citadel inspect chunk 2): a SECOND in-canvas UI root that floats over the
+// world describing the selected building. It shares the same `uiSurface` (rendered after the
+// HUD) but gets its OWN input dispatcher + a11y mirror (a second hidden mount), each inert
+// while closed. `inspectSelection` keys the selection by footprint origin (buildings have no
+// stable id); the live snapshot is re-found each frame via `findSelected`.
+let inspectPanel: InspectPanel | undefined;
+let inspectDispatcher: InputDispatcher | undefined;
+let inspectMirror: A11yMirror | undefined;
+const inspectA11yMount = document.getElementById("ui-a11y-inspect");
+let inspectSelection: BuildingSelection | null = null;
+/** Whether the inspect panel is currently open (drives its dispatcher/mirror gating). */
+function inspectOpen(): boolean {
+  return inspectSelection !== null;
+}
+/**
+ * Close the inspect panel (Esc / click-away / ✕ button / vanished selection). Clears the a11y
+ * mirror on EVERY close path so the hidden #ui-a11y-inspect DOM stops advertising the closed
+ * building (its Upgrade/✕ buttons must leave the Tab order the moment the panel is gone).
+ */
+function closeInspect(): void {
+  inspectSelection = null;
+  inspectMirror?.update(null);
+}
+/** Open the inspect panel on the building whose footprint contains (tx,ty), if any. */
+function openInspectAtTile(tx: number, ty: number): boolean {
+  const b = buildingAtTile(currentBuildings, tx, ty);
+  if (b === null) return false;
+  inspectSelection = { x: b.x, y: b.y };
+  // Force a layout + mirror reconcile on this closed→open transition even if the building's
+  // content is byte-identical to the last time it was inspected (firstRefresh is per-LIFETIME,
+  // not per-open). Guarantees the floating position + hidden DOM are (re)applied on every open.
+  inspectPanel?.markOpened();
+  return true;
+}
+
 // Atmosphere (render-only, off-sim): day/night wash, weather FX, ambient crowd.
 const weather = new CitadelWeather();
 const ambientCrowd = new CitadelAmbientCrowd();
@@ -247,25 +286,36 @@ let uiPressActive = false;
 // before the gesture's click). Lets the click handler suppress the world click only for
 // UI-initiated gestures — NOT based on hit-testing the release point.
 let uiGestureWasUI = false;
+// Inspect chunk 2: the inspect panel is a SECOND UI root. We forward every pointer/key event
+// to BOTH dispatchers (HUD + inspect) and treat the gesture as UI-owned if EITHER consumed it,
+// so a click on the inspect panel (e.g. its ✕) never falls through to place/demolish in the
+// world. The inspect dispatcher returns null root while closed → it reports `consumed: false`,
+// so this is inert when no building is selected.
 canvas.addEventListener("mousedown", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
-  if (uiDispatcher.pointerDown(x, y, pointerButtonOf(e)).consumed) {
+  const btn = pointerButtonOf(e);
+  const hudC = uiDispatcher.pointerDown(x, y, btn).consumed;
+  const inspectC = inspectDispatcher?.pointerDown(x, y, btn).consumed ?? false;
+  if (hudC || inspectC) {
     // Press landed on a UI widget: the UI owns this gesture. Block the world so it doesn't
     // start a placement/drag, and remember the ownership for this gesture's move/up/click.
     uiPressActive = true;
     e.stopImmediatePropagation();
-    // After a pointer press moves focus, mirror it into the a11y DOM.
+    // After a pointer press moves focus, mirror it into the a11y DOM of whichever root owns it.
     a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
+    inspectMirror?.setFocus(inspectDispatcher?.focused()?.id ?? null);
   }
 }, { capture: true });
 canvas.addEventListener("mouseup", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
-  // Always forward so a UI press completes/activates, but only block the world when the UI
-  // owns this gesture (uiPressActive). A world-owned release — even over the HUD — must reach
+  const btn = pointerButtonOf(e);
+  // Always forward to both so a UI press completes/activates, but only block the world when the
+  // UI owns this gesture (uiPressActive). A world-owned release — even over the HUD — must reach
   // the world handler so road/wall drags commit.
-  uiDispatcher.pointerUp(x, y, pointerButtonOf(e));
+  uiDispatcher.pointerUp(x, y, btn);
+  inspectDispatcher?.pointerUp(x, y, btn);
   if (uiPressActive) e.stopImmediatePropagation();
   // The gesture ends here; the `click` handler below reads `uiPressActive` first, then we
   // clear it on the next mousedown — but clear here so a stray click without a press can't
@@ -276,9 +326,11 @@ canvas.addEventListener("mouseup", (e) => {
 canvas.addEventListener("mousemove", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
-  // ALWAYS forward so hover visuals update, but only block the world (pan/drag) when the UI
-  // owns the active gesture. Mere hover must NOT block world pan/drag.
-  uiDispatcher.pointerMove(x, y, pointerButtonOf(e));
+  const btn = pointerButtonOf(e);
+  // ALWAYS forward to both so hover visuals update, but only block the world (pan/drag) when the
+  // UI owns the active gesture. Mere hover must NOT block world pan/drag.
+  uiDispatcher.pointerMove(x, y, btn);
+  inspectDispatcher?.pointerMove(x, y, btn);
   if (uiPressActive) e.stopImmediatePropagation();
 }, { capture: true });
 canvas.addEventListener("click", (e) => {
@@ -292,7 +344,9 @@ canvas.addEventListener("click", (e) => {
 canvas.addEventListener("wheel", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
-  if (uiDispatcher.wheel(x, y, e.deltaY).consumed) {
+  const hudC = uiDispatcher.wheel(x, y, e.deltaY).consumed;
+  const inspectC = inspectDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
+  if (hudC || inspectC) {
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -310,12 +364,18 @@ window.addEventListener("keydown", (e) => {
   if (uiDispatcher === undefined) return;
   const active = document.activeElement as HTMLElement | null;
   if (active !== null && a11yMount !== null && a11yMount.contains(active)) return;
+  // Same mirror-focus guard for the inspect panel's own a11y mount: when a real inspect mirror
+  // <button> holds DOM focus, native Tab/Enter + the mirror's listeners drive it — don't fight.
+  if (active !== null && inspectA11yMount !== null && inspectA11yMount.contains(active)) return;
   if (active !== null && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
-  const consumed = uiDispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
-  if (consumed) {
+  const hudConsumed = uiDispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
+  // Forward to the inspect dispatcher too (inert/null root while closed → not consumed).
+  const inspectConsumed = inspectDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
+  if (hudConsumed || inspectConsumed) {
     e.preventDefault();
     e.stopImmediatePropagation();
     a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
+    inspectMirror?.setFocus(inspectDispatcher?.focused()?.id ?? null);
   }
 }, { capture: true });
 
@@ -445,25 +505,34 @@ canvas.addEventListener("contextmenu", (e) => {
   e.preventDefault();
 });
 
-// In idle ("none") mode, left-click is the follow-cam gesture: clicking a
-// villager locks the camera to it, clicking empty space releases. Placement
-// modes have their own `click` handler above, so only the idle case is wired
-// here.
+// In idle ("none") mode, left-click resolves with this precedence (inspect chunk 2):
+//   1. BUILDING under the cursor → open/replace the inspect panel (and do NOT also pick a
+//      villager — a building takes precedence over a villager standing on it).
+//   2. otherwise a VILLAGER under the cursor → follow-cam lock (existing behaviour).
+//   3. otherwise EMPTY ground → close the inspect panel if open, else release any follow.
+// (Clicks the UI consumed never reach here — the capture-phase handler stopped them.)
+// Placement modes have their own `click` handler above, so only the idle case is wired here.
 canvas.addEventListener("click", (e) => {
   if (isPanning) return; // tail of a pan, not a click
-  if (placementState.mode !== "none") return; // placement clicks aren't follow-cam
+  if (placementState.mode !== "none") return; // placement clicks aren't follow-cam/inspect
   const { tx, ty } = eventTile(e);
+  if (openInspectAtTile(tx, ty)) return; // 1: building → inspect (precedence over villager)
   const picked = nearestVillager(currentVillagers, tx, ty);
   if (picked !== null) {
-    followId = picked;
+    followId = picked; // 2: villager → follow-cam
     updateFollowHud();
-  } else if (followId !== null) {
-    clearFollow();
+  } else {
+    // 3: empty ground → close inspect first (if open), else release any follow.
+    if (inspectOpen()) closeInspect();
+    else if (followId !== null) clearFollow();
   }
 });
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && followId !== null) clearFollow();
+  // Esc closes the inspect panel first (most recently opened transient), else releases follow.
+  if (e.key !== "Escape") return;
+  if (inspectOpen()) closeInspect();
+  else if (followId !== null) clearFollow();
 });
 
 // `C` toggles the service-coverage overlay (OpenTTD-influence brief). Ignore it
@@ -1232,6 +1301,38 @@ function loop(): void {
     }
     uiSurface.begin();
     renderTree(uiSurface, hud.root);
+
+    // Inspect chunk 2: the inspect panel is a SECOND UI root rendered inside the SAME
+    // surface.begin()/end(), after the HUD so it paints on top. Re-find the live snapshot
+    // for the selected building by footprint origin each frame; if it vanished (demolished),
+    // auto-close. Then refresh + lay out + draw + mirror — all gated on being open.
+    if (inspectPanel !== undefined && inspectSelection !== null) {
+      const b = findSelected(currentBuildings, inspectSelection);
+      if (b === null) {
+        closeInspect(); // also clears the a11y mirror (every close path does)
+      } else {
+        const changed = inspectPanel.refresh({
+          type: b.type,
+          level: b.level,
+          connected: b.connected,
+          workerCount: b.workerCount,
+          outputBuffer: b.outputBuffer,
+          season,
+          stockpiles: latestSnapshot?.stockpiles ?? {},
+          // Tier the owner has reached — mirrors the sim's upgrade gate (unlockTier = peakTier).
+          peakTier: peakTier as SettlementTier,
+        });
+        // Floating position: pinned to the LEFT edge, BELOW the top HUD bar (anchored at 8,8,
+        // ~32px tall) so it never overlaps the HUD or the top-right minimap. On-screen and
+        // fixed (the panel has a fixed width:240, so it doesn't reflow the world or HUD).
+        if (changed) {
+          computeLayout(inspectPanel.root, 8, 56);
+          inspectMirror?.update(inspectPanel.root);
+        }
+        renderTree(uiSurface, inspectPanel.root);
+      }
+    }
+
     uiSurface.end();
   }
 
@@ -1295,6 +1396,36 @@ async function boot(): Promise<void> {
         if (uiDispatcher === undefined) return;
         if (id === null) uiDispatcher.blur();
         else uiDispatcher.focus(id);
+      },
+    });
+  }
+
+  // Inspect chunk 2: the floating inspect panel as a SECOND UI root. Its OWN dispatcher returns
+  // null root while closed (`inspectOpen()` false) → inert, so forwarding events to it is safe.
+  // Its OWN a11y mirror lives in a SEPARATE hidden mount (#ui-a11y-inspect) so its DOM subtree
+  // and Tab order are distinct from the HUD's; `inspectMirror.update(null)` clears it on close.
+  // Upgrade button drives the SAME command the old DOM `#btn-upgrade` tool issued
+  // ({ type: "upgradeBuilding", payload: { x, y } }), targeting the selected footprint origin.
+  // The sim host re-validates ownership / tier / max-level / affordability; the panel only
+  // disables the button when at max or unaffordable.
+  inspectPanel = createInspectPanel({
+    close: closeInspect,
+    upgrade: () => {
+      if (inspectSelection === null) return;
+      client.sendCommand({
+        type: "upgradeBuilding",
+        payload: { x: inspectSelection.x, y: inspectSelection.y },
+      });
+    },
+  });
+  inspectDispatcher = createInputDispatcher(() => (inspectOpen() ? inspectPanel?.root ?? null : null));
+  if (inspectA11yMount !== null) {
+    inspectMirror = createA11yMirror(inspectA11yMount, {
+      rootLabel: "Building inspector",
+      onFocusNode: (id) => {
+        if (inspectDispatcher === undefined) return;
+        if (id === null) inspectDispatcher.blur();
+        else inspectDispatcher.focus(id);
       },
     });
   }

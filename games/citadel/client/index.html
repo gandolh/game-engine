@@ -21,6 +21,11 @@
          builds a parallel, visually-hidden DOM subtree so the in-canvas HUD is reachable
          by screen readers + the Tab order. Populated/managed entirely in main.ts. -->
     <div id="ui-a11y-mirror"></div>
+    <!-- Citadel inspect chunk 2: a SECOND hidden a11y-mirror host, for the floating building
+         inspect panel (src/ui/inspect-panel.ts). It is a separate UI root with its own
+         createA11yMirror mount so its visually-hidden DOM subtree + Tab order stay distinct
+         from the HUD's. Empty until a building is selected; cleared on close. -->
+    <div id="ui-a11y-inspect"></div>
 
     <!-- Citadel build toolbar: build buttons grouped by purpose, each with an
          icon glyph. Lives in its own strip above the HUD so the readout row

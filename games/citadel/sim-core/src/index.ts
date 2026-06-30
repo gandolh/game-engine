@@ -23,6 +23,7 @@ export {
   coversRect,
   BUILDING_MAX_LEVEL,
   upgradeCost,
+  tierNameRequiredForLevel,
   effectiveOutputPerCycle,
   effectiveHousingCapacity,
   effectiveDefenseStrength,
@@ -46,7 +47,7 @@ export type { Season } from "./world/seasons";
 export type { SimState, Stockpiles, BarterOffer, RaiderState, PlayerState, ArmyState } from "./sim-state";
 export { villagerWalkable, makePlayerState, localPlayer, playerById } from "./sim-state";
 export { RoadConnectivitySystem } from "./systems/road-connectivity";
-export { ProductionSystem } from "./systems/production";
+export { ProductionSystem, outputBufferCap } from "./systems/production";
 export { VillagerSystem } from "./systems/villager-system";
 export { ImmigrationSystem } from "./systems/immigration";
 export { RaidSpawnSystem } from "./systems/raid-spawn";
