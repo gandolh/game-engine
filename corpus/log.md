@@ -4,6 +4,29 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] playtest | Citadel Phase A — per-house mood DATA verified live; VISUAL gated behind B/C/D
+
+Playtested Phase A in the real WebGPU client (system Chrome, fixed seed `0x1a2b3c4d`).
+**The data pipeline is confirmed correct end-to-end:** reading per-house
+`{mood, lacksFaith, lacksSafety, lacksGoods}` straight off the live snapshot
+(`window.__citadel.buildings()`), **served** houses (chapel-in-range) read `mood 60`
+(`lacksFaith:false`) and up to `mood 80` (chapel+market+food → `lacksFaith/lacksGoods
+false`), while **unserved** houses read the neutral `mood 40` / all-`lacks` true —
+matching the needs-happiness math exactly. WebGPU renders; no page errors.
+**The cozy *visual* (glow/dim/hearth-smoke) could NOT be cleanly eyeballed as a
+contrast**, because it's gated behind unbuilt phases: fire still ignites (Phase D not
+done) and pop starves to 0 within ~10–20 days (pre-cozy economy; Phase B/H not done),
+so a stable content glowing district never persists long enough to frame, and the
+constant-warm-v1 glow is subtle in daylight by design. This matches the build order's
+own A→B→C spine and the skill's "thriving state isn't reachable pre-pivot" warning —
+**re-do the Phase A visual eyeball after B/C/D land.** Also filed a **P2 tooling**
+finding: the playtest driver `play.mjs` still scrapes the **DOM** HUD, which is empty
+after the 2026-06-30 in-canvas-UI migration (`pop/happy/tier` log as null; road count
+inflates `buildingCount`) — it should read state from `__citadel`/`currentSnapshot`
+instead. Findings + acceptance in
+[todos/2026-07-01-citadel-phaseA-playtest-verification.md](todos/2026-07-01-citadel-phaseA-playtest-verification.md).
+Corpus-only entry (no code changed in this playtest).
+
 ## [2026-06-30] build | Citadel cozy pivot Phase A — per-house diegetic mood/coverage signal (the keystone)
 
 First gameplay phase of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)

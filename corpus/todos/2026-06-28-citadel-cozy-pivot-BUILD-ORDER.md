@@ -161,8 +161,13 @@ with consequences), or is it an *autonomous behavior*? If neither — cut it.**
 > `BuildingSnapshot`; renderer expresses it diegetically (warm `EDG.gold` glow scaled by mood +
 > mood sprite-dim + mood-gated `EDG.cream` hearth smoke). Glow is **constant-warm v1** (no
 > day/night plumbing in `pushScene`). Determinism preserved (aggregate outputs byte-identical).
-> Gates green (sim-core 184/184, client 381/381 incl. EDG32 + wiring tests). **Not yet
-> eyeballed in real WebGPU.** Phase B reads this per-house mood.
+> Gates green (sim-core 184/184, client 381/381 incl. EDG32 + wiring tests).
+> **Playtested 2026-07-01:** the per-house mood DATA is live-verified in real WebGPU
+> (served houses read mood 60–80 with `lacks*` flipping correctly; unserved read 40 /
+> all-lacks) — but the cozy VISUAL (glow/smoke) can't be eyeballed yet because fire +
+> starvation collapse the town before it can look content. **Re-eyeball after B/C/D.**
+> See [phaseA-playtest-verification](2026-07-01-citadel-phaseA-playtest-verification.md).
+> Phase B reads this per-house mood.
 
 The load-bearing piece; **three other decisions depend on it** (it is also the
 threat-consequence layer of #5 and the tutorial payload of Phase C).
