@@ -79,8 +79,12 @@ are still open (solo is unaffected).
 > framework ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)), replacing the
 > DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`. **Event toasts** are also in-canvas now
 > (2026-06-30 — an `@engine/ui` top-centre column with an `opacity` fade + a hidden
-> `#toast-live` aria-live mirror). Still DOM (migration in progress): the build bar, settings
-> modal, minimap (Canvas2D), and occupancy badges (world-anchored).
+> `#toast-live` aria-live mirror). The **build bar** is in-canvas too (2026-06-30 —
+> [build-bar.ts](../../games/citadel/client/src/ui/build-bar.ts): a bottom-left grid of grouped
+> **text** buttons, own input dispatcher + a11y mirror, tier-lock/affordability greying + cost
+> hover-info; emoji icons dropped as the bitmap font is ASCII-only — an authored-icon todo will
+> restore the icon grid). Still DOM (migration in progress): the settings modal, minimap
+> (Canvas2D), and occupancy badges (world-anchored).
 
 > **2026-06-30 — town-hall is now a placeable civic building (build bar `Services` group).**
 > A `town-hall` toolbar button was added. As a down-payment on cozy-pivot **Phase G**, the

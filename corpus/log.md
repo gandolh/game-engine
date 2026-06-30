@@ -4,6 +4,33 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel build bar → in-canvas @engine/ui (DOM-overlay removal, surface 2/5)
+
+The biggest DOM surface migrated: the placement **build bar** is now in-canvas via `@engine/ui`
+([build-bar.ts](../games/citadel/client/src/ui/build-bar.ts)) — a bottom-left grid of six category
+columns (Housing/Food/Refine/Service/Defense/Tools) of **text** buttons. **Design call (grilled):**
+the in-canvas font is an ASCII bitmap (no emoji), so the old emoji icon grid → short text labels
+**now**, plus a new follow-up todo
+([authored-typography-and-icons](todos/2026-06-30-engine-ui-authored-typography-and-icons.md)) to
+author a proper pixel font + building/tool **icon** glyphs as assets and restore the compact icon
+grid. The bar is a retained tree built once; `refresh(state)` re-binds each button per frame —
+active = the selected tool, disabled = tier-locked or (cozy economy) unaffordable — returning a
+change flag that gates the a11y reconcile. Each button's `onActivate` calls the SAME host
+placement-mode setters the DOM clicks drove (`selectBuild` / a new `setTool`), so mouse, keyboard
+(Tab+Enter) and the a11y mirror share one path. It's a **fourth UI root** with its own input
+dispatcher (always live) + a11y mirror (`#ui-a11y-buildbar`), forwarded alongside the HUD/inspect/
+villager dispatchers in every pointer/key handler; a hover-info label above the bar shows the
+hovered button's cost/tier (preserving build-cost-on-hover). The DOM `#build-bar` (24 buttons, 6
+groups) + its CSS + ~150 lines of `main.ts` wiring (`BUILD_BUTTONS`/`buildButtonsByType`/
+`refreshBuildButtonLocks`/`highlightActiveBuildButton`/the 5 tool click handlers) are gone. The
+bottom DOM HUD row (Settings/Save/Load/decrees/threat/mode-label) stays. Render/input only — no
+sim/determinism touch. `@citadel/client` typecheck clean, **349 tests** (+9 build-bar: tree/wiring,
+selected-active, tier-lock + affordability disable, change-reporting, hover-info); palette 6/6.
+**Verified in-browser** (system Chrome + WebGPU): the grouped text bar renders bottom-left with
+tier-locked buttons greyed; the a11y mirror has all **26** buttons; activating mirror buttons drives
+the real mode (`Mode: Place house` / `Road (drag)` / `None`); DOM `#build-bar` gone; 0 page errors.
+**3 DOM surfaces remain** (settings modal, minimap, occupancy badges).
+
 ## [2026-06-30] build | Citadel event toasts → in-canvas @engine/ui (DOM-overlay removal, surface 1/5)
 
 First surface of the umbrella "all GUI in-game" DOM-overlay removal: **event toasts** now render
