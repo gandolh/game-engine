@@ -34,67 +34,11 @@
          cleared on release. -->
     <div id="ui-a11y-villager"></div>
 
-    <!-- Citadel build toolbar: build buttons grouped by purpose, each with an
-         icon glyph. Lives in its own strip above the HUD so the readout row
-         stays uncluttered. Button IDs are unchanged — main.ts wires them by id. -->
-    <div id="build-bar">
-      <div class="build-group">
-        <span class="build-group-label">Housing</span>
-        <div class="build-group-btns">
-          <button id="btn-build-house"><span class="bi">🏠</span>House</button>
-          <button id="btn-build-storehouse"><span class="bi">📦</span>Storehouse</button>
-          <button id="btn-build-well"><span class="bi">💧</span>Well</button>
-        </div>
-      </div>
-      <div class="build-group">
-        <span class="build-group-label">Food</span>
-        <div class="build-group-btns">
-          <button id="btn-build-farm"><span class="bi">🌾</span>Farm</button>
-          <button id="btn-build-mill"><span class="bi">🌀</span>Mill</button>
-          <button id="btn-build-bakery"><span class="bi">🍞</span>Bakery</button>
-          <button id="btn-build-woodcutter"><span class="bi">🪓</span>Woodcutter</button>
-        </div>
-      </div>
-      <div class="build-group">
-        <span class="build-group-label">Refining</span>
-        <div class="build-group-btns">
-          <button id="btn-build-sawmill"><span class="bi">🪵</span>Sawmill</button>
-          <button id="btn-build-quarry"><span class="bi">⛏️</span>Quarry</button>
-          <button id="btn-build-mine"><span class="bi">🕳️</span>Mine</button>
-          <button id="btn-build-smith"><span class="bi">🔨</span>Smith</button>
-        </div>
-      </div>
-      <div class="build-group">
-        <span class="build-group-label">Services</span>
-        <div class="build-group-btns">
-          <button id="btn-build-town-hall"><span class="bi">🏛️</span>Town Hall</button>
-          <button id="btn-build-chapel"><span class="bi">⛪</span>Chapel</button>
-          <button id="btn-build-market"><span class="bi">🏪</span>Market</button>
-          <button id="btn-build-watchpost"><span class="bi">🔭</span>Watchpost</button>
-          <button id="btn-build-tradingpost"><span class="bi">⚖️</span>Trading Post</button>
-          <button id="btn-build-healer"><span class="bi">⚕️</span>Healer</button>
-        </div>
-      </div>
-      <div class="build-group">
-        <span class="build-group-label">Defense</span>
-        <div class="build-group-btns">
-          <button id="btn-build-wall"><span class="bi">🧱</span>Wall</button>
-          <button id="btn-build-gate"><span class="bi">🚪</span>Gate</button>
-          <button id="btn-build-tower"><span class="bi">🗼</span>Tower</button>
-          <button id="btn-build-garrison"><span class="bi">🛡️</span>Garrison</button>
-          <button id="btn-build-keep"><span class="bi">🏰</span>Keep</button>
-        </div>
-      </div>
-      <div class="build-group">
-        <span class="build-group-label">Tools</span>
-        <div class="build-group-btns">
-          <button id="btn-build-road"><span class="bi">🛤️</span>Road</button>
-          <button id="btn-upgrade"><span class="bi">⬆️</span>Upgrade</button>
-          <button id="btn-demolish"><span class="bi">💥</span>Demolish</button>
-          <button id="btn-cancel"><span class="bi">✖️</span>Cancel</button>
-        </div>
-      </div>
-    </div>
+    <!-- Citadel build toolbar now renders IN-CANVAS via @engine/ui (src/ui/build-bar.ts):
+         a bottom-left grid of grouped text buttons. This hidden mount is its a11y mirror —
+         a parallel visually-hidden DOM tree of real <button>s so the in-canvas toolbar is
+         reachable by screen readers + the keyboard. Built/managed entirely in main.ts. -->
+    <div id="ui-a11y-buildbar"></div>
 
     <!-- engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) and
          the speed/pause controls are now rendered IN-CANVAS via @engine/ui (see

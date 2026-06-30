@@ -9,14 +9,16 @@
  *          + downloadable JSON blob).
  */
 import "./style.css";
-import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, buildCost, TILE_SIZE } from "@citadel/sim-core";
+import { generateTerrain, getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot } from "@citadel/sim-core";
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
-import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11yMirror, loadFontAtlas } from "@engine/ui";
-import type { InputDispatcher, A11yMirror } from "@engine/ui";
+import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11yMirror, loadFontAtlas, label } from "@engine/ui";
+import type { InputDispatcher, A11yMirror, LabelNode } from "@engine/ui";
 import { createResourceHud } from "./ui/resource-hud";
 import type { ResourceHud } from "./ui/resource-hud";
+import { createBuildBar } from "./ui/build-bar";
+import type { BuildBar, BuildTool } from "./ui/build-bar";
 import { createInspectPanel } from "./ui/inspect-panel";
 import type { InspectPanel } from "./ui/inspect-panel";
 import { createVillagerPanel } from "./ui/villager-panel";
@@ -106,11 +108,9 @@ const hudKeep = document.getElementById("hud-keep")!;
 // Phase 4.5 hazard HUD
 const hudFire = document.getElementById("hud-fire")!;
 const hudDisease = document.getElementById("hud-disease")!;
-const btnDemolish = document.getElementById("btn-demolish")!;
-const btnUpgrade = document.getElementById("btn-upgrade")!;
-const btnRoad = document.getElementById("btn-build-road")!;
-const btnWall = document.getElementById("btn-build-wall")!;
-const btnCancel = document.getElementById("btn-cancel")!;
+// Build-bar buttons (Demolish/Upgrade/Road/Wall/Cancel + the build-type grid) are now
+// in-canvas @engine/ui buttons (src/ui/build-bar.ts); their placement-mode setters live in
+// `selectBuild` / `setTool` below, wired as the bar's onActivate callbacks.
 const lblMode = document.getElementById("lbl-mode")!;
 // Phase 5: save/load UI
 const btnSave = document.getElementById("btn-save")!;
@@ -221,6 +221,23 @@ const villagerA11yMount = document.getElementById("ui-a11y-villager");
 // `consumed: false`, so forwarding events to it is a no-op when the panel is hidden.
 let villagerDispatcher: InputDispatcher | undefined;
 
+// Build bar (DOM-overlay removal): a FOURTH in-canvas UI root — the placement toolbar,
+// rendered at the bottom-left (supersedes the DOM #build-bar). Its OWN input dispatcher
+// (always live — the bar is always visible) + a11y mirror (a fourth hidden mount). A small
+// hover-info label above it shows the hovered button's cost/tier (preserving the old DOM
+// `title` tooltip). `lastUiX/Y` track the pointer in CSS-logical px for the hover hit-test.
+let buildBar: BuildBar | undefined;
+let buildBarDispatcher: InputDispatcher | undefined;
+let buildBarMirror: A11yMirror | undefined;
+const buildBarA11yMount = document.getElementById("ui-a11y-buildbar");
+const buildBarInfoLabel: LabelNode = label("", { muted: true });
+let lastUiX = -1;
+let lastUiY = -1;
+// The bar is laid out at the bottom-left only when first shown or the canvas height changes
+// (labels are fixed → layout depends only on the bottom anchor). `barTopY` is its top edge.
+let barLaidOutH = -1;
+let barTopY = 0;
+
 // Atmosphere (render-only, off-sim): day/night wash, weather FX, ambient crowd.
 const weather = new CitadelWeather();
 const ambientCrowd = new CitadelAmbientCrowd();
@@ -313,7 +330,9 @@ canvas.addEventListener("mousedown", (e) => {
   // FIX B: forward to the villager-panel dispatcher too (inert while not following). A press on
   // its rect is UI-owned so the world doesn't start a placement/drag underneath the panel.
   const villagerC = villagerDispatcher?.pointerDown(x, y, btn).consumed ?? false;
-  if (hudC || inspectC || villagerC) {
+  // Build bar: a press on a toolbar button is UI-owned (selects a tool, never a world placement).
+  const barC = buildBarDispatcher?.pointerDown(x, y, btn).consumed ?? false;
+  if (hudC || inspectC || villagerC || barC) {
     // Press landed on a UI widget: the UI owns this gesture. Block the world so it doesn't
     // start a placement/drag, and remember the ownership for this gesture's move/up/click.
     uiPressActive = true;
@@ -321,6 +340,7 @@ canvas.addEventListener("mousedown", (e) => {
     // After a pointer press moves focus, mirror it into the a11y DOM of whichever root owns it.
     a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
     inspectMirror?.setFocus(inspectDispatcher?.focused()?.id ?? null);
+    buildBarMirror?.setFocus(buildBarDispatcher?.focused()?.id ?? null);
   }
 }, { capture: true });
 canvas.addEventListener("mouseup", (e) => {
@@ -333,6 +353,7 @@ canvas.addEventListener("mouseup", (e) => {
   uiDispatcher.pointerUp(x, y, btn);
   inspectDispatcher?.pointerUp(x, y, btn);
   villagerDispatcher?.pointerUp(x, y, btn); // FIX B: complete any UI-owned gesture on the panel
+  buildBarDispatcher?.pointerUp(x, y, btn); // activate the pressed toolbar button on release
   if (uiPressActive) e.stopImmediatePropagation();
   // The gesture ends here; the `click` handler below reads `uiPressActive` first, then we
   // clear it on the next mousedown — but clear here so a stray click without a press can't
@@ -349,6 +370,8 @@ canvas.addEventListener("mousemove", (e) => {
   uiDispatcher.pointerMove(x, y, btn);
   inspectDispatcher?.pointerMove(x, y, btn);
   villagerDispatcher?.pointerMove(x, y, btn); // FIX B
+  buildBarDispatcher?.pointerMove(x, y, btn);
+  lastUiX = x; lastUiY = y; // track for the build-bar hover-info hit-test (render loop)
   if (uiPressActive) e.stopImmediatePropagation();
 }, { capture: true });
 canvas.addEventListener("click", (e) => {
@@ -365,7 +388,8 @@ canvas.addEventListener("wheel", (e) => {
   const hudC = uiDispatcher.wheel(x, y, e.deltaY).consumed;
   const inspectC = inspectDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
   const villagerC = villagerDispatcher?.wheel(x, y, e.deltaY).consumed ?? false; // FIX B
-  if (hudC || inspectC || villagerC) {
+  const barC = buildBarDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
+  if (hudC || inspectC || villagerC || barC) {
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -386,15 +410,20 @@ window.addEventListener("keydown", (e) => {
   // Same mirror-focus guard for the inspect panel's own a11y mount: when a real inspect mirror
   // <button> holds DOM focus, native Tab/Enter + the mirror's listeners drive it — don't fight.
   if (active !== null && inspectA11yMount !== null && inspectA11yMount.contains(active)) return;
+  // Same guard for the build bar's a11y mount: when a real toolbar mirror <button> holds DOM
+  // focus, native Tab/Enter + the mirror's listeners drive it — don't fight them.
+  if (active !== null && buildBarA11yMount !== null && buildBarA11yMount.contains(active)) return;
   if (active !== null && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
   const hudConsumed = uiDispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
   // Forward to the inspect dispatcher too (inert/null root while closed → not consumed).
   const inspectConsumed = inspectDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
-  if (hudConsumed || inspectConsumed) {
+  const barConsumed = buildBarDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
+  if (hudConsumed || inspectConsumed || barConsumed) {
     e.preventDefault();
     e.stopImmediatePropagation();
     a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
     inspectMirror?.setFocus(inspectDispatcher?.focused()?.id ?? null);
+    buildBarMirror?.setFocus(buildBarDispatcher?.focused()?.id ?? null);
   }
 }, { capture: true });
 
@@ -627,29 +656,8 @@ function updateModeLabel(): void {
   else if (mode === "wall") lblMode.textContent = `Mode: Wall (drag)${dragLengthSuffix()}`;
   else if (mode === "upgrade") lblMode.textContent = upgradeHint();
   else lblMode.textContent = "Mode: None";
-  highlightActiveBuildButton();
-}
-
-/**
- * Highlight the build-toolbar button matching the active placement mode so the
- * current tool is visually obvious (selection used to live only in the text
- * label). `place` maps to the selected building's button; the standalone modes
- * map to their dedicated buttons. `none` clears all highlights.
- */
-function highlightActiveBuildButton(): void {
-  const active: HTMLElement | null =
-    placementState.mode === "place"
-      ? buildButtonsByType.get(placementState.selectedType) ?? null
-      : placementState.mode === "road"
-        ? btnRoad
-        : placementState.mode === "wall"
-          ? btnWall
-          : placementState.mode === "demolish"
-            ? btnDemolish
-            : placementState.mode === "upgrade"
-              ? btnUpgrade
-              : null;
-  for (const btn of buildModeButtons) btn.classList.toggle("selected", btn === active);
+  // The active-tool highlight now lives on the in-canvas build bar; it re-binds each frame
+  // from `placementState` in the render loop (buildBar.refresh), so no DOM toggling here.
 }
 
 function selectBuild(type: string): void {
@@ -664,130 +672,20 @@ function selectBuild(type: string): void {
   updateModeLabel();
 }
 
-const BUILD_BUTTONS: ReadonlyArray<readonly [string, string]> = [
-  ["btn-build-house",        "house"],
-  ["btn-build-farm",         "farm"],
-  ["btn-build-mill",         "mill"],
-  ["btn-build-bakery",       "bakery"],
-  ["btn-build-woodcutter",   "woodcutter"],
-  ["btn-build-storehouse",   "storehouse"],
-  // Phase 3 service buildings
-  ["btn-build-town-hall",    "town-hall"],
-  ["btn-build-chapel",       "chapel"],
-  ["btn-build-market",       "market"],
-  ["btn-build-watchpost",    "watchpost"],
-  ["btn-build-tradingpost",  "tradingpost"],
-  // Phase 4 refiners + siege structures
-  ["btn-build-quarry",       "quarry"],
-  ["btn-build-sawmill",      "sawmill"],
-  ["btn-build-smith",        "smith"],
-  ["btn-build-mine",         "mine"],
-  ["btn-build-gate",         "gate"],
-  ["btn-build-tower",        "tower"],
-  ["btn-build-garrison",     "garrison"],
-  ["btn-build-keep",         "keep"],
-  // Phase 4.5 hazard mitigation
-  ["btn-build-well",         "well"],
-  ["btn-build-healer",       "healer"],
-];
-/** DOM elements for tier-lockable build buttons, keyed by building type. */
-const buildButtonsByType = new Map<string, HTMLButtonElement>();
-for (const [id, type] of BUILD_BUTTONS) {
-  const btn = document.getElementById(id);
-  if (btn !== null) {
-    btn.addEventListener("click", () => selectBuild(type));
-    buildButtonsByType.set(type, btn as HTMLButtonElement);
-  }
-}
-// The wall button drives a "wall" placement type and is tier-locked too.
-buildButtonsByType.set("wall", btnWall as HTMLButtonElement);
-
 /**
- * Every toolbar button that maps to a placement mode — used to toggle the
- * `.selected` highlight. Includes the type buttons plus the standalone
- * road/demolish/upgrade tools (wall is already in buildButtonsByType).
+ * Enter a standalone tool mode (road/wall/demolish/upgrade) or clear it ("none"). Wired as
+ * the build bar's tool-button `onActivate` — the SAME placement-mode transitions the old DOM
+ * `#btn-build-road/-wall/-demolish/-upgrade/-cancel` click handlers drove.
  */
-const buildModeButtons: HTMLElement[] = [
-  ...buildButtonsByType.values(),
-  btnRoad,
-  btnDemolish,
-  btnUpgrade,
-];
-
-/** "4 wood, 2 stone" (or "free") — the material cost of placing `type`. */
-function costLabel(type: string): string {
-  const entries = Object.entries(buildCost(type));
-  return entries.length === 0 ? "free" : entries.map(([g, q]) => `${q} ${g}`).join(", ");
-}
-
-/** Can the player currently afford `type` from the live stockpile? */
-function canAffordBuild(type: string): boolean {
-  for (const [g, q] of Object.entries(buildCost(type))) {
-    if ((stockpiles[g] ?? 0) < (q ?? 0)) return false;
+function setTool(tool: BuildTool): void {
+  if (tool !== "none") clearFollow(); // entering placement releases the follow-cam
+  placementState.mode = tool; // "road" | "wall" | "demolish" | "upgrade" | "none"
+  if (tool === "road" || tool === "wall") {
+    placementState.setRequiresForest(false);
+    placementState.setRequiresStone(false);
   }
-  return true;
+  updateModeLabel();
 }
-
-/**
- * Refresh each build button's disabled state + tooltip from the live snapshot:
- *  - tier-locked types (settlement tier not yet reached) → greyed, "Requires <tier>";
- *  - otherwise, when solo build costs are on, unaffordable types → greyed,
- *    "<type> — needs <cost>" (re-enabled live as the stockpile grows);
- *  - affordable / free → enabled, tooltip shows the cost on hover.
- * Buttons stay VISIBLE so the player can see the cost + what climbing the ladder unlocks.
- * Mirrors the sim-side reject guards (tier + cost) — defense in depth.
- */
-function refreshBuildButtonLocks(): void {
-  for (const [type, btn] of buildButtonsByType) {
-    const required = TIER_LOCK[type];
-    const cost = CHARGE_BUILD_COST ? costLabel(type) : null;
-    if (required !== undefined && !tierAtLeast(peakTier as SettlementTier, required)) {
-      btn.disabled = true;
-      btn.classList.add("tier-locked");
-      btn.classList.remove("unaffordable");
-      btn.title = cost !== null ? `${type} — requires ${required} (costs ${cost})` : `Requires ${required}`;
-    } else if (CHARGE_BUILD_COST && !canAffordBuild(type)) {
-      btn.disabled = true;
-      btn.classList.remove("tier-locked");
-      btn.classList.add("unaffordable");
-      btn.title = `${type} — needs ${cost}`;
-    } else {
-      btn.disabled = false;
-      btn.classList.remove("tier-locked");
-      btn.classList.remove("unaffordable");
-      btn.title = cost !== null ? `${type} — costs ${cost}` : "";
-    }
-  }
-}
-
-btnRoad.addEventListener("click", () => {
-  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
-  placementState.mode = "road";
-  placementState.setRequiresForest(false);
-  placementState.setRequiresStone(false);
-  updateModeLabel();
-});
-btnWall.addEventListener("click", () => {
-  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
-  placementState.mode = "wall";
-  placementState.setRequiresForest(false);
-  placementState.setRequiresStone(false);
-  updateModeLabel();
-});
-btnDemolish.addEventListener("click", () => {
-  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
-  placementState.mode = "demolish";
-  updateModeLabel();
-});
-btnUpgrade.addEventListener("click", () => {
-  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
-  placementState.mode = "upgrade";
-  updateModeLabel();
-});
-btnCancel.addEventListener("click", () => {
-  placementState.mode = "none";
-  updateModeLabel();
-});
 
 // ---------------------------------------------------------------------------
 // Phase 5: Save / Load
@@ -1023,7 +921,8 @@ client.onSnapshot((snap) => {
   season = snap.season;
   tier = snap.tier;  // Phase 5
   peakTier = snap.peakTier;  // gates build/upgrade buttons (never demotes)
-  refreshBuildButtonLocks();
+  // The build bar's tier-lock/affordability + active-tool states re-bind each frame in the
+  // render loop (buildBar.refresh reads peakTier/stockpiles/placementState) — no call here.
   population = snap.population;
   popCap = snap.popCap;
   stockpiles = snap.stockpiles;
@@ -1397,6 +1296,37 @@ function loop(): void {
       }
     }
 
+    // Build bar: a bottom-left in-canvas UI root (build-bar.ts), rendered before the toasts so
+    // they paint over it. Re-bind button states each frame from the live placement state; lay it
+    // out at the bottom only when first shown or the canvas height changed (labels are fixed).
+    if (buildBar !== undefined) {
+      const barChanged = buildBar.refresh({
+        mode: placementState.mode,
+        selectedType: placementState.selectedType,
+        peakTier: peakTier as SettlementTier,
+        chargeBuildCost: CHARGE_BUILD_COST,
+        stockpiles,
+      });
+      if (barLaidOutH !== canvas.clientHeight) {
+        computeLayout(buildBar.root, 0, 0); // measure → height
+        barTopY = canvas.clientHeight - buildBar.root.rect.height - 8;
+        computeLayout(buildBar.root, 8, barTopY); // anchor bottom-left
+        barLaidOutH = canvas.clientHeight;
+        buildBarMirror?.update(buildBar.root);
+      } else if (barChanged) {
+        buildBarMirror?.update(buildBar.root); // disabled/active changed → reconcile the AT view
+      }
+      renderTree(uiSurface, buildBar.root);
+
+      // Hover-info: the hovered toolbar button's cost/tier text, just above the bar.
+      const info = buildBar.hoverInfoFor(buildBarDispatcher?.hitTest(lastUiX, lastUiY) ?? null);
+      if (buildBarInfoLabel.text !== info) buildBarInfoLabel.text = info;
+      if (info !== "") {
+        computeLayout(buildBarInfoLabel, 8, Math.max(8, barTopY - 16));
+        renderTree(uiSurface, buildBarInfoLabel);
+      }
+    }
+
     // Event toasts: a top-CENTRE in-canvas UI root (toast.ts), rendered last so it paints
     // over everything. Two layout passes when toasts are present: the first fills rects so we
     // know the stack width, the second re-anchors it centred at the top. Per-frame opacity (the
@@ -1518,6 +1448,23 @@ async function boot(): Promise<void> {
   villagerDispatcher = createInputDispatcher(() => (followId !== null ? villagerPanel?.root ?? null : null));
   if (villagerA11yMount !== null) {
     villagerMirror = createA11yMirror(villagerA11yMount, { rootLabel: "Followed villager" });
+  }
+
+  // Build bar (DOM-overlay removal): a FOURTH UI root — the placement toolbar, in-canvas at the
+  // bottom-left. Always visible → its dispatcher always returns the live root. onActivate calls
+  // the SAME placement-mode setters the old DOM buttons drove (selectBuild / setTool). Its a11y
+  // mirror lives in its own hidden mount (#ui-a11y-buildbar) so its Tab order is distinct.
+  buildBar = createBuildBar({ selectBuild, setTool });
+  buildBarDispatcher = createInputDispatcher(() => buildBar?.root ?? null);
+  if (buildBarA11yMount !== null) {
+    buildBarMirror = createA11yMirror(buildBarA11yMount, {
+      rootLabel: "Build toolbar",
+      onFocusNode: (id) => {
+        if (buildBarDispatcher === undefined) return;
+        if (id === null) buildBarDispatcher.blur();
+        else buildBarDispatcher.focus(id);
+      },
+    });
   }
 
   // Minimap (top-right): clicking it recentres the camera on that tile and

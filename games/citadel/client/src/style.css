@@ -23,45 +23,9 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 /* Citadel 07: tier-locked build buttons — greyed, not hidden (teaches progression). */
 #hud button.tier-locked, #hud button.tier-locked:hover { opacity: 0.4; cursor: not-allowed; }
 
-/* Citadel build toolbar: build buttons grouped by purpose with icons.
-   Condensed for laptop screens — groups sit on ONE row (label beside its
-   icons), buttons are icon-only (the text label collapses via font-size:0
-   and the name lives in each button's title tooltip). This roughly halves
-   the bar's height versus the old stacked, full-label layout. */
-#build-bar {
-  background: #262b44; color: #c0cbdc; font-family: monospace;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
-  padding: 3px 10px; user-select: none; border-top: 1px solid #3a4466;
-}
-.build-group {
-  display: flex; flex-direction: row; align-items: center; gap: 4px;
-  padding: 0 7px; border-right: 1px solid #3a4466;
-}
-.build-group:last-child { border-right: none; }
-.build-group-label {
-  font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
-  color: #8b9bb4; writing-mode: vertical-rl; transform: rotate(180deg);
-  line-height: 1; max-height: 38px;
-}
-.build-group-btns { display: flex; flex-wrap: wrap; gap: 3px; max-width: 132px; }
-#build-bar button {
-  display: inline-flex; align-items: center; justify-content: center;
-  background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988;
-  padding: 3px; width: 28px; height: 26px; cursor: pointer;
-  font-family: monospace; font-size: 0; border-radius: 3px;
-}
-#build-bar button:hover { background: #5a6988; }
-#build-bar button.selected {
-  background: #5a6988; border-color: #fee761; color: #fee761;
-}
-#build-bar button .bi { font-size: 15px; line-height: 1; }
-#build-bar button.tier-locked, #build-bar button.tier-locked:hover {
-  opacity: 0.4; cursor: not-allowed;
-}
-/* Citadel build-cost: unaffordable buttons greyed (distinct from tier-locked, same affordance). */
-#build-bar button.unaffordable, #build-bar button.unaffordable:hover {
-  opacity: 0.5; cursor: not-allowed;
-}
+/* The Citadel build toolbar now renders IN-CANVAS via @engine/ui (src/ui/build-bar.ts);
+   its DOM #build-bar + button styles were removed. #ui-a11y-buildbar (its hidden a11y
+   mirror) is styled by the shared visually-hidden rule below. */
 #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
 #lbl-mode { color: #fee761; min-width: 160px; }
 /* Phase 4 siege HUD */
