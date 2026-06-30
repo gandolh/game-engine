@@ -21,6 +21,46 @@ const FESTIVAL_HAPPINESS_BONUS = 15;
 const PER_NEED_HAPPINESS = 20;
 
 /**
+ * Phase B Chunk 1 — STATEFUL happiness with ASYMMETRIC drift.
+ *
+ * Both town happiness and per-house mood no longer snap to their computed value;
+ * they EASE toward it as a per-day target: `h += (target - h) * rate`. The two
+ * rates are deliberately asymmetric — happiness HEALS faster than it FALLS
+ * (recoveryRate > decayRate). Because every dip over-recovers, the "no death
+ * spiral" floor becomes a property of the update rule itself, and a transient
+ * dent breathes (eases in over ~1-2 days, recovers over ~2-3) instead of
+ * flickering on/off the next day.
+ *
+ * Tuning (pure geometric ease, error after n days = (1-rate)^n × initial error):
+ *   recoveryRate 0.45 → a dent recovers to within ~1 point of target in ~3 days
+ *     (a 20-point gap: 20 → 11 → 6 → 3.3 → 1.8 → 1.0, i.e. ≤1 by day ~5, ≤3 by
+ *     day 3; "feels recovered" in ~2-3 days).
+ *   decayRate 0.30 → the same 20-point gap takes longer to fall (20 → 14 → 9.8
+ *     → 6.9 → 4.8 …), so a drop lands over ~1-2 days with no jump-scare and
+ *     always lags behind how fast it would have recovered.
+ * Single source of truth: both the town aggregate and every house use these.
+ */
+const HAPPINESS_RECOVERY_RATE = 0.45;
+const HAPPINESS_DECAY_RATE = 0.3;
+
+/**
+ * Ease a persistent value toward a freshly-computed target with asymmetric
+ * rates (recover faster than decay), then clamp+round to an int 0..100. Pure
+ * arithmetic of (prior, target) — no randomness, no wall-clock; deterministic.
+ */
+function easeHappiness(prior: number, target: number): number {
+  const rate = target >= prior ? HAPPINESS_RECOVERY_RATE : HAPPINESS_DECAY_RATE;
+  const eased = prior + (target - prior) * rate;
+  let result = Math.max(0, Math.min(100, Math.round(eased)));
+  // Anti-stall: once the integer result lands adjacent to the (integer) target,
+  // rounding the ever-shrinking geometric step would freeze us one point short of
+  // the cap forever (e.g. 99 → 99.45 → 99). Snap the last point so a settled
+  // town/house actually reaches its target. Pure + deterministic.
+  if (result !== target && Math.abs(target - result) <= 1) result = target;
+  return result;
+}
+
+/**
  * Building types that project a safety footprint (lower fear → higher happiness).
  * watchpost is the dedicated safety building; the fortifications also count
  * (citadel-38 P2#12 — their SERVICE_RADII were previously dead data).
@@ -145,11 +185,15 @@ export class NeedsHappinessSystem implements System {
           rs.lacksFaith = !hasFaith;
           rs.lacksSafety = !hasSafety;
           rs.lacksGoods = !hasGoodsAccess;
-          let mood = 40;
-          if (hasFaith) mood += PER_NEED_HAPPINESS;
-          if (hasSafety) mood += PER_NEED_HAPPINESS;
-          if (hasGoodsAccess) mood += PER_NEED_HAPPINESS;
-          rs.mood = Math.max(0, Math.min(100, Math.round(mood)));
+          // Phase B Chunk 1: the base+met-needs sum is now the per-house TARGET;
+          // ease the STORED mood toward it (asymmetric, same rates as the town
+          // aggregate). Prior mood is the state (freshRuntime seeds it at 40, a
+          // brand-new house eases from 40); this lags + over-recovers like h.
+          let moodTarget = 40;
+          if (hasFaith) moodTarget += PER_NEED_HAPPINESS;
+          if (hasSafety) moodTarget += PER_NEED_HAPPINESS;
+          if (hasGoodsAccess) moodTarget += PER_NEED_HAPPINESS;
+          rs.mood = easeHappiness(rs.mood ?? 40, moodTarget);
         }
       }
     }
@@ -162,6 +206,10 @@ export class NeedsHappinessSystem implements System {
   }
 
   private _updateHappiness(p: PlayerState): void {
+    // Phase B Chunk 1: this same formula now computes the per-day TARGET (math
+    // UNCHANGED — base 40 + coverage*20 each + food + decree penalties +
+    // festival), then we ease the persistent p.happiness toward it asymmetrically
+    // (recover faster than fall) instead of assigning it directly.
     // Base 40 (no needs met); each need coverage adds up to 20 → max 100
     let h = 40;
     h += p.faithCoverage * PER_NEED_HAPPINESS;
@@ -188,7 +236,10 @@ export class NeedsHappinessSystem implements System {
     // lasts — the repayable upside that makes strain a loop, not permanent debt.
     if (p.festivalDaysLeft > 0) h += FESTIVAL_HAPPINESS_BONUS;
 
-    p.happiness = Math.max(0, Math.min(100, Math.round(h)));
+    // `h` is now the TARGET; ease the persistent happiness toward it. Clamp the
+    // target too so the ease can never chase an out-of-range goal.
+    const target = Math.max(0, Math.min(100, Math.round(h)));
+    p.happiness = easeHappiness(p.happiness, target);
   }
 }
 

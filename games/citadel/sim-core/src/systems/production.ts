@@ -51,6 +51,24 @@ export function outputBufferCap(perCycle: number): number {
   return Math.max(1, perCycle) * OUTPUT_BUFFER_CYCLES;
 }
 
+/**
+ * Cozy-pivot Phase B: happiness → productivity floor. Output scales LINEARLY
+ * with happiness but never collapses to 0 — it bottoms out at this floor (so an
+ * unhappy town slows down, it does not death-spiral). The single tunable: raise
+ * for a gentler economy, lower for a harsher one.
+ */
+const PRODUCTIVITY_FLOOR = 0.6;
+
+/**
+ * Per-cycle output multiplier for a building whose relevant happiness is `h`
+ * (0..100). Linear ramp from {@link PRODUCTIVITY_FLOOR} at h=0 to 1.0 at h=100,
+ * monotonic and clamped so it is NEVER below the floor (h=50 → 0.8). Pure.
+ */
+export function productivityFactor(h: number): number {
+  const t = Math.max(0, Math.min(100, h)) / 100;
+  return PRODUCTIVITY_FLOOR + (1 - PRODUCTIVITY_FLOOR) * t;
+}
+
 export class ProductionSystem implements System {
   readonly name = "ProductionSystem";
 
@@ -58,6 +76,23 @@ export class ProductionSystem implements System {
 
   run(ctx: SimContext): void {
     const state = this.state;
+
+    // Cozy-pivot Phase B: resolve the LOCAL happiness signal once per pass. For
+    // each workplace centre, find a worker assigned there and read its HOME house's
+    // `mood` (the Phase A per-house signal). Built up-front into a map keyed by the
+    // workplace centre so the building loop is O(1) per building rather than scanning
+    // all villagers per building. Iteration order is irrelevant — last writer wins,
+    // and workers sharing a workplace share an owner; mood differences between two
+    // workers' homes are sub-tile noise the floor already smooths over.
+    const workplaceHomeMood = new Map<number, number>();
+    for (const v of state.villagerWorld.query("villager")) {
+      const home = state.buildingState.get(
+        this.buildingIdAt(v.villager.homeX, v.villager.homeY),
+      );
+      const mood = home?.mood;
+      if (mood === undefined) continue;
+      workplaceHomeMood.set(this.tileKey(v.villager.workX, v.villager.workY), mood);
+    }
 
     // Citadel 28: per-player economy. Each player's production is independent;
     // iterate players in stable id order, acting on the buildings they own.
@@ -121,10 +156,47 @@ export class ProductionSystem implements System {
           amount = Math.floor(amount * 1.3);
         }
 
+        // Cozy-pivot Phase B: scale output by happiness, never below the floor.
+        // Prefer the LOCAL signal — the assigned worker's home-house mood — and
+        // fall back to the per-player happiness when no worker/home resolves
+        // (e.g. timing before a villager is assigned). The happiness factor is a
+        // *throttle*, never a cliff (cozy contract #9): a building that would
+        // produce ≥1 always still produces ≥1, so a base-1 producer (L1 mine/
+        // smith → 1 tool/stone) keeps trickling at low happiness instead of
+        // flooring to 0 and stalling the chain. Math.max(1, …) after the floor
+        // enforces this; output stays an integer.
+        const b = entity.building;
+        const cx = b.x + Math.floor(b.w / 2);
+        const cy = b.y + Math.floor(b.h / 2);
+        const localHappiness =
+          workplaceHomeMood.get(this.tileKey(cx, cy)) ?? p.happiness;
+        amount = Math.max(1, Math.floor(amount * productivityFactor(localHappiness)));
+
         // Output goes into the building's LOCAL buffer. It does NOT enter the
         // owner's stockpile until a villager hauls it to a Storehouse.
         rs.outputBuffer += amount;
       }
     }
+  }
+
+  /** Deterministic tile-index key (ty*width+tx) for a building/workplace centre. */
+  private tileKey(tx: number, ty: number): number {
+    return ty * this.state.width + tx;
+  }
+
+  /**
+   * ECS id of the building whose footprint covers tile (tx,ty), or -1 if none.
+   * Used to resolve a villager's home house from its homeX/homeY centre. Linear
+   * scan over buildings — acceptable here: it runs once per villager per pass,
+   * and villager/building counts are small in Citadel.
+   */
+  private buildingIdAt(tx: number, ty: number): number {
+    for (const entity of this.state.buildingWorld.query("building")) {
+      const b = entity.building;
+      if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) {
+        return entity.id ?? -1;
+      }
+    }
+    return -1;
   }
 }

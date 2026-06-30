@@ -72,19 +72,23 @@ describe("Phase 3 — happiness", () => {
     // Run 2 days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",  x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "chapel", x: 13, y: 10 } });
+    // Run 2 days so NeedsHappinessSystem fires once (at tick=TICKS_PER_DAY).
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     expect(localPlayer(sim.state).faithCoverage).toBe(1);
-    // happiness = 40 + 20*1 = 60 (no food surplus adjustment yet since no bread chain)
-    expect(localPlayer(sim.state).happiness).toBe(60);
+    // Phase B Chunk 1: happiness now EASES toward its target instead of snapping.
+    // Target = 40 + 20*1 = 60; one recovery step from the seed 40 → 40+(60-40)*0.45 = 49.
+    expect(localPlayer(sim.state).happiness).toBe(49);
   });
 
   it("watchpost near a house raises safetyCoverage", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",     x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost", x: 13, y: 10 } });
+    // Run 2 days so NeedsHappinessSystem fires once.
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     expect(localPlayer(sim.state).safetyCoverage).toBe(1);
-    expect(localPlayer(sim.state).happiness).toBe(60);
+    // Phase B Chunk 1: eases toward target 60; one recovery step from 40 → 49.
+    expect(localPlayer(sim.state).happiness).toBe(49);
   });
 
   it("all three service buildings near a house brings happiness to 80 without goods", () => {
@@ -94,12 +98,15 @@ describe("Phase 3 — happiness", () => {
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost",  x: 16, y: 10 } });
     // For goods coverage we also need food in stockpile
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "market",     x: 13, y: 13 } });
+    // Run 2 days so NeedsHappinessSystem fires once.
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     // With no bread/grain yet, goodsCoverage = 0 (no goods in stockpile)
     expect(localPlayer(sim.state).faithCoverage).toBe(1);
     expect(localPlayer(sim.state).safetyCoverage).toBe(1);
     expect(localPlayer(sim.state).goodsCoverage).toBe(0);
-    expect(localPlayer(sim.state).happiness).toBe(80); // 40 + 20 + 20 + 0
+    // Phase B Chunk 1: eases toward target 80 (40+20+20+0); one recovery step from
+    // the seed 40 → 40+(80-40)*0.45 = 58.
+    expect(localPlayer(sim.state).happiness).toBe(58);
   });
 });
 
@@ -122,20 +129,22 @@ describe("Phase 3 — decrees", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
     sim.commands.enqueue({ type: "setDecree", payload: { decree: "workHours", active: true } });
-    // Run 2 full days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
+    // Run 2 days so NeedsHappinessSystem fires once.
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
-    // 40 base - 12 workHours = 28
-    expect(localPlayer(sim.state).happiness).toBe(28);
+    // Phase B Chunk 1: eases (here decays) toward target 40-12=28; one decay step
+    // from the seed 40 → 40+(28-40)*0.3 = 36.4 → 36.
+    expect(localPlayer(sim.state).happiness).toBe(36);
   });
 
   it("rationing decree reduces happiness by 10", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
     sim.commands.enqueue({ type: "setDecree", payload: { decree: "rationing", active: true } });
-    // Run 2 full days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
+    // Run 2 days so NeedsHappinessSystem fires once.
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
-    // 40 base - 10 rationing = 30
-    expect(localPlayer(sim.state).happiness).toBe(30);
+    // Phase B Chunk 1: eases (here decays) toward target 40-10=30; one decay step
+    // from the seed 40 → 40+(30-40)*0.3 = 37.
+    expect(localPlayer(sim.state).happiness).toBe(37);
   });
 
   it("workHours decree boosts farm grain output by 30%", () => {

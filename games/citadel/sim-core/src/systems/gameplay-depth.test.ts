@@ -158,7 +158,9 @@ describe("decree counterplay", () => {
       const sim = boot();
       const p = localPlayer(sim.state);
       for (const d of decrees) p.activeDecrees.add(d);
-      for (let t = 1; t <= TICKS_PER_DAY; t++) sim.scheduler.tick({ tick: t });
+      // Phase B Chunk 1: happiness eases toward target; run enough days to settle
+      // so we compare steady-state penalties, not a single-step lagged value.
+      for (let t = 1; t <= TICKS_PER_DAY * 16; t++) sim.scheduler.tick({ tick: t });
       return p.happiness;
     }
     const one = happinessWith(["rationing"]);
