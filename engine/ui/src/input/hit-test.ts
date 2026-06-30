@@ -1,5 +1,6 @@
 import type { Rect, UINode } from "../widget/node";
 import { isContainer } from "../widget/node";
+import { isFocusable } from "./focus";
 
 /**
  * Hit-testing for the `@engine/ui` retained tree.
@@ -11,7 +12,7 @@ import { isContainer } from "../widget/node";
  * and recurse depth-first, returning the deepest/last hittable node.
  *
  * Hittability (what captures a pointer vs. falls through to the world below):
- *  - **buttons** are always hittable (they react and activate);
+ *  - **buttons, sliders, checkboxes** are always hittable (interactive leaves react/activate);
  *  - **panels** (`background === true`) are hittable — a chrome panel captures clicks so they
  *    don't leak to the world behind it;
  *  - **boxes** (`background === false`) and **labels** are pass-through by default; a box opts in
@@ -23,7 +24,9 @@ import { isContainer } from "../widget/node";
 
 /** Is `node` itself a valid hit target (vs. transparent to the pointer)? */
 export function isHittable(node: UINode): boolean {
-  if (node.kind === "button") return true;
+  // Interactive leaves (focusable nodes) always capture the pointer — use isFocusable so both
+  // lists stay in sync; adding a new interactive kind only requires updating focus.ts.
+  if (isFocusable(node)) return true;
   if (isContainer(node)) return node.background;
   return false;
 }

@@ -77,7 +77,7 @@ import {
 import { PlacementStateManager } from "./ui/placement-state";
 import { SettingsModal } from "./ui/settings-modal";
 import { ToastManager, newEventsSince } from "./ui/toast";
-import { CitadelMinimap } from "./ui/minimap";
+import { CitadelMinimap, MINIMAP_FACE } from "./ui/minimap";
 import { tileToIso } from "./render/iso";
 import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 
@@ -135,17 +135,9 @@ let lastEventShown: string | null = null;
 let minimap: CitadelMinimap | null = null;
 
 // Per-building occupancy badges (Part B): headcount chips floated over each
-// building that has people at it. DOM overlay, pooled + positioned each frame.
-const occupancyBadges = new OccupancyBadgeLayer(document.getElementById("occupancy-badges")!);
-
-// Build toolbar is icon-only (condensed for laptops); surface each button's name
-// as a hover tooltip so the glyphs stay discoverable. Derives the label from the
-// button text minus its icon glyph.
-for (const btn of document.querySelectorAll<HTMLButtonElement>("#build-bar button")) {
-  const icon = btn.querySelector(".bi")?.textContent ?? "";
-  const label = (btn.textContent ?? "").replace(icon, "").trim();
-  if (label !== "") btn.title = label;
-}
+// building that has people at it. Now render IN-CANVAS via @engine/ui (pooled
+// panel+label chips the render loop lays out + draws), replacing the DOM overlay.
+const occupancyBadges = new OccupancyBadgeLayer();
 
 // ---------------------------------------------------------------------------
 // Camera + renderer (Camera2D + engine WebGPU renderer; created async in boot)
@@ -233,6 +225,18 @@ const buildBarA11yMount = document.getElementById("ui-a11y-buildbar");
 const buildBarInfoLabel: LabelNode = label("", { muted: true });
 let lastUiX = -1;
 let lastUiY = -1;
+
+// Settings modal (DOM-overlay removal): a FIFTH in-canvas UI root — the tabbed settings
+// dialog (Display / Atmosphere / Simulation), centred + rendered over everything while open
+// (supersedes the DOM modal). Its OWN dispatcher (root null while closed → inert) + a11y
+// mirror (a fifth hidden mount). The modal instance is created at module scope below; its
+// dispatcher/mirror are wired in boot() once the a11y mount + camera exist.
+let settingsDispatcher: InputDispatcher | undefined;
+let settingsMirror: A11yMirror | undefined;
+const settingsA11yMount = document.getElementById("ui-a11y-settings");
+// Tracks whether the settings modal had its post-open layout/mirror reconcile run, so a fresh
+// open re-syncs the (just-mutated) control state into the a11y view exactly once.
+let settingsLaidOut = false;
 // The bar is laid out at the bottom-left only when first shown or the canvas height changes
 // (labels are fixed → layout depends only on the bottom anchor). `barTopY` is its top edge.
 let barLaidOutH = -1;
@@ -325,6 +329,9 @@ canvas.addEventListener("mousedown", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
   const btn = pointerButtonOf(e);
+  // Settings modal: while open it overlays everything, so it gets first refusal on a press —
+  // and a press anywhere while it's open should not fall through to the world (it's modal).
+  const settingsC = settingsDispatcher?.pointerDown(x, y, btn).consumed ?? false;
   const hudC = uiDispatcher.pointerDown(x, y, btn).consumed;
   const inspectC = inspectDispatcher?.pointerDown(x, y, btn).consumed ?? false;
   // FIX B: forward to the villager-panel dispatcher too (inert while not following). A press on
@@ -332,15 +339,28 @@ canvas.addEventListener("mousedown", (e) => {
   const villagerC = villagerDispatcher?.pointerDown(x, y, btn).consumed ?? false;
   // Build bar: a press on a toolbar button is UI-owned (selects a tool, never a world placement).
   const barC = buildBarDispatcher?.pointerDown(x, y, btn).consumed ?? false;
-  if (hudC || inspectC || villagerC || barC) {
-    // Press landed on a UI widget: the UI owns this gesture. Block the world so it doesn't
-    // start a placement/drag, and remember the ownership for this gesture's move/up/click.
+  // Minimap (top-right): a press inside its face seeks the camera and is UI-owned. Checked only
+  // when the settings modal isn't intercepting (the modal can overlap the minimap corner).
+  const minimapC =
+    !settingsModal.isOpen() && btn === "primary" && minimap !== null
+      ? minimap.trySeek(x, y, canvas.clientWidth - MINIMAP_FACE - 8, 8)
+      : false;
+  // Fix 1: while the settings modal is open, ALL canvas presses are UI-owned regardless of hit-
+  // test result. This makes the modal truly modal — presses on the backdrop (outside the panel
+  // rect but inside the canvas) can no longer pan/interact with the world, and a first-frame press
+  // (before the layout pass fills node rects, so hit-test returns false) is also swallowed. We
+  // still forward to settingsDispatcher FIRST (above) so modal buttons/sliders still activate.
+  if (settingsC || hudC || inspectC || villagerC || barC || minimapC || settingsModal.isOpen()) {
+    // Press landed on a UI widget (or the modal is open): the UI owns this gesture. Block the
+    // world so it doesn't start a placement/drag, and remember the ownership for this gesture's
+    // move/up/click.
     uiPressActive = true;
     e.stopImmediatePropagation();
     // After a pointer press moves focus, mirror it into the a11y DOM of whichever root owns it.
     a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
     inspectMirror?.setFocus(inspectDispatcher?.focused()?.id ?? null);
     buildBarMirror?.setFocus(buildBarDispatcher?.focused()?.id ?? null);
+    settingsMirror?.setFocus(settingsDispatcher?.focused()?.id ?? null);
   }
 }, { capture: true });
 canvas.addEventListener("mouseup", (e) => {
@@ -354,11 +374,13 @@ canvas.addEventListener("mouseup", (e) => {
   inspectDispatcher?.pointerUp(x, y, btn);
   villagerDispatcher?.pointerUp(x, y, btn); // FIX B: complete any UI-owned gesture on the panel
   buildBarDispatcher?.pointerUp(x, y, btn); // activate the pressed toolbar button on release
-  if (uiPressActive) e.stopImmediatePropagation();
+  settingsDispatcher?.pointerUp(x, y, btn); // activate a pressed modal control on release
+  // Fix 1: while the modal is open every canvas release is UI-owned (mirrors the mousedown gate).
+  if (uiPressActive || settingsModal.isOpen()) e.stopImmediatePropagation();
   // The gesture ends here; the `click` handler below reads `uiPressActive` first, then we
   // clear it on the next mousedown — but clear here so a stray click without a press can't
   // inherit stale ownership. (click fires after mouseup, so capture the value first.)
-  uiGestureWasUI = uiPressActive;
+  uiGestureWasUI = uiPressActive || settingsModal.isOpen();
   uiPressActive = false;
 }, { capture: true });
 canvas.addEventListener("mousemove", (e) => {
@@ -371,8 +393,11 @@ canvas.addEventListener("mousemove", (e) => {
   inspectDispatcher?.pointerMove(x, y, btn);
   villagerDispatcher?.pointerMove(x, y, btn); // FIX B
   buildBarDispatcher?.pointerMove(x, y, btn);
+  settingsDispatcher?.pointerMove(x, y, btn); // hover visuals + slider drag while the modal is open
   lastUiX = x; lastUiY = y; // track for the build-bar hover-info hit-test (render loop)
-  if (uiPressActive) e.stopImmediatePropagation();
+  // Fix 1: while the modal is open every canvas move is UI-owned so a right/middle-drag started
+  // when the modal was already open cannot pan the world behind it.
+  if (uiPressActive || settingsModal.isOpen()) e.stopImmediatePropagation();
 }, { capture: true });
 canvas.addEventListener("click", (e) => {
   // Activation already happened on pointerUp. Suppress the world `click` handlers only when
@@ -389,7 +414,11 @@ canvas.addEventListener("wheel", (e) => {
   const inspectC = inspectDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
   const villagerC = villagerDispatcher?.wheel(x, y, e.deltaY).consumed ?? false; // FIX B
   const barC = buildBarDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
-  if (hudC || inspectC || villagerC || barC) {
+  // Modal open: swallow wheel over its rect (don't zoom the world under the dialog).
+  const settingsC = settingsDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
+  // Fix 1: while the modal is open ALL canvas wheel events are swallowed regardless of whether
+  // the pointer lands on a modal widget — the backdrop must not zoom the world underneath.
+  if (hudC || inspectC || villagerC || barC || settingsC || settingsModal.isOpen()) {
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -413,17 +442,23 @@ window.addEventListener("keydown", (e) => {
   // Same guard for the build bar's a11y mount: when a real toolbar mirror <button> holds DOM
   // focus, native Tab/Enter + the mirror's listeners drive it — don't fight them.
   if (active !== null && buildBarA11yMount !== null && buildBarA11yMount.contains(active)) return;
+  // Same guard for the settings modal's a11y mount: when a real modal mirror control (button /
+  // checkbox / range) holds DOM focus, native Tab/Enter/Arrow + the mirror's listeners drive it.
+  if (active !== null && settingsA11yMount !== null && settingsA11yMount.contains(active)) return;
   if (active !== null && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
   const hudConsumed = uiDispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
   // Forward to the inspect dispatcher too (inert/null root while closed → not consumed).
   const inspectConsumed = inspectDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
   const barConsumed = buildBarDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
-  if (hudConsumed || inspectConsumed || barConsumed) {
+  // Settings modal: route Tab/Enter/Space/Arrow into the modal while it's open (null root → inert).
+  const settingsConsumed = settingsDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
+  if (hudConsumed || inspectConsumed || barConsumed || settingsConsumed) {
     e.preventDefault();
     e.stopImmediatePropagation();
     a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
     inspectMirror?.setFocus(inspectDispatcher?.focused()?.id ?? null);
     buildBarMirror?.setFocus(buildBarDispatcher?.focused()?.id ?? null);
+    settingsMirror?.setFocus(settingsDispatcher?.focused()?.id ?? null);
   }
 }, { capture: true });
 
@@ -785,8 +820,9 @@ if (import.meta.env.DEV) {
 /**
  * Project an iso TILE point (fractional tile coords) to a CSS-px point relative
  * to the viewport, using the live camera + canvas transform. Mirrors the
- * renderer's world→screen mapping. Used for DOM overlays anchored to the world
- * (occupancy badges) and the dev-hook test harness. Render-only.
+ * renderer's world→screen mapping. Used only by the dev-hook test harness
+ * (`__citadel.tileToScreenCss`); in-canvas world-anchoring (occupancy chips)
+ * now uses `tileToCanvasCss` (canvas-relative). Render-only.
  */
 function tileToScreenCss(tileX: number, tileY: number): { x: number; y: number } {
   const c = tileToIso(tileX, tileY);
@@ -798,6 +834,24 @@ function tileToScreenCss(tileX: number, tileY: number): { x: number; y: number }
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = canvas.getBoundingClientRect();
   return { x: rect.left + ((c.x - left) * sx) / dpr, y: rect.top + ((c.y - top) * sy) / dpr };
+}
+
+/**
+ * Project an iso TILE point to CANVAS-relative CSS-logical px (top-left origin) — the same
+ * coordinate space the in-canvas @engine/ui surface draws in. Identical to
+ * {@link tileToScreenCss} but WITHOUT the viewport offset (`rect.left/top`), since the UI
+ * surface is canvas-relative, not viewport-relative. Used to anchor the in-canvas occupancy
+ * chips over their buildings. Render-only.
+ */
+function tileToCanvasCss(tileX: number, tileY: number): { x: number; y: number } {
+  const c = tileToIso(tileX, tileY);
+  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  const sx = canvas.width / camera.worldUnitsX;
+  const sy = canvas.height / camera.worldUnitsY;
+  const left = camera.centerX - camera.worldUnitsX / 2;
+  const top = camera.centerY - camera.worldUnitsY / 2;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  return { x: ((c.x - left) * sx) / dpr, y: ((c.y - top) * sy) / dpr };
 }
 
 let paused = false;
@@ -898,18 +952,40 @@ const settingsModal = new SettingsModal({
     },
   ],
   setSpeed: (n) => client.setSpeed(n),
-  getZoom: () => camera.zoom,
-  setZoom: (z) => camera.setZoom(clampZoom(z)),
+  // `camera` is assigned asynchronously in boot(); the in-canvas SettingsModal constructor
+  // reads getZoom() eagerly (to seed the zoom slider) at module load — BEFORE boot runs — so
+  // guard against the undefined camera. Falls back to 1× until the camera exists; the modal
+  // resyncs from live state on every show() anyway.
+  getZoom: () => (camera as Camera2D | undefined)?.zoom ?? 1,
+  setZoom: (z) => { (camera as Camera2D | undefined)?.setZoom(clampZoom(z)); },
   minZoom: MIN_ZOOM,
   maxZoom: MAX_ZOOM,
 });
 
+// Open/close the in-canvas settings modal. `show()` resyncs the controls from live state but
+// does NOT relayout/render or touch the a11y mirror — so on every (re)open we drop the
+// laid-out flag, and the render loop runs one layout + mirror reconcile to push the synced
+// state to the screen + AT view. On close we clear the modal's a11y mirror so its hidden DOM
+// stops advertising controls that are no longer visible.
+function openSettings(): void {
+  settingsModal.show();
+  settingsLaidOut = false;
+}
+function closeSettings(): void {
+  settingsModal.close();
+  settingsMirror?.update(null);
+}
+function toggleSettings(): void {
+  if (settingsModal.isOpen()) closeSettings();
+  else openSettings();
+}
+
 const btnSettings = document.getElementById("btn-settings")!;
-btnSettings.addEventListener("click", () => settingsModal.toggle());
+btnSettings.addEventListener("click", () => toggleSettings());
 // Global Escape: close the settings modal if open (placement/follow Escape
 // handlers remain; this just adds modal dismissal at the window level too).
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && settingsModal.isOpen()) settingsModal.close();
+  if (e.key === "Escape" && settingsModal.isOpen()) closeSettings();
 });
 
 let latestSnapshot: RenderSnapshot | null = null;
@@ -1327,9 +1403,33 @@ function loop(): void {
       }
     }
 
-    // Event toasts: a top-CENTRE in-canvas UI root (toast.ts), rendered last so it paints
-    // over everything. Two layout passes when toasts are present: the first fills rects so we
-    // know the stack width, the second re-anchors it centred at the top. Per-frame opacity (the
+    // Per-building occupancy badges: headcount chips over each of the local player's buildings
+    // that has people at it (idle residents / workers). Now IN-CANVAS @engine/ui chips, drawn
+    // through the same surface (world-anchored: each chip positioned at its building's top-centre
+    // tile in CANVAS-relative CSS-logical px — the surface's coordinate space). In-transit
+    // villagers are drawn on roads instead (Part A), so badges + road dots == population.
+    occupancyBadges.update(currentBuildings, localPlayerId, tileToCanvasCss);
+    for (const chip of occupancyBadges.activeChips) {
+      computeLayout(chip.node, chip.x, chip.y);
+      renderTree(uiSurface, chip.node);
+    }
+
+    // Minimap (top-right): drawn IN-CANVAS via raw UISurface quads (terrain + entity specks +
+    // camera viewport). Anchored 8px from the top-right corner. Reads snapshots + the camera
+    // transform only (render-only).
+    if (minimap !== null) {
+      const mx = canvas.clientWidth - MINIMAP_FACE - 8;
+      minimap.draw(uiSurface, mx, 8, {
+        buildings: currentBuildings,
+        villagers: currentVillagers,
+        raiders: currentRaiders,
+        transform: transformOf(camera, canvas.width, canvas.height),
+      });
+    }
+
+    // Event toasts: a top-CENTRE in-canvas UI root (toast.ts), rendered after the badges/minimap
+    // so it paints over them. Two layout passes when toasts are present: the first fills rects so
+    // we know the stack width, the second re-anchors it centred at the top. Per-frame opacity (the
     // fade) is render-only — it doesn't change layout — so this is cheap (≤4 small panels).
     if (toasts.root.children.length > 0) {
       computeLayout(toasts.root, 0, 0);
@@ -1337,6 +1437,25 @@ function loop(): void {
       // y=48 keeps the top-centre stack clear of the in-canvas HUD bar (anchored 8,8, ~36px tall).
       computeLayout(toasts.root, cx, 48);
       renderTree(uiSurface, toasts.root);
+    }
+
+    // Settings modal: a top-most in-canvas UI root, rendered LAST so it overlays everything while
+    // open. Centred on the canvas (measure → re-anchor, like the toasts). show() resyncs the
+    // controls but doesn't lay out / reconcile the mirror; we do that every frame so hover/active
+    // colours and tab-swap content changes are reflected live in both the canvas and the AT view.
+    // Fix 2: reconcile the mirror every frame while open (not just once via settingsLaidOut).
+    // The modal's tab buttons call settingsModal.selectTab(i) which swaps the visible content
+    // panel; without a per-frame update the screen-reader sees the previous tab's controls (stale
+    // DOM). mirror.update() is idempotent + diffs by node id — per-frame is safe and cheap for a
+    // small modal. computeLayout runs BEFORE mirror.update so rects are current.
+    if (settingsModal.isOpen()) {
+      computeLayout(settingsModal.root, 0, 0); // measure → modal size
+      const sx = Math.max(8, (canvas.clientWidth - settingsModal.root.rect.width) / 2);
+      const sy = Math.max(8, (canvas.clientHeight - settingsModal.root.rect.height) / 2);
+      computeLayout(settingsModal.root, sx, sy); // anchor centred
+      settingsMirror?.update(settingsModal.root); // reconcile every frame (tab-swap + first open)
+      settingsLaidOut = true; // kept for the openSettings() gate (signals boot is past first frame)
+      renderTree(uiSurface, settingsModal.root);
     }
 
     uiSurface.end();
@@ -1349,22 +1468,7 @@ function loop(): void {
   const weatherField = renderToggles.weather ? weather.field : undefined;
   renderer.endFrame(wash, particles, weatherField);
 
-  // Part B: per-building occupancy badges. Headcount chips over each of the local
-  // player's buildings that has people at it (idle residents / workers). DOM
-  // overlay positioned via the world→screen map; in-transit villagers are drawn
-  // on roads instead (Part A), so badges + road dots == population.
-  occupancyBadges.update(currentBuildings, localPlayerId, (tx, ty) => tileToScreenCss(tx, ty));
-
-  // Minimap overview + event-toast aging (both render-only overlays).
-  if (minimap !== null) {
-    minimap.draw({
-      buildings: currentBuildings,
-      villagers: currentVillagers,
-      raiders: currentRaiders,
-      transform: transformOf(camera, canvas.width, canvas.height),
-    });
-  }
-  toasts.tick(nowMs);
+  toasts.tick(nowMs); // age toasts on the render clock
 
   requestAnimationFrame(loop);
 }
@@ -1467,11 +1571,25 @@ async function boot(): Promise<void> {
     });
   }
 
-  // Minimap (top-right): clicking it recentres the camera on that tile and
-  // releases any follow-cam lock. Camera centre is in iso world-px, so map the
-  // clicked tile through the iso projection.
-  const minimapCanvas = document.getElementById("minimap") as HTMLCanvasElement;
-  minimap = new CitadelMinimap(minimapCanvas, terrain, (tx, ty) => {
+  // Settings modal (DOM-overlay removal): wire its dispatcher (root null while closed → inert)
+  // + a11y mirror in its own hidden mount (#ui-a11y-settings), so its Tab order is distinct.
+  settingsDispatcher = createInputDispatcher(() => (settingsModal.isOpen() ? settingsModal.root : null));
+  if (settingsA11yMount !== null) {
+    settingsMirror = createA11yMirror(settingsA11yMount, {
+      rootLabel: "Settings",
+      onFocusNode: (id) => {
+        if (settingsDispatcher === undefined) return;
+        if (id === null) settingsDispatcher.blur();
+        else settingsDispatcher.focus(id);
+      },
+    });
+  }
+
+  // Minimap (top-right): now drawn IN-CANVAS via @engine/ui (raw UISurface quads) in the render
+  // loop; clicking it recentres the camera on that tile and releases any follow-cam lock. Camera
+  // centre is in iso world-px, so map the clicked tile through the iso projection. No canvas —
+  // the host forwards pointer presses to minimap.trySeek (below).
+  minimap = new CitadelMinimap(terrain, (tx, ty) => {
     clearFollow(); // release the follow-cam + hide the in-canvas villager panel
     const c = tileToIso(tx, ty);
     camera.setCenter(c.x, c.y);

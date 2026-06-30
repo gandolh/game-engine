@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { box, button, label, panel, resetNodeIds } from "../widget/node";
+import { box, button, checkbox, label, panel, slider, resetNodeIds } from "../widget/node";
 import type { UINode } from "../widget/node";
 import { createA11yMirror } from "./mirror";
 
@@ -229,6 +229,197 @@ describe("a11y mirror — focus bridge", () => {
     expect(seen[seen.length - 1]).toBeNull();
     mirror.destroy();
     outside.remove();
+  });
+});
+
+describe("a11y mirror — slider", () => {
+  it("mirrors a slider as <input type=range> with min/max/value/step", () => {
+    const s = slider({ min: 0, max: 10, value: 4, step: 2 });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [s]));
+
+    const input = host.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(input.min).toBe("0");
+    expect(input.max).toBe("10");
+    expect(input.step).toBe("2");
+    expect(input.value).toBe("4");
+    expect(input.getAttribute("aria-valuenow")).toBe("4");
+    mirror.destroy();
+  });
+
+  it("a native range 'input' event drives the node's value + onChange (same path)", () => {
+    const onChange = vi.fn();
+    const s = slider({ min: 0, max: 100, value: 0, onChange, step: 1 });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [s]));
+
+    const input = host.querySelector('input[type="range"]') as HTMLInputElement;
+    input.value = "30";
+    input.dispatchEvent(new Event("input"));
+    expect(s.value).toBe(30);
+    expect(onChange).toHaveBeenLastCalledWith(30);
+    mirror.destroy();
+  });
+
+  it("framework→DOM: updating node.value writes the input value without re-emitting", () => {
+    const onChange = vi.fn();
+    const s = slider({ min: 0, max: 100, value: 0, onChange, step: 1 });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [s]));
+
+    s.value = 70;
+    mirror.update(panel({}, [s]));
+    const input = host.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(input.value).toBe("70");
+    expect(onChange).not.toHaveBeenCalled(); // patch must not feed back
+    mirror.destroy();
+  });
+
+  it("continuous slider uses step='any'", () => {
+    const s = slider({ min: 0, max: 1, value: 0.5 });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [s]));
+    const input = host.querySelector('input[type="range"]') as HTMLInputElement;
+    expect(input.step).toBe("any");
+    mirror.destroy();
+  });
+
+  it("out-of-step input value is snapped before writing node.value and firing onChange", () => {
+    // Slider: min=0, max=1, step=0.1. A native input value of "0.15" should snap to 0.1 or 0.2.
+    const onChange = vi.fn();
+    const s = slider({ min: 0, max: 1, value: 0, step: 0.1, onChange });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [s]));
+
+    const input = host.querySelector('input[type="range"]') as HTMLInputElement;
+    input.value = "0.15";
+    input.dispatchEvent(new Event("input"));
+
+    // 0.15 snaps to 0.1 or 0.2 (nearest step); either is acceptable, but NOT 0.15.
+    expect(s.value).not.toBeCloseTo(0.15, 5);
+    expect(s.value === 0.1 || s.value === 0.2).toBe(true);
+    // onChange must receive the snapped node.value, not the raw 0.15.
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0]![0]).toBe(s.value);
+    mirror.destroy();
+  });
+});
+
+describe("a11y mirror — checkbox", () => {
+  it("mirrors a checkbox as <input type=checkbox> with its label as the accessible name", () => {
+    const c = checkbox({ checked: true, label: "Mute" });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [c]));
+
+    const input = host.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(input.checked).toBe(true);
+    // The caption lives in the wrapping <label>, making it the accessible name.
+    const lbl = input.closest("label")!;
+    expect(lbl.textContent).toContain("Mute");
+    mirror.destroy();
+  });
+
+  it("a native 'change' drives the node's checked + onChange", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [c]));
+
+    const input = host.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    input.checked = true;
+    input.dispatchEvent(new Event("change"));
+    expect(c.checked).toBe(true);
+    expect(onChange).toHaveBeenLastCalledWith(true);
+    mirror.destroy();
+  });
+
+  it("framework→DOM: updating node.checked reflects onto the input without re-emitting", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [c]));
+
+    c.checked = true;
+    mirror.update(panel({}, [c]));
+    const input = host.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(input.checked).toBe(true);
+    expect(onChange).not.toHaveBeenCalled();
+    mirror.destroy();
+  });
+
+  it("a disabled checkbox reflects disabled and is inoperable", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange, state: "disabled" });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [c]));
+    const input = host.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(input.disabled).toBe(true);
+    mirror.destroy();
+  });
+
+  it("label changes (empty→Foo→Bar) produce exactly one text node with the latest caption", () => {
+    const c = checkbox({ checked: false, label: "" });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [c]));
+
+    // Start with empty label — no text node yet.
+    const lbl = host.querySelector("label")!;
+    const textNodes = (): Text[] =>
+      Array.from(lbl.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE) as Text[];
+    expect(textNodes().length).toBe(0);
+
+    // Set caption to "Foo".
+    c.label = "Foo";
+    mirror.update(panel({}, [c]));
+    expect(textNodes().length).toBe(1);
+    expect(textNodes()[0]!.textContent).toBe("Foo");
+
+    // Change caption to "Bar" — still exactly one text node.
+    c.label = "Bar";
+    mirror.update(panel({}, [c]));
+    expect(textNodes().length).toBe(1);
+    expect(textNodes()[0]!.textContent).toBe("Bar");
+
+    mirror.destroy();
+  });
+});
+
+describe("a11y mirror — focus bridge for new kinds", () => {
+  it("a slider reports its node id when it takes DOM focus", () => {
+    const s = slider({ min: 0, max: 1, value: 0 });
+    const host = mount();
+    const seen: (number | null)[] = [];
+    const mirror = createA11yMirror(host, { onFocusNode: (id) => seen.push(id) });
+    mirror.update(panel({}, [s]));
+
+    const input = host.querySelector('input[type="range"]') as HTMLInputElement;
+    input.focus();
+    expect(seen).toContain(s.id);
+    mirror.destroy();
+  });
+
+  it("setFocus(id) moves DOM focus to a checkbox's inner input", () => {
+    const c = checkbox({ checked: false, label: "X" });
+    const host = mount();
+    const mirror = createA11yMirror(host);
+    mirror.update(panel({}, [c]));
+
+    mirror.setFocus(c.id);
+    const input = host.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+    mirror.destroy();
   });
 });
 

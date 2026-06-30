@@ -1,4 +1,11 @@
-import type { ButtonNode, ContainerNode, LabelNode, UINode } from "../widget/node";
+import type {
+  ButtonNode,
+  CheckboxNode,
+  ContainerNode,
+  LabelNode,
+  SliderNode,
+  UINode,
+} from "../widget/node";
 import { isContainer } from "../widget/node";
 
 /**
@@ -13,14 +20,24 @@ import { isContainer } from "../widget/node";
  *
  * ## Node → DOM mapping
  *
- * | widget node            | DOM element | accessible role / name                                  |
- * | ---------------------- | ----------- | ------------------------------------------------------- |
- * | `ButtonNode`           | `<button>`  | name = the button's `label`; `disabled` when state is   |
- * |                        |             | `"disabled"`; `aria-pressed="true"` while `"active"`    |
- * | `ContainerNode` with a | `<section>` | `role="region"`, `aria-label` = its first child label's |
- * |   leading `LabelNode`  |             | text (a labelled landmark)                              |
- * | `ContainerNode` (other)| `<div>`     | `role="group"`                                          |
- * | `LabelNode`            | `<p>`       | its `text` as the text content                          |
+ * | widget node            | DOM element            | accessible role / name                       |
+ * | ---------------------- | ---------------------- | -------------------------------------------- |
+ * | `ButtonNode`           | `<button>`             | name = the button's `label`; `disabled` when |
+ * |                        |                        | state is `"disabled"`; `aria-pressed` active |
+ * | `SliderNode`           | `<input type=range>`   | `aria-valuemin/max/now` via native min/max/  |
+ * |                        |                        | value+step; keyboard-operable for free       |
+ * | `CheckboxNode`         | `<input type=checkbox>`| native `checked`; name = its `label`         |
+ * |   + `<label>` wrapper  |                        | (so the inline caption is the accessible name)|
+ * | `ContainerNode` with a | `<section>`            | `role="region"`, `aria-label` = its first    |
+ * |   leading `LabelNode`  |                        | child label's text (a labelled landmark)     |
+ * | `ContainerNode` (other)| `<div>`                | `role="group"`                               |
+ * | `LabelNode`            | `<p>`                  | its `text` as the text content               |
+ *
+ * Sliders and checkboxes use **native form controls** so the keyboard + AT semantics
+ * (arrow-key adjust, value announcement, toggle) come for free. Their change events are wired to
+ * the SAME node methods the canvas input path calls (`slider.setValue`-equivalent via the node's
+ * mapping, `checkbox.toggle`) — one command path. To avoid a feedback loop, the mirror writes the
+ * native value from the node only when it differs, and the change listener guards on identity.
  *
  * Only *meaningful* nodes get an element. A `ContainerNode`'s leading `LabelNode` is consumed as
  * the region's `aria-label` (so the heading isn't also announced as a separate paragraph); every
@@ -86,10 +103,18 @@ export interface A11yMirror {
 /** One reconciled entry: the node's element + the activation listener bound to its current node. */
 interface Entry {
   el: HTMLElement;
-  /** The button click listener, kept so we can rebind it when the node identity is replaced. */
-  onClick?: (e: Event) => void;
-  /** The node whose `onActivate` the bound listener calls — tracked to detect identity swaps. */
-  node?: ButtonNode;
+  /**
+   * The interactive listener (button `click`, checkbox/range `input`), kept so we can detach it
+   * when the element is removed and rebind it when the node identity is replaced.
+   */
+  listener?: { type: string; fn: (e: Event) => void };
+  /** The interactive node the bound listener drives — tracked to detect an identity swap. */
+  node?: ButtonNode | SliderNode | CheckboxNode;
+  /**
+   * For a checkbox, the `<input>` lives inside a `<label>` wrapper (`el`) so the caption is the
+   * accessible name; we keep the inner input to patch `checked`/`disabled` and key focus to it.
+   */
+  control?: HTMLInputElement;
 }
 
 /**
@@ -155,6 +180,24 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
       bindButton(entry, node);
       return entry;
     }
+    if (node.kind === "slider") {
+      const el = doc.createElement("input");
+      el.type = "range";
+      const entry: Entry = { el };
+      bindSlider(entry, node);
+      return entry;
+    }
+    if (node.kind === "checkbox") {
+      // Wrap the native checkbox in a <label> so the inline caption is the accessible name and a
+      // click on the caption toggles the box (native label behaviour).
+      const wrapper = doc.createElement("label");
+      const input = doc.createElement("input");
+      input.type = "checkbox";
+      wrapper.appendChild(input);
+      const entry: Entry = { el: wrapper, control: input };
+      bindCheckbox(entry, node);
+      return entry;
+    }
     if (node.kind === "label") {
       const el = doc.createElement("p");
       return { el };
@@ -171,12 +214,26 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
     return { el };
   }
 
+  /** Detach the entry's current interactive listener (from the element that carries it). */
+  function detachListener(entry: Entry): void {
+    if (!entry.listener) return;
+    const target: HTMLElement = entry.control ?? entry.el;
+    target.removeEventListener(entry.listener.type, entry.listener.fn);
+    delete entry.listener;
+  }
+
+  /** Attach `fn` for `type` to the entry's interactive element, recording it for later detach. */
+  function attachListener(entry: Entry, type: string, fn: (e: Event) => void): void {
+    const target: HTMLElement = entry.control ?? entry.el;
+    target.addEventListener(type, fn);
+    entry.listener = { type, fn };
+  }
+
   function bindButton(entry: Entry, node: ButtonNode): void {
-    const btn = entry.el as HTMLButtonElement;
     // Rebind if this element is now backing a different node instance (id reuse is impossible —
     // ids are process-unique — but defensive against an entry being repurposed).
-    if (entry.node === node && entry.onClick) return;
-    if (entry.onClick) btn.removeEventListener("click", entry.onClick);
+    if (entry.node === node && entry.listener) return;
+    detachListener(entry);
     const onClick = (): void => {
       // Same command path as the canvas: invoke the node's own handle. The native <button> won't
       // fire `click` while `disabled`, so disabled buttons are inoperable for free; we also guard
@@ -184,8 +241,7 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
       if (node.state === "disabled") return;
       node.onActivate?.();
     };
-    btn.addEventListener("click", onClick);
-    entry.onClick = onClick;
+    attachListener(entry, "click", onClick);
     entry.node = node;
   }
 
@@ -199,6 +255,87 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
     // doesn't read as a permanently-toggled control.
     if (node.state === "active") btn.setAttribute("aria-pressed", "true");
     else btn.removeAttribute("aria-pressed");
+  }
+
+  function bindSlider(entry: Entry, node: SliderNode): void {
+    if (entry.node === node && entry.listener) return;
+    detachListener(entry);
+    const onInput = (): void => {
+      if (node.state === "disabled") return;
+      const raw = Number((entry.el as HTMLInputElement).value);
+      // Route through the node's setValue (clamp+snap) — same validation path as the canvas drag.
+      // If changed, fire onChange with the SNAPPED node.value, not the raw input value.
+      const changed = node.setValue(raw);
+      if (changed) node.onChange?.(node.value);
+    };
+    attachListener(entry, "input", onInput);
+    entry.node = node;
+  }
+
+  function patchSlider(entry: Entry, node: SliderNode): void {
+    bindSlider(entry, node);
+    const input = entry.el as HTMLInputElement;
+    const min = String(node.min);
+    const max = String(node.max);
+    // step="any" gives a continuous range; otherwise mirror the node's snap increment.
+    const step = node.step > 0 ? String(node.step) : "any";
+    if (input.min !== min) input.min = min;
+    if (input.max !== max) input.max = max;
+    if (input.step !== step) input.step = step;
+    const value = String(node.value);
+    if (input.value !== value) input.value = value; // framework → DOM (avoids feedback loop)
+    const disabled = node.state === "disabled";
+    if (input.disabled !== disabled) input.disabled = disabled;
+    // Native range already exposes role=slider + aria-valuemin/max/now from min/max/value; set an
+    // explicit aria-valuenow too for AT that reads the attribute rather than the live value.
+    if (input.getAttribute("aria-valuenow") !== value) input.setAttribute("aria-valuenow", value);
+  }
+
+  function bindCheckbox(entry: Entry, node: CheckboxNode): void {
+    if (entry.node === node && entry.listener) return;
+    detachListener(entry);
+    const onChange = (): void => {
+      if (node.state === "disabled") return;
+      // Drive the node's own toggle (one command path). The native input has already flipped its
+      // `checked`; mirror that onto the node and fire its onChange via toggle's semantics. We set
+      // the node's `checked` from the input to stay in lock-step, then notify.
+      const next = entry.control!.checked;
+      if (next !== node.checked) {
+        node.checked = next;
+        node.onChange?.(next);
+      }
+    };
+    attachListener(entry, "change", onChange);
+    entry.node = node;
+  }
+
+  function patchCheckbox(entry: Entry, node: CheckboxNode): void {
+    bindCheckbox(entry, node);
+    const input = entry.control!;
+    // The caption is the accessible name: keep it as a text node after the input inside the label.
+    // Locate the existing text-node child explicitly (not via lastChild, which might be the <input>).
+    const caption = node.label;
+    let textNode: Text | null = null;
+    for (const child of entry.el.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        textNode = child as Text;
+        break;
+      }
+    }
+    if (caption.length > 0) {
+      if (textNode) {
+        // Update in place to avoid DOM churn.
+        if (textNode.textContent !== caption) textNode.textContent = caption;
+      } else {
+        entry.el.appendChild(doc.createTextNode(caption));
+      }
+    } else {
+      // Caption cleared — remove the text node so the label element is empty.
+      if (textNode) entry.el.removeChild(textNode);
+    }
+    if (input.checked !== node.checked) input.checked = node.checked; // framework → DOM
+    const disabled = node.state === "disabled";
+    if (input.disabled !== disabled) input.disabled = disabled;
   }
 
   function patchLabel(entry: Entry, node: LabelNode): void {
@@ -227,7 +364,10 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
   }
 
   function idForElement(el: HTMLElement): number | null {
-    const raw = el.dataset["uiId"];
+    // The id lives on the entry's outer element; a checkbox's <input> fires focus from inside its
+    // <label> wrapper, so climb to the nearest ancestor (or self) carrying the data-ui-id.
+    const owner = el.closest<HTMLElement>("[data-ui-id]");
+    const raw = owner?.dataset["uiId"];
     return raw === undefined ? null : Number(raw);
   }
 
@@ -250,7 +390,7 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
     // Remove entries for nodes that vanished from the tree.
     for (const [id, entry] of entries) {
       if (seen.has(id)) continue;
-      if (entry.onClick) entry.el.removeEventListener("click", entry.onClick);
+      detachListener(entry);
       entry.el.remove();
       entries.delete(id);
     }
@@ -272,6 +412,8 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
 
     // Patch the node's own attributes.
     if (node.kind === "button") patchButton(entry, node);
+    else if (node.kind === "slider") patchSlider(entry, node);
+    else if (node.kind === "checkbox") patchCheckbox(entry, node);
     else if (node.kind === "label") patchLabel(entry, node);
     else patchRegion(entry, node);
 
@@ -296,7 +438,8 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
         return;
       }
       const entry = entries.get(id);
-      entry?.el.focus();
+      // A checkbox's focusable element is the inner <input>, not its <label> wrapper.
+      (entry?.control ?? entry?.el)?.focus();
     } finally {
       suppressFocusOut = false;
     }
@@ -305,9 +448,7 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
   function destroy(): void {
     rootEl.removeEventListener("focusin", onFocusIn);
     rootEl.removeEventListener("focusout", onFocusOut);
-    for (const entry of entries.values()) {
-      if (entry.onClick) entry.el.removeEventListener("click", entry.onClick);
-    }
+    for (const entry of entries.values()) detachListener(entry);
     entries.clear();
     rootEl.remove();
   }

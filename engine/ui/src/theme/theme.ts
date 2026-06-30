@@ -35,6 +35,20 @@ export interface Theme {
   /** Button label colour per visual state. `EDG.*`. */
   readonly buttonText: ButtonColors;
 
+  /** Slider track (unfilled groove) colour. `EDG.*`. */
+  readonly sliderTrack: string;
+  /** Slider fill (the portion left of the thumb, showing the current value). `EDG.*`. */
+  readonly sliderFill: string;
+  /** Slider thumb fill colour per visual state (normal/hover/active/disabled). `EDG.*`. */
+  readonly sliderThumb: ButtonColors;
+
+  /** Checkbox box fill colour per visual state. `EDG.*`. */
+  readonly checkboxBox: ButtonColors;
+  /** Checkbox box border colour. `EDG.*`. */
+  readonly checkboxBorder: string;
+  /** Checkbox check-mark colour (drawn when checked). `EDG.*`. */
+  readonly checkboxCheck: string;
+
   /** Default text/label colour. `EDG.*`. */
   readonly textColor: string;
   /** Muted/secondary text colour. `EDG.*`. */
@@ -70,6 +84,24 @@ export const DEFAULT_THEME: Theme = {
     disabled: EDG.steel,
   },
 
+  sliderTrack: EDG.navy,
+  sliderFill: EDG.skyBlue,
+  sliderThumb: {
+    normal: EDG.silver,
+    hover: EDG.white,
+    active: EDG.cyan,
+    disabled: EDG.slate,
+  },
+
+  checkboxBox: {
+    normal: EDG.ink,
+    hover: EDG.navy,
+    active: EDG.blue,
+    disabled: EDG.slate,
+  },
+  checkboxBorder: EDG.steel,
+  checkboxCheck: EDG.green,
+
   textColor: EDG.cream,
   textMuted: EDG.steel,
 
@@ -92,6 +124,8 @@ export function makeTheme(
     ...stripUndefined(overrides),
     buttonBg: { ...base.buttonBg, ...stripUndefined(overrides.buttonBg ?? {}) },
     buttonText: { ...base.buttonText, ...stripUndefined(overrides.buttonText ?? {}) },
+    sliderThumb: { ...base.sliderThumb, ...stripUndefined(overrides.sliderThumb ?? {}) },
+    checkboxBox: { ...base.checkboxBox, ...stripUndefined(overrides.checkboxBox ?? {}) },
   };
 }
 

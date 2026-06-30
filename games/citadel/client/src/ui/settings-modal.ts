@@ -1,23 +1,43 @@
 /**
- * Citadel — Settings modal (brief 25).
+ * Citadel — Settings modal, rendered IN-CANVAS via `@engine/ui` (replacing the old DOM
+ * overlay + its CSS in index.html). Part of the "all GUI in-game" DOM-overlay removal.
  *
- * UI-only. Builds a tabbed, accessible, searchable settings modal as a DOM
- * overlay and wires its controls back to the main-thread render toggles, the
- * sim-client speed, and the camera zoom via injected getters/setters.
+ * The modal is a retained `@engine/ui` tree built ONCE: a centred `panel` dialog holding a
+ * header (title + Close button), a row of tab `button`s (Display / Atmosphere / Simulation),
+ * and the SELECTED tab's content panel. Selecting a tab swaps which content panel is the
+ * dialog's last child (the other panels are kept but not in the rendered tree), so only one
+ * shows at a time. The host lays the tree out at a computed screen centre, renders it, and
+ * reconciles its a11y mirror each frame; it wires ONE input dispatcher + ONE a11y mirror to
+ * `root`, exactly like the build bar. Render/input only — no sim, no determinism impact.
  *
- * Lineage: tiny-world-builder's settings skill — tabbed categories grouped by
- * USER INTENT (not implementation), semantic role=tab/role=tabpanel, Arrow/
- * Home/End roving-tabindex keyboard nav, data-settings-keywords search filter,
- * mobile-responsive with internal scroll, Escape / backdrop / close-button
- * dismissal.
+ * Controls, all native `@engine/ui` widgets (theme-coloured, so EDG-clean with no colour
+ * literals here except the value label which uses EDG.*):
+ *   - Display:    a `slider` bound to camera zoom + a value label ("1.4x") updated on change.
+ *   - Atmosphere: one `checkbox` per render toggle (label = toggle.label, bound to get/set).
+ *   - Simulation: speed `button`s (1x / 2x / 4x) calling cfg.setSpeed(n).
  *
- * No colour literals live here — the modal's chrome is styled by CSS in
- * index.html (kept on the EDG palette), so the palette guard (which scans .ts)
- * stays clean and this file imports no EDG constants.
+ * `show()` resyncs every control from live state (checkbox.checked = toggle.get(),
+ * slider.value = getZoom(), value-label text) by MUTATING node props; the host then
+ * re-layouts + re-renders + reconciles the mirror. Escape-to-close is the host's global
+ * handler (it calls close() when isOpen()); the in-modal Close button also calls close().
  *
- * The pure helpers (matchesSearch, nextTabIndex) are exported so they can be
- * unit-tested headlessly without a real DOM.
+ * NOTE on search: the old DOM modal had a live `<input type=search>` filter. `@engine/ui`
+ * has NO text-input widget (out of scope to add one), so the live search box is DROPPED.
+ * The pure `matchesSearch` helper stays exported (its unit tests depend on it) for any
+ * future search affordance, but the modal no longer wires a search field.
+ *
+ * The pure helpers (matchesSearch, nextTabIndex) are exported so they can be unit-tested
+ * headlessly without a renderer.
  */
+import { EDG } from "@engine/core";
+import { panel, box, label, button, slider, checkbox } from "@engine/ui";
+import type {
+  ContainerNode,
+  LabelNode,
+  ButtonNode,
+  SliderNode,
+  CheckboxNode,
+} from "@engine/ui";
 
 // ---------------------------------------------------------------------------
 // Pure logic (exported for unit tests)
@@ -27,6 +47,9 @@
  * Does a settings row match a search query?  Case-insensitive substring match
  * against the row's label text and its space-separated keyword list. An empty
  * (or whitespace-only) query matches everything.
+ *
+ * Retained for unit tests / a potential future search affordance — the in-canvas
+ * modal no longer wires a live search field (no text-input widget in @engine/ui).
  */
 export function matchesSearch(
   query: string,
@@ -110,254 +133,141 @@ const TABS: readonly TabDef[] = [
   { id: "speed", label: "Simulation" },
 ];
 
+/** Width (px) given to the zoom slider — a value range has no intrinsic width. */
+const ZOOM_SLIDER_WIDTH = 160;
+
+/** Format a zoom value as a short label, e.g. 1.4 → "1.4x" (ASCII only). */
+function zoomLabelText(z: number): string {
+  return `${z.toFixed(1)}x`;
+}
+
 // ---------------------------------------------------------------------------
-// SettingsModal — builds + manages the modal DOM
+// SettingsModal — builds + manages the retained @engine/ui modal tree
 // ---------------------------------------------------------------------------
 
 export class SettingsModal {
   private readonly cfg: SettingsModalConfig;
-  private readonly root: HTMLDivElement;
-  private readonly tablist: HTMLDivElement;
-  private readonly searchInput: HTMLInputElement;
-  private readonly tabButtons: HTMLButtonElement[] = [];
-  private readonly panels: HTMLDivElement[] = [];
-  private readonly rows: HTMLDivElement[] = [];
-  private readonly toggleInputs = new Map<string, HTMLInputElement>();
-  private readonly zoomInput: HTMLInputElement;
-  private readonly zoomValue: HTMLSpanElement;
+
+  /** The dialog root — the host lays it out (centred), renders it, and wires a dispatcher + a11y mirror to it. */
+  readonly root: ContainerNode;
+
+  private readonly tabButtons: ButtonNode[] = [];
+  /** Each tab's content panel (kept built; only the selected one is in the tree). */
+  private readonly tabPanels: ContainerNode[] = [];
+  /** Atmosphere checkboxes, keyed by toggle id, for show()-time resync. */
+  private readonly toggleBoxes = new Map<string, CheckboxNode>();
+  private readonly zoomSlider: SliderNode;
+  private readonly zoomValueLabel: LabelNode;
+
   private selected = 0;
   private open = false;
 
   constructor(cfg: SettingsModalConfig) {
     this.cfg = cfg;
 
-    this.root = document.createElement("div");
-    this.root.id = "settings-modal";
-    this.root.className = "settings-modal";
-    this.root.setAttribute("role", "dialog");
-    this.root.setAttribute("aria-modal", "true");
-    this.root.setAttribute("aria-label", "Settings");
-    this.root.hidden = true;
+    // --- Display tab: zoom slider + live value label ---------------------
+    this.zoomValueLabel = label(zoomLabelText(cfg.getZoom()), { color: EDG.cyan });
+    this.zoomSlider = slider({
+      min: cfg.minZoom,
+      max: cfg.maxZoom,
+      value: cfg.getZoom(),
+      step: 0.1,
+      layout: { width: ZOOM_SLIDER_WIDTH },
+      onChange: (z) => {
+        cfg.setZoom(z);
+        this.zoomValueLabel.text = zoomLabelText(cfg.getZoom());
+      },
+    });
+    const displayPanel = box({ direction: "column", gap: 8, align: "start" }, [
+      label("Zoom level", { muted: true }),
+      box({ direction: "row", gap: 8, align: "center" }, [this.zoomSlider, this.zoomValueLabel]),
+    ]);
 
-    const dialog = document.createElement("div");
-    dialog.className = "settings-dialog";
-    // Clicks inside the dialog must not bubble to the backdrop (which closes).
-    dialog.addEventListener("click", (e) => e.stopPropagation());
+    // --- Atmosphere tab: one checkbox per render toggle ------------------
+    const atmosphereRows: CheckboxNode[] = cfg.toggles.map((t) => {
+      const cb = checkbox({
+        checked: t.get(),
+        label: t.label,
+        onChange: (v) => t.set(v),
+      });
+      this.toggleBoxes.set(t.id, cb);
+      return cb;
+    });
+    const atmospherePanel = box({ direction: "column", gap: 6, align: "start" }, atmosphereRows);
 
-    // Header: title + close button.
-    const header = document.createElement("div");
-    header.className = "settings-header";
-    const title = document.createElement("h2");
-    title.className = "settings-title";
-    title.textContent = "Settings";
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "settings-close";
-    closeBtn.setAttribute("aria-label", "Close settings");
-    closeBtn.textContent = "×";
-    closeBtn.addEventListener("click", () => this.close());
-    header.append(title, closeBtn);
+    // --- Simulation tab: speed buttons -----------------------------------
+    const speedButtons: ButtonNode[] = [1, 2, 4].map((n) =>
+      button(`${n}x`, { onActivate: () => cfg.setSpeed(n) }),
+    );
+    const speedPanel = box({ direction: "column", gap: 8, align: "start" }, [
+      label("Simulation speed", { muted: true }),
+      box({ direction: "row", gap: 6, align: "center" }, speedButtons),
+    ]);
 
-    // Search.
-    this.searchInput = document.createElement("input");
-    this.searchInput.type = "search";
-    this.searchInput.className = "settings-search";
-    this.searchInput.placeholder = "Search settings…";
-    this.searchInput.setAttribute("aria-label", "Search settings");
-    this.searchInput.addEventListener("input", () => this.applySearch());
+    this.tabPanels.push(displayPanel, atmospherePanel, speedPanel);
 
-    // Tablist.
-    this.tablist = document.createElement("div");
-    this.tablist.className = "settings-tablist";
-    this.tablist.setAttribute("role", "tablist");
-    this.tablist.setAttribute("aria-label", "Settings categories");
-    this.tablist.addEventListener("keydown", (e) => this.onTablistKeydown(e));
+    // --- Header: title + Close button ------------------------------------
+    const title = label("Settings");
+    const closeBtn = button("Close", { onActivate: () => this.close() });
+    const header = box({ direction: "row", gap: 16, align: "center" }, [title, closeBtn]);
 
-    const panelsWrap = document.createElement("div");
-    panelsWrap.className = "settings-panels";
-
-    // Build tabs + panels.
-    this.zoomInput = document.createElement("input");
-    this.zoomValue = document.createElement("span");
+    // --- Tab button row --------------------------------------------------
     TABS.forEach((tab, i) => {
-      const tabBtn = document.createElement("button");
-      tabBtn.className = "settings-tab";
-      tabBtn.setAttribute("role", "tab");
-      tabBtn.id = `settings-tab-${tab.id}`;
-      tabBtn.setAttribute("aria-controls", `settings-panel-${tab.id}`);
-      tabBtn.textContent = tab.label;
-      tabBtn.addEventListener("click", () => this.selectTab(i));
-      this.tabButtons.push(tabBtn);
-      this.tablist.appendChild(tabBtn);
-
-      const panel = document.createElement("div");
-      panel.className = "settings-panel";
-      panel.setAttribute("role", "tabpanel");
-      panel.id = `settings-panel-${tab.id}`;
-      panel.setAttribute("aria-labelledby", `settings-tab-${tab.id}`);
-      panel.setAttribute("tabindex", "0");
-      this.buildPanelBody(tab.id, panel);
-      this.panels.push(panel);
-      panelsWrap.appendChild(panel);
+      const b = button(tab.label, { onActivate: () => this.selectTab(i) });
+      this.tabButtons.push(b);
     });
+    const tabRow = box({ direction: "row", gap: 6, align: "center" }, [...this.tabButtons]);
 
-    dialog.append(header, this.searchInput, this.tablist, panelsWrap);
-    this.root.appendChild(dialog);
+    // --- Dialog: header + tab row + active content panel -----------------
+    // The 3rd child is swapped by selectTab to switch tabs (only the selected
+    // panel is ever in the tree, so only it lays out + renders).
+    this.root = panel({ direction: "column", gap: 12, align: "stretch" }, [
+      header,
+      tabRow,
+      this.tabPanels[0]!,
+    ]);
 
-    // Backdrop click closes.
-    this.root.addEventListener("click", () => this.close());
-    // Escape closes (when open). Capture on the root so it works while focus is
-    // inside the dialog.
-    this.root.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        this.close();
-      }
-    });
-
-    document.body.appendChild(this.root);
     this.selectTab(0);
   }
 
-  /** Populate a panel with its setting rows. */
-  private buildPanelBody(tabId: string, panel: HTMLDivElement): void {
-    if (tabId === "display") {
-      // Zoom slider row.
-      const row = this.makeRow("Zoom level", "zoom camera scale magnify display");
-      this.zoomInput.type = "range";
-      this.zoomInput.className = "settings-zoom";
-      this.zoomInput.min = String(this.cfg.minZoom);
-      this.zoomInput.max = String(this.cfg.maxZoom);
-      this.zoomInput.step = "0.1";
-      this.zoomInput.setAttribute("aria-label", "Zoom level");
-      this.zoomValue.className = "settings-zoom-value";
-      this.zoomInput.addEventListener("input", () => {
-        const z = Number(this.zoomInput.value);
-        this.cfg.setZoom(z);
-        this.refreshZoom();
-      });
-      const control = document.createElement("div");
-      control.className = "settings-control";
-      control.append(this.zoomInput, this.zoomValue);
-      row.appendChild(control);
-      panel.appendChild(row);
-      return;
-    }
-
-    if (tabId === "atmosphere") {
-      for (const t of this.cfg.toggles) {
-        const row = this.makeRow(t.label, t.keywords);
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.className = "settings-checkbox";
-        checkbox.id = `settings-toggle-${t.id}`;
-        checkbox.addEventListener("change", () => t.set(checkbox.checked));
-        // Make the whole label clickable: wrap label text in a <label for>.
-        const lbl = row.querySelector(".settings-row-label") as HTMLElement;
-        lbl.setAttribute("for", checkbox.id);
-        (lbl as HTMLLabelElement).htmlFor = checkbox.id;
-        this.toggleInputs.set(t.id, checkbox);
-        row.appendChild(checkbox);
-        panel.appendChild(row);
-      }
-      return;
-    }
-
-    if (tabId === "speed") {
-      const row = this.makeRow("Simulation speed", "speed fast slow 1x 2x 4x simulation tick");
-      const group = document.createElement("div");
-      group.className = "settings-speed-group";
-      group.setAttribute("role", "group");
-      group.setAttribute("aria-label", "Simulation speed");
-      for (const n of [1, 2, 4]) {
-        const b = document.createElement("button");
-        b.className = "settings-speed-btn";
-        b.textContent = `${n}x`;
-        b.addEventListener("click", () => this.cfg.setSpeed(n));
-        group.appendChild(b);
-      }
-      row.appendChild(group);
-      panel.appendChild(row);
-      return;
-    }
-  }
-
-  /** Build a settings row carrying searchable label + keyword metadata. */
-  private makeRow(label: string, keywords: string): HTMLDivElement {
-    const row = document.createElement("div");
-    row.className = "settings-row";
-    row.dataset.settingsKeywords = keywords;
-    // Use a <label> element so checkbox rows can wire `for`.
-    const lbl = document.createElement("label");
-    lbl.className = "settings-row-label";
-    lbl.textContent = label;
-    row.appendChild(lbl);
-    this.rows.push(row);
-    return row;
-  }
-
   // -------------------------------------------------------------------------
-  // Tab selection + keyboard nav (roving tabindex)
+  // Tab selection (visibility = swap which panel is the dialog's 3rd child)
   // -------------------------------------------------------------------------
 
-  private selectTab(index: number): void {
+  /** Select a tab: mark its button active and swap its content panel into the tree. */
+  selectTab(index: number): void {
     this.selected = index;
-    this.tabButtons.forEach((btn, i) => {
-      const isSel = i === index;
-      btn.setAttribute("aria-selected", isSel ? "true" : "false");
-      btn.tabIndex = isSel ? 0 : -1;
-      btn.classList.toggle("selected", isSel);
+    this.tabButtons.forEach((b, i) => {
+      // disabled wins elsewhere, but tabs are never disabled — active = selected.
+      b.state = i === index ? "active" : "normal";
     });
-    this.panels.forEach((p, i) => {
-      p.hidden = i !== index;
-    });
+    const activePanel = this.tabPanels[index];
+    if (activePanel !== undefined) this.root.children[2] = activePanel;
   }
 
-  private onTablistKeydown(e: KeyboardEvent): void {
-    const navKeys: readonly string[] = [
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-      "Home",
-      "End",
-    ];
-    if (!navKeys.includes(e.key)) return;
-    e.preventDefault();
-    const next = nextTabIndex(this.selected, e.key as TabNavKey, this.tabButtons.length);
-    this.selectTab(next);
-    this.tabButtons[next]?.focus();
+  /** Currently-selected tab index (for the host's roving keyboard nav via nextTabIndex). */
+  selectedTab(): number {
+    return this.selected;
+  }
+
+  /** The tab buttons in order (the host can hit-test/focus these for arrow-key nav). */
+  tabButtonNodes(): readonly ButtonNode[] {
+    return this.tabButtons;
   }
 
   // -------------------------------------------------------------------------
-  // Search filter
+  // State sync (called on open — mutates node props; host re-renders + reconciles)
   // -------------------------------------------------------------------------
 
-  private applySearch(): void {
-    const q = this.searchInput.value;
-    for (const row of this.rows) {
-      const label = row.querySelector(".settings-row-label")?.textContent ?? "";
-      const keywords = row.dataset.settingsKeywords ?? "";
-      row.hidden = !matchesSearch(q, label, keywords);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // State sync
-  // -------------------------------------------------------------------------
-
-  private refreshZoom(): void {
-    const z = this.cfg.getZoom();
-    this.zoomInput.value = String(z);
-    this.zoomValue.textContent = `${z.toFixed(1)}×`;
-  }
-
-  /** Reflect current live state into the controls (called on open). */
+  /** Reflect current live state into the controls (called by show()). */
   private syncFromState(): void {
-    for (const [id, checkbox] of this.toggleInputs) {
-      const spec = this.cfg.toggles.find((t) => t.id === id);
-      if (spec !== undefined) checkbox.checked = spec.get();
+    for (const t of this.cfg.toggles) {
+      const cb = this.toggleBoxes.get(t.id);
+      if (cb !== undefined) cb.checked = t.get();
     }
-    this.refreshZoom();
+    const z = this.cfg.getZoom();
+    this.zoomSlider.value = z;
+    this.zoomValueLabel.text = zoomLabelText(z);
   }
 
   // -------------------------------------------------------------------------
@@ -368,17 +278,16 @@ export class SettingsModal {
     return this.open;
   }
 
+  /**
+   * Open the modal, resyncing every control from live state. The host should follow up by
+   * laying out + rendering `root` and reconciling its a11y mirror (mirror.update(root)).
+   */
   show(): void {
     this.syncFromState();
-    this.applySearch();
-    this.root.hidden = false;
     this.open = true;
-    this.tabButtons[this.selected]?.focus();
   }
 
   close(): void {
-    if (!this.open) return;
-    this.root.hidden = true;
     this.open = false;
   }
 

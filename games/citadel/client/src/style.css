@@ -52,13 +52,10 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; margin: -1px; padding: 0;
 }
 
-/* Minimap — top-right overview, drawn on its own 2D canvas. */
-#minimap {
-  position: absolute; top: 8px; right: 8px; z-index: 20;
-  width: 168px; height: 168px; display: block;
-  background: #181425; border: 1px solid #5a6988; border-radius: 3px;
-  box-shadow: 0 4px 14px rgba(24, 20, 37, 0.55); cursor: pointer;
-}
+/* Minimap, occupancy badges, and the settings modal all render IN-CANVAS now via @engine/ui
+   (DOM-overlay removal) — their former DOM/CSS (#minimap canvas, #occupancy-badges chips,
+   .settings-* modal) was deleted here. The in-canvas surfaces are styled by the @engine/ui
+   theme (EDG palette) in src/ui/minimap.ts, src/render/occupancy-badges.ts, src/ui/settings-modal.ts. */
 .trade-offer-btn { background: #5a6988; color: #c0cbdc; border: 1px solid #fee761; padding: 2px 8px; cursor: pointer; font-family: monospace; font-size: 12px; }
 .trade-offer-btn:hover { background: #fee761; color: #181425; }
 /* Phase 4.5: hazard HUD */
@@ -68,86 +65,3 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
    the followed villager's job/id/activity/cargo now render IN-CANVAS via @engine/ui
    (src/ui/villager-panel.ts), with a hidden #ui-a11y-villager mirror for screen readers. */
 
-/* Per-building occupancy badges — headcount chips floated over each building
-   that has people at it (DOM overlay, pooled + positioned in main.ts). The
-   container is a full-viewport pass-through layer; each chip is centred on its
-   projected anchor point. Colors on the EDG palette. */
-#occupancy-badges {
-  position: absolute; inset: 0; z-index: 18;
-  pointer-events: none; overflow: hidden;
-}
-.occupancy-badge {
-  position: absolute; transform: translate(-50%, -100%);
-  font-family: monospace; font-size: 11px; font-weight: bold; line-height: 1;
-  color: #fee761; background: #262b44; border: 1px solid #5a6988;
-  border-radius: 7px; padding: 1px 5px; min-width: 8px; text-align: center;
-  box-shadow: 0 2px 5px rgba(24, 20, 37, 0.55); user-select: none;
-}
-
-/* Brief 25: Settings modal. Colors on EDG palette (the .ts guard does not
-   scan HTML, but we keep CSS on-palette for consistency). */
-.settings-modal {
-  position: fixed; inset: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(24, 20, 37, 0.72); /* EDG black @ alpha (backdrop) */
-  font-family: monospace; color: #c0cbdc;
-}
-.settings-modal[hidden] { display: none; }
-.settings-dialog {
-  background: #262b44; border: 1px solid #5a6988; border-radius: 4px;
-  width: min(520px, 92vw); max-height: 86vh;
-  display: flex; flex-direction: column;
-  box-shadow: 0 6px 24px rgba(24, 20, 37, 0.6);
-}
-.settings-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; border-bottom: 1px solid #3a4466;
-}
-.settings-title { font-size: 15px; color: #fee761; font-weight: bold; }
-.settings-close {
-  background: none; border: none; color: #8b9bb4; cursor: pointer;
-  font-size: 22px; line-height: 1; padding: 0 4px; font-family: monospace;
-}
-.settings-close:hover { color: #fee761; }
-.settings-search {
-  margin: 10px 14px 0; padding: 6px 8px; font-family: monospace; font-size: 13px;
-  background: #181425; color: #c0cbdc; border: 1px solid #5a6988; border-radius: 3px;
-}
-.settings-search::placeholder { color: #5a6988; }
-.settings-tablist {
-  display: flex; gap: 4px; flex-wrap: wrap; padding: 10px 14px 0;
-  border-bottom: 1px solid #3a4466;
-}
-.settings-tab {
-  background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988;
-  border-bottom: none; border-radius: 3px 3px 0 0; padding: 5px 12px;
-  cursor: pointer; font-family: monospace; font-size: 13px;
-}
-.settings-tab:hover { background: #5a6988; }
-.settings-tab.selected {
-  background: #262b44; color: #fee761; border-color: #fee761;
-}
-.settings-tab:focus-visible { outline: 2px solid #2ce8f5; outline-offset: 1px; }
-.settings-panels { overflow-y: auto; padding: 6px 14px 14px; }
-.settings-panel[hidden] { display: none; }
-.settings-panel:focus-visible { outline: none; }
-.settings-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 9px 2px; border-bottom: 1px solid #3a4466;
-}
-.settings-row[hidden] { display: none; }
-.settings-row-label { font-size: 13px; cursor: default; }
-.settings-checkbox { cursor: pointer; width: 16px; height: 16px; }
-.settings-control { display: flex; align-items: center; gap: 8px; }
-.settings-zoom { cursor: pointer; }
-.settings-zoom-value { color: #fee761; min-width: 38px; text-align: right; }
-.settings-speed-group { display: flex; gap: 4px; }
-.settings-speed-btn {
-  background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988;
-  padding: 3px 12px; cursor: pointer; font-family: monospace; font-size: 13px;
-  border-radius: 3px;
-}
-.settings-speed-btn:hover { background: #5a6988; }
-@media (max-width: 480px) {
-  .settings-dialog { width: 96vw; max-height: 92vh; }
-}

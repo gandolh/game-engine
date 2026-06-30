@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { computeLayout } from "../layout/layout";
 import { DEFAULT_THEME } from "../theme/theme";
-import { box, button, label, panel, resetNodeIds } from "../widget/node";
+import { box, button, checkbox, label, panel, slider, resetNodeIds } from "../widget/node";
 import type { UINode } from "../widget/node";
 import { createInputDispatcher } from "./dispatcher";
 import type { DragEvent } from "./dispatcher";
@@ -270,5 +270,110 @@ describe("drag", () => {
     d.pointerMove(x + 10, y); // exceeds threshold → drag, not click
     d.pointerUp(x + 10, y);
     expect(onActivate).not.toHaveBeenCalled();
+  });
+});
+
+describe("slider input — track click, drag, keyboard", () => {
+  it("a press jumps the value to the pointer x (track click) and sets active", () => {
+    const onChange = vi.fn();
+    const s = slider({ min: 0, max: 100, value: 0, onChange, layout: { width: 100 } });
+    const root = panel({ padding: 0 }, [s]);
+    computeLayout(root, 0, 0, DEFAULT_THEME); // track spans s.rect = [0,100]
+
+    const d = createInputDispatcher(() => root);
+    d.pointerDown(75, s.rect.y + 2);
+    expect(s.value).toBe(75);
+    expect(s.state).toBe("active");
+    expect(onChange).toHaveBeenLastCalledWith(75);
+    d.pointerUp(75, s.rect.y + 2);
+  });
+
+  it("dragging moves the value and routes through onDrag too", () => {
+    const events: DragEvent[] = [];
+    const onChange = vi.fn();
+    const s = slider({ min: 0, max: 100, value: 0, onChange, layout: { width: 100 } });
+    const root = panel({ padding: 0 }, [s]);
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    const d = createInputDispatcher(() => root, { onDrag: (e) => events.push({ ...e }) });
+    const y = s.rect.y + 2;
+
+    d.pointerDown(10, y); // value 10
+    d.pointerMove(40, y); // drag → value 40
+    d.pointerMove(90, y); // value 90
+    d.pointerUp(90, y);
+    expect(s.value).toBe(90);
+    expect(events.map((e) => e.phase)).toEqual(["start", "move", "move", "end"]);
+    expect(onChange).toHaveBeenLastCalledWith(90);
+  });
+
+  it("arrow keys nudge the focused slider; Enter/Space are not consumed by a slider", () => {
+    const s = slider({ min: 0, max: 10, value: 4, step: 2, layout: { width: 100 } });
+    const root = panel({}, [s]);
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    const d = createInputDispatcher(() => root);
+
+    d.focus(s);
+    expect(d.key({ key: "ArrowRight" }).consumed).toBe(true);
+    expect(s.value).toBe(6);
+    expect(d.key({ key: "ArrowDown" }).consumed).toBe(true);
+    expect(s.value).toBe(4);
+    // A slider has no activate action.
+    expect(d.key({ key: "Enter" }).consumed).toBe(false);
+  });
+
+  it("a focused slider participates in Tab traversal", () => {
+    const s = slider({ min: 0, max: 1, value: 0, layout: { width: 50 } });
+    const b = button("B");
+    const root = panel({}, [s, b]);
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    const d = createInputDispatcher(() => root);
+    d.key({ key: "Tab" });
+    expect(d.focused()).toBe(s);
+    d.key({ key: "Tab" });
+    expect(d.focused()).toBe(b);
+  });
+});
+
+describe("checkbox input — click + keyboard toggle", () => {
+  it("a click toggles checked and fires onChange", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange });
+    const root = panel({}, [c]);
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    const d = createInputDispatcher(() => root);
+    const [x, y] = center(c);
+
+    d.pointerDown(x, y);
+    expect(c.state).toBe("active");
+    d.pointerUp(x, y);
+    expect(c.checked).toBe(true);
+    expect(onChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it("Enter and Space toggle the focused checkbox", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange });
+    const root = panel({}, [c]);
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    const d = createInputDispatcher(() => root);
+
+    d.focus(c);
+    expect(d.key({ key: "Enter" }).consumed).toBe(true);
+    expect(c.checked).toBe(true);
+    expect(d.key({ key: " " }).consumed).toBe(true);
+    expect(c.checked).toBe(false);
+  });
+
+  it("a disabled checkbox does not toggle on click", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange, state: "disabled" });
+    const root = panel({}, [c]);
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    const d = createInputDispatcher(() => root);
+    const [x, y] = center(c);
+    d.pointerDown(x, y);
+    d.pointerUp(x, y);
+    expect(c.checked).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

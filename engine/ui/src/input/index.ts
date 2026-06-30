@@ -8,4 +8,5 @@ export type {
   PointerButton,
 } from "./dispatcher";
 export { hitTest, isHittable } from "./hit-test";
-export { focusables } from "./focus";
+export { focusables, isFocusable } from "./focus";
+export type { FocusableNode } from "./focus";

@@ -1,11 +1,22 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { EDG } from "@engine/core/render";
 import type { RendererLike, UIQuad } from "@engine/core/render";
 import { UISurface } from "../render/ui-surface";
 import { FONT_ATLAS_ID } from "../text/font";
 import { DEFAULT_THEME, makeTheme } from "../theme/theme";
 import { computeLayout } from "../layout/layout";
-import { panel, box, label, button, resetNodeIds } from "./node";
+import {
+  panel,
+  box,
+  label,
+  button,
+  slider,
+  checkbox,
+  toggle,
+  resetNodeIds,
+  SLIDER_DEFAULT_HEIGHT,
+  SLIDER_DEFAULT_WIDTH,
+} from "./node";
 import { renderTree } from "./render";
 
 /**
@@ -234,6 +245,196 @@ describe("theme swapping re-skins widgets", () => {
     renderTree(surface, root, theme);
     surface.end();
     expect(rec.quads[0]).toMatchObject({ color: EDG.greenDark });
+  });
+});
+
+describe("slider — construction, value mapping + layout", () => {
+  it("clamps + snaps the initial value into [min,max]", () => {
+    const s = slider({ min: 0, max: 10, value: 99, step: 2 });
+    expect(s.value).toBe(10); // clamped
+    const s2 = slider({ min: 0, max: 10, value: 3, step: 2 });
+    expect(s2.value).toBe(4); // snapped to nearest multiple of 2
+  });
+
+  it("intrinsic size: default width/height when not pinned, fixed width overrides", () => {
+    const s = slider({ min: 0, max: 1, value: 0.5 });
+    computeLayout(s, 0, 0, DEFAULT_THEME);
+    expect(s.rect.width).toBe(SLIDER_DEFAULT_WIDTH);
+    expect(s.rect.height).toBe(SLIDER_DEFAULT_HEIGHT);
+
+    resetNodeIds();
+    const wide = slider({ min: 0, max: 1, value: 0, layout: { width: 200, height: 20 } });
+    computeLayout(wide, 0, 0, DEFAULT_THEME);
+    expect(wide.rect.width).toBe(200);
+    expect(wide.rect.height).toBe(20);
+  });
+
+  it("maps pointer x across the track to a value (and back to a matching thumb x)", () => {
+    const onChange = vi.fn();
+    const s = slider({ min: 0, max: 100, value: 0, onChange, layout: { width: 100 } });
+    computeLayout(s, 10, 0, DEFAULT_THEME); // track spans x=[10,110]
+    // Half-way along the 100px track → 50.
+    expect(s.valueFromPointerX(60)).toBe(50);
+    // setValue writes + fires onChange with the new value.
+    s.setValueFromPointerX(60);
+    expect(s.value).toBe(50);
+    expect(onChange).toHaveBeenCalledWith(50);
+    // Beyond the ends clamps.
+    expect(s.valueFromPointerX(-999)).toBe(0);
+    expect(s.valueFromPointerX(9999)).toBe(100);
+  });
+
+  it("nudge moves by one step (or 1/100 of the range when continuous)", () => {
+    const stepped = slider({ min: 0, max: 10, value: 4, step: 2 });
+    stepped.nudge(1);
+    expect(stepped.value).toBe(6);
+    stepped.nudge(-1);
+    expect(stepped.value).toBe(4);
+
+    const cont = slider({ min: 0, max: 100, value: 50 });
+    cont.nudge(1);
+    expect(cont.value).toBe(51); // 1/100 of [0,100]
+  });
+
+  it("disabled slider ignores pointer + keyboard input", () => {
+    const onChange = vi.fn();
+    const s = slider({ min: 0, max: 100, value: 0, onChange, state: "disabled", layout: { width: 100 } });
+    computeLayout(s, 0, 0, DEFAULT_THEME);
+    s.setValueFromPointerX(50);
+    s.nudge(1);
+    expect(s.value).toBe(0);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("setValue clamps and snaps, returns true only when value changes", () => {
+    const s = slider({ min: 0, max: 10, value: 4, step: 2 });
+    // Snapping: 3 rounds to 4 (no change).
+    expect(s.setValue(3)).toBe(false);
+    expect(s.value).toBe(4);
+    // Snapping: 5 rounds to 6 (change).
+    expect(s.setValue(5)).toBe(true);
+    expect(s.value).toBe(6);
+    // Clamping above max.
+    expect(s.setValue(999)).toBe(true);
+    expect(s.value).toBe(10);
+    // Clamping below min.
+    expect(s.setValue(-5)).toBe(true);
+    expect(s.value).toBe(0);
+    // No-op when already at that snapped value.
+    expect(s.setValue(0)).toBe(false);
+  });
+
+  it("setValue is a no-op on a disabled slider", () => {
+    const s = slider({ min: 0, max: 10, value: 4, state: "disabled" });
+    expect(s.setValue(8)).toBe(false);
+    expect(s.value).toBe(4);
+  });
+});
+
+describe("slider — render (track + fill + thumb)", () => {
+  it("paints a track, a fill up to the thumb, and a state-coloured thumb", () => {
+    const { surface, rec } = makeSurface();
+    const s = slider({ min: 0, max: 100, value: 50, state: "hover", layout: { width: 100, height: 12 } });
+    computeLayout(s, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, s, DEFAULT_THEME);
+    surface.end();
+
+    // Track (full width), then fill (half width at value 50), then the thumb in the hover colour.
+    expect(rec.quads[0]).toMatchObject({ color: DEFAULT_THEME.sliderTrack, width: 100 });
+    expect(rec.quads[1]).toMatchObject({ color: DEFAULT_THEME.sliderFill, width: 50 });
+    const thumb = rec.quads[rec.quads.length - 1]!;
+    expect(thumb.color).toBe(DEFAULT_THEME.sliderThumb.hover);
+  });
+
+  it("thumb rect stays within track bounds at value=min", () => {
+    const { surface, rec } = makeSurface();
+    const w = 100;
+    const h = 12;
+    const s = slider({ min: 0, max: 100, value: 0, layout: { width: w, height: h } });
+    computeLayout(s, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, s, DEFAULT_THEME);
+    surface.end();
+
+    const thumb = rec.quads[rec.quads.length - 1]!;
+    // Thumb must start at or after the track left edge (x=0).
+    expect(thumb.x).toBeGreaterThanOrEqual(0);
+    // Thumb right edge must not exceed the track right edge.
+    expect(thumb.x + thumb.width).toBeLessThanOrEqual(w);
+  });
+
+  it("thumb rect stays within track bounds at value=max", () => {
+    const { surface, rec } = makeSurface();
+    const w = 100;
+    const h = 12;
+    const s = slider({ min: 0, max: 100, value: 100, layout: { width: w, height: h } });
+    computeLayout(s, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, s, DEFAULT_THEME);
+    surface.end();
+
+    const thumb = rec.quads[rec.quads.length - 1]!;
+    expect(thumb.x).toBeGreaterThanOrEqual(0);
+    expect(thumb.x + thumb.width).toBeLessThanOrEqual(w);
+  });
+});
+
+describe("checkbox / toggle — construction, layout + render", () => {
+  it("toggle is an alias of checkbox", () => {
+    expect(toggle).toBe(checkbox);
+  });
+
+  it("toggle() flips checked and fires onChange with the next value", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange });
+    expect(c.toggle()).toBe(true);
+    expect(c.checked).toBe(true);
+    expect(onChange).toHaveBeenLastCalledWith(true);
+    c.toggle();
+    expect(c.checked).toBe(false);
+    expect(onChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("disabled checkbox does not toggle", () => {
+    const onChange = vi.fn();
+    const c = checkbox({ checked: false, onChange, state: "disabled" });
+    c.toggle();
+    expect(c.checked).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("intrinsic size grows by gap + label width when labelled", () => {
+    const bare = checkbox({});
+    computeLayout(bare, 0, 0, DEFAULT_THEME);
+    const boxOnly = bare.rect.width;
+
+    resetNodeIds();
+    const labelled = checkbox({ label: "On" }); // "On" = 11w
+    computeLayout(labelled, 0, 0, DEFAULT_THEME);
+    expect(labelled.rect.width).toBe(boxOnly + DEFAULT_THEME.gap + 11);
+  });
+
+  it("renders box + border and a check mark only when checked", () => {
+    const { surface, rec } = makeSurface();
+    const checked = checkbox({ checked: true, label: "X" });
+    computeLayout(checked, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, checked, DEFAULT_THEME);
+    surface.end();
+    // border, box fill, check mark, then the label glyph(s).
+    expect(rec.quads[0]).toMatchObject({ color: DEFAULT_THEME.checkboxBorder });
+    expect(rec.quads[1]).toMatchObject({ color: DEFAULT_THEME.checkboxBox.normal });
+    expect(rec.quads.some((q) => q.color === DEFAULT_THEME.checkboxCheck)).toBe(true);
+
+    resetNodeIds();
+    const { surface: s2, rec: rec2 } = makeSurface();
+    const unchecked = checkbox({ checked: false });
+    computeLayout(unchecked, 0, 0, DEFAULT_THEME);
+    s2.begin();
+    renderTree(s2, unchecked, DEFAULT_THEME);
+    s2.end();
+    expect(rec2.quads.some((q) => q.color === DEFAULT_THEME.checkboxCheck)).toBe(false);
   });
 });
 

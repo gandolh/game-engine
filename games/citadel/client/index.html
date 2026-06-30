@@ -7,15 +7,13 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
-    <!-- Minimap: top-right world overview (2D canvas overlay, drawn in main.ts) -->
-    <canvas id="minimap" width="168" height="168" title="Click to jump the camera"></canvas>
+    <!-- Minimap now renders IN-CANVAS via @engine/ui (raw UISurface quads, src/ui/minimap.ts),
+         top-right, with click-to-seek forwarded from the canvas in main.ts. (Was a 2D canvas.)
+         Occupancy badges likewise render in-canvas now (src/render/occupancy-badges.ts). -->
     <!-- Event toasts now render IN-CANVAS via @engine/ui (src/ui/toast.ts). This hidden
          aria-live region is their a11y mirror: each new toast's text is announced to
          screen readers here (the visuals are 100% in the WebGPU canvas). -->
     <div id="toast-live" aria-live="polite" aria-atomic="true"></div>
-    <!-- Per-building occupancy badges: headcount chips floated over buildings
-         (DOM overlay, pooled + positioned in main.ts via the world→screen map) -->
-    <div id="occupancy-badges"></div>
     <!-- engine-ui chunk 7: hidden host for the @engine/ui a11y mirror. The framework
          renders the HUD 100% in-canvas; this empty container is where createA11yMirror
          builds a parallel, visually-hidden DOM subtree so the in-canvas HUD is reachable
@@ -39,6 +37,13 @@
          a parallel visually-hidden DOM tree of real <button>s so the in-canvas toolbar is
          reachable by screen readers + the keyboard. Built/managed entirely in main.ts. -->
     <div id="ui-a11y-buildbar"></div>
+
+    <!-- DOM-overlay removal: a FIFTH hidden a11y-mirror host, for the in-canvas settings modal
+         (src/ui/settings-modal.ts). The tabbed dialog (Display / Atmosphere / Simulation) renders
+         100% in the WebGPU canvas via @engine/ui; this mount holds its parallel visually-hidden
+         DOM tree (real <button>s, an <input type=checkbox> per toggle, an <input type=range> for
+         zoom) so the modal is reachable by screen readers + the keyboard. Empty while closed. -->
+    <div id="ui-a11y-settings"></div>
 
     <!-- engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) and
          the speed/pause controls are now rendered IN-CANVAS via @engine/ui (see

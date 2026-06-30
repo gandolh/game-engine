@@ -1,30 +1,53 @@
 /**
- * Citadel minimap — a top-right overview of the whole tile world.
+ * Citadel minimap — a top-right overview of the whole tile world, drawn
+ * IN-CANVAS through the engine UI surface (NOT a separate Canvas2D overlay).
  *
- * Drawn with a plain 2D canvas overlay (independent of the WebGPU game canvas),
- * in the SAME 2:1 dimetric **iso world-px** space the game renders in (NOT
- * axis-aligned tile space). Every element — baked terrain, buildings, units,
- * raiders — is projected through the world's `tileToIso` and then fit into the
- * square minimap face, so the diamond world tilts to match the screen. The
- * payoff: the camera viewport, whose four screen corners invert to iso world-px,
- * lands as an upright **rectangle** (matching the player's actual screen) instead
- * of the confusing diamond it was in tile space.
+ * The host emits the whole minimap each frame as raw `UISurface` quads inside
+ * its existing `surface.begin()/end()` block — there is no `@engine/ui` widget
+ * kind for it (the minimap is a custom canvas-like surface, not a widget
+ * composition; the `renderTree` walk has no escape hatch for custom draws). So
+ * we draw raw: many `surface.rect(...)` calls, all in screen px offset by the
+ * host-chosen top-right origin.
+ *
+ * Everything is projected in the SAME 2:1 dimetric **iso world-px** space the
+ * game renders in (NOT axis-aligned tile space), via the world's `tileToIso`,
+ * then fit into the square minimap face. The payoff: the camera viewport, whose
+ * four screen corners invert to iso world-px, lands as an upright rectangle
+ * (matching the player's screen). Because `screenToWorld` and the face fit are
+ * both affine (independent x/y scale + translate, no rotation), that viewport is
+ * axis-aligned in face px and so strokes as four thin `surface.rect` edges.
+ *
+ * `UISurface` only takes axis-aligned rects/quads — it cannot fill diamonds or
+ * stroke a rotated polygon, and it cannot blit a baked canvas. So:
+ *   - Terrain (static) is PRECOMPUTED ONCE in the constructor as a flat array of
+ *     face-local `{x,y,w,h,color}` quads (approach (b)): each tile becomes a
+ *     small axis-aligned rect at its iso centre, sized to roughly cover the
+ *     diamond. Per-frame cost is then just emitting the cached rects offset by
+ *     the host origin — no per-tile re-projection. (Tradeoff: tiles read as tiny
+ *     squares, not diamonds; at ~168px face this is barely perceptible and gaps
+ *     are masked by the dark backing panel.)
+ *   - Entities + viewport are dynamic, computed per frame.
  *
  * Render-only: reads snapshots + the camera transform, never the sim clock/RNG.
  * Colours come from the EDG palette (the palette guard scans this .ts file).
  */
 import { EDG } from "@engine/core";
+import type { UISurface } from "@engine/ui/render";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import { TerrainType } from "@citadel/sim-core";
 import { screenToWorld, type CameraTransform } from "../render/transform";
 import {
   tileToIso,
-  tileDiamond,
   isoToTileContinuous,
   ISO_WORLD_W,
   ISO_WORLD_H,
   ISO_HW,
+  ISO_TILE_W,
+  ISO_TILE_H,
 } from "../render/iso";
+
+/** Default CSS-px size of the square minimap face (matches the old `width=168`). */
+export const MINIMAP_FACE = 168;
 
 /** Terrain type → minimap fill (EDG). Matches the in-world terrain reading. */
 function terrainColor(t: number): string {
@@ -37,6 +60,15 @@ function terrainColor(t: number): string {
   }
 }
 
+/** A precomputed face-local terrain quad (offset by the host origin at draw). */
+interface FaceQuad {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly color: string;
+}
+
 /** What the minimap needs from the live frame to stamp entities + viewport. */
 export interface MinimapFrame {
   readonly buildings: readonly BuildingSnapshot[];
@@ -46,14 +78,9 @@ export interface MinimapFrame {
 }
 
 export class CitadelMinimap {
-  private readonly canvas: HTMLCanvasElement;
-  private readonly ctx: CanvasRenderingContext2D;
-  /** Offscreen terrain bake in fitted iso-face px; blitted 1:1 each frame. */
-  private readonly terrainBake: HTMLCanvasElement;
-  private readonly gw: number;
-  private readonly gh: number;
-  /** CSS px size of the square minimap face (backing store is dpr-scaled). */
+  /** CSS px size of the square minimap face. */
   private readonly faceSize: number;
+  private readonly onSeek: (tx: number, ty: number) => void;
 
   // --- Iso-world-px → minimap-face-px fit (uniform scale + centring). --------
   // The iso world is wider than tall (2:1), so we scale to fit the wider span
@@ -62,70 +89,53 @@ export class CitadelMinimap {
   private readonly fitOffX: number;
   private readonly fitOffY: number;
 
+  /** Precomputed terrain quads in FACE-LOCAL px (offset by origin each frame). */
+  private readonly terrainQuads: readonly FaceQuad[];
+
   /**
-   * @param onSeek invoked with continuous tile coords when the user clicks the
-   *               minimap, so the host can recentre the camera there.
+   * @param terrain   the static terrain grid — baked once into face-local quads.
+   * @param onSeek    invoked with continuous tile coords when the user clicks the
+   *                  minimap face, so the host can recentre the camera there.
+   * @param faceSize  CSS-px side of the square face (default {@link MINIMAP_FACE}).
    */
-  constructor(canvas: HTMLCanvasElement, terrain: TerrainGrid, onSeek: (tx: number, ty: number) => void) {
-    this.canvas = canvas;
-    this.gw = terrain.width;
-    this.gh = terrain.height;
-    const ctx = canvas.getContext("2d");
-    if (ctx === null) throw new Error("[citadel] minimap: 2D context unavailable");
-    this.ctx = ctx;
+  constructor(
+    terrain: TerrainGrid,
+    onSeek: (tx: number, ty: number) => void,
+    faceSize: number = MINIMAP_FACE,
+  ) {
+    this.faceSize = faceSize;
+    this.onSeek = onSeek;
 
-    // Backing store: dpr-scaled (clamped to 2, matching the game canvas) so the
-    // minimap stays crisp on HiDPI without ballooning fill cost.
-    const dpr = Math.min((typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1), 2);
-    this.faceSize = canvas.clientWidth || 168;
-    canvas.width = Math.round(this.faceSize * dpr);
-    canvas.height = Math.round(this.faceSize * dpr);
-    this.ctx.scale(dpr, dpr);
-    this.ctx.imageSmoothingEnabled = false;
+    // Fit the whole iso diamond into the square face (uniform scale + centring).
+    this.fitScale = faceSize / Math.max(ISO_WORLD_W, ISO_WORLD_H);
+    this.fitOffX = (faceSize - ISO_WORLD_W * this.fitScale) / 2;
+    this.fitOffY = (faceSize - ISO_WORLD_H * this.fitScale) / 2;
 
-    // Fit the whole iso diamond into the square face.
-    this.fitScale = this.faceSize / Math.max(ISO_WORLD_W, ISO_WORLD_H);
-    this.fitOffX = (this.faceSize - ISO_WORLD_W * this.fitScale) / 2;
-    this.fitOffY = (this.faceSize - ISO_WORLD_H * this.fitScale) / 2;
-
-    // Bake terrain once as iso diamonds at face resolution (dpr-scaled). Each
-    // tile's diamond is projected through `tileToIso` and the fit transform, so
-    // the bake registers exactly with the per-frame entity/viewport projection.
-    this.terrainBake = document.createElement("canvas");
-    this.terrainBake.width = Math.round(this.faceSize * dpr);
-    this.terrainBake.height = Math.round(this.faceSize * dpr);
-    const tctx = this.terrainBake.getContext("2d");
-    if (tctx === null) throw new Error("[citadel] minimap: terrain bake context unavailable");
-    tctx.scale(dpr, dpr);
-    for (let y = 0; y < this.gh; y++) {
-      for (let x = 0; x < this.gw; x++) {
-        tctx.fillStyle = terrainColor(terrain.cells[y * this.gw + x] ?? 0);
-        const d = tileDiamond(x, y);
-        tctx.beginPath();
-        for (let i = 0; i < d.length; i++) {
-          const fx = this.fitOffX + d[i]!.x * this.fitScale;
-          const fy = this.fitOffY + d[i]!.y * this.fitScale;
-          if (i === 0) tctx.moveTo(fx, fy);
-          else tctx.lineTo(fx, fy);
-        }
-        tctx.closePath();
-        tctx.fill();
+    // Precompute terrain once (approach (b)): each tile → one small axis-aligned
+    // rect centred on its iso position. Size = the diamond's fitted footprint so
+    // adjacent tiles tile together with no visible gaps. UISurface can't fill
+    // diamonds, so we approximate; at ~168px the squares read as solid terrain.
+    const gw = terrain.width;
+    const gh = terrain.height;
+    const tileW = ISO_TILE_W * this.fitScale; // fitted full diamond width
+    const tileH = ISO_TILE_H * this.fitScale; // fitted full diamond height
+    const quads: FaceQuad[] = [];
+    for (let y = 0; y < gh; y++) {
+      for (let x = 0; x < gw; x++) {
+        const c = tileToIso(x + 0.5, y + 0.5); // diamond centre in iso world-px
+        quads.push({
+          x: this.fx(c.x) - tileW / 2,
+          y: this.fy(c.y) - tileH / 2,
+          w: tileW,
+          h: tileH,
+          color: terrainColor(terrain.cells[y * gw + x] ?? 0),
+        });
       }
     }
-
-    // Click → iso world-px → tile → seek (inverts the same fit transform).
-    canvas.addEventListener("mousedown", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const faceX = ((e.clientX - rect.left) / rect.width) * this.faceSize;
-      const faceY = ((e.clientY - rect.top) / rect.height) * this.faceSize;
-      const isoX = (faceX - this.fitOffX) / this.fitScale;
-      const isoY = (faceY - this.fitOffY) / this.fitScale;
-      const { tileX, tileY } = isoToTileContinuous(isoX, isoY);
-      onSeek(tileX, tileY);
-    });
+    this.terrainQuads = quads;
   }
 
-  /** Iso world-px → minimap-face CSS px (uniform fit + centring). */
+  /** Iso world-px → minimap-face-local px (uniform fit + centring). */
   private fx(isoX: number): number {
     return this.fitOffX + isoX * this.fitScale;
   }
@@ -133,58 +143,91 @@ export class CitadelMinimap {
     return this.fitOffY + isoY * this.fitScale;
   }
 
-  /** Redraw the whole minimap for the current frame. */
-  draw(frame: MinimapFrame): void {
-    const { ctx } = this;
+  /**
+   * Emit the whole minimap for the current frame as raw quads on `surface`,
+   * anchored at screen-px `(originX, originY)` (the host's chosen top-right spot).
+   * Call inside the host's `surface.begin()/end()` block. All coords below are
+   * face-local then offset by the origin, so the face occupies
+   * `[originX, originX+faceSize] × [originY, originY+faceSize]` on screen.
+   */
+  draw(surface: UISurface, originX: number, originY: number, frame: MinimapFrame): void {
+    const ox = originX;
+    const oy = originY;
     const s = this.faceSize;
-    ctx.clearRect(0, 0, s, s);
-    ctx.drawImage(this.terrainBake, 0, 0, s, s);
+
+    // Faint dark backing panel so specks + terrain gaps read clearly.
+    surface.rect(ox, oy, s, s, EDG.black, 0.7);
+
+    // Terrain — cached face-local quads, just offset by the origin.
+    for (const q of this.terrainQuads) {
+      surface.rect(ox + q.x, oy + q.y, q.w, q.h, q.color);
+    }
 
     // Buildings — small blocks centred on the footprint's iso position, sized by
     // footprint; fire-tinted when burning, keep highlighted.
     for (const b of frame.buildings) {
-      ctx.fillStyle = (b.onFire || b.burning) ? EDG.red : b.type === "keep" ? EDG.yellow : EDG.cream;
+      const color = (b.onFire || b.burning) ? EDG.red : b.type === "keep" ? EDG.yellow : EDG.cream;
       const c = tileToIso(b.x + b.w / 2, b.y + b.h / 2);
       const side = Math.max(2, (b.w + b.h) * ISO_HW * this.fitScale * 0.5);
-      ctx.fillRect(this.fx(c.x) - side / 2, this.fy(c.y) - side / 2, side, side);
+      surface.rect(ox + this.fx(c.x) - side / 2, oy + this.fy(c.y) - side / 2, side, side, color);
     }
 
     // Villagers — faint cyan specks.
-    ctx.fillStyle = EDG.cyan;
     for (const v of frame.villagers) {
       const c = tileToIso(v.x + 0.5, v.y + 0.5);
-      ctx.fillRect(this.fx(c.x) - 0.75, this.fy(c.y) - 0.75, 1.5, 1.5);
+      surface.rect(ox + this.fx(c.x) - 0.75, oy + this.fy(c.y) - 0.75, 1.5, 1.5, EDG.cyan);
     }
 
     // Raiders — hot-pink threat specks (slightly larger to stand out).
-    ctx.fillStyle = EDG.hotPink;
     for (const r of frame.raiders) {
       const c = tileToIso(r.x + 0.5, r.y + 0.5);
-      ctx.fillRect(this.fx(c.x) - 1.5, this.fy(c.y) - 1.5, 3, 3);
+      surface.rect(ox + this.fx(c.x) - 1.5, oy + this.fy(c.y) - 1.5, 3, 3, EDG.hotPink);
     }
 
-    // Camera viewport — invert the four screen corners to iso world-px and stroke
-    // the resulting quad. Because the minimap is now in iso space and the camera
-    // is a linear pan/zoom of it, the screen rectangle maps to an upright
-    // rectangle (matching the player's screen), not a diamond.
+    // Camera viewport — invert the four screen corners to iso world-px. Because
+    // both `screenToWorld` and the face fit are affine (no rotation), the screen
+    // rect maps to an AXIS-ALIGNED rectangle in face px; stroke it as four thin
+    // edges (UISurface has no polygon stroke).
     const t = frame.transform;
-    const corners: [number, number][] = [
-      [0, 0],
-      [t.canvasW, 0],
-      [t.canvasW, t.canvasH],
-      [0, t.canvasH],
-    ];
-    ctx.beginPath();
-    corners.forEach(([sx, sy], i) => {
-      const { worldX, worldY } = screenToWorld(t, sx, sy);
-      const mx = this.fx(worldX);
-      const my = this.fy(worldY);
-      if (i === 0) ctx.moveTo(mx, my);
-      else ctx.lineTo(mx, my);
-    });
-    ctx.closePath();
-    ctx.strokeStyle = EDG.yellow;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    const c0 = screenToWorld(t, 0, 0);
+    const c1 = screenToWorld(t, t.canvasW, t.canvasH);
+    // Map both corners to face px and normalise to top-left + size.
+    const x0 = this.fx(c0.worldX);
+    const y0 = this.fy(c0.worldY);
+    const x1 = this.fx(c1.worldX);
+    const y1 = this.fy(c1.worldY);
+    const left = Math.min(x0, x1);
+    const top = Math.min(y0, y1);
+    const w = Math.abs(x1 - x0);
+    const h = Math.abs(y1 - y0);
+    const lw = 1.5; // stroke width in px
+    const col = EDG.yellow;
+    surface.rect(ox + left, oy + top, w, lw, col);              // top edge
+    surface.rect(ox + left, oy + top + h - lw, w, lw, col);     // bottom edge
+    surface.rect(ox + left, oy + top, lw, h, col);              // left edge
+    surface.rect(ox + left + w - lw, oy + top, lw, h, col);     // right edge
+  }
+
+  /**
+   * Handle a pointer press at screen-px `(screenX, screenY)` while the face is
+   * anchored at `(originX, originY)`. If the press lands inside the face, convert
+   * face px → iso world-px → continuous tile, invoke `onSeek`, and return `true`
+   * (consumed). Otherwise returns `false` so the host can route the press onward.
+   *
+   * The host owns the DOM listener and the device-px conversion; it passes the
+   * same coordinate space it used for `draw` (CSS px relative to the minimap face
+   * anchor — i.e. the same origin it drew at).
+   */
+  trySeek(screenX: number, screenY: number, originX: number, originY: number): boolean {
+    const faceX = screenX - originX;
+    const faceY = screenY - originY;
+    if (faceX < 0 || faceY < 0 || faceX > this.faceSize || faceY > this.faceSize) {
+      return false;
+    }
+    const isoX = (faceX - this.fitOffX) / this.fitScale;
+    const isoY = (faceY - this.fitOffY) / this.fitScale;
+    const { tileX, tileY } = isoToTileContinuous(isoX, isoY);
+    this.onSeek(tileX, tileY);
+    return true;
   }
 }

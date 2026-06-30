@@ -5,7 +5,14 @@ import { measureText } from "../text/layout";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
 import { resolvePadding } from "../layout/props";
-import type { ButtonNode, LabelNode, ContainerNode, UINode } from "./node";
+import type {
+  ButtonNode,
+  CheckboxNode,
+  ContainerNode,
+  LabelNode,
+  SliderNode,
+  UINode,
+} from "./node";
 
 /**
  * Render walk for the `@engine/ui` retained tree.
@@ -45,6 +52,12 @@ function drawNode(surface: UISurface, node: UINode, theme: Theme, alpha: number)
     case "button":
       drawButton(surface, node, theme, a);
       break;
+    case "slider":
+      drawSlider(surface, node, theme, a);
+      break;
+    case "checkbox":
+      drawCheckbox(surface, node, theme, a);
+      break;
   }
 }
 
@@ -83,4 +96,69 @@ function drawButton(surface: UISurface, node: ButtonNode, theme: Theme, alpha: n
   const tx = x + pad.left + Math.max(0, (innerW - tw) / 2);
   const ty = y + pad.top + Math.max(0, (innerH - th) / 2);
   drawText(surface, node.label, tx, ty, { color: fg, scale, alpha });
+}
+
+/**
+ * Draw a slider: a thin centred track groove, a fill from the track's left edge to the thumb,
+ * and a square thumb centred on the value's x. The thumb x mirrors the node's value↔pixel
+ * mapping (`valueFromPointerX`): `t = (value-min)/(max-min)` across the full rect width, so a
+ * pointer at the thumb's centre reads back the same value.
+ *
+ * The rendered thumb is clamped to stay fully within the track bounds `[x, x+width-thumbW]`,
+ * preventing overflow at min/max values (value↔pointer mapping is left unchanged).
+ */
+function drawSlider(surface: UISurface, node: SliderNode, theme: Theme, alpha: number): void {
+  const { x, y, width, height } = node.rect;
+  const range = node.max - node.min;
+  const t = range > 0 ? (node.value - node.min) / range : 0;
+
+  // Square thumb the full node height; track is a thinner bar centred vertically.
+  const thumbW = height;
+  const trackH = Math.max(2, Math.round(height / 3));
+  const trackY = y + (height - trackH) / 2;
+  // Ideal thumb x (centred on value position); clamped so the whole thumb stays within [x, x+width-thumbW].
+  const thumbXIdeal = x + t * width - thumbW / 2;
+  const thumbX = Math.max(x, Math.min(thumbXIdeal, x + width - thumbW));
+  const thumbCenterX = x + t * width;
+
+  surface.rect(x, trackY, width, trackH, theme.sliderTrack, alpha);
+  if (thumbCenterX > x) {
+    surface.rect(x, trackY, thumbCenterX - x, trackH, theme.sliderFill, alpha);
+  }
+  surface.rect(thumbX, y, thumbW, height, theme.sliderThumb[node.state], alpha);
+}
+
+/**
+ * Draw a checkbox: a bordered square box (filled per state), a check mark (an inset filled square)
+ * when `checked`, and the optional inline label to the right. The box-size/gap math mirrors the
+ * layout pass so the hit rect and the visuals agree.
+ */
+function drawCheckbox(surface: UISurface, node: CheckboxNode, theme: Theme, alpha: number): void {
+  const { x, y, height } = node.rect;
+  const scale = node.scale ?? theme.textScale;
+  const boxSize = layoutText("M", { scale }).height;
+
+  // Box: border rect with the state fill inset by the theme border width.
+  const bw = theme.borderWidth;
+  if (bw > 0) {
+    surface.rect(x, y, boxSize, boxSize, theme.checkboxBorder, alpha);
+    surface.rect(x + bw, y + bw, boxSize - 2 * bw, boxSize - 2 * bw, theme.checkboxBox[node.state], alpha);
+  } else {
+    surface.rect(x, y, boxSize, boxSize, theme.checkboxBox[node.state], alpha);
+  }
+
+  // Check mark: a filled inset square (a glyph-free tick that stays crisp at any scale).
+  if (node.checked) {
+    const inset = Math.max(2, Math.round(boxSize / 4));
+    surface.rect(x + inset, y + inset, boxSize - 2 * inset, boxSize - 2 * inset, theme.checkboxCheck, alpha);
+  }
+
+  // Inline label, vertically centred against the box.
+  if (node.label.length > 0) {
+    const color = node.state === "disabled" ? theme.textMuted : theme.textColor;
+    const th = layoutText(node.label, { scale }).height;
+    const tx = x + boxSize + theme.gap;
+    const ty = y + Math.max(0, (height - th) / 2);
+    drawText(surface, node.label, tx, ty, { color, scale, alpha });
+  }
 }

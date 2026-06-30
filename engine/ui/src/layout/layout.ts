@@ -3,7 +3,7 @@ import { measureText } from "../text/layout";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
 import type { UINode } from "../widget/node";
-import { isContainer } from "../widget/node";
+import { isContainer, SLIDER_DEFAULT_HEIGHT, SLIDER_DEFAULT_WIDTH } from "../widget/node";
 import type { Align, Direction, Padding } from "./props";
 import { resolvePadding } from "./props";
 
@@ -76,6 +76,24 @@ function measureNode(node: UINode, theme: Theme, cache: Map<number, Intrinsic>):
       width: t.width + pad.left + pad.right,
       height: t.height + pad.top + pad.bottom,
     };
+  } else if (node.kind === "slider") {
+    // A slider has no intrinsic *width* (a value range is dimensionless) — fall back to a sensible
+    // default unless pinned via `width`/`grow`. Its intrinsic height is the default track height.
+    size = { width: SLIDER_DEFAULT_WIDTH, height: SLIDER_DEFAULT_HEIGHT };
+  } else if (node.kind === "checkbox") {
+    // A checkbox is a square box (as tall as one line of label text) plus, when labelled, a gap
+    // and the inline label. The render walk uses the same box-size/gap math, so they must agree.
+    const scale = node.scale ?? theme.textScale;
+    const lineH = textSize("M", scale).height; // representative single-line height
+    const boxSize = lineH;
+    let width = boxSize;
+    let height = boxSize;
+    if (node.label.length > 0) {
+      const t = textSize(node.label, scale);
+      width += theme.gap + t.width;
+      height = Math.max(boxSize, t.height);
+    }
+    size = { width, height };
   } else {
     // Container: pack children intrinsically.
     const pad = paddingOf(node, theme);
