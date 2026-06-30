@@ -48,7 +48,11 @@ function gapOf(node: UINode, theme: Theme): number {
   return node.layout.gap ?? theme.gap;
 }
 function paddingOf(node: UINode, theme: Theme): Padding {
-  return resolvePadding(node.layout.padding, isContainer(node) ? theme.padding : 0);
+  // Containers AND buttons default to the theme padding (a button needs breathing room
+  // around its label, and the render walk centres the label in a theme-padding box — both
+  // passes must agree or the label overflows a text-tight background). Labels are bare text.
+  const padded = isContainer(node) || node.kind === "button";
+  return resolvePadding(node.layout.padding, padded ? theme.padding : 0);
 }
 
 /** Intrinsic text size of a label/button's string at its resolved scale. */

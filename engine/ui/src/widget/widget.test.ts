@@ -125,6 +125,17 @@ describe("button intrinsic size + state", () => {
     expect(btn.rect.width).toBe(11 + 8);
     expect(btn.rect.height).toBe(9 + 8);
   });
+
+  it("with no explicit padding, uses the theme padding (measure matches the render walk)", () => {
+    // Regression: paddingOf must give a button the theme padding by default, the same value
+    // the render walk centres the label within. If they disagree the bg is text-tight and
+    // the label overflows / adjacent buttons merge (the Citadel HUD speed/pause bug).
+    const btn = button("OK"); // "OK" = 11w, 9h text; theme.padding default = 6
+    computeLayout(btn, 0, 0, DEFAULT_THEME);
+    const p = DEFAULT_THEME.padding;
+    expect(btn.rect.width).toBe(11 + 2 * p);
+    expect(btn.rect.height).toBe(9 + 2 * p);
+  });
 });
 
 describe("renderTree — emits themed quads + text", () => {

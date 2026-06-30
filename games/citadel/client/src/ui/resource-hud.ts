@@ -106,7 +106,7 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
     happyLbl,
   ]);
 
-  const controls = box({ direction: "row", gap: 4, align: "center" }, [
+  const controls = box({ direction: "row", gap: 6, align: "center" }, [
     pauseBtn,
     speed1Btn,
     speed2Btn,

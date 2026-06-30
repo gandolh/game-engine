@@ -147,16 +147,19 @@ export function createInputDispatcher(
   function pointerMove(x: number, y: number): ConsumeResult {
     const hit = ht(x, y);
 
-    // Drive an in-progress drag regardless of what we're now over.
-    if (pressNode && onDrag) {
+    // Track an in-progress drag regardless of what we're now over. Drag *detection* (the
+    // `dragging` flag + threshold) is independent of the optional `onDrag` hook: crossing the
+    // threshold must suppress the click even when no `onDrag` callback is registered. The hook
+    // is merely notified when present.
+    if (pressNode) {
       const dx = x - pressX;
       const dy = y - pressY;
       if (!dragging && (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold)) {
         dragging = true;
-        onDrag({ phase: "start", node: pressNode, x, y, startX: pressX, startY: pressY, dx, dy });
+        onDrag?.({ phase: "start", node: pressNode, x, y, startX: pressX, startY: pressY, dx, dy });
       }
       if (dragging) {
-        onDrag({ phase: "move", node: pressNode, x, y, startX: pressX, startY: pressY, dx, dy });
+        onDrag?.({ phase: "move", node: pressNode, x, y, startX: pressX, startY: pressY, dx, dy });
       }
     }
 
