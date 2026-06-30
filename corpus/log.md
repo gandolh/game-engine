@@ -4,6 +4,23 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel resource HUD — all-goods strip (4th @engine/ui consumer)
+
+Closed the resource-HUD-all-goods todo (orchestrate → inline build; pure client render, no
+sim change). The in-canvas HUD ([resource-hud.ts](../games/citadel/client/src/ui/resource-hud.ts))
+now shows a **goods strip** — one colour-coded `@engine/ui` label per tradeable good in
+production-chain order (grain→flour→bread; wood→planks; stone→tools), each tinted from a
+distinct `EDG.*` (gold/cream/tan/wood/clay/steel/silver — colour is the "icon" since the
+framework has no arbitrary-colour swatch). **Bread keeps its `(±foodSurplus)` annotation.**
+`ResourceHudState` now carries the full `stockpiles: Readonly<Record<string,number>>` (the
+old per-field `bread`/`wood` removed); the host ([main.ts](../games/citadel/client/src/main.ts))
+passes `snap.stockpiles` straight through (one module var replaced the two scalars). Determinism
+untouched (render/data-binding only). `@citadel/client` typecheck clean, **331 tests** (+1),
+palette guard 6/6. **Verified in-browser** (playtest-citadel, system Chrome + WebGPU, seed
+`0x1a2b3c4d`): the strip renders in-canvas at Town/day-108 reading `Grain 404 · Flour 426 ·
+Bread 0 (-4) · Wood 0 · Planks 11 · Stone 5 · Tools 6`, color-coded, 0 JS page errors,
+`reloads: 0`. **2 panel todos remain** (build-cost-hover, town-hall build button).
+
 ## [2026-06-30] build | Citadel villager job personalization (3rd @engine/ui consumer)
 
 Closed the villager-job todo (orchestrate → plan-split-dispatch, 3 chunks + a review-fix).

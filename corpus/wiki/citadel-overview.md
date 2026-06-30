@@ -62,8 +62,10 @@ are still open (solo is unaffected).
 
 ## HUD & overlays (2026-06-22)
 
-> **2026-06-30 update:** the **top HUD bar** (resource readout: tier/day/pop/bread/wood/
-> happiness + speed/pause buttons) now renders **in-canvas** via the new `@engine/ui`
+> **2026-06-30 update:** the **top HUD bar** (settlement readout: tier/day/pop/happiness,
+> a **goods strip** with one colour-coded chip per good — grain/flour/bread/wood/planks/
+> stone/tools, bread carrying its `(±surplus)` annotation — + speed/pause buttons) now
+> renders **in-canvas** via the new `@engine/ui`
 > framework ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)), replacing the
 > DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`. The rest of the UI (build bar,
 > settings modal, minimap, toasts, occupancy badges, follow-HUD) is still DOM;
