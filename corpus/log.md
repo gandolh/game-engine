@@ -4,6 +4,43 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel DOM-overlay removal COMPLETE — all GUI in-canvas (surfaces 3–5/5)
+
+The last three DOM UI surfaces migrated onto `@engine/ui`, completing the "all GUI in-game"
+goal — **no DOM UI overlays remain over the Citadel world canvas** (branch
+`citadel-dom-overlay-removal`). (1) **Occupancy badges** → world-anchored in-canvas chips
+([occupancy-badges.ts](../games/citadel/client/src/render/occupancy-badges.ts)), pooled
+panel+label headcount chips positioned per-building via a new canvas-relative `tileToCanvasCss`
+(the in-canvas surface is canvas-relative, not viewport-relative like the old DOM projector).
+(2) **`@engine/ui` gained `slider` + `checkbox`/`toggle` widgets** — the framework had only
+panel/box/label/button; these are full retained-mode node kinds (ctors + flex sizing + EDG32
+theme tokens + render walk + dispatcher drag/click/nudge + a11y-mirror `<input type=range>` /
+`<input type=checkbox>` branches with `aria-valuenow`/`aria-checked`). The node owns its value
+(clamp+snap); `onChange` fires on every input. (3) **Minimap** → in-canvas **raw-quad** draw
+([minimap.ts](../games/citadel/client/src/ui/minimap.ts)): the closed `renderTree` switch has no
+custom-draw escape hatch, so the minimap draws terrain (precomputed face-local quads) + entity
+specks + the camera-viewport rect directly via `UISurface.rect` in the host loop, with
+`trySeek(x,y,ox,oy)` for click-to-seek (terrain tiles render as small axis-aligned rects not
+diamonds — UISurface can't fill diamonds; imperceptible at 168px). (4) **Settings modal** → in-canvas
+([settings-modal.ts](../games/citadel/client/src/ui/settings-modal.ts)): tabbed (Display
+zoom-slider / Atmosphere toggle-checkboxes / Simulation speed-buttons) via a button-row +
+panel-visibility pattern, own dispatcher + `#ui-a11y-settings` mirror, made **fully modal** by the
+host (all canvas pointer/wheel swallowed while open). The live **search box was dropped** (no
+text-input widget in `@engine/ui`); the `matchesSearch`/`nextTabIndex` helpers stayed.
+**Built model-routed (plan-split-dispatch): 1 junior + 3 senior chunks in parallel + controller
+integration.** A **scoped 3-finder review caught + fixed 5 real issues**: a module-init crash (the
+modal ctor read `camera.zoom` before async boot → guarded with a 1× fallback), the modal not being
+fully modal (presses/wheel/keys leaked to the world behind it → full-canvas intercept while open),
+the slider thumb overflowing the track at min/max, the mirror slider `<input>` bypassing the node's
+snap/clamp, and a checkbox a11y text-node that could grow unboundedly on a label change. **Verified
+in real WebGPU** (playtest-citadel + a focused modal probe): minimap + viewport rect, occupancy "N"
+chips, modal tabs + working zoom-slider thumb, behind-modal click placed nothing with a build tool
+armed, Close/Display/Atmosphere/Simulation exposed as real a11y `<button>`s, mirror cleared on Escape.
+Gates: `@engine/ui` 133 tests, `@citadel/client` 369 tests, EDG32 guard 6/6, all typecheck-clean;
+determinism untouched (render/input only). Follow-up still open:
+[authored-typography-and-icons](todos/2026-06-30-engine-ui-authored-typography-and-icons.md)
+(restore the build-bar icon grid + a proper pixel font).
+
 ## [2026-06-30] build | Citadel build bar → in-canvas @engine/ui (DOM-overlay removal, surface 2/5)
 
 The biggest DOM surface migrated: the placement **build bar** is now in-canvas via `@engine/ui`

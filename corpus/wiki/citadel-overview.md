@@ -77,14 +77,25 @@ are still open (solo is unaffected).
 > stone/tools, bread carrying its `(±surplus)` annotation — + speed/pause buttons) now
 > renders **in-canvas** via the new `@engine/ui`
 > framework ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)), replacing the
-> DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`. **Event toasts** are also in-canvas now
-> (2026-06-30 — an `@engine/ui` top-centre column with an `opacity` fade + a hidden
-> `#toast-live` aria-live mirror). The **build bar** is in-canvas too (2026-06-30 —
-> [build-bar.ts](../../games/citadel/client/src/ui/build-bar.ts): a bottom-left grid of grouped
-> **text** buttons, own input dispatcher + a11y mirror, tier-lock/affordability greying + cost
-> hover-info; emoji icons dropped as the bitmap font is ASCII-only — an authored-icon todo will
-> restore the icon grid). Still DOM (migration in progress): the settings modal, minimap
-> (Canvas2D), and occupancy badges (world-anchored).
+> DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`.
+>
+> **✅ DOM-overlay removal COMPLETE (2026-06-30) — ALL Citadel GUI now renders in-canvas; no DOM
+> UI overlays remain over the world canvas.** Beyond the HUD: **toasts** (top-centre `@engine/ui`
+> column, `opacity` fade + `#toast-live` aria-live mirror); the **build bar**
+> ([build-bar.ts](../../games/citadel/client/src/ui/build-bar.ts): grouped **text** buttons, own
+> dispatcher + a11y mirror, tier-lock/affordability greying + cost hover-info — emoji dropped as the
+> font is ASCII-only, restore-icons todo open); **occupancy badges**
+> ([occupancy-badges.ts](../../games/citadel/client/src/render/occupancy-badges.ts): world-anchored
+> panel+label headcount chips via a canvas-relative `tileToCanvasCss`); the **minimap**
+> ([minimap.ts](../../games/citadel/client/src/ui/minimap.ts): **raw `UISurface` quads** — terrain +
+> entity specks + camera-viewport rect — drawn directly in the host loop, NOT a widget tree, since
+> `renderTree` has no custom-draw hook; `trySeek` for click-to-seek); and the **settings modal**
+> ([settings-modal.ts](../../games/citadel/client/src/ui/settings-modal.ts): tabbed Display/Atmosphere/
+> Simulation, own dispatcher + `#ui-a11y-settings` mirror, **fully modal** — host swallows all canvas
+> input while open; live search dropped, no text-input widget). To support the modal, **`@engine/ui`
+> gained `slider` + `checkbox`/`toggle` node kinds** (drag via the dispatcher `onDrag`; a11y
+> `<input type=range>`/`<input type=checkbox>`). Verified in real WebGPU (playtest + modal probe).
+> Open follow-up: [authored-typography-and-icons](../todos/2026-06-30-engine-ui-authored-typography-and-icons.md).
 
 > **2026-06-30 — town-hall is now a placeable civic building (build bar `Services` group).**
 > A `town-hall` toolbar button was added. As a down-payment on cozy-pivot **Phase G**, the
@@ -99,7 +110,13 @@ are still open (solo is unaffected).
 > (autonomous rations/work-hours within its radius-10 reach); the sprite is still the shared
 > `warehouse` form + banner (bespoke civic-hall art is optional follow-up polish).
 
-The Citadel client UI is **DOM overlays over a single WebGPU canvas** (no Canvas2D
+> **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
+> *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,
+> minimap, and settings modal **all render in-canvas via `@engine/ui`** — the `#build-bar`/`#hud`/
+> `#minimap`/`#occupancy-badges` DOM + their CSS are gone. Kept here for the 2026-06-22 design
+> rationale (HUD-height fights, the minimap iso-projection model) that motivated the move.
+
+The Citadel client UI **was** **DOM overlays over a single WebGPU canvas** (no Canvas2D
 for the world). Layout: `<body>` is a flex column — canvas (`flex:1`), then a
 `#build-bar` strip, then a `#hud` readout row. Three changes on 2026-06-22 reclaim
 laptop vertical space and stop a layout shift:
