@@ -152,6 +152,11 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>("#build-bar butto
 let camera: Camera2D;
 let renderer: RendererLike;
 let windowController: RenderWindowController;
+// `camera`/`renderer` are assigned asynchronously in boot() (after `await
+// createCitadelRenderer`), but the canvas input listeners are registered at module load. A
+// pointer/wheel event arriving in that ~1s boot gap would deref an undefined `camera`
+// (pan/zoom/updateCursor). World handlers bail until this flips true (set once camera exists).
+let inputReady = false;
 
 // engine-ui chunk 7: the in-canvas top HUD bar (resource readout + speed/pause), the
 // screen-space UI surface over the renderer, the canvas-space input dispatcher, and the
@@ -315,6 +320,7 @@ window.addEventListener("keydown", (e) => {
 }, { capture: true });
 
 canvas.addEventListener("mousedown", (e) => {
+  if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   // Right button (2) pans the camera; left button (0) interacts/builds.
   if (e.button === 2) {
     isPanning = true;
@@ -331,6 +337,7 @@ canvas.addEventListener("mousedown", (e) => {
 });
 
 canvas.addEventListener("mouseup", (e) => {
+  if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
     placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
     const routeBlocked = placementState.lastRouteBlocked;
@@ -352,6 +359,7 @@ canvas.addEventListener("mouseup", (e) => {
 canvas.addEventListener("mouseleave", () => { isPanning = false; });
 
 canvas.addEventListener("mousemove", (e) => {
+  if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   if (isPanning) {
     // Convert CSS-px mouse delta to world-px using the live GPU scale.
     // sx = canvas.width (device px) / camera.worldUnitsX. dpr maps CSS→device.
@@ -373,6 +381,7 @@ canvas.addEventListener("mousemove", (e) => {
 });
 
 canvas.addEventListener("wheel", (e) => {
+  if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   e.preventDefault();
   // Zoom toward the cursor: keep the world point under the pointer fixed.
   fitCameraToCanvas(camera, canvas.width, canvas.height);
@@ -386,6 +395,7 @@ canvas.addEventListener("wheel", (e) => {
 }, { passive: false });
 
 canvas.addEventListener("click", (e) => {
+  if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   if (isPanning) return;
   placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
 
@@ -1262,6 +1272,7 @@ async function boot(): Promise<void> {
   renderer = created.renderer;
   camera = created.camera;
   windowController = created.windowController;
+  inputReady = true; // camera/renderer live → world input handlers may run
 
   // engine-ui chunk 7: register the bitmap font atlas (once), build the in-canvas HUD,
   // and wire its render/input/a11y plumbing.
