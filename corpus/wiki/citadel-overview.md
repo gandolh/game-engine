@@ -37,6 +37,16 @@ Registered in [sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.
 - **Economy / population**: `production`, `villager-system`, `immigration`, `needs-happiness`, `trader`, `tiers` (settlement-tier progression with thresholds + locks), `road-connectivity`, `day-clock`.
 - **Threats**: `raid-spawn`, `raider-movement`, `siege-resolution`, `fire-system`, `disease-system`.
 
+> **Build cost (2026-06-30, cozy economy).** Placing a building can cost materials —
+> `BUILD_COST` per type in [building.ts](../../games/citadel/sim-core/src/entities/building.ts)
+> (cold-open buildings cheap + **wood-only**; stone/tools only on late refiners/defence; roads/
+> gates/walls/bridges free). `placeOne` checks affordability up front (rejecting `"cost"`) and
+> **debits only on success**. **Opt-in** like `enforceTerritory`: `bootstrapSim({ chargeBuildCost,
+> startingStock })` — default OFF, so headless/tests/the determinism baseline are unchanged; the
+> **solo client** turns it ON (worker bootstrap) with a founding `{ wood: 40 }` grant, and the build
+> bar shows the cost on hover + greys unaffordable buttons live (`!useServer` only — MP placement
+> stays free). The save persists both options so save→replay stays identical.
+
 Terrain + walkability come from [world/terrain.ts](../../games/citadel/sim-core/src/world/terrain.ts) (`generateTerrain`, `isWalkable`, `TerrainType`); villagers are defined in [entities/villager.ts](../../games/citadel/sim-core/src/entities/villager.ts).
 
 ## Shared invariants

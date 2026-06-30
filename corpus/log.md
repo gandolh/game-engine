@@ -4,6 +4,33 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel build-cost economy + hover/affordability UI (6th @engine/ui consumer — all 6 done)
+
+Closed build-cost-hover (orchestrate → inline multi-step build; grilled one balance call first).
+Discovered the player starts with **0 of every good** (`emptyStockpiles`), so naive always-on
+costs would soft-lock the cold-open. **User chose (grilled): a founding wood grant.** Implemented
+costs the same way the codebase already gates MP-only behaviour — an **opt-in bootstrap flag**
+(mirroring `enforceTerritory`), so the 17 building-placing test files + the bulk-place headless demo
+run **unchanged** (determinism baseline preserved by construction) and the **solo client** opts in.
+**Sim:** `BUILD_COST` per type in [building.ts](../games/citadel/sim-core/src/entities/building.ts)
+(cold-open buildings cheap + wood-only; stone/tools only on late refiners/defence; roads/gates/walls
+free) + `buildCost()`; `bootstrapSim({ chargeBuildCost, startingStock })` (default off); `placeOne`
+checks affordability up front (new `"cost"` reject + `describeReject` message) and **debits only on
+success** (no refund path); a founding `startingStock` grant credited to every player at bootstrap.
+**Save/load:** the save now persists both options so `loadFromSave` replays with the same rules
+(round-trip stays deep-equal — tested). **Client:** worker bootstrap turns it on with `{ wood: 40 }`;
+the build bar shows the cost on hover (`title`) + greys unaffordable buttons live (new `.unaffordable`),
+gated `!useServer` (MP placement stays free). **Determinism:** the gated branch is unreachable with
+the flag off → two headless `sim:citadel` runs byte-identical **and identical to the pre-change
+baseline** (SEED=7) — the change is a true no-op for headless. `@citadel/sim-core` typecheck clean,
+**180 tests** (+7 build-cost incl. free-by-default / debit / unaffordable-reject / stone-cost /
+twice-run determinism / save-load-with-costs round-trip); `@citadel/client` typecheck clean, 331
+tests. **Verified in-browser** (system Chrome + WebGPU): tooltips read "house — costs 4 wood" etc.;
+the 40-wood grant funded exactly **10 houses** then the build bar **greyed the house button**
+(disabled + `.unaffordable`, "needs 4 wood") and the sim toasted "can't afford a house — need 4 wood";
+0 page errors. **This closes the last of the 6 `@engine/ui` consumer todos.** The umbrella "all GUI
+in-game" todo continues (build bar / settings / minimap / toasts / badges still DOM).
+
 ## [2026-06-30] build | Citadel town-hall build button + solo keep-anchor decouple (5th @engine/ui consumer)
 
 Closed the town-hall-build-button todo (orchestrate → inline build; grilled one design call
