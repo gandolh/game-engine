@@ -4,6 +4,27 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel event toasts → in-canvas @engine/ui (DOM-overlay removal, surface 1/5)
+
+First surface of the umbrella "all GUI in-game" DOM-overlay removal: **event toasts** now render
+in-canvas via `@engine/ui` (were a pointer-transparent DOM overlay). **Framework:** added a reusable
+`opacity` channel to [render.ts](../engine/ui/src/widget/render.ts) — a node's `opacity` (default 1)
+**multiplies down the subtree** in `renderTree` (so fading a container fades its children; alpha≤0
+skips the subtree), threaded into every `surface.rect`/`drawText` (both already took `alpha`). Pairs
+with the existing `anim` tweens; +2 tests. **Client:** [toast.ts](../games/citadel/client/src/ui/toast.ts)
+`ToastManager` rewritten to keep its `push(msg,nowMs)`/`tick(nowMs)` API but build a top-centre
+`@engine/ui` column of tone-coloured toast panels (label colour by `toneOf` → EDG salmon/yellow/green/
+cyan), each fading in/holding/fading out via age-driven `opacity` (`toastOpacity`); the host lays it out
+(two passes: measure width → re-anchor centred at y=48, clear of the in-canvas HUD) + renders it last in
+the shared `uiSurface` block. The DOM `#toast-container` + `.toast*` CSS are gone; a hidden
+`#toast-live` `aria-live=polite` region announces each toast for screen readers (a11y parity).
+Render-only — no sim/determinism touch. `@engine/ui` typecheck clean, **99 tests** (+2 opacity);
+`@citadel/client` typecheck clean, **340 tests** (+9 toast: tone colours, cap/evict, opacity ramp,
+aria-live, `newEventsSince`); palette guard 6/6. **Verified in-browser** (system Chrome + WebGPU): a
+reject toast ("Day 2: can't afford a house — need 4 wood.") renders in-canvas top-centre below the HUD,
+the `#toast-live` region carries the text, the old DOM `#toast-container` is gone, 0 page errors.
+**4 DOM surfaces remain** (build bar, settings modal, minimap, occupancy badges).
+
 ## [2026-06-30] build | Citadel build-cost economy + hover/affordability UI (6th @engine/ui consumer — all 6 done)
 
 Closed build-cost-hover (orchestrate → inline multi-step build; grilled one balance call first).

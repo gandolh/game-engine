@@ -77,9 +77,10 @@ are still open (solo is unaffected).
 > stone/tools, bread carrying its `(±surplus)` annotation — + speed/pause buttons) now
 > renders **in-canvas** via the new `@engine/ui`
 > framework ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)), replacing the
-> DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`. The rest of the UI (build bar,
-> settings modal, minimap, toasts, occupancy badges, follow-HUD) is still DOM;
-> migration in progress (the 6 Citadel UI panel todos are now unblocked).
+> DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`. **Event toasts** are also in-canvas now
+> (2026-06-30 — an `@engine/ui` top-centre column with an `opacity` fade + a hidden
+> `#toast-live` aria-live mirror). Still DOM (migration in progress): the build bar, settings
+> modal, minimap (Canvas2D), and occupancy badges (world-anchored).
 
 > **2026-06-30 — town-hall is now a placeable civic building (build bar `Services` group).**
 > A `town-hall` toolbar button was added. As a down-payment on cozy-pivot **Phase G**, the
