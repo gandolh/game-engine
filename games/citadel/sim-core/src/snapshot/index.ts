@@ -37,6 +37,17 @@ export interface VillagerSnapshot {
   readonly y: number;
   readonly fsm: string;
   readonly carryGood: string | null;
+  /**
+   * The villager's job, derived READ-ONLY at snapshot time from the TYPE of the
+   * workplace building it is assigned to (see `jobForBuildingType`). Stable and
+   * deterministic — a pure read of existing sim state, never written back.
+   *
+   * Value set: "farmer" | "miller" | "baker" | "woodcutter" | "quarryman" |
+   * "miner" | "sawyer" | "smith" | "priest" | "trader" | "watchman" |
+   * "soldier" | "healer" | "idle". "idle" is an unassigned villager (no
+   * resolvable workplace). See `VillagerJob` in entities/building.ts.
+   */
+  readonly job: string;
 }
 
 /** Phase 4: one raider group as seen by the renderer. */

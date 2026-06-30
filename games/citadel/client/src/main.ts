@@ -19,6 +19,8 @@ import { createResourceHud } from "./ui/resource-hud";
 import type { ResourceHud } from "./ui/resource-hud";
 import { createInspectPanel } from "./ui/inspect-panel";
 import type { InspectPanel } from "./ui/inspect-panel";
+import { createVillagerPanel } from "./ui/villager-panel";
+import type { VillagerPanel } from "./ui/villager-panel";
 import { buildingAtTile, findSelected } from "./ui/selection";
 import type { BuildingSelection } from "./ui/selection";
 import { CitadelSimClient } from "./worker/sim-client";
@@ -50,7 +52,6 @@ import {
   nearestVillager,
   followReleaseId,
   villagerById,
-  destinationLabel,
 } from "./render/citadel-fx";
 import {
   computeWash,
@@ -125,10 +126,6 @@ const decreConscription  = document.getElementById("decree-conscription")   as H
 // Phase 3: trader panel
 const traderPanel  = document.getElementById("trader-panel")!;
 const traderOffers = document.getElementById("trader-offers")!;
-
-// Brief 19: follow-cam HUD strip (DOM, since the WebGPU overlay callback is a
-// no-op). Shows the followed villager's id / fsm / cargo / destination.
-const followHud = document.getElementById("follow-hud")!;
 
 // Event toasts (top-center) replace the old inline #hud-events span — events no
 // longer reflow the bottom bar. Created at module scope so it exists before the
@@ -207,6 +204,22 @@ function openInspectAtTile(tx: number, ty: number): boolean {
   inspectPanel?.markOpened();
   return true;
 }
+
+// Villager-job chunk 3: a THIRD in-canvas UI root — the floating follow-a-villager panel.
+// It shares the same `uiSurface` (rendered after the HUD + inspect panel) and supersedes the
+// old DOM #follow-hud strip. Read-only (no buttons), so it has NO input dispatcher; it keeps
+// its own a11y mirror (a third hidden mount) so screen-reader users get the job/id/fsm/cargo.
+// Open/close is driven entirely by the follow-cam: it is open iff `followId !== null`. The
+// live villager is re-found each frame by id (villagers carry a stable id).
+let villagerPanel: VillagerPanel | undefined;
+let villagerMirror: A11yMirror | undefined;
+const villagerA11yMount = document.getElementById("ui-a11y-villager");
+// Villager-job code-review FIX B: the villager panel is a `panel` (background:true), so even
+// though it has no buttons it should consume clicks on its rect — otherwise a click on the
+// panel falls through to the world. It gets its own dispatcher (inert while not following),
+// mirroring the inspect panel's pattern. Returns null root while not following → reports
+// `consumed: false`, so forwarding events to it is a no-op when the panel is hidden.
+let villagerDispatcher: InputDispatcher | undefined;
 
 // Atmosphere (render-only, off-sim): day/night wash, weather FX, ambient crowd.
 const weather = new CitadelWeather();
@@ -297,7 +310,10 @@ canvas.addEventListener("mousedown", (e) => {
   const btn = pointerButtonOf(e);
   const hudC = uiDispatcher.pointerDown(x, y, btn).consumed;
   const inspectC = inspectDispatcher?.pointerDown(x, y, btn).consumed ?? false;
-  if (hudC || inspectC) {
+  // FIX B: forward to the villager-panel dispatcher too (inert while not following). A press on
+  // its rect is UI-owned so the world doesn't start a placement/drag underneath the panel.
+  const villagerC = villagerDispatcher?.pointerDown(x, y, btn).consumed ?? false;
+  if (hudC || inspectC || villagerC) {
     // Press landed on a UI widget: the UI owns this gesture. Block the world so it doesn't
     // start a placement/drag, and remember the ownership for this gesture's move/up/click.
     uiPressActive = true;
@@ -316,6 +332,7 @@ canvas.addEventListener("mouseup", (e) => {
   // the world handler so road/wall drags commit.
   uiDispatcher.pointerUp(x, y, btn);
   inspectDispatcher?.pointerUp(x, y, btn);
+  villagerDispatcher?.pointerUp(x, y, btn); // FIX B: complete any UI-owned gesture on the panel
   if (uiPressActive) e.stopImmediatePropagation();
   // The gesture ends here; the `click` handler below reads `uiPressActive` first, then we
   // clear it on the next mousedown — but clear here so a stray click without a press can't
@@ -331,6 +348,7 @@ canvas.addEventListener("mousemove", (e) => {
   // UI owns the active gesture. Mere hover must NOT block world pan/drag.
   uiDispatcher.pointerMove(x, y, btn);
   inspectDispatcher?.pointerMove(x, y, btn);
+  villagerDispatcher?.pointerMove(x, y, btn); // FIX B
   if (uiPressActive) e.stopImmediatePropagation();
 }, { capture: true });
 canvas.addEventListener("click", (e) => {
@@ -346,7 +364,8 @@ canvas.addEventListener("wheel", (e) => {
   const { x, y } = eventToCssPx(e);
   const hudC = uiDispatcher.wheel(x, y, e.deltaY).consumed;
   const inspectC = inspectDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
-  if (hudC || inspectC) {
+  const villagerC = villagerDispatcher?.wheel(x, y, e.deltaY).consumed ?? false; // FIX B
+  if (hudC || inspectC || villagerC) {
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -520,7 +539,9 @@ canvas.addEventListener("click", (e) => {
   const picked = nearestVillager(currentVillagers, tx, ty);
   if (picked !== null) {
     followId = picked; // 2: villager → follow-cam
-    updateFollowHud();
+    // Force a layout + a11y reconcile on this (re)open, even when following a villager whose
+    // job/fsm/cargo happens to match the last one followed (firstRefresh is per-LIFETIME).
+    villagerPanel?.markOpened();
   } else {
     // 3: empty ground → close inspect first (if open), else release any follow.
     if (inspectOpen()) closeInspect();
@@ -549,32 +570,15 @@ window.addEventListener("keydown", (e) => {
   );
 });
 
+/**
+ * Release the follow-cam and hide the in-canvas villager panel. Clears the panel's a11y mirror
+ * on EVERY release path (Esc / click-away / minimap jump / despawn) so the hidden
+ * #ui-a11y-villager DOM stops advertising the released villager (its readout must leave the
+ * accessibility tree the moment the follow is gone).
+ */
 function clearFollow(): void {
   followId = null;
-  updateFollowHud();
-}
-
-/**
- * Refresh the follow HUD strip (brief 19). Hidden when not following; otherwise
- * shows the followed villager's id, fsm, cargo, and fsm-derived destination.
- * Called on right-click pick, on release, and each snapshot (state may change).
- */
-function updateFollowHud(): void {
-  if (followId === null) {
-    followHud.classList.remove("visible");
-    followHud.textContent = "";
-    return;
-  }
-  const v = villagerById(currentVillagers, followId);
-  if (v === null) {
-    // Will be released by the loop's despawn check; hide pre-emptively.
-    followHud.classList.remove("visible");
-    return;
-  }
-  const cargo = v.carryGood !== null ? v.carryGood : "—";
-  followHud.textContent =
-    `Following #${v.id}  ·  ${v.fsm}  ·  cargo: ${cargo}  ·  ${destinationLabel(v.fsm)}  ·  [Esc to release]`;
-  followHud.classList.add("visible");
+  villagerMirror?.update(null);
 }
 
 /** Building whose footprint contains (tx,ty) in the latest snapshot, or null. */
@@ -649,6 +653,7 @@ function highlightActiveBuildButton(): void {
 }
 
 function selectBuild(type: string): void {
+  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
   placementState.mode = "place";
   placementState.selectedType = type;
   const def = getBuildingDef(type);
@@ -730,22 +735,26 @@ function refreshBuildButtonLocks(): void {
 }
 
 btnRoad.addEventListener("click", () => {
+  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
   placementState.mode = "road";
   placementState.setRequiresForest(false);
   placementState.setRequiresStone(false);
   updateModeLabel();
 });
 btnWall.addEventListener("click", () => {
+  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
   placementState.mode = "wall";
   placementState.setRequiresForest(false);
   placementState.setRequiresStone(false);
   updateModeLabel();
 });
 btnDemolish.addEventListener("click", () => {
+  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
   placementState.mode = "demolish";
   updateModeLabel();
 });
 btnUpgrade.addEventListener("click", () => {
+  clearFollow(); // entering placement releases the follow-cam (mutually exclusive)
   placementState.mode = "upgrade";
   updateModeLabel();
 });
@@ -838,6 +847,7 @@ if (import.meta.env.DEV) {
     send: (cmd: unknown) => client.sendCommand(cmd as never),
     terrain: () => terrain,
     buildings: () => currentBuildings,
+    villagers: () => currentVillagers,
     // Project a tile centre to a CSS-px point (relative to the viewport) so a
     // test harness can drive REAL UI gestures — hovering the placement ghost,
     // clicking a specific tile — not just the command channel. Mirrors the
@@ -1055,10 +1065,12 @@ client.onSnapshot((snap) => {
     traderPanel.classList.remove("visible");
   }
 
-  // Brief 19: release the follow if its villager despawned (night / starvation),
-  // else refresh the HUD strip with the latest fsm / cargo.
-  followId = followReleaseId(followId, currentVillagers);
-  updateFollowHud();
+  // Brief 19: release the follow if its villager despawned (night / starvation). The in-canvas
+  // villager panel re-finds the live villager by id each frame in loop(), so the per-snapshot
+  // readout refresh is no longer needed here; we just clear the a11y mirror on a despawn release.
+  const stillFollowing = followReleaseId(followId, currentVillagers);
+  if (followId !== null && stillFollowing === null) villagerMirror?.update(null);
+  followId = stillFollowing;
 });
 
 // ---------------------------------------------------------------------------
@@ -1333,6 +1345,31 @@ function loop(): void {
       }
     }
 
+    // Villager-job chunk 3: the follow-a-villager panel is a THIRD UI root, rendered inside the
+    // SAME surface.begin()/end(), after the HUD + inspect panel so it paints on top. Open iff a
+    // villager is followed; re-find the live villager by id each frame (villagers have a stable
+    // id). If it vanished, the snapshot handler already released the follow + cleared the mirror,
+    // so `followId` is null here and we skip. Then refresh + lay out + draw + mirror.
+    if (villagerPanel !== undefined && followId !== null) {
+      const fv = villagerById(currentVillagers, followId);
+      if (fv !== null) {
+        const changed = villagerPanel.refresh({
+          id: fv.id,
+          job: fv.job,
+          fsm: fv.fsm,
+          carryGood: fv.carryGood,
+        });
+        // Floating position: pinned to the BOTTOM-LEFT corner (anchored by its TOP edge well
+        // below the top HUD bar + the inspect panel at 8,56, and clear of the top-right minimap).
+        // y=380 keeps the ~110px-tall card on-screen above the bottom build toolbar.
+        if (changed) {
+          computeLayout(villagerPanel.root, 8, 380);
+          villagerMirror?.update(villagerPanel.root);
+        }
+        renderTree(uiSurface, villagerPanel.root);
+      }
+    }
+
     uiSurface.end();
   }
 
@@ -1430,13 +1467,26 @@ async function boot(): Promise<void> {
     });
   }
 
+  // Villager-job chunk 3: the floating follow-a-villager panel as a THIRD UI root. Read-only
+  // (no buttons) → NO input dispatcher; events never need forwarding to it. It keeps its OWN
+  // a11y mirror in a SEPARATE hidden mount (#ui-a11y-villager) so its readout's DOM subtree is
+  // distinct from the HUD's and the inspect panel's. `villagerMirror.update(null)` clears it on
+  // every follow-release path (Esc / click-away / minimap / despawn — all via clearFollow()).
+  villagerPanel = createVillagerPanel();
+  // FIX B: a dispatcher that hit-tests the panel root only while following, so a click on the
+  // panel's rect is consumed (UI-owned) and never reaches world build/pan. No buttons → no
+  // focus/activation behaviour is needed; it exists purely for click consumption.
+  villagerDispatcher = createInputDispatcher(() => (followId !== null ? villagerPanel?.root ?? null : null));
+  if (villagerA11yMount !== null) {
+    villagerMirror = createA11yMirror(villagerA11yMount, { rootLabel: "Followed villager" });
+  }
+
   // Minimap (top-right): clicking it recentres the camera on that tile and
   // releases any follow-cam lock. Camera centre is in iso world-px, so map the
   // clicked tile through the iso projection.
   const minimapCanvas = document.getElementById("minimap") as HTMLCanvasElement;
   minimap = new CitadelMinimap(minimapCanvas, terrain, (tx, ty) => {
-    followId = null;
-    updateFollowHud();
+    clearFollow(); // release the follow-cam + hide the in-canvas villager panel
     const c = tileToIso(tx, ty);
     camera.setCenter(c.x, c.y);
   });

@@ -17,6 +17,7 @@ import type {
   BuildingSnapshot,
   VillagerSnapshot,
   RaiderSnapshot,
+  VillagerJob,
 } from "@citadel/sim-core";
 import {
   BUILDING_SPRITE_TYPES,
@@ -73,6 +74,78 @@ export const VILLAGER_COLORS: Record<string, string> = {
   work: EDG.orange,
   haulToStore: EDG.cyan,
   walkHome: EDG.salmon,
+};
+
+/**
+ * Every VillagerJob value. Mirrors `VillagerJob` in
+ * `@citadel/sim-core` (`VillagerJob`, the authoritative union). `VILLAGER_JOB_COLORS`
+ * is typed `Record<VillagerJob, string>`, so adding a job to the union is a COMPILE
+ * error here until it gets a color — totality is enforced by the type, not just the test.
+ */
+
+/**
+ * Complete set of job values (runtime array for totality checks). Typed against the
+ * real `VillagerJob` union so it can't silently drift from the sim.
+ */
+export const ALL_VILLAGER_JOBS: readonly VillagerJob[] = [
+  "farmer",
+  "miller",
+  "baker",
+  "woodcutter",
+  "quarryman",
+  "miner",
+  "sawyer",
+  "smith",
+  "priest",
+  "trader",
+  "watchman",
+  "soldier",
+  "healer",
+  "idle",
+] as const;
+
+/**
+ * Primary body tint per villager job (EDG32 only). This is the "who is this"
+ * read — the color that tells a player a job role at a glance.
+ *
+ * Composition decision: `job` drives the ONLY tint. The old FSM-state cue
+ * (VILLAGER_COLORS) is dropped from the body tint channel because composing
+ * two independent dimensions (job + FSM) on the same tint would muddy both
+ * reads — a baker-walking-to-work would look neither like a baker nor like a
+ * traveller. A future per-villager mood layer (posture/desaturation) will
+ * carry the FSM cue instead, keeping the body tint cleanly job-only.
+ *
+ * Color rationale:
+ *   farmer     — green (crops / fields)
+ *   miller     — cream (flour dust)
+ *   baker      — tan / warm brown (baked bread)
+ *   woodcutter — wood brown (timber)
+ *   quarryman  — slate grey (stone)
+ *   miner      — ink / dark grey (deep rock)
+ *   sawyer     — dark green (sawdust / forest)
+ *   smith      — crimson (forge fire)
+ *   priest     — white (vestments)
+ *   trader     — gold (commerce)
+ *   watchman   — blue (guard livery)
+ *   soldier    — navy (armour)
+ *   healer     — cyan (medicine / water)
+ *   idle       — silver (neutral / unassigned)
+ */
+export const VILLAGER_JOB_COLORS: Record<VillagerJob, string> = {
+  farmer:     EDG.greenMid,
+  miller:     EDG.cream,
+  baker:      EDG.tan,
+  woodcutter: EDG.wood,
+  quarryman:  EDG.slate,
+  miner:      EDG.ink,
+  sawyer:     EDG.greenDark,
+  smith:      EDG.crimson,
+  priest:     EDG.white,
+  trader:     EDG.gold,
+  watchman:   EDG.blue,
+  soldier:    EDG.navy,
+  healer:     EDG.cyan,
+  idle:       EDG.silver,
 };
 
 export const FALLBACK_BUILDING_COLOR = EDG.steel;
@@ -265,15 +338,23 @@ export function buildingShadowQuad(b: BuildingSnapshot): QuadSpec | null {
 
 /**
  * Map a villager snapshot to a small centered sprite quad. The `vil/person`
- * frame is a grey-ramp silhouette; the FSM-state color is applied as the tint
- * (texture × tint), so state still reads at a glance but now on a shaded figure.
+ * frame is a grey-ramp silhouette; the job color is applied as the tint
+ * (texture × tint) so a player can read each villager's role at a glance.
+ *
+ * Tint source: `v.job` drives the primary body tint via `VILLAGER_JOB_COLORS`.
+ * The old FSM-state cue (walkToWork/work/etc.) is deliberately NOT composed
+ * here — layering two independent color signals on one tint channel muddied
+ * both reads. A future mood/posture layer will carry the FSM cue instead.
  */
 export function villagerQuad(v: VillagerSnapshot): QuadSpec {
   // Sized up for the 32×32 iso figure art (was 0.7 tiles for the old 16px sprite).
   const size = TILE_SIZE * 1.1;
   const cx = v.x * TILE_SIZE + TILE_SIZE / 2;
   const cy = v.y * TILE_SIZE + TILE_SIZE / 2;
-  const hex = VILLAGER_COLORS[v.fsm] ?? FALLBACK_VILLAGER_COLOR;
+  // Cast v.job (snapshot field is widened to `string`, like fsm/carryGood) to the
+  // VillagerJob union. The sim only writes known job values; any unmapped value falls
+  // back to neutral silver via FALLBACK_VILLAGER_COLOR.
+  const hex = VILLAGER_JOB_COLORS[v.job as VillagerJob] ?? FALLBACK_VILLAGER_COLOR;
   return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex), frame: VILLAGER_FRAME };
 }
 

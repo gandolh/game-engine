@@ -12,6 +12,8 @@ import {
   effectiveHousingCapacity,
   upgradeCost,
   BUILDING_MAX_LEVEL,
+  jobForBuildingType,
+  JOB_IDLE,
 } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
 import { isTravellingFsm } from "./entities/villager";
@@ -830,11 +832,30 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   }
 
   function getVillagers(): readonly VillagerSnapshot[] {
+    // Read-only job derivation: an assigned villager's workX/workY is the centre
+    // tile of the workplace the VillagerSystem staffed it to. Index every
+    // building footprint tile → its type once, then look up each villager's
+    // workplace type. An `idle` villager has no current workplace → "idle".
+    // This is a pure projection; no sim state is mutated.
+    const tileToType = new Map<number, string>();
+    for (const entity of buildingWorld.query("building")) {
+      const b = entity.building;
+      for (let dy = 0; dy < b.h; dy++) {
+        for (let dx = 0; dx < b.w; dx++) {
+          const tx = b.x + dx;
+          const ty = b.y + dy;
+          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
+          tileToType.set(ty * WORLD_WIDTH + tx, b.type);
+        }
+      }
+    }
     const result: VillagerSnapshot[] = [];
     for (const entity of villagerWorld.query("villager")) {
       const v = entity.villager;
       const pos = villagerPos(v);
-      result.push({ id: v.id, x: pos.x, y: pos.y, fsm: v.fsm, carryGood: v.carryGood });
+      const workType = v.fsm === "idle" ? undefined : tileToType.get(v.workY * WORLD_WIDTH + v.workX);
+      const job = workType === undefined ? JOB_IDLE : jobForBuildingType(workType);
+      result.push({ id: v.id, x: pos.x, y: pos.y, fsm: v.fsm, carryGood: v.carryGood, job });
     }
     return result;
   }

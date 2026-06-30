@@ -19,6 +19,7 @@ import {
   ghostQuad,
   TERRAIN_COLORS,
   BUILDING_COLORS,
+  VILLAGER_JOB_COLORS,
   screenToWorld,
   screenToTile,
   WORLD_PX_W,
@@ -151,10 +152,11 @@ describe("buildingShadowQuad (directional NW-sun ground shadow)", () => {
 });
 
 describe("villagerQuad / raiderQuad / ghostQuad", () => {
-  it("colors a villager by FSM state and centers a small quad", () => {
-    const v: VillagerSnapshot = { id: 1, x: 4, y: 6, fsm: "work", carryGood: null };
+  it("colors a villager by job (not FSM state) and centers a small quad", () => {
+    const v: VillagerSnapshot = { id: 1, x: 4, y: 6, fsm: "work", carryGood: null, job: "farmer" };
     const q = villagerQuad(v);
-    expect(q.tintRgba).toBe(packTint(EDG.orange)); // FSM-state tint over the figure
+    // Tint is now driven by job ("farmer" → EDG.greenMid), not FSM state.
+    expect(q.tintRgba).toBe(packTint(VILLAGER_JOB_COLORS["farmer"]));
     expect(q.frame).toBe("vil/person");
     const size = TILE_SIZE * 1.1; // sized up for the 32×32 iso figure
     expect(q.width).toBe(size);

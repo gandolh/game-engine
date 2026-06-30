@@ -7,8 +7,6 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
-    <!-- Brief 19: follow-cam HUD strip (DOM; the WebGPU overlay callback is a no-op) -->
-    <div id="follow-hud"></div>
     <!-- Minimap: top-right world overview (2D canvas overlay, drawn in main.ts) -->
     <canvas id="minimap" width="168" height="168" title="Click to jump the camera"></canvas>
     <!-- Event toasts: top-center transient notifications (populated in main.ts) -->
@@ -26,6 +24,13 @@
          createA11yMirror mount so its visually-hidden DOM subtree + Tab order stay distinct
          from the HUD's. Empty until a building is selected; cleared on close. -->
     <div id="ui-a11y-inspect"></div>
+    <!-- Citadel villager-job chunk 3: a THIRD hidden a11y-mirror host, for the floating
+         follow-a-villager panel (src/ui/villager-panel.ts). This in-canvas panel supersedes
+         the old DOM #follow-hud strip. It is a read-only UI root (no buttons), so it has no
+         input dispatcher — but it keeps its own createA11yMirror mount so screen-reader users
+         get the followed villager's job/id/activity/cargo. Empty until a villager is followed;
+         cleared on release. -->
+    <div id="ui-a11y-villager"></div>
 
     <!-- Citadel build toolbar: build buttons grouped by purpose, each with an
          icon glyph. Lives in its own strip above the HUD so the readout row

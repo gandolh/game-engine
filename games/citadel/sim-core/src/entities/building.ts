@@ -375,6 +375,73 @@ export function getProductionDef(type: string): BuildingProductionDef | undefine
 }
 
 // ---------------------------------------------------------------------------
+// Citadel villager job: map a workplace building TYPE → a villager's job label
+// ---------------------------------------------------------------------------
+
+/**
+ * A villager's job, as derived from the TYPE of the workplace building it is
+ * assigned to (the VillagerSystem sets `workX`/`workY` to a building's centre
+ * when it staffs it). This is a READ-ONLY projection used by the snapshot — it
+ * never feeds back into assignment, balance, or any sim mutation.
+ *
+ * Value set (the complete enum — Chunks 2/3 render + label these):
+ *   "farmer" | "miller" | "baker" | "woodcutter" | "quarryman" | "miner" |
+ *   "sawyer" | "smith" | "priest" | "trader" | "watchman" | "soldier" |
+ *   "healer" | "idle"
+ *
+ * "idle" is the default for an unassigned villager (no workplace yet, or one
+ * whose workplace can no longer be resolved). Any worker-slot building type not
+ * explicitly mapped also falls back to "idle".
+ */
+export type VillagerJob =
+  | "farmer"
+  | "miller"
+  | "baker"
+  | "woodcutter"
+  | "quarryman"
+  | "miner"
+  | "sawyer"
+  | "smith"
+  | "priest"
+  | "trader"
+  | "watchman"
+  | "soldier"
+  | "healer"
+  | "idle";
+
+/** Default job for a villager with no resolvable workplace. */
+export const JOB_IDLE: VillagerJob = "idle";
+
+/** Workplace building type → villager job label. Pure, total over known types. */
+const BUILDING_TYPE_TO_JOB: Readonly<Record<string, VillagerJob>> = {
+  farm: "farmer",
+  mill: "miller",
+  bakery: "baker",
+  woodcutter: "woodcutter",
+  quarry: "quarryman",
+  mine: "miner",
+  sawmill: "sawyer",
+  smith: "smith",
+  chapel: "priest",
+  market: "trader",
+  tradingpost: "trader",
+  watchpost: "watchman",
+  tower: "watchman",
+  garrison: "soldier",
+  keep: "soldier",
+  "town-hall": "soldier",
+  healer: "healer",
+};
+
+/**
+ * The job for a villager assigned to a building of `type`. Returns {@link JOB_IDLE}
+ * for an unmapped/non-workplace type. Pure read — no sim state touched.
+ */
+export function jobForBuildingType(type: string): VillagerJob {
+  return BUILDING_TYPE_TO_JOB[type] ?? JOB_IDLE;
+}
+
+// ---------------------------------------------------------------------------
 // Citadel 08: building upgrades (level 1 → 3, material-cost, tier-gated)
 // ---------------------------------------------------------------------------
 

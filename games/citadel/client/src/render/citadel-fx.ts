@@ -215,21 +215,6 @@ export function villagerById(
   return null;
 }
 
-/**
- * Human-readable destination/activity for the HUD strip, derived from the FSM
- * (the snapshot carries no explicit target tile). Pure.
- */
-export function destinationLabel(fsm: string): string {
-  switch (fsm) {
-    case "walkToWork": return "→ work site";
-    case "work":       return "at work";
-    case "haulToStore": return "→ storehouse";
-    case "walkHome":   return "→ home";
-    case "idle":       return "idle";
-    default:           return fsm;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Chimney smoke (stateful — owns a render-side RNG, never the sim's)
 // ---------------------------------------------------------------------------

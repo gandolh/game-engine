@@ -29,6 +29,7 @@ export {
   effectiveDefenseStrength,
 } from "./entities/building";
 export type { VillagerComponent, VillagerEntity, VillagerFsm } from "./entities/villager";
+export type { VillagerJob } from "./entities/building";
 export { isTravellingFsm } from "./entities/villager";
 export type {
   BuildingSnapshot,

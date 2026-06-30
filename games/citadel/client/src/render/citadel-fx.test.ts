@@ -22,7 +22,6 @@ import {
   nearestVillager,
   followReleaseId,
   villagerById,
-  destinationLabel,
 } from "./citadel-fx";
 import { buildingQuad } from "./citadel-renderer";
 
@@ -34,7 +33,7 @@ function building(over: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type
 }
 
 function villager(over: Partial<VillagerSnapshot> & Pick<VillagerSnapshot, "id" | "x" | "y">): VillagerSnapshot {
-  return { fsm: "idle", carryGood: null, ...over };
+  return { fsm: "idle", carryGood: null, job: "idle", ...over };
 }
 
 // ---------------------------------------------------------------------------
@@ -219,18 +218,6 @@ describe("followReleaseId", () => {
   it("villagerById finds or returns null", () => {
     expect(villagerById(vs, 1)?.id).toBe(1);
     expect(villagerById(vs, 99)).toBeNull();
-  });
-});
-
-describe("destinationLabel", () => {
-  it("maps known fsm states to readable destinations", () => {
-    expect(destinationLabel("walkToWork")).toContain("work");
-    expect(destinationLabel("haulToStore")).toContain("storehouse");
-    expect(destinationLabel("walkHome")).toContain("home");
-  });
-
-  it("falls back to the raw fsm for unknown states", () => {
-    expect(destinationLabel("flying")).toBe("flying");
   });
 });
 

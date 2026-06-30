@@ -110,15 +110,9 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 /* Phase 4.5: hazard HUD */
 #hud-fire { color: #8b9bb4; }
 #hud-disease { color: #8b9bb4; }
-/* Brief 19: follow-cam HUD strip — floats over the canvas top-left, shown
-   only while locked onto a villager. Colors mirror EDG (cyan accent). */
-#follow-hud {
-  position: absolute; top: 8px; left: 8px; display: none;
-  background: #262b44; color: #2ce8f5; border: 1px solid #2ce8f5;
-  font-family: monospace; font-size: 13px; padding: 4px 10px;
-  border-radius: 3px; user-select: none; pointer-events: none;
-}
-#follow-hud.visible { display: block; }
+/* Villager-job chunk 3: the old DOM follow-cam HUD strip (#follow-hud) was removed —
+   the followed villager's job/id/activity/cargo now render IN-CANVAS via @engine/ui
+   (src/ui/villager-panel.ts), with a hidden #ui-a11y-villager mirror for screen readers. */
 
 /* Per-building occupancy badges — headcount chips floated over each building
    that has people at it (DOM overlay, pooled + positioned in main.ts). The
