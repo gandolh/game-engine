@@ -71,6 +71,19 @@ are still open (solo is unaffected).
 > settings modal, minimap, toasts, occupancy badges, follow-HUD) is still DOM;
 > migration in progress (the 6 Citadel UI panel todos are now unblocked).
 
+> **2026-06-30 — town-hall is now a placeable civic building (build bar `Services` group).**
+> A `town-hall` toolbar button was added. As a down-payment on cozy-pivot **Phase G**, the
+> town-hall's keep/raid anchor was **decoupled**: `actsAsKeepAnchor()` in
+> [sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts) adopts the anchor
+> (sets `keepPosition`, sacking ends the run) only for the **`keep`** building or for a
+> town-hall in **multiplayer** (`players.length > 1`). In **solo** the town-hall is
+> **civic-only** — placing it does NOT start a siege (raids gate on `keepPosition`). MP is
+> unchanged (the town-hall stays each player's match anchor). Determinism untouched (the
+> gated branch is unreachable in every existing scenario — no solo town-hall was placeable
+> before — and headless runs stay byte-identical). Phase G owns the full civic reframe
+> (autonomous rations/work-hours within its radius-10 reach); the sprite is still the shared
+> `warehouse` form + banner (bespoke civic-hall art is optional follow-up polish).
+
 The Citadel client UI is **DOM overlays over a single WebGPU canvas** (no Canvas2D
 for the world). Layout: `<body>` is a flex column — canvas (`flex:1`), then a
 `#build-bar` strip, then a `#hud` readout row. Three changes on 2026-06-22 reclaim

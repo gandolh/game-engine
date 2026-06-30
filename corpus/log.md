@@ -4,6 +4,31 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel town-hall build button + solo keep-anchor decouple (5th @engine/ui consumer)
+
+Closed the town-hall-build-button todo (orchestrate → inline build; grilled one design call
+first). Found the sprite/height/footprint were **already** wired (`bld/town-hall` warehouse+banner
+recipe, `BUILDING_HEIGHT_TILES`, auto-derived `BUILDING_SPRITE_TYPES`) — the todo's "no recipe /
+fort fallback" note was stale; the only missing piece was the **toolbar button**. But the button was
+entangled with a design call: `town-hall` is `isKeep` (the MP match anchor), so placing it via
+`placeOne` set `keepPosition` and started the raid clock — a "civic" button that triggers a siege.
+**User chose (grilled): decouple now, civic-only.** Added `actsAsKeepAnchor()` in
+[sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts): an `isKeep` building adopts the
+keep/raid anchor only if it's the **`keep`** or a town-hall in **multiplayer** (`players.length > 1`);
+in **solo** the town-hall is civic-only (no `keepPosition` → raids never start, since raid-spawn gates
+entirely on `keepPosition`). Used at both solo-facing read sites (anchor adoption + snapshot
+`keepPresent`, so a civic hall doesn't falsely read "Keep: standing"). **MP unchanged** (`boot2`
+2-player tests stay green; town-hall stays each player's anchor). Client: `🏛️ Town Hall` button in the
+build-bar `Services` group + `BUILD_BUTTONS` entry; 3×3 footprint + `SERVICE_RADII` catchment flow
+from existing wiring. Flipped the stale solo `world-config` test (town-hall = solo anchor) to the new
+intent + added an explicit MP-anchor case. **Determinism untouched** — the gated branch is unreachable
+in every pre-existing scenario (no solo town-hall was placeable before); proved byte-identical with two
+headless `sim:citadel` runs (SEED=7). `@citadel/sim-core` typecheck clean, **174 tests** (+1);
+`@citadel/client` typecheck clean. **Verified in-browser** (system Chrome + WebGPU): the `🏛️ Town Hall`
+button renders, places a 3×3 hall at (48,48), and the siege HUD stays `Keep: none` / `Threat: 0`
+(civic-only confirmed), 0 page errors. Bespoke civic-hall iso art deferred as optional polish (Phase G
+owns the full civic reframe). **1 panel todo remains** (build-cost-hover).
+
 ## [2026-06-30] build | Citadel resource HUD — all-goods strip (4th @engine/ui consumer)
 
 Closed the resource-HUD-all-goods todo (orchestrate → inline build; pure client render, no

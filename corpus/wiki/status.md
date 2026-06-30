@@ -2,7 +2,7 @@
 
 Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26; **cozy-pivot 2026-06-28**). Terse one-liner per brief here; full implementation detail lives in each brief file ([briefs/](../briefs/)), recent passes in [log.md](../log.md) (older entries trimmed → git history), live design gaps in [open-questions.md](open-questions.md).
 
-> **2026-06-30 `@engine/ui` framework + Citadel in-canvas UI shipping** ([brief 17](../briefs/engine/done/17-engine-ui-framework.md), branch `engine-ui-framework`). Dual-backend (WebGPU + Canvas2D) in-canvas UI package; Citadel top HUD bar (settlement readout + **all-goods strip** + speed/pause) renders in-canvas, **verified in-browser (WebGPU)**. **4 of 6** UI consumer todos landed (resource-HUD pilot + all-goods strip, inspect-view + upgrade panel `2cab8ae`, villager-job `84a9ef9`); **2 remain** — build-cost-hover, town-hall build button.
+> **2026-06-30 `@engine/ui` framework + Citadel in-canvas UI shipping** ([brief 17](../briefs/engine/done/17-engine-ui-framework.md), branch `engine-ui-framework`). Dual-backend (WebGPU + Canvas2D) in-canvas UI package; Citadel top HUD bar (settlement readout + **all-goods strip** + speed/pause) renders in-canvas, **verified in-browser (WebGPU)**. **5 of 6** UI consumer todos landed (resource-HUD pilot + all-goods strip, inspect-view + upgrade panel `2cab8ae`, villager-job `84a9ef9`, town-hall build button + solo keep-anchor decouple); **1 remains** — build-cost-hover.
 
 > **2026-06-28 Citadel cozy pivot (design of record).** A grilling session resolved
 > Citadel as **a cozy placement puzzle you read by watching the town live** — diegetic
