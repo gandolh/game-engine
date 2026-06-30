@@ -4,6 +4,54 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] build | Citadel cozy pivot Phase B — happiness → productivity floor (the signal gets teeth)
+
+Phase B of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+shipped — makes the Phase A mood signal **mechanical**, implementing the downside
+rule (#9): every problem is a *throttle toward a floor, never a cliff*. **Gated as a
+single phase** (threat re-pointing → Phase D, decree purge + winter grain floor →
+Phase H are explicitly deferred).
+
+- **Stateful happiness drift** ([needs-happiness.ts](../games/citadel/sim-core/src/systems/needs-happiness.ts)):
+  `_updateHappiness` and the per-house `mood` (Phase A) went from **stateless recompute**
+  to a **stateful asymmetric ease** toward the (byte-identical) per-day target —
+  `h += (target − h) × rate`, **recovery 0.45 / decay 0.30** (heals faster than it
+  falls → every dip over-recovers → the floor is a property of the update rule). A
+  typical ~20-pt dent recovers in ~2–3 in-game days. A deterministic last-≤1-point snap
+  stops integer rounding from freezing one short of target. The mood signal now
+  *breathes* instead of flickering, which is what makes the diegetic read legible.
+- **Productivity floor** ([production.ts](../games/citadel/sim-core/src/systems/production.ts)):
+  output × `productivityFactor(h)` = `lerp(0.6, 1.0, h/100)` — happiness 0 → 60% output,
+  100 → 100%, **single tunable `PRODUCTIVITY_FLOOR = 0.6`**. Uses the **local** signal —
+  the assigned worker's home-house mood (resolved via a `Map<workplaceTileKey, homeMood>`
+  built once per pass), falling back to per-player happiness on a miss. **Controller fix
+  during integration:** the naive `Math.floor(amount × factor)` floored a base-1 producer
+  (smith → 1 tool, mine → 1 stone) to **0** below ~83 happiness — a cliff that violates
+  the cozy contract and stalled the refine chain. Changed to **`Math.max(1, floor(…))`**
+  so a building that would produce ≥1 always still produces ≥1 (throttle, never cliff).
+  This also auto-fixed the two pre-existing tests the bug had broken (phase4 smith chain,
+  phase3 rationing) — root cause was the floor-to-0, not stale assertions.
+- **Determinism re-proved: MATCH ×3** (seeds `0xc0ffee` / `0x1` / `0x2a`, byte-identical
+  across two runs each). **The numeric baseline moved by design** (happiness now lags;
+  output now happiness-scaled) — the contract is *same seed reproduces itself*, not
+  equality to old numbers. New baseline (default seed, grow, 40d): pop 5/12 Village,
+  happiness steady ~50.
+- **Built model-routed** (plan-split-dispatch): 2 senior (happiness drift, productivity
+  floor) + 1 junior (determinism re-prove), serial. **Scoped 2-finder review** (happiness
+  correctness/determinism + floor correctness/determinism) found **no defects** —
+  determinism clean by static analysis, target math bit-for-bit unchanged, snap bounded
+  (swept all 10,201 prior×target pairs), asymmetry not swapped, floor-vs-zero ordering
+  correct (winter grain still 0, not floored up). Two cosmetic non-defects noted
+  (`workHours` double-floor, a stale comment) left for Phase H, which purges that decree code.
+- **Gates**: `@citadel/sim-core` 198/198, typecheck-clean.
+- **Important — town is no longer spiraling but not yet cozy-calm.** Phase B stops the
+  *death spiral* (floor holds, MATCH×3) but the baseline is still volatile (pop oscillates
+  4–6, a disease outbreak still active at day 40). That's the correct in-between: the
+  threats that destabilize it (fire/disease/raid/winter) aren't demoted until **Phase D**,
+  and the economy floors land in **Phase H**. **Phase A's cozy *visual* still wants its
+  in-browser eyeball after D** (a calm, fed, fire-free town). Per the user's gate, we
+  **stop here for review before the next baseline-moving phase.**
+
 ## [2026-07-01] playtest | Citadel Phase A — per-house mood DATA verified live; VISUAL gated behind B/C/D
 
 Playtested Phase A in the real WebGPU client (system Chrome, fixed seed `0x1a2b3c4d`).

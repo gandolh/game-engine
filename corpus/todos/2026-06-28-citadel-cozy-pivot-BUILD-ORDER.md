@@ -191,6 +191,15 @@ threat-consequence layer of #5 and the tutorial payload of Phase C).
   (read-only snapshot fields; the booleans were already computed).
 
 ### Phase B — Give the signal teeth: happiness → productivity floor
+> **✅ SHIPPED 2026-07-01** (see [log.md](../log.md)). Happiness + per-house mood are now
+> **stateful** (asymmetric ease toward target, recovery 0.45 / decay 0.30 → floor is a
+> property of the update rule); output × `productivityFactor` = `lerp(0.6,1.0,h/100)` off
+> the **local** worker's home-house mood, with `Math.max(1,…)` so no producer floors to 0.
+> **Determinism MATCH ×3** (baseline moved by design). **Threat re-pointing (fire/disease/
+> raid/winter → the happiness channel) was DEFERRED to Phase D; decree purge + the
+> winter-grain floor to Phase H** — B established the *channel + floor* only. Town no longer
+> spirals but is volatile until D/H land. Gates: sim-core 198/198, typecheck-clean.
+
 Makes the signal *mechanical*, not just decorative; implements threat consequence #5.
 
 - **Concrete home.** Output is computed in
