@@ -3,12 +3,13 @@
  *
  * Drives bootstrapSim() directly (no Worker). Verifies the world dimensions are
  * read from config (default 96×96; a configured 256×256 sizes every grid-backed
- * allocation + the pathfinder + snapshot), and that the town-hall is a placeable,
- * non-tier-locked anchor that sets the owning player's keep position.
+ * allocation + the pathfinder + snapshot), and the town-hall's keep-anchor split:
+ * a placeable, non-tier-locked CIVIC building in solo (no keep anchor), the MP
+ * match anchor (sets keepPosition) when more than one player is present.
  */
 import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";
-import { localPlayer } from "../sim-state";
+import { localPlayer, makePlayerState } from "../sim-state";
 import { WORLD_WIDTH, WORLD_HEIGHT, TerrainType } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
 import { bfsPath } from "../world/pathfinder";
@@ -74,16 +75,17 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     expect(sim.getSnapshot(TICKS_PER_DAY * 3)).toBeDefined();
   });
 
-  it("town-hall is a non-tier-locked anchor that sets the owner's keep position", () => {
+  it("town-hall is a non-tier-locked CIVIC building in solo — placeable, NO keep anchor", () => {
     const W = 256, H = 256;
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H });
     const lp = localPlayer(sim.state);
-    // Match start: Hamlet tier, no anchor yet.
+    // Solo: one player, Hamlet tier, no anchor yet.
+    expect(sim.state.players.length).toBe(1);
     expect(lp.tier).toBe("Hamlet");
     expect(lp.keepPosition).toBeNull();
 
-    // Place the town-hall at match start on a clear tile (a Town-locked keep
-    // would be rejected here — the town-hall must NOT be locked).
+    // Place the town-hall on a clear tile (a Town-locked keep would be rejected
+    // here — the town-hall must NOT be tier-locked, so a player can place it early).
     const spot = findGrass(sim.terrain, 3, 3, Math.floor(W / 2), Math.floor(H / 2));
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });
     sim.scheduler.tick({ tick: 0 });
@@ -91,9 +93,27 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     const halls = [...sim.world.query("building")].filter((e) => e.building.type === "town-hall");
     expect(halls.length).toBe(1);
     expect(halls[0]!.building.ownerId).toBe(0);
-    // The anchor is set (raiders target it; sacking it ends the player's run).
+    // Cozy-pivot: in SOLO the town-hall is civic-only — it does NOT become the keep/raid
+    // anchor, so no keepPosition is set and the siege clock never starts (raid-spawn gates
+    // on keepPosition). The solo siege anchor stays the `keep` building.
+    expect(lp.keepPosition).toBeNull();
+  });
+
+  it("town-hall sets the owner's keep anchor in MULTIPLAYER (the match anchor)", () => {
+    const W = 256, H = 256;
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H });
+    sim.state.players.push(makePlayerState(1)); // a 2nd player ⇒ multiplayer
+    const lp = localPlayer(sim.state);
+    expect(lp.keepPosition).toBeNull();
+
+    const spot = findGrass(sim.terrain, 3, 3, Math.floor(W / 2), Math.floor(H / 2));
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });
+    sim.scheduler.tick({ tick: 0 });
+
+    // MP: the town-hall IS each player's match anchor (raiders target it; sacking it ends
+    // the player's run), so keepPosition is set to the 3×3 footprint centre.
     expect(lp.keepPosition).not.toBeNull();
-    expect(lp.keepPosition!.x).toBe(spot.x + 1); // center of the 3×3 footprint
+    expect(lp.keepPosition!.x).toBe(spot.x + 1);
     expect(lp.keepPosition!.y).toBe(spot.y + 1);
   });
 });

@@ -282,6 +282,23 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     // drag's per-tile rejections into a single summary (P2: tier-locked drags
     // dumped ~20 near-identical toasts). "ok" means the building was placed.
     type PlaceReason = "ok" | "tier" | "territory" | "occupied" | "terrain" | "bounds" | "invalid";
+    /**
+     * Does placing this `isKeep` building adopt the keep/raid anchor (sets `keepPosition`,
+     * sacking it ends the player's run)?
+     *
+     * The `keep` always anchors (the solo siege game). The **town-hall** is each MP player's
+     * match anchor (Citadel 29) — but under the cozy-pivot Phase-G direction the town-hall in
+     * SOLO is a purely *civic* coverage building (rations/work-hours within its radius), NOT
+     * the keep/raid anchor: a player should be able to place one without starting a siege. So
+     * the town-hall anchors only in MULTIPLAYER (`players.length > 1`); in solo it's civic-only.
+     * Raids are gated entirely on `keepPosition` (raid-spawn), so not adopting it ⇒ no raids.
+     */
+    function actsAsKeepAnchor(buildingType: string): boolean {
+      if (getProductionDef(buildingType)?.isKeep !== true) return false;
+      if (buildingType === "town-hall" && state.players.length <= 1) return false;
+      return true;
+    }
+
     function placeOne(buildingType: string, x: number, y: number): PlaceReason {
     // A road dragged onto water becomes a bridge (a walkable span). This is the
     // ONLY way bridges are created, so a "road" command across a river auto-decks
@@ -393,7 +410,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     if (prod?.isWall === true) {
       lp.wallTiles.add(y * WORLD_WIDTH + x);
     }
-    if (prod?.isKeep === true) {
+    if (actsAsKeepAnchor(buildingType)) {
       // Center of the 3×3 footprint.
       lp.keepPosition = { x: x + Math.floor(def.w / 2), y: y + Math.floor(def.h / 2) };
     }
@@ -867,12 +884,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const lp = localPlayer(state);
     const stock: Record<string, number> = {};
     for (const k of Object.keys(lp.stockpiles) as GoodType[]) stock[k] = lp.stockpiles[k];
-    // citadel-38 P2#13: test the production def's isKeep, not the literal "keep"
-    // type — the MP anchor is `town-hall` (also isKeep), so the old string match made
-    // every MP player see "no keep" even with a standing town-hall.
+    // citadel-38 P2#13: count the keep/raid ANCHOR, not just any isKeep type — the MP anchor
+    // is `town-hall` (also isKeep), so a literal "keep" string match made MP players see "no
+    // keep" even with a standing town-hall. `actsAsKeepAnchor` also excludes a SOLO town-hall
+    // (civic-only, cozy-pivot) so a placed civic hall doesn't falsely report "Keep: standing".
     let keepPresent = false;
     for (const entity of buildingWorld.query("building")) {
-      if (entity.building.ownerId === lp.id && getProductionDef(entity.building.type)?.isKeep === true) {
+      if (entity.building.ownerId === lp.id && actsAsKeepAnchor(entity.building.type)) {
         keepPresent = true;
         break;
       }

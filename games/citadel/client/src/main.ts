@@ -672,6 +672,7 @@ const BUILD_BUTTONS: ReadonlyArray<readonly [string, string]> = [
   ["btn-build-woodcutter",   "woodcutter"],
   ["btn-build-storehouse",   "storehouse"],
   // Phase 3 service buildings
+  ["btn-build-town-hall",    "town-hall"],
   ["btn-build-chapel",       "chapel"],
   ["btn-build-market",       "market"],
   ["btn-build-watchpost",    "watchpost"],
