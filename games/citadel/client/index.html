@@ -9,8 +9,10 @@
     <canvas id="canvas"></canvas>
     <!-- Minimap: top-right world overview (2D canvas overlay, drawn in main.ts) -->
     <canvas id="minimap" width="168" height="168" title="Click to jump the camera"></canvas>
-    <!-- Event toasts: top-center transient notifications (populated in main.ts) -->
-    <div id="toast-container"></div>
+    <!-- Event toasts now render IN-CANVAS via @engine/ui (src/ui/toast.ts). This hidden
+         aria-live region is their a11y mirror: each new toast's text is announced to
+         screen readers here (the visuals are 100% in the WebGPU canvas). -->
+    <div id="toast-live" aria-live="polite" aria-atomic="true"></div>
     <!-- Per-building occupancy badges: headcount chips floated over buildings
          (DOM overlay, pooled + positioned in main.ts via the world→screen map) -->
     <div id="occupancy-badges"></div>

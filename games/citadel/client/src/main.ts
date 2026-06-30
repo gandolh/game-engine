@@ -127,10 +127,10 @@ const decreConscription  = document.getElementById("decree-conscription")   as H
 const traderPanel  = document.getElementById("trader-panel")!;
 const traderOffers = document.getElementById("trader-offers")!;
 
-// Event toasts (top-center) replace the old inline #hud-events span — events no
-// longer reflow the bottom bar. Created at module scope so it exists before the
-// first snapshot arrives (the minimap waits for the camera, so it's made in boot).
-const toasts = new ToastManager(document.getElementById("toast-container")!);
+// Event toasts (top-center) now render IN-CANVAS via @engine/ui (toast.ts builds a
+// @engine/ui column the render loop lays out + draws). Created at module scope so it
+// exists before the first snapshot; #toast-live is its hidden aria-live a11y mirror.
+const toasts = new ToastManager(document.getElementById("toast-live"));
 let lastEventShown: string | null = null;
 let minimap: CitadelMinimap | null = null;
 
@@ -1395,6 +1395,18 @@ function loop(): void {
         }
         renderTree(uiSurface, villagerPanel.root);
       }
+    }
+
+    // Event toasts: a top-CENTRE in-canvas UI root (toast.ts), rendered last so it paints
+    // over everything. Two layout passes when toasts are present: the first fills rects so we
+    // know the stack width, the second re-anchors it centred at the top. Per-frame opacity (the
+    // fade) is render-only — it doesn't change layout — so this is cheap (≤4 small panels).
+    if (toasts.root.children.length > 0) {
+      computeLayout(toasts.root, 0, 0);
+      const cx = Math.max(8, (canvas.clientWidth - toasts.root.rect.width) / 2);
+      // y=48 keeps the top-centre stack clear of the in-canvas HUD bar (anchored 8,8, ~36px tall).
+      computeLayout(toasts.root, cx, 48);
+      renderTree(uiSurface, toasts.root);
     }
 
     uiSurface.end();

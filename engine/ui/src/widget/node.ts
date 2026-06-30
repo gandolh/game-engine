@@ -43,6 +43,13 @@ interface BaseNode {
   children: UINode[];
   /** Computed screen-space box. `{0,0,0,0}` until `computeLayout` has run. */
   rect: Rect;
+  /**
+   * Optional render opacity in [0,1] (default 1). MULTIPLIES down the subtree during
+   * `renderTree`, so fading a container fades it and all its children together — pair with
+   * the `anim` tweens to fade a panel in/out (e.g. transient toasts). Layout-only passes
+   * ignore it; it affects rendering alpha only.
+   */
+  opacity?: number;
 }
 
 /** A container that arranges its children in a row or column (see `layout.direction`). */

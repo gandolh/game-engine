@@ -1,27 +1,39 @@
 /**
- * Citadel event toasts — transient notifications that float in at top-center.
+ * Citadel event toasts — transient notifications that float in at top-center,
+ * rendered IN-CANVAS via `@engine/ui` (replacing the old pointer-transparent DOM
+ * overlay). Each toast is a `@engine/ui` panel + a tone-coloured label; the stack is
+ * a column container the host lays out (top-centre) + renders each frame. Toasts fade
+ * in / hold / fade out via the node `opacity` channel (no DOM transition). A hidden
+ * `aria-live` region (`#toast-live`) mirrors each new toast's text for screen readers.
  *
- * Replaces the old inline `#hud-events` span, which appended event text into the
- * bottom HUD's flex row and (when it wrapped) grew the HUD height, shoving the
- * canvas up — a visible layout shift on every event. Toasts live in a fixed,
- * pointer-transparent overlay that never participates in the page's flex layout,
- * so events can come and go without nudging anything.
- *
- * Pure DOM + the EDG palette (via inline class styling in index.html). Render-only;
- * no sim, no RNG, no determinism impact.
+ * Aging runs on the RENDER clock (an injected `nowMs`, never the sim clock) so it
+ * pauses naturally when the tab is backgrounded and never touches determinism.
  */
+import { EDG } from "@engine/core";
+import { box, panel, label } from "@engine/ui";
+import type { ContainerNode, LabelNode } from "@engine/ui";
 
 /** How many toasts may stack at once (oldest evicted past this). */
 const MAX_TOASTS = 4;
+/** Fade-in ramp (ms) when a toast first appears. */
+const TOAST_FADE_IN_MS = 160;
 /** How long a toast stays fully visible before it begins fading (ms, render clock). */
 const TOAST_HOLD_MS = 4200;
-/** Fade-out duration (ms) — must match the CSS transition in index.html. */
+/** Fade-out duration (ms). */
 const TOAST_FADE_MS = 450;
 
+/** Tone → label colour (mirrors the old DOM toast text colours; every one an `EDG.*`). */
+const TONE_COLORS: Record<"danger" | "warn" | "good" | "info", string> = {
+  danger: EDG.salmon,
+  warn: EDG.yellow,
+  good: EDG.green,
+  info: EDG.cyan,
+};
+
 /**
- * Event severity → accent class. Drives the toast's left border + icon colour so
- * a fire/raid reads as urgent and a promotion reads as celebratory. Keyword match
- * is intentionally loose; an uncategorised event falls back to the neutral tone.
+ * Event severity → tone. Drives the toast's label colour so a fire/raid reads as
+ * urgent and a promotion reads as celebratory. Keyword match is intentionally loose;
+ * an uncategorised event falls back to the neutral tone.
  */
 function toneOf(msg: string): "danger" | "warn" | "good" | "info" {
   const m = msg.toLowerCase();
@@ -31,20 +43,36 @@ function toneOf(msg: string): "danger" | "warn" | "good" | "info" {
   return "info";
 }
 
+/** Opacity for a toast of the given age (ms): ramp in, hold, ramp out, then gone. */
+export function toastOpacity(age: number): number {
+  if (age < TOAST_FADE_IN_MS) return age / TOAST_FADE_IN_MS;
+  if (age < TOAST_HOLD_MS) return 1;
+  if (age < TOAST_HOLD_MS + TOAST_FADE_MS) return 1 - (age - TOAST_HOLD_MS) / TOAST_FADE_MS;
+  return 0;
+}
+
+interface LiveToast {
+  readonly panel: ContainerNode;
+  readonly bornMs: number;
+}
+
 /**
- * Manages the lifecycle of toast elements inside a host container. Call `push`
- * for each freshly-emitted event; `tick` (driven from the render loop with the
- * render clock) ages toasts out. Keeping aging on the render clock — rather than
- * setTimeout — means it pauses naturally if the tab is backgrounded and never
- * touches the sim clock.
+ * Manages the in-canvas toast stack. Call `push` for each freshly-emitted event; `tick`
+ * (driven from the render loop with the render clock) ages toasts out by updating each
+ * panel's `opacity` and removing faded ones. The host reads {@link ToastManager.root} to
+ * lay out (top-centre) + render the stack each frame.
  */
 export class ToastManager {
-  private readonly host: HTMLElement;
+  /** The toast-stack container (a column) — the host lays it out + renders it each frame. */
+  readonly root: ContainerNode;
   /** Live toasts, oldest first. `bornMs` is the render-clock ms it appeared. */
-  private readonly live: { el: HTMLElement; bornMs: number; fading: boolean }[] = [];
+  private readonly live: LiveToast[] = [];
+  /** Optional hidden aria-live region; each push sets its text so AT announces the toast. */
+  private readonly liveRegion: HTMLElement | null;
 
-  constructor(host: HTMLElement) {
-    this.host = host;
+  constructor(liveRegion?: HTMLElement | null) {
+    this.root = box({ direction: "column", gap: 6, align: "center" }, []);
+    this.liveRegion = liveRegion ?? null;
   }
 
   /** Show a new toast for `msg`. Evicts the oldest if at capacity. */
@@ -52,33 +80,34 @@ export class ToastManager {
     if (msg.trim() === "") return;
     while (this.live.length >= MAX_TOASTS) {
       const oldest = this.live.shift();
-      if (oldest) oldest.el.remove();
+      if (oldest) this.detach(oldest.panel);
     }
-    const el = document.createElement("div");
-    el.className = `toast toast-${toneOf(msg)}`;
-    el.textContent = msg;
-    // Start hidden, then flip to .show on the next frame so the CSS transition
-    // animates the slide/fade-in (rather than snapping).
-    this.host.appendChild(el);
-    requestAnimationFrame(() => el.classList.add("show"));
-    this.live.push({ el, bornMs: nowMs, fading: false });
+    const lbl: LabelNode = label(msg, { color: TONE_COLORS[toneOf(msg)] });
+    const p = panel({ direction: "row", padding: { top: 6, bottom: 6, left: 12, right: 12 } }, [lbl]);
+    p.opacity = 0; // starts transparent; the next tick ramps it in
+    this.root.children.push(p);
+    this.live.push({ panel: p, bornMs: nowMs });
+    if (this.liveRegion !== null) this.liveRegion.textContent = msg; // a11y announce
   }
 
-  /** Age toasts: begin fading past the hold window, remove once faded. */
+  /** Age toasts: ramp opacity in/out by age; drop a toast once fully faded. */
   tick(nowMs: number): void {
     for (let i = this.live.length - 1; i >= 0; i--) {
       const t = this.live[i]!;
       const age = nowMs - t.bornMs;
-      if (!t.fading && age >= TOAST_HOLD_MS) {
-        t.fading = true;
-        t.el.classList.remove("show");
-        t.el.classList.add("hide");
-      }
-      if (t.fading && age >= TOAST_HOLD_MS + TOAST_FADE_MS) {
-        t.el.remove();
+      if (age >= TOAST_HOLD_MS + TOAST_FADE_MS) {
+        this.detach(t.panel);
         this.live.splice(i, 1);
+        continue;
       }
+      t.panel.opacity = toastOpacity(age);
     }
+  }
+
+  /** Remove a toast panel from the stack container. */
+  private detach(p: ContainerNode): void {
+    const i = this.root.children.indexOf(p);
+    if (i >= 0) this.root.children.splice(i, 1);
   }
 }
 

@@ -22,51 +22,56 @@ import type { ButtonNode, LabelNode, ContainerNode, UINode } from "./node";
  * Draw order is back-to-front: a container paints its background/border first, then its
  * children (parents before children, siblings in declaration order). All colours resolve
  * through the active `theme`, so swapping the theme re-skins everything.
+ *
+ * A node's optional `opacity` (default 1) multiplies down the subtree, so fading a container
+ * fades it and its children together (used by transient toasts via the `anim` tweens).
  */
 export function renderTree(surface: UISurface, root: UINode, theme: Theme = DEFAULT_THEME): void {
-  drawNode(surface, root, theme);
+  drawNode(surface, root, theme, 1);
 }
 
-function drawNode(surface: UISurface, node: UINode, theme: Theme): void {
+function drawNode(surface: UISurface, node: UINode, theme: Theme, alpha: number): void {
+  const a = alpha * (node.opacity ?? 1);
+  if (a <= 0) return; // fully transparent — skip the subtree (ui-draw also no-ops alpha≤0)
   switch (node.kind) {
     case "panel":
     case "box":
-      drawContainer(surface, node, theme);
-      for (const child of node.children) drawNode(surface, child, theme);
+      drawContainer(surface, node, theme, a);
+      for (const child of node.children) drawNode(surface, child, theme, a);
       break;
     case "label":
-      drawLabel(surface, node, theme);
+      drawLabel(surface, node, theme, a);
       break;
     case "button":
-      drawButton(surface, node, theme);
+      drawButton(surface, node, theme, a);
       break;
   }
 }
 
-function drawContainer(surface: UISurface, node: ContainerNode, theme: Theme): void {
+function drawContainer(surface: UISurface, node: ContainerNode, theme: Theme, alpha: number): void {
   if (!node.background) return;
   const { x, y, width, height } = node.rect;
   const bw = theme.borderWidth;
   if (bw > 0) {
     // Border = a filled border-colour rect with the bg inset by the border width.
-    surface.rect(x, y, width, height, theme.panelBorder);
-    surface.rect(x + bw, y + bw, width - 2 * bw, height - 2 * bw, theme.panelBg);
+    surface.rect(x, y, width, height, theme.panelBorder, alpha);
+    surface.rect(x + bw, y + bw, width - 2 * bw, height - 2 * bw, theme.panelBg, alpha);
   } else {
-    surface.rect(x, y, width, height, theme.panelBg);
+    surface.rect(x, y, width, height, theme.panelBg, alpha);
   }
 }
 
-function drawLabel(surface: UISurface, node: LabelNode, theme: Theme): void {
+function drawLabel(surface: UISurface, node: LabelNode, theme: Theme, alpha: number): void {
   const scale = node.scale ?? theme.textScale;
   const color = node.color ?? (node.muted ? theme.textMuted : theme.textColor);
-  drawText(surface, node.text, node.rect.x, node.rect.y, { color, scale });
+  drawText(surface, node.text, node.rect.x, node.rect.y, { color, scale, alpha });
 }
 
-function drawButton(surface: UISurface, node: ButtonNode, theme: Theme): void {
+function drawButton(surface: UISurface, node: ButtonNode, theme: Theme, alpha: number): void {
   const { x, y, width, height } = node.rect;
   const bg = theme.buttonBg[node.state];
   const fg = theme.buttonText[node.state];
-  surface.rect(x, y, width, height, bg);
+  surface.rect(x, y, width, height, bg, alpha);
 
   // Centre the label within the button's padding box.
   const scale = node.scale ?? theme.textScale;
@@ -77,5 +82,5 @@ function drawButton(surface: UISurface, node: ButtonNode, theme: Theme): void {
   const innerH = height - pad.top - pad.bottom;
   const tx = x + pad.left + Math.max(0, (innerW - tw) / 2);
   const ty = y + pad.top + Math.max(0, (innerH - th) / 2);
-  drawText(surface, node.label, tx, ty, { color: fg, scale });
+  drawText(surface, node.label, tx, ty, { color: fg, scale, alpha });
 }

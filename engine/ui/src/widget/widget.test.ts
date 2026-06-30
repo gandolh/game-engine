@@ -190,6 +190,38 @@ describe("renderTree — emits themed quads + text", () => {
     // No solid panel quad — only the glyph for "X".
     expect(rec.quads.every((q) => q.atlasId === FONT_ATLAS_ID)).toBe(true);
   });
+
+  it("node.opacity multiplies down the subtree (container fades children too)", () => {
+    const { surface, rec } = makeSurface();
+    const lbl = label("A", { color: EDG.yellow });
+    const root = panel({ direction: "column", padding: 2, gap: 0 }, [lbl]);
+    root.opacity = 0.5; // fade the whole panel
+    lbl.opacity = 0.5;  // ...and the label half again ⇒ 0.25 on its glyphs
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, root, DEFAULT_THEME);
+    surface.end();
+
+    // Panel border+bg quads carry the panel's 0.5.
+    expect(rec.quads[0]).toMatchObject({ color: DEFAULT_THEME.panelBorder });
+    expect(rec.quads[0]!.alpha).toBeCloseTo(0.5);
+    expect(rec.quads[1]!.alpha).toBeCloseTo(0.5);
+    // Glyph quads carry the multiplied 0.5 × 0.5 = 0.25.
+    const glyphs = rec.quads.filter((q) => q.atlasId === FONT_ATLAS_ID);
+    expect(glyphs.length).toBe(1);
+    expect(glyphs[0]!.alpha).toBeCloseTo(0.25);
+  });
+
+  it("a fully-transparent node (opacity 0) emits nothing for its subtree", () => {
+    const { surface, rec } = makeSurface();
+    const root = panel({ padding: 2 }, [label("A")]);
+    root.opacity = 0;
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, root, DEFAULT_THEME);
+    surface.end();
+    expect(rec.quads.length).toBe(0);
+  });
 });
 
 describe("theme swapping re-skins widgets", () => {

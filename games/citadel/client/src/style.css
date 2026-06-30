@@ -81,26 +81,12 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 #trader-panel.visible { display: flex; flex-direction: column; gap: 4px; }
 #trader-title { color: #fee761; }
 
-/* Event toasts — top-center overlay, pointer-transparent, never in flow. */
-#toast-container {
-  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-  z-index: 90; display: flex; flex-direction: column; align-items: center;
-  gap: 6px; pointer-events: none; width: max-content; max-width: 72vw;
+/* Event toasts render IN-CANVAS via @engine/ui now (src/ui/toast.ts). #toast-live is the
+   visually-hidden aria-live region that announces each new toast to screen readers. */
+#toast-live {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; margin: -1px; padding: 0;
 }
-.toast {
-  font-family: monospace; font-size: 13px; color: #c0cbdc;
-  background: #262b44; border: 1px solid #5a6988; border-left-width: 4px;
-  border-radius: 3px; padding: 6px 14px; max-width: 100%;
-  box-shadow: 0 4px 16px rgba(24, 20, 37, 0.6);
-  opacity: 0; transform: translateY(-10px);
-  transition: opacity 0.45s ease, transform 0.45s ease;
-}
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast.hide { opacity: 0; transform: translateY(-10px); }
-.toast-danger { border-left-color: #e43b44; color: #f6757a; }
-.toast-warn   { border-left-color: #feae34; color: #fee761; }
-.toast-good   { border-left-color: #63c74d; color: #63c74d; }
-.toast-info   { border-left-color: #2ce8f5; }
 
 /* Minimap — top-right overview, drawn on its own 2D canvas. */
 #minimap {
