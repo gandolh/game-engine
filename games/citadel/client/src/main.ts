@@ -95,8 +95,8 @@ const VISUAL_DAY_TICKS = 1800;
 // ---------------------------------------------------------------------------
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
-// engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) and the
-// speed/pause controls are now rendered IN-CANVAS via @engine/ui (see resource-hud.ts +
+// engine-ui chunk 7: the settlement readout (tier/day/pop/happiness), the goods strip (all
+// goods) and the speed/pause controls are now rendered IN-CANVAS via @engine/ui (see resource-hud.ts +
 // the HUD wiring further down), so their DOM elements are gone from index.html. The
 // remaining siege/hazard readouts stay DOM for now (other todos).
 // Phase 4 siege HUD
@@ -884,8 +884,8 @@ let peakTier = "Hamlet"; // highest tier ever reached; gates build/upgrade butto
 let population = 0;
 let popCap = 0;
 let localPlayerId = 0; // owner id the snapshot is the view of (solo = 0)
-let bread = 0;
-let wood = 0;
+// The full stockpile from the latest snapshot (every good → count); feeds the HUD goods strip.
+let stockpiles: Readonly<Record<string, number>> = {};
 let foodSurplus = 0;
 let happiness = 40;
 let events: readonly string[] = [];
@@ -998,8 +998,7 @@ client.onSnapshot((snap) => {
   refreshBuildButtonLocks();
   population = snap.population;
   popCap = snap.popCap;
-  bread = snap.stockpiles.bread ?? 0;
-  wood = snap.stockpiles.wood ?? 0;
+  stockpiles = snap.stockpiles;
   foodSurplus = snap.foodSurplus;
   events = snap.recentEvents;
   // Toast only the freshly-appended events (the rest is backlog already shown).
@@ -1083,7 +1082,7 @@ const terrain: TerrainGrid = generateTerrain(SEED);
 // Animation loop
 // ---------------------------------------------------------------------------
 function loop(): void {
-  // engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) + the
+  // engine-ui chunk 7: the settlement readout (tier/day/pop/happiness), the goods strip + the
   // speed/pause buttons are rendered IN-CANVAS via @engine/ui now. Refresh their widget
   // text/state from the latest snapshot here; the actual layout + draw happens after the
   // world scene is submitted, below (so the HUD paints on top). hud may be undefined for
@@ -1095,7 +1094,7 @@ function loop(): void {
   // frame). undefined on the first frame(s) before boot — treat that as "no HUD to lay out".
   const hudContentChanged = hud?.refresh({
     tier, day, season, population, popCap,
-    bread, foodSurplus, wood, happiness, paused, speed,
+    stockpiles, foodSurplus, happiness, paused, speed,
   }) ?? false;
   // Phase 4: siege HUD
   const threatColor = threatLevel >= 60 ? EDG.red : threatLevel >= 30 ? EDG.gold : EDG.green;

@@ -2,7 +2,8 @@
  * Citadel resource HUD — the top status bar, rendered IN-CANVAS via `@engine/ui`.
  *
  * This is the pilot consumer of the `@engine/ui` framework (engine-ui chunk 7): the
- * settlement readout (tier · day/season · population · bread · wood · happiness) plus the
+ * settlement readout (tier · day/season · population · happiness), a full **goods strip**
+ * (one colour-coded chip per tradeable good, in production-chain order), plus the
  * speed (1×/2×/4×) and pause controls, built as a retained widget tree instead of DOM. It
  * proves the framework end-to-end — render + bitmap text + per-frame data-binding + mouse +
  * keyboard + screen-reader (the a11y mirror) — against a real game client.
@@ -17,6 +18,7 @@
  * replaces (tier: steel/green/cyan/yellow/red; happiness: cyan≥60 / yellow≥40 / red).
  */
 import { EDG } from "@engine/core";
+import type { GoodType } from "@citadel/sim-core";
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";
 
@@ -28,6 +30,22 @@ const TIER_COLORS: Record<string, string> = {
   Citadel: EDG.yellow,
   "Fortress-City": EDG.red,
 };
+
+/**
+ * The tradeable goods, in **production-chain order** (grain → flour → bread; wood → planks;
+ * stone → tools), each with a display name + a distinct EDG32 tint so the chip reads at a
+ * glance (the framework has no arbitrary-colour icon swatch, so colour IS the "icon").
+ * `bread` is rendered specially — it also carries the daily food surplus `(+N)` annotation.
+ */
+const GOODS: ReadonlyArray<{ good: GoodType; name: string; color: string }> = [
+  { good: "grain", name: "Grain", color: EDG.gold },
+  { good: "flour", name: "Flour", color: EDG.cream },
+  { good: "bread", name: "Bread", color: EDG.tan },
+  { good: "wood", name: "Wood", color: EDG.wood },
+  { good: "planks", name: "Planks", color: EDG.clay },
+  { good: "stone", name: "Stone", color: EDG.steel },
+  { good: "tools", name: "Tools", color: EDG.silver },
+];
 
 /** Happiness → colour: cyan when content (≥60), yellow when uneasy (≥40), red when unrest. */
 function happinessColor(happiness: number): string {
@@ -41,9 +59,10 @@ export interface ResourceHudState {
   season: string;
   population: number;
   popCap: number;
-  bread: number;
+  /** The full stockpile (every `GoodType` → count) — the goods strip reads each good from here. */
+  stockpiles: Readonly<Record<string, number>>;
+  /** Daily food (bread) surplus, shown as the `(+N)`/`(-N)` annotation on the bread chip. */
   foodSurplus: number;
-  wood: number;
   happiness: number;
   /** Whether the sim is paused (drives the pause button's label: "Pause" ↔ "Resume"). */
   paused: boolean;
@@ -84,9 +103,16 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
   const tierLbl = label("Hamlet", { color: TIER_COLORS["Hamlet"] ?? EDG.silver });
   const dayLbl = label("Day 1 (spring)");
   const popLbl = label("Pop 0/0");
-  const breadLbl = label("Bread: 0");
-  const woodLbl = label("Wood: 0");
   const happyLbl = label("Happy: 40", { color: happinessColor(40) });
+
+  // --- One colour-coded chip per good, built once in production-chain order; re-textured per
+  //     frame in refresh(). Bread is flagged so refresh() appends its food-surplus annotation.
+  const goodChips = GOODS.map((g) => ({
+    good: g.good,
+    name: g.name,
+    isBread: g.good === "bread",
+    node: label(`${g.name} 0`, { color: g.color }),
+  }));
 
   // --- Speed/pause controls as real buttons (exercise click + keyboard + a11y).
   const pauseBtn = button("Pause", { onActivate: () => actions.togglePause() });
@@ -101,9 +127,13 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
     tierLbl,
     dayLbl,
     popLbl,
-    breadLbl,
-    woodLbl,
     happyLbl,
+  ]);
+
+  // Goods strip: a named region (leading label → aria-label) listing every good's live count.
+  const resources = box({ direction: "row", gap: 10, align: "center" }, [
+    label("Goods"),
+    ...goodChips.map((c) => c.node),
   ]);
 
   const controls = box({ direction: "row", gap: 6, align: "center" }, [
@@ -113,7 +143,7 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
     speed4Btn,
   ]);
 
-  const root = panel({ direction: "row", gap: 16, align: "center" }, [readout, controls]);
+  const root = panel({ direction: "row", gap: 16, align: "center" }, [readout, resources, controls]);
 
   // `changed` accumulates whether any LAYOUT-AFFECTING property (label text / button label)
   // changed this refresh. Colour changes don't move anything, so they don't set it.
@@ -146,11 +176,17 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
     setColor(tierLbl, TIER_COLORS[state.tier] ?? EDG.silver);
     setText(dayLbl, `Day ${state.day} (${state.season})`);
     setText(popLbl, `Pop ${state.population}/${state.popCap}`);
-    const sign = state.foodSurplus >= 0 ? "+" : "";
-    setText(breadLbl, `Bread: ${state.bread} (${sign}${state.foodSurplus})`);
-    setText(woodLbl, `Wood: ${state.wood}`);
     setText(happyLbl, `Happy: ${state.happiness}`);
     setColor(happyLbl, happinessColor(state.happiness));
+
+    const sign = state.foodSurplus >= 0 ? "+" : "";
+    for (const chip of goodChips) {
+      const count = state.stockpiles[chip.good] ?? 0;
+      setText(
+        chip.node,
+        chip.isBread ? `${chip.name} ${count} (${sign}${state.foodSurplus})` : `${chip.name} ${count}`,
+      );
+    }
 
     if (setPauseLabel(pauseBtn, state.paused)) changed = true;
     // setSpeedActive only flips interaction state (active/normal), never the label, so it

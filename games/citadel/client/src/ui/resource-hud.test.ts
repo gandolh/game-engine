@@ -17,9 +17,8 @@ function baseState(overrides: Partial<ResourceHudState> = {}): ResourceHudState 
     season: "spring",
     population: 0,
     popCap: 0,
-    bread: 0,
+    stockpiles: { grain: 0, flour: 0, bread: 0, wood: 0, stone: 0, planks: 0, tools: 0 },
     foodSurplus: 0,
-    wood: 0,
     happiness: 40,
     paused: false,
     speed: 1,
@@ -47,25 +46,42 @@ function buttonByLabel(root: UINode, label: string): ButtonNode | undefined {
 }
 
 describe("createResourceHud — data binding", () => {
-  it("renders all six readout fields from the snapshot", () => {
+  it("renders the settlement readout fields from the snapshot", () => {
     const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
     hud.refresh(baseState({
       tier: "Town", day: 12, season: "summer",
-      population: 7, popCap: 10, bread: 30, foodSurplus: 5, wood: 18, happiness: 72,
+      population: 7, popCap: 10, happiness: 72,
     }));
     const texts = labels(hud.root).map((l) => l.text);
     expect(texts).toContain("Town");
     expect(texts).toContain("Day 12 (summer)");
     expect(texts).toContain("Pop 7/10");
-    expect(texts).toContain("Bread: 30 (+5)");
-    expect(texts).toContain("Wood: 18");
     expect(texts).toContain("Happy: 72");
+  });
+
+  it("renders a live chip for every good in production-chain order", () => {
+    const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
+    hud.refresh(baseState({
+      stockpiles: { grain: 11, flour: 2, bread: 30, wood: 18, stone: 7, planks: 4, tools: 1 },
+      foodSurplus: 5,
+    }));
+    const texts = labels(hud.root).map((l) => l.text);
+    expect(texts).toContain("Grain 11");
+    expect(texts).toContain("Flour 2");
+    expect(texts).toContain("Bread 30 (+5)"); // bread carries the food-surplus annotation
+    expect(texts).toContain("Wood 18");
+    expect(texts).toContain("Planks 4");
+    expect(texts).toContain("Stone 7");
+    expect(texts).toContain("Tools 1");
   });
 
   it("shows a negative food surplus without a plus sign", () => {
     const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
-    hud.refresh(baseState({ bread: 4, foodSurplus: -3 }));
-    expect(labelText(hud.root, "Bread:")?.text).toBe("Bread: 4 (-3)");
+    hud.refresh(baseState({
+      stockpiles: { grain: 0, flour: 0, bread: 4, wood: 0, stone: 0, planks: 0, tools: 0 },
+      foodSurplus: -3,
+    }));
+    expect(labelText(hud.root, "Bread")?.text).toBe("Bread 4 (-3)");
   });
 
   it("colour-codes the tier (steel/green/cyan/yellow/red)", () => {
