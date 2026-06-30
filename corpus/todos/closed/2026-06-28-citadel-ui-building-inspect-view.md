@@ -1,11 +1,20 @@
 ---
 title: "Citadel UI — click a building → inspect panel (description, production rate, details)"
 created: 2026-06-28
-status: todo
+status: done
 tags: [citadel, ui, building, legibility, cozy-pivot]
 ---
 
 # Click a building → inspect view (description + production rate + scope)
+
+> **DONE 2026-06-30** (branch `citadel-inspect-panel`, commit `2cab8ae`; verified in-browser
+> via Playwright). Built native to `@engine/ui` as a floating in-canvas panel
+> ([inspect-panel.ts](../../games/citadel/client/src/ui/inspect-panel.ts) +
+> [selection.ts](../../games/citadel/client/src/ui/selection.ts) +
+> [building-info.ts](../../games/citadel/client/src/ui/building-info.ts)): name/description,
+> production rate (or "—"/slowed note), scope (coverage / inputs→outputs / workers / level /
+> connected). The **upgrade-button todo is folded in here** (Upgrade button + cost in the
+> footer, tier/affordability/max gated).
 
 > **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).

@@ -4,6 +4,30 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel building inspect panel + upgrade (2nd @engine/ui consumer)
+
+Second `@engine/ui` consumer after the resource HUD (via orchestrate → plan-split-dispatch,
+3 chunks). Clicking a building opens a floating in-canvas inspect panel
+([inspect-panel.ts](../games/citadel/client/src/ui/inspect-panel.ts),
+[selection.ts](../games/citadel/client/src/ui/selection.ts),
+[building-info.ts](../games/citadel/client/src/ui/building-info.ts)): name + description,
+production rate (output scales with level × seasonal grain mult; **input does not**, matching
+the sim — a review fix), scope (coverage / inputs→outputs / workers / level / connected),
+and an **Upgrade button + cost** in the footer (reuses the existing `upgradeBuilding` command;
+disabled at max level / unaffordable / tier-locked "Needs Village|Town", precedence
+max>tier>afford). This **closes two todos** — inspect-view and upgrade-button (folded into the
+one panel). Wiring is a **second UI root** sharing the surface, with its own input dispatcher +
+a11y mirror (events forward to both, consumed = either, so panel clicks don't fall through to
+the world); building-click precedence over villager-follow; Esc/✕/click-away/vanish close and
+clear the mirror; `markOpened()` guarantees layout+mirror reconcile on each open. One benign
+sim-core barrel addition (re-export pure defs `upgradeCost`/`BUILDING_MAX_LEVEL`/
+`tierNameRequiredForLevel`/`outputBufferCap`; no values changed). A 2-finder review found +
+fixed 5 issues (a11y-mirror-not-cleared-on-close, once-per-lifetime firstRefresh, input/day
+level-scaling, tier-gate, cleanups). Verified in-browser (Playwright + WebGPU): panel opens
+with correct content + tier annotation, a11y mirror populated then cleared on Esc, **0 page
+errors**. `@citadel/client` 318 tests, typecheck clean. Determinism untouched (render/input +
+a pure-def re-export). Commit `2cab8ae`, branch `citadel-inspect-panel`. 4 panel todos remain.
+
 ## [2026-06-30] playtest | @engine/ui HUD verified in-browser (Playwright + WebGPU)
 
 Drove the live Citadel client (`playtest-citadel`, system Chrome + WebGPU, seed

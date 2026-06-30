@@ -1,11 +1,17 @@
 ---
 title: "Citadel UI — click a building → upgrade button showing upgrade cost"
 created: 2026-06-28
-status: todo
+status: done
 tags: [citadel, ui, economy, building, upgrades]
 ---
 
 # Click a building → floating Upgrade button with cost
+
+> **DONE 2026-06-30** (branch `citadel-inspect-panel`, commit `2cab8ae`; verified in-browser).
+> **Folded into the inspect panel** (see [building-inspect-view](2026-06-28-citadel-ui-building-inspect-view.md)) —
+> the panel's footer holds the Upgrade button + cost label, reusing the existing
+> `upgradeBuilding` command. Disabled at max level, when unaffordable, or when tier-locked
+> ("Needs Village/Town"); precedence max > tier > affordability.
 
 > **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).

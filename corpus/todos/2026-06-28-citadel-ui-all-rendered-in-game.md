@@ -7,7 +7,7 @@ tags: [citadel, farm, engine, ui, render, architecture, framework]
 
 # `@engine/ui` — render ALL GUI in-game, as a reusable cross-game framework
 
-> **Update 2026-06-30 — framework SHIPPED** ([brief 17](../briefs/engine/done/17-engine-ui-framework.md), branch `engine-ui-framework`). The `@engine/ui` package + the resource-HUD **pilot consumer** are done (pending an in-browser WebGPU visual check). **Remaining:** migrate the other DOM UI (build bar, settings, minimap, toasts, badges, follow-HUD) + the other 5 panel todos, then full DOM-overlay removal (the acceptance below). The 6 panel todos are now unblocked.
+> **Update 2026-06-30 — framework SHIPPED** ([brief 17](../briefs/engine/done/17-engine-ui-framework.md), branch `engine-ui-framework`). The `@engine/ui` package + the resource-HUD **pilot consumer** are done (pending an in-browser WebGPU visual check). **Remaining:** migrate the other DOM UI (build bar, settings, minimap, toasts, badges, follow-HUD) + the remaining **4** panel todos, then full DOM-overlay removal (the acceptance below). **Done so far: resource-HUD (pilot), building inspect-view + upgrade-button (one panel, 2026-06-30, commit `2cab8ae`).** Still open: build-cost-hover, resource-HUD-all-goods, town-hall build button, villager-job.
 
 > **⭐ GRILLED 2026-06-28 (round 7) — four decisions locked. This is no longer a small
 > Citadel-client task; it is a first-class engine subsystem.**
