@@ -60,8 +60,6 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 }
 #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
 #lbl-mode { color: #fee761; min-width: 160px; }
-/* Phase 3 UI */
-#hud-happiness { color: #fee761; }
 /* Phase 4 siege HUD */
 #hud-threat { color: #63c74d; }
 #hud-defense { color: #2ce8f5; }
@@ -109,8 +107,6 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 }
 .trade-offer-btn { background: #5a6988; color: #c0cbdc; border: 1px solid #fee761; padding: 2px 8px; cursor: pointer; font-family: monospace; font-size: 12px; }
 .trade-offer-btn:hover { background: #fee761; color: #181425; }
-/* Phase 5: tier display */
-#hud-tier { color: #fee761; font-weight: bold; }
 /* Phase 4.5: hazard HUD */
 #hud-fire { color: #8b9bb4; }
 #hud-disease { color: #8b9bb4; }

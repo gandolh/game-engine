@@ -4,7 +4,8 @@ import { EDG } from "../palette";
 import type { ParticleSystem } from "../particles";
 import type { Canvas2dSprite, Ctx2D } from "./types";
 import { compareSprite, drawSprite, createOffscreen, spritesOverlap } from "./draw";
-import type { RendererLike, OverlayFn } from "../renderer";
+import type { RendererLike, OverlayFn, UIQuad } from "../renderer";
+import { drawUIQuad } from "../ui-draw";
 import { resolveStaticRegion, staticBlitRect } from "../static-region";
 import type { StaticRegion } from "../static-region";
 
@@ -168,6 +169,9 @@ export class Canvas2dRenderer implements RendererLike {
     }
     this.queueLen = 0;
     this.shadowLen = 0;
+    // Reset the UI draw-list too: it's otherwise only cleared in beginUI(), so a
+    // consumer that stops calling beginUI would re-draw its last UI quads forever.
+    this.uiLen = 0;
 
     const { camera } = this;
     const halfX = camera.worldUnitsX / 2;
@@ -201,6 +205,32 @@ export class Canvas2dRenderer implements RendererLike {
     this.shadowLen += 1;
   }
   private shadowQueue: Array<{ x: number; y: number; rx: number; ry: number; alpha: number }> = [];
+
+  // Screen-space UI draw-list. `uiActive` gates accumulation so the layer is inert
+  // (and zero-overhead) until a caller opts in via beginUI(). Reset each beginUI().
+  private uiQueue: UIQuad[] = [];
+  private uiLen = 0;
+  private uiActive = false;
+
+  beginUI(): void {
+    this.uiActive = true;
+    this.uiLen = 0;
+  }
+
+  pushUI(quad: UIQuad): void {
+    if (!this.uiActive) return;
+    this.uiQueue[this.uiLen] = quad;
+    this.uiLen += 1;
+  }
+
+  endUI(): void {
+    this.uiActive = false;
+  }
+
+  /** Current device-pixel-ratio (matches beginFrame's backing-store sizing). */
+  private currentDpr(): number {
+    return Math.min((typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1, 2);
+  }
 
   private drawQueued(ctx: Ctx2D, s: Canvas2dSprite, sx: number, sy: number, ox: number, oy: number): void {
     const origY = s.y;
@@ -361,6 +391,18 @@ export class Canvas2dRenderer implements RendererLike {
       overlay(ctx, { sx, sy, ox, oy });
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+    }
+
+    // Screen-space UI layer: drawn last, in identity (screen) transform so it is
+    // unaffected by the world camera. drawUIQuad applies DPR scaling internally.
+    if (this.uiLen > 0) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = "source-over";
+      const dpr = this.currentDpr();
+      for (let i = 0; i < this.uiLen; i += 1) {
+        drawUIQuad(ctx, this.atlases, this.uiQueue[i]!, dpr);
+      }
       ctx.globalAlpha = 1;
     }
   }

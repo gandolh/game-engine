@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@engine/core": "0.0.0",
+    "@engine/ui": "0.0.0",
     "@citadel/sim-core": "0.0.0"
   },
   "devDependencies": {

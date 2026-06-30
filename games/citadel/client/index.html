@@ -16,6 +16,11 @@
     <!-- Per-building occupancy badges: headcount chips floated over buildings
          (DOM overlay, pooled + positioned in main.ts via the world→screen map) -->
     <div id="occupancy-badges"></div>
+    <!-- engine-ui chunk 7: hidden host for the @engine/ui a11y mirror. The framework
+         renders the HUD 100% in-canvas; this empty container is where createA11yMirror
+         builds a parallel, visually-hidden DOM subtree so the in-canvas HUD is reachable
+         by screen readers + the Tab order. Populated/managed entirely in main.ts. -->
+    <div id="ui-a11y-mirror"></div>
 
     <!-- Citadel build toolbar: build buttons grouped by purpose, each with an
          icon glyph. Lives in its own strip above the HUD so the readout row
@@ -78,16 +83,12 @@
       </div>
     </div>
 
+    <!-- engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) and
+         the speed/pause controls are now rendered IN-CANVAS via @engine/ui (see
+         src/ui/resource-hud.ts). Their DOM elements were removed from this row; the hidden
+         #ui-a11y-mirror below exposes the in-canvas HUD to screen readers + the keyboard.
+         The remaining siege/hazard readouts stay DOM for now (separate todos). -->
     <div id="hud">
-      <!-- Phase 5: tier display — always visible, shows current settlement rank -->
-      <span id="hud-tier">Hamlet</span>
-      <div class="sep"></div>
-      <span id="hud-day">Day 1 (spring)</span>
-      <span id="hud-pop">Pop 0/0</span>
-      <span id="hud-bread">Bread: 0</span>
-      <span id="hud-wood">Wood: 0</span>
-      <span id="hud-happiness">Happy: 40</span>
-      <div class="sep"></div>
       <!-- Phase 4 siege status -->
       <span id="hud-threat">Threat: 0</span>
       <span id="hud-defense">Defense: 0</span>
@@ -96,10 +97,6 @@
       <span id="hud-fire">Fire: none</span>
       <span id="hud-disease">Disease: none</span>
       <div class="sep"></div>
-      <button id="btn-pause">Pause</button>
-      <button id="btn-1x">1x</button>
-      <button id="btn-2x">2x</button>
-      <button id="btn-4x">4x</button>
       <button id="btn-settings">Settings</button>
       <div class="sep"></div>
       <span id="lbl-mode">Mode: None</span>

@@ -17,7 +17,8 @@ export {
 } from "./palette";
 export type { Edg32Color } from "./palette";
 
-export type { RendererLike, WashOptions, WeatherLike, DecorateFn, CloudOptions, OverlayFn } from "./renderer";
+export type { RendererLike, WashOptions, WeatherLike, DecorateFn, CloudOptions, OverlayFn, UIQuad } from "./renderer";
+export { drawUIQuad } from "./ui-draw";
 export { resolveStaticRegion, staticBlitRect } from "./static-region";
 export type { StaticRegion, StaticBlit } from "./static-region";
 export type { Ctx2D } from "./canvas2d/types";

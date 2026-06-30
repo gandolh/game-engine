@@ -2,7 +2,8 @@
 import type { Camera2D } from "../camera";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import type { ParticleSystem } from "../particles";
-import type { RendererLike, WashOptions, WeatherLike, DecorateFn, Sprite, OverlayFn } from "../renderer";
+import type { RendererLike, WashOptions, WeatherLike, DecorateFn, Sprite, OverlayFn, UIQuad } from "../renderer";
+import { drawUIQuad } from "../ui-draw";
 import type { StaticRegion } from "../static-region";
 import { EDG } from "../palette";
 import { GpuContext } from "./gpu-context";
@@ -87,6 +88,11 @@ export class WebGpuRenderer implements RendererLike {
 
   private _shadowQueue: ShadowRecord[] = [];
   private _shadowLen = 0;
+
+  // Screen-space UI draw-list, flushed via the Overlay2D layer in endFrame.
+  private _uiQueue: UIQuad[] = [];
+  private _uiLen = 0;
+  private _uiActive = false;
 
   private _occludableIdx: number[] = [];
 
@@ -253,6 +259,9 @@ export class WebGpuRenderer implements RendererLike {
 
     this._queueLen = 0;
     this._shadowLen = 0;
+    // Reset the UI draw-list too: it's otherwise only cleared in beginUI(), so a
+    // consumer that stops calling beginUI would re-draw its last UI quads forever.
+    this._uiLen = 0;
 
     const { camera } = this;
     const halfX = camera.worldUnitsX / 2;
@@ -288,6 +297,21 @@ export class WebGpuRenderer implements RendererLike {
       rec.x = x; rec.y = y; rec.rx = rx; rec.ry = ry; rec.alpha = alpha;
     }
     this._shadowLen += 1;
+  }
+
+  beginUI(): void {
+    this._uiActive = true;
+    this._uiLen = 0;
+  }
+
+  pushUI(quad: UIQuad): void {
+    if (!this._uiActive) return;
+    this._uiQueue[this._uiLen] = quad;
+    this._uiLen += 1;
+  }
+
+  endUI(): void {
+    this._uiActive = false;
   }
 
   private _recordGroup(atlasId: string, first: number, count: number): void {
@@ -494,6 +518,27 @@ export class WebGpuRenderer implements RendererLike {
       } else if (weather && weather.count > 0) {
         weather.draw(overlayCtx);
       }
+    }
+
+    // Screen-space UI layer: drawn last, in identity (screen) transform on the
+    // Overlay2D canvas which sits one z-index above the GPU canvas. Unaffected by
+    // the world camera. drawUIQuad applies DPR scaling internally.
+    if (this._uiLen > 0) {
+      this._overlay.resetTransform();
+      // Force nearest-neighbour: applyWorldTransform (the only per-frame place that sets
+      // this false) is skipped when no particles/weather are active, so a (re)sized backing
+      // store leaves smoothing at its default `true` → blurry scaled UI. Pin it false here
+      // so UI is always pixel-crisp and identical to the Canvas2D path.
+      overlayCtx.imageSmoothingEnabled = false;
+      overlayCtx.globalCompositeOperation = "source-over";
+      const dpr = Math.min(
+        (typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1,
+        2,
+      );
+      for (let i = 0; i < this._uiLen; i += 1) {
+        drawUIQuad(overlayCtx, this._atlases, this._uiQueue[i]!, dpr);
+      }
+      overlayCtx.globalAlpha = 1;
     }
   }
 }

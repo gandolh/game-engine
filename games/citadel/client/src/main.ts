@@ -13,6 +13,10 @@ import { generateTerrain, getBuildingDef, getProductionDef, TIER_LOCK, tierAtLea
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot } from "@citadel/sim-core";
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
+import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11yMirror, loadFontAtlas } from "@engine/ui";
+import type { InputDispatcher, A11yMirror } from "@engine/ui";
+import { createResourceHud } from "./ui/resource-hud";
+import type { ResourceHud } from "./ui/resource-hud";
 import { CitadelSimClient } from "./worker/sim-client";
 import { CitadelServerClient } from "./worker/server-client";
 import {
@@ -86,12 +90,10 @@ const VISUAL_DAY_TICKS = 1800;
 // ---------------------------------------------------------------------------
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
-const hudTier = document.getElementById("hud-tier")!;
-const hudDay = document.getElementById("hud-day")!;
-const hudPop = document.getElementById("hud-pop")!;
-const hudBread = document.getElementById("hud-bread")!;
-const hudWood = document.getElementById("hud-wood")!;
-const hudHappiness = document.getElementById("hud-happiness")!;
+// engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) and the
+// speed/pause controls are now rendered IN-CANVAS via @engine/ui (see resource-hud.ts +
+// the HUD wiring further down), so their DOM elements are gone from index.html. The
+// remaining siege/hazard readouts stay DOM for now (other todos).
 // Phase 4 siege HUD
 const hudThreat = document.getElementById("hud-threat")!;
 const hudDefense = document.getElementById("hud-defense")!;
@@ -99,10 +101,6 @@ const hudKeep = document.getElementById("hud-keep")!;
 // Phase 4.5 hazard HUD
 const hudFire = document.getElementById("hud-fire")!;
 const hudDisease = document.getElementById("hud-disease")!;
-const btnPause = document.getElementById("btn-pause")!;
-const btn1x = document.getElementById("btn-1x")!;
-const btn2x = document.getElementById("btn-2x")!;
-const btn4x = document.getElementById("btn-4x")!;
 const btnDemolish = document.getElementById("btn-demolish")!;
 const btnUpgrade = document.getElementById("btn-upgrade")!;
 const btnRoad = document.getElementById("btn-build-road")!;
@@ -155,6 +153,17 @@ let camera: Camera2D;
 let renderer: RendererLike;
 let windowController: RenderWindowController;
 
+// engine-ui chunk 7: the in-canvas top HUD bar (resource readout + speed/pause), the
+// screen-space UI surface over the renderer, the canvas-space input dispatcher, and the
+// hidden a11y mirror. All created in boot() once the renderer + font atlas exist.
+let hud: ResourceHud | undefined;
+let uiSurface: UISurface | undefined;
+let uiDispatcher: InputDispatcher | undefined;
+let a11yMirror: A11yMirror | undefined;
+// Mount host for the hidden a11y mirror DOM (an empty container in index.html). Read at
+// module scope so the keydown guard can test "is focus currently inside the mirror?".
+const a11yMount = document.getElementById("ui-a11y-mirror");
+
 // Atmosphere (render-only, off-sim): day/night wash, weather FX, ambient crowd.
 const weather = new CitadelWeather();
 const ambientCrowd = new CitadelAmbientCrowd();
@@ -205,6 +214,105 @@ let coverageOverlay = false;
 let currentBuildings: readonly BuildingSnapshot[] = [];
 let currentVillagers: readonly VillagerSnapshot[] = [];
 let currentRaiders: readonly RaiderSnapshot[] = [];
+
+// engine-ui chunk 7: the in-canvas HUD gets first dibs on pointer/wheel/key events. These
+// CAPTURE-phase listeners run before the world (bubble-phase) handlers below; if the UI
+// dispatcher consumes the event we stopImmediatePropagation so the world never also acts
+// (e.g. clicking a HUD button must NOT also place a building / pick a villager).
+//
+// Coordinates: the UISurface + computeLayout work in CSS LOGICAL px (canvas-relative,
+// top-left origin) — the same space the renderer's UI seam uses (NOT device px). So we
+// convert with clientX − rect.left and DO NOT multiply by dpr.
+function eventToCssPx(e: MouseEvent): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+function pointerButtonOf(e: MouseEvent): "primary" | "secondary" | "auxiliary" {
+  return e.button === 2 ? "secondary" : e.button === 1 ? "auxiliary" : "primary";
+}
+// Pointer "capture" semantics: the OWNER of a pointer gesture is decided at PRESS, not
+// per-event. `uiPressActive` is true while a gesture whose mousedown the UI consumed is in
+// flight; it (not a per-event hit-test) decides whether the world is blocked for the move/up/
+// click of THAT gesture. This fixes three bugs the old hit-test-per-event logic caused:
+//   - pan stutter when the cursor merely hovered the HUD mid-pan,
+//   - lost road/wall drags released over the HUD,
+//   - clicks mis-routed because the release point (not the press) was hit-tested.
+let uiPressActive = false;
+// Tracks whether the gesture whose `click` is about to fire was UI-owned (set in mouseup just
+// before the gesture's click). Lets the click handler suppress the world click only for
+// UI-initiated gestures — NOT based on hit-testing the release point.
+let uiGestureWasUI = false;
+canvas.addEventListener("mousedown", (e) => {
+  if (uiDispatcher === undefined) return;
+  const { x, y } = eventToCssPx(e);
+  if (uiDispatcher.pointerDown(x, y, pointerButtonOf(e)).consumed) {
+    // Press landed on a UI widget: the UI owns this gesture. Block the world so it doesn't
+    // start a placement/drag, and remember the ownership for this gesture's move/up/click.
+    uiPressActive = true;
+    e.stopImmediatePropagation();
+    // After a pointer press moves focus, mirror it into the a11y DOM.
+    a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
+  }
+}, { capture: true });
+canvas.addEventListener("mouseup", (e) => {
+  if (uiDispatcher === undefined) return;
+  const { x, y } = eventToCssPx(e);
+  // Always forward so a UI press completes/activates, but only block the world when the UI
+  // owns this gesture (uiPressActive). A world-owned release — even over the HUD — must reach
+  // the world handler so road/wall drags commit.
+  uiDispatcher.pointerUp(x, y, pointerButtonOf(e));
+  if (uiPressActive) e.stopImmediatePropagation();
+  // The gesture ends here; the `click` handler below reads `uiPressActive` first, then we
+  // clear it on the next mousedown — but clear here so a stray click without a press can't
+  // inherit stale ownership. (click fires after mouseup, so capture the value first.)
+  uiGestureWasUI = uiPressActive;
+  uiPressActive = false;
+}, { capture: true });
+canvas.addEventListener("mousemove", (e) => {
+  if (uiDispatcher === undefined) return;
+  const { x, y } = eventToCssPx(e);
+  // ALWAYS forward so hover visuals update, but only block the world (pan/drag) when the UI
+  // owns the active gesture. Mere hover must NOT block world pan/drag.
+  uiDispatcher.pointerMove(x, y, pointerButtonOf(e));
+  if (uiPressActive) e.stopImmediatePropagation();
+}, { capture: true });
+canvas.addEventListener("click", (e) => {
+  // Activation already happened on pointerUp. Suppress the world `click` handlers only when
+  // this gesture's INITIATING mousedown was UI-consumed (a press that began on a HUD button
+  // but released over the world must NOT suppress — and vice-versa).
+  if (uiDispatcher === undefined) return;
+  if (uiGestureWasUI) e.stopImmediatePropagation();
+  uiGestureWasUI = false;
+}, { capture: true });
+canvas.addEventListener("wheel", (e) => {
+  if (uiDispatcher === undefined) return;
+  const { x, y } = eventToCssPx(e);
+  if (uiDispatcher.wheel(x, y, e.deltaY).consumed) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+}, { capture: true, passive: false });
+// Keyboard: the UI consumes Tab (focus traversal) + Enter/Space (activate focused button)
+// when a HUD widget is focused, so world key handlers (Escape/C) don't double-fire. Run in
+// capture so it precedes the window-level world keydown listeners.
+//
+// IMPORTANT: when a real mirror <button> already holds DOM focus, NATIVE Tab/Enter +
+// the mirror's own listeners drive things (mirror focusin → onFocusNode → dispatcher.focus,
+// and the <button>'s click → node.onActivate). Intercepting here would fight that, so we
+// only run the dispatcher's keyboard path when focus is NOT inside the mirror DOM (the
+// canvas-focused path). Other typing targets (decree checkboxes, etc.) are also skipped.
+window.addEventListener("keydown", (e) => {
+  if (uiDispatcher === undefined) return;
+  const active = document.activeElement as HTMLElement | null;
+  if (active !== null && a11yMount !== null && a11yMount.contains(active)) return;
+  if (active !== null && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+  const consumed = uiDispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
+  if (consumed) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
+  }
+}, { capture: true });
 
 canvas.addEventListener("mousedown", (e) => {
   // Right button (2) pans the camera; left button (0) interacts/builds.
@@ -678,6 +786,7 @@ function tileToScreenCss(tileX: number, tileY: number): { x: number; y: number }
 }
 
 let paused = false;
+let speed = 1; // current sim-speed multiplier (1/2/4); drives the HUD speed-button highlight
 let day = 1;
 let tick = 0;            // render-side mirror of snap.tick (for the day/night wash)
 let season = "spring";
@@ -708,28 +817,27 @@ let sickVillagers = 0;
 let outbreakActive = false;
 let activeFires = 0;
 
-btnPause.addEventListener("click", () => {
+// engine-ui chunk 7: pause/speed are now in-canvas @engine/ui buttons. These two
+// functions are the single shared command path — invoked by the HUD buttons' onActivate
+// (mouse, Tab+Enter via the dispatcher, AND the a11y mirror's <button>). The pause label
+// flip + the active-speed highlight are derived from `paused`/`speed` in the HUD's refresh.
+function togglePause(): void {
   if (paused) {
     client.resume();
-    btnPause.textContent = "Pause";
   } else {
     client.pause();
-    btnPause.textContent = "Resume";
   }
   paused = !paused;
-});
+}
 /** Picking a speed also resumes if paused (standard city-builder behaviour). */
 function setSpeedAndResume(n: number): void {
   client.setSpeed(n);
+  speed = n;
   if (paused) {
     client.resume();
-    btnPause.textContent = "Pause";
     paused = false;
   }
 }
-btn1x.addEventListener("click", () => setSpeedAndResume(1));
-btn2x.addEventListener("click", () => setSpeedAndResume(2));
-btn4x.addEventListener("click", () => setSpeedAndResume(4));
 
 // ---------------------------------------------------------------------------
 // Brief 25: Settings modal — tabbed (Display / Atmosphere / Simulation),
@@ -884,25 +992,20 @@ const terrain: TerrainGrid = generateTerrain(SEED);
 // Animation loop
 // ---------------------------------------------------------------------------
 function loop(): void {
-  const surplusSign = foodSurplus >= 0 ? "+" : "";
-  // Phase 5: tier display — color by tier level
-  hudTier.textContent = tier;
-  const tierColors: Record<string, string> = {
-    "Hamlet": EDG.steel,
-    "Village": EDG.green,
-    "Town": EDG.cyan,
-    "Citadel": EDG.yellow,
-    "Fortress-City": EDG.red,
-  };
-  hudTier.style.color = tierColors[tier] ?? EDG.silver;
-  hudDay.textContent = `Day ${day} (${season})`;
-  hudPop.textContent = `Pop ${population}/${popCap}`;
-  hudBread.textContent = `Bread: ${bread} (${surplusSign}${foodSurplus})`;
-  hudWood.textContent = `Wood: ${wood}`;
-  // Phase 3: happiness display with color coding (EDG cyan / yellow / red)
-  const happinessColor = happiness >= 60 ? EDG.cyan : happiness >= 40 ? EDG.yellow : EDG.red;
-  hudHappiness.textContent = `Happy: ${happiness}`;
-  hudHappiness.style.color = happinessColor;
+  // engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) + the
+  // speed/pause buttons are rendered IN-CANVAS via @engine/ui now. Refresh their widget
+  // text/state from the latest snapshot here; the actual layout + draw happens after the
+  // world scene is submitted, below (so the HUD paints on top). hud may be undefined for
+  // the first frame(s) before boot() finishes — guard it.
+  // refresh() returns whether LAYOUT-AFFECTING content changed (label text / button label).
+  // HUD content only changes on sim ticks (~1–4 Hz), so we gate the per-frame-expensive
+  // computeLayout + a11y-mirror reconcile behind it (see the HUD submit block below).
+  // renderTree + surface.begin/end still run EVERY frame (the UI layer is re-submitted each
+  // frame). undefined on the first frame(s) before boot — treat that as "no HUD to lay out".
+  const hudContentChanged = hud?.refresh({
+    tier, day, season, population, popCap,
+    bread, foodSurplus, wood, happiness, paused, speed,
+  }) ?? false;
   // Phase 4: siege HUD
   const threatColor = threatLevel >= 60 ? EDG.red : threatLevel >= 30 ? EDG.gold : EDG.green;
   hudThreat.textContent = `Threat: ${threatLevel}` + (nextRaidDay >= 0 ? ` (next ~d${nextRaidDay + 1})` : "");
@@ -1102,6 +1205,26 @@ function loop(): void {
   if (renderToggles.smoke) smoke.update(currentBuildings, nowMs);
   particles.update(dt);
 
+  // engine-ui chunk 7: lay out + submit the in-canvas HUD. computeLayout writes screen-px
+  // rects (CSS logical, top-left origin); renderTree emits quads/text through the UISurface
+  // (renderer.beginUI/pushUI/endUI), which the renderer flushes LAST inside endFrame() so
+  // the HUD paints on top of the world scene + wash. Anchored at the top-left (8,8). The
+  // a11y mirror is reconciled against the same tree so the HUD is keyboard/AT-reachable.
+  if (hud !== undefined && uiSurface !== undefined) {
+    // Gate ONLY the expensive work (computeLayout allocates + re-measures every label;
+    // a11yMirror.update re-walks + re-patches the DOM) behind a content change — content
+    // changes at sim-tick rate (~1–4 Hz), not frame rate (~60 Hz). The first frame's refresh
+    // returns true, so the initial layout always runs. renderTree re-submits the (already
+    // laid-out) tree EVERY frame so hover/active colour changes still paint immediately.
+    if (hudContentChanged) {
+      computeLayout(hud.root, 8, 8);
+      a11yMirror?.update(hud.root);
+    }
+    uiSurface.begin();
+    renderTree(uiSurface, hud.root);
+    uiSurface.end();
+  }
+
   // Day/night + seasonal wash (GPU TintPass via endFrame), then particles +
   // weather (both rendered natively by the WebGPU backend).
   // Brief 25: gated — pass undefined wash/weather when their toggles are off.
@@ -1139,6 +1262,31 @@ async function boot(): Promise<void> {
   renderer = created.renderer;
   camera = created.camera;
   windowController = created.windowController;
+
+  // engine-ui chunk 7: register the bitmap font atlas (once), build the in-canvas HUD,
+  // and wire its render/input/a11y plumbing.
+  //  - addAtlas(loadFontAtlas()) makes drawText's glyph quads resolvable by the renderer.
+  //  - createResourceHud wires the speed/pause buttons' onActivate to the SAME command
+  //    functions the old DOM handlers used (togglePause / setSpeedAndResume).
+  //  - the UISurface wraps the renderer's screen-space UI seam.
+  //  - the input dispatcher hit-tests the laid-out tree (fed lazily so a rebuild is safe).
+  //  - the a11y mirror reflects the tree into hidden DOM; its focus bridge forwards mirror
+  //    focus into the dispatcher (and the loop's setFocus mirrors it back).
+  renderer.addAtlas(await loadFontAtlas());
+  hud = createResourceHud({ togglePause, setSpeed: setSpeedAndResume });
+  uiSurface = new UISurface(renderer);
+  uiDispatcher = createInputDispatcher(() => hud?.root ?? null);
+  if (a11yMount !== null) {
+    a11yMirror = createA11yMirror(a11yMount, {
+      rootLabel: "Settlement HUD",
+      onFocusNode: (id) => {
+        // uiDispatcher is assigned just above, before any mirror focus event can fire.
+        if (uiDispatcher === undefined) return;
+        if (id === null) uiDispatcher.blur();
+        else uiDispatcher.focus(id);
+      },
+    });
+  }
 
   // Minimap (top-right): clicking it recentres the camera on that tile and
   // releases any follow-cam lock. Camera centre is in iso world-px, so map the
