@@ -4,6 +4,29 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-06-30] build | Citadel villager job personalization (3rd @engine/ui consumer)
+
+Closed the villager-job todo (orchestrate → plan-split-dispatch, 3 chunks + a review-fix).
+(1) **Sim:** read-only `VillagerSnapshot.job` derived from the villager's workplace at
+snapshot-build time (`jobForBuildingType`, closed `VillagerJob` union farmer/…/idle,
+re-exported from the sim-core barrel); pure read → determinism untouched (no Citadel
+harness exists — argued from code + 173 sim tests + clean `sim:citadel`). (2) **Render:**
+villagers tint by job (`VILLAGER_JOB_COLORS` typed `Record<VillagerJob,string>` →
+totality compile-enforced; 14 distinct EDG tints); the FSM-state tint is **dropped** from
+the body channel (ceded to a future per-villager mood layer). (3) **UI:** a read-only
+in-canvas `@engine/ui` villager panel (job + id/activity/cargo) shown while following a
+villager — **replaces and removes the DOM `#follow-hud`** (3rd UI root sharing the surface,
+own a11y mirror + a click-consuming dispatcher). A review found + fixed: placement-mode
+entry now releases the follow-cam (**placement ⊥ follow** — kills a camera-drift + a
+click-through-builds-under-panel bug), the panel consumes clicks, and dead `destinationLabel`
+removed. Added a dev-only `__citadel.villagers()` hook (parallels `buildings()`) for the
+playtest harness. `@citadel/client` 330 tests, `@citadel/sim-core` 173, typecheck clean;
+0 page errors in-browser (inspect panel + precedence re-confirmed). The **live villager
+panel/tints couldn't be driven in-browser** here — the pre-cozy economy yields ~1
+home-bound villager so building-precedence intercepts the click; observable once a working
+economy / the cozy cold-open exists. Commit `84a9ef9`, branch `citadel-villager-job`.
+**3 panel todos remain** (build-cost-hover, resource-HUD-all-goods, town-hall).
+
 ## [2026-06-30] build | Citadel building inspect panel + upgrade (2nd @engine/ui consumer)
 
 Second `@engine/ui` consumer after the resource HUD (via orchestrate → plan-split-dispatch,

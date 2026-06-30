@@ -1,11 +1,23 @@
 ---
 title: "Citadel UI — personalize walking entities by job + click to show their job"
 created: 2026-06-28
-status: todo
+status: done
 tags: [citadel, ui, art, villagers, cozy-pivot]
 ---
 
 # Personalize villagers by job; click a villager to see its job
+
+> **DONE 2026-06-30** (branch `citadel-villager-job`, commit `84a9ef9`). All three parts:
+> (1) sim — read-only `VillagerSnapshot.job` derived from the villager's workplace
+> ([snapshot/index.ts](../../games/citadel/sim-core/src/snapshot/index.ts), `jobForBuildingType`),
+> determinism untouched; (2) render — villagers tint by job (14 distinct EDG tints,
+> totality compile-enforced; FSM cue dropped from the tint channel, ceded to a future mood
+> layer); (3) UI — a read-only in-canvas `@engine/ui` villager panel
+> ([villager-panel.ts](../../games/citadel/client/src/ui/villager-panel.ts)) showing job +
+> id/activity/cargo while following, **replacing + removing the DOM `#follow-hud`**.
+> Review fixes: placement-mode entry releases follow (placement ⊥ follow); panel consumes
+> clicks. Tests green; in-browser the live villager view needs a working economy to drive
+> (pre-cozy start is home-bound — noted for a later playtest once the cozy cold-open lands).
 
 > **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
