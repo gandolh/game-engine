@@ -4,6 +4,70 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] shipped | Citadel cozy-pivot Phase G — autonomy pass (civic buildings + player-driven trading post)
+
+Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Phase G (decision #8 — the autonomy boundary): **the player sets placement +
+economic intent; the town autonomously handles all behavior.** Built via
+`plan-split-dispatch` (2 senior/opus + 4 junior/Sonnet chunks; 3 Sonnet+opus review
+finders). **Determinism MATCH ×3** (seeds 0x1a2b3c4d / 0xc0ffee / 0x2a, 40d) — the
+baseline moved by design (removing the `rng.fork("trader")` stream + the decree math),
+reproducibility re-proved. Gates: sim-core **211/211**, client **387/387**,
+typecheck-clean. New baseline (seed 0x1a2b3c4d, 40d grow): `pop 5/12, bread 8,
+gameOver=false`.
+
+**What shipped:**
+- **Player-driven trading post (the sole economic-intent lever).** `TraderSystem` was
+  an autonomous seeded caravan (`TRADER_INTERVAL_DAYS`, `rng.fork("trader")`, auto-barter
+  offers); reframed to player-initiated: it now sets `traderPresent` = "owns a **staffed +
+  connected** tradingpost" and rebuilds `traderOffers` (deterministic ≤3-offer menu, ranks
+  goods by stock, plentiful→scarce at a fixed 5-for-3 rate, no RNG). The `barter` command
+  became `trade` (`{offerIndex}`); the tithe-gated `RELIEF_BARTER_THRESHOLD` sweetener is
+  retired. Client: the old DOM trader panel is gone; the tradingpost's **in-canvas
+  InspectPanel** grows a tiny "Trade:" box (≤3 offer buttons, shown only when
+  `traderPresent`). Removed `traderArrivalDay`/`traderDepartDay` from PlayerState.
+- **`public-square` — net-new 2×2 civic building** (SERVICE_RADII 8, `workerSlots:0`,
+  `BUILD_COST wood:8`). Sim: authored in BUILDING_DEFS/PRODUCTION_DEFS/SERVICE_RADII.
+  Client: a `plaza()` iso sprite (open cobblestone diamond + dais + banner, EDG-only),
+  a `Square` build-bar button (untiered, like other civic), a `festival`→`EDG.green`
+  coverage ring, a building-info description. It **autonomously** lifts festival happiness
+  (+15, spatial, folded into the ease TARGET) for homes in reach — replacing the
+  `festival` **decree**.
+- **Decree/policy lever fully purged from the cozy sim core.** Deleted the
+  `logged("setDecree", …)` handler + `FESTIVAL_BREAD_COST`/`FESTIVAL_DAYS`/
+  `CONSCRIPTION_THREAT_GATE`; deleted `_maintainDecrees` + the decree-penalty/stacking
+  block + `festivalDaysLeft` (removed from PlayerState). Work-hours +30% decree →
+  **automatic town-hall-coverage output lift (×1.2)** for producers in a town-hall's reach
+  (production.ts). Conscription production-halt deleted. `activeDecrees` is **kept but
+  always-empty** (two frozen/out-of-scope systems — `immigration` tithe/rationing,
+  `siege-resolution` conscription — still read it; those get their pass later). Client
+  decree checkboxes + `wireDecree` removed.
+- **Territory + army frozen from the cozy/solo path (byte-identical, MP preserved).**
+  `TerritorySystem` registration gated on the existing `enforceTerritory` (its output is
+  read only by `canBuildAt`, itself gated on that flag → solo dropped a dead pass); new
+  `enableArmy?` option (default true, round-trips save/load like `cozyThreats`) gates
+  `ArmySystem`; the **solo worker passes `enableArmy:false`** (a no-op in solo → byte-
+  identical). MP server unchanged; `army.test.ts` stays green unmodified (defaults true).
+
+**Controller adjudications (recorded so the reasoning isn't lost):**
+- A `cozy-threats.test.ts` disease test went red after the trader-RNG-fork removal shifted
+  the seeded baseline (an 8→7 **morale-emigration** dip crossed a strict `>=`). Verified it
+  was a baseline-shift casualty (not a regression, not pre-existing): the disease invariant
+  ("never kills, recovers") still holds. **Re-pointed the test to its real invariant** —
+  outbreak ends, `sickVillagers` returns to 0, and pop **recovers to ≥ pre-outbreak** — a
+  stronger, faithful assertion, not a weakened one.
+- Chunk "freeze territory/army" correctly escalated BLOCKED (gating a shared
+  `bootstrapSim()` used by both solo AND MP is a public-API call); the controller made the
+  design decision (gate on `enforceTerritory` + a new `enableArmy`) and re-dispatched.
+- Review: 0 correctness/integration/determinism bugs across 3 scoped finders; 2 cleanup
+  nits fixed inline (extracted a duplicated `manhattanDist` into `entities/building.ts`;
+  commented the vestigial-but-retained `setDecree` command type) — re-verified byte-identical.
+
+**Phases A, B, C, D, G done; E, F, H, I open.** Next in the pivot spine: **H** (economy
+under the downside rule) then **I** (terrain clustering + solvability). Not yet eyeballed
+in a real browser (WebGPU headless limitation) — the public-square placement + trade menu
++ autonomous festival/town-hall effects want a `playtest-citadel` pass.
+
 ## [2026-07-01] playtest | Citadel Phase C cold-open — VERIFIED live in a real browser
 
 Ran `playtest-citadel` against the shipped Phase C. A focused `phaseC-verify.mjs`

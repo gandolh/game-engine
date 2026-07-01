@@ -113,9 +113,47 @@ are still open (solo is unaffected).
 > **civic-only** — placing it does NOT start a siege (raids gate on `keepPosition`). MP is
 > unchanged (the town-hall stays each player's match anchor). Determinism untouched (the
 > gated branch is unreachable in every existing scenario — no solo town-hall was placeable
-> before — and headless runs stay byte-identical). Phase G owns the full civic reframe
-> (autonomous rations/work-hours within its radius-10 reach); the sprite is still the shared
-> `warehouse` form + banner (bespoke civic-hall art is optional follow-up polish).
+> before — and headless runs stay byte-identical). The full civic reframe shipped in Phase G
+> (below); the town-hall sprite is still the shared `warehouse` form + banner (bespoke
+> civic-hall art is optional follow-up polish).
+
+> **2026-07-01 — cozy-pivot Phase G shipped: the autonomy pass (decision #8).** The player
+> now sets **placement + economic intent**; the town **autonomously** handles all behavior.
+> - **Trading post is the sole economic-intent lever, player-driven.** `TraderSystem`
+>   ([systems/trader.ts](../../games/citadel/sim-core/src/systems/trader.ts)) stopped being
+>   an autonomous seeded caravan (removed `rng.fork("trader")` / `TRADER_INTERVAL_DAYS` /
+>   auto-barter). Now: `traderPresent` = "owns a **staffed + connected** tradingpost";
+>   `traderOffers` is a deterministic ≤3-offer menu (rank by stock, plentiful→scarce, fixed
+>   5-for-3, no RNG). Command `barter` → **`trade`** (`{offerIndex}`); tithe
+>   `RELIEF_BARTER_THRESHOLD` sweetener retired. Client trade UI is an in-canvas
+>   **InspectPanel** "Trade:" box (shown only when `traderPresent`), replacing the old DOM
+>   trader panel. Constraint is **no NPC *autonomy*** (no auto-trade), not "no villager works
+>   the desk" — the staffed trader still executes the exchange.
+> - **`public-square` — net-new civic building** (2×2, `SERVICE_RADII` **8**,
+>   `workerSlots:0`, `BUILD_COST wood:8`): `plaza()` iso sprite, untiered `Square` build-bar
+>   button, `festival`→`EDG.green` coverage ring. Autonomously lifts festival happiness
+>   (+15, spatial) for homes in reach — replaces the old `festival` **decree**.
+> - **Rations/work-hours autonomous via town-hall.** The old `workHours` +30% decree is
+>   re-homed as an **automatic ×1.2 output lift** for producers within a town-hall's reach
+>   (radius 10), in [production.ts](../../games/citadel/sim-core/src/systems/production.ts).
+> - **Decree/policy lever fully purged** from the cozy sim core (`setDecree` handler +
+>   festival/conscription constants + `_maintainDecrees` + decree-penalty block +
+>   `festivalDaysLeft` all deleted; conscription production-halt gone; client decree UI
+>   removed). ⚠️ **`activeDecrees` is KEPT but always-empty** — two out-of-scope systems still
+>   read it (`immigration` tithe/rationing, `siege-resolution` conscription); they are dead-
+>   in-practice branches to be purged when those systems get their cozy pass. The `setDecree`
+>   command type survives in the union with no handler (silently dropped) — a deliberate
+>   back-compat vestige, commented as such.
+> - **Territory + army frozen from the cozy/solo path** (byte-identical, MP preserved):
+>   `TerritorySystem` registration gated on the existing `enforceTerritory` (solo=false →
+>   drops a dead pass); new **`enableArmy?`** bootstrap option (default true, round-trips
+>   save/load like `cozyThreats`) gates `ArmySystem`, and the **solo worker passes
+>   `enableArmy:false`**. `army.test.ts` stays green unmodified (defaults true).
+>
+> Gates: sim-core **211/211**, client **387/387**, typecheck-clean, **determinism MATCH ×3**
+> (baseline moved by design). Full detail + controller adjudications in [log.md](../log.md).
+> **Open in the pivot:** H (economy under the downside rule), I (terrain clustering +
+> solvability), plus F (motivation) / E (villager mood). Not yet eyeballed in-browser.
 
 > **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
 > *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,
