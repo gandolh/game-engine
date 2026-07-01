@@ -7,7 +7,7 @@
  * {@link createWorldClock}, then `refresh(state)` re-textures its labels in place each frame
  * from the latest snapshot-derived time, mirroring Citadel's `createResourceHud` pattern.
  *
- * It supersedes the old DOM `ui/world-clock.ts` panel (still present but no longer mounted).
+ * It supersedes the old DOM `ui/world-clock.ts` panel (since deleted).
  *
  * ⚠️ Icon note: the DOM clock used non-ASCII season glyphs (✿☀❧❄). The 5×7 bitmap font is
  * ASCII-only, so this panel drops the glyph and shows the season NAME text only (per the

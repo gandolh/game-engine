@@ -2,9 +2,8 @@
  * Farm Valley loading screen — the boot-time "Loading… / Seed 0x… / progress" overlay,
  * rendered IN-CANVAS via `@engine/ui`.
  *
- * Ports the old DOM `screens/loading-screen.ts` (`LoadingScreen` class, still present but no
- * longer mounted by this chunk — a later integration chunk wires the swap) onto the same
- * retained create/refresh pattern as {@link "./world-clock"}: {@link createLoadingScreen} builds
+ * Replaces the old DOM `screens/loading-screen.ts` (`LoadingScreen` class, since deleted) with the
+ * same retained create/refresh pattern as {@link "./world-clock"}: {@link createLoadingScreen} builds
  * the tree ONCE; `refresh(state)` re-textures the seed/progress labels in place each frame.
  *
  * The animated three-dot pulse the DOM version did with a CSS keyframe has no canvas

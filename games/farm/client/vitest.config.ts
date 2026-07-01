@@ -1,19 +1,11 @@
 import { defineConfig } from "vitest/config";
 
+// The jsdom-env tests — those that touch the DOM (canvas panels with a real <input> / window drag
+// listeners) or browser APIs. Everything else runs in the faster node env.
 const DOM_FILES = [
-  "src/screens/home-screen.test.ts",
   "src/ui/canvas/home-screen.test.ts",
   "src/ui/canvas/hotbar.test.ts",
-  "src/ui/event-feed-panel.test.ts",
-  "src/ui/leaderboard.test.ts",
-  "src/ui/observer.test.ts",
-  "src/ui/playback-controls.test.ts",
-  "src/ui/relationship-matrix.test.ts",
-  "src/ui/right-column.test.ts",
-  "src/ui/slate-billboard.test.ts",
-  "src/ui/wealth-graph.test.ts",
   "src/worker/sim-client/client.visibility.test.ts",
-
   "src/main/juice.test.ts",
 ];
 

@@ -8,9 +8,9 @@
  * precedent (`games/citadel/client/src/ui/minimap.ts`): a "draw raw quads on a UISurface"
  * module exposing `render(surface, x, y, w, h, state)` rather than `create() → {root, refresh}`.
  *
- * It supersedes the old DOM `ui/wealth-graph/panel.ts` Canvas2D chart (still present but no
- * longer mounted). The series math (`computePoints`/`detectCrossings`) is reused UNCHANGED
- * from `ui/wealth-graph/compute.ts`.
+ * It supersedes the old DOM `ui/wealth-graph/panel.ts` Canvas2D chart (since deleted). The series
+ * math (`computePoints`/`detectCrossings`) is reused UNCHANGED from the retained
+ * `ui/wealth-graph/compute.ts` (kept for exactly this reuse).
  *
  * Line drawing: `UISurface` has no line/stroke primitive (only axis-aligned `rect`/`sprite`),
  * so each polyline segment is drawn as a thin rotated-free axis-aligned bounding rect isn't

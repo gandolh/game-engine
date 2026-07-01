@@ -2,9 +2,8 @@
  * Farm Valley game-over panel — final standings + season arcs + share action, rendered
  * IN-CANVAS via `@engine/ui`.
  *
- * Ports the old DOM `main/game-over.ts` (`createGameOverPanel`/`renderGameOver`, still present
- * but no longer mounted — a later integration chunk wires the swap) onto the retained
- * create/refresh pattern: {@link createGameOverPanel} builds the tree ONCE; `refresh(state)`
+ * Replaces the old DOM `main/game-over.ts` (`createGameOverPanel`/`renderGameOver`, since deleted)
+ * with the retained create/refresh pattern: {@link createGameOverPanel} builds the tree ONCE; `refresh(state)`
  * re-textures headline/standings/arcs/share-status labels in place. The DOM version rendered the
  * standings table as one `white-space: pre` monospace blob; the bitmap font has no proportional
  * layout either, so each standings row is built as its own fixed-content label with the same

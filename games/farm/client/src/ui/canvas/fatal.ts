@@ -2,11 +2,13 @@
  * Farm Valley fatal-error overlay — "Failed to boot: <message>", rendered IN-CANVAS via
  * `@engine/ui`.
  *
- * Ports the old DOM `main/fatal.ts` (`showFatal(el, err)`, still present but no longer mounted —
- * a later integration chunk wires the swap) onto the same retained create/refresh pattern as
- * {@link "./world-clock"}: {@link createFatalScreen} builds the tree ONCE; `refresh(state)`
- * re-textures the message label in place. Since a fatal error can strike before the sim/renderer
- * is otherwise usable, this panel takes NO actions and depends on nothing but `@engine/ui`.
+ * An in-canvas counterpart to the DOM `main/fatal.ts` (`showFatal(el, err)`). NOTE: the live
+ * boot-failure path deliberately still uses the DOM `showFatal` fallback — a fatal error can strike
+ * before the renderer/UI host is usable, when a canvas panel could not paint — so this panel is
+ * currently unwired, kept as the in-canvas fatal surface for when a fatal occurs after boot. It
+ * follows the same retained create/refresh pattern as {@link "./world-clock"}: {@link createFatalScreen}
+ * builds the tree ONCE; `refresh(state)` re-textures the message label in place. It takes NO actions
+ * and depends on nothing but `@engine/ui`.
  *
  * EDG32-only.
  */

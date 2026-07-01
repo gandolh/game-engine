@@ -4,16 +4,15 @@
  * `corpus/todos/2026-07-01-farm-ui-all-rendered-in-canvas.md` decision 3 — canvas has no
  * text-input widget; native text entry needs real DOM for IME/paste/caret).
  *
- * Ports the old DOM `screens/home-screen.ts` (`HomeScreen` class, still present but no longer
- * mounted — a later integration chunk wires the swap) onto the retained create/refresh pattern:
- * {@link createHomeScreen} builds the canvas tree ONCE (title/subtitle/hint labels + Start +
- * Randomize buttons) and ALSO creates one hidden-ish `<input>` for the seed, appended to
- * `document.body` (matching where the DOM version's overlay lived). The integration chunk is
- * responsible for positioning that input over the canvas panel each frame (it owns the camera/
- * canvas rect) and for removing it via {@link HomeScreen.destroy} when the screen dismisses.
+ * Replaces the old DOM `screens/home-screen.ts` (`HomeScreen` class, since deleted) with the
+ * retained create/refresh pattern: {@link createHomeScreen} builds the canvas tree ONCE
+ * (title/subtitle/hint labels + Start + Randomize buttons) and ALSO creates one hidden-ish
+ * `<input>` for the seed, appended to `document.body` (matching where the DOM version's overlay
+ * lived). The host positions that input over the canvas panel each frame (it owns the camera/
+ * canvas rect) and removes it via {@link HomeScreen.destroy} when the screen dismisses.
  *
- * `formatSeed`/`parseSeed`/`DEFAULT_SEED` are re-exported here (moved from the old DOM
- * `screens/home-screen.ts`, which this supersedes) since the loading-screen and game-over canvas
+ * `formatSeed`/`parseSeed`/`DEFAULT_SEED` are defined here (moved from the old DOM
+ * `screens/home-screen.ts`, which this replaces) since the loading-screen and game-over canvas
  * panels both need them for their own seed readouts.
  *
  * EDG32-only for everything canvas-rendered. The DOM seed input itself is minimally styled (no
