@@ -4,6 +4,66 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] shipped | Citadel cozy-pivot Phase I — terrain clustering + solvability guarantee
+
+Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Phase I (decision #10 — *terrain IS the puzzle's difficulty knob: a guaranteed-solvable floor
+with rich texture above it*). **The last structural pivot pass — with I done, the whole
+structural pivot (A,B,C,D,G,H,I) has shipped.** Built via `plan-split-dispatch`: 2 senior
+(opus) + 1 junior (Sonnet) chunks, 2 review finders (1 opus determinism-lens / 1 Sonnet
+logic-lens), 1 opus fix agent.
+
+**What shipped ([terrain.ts](../games/citadel/sim-core/src/world/terrain.ts)):**
+- **Resource clustering.** The old per-tile forest/stone fbm-threshold *sprinkle* (findable on
+  almost any tile → no spatial decision) is replaced by seeded **blob-centered patches** —
+  groves + ore-veins painted from a handful of centers, with noisy edges but solid cores.
+  Uses a dedicated `createRng(seed).fork("resource-clusters")` — a SEPARATE fork so the
+  existing `terrain-gen` river+lake draw order is byte-for-byte untouched (river/lake verified
+  byte-identical to pre-Phase-I across 6 seeds). The now-unused `baseNoise` layer was removed
+  cleanly (each `SeededNoise` has its own stream, so removing one doesn't shift the others).
+  Result: a handful of connected patches (~0 singletons) → woodcutter/quarry/mine placement is
+  now a real "build toward the resource" decision, and resource-poor maps genuinely occur
+  (giving the Phase-G trading post a real job).
+- **Solvability guarantee.** A new pure `repairSolvability(cells, w, h)` runs at the end of
+  `generateTerrain`: it guarantees (1) a **12×6 all-buildable core box near center** for the
+  Phase-C cold open — carving one to Grass (Rough-first, then Water, to keep the river
+  coherent) if none exists anywhere; and (2) **≥1 reachable Forest and ≥1 reachable Stone**
+  from the core (4-connected flood-fill, Water/Rough as walls) — painting a small resource
+  blob on the nearest reachable Grass if a type is missing or stranded behind water. No RNG,
+  no Date — a pure, deterministic function of the grid. Across 100 seeds: 0 needed the
+  core-carve, 3 needed forest repair, 10 needed stone repair; **100/100 solvable +
+  same-seed-twice byte-identical** post-repair. Player is never handed an unsolvable map.
+
+**Review + controller adjudication (recorded so the reasoning isn't lost):** both finders
+independently flagged a **cross-module contract mismatch** — `repairSolvability` ring-scanned
+the core box within `ceil(max(W,H)/4)` rings while the Phase-C cold open (`seedFoundingTown`
+in sim-bootstrap.ts) scanned `max(W,H)` rings for the *same* box, so on a rare seed they could
+anchor **different** boxes, and the tests mirrored the impl's `/4` constant rather than the
+true cold-open contract. **Fix:** extracted ONE shared exported `findCoreBox` (+ `CORE_BOX_W/H`
+constants + `coreBoxCenter`) that BOTH `terrain.ts` and `sim-bootstrap.ts` call — full-grid
+scan, so the guarantee is a strict superset of what the cold open needs, and the carve targets
+the center box (which `findCoreBox` then returns identically) → the two are now **provably
+lockstep by construction**, and `seedFoundingTown`'s inline `seedClusterFits`+ring-loop is
+gone (aliases the shared constants). A second (degenerate tiny-world only) finding was fixed:
+the last-resort resource paint targeted the box *center* → now the box *corner*, keeping the
+town center clear for the cold-open's storehouse/road spine. Determinism finder: **0 defects**
+(river+lake stream provably undisturbed, all repair logic pure, DFS/BFS visit orders don't
+affect the set-membership output).
+
+**Gates:** sim-core **220/220** (terrain.test.ts grew 10→19: clustering >90%-connected
+assertions, solvability across 50 seeds, repair determinism across 100 seeds), typecheck-clean
+(@citadel/sim-core + @citadel/client), **determinism MATCH ×3** (0x1a2b3c4d / 0xc0ffee / 0x2a).
+The grow scenario's scripted fixed-coordinate layout is unchanged (it samples only central
+grass), so its economy baseline held at `pop 9/12, bread 10` — the terrain *generation* moved
+(proven by the clustering/solvability tests + the byte-level water-identity check), which is
+the intended re-baseline.
+
+**Cozy-pivot status: A, B, C, D, G, H, I all done — the entire structural pivot has shipped.**
+Only the *optional/later* phases remain: **E** (villager mood polish) and **F** (motivation:
+emergent goals + diegetic recognition, no score/quests). Outstanding acceptance step: a
+`playtest-citadel` in-browser eyeball of the cumulative cozy result (terrain clustering + the
+A–H feel; WebGPU can't render headless here).
+
 ## [2026-07-01] shipped | Citadel cozy-pivot Phase H — economy under the downside rule (throttle-not-halt + single-slot)
 
 Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)

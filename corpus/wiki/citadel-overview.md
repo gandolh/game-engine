@@ -172,8 +172,33 @@ are still open (solo is unaffected).
 > Gates: sim-core **212/212**, typecheck-clean, **determinism MATCH ×3** (baseline moved by
 > design → town now survives winter + self-recovers from starvation dips; `gameOver=false`).
 > Full detail in [log.md](../log.md).
-> **Open in the pivot:** I (terrain clustering + solvability), plus F (motivation) / E
-> (villager mood). Not yet eyeballed in-browser (WebGPU headless).
+
+> **2026-07-01 — cozy-pivot Phase I shipped: terrain clustering + solvability guarantee (decision #10).**
+> *Terrain IS the puzzle: a guaranteed-solvable floor with rich texture above it.* **The last
+> structural pivot pass — A, B, C, D, G, H, I are all done.**
+> - **Clustering** ([terrain.ts](../../games/citadel/sim-core/src/world/terrain.ts)): the per-tile
+>   forest/stone fbm *sprinkle* → seeded **blob-centered patches** (groves + ore-veins) via a
+>   SEPARATE `createRng(seed).fork("resource-clusters")` (river/lake stream byte-identical; the
+>   unused `baseNoise` layer removed cleanly). ~0 singletons → woodcutter/quarry/mine placement is
+>   a real "build toward the resource" decision, and resource-poor maps now genuinely occur (giving
+>   the Phase-G trading post a job).
+> - **Solvability guarantee**: a new pure `repairSolvability(cells,w,h)` at the end of
+>   `generateTerrain` guarantees a 12×6 all-buildable core box near center (carves one if none
+>   exists) + ≥1 reachable Forest + ≥1 reachable Stone (4-connected flood-fill from the core; paints
+>   a small blob if missing/stranded). No RNG — pure fn of the grid. 100 seeds → 100/100 solvable +
+>   byte-identical (0 core-carve / 3 forest / 10 stone repair).
+> - **Shared `findCoreBox` (review fix)**: the guarantee and the Phase-C cold open (`seedFoundingTown`)
+>   now call ONE exported `findCoreBox`+`CORE_BOX_W/H` (full-grid ring scan), so they can never anchor
+>   different core boxes — **provably lockstep by construction**. (Two finders caught the prior
+>   `/4`-vs-`max(W,H)` radius mismatch; the carve targets the center box, which `findCoreBox` returns
+>   identically.) `seedFoundingTown`'s inline box scan was removed in favour of the shared helper.
+>
+> Gates: sim-core **220/220** (terrain.test.ts 10→19: clustering >90%-connected, solvability across
+> 50 seeds, repair determinism across 100), typecheck-clean, **determinism MATCH ×3**. Full detail +
+> controller adjudications in [log.md](../log.md).
+> **Open in the pivot:** only the optional/later phases — F (motivation: emergent goals + diegetic
+> recognition, no score/quests) / E (villager mood polish). The whole structural pivot has shipped.
+> Not yet eyeballed in-browser (WebGPU headless).
 
 > **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
 > *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,

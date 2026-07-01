@@ -423,6 +423,31 @@ the downside rule. Re-prove determinism across 3 seeds (baseline moves by design
   Determinism re-proved across 3 seeds.
 
 ### Phase I — Terrain: cluster resources + solvability guarantee (decision #10)
+> **✅ SHIPPED 2026-07-01** (see [log.md](../log.md)). Built via `plan-split-dispatch`
+> (2 senior/opus + 1 junior/Sonnet + 2 review finders + 1 opus fix). **(1) Clustering:** the
+> per-tile forest/stone fbm-sprinkle in [terrain.ts](../../games/citadel/sim-core/src/world/terrain.ts)
+> is replaced by seeded blob-centered patches (a dedicated `createRng(seed).fork("resource-clusters")`
+> — a SEPARATE fork so the `terrain-gen` river+lake stream stays byte-identical; `baseNoise` removed
+> cleanly). Forest/stone now form a handful of connected groves/veins (≈0 singletons on sample
+> seeds) → woodcutter/quarry/mine placement is a real spatial decision. **(2) Solvability guarantee:**
+> a new pure `repairSolvability(cells,w,h)` runs at the end of `generateTerrain`: it guarantees a
+> 12×6 all-buildable core box near center (carves one if none exists anywhere) + ≥1 reachable Forest
+> + ≥1 reachable Stone (4-connected flood-fill from the core; paints a small blob if missing/
+> stranded). No RNG — pure function of the grid. Across 100 seeds: 0 needed core-carve, 3 forest
+> repair, 10 stone repair; **100/100 solvable + byte-identical** post-repair. **(3) Review fix
+> (controller adjudication):** both finders flagged that `repairSolvability` and `seedFoundingTown`
+> (the Phase-C cold open) ring-scanned the core box with DIFFERENT radius bounds (`/4` vs `max(W,H)`)
+> → they could anchor different boxes and the test only mirrored the impl constant. Fixed by
+> extracting ONE shared exported `findCoreBox` (+ `CORE_BOX_W/H`, `coreBoxCenter`) that BOTH sites
+> call (full-grid scan → the guarantee is a strict superset of the cold open; the carve targets the
+> center box, which `findCoreBox` then returns identically → **provably lockstep**). Also fixed a
+> degenerate-world edge case (last-resort resource paint targeted the box *center* → now the box
+> *corner*, keeping the town center clear). Gates: **sim-core 220/220, typecheck-clean (sim-core +
+> client), determinism MATCH ×3**. **ALL cozy-pivot phases A–I now done except E (villager mood
+> polish) + F (motivation) — the *optional/later* phases.** The whole structural pivot (A,B,C,D,G,H,I)
+> has shipped. Not yet eyeballed in a real browser (WebGPU headless limit) — the terrain clustering +
+> the A–H feel want one `playtest-citadel` pass.
+
 Make terrain *be* the puzzle. Re-prove determinism (same seed → byte-identical grid).
 
 - **Cluster forest & stone into patches/regions** in
