@@ -211,7 +211,12 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
     outputPerCycle: 0,
   },
   farm: {
-    workerSlots: 2,
+    // Cozy-pivot Phase H: single-slot (growth is spatial — more buildings, no dead
+    // 2nd mouth). NO output compensation needed: production is a per-building,
+    // per-cycle emit gated on workerCount>0 (it never scaled with worker COUNT — see
+    // production.ts), so dropping the dead 2nd slot leaves daily throughput unchanged
+    // at 3 grain/cycle × 2 cycles/day = 6 grain/day in summer.
+    workerSlots: 1,
     outputGood: "grain",
     // 3 grain/cycle × 2 cycles/day = 6 grain/day in summer
     // spring×0.5=1.5→floor=1/cycle, autumn×1.2=3.6→floor=3/cycle, winter×0.5=1.5→floor=1/cycle
@@ -238,7 +243,9 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
     ticksPerCycle: 10,
   },
   woodcutter: {
-    workerSlots: 2,
+    // Cozy-pivot Phase H: single-slot (growth is spatial; no dead 2nd slot). Output
+    // unchanged — production never scaled with worker count.
+    workerSlots: 1,
     outputGood: "wood",
     outputPerCycle: 2,
     ticksPerCycle: 20,
@@ -295,7 +302,8 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
   },
   // Phase 4: refining chains
   quarry: {
-    workerSlots: 2,
+    // Cozy-pivot Phase H: single-slot (growth is spatial; no dead 2nd slot).
+    workerSlots: 1,
     outputGood: "stone",
     outputPerCycle: 2,
     ticksPerCycle: 20,
@@ -319,7 +327,8 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
     ticksPerCycle: 20,
   },
   mine: {
-    workerSlots: 2,
+    // Cozy-pivot Phase H: single-slot (growth is spatial; no dead 2nd slot).
+    workerSlots: 1,
     outputGood: "stone",
     outputPerCycle: 1,
     ticksPerCycle: 20,

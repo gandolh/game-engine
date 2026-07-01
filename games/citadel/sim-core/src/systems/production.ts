@@ -17,17 +17,21 @@
  *   - Physical hauling is the mechanism; production.ts never writes to
  *     state.stockpiles directly.
  *
- * STOCKPILE PRESSURE (two-way service loop, 2026-06-27). OpenTTD's defining loop
- * is that production reacts to whether the output is actually moved: under-served
- * industries throttle, well-served ones keep flowing. We model the downside half
- * deterministically (no RNG): a building's local outputBuffer is capped at a few
- * cycles' worth of output; once it's full (no hauler has drawn it down — i.e. no
- * road-connected collection), the building STOPS producing that cycle instead of
- * overflowing an infinite pool. So a chronically unserved building idles, and the
- * road/hauling quality that empties the buffer is the lever that keeps it running.
- * A converter still doesn't consume its input when blocked (the `continue` is
- * before the input draw), so nothing is wasted. Purely a function of buffer state
- * → determinism is preserved (proven by the byte-identical headless diff).
+ * STOCKPILE PRESSURE (two-way service loop, 2026-06-27; cozy-pivot Phase H,
+ * 2026-07-01). OpenTTD's defining loop is that production reacts to whether the
+ * output is actually moved: under-served industries throttle, well-served ones keep
+ * flowing. We model the downside half deterministically (no RNG) as a **throttle,
+ * never a halt** (the cozy downside rule #9 — every problem slows toward a floor, no
+ * cliff): a building's local outputBuffer is capped at a few cycles' worth of output;
+ * as it fills (no hauler drawing it down), the per-cycle output ramps DOWN toward the
+ * productivity floor rather than stopping outright. Only a genuinely full buffer
+ * clamps the amount so it can never overflow the cap. So a chronically unserved
+ * building trickles at the floor (goods visibly backing up at its door) instead of
+ * going dark, and the road/hauling quality that empties the buffer is the lever that
+ * keeps it at full rate. A converter still doesn't consume its input when it would
+ * produce nothing (the input draw is gated on a positive throttled amount), so
+ * nothing is wasted. Purely a function of buffer state → determinism is preserved
+ * (proven by the byte-identical headless diff).
  *
  * Stage: "economy" (after connectivity).
  */
@@ -49,6 +53,29 @@ const OUTPUT_BUFFER_CYCLES = 5;
 /** The output-buffer cap for a building producing `perCycle` each cycle. */
 export function outputBufferCap(perCycle: number): number {
   return Math.max(1, perCycle) * OUTPUT_BUFFER_CYCLES;
+}
+
+/**
+ * Fraction of the buffer that can fill at FULL output rate before the throttle
+ * begins. Below this the building runs flat-out; above it output ramps linearly
+ * down toward {@link PRODUCTIVITY_FLOOR} as the buffer approaches its cap.
+ */
+const BUFFER_THROTTLE_KNEE = 0.6;
+
+/**
+ * Cozy-pivot Phase H: stockpile-pressure THROTTLE (never a halt). Given a buffer at
+ * `buffer` against `cap`, return an output multiplier in `[PRODUCTIVITY_FLOOR, 1]`:
+ * full rate while the buffer is below the {@link BUFFER_THROTTLE_KNEE} knee, then a
+ * linear ramp down to the floor as it fills. NEVER 0 (the downside rule #9) — a
+ * chronically unserved building keeps trickling at the floor rather than going dark.
+ * Pure (deterministic function of buffer state only).
+ */
+export function bufferThrottleFactor(buffer: number, cap: number): number {
+  if (cap <= 0) return 1;
+  const fill = Math.max(0, Math.min(1, buffer / cap));
+  if (fill <= BUFFER_THROTTLE_KNEE) return 1;
+  const t = (fill - BUFFER_THROTTLE_KNEE) / (1 - BUFFER_THROTTLE_KNEE); // 0..1
+  return 1 - (1 - PRODUCTIVITY_FLOOR) * t;
 }
 
 /**
@@ -128,15 +155,24 @@ export class ProductionSystem implements System {
         // A building only produces if it is connected to a Storehouse.
         if (!rs.connected) continue;
 
-        // Stockpile pressure: if the local buffer is full (uncollected output has
-        // piled up — no hauler is draining it), stop producing until it's drawn
-        // down. Only meaningful for producers (those with a positive output); a
-        // pure consumer/no-output building has cap 0-ish and is skipped below
-        // anyway. Checked BEFORE the cycle timer + input draw so a blocked
-        // building neither advances its timer oddly nor wastes input.
+        // Stockpile pressure (Phase H — throttle, never halt): resolve the buffer
+        // fill throttle for producers up-front. As the local buffer fills (no hauler
+        // draining it), `bufferThrottle` ramps output down toward the floor; only a
+        // genuinely full buffer clamps the final amount below (never overflows the
+        // cap). A pure consumer/no-output building has no cap concept and runs at 1.
+        // Resolved BEFORE the cycle timer + input draw so the throttle scales the
+        // whole cycle and a blocked converter never wastes input (the input draw is
+        // gated on a positive throttled amount).
+        let bufferThrottle = 1;
+        let bufferCap = Infinity;
         if (def.outputGood !== undefined && def.outputPerCycle > 0) {
-          const cap = outputBufferCap(effectiveOutputPerCycle(def, rs.level));
-          if (rs.outputBuffer >= cap) continue;
+          bufferCap = outputBufferCap(effectiveOutputPerCycle(def, rs.level));
+          // Genuinely full (no headroom): skip the whole cycle BEFORE the timer and
+          // input draw, exactly as the old hard guard did — so a converter never
+          // consumes input it can't turn into shippable output. The throttle below
+          // handles the *partial*-fill ramp; this handles the hard ceiling.
+          if (rs.outputBuffer >= bufferCap) continue;
+          bufferThrottle = bufferThrottleFactor(rs.outputBuffer, bufferCap);
         }
 
         // Cycle timer — first fire after a full cycle has elapsed.
@@ -184,6 +220,17 @@ export class ProductionSystem implements System {
         const localHappiness =
           workplaceHomeMood.get(this.tileKey(cx, cy)) ?? p.happiness;
         amount = Math.max(1, Math.floor(amount * productivityFactor(localHappiness)));
+
+        // Cozy-pivot Phase H: stockpile-pressure throttle — as the local buffer
+        // fills (no hauler draining it), slow output toward the floor instead of
+        // halting. Like the happiness factor, it is a throttle that still trickles
+        // ≥1 (Math.max(1,…)), so a chronically unserved building keeps producing at
+        // the floor rather than going dark. Then clamp so the buffer never exceeds
+        // its cap (the true upper bound the old hard-`continue` guaranteed).
+        amount = Math.max(1, Math.floor(amount * bufferThrottle));
+        // Clamp so a single throttled cycle can't overshoot the cap (headroom is
+        // always > 0 here — the genuinely-full case already `continue`d above).
+        amount = Math.min(amount, bufferCap - rs.outputBuffer);
 
         // Output goes into the building's LOCAL buffer. It does NOT enter the
         // owner's stockpile until a villager hauls it to a Storehouse.
