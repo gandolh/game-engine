@@ -35,7 +35,7 @@
 Registered in [sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts). The system files live in [systems/](../../games/citadel/sim-core/src/systems/):
 
 - **Economy / population**: `production`, `villager-system`, `immigration`, `needs-happiness`, `trader`, `tiers` (settlement-tier progression with thresholds + locks), `road-connectivity`, `day-clock`.
-- **Threats**: `raid-spawn`, `raider-movement`, `siege-resolution`, `fire-system`, `disease-system`. **Cozy-demoted (2026-07-01, Phase D):** under the default `cozyThreats:true` bootstrap option, fire smoulders→extinguishes (never razes), disease slows→recovers (never kills), raids pilfer stockpile goods→leave (never sack/gameOver), and each threat dents *local happiness* (→ the Phase-B productivity floor) instead of destroying. The destructive path is **frozen behind `cozyThreats:false`** (byte-identical) for a future Challenge/MP mode.
+- **Threats**: `raid-spawn`, `raider-movement`, `siege-resolution`, `fire-system`, `disease-system`. **Cozy-demoted (2026-07-01, Phase D):** under the default `cozyThreats:true` bootstrap option, fire smoulders→extinguishes (never razes), disease slows→recovers (never kills), raids pilfer stockpile goods→leave (never sack/gameOver), and each threat dents *local happiness* (→ the Phase-B productivity floor) instead of destroying. The destructive path is **frozen behind `cozyThreats:false`** (byte-identical) for a future Challenge/MP mode. **Cozy cold-open (2026-07-01, Phase C):** solo also passes `deferThreatsUntilBuildings:6`, so fire ignition / disease onset / raid scheduling are suppressed until the town owns ≥6 non-road buildings (the seed is 5) — the forgiving opening. Default 0 = off (headless/MP/baseline unchanged); the gate short-circuits before any RNG draw.
 
 > **Build cost (2026-06-30, cozy economy).** Placing a building can cost materials —
 > `BUILD_COST` per type in [building.ts](../../games/citadel/sim-core/src/entities/building.ts)
@@ -69,6 +69,13 @@ didn't resume. **Plan-while-paused** now works via `CitadelSimResult.applyComman
 punishes tight clusters** by design — space buildings ~5–8 tiles and connect with roads
 (roads are firebreaks). MP-RTS live wiring holes from [todo 38](../todos/2026-06-19-citadel-38-implementation-review-problems.md)
 are still open (solo is unaffected).
+
+> **⚠️ The "founding-window-gated cold open" gotcha above is RESOLVED by cozy-pivot Phase C
+> (2026-07-01).** Solo now **opts into `seedTown:true`** (a pre-seeded connected alive core placed
+> at bootstrap) so the town is alive from tick 0 — the founding deadlock is structurally
+> impossible, no early connected-economy race. Solo also passes `deferThreatsUntilBuildings:6`, so
+> fire/disease/raids stay off until the town grows past the 5-building seed. Both flags default OFF
+> (headless/MP/baseline unchanged). See the Phase C log entry.
 
 ## HUD & overlays (2026-06-22)
 

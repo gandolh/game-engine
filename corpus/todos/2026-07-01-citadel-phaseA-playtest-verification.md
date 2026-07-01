@@ -47,6 +47,14 @@ is gated behind cozy-pivot Phases B/C/D, which aren't built yet:**
   obvious warm pool, which is *correct behaviour* for low-mood/burning houses, not a
   render fault.
 
+> **✅ PRECONDITION NOW MET (2026-07-01):** Phases **B, C, and D have all shipped** — the
+> productivity floor stops the spiral (B), the seeded alive-core cold open means a fed
+> connected town exists from tick 0 (C), and threats no longer raze/starve + are deferred
+> until the town grows (C+D). So a **calm, fed, fire-free glowing town is now reachable via
+> legitimate play**. The Phase A visual re-eyeball (warm glow / mood-dim / hearth smoke
+> contrast) is **unblocked** — run a `playtest-citadel` pass in a real browser to do it. This
+> is the outstanding acceptance step for Phases A–D.
+
 **Conclusion:** Phase A is mechanically sound and live-verified at the data layer;
 its *cozy look* is only observable once a town can stay alive and happy — i.e. after
 **B (happiness→productivity floor), C (forgiving cold open), D (threat demotion).**

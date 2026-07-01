@@ -4,6 +4,66 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] build | Citadel cozy pivot Phase C — forgiving diegetic cold open (seeded alive core + threats deferred until grown)
+
+Phase C of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+shipped. Goal: the solo game **opens on a living town** instead of an empty map, the founding
+deadlock is **structurally impossible**, and threats stay off through the forgiving opening —
+teaching the diegetic loop by reward, not instruction. Built via `plan-split-dispatch`
+(controller opus; 2 senior + 3 junior executor chunks on Sonnet 5 + a Sonnet fix chunk; two
+Sonnet review finders). All opt-in behind flags that **default off**, so the headless
+determinism baseline is **byte-identical** (verified: `sim:citadel` disease still fires day 14;
+`seedTown:false`/`deferThreatsUntilBuildings:0` regression tests pin it).
+
+- **Seeded alive core — `seedTown?: boolean` bootstrapSim option (default false).** When on,
+  `bootstrapSim` pre-places a compact, road-connected bread chain + house at (near) map center
+  **before the first tick**, via the same internal `placeOne(type,x,y,charge=false)` funnel as
+  player commands ([sim-bootstrap.ts](../games/citadel/sim-core/src/sim-bootstrap.ts)
+  `seedFoundingTown`). Layout: `storehouse`(3×2, the connectivity flood seed) + `farm`(3×3) +
+  `mill`/`bakery`/`house`(2×2) hung off a 12-tile **road spine**, anchor found by a deterministic
+  outward ring-search from center (skips a river through center). **= exactly 5 non-road
+  buildings.** Placed as a **gift** (a new 4th `charge` param on `placeOne` bypasses only the cost
+  debit — occupancy/roadGrid/buildingTiles/popCap still apply) and **NOT** logged to
+  `commandLog` (it's not a player command — `loadFromSave` re-seeds by threading `seedTown` into
+  the fresh bootstrap, so it can't double-apply on replay). The existing founding logic
+  (anchored to day 0) then spawns + staffs the pioneer within ~1–2 days → the town is alive from
+  tick 0 and the player **cannot strand themselves**.
+- **Threats deferred until grown — `deferThreatsUntilBuildings?: number` (default 0 = off).**
+  When N>0, fire ignition / disease onset / raid scheduling are suppressed for a player until
+  they own **≥ N non-road buildings** (new shared `countNonRoadBuildings` helper in
+  [tiers.ts](../games/citadel/sim-core/src/systems/tiers.ts), reusing the tier ladder's own
+  `countsTowardTier` yardstick; `TierSystem` refactored onto it). Gate is strict `<` and
+  **short-circuits before any RNG draw** when the threshold is 0 → no draw added/skipped/reordered
+  → baseline safe (finder-A-verified across all three systems). Only *fresh* onset/ignition/
+  scheduling is gated; an already-burning fire / active outbreak still progresses + recovers.
+  Composes with the existing time-based founding grace. Solo passes **6** (seed is 5 → the first
+  ~5-buildings' worth of play is threat-free; threats arm at the player's 6th building).
+- **Solo wiring** ([sim-worker.ts](../games/citadel/client/src/worker/sim-worker.ts)): the solo
+  `init` bootstrap now sets `seedTown:true` + `deferThreatsUntilBuildings:6` (alongside the
+  existing `chargeBuildCost`/`cozyThreats`/`startingStock`). MP (server bootstrap) sets neither.
+  Both new flags persisted in `CitadelSave` + restored in `loadFromSave` (absent ⇒ off) so
+  save→replay stays identical.
+- **Opening camera** ([main.ts](../games/citadel/client/src/main.ts)): a **one-shot, solo-only**
+  reframe on the first snapshot that carries the seeded buildings centres the camera on the
+  **actual seed centroid** (not geometric map center — the ring-search shifts the anchor per
+  seed; a review finder caught that a fixed-center + MAX_ZOOM frame missed the town on ~¼ of
+  seeds) at `MAX_ZOOM`, guarded by `inputReady` (async-camera race) + an `openingFramed` latch.
+  MP keeps the renderer's default zoomed-out framing (unchanged).
+- **Stale winter copy fixed** (a Phase-D-winter-floor leftover the review surfaced): the client
+  `building-info.ts` tooltip/JSDoc/comment + `building-info.test.ts` said farms yield "0 grain/
+  day / nothing" in winter — now `grainMultiplier("winter")=0.5` (half, never zero). Corrected to
+  the floored-×0.5 reality.
+- **Gates:** sim-core **218/218** (+8 seed-town, +5 defer-threats tests), client **381/381**
+  (was 380/381 — the stale winter test now passes), typecheck clean on both. Headless baseline
+  unmoved by design. **Review:** finder A (determinism/correctness) found **no bugs**; finder B
+  (integration) found 3 real issues (camera-misses-seed, false MP-harmless claim, stale copy) —
+  **all fixed** and re-gated.
+- **⚠️ Not yet eyeballed in a real browser** (WebGPU can't render headless on this box — the
+  standing Citadel limitation). The cozy *look* the cold open showcases (a calm, fed, fire-free
+  glowing town) is now finally *reachable via legitimate play* — Phases A+B+C+D together clear the
+  blockers the [Phase A playtest note](todos/2026-07-01-citadel-phaseA-playtest-verification.md)
+  flagged. **A `playtest-citadel` pass is the outstanding acceptance step.**
+
 ## [2026-07-01] build | Citadel cozy pivot Phase D — threats demoted to recoverable happiness dips (freeze the bite)
 
 Phase D of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)

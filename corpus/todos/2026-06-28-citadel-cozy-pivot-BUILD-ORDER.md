@@ -241,6 +241,20 @@ Makes the signal *mechanical*, not just decorative; implements threat consequenc
 >   and the shipped coverage overlays double as threat-resilience maps (free legibility).
 
 ### Phase C — Forgiving diegetic cold open (doubles as the tutorial)
+> **✅ SHIPPED 2026-07-01** (see [log.md](../log.md)). Two opt-in bootstrapSim flags (both
+> default OFF → headless baseline byte-identical): **`seedTown`** pre-places a connected alive
+> core (storehouse + farm→mill→bakery + house on a road spine, 5 non-road buildings) at map
+> center via the `placeOne(charge=false)` funnel **before the first tick** (a gift, unlogged;
+> `loadFromSave` re-seeds), so the town is alive from tick 0 → the founding deadlock is
+> structurally impossible; **`deferThreatsUntilBuildings`** (solo passes 6) suppresses fire/
+> disease/raid onset until the player owns ≥N non-road buildings (short-circuits before any RNG
+> draw → baseline safe; new `countNonRoadBuildings` in tiers.ts). Solo worker sets both; a
+> one-shot solo-only camera reframe opens on the actual seed centroid at MAX_ZOOM. Gates:
+> sim-core 218/218 (+13 tests), client 381/381, typecheck clean; MATCH baseline unmoved. **Still
+> needs a `playtest-citadel` in-browser eyeball** (the cozy look A–D showcases is now reachable
+> via legitimate play, but WebGPU can't render headless here). **Phases A, B, C, D done; E–I
+> open.**
+
 Showcases Phases A+B; fixes the corpus-flagged hostile opening (founding-window
 deadlock + day-0 rejection-toast wall).
 
