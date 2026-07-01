@@ -4,6 +4,61 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] build | Citadel cozy pivot Phase D — threats demoted to recoverable happiness dips (freeze the bite)
+
+Phase D of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+shipped (brief [2026-07-01-citadel-cozy-phaseD-threat-demotion](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)),
+implementing the cozy contract (#4/#5/#6): threats no longer destroy/kill/sack — they
+**dent local happiness** (which the Phase-B productivity floor turns into a visible
+slowdown that self-recovers). The sharp path is **frozen, not deleted**.
+
+- **Freeze mechanism = a `cozyThreats?: boolean` bootstrapSim option, default `true`**
+  (sibling of `enforceTerritory`/`chargeBuildCost`), threaded into `FireSystem`/
+  `DiseaseSystem`/`SiegeResolutionSystem` (`opts.cozy`). `false` reproduces today's
+  destructive behavior **byte-identically** (verified line-by-line: the legacy code is
+  gated, not rewritten, and rng draw-count is symmetric). The solo client already runs
+  cozy by default; a future Challenge/MP mode passes `cozyThreats:false`. Persisted +
+  restored via `CitadelSave` (defaults true for old saves).
+- **Fire** ([fire-system.ts](../games/citadel/sim-core/src/systems/fire-system.ts)):
+  smoulders (output suppressed while burning) then **EXTINGUISHES** at burn-out
+  (`_extinguishBuilding`) — never `_destroyBuilding`, no popCap loss. A well in range
+  speeds extinguish (extra deterministic decay). An active fire dents nearby houses'
+  `mood` (`_dentNearbyMood`, radius = the well's coverage rect). **As-built:** the dent is
+  a flat per-day subtraction from stored mood (fire runs `hazards`, after `needs` eases) —
+  same dip-then-recover shape as a target-side dent, simpler, test-pinned.
+- **Disease** ([disease-system.ts](../games/citadel/sim-core/src/systems/disease-system.ts)):
+  sick villagers slow + always recover (a guaranteed integer recovery floor so an outbreak
+  **always ends** in bounded time) — **never `removeOneVillager`**. Healer speeds recovery;
+  a small daily happiness dip engages the floor.
+- **Raids** ([siege-resolution.ts](../games/citadel/sim-core/src/systems/siege-resolution.ts)):
+  a resolved raid **pilfers stockpile goods** (`applyCozyPilfer`: theft scales with raid
+  strength, reduced monotonically by `1/(1+defenseRatio)`, seeded ±20% jitter, clamped to
+  stock) + −8 happiness + leaves — **never `applyRaidDamage`/`keepSacked`/`gameOver`**.
+  Defense investment still visibly matters (shrinks the theft).
+- **Winter** ([seasons.ts](../games/citadel/sim-core/src/world/seasons.ts)):
+  `grainMultiplier("winter")` `0.0 → 0.5` (unconditional — harmless in sharp mode; Phase H
+  owns the broader retune). Food always trickles; winter alone no longer starves a working
+  chain. Stale winter=0 comments in production/building/immigration corrected.
+- **Emergent interaction noted:** with cozy default ON, the PvE `RaidSpawnSystem` pilfers
+  goods from **any** player with a `keepPosition` — dormant in real solo play (solo
+  town-halls don't anchor, no keep → no raids, per the Phase-G decouple), but it broke a
+  PvP-army test's exact tool accounting; that test now boots `cozyThreats:false` (PvP is a
+  Challenge/MP feature). Flag for whenever threat cadence/Phase G is revisited.
+- **Tests:** new [cozy-threats.test.ts](../games/citadel/sim-core/src/systems/cozy-threats.test.ts)
+  (fire recoverable + mood dent, disease never-kills + bounded recovery, raid pilfers-not-sacks,
+  a `cozyThreats:false` regression guard that still sacks→gameOver, winter floor). Existing
+  destructive-behavior tests (`phase45`/`phase4`/`army`) opted onto `cozyThreats:false`; the
+  economy winter-starvation test **rewritten** to the new truth (survives winter). **Gates:
+  sim-core 205/205, typecheck clean (citadel), determinism MATCH ×3** (0xc0ffee/0x1/0x2a,
+  same-seed-twice byte-identical). Baseline moved by design (cozy path).
+- **Process note (Sonnet 5 eval):** built via `plan-split-dispatch` with all 5 executor
+  chunks on **Sonnet 5** (opus = controller/planner/verifier). Sonnet 5 did all 5 to spec
+  first-try, 0 BLOCKED; two Sonnet review finders came back clean. It rewrote (not weakened)
+  the falsified winter test and root-caused the PvE-pilfer cross-test bug on its own. One
+  wobble: the winter chunk's *first* run missed two winter=0 test assertions that a re-run
+  caught — thoroughness available but not first-try guaranteed on search-and-verify tasks,
+  which is the argument for keeping the controller + hard gates.
+
 ## [2026-07-01] build | Citadel cozy pivot Phase B — happiness → productivity floor (the signal gets teeth)
 
 Phase B of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)

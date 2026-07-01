@@ -35,7 +35,7 @@
 Registered in [sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts). The system files live in [systems/](../../games/citadel/sim-core/src/systems/):
 
 - **Economy / population**: `production`, `villager-system`, `immigration`, `needs-happiness`, `trader`, `tiers` (settlement-tier progression with thresholds + locks), `road-connectivity`, `day-clock`.
-- **Threats**: `raid-spawn`, `raider-movement`, `siege-resolution`, `fire-system`, `disease-system`.
+- **Threats**: `raid-spawn`, `raider-movement`, `siege-resolution`, `fire-system`, `disease-system`. **Cozy-demoted (2026-07-01, Phase D):** under the default `cozyThreats:true` bootstrap option, fire smoulders→extinguishes (never razes), disease slows→recovers (never kills), raids pilfer stockpile goods→leave (never sack/gameOver), and each threat dents *local happiness* (→ the Phase-B productivity floor) instead of destroying. The destructive path is **frozen behind `cozyThreats:false`** (byte-identical) for a future Challenge/MP mode.
 
 > **Build cost (2026-06-30, cozy economy).** Placing a building can cost materials —
 > `BUILD_COST` per type in [building.ts](../../games/citadel/sim-core/src/entities/building.ts)
@@ -284,10 +284,12 @@ There is no Farm-Valley-style "done brief" archive for Citadel yet; work is trac
 > history, but **do not treat them as current intent.** Current design of record:
 > [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
 
-**~~Design — spacing-vs-density tension is intentional (2026-06-22).~~** *(SUPERSEDED:
-under the cozy pivot, fire is gentle texture — a building smoulders and dents happiness,
-**never razes**, so density is no longer punished. The placement puzzle's tension now
-rests on **terrain** (decision #10), not on fire. See pivot Phase D + decision #5.)* Fire
+**~~Design — spacing-vs-density tension is intentional (2026-06-22).~~** *(SUPERSEDED —
+**shipped 2026-07-01, Phase D:** fire is now gentle texture — a building smoulders and dents
+nearby-house mood, then **extinguishes; it never razes** (gated by `cozyThreats:true`,
+default). Density is no longer punished; the placement puzzle's tension now rests on
+**terrain** (decision #10, Phase I — not yet built), not on fire. See the Phase D log entry +
+decision #5.)* Fire
 "punishes tight clusters" (space wooden buildings ≥5 tiles, connect with roads as
 firebreaks), while happiness service-radius (8) and road-connectivity reward
 keeping buildings *close*. These pressures pull against each other **by design** —
