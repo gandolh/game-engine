@@ -63,7 +63,7 @@ import { disconnectedBuildings } from "./road-feedback";
 // fx imports a couple of helpers back from this module (villagerQuad/QuadSpec);
 // the resulting ES-module cycle is safe — every binding is used at call time,
 // never at module-eval time.
-import { glowAlphaForMood, houseAlphaForMood } from "./citadel-fx";
+import { glowAlphaForMood, houseAlphaForMood, villagerAlphaForMood, villagerSlumpOffset } from "./citadel-fx";
 
 // ---------------------------------------------------------------------------
 // Re-export the full prior public surface so existing imports keep resolving.
@@ -425,16 +425,23 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
     // (tracked frame-to-frame, pure render — never read by the sim) so a moving
     // villager reads as walking-with-purpose instead of a static dot.
     const o = villagerHeading.sample(v.id, box.x, box.y);
+    // Phase E cozy pivot: a glum villager (low v.mood, sourced from its home
+    // house) reads subtly dimmer + sits a hair lower — layered ON TOP of the
+    // job tint, which stays the primary read (see villagerQuad's doc comment).
+    // Both cues share villagerAlphaForMood/villagerSlumpOffset's mood curve so
+    // they move together; neither is randomized (steady mood read, not FX).
+    const moodAlpha = villagerAlphaForMood(v.mood);
+    const slump = villagerSlumpOffset(v.mood);
     renderer.push({
       atlasId: QUAD_ATLAS_ID,
       frame: base.frame ?? QUAD_FRAME,
       x: box.x + box.width / 2,
-      y: box.y + dy + box.height / 2,
+      y: box.y + dy + slump + box.height / 2,
       width: box.width * o.sx,
       height: box.height * o.sy,
       rotation: o.lean,
       layer: LAYER_ENTITY,
-      alpha: 1,
+      alpha: moodAlpha,
       tintRgba: base.tintRgba,
       sortY: box.depth,
     });

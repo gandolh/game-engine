@@ -32,6 +32,7 @@ function mkSnapshot(tier: string, roads: number, raiders: RaiderSnapshot[] = [])
     keepPresent: false, keepSacked: false,
     sickVillagers: 0, outbreakActive: false, activeFires: 0,
     tier, peakTier: tier, reliefReserve: 0,
+    allHomesCovered: false,
   };
 }
 

@@ -73,6 +73,7 @@ import {
   serviceCatchment,
   housesInRadius,
   coverageByNeed,
+  uncoveredHouseTiles,
 } from "./render/coverage";
 import { PlacementStateManager } from "./ui/placement-state";
 import { SettingsModal } from "./ui/settings-modal";
@@ -122,6 +123,12 @@ const loadFileInput = document.getElementById("load-file-input")! as HTMLInputEl
 // exists before the first snapshot; #toast-live is its hidden aria-live a11y mirror.
 const toasts = new ToastManager(document.getElementById("toast-live"));
 let lastEventShown: string | null = null;
+// Cozy-pivot Phase F (decision #7): latch for the ONE gentle contentment
+// banner, edge-triggered on `allHomesCovered` flipping false→true. `null`
+// until the first snapshot arrives, so we can initialize the latch from
+// whatever state the town loads in WITHOUT toasting (no spurious banner on
+// save-load of an already-happy town) — only a later rising edge congratulates.
+let prevAllHomesCovered: boolean | null = null;
 let minimap: CitadelMinimap | null = null;
 
 // Per-building occupancy badges (Part B): headcount chips floated over each
@@ -991,6 +998,20 @@ client.onSnapshot((snap) => {
   // performance.now() is the render clock — main-thread only, never the sim.
   for (const e of newEventsSince(lastEventShown, events)) toasts.push(e, performance.now());
   if (events.length > 0) lastEventShown = events[events.length - 1]!;
+  // Cozy-pivot Phase F (decision #7): ONE gentle diegetic banner on the
+  // false→true rising edge of `allHomesCovered` — never a nag, never repeats
+  // while the state holds. Reset the latch on true→false so a later
+  // re-completion is congratulated again. The `=== null` branch only seeds
+  // the latch on the very first snapshot; it never toasts (avoids a spurious
+  // banner on save-load of an already-happy town).
+  if (prevAllHomesCovered === null) {
+    prevAllHomesCovered = snap.allHomesCovered;
+  } else if (snap.allHomesCovered && !prevAllHomesCovered) {
+    toasts.push("Every home is prospering.", performance.now());
+    prevAllHomesCovered = true;
+  } else if (!snap.allHomesCovered && prevAllHomesCovered) {
+    prevAllHomesCovered = false;
+  }
   currentBuildings = snap.buildings;
   if (!useServer && !openingFramed && inputReady) {
     const seeded = currentBuildings.filter((b) => b.type !== "road" && b.type !== "bridge");
@@ -1228,6 +1249,18 @@ function loop(): void {
   // geometry mirrors the sim's coverage math (render/coverage.ts).
   if (coverageOverlay) {
     for (const grp of coverageByNeed(currentBuildings)) pushCatchment(renderer, grp.tiles, grp.hex);
+    // Cozy-pivot Phase F (decision #7): frame the overlay's gaps as a soft
+    // invitation rather than raw data — a slow, low-amplitude pulse on houses
+    // missing a core need. Only drawn while the player pulled up the overlay
+    // (never always-on). Reuses pushCatchment's edge/fill alpha split (0.34 vs
+    // 0.16) as the two pulse levels, driven by the render clock so it never
+    // touches determinism; a ~2.4s period keeps it gentle, not attention-grabbing.
+    const invited = uncoveredHouseTiles(currentBuildings);
+    if (invited.length > 0) {
+      const lit = Math.sin((nowMs / 1000) * (Math.PI * 2 / 2.4)) > 0;
+      const pulseTiles = invited.map((t) => ({ tx: t.tx, ty: t.ty, edge: lit }));
+      pushCatchment(renderer, pulseTiles, EDG.cream);
+    }
   }
   if (placementState.mode === "place" && ghost !== null) {
     const cx = ghost.tileX + Math.floor(ghost.w / 2);

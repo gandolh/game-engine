@@ -344,7 +344,11 @@ export function buildingShadowQuad(b: BuildingSnapshot): QuadSpec | null {
  * Tint source: `v.job` drives the primary body tint via `VILLAGER_JOB_COLORS`.
  * The old FSM-state cue (walkToWork/work/etc.) is deliberately NOT composed
  * here — layering two independent color signals on one tint channel muddied
- * both reads. A future mood/posture layer will carry the FSM cue instead.
+ * both reads. `v.mood` is NOT composed into the tint here either: job stays
+ * this function's one job (pun intended) and mood is applied as a separate
+ * alpha/posture layer by the caller (see `villagerAlphaForMood` /
+ * `villagerSlumpOffset` in citadel-fx.ts, applied in the renderer's villager
+ * draw loop) — mirroring how house mood-dim composes on top of `buildingQuad`.
  */
 export function villagerQuad(v: VillagerSnapshot): QuadSpec {
   // Sized up for the 32×32 iso figure art (was 0.7 tiles for the old 16px sprite).

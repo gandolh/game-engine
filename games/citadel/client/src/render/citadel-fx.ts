@@ -270,6 +270,47 @@ export function houseAlphaForMood(mood: number): number {
 export const MOOD_HEARTH_SMOKE = 65;
 
 /**
+ * How far a fully-glum villager's sprite alpha drops from 1. Gentler than
+ * MOOD_DIM_MAX (houses): villager sprites are small, so a big dip would hurt
+ * legibility of the (primary) job-color read. Reuses the house curve's
+ * MOOD_DIM_FULL/MOOD_DIM_NONE breakpoints for a consistent mood "feel" across
+ * cues — only the max drop differs.
+ */
+export const VILLAGER_MOOD_DIM_MAX = 0.25;
+
+/**
+ * Sprite alpha multiplier ((1 - VILLAGER_MOOD_DIM_MAX)..1) for a villager of the
+ * given `mood`. A glum villager (low mood) reads subtly dimmer/cooler than a
+ * content one; job tint stays the primary read. Same breakpoints as
+ * {@link houseAlphaForMood} (MOOD_DIM_FULL/MOOD_DIM_NONE), scaled to the
+ * gentler VILLAGER_MOOD_DIM_MAX ceiling. Pure + total; monotonic
+ * non-decreasing in `mood`.
+ */
+export function villagerAlphaForMood(mood: number): number {
+  if (mood >= MOOD_DIM_FULL) return 1;
+  if (mood <= MOOD_DIM_NONE) return 1 - VILLAGER_MOOD_DIM_MAX;
+  const t = (mood - MOOD_DIM_NONE) / (MOOD_DIM_FULL - MOOD_DIM_NONE); // 0..1
+  return 1 - VILLAGER_MOOD_DIM_MAX * (1 - t);
+}
+
+/** Peak downward "slump" offset (world px) for a fully-glum villager. Tiny by design. */
+export const VILLAGER_SLUMP_PX = 1.5;
+
+/**
+ * Vertical slump offset (world px, 0..VILLAGER_SLUMP_PX) for a villager of the
+ * given `mood` — a glum villager sits a hair lower/heavier than a content one.
+ * Same MOOD_DIM_FULL/MOOD_DIM_NONE breakpoints as the alpha cue. Pure, total,
+ * deterministic (no render clock — this is a steady mood read, not an
+ * animation); monotonic non-increasing in `mood`.
+ */
+export function villagerSlumpOffset(mood: number): number {
+  if (mood >= MOOD_DIM_FULL) return 0;
+  if (mood <= MOOD_DIM_NONE) return VILLAGER_SLUMP_PX;
+  const t = (mood - MOOD_DIM_NONE) / (MOOD_DIM_FULL - MOOD_DIM_NONE); // 0..1
+  return VILLAGER_SLUMP_PX * (1 - t);
+}
+
+/**
  * Does a house of the given `mood` breathe a cozy hearth wisp? Only content
  * houses (mood ≥ MOOD_HEARTH_SMOKE) do; neglected ones stay smokeless. Pure.
  */

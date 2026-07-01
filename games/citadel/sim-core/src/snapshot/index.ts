@@ -53,6 +53,13 @@ export interface VillagerSnapshot {
    * resolvable workplace). See `VillagerJob` in entities/building.ts.
    */
   readonly job: string;
+  /**
+   * The villager's mood [0..100], read READ-ONLY from its HOME house's per-house
+   * mood (Phase A). Defaults to 40 (the neutral seed) for a villager whose home
+   * tile resolves to no building. Pure projection; never written back. Drives the
+   * render-only posture/tint cue (Phase E) — layered on top of the job tint.
+   */
+  readonly mood: number;
 }
 
 /** Phase 4: one raider group as seen by the renderer. */
@@ -114,6 +121,14 @@ export interface RenderSnapshot {
   readonly peakTier: string;             // highest tier ever reached; gates build/upgrade buttons
   // Citadel 09: total goods held in the tithe relief reserve (0 if no tithe accrued).
   readonly reliefReserve: number;
+  /**
+   * Phase F (motivation): true when EVERY house the local player owns has all
+   * three needs met (faith+safety+goods) AND there is at least one house. A pure
+   * read over the per-house `lacks*` flags — no score, no number surfaced; the
+   * client edge-triggers a single gentle "every home is prospering" banner when
+   * this flips false→true. Deterministic projection.
+   */
+  readonly allHomesCovered: boolean;
 }
 
 // ---------------------------------------------------------------------------

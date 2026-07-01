@@ -161,7 +161,7 @@ describe("buildingShadowQuad (directional NW-sun ground shadow)", () => {
 
 describe("villagerQuad / raiderQuad / ghostQuad", () => {
   it("colors a villager by job (not FSM state) and centers a small quad", () => {
-    const v: VillagerSnapshot = { id: 1, x: 4, y: 6, fsm: "work", carryGood: null, job: "farmer" };
+    const v: VillagerSnapshot = { id: 1, x: 4, y: 6, fsm: "work", carryGood: null, job: "farmer", mood: 40 };
     const q = villagerQuad(v);
     // Tint is now driven by job ("farmer" → EDG.greenMid), not FSM state.
     expect(q.tintRgba).toBe(packTint(VILLAGER_JOB_COLORS["farmer"]));

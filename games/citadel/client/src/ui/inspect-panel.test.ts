@@ -103,10 +103,11 @@ describe("createInspectPanel — producer (bakery)", () => {
     const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState());
     expect(find(panel.root, "Level")?.text).toBe("Level 1");
-    panel.refresh(baseState({ type: "farm", level: 2, season: "summer", workerCount: 2 }));
+    // Phase H made farm single-slot (workerSlots 2→1); a staffed farm reads 1/1.
+    panel.refresh(baseState({ type: "farm", level: 2, season: "summer", workerCount: 1 }));
     expect(texts(panel.root)).toContain("Farm");
     expect(find(panel.root, "Level")?.text).toBe("Level 2");
-    expect(find(panel.root, "Workers:")?.text).toBe("Workers: 2/2");
+    expect(find(panel.root, "Workers:")?.text).toBe("Workers: 1/1");
   });
 
   it("reports content-changed for layout gating (first frame, then only on change)", () => {

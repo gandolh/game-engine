@@ -32,6 +32,10 @@ import {
   MOOD_DIM_MAX,
   houseEmitsHearthSmoke,
   MOOD_HEARTH_SMOKE,
+  villagerAlphaForMood,
+  VILLAGER_MOOD_DIM_MAX,
+  villagerSlumpOffset,
+  VILLAGER_SLUMP_PX,
 } from "./citadel-fx";
 import { buildingQuad } from "./citadel-renderer";
 
@@ -44,7 +48,7 @@ function building(over: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type
 }
 
 function villager(over: Partial<VillagerSnapshot> & Pick<VillagerSnapshot, "id" | "x" | "y">): VillagerSnapshot {
-  return { fsm: "idle", carryGood: null, job: "idle", ...over };
+  return { fsm: "idle", carryGood: null, job: "idle", mood: 40, ...over };
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +289,53 @@ describe("houseAlphaForMood", () => {
       expect(a).toBeGreaterThanOrEqual(prev);
       expect(a).toBeLessThanOrEqual(1);
       prev = a;
+    }
+  });
+});
+
+describe("villagerAlphaForMood", () => {
+  it("a content villager keeps full brightness", () => {
+    expect(villagerAlphaForMood(MOOD_DIM_FULL)).toBe(1);
+    expect(villagerAlphaForMood(100)).toBe(1);
+  });
+
+  it("a glum villager reads dimmest (capped, gentler than the house dim)", () => {
+    expect(villagerAlphaForMood(0)).toBeCloseTo(1 - VILLAGER_MOOD_DIM_MAX, 5);
+    expect(villagerAlphaForMood(MOOD_DIM_NONE)).toBeCloseTo(1 - VILLAGER_MOOD_DIM_MAX, 5);
+    expect(VILLAGER_MOOD_DIM_MAX).toBeLessThan(MOOD_DIM_MAX);
+  });
+
+  it("is monotonic non-decreasing in mood and clamps to [1-MAX, 1]", () => {
+    let prev = -1;
+    for (let m = -20; m <= 120; m += 5) {
+      const a = villagerAlphaForMood(m);
+      expect(a).toBeGreaterThanOrEqual(prev);
+      expect(a).toBeGreaterThanOrEqual(1 - VILLAGER_MOOD_DIM_MAX);
+      expect(a).toBeLessThanOrEqual(1);
+      prev = a;
+    }
+  });
+});
+
+describe("villagerSlumpOffset", () => {
+  it("a content villager stands upright (no slump)", () => {
+    expect(villagerSlumpOffset(MOOD_DIM_FULL)).toBe(0);
+    expect(villagerSlumpOffset(100)).toBe(0);
+  });
+
+  it("a glum villager slumps by the full (capped) offset", () => {
+    expect(villagerSlumpOffset(0)).toBeCloseTo(VILLAGER_SLUMP_PX, 5);
+    expect(villagerSlumpOffset(MOOD_DIM_NONE)).toBeCloseTo(VILLAGER_SLUMP_PX, 5);
+  });
+
+  it("is monotonic non-increasing in mood and clamps to [0, VILLAGER_SLUMP_PX]", () => {
+    let prev = VILLAGER_SLUMP_PX + 1;
+    for (let m = -20; m <= 120; m += 5) {
+      const s = villagerSlumpOffset(m);
+      expect(s).toBeLessThanOrEqual(prev);
+      expect(s).toBeGreaterThanOrEqual(0);
+      expect(s).toBeLessThanOrEqual(VILLAGER_SLUMP_PX);
+      prev = s;
     }
   });
 });

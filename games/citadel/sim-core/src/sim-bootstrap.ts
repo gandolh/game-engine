@@ -965,7 +965,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     // building footprint tile → its type once, then look up each villager's
     // workplace type. An `idle` villager has no current workplace → "idle".
     // This is a pure projection; no sim state is mutated.
+    // Phase E: a PARALLEL index footprint tile → building ENTITY ID lets us look
+    // up a villager's HOME house runtime mood (Phase A per-house `mood`). Built in
+    // the same pass with the exact same bounds checks + key as `tileToType`.
     const tileToType = new Map<number, string>();
+    const tileToBuildingId = new Map<number, number>();
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
       for (let dy = 0; dy < b.h; dy++) {
@@ -974,6 +978,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
           const ty = b.y + dy;
           if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
           tileToType.set(ty * WORLD_WIDTH + tx, b.type);
+          if (entity.id !== undefined) tileToBuildingId.set(ty * WORLD_WIDTH + tx, entity.id);
         }
       }
     }
@@ -983,7 +988,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       const pos = villagerPos(v);
       const workType = v.fsm === "idle" ? undefined : tileToType.get(v.workY * WORLD_WIDTH + v.workX);
       const job = workType === undefined ? JOB_IDLE : jobForBuildingType(workType);
-      result.push({ id: v.id, x: pos.x, y: pos.y, fsm: v.fsm, carryGood: v.carryGood, job });
+      // Phase E: mood from the HOME house's per-house runtime mood; default 40
+      // (neutral seed) for a villager whose home tile resolves to no building.
+      const homeBid = tileToBuildingId.get(v.homeY * WORLD_WIDTH + v.homeX);
+      const mood = (homeBid !== undefined ? state.buildingState.get(homeBid)?.mood : undefined) ?? 40;
+      result.push({ id: v.id, x: pos.x, y: pos.y, fsm: v.fsm, carryGood: v.carryGood, job, mood });
     }
     return result;
   }
@@ -1007,13 +1016,25 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       }
     }
     const nextRaidDay = lp.nextRaidTick < 0 ? -1 : Math.floor(lp.nextRaidTick / state.ticksPerDay);
+    // Phase F (motivation): compute over the SAME buildings the snapshot exposes,
+    // reading the SAME per-house `lacks*` flags. A house is "covered" when it lacks
+    // none of faith/safety/goods; "no houses owned" ⇒ not content (false).
+    const buildings = getBuildings();
+    let ownedHouses = 0;
+    let coveredHouses = 0;
+    for (const b of buildings) {
+      if (b.type !== "house" || b.ownerId !== lp.id) continue;
+      ownedHouses++;
+      if (!b.lacksFaith && !b.lacksSafety && !b.lacksGoods) coveredHouses++;
+    }
+    const allHomesCovered = ownedHouses > 0 && coveredHouses === ownedHouses;
     return {
       tick,
       localPlayerId: lp.id,
       day: dayClock.day,
       season: getSeason(dayClock.day, DAYS_PER_YEAR),
       speed: 1,
-      buildings: getBuildings(),
+      buildings,
       villagers: getVillagers(),
       stockpiles: stock,
       population: lp.population,
@@ -1051,6 +1072,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       peakTier: lp.peakTier,
       // Citadel 09: relief reserve total (tithe payoff buffer)
       reliefReserve: totalGoods(lp.reliefReserve),
+      // Phase F (motivation): every owned home has all three needs met (≥1 house)
+      allHomesCovered,
     };
   }
 

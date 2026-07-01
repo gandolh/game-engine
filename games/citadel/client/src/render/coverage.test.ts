@@ -12,6 +12,7 @@ import {
   serviceCatchment,
   housesInRadius,
   coverageByNeed,
+  uncoveredHouseTiles,
 } from "./coverage";
 
 /** Minimal building-snapshot factory for the geometry tests. */
@@ -171,5 +172,38 @@ describe("coverageByNeed", () => {
 
   it("ignores buildings without a coverage need", () => {
     expect(coverageByNeed([b("well", 5, 5), b("house", 1, 1)])).toEqual([]);
+  });
+});
+
+describe("uncoveredHouseTiles", () => {
+  /** A house with all three core needs met (the fully-covered case). */
+  function coveredHouse(x: number, y: number): BuildingSnapshot {
+    return { ...b("house", x, y), lacksFaith: false, lacksSafety: false, lacksGoods: false };
+  }
+
+  it("returns nothing when every house has all three core needs met", () => {
+    expect(uncoveredHouseTiles([coveredHouse(10, 10), coveredHouse(20, 20)])).toEqual([]);
+  });
+
+  it("flags a house missing at least one core need (here: safety)", () => {
+    const house = { ...coveredHouse(10, 10), lacksSafety: true };
+    expect(uncoveredHouseTiles([house])).toEqual([{ tx: 10, ty: 10 }]);
+  });
+
+  it("tracks the SIM's lacksGoods (stockpile-gated), not just market geometry", () => {
+    // A house with a market in range but an empty town stockpile still reads
+    // lacksGoods=true from the sim — the pulse must fire so it never contradicts
+    // the withheld contentment banner. (Regression: the old geometry-only check
+    // would have gone quiet here.)
+    const house = { ...coveredHouse(10, 10), lacksGoods: true };
+    expect(uncoveredHouseTiles([house])).toEqual([{ tx: 10, ty: 10 }]);
+  });
+
+  it("is deterministic and ignores non-house buildings", () => {
+    const buildings = [{ ...b("house", 1, 1), lacksFaith: true, lacksSafety: false, lacksGoods: false }, b("chapel", 1, 1, 2, 2)];
+    const first = uncoveredHouseTiles(buildings);
+    const second = uncoveredHouseTiles(buildings);
+    expect(first).toEqual(second);
+    expect(first).toEqual([{ tx: 1, ty: 1 }]);
   });
 });

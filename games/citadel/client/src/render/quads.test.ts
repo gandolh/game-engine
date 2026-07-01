@@ -54,7 +54,7 @@ describe("VILLAGER_JOB_COLORS — totality and palette cleanliness", () => {
 
 describe("villagerQuad — job-driven tint", () => {
   function villager(job: string, fsm = "walkToWork"): VillagerSnapshot {
-    return { id: 1, x: 3, y: 5, fsm, carryGood: null, job };
+    return { id: 1, x: 3, y: 5, fsm, carryGood: null, job, mood: 40 };
   }
 
   it("applies the job tint, not the FSM tint", () => {

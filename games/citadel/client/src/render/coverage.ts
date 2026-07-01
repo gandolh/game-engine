@@ -178,3 +178,40 @@ export function coverageByNeed(buildings: readonly BuildingSnapshot[]): NeedCatc
   }
   return out;
 }
+
+/** A house's centre tile (the point the invitation pulse is drawn on). */
+export interface UncoveredHouse {
+  tx: number;
+  ty: number;
+}
+
+/**
+ * Cozy-pivot Phase F (decision #7): the houses the coverage overlay's gaps
+ * should read as an *invitation* to fix, not just missing paint. A house is
+ * "invited" when it lacks at least one of the three core needs (faith, safety,
+ * goods — festival is a mood bonus, not a core need).
+ *
+ * This reads the SIM's authoritative per-house `lacks*` flags (Phase A) rather
+ * than re-deriving coverage from catchment geometry — so the invitation can
+ * never disagree with the sim's own verdict. That matters for GOODS in
+ * particular: the sim gates goods on stockpile availability (bread/grain > 0),
+ * not just a market in range (see needs-happiness.ts). A geometry-only check
+ * would fall quiet on a house whose market is in range but whose town is out of
+ * food, exactly when the sim still (correctly) withholds the contentment banner
+ * — the two Phase-F cues would visibly contradict. Reading `lacks*` keeps the
+ * pulse and the `allHomesCovered` banner in lockstep.
+ *
+ * Only meaningful while the overlay is up (the caller gates the draw on
+ * `coverageOverlay`); this helper itself has no notion of overlay state.
+ */
+export function uncoveredHouseTiles(buildings: readonly BuildingSnapshot[]): UncoveredHouse[] {
+  const out: UncoveredHouse[] = [];
+  for (const b of buildings) {
+    if (b.type !== "house") continue;
+    if (b.lacksFaith || b.lacksSafety || b.lacksGoods) {
+      const { cx, cy } = serviceCenter(b);
+      out.push({ tx: cx, ty: cy });
+    }
+  }
+  return out;
+}
