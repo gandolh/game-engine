@@ -200,6 +200,31 @@ are still open (solo is unaffected).
 > recognition, no score/quests) / E (villager mood polish). The whole structural pivot has shipped.
 > Not yet eyeballed in-browser (WebGPU headless).
 
+> **2026-07-01 — cozy-pivot Phases E + F shipped: the diegetic-signal + motivation finish. ALL
+> PHASES A–I NOW DONE.** Both are render-layer passes reading the keystone (A) snapshot — no new
+> sim mechanics, digest byte-identical.
+> - **E (per-villager mood):** `VillagerSnapshot.mood` (read-only, sourced from the villager's HOME
+>   house's per-house mood; default 40). Renderer layers a SUBTLE cue on top of the job tint (job stays
+>   the primary read): `villagerAlphaForMood` dims a glum villager (`VILLAGER_MOOD_DIM_MAX=0.25`,
+>   gentler than the house dim) + `villagerSlumpOffset` (`VILLAGER_SLUMP_PX=1.5`) — both on the house
+>   mood curve's breakpoints. See [citadel-fx.ts](../../games/citadel/client/src/render/citadel-fx.ts) /
+>   [citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts).
+> - **F (motivation, decision #7 — no score/quests/HUD):** `RenderSnapshot.allHomesCovered` (pure read
+>   over per-house `lacks*`) edge-triggers ONE gentle "Every home is prospering." toast on the false→true
+>   rising edge (latched, seeded-silent on first snapshot). The coverage overlay's gaps now soft-pulse as
+>   an invitation (`uncoveredHouseTiles` → main.ts, only while the overlay is up). **Review adjudication:**
+>   `uncoveredHouseTiles` reads the sim's authoritative per-house `lacks*` (NOT recomputed market
+>   geometry) so the pulse can't disagree with the stockpile-gated `lacksGoods` — pulse + banner stay in
+>   lockstep (also killed a double `coverageByNeed`/frame). See [coverage.ts](../../games/citadel/client/src/render/coverage.ts).
+>
+> Gates: sim-core **224/224**, client **397/397**, typecheck-clean, determinism MATCH ×3, digest
+> unmoved. **Playtested in a real WebGPU browser** ([phaseEF-playtest](../todos/2026-07-01-citadel-phaseEF-playtest.md)):
+> per-villager mood tracks home-house mood tick-for-tick; a town stays alive/fed/fire-recoverable 200+
+> days. Two non-blocking follow-ups: **P1** cozy-path threat toast COPY still reads pressure-game
+> ("caught fire!"/"starved") though the MECHANICS are cozy-correct (`cozyThreats:true` wired); **P2** the
+> playtest driver can't read the in-canvas HUD or drive road-connected services, so F's banner-edge is
+> verified-by-mechanism, not yet scripted-live (user accepted that bar).
+
 > **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
 > *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,
 > minimap, and settings modal **all render in-canvas via `@engine/ui`** — the `#build-bar`/`#hud`/

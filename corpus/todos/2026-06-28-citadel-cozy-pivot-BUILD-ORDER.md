@@ -285,11 +285,44 @@ Brings the threat systems in line with the contract (#4/#5/#6). Can interleave w
   by the cozy contract — it was a pressure-game stance.
 
 ### Phase E (optional, later) — villager mood polish
+> **✅ SHIPPED 2026-07-01** (see [log.md](../log.md)). The second half of the diegetic
+> signal. `VillagerSnapshot` gained a read-only `mood` (sourced from the villager's HOME
+> house's per-house mood, Phase A; default 40, pure deterministic projection — digest
+> byte-identical). Renderer expresses it as a SUBTLE cue layered ON TOP of the job tint
+> (job stays the primary read): `villagerAlphaForMood` dims a glum villager (gentler than
+> the house dim — `VILLAGER_MOOD_DIM_MAX=0.25 < MOOD_DIM_MAX`) + `villagerSlumpOffset` sits
+> it a hair lower (`VILLAGER_SLUMP_PX=1.5`), both sharing the house mood curve's
+> breakpoints. Built inline via a senior sim chunk + a junior render chunk. **Playtested
+> 2026-07-01:** per-villager `mood` tracked home-house mood tick-for-tick (68→64→63 in
+> lockstep) in a real WebGPU browser — the sim→snapshot→renderer pipeline is confirmed
+> ([phaseEF-playtest](2026-07-01-citadel-phaseEF-playtest.md)). Gates: sim-core 224/224,
+> client 397/397, typecheck clean, determinism MATCH ×3, digest unmoved.
+
 The *second half* of the diegetic signal (the richer, churnier half). Per-villager
 mood expressed as posture / dawdling / thought-bubble / tint. Layers on top of the
 per-house signal; ships after A–D earn their keep.
 
 ### Phase F — Motivation: emergent goals + diegetic recognition (decision #7)
+> **✅ SHIPPED 2026-07-01** (see [log.md](../log.md)). The "why keep playing" layer, no
+> score / no quest list / no HUD. **(1) Inviting-gap pulse:** `uncoveredHouseTiles`
+> (coverage.ts) returns the houses missing ≥1 core need; when the coverage overlay is up
+> (player-pulled, never always-on), main.ts draws a slow ~2.4s soft pulse (EDG.cream, via
+> pushCatchment's edge/fill alpha split) on them so a gap reads as an invitation, not raw
+> data. **(2) Contentment banner:** a read-only `RenderSnapshot.allHomesCovered` (true when
+> every owned house has all three needs met, ≥1 house — pure read over the per-house
+> `lacks*`); main.ts edge-triggers ONE gentle "Every home is prospering." toast on the
+> false→true rising edge (latched, resets on true→false, seeds silently on the first
+> snapshot so save-load of a happy town doesn't spuriously fire). **Review fix (adjudication,
+> a real find):** `uncoveredHouseTiles` initially recomputed market *geometry*, which would
+> disagree with the sim's stockpile-gated `lacksGoods` (market-in-range but no food → pulse
+> quiet while the banner is correctly withheld); refactored to read the sim's authoritative
+> per-house `lacks*` so pulse + banner stay in lockstep (this also removed a double
+> `coverageByNeed`-per-frame cost). **Playtested 2026-07-01:** predicate + pulse verified
+> live; the banner's false→true edge was **not** flipped in-run (no scripted town reached
+> full 3-need coverage — the chapel wasn't road-connected), so the live banner-fire is a
+> P2-tooling-gated follow-up ([phaseEF-playtest](2026-07-01-citadel-phaseEF-playtest.md)) —
+> user accepted mechanism-verified as the bar. Gates: as Phase E above.
+
 The "why keep playing" layer. **Costs almost no new mechanism** — it lands on the
 keystone (A) and the already-shipped overlays. **No score, no quest list.**
 

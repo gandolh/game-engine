@@ -4,6 +4,26 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] todo | Citadel playtest — Phase E (live-verified) + Phase F (mechanism verified) + A–I cozy-visual eyeball + toast-copy UX finding
+
+Ran `playtest-citadel` over the uncommitted E/F tree (default `play.mjs` plan SECONDS=200
++ a focused `ef-probe.mjs`, seed 0x1a2b3c4d, `reloads:0`). **Phase E confirmed live in a
+real browser:** per-villager `mood` tracked home-house mood tick-for-tick (68→64→63 in
+lockstep) — the sim→snapshot→renderer pipeline carries the signal. **Phase F mechanism
+verified but banner not flipped in-run:** `allHomesCovered` correctly stayed false because
+the scripted chapel was placed-but-not-road-connected (faith never met, mood capped ~63);
+the inviting-gap pulse overlay renders. The A–I cozy result is real — a default-plan town
+reached **Day 237 winter, Grain 1312, Happy 37, no fire/disease/threat**, self-recovering,
+never reachable pre-pivot. Two findings filed
+([todo](todos/2026-07-01-citadel-phaseEF-playtest.md)): **P1 UX** — cozy-path threat toast
+COPY ("caught fire!", "fire spread to a bakery!", "starved POP 0") reads pressure-game and
+undercuts the cozy contract even though the MECHANICS are cozy-correct (`cozyThreats:true`
+wired at sim-worker.ts:68; `cozy-threats.test.ts` proves fire never razes); **P2 tooling** —
+`play.mjs` still can't read HUD (in-canvas) or drive road-connected services (so F's banner
+edge isn't scriptable yet). E/F code + gates are green (sim-core 224, client 397, typecheck
+clean, determinism MATCH ×3, digest unmoved); the F banner-edge acceptance is the one open
+item, gated on a properly-serviced run, not on a code defect.
+
 ## [2026-07-01] shipped | Citadel cozy-pivot Phase I — terrain clustering + solvability guarantee
 
 Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)

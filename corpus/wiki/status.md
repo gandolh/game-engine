@@ -26,6 +26,20 @@ Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26; **cozy-pivo
 > [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
 > Supersedes the "fire punishes tight clusters by design" stance. Design only — no code changed.
 
+> **2026-07-01 Citadel cozy pivot — ALL PHASES SHIPPED (A–I).** The full build order is
+> delivered: A (per-house diegetic mood), B (happiness→productivity floor), C (forgiving
+> cold open), D (threat demotion), G (autonomy / civic buildings + player-driven trading
+> post), H (economy under the downside rule), I (terrain clustering + solvability), and now
+> **E (per-villager mood)** + **F (motivation: inviting-gap pulse + contentment banner)** —
+> the last two, both diegetic render-layer passes reading the keystone snapshot. Playtested
+> in a real WebGPU browser 2026-07-01: a town now stays **alive, fed, and fire-recoverable
+> across 200+ days** (never reachable pre-pivot); per-villager mood tracks home-house mood
+> live. Two follow-ups filed (not blockers): **P1** cozy-path threat toast COPY still reads
+> pressure-game ("caught fire!"/"starved") despite cozy-correct mechanics; **P2** the
+> playtest driver can't yet read the in-canvas HUD or drive road-connected services (so
+> Phase F's banner-edge live-fire is verified-by-mechanism, not yet scripted-live). See
+> [todos/2026-07-01-citadel-phaseEF-playtest.md](../todos/2026-07-01-citadel-phaseEF-playtest.md).
+
 > **2026-06-26 Citadel pass** (see [log.md](../log.md) for detail). Closed a batch of `todos/`:
 > engine GC-churn hygiene (prealloc WebGPU draw scratch + double-buffer CommandQueue);
 > the **citadel-38 audit** P0 MP-authority + P1#5 + P2 balance + P3 cleanup (P1#6/#7/#9
