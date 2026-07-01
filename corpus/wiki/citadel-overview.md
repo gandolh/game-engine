@@ -224,6 +224,19 @@ are still open (solo is unaffected).
 > ("caught fire!"/"starved") though the MECHANICS are cozy-correct (`cozyThreats:true` wired); **P2** the
 > playtest driver can't read the in-canvas HUD or drive road-connected services, so F's banner-edge is
 > verified-by-mechanism, not yet scripted-live (user accepted that bar).
+>
+> **2026-07-01 (follow-up) — P1 shipped, P2 split.** **P1 done:** cozy-path threat toast COPY now
+> branches on the `cozy` flag — fire reads "a hearth is smouldering — a well nearby would settle it"
+> (not "caught fire!"), disease "under the weather"/"back on its feet", a hungry departure "left to
+> find food — the larder is bare" (not "starved (pop 0)"); `ImmigrationSystem` gained a `cozy` opt like
+> Fire/Disease. The **sharp** wording is kept verbatim under `cozyThreats:false` (Challenge-mode guards
+> still match); `cozy-threats.test.ts` pins the fire split both ways. Determinism: reproducible + **no
+> numeric drift** vs baseline (only event copy differs). **P2 instrumentation done:**
+> `window.__citadel.snapshot()` exposes the live snapshot and `play.mjs` reads game state from it +
+> tracks the `allHomesCovered` edge — the banner is now assertable, not inferred. **P2 placement still
+> open:** a live run confirmed the banner doesn't fire because the plan can't land services on the
+> **seeded** map (it anchors on the pre-seeded 12×6 core box with an empty occupancy set) — fix =
+> make the plan seed-aware (todo acceptance). See [phaseEF-playtest todo](../todos/2026-07-01-citadel-phaseEF-playtest.md).
 
 > **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
 > *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,

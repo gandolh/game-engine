@@ -5,6 +5,18 @@ status: partial
 tags: [citadel, playtest, cozy-pivot, phase-e, phase-f, ux]
 ---
 
+> **UPDATE 2026-07-01 (follow-up pass):** P1 SHIPPED — cozy-path threat toast copy re-worded
+> (fire/disease/immigration event strings now branch on `cozy`; sharp wording kept verbatim
+> under `cozyThreats:false`; determinism unmoved — per-day numeric state byte-identical vs
+> baseline, only event copy differs by design). P2 SPLIT: the **instrumentation** half is
+> DONE (`window.__citadel.snapshot()` exposes the live `RenderSnapshot`; `play.mjs` now reads
+> game state from it — `timeline[].src === "snapshot"`, so `happy/pop/covered` are live, not
+> the stale DOM null — and tracks the `allHomesCovered` false→true edge). The **placement**
+> half remains OPEN: the driver still can't land road-connected services on the seeded map, so
+> the banner edge never fired live (`outcome.allHomesCoveredEver: false`). Root cause now
+> diagnosed — see the P2 update below. The banner is thus mechanism-verified + edge-instrumented,
+> but still not scripted-live. See [log 2026-07-01](../log.md).
+
 > **Run config (reproducible):** client seed fixed `0x1a2b3c4d`, solo Web-Worker sim
 > (`cozyThreats:true`, `seedTown:true`, `deferThreatsUntilBuildings:6` — confirmed at
 > [sim-worker.ts:59-81](../../games/citadel/client/src/worker/sim-worker.ts#L59)), system
@@ -64,7 +76,27 @@ to Pop 0 in ~10–20 days). Winter didn't cliff it (Phase H floor); a Day-32 dis
 **Happy 77**. This is the A–I acceptance step (a real-browser eyeball of the cozy result) —
 **met**, with the two caveats below.
 
-## P1 (UX) — threat/dip toast COPY reads pressure-game, undercutting the cozy contract
+## P1 (UX) — threat/dip toast COPY reads pressure-game, undercutting the cozy contract — ✅ SHIPPED 2026-07-01
+
+**Fixed.** The event strings now branch on the same `cozy` flag the mechanics already use:
+- **Fire** ([fire-system.ts](../../games/citadel/sim-core/src/systems/fire-system.ts) `_igniteBuilding`):
+  ignition → *"a … hearth is smouldering — a well nearby would settle it."*; spread →
+  *"the smoulder drifted to a … — keep a well close."*
+- **Disease** ([disease-system.ts](../../games/citadel/sim-core/src/systems/disease-system.ts)):
+  onset → *"N villager(s) are under the weather."*; ended → *"the town is back on its feet."*
+- **Immigration** ([immigration.ts](../../games/citadel/sim-core/src/systems/immigration.ts) — gained a
+  `cozy` constructor opt, wired from `sim-bootstrap.ts` like Fire/Disease): a hungry departure →
+  *"a villager left to find food (pop N) — the larder is bare."* (never "starved (pop 0)").
+
+The **sharp** strings are kept verbatim under `cozyThreats:false` (Challenge mode) — the
+regression guards match on them (`defer-threats.test.ts` `THREAT_RE`, `phase45.test.ts`). A new
+copy-contract block in [cozy-threats.test.ts](../../games/citadel/sim-core/src/systems/cozy-threats.test.ts)
+pins the fire cozy/sharp split both ways. **Determinism:** reproducible (run1==run2 byte-identical)
+and **no numeric drift** — per-day summaries byte-identical vs the pre-P1 baseline; the only diff is
+the event copy, which is the intended change. All gates green (sim-core 226/226, client 397/397,
+Citadel typecheck clean). Copy verified rendering in a headless `sim:citadel` run.
+
+### (Original finding, kept for the record)
 
 In the `ef-probe` run (fresh boot, past the defer gate, no well placed) the toast feed read:
 *"a house caught fire!"*, *"fire spread to a bakery!"*, *"a villager starved (POP 0)"*
@@ -85,15 +117,35 @@ taken from them.
   Source: the event strings emitted by FireSystem/DiseaseSystem + the starvation event in
   immigration/economy. (P1 because tone is the cozy pivot's whole point; low code risk — copy.)
 
-## P2 (tooling) — `play.mjs` still can't drive services or read HUD (carried from prior run)
+## P2 (tooling) — `play.mjs` HUD read (✅ DONE) + service placement (⏳ OPEN, root-caused)
 
-- The DOM-scrape HUD timeline is still `null` (in-canvas-UI migration; the P2 filed in
-  [2026-07-01-citadel-phaseA-playtest-verification.md](2026-07-01-citadel-phaseA-playtest-verification.md)
-  — extend `__citadel` to expose the latest snapshot's `day/pop/happiness/tier/…` incl.
-  **`allHomesCovered`**, so a harness can assert the banner edge without inferring it).
-- The default plan places an economy chain but **no road-connected services**, so it can't
-  drive coverage/happiness high enough to exercise Phase F. Extend the plan to lay roads to a
-  chapel+market+watchpost in range of its houses (then F's banner becomes scriptable).
+**Instrumentation half — ✅ DONE 2026-07-01.**
+- `window.__citadel.snapshot()` now returns the latest `RenderSnapshot`
+  ([main.ts](../../games/citadel/client/src/main.ts), dev-only hook), so a harness reads
+  `day/population/happiness/tier/stockpiles/activeFires/**allHomesCovered**` directly instead of
+  scraping the (stale-since-2026-06-30) DOM HUD.
+- `play.mjs` `readHud()` now prefers the snapshot (`timeline[].src === "snapshot"`; DOM kept only
+  as a labelled fallback), and tracks the `allHomesCovered` false→true edge across the run
+  (`outcome.allHomesCoveredEver` / `allHomesCoveredEdgeAtSecs`). So the Phase-F banner edge is now
+  **assertable, not inferred** — the harness would catch it the tick services connect.
+
+**Placement half — ⏳ OPEN (root cause diagnosed this run).**
+The banner edge still never fired live (`outcome.allHomesCoveredEver: false`) because the plan
+failed to land **any** services: `economyMissing` = `house×3, chapel, market, watchpost,
+tradingpost, well×2, woodcutter` (8/18 placed). **Why:** with `seedTown:true`, the sim pre-seeds a
+fixed **12×6 alive-core box at map center (~48,48)** (storehouse + farm→mill→bakery + house + road
+spine — [sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts) `seedFoundingTown`).
+`play.mjs`'s plan anchors its *own* storehouse at the same center with an **empty occupancy set**
+(it doesn't read the seeded buildings before planning), so it plans onto the seeded box, `findClear`
+bumps everything outward, and the second batch (services + extra houses) exhausts nearby clear space
+within the 3-round retry budget.
+- **Acceptance (to close):** make the plan **seed-aware** — read `__citadel.buildings()` first,
+  seed the occupancy set from the existing seeded core, and anchor chapel/market/watchpost within
+  `SERVICE_RADII` (=8) of the seeded house(s), lay road to them, then wait for a worker to staff each
+  (organic). Confirm `outcome.allHomesCoveredEdgeAtSecs` becomes non-null and the single
+  "Every home is prospering." banner fires once. (Note: even with services placed, `lacksGoods` is
+  stockpile-gated — a market in range but empty stockpiles keeps a house uncovered — so the run also
+  needs the bread chain flowing; the instrumentation already surfaces this.)
 
 ## Not in scope here
 Fixing the toast copy or extending the driver — captured as P1/P2 above for a deliberate pass.

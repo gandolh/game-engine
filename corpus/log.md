@@ -4,6 +4,45 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] done | Citadel cozy-pivot — P1 toast copy re-worded + P2 playtest instrumentation
+
+Closed out the two follow-ups filed in [the E/F playtest todo](todos/2026-07-01-citadel-phaseEF-playtest.md).
+**P1 (shipped):** cozy-path threat toast COPY now branches on the same `cozy` flag the mechanics
+already use — fire reads "a hearth is smouldering — a well nearby would settle it" (not "caught
+fire!"), disease "under the weather" / "back on its feet" (not "outbreak"), a hungry departure "a
+villager left to find food — the larder is bare" (not "starved (pop 0)"). `ImmigrationSystem` gained
+a `cozy` constructor opt (wired from `sim-bootstrap.ts` like Fire/Disease). The **sharp** strings are
+kept verbatim under `cozyThreats:false` so the Challenge-mode regression guards (`defer-threats`
+`THREAT_RE`, `phase45`) still match; a new copy-contract block in `cozy-threats.test.ts` pins the fire
+split both ways. Determinism: reproducible + **no numeric drift** — per-day summaries byte-identical vs
+the pre-P1 baseline, only the event copy differs (the intended change). **P2 (split):** the
+*instrumentation* half is done — `window.__citadel.snapshot()` exposes the live `RenderSnapshot`, and
+`play.mjs` now reads game state from it (`timeline[].src==="snapshot"`, so `happy/pop/covered` are live
+not stale-DOM-null) and tracks the `allHomesCovered` false→true edge (`outcome.allHomesCoveredEver` /
+`allHomesCoveredEdgeAtSecs`). The *placement* half stays open: a live 200s@4× run confirmed the banner
+never fires (`allHomesCoveredEver:false`) because the plan can't land services on the seeded map —
+root-caused to the plan anchoring on the pre-seeded 12×6 core box with an empty occupancy set (fix:
+make the plan seed-aware, in the todo's acceptance). Gates green: sim-core 226/226, client 397/397,
+Citadel typecheck clean; playtest reloads:0, only a benign 404; town stable & fed to Day 239.
+Note: repo-wide `npm run typecheck` has a **pre-existing** unrelated failure in `@tool/world-preview`
+(WebGPU `GPUBufferUsage`/`.wgsl?raw` type resolution) — not touched by this work.
+
+## [2026-07-01] todo | Farm Valley — render ALL UI in-canvas via @engine/ui + reinvent interaction
+
+Filed [todo](todos/2026-07-01-farm-ui-all-rendered-in-canvas.md) after a grilling round.
+The intended cross-game payoff of Citadel's `@engine/ui` (whose acceptance criterion was
+literally "Farm Valley *can* adopt it"). Grounding: Farm's client already renders through
+the same dual-backend `RendererLike` (WebGPU + Canvas2D) and that interface already exposes
+`beginUI/pushUI/endUI` — Farm just never calls them (all ~16 surfaces are raw DOM). So the
+work is **adopt + port + reinvent**, not build-from-scratch. Locked decisions: full one-pass
+port; pragmatic hybrid (hidden DOM only for seed text-input + a11y mirror); 5×7 bitmap font
+everywhere (icon dependency on the [authored-typography todo](todos/2026-06-30-engine-ui-authored-typography-and-icons.md),
+mitigated by drawing Farm's existing atlas sprites via `UISurface.sprite`); radial dropped;
+reinvent both player + observer surfaces; observer data = diegetic + summon; **client-render-only**
+(reuse `swap-slots` + Pip input, no new sim/protocol → determinism untouched); port the a11y
+mirror. New interactions: world-anchored panels, diegetic HUD (+summon), drag-from-world
+hotbar. Done bar adds a real-browser smoke pass. → handed to plan-split-dispatch.
+
 ## [2026-07-01] todo | Citadel playtest — Phase E (live-verified) + Phase F (mechanism verified) + A–I cozy-visual eyeball + toast-copy UX finding
 
 Ran `playtest-citadel` over the uncommitted E/F tree (default `play.mjs` plan SECONDS=200
