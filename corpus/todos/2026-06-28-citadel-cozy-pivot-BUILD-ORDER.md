@@ -352,10 +352,40 @@ Implements the autonomy principle. Pairs naturally with Phase D's cleanup.
   `Math.random`/wall-clock).
 
 ### Phase H — Economy under the cozy contract (decision #9)
+> **✅ SHIPPED 2026-07-01** (see [log.md](../log.md)). Two remaining changes (winter
+> grain floor + the decree purge from production/needs-happiness had **already landed in
+> Phases B & G** — see the note below): **(1) throttle-not-halt** — the stockpile-pressure
+> `continue` in production.ts became a `bufferThrottleFactor` ramp (full rate below a 60%
+> knee → linear down to the 0.6 productivity floor as the buffer fills, **never 0**; a
+> genuinely-full buffer still hard-skips *before* the input draw so no converter wastes
+> input, + a final `Math.min(amount, cap-buffer)` clamp so it can never overflow). **(2)
+> single-slot** farm/woodcutter/quarry/mine (`workerSlots 2→1`). **Determinism MATCH ×3**
+> (seeds 0x1a2b3c4d / 0xc0ffee / 0x2a, 40d, byte-identical same-seed-twice); baseline moved
+> by design (grow-scenario `pop 5/12,bread 8` → `pop 9/12,bread 10`, `gameOver=false`, town
+> survives winter + self-recovers from starvation dips — the downside rule holds). Gates:
+> sim-core **212/212**, typecheck-clean (@citadel/sim-core + @citadel/client).
+>
+> **Controller adjudication (recorded so the reasoning isn't lost):** the brief's
+> "bump farm `outputPerCycle` 3→6 to compensate for the lost slot" was **CUT — its premise
+> was wrong.** Production is a per-building, per-cycle emit gated on `workerCount>0`; it
+> **never scaled with worker *count*** (grep confirms — production.ts only reads
+> `workerCount<=0`). So dropping the dead 2nd slot leaves daily throughput unchanged;
+> bumping to 6 would have **doubled** farm output. Kept `outputPerCycle: 3`. The single-slot
+> change's real effect is that the freed worker goes to *another* building (growth is
+> spatial). **Phases A,B,C,D,G,H done; E,F,I open.**
+
 The economy in [production.ts](../../games/citadel/sim-core/src/systems/production.ts)
 was tuned **entirely for the pressure game** — four "nothing happens" sources, decree
 threads, and a multi-slot growth model that caused the old death-spiral. Bring it under
 the downside rule. Re-prove determinism across 3 seeds (baseline moves by design).
+
+> **State note (2026-07-01):** the winter-grain floor (`seasons.ts` winter `0.0→0.5`) and
+> the **decree purge** from BOTH production *and* needs-happiness were already delivered by
+> **Phases B and G** (the winter floor shipped with B's production rework; G purged the
+> player-facing decree lever). The only `activeDecrees` reads that remain are in the
+> **frozen/out-of-scope** ImmigrationSystem (tithe/rationing) and SiegeResolutionSystem
+> (conscription) — dead paths gated behind systems not registered in the cozy solo core;
+> those get their own pass later. So Phase H's *remaining* work was just throttle + single-slot.
 
 - **Winter grain floored ~×0.5, never 0.** One-line change:
   [world/seasons.ts:32](../../games/citadel/sim-core/src/world/seasons.ts#L32)

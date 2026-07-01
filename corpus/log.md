@@ -4,6 +4,59 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] shipped | Citadel cozy-pivot Phase H — economy under the downside rule (throttle-not-halt + single-slot)
+
+Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Phase H (decision #9 — *nothing ever fully stops; every problem is a throttle toward a
+~60–70% floor, always recoverable*). Grounding the plan in the *current* code showed most
+of the brief's H text had **already shipped in Phases B & G**, so H reduced to a focused
+**2-file change** (done inline, not dispatched — below the plan-split-dispatch threshold):
+
+**What shipped:**
+- **Throttle-not-halt** ([production.ts](../games/citadel/sim-core/src/systems/production.ts)).
+  The stockpile-pressure hard `continue` (a building whose local outputBuffer was full went
+  *dark*) became a new pure `bufferThrottleFactor(buffer, cap)`: **full rate below a 60%
+  fill knee**, then a **linear ramp down to the 0.6 productivity floor** as the buffer
+  fills — **never 0**. So a chronically unserved building *trickles at the floor* (goods
+  backing up at its door) instead of shutting down. Two safety rails preserved: a
+  *genuinely full* buffer still hard-skips the cycle **before** the timer + input draw (so
+  no converter consumes input it can't ship — the "nothing wasted" invariant), and a final
+  `Math.min(amount, cap-buffer)` clamp means the buffer can never overflow the cap the old
+  guard guaranteed.
+- **Single-slot producers** ([building.ts](../games/citadel/sim-core/src/entities/building.ts)).
+  `farm / woodcutter / quarry / mine` → `workerSlots: 2 → 1` (mill/bakery/sawmill/smith were
+  already 1). Growth is now purely spatial — no dead 2nd mouth; the freed worker staffs
+  another building.
+
+**Controller adjudication (recorded so the reasoning isn't lost):** the brief said "bump
+farm `outputPerCycle` 3→6 to compensate for the lost slot." **CUT — the premise was wrong.**
+Production is a per-building, per-cycle emit gated on `workerCount>0`; it **never scaled with
+worker *count*** (production.ts only tests `workerCount<=0`). Dropping the dead 2nd slot
+leaves daily throughput unchanged, so bumping to 6 would have **doubled** farm output. Kept
+`outputPerCycle: 3`. Verified by grep before deciding.
+
+**Already-done sub-items (verified, not re-touched):** winter grain floor
+(`seasons.ts` winter `0.0→0.5`) shipped with Phase B; the decree purge from **both**
+production *and* needs-happiness shipped with Phase G. The only residual `activeDecrees`
+reads are in the **frozen** ImmigrationSystem (tithe/rationing) + SiegeResolutionSystem
+(conscription) — dead paths behind systems not registered in the cozy solo core (their pass
+is later).
+
+**Gates:** sim-core **212/212** (was 211; +1 `bufferThrottleFactor` unit test, + the
+uncollected-producer test re-pointed from halt→throttle), typecheck-clean
+(@citadel/sim-core + @citadel/client). Pre-existing @tool/world-preview / engine WebGPU
+typecheck errors are unrelated (reproduce on clean HEAD). **Determinism MATCH ×3** (seeds
+0x1a2b3c4d / 0xc0ffee / 0x2a, 40d, grow — byte-identical same-seed-twice). **Baseline moved
+by design** (grow scenario `pop 5/12, bread 8` → `pop 9/12, bread 10`, `gameOver=false`):
+the town now **survives all 40 days incl. winter** (grain trickles, never floors to 0) and
+**self-recovers** from starvation dips (day 26 starve → day 29 immigrant) — the downside
+rule is now a property of the math.
+
+**Phases A, B, C, D, G, H done; E, F, I open.** Next in the pivot spine: **I** (terrain
+clustering + solvability guarantee) — the last structural pass that moves the determinism
+baseline. Not yet eyeballed in a real browser (WebGPU headless limit) — H's economy feel
+wants a `playtest-citadel` pass alongside the outstanding A–G eyeball.
+
 ## [2026-07-01] shipped | Citadel cozy-pivot Phase G — autonomy pass (civic buildings + player-driven trading post)
 
 Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)

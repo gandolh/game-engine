@@ -152,8 +152,28 @@ are still open (solo is unaffected).
 >
 > Gates: sim-core **211/211**, client **387/387**, typecheck-clean, **determinism MATCH ×3**
 > (baseline moved by design). Full detail + controller adjudications in [log.md](../log.md).
-> **Open in the pivot:** H (economy under the downside rule), I (terrain clustering +
-> solvability), plus F (motivation) / E (villager mood). Not yet eyeballed in-browser.
+
+> **2026-07-01 — cozy-pivot Phase H shipped: economy under the downside rule (decision #9).**
+> *Nothing ever fully stops; every problem is a throttle toward a ~60–70% floor.* Two changes
+> (the winter grain floor + the decree purge had already landed in Phases B/G):
+> - **Throttle-not-halt** ([production.ts](../../games/citadel/sim-core/src/systems/production.ts)):
+>   the stockpile-pressure hard `continue` (a full-buffer building went *dark*) is now a
+>   `bufferThrottleFactor(buffer,cap)` ramp — full rate below a 60% fill knee, then linear
+>   down to the 0.6 productivity floor as the buffer fills, **never 0**. A chronically
+>   unserved building *trickles at the floor* (goods backing up) instead of shutting down.
+>   Safety rails: a genuinely-full buffer still hard-skips *before* the input draw (no wasted
+>   input), and a `Math.min(amount, cap-buffer)` clamp keeps the buffer ≤ cap.
+> - **Single-slot producers**: `farm/woodcutter/quarry/mine` → `workerSlots 2→1` (converters
+>   were already 1). Growth is spatial (more buildings), no dead 2nd mouth. **Farm output
+>   stays 3/cycle** — production never scaled with worker *count* (a per-building emit gated
+>   on `workerCount>0`), so dropping the dead slot leaves daily throughput unchanged (the
+>   brief's "3→6 compensation" was cut as premise-wrong).
+>
+> Gates: sim-core **212/212**, typecheck-clean, **determinism MATCH ×3** (baseline moved by
+> design → town now survives winter + self-recovers from starvation dips; `gameOver=false`).
+> Full detail in [log.md](../log.md).
+> **Open in the pivot:** I (terrain clustering + solvability), plus F (motivation) / E
+> (villager mood). Not yet eyeballed in-browser (WebGPU headless).
 
 > **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
 > *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,
