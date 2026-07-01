@@ -36,6 +36,9 @@ const HOTBAR_SLOT_COUNT = 8;
 const SLOT_WIDTH = 48;
 const SLOT_HEIGHT = 58;
 const ICON_SIZE = 26;
+/** Pixels the pointer must travel from press before a click becomes a drag (so slot clicks/taps
+ * and the world tool-use they might overlap are never mistaken for a drag). */
+const DRAG_THRESHOLD = 5;
 
 /** One pooled slot's widget nodes + the icon-frame it should draw (kept out of the tree). */
 interface SlotEls {
@@ -50,8 +53,20 @@ interface SlotEls {
   selected: boolean;
 }
 
-/** No activatable actions yet (display + reflect-selection only) — kept for signature parity. */
-export type HotbarActions = Record<string, never>;
+/**
+ * Drag-to-rearrange wiring (reinvention: drag-from-world hotbar). The belt is always visible, so —
+ * unlike the inventory modal — the hotbar installs its own capture-phase listeners and reuses the
+ * SAME owner-gated `swap-slots` message. A press that never moves past {@link DRAG_THRESHOLD} is
+ * NOT a drag, so it doesn't interfere with the world tool-use click that may sit under the belt.
+ */
+export interface HotbarActions {
+  /** The game canvas (drag listeners attach here, capture phase). */
+  canvas: HTMLCanvasElement;
+  /** Owner-gated slot swap (host wires this to `SimClient.swapSlots`). */
+  swapSlots(from: number, to: number): void;
+  /** Whether the local client owns Pip (gates the drag). */
+  isOwner(): boolean;
+}
 
 /** The retained hotbar: its root node (laid out + rendered by the host) plus refresh(). */
 export interface Hotbar {
@@ -73,6 +88,10 @@ export interface Hotbar {
    * sprite frame keep their ASCII `glyph` text (already painted by `renderTree`).
    */
   drawIcons(surface: UISurface): void;
+  /** Draw the drag ghost (the picked-up slot's icon following the cursor). Call AFTER drawIcons. */
+  drawGhost(surface: UISurface): void;
+  /** Remove the capture-phase drag listeners (call when dismounting). */
+  destroy(): void;
 }
 
 function setText(lbl: LabelNode, text: string): boolean {
@@ -122,7 +141,8 @@ function buildSlot(index: number): SlotEls {
  * that many, so no pooling/resizing is needed, unlike the old DOM panel's dynamic `ensureSlots`).
  * The tree is created once; `refresh` mutates it per frame (no re-allocation).
  */
-export function createHotbar(_actions?: HotbarActions): Hotbar {
+export function createHotbar(actions: HotbarActions): Hotbar {
+  const { canvas, swapSlots, isOwner } = actions;
   const slots: SlotEls[] = [];
   for (let i = 0; i < HOTBAR_SLOT_COUNT; i++) slots.push(buildSlot(i));
 
@@ -133,6 +153,12 @@ export function createHotbar(_actions?: HotbarActions): Hotbar {
 
   let changed = false;
   let firstRefresh = true;
+
+  // Drag-to-rearrange state (reinvention). `dragFrom` is the picked-up slot; `dragActive` flips
+  // once the pointer moves past DRAG_THRESHOLD so a plain click never counts as a drag.
+  let dragFrom: number | null = null;
+  let dragActive = false;
+  let pressX = 0, pressY = 0, dragX = 0, dragY = 0;
 
   function refresh(state: PlayerHotbar | null): boolean {
     changed = false;
@@ -217,5 +243,86 @@ export function createHotbar(_actions?: HotbarActions): Hotbar {
     }
   }
 
-  return { root, refresh, drawIcons };
+  /** Canvas-relative CSS px of a mouse event (no devicePixelRatio multiply — matches the surface). */
+  function eventToCssPx(e: MouseEvent): { x: number; y: number } {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  /** Which visible slot index contains screen point (x,y), or null. Uses each slot's laid-out rect. */
+  function slotIndexAt(x: number, y: number): number | null {
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i]!;
+      if (s.root.opacity === 0) continue;
+      const { x: rx, y: ry, width, height } = s.root.rect;
+      if (x >= rx && x < rx + width && y >= ry && y < ry + height) return i;
+    }
+    return null;
+  }
+
+  /** Draw the dragged slot's icon following the cursor (call AFTER drawIcons). */
+  function drawGhost(surface: UISurface): void {
+    if (!dragActive || dragFrom === null) return;
+    const s = slots[dragFrom];
+    if (s === undefined || s.iconFrame === "") return;
+    let atlasId: string;
+    try {
+      atlasId = frameToAtlasId(s.iconFrame);
+    } catch {
+      return;
+    }
+    surface.sprite(dragX - ICON_SIZE / 2, dragY - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE, atlasId, s.iconFrame);
+  }
+
+  // Capture-phase listeners: a press that starts on a filled hotbar slot arms a potential drag.
+  // Only once it moves past the threshold do we own the gesture (block the world) and swap on drop.
+  // A press that never moves falls through untouched, so the world tool-use click still fires.
+  function onMouseDown(e: MouseEvent): void {
+    if (e.button !== 0 || !isOwner()) return;
+    const { x, y } = eventToCssPx(e);
+    const idx = slotIndexAt(x, y);
+    if (idx === null) return;
+    const s = slots[idx]!;
+    if (s.iconFrame === "" && s.glyph.text === "") return; // empty slot — nothing to drag
+    dragFrom = idx;
+    dragActive = false;
+    pressX = x; pressY = y; dragX = x; dragY = y;
+  }
+
+  function onMouseMove(e: MouseEvent): void {
+    if (dragFrom === null) return;
+    const { x, y } = eventToCssPx(e);
+    dragX = x; dragY = y;
+    if (!dragActive && (Math.abs(x - pressX) > DRAG_THRESHOLD || Math.abs(y - pressY) > DRAG_THRESHOLD)) {
+      dragActive = true;
+    }
+    if (dragActive) e.stopImmediatePropagation();
+  }
+
+  function onMouseUp(e: MouseEvent): void {
+    if (dragFrom === null) return;
+    const from = dragFrom;
+    const wasDragging = dragActive;
+    dragFrom = null;
+    dragActive = false;
+    if (e.button !== 0) return;
+    if (!wasDragging) return; // a plain click — let the world/other handlers act
+    e.stopImmediatePropagation();
+    const { x, y } = eventToCssPx(e);
+    const to = slotIndexAt(x, y);
+    if (to === null || to === from) return;
+    if (isOwner()) swapSlots(from, to);
+  }
+
+  window.addEventListener("mousedown", onMouseDown, { capture: true });
+  window.addEventListener("mousemove", onMouseMove, { capture: true });
+  window.addEventListener("mouseup", onMouseUp, { capture: true });
+
+  function destroy(): void {
+    window.removeEventListener("mousedown", onMouseDown, { capture: true } as EventListenerOptions);
+    window.removeEventListener("mousemove", onMouseMove, { capture: true } as EventListenerOptions);
+    window.removeEventListener("mouseup", onMouseUp, { capture: true } as EventListenerOptions);
+  }
+
+  return { root, refresh, drawIcons, drawGhost, destroy };
 }

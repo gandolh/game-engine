@@ -28,7 +28,7 @@ import {
   setLastPlayerMoveY,
   applyFocusAndPan,
 } from "./camera";
-import { screenToTile } from "./screen-to-tile";
+import { screenToTile, worldToCanvasCss } from "./screen-to-tile";
 import { pushWaterDecor } from "../render/water-decor";
 import { pushFishSchools } from "../render/fish-decor";
 import { frameDataUrl } from "./sprite-icon";
@@ -97,7 +97,10 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     overlay, worldClock, clockRoot, hotbar, hotbarRoot, tooltip, rightColumn, rightColumnRoot,
     leaderboard, leaderboardRoot, playback, playbackRoot, helpRoot, relationshipMatrix,
     relationshipRoot, wealthGraph, gameOverPanel, gameOverRoot, inventory,
+    inspectPanel, inspectRoot,
   } = panels;
+
+  const inspectCtl = inspectPanel as typeof inspectPanel & { setVisible(v: boolean): void };
 
   // The panels expose leaderboard/game-over open state via a wrapper the builder attached.
   const leaderboardCtl = leaderboard as typeof leaderboard & {
@@ -724,6 +727,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
       renderTree(surface, hotbar.root);
       hotbar.drawIcons(surface);
+      hotbar.drawGhost(surface);
       applyToolCursor();
 
       // Playback controls — bottom-right (owner only; the a11y root is inert while hidden).
@@ -773,6 +777,40 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       if (tooltip.isVisible()) {
         computeLayout(tooltip.root, mousePos.x + TOOLTIP_CURSOR_OFFSET.dx, mousePos.y + TOOLTIP_CURSOR_OFFSET.dy);
         renderTree(surface, tooltip.root);
+      }
+
+      // World-anchored inspect card (reinvention): while a farmer is followed, float a live detail
+      // card ABOVE them, tracking their world position each frame (world → canvas CSS px). Data from
+      // the observer snapshot (no new sim state). Hidden when nothing is followed or the followed
+      // farmer isn't in the observer set / not on-screen.
+      {
+        const obsData = client.observer;
+        const followed = focusedFarmerId !== null ? farmerPositions.get(focusedFarmerId) : undefined;
+        const farmerRow = obsData?.farmers.find((f) => f.id === focusedFarmerId);
+        if (_camera !== null && followed !== undefined && farmerRow !== undefined) {
+          inspectCtl.setVisible(true);
+          const changed = inspectPanel.refresh({
+            name: farmerRow.name,
+            personality: farmerRow.personality,
+            gold: farmerRow.gold,
+            fsm: farmerRow.fsm,
+            apCurrent: farmerRow.apCurrent,
+            apMax: farmerRow.apMax,
+            region: farmerRow.region,
+            currentIntention: farmerRow.currentIntention,
+          });
+          // Anchor above the farmer's head: measure, then place centred over the world point, offset
+          // up by the card height + a gap so it floats above the sprite (and tracks it as it moves).
+          computeLayout(inspectPanel.root, 0, 0);
+          const anchor = worldToCanvasCss(_camera, canvas, followed.x, followed.y);
+          const ax = anchor.x - inspectPanel.root.rect.width / 2;
+          const ay = anchor.y - inspectPanel.root.rect.height - TILE * 1.2;
+          computeLayout(inspectPanel.root, ax, ay);
+          if (changed) inspectRoot.mirror?.update(inspectPanel.root);
+          renderTree(surface, inspectPanel.root);
+        } else {
+          inspectCtl.setVisible(false);
+        }
       }
 
       // Help modal — centred, top-most non-terminal overlay.

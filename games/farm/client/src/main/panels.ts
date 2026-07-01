@@ -29,6 +29,8 @@ import { createGameOverPanel } from "../ui/canvas/game-over";
 import type { GameOverPanel } from "../ui/canvas/game-over";
 import { createInventory } from "../ui/canvas/inventory";
 import type { Inventory } from "../ui/canvas/inventory";
+import { createInspectPanel } from "../ui/canvas/inspect-panel";
+import type { InspectPanel } from "../ui/canvas/inspect-panel";
 import type { UIHost, UIRootHandle } from "../ui/canvas/ui-host";
 
 /** The commands the panels invoke back into the host. */
@@ -67,6 +69,9 @@ export interface Panels {
   gameOverPanel: GameOverPanel;
   gameOverRoot: UIRootHandle;
   inventory: Inventory;
+  /** World-anchored inspect card that tracks the followed farmer (reinvention: world-anchored UI). */
+  inspectPanel: InspectPanel;
+  inspectRoot: UIRootHandle;
 }
 
 function mount(id: string): HTMLElement | null {
@@ -92,7 +97,11 @@ export function buildPanels(
     a11yLabel: "World clock",
   });
 
-  const hotbar = createHotbar();
+  const hotbar = createHotbar({
+    canvas,
+    swapSlots: actions.swapSlots,
+    isOwner: actions.isOwner,
+  });
   const hotbarRoot = host.registerRoot({
     getRoot: () => hotbar.root,
     a11yMount: mount("ui-a11y-hotbar"),
@@ -169,6 +178,19 @@ export function buildPanels(
     isOwner: actions.isOwner,
   });
 
+  // World-anchored inspect card — visible only while a farmer is followed. The render loop flips
+  // `inspectVisible` (it owns focusedFarmerId) and anchors the root over the farmer each frame.
+  const inspectPanel = createInspectPanel();
+  let inspectVisible = false;
+  const inspectRoot = host.registerRoot({
+    getRoot: () => (inspectVisible ? inspectPanel.root : null),
+    a11yMount: mount("ui-a11y-inspect"),
+    a11yLabel: "Followed farmer",
+  });
+  (inspectPanel as InspectPanel & { setVisible(v: boolean): void }).setVisible = (v: boolean) => {
+    inspectVisible = v;
+  };
+
   return {
     overlay,
     worldClock,
@@ -190,5 +212,7 @@ export function buildPanels(
     gameOverPanel,
     gameOverRoot,
     inventory,
+    inspectPanel,
+    inspectRoot,
   };
 }

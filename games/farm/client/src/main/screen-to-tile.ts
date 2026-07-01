@@ -30,3 +30,24 @@ export function screenToTile(
     y: Math.floor(wy / TILE),
   };
 }
+
+/**
+ * Inverse of {@link screenToWorld}: a world point → canvas-relative CSS-logical px (top-left origin,
+ * the coordinate space `@engine/ui`'s UISurface + `computeLayout` use). This is the anchor for
+ * world-anchored UI panels — they compute their screen slot from a tracked entity's world position
+ * each frame so they follow it as the camera pans/zooms. Derived by inverting `screenToWorld`
+ * exactly, so anchoring matches the input hit-mapping.
+ */
+export function worldToCanvasCss(
+  camera: Camera2D,
+  canvas: HTMLCanvasElement,
+  wx: number,
+  wy: number,
+): { x: number; y: number } {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
+  const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
+  const x = (wx - (camera.centerX - camera.worldUnitsX / 2)) / scaleX;
+  const y = (wy - (camera.centerY - camera.worldUnitsY / 2)) / scaleY;
+  return { x, y };
+}

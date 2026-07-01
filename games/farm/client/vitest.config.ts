@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 const DOM_FILES = [
   "src/screens/home-screen.test.ts",
   "src/ui/canvas/home-screen.test.ts",
+  "src/ui/canvas/hotbar.test.ts",
   "src/ui/event-feed-panel.test.ts",
   "src/ui/leaderboard.test.ts",
   "src/ui/observer.test.ts",
