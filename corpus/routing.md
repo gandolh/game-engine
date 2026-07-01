@@ -2,6 +2,14 @@
 <!-- Read by the orchestrate skill. Tune freely; keep it short. -->
 
 **Implement skill:** plan-split-dispatch
+**Model routing (default):** controller (plan + verify + adjudicate) = **opus**; executor
+chunks = **Sonnet 5** by default, including medium-hard sim work; trivial = haiku; review
+finders = Sonnet. Reserve opus executor chunks for genuinely novel/risky/security/data.
+**Bias borderline chunks → junior (Sonnet 5).** Keep opus in the controller/verify seat —
+do not promote Sonnet to it (its value there is a stronger *second opinion* + the
+expensive-if-wrong judgment calls). The hard objective gates below are the safety net that
+make routing risky chunks down safe. (Confirmed 2026-07-01 after a Phase-D dispatch ran all
+executor chunks on Sonnet 5 successfully.)
 **Review skill:** /code-review (repo skill) over the diff; `npm run typecheck` + `npm run test` are the gates
 **PR skill:** propose git commands (gh CLI available). **Commit completed briefs at closeout** (one commit for code + one for the corpus change); never push / open a PR / tag without the user's say-so.
 **Issue tracker:** none — the work queue is `corpus/todos/` (ready/todo specs); archives live in `corpus/briefs/{engine,game}/{done,superseded}`
