@@ -1,10 +1,14 @@
-import type { PlaybackControlsPanel } from "../ui";
+import type { PlaybackActions } from "../ui/canvas/playback-controls";
 import type { SimClient } from "../worker/sim-client";
 
 let _client: SimClient | null = null;
 
-export let paused = false;
-export let speed = 1;
+/**
+ * Live playback state, read every frame by the render loop to refresh the in-canvas playback
+ * controls panel. Mutated by the handlers below (and the hotkeys). A single mutable object so the
+ * render loop sees the current values without importing mutable `let` bindings.
+ */
+export const playbackState: { paused: boolean; speed: number } = { paused: false, speed: 1 };
 
 export interface PlaybackHandlers {
   applyPaused: (next: boolean) => void;
@@ -13,36 +17,42 @@ export interface PlaybackHandlers {
   doSkipToHighlight: () => void;
 }
 
-export function wirePlayback(
-  playback: PlaybackControlsPanel,
-  client: SimClient,
-): PlaybackHandlers {
+/**
+ * Build the {@link PlaybackActions} the in-canvas playback-controls panel invokes, wired to the
+ * sim client, and return the handlers the hotkey layer + host share. The panel itself is refreshed
+ * by the render loop from {@link playbackState}; this module only owns the command side effects.
+ */
+export function wirePlayback(client: SimClient): {
+  actions: PlaybackActions;
+  handlers: PlaybackHandlers;
+} {
   _client = client;
   function applyPaused(next: boolean): void {
-    paused = next;
-    client.setPaused(paused);
-    playback.update({ paused, speed });
+    playbackState.paused = next;
+    client.setPaused(next);
   }
   function applySpeed(next: number): void {
-    speed = next;
-    client.setSpeed(speed);
-    playback.update({ paused, speed });
+    playbackState.speed = next;
+    client.setSpeed(next);
   }
   function doStep(): void {
-    if (!paused) return;
+    if (!playbackState.paused) return;
     client.step();
   }
   function doSkipToHighlight(): void {
     client.skipToHighlight();
   }
 
-  playback.setOnPause(applyPaused);
-  playback.setOnSpeed(applySpeed);
-  playback.setOnStep(doStep);
-  playback.setOnSkipToHighlight(doSkipToHighlight);
-  playback.update({ paused, speed });
+  const handlers: PlaybackHandlers = { applyPaused, applySpeed, doStep, doSkipToHighlight };
 
-  return { applyPaused, applySpeed, doStep, doSkipToHighlight };
+  const actions: PlaybackActions = {
+    togglePause: () => applyPaused(!playbackState.paused),
+    setSpeed: (n: number) => applySpeed(n),
+    step: () => doStep(),
+    skipToHighlight: () => doSkipToHighlight(),
+  };
+
+  return { actions, handlers };
 }
 
 export function registerHotkeys(handlers: PlaybackHandlers): void {
@@ -60,7 +70,7 @@ export function registerHotkeys(handlers: PlaybackHandlers): void {
       case "p":
       case "P":
         e.preventDefault();
-        applyPaused(!paused);
+        applyPaused(!playbackState.paused);
         break;
       case ".":
         doStep();

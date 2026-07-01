@@ -9,9 +9,13 @@ import {
   createNoiseGeneratorFromUrl,
 } from "@engine/core";
 import type { NoiseGenerator, RendererLike } from "@engine/core";
-import { HomeScreen, LoadingScreen } from "./screens";
+import { loadFontAtlas, computeLayout, renderTree } from "@engine/ui";
+import { createUIHost } from "./ui/canvas/ui-host";
+import type { UIHost } from "./ui/canvas/ui-host";
+import { createHomeScreen } from "./ui/canvas/home-screen";
+import { createLoadingScreen } from "./ui/canvas/loading-screen";
 import { SimClient } from "./worker/sim-client";
-import { parseRun } from "@farm/sim-core/run-descriptor";
+import { parseRun, serializeRun } from "@farm/sim-core/run-descriptor";
 
 import { CONFIG, CAMERA_CONFIG } from "./main/config";
 import {
@@ -27,8 +31,6 @@ import { buildPanels } from "./main/panels";
 import { wirePlayback, registerHotkeys } from "./main/playback";
 import { bakeStaticLayer } from "./main/static-layer";
 import { AmbientLayer } from "./main/ambient";
-import { createSeedBadge } from "./main/game-over";
-import { createTooltip } from "./main/tooltip";
 import { ParticleDirector } from "./main/particles";
 import { createRenderLoop } from "./main/render-loop";
 import { JuiceLayer } from "./main/juice";
@@ -38,6 +40,8 @@ interface Runtime {
   renderer: RendererLike;
   noiseGen: NoiseGenerator | null;
   keyboard: Keyboard;
+  uiHost: UIHost;
+  camera: Camera2D;
 }
 
 async function loadNoiseGenerator(): Promise<NoiseGenerator | null> {
@@ -63,6 +67,9 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }
+  // Register the @engine/ui bitmap font atlas so in-canvas UI text (drawText) resolves its glyph
+  // quads (mirrors Citadel's `renderer.addAtlas(await loadFontAtlas())` at boot).
+  renderer.addAtlas(await loadFontAtlas());
 
   renderer.clearColor = EDG.blue;
   setupCameraListeners(canvas, camera);
@@ -81,75 +88,154 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
     if (SCROLL_KEYS.has(e.code)) e.preventDefault();
   });
   const noiseGen = await loadNoiseGenerator();
-  return { renderer, noiseGen, keyboard };
+
+  // The shared in-canvas UI host (surface + per-root dispatchers + capture-phase input routing).
+  // Created once, up front, so the canvas home/loading screens can render through it before the
+  // sim exists — the game panels register their own roots into the same host later.
+  const uiHost = createUIHost(renderer, canvas);
+
+  return { renderer, noiseGen, keyboard, uiHost, camera };
+}
+
+/** Anchor the DOM seed input (the one documented DOM exception) over the canvas seed row. */
+function positionSeedInput(canvas: HTMLCanvasElement, input: HTMLInputElement, root: { rect: { x: number; y: number; width: number; height: number } }): void {
+  const rect = canvas.getBoundingClientRect();
+  // Centre the input horizontally on the panel, just below the panel's vertical midpoint.
+  const cx = rect.left + root.rect.x + root.rect.width / 2 - input.offsetWidth / 2;
+  const cy = rect.top + root.rect.y + root.rect.height * 0.52;
+  input.style.left = `${cx}px`;
+  input.style.top = `${cy}px`;
 }
 
 async function boot(): Promise<void> {
-  const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
-  const app = document.getElementById("app") as HTMLElement | null;
-  const fatal = document.getElementById("fatal") as HTMLElement | null;
-  if (!canvas || !app || !fatal) throw new Error("Missing #canvas/#app/#fatal");
+  const canvasEl = document.getElementById("canvas") as HTMLCanvasElement | null;
+  const fatalEl = document.getElementById("fatal") as HTMLElement | null;
+  if (!canvasEl || !fatalEl) throw new Error("Missing #canvas/#fatal");
+  const canvas: HTMLCanvasElement = canvasEl;
+  const fatal: HTMLElement = fatalEl;
 
   const shared = parseRun(location.hash);
   const defaultSeed = shared?.seed ?? CONFIG.seed;
   const maxDays = shared?.maxDays ?? CONFIG.maxDays;
   const ticksPerDay = shared?.ticksPerDay ?? CONFIG.ticksPerDay;
 
-  const home = new HomeScreen(app, { defaultSeed });
+  let runtime: Runtime;
+  try {
+    runtime = await setupRuntime(canvas);
+  } catch (err) {
+    showFatal(fatal, err);
+    throw err;
+  }
+  const { renderer, uiHost } = runtime;
 
-  const runtimePromise = setupRuntime(canvas);
-  runtimePromise.catch(() => {});
-
-  home.onStartClicked((seed) => {
-    const loading = new LoadingScreen(app, { seed });
-    loading.show();
-    loading.setProgress("Loading assets…");
-    void startGame(canvas, app, fatal, runtimePromise, { seed, maxDays, ticksPerDay }, loading);
+  // --- Home screen (in-canvas) ---------------------------------------------------------------
+  // Rendered through the shared UI host each frame until Start is clicked. The seed field is the
+  // one DOM exception (canvas has no text-input widget); we position it over the panel each frame.
+  let screenRafId = 0;
+  let homeDismissed = false;
+  const home = createHomeScreen(
+    {
+      onStart: (seed) => {
+        if (homeDismissed) return;
+        homeDismissed = true;
+        cancelAnimationFrame(screenRafId);
+        home.destroy(); // removes the DOM seed input
+        homeRoot.mirror?.update(home.root); // clears the AT view (getRoot() now null)
+        void startGame(canvas, fatal, runtime, { seed, maxDays, ticksPerDay });
+      },
+    },
+    { defaultSeed },
+  );
+  const homeRoot = uiHost.registerRoot({
+    getRoot: () => (homeDismissed ? null : home.root),
+    a11yMount: document.getElementById("ui-a11y-home"),
+    a11yLabel: "Farm Valley — start a run",
   });
+
+  function renderHome(): void {
+    renderer.beginFrame();
+    home.refresh();
+    computeLayout(home.root, 0, 0);
+    const hx = Math.max(0, (canvas.clientWidth - home.root.rect.width) / 2);
+    const hy = Math.max(0, (canvas.clientHeight - home.root.rect.height) / 2);
+    computeLayout(home.root, hx, hy);
+    homeRoot.mirror?.update(home.root);
+    positionSeedInput(canvas, home.seedInputEl, home.root);
+    uiHost.surface.begin();
+    renderTree(uiHost.surface, home.root);
+    uiHost.surface.end();
+    renderer.endFrame();
+    screenRafId = requestAnimationFrame(renderHome);
+  }
+  screenRafId = requestAnimationFrame(renderHome);
 }
 
 async function startGame(
   canvas: HTMLCanvasElement,
-  app: HTMLElement,
   fatal: HTMLElement,
-  runtimePromise: Promise<Runtime>,
+  runtime: Runtime,
   run: { seed: number; maxDays: number; ticksPerDay: number },
-  loadingScreen: LoadingScreen,
 ): Promise<void> {
+  const { renderer, noiseGen, keyboard, uiHost } = runtime;
   const { seed, maxDays, ticksPerDay } = run;
+
+  // --- Loading screen (in-canvas) ------------------------------------------------------------
+  const loading = createLoadingScreen();
+  const loadingRoot = uiHost.registerRoot({
+    getRoot: () => (loadingActive ? loading.root : null),
+    a11yMount: document.getElementById("ui-a11y-loading"),
+    a11yLabel: "Loading",
+  });
+  let loadingActive = true;
+  let loadingProgress = "Loading assets…";
+  let loadingRafId = 0;
+  function renderLoading(): void {
+    if (!loadingActive) return;
+    renderer.beginFrame();
+    if (loading.refresh({ seed, progress: loadingProgress })) {
+      computeLayout(loading.root, 0, 0);
+      const lx = Math.max(0, (canvas.clientWidth - loading.root.rect.width) / 2);
+      const ly = Math.max(0, (canvas.clientHeight - loading.root.rect.height) / 2);
+      computeLayout(loading.root, lx, ly);
+      loadingRoot.mirror?.update(loading.root);
+    }
+    uiHost.surface.begin();
+    renderTree(uiHost.surface, loading.root);
+    uiHost.surface.end();
+    renderer.endFrame();
+    loadingRafId = requestAnimationFrame(renderLoading);
+  }
+  loadingRafId = requestAnimationFrame(renderLoading);
 
   let staticBaked = false;
   let firstFrame = false;
-
   function maybeDismiss(): void {
     if (staticBaked && firstFrame) {
-      loadingScreen.hide();
+      loadingActive = false;
+      cancelAnimationFrame(loadingRafId);
+      loadingRoot.mirror?.update(loading.root); // clears the AT view (getRoot() now null)
     }
   }
 
   try {
-    const { renderer, noiseGen, keyboard } = await runtimePromise;
-    loadingScreen.setProgress("Building world…");
+    loadingProgress = "Building world…";
 
     const client = new SimClient();
     setSimClient(client);
 
-    const panels = buildPanels(app);
-    const { observer, playback } = panels;
+    const juice = new JuiceLayer(document.body);
 
-    const juice = new JuiceLayer(app);
+    const { actions: playbackActions, handlers: playbackHandlers } = wirePlayback(client);
 
-    const playbackHandlers = wirePlayback(playback, client);
-
+    // Wrap skip-to-highlight so the juice layer resyncs on the jump.
     const origSkip = playbackHandlers.doSkipToHighlight;
-    const juiceAwareSkip = (): void => {
+    playbackHandlers.doSkipToHighlight = (): void => {
       juice.signalResync();
       origSkip();
     };
-
-    panels.playback.setOnSkipToHighlight(juiceAwareSkip);
-
-    playbackHandlers.doSkipToHighlight = juiceAwareSkip;
+    // The playback panel's Skip button goes through playbackActions.skipToHighlight → doSkip; rewire
+    // it to the juice-aware version.
+    playbackActions.skipToHighlight = playbackHandlers.doSkipToHighlight;
 
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) juice.signalResync();
@@ -157,20 +243,36 @@ async function startGame(
 
     registerHotkeys(playbackHandlers);
 
-    client.onAttach((isOwner) => {
-      playback.setVisible(isOwner);
-    });
+    // Share side effect (game-over "Share this run"): serialize the run into the URL + clipboard and
+    // stash the resulting status text for the panel to read on its next refresh.
+    let shareStatus = "";
+    const onShare = (): void => {
+      const serialized = serializeRun({ seed, maxDays, ticksPerDay });
+      location.hash = "run=" + serialized;
+      const url = location.href;
+      const clip = navigator.clipboard;
+      if (clip && typeof clip.writeText === "function") {
+        clip.writeText(url).then(
+          () => { shareStatus = "copied URL to clipboard"; },
+          () => { shareStatus = "URL in address bar (copy failed)"; },
+        );
+      } else {
+        shareStatus = "URL in address bar";
+      }
+    };
 
-    observer.setOnFarmerClick((id) => {
+    const focusFarmer = (id: number | null): void => {
       setFocusedFarmerId(id);
       setPanOffset({ x: 0, y: 0 });
       if (_camera !== null) applyFocusAndPan(_camera);
-    });
+    };
 
-    panels.eventFeedPanel.setOnFarmerClick((id) => {
-      setFocusedFarmerId(id);
-      setPanOffset({ x: 0, y: 0 });
-      if (_camera !== null) applyFocusAndPan(_camera);
+    const panels = buildPanels(document.body, uiHost, canvas, {
+      onSelectFarmer: focusFarmer,
+      playback: playbackActions,
+      onShare,
+      swapSlots: (from, to) => { if (client.owner) client.swapSlots(from, to); },
+      isOwner: () => client.owner,
     });
 
     const ambient = new AmbientLayer();
@@ -179,15 +281,11 @@ async function startGame(
       maybeDismiss();
     });
 
-    createSeedBadge(app, seed);
-
-    const tooltip = createTooltip(app);
-
     const particles = new ParticleSystem();
     const particleDirector = new ParticleDirector(particles, client);
     const rain = new RainField();
 
-    loadingScreen.setProgress("Starting sim…");
+    loadingProgress = "Starting sim…";
     client.init({
       seed,
       tickRateHz: CONFIG.tickRateHz,
@@ -201,7 +299,8 @@ async function startGame(
 
     const renderFrame = createRenderLoop({
       client, renderer, keyboard, particles, particleDirector, rain,
-      canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient, juice,
+      canvas, panels, seed, maxDays, ticksPerDay, ambient, juice,
+      uiHost, getShareStatus: () => shareStatus,
       onFirstFrame: () => {
         firstFrame = true;
         maybeDismiss();
@@ -210,7 +309,8 @@ async function startGame(
 
     requestAnimationFrame(renderFrame);
   } catch (err) {
-    loadingScreen.hide();
+    loadingActive = false;
+    cancelAnimationFrame(loadingRafId);
     showFatal(fatal, err);
     throw err;
   }

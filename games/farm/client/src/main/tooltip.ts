@@ -1,38 +1,28 @@
-import { Camera2D, EDG } from "@engine/core";
+import { Camera2D } from "@engine/core";
 import { TILE } from "./config";
 import { mousePos } from "./camera";
 import { screenToWorld } from "./screen-to-tile";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 
-export function createTooltip(parent: HTMLElement): HTMLElement {
-  const el = document.createElement("div");
-  el.style.cssText = [
-    "position: absolute",
-    "padding: 3px 8px",
-    "font: 11px/1.4 ui-monospace, monospace",
-    `color: ${EDG.cream}`,
-    "background: rgba(24, 20, 37, 0.88)", 
-    "border: 1px solid rgba(228, 166, 114, 0.6)", 
-    "border-radius: 4px",
-    "pointer-events: none",
-    "z-index: 180",
-    "display: none",
-    "white-space: nowrap",
-  ].join(";");
-  parent.appendChild(el);
-  return el;
+/** The label + optional description of the sprite currently under the cursor. */
+export interface HoveredSprite {
+  label: string;
+  description: string | null;
 }
 
-export function updateTooltip(
-  tooltip: HTMLElement,
+/**
+ * Find the labelled sprite nearest the cursor (within half a tile), or `null` if none.
+ *
+ * This is the same world-space distance search the old DOM `updateTooltip` ran; it now returns the
+ * hovered sprite's label/description so the in-canvas tooltip panel can render it (the DOM element
+ * is gone — the tooltip is a `@engine/ui` panel driven by the render loop).
+ */
+export function hoveredSprite(
   canvas: HTMLCanvasElement,
   sprites: SnapshotSprite[],
   camera: Camera2D | null,
-): void {
-  if (camera === null || mousePos.x < 0) {
-    tooltip.style.display = "none";
-    return;
-  }
+): HoveredSprite | null {
+  if (camera === null || mousePos.x < 0) return null;
 
   const { wx, wy } = screenToWorld(camera, canvas, mousePos.x, mousePos.y);
 
@@ -53,26 +43,6 @@ export function updateTooltip(
     }
   }
 
-  if (bestLabel !== null) {
-    tooltip.replaceChildren();
-    const title = document.createElement("div");
-    title.textContent = bestLabel;
-    title.style.fontWeight = "700";
-    tooltip.appendChild(title);
-    if (bestDescription !== null) {
-      const desc = document.createElement("div");
-      desc.textContent = bestDescription;
-      desc.style.fontWeight = "400";
-      desc.style.opacity = "0.85";
-      desc.style.marginTop = "2px";
-      desc.style.maxWidth = "220px";
-      desc.style.whiteSpace = "normal";
-      tooltip.appendChild(desc);
-    }
-    tooltip.style.display = "block";
-    tooltip.style.left = `${mousePos.x + 12}px`;
-    tooltip.style.top = `${mousePos.y - 20}px`;
-  } else {
-    tooltip.style.display = "none";
-  }
+  if (bestLabel === null) return null;
+  return { label: bestLabel, description: bestDescription };
 }

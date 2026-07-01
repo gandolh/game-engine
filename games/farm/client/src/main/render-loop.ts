@@ -1,6 +1,9 @@
 import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
-import type { WeatherKind, RendererLike } from "@engine/core";
+import type { WeatherKind, RendererLike, Camera2D } from "@engine/core";
+import { computeLayout, renderTree } from "@engine/ui";
+import type { UINode } from "@engine/ui";
+import type { UIHost } from "../ui/canvas/ui-host";
 import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import type { JuiceLayer } from "./juice";
 import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable } from "@farm/sim-core/world/regions";
@@ -31,8 +34,9 @@ import { pushFishSchools } from "../render/fish-decor";
 import { frameDataUrl } from "./sprite-icon";
 import type { Panels } from "./panels";
 import type { ParticleDirector } from "./particles";
-import { renderGameOver } from "./game-over";
-import { updateTooltip } from "./tooltip";
+import { hoveredSprite } from "./tooltip";
+import { TOOLTIP_CURSOR_OFFSET } from "../ui/canvas/tooltip";
+import { playbackState } from "./playback";
 import type { SimClient } from "../worker/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { setupProfileExport } from "./profile-export";
@@ -69,34 +73,63 @@ export interface RenderLoopDeps {
   rain: RainField;
   canvas: HTMLCanvasElement;
   panels: Panels;
-  tooltip: HTMLElement;
   seed: number;
   maxDays: number;
   ticksPerDay: number;
   ambient: AmbientLayer;
   juice: JuiceLayer;
+  /** The shared in-canvas @engine/ui host (surface + per-root dispatchers/mirrors). */
+  uiHost: UIHost;
+  /** Current share-status text for the game-over panel (host owns the clipboard side effect). */
+  getShareStatus: () => string;
   onFirstFrame?: () => void;
 }
 
 export function createRenderLoop(deps: RenderLoopDeps): () => void {
   const {
     client, renderer, keyboard, particles, particleDirector, rain,
-    canvas, panels, tooltip, seed, maxDays, ticksPerDay, ambient, juice,
+    canvas, panels, seed, maxDays, ticksPerDay, ambient, juice,
+    uiHost, getShareStatus,
   } = deps;
 
   let firstFrameSignaled = false;
   const {
-    overlay, worldClock, observer, leaderboardPanel,
-    slateBillboard, eventFeedPanel, hotbar, inventory, gameOverPanel, relationshipMatrix,
-    wealthGraph,
+    overlay, worldClock, clockRoot, hotbar, hotbarRoot, tooltip, rightColumn, rightColumnRoot,
+    leaderboard, leaderboardRoot, playback, playbackRoot, helpRoot, relationshipMatrix,
+    relationshipRoot, wealthGraph, gameOverPanel, gameOverRoot, inventory,
   } = panels;
 
-  inventory.onSwap = (from, to) => {
-    if (client.owner) client.swapSlots(from, to);
+  // The panels expose leaderboard/game-over open state via a wrapper the builder attached.
+  const leaderboardCtl = leaderboard as typeof leaderboard & {
+    setOpen(v: boolean): void; isOpen(): boolean; toggle(): void;
   };
+  const gameOverCtl = gameOverPanel as typeof gameOverPanel & {
+    setOpen(v: boolean): void; isOpen(): boolean;
+  };
+
+  // Wheel over the scrollable right column scrolls the panel under the cursor instead of zooming
+  // the world. Capture-phase so it precedes the world's zoom handler; consume only when a panel
+  // actually took it.
+  canvas.addEventListener(
+    "wheel",
+    (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (rightColumn.wheel(x, y, e.deltaY)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    },
+    { capture: true, passive: false },
+  );
 
   let lastFrameMs = performance.now();
   let gameOverShown = false;
+  // Layout caches: relayout a fixed-content panel on canvas-size change even when refresh() is
+  // unchanged (its screen anchor depends on canvas dimensions).
+  let rcLaidOutW = -1;
+  let hbLaidOutSize = "";
 
   const spawnRainSplash = (wx: number, wy: number): void => {
     const tx = Math.floor(wx / TILE);
@@ -536,9 +569,14 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
 
       if (keyboard.justPressed("KeyE")) inventory.toggle();
-      if (keyboard.justPressed("Escape") && inventory.isOpen()) inventory.setOpen(false);
+      if (keyboard.justPressed("Escape")) {
+        if (inventory.isOpen()) inventory.setOpen(false);
+        else if (playback.isHelpOpen()) playback.closeHelp();
+        else if (leaderboardCtl.isOpen()) leaderboardCtl.setOpen(false);
+        else if (gameOverCtl.isOpen()) gameOverCtl.setOpen(false);
+      }
 
-      if (keyboard.justPressed("Tab")) leaderboardPanel.toggle();
+      if (keyboard.justPressed("Tab")) leaderboardCtl.toggle();
       if (client.owner) {
 
         let selectSlot: number | null = null;
@@ -565,8 +603,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
     }
     keyboard.endFrame();
-
-    updateTooltip(tooltip, canvas, interpolatedSprites, _camera);
 
     const season = seasonForDay(client.day);
     const wash = washFor({
@@ -613,39 +649,170 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       });
     }
     const lightOverlay = makeLightOverlay(nightness, view);
-    frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain, lightOverlay));
 
     const snap = client.latestSnapshot();
-    const tick = client.tick;
-    overlay.update({ tick, alpha: 0, entityCount: client.entityCount });
-
-    worldClock.update({ tick: client.tick, ticksPerDay, day: client.day });
-
-    const obs = client.observer;
-    if (obs !== null) observer.update(obs);
-
-    frameProfiler.time("panels", () => {
-      leaderboardPanel.update(client.leaderboard);
-      slateBillboard.update(client.slate, (frame) => frameDataUrl(renderer, frame, 2));
-      eventFeedPanel.update(client.events);
-      hotbar.update(client.playerHotbar, (frame) => frameDataUrl(renderer, frame, 2));
-      inventory.update(client.playerInventory, (frame) => frameDataUrl(renderer, frame, 2));
-      applyToolCursor();
-      frameProfiler.time("panels.relmatrix", () => relationshipMatrix.update(client.relationships));
-      wealthGraph.update(client.wealthSeries, client.day);
-    });
 
     if (client.gameOver && !gameOverShown) {
       gameOverShown = true;
-      const final = client.finalSummary;
-      if (final !== null) {
-        renderGameOver(gameOverPanel, final, snap?.day ?? 0, {
-          seed,
-          maxDays,
-          ticksPerDay,
-        }, client.recap);
-      }
+      gameOverCtl.setOpen(true);
     }
+
+    // In-canvas UI: submit the whole @engine/ui layer through the shared surface BEFORE endFrame()
+    // (the renderer flushes the UI draw-list inside endFrame, painting it over the world). Each
+    // panel's refresh() returns whether LAYOUT-AFFECTING content changed; gate the expensive
+    // computeLayout + a11y-mirror reconcile behind it (content changes at sim-tick rate, not frame
+    // rate). renderTree re-submits the (already laid-out) tree EVERY frame; drawIcons/drawGhost run
+    // after renderTree (they need up-to-date rects) and before surface.end(). This mirrors the
+    // Citadel main.ts UI-driving block (one surface, many roots, each anchored independently).
+    frameProfiler.time("panels", () => {
+      const surface = uiHost.surface;
+      surface.begin();
+
+      // World clock — top-centre.
+      if (worldClock.refresh({ tick: client.tick, ticksPerDay, day: client.day })) {
+        computeLayout(worldClock.root, 0, 0);
+        const cx = Math.max(0, (canvas.clientWidth - worldClock.root.rect.width) / 2);
+        computeLayout(worldClock.root, cx, 0);
+        clockRoot.mirror?.update(worldClock.root);
+      }
+      renderTree(surface, worldClock.root);
+
+      // Right column (observer + slate + event feed) — pinned top-right.
+      const obs = client.observer;
+      if (obs !== null) {
+        const rcChanged = rightColumn.refresh({
+          observer: obs,
+          slate: client.slate,
+          events: client.events,
+        });
+        if (rcChanged || rcLaidOutW !== canvas.clientWidth) {
+          computeLayout(rightColumn.root, 0, 0);
+          rcLaidOutW = canvas.clientWidth;
+          const rx = Math.max(0, canvas.clientWidth - rightColumn.root.rect.width - 8);
+          computeLayout(rightColumn.root, rx, 40);
+          rightColumnRoot.mirror?.update(rightColumn.root);
+        }
+        renderTree(surface, rightColumn.root);
+        rightColumn.drawIcons(surface);
+      }
+
+      // Relationship matrix — pinned bottom-left, above the hotbar row.
+      if (relationshipMatrix.refresh(client.relationships)) {
+        computeLayout(relationshipMatrix.root, 0, 0);
+        const ry = Math.max(0, canvas.clientHeight - relationshipMatrix.root.rect.height - 80);
+        computeLayout(relationshipMatrix.root, 8, ry);
+        relationshipRoot.mirror?.update(relationshipMatrix.root);
+      }
+      renderTree(surface, relationshipMatrix.root);
+
+      // Wealth graph — stateless pure-draw, bottom-left corner below the matrix.
+      wealthGraph.render(surface, 8, canvas.clientHeight - 70, 220, 60, client.wealthSeries);
+
+      // Hotbar — bottom-centre.
+      if (hotbar.refresh(client.playerHotbar)) {
+        computeLayout(hotbar.root, 0, 0);
+        const hx = Math.max(0, (canvas.clientWidth - hotbar.root.rect.width) / 2);
+        const hy = Math.max(0, canvas.clientHeight - hotbar.root.rect.height - 8);
+        computeLayout(hotbar.root, hx, hy);
+        hotbarRoot.mirror?.update(hotbar.root);
+      } else if (hbLaidOutSize !== `${canvas.clientWidth}x${canvas.clientHeight}`) {
+        computeLayout(hotbar.root, 0, 0);
+        const hx = Math.max(0, (canvas.clientWidth - hotbar.root.rect.width) / 2);
+        const hy = Math.max(0, canvas.clientHeight - hotbar.root.rect.height - 8);
+        computeLayout(hotbar.root, hx, hy);
+        hbLaidOutSize = `${canvas.clientWidth}x${canvas.clientHeight}`;
+      }
+      renderTree(surface, hotbar.root);
+      hotbar.drawIcons(surface);
+      applyToolCursor();
+
+      // Playback controls — bottom-right (owner only; the a11y root is inert while hidden).
+      if (client.owner) {
+        if (playback.refresh({ paused: playbackState.paused, speed: playbackState.speed })) {
+          computeLayout(playback.root, 0, 0);
+          const px = Math.max(0, canvas.clientWidth - playback.root.rect.width - 8);
+          const py = Math.max(0, canvas.clientHeight - playback.root.rect.height - 8);
+          computeLayout(playback.root, px, py);
+          playbackRoot.mirror?.update(playback.root);
+        }
+        renderTree(surface, playback.root);
+      }
+
+      // Leaderboard — centred overlay, open on Tab.
+      if (leaderboardCtl.isOpen()) {
+        if (leaderboard.refresh(client.leaderboard)) {
+          computeLayout(leaderboard.root, 0, 0);
+          const lx = Math.max(0, (canvas.clientWidth - leaderboard.root.rect.width) / 2);
+          const ly = Math.max(0, (canvas.clientHeight - leaderboard.root.rect.height) / 2);
+          computeLayout(leaderboard.root, lx, ly);
+          leaderboardRoot.mirror?.update(leaderboard.root);
+        }
+        renderTree(surface, leaderboard.root);
+      }
+
+      // Inventory modal — centred (its own drag listeners live in the panel).
+      const invRoot = inventory.getRoot();
+      if (invRoot !== null) {
+        if (inventory.refresh(client.playerInventory)) {
+          computeLayout(invRoot, 0, 0);
+          const ix = Math.max(0, (canvas.clientWidth - invRoot.rect.width) / 2);
+          const iy = Math.max(0, (canvas.clientHeight - invRoot.rect.height) / 2);
+          computeLayout(invRoot, ix, iy);
+          inventory.rootHandle.mirror?.update(invRoot);
+        }
+        renderTree(surface, invRoot);
+        inventory.drawIcons(surface);
+        inventory.drawGhost(surface);
+      }
+
+      // Hover tooltip — anchored near the cursor, drawn late so it sits over other panels.
+      const hovered = hoveredSprite(canvas, client.getInterpolatedSprites(), _camera);
+      if (tooltip.refresh({ label: hovered?.label ?? null, description: hovered?.description ?? null })) {
+        // laid out below, unconditionally, since its anchor tracks the moving cursor.
+      }
+      if (tooltip.isVisible()) {
+        computeLayout(tooltip.root, mousePos.x + TOOLTIP_CURSOR_OFFSET.dx, mousePos.y + TOOLTIP_CURSOR_OFFSET.dy);
+        renderTree(surface, tooltip.root);
+      }
+
+      // Help modal — centred, top-most non-terminal overlay.
+      const helpRootNode = playback.getHelpRoot();
+      if (helpRootNode !== null) {
+        computeLayout(helpRootNode, 0, 0);
+        const hx = Math.max(0, (canvas.clientWidth - helpRootNode.rect.width) / 2);
+        const hy = Math.max(0, (canvas.clientHeight - helpRootNode.rect.height) / 2);
+        computeLayout(helpRootNode, hx, hy);
+        helpRoot.mirror?.update(helpRootNode);
+        renderTree(surface, helpRootNode);
+      }
+
+      // Game over — centred, drawn LAST so it overlays everything when the run ends.
+      if (gameOverCtl.isOpen()) {
+        const final = client.finalSummary;
+        if (final !== null) {
+          if (gameOverPanel.refresh({
+            rows: final,
+            finalDay: snap?.day ?? 0,
+            seed,
+            recap: client.recap,
+            shareStatus: getShareStatus(),
+          })) {
+            computeLayout(gameOverPanel.root, 0, 0);
+            const gx = Math.max(0, (canvas.clientWidth - gameOverPanel.root.rect.width) / 2);
+            const gy = Math.max(0, (canvas.clientHeight - gameOverPanel.root.rect.height) / 2);
+            computeLayout(gameOverPanel.root, gx, gy);
+            gameOverRoot.mirror?.update(gameOverPanel.root);
+          }
+          renderTree(surface, gameOverPanel.root);
+        }
+      }
+
+      surface.end();
+    });
+
+    frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain, lightOverlay));
+
+    overlay.update({ tick: client.tick, alpha: 0, entityCount: client.entityCount });
 
     if (PROFILE_ENABLED) {
       frameProfiler.add("frame", performance.now() - frameStart);

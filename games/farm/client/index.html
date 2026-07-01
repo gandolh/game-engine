@@ -10,12 +10,29 @@
       canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
       #fatal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; }
       #fatal.visible { display: flex; }
+      /* Hidden-DOM a11y mirror mounts: visually hidden but exposed to assistive tech, so the
+         in-canvas @engine/ui panels (invisible to screen readers) stay keyboard/AT-navigable. */
+      .ui-a11y { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
     </style>
   </head>
   <body>
     <div id="app">
       <canvas id="canvas"></canvas>
       <div id="fatal"></div>
+      <!-- Hidden-DOM a11y mirror mounts for the in-canvas @engine/ui panels. Each registered UI
+           root reflects its widget tree into one of these containers (visually hidden, AT-visible),
+           keeping the canvas UI keyboard/screen-reader navigable. -->
+      <div id="ui-a11y-home" class="ui-a11y"></div>
+      <div id="ui-a11y-loading" class="ui-a11y"></div>
+      <div id="ui-a11y-clock" class="ui-a11y"></div>
+      <div id="ui-a11y-hotbar" class="ui-a11y"></div>
+      <div id="ui-a11y-right" class="ui-a11y"></div>
+      <div id="ui-a11y-leaderboard" class="ui-a11y"></div>
+      <div id="ui-a11y-playback" class="ui-a11y"></div>
+      <div id="ui-a11y-help" class="ui-a11y"></div>
+      <div id="ui-a11y-relationship" class="ui-a11y"></div>
+      <div id="ui-a11y-gameover" class="ui-a11y"></div>
+      <div id="ui-a11y-inventory" class="ui-a11y"></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
