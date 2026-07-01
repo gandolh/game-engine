@@ -18,8 +18,13 @@ interface ScheduledCmd {
   cmd: CitadelCommand;
 }
 
-function run(cmds: ScheduledCmd[], totalTicks: number) {
+function run(
+  cmds: ScheduledCmd[],
+  totalTicks: number,
+  setup?: (sim: ReturnType<typeof bootstrapSim>) => void,
+) {
   const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  if (setup !== undefined) setup(sim);
   let i = 0;
   for (let tick = 0; tick < totalTicks; tick++) {
     while (i < cmds.length && cmds[i]!.atTick === tick) {
@@ -111,96 +116,28 @@ describe("Phase 3 — happiness", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Decrees
+// 2. Decrees — RETIRED (cozy-pivot Phase G).
+//
+// The `setDecree` player lever is gone: rations/work-hours run autonomously from
+// the town hall and festivals from the public square, both as spatial placement
+// effects (covered by needs-happiness.test.ts + production.test.ts). The happiness
+// penalties and the workHours +30% production block were deleted. The only decree
+// behavior still wired (as a dead code path, no player toggle) is the
+// ImmigrationSystem rationing/tithe branch, which we still exercise by mutating
+// `activeDecrees` directly.
 // ---------------------------------------------------------------------------
-describe("Phase 3 — decrees", () => {
-  it("setDecree adds/removes from activeDecrees", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "workHours", active: true } });
-    sim.scheduler.tick({ tick: 0 });
-    expect(localPlayer(sim.state).activeDecrees.has("workHours")).toBe(true);
-
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "workHours", active: false } });
-    sim.scheduler.tick({ tick: 1 });
-    expect(localPlayer(sim.state).activeDecrees.has("workHours")).toBe(false);
-  });
-
-  it("workHours decree reduces happiness by 12", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "workHours", active: true } });
-    // Run 2 days so NeedsHappinessSystem fires once.
-    for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
-    // Phase B Chunk 1: eases (here decays) toward target 40-12=28; one decay step
-    // from the seed 40 → 40+(28-40)*0.3 = 36.4 → 36.
-    expect(localPlayer(sim.state).happiness).toBe(36);
-  });
-
-  it("rationing decree reduces happiness by 10", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "rationing", active: true } });
-    // Run 2 days so NeedsHappinessSystem fires once.
-    for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
-    // Phase B Chunk 1: eases (here decays) toward target 40-10=30; one decay step
-    // from the seed 40 → 40+(30-40)*0.3 = 37.
-    expect(localPlayer(sim.state).happiness).toBe(37);
-  });
-
-  it("workHours decree boosts farm grain output by 30%", () => {
-    // Run two sims: one with workHours decree, one without.
-    // Both have the same economy: storehouse + farm + house (pioneer staffs farm).
-    // After 20 days, sim with workHours should have produced more grain.
-    //
-    // The chapel is a CONTROL, not part of the economy: workHours costs 12
-    // happiness (→28, below the 30 morale-departure floor), so without it the
-    // boosted run would bleed its only farmer to morale departures and produce
-    // LESS grain — masking the output multiplier this test targets. Faith
-    // coverage (+20, presence-based) keeps both runs above the floor so neither
-    // loses the farmer, isolating the +30% production effect.
-    const baseCmds: ScheduledCmd[] = [
-      { atTick: 0, cmd: roadRow(13, 10, 22) },
-      { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 11 } } },
-      { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "farm",       x: 18, y: 14 } } },
-      { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "house",      x: 22, y: 11 } } },
-      { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "chapel",     x: 15, y: 11 } } },
-    ];
-
-    const cmdsWithDecree: ScheduledCmd[] = [
-      ...baseCmds,
-      { atTick: 0, cmd: { type: "setDecree", payload: { decree: "workHours", active: true } } },
-    ];
-
-    const simBase  = run(baseCmds,       TICKS_PER_DAY * 20);
-    const simBoost = run(cmdsWithDecree, TICKS_PER_DAY * 20);
-
-    // Both should have grain (farm ran)
-    expect(simBase.stockpiles.grain).toBeGreaterThan(0);
-    // With workHours, grain should be higher (or equal if all was consumed — but
-    // without bakery the chain stops at grain, so grain accumulates)
-    expect(simBoost.stockpiles.grain).toBeGreaterThanOrEqual(simBase.stockpiles.grain);
-  });
-
-  it("rationing decree reduces bread consumption", () => {
-    // Place a minimal economy, run 30 days to establish bread production.
-    // Then enable rationing and check that the population survives longer
-    // under food stress by consuming less.
-    // Simpler approach: set up economy, verify that rationing sim has more bread
-    // after the same number of days (consumed less).
+describe("Phase 3 — decrees (retired lever; residual immigration branch)", () => {
+  it("a rationing flag reduces bread consumption (dead code path, set directly)", () => {
+    // No player command sets this any more; poke the residual ImmigrationSystem
+    // branch directly to confirm it still consumes 25% less when flagged.
     const cmds = economyCmds();
-    const cmdsRationing: ScheduledCmd[] = [
-      ...cmds,
-      // Enable rationing at tick 0
-      { atTick: 0, cmd: { type: "setDecree", payload: { decree: "rationing", active: true } } },
-    ];
+    const simBase   = run(cmds, TICKS_PER_DAY * 30);
+    const simRation = run(cmds, TICKS_PER_DAY * 30, (sim) => {
+      localPlayer(sim.state).activeDecrees.add("rationing");
+    });
 
-    const simBase     = run(cmds,        TICKS_PER_DAY * 30);
-    const simRation   = run(cmdsRationing, TICKS_PER_DAY * 30);
-
-    // Both should have population > 0 (economy runs fine)
     expect(simBase.population).toBeGreaterThan(0);
     expect(simRation.population).toBeGreaterThan(0);
-    // Rationing reduces consumption by 25% — verify it's reflected in the flag
     expect(localPlayer(simRation.state).activeDecrees.has("rationing")).toBe(true);
   });
 });
@@ -209,48 +146,36 @@ describe("Phase 3 — decrees", () => {
 // 3. Trader
 // ---------------------------------------------------------------------------
 describe("Phase 3 — trader", () => {
-  it("no tradingpost → trader never arrives", () => {
+  it("no tradingpost → trade affordance never opens", () => {
     const sim = run(economyCmds(), TICKS_PER_DAY * 15);
     expect(localPlayer(sim.state).traderPresent).toBe(false);
     expect(localPlayer(sim.state).traderOffers).toHaveLength(0);
   });
 
-  it("tradingpost causes a caravan to arrive within ~10 days", () => {
-    const cmds: ScheduledCmd[] = [
-      ...economyCmds(),
-      { atTick: 0, cmd: roadRow(13, 25, 32) }, // extend road to trading post
-      { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "tradingpost", x: 28, y: 14 } } },
-    ];
-    const sim = run(cmds, TICKS_PER_DAY * 12);
-    // Trader should have arrived by day 10+jitter (<=12)
-    const arrivals = sim.state.events.filter((e) => e.includes("merchant caravan arrived"));
-    expect(arrivals.length).toBeGreaterThan(0);
-  });
-
-  it("barter command exchanges goods if trader is present and goods available", () => {
+  it("trade command exchanges goods if trading post is open and goods available", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
 
-    // Manually put grain into stockpile so we can barter
+    // Manually put grain into stockpile so we can trade
     localPlayer(sim.state).stockpiles.grain = 10;
-    // Manually inject trader state (bypassing the system)
+    // Manually inject an open trading post (bypassing the system)
     localPlayer(sim.state).traderPresent = true;
-    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
+    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 });
 
-    // Enqueue barter command (offerIndex 0)
-    sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
+    // Enqueue trade command (offerIndex 0)
+    sim.commands.enqueue({ type: "trade", payload: { offerIndex: 0 } });
     sim.scheduler.tick({ tick: 0 });
 
-    // Grain should have decreased by 5; bread should have increased by 2
+    // Grain should have decreased by 5; bread should have increased by 3
     expect(localPlayer(sim.state).stockpiles.grain).toBe(5);
-    expect(localPlayer(sim.state).stockpiles.bread).toBe(2);
+    expect(localPlayer(sim.state).stockpiles.bread).toBe(3);
   });
 
-  it("barter command is ignored when trader is not present", () => {
+  it("trade command is ignored when the trading post is not open", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
     localPlayer(sim.state).stockpiles.grain = 10;
     // traderPresent is false by default
 
-    sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
+    sim.commands.enqueue({ type: "trade", payload: { offerIndex: 0 } });
     sim.scheduler.tick({ tick: 0 });
 
     // Nothing should have changed
@@ -258,13 +183,13 @@ describe("Phase 3 — trader", () => {
     expect(localPlayer(sim.state).stockpiles.bread).toBe(0);
   });
 
-  it("barter command is ignored when not enough goods", () => {
+  it("trade command is ignored when not enough goods", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
     localPlayer(sim.state).stockpiles.grain = 2; // need 5
     localPlayer(sim.state).traderPresent = true;
-    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
+    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 });
 
-    sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
+    sim.commands.enqueue({ type: "trade", payload: { offerIndex: 0 } });
     sim.scheduler.tick({ tick: 0 });
 
     expect(localPlayer(sim.state).stockpiles.grain).toBe(2); // unchanged
@@ -277,8 +202,12 @@ describe("Phase 3 — trader", () => {
 // ---------------------------------------------------------------------------
 describe("Phase 3 — snapshot", () => {
   it("getSnapshot includes happiness, activeDecrees, traderPresent, traderOffers", () => {
+    // Cozy-pivot Phase G: `activeDecrees` remains on the snapshot (always empty —
+    // the `setDecree` lever is gone; the client decree UI is removed in a later
+    // chunk). The residual immigration branch is still reachable by mutating the
+    // set directly, which the snapshot then surfaces.
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
+    localPlayer(sim.state).activeDecrees.add("tithe");
     sim.scheduler.tick({ tick: 0 });
     const snap = sim.getSnapshot(0);
     expect(snap.happiness).toBeDefined();
@@ -291,10 +220,7 @@ describe("Phase 3 — snapshot", () => {
   });
 
   it("determinism: same seed + commands → identical Phase 3 snapshot", () => {
-    const cmds: ScheduledCmd[] = [
-      ...economyCmds(),
-      { atTick: 0, cmd: { type: "setDecree", payload: { decree: "workHours", active: true } } },
-    ];
+    const cmds: ScheduledCmd[] = [...economyCmds()];
     const total = TICKS_PER_DAY * 3;
     const a = run(cmds, total).getSnapshot(total);
     const b = run(cmds, total).getSnapshot(total);

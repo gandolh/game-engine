@@ -703,6 +703,48 @@ export function marketStalls(name: string, w: number, h: number, pal: IsoPalette
 }
 
 /**
+ * Open-air PLAZA (public-square): a paved cobblestone diamond — no walls, no
+ * roof, like the market/field forms — with a raised central dais, a festival
+ * banner pole, and a ring of benches/planters around the rim. Reads as a
+ * civic gathering place rather than a workshop.
+ */
+export function plaza(name: string, w: number, h: number, pal: IsoPalette): PixelRecipe {
+  const { g, m } = begin(w, h, 1);
+  const { cx, halfW, diaH, yBotMid } = m;
+  const midY = yBotMid;
+  // Paved cobblestone ground (checkered, like the market square).
+  for (let dyAbs = -diaH / 2; dyAbs <= diaH / 2; dyAbs++) {
+    const y = R(midY + dyAbs);
+    const half = halfW * (1 - Math.abs(dyAbs) / (diaH / 2));
+    for (let x = R(cx - half); x <= R(cx + half); x++) g.set(x, y, ((x ^ y) & 2) ? "l" : "S");
+    g.set(R(cx - half), y, pal.outline); g.set(R(cx + half), y, pal.outline);
+  }
+  // A raised central dais: a small stepped stone platform at the diamond centre.
+  const daisR = R(halfW * 0.3);
+  for (let dy = -daisR; dy <= daisR; dy++) {
+    for (let dx = -daisR; dx <= daisR; dx++) {
+      const d = Math.hypot(dx, dy / 2.1);
+      if (d <= daisR) g.set(cx + dx, midY + dy, "c");
+    }
+  }
+  disc(g, cx, midY, R(daisR * 0.6), 2.1, "t");
+  // Festival banner pole rising from the dais centre.
+  const poleH = R(m.wallH * 1.4);
+  for (let dy = 0; dy < poleH; dy++) g.set(cx, midY - dy, "%");
+  span(g, cx + 1, cx + R(5 * ISO_ART_SCALE / 4), midY - poleH + 1, "g");
+  span(g, cx + 1, cx + R(5 * ISO_ART_SCALE / 4), midY - poleH + 2, "G");
+  g.set(cx + R(5 * ISO_ART_SCALE / 4), midY - poleH + 1, "d");
+  // A few planters/benches around the rim.
+  const propAt = (px: number, py: number) => {
+    span(g, px - 1, px + 1, py, "d");
+    span(g, px - 1, px + 1, py - 1, "g");
+  };
+  propAt(R(cx - halfW * 0.55), R(midY - diaH * 0.08));
+  propAt(R(cx + halfW * 0.5), R(midY + diaH * 0.22));
+  return g.toRecipe(name);
+}
+
+/**
  * Stone CHURCH: a nave (gabled body) + a tall square BELL TOWER on the left with
  * a steep spire and a cross — clearly a place of worship, taller/narrower than a
  * house.

@@ -141,6 +141,11 @@ export interface CitadelSave {
    */
   readonly cozyThreats?: boolean;
   /**
+   * MP/PvP army resolution flag, persisted so replay reconstructs identical state.
+   * Optional for backward-compat with pre-feature saves (absent ⇒ true, the bootstrap default).
+   */
+  readonly enableArmy?: boolean;
+  /**
    * Cozy cold-open: whether the alive-town core was pre-seeded at bootstrap. Persisted so replay
    * re-seeds the SAME core before replaying the command log (the seed is applied at bootstrap, not
    * via the command log). Optional for backward-compat with pre-feature saves (absent ⇒ false,
@@ -191,8 +196,12 @@ export type CitadelCommand =
   | { type: "demolish"; payload: { x: number; y: number } }
   | { type: "placeRoad"; payload: { tiles: Array<{ x: number; y: number }> } }
   | { type: "placeWall"; payload: { tiles: Array<{ x: number; y: number }> } }
+  // Cozy pivot Phase G: the decree/policy lever is retired (rations/work-hours/
+  // festivals are now autonomous, placement-driven). No handler is registered for
+  // `setDecree` — it is kept in the union only so an older client's stray command
+  // still type-checks and is silently dropped, not resurrected.
   | { type: "setDecree"; payload: { decree: string; active: boolean } }
-  | { type: "barter"; payload: { offerIndex: number } }
+  | { type: "trade"; payload: { offerIndex: number } }
   | { type: "upgradeBuilding"; payload: { x: number; y: number } }
   // Citadel 32: launch a PvP army at a targeted enemy building / town-hall.
   | { type: "launchAttack"; payload: { targetX: number; targetY: number; strength: number } }

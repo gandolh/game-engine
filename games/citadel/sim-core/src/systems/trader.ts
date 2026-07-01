@@ -1,110 +1,99 @@
 /**
- * TraderSystem — seeded periodic barter caravan.
- * Requires a tradingpost building.
- * Runs once per in-game day; uses rng.fork("trader") for all random decisions.
+ * TraderSystem — player-driven trading post (cozy-pivot Phase G).
+ *
+ * There is NO autonomous caravan any more: no schedule, no arrive/depart, no RNG.
+ * The Trading Post is the player's window to the outside world. Whenever the
+ * player owns a Trading Post that is staffed (workerCount>0) and connected, a
+ * small, DETERMINISTIC menu of trade offers is available; the player picks one
+ * via the "trade" command and the staffed trader villager executes it.
+ *
+ * `traderPresent` now means "the player owns a staffed, connected Trading Post"
+ * (the trade affordance is available), and `traderOffers` is the fixed menu —
+ * both refreshed once per in-game day so the client contract is unchanged.
+ *
+ * Determinism: offers are a pure function of the player's current stockpiles
+ * (rank goods, give the most plentiful, receive the scarcest, at a fixed rate).
+ * No `rng.fork` — this system was the only consumer of the old "trader" stream.
  *
  * Stage: "trader" (after production so stockpiles are fresh; before immigration).
  */
 import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState, BarterOffer } from "../sim-state";
-import { pushEvent } from "../sim-state";
 import type { GoodType } from "../entities/building";
-import type { Rng } from "@engine/core";
-
-const TRADER_INTERVAL_DAYS = 7;
-const TRADER_STAY_DAYS = 3;
 
 /**
- * Citadel trader dynamic pricing: the caravan reads the player's stockpiles and
- * offers to BUY surpluses (give the player a scarce good for a plentiful one) and
- * SELL scarcities. Goods the player hoards trade away cheaply; goods they lack
- * cost more of the surplus — so trade is a real surplus/shortage decision instead
- * of three fixed (often strictly-worse) offers.
+ * Goods the trading post will deal in. Ranked by the player's current stock to
+ * build a scarcity-responsive menu (give plentiful, receive scarce).
  */
 const TRADEABLE: readonly GoodType[] = ["grain", "flour", "bread", "wood", "stone", "planks", "tools"];
 
+/** Cozy "tiny menus": at most this many offers on the board at once. */
+const MAX_OFFERS = 3;
+/** Fixed barter rate — give this many of a plentiful good... */
+const GIVE_QTY = 5;
+/** ...to receive this many of a scarce good. */
+const RECEIVE_QTY = 3;
+
 export class TraderSystem implements System {
   readonly name = "TraderSystem";
-  private readonly traderRng: Rng;
 
   constructor(
     private readonly state: SimState,
     private readonly ticksPerDay: number,
-  ) {
-    this.traderRng = state.rng.fork("trader");
-  }
+  ) {}
 
   run(ctx: SimContext): void {
     if (ctx.tick === 0 || ctx.tick % this.ticksPerDay !== 0) return;
 
-    const day = this.state.day;
-
-    // Citadel 28: each player runs their own trading-post caravan. One shared
-    // RNG stream pulled in stable player-id order → solo (player 0) unchanged.
+    // Per-player: a trading post is "open" (traderPresent) when the player owns
+    // one that is staffed AND connected. Iterated in stable player-id order.
     for (const p of this.state.players) {
-      // Does THIS player own a trading post?
-      let hasTradingPost = false;
-      for (const entity of this.state.buildingWorld.query("building")) {
-        if (entity.building.ownerId === p.id && entity.building.type === "tradingpost") {
-          hasTradingPost = true;
-          break;
-        }
-      }
-      if (!hasTradingPost) continue;
-
-      // Schedule next arrival if none pending
-      if (p.traderArrivalDay === -1) {
-        const jitter = this.traderRng.int(0, 3); // 0..2 day jitter
-        p.traderArrivalDay = day + TRADER_INTERVAL_DAYS + jitter;
-        p.traderDepartDay = p.traderArrivalDay + TRADER_STAY_DAYS;
-      }
-
-      // Caravan arrives
-      if (!p.traderPresent && day >= p.traderArrivalDay) {
-        p.traderPresent = true;
-        p.traderOffers.length = 0;
-        for (const offer of this._dynamicOffers(p)) p.traderOffers.push(offer);
-        pushEvent(this.state, `Day ${day}: a merchant caravan arrived at the Trading Post!`);
-      }
-
-      // Caravan departs
-      if (p.traderPresent && day >= p.traderDepartDay) {
-        p.traderPresent = false;
-        p.traderArrivalDay = -1;
-        p.traderOffers.length = 0;
-        pushEvent(this.state, `Day ${day}: the merchant caravan departed.`);
+      const open = this._hasOpenTradingPost(p);
+      p.traderPresent = open;
+      p.traderOffers.length = 0;
+      if (open) {
+        for (const offer of this._offers(p)) p.traderOffers.push(offer);
       }
     }
   }
 
+  /** True iff `p` owns a Trading Post whose runtime state is staffed + connected. */
+  private _hasOpenTradingPost(p: PlayerState): boolean {
+    for (const entity of this.state.buildingWorld.query("building")) {
+      const b = entity.building;
+      if (b.ownerId !== p.id || b.type !== "tradingpost") continue;
+      if (entity.id === undefined) continue;
+      const rs = this.state.buildingState.get(entity.id);
+      if (rs !== undefined && rs.connected && rs.workerCount > 0) return true;
+    }
+    return false;
+  }
+
   /**
-   * Build scarcity-responsive offers: rank goods by current stock, pair the most
-   * plentiful (the player GIVES) with the scarcest (the player RECEIVES). The wider
-   * the surplus→scarcity gap, the better the rate. Deterministic: only a seeded
-   * jitter (±1) varies the quantities, pulled in stable order.
+   * Build a stable, deterministic menu: rank goods by current stock, offer to
+   * receive the scarcest goods in exchange for the most plentiful, at a fixed
+   * rate. No RNG — purely a function of the stockpiles. Tie-break by TRADEABLE
+   * order so the menu is stable across ticks with equal stock.
    */
-  private _dynamicOffers(p: PlayerState): BarterOffer[] {
-    const ranked = [...TRADEABLE].sort((a, b) => p.stockpiles[a] - p.stockpiles[b]);
-    const scarce = ranked.slice(0, 3);              // lowest stock → player wants these
-    const plentiful = [...ranked].reverse().slice(0, 3); // highest stock → player gives these
+  private _offers(p: PlayerState): BarterOffer[] {
+    const ranked = [...TRADEABLE].sort((a, b) => {
+      const d = p.stockpiles[a] - p.stockpiles[b];
+      return d !== 0 ? d : TRADEABLE.indexOf(a) - TRADEABLE.indexOf(b);
+    });
+    const plentiful = [...ranked].reverse(); // highest stock first → player GIVES
+    const scarce = ranked;                    // lowest stock first  → player RECEIVES
+
     const offers: BarterOffer[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < MAX_OFFERS; i++) {
       const give = plentiful[i]!;
       const receive = scarce[i]!;
       if (give === receive) continue; // degenerate (flat stockpiles) — skip
-      const surplus = p.stockpiles[give];
-      const want = p.stockpiles[receive];
-      // Base 4-for-2; a wide gap (lots of `give`, little `receive`) sweetens the
-      // received quantity. Clamp so it stays a sane small barter.
-      const gap = Math.max(0, surplus - want);
-      const giveQty = 4 + this.traderRng.int(0, 2);            // 4..5
-      const receiveQty = Math.min(8, 2 + Math.floor(gap / 10)) + this.traderRng.int(0, 2); // 2..10
-      offers.push({ give, giveQty, receive, receiveQty });
+      offers.push({ give, giveQty: GIVE_QTY, receive, receiveQty: RECEIVE_QTY });
     }
-    // Fallback if everything was degenerate (e.g. empty stockpiles at first arrival):
-    // a single sensible default so the caravan is never empty.
+    // Fallback if everything was degenerate (e.g. flat/empty stockpiles): a single
+    // sensible default so an open trading post always shows at least one offer.
     if (offers.length === 0) {
-      offers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
+      offers.push({ give: "grain", giveQty: GIVE_QTY, receive: "bread", receiveQty: RECEIVE_QTY });
     }
     return offers;
   }

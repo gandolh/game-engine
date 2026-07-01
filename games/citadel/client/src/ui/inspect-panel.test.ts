@@ -25,6 +25,10 @@ function baseState(overrides: Partial<InspectPanelState> = {}): InspectPanelStat
     // Top tier by default so the tier gate never masks affordability tests; the tier-locked
     // cases override peakTier explicitly below.
     peakTier: "Town",
+    // Phase G trade menu: off by default (only relevant for type === "tradingpost"); trading-post
+    // tests override these explicitly.
+    traderPresent: false,
+    traderOffers: [],
     ...overrides,
   };
 }
@@ -59,7 +63,7 @@ function mkBuilding(overrides: Partial<BuildingSnapshot> = {}): BuildingSnapshot
 
 describe("createInspectPanel — producer (bakery)", () => {
   it("binds name, description, production rate, flow, workers, level, connected", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState());
     const t = texts(panel.root);
     expect(t).toContain("Bakery");
@@ -73,7 +77,7 @@ describe("createInspectPanel — producer (bakery)", () => {
   });
 
   it("shows a 'slowed' note (never 'stopped') when unstaffed", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ workerCount: 0 }));
     const note = labels(panel.root).find((l) => l.text.startsWith("Slowed"));
     expect(note?.text).toBe("Slowed — needs a worker");
@@ -81,13 +85,13 @@ describe("createInspectPanel — producer (bakery)", () => {
   });
 
   it("shows a 'slowed' note when disconnected from the road network", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ connected: false }));
     expect(find(panel.root, "Slowed")?.text).toBe("Slowed — not on a road");
   });
 
   it("shows a 'slowed' note when the output buffer is at cap (bakery cap = 3×5 = 15)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ outputBuffer: 15 }));
     expect(find(panel.root, "Slowed")?.text).toBe("Slowed — output buffer full");
     // Below cap → no note.
@@ -96,7 +100,7 @@ describe("createInspectPanel — producer (bakery)", () => {
   });
 
   it("re-binds live fields when a different building / level is selected", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState());
     expect(find(panel.root, "Level")?.text).toBe("Level 1");
     panel.refresh(baseState({ type: "farm", level: 2, season: "summer", workerCount: 2 }));
@@ -106,7 +110,7 @@ describe("createInspectPanel — producer (bakery)", () => {
   });
 
   it("reports content-changed for layout gating (first frame, then only on change)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     expect(panel.refresh(baseState())).toBe(true); // first frame always lays out
     expect(panel.refresh(baseState())).toBe(false); // identical → no change
     expect(panel.refresh(baseState({ level: 2 }))).toBe(true); // label text changed
@@ -115,7 +119,7 @@ describe("createInspectPanel — producer (bakery)", () => {
 
 describe("createInspectPanel — service (chapel)", () => {
   it("shows coverage radius and no production rate, no workers issue when staffed", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ type: "chapel", workerCount: 1 }));
     expect(texts(panel.root)).toContain("Chapel");
     expect(find(panel.root, "Rate:")?.text).toBe("Rate: —"); // services produce no goods
@@ -129,7 +133,7 @@ describe("createInspectPanel — service (chapel)", () => {
 
 describe("createInspectPanel — tradingpost (worker building, NOT a coverage service)", () => {
   it("shows trade-access scope (no bogus radius) and a workers row, no production rate", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ type: "tradingpost", workerCount: 1 }));
     expect(texts(panel.root)).toContain("Tradingpost");
     expect(find(panel.root, "Rate:")?.text).toBe("Rate: —");
@@ -140,10 +144,66 @@ describe("createInspectPanel — tradingpost (worker building, NOT a coverage se
   });
 });
 
+describe("createInspectPanel — trade offers (Phase G, cozy decision #8)", () => {
+  const offers = [
+    { give: "wood", giveQty: 5, receive: "tools", receiveQty: 1 },
+    { give: "grain", giveQty: 8, receive: "bread", receiveQty: 3 },
+  ];
+
+  it("shows no trade offer buttons when traderPresent is false, even for a tradingpost", () => {
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: false, traderOffers: offers }));
+    expect(find(panel.root, "Trade:")).toBeUndefined();
+    expect(buttons(panel.root).some((b) => b.label.includes("→"))).toBe(false);
+  });
+
+  it("shows no trade offer buttons for a non-tradingpost building even when traderPresent is true", () => {
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
+    panel.refresh(baseState({ type: "bakery", traderPresent: true, traderOffers: offers }));
+    expect(find(panel.root, "Trade:")).toBeUndefined();
+  });
+
+  it("shows one button per live offer (≤3) with a 'Trade:' heading when staffed+connected", () => {
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
+    expect(find(panel.root, "Trade:")).toBeDefined();
+    const offerBtns = buttons(panel.root).filter((b) => b.label.includes("→"));
+    expect(offerBtns.map((b) => b.label)).toEqual([
+      "5 wood → 1 tools",
+      "8 grain → 3 bread",
+    ]);
+  });
+
+  it("activating an offer button sends its offerIndex", () => {
+    let traded: number | undefined;
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: (i) => { traded = i; } });
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
+    const offerBtns = buttons(panel.root).filter((b) => b.label.includes("→"));
+    offerBtns[1]?.onActivate?.();
+    expect(traded).toBe(1);
+  });
+
+  it("hides the trade section again once traderPresent flips back to false", () => {
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
+    expect(buttons(panel.root).filter((b) => b.label.includes("→"))).toHaveLength(2);
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: false, traderOffers: offers }));
+    expect(buttons(panel.root).filter((b) => b.label.includes("→"))).toHaveLength(0);
+    expect(find(panel.root, "Trade:")).toBeUndefined();
+  });
+
+  it("reports content-changed when the trade section appears/disappears", () => {
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: false, traderOffers: offers }));
+    expect(panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }))).toBe(true);
+    expect(panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }))).toBe(false);
+  });
+});
+
 describe("createInspectPanel — close affordance", () => {
   it("exposes a ✕ button wired to close()", () => {
     let closed = 0;
-    const panel = createInspectPanel({ close: () => { closed += 1; }, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => { closed += 1; }, upgrade: () => {}, trade: () => {} });
     const closeBtn = buttons(panel.root).find((b) => b.label === "✕");
     expect(closeBtn).toBeDefined();
     closeBtn?.onActivate?.();
@@ -151,7 +211,7 @@ describe("createInspectPanel — close affordance", () => {
   });
 
   it("mounts the Upgrade button + cost label in the footer box (last child)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     const footer = panel.root.children[panel.root.children.length - 1]!;
     expect(footer.kind).toBe("box");
     // The footer now holds the Upgrade button + cost label (Chunk 3).
@@ -162,7 +222,7 @@ describe("createInspectPanel — close affordance", () => {
 
 describe("createInspectPanel — upgrade footer (Chunk 3)", () => {
   it("shows the next-level cost for a level-1 building (L1→L2 = 4 planks, 4 stone)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ level: 1 }));
     const cost = find(panel.root, "Cost:");
     expect(cost?.text).toBe("Cost: 4 planks, 4 stone");
@@ -172,7 +232,7 @@ describe("createInspectPanel — upgrade footer (Chunk 3)", () => {
   });
 
   it("disables the button and shows 'Max level' at level 3", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ level: 3 }));
     expect(find(panel.root, "Max level")).toBeDefined();
     expect(find(panel.root, "Cost:")).toBeUndefined();
@@ -181,7 +241,7 @@ describe("createInspectPanel — upgrade footer (Chunk 3)", () => {
   });
 
   it("disables the button and flags it when the cost is unaffordable", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     // L1→L2 needs 4 planks + 4 stone; only 1 stone on hand.
     panel.refresh(baseState({ level: 1, stockpiles: { planks: 10, stone: 1 } }));
     const cost = find(panel.root, "Cost:");
@@ -193,7 +253,7 @@ describe("createInspectPanel — upgrade footer (Chunk 3)", () => {
 
   it("enables + activates the upgrade command path when affordable and below max", () => {
     let upgraded = 0;
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => { upgraded += 1; } });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => { upgraded += 1; }, trade: () => {} });
     panel.refresh(baseState({ level: 2, stockpiles: { planks: 10, stone: 10, tools: 10 } }));
     // L2→L3 = 8 planks, 6 stone, 2 tools — affordable here.
     expect(find(panel.root, "Cost:")?.text).toBe("Cost: 8 planks, 6 stone, 2 tools");
@@ -204,7 +264,7 @@ describe("createInspectPanel — upgrade footer (Chunk 3)", () => {
   });
 
   it("updates cost/affordability live as stockpiles change across frames", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ level: 1, stockpiles: { planks: 4, stone: 4 } }));
     let upgradeBtn = buttons(panel.root).find((b) => b.label === "Upgrade");
     expect(upgradeBtn?.state).not.toBe("disabled");
@@ -218,7 +278,7 @@ describe("createInspectPanel — upgrade footer (Chunk 3)", () => {
 
 describe("createInspectPanel — upgrade tier gate (FIX 4)", () => {
   it("disables the button and shows 'Needs Village' when L1→L2 is tier-locked (Hamlet)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     // Affordable, but only at Hamlet — L2 needs Village, so the tier gate wins.
     panel.refresh(baseState({ level: 1, peakTier: "Hamlet", stockpiles: { planks: 10, stone: 10 } }));
     const cost = find(panel.root, "Cost:");
@@ -230,7 +290,7 @@ describe("createInspectPanel — upgrade tier gate (FIX 4)", () => {
   });
 
   it("disables the button and shows 'Needs Town' when L2→L3 is tier-locked (Village)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ level: 2, peakTier: "Village", stockpiles: { planks: 10, stone: 10, tools: 10 } }));
     const cost = find(panel.root, "Cost:");
     expect(cost?.text).toContain("Needs Town");
@@ -239,7 +299,7 @@ describe("createInspectPanel — upgrade tier gate (FIX 4)", () => {
   });
 
   it("enables the button at the right tier + affordable (L1→L2 at Village)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ level: 1, peakTier: "Village", stockpiles: { planks: 10, stone: 10 } }));
     const cost = find(panel.root, "Cost:");
     expect(cost?.text).toBe("Cost: 4 planks, 4 stone"); // no "(Needs …)" / "(can't afford)"
@@ -248,7 +308,7 @@ describe("createInspectPanel — upgrade tier gate (FIX 4)", () => {
   });
 
   it("max-level outranks the tier gate (shows 'Max level' at L3 even at Hamlet)", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     panel.refresh(baseState({ level: 3, peakTier: "Hamlet" }));
     expect(find(panel.root, "Max level")).toBeDefined();
     expect(find(panel.root, "Cost:")).toBeUndefined();
@@ -257,7 +317,7 @@ describe("createInspectPanel — upgrade tier gate (FIX 4)", () => {
 
 describe("createInspectPanel — markOpened forces a layout pass (FIX 2)", () => {
   it("reports content-changed on the refresh after markOpened, even with identical state", () => {
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {} });
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
     expect(panel.refresh(baseState())).toBe(true);  // first frame
     expect(panel.refresh(baseState())).toBe(false); // identical → no change
     // Simulate a closed→open transition on the SAME building with no state change.

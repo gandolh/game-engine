@@ -32,8 +32,8 @@
  * Stage: "economy" (after connectivity).
  */
 import type { System, SimContext } from "@engine/core";
-import { getProductionDef, effectiveOutputPerCycle } from "../entities/building";
-import type { SimState } from "../sim-state";
+import { getProductionDef, effectiveOutputPerCycle, SERVICE_RADII, manhattanDist } from "../entities/building";
+import type { SimState, PlayerState } from "../sim-state";
 import { getSeason, grainMultiplier } from "../world/seasons";
 
 /**
@@ -69,6 +69,16 @@ export function productivityFactor(h: number): number {
   return PRODUCTIVITY_FLOOR + (1 - PRODUCTIVITY_FLOOR) * t;
 }
 
+/**
+ * Cozy-pivot Phase G: the work-hours output lift is now an AUTONOMOUS, SPATIAL
+ * effect of the town hall (a placement bonus, not a decree). A producer whose
+ * centre lies within a town-hall's SERVICE_RADII gets a steady output multiplier.
+ * Re-homed from the old `workHours` decree's +30% down to a gentler steady +20%
+ * (the decree was a spiky, happiness-costing lever; this is a quiet, always-on
+ * reward for building near your civic centre — no happiness cost). Floors at 1.
+ */
+const TOWN_HALL_OUTPUT_LIFT = 1.2;
+
 export class ProductionSystem implements System {
   readonly name = "ProductionSystem";
 
@@ -97,12 +107,10 @@ export class ProductionSystem implements System {
     // Citadel 28: per-player economy. Each player's production is independent;
     // iterate players in stable id order, acting on the buildings they own.
     for (const p of state.players) {
-      // Citadel 09 — CONSCRIPTION: while a raid is active on THIS player, its
-      // conscripted villagers man the walls (see siege-resolution.ts defense
-      // term) and that player's production halts for the siege window.
-      if (p.activeDecrees.has("conscription") && p.raiders.length > 0) {
-        continue;
-      }
+      // Cozy-pivot Phase G: town-hall coverage points for THIS player — producers
+      // whose centre lies within a town-hall's SERVICE_RADII get the autonomous
+      // work-hours output lift (a spatial placement bonus, no decree, no cost).
+      const townHalls = this.townHallPoints(p);
 
       for (const entity of state.buildingWorld.query("building")) {
         if (entity.building.ownerId !== p.id) continue;
@@ -151,11 +159,6 @@ export class ProductionSystem implements System {
         }
         if (amount <= 0) continue;
 
-        // workHours decree: +30% output (floors down); costs happiness (handled by NeedsHappinessSystem)
-        if (p.activeDecrees.has("workHours") && def.outputGood !== undefined) {
-          amount = Math.floor(amount * 1.3);
-        }
-
         // Cozy-pivot Phase B: scale output by happiness, never below the floor.
         // Prefer the LOCAL signal — the assigned worker's home-house mood — and
         // fall back to the per-player happiness when no worker/home resolves
@@ -168,6 +171,16 @@ export class ProductionSystem implements System {
         const b = entity.building;
         const cx = b.x + Math.floor(b.w / 2);
         const cy = b.y + Math.floor(b.h / 2);
+
+        // Cozy-pivot Phase G: autonomous work-hours lift — a producer within a
+        // town-hall's SERVICE_RADII gets a steady output multiplier (a spatial
+        // placement bonus, not a decree; no happiness cost). Applied BEFORE the
+        // happiness throttle so the throttle scales the lifted amount, mirroring
+        // where the old workHours decree sat. Deterministic (pure geometry).
+        if (townHalls.some((t) => manhattanDist(cx, cy, t.cx, t.cy) <= t.radius)) {
+          amount = Math.floor(amount * TOWN_HALL_OUTPUT_LIFT);
+        }
+
         const localHappiness =
           workplaceHomeMood.get(this.tileKey(cx, cy)) ?? p.happiness;
         amount = Math.max(1, Math.floor(amount * productivityFactor(localHappiness)));
@@ -182,6 +195,27 @@ export class ProductionSystem implements System {
   /** Deterministic tile-index key (ty*width+tx) for a building/workplace centre. */
   private tileKey(tx: number, ty: number): number {
     return ty * this.state.width + tx;
+  }
+
+  /**
+   * Town-hall coverage centres (+ reach) owned by player `p`. A producer within a
+   * town-hall's SERVICE_RADII gets the autonomous work-hours output lift. Iteration
+   * order is irrelevant (`.some(...)` membership test) and it's pure geometry, so
+   * determinism is preserved.
+   */
+  private townHallPoints(p: PlayerState): Array<{ cx: number; cy: number; radius: number }> {
+    const points: Array<{ cx: number; cy: number; radius: number }> = [];
+    const radius = SERVICE_RADII["town-hall"] ?? 0;
+    for (const entity of this.state.buildingWorld.query("building")) {
+      const b = entity.building;
+      if (b.ownerId !== p.id || b.type !== "town-hall") continue;
+      points.push({
+        cx: b.x + Math.floor(b.w / 2),
+        cy: b.y + Math.floor(b.h / 2),
+        radius,
+      });
+    }
+    return points;
   }
 
   /**

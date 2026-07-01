@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";
 import { localPlayer } from "../sim-state";
 import { resolveSiege, computeDefensiveStrength } from "./siege-resolution";
+import { TraderSystem } from "./trader";
 import { createRng } from "@engine/core";
 import type { RaiderState } from "../sim-state";
 
@@ -110,95 +111,94 @@ describe("disease → conscription interlock", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Decree counterplay — festival costs bread and lifts happiness; conscription
-// is gated behind threat.
+// Festivals — AUTONOMOUS + SPATIAL (cozy-pivot Phase G).
+//
+// The old `festival` decree (bread cost + a timed happiness bump, ordered via
+// `setDecree`) is RETIRED. Festivals are now a placement effect of the public
+// square: homes in its SERVICE_RADII get a steady mood lift, no command, no cost.
+// (The per-house + aggregate math is pinned in needs-happiness.test.ts; here we
+// only confirm there is no longer a bread-spending festival lever.)
 // ---------------------------------------------------------------------------
-describe("decree counterplay", () => {
-  it("a festival costs bread and raises happiness over the next days", () => {
+describe("festival (autonomous, no lever)", () => {
+  it("a stray setDecree festival command is a no-op — no bread spent, no timed bump", () => {
     const sim = boot();
     const p = localPlayer(sim.state);
     p.stockpiles.bread = 20;
 
+    // `setDecree` has no registered handler any more → CommandSystem drops it.
     sim.commands.enqueue({ type: "setDecree", payload: { decree: "festival", active: true } });
     sim.scheduler.tick({ tick: 0 });
-    expect(p.stockpiles.bread).toBeLessThan(20); // bread was spent
-    expect(p.festivalDaysLeft).toBeGreaterThan(0);
 
-    // Tick a day boundary so needs/happiness recompute with the festival active.
-    p.population = 1; // one house-less villager won't fully cover needs → base-ish
-    const before = p.happiness;
-    for (let t = 1; t <= TICKS_PER_DAY; t++) sim.scheduler.tick({ tick: t });
-    expect(p.happiness).toBeGreaterThanOrEqual(before);
-  });
-
-  it("conscription is blocked when threat is low and no raid is active", () => {
-    const sim = boot();
-    const p = localPlayer(sim.state);
-    p.threatLevel = 0;
-    expect(p.raiders.length).toBe(0);
-
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "conscription", active: true } });
-    sim.scheduler.tick({ tick: 0 });
-    expect(p.activeDecrees.has("conscription")).toBe(false); // gated out
-  });
-
-  it("conscription is allowed once threat is high", () => {
-    const sim = boot();
-    const p = localPlayer(sim.state);
-    p.threatLevel = 80;
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "conscription", active: true } });
-    sim.scheduler.tick({ tick: 0 });
-    expect(p.activeDecrees.has("conscription")).toBe(true);
-  });
-
-  it("stacking strain decrees hurts more than the sum of parts", () => {
-    // Compare happiness with one strain decree vs three. The third decree should
-    // cost more than its base penalty thanks to the stacking term.
-    function happinessWith(decrees: string[]): number {
-      const sim = boot();
-      const p = localPlayer(sim.state);
-      for (const d of decrees) p.activeDecrees.add(d);
-      // Phase B Chunk 1: happiness eases toward target; run enough days to settle
-      // so we compare steady-state penalties, not a single-step lagged value.
-      for (let t = 1; t <= TICKS_PER_DAY * 16; t++) sim.scheduler.tick({ tick: t });
-      return p.happiness;
-    }
-    const one = happinessWith(["rationing"]);
-    const three = happinessWith(["rationing", "tithe", "workHours"]);
-    // base penalties: 10 vs 30; stacking adds (3-1)*3 = 6 more → gap > 20.
-    expect(one - three).toBeGreaterThan(20);
+    expect(p.stockpiles.bread).toBe(20); // bread was NOT spent
+    expect(p.activeDecrees.has("festival")).toBe(false);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Trader dynamic pricing — offers respond to the player's stockpiles.
+// Player-driven trading post (cozy-pivot Phase G) — offers are a deterministic,
+// scarcity-responsive menu, available while a staffed+connected trading post is
+// owned. No caravan schedule, no RNG.
 // ---------------------------------------------------------------------------
-describe("trader dynamic pricing", () => {
+describe("player-driven trading post", () => {
+  // Drive TraderSystem directly against injected building runtime state. Running
+  // the full scheduler would let RoadConnectivitySystem recompute `connected`
+  // (no road laid → false) and clobber the injected staffing, defeating the test.
+  const DAY_TICK = TICKS_PER_DAY; // first day boundary (tick % ticksPerDay === 0, tick !== 0)
+
+  /** Spawn a trading post owned by the local player with the given runtime state. */
+  function placeTradingPost(sim: ReturnType<typeof boot>, workerCount: number, connected: boolean): void {
+    const e = sim.world.spawn({
+      building: { type: "tradingpost", x: 20, y: 20, w: 3, h: 2, ownerId: localPlayer(sim.state).id },
+    });
+    if (e.id !== undefined) {
+      sim.state.buildingState.set(e.id, {
+        outputBuffer: 0, workerCount, connected, productionTick: 0, level: 1,
+      });
+    }
+  }
+
+  it("trade affordance stays closed while the trading post is unstaffed or disconnected", () => {
+    const sim = boot();
+    const p = localPlayer(sim.state);
+    const trader = new TraderSystem(sim.state, TICKS_PER_DAY);
+
+    placeTradingPost(sim, 0, false); // unstaffed + disconnected
+    trader.run({ tick: DAY_TICK });
+    expect(p.traderPresent).toBe(false);
+    expect(p.traderOffers).toHaveLength(0);
+  });
+
   it("offers the player's scarce goods in exchange for their plentiful ones", () => {
     const sim = boot();
     const p = localPlayer(sim.state);
-    // Place a trading post so the caravan schedules + arrives over ~10 days.
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "tradingpost", x: 20, y: 20 } });
-    sim.scheduler.tick({ tick: 0 });
+    const trader = new TraderSystem(sim.state, TICKS_PER_DAY);
+    placeTradingPost(sim, 1, true); // staffed + connected → open
 
-    // Hold wood very plentiful and bread very scarce across the run so that when
-    // the caravan arrives its offers are generated against this scarcity profile.
-    let tick = 1;
-    let arrived = false;
-    for (let day = 0; day < 14 && !arrived; day++) {
-      for (let t = 0; t < TICKS_PER_DAY; t++, tick++) {
-        p.stockpiles.wood = 200;
-        p.stockpiles.bread = 0;
-        sim.scheduler.tick({ tick });
-        if (p.traderPresent) { arrived = true; break; }
-      }
-    }
+    // Wood plentiful, bread scarce → the menu should GIVE wood, RECEIVE bread.
+    p.stockpiles.wood = 200;
+    p.stockpiles.bread = 0;
+    trader.run({ tick: DAY_TICK });
 
-    expect(arrived).toBe(true);
+    expect(p.traderPresent).toBe(true);
     expect(p.traderOffers.length).toBeGreaterThan(0);
-    // The player should be asked to GIVE a plentiful good and RECEIVE a scarce one;
-    // wood (plentiful) must appear as a `give`, and never as a `receive`.
+    expect(p.traderOffers.length).toBeLessThanOrEqual(3);
     expect(p.traderOffers.some((o) => o.give === "wood")).toBe(true);
     expect(p.traderOffers.every((o) => o.receive !== "wood")).toBe(true);
+  });
+
+  it("offers are deterministic — same stockpiles yield the same menu (no RNG)", () => {
+    const build = () => {
+      const sim = boot();
+      const p = localPlayer(sim.state);
+      const trader = new TraderSystem(sim.state, TICKS_PER_DAY);
+      placeTradingPost(sim, 1, true);
+      p.stockpiles.wood = 200;
+      p.stockpiles.stone = 120;
+      p.stockpiles.bread = 0;
+      p.stockpiles.tools = 1;
+      trader.run({ tick: DAY_TICK });
+      return p.traderOffers.map((o) => `${o.giveQty}${o.give}->${o.receiveQty}${o.receive}`).join("|");
+    };
+    expect(build()).toBe(build());
   });
 });

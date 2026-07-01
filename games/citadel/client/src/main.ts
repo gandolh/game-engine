@@ -1,7 +1,7 @@
 /**
  * Citadel — browser entry point.
  *
- * Phase 3: chapel, market, watchpost, tradingpost; decrees; happiness HUD;
+ * Phase 3: chapel, market, watchpost, tradingpost; happiness HUD;
  *          trader panel.
  * Phase 4: quarry/sawmill/smith/mine refiners; wall (drag-paint) + gate;
  *          tower/garrison/keep defenses; threat/defense/keep HUD; raider dots.
@@ -116,16 +116,6 @@ const lblMode = document.getElementById("lbl-mode")!;
 const btnSave = document.getElementById("btn-save")!;
 const btnLoad = document.getElementById("btn-load")!;
 const loadFileInput = document.getElementById("load-file-input")! as HTMLInputElement;
-
-// Phase 3: decrees
-const decreWorkHours     = document.getElementById("decree-workHours")     as HTMLInputElement;
-const decreRationing     = document.getElementById("decree-rationing")      as HTMLInputElement;
-const decreTithe         = document.getElementById("decree-tithe")           as HTMLInputElement;
-const decreConscription  = document.getElementById("decree-conscription")   as HTMLInputElement;
-
-// Phase 3: trader panel
-const traderPanel  = document.getElementById("trader-panel")!;
-const traderOffers = document.getElementById("trader-offers")!;
 
 // Event toasts (top-center) now render IN-CANVAS via @engine/ui (toast.ts builds a
 // @engine/ui column the render loop lays out + draws). Created at module scope so it
@@ -431,7 +421,7 @@ canvas.addEventListener("wheel", (e) => {
 // the mirror's own listeners drive things (mirror focusin → onFocusNode → dispatcher.focus,
 // and the <button>'s click → node.onActivate). Intercepting here would fight that, so we
 // only run the dispatcher's keyboard path when focus is NOT inside the mirror DOM (the
-// canvas-focused path). Other typing targets (decree checkboxes, etc.) are also skipped.
+// canvas-focused path). Other typing targets are also skipped.
 window.addEventListener("keydown", (e) => {
   if (uiDispatcher === undefined) return;
   const active = document.activeElement as HTMLElement | null;
@@ -776,19 +766,6 @@ loadFileInput.addEventListener("change", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 3: Decree toggles
-// ---------------------------------------------------------------------------
-function wireDecree(checkbox: HTMLInputElement, decree: string): void {
-  checkbox.addEventListener("change", () => {
-    client.sendCommand({ type: "setDecree", payload: { decree, active: checkbox.checked } });
-  });
-}
-wireDecree(decreWorkHours,    "workHours");
-wireDecree(decreRationing,    "rationing");
-wireDecree(decreTithe,        "tithe");
-wireDecree(decreConscription, "conscription");
-
-// ---------------------------------------------------------------------------
 // Sim client — solo runs the sim in an in-browser Worker; `?mp` drives it over
 // a WebSocket to the multi-writer @citadel/server (Citadel 35). Both transports
 // share one interface, so the rest of main.ts is transport-agnostic.
@@ -873,7 +850,6 @@ let events: readonly string[] = [];
 // Phase 3 state
 let traderPresent = false;
 let traderOffersList: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[] = [];
-let activeDecrees: readonly string[] = [];
 
 // Phase 4 state
 let threatLevel = 0;
@@ -1033,7 +1009,6 @@ client.onSnapshot((snap) => {
   happiness = snap.happiness;
   traderPresent = snap.traderPresent;
   traderOffersList = snap.traderOffers;
-  activeDecrees = snap.activeDecrees;
   // Phase 4
   currentRaiders = snap.raiders;
   // Render-only interpolation bookkeeping: feed the new snapshot's unit positions
@@ -1062,28 +1037,10 @@ client.onSnapshot((snap) => {
   outbreakActive = snap.outbreakActive;
   activeFires = snap.activeFires;
 
-  // Sync decree checkboxes with server state (in case decrees change externally)
-  decreWorkHours.checked    = activeDecrees.includes("workHours");
-  decreRationing.checked    = activeDecrees.includes("rationing");
-  decreTithe.checked        = activeDecrees.includes("tithe");
-  decreConscription.checked = activeDecrees.includes("conscription");
-
-  // Update trader panel
-  if (traderPresent) {
-    traderPanel.classList.add("visible");
-    traderOffers.innerHTML = "";
-    traderOffersList.forEach((offer, i) => {
-      const btn = document.createElement("button");
-      btn.className = "trade-offer-btn";
-      btn.textContent = `${offer.giveQty} ${offer.give} → ${offer.receiveQty} ${offer.receive}`;
-      btn.addEventListener("click", () => {
-        client.sendCommand({ type: "barter", payload: { offerIndex: i } });
-      });
-      traderOffers.appendChild(btn);
-    });
-  } else {
-    traderPanel.classList.remove("visible");
-  }
+  // Phase G: the old always-on DOM trader panel is gone — the tradingpost's in-canvas inspect
+  // panel now renders the ≤3-offer trade menu (tradeBox in inspect-panel.ts), gated on
+  // traderPresent + only shown while that building is selected. traderPresent/traderOffersList
+  // are read straight from the panel's refresh() call above.
 
   // Brief 19: release the follow if its villager despawned (night / starvation). The in-canvas
   // villager panel re-finds the live villager by id each frame in loop(), so the per-snapshot
@@ -1353,6 +1310,10 @@ function loop(): void {
           stockpiles: latestSnapshot?.stockpiles ?? {},
           // Tier the owner has reached — mirrors the sim's upgrade gate (unlockTier = peakTier).
           peakTier: peakTier as SettlementTier,
+          // Phase G: the trade-offer affordance (tradingpost-only; the panel ignores these
+          // fields for every other building type).
+          traderPresent,
+          traderOffers: traderOffersList,
         });
         // Floating position: pinned to the LEFT edge, BELOW the top HUD bar (anchored at 8,8,
         // ~32px tall) so it never overlaps the HUD or the top-right minimap. On-screen and
@@ -1544,6 +1505,12 @@ async function boot(): Promise<void> {
         type: "upgradeBuilding",
         payload: { x: inspectSelection.x, y: inspectSelection.y },
       });
+    },
+    // Phase G (cozy pivot #8): the tiny trade-offer menu in the tradingpost's inspect panel.
+    // Sends the current offer index straight through — the panel only shows the button when
+    // `traderPresent` and `offerIndex` is within the live `traderOffers` menu.
+    trade: (offerIndex) => {
+      client.sendCommand({ type: "trade", payload: { offerIndex } });
     },
   });
   inspectDispatcher = createInputDispatcher(() => (inspectOpen() ? inspectPanel?.root ?? null : null));

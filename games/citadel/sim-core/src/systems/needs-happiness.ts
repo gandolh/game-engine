@@ -7,9 +7,16 @@
  */
 import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
-import { SERVICE_RADII } from "../entities/building";
+import { SERVICE_RADII, manhattanDist } from "../entities/building";
 
-/** Happiness lift per day while a festival is active. */
+/**
+ * Cozy-pivot Phase G: festivals are AUTONOMOUS + SPATIAL. A `public-square`
+ * projects a festival mood lift over the homes within its SERVICE_RADII — there
+ * is no `festival` decree, no bread cost, no player command. This is the steady
+ * happiness a home gets for being in reach of a place to gather. Applied per-house
+ * (folded into `mood`) AND to the town aggregate (× the fraction of homes covered)
+ * so the two can't drift — exactly like faith/safety/goods coverage.
+ */
 const FESTIVAL_HAPPINESS_BONUS = 15;
 
 /**
@@ -83,20 +90,7 @@ export class NeedsHappinessSystem implements System {
 
   run(ctx: SimContext): void {
     if (ctx.tick === 0 || ctx.tick % this.ticksPerDay !== 0) return;
-    this._maintainDecrees();
     this._computeNeeds();
-  }
-
-  /**
-   * Decree counterplay (daily): tick down a pending festival. (A decree the player
-   * deliberately set persists until they lift it — the counterplay is the festival
-   * upside + the stacking penalty in _updateHappiness, not silent auto-expiry,
-   * which surprised players who set a standing decree on purpose.)
-   */
-  private _maintainDecrees(): void {
-    for (const p of this.state.players) {
-      if (p.festivalDaysLeft > 0) p.festivalDaysLeft--;
-    }
   }
 
   private _computeNeeds(): void {
@@ -119,6 +113,8 @@ export class NeedsHappinessSystem implements System {
     const chapels: ServicePoint[] = [];
     const watchposts: ServicePoint[] = [];
     const markets: ServicePoint[] = [];
+    // Cozy-pivot Phase G: public-square festival (mood) coverage points.
+    const squares: ServicePoint[] = [];
 
     for (const entity of buildings) {
       if (entity.building.ownerId !== p.id) continue;
@@ -131,6 +127,8 @@ export class NeedsHappinessSystem implements System {
         houses.push({ cx, cy, id: entity.id });
       } else if (b.type === "chapel") {
         chapels.push({ cx, cy, radius });
+      } else if (b.type === "public-square") {
+        squares.push({ cx, cy, radius });
       } else if (SAFETY_PROVIDERS.has(b.type)) {
         // citadel-38 P2#12: tower/garrison/keep/town-hall had SERVICE_RADII entries
         // (and a comment promising a "safety footprint") that fed nothing — only
@@ -146,7 +144,7 @@ export class NeedsHappinessSystem implements System {
       p.faithCoverage = 0;
       p.safetyCoverage = 0;
       p.goodsCoverage = 0;
-      this._updateHappiness(p);
+      this._updateHappiness(p, 0);
       return;
     }
 
@@ -155,6 +153,7 @@ export class NeedsHappinessSystem implements System {
     let faithMet = 0;
     let safetyMet = 0;
     let goodsMet = 0;
+    let festivalMet = 0;
 
     for (const house of houses) {
       const hasFaith = chapels.some(
@@ -168,10 +167,16 @@ export class NeedsHappinessSystem implements System {
         markets.some(
           (m) => manhattanDist(house.cx, house.cy, m.cx, m.cy) <= m.radius,
         );
+      // Cozy-pivot Phase G: a home in reach of a public square gets a festival mood
+      // lift — an autonomous placement effect (no decree, no bread, no command).
+      const hasFestival = squares.some(
+        (s) => manhattanDist(house.cx, house.cy, s.cx, s.cy) <= s.radius,
+      );
 
       if (hasFaith) faithMet++;
       if (hasSafety) safetyMet++;
       if (hasGoodsAccess) goodsMet++;
+      if (hasFestival) festivalMet++;
 
       // Citadel: keep the per-house booleans the aggregate loop used to discard,
       // and derive a per-house mood from them. Same math shape as
@@ -193,6 +198,9 @@ export class NeedsHappinessSystem implements System {
           if (hasFaith) moodTarget += PER_NEED_HAPPINESS;
           if (hasSafety) moodTarget += PER_NEED_HAPPINESS;
           if (hasGoodsAccess) moodTarget += PER_NEED_HAPPINESS;
+          // Cozy-pivot Phase G: a festival (public-square) in reach lifts this
+          // home's mood on top of its met needs — a spatial placement bonus.
+          if (hasFestival) moodTarget += FESTIVAL_HAPPINESS_BONUS;
           rs.mood = easeHappiness(rs.mood ?? 40, moodTarget);
         }
       }
@@ -202,14 +210,16 @@ export class NeedsHappinessSystem implements System {
     p.safetyCoverage = safetyMet / houses.length;
     p.goodsCoverage = goodsMet / houses.length;
 
-    this._updateHappiness(p);
+    this._updateHappiness(p, festivalMet / houses.length);
   }
 
-  private _updateHappiness(p: PlayerState): void {
-    // Phase B Chunk 1: this same formula now computes the per-day TARGET (math
-    // UNCHANGED — base 40 + coverage*20 each + food + decree penalties +
-    // festival), then we ease the persistent p.happiness toward it asymmetrically
-    // (recover faster than fall) instead of assigning it directly.
+  /**
+   * Compute the per-day happiness TARGET and ease the persistent p.happiness
+   * toward it asymmetrically (recover faster than fall). `festivalCoverage` is the
+   * fraction of this player's homes within a public-square's reach (0 when there
+   * are no homes) — a spatial, autonomous festival lift (cozy-pivot Phase G).
+   */
+  private _updateHappiness(p: PlayerState, festivalCoverage: number): void {
     // Base 40 (no needs met); each need coverage adds up to 20 → max 100
     let h = 40;
     h += p.faithCoverage * PER_NEED_HAPPINESS;
@@ -220,29 +230,14 @@ export class NeedsHappinessSystem implements System {
     if (p.foodSurplus > 0) h += Math.min(10, p.foodSurplus * 2);
     if (p.foodSurplus < 0) h += Math.max(-15, p.foodSurplus * 3);
 
-    // Decree penalties
-    let activeStrain = 0;
-    if (p.activeDecrees.has("rationing"))    { h -= 10; activeStrain++; }
-    if (p.activeDecrees.has("tithe"))        { h -= 8;  activeStrain++; }
-    if (p.activeDecrees.has("workHours"))    { h -= 12; activeStrain++; }
-    if (p.activeDecrees.has("conscription")) { h -= 5;  activeStrain++; }
-
-    // Decree counterplay (stacking penalty): panic-stacking every strain decree
-    // hurts more than the sum of its parts — an extra escalating penalty per decree
-    // beyond the first, so overcommitting can spiral (the todo's intended tension).
-    if (activeStrain > 1) h -= (activeStrain - 1) * 3;
-
-    // Decree counterplay (festival): a proclaimed festival lifts spirits while it
-    // lasts — the repayable upside that makes strain a loop, not permanent debt.
-    if (p.festivalDaysLeft > 0) h += FESTIVAL_HAPPINESS_BONUS;
+    // Cozy-pivot Phase G: festival (public-square) lift, scaled by the fraction of
+    // homes in reach — the town-aggregate mirror of the per-house festival bonus,
+    // so the two can't drift (same shape as faith/safety/goods coverage above).
+    h += festivalCoverage * FESTIVAL_HAPPINESS_BONUS;
 
     // `h` is now the TARGET; ease the persistent happiness toward it. Clamp the
     // target too so the ease can never chase an out-of-range goal.
     const target = Math.max(0, Math.min(100, Math.round(h)));
     p.happiness = easeHappiness(p.happiness, target);
   }
-}
-
-function manhattanDist(ax: number, ay: number, bx: number, by: number): number {
-  return Math.abs(ax - bx) + Math.abs(ay - by);
 }

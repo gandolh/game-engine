@@ -41,6 +41,7 @@ const GROUPS: ReadonlyArray<{ readonly label: string; readonly items: ReadonlyAr
   { label: "Service", items: [
     buildItem("Hall", "town-hall"), buildItem("Chapel", "chapel"), buildItem("Market", "market"),
     buildItem("Watch", "watchpost"), buildItem("Trade", "tradingpost"), buildItem("Healer", "healer"),
+    buildItem("Square", "public-square"),
   ] },
   { label: "Defense", items: [
     toolItem("Wall", "wall"), buildItem("Gate", "gate"), buildItem("Tower", "tower"), buildItem("Garrison", "garrison"), buildItem("Keep", "keep"),

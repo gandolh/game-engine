@@ -32,18 +32,6 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 #hud-threat { color: #63c74d; }
 #hud-defense { color: #2ce8f5; }
 #hud-keep { color: #8b9bb4; }
-#decrees-panel { display: flex; gap: 6px; align-items: center; }
-#decrees-panel label { cursor: pointer; display: flex; align-items: center; gap: 3px; }
-/* Trader panel floats over the canvas (bottom-right) instead of living in
-   the HUD flex row, so its appearance never resizes the bottom bars. */
-#trader-panel {
-  position: absolute; left: 8px; top: 44px; z-index: 20;
-  background: #3a4466; border: 1px solid #fee761; padding: 6px 10px;
-  border-radius: 3px; display: none; font-family: monospace; font-size: 12px;
-  box-shadow: 0 4px 14px rgba(24, 20, 37, 0.55);
-}
-#trader-panel.visible { display: flex; flex-direction: column; gap: 4px; }
-#trader-title { color: #fee761; }
 
 /* Event toasts render IN-CANVAS via @engine/ui now (src/ui/toast.ts). #toast-live is the
    visually-hidden aria-live region that announces each new toast to screen readers. */
@@ -55,9 +43,9 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 /* Minimap, occupancy badges, and the settings modal all render IN-CANVAS now via @engine/ui
    (DOM-overlay removal) — their former DOM/CSS (#minimap canvas, #occupancy-badges chips,
    .settings-* modal) was deleted here. The in-canvas surfaces are styled by the @engine/ui
-   theme (EDG palette) in src/ui/minimap.ts, src/render/occupancy-badges.ts, src/ui/settings-modal.ts. */
-.trade-offer-btn { background: #5a6988; color: #c0cbdc; border: 1px solid #fee761; padding: 2px 8px; cursor: pointer; font-family: monospace; font-size: 12px; }
-.trade-offer-btn:hover { background: #fee761; color: #181425; }
+   theme (EDG palette) in src/ui/minimap.ts, src/render/occupancy-badges.ts, src/ui/settings-modal.ts.
+   The trading-post trade-offer menu (.trade-offer-btn) is gone too — it's in-canvas now
+   (inspect-panel.ts's tradeBox), styled by the same @engine/ui theme, not CSS. */
 /* Phase 4.5: hazard HUD */
 #hud-fire { color: #8b9bb4; }
 #hud-disease { color: #8b9bb4; }

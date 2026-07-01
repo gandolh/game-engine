@@ -79,6 +79,13 @@ export interface CitadelSimOptions {
    */
   cozyThreats?: boolean;
   /**
+   * MP/PvP army resolution (in-flight armies + siege-adjacent resolution via `ArmySystem`).
+   * Default true so MP and `army.test.ts` (which bootstraps with default options) are unchanged.
+   * The solo/cozy client passes `false` to freeze this system — a no-op in solo already (armies
+   * list is always empty there), so disabling it is byte-identical, just removes dead work.
+   */
+  enableArmy?: boolean;
+  /**
    * Cozy cold-open: pre-seed a small, connected, self-sufficient "alive core" of buildings at
    * the map center BEFORE the scheduler's first tick, so the solo game opens on a living town
    * (a bread chain + a house, road-connected) instead of an empty map — making the founding
@@ -128,15 +135,6 @@ function creditStock(stock: Stockpiles, grant: Partial<Record<GoodType, number>>
 }
 
 const DAYS_PER_YEAR = 16;
-
-/** Citadel 09: relief reserve total-goods threshold above which the tithe sweetens barter. */
-const RELIEF_BARTER_THRESHOLD = 20;
-
-/** Decree counterplay: bread cost + duration of a "festival" (repayable happiness). */
-const FESTIVAL_BREAD_COST = 8;
-const FESTIVAL_DAYS = 2;
-/** Threat consequence: conscription can only be ordered at/above this threat (or during a raid). */
-const CONSCRIPTION_THREAT_GATE = 40;
 
 /** Mutable sim state exposed to callers (worker + headless + tests). */
 export interface CitadelSimResult {
@@ -201,6 +199,9 @@ export function loadFromSave(save: CitadelSave): CitadelSimResult {
     // A save taken with cozy threats on must replay with them on. Absent (pre-feature saves)
     // ⇒ true, matching the bootstrap default (the cozy footing is the intended solo experience).
     cozyThreats: save.cozyThreats ?? true,
+    // A save taken with army resolution on/off must replay the same way. Absent (pre-feature
+    // saves) ⇒ true, matching the bootstrap default (MP saves always had army resolution on).
+    enableArmy: save.enableArmy ?? true,
     // A save taken with a seeded town must re-seed the SAME core before command replay (the seed
     // is applied at bootstrap, not logged). Absent (pre-feature saves) ⇒ false (empty start).
     seedTown: save.seedTown ?? false,
@@ -259,6 +260,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // Cozy-pivot Phase D: threat demotion is on by default (the intended solo footing). Threaded
   // into the three threat systems below; no behavior branches on it yet.
   const cozyThreats = opts.cozyThreats ?? true;
+  // MP/PvP army resolution: on by default (MP + army.test.ts unchanged); the solo/cozy client
+  // passes false to freeze the (already no-op in solo) ArmySystem.
+  const enableArmy = opts.enableArmy ?? true;
   // Cozy cold-open: pre-seed an alive town core (opt-in; off by default so the baseline is
   // byte-identical). Applied at the end of bootstrap, before returning.
   const seedTown = opts.seedTown ?? false;
@@ -611,59 +615,26 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     placeDragged("wall", cmd.payload.tiles);
   });
 
-  logged("setDecree", (cmd) => {
-    const lp = localPlayer(state);
-    const { decree, active } = cmd.payload;
+  // Cozy-pivot Phase G: the `setDecree` player lever is GONE. Rations/work-hours
+  // run autonomously from the town hall and festivals from the public square —
+  // both spatial placement effects (see needs-happiness.ts / production.ts), never
+  // a policy the player toggles. A stray `setDecree` command from an old client is
+  // silently ignored (no registered handler → CommandSystem drops it).
 
-    // Decree counterplay: "festival" is a one-shot repayable lever, not a standing
-    // strain decree. It costs stored bread now and grants a happiness bump over the
-    // next FESTIVAL_DAYS (applied in needs-happiness) — so overcommitting strain
-    // decrees is a loop you can pay back, not permanent debt.
-    if (decree === "festival") {
-      if (!active) return; // festivals only turn on
-      if (lp.festivalDaysLeft > 0) return; // one at a time
-      if (lp.stockpiles.bread < FESTIVAL_BREAD_COST) {
-        pushEvent(state, `Day ${state.day}: not enough bread for a festival (need ${FESTIVAL_BREAD_COST}).`);
-        return;
-      }
-      lp.stockpiles.bread -= FESTIVAL_BREAD_COST;
-      lp.festivalDaysLeft = FESTIVAL_DAYS;
-      pushEvent(state, `Day ${state.day}: a festival is proclaimed! Spirits will lift.`);
-      return;
-    }
-
-    if (active) {
-      // Threat consequence (decree gating): conscription is an EMERGENCY lever —
-      // it can only be enacted while a raid is active or threat is high. This
-      // forces the happiness-vs-safety trade to actually track the danger.
-      if (decree === "conscription" && lp.raiders.length === 0 && lp.threatLevel < CONSCRIPTION_THREAT_GATE) {
-        pushEvent(state, `Day ${state.day}: conscription can only be ordered under threat (raid or high alarm).`);
-        return;
-      }
-      lp.activeDecrees.add(decree);
-    } else {
-      lp.activeDecrees.delete(decree);
-    }
-  });
-
-  logged("barter", (cmd) => {
+  // Cozy-pivot Phase G: player-driven trading post. The "trade" command executes
+  // one of the offers TraderSystem posts while the player owns a staffed +
+  // connected Trading Post (`traderPresent`). No tithe sweetener — received is
+  // exactly the offer's receiveQty (kept simple; tiny menus).
+  logged("trade", (cmd) => {
     const lp = localPlayer(state);
     const { offerIndex } = cmd.payload;
-    if (!lp.traderPresent) return;
+    if (!lp.traderPresent) return; // no open (staffed+connected) trading post
     const offer = lp.traderOffers[offerIndex];
     if (offer === undefined) return;
     const have = lp.stockpiles[offer.give];
     if (have < offer.giveQty) return;
     lp.stockpiles[offer.give] = have - offer.giveQty;
-    // Citadel 09 — TITHE better barter terms: a well-stocked relief reserve
-    // (goodwill the merchant respects) sweetens the deal by +1 received good.
-    // Applied here (not in trader.ts) so the canonical offers stay clean and the
-    // bonus reflects the reserve state at trade time.
-    const reserveBonus =
-      lp.activeDecrees.has("tithe") && totalGoods(lp.reliefReserve) >= RELIEF_BARTER_THRESHOLD
-        ? 1
-        : 0;
-    const received = offer.receiveQty + reserveBonus;
+    const received = offer.receiveQty;
     lp.stockpiles[offer.receive] = lp.stockpiles[offer.receive] + received;
     pushEvent(state, `Day ${state.day}: traded ${offer.giveQty} ${offer.give} for ${received} ${offer.receive}.`);
   });
@@ -894,7 +865,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("clock").add(dayClock);
   scheduler.stage("clock").add(daySync);
   // Territory recompute runs BEFORE connectivity (which clears connectivityDirty).
-  scheduler.stage("connectivity").add(territorySystem);
+  // Its output (p.territory / tileClaimedBy) is consumed ONLY by canBuildAt, which itself only
+  // runs when enforceTerritory is true — so registering it when enforceTerritory is false would
+  // be pure dead work. Gating the .add() removes that dead pass in solo (byte-identical: no
+  // observable effect existed) while leaving MP (enforceTerritory: true) unchanged.
+  if (enforceTerritory) {
+    scheduler.stage("connectivity").add(territorySystem);
+  }
   scheduler.stage("connectivity").add(roadConnSystem);
   scheduler.stage("economy").add(productionSystem);
   scheduler.stage("villagers").add(villagerSystem);
@@ -908,8 +885,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("siege-spawn").add(raidSpawnSystem);
   scheduler.stage("siege-move").add(raiderMovementSystem);
   scheduler.stage("siege-resolve").add(siegeResolutionSystem);
-  // Citadel 32: PvP armies resolve after PvE siege, before tier eval.
-  scheduler.stage("armies").add(armySystem);
+  // Citadel 32: PvP armies resolve after PvE siege, before tier eval. Gated on enableArmy
+  // (default true; the solo/cozy client passes false to freeze this already-no-op-in-solo system).
+  if (enableArmy) {
+    scheduler.stage("armies").add(armySystem);
+  }
   // Phase 5: tier evaluation LAST — sees updated pop + defense + buildings.
   scheduler.stage("tiers").add(tierSystem);
 
@@ -1221,6 +1201,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         // Persist the cozy economy options so loadFromSave replays with the same rules.
         chargeBuildCost,
         cozyThreats,
+        // Persist whether army resolution was enabled so replay reconstructs identical state.
+        enableArmy,
         // Persist whether the alive-town core was seeded so replay re-seeds it identically.
         seedTown,
         // Persist the threat-defer threshold so replay applies the same gate (a cold-open

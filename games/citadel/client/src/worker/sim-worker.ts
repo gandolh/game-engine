@@ -66,6 +66,10 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         chargeBuildCost: true,
         // Cozy-pivot Phase D: threat demotion on (the default; stated explicitly for clarity).
         cozyThreats: true,
+        // Cozy pivot Phase G: solo is single-player — freeze PvP army resolution (a no-op here
+        // already, since the armies list is always empty in solo). MP (@citadel/server) keeps
+        // the default (true).
+        enableArmy: false,
         startingStock: { wood: 40 },
         // Cozy cold-open (Phase C): pre-seed a small connected alive town core (bread chain +
         // house + storehouse + roads at map center) so solo play opens on a living town instead

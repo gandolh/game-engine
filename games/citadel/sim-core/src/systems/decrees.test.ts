@@ -1,9 +1,15 @@
 /**
  * Citadel 09 tests — interlocking decree payoffs (tithe + conscription).
  *
- * TITHE  = daily goods siphon → relief reserve; reserve cushions starvation
- *          and sweetens Trading Post barter terms.
- * CONSCRIPTION = raid-time defense boost at the cost of paused production.
+ * TITHE  = daily goods siphon → relief reserve; reserve cushions starvation.
+ * CONSCRIPTION = raid-time defense boost.
+ *
+ * Cozy-pivot Phase G RETIRED the `setDecree` player lever: nothing enqueues a
+ * `setDecree` command any more (it is silently ignored), and the conscription
+ * PRODUCTION-halt was deleted from ProductionSystem. The underlying `activeDecrees`
+ * branches in ImmigrationSystem (tithe) and SiegeResolutionSystem (conscription)
+ * still exist as (now dead) code paths, so these tests exercise them by mutating
+ * `activeDecrees` DIRECTLY rather than via a command.
  *
  * All tests drive bootstrapSim() directly (no Worker). Where a tightly
  * controlled scenario is needed we mutate sim.state and runtime state directly,
@@ -60,7 +66,7 @@ function seedVillagers(sim: ReturnType<typeof boot>, n: number): void {
 describe("Citadel 09 — tithe siphon", () => {
   it("siphons 10% of each stored good into the relief reserve at a day boundary", () => {
     const sim = boot();
-    sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
+    localPlayer(sim.state).activeDecrees.add("tithe");
 
     // Seed the global pool with goods (population 0 → no consumption to confound).
     localPlayer(sim.state).stockpiles.grain = 100;
@@ -107,7 +113,7 @@ describe("Citadel 09 — tithe starvation cushion", () => {
   function deficitDay(opts: { tithe: boolean; reserveBread: number }) {
     const sim = boot();
     if (opts.tithe) {
-      sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
+      localPlayer(sim.state).activeDecrees.add("tithe");
     }
     seedVillagers(sim, 4); // 4 villagers → 4 bread/day needed
     localPlayer(sim.state).reliefReserve.bread = opts.reserveBread;
@@ -143,7 +149,7 @@ describe("Citadel 09 — tithe starvation cushion", () => {
     // across several deficit days — both are disease/morale-independent.
     function multiDay(tithe: boolean, reserveBread: number): { peakHunger: number; starvedEvents: number } {
       const sim = boot();
-      if (tithe) sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
+      if (tithe) localPlayer(sim.state).activeDecrees.add("tithe");
       seedVillagers(sim, 4);
       localPlayer(sim.state).reliefReserve.bread = reserveBread;
       let peakHunger = 0;
@@ -168,48 +174,10 @@ describe("Citadel 09 — tithe starvation cushion", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. TITHE better barter terms: a stocked reserve yields +1 received good.
+// 3. (Retired) TITHE barter sweetener — cozy-pivot Phase G removed the tithe-
+//    gated barter bonus; trades now pay exactly the offer's receiveQty. The
+//    tithe decree's starvation-cushion role is covered elsewhere.
 // ---------------------------------------------------------------------------
-describe("Citadel 09 — tithe better barter terms", () => {
-  /**
-   * Force a trader present with a known offer, then execute the same barter
-   * with and without a stocked relief reserve and compare the received amount.
-   * Offer 0: give 5 grain → receive 2 bread.
-   */
-  function barterReceive(opts: { tithe: boolean; reserve: number }): number {
-    const sim = boot();
-    if (opts.tithe) {
-      sim.commands.enqueue({ type: "setDecree", payload: { decree: "tithe", active: true } });
-      sim.scheduler.tick({ tick: 0 });
-    }
-    // Force trader state + a deterministic offer.
-    localPlayer(sim.state).traderPresent = true;
-    localPlayer(sim.state).traderOffers.length = 0;
-    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 2 });
-    localPlayer(sim.state).stockpiles.grain = 20;
-    localPlayer(sim.state).stockpiles.bread = 0;
-    // Stock the reserve above/below the barter threshold (20).
-    localPlayer(sim.state).reliefReserve.grain = opts.reserve;
-
-    const breadBefore = localPlayer(sim.state).stockpiles.bread;
-    sim.commands.enqueue({ type: "barter", payload: { offerIndex: 0 } });
-    sim.scheduler.tick({ tick: 1 });
-    return localPlayer(sim.state).stockpiles.bread - breadBefore;
-  }
-
-  it("a sufficiently stocked reserve yields more received good than without", () => {
-    const baseline = barterReceive({ tithe: false, reserve: 0 });   // no bonus → 2
-    const boosted = barterReceive({ tithe: true, reserve: 50 });     // +1 bonus → 3
-    expect(baseline).toBe(2);
-    expect(boosted).toBe(3);
-    expect(boosted).toBeGreaterThan(baseline);
-  });
-
-  it("the barter bonus does NOT apply below the reserve threshold", () => {
-    const justUnder = barterReceive({ tithe: true, reserve: 10 }); // below threshold 20
-    expect(justUnder).toBe(2);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // 4. CONSCRIPTION defense: raid-time defense rises with conscription on.
@@ -241,61 +209,8 @@ describe("Citadel 09 — conscription defense", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. CONSCRIPTION production pause: producers idle while a raid is active.
+// 5. (Retired) CONSCRIPTION production pause — cozy-pivot Phase G deleted the
+//    conscription production-halt from ProductionSystem (no player lever sets
+//    conscription any more; production never pauses for it). The conscription
+//    DEFENSE term still exists (section 4) as a dead code path in siege-resolution.
 // ---------------------------------------------------------------------------
-describe("Citadel 09 — conscription production pause", () => {
-  /**
-   * Stand up a single connected, staffed producer via direct runtime state, then
-   * advance several production cycles. With conscription + a raid present, the
-   * output buffer must NOT grow; otherwise it grows.
-   */
-  function producerGrowth(opts: { conscription: boolean; raid: boolean }): number {
-    const sim = boot();
-    // Place a mill (converter: 1 grain → 2 flour / 10-tick cycle). No terrain
-    // requirement, no tier lock, no seasonal scaling — ideal for an isolated
-    // production-pause probe. We keep grain topped up so input never gates it.
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "mill", x: 20, y: 20 } });
-    sim.scheduler.tick({ tick: 0 });
-
-    // Find its entity + runtime state and force it connected + staffed.
-    let bid = -1;
-    for (const entity of sim.world.query("building")) {
-      if (entity.building.type === "mill" && entity.id !== undefined) bid = entity.id;
-    }
-    expect(bid).toBeGreaterThanOrEqual(0);
-    const rs = sim.state.buildingState.get(bid)!;
-    rs.connected = true;
-    rs.workerCount = 1;
-    rs.outputBuffer = 0;
-    rs.productionTick = 0;
-
-    if (opts.conscription) localPlayer(sim.state).activeDecrees.add("conscription");
-    if (opts.raid) localPlayer(sim.state).raiders.push(dummyRaider(99));
-
-    const before = rs.outputBuffer;
-    // Advance several full production cycles (mill cycle = 10 ticks).
-    for (let tick = 1; tick <= 100; tick++) {
-      // Keep the producer connected/staffed + fed (no haulers in this scenario).
-      rs.connected = true;
-      rs.workerCount = 1;
-      localPlayer(sim.state).stockpiles.grain += 10;
-      sim.scheduler.tick({ tick });
-    }
-    return rs.outputBuffer - before;
-  }
-
-  it("output buffer does NOT grow during a raid under conscription", () => {
-    const paused = producerGrowth({ conscription: true, raid: true });
-    expect(paused).toBe(0);
-  });
-
-  it("output buffer DOES grow when there is no raid (conscription idle)", () => {
-    const noRaid = producerGrowth({ conscription: true, raid: false });
-    expect(noRaid).toBeGreaterThan(0);
-  });
-
-  it("output buffer DOES grow during a raid when conscription is off", () => {
-    const noDecree = producerGrowth({ conscription: false, raid: true });
-    expect(noDecree).toBeGreaterThan(0);
-  });
-});

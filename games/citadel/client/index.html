@@ -68,22 +68,9 @@
       <button id="btn-load">Load</button>
       <!-- Hidden file input for loading JSON saves -->
       <input type="file" id="load-file-input" accept=".json" style="display:none">
-      <div class="sep"></div>
-      <!-- Phase 3: Decrees panel -->
-      <div id="decrees-panel">
-        <span>Decrees:</span>
-        <label><input type="checkbox" id="decree-workHours"> Work Hours</label>
-        <label><input type="checkbox" id="decree-rationing"> Rationing</label>
-        <label><input type="checkbox" id="decree-tithe"> Tithe</label>
-        <label><input type="checkbox" id="decree-conscription"> Conscription</label>
-      </div>
     </div>
-    <!-- Phase 3: Trader panel — floats over the canvas (see #trader-panel CSS),
-         no longer in the HUD flex row, so its appearance never resizes the bar. -->
-    <div id="trader-panel">
-      <span id="trader-title">Merchant Caravan</span>
-      <div id="trader-offers"></div>
-    </div>
+    <!-- Phase G: the DOM trader panel is gone — the tradingpost's in-canvas inspect panel now
+         renders the trade-offer menu (see inspect-panel.ts's tradeBox). -->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

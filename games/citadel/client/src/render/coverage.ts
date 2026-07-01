@@ -14,12 +14,17 @@ import { SERVICE_RADII, SERVICE_RECTS, WORLD_WIDTH, WORLD_HEIGHT } from "@citade
 import type { BuildingSnapshot } from "@citadel/sim-core";
 import { EDG } from "@engine/core";
 
-/** The three need types the NeedsHappinessSystem scores, by service type. */
-export type Need = "faith" | "safety" | "goods";
+/**
+ * The need types the NeedsHappinessSystem scores, by service type. "festival"
+ * is the cozy-pivot Phase G public-square mood lift — spatial + autonomous,
+ * same shape as the other three (see needs-happiness.ts).
+ */
+export type Need = "faith" | "safety" | "goods" | "festival";
 export const COVERAGE_SERVICE: Readonly<Record<string, Need>> = {
   chapel: "faith",
   watchpost: "safety",
   market: "goods",
+  "public-square": "festival",
 };
 
 /** Tint per need — distinct, palette-legal hues for the overlay/ring. */
@@ -27,6 +32,7 @@ export const NEED_TINT: Readonly<Record<Need, string>> = {
   faith: EDG.mauve,
   safety: EDG.skyBlue,
   goods: EDG.gold,
+  festival: EDG.green,
 };
 
 /**
@@ -165,7 +171,7 @@ export function coverageByNeed(buildings: readonly BuildingSnapshot[]): NeedCatc
     }
   }
   const out: NeedCatchment[] = [];
-  for (const need of ["faith", "safety", "goods"] as const) {
+  for (const need of ["faith", "safety", "goods", "festival"] as const) {
     const bucket = groups.get(need);
     if (bucket === undefined) continue;
     out.push({ need, hex: NEED_TINT[need], tiles: [...bucket.values()] });

@@ -84,6 +84,44 @@ describe("NeedsHappinessSystem — per-house mood/coverage", () => {
     expect(rs.mood).toBe(40);
   });
 
+  it("a public-square in range lifts a house's mood above an out-of-range house (autonomous festival)", () => {
+    // Cozy-pivot Phase G: festivals are a spatial placement effect of the public
+    // square (SERVICE_RADII 8, Manhattan) — no decree, no command. A home in reach
+    // gets a steady mood lift over an otherwise-identical home out of reach.
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const state = sim.state;
+
+    // House next to a public square (square centre (23,21), house centre (21,21) → dist 2 ≤ 8).
+    const covered = addBuilding(state, "house", 20, 20, 2, 2);
+    addBuilding(state, "public-square", 22, 20, 2, 2);
+    // Identical house far from the square (and from every other service).
+    const bare = addBuilding(state, "house", 60, 60, 2, 2);
+
+    // Mood eases toward its target; run several days so the festival lift shows.
+    runDays(state, 6);
+
+    const coveredRs = state.buildingState.get(covered)!;
+    const bareRs = state.buildingState.get(bare)!;
+    // Neither has faith/safety/goods; the ONLY difference is the festival lift.
+    expect(coveredRs.mood!).toBeGreaterThan(bareRs.mood!);
+    // The bare house sits at base mood 40; the covered one is lifted above it.
+    expect(bareRs.mood).toBe(40);
+    expect(coveredRs.mood!).toBeGreaterThan(40);
+  });
+
+  it("a public-square in range raises the town-aggregate happiness", () => {
+    // The aggregate happiness mirrors the per-house festival lift (× coverage).
+    function settledHappiness(withSquare: boolean): number {
+      const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+      const state = sim.state;
+      addBuilding(state, "house", 20, 20, 2, 2);
+      if (withSquare) addBuilding(state, "public-square", 22, 20, 2, 2);
+      runDays(state, 12);
+      return state.players[0]!.happiness;
+    }
+    expect(settledHappiness(true)).toBeGreaterThan(settledHappiness(false));
+  });
+
   it("a fully-covered house (chapel+safety+market with goods in range) has mood=100 and all lacksX=false", () => {
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;

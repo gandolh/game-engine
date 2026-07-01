@@ -22,6 +22,7 @@ import {
   wellForm,
   openField,
   marketStalls,
+  plaza,
   church,
   warehouse,
   fort,
@@ -132,6 +133,9 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   church("bld/chapel", 2, 2, 2, CREAM),
   // Market — open-air red-striped stalls.
   marketStalls("bld/market", 2, 2, MARKET),
+  // Public square — cozy-pivot Phase G: open cobblestone plaza with a raised
+  // dais + festival banner pole, no walls (a civic gathering place, not a shop).
+  plaza("bld/public-square", 2, 2, STONE),
   // Watchpost — a small crenellated stone lookout + banner.
   fort("bld/watchpost", 2, 2, 2, WOOD, { accent: (g, _p, m) => isoBanner(g, m, "e") }),
   // Trading post — warehouse + crates (clay-roofed plaster).

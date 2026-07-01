@@ -133,19 +133,21 @@ export interface PlayerState {
   safetyCoverage: number;     // 0..1 fraction of houses in safety range
   goodsCoverage: number;      // 0..1 fraction of houses in goods range
 
-  // Decrees
-  readonly activeDecrees: Set<string>;
   /**
-   * Citadel decree-counterplay: a one-shot "festival" decree (costs stored bread,
-   * grants a happiness bump for the next few days). > 0 means a festival is active
-   * for that many more days. Repayable strain, not permanent debt.
+   * Decrees. Cozy-pivot Phase G RETIRED the `setDecree` player lever — nothing
+   * populates this set any more, so it is effectively always empty. It is retained
+   * only because ImmigrationSystem (`tithe`/`rationing`) and SiegeResolutionSystem
+   * (`conscription`) still branch on membership; those branches are now dead paths
+   * (always false) pending their own cozy-pivot removal. The `festival` counterplay
+   * moved to the autonomous, spatial public-square (see needs-happiness.ts).
    */
-  festivalDaysLeft: number;
+  readonly activeDecrees: Set<string>;
 
-  // Trader
+  // Trader (cozy-pivot Phase G: player-driven trading post — no caravan schedule).
+  // `traderPresent` == "owns a staffed, connected Trading Post" (trade affordance
+  // available); `traderOffers` is the deterministic menu, both refreshed daily by
+  // TraderSystem. No arrival/depart scheduling any more.
   traderPresent: boolean;
-  traderArrivalDay: number;   // -1 if not scheduled
-  traderDepartDay: number;
   readonly traderOffers: BarterOffer[];
 
   // Phase 4: siege state
@@ -199,10 +201,7 @@ export function makePlayerState(id: number): PlayerState {
     safetyCoverage: 0,
     goodsCoverage: 0,
     activeDecrees: new Set<string>(),
-    festivalDaysLeft: 0,
     traderPresent: false,
-    traderArrivalDay: -1,
-    traderDepartDay: 0,
     traderOffers: [],
     wallTiles: new Set<number>(),
     gateTiles: new Set<number>(),

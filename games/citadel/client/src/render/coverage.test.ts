@@ -41,7 +41,8 @@ describe("serviceRadius / serviceTint", () => {
     expect(serviceTint("chapel")).toBe(NEED_TINT.faith);
     expect(serviceTint("market")).toBe(NEED_TINT.goods);
     expect(serviceTint("watchpost")).toBe(NEED_TINT.safety);
-    // a radius'd building that isn't one of the three needs → neutral, not a need colour
+    expect(serviceTint("public-square")).toBe(NEED_TINT.festival);
+    // a radius'd building that isn't one of the four needs → neutral, not a need colour
     expect(serviceTint("well")).not.toBe(NEED_TINT.faith);
     expect(COVERAGE_SERVICE.well).toBeUndefined();
   });
@@ -151,12 +152,16 @@ describe("coverageByNeed", () => {
       b("chapel", 10, 10, 2, 2),
       b("chapel", 12, 10, 2, 2), // overlaps the first → union, not double-counted
       b("market", 30, 30, 2, 2),
+      b("public-square", 50, 50, 2, 2),
     ]);
     const faith = groups.find((g) => g.need === "faith");
     const goods = groups.find((g) => g.need === "goods");
+    const festival = groups.find((g) => g.need === "festival");
     expect(groups.find((g) => g.need === "safety")).toBeUndefined();
     expect(faith).toBeDefined();
     expect(goods).toBeDefined();
+    expect(festival).toBeDefined();
+    expect(festival!.hex).toBe(NEED_TINT.festival);
     // overlay tiles carry no per-tile edge (flat wash) and are unique
     const keys = new Set(faith!.tiles.map((t) => `${t.tx},${t.ty}`));
     expect(keys.size).toBe(faith!.tiles.length);

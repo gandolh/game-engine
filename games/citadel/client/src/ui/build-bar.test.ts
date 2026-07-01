@@ -41,14 +41,15 @@ function makeBar() {
 }
 
 describe("createBuildBar — tree + wiring", () => {
-  it("renders a button per toolbar entry (all 22 builds + 4 tools)", () => {
+  it("renders a button per toolbar entry (all 23 builds + 4 tools)", () => {
     const { bar } = makeBar();
     const labels = buttons(bar.root).map((b) => b.label);
     expect(labels).toContain("House");
     expect(labels).toContain("Keep");
     expect(labels).toContain("Road");
     expect(labels).toContain("Cancel");
-    expect(labels.length).toBe(26);
+    expect(labels).toContain("Square");
+    expect(labels.length).toBe(27);
   });
 
   it("a build button calls selectBuild(type); a tool button calls setTool(mode)", () => {

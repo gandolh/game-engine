@@ -66,6 +66,18 @@ export interface InspectPanelState {
    * L3 needs Town. Drives the tier-locked Upgrade-button disable + "Needs X" annotation.
    */
   peakTier: SettlementTier;
+  /**
+   * Phase G (cozy pivot #8, trading-post trade menu): whether the player owns a staffed,
+   * road-connected trading post right now (the snapshot's `traderPresent`). Gates the trade-offer
+   * affordance in the footer — only meaningful when `type === "tradingpost"`; the panel ignores it
+   * for every other building type.
+   */
+  traderPresent: boolean;
+  /**
+   * The deterministic ≤3-offer menu (snapshot's `traderOffers`), e.g. `{give:"wood", giveQty:5,
+   * receive:"tools", receiveQty:1}`. Only rendered when `type === "tradingpost" && traderPresent`.
+   */
+  traderOffers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[];
 }
 
 /** Callbacks into the host's command path — the SAME one the old DOM `#btn-upgrade` drove. */
@@ -78,6 +90,12 @@ export interface InspectPanelActions {
    * origin — the same path the old DOM `#btn-upgrade` tool used. Wired to the Upgrade button.
    */
   upgrade(): void;
+  /**
+   * Execute trade offer `offerIndex` (0-based, into the current `traderOffers` menu). The host
+   * issues `{ type: "trade", payload: { offerIndex } }` — the sole economic-intent lever (cozy
+   * decision #8). Wired to each trade-offer button.
+   */
+  trade(offerIndex: number): void;
 }
 
 /** The retained inspect panel: its root node (laid out + rendered by the host) plus refresh(). */
@@ -114,6 +132,10 @@ export interface InspectPanel {
  *     ├ rateLbl                     (production rate / "—" for services)
  *     ├ throttleLbl                 ("slowed" note; emptied + hidden when fine)
  *     ├ detailsBox(column): scope/flow/workers/level/connected rows
+ *     ├ tradeBox(column): "Trade:" heading + up to 3 offer buttons — Phase G. Only populated
+ *     │   (non-empty children) when `type === "tradingpost" && traderPresent`; empty (and so
+ *     │   zero-height) otherwise, so it's invisible for every other building and when the post
+ *     │   isn't staffed/connected.
  *     └ footer box(row): [Upgrade button] [cost label] — Chunk 3.
  */
 export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
@@ -145,6 +167,19 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
     connectedLbl,
   ]);
 
+  // Trade offers (Phase G, cozy decision #8): a "Trade:" heading + up to 3 pre-created offer
+  // buttons. Fixed pool (never re-allocated) — refresh() rebinds each button's label/onActivate
+  // to the live `traderOffers[i]` and toggles which are IN THE TREE (tradeBox.children), so the
+  // box is genuinely empty (zero height) when not a staffed/connected tradingpost, matching how
+  // `renderTree`/`computeLayout`/the a11y mirror already tolerate a container's children array
+  // changing length between frames (see build-bar.ts / the mirror's add-remove-reorder reconcile).
+  const tradeHeadingLbl = label("Trade:", { muted: true });
+  const MAX_TRADE_OFFERS = 3;
+  const tradeOfferBtns: ButtonNode[] = Array.from({ length: MAX_TRADE_OFFERS }, (_, i) =>
+    button("", { onActivate: () => actions.trade(i) }),
+  );
+  const tradeBox = box({ direction: "column", gap: 3 });
+
   // Footer: an Upgrade button + a cost label. The button issues the existing upgrade command
   // (via actions.upgrade); refresh() drives its `state` (enabled only when affordable + below
   // max) and the cost label's text + colour.
@@ -158,6 +193,7 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
     rateLbl,
     throttleLbl,
     details,
+    tradeBox,
     footer,
   ]);
 
@@ -235,9 +271,46 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
     setDisabled(!affordable);
   }
 
+  /**
+   * Rebuild `tradeBox.children` for the current frame: the "Trade:" heading + one button per
+   * live offer (0..3), only when this is a staffed/connected trading post. Mutates the array
+   * directly (not `setText`) since a row is added/removed, not re-textured — so this ALSO flips
+   * `changed` on any add/remove/relabel, which is what the tree-shape doc above promises.
+   */
+  function refreshTradeOffers(
+    type: string,
+    traderPresent: boolean,
+    offers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[],
+  ): void {
+    const show = type === "tradingpost" && traderPresent;
+    const nextChildren: (LabelNode | ButtonNode)[] = [];
+    if (show) {
+      nextChildren.push(tradeHeadingLbl);
+      offers.slice(0, MAX_TRADE_OFFERS).forEach((offer, i) => {
+        const btn = tradeOfferBtns[i]!;
+        const text = `${offer.giveQty} ${offer.give} → ${offer.receiveQty} ${offer.receive}`;
+        if (btn.label !== text) {
+          btn.label = text;
+          changed = true;
+        }
+        nextChildren.push(btn);
+      });
+    }
+    const before = tradeBox.children;
+    const sameLength = before.length === nextChildren.length;
+    const sameNodes = sameLength && before.every((n, i) => n === nextChildren[i]);
+    if (!sameNodes) {
+      tradeBox.children = nextChildren;
+      changed = true;
+    }
+  }
+
   function refresh(state: InspectPanelState): boolean {
     changed = false;
-    const { type, level, connected, workerCount, outputBuffer, season, stockpiles, peakTier } = state;
+    const {
+      type, level, connected, workerCount, outputBuffer, season, stockpiles, peakTier,
+      traderPresent, traderOffers,
+    } = state;
 
     // --- Name + description.
     setText(titleLbl, titleCase(type));
@@ -257,6 +330,9 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
     setText(workersLbl, workersLine(type, workerCount));
     setText(levelLbl, `Level ${level}`);
     setText(connectedLbl, `Connected: ${connected ? "yes" : "no"}`);
+
+    // --- Trade offers (Phase G): the tiny 2-3-choice menu, tradingpost-only, staffed+connected.
+    refreshTradeOffers(type, traderPresent, traderOffers);
 
     // --- Upgrade footer: cost for the NEXT level + a tier/affordability-gated button.
     refreshFooter(type, level, stockpiles, peakTier);

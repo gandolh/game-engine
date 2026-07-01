@@ -124,6 +124,67 @@ describe("ProductionSystem — happiness scales output to a floor (never 0)", ()
   });
 });
 
+describe("ProductionSystem — autonomous town-hall work-hours output lift (cozy-pivot Phase G)", () => {
+  /**
+   * Spawn a connected, staffed BAKERY at L3 (effective output 6 flour→bread/cycle)
+   * and return its id. L3 output 6 is chosen so the +20% town-hall lift crosses an
+   * integer boundary (6 → floor(6×1.2)=7), making the placement bonus observable
+   * (a base-2/3 producer floors the lift away — same as the old workHours decree).
+   */
+  function spawnBakeryL3(state: SimState, x: number, y: number): number {
+    const e = state.buildingWorld.spawn({
+      building: { type: "bakery", x, y, w: 2, h: 2, ownerId: 0 },
+    });
+    state.buildingState.set(e.id!, {
+      outputBuffer: 0,
+      workerCount: 1,
+      connected: true,
+      productionTick: -1000, // fire immediately
+      level: 3,
+    });
+    return e.id!;
+  }
+
+  function placeTownHall(state: SimState, x: number, y: number): void {
+    state.buildingWorld.spawn({
+      building: { type: "town-hall", x, y, w: 3, h: 3, ownerId: 0 },
+    });
+  }
+
+  it("a producer within a town hall's radius outputs MORE than one out of range", () => {
+    // WITH a town hall adjacent (its 3×3 centre near the bakery, dist ≤ 10).
+    const covered = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    covered.players[0]!.happiness = 100; // isolate the town-hall lift from the throttle
+    covered.players[0]!.stockpiles.flour = 100; // keep the converter fed
+    const cId = spawnBakeryL3(covered, 20, 20); // centre (21,21)
+    placeTownHall(covered, 22, 20);             // centre (23,21) → dist 2 ≤ 10
+    const cOut = outputAfterOneCycle(covered, cId);
+
+    // WITHOUT any town hall.
+    const bare = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    bare.players[0]!.happiness = 100;
+    bare.players[0]!.stockpiles.flour = 100;
+    const bId = spawnBakeryL3(bare, 20, 20);
+    const bOut = outputAfterOneCycle(bare, bId);
+
+    const def = getProductionDef("bakery")!;
+    const base = effectiveOutputPerCycle(def, 3); // 6
+    expect(bOut).toBe(base);                       // 6, no lift
+    expect(cOut).toBe(Math.floor(base * 1.2));     // floor(6×1.2)=7, lifted
+    expect(cOut).toBeGreaterThan(bOut);
+  });
+
+  it("a town hall out of range (dist > 10) does NOT lift output", () => {
+    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    state.players[0]!.happiness = 100;
+    state.players[0]!.stockpiles.flour = 100;
+    const id = spawnBakeryL3(state, 20, 20);   // centre (21,21)
+    placeTownHall(state, 60, 60);              // far away → no coverage
+    const out = outputAfterOneCycle(state, id);
+    expect(out).toBe(effectiveOutputPerCycle(getProductionDef("bakery")!, 3)); // 6, unlifted
+  });
+});
+
 describe("ProductionSystem — local (home-house mood) preferred over player happiness", () => {
   it("a high-mood worker home lifts output even when player happiness is low", () => {
     const def = getProductionDef("woodcutter")!;

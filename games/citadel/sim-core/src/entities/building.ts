@@ -104,6 +104,10 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   keep:     { w: 3, h: 3 }, // the heart; if sacked → game-over
   // Citadel 29 (MP): each player's match-start anchor; sacked → elimination.
   "town-hall": { w: 3, h: 3 },
+  // Cozy-pivot Phase G: civic gathering place — projects a festival (mood) footprint.
+  // 2×2 like the other service buildings (chapel/market/watchpost) so it drops into
+  // the same neighbourhood grid without needing a big clearing.
+  "public-square": { w: 2, h: 2 },
   // Phase 4.5: hazard mitigation
   well:    { w: 1, h: 1 }, // reduces fire ignition chance nearby
   healer:  { w: 2, h: 2 }, // reduces disease onset and mortality
@@ -119,6 +123,9 @@ export const SERVICE_RADII: Readonly<Record<string, number>> = {
   garrison: 8,
   keep: 10,
   "town-hall": 10,
+  // Cozy-pivot Phase G: the public square's festival (mood) reach — a gathering
+  // radius comparable to the other neighbourhood services (chapel/market = 8).
+  "public-square": 8,
   // Phase 4.5: hazard mitigation radii
   healer: 8,
 };
@@ -370,6 +377,15 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
     inputPerCycle: 0,
     outputPerCycle: 0,
   },
+  // Cozy-pivot Phase G: civic gathering place — no workers, no goods. Its only
+  // effect is a spatial festival (mood) lift for homes in its SERVICE_RADII,
+  // applied autonomously by NeedsHappinessSystem (a placement effect, not a lever).
+  "public-square": {
+    workerSlots: 0,
+    ticksPerCycle: 20,
+    inputPerCycle: 0,
+    outputPerCycle: 0,
+  },
   // Phase 4.5: hazard mitigation buildings
   well: {
     workerSlots: 0,
@@ -516,6 +532,10 @@ export const BUILD_COST: Readonly<Record<string, Partial<Record<GoodType, number
   tradingpost: { wood: 8 },
   healer:      { wood: 8 },
   mine:        { wood: 8 },
+  // Cozy-pivot Phase G: civic gathering place — no goods/worker production, so
+  // it's priced like the other pure-service buildings (chapel/tradingpost/healer),
+  // not a late-tier refiner.
+  "public-square": { wood: 8 },
   smith:       { wood: 8, stone: 2 },
   "town-hall": { wood: 12 },
   tower:       { wood: 8, stone: 4 },
@@ -554,4 +574,13 @@ export function effectiveHousingCapacity(def: BuildingProductionDef, level: numb
 export function effectiveDefenseStrength(def: BuildingProductionDef, level: number): number {
   if (def.defenseStrength === undefined) return 0;
   return def.defenseStrength + (level - 1) * 2;
+}
+
+/**
+ * Manhattan distance between two tile centres. Pure. Shared by every
+ * "is this point within a service radius?" check (needs/happiness coverage,
+ * the town-hall output lift) so the metric can't drift between call sites.
+ */
+export function manhattanDist(ax: number, ay: number, bx: number, by: number): number {
+  return Math.abs(ax - bx) + Math.abs(ay - by);
 }
