@@ -233,10 +233,15 @@ are still open (solo is unaffected).
 > still match); `cozy-threats.test.ts` pins the fire split both ways. Determinism: reproducible + **no
 > numeric drift** vs baseline (only event copy differs). **P2 instrumentation done:**
 > `window.__citadel.snapshot()` exposes the live snapshot and `play.mjs` reads game state from it +
-> tracks the `allHomesCovered` edge — the banner is now assertable, not inferred. **P2 placement still
-> open:** a live run confirmed the banner doesn't fire because the plan can't land services on the
-> **seeded** map (it anchors on the pre-seeded 12×6 core box with an empty occupancy set) — fix =
-> make the plan seed-aware (todo acceptance). See [phaseEF-playtest todo](../todos/2026-07-01-citadel-phaseEF-playtest.md).
+> tracks the `allHomesCovered` edge — the banner is now assertable, not inferred. **P2 placement now
+> DONE:** the plan is seed-aware — it reserves the seeded road spine (planning onto it severed the
+> core's connectivity and starved the town to pop 0) and places chapel/market/watchpost via a
+> coverage-aware ring placer that guarantees each lands within `SERVICE_RADII`=8 of the seeded house.
+> A live run holds `allHomesCovered:true` for all 49/49 ticks with happy 91–99 (vs `covered:false` /
+> happy ~35 before). Phase F is placement-verified live; only the sub-second `false→true` banner edge
+> isn't harness-observable (coverage is reached during boot — a sampling race, not a defect; the edge
+> is unit-tested in main.ts). The E/F playtest todo is now **done**. See
+> [phaseEF-playtest todo](../todos/2026-07-01-citadel-phaseEF-playtest.md).
 
 > **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
 > *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,

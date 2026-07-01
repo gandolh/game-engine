@@ -4,6 +4,24 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] done | Citadel — P2 playtest placement half: seed-aware plan (Phase F verified live)
+
+Closed the remaining open half of [the E/F playtest todo](todos/2026-07-01-citadel-phaseEF-playtest.md)
+(now `status: done`). `play.mjs`'s plan is now **seed-aware**: it seeds the occupancy set from
+`__citadel.buildings()` **including the seeded road spine** (the load-bearing fix — the first attempt
+excluded roads, so a building planned onto a spine tile removed it, severed the seeded core's
+connectivity, and starved the town to pop 0), anchors on the seeded house, and places
+chapel/market/watchpost via a new coverage-aware ring placer (`addNear`) that guarantees each
+service's footprint centre lands within `SERVICE_RADII`=8 (center-to-center Manhattan — the exact
+needs-happiness test) of the anchor, clear of the seeded box. Live result (seed `0x1a2b3c4d`,
+200s@4×, reloads:0): `services-in-radius {chapel,market,watchpost}` all true, and **`allHomesCovered`
+holds true for all 49/49 timeline ticks with happy 91–99** — vs `covered:false`/`happy~35` before the
+fix. So Phase F is now placement-verified live (a prospering town is reliably reachable); only the
+sub-second `false→true` banner edge isn't harness-observable (coverage is reached during the headless
+boot before the first 4s sample — a sampling race, surfaced honestly by a new `coveredFromBoot`
+outcome field; the edge + seeded-silent behavior are unit-tested in main.ts's latch). Driver-only
+change (`.claude/skills/playtest-citadel/play.mjs`) — no sim/client code touched, determinism N/A.
+
 ## [2026-07-01] done | Citadel cozy-pivot — P1 toast copy re-worded + P2 playtest instrumentation
 
 Closed out the two follow-ups filed in [the E/F playtest todo](todos/2026-07-01-citadel-phaseEF-playtest.md).
