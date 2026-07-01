@@ -201,21 +201,30 @@ describe("FireSystem — fire spread", () => {
     const fs = localPlayer(sim.state).fireState.get(id1!);
     expect(fs?.burning).toBe(true);
 
-    // Run 10 days — spread should hit house 2.
-    runDays(sim, 10, 1);
+    // Run 10 days — spread should hit house 2. Track spread across the whole
+    // window (not just the final tick's fireState) because under the cozy
+    // pivot a burning building extinguishes itself after its burn window
+    // (~3 days) instead of staying burning/destroyed forever — so by day 10
+    // the ORIGINAL fire may already have cycled through and gone out even
+    // though spread genuinely happened. Poll every day so a mid-window
+    // "house 2 caught fire" is observed even if it too has since gone out.
+    let sawSpreadOrBurn = false;
+    for (let d = 0; d < 10; d++) {
+      runDays(sim, 1, 1 + d * TICKS_PER_DAY);
+      for (const [, fss] of localPlayer(sim.state).fireState) {
+        if (fss.burning || fss.destroyed) sawSpreadOrBurn = true;
+      }
+      if (sim.state.events.some((e) => /fire spread|caught fire/i.test(e))) sawSpreadOrBurn = true;
+    }
 
     // At least one fire event should appear (spread or the original ignition marker).
     const allEvents = sim.state.events;
     const fireEvents = allEvents.filter((e) => /fire|burned/i.test(e));
-    // Count fires in fireState (includes original).
-    let burnCount = 0;
-    for (const [, fss] of localPlayer(sim.state).fireState) {
-      if (fss.burning || fss.destroyed) burnCount++;
-    }
-    // Either spread happened (burnCount ≥ 2) or at least fire events exist.
-    expect(fireEvents.length + burnCount).toBeGreaterThanOrEqual(1);
-    // The original house must have been burning (force-ignited).
-    expect(burnCount).toBeGreaterThanOrEqual(1);
+    expect(fireEvents.length).toBeGreaterThanOrEqual(1);
+    // The original house (and/or its spread target) must have been observed
+    // burning at some point across the window (force-ignited, then possibly
+    // extinguished under cozy — but it DID burn).
+    expect(sawSpreadOrBurn).toBe(true);
   });
 
   it("a burning building is in onFire state in the snapshot", () => {
@@ -494,7 +503,9 @@ describe("DiseaseSystem — healer mitigation", () => {
      * Over 40 days, the healer sim should have equal or fewer deaths.
      */
     function buildCrowded(withHealer: boolean): CitadelSimResult {
-      const sim = bootstrapSim({ seed: 0xdeadbeef, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+      // Sharp path: this test proves disease CAN kill (mortality path), which is
+      // frozen behind cozyThreats:false (cozy default never removes a villager).
+      const sim = bootstrapSim({ seed: 0xdeadbeef, ticksPerDay: TICKS_PER_DAY, maxDays: 40, cozyThreats: false });
       const { terrain } = sim;
       const cx = Math.floor(terrain.width / 2);
       const cy = Math.floor(terrain.height / 2);
@@ -575,7 +586,10 @@ describe("DiseaseSystem — strict mortality (force-triggered outbreak)", () => 
    * which is below the ≥3-neighbor fire threshold for this layout.
    */
   function buildProvenTown(withHealer: boolean): CitadelSimResult {
-    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 60 });
+    // Sharp path: strict mortality proof requires the frozen (non-cozy) disease
+    // path — cozy mode never calls removeOneVillager, so these force-triggered
+    // outbreak tests need cozyThreats:false to keep proving the old behavior.
+    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 60, cozyThreats: false });
     // Road at y=13 from x=10..45.
     const roadTiles: Array<{ x: number; y: number }> = [];
     for (let x = 10; x <= 45; x++) roadTiles.push({ x, y: 13 });

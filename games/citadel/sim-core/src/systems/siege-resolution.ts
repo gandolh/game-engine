@@ -14,8 +14,19 @@
 import type { System, SimContext, Rng } from "@engine/core";
 import type { SimState, RaiderState, PlayerState } from "../sim-state";
 import { pushEvent, removeOneVillager } from "../sim-state";
+import type { GoodType } from "../entities/building";
 import { getProductionDef, effectiveDefenseStrength } from "../entities/building";
 import { igniteBuildingById, FIRE_WOODEN_TYPES } from "./fire-system";
+
+/**
+ * Cozy pivot Phase D (raids): goods a raider will consider pilfering, in
+ * priority order. Deterministic order (not iteration-over-object) so the
+ * spread across goods is stable across engines/runtimes.
+ */
+const COZY_PILFER_GOODS: readonly GoodType[] = ["bread", "grain", "tools", "planks", "wood", "stone", "flour"];
+
+/** Cozy pivot Phase D: same magnitude as the sharp-path damage happiness hit. */
+const COZY_RAID_HAPPINESS_DIP = 8;
 
 /** Chance a damaging/sacking raid sets a surviving wooden building ablaze. */
 const RAID_IGNITE_CHANCE = 0.4;
@@ -257,10 +268,59 @@ function applyRaidDamage(state: SimState, p: PlayerState, raidStrength: number, 
   state.connectivityDirty = true;
 }
 
+/**
+ * Cozy pivot Phase D (raids): a raider that reaches the town pilfers some
+ * stockpiled GOODS (the regenerating pool) instead of triggering the
+ * destructive `resolveSiege` bands. Stronger defense (relative to the
+ * raider's strength) shrinks the theft; a weak defense loses more — so wall/
+ * gate/watchpost investment still visibly matters, it just changes the size
+ * of the goods hit instead of gating destruction vs. survival.
+ *
+ * Deterministic: the only randomness is the caller-supplied seeded `rng`
+ * fork (`cozy-pilfer-<playerId>-<raiderId>`); the good spread itself is a
+ * fixed priority order, not a random pick, so replays are stable even if the
+ * rng draw is ever dropped.
+ */
+function applyCozyPilfer(state: SimState, p: PlayerState, raider: RaiderState, rng: Rng): number {
+  const ratio = p.defensiveStrength / Math.max(1, raider.strength);
+  // Base theft scales with raid strength; defense ratio shrinks it. Floor the
+  // divisor so a very strong defense can still squeeze theft toward ~0
+  // rather than going negative or flipping sign.
+  const baseTheft = raider.strength * 0.5;
+  const defenseFactor = 1 / (1 + ratio); // strong defense (ratio big) -> factor -> 0; weak defense (ratio small) -> factor -> ~1
+  // Seeded jitter (+/-20%) so identical-strength raids don't all steal the
+  // exact same amount, while staying fully deterministic under the fork.
+  const jitter = 0.8 + rng.nextFloat() * 0.4;
+  let remaining = Math.max(0, Math.round(baseTheft * defenseFactor * jitter));
+
+  let stolenTotal = 0;
+  for (const good of COZY_PILFER_GOODS) {
+    if (remaining <= 0) break;
+    const have = p.stockpiles[good];
+    if (have <= 0) continue;
+    const take = Math.min(have, remaining);
+    p.stockpiles[good] = have - take;
+    remaining -= take;
+    stolenTotal += take;
+  }
+
+  return stolenTotal;
+}
+
 export class SiegeResolutionSystem implements System {
   readonly name = "SiegeResolutionSystem";
 
-  constructor(private readonly state: SimState) {}
+  /**
+   * Cozy-pivot Phase D threat-demotion flag. `true` (default): raids pilfer
+   * stockpiled goods and leave (see `applyCozyPilfer`). `false`: today's
+   * exact destructive path (`resolveSiege` bands -> repelled/damage/sacked),
+   * byte-identical.
+   */
+  private readonly cozy: boolean;
+
+  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
+    this.cozy = opts.cozy ?? true;
+  }
 
   run(_ctx: SimContext): void {
     const state = this.state;
@@ -300,6 +360,30 @@ export class SiegeResolutionSystem implements System {
           Math.abs(raider.tileY - target.y) <= 2;
 
         if (!atKeep && !atDefense && !exhaustedAtTarget) continue;
+
+        // Cozy pivot Phase D (raids, decision #4): a raid that reaches the
+        // town pilfers stockpiled GOODS and leaves — it never destroys a
+        // building, removes a villager, sacks the keep, or ends the game.
+        // The sharp path below (resolveSiege bands -> repelled/damage/sacked)
+        // is left completely untouched for cozy === false.
+        if (this.cozy) {
+          const stolen = applyCozyPilfer(state, p, raider, state.rng.fork(`cozy-pilfer-${p.id}-${raider.id}`));
+          raider.resolved = true;
+          // Gentle happiness dip (same magnitude as the sharp damage path) —
+          // the raid was unsettling even though nothing was destroyed. The
+          // Phase B productivity floor picks this up and it self-recovers.
+          p.happiness = Math.max(0, p.happiness - COZY_RAID_HAPPINESS_DIP);
+          // Threat may still ease off on a resolved raid, gently (no repel
+          // bonus size needed since nothing was actually repelled).
+          p.threatLevel = Math.max(0, p.threatLevel - 5);
+          if (stolen > 0) {
+            pushEvent(state, `Day ${state.day + 1}: Raid ${raider.id} made off with some goods and left.`);
+          } else {
+            pushEvent(state, `Day ${state.day + 1}: Raid ${raider.id} found little worth taking and left.`);
+          }
+          toRemove.push(i);
+          continue;
+        }
 
         const result = resolveSiege(
           raider.strength,

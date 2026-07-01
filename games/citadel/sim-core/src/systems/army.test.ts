@@ -27,7 +27,12 @@ function placeTownHall(sim: CitadelSimResult, ownerId: number, x: number, y: num
 }
 
 function boot() {
-  const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 50, worldWidth: 96, worldHeight: 96 });
+  // cozyThreats:false — a future Challenge/MP mode is the intended home for
+  // PvP armies (per the cozy-pivot brief), and it isolates this test's exact
+  // tools-spent accounting from the unrelated PvE raid system, which (under
+  // the cozy default) would otherwise pilfer goods from either player's own
+  // keep independently of the PvP army attack these tests are exercising.
+  const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 50, worldWidth: 96, worldHeight: 96, cozyThreats: false });
   sim.state.players.push(makePlayerState(1));
   return sim;
 }

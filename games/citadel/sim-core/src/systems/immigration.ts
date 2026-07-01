@@ -201,7 +201,8 @@ export class ImmigrationSystem implements System {
       // bootstrap: a fresh bread chain (farm→mill→bakery) needs all three staffed
       // before any bread flows, so the founders must survive the spin-up on
       // rations. The ration is finite, so a colony that can't get a chain running
-      // (e.g. founded in winter, grain=0) still starves once rations run out.
+      // still starves once rations run out. (Winter grain is now floored ~×0.5, not
+      // 0, so winter alone no longer starves a working chain — cozy pivot #9.)
       this.spawnVillager(p);
       p.stockpiles.bread += 5;
       p.hungerDays = 0;

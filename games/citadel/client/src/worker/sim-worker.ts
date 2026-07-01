@@ -64,6 +64,8 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         // cold-open can place its first buildings. MP (the @citadel/server bootstrap) keeps
         // placement free for now. See BUILD_COST in @citadel/sim-core.
         chargeBuildCost: true,
+        // Cozy-pivot Phase D: threat demotion on (the default; stated explicitly for clarity).
+        cozyThreats: true,
         startingStock: { wood: 40 },
       });
       tick = 0;

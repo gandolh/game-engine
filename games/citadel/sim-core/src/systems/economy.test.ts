@@ -132,8 +132,10 @@ describe("Citadel Phase 2 — economy", () => {
     expect(farmYes!.connected).toBe(true);
   });
 
-  it("seasons: grain multiplier is 0 in winter and 1.0 in summer", () => {
-    expect(grainMultiplier("winter")).toBe(0);
+  it("seasons: grain multiplier is 0.5 in winter and 1.0 in summer", () => {
+    // Cozy pivot Phase D: winter floor raised 0.0 -> 0.5 (unconditional, not
+    // flag-gated) so a winter-founded colony still gets a grain trickle.
+    expect(grainMultiplier("winter")).toBe(0.5);
     expect(grainMultiplier("summer")).toBe(1.0);
   });
 
@@ -262,11 +264,13 @@ describe("Citadel Phase 2 — economy", () => {
     expect(sim.stockpiles.flour).toBeGreaterThan(0);
   });
 
-  it("winter halts grain production and a no-surplus town loses population", () => {
+  it("winter no longer starves a town founded with no surplus (cozy grain floor)", () => {
     // This sim starts at winter (day 12) via startDay option, simulating a
-    // settlement founded with no autumn grain surplus. Founders arrive with
-    // bread rations that quickly run out; with grain production = 0 in winter,
-    // the bread chain never starts. Starvation must reduce population.
+    // settlement founded with no autumn grain surplus. Pre-cozy-pivot, winter's
+    // grain multiplier was 0 and this scenario starved the town to gameOver.
+    // Cozy pivot Phase D floors winter grain at 0.5 (unconditional, not
+    // flag-gated) — a winter-founded colony now gets a grain trickle instead of
+    // going to zero, so it survives and its stockpile actually grows.
     const cmds: ScheduledCmd[] = [
       { atTick: 0, cmd: roadRow(13, 10, 40) },
       { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 11 } } },
@@ -290,13 +294,14 @@ describe("Citadel Phase 2 — economy", () => {
       return sim2;
     }
 
-    // Start in winter (day 12 of 16-day year). Farm produces 0 grain.
-    // Bread rations carry pioneers ~5 days before starvation triggers.
-    // Run 20 days: with no grain production, the bread chain never starts,
-    // founding rations are exhausted, and the whole town starves to death.
-    const sim = runWithStartDay(cmds, TICKS_PER_DAY * 20, 12);
-    // The town must have reached game-over (pop dropped to 0 after existing).
-    // A winter-founded colony with no autumn surplus CANNOT survive.
-    expect(sim.gameOver).toBe(true);
+    // Start in winter (day 12 of 16-day year). Farm still produces grain at the
+    // 0.5 winter floor. Run 60 days (spans winter -> spring -> summer) so the
+    // trickle has time to accumulate through the bread chain and grow pop.
+    const sim = runWithStartDay(cmds, TICKS_PER_DAY * 60, 12);
+    // The town must NOT have starved to game-over — winter no longer kills.
+    expect(sim.gameOver).toBe(false);
+    // Grain still trickles in even starting cold: the stockpile grows from 0.
+    expect(sim.stockpiles.grain + sim.stockpiles.flour + sim.stockpiles.bread).toBeGreaterThan(0);
+    expect(sim.population).toBeGreaterThan(0);
   });
 });

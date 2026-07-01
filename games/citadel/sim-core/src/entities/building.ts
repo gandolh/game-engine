@@ -207,7 +207,7 @@ export const PRODUCTION_DEFS: Readonly<Record<string, BuildingProductionDef>> = 
     workerSlots: 2,
     outputGood: "grain",
     // 3 grain/cycle × 2 cycles/day = 6 grain/day in summer
-    // spring×0.5=1.5→floor=1/cycle, autumn×1.2=3.6→floor=3/cycle, winter×0=0
+    // spring×0.5=1.5→floor=1/cycle, autumn×1.2=3.6→floor=3/cycle, winter×0.5=1.5→floor=1/cycle
     outputPerCycle: 3,
     ticksPerCycle: 10,
     inputPerCycle: 0,

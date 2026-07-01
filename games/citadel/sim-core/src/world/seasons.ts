@@ -29,6 +29,6 @@ export function grainMultiplier(season: Season): number {
     case "autumn":
       return 1.2;
     case "winter":
-      return 0.0;
+      return 0.5;
   }
 }

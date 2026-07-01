@@ -5,7 +5,7 @@
  * (workerCount > 0), once per production cycle (ticksPerCycle):
  *   - Producers (no input good): emit outputPerCycle into the building's
  *       LOCAL outputBuffer. Farms additionally scale by the seasonal grain
- *       multiplier (0 in winter → no output).
+ *       multiplier (floored at ~0.5 in winter → food always trickles, cozy #9).
  *   - Converters (input good set): consume inputPerCycle from the GLOBAL
  *       stockpile (the Storehouse pool), then emit outputPerCycle into their
  *       local outputBuffer. Converters also only run with a real worker.

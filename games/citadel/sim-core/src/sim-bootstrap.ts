@@ -70,6 +70,14 @@ export interface CitadelSimOptions {
    * buildings. Default none (every good starts at 0). Deterministic (a constant grant).
    */
   startingStock?: Partial<Record<GoodType, number>>;
+  /**
+   * Cozy-pivot Phase D: demote the threat systems (fire / disease / siege) toward a gentler,
+   * lower-stakes footing. Default true → the cozy tuning is the intended solo experience. Set
+   * false to keep the original harsher threat behavior (e.g. the MP/headless-baseline path).
+   * This chunk only THREADS the flag into the three threat systems; no behavior branches on it
+   * yet (later chunks add the cozy tuning).
+   */
+  cozyThreats?: boolean;
 }
 
 /** True if `stock` holds at least every good in `cost`. */
@@ -165,6 +173,9 @@ export function loadFromSave(save: CitadelSave): CitadelSimResult {
     startDay: save.startDay,
     // Replay with the saved economy rules so the reconstructed state matches the original.
     chargeBuildCost: save.chargeBuildCost ?? false,
+    // A save taken with cozy threats on must replay with them on. Absent (pre-feature saves)
+    // ⇒ true, matching the bootstrap default (the cozy footing is the intended solo experience).
+    cozyThreats: save.cozyThreats ?? true,
     ...(save.startingStock !== undefined ? { startingStock: save.startingStock } : {}),
   });
 
@@ -214,6 +225,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const territoryRadius = opts.territoryRadius ?? DEFAULT_TERRITORY_RADIUS;
   const chargeBuildCost = opts.chargeBuildCost ?? false;
   const startingStock = opts.startingStock;
+  // Cozy-pivot Phase D: threat demotion is on by default (the intended solo footing). Threaded
+  // into the three threat systems below; no behavior branches on it yet.
+  const cozyThreats = opts.cozyThreats ?? true;
 
   const terrain = generateTerrain(seed, WORLD_WIDTH, WORLD_HEIGHT);
 
@@ -827,12 +841,12 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const needsHappinessSystem = new NeedsHappinessSystem(state, ticksPerDay);
   const traderSystem = new TraderSystem(state, ticksPerDay);
   // Phase 4.5: hazard systems (run AFTER needs/happiness, BEFORE immigration).
-  const fireSystem = new FireSystem(state);
-  const diseaseSystem = new DiseaseSystem(state);
+  const fireSystem = new FireSystem(state, { cozy: cozyThreats });
+  const diseaseSystem = new DiseaseSystem(state, { cozy: cozyThreats });
   // Phase 4: siege systems (run AFTER population so they see fresh state).
   const raidSpawnSystem = new RaidSpawnSystem(state, terrain);
   const raiderMovementSystem = new RaiderMovementSystem(state, terrain);
-  const siegeResolutionSystem = new SiegeResolutionSystem(state);
+  const siegeResolutionSystem = new SiegeResolutionSystem(state, { cozy: cozyThreats });
   // Citadel 32: PvP army movement + resolution (no-op in solo — empty army list).
   const armySystem = new ArmySystem(state);
   // Phase 5: tier system (runs AFTER population and siege, so it sees the final state for the day).
@@ -1072,6 +1086,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         commandLog: state.commandLog.map((e) => ({ tick: e.tick, command: e.command })),
         // Persist the cozy economy options so loadFromSave replays with the same rules.
         chargeBuildCost,
+        cozyThreats,
         ...(startingStock !== undefined ? { startingStock } : {}),
       };
     },

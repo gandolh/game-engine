@@ -28,7 +28,15 @@ export class DiseaseSystem implements System {
   private readonly rivalBase: Rng;
   private readonly perPlayerRng = new Map<number, Rng>();
 
-  constructor(private readonly state: SimState) {
+  /**
+   * Cozy-pivot Phase D threat-demotion flag. When true, disease never kills
+   * (mortality block skipped, no removeOneVillager) and outbreaks are
+   * guaranteed to recover; when false, behavior is byte-identical to pre-cozy.
+   */
+  private readonly cozy: boolean;
+
+  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
+    this.cozy = opts.cozy ?? true;
     // Fork the base RNG ONCE in constructor, never per-tick.
     this.baseRng = state.rng.fork("disease");
     // Citadel 33: rival hazard streams from a separate createRng tree (no
@@ -77,29 +85,50 @@ export class DiseaseSystem implements System {
         pushEvent(state, `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.`);
       }
     } else {
-      // Active outbreak: spread + mortality + recovery.
+      // Active outbreak: spread (shared), then mortality + recovery — branched on cozy.
       const spreadChance = Math.min(0.5, (crowding - 1) * 0.1);
       if (this.rngFor(p).nextFloat() < (healerNear ? spreadChance * 0.3 : spreadChance)) {
         const newSick = Math.ceil(p.population * 0.1);
         p.sickVillagers = Math.min(p.population, p.sickVillagers + newSick);
       }
 
-      const deathRate = healerNear ? 0.05 : 0.20;
-      const rawDeaths = Math.floor(p.sickVillagers * deathRate);
-      const deaths = (healerNear || crowding <= 2) ? rawDeaths : Math.max(1, rawDeaths);
-      if (deaths > 0 && p.population > 0) {
-        const actualDeaths = Math.min(deaths, p.population);
-        for (let i = 0; i < actualDeaths; i++) {
-          if (!removeOneVillager(this.state, p)) break;
+      if (!this.cozy) {
+        // Frozen legacy path: disease can kill. Byte-identical to pre-cozy behavior.
+        const deathRate = healerNear ? 0.05 : 0.20;
+        const rawDeaths = Math.floor(p.sickVillagers * deathRate);
+        const deaths = (healerNear || crowding <= 2) ? rawDeaths : Math.max(1, rawDeaths);
+        if (deaths > 0 && p.population > 0) {
+          const actualDeaths = Math.min(deaths, p.population);
+          for (let i = 0; i < actualDeaths; i++) {
+            if (!removeOneVillager(this.state, p)) break;
+          }
+          p.sickVillagers = Math.max(0, p.sickVillagers - actualDeaths);
+          pushEvent(state, `Day ${state.day}: ${actualDeaths} villager(s) died from disease (pop ${p.population}).`);
         }
-        p.sickVillagers = Math.max(0, p.sickVillagers - actualDeaths);
-        pushEvent(state, `Day ${state.day}: ${actualDeaths} villager(s) died from disease (pop ${p.population}).`);
+
+        const recoveryChance = healerNear ? 0.3 : 0.1;
+        if (this.rngFor(p).nextFloat() < recoveryChance) {
+          p.sickVillagers = Math.max(0, p.sickVillagers - Math.ceil(p.sickVillagers * 0.4));
+        }
+      } else {
+        // Cozy: disease is a recoverable slowdown, never a killer — no mortality block,
+        // no removeOneVillager call. Sick villagers "under the weather" still throttle
+        // production elsewhere (via sickVillagers count); here we just guarantee recovery.
+        // Small deterministic happiness dip while the outbreak drags on — the town
+        // visibly slows (Phase B productivity floor) and eases back once it ends.
+        p.happiness = Math.max(0, p.happiness - 1);
+
+        // Chance-based recovery (healer makes it faster), same shape as before...
+        const recoveryChance = healerNear ? 0.3 : 0.1;
+        if (this.rngFor(p).nextFloat() < recoveryChance) {
+          p.sickVillagers = Math.max(0, p.sickVillagers - Math.ceil(p.sickVillagers * 0.4));
+        }
+        // ...plus a guaranteed integer floor so the outbreak can never stall forever,
+        // even on a healer-less unlucky rng streak: always shed at least 1/day.
+        const guaranteedFloor = Math.max(1, Math.ceil(p.sickVillagers * 0.05));
+        p.sickVillagers = Math.max(0, p.sickVillagers - guaranteedFloor);
       }
 
-      const recoveryChance = healerNear ? 0.3 : 0.1;
-      if (this.rngFor(p).nextFloat() < recoveryChance) {
-        p.sickVillagers = Math.max(0, p.sickVillagers - Math.ceil(p.sickVillagers * 0.4));
-      }
       if (p.sickVillagers <= 0) {
         p.outbreakActive = false;
         p.sickVillagers = 0;

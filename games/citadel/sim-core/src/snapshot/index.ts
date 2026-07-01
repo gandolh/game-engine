@@ -135,6 +135,11 @@ export interface CitadelSave {
    * backward-compat with pre-feature saves (absent ⇒ free placement, no grant).
    */
   readonly chargeBuildCost?: boolean;
+  /**
+   * Cozy-pivot Phase D threat-demotion flag, persisted so replay reconstructs identical state.
+   * Optional for backward-compat with pre-feature saves (absent ⇒ true, the bootstrap default).
+   */
+  readonly cozyThreats?: boolean;
   readonly startingStock?: Readonly<Record<string, number>>;
 }
 

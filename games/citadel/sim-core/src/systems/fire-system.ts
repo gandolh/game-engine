@@ -41,6 +41,21 @@ const BURN_TICKS = 60;
 /** Interlock: a burning building suppresses output of neighbours within this radius. */
 const FIRE_SUPPRESS_RADIUS = 2;
 
+/**
+ * Cozy pivot: extra burnTicksLeft decrement (on top of the normal -1/tick) for a
+ * burning building whose centre is covered by a well, so a well visibly speeds
+ * recovery instead of just gating ignition/spread odds. Integer, deterministic.
+ */
+const COZY_WELL_EXTINGUISH_BONUS = 2;
+
+/**
+ * Cozy pivot: per-day mood dent applied to a house within fire-radius of an
+ * active blaze (radius = the well's own coverage rect, reused as the cure's
+ * reach). A one-time daily subtraction; Phase B's asymmetric ease recovers it
+ * once the fire is out. Clamped >= 0, applied once per day.
+ */
+const COZY_FIRE_MOOD_DENT = 8;
+
 export class FireSystem implements System {
   readonly name = "FireSystem";
 
@@ -58,7 +73,16 @@ export class FireSystem implements System {
   // built district still burns (the grace is temporal, not population-gated).
   private readonly firstBuildDay = new Map<number, number>();
 
-  constructor(private readonly state: SimState) {
+  /**
+   * Cozy-pivot Phase D threat-demotion flag. `true` (default): a burning building
+   * smoulders then EXTINGUISHES (never destroyed), a nearby well speeds it out, and
+   * an active fire dents nearby houses' mood. `false`: today's exact destructive
+   * path (burn-out → `_destroyBuilding`), byte-identical.
+   */
+  private readonly cozy: boolean;
+
+  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
+    this.cozy = opts.cozy ?? true;
     // Fork the base RNG ONCE in constructor, never per-tick.
     this.baseRng = state.rng.fork("fire");
     // Citadel 33: rival hazard streams come from a separate createRng tree so
@@ -112,13 +136,61 @@ export class FireSystem implements System {
       // fresh ignition is held off during the founding grace.
       this._spreadFire(p);
       if (!this.inFoundingGrace(p)) this._checkIgnition(p);
+      // Cozy pivot: once per day, dent the mood of houses near an active fire
+      // instead of ever destroying anything (see _tickBurning for the
+      // extinguish-not-destroy half of the contract).
+      if (this.cozy) this._dentNearbyMood(p);
     }
   }
 
-  /** Advance burn timers; destroy buildings when timer expires. */
+  /**
+   * Cozy pivot: subtract COZY_FIRE_MOOD_DENT from the mood of every one of p's
+   * HOUSES whose centre falls within a burning building's cure-radius (the
+   * well's own coverage rect, reused as the fire's "dent" radius). Pure
+   * arithmetic, clamped >= 0, called at most once per day per player from the
+   * daily branch of run() (same guard as ignition/spread).
+   */
+  private _dentNearbyMood(p: PlayerState): void {
+    const state = this.state;
+    const burningCentres: Array<{ x: number; y: number }> = [];
+    for (const entity of state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      const id = entity.id;
+      if (id === undefined) continue;
+      const fs = p.fireState.get(id);
+      if (fs?.burning !== true) continue;
+      const b = entity.building;
+      burningCentres.push({ x: b.x + Math.floor(b.w / 2), y: b.y + Math.floor(b.h / 2) });
+    }
+    if (burningCentres.length === 0) return;
+
+    for (const entity of state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      if (entity.building.type !== "house") continue;
+      const id = entity.id;
+      if (id === undefined) continue;
+      const b = entity.building;
+      const hcx = b.x + Math.floor(b.w / 2);
+      const hcy = b.y + Math.floor(b.h / 2);
+      const nearFire = burningCentres.some((c) => coversRect("well", c.x, c.y, hcx, hcy));
+      if (!nearFire) continue;
+      const rs = state.buildingState.get(id);
+      if (rs === undefined) continue;
+      rs.mood = Math.max(0, (rs.mood ?? 40) - COZY_FIRE_MOOD_DENT);
+    }
+  }
+
+  /**
+   * Advance burn timers. cozy=false: destroy the building when the timer
+   * expires (unchanged legacy path). cozy=true: the building still smoulders
+   * (workerCount=0 throttle + neighbour suppression below are the cozy
+   * "slowdown"), a nearby well burns it out faster, and at 0 it's EXTINGUISHED
+   * — fire clears, nothing is destroyed/despawned/decremented.
+   */
   private _tickBurning(p: PlayerState, tick: number): void {
     const state = this.state;
     const toDestroy: number[] = [];
+    const toExtinguish: number[] = [];
     const burningCentres: Array<{ x: number; y: number }> = [];
     for (const entity of state.buildingWorld.query("building")) {
       if (entity.building.ownerId !== p.id) continue;
@@ -130,11 +202,23 @@ export class FireSystem implements System {
       const rs = state.buildingState.get(id);
       if (rs !== undefined) rs.workerCount = 0;
       const b = entity.building;
-      burningCentres.push({ x: b.x + Math.floor(b.w / 2), y: b.y + Math.floor(b.h / 2) });
-      fs.burnTicksLeft = Math.max(0, fs.burnTicksLeft - 1);
+      const bcx = b.x + Math.floor(b.w / 2);
+      const bcy = b.y + Math.floor(b.h / 2);
+      burningCentres.push({ x: bcx, y: bcy });
+      // Cozy pivot: a well near this building's centre burns it out faster —
+      // an extra deterministic step on top of the normal -1/tick decay.
+      let decay = 1;
+      if (this.cozy && this._hasWellNear(p, bcx, bcy)) decay += COZY_WELL_EXTINGUISH_BONUS;
+      fs.burnTicksLeft = Math.max(0, fs.burnTicksLeft - decay);
       if (fs.burnTicksLeft === 0) {
-        fs.destroyed = true;
-        toDestroy.push(id);
+        if (this.cozy) {
+          // Extinguish, don't destroy: clear the fire flag only. No despawn, no
+          // popCap loss, no tile/road clearing — `destroyed` stays false.
+          toExtinguish.push(id);
+        } else {
+          fs.destroyed = true;
+          toDestroy.push(id);
+        }
       }
     }
     // Interlock (burning → adjacent suppression): a fire doesn't just halt its own
@@ -163,6 +247,23 @@ export class FireSystem implements System {
     for (const id of toDestroy) {
       this._destroyBuilding(p, id, tick);
     }
+    for (const id of toExtinguish) {
+      this._extinguishBuilding(p, id);
+    }
+  }
+
+  /**
+   * Cozy pivot: clear a burnt-out building's fire state without destroying it —
+   * the building, its tiles, popCap, and roadGrid entry are all untouched.
+   */
+  private _extinguishBuilding(p: PlayerState, id: number): void {
+    const state = this.state;
+    const fs = p.fireState.get(id);
+    if (fs === undefined) return;
+    fs.burning = false;
+    fs.burnTicksLeft = 0;
+    const b = this._entityById(id);
+    if (b !== null) pushEvent(state, `Day ${state.day}: the fire in a ${b.type} was put out.`);
   }
 
   /** Spread fire from burning buildings to nearby wooden neighbors (daily). */

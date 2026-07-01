@@ -17,8 +17,8 @@ const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
 const MAX_DAYS = 100;
 
-function boot(seed = SEED) {
-  return bootstrapSim({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+function boot(seed = SEED, cozyThreats = true) {
+  return bootstrapSim({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS, cozyThreats });
 }
 
 /** Find a clear (grass) tile near the center for placing buildings. */
@@ -136,7 +136,9 @@ describe("Phase 4 — siege resolution math", () => {
   });
 
   it("strong defenses repel a raid; the keep survives", () => {
-    const sim = boot();
+    // Sharp path: proves the frozen resolveSiege repelled/damage/sacked bands —
+    // cozy mode (default) never sacks at all, so this needs cozyThreats:false.
+    const sim = boot(SEED, false);
     localPlayer(sim.state).tier = "Town"; // keep/garrison/tower require Town/Village tier to place
     const g = findGrass(sim.terrain, 3, 3, 40, 40);
     // Keep + garrison + 2 towers → defense >> first raid strength (10).
@@ -168,7 +170,9 @@ describe("Phase 4 — raid casualties keep entity count == population", () => {
   }
 
   it("the on-map villager count equals population across a raid that inflicts casualties", () => {
-    const sim = boot();
+    // Sharp path: casualties come from applyRaidDamage (sacked/damage bands),
+    // which cozy mode never triggers (raids pilfer goods, never population).
+    const sim = boot(SEED, false);
     const lp = localPlayer(sim.state);
     lp.tier = "Town"; // keep requires Town tier
 
@@ -213,7 +217,8 @@ describe("Phase 4 — raid casualties keep entity count == population", () => {
 // ---------------------------------------------------------------------------
 describe("Phase 4 — keep sacked", () => {
   it("an undefended keep is eventually sacked → gameOver", () => {
-    const sim = boot();
+    // Sharp path: keepSacked/gameOver only ever set on the frozen siege path.
+    const sim = boot(SEED, false);
     localPlayer(sim.state).tier = "Town"; // keep requires Town tier to place
     const g = findGrass(sim.terrain, 3, 3, 48, 48);
     // Place ONLY a keep — defenseStrength 8, but raids escalate (10,15,20,...).
