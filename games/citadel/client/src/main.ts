@@ -793,6 +793,12 @@ if (import.meta.env.DEV) {
     terrain: () => terrain,
     buildings: () => currentBuildings,
     villagers: () => currentVillagers,
+    // Latest full RenderSnapshot — lets a harness assert sim state directly
+    // (day/population/happiness/tier/allHomesCovered) instead of scraping the
+    // in-canvas HUD (which no longer has DOM to read since the 2026-06-30 UI
+    // migration). Notably exposes `allHomesCovered` so the Phase-F banner edge
+    // is assertable, not inferred. `null` until the first snapshot arrives.
+    snapshot: () => latestSnapshot,
     // Project a tile centre to a CSS-px point (relative to the viewport) so a
     // test harness can drive REAL UI gestures — hovering the placement ghost,
     // clicking a specific tile — not just the command channel. Mirrors the

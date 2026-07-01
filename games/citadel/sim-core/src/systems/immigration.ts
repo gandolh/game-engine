@@ -44,9 +44,11 @@ export class ImmigrationSystem implements System {
   // unchanged; it only differs when building starts late (the live client).
   private readonly foundingAnchorDay = new Map<number, number>();
   private readonly rng: Rng;
+  private readonly cozy: boolean;
 
-  constructor(private readonly state: SimState) {
+  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
     this.rng = state.rng.fork("immigration");
+    this.cozy = opts.cozy ?? true;
   }
 
   run(ctx: SimContext): void {
@@ -217,7 +219,14 @@ export class ImmigrationSystem implements System {
       p.hungerDays++;
       if (p.hungerDays >= 3) {
         if (removeOneVillager(state, p)) {
-          pushEvent(state, `Day ${state.day}: a villager starved (pop ${p.population}).`);
+          // A hungry villager moves on when the larder runs dry. In cozy mode
+          // this is a gentle population throttle (an immigrant soon replaces
+          // them once food flows), so the toast reads as a nudge to shore up
+          // the food chain — never "starved (pop 0)" as a loss (decisions
+          // #3/#5/#9). Sharp wording kept verbatim under cozy=false.
+          pushEvent(state, this.cozy
+            ? `Day ${state.day}: a villager left to find food (pop ${p.population}) — the larder is bare.`
+            : `Day ${state.day}: a villager starved (pop ${p.population}).`);
         }
         p.hungerDays = 0;
       }

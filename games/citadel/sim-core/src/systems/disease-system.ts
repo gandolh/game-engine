@@ -99,7 +99,13 @@ export class DiseaseSystem implements System {
       if (this.rngFor(p).nextFloat() < onsetChance) {
         p.outbreakActive = true;
         p.sickVillagers = Math.max(1, Math.floor(p.population * 0.25));
-        pushEvent(state, `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.`);
+        // Cozy: an outbreak is a recoverable slowdown (no mortality, guaranteed
+        // recovery below) — the toast reads "under the weather", not an "outbreak"
+        // (decisions #3/#5/#9). Sharp string kept verbatim under cozy=false; the
+        // Challenge-mode guard matches "disease outbreak" (defer-threats.test.ts).
+        pushEvent(state, this.cozy
+          ? `Day ${state.day}: ${p.sickVillagers} villager(s) are under the weather.`
+          : `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.`);
       }
     } else {
       // Active outbreak: spread (shared), then mortality + recovery — branched on cozy.
@@ -149,7 +155,9 @@ export class DiseaseSystem implements System {
       if (p.sickVillagers <= 0) {
         p.outbreakActive = false;
         p.sickVillagers = 0;
-        pushEvent(state, `Day ${state.day}: disease outbreak ended.`);
+        pushEvent(state, this.cozy
+          ? `Day ${state.day}: the town is back on its feet.`
+          : `Day ${state.day}: disease outbreak ended.`);
       }
     }
   }

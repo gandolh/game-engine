@@ -158,7 +158,10 @@ describe("Citadel 09 — tithe starvation cushion", () => {
         localPlayer(sim.state).stockpiles.bread = 1;
         tickRange(sim, day * TICKS_PER_DAY, (day + 1) * TICKS_PER_DAY);
         peakHunger = Math.max(peakHunger, localPlayer(sim.state).hungerDays);
-        for (const e of sim.state.events) if (e.includes("starved")) starved = 1;
+        // The hunger-removal event: cozy copy reads "left to find food … larder
+        // is bare", sharp copy reads "starved". Match either so the test tracks
+        // the removal regardless of the cozy toggle (boot() is cozy by default).
+        for (const e of sim.state.events) if (e.includes("starved") || e.includes("larder is bare")) starved = 1;
       }
       return { peakHunger, starvedEvents: starved };
     }

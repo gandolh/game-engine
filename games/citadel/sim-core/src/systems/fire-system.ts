@@ -377,9 +377,22 @@ export class FireSystem implements System {
     if (fs.burning || fs.destroyed) return;
     fs.burning = true;
     fs.burnTicksLeft = BURN_TICKS;
-    const msg = cause === "ignition"
-      ? `Day ${state.day}: a ${type} caught fire!`
-      : `Day ${state.day}: fire spread to a ${type}!`;
+    // Copy branches on cozy (mechanics already do): in cozy mode a fire is a
+    // tended, self-settling hearth (it smoulders, never razes — see burn-out
+    // path above), so the toast reads as a recoverable nudge toward a well, not
+    // a loss (decisions #3 diegetic-calm, #5/#9 recoverable-never-a-cliff). The
+    // sharp strings stay verbatim under cozy=false — Challenge-mode regression
+    // guards match on "caught fire"/"fire spread" (defer-threats.test.ts). Note
+    // the cozy branch drops the word "fire" from ignition/spread; the cozy fire
+    // tests still find a "fire" event via the un-gated extinguish message (_extinguish-
+    // Building: "the fire in a … was put out"), not via these strings.
+    const msg = this.cozy
+      ? (cause === "ignition"
+          ? `Day ${state.day}: a ${type} hearth is smouldering — a well nearby would settle it.`
+          : `Day ${state.day}: the smoulder drifted to a ${type} — keep a well close.`)
+      : (cause === "ignition"
+          ? `Day ${state.day}: a ${type} caught fire!`
+          : `Day ${state.day}: fire spread to a ${type}!`);
     pushEvent(state, msg);
   }
 

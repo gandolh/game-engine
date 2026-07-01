@@ -321,6 +321,48 @@ describe("cozy raids — pilfer goods, never sack", () => {
 });
 
 // ---------------------------------------------------------------------------
+// 4b. Cozy-copy contract: the toast COPY reads tended/recoverable under cozy,
+//     and the sharp wording is kept verbatim under cozyThreats:false (the
+//     Challenge-mode regression guards match on it). Mechanics unchanged — this
+//     pins tone (P1, 2026-07-01 playtest finding). See fire/disease/immigration.
+// ---------------------------------------------------------------------------
+
+describe("cozy-copy contract — threat toasts read tended, never a loss", () => {
+  // The toast is emitted by _igniteBuilding, which runs on a natural ignition or
+  // a SPREAD roll — not by force-setting fireState. So: two adjacent wooden
+  // houses, force-ignite one, run days; the spread to the neighbour emits the
+  // toast (~99.99% within 10 days at this seed — see phase45.test.ts).
+  function spreadEvents(cozyThreats: boolean): string[] {
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40, cozyThreats });
+    const cx = Math.floor(sim.terrain.width / 2);
+    const cy = Math.floor(sim.terrain.height / 2);
+    const h1 = findClear(sim.terrain, 2, 2, cx, cy);
+    const h2 = findClear(sim.terrain, 2, 2, cx + 2, cy);
+    placeBatch(sim, [
+      { type: "house", x: h1.x, y: h1.y },
+      { type: "house", x: h2.x, y: h2.y },
+    ]);
+    const id = firstEntityId(sim, "house");
+    expect(id).not.toBeNull();
+    forceIgnite(sim, id!);
+    for (let d = 0; d < 10; d++) runDays(sim, 1, 1 + d * TICKS_PER_DAY);
+    return sim.state.events;
+  }
+
+  it("cozy fire reads 'smouldering'/'a well', never 'caught fire!'/'fire spread'", () => {
+    const events = spreadEvents(true);
+    expect(events.some((e) => /smoulder|hearth|well/i.test(e))).toBe(true);
+    expect(events.some((e) => e.includes("caught fire!") || e.includes("fire spread"))).toBe(false);
+  });
+
+  it("sharp fire still reads 'caught fire!'/'fire spread' under cozyThreats:false", () => {
+    const events = spreadEvents(false);
+    expect(events.some((e) => e.includes("caught fire!") || e.includes("fire spread"))).toBe(true);
+    expect(events.some((e) => /smoulder/i.test(e))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 5. Regression guard: cozyThreats:false still reproduces the sharp path.
 // ---------------------------------------------------------------------------
 

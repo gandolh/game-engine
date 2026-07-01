@@ -191,18 +191,38 @@ try {
   await bootstrap();
   await page.screenshot({ path: join(OUT, "01-placed.png") });
 
+  // Read game state from the authoritative live snapshot (window.__citadel.snapshot()),
+  // falling back to the DOM HUD only for fields not on the snapshot. The in-canvas UI
+  // migration (2026-06-30) left the DOM #hud-* nodes stale/absent, so the snapshot is
+  // the source of truth — it also carries `allHomesCovered`, letting us assert the
+  // Phase-F contentment-banner edge instead of inferring it.
   const readHud = () => page.evaluate(() => {
-    const txt = (id) => (document.getElementById(id)?.textContent || "").trim();
-    const num = (s) => { const m = String(s).match(/-?\d+/); return m ? parseInt(m[0], 10) : null; };
     const bs = window.__citadel.buildings();
     const byType = {}, byLevel = { 1: 0, 2: 0, 3: 0 };
     for (const b of bs) { byType[b.type] = (byType[b.type] || 0) + 1; if (b.level) byLevel[b.level]++; }
+    const s = window.__citadel.snapshot ? window.__citadel.snapshot() : null;
+    if (s) {
+      return {
+        src: "snapshot",
+        tier: String(s.tier || ""), day: `Day ${s.day + 1}`,
+        pop: s.population ?? null, popCap: s.popCap ?? null,
+        bread: s.stockpiles?.bread ?? null, wood: s.stockpiles?.wood ?? null,
+        happy: s.happiness ?? null,
+        allHomesCovered: !!s.allHomesCovered,
+        activeFires: s.activeFires ?? null,
+        buildingCount: bs.length, byType, byLevel,
+      };
+    }
+    // Fallback: DOM scrape (stale since the in-canvas UI migration; kept for safety).
+    const txt = (id) => (document.getElementById(id)?.textContent || "").trim();
+    const num = (v) => { const m = String(v).match(/-?\d+/); return m ? parseInt(m[0], 10) : null; };
     const popStr = txt("hud-pop");
     return {
+      src: "dom",
       tier: txt("hud-tier").replace(/^Tier:\s*/i, ""), day: txt("hud-day"),
       pop: num(popStr), popCap: num(popStr.split("/")[1] || ""),
       bread: num(txt("hud-bread")), wood: num(txt("hud-wood")), happy: num(txt("hud-happiness")),
-      threat: num(txt("hud-threat")), defense: num(txt("hud-defense")),
+      allHomesCovered: null, activeFires: null,
       buildingCount: bs.length, byType, byLevel,
     };
   });
@@ -237,6 +257,9 @@ try {
   const t0 = Date.now();
   const tierRank = (s) => ["Hamlet", "Village", "Town", "Citadel", "Fortress-City"].indexOf((s || "").trim());
   const allTypes = new Set();
+  // Phase-F contentment banner: track the false→true edge of allHomesCovered so
+  // the report can state whether a fully-covered town was ever achieved live.
+  let prevCovered = null, coveredEverTrue = false, coveredEdgeAt = null;
   for (let i = 0; i < Math.ceil((SECONDS * 1000) / 4000); i++) {
     await sleep(4000);
     const h = await readHud();
@@ -253,8 +276,14 @@ try {
     }
     prevCount = h.buildingCount;
     Object.keys(h.byType).forEach((tp) => allTypes.add(tp));
+    // Track the Phase-F banner rising edge (false→true), mirroring main.ts's latch.
+    if (h.allHomesCovered === true) {
+      if (prevCovered === false) { coveredEdgeAt = secs; note(`>> allHomesCovered flipped true at t=${secs}s (${h.day}) — Phase-F banner edge`); }
+      coveredEverTrue = true;
+    }
+    if (typeof h.allHomesCovered === "boolean") prevCovered = h.allHomesCovered;
     report.timeline.push({ secs, ...h });
-    console.log(`t=${secs}s ${h.day} tier=${h.tier} pop=${h.pop}/${h.popCap} happy=${h.happy} bread=${h.bread} bld=${h.buildingCount} L=${JSON.stringify(h.byLevel)}`);
+    console.log(`t=${secs}s ${h.day} tier=${h.tier} pop=${h.pop}/${h.popCap} happy=${h.happy} bread=${h.bread} covered=${h.allHomesCovered} bld=${h.buildingCount} L=${JSON.stringify(h.byLevel)}`);
     if (!villageDone && tierRank(h.tier) >= 1) { villageDone = true; note(">> Village — placing sawmill/smith/tower/wall/gate/quarry"); await placeVillage(); await page.screenshot({ path: join(OUT, "02-village.png") }); }
     if (!townDone && tierRank(h.tier) >= 2) { townDone = true; note(">> Town — placing keep/garrison"); await placeTown(); await page.screenshot({ path: join(OUT, "03-town.png") }); }
     await tryUpgradesAndBarter();
@@ -272,6 +301,10 @@ try {
     unlockedAll: ["keep", "garrison", "tower", "sawmill", "smith", "quarry"].every((t) => report.typesEverSeen.includes(t)),
     upgradedAll: f.byLevel[1] === 0 && f.byLevel[2] === 0 && f.byLevel[3] > 0,
     finalPop: f.pop,
+    // Phase-F acceptance signal: did a fully-covered town ever occur, and when did the edge fire?
+    allHomesCoveredEver: coveredEverTrue,
+    allHomesCoveredEdgeAtSecs: coveredEdgeAt,
+    finalAllHomesCovered: f.allHomesCovered ?? null,
   };
 } catch (err) {
   report.error = String(err && err.stack ? err.stack : err);

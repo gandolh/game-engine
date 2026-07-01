@@ -844,7 +844,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const roadConnSystem = new RoadConnectivitySystem(state);
   const productionSystem = new ProductionSystem(state);
   const villagerSystem = new VillagerSystem(state);
-  const immigrationSystem = new ImmigrationSystem(state);
+  const immigrationSystem = new ImmigrationSystem(state, { cozy: cozyThreats });
   // Phase 3: needs/happiness (AFTER production, BEFORE immigration)
   // and trader (AFTER production, to see fresh stockpiles)
   const needsHappinessSystem = new NeedsHappinessSystem(state, ticksPerDay);
