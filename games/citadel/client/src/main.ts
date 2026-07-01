@@ -989,6 +989,13 @@ window.addEventListener("keydown", (e) => {
 });
 
 let latestSnapshot: RenderSnapshot | null = null;
+// Phase C opening framing: one-shot, solo-only. The seeded starter town's
+// anchor shifts per-seed (seedFoundingTown ring-searches outward from map
+// centre to dodge rivers/water), so we can't just point the camera at a fixed
+// tile — we wait for the seeded buildings to actually appear in a snapshot,
+// average their footprint centers, and frame that. MP has no seeded town (and
+// may use a different world), so this stays gated on solo.
+let openingFramed = false;
 
 client.onSnapshot((snap) => {
   latestSnapshot = snap;
@@ -1009,6 +1016,17 @@ client.onSnapshot((snap) => {
   for (const e of newEventsSince(lastEventShown, events)) toasts.push(e, performance.now());
   if (events.length > 0) lastEventShown = events[events.length - 1]!;
   currentBuildings = snap.buildings;
+  if (!useServer && !openingFramed && inputReady) {
+    const seeded = currentBuildings.filter((b) => b.type !== "road" && b.type !== "bridge");
+    if (seeded.length > 0) {
+      const cx = seeded.reduce((sum, b) => sum + (b.x + b.w / 2), 0) / seeded.length;
+      const cy = seeded.reduce((sum, b) => sum + (b.y + b.h / 2), 0) / seeded.length;
+      const c = tileToIso(cx, cy);
+      camera.setCenter(c.x, c.y);
+      camera.setZoom(clampZoom(MAX_ZOOM));
+      openingFramed = true;
+    }
+  }
   currentVillagers = snap.villagers;
   localPlayerId = snap.localPlayerId;
   // Phase 3

@@ -10,6 +10,7 @@ import type { System, SimContext, Rng } from "@engine/core";
 import { createRng } from "@engine/core";
 import type { SimState, RaiderState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
+import { countNonRoadBuildings } from "./tiers";
 import { bfsPath } from "../world/pathfinder";
 import { isWalkable } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
@@ -91,7 +92,20 @@ export class RaidSpawnSystem implements System {
   private readonly rivalBase: Rng;
   private readonly perPlayerRng = new Map<number, Rng>();
 
-  constructor(private readonly state: SimState, private readonly terrain: TerrainGrid) {
+  /**
+   * Cozy cold-open threat-defer (Chunk 2). When > 0, raid scheduling/spawning is
+   * suppressed for a player until they own at least this many non-road buildings.
+   * 0 (default) = disabled = today's exact behavior; the gate short-circuits BEFORE
+   * any scheduling RNG draw (`rng.int`) so the schedule stream is untouched.
+   */
+  private readonly deferUntilBuildings: number;
+
+  constructor(
+    private readonly state: SimState,
+    private readonly terrain: TerrainGrid,
+    opts: { deferUntilBuildings?: number } = {},
+  ) {
+    this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE at construction — never per tick.
     this.baseRng = state.rng.fork("raids");
     // Citadel 33: rival streams come from a SEPARATE tree (createRng), so
@@ -126,6 +140,16 @@ export class RaidSpawnSystem implements System {
       // A pure economy town (no keep) is never raided. The raid clock is
       // (re)anchored to the moment the keep appears.
       if (p.keepPosition === null) {
+        p.nextRaidTick = -1;
+        continue;
+      }
+
+      // Cozy cold-open: hold off raid scheduling until the town has grown past its
+      // seeded core. In solo cozy `keepPosition` is null anyway (raids never fire),
+      // but this makes the intent explicit and covers MP-cozy. Short-circuits BEFORE
+      // the `rng.int` scheduling draw below so the schedule stream stays untouched
+      // (disabled when the threshold is 0 → byte-identical).
+      if (this.deferUntilBuildings > 0 && countNonRoadBuildings(state, p.id) < this.deferUntilBuildings) {
         p.nextRaidTick = -1;
         continue;
       }

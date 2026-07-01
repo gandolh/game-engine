@@ -78,6 +78,31 @@ export interface CitadelSimOptions {
    * yet (later chunks add the cozy tuning).
    */
   cozyThreats?: boolean;
+  /**
+   * Cozy cold-open: pre-seed a small, connected, self-sufficient "alive core" of buildings at
+   * the map center BEFORE the scheduler's first tick, so the solo game opens on a living town
+   * (a bread chain + a house, road-connected) instead of an empty map — making the founding
+   * deadlock structurally impossible. Default false → bootstrap output is byte-identical to
+   * today (the determinism baseline, headless runs, and all existing tests are unchanged since
+   * the flag defaults off). The seed is placed via the SAME `placeOne` funnel used by player
+   * commands (occupancy/roadGrid/buildingTiles/popCap stay consistent), is NOT charged to the
+   * stockpile even when `chargeBuildCost` is true (it's a gift, not a purchase), and is NOT
+   * logged into `state.commandLog` (it's not a player command — it would double-apply on replay;
+   * `loadFromSave` re-seeds by threading `seedTown` back into the fresh bootstrap instead).
+   * Deterministic: placement is a fixed sequence computed from the world dims (no RNG, no
+   * `Math.random`/`Date.now`).
+   */
+  seedTown?: boolean;
+  /**
+   * Cozy cold-open threat-defer: suppress fire ignition, disease onset, and raid
+   * scheduling for a player until they own at least this many NON-ROAD buildings
+   * (the same count the tier ladder uses). The cold-open passes 6 (the seed is 5
+   * structures; threats begin only once the player adds their 6th). Default 0 =
+   * disabled = today's exact behavior — the gate short-circuits BEFORE any RNG
+   * draw when 0, so the determinism baseline, headless runs, and existing tests
+   * are byte-identical and unaffected. Persisted so a save re-applies the same gate.
+   */
+  deferThreatsUntilBuildings?: number;
 }
 
 /** True if `stock` holds at least every good in `cost`. */
@@ -176,6 +201,12 @@ export function loadFromSave(save: CitadelSave): CitadelSimResult {
     // A save taken with cozy threats on must replay with them on. Absent (pre-feature saves)
     // ⇒ true, matching the bootstrap default (the cozy footing is the intended solo experience).
     cozyThreats: save.cozyThreats ?? true,
+    // A save taken with a seeded town must re-seed the SAME core before command replay (the seed
+    // is applied at bootstrap, not logged). Absent (pre-feature saves) ⇒ false (empty start).
+    seedTown: save.seedTown ?? false,
+    // A save taken with the threat-defer gate on must replay with it on. Absent
+    // (pre-feature saves) ⇒ 0 (disabled), matching the bootstrap default.
+    deferThreatsUntilBuildings: save.deferThreatsUntilBuildings ?? 0,
     ...(save.startingStock !== undefined ? { startingStock: save.startingStock } : {}),
   });
 
@@ -228,6 +259,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // Cozy-pivot Phase D: threat demotion is on by default (the intended solo footing). Threaded
   // into the three threat systems below; no behavior branches on it yet.
   const cozyThreats = opts.cozyThreats ?? true;
+  // Cozy cold-open: pre-seed an alive town core (opt-in; off by default so the baseline is
+  // byte-identical). Applied at the end of bootstrap, before returning.
+  const seedTown = opts.seedTown ?? false;
+  // Cozy cold-open threat-defer (opt-in; 0 = disabled = byte-identical baseline).
+  const deferThreatsUntilBuildings = opts.deferThreatsUntilBuildings ?? 0;
 
   const terrain = generateTerrain(seed, WORLD_WIDTH, WORLD_HEIGHT);
 
@@ -372,7 +408,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       return true;
     }
 
-    function placeOne(buildingType: string, x: number, y: number): PlaceReason {
+    function placeOne(buildingType: string, x: number, y: number, charge = true): PlaceReason {
     // A road dragged onto water becomes a bridge (a walkable span). This is the
     // ONLY way bridges are created, so a "road" command across a river auto-decks
     // the water tiles and lays plain road on the land tiles. (A bridge command
@@ -396,7 +432,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     // cleanly without mutating; the DEBIT happens only on success (below), so a placement that
     // fails a later validity check (occupied/terrain/…) is never charged. Stockpiles don't
     // change between here and the debit (one writer per tick), so the two stay consistent.
-    const cost = chargeBuildCost ? buildCost(buildingType) : undefined;
+    // `charge` lets the founding seed (a gift, not a purchase) bypass the debit even when
+    // chargeBuildCost is on — every other caller leaves it defaulted true (unchanged behavior).
+    const cost = chargeBuildCost && charge ? buildCost(buildingType) : undefined;
     if (cost !== undefined && !canAfford(lp.stockpiles, cost)) {
       return "cost";
     }
@@ -841,10 +879,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const needsHappinessSystem = new NeedsHappinessSystem(state, ticksPerDay);
   const traderSystem = new TraderSystem(state, ticksPerDay);
   // Phase 4.5: hazard systems (run AFTER needs/happiness, BEFORE immigration).
-  const fireSystem = new FireSystem(state, { cozy: cozyThreats });
-  const diseaseSystem = new DiseaseSystem(state, { cozy: cozyThreats });
+  const fireSystem = new FireSystem(state, { cozy: cozyThreats, deferUntilBuildings: deferThreatsUntilBuildings });
+  const diseaseSystem = new DiseaseSystem(state, { cozy: cozyThreats, deferUntilBuildings: deferThreatsUntilBuildings });
   // Phase 4: siege systems (run AFTER population so they see fresh state).
-  const raidSpawnSystem = new RaidSpawnSystem(state, terrain);
+  const raidSpawnSystem = new RaidSpawnSystem(state, terrain, { deferUntilBuildings: deferThreatsUntilBuildings });
   const raiderMovementSystem = new RaiderMovementSystem(state, terrain);
   const siegeResolutionSystem = new SiegeResolutionSystem(state, { cozy: cozyThreats });
   // Citadel 32: PvP army movement + resolution (no-op in solo — empty army list).
@@ -1036,6 +1074,102 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     };
   }
 
+  // ---------------------------------------------------------------------------
+  // Cozy cold-open: pre-seed a connected "alive core" (opt-in via seedTown).
+  // ---------------------------------------------------------------------------
+  // Places a compact, road-connected bread chain (farm→mill→bakery) plus a house
+  // and a storehouse at (near) the map center, BEFORE the scheduler runs its
+  // first tick. Placed via the same placeOne funnel as player commands, but with
+  // charge=false (a gift, not a purchase) and NOT logged (it's not a player
+  // command — loadFromSave re-seeds by threading seedTown into the fresh
+  // bootstrap, so logging it would double-apply on replay). Deterministic: the
+  // layout is a fixed sequence and the placement origin is searched outward from
+  // center over the (deterministic) terrain — no RNG. Because the flag defaults
+  // off, this moves NO baseline (empty-world bootstrap is byte-identical).
+  // (Invoked below, after its const-scoped layout helpers are initialized.)
+
+  /**
+   * The relative footprint layout of the alive core, anchored at a cluster
+   * top-left (ax, ay). A horizontal road spine at the middle row links every
+   * building: each building has a footprint tile 4-adjacent to the spine, and the
+   * storehouse footprint touches the spine (it is the connectivity flood seed), so
+   * one connectivity pass marks the whole cluster connected.
+   *
+   *   rows ay..ay+2   : farm(3×3) | mill(2×2) | bakery(2×2) | house(2×2)  (bottoms on ay+2)
+   *   row  ay+3       : road spine, columns ax..ax+11
+   *   rows ay+4..ay+5 : storehouse(3×2) at ax
+   *
+   * Bounding box: 12 wide (cols ax..ax+11) × 6 tall (rows ay..ay+5).
+   */
+  const SEED_CLUSTER_W = 12;
+  const SEED_CLUSTER_H = 6;
+  function seededLayout(ax: number, ay: number): {
+    buildings: ReadonlyArray<{ type: string; x: number; y: number }>;
+    roads: ReadonlyArray<{ x: number; y: number }>;
+  } {
+    const roadRow = ay + 3;
+    return {
+      buildings: [
+        // storehouse first (the flood seed), then the bread chain + house.
+        { type: "storehouse", x: ax, y: ay + 4 },
+        { type: "farm", x: ax, y: ay },
+        { type: "mill", x: ax + 4, y: ay + 1 },
+        { type: "bakery", x: ax + 7, y: ay + 1 },
+        { type: "house", x: ax + 10, y: ay + 1 },
+      ],
+      roads: Array.from({ length: SEED_CLUSTER_W }, (_v, i) => ({ x: ax + i, y: roadRow })),
+    };
+  }
+
+  /** True if every tile the seed cluster anchored at (ax, ay) needs is in-bounds and buildable. */
+  function seedClusterFits(ax: number, ay: number): boolean {
+    if (ax < 0 || ay < 0 || ax + SEED_CLUSTER_W > WORLD_WIDTH || ay + SEED_CLUSTER_H > WORLD_HEIGHT) {
+      return false;
+    }
+    for (let dy = 0; dy < SEED_CLUSTER_H; dy++) {
+      for (let dx = 0; dx < SEED_CLUSTER_W; dx++) {
+        // Every tile in the bounding box must be buildable — the layout's
+        // footprints + road spine all live inside it, and requiring the full box
+        // guarantees no gaps (water/rough) split the cluster.
+        if (!buildable(ax + dx, ay + dy)) return false;
+      }
+    }
+    return true;
+  }
+
+  function seedFoundingTown(): void {
+    // Center the cluster's bounding box on the map, then search outward in
+    // expanding rings for the first anchor where the whole box is buildable
+    // (deterministic scan order: for each ring radius, rows top→bottom, cols
+    // left→right). The default 96×96 world's center is grass, so the first probe
+    // usually wins; the ring search only matters if center is water/rough.
+    const cx = Math.floor((WORLD_WIDTH - SEED_CLUSTER_W) / 2);
+    const cy = Math.floor((WORLD_HEIGHT - SEED_CLUSTER_H) / 2);
+    let anchor: { x: number; y: number } | null = null;
+    const maxRadius = Math.max(WORLD_WIDTH, WORLD_HEIGHT);
+    for (let r = 0; r <= maxRadius && anchor === null; r++) {
+      for (let ay = cy - r; ay <= cy + r && anchor === null; ay++) {
+        for (let ax = cx - r; ax <= cx + r; ax++) {
+          // Only the ring's perimeter is new at radius r (interior was scanned earlier).
+          const onRing = ax === cx - r || ax === cx + r || ay === cy - r || ay === cy + r;
+          if (!onRing) continue;
+          if (seedClusterFits(ax, ay)) { anchor = { x: ax, y: ay }; break; }
+        }
+      }
+    }
+    if (anchor === null) return; // no buildable cluster anywhere (degenerate world) — leave empty.
+
+    const layout = seededLayout(anchor.x, anchor.y);
+    // Roads first so the spine exists, then the buildings hang off it. Order is
+    // immaterial for connectivity (recomputed lazily) but keeps roadGrid coherent.
+    // charge=false: the seed is a gift, never debited from the stockpile.
+    for (const t of layout.roads) placeOne("road", t.x, t.y, false);
+    for (const b of layout.buildings) placeOne(b.type, b.x, b.y, false);
+  }
+
+  // Apply the seed now that its layout helpers (const-scoped) are initialized.
+  if (seedTown) seedFoundingTown();
+
   void pushEvent; // exported via state mutators in systems
 
   return {
@@ -1087,6 +1221,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         // Persist the cozy economy options so loadFromSave replays with the same rules.
         chargeBuildCost,
         cozyThreats,
+        // Persist whether the alive-town core was seeded so replay re-seeds it identically.
+        seedTown,
+        // Persist the threat-defer threshold so replay applies the same gate (a cold-open
+        // save was taken with defer on; replaying without it would desync).
+        deferThreatsUntilBuildings,
         ...(startingStock !== undefined ? { startingStock } : {}),
       };
     },

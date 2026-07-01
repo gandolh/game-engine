@@ -140,6 +140,19 @@ export interface CitadelSave {
    * Optional for backward-compat with pre-feature saves (absent ⇒ true, the bootstrap default).
    */
   readonly cozyThreats?: boolean;
+  /**
+   * Cozy cold-open: whether the alive-town core was pre-seeded at bootstrap. Persisted so replay
+   * re-seeds the SAME core before replaying the command log (the seed is applied at bootstrap, not
+   * via the command log). Optional for backward-compat with pre-feature saves (absent ⇒ false,
+   * the bootstrap default — an empty starting map).
+   */
+  readonly seedTown?: boolean;
+  /**
+   * Cozy cold-open: threshold of non-road buildings a player must own before fire/disease/raid
+   * threats become possible (0 = disabled). Persisted so replay applies the same defer gate.
+   * Optional for backward-compat with pre-feature saves (absent ⇒ 0, the bootstrap default).
+   */
+  readonly deferThreatsUntilBuildings?: number;
   readonly startingStock?: Readonly<Record<string, number>>;
 }
 

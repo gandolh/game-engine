@@ -21,6 +21,7 @@ import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import { getProductionDef, coversRect, effectiveHousingCapacity } from "../entities/building";
+import { countNonRoadBuildings } from "./tiers";
 import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
 
@@ -81,8 +82,18 @@ export class FireSystem implements System {
    */
   private readonly cozy: boolean;
 
-  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
+  /**
+   * Cozy cold-open threat-defer (Chunk 2). When > 0, fresh ignition is suppressed
+   * for a player until they own at least this many non-road buildings — so the
+   * seeded starter core (5 structures) can't catch fire before the player has
+   * added one of their own. 0 (default) = disabled = today's exact behavior; the
+   * gate short-circuits BEFORE any RNG draw so the sequence is untouched.
+   */
+  private readonly deferUntilBuildings: number;
+
+  constructor(private readonly state: SimState, opts: { cozy?: boolean; deferUntilBuildings?: number } = {}) {
     this.cozy = opts.cozy ?? true;
+    this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE in constructor, never per-tick.
     this.baseRng = state.rng.fork("fire");
     // Citadel 33: rival hazard streams come from a separate createRng tree so
@@ -121,6 +132,17 @@ export class FireSystem implements System {
     return this.state.day - start <= graceDays;
   }
 
+  /**
+   * Cozy cold-open defer: true while fresh ignition should be held off because
+   * the player's town hasn't grown past its seeded core yet. Disabled (returns
+   * false) when the threshold is 0, short-circuiting BEFORE any building scan or
+   * RNG draw so the default path is byte-identical to today.
+   */
+  private ignitionDeferred(p: PlayerState): boolean {
+    if (this.deferUntilBuildings <= 0) return false;
+    return countNonRoadBuildings(this.state, p.id) < this.deferUntilBuildings;
+  }
+
   run(ctx: SimContext): void {
     // Advance burn timers every tick (per player).
     for (const p of this.state.players) this._tickBurning(p, ctx.tick);
@@ -135,7 +157,10 @@ export class FireSystem implements System {
       // Spread is always allowed (a fire already underway must propagate); only
       // fresh ignition is held off during the founding grace.
       this._spreadFire(p);
-      if (!this.inFoundingGrace(p)) this._checkIgnition(p);
+      // Cozy cold-open: hold off fresh ignition until the town has grown past its
+      // seeded core (composes with the temporal founding grace). Spread of an
+      // already-burning fire above is unaffected — matches the founding-grace comment.
+      if (!this.inFoundingGrace(p) && !this.ignitionDeferred(p)) this._checkIgnition(p);
       // Cozy pivot: once per day, dent the mood of houses near an active fire
       // instead of ever destroying anything (see _tickBurning for the
       // extinguish-not-destroy half of the contract).

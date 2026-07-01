@@ -17,6 +17,7 @@ import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
 import { pushEvent, removeOneVillager } from "../sim-state";
 import { getProductionDef, SERVICE_RADII } from "../entities/building";
+import { countNonRoadBuildings } from "./tiers";
 import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
 
@@ -35,8 +36,18 @@ export class DiseaseSystem implements System {
    */
   private readonly cozy: boolean;
 
-  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
+  /**
+   * Cozy cold-open threat-defer (Chunk 2). When > 0, disease ONSET is suppressed
+   * for a player until they own at least this many non-road buildings. 0 (default)
+   * = disabled = today's exact behavior; the gate short-circuits BEFORE the onset
+   * RNG draw so no RNG is consumed while deferred (an already-active outbreak still
+   * progresses/recovers normally).
+   */
+  private readonly deferUntilBuildings: number;
+
+  constructor(private readonly state: SimState, opts: { cozy?: boolean; deferUntilBuildings?: number } = {}) {
     this.cozy = opts.cozy ?? true;
+    this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE in constructor, never per-tick.
     this.baseRng = state.rng.fork("disease");
     // Citadel 33: rival hazard streams from a separate createRng tree (no
@@ -70,6 +81,12 @@ export class DiseaseSystem implements System {
     const healerNear = this._hasHealerNear(p);
 
     if (!p.outbreakActive) {
+      // Cozy cold-open: hold off disease ONSET until the town has grown past its
+      // seeded core. Short-circuit BEFORE the onset RNG draw below so no RNG is
+      // consumed while deferred (disabled when the threshold is 0 → byte-identical).
+      if (this.deferUntilBuildings > 0 && countNonRoadBuildings(state, p.id) < this.deferUntilBuildings) {
+        return;
+      }
       // Onset check.
       let onsetChance = Math.max(0, (crowding - 1) * 0.12);
       if (p.happiness < 40) {

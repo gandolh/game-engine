@@ -159,7 +159,7 @@ describe("productionRatePerDay — farm (seasonal grain multiplier)", () => {
   // summer: grainMult=1.0 → floor(3×1.0)=3 × 2 = 6 grain/day
   // spring: grainMult=0.5 → floor(3×0.5)=1 × 2 = 2 grain/day
   // autumn: grainMult=1.2 → floor(3×1.2)=3 × 2 = 6 grain/day
-  // winter: grainMult=0.0 → floor(3×0.0)=0 × 2 = 0 grain/day
+  // winter: grainMult=0.5 → floor(3×0.5)=1 × 2 = 2 grain/day (cozy pivot: winter floors food, never zero)
   it("produces 6 grain/day in summer at level 1", () => {
     const def = PRODUCTION_DEFS["farm"]!;
     const cyclesPerDay = TICKS_PER_DAY / def.ticksPerCycle;
@@ -184,10 +184,10 @@ describe("productionRatePerDay — farm (seasonal grain multiplier)", () => {
     expect(result).toBe(`${expected} grain/day`);
   });
 
-  it("produces 0 grain/day in winter and appends '(winter)' suffix", () => {
+  it("produces reduced grain/day in winter (floored ×0.5) and appends '(winter)' suffix", () => {
     const def = PRODUCTION_DEFS["farm"]!;
     const cyclesPerDay = TICKS_PER_DAY / def.ticksPerCycle;
-    const expected = Math.floor(def.outputPerCycle * 0.0) * cyclesPerDay;
+    const expected = Math.floor(def.outputPerCycle * 0.5) * cyclesPerDay;
     const result = productionRatePerDay("farm", 1, "winter");
     expect(result).toBe(`${expected} grain/day (winter)`);
   });

@@ -67,6 +67,14 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         // Cozy-pivot Phase D: threat demotion on (the default; stated explicitly for clarity).
         cozyThreats: true,
         startingStock: { wood: 40 },
+        // Cozy cold-open (Phase C): pre-seed a small connected alive town core (bread chain +
+        // house + storehouse + roads at map center) so solo play opens on a living town instead
+        // of an empty map. MP (the @citadel/server bootstrap) keeps placement free / no seed.
+        seedTown: true,
+        // Cozy cold-open (Phase C): defer fire/disease/raids until the town grows past the seeded
+        // core. The seed is 5 non-road buildings, so threats first become possible once the player
+        // adds their 6th — the first ~5 buildings' worth of play is forgiving, threat-free.
+        deferThreatsUntilBuildings: 6,
       });
       tick = 0;
       paused = false;

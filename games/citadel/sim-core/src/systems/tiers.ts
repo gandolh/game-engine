@@ -157,6 +157,22 @@ export function countsTowardTier(buildingType: string): boolean {
 }
 
 /**
+ * Count the settlement STRUCTURES a player owns — the same "non-road building
+ * count" the tier ladder uses (roads/walls/gates excluded via
+ * {@link countsTowardTier}). Shared so the cozy-pivot threat-defer gate
+ * (fire/disease/raid) measures "town has grown past its seeded core" with the
+ * exact same yardstick the tier system uses (audit: Chunk 2 cold-open defer).
+ */
+export function countNonRoadBuildings(state: SimState, playerId: number): number {
+  let count = 0;
+  for (const entity of state.buildingWorld.query("building")) {
+    if (entity.building.ownerId !== playerId) continue;
+    if (countsTowardTier(entity.building.type)) count++;
+  }
+  return count;
+}
+
+/**
  * TierSystem: re-evaluates the settlement tier once per day (at the first
  * tick of each day) and fires a pushEvent on promotion.
  */
@@ -181,11 +197,7 @@ export class TierSystem implements System {
       // infrastructure; walls/gates are a fortification line (they contribute
       // to defensiveStrength, not to settlement size) — counting them let
       // wall-spam alone climb to Town tier (audit 38 P2#10).
-      let settlementBuildingCount = 0;
-      for (const entity of this.state.buildingWorld.query("building")) {
-        if (entity.building.ownerId !== p.id) continue;
-        if (countsTowardTier(entity.building.type)) settlementBuildingCount++;
-      }
+      const settlementBuildingCount = countNonRoadBuildings(this.state, p.id);
       const newTier = computeTier(p.population, settlementBuildingCount, p.defensiveStrength);
 
       if (newTier !== p.tier) {

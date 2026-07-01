@@ -40,7 +40,7 @@ export const TICKS_PER_DAY = 20;
 /** Player-facing one-line description for every building type in PRODUCTION_DEFS. */
 export const BUILDING_DESCRIPTIONS: Readonly<Record<string, string>> = {
   house:       "Houses up to 6 villagers. Upgrade to hold more people.",
-  farm:        "Grows grain each cycle. Yield varies by season — nothing in winter.",
+  farm:        "Grows grain each cycle. Yield varies by season — reduced (never zero) in winter.",
   mill:        "Grinds grain into flour. Needs a worker and a road.",
   bakery:      "Bakes flour into bread. Needs a worker and a road.",
   woodcutter:  "Chops wood from forest terrain. Needs 2 workers and a road.",
@@ -141,7 +141,7 @@ export function getProductionDetails(
  * Examples:
  *   productionRatePerDay("bakery", 1)           → "1 flour → 3 bread/day"
  *   productionRatePerDay("farm", 1, "summer")   → "6 grain/day"
- *   productionRatePerDay("farm", 1, "winter")   → "0 grain/day (winter)"
+ *   productionRatePerDay("farm", 1, "winter")   → "2 grain/day (winter)" (floored ×0.5, never zero)
  *   productionRatePerDay("chapel", 1)           → undefined
  *
  * Returns `undefined` for buildings with no goods output (services, infrastructure).
@@ -160,7 +160,7 @@ export function productionRatePerDay(
     ? `${inputPerDay} ${inputGood} → `
     : "";
 
-  // Annotate when a farm produces nothing due to winter.
+  // Annotate when a farm's output is reduced due to winter (floored ×0.5, never zero).
   const suffix =
     type === "farm" && season === "winter" ? " (winter)" : "";
 
