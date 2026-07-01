@@ -4,6 +4,65 @@ How the keyboard-controlled 5th farmer **Pip** works, plus the interaction/visua
 
 Verify before quoting — this page names specific files/functions; grep them if you're about to act on a claim (see [CLAUDE.md](../CLAUDE.md) → *Verifying before quoting the wiki*).
 
+## In-canvas UI — all GUI on `@engine/ui` (2026-07-01)
+
+As of 2026-07-01 **all** of Farm Valley's UI renders **in-canvas** through the game-agnostic
+[`@engine/ui`](../../engine/ui/src) framework (the same one Citadel proved) — the old raw-DOM panels
+are gone from the render path. The only remaining DOM is the home-screen **seed `<input>`** (native
+text entry — canvas has no text-input widget) and the visually-hidden **a11y mirror** mounts
+(`.ui-a11y` in `index.html`); the dev-only `DebugOverlay` and the `JuiceLayer` effects overlay are
+still DOM but carry no panel UI.
+
+- **Panels** live in [`games/farm/client/src/ui/canvas/*`](../../games/farm/client/src/ui/canvas):
+  each is a retained widget tree built once by a `create<Panel>()` factory, then `refresh(state)`
+  re-textures it in place and returns whether layout changed (gates the expensive
+  `computeLayout` + a11y-mirror reconcile). Panels needing icons expose `drawIcons(surface)` (and the
+  hotbar/inventory a drag `drawGhost`), drawn via raw `UISurface.sprite`/`.rect` quads AFTER
+  `renderTree` (the widget model has no sprite node). The 5×7 bitmap font is ASCII-only, so glyphs
+  the font can't render (season ✿☀, emoji) become atlas sprites or plain text.
+- **Host + driver.** [`ui/canvas/ui-host.ts`](../../games/farm/client/src/ui/canvas/ui-host.ts) owns
+  one `UISurface` + an ordered list of registered roots, each with its own `InputDispatcher` +
+  optional a11y mirror, and the **capture-phase** canvas listeners that give the UI first dibs on
+  pointer/wheel/key (gesture ownership decided at press — copies Citadel's routing). The render loop
+  ([`main/render-loop.ts`](../../games/farm/client/src/main/render-loop.ts)) drives every panel per
+  frame inside one `surface.begin()/end()`: `refresh → (if changed) computeLayout + mirror.update →
+  renderTree → drawIcons/drawGhost`, each panel anchored independently (clock top-centre, hotbar
+  bottom-centre, right-column top-right, playback bottom-right, leaderboard/inventory/help/game-over
+  centred). [`main/panels.ts`](../../games/farm/client/src/main/panels.ts) builds + registers them all.
+- **Screens** (home/loading/game-over/fatal) are canvas panels too; the home/loading screens run
+  through the shared host in their own small RAF loop in
+  [`main.ts`](../../games/farm/client/src/main.ts) *before* the sim exists. Boot-failure fatal keeps a
+  DOM fallback (`main/fatal.ts`) since the renderer may itself be dead.
+
+### Reinvented interactions (world-anchored + diegetic)
+
+Beyond the mechanical port, three interactions were reinvented (all **client render/input only** —
+no new sim state or protocol; determinism untouched):
+
+- **World-anchored inspect card** ([`ui/canvas/inspect-panel.ts`](../../games/farm/client/src/ui/canvas/inspect-panel.ts)):
+  while a farmer is followed (`focusedFarmerId`), a live detail card (name/personality/gold/FSM+AP/
+  region/current intention, from the observer snapshot) floats **above that farmer and tracks their
+  world position** each frame — via `worldToCanvasCss()` in
+  [`main/screen-to-tile.ts`](../../games/farm/client/src/main/screen-to-tile.ts), the exact inverse of
+  `screenToWorld` (Farm's analogue of Citadel's `tileToCanvasCss` badge anchoring).
+- **Drag-from-world hotbar** ([`ui/canvas/hotbar.ts`](../../games/farm/client/src/ui/canvas/hotbar.ts)):
+  the always-visible belt rearranges by drag, reusing the owner-gated **`swap-slots`** message (same
+  as the inventory modal). Capture-phase window listeners with a movement threshold, so a plain click
+  never counts as a drag and still falls through to the world tool-use action.
+- **Diegetic HUD** ([`ui/canvas/diegetic-hud.ts`](../../games/farm/client/src/ui/canvas/diegetic-hud.ts)):
+  a **notice-board** (latest events, high-drama gold) and **standings post** (day/time + current
+  top-3) anchored over the world structures the sim already spawns — `structure/notice-board` at
+  `NOTICE_BOARD_TILE` and the auction podium at `AUCTION_PODIUM_TILE` — so they read as in-world
+  signage. Press **J** to **summon** both to screen-centre on demand, again to dismiss (todo
+  decision #7's "hybrid diegetic + summon"). These tiles are stable because world geometry is seeded
+  from the fixed `WORLD_GEN_SEED` (the run seed drives AI/economy, not layout), so client + server
+  agree on them.
+
+> Follow-ups: the superseded old DOM panels under `ui/*` (a self-contained dead subgraph; their tests
+> still pass) can be pruned; minor layout polish remains (slate stock-bar text overrun; summoned-HUD
+> overlaps the inspect card; **J** isn't yet in the help-modal key list). See the closed brief
+> [farm-ui-all-rendered-in-canvas](../todos/closed/2026-07-01-farm-ui-all-rendered-in-canvas.md).
+
 ## Pip — a real farmer driven by input
 
 Pip is a normal farmer **entity** in the sim worker with the same components as the four AI farmers, so crop-growth / harvest / market / render / animation all treat it identically. The only difference is the *source of its intentions*: keyboard input instead of an AI personality.
