@@ -31,6 +31,8 @@ import { createInventory } from "../ui/canvas/inventory";
 import type { Inventory } from "../ui/canvas/inventory";
 import { createInspectPanel } from "../ui/canvas/inspect-panel";
 import type { InspectPanel } from "../ui/canvas/inspect-panel";
+import { createNoticeBoard, createStandingsPost } from "../ui/canvas/diegetic-hud";
+import type { NoticeBoard, StandingsPost } from "../ui/canvas/diegetic-hud";
 import type { UIHost, UIRootHandle } from "../ui/canvas/ui-host";
 
 /** The commands the panels invoke back into the host. */
@@ -72,6 +74,11 @@ export interface Panels {
   /** World-anchored inspect card that tracks the followed farmer (reinvention: world-anchored UI). */
   inspectPanel: InspectPanel;
   inspectRoot: UIRootHandle;
+  /** Diegetic HUD (reinvention): the in-world notice-board (events) + standings post (day/top-3). */
+  noticeBoard: NoticeBoard;
+  noticeBoardRoot: UIRootHandle;
+  standingsPost: StandingsPost;
+  standingsPostRoot: UIRootHandle;
 }
 
 function mount(id: string): HTMLElement | null {
@@ -191,6 +198,21 @@ export function buildPanels(
     inspectVisible = v;
   };
 
+  // Diegetic HUD — always-registered roots; the render loop anchors them to their world structures
+  // (or screen-centres them while summoned) and drives their refresh.
+  const noticeBoard = createNoticeBoard();
+  const noticeBoardRoot = host.registerRoot({
+    getRoot: () => noticeBoard.root,
+    a11yMount: mount("ui-a11y-notice"),
+    a11yLabel: "Notice board",
+  });
+  const standingsPost = createStandingsPost();
+  const standingsPostRoot = host.registerRoot({
+    getRoot: () => standingsPost.root,
+    a11yMount: mount("ui-a11y-standings"),
+    a11yLabel: "Standings post",
+  });
+
   return {
     overlay,
     worldClock,
@@ -214,5 +236,9 @@ export function buildPanels(
     inventory,
     inspectPanel,
     inspectRoot,
+    noticeBoard,
+    noticeBoardRoot,
+    standingsPost,
+    standingsPostRoot,
   };
 }

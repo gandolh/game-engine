@@ -6,7 +6,9 @@ import type { UINode } from "@engine/ui";
 import type { UIHost } from "../ui/canvas/ui-host";
 import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
 import type { JuiceLayer } from "./juice";
-import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, isWalkable } from "@farm/sim-core/world/regions";
+import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, NOTICE_BOARD_TILE, AUCTION_PODIUM_TILE, isWalkable } from "@farm/sim-core/world/regions";
+import { dayFraction } from "@farm/sim-core/systems/day-phase";
+import { fractionToTimeLabel } from "../ui/canvas/world-clock";
 import { washFor, nightnessFor } from "../render/day-night";
 import { makeLightOverlay } from "../render/lights";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
@@ -97,10 +99,14 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     overlay, worldClock, clockRoot, hotbar, hotbarRoot, tooltip, rightColumn, rightColumnRoot,
     leaderboard, leaderboardRoot, playback, playbackRoot, helpRoot, relationshipMatrix,
     relationshipRoot, wealthGraph, gameOverPanel, gameOverRoot, inventory,
-    inspectPanel, inspectRoot,
+    inspectPanel, inspectRoot, noticeBoard, noticeBoardRoot, standingsPost, standingsPostRoot,
   } = panels;
 
   const inspectCtl = inspectPanel as typeof inspectPanel & { setVisible(v: boolean): void };
+
+  // Diegetic HUD summon: J toggles the notice-board + standings-post from their world anchors to a
+  // screen-centred readout (todo decision #7 — in-world home + summon-on-demand).
+  let hudSummoned = false;
 
   // The panels expose leaderboard/game-over open state via a wrapper the builder attached.
   const leaderboardCtl = leaderboard as typeof leaderboard & {
@@ -580,6 +586,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
 
       if (keyboard.justPressed("Tab")) leaderboardCtl.toggle();
+      if (keyboard.justPressed("KeyJ")) hudSummoned = !hudSummoned; // summon/dismiss diegetic HUD
       if (client.owner) {
 
         let selectSlot: number | null = null;
@@ -811,6 +818,49 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         } else {
           inspectCtl.setVisible(false);
         }
+      }
+
+      // Diegetic HUD (reinvention): the notice-board (events) + standings post (day/time + top-3)
+      // live in the world — anchored over their structures (world → canvas CSS px) so they read as
+      // in-world signage and track the camera. Pressing J summons both to screen-centre instead.
+      {
+        const noticeChanged = noticeBoard.refresh({ events: client.events });
+        const timeLabel = fractionToTimeLabel(dayFraction(client.tick, ticksPerDay));
+        const standingsChanged = standingsPost.refresh({
+          day: client.day,
+          timeLabel,
+          rows: client.leaderboard,
+        });
+
+        if (hudSummoned) {
+          // Summoned: stack both centred (measure → re-anchor), notice-board above standings.
+          computeLayout(noticeBoard.root, 0, 0);
+          computeLayout(standingsPost.root, 0, 0);
+          const totalH = noticeBoard.root.rect.height + standingsPost.root.rect.height + 8;
+          const topY = Math.max(0, (canvas.clientHeight - totalH) / 2);
+          const nx = Math.max(0, (canvas.clientWidth - noticeBoard.root.rect.width) / 2);
+          computeLayout(noticeBoard.root, nx, topY);
+          const sx = Math.max(0, (canvas.clientWidth - standingsPost.root.rect.width) / 2);
+          computeLayout(standingsPost.root, sx, topY + noticeBoard.root.rect.height + 8);
+        } else if (_camera !== null) {
+          // World-anchored: float each panel above its structure's tile centre.
+          computeLayout(noticeBoard.root, 0, 0);
+          const nb = worldToCanvasCss(
+            _camera, canvas,
+            NOTICE_BOARD_TILE.x * TILE + TILE / 2, NOTICE_BOARD_TILE.y * TILE,
+          );
+          computeLayout(noticeBoard.root, nb.x - noticeBoard.root.rect.width / 2, nb.y - noticeBoard.root.rect.height - TILE);
+          computeLayout(standingsPost.root, 0, 0);
+          const sp = worldToCanvasCss(
+            _camera, canvas,
+            AUCTION_PODIUM_TILE.x * TILE + TILE / 2, AUCTION_PODIUM_TILE.y * TILE,
+          );
+          computeLayout(standingsPost.root, sp.x - standingsPost.root.rect.width / 2, sp.y - standingsPost.root.rect.height - TILE);
+        }
+        if (noticeChanged) noticeBoardRoot.mirror?.update(noticeBoard.root);
+        if (standingsChanged) standingsPostRoot.mirror?.update(standingsPost.root);
+        renderTree(surface, noticeBoard.root);
+        renderTree(surface, standingsPost.root);
       }
 
       // Help modal — centred, top-most non-terminal overlay.
