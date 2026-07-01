@@ -4,6 +4,35 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] playtest | Citadel Phase C cold-open — VERIFIED live in a real browser
+
+Ran `playtest-citadel` against the shipped Phase C. A focused `phaseC-verify.mjs`
+probe (scratch, git-ignored; system Chrome + WebGPU, seed `0x1a2b3c4d`, NO driver
+placements so the *seeded* town is what's observed) confirms the cold open works
+end-to-end at both the data and visual layers:
+- **Opening frame** (`00-opening.png`): camera centered + zoomed on the seeded core
+  (not the empty whole-map) at Day 2 — the one-shot solo-only reframe onto the actual
+  seed centroid works. Core renders diegetically (fenced farm, animated post-mill, two
+  terracotta cottages, cobblestone road spine, a walking villager). HUD `Day 2, Pop
+  1/6, Bread 5, Wood 40`.
+- **Seed = spec:** 5 non-road buildings (storehouse/farm/mill/bakery/house) + 12 roads,
+  ALL `connected:true` on the first snapshot. Villagers spawn + staff within ~2 days with
+  ZERO player input; pop holds at the housing cap (6/6) through day 63 — never dies out
+  (**founding deadlock structurally impossible, confirmed**). `Threat:0 / Fire:none /
+  Disease:none`, `burning=0` every sample (defer gate holds at the 5-building seed).
+- **Two non-regressions noted:** (1) pop oscillates at cap 6/6 (day-59 starve → day-60
+  immigrant) — the *known pre-Phase-H economy* (one house caps popCap 6, one-bakery chain
+  ~breaks even), which Phase H + the player extending the seed addresses; the cold open's
+  job (hand the player a live, growable town) is done. (2) The `play.mjs` driver's
+  DOM-scrape timeline is still null (the in-canvas-UI P2 staleness) — reconfirmed, the
+  `__citadel` snapshot read-back is the working substitute.
+- House mood held at neutral base 40 (the seed ships only the bread chain, no chapel/
+  market in range → all needs lack → base-40, correct) — so the *thriving* warm-glow
+  contrast still wasn't framed, but now for a benign reason. A follow-up placing services
+  in range would show mood 40→80; low priority (the mechanism was proven in the Phase A
+  data check). Full write-up folded into
+  [the cozy-pivot playtest log todo](todos/2026-07-01-citadel-phaseA-playtest-verification.md).
+
 ## [2026-07-01] build | Citadel cozy pivot Phase C — forgiving diegetic cold open (seeded alive core + threats deferred until grown)
 
 Phase C of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
