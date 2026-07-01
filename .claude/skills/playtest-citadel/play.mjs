@@ -71,7 +71,7 @@ async function placeAndVerify(desired, rounds = 3) {
   for (let r = 0; r < rounds && pending.length; r++) {
     pending = await page.evaluate((items) => {
       const C = window.__citadel, t = C.terrain(), W = t.width, H = t.height, cells = t.cells;
-      const DEF = { house: [2, 2], farm: [3, 3], mill: [2, 2], bakery: [2, 2], woodcutter: [2, 2], storehouse: [3, 2], chapel: [2, 2], market: [2, 2], watchpost: [2, 2], tradingpost: [3, 2], quarry: [2, 2], sawmill: [2, 2], smith: [2, 2], tower: [2, 2], keep: [3, 3], garrison: [3, 2] };
+      const DEF = { house: [2, 2], farm: [3, 3], mill: [2, 2], bakery: [2, 2], woodcutter: [2, 2], storehouse: [3, 2], chapel: [2, 2], market: [2, 2], watchpost: [2, 2], tradingpost: [3, 2], well: [1, 1], quarry: [2, 2], sawmill: [2, 2], smith: [2, 2], tower: [2, 2], keep: [3, 3], garrison: [3, 2] };
       const walk = (x, y) => { if (x < 0 || y < 0 || x >= W || y >= H) return false; const v = cells[y * W + x]; return v === 0 || v === 4; };
       const occ = new Set();
       const live = C.buildings();
@@ -121,45 +121,112 @@ try {
     const Forest = 2, Stone = 3;
     const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? -1 : cells[y * W + x]);
     const walk = (x, y) => { const v = at(x, y); return v === 0 || v === 4; };
+    // SEED-AWARE: start the occupancy set from the buildings that ALREADY exist
+    // (the cozy cold-open pre-seeds a 12×6 alive-core box at map center — a
+    // storehouse + farm→mill→bakery + a house + a road spine). Planning with an
+    // empty occ set makes findClear collide with that box and bump every building
+    // outward, exhausting the retry budget before services land (the P2 finding).
+    // Seeding occ from live buildings lets us anchor NEW buildings around the core
+    // and, crucially, place services within SERVICE_RADII (Manhattan 8) of the
+    // seeded house so coverage can actually be achieved. Roads/bridges don't block
+    // building placement, so exclude them from occ (but keep footprints of real
+    // structures).
+    const live = C.buildings();
     const occ = new Set();
+    const noBlock = new Set(["road", "bridge"]);
+    // Reserve BOTH real footprints AND the seeded ROAD spine: planning a building
+    // onto a road tile REMOVES that road, which can sever the seeded core's
+    // connectivity flood → the seeded farm disconnects → its worker stops → the
+    // lone founder starves → pop 0 deadlock (observed). Roads still don't count as
+    // an obstacle for coverage, but we must not build on them here.
+    for (const b of live) for (let yy = 0; yy < b.h; yy++) for (let xx = 0; xx < b.w; xx++) occ.add((b.y + yy) * W + (b.x + xx));
     const free = (x, y, w, h) => { for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) { const cx = x + xx, cy = y + yy; if (!walk(cx, cy) || occ.has(cy * W + cx)) return false; } return true; };
     const mark = (x, y, w, h) => { for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) occ.add((y + yy) * W + (x + xx)); };
     const findClear = (w, h, sx, sy) => { for (let r = 0; r < 50; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = sx + dx, y = sy + dy; if (x > 0 && y > 0 && x < W - w && y < H - h && free(x, y, w, h)) return { x, y }; } return null; };
     const DEF = { house: [2, 2], farm: [3, 3], mill: [2, 2], bakery: [2, 2], woodcutter: [2, 2], storehouse: [3, 2], chapel: [2, 2], market: [2, 2], watchpost: [2, 2], tradingpost: [3, 2], well: [1, 1] };
-    const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
     const want = [];
-    const add = (type, sx, sy) => { const [w, h] = DEF[type]; const p = findClear(w, h, sx, sy); if (p) { mark(p.x, p.y, w, h); want.push({ type, x: p.x, y: p.y }); return p; } return { x: sx, y: sy }; };
-    // Buildings on a 6-tile grid so wooden structures are ≥4 tiles apart — fire
-    // punishes tight clusters (wiki), so a packed layout burns down by ~day 25.
-    // Wells added for ignition mitigation. Services kept within radius-8 of houses.
+    const add = (type, sx, sy) => { const [w, h] = DEF[type]; const p = findClear(w, h, sx, sy); if (p) { mark(p.x, p.y, w, h); want.push({ type, x: p.x, y: p.y }); return p; } return null; };
+    // Coverage-aware placer: find the first clear spot whose FOOTPRINT CENTRE is
+    // within `radius` (Manhattan) of `ctr` — the exact test needs-happiness uses
+    // (center-to-center). Searches nearest-first from `ctr` so services hug the
+    // anchor house and reliably land IN range (the brittle hardcoded-offset version
+    // could tip just past radius 8 after a findClear nudge). Returns null if none.
+    const addNear = (type, ctr, radius) => {
+      const [w, h] = DEF[type];
+      const cxoff = Math.floor(w / 2), cyoff = Math.floor(h / 2);
+      for (let r = 0; r <= radius; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.abs(dx) + Math.abs(dy) !== r) continue; // expanding Manhattan ring, nearest-first
+        const x = ctr.x + dx, y = ctr.y + dy;
+        if (x <= 0 || y <= 0 || x >= W - w || y >= H - h) continue;
+        if (Math.abs((x + cxoff) - ctr.x) + Math.abs((y + cyoff) - ctr.y) > radius) continue; // centre in range
+        if (!free(x, y, w, h)) continue;
+        mark(x, y, w, h); want.push({ type, x, y }); return { x, y };
+      }
+      return null;
+    };
+
+    // Find the seeded core: prefer the seeded HOUSE as the coverage anchor (services
+    // must sit within radius 8 of a house), fall back to the storehouse, then map
+    // center. Center of a building = its footprint centre tile.
+    const bc = (b) => ({ x: b.x + Math.floor(b.w / 2), y: b.y + Math.floor(b.h / 2) });
+    const seededHouse = live.find((b) => b.type === "house");
+    const seededStore = live.find((b) => b.type === "storehouse");
+    const anchor = seededHouse ? bc(seededHouse) : seededStore ? bc(seededStore) : { x: Math.floor(W / 2), y: Math.floor(H / 2) };
+    const RADIUS = 8; // SERVICE_RADII (chapel/market/watchpost), Manhattan (center-to-center).
+
+    // Compute the seeded core's bounding box so NEW buildings land OUTSIDE it (in
+    // open ground below/right of the box), never inside the tightly-packed chain
+    // where findClear would scatter them across the road spine. The whole box is
+    // ≤12×6, so a spot just past its edges is still well within RADIUS 8 of the
+    // anchor house (Manhattan). `add` returns null if nothing clear is found.
+    const realSeed = live.filter((b) => !noBlock.has(b.type));
+    const bx0 = Math.min(...realSeed.map((b) => b.x)), bx1 = Math.max(...realSeed.map((b) => b.x + b.w));
+    const by0 = Math.min(...realSeed.map((b) => b.y)), by1 = Math.max(...realSeed.map((b) => b.y + b.h));
+    // Anchor sits inside the box; place services in the open ring just outside it,
+    // biased to stay within RADIUS of the anchor. Below the box (y ≥ by1+1) is the
+    // clearest band on the default seed. All ≤ ~6 tiles from the anchor → in range.
+    // Services: placed with the coverage-aware ring search so each lands clear of
+    // the seeded box (its footprints are in `occ`) AND with its centre within
+    // RADIUS of the anchor house — guaranteeing coverage, not merely hoping the
+    // hardcoded offset survives a findClear nudge.
+    const chapel = addNear("chapel", anchor, RADIUS);
+    const market = addNear("market", anchor, RADIUS);
+    const watch = addNear("watchpost", anchor, RADIUS);
+    // Extra houses just outside the box (also inside RADIUS) so the "every home
+    // covered" predicate has multiple homes to satisfy + more popCap for staffing.
+    addNear("house", anchor, RADIUS);
+    addNear("house", anchor, RADIUS);
+    // Wells near the wooden cluster for fire mitigation (1×1, cheap to fit).
+    add("well", bx1 + 1, anchor.y);
+    add("well", anchor.x, by1 + 3);
+    // A tradingpost + a second bread chain further out (≥4 tiles from the wooden
+    // core to respect the fire-spacing note) so the economy has slack to keep bread
+    // flowing (goods coverage is stockpile-gated). Placed clear of the core box.
     const P = 6;
-    const base = add("storehouse", cx, cy);
-    const G = (col, row) => ({ x: base.x + col * P, y: base.y + row * P });
-    add("farm", G(1, -1).x, G(1, -1).y); add("farm", G(2, 1).x, G(2, 1).y);
-    add("mill", G(-1, -1).x, G(-1, -1).y); add("mill", G(1, 0).x, G(1, 0).y);
-    add("bakery", G(-2, 0).x, G(-2, 0).y); add("bakery", G(0, -1).x, G(0, -1).y);
-    add("house", G(-1, 1).x, G(-1, 1).y); add("house", G(0, 1).x + 1, G(0, 1).y);
-    add("house", G(-1, 2).x, G(-1, 2).y); add("house", G(0, 2).x + 1, G(0, 2).y);
-    // Services clustered near the houses (rows 1-2) and inside radius 8 of them.
-    add("chapel", G(-2, 1).x, G(-2, 1).y); add("market", G(1, 1).x, G(1, 1).y); add("watchpost", G(-1, 1).x, G(-1, 1).y + 3);
-    add("tradingpost", G(2, 0).x, G(2, 0).y);
-    add("well", G(0, 1).x - 1, G(0, 1).y); add("well", G(-1, 2).x + 3, G(-1, 2).y);
-    // Woodcutter wants a forest-adjacent tile; only flag the intent (terrainReq handled by sim).
+    add("farm", bx1 + 4, by1 + 2);
+    add("mill", bx1 + 4, by0);
+    add("bakery", bx1 + 7, by0);
+    add("tradingpost", bx0 - 5, by0);
+
+    // Woodcutter wants a forest-adjacent tile; scan outward from the anchor.
     let woodSpot = null;
     for (let r = 0; r < 60 && !woodSpot; r++) for (let dy = -r; dy <= r && !woodSpot; dy++) for (let dx = -r; dx <= r; dx++) {
-      const x = base.x + 12 + dx, y = base.y + dy;
+      const x = anchor.x + 12 + dx, y = anchor.y + dy;
       if (x > 0 && y > 0 && x < W - 2 && y < H - 2 && free(x, y, 2, 2) && (at(x - 1, y) === Forest || at(x + 2, y) === Forest || at(x, y - 1) === Forest || at(x, y + 2) === Forest)) { woodSpot = { x, y }; }
     }
     if (woodSpot) { mark(woodSpot.x, woodSpot.y, 2, 2); want.push({ type: "woodcutter", x: woodSpot.x, y: woodSpot.y }); }
     // Stone spot for a later quarry (Village-locked).
     let stoneSpot = null;
     for (let r = 0; r < 60 && !stoneSpot; r++) for (let dy = -r; dy <= r && !stoneSpot; dy++) for (let dx = -r; dx <= r; dx++) {
-      const x = base.x - 12 + dx, y = base.y + dy;
+      const x = anchor.x - 12 + dx, y = anchor.y + dy;
       if (x > 0 && y > 0 && x < W - 2 && y < H - 2) { for (let yy = 0; yy < 2; yy++) for (let xx = 0; xx < 2; xx++) if (at(x + xx, y + yy) === Stone) stoneSpot = { x, y }; }
     }
-    return { want, base, stoneSpot, W, H };
+    // Service reach check (informational): are the placed services within radius 8 of the anchor?
+    const man = (p) => p ? Math.abs(p.x - anchor.x) + Math.abs(p.y - anchor.y) : 999;
+    const svcInRange = { chapel: man(chapel) <= RADIUS, market: man(market) <= RADIUS, watchpost: man(watch) <= RADIUS };
+    return { want, base: anchor, anchor, stoneSpot, svcInRange, seededCount: realSeed.length, box: { bx0, bx1, by0, by1 }, W, H };
   });
-  note(`plan: ${plan.want.length} buildings (base ${plan.base.x},${plan.base.y})`);
+  note(`plan: ${plan.want.length} buildings; anchor ${plan.base.x},${plan.base.y}; seeded core ${plan.seededCount} bldgs; services-in-radius ${JSON.stringify(plan.svcInRange)}`);
 
   // Phase 2: place + verify + retry.
   const econ = await placeAndVerify(plan.want);
@@ -210,6 +277,7 @@ try {
         happy: s.happiness ?? null,
         allHomesCovered: !!s.allHomesCovered,
         activeFires: s.activeFires ?? null,
+        lastEvent: (s.recentEvents && s.recentEvents.length) ? s.recentEvents[s.recentEvents.length - 1] : null,
         buildingCount: bs.length, byType, byLevel,
       };
     }
@@ -259,7 +327,17 @@ try {
   const allTypes = new Set();
   // Phase-F contentment banner: track the false→true edge of allHomesCovered so
   // the report can state whether a fully-covered town was ever achieved live.
-  let prevCovered = null, coveredEverTrue = false, coveredEdgeAt = null;
+  // Seed prevCovered from an IMMEDIATE post-placement sample (services placed but
+  // typically not yet staffed → covered=false) so the tracker can actually observe
+  // the rising edge when the services staff a few ticks later. If coverage was
+  // already true at this first sample (town booted already-covered), we record that
+  // as coveredFromBoot — the seeded-silent case where the banner correctly does NOT
+  // fire (main.ts latches on the first snapshot without toasting).
+  const first = await readHud();
+  let prevCovered = (typeof first.allHomesCovered === "boolean") ? first.allHomesCovered : null;
+  let coveredEverTrue = prevCovered === true, coveredEdgeAt = null;
+  const coveredFromBoot = prevCovered === true;
+  note(`initial coverage (post-placement, pre-staffing): ${first.allHomesCovered}`);
   for (let i = 0; i < Math.ceil((SECONDS * 1000) / 4000); i++) {
     await sleep(4000);
     const h = await readHud();
@@ -301,8 +379,13 @@ try {
     unlockedAll: ["keep", "garrison", "tower", "sawmill", "smith", "quarry"].every((t) => report.typesEverSeen.includes(t)),
     upgradedAll: f.byLevel[1] === 0 && f.byLevel[2] === 0 && f.byLevel[3] > 0,
     finalPop: f.pop,
-    // Phase-F acceptance signal: did a fully-covered town ever occur, and when did the edge fire?
+    // Phase-F acceptance signal: was a fully-covered town achieved, and how?
+    //  - coveredEver: coverage held at some point in the run (mechanism works).
+    //  - coveredFromBoot: it was ALREADY covered at the first post-placement sample
+    //    (seeded-silent — the banner correctly does not fire on an already-happy load).
+    //  - edgeAtSecs: a genuine false→true transition was OBSERVED live (banner fires) — null if not.
     allHomesCoveredEver: coveredEverTrue,
+    allHomesCoveredFromBoot: coveredFromBoot,
     allHomesCoveredEdgeAtSecs: coveredEdgeAt,
     finalAllHomesCovered: f.allHomesCovered ?? null,
   };
