@@ -4,6 +4,67 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (2026-06-13):** entries before 2026-06-13 were collapsed into dated era summaries. Full prose for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-01] done | Farm Valley — ALL UI rendered in-canvas via @engine/ui + interaction reinvented
+
+Closed [the farm-ui-all-in-canvas todo](todos/closed/2026-07-01-farm-ui-all-rendered-in-canvas.md)
+(`status: done`) — the cross-game payoff of Citadel's `@engine/ui` investment, proving Farm Valley
+adopts the same framework. **The port (phases 1–2):** all ~16 DOM surfaces (hotbar, inventory,
+tooltip, world-clock, observer/farmer-list, leaderboard, playback+help, slate, event-feed,
+right-column, relationship-matrix, wealth-graph) **plus** the home/loading/game-over screens now
+render in-canvas as retained `@engine/ui` trees, driven from ONE `UISurface` in `render-loop.ts`
+(Citadel's per-frame `begin → per-root refresh/computeLayout/mirror/renderTree → end` pattern). The
+panel modules under `games/farm/client/src/ui/canvas/*` already existed on the branch (with tests);
+the missing piece was the top-level wiring — `main.ts` (canvas home/loading screens run through the
+shared UI host *before* the sim exists; `buildPanels(app, host, canvas, actions)`), `render-loop.ts`
+(panel `refresh()`/`drawIcons`/`drawGhost` + wheel routing, replacing the old DOM `.update()` calls),
+and `main/playback.ts` (new `PlaybackActions` contract). Only the seed `<input>` (native text entry)
+and visually-hidden `.ui-a11y` mirrors remain in the DOM; no visible DOM UI overlays. Deleted the
+superseded DOM `main/game-over.ts`; the other old `ui/*` DOM files are a self-contained dead subgraph
+(kept for now, tests still green — prunable follow-up). **The reinvention (phase 3):** (1)
+**world-anchored inspect card** — while a farmer is followed, a live detail card floats above them and
+tracks their world position via a new `worldToCanvasCss` (inverse of `screenToWorld`, Farm's analogue
+of Citadel's `tileToCanvasCss`); (2) **drag-from-world hotbar** — the always-visible belt rearranges
+by drag, reusing the owner-gated `swap-slots` message (capture-phase, movement-threshold so a plain
+click still tool-uses the world); (3) **diegetic HUD** — a notice-board (events) + standings post
+(day/time + top-3) anchored over the world structures the sim already spawns
+(`structure/notice-board` @ `NOTICE_BOARD_TILE`, auction podium @ `AUCTION_PODIUM_TILE`), summonable
+to screen-centre with **J** (todo decision #7's "hybrid diegetic + summon"). World geometry is seeded
+from the fixed `WORLD_GEN_SEED` (the run seed drives AI/economy, not layout), so client + server agree
+on the anchor tiles. **Client render/input only — no sim/protocol change; determinism byte-identical**
+(same-seed `EXPORT=json` diff MATCH), so no headless re-verify was needed beyond that. Commits
+`6ee527a` (port), `112304d` (inspect + drag hotbar), `9dcedb6` (diegetic HUD). Gates: `@farm/client`
+typecheck clean; 295 client + 133 `@engine/ui` tests green; palette guard green; real-browser
+Playwright smoke passes for the port and all three reinventions (panels render in-canvas, bitmap text
+legible, keyboard routes to UI, seed input works, no DOM panel overlays, inspect card tracks a farmer,
+diegetic panels render world-anchored + J-summon). See
+[wiki/player-and-interaction.md](wiki/player-and-interaction.md) → *In-canvas UI*.
+
+## [2026-07-01] research | Citadel — cozy iso pixel-art quality (research + style bible + phased briefs)
+
+Studied isometric pixel-art craft (SLYNYRD 41/54, Pixel Parmesan, Screaming Brain, Pixnote), The Book of
+Shaders (color/noise/cellular/fBm), and CC0 asset packs — filtered against Citadel's actual renderer.
+Findings: Citadel is **already** true-iso (2:1, 32×16, correct projection + `x+y` painter's depth, per
+[brief 21](todos/2026-06-21-citadel-true-isometric.md)) with procedural EDG32 recipes + baked contact
+shadows — so this is a **fidelity + art-direction** task, not an iso conversion. Grilled the user to lock
+4 decisions: **(1) go 2× outright** (`ISO_ART_SCALE=2`, re-open the 4×-reverted call from
+[brief 95](briefs/game/done/95-citadel-building-restyle-reference-look.md) at the middle ground; 4× stays a
+future knob), **(2) cozy medieval storybook** art direction (warm bias, golden hour, soft shadows, lived-in),
+**(3) both** shader tracks (refine wash/light/weather overlays + light up a reusable fBm overlay), **(4)**
+focused-quality tone but full-overhaul coverage (buildings, units, roads, terrain, atmosphere, animation).
+**Refinement pass (2026-07-01):** mined the sources for max concrete value — found the fBm overlay
+**already exists** (engine `CloudShadowPass` / `cloud.wgsl`, 3-octave, `step()`-quantized, EDG-uniform,
+wired via `setCloudOptions`) but Citadel never enables it, so art-03 became wire-up + a warm fog variant
+(not a from-scratch pass); ported the canonical `hash21`/`valueNoise`/`fbm3` recipe + concrete boundary-
+dither idiom + per-surface hue-swap table into art-02. Key mechanic: `ISO_ART_SCALE` is a single global constant — flipped once (gates the
+per-category polish), not per-category. Decision: **don't commit external PNGs** (assets are code +
+palette-guarded); packs are reference-only.
+
+**Split into 3 artefacts** (one-concept-per-file): durable [cozy iso art style bible](wiki/citadel-art-style.md)
+(wiki), the [research + decisions survey](todos/2026-07-01-citadel-iso-pixel-art-quality-research.md) (todo),
+and phased implementation todos — [Phase A/B0 (style + 2× flip gate)](todos/2026-07-01-citadel-art-01-scale-flip-and-palette.md),
+[buildings/units/terrain/roads fidelity](todos/2026-07-01-citadel-art-02-recipe-fidelity-pass.md),
+and [atmosphere + fBm overlay](todos/2026-07-01-citadel-art-03-atmosphere-and-fbm-overlay.md).
+
 ## [2026-07-01] done | Citadel — P2 playtest placement half: seed-aware plan (Phase F verified live)
 
 Closed the remaining open half of [the E/F playtest todo](todos/2026-07-01-citadel-phaseEF-playtest.md)
