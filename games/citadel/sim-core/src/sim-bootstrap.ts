@@ -3,7 +3,7 @@ import type { System, SimContext } from "@engine/core";
 import type { CitadelCommand, BuildingSnapshot, VillagerSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
 import { DayClockSystem } from "./systems/day-clock";
 import { TierSystem, TIER_LOCK, tierAtLeast, unlockTier } from "./systems/tiers";
-import { generateTerrain, isWalkable, TerrainType, WORLD_WIDTH as DEFAULT_WORLD_WIDTH, WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT } from "./world/terrain";
+import { generateTerrain, isWalkable, TerrainType, findCoreBox, CORE_BOX_W, CORE_BOX_H, WORLD_WIDTH as DEFAULT_WORLD_WIDTH, WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
 import {
@@ -1080,9 +1080,15 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
    *   rows ay+4..ay+5 : storehouse(3×2) at ax
    *
    * Bounding box: 12 wide (cols ax..ax+11) × 6 tall (rows ay..ay+5).
+   *
+   * These dims MUST equal the terrain layer's CORE_BOX_W/H — the solvability
+   * guarantee validates/carves the box against those, and this layout's hardcoded
+   * offsets (ax+10, ay+4/ay+5) assume exactly 12×6. Imported (not re-declared) so
+   * there is ONE source of truth; the guarantee and this placement share both the
+   * dims AND the box search (findCoreBox), so they can never disagree.
    */
-  const SEED_CLUSTER_W = 12;
-  const SEED_CLUSTER_H = 6;
+  const SEED_CLUSTER_W = CORE_BOX_W;
+  const SEED_CLUSTER_H = CORE_BOX_H;
   function seededLayout(ax: number, ay: number): {
     buildings: ReadonlyArray<{ type: string; x: number; y: number }>;
     roads: ReadonlyArray<{ x: number; y: number }>;
@@ -1101,42 +1107,17 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     };
   }
 
-  /** True if every tile the seed cluster anchored at (ax, ay) needs is in-bounds and buildable. */
-  function seedClusterFits(ax: number, ay: number): boolean {
-    if (ax < 0 || ay < 0 || ax + SEED_CLUSTER_W > WORLD_WIDTH || ay + SEED_CLUSTER_H > WORLD_HEIGHT) {
-      return false;
-    }
-    for (let dy = 0; dy < SEED_CLUSTER_H; dy++) {
-      for (let dx = 0; dx < SEED_CLUSTER_W; dx++) {
-        // Every tile in the bounding box must be buildable — the layout's
-        // footprints + road spine all live inside it, and requiring the full box
-        // guarantees no gaps (water/rough) split the cluster.
-        if (!buildable(ax + dx, ay + dy)) return false;
-      }
-    }
-    return true;
-  }
-
   function seedFoundingTown(): void {
-    // Center the cluster's bounding box on the map, then search outward in
-    // expanding rings for the first anchor where the whole box is buildable
-    // (deterministic scan order: for each ring radius, rows top→bottom, cols
-    // left→right). The default 96×96 world's center is grass, so the first probe
-    // usually wins; the ring search only matters if center is water/rough.
-    const cx = Math.floor((WORLD_WIDTH - SEED_CLUSTER_W) / 2);
-    const cy = Math.floor((WORLD_HEIGHT - SEED_CLUSTER_H) / 2);
-    let anchor: { x: number; y: number } | null = null;
-    const maxRadius = Math.max(WORLD_WIDTH, WORLD_HEIGHT);
-    for (let r = 0; r <= maxRadius && anchor === null; r++) {
-      for (let ay = cy - r; ay <= cy + r && anchor === null; ay++) {
-        for (let ax = cx - r; ax <= cx + r; ax++) {
-          // Only the ring's perimeter is new at radius r (interior was scanned earlier).
-          const onRing = ax === cx - r || ax === cx + r || ay === cy - r || ay === cy + r;
-          if (!onRing) continue;
-          if (seedClusterFits(ax, ay)) { anchor = { x: ax, y: ay }; break; }
-        }
-      }
-    }
+    // Find the core box via the SHARED terrain helper — the exact same full-grid
+    // ring scan (center outward; per radius: rows top→bottom, cols left→right;
+    // first-fit) that the solvability guarantee used to validate/carve the box.
+    // Sharing it means the guarantee and this placement can never anchor
+    // different boxes: the guarantee has already ensured a buildable box exists
+    // (carving the center box if none was natural), so findCoreBox returns that
+    // very box here. We read terrain directly (occupancy is empty pre-seed, so a
+    // terrain-buildable box is placeable). The default 96×96 center is grass, so
+    // the radius-0 probe usually wins.
+    const anchor = findCoreBox(terrain.cells, terrain.width, terrain.height);
     if (anchor === null) return; // no buildable cluster anywhere (degenerate world) — leave empty.
 
     const layout = seededLayout(anchor.x, anchor.y);
