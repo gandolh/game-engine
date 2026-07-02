@@ -16,10 +16,23 @@ export type OverlayFn = (
 ) => void;
 
 export interface CloudOptions {
+  /** EDG hex color of the overlay (parsed to RGB floats on the CPU). */
   color: string;
   coverage: number;
   driftSpeed: number;
   timeSec: number;
+  /**
+   * Overlay mode. `"shadow"` (default) draws dark cloud-shadow blobs (premultiplied
+   * source-over darkening). `"haze"` draws a light, warm low-alpha veil that LIFTS
+   * toward `color` (cozy morning mist) — same fBm/quantization, opposite polarity.
+   */
+  mode?: "shadow" | "haze";
+  /**
+   * Optional soft radial vignette strength in [0..1] (0 = off). Darkens the screen
+   * corners toward `color` for cozy framing. Folded into the same pass so it costs
+   * no extra draw. Quantized to keep the pixel-art read.
+   */
+  vignette?: number;
 }
 
 /**
@@ -98,6 +111,15 @@ export interface RendererLike {
   beginFrame(): void;
   push(sprite: Sprite): void;
   pushShadow(x: number, y: number, rx: number, ry: number, alpha: number): void;
+
+  /**
+   * Set the fBm cloud-shadow / warm-haze overlay for the NEXT `endFrame`. The
+   * overlay is drawn (world-anchored, below the wash) only when `coverage > 0.001`,
+   * and the options are consumed each frame (re-set per frame to keep it on).
+   * Optional: only the WebGPU backend implements it — Canvas2D omits it, so
+   * callers should invoke it via optional-call (`renderer.setCloudOptions?.(…)`).
+   */
+  setCloudOptions?(opts: CloudOptions): void;
 
   /**
    * Screen-space UI draw seam.

@@ -36,16 +36,16 @@ struct ViewUniform {
 //   offset 12: coverage     (f32, align 4)  — [0..1], 0 = clear, 1 = full overcast
 //   offset 16: drift_speed  (f32, align 4)  — cloud scroll rate (world px / s)
 //   offset 20: time_sec     (f32, align 4)  — wall-clock seconds (animation phase)
-//   offset 24: _pad0        (f32, align 4)  — struct must be 32-byte multiple
-//   offset 28: _pad1        (f32, align 4)
+//   offset 24: mode         (f32, align 4)  — 0 = shadow (darken), 1 = haze (warm lift)
+//   offset 28: vignette     (f32, align 4)  — soft radial vignette strength [0..1], 0 = off
 // Total: 32 bytes.
 struct CloudUniform {
     shadow_color : vec3<f32>,
     coverage     : f32,
     drift_speed  : f32,
     time_sec     : f32,
-    _pad0        : f32,
-    _pad1        : f32,
+    mode         : f32,
+    vignette     : f32,
 }
 
 @group(1) @binding(0) var<uniform> cloud_u : CloudUniform;
@@ -55,6 +55,8 @@ struct CloudUniform {
 struct VertexOut {
     @builtin(position) clip_pos  : vec4<f32>,
     @location(0)       world_pos : vec2<f32>,
+    // NDC xy in [-1,1] — screen-anchored, used only for the radial vignette.
+    @location(1)       ndc       : vec2<f32>,
 }
 
 // ── Vertex shader — fullscreen triangle (no vertex buffer) ───────────────────
@@ -75,6 +77,7 @@ fn vs_main(@builtin(vertex_index) vi : u32) -> VertexOut {
     var out_v : VertexOut;
     out_v.clip_pos  = vec4<f32>(cx, cy, 0.0, 1.0);
     out_v.world_pos = vec2<f32>(wx, wy);
+    out_v.ndc       = vec2<f32>(cx, cy);
     return out_v;
 }
 
@@ -131,19 +134,27 @@ fn fbm3(p_coord : vec2<f32>) -> f32 {
 // 5. Multiply the EDG shadow_color by the quantized alpha (no RGB synthesis).
 // 6. Return premultiplied output for source-over blending.
 //
-// Quantized levels:
-//   fBm > (1 - coverage * 0.55):  alpha = HIGH (0.14 * coverage)
-//   fBm > (1 - coverage * 0.80):  alpha = MID  (0.08 * coverage)
-//   else:                          alpha = 0
+// Two modes share the same fBm + quantization, differing only in polarity/tuning:
 //
-// These thresholds are coverage-scaled so sparse (sunny) days produce only a few
-// small patches and overcast days fill most of the sky.
+// SHADOW (mode ≈ 0) — dark cool blobs (default; unchanged from brief 15):
+//   fBm > (1 - coverage * 0.55):  alpha = 0.14 * coverage
+//   fBm > (1 - coverage * 0.80):  alpha = 0.08 * coverage
 //
-// Output is premultiplied source-over: rgb = color * alpha, a = alpha.
+// HAZE (mode ≈ 1) — a light warm low-alpha mist that LIFTS toward `color`:
+//   Broader, softer thresholds so the veil fills more of the frame, but a much
+//   lower max alpha (≤0.12) so it stays a gentle morning haze, not fog soup. The
+//   warm bright EDG color drawn source-over reads as a lift, not a darken.
+//
+// Both quantize to discrete alpha tiers via step() — pixel-art friendly, no
+// smooth gradients. Output is premultiplied source-over: rgb = color * alpha.
+//
+// An optional soft radial VIGNETTE (cloud_u.vignette > 0) is folded in on top:
+// a quantized darken-toward-`color` in the screen corners for cozy framing.
 
 @fragment
 fn fs_main(in_f : VertexOut) -> @location(0) vec4<f32> {
     let wp = in_f.world_pos;
+    let is_haze = step(0.5, cloud_u.mode);  // 1.0 when haze, 0.0 when shadow
 
     // Cloud scale: 1 fBm unit ≈ 128 world px — big, soft, world-scale blobs.
     let cloud_scale : f32 = 1.0 / 128.0;
@@ -157,27 +168,43 @@ fn fs_main(in_f : VertexOut) -> @location(0) vec4<f32> {
     let fbm_val = fbm3(sample_p);
 
     // Threshold to a soft blob mask, scaled by coverage.
-    // Higher coverage → lower threshold → more of the fBm triggers a shadow.
+    // Higher coverage → lower threshold → more of the fBm triggers the veil.
+    // Haze uses gentler threshold spans (fills more) but far lower alpha.
     let cov = clamp(cloud_u.coverage, 0.0, 1.0);
-    let thresh_hi = 1.0 - cov * 0.55;  // top quantization tier
-    let thresh_lo = 1.0 - cov * 0.80;  // lower quantization tier
+    let span_hi = mix(0.55, 0.72, is_haze);
+    let span_lo = mix(0.80, 0.95, is_haze);
+    let thresh_hi = 1.0 - cov * span_hi;  // top quantization tier
+    let thresh_lo = 1.0 - cov * span_lo;  // lower quantization tier
 
     // Quantize: step() gives crisp 0/1 — pixel-art friendly, no smooth gradients.
     let is_hi = step(thresh_hi, fbm_val);
     let is_lo = step(thresh_lo, fbm_val) * (1.0 - is_hi);
 
-    // Max alpha low (0.14 * coverage): ambient darkening, not a solid shadow.
-    let alpha_hi = 0.14 * cov;
-    let alpha_lo = 0.08 * cov;
+    // Max alpha: shadow ≤0.14, haze ≤0.12 (a whisper of warm mist).
+    let alpha_hi = mix(0.14, 0.12, is_haze) * cov;
+    let alpha_lo = mix(0.08, 0.06, is_haze) * cov;
 
-    let shadow_alpha = is_hi * alpha_hi + is_lo * alpha_lo;
+    var overlay_alpha = is_hi * alpha_hi + is_lo * alpha_lo;
+
+    // ── Soft radial vignette (optional; quantized) ──────────────────────────────
+    // Darken/lift toward `color` in the screen corners. Radius in NDC (screen)
+    // space so it hugs the frame, not the world. Quantized to 2 tiers to stay
+    // pixel-art crisp rather than a smooth gradient ramp.
+    let vig = clamp(cloud_u.vignette, 0.0, 1.0);
+    if vig > 0.0 {
+        let r = length(in_f.ndc);           // 0 at center, ~1.41 at corners
+        let v_hi = step(1.05, r);           // deep corners
+        let v_lo = step(0.78, r) * (1.0 - v_hi);
+        let vig_alpha = (v_hi * 0.10 + v_lo * 0.05) * vig;
+        overlay_alpha = overlay_alpha + vig_alpha;
+    }
 
     // Early-exit: transparent pixels contribute nothing; skip premult multiply cost.
-    if shadow_alpha <= 0.0 {
+    if overlay_alpha <= 0.0 {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
 
     // Premultiplied source-over output (no hex literals — color comes from EDG uniform).
-    let rgb = cloud_u.shadow_color * shadow_alpha;
-    return vec4<f32>(rgb, shadow_alpha);
+    let rgb = cloud_u.shadow_color * overlay_alpha;
+    return vec4<f32>(rgb, overlay_alpha);
 }

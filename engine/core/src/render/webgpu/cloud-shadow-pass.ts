@@ -15,6 +15,12 @@ export interface CloudOptions {
   driftSpeed: number;
 
   timeSec: number;
+
+  /** "shadow" (default, dark blobs) | "haze" (light warm lift). */
+  mode?: "shadow" | "haze";
+
+  /** Soft radial vignette strength [0..1], 0 = off. */
+  vignette?: number;
 }
 
 export class CloudShadowPass {
@@ -102,8 +108,10 @@ export class CloudShadowPass {
     this.uniformScratch[3] = opts.coverage;
     this.uniformScratch[4] = opts.driftSpeed;
     this.uniformScratch[5] = opts.timeSec;
-    this.uniformScratch[6] = 0;  
-    this.uniformScratch[7] = 0;  
+    // mode: 0 = shadow (darken), 1 = haze (warm lift). Packed as a float flag.
+    this.uniformScratch[6] = opts.mode === "haze" ? 1 : 0;
+    // vignette strength [0..1], 0 = off.
+    this.uniformScratch[7] = Math.max(0, Math.min(1, opts.vignette ?? 0));
 
     this.device.queue.writeBuffer(
       this.uniformBuffer,
