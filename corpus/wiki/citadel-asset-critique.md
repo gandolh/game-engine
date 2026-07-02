@@ -145,3 +145,23 @@ Results:         A: _/5   B: _/5   C: _/5   D: _/4   E: _/4   F: _/6   G: _/5
 ⚠️ notes:         <list>
 VERDICT:         PASS | CONDITIONAL | FAIL
 ```
+
+### Baseline (2026-07-02, art-06 landed, pre art-04/05/07)
+
+First grading, from the art-06 showcase captures — establishes what the following
+briefs must fix (NOT a closeout verdict):
+
+- **A1/A2 FAIL** — silhouette collapse confirmed at a glance: the fort family
+  (watchpost/tower/garrison/keep) + quarry/mine read as near-identical featureless
+  grey cubes; the cottage family (house/bakery/smith/healer/woodcutter/sawmill) reads
+  as one box with different roof colours. → **art-04**.
+- **F1 FAIL** — a burning building shows only the orange multiply-tint + dark soot
+  wash; no flame / ember / glow — reads "tinted orange", not "on fire". → **art-07**.
+- **A4 (units)** — not yet gradeable (showcase places buildings only; add unit rows
+  with art-05).
+- **Passing at baseline:** C (spacing + base→apex isometry via the ruler overlay), B5
+  (consistent UL sun), E1 (wash cycles dawn/noon/dusk/night), D1/D3 (warm ground,
+  terrain tiers), G4 (palette guard green), G5 (403/403, reloads:0, no page errors).
+
+**Baseline VERDICT: FAIL** (A1/A2/F1 blockers) — expected; the art-04/05/07 work
+exists to clear them. Re-grade at closeout.
