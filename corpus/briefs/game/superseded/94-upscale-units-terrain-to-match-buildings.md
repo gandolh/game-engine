@@ -1,8 +1,12 @@
 # Brief 94 — Upscale Citadel units + terrain to match the 4× buildings
 
+> **SUPERSEDED (2026-07-02).** Premise obsolete: buildings never stayed at 4×, so
+> units/terrain have nothing to "catch up" to. Moved out of `todo/` during a
+> corpus structure audit. History below.
+
 > ⚠️ **Likely OBSOLETE (2026-06-21).** Buildings were reverted from 4× back to
 > 32-based (`ISO_ART_SCALE = 1`) — the user judged 32 dense enough in practice
-> (see brief [95](95-citadel-building-restyle-reference-look.md)). With buildings
+> (see brief [95](../done/95-citadel-building-restyle-reference-look.md)). With buildings
 > at 1×, units/terrain no longer need to "catch up," so this brief's premise no
 > longer holds. Close/supersede unless a deliberate global upscale is revived.
 

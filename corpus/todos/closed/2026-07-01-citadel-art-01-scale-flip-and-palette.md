@@ -1,7 +1,8 @@
 ---
 title: "Citadel art 01 — style bible + 2× scale flip (the gate)"
 created: 2026-07-01
-status: todo
+status: done
+resolved: 2026-07-02
 tags: [citadel, client, render, art, isometric, pixel-art]
 ---
 

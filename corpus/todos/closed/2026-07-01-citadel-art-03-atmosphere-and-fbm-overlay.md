@@ -1,7 +1,8 @@
 ---
 title: "Citadel art 03 — atmosphere refine + wire the existing fBm overlay"
 created: 2026-07-01
-status: todo
+status: done
+resolved: 2026-07-02
 tags: [citadel, client, render, art, shaders, atmosphere, engine]
 ---
 

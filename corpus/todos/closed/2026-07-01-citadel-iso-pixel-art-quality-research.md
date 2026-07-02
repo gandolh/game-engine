@@ -1,7 +1,7 @@
 ---
 title: "Citadel — isometric pixel-art quality: research + decisions (survey)"
 created: 2026-07-01
-status: todo
+status: reference
 tags: [citadel, client, render, art, isometric, pixel-art, shaders, research]
 ---
 

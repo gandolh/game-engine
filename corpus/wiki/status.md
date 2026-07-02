@@ -40,7 +40,7 @@ Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26; **cozy-pivo
 > pressure-game ("caught fire!"/"starved") despite cozy-correct mechanics; **P2** the
 > playtest driver can't yet read the in-canvas HUD or drive road-connected services (so
 > Phase F's banner-edge live-fire is verified-by-mechanism, not yet scripted-live). See
-> [todos/2026-07-01-citadel-phaseEF-playtest.md](../todos/2026-07-01-citadel-phaseEF-playtest.md).
+> [todos/closed/2026-07-01-citadel-phaseEF-playtest.md](../todos/closed/2026-07-01-citadel-phaseEF-playtest.md).
 
 > **2026-06-26 Citadel pass** (see [log.md](../log.md) for detail). Closed a batch of `todos/`:
 > engine GC-churn hygiene (prealloc WebGPU draw scratch + double-buffer CommandQueue);
@@ -52,8 +52,8 @@ Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26; **cozy-pivo
 > stacking decree counterplay, dynamic trader) — baseline moved by design, reproducible;
 > and the **Citadel art todos** (entity-silhouette-legibility **built**; real-sprite-assets +
 > procedural-building-detail **superseded** — the 2026-06-21 true-iso sprite library already
-> delivers them). Only open Citadel todo: [true-isometric](../todos/2026-06-21-citadel-true-isometric.md)
-> (mostly-done; one un-root-caused GPU flat-box anomaly on the dev host).
+> delivers them). [true-isometric](../todos/closed/2026-06-21-citadel-true-isometric.md) is
+> **done** (its GPU flat-box anomaly was confirmed a host-driver artifact, not a code bug).
 
 **Where things stand:** engine briefs **01–16** and game briefs **01–89** are **Done or Superseded** — both `todo/` dirs are empty (2026-06-13). Briefs 85 (animation engine) + 89 (detailed 24×24 characters + held hotbar tool) shipped their phases and were closed **superseded** with only an optional in-browser feel-check + a 24px action pass left (WebGPU-only render → can't feel-check headless). The 2026-06-12 build-order todos (grow→décor→combat→ports→BDI-jitter→underwater→walls/lights→seasonal trees) are all complete; the two unrun calibration todos (rival-cutoff, combat-frequency) were closed **won't-do** in `todos/closed/`.
 
@@ -67,7 +67,7 @@ Current-state **snapshot** (2026-06-12; Citadel addendum 2026-06-26; **cozy-pivo
 
 **Themed interior décor (2026-06-12, foundation #0.5)** — `RegionDef.theme` typed enum (render-only, never read by sim) + [interior-decor.ts](../../packages/sim-core/src/render-systems/interior-decor.ts) `computeInteriorDecor(world)`: per-theme blue-noise scatter inside themed regions, baked into the static layer (layer 2). Forbidden-set (from world queries) dodges every functional tile + bridge mouths; deterministic per `WORLD_GEN_SEED`. The substrate the décor todos (bigger neutral islands / ranch / casino / big-tree) build on. 703 sim-core tests green.
 
-**World grown 160→240 (2026-06-12)** — foundation for the land-adding todos (see [todos/2026-06-12-00-foundation-grow-grid-to-240.md](../todos/2026-06-12-00-foundation-grow-grid-to-240.md), now done). Uniform position-only scale (SCALE=1.5, center 80→120): island `bounds` run through `scaleB` (center moves ×SCALE, **size preserved** → gaps open ×1.5); on-island content (décor/stations/footprints/dock+tavern/festival tiles + render-overlay anchors) is locked to its island via `scaleAroundNearestIsland` so nothing drifts into the ocean; coral reefs derive from live fishing-isle bounds. One hand-tune: shrine +2x to keep the village↔shrine bridge. `DEFAULT_ZOOM` 2→3. The todo's "only one stray literal" estimate was wrong — the real blast radius was dozens of hardcoded 160-coords across setup.ts/coral.ts/shared.ts/regions.ts anchors, all now island-relative or bounds-derived. Full guard-test pass + repo tests (1058) + typecheck green; render eyeballed OK by the user; determinism check waived by the user.
+**World grown 160→240 (2026-06-12)** — foundation for the land-adding todos (see [todos/closed/2026-06-12-00-foundation-grow-grid-to-240.md](../todos/closed/2026-06-12-00-foundation-grow-grid-to-240.md), now done). Uniform position-only scale (SCALE=1.5, center 80→120): island `bounds` run through `scaleB` (center moves ×SCALE, **size preserved** → gaps open ×1.5); on-island content (décor/stations/footprints/dock+tavern/festival tiles + render-overlay anchors) is locked to its island via `scaleAroundNearestIsland` so nothing drifts into the ocean; coral reefs derive from live fishing-isle bounds. One hand-tune: shrine +2x to keep the village↔shrine bridge. `DEFAULT_ZOOM` 2→3. The todo's "only one stray literal" estimate was wrong — the real blast radius was dozens of hardcoded 160-coords across setup.ts/coral.ts/shared.ts/regions.ts anchors, all now island-relative or bounds-derived. Full guard-test pass + repo tests (1058) + typecheck green; render eyeballed OK by the user; determinism check waived by the user.
 
 **Improvement backlog shipped 2026-06-12** (filed and implemented the same day — one worktree branch per brief, Sonnet executors, merged to main individually, tests + typecheck green after every merge):
 - **Engine 10** WASM allocator fault — root cause: the TS wrapper freed `gridPtr` before `outPtr`, but the AS **stub bump allocator only reclaims the most-recent allocation**, so ~25.6 KB leaked per `findPath` (160×160 grid) → heap exhausted at ~655 calls → `unreachable`. Fix is a two-line free-order swap in [pathfinder.ts](../../packages/engine/src/wasm/pathfinder.ts) + an 800-call churn regression test (red pre-fix). TravelSystem's per-intent catch kept but loudened to `console.error`. **Fast diff MATCH ×6** (seeds 0xc0ffee/1/42 × ticks 20/1200), and 3-day output is **byte-identical to pre-fix main** (the leak never bit in short runs) — no baseline move.

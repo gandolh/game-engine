@@ -1,7 +1,8 @@
 ---
 title: "Citadel art 02 — recipe fidelity pass (buildings / units / terrain / roads)"
 created: 2026-07-01
-status: todo
+status: done
+resolved: 2026-07-02
 tags: [citadel, client, render, art, isometric, pixel-art, cozy]
 ---
 

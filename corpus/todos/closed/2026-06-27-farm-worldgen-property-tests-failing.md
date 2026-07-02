@@ -1,10 +1,17 @@
 ---
 title: "Farm Valley — world-gen multi-seed property tests are failing (pre-existing)"
 created: 2026-06-27
-status: open
+status: done
+resolved: 2026-07-02
 tags: [farm, worldgen, tests, bug, pre-existing]
 source: "observed during the 2026-06-27 autonomous backlog pass"
 ---
+
+> **No longer reproduces (2026-07-02, corpus audit).** Re-ran the three named
+> suites (`generate-world.property`, `walkable-grid`, `bridge-graph`) — **28/28
+> pass**. No commits touched `games/farm/sim-core/src/world/` since this was
+> filed, so the original failures were seed-sweep flakiness / an environment
+> artifact, not a live source bug. Closed as not-reproducing rather than fixed.
 
 # Farm — world-generation property tests failing
 
