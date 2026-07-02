@@ -21,6 +21,7 @@ import {
   postMill,
   wellForm,
   openField,
+  openPit,
   marketStalls,
   plaza,
   church,
@@ -141,9 +142,9 @@ export const LIT_BUILDING_TYPES: readonly string[] = ["house", "bakery", "smith"
 function litFrames(): PixelRecipe[] {
   return [
     cottage("bld/house@lit", 2, 2, 1, PLASTER, { ground: true, glow: true }),
-    cottage("bld/bakery@lit", 2, 2, 1, PLASTER, { ground: true, groundSeed: 1, glow: true, accent: (g, p, m) => isoChimney(g, p, m, true) }),
-    cottage("bld/smith@lit", 2, 2, 1, STONE, { glow: true, accent: (g, p, m) => { isoChimney(g, p, m, true); isoAnvil(g, m); } }),
-    cottage("bld/healer@lit", 2, 2, 1, GREENROOF, { ground: true, groundSeed: 1, glow: true, accent: (g, _p, m) => isoCross(g, m, "e") }),
+    cottage("bld/bakery@lit", 2, 2, 1, PLASTER, { ground: true, groundSeed: 1, cottageStyle: "oven", glow: true, accent: (g, p, m) => isoChimney(g, p, m, true) }),
+    cottage("bld/smith@lit", 2, 2, 1, STONE, { cottageStyle: "leanto", glow: true, accent: (g, p, m) => { isoChimney(g, p, m, true); isoAnvil(g, m); } }),
+    cottage("bld/healer@lit", 2, 2, 2, GREENROOF, { ground: true, groundSeed: 1, cottageStyle: "jetty", glow: true, accent: (g, _p, m) => isoCross(g, m, "e") }),
   ];
 }
 
@@ -164,13 +165,10 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   openField("bld/farm", 3, 3, WOOD),
   // Mill — frame 0 (base `bld/mill`) + rotated sail frames.
   ...millFrames(),
-  // Bakery — cottage + a smoking brick oven chimney + a sack/barrel on the plot.
-  cottage("bld/bakery", 2, 2, 1, PLASTER, { ground: true, groundSeed: 1, accent: (g, p, m) => isoChimney(g, p, m, true) }),
-  // Woodcutter — timber cottage + chopping block + log pile.
-  cottage("bld/woodcutter", 2, 2, 1, WOOD, accents(
-    (g, _p, m) => isoLogPile(g, m),
-    (g, _p, m) => isoChoppingBlock(g, m),
-  )),
+  // Bakery — cottage + an external domed bread-OVEN bulge + smoking chimney + plot props.
+  cottage("bld/bakery", 2, 2, 1, PLASTER, { ground: true, groundSeed: 1, cottageStyle: "oven", accent: (g, p, m) => isoChimney(g, p, m, true) }),
+  // Woodcutter — mono-pitch lean-to timber shed + chopping block + log pile.
+  cottage("bld/woodcutter", 2, 2, 1, WOOD, { cottageStyle: "leanto", accent: (g, _p, m) => { isoLogPile(g, m); isoChoppingBlock(g, m); } }),
   // Storehouse — long timber warehouse with barn doors + crates.
   warehouse("bld/storehouse", 3, 2, 1, WOOD, { accent: (g, _p, m) => isoCrates(g, m) }),
   // Chapel — stone church with a bell tower + steeple + cross.
@@ -180,37 +178,32 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   // Public square — cozy-pivot Phase G: open cobblestone plaza with a raised
   // dais + festival banner pole, no walls (a civic gathering place, not a shop).
   plaza("bld/public-square", 2, 2, STONE),
-  // Watchpost — a small crenellated stone lookout + banner.
-  fort("bld/watchpost", 2, 2, 2, WOOD, { accent: (g, _p, m) => isoBanner(g, m, "e") }),
-  // Trading post — warehouse + crates (clay-roofed plaster).
-  warehouse("bld/tradingpost", 3, 2, 1, PLASTER, { accent: (g, _p, m) => isoCrates(g, m) }),
-  // Quarry — an open stone pit with terraces + cut ashlar blocks.
-  boxBuilding("bld/quarry", 2, 2, 1, STONE, { accent: (g, _p, m) => isoQuarryPit(g, m) }),
-  // Sawmill — timber mill + water wheel + log pile.
-  cottage("bld/sawmill", 2, 2, 1, WOOD, accents(
-    (g, _p, m) => isoWaterWheel(g, m),
-    (g, _p, m) => isoLogPile(g, m),
-  )),
-  // Smith — half-timber forge + glowing chimney + anvil out front.
-  cottage("bld/smith", 2, 2, 1, STONE, accents(
-    (g, p, m) => isoChimney(g, p, m, true),
-    (g, _p, m) => isoAnvil(g, m),
-  )),
-  // Mine — a timbered pithead (shaft + winding tower) with ore spill.
-  boxBuilding("bld/mine", 2, 2, 1, STONE, { accent: (g, _p, m) => isoShaftMouth(g, m, "O") }),
-  // Tower — tall crenellated stone tower + watch turret + banner.
-  fort("bld/tower", 2, 2, 3, FORT, accents(
-    (g, p, m) => isoTurret(g, m, p),
-    (g, _p, m) => isoBanner(g, m, "e"),
-  )),
-  // Garrison — a long fortified stone hall + banner.
-  fort("bld/garrison", 3, 2, 2, FORT, { accent: (g, _p, m) => isoBanner(g, m, "e") }),
-  // Keep — the big stronghold + central banner.
-  fort("bld/keep", 3, 3, 3, FORT, { accent: (g, _p, m) => isoBanner(g, m, "p") }),
-  // Town hall — large civic timber-frame hall (warehouse form) + banner.
-  warehouse("bld/town-hall", 3, 3, 2, PLASTER, { accent: (g, _p, m) => isoBanner(g, m, "p") }),
-  // Healer — cottage + a red medical cross + plot props.
-  cottage("bld/healer", 2, 2, 1, GREENROOF, { ground: true, groundSeed: 1, accent: (g, _p, m) => isoCross(g, m, "e") }),
+  // Watchpost — a SMALL, low timber-roofed stone lookout (pitched cap + gallery) +
+  // banner. heightTiles 1 keeps it squat (a modest lookout, distinct from the tall
+  // mine headframe / jettied healer of the same footprint).
+  fort("bld/watchpost", 2, 2, 1, WOOD, { fortVariant: "watchpost", accent: (g, _p, m) => isoBanner(g, m, "e") }),
+  // Trading post — warehouse with a striped market CANOPY front + crates.
+  warehouse("bld/tradingpost", 3, 2, 1, PLASTER, { warehouseStyle: "canopy", accent: (g, _p, m) => isoCrates(g, m) }),
+  // Quarry — an open SUNKEN terraced stone pit (no building box) + cut blocks.
+  openPit("bld/quarry", 2, 2, STONE, { accent: (g, _p, m) => isoQuarryPit(g, m) }),
+  // Sawmill — mono-pitch lean-to timber shed + water wheel + log pile.
+  cottage("bld/sawmill", 2, 2, 1, WOOD, { cottageStyle: "leanto", accent: (g, _p, m) => { isoWaterWheel(g, m); isoLogPile(g, m); } }),
+  // Smith — open lean-to forge + glowing chimney + anvil out front.
+  cottage("bld/smith", 2, 2, 1, STONE, { cottageStyle: "leanto", accent: (g, p, m) => { isoChimney(g, p, m, true); isoAnvil(g, m); } }),
+  // Mine — a low stone pithead DOMINATED by a tall timber winding-tower A-frame
+  // breaking the roofline (shaft + headframe + ore spill), so it reads as a
+  // machine, not a house. heightTiles 2 lifts the headframe clear of the body.
+  boxBuilding("bld/mine", 2, 2, 2, STONE, { accent: (g, _p, m) => isoShaftMouth(g, m, "O") }),
+  // Tower — a tall ROUND stone drum capped by a crenellated ring + banner.
+  fort("bld/tower", 2, 2, 3, FORT, { fortVariant: "tower", accent: (g, _p, m) => isoBanner(g, m, "e") }),
+  // Garrison — a long fortified stone hall with a raised front gatehouse + banner.
+  fort("bld/garrison", 3, 2, 2, FORT, { fortVariant: "garrison", accent: (g, _p, m) => isoBanner(g, m, "e") }),
+  // Keep — the big square donjon: battlements + four bristling corner turrets + banner.
+  fort("bld/keep", 3, 3, 3, FORT, { fortVariant: "keep", accent: (g, _p, m) => isoBanner(g, m, "p") }),
+  // Town hall — civic hall: a raised clock/bell gable + front portico + banner.
+  warehouse("bld/town-hall", 3, 3, 2, PLASTER, { warehouseStyle: "civic", accent: (g, _p, m) => isoBanner(g, m, "p") }),
+  // Healer — a taller jettied (overhanging upper storey) apothecary + red cross + plot props.
+  cottage("bld/healer", 2, 2, 2, GREENROOF, { ground: true, groundSeed: 1, cottageStyle: "jetty", accent: (g, _p, m) => isoCross(g, m, "e") }),
   // Well — a small round stone well-head with a roofed windlass + bucket.
   wellForm("bld/well", STONE),
   // Dusk-lit window-glow companion frames (render-selected by night factor).

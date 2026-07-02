@@ -77,7 +77,7 @@ describe("recipes integrity", () => {
     // Open forms (the fenced farm FIELD, the open market STALLS, the tall narrow
     // post-MILL) are deliberately sparse — they're not solid boxes — so they get
     // a lower opaque floor. The mill's extra sail-rotation frames share its floor.
-    const LOW_FLOOR = new Set(["farm", "market", "mill", "public-square"]);
+    const LOW_FLOOR = new Set(["farm", "market", "mill", "public-square", "quarry"]);
     const floorFor = (name: string): number => {
       const type = name.slice("bld/".length).split("@")[0]!;
       return LOW_FLOOR.has(type) ? 0.06 : 0.2;

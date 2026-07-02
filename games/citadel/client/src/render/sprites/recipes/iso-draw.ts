@@ -441,6 +441,24 @@ export interface FormOpts {
   /** Render the dusk-lit variant: windows take the warm `gold`/`yellow` lamp glow
    *  so the renderer can swap in this frame by night factor (render-only). */
   glow?: boolean;
+  /** Fort silhouette variant (art-04) — swaps the top treatment + body so the
+   *  four fort types read distinctly (watchpost/tower/garrison/keep), not as one
+   *  crenellated cube at different sizes. Defaults to "keep" (the prior look). */
+  fortVariant?: "watchpost" | "tower" | "garrison" | "keep";
+  /** Cottage silhouette variant (art-04) — breaks the shared cottage box so the
+   *  window-bearing trades read distinctly:
+   *   - "cottage" (default) — the canonical steep-gable half-timber house.
+   *   - "oven"   — bakery: an external domed bread-OVEN bulge on the near side.
+   *   - "leanto" — smith/woodcutter/sawmill: a MONO-PITCH lean-to shed roof (one
+   *                slope, open feel) instead of the symmetric gable.
+   *   - "jetty"  — healer: a JETTIED (overhanging) upper storey, taller + narrower. */
+  cottageStyle?: "cottage" | "oven" | "leanto" | "jetty";
+  /** Warehouse silhouette variant (art-04) — differentiates the three warehouse
+   *  users so storehouse/tradingpost/town-hall don't share a barn:
+   *   - "barn"   (default) — the plain hayloft-dormer storehouse.
+   *   - "canopy" — tradingpost: a market-canopy lean-to jutting off the front.
+   *   - "civic"  — town-hall: a raised central CLOCK/BELL gable + a front portico. */
+  warehouseStyle?: "barn" | "canopy" | "civic";
 }
 
 /** Allocate a grid + metrics for a footprint. */
@@ -494,14 +512,95 @@ export function isoContactShadow(g: IsoGrid, m: IsoMetrics): void {
  */
 export function cottage(name: string, w: number, h: number, heightTiles: number, pal: IsoPalette, opts: FormOpts = {}): PixelRecipe {
   const { g, m } = begin(w, h, heightTiles);
+  const style = opts.cottageStyle ?? "cottage";
+
+  if (style === "jetty") drawJettyUpper(g, m, pal); // overhanging upper storey (drawn under the walls)
   drawWalls(g, m, pal);
   drawTimberFrame(g, m, "%"); // dark-oak (bark) half-timber framing
-  drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4), 2.1);
+  if (style === "leanto") {
+    drawLeanToRoof(g, m, pal); // single mono-pitch slope (smith/woodcutter/sawmill)
+  } else {
+    drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4), style === "jetty" ? 1.7 : 2.1);
+  }
   drawWindow(g, m, pal, opts.glow ?? false);
   drawDoorFront(g, m, pal);
+  if (style === "oven") drawOvenBulge(g, m, pal, opts.glow ?? false); // bakery bread oven
   if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
   opts.accent?.(g, pal, m);
   return g.toRecipe(name);
+}
+
+/** A single MONO-PITCH lean-to roof (smith/woodcutter/sawmill): one slope from a
+ *  high back eave down to a low front eave — an open workshop shed, NOT the
+ *  symmetric gable, so the silhouette reads asymmetric/industrial. */
+function drawLeanToRoof(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const { cx, halfW, diaH, yTopMid } = m;
+  // Keep the roof INSIDE the footprint width (no overhang) so the sloped back
+  // edge never reaches the sprite's transparent top-left corner.
+  const eaveHalfW = halfW;
+  const eaveHalfH = diaH / 2 + 1;
+  const backRise = R(m.roofH * 1.2);   // high back edge (modest — stays off the corner)
+  const frontRise = R(m.roofH * 0.4);  // low front edge → single slope
+  const minTop = 2;                    // never paint into the top rows (corner guard)
+  for (let x = R(cx - eaveHalfW); x <= R(cx + eaveHalfW); x++) {
+    const dxn = Math.min(1, Math.abs(x - cx) / eaveHalfW);
+    const eaveUpperY = yTopMid - eaveHalfH * (1 - dxn);
+    const eaveLowerY = yTopMid + eaveHalfH * (1 - dxn);
+    // The ridge is a single line lifted `backRise` at the BACK, sloping to the
+    // front: use the far (upper) eave for the high edge, near (lower) for the low.
+    const topY = Math.max(minTop, R(eaveUpperY - backRise));
+    const botY = R(eaveLowerY - frontRise);
+    if (botY < topY) continue;
+    const lit = x < cx;
+    for (let y = topY; y <= botY; y++) {
+      const t = (y - topY) / Math.max(1, botY - topY);
+      const ch = lit ? (t < 0.15 ? pal.roofLight : pal.roof) : (t < 0.15 ? pal.roof : pal.roofDark);
+      g.set(x, y, ch);
+    }
+    g.set(x, topY, pal.outline);   // high back ridge silhouette
+    g.set(x, botY, pal.outline);   // front eave lip
+  }
+}
+
+/** A JETTIED (overhanging) upper storey for the healer: a second wall band that
+ *  juts out ~2px past the ground-floor walls with a shadow line under the
+ *  overhang, so the building reads tall + top-heavy (apothecary), distinct from
+ *  the plain house. Drawn BEFORE the main walls so the ground floor overlays its
+ *  lower edge. */
+function drawJettyUpper(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const { cx, halfW, diaH, yTopMid, yBotMid } = m;
+  const jut = R(2 * ISO_ART_SCALE / 4);
+  const overW = halfW + jut;
+  const upperTop = R(yTopMid + diaH / 2 - m.wallH * 0.35);
+  const upperBot = R((yTopMid + yBotMid) / 2);
+  for (let x = R(cx - overW); x <= R(cx + overW); x++) {
+    const dxn = Math.min(1, Math.abs(x - cx) / overW);
+    const topY = R(upperTop + (diaH / 2) * dxn * 0.4);
+    for (let y = topY; y <= upperBot; y++) g.set(x, y, x < cx ? pal.wallL : pal.wallR);
+    g.set(x, upperBot + 1, pal.outline); // shadow line under the overhang
+  }
+}
+
+/** A domed external bread-OVEN bulge on the near-left of a bakery — a rounded
+ *  stone kiln volume + a stoke arch (glowing when lit), so the bakery's
+ *  silhouette bulges distinctly from a plain cottage. */
+function drawOvenBulge(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, glow: boolean): void {
+  const cx = R(m.cx - m.halfW * 0.72);
+  const baseY = m.H - R(3 * ISO_ART_SCALE / 4);
+  const r = R(5 * ISO_ART_SCALE / 4);
+  // domed half-disc kiln
+  for (let dy = -r; dy <= 0; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      if (Math.hypot(dx, dy) > r) continue;
+      const x = cx + dx, y = baseY + dy;
+      const f = dx / r;
+      g.set(x, y, f < -0.4 ? "t" : f < 0.3 ? "r" : "R"); // lit clay → shaded rust dome
+    }
+  }
+  for (let dx = -r; dx <= r; dx++) if (Math.hypot(dx, -r) <= r) g.set(cx + dx, baseY - r, pal.outline);
+  // stoke arch mouth (glowing embers when lit)
+  span(g, cx - 1, cx + 1, baseY, "#");
+  if (glow) { g.set(cx, baseY - 1, "o"); g.set(cx, baseY - 2, "y"); g.set(cx - 1, baseY - 1, "o"); }
 }
 
 /**
@@ -836,6 +935,41 @@ export function plaza(name: string, w: number, h: number, pal: IsoPalette): Pixe
 }
 
 /**
+ * Open QUARRY: a SUNKEN terraced stone pit (no building box) — concentric
+ * stepped-down rings of stone with a cut-ashlar block + a timber hoist on the
+ * rim, so it reads as excavated ground, NOT a roofed building. Sparse (lower
+ * opaque floor, shared with the other open forms). The accent (isoQuarryPit)
+ * still adds the cut blocks; this form supplies the pit silhouette.
+ */
+export function openPit(name: string, w: number, h: number, pal: IsoPalette, opts: FormOpts = {}): PixelRecipe {
+  const { g, m } = begin(w, h, 1);
+  const { cx, halfW, diaH, yBotMid } = m;
+  const midY = yBotMid;
+  // Concentric terraced rings stepping DOWN into the ground (darker toward centre).
+  const tones = [pal.wallL, pal.wallR, wallDeepOf(pal), "i"];
+  for (let ring = 0; ring < 4; ring++) {
+    const half = halfW * (1 - ring * 0.22);
+    const stepDown = ring * R(2 * ISO_ART_SCALE / 4);
+    const tone = tones[ring] ?? "i";
+    for (let dyAbs = -diaH / 2; dyAbs <= diaH / 2; dyAbs++) {
+      const frac = 1 - Math.abs(dyAbs) / (diaH / 2);
+      const hw = half * frac;
+      const y = R(midY + dyAbs) + stepDown;
+      for (let x = R(cx - hw); x <= R(cx + hw); x++) g.set(x, y, tone);
+      g.set(R(cx - hw), y, pal.outline);
+      g.set(R(cx + hw), y, pal.outline);
+    }
+  }
+  // A timber hoist gantry on the near rim so the pit reads as worked.
+  const gx = R(cx + halfW * 0.5), gTop = R(midY - diaH * 0.4);
+  for (let y = gTop; y <= midY; y++) g.set(gx, y, "%");
+  span(g, gx - R(3 * ISO_ART_SCALE / 4), gx, gTop, "W");
+  g.set(gx - R(3 * ISO_ART_SCALE / 4), gTop + 1, "#"); // pulley
+  opts.accent?.(g, pal, m);
+  return g.toRecipe(name);
+}
+
+/**
  * Stone CHURCH: a nave (gabled body) + a tall square BELL TOWER on the left with
  * a steep spire and a cross — clearly a place of worship, taller/narrower than a
  * house.
@@ -891,26 +1025,210 @@ export function warehouse(name: string, w: number, h: number, heightTiles: numbe
   }
   g.set(cx, frontBaseY - dh, pal.outline); // central seam
   for (let y = frontBaseY - dh; y < frontBaseY; y += 2) g.set(cx, y, "%");
-  isoGableDormer(g, m, pal);
+  const style = opts.warehouseStyle ?? "barn";
+  if (style === "civic") drawCivicGable(g, m, pal);       // town-hall clock/bell gable + portico
+  else if (style === "canopy") drawMarketCanopy(g, m, pal); // tradingpost front canopy
+  else isoGableDormer(g, m, pal);                          // plain barn hayloft dormer
   if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
   opts.accent?.(g, pal, m);
   return g.toRecipe(name);
 }
 
+/** A raised central CLOCK/BELL gable + a front portico for the town-hall — a
+ *  civic frontispiece so the hall reads grander than a plain storehouse barn. */
+function drawCivicGable(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const cx = m.cx;
+  const half = R(m.halfW * 0.24);
+  const gableTop = Math.max(1, R(m.roofH * 0.15));
+  const gableBase = R(m.roofH + m.wallH * 0.2);
+  // A tall gable box rising above the roof ridge.
+  for (let y = gableTop; y <= gableBase; y++) {
+    for (let x = cx - half; x <= cx + half; x++) g.set(x, y, x < cx ? pal.wallL : pal.wallR);
+    g.set(cx - half, y, pal.outline);
+    g.set(cx + half, y, pal.outline);
+  }
+  // a little pitched cap
+  for (let dx = -half - 1; dx <= half + 1; dx++) {
+    const ry = R(gableTop - (half + 1 - Math.abs(dx)) * 0.7);
+    g.set(cx + dx, ry, dx < 0 ? pal.roofLight : pal.roof);
+  }
+  // round clock face
+  disc(g, cx, R((gableTop + gableBase) / 2), R(2 * ISO_ART_SCALE / 4), 1, "c");
+  g.set(cx, R((gableTop + gableBase) / 2), "#"); // clock hands hub
+  // front portico: two posts under the eave
+  const baseY = R(m.yBotMid + m.diaH / 2);
+  for (const px of [cx - R(m.halfW * 0.4), cx + R(m.halfW * 0.4)]) {
+    for (let y = baseY - R(m.wallH * 0.5); y <= baseY; y++) g.set(px, y, "%");
+  }
+}
+
+/** A market CANOPY lean-to jutting off the tradingpost front — a striped awning
+ *  on two posts so the trading post reads as a commercial stall front, distinct
+ *  from the plain storehouse barn. */
+function drawMarketCanopy(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const cx = m.cx;
+  const baseY = R(m.yBotMid + m.diaH / 2);
+  const half = R(m.halfW * 0.5);
+  const canopyY = R(baseY - m.wallH * 0.7);
+  // striped awning slab (clay/cream stripes) sloping toward the camera
+  for (let dx = -half; dx <= half; dx++) {
+    const ay = canopyY + R(Math.abs(dx) * 0.25);
+    const stripe = (Math.floor((dx + 100) / R(3 * ISO_ART_SCALE / 4)) % 2) === 0 ? "r" : "c";
+    g.set(cx + dx, ay, "#");
+    g.set(cx + dx, ay + 1, stripe);
+    g.set(cx + dx, ay + 2, stripe);
+  }
+  // two support posts down to the ground
+  for (const px of [cx - half, cx + half]) for (let y = canopyY; y <= baseY; y++) g.set(px, y, "%");
+  void pal;
+}
+
 /**
- * Flat crenellated KEEP/TOWER (forts): stone walls in ashlar courses, a flat
- * battlemented deck (merlons around all four rim edges), arrow slits, an arched
- * gate. Distinct castle silhouette. `extra` adds turret/banner.
+ * Stone fortification (forts). The `fortVariant` opt swaps the SILHOUETTE so the
+ * four fort types read distinctly at a glance (art-04) rather than as one
+ * crenellated cube at different sizes:
+ *   - "watchpost" — a short stone base under a TIMBER PITCHED-ROOF lookout (a
+ *     little hip roof, not battlements): the smallest, most domestic fort.
+ *   - "tower"     — a tall ROUND stone DRUM (cylinder shading) capped by a
+ *     crenellated ring: unmistakably a round tower, not a box.
+ *   - "garrison"  — a long low crenellated hall with a raised GATEHOUSE block
+ *     jutting from the front centre: reads horizontal + gated.
+ *   - "keep"      — the big square donjon: flat battlements PLUS four CORNER
+ *     TURRETS so its top silhouette bristles (distinct from the plain garrison).
+ * All keep ashlar coursing + arrow slits + the arched gate + committed sun.
  */
 export function fort(name: string, w: number, h: number, heightTiles: number, pal: IsoPalette, opts: FormOpts = {}): PixelRecipe {
   const { g, m } = begin(w, h, heightTiles);
+  const variant = opts.fortVariant ?? "keep";
+
+  if (variant === "tower") {
+    drawRoundDrum(g, m, pal);      // cylinder body (replaces the flat wall faces)
+    drawCrenellatedRing(g, m, pal); // battlement ring on the drum top
+    drawDoorFront(g, m, pal);
+    opts.accent?.(g, pal, m);
+    return g.toRecipe(name);
+  }
+
   drawWalls(g, m, pal);
   drawAshlarCourses(g, m, pal);
   drawArrowSlits(g, m);
-  drawFlatCrenellatedTop(g, m, pal);
+  if (variant === "watchpost") {
+    // A small timber-capped lookout: a low hip roof instead of battlements.
+    drawHippedRoof(g, m, pal);
+    drawWatchGallery(g, m, pal); // an overhanging timber lookout gallery under the eave
+  } else {
+    drawFlatCrenellatedTop(g, m, pal);
+    if (variant === "garrison") drawGatehouse(g, m, pal);   // raised front gate block
+    if (variant === "keep") drawCornerTurrets(g, m, pal);   // 4 bristling corner turrets
+  }
   drawDoorFront(g, m, pal); // arched gate
   opts.accent?.(g, pal, m);
   return g.toRecipe(name);
+}
+
+/** A tall ROUND stone drum body (tower): a lit-left→shaded-right cylinder with
+ *  stone coursing, replacing the two flat wall faces. Mirrors the mill-tower
+ *  cylinder shading but in the fort palette so a tower reads as a round keep. */
+function drawRoundDrum(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const { cx, diaH, yTopMid, yBotMid } = m;
+  const r = R(m.halfW * 0.66);
+  const topY = yTopMid;
+  const botY = yBotMid + diaH / 2 - 1;
+  for (let y = topY; y <= botY; y++) {
+    for (let x = cx - r; x <= cx + r; x++) {
+      const f = (x - cx) / r; // -1..1 across the drum
+      let ch: string;
+      if (f < -0.55) ch = pal.wallEdge;
+      else if (f < 0.15) ch = pal.wallL;
+      else if (f < 0.65) ch = pal.wallR;
+      else ch = wallDeepOf(pal);
+      g.set(x, y, ch);
+      if (Math.abs(f - 0.15) < 1 / r) seamDither(g, x, y, pal.wallL, pal.wallR);
+    }
+    g.set(cx - r, y, pal.outline);
+    g.set(cx + r, y, pal.outline);
+    // ashlar coursing every few rows (subtle mortar line)
+    if ((y - topY) % Math.max(5, R(8 * ISO_ART_SCALE / 4)) === 0) span(g, cx - r + 1, cx + r - 1, y, pal.outline);
+  }
+}
+
+/** A crenellated battlement RING atop the round drum (tower): merlons stepping
+ *  around the top ellipse rim. */
+function drawCrenellatedRing(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const { cx, yTopMid } = m;
+  const r = R(m.halfW * 0.66);
+  const merlonH = R(5 * ISO_ART_SCALE / 4);
+  const ringY = yTopMid;
+  // top rim ellipse
+  for (let dx = -r; dx <= r; dx++) {
+    const ey = R(Math.sqrt(Math.max(0, r * r - dx * dx)) * 0.42);
+    g.set(cx + dx, ringY - ey, pal.wallEdge);
+  }
+  // merlons around the front arc
+  const gap = R(4 * ISO_ART_SCALE / 4);
+  for (let dx = -r; dx <= r; dx += gap) {
+    const ey = R(Math.sqrt(Math.max(0, r * r - dx * dx)) * 0.42);
+    const x = cx + dx, top = ringY - ey;
+    for (let dy = 1; dy <= merlonH; dy++) g.set(x, top - dy, x < cx ? pal.wallL : pal.wallR);
+    g.set(x, top - merlonH - 1, pal.outline);
+  }
+}
+
+/** A raised GATEHOUSE block on the front centre of a garrison — a short tower
+ *  straddling the gate so the long hall reads as fortified + gated. */
+function drawGatehouse(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const cx = m.cx;
+  const half = R(m.halfW * 0.2);
+  const baseY = R(m.yTopMid + m.diaH / 2);
+  const top = Math.max(1, R(m.roofH * 0.2));
+  for (let y = top; y <= baseY; y++) {
+    for (let x = cx - half; x <= cx + half; x++) g.set(x, y, x < cx ? pal.wallL : pal.wallR);
+    g.set(cx - half, y, pal.outline);
+    g.set(cx + half, y, pal.outline);
+  }
+  // merlons on the gatehouse top
+  for (let x = cx - half; x <= cx + half; x += R(3 * ISO_ART_SCALE / 4)) {
+    for (let dy = 1; dy <= R(3 * ISO_ART_SCALE / 4); dy++) g.set(x, top - dy, pal.wallL);
+    g.set(x, top - R(3 * ISO_ART_SCALE / 4) - 1, pal.outline);
+  }
+}
+
+/** Four small CORNER TURRETS at the keep's roof-diamond corners so the top
+ *  silhouette bristles (distinguishes the keep from the plain garrison). */
+function drawCornerTurrets(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const { cx, halfW, diaH, yTopMid } = m;
+  const HHalf = diaH / 2;
+  const corners: Array<{ x: number; y: number }> = [
+    { x: cx, y: yTopMid - HHalf },      // back
+    { x: cx - halfW, y: yTopMid },      // left
+    { x: cx + halfW, y: yTopMid },      // right
+    { x: cx, y: yTopMid + HHalf },      // front
+  ];
+  const half = R(3 * ISO_ART_SCALE / 4);
+  const h = R(8 * ISO_ART_SCALE / 4);
+  for (const c of corners) {
+    for (let y = c.y - h; y <= c.y; y++) {
+      for (let x = c.x - half; x <= c.x + half; x++) g.set(x, y, x < c.x ? pal.wallL : pal.wallR);
+      g.set(c.x - half, y, pal.outline);
+      g.set(c.x + half, y, pal.outline);
+    }
+    // tiny cap merlons
+    for (let x = c.x - half; x <= c.x + half; x += 2) g.set(x, c.y - h - 1, pal.outline);
+  }
+}
+
+/** An overhanging timber lookout GALLERY under the watchpost eave — a dark
+ *  timber band with support brackets, so the little fort reads as a manned
+ *  lookout rather than a plain roofed box. */
+function drawWatchGallery(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const { cx, halfW, diaH, yTopMid } = m;
+  const galleryY = R(yTopMid + diaH / 2 + 1); // just under the eave line
+  for (let x = R(cx - halfW * 0.8); x <= R(cx + halfW * 0.8); x++) {
+    g.set(x, galleryY, "%");       // timber rail (bark)
+    g.set(x, galleryY + 1, "W");   // shadow line under it
+    if ((x - cx) % R(4 * ISO_ART_SCALE / 4) === 0) { g.set(x, galleryY + 2, "%"); g.set(x, galleryY + 3, "%"); } // brackets
+  }
+  void pal;
 }
 
 /** Ashlar (cut-stone) coursing on the front wall faces: sparse horizontal mortar
