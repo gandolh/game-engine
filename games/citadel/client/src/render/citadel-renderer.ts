@@ -53,7 +53,7 @@ import {
 } from "./quads";
 import { isoFootprintBox, isoFootprintDiamondBox, isoPointBox, tileCenterToIso, ISO_TILE_W, ISO_TILE_H } from "./iso";
 import { isoNetworkTiles } from "./autotile";
-import { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
+import { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE, flameFrameAt } from "./sprites/recipes";
 import { clusterBuildings, clusterBorderQuads } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
 import { RenderWindowController } from "./window-controller";
@@ -63,7 +63,7 @@ import { disconnectedBuildings } from "./road-feedback";
 // fx imports a couple of helpers back from this module (villagerQuad/QuadSpec);
 // the resulting ES-module cycle is safe — every binding is used at call time,
 // never at module-eval time.
-import { glowAlphaForMood, houseAlphaForMood, villagerAlphaForMood, villagerSlumpOffset } from "./citadel-fx";
+import { glowAlphaForMood, houseAlphaForMood, villagerAlphaForMood, villagerSlumpOffset, fireGlowQuads, fireFlicker } from "./citadel-fx";
 
 // ---------------------------------------------------------------------------
 // Re-export the full prior public surface so existing imports keep resolving.
@@ -676,6 +676,51 @@ export function pushLightPool(renderer: RendererLike, quads: readonly QuadSpec[]
     renderer.push(isoFlatSprite(
       c.x - halfW, c.y - halfH, halfW * 2, halfH * 2,
       FRAME_DIAMOND, q.tintRgba, LAYER_LIGHT_POOL, c.y,
+    ));
+  }
+}
+
+/**
+ * Push cozy FIRE FX for burning buildings (art-07): a warm ground-glow pool +
+ * an animated flame billboard licking up each burning building. The soot/orange
+ * cues (wear.ts + buildingQuad's orange tint) still compose UNDER this — the
+ * flame is the missing "actually on fire" read. `clockMs` drives the flame
+ * flicker frame + the glow breath (render-clock only, deterministic). Call
+ * inside the same begin/endFrame as `pushScene`.
+ */
+export function pushFire(
+  renderer: RendererLike,
+  buildings: readonly BuildingSnapshot[],
+  clockMs: number,
+  nightFactor = 0,
+): void {
+  // Ground-glow pools first (below the flames), stamped like the light pool.
+  const glow = fireGlowQuads(buildings, fireFlicker(clockMs), nightFactor);
+  for (const q of glow) {
+    const cxTile = (q.x + q.width / 2) / TILE_SIZE;
+    const cyTile = (q.y + q.height / 2) / TILE_SIZE;
+    const radiusTiles = Math.max(q.width, q.height) / TILE_SIZE / 2;
+    const c = tileCenterToIso(cxTile - 0.5, cyTile - 0.5);
+    const halfW = radiusTiles * (ISO_TILE_W / 2);
+    const halfH = radiusTiles * (ISO_TILE_H / 2);
+    renderer.push(isoFlatSprite(c.x - halfW, c.y - halfH, halfW * 2, halfH * 2, FRAME_DIAMOND, q.tintRgba, LAYER_LIGHT_POOL, c.y));
+  }
+  // Flame billboards: an upright flame sprite over each burning building's body,
+  // footprint-scaled, flicker-animated. Drawn on the entity layer with a sortY
+  // just in front of the building so it reads licking up the near face.
+  for (const b of buildings) {
+    if (!b.burning && !b.onFire) continue;
+    const box = isoFootprintBox(b.x, b.y, b.w, b.h, buildingHeightTiles(b.type));
+    // Flame ~60% the building height, centred, rising from the mid-body.
+    const fh = box.height * 0.6;
+    const fw = fh * (16 / 24); // flame recipe is 16×24
+    const fx = box.x + box.width / 2 - fw / 2;
+    const fy = box.y + box.height - fh; // base near the building's foot
+    const phaseMs = (b.x * 53 + b.y * 97) % 360; // de-sync neighbouring fires
+    const frame = flameFrameAt(clockMs, 360, phaseMs);
+    renderer.push(quadToSprite(
+      { x: fx, y: fy, width: fw, height: fh, tintRgba: packTint(EDG.white), frame },
+      LAYER_ENTITY, 1, box.depth + 0.5, // just in front of the building
     ));
   }
 }

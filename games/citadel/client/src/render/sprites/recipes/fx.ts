@@ -22,6 +22,13 @@ export const FRAME_ROAD = "fx/road";
 /** Frame name for the wooden plank bridge diamond. */
 export const FRAME_BRIDGE = "fx/bridge";
 
+/** Number of cozy-flame flicker frames (cycled on the render clock). */
+export const FLAME_FRAME_COUNT = 3;
+/** Frame name for flame flicker step `i` (0 → the base `fx/flame`). */
+export function flameFrameName(i: number): string {
+  return i === 0 ? "fx/flame" : `fx/flame@${i}`;
+}
+
 /** Iso diamond pixel dims — must match ISO_TILE_W / ISO_TILE_H in iso.ts. */
 const DW = 32;
 const DH = 16;
@@ -128,4 +135,47 @@ function bridge(): PixelRecipe {
   return g.toRecipe(FRAME_BRIDGE);
 }
 
-export const FX_RECIPES: readonly PixelRecipe[] = [diamond(), road(), bridge()];
+/**
+ * A cozy stylised FLAME frame (art-07) — a warm teardrop drawn on a small
+ * transparent tile, with a hue-shifted ramp from a `crimson` base through
+ * `orange`/`gold` to a `yellow` hot core + tip. `sway` (−1|0|+1) leans the tip
+ * for the flicker cycle. Storybook fire, not realistic — bold, few values,
+ * palette-snapped. Rendered stamped over a burning building (footprint-scaled),
+ * so it is authored small (a single tile) and sampled up. Pure of `sway`.
+ */
+function flame(name: string, sway: number): PixelRecipe {
+  const W = 16, H = 24;
+  const g = new Grid(W, H);
+  const cx = W / 2;
+  // Teardrop: wide rounded base tapering to a leaning tip. For each row, a
+  // half-width that grows from the tip (top) to ~2/3 down then shrinks to the base.
+  for (let y = 0; y < H; y++) {
+    const t = y / (H - 1);                 // 0 tip … 1 base
+    // bulge profile: narrow at the very top, widest ~70% down, rounding to base.
+    const prof = Math.sin(Math.min(1, t * 1.15) * Math.PI);
+    const half = Math.max(0, Math.round(prof * (W / 2 - 1)));
+    // tip leans by `sway`, easing to 0 at the base.
+    const lean = Math.round(sway * (1 - t) * 3);
+    const mid = cx + lean;
+    for (let dx = -half; dx <= half; dx++) {
+      const x = Math.round(mid + dx);
+      const f = Math.abs(dx) / Math.max(1, half); // 0 core … 1 edge
+      // Warm ramp: yellow hot core → gold → orange → crimson cooler edge; the
+      // upper third (tip) skews hotter (yellow/gold), the base skews to orange/crimson.
+      let ch: string;
+      if (t < 0.35) ch = f < 0.6 ? "y" : "O";               // tip: yellow core, gold edge
+      else if (f < 0.35) ch = "y";                           // inner core stays hot
+      else if (f < 0.7) ch = "O";                            // gold mid
+      else ch = t > 0.7 ? "e" : "o";                         // orange body, crimson base edge
+      g.set(x, y, ch);
+    }
+  }
+  return g.toRecipe(name);
+}
+
+function flameFrames(): PixelRecipe[] {
+  const sways = [0, 1, -1]; // straight, lean right, lean left — the flicker cycle
+  return sways.map((s, i) => flame(flameFrameName(i), s));
+}
+
+export const FX_RECIPES: readonly PixelRecipe[] = [diamond(), road(), bridge(), ...flameFrames()];

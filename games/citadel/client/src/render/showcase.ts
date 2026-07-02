@@ -20,6 +20,7 @@ import {
   pushScene,
   pushWearOverlay,
   pushLightPool,
+  pushFire,
   cloudOptionsFor,
   isoFootprintBox,
   isoFootprintDiamondBox,
@@ -279,11 +280,12 @@ export async function runShowcase(
 
     pushScene(renderer, { buildings, villagers: noVillagers, raiders: noRaiders }, undefined, nowMs, nightFactor);
 
-    // Fire soot overlay + fire light-pool when burning (mirrors main.ts).
+    // Fire: soot overlay + flame billboards + embers/glow when burning (mirrors main.ts).
     if (toggles.burning) {
-      pushWearOverlay(renderer, buildings, 4000); // full-ramp soot
+      pushWearOverlay(renderer, buildings, 4000); // full-ramp soot (composes under the flame)
+      pushFire(renderer, buildings, nowMs, nightFactor);
     }
-    // Warm light pools at dusk/night (and always under fire once art-07 lands).
+    // Warm light pools at dusk/night.
     pushLightPool(renderer, lightPoolQuads(emittersOf(buildings), nightFactor));
 
     const wash = computeWash("summer", dayFraction);

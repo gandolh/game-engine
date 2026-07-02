@@ -25,7 +25,7 @@ import { EDG } from "@engine/core";
 import type { ParticleSystem, Rng } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";
-import { villagerQuad, type QuadSpec } from "./citadel-renderer";
+import { villagerQuad, packTint, type QuadSpec } from "./citadel-renderer";
 
 // ---------------------------------------------------------------------------
 // Placement ease-in (pure, tested)
@@ -460,6 +460,140 @@ export class CitadelSmoke {
       sizeMin: 0.8,
       sizeMax: 1.6,
       gravity: -5,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fire FX (art-07) — flame glow + embers + fire-tinted smoke
+// ---------------------------------------------------------------------------
+
+/** Warm fire-glow ring colours (EDG). */
+const FIRE_GLOW_HEX = EDG.orange;
+const EMBER_COLOR = EDG.gold;
+const EMBER_COLOR2 = EDG.yellow;
+/** Fire smoke: dark, warm-underlit (ink body, crimson base kiss). */
+const FIRE_SMOKE_COLOR = EDG.ink;
+const FIRE_SMOKE_COLOR2 = EDG.crimson;
+
+/**
+ * Warm flickering FIRE GROUND-GLOW quads under a burning building — a small
+ * stack of concentric warm-orange rings centred on the footprint, mirroring the
+ * dusk light-pool but keyed to `burning` (NOT nightFactor: fire glows in daylight
+ * too, only brighter at night). `flicker` (0..1, a deterministic render-clock
+ * function the caller supplies) modulates the alpha so the pool breathes.
+ * `nightFactor` boosts the glow at night. PURE — returns quads, no GPU/RNG.
+ */
+export function fireGlowQuads(
+  buildings: readonly BuildingSnapshot[],
+  flicker: number,
+  nightFactor: number,
+): QuadSpec[] {
+  const quads: QuadSpec[] = [];
+  // Fire is visible by day (baseline 0.5) and stronger at night (up to 1.0).
+  const dayNight = 0.5 + 0.5 * Math.max(0, Math.min(1, nightFactor));
+  const breathe = 0.8 + 0.2 * Math.max(0, Math.min(1, flicker)); // ±20% breath
+  for (const b of buildings) {
+    if (!b.burning && !b.onFire) continue;
+    const cx = (b.x + b.w / 2) * TILE_SIZE;
+    const cy = (b.y + b.h / 2) * TILE_SIZE;
+    const footHalf = (Math.max(b.w, b.h) / 2) * TILE_SIZE;
+    // Two rings: a wide faint pool + a tighter brighter core.
+    for (const ring of [{ r: 1.6, a: 0.14 }, { r: 0.7, a: 0.26 }]) {
+      const half = footHalf + ring.r * TILE_SIZE;
+      const alphaByte = Math.round(Math.max(0, Math.min(1, ring.a * dayNight * breathe)) * 0xff);
+      if (alphaByte <= 0) continue;
+      quads.push({ x: cx - half, y: cy - half, width: half * 2, height: half * 2, tintRgba: packTint(FIRE_GLOW_HEX, alphaByte) });
+    }
+  }
+  return quads;
+}
+
+/**
+ * A deterministic flicker value (0..1) for the fire glow at render-clock `nowMs`.
+ * A cheap sum of two out-of-phase sines → an irregular breathing pulse; pure, no
+ * RNG, no wall-clock (caller passes performance.now). Optional `phaseMs` de-syncs
+ * separate fires.
+ */
+export function fireFlicker(nowMs: number, phaseMs = 0): number {
+  const t = (nowMs + phaseMs) / 1000;
+  const s = Math.sin(t * 11) * 0.6 + Math.sin(t * 6.3) * 0.4; // -1..1 irregular
+  return (s + 1) / 2; // 0..1
+}
+
+/**
+ * Capped FIRE particle emitter — a sibling of {@link CitadelSmoke} for burning
+ * buildings: rising warm EMBERS (gold→yellow sparks) + a dark, warm-underlit
+ * fire SMOKE plume (heavier/faster than the calm grey hearth). Both are capped
+ * per frame so a town-wide fire can't swamp the shared pool. Owns a render-side
+ * RNG only (never the sim RNG). Render-only, off-sim.
+ */
+export class CitadelFire {
+  private readonly particles: ParticleSystem;
+  private readonly rng: Rng;
+  private readonly nextEmitAt = new Map<string, number>();
+  /** Ember cadence per fire (ms); jittered. Faster than smoke — a lively spark. */
+  private readonly cadenceMs = 180;
+  /** Hard cap on burning buildings emitting per frame. */
+  private readonly maxFires = 24;
+
+  constructor(particles: ParticleSystem, rng: Rng) {
+    this.particles = particles;
+    this.rng = rng;
+  }
+
+  /** Advance fire FX: for each burning building due, emit embers + fire smoke. */
+  update(buildings: readonly BuildingSnapshot[], nowMs: number): void {
+    const present = new Set<string>();
+    let fires = 0;
+    for (const b of buildings) {
+      if (!b.burning && !b.onFire) continue;
+      if (fires >= this.maxFires) break;
+      fires++;
+      const key = buildingKey(b);
+      present.add(key);
+      const due = this.nextEmitAt.get(key);
+      if (due === undefined) {
+        this.nextEmitAt.set(key, nowMs + this.rng.nextFloat() * this.cadenceMs);
+        continue;
+      }
+      if (nowMs >= due) {
+        this.emitEmbers(b);
+        this.emitFireSmoke(b);
+        const jitter = (0.7 + this.rng.nextFloat() * 0.6) * this.cadenceMs;
+        this.nextEmitAt.set(key, nowMs + jitter);
+      }
+    }
+    for (const key of this.nextEmitAt.keys()) if (!present.has(key)) this.nextEmitAt.delete(key);
+  }
+
+  private emitEmbers(b: BuildingSnapshot): void {
+    // Embers rise from the building body, drifting up + slightly outward.
+    const cx = (b.x + b.w / 2) * TILE_SIZE;
+    const cy = (b.y + b.h * 0.4) * TILE_SIZE;
+    this.particles.emit({
+      x: cx, y: cy, count: 3, shape: "circle",
+      color: EMBER_COLOR, color2: EMBER_COLOR2,
+      speedMin: 8, speedMax: 20,
+      angleMin: -Math.PI * 0.72, angleMax: -Math.PI * 0.28, // upward fan
+      lifetimeMin: 0.5, lifetimeMax: 1.3,
+      sizeMin: 0.8, sizeMax: 1.8,
+      gravity: -14, // sparks shoot up then fade
+    });
+  }
+
+  private emitFireSmoke(b: BuildingSnapshot): void {
+    // Dark, warm-underlit smoke — heavier + faster than the calm hearth wisp.
+    const cx = (b.x + b.w / 2) * TILE_SIZE;
+    const top = b.y * TILE_SIZE + TILE_SIZE * 0.05;
+    this.particles.emit({
+      x: cx, y: top, count: 2, shape: "circle",
+      color: FIRE_SMOKE_COLOR, color2: FIRE_SMOKE_COLOR2,
+      speedMin: 6, speedMax: 14,
+      angleMin: -Math.PI * 0.66, angleMax: -Math.PI * 0.34,
+      lifetimeMin: 1.0, lifetimeMax: 2.0,
+      sizeMin: 1.4, sizeMax: 3.0,
+      gravity: -8,
     });
   }
 }

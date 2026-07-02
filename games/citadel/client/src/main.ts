@@ -36,6 +36,7 @@ import {
   pushLightPool,
   pushAmbientCrowd,
   pushWearOverlay,
+  pushFire,
   pushCatchment,
   pushDisconnectedMarkers,
   cloudOptionsFor,
@@ -47,6 +48,7 @@ import {
 import type { RenderWindowController } from "./render/citadel-renderer";
 import {
   CitadelSmoke,
+  CitadelFire,
   syncAppearMap,
   buildingKey,
   placementScale,
@@ -272,6 +274,9 @@ const renderToggles = {
 const particles = new ParticleSystem();
 const fxRng = createRng(0x5117_c0de);
 const smoke = new CitadelSmoke(particles, fxRng);
+// art-07: fire ember + fire-smoke emitter (its own render-side RNG fork so its
+// jitter never perturbs the smoke emitter's stream). Render-only, off-sim.
+const fire = new CitadelFire(particles, createRng(0xf1_2e_00d5));
 const appearAt = new Map<string, number>();
 //  - burningSince: building-key → render-clock ms a fire first started, so the
 //    brief-24 soot overlay can ramp ("accumulate") while a building burns.
@@ -1244,6 +1249,12 @@ function loop(): void {
     pushWearOverlay(renderer, [b], nowMs - since);
   }
 
+  // --- art-07 FIRE FX (render-only). Cozy flame billboards + warm ground-glow
+  // over burning buildings, composing OVER the soot/orange-tint. Flame flicker +
+  // glow breath are render-clock functions (deterministic); nightFactor brightens
+  // the glow at night. Embers + fire-smoke particles are emitted below.
+  pushFire(renderer, currentBuildings, nowMs, nightFactor);
+
   // --- Atmosphere (render-only). Day/night wash + night light pool (brief 15),
   // ambient crowd (brief 18), weather (brief 16). All driven off snapshot
   // fields (tick/season/tier/day) + the render clock — zero sim impact.
@@ -1326,6 +1337,10 @@ function loop(): void {
   // Brief 25: gated — when off, skip emission (existing puffs still advance/age
   // out via particles.update so the pool drains cleanly).
   if (renderToggles.smoke) smoke.update(currentBuildings, nowMs);
+  // art-07: fire embers + fire-smoke particles for burning buildings (shares the
+  // smoke toggle — both are the particle-FX channel). Emits nothing when nothing
+  // burns; capped internally so a town-wide fire can't swamp the pool.
+  if (renderToggles.smoke) fire.update(currentBuildings, nowMs);
   particles.update(dt);
 
   // engine-ui chunk 7: lay out + submit the in-canvas HUD. computeLayout writes screen-px
