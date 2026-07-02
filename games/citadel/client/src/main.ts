@@ -1649,6 +1649,22 @@ async function boot(): Promise<void> {
   requestAnimationFrame(loop);
 }
 
-void boot().catch((err) => {
-  console.error("[citadel] boot failed", err);
-});
+// art-06: DEV-only all-assets SHOWCASE mode. `?showcase` short-circuits the full
+// game boot (no sim, no HUD) and runs the asset-critique harness instead — every
+// sprite spaced on the iso grid, with isometry / all-burning / day-phase toggles
+// exposed on `window.__citadelShowcase` for the capture script. Never ships in
+// production (import.meta.env.DEV) and never reached in a normal client load.
+const SHOWCASE_MODE = import.meta.env.DEV && new URLSearchParams(location.search).has("showcase");
+
+if (SHOWCASE_MODE) {
+  void (async () => {
+    const { runShowcase } = await import("./render/showcase");
+    const handle = await runShowcase(canvas, terrain);
+    (window as unknown as { __citadelShowcase?: unknown }).__citadelShowcase = handle;
+    console.info("[citadel] showcase mode — toggles on window.__citadelShowcase.toggles");
+  })().catch((err) => console.error("[citadel] showcase boot failed", err));
+} else {
+  void boot().catch((err) => {
+    console.error("[citadel] boot failed", err);
+  });
+}
