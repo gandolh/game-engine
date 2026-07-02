@@ -165,3 +165,31 @@ briefs must fix (NOT a closeout verdict):
 
 **Baseline VERDICT: FAIL** (A1/A2/F1 blockers) — expected; the art-04/05/07 work
 exists to clear them. Re-grade at closeout.
+
+### Re-grade (2026-07-02, art-04 + art-07 landed)
+
+From fresh showcase captures + the headless gates:
+
+- **A1 PASS** — silhouette test green (all 21 building types provably distinct at
+  GRID=48 pairwise mask distance). **A2 PASS** — browser confirms: round tower drum,
+  sunken quarry pit, mono-pitch lean-to workshops, jettied healer, civic town-hall
+  gable, mine headframe all read distinctly; the cottage/fort monocultures are broken.
+- **B1/B2/B3 PASS** — depth test green (≥3 central-scan values); browser shows
+  hue-shifted bands + ridge kiss.
+- **C2 PASS** — isometry test green (base-width ≥ apex-band) + the showcase ruler
+  overlay confirms base→apex read.
+- **F1–F6 PASS** — burning buildings show a cozy flame + warm ground-glow (browser
+  confirmed on every silhouette) + embers/fire-smoke particles; glow brighter at
+  night; composes over the soot/orange cues; fire.test.ts green.
+- **E1/E2 PASS** — wash cycles dawn/noon/dusk/night (gentle navy night, warm dusk);
+  dusk `@lit` window glow visible.
+- **G4/G5 PASS** — palette guard green; 414/414; showcase reloads:0, no page errors.
+
+**Still open (own briefs, not regressions):** **A4/A5 units** — art-05 not yet done
+(units still one re-tinted body); the showcase places buildings only. Minor ⚠️: a
+couple of fort/civic silhouettes (keep vs garrison) still read boxy at gameplay zoom
+though distinct per the test — art-04 polish candidate.
+
+**Re-grade VERDICT: CONDITIONAL** — both baseline blockers (A1/A2, F1) cleared; the
+only open headline item is A4 (units), which is art-05's scope. Buildings + fire are
+"visually good." Full PASS awaits art-05.
