@@ -70,6 +70,33 @@ color, lamplit nights. **Charm over grit.** Matches the [cozy pivot](../todos/20
   pass) — low-contrast atmospheric drift, tick-driven/deterministic. Shaders are for
   *continuous overlays over palette-snapped art*, never for recolouring the discrete pixels.
 
+## Authoring: layered composites (art-12, 2026-07-02)
+
+A building recipe can be **hand-composed** (the classic FORM builders — `cottage`,
+`fort`, `warehouse` — call a fixed `drawWalls` + roof + accent chain) **or assembled
+from reusable `Layer` modules** via `composite(...)`. Both bake to ONE atlas frame with
+identical footprint/height/name — the renderer and every caller are untouched, so
+layering is **purely a boot-time authoring convenience with zero runtime cost**. All in
+[iso-draw.ts](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts).
+
+- **`Layer = (g, m, pal) => void`** — one painter pass onto the shared `IsoGrid`.
+- **`composite(name, w, h, heightTiles, pal, layers)`** — stamps the contact shadow
+  (via `begin`) then paints the layers back-to-front (later overpaints earlier,
+  transparency-aware), returning the finished single-frame recipe. `boxBuilding` +
+  `warehouse` are built this way.
+- **Structural layers**: `wallsLayer`, `gableRoofLayer(overhang, riseMul)`,
+  `hippedRoofLayer`, `doorLayer`, `accentLayer(fn)` (adapts a legacy `(g, pal, m)`
+  accent into layer order).
+- **Reusable detail modules** (drop onto ANY wall/roof-bearing base): `shutteredWindow(glow)`
+  (leaded pane + sill + hinged shutters), `stoneCoursing` (ashlar courses + quoin
+  cornerstones), `chimneyStack(glow)`, `groundApron(seed)` (dirt patch + barrels/props).
+  These raise **effective resolution by concentrating detail where it reads** — the
+  "higher res without a global `ISO_ART_SCALE` bump" win (the atlas is at its 256×4096
+  pow2 ceiling, so per-piece local density adds detail at zero atlas cost).
+
+Prefer `composite` for new building forms; migrating the remaining hand-composed forms
+(cottage/fort/church) onto it is a natural next slice.
+
 ## Per-recipe checklist
 
 - [ ] Silhouette reads in solid black.
@@ -79,6 +106,8 @@ color, lamplit nights. **Charm over grit.** Matches the [cozy pivot](../todos/20
 - [ ] Subtle 1px cluster dithering between bands.
 - [ ] Soft feathered contact shadow; reads anchored.
 - [ ] Even dimensions; details on 2px boundaries.
+- [ ] New building form? Reach for `composite([...Layer])` + the shared detail modules
+      before hand-drawing (reuse over a bespoke chain).
 - [ ] Cozy cues: lived-in props, warm dusk window glow, plants.
 - [ ] Deterministic (render-clock only for animation).
 - [ ] Palette guard green · typecheck green · **verified in a real browser** (playtest-citadel),

@@ -4,9 +4,6 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-### AI fishing broken — stale cast tiles (found 2026-06-11) → **RESOLVED: [game/done/80](../briefs/game/done/80-fishing-cast-tiles-stale.md)** (cast tiles now derived from live isle bounds)
-`FISHING_CAST_TILES = [(40,71),(22,71)]` ([agents/watering/shared.ts](../../packages/sim-core/src/agents/watering/shared.ts)) are **pre-reorg**; the isles moved to 75–82 / 59–66 × 105–112, so those tiles are off-isle → `deliberateFishing` travels to non-isle ground and the `fish` precondition never passes → **AI fishing no longer fires** (Pip unaffected — it checks `isFishingIsle` dynamically). Exact class of brief 73's tavern/festival ocean-tile fix, which **missed this constant**. Brief 80 derives the cast tiles from the isle bounds (self-validating) + adds the class-level guard test whose absence let this through. Baseline-mover (re-verify like 73; awaiting sign-off). Detail in [player-and-interaction.md](player-and-interaction.md) → Fishing.
-
 ### Live-drama spare capacity (deliberately not pursued)
 Harbor contracts (46) — mostly only the hoarder reaches the commit gate. Skills (43) — lopsided to farming. Festival (45) — physical podium gathering thin. Early-game peer trades — gated by **encounter cadence + seller stock, NOT gold**: brief [70](../briefs/game/done/70-raise-starting-gold-peer-trade-liquidity.md) lifted the cash constraint (zero `would-breach-reserve` declines) but the 15-day-close target stayed unmet because the binding constraint is `no-stock` + farmers barely meeting early. The lever (if it matters) is encounter frequency / early surplus, not liquidity.
 
