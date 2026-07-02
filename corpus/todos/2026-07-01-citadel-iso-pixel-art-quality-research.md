@@ -20,6 +20,12 @@ grounded map of what Citadel renders today, and the locked decisions. It is the 
     - [art-05 — unit / character personality](closed/2026-07-02-citadel-art-05-unit-personality.md)
     - [art-06 — all-assets showcase page (isometry + fire test harness)](closed/2026-07-02-citadel-art-06-asset-showcase-page.md)
     - [art-07 — fire effects (flame + embers + glow)](closed/2026-07-02-citadel-art-07-fire-effects.md)
+  - **Wave 3 (2026-07-02, briefs only — targeted fidelity fixes from a showcase review):**
+    - [art-08 — windmill: cubic base → cylindrical tower refactor](2026-07-02-citadel-art-08-windmill-cube-base-refactor.md)
+    - [art-09 — well: center on tile + rectangular kerb](2026-07-02-citadel-art-09-well-center-and-rectangular.md)
+    - [art-10 — market: stalls on the plot edges](2026-07-02-citadel-art-10-market-tables-on-edges.md)
+    - [art-11 — fix reversed/weird roof slope shading](2026-07-02-citadel-art-11-roof-slope-shading-fix.md)
+    - [art-12 — detail/realism uplift + layered composite recipes](2026-07-02-citadel-art-12-detail-uplift-layered-recipes.md)
   - External reference art (study-only, CC0 manifest): [inspirations/CREDITS.md](../../inspirations/CREDITS.md).
 
 > **Framing:** Citadel is **already true-isometric** (2:1 dimetric, 32×16 tiles, correct
