@@ -6,6 +6,10 @@ tags: [citadel, sim, gameplay, economy, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
 
+> **➡️ Promoted 2026-07-03:** the deferred upside halves (scopes #1 + #3) are now
+> [brief 100 — economy-growth pass](../briefs/game/todo/100-citadel-economy-growth-pass.md);
+> that brief owns the remaining work.
+
 > **♻️ RE-SCOPED by the 2026-06-28 cozy pivot.** The shipped stockpile-pressure
 > mechanic **stays**, but the **hard stop** ("the building stops producing") is
 > scheduled to soften into a **throttle toward a ~60–70% floor (never halt) + diegetic

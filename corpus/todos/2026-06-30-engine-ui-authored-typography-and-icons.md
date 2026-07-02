@@ -5,6 +5,9 @@ status: todo
 tags: [engine, ui, render, typography, assets, citadel, farm]
 ---
 
+> **➡️ Promoted 2026-07-03:** now [engine brief 18](../briefs/engine/todo/18-ui-authored-typography-and-icons.md)
+> (this todo stays the spec; the brief adds sequencing notes).
+
 # Author proper typography + icon glyphs as assets for the in-canvas UI
 
 The `@engine/ui` text stack currently renders through a **minimal, hand-coded 5×7 ASCII

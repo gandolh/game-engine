@@ -24,6 +24,7 @@ tags: [citadel, sim, gameplay, balance, ux, playtest]
 > ([stockpile pressure](2026-06-22-citadel-two-way-service-economy.md)). **Still
 > open: P3 disease counterplay** (the only untouched finding — a healer exists but
 > there's no proactive lever; left for a dedicated balance pass).
+> **➡️ P3 promoted 2026-07-03** to [brief 102](../briefs/game/todo/102-citadel-disease-counterplay.md).
 
 # Citadel — playtest findings
 

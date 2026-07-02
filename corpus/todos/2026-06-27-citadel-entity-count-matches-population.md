@@ -5,6 +5,9 @@ status: partial
 tags: [citadel, sim, render, villagers, population, consistency]
 ---
 
+> **➡️ Promoted 2026-07-03:** the two deferred halves (ambient-crowd decision + MP
+> owner-filter) are now [brief 105](../briefs/game/todo/105-citadel-crowd-honesty-mp-owner-filter.md).
+
 > **Partial — 2026-06-27.** Found and fixed the real on-map mismatch: **raid
 > casualties decremented `p.population` WITHOUT despawning villager entities**
 > ([siege-resolution.ts](../../games/citadel/sim-core/src/systems/siege-resolution.ts),
