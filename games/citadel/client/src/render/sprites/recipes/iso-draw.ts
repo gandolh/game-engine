@@ -87,6 +87,31 @@ export interface IsoPalette {
   outline: string;
   door: string;
   glass: string;
+  /** Deepest wall-valley band (3rd value on the shaded face / near corner). Per
+   *  the art-01 palette-role audit each material picks a warm/cool neighbour for
+   *  this valley (plaster→wood, stone→navy, …). Falls back to `roofDark`. */
+  wallDeep?: string;
+  /** Warm ridge/near-corner kiss (salmon/gold) on lit surfaces. Falls back to
+   *  `roofLight`. */
+  kiss?: string;
+}
+
+/** The valley (deepest) wall band — the audited 3rd value, or `roofDark`. */
+function wallDeepOf(pal: IsoPalette): string { return pal.wallDeep ?? pal.roofDark; }
+/** The warm highlight kiss for lit ridges / the near corner. */
+function kissOf(pal: IsoPalette): string { return pal.kiss ?? pal.roofLight; }
+
+/**
+ * Cluster (boundary) dither: on a single transition row where band A (lighter)
+ * meets band B (darker), sprinkle a sparse 1px checker on `(x+y)&1` so the two
+ * value bands round into each other instead of banding hard — the cozy
+ * "minor dithering between clusters" idiom (SLYNYRD 54). ONE seam row only, so
+ * it stays subtle, never a full 50% noise field. `bandB` is only laid where the
+ * cell already holds `bandA` (so we never punch through onto neighbours). */
+function seamDither(g: IsoGrid, x: number, y: number, bandA: string, bandB: string): void {
+  if (((x + y) & 1) === 0) return;      // keep half the seam row as bandA
+  if (g.get(x, y) !== bandA) return;    // only dither where band A actually sits
+  g.set(x, y, bandB);
 }
 
 export interface IsoMetrics {
@@ -142,24 +167,31 @@ function drawWalls(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   // valley/shadow face should be a distinct DARKER value (not collapsed to the
   // outline): the near-corner third gets an extra shade so the two faces clearly
   // separate in value.
+  const deepBand = wallDeepOf(pal); // audited valley (warm/cool neighbour), not black
   for (let x = cx; x <= cx + halfW; x++) {
     const t = (x - cx) / halfW;
     const topEdgeY = yTopMid + (diaH / 2) * (1 - t);
     const botEdgeY = yBotMid + (diaH / 2) * (1 - t);
-    // Deeper shade in the near-corner band (the part furthest from the sun).
+    // Deeper valley shade in the near-corner band (the part furthest from the sun).
     const deep = t < 0.4;
-    for (let y = topEdgeY; y <= botEdgeY; y++) g.set(x, y, deep ? pal.roofDark : pal.wallR);
+    for (let y = topEdgeY; y <= botEdgeY; y++) g.set(x, y, deep ? deepBand : pal.wallR);
+    // Cozy seam: cluster-dither the wallR→valley boundary (the ~0.4 column) so the
+    // two shaded bands round together instead of a hard stripe.
+    if (Math.abs(t - 0.4) < (1 / halfW)) for (let y = R(topEdgeY); y <= R(botEdgeY); y++) seamDither(g, x, y, pal.wallR, deepBand);
     g.set(x, R(topEdgeY), pal.outline);      // eave AO line on the shaded face
     g.set(x, botEdgeY, pal.outline);
   }
-  // Near vertical corner: a bright highlight catching the light. A subtle 1px AO
-  // seam sits just right of it, but only on tall-enough walls (so short cottages
-  // don't get a dark stripe down the corner).
+  // Near vertical corner: a bright highlight catching the light with a warm KISS
+  // (salmon/gold) near the top where the sun rakes it. A subtle 1px AO seam sits
+  // just right of it, but only on tall-enough walls (so short cottages don't get
+  // a dark stripe down the corner).
   const cornerTop = yTopMid + diaH / 2;
   const cornerBot = yBotMid + diaH / 2;
   const tallWall = (yBotMid - yTopMid) >= 12;
+  const kiss = kissOf(pal);
+  const kissSpan = Math.max(2, R((cornerBot - cornerTop) * 0.28)); // top third catches light
   for (let y = cornerTop; y <= cornerBot; y++) {
-    g.set(cx, y, pal.wallEdge);
+    g.set(cx, y, y - cornerTop < kissSpan ? kiss : pal.wallEdge);
     if (tallWall) g.set(cx + 1, y, pal.wallR); // gentle AO (mid shade, not dark)
   }
 }
@@ -224,6 +256,9 @@ function drawGableRoof(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, overhang = 0,
       else if (onFar) ch = lit ? pal.roof : pal.roofDark;        // back slope, darker
       else ch = lit ? pal.roofLight : pal.roof;                  // front slope, lit
       g.set(x, y, ch);
+      // Cluster-dither the slope seam (front-lit → back/groove) on the row just
+      // above each groove, so tile courses round rather than banding hard.
+      if (lit && !groove && (into % tileRow) === tileRow - 1) seamDither(g, x, y, pal.roofLight, pal.roof);
     }
     g.set(x, R(ridgeY), pal.outline);                 // top slope silhouette
     // Eave OVERHANG: a dark shadow lip just under the eave so the roof reads as
@@ -231,9 +266,12 @@ function drawGableRoof(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, overhang = 0,
     g.set(x, R(eaveLowerY), pal.outline);
     g.set(x, R(eaveLowerY) - 1, pal.roofDark);
   }
-  // Ridge CAP: a thick highlighted crest along the apex→front ridge.
+  // Ridge CAP: a thick highlighted crest along the apex→front ridge, with a warm
+  // KISS (salmon/gold) on the sunlit apex third where the light rakes hardest.
+  const ridgeKiss = kissOf(pal);
+  const ridgeLen = R(eaveMidY + eaveHalfH) - R(peakY);
   for (let y = R(peakY); y <= R(eaveMidY + eaveHalfH); y++) {
-    g.set(cx, y, pal.roofLight);
+    g.set(cx, y, (y - R(peakY)) < Math.max(2, R(ridgeLen * 0.33)) ? ridgeKiss : pal.roofLight);
     g.set(cx - 1, y, pal.roof);
     g.set(cx + 1, y, pal.roofDark);
   }
@@ -277,15 +315,26 @@ function drawTimberFrame(g: IsoGrid, m: IsoMetrics, beam = "%"): void {
   for (let y = yTopMid + diaH / 2; y <= yBotMid + diaH / 2; y++) g.set(cx, y, beam);
 }
 
-/** A small shuttered window on the lit-left wall face. */
-function drawWindow(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+/**
+ * A small shuttered window on the lit-left wall face. When `glow` is set the
+ * glass takes a warm dusk lamp read — a `gold` pane with a `yellow` hot centre —
+ * instead of the cool day glass, so a night-lit frame reads as inhabited. The
+ * mullions stay dark, so the glow reads as leaded panes, not a solid block. */
+function drawWindow(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, glow = false): void {
   const { cx, halfW, yTopMid, wallH } = m;
   const x = R(cx - halfW * 0.45);
   const t = (x - (cx - halfW)) / halfW;
   const topEdgeY = yTopMid + (m.diaH / 2) * t;
   const wy = R(topEdgeY + wallH * 0.35);
   const ww = R(5 * ISO_ART_SCALE / 4), wh = R(6 * ISO_ART_SCALE / 4);
-  rect(g, x, wy, x + ww, wy + wh, pal.glass);
+  const pane = glow ? "O" : pal.glass;   // gold lamplit vs cool day glass
+  rect(g, x, wy, x + ww, wy + wh, pane);
+  if (glow) {
+    // Hot yellow core (upper-inner panes) — the warmest cozy dusk cue.
+    for (let yy = wy + 1; yy <= wy + R(wh / 2); yy++) span(g, x + 1, x + ww - 1, yy, "y");
+    // A soft warm sill spill just under the frame.
+    span(g, x - 1, x + ww + 1, wy + wh + 2, "o");
+  }
   // frame + mullions
   span(g, x, x + ww, wy - 1, pal.outline);
   span(g, x, x + ww, wy + wh + 1, pal.outline);
@@ -302,6 +351,8 @@ function drawWindow(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
 export function isoGroundProps(g: IsoGrid, m: IsoMetrics, seed = 0): void {
   const cx = m.cx;
   const baseY = m.H - 2;
+  const yAt = (x: number) => baseY - R(Math.abs(x - cx) * HH / HW) - 1; // sit on the front V
+  const flip = seed % 2 === 0 ? 1 : -1;
   // a thin dirt apron hugging the front V (two short trodden patches)
   for (let dx = -R(m.halfW * 0.5); dx <= R(m.halfW * 0.5); dx++) {
     const x = cx + dx;
@@ -310,17 +361,51 @@ export function isoGroundProps(g: IsoGrid, m: IsoMetrics, seed = 0): void {
     if (Math.abs(dx) > R(5 * ISO_ART_SCALE / 4) && (dx + seed) % 2 === 0) g.set(x, y, "%");
   }
   // a barrel on one side
-  const bx = cx + (seed % 2 === 0 ? -1 : 1) * R(m.halfW * 0.62);
-  const by = baseY - R(Math.abs(bx - cx) * HH / HW) - 1;
+  const bx = cx - flip * R(m.halfW * 0.62);
+  const by = yAt(bx);
   for (let dy = -R(4 * ISO_ART_SCALE / 4); dy <= 0; dy++) {
     g.set(bx, by + dy, "%"); g.set(bx + 1, by + dy, "w"); g.set(bx + 2, by + dy, "%");
   }
   g.set(bx, by - R(4 * ISO_ART_SCALE / 4), "%"); g.set(bx + 1, by - R(4 * ISO_ART_SCALE / 4), "W"); g.set(bx + 2, by - R(4 * ISO_ART_SCALE / 4), "%");
   g.set(bx + 1, by - R(2 * ISO_ART_SCALE / 4), "W"); // hoop
   // a sack on the other side
-  const sx = cx + (seed % 2 === 0 ? 1 : -1) * R(m.halfW * 0.66);
-  const sy = baseY - R(Math.abs(sx - cx) * HH / HW) - 1;
+  const sx = cx + flip * R(m.halfW * 0.66);
+  const sy = yAt(sx);
   g.set(sx, sy - 2, "t"); span(g, sx - 1, sx + 1, sy - 1, "c"); span(g, sx - 1, sx + 1, sy, "t");
+
+  // --- Extra lived-in props, cycled by `seed` so the town varies but stays
+  // deterministic. Each is a small, footprint-safe cluster near the front base. ---
+  const variant = seed % 3;
+  if (variant === 0) {
+    // FLOWER BOX under the window side: a wood trough with green foliage + red/gold blooms.
+    const fx = cx - flip * R(m.halfW * 0.4);
+    const fy = yAt(fx);
+    span(g, fx - 2, fx + 2, fy, "W"); span(g, fx - 2, fx + 2, fy - 1, "w"); // trough
+    for (let dx = -2; dx <= 2; dx++) {
+      g.set(fx + dx, fy - 2, "G");                        // leaves
+      if ((dx + seed) % 2 === 0) g.set(fx + dx, fy - 3, dx < 0 ? "e" : "O"); // red / gold blooms
+    }
+  } else if (variant === 1) {
+    // WOOD STACK: a low cord of split logs (end-grain rings) beside the door.
+    const wx = cx + flip * R(m.halfW * 0.38);
+    const wy = yAt(wx);
+    for (let row = 0; row < 2; row++) {
+      for (let dx = -2; dx <= 2; dx += 2) {
+        const x = wx + dx, y = wy - row * 2;
+        g.set(x, y, "%"); g.set(x + 1, y, "w"); g.set(x, y - 1, "t"); g.set(x + 1, y - 1, "w");
+      }
+    }
+  } else {
+    // LAUNDRY LINE: a rope strung between two thin poles with a couple of hung cloths.
+    const lx = cx - flip * R(m.halfW * 0.5);
+    const ly = yAt(lx) - R(6 * ISO_ART_SCALE / 4);
+    const lineW = R(m.halfW * 0.5);
+    for (let dx = 0; dx <= lineW; dx++) g.set(lx + dx, ly, "%");        // rope
+    for (let dy = 0; dy <= R(6 * ISO_ART_SCALE / 4); dy++) { g.set(lx, ly + dy, "#"); g.set(lx + lineW, ly + dy, "#"); } // poles
+    const cloth = (hx: number, ch: string) => { for (let dy = 1; dy <= 3; dy++) span(g, hx, hx + 1, ly + dy, ch); };
+    cloth(lx + R(lineW * 0.3), "c");   // cream sheet
+    cloth(lx + R(lineW * 0.65), "B");  // blue cloth
+  }
 }
 
 /** A door centred on the near vertical edge, arched, following the front V. */
@@ -353,6 +438,9 @@ export interface FormOpts {
   ground?: boolean;
   /** Seed for ground-prop placement (which side props land). */
   groundSeed?: number;
+  /** Render the dusk-lit variant: windows take the warm `gold`/`yellow` lamp glow
+   *  so the renderer can swap in this frame by night factor (render-only). */
+  glow?: boolean;
 }
 
 /** Allocate a grid + metrics for a footprint. */
@@ -409,7 +497,7 @@ export function cottage(name: string, w: number, h: number, heightTiles: number,
   drawWalls(g, m, pal);
   drawTimberFrame(g, m, "%"); // dark-oak (bark) half-timber framing
   drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4), 2.1);
-  drawWindow(g, m, pal);
+  drawWindow(g, m, pal, opts.glow ?? false);
   drawDoorFront(g, m, pal);
   if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
   opts.accent?.(g, pal, m);
@@ -509,8 +597,11 @@ export function postMill(name: string, pal: IsoPalette, sailAccent: (g: IsoGrid,
       if (f < -0.55) ch = pal.wallEdge;   // bright left rim highlight
       else if (f < 0.15) ch = pal.wallL;  // lit body
       else if (f < 0.65) ch = pal.wallR;  // mid shade
-      else ch = "%";                       // brown shaded right rim (not black)
+      else ch = wallDeepOf(pal);           // audited valley rim (warm/cool, not black)
       g.set(x, y, ch);
+      // Cluster-dither the lit→mid cylinder seam (the ~0.15 meridian) so the
+      // curved shading rounds instead of stepping.
+      if (Math.abs(f - 0.15) < (1 / rr)) seamDither(g, x, y, pal.wallL, pal.wallR);
     }
     g.set(cx - rr, y, pal.outline);
     g.set(cx + rr, y, pal.outline);
@@ -840,8 +931,11 @@ function drawAshlarCourses(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
       const phase = (row % 2) * R(brick / 2);
       const onJoint = ((x + phase) % brick === 0);
       if (onCourse) g.set(x, y, pal.outline);        // horizontal mortar
-      else if (onJoint) g.set(x, y, pal.roofDark);   // vertical joint (one per block)
-      else if (onCourse === false && (y - R(topEdgeY)) % course === 1) g.set(x, y, x < cx ? pal.wallEdge : pal.wallR); // top-of-block highlight
+      else if (onJoint) g.set(x, y, wallDeepOf(pal)); // vertical joint deepened to the audited valley
+      else if ((y - R(topEdgeY)) % course === 1) g.set(x, y, x < cx ? pal.wallEdge : pal.wallR); // top-of-block highlight
+      // Cozy seam: cluster-dither the block-face bottom row into the mortar-dark
+      // valley so ashlar courses round softly rather than banding flat.
+      else if ((y - R(topEdgeY)) % course === course - 1 && x >= cx) seamDither(g, x, y, pal.wallR, wallDeepOf(pal));
     }
   }
 }

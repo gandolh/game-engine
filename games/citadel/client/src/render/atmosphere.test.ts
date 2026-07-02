@@ -48,12 +48,13 @@ describe("nightFactorOf", () => {
 });
 
 describe("computeWash", () => {
-  it("midnight is a deep ink night tint", () => {
+  it("midnight is a gentle navy night tint (never a hard blue-black)", () => {
     const w = computeWash("summer", 0);
-    expect(w.color).toBe(EDG.ink);
-    expect(w.alpha).toBeGreaterThan(0.4);
+    expect(w.color).toBe(EDG.navy);
+    expect(w.alpha).toBeGreaterThan(0.3);
+    expect(w.alpha).toBeLessThanOrEqual(0.42);
   });
-  it("noon in winter is a faint cool seasonal grade (not night ink)", () => {
+  it("noon in winter is a faint cool seasonal grade (not night navy)", () => {
     const w = computeWash("winter", 0.5);
     expect(w.color).toBe(EDG.skyBlue);
     expect(w.alpha).toBeLessThan(0.2);
@@ -64,9 +65,9 @@ describe("computeWash", () => {
     expect(w.color).toBe(EDG.gold);
     expect(w.alpha).toBeLessThan(0.1);
   });
-  it("dusk band yields a warm orange accent", () => {
+  it("dusk band yields a warm golden-hour accent", () => {
     const w = computeWash("autumn", 0.78);
-    expect(w.color).toBe(EDG.orange);
+    expect(w.color).toBe(EDG.gold);
     expect(w.alpha).toBeGreaterThan(0);
   });
   it("unknown season falls back without throwing", () => {

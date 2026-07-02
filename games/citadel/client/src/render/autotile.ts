@@ -21,9 +21,10 @@
  * ~1000-tile budget, so recompute-per-frame is fine and avoids cache
  * invalidation on placement commands.
  */
+import { EDG } from "@engine/core";
 import { TILE_SIZE, WORLD_WIDTH } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
-import { packTint, BUILDING_COLORS, FALLBACK_BUILDING_COLOR } from "./quads";
+import { packTint, FALLBACK_BUILDING_COLOR } from "./quads";
 import type { QuadSpec } from "./quads";
 
 /** Direction bits for the 4-neighbour autotile mask. */
@@ -38,6 +39,29 @@ const LAYER_NETWORK = 5;
 /** Road band fraction (thin) and wall band fraction (thick). */
 const ROAD_BAND = 0.5;
 const WALL_BAND = 0.8;
+
+// ---------------------------------------------------------------------------
+// Cozy warm network tones (art-02 sub-phase E)
+// ---------------------------------------------------------------------------
+//
+// The network tints were the cold `BUILDING_COLORS.road`/`.wall` (navy / steel).
+// Per the [cozy iso art style bible](../../../../../corpus/wiki/citadel-art-style.md):
+// "Cool = shadow & depth only (never the dominant read)" and roads/dirt/walls
+// should "read warm, not cold-grey." So the network surfaces own their own WARM
+// EDG neighbours here instead of borrowing the cold building swatches:
+//
+//   - road  → `wood` (a warm packed-dirt / earthy cobble brown) rather than `navy`.
+//   - wall  → `tan`  (warm plaster/stone) rather than cold `steel`.
+//   - bridge stays `wood` (already warm timber), matching the plank deck recipe.
+//
+// These tints color the SOLID diamond/arm paths (walls in iso, and the flat
+// `networkQuads` arm geometry used by the fused-run tests). The textured
+// `fx/road` cobble + `fx/bridge` plank frames draw white-tinted and carry their
+// own EDG palette (owned by `sprites/recipes/fx.ts`) — see the concern noted in
+// the sub-phase E report: warming the cobble stones themselves is a fx.ts edit.
+const ROAD_TINT = EDG.wood;
+const WALL_TINT = EDG.tan;
+const BRIDGE_TINT = EDG.wood;
 
 /** Build a Set of packed tile keys (`ty*WORLD_WIDTH+tx`) for a 1×1 tile list. */
 export function tileKey(tx: number, ty: number): number {
@@ -136,8 +160,8 @@ export function networkQuads(buildings: readonly BuildingSnapshot[]): QuadSpec[]
   }
 
   const quads: QuadSpec[] = [];
-  const roadHex = BUILDING_COLORS.road ?? FALLBACK_BUILDING_COLOR;
-  const wallHex = BUILDING_COLORS.wall ?? FALLBACK_BUILDING_COLOR;
+  const roadHex = ROAD_TINT ?? FALLBACK_BUILDING_COLOR;
+  const wallHex = WALL_TINT ?? FALLBACK_BUILDING_COLOR;
   for (const { tx, ty } of roadTiles) {
     quads.push(...autotileQuads(tx, ty, neighbourMask(tx, ty, roadSet), roadHex, ROAD_BAND));
   }
@@ -167,17 +191,54 @@ export interface IsoNetworkTile {
    * Optional textured frame to stamp instead of the flat tinted diamond. Roads
    * use a cobblestone diamond and bridges a plank-deck diamond; walls keep the
    * solid tinted diamond (frame omitted). When set, the tile is drawn white-tint
-   * so the recipe's own colors show.
+   * so the recipe's own recipe colors show.
    */
   frame?: string;
+  /**
+   * 4-neighbour connectivity mask (N|E|S|W bits) toward SAME-network tiles —
+   * i.e. which of this diamond's four edges ABUT another tile of the same run.
+   *
+   * PIXEL-TANGENT AUDIT (art-02 sub-phase E): the style bible says "no outline
+   * where tiles abut (avoids pixel tangents on autotiled roads/walls)." Each
+   * road/bridge diamond frame bakes a dark edge rim (`fx/road` ink rim,
+   * `fx/bridge` beam); where two same-network diamonds meet, both rims stack and
+   * the seam reads as a hard DOUBLED outline down the middle of a straight run
+   * instead of a soft continuous surface. This mask is the per-tile data a
+   * renderer needs to suppress the rim on an abutting edge (draw the soft
+   * interior tone there instead). Exposed here (the pure, tested layer) so the
+   * fix can be driven without recomputing adjacency in the renderer; the actual
+   * rim-drop is a follow-up in the frame recipe / renderer (sibling-owned files).
+   * `bridge` uses the road membership set (roads + bridges share a run so a
+   * bridge mouth fuses into the road it meets).
+   */
+  abut: number;
 }
 
 export function isoNetworkTiles(
   buildings: readonly BuildingSnapshot[],
   frames?: { road?: string; bridge?: string },
 ): IsoNetworkTile[] {
-  const roadHex = BUILDING_COLORS.road ?? FALLBACK_BUILDING_COLOR;
-  const wallHex = BUILDING_COLORS.wall ?? FALLBACK_BUILDING_COLOR;
+  const roadHex = ROAD_TINT ?? FALLBACK_BUILDING_COLOR;
+  const wallHex = WALL_TINT ?? FALLBACK_BUILDING_COLOR;
+  const bridgeHex = BRIDGE_TINT ?? FALLBACK_BUILDING_COLOR;
+
+  // First pass: membership sets so the abutment mask (pixel-tangent suppression
+  // data) can be computed per tile. Roads + bridges share a run (a bridge mouth
+  // fuses into the road it meets); walls + gates share a run (a wall continues
+  // through a gate, mirroring `networkQuads`).
+  const roadSet = new Set<number>();
+  const wallSet = new Set<number>();
+  for (const b of buildings) {
+    if (b.type !== "road" && b.type !== "bridge" && b.type !== "wall" && b.type !== "gate") continue;
+    for (let dy = 0; dy < b.h; dy++) {
+      for (let dx = 0; dx < b.w; dx++) {
+        const key = tileKey(b.x + dx, b.y + dy);
+        if (b.type === "road" || b.type === "bridge") roadSet.add(key);
+        else wallSet.add(key); // wall + gate
+      }
+    }
+  }
+
   const out: IsoNetworkTile[] = [];
   for (const b of buildings) {
     // Roads and bridges fill the whole tile (band 1) when textured — the cobble
@@ -185,18 +246,25 @@ export function isoNetworkTiles(
     let hex: string | null = null;
     let band = WALL_BAND;
     let frame: string | undefined;
+    let members: ReadonlySet<number> | null = null;
     if (b.type === "road") {
-      hex = roadHex; band = frames?.road !== undefined ? 1 : ROAD_BAND; frame = frames?.road;
+      hex = roadHex; band = frames?.road !== undefined ? 1 : ROAD_BAND; frame = frames?.road; members = roadSet;
     } else if (b.type === "bridge") {
-      hex = roadHex; band = 1; frame = frames?.bridge;
+      hex = bridgeHex; band = 1; frame = frames?.bridge; members = roadSet;
     } else if (b.type === "wall") {
-      hex = wallHex; band = WALL_BAND;
+      hex = wallHex; band = WALL_BAND; members = wallSet;
     } else {
       continue;
     }
     for (let dy = 0; dy < b.h; dy++) {
       for (let dx = 0; dx < b.w; dx++) {
-        out.push({ tx: b.x + dx, ty: b.y + dy, type: b.type, hex, band, ...(frame !== undefined ? { frame } : {}) });
+        const tx = b.x + dx;
+        const ty = b.y + dy;
+        // Abutment mask: which edges meet a same-network neighbour. The renderer
+        // suppresses the baked frame rim on these edges so seams read soft (no
+        // doubled "pixel tangent" outline down a fused run) — style-bible rule.
+        const abut = neighbourMask(tx, ty, members);
+        out.push({ tx, ty, type: b.type, hex, band, abut, ...(frame !== undefined ? { frame } : {}) });
       }
     }
   }

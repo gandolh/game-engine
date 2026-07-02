@@ -29,7 +29,7 @@ import {
   Camera2D,
   createRenderer,
 } from "@engine/core";
-import type { RendererLike, LoadedAtlasImage, Canvas2dSprite } from "@engine/core";
+import type { RendererLike, LoadedAtlasImage, Canvas2dSprite, CloudOptions } from "@engine/core";
 import { TILE_SIZE, isTravellingFsm } from "@citadel/sim-core";
 import type {
   BuildingSnapshot,
@@ -80,6 +80,78 @@ export * from "./window-controller";
 
 import type { TerrainGrid } from "@citadel/sim-core";
 import { WORLD_PX_W, WORLD_PX_H } from "./transform";
+import { seasonToWeather } from "./weather";
+
+// ---------------------------------------------------------------------------
+// Atmosphere: fBm cloud-shadow + warm-haze overlay wiring (art-03 P2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cool EDG tint for the drifting cloud-SHADOW blobs — a soft slate shade, not a
+ * hard blue-black, so the shadows read as passing overcast rather than ink.
+ */
+const CLOUD_SHADOW_COLOR = EDG.slate;
+
+/**
+ * Warm EDG tint for the morning-HAZE veil — a low-alpha cream lift for cozy
+ * mist. The shader's haze branch keeps max alpha ≤0.12 so it stays a whisper.
+ */
+const HAZE_COLOR = EDG.cream;
+
+/** Slow world-px/s drift so the shadows crawl gently across the terrain. */
+const CLOUD_DRIFT_SPEED = 3.5;
+
+/**
+ * Derive the engine `CloudOptions` (the world-anchored fBm overlay) for one
+ * frame, as a PURE function of the snapshot's `season`/`day` + the render clock.
+ * Render-only — the pass world-anchors the fBm, so `timeSec` (render clock) only
+ * animates drift and never feeds the sim.
+ *
+ *  - Coverage tracks the same season→weather cadence the weather FX uses: a
+ *    rainy/overcast day (or winter) raises coverage so the sky reads heavier;
+ *    clear days keep only a few sparse shadow patches.
+ *  - Morning (early `dayFraction`) swaps the dark shadow blobs for a warm, very
+ *    low-alpha haze veil (mode "haze") for a cozy dawn mist; the rest of the day
+ *    uses the cool cloud-shadow mode.
+ *
+ * `dayFraction` in [0,1) is the same value `atmosphere.computeWash` consumes.
+ */
+export function cloudOptionsFor(
+  season: string,
+  day: number,
+  dayFraction: number,
+  timeSec: number,
+): CloudOptions {
+  const w = seasonToWeather(season, day);
+  // Base overcast: overcast/rainy spells + winter push coverage up.
+  let coverage: number;
+  if (w.kind === "snow") coverage = 0.75;
+  else if (w.kind === "rain") coverage = 0.85;
+  else coverage = 0.28; // clear-ish day: a few sparse drifting shadows
+
+  // Morning haze window: dawn → ~mid-morning (dayFraction 0..0.22), strongest at
+  // first light and fading out by mid-morning. Uses the warm low-alpha veil.
+  const df = ((dayFraction % 1) + 1) % 1;
+  const hazeAmt = df < 0.22 ? 1 - df / 0.22 : 0;
+  if (hazeAmt > 0.02) {
+    return {
+      color: HAZE_COLOR,
+      // Haze coverage fades with the morning so the mist thins out as the sun climbs.
+      coverage: Math.max(coverage * 0.5, 0.6 * hazeAmt),
+      driftSpeed: CLOUD_DRIFT_SPEED * 0.5, // haze drifts even slower
+      timeSec,
+      mode: "haze",
+    };
+  }
+
+  return {
+    color: CLOUD_SHADOW_COLOR,
+    coverage,
+    driftSpeed: CLOUD_DRIFT_SPEED,
+    timeSec,
+    mode: "shadow",
+  };
+}
 
 // Sprite layers — higher draws on top. Terrain is the baked static layer
 // (below everything); these stack buildings < villagers < raiders < ghost.
@@ -287,8 +359,8 @@ function isoFlatSprite(x: number, y: number, width: number, height: number, fram
 }
 
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
-function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx, clockMs?: number): void {
-  const base = buildingQuad(b, clockMs);
+function pushBuilding(renderer: RendererLike, b: BuildingSnapshot, fx?: SceneFx, clockMs?: number, nightFactor = 0): void {
+  const base = buildingQuad(b, clockMs, nightFactor);
   const { quad: isoBase, depth } = isoBuildingPlacement(b, base);
 
   // Directional ground shadow: a flat iso diamond-ish box under the footprint.
@@ -369,7 +441,7 @@ const villagerHeading = new VillagerHeadingTracker();
  * overlay. Pure-ish: only calls `renderer.push`. The optional `fx` hooks apply
  * the placement ease-in (building scale/alpha) and idle bob (villager Y).
  */
-export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneFx, clockMs?: number): void {
+export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneFx, clockMs?: number, nightFactor = 0): void {
   // Roads + walls draw as autotiled connected networks (brief 11), not per-tile
   // through buildingQuad. Gates still draw their distinct gold block here.
   pushNetworks(renderer, scene.buildings);
@@ -398,14 +470,14 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
       }
     }
     for (const b of cluster.members) {
-      pushBuilding(renderer, b, fx, clockMs);
+      pushBuilding(renderer, b, fx, clockMs, nightFactor);
     }
   }
 
   for (const b of scene.buildings) {
     if (b.type === "road" || b.type === "wall" || b.type === "bridge") continue; // handled by pushNetworks
     if (b.type === "house") continue; // handled by the cluster path above
-    pushBuilding(renderer, b, fx, clockMs);
+    pushBuilding(renderer, b, fx, clockMs, nightFactor);
   }
   for (const v of scene.villagers) {
     // Part A: a villager appears on the map ONLY while travelling between places.
@@ -414,7 +486,7 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
     // snapshot uses to tally occupancy, so a villager is shown in exactly one
     // place (road OR a building), never both.
     if (!isTravellingFsm(v.fsm)) continue;
-    const base = villagerQuad(v);
+    const base = villagerQuad(v, clockMs);
     const dy = fx?.villagerYOffset !== undefined ? fx.villagerYOffset(v) : 0;
     // Render-only position interpolation: glide between snapshot tiles instead of
     // snapping. The hook returns a fractional tile position; isoPointBox handles
@@ -448,7 +520,7 @@ export function pushScene(renderer: RendererLike, scene: SceneInput, fx?: SceneF
   }
   villagerHeading.sweep();
   for (const r of scene.raiders) {
-    const base = raiderQuad(r);
+    const base = raiderQuad(r, clockMs);
     const rp = fx?.raiderPos !== undefined ? fx.raiderPos(r) : { x: r.x, y: r.y };
     const box = isoPointBox(rp.x + 0.5, rp.y + 0.5, base.width);
     renderer.push(quadToSprite(

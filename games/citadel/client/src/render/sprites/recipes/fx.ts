@@ -54,48 +54,76 @@ function diamond(): PixelRecipe {
 }
 
 /**
- * Cobblestone road diamond: a slate base speckled with a deterministic 2-tone
- * cobble pattern (steel + silver stones, ink mortar) and a darker rim, so a run
- * of road tiles reads as a paved path rather than a flat navy lozenge. The
- * pattern is a fixed checker-ish hash of (x,y) — pure, no RNG.
+ * Cobblestone road diamond: a WARM packed-cobble path — an earthy `wood`/`bark`
+ * base speckled with a deterministic 2-tone cobble pattern (`tan`/`clay` lit
+ * stones, `wood`/`woodDark` shaded stones) and warm `bark` mortar gaps, so a run
+ * of road tiles reads as sun-warmed packed stone rather than a cold-grey lozenge
+ * (per the cozy iso art bible: "roads read warm, not cold-grey"). The pattern is
+ * a fixed checker-ish hash of (x,y) — pure, no RNG.
+ *
+ * ABUTMENT / PIXEL-TANGENT (art-02-E2): framed roads use `band=1`, so adjacent
+ * diamonds meet edge-to-edge and both baked rims stack into a doubled dark line
+ * down a straight run (a "pixel tangent" the style bible forbids). We keep the
+ * rim (an isolated tile / network end still needs a readable silhouette) but (1)
+ * warm it from cold `ink` to `woodDark` and (2) DITHER it — every other rim
+ * pixel is the interior cobble tone instead of the rim tone — so where two runs
+ * abut the doubled seam reads as a soft broken warm edge, not a hard black bar.
+ * See the sub-phase-E report: per-edge rim suppression (a 16-mask autotile set,
+ * or renderer-side segment skipping via `IsoNetworkTile.abut`) is deferred as
+ * too costly/risky vs. this soft-warm-seam fallback.
  */
 function road(): PixelRecipe {
   const g = new Grid(DW, DH);
   forEachDiamondPixel((x, y, _half, edgeDist) => {
+    // Warm cobble body: two interleaving stone tones (lit `tan`/`clay`, shaded
+    // `wood`/`woodDark`) + occasional `bark` mortar gaps, from a stable hash.
+    // 3+ hue-shifted value bands: tan (light) → clay → wood → woodDark (dark).
+    const hsh = (x * 7 + y * 13) & 7;
+    const body = hsh === 0 ? "%" : ((x + y) & 1) === 0 ? (hsh & 2) === 0 ? "t" : "r" : (hsh & 1) === 0 ? "w" : "W";
     if (edgeDist === 0) {
-      g.set(x, y, "i"); // dark mortar rim
+      // Softened warm rim: dithered `woodDark` so a straight-run abutment reads
+      // as a soft broken warm seam, not a doubled hard line — but a network end
+      // / isolated tile still shows a clear darker silhouette every other pixel.
+      g.set(x, y, ((x ^ y) & 1) === 0 ? "W" : body);
       return;
     }
-    // Two interleaving cobble tones + occasional mortar gaps, from a stable hash.
-    const hsh = (x * 7 + y * 13) & 7;
-    const ch = hsh === 0 ? "i" : ((x + y) & 1) === 0 ? "S" : (hsh & 1) === 0 ? "s" : "l";
-    g.set(x, y, ch);
+    g.set(x, y, body);
   });
   return g.toRecipe(FRAME_ROAD);
 }
 
 /**
- * Wooden plank bridge diamond: a tan/wood deck of planks running across the
- * tile, twin rope-brown rails on the two near edges, and dark water-gap mortar
- * between planks, so a span reads as a built crossing over water. Pure.
+ * Wooden plank bridge diamond: a WARM tan/wood deck of planks running across the
+ * tile, twin rope-brown rails on the two near edges, and warm `bark` water-gap
+ * seams between planks, so a span reads as a built timber crossing. Timber tones
+ * are hue-shifted across `tan`/`wood`/`woodDark`/`bark` (light→dark). Pure.
+ *
+ * ABUTMENT (art-02-E2): the outer beam rim doubles where a bridge run abuts
+ * itself or the road it meets. The beam is already warm `woodDark`, and here we
+ * DITHER the outer rim (every other pixel drops to the deck tone) so an abutment
+ * seam reads as a soft broken beam rather than a hard doubled line, while a lone
+ * bridge tile / span end still shows a clear railed silhouette. See road() for
+ * why per-edge suppression via `abut` is deferred.
  */
 function bridge(): PixelRecipe {
   const g = new Grid(DW, DH);
   forEachDiamondPixel((x, y, _half, edgeDist) => {
+    // Deck plank tone at (x,y): alternating wood/tan bands every 2 rows, warm
+    // `bark` seams between planks.
+    const bandRow = Math.floor(y / 2) & 1;
+    const seam = (x & 3) === 0; // periodic plank gap
+    const deck = seam ? "%" : bandRow === 0 ? "w" : "t";
     if (edgeDist === 0) {
-      // Outer rim = the bridge's edge beams / rope rail (dark wood).
-      g.set(x, y, "W");
+      // Softened warm beam rim: dithered `woodDark` so abutting spans read soft.
+      g.set(x, y, ((x ^ y) & 1) === 0 ? "W" : deck);
       return;
     }
     if (edgeDist === 1) {
-      // Inner rail highlight just inside the beams.
+      // Inner rail highlight just inside the beams (warm bark shadow line).
       g.set(x, y, "%");
       return;
     }
-    // Deck planks: alternating wood/tan bands every 2 rows, ink seams between.
-    const band = Math.floor(y / 2) & 1;
-    const seam = (x & 3) === 0; // periodic plank gap
-    g.set(x, y, seam ? "%" : band === 0 ? "w" : "t");
+    g.set(x, y, deck);
   });
   return g.toRecipe(FRAME_BRIDGE);
 }

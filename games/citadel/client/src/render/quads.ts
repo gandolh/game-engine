@@ -22,10 +22,18 @@ import type {
 import {
   BUILDING_SPRITE_TYPES,
   buildingFrameName,
+  buildingLitFrameName,
+  LIT_BUILDING_TYPES,
   millFrameAt,
+  unitFrameAt,
+  villagerFrameName,
+  raiderFrameName,
   VILLAGER_FRAME,
   RAIDER_FRAME,
 } from "./sprites/recipes";
+
+/** Building types that gain a warm dusk-lit (`@lit`) window-glow frame. */
+const LIT_BUILDING_SET: ReadonlySet<string> = new Set(LIT_BUILDING_TYPES);
 
 // ---------------------------------------------------------------------------
 // Color maps (EDG only) — ported verbatim from the deleted Canvas2D renderers.
@@ -248,7 +256,7 @@ export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: numb
  * recipe falls back to a solid tinted box (never requesting a missing frame).
  * Pure — no GPU.
  */
-export function buildingQuad(b: BuildingSnapshot, clockMs?: number): QuadSpec {
+export function buildingQuad(b: BuildingSnapshot, clockMs?: number, nightFactor = 0): QuadSpec {
   const px = b.x * TILE_SIZE;
   const py = b.y * TILE_SIZE;
   const pw = b.w * TILE_SIZE;
@@ -280,9 +288,14 @@ export function buildingQuad(b: BuildingSnapshot, clockMs?: number): QuadSpec {
     // Real sprite: tint white so the recipe colors show; orange-multiply when
     // burning. Footprint-sized so the frame scales 1:1 (nearest-crisp). The mill
     // animates: when a render clock is supplied, pick its rotated-sail frame.
+    // At dusk/night an eligible building swaps to its warm-window-glow `@lit`
+    // frame (the strongest cozy cue) — but never while burning (fire read wins).
+    const lit = !b.burning && nightFactor > 0.45 && LIT_BUILDING_SET.has(b.type);
     const frame = b.type === "mill" && clockMs !== undefined
       ? millFrameAt(clockMs)
-      : buildingFrameName(b.type);
+      : lit
+        ? buildingLitFrameName(b.type)
+        : buildingFrameName(b.type);
     return {
       x: px,
       y: py,
@@ -350,7 +363,7 @@ export function buildingShadowQuad(b: BuildingSnapshot): QuadSpec | null {
  * `villagerSlumpOffset` in citadel-fx.ts, applied in the renderer's villager
  * draw loop) — mirroring how house mood-dim composes on top of `buildingQuad`.
  */
-export function villagerQuad(v: VillagerSnapshot): QuadSpec {
+export function villagerQuad(v: VillagerSnapshot, clockMs?: number): QuadSpec {
   // Sized up for the 32×32 iso figure art (was 0.7 tiles for the old 16px sprite).
   const size = TILE_SIZE * 1.1;
   const cx = v.x * TILE_SIZE + TILE_SIZE / 2;
@@ -359,7 +372,12 @@ export function villagerQuad(v: VillagerSnapshot): QuadSpec {
   // VillagerJob union. The sim only writes known job values; any unmapped value falls
   // back to neutral silver via FALLBACK_VILLAGER_COLOR.
   const hex = VILLAGER_JOB_COLORS[v.job as VillagerJob] ?? FALLBACK_VILLAGER_COLOR;
-  return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex), frame: VILLAGER_FRAME };
+  // Idle-sway / walk-cycle animation (render-only, like the mill sails). Stagger
+  // each figure by its id so the crowd doesn't lock-step — `unitFrameAt`'s phaseMs.
+  const frame = clockMs !== undefined
+    ? unitFrameAt(clockMs, villagerFrameName, 900, (v.id % 5) * 180)
+    : VILLAGER_FRAME;
+  return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex), frame };
 }
 
 /** Raider strength tiers — the silhouette cue, not just size (legibility todo). */
@@ -383,7 +401,7 @@ export function raiderTier(strength: number): RaiderTier {
  * Size still scales with strength so big raids loom; the aspect/tint make the
  * tier readable during the march. Pure — derives only from snapshot strength.
  */
-export function raiderQuad(r: RaiderSnapshot): QuadSpec {
+export function raiderQuad(r: RaiderSnapshot, clockMs?: number): QuadSpec {
   const tier = raiderTier(r.strength);
   // Base size still grows with strength (0.4..1.0 tiles), as before.
   const base = TILE_SIZE * (0.4 + Math.min(0.6, r.strength / 60));
@@ -399,7 +417,12 @@ export function raiderQuad(r: RaiderSnapshot): QuadSpec {
   const h = base * a.hy;
   const cx = r.x * TILE_SIZE + TILE_SIZE / 2;
   const cy = r.y * TILE_SIZE + TILE_SIZE / 2;
-  return { x: cx - w / 2, y: cy - h / 2, width: w, height: h, tintRgba: packTint(a.hex), frame: RAIDER_FRAME };
+  // Idle-sway / walk-cycle (render-only), staggered per raider so a marching
+  // warband doesn't move in perfect unison.
+  const frame = clockMs !== undefined
+    ? unitFrameAt(clockMs, raiderFrameName, 820, (r.id % 5) * 160)
+    : RAIDER_FRAME;
+  return { x: cx - w / 2, y: cy - h / 2, width: w, height: h, tintRgba: packTint(a.hex), frame };
 }
 
 // ---------------------------------------------------------------------------

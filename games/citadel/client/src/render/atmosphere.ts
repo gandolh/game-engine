@@ -84,20 +84,22 @@ const SEASON_WASH: Record<string, SeasonWash> = {
 const FALLBACK_SEASON_WASH: SeasonWash = { dayColor: EDG.skyBlue, dayAlpha: 0.05 };
 
 /**
- * Night tint: deep ink-navy, alpha scales with night factor. Deepened slightly
- * (0.55 → 0.60) so deep night reads cooler/darker — closer to the strong
- * day→night contrast that sells tiny-world-builder's atmosphere.
+ * Night tint: a GENTLE cool navy, never the near-black `ink`. Cozy nights are
+ * lamplit — the wash should read as dim dusk-blue, not a hard blue-black void.
+ * Alpha capped lower than before (0.6 → 0.42) so window/light-pool glow (below)
+ * still reads warm against it instead of getting crushed.
  */
-const NIGHT_COLOR = EDG.ink;
-const NIGHT_MAX_ALPHA = 0.6;
+const NIGHT_COLOR = EDG.navy;
+const NIGHT_MAX_ALPHA = 0.42;
 
 /**
- * Dusk/dawn warm accent: peaks at the day→night transition bands. Strengthened
- * (0.18 → 0.24) so the golden-hour wash is more pronounced — the low warm sun is
- * the single most recognisable beat of tiny-world-builder's look.
+ * Dusk/dawn warm accent: peaks at the day→night transition bands. Pushed
+ * further toward `gold` golden-hour warmth (was a flatter `orange`) and
+ * strengthened a touch (0.24 → 0.28) — the low warm sun is the single most
+ * recognisable beat of the cozy storybook look.
  */
-const DUSK_COLOR = EDG.orange;
-const DUSK_MAX_ALPHA = 0.24;
+const DUSK_COLOR = EDG.gold;
+const DUSK_MAX_ALPHA = 0.28;
 
 /**
  * Strength of the warm dusk accent over the day fraction. Peaks around dawn
@@ -125,7 +127,8 @@ function duskWeight(dayFraction: number): number {
  *       daytime      → faint seasonal grade (SEASON_WASH)
  *   - The renderer's existing fire/disease tints are applied as their own
  *     building-level quads elsewhere; this wash is a thin global grade, so it
- *     never stacks into an unreadable murk (night alpha caps at 0.55).
+ *     never stacks into an unreadable murk (night alpha caps at 0.42, and the
+ *     night tint itself is a gentle navy — never a hard blue-black).
  */
 export function computeWash(season: string, dayFraction: number): WashSpec {
   const night = nightFactorOf(dayFraction);
@@ -162,9 +165,14 @@ export const LIGHT_EMITTERS: Record<string, number> = {
   chapel: 0.6, // candle-light
 };
 
-/** Warm glow palette — inner hot core → outer soft ring. EDG-only. */
-const GLOW_CORE = EDG.gold;
-const GLOW_RING = EDG.orange;
+/**
+ * Warm glow palette — inner hot core → outer soft ring. EDG-only. Retuned
+ * warmer: the hot core now leans `yellow` (was `gold`) for a brighter
+ * lamplit/candle read, and the outer ring uses `gold` (was `orange`) so the
+ * whole pool sits warmer without tipping into a hot-orange bonfire look.
+ */
+const GLOW_CORE = EDG.yellow;
+const GLOW_RING = EDG.gold;
 
 /**
  * Number of concentric rings approximating a radial gradient, with their
@@ -176,11 +184,16 @@ const GLOW_RING = EDG.orange;
  * pools on the ground (see `pushLightPool`), so three stacked rings compound —
  * keep each faint so the result reads as soft lamplight, not a bright orange
  * diamond. (Earlier values were tuned for transparent-cornered squares.)
+ *
+ * Softened for a lamplit-at-dusk read: the outer ring widened slightly
+ * (2.2 → 2.6 tiles) and its alpha lowered a touch so the glow fades out
+ * gently rather than stopping abruptly; the core alpha nudged up slightly so
+ * the warm center still reads clearly against the gentler night wash above.
  */
 const GLOW_RINGS: ReadonlyArray<{ radiusTiles: number; alpha: number; hex: string }> = [
-  { radiusTiles: 2.2, alpha: 0.045, hex: GLOW_RING },
-  { radiusTiles: 1.3, alpha: 0.05, hex: GLOW_RING },
-  { radiusTiles: 0.7, alpha: 0.06, hex: GLOW_CORE },
+  { radiusTiles: 2.6, alpha: 0.035, hex: GLOW_RING },
+  { radiusTiles: 1.5, alpha: 0.045, hex: GLOW_RING },
+  { radiusTiles: 0.7, alpha: 0.065, hex: GLOW_CORE },
 ];
 
 /** A light emitter as the pool needs it: footprint + type. */

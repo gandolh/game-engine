@@ -38,6 +38,7 @@ import {
   pushWearOverlay,
   pushCatchment,
   pushDisconnectedMarkers,
+  cloudOptionsFor,
   eventToDevicePx,
   screenToWorld,
   transformOf,
@@ -256,6 +257,7 @@ let snapshotIntervalMs = 0; // measured ms between the last two snapshot arrival
 // modal. Each gates its layer in loop() — purely cosmetic, zero sim impact.
 const renderToggles = {
   wash: true,        // day/night + seasonal wash (brief 15)
+  clouds: true,      // fBm cloud-shadow + morning-haze overlay (art-03)
   lightPool: true,   // night light pool (brief 15)
   weather: true,     // weather particle FX (brief 16)
   ambientCrowd: true, // instanced ambient crowd (brief 18)
@@ -919,6 +921,13 @@ const settingsModal = new SettingsModal({
       set: (v) => { renderToggles.lightPool = v; },
     },
     {
+      id: "clouds",
+      label: "Cloud shadows / haze",
+      keywords: "cloud shadow fog haze mist overcast fbm atmosphere weather sky",
+      get: () => renderToggles.clouds,
+      set: (v) => { renderToggles.clouds = v; },
+    },
+    {
       id: "weather",
       label: "Weather effects",
       keywords: "weather rain snow particles storm fx atmosphere",
@@ -1193,6 +1202,12 @@ function loop(): void {
   // Brief 17 FX hooks: placement ease-in (building scale/alpha) + idle bob
   // (villager Y) + render-only position interpolation (villager/raider glide).
   // All pure; the appear map + render clock + interpolators feed them here.
+  // Day/night phase — computed before pushScene so buildings can pick their warm
+  // dusk-lit window-glow frame (the strongest cozy cue) at night. Pure function
+  // of the render-side tick mirror; also reused below for light pools + wash.
+  const dayFraction = dayFractionOf(tick, VISUAL_DAY_TICKS);
+  const nightFactor = nightFactorOf(dayFraction);
+
   pushScene(
     renderer,
     {
@@ -1213,9 +1228,11 @@ function loop(): void {
       villagerPos: (v) => villagerInterp.positionOf(v.id, interpAlpha, v.x, v.y),
       raiderPos: (r) => raiderInterp.positionOf(r.id, interpAlpha, r.x, r.y),
     },
-    // Render clock drives render-only animation (the mill's rotating sails).
-    // performance.now — main-thread only, never the sim.
+    // Render clock drives render-only animation (the mill's rotating sails,
+    // villager/raider walk cycles). performance.now — main-thread only, never sim.
     nowMs,
+    // Night factor selects warm dusk-lit building frames (cozy window glow).
+    nightFactor,
   );
 
   // --- Brief 24 wear/decay soot overlay (render-only). For each burning
@@ -1230,8 +1247,7 @@ function loop(): void {
   // --- Atmosphere (render-only). Day/night wash + night light pool (brief 15),
   // ambient crowd (brief 18), weather (brief 16). All driven off snapshot
   // fields (tick/season/tier/day) + the render clock — zero sim impact.
-  const dayFraction = dayFractionOf(tick, VISUAL_DAY_TICKS);
-  const nightFactor = nightFactorOf(dayFraction);
+  // (dayFraction / nightFactor are computed above, before pushScene.)
 
   // Night light pool: warm glow quads over emitter buildings (sprite-batch).
   // Brief 25: gated — when off, skip the push entirely (no quads emitted).
@@ -1484,6 +1500,15 @@ function loop(): void {
   // Brief 25: gated — pass undefined wash/weather when their toggles are off.
   const wash = renderToggles.wash ? computeWash(season, dayFraction) : undefined;
   const weatherField = renderToggles.weather ? weather.field : undefined;
+
+  // fBm cloud-shadow + morning-haze overlay (art-03 P2). Drawn by the engine's
+  // CloudShadowPass inside endFrame (below the wash) when coverage > 0.001.
+  // Coverage/mode are a PURE function of season/day + dayFraction; timeSec is the
+  // render clock (the pass world-anchors the fBm, so it stays put under pan/zoom).
+  if (renderToggles.clouds) {
+    renderer.setCloudOptions?.(cloudOptionsFor(season, day, dayFraction, timeSec));
+  }
+
   renderer.endFrame(wash, particles, weatherField);
 
   toasts.tick(nowMs); // age toasts on the render clock

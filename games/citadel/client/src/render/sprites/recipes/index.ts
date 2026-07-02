@@ -9,8 +9,11 @@ import { BUILDING_RECIPES, MILL_FRAME_COUNT, millFrameName } from "./buildings";
 import { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN } from "./units";
 import { FX_RECIPES, FRAME_DIAMOND } from "./fx";
 
-export { BUILDING_RECIPES, MILL_FRAME_COUNT, millFrameName } from "./buildings";
-export { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN } from "./units";
+export { BUILDING_RECIPES, MILL_FRAME_COUNT, millFrameName, buildingLitFrameName, LIT_BUILDING_TYPES } from "./buildings";
+export {
+  UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN,
+  UNIT_FRAME_COUNT, unitFrameAt, villagerFrameName, raiderFrameName,
+} from "./units";
 export { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE } from "./fx";
 
 /** Every recipe baked into the runtime atlas (buildings + units + fx). */

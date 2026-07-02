@@ -239,12 +239,15 @@ export function isoSpriteDims(w: number, h: number, heightTiles: number): { widt
  * building's quad in **world-px** via `isoSpriteDims` and the GPU samples the
  * frame texture into that box (nearest-neighbour) — so a frame authored at N×
  * the pixel dimensions draws into the SAME world box, just with N× the detail.
- * Buildings are authored at 1× (32-based) — the same density as units/terrain.
- * (An earlier pass tried 4×; in practice the 32-based grid is already dense
- * enough, so we keep buildings at native resolution. The constant stays as the
- * single knob so the authoring math is scale-independent if we revisit it.)
+ * Buildings are authored at **2×** (64-based): the cozy-art recipe fidelity pass
+ * needs the extra headroom — at 1× the `R(n * ISO_ART_SCALE / 4)` detail terms
+ * collapse to 1–2px, so hue ramps / dithering / props have no room. 2× is the
+ * authoring resolution; the GPU samples the hi-res frame into the same world
+ * quad, so detail scales without any layout/projection change.
+ * (4× remains a future option via this same single knob — the authoring math is
+ * scale-independent, it only grows the atlas footprint.)
  */
-export const ISO_ART_SCALE = 1;
+export const ISO_ART_SCALE = 2;
 
 /**
  * Pixel dimensions for AUTHORING a building recipe — `isoSpriteDims` scaled up by

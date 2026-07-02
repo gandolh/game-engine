@@ -112,45 +112,77 @@ export function ditherHash(tx: number, ty: number, type: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Coarse elevation relief (idea ported from tiny-world-builder's height strata)
+// Palette-snapped fBm relief (canonical value-noise + 3-octave fBm)
 // ---------------------------------------------------------------------------
+//
+// This is the engine's canonical noise, ported CPU-side VERBATIM from
+// `engine/core/src/render/webgpu/shaders/cloud.wgsl` (Book of Shaders ch.11/13,
+// already tuned + shipped): `hash21`, cubic-Hermite `valueNoise`, 3-octave
+// `fbm3`. It feeds the low-frequency tonal drift that makes the ground "breathe"
+// — sampled per cell (deterministic on tx,ty) and step()-quantized to a handful
+// of EDG shades, exactly like the shader's alpha tiers. It is a LOW-freq term
+// LAYERED ON TOP OF the existing high-freq `(tx,ty,type)` dither clusters below.
 
-/**
- * Cheap value-noise sample in [0,1] at a continuous (x, y). Pure — same
- * `ditherHash` corner hashes bilinearly blended with a smoothstep, so it has no
- * dependency on the sim, no RNG, and is identical every call. Used only as a
- * render decoration (see `elevationField`).
- */
-function valueNoise(x: number, y: number): number {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const fx = x - x0;
-  const fy = y - y0;
-  // smoothstep weights for cr-soft interpolation between cell corners.
-  const sx = fx * fx * (3 - 2 * fx);
-  const sy = fy * fy * (3 - 2 * fy);
-  // Corner hashes → [0,1). Reuse ditherHash (type arg fixed) for the corners.
-  const c00 = ditherHash(x0, y0, 0) / 0xffffffff;
-  const c10 = ditherHash(x0 + 1, y0, 0) / 0xffffffff;
-  const c01 = ditherHash(x0, y0 + 1, 0) / 0xffffffff;
-  const c11 = ditherHash(x0 + 1, y0 + 1, 0) / 0xffffffff;
-  const top = c00 + (c10 - c00) * sx;
-  const bot = c01 + (c11 - c01) * sx;
-  return top + (bot - top) * sy;
+/** cloud.wgsl `hash21`: 2D coord → pseudo-random float in [0,1). */
+export function hash21(px: number, py: number): number {
+  const s = Math.sin(px * 127.1 + py * 311.7) * 43758.5453;
+  return s - Math.floor(s); // fract
 }
 
 /**
- * Coarse elevation field in [0,1] for a terrain cell: a low-frequency
- * `valueNoise` sample so neighbouring cells share a smooth "height". The
- * `ELEVATION_SCALE` divisor sets the wavelength — smaller = broader hills.
- * 0 ≈ shaded valley, 1 ≈ sun-lit high ground. Pure, render-only — never
- * persisted, never touches the sim. Inspired by tiny-world-builder's
- * height-strata terrain tinting, adapted to our flat 2D dither.
+ * cloud.wgsl `valueNoise`: bilinear value noise with cubic-Hermite smoothing
+ * (smoother than linear; avoids crease seams). Returns a smooth 0..1 value.
  */
-export const ELEVATION_SCALE = 9;
+export function valueNoise(px: number, py: number): number {
+  const ix = Math.floor(px);
+  const iy = Math.floor(py);
+  const frx = px - ix;
+  const fry = py - iy;
+  // Cubic Hermite smoothing.
+  const smx = frx * frx * (3 - 2 * frx);
+  const smy = fry * fry * (3 - 2 * fry);
+  const a = hash21(ix, iy);
+  const b = hash21(ix + 1, iy);
+  const c = hash21(ix, iy + 1);
+  const d = hash21(ix + 1, iy + 1);
+  // mix(mix(a,b,smx), mix(c,d,smx), smy)
+  const top = a + (b - a) * smx;
+  const bot = c + (d - c) * smx;
+  return top + (bot - top) * smy;
+}
+
+/**
+ * cloud.wgsl `fbm3`: 3 octaves of value noise, freq ×2 / amp ÷2 per octave,
+ * normalized by 0.875 (0.5 + 0.25 + 0.125). Roughly [0,1]. Pure.
+ */
+export function fbm3(px: number, py: number): number {
+  let val = 0;
+  let amp = 0.5;
+  let freq = 1.0;
+  val += amp * valueNoise(px * freq, py * freq);
+  amp *= 0.5; freq *= 2.0;
+  val += amp * valueNoise(px * freq, py * freq);
+  amp *= 0.5; freq *= 2.0;
+  val += amp * valueNoise(px * freq, py * freq);
+  return val / 0.875;
+}
+
+/**
+ * Coarse elevation field in [0,1] for a terrain cell: a low-frequency 3-octave
+ * `fbm3` sample so neighbouring cells share a smooth "height" that drifts in
+ * large soft blobs (the fBm gives more organic, breathing variation than a
+ * single value-noise octave did). The `ELEVATION_SCALE` divisor sets the
+ * wavelength — larger = broader hills. 0 ≈ shaded valley, 1 ≈ sun-lit high
+ * ground. Pure, render-only — never persisted, never touches the sim. This is
+ * the palette-snapped fBm the ground fill quantizes against (see `elevationFill`).
+ */
+export const ELEVATION_SCALE = 11;
 
 export function elevationField(tx: number, ty: number): number {
-  return valueNoise(tx / ELEVATION_SCALE, ty / ELEVATION_SCALE);
+  // Clamp: fbm3 is nominally [0,1] but the normalized sum can graze slightly
+  // outside; the callers (and tests) rely on a strict [0,1].
+  const v = fbm3(tx / ELEVATION_SCALE, ty / ELEVATION_SCALE);
+  return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
 /** A darker + lighter EDG accent swatch per terrain type. */
@@ -169,7 +201,12 @@ export const DITHER_ACCENTS: Record<TerrainType, DitherAccents> = {
   [TerrainType.Grass]: { dark: EDG.greenDark, light: EDG.green },
   [TerrainType.Water]: { dark: EDG.blue, light: EDG.cyan },
   [TerrainType.Forest]: { dark: EDG.teal, light: EDG.greenMid },
-  [TerrainType.Stone]: { dark: EDG.ink, light: EDG.steel },
+  // Stone: cozy-warm ramp — silver-lit highs, navy (not the near-black `ink`)
+  // valleys. Per the style bible stone ramp (silver → slate → navy), keeping
+  // the shadow a warm-tinted deep blue instead of collapsing to cold ink.
+  [TerrainType.Stone]: { dark: EDG.navy, light: EDG.silver },
+  // Rough (bare earth / sandy scrub): warm sun-baked ramp — `tan` highs over a
+  // `woodDark` (warm brown) shadow, the earthy warmth the fidelity pass calls for.
   [TerrainType.Rough]: { dark: EDG.woodDark, light: EDG.tan },
 };
 
@@ -213,20 +250,26 @@ export interface DitherCluster {
 /**
  * Deterministically derive the 1–3 dither clusters for a cell from the pure
  * coordinate hash. Cluster count, positions (snapped to a 4px sub-grid so they
- * stay crisp at TILE_SIZE=16), sizes (1–2px), and dark/light choice all come
- * from disjoint bit-fields of the hash → identical every call. Pure.
+ * stay crisp at TILE_SIZE=16), sizes, and dark/light choice all come from
+ * disjoint bit-fields of the hash → identical every call. Pure.
+ *
+ * CLUSTER-not-SPECKLE (cozy fidelity pass): each stamp is a chunky 2–3px block,
+ * not a lone 1px pixel — the style bible wants "clusters over lone-pixel
+ * speckle" so the ground reads as soft tonal blotches rather than TV static.
+ * A single crisp 1px dot only survives on the sun-lit-high / deep-valley edges
+ * where the tiny highlight/shadow accent still reads well.
  */
 export function ditherClusters(tx: number, ty: number, type: TerrainType): DitherCluster[] {
   const accents = ditherAccents(type);
   const h = ditherHash(tx, ty, type);
-  // Bias toward FEWER specks (mostly 1) so the field reads as a calm surface
+  // Bias toward FEWER stamps (mostly 1) so the field reads as a calm surface
   // with occasional texture rather than dense noise when the map is zoomed out.
   const count = 1 + ((h & 0x7) === 0 ? 1 : 0) + ((h & 0x38) === 0 ? 1 : 0); // mostly 1, rarely 2-3
   const clusters: DitherCluster[] = [];
   // 4px sub-grid → 4 columns/rows of cells at TILE_SIZE=16, keeps stamps inset.
   const cells = TILE_SIZE / 4; // 4
   // Coarse elevation tilts the light/dark mix: sun-lit high ground gets more
-  // light highlights, shaded low ground more dark specks — a flat-2D echo of
+  // light highlights, shaded low ground more dark clusters — a flat-2D echo of
   // tiny-world-builder's height-banded terrain. The threshold the per-cluster
   // bits race against slides with elevation (high elev → low threshold → almost
   // always light; low elev → high threshold → more dark).
@@ -237,13 +280,18 @@ export function ditherClusters(tx: number, ty: number, type: TerrainType): Dithe
     const slice = (h >>> (i * 8)) & 0xff;
     const gx = slice & 0x3; // 0..3 grid col
     const gy = (slice >>> 2) & 0x3; // 0..3 grid row
-    const size = 1 + ((slice >>> 4) & 0x1); // 1..2 px
+    // Chunky blobs: 2 or 3px (a cluster), biased to 2. Clamp against the tile
+    // edge so a stamp near col/row 3 (base 12px) can't overrun 16px.
+    let size = 2 + ((slice >>> 4) & 0x1); // 2..3 px cluster
+    const baseX = gx * cells;
+    const baseY = gy * cells;
+    size = Math.min(size, TILE_SIZE - baseX, TILE_SIZE - baseY);
     // Elevation-biased light/dark choice — a 2-bit field (0..3) compared against
     // the elevation-derived threshold. Highs skew light, valleys skew dark.
     const light = ((slice >>> 5) & 0x3) >= lightThreshold;
     clusters.push({
-      x: gx * cells,
-      y: gy * cells,
+      x: baseX,
+      y: baseY,
       size,
       hex: light ? accents.light : accents.dark,
     });
