@@ -95,6 +95,25 @@ describe("recipes integrity", () => {
     }
   });
 
+  it("the well's opaque silhouette is centred over its 1×1 footprint (art-09 anchoring)", () => {
+    // art-09: the well used to read shifted off its tile — cheap regression guard
+    // that the opaque-pixel centroid-x lands within ~2px of the sprite centre-x
+    // (no lateral offset), independent of the raw bounding-box check above.
+    const well = BUILDING_RECIPES.find((r) => r.name === "bld/well");
+    expect(well, "bld/well recipe exists").toBeTruthy();
+    const raster = rasterizeRecipe(well!);
+    let sumX = 0, opaque = 0;
+    for (let y = 0; y < raster.height; y++) {
+      for (let x = 0; x < raster.width; x++) {
+        if (raster.rgba[(y * raster.width + x) * 4 + 3]! === 0) continue;
+        sumX += x;
+        opaque++;
+      }
+    }
+    const centroidX = sumX / opaque;
+    expect(Math.abs(centroidX - raster.width / 2), `well centroid-x ${centroidX} vs centre ${raster.width / 2}`).toBeLessThanOrEqual(2);
+  });
+
   it("the mill has a base frame + rotated-sail animation frames that all rasterize", () => {
     const millFrames = BUILDING_RECIPES.filter((r) => r.name === "bld/mill" || r.name.startsWith("bld/mill@"));
     expect(millFrames.length, "mill frame count").toBe(MILL_FRAME_COUNT);

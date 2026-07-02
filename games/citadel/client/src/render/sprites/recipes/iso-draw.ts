@@ -196,6 +196,40 @@ function drawWalls(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   }
 }
 
+/**
+ * A short SQUARE plinth band: the two flat front wall faces of the footprint
+ * diamond (lit-left / shaded-right, per `drawWalls`) but confined to a band
+ * `[topY, botY]` instead of the full wall height — a stubby cube base rather
+ * than a storey-tall wall. Used by the mill to read as a broad square footing
+ * under the round drum, distinct from the drum's curved shading.
+ */
+function cubeBase(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, topY: number, botY: number): void {
+  const { cx, halfW, diaH } = m;
+  const deepBand = wallDeepOf(pal);
+  const bandH = Math.max(1, botY - topY);
+  // Left-front face (lit): left point -> front point, clipped to the band.
+  for (let x = cx - halfW; x <= cx; x++) {
+    const t = (x - (cx - halfW)) / halfW; // 0 at left point -> 1 at front point
+    const edgeSpan = (diaH / 2) * t; // how far this column's diamond edge dips
+    const y0 = Math.max(topY, topY + edgeSpan - (diaH / 2));
+    for (let y = y0; y <= botY; y++) g.set(x, y, pal.wallL);
+    g.set(x, topY, pal.wallR); // top-band AO line, echoes the eave-AO idiom
+    g.set(x, botY, pal.outline);
+  }
+  // Right-front face (shaded): front point -> right point, deep valley near-corner.
+  for (let x = cx; x <= cx + halfW; x++) {
+    const t = (x - cx) / halfW;
+    const deep = t < 0.4;
+    for (let y = topY; y <= botY; y++) g.set(x, y, deep ? deepBand : pal.wallR);
+    g.set(x, topY, pal.outline);
+    g.set(x, botY, pal.outline);
+  }
+  // Bright near-corner with a warm kiss on the top sliver (catches the light).
+  const kiss = kissOf(pal);
+  const kissSpan = Math.max(1, R(bandH * 0.4));
+  for (let y = topY; y <= botY; y++) g.set(cx, y, y - topY < kissSpan ? kiss : pal.wallEdge);
+}
+
 /** Hipped roof diamond capping the wall-top, lit-left / dark-right. */
 function drawHippedRoof(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   const { cx, halfW, diaH, yTopMid } = m;
@@ -251,14 +285,18 @@ function drawGableRoof(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, overhang = 0,
       // rows, with a dark groove between courses → a clay-tile read, not flat fill.
       const into = y - R(ridgeY);
       const groove = into % tileRow === 0;
+      // Committed UL sun: the BACK-LEFT facet (lit && onFar) faces the light
+      // straight-on and is brightest; FRONT-RIGHT (!lit && !onFar) faces fully
+      // away and is darkest; front-left / back-right are the two mid facets.
       let ch: string;
-      if (groove) ch = lit ? pal.roof : pal.roofDark;            // shadowed tile lip
-      else if (onFar) ch = lit ? pal.roof : pal.roofDark;        // back slope, darker
-      else ch = lit ? pal.roofLight : pal.roof;                  // front slope, lit
+      if (groove) ch = lit ? pal.roof : pal.roofDark;                   // shadowed tile lip
+      else if (lit && onFar) ch = pal.roofLight;                        // back-left: sunward, brightest
+      else if (!lit && !onFar) ch = pal.roofDark;                       // front-right: away from sun, darkest
+      else ch = pal.roof;                                               // front-left / back-right: mid
       g.set(x, y, ch);
-      // Cluster-dither the slope seam (front-lit → back/groove) on the row just
+      // Cluster-dither the slope seam (back-left lit → mid) on the row just
       // above each groove, so tile courses round rather than banding hard.
-      if (lit && !groove && (into % tileRow) === tileRow - 1) seamDither(g, x, y, pal.roofLight, pal.roof);
+      if (lit && onFar && !groove && (into % tileRow) === tileRow - 1) seamDither(g, x, y, pal.roofLight, pal.roof);
     }
     g.set(x, R(ridgeY), pal.outline);                 // top slope silhouette
     // Eave OVERHANG: a dark shadow lip just under the eave so the roof reads as
@@ -616,41 +654,47 @@ export function boxBuilding(name: string, w: number, h: number, heightTiles: num
 }
 
 /**
- * A WELL: a small circular stone well-head (a low cylinder ring, NOT a building
- * box), two timber posts carrying a little pitched roof, a windlass crossbar, and
- * a bucket on a rope. Sits low on its 1×1 ground diamond so it reads as a small
- * ground object, not a house. EDG32 stone + wood + clay-roof.
+ * A WELL: a small SQUARE stone well-head (a stubby iso box kerb, NOT a round
+ * cylinder and NOT a full building box), two timber posts carrying a little
+ * pitched roof, a windlass crossbar, and a bucket on a rope. Sits low on its
+ * 1×1 ground diamond so it reads as a small ground object, not a house.
+ * Everything is laid out symmetric around the SPRITE centre-x (`cx`, from
+ * `isoMetrics` — already the true footprint centre) so the opaque mass stays
+ * centred over the tile: no per-part offset, no asymmetric extra pixel on
+ * either side. EDG32 stone + wood + clay-roof.
  */
 export function wellForm(name: string, pal: IsoPalette): PixelRecipe {
   const { g, m } = begin(1, 1, 1);
   const { cx, halfW, diaH, yBotMid } = m;
   const groundY = yBotMid + diaH / 2;
-  const ringR = R(halfW * 0.62);
-  const ringTopY = groundY - R(diaH * 0.55); // top rim of the well kerb
-  // --- Stone kerb: a short cylinder (top ellipse rim + a band of wall) ---
-  const kerbH = R(diaH * 0.5);
-  for (let y = ringTopY; y <= ringTopY + kerbH; y++) {
-    // half-width of the ellipse at this row (a vertical cylinder)
-    for (let x = cx - ringR; x <= cx + ringR; x++) {
-      const f = (x - cx) / ringR;
-      g.set(x, y, f < -0.5 ? "l" : f < 0.15 ? "s" : f < 0.6 ? "S" : "#"); // round stone shading
+  // Small SQUARE kerb: narrower than the full footprint diamond (a well-head,
+  // not a wall), built via the shared short-plinth helper (`cubeBase`) with a
+  // scaled-down half-width so it reads as a mini iso box — same lit-left/
+  // shaded-right/bright-near-corner vocabulary as `drawWalls`, just short.
+  const kerbHalfW = R(halfW * 0.5);
+  const kerbH = R(diaH * 0.65);
+  const kerbBotY = groundY - 1;
+  const kerbTopY = kerbBotY - kerbH;
+  const kerbM: IsoMetrics = { ...m, halfW: kerbHalfW };
+  cubeBase(g, kerbM, pal, kerbTopY, kerbBotY);
+  // --- Ashlar coursing: a couple of dark seam rows across the kerb faces ---
+  for (let y = kerbTopY + 1; y < kerbBotY; y++) {
+    if ((y - kerbTopY) % R(Math.max(3, 4 * ISO_ART_SCALE / 4)) === 0) {
+      span(g, cx - kerbHalfW + 1, cx + kerbHalfW - 1, y, pal.outline);
     }
-    g.set(cx - ringR, y, pal.outline); g.set(cx + ringR, y, pal.outline);
-    if ((y - ringTopY) % 3 === 0) span(g, cx - ringR + 1, cx + ringR - 1, y, pal.outline); // courses
   }
-  // top rim ellipse + dark water hole
-  for (let dx = -ringR; dx <= ringR; dx++) {
-    const ey = R(Math.sqrt(Math.max(0, ringR * ringR - dx * dx)) * 0.42); // ellipse
-    g.set(cx + dx, ringTopY - ey, "l"); g.set(cx + dx, ringTopY + ey, pal.outline);
-  }
-  disc(g, cx, ringTopY, R(ringR * 0.6), 2.2, "#");      // dark shaft mouth
-  disc(g, cx, ringTopY, R(ringR * 0.4), 2.2, "b");      // water glint
-  // --- Two posts + a little pitched roof over the well ---
+  // --- Dark water mouth set into the kerb top (a small centred rect) ---
+  const mouthHalf = Math.max(1, R(kerbHalfW * 0.4));
+  rect(g, cx - mouthHalf, kerbTopY - 1, cx + mouthHalf, kerbTopY, pal.outline);
+  disc(g, cx, kerbTopY - 1, Math.max(1, R(mouthHalf * 0.75)), 1.6, "#");  // dark shaft mouth
+  disc(g, cx, kerbTopY - 1, Math.max(1, R(mouthHalf * 0.4)), 1.6, "b");   // water glint
+  // --- Two posts + a little pitched roof over the well, re-anchored to the
+  // box's top edge (kerbTopY) instead of the old round rim ---
   const postH = R(diaH * 0.9);
-  const postTopY = ringTopY - postH;
-  for (let dy = 0; dy <= postH; dy++) { g.set(cx - ringR + 1, ringTopY - dy, "%"); g.set(cx + ringR - 1, ringTopY - dy, "%"); }
+  const postTopY = kerbTopY - postH;
+  for (let dy = 0; dy <= postH; dy++) { g.set(cx - kerbHalfW + 1, kerbTopY - dy, "%"); g.set(cx + kerbHalfW - 1, kerbTopY - dy, "%"); }
   // pitched clay roof (a small gable spanning the two posts)
-  const roofHalf = ringR + 1;
+  const roofHalf = kerbHalfW + 1;
   const roofPeakY = postTopY - R(diaH * 0.45);
   for (let dx = -roofHalf; dx <= roofHalf; dx++) {
     const t = Math.abs(dx) / roofHalf;
@@ -660,19 +704,20 @@ export function wellForm(name: string, pal: IsoPalette): PixelRecipe {
     g.set(cx + dx, ry + 2, dx < 0 ? pal.roof : pal.roofDark);
   }
   // windlass crossbar between the posts + bucket on a rope
-  span(g, cx - ringR + 1, cx + ringR - 1, postTopY + R(diaH * 0.25), "w");
+  span(g, cx - kerbHalfW + 1, cx + kerbHalfW - 1, postTopY + R(diaH * 0.25), "w");
   const ropeX = cx, ropeTop = postTopY + R(diaH * 0.25);
-  for (let y = ropeTop; y < ringTopY - 1; y++) g.set(ropeX, y, "#"); // rope
-  g.set(ropeX, ringTopY - 2, "W"); g.set(ropeX - 1, ringTopY - 2, "W"); g.set(ropeX + 1, ringTopY - 2, "W"); // bucket
-  g.set(ropeX, ringTopY - 1, "%");
+  for (let y = ropeTop; y < kerbTopY - 1; y++) g.set(ropeX, y, "#"); // rope
+  g.set(ropeX, kerbTopY - 2, "W"); g.set(ropeX - 1, kerbTopY - 2, "W"); g.set(ropeX + 1, kerbTopY - 2, "W"); // bucket
+  g.set(ropeX, kerbTopY - 1, "%");
   return g.toRecipe(name);
 }
 
 /**
- * A TOWER MILL: a tall, slightly-tapered ROUND stone tower (drawn as a real iso
- * volume — a curved lit-left/shaded-right cylinder with stone coursing), a small
- * domed timber cap, a door + window, and four big sails (drawn by `sailAccent`).
- * Reads as a windmill, not a sign/scarecrow. Fills a 2×2 footprint, tall.
+ * A TOWER MILL: a broad SQUARE stone plinth (flat lit-left/shaded-right faces,
+ * like the fort walls) with a round stone/timber DRUM rising from it — a clear
+ * LEDGE at the base/drum transition, not a smooth cone — a small domed timber
+ * cap, a door + window, and four big sails (drawn by `sailAccent`). Reads as a
+ * windmill, not a spinning-top. Fills a 2×2 footprint, tall.
  */
 export function postMill(name: string, pal: IsoPalette, sailAccent: (g: IsoGrid, m: IsoMetrics) => void): PixelRecipe {
   const w = 2, h = 2, heightTiles = 3;
@@ -680,55 +725,52 @@ export function postMill(name: string, pal: IsoPalette, sailAccent: (g: IsoGrid,
   const { cx, diaH, yBotMid } = m;
   const groundY = yBotMid + diaH / 2;
 
-  // The cylindrical tower body: wide at the base, tapering toward the cap.
-  const baseR = R(m.halfW * 0.6);
-  const topR = R(m.halfW * 0.42);
+  // The body splits into two volumes: a short SQUARE plinth (base) at the foot,
+  // and a taller ROUND drum above it, separated by a visible LEDGE (the drum
+  // sits set-back from the base's outer edge, an overhang step, not a taper).
   const bodyTopY = R(m.roofH * 0.7);   // where the body starts (cap sits above)
   const bodyBotY = groundY - 1;
-  for (let y = bodyTopY; y <= bodyBotY; y++) {
-    const t = (y - bodyTopY) / Math.max(1, bodyBotY - bodyTopY);
-    const rr = R(baseR * t + topR * (1 - t)); // taper
-    for (let x = cx - rr; x <= cx + rr; x++) {
-      // round shading across the cylinder: bright left rim → lit → mid → shaded
-      // right rim, all from the WALL tones (never the cap/roof colour).
-      const f = (x - cx) / rr; // -1..1
-      let ch: string;
-      if (f < -0.55) ch = pal.wallEdge;   // bright left rim highlight
-      else if (f < 0.15) ch = pal.wallL;  // lit body
-      else if (f < 0.65) ch = pal.wallR;  // mid shade
-      else ch = wallDeepOf(pal);           // audited valley rim (warm/cool, not black)
-      g.set(x, y, ch);
-      // Cluster-dither the lit→mid cylinder seam (the ~0.15 meridian) so the
-      // curved shading rounds instead of stepping.
-      if (Math.abs(f - 0.15) < (1 / rr)) seamDither(g, x, y, pal.wallL, pal.wallR);
-    }
-    g.set(cx - rr, y, pal.outline);
-    g.set(cx + rr, y, pal.outline);
-    // stone coursing every few rows (subtle brown line, not heavy outline)
+  const bodyH = bodyBotY - bodyTopY;
+  const baseBandH = R(bodyH * 0.32);   // plinth band height (bottom slice of body)
+  const ledgeY = bodyBotY - baseBandH; // base/drum split row
+  const baseR = R(m.halfW * 0.62);     // square plinth half-width (footprint-wide)
+  const drumBaseR = R(m.halfW * 0.46); // drum radius at the ledge (set back from baseR)
+  const drumTopR = R(m.halfW * 0.4);   // drum radius at the cap (gentle taper only)
+
+  // --- Part 1: square plinth (flat faces, like a short fort wall band) ---
+  cubeBase(g, m, pal, ledgeY, bodyBotY);
+
+  // --- LEDGE: a bright overhang lip where the round drum sets back onto the
+  // square plinth top (a plinth/overhang step reads as two distinct volumes). ---
+  for (let x = cx - baseR - 1; x <= cx + baseR + 1; x++) g.set(x, ledgeY, pal.outline);
+  span(g, cx - drumBaseR - 1, cx + drumBaseR + 1, ledgeY - 1, pal.wallEdge);
+
+  // --- Part 2: round drum rising from the ledge, gently tapering to the cap ---
+  drawRoundDrum(g, m, pal, { radiusScale: drumBaseR / m.halfW, topRadiusScale: drumTopR / m.halfW, topY: bodyTopY, botY: ledgeY - 2 });
+  // stone/timber coursing on the drum every few rows (subtle line, not heavy outline)
+  for (let y = bodyTopY; y <= ledgeY - 2; y++) {
+    const t = (y - bodyTopY) / Math.max(1, (ledgeY - 2) - bodyTopY);
+    const rr = Math.max(1, R(drumTopR + (drumBaseR - drumTopR) * t));
     if ((y - bodyTopY) % R(Math.max(5, 6 * ISO_ART_SCALE / 4)) === 0) span(g, cx - rr + 1, cx + rr - 1, y, "%");
   }
-  // base footing: a slightly wider stone plinth (mid-stone, not black)
-  disc(g, cx, bodyBotY, baseR + 1, 2.4, pal.wallR);
-  for (let x = cx - baseR - 1; x <= cx + baseR + 1; x++) g.set(x, bodyBotY, pal.outline);
 
-  // small arched door at the foot + a couple of windows up the tower
-  const bodyH = bodyBotY - bodyTopY;
-  const dh = R(Math.min(bodyH * 0.28, m.wallH * 0.45));
+  // small arched door at the foot of the plinth + a window on the drum
+  const dh = R(Math.min(baseBandH * 0.7, m.wallH * 0.45));
   for (let dx = -2; dx <= 2; dx++) {
     const arch = R(Math.sqrt(Math.max(0, 4 - dx * dx)));
     for (let y = bodyBotY - dh - arch; y < bodyBotY - 1; y++) g.set(cx + dx, y, pal.door);
   }
-  // two small windows stacked on the lit front
-  for (const fy of [0.32, 0.58]) {
-    const wy = R(bodyTopY + bodyH * fy);
+  // one window on the drum front (a second would crowd the shorter drum band)
+  {
+    const wy = R(bodyTopY + ((ledgeY - 2) - bodyTopY) * 0.45);
     g.set(cx, wy, pal.glass); g.set(cx, wy - 1, pal.glass);
     g.set(cx - 1, wy, pal.outline); g.set(cx + 1, wy, pal.outline);
     g.set(cx, wy - 2, pal.outline); g.set(cx, wy + 1, pal.outline);
   }
 
-  // --- Domed timber CAP over the body ---
+  // --- Domed timber CAP over the drum ---
   const capH = R(m.roofH * 0.7);
-  const capBaseR = topR + 1;
+  const capBaseR = drumTopR + 1;
   for (let i = 0; i <= capH; i++) {
     const half = R(capBaseR * Math.cos((i / capH) * (Math.PI / 2))); // domed profile
     for (let x = cx - half; x <= cx + half; x++) g.set(x, bodyTopY - i, x < cx ? pal.roofLight : pal.roof);
@@ -886,9 +928,12 @@ export function marketStalls(name: string, w: number, h: number, pal: IsoPalette
       if ((dx + 200) % R(4 * ISO_ART_SCALE / 4) === 0) g.set(sx + dx, ay + R(4 * ISO_ART_SCALE / 4) + 1, "e");
     }
   };
-  // Two stalls, the front one lower (nearer the camera) so they don't overlap.
-  stall(R(cx - halfW * 0.34), R(midY - diaH * 0.06));
-  stall(R(cx + halfW * 0.30), R(midY + diaH * 0.30));
+  // Stalls pushed OUT to the plot's diamond rim (near-left / near-right edges),
+  // tables/awnings facing inward, so the cobbled centre stays a clear open
+  // gathering space instead of a central lump. Drawn back-to-front (higher/
+  // further stall first) so the nearer one correctly overlaps/paints over it.
+  stall(R(cx - halfW * 0.5), R(midY - diaH * 0.02)); // near-left rim (back-most of the two)
+  stall(R(cx + halfW * 0.5), R(midY + diaH * 0.16)); // near-right rim (front-most, drawn last)
   return g.toRecipe(name);
 }
 
@@ -1128,13 +1173,22 @@ export function fort(name: string, w: number, h: number, heightTiles: number, pa
 
 /** A tall ROUND stone drum body (tower): a lit-left→shaded-right cylinder with
  *  stone coursing, replacing the two flat wall faces. Mirrors the mill-tower
- *  cylinder shading but in the fort palette so a tower reads as a round keep. */
-function drawRoundDrum(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+ *  cylinder shading but in the fort palette so a tower reads as a round keep.
+ *  `opts` let a caller draw just a BAND of the drum (e.g. the mill's upper
+ *  storey sitting on a square plinth) with its own radius/taper; all default
+ *  to the original full-height fort tower so that call site is unchanged. */
+function drawRoundDrum(
+  g: IsoGrid, m: IsoMetrics, pal: IsoPalette,
+  opts: { radiusScale?: number; topRadiusScale?: number; topY?: number; botY?: number } = {},
+): void {
   const { cx, diaH, yTopMid, yBotMid } = m;
-  const r = R(m.halfW * 0.66);
-  const topY = yTopMid;
-  const botY = yBotMid + diaH / 2 - 1;
+  const rBase = R(m.halfW * (opts.radiusScale ?? 0.66));
+  const rTop = opts.topRadiusScale !== undefined ? R(m.halfW * opts.topRadiusScale) : rBase;
+  const topY = opts.topY ?? yTopMid;
+  const botY = opts.botY ?? (yBotMid + diaH / 2 - 1);
   for (let y = topY; y <= botY; y++) {
+    const t = (y - topY) / Math.max(1, botY - topY); // 0 top -> 1 bottom
+    const r = Math.max(1, R(rTop + (rBase - rTop) * t)); // gentle taper top->base
     for (let x = cx - r; x <= cx + r; x++) {
       const f = (x - cx) / r; // -1..1 across the drum
       let ch: string;
@@ -1276,10 +1330,14 @@ function drawArrowSlits(g: IsoGrid, m: IsoMetrics): void {
 function drawFlatCrenellatedTop(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   const { cx, halfW, diaH, yTopMid } = m;
   const HHalf = diaH / 2;
+  // Committed UL sun: the BACK half of the flat deck (dyAbs<0, further from the
+  // viewer, facing the upper-left) is the brighter band; the FRONT half (nearer,
+  // facing away from the sun) is the mid band — was inverted (front lit brighter
+  // than back) before the art-11 fix.
   for (let dyAbs = -HHalf; dyAbs <= HHalf; dyAbs++) {
     const y = R(yTopMid + dyAbs);
     const half = halfW * (1 - Math.abs(dyAbs) / HHalf);
-    for (let x = R(cx - half); x <= R(cx + half); x++) g.set(x, y, dyAbs < 0 ? pal.roof : pal.roofLight);
+    for (let x = R(cx - half); x <= R(cx + half); x++) g.set(x, y, dyAbs < 0 ? pal.roofLight : pal.roof);
     g.set(R(cx - half), y, pal.outline); g.set(R(cx + half), y, pal.outline);
   }
   const MERLON = R(5 * ISO_ART_SCALE / 4);
