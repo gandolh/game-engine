@@ -1,7 +1,7 @@
 ---
 title: "Citadel art-05 — unit / character personality (villager roles, raider, crowd)"
 created: 2026-07-02
-status: todo
+status: done
 tags: [citadel, client, render, art, units, characters, silhouette]
 depends-on: [art-02]  # builds on the 4-value grey-ramp + 3-frame walk cycle already landed
 scope: BRIEF-ONLY (no implementation yet — spec + acceptance)

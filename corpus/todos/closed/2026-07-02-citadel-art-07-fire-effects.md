@@ -1,7 +1,7 @@
 ---
 title: "Citadel art-07 — fire effects (flame sprite + embers + glow, beyond the orange tint)"
 created: 2026-07-02
-status: todo
+status: done
 tags: [citadel, client, render, art, fx, fire, particles]
 depends-on: []  # independent of the silhouette/unit work; verified via art-06 showcase
 scope: BRIEF-ONLY (no implementation yet — spec + acceptance)

@@ -1,7 +1,7 @@
 ---
 title: "Citadel art-04 — building personality & silhouette de-samification"
 created: 2026-07-02
-status: todo
+status: done
 tags: [citadel, client, render, art, isometric, pixel-art, buildings, silhouette]
 depends-on: [art-01, art-02, art-03]  # ships on the 2× scale + cozy palette already landed
 scope: BRIEF-ONLY (no implementation yet — spec + acceptance)

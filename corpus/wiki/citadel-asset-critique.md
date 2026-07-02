@@ -193,3 +193,25 @@ though distinct per the test — art-04 polish candidate.
 **Re-grade VERDICT: CONDITIONAL** — both baseline blockers (A1/A2, F1) cleared; the
 only open headline item is A4 (units), which is art-05's scope. Buildings + fire are
 "visually good." Full PASS awaits art-05.
+
+### Final grade (2026-07-02, art-04 + art-05 + art-06 + art-07 all landed)
+
+- **A4/A5 PASS** — art-05 landed: each of 9 gameplay roles gains a silhouette
+  accessory (farmer hat+hoe, smith apron+hammer, priest/healer robe, soldier/watchman
+  spear, trader pack, woodcutter/sawyer axe); `unit-silhouette.test.ts` proves each
+  role adds opaque pixels OUTSIDE the base body mask AND the grey multiply-tint
+  contract holds. Raider tiers already give 4 silhouettes by strength.
+- All building/fire/depth/isometry/atmosphere items remain PASS (see re-grade above).
+- **G4/G5 PASS** — palette guard green; **418/418**; showcase reloads:0, no page errors.
+- Headless gates now standing: `silhouette.test.ts` (A/B/C), `unit-silhouette.test.ts`
+  (A4/A5 + tint contract), `fire.test.ts` (F), `showcase.test.ts` (spacing) — so the
+  rubric's core is regression-locked in CI, not just eyeballed.
+
+**Minor ⚠️ (polish follow-ups, not blockers):** keep vs garrison still read a touch
+boxy at far zoom (distinct per the GRID=48 test, subtle to the eye); the showcase
+frames buildings large and crops the villager row — role silhouettes are best read in
+a populated playtest / a future dedicated unit-sheet view.
+
+**FINAL VERDICT: PASS** — zero ❌; the two baseline blockers cleared and every headline
+item (A1/A2/A4/C2/F1/G1) green. The asset set is "visually good": ship it; the ⚠️ items
+are logged as polish. (Re-run this rubric after any future recipe change.)

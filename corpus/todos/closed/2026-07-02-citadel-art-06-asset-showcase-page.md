@@ -1,7 +1,7 @@
 ---
 title: "Citadel art-06 — all-assets showcase page (spaced, isometry + fire test harness)"
 created: 2026-07-02
-status: todo
+status: done
 tags: [citadel, client, render, art, tooling, showcase, test-harness]
 depends-on: []  # can land first — it's the acceptance harness the other art briefs verify against
 scope: BRIEF-ONLY (no implementation yet — spec + acceptance)
