@@ -204,15 +204,14 @@ function drawWalls(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
  * under the round drum, distinct from the drum's curved shading.
  */
 function cubeBase(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, topY: number, botY: number): void {
-  const { cx, halfW, diaH } = m;
+  const { cx, halfW } = m;
   const deepBand = wallDeepOf(pal);
   const bandH = Math.max(1, botY - topY);
-  // Left-front face (lit): left point -> front point, clipped to the band.
+  // Left-front face (lit): left point -> front point. The band is flat-topped (a
+  // stubby plinth/kerb reads square, not a sloped-eave wall), so every column
+  // fills the full [topY, botY] band — matching the right face below.
   for (let x = cx - halfW; x <= cx; x++) {
-    const t = (x - (cx - halfW)) / halfW; // 0 at left point -> 1 at front point
-    const edgeSpan = (diaH / 2) * t; // how far this column's diamond edge dips
-    const y0 = Math.max(topY, topY + edgeSpan - (diaH / 2));
-    for (let y = y0; y <= botY; y++) g.set(x, y, pal.wallL);
+    for (let y = topY; y <= botY; y++) g.set(x, y, pal.wallL);
     g.set(x, topY, pal.wallR); // top-band AO line, echoes the eave-AO idiom
     g.set(x, botY, pal.outline);
   }
@@ -467,6 +466,137 @@ export function drawDoorFront(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void 
 }
 
 // ---------------------------------------------------------------------------
+// LAYERED-COMPOSITE authoring path (art-12)
+// ---------------------------------------------------------------------------
+//
+// The FORM builders below (cottage/warehouse/…) hand-compose a fixed sequence of
+// draw helpers (drawWalls + drawGableRoof + accent callbacks). `composite(...)`
+// FORMALISES that idiom into a first-class, reusable STACK: a building is an
+// ordered list of small focused sub-recipe generators (a `Layer` each) painted —
+// painter-ordered, transparent-aware (`.`-transparent) — onto ONE shared
+// `IsoGrid`, baked to a SINGLE atlas frame. There is NO runtime layer cost:
+// layering is purely an AUTHORING convenience at boot (the result is one recipe,
+// identical footprint/heightTiles/frame-name to a hand-drawn form, so the
+// renderer + every caller stay untouched). A `Layer` is any painter that takes
+// the shared grid + its metrics + the material palette; the reusable DETAIL
+// MODULES below (`shutteredWindow`, `stoneCoursing`, `chimneyStack`,
+// `groundApron`, …) are `Layer`s that DROP onto any base, so one detail benefits
+// many types.
+
+/** One paint pass in a layered composite: draws onto the shared grid in order. */
+export type Layer = (g: IsoGrid, m: IsoMetrics, pal: IsoPalette) => void;
+
+/**
+ * Bake an ordered STACK of `Layer` painters onto one shared `IsoGrid` for a
+ * `w×h` footprint `heightTiles` tall, and return the finished single-frame
+ * recipe. Layers paint back-to-front (later layers overpaint earlier ones,
+ * respecting transparency), exactly like the hand-written FORM builders — this
+ * is the generalised, reusable form of `cottage`'s `drawWalls`+roof+accent chain.
+ * A ground CONTACT SHADOW is stamped first (via `begin`) so composited buildings
+ * anchor to the terrain like every other form.
+ */
+export function composite(
+  name: string, w: number, h: number, heightTiles: number, pal: IsoPalette, layers: readonly Layer[],
+): PixelRecipe {
+  const { g, m } = begin(w, h, heightTiles);
+  for (const layer of layers) layer(g, m, pal);
+  return g.toRecipe(name);
+}
+
+// --- Reusable DETAIL MODULES (art-12) — each is a `Layer` (or curries into one)
+// so it drops onto ANY base that exposes the standard wall/roof metrics. These
+// author at the same authoring-space density as the base but concentrate detail
+// where it reads (window muntins/sills/shutters, stone cornerstones, coursing),
+// which is the "higher effective resolution" win WITHOUT a global scale bump. ---
+
+/**
+ * A SHUTTERED window on the lit-left wall face: the leaded pane + sill + a pair
+ * of open board shutters flanking it. Wraps the existing `drawWindow` (muntins +
+ * frame + optional dusk glow) and adds the sill lip + hinged shutters so the
+ * opening reads as a real framed casement, not a painted rectangle. `glow`
+ * threads through to the lamplit-pane variant. Returns a `Layer`.
+ */
+export function shutteredWindow(glow = false): Layer {
+  return (g, m, pal) => {
+    const { cx, halfW, yTopMid, wallH } = m;
+    // Mirror drawWindow's own placement so the shutters straddle the same pane.
+    const x = R(cx - halfW * 0.45);
+    const t = (x - (cx - halfW)) / halfW;
+    const topEdgeY = yTopMid + (m.diaH / 2) * t;
+    const wy = R(topEdgeY + wallH * 0.35);
+    const ww = R(5 * ISO_ART_SCALE / 4), wh = R(6 * ISO_ART_SCALE / 4);
+    // Board SHUTTERS hinged to either jamb (dark oak with a lit inner edge), each
+    // a couple px wide with a vertical plank groove — the signature cottage detail.
+    const shW = Math.max(2, R(3 * ISO_ART_SCALE / 4));
+    for (let dy = -1; dy <= wh + 1; dy++) {
+      const yy = wy + dy;
+      for (let sx = 0; sx < shW; sx++) {
+        g.set(x - 2 - sx, yy, sx === 0 ? pal.wallEdge : "%"); // left leaf, lit hinge edge
+        g.set(x + ww + 2 + sx, yy, sx === shW - 1 ? pal.wallEdge : "%"); // right leaf
+      }
+    }
+    drawWindow(g, m, pal, glow);
+    // A pale stone/plaster SILL lip jutting under the frame (catches the sun).
+    span(g, x - 2, x + ww + 2, wy + wh + 2, kissOf(pal));
+    span(g, x - 2, x + ww + 2, wy + wh + 3, pal.outline); // sill shadow
+  };
+}
+
+/**
+ * STONE COURSING with CORNERSTONES on the two front wall faces: this reuses the
+ * ashlar-coursing idiom (sparse mortar lines + staggered joints) — see
+ * `drawAshlarCourses` for the fort — but ALSO lays a vertical run of alternating
+ * quoin/CORNERSTONE blocks up the near corner, so a plain-walled building reads
+ * as dressed masonry. A `Layer`, so it drops onto any wall-bearing base.
+ */
+export const stoneCoursing: Layer = (g, m, pal) => {
+  drawAshlarCourses(g, m, pal);
+  // Quoins: alternating light/dark dressed cornerstones up the near vertical edge.
+  const { cx, diaH, yTopMid, yBotMid } = m;
+  const cornerTop = R(yTopMid + diaH / 2);
+  const cornerBot = R(yBotMid + diaH / 2);
+  const block = Math.max(3, R(5 * ISO_ART_SCALE / 4));
+  const quoinW = Math.max(2, R(3 * ISO_ART_SCALE / 4));
+  for (let y = cornerTop; y <= cornerBot; y++) {
+    const light = (Math.floor((y - cornerTop) / block) % 2) === 0;
+    for (let dx = 0; dx < quoinW; dx++) g.set(cx - dx, y, light ? pal.wallEdge : wallDeepOf(pal));
+    if ((y - cornerTop) % block === 0) g.set(cx, y, pal.outline); // block seam
+  }
+};
+
+/** A brick CHIMNEY STACK as a `Layer` — curries `isoChimney` (with its smoke/
+ *  flame when `glow`) into the composite stack so any roofed base can carry one. */
+export function chimneyStack(glow = false): Layer {
+  return (g, m, pal) => isoChimney(g, pal, m, glow);
+}
+
+/** The front DOOR as a `Layer` (curries `drawDoorFront`). */
+export const doorLayer: Layer = (g, m, pal) => drawDoorFront(g, m, pal);
+
+/** The lived-in GROUND APRON (dirt patch + barrel + sack + a cycled prop) as a
+ *  `Layer` — curries `isoGroundProps` with a deterministic seed. */
+export function groundApron(seed = 0): Layer {
+  return (g, m) => isoGroundProps(g, m, seed);
+}
+
+/** The two front WALL FACES as a `Layer` (curries `drawWalls`). */
+export const wallsLayer: Layer = (g, m, pal) => drawWalls(g, m, pal);
+
+/** A HIPPED roof as a `Layer` (curries `drawHippedRoof`). */
+export const hippedRoofLayer: Layer = (g, m, pal) => drawHippedRoof(g, m, pal);
+
+/** A steep GABLE roof as a `Layer`. `overhang`/`riseMul` curry through. */
+export function gableRoofLayer(overhang = 0, riseMul = 1.7): Layer {
+  return (g, m, pal) => drawGableRoof(g, m, pal, overhang, riseMul);
+}
+
+/** An arbitrary accent painter promoted to a `Layer` (adapts the legacy
+ *  `(g, pal, m)` accent signature into the `(g, m, pal)` layer order). */
+export function accentLayer(fn: (g: IsoGrid, pal: IsoPalette, m: IsoMetrics) => void): Layer {
+  return (g, m, pal) => fn(g, pal, m);
+}
+
+// ---------------------------------------------------------------------------
 // FORM builders — each returns a finished recipe for its footprint.
 // ---------------------------------------------------------------------------
 
@@ -560,7 +690,10 @@ export function cottage(name: string, w: number, h: number, heightTiles: number,
   } else {
     drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4), style === "jetty" ? 1.7 : 2.1);
   }
-  drawWindow(g, m, pal, opts.glow ?? false);
+  // art-12: the SHUTTERED-window module (leaded pane + muntins + sill + a pair of
+  // board shutters) drops in here in place of the bare `drawWindow`, so every
+  // cottage-family type (house/bakery/healer) reads as a real framed casement.
+  shutteredWindow(opts.glow ?? false)(g, m, pal);
   drawDoorFront(g, m, pal);
   if (style === "oven") drawOvenBulge(g, m, pal, opts.glow ?? false); // bakery bread oven
   if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
@@ -642,15 +775,23 @@ function drawOvenBulge(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, glow: boolean
 }
 
 /**
- * A plain hipped box (kept for forms that read better square, e.g. warehouse).
+ * A plain hipped box (kept for forms that read better square, e.g. the mine
+ * body). REBUILT (art-12) as a LAYERED COMPOSITE from shared, reusable modules
+ * — the same walls+hip-roof+door it always drew, now assembled by `composite`
+ * from `wallsLayer` / `stoneCoursing` / `hippedRoofLayer` / `doorLayer` plus the
+ * optional accent — so it proves the composite path and picks up the new stone
+ * COURSING + CORNERSTONE detail for free. Footprint / heightTiles / frame name
+ * are unchanged, so the renderer + all callers are untouched.
  */
 export function boxBuilding(name: string, w: number, h: number, heightTiles: number, pal: IsoPalette, opts: FormOpts = {}): PixelRecipe {
-  const { g, m } = begin(w, h, heightTiles);
-  drawWalls(g, m, pal);
-  drawHippedRoof(g, m, pal);
-  drawDoorFront(g, m, pal);
-  opts.accent?.(g, pal, m);
-  return g.toRecipe(name);
+  const layers: Layer[] = [
+    wallsLayer,
+    stoneCoursing,   // dressed masonry: ashlar mortar lines + near-corner quoins
+    hippedRoofLayer,
+    doorLayer,
+  ];
+  if (opts.accent) layers.push(accentLayer(opts.accent));
+  return composite(name, w, h, heightTiles, pal, layers);
 }
 
 /**
@@ -1057,10 +1198,27 @@ export function church(name: string, w: number, h: number, heightTiles: number, 
  * barn doors on the front + a hayloft dormer + crates outside.
  */
 export function warehouse(name: string, w: number, h: number, heightTiles: number, pal: IsoPalette, opts: FormOpts = {}): PixelRecipe {
-  const { g, m } = begin(w, h, heightTiles);
-  drawWalls(g, m, pal);
-  drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4));
-  // big double barn doors (wider than a normal door)
+  const style = opts.warehouseStyle ?? "barn";
+  // REBUILT (art-12) as a LAYERED COMPOSITE: walls → gable roof → the wide double
+  // BARN DOORS (its own module) → the style-specific top piece → optional ground
+  // + accent. Same output as the old hand-drawn chain (footprint/heightTiles/
+  // frame name unchanged), now an ordered stack of reusable `Layer`s.
+  const layers: Layer[] = [
+    wallsLayer,
+    gableRoofLayer(R(2 * ISO_ART_SCALE / 4)),
+    barnDoorsLayer,
+    style === "civic" ? (g, m, pal) => drawCivicGable(g, m, pal)         // town-hall clock/bell gable + portico
+      : style === "canopy" ? (g, m, pal) => drawMarketCanopy(g, m, pal)  // tradingpost front canopy
+        : (g, m, pal) => isoGableDormer(g, m, pal),                      // plain barn hayloft dormer
+  ];
+  if (opts.ground) layers.push(groundApron(opts.groundSeed ?? 0));
+  if (opts.accent) layers.push(accentLayer(opts.accent));
+  return composite(name, w, h, heightTiles, pal, layers);
+}
+
+/** Wide double BARN DOORS (wider than a normal door) with a central seam +
+ *  plank grooves — the warehouse/barn front, extracted as a reusable `Layer`. */
+const barnDoorsLayer: Layer = (g, m, pal) => {
   const cx = m.cx, frontBaseY = m.yBotMid + m.diaH / 2;
   const dh = R(m.wallH * 0.7), dw = R(7 * ISO_ART_SCALE / 4);
   for (let dx = -dw; dx <= dw; dx++) {
@@ -1070,14 +1228,7 @@ export function warehouse(name: string, w: number, h: number, heightTiles: numbe
   }
   g.set(cx, frontBaseY - dh, pal.outline); // central seam
   for (let y = frontBaseY - dh; y < frontBaseY; y += 2) g.set(cx, y, "%");
-  const style = opts.warehouseStyle ?? "barn";
-  if (style === "civic") drawCivicGable(g, m, pal);       // town-hall clock/bell gable + portico
-  else if (style === "canopy") drawMarketCanopy(g, m, pal); // tradingpost front canopy
-  else isoGableDormer(g, m, pal);                          // plain barn hayloft dormer
-  if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
-  opts.accent?.(g, pal, m);
-  return g.toRecipe(name);
-}
+};
 
 /** A raised central CLOCK/BELL gable + a front portico for the town-hall — a
  *  civic frontispiece so the hall reads grander than a plain storehouse barn. */
