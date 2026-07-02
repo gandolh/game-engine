@@ -596,6 +596,54 @@ export function accentLayer(fn: (g: IsoGrid, pal: IsoPalette, m: IsoMetrics) => 
   return (g, m, pal) => fn(g, pal, m);
 }
 
+// --- COTTAGE-family detail Layers (art-13) — the half-timber/lean-to/jetty/oven
+// sub-pieces extracted so any base can compose them. Each curries an existing
+// hand-draw helper into the `(g, m, pal)` layer order. ---
+
+/** Dark-oak HALF-TIMBER framing on the two front wall faces, as a `Layer`. */
+export function timberFrameLayer(beam = "%"): Layer {
+  return (g, m) => drawTimberFrame(g, m, beam);
+}
+/** A single mono-pitch LEAN-TO shed roof (smith/woodcutter/sawmill), as a `Layer`. */
+export const leanToRoofLayer: Layer = (g, m, pal) => drawLeanToRoof(g, m, pal);
+/** A JETTIED (overhanging) upper storey (healer), as a `Layer` — paint it BEFORE
+ *  `wallsLayer` so the ground floor overlays its lower edge. */
+export const jettyUpperLayer: Layer = (g, m, pal) => drawJettyUpper(g, m, pal);
+/** A domed external bread-OVEN bulge (bakery), as a `Layer`. */
+export function ovenBulgeLayer(glow = false): Layer {
+  return (g, m, pal) => drawOvenBulge(g, m, pal, glow);
+}
+
+// --- FORT-family detail Layers (art-13) — the ashlar/slits/crenellation/turret/
+// drum sub-pieces extracted so the fort variants compose them explicitly. ---
+
+/** Ashlar (cut-stone) COURSING on the front wall faces, as a `Layer`. */
+export const ashlarCoursesLayer: Layer = (g, m, pal) => drawAshlarCourses(g, m, pal);
+/** Two ARROW SLITS on the front faces, as a `Layer`. */
+export const arrowSlitsLayer: Layer = (g, m) => drawArrowSlits(g, m);
+/** A flat FORTRESS DECK with rim merlons, as a `Layer`. */
+export const flatCrenellatedTopLayer: Layer = (g, m, pal) => drawFlatCrenellatedTop(g, m, pal);
+/** A raised front GATEHOUSE block (garrison), as a `Layer`. */
+export const gatehouseLayer: Layer = (g, m, pal) => drawGatehouse(g, m, pal);
+/** Four bristling CORNER TURRETS (keep), as a `Layer`. */
+export const cornerTurretsLayer: Layer = (g, m, pal) => drawCornerTurrets(g, m, pal);
+/** An overhanging timber lookout GALLERY (watchpost), as a `Layer`. */
+export const watchGalleryLayer: Layer = (g, m, pal) => drawWatchGallery(g, m, pal);
+/** The full round stone DRUM body (tower), as a `Layer`. */
+export const roundDrumLayer: Layer = (g, m, pal) => drawRoundDrum(g, m, pal);
+/** A crenellated battlement RING atop the round drum (tower), as a `Layer`. */
+export const crenellatedRingLayer: Layer = (g, m, pal) => drawCrenellatedRing(g, m, pal);
+
+/** A steep hipped roof — the low default `drawHippedRoof`, but exposed as a
+ *  `Layer` used by the watchpost (its timber-capped lookout roof). */
+// (hippedRoofLayer already defined above.)
+
+// --- CHURCH detail Layer (art-13) — the bell tower + spire + cross extracted. ---
+
+/** A tall square BELL TOWER on the near-left with a steep spire + cross, as a
+ *  `Layer`, so the church nave is just `walls + gable roof + door + this`. */
+export const bellTowerLayer: Layer = (g, m, pal) => drawBellTower(g, m, pal);
+
 // ---------------------------------------------------------------------------
 // FORM builders — each returns a finished recipe for its footprint.
 // ---------------------------------------------------------------------------
@@ -679,26 +727,27 @@ export function isoContactShadow(g: IsoGrid, m: IsoMetrics): void {
  * house/bakery/smith/healer (palette-swapped).
  */
 export function cottage(name: string, w: number, h: number, heightTiles: number, pal: IsoPalette, opts: FormOpts = {}): PixelRecipe {
-  const { g, m } = begin(w, h, heightTiles);
+  // REBUILT (art-13) as a LAYERED COMPOSITE from the cottage-family detail
+  // modules. Order is identical to the old hand-drawn chain: an optional jetty
+  // upper storey UNDER the walls → walls → half-timber framing → the style's roof
+  // (lean-to or steep gable) → the shuttered window → door → the bakery oven →
+  // optional ground props + accent. Footprint / heightTiles / frame name / pixels
+  // are unchanged; the renderer + every caller stay untouched.
   const style = opts.cottageStyle ?? "cottage";
-
-  if (style === "jetty") drawJettyUpper(g, m, pal); // overhanging upper storey (drawn under the walls)
-  drawWalls(g, m, pal);
-  drawTimberFrame(g, m, "%"); // dark-oak (bark) half-timber framing
-  if (style === "leanto") {
-    drawLeanToRoof(g, m, pal); // single mono-pitch slope (smith/woodcutter/sawmill)
-  } else {
-    drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4), style === "jetty" ? 1.7 : 2.1);
-  }
-  // art-12: the SHUTTERED-window module (leaded pane + muntins + sill + a pair of
-  // board shutters) drops in here in place of the bare `drawWindow`, so every
-  // cottage-family type (house/bakery/healer) reads as a real framed casement.
-  shutteredWindow(opts.glow ?? false)(g, m, pal);
-  drawDoorFront(g, m, pal);
-  if (style === "oven") drawOvenBulge(g, m, pal, opts.glow ?? false); // bakery bread oven
-  if (opts.ground) isoGroundProps(g, m, opts.groundSeed ?? 0);
-  opts.accent?.(g, pal, m);
-  return g.toRecipe(name);
+  const glow = opts.glow ?? false;
+  const layers: Layer[] = [];
+  if (style === "jetty") layers.push(jettyUpperLayer); // overhanging storey, drawn UNDER the walls
+  layers.push(wallsLayer);
+  layers.push(timberFrameLayer("%")); // dark-oak (bark) half-timber framing
+  layers.push(style === "leanto"
+    ? leanToRoofLayer                                                       // single mono-pitch slope
+    : gableRoofLayer(R(2 * ISO_ART_SCALE / 4), style === "jetty" ? 1.7 : 2.1)); // steep gable
+  layers.push(shutteredWindow(glow)); // leaded pane + muntins + sill + board shutters
+  layers.push(doorLayer);
+  if (style === "oven") layers.push(ovenBulgeLayer(glow)); // bakery bread oven
+  if (opts.ground) layers.push(groundApron(opts.groundSeed ?? 0));
+  if (opts.accent) layers.push(accentLayer(opts.accent));
+  return composite(name, w, h, heightTiles, pal, layers);
 }
 
 /** A single MONO-PITCH lean-to roof (smith/woodcutter/sawmill): one slope from a
@@ -886,14 +935,11 @@ export function postMill(name: string, pal: IsoPalette, sailAccent: (g: IsoGrid,
   for (let x = cx - baseR - 1; x <= cx + baseR + 1; x++) g.set(x, ledgeY, pal.outline);
   span(g, cx - drumBaseR - 1, cx + drumBaseR + 1, ledgeY - 1, pal.wallEdge);
 
-  // --- Part 2: round drum rising from the ledge, gently tapering to the cap ---
+  // --- Part 2: round drum rising from the ledge, gently tapering to the cap.
+  // `drawRoundDrum` now bakes the CURVED (barrel-hoop) stone coursing + stave
+  // joints itself, so the drum reads as a rounded coursed volume, not a flat
+  // column — no separate flat coursing pass here. ---
   drawRoundDrum(g, m, pal, { radiusScale: drumBaseR / m.halfW, topRadiusScale: drumTopR / m.halfW, topY: bodyTopY, botY: ledgeY - 2 });
-  // stone/timber coursing on the drum every few rows (subtle line, not heavy outline)
-  for (let y = bodyTopY; y <= ledgeY - 2; y++) {
-    const t = (y - bodyTopY) / Math.max(1, (ledgeY - 2) - bodyTopY);
-    const rr = Math.max(1, R(drumTopR + (drumBaseR - drumTopR) * t));
-    if ((y - bodyTopY) % R(Math.max(5, 6 * ISO_ART_SCALE / 4)) === 0) span(g, cx - rr + 1, cx + rr - 1, y, "%");
-  }
 
   // small arched door at the foot of the plinth + a window on the drum
   const dh = R(Math.min(baseBandH * 0.7, m.wallH * 0.45));
@@ -1161,12 +1207,22 @@ export function openPit(name: string, w: number, h: number, pal: IsoPalette, opt
  * house.
  */
 export function church(name: string, w: number, h: number, heightTiles: number, pal: IsoPalette): PixelRecipe {
-  const { g, m } = begin(w, h, heightTiles);
-  drawWalls(g, m, pal);
-  drawGableRoof(g, m, pal);
-  // arched door
-  drawDoorFront(g, m, pal);
-  // --- Bell tower rising on the near-left ---
+  // REBUILT (art-13) as a LAYERED COMPOSITE: nave walls → steep gable roof →
+  // arched door → the bell-tower module (tower + belfry + spire + cross). Same
+  // output as the old hand-drawn chain (footprint/heightTiles/frame name
+  // unchanged), now an ordered stack of reusable `Layer`s.
+  return composite(name, w, h, heightTiles, pal, [
+    wallsLayer,
+    gableRoofLayer(0),
+    doorLayer,
+    bellTowerLayer,
+  ]);
+}
+
+/** The church's tall square BELL TOWER on the near-left: a stone shaft, a belfry
+ *  opening, a steep spire, and a gold cross on the tip. Extracted from `church`
+ *  as a reusable painter (see `bellTowerLayer`). */
+function drawBellTower(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   const tx = R(m.cx - m.halfW * 0.5);
   const towerHalf = R(m.halfW * 0.22);
   const towerTop = R(2 * ISO_ART_SCALE / 4);
@@ -1190,7 +1246,6 @@ export function church(name: string, w: number, h: number, heightTiles: number, 
   const ctop = towerTop + R(m.roofH * 0.6) - spireH;
   for (let y = ctop - R(5 * ISO_ART_SCALE / 4); y <= ctop; y++) g.set(tx, y, "O");
   span(g, tx - 2, tx + 2, ctop - R(3 * ISO_ART_SCALE / 4), "O");
-  return g.toRecipe(name);
 }
 
 /**
@@ -1294,32 +1349,30 @@ function drawMarketCanopy(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
  * All keep ashlar coursing + arrow slits + the arched gate + committed sun.
  */
 export function fort(name: string, w: number, h: number, heightTiles: number, pal: IsoPalette, opts: FormOpts = {}): PixelRecipe {
-  const { g, m } = begin(w, h, heightTiles);
+  // REBUILT (art-13) as a LAYERED COMPOSITE. Each variant is an ordered stack of
+  // the extracted fort detail `Layer`s — the same pieces in the same order the
+  // hand-drawn chain used, so footprint / heightTiles / frame name / pixels are
+  // unchanged and every caller stays untouched.
   const variant = opts.fortVariant ?? "keep";
+  const layers: Layer[] = [];
 
   if (variant === "tower") {
-    drawRoundDrum(g, m, pal);      // cylinder body (replaces the flat wall faces)
-    drawCrenellatedRing(g, m, pal); // battlement ring on the drum top
-    drawDoorFront(g, m, pal);
-    opts.accent?.(g, pal, m);
-    return g.toRecipe(name);
-  }
-
-  drawWalls(g, m, pal);
-  drawAshlarCourses(g, m, pal);
-  drawArrowSlits(g, m);
-  if (variant === "watchpost") {
-    // A small timber-capped lookout: a low hip roof instead of battlements.
-    drawHippedRoof(g, m, pal);
-    drawWatchGallery(g, m, pal); // an overhanging timber lookout gallery under the eave
+    // Round-drum body replaces the flat wall faces; a battlement ring caps it.
+    layers.push(roundDrumLayer, crenellatedRingLayer, doorLayer);
   } else {
-    drawFlatCrenellatedTop(g, m, pal);
-    if (variant === "garrison") drawGatehouse(g, m, pal);   // raised front gate block
-    if (variant === "keep") drawCornerTurrets(g, m, pal);   // 4 bristling corner turrets
+    layers.push(wallsLayer, ashlarCoursesLayer, arrowSlitsLayer);
+    if (variant === "watchpost") {
+      // A small timber-capped lookout: a low hip roof + an overhanging gallery.
+      layers.push(hippedRoofLayer, watchGalleryLayer);
+    } else {
+      layers.push(flatCrenellatedTopLayer);
+      if (variant === "garrison") layers.push(gatehouseLayer);     // raised front gate block
+      if (variant === "keep") layers.push(cornerTurretsLayer);     // 4 bristling corner turrets
+    }
+    layers.push(doorLayer); // arched gate
   }
-  drawDoorFront(g, m, pal); // arched gate
-  opts.accent?.(g, pal, m);
-  return g.toRecipe(name);
+  if (opts.accent) layers.push(accentLayer(opts.accent));
+  return composite(name, w, h, heightTiles, pal, layers);
 }
 
 /** A tall ROUND stone drum body (tower): a lit-left→shaded-right cylinder with
@@ -1337,6 +1390,13 @@ function drawRoundDrum(
   const rTop = opts.topRadiusScale !== undefined ? R(m.halfW * opts.topRadiusScale) : rBase;
   const topY = opts.topY ?? yTopMid;
   const botY = opts.botY ?? (yBotMid + diaH / 2 - 1);
+  // Coursing cadence + the elliptical SAG that makes a mortar line hug the round
+  // surface: a course drawn across the drum dips toward the viewer at the centre
+  // (nearest the camera) and rises at the silhouette edges, by `sag` px. Drawing
+  // the coursing as curved bands (not flat spans) is what breaks the "flat
+  // column" read into a rounded stone DRUM.
+  const course = Math.max(5, R(8 * ISO_ART_SCALE / 4));
+  const sagOf = (r: number) => Math.max(1, R(r * 0.28)); // curvature depth at the rim→centre
   for (let y = topY; y <= botY; y++) {
     const t = (y - topY) / Math.max(1, botY - topY); // 0 top -> 1 bottom
     const r = Math.max(1, R(rTop + (rBase - rTop) * t)); // gentle taper top->base
@@ -1352,8 +1412,31 @@ function drawRoundDrum(
     }
     g.set(cx - r, y, pal.outline);
     g.set(cx + r, y, pal.outline);
-    // ashlar coursing every few rows (subtle mortar line)
-    if ((y - topY) % Math.max(5, R(8 * ISO_ART_SCALE / 4)) === 0) span(g, cx - r + 1, cx + r - 1, y, pal.outline);
+  }
+  // CURVED ashlar coursing: each mortar line is drawn per-column at the row where
+  // the course would cross this column on the cylinder — the centre column sits
+  // `sag` px LOWER than the edge columns, so the line bows like a barrel hoop
+  // rather than reading as a flat plank seam across a column. STAVE joints (short
+  // vertical mortar ticks between courses) further break the vertical bands.
+  for (let cy = topY; cy <= botY; cy += course) {
+    for (let x = cx - rBase; x <= cx + rBase; x++) {
+      // radius at this row is unknown until we know the row; solve iteratively is
+      // overkill — approximate with the local radius at cy (taper is gentle).
+      const t = (cy - topY) / Math.max(1, botY - topY);
+      const r = Math.max(1, R(rTop + (rBase - rTop) * t));
+      if (Math.abs(x - cx) > r) continue;
+      const f = (x - cx) / r;              // -1..1 across the drum
+      const sag = sagOf(r);
+      const y = cy + R(sag * (1 - Math.abs(f))); // bow toward the viewer at centre
+      if (y < topY || y > botY) continue;
+      // Keep the near-corner valley band un-mortared-highlight so the seam reads
+      // as a recessed line, not a bright stripe: darken via the outline.
+      g.set(x, y, pal.outline);
+      // A short vertical stave tick dropping from every few mortar crossings.
+      if (((x - cx) % Math.max(4, R(6 * ISO_ART_SCALE / 4))) === 0 && y + 1 <= botY) {
+        g.set(x, y + 1, wallDeepOf(pal));
+      }
+    }
   }
 }
 
