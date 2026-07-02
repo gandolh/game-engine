@@ -27,6 +27,7 @@ import {
   millFrameAt,
   unitFrameAt,
   villagerFrameName,
+  villagerNameForJob,
   raiderFrameName,
   VILLAGER_FRAME,
   RAIDER_FRAME,
@@ -374,9 +375,13 @@ export function villagerQuad(v: VillagerSnapshot, clockMs?: number): QuadSpec {
   const hex = VILLAGER_JOB_COLORS[v.job as VillagerJob] ?? FALLBACK_VILLAGER_COLOR;
   // Idle-sway / walk-cycle animation (render-only, like the mill sails). Stagger
   // each figure by its id so the crowd doesn't lock-step — `unitFrameAt`'s phaseMs.
+  // art-05: pick the JOB's role-accessory frame family (falls back to the plain
+  // `vil/person` body for jobs with no accessory) so a farmer/smith/priest reads
+  // by silhouette, not just tint. Static fallback keeps the plain base frame.
+  const nameFor = villagerNameForJob(v.job);
   const frame = clockMs !== undefined
-    ? unitFrameAt(clockMs, villagerFrameName, 900, (v.id % 5) * 180)
-    : VILLAGER_FRAME;
+    ? unitFrameAt(clockMs, nameFor, 900, (v.id % 5) * 180)
+    : nameFor(0);
   return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex), frame };
 }
 

@@ -163,13 +163,21 @@ describe("villagerQuad / raiderQuad / ghostQuad", () => {
   it("colors a villager by job (not FSM state) and centers a small quad", () => {
     const v: VillagerSnapshot = { id: 1, x: 4, y: 6, fsm: "work", carryGood: null, job: "farmer", mood: 40 };
     const q = villagerQuad(v);
-    // Tint is now driven by job ("farmer" → EDG.greenMid), not FSM state.
+    // Tint is driven by job ("farmer" → EDG.greenMid), not FSM state.
     expect(q.tintRgba).toBe(packTint(VILLAGER_JOB_COLORS["farmer"]));
-    expect(q.frame).toBe("vil/person");
+    // art-05: a farmer now reads by SILHOUETTE too — its static frame is the
+    // role-accessory body `vil/farmer`, not the plain `vil/person`.
+    expect(q.frame).toBe("vil/farmer");
     const size = TILE_SIZE * 1.1; // sized up for the 32×32 iso figure
     expect(q.width).toBe(size);
     // Centered on the tile center.
     expect(q.x).toBeCloseTo(4 * TILE_SIZE + TILE_SIZE / 2 - size / 2);
+  });
+
+  it("a job with no role accessory falls back to the plain vil/person body", () => {
+    // miller has no iconographic prop → plain body (reads by tint alone).
+    const v: VillagerSnapshot = { id: 2, x: 0, y: 0, fsm: "idle", carryGood: null, job: "miller", mood: 40 };
+    expect(villagerQuad(v).frame).toBe("vil/person");
   });
 
   it("grows the raider footprint with strength and shapes it by tier", () => {

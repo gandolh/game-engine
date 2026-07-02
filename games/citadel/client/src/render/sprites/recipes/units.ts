@@ -155,6 +155,59 @@ function drawRaider(g: Grid, swayX: number, stepL: number, stepR: number): void 
 }
 
 /**
+ * Draw a ROLE-defining accessory onto a villager `g` (art-05), riding the same
+ * `swayX` the body leans by so it animates with the figure. Accessories add
+ * opaque pixels OUTSIDE the base body mask (a held tool / hat / robe) so the role
+ * reads by SILHOUETTE before the job tint even applies. Tool/skin chars use their
+ * OWN warm/neutral EDG colours (NOT the grey body ramp) so the multiply-tint that
+ * colours the tunic never biases them — exactly the contract the head skin-kiss
+ * already follows. `cx=16` is the figure centre; the body head sits ~rows 4–10,
+ * torso ~11–21, so accessories anchor off those.
+ */
+function drawRoleAccessory(g: Grid, role: string, swayX: number): void {
+  const hx = 16 + swayX;
+  switch (role) {
+    case "farmer": {
+      // Straw HAT: a wide tan brim over the head + a hoe shaft held at the side.
+      g.hLine(hx - 5, 4, 10, "O"); g.hLine(hx - 4, 3, 8, "y"); // brim (gold) + crown (yellow)
+      g.set(hx - 5, 4, "w"); g.set(hx + 4, 4, "w");            // brim shadow tips
+      g.vLine(hx + 7, 10, 14, "w"); g.hLine(hx + 6, 10, 3, "s"); // hoe haft + head
+      break;
+    }
+    case "woodcutter": case "sawyer": {
+      // AXE over the shoulder: a haft up the right + a steel head.
+      g.vLine(hx + 7, 6, 16, "w"); g.fillRect(hx + 5, 5, 3, 4, "l"); g.set(hx + 5, 5, "v");
+      break;
+    }
+    case "smith": {
+      // Leather APRON (dark band over the torso) + a raised HAMMER.
+      for (let y = 13; y < 21; y++) g.hLine(hx - 3, y, 6, "%"); // apron (bark, off the tint)
+      g.vLine(hx + 7, 4, 10, "w"); g.fillRect(hx + 6, 3, 3, 3, "s"); // hammer haft + head
+      break;
+    }
+    case "priest": case "healer": {
+      // Hooded ROBE: a peaked hood over the head + a robe hem widening the base.
+      g.set(hx - 1, 2, "v"); g.set(hx, 2, "v"); g.hLine(hx - 2, 3, 5, "l"); // hood peak
+      g.hLine(hx - 5, 27, 11, "v"); g.hLine(hx - 4, 28, 9, "l");            // wide robe hem
+      break;
+    }
+    case "watchman": case "soldier": {
+      // SPEAR up the right side + a small crest on the helm.
+      g.vLine(hx + 7, 2, 22, "w"); g.set(hx + 7, 2, "l"); g.set(hx + 7, 3, "s"); // shaft + tip
+      g.set(hx - 1, 2, "e"); g.set(hx, 2, "e");  // red helm crest
+      break;
+    }
+    case "trader": {
+      // Shoulder PACK: a bulky bundle on the back (left) + a shoulder strap.
+      g.fillRect(hx - 8, 12, 4, 7, "w"); g.hLine(hx - 8, 12, 4, "t"); // pack (wood/tan)
+      g.set(hx - 4, 13, "%"); g.set(hx + 2, 12, "%");                  // strap
+      break;
+    }
+    default: break; // no accessory → plain body (miller/quarryman/miner/idle)
+  }
+}
+
+/**
  * Per-frame pose parameters — a gentle idle sway + a 2-beat walk shuffle.
  * Frame 0 is the neutral/base pose (referenced as the un-suffixed frame name).
  */
@@ -183,12 +236,50 @@ export function raiderFrameName(i: number): string {
   return i === 0 ? FRAME_RAIDER : `${FRAME_RAIDER}@${i}`;
 }
 
+/**
+ * Villager JOBS that carry a role-defining silhouette accessory (art-05). A job
+ * NOT in this set draws the plain body (miller/quarryman/miner/idle read by tint
+ * alone — they have no strong iconographic prop). Kept small so the atlas only
+ * grows for roles that actually gain a silhouette. `sawyer`→axe, `healer`→robe
+ * reuse the woodcutter/priest accessory.
+ */
+export const ROLE_ACCESSORY_JOBS: readonly string[] = [
+  "farmer", "woodcutter", "sawyer", "smith", "priest", "healer", "watchman", "soldier", "trader",
+];
+
+/** Frame-name prefix for a role villager: `vil/<role>` (+ `@i` for pose i>0). */
+export function villagerRoleFrameName(role: string, i: number): string {
+  const base = `vil/${role}`;
+  return i === 0 ? base : `${base}@${i}`;
+}
+
+/**
+ * Resolve the frame-name family for a villager of `job`: a role-accessory family
+ * (`vil/<job>`) when the job has one, else the plain `vil/person` family. Returns
+ * a `(poseIndex) => frameName` fn for `unitFrameAt`. quads.ts calls this so it
+ * never requests an unbaked frame (only ROLE_ACCESSORY_JOBS have role recipes).
+ */
+export function villagerNameForJob(job: string): (i: number) => string {
+  if (ROLE_ACCESSORY_JOBS.includes(job)) return (i) => villagerRoleFrameName(job, i);
+  return villagerFrameName;
+}
+
 function villagerFrames(): PixelRecipe[] {
-  return UNIT_POSES.map((p, i) => {
+  const plain = UNIT_POSES.map((p, i) => {
     const g = new Grid(SIZE, SIZE);
     drawVillager(g, p.swayX, p.stepL, p.stepR);
     return g.toRecipe(villagerFrameName(i));
   });
+  // Role frames: the same body + walk cycle, plus each role's accessory.
+  const roleFrames = ROLE_ACCESSORY_JOBS.flatMap((role) =>
+    UNIT_POSES.map((p, i) => {
+      const g = new Grid(SIZE, SIZE);
+      drawVillager(g, p.swayX, p.stepL, p.stepR);
+      drawRoleAccessory(g, role, p.swayX);
+      return g.toRecipe(villagerRoleFrameName(role, i));
+    }),
+  );
+  return [...plain, ...roleFrames];
 }
 
 function raiderFrames(): PixelRecipe[] {

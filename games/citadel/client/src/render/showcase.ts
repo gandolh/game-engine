@@ -28,6 +28,9 @@ import {
   packTint,
   isoSpriteDims,
   fitCameraToCanvas,
+  tileCenterToIso,
+  ISO_TILE_W,
+  ISO_TILE_H,
 } from "./citadel-renderer";
 import { BUILDING_SPRITE_TYPES } from "./sprites/recipes";
 import { computeWash, nightFactorOf, emittersOf, lightPoolQuads } from "./atmosphere";
@@ -153,6 +156,20 @@ function firstOverlapIn(items: readonly ShowcaseItem[]): [ShowcaseItem, Showcase
   return null;
 }
 
+/** Extend a bounds AABB to include the villager row's iso footprint points, so
+ *  the framed view doesn't crop the units below the building lattice. */
+function padBounds(b: Aabb, villagers: readonly VillagerSnapshot[]): Aabb {
+  let { x: minX, y: minY } = b;
+  let maxX = b.x + b.width, maxY = b.y + b.height;
+  for (const v of villagers) {
+    const p = tileCenterToIso(v.x, v.y);
+    minX = Math.min(minX, p.x - ISO_TILE_W);
+    maxX = Math.max(maxX, p.x + ISO_TILE_W);
+    maxY = Math.max(maxY, p.y + ISO_TILE_H * 2);
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 /** The union iso-px bounding box of every placed item (for camera framing). */
 export function showcaseBounds(layout: ShowcaseLayout): Aabb {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -199,6 +216,33 @@ export const DEFAULT_SHOWCASE_TOGGLES: ShowcaseToggles = { burning: false, isome
 /** Layer just below buildings for the isometry-overlay diamonds/rulers. */
 const LAYER_ISO_OVERLAY = 2;
 
+/** Every villager job — a showcase row so each role silhouette is visible. */
+const SHOWCASE_JOBS: readonly string[] = [
+  "farmer", "woodcutter", "sawyer", "smith", "priest", "healer",
+  "watchman", "soldier", "trader", "miller", "quarryman", "miner", "idle",
+];
+
+/**
+ * Synthetic villagers laid out in a spaced ROW below the building lattice (art-05
+ * showcase). One per job so each role-accessory silhouette + job tint is visible
+ * at once. Pure — deterministic tile coords.
+ */
+export function showcaseVillagers(rowTy: number, startTx = 10): VillagerSnapshot[] {
+  // Wrap into rows ~8 wide so the unit block stays roughly as wide as the
+  // building lattice (keeps the camera zoom tight instead of stretching to a
+  // single long row).
+  const perRow = 8;
+  return SHOWCASE_JOBS.map((job, i) => ({
+    id: i + 1,
+    x: startTx + (i % perRow) * 2, // 2-tile spacing — the 32px figures read spaced
+    y: rowTy + Math.floor(i / perRow) * 2,
+    fsm: "idle",
+    carryGood: null,
+    job,
+    mood: 70,
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Render loop
 // ---------------------------------------------------------------------------
@@ -222,14 +266,19 @@ export async function runShowcase(
     if (el) el.style.display = "none";
   }
 
-  const noVillagers: readonly VillagerSnapshot[] = [];
   const noRaiders: readonly RaiderSnapshot[] = [];
+  // art-05: a row of one villager per job below the building lattice, so every
+  // role-accessory silhouette is visible in the showcase (was buildings-only).
+  const baseLayout = showcaseLayout();
+  const maxTy = Math.max(...baseLayout.items.map((it) => it.building.y + it.building.h));
+  const villagers = showcaseVillagers(maxTy + 3);
 
   // Frame the camera on the ASSET LATTICE (not the whole 160×160 world) so the
   // sprites read large. Center on the lattice bounds + pick a zoom that fits it
   // with margin. Recomputed once (layout is deterministic + burning-invariant in
   // footprint). worldUnitsX/Y = baseWorld / zoom, so zoom = baseWorld / desiredView.
-  const bounds = showcaseBounds(showcaseLayout());
+  // Include the villager row in the framed bounds so it isn't cropped.
+  const bounds = padBounds(showcaseBounds(baseLayout), villagers);
   const MARGIN = 1.15;
 
   let raf = 0;
@@ -278,7 +327,7 @@ export async function runShowcase(
       }
     }
 
-    pushScene(renderer, { buildings, villagers: noVillagers, raiders: noRaiders }, undefined, nowMs, nightFactor);
+    pushScene(renderer, { buildings, villagers, raiders: noRaiders }, undefined, nowMs, nightFactor);
 
     // Fire: soot overlay + flame billboards + embers/glow when burning (mirrors main.ts).
     if (toggles.burning) {

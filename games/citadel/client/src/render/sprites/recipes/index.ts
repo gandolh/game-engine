@@ -13,6 +13,7 @@ export { BUILDING_RECIPES, MILL_FRAME_COUNT, millFrameName, buildingLitFrameName
 export {
   UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN,
   UNIT_FRAME_COUNT, unitFrameAt, villagerFrameName, raiderFrameName,
+  ROLE_ACCESSORY_JOBS, villagerRoleFrameName, villagerNameForJob,
 } from "./units";
 export { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE, FLAME_FRAME_COUNT, flameFrameName } from "./fx";
 
