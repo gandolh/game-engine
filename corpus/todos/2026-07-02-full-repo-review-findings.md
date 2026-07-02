@@ -2,6 +2,7 @@
 
 status: open
 kind: review-findings (triage doc — split into briefs/fix batches as prioritized)
+➡️ **Execution brief:** [briefs/game/todo/97-review-fix-wave.md](../briefs/game/todo/97-review-fix-wave.md) carries the approved chunk plan (waves, classification, gates) for items 1–6, 8–27, 36–40. Items 7 and 28–35 remain unscheduled here.
 
 Six parallel read-only review passes (engine core, farm sim-core, farm client+server,
 citadel sim-core, citadel client, corpus lint), findings adversarially spot-verified by the
