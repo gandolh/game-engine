@@ -20,7 +20,7 @@ Source: [The Book of Shaders](https://thebookofshaders.com/) (Vivo & Lowe), chap
 
 ## Ch. 6 — Colors (`mix`)
 
-- [ ] **GPU day/night wash.** The wash still lives on the 2D overlay ([overlay-2d.ts](../../packages/engine/src/render/webgpu/overlay-2d.ts)). Add a full-screen tint pass: `mix(scene, washColor, washAlpha)` with a pre-parsed EDG color uniform. Removes one of the overlay canvas's last jobs and lets later passes (clouds, caustics) compose under it. Likely the highest-leverage item here.
+- [x] **GPU day/night wash.** Realised as `TintPass` (`engine/core/src/render/webgpu/tint-pass.ts`), fed a CPU-computed EDG `WashSpec` via `endFrame(wash, …)`. Used by both games.
 - [ ] **Seasonal grading via per-channel `mix`.** Book shows `mix()` with a `vec3` t — per-channel grading could replace/extend the existing seasonal tint while keeping the target colors EDG-derived.
 
 ## Ch. 7 — Shapes (SDFs, polar coordinates)
@@ -49,8 +49,8 @@ Source: [The Book of Shaders](https://thebookofshaders.com/) (Vivo & Lowe), chap
 
 ## Ch. 13 — Fractal brownian motion + domain warping
 
-- [ ] **Cloud-shadow pass.** Scrolling 3–4-octave fBm, `step()`-thresholded to soft blob masks, rendered as a low-alpha darkening pass over the world (same EDG wash color as night). Worldgen already trusts fBm + domain-warp aesthetically (brief 49, CPU-side) — this is its render-time sibling. Weather system could drive coverage (overcast days → more cloud shadow).
-- [ ] **fBm mist/fog sheet.** A gentler alternative to particle mist (waterfall, morning fog): domain-warped fBm at very low alpha over water regions. Same palette strategy as clouds.
+- [x] **Cloud-shadow pass.** Realised as `CloudShadowPass` (`engine/core/src/render/webgpu/cloud-shadow-pass.ts` + `shaders/cloud.wgsl`, brief 15): world-anchored 3-octave fBm, `step()`-quantized to 3 alpha levels, pre-parsed EDG uniform color, premultiplied source-over. Driven per-game via the (optional) `RendererLike.setCloudOptions({ color, coverage, driftSpeed, timeSec, mode?, vignette? })` seam, consumed inside `endFrame` when `coverage > 0.001`. **Citadel wired 2026-07-02** (art-03 P2): `cloudOptionsFor(season, day, dayFraction, timeSec)` in `citadel-renderer.ts` derives coverage from the season→weather cadence (overcast/rainy/winter → heavier) and picks the mode; cool `slate` shadows.
+- [x] **fBm mist/fog sheet.** Realised as the **haze** mode of the same cloud pass (art-03 P2): `mode: "haze"` swaps the dark cool shadow blobs for a warm, very-low-alpha (≤0.12) `cream` veil (broader/softer thresholds, same fBm + `step()` quantization). Citadel triggers it in the dawn→mid-morning window for a cozy morning mist. Kept a param+branch on `cloud.wgsl` (not a fork) so Farm reuses it. A **soft radial vignette** (`vignette` param, NDC-space, 2-tier quantized) is folded into the same pass for cozy framing — available but Citadel currently leaves it off (`0`).
 
 ## Suggested first wave (if/when this becomes a brief)
 

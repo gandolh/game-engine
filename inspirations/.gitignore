@@ -1,0 +1,9 @@
+# Downloaded third-party reference art is LOCAL-ONLY — never redistributed through
+# this repo. Only CREDITS.md + fetch.mjs (the manifest) are tracked.
+downloads/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.zip
+*.aseprite

@@ -11,10 +11,16 @@ The **survey** that grounds the Citadel cozy-art upgrade: external craft study, 
 grounded map of what Citadel renders today, and the locked decisions. It is the *why*.
 
 - The **style bible** (durable art-direction rules) → [wiki/citadel-art-style.md](../wiki/citadel-art-style.md).
-- The **implementation work** (phased, verifiable) → three todo briefs:
+- The **implementation work** (phased, verifiable) → todo briefs:
   - [art-01 — style bible + 2× scale flip (the gate)](2026-07-01-citadel-art-01-scale-flip-and-palette.md)
   - [art-02 — recipe fidelity pass (buildings / units / terrain / roads)](2026-07-01-citadel-art-02-recipe-fidelity-pass.md)
   - [art-03 — atmosphere + reusable fBm overlay pass](2026-07-01-citadel-art-03-atmosphere-and-fbm-overlay.md)
+  - **Wave 2 (2026-07-02, briefs only — de-samify + fire):**
+    - [art-04 — building personality & silhouette de-samification](2026-07-02-citadel-art-04-personality-and-silhouette.md)
+    - [art-05 — unit / character personality](2026-07-02-citadel-art-05-unit-personality.md)
+    - [art-06 — all-assets showcase page (isometry + fire test harness)](2026-07-02-citadel-art-06-asset-showcase-page.md)
+    - [art-07 — fire effects (flame + embers + glow)](2026-07-02-citadel-art-07-fire-effects.md)
+  - External reference art (study-only, CC0 manifest): [inspirations/CREDITS.md](../../inspirations/CREDITS.md).
 
 > **Framing:** Citadel is **already true-isometric** (2:1 dimetric, 32×16 tiles, correct
 > projection + `x+y` painter's depth, per [true-iso brief 21](2026-06-21-citadel-true-isometric.md)),
