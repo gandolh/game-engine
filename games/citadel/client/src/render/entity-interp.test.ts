@@ -48,6 +48,46 @@ describe("EntityInterpolator", () => {
     expect(interp.positionOf(9, 0.25, 11, 11)).toEqual({ x: 10.25, y: 10.25 });
   });
 
+  it("stays exactly linear on a straight multi-tile run (collinear ⇒ no wobble)", () => {
+    const interp = new EntityInterpolator();
+    interp.ingest([{ id: 1, x: 0, y: 0 }]); // fresh
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step E (first move — linear)
+    interp.ingest([{ id: 1, x: 2, y: 0 }]); // step E again — history now valid
+    // Even with a trustworthy incoming direction, three collinear tiles must
+    // interpolate as a straight line (the Hermite reduces to the chord).
+    expect(interp.positionOf(1, 0.25, 2, 0)).toEqual({ x: 1.25, y: 0 });
+    expect(interp.positionOf(1, 0.5, 2, 0)).toEqual({ x: 1.5, y: 0 });
+    expect(interp.positionOf(1, 0.75, 2, 0)).toEqual({ x: 1.75, y: 0 });
+  });
+
+  it("rounds a staircase corner instead of interpolating straight through it", () => {
+    const interp = new EntityInterpolator();
+    interp.ingest([{ id: 1, x: 0, y: 0 }]); // fresh
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step E
+    interp.ingest([{ id: 1, x: 1, y: 1 }]); // step S — a 90° corner at (1,0)
+    // Endpoints are pinned to the real tiles (no drift off the road).
+    expect(interp.positionOf(1, 0, 1, 1)).toEqual({ x: 1, y: 0 });
+    expect(interp.positionOf(1, 1, 1, 1)).toEqual({ x: 1, y: 1 });
+    // Mid-segment the path bends: it carries a little of the incoming E heading
+    // (x eases past the tile line) rather than snapping straight down like a
+    // linear lerp (which would sit exactly at {1, 0.5}).
+    const mid = interp.positionOf(1, 0.5, 1, 1);
+    expect(mid.x).toBeGreaterThan(1);
+    expect(mid.y).toBeLessThan(0.5);
+    expect(mid.x).toBeCloseTo(1.0625, 6);
+    expect(mid.y).toBeCloseTo(0.4375, 6);
+  });
+
+  it("does not curve off a stale tile after a teleport (segment stays linear)", () => {
+    const interp = new EntityInterpolator();
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 50, y: 0 }]); // teleport → this segment snaps
+    interp.ingest([{ id: 1, x: 51, y: 0 }]); // first post-teleport step
+    // The prior segment was a snap, so histValid is false → plain linear, not a
+    // Catmull tangent leaning on the pre-teleport tile at x=0.
+    expect(interp.positionOf(1, 0.5, 51, 0)).toEqual({ x: 50.5, y: 0 });
+  });
+
   it("prunes ids absent from the latest snapshot", () => {
     const interp = new EntityInterpolator();
     interp.ingest([{ id: 1, x: 0, y: 0 }, { id: 2, x: 5, y: 5 }]);

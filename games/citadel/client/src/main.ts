@@ -1483,8 +1483,13 @@ function loop(): void {
     if (toasts.root.children.length > 0) {
       computeLayout(toasts.root, 0, 0);
       const cx = Math.max(8, (canvas.clientWidth - toasts.root.rect.width) / 2);
-      // y=48 keeps the top-centre stack clear of the in-canvas HUD bar (anchored 8,8, ~36px tall).
-      computeLayout(toasts.root, cx, 48);
+      // Anchor the top-centre stack just BELOW the in-canvas HUD bar's real bottom edge. The HUD
+      // is a single left-anchored row whose right-end speed/pause controls reach toward screen
+      // centre on wide windows — the same band a centred toast would sit in — so a fixed y (the
+      // old 48) let the buttons and toasts overlap. Read the HUD's measured rect (it's laid out
+      // earlier this frame) instead of guessing its height; fall back to a safe constant pre-boot.
+      const hudBottom = hud !== undefined ? hud.root.rect.y + hud.root.rect.height : 44;
+      computeLayout(toasts.root, cx, Math.round(hudBottom + 8));
       renderTree(uiSurface, toasts.root);
     }
 

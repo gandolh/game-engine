@@ -1,6 +1,19 @@
 # Brief 104 — Citadel movement feel polish (gait, facing, corner-cutting)
 
-status: todo (render-only)
+status: partial (render-only)
+
+> **Progress 2026-07-08:** item 3 (**diagonal corner-cutting**) shipped in response to
+> a "npcs move unnatural on the road" report. [EntityInterpolator](../../../../games/citadel/client/src/render/entity-interp.ts)
+> now keeps a `prevPrev` history tile and drives each `prev→cur` segment with a cubic
+> Hermite/Catmull-Rom spline (start tangent leans on `prevPrev`) so units round the
+> 4-connected staircase instead of flicking 90° at every tile. Exactly linear on straight
+> runs; corner-curving gated behind a `histValid` flag so nothing bends off a stale tile
+> after teleport/respawn or on the first step out of rest (all snap/teleport rules kept).
+> Render-only, zero sim impact; 3 new interp tests, @citadel/client 423/423 green. Item 1
+> (walk-gait `gaitOffset`) + the lean/squash heading were already live. **Still open:**
+> item 2 (explicit L/R sprite facing flip), item 4 (ambient-crowd cadence parity), and the
+> live playtest-citadel feel sign-off (the 2026-07-08 pass was code-only).
+
 source: [todos/2026-06-27-citadel-entity-movement-natural-feel.md](../../../todos/2026-06-27-citadel-entity-movement-natural-feel.md) — the interpolation half shipped (`EntityInterpolator`, commit `3b19275`); this brief is the explicitly-deferred residue.
 
 ## Scope (all render-only, zero sim/determinism impact)
