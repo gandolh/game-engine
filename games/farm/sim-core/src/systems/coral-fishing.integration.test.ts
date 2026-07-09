@@ -52,7 +52,10 @@ describe("coral fishing (live sim)", () => {
     for (const f of sim.farmers) {
       if (f.id !== undefined && f.farmer?.aboard) stillAboardAtEnd.add(f.id);
     }
-  }, 60_000);
+    // 24k ticks of live sim: ~40s on an idle machine, but this hook shares the
+    // box with three sibling vitest workers during a full-repo run, where 60s
+    // was not enough headroom.
+  }, 180_000);
 
   it("a farmer boards, rows to a reef over water, and catches a coral special", () => {
     expect(aboardSeen).toBe(true);

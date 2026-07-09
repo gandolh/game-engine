@@ -14,6 +14,12 @@ interface CheckOptions {
 
 const WORKER_URL = new URL("./determinism-worker.ts", import.meta.url);
 
+// tsx's ESM hooks do not propagate into worker threads via `execArgv`, so a
+// worker booted straight from the .ts entry cannot resolve its own
+// extensionless imports. Boot from an eval'd stub that registers tsx inside
+// the worker thread first, then imports the real entry.
+const WORKER_BOOTSTRAP = `import("tsx/esm/api").then(({ register }) => { register(); return import(${JSON.stringify(WORKER_URL.href)}); });`;
+
 function runJobsInPool(jobs: DeterminismJob[]): Promise<DeterminismJobResult[]> {
   const poolSize = Math.min(jobs.length, availableParallelism());
   const results: DeterminismJobResult[] = [];
@@ -30,7 +36,7 @@ function runJobsInPool(jobs: DeterminismJob[]): Promise<DeterminismJobResult[]> 
     };
 
     const spawn = () => {
-      const worker = new Worker(WORKER_URL, { execArgv: ["--import", "tsx"] }); 
+      const worker = new Worker(WORKER_BOOTSTRAP, { eval: true });
 
       const dispatch = () => {
         if (next >= jobs.length) {

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { enumerateFarmerFrames } from "./frames";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const manifestPath = resolve(here, "../../../farm-valley/public/atlas/characters.json");
+const manifestPath = resolve(here, "../../../client/public/atlas/characters.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { frames: Record<string, unknown> };
 const frameKeys = new Set(Object.keys(manifest.frames));
 

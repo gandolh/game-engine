@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "check-determinism": "CHECK_DETERMINISM=1 tsx src/index.ts",
+    "check-determinism": "tsx src/index.ts --check-determinism",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@farm/sim-core": "0.0.0"
   },
   "devDependencies": {
+    "@webgpu/types": "0.1.70",
     "tsx": "4.22.3"
   }
 }

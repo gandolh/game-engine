@@ -92,13 +92,19 @@ describe("interior décor scatter", () => {
   it("blue-noise: no two décor tiles within Chebyshev MIN_SPACING", () => {
     const world = bootWorld();
     const decor = computeInteriorDecor(world);
+    // Collect violations and assert once: an `expect` per pair makes this
+    // O(n²) matcher calls, which alone pushed the test past the 5s timeout.
+    const tooClose: string[] = [];
     for (let i = 0; i < decor.length; i++) {
       for (let j = i + 1; j < decor.length; j++) {
         const a = decor[i]!;
         const b = decor[j]!;
         const cheby = Math.max(Math.abs(a.tx - b.tx), Math.abs(a.ty - b.ty));
-        expect(cheby).toBeGreaterThanOrEqual(MIN_SPACING);
+        if (cheby < MIN_SPACING) {
+          tooClose.push(`(${a.tx},${a.ty})–(${b.tx},${b.ty}) cheby=${cheby}`);
+        }
       }
     }
+    expect(tooClose).toEqual([]);
   });
 });

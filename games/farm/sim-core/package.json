@@ -34,7 +34,9 @@
     "@engine/core": "0.0.0"
   },
   "devDependencies": {
-    "jsdom": "29.1.1",
-    "@types/jsdom": "21.1.7"
+    "@types/jsdom": "21.1.7",
+    "@types/node": "25.9.1",
+    "@webgpu/types": "0.1.70",
+    "jsdom": "29.1.1"
   }
 }

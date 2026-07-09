@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@types/ws": "8.18.1",
+    "@webgpu/types": "0.1.70",
     "tsx": "4.22.3"
   }
 }
