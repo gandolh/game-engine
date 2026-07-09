@@ -1,6 +1,6 @@
 ---
 summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer, assets, palette, concurrency, WASM, and the gameplay source-of-truth.
-updated: 2026-06-10
+updated: 2026-07-09
 ---
 
 # Locked Decisions
@@ -29,7 +29,7 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 
 ## Renderer
 
-- **Canvas2D**, not WebGPU. WebGPU was removed in commit `5ac7f8d` after it added complexity disproportionate to what the game needed. If perf demands push the renderer again, the next step is profiling Canvas2D first, not reaching for WebGPU.
+- **WebGPU-first, with Canvas2D as the fallback backend.** *(Formally revisited 2026-07-09 — supersedes the earlier "Canvas2D, not WebGPU" entry, which had been falsified by the shipped code since the `@engine/ui` dual-backend work.)* Both games render through WebGPU in the browser; `Canvas2dRenderer` is kept as a real, tested second backend for the `node` test env and as a fallback. Engine render passes therefore come in pairs — a change to one backend that skips the other is a bug, not a partial migration.
 
 ## Assets
 

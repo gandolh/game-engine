@@ -50,16 +50,17 @@ Everything here must run **after `InboxDispatchSystem` and before `PerceiveSyste
 | `PlotSenseSystem` | Surfaces owned-plot watering needs into beliefs **before** agents deliberate, enabling survival-reflex watering (brief 29). |
 | `DeliberateSystem` | Personality dispatch → intention queue. Skips the player. |
 | `PlayerControlSystem` | Pip's keyboard input → movement + context action. **After Deliberate** (which skips the player), **before Travel/Act** so a requested action executes the same tick. |
+| `AggressionSystem` | Turns hostile intent into a pursuit, reading the beliefs Deliberate just wrote. Holds the single `CombatSystem` instance (constructed once, registered in band 9). |
 | `ApSystem` | Action-point accounting before movement/actions. |
 
 ### 7. Movement (only when a pathfinder is supplied)
-`FeatureCollisionSystem` → `TravelSystem`. They share one walkable grid: FeatureCollision blocks tree/stone tiles on it each tick so farmers never path through features. TravelSystem also holds a **separate boat grid** (water lanes dock→reef, brief 48) it swaps to while a farmer is aboard — keeps the land grid and engine pathfinder untouched. Without a pathfinder (legacy tests), farmers stay put.
+`FeatureCollisionSystem` → `ChaseSystem` → `TravelSystem`. They share one walkable grid: FeatureCollision blocks tree/stone tiles on it each tick so farmers never path through features. `ChaseSystem` **re-points the pursuit travel intent before TravelSystem steps it** — swap the two and a chaser trails its quarry by a tick. TravelSystem also holds a **separate boat grid** (water lanes dock→reef, brief 48) it swaps to while a farmer is aboard — keeps the land grid and engine pathfinder untouched. Without a pathfinder (legacy tests), farmers stay put.
 
 ### 8. Act & resolve
 `ActSystem` (consumes intentions, sets `busyUntilTick`, queues bus messages) → `MarketSystem` (drains the wall) → `ShopkeeperSystem` → `AuctionSystem` → `CarpenterSystem` (drains ONT_COMMISSION.BUILD orders delivered the tick after a farmer's commission act; escrows cost, delivers after build time — the shopkeeper's order→fulfill twin, brief 44).
 
 ### 9. Ambient & close
-`NpcDeliberateSystem` (sets each service NPC's `busyFactor` from world state) → `WorkNpcSystem` (scales patrol cadence by it; cosmetic, pure) → `FinishDaySystem`.
+`NpcDeliberateSystem` (sets each service NPC's `busyFactor` from world state) → `WorkNpcSystem` (scales patrol cadence by it; cosmetic, pure) → `CombatSystem` (resolves the strikes Aggression/Chase set up — the same instance those two hold) → `FinishDaySystem`.
 
 ## Cross-cutting invariants
 

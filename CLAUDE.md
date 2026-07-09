@@ -33,9 +33,11 @@ games/
     sim-core      @farm/sim-core        Farm Valley sim: systems, agents, world, protocols, economy
     client        @farm/client          browser client (Vite) — talks to the sim server over WebSocket
     server        @farm/server          Node WebSocket sim host (the Farm sim runs here)
+    atlas-recipes @farm/atlas-recipes   per-asset pixel recipes the atlas-builder bakes
   citadel/
     sim-core      @citadel/sim-core      Citadel sim logic
     client        @citadel/client        browser client (Vite) — runs the sim in an in-browser Web Worker
+    server        @citadel/server        Node WebSocket sim host for Citadel online MP (solo runs in a Worker)
 tools/
   run-sim         @tool/run-sim          headless deterministic Farm sim (no browser, no server)
   world-preview   @tool/world-preview    renders the Farm world/atlas to a PNG
