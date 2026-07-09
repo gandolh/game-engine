@@ -1,3 +1,8 @@
+---
+summary: What Citadel is (settlement sim on the shared engine), the 2026-06-28 cozy pivot design-of-record, its packages, sim systems, and shared invariants.
+updated: 2026-07-02
+---
+
 # Citadel — overview
 
 **Citadel** is the second game in this monorepo, built on the same shared `@engine/core` as Farm Valley. It is a settlement sim: grow a town's economy through settlement *tiers*, keep villagers fed and happy. (It *began* as a settlement/light-RTS with sharp raids/sieges/fire/disease; the **2026-06-28 cozy pivot** — see banner below — reframes those threats as gentle, recoverable texture.) It is younger and more actively-evolving than Farm Valley — treat the briefs/todos below as the live spec and **verify against code** before relying on any detail here.
@@ -67,7 +72,7 @@ didn't resume. **Plan-while-paused** now works via `CitadelSimResult.applyComman
 (off-tick, determinism-safe). Two gotchas remain for players (not bugs): bootstrap is
 **founding-window-gated** (place a connected economy early or deadlock), and **fire
 punishes tight clusters** by design — space buildings ~5–8 tiles and connect with roads
-(roads are firebreaks). MP-RTS live wiring holes from [todo 38](../todos/2026-06-19-citadel-38-implementation-review-problems.md)
+(roads are firebreaks). MP-RTS live wiring holes from [todo 38](../todos/closed/2026-06-19-citadel-38-implementation-review-problems.md)
 are still open (solo is unaffected).
 
 > **⚠️ The "founding-window-gated cold open" gotcha above is RESOLVED by cozy-pivot Phase C
@@ -77,336 +82,12 @@ are still open (solo is unaffected).
 > fire/disease/raids stay off until the town grows past the 5-building seed. Both flags default OFF
 > (headless/MP/baseline unchanged). See the Phase C log entry.
 
-## HUD & overlays (2026-06-22)
+## HUD, overlays & rendering
 
-> **2026-06-30 update:** the **top HUD bar** (settlement readout: tier/day/pop/happiness,
-> a **goods strip** with one colour-coded chip per good — grain/flour/bread/wood/planks/
-> stone/tools, bread carrying its `(±surplus)` annotation — + speed/pause buttons) now
-> renders **in-canvas** via the new `@engine/ui`
-> framework ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)), replacing the
-> DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`.
->
-> **✅ DOM-overlay removal COMPLETE (2026-06-30) — ALL Citadel GUI now renders in-canvas; no DOM
-> UI overlays remain over the world canvas.** Beyond the HUD: **toasts** (top-centre `@engine/ui`
-> column, `opacity` fade + `#toast-live` aria-live mirror); the **build bar**
-> ([build-bar.ts](../../games/citadel/client/src/ui/build-bar.ts): grouped **text** buttons, own
-> dispatcher + a11y mirror, tier-lock/affordability greying + cost hover-info — emoji dropped as the
-> font is ASCII-only, restore-icons todo open); **occupancy badges**
-> ([occupancy-badges.ts](../../games/citadel/client/src/render/occupancy-badges.ts): world-anchored
-> panel+label headcount chips via a canvas-relative `tileToCanvasCss`); the **minimap**
-> ([minimap.ts](../../games/citadel/client/src/ui/minimap.ts): **raw `UISurface` quads** — terrain +
-> entity specks + camera-viewport rect — drawn directly in the host loop, NOT a widget tree, since
-> `renderTree` has no custom-draw hook; `trySeek` for click-to-seek); and the **settings modal**
-> ([settings-modal.ts](../../games/citadel/client/src/ui/settings-modal.ts): tabbed Display/Atmosphere/
-> Simulation, own dispatcher + `#ui-a11y-settings` mirror, **fully modal** — host swallows all canvas
-> input while open; live search dropped, no text-input widget). To support the modal, **`@engine/ui`
-> gained `slider` + `checkbox`/`toggle` node kinds** (drag via the dispatcher `onDrag`; a11y
-> `<input type=range>`/`<input type=checkbox>`). Verified in real WebGPU (playtest + modal probe).
-> Open follow-up: [authored-typography-and-icons](../todos/2026-06-30-engine-ui-authored-typography-and-icons.md).
+Split out on 2026-07-09 to keep this page navigable:
 
-> **2026-06-30 — town-hall is now a placeable civic building (build bar `Services` group).**
-> A `town-hall` toolbar button was added. As a down-payment on cozy-pivot **Phase G**, the
-> town-hall's keep/raid anchor was **decoupled**: `actsAsKeepAnchor()` in
-> [sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts) adopts the anchor
-> (sets `keepPosition`, sacking ends the run) only for the **`keep`** building or for a
-> town-hall in **multiplayer** (`players.length > 1`). In **solo** the town-hall is
-> **civic-only** — placing it does NOT start a siege (raids gate on `keepPosition`). MP is
-> unchanged (the town-hall stays each player's match anchor). Determinism untouched (the
-> gated branch is unreachable in every existing scenario — no solo town-hall was placeable
-> before — and headless runs stay byte-identical). The full civic reframe shipped in Phase G
-> (below); the town-hall sprite is still the shared `warehouse` form + banner (bespoke
-> civic-hall art is optional follow-up polish).
-
-> **2026-07-01 — cozy-pivot Phase G shipped: the autonomy pass (decision #8).** The player
-> now sets **placement + economic intent**; the town **autonomously** handles all behavior.
-> - **Trading post is the sole economic-intent lever, player-driven.** `TraderSystem`
->   ([systems/trader.ts](../../games/citadel/sim-core/src/systems/trader.ts)) stopped being
->   an autonomous seeded caravan (removed `rng.fork("trader")` / `TRADER_INTERVAL_DAYS` /
->   auto-barter). Now: `traderPresent` = "owns a **staffed + connected** tradingpost";
->   `traderOffers` is a deterministic ≤3-offer menu (rank by stock, plentiful→scarce, fixed
->   5-for-3, no RNG). Command `barter` → **`trade`** (`{offerIndex}`); tithe
->   `RELIEF_BARTER_THRESHOLD` sweetener retired. Client trade UI is an in-canvas
->   **InspectPanel** "Trade:" box (shown only when `traderPresent`), replacing the old DOM
->   trader panel. Constraint is **no NPC *autonomy*** (no auto-trade), not "no villager works
->   the desk" — the staffed trader still executes the exchange.
-> - **`public-square` — net-new civic building** (2×2, `SERVICE_RADII` **8**,
->   `workerSlots:0`, `BUILD_COST wood:8`): `plaza()` iso sprite, untiered `Square` build-bar
->   button, `festival`→`EDG.green` coverage ring. Autonomously lifts festival happiness
->   (+15, spatial) for homes in reach — replaces the old `festival` **decree**.
-> - **Rations/work-hours autonomous via town-hall.** The old `workHours` +30% decree is
->   re-homed as an **automatic ×1.2 output lift** for producers within a town-hall's reach
->   (radius 10), in [production.ts](../../games/citadel/sim-core/src/systems/production.ts).
-> - **Decree/policy lever fully purged** from the cozy sim core (`setDecree` handler +
->   festival/conscription constants + `_maintainDecrees` + decree-penalty block +
->   `festivalDaysLeft` all deleted; conscription production-halt gone; client decree UI
->   removed). ⚠️ **`activeDecrees` is KEPT but always-empty** — two out-of-scope systems still
->   read it (`immigration` tithe/rationing, `siege-resolution` conscription); they are dead-
->   in-practice branches to be purged when those systems get their cozy pass. The `setDecree`
->   command type survives in the union with no handler (silently dropped) — a deliberate
->   back-compat vestige, commented as such.
-> - **Territory + army frozen from the cozy/solo path** (byte-identical, MP preserved):
->   `TerritorySystem` registration gated on the existing `enforceTerritory` (solo=false →
->   drops a dead pass); new **`enableArmy?`** bootstrap option (default true, round-trips
->   save/load like `cozyThreats`) gates `ArmySystem`, and the **solo worker passes
->   `enableArmy:false`**. `army.test.ts` stays green unmodified (defaults true).
->
-> Gates: sim-core **211/211**, client **387/387**, typecheck-clean, **determinism MATCH ×3**
-> (baseline moved by design). Full detail + controller adjudications in [log.md](../log.md).
-
-> **2026-07-01 — cozy-pivot Phase H shipped: economy under the downside rule (decision #9).**
-> *Nothing ever fully stops; every problem is a throttle toward a ~60–70% floor.* Two changes
-> (the winter grain floor + the decree purge had already landed in Phases B/G):
-> - **Throttle-not-halt** ([production.ts](../../games/citadel/sim-core/src/systems/production.ts)):
->   the stockpile-pressure hard `continue` (a full-buffer building went *dark*) is now a
->   `bufferThrottleFactor(buffer,cap)` ramp — full rate below a 60% fill knee, then linear
->   down to the 0.6 productivity floor as the buffer fills, **never 0**. A chronically
->   unserved building *trickles at the floor* (goods backing up) instead of shutting down.
->   Safety rails: a genuinely-full buffer still hard-skips *before* the input draw (no wasted
->   input), and a `Math.min(amount, cap-buffer)` clamp keeps the buffer ≤ cap.
-> - **Single-slot producers**: `farm/woodcutter/quarry/mine` → `workerSlots 2→1` (converters
->   were already 1). Growth is spatial (more buildings), no dead 2nd mouth. **Farm output
->   stays 3/cycle** — production never scaled with worker *count* (a per-building emit gated
->   on `workerCount>0`), so dropping the dead slot leaves daily throughput unchanged (the
->   brief's "3→6 compensation" was cut as premise-wrong).
->
-> Gates: sim-core **212/212**, typecheck-clean, **determinism MATCH ×3** (baseline moved by
-> design → town now survives winter + self-recovers from starvation dips; `gameOver=false`).
-> Full detail in [log.md](../log.md).
-
-> **2026-07-01 — cozy-pivot Phase I shipped: terrain clustering + solvability guarantee (decision #10).**
-> *Terrain IS the puzzle: a guaranteed-solvable floor with rich texture above it.* **The last
-> structural pivot pass — A, B, C, D, G, H, I are all done.**
-> - **Clustering** ([terrain.ts](../../games/citadel/sim-core/src/world/terrain.ts)): the per-tile
->   forest/stone fbm *sprinkle* → seeded **blob-centered patches** (groves + ore-veins) via a
->   SEPARATE `createRng(seed).fork("resource-clusters")` (river/lake stream byte-identical; the
->   unused `baseNoise` layer removed cleanly). ~0 singletons → woodcutter/quarry/mine placement is
->   a real "build toward the resource" decision, and resource-poor maps now genuinely occur (giving
->   the Phase-G trading post a job).
-> - **Solvability guarantee**: a new pure `repairSolvability(cells,w,h)` at the end of
->   `generateTerrain` guarantees a 12×6 all-buildable core box near center (carves one if none
->   exists) + ≥1 reachable Forest + ≥1 reachable Stone (4-connected flood-fill from the core; paints
->   a small blob if missing/stranded). No RNG — pure fn of the grid. 100 seeds → 100/100 solvable +
->   byte-identical (0 core-carve / 3 forest / 10 stone repair).
-> - **Shared `findCoreBox` (review fix)**: the guarantee and the Phase-C cold open (`seedFoundingTown`)
->   now call ONE exported `findCoreBox`+`CORE_BOX_W/H` (full-grid ring scan), so they can never anchor
->   different core boxes — **provably lockstep by construction**. (Two finders caught the prior
->   `/4`-vs-`max(W,H)` radius mismatch; the carve targets the center box, which `findCoreBox` returns
->   identically.) `seedFoundingTown`'s inline box scan was removed in favour of the shared helper.
->
-> Gates: sim-core **220/220** (terrain.test.ts 10→19: clustering >90%-connected, solvability across
-> 50 seeds, repair determinism across 100), typecheck-clean, **determinism MATCH ×3**. Full detail +
-> controller adjudications in [log.md](../log.md).
-> **Open in the pivot:** only the optional/later phases — F (motivation: emergent goals + diegetic
-> recognition, no score/quests) / E (villager mood polish). The whole structural pivot has shipped.
-> Not yet eyeballed in-browser (WebGPU headless).
-
-> **2026-07-01 — cozy-pivot Phases E + F shipped: the diegetic-signal + motivation finish. ALL
-> PHASES A–I NOW DONE.** Both are render-layer passes reading the keystone (A) snapshot — no new
-> sim mechanics, digest byte-identical.
-> - **E (per-villager mood):** `VillagerSnapshot.mood` (read-only, sourced from the villager's HOME
->   house's per-house mood; default 40). Renderer layers a SUBTLE cue on top of the job tint (job stays
->   the primary read): `villagerAlphaForMood` dims a glum villager (`VILLAGER_MOOD_DIM_MAX=0.25`,
->   gentler than the house dim) + `villagerSlumpOffset` (`VILLAGER_SLUMP_PX=1.5`) — both on the house
->   mood curve's breakpoints. See [citadel-fx.ts](../../games/citadel/client/src/render/citadel-fx.ts) /
->   [citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts).
-> - **F (motivation, decision #7 — no score/quests/HUD):** `RenderSnapshot.allHomesCovered` (pure read
->   over per-house `lacks*`) edge-triggers ONE gentle "Every home is prospering." toast on the false→true
->   rising edge (latched, seeded-silent on first snapshot). The coverage overlay's gaps now soft-pulse as
->   an invitation (`uncoveredHouseTiles` → main.ts, only while the overlay is up). **Review adjudication:**
->   `uncoveredHouseTiles` reads the sim's authoritative per-house `lacks*` (NOT recomputed market
->   geometry) so the pulse can't disagree with the stockpile-gated `lacksGoods` — pulse + banner stay in
->   lockstep (also killed a double `coverageByNeed`/frame). See [coverage.ts](../../games/citadel/client/src/render/coverage.ts).
->
-> Gates: sim-core **224/224**, client **397/397**, typecheck-clean, determinism MATCH ×3, digest
-> unmoved. **Playtested in a real WebGPU browser** ([phaseEF-playtest](../todos/2026-07-01-citadel-phaseEF-playtest.md)):
-> per-villager mood tracks home-house mood tick-for-tick; a town stays alive/fed/fire-recoverable 200+
-> days. Two non-blocking follow-ups: **P1** cozy-path threat toast COPY still reads pressure-game
-> ("caught fire!"/"starved") though the MECHANICS are cozy-correct (`cozyThreats:true` wired); **P2** the
-> playtest driver can't read the in-canvas HUD or drive road-connected services, so F's banner-edge is
-> verified-by-mechanism, not yet scripted-live (user accepted that bar).
->
-> **2026-07-01 (follow-up) — P1 shipped, P2 split.** **P1 done:** cozy-path threat toast COPY now
-> branches on the `cozy` flag — fire reads "a hearth is smouldering — a well nearby would settle it"
-> (not "caught fire!"), disease "under the weather"/"back on its feet", a hungry departure "left to
-> find food — the larder is bare" (not "starved (pop 0)"); `ImmigrationSystem` gained a `cozy` opt like
-> Fire/Disease. The **sharp** wording is kept verbatim under `cozyThreats:false` (Challenge-mode guards
-> still match); `cozy-threats.test.ts` pins the fire split both ways. Determinism: reproducible + **no
-> numeric drift** vs baseline (only event copy differs). **P2 instrumentation done:**
-> `window.__citadel.snapshot()` exposes the live snapshot and `play.mjs` reads game state from it +
-> tracks the `allHomesCovered` edge — the banner is now assertable, not inferred. **P2 placement now
-> DONE:** the plan is seed-aware — it reserves the seeded road spine (planning onto it severed the
-> core's connectivity and starved the town to pop 0) and places chapel/market/watchpost via a
-> coverage-aware ring placer that guarantees each lands within `SERVICE_RADII`=8 of the seeded house.
-> A live run holds `allHomesCovered:true` for all 49/49 ticks with happy 91–99 (vs `covered:false` /
-> happy ~35 before). Phase F is placement-verified live; only the sub-second `false→true` banner edge
-> isn't harness-observable (coverage is reached during boot — a sampling race, not a defect; the edge
-> is unit-tested in main.ts). The E/F playtest todo is now **done**. See
-> [phaseEF-playtest todo](../todos/2026-07-01-citadel-phaseEF-playtest.md).
-
-> **⚠️ Superseded by the 2026-06-30 DOM-overlay removal (above).** The section below describes the
-> *historical* DOM-overlay UI. As of 2026-06-30 the HUD, toasts, build bar, occupancy badges,
-> minimap, and settings modal **all render in-canvas via `@engine/ui`** — the `#build-bar`/`#hud`/
-> `#minimap`/`#occupancy-badges` DOM + their CSS are gone. Kept here for the 2026-06-22 design
-> rationale (HUD-height fights, the minimap iso-projection model) that motivated the move.
-
-The Citadel client UI **was** **DOM overlays over a single WebGPU canvas** (no Canvas2D
-for the world). Layout: `<body>` is a flex column — canvas (`flex:1`), then a
-`#build-bar` strip, then a `#hud` readout row. Three changes on 2026-06-22 reclaim
-laptop vertical space and stop a layout shift:
-- **Event toasts** ([ui/toast.ts](../../games/citadel/client/src/ui/toast.ts)) —
-  the old inline `#hud-events` span grew the HUD height when text wrapped, shoving
-  the canvas up on every event. Events now surface as transient top-center toasts
-  in a fixed, pointer-transparent `#toast-container` (out of flow). `newEventsSince()`
-  diffs the rolling `recentEvents` window so only freshly-appended events toast;
-  aging is on the render clock (`performance.now`), never the sim.
-- **Minimap** ([ui/minimap.ts](../../games/citadel/client/src/ui/minimap.ts)) — a
-  top-right 2D-canvas overview drawn in **axis-aligned tile space** (not iso).
-  Terrain baked once at 1px/tile and scaled; buildings/villagers/raiders stamped
-  per frame; the camera viewport is the four screen corners inverted via
-  `screenToWorld` + `isoToTileContinuous` (a diamond in tile space). Click recentres
-  the camera (`tileToIso` → `camera.setCenter`) and drops any follow-cam lock.
-- **Condensed build bar** — groups laid out in a single row with vertical labels;
-  buttons are icon-only (`font-size:0` collapses the label, name moved to a `title`
-  tooltip set in `main.ts`). The `#hud` row is now `nowrap` + `overflow-x:auto` so it
-  keeps a fixed height. The trader panel floats over the canvas instead of living in
-  the HUD flex row, so its appearance no longer resizes the bar either.
-
-## Rendering & assets
-
-Citadel is **WebGPU-only** at runtime (no Canvas2D fallback). Terrain is baked into
-the static layer (render-windowed on the large MP map — see the 2026-06-19 log entry);
-buildings / villagers / raiders are `sprite-batch` quads.
-
-**Sprites (2026-06-19).** Entities are real **pixel-art sprites**, not flat colored
-boxes. The art lives as ASCII `PixelRecipe`s under
-[client/src/render/sprites/](../../games/citadel/client/src/render/sprites/) and is
-rasterized + shelf-packed into **one in-process atlas at client boot**
-(`createCitadelSpriteAtlas` in `sprites/atlas.ts`) — no committed PNGs, no `npm run`
-build step (unlike Farm Valley's `@farm/atlas-recipes` → `npm run atlas` committed-PNG
-pipeline, which Citadel can't import: games never import each other). The atlas keeps a
-1×1 white `px` frame that the tinted-box paths still use (ghost, wear, house-cluster
-border). The night **light-pool** glow instead stamps the soft `fx/diamond` frame on
-a GROUND layer below buildings (so emitters like the market glow on the ground, not
-as a hard orange box over the sprite — 2026-06-21 fix). Per-type frame mapping +
-tinting live in `quads.ts`:
-- **Buildings** sample `bld/<type>` tinted white (recipe colors show); a burning
-  building multiplies its tint toward orange. ~20 building types have art; a type without
-  a recipe falls back to a tinted box (never requests a missing frame). Road/wall/gate
-  keep their pre-existing autotile/inset-box rendering.
-- **Villagers / raiders** are grey-ramp silhouettes (`vil/person`, `raider`); the
-  per-instance tint (FSM-state color / red) multiplies into a shaded colored figure, so
-  state still reads at a glance.
-
-The recipe palette (`sprites/palette.ts`) derives every swatch from an `EDG.*` constant
-via `rgbOf`, so it's EDG32-clean by construction (a test re-asserts it). Rasterize +
-pack are pure (deterministic, headlessly tested); only the canvas/`createImageBitmap`
-step is browser-only. **Phase 2 (not done):** textured terrain tiles, road/wall autotile
-sprites, a gate sprite, MP owner-color differentiation.
-
-**Visual polish (2026-06-21).** Render-only ideas borrowed from `tiny-world-builder`:
-elevation-biased terrain dither, a directional NW-sun building drop-shadow
-(`LAYER_SHADOW`), a deeper-night/stronger-dusk wash, and extra procedural detail in the
-sprite generators (roof shingles, wall seams, doorstep, fort ashlar courses). All
-render-only, EDG32-clean, sim untouched. See the 2026-06-21 log entry.
-
-**TRUE ISOMETRIC — IMPLEMENTED (2026-06-21).** Citadel now renders **2:1 dimetric
-isometric**: diamond terrain, iso projection with a working `screenToTile` inverse
-(placement/ghost pick the right diamond), painter's-order depth sort, iso
-road/wall diamonds (`fx/diamond` frame), and **true-iso building sprites**
-(diamond base + two shaded wall faces + hip roof, `sprites/recipes/iso-draw.ts`)
-at 32-based resolution + 32×32 units. The single source of truth is
-[render/iso.ts](../../games/citadel/client/src/render/iso.ts) (`tileToIso`,
-`isoToTile`, `isoFootprintBox`, `isoSpriteDims`, `isoDepth`). **Sim + determinism
-untouched** — iso is a pure render/input/art change; `CHECK_DETERMINISM` stays
-byte-identical. Verified in-browser; 174 client tests + iso-volume guard + EDG32
-guard green.
-
-**Per-building FORMS + 4× detail + animated mill (2026-06-21).** Buildings were
-all the same hipped iso box ("everything looks like a house"). A first pass added
-per-type accents; a second pass (this one) rebuilt **distinct medieval forms with
-their own proportions**, authored at **4×** resolution, with an **animated mill**.
-
-- **Authoring resolution: 32-based (`ISO_ART_SCALE = 1`).** The renderer sizes a
-  building's quad in world-px via `isoSpriteDims` (iso.ts); recipes author at
-  `isoArtDims` = `isoSpriteDims × ISO_ART_SCALE`. A pass tried 4×, but the user
-  judged 32 dense enough in practice, so buildings stay native res like
-  units/terrain. The `ISO_ART_SCALE` knob stays so the authoring math is
-  scale-independent. (This retired the "upscale units/terrain to 4×" follow-up,
-  brief 94.)
-- **Reference restyle (done, brief
-  [95](../briefs/game/done/95-citadel-building-restyle-reference-look.md)).** Per
-  user reference art (Reiner "Isometric Buildings" + zatoart/xilurus itch packs),
-  the forms were restyled toward warm **terracotta tile roofs** (`drawGableRoof`:
-  ridge cap + eave-overhang shadow + tile courses), **half-timber** framing
-  (`drawTimberFrame`: oak studs + diagonal cross-braces over cream infill),
-  **ashlar stone** coursing on forts (`drawAshlarCourses`: staggered blocks, not a
-  per-pixel checkerboard), and small **ground-prop plots** (`isoGroundProps`:
-  dirt apron + barrel + sack). EDG32-only (clay/rust/salmon, cream/tan,
-  bark/woodDark, slate/steel). Verified in-game.
-- **Form builders** live in [iso-draw.ts](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
-  mapped per type in [buildings.ts](../../games/citadel/client/src/render/sprites/recipes/buildings.ts):
-  `cottage` (half-timbered, steep peaked hip roof, studs+window+door — house /
-  bakery / woodcutter / sawmill / smith / healer), `postMill` (tall weatherboarded
-  body on a trestle + roundhouse base + 4 sails), `openField` (tilled furrows +
-  post-and-rail fence + gate + crops + hay bale — farm), `marketStalls`
-  (red-striped awnings + tables + goods — market), `church` (nave + bell tower +
-  spire + cross — chapel), `warehouse` (barn doors + hayloft dormer — storehouse /
-  tradingpost / town-hall), `fort` (ashlar courses + flat crenellated deck + arrow
-  slits — watchpost / tower / garrison / keep), `boxBuilding` (mine pithead /
-  quarry pit / well).
-- **Animated mill (render-only).** Recipes `bld/mill` + `bld/mill@1..7` are the
-  post-mill with sails rotated through a 90° sweep (4-fold symmetry).
-  `millFrameAt(clockMs)` (index.ts) picks the frame; `buildingQuad(b, clockMs)` →
-  `pushScene(..., clockMs)` → `main.ts` passes the existing `performance.now`
-  render clock. **No sim/determinism impact** (wall-clock pacing, render-only).
-  `BUILDING_SPRITE_TYPES` excludes `@`-suffixed frames so they aren't mistaken for
-  building types; `BUILDING_HEIGHT_TILES.mill` raised to 3 to match the form.
-
-All render-only, EDG32-clean (every char via `SWATCH`). Guards green: 187 client
-tests (incl. mill-frame test + per-type opaque-fraction floors — open farm/market/
-mill get a lower floor since they're intentionally sparse), EDG32 palette test,
-typecheck. Verified in-browser (gallery harness + the actual game): forms render
-distinctly through the real atlas pipeline and the mill's sails turn.
-
-> ⚠️ **Sprite anchor convention (load-bearing).** The engine sprite-batch anchors
-> every sprite by its **CENTRE** (both backends draw `pos ± 0.5·size`). The iso
-> helpers in `iso.ts` return **top-left** rects, so the conversion to a sprite must
-> add half-extents — this happens in exactly two choke points, `quadToSprite` and
-> `isoFlatSprite`. Skipping it shifts every iso sprite up-left by half its size
-> (ghost lands left of the cursor, buildings float off their footprint). Relatedly
-> `isoSpriteDims.height` is `roofH + wallH + diaH/2` (not full `diaH`) because
-> `iso-draw.ts` centres the ground diamond on the wall-bottom mid-line. (Both fixed
-> 2026-06-21; see log.) **Terrain is baked FLAT** (elevation 0) — a former 0/1-step
-> relief lift in `makeTerrainDecorate` desynced the ground from the (flat) sprites,
-> roads/bridges, and `isoToTile` pick, floating bridges off the water grid and
-> opening dark seams; the elevation field now only tints the dither, never offsets
-> geometry. Keep terrain, sprites, network tiles, and the pick all at elevation 0.
-
-Brief:
-[../todos/2026-06-21-citadel-true-isometric.md](../todos/2026-06-21-citadel-true-isometric.md)
-(`mostly-done`). **Open anomaly:** a subset of building types
-(market/storehouse/bakery/woodcutter) intermittently render as a flat box on the
-dev GPU despite byte-correct sprite data — suspected WebGPU driver artifact, see
-the brief's OUTCOME note. Iso windowing for the large MP map is still deferred.
-
-**BRIDGES — roads over water (2026-06-21).** A road dragged onto a **Water** tile
-auto-converts to a `bridge` (new building type + production def `isBridge`, both 1×1)
-in [`placeOne`](../../games/citadel/sim-core/src/sim-bootstrap.ts): roads on land stay
-roads, the water tiles of the same drag become bridges. A bridge is the **only** way
-to place anything on water — it bypasses the `buildable` (terrain-walkable) check but
-requires the tile to BE water and **unoccupied**, so **bridges cannot overlap** (nor
-sit on a building/road). It joins `roadGrid` (so `villagerWalkable` + road-connectivity
-treat it as a road) and a new `walkablePred` (terrain-buildable **OR** road tile) keeps
-the decked water tile walkable in the rebuilt raider/path grid. Demolish clears
-`roadGrid` *before* rebuilding so a removed bridge stops reading walkable. **Render:**
-two new textured flat-diamond fx frames — `fx/road` (cobblestone) and `fx/bridge`
-(railed wooden plank deck) in [sprites/recipes/fx.ts](../../games/citadel/client/src/render/sprites/recipes/fx.ts);
-`isoNetworkTiles` now emits `bridge` tiles (and carries each tile's `type` + optional
-`frame`), and `pushNetworks` stamps the textured frame white-tinted (walls keep the
-solid tinted diamond), with bridges depth-sorted just under roads so a bridge mouth
-tucks beneath the road it meets. Determinism untouched (terrain/placement only; the
-art is render-only). Guarded by `systems/bridges.test.ts` (road→bridge on water, road
-stays road on land, bridge walkable, no-overlap) + an `isoNetworkTiles` bridge-frame case.
+- [citadel-hud-and-overlays.md](citadel-hud-and-overlays.md) — HUD bar, goods strip, build bar, inspect panel, minimap, notifications.
+- [citadel-rendering.md](citadel-rendering.md) — the WebGPU render path, sprite batching, terrain baking, road/bridge networks.
 
 ## Briefs & todos
 
@@ -455,9 +136,9 @@ staffed). See the 2026-06-22 fix log entry.
   **fixed**; `grow` now holds pop 10–11/12 through a full year. Root cause was
   goods-vs-service worker priority (above), *not* the service-range hypothesis.
   Still open: zero-coverage service feedback (P2) and disease counterplay (P3).
-- [road-routing-around-buildings](../todos/2026-06-22-citadel-road-routing-around-buildings.md)
+- [road-routing-around-buildings](../todos/closed/2026-06-22-citadel-road-routing-around-buildings.md)
   **(done)** — road drag now detours around footprints via a bounded A*
   (`routeRoadPath`), treats water as bridge-passable, falls back to L + toast.
-- [minimap-rotate-viewport-rectangle](../todos/2026-06-22-citadel-minimap-rotate-viewport-rectangle.md)
+- [minimap-rotate-viewport-rectangle](../todos/closed/2026-06-22-citadel-minimap-rotate-viewport-rectangle.md)
   **(done)** — minimap redrawn in iso world-px; the camera viewport is now an
   upright rectangle.

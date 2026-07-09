@@ -29,6 +29,25 @@ executor chunks on Sonnet 5 successfully.)
 | "what does the wiki say about X" | query | corpus-flow: query `corpus/wiki/` |
 | Work finished, needs recording | closeout | corpus-flow: status.md + log.md + fold into wiki, move todo→closed |
 
+## Knowledge routing — which layer answers which question
+
+Two graphs, two jobs. The **corpus is the _why_** (design intent, decisions, history) and is
+authored + git-reviewed. The **code graph is the _what_** (symbols, callers, imports) and is a
+generated, disposable index — never a source of truth. Neither substitutes for the other.
+
+| Question shape | Route to | Why |
+|---|---|---|
+| "Why is it built this way?" / "what was decided?" | `corpus/wiki/` (start at `index.md`) | Only the corpus knows intent |
+| "Who calls X?" / "what breaks if I change X?" / "where does feature Y live?" | the [`codegraph` project skill](../.claude/skills/codegraph/SKILL.md) | 20–180× cheaper than grep+read fanout |
+| **"Did I get _every_ usage?"** (rename, refactor, delete) | **`grep -rnw`** | codegraph is incomplete here — measured 16/42 call-site files for `createRng` |
+| Anything about a symbol **both games export** | **`grep`**, scoped by path | codegraph conflates them — `callers bootstrapSim` silently returns Farm's callers only |
+| "Does `@citadel/*` import `@farm/*`?" (dependency rule) | **`grep`** | It's a correctness invariant; don't ask a heuristic index |
+| Determinism / palette / scheduler-order questions | **run the guard test** | `npm run test`; the tests are the authority |
+
+Benchmarked on this repo 2026-07-09 — see [wiki/code-graph.md](wiki/code-graph.md) for the numbers
+and the 18 ambiguous symbol names. Lead with the graph to *locate*; verify with grep or a test
+before you *act*.
+
 ## READ / SKIP / SKILLS
 | Task type | READ | SKIP | SKILLS |
 |-----------|------|------|--------|

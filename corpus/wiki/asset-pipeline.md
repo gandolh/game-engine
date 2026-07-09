@@ -1,16 +1,21 @@
+---
+summary: The bake principle (assets are code, not images), asset-cooking and atlas research, and the cache-key/incremental-build recommendations that became brief 71.
+updated: 2026-06-10
+---
+
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
 
-Research synthesis (2026-06-10) on asset "cooking" and texture-atlas best practice, filtered against what this repo actually does. Fed [brief 71](../briefs/game/done/71-per-asset-recipe-files-and-cached-atlas-builds.md) (shipped 2026-06-10 — recommendations 1–4 landed; 5 was verified already true: [loader.ts](../../packages/engine/src/assets/loader.ts) decodes each sheet via `createImageBitmap`).
+Research synthesis (2026-06-10) on asset "cooking" and texture-atlas best practice, filtered against what this repo actually does. Fed [brief 71](../briefs/game/done/71-per-asset-recipe-files-and-cached-atlas-builds.md) (shipped 2026-06-10 — recommendations 1–4 landed; 5 was verified already true: [loader.ts](../../engine/core/src/assets/loader.ts) decodes each sheet via `createImageBitmap`).
 
 ## The bake principle (what we already do)
 
-Assets are **code, not images**: each sprite is a `PixelRecipe` (ASCII pixel grid + EDG32 palette chars) in [tools/atlas-builder/src/recipes/](../../tools/atlas-builder/src/recipes/). `npm run atlas` rasterizes every recipe and shelf-packs them into 6 specialized sheets (`characters`, `buildings`, `terrain`, `crops`, `props`, `items-ui`) + an `index.json`, committed under [packages/farm-valley/public/atlas/](../../packages/farm-valley/public/atlas/) (brief 47). The renderer ([canvas2d](../../packages/engine/src/render/canvas2d/)) resolves frames per-sheet via `atlasId` and additionally bakes the static backdrop + water pattern to OffscreenCanvas once at startup.
+Assets are **code, not images**: each sprite is a `PixelRecipe` (ASCII pixel grid + EDG32 palette chars) in [games/farm/atlas-recipes/src/](../../games/farm/atlas-recipes/src/). `npm run atlas` rasterizes every recipe and shelf-packs them into 6 specialized sheets (`characters`, `buildings`, `terrain`, `crops`, `props`, `items-ui`) + an `index.json`, committed under [games/farm/client/public/atlas/](../../games/farm/client/public/atlas/) (brief 47). The renderer ([canvas2d](../../engine/core/src/render/canvas2d/)) resolves frames per-sheet via `atlasId` and additionally bakes the static backdrop + water pattern to OffscreenCanvas once at startup.
 
 This matches the industry "asset conditioning" pattern exactly — source asset → deterministic transform → optimized runtime artifact — as in Unreal cooking, Unity's import pipeline (`Library/` cache + `.meta` sidecars), Godot's `.import` sidecars + `.godot/imported/` cache, and O3DE's Asset Processor (SQLite job-fingerprint graph).
 
-Current gaps versus that pattern:
+Gaps identified 2026-06-10 versus that pattern (**all closed by brief 71** — kept for the reasoning, not as a live TODO list):
 
-1. **One monolithic source.** [base-recipes.ts](../../tools/atlas-builder/src/recipes/base-recipes.ts) is ~4,300 lines of inline recipes — authoring/diffing one asset means scrolling a monolith.
+1. **One monolithic source.** [atlas-recipes/src/assets/](../../games/farm/atlas-recipes/src/assets/) is ~4,300 lines of inline recipes — authoring/diffing one asset means scrolling a monolith.
 2. **No incremental build.** The builder always re-rasterizes and re-writes all 6 sheets, even when nothing in a sheet changed.
 3. **PNG bytes are not pinned.** `pngjs` `PNG.sync.write` is used with default options (`filterType: -1` = auto, default deflate). Output is content-dependent; pinning the encoder settings makes bytes a pure function of pixels, which both keeps committed-artifact diffs honest and makes output hashes usable as cache keys.
 
@@ -48,7 +53,7 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 
 - First GPU upload of an image is the expensive step (~hundreds of ms observed for a first `texImage2D` vs ~0.1ms warm); one image per sheet = 6 uploads instead of ~170.
 - Loading thousands of individual images measured 17× slower than one atlas in the classic Game Developer HTML5 benchmark; even bundled, fewer `Image` objects = less GC pressure.
-- `createImageBitmap()` per sheet at load decodes off the main thread into a GPU-friendly bitmap — the correct Canvas2D load pattern (worth checking [loader.ts](../../packages/engine/src/assets/loader.ts) does this).
+- `createImageBitmap()` per sheet at load decodes off the main thread into a GPU-friendly bitmap — the correct Canvas2D load pattern (worth checking [loader.ts](../../engine/core/src/assets/loader.ts) does this).
 - Drawing in sheet-grouped order within a frame helps GPU texture-cache locality — our painter's-sort by `y` makes strict grouping impractical; not worth fighting.
 
 **Manifest format.** TexturePacker JSON-Hash (`frames` dict + `rotated`/`trimmed`/`sourceSize` flags) is the interop standard, but those flags only pay when trimming/rotating — we do neither. Our minimal `{id, imageUrl, width, height, frames:{name:{x,y,w,h}}}` is the right call; just add the `inputsHash` stamp.
@@ -61,18 +66,18 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 2. **Per-sheet incremental bake**: fingerprint each sheet's inputs (table above), stamp `inputsHash` into the manifest, skip unchanged sheets; `--force` flag for full rebuilds.
 3. **Pin PNG encoder options** for byte-stable committed artifacts (one-time whole-atlas diff when this lands).
 4. Keep shelf packing, 1px padding, pow2, 6 sheets; document maxrects-packer as the future upgrade path.
-5. Load-time: verify/adopt `createImageBitmap` per sheet. *(Verified 2026-06-10: already the case in [loader.ts](../../packages/engine/src/assets/loader.ts).)*
+5. Load-time: verify/adopt `createImageBitmap` per sheet. *(Verified 2026-06-10: already the case in [loader.ts](../../engine/core/src/assets/loader.ts).)*
 
 ## Art direction (2026-06-10 art pass)
 
 A designer pass over the recipes themselves (not the pipeline), guided by the classic pixel-art craft rules (Saultoons' "The ONLY Pixel Art Guide You Need" — readable silhouettes, hue-shifted ramps, selective outlines, texture clusters over speckle noise, one committed light direction). The rules now encoded in the assets, for anyone touching recipes later:
 
-- **All 32 EDG32 colors are mapped.** [palette.ts](../../tools/atlas-builder/src/recipes/palette.ts) previously used 20; the art pass added swatch chars for the missing 11 — deep foliage `t` #193c3e, cool-outline navy `N` #262b44, flame `f` #f77622, bright red `R` #e43b44, deep red `x` #a22633, grape `U` #b55088, deep purple `u` #68386c, petal pink `P` #f6757a, sparkle cyan `i` #2ce8f5, warm highlight `h` #e8b796, wicker `H` #c28569. Palette changes invalidate every sheet's `inputsHash` (by design).
+- **All 32 EDG32 colors are mapped.** [palette.ts](../../games/farm/atlas-recipes/src/palette.ts) previously used 20; the art pass added swatch chars for the missing 11 — deep foliage `t` #193c3e, cool-outline navy `N` #262b44, flame `f` #f77622, bright red `R` #e43b44, deep red `x` #a22633, grape `U` #b55088, deep purple `u` #68386c, petal pink `P` #f6757a, sparkle cyan `i` #2ce8f5, warm highlight `h` #e8b796, wicker `H` #c28569. Palette changes invalidate every sheet's `inputsHash` (by design).
 - **Light comes from the top-left, everywhere.** Trees/bushes carry a 4-step hue-shifted ramp (`g→G→l→t` summer, `y→a→f→x` autumn) — shadows shift hue toward cool/deep, never just darker.
 - **Tiles use texture clusters, not lone-pixel speckle.** Grass = 2px tufts with a light tip; autumn = 2px leaf pairs in drifts; dirt = clods; sand = ripple runs; winter = 2px `q` drift shadows. Keep marks in small clusters and off systematic rows so tiling doesn't seam.
 - **Fire is a 4-step ramp** `y→o→f→r`; the overlay frames (campfire/forge a-b-c) keep their exact shapes/positions — only colors changed, so render-loop anchoring is untouched. Waterfall frames carry cyan `i` glints that step down one row per frame, matching the documented falling-streak behavior.
 - **Crops read by hue**: grapes/radish purple `U/u/P`, tomato `R/x`, carrot `f/p`, pumpkin ribbed `f/p/r/x`, squash `h/W/H` — each mature crop has a glint and a shaded side.
-- **Farmer sprites were deliberately left alone** — they're template-generated ([templates.ts](../../tools/atlas-builder/src/recipes/templates.ts)) with personality substitution maps and hat-silhouette guard tests; restyling them is its own brief.
+- **Farmer sprites were deliberately left alone** — they're template-generated ([templates.ts](../../games/farm/atlas-recipes/src/templates.ts)) with personality substitution maps and hat-silhouette guard tests; restyling them is its own brief.
 
 ## Sources
 

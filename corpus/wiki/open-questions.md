@@ -1,3 +1,8 @@
+---
+summary: Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
+updated: 2026-06-12
+---
+
 # Open Questions & Gaps
 
 Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted from here — their history lives in [status.md](status.md) + [log.md](../log.md). Verify any code ref before acting (paths drift).

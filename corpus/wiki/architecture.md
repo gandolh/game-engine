@@ -1,3 +1,8 @@
+---
+summary: The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, and WASM.
+updated: 2026-07-01
+---
+
 # Architecture
 
 ## Workspaces
@@ -107,7 +112,7 @@ Key render features:
 - **Static layer bake**: backdrop tiles baked once into an offscreen canvas; WASM noise generator fills the brightness grid (~8× faster than JS).
 - **Walk/work/bob animation**: `walk-a`/`walk-b` while `farmer.path` is set, `/work` pose for physical actions, 1.5px idle bob.
 
-Atlas: ~220 hand-crafted 16×16 pixel-art frames split across **6 sheets + an `index.json`** (characters/buildings/terrain/crops/props/items-ui) at `games/farm/client/public/atlas/`; `atlasId` is load-bearing (the renderer maps each frame to its sheet). Sheets are generated from pixel recipes in [tools/atlas-builder/src/recipes/](../../tools/atlas-builder/src/recipes/) (split into `base-recipes`, `templates`, `palette`, `sheet-map`).
+Atlas: ~220 hand-crafted 16×16 pixel-art frames split across **6 sheets + an `index.json`** (characters/buildings/terrain/crops/props/items-ui) at `games/farm/client/public/atlas/`; `atlasId` is load-bearing (the renderer maps each frame to its sheet). Sheets are generated from pixel recipes in [games/farm/atlas-recipes/src/](../../games/farm/atlas-recipes/src/) (split into `base-recipes`, `templates`, `palette`, `sheet-map`).
 
 ## WASM
 

@@ -1,7 +1,12 @@
+---
+summary: The rect-based radial archipelago model (central cluster + two farm rings at 21-farmer scale), its deterministic generation pipeline, and the ranked menu of more-organic techniques.
+updated: 2026-06-12
+---
+
 # World generation
 
 How the archipelago is laid out, and the menu of techniques for making it more
-organic. Source of truth is [regions.ts](../../packages/sim-core/src/world/regions.ts);
+organic. Source of truth is [regions.ts](../../games/farm/sim-core/src/world/regions.ts);
 verify any constant here against it before acting.
 
 ## Current model — rectangles, partly generated
@@ -25,7 +30,7 @@ funnel; bootstrap installs the result via `setActiveWorld`.
 Web-search-researched (2026-06-14); recommended pipeline **BSP placement →
 side-overlap-filtered graph → MST + δ-loops**. Sources in log.md.
 
-- **Placement — [island-placement.ts](../../packages/sim-core/src/world/island-placement.ts).**
+- **Placement — [island-placement.ts](../../games/farm/sim-core/src/world/island-placement.ts).**
   BSP-split the map into one leaf cell per region (largest leaf split on its long
   axis at a seeded central-third cut), assign largest footprints to largest leaves,
   size each island inside its leaf, and place it at a seeded interior offset ≥`GAP`
@@ -34,12 +39,12 @@ side-overlap-filtered graph → MST + δ-loops**. Sources in log.md.
   W/H, same area); other regions take a target area the coverage loop scales to
   hit the **~60% land band** (`COVERAGE_MIN/MAX` 0.55–0.65). `generateWorld`
   rejects a <50% placement so its salt loop retries a different partition.
-- **Region inventory — [region-inventory.ts](../../packages/sim-core/src/world/region-inventory.ts).**
+- **Region inventory — [region-inventory.ts](../../games/farm/sim-core/src/world/region-inventory.ts).**
   The canonical list of all ~73 regions (village + ~25 fixed services/landmarks +
   21 farms + 21 ranches), each with a sizing `RegionSpec` and an **authored
   design-space center** (the old 160-era frame). The authored center → generated
   center displacement is how on-island content rides with its island (below).
-- **Bridge graph — [bridge-graph.ts](../../packages/sim-core/src/world/bridge-graph.ts).**
+- **Bridge graph — [bridge-graph.ts](../../games/farm/sim-core/src/world/bridge-graph.ts).**
   Straight, axis-aligned **2-wide** bridges connect two islands ONLY where their
   facing sides share an orthogonal overlap, at the overlap midpoint. Build the
   side-overlap-filtered complete graph (O(n²)), take a Kruskal **MST** (weight =
@@ -82,8 +87,8 @@ Boats navigate **all open water and pass UNDER bridges** (a bridge is an elevate
 deck) — only island land blocks them (`buildBoatGrid` in coral.ts). This keeps
 the ocean one connected basin so port-to-port + dock→reef trips always route,
 regardless of how bridges partition the *land* graph. Ports
-([ports.ts](../../packages/sim-core/src/world/ports.ts)) and coral reefs
-([coral.ts](../../packages/sim-core/src/world/coral.ts)) derive **lazily** from
+([ports.ts](../../games/farm/sim-core/src/world/ports.ts)) and coral reefs
+([coral.ts](../../games/farm/sim-core/src/world/coral.ts)) derive **lazily** from
 the generated isle positions (rebuilt on world swap): a port's dock scans the
 island's most-open-ocean side for a land tile whose seaward neighbour is open
 ocean. The pre-carved shipping-lane network is retired (lanes are a short seaward
@@ -108,7 +113,7 @@ model. Determinism verified by fast 3-day/ticks=20 JSON export diff: **same
 `RegionDef.theme` is a typed enum (`RegionTheme`) assigned per region (forest /
 quarry / shrine / heritage / casino; farms default `'ring'`; `ranch` / `big-tree`
 reserved for later todos). **Render-only — sim code must never read `theme`;
-interactive features key off region id.** [interior-decor.ts](../../packages/sim-core/src/render-systems/interior-decor.ts)
+interactive features key off region id.** [interior-decor.ts](../../games/farm/sim-core/src/render-systems/interior-decor.ts)
 holds a per-theme `THEME_TABLE` (frames + density-per-100-walkable-tiles) and
 `computeInteriorDecor(world)`, which mirrors the open-water set-pieces idiom
 (blue-noise rejection, Chebyshev `MIN_SPACING`, `fork('decor:'+id)`,
@@ -147,7 +152,7 @@ Ranked techniques (all must thread `rng.fork(label)` — never `Math.random`):
 2. **Shapes (Model B):** *CA-fill + center-floodfill* (plain TS) is the
    lowest-risk organic outline; *noise-threshold* needs coherent fBm — now
    **implemented in JS** (brief 49 track 1: `fbm` + `valueNoise2d` in
-   [ground-noise.ts](../../packages/farm-valley/src/render/ground-noise.ts), 4
+   [ground-noise.ts](../../games/farm/client/src/render/ground-noise.ts), 4
    octaves over smoothstep value noise). It currently drives the **render-only
    ground texture** (the committed `noise.wasm` is still hash noise and is bypassed
    for that pass); reuse the same JS fBm as the noise-threshold source if Model B
@@ -190,12 +195,12 @@ it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on
 nicety: fBm+warp already removed the grid-axis artifacts it targeted; revisit only
 if Model-B shapes need a coherent basis (see [log.md](../log.md) 2026-06-09)_ — plus
 **L-system vegetation scatter** — _track 5 **shipped** as seeded cluster-growth
-(copses/outcrops) in [tile-features.ts](../../packages/sim-core/src/systems/tile-features.ts):
+(copses/outcrops) in [tile-features.ts](../../games/farm/sim-core/src/systems/world-time/tile-features.ts):
 gameplay-neutral (same rates/caps/ownership, only placement clusters), drawn from
 an isolated `rng.fork('tile-cluster')` so the main run-rng stream is unshifted_ —
 and **authored set-pieces** — _track 6
 **partially shipped**: decorative open-water props
-([render-systems/set-pieces.ts](../../packages/sim-core/src/render-systems/set-pieces.ts),
+([render-systems/set-pieces.ts](../../games/farm/sim-core/src/render-systems/set-pieces.ts),
 blue-noise seabed accents, render-only) are done; the **interactive shrine
 landmark** half was split into [brief 50](../briefs/game/done/50-54-more-islands.md)
 as a gameplay feature_ — (the handmade-procedural hybrid). Backed by an adversarially-verified research pass

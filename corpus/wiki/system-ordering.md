@@ -1,6 +1,11 @@
+---
+summary: Why every system in bootstrapSim sits where it does — the nine bands, the inbox lifecycle, cross-cutting invariants, and the system-to-brief provenance map.
+updated: 2026-06-11
+---
+
 # Scheduler System Ordering
 
-**Source of truth for why the systems in [sim-bootstrap.ts](../../packages/sim-core/src/sim-bootstrap.ts) are registered in the order they are.** The ordering encodes real data dependencies; reordering without reading this page breaks message visibility, same-tick reads, or determinism. (Brief [69](../briefs/game/done/69-named-system-stages-assertion.md) proposes asserting these stages in code; until then this page is the contract.)
+**Source of truth for why the systems in [sim-bootstrap.ts](../../games/farm/sim-core/src/sim-bootstrap.ts) are registered in the order they are.** The ordering encodes real data dependencies; reordering without reading this page breaks message visibility, same-tick reads, or determinism. (Brief [69](../briefs/game/done/69-named-system-stages-assertion.md) proposes asserting these stages in code; until then this page is the contract.)
 
 ## The bands
 

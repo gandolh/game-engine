@@ -1,0 +1,148 @@
+---
+summary: Citadel's WebGPU-only render path — sprite-batch quads, baked terrain, iso projection, road/bridge networks, and the atlas/asset wiring.
+updated: 2026-07-02
+---
+
+# Citadel — rendering & assets
+
+Split out of [citadel-overview.md](citadel-overview.md) on 2026-07-09.
+Art *direction* (what it should look like) lives in [citadel-art-style.md](citadel-art-style.md);
+this page is the render *machinery*.
+
+## Rendering & assets
+
+Citadel is **WebGPU-only** at runtime (no Canvas2D fallback). Terrain is baked into
+the static layer (render-windowed on the large MP map — see the 2026-06-19 log entry);
+buildings / villagers / raiders are `sprite-batch` quads.
+
+**Sprites (2026-06-19).** Entities are real **pixel-art sprites**, not flat colored
+boxes. The art lives as ASCII `PixelRecipe`s under
+[client/src/render/sprites/](../../games/citadel/client/src/render/sprites/) and is
+rasterized + shelf-packed into **one in-process atlas at client boot**
+(`createCitadelSpriteAtlas` in `sprites/atlas.ts`) — no committed PNGs, no `npm run`
+build step (unlike Farm Valley's `@farm/atlas-recipes` → `npm run atlas` committed-PNG
+pipeline, which Citadel can't import: games never import each other). The atlas keeps a
+1×1 white `px` frame that the tinted-box paths still use (ghost, wear, house-cluster
+border). The night **light-pool** glow instead stamps the soft `fx/diamond` frame on
+a GROUND layer below buildings (so emitters like the market glow on the ground, not
+as a hard orange box over the sprite — 2026-06-21 fix). Per-type frame mapping +
+tinting live in `quads.ts`:
+- **Buildings** sample `bld/<type>` tinted white (recipe colors show); a burning
+  building multiplies its tint toward orange. ~20 building types have art; a type without
+  a recipe falls back to a tinted box (never requests a missing frame). Road/wall/gate
+  keep their pre-existing autotile/inset-box rendering.
+- **Villagers / raiders** are grey-ramp silhouettes (`vil/person`, `raider`); the
+  per-instance tint (FSM-state color / red) multiplies into a shaded colored figure, so
+  state still reads at a glance.
+
+The recipe palette (`sprites/palette.ts`) derives every swatch from an `EDG.*` constant
+via `rgbOf`, so it's EDG32-clean by construction (a test re-asserts it). Rasterize +
+pack are pure (deterministic, headlessly tested); only the canvas/`createImageBitmap`
+step is browser-only. **Phase 2 (not done):** textured terrain tiles, road/wall autotile
+sprites, a gate sprite, MP owner-color differentiation.
+
+**Visual polish (2026-06-21).** Render-only ideas borrowed from `tiny-world-builder`:
+elevation-biased terrain dither, a directional NW-sun building drop-shadow
+(`LAYER_SHADOW`), a deeper-night/stronger-dusk wash, and extra procedural detail in the
+sprite generators (roof shingles, wall seams, doorstep, fort ashlar courses). All
+render-only, EDG32-clean, sim untouched. See the 2026-06-21 log entry.
+
+**TRUE ISOMETRIC — IMPLEMENTED (2026-06-21).** Citadel now renders **2:1 dimetric
+isometric**: diamond terrain, iso projection with a working `screenToTile` inverse
+(placement/ghost pick the right diamond), painter's-order depth sort, iso
+road/wall diamonds (`fx/diamond` frame), and **true-iso building sprites**
+(diamond base + two shaded wall faces + hip roof, `sprites/recipes/iso-draw.ts`)
+at 32-based resolution + 32×32 units. The single source of truth is
+[render/iso.ts](../../games/citadel/client/src/render/iso.ts) (`tileToIso`,
+`isoToTile`, `isoFootprintBox`, `isoSpriteDims`, `isoDepth`). **Sim + determinism
+untouched** — iso is a pure render/input/art change; `CHECK_DETERMINISM` stays
+byte-identical. Verified in-browser; 174 client tests + iso-volume guard + EDG32
+guard green.
+
+**Per-building FORMS + 4× detail + animated mill (2026-06-21).** Buildings were
+all the same hipped iso box ("everything looks like a house"). A first pass added
+per-type accents; a second pass (this one) rebuilt **distinct medieval forms with
+their own proportions**, authored at **4×** resolution, with an **animated mill**.
+
+- **Authoring resolution: 32-based (`ISO_ART_SCALE = 1`).** The renderer sizes a
+  building's quad in world-px via `isoSpriteDims` (iso.ts); recipes author at
+  `isoArtDims` = `isoSpriteDims × ISO_ART_SCALE`. A pass tried 4×, but the user
+  judged 32 dense enough in practice, so buildings stay native res like
+  units/terrain. The `ISO_ART_SCALE` knob stays so the authoring math is
+  scale-independent. (This retired the "upscale units/terrain to 4×" follow-up,
+  brief 94.)
+- **Reference restyle (done, brief
+  [95](../briefs/game/done/95-citadel-building-restyle-reference-look.md)).** Per
+  user reference art (Reiner "Isometric Buildings" + zatoart/xilurus itch packs),
+  the forms were restyled toward warm **terracotta tile roofs** (`drawGableRoof`:
+  ridge cap + eave-overhang shadow + tile courses), **half-timber** framing
+  (`drawTimberFrame`: oak studs + diagonal cross-braces over cream infill),
+  **ashlar stone** coursing on forts (`drawAshlarCourses`: staggered blocks, not a
+  per-pixel checkerboard), and small **ground-prop plots** (`isoGroundProps`:
+  dirt apron + barrel + sack). EDG32-only (clay/rust/salmon, cream/tan,
+  bark/woodDark, slate/steel). Verified in-game.
+- **Form builders** live in [iso-draw.ts](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
+  mapped per type in [buildings.ts](../../games/citadel/client/src/render/sprites/recipes/buildings.ts):
+  `cottage` (half-timbered, steep peaked hip roof, studs+window+door — house /
+  bakery / woodcutter / sawmill / smith / healer), `postMill` (tall weatherboarded
+  body on a trestle + roundhouse base + 4 sails), `openField` (tilled furrows +
+  post-and-rail fence + gate + crops + hay bale — farm), `marketStalls`
+  (red-striped awnings + tables + goods — market), `church` (nave + bell tower +
+  spire + cross — chapel), `warehouse` (barn doors + hayloft dormer — storehouse /
+  tradingpost / town-hall), `fort` (ashlar courses + flat crenellated deck + arrow
+  slits — watchpost / tower / garrison / keep), `boxBuilding` (mine pithead /
+  quarry pit / well).
+- **Animated mill (render-only).** Recipes `bld/mill` + `bld/mill@1..7` are the
+  post-mill with sails rotated through a 90° sweep (4-fold symmetry).
+  `millFrameAt(clockMs)` (index.ts) picks the frame; `buildingQuad(b, clockMs)` →
+  `pushScene(..., clockMs)` → `main.ts` passes the existing `performance.now`
+  render clock. **No sim/determinism impact** (wall-clock pacing, render-only).
+  `BUILDING_SPRITE_TYPES` excludes `@`-suffixed frames so they aren't mistaken for
+  building types; `BUILDING_HEIGHT_TILES.mill` raised to 3 to match the form.
+
+All render-only, EDG32-clean (every char via `SWATCH`). Guards green: 187 client
+tests (incl. mill-frame test + per-type opaque-fraction floors — open farm/market/
+mill get a lower floor since they're intentionally sparse), EDG32 palette test,
+typecheck. Verified in-browser (gallery harness + the actual game): forms render
+distinctly through the real atlas pipeline and the mill's sails turn.
+
+> ⚠️ **Sprite anchor convention (load-bearing).** The engine sprite-batch anchors
+> every sprite by its **CENTRE** (both backends draw `pos ± 0.5·size`). The iso
+> helpers in `iso.ts` return **top-left** rects, so the conversion to a sprite must
+> add half-extents — this happens in exactly two choke points, `quadToSprite` and
+> `isoFlatSprite`. Skipping it shifts every iso sprite up-left by half its size
+> (ghost lands left of the cursor, buildings float off their footprint). Relatedly
+> `isoSpriteDims.height` is `roofH + wallH + diaH/2` (not full `diaH`) because
+> `iso-draw.ts` centres the ground diamond on the wall-bottom mid-line. (Both fixed
+> 2026-06-21; see log.) **Terrain is baked FLAT** (elevation 0) — a former 0/1-step
+> relief lift in `makeTerrainDecorate` desynced the ground from the (flat) sprites,
+> roads/bridges, and `isoToTile` pick, floating bridges off the water grid and
+> opening dark seams; the elevation field now only tints the dither, never offsets
+> geometry. Keep terrain, sprites, network tiles, and the pick all at elevation 0.
+
+Brief:
+[../todos/2026-06-21-citadel-true-isometric.md](../todos/closed/2026-06-21-citadel-true-isometric.md)
+(`mostly-done`). **Open anomaly:** a subset of building types
+(market/storehouse/bakery/woodcutter) intermittently render as a flat box on the
+dev GPU despite byte-correct sprite data — suspected WebGPU driver artifact, see
+the brief's OUTCOME note. Iso windowing for the large MP map is still deferred.
+
+**BRIDGES — roads over water (2026-06-21).** A road dragged onto a **Water** tile
+auto-converts to a `bridge` (new building type + production def `isBridge`, both 1×1)
+in [`placeOne`](../../games/citadel/sim-core/src/sim-bootstrap.ts): roads on land stay
+roads, the water tiles of the same drag become bridges. A bridge is the **only** way
+to place anything on water — it bypasses the `buildable` (terrain-walkable) check but
+requires the tile to BE water and **unoccupied**, so **bridges cannot overlap** (nor
+sit on a building/road). It joins `roadGrid` (so `villagerWalkable` + road-connectivity
+treat it as a road) and a new `walkablePred` (terrain-buildable **OR** road tile) keeps
+the decked water tile walkable in the rebuilt raider/path grid. Demolish clears
+`roadGrid` *before* rebuilding so a removed bridge stops reading walkable. **Render:**
+two new textured flat-diamond fx frames — `fx/road` (cobblestone) and `fx/bridge`
+(railed wooden plank deck) in [sprites/recipes/fx.ts](../../games/citadel/client/src/render/sprites/recipes/fx.ts);
+`isoNetworkTiles` now emits `bridge` tiles (and carries each tile's `type` + optional
+`frame`), and `pushNetworks` stamps the textured frame white-tinted (walls keep the
+solid tinted diamond), with bridges depth-sorted just under roads so a bridge mouth
+tucks beneath the road it meets. Determinism untouched (terrain/placement only; the
+art is render-only). Guarded by `systems/bridges.test.ts` (road→bridge on water, road
+stays road on land, bridge walkable, no-overlap) + an `isoNetworkTiles` bridge-frame case.
+

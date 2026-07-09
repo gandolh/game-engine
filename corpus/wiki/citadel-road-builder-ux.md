@@ -1,6 +1,11 @@
+---
+summary: Road/wall drawing UX — what OpenTTD, Skylines, Factorio and Anno do, mapped onto Citadel's drag-build, with a ranked recommendation and the connectivity-feedback gap.
+updated: 2026-06-27
+---
+
 # Citadel — road-builder UX (research + recommendation)
 
-Research note for [todos/2026-06-27-citadel-road-builder-ux-research.md](../todos/2026-06-27-citadel-road-builder-ux-research.md).
+Research note for [todos/2026-06-27-citadel-road-builder-ux-research.md](../todos/closed/2026-06-27-citadel-road-builder-ux-research.md).
 What good builders do for road/wall drawing, mapped onto Citadel's constraints,
 with a **ranked recommendation** and a scoped follow-up implementation todo.
 
@@ -149,7 +154,7 @@ snaps to tile centres; it is not a freeform spline. Keep roads tile-grid.
 ## Follow-up implementation todo
 
 Carved from items 1–3 (the cheap, high-value tier):
-[todos/2026-06-27-citadel-road-feedback-connectivity-indicator.md](../todos/2026-06-27-citadel-road-feedback-connectivity-indicator.md).
+[todos/2026-06-27-citadel-road-feedback-connectivity-indicator.md](../todos/closed/2026-06-27-citadel-road-feedback-connectivity-indicator.md).
 Items 4–5 (snap/auto-extend, undo) are noted there as deferred follow-ups.
 
 ## Sources

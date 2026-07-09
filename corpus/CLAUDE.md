@@ -7,7 +7,9 @@ This directory is a small **LLM-maintained wiki** for the Farm Valley engine + g
 ```
 corpus/
   CLAUDE.md         this file — schema and conventions
-  index.md          content catalog (what lives where)
+  index.md          content catalog (generated from each page's `summary:` frontmatter)
+  routing.md        which question goes to which layer (wiki / code graph / grep / tests)
+  lint.sh           health check: frontmatter, link resolution, page size, stale paths
   log.md            chronological record of corpus changes
   briefs/           raw historical task specs (immutable)
     engine/{done,superseded,todo}/
@@ -24,11 +26,32 @@ corpus/
 
 ## Conventions
 
+- **Every wiki page opens with frontmatter.** Exactly two keys, `summary:` (one line, what the page
+  answers — this is the retrieval signal an agent triages on *without opening the page*) and
+  `updated:` (absolute date). `index.md`'s catalog lines are generated from `summary:`.
 - **Markdown links, not Obsidian `[[wikilinks]]`.** Repo is consumed in VSCode + GitHub, where standard markdown links render and are clickable.
-- **Relative paths from the page's own location.** Code references use `../../packages/...` from `wiki/`, `../../../packages/...` from `briefs/<area>/<state>/`.
-- **One concept per file.** When a wiki page grows past ~200 lines or starts straddling two topics, split it.
+- **Relative paths from the page's own location.** Code references use `../../engine/...` or `../../games/...` from `wiki/`, one `../` deeper from `briefs/<area>/<state>/`.
+- **One concept per file.** When a wiki page grows past ~200 body lines or starts straddling two topics, split it. `bash corpus/lint.sh` flags both.
 - **Dates are absolute** (`2026-05-26`), never relative (`yesterday`).
 - **Commits**: prefer one commit per meaningful corpus change so log.md and git history agree.
+
+## The retrieval budget
+
+The corpus exists to make an agent *cheaper*, not just better-informed. So:
+
+1. Read `index.md`. Read **at most 2–3 wiki pages**.
+2. If a question needs more than three pages, that is a signal — a page is straddling topics and
+   should be split, or `index.md`'s summaries aren't sharp enough. Fix the cause, don't just read more.
+3. Never read `briefs/` or `todos/` wholesale. `status.md` carries every brief's current state in one
+   line; open a brief only when you need the spec that directed a specific piece of work.
+4. Prefer the `summary:` line over opening the page. That is what it is for.
+
+## Lint
+
+`bash corpus/lint.sh` — checks frontmatter presence, resolves every relative link, flags pages over
+the ~200-body-line cap, and catches references to the pre-2026-07 `packages/` layout.
+`bash corpus/lint.sh --index` regenerates the catalog block for `index.md`.
+Run it before committing a corpus change.
 
 ## Workflows
 
@@ -40,9 +63,12 @@ A "source" here usually means a new design decision, an exploration result, or a
 4. Cross-link from `index.md` if a new page was added.
 
 ### Query (answering a question against the wiki)
-1. Read `index.md` first to find relevant pages.
+1. Read `index.md` first; triage on the `summary:` lines. Respect the retrieval budget above.
 2. Drill into the wiki pages, not into the codebase, unless the wiki points to specific code.
-3. If the answer is non-trivial and reusable, **file it back as a new wiki page** rather than letting it disappear into chat.
+3. **Structural questions do not belong here.** "Who calls X", "what breaks if I change X", "where
+   does feature Y live" go to the code graph — see [routing.md](routing.md) for which layer answers
+   which question, and [wiki/code-graph.md](wiki/code-graph.md) for its measured failure modes.
+4. If the answer is non-trivial and reusable, **file it back as a new wiki page** rather than letting it disappear into chat.
 
 ### Lint (periodic health check)
 - Contradictions between pages (e.g. `decisions.md` vs `status.md`).

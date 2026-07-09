@@ -1,3 +1,8 @@
+---
+summary: Citadel's cozy-medieval-storybook iso pixel-art style bible — EDG32 palette roles, shading/form/light rules, the layered-composite authoring path, and the per-recipe checklist.
+updated: 2026-07-02
+---
+
 # Citadel — Cozy Iso Art Style Bible
 
 The durable art-direction reference for Citadel's isometric pixel art. Style = **cozy
@@ -5,7 +10,7 @@ medieval storybook** (locked 2026-07-01). Every recipe/atmosphere decision serve
 and everything stays inside **EDG32** ([palette.ts](../../engine/core/src/render/palette.ts))
 and stays deterministic (no `Math.random`/`Date.now` in recipes; render-clock only for
 animation). This page is the *what/why*; the phased work that applies it lives in the
-[art briefs](../todos/) and the [research survey](../todos/2026-07-01-citadel-iso-pixel-art-quality-research.md).
+[art briefs](../todos/) and the [research survey](../todos/closed/2026-07-01-citadel-iso-pixel-art-quality-research.md).
 
 ## The feel
 

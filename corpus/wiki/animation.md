@@ -1,14 +1,19 @@
+---
+summary: How farmers, Pip, NPCs and scenery animate — the scattered ad-hoc state, the deleted brief-04 Animator ghost, and the render-side animation-engine direction.
+updated: 2026-06-12
+---
+
 # Animation
 
 How farmers, **Pip**, NPCs, and animated scenery are made to move. This page is the synthesis; the animation-engine work shipped its phases under [brief 85](../briefs/game/superseded/85-animation-engine.md) (closed superseded — only an optional in-browser feel-check + a 24px action pass were left).
 
 ## The sprite art is richer than the code that drives it
 
-Every character — the 4 personalities (`conservative`/`aggressive`/`hoarder`/`opportunist`) **and Pip** — has a full 16-frame set in the `characters` sheet ([characters.json](../../packages/farm-valley/public/atlas/characters.json), recipes under [tools/atlas-builder/src/recipes/assets/farmer/](../../tools/atlas-builder/src/recipes/assets/farmer/)):
+Every character — the 4 personalities (`conservative`/`aggressive`/`hoarder`/`opportunist`) **and Pip** — has a full 16-frame set in the `characters` sheet ([characters.json](../../games/farm/client/public/atlas/characters.json), recipes under [templates.ts](../../games/farm/atlas-recipes/src/templates.ts)):
 
 - **3 facings** — `down` (base/front), `up` (back), `side` (right profile; left = `flipX`).
 - **walk-a / walk-b per facing** → `down`+`{walk-a,walk-b}`, `up/...`, `side/...` (9 frames).
-- **7 action poses** — `till`, `water`, `refill`, `chop`, `mine`, `plant`, `work` (built from [templates.ts](../../tools/atlas-builder/src/recipes/templates.ts), one frame each).
+- **7 action poses** — `till`, `water`, `refill`, `chop`, `mine`, `plant`, `work` (built from [templates.ts](../../games/farm/atlas-recipes/src/templates.ts), one frame each).
 
 Pip is **not** a recolored farmer — it has its own `farmer/pip/*` set (gold hair, green tunic; cottage variant `structure/cottage-pip`). So the art is solid; the weak link is the *animation logic*, which is ad-hoc and scattered.
 
@@ -19,11 +24,11 @@ Pip is **not** a recolored farmer — it has its own `farmer/pip/*` set (gold ha
 | Effect | Side | Where | Mechanism | Quality |
 |---|---|---|---|---|
 | Walk cycle | sim | `pickFarmerFrame` (now retired) | `(tick>>1)&1` toggles walk-a/walk-b every 2 ticks; suffix baked into `SnapshotSprite.frame` | 2-frame A/B flip, no stride timing |
-| Facing | sim | [snapshot-builder/sprites.ts](../../packages/sim-core/src/snapshot-builder/sprites.ts) | 4-way `Player.facing` → 3-way + `flipX` | fine (unchanged) |
-| Action pose | render | [`resolveFrameAndBob`](../../packages/sim-core/src/render-systems/frames.ts) `ACTION_POSE` | `base + "/till"` etc — **one static frame for the whole action** | farmer *froze* while working |
+| Facing | sim | [snapshot-builder/sprites.ts](../../games/farm/sim-core/src/snapshot-builder/sprites.ts) | 4-way `Player.facing` → 3-way + `flipX` | fine (unchanged) |
+| Action pose | render | [`resolveFrameAndBob`](../../games/farm/sim-core/src/render-systems/frames.ts) `ACTION_POSE` | `base + "/till"` etc — **one static frame for the whole action** | farmer *froze* while working |
 | Idle bob | render | `resolveFrameAndBob` | per-entity `sin(nowMs/600 + id·1.3)·1.5px` | fine (unchanged) |
-| NPC work | sim | [work-npc.ts](../../packages/sim-core/src/systems/work-npc.ts) | 2-frame `pose-a`/`pose-b` swing every 8 ticks (deterministic) | the model the farmers now match |
-| Foam / forge-fire / forge-smoke / waterfall / campfire / beacon / fishing-spot | render | inline math in [render-loop.ts](../../packages/farm-valley/src/main/render-loop.ts) | each: `floor(nowMs/(period/len)) % len` | ~7 near-identical hand-rolled blocks |
+| NPC work | sim | [work-npc.ts](../../games/farm/sim-core/src/systems/cognition/work-npc.ts) | 2-frame `pose-a`/`pose-b` swing every 8 ticks (deterministic) | the model the farmers now match |
+| Foam / forge-fire / forge-smoke / waterfall / campfire / beacon / fishing-spot | render | inline math in [render-loop.ts](../../games/farm/client/src/main/render-loop.ts) | each: `floor(nowMs/(period/len)) % len` | ~7 near-identical hand-rolled blocks |
 
 **The gaps that motivated brief 85 — all now closed:**
 1. ~~**Action poses don't animate**~~ → phase 2: `-b` strike frame per action, render-side swing.
@@ -33,7 +38,7 @@ Pip is **not** a recolored farmer — it has its own `farmer/pip/*` set (gold ha
 
 ## The brief-04 ghost (important lesson)
 
-Engine brief [04-spatial-anim](../briefs/engine/done/04-spatial-anim.md) fully specced an `AnimationClip` + `Animator` engine. It **was built** (commit `0919cbc`, `packages/engine/src/animation/{clip,animator}.ts` + tests) and then **deleted as unused** in the `cleanup` commit `1d5f80c` (2026-06-04), alongside other dead modules. `status.md` still claimed it shipped — that drift is now corrected.
+Engine brief [04-spatial-anim](../briefs/engine/done/04-spatial-anim.md) fully specced an `AnimationClip` + `Animator` engine. It **was built** (commit `0919cbc`, `engine/core/src/animation/{clip,animator}.ts` + tests) and then **deleted as unused** in the `cleanup` commit `1d5f80c` (2026-06-04), alongside other dead modules. `status.md` still claimed it shipped — that drift is now corrected.
 
 **Lesson:** the primitive rotted *because nothing consumed it*. Any reintroduction must wire it into real consumers in the same change, or it dies again.
 
@@ -68,7 +73,7 @@ Web research on 2D animation architecture + pixel-art "juice", filtered against 
 5. ✅ **Action scale-pop** — `resolveFrameAndBob` returns an optional `scale`; on the action strike (`-b`) half it pops to ~1.10 and settles via `easeOutQuad`, applied to the sprite `width`/`height` in `pushSnapshotSprites`. (Per-strike, stateless; a discrete harvest-only item-pop is a later refinement.)
 
 *Tier B — structural, medium effort:* ✅ **DONE 2026-06-12** (the right-sized version — see note on the FSM)
-6. ✅ **Atlas-existence guard test** — `enumerateFarmerFrames(base)` ([frames.ts](../../packages/sim-core/src/render-systems/frames.ts)) is the single source of truth for every frame the resolver can emit (idle/passing, walk phases per facing, action poses + `-b`); `farmer-frames.test.ts` asserts each exists in the built `characters` manifest. Closes the silent-missing-frame gap. (As a bonus it confirms all the phase-2/3 frames ship.)
+6. ✅ **Atlas-existence guard test** — `enumerateFarmerFrames(base)` ([frames.ts](../../games/farm/sim-core/src/render-systems/frames.ts)) is the single source of truth for every frame the resolver can emit (idle/passing, walk phases per facing, action poses + `-b`); `farmer-frames.test.ts` asserts each exists in the built `characters` manifest. Closes the silent-missing-frame gap. (As a bonus it confirms all the phase-2/3 frames ship.)
 7. ✅ **Formalized the frame vocabulary** — replaced ad-hoc `facing === "down" ? … : "/"+facing` string-building with a typed `FACING_SEG: Record<Facing, string>`, and centralized the emit-set in `enumerateFarmerFrames`. **Deliberately did NOT build a stateful transition-FSM**: our renderer is stateless per-frame (the snapshot already encodes the deterministic state — `action`/`moving`/`facing`), so the right shape is a *state→clip resolver* (which `resolveFrameAndBob` already is), not a per-entity transition machine. A transition-FSM only earns its keep with render-side one-shot triggers that outlive a tick (e.g. a harvest flourish / hurt flash via the existing `Animator.play`/`isFinished`) — deferred until such a need is concrete.
 8. ⏸️ **Hit-pause** — deferred. Needs per-entity render-side state (a freeze timer), which our stateless model doesn't carry; low payoff for a gentle farming sim. Revisit if combat-ish feedback is ever wanted.
 
