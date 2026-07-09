@@ -10,7 +10,7 @@
  */
 import "./style.css";
 import { generateTerrain, getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE } from "@citadel/sim-core";
-import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot } from "@citadel/sim-core";
+import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot, BarterOffer } from "@citadel/sim-core";
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
 import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11yMirror, loadFontAtlas, label } from "@engine/ui";
@@ -68,7 +68,7 @@ import {
 import { CitadelWeather } from "./render/weather";
 import { CitadelAmbientCrowd } from "./render/ambient-crowd";
 import { OccupancyBadgeLayer } from "./render/occupancy-badges";
-import { EntityInterpolator, snapshotAlpha } from "./render/entity-interp";
+import { EntityInterpolator, snapshotAlpha, shouldIngestSnapshot } from "./render/entity-interp";
 import {
   COVERAGE_SERVICE,
   serviceRadius,
@@ -125,7 +125,8 @@ const loadFileInput = document.getElementById("load-file-input")! as HTMLInputEl
 // @engine/ui column the render loop lays out + draws). Created at module scope so it
 // exists before the first snapshot; #toast-live is its hidden aria-live a11y mirror.
 const toasts = new ToastManager(document.getElementById("toast-live"));
-let lastEventShown: string | null = null;
+// Brief 97/20: sequence-based, not string-based — see newEventsSince's doc comment in toast.ts.
+let lastSeenEventsSeq: number | null = null;
 // Cozy-pivot Phase F (decision #7): latch for the ONE gentle contentment
 // banner, edge-triggered on `allHomesCovered` flipping false→true. `null`
 // until the first snapshot arrives, so we can initialize the latch from
@@ -254,6 +255,10 @@ const villagerInterp = new EntityInterpolator();
 const raiderInterp = new EntityInterpolator();
 let lastSnapshotMs = 0;   // render clock when the latest snapshot arrived
 let snapshotIntervalMs = 0; // measured ms between the last two snapshot arrivals
+// Citadel 97/13: the sim tick of the last snapshot actually fed into interpolation
+// (null = none yet). Guards against pause/resume/speed-change correction snapshots,
+// which re-broadcast the SAME tick outside the normal cadence — see shouldIngestSnapshot.
+let lastIngestedTick: number | null = null;
 
 // Brief 25: render-feature toggles (all default ON), driven by the settings
 // modal. Each gates its layer in loop() — purely cosmetic, zero sim impact.
@@ -851,8 +856,13 @@ function tileToCanvasCss(tileX: number, tileY: number): { x: number; y: number }
   return { x: ((c.x - left) * sx) / dpr, y: ((c.y - top) * sy) / dpr };
 }
 
+// Citadel 97/13: paused/speed/isHost are now SIM-AUTHORITATIVE — rederived from every snapshot
+// (see client.onSnapshot), never optimistic shadow state. Keeping a local shadow was the bug: a
+// solo load-save left `paused` stuck true, pinning interp alpha to 1 (entities snapped). `isHost`
+// greys the room controls for a non-host peer instead of showing a toggle that silently no-ops.
 let paused = false;
 let speed = 1; // current sim-speed multiplier (1/2/4); drives the HUD speed-button highlight
+let isHost = true; // solo is trivially host; MP: only the room host may pause/resume/change speed
 let day = 1;
 let tick = 0;            // render-side mirror of snap.tick (for the day/night wash)
 let season = "spring";
@@ -869,7 +879,7 @@ let events: readonly string[] = [];
 
 // Phase 3 state
 let traderPresent = false;
-let traderOffersList: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[] = [];
+let traderOffersList: readonly BarterOffer[] = [];
 
 // Phase 4 state
 let threatLevel = 0;
@@ -887,21 +897,22 @@ let activeFires = 0;
 // (mouse, Tab+Enter via the dispatcher, AND the a11y mirror's <button>). The pause label
 // flip + the active-speed highlight are derived from `paused`/`speed` in the HUD's refresh.
 function togglePause(): void {
+  // Citadel 97/13: room control is host-only; a non-host command is dropped server-side
+  // (and its HUD button renders disabled), so bail early rather than fire a no-op.
+  if (!isHost) return;
   if (paused) {
     client.resume();
   } else {
     client.pause();
   }
-  paused = !paused;
+  // `paused` is rederived from the authoritative snapshot — do NOT flip it optimistically.
 }
 /** Picking a speed also resumes if paused (standard city-builder behaviour). */
 function setSpeedAndResume(n: number): void {
+  if (!isHost) return;
   client.setSpeed(n);
-  speed = n;
-  if (paused) {
-    client.resume();
-    paused = false;
-  }
+  if (paused) client.resume();
+  // `speed`/`paused` are rederived from the authoritative snapshot — no optimistic write.
 }
 
 // ---------------------------------------------------------------------------
@@ -1003,6 +1014,12 @@ let openingFramed = false;
 client.onSnapshot((snap) => {
   latestSnapshot = snap;
   tick = snap.tick;
+  // Citadel 97/13: pacing + host identity are sim-authoritative — rederive them here (never
+  // optimistic local state). `paused` drives the HUD label + interp alpha; `speed` the speed
+  // highlight; `isHost` greys the room controls for a non-host peer.
+  paused = snap.paused;
+  speed = snap.speed;
+  isHost = snap.isHost;
   day = snap.day + 1;
   season = snap.season;
   tier = snap.tier;  // Phase 5
@@ -1016,8 +1033,8 @@ client.onSnapshot((snap) => {
   events = snap.recentEvents;
   // Toast only the freshly-appended events (the rest is backlog already shown).
   // performance.now() is the render clock — main-thread only, never the sim.
-  for (const e of newEventsSince(lastEventShown, events)) toasts.push(e, performance.now());
-  if (events.length > 0) lastEventShown = events[events.length - 1]!;
+  for (const e of newEventsSince(lastSeenEventsSeq, snap.eventsSeq, events)) toasts.push(e, performance.now());
+  lastSeenEventsSeq = snap.eventsSeq;
   // Cozy-pivot Phase F (decision #7): ONE gentle diegetic banner on the
   // false→true rising edge of `allHomesCovered` — never a nag, never repeats
   // while the state holds. Reset the latch on true→false so a later
@@ -1055,7 +1072,12 @@ client.onSnapshot((snap) => {
   // Render-only interpolation bookkeeping: feed the new snapshot's unit positions
   // and measure the inter-snapshot interval (so the glide adapts to 1×/2×/4× and
   // jitter). performance.now() is the render clock — main-thread only, never sim.
-  {
+  // Citadel 97/13: pause/resume/speed-change/host-migration corrections re-broadcast
+  // the SAME tick's snapshot (no tick runs while paused); only ingest + reset the
+  // clock when the tick has actually advanced, or a correction would shift prev<-cur
+  // mid-glide and hop a unit forward instead of finishing its glide.
+  if (shouldIngestSnapshot(lastIngestedTick, snap.tick)) {
+    lastIngestedTick = snap.tick;
     const nowMs = performance.now();
     if (lastSnapshotMs > 0) {
       const dt = nowMs - lastSnapshotMs;
@@ -1113,7 +1135,7 @@ function loop(): void {
   // frame). undefined on the first frame(s) before boot — treat that as "no HUD to lay out".
   const hudContentChanged = hud?.refresh({
     tier, day, season, population, popCap,
-    stockpiles, foodSurplus, happiness, paused, speed,
+    stockpiles, foodSurplus, happiness, paused, speed, isHost,
   }) ?? false;
   // Phase 4: siege HUD
   const threatColor = threatLevel >= 60 ? EDG.red : threatLevel >= 30 ? EDG.gold : EDG.green;
@@ -1591,10 +1613,12 @@ async function boot(): Promise<void> {
       });
     },
     // Phase G (cozy pivot #8): the tiny trade-offer menu in the tradingpost's inspect panel.
-    // Sends the current offer index straight through — the panel only shows the button when
-    // `traderPresent` and `offerIndex` is within the live `traderOffers` menu.
-    trade: (offerIndex) => {
-      client.sendCommand({ type: "trade", payload: { offerIndex } });
+    // Brief 97/21: sends the offer's CONTENT, not its position — `traderOffers` re-rolls daily,
+    // so a positional index captured at click time could race the re-roll and resolve to a
+    // different offer server/worker-side. The sim matches by content against its live menu and
+    // no-ops if it's gone.
+    trade: (offer) => {
+      client.sendCommand({ type: "trade", payload: offer });
     },
   });
   inspectDispatcher = createInputDispatcher(() => (inspectOpen() ? inspectPanel?.root ?? null : null));

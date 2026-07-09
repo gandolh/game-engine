@@ -162,3 +162,16 @@ describe("CitadelSim Phase 1 — determinism & placement", () => {
     expect(buildings[0]?.y).toBe(10);
   });
 });
+
+describe("Citadel 97/13 — snapshot carries authoritative pacing defaults", () => {
+  it("getSnapshot emits transport-agnostic defaults: isHost=true, speed=1, paused=false", () => {
+    // getSnapshot knows nothing of hosts / wall-clock pacing, so it emits the headless/solo
+    // defaults (local player is trivially host, 1×, unpaused). The server host + solo Worker
+    // OVERRIDE these before sending; here we pin the defaults the overrides layer onto.
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const snap = sim.getSnapshot(0);
+    expect(snap.isHost).toBe(true);
+    expect(snap.speed).toBe(1);
+    expect(snap.paused).toBe(false);
+  });
+});

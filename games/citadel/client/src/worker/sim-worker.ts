@@ -20,6 +20,21 @@ let commandsPending = false;
 
 let simResult: ReturnType<typeof bootstrapSim> | null = null;
 
+/**
+ * Emit a snapshot stamped with the worker-authoritative pacing (Citadel 97/13). Solo runs
+ * with no server, so the local player is trivially the host (`isHost: true`), and `paused`/
+ * `speed` are the worker's own state — the client rederives all three from every snapshot
+ * instead of keeping optimistic local shadow state (which desynced across a load-save).
+ */
+function postSnapshot(): void {
+  if (simResult === null) return;
+  const snap = simResult.getSnapshot(tick);
+  self.postMessage({
+    type: "snapshot",
+    snapshot: { ...snap, isHost: true, speed, paused },
+  } satisfies WorkerOutbound);
+}
+
 function startLoop(): void {
   if (simResult === null) return;
   if (intervalId !== null) clearInterval(intervalId);
@@ -35,20 +50,13 @@ function startLoop(): void {
       if (commandsPending) {
         commandsPending = false;
         result.applyCommands({ tick });
-        const snap = result.getSnapshot(tick);
-        self.postMessage({ type: "snapshot", snapshot: { ...snap, speed } } satisfies WorkerOutbound);
+        postSnapshot();
       }
       return;
     }
     result.scheduler.tick({ tick });
     tick++;
-
-    const snap = result.getSnapshot(tick);
-    const snapshot: WorkerOutbound = {
-      type: "snapshot",
-      snapshot: { ...snap, speed },
-    };
-    self.postMessage(snapshot);
+    postSnapshot();
   }, msPerTick);
 }
 
@@ -90,12 +98,17 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       startLoop();
       break;
     }
+    // Citadel 97/13: emit a snapshot right after each pacing change so the client
+    // rederives the new authoritative paused/speed at once — while paused the tick loop
+    // emits nothing, so without this a pause/resume would never reach the main thread.
     case "pause": {
       paused = true;
+      postSnapshot();
       break;
     }
     case "resume": {
       paused = false;
+      postSnapshot();
       break;
     }
     case "speed": {
@@ -103,6 +116,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       if (intervalId !== null && simResult !== null) {
         startLoop();
       }
+      postSnapshot();
       break;
     }
     case "command": {
@@ -133,6 +147,10 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       const ready: WorkerOutbound = { type: "ready" };
       self.postMessage(ready);
       startLoop();
+      // Citadel 97/13: emit an immediate snapshot carrying the post-load pacing (paused=false)
+      // so the client self-corrects at once — its old optimistic `paused` (e.g. true from a
+      // pre-load pause) no longer pins render interpolation to a frozen alpha.
+      postSnapshot();
       break;
     }
   }

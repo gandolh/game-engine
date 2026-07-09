@@ -21,7 +21,7 @@
 import { EDG } from "@engine/core";
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";
-import type { Season, SettlementTier } from "@citadel/sim-core";
+import type { BarterOffer, Season, SettlementTier } from "@citadel/sim-core";
 import { BUILDING_MAX_LEVEL, upgradeCost, tierAtLeast, tierNameRequiredForLevel } from "@citadel/sim-core";
 import {
   BUILDING_DESCRIPTIONS,
@@ -77,7 +77,7 @@ export interface InspectPanelState {
    * The deterministic ≤3-offer menu (snapshot's `traderOffers`), e.g. `{give:"wood", giveQty:5,
    * receive:"tools", receiveQty:1}`. Only rendered when `type === "tradingpost" && traderPresent`.
    */
-  traderOffers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[];
+  traderOffers: readonly BarterOffer[];
 }
 
 /** Callbacks into the host's command path — the SAME one the old DOM `#btn-upgrade` drove. */
@@ -91,11 +91,14 @@ export interface InspectPanelActions {
    */
   upgrade(): void;
   /**
-   * Execute trade offer `offerIndex` (0-based, into the current `traderOffers` menu). The host
-   * issues `{ type: "trade", payload: { offerIndex } }` — the sole economic-intent lever (cozy
-   * decision #8). Wired to each trade-offer button.
+   * Execute a trade offer. The host issues `{ type: "trade", payload: offer }` — content
+   * (give/giveQty/receive/receiveQty), NOT the button's position — the sole economic-intent
+   * lever (cozy decision #8). Brief 97/21: `traderOffers` re-rolls daily, so sending a position
+   * would let a click race the re-roll and trade the wrong offer; the sim resolves this one by
+   * content against its live menu instead. Wired to each trade-offer button, which reads the
+   * CURRENT offer at click time (see `liveOffers` in createInspectPanel).
    */
-  trade(offerIndex: number): void;
+  trade(offer: BarterOffer): void;
 }
 
 /** The retained inspect panel: its root node (laid out + rendered by the host) plus refresh(). */
@@ -175,8 +178,19 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
   // changing length between frames (see build-bar.ts / the mirror's add-remove-reorder reconcile).
   const tradeHeadingLbl = label("Trade:", { muted: true });
   const MAX_TRADE_OFFERS = 3;
+  /**
+   * The offer content bound to each button slot as of the LAST refresh — read at click time
+   * (not captured at button-creation time), since a fixed button pool is reused across frames
+   * as `traderOffers` re-rolls daily. `refreshTradeOffers` keeps this current every frame.
+   */
+  let liveOffers: readonly BarterOffer[] = [];
   const tradeOfferBtns: ButtonNode[] = Array.from({ length: MAX_TRADE_OFFERS }, (_, i) =>
-    button("", { onActivate: () => actions.trade(i) }),
+    button("", {
+      onActivate: () => {
+        const offer = liveOffers[i];
+        if (offer !== undefined) actions.trade(offer);
+      },
+    }),
   );
   const tradeBox = box({ direction: "column", gap: 3 });
 
@@ -280,9 +294,10 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
   function refreshTradeOffers(
     type: string,
     traderPresent: boolean,
-    offers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[],
+    offers: readonly BarterOffer[],
   ): void {
     const show = type === "tradingpost" && traderPresent;
+    liveOffers = offers;
     const nextChildren: (LabelNode | ButtonNode)[] = [];
     if (show) {
       nextChildren.push(tradeHeadingLbl);

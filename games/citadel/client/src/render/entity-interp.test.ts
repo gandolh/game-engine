@@ -5,7 +5,7 @@
  * cases (new id, teleport) that must NOT smear across the map.
  */
 import { describe, it, expect } from "vitest";
-import { EntityInterpolator, snapshotAlpha, MAX_LERP_TILES } from "./entity-interp";
+import { EntityInterpolator, snapshotAlpha, shouldIngestSnapshot, MAX_LERP_TILES } from "./entity-interp";
 
 describe("EntityInterpolator", () => {
   it("a fresh id draws at its position (no history → no lerp)", () => {
@@ -125,6 +125,30 @@ describe("EntityInterpolator", () => {
       expect(interp.isMoving(1)).toBe(false);
       expect(interp.isMoving(999)).toBe(false);
     });
+  });
+});
+
+describe("shouldIngestSnapshot — correction snapshots must not re-ingest a same-tick glide", () => {
+  it("always ingests the first snapshot (null sentinel), regardless of its tick", () => {
+    expect(shouldIngestSnapshot(null, 0)).toBe(true);
+    expect(shouldIngestSnapshot(null, 41)).toBe(true);
+  });
+
+  it("does not re-ingest a correction snapshot carrying the SAME tick as the last one ingested", () => {
+    // Pause/resume/speed-change/host-migration re-broadcast the current tick's snapshot
+    // outside the normal tick cadence; re-ingesting it would shift prev<-cur mid-glide.
+    expect(shouldIngestSnapshot(41, 41)).toBe(false);
+  });
+
+  it("ingests once a snapshot's tick has actually advanced", () => {
+    expect(shouldIngestSnapshot(41, 42)).toBe(true);
+  });
+
+  it("ingests a snapshot whose tick moved BACKWARDS — a solo load-save rewinds to the save point", () => {
+    // `load-save` sets `tick = save.currentTick`, so loading an older save while the sim
+    // is further along walks the tick back. Gating on `tick > last` would freeze every
+    // entity until the sim ticked back past the pre-load tick.
+    expect(shouldIngestSnapshot(5000, 1000)).toBe(true);
   });
 });
 

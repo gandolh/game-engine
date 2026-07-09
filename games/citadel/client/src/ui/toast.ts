@@ -113,23 +113,30 @@ export class ToastManager {
 
 /**
  * Diff the rolling `recentEvents` window between two snapshots to find only the
- * newly-appended events. The sim keeps `events` as a sliding window (push to the
- * back, shift off the front past a cap), so new events are the suffix of `next`
- * that follows the last event we already saw.
+ * newly-appended events — SEQUENCE-based, not string-based (brief 97/20). The sim
+ * keeps `events` as a capped sliding window (push to the back, shift off the front
+ * past `MAX_EVENTS`; see `pushEvent` in sim-state.ts) but also exposes `eventsSeq`,
+ * a monotonic count of every event ever pushed, unaffected by that cap. New events
+ * are the last `min(events.length, eventsSeq - prevSeq)` entries of the window —
+ * exact under the cap, and correct even when two entries in the window are
+ * byte-identical strings (a string-matching diff drops the second one: it matches
+ * the RIGHTMOST occurrence — the new event — and reports nothing new).
  *
- * `prevLast` is the last event string shown on the previous frame (or null on the
- * very first frame, where we deliberately show nothing — we don't toast the
- * historical backlog at load). Returns the new events in order; the caller should
- * then remember `next[next.length - 1]` as the next `prevLast`.
+ * `prevSeq` is the `eventsSeq` last seen (or null on the very first frame, where we
+ * deliberately show nothing — we don't toast the historical backlog at load).
+ * Returns the new events in order; the caller should then remember `eventsSeq` as
+ * the next `prevSeq`.
+ *
+ * The `MAX_TOASTS` cap (also used to size the live toast stack) guards a long stall
+ * — a client that missed many snapshots — from dumping the whole window at once.
  */
-export function newEventsSince(prevLast: string | null, next: readonly string[]): readonly string[] {
-  if (next.length === 0) return [];
-  if (prevLast === null) return []; // first frame — don't flood with backlog
-  // Find the most recent occurrence of the last-seen event; everything after is new.
-  for (let i = next.length - 1; i >= 0; i--) {
-    if (next[i] === prevLast) return next.slice(i + 1);
-  }
-  // Last-seen event has already scrolled out of the window: show what's left, but
-  // cap so a long stall doesn't dump the whole window at once.
-  return next.slice(-MAX_TOASTS);
+export function newEventsSince(
+  prevSeq: number | null,
+  eventsSeq: number,
+  events: readonly string[],
+): readonly string[] {
+  if (events.length === 0) return [];
+  if (prevSeq === null) return []; // first frame — don't flood with backlog
+  const newCount = Math.min(events.length, MAX_TOASTS, Math.max(0, eventsSeq - prevSeq));
+  return newCount === 0 ? [] : events.slice(events.length - newCount);
 }

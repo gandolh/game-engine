@@ -8,8 +8,18 @@
  */
 import { describe, it, expect } from "vitest";
 import { CitadelSimHost } from "./sim-host";
+import type { WorkerOutbound, RenderSnapshot } from "@citadel/sim-core/snapshot";
 import type { TerrainGrid } from "@citadel/sim-core/world/terrain";
 import { TerrainType } from "@citadel/sim-core/world/terrain";
+
+/** The last snapshot a peer received (authoritative fanned-out view). */
+function lastSnapshot(msgs: WorkerOutbound[]): RenderSnapshot | undefined {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]!;
+    if (m.type === "snapshot") return m.snapshot;
+  }
+  return undefined;
+}
 
 function findGrass(t: TerrainGrid, w: number, h: number, sx: number, sy: number): { x: number; y: number } {
   for (let r = 0; r < 40; r++) {
@@ -78,5 +88,46 @@ describe("Citadel 38 P0#4 — room control is host-only", () => {
     expect(host.hostPlayerId).toBe(1);
     host.handleInbound(peer1, { type: "resume" });
     expect(host.isPaused).toBe(false);
+  });
+});
+
+describe("Citadel 97/13 — snapshot carries authoritative paused/speed/isHost per peer", () => {
+  it("fans out the host-authoritative pacing, greys non-host, and re-broadcasts on control change", () => {
+    const p0msgs: WorkerOutbound[] = [];
+    const p1msgs: WorkerOutbound[] = [];
+    const host = new CitadelSimHost({ worldWidth: 96, worldHeight: 96, enforceTerritory: false });
+    const peer0 = host.attach((m) => p0msgs.push(m)); // first attach → host
+    const peer1 = host.attach((m) => p1msgs.push(m)); // non-host
+    host.handleInbound(peer0, { type: "init", seed: 1, ticksPerDay: 20 });
+    host.step();
+
+    // isHost is per-peer: the host sees true, the non-host sees false.
+    expect(lastSnapshot(p0msgs)?.isHost).toBe(true);
+    expect(lastSnapshot(p1msgs)?.isHost).toBe(false);
+    // Defaults before any control change.
+    expect(lastSnapshot(p0msgs)?.paused).toBe(false);
+    expect(lastSnapshot(p0msgs)?.speed).toBe(1);
+
+    // A host pause re-broadcasts at once (crucial: no tick runs while paused), so BOTH peers
+    // learn paused=true from the authoritative snapshot without waiting for a tick.
+    host.handleInbound(peer0, { type: "pause" });
+    expect(lastSnapshot(p0msgs)?.paused).toBe(true);
+    expect(lastSnapshot(p1msgs)?.paused).toBe(true);
+
+    // A host speed change also re-broadcasts the new multiplier to every peer.
+    host.handleInbound(peer0, { type: "speed", multiplier: 4 });
+    expect(lastSnapshot(p0msgs)?.speed).toBe(4);
+    expect(lastSnapshot(p1msgs)?.speed).toBe(4);
+
+    // A non-host pause is dropped AND leaves the authoritative state untouched — the peer's own
+    // snapshot never reports the change it tried to make (no lying optimistic toggle).
+    host.handleInbound(peer0, { type: "resume" });
+    host.handleInbound(peer1, { type: "pause" });
+    expect(host.isPaused).toBe(false);
+    expect(lastSnapshot(p1msgs)?.paused).toBe(false);
+
+    // Host migration re-stamps isHost immediately (even paused): peer1 becomes host.
+    host.detach(peer0);
+    expect(lastSnapshot(p1msgs)?.isHost).toBe(true);
   });
 });

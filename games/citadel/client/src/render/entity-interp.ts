@@ -196,3 +196,22 @@ export function snapshotAlpha(nowMs: number, lastSnapshotMs: number, intervalMs:
   const a = (nowMs - lastSnapshotMs) / intervalMs;
   return a < 0 ? 0 : a > 1 ? 1 : a;
 }
+
+/**
+ * Whether a newly-arrived snapshot should be fed into interpolation state (`ingest` +
+ * the `lastSnapshotMs`/interval bookkeeping around it). Citadel 97/13 pause/resume/
+ * speed-change/host-migration corrections re-broadcast the snapshot for the CURRENT
+ * tick outside the normal tick cadence (nothing ticks while paused, so a correction
+ * can't ride a tick) — re-ingesting one mid-glide would shift prev←cur and truncate
+ * the glide, hopping the entity forward. `lastIngestedTick === null` is the "nothing
+ * ingested yet" sentinel, so the very first snapshot always ingests.
+ *
+ * The test is `!==`, not `>`: a solo load-save rewinds the sim to the save point
+ * (`tick = save.currentTick`), so loading an older save moves the tick BACKWARDS. That
+ * is genuinely new state and must ingest — under `>` it never would, freezing every
+ * entity until the sim ticked back past the pre-load tick. Only an identical tick means
+ * "a correction re-broadcast of a snapshot already ingested".
+ */
+export function shouldIngestSnapshot(lastIngestedTick: number | null, tick: number): boolean {
+  return lastIngestedTick === null || tick !== lastIngestedTick;
+}

@@ -10,7 +10,6 @@ import type { RenderSnapshot, WorkerInbound, WorkerOutbound, CitadelCommand, Cit
 export class CitadelSimClient {
   private readonly worker: Worker;
   private currentSnapshot: RenderSnapshot | null = null;
-  private readyCallback: (() => void) | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
   private saveCallback: ((save: CitadelSave) => void) | null = null;
 
@@ -22,9 +21,6 @@ export class CitadelSimClient {
     this.worker.onmessage = (event: MessageEvent<WorkerOutbound>) => {
       const msg = event.data;
       switch (msg.type) {
-        case "ready":
-          this.readyCallback?.();
-          break;
         case "snapshot":
           this.currentSnapshot = msg.snapshot;
           this.snapshotCallback?.(msg.snapshot);
@@ -78,10 +74,6 @@ export class CitadelSimClient {
    */
   loadSave(save: CitadelSave): void {
     this.send({ type: "load-save", save });
-  }
-
-  onReady(cb: () => void): void {
-    this.readyCallback = cb;
   }
 
   onSnapshot(cb: (snap: RenderSnapshot) => void): void {

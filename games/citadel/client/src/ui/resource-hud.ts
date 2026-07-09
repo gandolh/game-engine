@@ -68,6 +68,13 @@ export interface ResourceHudState {
   paused: boolean;
   /** Current sim speed multiplier (1/2/4), drives the active highlight on the speed buttons. */
   speed: number;
+  /**
+   * Citadel 97/13: whether the local player may drive room control (pause + speed). Solo is
+   * always host (true); in an online room only the host peer is true. When false the pause +
+   * speed buttons render `disabled` (greyed + non-interactive) instead of a toggle that
+   * silently no-ops server-side. The label still reflects the authoritative room paused state.
+   */
+  isHost: boolean;
 }
 
 /** Callbacks into the host's command path — the SAME ones the old DOM handlers invoked. */
@@ -188,12 +195,31 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
       );
     }
 
+    // The pause label always mirrors the authoritative room state (Pause ↔ Resume), even for a
+    // non-host peer — the greyed styling, not the label, carries "you can't touch this".
     if (setPauseLabel(pauseBtn, state.paused)) changed = true;
-    // setSpeedActive only flips interaction state (active/normal), never the label, so it
-    // doesn't affect layout — not folded into `changed`.
-    setSpeedActive(speed1Btn, state.speed === 1);
-    setSpeedActive(speed2Btn, state.speed === 2);
-    setSpeedActive(speed4Btn, state.speed === 4);
+
+    // Citadel 97/13: room control (pause + speed) is host-only. A non-host peer sees all four
+    // controls `disabled` — the engine maps that to the theme's muted slate/steel AND the input
+    // dispatcher suppresses activation, so it reads as greyed-out, not a lying toggle.
+    if (!state.isHost) {
+      if (setDisabled(pauseBtn, true)) changed = true;
+      if (setDisabled(speed1Btn, true)) changed = true;
+      if (setDisabled(speed2Btn, true)) changed = true;
+      if (setDisabled(speed4Btn, true)) changed = true;
+    } else {
+      // Host (or regained host via migration): clear any stale `disabled`, then apply the
+      // active-speed highlight. setSpeedActive/setDisabled only flip interaction state (never
+      // the label), so they don't affect layout — except the disabled→enabled flip, which we
+      // fold into `changed` so the a11y mirror reconciles the buttons' enabled state.
+      if (setDisabled(pauseBtn, false)) changed = true;
+      if (setDisabled(speed1Btn, false)) changed = true;
+      if (setDisabled(speed2Btn, false)) changed = true;
+      if (setDisabled(speed4Btn, false)) changed = true;
+      setSpeedActive(speed1Btn, state.speed === 1);
+      setSpeedActive(speed2Btn, state.speed === 2);
+      setSpeedActive(speed4Btn, state.speed === 4);
+    }
 
     const result = changed || firstRefresh;
     firstRefresh = false;
@@ -229,4 +255,24 @@ function setSpeedActive(btn: ButtonNode, isActive: boolean): void {
     // but leave hover/active that the dispatcher set for a live pointer interaction.
     if (btn.state === "active") btn.state = "normal";
   }
+}
+
+/**
+ * Citadel 97/13: toggle a control's `disabled` state (host-only room control). Returns `true`
+ * only when the disabled/enabled flip actually changed the state, so the caller can fold that
+ * into `changed` (the a11y mirror then reconciles the button's enabled attribute). Enabling
+ * drops back to `normal` (letting the dispatcher re-drive hover/active + the speed highlight
+ * re-apply); it never stomps a live hover/active, since those are only reachable while enabled.
+ */
+function setDisabled(btn: ButtonNode, disabled: boolean): boolean {
+  if (disabled) {
+    if (btn.state === "disabled") return false;
+    btn.state = "disabled";
+    return true;
+  }
+  if (btn.state === "disabled") {
+    btn.state = "normal";
+    return true;
+  }
+  return false;
 }

@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { EDG } from "@engine/core";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
-import type { BuildingSnapshot } from "@citadel/sim-core";
+import type { BarterOffer, BuildingSnapshot } from "@citadel/sim-core";
 import { createInspectPanel, type InspectPanelState } from "./inspect-panel";
 import { buildingAtTile, findSelected } from "./selection";
 
@@ -146,7 +146,7 @@ describe("createInspectPanel — tradingpost (worker building, NOT a coverage se
 });
 
 describe("createInspectPanel — trade offers (Phase G, cozy decision #8)", () => {
-  const offers = [
+  const offers: BarterOffer[] = [
     { give: "wood", giveQty: 5, receive: "tools", receiveQty: 1 },
     { give: "grain", giveQty: 8, receive: "bread", receiveQty: 3 },
   ];
@@ -175,13 +175,25 @@ describe("createInspectPanel — trade offers (Phase G, cozy decision #8)", () =
     ]);
   });
 
-  it("activating an offer button sends its offerIndex", () => {
-    let traded: number | undefined;
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: (i) => { traded = i; } });
+  it("activating an offer button sends its CONTENT, not its position (brief 97/21)", () => {
+    let traded: { give: string; giveQty: number; receive: string; receiveQty: number } | undefined;
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: (o) => { traded = o; } });
     panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
     const offerBtns = buttons(panel.root).filter((b) => b.label.includes("→"));
     offerBtns[1]?.onActivate?.();
-    expect(traded).toBe(1);
+    expect(traded).toEqual({ give: "grain", giveQty: 8, receive: "bread", receiveQty: 3 });
+  });
+
+  it("activating an offer button reads the CURRENT offer at click time, not the one bound when the button was created (re-roll race)", () => {
+    const traded: { give: string; giveQty: number; receive: string; receiveQty: number }[] = [];
+    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: (o) => { traded.push(o); } });
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
+    // The menu re-rolls (a later refresh with different content at the SAME slot 0).
+    const rerolled: BarterOffer[] = [{ give: "stone", giveQty: 4, receive: "planks", receiveQty: 2 }];
+    panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: rerolled }));
+    const offerBtns = buttons(panel.root).filter((b) => b.label.includes("→"));
+    offerBtns[0]?.onActivate?.();
+    expect(traded).toEqual([{ give: "stone", giveQty: 4, receive: "planks", receiveQty: 2 }]);
   });
 
   it("hides the trade section again once traderPresent flips back to false", () => {

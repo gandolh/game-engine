@@ -46,6 +46,7 @@ const EXPECTED_STAGES: StageEntry[] = [
   { stage: "ACT",        name: "WorkNpcSystem" },
   { stage: "ACT",        name: "CombatSystem" },
   { stage: "ACT",        name: "FinishDaySystem" },
+  { stage: "CLEANUP",    name: "StationInboxClearSystem" },
 ];
 
 describe("scheduler stage order pin", () => {

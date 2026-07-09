@@ -306,6 +306,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     nextVillagerId: 1,
     connectivityDirty: true,
     events: [],
+    eventsSeq: 0,
     rng: createRng(seed).fork("citadel-sim"),
     day: 0,
     // Citadel 28: per-player state. Solo = one player (id 0); all per-player
@@ -627,9 +628,15 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // exactly the offer's receiveQty (kept simple; tiny menus).
   logged("trade", (cmd) => {
     const lp = localPlayer(state);
-    const { offerIndex } = cmd.payload;
+    const { give, giveQty, receive, receiveQty } = cmd.payload;
     if (!lp.traderPresent) return; // no open (staffed+connected) trading post
-    const offer = lp.traderOffers[offerIndex];
+    // Brief 97/21: resolve by CONTENT, not position — `traderOffers` re-rolls daily, so an
+    // index captured client-side when the panel rendered can race a re-roll and no longer name
+    // the offer the player actually picked. Match against the LIVE menu; if the offer is gone
+    // (already re-rolled, or a stale/forged payload), no-op rather than trade the wrong thing.
+    const offer = lp.traderOffers.find(
+      (o) => o.give === give && o.giveQty === giveQty && o.receive === receive && o.receiveQty === receiveQty,
+    );
     if (offer === undefined) return;
     const have = lp.stockpiles[offer.give];
     if (have < offer.giveQty) return;
@@ -1034,9 +1041,16 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     return {
       tick,
       localPlayerId: lp.id,
+      // Citadel 97/13: pacing/authority defaults. `getSnapshot` is transport-agnostic and
+      // knows nothing of hosts or wall-clock pacing, so it emits the headless/solo defaults —
+      // the local player is trivially the host, running at 1× and unpaused. The server host
+      // (per-peer) and the solo Worker OVERRIDE isHost/speed/paused with their authoritative
+      // values before sending; nothing reads these off a directly-driven headless snapshot.
+      isHost: true,
       day: dayClock.day,
       season: getSeason(dayClock.day, DAYS_PER_YEAR),
       speed: 1,
+      paused: false,
       buildings,
       villagers: getVillagers(),
       stockpiles: stock,
@@ -1045,6 +1059,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       foodSurplus: lp.foodSurplus,
       gameOver: lp.gameOver,
       recentEvents: [...state.events],
+      eventsSeq: state.eventsSeq,
       // Phase 3
       happiness: lp.happiness,
       faithCoverage: lp.faithCoverage,

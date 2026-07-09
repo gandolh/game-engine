@@ -24,7 +24,6 @@ const MAX_QUEUED = 256;
 export class CitadelServerClient {
   private readonly ws: WebSocket;
   private currentSnapshot: RenderSnapshot | null = null;
-  private readyCallback: (() => void) | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
   private saveCallback: ((save: CitadelSave) => void) | null = null;
   private disconnectCallback: ((reason: string) => void) | null = null;
@@ -56,9 +55,6 @@ export class CitadelServerClient {
         return;
       }
       switch (msg.type) {
-        case "ready":
-          this.readyCallback?.();
-          break;
         case "snapshot":
           this.currentSnapshot = msg.snapshot;
           this.snapshotCallback?.(msg.snapshot);
@@ -98,10 +94,6 @@ export class CitadelServerClient {
 
   loadSave(save: CitadelSave): void {
     this.send({ type: "load-save", save });
-  }
-
-  onReady(cb: () => void): void {
-    this.readyCallback = cb;
   }
 
   onSnapshot(cb: (snap: RenderSnapshot) => void): void {

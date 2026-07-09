@@ -2,6 +2,7 @@
  * Snapshot types: what the sim worker posts to the main thread each tick.
  * Phase 2: adds villagers, stockpiles, population, seasons, and road commands.
  */
+import type { BarterOffer } from "../sim-state";
 
 /** One placed building as seen by the renderer. */
 export interface BuildingSnapshot {
@@ -84,9 +85,31 @@ export interface RenderSnapshot {
   readonly tick: number;
   /** The owner id this snapshot is the view of (solo = 0; MP = the local seat). */
   readonly localPlayerId: number;
+  /**
+   * Citadel 97/13: whether the LOCAL player (`localPlayerId`) is the room host — the only
+   * peer allowed to pause / resume / change speed of the shared sim. Solo (the Worker path)
+   * is trivially host (always true); in an online room only the host peer sees this true, so
+   * a non-host client greys out the room controls instead of showing a toggle that silently
+   * does nothing. Host-authoritative: stamped per-peer by the server (and always-true by the
+   * solo Worker); `getSnapshot` defaults it true.
+   */
+  readonly isHost: boolean;
   readonly day: number;
   readonly season: string;
-  readonly speed: number; // ticks per second (for display)
+  /**
+   * Citadel 97/13: sim speed MULTIPLIER (1/2/4), host/worker-authoritative — drives the HUD's
+   * active-speed highlight. Named "speed" historically (its doc read "ticks per second"), but
+   * the value that actually flows here — and that the HUD needs — is the multiplier the host
+   * paces at, NOT a ticks/sec figure; nothing consumed the ticks/sec meaning. Rederived
+   * client-side from every snapshot, never optimistic local state.
+   */
+  readonly speed: number;
+  /**
+   * Citadel 97/13: whether the sim is paused, host/worker-authoritative (not optimistic
+   * client-local state). Drives the pause-button label AND render interpolation — a paused sim
+   * emits no fresh per-tick snapshots, so the client pins its interp alpha when this is true.
+   */
+  readonly paused: boolean;
   readonly buildings: readonly BuildingSnapshot[];
   readonly villagers: readonly VillagerSnapshot[];
   readonly stockpiles: Readonly<Record<string, number>>;
@@ -95,6 +118,15 @@ export interface RenderSnapshot {
   readonly foodSurplus: number;
   readonly gameOver: boolean;
   readonly recentEvents: readonly string[];
+  /**
+   * Brief 97/20: monotonic count of ALL events ever pushed (never decreases, unaffected by the
+   * `recentEvents` window's cap/eviction). `recentEvents` is a capped tail (see `pushEvent` in
+   * sim-state.ts), so its length alone can't tell the client how many entries are actually new —
+   * two frames can both show a full window while only one event was appended. The client diffs
+   * on THIS field (see `newEventsSince` in the Citadel client's toast.ts), not on window length
+   * or string matching, so two identical event strings in the window both toast correctly.
+   */
+  readonly eventsSeq: number;
   // Phase 3: happiness + needs + decrees + trader
   readonly happiness: number;
   readonly faithCoverage: number;
@@ -102,7 +134,7 @@ export interface RenderSnapshot {
   readonly goodsCoverage: number;
   readonly activeDecrees: readonly string[];
   readonly traderPresent: boolean;
-  readonly traderOffers: readonly { give: string; giveQty: number; receive: string; receiveQty: number }[];
+  readonly traderOffers: readonly BarterOffer[];
   // Phase 4: siege
   readonly raiders: readonly RaiderSnapshot[];
   // Citadel 32: in-flight PvP armies (empty in solo)
@@ -216,7 +248,12 @@ export type CitadelCommand =
   // `setDecree` — it is kept in the union only so an older client's stray command
   // still type-checks and is silently dropped, not resurrected.
   | { type: "setDecree"; payload: { decree: string; active: boolean } }
-  | { type: "trade"; payload: { offerIndex: number } }
+  // Brief 97/21: content-addressed, NOT positional. `traderOffers` re-rolls daily, so an
+  // `offerIndex` captured when the panel rendered can resolve to a different offer by the time
+  // the command executes (a race between click and tick). The sim resolves this by matching
+  // give/giveQty/receive/receiveQty against the LIVE menu and no-ops on mismatch (see the
+  // `trade` handler in sim-bootstrap.ts) rather than trading whatever now sits at that index.
+  | { type: "trade"; payload: BarterOffer }
   | { type: "upgradeBuilding"; payload: { x: number; y: number } }
   // Citadel 32: launch a PvP army at a targeted enemy building / town-hall.
   | { type: "launchAttack"; payload: { targetX: number; targetY: number; strength: number } }

@@ -253,6 +253,16 @@ export interface SimState {
   /** Event ring buffer (max 20 entries). Shared across players. */
   readonly events: string[];
 
+  /**
+   * Brief 97/20: monotonic count of ALL events ever pushed via `pushEvent` — only ever
+   * increments, unaffected by the `events` ring buffer's cap/eviction. Exposed on the snapshot
+   * as `eventsSeq` so the client can diff the rolling window exactly (see `newEventsSince` in
+   * the Citadel client's toast.ts) instead of matching on event text, which drops the second of
+   * two identical same-day events. Pure sim state — deterministic, reconstructed by command-log
+   * replay exactly like `events` itself (neither is separately persisted in `CitadelSave`).
+   */
+  eventsSeq: number;
+
   /** Seeded RNG root (forked per-system by label). */
   readonly rng: Rng;
 
@@ -282,6 +292,7 @@ const MAX_EVENTS = 20;
 export function pushEvent(state: SimState, msg: string): void {
   state.events.push(msg);
   while (state.events.length > MAX_EVENTS) state.events.shift();
+  state.eventsSeq++;
 }
 
 /** The local / single player. In solo this is the one and only player. */

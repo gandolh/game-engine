@@ -83,14 +83,33 @@ describe("toastOpacity — age ramp", () => {
   });
 });
 
-describe("newEventsSince — diff the rolling window", () => {
-  it("returns nothing on the first frame (prevLast null) — no backlog flood", () => {
-    expect(newEventsSince(null, ["a", "b", "c"])).toEqual([]);
+describe("newEventsSince — diff the rolling window (sequence-based, brief 97/20)", () => {
+  it("returns nothing on the first frame (prevSeq null) — no backlog flood", () => {
+    expect(newEventsSince(null, 3, ["a", "b", "c"])).toEqual([]);
   });
-  it("returns only events after the last-seen one", () => {
-    expect(newEventsSince("b", ["a", "b", "c", "d"])).toEqual(["c", "d"]);
+  it("returns only events after the last-seen sequence", () => {
+    // Seen 2 of the 4 events ever pushed ("a","b"); window now holds all 4.
+    expect(newEventsSince(2, 4, ["a", "b", "c", "d"])).toEqual(["c", "d"]);
   });
-  it("when the last-seen event scrolled out, returns the recent suffix (capped)", () => {
-    expect(newEventsSince("gone", ["a", "b", "c", "d", "e", "f"])).toEqual(["c", "d", "e", "f"]);
+  it("when far more events were pushed than fit in the window, returns the recent suffix (capped)", () => {
+    // 50 events pushed total, window capped to the last 6 — cap at MAX_TOASTS (4).
+    expect(newEventsSince(0, 50, ["a", "b", "c", "d", "e", "f"])).toEqual(["c", "d", "e", "f"]);
+  });
+  it("two identical event strings in the window both count as new", () => {
+    // Seen 1 event ("a"); two more identical "dup" events were pushed since.
+    // Not a regression guard on its own — a string-matching diff anchored on the unique
+    // "a" also splits here correctly. The case below is the one that discriminates.
+    expect(newEventsSince(1, 3, ["a", "dup", "dup"])).toEqual(["dup", "dup"]);
+  });
+  it("regression: a duplicate of the LAST-SHOWN event must still be emitted", () => {
+    // Seen 2 of 3 events ever pushed — the last one shown was itself "dup" (the FIRST
+    // "dup" in this window, at seq 2). One more "dup" was pushed since (seq 3).
+    // A string-matching diff anchored on prevLast="dup" finds the RIGHTMOST "dup" in
+    // the window (the new one) and splits there, reporting nothing new — silently
+    // swallowing the real event. Sequence-based diffing must still report it.
+    expect(newEventsSince(2, 3, ["a", "dup", "dup"])).toEqual(["dup"]);
+  });
+  it("no new events (seq unchanged) returns nothing", () => {
+    expect(newEventsSince(4, 4, ["a", "b", "c", "d"])).toEqual([]);
   });
 });

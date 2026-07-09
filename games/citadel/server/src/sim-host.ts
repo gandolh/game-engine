@@ -128,7 +128,12 @@ export class CitadelSimHost {
     this.peers.delete(peer);
     // Citadel 38 P0#4: if the host leaves, promote the next-remaining peer so
     // room control isn't frozen (Set preserves attach order → oldest survivor).
-    if (peer === this.hostPeer) this.hostPeer = [...this.peers][0] ?? null;
+    if (peer === this.hostPeer) {
+      this.hostPeer = [...this.peers][0] ?? null;
+      // Citadel 97/13: re-stamp isHost so the new host's controls enable immediately — even
+      // while paused (no tick → no snapshot otherwise). No-op when the room is now empty.
+      this.broadcastSnapshot();
+    }
     // Citadel 38 P1#7: don't tear down immediately — arm the reap grace. The sim
     // keeps ticking during the window so a quick reconnect rejoins it.
     if (this.peers.size === 0) this.armReap();
@@ -179,17 +184,23 @@ export class CitadelSimHost {
       }
       // Citadel 38 P0#4: room-control is host-only — a non-host peer can't freeze
       // or fast-forward the shared sim for everyone.
+      // Citadel 97/13: after a host control change, immediately re-broadcast so every peer
+      // rederives the new authoritative paused/speed. Crucial while paused — the tick loop
+      // emits no snapshot then, so without this a pause would never reach the other peers.
       case "pause":
         if (peer !== this.hostPeer) return;
         this.paused = true;
+        this.broadcastSnapshot();
         return;
       case "resume":
         if (peer !== this.hostPeer) return;
         this.paused = false;
+        this.broadcastSnapshot();
         return;
       case "speed":
         if (peer !== this.hostPeer) return;
         this.speed = Number.isFinite(msg.multiplier) && msg.multiplier >= 1 ? Math.floor(msg.multiplier) : 1;
+        this.broadcastSnapshot();
         return;
       case "request-save":
         if (this.sim !== null) peer.send({ type: "save-data", save: this.sim.serializeSave(this.tick) });
@@ -286,7 +297,11 @@ export class CitadelSimHost {
   private snapshotFor(peer: Peer): RenderSnapshot {
     // Each peer sees its OWN player's view (top-level snapshot fields).
     this.sim!.state.localId = peer.playerId;
-    return this.sim!.getSnapshot(this.tick);
+    const snap = this.sim!.getSnapshot(this.tick);
+    // Citadel 97/13: room pacing (paused/speed) is host-authoritative — stamp it onto every
+    // peer's snapshot so clients rederive it instead of trusting optimistic local state.
+    // `isHost` is per-peer (only the host peer gets true), so a non-host greys its controls.
+    return { ...snap, isHost: peer === this.hostPeer, speed: this.speed, paused: this.paused };
   }
 
   private sendSnapshotTo(peer: Peer): void {

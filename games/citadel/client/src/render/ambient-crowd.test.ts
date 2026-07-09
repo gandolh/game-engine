@@ -23,9 +23,9 @@ function mkSnapshot(tier: string, roads: number, raiders: RaiderSnapshot[] = [])
   const buildings: BuildingSnapshot[] = [];
   for (let i = 0; i < roads; i++) buildings.push(mkRoad(i % 90, Math.floor(i / 90)));
   return {
-    tick: 0, localPlayerId: 0, day: 0, season: "spring", speed: 1,
+    tick: 0, localPlayerId: 0, isHost: true, day: 0, season: "spring", speed: 1, paused: false,
     buildings, villagers: [], stockpiles: {}, population: 0, popCap: 0,
-    foodSurplus: 0, gameOver: false, recentEvents: [],
+    foodSurplus: 0, gameOver: false, recentEvents: [], eventsSeq: 0,
     happiness: 50, faithCoverage: 0, safetyCoverage: 0, goodsCoverage: 0,
     activeDecrees: [], traderPresent: false, traderOffers: [],
     raiders, armies: [], threatLevel: 0, nextRaidDay: -1, defensiveStrength: 0,

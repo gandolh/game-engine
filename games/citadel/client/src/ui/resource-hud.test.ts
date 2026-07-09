@@ -22,6 +22,7 @@ function baseState(overrides: Partial<ResourceHudState> = {}): ResourceHudState 
     happiness: 40,
     paused: false,
     speed: 1,
+    isHost: true,
     ...overrides,
   };
 }
@@ -184,5 +185,45 @@ describe("createResourceHud — buttons & commands", () => {
     btn1.state = "hover"; // simulate the input dispatcher hovering it
     hud.refresh(baseState({ speed: 2 })); // 1x is not the active speed
     expect(btn1.state).toBe("hover"); // hover preserved (only a stale "active" is cleared)
+  });
+});
+
+describe("createResourceHud — host-only room control (Citadel 97/13)", () => {
+  const speedLabels = ["1x", "2x", "4x"] as const;
+
+  it("greys pause + all speed controls as `disabled` for a non-host peer", () => {
+    const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
+    hud.refresh(baseState({ isHost: false, speed: 2 }));
+    // The engine maps `disabled` to the muted theme colour AND suppresses activation.
+    expect(buttons(hud.root).find((b) => b.label === "Pause" || b.label === "Resume")?.state).toBe("disabled");
+    for (const s of speedLabels) expect(buttonByLabel(hud.root, s)?.state).toBe("disabled");
+  });
+
+  it("still reflects the authoritative room paused state in the (disabled) label", () => {
+    const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
+    hud.refresh(baseState({ isHost: false, paused: true }));
+    // Label mirrors the room state even though the peer can't act on it.
+    expect(buttonByLabel(hud.root, "Resume")?.state).toBe("disabled");
+    expect(buttonByLabel(hud.root, "Pause")).toBeUndefined();
+  });
+
+  it("re-enables the controls when the peer becomes host (migration), restoring the speed highlight", () => {
+    const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
+    hud.refresh(baseState({ isHost: false, speed: 2 }));
+    expect(buttonByLabel(hud.root, "2x")?.state).toBe("disabled");
+    // Now this peer is host: controls enable, and the active speed reads as pressed again.
+    hud.refresh(baseState({ isHost: true, speed: 2 }));
+    expect(buttonByLabel(hud.root, "2x")?.state).toBe("active");
+    expect(buttonByLabel(hud.root, "1x")?.state).toBe("normal");
+    expect(buttonByLabel(hud.root, "Pause")?.state).toBe("normal");
+  });
+
+  it("marks content-changed on the enabled↔disabled flip so the a11y mirror reconciles", () => {
+    const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
+    hud.refresh(baseState({ isHost: true })); // prime (first refresh is always changed)
+    // Host → non-host greys four buttons: a state flip the a11y mirror must reflect.
+    expect(hud.refresh(baseState({ isHost: false }))).toBe(true);
+    // Same non-host state again → nothing to reconcile.
+    expect(hud.refresh(baseState({ isHost: false }))).toBe(false);
   });
 });

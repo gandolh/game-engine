@@ -161,8 +161,11 @@ describe("Phase 3 — trader", () => {
     localPlayer(sim.state).traderPresent = true;
     localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 });
 
-    // Enqueue trade command (offerIndex 0)
-    sim.commands.enqueue({ type: "trade", payload: { offerIndex: 0 } });
+    // Enqueue trade command, content-addressed (brief 97/21 — no positional offerIndex).
+    sim.commands.enqueue({
+      type: "trade",
+      payload: { give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 },
+    });
     sim.scheduler.tick({ tick: 0 });
 
     // Grain should have decreased by 5; bread should have increased by 3
@@ -175,7 +178,10 @@ describe("Phase 3 — trader", () => {
     localPlayer(sim.state).stockpiles.grain = 10;
     // traderPresent is false by default
 
-    sim.commands.enqueue({ type: "trade", payload: { offerIndex: 0 } });
+    sim.commands.enqueue({
+      type: "trade",
+      payload: { give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 },
+    });
     sim.scheduler.tick({ tick: 0 });
 
     // Nothing should have changed
@@ -189,11 +195,52 @@ describe("Phase 3 — trader", () => {
     localPlayer(sim.state).traderPresent = true;
     localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 });
 
-    sim.commands.enqueue({ type: "trade", payload: { offerIndex: 0 } });
+    sim.commands.enqueue({
+      type: "trade",
+      payload: { give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 },
+    });
     sim.scheduler.tick({ tick: 0 });
 
     expect(localPlayer(sim.state).stockpiles.grain).toBe(2); // unchanged
     expect(localPlayer(sim.state).stockpiles.bread).toBe(0);
+  });
+
+  it("brief 97/21: trade command no-ops when the offer content no longer matches the live menu (daily re-roll race)", () => {
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    localPlayer(sim.state).stockpiles.grain = 10;
+    localPlayer(sim.state).traderPresent = true;
+    // The menu re-rolled to a DIFFERENT offer than what the client captured at click time.
+    localPlayer(sim.state).traderOffers.push({ give: "wood", giveQty: 5, receive: "tools", receiveQty: 1 });
+
+    sim.commands.enqueue({
+      type: "trade",
+      payload: { give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 }, // stale content
+    });
+    sim.scheduler.tick({ tick: 0 });
+
+    // No goods moved — neither the stale offer nor the live one was applied.
+    expect(localPlayer(sim.state).stockpiles.grain).toBe(10);
+    expect(localPlayer(sim.state).stockpiles.wood).toBe(0);
+    expect(localPlayer(sim.state).stockpiles.bread).toBe(0);
+    expect(localPlayer(sim.state).stockpiles.tools).toBe(0);
+  });
+
+  it("brief 97/21: trade command matches by content regardless of position in the live menu", () => {
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    localPlayer(sim.state).stockpiles.wood = 10;
+    localPlayer(sim.state).traderPresent = true;
+    // Two offers; the wanted one sits at index 1, not 0 — content match must find it anyway.
+    localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 });
+    localPlayer(sim.state).traderOffers.push({ give: "wood", giveQty: 5, receive: "tools", receiveQty: 1 });
+
+    sim.commands.enqueue({
+      type: "trade",
+      payload: { give: "wood", giveQty: 5, receive: "tools", receiveQty: 1 },
+    });
+    sim.scheduler.tick({ tick: 0 });
+
+    expect(localPlayer(sim.state).stockpiles.wood).toBe(5);
+    expect(localPlayer(sim.state).stockpiles.tools).toBe(1);
   });
 });
 

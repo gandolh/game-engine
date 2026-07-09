@@ -25,6 +25,7 @@ import { ShockSystem, defaultShockDay } from "./systems/world-time/shock";
 import { TileFeatureSystem } from "./systems/world-time/tile-features";
 import { BubbleSystem } from "./systems/social/bubbles";
 import { InboxDispatchSystem } from "./systems/messaging/inbox-dispatch";
+import { StationInboxClearSystem } from "./systems/messaging/station-inbox-clear";
 import { PerceiveSystem } from "./systems/cognition/perceive";
 import { TrustSystem } from "./systems/cognition/trust";
 import { HarvestSystem } from "./systems/farming/harvest";
@@ -275,7 +276,13 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new NpcDeliberateSystem(world))
     .add(new WorkNpcSystem(world))
     .add(combat)
-    .add(new FinishDaySystem(world));
+    .add(new FinishDaySystem(world))
+    // End of tick: drain the non-farmer station inboxes after every snoop/consumer
+    // has run, so they stop accumulating broadcasts forever (server memory leak).
+    // Behaviour-preserving — see StationInboxClearSystem. Not weatherStation
+    // (WeatherSystem drains that pre-dispatch) nor farmers (PerceiveSystem owns).
+    .stage("CLEANUP")
+    .add(new StationInboxClearSystem(world));
 
   return { world, bus, scheduler, dayClock, rng, farmers, meetIndicators, eventFeed, runHistory, rivalry, combat };
 }

@@ -98,6 +98,11 @@ export class WeatherSystem implements System {
           }
         }
       }
+      // Drain after reading. This system runs BEFORE InboxDispatchSystem, so the
+      // messages read here are last tick's; InboxDispatchSystem then refills the
+      // inbox for this tick's post-dispatch readers (crop growth, festival, …).
+      // Clearing keeps the weather-station inbox from accumulating forever.
+      station.inbox.messages.length = 0;
 
       if (newDay === null) continue;
       this.lastDayProcessed = newDay;

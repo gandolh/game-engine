@@ -70,11 +70,21 @@ export class ShopkeeperSystem implements System {
         case ONT_SHOP.RESALE_BEAN:
           this.handleResaleBean(msg, ctx);
           break;
-        case ONT_SHOP.AUCTION_RESULT:
-
+        case ONT_SHOP.AUCTION_RESULT: {
           this.creditAuctionWinner(msg);
-          remaining.push(msg);
+          // Retain only while settlement is still pending: a winner exists but
+          // has not yet been credited (the retry waits for their funds across
+          // ticks). Settled results and no-winner results are inert — dropping
+          // them is behaviour-preserving (creditAuctionWinner short-circuits on
+          // both) and keeps the shopkeeper inbox bounded.
+          const res = msg.body as Partial<AuctionResultBody>;
+          const auctionId = res.auctionId ?? "";
+          const hasWinner = res.winnerId !== null && res.winnerId !== undefined;
+          if (hasWinner && !this.settledAuctions.has(auctionId)) {
+            remaining.push(msg);
+          }
           break;
+        }
         default:
           remaining.push(msg);
           break;
