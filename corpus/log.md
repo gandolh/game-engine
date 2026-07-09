@@ -16,7 +16,7 @@ Two changes, one theme: make the corpus cheap to retrieve from, and stop asking 
 
 Benchmarked before trusting it. ✅ It resolves cross-package barrel imports (`effectiveOutputPerCycle`: `@citadel/sim-core` → barrel → `@citadel/client`), which pure tree-sitter tools miss. ❌ It is incomplete on "every usage" — `callers createRng` returned 16 of 42 real call-site files (38%), missing a production call in `sim-bootstrap.ts:183`. ❌ **It conflates same-named symbols across the two games**: `callers bootstrapSim` returns Farm's callers and silently omits Citadel's four. 18 exported names collide (`bootstrapSim`, `RenderSnapshot`, `WorkerInbound`/`Outbound`, `WORLD_WIDTH`, `isWalkable`, …) — precisely the load-bearing ones. Rule: lead with the graph to *locate*; verify with `grep`/a guard test before acting on completeness; never use it for the dependency rule.
 
-Adapted from an adversarially-verified research pass on a separate TS monorepo (vioview, 2026-07-08). Its two corrections — codegraph is *not* compiler-grade, and pure tree-sitter silently drops cross-package edges — both reproduced. The two-game collision is new and specific to this repo.
+Prior art (a tool benchmark on another TypeScript monorepo) supplied two corrections to the vendor claims — codegraph is *not* compiler-grade, and pure tree-sitter silently drops cross-package edges. Both reproduced here. The two-game collision is new and specific to this repo, which is why the envelope has to be re-measured per repo rather than inherited.
 
 ## [2026-07-08] todo | Engine brief 19 — audio subsystem (captured + dispatch-ready, execution deferred)
 

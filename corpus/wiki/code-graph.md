@@ -85,8 +85,9 @@ correctness invariant and deserves `grep`, not a heuristic.
 
 ## Provenance
 
-Adapted from an adversarially-verified research pass on a separate TypeScript monorepo (vioview,
-2026-07-08) which benchmarked Graphify, code-review-graph, codegraph, Serena, and the TS Compiler
-API against ground truth. Its two headline corrections — *codegraph is not compiler-grade* and
-*pure tree-sitter silently drops cross-package edges* — both reproduced here. The two-game symbol
-collision is a finding specific to this repo and was not present in that research.
+Prior art: a benchmark of Graphify, code-review-graph, codegraph, Serena, and the TS Compiler API
+against ground truth on another TypeScript monorepo established two corrections to the vendor
+claims — *codegraph is not compiler-grade* and *pure tree-sitter silently drops cross-package
+edges*. Both reproduced here. **The two-game symbol collision is specific to this repo** and did
+not appear in that prior work — which is exactly why the envelope above must be re-measured per
+repo rather than inherited.
