@@ -38,8 +38,7 @@ export function deliberateCoralFishing(
       for (let i = 0; i < n; i++) {
         farmer.intentions.queue.push({ kind: "fish-coral", data: {}, priority: priority + i });
       }
-      farmer.beliefs.data["coralCastDay"] = day;
-      farmer.beliefs.data["coralCastsDone"] = castsDone + n;
+
       recordReason(farmer, `fish coral reef (day ${day}, ${n} casts)`);
       return;
     }

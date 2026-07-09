@@ -41,6 +41,17 @@ export interface BuildingRuntimeState {
   lacksSafety?: boolean;
   lacksGoods?: boolean;
   mood?: number;
+  /**
+   * EPHEMERAL fire-suppression flag: true while a fire on this building (or a
+   * neighbour within FIRE_SUPPRESS_RADIUS) halts its production for the tick.
+   * Recomputed from scratch every tick by FireSystem (cleared, then re-set on the
+   * burning set) and consumed by ProductionSystem — so production resumes the tick
+   * a fire clears WITHOUT ever touching the assigned villager's worker slot. Never
+   * serialized (the save path is command-log replay; runtime state is reconstructed
+   * from a fresh bootstrap), so it can't leak into a save round-trip. Absent/false =
+   * not suppressed; readers must treat it as `=== true`.
+   */
+  suppressed?: boolean;
 }
 
 export interface BuildingComponent {

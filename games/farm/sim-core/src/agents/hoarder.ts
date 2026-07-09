@@ -71,8 +71,8 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   deliberateUpgrade(farmer, "hoe",     9);
   deliberateUpgrade(farmer, "axe",     10);
   deliberateUpgrade(farmer, "pickaxe", 11);
-  deliberateResourceZoneVisit(farmer, features.length, "tree",  12);
-  deliberateResourceZoneVisit(farmer, features.length, "stone", 13);
+  deliberateResourceZoneVisit(farmer, features, "tree",  12);
+  deliberateResourceZoneVisit(farmer, features, "stone", 13);
 
   const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? 0;
   const preferred = pickHoarderCrop(day, farmer.inventory.gold, reserve);

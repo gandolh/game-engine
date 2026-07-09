@@ -152,6 +152,12 @@ export class ProductionSystem implements System {
         // A building only produces if it has at least one real assigned worker.
         if (rs.workerCount <= 0) continue;
 
+        // Fire suppression (ephemeral, set by FireSystem this-1 tick): a burning
+        // building — or a neighbour within FIRE_SUPPRESS_RADIUS — halts production
+        // without losing its worker. The flag clears automatically once the fire
+        // is out, so production resumes with the SAME villager still assigned.
+        if (rs.suppressed === true) continue;
+
         // A building only produces if it is connected to a Storehouse.
         if (!rs.connected) continue;
 

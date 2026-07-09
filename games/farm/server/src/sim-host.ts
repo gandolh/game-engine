@@ -29,8 +29,20 @@ import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
 
 const TILE = 16;
 const PROFILE_REPORT_EVERY = 60;
+const MAX_SPEED_MULTIPLIER = 8;
+const MIN_TICK_RATE_HZ = 1;
+const MAX_TICK_RATE_HZ = 60;
 
 export type SendFn = (msg: WorkerOutbound) => void;
+
+export function isValidSwapIndex(i: number, length: number): boolean {
+  return Number.isInteger(i) && i >= 0 && i < length;
+}
+
+function clampTickRateHz(hz: number): number {
+  if (!Number.isFinite(hz)) return MIN_TICK_RATE_HZ;
+  return Math.min(MAX_TICK_RATE_HZ, Math.max(MIN_TICK_RATE_HZ, hz));
+}
 
 export interface SimHostOptions {
 
@@ -86,7 +98,7 @@ export class SimHost {
       case "speed":
         this.speedMultiplier =
           Number.isFinite(msg.multiplier) && msg.multiplier >= 1
-            ? Math.floor(msg.multiplier)
+            ? Math.min(MAX_SPEED_MULTIPLIER, Math.floor(msg.multiplier))
             : 1;
         return;
       case "step":
@@ -138,6 +150,15 @@ export class SimHost {
   }
 
   private async start(init: WorkerInitMsg): Promise<void> {
+    try {
+      await this.startUnsafe(init);
+    } catch (err) {
+      console.error("[sim-host] start() faulted; run did not start", err);
+      this.stop();
+    }
+  }
+
+  private async startUnsafe(init: WorkerInitMsg): Promise<void> {
     const { seed, ticksPerDay, maxDays, tickRateHz } = init;
     this.ticksPerDay = ticksPerDay;
 
@@ -169,7 +190,7 @@ export class SimHost {
       for (const e of world.query("player")) {
         const slots = e.player!.itemSlots;
         if (!slots) break;
-        if (a < 0 || b < 0 || a >= slots.length || b >= slots.length) break;
+        if (!isValidSwapIndex(a, slots.length) || !isValidSwapIndex(b, slots.length)) break;
         const tmp = slots[a]!;
         slots[a] = slots[b]!;
         slots[b] = tmp;
@@ -273,7 +294,7 @@ export class SimHost {
       tick += 1;
     };
 
-    const msPerTick = 1000 / tickRateHz;
+    const msPerTick = 1000 / clampTickRateHz(tickRateHz);
     this.intervalId = setInterval(() => this.onInterval(), msPerTick);
   }
 

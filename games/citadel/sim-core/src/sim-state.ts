@@ -349,3 +349,33 @@ export function removeOneVillager(state: SimState, p: PlayerState): boolean {
   p.population = Math.max(0, p.population - 1);
   return true;
 }
+
+/**
+ * Re-idle every villager whose workplace falls inside the footprint rectangle
+ * `(x,y,w,h)`, dropping any stale carry/store/work target so it reassigns cleanly
+ * next tick. The single source of truth for "a workplace went away" — call it from
+ * EVERY real building-removal site (fire burn-down, siege raid damage, PvP army
+ * destruction, player demolish) BEFORE despawning the building, so no villager is
+ * ever left looping toward a dead workplace (a ghost worker that hauls nothing while
+ * immigration spawns replacements against the phantom vacancy).
+ *
+ * NOT for fire SUPPRESSION — a suppressed building still exists and keeps its
+ * workers (see FireSystem's ephemeral `suppressed` flag). Position-keyed, owner-
+ * agnostic: footprints are uniquely tiled, so only the owning player's villagers
+ * match. Does not touch the building's `workerCount` (its runtime state is being
+ * deleted by the caller). Pure function of villager state — deterministic.
+ */
+export function releaseWorkersAt(state: SimState, x: number, y: number, w: number, h: number): void {
+  for (const entity of state.villagerWorld.query("villager")) {
+    const v = entity.villager;
+    if (v.workX < x || v.workX >= x + w || v.workY < y || v.workY >= y + h) continue;
+    v.fsm = "idle";
+    v.carryGood = null;
+    v.carryAmount = 0;
+    v.ticksAtWork = 0;
+    v.workX = v.homeX;
+    v.workY = v.homeY;
+    v.storeX = v.homeX;
+    v.storeY = v.homeY;
+  }
+}

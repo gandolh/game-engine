@@ -101,4 +101,19 @@ describe("deliberateCoralFishing", () => {
     deliberateCoralFishing(f, 6, 3, 12, 40);
     expect(f.intentions!.queue.length).toBe(0);
   });
+
+  it("does not mark casts as done at queue time, so a re-deliberation before execution still re-queues them (item 27)", () => {
+
+    const reef = CORAL_REEFS[0]!.reef;
+    const f = makeFarmer({
+      transform: { x: reef.x, y: reef.y, prevX: reef.x, prevY: reef.y, rotation: 0 },
+      farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },
+    });
+    deliberateCoralFishing(f, 6, 3, 12, 40);
+    expect(f.intentions!.queue.filter((i) => i.kind === "fish-coral")).toHaveLength(3);
+
+    f.intentions!.queue.length = 0;
+    deliberateCoralFishing(f, 6, 3, 12, 40);
+    expect(f.intentions!.queue.filter((i) => i.kind === "fish-coral")).toHaveLength(3);
+  });
 });

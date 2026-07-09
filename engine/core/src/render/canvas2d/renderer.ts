@@ -188,7 +188,14 @@ export class Canvas2dRenderer implements RendererLike {
   }
 
   push(sprite: Canvas2dSprite): void {
-    if (!this.inView(sprite.x, sprite.y)) return;
+    const halfW = sprite.width / 2;
+    const halfH = sprite.height / 2;
+    if (
+      sprite.x + halfW < this.cullLeft ||
+      sprite.x - halfW > this.cullRight ||
+      sprite.y + halfH < this.cullTop ||
+      sprite.y - halfH > this.cullBottom
+    ) return;
     this.queue[this.queueLen] = sprite;
     this.queueLen += 1;
   }

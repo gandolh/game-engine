@@ -1,7 +1,7 @@
 import type { SimContext, System, World, Rng } from "@engine/core";
 import type { GameEntity, PlotState, CropQuality } from "../../components";
 import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../components";
-import { bankHarvest } from "../../economy";
+import { bankHarvest, GROWTH_DAYS } from "../../economy";
 import { farmingQualityBonus, grantSkillXp } from "../skills";
 
 export const HARVEST_FARMING_XP = 2; 
@@ -78,7 +78,7 @@ export class HarvestSystem implements System {
       if (this.qualityRng) {
         quality = computeQuality(
           state.daysGrowing,
-          currentDay - (state.readyAtDay - (state.daysGrowing | 0)), 
+          GROWTH_DAYS[state.crop],
           state.weatherSum,
           state.daysSinceWater ?? 0,
           boost,

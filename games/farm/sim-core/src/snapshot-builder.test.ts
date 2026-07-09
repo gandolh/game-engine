@@ -580,6 +580,46 @@ describe("visual state indicators — crops", () => {
   });
 });
 
+describe("boat hull sprite — review item 18", () => {
+  it("carries a non-null id distinct from the farmer's own id, so the client's id!=null interpolation gate applies to the hull without colliding with id-keyed farmer lookups", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    f.farmer!.aboard = true;
+
+    const snap = snapAt(sim, 5);
+    const hull = snap.sprites.find((s) => s.frame === "structure/boat");
+    expect(hull).toBeDefined();
+    expect(hull!.id).not.toBeNull();
+    expect(hull!.id).not.toBe(f.id);
+    expect(hull!.id as number).toBeLessThan(0);
+    expect(hull!.interpolate).toBe(true);
+  });
+
+  it("hull id is stable across consecutive snapshot builds for the same aboard farmer", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    f.farmer!.aboard = true;
+
+    const snap1 = snapAt(sim, 5);
+    const snap2 = snapAt(sim, 5);
+    const hull1 = snap1.sprites.find((s) => s.frame === "structure/boat");
+    const hull2 = snap2.sprites.find((s) => s.frame === "structure/boat");
+    expect(hull1).toBeDefined();
+    expect(hull2).toBeDefined();
+    expect(hull1!.id).toBe(hull2!.id);
+  });
+
+  it("no boat hull sprite is emitted for a farmer not aboard", () => {
+    const sim = bootAndTick(5);
+    const f = firstFarmer(sim);
+    f.farmer!.aboard = false;
+
+    const snap = snapAt(sim, 5);
+    const hull = snap.sprites.find((s) => s.frame === "structure/boat");
+    expect(hull).toBeUndefined();
+  });
+});
+
 describe("visual state indicators — farmers", () => {
   it("an unrested farmer sprite is exhausted: tinted + dimmed, tooltip says exhausted", () => {
     const sim = bootAndTick(5);

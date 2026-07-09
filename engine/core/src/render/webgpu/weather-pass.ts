@@ -23,6 +23,7 @@ export class WeatherPass {
   private readonly weatherUniformBuffer: GPUBuffer;
   private readonly weatherUniformScratch: Float32Array;
   private readonly weatherBindGroupLayout: GPUBindGroupLayout;
+  private readonly weatherBindGroup: GPUBindGroup;
 
   private rainInstanceBuffer: GPUBuffer;
   private rainInstanceCapacity: number;
@@ -52,6 +53,15 @@ export class WeatherPass {
           buffer: { type: "uniform" },
         },
       ],
+    });
+
+    // Bind group references only the stable weatherUniformBuffer (contents
+    // change via writeBuffer, not the binding), so it is safe to create once
+    // here rather than per draw().
+    this.weatherBindGroup = ctx.device.createBindGroup({
+      label: "WeatherPass weather-bg",
+      layout: this.weatherBindGroupLayout,
+      entries: [{ binding: 0, resource: { buffer: this.weatherUniformBuffer } }],
     });
 
     const shaderModule = ctx.device.createShaderModule({
@@ -168,16 +178,10 @@ export class WeatherPass {
       WEATHER_UNIFORM_BYTES,
     );
 
-    const weatherBindGroup = this.device.createBindGroup({
-      label: "WeatherPass weather-bg",
-      layout: this.weatherBindGroupLayout,
-      entries: [{ binding: 0, resource: { buffer: this.weatherUniformBuffer } }],
-    });
-
     if (kind === "rain") {
-      this._drawRain(pass, weather, weatherBindGroup);
+      this._drawRain(pass, weather, this.weatherBindGroup);
     } else {
-      this._drawSnow(pass, weather, weatherBindGroup);
+      this._drawSnow(pass, weather, this.weatherBindGroup);
     }
   }
 

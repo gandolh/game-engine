@@ -64,7 +64,7 @@ export class TraderSystem implements System {
       if (b.ownerId !== p.id || b.type !== "tradingpost") continue;
       if (entity.id === undefined) continue;
       const rs = this.state.buildingState.get(entity.id);
-      if (rs !== undefined && rs.connected && rs.workerCount > 0) return true;
+      if (rs !== undefined && rs.connected && rs.workerCount > 0 && rs.suppressed !== true) return true;
     }
     return false;
   }

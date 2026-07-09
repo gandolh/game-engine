@@ -37,9 +37,20 @@ describe("deliberatePortHop", () => {
     expect(f.intentions!.queue.some((i) => i.kind === "board-boat")).toBe(true);
   });
 
-  it("aboard, not at the target dock → sails to the target dock", () => {
+  it("aboard with no existing same-day trip on record → returns to shore instead of inventing one (item 26)", () => {
+
     const f = makeFarmer(start.dock.x, start.dock.y, PERIOD, {
       farmer: { name: "Hopper", currentRegion: "fishing-isle", homeRegion: "fishing-isle", aboard: true },
+    } as Partial<GameEntity>);
+    deliberatePortHop(f, PERIOD, 6, 140);
+    expect(f.intentions!.queue.some((i) => i.kind === "return-to-shore")).toBe(true);
+    expect(f.intentions!.queue.some((i) => i.kind === "travel")).toBe(false);
+  });
+
+  it("aboard, continuing an existing same-day trip not yet at the target dock → sails onward", () => {
+    const f = makeFarmer(start.dock.x, start.dock.y, PERIOD, {
+      farmer: { name: "Hopper", currentRegion: "fishing-isle", homeRegion: "fishing-isle", aboard: true },
+      beliefs: { data: { currentDay: PERIOD, portHopDay: PERIOD, portHopTarget: target.id }, revision: 0 },
     } as Partial<GameEntity>);
     deliberatePortHop(f, PERIOD, 6, 140);
     const travel = f.intentions!.queue.find((i) => i.kind === "travel");

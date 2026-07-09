@@ -40,8 +40,11 @@ function makeParent(): HTMLElement {
   return el;
 }
 
-function tradeEvent(gold: number, drama = 0.1): SnapshotEvent {
+let nextTick = 1;
+
+function tradeEvent(gold: number, drama = 0.1, tick = nextTick++): SnapshotEvent {
   return {
+    tick,
     day: 1,
     text: `Alice bought 5 wheat from Bob (${gold}g)`,
     drama,
@@ -49,8 +52,9 @@ function tradeEvent(gold: number, drama = 0.1): SnapshotEvent {
   };
 }
 
-function rankFlipEvent(drama = 0.75): SnapshotEvent {
+function rankFlipEvent(drama = 0.75, tick = nextTick++): SnapshotEvent {
   return {
+    tick,
     day: 5,
     text: "Alice overtakes Bob for 1st!",
     drama,
@@ -58,8 +62,9 @@ function rankFlipEvent(drama = 0.75): SnapshotEvent {
   };
 }
 
-function auctionEvent(drama = 0.55): SnapshotEvent {
+function auctionEvent(drama = 0.55, tick = nextTick++): SnapshotEvent {
   return {
+    tick,
     day: 3,
     text: "Carol won the golden bean at 120g",
     drama,
@@ -67,8 +72,9 @@ function auctionEvent(drama = 0.55): SnapshotEvent {
   };
 }
 
-function coralEvent(drama = 0.5): SnapshotEvent {
+function coralEvent(drama = 0.5, tick = nextTick++): SnapshotEvent {
   return {
+    tick,
     day: 2,
     text: "Dave hauled in a coral-reef lobster (80g)!",
     drama,
@@ -76,8 +82,9 @@ function coralEvent(drama = 0.5): SnapshotEvent {
   };
 }
 
-function contractDeliveredEvent(drama = 0.6): SnapshotEvent {
+function contractDeliveredEvent(drama = 0.6, tick = nextTick++): SnapshotEvent {
   return {
+    tick,
     day: 4,
     text: "Eve delivered a harbor contract — +200g, +10 rep",
     drama,
@@ -85,8 +92,9 @@ function contractDeliveredEvent(drama = 0.6): SnapshotEvent {
   };
 }
 
-function festivalEvent(drama = 0.7): SnapshotEvent {
+function festivalEvent(drama = 0.7, tick = nextTick++): SnapshotEvent {
   return {
+    tick,
     day: 10,
     text: "Harvest Fair — Alice wins with a Gold pumpkin",
     drama,
@@ -94,8 +102,9 @@ function festivalEvent(drama = 0.7): SnapshotEvent {
   };
 }
 
-function routineAcceptEvent(): SnapshotEvent {
+function routineAcceptEvent(tick = nextTick++): SnapshotEvent {
   return {
+    tick,
     day: 1,
     text: "Bob accepted Alice's seed offer",
     drama: 0.15,
@@ -356,8 +365,57 @@ describe("JuiceLayer — hitstop", () => {
 
   it("consumeHitstopFrames resets to 0 after first call", () => {
     layer.update([rankFlipEvent()], EMPTY_MAP, camera, canvas, 0.016);
-    layer.consumeHitstopFrames(); 
-    expect(layer.consumeHitstopFrames()).toBe(0); 
+    layer.consumeHitstopFrames();
+    expect(layer.consumeHitstopFrames()).toBe(0);
+  });
+});
+
+describe("JuiceLayer — high-water mark survives a plateaued (capped) event feed", () => {
+  let parent: HTMLElement;
+  let layer: JuiceLayer;
+  let camera: Camera2D;
+  let canvas: HTMLCanvasElement;
+
+  beforeEach(() => {
+    parent = makeParent();
+    layer = new JuiceLayer(parent);
+    camera = makeCamera();
+    canvas = makeCanvas();
+  });
+
+  it("a new event still fires juice once the snapshot's 30-entry tail window is full and events.length stops growing", () => {
+    const capSize = 30;
+
+    const batch1: SnapshotEvent[] = [];
+    for (let i = 1; i <= capSize; i++) batch1.push(tradeEvent(1, 0.1, i));
+    layer.update(batch1, EMPTY_MAP, camera, canvas, 0.016);
+    expect(layer.consumeHitstopFrames()).toBe(0);
+
+    const batch2 = batch1.slice(1);
+    batch2.push(rankFlipEvent(0.8, capSize + 1));
+
+    expect(batch2.length).toBe(batch1.length);
+
+    layer.update(batch2, EMPTY_MAP, camera, canvas, 0.016);
+    expect(layer.consumeHitstopFrames()).toBeGreaterThan(0);
+  });
+
+  it("events at or below the high-water mark are never reprocessed, even when replayed inside a same-length window", () => {
+    const capSize = 30;
+
+    const batch1: SnapshotEvent[] = [];
+    for (let i = 1; i <= capSize; i++) batch1.push(tradeEvent(1, 0.1, i));
+    layer.update(batch1, EMPTY_MAP, camera, canvas, 0.016);
+
+    const batch2 = batch1.slice(1);
+    batch2.push(rankFlipEvent(0.8, capSize + 1));
+    layer.update(batch2, EMPTY_MAP, camera, canvas, 0.016);
+    layer.consumeHitstopFrames();
+
+    const batch3 = batch2.slice(1);
+    batch3.push(rankFlipEvent(0.8, capSize + 1));
+    layer.update(batch3, EMPTY_MAP, camera, canvas, 0.016);
+    expect(layer.consumeHitstopFrames()).toBe(0);
   });
 });
 

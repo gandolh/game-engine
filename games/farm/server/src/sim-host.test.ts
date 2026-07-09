@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -7,7 +7,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createPathfinderFromBytes } from "@engine/core";
 import type { WorkerOutbound, WorkerInbound } from "@farm/sim-core/protocol";
 import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
-import { SimHost } from "./sim-host";
+import { SimHost, isValidSwapIndex } from "./sim-host";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WASM_PATH = resolve(here, "../../../../engine/wasm-modules/dist/pathfinding.wasm");
@@ -159,5 +159,133 @@ describe("WS round-trip (real socket)", () => {
     expect(staticSeen).toBe(true);
     expect(snapCount).toBeGreaterThan(0);
     expect(gameOver).toBe(true);
+  });
+});
+
+describe("swap-slots index validation", () => {
+  it("NaN fails every numeric comparison, so isValidSwapIndex must reject it explicitly", () => {
+    expect(isValidSwapIndex(NaN, 5)).toBe(false);
+  });
+
+  it("rejects non-integers within range", () => {
+    expect(isValidSwapIndex(2.5, 5)).toBe(false);
+  });
+
+  it("rejects out-of-range and negative indices", () => {
+    expect(isValidSwapIndex(-1, 5)).toBe(false);
+    expect(isValidSwapIndex(5, 5)).toBe(false);
+  });
+
+  it("accepts valid integer indices", () => {
+    expect(isValidSwapIndex(0, 5)).toBe(true);
+    expect(isValidSwapIndex(4, 5)).toBe(true);
+  });
+});
+
+describe("hostile-input clamps", () => {
+  it("a speed multiplier of 1e9 is clamped to 8 ticks per interval, not run unbounded", async () => {
+    vi.useFakeTimers();
+    const pf = (await createPathfinderFromBytes(
+      wasmBytes,
+    )) as unknown as PathfinderLike;
+    const msgs: WorkerOutbound[] = [];
+    const host = new SimHost((m) => msgs.push(m), { pathfinder: pf });
+
+    host.handleInbound({
+      type: "init",
+      seed: 1,
+      ticksPerDay: 100_000,
+      maxDays: 1000,
+      tickRateHz: 60,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    host.handleInbound({ type: "speed", multiplier: 1e9 });
+
+    const before = msgs.filter((m) => m.type === "snapshot").length;
+    await vi.advanceTimersByTimeAsync(1000 / 60);
+    const after = msgs.filter((m) => m.type === "snapshot").length;
+
+    host.stop();
+    vi.useRealTimers();
+
+    expect(after - before).toBe(8);
+  });
+
+  it("a speed multiplier of 0 falls back to 1 tick per interval", async () => {
+    vi.useFakeTimers();
+    const pf = (await createPathfinderFromBytes(
+      wasmBytes,
+    )) as unknown as PathfinderLike;
+    const msgs: WorkerOutbound[] = [];
+    const host = new SimHost((m) => msgs.push(m), { pathfinder: pf });
+
+    host.handleInbound({
+      type: "init",
+      seed: 1,
+      ticksPerDay: 100_000,
+      maxDays: 1000,
+      tickRateHz: 60,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    host.handleInbound({ type: "speed", multiplier: 0 });
+
+    const before = msgs.filter((m) => m.type === "snapshot").length;
+    await vi.advanceTimersByTimeAsync(1000 / 60);
+    const after = msgs.filter((m) => m.type === "snapshot").length;
+
+    host.stop();
+    vi.useRealTimers();
+
+    expect(after - before).toBe(1);
+  });
+
+  it("a tickRateHz of 0 is clamped up to 1 Hz (1000ms period), not down to a near-0ms CPU-hog interval", async () => {
+    const pf = (await createPathfinderFromBytes(
+      wasmBytes,
+    )) as unknown as PathfinderLike;
+    const host = new SimHost(() => {}, { pathfinder: pf });
+    const setIntervalSpy = vi.spyOn(global, "setInterval");
+
+    host.handleInbound({
+      type: "init",
+      seed: 1,
+      ticksPerDay: 20,
+      maxDays: 1,
+      tickRateHz: 0,
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    const delay = setIntervalSpy.mock.calls[0]?.[1] as number;
+    expect(delay).toBe(1000);
+
+    host.stop();
+    setIntervalSpy.mockRestore();
+  });
+
+  it("a tickRateHz of 1000 is clamped down to 60 Hz", async () => {
+    const pf = (await createPathfinderFromBytes(
+      wasmBytes,
+    )) as unknown as PathfinderLike;
+    const host = new SimHost(() => {}, { pathfinder: pf });
+    const setIntervalSpy = vi.spyOn(global, "setInterval");
+
+    host.handleInbound({
+      type: "init",
+      seed: 1,
+      ticksPerDay: 20,
+      maxDays: 1,
+      tickRateHz: 1000,
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    const delay = setIntervalSpy.mock.calls[0]?.[1] as number;
+    expect(delay).toBeCloseTo(1000 / 60, 5);
+
+    host.stop();
+    setIntervalSpy.mockRestore();
   });
 });

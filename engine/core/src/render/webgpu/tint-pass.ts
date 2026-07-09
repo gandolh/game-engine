@@ -12,6 +12,7 @@ export class TintPass {
   private readonly uniformBuffer: GPUBuffer;
   private readonly uniformScratch: Float32Array;
   private readonly bindGroupLayout: GPUBindGroupLayout;
+  private readonly bindGroup: GPUBindGroup;
 
   constructor(ctx: GpuContext) {
     this.device = ctx.device;
@@ -33,6 +34,15 @@ export class TintPass {
           buffer: { type: "uniform" },
         },
       ],
+    });
+
+    // Bind group references only the stable uniformBuffer (contents change via
+    // writeBuffer, not the binding), so it is safe to create once here rather
+    // than per draw().
+    this.bindGroup = ctx.device.createBindGroup({
+      label: "TintPass bg",
+      layout: this.bindGroupLayout,
+      entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }],
     });
 
     const shaderModule = ctx.device.createShaderModule({
@@ -94,14 +104,8 @@ export class TintPass {
       TINT_UNIFORM_BYTES,
     );
 
-    const bg = this.device.createBindGroup({
-      label: "TintPass bg",
-      layout: this.bindGroupLayout,
-      entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }],
-    });
-
     pass.setPipeline(this.pipeline);
-    pass.setBindGroup(0, bg);
+    pass.setBindGroup(0, this.bindGroup);
 
     pass.draw(3, 1, 0, 0);
   }

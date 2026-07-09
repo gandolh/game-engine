@@ -19,7 +19,7 @@
  */
 import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
-import { pushEvent } from "../sim-state";
+import { pushEvent, releaseWorkersAt } from "../sim-state";
 import { getProductionDef, coversRect, effectiveHousingCapacity } from "../entities/building";
 import { countNonRoadBuildings } from "./tiers";
 import type { Rng } from "@engine/core";
@@ -221,11 +221,18 @@ export class FireSystem implements System {
       if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
       if (id === undefined) continue;
+      const rs = state.buildingState.get(id);
+      // Ephemeral suppression is recomputed from scratch every tick: clear it on
+      // EVERY building first, then re-set it on the burning set (+ neighbours
+      // below). This is what lets production resume the tick a fire clears without
+      // ever touching the assigned villager — the old code zeroed workerCount here,
+      // which minted a ghost worker per burning tick (immigration filled the
+      // phantom vacancy while the real worker kept looping).
+      if (rs !== undefined) rs.suppressed = false;
       const fs = p.fireState.get(id);
       if (fs === undefined || !fs.burning) continue;
-      // Suppress production while burning.
-      const rs = state.buildingState.get(id);
-      if (rs !== undefined) rs.workerCount = 0;
+      // Suppress production while burning (flag only — the worker keeps its slot).
+      if (rs !== undefined) rs.suppressed = true;
       const b = entity.building;
       const bcx = b.x + Math.floor(b.w / 2);
       const bcy = b.y + Math.floor(b.h / 2);
@@ -247,23 +254,24 @@ export class FireSystem implements System {
       }
     }
     // Interlock (burning → adjacent suppression): a fire doesn't just halt its own
-    // building — workers flee the neighbours too. Zero the workerCount of any of
+    // building — its neighbours pause too. Flag (not zero) the suppression of any of
     // p's non-burning buildings within FIRE_SUPPRESS_RADIUS of a burning one this
-    // tick (re-staffed naturally by VillagerSystem once the fire is out).
+    // tick; the flag clears next tick once the fire is out, and the assigned workers
+    // never leave (no ghost workers, no phantom vacancy for immigration to fill).
     if (burningCentres.length > 0) {
       for (const entity of state.buildingWorld.query("building")) {
         if (entity.building.ownerId !== p.id) continue;
         const id = entity.id;
         if (id === undefined) continue;
         const fs = p.fireState.get(id);
-        if (fs?.burning === true) continue; // already zeroed above
+        if (fs?.burning === true) continue; // already flagged above
         const b = entity.building;
         const cx = b.x + Math.floor(b.w / 2);
         const cy = b.y + Math.floor(b.h / 2);
         for (const c of burningCentres) {
           if (Math.abs(cx - c.x) + Math.abs(cy - c.y) <= FIRE_SUPPRESS_RADIUS) {
             const rs = state.buildingState.get(id);
-            if (rs !== undefined) rs.workerCount = 0;
+            if (rs !== undefined) rs.suppressed = true;
             break;
           }
         }
@@ -419,6 +427,9 @@ export class FireSystem implements System {
       if (prod?.isGate === true) p.gateTiles.delete(b.y * state.width + b.x);
       if (prod?.isWall === true) p.wallTiles.delete(b.y * state.width + b.x);
       if (prod?.isKeep === true) p.keepPosition = null;
+      // Re-idle any villager stationed here BEFORE despawn, so it doesn't loop
+      // toward a dead workplace (ghost worker) while immigration backfills.
+      releaseWorkersAt(state, b.x, b.y, b.w, b.h);
       if (entity.id !== undefined) state.buildingState.delete(entity.id);
       state.buildingWorld.despawn(entity);
       state.connectivityDirty = true;

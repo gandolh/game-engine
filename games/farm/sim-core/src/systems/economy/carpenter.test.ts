@@ -7,6 +7,7 @@ import { ActSystem } from "../act";
 import { InboxDispatchSystem } from "../messaging/inbox-dispatch";
 import { ONT_COMMISSION, type CommissionBuildBody } from "../../protocols/commission";
 import { PERFORMATIVE } from "../../protocols/performatives";
+import { REGIONS, forEachLandTile } from "../../world/regions";
 
 function makeCarpenter(world: World<GameEntity>): GameEntity {
   return world.spawn({
@@ -78,6 +79,43 @@ describe("CarpenterSystem", () => {
     sys.run({ tick: 0 } as never);
     expect(farmer.resources!.wood).toBe(1); 
     expect(carpenter.carpenter!.pending ?? []).toHaveLength(0);
+  });
+
+  it("refunds the escrowed wood when delivery fails because the home region no longer exists", () => {
+    const farmer = makeFarmer(world, { wood: 5 });
+    farmer.farmer!.homeRegion = "no-such-region" as never;
+    commission(world, carpenter, farmer.id!, "scarecrow");
+
+    sys.run({ tick: 0 } as never);
+    expect(farmer.resources!.wood).toBe(2);
+
+    for (let t = 1; t <= COMMISSION_BUILD_TICKS; t++) sys.run({ tick: t } as never);
+
+    expect(farmer.resources!.wood).toBe(5);
+    expect([...world.query("farmDecoration")]).toHaveLength(0);
+  });
+
+  it("refunds the escrowed wood when delivery fails because no free tile is left", () => {
+    const farmer = makeFarmer(world, { wood: 5 });
+    commission(world, carpenter, farmer.id!, "scarecrow");
+    sys.run({ tick: 0 } as never);
+    expect(farmer.resources!.wood).toBe(2);
+
+    const region = REGIONS.find((r) => r.id === "farm-atticus")!;
+    forEachLandTile(region, (tx, ty) => {
+      world.spawn({
+        transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+        sprite: { atlasId: "main", frame: "decoration/fence-art", layer: 20, tintRgba: 0xffffffff },
+        farmDecoration: { kind: "fence-art", tileX: tx, tileY: ty, regionId: "farm-atticus", ownerId: 999 },
+      });
+    });
+
+    for (let t = 1; t <= COMMISSION_BUILD_TICKS; t++) sys.run({ tick: t } as never);
+
+    expect(farmer.resources!.wood).toBe(5);
+    expect(
+      [...world.query("farmDecoration")].filter((d) => d.farmDecoration!.ownerId === farmer.id),
+    ).toHaveLength(0);
   });
 
   it("end-to-end: a commission-build act drives a delivered structure", () => {

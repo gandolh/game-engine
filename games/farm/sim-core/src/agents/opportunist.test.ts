@@ -120,6 +120,15 @@ describe("deliberateOpportunist", () => {
     expect(f.intentions!.queue.some((i) => i.kind === "read-offers")).toBe(true);
   });
 
+  it("falls back to the cheapest affordable crop, not the first hardcoded ladder entry (item 25)", () => {
+
+    const f = makeFarmer({ gold: 57, reserve: 50, seeds: {}, weather: { forecast: "sunny" } });
+    deliberateOpportunist(f, { tick: 0 });
+    const buy = f.intentions!.queue.find((i) => i.kind === "buy-seed");
+    expect(buy).toBeDefined();
+    expect(buy!.data["crop"]).toBe("radish");
+  });
+
   it("prepends a travel intent before a market action when not in village", () => {
     const offers: MarketOffer[] = [
       { offerId: "x", sellerId: 5, crop: "wheat", quantity: 1, pricePerUnit: 12, postedDay: 0 },
@@ -138,5 +147,48 @@ describe("deliberateOpportunist", () => {
     expect(postIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeLessThan(postIdx);
+  });
+
+  it("prepends a travel intent before a shopkeeper sell when not in village and low on liquidity", () => {
+    const f = makeFarmer({
+      gold: 10,
+      reserve: 50,
+      crops: { wheat: 4 },
+      region: "farm-hannah",
+    });
+    f.beliefs!.data["currentDay"] = 5; // avoid deliberateEarlyVillageVisit's day<=1 travel push
+    f.inventory!.tools = [
+      { kind: "hoe", tier: "wooden", durability: 10 },
+    ]; // avoid deliberateBuyTool's own travel-to-village push
+    deliberateOpportunist(f, { tick: 5 });
+    const queue = f.intentions!.queue;
+    const sellIdx = queue.findIndex((i) => i.kind === "sell-shopkeeper");
+    const travelIdx = queue.findIndex(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
+    );
+    expect(sellIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeGreaterThan(-1);
+    expect(travelIdx).toBeLessThan(sellIdx);
+  });
+
+  it("queues exactly one travel intent for multiple crop kinds sold in one tick", () => {
+    const f = makeFarmer({
+      gold: 10,
+      reserve: 50,
+      crops: { wheat: 4, carrot: 2, tomato: 1 },
+      region: "farm-hannah",
+    });
+    f.beliefs!.data["currentDay"] = 5; // avoid deliberateEarlyVillageVisit's day<=1 travel push
+    f.inventory!.tools = [
+      { kind: "hoe", tier: "wooden", durability: 10 },
+    ]; // avoid deliberateBuyTool's own travel-to-village push
+    deliberateOpportunist(f, { tick: 5 });
+    const queue = f.intentions!.queue;
+    const sells = queue.filter((i) => i.kind === "sell-shopkeeper");
+    const travels = queue.filter(
+      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
+    );
+    expect(sells.length).toBe(3);
+    expect(travels.length).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import type { GameEntity } from "../../components";
+import type { GameEntity, TileFeature } from "../../components";
 import { recordReason } from "../../components";
 import { seasonForDay } from "../../protocols/weather";
 import { isWithinReach } from "../../systems/proximity";
@@ -137,12 +137,12 @@ export function deliberateSeasonalForage(
 
 export function deliberateResourceZoneVisit(
   farmer: GameEntity,
-  ownFarmFeatureCount: number,
+  ownFarmFeatures: readonly TileFeature[],
   preferKind: "tree" | "stone",
   priority: number,
 ): void {
   if (!farmer.intentions || !farmer.farmer) return;
-  if (ownFarmFeatureCount > 0) return;
+  if (ownFarmFeatures.some((f) => f.kind === preferKind)) return;
 
   const homeRegion = farmer.farmer.homeRegion as RegionId | undefined;
   const farmCenter = homeRegion ? getRegion(homeRegion).center : { x: 0, y: 0 };

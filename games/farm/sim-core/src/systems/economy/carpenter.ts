@@ -92,6 +92,7 @@ export class CarpenterSystem implements System {
   private deliver(job: PendingCommission, ctx: SimContext): void {
     const regionDef = REGIONS.find((r) => r.id === job.regionId);
     if (!regionDef) {
+      this.refundWood(job);
       this.replyDone(ctx.tick, job.ownerId, { ok: false, kind: job.kind, reason: "no-region" });
       return;
     }
@@ -127,11 +128,18 @@ export class CarpenterSystem implements System {
       placed = true;
     });
 
+    if (!placed) this.refundWood(job);
     this.replyDone(ctx.tick, job.ownerId, {
       ok: placed,
       kind: job.kind,
       ...(placed ? {} : { reason: "no-free-tile" }),
     });
+  }
+
+  private refundWood(job: PendingCommission): void {
+    const woodCost = DECORATION_RECIPE[job.kind]?.woodCost ?? 0;
+    const farmer = findById(this.world, job.ownerId, "resources");
+    if (farmer?.resources) farmer.resources.wood += woodCost;
   }
 
   private replyDone(tick: number, to: number, body: CommissionDoneBody): void {

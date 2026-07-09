@@ -327,6 +327,35 @@ describe("RunRegistry — zero-socket reaping", () => {
   });
 });
 
+describe("RunRegistry — double-init on one socket", () => {
+  it("a socket that inits a second, different run-key is detached from the first run, which then reaps", () => {
+    vi.useFakeTimers();
+    const { registry, stubs } = makeRegistry(100);
+    const socket = new FakeSocket();
+
+    registry.attachInit(socket, makeInit(1));
+    const firstKey = registry.runKeyFor(makeInit(1));
+    expect(registry.runCount()).toBe(1);
+    expect(registry.getRun(firstKey)?.sockets.has(socket)).toBe(true);
+
+    registry.attachInit(socket, makeInit(2));
+    const secondKey = registry.runKeyFor(makeInit(2));
+
+    expect(registry.getRun(firstKey)?.sockets.has(socket)).toBe(false);
+    expect(registry.getRun(secondKey)?.sockets.has(socket)).toBe(true);
+    expect(registry.runCount()).toBe(2);
+    expect(stubs[0]!.stopped).toBe(false);
+
+    vi.advanceTimersByTime(101);
+
+    expect(registry.runCount()).toBe(1);
+    expect(stubs[0]!.stopped).toBe(true);
+    expect(registry.getRun(secondKey)).toBeDefined();
+
+    vi.useRealTimers();
+  });
+});
+
 describe("RunRegistry — drop-stale", () => {
   it("snapshot not sent to socket with bufferedAmount > 1 MB", () => {
     const { registry } = makeRegistry();

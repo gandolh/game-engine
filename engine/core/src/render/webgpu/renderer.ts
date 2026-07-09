@@ -282,7 +282,14 @@ export class WebGpuRenderer implements RendererLike {
   }
 
   push(sprite: Sprite): void {
-    if (!this._inView(sprite.x, sprite.y)) return;
+    const halfW = sprite.width / 2;
+    const halfH = sprite.height / 2;
+    if (
+      sprite.x + halfW < this._cullLeft ||
+      sprite.x - halfW > this._cullRight ||
+      sprite.y + halfH < this._cullTop ||
+      sprite.y - halfH > this._cullBottom
+    ) return;
     this._queue[this._queueLen] = sprite;
     this._queueLen += 1;
   }
@@ -312,6 +319,16 @@ export class WebGpuRenderer implements RendererLike {
 
   endUI(): void {
     this._uiActive = false;
+  }
+
+  private _ghostCovered(queueIdx: number, g: Sprite): boolean {
+    for (let jj = queueIdx + 1; jj < this._queueLen; jj += 1) {
+      const o = this._queue[jj];
+      if (o === undefined) continue;
+      if (o.occludable || o.layer >= GHOST_UI_LAYER) continue;
+      if (spritesOverlap(g, o)) return true;
+    }
+    return false;
   }
 
   private _recordGroup(atlasId: string, first: number, count: number): void {
@@ -433,24 +450,35 @@ export class WebGpuRenderer implements RendererLike {
       i = j;
     }
 
-    for (let k = 0; k < occludableCount; k += 1) {
+    // Ghost redraws are packed in occludableIdx (ascending queue-index) order, so
+    // consecutive covered ghosts sharing an atlas land contiguously in the batch
+    // and can share one draw group — mirrors the main-pass coalescing loop above.
+    let k = 0;
+    while (k < occludableCount) {
       const gi = this._occludableIdx[k];
-      if (gi === undefined) continue;
+      if (gi === undefined) { k += 1; continue; }
       const g = this._queue[gi];
-      if (g === undefined) continue;
+      if (g === undefined) { k += 1; continue; }
+      if (!this._ghostCovered(gi, g)) { k += 1; continue; }
 
-      let covered = false;
-      for (let jj = gi + 1; jj < this._queueLen && !covered; jj += 1) {
-        const o = this._queue[jj];
-        if (o === undefined) continue;
-        if (o.occludable || o.layer >= GHOST_UI_LAYER) continue;
-        if (spritesOverlap(g, o)) covered = true;
+      const currentAtlas = g.atlasId;
+      const groupFirst = this._batch.count;
+      this._packSprite(g, sx, sy, ox, oy, g.alpha * GHOST_ALPHA);
+
+      let m = k + 1;
+      while (m < occludableCount) {
+        const gi2 = this._occludableIdx[m];
+        if (gi2 === undefined) break;
+        const g2 = this._queue[gi2];
+        if (g2 === undefined || g2.atlasId !== currentAtlas) break;
+        if (!this._ghostCovered(gi2, g2)) break;
+        this._packSprite(g2, sx, sy, ox, oy, g2.alpha * GHOST_ALPHA);
+        m += 1;
       }
 
-      if (covered) {
-        const first = this._packSprite(g, sx, sy, ox, oy, g.alpha * GHOST_ALPHA);
-        this._recordGroup(g.atlasId, first, 1);
-      }
+      const groupCount = this._batch.count - groupFirst;
+      this._recordGroup(currentAtlas, groupFirst, groupCount);
+      k = m;
     }
 
     this._batch.upload();

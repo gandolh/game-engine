@@ -83,7 +83,7 @@ export function deliberateConservative(farmer: GameEntity): void {
 
   deliberateUpgrade(farmer, "hoe", 11);
   deliberateUpgrade(farmer, "axe", 12);
-  deliberateResourceZoneVisit(farmer, features.length, "tree", 13);
+  deliberateResourceZoneVisit(farmer, features, "tree", 13);
 
   const season = seasonForDay(day);
   const cropSeason = CROP_SEASON[candidate];

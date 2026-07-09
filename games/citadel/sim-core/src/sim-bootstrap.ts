@@ -19,7 +19,7 @@ import {
 import type { VillagerEntity } from "./entities/villager";
 import { isTravellingFsm } from "./entities/villager";
 import type { SimState, Stockpiles, ArmyState } from "./sim-state";
-import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById } from "./sim-state";
+import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById, releaseWorkersAt } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
 import { TerritorySystem, canBuildAt, DEFAULT_TERRITORY_RADIUS } from "./systems/territory";
 import { ProductionSystem } from "./systems/production";
@@ -677,6 +677,9 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         if (owner !== undefined && prod?.isKeep === true) {
           owner.keepPosition = null;
         }
+        // Re-idle any villager stationed at the demolished building before despawn
+        // so it doesn't loop toward a dead workplace (ghost worker).
+        releaseWorkersAt(state, b.x, b.y, b.w, b.h);
         if (entity.id !== undefined) state.buildingState.delete(entity.id);
         buildingWorld.despawn(entity);
         state.connectivityDirty = true;

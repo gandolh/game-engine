@@ -201,6 +201,42 @@ describe("deliberateAggressive", () => {
     ).toBe(true);
   });
 
+  it("keeps the daysRemaining <= 2 liquidation queue priority-sorted, not push-ordered (item 24)", () => {
+
+    const f = makeFarmer({
+      day: 98,
+      crops: { radish: 4 },
+      region: "farm-cora",
+      gold: 500,
+    });
+    f.beliefs!.data["daysRemaining"] = 2;
+    deliberateAggressive(f, { tick: 1960 });
+
+    const queue = f.intentions!.queue;
+    const prios = queue.map((i) => i.priority);
+    const sorted = [...prios].sort((a, b) => a - b);
+    expect(prios).toEqual(sorted);
+
+    expect(queue.some((i) => i.priority > 0)).toBe(true);
+  });
+
+  it("includes deliberateBean and deliberateSleep in the liquidation branch (item 24)", () => {
+    const f = makeFarmer({
+      day: 98,
+      crops: { radish: 4 },
+      region: "village",
+      gold: 500,
+    });
+    f.beliefs!.data["daysRemaining"] = 2;
+    f.beliefs!.data["phase"] = "evening";
+    f.farmer!.homeRegion = "farm-cora";
+    deliberateAggressive(f, { tick: 1960 });
+
+    const queue = f.intentions!.queue;
+
+    expect(queue.some((i) => i.kind === "travel" && i.data["targetRegionId"] === "farm-cora")).toBe(true);
+  });
+
   it("records a liquidation reason in the last 2 days", () => {
     const f = makeFarmer({ crops: { wheat: 3 }, region: "village", day: 50 });
     f.beliefs!.data["daysRemaining"] = 1;

@@ -113,9 +113,11 @@ export function buildSprites(
 
     if (isFarmer && entity.farmer?.aboard) {
       sprites.push({
-        id: null,
+        // Must be non-null (client interpolation gate) and must not equal the farmer's
+        // own id (id-keyed lookups elsewhere match the first sprite with a given id).
+        id: entity.id !== undefined ? -entity.id : null,
         x: px,
-        y: py + TILE * 0.15, 
+        y: py + TILE * 0.15,
         rotation: 0,
         layer: 49,
         frame: "structure/boat",

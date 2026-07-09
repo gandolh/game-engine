@@ -11,6 +11,13 @@ import type { ClientSocket } from "./run-registry";
 
 const PORT = Number(process.env["PORT"] ?? 8787);
 
+process.on("unhandledRejection", (reason) => {
+  console.error("[server] unhandled rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[server] uncaught exception:", err);
+});
+
 async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
   const here = dirname(fileURLToPath(import.meta.url));
   const wasmPath = resolve(
@@ -40,6 +47,7 @@ async function main(): Promise<void> {
   const wss = new WebSocketServer({
     port: PORT,
     perMessageDeflate: { threshold: 1024 },
+    maxPayload: 64 * 1024,
   });
   console.log(`[server] Farm Valley sim server listening on ws://localhost:${PORT}`);
 

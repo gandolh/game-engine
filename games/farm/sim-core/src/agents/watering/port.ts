@@ -20,12 +20,10 @@ export function deliberatePortHop(
   const aboard = farmer.farmer.aboard === true;
   const onPortDock = isPortDockTile(fx, fy);
 
-  const targetId = resolveTarget(farmer, day, fx, fy);
-  const target = PORTS.find((p) => p.id === targetId);
-
   if (aboard) {
-    if (!target) {
 
+    const target = existingTripTarget(farmer, day);
+    if (!target) {
       if (onPortDock) farmer.intentions.queue.push({ kind: "return-to-shore", data: {}, priority });
       return;
     }
@@ -48,6 +46,9 @@ export function deliberatePortHop(
   if (day === 0) return;
   if (day % period !== 0) return;
   if (farmer.ap.current < apFloor) return;
+
+  const targetId = resolveTarget(farmer, day, fx, fy);
+  const target = PORTS.find((p) => p.id === targetId);
   if (!target) return;
 
   if (onPortDock) {
@@ -69,6 +70,14 @@ function pickTarget(fx: number, fy: number): Port {
   const near = nearestPort(fx, fy);
   const i = PORTS.findIndex((p) => p.id === near.id);
   return PORTS[(i + 1) % PORTS.length]!;
+}
+
+function existingTripTarget(farmer: GameEntity, day: number): Port | undefined {
+  const b = farmer.beliefs!.data;
+  const tripDay = b["portHopDay"] as number | undefined;
+  const tripTarget = b["portHopTarget"] as Port["id"] | undefined;
+  if (tripDay !== day || !tripTarget) return undefined;
+  return PORTS.find((p) => p.id === tripTarget);
 }
 
 function resolveTarget(farmer: GameEntity, day: number, fx: number, fy: number): Port["id"] {

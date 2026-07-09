@@ -72,6 +72,7 @@ export function handleSellShopkeeper(
   farmer: ActingFarmer,
   intent: Intention,
 ): void {
+  if (farmer.farmer?.currentRegion !== "village") return;
   const crop = intent.data.crop as CropKind;
   const qty = (intent.data.quantity as number) ?? 0;
   const available = Math.min(qty, farmer.inventory.crops[crop]);

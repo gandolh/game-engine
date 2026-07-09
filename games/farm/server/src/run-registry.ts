@@ -51,6 +51,8 @@ export class RunRegistry {
   }
 
   attachInit(socket: ClientSocket, init: WorkerInitMsg): void {
+    this.detach(socket);
+
     const key = this.runKeyFor(init);
     const existing = this.runs.get(key);
 

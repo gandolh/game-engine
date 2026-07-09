@@ -13,7 +13,7 @@
  */
 import type { System, SimContext, Rng } from "@engine/core";
 import type { SimState, RaiderState, PlayerState } from "../sim-state";
-import { pushEvent, removeOneVillager } from "../sim-state";
+import { pushEvent, removeOneVillager, releaseWorkersAt } from "../sim-state";
 import type { GoodType } from "../entities/building";
 import { getProductionDef, effectiveDefenseStrength } from "../entities/building";
 import { igniteBuildingById, FIRE_WOODEN_TYPES } from "./fire-system";
@@ -233,6 +233,8 @@ function applyRaidDamage(state: SimState, p: PlayerState, raidStrength: number, 
           if (def?.isRoad === true) state.roadGrid[idx] = 0;
         }
       }
+      // Re-idle any villager stationed at the razed building before despawn.
+      releaseWorkersAt(state, b.x, b.y, b.w, b.h);
       state.buildingState.delete(targetId);
       state.buildingWorld.despawn(entity);
       break;

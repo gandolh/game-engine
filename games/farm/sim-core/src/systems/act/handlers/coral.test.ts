@@ -109,6 +109,26 @@ describe("coral act handlers", () => {
     expect(sawTroutNoBroadcast).toBe(true);
   });
 
+  it("increments coralCastsDone in beliefs at execution time, keyed to the current day (item 27)", () => {
+
+    const f = makeFarmer({
+      transform: { x: reef.x, y: reef.y, prevX: reef.x, prevY: reef.y, rotation: 0 },
+      farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },
+      beliefs: { data: { currentDay: 5 }, revision: 0 },
+    });
+    handleFishCoral(f, 100, createRng(1).fork("fish"));
+    expect(f.beliefs!.data["coralCastDay"]).toBe(5);
+    expect(f.beliefs!.data["coralCastsDone"]).toBe(1);
+
+    handleFishCoral(f, 200, createRng(2).fork("fish"));
+    expect(f.beliefs!.data["coralCastsDone"]).toBe(2);
+
+    f.beliefs!.data["currentDay"] = 6;
+    handleFishCoral(f, 300, createRng(3).fork("fish"));
+    expect(f.beliefs!.data["coralCastDay"]).toBe(6);
+    expect(f.beliefs!.data["coralCastsDone"]).toBe(1);
+  });
+
   it("return-to-shore clears aboard only when back at a dock", () => {
     const atDock = makeFarmer({
       transform: { x: dock.x, y: dock.y, prevX: dock.x, prevY: dock.y, rotation: 0 },

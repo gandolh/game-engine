@@ -42,6 +42,15 @@ export function handleFishCoral(
   const fy = Math.round(farmer.transform.y);
   if (!isCoralReefTile(fx, fy)) return;
 
+  if (farmer.beliefs) {
+
+    const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
+    const castDay = farmer.beliefs.data["coralCastDay"] as number | undefined;
+    const castsDone = castDay === day ? ((farmer.beliefs.data["coralCastsDone"] as number | undefined) ?? 0) : 0;
+    farmer.beliefs.data["coralCastDay"] = day;
+    farmer.beliefs.data["coralCastsDone"] = castsDone + 1;
+  }
+
   const weights = applyCoralRarityBonus(
     CORAL_WEIGHTS,
     fishingRarityBonus(farmer.skills?.fishing ?? 0),

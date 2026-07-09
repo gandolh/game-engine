@@ -19,7 +19,7 @@
  */
 import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
-import { pushEvent, playerById } from "../sim-state";
+import { pushEvent, playerById, releaseWorkersAt } from "../sim-state";
 import { getProductionDef, effectiveHousingCapacity } from "../entities/building";
 import type { BuildingEntity } from "../entities/building";
 import { computeDefensiveStrength, resolveSiege } from "./siege-resolution";
@@ -63,6 +63,8 @@ function destroyBuilding(state: SimState, entity: BuildingEntity, owner: PlayerS
     owner.popCap = Math.max(0, owner.popCap - effectiveHousingCapacity(prod, rs?.level ?? 1));
   }
   if (prod?.isKeep === true) owner.keepPosition = null;
+  // Re-idle any villager stationed at the destroyed building before despawn.
+  releaseWorkersAt(state, b.x, b.y, b.w, b.h);
   if (entity.id !== undefined) state.buildingState.delete(entity.id);
   state.buildingWorld.despawn(entity);
   state.connectivityDirty = true;

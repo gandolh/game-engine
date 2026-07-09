@@ -41,6 +41,8 @@ export interface SnapshotMeet {
 
 export interface SnapshotEvent {
 
+  tick: number;
+
   day: number;
 
   text: string;

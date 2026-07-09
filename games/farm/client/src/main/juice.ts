@@ -155,7 +155,7 @@ export class JuiceLayer {
 
   private hitstopFrames = 0;
 
-  private lastEventCount = 0;
+  private highWaterTick = -Infinity;
 
   private pendingSkip = false;
 
@@ -198,10 +198,9 @@ export class JuiceLayer {
   ): void {
     this.farmerPositions = farmerPositions;
 
-    if (this.pendingSkip) {
+    const skipping = this.pendingSkip;
+    if (skipping) {
       this.pendingSkip = false;
-
-      this.lastEventCount = events.length;
 
       this.trauma = 0;
       this.shake.x = 0;
@@ -215,14 +214,14 @@ export class JuiceLayer {
       }
     }
 
-    const newStart = this.lastEventCount < events.length ? this.lastEventCount : events.length;
-    const newEnd = events.length;
-    this.lastEventCount = events.length;
+    const markBefore = this.highWaterTick;
+    let markAfter = markBefore;
+    for (const ev of events) {
+      if (ev.tick > markAfter) markAfter = ev.tick;
 
-    for (let i = newStart; i < newEnd; i++) {
-      const ev = events[i]!;
-      this.processEvent(ev);
+      if (!skipping && ev.tick > markBefore) this.processEvent(ev);
     }
+    this.highWaterTick = markAfter;
 
     for (const slot of this.pool) {
       if (!slot.active) continue;

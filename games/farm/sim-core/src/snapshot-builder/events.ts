@@ -18,8 +18,9 @@ export function buildEvents(eventFeed: EventFeedSystem): SnapshotEvent[] {
     const e = all[start + i]!;
     const rec = out[i];
     if (rec === undefined) {
-      out[i] = { day: e.day, text: e.text, drama: e.drama, farmerId: e.farmerId ?? null };
+      out[i] = { tick: e.tick, day: e.day, text: e.text, drama: e.drama, farmerId: e.farmerId ?? null };
     } else {
+      rec.tick = e.tick;
       rec.day = e.day;
       rec.text = e.text;
       rec.drama = e.drama;

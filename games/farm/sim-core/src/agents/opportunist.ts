@@ -46,10 +46,13 @@ function pickCropFromWeatherAndSeason(
   return candidates[0]!; 
 }
 
+const FALLBACK_LADDER: CropKind[] = (["tomato", "carrot", "radish", "winter-squash", "wheat"] as CropKind[])
+  .slice()
+  .sort((a, b) => SEED_COST[a] - SEED_COST[b]);
+
 function fallbackCrop(crop: CropKind, gold: number, reserve: number): CropKind {
   if (gold - SEED_COST[crop] >= reserve) return crop;
-  const cheaper: CropKind[] = ["tomato", "carrot", "radish", "winter-squash", "wheat"];
-  for (const c of cheaper) {
+  for (const c of FALLBACK_LADDER) {
     if (gold - SEED_COST[c] >= reserve) return c;
   }
   return "radish";
@@ -102,8 +105,8 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   deliberateUpgrade(farmer, "pickaxe", 9);
   deliberateUpgrade(farmer, "hoe",     10);
-  deliberateResourceZoneVisit(farmer, features.length, "stone", 11);
-  deliberateResourceZoneVisit(farmer, features.length, "tree",  12);
+  deliberateResourceZoneVisit(farmer, features, "stone", 11);
+  deliberateResourceZoneVisit(farmer, features, "tree",  12);
 
   const desired = pickCropFromWeatherAndSeason(forecast, day);
   const target = fallbackCrop(desired, farmer.inventory.gold, reserve);
@@ -126,18 +129,20 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
   const offers = (farmer.beliefs.data["marketOffers"] as MarketOffer[] | undefined) ?? [];
   const needsLiquidity = farmer.inventory.gold < reserve * 0.5;
+  let marketTravelQueued = false;
   for (const crop of Object.keys(farmer.inventory.crops) as CropKind[]) {
     const qty = farmer.inventory.crops[crop];
     if (qty <= 0) continue;
     const supply = countOffersByCrop(offers, crop);
     if (!needsLiquidity && supply < LOW_SUPPLY_THRESHOLD) {
-      if (!inVillage) {
+      if (!inVillage && !marketTravelQueued) {
         farmer.intentions.queue.push({
           kind: "travel",
           data: { targetRegionId: "village" },
           priority: 3,
         });
         recordReason(farmer, `travel village: post offers`);
+        marketTravelQueued = true;
       }
       farmer.intentions.queue.push({
         kind: "post-offer",
@@ -151,6 +156,15 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
       });
       recordReason(farmer, `post offer ${crop} x${qty} @ ${FAIR_PRICE[crop]}: low supply ${supply}`);
     } else {
+      if (!inVillage && !marketTravelQueued) {
+        farmer.intentions.queue.push({
+          kind: "travel",
+          data: { targetRegionId: "village" },
+          priority: 3,
+        });
+        recordReason(farmer, `travel village: sell crops`);
+        marketTravelQueued = true;
+      }
       farmer.intentions.queue.push({
         kind: "sell-shopkeeper",
         data: { crop, quantity: qty },

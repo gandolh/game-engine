@@ -94,6 +94,31 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     uiHost, getShareStatus,
   } = deps;
 
+  // Connection-lost banner (review item 19): onConnectionLost previously had no registered
+  // caller, so a dropped WebSocket froze the game with no visible feedback. No auto-reconnect
+  // this wave — this only makes the failure visible.
+  const connectionLostBanner = document.createElement("div");
+  connectionLostBanner.textContent = "Connection lost — reload the page to reconnect.";
+  connectionLostBanner.style.cssText = [
+    "position: fixed",
+    "top: 0",
+    "left: 0",
+    "right: 0",
+    "z-index: 10000",
+    "padding: 10px 16px",
+    "text-align: center",
+    "font: bold 14px/1.4 ui-monospace, monospace",
+    `color: ${EDG.white}`,
+    `background: ${EDG.crimson}`,
+    `border-bottom: 1px solid ${EDG.black}`,
+    "pointer-events: none",
+    "display: none",
+  ].join(";");
+  document.body.appendChild(connectionLostBanner);
+  client.onConnectionLost(() => {
+    connectionLostBanner.style.display = "block";
+  });
+
   let firstFrameSignaled = false;
   const {
     overlay, worldClock, clockRoot, hotbar, hotbarRoot, tooltip, rightColumn, rightColumnRoot,
@@ -777,7 +802,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       }
 
       // Hover tooltip — anchored near the cursor, drawn late so it sits over other panels.
-      const hovered = hoveredSprite(canvas, client.getInterpolatedSprites(), _camera);
+      // Reuses this frame's interpolatedSprites; a second getInterpolatedSprites() call here would
+      // double-decrement hitstopFramesLeft and halve the intended hitstop duration.
+      const hovered = hoveredSprite(canvas, interpolatedSprites, _camera);
       if (tooltip.refresh({ label: hovered?.label ?? null, description: hovered?.description ?? null })) {
         // laid out below, unconditionally, since its anchor tracks the moving cursor.
       }

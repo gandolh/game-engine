@@ -89,8 +89,8 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   deliberateUpgrade(farmer, "axe", 6);
   deliberateUpgrade(farmer, "pickaxe", 7);
   deliberateUpgrade(farmer, "hoe", 8);
-  deliberateResourceZoneVisit(farmer, features.length, "tree", 9);
-  deliberateResourceZoneVisit(farmer, features.length, "stone", 10);
+  deliberateResourceZoneVisit(farmer, features, "tree", 9);
+  deliberateResourceZoneVisit(farmer, features, "stone", 10);
   deliberateFishing(farmer, 7, 2, 11);
 
   deliberateCoralFishing(farmer, 8, 3, -2, 50);
@@ -118,6 +118,11 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
       });
       recordReason(farmer, `travel village: have crops to sell`);
     }
+
+    deliberateBean(farmer, 0.95);
+    deliberateSleep(farmer);
+
+    farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
     return;
   }
 
