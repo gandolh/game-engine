@@ -1,5 +1,21 @@
 # Brief 104 — Citadel movement feel polish (gait, facing, corner-cutting)
 
+status: **DONE 2026-07-10 (all four items).**
+
+> **Closeout 2026-07-10 (items 2 + 4).** Item 2 (**L/R sprite facing flip**):
+> `VillagerHeadingTracker` (`render/citadel-renderer.ts`) now tracks a hysteretic `facing`
+> sign — it commits to a new facing only when the smoothed unit heading's horizontal
+> component `|ux|` clears `FACING_FLIP_DEADZONE = 0.3`, and holds the last facing when idle or
+> moving near-vertically, so a villager never flip-flops on a staircase path. Applied via the
+> existing `Canvas2dSprite.flipX` (already implemented on both WebGPU and Canvas2D backends —
+> no new plumbing). Item 4 (**ambient-crowd cadence parity**): the ambient crowd's private bob
+> constants were removed and its walk bob routed through the same `gaitOffset(timeSec, id,
+> moving)` villagers use, so both layers stride on one cadence. Landed with brief 105 scope 1 in
+> one render-only chunk. Commit `26deb45`. Browser: real-WebGPU run confirmed clean rendering,
+> figures present on roads, no smearing (reloads 0); the facing hysteresis and bob-parity are
+> additionally pinned by numeric tests (hand-derived iso sequences; an exact `gaitOffset`
+> frame-for-frame proof). Items 1 (gait) and 3 (corner-cutting spline) were already live.
+
 status: partial (render-only)
 
 > **Progress 2026-07-08:** item 3 (**diagonal corner-cutting**) shipped in response to

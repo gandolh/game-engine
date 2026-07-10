@@ -1,5 +1,17 @@
 # Brief 105 — Citadel ambient-crowd honesty (~~+ MP villager owner-filter~~)
 
+status: **DONE 2026-07-10 (scope 1). Scope 2 remains PARKED with MP (#21).**
+
+> **Decision (scope 1, recorded on closeout):** of the three options — cap the layer to
+> `population`, gate it off above a zoom level, or make ambient figures clearly non-villager —
+> we took the **third (make them clearly non-villager)**, the cozy-friendliest. Ambient
+> pedestrians are now visibly lesser than real villagers: `PED_SIZE` dropped `TILE_SIZE*0.8` →
+> `TILE_SIZE*0.6` (well below the 1.1-tile villager) and dimmed to `alpha 0.55`. The dim is
+> applied as the sprite's own `alpha`, **not** baked into the tint's alpha byte, because the
+> WebGPU backend discards a tint's alpha channel (traced in `webgpu/renderer.ts`) — a tint-alpha
+> dim would silently no-op on real hardware. Landed with brief 104 items 2+4 in one render-only
+> chunk (shared `ambient-crowd.ts`). Commit `26deb45`.
+
 status: todo — **reshaped 2026-07-10 (second grilling session): scope 1 only.**
 ⚠️ Decision **#21** deprecated multiplayer, so **scope 2 (the MP snapshot owner-filter) is parked**.
 The bug it describes is real — `getVillagers()` emits ALL villagers while `population` is per-player,

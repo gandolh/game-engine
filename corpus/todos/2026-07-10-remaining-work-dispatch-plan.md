@@ -70,7 +70,12 @@ share one working tree.
 
 ---
 
-### [ ] Wave 1 — Citadel client, render-only, low risk
+### [x] Wave 1 — Citadel client, render-only, low risk — **DONE 2026-07-10**
+
+Landed: **106** (`242dbbe`), **104** items 2+4 + **105** scope 1 (`26deb45`). Two parallel
+junior/Sonnet chunks on disjoint lanes; gates green (typecheck 0, `@citadel/client` 471/471,
+`@engine/core` palette guard 184/184); browser-verified on real WebGPU. Briefs moved to
+`done/`. 105 scope 2 stays parked (#21). See the status.md Wave-1 entry.
 
 No sim impact, so no determinism exposure. Two chunks, **parallel-safe** (disjoint files).
 

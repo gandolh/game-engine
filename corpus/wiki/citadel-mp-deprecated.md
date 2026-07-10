@@ -68,7 +68,7 @@ design**; that is the intent, not an omission. Say so in the code, not by a sile
 
 ## Also parked with MP
 
-- **The MP villager owner-filter** ([brief 105](../briefs/game/todo/105-citadel-crowd-honesty-mp-owner-filter.md)
+- **The MP villager owner-filter** ([brief 105](../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md)
   scope 2). `getVillagers()` emits **all** villagers while `population` is per-player — equivalent in
   solo, wrong in MP, where each client renders rivals' villagers as its own crowd. Check raiders and
   armies for the same assumption.

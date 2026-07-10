@@ -6,7 +6,7 @@ tags: [citadel, render, juice, movement, ux, villagers, raiders]
 ---
 
 > **➡️ Promoted 2026-07-03:** the deferred polish (gait, facing, corner-cutting) is now
-> [brief 104](../briefs/game/todo/104-citadel-movement-feel-polish.md).
+> [brief 104](../briefs/game/done/104-citadel-movement-feel-polish.md).
 
 > **Partial — 2026-06-27.** Shipped the biggest win: **render-only position
 > interpolation**. New pure `EntityInterpolator` ([entity-interp.ts](../../games/citadel/client/src/render/entity-interp.ts))
