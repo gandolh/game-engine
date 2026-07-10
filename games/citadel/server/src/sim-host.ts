@@ -258,6 +258,9 @@ export class CitadelSimHost {
       ticksPerDay,
       maxDays: this.opts.maxDays ?? 100,
       enforceTerritory: this.opts.enforceTerritory ?? true,
+      // Every room this host starts is a match: the town-hall is the keep/raid anchor from
+      // the founding peer's very first placement, not once a second peer shows up.
+      multiplayer: true,
       // Only pass dimensions when set (exactOptionalPropertyTypes rejects explicit undefined).
       ...(this.opts.worldWidth !== undefined ? { worldWidth: this.opts.worldWidth } : {}),
       ...(this.opts.worldHeight !== undefined ? { worldHeight: this.opts.worldHeight } : {}),

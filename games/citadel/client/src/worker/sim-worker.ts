@@ -78,6 +78,9 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         // already, since the armies list is always empty in solo). MP (@citadel/server) keeps
         // the default (true).
         enableArmy: false,
+        // Solo: the town-hall stays a civic coverage building, never the keep/raid anchor
+        // (the default; stated explicitly because this worker IS the solo game).
+        multiplayer: false,
         startingStock: { wood: 40 },
         // Cozy cold-open (Phase C): pre-seed a small connected alive town core (bread chain +
         // house + storehouse + roads at map center) so solo play opens on a living town instead

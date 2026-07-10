@@ -9,6 +9,9 @@
  * Citadel 28 (MP foundation): per-player economy/needs/territory/army/hazard
  * state moved onto a first-class `PlayerState`; `SimState.players` holds one per
  * player. Single-player is the `players.length === 1` case — no separate path.
+ * But `players.length` tracks who is CONNECTED, not which mode this is: an MP
+ * room is founded by one peer and grows, so mode-dependent rules take the
+ * bootstrap-time `multiplayer` option instead (see `actsAsKeepAnchor`, brief 108).
  * SHARED (not per-player): terrain, the world grid/occupancy/roads, the tick
  * clock, the ECS worlds, the command log, the event ring. Per-player systems
  * iterate `state.players` in stable id order (determinism).

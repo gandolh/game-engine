@@ -58,6 +58,16 @@ export interface CitadelSimOptions {
   enforceTerritory?: boolean;
   territoryRadius?: number;
   /**
+   * Is this a multiplayer match? Decides whether the `town-hall` is each player's keep/raid
+   * anchor (MP) or a purely civic coverage building (solo — cozy-pivot Phase G). Default
+   * false, so solo, the headless runner, and the determinism baseline are unchanged; the MP
+   * server passes true.
+   *
+   * A bootstrap-time fact on purpose: a room is founded by one peer and grows, so anything
+   * derived from a live `players.length` misclassifies the founder (see `actsAsKeepAnchor`).
+   */
+  multiplayer?: boolean;
+  /**
    * Charge the per-type material cost (`BUILD_COST`) to the owner's stockpile when a
    * building is placed, rejecting unaffordable placements with the `"cost"` reason.
    * Default false → placement is free (the determinism baseline + the bulk-place headless
@@ -255,6 +265,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // Citadel 30: territory build-gating (opt-in; off in solo so play is unchanged).
   const enforceTerritory = opts.enforceTerritory ?? false;
   const territoryRadius = opts.territoryRadius ?? DEFAULT_TERRITORY_RADIUS;
+  // Brief 108: MP match vs solo game — decides the town-hall's keep-anchor role.
+  const multiplayer = opts.multiplayer ?? false;
   const chargeBuildCost = opts.chargeBuildCost ?? false;
   const startingStock = opts.startingStock;
   // Cozy-pivot Phase D: threat demotion is on by default (the intended solo footing). Threaded
@@ -404,12 +416,19 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
      * match anchor (Citadel 29) — but under the cozy-pivot Phase-G direction the town-hall in
      * SOLO is a purely *civic* coverage building (rations/work-hours within its radius), NOT
      * the keep/raid anchor: a player should be able to place one without starting a siege. So
-     * the town-hall anchors only in MULTIPLAYER (`players.length > 1`); in solo it's civic-only.
-     * Raids are gated entirely on `keepPosition` (raid-spawn), so not adopting it ⇒ no raids.
+     * the town-hall anchors only in MULTIPLAYER; in solo it's civic-only. Raids are gated
+     * entirely on `keepPosition` (raid-spawn), so not adopting it ⇒ no raids.
+     *
+     * The mode is the bootstrap-time `multiplayer` flag, NOT a live `players.length > 1`
+     * count. An MP room is founded by ONE peer and grows: counting players made the founder's
+     * hall skip the anchor forever (`keepPosition` is assigned once, at placement), while the
+     * snapshot's `keepPresent` — recomputed from the same predicate every tick — flipped to
+     * true the moment a second peer joined. The founder read "Keep: standing" and was never
+     * raided. Found by the brief-108 live-MP pass.
      */
     function actsAsKeepAnchor(buildingType: string): boolean {
       if (getProductionDef(buildingType)?.isKeep !== true) return false;
-      if (buildingType === "town-hall" && state.players.length <= 1) return false;
+      if (buildingType === "town-hall" && !multiplayer) return false;
       return true;
     }
 

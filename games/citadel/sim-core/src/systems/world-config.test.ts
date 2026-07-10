@@ -5,7 +5,7 @@
  * read from config (default 96×96; a configured 256×256 sizes every grid-backed
  * allocation + the pathfinder + snapshot), and the town-hall's keep-anchor split:
  * a placeable, non-tier-locked CIVIC building in solo (no keep anchor), the MP
- * match anchor (sets keepPosition) when more than one player is present.
+ * match anchor (sets keepPosition) when the sim is bootstrapped `multiplayer`.
  */
 import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";
@@ -101,8 +101,8 @@ describe("Citadel 29 — configurable world + town-hall", () => {
 
   it("town-hall sets the owner's keep anchor in MULTIPLAYER (the match anchor)", () => {
     const W = 256, H = 256;
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H });
-    sim.state.players.push(makePlayerState(1)); // a 2nd player ⇒ multiplayer
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H, multiplayer: true });
+    sim.state.players.push(makePlayerState(1));
     const lp = localPlayer(sim.state);
     expect(lp.keepPosition).toBeNull();
 
@@ -115,5 +115,32 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     expect(lp.keepPosition).not.toBeNull();
     expect(lp.keepPosition!.x).toBe(spot.x + 1);
     expect(lp.keepPosition!.y).toBe(spot.y + 1);
+  });
+
+  it("regression: the peer who FOUNDS an MP room anchors its hall while still alone", () => {
+    // Brief 108, found live: a real room is founded by one peer and grows. The anchor used to
+    // be gated on `players.length > 1`, but `keepPosition` is assigned once, at placement — so
+    // the founder's hall never anchored, and raid-spawn (which gates entirely on keepPosition)
+    // never scheduled a raid against them. Meanwhile the snapshot's `keepPresent` re-evaluated
+    // the same predicate every tick, so it flipped to true the moment a second peer joined:
+    // the founder was told "Keep: standing" while being permanently raid-immune.
+    const W = 256, H = 256;
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H, multiplayer: true });
+    const lp = localPlayer(sim.state);
+    expect(sim.state.players.length).toBe(1); // the founding peer, alone
+
+    const spot = findGrass(sim.terrain, 3, 3, Math.floor(W / 2), Math.floor(H / 2));
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });
+    sim.scheduler.tick({ tick: 0 });
+
+    expect(lp.keepPosition).not.toBeNull();
+    expect(lp.keepPosition!.x).toBe(spot.x + 1);
+
+    // The anchor and the HUD's readout must agree, before AND after a second peer arrives —
+    // that disagreement was the visible symptom.
+    expect(sim.getSnapshot(1).keepPresent).toBe(true);
+    sim.state.players.push(makePlayerState(1));
+    expect(sim.getSnapshot(1).keepPresent).toBe(true);
+    expect(lp.keepPosition).not.toBeNull();
   });
 });
