@@ -1,5 +1,5 @@
 ---
-summary: Citadel's game-design decisions of record (#11-#20, 2026-07-10) — what MP is, who it's for, what that removes, and why a "mode" is a call-site preset rather than sim state. Four reverse earlier commitments.
+summary: Citadel's game-design decisions of record. #21-#26 (2026-07-10, second session) deprecate multiplayer, grow the solo world to 192x192, and reverse #15's PvP relocation — they supersede much of #11-#20 from the same day.
 updated: 2026-07-10
 ---
 
@@ -15,47 +15,47 @@ Game-design decisions, numbered. **These win over any older text**, including
 player's hand is placement + economic intent, **#9** the downside rule — every problem is a
 throttle-to-floor, never a loss, **#10** terrain is the puzzle).
 
-## 2026-07-10 grilling session (#11–#20)
+> ⚠️ **Read [#21–#26](#2026-07-10-second-grilling-session-21-26) before acting on #11–#20.** Both
+> sets were written on 2026-07-10. The later session **deprecated multiplayer**, which was the
+> premise the earlier one was built on: #11, #14, #16, #17 and #20 are dead, and #15's reasoning is
+> reversed. #12, #13, #18 and #19 survive in modified form. The stale block is kept, not deleted,
+> because it is the argument MP will be revived against.
+
+## 2026-07-10 grilling session (#11–#20) — LARGELY SUPERSEDED
 
 Prompted by [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md), the first pass that
-ever drove Citadel MP live. **#11, #12, #15 and #16 reverse earlier commitments.**
+ever drove Citadel MP live. **Superseded the same day by #21–#26** — each affected decision carries its
+own note below.
 
 ### #11 — MP is a real feature, not a future mode
-*Reverses "MP/PvP is a future mode, not the core" (2026-06-28).*
-
-The committed **256×256** world stays. The client must adopt the server's world size —
-[brief 110](../briefs/game/todo/110-citadel-client-world-size.md). Until it lands, MP renders only a
-96×96 corner of its world. Unblocks [105](../briefs/game/todo/105-citadel-crowd-honesty-mp-owner-filter.md)
-(owner filter) and [109](../briefs/game/todo/109-citadel-vps-deploy.md) (deploy).
+⛔ **DEAD — superseded by #21.** It never survived the question *who plays it*. Nobody chose 256×256 on
+its merits either; it was the server's default, and #22 replaces it with a **192×192 solo** world.
+Full text + the revival argument: [citadel-mp-deprecated.md](citadel-mp-deprecated.md).
 
 ### #12 — The cozy contract holds in MP too
 *Reverses brief 32's "town-hall sack = elimination".*
 
-MP keeps `cozyThreats` default-on. *Nothing you built is taken from you* is a whole-game promise, not
-a solo one. Today MP runs cozy PvE (`cozyThreats` defaults true) beside **lethal** PvP (`enableArmy`
-defaults true; `army.ts:127-128` sets `keepSacked` + `gameOver`) — **two defaults colliding, not a
-design.** The server passes neither option.
+*Nothing you built is taken from you* is a whole-game promise, not a solo one. MP ran cozy PvE
+(`cozyThreats` defaults true) beside **lethal** PvP (`enableArmy` defaulted true; `army.ts:127-128`
+set `keepSacked` + `gameOver`) — **two defaults colliding, not a design.**
 
-⚠️ **Superseded in part by #15**: the original answer was to *soften* the army attack into a dent.
-#15 removes the army from cozy MP instead, so there is no cozy attack to define.
+⚠️ **Superseded in part by #15** (soften → remove), then settled by **#23**: `ArmySystem` freezes
+outright and `enableArmy` defaults `false`, so the collision is gone at its root.
 
 ### #13 — Challenge mode is the home of every sharp system
-[Brief 103](../briefs/game/todo/103-citadel-challenge-mode.md) is approved and gets built. It owns
-`cozyThreats:false` (destructive fire, lethal disease, sacking raids) **and** the lethal PvP armies
-that #15 removes from cozy MP. This finally gives the frozen sharp path a real consumer, so its
-two-branch test burden stops being dead weight.
+[Brief 103](../briefs/game/todo/103-citadel-challenge-mode.md) is approved and gets built: it owns
+`cozyThreats:false` (destructive fire, lethal disease, sacking raids), giving the frozen sharp path a
+real consumer so its two-branch test burden stops being dead weight.
 
-Its *shape* is settled by **#19**: Challenge is a preset of the sim's existing flat options, not a new
-sim concept — so Challenge-solo and Challenge-MP are simply different bundles.
+> 🔄 **MODIFIED by #24.** Challenge survives as a **solo-only** preset. It no longer owns lethal PvP
+> (which had no home once #21 deprecated MP; see #23), so it reduces to `cozyThreats:false`, no
+> `seedTown`, no threat-defer. #19's call-site-preset shape lets it shed the MP bundle for free, and
+> it is **no longer blocked on anything** — it was only ever gated on the MP arc.
 
 ### #14 — Terrain is shipped, not regenerated
-The MP server sends the terrain grid **once** (256×256 = 65,536 bytes; `perMessageDeflate` is already
-on above 1 KiB and terrain compresses hard). The client must **never** generate its own world in MP.
-
-This makes terrain desync **structurally unrepresentable**, and retires a latent bug the alternative
-would have preserved: `init` carries the *client's* hardcoded `SEED`, and only the **first** peer's
-seed starts the sim, so a late joiner regenerating from its own constant would silently render a
-different world.
+⛔ **DEAD — superseded by #21** (unbuilt). The latent late-joiner seed bug it describes is **real and
+still present** in the deprecated MP path, unreachable only because nobody runs MP. It is a **revival
+precondition** — see [citadel-mp-deprecated.md](citadel-mp-deprecated.md) §2. Recorded, not fixed.
 
 ### #15 — Default MP is a co-op sandbox, and armies are removed from it
 *Supersedes #12's "soften PvP"; relocates the brief-32 PvP-armies epic wholesale into Challenge mode.*
@@ -68,34 +68,33 @@ and softening `launchAttack` into a dent would ship a lever with nothing on the 
 
 `ArmySystem` + `launchAttack` come **out** of the cozy path (`enableArmy:false` in the MP server).
 Lethal PvP lives only in Challenge (#13). This closes the question "what does a cozy army attack do?":
-there isn't one. Work: [brief 112](../briefs/game/todo/112-citadel-cozy-mp-drop-armies.md).
+there isn't one. Work: [brief 112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md).
 
 ⚠️ `launchAttack`'s handler is **not gated on `enableArmy`** — it debits tools and pushes an army that
 `enableArmy:false` then never resolves. Brief 112 must gate the handler in the same change that flips
 the flag, or it *creates* the bug.
 
-### #16 — MP rooms are keyed and invite-only
-*Reverses the implicit "one shared world" the code ships today.*
+> 🔄 **REVERSED by #23.** #15's whole argument was that lethal PvP *relocates* to Challenge mode
+> "which must at minimum support MP". With MP deprecated (#21) there is nowhere for PvP to go, so the
+> relocation has no destination. `ArmySystem` freezes; its marching machinery is reborn as the *body*
+> of the cozy PvE raid. The `launchAttack` gating bug above is retired along with the handler.
 
-Peers join `?mp=<roomId>`; the host keys rooms by id, porting the Farm `RunRegistry` pattern that
-citadel-38 item 7 already names as the model this server diverges from. Today it is **one room per
-process** — every peer who connects lands in the *same* game — so a stranger could wander into your
-town the moment [109](../briefs/game/todo/109-citadel-vps-deploy.md) puts it on a public box. The room
-id is a **capability, not a secret**: this is invite-by-link, not authentication. Work:
-[brief 111](../briefs/game/todo/111-citadel-mp-room-keys-and-session-semantics.md).
+### #16 — MP rooms are keyed and invite-only
+⛔ **DEAD — superseded by #21** (unbuilt). The **one-room-per-process** hazard it describes is real and
+unfixed — a stranger joins *your* game — defused only because nothing hosts Citadel publicly. It is
+the revival precondition **with a security consequence**, and therefore the first to implement. See
+[citadel-mp-deprecated.md](citadel-mp-deprecated.md) §1.
 
 ### #17 — An MP run is ephemeral, by design
-It lives as long as someone is connected (10 s reap grace, verified live in brief 108). `load-save`
-stays refused in a shared room — it would desync live peers — and the misleading `request-save` (which
-hands a peer a blob nothing in MP can load) is removed or gated. A match is session-shaped; that is
-the intent, not an omission. Folded into brief 111.
+⛔ **DEAD — superseded by #21** (unbuilt). `request-save` still hands out a blob that MP cannot load.
+Harmless while MP is deprecated; a lie the moment it is revived.
+See [citadel-mp-deprecated.md](citadel-mp-deprecated.md) §3.
 
 ### #18 — `maxDays` is deleted
-It is a *required* `CitadelSimOptions` field that **no system reads**: every caller passes it and
-nothing consumes it, so it reads as a run-length bound and bounds nothing (a live MP room sailed past
-day 200). Removed, not wired — MP is endless by #15. Folded into
-[brief 99](../briefs/game/todo/99-p2-debt-cleanup-batch.md). Note `loadFromSave` computes its own
-value to pass through; check that path before deleting.
+A *required* `CitadelSimOptions` field that **no system reads** — every caller passes it, nothing
+consumes it, so it reads as a run-length bound and bounds nothing. Removed, not wired. Folded into
+[brief 99](../briefs/game/todo/99-p2-debt-cleanup-batch.md). ⚠️ `loadFromSave` computes its own value
+to pass through; check that path before deleting.
 
 ### #19 — A "mode" is a preset at the call site, not a concept in the sim
 Challenge mode introduces **no new sim state**. The sim keeps taking flat, independent options
@@ -112,37 +111,99 @@ Consequences: Challenge-solo and Challenge-MP fall out for free as different bun
 save keeps loading; and **every mode-affecting option must be persisted in `CitadelSave`.** That last
 clause is load-bearing — see the trap below.
 
-> ⚠️ **The invariant has teeth.** Brief 108 added `multiplayer` (which decides `actsAsKeepAnchor`) and
-> did not persist it. Writing the round-trip test found a *second*, larger omission: **world
-> dimensions were never persisted either**, so `loadFromSave` rebuilt the default 96×96 grid and
-> silently dropped every replayed command beyond tile 95 as out-of-bounds — a 256×256 MP save was
-> **unreplayable**, its buildings simply gone. Both were reachable: `request-save` hands out a valid
-> save in MP, and the solo Load button accepts any file. Fixed 2026-07-10 (`19d6d98`). When Challenge
-> mode adds flags, persist them, and write the replay test.
+> ⚠️ **The invariant has teeth.** Brief 108 added `multiplayer` and didn't persist it; the round-trip
+> test then found a larger omission — **world dimensions were never persisted either**, so
+> `loadFromSave` rebuilt the default grid and silently dropped every replayed command out of its
+> bounds. Fixed 2026-07-10 (`19d6d98`). When Challenge adds flags, persist them and write the test.
 
 ### #20 — Sequencing: finish the Citadel MP arc first
-[110](../briefs/game/todo/110-citadel-client-world-size.md) → [111](../briefs/game/todo/111-citadel-mp-room-keys-and-session-semantics.md)
-→ [112](../briefs/game/todo/112-citadel-cozy-mp-drop-armies.md), back-to-back: they are causally
-linked and together make MP real (110), safe to expose (111), and coherent (112). Then
-[109](../briefs/game/todo/109-citadel-vps-deploy.md) can deploy, and [103](../briefs/game/todo/103-citadel-challenge-mode.md)
-can be scoped against a mode system that is finally honest.
+⛔ **DEAD — superseded by #26.** There is no MP arc. The new order is #26.
 
-Farm (98 wire the market wall, 101 perishability, 107 visual pass) and engine (18 typography,
-19 audio) wait. **Engine 19 (audio) runs after the arc** — it is dispatch-ready, already approved, and
-touches zero `sim-core`, so it is the safe parallel track if a second thread is ever wanted; but the
-default is one thread at a time.
+## 2026-07-10 second grilling session (#21–#26)
+
+Ran hours after #11–#20, against the same code. The earlier session answered *how do we make MP
+correct*; this one asked the question underneath it — **who plays it** — and did not find an answer.
+**#21 is the root; #22–#26 are its consequences.**
+
+### #21 — Multiplayer is deprecated, not deleted
+*Reverses #11 ("MP is a real feature"), and with it #14, #16, #17 and #20.*
+
+Cozy MP has no score (#7), no ending (#9), no armies (#15), and no save (#17). Asked who the session
+is *for*, the answer was: nobody yet. Shipping [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md)
+(room keys) and [109](../briefs/game/superseded/109-citadel-vps-deploy.md) (VPS) would have been four
+briefs of infrastructure serving no player.
+
+**Deprecated, not deleted.** `@citadel/server`, the client's `?mp` path, and `CitadelSimHost` all stay
+in the tree and keep compiling and passing tests. They are unmaintained and known-broken in the ways
+#14, #16 and #17 describe. **The revival preconditions are those three decisions**, and they are kept
+on the page for exactly that reason. Anyone reviving MP starts by reading them, not by reading code.
+
+### #22 — The solo world grows to 192×192
+*Replaces #11's "committed 256×256", which was the server's default rather than a choice.*
+
+96×96 was never argued for either. 192×192 is chosen on the merits, and specifically as **the smallest
+size that crosses the `4096²` iso-pixel windowing threshold** (`6144×3088`, 76 MB RGBA) — so brief
+110's part 1, and briefs 21/22's windowed bake behind it, stop being dead code. 160×160 would have
+grown the map without triggering windowing; 256×256 sits exactly on WebGPU's default
+`maxTextureDimension2D` of 8192 px with zero margin. The full size table is in
+[brief 110](../briefs/game/todo/110-citadel-client-world-size.md).
+
+A settlement occupies ~40×40 tiles regardless, so this trades map occupancy (17% → 4%) for longer
+roads to clustered resources — which is #10's "build toward the resource" decision made larger.
+
+### #23 — Armies freeze; the cozy raid gets a body instead
+*Reverses #15's relocation, which had a destination only while MP existed.*
+
+`ArmyState` is PvP **down to its fields** — `attackerId` is a player, `targetPlayerId` a building's
+owner, `findTargetBuilding` filters on `ownerId`. There is no AI attacker to repoint it at without
+rewriting the state, the targeting and the resolution. Meanwhile `applyRaidDamage`
+([siege-resolution.ts:200](../../games/citadel/sim-core/src/systems/siege-resolution.ts)) already does
+the PvE job — so "keep armies for solo raiders" would rebuild a system Citadel has.
+
+What armies have that raids don't is **a body**: `ArmyState` carries `x, y, tileX` — a unit that
+marches, where the cozy raid is an abstract `raidStrength` applied at the keep. So the machinery is
+reborn as the raid's *embodiment* — raiders you watch approach, pilfer, and leave, exactly as the cozy
+rules already say. Diegetic feedback (#8, #10), not a new mechanic.
+
+`ArmySystem` + `launchAttack` freeze behind `enableArmy`, **default flipped to `false`**, unreached by
+any caller. ⚠️ Gate the handler in the same change as the flip, or you create the unbounded
+`state.armies` bug #15 warned of. Work: [brief 113](../briefs/game/todo/113-citadel-raid-gets-a-body.md).
+
+### #24 — Challenge mode is solo-only
+See the note on #13. It sheds lethal PvP (#23) and the MP bundle (#21), keeping `cozyThreats:false`,
+no `seedTown`, no threat-defer. Unblocked; still unbuilt.
+
+### #25 — Solvability guarantees distance, not just reachability
+`repairSolvability` guarantees ≥1 **reachable** Forest and Stone by 4-connected flood-fill. On 96×96
+the map bounds the distance. On 192×192 it does not — a guaranteed stone can sit 100 tiles from the
+core box, across terrain you must road toward with wood you do not have. **The Phase C cold open would
+open on a living town that cannot grow**, and no existing test would see it.
+
+The guarantee gains a distance bound: ≥1 Forest and ≥1 Stone within **N tiles of the core box**,
+painting a blob if absent. Pure function of the grid, no RNG — the same shape as today's guarantee.
+Verified across 100 seeds. N is calibrated from the measured distribution, not assumed.
+
+### #26 — Sequencing: the world before the economy
+**110 (reshaped) → 100 → the tail.** Brief 100's balance numbers are meaningless on a map that is
+about to quadruple, so the world lands first. Then the tail: 102, 99, 106, 104, 105 (crowd half), 98.
+
+Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 18, engine 19 (parked).
 
 ## Consequences at a glance
 
-| Brief | Status after this session |
+| Brief | Status after the second session |
 |---|---|
-| [110](../briefs/game/todo/110-citadel-client-world-size.md) client world size | **Next up.** Gates 105 and 109. |
-| [111](../briefs/game/todo/111-citadel-mp-room-keys-and-session-semantics.md) room keys + session semantics | New. Also gates 109. |
-| [112](../briefs/game/todo/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | New. Sequence with 103. |
-| [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Approved; owns lethal PvP. Shape settled by #19 — a call-site preset, no new sim state. |
-| [109](../briefs/game/todo/109-citadel-vps-deploy.md) VPS deploy | Gated on 110 **and** 111. Solo half deployable today. |
-| [99](../briefs/game/todo/99-p2-debt-cleanup-batch.md) P2 debt | Gains the `maxDays` deletion (#18). |
-| [98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md) Farm market wall | Decided: **Option A, wire it.** Waits on the MP arc (#20). |
-| engine [19](../briefs/engine/todo/19-audio-subsystem.md) audio | Approved + dispatch-ready. Runs **after** the MP arc (#20). Both games are currently silent. |
+| [110](../briefs/game/todo/110-citadel-client-world-size.md) world size | **Next up, reshaped.** Now *solo grows to 192*, not *client adopts server*. Part 1 already landed (`8e930f3`). |
+| [100](../briefs/game/todo/100-citadel-economy-growth-pass.md) economy growth | Follows 110. Curve `0.6 → 1.0 → 1.25`; pop target 12–15. |
+| [113](../briefs/game/todo/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23). Filed, not built. |
+| [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Solo-only (#24). Unblocked, unbuilt. |
+| [105](../briefs/game/todo/105-citadel-crowd-honesty-mp-owner-filter.md) crowd honesty | Reshaped: ambient-crowd half only. The MP owner-filter half is deprecated with MP. |
+| [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md) room keys | **Superseded** (#21). Its hazard is real; it is a revival precondition. |
+| [112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | **Superseded** (#23). Moot — there is no cozy MP. The `enableArmy` default flip survives into 110. |
+| [109](../briefs/game/superseded/109-citadel-vps-deploy.md) VPS deploy | **Superseded** (#21). Nothing to deploy. |
+| [99](../briefs/game/todo/99-p2-debt-cleanup-batch.md) P2 debt | Keeps the `maxDays` deletion (#18 survives). |
+| [98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md) Farm market wall | **Option A, wire it.** Farm is in maintenance; this and 99's Farm slice are its whole scope. |
+| [101](../briefs/game/todo/101-farm-perishability-distance-pricing.md) · [107](../briefs/game/todo/107-farm-visual-verification-session.md) | Parked. Farm is in maintenance; 101 forbids autonomous execution, 107 needs the user's real GPU. |
+| engine [18](../briefs/engine/todo/18-ui-authored-typography-and-icons.md) · [19](../briefs/engine/todo/19-audio-subsystem.md) | Parked. Net-new subsystems, independent of everything above. |
 
-**Order (#20):** 110 → 111 → 112 → then 109 / 103, with Farm and engine after.
+**Order (#26):** 110 → 100 → {102, 99, 106, 104, 105, 98}.

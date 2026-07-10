@@ -1,7 +1,22 @@
 # Brief 100 — Citadel economy-growth pass (the two-way loop's upside)
 
-status: todo
+status: todo — **numbers settled 2026-07-10 (second grilling session); sequence after [brief 110](110-citadel-client-world-size.md).**
+⚠️ **110 first (decision #26).** This brief's balance numbers are meaningless on a map that is about
+to quadruple: #22 grows the solo world 96×96 → 192×192, which lengthens roads to clustered resources
+and therefore changes every service-ratio this brief reads.
 source: [todos/2026-06-22-citadel-two-way-service-economy.md](../../../todos/2026-06-22-citadel-two-way-service-economy.md) (scopes #1 and #3, explicitly deferred there "for a combined economy-growth pass so the same numbers aren't tuned twice") + the immigration overlap flagged in [todos/2026-06-22-citadel-playtest-findings.md](../../../todos/2026-06-22-citadel-playtest-findings.md).
+
+## Settled targets (do not re-derive)
+
+- **Production curve — ONE curve, not two mechanisms.** Extend Phase H's `bufferThrottleFactor` rather
+  than adding a second term beside it: `0.6` floor below the 60% fill knee → `1.0` at the knee →
+  ramping to **`1.25`** for a building on a sustained-service band. A thriving building outproduces a
+  starved one by **`1.25 / 0.6 ≈ 2.08×`**.
+- **Population target: 12–15** for a well-laid town, from today's ~9/12 oscillating at housing cap.
+  Deliberately modest — the growth is a nudge that reads, not a transformation. If a 60-day headless
+  run lands outside that band, tune the immigration trickle, not the production ceiling.
+- **The cozy floor is untouched.** All of this sits *above* the 0.6 floor (decision #9). Nothing this
+  brief adds may push a building below it, ever.
 
 ## Why
 

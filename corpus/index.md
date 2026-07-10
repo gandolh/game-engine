@@ -40,7 +40,8 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 ### Citadel
 
 - [wiki/citadel-overview.md](wiki/citadel-overview.md) — What Citadel is (settlement sim on the shared engine), the 2026-06-28 **cozy pivot** design-of-record, its packages, sim systems, and shared invariants.
-- [wiki/citadel-decisions.md](wiki/citadel-decisions.md) — Citadel's game-design decisions of record (#11-#20, 2026-07-10) — what MP is, who it's for, what that removes, and why a "mode" is a call-site preset rather than sim state. Four reverse earlier commitments.
+- [wiki/citadel-decisions.md](wiki/citadel-decisions.md) — Citadel's game-design decisions of record. #21-#26 (2026-07-10, second session) deprecate multiplayer, grow the solo world to 192x192, and reverse #15's PvP relocation — they supersede much of #11-#20 from the same day.
+- [wiki/citadel-mp-deprecated.md](wiki/citadel-mp-deprecated.md) — Citadel multiplayer is deprecated (decision #21) — what still exists in the tree, the three known-broken things nobody fixed, and the exact preconditions for reviving it. Read this before touching @citadel/server.
 - [wiki/citadel-hud-and-overlays.md](wiki/citadel-hud-and-overlays.md) — HUD, overlays, and diegetic feedback surfaces: top bar, goods strip, build bar, inspect panel, minimap, notifications.
 - [wiki/citadel-rendering.md](wiki/citadel-rendering.md) — The WebGPU-only render path: sprite-batch quads, baked terrain, iso projection, road/bridge networks, atlas wiring.
 - [wiki/citadel-art-style.md](wiki/citadel-art-style.md) — The cozy-medieval-storybook iso pixel-art style bible — EDG32 palette roles, shading/form/light rules, the layered-composite authoring path.
@@ -55,7 +56,7 @@ Each brief is the spec that directed a slice of work; once in `done/`/`supersede
 duplicate the catalog. Number prefixes are stable across directory moves.
 
 - Engine: [briefs/engine/](briefs/engine/) — `done/` 02–17, `superseded/` 01 + the WebGPU wave, `todo/` 18–19
-- Game: [briefs/game/](briefs/game/) — briefs 01–112; 01–95 plus 97 and 108 are Done or Superseded, `todo/` holds 96, 98–107, 109–112
+- Game: [briefs/game/](briefs/game/) — briefs 01–113; `todo/` holds 96 (living reference), 98–107, 110, 113; `superseded/` gained 109/111/112 (the deprecated-MP arc)
 - Citadel: [briefs/citadel-apr.md](briefs/citadel-apr.md) plus the `todos/*citadel-*` files
 
 For era-level context read [log.md](log.md).

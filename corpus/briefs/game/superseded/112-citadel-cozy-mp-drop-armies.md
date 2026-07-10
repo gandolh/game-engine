@@ -1,9 +1,20 @@
 # Brief 112 — Remove armies from cozy MP (relocate PvP to Challenge mode)
 
-status: todo — **design settled, execution pending.** Decision **#15** (2026-07-10).
-source: the 2026-07-10 grilling session. Supersedes decision #12's "soften PvP into a dent".
-⚠️ Sequence **after** [brief 103](103-citadel-challenge-mode.md) is scoped, or at least alongside it —
-this brief takes armies *out* of one place, and 103 is where they land.
+> ⛔ **SUPERSEDED 2026-07-10 (second grilling session) — never built. Moot.** Decision **#21**
+> deprecated multiplayer, so there is no cozy MP to remove armies *from*, and decision **#23** reversed
+> #15's premise: with no MP there is nowhere for lethal PvP to relocate *to*. `ArmySystem` simply
+> freezes.
+>
+> **Two pieces of this brief survive and were rehomed, not lost:**
+> - The **`enableArmy` default flip to `false` + gating the `launchAttack` handler** (scope 2/3 below)
+>   moves to [brief 110](110-citadel-client-world-size.md) scope 7. The trap it warns about — the
+>   handler debits `tools` and pushes an `ArmyState` that an unregistered `ArmySystem` never resolves,
+>   so `state.armies` grows without bound — is **real** and must be defused with the flip.
+> - The army's **marching machinery** is salvaged by [brief 113](113-citadel-raid-gets-a-body.md),
+>   which gives the existing cozy PvE raid a visible body.
+
+status: superseded — was: todo. Decision **#15** (2026-07-10, first session), reversed by #23.
+source: the 2026-07-10 grilling session. Superseded decision #12's "soften PvP into a dent".
 
 ## Why
 

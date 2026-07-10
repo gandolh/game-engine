@@ -1,6 +1,15 @@
 # Brief 96 — Citadel building art-style reference (the look + example assets)
 
-Status: **todo / living reference.** This is the standing art-direction spec for
+> 📌 **NOT SCHEDULED WORK.** This is a **living reference**, not a task, and it should not be read as
+> something in the queue. It sits in `todo/` only because that is where it was written.
+>
+> It belongs in `wiki/` beside [citadel-art-style.md](../../../wiki/citadel-art-style.md), but the two
+> overlap substantially (shading rules, hard constraints, verification checklist) and merging them
+> would exceed the corpus's ~200-body-line page cap — so the move needs a real split, not a `git mv`.
+> Filed as a corpus-hygiene job for whoever next touches the art pages. The unique content here is the
+> **reference-asset section**, which the style bible does not carry.
+
+Status: **living reference (not scheduled).** This is the standing art-direction spec for
 Citadel building sprites — the look to match when adding/restyling any building.
 It captures the reference assets the user provided and the rules the current
 generators follow. Not a one-shot task; keep it open and update as the style

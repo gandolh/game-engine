@@ -1,6 +1,14 @@
 # Brief 111 — Citadel MP room keys + honest session semantics
 
-status: todo — **gates [brief 109](109-citadel-vps-deploy.md).** Decisions **#16** and **#17** (2026-07-10).
+> ⛔ **SUPERSEDED 2026-07-10 (second grilling session) — never built.** Decision **#21** deprecated
+> multiplayer, so there is no public room to key and no VPS to expose it on. **The hazard this brief
+> describes is real and unfixed**: the server is still one room per process, and `request-save` still
+> hands out a blob that MP cannot load. Both are defused only because nothing hosts Citadel publicly.
+>
+> **This brief is a revival precondition, not a discarded idea.** Anyone reviving MP must implement
+> it (and decision #14's terrain-shipping) *before* deploying. Kept for that reason.
+
+status: superseded — was: todo, gating brief 109. Decisions **#16** and **#17** (2026-07-10, first session).
 source: the 2026-07-10 grilling session, grounded in code read during [brief 108](../done/108-citadel-live-mp-verification.md).
 
 ## The finding
