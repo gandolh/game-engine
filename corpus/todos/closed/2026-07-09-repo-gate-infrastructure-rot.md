@@ -14,7 +14,7 @@ red workspace when there were **five**, and missed **two** further instances of 
 rot that only surfaced once the first three were fixed.
 
 Three defects in the repo's own quality gates, all **pre-existing on `main`**, all surfaced
-while running the gates for [brief 97](../../briefs/game/todo/97-review-fix-wave.md) wave 1.
+while running the gates for [brief 97](../../briefs/game/done/97-review-fix-wave.md) wave 1.
 None was caused by that work. Each silently weakened a gate that
 [CLAUDE.md](../../../CLAUDE.md) and [routing.md](../../routing.md) tell every agent to trust.
 

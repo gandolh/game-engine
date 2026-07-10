@@ -1,6 +1,6 @@
 ---
-summary: Why every system in bootstrapSim sits where it does — the nine bands, the inbox lifecycle, cross-cutting invariants, and the system-to-brief provenance map.
-updated: 2026-06-11
+summary: Why every system in bootstrapSim sits where it does — the ten bands, the inbox lifecycle, cross-cutting invariants, and the system-to-brief provenance map.
+updated: 2026-07-10
 ---
 
 # Scheduler System Ordering
@@ -39,7 +39,7 @@ Everything here must run **after `InboxDispatchSystem` and before `PerceiveSyste
 | `RunHistorySystem` | Per-day rank/gold collector; snoops DAY_START from the weather-station inbox (same pattern as BubbleSystem). Constructed before `EventFeedSystem`, which takes it as a dep to detect rank-1 changes ("race is on" line) — no mutual dependency. |
 
 ### 4. Perceive
-`PerceiveSystem` — **clears all inboxes** and folds messages into beliefs; also clears expired `busyUntilTick` and re-arms deliberation. The hard barrier of the tick: anything needing raw messages runs before; anything needing fresh beliefs runs after.
+`PerceiveSystem` — **clears farmer inboxes** and folds messages into beliefs; also clears expired `busyUntilTick` and re-arms deliberation. The hard barrier of the tick: anything needing raw farmer messages runs before; anything needing fresh beliefs runs after. It queries `("inbox","beliefs","fsm")`, so it touches *only* farmers — the non-farmer stations are cleared in band 10, and were cleared nowhere at all before brief 97.
 
 ### 5. Environment
 `CropGrowthSystem` → `TileFeatureSystem` (per-day tree/stone spawns) → `BubbleSystem` → `HarvestSystem` → `LivestockSystem` (daily product yield + care decay, **after harvest**) → `OrchardSystem` (maturation + seasonal fruit drop). (briefs 42)
@@ -62,13 +62,26 @@ Everything here must run **after `InboxDispatchSystem` and before `PerceiveSyste
 ### 9. Ambient & close
 `NpcDeliberateSystem` (sets each service NPC's `busyFactor` from world state) → `WorkNpcSystem` (scales patrol cadence by it; cosmetic, pure) → `CombatSystem` (resolves the strikes Aggression/Chase set up — the same instance those two hold) → `FinishDaySystem`.
 
+### 10. Cleanup
+`StationInboxClearSystem` — drains every **non-farmer** inbox at the very end of the tick, after the last consumer of any of them (brief 97 item 11).
+
+`InboxDispatchSystem` fans every broadcast into *every* entity with an `inbox`, but `PerceiveSystem` (band 4) clears only farmers — its query is `("inbox","beliefs","fsm")`. So the station entities (weatherStation, harborBoard, noticeBoard, shopkeeper, market wall, …) accumulated messages forever, and the ~10 systems that re-scan them each tick paid O(ticks × accumulated), plus a real memory leak in the long-lived server host (one sim per WebSocket connection).
+
+Two exclusions, both load-bearing:
+- **weatherStation** is skipped here. `WeatherSystem` sits in band 2 *one line before* `InboxDispatchSystem`, so it reads its inbox **pre-dispatch** and drains it there; `flush()` then refills it in the same stage, same tick, for every post-dispatch reader.
+- **Farmers** are skipped, discriminated by `beliefs`. If a non-farmer entity ever gains `beliefs` without `fsm`, this system and `PerceiveSystem` disagree about who owns clearing its inbox.
+
+The shopkeeper's `AUCTION_RESULT` is **not** dropped unconditionally: a result whose winner has not yet been credited is a live cross-tick settlement retry, retained until `settledAuctions` records it. Settled and no-winner results are inert and dropped.
+
+**A clear placed too early is a correctness bug, not a growth bug** — inboxes stay bounded either way (more so, in fact) while the band-3 snoopers silently stop seeing their broadcasts. Guarding on inbox *size* therefore certifies nothing; [station-inbox-clear.test.ts](../../games/farm/sim-core/src/systems/messaging/station-inbox-clear.test.ts) carries a message-*visibility* guard for exactly this, alongside the exact-order pin in `scheduler-stages.test.ts`.
+
 ## Cross-cutting invariants
 
-- **Inbox lifecycle per tick**: `bus.send` queues inflight → `InboxDispatchSystem` flushes → snoop band reads → `PerceiveSystem` clears. A new snoop/feed system goes in band 3, never after Perceive.
+- **Inbox lifecycle per tick**: `bus.send` queues inflight → `InboxDispatchSystem` flushes → snoop band reads → `PerceiveSystem` clears **farmer** inboxes → `StationInboxClearSystem` (band 10) clears the rest. A new snoop/feed system goes in band 3, never after Perceive. A new *station* consumer must run before band 10.
 - **Same-tick reads** (Rivalry→EventFeed, EventFeed→Tavern, Encounter→EncounterTrade) are intentional couplings — moving either side of a pair breaks the feature silently, not loudly.
 - **Determinism**: no system may use `Math.random`/`Date.now`; all take the forked `Rng`. Extra-farmer spec generation is a pure function of the index (no RNG).
 - **PathfinderLike duck type**: both the WASM `Pathfinder` and `JsPathfinder` satisfy it, so headless runs work without WASM — but the two are **not route-equivalent** (see [performance.md](performance.md) / determinism notes); the server uses WASM.
 
 ## Provenance map (system → origin brief)
 
-Shock 23 · EncounterTrade registration fix 24 · PlotSense 29 · Rivalry-before-EventFeed 37 · crop quality 41 · Livestock/Orchard 42 · Tavern + Carpenter 44 · Festival 45 · Harbor 46 · boat grid 48 · starting-gold +30 across all archetypes 70. Per-brief details live in [briefs/game/done/](../briefs/game/done/) and one-liners in [status.md](status.md).
+Shock 23 · EncounterTrade registration fix 24 · PlotSense 29 · Rivalry-before-EventFeed 37 · crop quality 41 · Livestock/Orchard 42 · Tavern + Carpenter 44 · Festival 45 · Harbor 46 · boat grid 48 · starting-gold +30 across all archetypes 70 · StationInboxClear / CLEANUP band 97. Per-brief details live in [briefs/game/done/](../briefs/game/done/) and one-liners in [status.md](status.md).

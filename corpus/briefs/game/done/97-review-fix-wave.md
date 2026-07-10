@@ -1,26 +1,34 @@
 # Brief 97 — Review fix wave (P0/P1 from the 2026-07-02 full-repo review)
 
-status: **in progress** — wave 1 landed 2026-07-09 on branch `brief-97-review-fix-wave`.
+status: **done** — wave 1 landed 2026-07-09 (`976f032`); wave 2 (chunks 3, 5, 8) landed 2026-07-10 (`c8ee284`). All 10 chunks complete.
 source: [todos/2026-07-02-full-repo-review-findings.md](../../../todos/2026-07-02-full-repo-review-findings.md) (commit `c2cc78d`) — item numbers below refer to that doc; read it first, it carries the file:line detail and failure scenarios for every item.
 execute via: `plan-split-dispatch` (controller opus, chunks classified below). The chunk plan + wave order was already drawn up and approved — reuse it as-is unless the code has drifted.
 
-> **Progress (2026-07-09).** **Done:** chunks **1, 2, 4, 6, 7, 9** (wave 1), plus chunk **10**
-> done inline — its ~190-link stale-path sweep was already obsolete (`d071281` fixed the wiki
-> links; the 310 remaining hits live in immutable `briefs/` and are correctly untouched).
-> **Remaining: chunks 3, 5, 8** (waves 2–3), scope unchanged below.
+> **Closed 2026-07-10.** All ten chunks landed. Wave 1 (chunks 1, 2, 4, 6, 7, 9 + 10 inline)
+> in `976f032`; wave 2 (chunks 3, 5, 8) in `c8ee284`. Wave 1 **moved the Farm baseline by
+> design** (sell gate + quality formula); wave 2 moved **neither** game's baseline — verified
+> byte-identical to `main` on three seeds per game.
 >
-> A review pass (3 scoped finders + 1 fix agent) found **5 real bugs** in the wave-1 diff, all
-> fixed before closeout — including one caused by **this brief's own instruction** to give the
-> boat hull `id: entity.id`. That collided with the farmer's id across three first-match,
-> id-keyed client consumers (held-tool render, camera follow / particles, `prevById`
-> interpolation). The hull now uses a disjoint **negative-id namespace** (`-entity.id`; ECS ids
-> start at 1), which required zero client changes. Item 18's real constraint is *non-null and
-> non-colliding*, not "the farmer's id".
+> Two of this brief's own instructions were **wrong**, and the code won both times:
+> - Item 18 told chunk 6 to give the boat hull `id: entity.id`. That collided with the farmer's
+>   id across three first-match, id-keyed client consumers. The real constraint is *non-null and
+>   non-colliding*, met with a disjoint negative-id namespace (`-entity.id`; ECS ids start at 1).
+> - Item 20 said to "track consumed events by index/sequence", but Citadel's `recentEvents` is a
+>   bare `string[]` fed by a capped rolling window — there was no sequence to track. A monotonic
+>   `eventsSeq` had to be added to sim state and the snapshot first.
 >
-> **Chunk 5 must re-read current source:** `games/citadel/client/src/main.ts` drifted in
-> `a265bb8` (toast anchoring now reads the measured HUD rect), so the line numbers below are
-> stale for it. Gates, the measured Farm baseline move, and the durable lessons are in
-> [log.md](../../../log.md) and [wiki/status.md](../../../wiki/status.md).
+> Review across both waves (6 scoped finders, 2 fix agents) found **5 real bugs in wave 1** and
+> **0 functional bugs in wave 2** — but caught in wave 2 that the toast regression test *passed on
+> the unfixed code* (with `prevSeq=1` the old string-match anchors on a unique event and splits
+> correctly; the discriminating case is `prevSeq=2`, where the last-shown event is itself the
+> duplicate), and that the Farm inbox test guarded inbox *size* when the failure mode is message
+> *visibility* — a clear registered too early keeps inboxes bounded while silently starving the
+> band-3 snoopers. Both guards were rewritten and proven to go red against the broken code.
+>
+> A regression introduced by the wave-2 fix pass and caught before closeout: gating interpolation
+> ingest on `tick > lastIngestedTick` froze every entity after a solo load-save, because
+> `load-save` rewinds `tick` to the save point. The predicate must be `!==`. Verified live —
+> loading a tick-1252 save at day 284 walks the clock back to day 68 and rendering continues.
 
 ## Scope
 
