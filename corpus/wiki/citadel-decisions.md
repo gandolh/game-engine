@@ -193,8 +193,8 @@ Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 
 
 | Brief | Status after the second session |
 |---|---|
-| [110](../briefs/game/done/110-citadel-client-world-size.md) world size | **Next up, reshaped.** Now *solo grows to 192*, not *client adopts server*. Part 1 already landed (`8e930f3`). |
-| [100](../briefs/game/todo/100-citadel-economy-growth-pass.md) economy growth | Follows 110. Curve `0.6 → 1.0 → 1.25`; pop target 12–15. |
+| [110](../briefs/game/done/110-citadel-client-world-size.md) world size | **DONE** (`0fd66c0`, after part 1 `8e930f3`). Reshaped: *solo grows to 192*, not *client adopts server*. |
+| [100](../briefs/game/done/100-citadel-economy-growth-pass.md) economy growth | **DONE** 2026-07-10. Curve `0.6 → 1.0 → 1.25` shipped; `grow` 60d pop **12**/18, in the 12–15 target. |
 | [113](../briefs/game/todo/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23). Filed, not built. |
 | [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Solo-only (#24). Unblocked, unbuilt. |
 | [105](../briefs/game/todo/105-citadel-crowd-honesty-mp-owner-filter.md) crowd honesty | Reshaped: ambient-crowd half only. The MP owner-filter half is deprecated with MP. |

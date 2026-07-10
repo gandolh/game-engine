@@ -129,6 +129,26 @@ The `playtest-citadel` skill's default build plan is laid out with this in mind
 (≥6-tile grid + wells). Legibility of *where* coverage fails is still a fair
 ask (see the playtest-findings P2 todo).
 
+**The two-way service loop (brief 100, 2026-07-10 — both halves now exist).** A producer's
+per-cycle output is scaled by **one curve**, `bufferServiceFactor(buffer, cap, serviceEma)`
+in [production.ts](../../games/citadel/sim-core/src/systems/production.ts), not by a throttle
+and a bonus fighting each other. Above the 0.6 fill knee it *is* the Phase-H stockpile-pressure
+throttle, ramping down toward the `0.6` floor as goods back up at the door. Below the knee, a
+building whose rolling service EWMA (`serviceEma`, sampled once per **emitted** cycle) clears
+`SERVICE_BONUS_BAND = 0.75` ramps up to `PRODUCTIVITY_BONUS_CEIL = 1.25`. Thriving outproduces
+starved by `1.25 / 0.6 ≈ 2.08×`; nothing ever returns 0 (downside rule #9). Service coverage also
+re-weights the immigration roll (`arrivalFactor`), so a stocked-but-stagnant town stops attracting
+people — happiness alone now tops out at `0.9`, and service carries the last `0.1`.
+
+Two facts worth not re-deriving. **The EWMA is sampled at the emit, never at the cycle timer** —
+a starved converter's buffer is empty *because it never produced*, and sampling early let a
+flourless bakery read as perfectly served. **The remainder carry is scoped to the service factor
+only**: floating all four multipliers and flooring once was measured to move `grow` population
+9–10 → 14 by itself, dwarfing the mechanic and silently re-tuning happiness / town-hall / seasonal
+grain. Scoped, the same run lands at 12 and `outputRemainder` stays 0 for any building not earning
+the bonus. Legibility: `BuildingSnapshot.wellServed` → a breathing cream ground pool
+(`wellServedGlowQuads`), day and night.
+
 **~~Economy — load-bearing facts (verified 2026-06-22).~~** *(SUPERSEDED by pivot Phase
 H: buildings go **single-slot** (no wasted-mouth trap), winter grain is floored ~×0.5
 (**never 0**), and unhappiness throttles output to a ~60–70% floor (**never 0**) — the

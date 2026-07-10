@@ -1,14 +1,17 @@
 ---
 title: "Citadel — two-way economy: production responds to whether output is collected/consumed (OpenTTD service loop)"
 created: 2026-06-22
-status: partial
+status: done
 tags: [citadel, sim, gameplay, economy, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
 
-> **➡️ Promoted 2026-07-03:** the deferred upside halves (scopes #1 + #3) are now
-> [brief 100 — economy-growth pass](../briefs/game/todo/100-citadel-economy-growth-pass.md);
-> that brief owns the remaining work.
+> **✅ DONE 2026-07-10.** The deferred upside halves (scopes #1 + #3) shipped as
+> [brief 100 — economy-growth pass](../briefs/game/done/100-citadel-economy-growth-pass.md).
+> Both directions of the loop now exist: one curve (`bufferServiceFactor`) throttles a backed-up
+> producer toward the 0.6 floor and lifts a sustainedly-served one to 1.25×, and service coverage
+> re-weights the immigration roll. Headless `grow` 60d moved `pop 9-10` → `pop 12`. This todo is
+> closed; the brief's Closeout owns the numbers and the two bugs found on the way.
 
 > **♻️ RE-SCOPED by the 2026-06-28 cozy pivot.** The shipped stockpile-pressure
 > mechanic **stays**, but the **hard stop** ("the building stops producing") is
