@@ -45,23 +45,19 @@
          zoom) so the modal is reachable by screen readers + the keyboard. Empty while closed. -->
     <div id="ui-a11y-settings"></div>
 
+    <!-- Chunk 1A (brief 106): a SIXTH hidden a11y-mirror host, for the siege/hazard HUD
+         (src/ui/siege-hud.ts) — threat/defense/keep/fire/disease + the placement-mode readout,
+         the last gameplay DOM readouts, now rendered IN-CANVAS via @engine/ui. Read-only (no
+         buttons); the mirror still exposes the live text to screen readers. -->
+    <div id="ui-a11y-siege"></div>
+
     <!-- engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) and
-         the speed/pause controls are now rendered IN-CANVAS via @engine/ui (see
-         src/ui/resource-hud.ts). Their DOM elements were removed from this row; the hidden
-         #ui-a11y-mirror below exposes the in-canvas HUD to screen readers + the keyboard.
-         The remaining siege/hazard readouts stay DOM for now (separate todos). -->
+         the speed/pause controls are rendered IN-CANVAS via @engine/ui (see
+         src/ui/resource-hud.ts). Chunk 1A moved the last gameplay readouts (siege/hazard status
+         + placement mode) in-canvas too (src/ui/siege-hud.ts), so this bar now holds only
+         Settings + Save/Load (browser file I/O has no in-canvas equivalent). -->
     <div id="hud">
-      <!-- Phase 4 siege status -->
-      <span id="hud-threat">Threat: 0</span>
-      <span id="hud-defense">Defense: 0</span>
-      <span id="hud-keep">Keep: none</span>
-      <!-- Phase 4.5 hazard status -->
-      <span id="hud-fire">Fire: none</span>
-      <span id="hud-disease">Disease: none</span>
-      <div class="sep"></div>
       <button id="btn-settings">Settings</button>
-      <div class="sep"></div>
-      <span id="lbl-mode">Mode: None</span>
       <div class="sep"></div>
       <!-- Phase 5: Save / Load -->
       <button id="btn-save">Save</button>

@@ -17,7 +17,6 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
    horizontally on overflow, so the readout strip keeps a fixed height and
    never grows to shove the canvas up (the old flex-wrap caused that). */
 #hud { background: #262b44; color: #c0cbdc; font-family: monospace; font-size: 12px; display: flex; flex-wrap: nowrap; align-items: center; gap: 7px; padding: 3px 10px; user-select: none; border-top: 1px solid #3a4466; overflow-x: auto; overflow-y: hidden; white-space: nowrap; }
-#hud > span { white-space: nowrap; }
 #hud button { background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988; padding: 1px 8px; cursor: pointer; font-family: monospace; font-size: 12px; white-space: nowrap; }
 #hud button:hover { background: #5a6988; }
 /* Citadel 07: tier-locked build buttons — greyed, not hidden (teaches progression). */
@@ -27,11 +26,6 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
    its DOM #build-bar + button styles were removed. #ui-a11y-buildbar (its hidden a11y
    mirror) is styled by the shared visually-hidden rule below. */
 #hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
-#lbl-mode { color: #fee761; min-width: 160px; }
-/* Phase 4 siege HUD */
-#hud-threat { color: #63c74d; }
-#hud-defense { color: #2ce8f5; }
-#hud-keep { color: #8b9bb4; }
 
 /* Event toasts render IN-CANVAS via @engine/ui now (src/ui/toast.ts). #toast-live is the
    visually-hidden aria-live region that announces each new toast to screen readers. */
@@ -46,10 +40,10 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
    theme (EDG palette) in src/ui/minimap.ts, src/render/occupancy-badges.ts, src/ui/settings-modal.ts.
    The trading-post trade-offer menu (.trade-offer-btn) is gone too — it's in-canvas now
    (inspect-panel.ts's tradeBox), styled by the same @engine/ui theme, not CSS. */
-/* Phase 4.5: hazard HUD */
-#hud-fire { color: #8b9bb4; }
-#hud-disease { color: #8b9bb4; }
 /* Villager-job chunk 3: the old DOM follow-cam HUD strip (#follow-hud) was removed —
    the followed villager's job/id/activity/cargo now render IN-CANVAS via @engine/ui
    (src/ui/villager-panel.ts), with a hidden #ui-a11y-villager mirror for screen readers. */
+/* Chunk 1A (brief 106): the old #hud-threat/-defense/-keep/-fire/-disease/#lbl-mode rules were
+   removed here — those readouts now render IN-CANVAS via @engine/ui (src/ui/siege-hud.ts),
+   styled by the same @engine/ui theme (EDG palette), not CSS. */
 

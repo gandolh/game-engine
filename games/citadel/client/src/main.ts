@@ -17,6 +17,8 @@ import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11y
 import type { InputDispatcher, A11yMirror, LabelNode } from "@engine/ui";
 import { createResourceHud } from "./ui/resource-hud";
 import type { ResourceHud } from "./ui/resource-hud";
+import { createSiegeHud } from "./ui/siege-hud";
+import type { SiegeHud } from "./ui/siege-hud";
 import { createBuildBar } from "./ui/build-bar";
 import type { BuildBar, BuildTool } from "./ui/build-bar";
 import { createInspectPanel } from "./ui/inspect-panel";
@@ -105,19 +107,15 @@ const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
 // engine-ui chunk 7: the settlement readout (tier/day/pop/happiness), the goods strip (all
 // goods) and the speed/pause controls are now rendered IN-CANVAS via @engine/ui (see resource-hud.ts +
-// the HUD wiring further down), so their DOM elements are gone from index.html. The
-// remaining siege/hazard readouts stay DOM for now (other todos).
-// Phase 4 siege HUD
-const hudThreat = document.getElementById("hud-threat")!;
-const hudDefense = document.getElementById("hud-defense")!;
-const hudKeep = document.getElementById("hud-keep")!;
-// Phase 4.5 hazard HUD
-const hudFire = document.getElementById("hud-fire")!;
-const hudDisease = document.getElementById("hud-disease")!;
+// the HUD wiring further down), so their DOM elements are gone from index.html.
+// Chunk 1A (brief 106): the siege/hazard readouts (former Phase 4 + 4.5 `#hud-threat`/
+// `-defense`/`-keep`/`-fire`/`-disease`) and the placement-mode label (former `#lbl-mode`) are
+// now IN-CANVAS too — see ui/siege-hud.ts + the wiring further down. No DOM element references
+// for them remain; `modeLabelText` (below) replaces `lblMode.textContent` as the mode readout's
+// backing store.
 // Build-bar buttons (Demolish/Upgrade/Road/Wall/Cancel + the build-type grid) are now
 // in-canvas @engine/ui buttons (src/ui/build-bar.ts); their placement-mode setters live in
 // `selectBuild` / `setTool` below, wired as the bar's onActivate callbacks.
-const lblMode = document.getElementById("lbl-mode")!;
 // Phase 5: save/load UI
 const btnSave = document.getElementById("btn-save")!;
 const btnLoad = document.getElementById("btn-load")!;
@@ -174,6 +172,25 @@ let a11yMirror: A11yMirror | undefined;
 // module scope so the keydown guard can test "is focus currently inside the mirror?".
 const a11yMount = document.getElementById("ui-a11y-mirror");
 
+// Chunk 1A (brief 106): the siege/hazard HUD — a SECOND top-row in-canvas UI root, anchored
+// directly below the resource HUD (see the dynamic `hudBottom`/`siegeHudBottom` anchoring in
+// loop()). Read-only (no buttons), so — like the villager panel — it needs no input dispatcher
+// for ACTIVATION, but it gets one anyway purely for CLICK CONSUMPTION (mirrors villagerDispatcher's
+// "FIX B": without it, a stray click on the readout would fall through to world build/pan). It
+// keeps its own a11y mirror (a sixth hidden mount) so screen-reader users still get the threat/
+// defense/keep/fire/disease/mode readout.
+let siegeHud: SiegeHud | undefined;
+let siegeDispatcher: InputDispatcher | undefined;
+let siegeMirror: A11yMirror | undefined;
+const siegeA11yMount = document.getElementById("ui-a11y-siege");
+/**
+ * The placement-mode readout text (former `#lbl-mode` DOM content), rebuilt by
+ * `updateModeLabel()` at the same event sites the old DOM assignment ran from (mode changes,
+ * drag-length updates, live upgrade hint) — NOT recomputed every frame. `loop()` reads this
+ * verbatim into `siegeHud.refresh()`'s `modeText` each frame.
+ */
+let modeLabelText = "Mode: None";
+
 // Inspect panel (Citadel inspect chunk 2): a SECOND in-canvas UI root that floats over the
 // world describing the selected building. It shares the same `uiSurface` (rendered after the
 // HUD) but gets its OWN input dispatcher + a11y mirror (a second hidden mount), each inert
@@ -209,7 +226,7 @@ function openInspectAtTile(tx: number, ty: number): boolean {
   return true;
 }
 
-// Villager-job chunk 3: a THIRD in-canvas UI root — the floating follow-a-villager panel.
+// Villager-job chunk 3: a FOURTH in-canvas UI root — the floating follow-a-villager panel.
 // It shares the same `uiSurface` (rendered after the HUD + inspect panel) and supersedes the
 // old DOM #follow-hud strip. Read-only (no buttons), so it has NO input dispatcher; it keeps
 // its own a11y mirror (a third hidden mount) so screen-reader users get the job/id/fsm/cargo.
@@ -225,7 +242,7 @@ const villagerA11yMount = document.getElementById("ui-a11y-villager");
 // `consumed: false`, so forwarding events to it is a no-op when the panel is hidden.
 let villagerDispatcher: InputDispatcher | undefined;
 
-// Build bar (DOM-overlay removal): a FOURTH in-canvas UI root — the placement toolbar,
+// Build bar (DOM-overlay removal): a FIFTH in-canvas UI root — the placement toolbar,
 // rendered at the bottom-left (supersedes the DOM #build-bar). Its OWN input dispatcher
 // (always live — the bar is always visible) + a11y mirror (a fourth hidden mount). A small
 // hover-info label above it shows the hovered button's cost/tier (preserving the old DOM
@@ -238,7 +255,7 @@ const buildBarInfoLabel: LabelNode = label("", { muted: true });
 let lastUiX = -1;
 let lastUiY = -1;
 
-// Settings modal (DOM-overlay removal): a FIFTH in-canvas UI root — the tabbed settings
+// Settings modal (DOM-overlay removal): a SIXTH in-canvas UI root — the tabbed settings
 // dialog (Display / Atmosphere / Simulation), centred + rendered over everything while open
 // (supersedes the DOM modal). Its OWN dispatcher (root null while closed → inert) + a11y
 // mirror (a fifth hidden mount). The modal instance is created at module scope below; its
@@ -340,7 +357,7 @@ let uiPressActive = false;
 // before the gesture's click). Lets the click handler suppress the world click only for
 // UI-initiated gestures — NOT based on hit-testing the release point.
 let uiGestureWasUI = false;
-// Inspect chunk 2: the inspect panel is a SECOND UI root. We forward every pointer/key event
+// Inspect chunk 2: the inspect panel is a THIRD UI root. We forward every pointer/key event
 // to BOTH dispatchers (HUD + inspect) and treat the gesture as UI-owned if EITHER consumed it,
 // so a click on the inspect panel (e.g. its ✕) never falls through to place/demolish in the
 // world. The inspect dispatcher returns null root while closed → it reports `consumed: false`,
@@ -357,6 +374,9 @@ canvas.addEventListener("mousedown", (e) => {
   // FIX B: forward to the villager-panel dispatcher too (inert while not following). A press on
   // its rect is UI-owned so the world doesn't start a placement/drag underneath the panel.
   const villagerC = villagerDispatcher?.pointerDown(x, y, btn).consumed ?? false;
+  // Chunk 1A: forward to the siege-HUD dispatcher too (mirrors FIX B) — it has no buttons, but a
+  // press on its rect must still be UI-owned so it doesn't fall through to world build/pan.
+  const siegeC = siegeDispatcher?.pointerDown(x, y, btn).consumed ?? false;
   // Build bar: a press on a toolbar button is UI-owned (selects a tool, never a world placement).
   const barC = buildBarDispatcher?.pointerDown(x, y, btn).consumed ?? false;
   // Minimap (top-right): a press inside its face seeks the camera and is UI-owned. Checked only
@@ -370,7 +390,7 @@ canvas.addEventListener("mousedown", (e) => {
   // rect but inside the canvas) can no longer pan/interact with the world, and a first-frame press
   // (before the layout pass fills node rects, so hit-test returns false) is also swallowed. We
   // still forward to settingsDispatcher FIRST (above) so modal buttons/sliders still activate.
-  if (settingsC || hudC || inspectC || villagerC || barC || minimapC || settingsModal.isOpen()) {
+  if (settingsC || hudC || inspectC || villagerC || siegeC || barC || minimapC || settingsModal.isOpen()) {
     // Press landed on a UI widget (or the modal is open): the UI owns this gesture. Block the
     // world so it doesn't start a placement/drag, and remember the ownership for this gesture's
     // move/up/click.
@@ -393,6 +413,7 @@ canvas.addEventListener("mouseup", (e) => {
   uiDispatcher.pointerUp(x, y, btn);
   inspectDispatcher?.pointerUp(x, y, btn);
   villagerDispatcher?.pointerUp(x, y, btn); // FIX B: complete any UI-owned gesture on the panel
+  siegeDispatcher?.pointerUp(x, y, btn); // chunk 1A: complete any UI-owned gesture on the siege HUD
   buildBarDispatcher?.pointerUp(x, y, btn); // activate the pressed toolbar button on release
   settingsDispatcher?.pointerUp(x, y, btn); // activate a pressed modal control on release
   // Fix 1: while the modal is open every canvas release is UI-owned (mirrors the mousedown gate).
@@ -412,6 +433,7 @@ canvas.addEventListener("mousemove", (e) => {
   uiDispatcher.pointerMove(x, y, btn);
   inspectDispatcher?.pointerMove(x, y, btn);
   villagerDispatcher?.pointerMove(x, y, btn); // FIX B
+  siegeDispatcher?.pointerMove(x, y, btn); // chunk 1A
   buildBarDispatcher?.pointerMove(x, y, btn);
   settingsDispatcher?.pointerMove(x, y, btn); // hover visuals + slider drag while the modal is open
   lastUiX = x; lastUiY = y; // track for the build-bar hover-info hit-test (render loop)
@@ -433,12 +455,13 @@ canvas.addEventListener("wheel", (e) => {
   const hudC = uiDispatcher.wheel(x, y, e.deltaY).consumed;
   const inspectC = inspectDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
   const villagerC = villagerDispatcher?.wheel(x, y, e.deltaY).consumed ?? false; // FIX B
+  const siegeC = siegeDispatcher?.wheel(x, y, e.deltaY).consumed ?? false; // chunk 1A
   const barC = buildBarDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
   // Modal open: swallow wheel over its rect (don't zoom the world under the dialog).
   const settingsC = settingsDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
   // Fix 1: while the modal is open ALL canvas wheel events are swallowed regardless of whether
   // the pointer lands on a modal widget — the backdrop must not zoom the world underneath.
-  if (hudC || inspectC || villagerC || barC || settingsC || settingsModal.isOpen()) {
+  if (hudC || inspectC || villagerC || siegeC || barC || settingsC || settingsModal.isOpen()) {
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -705,14 +728,15 @@ function dragLengthSuffix(): string {
 
 function updateModeLabel(): void {
   const mode = placementState.mode;
-  if (mode === "place") lblMode.textContent = `Mode: Place ${placementState.selectedType}`;
-  else if (mode === "demolish") lblMode.textContent = "Mode: Demolish";
-  else if (mode === "road") lblMode.textContent = `Mode: Road (drag)${dragLengthSuffix()}`;
-  else if (mode === "wall") lblMode.textContent = `Mode: Wall (drag)${dragLengthSuffix()}`;
-  else if (mode === "upgrade") lblMode.textContent = upgradeHint();
-  else lblMode.textContent = "Mode: None";
+  if (mode === "place") modeLabelText = `Mode: Place ${placementState.selectedType}`;
+  else if (mode === "demolish") modeLabelText = "Mode: Demolish";
+  else if (mode === "road") modeLabelText = `Mode: Road (drag)${dragLengthSuffix()}`;
+  else if (mode === "wall") modeLabelText = `Mode: Wall (drag)${dragLengthSuffix()}`;
+  else if (mode === "upgrade") modeLabelText = upgradeHint();
+  else modeLabelText = "Mode: None";
   // The active-tool highlight now lives on the in-canvas build bar; it re-binds each frame
   // from `placementState` in the render loop (buildBar.refresh), so no DOM toggling here.
+  // The text itself is read into siege-hud's `modeText` each frame in loop() (chunk 1A).
 }
 
 function selectBuild(type: string): void {
@@ -1172,36 +1196,14 @@ function loop(): void {
     tier, day, season, population, popCap,
     stockpiles, foodSurplus, happiness, paused, speed, isHost,
   }) ?? false;
-  // Phase 4: siege HUD
-  const threatColor = threatLevel >= 60 ? EDG.red : threatLevel >= 30 ? EDG.gold : EDG.green;
-  hudThreat.textContent = `Threat: ${threatLevel}` + (nextRaidDay >= 0 ? ` (next ~d${nextRaidDay + 1})` : "");
-  hudThreat.style.color = threatColor;
-  hudDefense.textContent = `Defense: ${defensiveStrength}`;
-  if (keepSacked) {
-    hudKeep.textContent = "KEEP SACKED";
-    hudKeep.style.color = EDG.red;
-  } else if (keepPresent) {
-    hudKeep.textContent = "Keep: standing";
-    hudKeep.style.color = EDG.green;
-  } else {
-    hudKeep.textContent = "Keep: none";
-    hudKeep.style.color = EDG.steel;
-  }
-  // Phase 4.5: hazard HUD
-  if (activeFires > 0) {
-    hudFire.textContent = `Fire: ${activeFires} building(s) burning!`;
-    hudFire.style.color = EDG.gold;
-  } else {
-    hudFire.textContent = "Fire: none";
-    hudFire.style.color = EDG.steel;
-  }
-  if (outbreakActive) {
-    hudDisease.textContent = `Disease: ${sickVillagers} sick!`;
-    hudDisease.style.color = EDG.mauve;
-  } else {
-    hudDisease.textContent = "Disease: none";
-    hudDisease.style.color = EDG.steel;
-  }
+  // Chunk 1A (brief 106): the siege/hazard HUD (former Phase 4 + 4.5 DOM readouts) + the
+  // placement-mode label (former #lbl-mode), now a SECOND in-canvas UI root. Same
+  // refresh()-returns-layout-changed gating as the resource HUD above; its layout + draw runs
+  // alongside the resource HUD's, further down (siegeHud may be undefined pre-boot).
+  const siegeContentChanged = siegeHud?.refresh({
+    threatLevel, nextRaidDay, defensiveStrength, keepPresent, keepSacked,
+    activeFires, outbreakActive, sickVillagers, modeText: modeLabelText,
+  }) ?? false;
 
   // --- Render clock (performance.now is main-thread only — never the sim).
   const nowMs = performance.now();
@@ -1429,7 +1431,22 @@ function loop(): void {
     uiSurface.begin();
     renderTree(uiSurface, hud.root);
 
-    // Inspect chunk 2: the inspect panel is a SECOND UI root rendered inside the SAME
+    // Chunk 1A (brief 106): the siege/hazard HUD is a SECOND top-row UI root, anchored directly
+    // below the resource HUD's MEASURED bottom edge (its rect is already live this frame — no
+    // guessed pixel constant) rather than a fixed y, so the two rows never overlap regardless of
+    // font/scale changes. `siegeHudBottom` feeds the inspect panel + toast anchors below.
+    const hudBottom = hud.root.rect.y + hud.root.rect.height;
+    let siegeHudBottom = hudBottom;
+    if (siegeHud !== undefined) {
+      if (siegeContentChanged) {
+        computeLayout(siegeHud.root, 8, Math.round(hudBottom + 4));
+        siegeMirror?.update(siegeHud.root);
+      }
+      renderTree(uiSurface, siegeHud.root);
+      siegeHudBottom = siegeHud.root.rect.y + siegeHud.root.rect.height;
+    }
+
+    // Inspect chunk 2: the inspect panel is a THIRD UI root rendered inside the SAME
     // surface.begin()/end(), after the HUD so it paints on top. Re-find the live snapshot
     // for the selected building by footprint origin each frame; if it vanished (demolished),
     // auto-close. Then refresh + lay out + draw + mirror — all gated on being open.
@@ -1453,18 +1470,19 @@ function loop(): void {
           traderPresent,
           traderOffers: traderOffersList,
         });
-        // Floating position: pinned to the LEFT edge, BELOW the top HUD bar (anchored at 8,8,
-        // ~32px tall) so it never overlaps the HUD or the top-right minimap. On-screen and
-        // fixed (the panel has a fixed width:240, so it doesn't reflow the world or HUD).
+        // Floating position: pinned to the LEFT edge, BELOW both top HUD rows (the resource HUD
+        // AND, since chunk 1A, the siege/hazard HUD — `siegeHudBottom` is their measured combined
+        // bottom edge) so it never overlaps either or the top-right minimap. The panel has a
+        // fixed width:240, so it doesn't reflow the world or the HUD rows above it.
         if (changed) {
-          computeLayout(inspectPanel.root, 8, 56);
+          computeLayout(inspectPanel.root, 8, Math.round(siegeHudBottom + 8));
           inspectMirror?.update(inspectPanel.root);
         }
         renderTree(uiSurface, inspectPanel.root);
       }
     }
 
-    // Villager-job chunk 3: the follow-a-villager panel is a THIRD UI root, rendered inside the
+    // Villager-job chunk 3: the follow-a-villager panel is a FOURTH UI root, rendered inside the
     // SAME surface.begin()/end(), after the HUD + inspect panel so it paints on top. Open iff a
     // villager is followed; re-find the live villager by id each frame (villagers have a stable
     // id). If it vanished, the snapshot handler already released the follow + cleared the mirror,
@@ -1551,13 +1569,13 @@ function loop(): void {
     if (toasts.root.children.length > 0) {
       computeLayout(toasts.root, 0, 0);
       const cx = Math.max(8, (canvas.clientWidth - toasts.root.rect.width) / 2);
-      // Anchor the top-centre stack just BELOW the in-canvas HUD bar's real bottom edge. The HUD
-      // is a single left-anchored row whose right-end speed/pause controls reach toward screen
-      // centre on wide windows — the same band a centred toast would sit in — so a fixed y (the
-      // old 48) let the buttons and toasts overlap. Read the HUD's measured rect (it's laid out
-      // earlier this frame) instead of guessing its height; fall back to a safe constant pre-boot.
-      const hudBottom = hud !== undefined ? hud.root.rect.y + hud.root.rect.height : 44;
-      computeLayout(toasts.root, cx, Math.round(hudBottom + 8));
+      // Anchor the top-centre stack just BELOW both in-canvas HUD rows' real bottom edge (the
+      // resource HUD AND, since chunk 1A, the siege/hazard HUD below it). The resource HUD is a
+      // single left-anchored row whose right-end speed/pause controls reach toward screen centre
+      // on wide windows — the same band a centred toast would sit in — so a fixed y (the old 48)
+      // let the buttons and toasts overlap. `siegeHudBottom` (computed above, in the same
+      // `hud !== undefined` block) is already the measured combined bottom edge.
+      computeLayout(toasts.root, cx, Math.round(siegeHudBottom + 8));
       renderTree(uiSurface, toasts.root);
     }
 
@@ -1642,7 +1660,18 @@ async function boot(): Promise<void> {
     });
   }
 
-  // Inspect chunk 2: the floating inspect panel as a SECOND UI root. Its OWN dispatcher returns
+  // Chunk 1A (brief 106): the siege/hazard HUD as a SECOND top-row UI root, anchored directly
+  // below the resource HUD in loop() (dynamic `hudBottom`). Read-only (no buttons) → its
+  // dispatcher exists purely for click consumption (mirrors the villager panel's FIX B), so it
+  // gets no `onFocusNode` (there is nothing to focus). Its own a11y mirror lives in a SEPARATE
+  // hidden mount (#ui-a11y-siege) so its DOM subtree is distinct from the HUD's.
+  siegeHud = createSiegeHud();
+  siegeDispatcher = createInputDispatcher(() => siegeHud?.root ?? null);
+  if (siegeA11yMount !== null) {
+    siegeMirror = createA11yMirror(siegeA11yMount, { rootLabel: "Siege & hazards" });
+  }
+
+  // Inspect chunk 2: the floating inspect panel as a THIRD UI root. Its OWN dispatcher returns
   // null root while closed (`inspectOpen()` false) → inert, so forwarding events to it is safe.
   // Its OWN a11y mirror lives in a SEPARATE hidden mount (#ui-a11y-inspect) so its DOM subtree
   // and Tab order are distinct from the HUD's; `inspectMirror.update(null)` clears it on close.
@@ -1680,7 +1709,7 @@ async function boot(): Promise<void> {
     });
   }
 
-  // Villager-job chunk 3: the floating follow-a-villager panel as a THIRD UI root. Read-only
+  // Villager-job chunk 3: the floating follow-a-villager panel as a FOURTH UI root. Read-only
   // (no buttons) → NO input dispatcher; events never need forwarding to it. It keeps its OWN
   // a11y mirror in a SEPARATE hidden mount (#ui-a11y-villager) so its readout's DOM subtree is
   // distinct from the HUD's and the inspect panel's. `villagerMirror.update(null)` clears it on
@@ -1694,7 +1723,7 @@ async function boot(): Promise<void> {
     villagerMirror = createA11yMirror(villagerA11yMount, { rootLabel: "Followed villager" });
   }
 
-  // Build bar (DOM-overlay removal): a FOURTH UI root — the placement toolbar, in-canvas at the
+  // Build bar (DOM-overlay removal): a FIFTH UI root — the placement toolbar, in-canvas at the
   // bottom-left. Always visible → its dispatcher always returns the live root. onActivate calls
   // the SAME placement-mode setters the old DOM buttons drove (selectBuild / setTool). Its a11y
   // mirror lives in its own hidden mount (#ui-a11y-buildbar) so its Tab order is distinct.
