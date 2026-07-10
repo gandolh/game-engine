@@ -29,6 +29,7 @@ export class HarborSystem implements System {
     private readonly world: World<GameEntity>,
     private readonly bus: MessageBus,
     rng: Rng,
+    private readonly ticksPerDay: number,
   ) {
     this.harborRng = rng.fork("harbor");
   }
@@ -171,7 +172,7 @@ export class HarborSystem implements System {
       hb.openContracts = hb.openContracts.filter((c) => c.id !== contract.id);
       hb.committed.delete(contract.id);
 
-      const day = Math.floor(tick / 20); 
+      const day = Math.floor(tick / this.ticksPerDay);
       const body: ContractDeliveredBody = {
         contractId: contract.id,
         farmerId: f.id,

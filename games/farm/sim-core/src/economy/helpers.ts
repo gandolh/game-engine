@@ -82,7 +82,23 @@ export function fruitInventoryValue(inv: Inventory): number {
   return total;
 }
 
-export function deductCrops(inv: Inventory, crop: CropKind, qty: number, preferQuality?: CropQuality): number {
+/**
+ * Debit `qty` units of `crop` from an inventory, decrementing `crops[crop]`
+ * and the matching `cropQuality[crop]` tiers together in lockstep so the two
+ * never drift apart (brief 99, review-findings item 28 — "phantom quality
+ * tiers"). This is the ONE place that should ever subtract from
+ * `inv.crops[crop]`; every debit site in the sim should route through it
+ * (directly, or transitively via `deductCrops` below).
+ *
+ * Tiers are drained lowest-quality-first by default (silver, normal, gold —
+ * the ordering the original `take`/sell path already used here), so a
+ * partial debit consumes the least valuable stock first and preserves gold
+ * tier for festivals/best pricing unless a caller opts into a different
+ * order via `preferQuality` (moved to the front of the drain order).
+ *
+ * Returns the quantity actually debited (capped by on-hand `crops[crop]`).
+ */
+export function debitCrop(inv: Inventory, crop: CropKind, qty: number, preferQuality?: CropQuality): number {
   const have = inv.crops[crop];
   const taken = Math.min(qty, have);
   if (taken <= 0) return 0;
@@ -102,4 +118,13 @@ export function deductCrops(inv: Inventory, crop: CropKind, qty: number, preferQ
     }
   }
   return taken;
+}
+
+/**
+ * @deprecated kept as a name-compatible alias for existing callers (e.g.
+ * `systems/harbor/system.ts`, owned by a different chunk) — delegates to
+ * `debitCrop`, which is now the single implementation.
+ */
+export function deductCrops(inv: Inventory, crop: CropKind, qty: number, preferQuality?: CropQuality): number {
+  return debitCrop(inv, crop, qty, preferQuality);
 }

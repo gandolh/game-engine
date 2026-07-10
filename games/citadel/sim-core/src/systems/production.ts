@@ -182,6 +182,26 @@ export class ProductionSystem implements System {
   run(ctx: SimContext): void {
     const state = this.state;
 
+    // Perf (review item 33): a footprint tile→building-id index built ONCE per
+    // tick (mirrors `getBuildings`'s tileToBuilding index in sim-bootstrap.ts),
+    // so resolving each villager's home building below is an O(1) map lookup
+    // instead of a linear scan over all buildings per villager
+    // (O(villagers × buildings) → O(villagers + buildings)). Pure indexing, no
+    // behavior change — same building resolves for the same tile either way.
+    const tileToBuildingId = new Map<number, number>();
+    for (const entity of state.buildingWorld.query("building")) {
+      if (entity.id === undefined) continue;
+      const b = entity.building;
+      for (let dy = 0; dy < b.h; dy++) {
+        for (let dx = 0; dx < b.w; dx++) {
+          const tx = b.x + dx;
+          const ty = b.y + dy;
+          if (tx < 0 || ty < 0 || tx >= state.width || ty >= state.height) continue;
+          tileToBuildingId.set(ty * state.width + tx, entity.id);
+        }
+      }
+    }
+
     // Cozy-pivot Phase B: resolve the LOCAL happiness signal once per pass. For
     // each workplace centre, find a worker assigned there and read its HOME house's
     // `mood` (the Phase A per-house signal). Built up-front into a map keyed by the
@@ -191,9 +211,8 @@ export class ProductionSystem implements System {
     // workers' homes are sub-tile noise the floor already smooths over.
     const workplaceHomeMood = new Map<number, number>();
     for (const v of state.villagerWorld.query("villager")) {
-      const home = state.buildingState.get(
-        this.buildingIdAt(v.villager.homeX, v.villager.homeY),
-      );
+      const homeId = tileToBuildingId.get(v.villager.homeY * state.width + v.villager.homeX);
+      const home = homeId !== undefined ? state.buildingState.get(homeId) : undefined;
       const mood = home?.mood;
       if (mood === undefined) continue;
       workplaceHomeMood.set(this.tileKey(v.villager.workX, v.villager.workY), mood);
@@ -385,21 +404,5 @@ export class ProductionSystem implements System {
       });
     }
     return points;
-  }
-
-  /**
-   * ECS id of the building whose footprint covers tile (tx,ty), or -1 if none.
-   * Used to resolve a villager's home house from its homeX/homeY centre. Linear
-   * scan over buildings — acceptable here: it runs once per villager per pass,
-   * and villager/building counts are small in Citadel.
-   */
-  private buildingIdAt(tx: number, ty: number): number {
-    for (const entity of this.state.buildingWorld.query("building")) {
-      const b = entity.building;
-      if (tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + b.h) {
-        return entity.id ?? -1;
-      }
-    }
-    return -1;
   }
 }

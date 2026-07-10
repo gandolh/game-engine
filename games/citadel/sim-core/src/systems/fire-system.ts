@@ -36,6 +36,18 @@ const STONE_TYPES = new Set([
   "quarry", "sawmill", "smith", "mine", "wall", "gate", "tower", "keep",
 ]);
 
+/**
+ * Once-per-day, per-player fire index (perf: see `_buildDailyIndex`).
+ * `woodenPositions` preserves the same relative order as a fresh
+ * `buildingWorld.query("building")` scan filtered to this owner's wooden
+ * buildings; `stoneTiles` is every footprint tile of this owner's stone
+ * (fireproof) buildings, for O(1) firebreak lookups.
+ */
+interface FireDailyIndex {
+  readonly woodenPositions: ReadonlyArray<{ id: number; type: string; cx: number; cy: number }>;
+  readonly stoneTiles: ReadonlySet<number>;
+}
+
 /** Ticks a building burns before being destroyed (at ticksPerDay=20 → 3 days). */
 const BURN_TICKS = 60;
 
@@ -154,18 +166,58 @@ export class FireSystem implements System {
       if (!this.firstBuildDay.has(p.id) && this.ownsAnyBuilding(p)) {
         this.firstBuildDay.set(p.id, this.state.day);
       }
+      // Perf: index this player's wooden-building positions + stone-tile
+      // footprints ONCE per day (was: a fresh O(buildings) scan of
+      // `buildingWorld.query("building")` for every candidate × line-step pair
+      // inside _spreadFire/_checkIgnition/_hasFirebreak — O(n²)-ish once/day).
+      // Same filters, same relative order as the scans it replaces, so the
+      // sequence of RNG draws below is unchanged (behaviour-preserving).
+      const index = this._buildDailyIndex(p);
       // Spread is always allowed (a fire already underway must propagate); only
       // fresh ignition is held off during the founding grace.
-      this._spreadFire(p);
+      this._spreadFire(p, index);
       // Cozy cold-open: hold off fresh ignition until the town has grown past its
       // seeded core (composes with the temporal founding grace). Spread of an
       // already-burning fire above is unaffected — matches the founding-grace comment.
-      if (!this.inFoundingGrace(p) && !this.ignitionDeferred(p)) this._checkIgnition(p);
+      if (!this.inFoundingGrace(p) && !this.ignitionDeferred(p)) this._checkIgnition(p, index);
       // Cozy pivot: once per day, dent the mood of houses near an active fire
       // instead of ever destroying anything (see _tickBurning for the
       // extinguish-not-destroy half of the contract).
       if (this.cozy) this._dentNearbyMood(p);
     }
+  }
+
+  /** Per-player, once-per-day fire index: wooden building positions + a stone
+   * (firebreak) tile lookup. Built with a single pass over
+   * `buildingWorld.query("building")`, filtering ownerId/type the exact same
+   * way the scans it replaces did — so the SET and RELATIVE ORDER of wooden
+   * candidates is unchanged (the RNG-draw sequence in _spreadFire/_checkIgnition
+   * depends on iterating this list, not on how it was built). */
+  private _buildDailyIndex(p: PlayerState): FireDailyIndex {
+    const state = this.state;
+    const woodenPositions: Array<{ id: number; type: string; cx: number; cy: number }> = [];
+    const stoneTiles = new Set<number>();
+    for (const entity of state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      const id = entity.id;
+      if (id === undefined) continue;
+      const b = entity.building;
+      if (WOODEN_TYPES.has(b.type)) {
+        woodenPositions.push({
+          id,
+          type: b.type,
+          cx: b.x + Math.floor(b.w / 2),
+          cy: b.y + Math.floor(b.h / 2),
+        });
+      } else if (STONE_TYPES.has(b.type)) {
+        for (let dy = 0; dy < b.h; dy++) {
+          for (let dx = 0; dx < b.w; dx++) {
+            stoneTiles.add((b.y + dy) * state.width + (b.x + dx));
+          }
+        }
+      }
+    }
+    return { woodenPositions, stoneTiles };
   }
 
   /**
@@ -300,7 +352,7 @@ export class FireSystem implements System {
   }
 
   /** Spread fire from burning buildings to nearby wooden neighbors (daily). */
-  private _spreadFire(p: PlayerState): void {
+  private _spreadFire(p: PlayerState, index: FireDailyIndex): void {
     const state = this.state;
     const burningIds: number[] = [];
     for (const entity of state.buildingWorld.query("building")) {
@@ -316,61 +368,46 @@ export class FireSystem implements System {
       const srcEntity = this._entityById(srcId);
       if (srcEntity === null) continue;
       const sb = srcEntity;
+      const scx = sb.x + Math.floor(sb.w / 2);
+      const scy = sb.y + Math.floor(sb.h / 2);
 
-      for (const entity of state.buildingWorld.query("building")) {
-        if (entity.building.ownerId !== p.id) continue;
-        const id = entity.id;
-        if (id === undefined || id === srcId) continue;
-        const fs = p.fireState.get(id);
+      for (const w of index.woodenPositions) {
+        if (w.id === srcId) continue;
+        const fs = p.fireState.get(w.id);
         if (fs?.burning === true || fs?.destroyed === true) continue;
-        const b = entity.building;
-        if (!WOODEN_TYPES.has(b.type)) continue;
 
-        const scx = sb.x + Math.floor(sb.w / 2);
-        const scy = sb.y + Math.floor(sb.h / 2);
-        const tcx = b.x + Math.floor(b.w / 2);
-        const tcy = b.y + Math.floor(b.h / 2);
-        const dist = Math.abs(scx - tcx) + Math.abs(scy - tcy);
+        const dist = Math.abs(scx - w.cx) + Math.abs(scy - w.cy);
 
         if (dist > 3) continue;
-        if (this._hasFirebreak(p, scx, scy, tcx, tcy)) continue;
+        if (this._hasFirebreak(scx, scy, w.cx, w.cy, index.stoneTiles)) continue;
 
         let spreadChance = 0.6;
-        const wellNear = this._hasWellNear(p, tcx, tcy);
+        const wellNear = this._hasWellNear(p, w.cx, w.cy);
         if (wellNear) spreadChance *= 0.3;
 
         if (this.rngFor(p).nextFloat() < spreadChance) {
-          this._igniteBuilding(p, id, b.type, "spread");
+          this._igniteBuilding(p, w.id, w.type, "spread");
         }
       }
     }
   }
 
   /** Check ignition for non-burning wooden buildings (daily). */
-  private _checkIgnition(p: PlayerState): void {
-    const state = this.state;
-    for (const entity of state.buildingWorld.query("building")) {
-      if (entity.building.ownerId !== p.id) continue;
-      const id = entity.id;
-      if (id === undefined) continue;
-      const fs = p.fireState.get(id);
+  private _checkIgnition(p: PlayerState, index: FireDailyIndex): void {
+    for (const w of index.woodenPositions) {
+      const fs = p.fireState.get(w.id);
       if (fs?.burning === true || fs?.destroyed === true) continue;
-      const b = entity.building;
-      if (!WOODEN_TYPES.has(b.type)) continue;
 
-      const cx = b.x + Math.floor(b.w / 2);
-      const cy = b.y + Math.floor(b.h / 2);
-
-      const nearbyWooden = this._nearbyWoodenCount(p, cx, cy, id, 4);
+      const nearbyWooden = this._nearbyWoodenCount(w.cx, w.cy, w.id, 4, index.woodenPositions);
 
       if (nearbyWooden < 3) continue;
       let chance = (nearbyWooden - 2) * 0.20;
       chance = Math.min(0.70, chance);
 
-      if (this._hasWellNear(p, cx, cy)) chance *= 0.2;
+      if (this._hasWellNear(p, w.cx, w.cy)) chance *= 0.2;
 
       if (this.rngFor(p).nextFloat() < chance) {
-        this._igniteBuilding(p, id, b.type, "ignition");
+        this._igniteBuilding(p, w.id, w.type, "ignition");
       }
     }
   }
@@ -437,8 +474,14 @@ export class FireSystem implements System {
     }
   }
 
-  /** Check if there's a firebreak (stone building or road tile) on the line between two centers. */
-  private _hasFirebreak(p: PlayerState, ax: number, ay: number, bx: number, by: number): boolean {
+  /**
+   * Check if there's a firebreak (stone building or road tile) on the line
+   * between two centers. `stoneTiles` is the once-per-day precomputed
+   * footprint index (see `_buildDailyIndex`) — O(1) per line-step instead of
+   * an O(buildings) scan per step (was O(n²)-ish once/day across all
+   * candidate pairs × line steps).
+   */
+  private _hasFirebreak(ax: number, ay: number, bx: number, by: number, stoneTiles: ReadonlySet<number>): boolean {
     const state = this.state;
     const steps = Math.max(Math.abs(bx - ax), Math.abs(by - ay));
     if (steps <= 1) return false;
@@ -449,28 +492,25 @@ export class FireSystem implements System {
       // Road tile = firebreak (roads are shared infrastructure).
       if (state.roadGrid[idx] === 1) return true;
       // Stone building (owned by p) = firebreak.
-      for (const entity of state.buildingWorld.query("building")) {
-        if (entity.building.ownerId !== p.id) continue;
-        const eb = entity.building;
-        if (tx >= eb.x && tx < eb.x + eb.w && ty >= eb.y && ty < eb.y + eb.h) {
-          if (STONE_TYPES.has(eb.type)) return true;
-        }
-      }
+      if (stoneTiles.has(idx)) return true;
     }
     return false;
   }
 
-  /** Count wooden buildings owned by p near (cx, cy) within `range` tiles (excluding self). */
-  private _nearbyWoodenCount(p: PlayerState, cx: number, cy: number, selfId: number, range: number): number {
+  /**
+   * Count wooden buildings near (cx, cy) within `range` tiles (excluding
+   * self), from the once-per-day precomputed wooden-position list (see
+   * `_buildDailyIndex`) rather than rescanning all of the player's buildings
+   * per candidate.
+   */
+  private _nearbyWoodenCount(
+    cx: number, cy: number, selfId: number, range: number,
+    woodenPositions: ReadonlyArray<{ id: number; cx: number; cy: number }>,
+  ): number {
     let count = 0;
-    for (const entity of this.state.buildingWorld.query("building")) {
-      if (entity.building.ownerId !== p.id) continue;
-      if (entity.id === selfId) continue;
-      const b = entity.building;
-      if (!WOODEN_TYPES.has(b.type)) continue;
-      const ox = b.x + Math.floor(b.w / 2);
-      const oy = b.y + Math.floor(b.h / 2);
-      if (Math.abs(cx - ox) + Math.abs(cy - oy) <= range) count++;
+    for (const w of woodenPositions) {
+      if (w.id === selfId) continue;
+      if (Math.abs(cx - w.cx) + Math.abs(cy - w.cy) <= range) count++;
     }
     return count;
   }

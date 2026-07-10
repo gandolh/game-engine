@@ -13,6 +13,7 @@ import {
 import { consumeFromSlate } from "../../agents/shop-slate";
 import type { ShopOffer } from "../../agents/shop-slate";
 import { PERFORMATIVE } from "../../protocols/performatives";
+import { debitCrop } from "../../economy";
 import type { AuctionSystem } from "../auction";
 import {
   SHOP_BUY_PRICE,
@@ -132,7 +133,7 @@ export class ShopkeeperSystem implements System {
 
     const bountyMult = this.bountyMultiplierFor(crop);
     const goldDelta = Math.round(SHOP_BUY_PRICE[crop] * bountyMult) * taken;
-    farmer.inventory.crops[crop] -= taken;
+    debitCrop(farmer.inventory, crop, taken);
     farmer.inventory.gold += goldDelta;
 
     this.replyConfirm(ctx.tick, sender, {

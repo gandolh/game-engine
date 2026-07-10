@@ -173,6 +173,28 @@ describe("EventFeedSystem", () => {
     expect(feed.recent()).toHaveLength(EVENT_FEED_CAP);
   });
 
+  it("bounds the dedup-key memory (seen) with drop-oldest eviction", () => {
+    const wall = makeWall(world);
+    const cap = 8;
+    const feed = new EventFeedSystem(world, fakeClock(0), undefined, undefined, cap);
+
+    // Feed far more distinct auction results than the cap; each contributes one
+    // `auction:<id>` dedup key. Without eviction `seen` would grow unbounded.
+    for (let i = 0; i < cap + 50; i += 1) {
+      wall.inbox!.messages.length = 0;
+      push(wall, ONT_SHOP.AUCTION_RESULT, "world", {
+        auctionId: `bound-${i}`,
+        winnerId: 1,
+        paidPrice: 1,
+        participants: [1],
+      });
+      feed.run({ tick: i });
+    }
+
+    expect(feed.seenSize()).toBeLessThanOrEqual(cap);
+    expect(feed.seenSize()).toBeGreaterThan(0);
+  });
+
   it("every captured entry carries a drama score in [0, 1]", () => {
     const buyer = makeFarmer(world, "Hannah");
     const seller = makeFarmer(world, "Otto");

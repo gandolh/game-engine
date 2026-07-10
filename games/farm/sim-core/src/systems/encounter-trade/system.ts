@@ -4,8 +4,9 @@ import type {
   World,
   AgentMessage,
 } from "@engine/core";
-import type { GameEntity, CropKind, Inventory } from "../../components";
+import type { GameEntity, CropKind } from "../../components";
 import { findById } from "../entity-helpers";
+import { debitCrop, bankHarvest } from "../../economy";
 import {
   ONT_ENCOUNTER,
   type MeetBody,
@@ -328,17 +329,31 @@ export class EncounterTradeSystem implements System {
       if (stock2[crop] < qty) return;
       inv1.gold -= total;
       inv2.gold += total;
-      stock2[crop] -= qty;
-      stock1[crop] += qty;
-      if (commodity === "crop") moveNormalQuality(inv2, inv1, crop, qty);
+      if (commodity === "crop") {
+        // debitCrop/bankHarvest move crops[] and cropQuality[] together on
+        // both sides, so quality tiers can never drift from the crop count
+        // (brief 99, review-findings item 28 — was moveNormalQuality, which
+        // only ever touched the "normal" tier regardless of the giver's
+        // actual quality mix). Traded produce is credited to the receiver
+        // as "normal" quality, matching the prior receiver-side behavior.
+        debitCrop(inv2, crop, qty);
+        bankHarvest(inv1, crop, qty, "normal");
+      } else {
+        stock2[crop] -= qty;
+        stock1[crop] += qty;
+      }
     } else {
       if (inv2.gold < total) return;
       if (stock1[crop] < qty) return;
       inv2.gold -= total;
       inv1.gold += total;
-      stock1[crop] -= qty;
-      stock2[crop] += qty;
-      if (commodity === "crop") moveNormalQuality(inv1, inv2, crop, qty);
+      if (commodity === "crop") {
+        debitCrop(inv1, crop, qty);
+        bankHarvest(inv2, crop, qty, "normal");
+      } else {
+        stock1[crop] -= qty;
+        stock2[crop] += qty;
+      }
     }
   }
 
@@ -401,21 +416,5 @@ export class EncounterTradeSystem implements System {
       tick: p.tick,
       commodity: "seed",
     });
-  }
-}
-
-function moveNormalQuality(
-  giver: Inventory,
-  receiver: Inventory,
-  crop: CropKind,
-  qty: number,
-): void {
-  if (giver.cropQuality) {
-    const g = giver.cropQuality[crop];
-    if (g) g.normal = Math.max(0, g.normal - qty);
-  }
-  if (receiver.cropQuality) {
-    const r = receiver.cropQuality[crop];
-    if (r) r.normal += qty;
   }
 }

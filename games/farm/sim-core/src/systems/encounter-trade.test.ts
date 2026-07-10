@@ -470,6 +470,46 @@ describe("EncounterTradeSystem", () => {
       expect(otto.inventory!.seeds.wheat).toBe(0);
     });
 
+    it("debits cropQuality tiers in lockstep with crops on both sides (no phantom tier after a peer trade)", () => {
+      // Brief 99, review-findings item 28 (moveNormalQuality named culprit):
+      // the giver side used to do `g.normal = max(0, g.normal - qty)` no
+      // matter which tier the crop actually came from, so a giver whose
+      // stock is entirely gold/silver would keep its old cropQuality sum
+      // even as crops[] shrank underneath it — a phantom tier. The receiver
+      // side is unchanged: traded produce is still credited as "normal".
+      const hannah = spawnFarmer(world, {
+        personality: "hoarder",
+        gold: 200,
+        reserve: 80,
+        crops: { wheat: 6 },
+      });
+      hannah.inventory!.cropQuality = { wheat: { normal: 0, silver: 0, gold: 6 } };
+      const otto = spawnFarmer(world, {
+        personality: "opportunist",
+        gold: 200,
+        reserve: 50,
+        crops: { wheat: 0 },
+      });
+
+      encounter.run({ tick: 1 });
+      trade.run({ tick: 1 });
+
+      // Same trade as the "transfers crops + gold" test above: 2 wheat move
+      // from hannah (giver) to otto (receiver).
+      expect(hannah.inventory!.crops.wheat).toBe(4);
+      expect(otto.inventory!.crops.wheat).toBe(2);
+
+      const giverQ = hannah.inventory!.cropQuality!.wheat!;
+      expect(giverQ.normal + giverQ.silver + giverQ.gold).toBe(hannah.inventory!.crops.wheat);
+      // Giver only ever had gold stock, so debitCrop's default (silver,
+      // normal, gold) order falls through to gold.
+      expect(giverQ).toEqual({ normal: 0, silver: 0, gold: 4 });
+
+      const receiverQ = otto.inventory!.cropQuality!.wheat!;
+      expect(receiverQ.normal + receiverQ.silver + receiverQ.gold).toBe(otto.inventory!.crops.wheat);
+      expect(receiverQ).toEqual({ normal: 2, silver: 0, gold: 0 });
+    });
+
     it("a personality without respondCrop declines crop offers", () => {
 
       const seller = spawnFarmer(world, { personality: "opportunist", crops: { wheat: 5 } });

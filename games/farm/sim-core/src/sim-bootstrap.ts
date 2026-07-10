@@ -55,7 +55,6 @@ import { OrchardSystem } from "./systems/farming/orchard";
 import { HarborSystem } from "./systems/harbor";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
-import { listCoordinators } from "./agents/cnp-registry";
 import { cropInventoryValue, productInventoryValue, fruitInventoryValue, ANIMAL_BUY_COST, FRUIT_SELL_PRICE, FRUIT_YIELD_PER_HARVEST } from "./economy";
 import "./agents/conservative";
 import "./agents/aggressive";
@@ -232,10 +231,10 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new EncounterSystem(world, bus))
     .add(new EncounterTradeSystem(world))
     .add(meetIndicators)
-    .add(new TrustSystem(world, listCoordinators()))
+    .add(new TrustSystem(world))
     .add(rivalry)
     .add(new FestivalSystem(bus, world, rng, opts.ticksPerDay))
-    .add(new HarborSystem(world, bus, rng))
+    .add(new HarborSystem(world, bus, rng, opts.ticksPerDay))
     .add(eventFeed)
     .add(new TavernSystem(world, eventFeed, bus))
     .add(runHistory)

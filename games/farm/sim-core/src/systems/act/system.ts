@@ -38,7 +38,7 @@ import {
   handlePlantTree,
   handleHarvestFruit,
 } from "./handlers/build";
-import { handleCommitContract, handleDeliverContract } from "./handlers/harbor";
+import { handleCommitContract } from "./handlers/harbor";
 import { handlePrayAtShrine } from "./handlers/shrine";
 import { handleChallenge } from "./handlers/combat";
 
@@ -280,10 +280,6 @@ export class ActSystem implements System {
           }
           case "commit-contract": {
             handleCommitContract(farmer, intent, this.bus, this.world, ctx.tick);
-            break;
-          }
-          case "deliver-contract": {
-            handleDeliverContract(farmer, intent);
             break;
           }
           case "pray-at-shrine": {

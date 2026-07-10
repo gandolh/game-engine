@@ -193,7 +193,7 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   // Mine — a low stone pithead DOMINATED by a tall timber winding-tower A-frame
   // breaking the roofline (shaft + headframe + ore spill), so it reads as a
   // machine, not a house. heightTiles 2 lifts the headframe clear of the body.
-  boxBuilding("bld/mine", 2, 2, 2, STONE, { accent: (g, _p, m) => isoShaftMouth(g, m, "O") }),
+  boxBuilding("bld/mine", 2, 2, 2, STONE, { noDoor: true, accent: (g, _p, m) => isoShaftMouth(g, m, "O") }),
   // Tower — a tall ROUND stone drum capped by a crenellated ring + banner.
   fort("bld/tower", 2, 2, 3, FORT, { fortVariant: "tower", accent: (g, _p, m) => isoBanner(g, m, "e") }),
   // Garrison — a long fortified stone hall with a raised front gatehouse + banner.

@@ -78,11 +78,11 @@ export class GpuContext {
 
     const device = await adapter.requestDevice();
 
-    device.lost.then((info: GPUDeviceLostInfo) => {
-      console.warn(`webgpu: device lost — reason: ${info.reason}, message: ${info.message}`);
-    }).catch(() => {
-
-    });
+    // Review item 34: `device.lost` is handled by `WebGpuRenderer`'s constructor
+    // (the only caller of `GpuContext.create`), which both logs AND flips
+    // `_deviceLost` to gate further GPU calls. A second handler registered here
+    // fired the same log line a second time on every loss with no extra effect
+    // — removed rather than duplicated.
 
     const gpuCtx = canvas.getContext("webgpu");
     if (!gpuCtx) {

@@ -30,9 +30,7 @@ export const AP_COST = {
   "buy-seed": 1,
   "sell-shopkeeper": 3,
   "sell-from-wall": 3,
-  "buy-from-wall": 3, 
-  "cnp-initiate": 3, 
-  "cnp-respond-bid": 1,
+  "buy-from-wall": 3,
   "auction-entry": 2,
   "auction-bid": 0, 
   "resale-bean": 3,
@@ -46,7 +44,6 @@ export const AP_COST = {
   "sell-product": 3,
   "sell-fruit": 3,
   "commit-contract": 1,
-  "deliver-contract": 3,
   "build-greenhouse": 3,
   "pray-at-shrine": 0, 
 } as const;
@@ -55,7 +52,6 @@ type KnownIntentKind = keyof typeof AP_COST;
 
 const TRADE_INIT_KINDS: ReadonlySet<string> = new Set([
   "buy-from-wall",
-  "cnp-initiate",
   "negotiate",
 ]);
 

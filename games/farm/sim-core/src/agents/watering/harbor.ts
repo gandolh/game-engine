@@ -104,7 +104,10 @@ export function deliberateDeliverContract(
   if (!atHarbor && shouldTravelHarbor) {
     const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "harbor");
 
-    const wanted = hasGoods && travelPriority !== undefined ? travelPriority : (travelPriority ?? priority + 1);
+    // `travelPriority ?? priority + 1` — the former `hasGoods && …` guard was
+    // dead: whenever travelPriority is defined the ternary yielded it in both
+    // branches, and when undefined both yielded priority + 1.
+    const wanted = travelPriority ?? priority + 1;
     if (existing) {
       if (wanted < existing.priority) existing.priority = wanted;
     } else {

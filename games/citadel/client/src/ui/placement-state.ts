@@ -88,25 +88,44 @@ export type TileBlockedFn = (x: number, y: number) => boolean;
  * The connector is a *local* gap-fill between two consecutive samples — it is
  * NOT a global re-route between the drag's first and last tile. Out-of-world
  * tiles are dropped. Pure; exported for testing.
+ *
+ * Perf (review item 34): an optional `seen` set lets a caller that drives this
+ * on every mousemove (see `PlacementStateManager`) maintain the "tiles on the
+ * trail" index INCREMENTALLY across calls instead of rebuilding it from the
+ * whole trail every time (was O(trail length) per call → O(n²) over a long
+ * drag). This function keeps `seen` in sync with `trail` itself — adding on
+ * every push, deleting on a drag-back trim — so callers only need to create it
+ * once per drag and pass the same instance each call. When omitted (as in the
+ * unit tests below), the old behavior is preserved exactly: a fresh set built
+ * from `trail` each call.
  */
 export function extendTrail(
   trail: Array<{ x: number; y: number }>,
   tx: number,
   ty: number,
   dims: WorldDims,
+  seen?: Set<number>,
 ): void {
   if (tx < 0 || ty < 0 || tx >= dims.width || ty >= dims.height) return;
   if (trail.length === 0) {
     trail.push({ x: tx, y: ty });
+    seen?.add(ty * dims.width + tx);
     return;
   }
   const tail = trail[trail.length - 1]!;
   if (tail.x === tx && tail.y === ty) return;
 
   // Drag-back: if the cursor re-entered a tile already on the trail, pop back to
-  // it instead of branching.
+  // it instead of branching. Trim `seen` to match (drop the entries for the
+  // tiles being cut off) so it stays accurate for the next call.
   for (let i = trail.length - 2; i >= 0; i--) {
     if (trail[i]!.x === tx && trail[i]!.y === ty) {
+      if (seen !== undefined) {
+        for (let j = i + 1; j < trail.length; j++) {
+          const t = trail[j]!;
+          seen.delete(t.y * dims.width + t.x);
+        }
+      }
       trail.length = i + 1;
       return;
     }
@@ -115,13 +134,13 @@ export function extendTrail(
   // New tile — connect from the tail with the shortest L (covers the common
   // one-tile step and any gap a fast drag skipped). Skip the connector's first
   // tile (it's the tail, already present) and any tile already on the trail.
-  const seen = new Set(trail.map((t) => t.y * dims.width + t.x));
+  const index = seen ?? new Set(trail.map((t) => t.y * dims.width + t.x));
   const connector = shortestRoadPath(tail.x, tail.y, tx, ty, dims);
   for (let i = 1; i < connector.length; i++) {
     const c = connector[i]!;
     const k = c.y * dims.width + c.x;
-    if (seen.has(k)) continue;
-    seen.add(k);
+    if (index.has(k)) continue;
+    index.add(k);
     trail.push({ x: c.x, y: c.y });
   }
 }
@@ -162,6 +181,13 @@ export class PlacementStateManager {
    */
   private _dragTiles: Array<{ x: number; y: number }> = [];
   /**
+   * Incremental tile-index for {@link extendTrail} (freehand road drags only —
+   * see item 34): mirrors `_dragTiles` as a `Set` keyed by tile index so each
+   * mousemove extends it in O(1) rather than rebuilding it from the whole
+   * trail. Reset alongside `_dragTiles` at drag start/end.
+   */
+  private _dragTilesSeen = new Set<number>();
+  /**
    * True when the current drag can't be cleanly placed: for walls, the route
    * could find no clear path and fell back to the straight L; for roads, the
    * freehand trail crosses an un-roadable interior tile (the sim will gap it).
@@ -199,9 +225,12 @@ export class PlacementStateManager {
     this._dragStartX = this._cursorTileX;
     this._dragStartY = this._cursorTileY;
     this._dragTiles = [];
+    this._dragTilesSeen.clear();
     this._routeBlocked = false;
     if (this.mode === "road") {
-      if (this._terrain !== null) extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY, this._terrain);
+      if (this._terrain !== null) {
+        extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY, this._terrain, this._dragTilesSeen);
+      }
     } else {
       this._recomputePath();
     }
@@ -211,7 +240,11 @@ export class PlacementStateManager {
     if (!this._dragging) return;
     if (this.mode === "road") {
       // Freehand: append the tile the cursor just entered (or trim on drag-back).
-      if (this._terrain !== null) extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY, this._terrain);
+      // Passes the persistent `_dragTilesSeen` index so extendTrail updates it
+      // incrementally instead of rebuilding it from the whole trail every move.
+      if (this._terrain !== null) {
+        extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY, this._terrain, this._dragTilesSeen);
+      }
       // A freehand trail can still cross un-roadable tiles; flag whether any
       // interior tile is blocked so the caller can toast on release.
       this._routeBlocked = this._trailHasBlockedInterior();
@@ -241,6 +274,7 @@ export class PlacementStateManager {
     this._dragging = false;
     const tiles = this._dragTiles;
     this._dragTiles = [];
+    this._dragTilesSeen.clear();
     return tiles;
   }
 

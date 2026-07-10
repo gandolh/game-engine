@@ -3,6 +3,7 @@ import { MessageBus, World, createRng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { AuctionSystem } from "./auction";
 import { spawnShopkeeper } from "../agents/market-wall";
+import { ZERO_CROPS } from "../economy";
 import { ONT_SHOP, type AuctionCfpBody, type AuctionResultBody } from "../protocols/shop";
 
 function findResult(bus: MessageBus, auctionId: string): AuctionResultBody | undefined {
@@ -432,7 +433,7 @@ describe("AuctionSystem — English", () => {
     };
     sys.openAuction(cfp);
     sys.run({ tick: 0 });
-    sys.run({ tick: 4 }); 
+    sys.run({ tick: 4 });
 
     const res = findResult(bus, "e2");
     expect(res).toBeDefined();
@@ -447,20 +448,167 @@ describe("AuctionSystem — English", () => {
       type: "english",
       item: "golden_bean",
       reservePrice: 20,
-      closesAtTick: 100, 
+      closesAtTick: 100,
     };
     sys.openAuction(cfp);
-    sys.run({ tick: 0 }); 
+    sys.run({ tick: 0 });
 
     expect(sys.submitBid({ auctionId: "e3", bidderId: 5, amount: 30 }, 1)).toBe(true);
 
-    sys.run({ tick: 3 }); 
+    sys.run({ tick: 3 });
     expect(findResult(bus, "e3")).toBeUndefined();
 
-    sys.run({ tick: 4 }); 
+    sys.run({ tick: 4 });
     const res = findResult(bus, "e3");
     expect(res).toBeDefined();
     expect(res!.winnerId).toBe(5);
     expect(res!.paidPrice).toBe(30);
+  });
+});
+
+// Insolvent-winner settlement. Before the runner-up-ladder fix, resolution
+// named the highest bidder regardless of whether they could pay; the shopkeeper
+// then retained the AUCTION_RESULT and retried settlement every tick forever.
+// These are the red-before-fix tests: pre-fix they asserted the OLD winner and
+// failed; post-fix the auction names a winner who can actually pay.
+describe("AuctionSystem — insolvent-winner settlement", () => {
+  let world: World<GameEntity>;
+  let bus: MessageBus;
+  let sys: AuctionSystem;
+
+  beforeEach(() => {
+    world = new World<GameEntity>();
+    bus = new MessageBus();
+    spawnShopkeeper(world);
+    sys = new AuctionSystem(bus, world, createRng(5));
+  });
+
+  function spawnBidder(gold: number): number {
+    const e = world.spawn({
+      farmer: { name: `b${gold}`, currentRegion: "village" as const },
+      inventory: { gold, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS } },
+    });
+    return e.id!;
+  }
+
+  function goldOf(id: number): number {
+    for (const e of world.query("farmer", "inventory")) {
+      if (e.id === id) return e.inventory.gold;
+    }
+    return -1;
+  }
+
+  it("Vickrey: an insolvent top bidder is passed over to the solvent runner-up", () => {
+    const poor = spawnBidder(5); // bids highest but can't cover the second price
+    const rich = spawnBidder(1000); // runner-up, solvent
+    const cfp: AuctionCfpBody = {
+      auctionId: "ins-v",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "ins-v", bidderId: poor, amount: 100 }, 1);
+    sys.submitBid({ auctionId: "ins-v", bidderId: rich, amount: 50 }, 2);
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "ins-v");
+    expect(res).toBeDefined();
+    // Pre-fix this was `poor` at paid = 50 (the second price) — unpayable.
+    expect(res!.winnerId).toBe(rich);
+    expect(res!.paidPrice).toBe(10); // rich is last in the ladder → pays reserve
+    // The named winner can actually settle: no infinite shopkeeper retry.
+    expect(goldOf(res!.winnerId!)).toBeGreaterThanOrEqual(res!.paidPrice);
+  });
+
+  it("Vickrey: when every bidder is insolvent → no winner (no perpetual retry)", () => {
+    const poor = spawnBidder(3);
+    const cfp: AuctionCfpBody = {
+      auctionId: "ins-v0",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "ins-v0", bidderId: poor, amount: 100 }, 1);
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "ins-v0");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBeNull();
+    expect(res!.paidPrice).toBe(10);
+    // participants still records the bidder that took part.
+    expect(res!.participants).toEqual([poor]);
+  });
+
+  it("FPSB: an insolvent top bidder hands off to the runner-up at their own bid", () => {
+    const poor = spawnBidder(5); // can't cover its own 100 bid
+    const rich = spawnBidder(1000);
+    const cfp: AuctionCfpBody = {
+      auctionId: "ins-f",
+      type: "fpsb",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "ins-f", bidderId: poor, amount: 100 }, 1);
+    sys.submitBid({ auctionId: "ins-f", bidderId: rich, amount: 50 }, 2);
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "ins-f");
+    expect(res).toBeDefined();
+    // Pre-fix: `poor` at 100 (unpayable). Now `rich` pays its own 50.
+    expect(res!.winnerId).toBe(rich);
+    expect(res!.paidPrice).toBe(50);
+    expect(goldOf(res!.winnerId!)).toBeGreaterThanOrEqual(res!.paidPrice);
+  });
+
+  it("Dutch: a provably-insolvent accepter voids the sale rather than looping", () => {
+    const poor = spawnBidder(5);
+    sys = new AuctionSystem(bus, world, createRng(5), {
+      startPrice: 100,
+      decrementPerTick: 10,
+      floor: 20,
+    });
+    const cfp: AuctionCfpBody = {
+      auctionId: "ins-d",
+      type: "dutch",
+      item: "golden_bean",
+      reservePrice: 20,
+      closesAtTick: 20,
+    };
+    sys.openAuction(cfp);
+    sys.run({ tick: 0 });
+    expect(sys.submitBid({ auctionId: "ins-d", bidderId: poor, amount: 80 }, 3)).toBe(true);
+    sys.run({ tick: 3 });
+
+    const res = findResult(bus, "ins-d");
+    expect(res).toBeDefined();
+    // Accepter can't pay the 70 clock price → no winner, paid = reserve.
+    expect(res!.winnerId).toBeNull();
+    expect(res!.paidPrice).toBe(20);
+  });
+
+  it("bidders whose entity is unknown are assumed solvent (existing behaviour preserved)", () => {
+    // No entities spawned for these ids → canAfford can't prove insolvency.
+    const cfp: AuctionCfpBody = {
+      auctionId: "unk",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "unk", bidderId: 900, amount: 100 }, 1);
+    sys.submitBid({ auctionId: "unk", bidderId: 901, amount: 50 }, 2);
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "unk");
+    expect(res).toBeDefined();
+    expect(res!.winnerId).toBe(900); // top bidder still wins at the second price
+    expect(res!.paidPrice).toBe(50);
   });
 });

@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { createRng } from "@engine/core";
-import { generateContracts, canFulfillContract } from "./harbor";
+import { createRng, World, MessageBus } from "@engine/core";
+import { generateContracts, canFulfillContract, HarborSystem } from "./harbor";
 import { bootstrapSim } from "../sim-bootstrap";
 import { JsPathfinder } from "../world/js-pathfinder";
 import { ZERO_CROPS } from "../economy";
+import { ONT_HARBOR, type HarborContract, type ContractDeliveredBody } from "../protocols/harbor";
 import type { GameEntity } from "../components";
 
 describe("generateContracts (pure, deterministic)", () => {
@@ -237,5 +238,57 @@ describe("HarborSystem integration (live sim)", () => {
     };
 
     expect(run(sim1)).toBe(run(sim2));
+  });
+});
+
+describe("HarborSystem deliveryDay uses injected ticksPerDay", () => {
+  function makeContract(overrides: Partial<HarborContract> = {}): HarborContract {
+    return {
+      id: "contract-1",
+      goods: { crop: "radish", minQuality: "normal", quantity: 2 },
+      reward: 10,
+      reputationReward: 1,
+      postedDay: 0,
+      deadlineDay: 99,
+      minReputation: 0,
+      tier: "normal",
+      ...overrides,
+    };
+  }
+
+  function runDelivery(ticksPerDay: number, tick: number): number {
+    const world = new World<GameEntity>();
+    const bus = new MessageBus();
+    const rng = createRng(1);
+    const system = new HarborSystem(world, bus, rng, ticksPerDay);
+
+    const contract = makeContract();
+    world.spawn({
+      harborBoard: { isHarborBoard: true, openContracts: [], committed: new Map() },
+      inbox: { messages: [] },
+    });
+    world.spawn({
+      farmer: { name: "F", currentRegion: "harbor", committedContract: contract },
+      inventory: { gold: 0, crops: { ...ZERO_CROPS, radish: 2 }, seeds: { ...ZERO_CROPS } },
+    });
+
+    system.run({ tick });
+    bus.flush();
+
+    const delivered = bus
+      .drain()
+      .find((m) => m.ontology === ONT_HARBOR.CONTRACT_DELIVERED);
+    expect(delivered).toBeDefined();
+    return (delivered!.body as unknown as ContractDeliveredBody).deliveryDay;
+  }
+
+  it("computes deliveryDay as floor(tick / ticksPerDay) for the default cadence (20)", () => {
+    expect(runDelivery(20, 47)).toBe(2);
+  });
+
+  it("computes deliveryDay as floor(tick / ticksPerDay) for a non-default cadence", () => {
+
+    expect(runDelivery(37, 100)).toBe(2);
+    expect(runDelivery(1200, 3599)).toBe(2);
   });
 });

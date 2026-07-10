@@ -113,6 +113,27 @@ describe("ShopkeeperSystem", () => {
     expect(farmer.inventory!.crops.pumpkin).toBe(0);
   });
 
+  it("BUY debits cropQuality in lockstep with crops (no phantom tier after a partial buy)", () => {
+    // Brief 99, review-findings item 28: the shopkeeper used to do
+    // `farmer.inventory.crops[crop] -= taken` directly, never touching
+    // cropQuality — leaving a phantom tier count once crops[] shrank out
+    // from under it. Regression-guards the debitCrop() routing.
+    const farmer = makeFarmer(world, { gold: 0, crops: { radish: 4 } });
+    farmer.inventory!.cropQuality = { radish: { normal: 0, silver: 0, gold: 4 } };
+
+    pushToShop(shop, {
+      ontology: ONT_SHOP.BUY,
+      sender: farmer.id!,
+      body: { crop: "radish", quantity: 2 },
+    });
+    sys.run({ tick: 1 });
+
+    expect(farmer.inventory!.crops.radish).toBe(2);
+    const q = farmer.inventory!.cropQuality!.radish!;
+    expect(q.normal + q.silver + q.gold).toBe(farmer.inventory!.crops.radish);
+    expect(q).toEqual({ normal: 0, silver: 0, gold: 2 });
+  });
+
   it("SELL of seed reads price from slate, mutates farmer + decrements offer.remaining", () => {
     const farmer = makeFarmer(world, { gold: 100 });
     const radishOffer = offer({ crop: "radish", unitPrice: 5, remaining: 10 });

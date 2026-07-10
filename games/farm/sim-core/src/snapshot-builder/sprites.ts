@@ -28,8 +28,6 @@ export class SnapshotSpriteState {
   wealthRowsSent = -1;
 }
 
-const defaultSpriteState = new SnapshotSpriteState();
-
 function resolveFacing(
   state: SnapshotSpriteState,
   id: number,
@@ -67,7 +65,7 @@ export function buildSprites(
   world: World<GameEntity>,
   tick: number,
   day: number,
-  state: SnapshotSpriteState = defaultSpriteState,
+  state: SnapshotSpriteState = new SnapshotSpriteState(),
 ): SnapshotSprite[] {
   const sprites: SnapshotSprite[] = [];
 

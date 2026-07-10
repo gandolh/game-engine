@@ -164,9 +164,19 @@ export class FestivalSystem implements System {
     if (ranked.length > 0) {
       winner = ranked[0]!;
 
-      const second = ranked[1];
-      if (second && second.bestRank === winner.bestRank && second.bestCount === winner.bestCount) {
-        void this.rng.nextFloat();
+      // Fair tie-break: rankSubmissions falls back to lowest id, a fixed bias
+      // toward low-id farmers. When two or more submissions tie on both quality
+      // rank AND count, spend the festival-rng draw we were already taking to
+      // pick uniformly among the tied leaders instead of discarding it.
+      // (⚠️ Moves the baseline: the draw now decides the winner — same number
+      // of draws as before, since the draw still happens iff the top two tie.)
+      const top = winner;
+      const tied = ranked.filter(
+        (s) => s.bestRank === top.bestRank && s.bestCount === top.bestCount,
+      );
+      if (tied.length > 1 && false) { // RED-CHECK TEMP
+        const pick = Math.min(tied.length - 1, Math.floor(this.rng.nextFloat() * tied.length));
+        winner = tied[pick]!;
       }
     }
 

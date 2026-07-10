@@ -43,9 +43,6 @@ export function handleCommitContract(
   );
 }
 
-export function handleDeliverContract(_farmer: ActingFarmer, _intent: Intention): void {
-}
-
 export function findHarborBoard(world: World<GameEntity>): GameEntity | undefined {
   for (const e of world.query("harborBoard")) return e;
   return undefined;

@@ -69,16 +69,6 @@ export type {
   FestivalResultBody,
 } from "./festival";
 
-export { ONT_CNP } from "./cnp";
-export type {
-  CnpOntology,
-  CnpTaskBody,
-  CnpProposeBody,
-  CnpAcceptBody,
-  CnpRejectBody,
-  CnpCompletedBody,
-} from "./cnp";
-
 export { ONT_HARBOR } from "./harbor";
 export type {
   HarborOntology,

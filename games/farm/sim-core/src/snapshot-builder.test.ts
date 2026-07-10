@@ -1,15 +1,21 @@
 import { describe, it, expect } from "vitest";
+import { World } from "@engine/core";
 import { bootstrapSim, leaderboard } from "./sim-bootstrap";
 import {
   buildRenderSnapshot,
   buildObserverSnapshot,
   buildLeaderboardRows,
   countEntities,
+  buildEvents,
+  buildSprites,
+  SnapshotSpriteState,
   INTENTION_KIND_TO_GLYPH,
   HIGHLIGHT_THRESHOLD,
 } from "./snapshot-builder";
 import { shouldStopSkip } from "./sim-worker-skip";
 import type { SnapshotShock } from "./snapshot";
+import type { EventEntry, EventFeedSystem } from "./systems/event-feed";
+import type { GameEntity } from "./components";
 
 const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;
@@ -693,5 +699,107 @@ describe("visual state indicators — farmers", () => {
     expect(s).toBeDefined();
     expect(s!.tintRgba).toBe(UNTINTED_RGBA);
     expect(s!.alpha).toBe(1);
+  });
+});
+
+function eventEntry(partial: Partial<EventEntry> & Pick<EventEntry, "text" | "drama">): EventEntry {
+  return {
+    tick: partial.tick ?? 0,
+    day: partial.day ?? 0,
+    text: partial.text,
+    key: partial.key ?? partial.text,
+    drama: partial.drama,
+    farmerId: partial.farmerId ?? null,
+  };
+}
+
+function feedStub(entries: EventEntry[]): EventFeedSystem {
+  return { recent: () => entries } as unknown as EventFeedSystem;
+}
+
+describe("buildEvents (module-state hygiene)", () => {
+  it("returns a fresh array each call — no shared scratch aliasing", () => {
+    const entries = [eventEntry({ text: "a", drama: 0.1 }), eventEntry({ text: "b", drama: 0.2 })];
+    const feed = feedStub(entries);
+
+    const first = buildEvents(feed);
+    const second = buildEvents(feed);
+
+    expect(first).not.toBe(second);
+    expect(first).toEqual(second);
+  });
+
+  it("mutating a previously returned snapshot's events array does not affect a later call", () => {
+    const entries = [eventEntry({ text: "a", drama: 0.1 }), eventEntry({ text: "b", drama: 0.2 })];
+    const feed = feedStub(entries);
+
+    const first = buildEvents(feed);
+
+    first.length = 0;
+    first.push(eventEntry({ text: "corrupted", drama: 0.9 }));
+
+    const second = buildEvents(feed);
+    expect(second).toHaveLength(2);
+    expect(second[0]!.text).toBe("a");
+    expect(second[1]!.text).toBe("b");
+  });
+
+  it("a smaller subsequent feed does not leak stale entries from a larger prior call", () => {
+    const bigFeed = feedStub([
+      eventEntry({ text: "a", drama: 0.1 }),
+      eventEntry({ text: "b", drama: 0.2 }),
+      eventEntry({ text: "c", drama: 0.3 }),
+    ]);
+    const smallFeed = feedStub([eventEntry({ text: "z", drama: 0.5 })]);
+
+    buildEvents(bigFeed);
+    const shrunk = buildEvents(smallFeed);
+
+    expect(shrunk).toHaveLength(1);
+    expect(shrunk[0]!.text).toBe("z");
+  });
+});
+
+function spawnFacingFarmer(world: World<GameEntity>, dx: number, dy: number): void {
+  world.spawn({
+    farmer: { name: "F", currentRegion: "village" },
+    sprite: { atlasId: "a", frame: "farmer/f", layer: 20, tintRgba: 0xffffffff },
+    transform: { x: dx, y: dy, prevX: 0, prevY: 0, rotation: 0 },
+  });
+}
+
+describe("SnapshotSpriteState (module-state hygiene)", () => {
+  it("buildSprites without an explicit state does not leak lastFacing across unrelated worlds", () => {
+    // World A: a farmer moving mostly sideways-left — resolveFacing records
+    // facing "side" + flipX=true for entity id 1 into whatever state buildSprites
+    // used internally (the bug: a shared module-level singleton).
+    const worldA = new World<GameEntity>();
+    spawnFacingFarmer(worldA, -5, 1);
+    buildSprites(worldA, 0, 0);
+
+    // World B: an unrelated run whose farmer also gets id 1 (fresh World, ids
+    // restart at 1) and is NOT moving (dx=0, dy=0) — resolveFacing must fall
+    // back to the "down"/no-flip default. With a shared singleton it would
+    // instead read back World A's stale "side"/flipX=true entry for id 1.
+    const worldB = new World<GameEntity>();
+    spawnFacingFarmer(worldB, 0, 0);
+    const spritesB = buildSprites(worldB, 0, 0);
+
+    const farmerSpriteB = spritesB.find((s) => s.frame === "farmer/f");
+    expect(farmerSpriteB).toBeDefined();
+    expect(farmerSpriteB!.facing).toBe("down");
+    expect(farmerSpriteB!.flipX).toBe(false);
+  });
+
+  it("an explicitly passed SnapshotSpriteState is still honored (per-run persistence intact)", () => {
+    const sim = bootAndTick(3);
+    const state = new SnapshotSpriteState();
+    const first = buildSprites(sim.world, 3, sim.dayClock.day, state);
+    const second = buildSprites(sim.world, 4, sim.dayClock.day, state);
+    expect(first.length).toBeGreaterThan(0);
+    expect(second.length).toBeGreaterThan(0);
+    // The shared explicit state object is the one actually used (not a fresh
+    // default each time) — its internal maps accumulate across both calls.
+    expect(state.lastFacing.size).toBeGreaterThan(0);
   });
 });

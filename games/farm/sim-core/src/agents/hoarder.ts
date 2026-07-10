@@ -3,9 +3,6 @@ import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import {
-  _resetCnpCoordinatorsForTests,
-} from "./cnp-registry";
-import {
   registerPeerTradeHooks,
   type InitiatePeerTradeFn,
 } from "./peer-trade-registry";
@@ -18,9 +15,7 @@ import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
 
-export { _resetCnpCoordinatorsForTests };
-
-const BUY_PRICE_MULTIPLIER = 1.05; 
+const BUY_PRICE_MULTIPLIER = 1.05;
 
 function pickHoarderCrop(day: number, gold: number, reserve: number): CropKind {
   const season = seasonForDay(day);

@@ -675,6 +675,11 @@ export interface FormOpts {
    *   - "canopy" — tradingpost: a market-canopy lean-to jutting off the front.
    *   - "civic"  — town-hall: a raised central CLOCK/BELL gable + a front portico. */
   warehouseStyle?: "barn" | "canopy" | "civic";
+  /** `boxBuilding` only: skip the `doorLayer` for a form whose accent already
+   *  reads as the entrance (e.g. the mine's `isoShaftMouth` — see its doc
+   *  comment). Defaults to false (draw the door, the prior behavior for every
+   *  existing caller). */
+  noDoor?: boolean;
 }
 
 /** Allocate a grid + metrics for a footprint. */
@@ -837,8 +842,12 @@ export function boxBuilding(name: string, w: number, h: number, heightTiles: num
     wallsLayer,
     stoneCoursing,   // dressed masonry: ashlar mortar lines + near-corner quoins
     hippedRoofLayer,
-    doorLayer,
   ];
+  // `noDoor` (review item 34): honor the contract `isoShaftMouth`'s doc comment
+  // already promised — a form whose accent draws its own entrance (the mine's
+  // shaft mouth) skips the generic door so the two don't fight for the same
+  // front-centre pixels.
+  if (opts.noDoor !== true) layers.push(doorLayer);
   if (opts.accent) layers.push(accentLayer(opts.accent));
   return composite(name, w, h, heightTiles, pal, layers);
 }
@@ -1747,7 +1756,8 @@ export function isoTurret(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
 }
 
 /** Mine PITHEAD: dark arched shaft mouth + bold timber winding-tower A-frame +
- *  ore spill. Call with `noDoor` (the form omits the door). */
+ *  ore spill. Pass `boxBuilding`'s `{ noDoor: true }` alongside this accent
+ *  (the mine reads through its shaft mouth, not a generic door). */
 export function isoShaftMouth(g: IsoGrid, m: IsoMetrics, oreColor: string): void {
   const cx = m.cx, frontBaseY = m.H - R(2 * ISO_ART_SCALE / 4);
   const w = R(6 * ISO_ART_SCALE / 4), h = R(m.wallH * 0.7);

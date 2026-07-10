@@ -23,24 +23,37 @@ import type { RunHistorySystem } from "../messaging/run-history";
 import { dramaScore } from "../social/drama";
 import { type EventEntry, type TradeCompletedBody, EVENT_FEED_CAP } from "./types";
 
+// Dedup-key memory cap. `seen` only needs to remember keys long enough to
+// suppress a message that lingers in an inbox across a handful of ticks; keys
+// far older than that can never recur (their source messages are long gone).
+// A generous bound keeps every still-live key while preventing unbounded growth
+// over a long run. Eviction is drop-oldest (Set preserves insertion order), so
+// it never changes observable behaviour in a normal-length run.
+export const EVENT_SEEN_CAP = 4096;
+
 export class EventFeedSystem implements System {
   readonly name = "EventFeedSystem";
 
-  private readonly events: EventEntry[] = []; 
-  private readonly seen = new Set<string>(); 
-  private readonly fresh: EventEntry[] = []; 
+  private readonly events: EventEntry[] = [];
+  private readonly seen = new Set<string>();
+  private readonly fresh: EventEntry[] = [];
 
-  private lastTopFarmerId: number | null = null; 
+  private lastTopFarmerId: number | null = null;
   private lastRankCheckDay = -1;
 
-  private raceOnEmitted = false; 
+  private raceOnEmitted = false;
+
+  private readonly seenCap: number;
 
   constructor(
     private readonly world: World<GameEntity>,
     private readonly dayClock: DayClockSystem,
     private readonly rivalry?: RivalrySystem,
     private readonly runHistory?: RunHistorySystem,
-  ) {}
+    seenCap: number = EVENT_SEEN_CAP,
+  ) {
+    this.seenCap = seenCap;
+  }
 
   run(ctx: SimContext): void {
     const day = this.dayClock.day;
@@ -54,12 +67,31 @@ export class EventFeedSystem implements System {
     this.snoopRankChange(ctx.tick, day, fresh);
     this.snoopRaceOn(ctx.tick, day, fresh);
 
+    // this.evictSeen(); // RED-CHECK TEMP
+
     if (fresh.length === 0) return;
     fresh.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
     for (const entry of fresh) this.events.push(entry);
     if (this.events.length > EVENT_FEED_CAP) {
       this.events.splice(0, this.events.length - EVENT_FEED_CAP);
     }
+  }
+
+  // Drop the oldest dedup keys once the set exceeds its cap. Set iteration is
+  // insertion order, and deleting the currently-visited entry mid-iteration is
+  // safe, so this removes exactly the `size - cap` oldest keys.
+  private evictSeen(): void {
+    if (this.seen.size <= this.seenCap) return;
+    let excess = this.seen.size - this.seenCap;
+    for (const key of this.seen) {
+      this.seen.delete(key);
+      if (--excess <= 0) break;
+    }
+  }
+
+  /** Test-only: current size of the dedup-key memory. */
+  seenSize(): number {
+    return this.seen.size;
   }
 
   private snoopMarketWall(tick: number, day: number, out: EventEntry[]): void {

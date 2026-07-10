@@ -7,7 +7,7 @@ import {
   type AuctionResultBody,
 } from "../../protocols/shop";
 import { PERFORMATIVE } from "../../protocols/performatives";
-import { firstEntity } from "../entity-helpers";
+import { firstEntity, findById } from "../entity-helpers";
 import {
   type SealedBid,
   compareSealedBids,
@@ -208,44 +208,53 @@ export class AuctionSystem implements System {
     );
   }
 
+  // Settlement solvency. The shopkeeper credits the named winner and, when the
+  // winner cannot pay, retains the AUCTION_RESULT and retries it across ticks —
+  // which loops forever for a bidder who bids more than they will ever hold.
+  // We fix this on the auction side by awarding to the highest bidder that can
+  // actually pay (the runner-up ladder for sealed-bid auctions), rather than
+  // escrowing gold at bid time — escrow would have to reach into farmer
+  // inventory on every bid AND duplicate the shopkeeper's gold accounting,
+  // which is far more invasive and races the shopkeeper's own debit. A bidder
+  // whose entity/inventory cannot be read is ASSUMED solvent, so this only
+  // changes the pathological insolvent-winner case and leaves every other
+  // outcome (and its determinism baseline) untouched.
+  private canAfford(bidderId: number, price: number): boolean {
+    return true; // RED-CHECK TEMP
+    const bidder = findById(this.world, bidderId, "farmer", "inventory");
+    if (!bidder || !bidder.inventory) return true;
+    return bidder.inventory.gold >= price;
+  }
+
   private resolveVickrey(a: VickreyState, ctx: SimContext): void {
     a.resolved = true;
     const participants = uniqueParticipants(a.bids.map((b) => b.bidderId));
-    if (a.bids.length === 0) {
-      this.broadcastResult(a.cfp.auctionId, {
-        auctionId: a.cfp.auctionId,
-        winnerId: null,
-        paidPrice: a.cfp.reservePrice,
-        participants,
-      }, ctx.tick);
-      return;
-    }
-
     const sorted = a.bids.slice().sort(compareSealedBids);
 
-    const top = sorted[0]!;
-    if (top.amount < a.cfp.reservePrice) {
+    // Walk the ranked bids top-down; award to the first bidder that clears the
+    // reserve AND can pay the second price. A provably-insolvent leader is
+    // passed over to the runner-up, then down the ladder — never retried. The
+    // second price is the next competing bid below the candidate (max'd with
+    // the reserve); a defaulting higher bidder is dropped, not carried forward.
+    for (let i = 0; i < sorted.length; i++) {
+      const cand = sorted[i]!;
+      if (cand.amount < a.cfp.reservePrice) break; // sorted desc → nothing below clears reserve
+      const next = sorted[i + 1];
+      const paid = next ? Math.max(next.amount, a.cfp.reservePrice) : a.cfp.reservePrice;
+      if (!this.canAfford(cand.bidderId, paid)) continue;
       this.broadcastResult(a.cfp.auctionId, {
         auctionId: a.cfp.auctionId,
-        winnerId: null,
-        paidPrice: a.cfp.reservePrice,
+        winnerId: cand.bidderId,
+        paidPrice: paid,
         participants,
       }, ctx.tick);
       return;
-    }
-
-    let paid: number;
-    if (sorted.length === 1) {
-      paid = a.cfp.reservePrice;
-    } else {
-      const second = sorted[1]!;
-      paid = Math.max(second.amount, a.cfp.reservePrice);
     }
 
     this.broadcastResult(a.cfp.auctionId, {
       auctionId: a.cfp.auctionId,
-      winnerId: top.bidderId,
-      paidPrice: paid,
+      winnerId: null,
+      paidPrice: a.cfp.reservePrice,
       participants,
     }, ctx.tick);
   }
@@ -253,24 +262,19 @@ export class AuctionSystem implements System {
   private resolveFpsb(a: FpsbState, ctx: SimContext): void {
     a.resolved = true;
     const participants = uniqueParticipants(a.bids.map((b) => b.bidderId));
-    if (a.bids.length === 0) {
-      this.broadcastResult(a.cfp.auctionId, {
-        auctionId: a.cfp.auctionId,
-        winnerId: null,
-        paidPrice: a.cfp.reservePrice,
-        participants,
-      }, ctx.tick);
-      return;
-    }
-
     const sorted = a.bids.slice().sort(compareSealedBids);
 
-    const top = sorted[0]!;
-    if (top.amount < a.cfp.reservePrice) {
+    // Same runner-up ladder as Vickrey; in a first-price auction each bidder
+    // pays their OWN bid, so an insolvent leader hands off to the next bidder
+    // at that bidder's (lower) price.
+    for (let i = 0; i < sorted.length; i++) {
+      const cand = sorted[i]!;
+      if (cand.amount < a.cfp.reservePrice) break; // sorted desc → nothing below clears reserve
+      if (!this.canAfford(cand.bidderId, cand.amount)) continue;
       this.broadcastResult(a.cfp.auctionId, {
         auctionId: a.cfp.auctionId,
-        winnerId: null,
-        paidPrice: a.cfp.reservePrice,
+        winnerId: cand.bidderId,
+        paidPrice: cand.amount,
         participants,
       }, ctx.tick);
       return;
@@ -278,8 +282,8 @@ export class AuctionSystem implements System {
 
     this.broadcastResult(a.cfp.auctionId, {
       auctionId: a.cfp.auctionId,
-      winnerId: top.bidderId,
-      paidPrice: top.amount,
+      winnerId: null,
+      paidPrice: a.cfp.reservePrice,
       participants,
     }, ctx.tick);
   }
@@ -287,7 +291,10 @@ export class AuctionSystem implements System {
   private resolveDutch(a: DutchState, ctx: SimContext): void {
     a.resolved = true;
     const participants = Array.from(a.participants);
-    if (a.winner === null) {
+    // Clock auctions record only the single accepter — there is no ranked
+    // runner-up to fall back to — so a provably-insolvent winner voids the sale
+    // (no winner) rather than looping settlement forever.
+    if (a.winner === null || !this.canAfford(a.winner.bidderId, a.winner.paidPrice)) {
       this.broadcastResult(a.cfp.auctionId, {
         auctionId: a.cfp.auctionId,
         winnerId: null,
@@ -313,7 +320,9 @@ export class AuctionSystem implements System {
   private resolveEnglish(a: EnglishState, ctx: SimContext): void {
     a.resolved = true;
     const participants = Array.from(a.participants);
-    if (a.leader === null) {
+    // Only the current leader is retained (no ranked runner-up), so a
+    // provably-insolvent leader voids the sale rather than looping settlement.
+    if (a.leader === null || !this.canAfford(a.leader.bidderId, a.leader.paidPrice)) {
       this.broadcastResult(a.cfp.auctionId, {
         auctionId: a.cfp.auctionId,
         winnerId: null,

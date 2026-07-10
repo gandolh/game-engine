@@ -5,6 +5,7 @@ import {
   PRODUCT_SELL_PRICE,
   FRUIT_SELL_PRICE,
   QUALITY_MULTIPLIER,
+  debitCrop,
 } from "../../../economy";
 import { CROP_SELL_PRICE as SELL_PRICE } from "../../../economy";
 import {
@@ -82,19 +83,23 @@ export function handleSellShopkeeper(
   const quality = farmer.inventory.cropQuality;
   if (quality?.[crop]) {
     const q = quality[crop]!;
+    // Price by reading the tiers gold-first (sell the best stock first, same
+    // order as before) WITHOUT mutating; the actual crops/cropQuality debit
+    // happens once below via debitCrop(..., "gold"), which drains tiers in
+    // that same gold, silver, normal order — so the price computed here
+    // matches exactly what gets debited.
     let remaining = available;
     for (const [tier, mult] of [["gold", QUALITY_MULTIPLIER.gold], ["silver", QUALITY_MULTIPLIER.silver], ["normal", QUALITY_MULTIPLIER.normal]] as const) {
       if (remaining <= 0) break;
       const take = Math.min(remaining, q[tier]);
       if (take > 0) {
         farmer.inventory.gold += Math.round(basePrice * mult * take);
-        q[tier] -= take;
         remaining -= take;
       }
     }
-    farmer.inventory.crops[crop] -= available;
+    debitCrop(farmer.inventory, crop, available, "gold");
   } else {
-    farmer.inventory.crops[crop] -= available;
+    debitCrop(farmer.inventory, crop, available);
     farmer.inventory.gold += SELL_PRICE[crop] * available;
   }
 }
@@ -236,13 +241,11 @@ export function handleProcessCrop(
   farmer: ActingFarmer,
   intent: Intention,
 ): void {
-  if (farmer.farmer?.currentRegion !== "mill") return; 
+  if (farmer.farmer?.currentRegion !== "mill") return;
   const crop = intent.data.crop as CropKind;
   if (!(crop in MILL_PRICE)) return;
-  const have = farmer.inventory.crops[crop];
-  const taken = Math.min(MILL_BATCH, have);
+  const taken = debitCrop(farmer.inventory, crop, MILL_BATCH);
   if (taken <= 0) return;
-  farmer.inventory.crops[crop] -= taken;
   farmer.inventory.gold += MILL_PRICE[crop] * taken;
 }
 

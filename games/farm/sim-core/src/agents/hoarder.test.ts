@@ -1,6 +1,6 @@
 import { ZERO_CROPS } from "../economy";
-import { describe, expect, it, beforeEach } from "vitest";
-import { deliberateHoarder, _resetCnpCoordinatorsForTests } from "./hoarder";
+import { describe, expect, it } from "vitest";
+import { deliberateHoarder } from "./hoarder";
 import type { GameEntity, CropKind } from "../components";
 import type { MarketOffer } from "../protocols/market";
 import type { RegionId } from "../world/regions";
@@ -46,10 +46,6 @@ function makeFarmer(overrides: {
 }
 
 describe("deliberateHoarder", () => {
-  beforeEach(() => {
-    _resetCnpCoordinatorsForTests();
-  });
-
   it("plants grape when seed is available (highest autumn value, day 60)", () => {
     const f = makeFarmer({ seeds: { grape: 1 }, plotId: 0, day: 60 });
     deliberateHoarder(f, { tick: 1200 });

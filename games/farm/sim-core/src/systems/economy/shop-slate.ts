@@ -10,11 +10,19 @@ export class ShopSlateSystem implements System {
 
   private lastDayProcessed = -1;
 
+  // Named fork instead of the raw top-level Rng: draws from a stable,
+  // reorder-independent stream so adding/removing any system ahead of this one
+  // in the schedule no longer shifts the daily slate. (⚠️ Moves the baseline
+  // by design — the draw sequence differs from the raw-stream version.)
+  private readonly rng: Rng;
+
   constructor(
     private readonly world: World<GameEntity>,
     private readonly bus: MessageBus,
-    private readonly rng: Rng,
-  ) {}
+    rng: Rng,
+  ) {
+    this.rng = rng.fork("shop-slate");
+  }
 
   run(ctx: SimContext): void {
     const shop = this.findShopkeeper();

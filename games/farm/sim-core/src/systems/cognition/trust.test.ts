@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { World } from "@engine/core";
 import type { GameEntity } from "../../components";
-import { TrustSystem, applyTrustDelta, DEFAULT_TRUST_CONFIG } from "./trust";
+import { TrustSystem, applyTrustDelta } from "./trust";
 import { ONT_ENCOUNTER } from "../../protocols/encounter";
 import { ONT_MARKET } from "../../protocols/market";
 import { PERFORMATIVE } from "../../protocols";
-import { CnpCoordinator } from "../../agents/cnp-coordinator";
 import type { RegionId } from "../../world/regions";
 
 function makeFarmer(world: World<GameEntity>, region: RegionId = "village"): GameEntity {
@@ -124,52 +123,6 @@ describe("TrustSystem", () => {
     });
 
     expect(() => new TrustSystem(world).run({ tick: 0 })).not.toThrow();
-  });
-
-  it("applies -brokenDelta from CNP broken commitment past commitment window", () => {
-    const initiator = makeFarmer(world);
-    const winner = makeFarmer(world);
-    const coord = new CnpCoordinator();
-    coord.startTask({
-      taskId: "t1",
-      initiatorId: initiator.id!,
-      buyCrop: "radish",
-      quantity: 2,
-      maxPricePerUnit: 8,
-      deadlineTick: 5,
-    });
-    coord.getTask("t1")!.proposals.push({ bidderId: winner.id!, pricePerUnit: 7, quantity: 2 });
-    coord.closeTask("t1", 5);
-
-    const coords = new Map<number, CnpCoordinator>([[initiator.id!, coord]]);
-    const window = DEFAULT_TRUST_CONFIG.brokenCommitmentWindow;
-    new TrustSystem(world, coords).run({ tick: 5 + window });
-
-    expect(initiator.trust!.byId.get(winner.id!)).toBeCloseTo(0.4, 6);
-  });
-
-  it("does not double-apply broken-commitment delta on subsequent ticks", () => {
-    const initiator = makeFarmer(world);
-    const winner = makeFarmer(world);
-    const coord = new CnpCoordinator();
-    coord.startTask({
-      taskId: "t1",
-      initiatorId: initiator.id!,
-      buyCrop: "radish",
-      quantity: 2,
-      maxPricePerUnit: 8,
-      deadlineTick: 5,
-    });
-    coord.getTask("t1")!.proposals.push({ bidderId: winner.id!, pricePerUnit: 7, quantity: 2 });
-    coord.closeTask("t1", 5);
-
-    const coords = new Map<number, CnpCoordinator>([[initiator.id!, coord]]);
-    const sys = new TrustSystem(world, coords);
-    const window = DEFAULT_TRUST_CONFIG.brokenCommitmentWindow;
-    sys.run({ tick: 5 + window });
-    sys.run({ tick: 5 + window + 1 });
-
-    expect(initiator.trust!.byId.get(winner.id!)).toBeCloseTo(0.4, 6);
   });
 
   it("lazy-inits farmer.trust when absent", () => {
