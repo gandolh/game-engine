@@ -30,7 +30,7 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 ### Farm Valley
 
 - [wiki/overview.md](wiki/overview.md) — What Farm Valley is (a watch-it-play sim of 21 farmers over 100 days), its SPADE-prototype lineage, and the four personality archetypes.
-- [wiki/system-ordering.md](wiki/system-ordering.md) — Why every system in `bootstrapSim` sits where it does — the nine bands, the inbox lifecycle, cross-cutting invariants, and the system→brief provenance map.
+- [wiki/system-ordering.md](wiki/system-ordering.md) — Why every system in bootstrapSim sits where it does — the ten bands, the inbox lifecycle, cross-cutting invariants, and the system-to-brief provenance map.
 - [wiki/economy.md](wiki/economy.md) — The single prices ↔ AP ↔ initial-gold model the economy constants derive from, the crop g/AP formula, the scoring table, and the re-tune procedure.
 - [wiki/player-and-interaction.md](wiki/player-and-interaction.md) — The playable farmer Pip, the in-canvas `@engine/ui` GUI, hotbar, inventory, fishing, forageables, hover tooltips, and feature collision.
 - [wiki/farm-world-dressing.md](wiki/farm-world-dressing.md) — World dressing and scenery: workshop buildings, island edge bands, coral zones, bridges, plot layout, and the 240×240 radial archipelago layout (**source of truth for tile geometry**).
@@ -54,7 +54,7 @@ Each brief is the spec that directed a slice of work; once in `done/`/`supersede
 duplicate the catalog. Number prefixes are stable across directory moves.
 
 - Engine: [briefs/engine/](briefs/engine/) — `done/` 02–17, `superseded/` 01 + the WebGPU wave, `todo/` 18–19
-- Game: [briefs/game/](briefs/game/) — briefs 01–109; 01–95 are Done or Superseded, `todo/` holds 96–109
+- Game: [briefs/game/](briefs/game/) — briefs 01–110; 01–95 plus 97 and 108 are Done or Superseded, `todo/` holds 96, 98–107, 109–110
 - Citadel: [briefs/citadel-apr.md](briefs/citadel-apr.md) plus the `todos/*citadel-*` files
 
 For era-level context read [log.md](log.md).

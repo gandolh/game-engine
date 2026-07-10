@@ -2,7 +2,7 @@
 
 status: open
 kind: review-findings (triage doc — split into briefs/fix batches as prioritized)
-➡️ **Execution briefs:** [briefs/game/done/97-review-fix-wave.md](../briefs/game/done/97-review-fix-wave.md) carries the approved chunk plan (waves, classification, gates) for items 1–6, 8–27, 36–40. Item 7 → [brief 98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md); items 28–35 → [brief 99](../briefs/game/todo/99-p2-debt-cleanup-batch.md) (item 35 → [brief 108](../briefs/game/todo/108-citadel-live-mp-verification.md)). Every finding is now scheduled.
+➡️ **Execution briefs:** [briefs/game/done/97-review-fix-wave.md](../briefs/game/done/97-review-fix-wave.md) carries the approved chunk plan (waves, classification, gates) for items 1–6, 8–27, 36–40. Item 7 → [brief 98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md); items 28–35 → [brief 99](../briefs/game/todo/99-p2-debt-cleanup-batch.md) (item 35 → [brief 110](../briefs/game/todo/110-citadel-client-world-size.md), via the [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md) live pass). Every finding is now scheduled.
 
 Six parallel read-only review passes (engine core, farm sim-core, farm client+server,
 citadel sim-core, citadel client, corpus lint), findings adversarially spot-verified by the
@@ -192,6 +192,11 @@ confidence. Nothing here has been fixed yet.
     ([window-controller.ts:120-134](../../games/citadel/client/src/render/window-controller.ts)) —
     already flagged "deferred" in-code, but the drift is worse than the comment implies on
     the large MP world.
+    **→ [brief 110](../briefs/game/todo/110-citadel-client-world-size.md).** The 2026-07-10
+    brief-108 live pass found this is real but **latent**: the client is hardcoded to 96×96, so
+    `shouldWindow` is always false and the windowed path never executes. The drift can only appear
+    once the client adopts the server's 256×256 world — so iso-correct windowing is a sub-task of
+    that fix, not a standalone cleanup.
 
 ## Corpus fixes (separate mechanical pass)
 

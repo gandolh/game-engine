@@ -146,12 +146,21 @@ baseline across grow/siege/sack/fire/disease (seeds 1,7) at `TICKS_PER_DAY=20`.
 - **G 34** one-way gift/transfer — DONE (closed).
 - **I 36** presence/roster/emotes (ephemeral, OFF the command log) — DONE (closed).
 - **J 37** seeded NPC lobby bots (join as peers; reproducible) — DONE (closed).
-- **K 21/22** render-window + per-frame build-budget — **CORES shipped + tested**
-  (`games/citadel/client/src/render/render-window.ts`, `build-budget.ts`); engine
-  WebGPU static-layer windowed-bake integration + GPU-runtime verification LEFT
-  OPEN (this host is headless / no GPU). Todos remain in `todos/` (not closed).
+- **K 21/22** render-window + per-frame build-budget — **cores shipped + tested + wired**
+  (`games/citadel/client/src/render/render-window.ts`, `build-budget.ts`;
+  `windowController.update(camera)` now runs each frame at `main.ts:1221`), but the runtime
+  is **unreachable in production**, so the GPU-runtime verification cannot be performed as
+  written. Resolved 2026-07-10 by the [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md)
+  live-MP pass: the *client* is hardcoded to a 96×96 world, so `shouldWindow` is always false
+  and the windowed path never executes — panning re-bakes nothing, because nothing is
+  windowed. Both todos are in `closed/`; their remaining GPU verification is now owned by
+  [brief 110](../briefs/game/todo/110-citadel-client-world-size.md), which fixes the client
+  world size and makes the windowed bake iso-correct (review findings item 35).
 
-**Verification ceiling:** the sim + netcode + bot logic is unit-tested +
-determinism-proven headless. NOT verified here (no GPU / no live multi-client):
-the WebGPU render of the new MP entities (armies, team colours, presence cursors),
-live WS multiplayer across real browser peers, and the 21/22 windowed-bake runtime.
+**Verification ceiling** (updated 2026-07-10). The sim + netcode + bot logic is unit-tested +
+determinism-proven headless. **Now verified live** (brief 108, two real browser tabs on `?mp`
+plus a raw-WS harness): room lifecycle — join, late-join replay, owner handoff, reap grace,
+fresh re-join — and per-player threat attribution, which turned up and fixed a raid-anchor bug.
+**Still NOT verified:** the WebGPU render of the MP entities (armies, team colours, presence
+cursors) and the 21/22 windowed-bake runtime — both blocked on brief 110, since MP currently
+renders only a 96×96 corner of its 256×256 world.

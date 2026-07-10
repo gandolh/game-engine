@@ -1,6 +1,6 @@
 ---
 summary: What Citadel is (settlement sim on the shared engine), the 2026-06-28 cozy pivot design-of-record, its packages, sim systems, and shared invariants.
-updated: 2026-07-02
+updated: 2026-07-10
 ---
 
 # Citadel — overview
@@ -74,6 +74,20 @@ didn't resume. **Plan-while-paused** now works via `CitadelSimResult.applyComman
 punishes tight clusters** by design — space buildings ~5–8 tiles and connect with roads
 (roads are firebreaks). MP-RTS live wiring holes from [todo 38](../todos/closed/2026-06-19-citadel-38-implementation-review-problems.md)
 are still open (solo is unaffected).
+
+> **⚠️ MP renders only a 96×96 corner of its 256×256 world** (found live 2026-07-10,
+> [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md)). The server runs 256×256
+> but the *client* is hardcoded to 96×96 — `main.ts` calls `generateTerrain(SEED)` with no size
+> args, and `iso.ts`'s `ISO_ORIGIN_X`/`ISO_WORLD_W`/`ISO_WORLD_H` are compile-time consts. Players
+> are silently confined to the top-left corner by the placement bounds check; anything the sim puts
+> outside it (raiders spawn at the true map edges) lands off-canvas. Consequently `shouldWindow` is
+> always false, so briefs 21/22's windowed bake **never executes** in production. **Solo is 96×96
+> and entirely correct — every symptom is MP-only.** Fix is [brief 110](../briefs/game/todo/110-citadel-client-world-size.md);
+> don't trust MP render behaviour until it lands.
+>
+> Mode-dependent sim rules must read the bootstrap-time `multiplayer` option, **not**
+> `state.players.length` — a room is founded by one peer and grows, so a live count misclassifies
+> the founder. That mistake made the founder's town-hall skip the raid anchor (brief 108).
 
 > **⚠️ The "founding-window-gated cold open" gotcha above is RESOLVED by cozy-pivot Phase C
 > (2026-07-01).** Solo now **opts into `seedTown:true`** (a pre-seeded connected alive core placed
