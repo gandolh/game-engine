@@ -9,18 +9,20 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-### Is Challenge a solo difficulty, an MP ruleset, or one flag meaning both? (scopes brief 103)
-Decision **#13** makes Challenge mode the home of `cozyThreats:false`, and **#15** moves lethal PvP
-armies there too — so Challenge must *at minimum* support MP, since that is now the only place
-`launchAttack` exists. Still unresolved: whether it is **also** a solo difficulty setting, and
-whether "Challenge" is one flag or two. The axes are independent in code today (`cozyThreats` and
-`enableArmy` are separate bootstrap options); collapsing them into a single mode flag is a design
-choice, not a refactor. Blocks scoping [brief 103](../briefs/game/todo/103-citadel-challenge-mode.md).
+*(No Citadel design questions are currently blocking. The two opened on 2026-07-10 were both closed
+the same day — see below.)*
 
 > **Resolved 2026-07-10 — "what does a cozy PvP army attack do?"** Answer: *there isn't one.*
 > Decision **#15** removes `ArmySystem`/`launchAttack` from cozy MP entirely rather than softening
 > them, because cozy MP has no winner, no score (#7) and no ending (#9) — so an army has nothing to
 > be *for*. Lethal armies live only in Challenge mode.
+>
+> **Resolved 2026-07-10 — "is Challenge a solo difficulty, an MP ruleset, or one flag?"** Wrong shape
+> of question. Decision **#19**: a mode is a **preset at the call site**, not a concept in the sim.
+> The sim keeps its flat independent options; "cozy" and "challenge" are bundles of them chosen by
+> the caller. Challenge-solo and Challenge-MP fall out for free. The real constraint it exposes is
+> that **every mode-affecting option must be persisted in `CitadelSave`** — an invariant two fields
+> were already violating.
 
 ### Live-drama spare capacity (deliberately not pursued)
 Harbor contracts (46) — mostly only the hoarder reaches the commit gate. Skills (43) — lopsided to farming. Festival (45) — physical podium gathering thin. Early-game peer trades — gated by **encounter cadence + seller stock, NOT gold**: brief [70](../briefs/game/done/70-raise-starting-gold-peer-trade-liquidity.md) lifted the cash constraint (zero `would-breach-reserve` declines) but the 15-day-close target stayed unmet because the binding constraint is `no-stock` + farmers barely meeting early. The lever (if it matters) is encounter frequency / early surplus, not liquidity.

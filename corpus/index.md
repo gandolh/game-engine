@@ -40,7 +40,7 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 ### Citadel
 
 - [wiki/citadel-overview.md](wiki/citadel-overview.md) — What Citadel is (settlement sim on the shared engine), the 2026-06-28 **cozy pivot** design-of-record, its packages, sim systems, and shared invariants.
-- [wiki/citadel-decisions.md](wiki/citadel-decisions.md) — Citadel's game-design decisions of record (#11-#18, 2026-07-10) — what MP is, who it's for, and what that removes. Four of them reverse earlier commitments.
+- [wiki/citadel-decisions.md](wiki/citadel-decisions.md) — Citadel's game-design decisions of record (#11-#20, 2026-07-10) — what MP is, who it's for, what that removes, and why a "mode" is a call-site preset rather than sim state. Four reverse earlier commitments.
 - [wiki/citadel-hud-and-overlays.md](wiki/citadel-hud-and-overlays.md) — HUD, overlays, and diegetic feedback surfaces: top bar, goods strip, build bar, inspect panel, minimap, notifications.
 - [wiki/citadel-rendering.md](wiki/citadel-rendering.md) — The WebGPU-only render path: sprite-batch quads, baked terrain, iso projection, road/bridge networks, atlas wiring.
 - [wiki/citadel-art-style.md](wiki/citadel-art-style.md) — The cozy-medieval-storybook iso pixel-art style bible — EDG32 palette roles, shading/form/light rules, the layered-composite authoring path.

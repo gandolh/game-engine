@@ -30,7 +30,17 @@ Grounding that brief turned up a live trap. The `launchAttack` handler ([sim-boo
 
 **#18** deletes `maxDays` rather than wiring it (MP is endless by #15); folded into [brief 99](briefs/game/todo/99-p2-debt-cleanup-batch.md).
 
-Still open, and parked: whether **Challenge** is *also* a solo difficulty, and whether it is one flag or two — the `cozyThreats` and `enableArmy` axes are independent in code today. It blocks scoping brief 103, not brief 110.
+### Third round — what a "mode" is, and a save that could not replay (#19–#20)
+
+The Challenge question turned out to be the wrong shape. Saves already persist `chargeBuildCost`, `cozyThreats`, `enableArmy` and `seedTown` **individually**, each with a comment saying *"a save taken with X must replay with X"* — because `loadFromSave` reconstructs state by re-running the command log, so the rules must match. A "mode" is therefore already a **bundle of persisted flags**, not a thing the sim knows about. **#19**: Challenge introduces no new sim state; "cozy" and "challenge" are presets chosen by the caller, and Challenge-solo vs Challenge-MP fall out for free. Adding a `mode` enum would duplicate state and let mode and flags disagree. **#20** sets the order: finish the MP arc (110 → 111 → 112) before Farm or engine; audio (engine 19, approved and dispatch-ready, zero `sim-core` changes) runs after it.
+
+That decision has teeth, and they bit immediately. **Brief 108 added `multiplayer` — which decides `actsAsKeepAnchor` — and did not persist it.** Writing the round-trip test for that found a *second, larger* omission: **world dimensions were never persisted either.** `loadFromSave` rebuilt the engine-default 96×96 grid, so every replayed command beyond tile 95 was silently rejected as out-of-bounds — **a 256×256 MP save was unreplayable, its buildings simply gone.** Both are reachable today: `request-save` hands out a valid `CitadelSave` in MP (decision #17 removes it), and the solo client's Load button accepts any file.
+
+Fixed in `19d6d98`: `multiplayer`, `worldWidth`, `worldHeight` persisted, all optional for backward-compat (absent ⇒ the bootstrap defaults, which is what every older save effectively recorded, since only solo could ever load one). The test places a hall past tile 95 in a 256×256 multiplayer sim, saves, reloads, and asserts the building survives replay *and* keeps its `keepPosition`. Each half was proven to go red on its own. typecheck 0, 2053/2053.
+
+The general lesson, now recorded in #19: **every mode-affecting bootstrap option must be persisted in `CitadelSave`.** Challenge mode will add more of them.
+
+No Citadel design questions remain blocking; both questions opened earlier today were closed by the end of it.
 
 ## [2026-07-10] done | Brief 108 — Citadel live-MP verification: the client renders a 96×96 corner of a 256×256 world
 

@@ -1,5 +1,5 @@
 ---
-summary: Citadel's game-design decisions of record (#11-#18, 2026-07-10) — what MP is, who it's for, and what that removes. Four of them reverse earlier commitments.
+summary: Citadel's game-design decisions of record (#11-#20, 2026-07-10) — what MP is, who it's for, what that removes, and why a "mode" is a call-site preset rather than sim state. Four reverse earlier commitments.
 updated: 2026-07-10
 ---
 
@@ -15,7 +15,7 @@ Game-design decisions, numbered. **These win over any older text**, including
 player's hand is placement + economic intent, **#9** the downside rule — every problem is a
 throttle-to-floor, never a loss, **#10** terrain is the puzzle).
 
-## 2026-07-10 grilling session (#11–#18)
+## 2026-07-10 grilling session (#11–#20)
 
 Prompted by [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md), the first pass that
 ever drove Citadel MP live. **#11, #12, #15 and #16 reverse earlier commitments.**
@@ -45,8 +45,8 @@ design.** The server passes neither option.
 that #15 removes from cozy MP. This finally gives the frozen sharp path a real consumer, so its
 two-branch test burden stops being dead weight.
 
-*Open:* whether Challenge is *also* a solo difficulty, and whether it is one flag or two — see
-[open-questions.md](open-questions.md).
+Its *shape* is settled by **#19**: Challenge is a preset of the sim's existing flat options, not a new
+sim concept — so Challenge-solo and Challenge-MP are simply different bundles.
 
 ### #14 — Terrain is shipped, not regenerated
 The MP server sends the terrain grid **once** (256×256 = 65,536 bytes; `perMessageDeflate` is already
@@ -97,6 +97,41 @@ day 200). Removed, not wired — MP is endless by #15. Folded into
 [brief 99](../briefs/game/todo/99-p2-debt-cleanup-batch.md). Note `loadFromSave` computes its own
 value to pass through; check that path before deleting.
 
+### #19 — A "mode" is a preset at the call site, not a concept in the sim
+Challenge mode introduces **no new sim state**. The sim keeps taking flat, independent options
+(`cozyThreats`, `enableArmy`, `seedTown`, `deferThreatsUntilBuildings`, `chargeBuildCost`,
+`multiplayer`, …); "cozy" and "challenge" are just *bundles* of them chosen by the caller — the solo
+worker, the MP server, or a client mode-picker. The sim never learns the word "mode".
+
+This is already the established pattern rather than a new one: `CitadelSave` persists each
+mode-affecting flag individually, precisely because `loadFromSave` reconstructs state by re-running
+the command log and *the rules must match*. Adding a `mode` enum on top would duplicate that state
+and let mode and flags disagree.
+
+Consequences: Challenge-solo and Challenge-MP fall out for free as different bundles; every existing
+save keeps loading; and **every mode-affecting option must be persisted in `CitadelSave`.** That last
+clause is load-bearing — see the trap below.
+
+> ⚠️ **The invariant has teeth.** Brief 108 added `multiplayer` (which decides `actsAsKeepAnchor`) and
+> did not persist it. Writing the round-trip test found a *second*, larger omission: **world
+> dimensions were never persisted either**, so `loadFromSave` rebuilt the default 96×96 grid and
+> silently dropped every replayed command beyond tile 95 as out-of-bounds — a 256×256 MP save was
+> **unreplayable**, its buildings simply gone. Both were reachable: `request-save` hands out a valid
+> save in MP, and the solo Load button accepts any file. Fixed 2026-07-10 (`19d6d98`). When Challenge
+> mode adds flags, persist them, and write the replay test.
+
+### #20 — Sequencing: finish the Citadel MP arc first
+[110](../briefs/game/todo/110-citadel-client-world-size.md) → [111](../briefs/game/todo/111-citadel-mp-room-keys-and-session-semantics.md)
+→ [112](../briefs/game/todo/112-citadel-cozy-mp-drop-armies.md), back-to-back: they are causally
+linked and together make MP real (110), safe to expose (111), and coherent (112). Then
+[109](../briefs/game/todo/109-citadel-vps-deploy.md) can deploy, and [103](../briefs/game/todo/103-citadel-challenge-mode.md)
+can be scoped against a mode system that is finally honest.
+
+Farm (98 wire the market wall, 101 perishability, 107 visual pass) and engine (18 typography,
+19 audio) wait. **Engine 19 (audio) runs after the arc** — it is dispatch-ready, already approved, and
+touches zero `sim-core`, so it is the safe parallel track if a second thread is ever wanted; but the
+default is one thread at a time.
+
 ## Consequences at a glance
 
 | Brief | Status after this session |
@@ -104,7 +139,10 @@ value to pass through; check that path before deleting.
 | [110](../briefs/game/todo/110-citadel-client-world-size.md) client world size | **Next up.** Gates 105 and 109. |
 | [111](../briefs/game/todo/111-citadel-mp-room-keys-and-session-semantics.md) room keys + session semantics | New. Also gates 109. |
 | [112](../briefs/game/todo/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | New. Sequence with 103. |
-| [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Approved; now owns lethal PvP. Scoping blocked on the open flag question. |
+| [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Approved; owns lethal PvP. Shape settled by #19 — a call-site preset, no new sim state. |
 | [109](../briefs/game/todo/109-citadel-vps-deploy.md) VPS deploy | Gated on 110 **and** 111. Solo half deployable today. |
 | [99](../briefs/game/todo/99-p2-debt-cleanup-batch.md) P2 debt | Gains the `maxDays` deletion (#18). |
-| [98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md) Farm market wall | Decided: **Option A, wire it.** |
+| [98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md) Farm market wall | Decided: **Option A, wire it.** Waits on the MP arc (#20). |
+| engine [19](../briefs/engine/todo/19-audio-subsystem.md) audio | Approved + dispatch-ready. Runs **after** the MP arc (#20). Both games are currently silent. |
+
+**Order (#20):** 110 → 111 → 112 → then 109 / 103, with Farm and engine after.

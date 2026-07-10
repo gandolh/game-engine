@@ -29,7 +29,7 @@ updated: 2026-07-10
 > clusters / spacing-vs-density tension is intentional" note), the pivot wins** —
 > that was a pressure-game stance.
 
-> **⚠️ DECISIONS OF RECORD #11–#18 (2026-07-10 grilling session) live in [citadel-decisions.md](citadel-decisions.md).** Four of them **reverse** earlier commitments — MP is now a real feature (not "a future mode"), the cozy contract extends to MP, cozy MP drops armies entirely, and Challenge mode owns every sharp system. **They win over the 2026-06-28 text above and over anything below.**
+> **⚠️ DECISIONS OF RECORD #11–#20 (2026-07-10 grilling session) live in [citadel-decisions.md](citadel-decisions.md).** Four of them **reverse** earlier commitments — MP is now a real feature (not "a future mode"), the cozy contract extends to MP, cozy MP drops armies entirely, and Challenge mode owns every sharp system. A "mode" is a call-site preset, never sim state (#19). **They win over the 2026-06-28 text above and over anything below.**
 
 ## Packages
 
