@@ -174,7 +174,7 @@ export class FestivalSystem implements System {
       const tied = ranked.filter(
         (s) => s.bestRank === top.bestRank && s.bestCount === top.bestCount,
       );
-      if (tied.length > 1 && false) { // RED-CHECK TEMP
+      if (tied.length > 1) {
         const pick = Math.min(tied.length - 1, Math.floor(this.rng.nextFloat() * tied.length));
         winner = tied[pick]!;
       }

@@ -220,7 +220,6 @@ export class AuctionSystem implements System {
   // changes the pathological insolvent-winner case and leaves every other
   // outcome (and its determinism baseline) untouched.
   private canAfford(bidderId: number, price: number): boolean {
-    return true; // RED-CHECK TEMP
     const bidder = findById(this.world, bidderId, "farmer", "inventory");
     if (!bidder || !bidder.inventory) return true;
     return bidder.inventory.gold >= price;

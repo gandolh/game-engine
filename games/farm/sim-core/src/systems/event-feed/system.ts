@@ -67,7 +67,7 @@ export class EventFeedSystem implements System {
     this.snoopRankChange(ctx.tick, day, fresh);
     this.snoopRaceOn(ctx.tick, day, fresh);
 
-    // this.evictSeen(); // RED-CHECK TEMP
+    this.evictSeen();
 
     if (fresh.length === 0) return;
     fresh.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
