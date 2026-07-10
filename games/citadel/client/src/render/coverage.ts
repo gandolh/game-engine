@@ -15,6 +15,20 @@ import type { BuildingSnapshot } from "@citadel/sim-core";
 import { EDG } from "@engine/core";
 
 /**
+ * The world bounds the catchment helpers clamp against. Threaded from the live
+ * terrain rather than read off the compile-time `WORLD_WIDTH`/`WORLD_HEIGHT`,
+ * which are only the *default* size (brief 110 / decision #22 grew it to
+ * 192×192). Defaulted so the pure-geometry tests stay terse.
+ */
+export interface WorldDims {
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The default world size — what `generateTerrain(seed)` produces with no args. */
+export const DEFAULT_WORLD_DIMS: WorldDims = { width: WORLD_WIDTH, height: WORLD_HEIGHT };
+
+/**
  * The need types the NeedsHappinessSystem scores, by service type. "festival"
  * is the cozy-pivot Phase G public-square mood lift — spatial + autonomous,
  * same shape as the other three (see needs-happiness.ts).
@@ -67,16 +81,21 @@ export interface CatchmentTile {
  * The Manhattan ball is a diamond in tile space; `edge` marks its perimeter so
  * the placement preview can draw a crisp ring with a faint fill inside.
  */
-export function catchmentTiles(cx: number, cy: number, radius: number): CatchmentTile[] {
+export function catchmentTiles(
+  cx: number,
+  cy: number,
+  radius: number,
+  dims: WorldDims = DEFAULT_WORLD_DIMS,
+): CatchmentTile[] {
   const tiles: CatchmentTile[] = [];
   if (radius <= 0) return tiles;
   for (let dy = -radius; dy <= radius; dy++) {
     const span = radius - Math.abs(dy);
     const ty = cy + dy;
-    if (ty < 0 || ty >= WORLD_HEIGHT) continue;
+    if (ty < 0 || ty >= dims.height) continue;
     for (let dx = -span; dx <= span; dx++) {
       const tx = cx + dx;
-      if (tx < 0 || tx >= WORLD_WIDTH) continue;
+      if (tx < 0 || tx >= dims.width) continue;
       tiles.push({ tx, ty, edge: Math.abs(dx) + Math.abs(dy) === radius });
     }
   }
@@ -90,7 +109,13 @@ export function catchmentTiles(cx: number, cy: number, radius: number): Catchmen
  * the gameplay area exactly. `edge` marks the rectangle's border for a crisp
  * ring with a faint interior fill.
  */
-export function rectCatchmentTiles(cx: number, cy: number, w: number, h: number): CatchmentTile[] {
+export function rectCatchmentTiles(
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  dims: WorldDims = DEFAULT_WORLD_DIMS,
+): CatchmentTile[] {
   const tiles: CatchmentTile[] = [];
   if (w <= 0 || h <= 0) return tiles;
   const x0 = cx - Math.floor(w / 2);
@@ -98,9 +123,9 @@ export function rectCatchmentTiles(cx: number, cy: number, w: number, h: number)
   const y0 = cy - Math.floor(h / 2);
   const y1 = cy + Math.ceil(h / 2) - 1;
   for (let ty = y0; ty <= y1; ty++) {
-    if (ty < 0 || ty >= WORLD_HEIGHT) continue;
+    if (ty < 0 || ty >= dims.height) continue;
     for (let tx = x0; tx <= x1; tx++) {
-      if (tx < 0 || tx >= WORLD_WIDTH) continue;
+      if (tx < 0 || tx >= dims.width) continue;
       tiles.push({ tx, ty, edge: tx === x0 || tx === x1 || ty === y0 || ty === y1 });
     }
   }
@@ -113,10 +138,15 @@ export function rectCatchmentTiles(cx: number, cy: number, w: number, h: number)
  * otherwise the Manhattan diamond from `SERVICE_RADII`. Empty if the type has no
  * coverage. One accessor so callers don't special-case the well's shape.
  */
-export function serviceCatchment(type: string, cx: number, cy: number): CatchmentTile[] {
+export function serviceCatchment(
+  type: string,
+  cx: number,
+  cy: number,
+  dims: WorldDims = DEFAULT_WORLD_DIMS,
+): CatchmentTile[] {
   const rect = SERVICE_RECTS[type];
-  if (rect !== undefined) return rectCatchmentTiles(cx, cy, rect.w, rect.h);
-  return catchmentTiles(cx, cy, serviceRadius(type));
+  if (rect !== undefined) return rectCatchmentTiles(cx, cy, rect.w, rect.h, dims);
+  return catchmentTiles(cx, cy, serviceRadius(type), dims);
 }
 
 /**
@@ -153,7 +183,10 @@ export interface NeedCatchment {
  * coverage-overlay toggle: three translucent regions whose gaps are the homes
  * no service reaches.
  */
-export function coverageByNeed(buildings: readonly BuildingSnapshot[]): NeedCatchment[] {
+export function coverageByNeed(
+  buildings: readonly BuildingSnapshot[],
+  dims: WorldDims = DEFAULT_WORLD_DIMS,
+): NeedCatchment[] {
   const groups = new Map<Need, Map<string, CatchmentTile>>();
   for (const b of buildings) {
     const need = COVERAGE_SERVICE[b.type];
@@ -166,7 +199,7 @@ export function coverageByNeed(buildings: readonly BuildingSnapshot[]): NeedCatc
       bucket = new Map<string, CatchmentTile>();
       groups.set(need, bucket);
     }
-    for (const t of catchmentTiles(cx, cy, radius)) {
+    for (const t of catchmentTiles(cx, cy, radius, dims)) {
       bucket.set(`${t.tx},${t.ty}`, { tx: t.tx, ty: t.ty, edge: false });
     }
   }

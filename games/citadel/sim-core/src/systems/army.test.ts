@@ -27,12 +27,20 @@ function placeTownHall(sim: CitadelSimResult, ownerId: number, x: number, y: num
 }
 
 function boot() {
-  // cozyThreats:false — a future Challenge/MP mode is the intended home for
-  // PvP armies (per the cozy-pivot brief), and it isolates this test's exact
-  // tools-spent accounting from the unrelated PvE raid system, which (under
-  // the cozy default) would otherwise pilfer goods from either player's own
-  // keep independently of the PvP army attack these tests are exercising.
-  const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 50, worldWidth: 96, worldHeight: 96, cozyThreats: false });
+  // cozyThreats:false — it isolates this test's exact tools-spent accounting from
+  // the unrelated PvE raid system, which (under the cozy default) would otherwise
+  // pilfer goods from either player's own keep independently of the PvP army
+  // attack these tests are exercising.
+  //
+  // enableArmy:true — EXPLICIT since decision #23 flipped the default to false.
+  // Multiplayer is deprecated (#21), so lethal PvP has no consumer and `ArmySystem`
+  // + the `launchAttack` handler are frozen. These tests are what proves the math is
+  // *frozen and intact*, not quietly broken — they must opt in, not inherit.
+  const sim = bootstrapSim({
+    seed: 1, ticksPerDay: TPD, maxDays: 50,
+    worldWidth: 96, worldHeight: 96,
+    cozyThreats: false, enableArmy: true,
+  });
   sim.state.players.push(makePlayerState(1));
   return sim;
 }
@@ -92,5 +100,83 @@ describe("Citadel 32 — PvP armies", () => {
     sim.scheduler.tick({ tick: 1 });
     expect(sim.state.armies.length).toBe(0);
     expect(p0.stockpiles.tools).toBe(100); // nothing spent
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Decision #23 — armies are frozen. MP is deprecated (#21), so lethal PvP has no
+// consumer. `ArmySystem` and `launchAttack` stay in the tree, unreached.
+// ---------------------------------------------------------------------------
+describe("Citadel — armies are frozen by default (decision #23)", () => {
+  /** Same two-player setup as `boot()`, but at the DEFAULT (frozen) enableArmy. */
+  function bootFrozen() {
+    const sim = bootstrapSim({
+      seed: 1, ticksPerDay: TPD, maxDays: 50,
+      worldWidth: 96, worldHeight: 96,
+      cozyThreats: false, // isolate from the PvE raid, as boot() does
+    });
+    sim.state.players.push(makePlayerState(1));
+    return sim;
+  }
+
+  it("enableArmy defaults to false — a bare bootstrap registers no ArmySystem", () => {
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5 });
+    expect(sim.state.armies).toEqual([]);
+  });
+
+  // The load-bearing one. `enableArmy:false` only unregisters ArmySystem; if the
+  // handler were not ALSO gated, it would debit tools and push an ArmyState that
+  // nothing ever resolves or removes — tools gone, state.armies unbounded.
+  it("launchAttack is REJECTED, not silently queued: no tools spent, no army created", () => {
+    const sim = bootFrozen();
+    placeTownHall(sim, 0, 10, 10);
+    placeTownHall(sim, 1, 40, 40);
+    const p0 = sim.state.players[0]!;
+    p0.stockpiles.tools = 100;
+
+    // Target the DEFENDER's hall — the same command that sacks a town under
+    // `enableArmy:true` in the suite above. Only the gate stops it here.
+    sim.commands.enqueue({ type: "launchAttack", payload: { targetX: 40, targetY: 40, strength: 50 } });
+    for (let t = 0; t < 400; t++) sim.scheduler.tick({ tick: t });
+
+    expect(sim.state.armies.length).toBe(0);
+    expect(p0.stockpiles.tools).toBe(100); // the debit never happened
+  });
+
+  it("repeated rejected launchAttacks never grow state.armies", () => {
+    const sim = bootFrozen();
+    placeTownHall(sim, 0, 10, 10);
+    placeTownHall(sim, 1, 40, 40);
+    sim.state.players[0]!.stockpiles.tools = 1000;
+    for (let n = 0; n < 20; n++) {
+      sim.commands.enqueue({ type: "launchAttack", payload: { targetX: 40, targetY: 40, strength: 5 } });
+      sim.scheduler.tick({ tick: n });
+    }
+    expect(sim.state.armies.length).toBe(0);
+    expect(sim.state.players[0]!.stockpiles.tools).toBe(1000);
+  });
+
+  // Brief 112's acceptance, inherited: freezing ArmySystem must not move the sim.
+  // ArmySystem's only RNG use is `state.rng.fork('army-<id>')` INSIDE its per-army
+  // loop, and named forks don't consume the parent stream — so with zero armies its
+  // registration is observationally inert. Prove it rather than assume it.
+  it("freezing ArmySystem is byte-identical in a one-player sim", () => {
+    const run = (enableArmy: boolean) => {
+      const sim = bootstrapSim({
+        seed: 0xc0ffee, ticksPerDay: TPD, maxDays: 20,
+        worldWidth: 96, worldHeight: 96, enableArmy,
+      });
+      for (let t = 0; t < TPD * 20; t++) sim.scheduler.tick({ tick: t });
+      const p = sim.state.players[0]!;
+      return JSON.stringify({
+        day: sim.state.day,
+        stockpiles: p.stockpiles,
+        popCap: p.popCap,
+        gameOver: p.gameOver,
+        armies: sim.state.armies.length,
+        buildings: [...sim.state.buildingState.values()].map((b) => b.level),
+      });
+    };
+    expect(run(false)).toBe(run(true));
   });
 });

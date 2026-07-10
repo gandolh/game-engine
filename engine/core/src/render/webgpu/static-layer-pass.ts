@@ -29,12 +29,42 @@ export interface VisibleRect {
   visB: number;
 }
 
+/**
+ * Fail loudly if a texture exceeds the adapter's `maxTextureDimension2D`.
+ *
+ * WebGPU's default is 8192 px. A baked static layer scales with the world, so a
+ * large enough world silently overflows it — `createTexture` raises a validation
+ * error on the device's error scope, the texture is invalid, and the frame paints
+ * **black** with nothing in the console tying it to the world size. Nothing in
+ * `render/` checked this before brief 110; a 256×256 Citadel world lands its iso
+ * texture at exactly 8192 wide, i.e. on the limit with zero margin.
+ *
+ * Throwing here converts that silent black screen into a message naming the
+ * offending dimension. Exported so the world-bake path can pre-flight a size
+ * before it has spent the CPU cost of painting it.
+ */
+export function assertTextureWithinLimits(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  label = "texture",
+): void {
+  const max = device.limits.maxTextureDimension2D;
+  if (width > max || height > max) {
+    throw new RangeError(
+      `${label} is ${width}×${height}px but this device's maxTextureDimension2D is ${max}px. ` +
+        `Reduce the world size, or window the bake so it allocates a viewport-sized sub-region instead.`,
+    );
+  }
+}
+
 function uploadToTexture(
   device: GPUDevice,
   surface: OffscreenCanvas | HTMLCanvasElement,
   width: number,
   height: number,
 ): GPUTexture {
+  assertTextureWithinLimits(device, width, height, "static-layer bake");
   const texture = device.createTexture({
     size: [width, height, 1],
     format: "rgba8unorm",

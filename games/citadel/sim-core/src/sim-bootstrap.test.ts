@@ -11,6 +11,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "./sim-bootstrap";
+import { WORLD_WIDTH } from "./world/terrain";
 import type { CitadelCommand } from "./snapshot/index";
 
 const SEED = 0xc17ade1;
@@ -80,7 +81,10 @@ describe("CitadelSim Phase 1 — determinism & placement", () => {
     const { walkable } = runWithCommands(log, 5);
 
     // All 4 tiles of the 2×2 footprint must be 0 (blocked)
-    const W = 96;
+    // Row stride of the walkable grid = the world's width, NOT a literal. Hardcoding
+    // 96 here indexed the wrong cell the moment the default world grew (brief 110);
+    // two of these three assertions then passed for the wrong reason.
+    const W = WORLD_WIDTH;
     for (let dy = 0; dy < 2; dy++) {
       for (let dx = 0; dx < 2; dx++) {
         const tx = 5 + dx;
@@ -97,7 +101,10 @@ describe("CitadelSim Phase 1 — determinism & placement", () => {
     ];
     const { walkable } = runWithCommands(log, 5);
 
-    const W = 96;
+    // Row stride of the walkable grid = the world's width, NOT a literal. Hardcoding
+    // 96 here indexed the wrong cell the moment the default world grew (brief 110);
+    // two of these three assertions then passed for the wrong reason.
+    const W = WORLD_WIDTH;
     // Tile just to the right of the footprint
     const rightIdx = 5 * W + 7;
     // Tile just below the footprint
@@ -126,7 +133,10 @@ describe("CitadelSim Phase 1 — determinism & placement", () => {
     expect(buildings).toHaveLength(0);
 
     // The former footprint tiles should now be walkable again
-    const W = 96;
+    // Row stride of the walkable grid = the world's width, NOT a literal. Hardcoding
+    // 96 here indexed the wrong cell the moment the default world grew (brief 110);
+    // two of these three assertions then passed for the wrong reason.
+    const W = WORLD_WIDTH;
     for (let dy = 0; dy < 2; dy++) {
       for (let dx = 0; dx < 2; dx++) {
         const tx = 5 + dx;

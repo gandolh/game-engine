@@ -33,8 +33,20 @@ export class CitadelSimClient {
     };
   }
 
-  init(seed: number, ticksPerDay: number): void {
-    this.send({ type: "init", seed, ticksPerDay });
+  /**
+   * Start the solo sim. `worldWidth`/`worldHeight` are the dims of the terrain the
+   * caller already generated and is about to render — passing them makes a
+   * client/sim size disagreement unrepresentable (brief 110). Omit to take the
+   * sim's defaults.
+   */
+  init(seed: number, ticksPerDay: number, worldWidth?: number, worldHeight?: number): void {
+    this.send({
+      type: "init",
+      seed,
+      ticksPerDay,
+      ...(worldWidth !== undefined ? { worldWidth } : {}),
+      ...(worldHeight !== undefined ? { worldHeight } : {}),
+    });
   }
 
   pause(): void {

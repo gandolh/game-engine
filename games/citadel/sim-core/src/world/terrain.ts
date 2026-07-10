@@ -1,12 +1,60 @@
 import { createRng } from "@engine/core";
 import type { Rng } from "@engine/core";
 
-export const WORLD_WIDTH = 96;
-export const WORLD_HEIGHT = 96;
+/**
+ * The DEFAULT world size — what `generateTerrain(seed)` and `bootstrapSim({})`
+ * produce with no dims. Both the solo sim and the client derive from these, so
+ * they move together; every consumer that can take runtime dims should.
+ *
+ * 96×96 until 2026-07-10; **192×192** since (brief 110 / decision #22). 192 is
+ * the smallest size whose ISO texture crosses the renderer's `4096²` windowing
+ * threshold — `(192+192)·16 = 6144` × `(192+192)·8+16 = 3088` px — so the
+ * windowed bake (briefs 21/22) is exercised in production instead of being dead
+ * code. 256×256 was rejected: its iso width is exactly 8192, WebGPU's default
+ * `maxTextureDimension2D`, with no margin.
+ *
+ * A settlement occupies ~40×40 tiles regardless, so the extra map is distance to
+ * clustered resources — decision #10's "build toward the resource", made larger.
+ * That distance is what `repairSolvability` must now bound (decision #25).
+ */
+export const WORLD_WIDTH = 192;
+export const WORLD_HEIGHT = 192;
 export const TILE_SIZE = 16;
 
 /**
- * Terrain types for the 96×96 Citadel world.
+ * The world area the resource-cluster counts (5 groves / 3 veins) were tuned
+ * against: the original 96×96 map. `generateTerrain` scales blob counts by
+ * `width·height / this`, so every world size gets the same resource *density*.
+ *
+ * Deliberately a FIXED number rather than `WORLD_WIDTH * WORLD_HEIGHT` — those
+ * are the mutable *default* dims, and deriving the scale from them meant the
+ * default world always scored `areaScale = 1` no matter how large it grew.
+ * Growing the default to 192×192 would then have quartered resource density
+ * across the whole game, silently, with every test still green.
+ */
+export const RESOURCE_DENSITY_REFERENCE_AREA = 96 * 96;
+
+/**
+ * `repairSolvability` guarantees a Forest and a Stone reachable within this many
+ * tiles of the core-box centre, measured as 4-connected walk distance (a fair
+ * proxy for the road the player must lay). Beyond it, a blob is painted.
+ *
+ * The old guarantee was *reachable at all*. On 96×96 the map bounded the
+ * distance; on a larger world it does not, so a technically-reachable vein could
+ * sit far enough away that the Phase C cold open opened on a living town that
+ * could not grow — invisible to every test (decision #25).
+ *
+ * **70 is measured, not assumed.** Over 100 seeds with resource density held
+ * constant, the 96×96 world's nearest-resource walk distance never exceeded 67
+ * (forest p50 14 / p90 39; stone p50 22 / p90 48). Bounding at 70 therefore makes
+ * a 192×192 world *never worse than the small world ever was*, while repairing
+ * only ~5% of stone seeds and 0% of forest seeds — so Phase I's resource-poor
+ * maps, and the trading post that exists to serve them, survive.
+ */
+export const RESOURCE_MAX_DISTANCE = 70;
+
+/**
+ * Terrain types for the Citadel world.
  * Grass and rough are walkable; water and forest and stone are obstacles.
  *
  * Using a plain numeric enum (not const enum) so it is compatible with
@@ -279,9 +327,16 @@ export function generateTerrain(
   // byte-identical. These blobs replace the old per-tile sprinkle: forest/stone
   // tiles now form connected patches centered on these points, so woodcutter /
   // quarry / mine placement becomes a real spatial decision. Scaled by area so
-  // non-default world sizes get a proportional number of patches.
+  // every world size gets the same resource DENSITY, not the same blob count.
+  //
+  // ⚠️ The reference area is a FIXED constant, not `WORLD_WIDTH * WORLD_HEIGHT`.
+  // It used to be the latter — and since those are the mutable *default* dims,
+  // growing the default from 96 to 192 (brief 110) silently drove `areaScale` to
+  // 1 and quartered the resource density of every world, doubling the walk to the
+  // nearest grove. The counts below (5 groves / 3 veins) were tuned against
+  // 96×96, so 96×96 is what they must stay relative to.
   const clusterRng = createRng(seed).fork("resource-clusters");
-  const areaScale = (width * height) / (WORLD_WIDTH * WORLD_HEIGHT);
+  const areaScale = (width * height) / (RESOURCE_DENSITY_REFERENCE_AREA);
   const forestCount = Math.max(3, Math.round(5 * areaScale));
   const stoneCount = Math.max(2, Math.round(3 * areaScale));
   const forestBlobs = placeBlobs(clusterRng, forestCount, 5, 9, width, height);
@@ -473,13 +528,17 @@ export function findCoreBox(cells: Uint8Array, width: number, height: number): {
  *      center) so the box we validate/carve is byte-for-byte the box the cold
  *      open will later place on. If findCoreBox finds none anywhere, carve the
  *      center box to Grass (findCoreBox will then return that same carved box).
- *   2. At least one Forest AND at least one Stone tile exists and is REACHABLE by
- *      4-connected walkable path (Water/Rough are walls) from the core center —
- *      otherwise a woodcutter/quarry can never be placed near reachable resource
- *      and the map is silently trade-only. Missing-entirely is the common failure
- *      (a seed whose blobs all fell in water); stranded-behind-water is rarer.
- *      Either way we paint a small blob of that resource on the nearest reachable
- *      Grass, found by BFS from the core center in deterministic scan order.
+ *   2. At least one Forest AND at least one Stone tile exists, is REACHABLE by
+ *      4-connected walkable path (Water/Rough are walls) from the core center,
+ *      AND lies within {@link RESOURCE_MAX_DISTANCE} tiles of it — otherwise a
+ *      woodcutter/quarry can never be placed near reachable resource and the map
+ *      is silently trade-only, or the road to it is unaffordable from the cold
+ *      open's founding grant. Missing-entirely is the common failure (a seed
+ *      whose blobs all fell in water); stranded-behind-water is rarer; merely
+ *      *too far* only became possible once the world outgrew 96×96 (decision
+ *      #25). In every case we paint a small blob of that resource on the nearest
+ *      reachable Grass, found by BFS from the core center in deterministic scan
+ *      order.
  */
 export function repairSolvability(cells: Uint8Array, width: number, height: number): void {
   // Use the shared full-grid box search so the box we validate/carve is exactly
@@ -524,36 +583,55 @@ export function repairSolvability(cells: Uint8Array, width: number, height: numb
   // Flood-fill the walkable region reachable from the core (4-connected; Water &
   // Rough are walls). This is the set of tiles the player can actually reach on
   // foot, so a resource is only "usable" if at least one of its tiles is in here.
-  const reachable = new Uint8Array(width * height);
+  //
+  // Breadth-first (a queue, not a stack) so each cell also carries its WALK
+  // DISTANCE from the core centre — the metric the distance guarantee below is
+  // stated in, and a fair proxy for the road the player must lay to reach it.
+  // The reachable SET is identical either way; only the visit order differs, and
+  // nothing downstream depends on that. `dist[i] < 0` means unreachable.
+  const dist = new Int32Array(width * height).fill(-1);
   {
-    const stack: number[] = [coreIdx];
-    reachable[coreIdx] = 1;
-    while (stack.length > 0) {
-      const idx = stack.pop()!;
-      const x = idx % width;
-      const y = (idx - x) / width;
-      const neighbors: Array<[number, number]> = [
-        [x - 1, y],
-        [x + 1, y],
-        [x, y - 1],
-        [x, y + 1],
-      ];
-      for (const [nxx, nyy] of neighbors) {
-        if (nxx < 0 || nyy < 0 || nxx >= width || nyy >= height) continue;
-        const nIdx = nyy * width + nxx;
-        if (reachable[nIdx]) continue;
-        const t = cells[nIdx]!;
-        if (t === TerrainType.Water || t === TerrainType.Rough) continue;
-        reachable[nIdx] = 1;
-        stack.push(nIdx);
+    dist[coreIdx] = 0;
+    let frontier: number[] = [coreIdx];
+    while (frontier.length > 0) {
+      const next: number[] = [];
+      for (const idx of frontier) {
+        const d = dist[idx]!;
+        const x = idx % width;
+        const y = (idx - x) / width;
+        const neighbors: Array<[number, number]> = [
+          [x - 1, y],
+          [x + 1, y],
+          [x, y - 1],
+          [x, y + 1],
+        ];
+        for (const [nxx, nyy] of neighbors) {
+          if (nxx < 0 || nyy < 0 || nxx >= width || nyy >= height) continue;
+          const nIdx = nyy * width + nxx;
+          if (dist[nIdx]! >= 0) continue;
+          const t = cells[nIdx]!;
+          if (t === TerrainType.Water || t === TerrainType.Rough) continue;
+          dist[nIdx] = d + 1;
+          next.push(nIdx);
+        }
       }
+      frontier = next;
     }
   }
 
-  // Does any tile of `type` fall inside the reachable region?
-  const hasReachable = (type: TerrainType): boolean => {
+  /** Walkable from the core centre at all (the old `reachable` predicate). */
+  const isReachable = (idx: number): boolean => dist[idx]! >= 0;
+
+  // Is a tile of `type` reachable from the core within RESOURCE_MAX_DISTANCE?
+  //
+  // This used to ask merely "reachable at all". On 96×96 the map itself bounded
+  // the answer; on a larger world it does not, so a *technically reachable* vein
+  // could sit far enough away that the cold open opened on a living town that
+  // could not grow — and no test would have seen it (decision #25).
+  const hasReachableWithin = (type: TerrainType): boolean => {
     for (let i = 0; i < cells.length; i++) {
-      if (cells[i] === type && reachable[i]) return true;
+      const d = dist[i]!;
+      if (cells[i] === type && d >= 0 && d <= RESOURCE_MAX_DISTANCE) return true;
     }
     return false;
   };
@@ -564,7 +642,7 @@ export function repairSolvability(cells: Uint8Array, width: number, height: numb
   // fully-boxed-in degenerate fallback, and even then only on a box corner (never
   // the center); the surrounding blob tiles always skip in-box tiles entirely.
   const ensureResource = (type: TerrainType): void => {
-    if (hasReachable(type)) return;
+    if (hasReachableWithin(type)) return;
 
     // BFS from the core center over reachable tiles to find the nearest Grass
     // tile OUTSIDE the core box — deterministic (fixed neighbor order, distance
@@ -610,7 +688,7 @@ export function repairSolvability(cells: Uint8Array, width: number, height: numb
     // keeping the box pristine. Deterministic first-in-scan-order pick.
     if (target === -1) {
       for (let i = 0; i < cells.length && target === -1; i++) {
-        if (!reachable[i]) continue;
+        if (!isReachable(i)) continue;
         const x = i % width;
         const y = (i - x) / width;
         if (inCoreBox(x, y)) continue;
@@ -640,7 +718,7 @@ export function repairSolvability(cells: Uint8Array, width: number, height: numb
         const idx = y * width + x;
         if (idx === target) continue;
         if (inCoreBox(x, y)) continue; // keep the town's land clear
-        if (cells[idx] === TerrainType.Grass && reachable[idx]) cells[idx] = type;
+        if (cells[idx] === TerrainType.Grass && isReachable(idx)) cells[idx] = type;
       }
     }
   };

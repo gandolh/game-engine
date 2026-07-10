@@ -340,6 +340,31 @@ describe("neighbourMask", () => {
     ]);
     expect(neighbourMask(5, 5, set)).toBe(DIR_N | DIR_E | DIR_S | DIR_W);
   });
+
+  // Brief 110 / decision #22. `tileKey` used to pack with `ty*WORLD_WIDTH + tx`,
+  // which is NOT injective over the coords neighbourMask actually probes: it asks
+  // about `tx+1` on the east edge and `tx-1` on the west edge, which fall OUTSIDE
+  // the grid and wrap onto a real tile in the adjacent row.
+  //   ty*W + W       === (ty+1)*W + 0      -> east edge sees column 0, next row
+  //   ty*W + (-1)    === (ty-1)*W + (W-1)  -> west edge sees the last column, prev row
+  // Both assertions below FAIL under the old width-strided packing. A fixed stride
+  // wider than any world sends those probes to columns no tile ever occupies.
+  it("east-edge tile does not wrap onto column 0 of the next row", () => {
+    const eastEdge = WORLD_WIDTH - 1;
+    // A lone road at the east edge, and an unrelated road at (0, ty+1).
+    const set = new Set<number>([tileKey(eastEdge, 5), tileKey(0, 6)]);
+    expect(neighbourMask(eastEdge, 5, set)).toBe(0);
+  });
+
+  it("west-edge tile does not wrap onto the last column of the previous row", () => {
+    const set = new Set<number>([tileKey(0, 5), tileKey(WORLD_WIDTH - 1, 4)]);
+    expect(neighbourMask(0, 5, set)).toBe(0);
+  });
+
+  it("keys are injective across a full row boundary", () => {
+    expect(tileKey(WORLD_WIDTH, 5)).not.toBe(tileKey(0, 6));
+    expect(tileKey(-1, 5)).not.toBe(tileKey(WORLD_WIDTH - 1, 4));
+  });
 });
 
 /** Does the quad set contain a quad strictly above the tile's vertical center? */

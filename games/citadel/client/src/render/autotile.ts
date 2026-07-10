@@ -16,13 +16,13 @@
  * treat gates as road, and walls do NOT treat roads as wall — each network is
  * independent, except walls additionally absorb gate tiles into their set.
  *
- * PERF: masks are recomputed every frame from the building snapshot. The world
- * is <=96×96 and road+wall tiles are a small fraction, well under the brief's
- * ~1000-tile budget, so recompute-per-frame is fine and avoids cache
- * invalidation on placement commands.
+ * PERF: masks are recomputed every frame from the building snapshot. Road+wall
+ * tiles are a small fraction of the world and well under the brief's ~1000-tile
+ * budget, so recompute-per-frame is fine and avoids cache invalidation on
+ * placement commands. (The cost tracks the network's size, not the map's.)
  */
 import { EDG } from "@engine/core";
-import { TILE_SIZE, WORLD_WIDTH } from "@citadel/sim-core";
+import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
 import { packTint, FALLBACK_BUILDING_COLOR } from "./quads";
 import type { QuadSpec } from "./quads";
@@ -63,9 +63,31 @@ const ROAD_TINT = EDG.wood;
 const WALL_TINT = EDG.tan;
 const BRIDGE_TINT = EDG.wood;
 
-/** Build a Set of packed tile keys (`ty*WORLD_WIDTH+tx`) for a 1×1 tile list. */
+/**
+ * Row stride for packing a tile into a single integer key. A FIXED constant, not
+ * the world width — see `tileKey`. Matches the stride `ambient-crowd.ts` already
+ * uses. Worlds must stay under this; 192×192 today (brief 110).
+ */
+export const TILE_KEY_STRIDE = 4096;
+
+/**
+ * Pack a tile into a single integer key (`ty*TILE_KEY_STRIDE + tx`).
+ *
+ * The stride is a CONSTANT wider than any world, not `WORLD_WIDTH`. Using the
+ * world width made the packing non-injective over the coordinates this function
+ * is actually called with: `neighbourMask` probes `tx-1` and `tx+1`, so at
+ * width W it evaluated `tileKey(W, ty) === tileKey(0, ty+1)` and
+ * `tileKey(-1, ty) === tileKey(W-1, ty-1)`. A road on the east edge column
+ * therefore reported a connection to column 0 of the NEXT row, and vice versa —
+ * a real bug at every world size, invisible only because a centred town never
+ * touches the map edge.
+ *
+ * With a stride wider than the world, the off-grid probes land on column indices
+ * (`W`, or `STRIDE-1` for `tx = -1`) that no real tile ever occupies, so they
+ * simply miss the membership set. Pure.
+ */
 export function tileKey(tx: number, ty: number): number {
-  return ty * WORLD_WIDTH + tx;
+  return ty * TILE_KEY_STRIDE + tx;
 }
 
 /**

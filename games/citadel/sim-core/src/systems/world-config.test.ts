@@ -37,14 +37,22 @@ function findGrass(terrain: TerrainGrid, w: number, h: number, sx: number, sy: n
 }
 
 describe("Citadel 29 — configurable world + town-hall", () => {
-  it("defaults to the engine 96×96 world", () => {
+  // Brief 110 / decision #22 grew the default from 96×96 to 192×192. Assert against
+  // the CONSTANTS, not literals — the point of the default is that every grid-backed
+  // allocation tracks it, whatever it is.
+  it("defaults every grid-backed allocation to WORLD_WIDTH × WORLD_HEIGHT", () => {
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
     expect(sim.state.width).toBe(WORLD_WIDTH);
     expect(sim.state.height).toBe(WORLD_HEIGHT);
-    expect(sim.terrain.width).toBe(96);
-    expect(sim.terrain.height).toBe(96);
-    expect(sim.terrain.cells.length).toBe(96 * 96);
-    expect(sim.roadGrid.length).toBe(96 * 96);
+    expect(sim.terrain.width).toBe(WORLD_WIDTH);
+    expect(sim.terrain.height).toBe(WORLD_HEIGHT);
+    expect(sim.terrain.cells.length).toBe(WORLD_WIDTH * WORLD_HEIGHT);
+    expect(sim.roadGrid.length).toBe(WORLD_WIDTH * WORLD_HEIGHT);
+  });
+
+  it("the default world is the 192×192 one brief 110 chose", () => {
+    expect(WORLD_WIDTH).toBe(192);
+    expect(WORLD_HEIGHT).toBe(192);
   });
 
   it("sizes every grid-backed allocation + the pathfinder to a configured 256×256 world", () => {

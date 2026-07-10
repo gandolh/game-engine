@@ -90,9 +90,18 @@ export interface CitadelSimOptions {
   cozyThreats?: boolean;
   /**
    * MP/PvP army resolution (in-flight armies + siege-adjacent resolution via `ArmySystem`).
-   * Default true so MP and `army.test.ts` (which bootstraps with default options) are unchanged.
-   * The solo/cozy client passes `false` to freeze this system — a no-op in solo already (armies
-   * list is always empty there), so disabling it is byte-identical, just removes dead work.
+   *
+   * **Default `false` since 2026-07-10 (decision #23).** Multiplayer is deprecated (#21), so lethal
+   * PvP has no consumer: `ArmyState` is PvP down to its fields (`attackerId` is a player), and the
+   * PvE job is already done by `applyRaidDamage`. The system and the `launchAttack` handler stay in
+   * the tree, frozen and unreached; the marching machinery is being rehomed onto the cozy raid
+   * (brief 113). Challenge mode (#24) does **not** turn this back on — there is no second player.
+   *
+   * ⚠️ The `launchAttack` handler is gated on this flag too. It must be: the handler debits
+   * `tools` and pushes an `ArmyState`, and with `ArmySystem` unregistered that army would never
+   * resolve and never be removed — tools gone, `state.armies` growing without bound.
+   *
+   * `army.test.ts` / `pve-gift.test.ts` pass `true` explicitly to exercise the frozen math.
    */
   enableArmy?: boolean;
   /**
@@ -210,8 +219,13 @@ export function loadFromSave(save: CitadelSave): CitadelSimResult {
     // ⇒ true, matching the bootstrap default (the cozy footing is the intended solo experience).
     cozyThreats: save.cozyThreats ?? true,
     // A save taken with army resolution on/off must replay the same way. Absent (pre-feature
-    // saves) ⇒ true, matching the bootstrap default (MP saves always had army resolution on).
-    enableArmy: save.enableArmy ?? true,
+    // saves) ⇒ false, matching the bootstrap default since decision #23.
+    //
+    // This changed with the default (it was `?? true`), and is safe: only SOLO can load a save
+    // (`load-save` is refused in a shared MP room), solo has always passed `enableArmy: false`
+    // explicitly, and a one-player sim can never reach `launchAttack` anyway — `defenderId ===
+    // attacker.id` short-circuits before any army is created. So no loadable save's replay changes.
+    enableArmy: save.enableArmy ?? false,
     // A save taken in an MP match must replay as one: `multiplayer` decides whether the replayed
     // town-hall placements adopt the keep anchor. Absent ⇒ false, the bootstrap default (and the
     // truth for every pre-brief-108 save, since only solo could ever load one).
@@ -281,9 +295,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   // Cozy-pivot Phase D: threat demotion is on by default (the intended solo footing). Threaded
   // into the three threat systems below; no behavior branches on it yet.
   const cozyThreats = opts.cozyThreats ?? true;
-  // MP/PvP army resolution: on by default (MP + army.test.ts unchanged); the solo/cozy client
-  // passes false to freeze the (already no-op in solo) ArmySystem.
-  const enableArmy = opts.enableArmy ?? true;
+  // MP/PvP army resolution: OFF by default since decision #23 (MP is deprecated, so lethal PvP has
+  // no consumer). Gates both `ArmySystem`'s registration and the `launchAttack` handler — they must
+  // move together, or the handler queues an army nothing resolves. `army.test.ts` opts back in.
+  const enableArmy = opts.enableArmy ?? false;
   // Cozy cold-open: pre-seed an alive town core (opt-in; off by default so the baseline is
   // byte-identical). Applied at the end of bootstrap, before returning.
   const seedTown = opts.seedTown ?? false;
@@ -784,8 +799,20 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   });
 
   // Citadel 32: launch a PvP army at a targeted enemy building / town-hall.
-  // Solo never issues this; in MP brief 35 routes it to the sending player.
+  // Solo never issues this; in MP brief 35 routed it to the sending player.
   logged("launchAttack", (cmd) => {
+    // Decision #23: armies are frozen. REJECT the command rather than dropping it silently — the
+    // same discipline as the peer-sent `setActivePlayer` rejection (citadel-38 P0#3).
+    //
+    // ⚠️ This gate is load-bearing, not defensive tidiness. `enableArmy: false` only unregisters
+    // `ArmySystem`. Without this check the handler below still debits `attacker.stockpiles.tools`
+    // and pushes an `ArmyState` that nothing then advances or removes: the tools are gone and
+    // `state.armies` grows without bound for the rest of the run. Flipping the default without
+    // this line would CREATE that bug rather than prevent it.
+    if (!enableArmy) {
+      pushEvent(state, `Day ${state.day}: armies are disabled in this game.`);
+      return;
+    }
     const attacker = localPlayer(state);
     const { targetX, targetY, strength } = cmd.payload;
     if (strength <= 0) return;

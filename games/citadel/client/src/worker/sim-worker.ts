@@ -68,6 +68,12 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         seed: msg.seed,
         ticksPerDay: msg.ticksPerDay,
         maxDays: 365,
+        // Brief 110: the world size comes from the CLIENT, which generated the terrain it
+        // is about to render. Inheriting the shared default here instead would leave the
+        // two agreeing only by coincidence — the exact coincidence that stopped holding
+        // when the MP server was given a different size and nobody noticed for weeks.
+        ...(msg.worldWidth !== undefined ? { worldWidth: msg.worldWidth } : {}),
+        ...(msg.worldHeight !== undefined ? { worldHeight: msg.worldHeight } : {}),
         // Solo (cozy) economy: buildings cost materials, with a founding wood grant so the
         // cold-open can place its first buildings. MP (the @citadel/server bootstrap) keeps
         // placement free for now. See BUILD_COST in @citadel/sim-core.

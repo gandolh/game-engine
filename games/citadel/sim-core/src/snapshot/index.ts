@@ -241,7 +241,15 @@ export type WorkerOutbound =
 
 // Messages sent from main thread → Worker
 export type WorkerInbound =
-  | { type: "init"; seed: number; ticksPerDay: number }
+  // `worldWidth`/`worldHeight`: the SOLO client generates the terrain it renders and
+  // then tells the worker what size to build its sim at, so the two cannot disagree
+  // (brief 110 — the client baked a 96×96 world while attached to a 256×256 sim, and
+  // nothing noticed, because both read a shared exported constant that only ONE of
+  // them was actually bound by). Omitted ⇒ the sim's own defaults.
+  //
+  // The deprecated MP server ignores these: there the server owns the world, and
+  // decision #14 has it ship the grid to the client rather than trust a peer's size.
+  | { type: "init"; seed: number; ticksPerDay: number; worldWidth?: number; worldHeight?: number }
   | { type: "pause" }
   | { type: "resume" }
   | { type: "speed"; multiplier: number }

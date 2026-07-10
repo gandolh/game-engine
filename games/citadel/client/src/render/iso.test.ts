@@ -164,16 +164,31 @@ describe("makeIso — one projection per world size (brief 110)", () => {
     }
   });
 
-  it("regression: the MP world's centre tile falls OUTSIDE a 96×96 projection's extents", () => {
-    // This is brief 108's bug, as arithmetic. The client used a 96×96 projection
-    // while attached to a 256×256 sim, so the settlement at the world's own centre
+  it("regression: a centre tile falls OUTSIDE a projection built for a smaller world", () => {
+    // Brief 108's bug, as arithmetic. The client used a 96×96 projection while
+    // attached to a 256×256 sim, so the settlement at the world's own centre
     // (coreBoxCenter ⇒ ~128,128) projected below the baked terrain and off-canvas.
-    const centre = iso.tileToIso(128, 128); // the WRONG (solo) projection
-    expect(centre.y).toBeGreaterThan(iso.worldPxH); // off the bottom of the 96×96 world
+    //
+    // Pinned to an explicit 96 — this is a fact about *that* projection, not about
+    // whatever the default world happens to be. (It is 192×192 since brief 110 /
+    // decision #22, which is why reading WORLD_WIDTH here would silently defuse
+    // the regression: tile 128 fits inside a 192 world.)
+    const small = makeIso(96, 96);
+    const centre = small.tileToIso(128, 128); // the WRONG projection for a 256 world
+    expect(centre.y).toBeGreaterThan(small.worldPxH); // off the bottom of the 96×96 world
 
     // The right projection puts it comfortably inside.
     const right = mp.tileToIso(128, 128);
     expect(right.y).toBeLessThan(mp.worldPxH);
     expect(right.x).toBeGreaterThanOrEqual(0);
+  });
+
+  it("the default projection is the 192×192 world, and contains its own centre", () => {
+    // Decision #22. The bug above is unrepresentable at the default size, so assert
+    // the default separately rather than leaning on it to prove the regression.
+    expect(iso.worldTilesW).toBe(192);
+    const centre = iso.tileToIso(96, 96);
+    expect(centre.y).toBeLessThan(iso.worldPxH);
+    expect(centre.x).toBeGreaterThanOrEqual(0);
   });
 });

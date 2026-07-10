@@ -9,7 +9,7 @@
  *          + downloadable JSON blob).
  */
 import "./style.css";
-import { generateTerrain, getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE } from "@citadel/sim-core";
+import { generateTerrain, getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot, BarterOffer } from "@citadel/sim-core";
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
@@ -146,6 +146,8 @@ const occupancyBadges = new OccupancyBadgeLayer();
 let camera: Camera2D;
 let renderer: RendererLike;
 let windowController: RenderWindowController;
+/** Count of windowed re-bakes since boot. Diagnostic only — read by the dev hook. */
+let windowBakes = 0;
 /**
  * The iso projection for the world we ended up with (brief 110). Assigned in boot()
  * from the terrain the sim actually reports — locally generated in solo, sent by the
@@ -823,6 +825,22 @@ if (import.meta.env.DEV) {
     // clicking a specific tile — not just the command channel. Mirrors the
     // renderer's world→screen transform.
     tileToScreenCss: (tx: number, ty: number) => tileToScreenCss(tx + 0.5, ty + 0.5),
+    // Brief 110: the windowed static-layer bake had never executed in production
+    // (`shouldWindow` was always false on the old 96×96 world), so its liveness is
+    // not something a unit test can assert. Expose enough for a harness to watch the
+    // IncrementalQueue actually drain as the camera pans, and to catch a window that
+    // stops tracking the camera.
+    windowState: () => ({
+      windowed: windowController.windowed,
+      pending: windowController.pending,
+      baked: windowController.bakedWindow,
+      bakes: windowBakes,
+    }),
+    camera: () => ({ centerX: camera.centerX, centerY: camera.centerY, zoom: camera.zoom }),
+    panTo: (tx: number, ty: number) => {
+      const c = iso.tileCenterToIso(tx, ty);
+      camera.setCenter(c.x, c.y);
+    },
   };
 }
 
@@ -1124,7 +1142,15 @@ client.onSnapshot((snap) => {
 // Terrain (generated at module scope; baked into the static layer by the
 // renderer during boot, and read by placement validation).
 // ---------------------------------------------------------------------------
-const terrain: TerrainGrid = generateTerrain(SEED);
+// Brief 110 / decision #22: 192×192. Passed EXPLICITLY rather than inherited from
+// `generateTerrain`'s defaults — the client and the sim must agree on the world
+// size, and relying on a shared exported constant to make that true is exactly how
+// the client came to bake a 96×96 world while attached to a 256×256 sim.
+//
+// Solo generates its own terrain because solo IS the sim (the Web Worker runs the
+// same seed + dims). Everything downstream — the iso projection, the windowed bake,
+// placement bounds, the minimap — derives from THIS grid, not from the constants.
+const terrain: TerrainGrid = generateTerrain(SEED, WORLD_WIDTH, WORLD_HEIGHT);
 
 // ---------------------------------------------------------------------------
 // Animation loop
@@ -1222,10 +1248,11 @@ function loop(): void {
   renderer.beginFrame();
   fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
 
-  // Brief 21/22: on the large MP world, re-bake the camera-windowed static
-  // layer when the window shifts (drained at a per-frame budget so a fast pan
-  // never triggers a synchronous re-bake). No-op on the small solo world.
-  windowController.update(camera);
+  // Brief 21/22: re-bake the camera-windowed static layer when the window shifts
+  // (drained at a per-frame budget so a fast pan never triggers a synchronous
+  // re-bake). Live since brief 110 grew the solo world to 192×192 — below the
+  // windowing threshold this is a no-op and the whole world is baked once.
+  if (windowController.update(camera)) windowBakes++;
 
   // Render-only movement interpolation: fraction through the gap between the two
   // latest snapshots, from the measured inter-snapshot interval. Units glide to
@@ -1311,7 +1338,10 @@ function loop(): void {
   // service's reach around the ghost BEFORE committing. Render-only — the tile
   // geometry mirrors the sim's coverage math (render/coverage.ts).
   if (coverageOverlay) {
-    for (const grp of coverageByNeed(currentBuildings)) pushCatchment(renderer, iso, grp.tiles, grp.hex);
+    // Clamp against the LIVE terrain, not the compile-time default dims — an
+    // exported constant is what let the client silently disagree with the sim
+    // about world size for as long as it did (brief 110).
+    for (const grp of coverageByNeed(currentBuildings, terrain)) pushCatchment(renderer, iso, grp.tiles, grp.hex);
     // Cozy-pivot Phase F (decision #7): frame the overlay's gaps as a soft
     // invitation rather than raw data — a slow, low-amplitude pulse on houses
     // missing a core need. Only drawn while the player pulled up the overlay
@@ -1330,7 +1360,7 @@ function loop(): void {
     const cy = ghost.tileY + Math.floor(ghost.h / 2);
     // serviceCatchment dispatches on shape: the well previews its 8×6 rectangle;
     // diamond services preview their Manhattan ring. Empty for non-services.
-    const ring = serviceCatchment(placementState.selectedType, cx, cy);
+    const ring = serviceCatchment(placementState.selectedType, cx, cy, terrain);
     if (ring.length > 0) {
       pushCatchment(renderer, iso, ring, serviceTint(placementState.selectedType));
     }
@@ -1697,7 +1727,10 @@ async function boot(): Promise<void> {
     camera.setCenter(c.x, c.y);
   });
 
-  client.init(SEED, TICKS_PER_DAY);
+  // Hand the sim the dims of the terrain we just baked, so solo cannot desync from
+  // its own worker (brief 110). The MP client ignores them — there the server owns
+  // the world.
+  client.init(SEED, TICKS_PER_DAY, terrain.width, terrain.height);
   updateModeLabel();
   requestAnimationFrame(loop);
 }

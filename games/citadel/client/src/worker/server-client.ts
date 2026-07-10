@@ -67,7 +67,17 @@ export class CitadelServerClient {
     };
   }
 
-  init(seed: number, ticksPerDay: number): void {
+  /**
+   * ⚠️ MP is DEPRECATED (decision #21). This path is unmaintained.
+   *
+   * The world dims a solo caller would pass are deliberately IGNORED here: in MP the
+   * SERVER owns the world, and a peer must not get to declare its size. That is also
+   * why the `seed` sent here is a lie in a late-join — only the first peer's seed ever
+   * starts the sim, so a late joiner regenerating terrain from its own constant renders
+   * a different world. Decision #14 (unimplemented) fixes that by shipping the grid
+   * from the server. See wiki/citadel-mp-deprecated.md before reviving this.
+   */
+  init(seed: number, ticksPerDay: number, _worldWidth?: number, _worldHeight?: number): void {
     this.send({ type: "init", seed, ticksPerDay });
   }
 

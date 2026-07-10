@@ -11,6 +11,8 @@ import {
   TerrainType,
   WORLD_WIDTH,
   WORLD_HEIGHT,
+  RESOURCE_MAX_DISTANCE,
+  RESOURCE_DENSITY_REFERENCE_AREA,
 } from "./terrain";
 
 // ---------------------------------------------------------------------------
@@ -336,24 +338,24 @@ describe("solvability repair determinism", () => {
   it(
     "same seed → byte-identical cells across repeated generateTerrain calls, for seeds known to trigger repair",
     () => {
-      // Per the implementer's report, scanning 0..99 found forest repair firing
-      // on 3 seeds and stone repair on 10 (12 total needing some repair). We
-      // don't know the exact seeds here, so we scan a broad deterministic range
-      // ourselves; the assertion (same seed twice → identical grid) covers the
-      // repair path regardless of which seeds actually triggered a paint, since
-      // repairSolvability runs unconditionally inside generateTerrain.
-      const candidateSeeds: number[] = [];
-      for (let seed = 0; seed < 100; seed++) {
-        candidateSeeds.push(seed);
-      }
+      // We don't know which seeds trigger a paint, so we scan a deterministic range;
+      // the assertion (same seed twice → identical grid) covers the repair path
+      // regardless, since repairSolvability runs unconditionally inside
+      // generateTerrain. Under the distance bound (#25) roughly 1 seed in 20 now
+      // triggers a stone repair at the default size, so 50 seeds still exercises it.
+      //
+      // 50, not 100: the default world is 192×192 since brief 110, so each
+      // generateTerrain does 4× the work of the 96×96 one this test was written
+      // against, and 100 seeds × 2 grids overran the 20s budget.
+      const SEEDS = 50;
 
-      for (const seed of candidateSeeds) {
+      for (let seed = 0; seed < SEEDS; seed++) {
         const a = generateTerrain(seed);
         const b = generateTerrain(seed);
         expect(a.cells).toEqual(b.cells);
       }
     },
-    20000,
+    60000,
   );
 
   it("different seeds among the repair-prone range still diverge", () => {
@@ -367,5 +369,110 @@ describe("solvability repair determinism", () => {
       }
     }
     expect(differs).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 110 / decisions #22 + #25 — the world grew to 192×192, which turned two
+// latent assumptions in this file's subject into real bugs.
+// ---------------------------------------------------------------------------
+
+/**
+ * Walk distance (4-connected, Water/Rough are walls) from the core-box centre to
+ * the nearest tile of `type`. `-1` if unreachable. Mirrors the BFS inside
+ * `repairSolvability`, independently, so the test does not just re-run the code
+ * it is checking.
+ */
+function nearestResourceDistance(
+  cells: Uint8Array,
+  width: number,
+  height: number,
+  type: TerrainType,
+): number {
+  const anchor = findCoreBox(cells, width, height);
+  if (anchor === null) return -1;
+  const start = (anchor.y + Math.floor(CORE_BOX_H / 2)) * width + (anchor.x + Math.floor(CORE_BOX_W / 2));
+  const dist = new Int32Array(width * height).fill(-1);
+  dist[start] = 0;
+  let frontier: number[] = [start];
+  while (frontier.length > 0) {
+    const next: number[] = [];
+    for (const idx of frontier) {
+      if (cells[idx] === type) return dist[idx]!;
+      const x = idx % width;
+      const y = (idx - x) / width;
+      for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const n = ny * width + nx;
+        if (dist[n]! >= 0) continue;
+        const t = cells[n]!;
+        if (t === TerrainType.Water || t === TerrainType.Rough) continue;
+        dist[n] = dist[idx]! + 1;
+        next.push(n);
+      }
+    }
+    frontier = next;
+  }
+  return -1;
+}
+
+describe("resource density is anchored to a fixed reference area (#22)", () => {
+  // `areaScale` used to divide by WORLD_WIDTH*WORLD_HEIGHT — the *mutable default*
+  // dims — so the default world always scored areaScale = 1 however large it grew.
+  // Growing the default to 192×192 silently quartered resource density across the
+  // whole game, with every test still green. The reference is now a constant.
+  it("the reference area is 96×96, not the current default world", () => {
+    expect(RESOURCE_DENSITY_REFERENCE_AREA).toBe(96 * 96);
+    // The default world has since outgrown it — which is exactly the drift that
+    // deriving the scale from WORLD_WIDTH would have hidden.
+    expect(WORLD_WIDTH * WORLD_HEIGHT).not.toBe(RESOURCE_DENSITY_REFERENCE_AREA);
+  });
+
+  it("a 4× larger world has ~4× the resource tiles (density held, not count)", () => {
+    const count = (cells: Uint8Array, t: TerrainType): number => {
+      let n = 0;
+      for (let i = 0; i < cells.length; i++) if (cells[i] === t) n++;
+      return n;
+    };
+    const small = generateTerrain(7, 96, 96);
+    const big = generateTerrain(7, 192, 192);
+    const smallForest = count(small.cells, TerrainType.Forest);
+    const bigForest = count(big.cells, TerrainType.Forest);
+    // Blob placement is seeded and radii vary, so allow a wide band — the point is
+    // that it scales with AREA (≈4×) rather than staying flat (≈1×).
+    const ratio = bigForest / smallForest;
+    expect(ratio).toBeGreaterThan(2.0);
+    expect(ratio).toBeLessThan(6.0);
+  });
+});
+
+describe("repairSolvability guarantees resources are NEAR, not just reachable (#25)", () => {
+  // 25 seeds: each generateTerrain at the 192×192 default is 4× the work of the
+  // 96×96 world these suites were sized against. The full 100-seed sweep that
+  // calibrated RESOURCE_MAX_DISTANCE lives in the brief, not in the test budget.
+  it("every seed puts a Forest and a Stone within RESOURCE_MAX_DISTANCE of the core box", () => {
+    for (let seed = 0; seed < 25; seed++) {
+      const g = generateTerrain(seed, WORLD_WIDTH, WORLD_HEIGHT);
+      const f = nearestResourceDistance(g.cells, g.width, g.height, TerrainType.Forest);
+      const s = nearestResourceDistance(g.cells, g.width, g.height, TerrainType.Stone);
+      expect(f, `seed ${seed} forest`).toBeGreaterThanOrEqual(0);
+      expect(s, `seed ${seed} stone`).toBeGreaterThanOrEqual(0);
+      expect(f, `seed ${seed} forest distance`).toBeLessThanOrEqual(RESOURCE_MAX_DISTANCE);
+      expect(s, `seed ${seed} stone distance`).toBeLessThanOrEqual(RESOURCE_MAX_DISTANCE);
+    }
+  });
+
+  it("the bound is enforced on a world large enough to violate it naturally", () => {
+    // At 192×192 the *unrepaired* stone tail reached 86 tiles; the guarantee clips
+    // it. A pure reachability guarantee would let that stand.
+    const g = generateTerrain(3, 192, 192);
+    const s = nearestResourceDistance(g.cells, g.width, g.height, TerrainType.Stone);
+    expect(s).toBeLessThanOrEqual(RESOURCE_MAX_DISTANCE);
+  });
+
+  it("repair stays a pure function of the grid — same seed, byte-identical cells", () => {
+    const a = generateTerrain(11, WORLD_WIDTH, WORLD_HEIGHT);
+    const b = generateTerrain(11, WORLD_WIDTH, WORLD_HEIGHT);
+    expect(Array.from(a.cells)).toEqual(Array.from(b.cells));
   });
 });
