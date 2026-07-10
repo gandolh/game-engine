@@ -48,6 +48,26 @@ but the **client is hardcoded to 96×96**. Verified live, two real browser tabs 
    `ISO_WORLD_W × ISO_WORLD_H` texture. The two disagree — but only once `windowed` is true, which
    requires this brief first. Fix it *here*, as part of the windowing work, not before.
 
+## Implementation decisions (settled 2026-07-10, before execution)
+
+- **Iso becomes an `IsoProjection` object.** `makeIso(worldW, worldH)` returns the origins, world
+  extents and `tileToIso`/`isoToTile*` bound to those dims. The app creates one at boot and threads
+  it. Chosen over mutable module state (hidden global; two worlds in one process — tests, or solo and
+  MP — would silently corrupt each other) and over passing dims to every call (noise for a value that
+  is constant within a session). This is what makes the 96-vs-256 drift *unrepresentable* rather than
+  merely fixed.
+- **MP awaits the world message, then boots.** `boot()` waits for the server's terrain before creating
+  the renderer: one code path, no bake-then-rebake, no "terrain not yet real" state for placement and
+  the minimap to handle. Show a "connecting…" state rather than a black canvas. **Solo keeps
+  generating locally** — it *is* the sim.
+- **Windowing is mandatory for MP, not an optimisation.** The 256×256 iso world is
+  `(256+256)·16 = 8192` × `(256+256)·8+16 = 4112` px = **134.7 MB** of RGBA static-layer texture, and
+  its width sits *exactly* on WebGPU's default `maxTextureDimension2D` of 8192. A whole-world bake
+  would fail to allocate or eat 135 MB. So this brief cannot be split into "correctness now, windowing
+  later", and briefs 21/22 are what make the committed 256×256 world renderable **at all** — which is
+  why brief 29 un-parked them. ⚠️ Nothing in `engine/core/src/render` guards `maxTextureDimension2D`;
+  consider adding the check while here.
+
 ## Scope
 
 1. **Ship the terrain grid from the server to the client** — settled 2026-07-10 by **decision #14**

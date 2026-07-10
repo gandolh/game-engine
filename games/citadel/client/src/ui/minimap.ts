@@ -37,14 +37,11 @@ import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } 
 import { TerrainType } from "@citadel/sim-core";
 import { screenToWorld, type CameraTransform } from "../render/transform";
 import {
-  tileToIso,
-  isoToTileContinuous,
-  ISO_WORLD_W,
-  ISO_WORLD_H,
   ISO_HW,
   ISO_TILE_W,
   ISO_TILE_H,
 } from "../render/iso";
+import type { IsoProjection } from "../render/iso";
 
 /** Default CSS-px size of the square minimap face (matches the old `width=168`). */
 export const MINIMAP_FACE = 168;
@@ -81,6 +78,8 @@ export class CitadelMinimap {
   /** CSS px size of the square minimap face. */
   private readonly faceSize: number;
   private readonly onSeek: (tx: number, ty: number) => void;
+  /** The projection of the world this minimap shows (brief 110). */
+  private readonly iso: IsoProjection;
 
   // --- Iso-world-px → minimap-face-px fit (uniform scale + centring). --------
   // The iso world is wider than tall (2:1), so we scale to fit the wider span
@@ -99,17 +98,19 @@ export class CitadelMinimap {
    * @param faceSize  CSS-px side of the square face (default {@link MINIMAP_FACE}).
    */
   constructor(
+    iso: IsoProjection,
     terrain: TerrainGrid,
     onSeek: (tx: number, ty: number) => void,
     faceSize: number = MINIMAP_FACE,
   ) {
     this.faceSize = faceSize;
     this.onSeek = onSeek;
+    this.iso = iso;
 
     // Fit the whole iso diamond into the square face (uniform scale + centring).
-    this.fitScale = faceSize / Math.max(ISO_WORLD_W, ISO_WORLD_H);
-    this.fitOffX = (faceSize - ISO_WORLD_W * this.fitScale) / 2;
-    this.fitOffY = (faceSize - ISO_WORLD_H * this.fitScale) / 2;
+    this.fitScale = faceSize / Math.max(iso.worldPxW, iso.worldPxH);
+    this.fitOffX = (faceSize - iso.worldPxW * this.fitScale) / 2;
+    this.fitOffY = (faceSize - iso.worldPxH * this.fitScale) / 2;
 
     // Precompute terrain once (approach (b)): each tile → one small axis-aligned
     // rect centred on its iso position. Size = the diamond's fitted footprint so
@@ -122,7 +123,7 @@ export class CitadelMinimap {
     const quads: FaceQuad[] = [];
     for (let y = 0; y < gh; y++) {
       for (let x = 0; x < gw; x++) {
-        const c = tileToIso(x + 0.5, y + 0.5); // diamond centre in iso world-px
+        const c = iso.tileToIso(x + 0.5, y + 0.5); // diamond centre in iso world-px
         quads.push({
           x: this.fx(c.x) - tileW / 2,
           y: this.fy(c.y) - tileH / 2,
@@ -167,20 +168,20 @@ export class CitadelMinimap {
     // footprint; fire-tinted when burning, keep highlighted.
     for (const b of frame.buildings) {
       const color = (b.onFire || b.burning) ? EDG.red : b.type === "keep" ? EDG.yellow : EDG.cream;
-      const c = tileToIso(b.x + b.w / 2, b.y + b.h / 2);
+      const c = this.iso.tileToIso(b.x + b.w / 2, b.y + b.h / 2);
       const side = Math.max(2, (b.w + b.h) * ISO_HW * this.fitScale * 0.5);
       surface.rect(ox + this.fx(c.x) - side / 2, oy + this.fy(c.y) - side / 2, side, side, color);
     }
 
     // Villagers — faint cyan specks.
     for (const v of frame.villagers) {
-      const c = tileToIso(v.x + 0.5, v.y + 0.5);
+      const c = this.iso.tileToIso(v.x + 0.5, v.y + 0.5);
       surface.rect(ox + this.fx(c.x) - 0.75, oy + this.fy(c.y) - 0.75, 1.5, 1.5, EDG.cyan);
     }
 
     // Raiders — hot-pink threat specks (slightly larger to stand out).
     for (const r of frame.raiders) {
-      const c = tileToIso(r.x + 0.5, r.y + 0.5);
+      const c = this.iso.tileToIso(r.x + 0.5, r.y + 0.5);
       surface.rect(ox + this.fx(c.x) - 1.5, oy + this.fy(c.y) - 1.5, 3, 3, EDG.hotPink);
     }
 
@@ -226,7 +227,7 @@ export class CitadelMinimap {
     }
     const isoX = (faceX - this.fitOffX) / this.fitScale;
     const isoY = (faceY - this.fitOffY) / this.fitScale;
-    const { tileX, tileY } = isoToTileContinuous(isoX, isoY);
+    const { tileX, tileY } = this.iso.isoToTileContinuous(isoX, isoY);
     this.onSeek(tileX, tileY);
     return true;
   }

@@ -82,7 +82,7 @@ import { PlacementStateManager } from "./ui/placement-state";
 import { SettingsModal } from "./ui/settings-modal";
 import { ToastManager, newEventsSince } from "./ui/toast";
 import { CitadelMinimap, MINIMAP_FACE } from "./ui/minimap";
-import { tileToIso } from "./render/iso";
+import type { IsoProjection } from "./render/iso";
 import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 
 const SEED = 0x1a2b3c4d;
@@ -146,7 +146,14 @@ const occupancyBadges = new OccupancyBadgeLayer();
 let camera: Camera2D;
 let renderer: RendererLike;
 let windowController: RenderWindowController;
-// `camera`/`renderer` are assigned asynchronously in boot() (after `await
+/**
+ * The iso projection for the world we ended up with (brief 110). Assigned in boot()
+ * from the terrain the sim actually reports — locally generated in solo, sent by the
+ * server in MP. There is deliberately no module-level default: a projection built for
+ * the wrong world size is what made MP render a 96×96 corner of a 256×256 map.
+ */
+let iso: IsoProjection;
+// `camera`/`renderer`/`iso` are assigned asynchronously in boot() (after `await
 // createCitadelRenderer`), but the canvas input listeners are registered at module load. A
 // pointer/wheel event arriving in that ~1s boot gap would deref an undefined `camera`
 // (pan/zoom/updateCursor). World handlers bail until this flips true (set once camera exists).
@@ -481,7 +488,7 @@ canvas.addEventListener("mousedown", (e) => {
     return;
   }
   if (e.button !== 0) return;
-  placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+  placementState.updateCursor(e, canvas, camera, iso, terrain, currentBuildings);
   if (placementState.mode === "road" || placementState.mode === "wall") {
     placementState.startRoadDrag();
     updateModeLabel(); // show the initial drag length readout
@@ -491,7 +498,7 @@ canvas.addEventListener("mousedown", (e) => {
 canvas.addEventListener("mouseup", (e) => {
   if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
-    placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+    placementState.updateCursor(e, canvas, camera, iso, terrain, currentBuildings);
     const routeBlocked = placementState.lastRouteBlocked;
     const tiles = placementState.endRoadDrag();
     if (tiles.length > 0) {
@@ -516,7 +523,7 @@ canvas.addEventListener("mousemove", (e) => {
     // Convert CSS-px mouse delta to world-px using the live GPU scale.
     // sx = canvas.width (device px) / camera.worldUnitsX. dpr maps CSS→device.
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    fitCameraToCanvas(camera, canvas.width, canvas.height);
+    fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
     const sx = canvas.width / camera.worldUnitsX;
     const sy = canvas.height / camera.worldUnitsY;
     const dx = ((e.clientX - lastMouseX) * dpr) / sx;
@@ -525,7 +532,7 @@ canvas.addEventListener("mousemove", (e) => {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
   }
-  placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+  placementState.updateCursor(e, canvas, camera, iso, terrain, currentBuildings);
   // Live upgrade hint: refresh the mode label as the cursor moves over buildings.
   if (placementState.mode === "upgrade") updateModeLabel();
   // Live road/wall length readout: refresh the label while a drag is in progress.
@@ -536,12 +543,12 @@ canvas.addEventListener("wheel", (e) => {
   if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   e.preventDefault();
   // Zoom toward the cursor: keep the world point under the pointer fixed.
-  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
   const { sx, sy } = eventToDevicePx(e, canvas);
   const before = screenToWorld(transformOf(camera, canvas.width, canvas.height), sx, sy);
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
   camera.setZoom(clampZoom(camera.zoom * factor));
-  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
   const after = screenToWorld(transformOf(camera, canvas.width, canvas.height), sx, sy);
   camera.setCenter(camera.centerX + (before.worldX - after.worldX), camera.centerY + (before.worldY - after.worldY));
 }, { passive: false });
@@ -549,7 +556,7 @@ canvas.addEventListener("wheel", (e) => {
 canvas.addEventListener("click", (e) => {
   if (!inputReady) return; // camera not yet created (async boot) — ignore early events
   if (isPanning) return;
-  placementState.updateCursor(e, canvas, camera, terrain, currentBuildings);
+  placementState.updateCursor(e, canvas, camera, iso, terrain, currentBuildings);
 
   if (placementState.mode === "place") {
     const ghost = placementState.ghost();
@@ -587,8 +594,8 @@ canvas.addEventListener("click", (e) => {
 /** Resolve a mouse event to the tile under the cursor (device-px → tile). */
 function eventTile(e: MouseEvent): { tx: number; ty: number } {
   const { sx, sy } = eventToDevicePx(e, canvas);
-  fitCameraToCanvas(camera, canvas.width, canvas.height);
-  return screenToTile(transformOf(camera, canvas.width, canvas.height), sx, sy);
+  fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
+  return screenToTile(iso, transformOf(camera, canvas.width, canvas.height), sx, sy);
 }
 
 // Right-click is the pan gesture, so suppress the browser context menu over
@@ -827,8 +834,8 @@ if (import.meta.env.DEV) {
  * now uses `tileToCanvasCss` (canvas-relative). Render-only.
  */
 function tileToScreenCss(tileX: number, tileY: number): { x: number; y: number } {
-  const c = tileToIso(tileX, tileY);
-  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  const c = iso.tileToIso(tileX, tileY);
+  fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
   const sx = canvas.width / camera.worldUnitsX;
   const sy = canvas.height / camera.worldUnitsY;
   const left = camera.centerX - camera.worldUnitsX / 2;
@@ -846,8 +853,8 @@ function tileToScreenCss(tileX: number, tileY: number): { x: number; y: number }
  * chips over their buildings. Render-only.
  */
 function tileToCanvasCss(tileX: number, tileY: number): { x: number; y: number } {
-  const c = tileToIso(tileX, tileY);
-  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  const c = iso.tileToIso(tileX, tileY);
+  fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
   const sx = canvas.width / camera.worldUnitsX;
   const sy = canvas.height / camera.worldUnitsY;
   const left = camera.centerX - camera.worldUnitsX / 2;
@@ -1055,7 +1062,7 @@ client.onSnapshot((snap) => {
     if (seeded.length > 0) {
       const cx = seeded.reduce((sum, b) => sum + (b.x + b.w / 2), 0) / seeded.length;
       const cy = seeded.reduce((sum, b) => sum + (b.y + b.h / 2), 0) / seeded.length;
-      const c = tileToIso(cx, cy);
+      const c = iso.tileToIso(cx, cy);
       camera.setCenter(c.x, c.y);
       camera.setZoom(clampZoom(MAX_ZOOM));
       openingFramed = true;
@@ -1213,7 +1220,7 @@ function loop(): void {
   // sprite-batch quads. beginFrame sizes the canvas backing store, so fit the
   // camera to it first.
   renderer.beginFrame();
-  fitCameraToCanvas(camera, canvas.width, canvas.height);
+  fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
 
   // Brief 21/22: on the large MP world, re-bake the camera-windowed static
   // layer when the window shifts (drained at a per-frame budget so a fast pan
@@ -1237,6 +1244,7 @@ function loop(): void {
 
   pushScene(
     renderer,
+    iso,
     {
       buildings: currentBuildings,
       villagers: currentVillagers,
@@ -1275,7 +1283,7 @@ function loop(): void {
   // over burning buildings, composing OVER the soot/orange-tint. Flame flicker +
   // glow breath are render-clock functions (deterministic); nightFactor brightens
   // the glow at night. Embers + fire-smoke particles are emitted below.
-  pushFire(renderer, currentBuildings, nowMs, nightFactor);
+  pushFire(renderer, iso, currentBuildings, nowMs, nightFactor);
 
   // --- Atmosphere (render-only). Day/night wash + night light pool (brief 15),
   // ambient crowd (brief 18), weather (brief 16). All driven off snapshot
@@ -1285,14 +1293,14 @@ function loop(): void {
   // Night light pool: warm glow quads over emitter buildings (sprite-batch).
   // Brief 25: gated — when off, skip the push entirely (no quads emitted).
   if (renderToggles.lightPool) {
-    pushLightPool(renderer, lightPoolQuads(emittersOf(currentBuildings), nightFactor));
+    pushLightPool(renderer, iso, lightPoolQuads(emittersOf(currentBuildings), nightFactor));
   }
 
   // Ambient crowd: wandering pedestrians, density by tier (sprite-batch).
   // Brief 25: gated — when off, skip both the update and the push.
   if (renderToggles.ambientCrowd) {
     if (latestSnapshot !== null) ambientCrowd.update(dt, latestSnapshot);
-    pushAmbientCrowd(renderer, ambientCrowd.quads());
+    pushAmbientCrowd(renderer, iso, ambientCrowd.quads());
   }
 
   const ghost = placementState.ghost();
@@ -1303,7 +1311,7 @@ function loop(): void {
   // service's reach around the ghost BEFORE committing. Render-only — the tile
   // geometry mirrors the sim's coverage math (render/coverage.ts).
   if (coverageOverlay) {
-    for (const grp of coverageByNeed(currentBuildings)) pushCatchment(renderer, grp.tiles, grp.hex);
+    for (const grp of coverageByNeed(currentBuildings)) pushCatchment(renderer, iso, grp.tiles, grp.hex);
     // Cozy-pivot Phase F (decision #7): frame the overlay's gaps as a soft
     // invitation rather than raw data — a slow, low-amplitude pulse on houses
     // missing a core need. Only drawn while the player pulled up the overlay
@@ -1314,7 +1322,7 @@ function loop(): void {
     if (invited.length > 0) {
       const lit = Math.sin((nowMs / 1000) * (Math.PI * 2 / 2.4)) > 0;
       const pulseTiles = invited.map((t) => ({ tx: t.tx, ty: t.ty, edge: lit }));
-      pushCatchment(renderer, pulseTiles, EDG.cream);
+      pushCatchment(renderer, iso, pulseTiles, EDG.cream);
     }
   }
   if (placementState.mode === "place" && ghost !== null) {
@@ -1324,7 +1332,7 @@ function loop(): void {
     // diamond services preview their Manhattan ring. Empty for non-services.
     const ring = serviceCatchment(placementState.selectedType, cx, cy);
     if (ring.length > 0) {
-      pushCatchment(renderer, ring, serviceTint(placementState.selectedType));
+      pushCatchment(renderer, iso, ring, serviceTint(placementState.selectedType));
     }
   }
 
@@ -1332,11 +1340,11 @@ function loop(): void {
   // storage building that isn't connected to the network, so the connectivity the
   // economy depends on is visible (the `connected` flag was previously unsurfaced).
   // Render-only; reads the snapshot flag. nowMs drives the gentle attention pulse.
-  pushDisconnectedMarkers(renderer, currentBuildings, nowMs);
+  pushDisconnectedMarkers(renderer, iso, currentBuildings, nowMs);
 
   const dragging = (placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad;
   // Drag preview tints each tile green/red by whether the sim will accept it.
-  pushGhost(renderer, ghost, dragging ? placementState.roadTilesWithValidity() : []);
+  pushGhost(renderer, iso, ghost, dragging ? placementState.roadTilesWithValidity() : []);
 
   // Weather field (engine RainField → GPU WeatherPass). Update against the
   // visible world rect, then hand it to endFrame.
@@ -1567,6 +1575,7 @@ async function boot(): Promise<void> {
   const created = await createCitadelRenderer(canvas, terrain);
   renderer = created.renderer;
   camera = created.camera;
+  iso = created.iso;
   windowController = created.windowController;
   inputReady = true; // camera/renderer live → world input handlers may run
 
@@ -1682,9 +1691,9 @@ async function boot(): Promise<void> {
   // loop; clicking it recentres the camera on that tile and releases any follow-cam lock. Camera
   // centre is in iso world-px, so map the clicked tile through the iso projection. No canvas —
   // the host forwards pointer presses to minimap.trySeek (below).
-  minimap = new CitadelMinimap(terrain, (tx, ty) => {
+  minimap = new CitadelMinimap(iso, terrain, (tx, ty) => {
     clearFollow(); // release the follow-cam + hide the in-canvas villager panel
-    const c = tileToIso(tx, ty);
+    const c = iso.tileToIso(tx, ty);
     camera.setCenter(c.x, c.y);
   });
 

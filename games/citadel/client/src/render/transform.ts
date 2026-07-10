@@ -2,21 +2,20 @@
  * Camera2D transform — screen ↔ world ↔ tile (pure, tested).
  *
  * Owns the CameraTransform snapshot type, the screen→world/tile inverses, the
- * dpr-aware event→device-px helper, and camera fitting / zoom clamping. Also
- * owns WORLD_PX_W / WORLD_PX_H since they're consumed here and by the renderer.
+ * dpr-aware event→device-px helper, and camera fitting / zoom clamping.
+ *
+ * Citadel renders ISOMETRIC: the engine's linear Camera2D pans/zooms the *iso
+ * world-px* space (a diamond), so the world dims the camera frames are the iso
+ * world dims, not the axis-aligned tile grid. `screenToWorld` therefore returns
+ * iso world-px, and `screenToTile` inverts the iso projection (see iso.ts).
+ *
+ * Brief 110: the iso world extents depend on the world size, so they arrive as an
+ * {@link IsoProjection} rather than the module constants `WORLD_PX_W`/`WORLD_PX_H`
+ * this file used to export — those were derived from the compile-time 96×96 and
+ * silently mis-framed the 256×256 MP world. Use `iso.worldPxW` / `iso.worldPxH`.
  */
 import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "@engine/core";
-import { ISO_WORLD_W, ISO_WORLD_H, isoToTile } from "./iso";
-
-// ---------------------------------------------------------------------------
-// World px dimensions
-// ---------------------------------------------------------------------------
-// Citadel renders ISOMETRIC: the engine's linear Camera2D pans/zooms the *iso
-// world-px* space (a diamond), so the world dims the camera frames are the iso
-// world dims, not the axis-aligned tile grid. `screenToWorld` therefore returns
-// iso world-px, and `screenToTile` inverts the iso projection (see iso.ts).
-export const WORLD_PX_W = ISO_WORLD_W;
-export const WORLD_PX_H = ISO_WORLD_H;
+import type { IsoProjection } from "./iso";
 
 // ---------------------------------------------------------------------------
 // Camera transform snapshot
@@ -76,9 +75,9 @@ export function screenToWorld(t: CameraTransform, screenX: number, screenY: numb
  * diamond projection to the tile under the cursor. This is the placement /
  * ghost / drag-paint / click-select pick path.
  */
-export function screenToTile(t: CameraTransform, screenX: number, screenY: number): { tx: number; ty: number } {
+export function screenToTile(iso: IsoProjection, t: CameraTransform, screenX: number, screenY: number): { tx: number; ty: number } {
   const { worldX, worldY } = screenToWorld(t, screenX, screenY);
-  return isoToTile(worldX, worldY);
+  return iso.isoToTile(worldX, worldY);
 }
 
 /**
@@ -110,19 +109,19 @@ export function clampZoom(z: number): number {
  * whole world at zoom=1. Re-derives the base world-units from the canvas and
  * applies the current zoom. Call each frame before draw (canvas may resize).
  */
-export function fitCameraToCanvas(camera: Camera2D, canvasW: number, canvasH: number): void {
+export function fitCameraToCanvas(camera: Camera2D, canvasW: number, canvasH: number, iso: IsoProjection): void {
   if (canvasW <= 0 || canvasH <= 0) return;
   const canvasAspect = canvasW / canvasH;
-  const worldAspect = WORLD_PX_W / WORLD_PX_H;
+  const worldAspect = iso.worldPxW / iso.worldPxH;
   // Base units cover the whole world (letterbox-fit), aspect-corrected.
   let baseX: number;
   let baseY: number;
   if (canvasAspect >= worldAspect) {
-    baseY = WORLD_PX_H;
-    baseX = WORLD_PX_H * canvasAspect;
+    baseY = iso.worldPxH;
+    baseX = iso.worldPxH * canvasAspect;
   } else {
-    baseX = WORLD_PX_W;
-    baseY = WORLD_PX_W / canvasAspect;
+    baseX = iso.worldPxW;
+    baseY = iso.worldPxW / canvasAspect;
   }
   const z = camera.zoom;
   camera.worldUnitsX = baseX / z;

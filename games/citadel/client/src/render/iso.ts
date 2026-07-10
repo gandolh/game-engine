@@ -2,23 +2,38 @@
  * Citadel isometric projection — the single source of truth for the diamond
  * grid (true-isometric brief, 2026-06-21).
  *
- * The sim world is an axis-aligned `WORLD_WIDTH × WORLD_HEIGHT` tile grid; iso
- * is purely a *display* of it. We project each tile `(tx, ty)` into an
- * **iso world-px** coordinate space (a diamond), and the engine's linear
- * Camera2D pans/zooms *that* space — so the shared `@engine/core` renderer never
- * needs to know about iso. Both the baked terrain (diamonds drawn into the
- * static-layer texture) and the per-entity sprite quads live in this same iso
- * world-px space, so they stay registered.
+ * The sim world is an axis-aligned `worldTilesW × worldTilesH` tile grid; iso is
+ * purely a *display* of it. We project each tile `(tx, ty)` into an **iso
+ * world-px** coordinate space (a diamond), and the engine's linear Camera2D
+ * pans/zooms *that* space — so the shared `@engine/core` renderer never needs to
+ * know about iso. Both the baked terrain (diamonds drawn into the static-layer
+ * texture) and the per-entity sprite quads live in this same iso world-px space,
+ * so they stay registered.
  *
  * Convention: **2:1 dimetric** — `ISO_TILE_W = 2 · ISO_TILE_H` — the pixel-art
  * isometric standard. Integer-friendly, so it stays crisp under the renderer's
  * `pixelSnap`. All math here is pure + deterministic + render-only (no sim, no
  * RNG, no determinism impact).
+ *
+ * ## Why this is an object and not a module of constants (brief 110)
+ *
+ * The projection depends on the world size through exactly one scalar — the X
+ * origin, `(worldTilesH - 1) · ISO_HW`, which shifts the diamond so every
+ * projected point has `isoX ≥ 0`. That used to be a module-level `const` derived
+ * from the *compile-time* `WORLD_WIDTH`/`WORLD_HEIGHT`, which meant the client
+ * could not represent a world of any other size. It silently didn't: the MP
+ * server runs 256×256 while the client projected — and baked terrain for — a
+ * 96×96 world, so players were confined to a corner and everything outside it
+ * rendered into void (see brief 108).
+ *
+ * So the origin-dependent maths live on an {@link IsoProjection} built by
+ * {@link makeIso} from the *runtime* dims, and there is no module-level origin
+ * left to accidentally import. Size-INdependent maths (tile extents, depth keys,
+ * sprite dimensions) stay free functions — they never needed the world size.
  */
-import { WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 
 // ---------------------------------------------------------------------------
-// Constants (2:1 dimetric)
+// Constants (2:1 dimetric) — all independent of the world size
 // ---------------------------------------------------------------------------
 
 /** Iso tile footprint width in iso world-px (full diamond width). */
@@ -36,25 +51,12 @@ export const ISO_HH = ISO_TILE_H / 2; // 8
  */
 export const ISO_HEIGHT_STEP = 8;
 
-/**
- * X origin shift so every projected point has `isoX ≥ 0`. The leftmost tile is
- * `(0, HEIGHT-1)` at `isoX = -(HEIGHT-1)·ISO_HW`; shifting by `+(HEIGHT-1)·ISO_HW`
- * pins it to 0. Keeps the iso world-px space non-negative (matches the
- * static-layer texture's origin-at-0 assumption).
- */
-export const ISO_ORIGIN_X = (WORLD_HEIGHT - 1) * ISO_HW;
-
-/** Total iso world-px width: the diamond spans (W + H) half-tiles across. */
-export const ISO_WORLD_W = (WORLD_WIDTH + WORLD_HEIGHT) * ISO_HW;
-/** Total iso world-px height: (W + H) half-tile-heights, plus one tile of pad
- *  at top (for elevation lift) and bottom (for the last diamond's lower point). */
-export const ISO_WORLD_H = (WORLD_WIDTH + WORLD_HEIGHT) * ISO_HH + ISO_TILE_H;
-
-/** Y pad at the top of the iso world so lifted/elevated points stay ≥ 0. */
+/** Y pad at the top of the iso world so lifted/elevated points stay ≥ 0. Independent
+ *  of the world size, so it stays a constant. */
 export const ISO_ORIGIN_Y = ISO_TILE_H;
 
 // ---------------------------------------------------------------------------
-// Forward projection: tile / sub-tile → iso world-px
+// Shared shapes
 // ---------------------------------------------------------------------------
 
 /** A point in iso world-px space (what the engine camera consumes as sprite.x/y). */
@@ -62,97 +64,6 @@ export interface IsoPoint {
   x: number;
   y: number;
 }
-
-/**
- * Project a CONTINUOUS tile coordinate `(tileX, tileY)` (fractional allowed, so
- * footprint centres and sub-tile positions work) to iso world-px. `elevation`
- * (in height steps) lifts the point up the screen. Pure.
- *
- * The diamond mapping: moving +1 in tileX goes down-right; +1 in tileY goes
- * down-left. `(0,0)` lands at the top of the diamond.
- */
-export function tileToIso(tileX: number, tileY: number, elevation = 0): IsoPoint {
-  return {
-    x: (tileX - tileY) * ISO_HW + ISO_ORIGIN_X,
-    y: (tileX + tileY) * ISO_HH + ISO_ORIGIN_Y - elevation * ISO_HEIGHT_STEP,
-  };
-}
-
-/**
- * The iso world-px position of a tile's CENTER (the diamond centre). Equivalent
- * to `tileToIso(tx + 0.5, ty + 0.5)`. Handy for placing sprites whose anchor is
- * the footprint centre. Pure.
- */
-export function tileCenterToIso(tileX: number, tileY: number, elevation = 0): IsoPoint {
-  return tileToIso(tileX + 0.5, tileY + 0.5, elevation);
-}
-
-// ---------------------------------------------------------------------------
-// Inverse projection: iso world-px → tile  (the linchpin — powers placement)
-// ---------------------------------------------------------------------------
-
-/**
- * Invert iso world-px back to a CONTINUOUS tile coordinate (no flooring), the
- * exact inverse of `tileToIso` at `elevation = 0`. Pure.
- *
- *   a = (isoX - ORIGIN_X) / ISO_HW = tileX - tileY
- *   b = (isoY - ORIGIN_Y) / ISO_HH = tileX + tileY
- *   tileX = (a + b) / 2 ;  tileY = (b - a) / 2
- */
-export function isoToTileContinuous(isoX: number, isoY: number): { tileX: number; tileY: number } {
-  const a = (isoX - ISO_ORIGIN_X) / ISO_HW;
-  const b = (isoY - ISO_ORIGIN_Y) / ISO_HH;
-  return { tileX: (a + b) / 2, tileY: (b - a) / 2 };
-}
-
-/**
- * Invert iso world-px to the integer tile under that point (floored). Used by
- * placement / ghost / drag-paint / click-select. Pure.
- *
- * NOTE: ignores elevation — Citadel's tiles are currently flat (the elevation
- * field is a render decoration, not gameplay height), so the ground plane is at
- * elevation 0 and this inverse is exact for picking.
- */
-export function isoToTile(isoX: number, isoY: number): { tx: number; ty: number } {
-  const { tileX, tileY } = isoToTileContinuous(isoX, isoY);
-  return { tx: Math.floor(tileX), ty: Math.floor(tileY) };
-}
-
-// ---------------------------------------------------------------------------
-// Diamond polygon (for the terrain bake)
-// ---------------------------------------------------------------------------
-
-/**
- * The four corners (top, right, bottom, left) of a tile's diamond in iso
- * world-px, used by the terrain bake to fill a diamond instead of a rect.
- * Returned top→right→bottom→left (clockwise) for canvas pathing. Pure.
- */
-export function tileDiamond(tileX: number, tileY: number, elevation = 0): readonly IsoPoint[] {
-  const c = tileCenterToIso(tileX, tileY, elevation);
-  return [
-    { x: c.x, y: c.y - ISO_HH }, // top
-    { x: c.x + ISO_HW, y: c.y }, // right
-    { x: c.x, y: c.y + ISO_HH }, // bottom
-    { x: c.x - ISO_HW, y: c.y }, // left
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Iso depth (painter's order)
-// ---------------------------------------------------------------------------
-
-/**
- * Back-to-front depth key for a tile: larger = nearer the camera (drawn later).
- * `(tileX + tileY)` is the diamond row; ties broken by elevation. Multi-tile
- * footprints should pass their front-most (max) tile. Pure.
- */
-export function isoDepth(tileX: number, tileY: number, elevation = 0): number {
-  return (tileX + tileY) + elevation * 0.001;
-}
-
-// ---------------------------------------------------------------------------
-// Footprint → iso sprite placement
-// ---------------------------------------------------------------------------
 
 /** An axis-aligned iso-placed sprite box + its painter's-order depth. */
 export interface IsoBox {
@@ -168,43 +79,17 @@ export interface IsoBox {
   depth: number;
 }
 
+// ---------------------------------------------------------------------------
+// Size-independent maths (never needed the world size)
+// ---------------------------------------------------------------------------
+
 /**
- * Place an iso sprite for a `w×h`-tile footprint anchored at tile `(tx, ty)`.
- * The footprint's diamond spans `(w + h)·ISO_HW` across; the sprite is an
- * axis-aligned image whose width is that diamond span and whose **bottom** sits
- * at the footprint's front (the `(tx+w-1, ty+h-1)` tile's bottom point), so the
- * art rises UP from the ground. `heightTiles` is how many tiles tall the sprite
- * art is drawn (≥1; taller buildings loom). `elevation` lifts it further. Pure.
- *
- * The diamond's top corner is at `tileToIso(tx, ty)`; its left/right points are
- * `ISO_HW·h` / `ISO_HW·w` out; its bottom point is `tileToIso(tx+w, ty+h)`. The
- * sprite box's top-left X is the diamond's leftmost point; its bottom is the
- * diamond's bottom point; its top extends up by the art height above the
- * diamond's top.
+ * Back-to-front depth key for a tile: larger = nearer the camera (drawn later).
+ * `(tileX + tileY)` is the diamond row; ties broken by elevation. Multi-tile
+ * footprints should pass their front-most (max) tile. Pure.
  */
-export function isoFootprintBox(
-  tx: number,
-  ty: number,
-  w: number,
-  h: number,
-  heightTiles = 1,
-  elevation = 0,
-): IsoBox {
-  const top = tileToIso(tx, ty, elevation); // diamond top corner
-  const leftX = top.x - h * ISO_HW; // leftmost diamond point
-  const dims = isoSpriteDims(w, h, heightTiles);
-  // The sprite's bottom sits at the footprint diamond's BOTTOM point; its top is
-  // `dims.height` above that. This matches the authored sprite exactly so the
-  // art maps 1:1 (roof at the top of the box, ground diamond at the bottom).
-  const bottomY = top.y + (w + h) * ISO_HH;
-  return {
-    x: leftX,
-    y: bottomY - dims.height,
-    width: dims.width,
-    height: dims.height,
-    // Depth by the front-most tile so a building occludes things behind it.
-    depth: isoDepth(tx + w - 1, ty + h - 1, elevation),
-  };
+export function isoDepth(tileX: number, tileY: number, elevation = 0): number {
+  return (tileX + tileY) + elevation * 0.001;
 }
 
 /**
@@ -268,66 +153,219 @@ export function isoArtDims(w: number, h: number, heightTiles: number): { width: 
   };
 }
 
+// ---------------------------------------------------------------------------
+// The projection — everything that depends on the world size
+// ---------------------------------------------------------------------------
+
 /**
- * The axis-aligned bounding box (in iso world-px) of a `w×h`-tile footprint's
- * FLAT diamond at `(tx, ty)` — i.e. the quad to stamp the `fx/diamond` frame
- * into so it covers the footprint's ground diamond exactly. Top-left at the
- * diamond's left point + top point; size = full diamond span × full diamond
- * height. Depth by the front-most tile. Pure.
+ * The iso projection for one concrete world size. Build with {@link makeIso}.
+ * Every method is pure; the object is immutable and holds no render state, so
+ * two of them (a solo 96×96 and an MP 256×256) can coexist in one process.
  */
-export function isoFootprintDiamondBox(tx: number, ty: number, w: number, h: number, elevation = 0): IsoBox {
-  const top = tileToIso(tx, ty, elevation); // diamond top corner
-  const bottom = tileToIso(tx + w, ty + h, elevation); // diamond bottom corner
-  const spanW = (w + h) * ISO_HW;
-  return {
-    x: top.x - h * ISO_HW, // leftmost point
-    y: top.y, // diamond top
-    width: spanW,
-    height: bottom.y - top.y,
-    depth: isoDepth(tx + w - 1, ty + h - 1, elevation),
-  };
+export interface IsoProjection {
+  /** Logical grid size this projection was built for. */
+  readonly worldTilesW: number;
+  readonly worldTilesH: number;
+  /**
+   * X origin shift so every projected point has `isoX ≥ 0`. The leftmost tile is
+   * `(0, H-1)` at `isoX = -(H-1)·ISO_HW`; shifting by `+(H-1)·ISO_HW` pins it to 0.
+   * Keeps the iso world-px space non-negative (matches the static-layer texture's
+   * origin-at-0 assumption).
+   */
+  readonly originX: number;
+  /** Total iso world-px width: the diamond spans (W + H) half-tiles across. */
+  readonly worldPxW: number;
+  /**
+   * Total iso world-px height: (W + H) half-tile-heights, plus one tile of pad at
+   * top (for elevation lift) and bottom (for the last diamond's lower point).
+   */
+  readonly worldPxH: number;
+
+  /**
+   * Project a CONTINUOUS tile coordinate `(tileX, tileY)` (fractional allowed, so
+   * footprint centres and sub-tile positions work) to iso world-px. `elevation`
+   * (in height steps) lifts the point up the screen. Pure.
+   *
+   * The diamond mapping: moving +1 in tileX goes down-right; +1 in tileY goes
+   * down-left. `(0,0)` lands at the top of the diamond.
+   */
+  tileToIso(tileX: number, tileY: number, elevation?: number): IsoPoint;
+
+  /**
+   * The iso world-px position of a tile's CENTER (the diamond centre). Equivalent
+   * to `tileToIso(tx + 0.5, ty + 0.5)`. Handy for placing sprites whose anchor is
+   * the footprint centre. Pure.
+   */
+  tileCenterToIso(tileX: number, tileY: number, elevation?: number): IsoPoint;
+
+  /**
+   * Invert iso world-px back to a CONTINUOUS tile coordinate (no flooring), the
+   * exact inverse of `tileToIso` at `elevation = 0`. Pure.
+   *
+   *   a = (isoX - originX) / ISO_HW = tileX - tileY
+   *   b = (isoY - ORIGIN_Y) / ISO_HH = tileX + tileY
+   *   tileX = (a + b) / 2 ;  tileY = (b - a) / 2
+   */
+  isoToTileContinuous(isoX: number, isoY: number): { tileX: number; tileY: number };
+
+  /**
+   * Invert iso world-px to the integer tile under that point (floored). Used by
+   * placement / ghost / drag-paint / click-select. Pure.
+   *
+   * NOTE: ignores elevation — Citadel's tiles are currently flat (the elevation
+   * field is a render decoration, not gameplay height), so the ground plane is at
+   * elevation 0 and this inverse is exact for picking.
+   */
+  isoToTile(isoX: number, isoY: number): { tx: number; ty: number };
+
+  /**
+   * The four corners (top, right, bottom, left) of a tile's diamond in iso
+   * world-px, used by the terrain bake to fill a diamond instead of a rect.
+   * Returned top→right→bottom→left (clockwise) for canvas pathing. Pure.
+   */
+  tileDiamond(tileX: number, tileY: number, elevation?: number): readonly IsoPoint[];
+
+  /**
+   * Place an iso sprite for a `w×h`-tile footprint anchored at tile `(tx, ty)`.
+   * The footprint's diamond spans `(w + h)·ISO_HW` across; the sprite is an
+   * axis-aligned image whose width is that diamond span and whose **bottom** sits
+   * at the footprint's front (the `(tx+w-1, ty+h-1)` tile's bottom point), so the
+   * art rises UP from the ground. `heightTiles` is how many tiles tall the sprite
+   * art is drawn (≥1; taller buildings loom). `elevation` lifts it further. Pure.
+   */
+  isoFootprintBox(tx: number, ty: number, w: number, h: number, heightTiles?: number, elevation?: number): IsoBox;
+
+  /**
+   * The axis-aligned bounding box (in iso world-px) of a `w×h`-tile footprint's
+   * FLAT diamond at `(tx, ty)` — i.e. the quad to stamp the `fx/diamond` frame
+   * into so it covers the footprint's ground diamond exactly. Pure.
+   */
+  isoFootprintDiamondBox(tx: number, ty: number, w: number, h: number, elevation?: number): IsoBox;
+
+  /**
+   * Project a legacy axis-aligned tile-px box (x,y,w,h in `tile·TILE_SIZE` space)
+   * to an iso-placed box by mapping its CENTER tile to the iso point and keeping
+   * the box's pixel size. A pragmatic bridge for small decoration quads
+   * (light-pool rings, ambient-crowd dots, network bands) that haven't been given
+   * bespoke iso geometry yet. `tileSize` converts px→tiles. Pure.
+   */
+  isoProjectTilePxBox(x: number, y: number, w: number, h: number, tileSize: number): IsoBox;
+
+  /**
+   * Place a small point sprite (villager / raider) centred on tile `(tx, ty)` —
+   * fractional coords allowed (units move sub-tile). `sizePx` is the sprite's
+   * iso-px size (square). Anchored so the sprite's bottom-centre sits at the tile
+   * centre's iso point (feet on the ground). Pure.
+   */
+  isoPointBox(tileX: number, tileY: number, sizePx: number, elevation?: number): IsoBox;
 }
 
 /**
- * Project a legacy axis-aligned tile-px box (x,y,w,h in `tile·TILE_SIZE` space)
- * to an iso-placed box by mapping its CENTER tile to the iso point and keeping
- * the box's pixel size. A pragmatic bridge for small decoration quads
- * (light-pool rings, ambient-crowd dots, network bands) that haven't been given
- * bespoke iso geometry yet — they land at the right diamond, just not reshaped
- * into diamonds. `tileSize` converts px→tiles. Pure.
+ * Build the iso projection for a concrete world size. Call once per world (the
+ * app does it at boot, from the dims the sim reports); pass the result down
+ * rather than reaching for a module-level origin — there isn't one any more.
  */
-export function isoProjectTilePxBox(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  tileSize: number,
-): IsoBox {
-  const cxTile = (x + w / 2) / tileSize;
-  const cyTile = (y + h / 2) / tileSize;
-  const c = tileToIso(cxTile, cyTile);
-  return {
-    x: c.x - w / 2,
-    y: c.y - h / 2,
-    width: w,
-    height: h,
-    depth: isoDepth(cxTile, cyTile),
-  };
-}
+export function makeIso(worldTilesW: number, worldTilesH: number): IsoProjection {
+  const originX = (worldTilesH - 1) * ISO_HW;
+  const worldPxW = (worldTilesW + worldTilesH) * ISO_HW;
+  const worldPxH = (worldTilesW + worldTilesH) * ISO_HH + ISO_TILE_H;
 
-/**
- * Place a small point sprite (villager / raider) centred on tile `(tx, ty)` —
- * fractional coords allowed (units move sub-tile). `sizePx` is the sprite's
- * iso-px size (square). Anchored so the sprite's bottom-centre sits at the tile
- * centre's iso point (feet on the ground). Pure.
- */
-export function isoPointBox(tileX: number, tileY: number, sizePx: number, elevation = 0): IsoBox {
-  const c = tileCenterToIso(tileX, tileY, elevation);
+  function tileToIso(tileX: number, tileY: number, elevation = 0): IsoPoint {
+    return {
+      x: (tileX - tileY) * ISO_HW + originX,
+      y: (tileX + tileY) * ISO_HH + ISO_ORIGIN_Y - elevation * ISO_HEIGHT_STEP,
+    };
+  }
+
+  function tileCenterToIso(tileX: number, tileY: number, elevation = 0): IsoPoint {
+    return tileToIso(tileX + 0.5, tileY + 0.5, elevation);
+  }
+
+  function isoToTileContinuous(isoX: number, isoY: number): { tileX: number; tileY: number } {
+    const a = (isoX - originX) / ISO_HW;
+    const b = (isoY - ISO_ORIGIN_Y) / ISO_HH;
+    return { tileX: (a + b) / 2, tileY: (b - a) / 2 };
+  }
+
   return {
-    x: c.x - sizePx / 2,
-    y: c.y - sizePx,
-    width: sizePx,
-    height: sizePx,
-    depth: isoDepth(tileX, tileY, elevation),
+    worldTilesW,
+    worldTilesH,
+    originX,
+    worldPxW,
+    worldPxH,
+
+    tileToIso,
+    tileCenterToIso,
+    isoToTileContinuous,
+
+    isoToTile(isoX: number, isoY: number): { tx: number; ty: number } {
+      const { tileX, tileY } = isoToTileContinuous(isoX, isoY);
+      return { tx: Math.floor(tileX), ty: Math.floor(tileY) };
+    },
+
+    tileDiamond(tileX: number, tileY: number, elevation = 0): readonly IsoPoint[] {
+      const c = tileCenterToIso(tileX, tileY, elevation);
+      return [
+        { x: c.x, y: c.y - ISO_HH }, // top
+        { x: c.x + ISO_HW, y: c.y }, // right
+        { x: c.x, y: c.y + ISO_HH }, // bottom
+        { x: c.x - ISO_HW, y: c.y }, // left
+      ];
+    },
+
+    isoFootprintBox(tx: number, ty: number, w: number, h: number, heightTiles = 1, elevation = 0): IsoBox {
+      const top = tileToIso(tx, ty, elevation); // diamond top corner
+      const leftX = top.x - h * ISO_HW; // leftmost diamond point
+      const dims = isoSpriteDims(w, h, heightTiles);
+      // The sprite's bottom sits at the footprint diamond's BOTTOM point; its top is
+      // `dims.height` above that. This matches the authored sprite exactly so the
+      // art maps 1:1 (roof at the top of the box, ground diamond at the bottom).
+      const bottomY = top.y + (w + h) * ISO_HH;
+      return {
+        x: leftX,
+        y: bottomY - dims.height,
+        width: dims.width,
+        height: dims.height,
+        // Depth by the front-most tile so a building occludes things behind it.
+        depth: isoDepth(tx + w - 1, ty + h - 1, elevation),
+      };
+    },
+
+    isoFootprintDiamondBox(tx: number, ty: number, w: number, h: number, elevation = 0): IsoBox {
+      const top = tileToIso(tx, ty, elevation); // diamond top corner
+      const bottom = tileToIso(tx + w, ty + h, elevation); // diamond bottom corner
+      const spanW = (w + h) * ISO_HW;
+      return {
+        x: top.x - h * ISO_HW, // leftmost point
+        y: top.y, // diamond top
+        width: spanW,
+        height: bottom.y - top.y,
+        depth: isoDepth(tx + w - 1, ty + h - 1, elevation),
+      };
+    },
+
+    isoProjectTilePxBox(x: number, y: number, w: number, h: number, tileSize: number): IsoBox {
+      const cxTile = (x + w / 2) / tileSize;
+      const cyTile = (y + h / 2) / tileSize;
+      const c = tileToIso(cxTile, cyTile);
+      return {
+        x: c.x - w / 2,
+        y: c.y - h / 2,
+        width: w,
+        height: h,
+        depth: isoDepth(cxTile, cyTile),
+      };
+    },
+
+    isoPointBox(tileX: number, tileY: number, sizePx: number, elevation = 0): IsoBox {
+      const c = tileCenterToIso(tileX, tileY, elevation);
+      return {
+        x: c.x - sizePx / 2,
+        y: c.y - sizePx,
+        width: sizePx,
+        height: sizePx,
+        depth: isoDepth(tileX, tileY, elevation),
+      };
+    },
   };
 }

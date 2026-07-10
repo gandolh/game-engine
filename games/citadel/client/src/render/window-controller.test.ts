@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { RendererLike, StaticRegion, DecorateFn, Sprite } from "@engine/core";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TILE_SIZE } from "@citadel/sim-core";
-import { ISO_WORLD_W, ISO_WORLD_H } from "./iso";
+import { makeIso } from "./iso";
 import {
   RenderWindowController,
   windowRegion,
@@ -45,13 +45,32 @@ function cam(cx: number, cy: number, viewW: number, viewH: number): CameraView {
 }
 
 describe("pure helpers", () => {
-  it("windowRegion converts a tile window to a world-px region", () => {
-    expect(windowRegion({ minTx: 10, minTy: 20, maxTx: 12, maxTy: 23 }, 16)).toEqual({
-      originX: 160,
-      originY: 320,
-      width: 3 * 16,
-      height: 4 * 16,
+  it("windowRegion is the ISO bounding box of the window's tile diamonds", () => {
+    // Brief 110: the region must describe the space the bake actually paints (iso),
+    // not an axis-aligned `tile·TILE_SIZE` rect. Derive the expected bbox straight
+    // from the projection's diamond extents.
+    const iso = makeIso(256, 256);
+    const w = { minTx: 10, minTy: 20, maxTx: 12, maxTy: 23 };
+    const HW = 16, HH = 8;
+    const left = iso.tileCenterToIso(w.minTx, w.maxTy).x - HW;
+    const right = iso.tileCenterToIso(w.maxTx, w.minTy).x + HW;
+    const top = iso.tileCenterToIso(w.minTx, w.minTy).y - HH;
+    const bottom = iso.tileCenterToIso(w.maxTx, w.maxTy).y + HH;
+
+    expect(windowRegion(iso, w)).toEqual({
+      originX: Math.max(0, Math.floor(left)),
+      originY: Math.max(0, Math.floor(top)),
+      width: Math.ceil(right - left),
+      height: Math.ceil(bottom - top),
     });
+  });
+
+  it("windowRegion for the WHOLE grid covers the whole iso world", () => {
+    const iso = makeIso(256, 256);
+    const r = windowRegion(iso, { minTx: 0, minTy: 0, maxTx: 255, maxTy: 255 });
+    expect(r.originX).toBe(0);
+    expect(r.originY).toBeGreaterThanOrEqual(0);
+    expect(r.width).toBe(iso.worldPxW);
   });
 
   it("windowKey is stable + distinguishes windows", () => {
@@ -60,25 +79,33 @@ describe("pure helpers", () => {
       .not.toBe(windowKey({ minTx: 1, minTy: 2, maxTx: 3, maxTy: 5 }));
   });
 
-  it("shouldWindow trips only above the texel threshold", () => {
-    expect(shouldWindow(96 * 16, 96 * 16)).toBe(false); // 1536² solo
-    expect(shouldWindow(256 * 16, 256 * 16)).toBe(true); // 4096² MP
-    expect(shouldWindow(2048, 2048)).toBe(false); // exactly the threshold (not >)
-    expect(2048 * 2048).toBe(WINDOW_TEXEL_THRESHOLD);
+  it("shouldWindow trips only above the texel threshold — measured on ISO extents", () => {
+    const solo = makeIso(96, 96);   // 3072 × 1552 ≈ 4.8 M texels
+    const mp = makeIso(256, 256);   // 8192 × 4112 ≈ 33.7 M texels, ~134.7 MB RGBA
+    expect(shouldWindow(solo.worldPxW, solo.worldPxH)).toBe(false);
+    expect(shouldWindow(mp.worldPxW, mp.worldPxH)).toBe(true);
+    expect(shouldWindow(4096, 4096)).toBe(false); // exactly the threshold (not >)
+    expect(4096 * 4096).toBe(WINDOW_TEXEL_THRESHOLD);
+
+    // The MP world MUST window: its iso width sits exactly on WebGPU's default
+    // maxTextureDimension2D, and a whole-world bake would be ~134.7 MB.
+    expect(mp.worldPxW).toBe(8192);
+    expect(mp.worldPxW * mp.worldPxH * 4).toBeGreaterThan(134_000_000);
   });
 });
 
 describe("RenderWindowController — small world (whole-world bake)", () => {
   it("is not windowed and bakes the whole world ONCE with no region", () => {
     const { renderer, bakes } = recordingRenderer();
-    const ctrl = new RenderWindowController(renderer, terrain(96, 96));
+    const ctrl = new RenderWindowController(renderer, makeIso(96, 96), terrain(96, 96));
     expect(ctrl.windowed).toBe(false);
 
     ctrl.bakeInitial(cam(768, 768, 1536, 1536));
     expect(bakes).toHaveLength(1);
     // Iso: the whole-world bake uses the ISO-world-sized texture (diamonds),
     // not the axis-aligned 96·16 grid.
-    expect(bakes[0]).toEqual({ worldWidth: ISO_WORLD_W, worldHeight: ISO_WORLD_H, region: undefined });
+    const solo = makeIso(96, 96);
+    expect(bakes[0]).toEqual({ worldWidth: solo.worldPxW, worldHeight: solo.worldPxH, region: undefined });
 
     // Panning never re-bakes a whole-world map.
     expect(ctrl.update(cam(100, 100, 400, 400))).toBe(false);
@@ -89,31 +116,37 @@ describe("RenderWindowController — small world (whole-world bake)", () => {
 
 describe("RenderWindowController — large world (windowed bake)", () => {
   const WORLD = 256;
-  const PX = WORLD * TILE_SIZE; // 4096
+  const isoMp = makeIso(WORLD, WORLD); // 8192 × 4112 iso px
 
   it("bakes only the camera window (texture much smaller than the world)", () => {
     const { renderer, bakes } = recordingRenderer();
-    const ctrl = new RenderWindowController(renderer, terrain(WORLD, WORLD), { pad: 4 });
+    const ctrl = new RenderWindowController(renderer, isoMp, terrain(WORLD, WORLD), { pad: 4 });
     expect(ctrl.windowed).toBe(true);
 
-    // Zoomed in: a 640×480-px viewport centred mid-map.
-    ctrl.bakeInitial(cam(2048, 2048, 640, 480));
+    // Zoomed in: a 640×480-px viewport centred mid-map (iso world-px).
+    const c = isoMp.tileCenterToIso(128, 128);
+    ctrl.bakeInitial(cam(c.x, c.y, 640, 480));
     expect(bakes).toHaveLength(1);
     const reg = bakes[0]!.region!;
-    expect(bakes[0]!.worldWidth).toBe(PX); // logical world still reported full
-    // Window is far smaller than the full 4096² world → flat memory.
-    expect(reg.width).toBeLessThan(PX);
-    expect(reg.height).toBeLessThan(PX);
-    expect(reg.width * reg.height).toBeLessThan(PX * PX * 0.1);
+    // The LOGICAL world reported to the engine stays the full iso extent (the camera
+    // frames that space); only the written REGION is the window.
+    expect(bakes[0]!.worldWidth).toBe(isoMp.worldPxW);
+    expect(bakes[0]!.worldHeight).toBe(isoMp.worldPxH);
+    // Window is far smaller than the full iso world → flat memory. Measured against
+    // the ISO extents, which is the texture actually being allocated.
+    const worldTexels = isoMp.worldPxW * isoMp.worldPxH;
+    expect(reg.width).toBeLessThan(isoMp.worldPxW);
+    expect(reg.height).toBeLessThan(isoMp.worldPxH);
+    expect(reg.width * reg.height).toBeLessThan(worldTexels * 0.1);
     // Region stays inside the world.
     expect(reg.originX).toBeGreaterThanOrEqual(0);
     expect(reg.originY).toBeGreaterThanOrEqual(0);
-    expect(reg.originX + reg.width).toBeLessThanOrEqual(PX);
+    expect(reg.originX + reg.width).toBeLessThanOrEqual(isoMp.worldPxW);
   });
 
   it("does NOT re-bake when the window is unchanged", () => {
     const { renderer, bakes } = recordingRenderer();
-    const ctrl = new RenderWindowController(renderer, terrain(WORLD, WORLD));
+    const ctrl = new RenderWindowController(renderer, makeIso(WORLD, WORLD), terrain(WORLD, WORLD));
     const c = cam(2048, 2048, 640, 480);
     ctrl.bakeInitial(c);
     expect(bakes).toHaveLength(1);
@@ -126,7 +159,7 @@ describe("RenderWindowController — large world (windowed bake)", () => {
 
   it("re-bakes a new window after a real pan (≤1 bake / frame)", () => {
     const { renderer, bakes } = recordingRenderer();
-    const ctrl = new RenderWindowController(renderer, terrain(WORLD, WORLD));
+    const ctrl = new RenderWindowController(renderer, makeIso(WORLD, WORLD), terrain(WORLD, WORLD));
     ctrl.bakeInitial(cam(2048, 2048, 640, 480));
     const before = windowKey(ctrl.bakedWindow!);
 
@@ -140,7 +173,7 @@ describe("RenderWindowController — large world (windowed bake)", () => {
 
   it("coalesces a fast multi-frame pan to the latest window, one bake per frame", () => {
     const { renderer, bakes } = recordingRenderer();
-    const ctrl = new RenderWindowController(renderer, terrain(WORLD, WORLD));
+    const ctrl = new RenderWindowController(renderer, makeIso(WORLD, WORLD), terrain(WORLD, WORLD));
     ctrl.bakeInitial(cam(2048, 2048, 640, 480));
     expect(bakes).toHaveLength(1);
 

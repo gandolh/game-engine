@@ -15,7 +15,8 @@ import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TERRAIN_COLORS } from "./quads";
 import type { TileWindow } from "./render-window";
-import { tileDiamond, tileCenterToIso, ISO_HW, ISO_HH } from "./iso";
+import { ISO_HW, ISO_HH } from "./iso";
+import type { IsoProjection } from "./iso";
 
 // ---------------------------------------------------------------------------
 // makeTerrainDecorate (static-layer bake callback)
@@ -34,6 +35,7 @@ import { tileDiamond, tileCenterToIso, ISO_HW, ISO_HH } from "./iso";
  * to the whole-world bake).
  */
 export function makeTerrainDecorate(
+  iso: IsoProjection,
   grid: TerrainGrid,
   window?: TileWindow,
 ): (ctx: Ctx2D, wpx: number, hpx: number) => void {
@@ -58,7 +60,7 @@ export function makeTerrainDecorate(
     for (let ty = minTy; ty <= maxTy; ty++) {
       for (let tx = minTx; tx <= maxTx; tx++) {
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
-        const [top, right, bottom, left] = tileDiamond(tx, ty) as [
+        const [top, right, bottom, left] = iso.tileDiamond(tx, ty) as [
           { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
         ];
         // Elevation-banded base fill: instead of one flat color per terrain type,
@@ -78,7 +80,7 @@ export function makeTerrainDecorate(
         // Sub-tile dither: place the deterministic clusters around the diamond
         // centre (kept inside the diamond by scaling their tile-space offset to
         // the diamond's half extents).
-        const c0 = tileCenterToIso(tx, ty);
+        const c0 = iso.tileCenterToIso(tx, ty);
         for (const c of ditherClusters(tx, ty, t)) {
           // Map the cluster's in-tile (x,y)∈[0,TILE_SIZE) to a diamond-local
           // offset: shrink toward centre so specks stay on the diamond face.

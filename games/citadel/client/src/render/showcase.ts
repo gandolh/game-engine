@@ -14,6 +14,7 @@
  * `?showcase` URL flag in main.ts, gated by import.meta.env.DEV.
  */
 import { EDG } from "@engine/core";
+import type { IsoProjection } from "./iso";
 import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, TerrainGrid } from "@citadel/sim-core";
 import {
   createCitadelRenderer,
@@ -22,13 +23,10 @@ import {
   pushLightPool,
   pushFire,
   cloudOptionsFor,
-  isoFootprintBox,
-  isoFootprintDiamondBox,
   quadToSprite,
   packTint,
   isoSpriteDims,
   fitCameraToCanvas,
-  tileCenterToIso,
   ISO_TILE_W,
   ISO_TILE_H,
 } from "./citadel-renderer";
@@ -105,7 +103,7 @@ function makeBuilding(type: string, x: number, y: number, w: number, h: number, 
  * sprite so a cell always clears its neighbour, computed once (not eyeballed).
  * `burning` stamps every building as on-fire for the fire-FX capture.
  */
-export function showcaseLayout(burning = false): ShowcaseLayout {
+export function showcaseLayout(iso: IsoProjection, burning = false): ShowcaseLayout {
   const types = showcaseBuildingTypes();
   const cols = Math.ceil(Math.sqrt(types.length));
 
@@ -126,7 +124,7 @@ export function showcaseLayout(burning = false): ShowcaseLayout {
       const ty = 8 + row * pitchTiles;
       const [w, h] = showcaseFootprint(type);
       const b = makeBuilding(type, tx, ty, w, h, burning);
-      const box = isoFootprintBox(tx, ty, w, h, showcaseHeightTiles(type));
+      const box = iso.isoFootprintBox(tx, ty, w, h, showcaseHeightTiles(type));
       items.push({
         building: b,
         label: type,
@@ -158,11 +156,11 @@ function firstOverlapIn(items: readonly ShowcaseItem[]): [ShowcaseItem, Showcase
 
 /** Extend a bounds AABB to include the villager row's iso footprint points, so
  *  the framed view doesn't crop the units below the building lattice. */
-function padBounds(b: Aabb, villagers: readonly VillagerSnapshot[]): Aabb {
+function padBounds(iso: IsoProjection, b: Aabb, villagers: readonly VillagerSnapshot[]): Aabb {
   let { x: minX, y: minY } = b;
   let maxX = b.x + b.width, maxY = b.y + b.height;
   for (const v of villagers) {
-    const p = tileCenterToIso(v.x, v.y);
+    const p = iso.tileCenterToIso(v.x, v.y);
     minX = Math.min(minX, p.x - ISO_TILE_W);
     maxX = Math.max(maxX, p.x + ISO_TILE_W);
     maxY = Math.max(maxY, p.y + ISO_TILE_H * 2);
@@ -256,7 +254,7 @@ export async function runShowcase(
   canvas: HTMLCanvasElement,
   terrain: TerrainGrid,
 ): Promise<{ toggles: ShowcaseToggles; stop: () => void }> {
-  const { renderer, camera, windowController } = await createCitadelRenderer(canvas, terrain);
+  const { renderer, camera, iso, windowController } = await createCitadelRenderer(canvas, terrain);
   const toggles: ShowcaseToggles = { ...DEFAULT_SHOWCASE_TOGGLES };
 
   // Hide the game's static HUD DOM (index.html ships it) — the showcase is a bare
@@ -269,7 +267,7 @@ export async function runShowcase(
   const noRaiders: readonly RaiderSnapshot[] = [];
   // art-05: a row of one villager per job below the building lattice, so every
   // role-accessory silhouette is visible in the showcase (was buildings-only).
-  const baseLayout = showcaseLayout();
+  const baseLayout = showcaseLayout(iso);
   const maxTy = Math.max(...baseLayout.items.map((it) => it.building.y + it.building.h));
   const villagers = showcaseVillagers(maxTy + 3);
 
@@ -278,7 +276,7 @@ export async function runShowcase(
   // with margin. Recomputed once (layout is deterministic + burning-invariant in
   // footprint). worldUnitsX/Y = baseWorld / zoom, so zoom = baseWorld / desiredView.
   // Include the villager row in the framed bounds so it isn't cropped.
-  const bounds = padBounds(showcaseBounds(baseLayout), villagers);
+  const bounds = padBounds(iso, showcaseBounds(baseLayout), villagers);
   const MARGIN = 1.15;
 
   let raf = 0;
@@ -286,7 +284,7 @@ export async function runShowcase(
   const frame = (): void => {
     if (stopped) return;
     const nowMs = performance.now();
-    const layout = showcaseLayout(toggles.burning);
+    const layout = showcaseLayout(iso, toggles.burning);
     const buildings = layout.items.map((it) => it.building);
 
     const dayFraction = toggles.dayFraction;
@@ -301,11 +299,11 @@ export async function runShowcase(
     // shrinks the visible units to the lattice. Recompute from zoom=1 each frame
     // so the value never drifts.
     camera.setZoom(1);
-    fitCameraToCanvas(camera, canvas.width, canvas.height);
+    fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
     const zoomForW = camera.worldUnitsX / (bounds.width * MARGIN);
     const zoomForH = camera.worldUnitsY / (bounds.height * MARGIN);
     camera.setZoom(Math.min(zoomForW, zoomForH));
-    fitCameraToCanvas(camera, canvas.width, canvas.height);
+    fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
     windowController.update(camera);
 
     // Isometry overlay: a flat ground diamond + a vertical ruler behind each
@@ -313,13 +311,13 @@ export async function runShowcase(
     if (toggles.isometry) {
       for (const it of layout.items) {
         const b = it.building;
-        const d = isoFootprintDiamondBox(b.x, b.y, b.w, b.h, 0);
+        const d = iso.isoFootprintDiamondBox(b.x, b.y, b.w, b.h, 0);
         renderer.push(quadToSprite(
           { x: d.x, y: d.y, width: d.width, height: d.height, tintRgba: packTint(EDG.slate, 0x66), frame: "fx/diamond" },
           LAYER_ISO_OVERLAY,
         ));
         // Vertical ruler up the near corner (a thin 1px column the full sprite height).
-        const box = isoFootprintBox(b.x, b.y, b.w, b.h, showcaseHeightTiles(b.type));
+        const box = iso.isoFootprintBox(b.x, b.y, b.w, b.h, showcaseHeightTiles(b.type));
         renderer.push(quadToSprite(
           { x: box.x + box.width / 2, y: box.y, width: 1, height: box.height, tintRgba: packTint(EDG.yellow, 0x99) },
           LAYER_ISO_OVERLAY,
@@ -327,15 +325,15 @@ export async function runShowcase(
       }
     }
 
-    pushScene(renderer, { buildings, villagers, raiders: noRaiders }, undefined, nowMs, nightFactor);
+    pushScene(renderer, iso, { buildings, villagers, raiders: noRaiders }, undefined, nowMs, nightFactor);
 
     // Fire: soot overlay + flame billboards + embers/glow when burning (mirrors main.ts).
     if (toggles.burning) {
       pushWearOverlay(renderer, buildings, 4000); // full-ramp soot (composes under the flame)
-      pushFire(renderer, buildings, nowMs, nightFactor);
+      pushFire(renderer, iso, buildings, nowMs, nightFactor);
     }
     // Warm light pools at dusk/night.
-    pushLightPool(renderer, lightPoolQuads(emittersOf(buildings), nightFactor));
+    pushLightPool(renderer, iso, lightPoolQuads(emittersOf(buildings), nightFactor));
 
     const wash = computeWash("summer", dayFraction);
     renderer.setCloudOptions?.(cloudOptionsFor("summer", 1, dayFraction, nowMs / 1000));

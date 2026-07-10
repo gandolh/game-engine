@@ -7,9 +7,17 @@
  */
 import { checkPlacement, OccupancyGrid } from "@engine/core";
 import type { Camera2D } from "@engine/core";
-import { isWalkable, TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
+import { isWalkable, TerrainType } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot } from "@citadel/sim-core";
 import { eventToDevicePx, screenToTile, transformOf } from "../render/citadel-renderer";
+import type { IsoProjection } from "../render/iso";
+
+/** The runtime world extents these pure helpers bound + key against (brief 110).
+ *  `TerrainGrid` satisfies it, so callers just pass the grid. */
+export interface WorldDims {
+  readonly width: number;
+  readonly height: number;
+}
 
 export type PlacementMode = "none" | "place" | "demolish" | "road" | "wall" | "upgrade";
 
@@ -27,10 +35,11 @@ export function shortestRoadPath(
   y0: number,
   x1: number,
   y1: number,
+  dims: WorldDims,
 ): Array<{ x: number; y: number }> {
   const tiles: Array<{ x: number; y: number }> = [];
   const push = (x: number, y: number): void => {
-    if (x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT) return;
+    if (x < 0 || y < 0 || x >= dims.width || y >= dims.height) return;
     const last = tiles[tiles.length - 1];
     if (last && last.x === x && last.y === y) return;
     tiles.push({ x, y });
@@ -84,8 +93,9 @@ export function extendTrail(
   trail: Array<{ x: number; y: number }>,
   tx: number,
   ty: number,
+  dims: WorldDims,
 ): void {
-  if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return;
+  if (tx < 0 || ty < 0 || tx >= dims.width || ty >= dims.height) return;
   if (trail.length === 0) {
     trail.push({ x: tx, y: ty });
     return;
@@ -105,11 +115,11 @@ export function extendTrail(
   // New tile — connect from the tail with the shortest L (covers the common
   // one-tile step and any gap a fast drag skipped). Skip the connector's first
   // tile (it's the tail, already present) and any tile already on the trail.
-  const seen = new Set(trail.map((t) => t.y * WORLD_WIDTH + t.x));
-  const connector = shortestRoadPath(tail.x, tail.y, tx, ty);
+  const seen = new Set(trail.map((t) => t.y * dims.width + t.x));
+  const connector = shortestRoadPath(tail.x, tail.y, tx, ty, dims);
   for (let i = 1; i < connector.length; i++) {
     const c = connector[i]!;
-    const k = c.y * WORLD_WIDTH + c.x;
+    const k = c.y * dims.width + c.x;
     if (seen.has(k)) continue;
     seen.add(k);
     trail.push({ x: c.x, y: c.y });
@@ -191,7 +201,7 @@ export class PlacementStateManager {
     this._dragTiles = [];
     this._routeBlocked = false;
     if (this.mode === "road") {
-      extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY);
+      if (this._terrain !== null) extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY, this._terrain);
     } else {
       this._recomputePath();
     }
@@ -201,7 +211,7 @@ export class PlacementStateManager {
     if (!this._dragging) return;
     if (this.mode === "road") {
       // Freehand: append the tile the cursor just entered (or trim on drag-back).
-      extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY);
+      if (this._terrain !== null) extendTrail(this._dragTiles, this._cursorTileX, this._cursorTileY, this._terrain);
       // A freehand trail can still cross un-roadable tiles; flag whether any
       // interior tile is blocked so the caller can toast on release.
       this._routeBlocked = this._trailHasBlockedInterior();
@@ -282,11 +292,13 @@ export class PlacementStateManager {
    */
   private _recomputePath(): void {
     this._routeBlocked = false;
+    if (this._terrain === null) return;
     this._dragTiles = shortestRoadPath(
       this._dragStartX,
       this._dragStartY,
       this._cursorTileX,
       this._cursorTileY,
+      this._terrain,
     );
   }
 
@@ -304,16 +316,16 @@ export class PlacementStateManager {
         for (let dx = 0; dx < b.w; dx++) {
           const tx = b.x + dx;
           const ty = b.y + dy;
-          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
-          occupied.add(ty * WORLD_WIDTH + tx);
+          if (tx < 0 || ty < 0 || tx >= terrain.width || ty >= terrain.height) continue;
+          occupied.add(ty * terrain.width + tx);
         }
       }
     }
     return (x: number, y: number): boolean => {
-      if (x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT) return true;
-      if (occupied.has(y * WORLD_WIDTH + x)) return true;
+      if (x < 0 || y < 0 || x >= terrain.width || y >= terrain.height) return true;
+      if (occupied.has(y * terrain.width + x)) return true;
       // Water is passable — a road tile on water auto-decks into a bridge.
-      if (terrain.cells[y * WORLD_WIDTH + x] === TerrainType.Water) return false;
+      if (terrain.cells[y * terrain.width + x] === TerrainType.Water) return false;
       // Otherwise mirror the sim's buildable rule (grass/forest/stone ok; rough no).
       return !isWalkable(terrain, x, y);
     };
@@ -327,6 +339,7 @@ export class PlacementStateManager {
     e: MouseEvent,
     canvas: HTMLCanvasElement,
     camera: Camera2D,
+    iso: IsoProjection,
     terrain: TerrainGrid,
     buildings: readonly BuildingSnapshot[],
   ): void {
@@ -336,7 +349,7 @@ export class PlacementStateManager {
     // world→screen transform. See render/citadel-renderer.ts.
     const { sx, sy } = eventToDevicePx(e, canvas);
     const t = transformOf(camera, canvas.width, canvas.height);
-    const { tx, ty } = screenToTile(t, sx, sy);
+    const { tx, ty } = screenToTile(iso, t, sx, sy);
     this._cursorTileX = tx;
     this._cursorTileY = ty;
     // Stash for road routing (recompute reads these to detour around buildings).
@@ -353,7 +366,7 @@ export class PlacementStateManager {
   private _checkValid(terrain: TerrainGrid, buildings: readonly BuildingSnapshot[]): boolean {
     // Build a temporary occupancy grid from current snapshot buildings.
     // Gates stay walkable, so don't count them as occupancy for validation.
-    const occ = new OccupancyGrid(WORLD_WIDTH, WORLD_HEIGHT);
+    const occ = new OccupancyGrid(terrain.width, terrain.height);
     for (const b of buildings) {
       if (b.type === "gate") continue;
       occ.apply({ x: b.x, y: b.y, w: b.w, h: b.h });
@@ -378,8 +391,8 @@ export class PlacementStateManager {
       for (let dx = 0; dx < this._ghostW; dx++) {
         const tx = this._cursorTileX + dx;
         const ty = this._cursorTileY + dy;
-        if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
-        if (terrain.cells[ty * WORLD_WIDTH + tx] === want) return true;
+        if (tx < 0 || ty < 0 || tx >= terrain.width || ty >= terrain.height) continue;
+        if (terrain.cells[ty * terrain.width + tx] === want) return true;
       }
     }
     return false;

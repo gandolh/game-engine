@@ -6,6 +6,9 @@
  * the layout is deterministic.
  */
 import { describe, it, expect } from "vitest";
+import { makeIso } from "./iso";
+
+const iso = makeIso(96, 96);
 import {
   showcaseLayout,
   showcaseBuildingTypes,
@@ -17,13 +20,13 @@ import { BUILDING_SPRITE_TYPES } from "./sprites/recipes";
 describe("showcase layout", () => {
   it("covers exactly the building types that have a sprite", () => {
     expect(showcaseBuildingTypes().sort()).toEqual([...BUILDING_SPRITE_TYPES].sort());
-    const layout = showcaseLayout();
+    const layout = showcaseLayout(iso);
     expect(layout.items.length).toBe(BUILDING_SPRITE_TYPES.size);
     expect(new Set(layout.items.map((i) => i.label)).size).toBe(layout.items.length);
   });
 
   it("no two sprite AABBs overlap (pixels can't collide)", () => {
-    const overlap = firstOverlap(showcaseLayout());
+    const overlap = firstOverlap(showcaseLayout(iso));
     expect(
       overlap,
       overlap ? `overlap: ${overlap[0].label} vs ${overlap[1].label}` : "",
@@ -31,12 +34,12 @@ describe("showcase layout", () => {
   });
 
   it("no overlap in the all-burning variant either (same footprints)", () => {
-    expect(firstOverlap(showcaseLayout(true))).toBeNull();
+    expect(firstOverlap(showcaseLayout(iso, true))).toBeNull();
   });
 
   it("is deterministic — same layout every call", () => {
-    const a = showcaseLayout();
-    const b = showcaseLayout();
+    const a = showcaseLayout(iso);
+    const b = showcaseLayout(iso);
     expect(a.pitchTiles).toBe(b.pitchTiles);
     expect(a.items.map((i) => [i.label, i.aabb])).toEqual(b.items.map((i) => [i.label, i.aabb]));
   });
@@ -49,7 +52,7 @@ describe("showcase layout", () => {
   });
 
   it("every placed building's AABB has positive area", () => {
-    for (const it of showcaseLayout().items) {
+    for (const it of showcaseLayout(iso).items) {
       expect(it.aabb.width, it.label).toBeGreaterThan(0);
       expect(it.aabb.height, it.label).toBeGreaterThan(0);
     }

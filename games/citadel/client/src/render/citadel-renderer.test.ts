@@ -23,12 +23,8 @@ import {
   VILLAGER_JOB_COLORS,
   screenToWorld,
   screenToTile,
-  WORLD_PX_W,
-  WORLD_PX_H,
-  tileCenterToIso,
   ISO_TILE_W,
-  ISO_WORLD_W,
-  ISO_WORLD_H,
+  makeIso,
   type CameraTransform,
   autotileQuads,
   neighbourMask,
@@ -57,6 +53,9 @@ import {
   type SceneInput,
   pushScene,
 } from "./citadel-renderer";
+
+/** Brief 110: tests run against the solo 96×96 world's projection. */
+const iso = makeIso(96, 96);
 import { glowAlphaForMood, houseAlphaForMood } from "./citadel-fx";
 import { FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
 
@@ -259,10 +258,10 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
   // A concrete camera state: world centered, units cover the whole world, a
   // 800x800 device-px canvas (square, matches the square world so no stretch).
   const transform: CameraTransform = {
-    centerX: WORLD_PX_W / 2,
-    centerY: WORLD_PX_H / 2,
-    worldUnitsX: WORLD_PX_W,
-    worldUnitsY: WORLD_PX_H,
+    centerX: iso.worldPxW / 2,
+    centerY: iso.worldPxH / 2,
+    worldUnitsX: iso.worldPxW,
+    worldUnitsY: iso.worldPxH,
     canvasW: 800,
     canvasH: 800,
   };
@@ -278,25 +277,25 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
 
   it("round-trips an ISO tile center back to its tile (the placement pick path)", () => {
     for (const [tileX, tileY] of [[0, 0], [12, 47], [95, 95], [48, 48]] as const) {
-      const c = tileCenterToIso(tileX, tileY); // iso world-px of the diamond centre
+      const c = iso.tileCenterToIso(tileX, tileY); // iso world-px of the diamond centre
       const { sx, sy } = worldToScreen(transform, c.x, c.y);
-      const { tx, ty } = screenToTile(transform, sx, sy);
+      const { tx, ty } = screenToTile(iso, transform, sx, sy);
       expect([tx, ty]).toEqual([tileX, tileY]);
     }
   });
 
   it("respects pan: panning the iso camera shifts which tile a fixed screen point hits", () => {
     const mid = { sx: 400, sy: 400 };
-    const atCenter = screenToTile(transform, mid.sx, mid.sy);
+    const atCenter = screenToTile(iso, transform, mid.sx, mid.sy);
     // Pan the camera by one tile's worth of +X iso world-px (= one diamond step
     // along the tileX-minus-tileY axis): the picked tile must change.
     const panned: CameraTransform = { ...transform, centerX: transform.centerX + ISO_TILE_W };
-    const afterPan = screenToTile(panned, mid.sx, mid.sy);
+    const afterPan = screenToTile(iso, panned, mid.sx, mid.sy);
     expect([afterPan.tx, afterPan.ty]).not.toEqual([atCenter.tx, atCenter.ty]);
   });
 
   it("respects zoom: a zoomed-in view maps the same screen span to fewer tiles", () => {
-    const zoomed: CameraTransform = { ...transform, worldUnitsX: WORLD_PX_W / 2, worldUnitsY: WORLD_PX_H / 2 };
+    const zoomed: CameraTransform = { ...transform, worldUnitsX: iso.worldPxW / 2, worldUnitsY: iso.worldPxH / 2 };
     const a = screenToWorld(transform, 0, 0);
     const b = screenToWorld(zoomed, 0, 0);
     // Zoomed-in: top-left screen corner is closer to center (fewer world units
@@ -305,8 +304,8 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
   });
 
   it("world dimensions are the iso world extents", () => {
-    expect(WORLD_PX_W).toBe(ISO_WORLD_W);
-    expect(WORLD_PX_H).toBe(ISO_WORLD_H);
+    // Brief 110: the camera frames the ISO extents of the world it was built for.
+    expect(iso.worldPxW).toBe((96 + 96) * (ISO_TILE_W / 2));
   });
 });
 
@@ -851,7 +850,7 @@ describe("pushScene mood wiring", () => {
     const expectedGlowAlpha = glowAlphaForMood(90);
 
     // Push the scene with the fake renderer.
-    pushScene(fakeRenderer, scene);
+    pushScene(fakeRenderer, iso, scene);
 
     // Assert: at least one quad is a gold-tinted glow quad (the house sprite
     // itself will also be pushed, so we look for the extra glow).
@@ -885,7 +884,7 @@ describe("pushScene mood wiring", () => {
     const expectedGlowAlpha = glowAlphaForMood(10);
     const expectedHouseAlpha = houseAlphaForMood(10);
 
-    pushScene(fakeRenderer, scene);
+    pushScene(fakeRenderer, iso, scene);
 
     // Assert: no glow quad (glow alpha should be 0 for low-mood houses).
     expect(expectedGlowAlpha).toBe(0);
@@ -918,14 +917,14 @@ describe("pushScene mood wiring", () => {
 
     // High-mood house.
     const highMood = building({ type: "house", x: 0, y: 0, w: 1, h: 1, mood: 90 });
-    pushScene(fakeRenderer, { buildings: [highMood], villagers: [], raiders: [] });
+    pushScene(fakeRenderer, iso, { buildings: [highMood], villagers: [], raiders: [] });
     const highHouseSprites = pushed.filter((s) => s.frame === "bld/house");
     const highAlpha = highHouseSprites[0]?.alpha ?? 1;
 
     // Clear and test low-mood.
     pushed.length = 0;
     const lowMood = building({ type: "house", x: 0, y: 0, w: 1, h: 1, mood: 10 });
-    pushScene(fakeRenderer, { buildings: [lowMood], villagers: [], raiders: [] });
+    pushScene(fakeRenderer, iso, { buildings: [lowMood], villagers: [], raiders: [] });
     const lowHouseSprites = pushed.filter((s) => s.frame === "bld/house");
     const lowAlpha = lowHouseSprites[0]?.alpha ?? 1;
 
