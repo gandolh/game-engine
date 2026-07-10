@@ -184,9 +184,14 @@ function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
   // Two bakeries to the west
   const bakery1 = findClear(terrain, 2, 2, store.x - 5, store.y - 1);
   const bakery2 = findClear(terrain, 2, 2, store.x - 5, store.y + 2);
-  // Two houses to the south (popCap = 12)
+  // Three houses to the south (popCap = 18). Brief 100 measures where population
+  // settles under FOOD pressure; with only two houses the town saturates its
+  // housing cap at 12 and the economy's real equilibrium is invisible.
   const house1 = findClear(terrain, 2, 2, store.x - 2, store.y + 4);
   const house2 = findClear(terrain, 2, 2, store.x + 2, store.y + 4);
+  // Kept well clear of the western bakery/chapel column: parked beside them it forms a
+  // dense wooden cluster and density-driven ignition burns the town down by ~day 33.
+  const house3 = findClear(terrain, 2, 2, store.x, store.y + 7);
   // Phase 3: service buildings
   const chapel     = findClear(terrain, 2, 2, store.x - 8, store.y - 1);
   const market     = findClear(terrain, 2, 2, store.x - 8, store.y + 2);
@@ -203,6 +208,7 @@ function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
     { type: "placeBuilding", payload: { buildingType: "bakery",      x: bakery2.x,    y: bakery2.y } },
     { type: "placeBuilding", payload: { buildingType: "house",       x: house1.x,     y: house1.y } },
     { type: "placeBuilding", payload: { buildingType: "house",       x: house2.x,     y: house2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house",       x: house3.x,     y: house3.y } },
     // Phase 3 service buildings
     { type: "placeBuilding", payload: { buildingType: "chapel",      x: chapel.x,     y: chapel.y } },
     { type: "placeBuilding", payload: { buildingType: "market",      x: market.x,     y: market.y } },
@@ -225,6 +231,7 @@ function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
   link(roadTiles, bakery2.x + 2, bakery2.y + 1, storeLeft, store.y + 1);
   link(roadTiles, house1.x + 1, house1.y - 1, store.x, storeBottom);
   link(roadTiles, house2.x, house2.y - 1, store.x + 2, storeBottom);
+  link(roadTiles, house3.x + 1, house3.y - 1, store.x + 1, storeBottom);
   link(roadTiles, chapel.x + 2,      chapel.y + 1,      storeLeft,  store.y);
   link(roadTiles, market.x + 2,      market.y + 1,      storeLeft,  store.y + 1);
   link(roadTiles, watchpost.x,       watchpost.y - 1,   store.x + 2, storeBottom);
@@ -236,15 +243,28 @@ function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
 
 function buildStarveScenario(terrain: TerrainGrid): CitadelCommand[] {
   /**
-   * "Starve" scenario: 1 farm, 1 mill, 1 bakery — only enough to feed ~6.
+   * "Starve" scenario: 1 farm, 1 mill, 1 bakery — only enough to feed ~6 — and,
+   * since brief 100, deliberately BADLY LAID OUT.
+   *
+   * Each producer sits at the end of a long spoke from the storehouse. Everything is
+   * connected (production requires it), but a hauler's round trip eats most of a day,
+   * so output buffers back up: the service EWMA never clears the sustained-service
+   * band, the buildings earn no output bonus, and the buffer throttle pulls them
+   * toward the floor. That is the brief-100 downside and upside in one fixture — the
+   * town starves *because of how it was built*, not merely because it owns few farms.
+   *
+   * Placed short spokes, it survives comfortably on the service bonus (measured: pop 6
+   * and alive at day 40), which is exactly the point.
    */
   const cx = Math.floor(terrain.width / 2) + 10;
   const cy = Math.floor(terrain.height / 2) + 10;
 
+  const SPOKE = 16; // long enough that a hauler round trip dominates the cycle
+
   const store = findClear(terrain, 3, 2, cx, cy);
-  const farm = findClear(terrain, 3, 3, store.x + 5, store.y - 2);
-  const mill = findClear(terrain, 2, 2, store.x, store.y - 5);
-  const bakery = findClear(terrain, 2, 2, store.x - 5, store.y);
+  const farm = findClear(terrain, 3, 3, store.x + SPOKE, store.y - 2);
+  const mill = findClear(terrain, 2, 2, store.x, store.y - SPOKE);
+  const bakery = findClear(terrain, 2, 2, store.x - SPOKE, store.y);
   const house1 = findClear(terrain, 2, 2, store.x - 3, store.y + 4);
   const house2 = findClear(terrain, 2, 2, store.x, store.y + 4);
   const house3 = findClear(terrain, 2, 2, store.x + 3, store.y + 4);

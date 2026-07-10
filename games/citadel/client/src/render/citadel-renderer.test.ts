@@ -73,6 +73,7 @@ function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "t
     lacksSafety: true,
     lacksGoods: true,
     mood: 40,
+    wellServed: false,
     ...partial,
   };
 }

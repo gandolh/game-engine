@@ -34,6 +34,16 @@ export interface BuildingSnapshot {
   readonly lacksSafety: boolean;
   readonly lacksGoods: boolean;
   readonly mood: number;
+  /**
+   * Brief 100: this producer is sustainedly well-served — its output is reliably
+   * hauled away, so it is earning the output bonus at the top of the buffer/service
+   * curve. The diegetic reading of "it bloomed because of what I built": the player
+   * should be able to see WHICH buildings the town is actually serving, without an
+   * overlay. False for houses, unstaffed buildings, and non-producers.
+   *
+   * Render-only, like `mood` — the sim never reads it back.
+   */
+  readonly wellServed: boolean;
 }
 
 /** One villager as seen by the renderer. */

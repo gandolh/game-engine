@@ -57,6 +57,8 @@ import {
   nearestVillager,
   followReleaseId,
   villagerById,
+  wellServedGlowQuads,
+  wellServedPulse,
 } from "./render/citadel-fx";
 import {
   computeWash,
@@ -1322,6 +1324,12 @@ function loop(): void {
   if (renderToggles.lightPool) {
     pushLightPool(renderer, iso, lightPoolQuads(emittersOf(currentBuildings), nightFactor));
   }
+
+  // Brief 100: a soft, slowly-breathing pool under each producer the town is reliably
+  // serving — the diegetic read for "this building is thriving because of how you laid
+  // the place out". Stamped through the same ground-pool helper as the night light
+  // pool, but ungated by nightFactor: it must be legible at any hour.
+  pushLightPool(renderer, iso, wellServedGlowQuads(currentBuildings, wellServedPulse(nowMs)));
 
   // Ambient crowd: wandering pedestrians, density by tier (sprite-batch).
   // Brief 25: gated — when off, skip both the update and the push.

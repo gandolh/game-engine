@@ -27,6 +27,7 @@ function bld(partial: Partial<BuildingSnapshot> & { type: string }): BuildingSna
     lacksSafety: true,
     lacksGoods: true,
     mood: 40,
+    wellServed: false,
   };
 }
 

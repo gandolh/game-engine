@@ -93,6 +93,7 @@ function makeBuilding(type: string, x: number, y: number, w: number, h: number, 
     connected: true, outputBuffer: 0, workerCount: 1, occupancy: 1, ownerId: 0,
     onFire: burning, burning,
     level: 1, lacksFaith: false, lacksSafety: false, lacksGoods: false, mood: 80,
+    wellServed: false,
   };
 }
 

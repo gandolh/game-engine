@@ -37,6 +37,7 @@ function makeBuilding(overrides: Partial<BuildingSnapshot> = {}): BuildingSnapsh
     lacksSafety: true,
     lacksGoods: true,
     mood: 40,
+    wellServed: false,
     ...overrides,
   };
 }

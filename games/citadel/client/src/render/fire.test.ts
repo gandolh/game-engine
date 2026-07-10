@@ -14,7 +14,7 @@ function building(over: Partial<BuildingSnapshot> = {}): BuildingSnapshot {
     type: "house", x: 4, y: 4, w: 2, h: 2,
     connected: true, outputBuffer: 0, workerCount: 1, occupancy: 0, ownerId: 0,
     onFire: false, burning: false, level: 1,
-    lacksFaith: false, lacksSafety: false, lacksGoods: false, mood: 50,
+    lacksFaith: false, lacksSafety: false, lacksGoods: false, mood: 50, wellServed: false,
     ...over,
   };
 }

@@ -78,6 +78,74 @@ export function bufferThrottleFactor(buffer: number, cap: number): number {
   return 1 - (1 - PRODUCTIVITY_FLOOR) * t;
 }
 
+// ---------------------------------------------------------------------------
+// Brief 100 — the upside. "It bloomed because of what I built."
+// ---------------------------------------------------------------------------
+
+/**
+ * Smoothing for the per-building service EWMA, applied once per production cycle.
+ * At 0.15 a building needs roughly 10–15 well-served cycles before it is *proven*
+ * well-served, so a momentary empty buffer earns nothing. That lag is the whole
+ * point of the word "sustained" in decision-of-record brief 100.
+ */
+const SERVICE_EMA_ALPHA = 0.15;
+
+/**
+ * The sustained-service band. A producer earns no bonus at all until its EWMA
+ * clears this, then ramps to the ceiling at EWMA = 1. Deliberately high: the
+ * reward is for a town that *reliably* hauls away what this building makes, not
+ * for one that empties its buffer once.
+ */
+export const SERVICE_BONUS_BAND = 0.75;
+
+/**
+ * The ceiling of the output curve. A perfectly-served building outproduces a
+ * chronically-starved one by `1.25 / 0.6 ≈ 2.08×` once the throttle floor and this
+ * ceiling are compounded — enough to read, without breaking the cozy contract.
+ */
+export const PRODUCTIVITY_BONUS_CEIL = 1.25;
+
+/**
+ * Fold a fresh observation of buffer fill into a building's rolling service EWMA.
+ * `fill` is `buffer / cap` at the START of a cycle, so `1 - fill` is "how much of
+ * my buffer the town took". Pure; call once per fired cycle.
+ */
+export function updateServiceEma(prevEma: number, fill: number): number {
+  const observed = 1 - Math.max(0, Math.min(1, fill));
+  return prevEma + SERVICE_EMA_ALPHA * (observed - prevEma);
+}
+
+/**
+ * **The single output curve** (brief 100). Given a buffer against its cap and the
+ * building's rolling service EWMA, return one multiplier in
+ * `[PRODUCTIVITY_FLOOR, PRODUCTIVITY_BONUS_CEIL]`.
+ *
+ * This deliberately REPLACES `bufferThrottleFactor` at the call site rather than
+ * multiplying against it. The brief is explicit: throttle and bonus are two halves
+ * of one curve, not two mechanisms that fight. Concretely —
+ *
+ * ```
+ *   fill > KNEE (0.6)  →  ramp DOWN 1.0 → 0.6   (Phase H: the town can't take it)
+ *   fill ≤ KNEE        →  ramp UP   1.0 → 1.25  (brief 100: gated on SUSTAINED service)
+ * ```
+ *
+ * A backed-up buffer can never earn a bonus (it is above the knee by definition),
+ * and a well-served buffer can never be throttled. The floor still holds absolutely:
+ * nothing here returns 0, so no building ever goes dark (the downside rule, #9).
+ *
+ * Pure — a deterministic function of buffer state and the EWMA.
+ */
+export function bufferServiceFactor(buffer: number, cap: number, serviceEma: number): number {
+  if (cap <= 0) return 1;
+  const fill = Math.max(0, Math.min(1, buffer / cap));
+  if (fill > BUFFER_THROTTLE_KNEE) return bufferThrottleFactor(buffer, cap);
+  // Below the knee the building is keeping up; sustained service earns the upside.
+  const ema = Math.max(0, Math.min(1, serviceEma));
+  if (ema <= SERVICE_BONUS_BAND) return 1;
+  const t = (ema - SERVICE_BONUS_BAND) / (1 - SERVICE_BONUS_BAND); // 0..1
+  return 1 + (PRODUCTIVITY_BONUS_CEIL - 1) * t;
+}
+
 /**
  * Cozy-pivot Phase B: happiness → productivity floor. Output scales LINEARLY
  * with happiness but never collapses to 0 — it bottoms out at this floor (so an
@@ -163,22 +231,26 @@ export class ProductionSystem implements System {
 
         // Stockpile pressure (Phase H — throttle, never halt): resolve the buffer
         // fill throttle for producers up-front. As the local buffer fills (no hauler
-        // draining it), `bufferThrottle` ramps output down toward the floor; only a
+        // draining it), `outputFactor` ramps output down toward the floor; only a
         // genuinely full buffer clamps the final amount below (never overflows the
         // cap). A pure consumer/no-output building has no cap concept and runs at 1.
         // Resolved BEFORE the cycle timer + input draw so the throttle scales the
         // whole cycle and a blocked converter never wastes input (the input draw is
         // gated on a positive throttled amount).
-        let bufferThrottle = 1;
+        let outputFactor = 1;
         let bufferCap = Infinity;
+        let bufferFill = 0;
         if (def.outputGood !== undefined && def.outputPerCycle > 0) {
           bufferCap = outputBufferCap(effectiveOutputPerCycle(def, rs.level));
           // Genuinely full (no headroom): skip the whole cycle BEFORE the timer and
           // input draw, exactly as the old hard guard did — so a converter never
-          // consumes input it can't turn into shippable output. The throttle below
+          // consumes input it can't turn into shippable output. The curve below
           // handles the *partial*-fill ramp; this handles the hard ceiling.
           if (rs.outputBuffer >= bufferCap) continue;
-          bufferThrottle = bufferThrottleFactor(rs.outputBuffer, bufferCap);
+          bufferFill = rs.outputBuffer / bufferCap;
+          // Brief 100: ONE curve — throttles above the knee, rewards sustained
+          // service below it. Not the old throttle times a separate bonus.
+          outputFactor = bufferServiceFactor(rs.outputBuffer, bufferCap, rs.serviceEma ?? 0);
         }
 
         // Cycle timer — first fire after a full cycle has elapsed.
@@ -194,25 +266,38 @@ export class ProductionSystem implements System {
 
         if (def.outputGood === undefined || def.outputPerCycle <= 0) continue;
 
-        let amount = effectiveOutputPerCycle(def, rs.level);
-        if (def.outputGood === "grain") {
-          const season = getSeason(state.day, state.daysPerYear);
-          amount = Math.floor(amount * grainMultiplier(season));
-        }
-        if (amount <= 0) continue;
-
-        // Cozy-pivot Phase B: scale output by happiness, never below the floor.
-        // Prefer the LOCAL signal — the assigned worker's home-house mood — and
-        // fall back to the per-player happiness when no worker/home resolves
-        // (e.g. timing before a villager is assigned). The happiness factor is a
-        // *throttle*, never a cliff (cozy contract #9): a building that would
-        // produce ≥1 always still produces ≥1, so a base-1 producer (L1 mine/
-        // smith → 1 tool/stone) keeps trickling at low happiness instead of
-        // flooring to 0 and stalling the chain. Math.max(1, …) after the floor
-        // enforces this; output stays an integer.
+        // ---------------------------------------------------------------------
+        // Output = base × season × town-hall lift × happiness × buffer/service.
+        //
+        // The first three floor per-step, exactly as they always have. Only the last
+        // — the brief-100 service factor — accumulates its fraction and carries the
+        // remainder into the next cycle.
+        //
+        // The carry is needed at all because producers emit 2–3 per cycle, so a
+        // per-step floor quantizes a small multiplier away completely:
+        // `floor(2 × 1.25) === 2`, and the 1.25× ceiling would pay out nothing at the
+        // magnitudes this economy actually uses.
+        //
+        // It is scoped to THIS factor because widening it re-tunes the others. Floating
+        // all four and flooring once was measured on the 60-day `grow` run: it moved
+        // population 9–10 → 14 on its own, with the service bonus contributing a single
+        // villager on top. A rounding change would have been doing the work the brief
+        // credits to service-responsiveness, and it would have silently strengthened
+        // the happiness throttle, the town-hall lift, and the seasonal grain multiplier
+        // — three numbers tuned in a floor-per-step world. Scoped, the same run lands
+        // at 12, and the growth belongs to the mechanic.
+        //
+        // Deterministic: pure float arithmetic in fixed tick order.
+        // ---------------------------------------------------------------------
         const b = entity.building;
         const cx = b.x + Math.floor(b.w / 2);
         const cy = b.y + Math.floor(b.h / 2);
+
+        let scaled = effectiveOutputPerCycle(def, rs.level);
+        if (def.outputGood === "grain") {
+          scaled = Math.floor(scaled * grainMultiplier(getSeason(state.day, state.daysPerYear)));
+        }
+        if (scaled <= 0) continue;
 
         // Cozy-pivot Phase G: autonomous work-hours lift — a producer within a
         // town-hall's SERVICE_RADII gets a steady output multiplier (a spatial
@@ -220,23 +305,54 @@ export class ProductionSystem implements System {
         // happiness throttle so the throttle scales the lifted amount, mirroring
         // where the old workHours decree sat. Deterministic (pure geometry).
         if (townHalls.some((t) => manhattanDist(cx, cy, t.cx, t.cy) <= t.radius)) {
-          amount = Math.floor(amount * TOWN_HALL_OUTPUT_LIFT);
+          scaled = Math.floor(scaled * TOWN_HALL_OUTPUT_LIFT);
         }
 
-        const localHappiness =
-          workplaceHomeMood.get(this.tileKey(cx, cy)) ?? p.happiness;
-        amount = Math.max(1, Math.floor(amount * productivityFactor(localHappiness)));
+        // Cozy-pivot Phase B: scale by happiness — the LOCAL signal (the assigned
+        // worker's home-house mood), falling back to per-player happiness when no
+        // worker/home resolves. A throttle, never a cliff (cozy contract #9).
+        const localHappiness = workplaceHomeMood.get(this.tileKey(cx, cy)) ?? p.happiness;
+        scaled = Math.max(1, Math.floor(scaled * productivityFactor(localHappiness)));
 
-        // Cozy-pivot Phase H: stockpile-pressure throttle — as the local buffer
-        // fills (no hauler draining it), slow output toward the floor instead of
-        // halting. Like the happiness factor, it is a throttle that still trickles
-        // ≥1 (Math.max(1,…)), so a chronically unserved building keeps producing at
-        // the floor rather than going dark. Then clamp so the buffer never exceeds
-        // its cap (the true upper bound the old hard-`continue` guaranteed).
-        amount = Math.max(1, Math.floor(amount * bufferThrottle));
-        // Clamp so a single throttled cycle can't overshoot the cap (headroom is
-        // always > 0 here — the genuinely-full case already `continue`d above).
-        amount = Math.min(amount, bufferCap - rs.outputBuffer);
+        // Phase H + brief 100: the single buffer/service curve. Above the knee it is
+        // the stockpile-pressure throttle (no hauler draining it → slow toward the
+        // floor, never halt); below the knee a SUSTAINED-service building earns up to
+        // PRODUCTIVITY_BONUS_CEIL.
+        // Apply it as a float and floor once, banking the fraction for next cycle. When
+        // `outputFactor` is exactly 1 (the common case: an unproven building below the
+        // knee) `carried` is a whole number and the remainder stays 0 — so a building
+        // that never earns the bonus behaves precisely as it did before brief 100.
+        scaled *= outputFactor;
+
+        const carried = scaled + (rs.outputRemainder ?? 0);
+        let amount = Math.floor(carried);
+        rs.outputRemainder = carried - amount;
+        if (amount < 1) {
+          // The cozy floor: a producer that would emit 0 this cycle still emits 1, so
+          // a base-1 producer (L1 mine/smith) trickles instead of stalling its chain.
+          // The banked remainder is dropped — we already paid out more than it owed.
+          amount = 1;
+          rs.outputRemainder = 0;
+        }
+        // Clamp so a single cycle can't overshoot the cap (headroom is always > 0
+        // here — the genuinely-full case already `continue`d above). Excess is NOT
+        // banked: the buffer is what's full, and owing it goods would just spill again.
+        if (amount > bufferCap - rs.outputBuffer) {
+          amount = bufferCap - rs.outputBuffer;
+          rs.outputRemainder = 0;
+        }
+
+        // Brief 100: fold this cycle's observed fill into the rolling service EWMA,
+        // using the fill measured BEFORE this cycle's emit — so it answers "did the
+        // town take what I made last time".
+        //
+        // Sampled HERE, at the emit, and not at the cycle timer above: every `continue`
+        // between the two is a cycle that produced nothing (a converter that couldn't
+        // afford its input, a zero-output edge case). An empty buffer only means "the
+        // town is drawing me down" for a building that actually FILLS it. Sampling
+        // earlier let a starved bakery — buffer forever empty because it never baked —
+        // climb to serviceEma 1.0 and read as perfectly served.
+        rs.serviceEma = updateServiceEma(rs.serviceEma ?? 0, bufferFill);
 
         // Output goes into the building's LOCAL buffer. It does NOT enter the
         // owner's stockpile until a villager hauls it to a Storehouse.

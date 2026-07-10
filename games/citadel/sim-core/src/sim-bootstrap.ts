@@ -22,7 +22,7 @@ import type { SimState, Stockpiles, ArmyState } from "./sim-state";
 import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById, releaseWorkersAt } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
 import { TerritorySystem, canBuildAt, DEFAULT_TERRITORY_RADIUS } from "./systems/territory";
-import { ProductionSystem } from "./systems/production";
+import { ProductionSystem, SERVICE_BONUS_BAND } from "./systems/production";
 import { VillagerSystem, villagerPos } from "./systems/villager-system";
 import { ImmigrationSystem } from "./systems/immigration";
 import { NeedsHappinessSystem } from "./systems/needs-happiness";
@@ -1019,6 +1019,11 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         lacksSafety: rs?.lacksSafety ?? true,
         lacksGoods: rs?.lacksGoods ?? true,
         mood: rs?.mood ?? 40,
+        // Brief 100: is this producer sustainedly well-served (earning the output
+        // bonus)? Render-only; the sim never reads it back. `false` for anything that
+        // isn't a staffed producer, so the cue can only ever appear on a building the
+        // bonus actually applies to.
+        wellServed: (rs?.serviceEma ?? 0) > SERVICE_BONUS_BAND && (rs?.workerCount ?? 0) > 0,
       });
     }
     return result;

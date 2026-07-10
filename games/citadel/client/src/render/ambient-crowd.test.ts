@@ -15,7 +15,7 @@ function mkRoad(x: number, y: number): BuildingSnapshot {
     type: "road", x, y, w: 1, h: 1,
     connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
     onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40,
+    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false,
   };
 }
 

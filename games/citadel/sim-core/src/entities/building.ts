@@ -52,6 +52,42 @@ export interface BuildingRuntimeState {
    * not suppressed; readers must treat it as `=== true`.
    */
   suppressed?: boolean;
+  /**
+   * Brief 100: a rolling measure of how well this producer is *served* — how
+   * reliably its output buffer is drawn down by haulers — in `0..1`.
+   *
+   * The buffer level is already the signal (a buffer that stays near empty means
+   * the town keeps taking what you make), but the *instantaneous* level is not: a
+   * building that has produced nothing yet also has an empty buffer. So this is an
+   * EWMA, sampled once per production cycle, of `1 - fill`. It only climbs after a
+   * building has repeatedly produced AND repeatedly been drained.
+   *
+   * Read by ProductionSystem for the upside half of the single output curve
+   * ({@link bufferServiceFactor}) and by ImmigrationSystem for the growth trickle.
+   * Absent ⇒ 0 (unproven, so no bonus). Deterministic (pure float math over
+   * tick-ordered state, no RNG). Never serialized — the save path replays the
+   * command log and rebuilds runtime state from a fresh bootstrap.
+   */
+  serviceEma?: number;
+  /**
+   * Brief 100: the fractional part of last cycle's SERVICE-scaled output, banked for
+   * the next cycle.
+   *
+   * Producers emit 2–3 per cycle, so flooring the service factor per-cycle would round
+   * it away entirely — `floor(2 × 1.25) === 2` — and the bonus would never pay out.
+   * Carrying the remainder lets a 1.25× ceiling actually mean 1.25× over time.
+   *
+   * Scoped deliberately to the service factor. The season, town-hall, and happiness
+   * multipliers still floor per-step: carrying them too was measured to move the
+   * 60-day `grow` population 9–10 → 14 on its own, dwarfing the mechanic this brief is
+   * about and re-tuning three numbers that were set in a floor-per-step world.
+   *
+   * Stays 0 while `bufferServiceFactor` returns exactly 1, so a building that never
+   * earns the bonus is bit-for-bit unaffected.
+   *
+   * Absent ⇒ 0. Deterministic; never serialized (runtime state is rebuilt on load).
+   */
+  outputRemainder?: number;
 }
 
 export interface BuildingComponent {

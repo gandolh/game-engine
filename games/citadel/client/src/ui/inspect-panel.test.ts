@@ -56,7 +56,7 @@ function mkBuilding(overrides: Partial<BuildingSnapshot> = {}): BuildingSnapshot
     type: "bakery", x: 10, y: 12, w: 2, h: 2,
     connected: true, outputBuffer: 0, workerCount: 1, occupancy: 1,
     ownerId: 0, onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40,
+    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false,
     ...overrides,
   };
 }

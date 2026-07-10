@@ -319,6 +319,82 @@ export function houseEmitsHearthSmoke(mood: number): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Brief 100 — the well-served cue. "It bloomed because of what I built."
+// ---------------------------------------------------------------------------
+
+/**
+ * Cool pale-cream ground pool under a thriving producer. Deliberately NOT one of the
+ * colours already carrying a meaning here: `orange` is fire, `gold` is the
+ * disconnected-building pip, and the night light-pool owns its own warm ring hexes.
+ */
+const WELL_SERVED_HEX = EDG.cream;
+
+/**
+ * Peak alpha of the well-served pool's brightest ring. Low — this is a hum, not an
+ * alarm — but not so low it vanishes: at 0.1 over the terracotta road carpet the cue
+ * was invisible in a real-GPU screenshot at default zoom.
+ */
+export const WELL_SERVED_MAX_ALPHA = 0.18;
+
+/**
+ * A wide faint pool plus a tighter brighter core, mirroring {@link fireGlowQuads} and
+ * the night light pool. One flat ring reads as a pale rectangle on the iso grid; two
+ * give the falloff that makes it read as light lying on the ground.
+ */
+const WELL_SERVED_RINGS: ReadonlyArray<{ radiusTiles: number; alphaScale: number }> = [
+  { radiusTiles: 1.5, alphaScale: 0.55 },
+  { radiusTiles: 0.6, alphaScale: 1.0 },
+];
+
+/**
+ * A slow deterministic "breath" (0..1) for the well-served pool at render-clock
+ * `nowMs`. Far slower than {@link fireFlicker} — a fire is agitated, a thriving
+ * workshop is steady. Pure; no RNG, no wall-clock (the caller passes performance.now).
+ * `phaseMs` de-syncs neighbouring buildings so a row of them doesn't pulse in unison.
+ */
+export function wellServedPulse(nowMs: number, phaseMs = 0): number {
+  const t = (nowMs + phaseMs) / 1000;
+  return (Math.sin(t * 1.4) + 1) / 2; // ~4.5s period
+}
+
+/**
+ * Soft ground-glow quads under every producer the town is reliably serving
+ * (`b.wellServed`, computed sim-side from the rolling service EWMA). One wide, faint
+ * ring — the building is *humming*, not on fire — breathing with `pulse` (0..1).
+ *
+ * Visible by day and night, unlike the dusk light pool: the point is to answer "which
+ * of my buildings is the town actually keeping up with?" at a glance, at any hour,
+ * without opening the coverage overlay. PURE — returns quads, no GPU/RNG.
+ */
+export function wellServedGlowQuads(
+  buildings: readonly BuildingSnapshot[],
+  pulse: number,
+): QuadSpec[] {
+  const quads: QuadSpec[] = [];
+  const breathe = 0.75 + 0.25 * Math.max(0, Math.min(1, pulse)); // ±25% breath
+  for (const b of buildings) {
+    if (!b.wellServed) continue;
+    if (b.burning || b.onFire) continue; // a burning building is not "thriving"
+    const cx = (b.x + b.w / 2) * TILE_SIZE;
+    const cy = (b.y + b.h / 2) * TILE_SIZE;
+    const footHalf = (Math.max(b.w, b.h) / 2) * TILE_SIZE;
+    for (const ring of WELL_SERVED_RINGS) {
+      const half = footHalf + ring.radiusTiles * TILE_SIZE;
+      const alphaByte = Math.round(WELL_SERVED_MAX_ALPHA * ring.alphaScale * breathe * 0xff);
+      if (alphaByte <= 0) continue;
+      quads.push({
+        x: cx - half,
+        y: cy - half,
+        width: half * 2,
+        height: half * 2,
+        tintRgba: packTint(WELL_SERVED_HEX, alphaByte),
+      });
+    }
+  }
+  return quads;
+}
+
+// ---------------------------------------------------------------------------
 // Chimney smoke (stateful — owns a render-side RNG, never the sim's)
 // ---------------------------------------------------------------------------
 

@@ -28,6 +28,32 @@ import type { GoodType } from "../entities/building";
 /** Citadel 09: fraction of each stored good siphoned to the relief reserve per day under the tithe. */
 const TITHE_SIPHON_RATE = 0.1;
 
+/**
+ * Brief 100: how much of the post-founding arrival roll's variable band is decided by
+ * the town's SERVICE COVERAGE rather than its happiness. The roll's total range stays
+ * `0.7 .. 1.0` — this only splits the top `0.3` between the two signals, so growth
+ * does not become a second, independent mechanism beside the bread gate.
+ *
+ * At 0.1: a perfectly-served town gains ~0.1 arrival probability per day over one
+ * whose goods rot at the door. Small on purpose — the measured lever for growth is the
+ * production curve (a served producer makes more food, which is what the gate reads).
+ * This term exists so a *stagnant but stocked* town visibly stops attracting people,
+ * which the bread gate alone never expressed.
+ */
+const SERVICE_ARRIVAL_WEIGHT = 0.1;
+
+/**
+ * The post-founding arrival probability for a town at `happiness` (0..100) whose
+ * producers are served at `townService` (0..1). Stays inside the original
+ * `0.7 .. 1.0` band at every input: 0.7 baseline, with the top 0.3 split between
+ * the two signals per {@link SERVICE_ARRIVAL_WEIGHT}. Pure.
+ */
+export function arrivalFactor(happiness: number, townService: number): number {
+  const h = Math.max(0, Math.min(100, happiness)) / 100;
+  const s = Math.max(0, Math.min(1, townService));
+  return 0.7 + h * (0.3 - SERVICE_ARRIVAL_WEIGHT) + s * SERVICE_ARRIVAL_WEIGHT;
+}
+
 export class ImmigrationSystem implements System {
   readonly name = "ImmigrationSystem";
 
@@ -156,6 +182,13 @@ export class ImmigrationSystem implements System {
     // mouth with no extra output. So growth tracks the number of buildings with
     // ZERO workers (e.g. a freshly-placed second bakery), NOT every empty slot.
     let unstaffedBuildings = 0;
+    // Brief 100 scope 2: the town's SERVICE COVERAGE — the mean rolling service EWMA
+    // over its staffed producers (see BuildingRuntimeState.serviceEma). 1 = every
+    // producer's output is reliably hauled away; 0 = goods are backing up at doors.
+    // A pure read of state ProductionSystem already maintains; no second source of
+    // truth for "is this town working", and no RNG.
+    let serviceSum = 0;
+    let serviceCount = 0;
     for (const entity of state.buildingWorld.query("building")) {
       if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
@@ -165,7 +198,13 @@ export class ImmigrationSystem implements System {
       const def = getProductionDef(entity.building.type);
       if (def === undefined || def.workerSlots <= 0) continue;
       if (rs.workerCount === 0) unstaffedBuildings++;
+      if (rs.workerCount > 0 && def.outputPerCycle > 0) {
+        serviceSum += rs.serviceEma ?? 0;
+        serviceCount++;
+      }
     }
+    // No producers yet ⇒ neutral (don't punish a town that hasn't started).
+    const townService = serviceCount > 0 ? serviceSum / serviceCount : 1;
 
     // Founding phase. Keep arriving while production buildings sit UNSTAFFED
     // (capped by housing) — the old gate stopped once each building *type* had a
@@ -209,7 +248,17 @@ export class ImmigrationSystem implements System {
       p.stockpiles.bread += 5;
       p.hungerDays = 0;
     } else if (p.population < p.popCap && fed && (p.foodSurplus > 0 || healthyBuffer)) {
-      const happinessFactor = 0.7 + (p.happiness / 100) * 0.3;
+      // Brief 100 scope 2: arrivals track BOTH how happy the town is and how well its
+      // producers are served. A well-laid town — goods moving, buffers empty — attracts
+      // newcomers reliably; a poorly-connected one, whose goods rot at the door, keeps
+      // its food and its happiness but stagnates.
+      //
+      // Deliberately a modest re-weighting of the SAME roll, not a second growth source
+      // beside the bread gate: the brief warns against tuning immigration and growth
+      // separately, and measurement showed the real lever is the production curve
+      // (which feeds this gate its food). Both terms stay inside the original 0.7..1.0
+      // band, so an already-thriving town cannot roll past certainty.
+      const happinessFactor = arrivalFactor(p.happiness, townService);
       const immigrationRoll = this.rng.nextFloat();
       if (immigrationRoll < happinessFactor) {
         this.spawnVillager(p);

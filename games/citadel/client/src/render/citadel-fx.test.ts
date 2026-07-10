@@ -36,6 +36,9 @@ import {
   VILLAGER_MOOD_DIM_MAX,
   villagerSlumpOffset,
   VILLAGER_SLUMP_PX,
+  wellServedGlowQuads,
+  wellServedPulse,
+  WELL_SERVED_MAX_ALPHA,
 } from "./citadel-fx";
 import { buildingQuad } from "./citadel-renderer";
 
@@ -43,7 +46,7 @@ function building(over: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type
   return {
     w: 1, h: 1, connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
     onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, ...over,
+    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false, ...over,
   };
 }
 
@@ -356,4 +359,77 @@ describe("houseEmitsHearthSmoke", () => {
 // Sanity: TILE_SIZE import wired (used by the follow glide target math in main).
 it("TILE_SIZE is a positive number", () => {
   expect(TILE_SIZE).toBeGreaterThan(0);
+});
+
+describe("brief 100 — the well-served cue", () => {
+  it("emits a pool only for well-served buildings", () => {
+    const quads = wellServedGlowQuads(
+      [
+        building({ type: "bakery", x: 2, y: 2, wellServed: true }),
+        building({ type: "mill", x: 6, y: 6, wellServed: false }),
+        building({ type: "house", x: 9, y: 9 }),
+      ],
+      1,
+    );
+    // One building × the ring stack; the un-served mill and the house contribute none.
+    expect(quads.length).toBeGreaterThan(0);
+    const centres = new Set(quads.map((q) => `${q.x + q.width / 2},${q.y + q.height / 2}`));
+    expect(centres.size).toBe(1);
+  });
+
+  it("never draws under a burning building — fire is not thriving", () => {
+    const quads = wellServedGlowQuads(
+      [building({ type: "bakery", x: 2, y: 2, wellServed: true, burning: true, onFire: true })],
+      1,
+    );
+    expect(quads).toHaveLength(0);
+  });
+
+  it("stays a hum: no ring exceeds WELL_SERVED_MAX_ALPHA", () => {
+    for (let p = 0; p <= 1; p += 0.05) {
+      const quads = wellServedGlowQuads([building({ type: "bakery", x: 2, y: 2, wellServed: true })], p);
+      for (const q of quads) {
+        const alphaByte = (q.tintRgba as number) & 0xff;
+        expect(alphaByte).toBeLessThanOrEqual(Math.round(WELL_SERVED_MAX_ALPHA * 0xff));
+        expect(alphaByte).toBeGreaterThan(0); // ...but always visible
+      }
+    }
+  });
+
+  it("layers a wide faint ring under a tighter brighter core", () => {
+    const quads = wellServedGlowQuads([building({ type: "bakery", x: 2, y: 2, wellServed: true })], 1);
+    expect(quads.length).toBeGreaterThanOrEqual(2);
+    const sorted = [...quads].sort((a, b) => b.width - a.width);
+    const widest = sorted[0]!;
+    const tightest = sorted[sorted.length - 1]!;
+    expect(widest.width).toBeGreaterThan(tightest.width);
+    expect((widest.tintRgba as number) & 0xff).toBeLessThan((tightest.tintRgba as number) & 0xff);
+  });
+
+  it("every ring is centred on the building footprint", () => {
+    const quads = wellServedGlowQuads([building({ type: "mill", x: 4, y: 6, w: 2, h: 2, wellServed: true })], 1);
+    for (const q of quads) {
+      expect(q.x + q.width / 2).toBeCloseTo((4 + 1) * TILE_SIZE, 6);
+      expect(q.y + q.height / 2).toBeCloseTo((6 + 1) * TILE_SIZE, 6);
+    }
+  });
+
+  it("pulses within 0..1 and is deterministic in the render clock", () => {
+    for (let t = 0; t < 8000; t += 137) {
+      const v = wellServedPulse(t);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+      expect(wellServedPulse(t)).toBe(v); // pure
+    }
+  });
+
+  it("breathes — the pulse actually varies over a period", () => {
+    const seen = new Set<number>();
+    for (let t = 0; t < 5000; t += 250) seen.add(Math.round(wellServedPulse(t) * 20));
+    expect(seen.size).toBeGreaterThan(4);
+  });
+
+  it("phase de-syncs neighbouring buildings", () => {
+    expect(wellServedPulse(1000, 0)).not.toBeCloseTo(wellServedPulse(1000, 1100), 3);
+  });
 });
