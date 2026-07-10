@@ -8,7 +8,7 @@
  * match anchor (sets keepPosition) when the sim is bootstrapped `multiplayer`.
  */
 import { describe, it, expect } from "vitest";
-import { bootstrapSim } from "../sim-bootstrap";
+import { bootstrapSim, loadFromSave } from "../sim-bootstrap";
 import { localPlayer, makePlayerState } from "../sim-state";
 import { WORLD_WIDTH, WORLD_HEIGHT, TerrainType } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
@@ -142,5 +142,51 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     sim.state.players.push(makePlayerState(1));
     expect(sim.getSnapshot(1).keepPresent).toBe(true);
     expect(lp.keepPosition).not.toBeNull();
+  });
+
+  it("a save round-trips the world size AND `multiplayer`, so a replayed MP hall keeps its anchor", () => {
+    // Two mode-affecting facts must survive a save, for the same reason chargeBuildCost /
+    // cozyThreats / enableArmy / seedTown already do — replay reconstructs state by re-running the
+    // command log, so the rules must match:
+    //   `multiplayer`  decides `actsAsKeepAnchor` (a replayed hall would rebuild WITHOUT its
+    //                  keepPosition, and the raid clock with it);
+    //   world dims     decide bounds (a 256×256 save replayed on the 96×96 default silently DROPS
+    //                  every command beyond tile 95 as out-of-bounds — it was unreplayable).
+    const W = 256, H = 256;
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H, multiplayer: true });
+    // Deliberately place BEYOND tile 95, where a 96×96 replay would reject it.
+    const spot = findGrass(sim.terrain, 3, 3, Math.floor(W / 2), Math.floor(H / 2));
+    expect(spot.x).toBeGreaterThan(95);
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });
+    sim.scheduler.tick({ tick: 0 });
+    const before = localPlayer(sim.state).keepPosition;
+    expect(before).not.toBeNull();
+
+    const save = sim.serializeSave(1);
+    expect(save.multiplayer).toBe(true);
+    expect(save.worldWidth).toBe(W);
+    expect(save.worldHeight).toBe(H);
+
+    const reloaded = loadFromSave(save);
+    expect(reloaded.state.width).toBe(W);
+    const halls = [...reloaded.world.query("building")].filter((e) => e.building.type === "town-hall");
+    expect(halls.length).toBe(1); // the placement survived replay at all
+    const after = localPlayer(reloaded.state).keepPosition;
+    expect(after).not.toBeNull();
+    expect(after).toEqual(before); // replay reconstructs identical state — the whole point
+  });
+
+  it("a pre-brief-108 save (no `multiplayer` field) replays as solo — the bootstrap default", () => {
+    const W = 96, H = 96;
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H });
+    const spot = findGrass(sim.terrain, 3, 3, 40, 40);
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });
+    sim.scheduler.tick({ tick: 0 });
+
+    // Strip the field the way an old save file lacks it entirely.
+    const { multiplayer: _omitted, ...legacy } = sim.serializeSave(1);
+    const reloaded = loadFromSave(legacy);
+    // Solo: the town-hall is civic-only, so no anchor — unchanged from before brief 108.
+    expect(localPlayer(reloaded.state).keepPosition).toBeNull();
   });
 });

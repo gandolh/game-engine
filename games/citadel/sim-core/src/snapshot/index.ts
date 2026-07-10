@@ -193,6 +193,24 @@ export interface CitadelSave {
    */
   readonly enableArmy?: boolean;
   /**
+   * Match mode, persisted so replay reconstructs identical state. It decides whether a `town-hall`
+   * adopts the keep/raid anchor (`actsAsKeepAnchor`), and placements replay from the command log —
+   * so replaying an MP save as solo would rebuild the halls WITHOUT their `keepPosition`, and the
+   * raid clock along with them.
+   * Optional for backward-compat with pre-feature saves (absent ⇒ false, the bootstrap default —
+   * which is what every save written before brief 108 effectively recorded, since only solo saves).
+   */
+  readonly multiplayer?: boolean;
+  /**
+   * World dimensions, persisted so replay reconstructs the SAME grid. Without these, `loadFromSave`
+   * rebuilt the engine-default 96×96 world and every replayed command beyond tile 95 was silently
+   * rejected as out-of-bounds — so a 256×256 MP save could not be replayed at all.
+   * Optional for backward-compat with pre-feature saves (absent ⇒ the 96×96 engine defaults, which
+   * is what every save written before this field recorded, since only solo could load one).
+   */
+  readonly worldWidth?: number;
+  readonly worldHeight?: number;
+  /**
    * Cozy cold-open: whether the alive-town core was pre-seeded at bootstrap. Persisted so replay
    * re-seeds the SAME core before replaying the command log (the seed is applied at bootstrap, not
    * via the command log). Optional for backward-compat with pre-feature saves (absent ⇒ false,

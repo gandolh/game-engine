@@ -212,6 +212,15 @@ export function loadFromSave(save: CitadelSave): CitadelSimResult {
     // A save taken with army resolution on/off must replay the same way. Absent (pre-feature
     // saves) ⇒ true, matching the bootstrap default (MP saves always had army resolution on).
     enableArmy: save.enableArmy ?? true,
+    // A save taken in an MP match must replay as one: `multiplayer` decides whether the replayed
+    // town-hall placements adopt the keep anchor. Absent ⇒ false, the bootstrap default (and the
+    // truth for every pre-brief-108 save, since only solo could ever load one).
+    multiplayer: save.multiplayer ?? false,
+    // Replay on the SAME grid. Absent ⇒ the 96×96 engine defaults (every pre-feature save).
+    // Without this, a 256×256 save replayed on a 96×96 world and every command past tile 95 was
+    // silently rejected as out-of-bounds. Only pass when present (exactOptionalPropertyTypes).
+    ...(save.worldWidth !== undefined ? { worldWidth: save.worldWidth } : {}),
+    ...(save.worldHeight !== undefined ? { worldHeight: save.worldHeight } : {}),
     // A save taken with a seeded town must re-seed the SAME core before command replay (the seed
     // is applied at bootstrap, not logged). Absent (pre-feature saves) ⇒ false (empty start).
     seedTown: save.seedTown ?? false,
@@ -1244,6 +1253,14 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         cozyThreats,
         // Persist whether army resolution was enabled so replay reconstructs identical state.
         enableArmy,
+        // Persist the match mode: it decides whether a town-hall anchors (actsAsKeepAnchor), and
+        // placements are replayed from the command log — so replaying an MP save as solo would
+        // rebuild the halls WITHOUT their keepPosition, and the raid clock with them.
+        multiplayer,
+        // Persist the world dimensions, or replay rebuilds the 96×96 default and silently drops
+        // every command beyond tile 95 as out-of-bounds (a 256×256 MP save was unreplayable).
+        worldWidth: WORLD_WIDTH,
+        worldHeight: WORLD_HEIGHT,
         // Persist whether the alive-town core was seeded so replay re-seeds it identically.
         seedTown,
         // Persist the threat-defer threshold so replay applies the same gate (a cold-open
