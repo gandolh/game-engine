@@ -21,6 +21,7 @@ import type { Rng } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot, RenderSnapshot } from "@citadel/sim-core";
 import { packTint, type QuadSpec } from "./citadel-renderer";
+import { gaitOffset } from "./citadel-fx";
 import { FRAME_PEDESTRIAN } from "./sprites/recipes";
 
 /** Fixed render seed — distinct from any sim seed; keeps the crowd reproducible
@@ -31,10 +32,17 @@ const CROWD_RENDER_SEED = 0x0c1ade17 >>> 0;
  *  cheaper but fewer make sense — pick 96). */
 export const CROWD_CAP = 96;
 
-/** Pedestrian billboard size, in world px. The figure is the small 16px
- *  `vil/pedestrian` sprite; ~0.8 tiles tall reads as a background commoner
- *  (smaller than the 1.1-tile villager). */
-const PED_SIZE = TILE_SIZE * 0.8;
+/**
+ * Pedestrian billboard size, in world px. Brief 105 ("crowd honesty"): shrunk
+ * further from an earlier 0.8 tiles — at 0.8 a dense street started to read as
+ * "the town has this many people," inflating the town's perceived population
+ * beyond its real one. 0.6 tiles keeps the small `vil/pedestrian` sprite
+ * legible as a walking figure while sitting unmistakably below both the
+ * 1.1-tile villager AND the old 0.8 size, so it reads as background scenery,
+ * not a countable resident. Paired with `AMBIENT_CROWD_ALPHA` (citadel-renderer.ts)
+ * washing the whole layer out.
+ */
+const PED_SIZE = TILE_SIZE * 0.6;
 
 /** Walk speed range, world px/s. */
 const SPEED_MIN = 8;
@@ -74,11 +82,14 @@ export function densityForTier(tier: string): number {
   }
 }
 
-/** Walk-cycle bob: vertical hop amplitude (world px) and angular speed (rad/s).
- *  A pedestrian moving along the road bounces up-and-down ~2px at ~9 rad/s,
- *  reading as a tiny two-frame walk shuffle without any extra sprite frames. */
-const BOB_AMPLITUDE = 2;
-const BOB_SPEED = 9;
+// Walk-cycle bob (brief 104 item 4, cadence parity): the ambient crowd used to
+// run its own bob constants/formula here. It now routes through citadel-fx's
+// `gaitOffset` — the SAME helper villagers use — keyed by each pedestrian's
+// fixed pool index (stable for the pedestrian's lifetime; doubles as the
+// per-figure phase seed via `gaitOffset`'s internal `bobPhase` hash, so the
+// crowd still doesn't bob in lockstep) so a moving pedestrian and a moving
+// villager step to identical rules, and an idle pedestrian gets the same
+// gentle sway an idle villager does instead of standing dead-still.
 
 interface Pedestrian {
   active: boolean;
@@ -96,8 +107,6 @@ interface Pedestrian {
   dcy: number;
   speed: number;
   tint: number;
-  /** Per-pedestrian walk-cycle phase (rad), so the crowd doesn't bob in lockstep. */
-  phase: number;
   /** True while stepping toward a destination tile (drives the walk bob). */
   moving: boolean;
 }
@@ -174,7 +183,6 @@ export class CitadelAmbientCrowd {
         dcy: 0,
         speed: SPEED_MIN,
         tint: packTint(PED_COLORS[i % PED_COLORS.length]!),
-        phase: this.rng.range(0, Math.PI * 2),
         moving: false,
       });
     }
@@ -259,7 +267,6 @@ export class CitadelAmbientCrowd {
     p.cx = start.col;
     p.cy = start.row;
     p.speed = this.rng.range(SPEED_MIN, SPEED_MAX);
-    p.phase = this.rng.range(0, Math.PI * 2);
     this.retarget(p);
   }
 
@@ -300,14 +307,15 @@ export class CitadelAmbientCrowd {
    */
   quads(): QuadSpec[] {
     const out: QuadSpec[] = [];
-    for (const p of this.pool) {
+    for (let i = 0; i < this.pool.length; i++) {
+      const p = this.pool[i]!;
       if (!p.active) continue;
-      // Walk-cycle bob: a small vertical hop while stepping between tiles. The
-      // figure stands on `y`, so subtracting lifts it; |sin| gives a two-bounce
-      // shuffle (foot never sinks below the tile). Idle pedestrians stand still.
-      const bob = p.moving
-        ? Math.abs(Math.sin(this.walkTime * BOB_SPEED + p.phase)) * BOB_AMPLITUDE
-        : 0;
+      // Walk-cycle bob (brief 104 item 4): the SAME `gaitOffset` rules a villager
+      // uses — a springy |sin| hop while moving, a gentle sway while idle — keyed
+      // by this pedestrian's stable pool index so the crowd still desyncs per
+      // figure. The figure stands on `y`, so subtracting lifts a moving
+      // pedestrian's foot off the tile (gaitOffset's moving branch is ≥0).
+      const bob = gaitOffset(this.walkTime, i, p.moving);
       // Entity legibility: lean into the heading so a moving pedestrian reads as
       // walking with purpose. Heading is the (known) vector toward its target tile;
       // a stationary pedestrian stands upright. Pure render — never touches the sim.

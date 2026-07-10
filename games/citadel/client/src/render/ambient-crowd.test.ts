@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CitadelAmbientCrowd, densityForTier, CROWD_CAP } from "./ambient-crowd";
+import { gaitOffset } from "./citadel-fx";
 import { FRAME_PEDESTRIAN } from "./sprites/recipes";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot, RaiderSnapshot, RenderSnapshot } from "@citadel/sim-core";
@@ -156,5 +157,53 @@ describe("no Math.random in citadel ambient-crowd source", () => {
     const src = readFileSync(resolve(process.cwd(), "src/render/ambient-crowd.ts"), "utf8");
     expect(src).not.toMatch(/Math\s*\.\s*random/);
     expect(src).not.toMatch(/Date\s*\.\s*now/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 105 scope 1 — ambient crowd honesty (shrunk silhouette)
+// ---------------------------------------------------------------------------
+
+describe("PED_SIZE (brief 105 crowd honesty)", () => {
+  it("draws pedestrians strictly smaller than the pre-brief-105 0.8-tile size", () => {
+    const crowd = new CitadelAmbientCrowd(123);
+    crowd.update(0.016, mkSnapshot("Town", 200));
+    const q = crowd.quads()[0]!;
+    expect(q.width).toBe(TILE_SIZE * 0.6);
+    expect(q.width).toBeLessThan(TILE_SIZE * 0.8);
+    expect(q.height).toBe(q.width); // square billboard
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 104 item 4 — cadence parity with villagers
+// ---------------------------------------------------------------------------
+
+describe("walk-cycle cadence parity with villagers (brief 104 item 4)", () => {
+  it("no longer carries its own bob constants — routes through the shared gaitOffset helper", () => {
+    const src = readFileSync(resolve(process.cwd(), "src/render/ambient-crowd.ts"), "utf8");
+    expect(src).toMatch(/gaitOffset\(/);
+    expect(src).not.toMatch(/\bBOB_AMPLITUDE\b/);
+    expect(src).not.toMatch(/\bBOB_SPEED\b/);
+  });
+
+  it("bobs a moving pedestrian by exactly gaitOffset(walkTime, poolIndex, true)", () => {
+    // A single-row road corridor (mkSnapshot lays roads out in rows of 90, so
+    // fewer than 90 tiles is one row): the pedestrian's tile-Y never changes,
+    // so its un-bobbed foot Y is a fixed baseline for the whole run, letting us
+    // isolate the bob term exactly. Pool index 0 is always the first spawned
+    // (the spawn loop fills the pool array in order), so `crowd.quads()[0]`
+    // is always id 0 in `gaitOffset`'s terms.
+    const crowd = new CitadelAmbientCrowd(123);
+    const snap = mkSnapshot("Hamlet", 40); // single row, 40 connected tiles — never an isolated stub
+    const baselineY = 0.5 * TILE_SIZE; // row 0 tile-center Y
+
+    let walkTime = 0;
+    for (const dt of [0.016, 0.03, 0.05, 0.02, 0.04]) {
+      walkTime += dt;
+      crowd.update(dt, snap);
+      const q = crowd.quads()[0]!;
+      expect(q.y).toBeCloseTo(baselineY - gaitOffset(walkTime, 0, true), 6);
+    }
   });
 });

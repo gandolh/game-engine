@@ -52,6 +52,8 @@ import {
   clusterBorderQuads,
   type SceneInput,
   pushScene,
+  pushAmbientCrowd,
+  AMBIENT_CROWD_ALPHA,
 } from "./citadel-renderer";
 
 /** Brief 110: tests run against the solo 96×96 world's projection. */
@@ -956,5 +958,78 @@ describe("pushScene mood wiring", () => {
 
     expect(highAlpha).toBeGreaterThan(lowAlpha);
     expect(houseAlphaForMood(90)).toBeGreaterThan(houseAlphaForMood(10));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 104 item 2 — villager L/R sprite facing flip
+// ---------------------------------------------------------------------------
+
+describe("pushScene villager facing flip (brief 104 item 2)", () => {
+  it("flips to face the tracked screen-space heading, with hysteresis against near-vertical/idle jitter", () => {
+    const pushed: Canvas2dSprite[] = [];
+    const fakeRenderer: RendererLike = {
+      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+    } as unknown as RendererLike;
+
+    // A unique id, never used by another test — the heading tracker is a
+    // module-level singleton shared across this whole test file.
+    const v: VillagerSnapshot = { id: 9001, x: 10, y: 10, fsm: "walkToWork", carryGood: null, job: "farmer", mood: 40 };
+    const scene: SceneInput = { buildings: [], villagers: [v], raiders: [] };
+
+    // Frame 1: first-ever sample for this id (no prior heading) — default
+    // (unflipped) facing.
+    pushed.length = 0;
+    pushScene(fakeRenderer, iso, scene, { villagerPos: () => ({ x: 10, y: 10 }) });
+    expect(pushed[0]!.flipX).toBe(false);
+
+    // Frame 2: step +2 tiles in world X (tileY unchanged) — in this iso
+    // projection (screenX = (tileX - tileY) * ISO_HW) that's purely a
+    // screen-RIGHT move. Should commit to the default (unflipped) facing.
+    pushed.length = 0;
+    pushScene(fakeRenderer, iso, scene, { villagerPos: () => ({ x: 12, y: 10 }) });
+    expect(pushed[0]!.flipX).toBe(false);
+
+    // Frame 3: step -4 tiles in world X — a clear screen-LEFT move. Should flip.
+    pushed.length = 0;
+    pushScene(fakeRenderer, iso, scene, { villagerPos: () => ({ x: 8, y: 10 }) });
+    expect(pushed[0]!.flipX).toBe(true);
+
+    // Frame 4: step +1 tile in BOTH world X and Y. In this iso projection that
+    // is a pure screen-DOWN move (screenX delta = (dtx - dty) * ISO_HW = 0) —
+    // the horizontal component never clears the deadzone, so the tracker must
+    // HOLD the left-facing from frame 3 rather than snapping back to default.
+    pushed.length = 0;
+    pushScene(fakeRenderer, iso, scene, { villagerPos: () => ({ x: 9, y: 11 }) });
+    expect(pushed[0]!.flipX).toBe(true);
+
+    // Frame 5: idle (no position change at all) — must hold the last facing,
+    // never flip a stationary figure spuriously.
+    pushed.length = 0;
+    pushScene(fakeRenderer, iso, scene, { villagerPos: () => ({ x: 9, y: 11 }) });
+    expect(pushed[0]!.flipX).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Brief 105 scope 1 — ambient crowd honesty (dimmed below full opacity)
+// ---------------------------------------------------------------------------
+
+describe("pushAmbientCrowd (brief 105 crowd honesty)", () => {
+  it("draws every pedestrian at AMBIENT_CROWD_ALPHA, strictly below full opacity", () => {
+    const pushed: Canvas2dSprite[] = [];
+    const fakeRenderer: RendererLike = {
+      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+    } as unknown as RendererLike;
+
+    const quads: QuadSpec[] = [
+      { x: 5 * TILE_SIZE, y: 5 * TILE_SIZE, width: TILE_SIZE * 0.6, height: TILE_SIZE * 0.6, tintRgba: packTint(EDG.tan), frame: "vil/pedestrian" },
+      { x: 7 * TILE_SIZE, y: 3 * TILE_SIZE, width: TILE_SIZE * 0.6, height: TILE_SIZE * 0.6, tintRgba: packTint(EDG.blue), frame: "vil/pedestrian" },
+    ];
+    pushAmbientCrowd(fakeRenderer, iso, quads);
+
+    expect(pushed).toHaveLength(2);
+    expect(AMBIENT_CROWD_ALPHA).toBeLessThan(1);
+    for (const s of pushed) expect(s.alpha).toBe(AMBIENT_CROWD_ALPHA);
   });
 });

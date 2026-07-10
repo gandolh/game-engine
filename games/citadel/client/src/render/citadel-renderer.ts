@@ -393,23 +393,42 @@ function pushBuilding(renderer: RendererLike, iso: IsoProjection, b: BuildingSna
 }
 
 /**
+ * Horizontal screen-space delta a villager must clear (as a fraction of its
+ * smoothed unit heading, i.e. |ux| in [0,1]) before the sprite commits to a new
+ * L/R facing. Below this the tracker HOLDS the last facing rather than flipping
+ * — otherwise a near-vertical path (walking mostly up/down screen) or ordinary
+ * interpolation jitter would flip-flop the sprite every frame. Brief 104 item 2.
+ */
+const FACING_FLIP_DEADZONE = 0.3;
+
+/**
  * Frame-to-frame screen-space heading tracker for villagers. RENDER-ONLY: keyed
  * by villager id, it remembers the last projected screen position and derives a
  * smoothed heading from the delta — so a moving figure can lean + squash along
- * its travel direction. Never reads/writes the sim. Entries for vanished ids are
- * pruned lazily (a villager that stops being sampled simply ages out of `seen`).
+ * its travel direction, and (brief 104 item 2) flip its sprite to face the
+ * direction it's actually walking. Never reads/writes the sim. Entries for
+ * vanished ids are pruned lazily (a villager that stops being sampled simply
+ * ages out of `seen`).
  */
 class VillagerHeadingTracker {
-  private readonly last = new Map<number, { x: number; y: number; sx: number; sy: number; lean: number }>();
+  private readonly last = new Map<number, { x: number; y: number; sx: number; sy: number; lean: number; facing: 1 | -1 }>();
   private seen = new Set<number>();
 
-  /** Sample id at screen (sx,sy); returns scale-x, scale-y, lean (radians). */
-  sample(id: number, sx: number, sy: number): { sx: number; sy: number; lean: number } {
+  /**
+   * Sample id at screen (sx,sy); returns scale-x, scale-y, lean (radians), and
+   * facing (1 = default/rightward, -1 = flipped/leftward). `facing` only changes
+   * when the smoothed horizontal heading clears {@link FACING_FLIP_DEADZONE};
+   * a stationary figure (speed below the movement threshold) or one moving
+   * mostly vertically keeps whatever facing it last committed to (default 1 for
+   * a never-before-seen id) — never flips spuriously.
+   */
+  sample(id: number, sx: number, sy: number): { sx: number; sy: number; lean: number; facing: 1 | -1 } {
     const prev = this.last.get(id);
     this.seen.add(id);
     let scaleX = 1;
     let scaleY = 1;
     let lean = 0;
+    let facing: 1 | -1 = prev?.facing ?? 1;
     if (prev !== undefined) {
       const dx = sx - prev.x;
       const dy = sy - prev.y;
@@ -422,14 +441,19 @@ class VillagerHeadingTracker {
         lean = ux * 0.18;
         scaleX = 1 + Math.abs(ux) * 0.12;
         scaleY = 1 + Math.abs(uy) * 0.12;
+        // Facing flip (deadzoned + hysteretic): only commit to a new L/R facing
+        // once the horizontal component clearly dominates; otherwise fall
+        // through and keep `facing` at its `prev?.facing` default above.
+        if (ux > FACING_FLIP_DEADZONE) facing = 1;
+        else if (ux < -FACING_FLIP_DEADZONE) facing = -1;
       }
       // Smooth so interpolation jitter doesn't make the figure twitch.
       scaleX = prev.sx + (scaleX - prev.sx) * 0.3;
       scaleY = prev.sy + (scaleY - prev.sy) * 0.3;
       lean = prev.lean + (lean - prev.lean) * 0.3;
     }
-    this.last.set(id, { x: sx, y: sy, sx: scaleX, sy: scaleY, lean });
-    return { sx: scaleX, sy: scaleY, lean };
+    this.last.set(id, { x: sx, y: sy, sx: scaleX, sy: scaleY, lean, facing });
+    return { sx: scaleX, sy: scaleY, lean, facing };
   }
 
   /** Drop tracking for ids not sampled since the last sweep (call once/frame). */
@@ -523,6 +547,10 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
       alpha: moodAlpha,
       tintRgba: base.tintRgba,
       sortY: box.depth,
+      // Brief 104 item 2: mirror the sprite when the tracked heading has
+      // committed to facing left, so a villager visibly turns to walk the way
+      // it's actually going instead of always drawing the same L/R silhouette.
+      flipX: o.facing < 0,
     });
   }
   villagerHeading.sweep();
@@ -737,13 +765,28 @@ export function pushFire(
 }
 
 /**
+ * Brief 105 scope 1 ("crowd honesty"): ambient pedestrians must never read as
+ * counted townsfolk — a player should be able to tell at a glance that the
+ * background crowd is scenery, not population. Pairs with `ambient-crowd.ts`'s
+ * shrunk `PED_SIZE` (smaller silhouette than a villager): this alpha further
+ * washes them out so a dense street doesn't inflate the perceived population.
+ * Applied as the sprite's own `alpha` (NOT baked into the tint's alpha byte —
+ * the WebGPU tint path discards a tint's alpha channel and always draws opaque
+ * at the sprite's `alpha`; see `tintFloats` in webgpu/renderer.ts), so it holds
+ * on both backends.
+ */
+export const AMBIENT_CROWD_ALPHA = 0.55;
+
+/**
  * Push the ambient crowd's pedestrian quads (brief 18) on the crowd layer
  * (below real villagers, above buildings). The caller pulls them from
  * `CitadelAmbientCrowd.quads()`. Each quad's `x/y` is the figure's world-px
  * FOOT position (a road tile centre); we iso-project that tile point and stand
  * the small `vil/pedestrian` billboard upright on it (like a villager), so the
  * crowd reads as little walking people rather than flat dots. The clothing tint
- * carried on the quad recolors the shared sprite's white tunic.
+ * carried on the quad recolors the shared sprite's white tunic. Drawn at
+ * {@link AMBIENT_CROWD_ALPHA} (brief 105) so the whole layer reads as faded
+ * background scenery, distinct from full-alpha villagers.
  */
 export function pushAmbientCrowd(renderer: RendererLike, iso: IsoProjection, quads: readonly QuadSpec[]): void {
   for (const q of quads) {
@@ -757,7 +800,7 @@ export function pushAmbientCrowd(renderer: RendererLike, iso: IsoProjection, qua
       height: box.height,
       rotation: q.lean ?? 0, // entity-legibility lean along heading
       layer: LAYER_AMBIENT_CROWD,
-      alpha: 1,
+      alpha: AMBIENT_CROWD_ALPHA,
       tintRgba: q.tintRgba,
       sortY: box.depth,
     });
