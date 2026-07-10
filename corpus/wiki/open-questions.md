@@ -1,6 +1,6 @@
 ---
 summary: Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
-updated: 2026-06-12
+updated: 2026-07-10
 ---
 
 # Open Questions & Gaps
@@ -8,6 +8,25 @@ updated: 2026-06-12
 Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted from here — their history lives in [status.md](status.md) + [log.md](../log.md). Verify any code ref before acting (paths drift).
 
 ## Open
+
+### What does a *cozy* PvP army attack actually do? (blocks decision #12)
+Decision **#12** (2026-07-10) says a sacked town-hall must **dent, not end** a player's run — the
+cozy contract holds in MP. It does not say what an army attack *does instead*, and nothing in the
+code answers it: today `ArmySystem` destroys the hall and sets `gameOver`
+([army.ts](../../games/citadel/sim-core/src/systems/army.ts), asserted in `army.test.ts`).
+The obvious candidates, none chosen: **pilfer goods and leave** (mirrors the cozy PvE raid, so the
+two threat sources read consistently); **dent local happiness** around the hall (mirrors the cozy
+fire/disease dent, feeding the ~60–70% productivity floor); or **capture territory** (takes the
+influence radius, not the buildings — the only option that gives PvP a *lasting* stake without
+breaking "nothing you built is taken from you"). Needs a design call before anyone touches
+`ArmySystem`. Lethal elimination itself is not gone — it moves to Challenge mode (#13).
+
+### Does Challenge mode also mean *competitive* Challenge? (scopes brief 103)
+Decision **#13** makes Challenge mode the home of both `cozyThreats:false` **and** lethal PvP.
+Unresolved: whether Challenge is a **solo** difficulty setting, an **MP** ruleset, or one flag that
+means both. It matters because the two axes are independent in code today (`cozyThreats` and
+`enableArmy` are separate bootstrap options), and collapsing them into one "Challenge" flag is a
+design choice, not a refactor.
 
 ### Live-drama spare capacity (deliberately not pursued)
 Harbor contracts (46) — mostly only the hoarder reaches the commit gate. Skills (43) — lopsided to farming. Festival (45) — physical podium gathering thin. Early-game peer trades — gated by **encounter cadence + seller stock, NOT gold**: brief [70](../briefs/game/done/70-raise-starting-gold-peer-trade-liquidity.md) lifted the cash constraint (zero `would-breach-reserve` declines) but the 15-day-close target stayed unmet because the binding constraint is `no-stock` + farmers barely meeting early. The lever (if it matters) is encounter frequency / early surplus, not liquidity.

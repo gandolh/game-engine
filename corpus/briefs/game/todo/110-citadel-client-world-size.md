@@ -1,6 +1,6 @@
 # Brief 110 — Citadel client must adopt the server's world size (and window in iso space)
 
-status: todo
+status: todo — **next up (2026-07-10).** Decision **#11** makes MP a real feature and keeps the committed 256×256 world, so this is the brief standing between that claim and reality. Blocks [105](105-citadel-crowd-honesty-mp-owner-filter.md) (owner filter) and [109](109-citadel-vps-deploy.md) — deploying before this lands would ship the 96×96 bug to a VPS.
 source: the [brief 108](../done/108-citadel-live-mp-verification.md) live-MP pass. Root cause behind
 [2026-07-02 review findings item 35](../../../todos/2026-07-02-full-repo-review-findings.md) (MP render
 window mixes iso and axis-aligned space) and the unresolved
@@ -50,13 +50,15 @@ but the **client is hardcoded to 96×96**. Verified live, two real browser tabs 
 
 ## Scope
 
-1. **Thread the world size from the server to the client.** The server already knows it
-   (`CitadelSimHostOptions.worldWidth/Height`); the client learns it before its first bake. Either
-   extend the `ready`/first-`snapshot` message with `worldWidth/worldHeight` (client then calls
-   `generateTerrain(seed, w, h)` with the server's seed), or ship the terrain grid itself once.
-   ⚠️ If the client regenerates, the **seed must be the server's** — today `init` carries the client's
-   `SEED` and only the *first* peer's seed starts the sim, so a late joiner regenerating from its own
-   constant would desync its terrain from the sim's.
+1. **Ship the terrain grid from the server to the client** — settled 2026-07-10 by **decision #14**
+   (see [citadel-overview.md](../../../wiki/citadel-overview.md)). The server sends the `TerrainGrid`
+   once (with `width`/`height`), on `ready` or riding the first snapshot; the client **never generates
+   its own world in MP**. 256×256 = 65,536 bytes and `perMessageDeflate` is already on above 1 KiB,
+   so a mostly-flat grid compresses hard.
+   This makes terrain desync **structurally unrepresentable** and retires a latent bug the alternative
+   would have kept alive: `init` carries the *client's* hardcoded `SEED`, and only the **first** peer's
+   seed starts the sim, so a late joiner regenerating from its own constant would silently render a
+   different world. (Solo keeps generating locally — it *is* the sim.)
 2. **Make the iso constants runtime values.** `ISO_ORIGIN_X`/`ISO_WORLD_W`/`ISO_WORLD_H` become
    functions of, or are derived once from, the live world dims. Ripples into
    [transform.ts](../../../../games/citadel/client/src/render/transform.ts) (`WORLD_PX_W/H`),

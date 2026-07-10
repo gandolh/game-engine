@@ -1,6 +1,6 @@
 # Brief 98 — Farm market wall: wire the trade loop or remove it
 
-status: todo (needs a product decision first — see Decision)
+status: todo — **decision made 2026-07-10: Option A, wire it.** Execute the Option-A branch below; Option B is dead. ⚠️ Baseline moves by design: prove reproducibility ×3 and eyeball a headless run showing wall trades actually closing.
 source: [2026-07-02 review findings item 7](../../../todos/2026-07-02-full-repo-review-findings.md) — read it first; it carries the verified evidence.
 
 ## Problem
