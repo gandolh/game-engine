@@ -30,7 +30,15 @@ Group by package:
 - **Client niggles** (item 34): `extendTrail` incremental Set; `boxBuilding` `noDoor`
   contract (implement the option or fix the stale doc); collapse duplicate `device.lost`
   handlers.
-- **MP iso render window** (item 35) — EXCLUDED here; belongs to brief 108 (live-MP pass).
+- **MP iso render window** (item 35) — EXCLUDED here. The [brief 108](../done/108-citadel-live-mp-verification.md)
+  live pass showed it is latent behind the client's hardcoded 96×96 world; it belongs to
+  [brief 110](110-citadel-client-world-size.md).
+- **Delete `maxDays`** (added 2026-07-10, decision **#18**): a *required* `CitadelSimOptions` field
+  that **no system reads** — every caller passes it, nothing consumes it, and an MP room happily runs
+  past day 200. It reads as a run-length bound and bounds nothing. Remove the field and every call
+  site's argument (mechanical; touches many test files). Do **not** wire it up — MP is endless by
+  decision #15. Note `loadFromSave` *computes* a `maxDays` of its own to pass through; check that
+  path before deleting.
 
 ## Gates
 Typecheck + tests green; Farm determinism MATCH ×3 (note which items moved the baseline);

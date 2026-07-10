@@ -23,38 +23,13 @@ updated: 2026-07-10
 > *player-operated but staffed* trading post as the clearest example); the **downside
 > rule** — every problem is a throttle-to-floor, never a loss (#9); and **terrain is
 > the puzzle** — clustered resources + a solvability guarantee (#10).
-
-> **⚠️ DECISIONS OF RECORD (2026-07-10 grilling session).** Two of these **reverse**
-> earlier commitments — they win over anything below and over the 2026-06-28 text above.
->
-> - **#11 — MP is a real feature, not a future mode.** *(Reverses "MP/PvP is a future
->   mode, not the core", 2026-06-28.)* The committed **256×256** world stays. The client
->   must adopt the server's world size — [brief 110](../briefs/game/todo/110-citadel-client-world-size.md);
->   until it lands, MP renders only a 96×96 corner (see the warning below). Unblocks
->   [105](../briefs/game/todo/105-citadel-crowd-honesty-mp-owner-filter.md) (owner filter)
->   and [109](../briefs/game/todo/109-citadel-vps-deploy.md) (deploy).
-> - **#12 — The cozy contract holds in MP too; PvP is softened.** *(Reverses brief 32's
->   "town-hall sack = elimination".)* MP keeps `cozyThreats` default-on, and a sacked
->   town-hall must **dent, not end** a player's run. The danger in cozy MP comes from
->   nobody: *nothing you built is taken from you* is a whole-game promise, not a solo one.
->   ⚠️ **This is not yet implemented** — today MP runs cozy PvE (`cozyThreats` defaults
->   true) beside **lethal** PvP (`enableArmy` defaults true; `army.test.ts` asserts
->   `gameOver` on a sack). That mix is two defaults colliding, not a design. What a cozy
->   army attack *does instead* is an open question — see [open-questions.md](open-questions.md).
-> - **#13 — Challenge mode is the home of every sharp system.** [Brief 103](../briefs/game/todo/103-citadel-challenge-mode.md)
->   is approved and gets built. It owns `cozyThreats:false` (destructive fire, lethal
->   disease, sacking raids) **and** lethal PvP elimination. This finally gives the frozen
->   sharp path a real consumer, so its two-branch test burden stops being dead weight.
-> - **#14 — Terrain is shipped, not regenerated.** The MP server sends the terrain grid
->   once (256×256 = 65,536 bytes; `perMessageDeflate` is already on above 1 KiB and terrain
->   compresses hard). The client must never generate its own world in MP. This makes terrain
->   desync **structurally unrepresentable** and retires the latent seed-handshake bug (`init`
->   carries the *client's* hardcoded `SEED`, and only the first peer's seed starts the sim).
 > Full plan + dependency order:
 > [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
 > **Where this page contradicts the cozy pivot below (esp. the "fire punishes tight
 > clusters / spacing-vs-density tension is intentional" note), the pivot wins** —
 > that was a pressure-game stance.
+
+> **⚠️ DECISIONS OF RECORD #11–#18 (2026-07-10 grilling session) live in [citadel-decisions.md](citadel-decisions.md).** Four of them **reverse** earlier commitments — MP is now a real feature (not "a future mode"), the cozy contract extends to MP, cozy MP drops armies entirely, and Challenge mode owns every sharp system. **They win over the 2026-06-28 text above and over anything below.**
 
 ## Packages
 

@@ -18,6 +18,20 @@ Two questions were **opened rather than answered**, and are parked in [open-ques
 
 Also decided: **brief 98 → Option A, wire the market wall** (complete the FIPA loop rather than strip it; baseline moves by design). Briefs 96, 101, 107, 109 scheduled as interactive sessions; 109 gated on 110. `open-questions.md` refreshed — it had been stale since 2026-06-12 and carried no Citadel content at all.
 
+### Second round — what MP is *for*, and what that costs (#15–#18)
+
+Pushing on #12 exposed that it had removed MP's only ending. There is **no win condition anywhere** in `@citadel/sim-core` (no `victory`, no `winner`); decision #7 forbids score; and `maxDays` is a **required** `CitadelSimOptions` field that **no system reads** — every caller passes it, nothing consumes it, which is why a live MP room sailed past day 200. The three writers of `gameOver` are `army.ts:128` (rival sack — removed by #12), `siege-resolution.ts:408` (raider sack — unreachable under cozy defaults) and `immigration.ts:255` (town dies out — which #9 exists to prevent). So "soften PvP into a dent" would have shipped a lever with nothing on the other end.
+
+**#15** takes the honest route: cozy MP is a **co-op sandbox and armies come out of it entirely**, rather than being softened. Lethal PvP is not deleted — it relocates wholesale to Challenge mode (#13), where a run *can* end and the mechanic means something. This closes the open question "what does a cozy army attack do?": there isn't one. Filed as [brief 112](briefs/game/todo/112-citadel-cozy-mp-drop-armies.md).
+
+Grounding that brief turned up a live trap. The `launchAttack` handler ([sim-bootstrap.ts:779-822](../games/citadel/sim-core/src/sim-bootstrap.ts)) is **not gated on `enableArmy`**: it debits `stockpiles.tools` and pushes an `ArmyState`, while `enableArmy:false` merely unregisters `ArmySystem` — so the army never resolves, the tools are gone, and `state.armies` grows unbounded. It is latent today only because the handler returns early without a rival building (so a one-player solo sim can't reach it) and MP runs `enableArmy:true`. **Setting `enableArmy:false` in MP without gating the handler would create the bug** — the same shape as brief 98's Farm market wall: intents queued, cost paid, nothing resolves. Brief 112 must do both in one change.
+
+**#16/#17** cover the other two things nobody chose. The server is **one room per process** — its own header calls a multi-room lobby "a follow-up" — so every peer who connects joins the *same game*, and brief 109 would put that on a public VPS. Rooms become keyed and invite-only (`?mp=<roomId>`, porting the Farm `RunRegistry` that citadel-38 item 7 already names as the model). And an MP run is **ephemeral by design**: `request-save` hands a peer a blob that `load-save` refuses to load in a shared room ("would desync live peers"), and the room reaps 10 s after the last peer leaves — so the save API promises a recoverability MP does not have. Both filed as [brief 111](briefs/game/todo/111-citadel-mp-room-keys-and-session-semantics.md), which now also gates 109.
+
+**#18** deletes `maxDays` rather than wiring it (MP is endless by #15); folded into [brief 99](briefs/game/todo/99-p2-debt-cleanup-batch.md).
+
+Still open, and parked: whether **Challenge** is *also* a solo difficulty, and whether it is one flag or two — the `cozyThreats` and `enableArmy` axes are independent in code today. It blocks scoping brief 103, not brief 110.
+
 ## [2026-07-10] done | Brief 108 — Citadel live-MP verification: the client renders a 96×96 corner of a 256×256 world
 
 [Brief 108](briefs/game/done/108-citadel-live-mp-verification.md) is the first time Citadel multiplayer was driven **live**: `npm run citadel`, two real browser tabs on `?mp` against the WebSocket server, driven through the `window.__citadel` dev hook, plus a raw-WS harness where the browser was too coarse an instrument. It found one root-cause defect and one independent gameplay bug. Code fix in `16b0191`.

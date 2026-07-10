@@ -27,6 +27,11 @@ put them — locate them first).
 - ⚠️ **Gated on [brief 110](110-citadel-client-world-size.md)** (decision #11): the MP client
   currently renders only a 96×96 corner of the server's 256×256 world, so deploying the MP server
   before 110 lands would ship that bug to a real box. Solo needs no server and is unaffected.
+- ⚠️ **Also gated on [brief 111](111-citadel-mp-room-keys-and-session-semantics.md)** (decision #16):
+  the server runs **one room per process**, so every peer who connects joins the *same game*. Exposing
+  that publicly lets any stranger build in, and demolish from, your settlement. Room keys first.
+- Solo is deployable **today** and independently — it runs entirely client-side in a Web Worker and
+  needs no server process. Shipping the static client early is a legitimate first slice.
 
 ## Acceptance
 

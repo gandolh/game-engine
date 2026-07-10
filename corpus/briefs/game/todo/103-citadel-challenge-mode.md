@@ -1,7 +1,7 @@
 # Brief 103 — Citadel Challenge mode (unfreeze the sharp systems as an opt-in mode)
 
-status: todo (design-first) — **approved 2026-07-10 (decision #13).** Challenge mode is now the home of *every* sharp system: `cozyThreats:false` **and** lethal PvP elimination, which decision #12 removes from default MP. That makes this brief the frozen path's first real consumer.
-⚠️ **Open before execution** (see [open-questions.md](../../../wiki/open-questions.md)): is Challenge a *solo* difficulty, an *MP* ruleset, or one flag meaning both? `cozyThreats` and `enableArmy` are independent bootstrap options today; collapsing them into one "Challenge" flag is a design choice, not a refactor.
+status: todo (design-first) — **approved 2026-07-10 (decision #13).** Challenge mode is the home of *every* sharp system: `cozyThreats:false` **and** the PvP armies that decision **#15** removes from cozy MP outright ([brief 112](112-citadel-cozy-mp-drop-armies.md)). After #15, Challenge is the **only** place `launchAttack` exists — so it must at minimum support MP. That makes this brief the frozen path's first real consumer, and the reason its two-branch test burden stops being dead weight.
+⚠️ **Open before execution** (see [open-questions.md](../../../wiki/open-questions.md)): is Challenge *also* a solo difficulty, and is "Challenge" one flag or two? `cozyThreats` and `enableArmy` are independent bootstrap options today; collapsing them into one mode flag is a design choice, not a refactor.
 source: the cozy pivot's own promise — the sharp systems were frozen "for a future
 Challenge/MP mode", not deleted: `cozyThreats:false` keeps the destructive fire/disease/raid
 path byte-identical; `enableArmy`/`enforceTerritory` gate army/territory; `activeDecrees`
