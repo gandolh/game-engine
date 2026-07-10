@@ -146,7 +146,7 @@ size that crosses the `4096²` iso-pixel windowing threshold** (`6144×3088`, 76
 110's part 1, and briefs 21/22's windowed bake behind it, stop being dead code. 160×160 would have
 grown the map without triggering windowing; 256×256 sits exactly on WebGPU's default
 `maxTextureDimension2D` of 8192 px with zero margin. The full size table is in
-[brief 110](../briefs/game/todo/110-citadel-client-world-size.md).
+[brief 110](../briefs/game/done/110-citadel-client-world-size.md).
 
 A settlement occupies ~40×40 tiles regardless, so this trades map occupancy (17% → 4%) for longer
 roads to clustered resources — which is #10's "build toward the resource" decision made larger.
@@ -193,7 +193,7 @@ Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 
 
 | Brief | Status after the second session |
 |---|---|
-| [110](../briefs/game/todo/110-citadel-client-world-size.md) world size | **Next up, reshaped.** Now *solo grows to 192*, not *client adopts server*. Part 1 already landed (`8e930f3`). |
+| [110](../briefs/game/done/110-citadel-client-world-size.md) world size | **Next up, reshaped.** Now *solo grows to 192*, not *client adopts server*. Part 1 already landed (`8e930f3`). |
 | [100](../briefs/game/todo/100-citadel-economy-growth-pass.md) economy growth | Follows 110. Curve `0.6 → 1.0 → 1.25`; pop target 12–15. |
 | [113](../briefs/game/todo/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23). Filed, not built. |
 | [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Solo-only (#24). Unblocked, unbuilt. |

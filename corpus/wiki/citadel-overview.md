@@ -84,7 +84,7 @@ are still open (solo is unaffected).
 > are silently confined to the top-left corner by the placement bounds check; anything the sim puts
 > outside it (raiders spawn at the true map edges) lands off-canvas. Consequently `shouldWindow` is
 > always false, so briefs 21/22's windowed bake **never executes** in production. **Solo is 96×96
-> and entirely correct — every symptom is MP-only.** Fix is [brief 110](../briefs/game/todo/110-citadel-client-world-size.md);
+> and entirely correct — every symptom is MP-only.** Fix is [brief 110](../briefs/game/done/110-citadel-client-world-size.md);
 > don't trust MP render behaviour until it lands.
 >
 > Mode-dependent sim rules must read the bootstrap-time `multiplayer` option, **not**

@@ -18,7 +18,7 @@ score; **#9** removed the ending; **#15** removed the armies; **#17** made the r
 with its last peer, and `request-save` hands you a blob nothing in MP can load. What remained was a
 scoreless, endless, unsaveable co-op sandbox, and the remaining work to make it *safe to expose* was
 four briefs of infrastructure ([109](../briefs/game/superseded/109-citadel-vps-deploy.md),
-[110](../briefs/game/todo/110-citadel-client-world-size.md),
+[110](../briefs/game/done/110-citadel-client-world-size.md),
 [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md),
 [112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md)) serving no identified player.
 

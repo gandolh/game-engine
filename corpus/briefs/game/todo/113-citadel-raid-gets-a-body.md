@@ -28,19 +28,16 @@ leave. No new mechanic — the existing cozy raid, made visible. This is the die
 
 ## Scope
 
-1. **Freeze the PvP path.** `enableArmy` default → **`false`** (from `true`). `ArmySystem` and the
-   `launchAttack` handler stay in the tree, unregistered and unreached.
-   ⚠️ Gate the `launchAttack` handler on `enableArmy` **in the same change** as the default flip.
-   The handler ([sim-bootstrap.ts:779-822](../../../../games/citadel/sim-core/src/sim-bootstrap.ts))
-   debits `attacker.stockpiles.tools -= strength` then pushes an `ArmyState`; `enableArmy:false` only
-   unregisters `ArmySystem`, so the army would **never resolve and never be removed** — tools gone,
-   `state.armies` growing without bound. This is the trap decision #15 flagged and brief 112 was
-   going to defuse. **112 is superseded; this brief inherits the trap.**
-   *(This step may land early, inside [brief 110](110-citadel-client-world-size.md) — it is two lines
-   and unrelated to the body work. Check before duplicating.)*
-   Reject the command explicitly, the way peer-sent `setActivePlayer` is rejected (citadel-38 P0#3).
-   Check `army.test.ts` + `pve-gift.test.ts` — they bootstrap with defaults today, so they must pass
-   an explicit `enableArmy: true` afterwards.
+1. ✅ **DONE — landed early in [brief 110](../done/110-citadel-client-world-size.md) (`0fd66c0`).**
+   `enableArmy` now defaults **`false`**, and the `launchAttack` handler is gated on it in the *same*
+   change. `ArmySystem` and the handler stay in the tree, unregistered and unreached.
+
+   The trap was **real and confirmed empirically**: with the flag flipped and the handler ungated, 20
+   `launchAttack` commands leave `state.armies.length === 20` and the tools debited — the army is never
+   resolved and never removed, because `enableArmy:false` only unregisters the *system*. The rejection
+   is explicit (a `pushEvent`), the way peer-sent `setActivePlayer` is rejected (citadel-38 P0#3).
+   `army.test.ts` now passes `enableArmy: true` explicitly, and gained a byte-identical proof that
+   freezing `ArmySystem` does not move a one-player sim. **Do not redo this step.**
 
 2. **A raider entity with a position.** Introduce a PvE raid body — either a new `RaiderState`, or
    `ArmyState` with the PvP fields dropped. Decide at session start; the fields to lose are
@@ -86,7 +83,7 @@ leave. No new mechanic — the existing cozy raid, made visible. This is the die
 
 ## Notes
 
-- Sequence **after** [110](110-citadel-client-world-size.md). On a 192×192 world (#22) a raider's walk
+- Sequence **after** [110](../done/110-citadel-client-world-size.md). On a 192×192 world (#22) a raider's walk
   from a map edge is long enough to be genuinely readable, which is what makes this brief worth doing;
   on 96×96 it would arrive almost immediately.
 - The scout/garrison-interceptor counterplay shipped 2026-06-26 currently intercepts an *abstraction*.

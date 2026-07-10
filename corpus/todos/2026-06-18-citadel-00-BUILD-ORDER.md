@@ -154,7 +154,7 @@ baseline across grow/siege/sack/fire/disease (seeds 1,7) at `TICKS_PER_DAY=20`.
   live-MP pass: the *client* is hardcoded to a 96×96 world, so `shouldWindow` is always false
   and the windowed path never executes — panning re-bakes nothing, because nothing is
   windowed. Both todos are in `closed/`; their remaining GPU verification is now owned by
-  [brief 110](../briefs/game/todo/110-citadel-client-world-size.md), which fixes the client
+  [brief 110](../briefs/game/done/110-citadel-client-world-size.md), which fixes the client
   world size and makes the windowed bake iso-correct (review findings item 35).
 
 **Verification ceiling** (updated 2026-07-10). The sim + netcode + bot logic is unit-tested +
