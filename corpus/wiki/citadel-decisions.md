@@ -93,7 +93,7 @@ See [citadel-mp-deprecated.md](citadel-mp-deprecated.md) §3.
 ### #18 — `maxDays` is deleted
 A *required* `CitadelSimOptions` field that **no system reads** — every caller passes it, nothing
 consumes it, so it reads as a run-length bound and bounds nothing. Removed, not wired. Folded into
-[brief 99](../briefs/game/todo/99-p2-debt-cleanup-batch.md). ⚠️ `loadFromSave` computes its own value
+[brief 99](../briefs/game/done/99-p2-debt-cleanup-batch.md). ⚠️ `loadFromSave` computes its own value
 to pass through; check that path before deleting.
 
 ### #19 — A "mode" is a preset at the call site, not a concept in the sim
@@ -201,7 +201,7 @@ Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 
 | [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md) room keys | **Superseded** (#21). Its hazard is real; it is a revival precondition. |
 | [112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | **Superseded** (#23). Moot — there is no cozy MP. The `enableArmy` default flip survives into 110. |
 | [109](../briefs/game/superseded/109-citadel-vps-deploy.md) VPS deploy | **Superseded** (#21). Nothing to deploy. |
-| [99](../briefs/game/todo/99-p2-debt-cleanup-batch.md) P2 debt | Keeps the `maxDays` deletion (#18 survives). |
+| [99](../briefs/game/done/99-p2-debt-cleanup-batch.md) P2 debt | Keeps the `maxDays` deletion (#18 survives). |
 | [98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md) Farm market wall | **Option A, wire it.** Farm is in maintenance; this and 99's Farm slice are its whole scope. |
 | [101](../briefs/game/todo/101-farm-perishability-distance-pricing.md) · [107](../briefs/game/todo/107-farm-visual-verification-session.md) | Parked. Farm is in maintenance; 101 forbids autonomous execution, 107 needs the user's real GPU. |
 | engine [18](../briefs/engine/todo/18-ui-authored-typography-and-icons.md) · [19](../briefs/engine/todo/19-audio-subsystem.md) | Parked. Net-new subsystems, independent of everything above. |

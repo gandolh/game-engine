@@ -2,7 +2,7 @@
 
 status: open
 kind: review-findings (triage doc — split into briefs/fix batches as prioritized)
-➡️ **Execution briefs:** [briefs/game/done/97-review-fix-wave.md](../briefs/game/done/97-review-fix-wave.md) carries the approved chunk plan (waves, classification, gates) for items 1–6, 8–27, 36–40. Item 7 → [brief 98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md); items 28–35 → [brief 99](../briefs/game/todo/99-p2-debt-cleanup-batch.md) (item 35 → [brief 110](../briefs/game/done/110-citadel-client-world-size.md), via the [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md) live pass). Every finding is now scheduled.
+➡️ **Execution briefs:** [briefs/game/done/97-review-fix-wave.md](../briefs/game/done/97-review-fix-wave.md) carries the approved chunk plan (waves, classification, gates) for items 1–6, 8–27, 36–40. Item 7 → [brief 98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md); items 28–35 → [brief 99](../briefs/game/done/99-p2-debt-cleanup-batch.md) (item 35 → [brief 110](../briefs/game/done/110-citadel-client-world-size.md), via the [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md) live pass). Every finding is now scheduled.
 
 Six parallel read-only review passes (engine core, farm sim-core, farm client+server,
 citadel sim-core, citadel client, corpus lint), findings adversarially spot-verified by the

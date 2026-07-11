@@ -104,7 +104,12 @@ a before/after screenshot showing the crowd no longer over-reads population.
 Strictly sequential: **99 → 98**. 99 centralizes the crop-debit path that 98's trade loop
 then transfers stock through; doing 98 first means writing the transfer twice.
 
-#### 99 — P2 debt cleanup (review findings 28–35)
+#### [x] 99 — P2 debt cleanup (review findings 28–35) — **DONE 2026-07-11**
+
+Landed as `f244bea`/`98839a6` (the wave), `f260a7e` (test-probe adjudication), `7da72da`
+(`maxDays`). 5 chunks, disjoint lanes, 4 junior + 1 senior (rng/auction — promoted because
+the determinism gate can't tell correct from wrong-but-deterministic). Farm baseline moved by
+design and explains itself; Citadel byte-identical. Brief moved to `done/`. See status.md.
 
 Source detail lives in
 [2026-07-02-full-repo-review-findings.md](2026-07-02-full-repo-review-findings.md).
