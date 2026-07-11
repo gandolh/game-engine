@@ -58,6 +58,20 @@ Both headless runners exist; what's missing is the *output contract*.
   run.
 - Typecheck + tests clean.
 
+## Adjacent finding folded in (from the closed 2026-07-01 phase-A playtest todo)
+
+The browser-side sibling of this problem: the `playtest-citadel` skill driver `play.mjs`
+still scrapes the **DOM** HUD (`pop`/`happy`/`day`/`tier`), but the 2026-06-30 migration moved
+all Citadel GUI in-canvas (`@engine/ui`) — so its timeline logs `pop=null happy=null tier=""`
+for every tick, and `buildingCount` counts roads (431 of 439). Fix alongside (or after) the
+report work: read HUD state from `window.__citadel` by exposing the latest snapshot's
+`day/season/pop/popCap/happiness/tier/stockpiles` (`currentSnapshot` already exists in
+[sim-client.ts](../../games/citadel/client/src/worker/sim-client.ts)); count non-road/non-wall
+buildings (or report roads separately). Nice-to-have: a `__citadel.setZoom(z)` / camera-center
+dev hook so a visual harness doesn't fake mouse-wheel events. The dev-hook shape should
+probably mirror whatever end-state snapshot the JSON report settles on — one contract, two
+transports.
+
 ## Open questions (for the grill, when promoted)
 
 - Report **size budget** — a 100-day Farm run with 21 agents could be huge. Cap it? Sample

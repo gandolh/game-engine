@@ -4,6 +4,16 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-11] maintenance | todo-queue closure sweep + the dispatch plan rebuilt (Waves 2.5 and 5 added)
+
+A corpus maintenance pass ahead of the Wave-3 run: audited all 16 open `todos/` files against what has actually shipped, **closed the 7 whose work is fully discharged**, and rebuilt the [dispatch plan](todos/2026-07-10-remaining-work-dispatch-plan.md) around what remains.
+
+**Closed** (moved to `todos/closed/`, each with a closure note): the three historical **build-order docs** (2026-06-12 Farm set — every child done; 2026-06-18 Citadel — superseded by the cozy pivot; 2026-06-28 cozy pivot — all phases A–I shipped and playtested); the **2026-07-02 full-repo review findings** — all 40 findings executed via briefs 97/98/99/110, every one now done, so the triage doc is discharged; the two **2026-06-27 entity todos** (movement feel → brief 104 done; count-matches-population → brief 105 scope 1 done, the MP owner-filter half parked and tracked on [citadel-mp-deprecated.md](wiki/citadel-mp-deprecated.md)); and the **2026-07-01 phase-A playtest log** — its one live finding (the `play.mjs` driver still DOM-scrapes a HUD that moved in-canvas 2026-06-30) was **extracted into the [headless-JSON todo](todos/2026-07-11-headless-json-run-for-both-games.md)** before closing, as the browser-side sibling of the same "runs must be machine-readable" problem. Inbound links from live pages (wiki, log, citadel-apr, brief 107) repointed to `todos/closed/`; immutable done-briefs left untouched per convention.
+
+**Stays open, deliberately:** the OpenTTD influence note (standing reference by its own header), the perishability / typography / audio todos (they are the specs for parked briefs 101 / engine-18 / engine-19), and the citadel-playtest-findings todo (its last finding, P3, is brief 102 — Wave 3 closes it).
+
+**The plan rebuilt:** Waves 1–2 are done, so the remaining order is **Wave 2.5** (new: [headless JSON run mode](todos/2026-07-11-headless-json-run-for-both-games.md), read-only scope, sequenced first because 102/113/103 all carry headless-verification gates and today both runners emit console prose) → **Wave 3** (102 disease counterplay + 113 raid body, design gate first) → **Wave 4** (103 challenge mode — its `sack` blocker was fixed 2026-07-11, `7c76522`/`36382d2`, so the wave is unblocked; the brief's stale "army/territory active" acceptance line still needs fixing before the split) → **Wave 5** (new: [building silhouette differentiation](todos/2026-07-11-citadel-external-cc0-art-ingest.md), render-only, sequenced last so gameplay isn't queued behind art polish). Lint green.
+
 ## [2026-07-11] spike | free CC0 art can't be baked into EDG32 — and the attempt found the real art defect
 
 Asked to find free online assets for Citadel, download them, bake them, and use them. **Prototyped it; it does not work.** Recording the negative result so nobody spends the day re-deriving it. Evidence page: [verify/2026-07-11-citadel-art/](verify/2026-07-11-citadel-art/README.md).
@@ -444,7 +454,7 @@ item, gated on a properly-serviced run, not on a code defect.
 
 ## [2026-07-01] shipped | Citadel cozy-pivot Phase I — terrain clustering + solvability guarantee
 
-Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Implemented the [cozy-pivot build order](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
 Phase I (decision #10 — *terrain IS the puzzle's difficulty knob: a guaranteed-solvable floor
 with rich texture above it*). **The last structural pivot pass — with I done, the whole
 structural pivot (A,B,C,D,G,H,I) has shipped.** Built via `plan-split-dispatch`: 2 senior
@@ -504,7 +514,7 @@ A–H feel; WebGPU can't render headless here).
 
 ## [2026-07-01] shipped | Citadel cozy-pivot Phase H — economy under the downside rule (throttle-not-halt + single-slot)
 
-Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Implemented the [cozy-pivot build order](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
 Phase H (decision #9 — *nothing ever fully stops; every problem is a throttle toward a
 ~60–70% floor, always recoverable*). Grounding the plan in the *current* code showed most
 of the brief's H text had **already shipped in Phases B & G**, so H reduced to a focused
@@ -557,7 +567,7 @@ wants a `playtest-citadel` pass alongside the outstanding A–G eyeball.
 
 ## [2026-07-01] shipped | Citadel cozy-pivot Phase G — autonomy pass (civic buildings + player-driven trading post)
 
-Implemented the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Implemented the [cozy-pivot build order](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
 Phase G (decision #8 — the autonomy boundary): **the player sets placement +
 economic intent; the town autonomously handles all behavior.** Built via
 `plan-split-dispatch` (2 senior/opus + 4 junior/Sonnet chunks; 3 Sonnet+opus review
@@ -646,11 +656,11 @@ end-to-end at both the data and visual layers:
   contrast still wasn't framed, but now for a benign reason. A follow-up placing services
   in range would show mood 40→80; low priority (the mechanism was proven in the Phase A
   data check). Full write-up folded into
-  [the cozy-pivot playtest log todo](todos/2026-07-01-citadel-phaseA-playtest-verification.md).
+  [the cozy-pivot playtest log todo](todos/closed/2026-07-01-citadel-phaseA-playtest-verification.md).
 
 ## [2026-07-01] build | Citadel cozy pivot Phase C — forgiving diegetic cold open (seeded alive core + threats deferred until grown)
 
-Phase C of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Phase C of the [cozy-pivot build order](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
 shipped. Goal: the solo game **opens on a living town** instead of an empty map, the founding
 deadlock is **structurally impossible**, and threats stay off through the forgiving opening —
 teaching the diegetic loop by reward, not instruction. Built via `plan-split-dispatch`
@@ -705,13 +715,13 @@ determinism baseline is **byte-identical** (verified: `sim:citadel` disease stil
 - **⚠️ Not yet eyeballed in a real browser** (WebGPU can't render headless on this box — the
   standing Citadel limitation). The cozy *look* the cold open showcases (a calm, fed, fire-free
   glowing town) is now finally *reachable via legitimate play* — Phases A+B+C+D together clear the
-  blockers the [Phase A playtest note](todos/2026-07-01-citadel-phaseA-playtest-verification.md)
+  blockers the [Phase A playtest note](todos/closed/2026-07-01-citadel-phaseA-playtest-verification.md)
   flagged. **A `playtest-citadel` pass is the outstanding acceptance step.**
 
 ## [2026-07-01] build | Citadel cozy pivot Phase D — threats demoted to recoverable happiness dips (freeze the bite)
 
-Phase D of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
-shipped (brief [2026-07-01-citadel-cozy-phaseD-threat-demotion](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)),
+Phase D of the [cozy-pivot build order](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+shipped (brief [2026-07-01-citadel-cozy-phaseD-threat-demotion](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)),
 implementing the cozy contract (#4/#5/#6): threats no longer destroy/kill/sack — they
 **dent local happiness** (which the Phase-B productivity floor turns into a visible
 slowdown that self-recovers). The sharp path is **frozen, not deleted**.
@@ -765,7 +775,7 @@ slowdown that self-recovers). The sharp path is **frozen, not deleted**.
 
 ## [2026-07-01] build | Citadel cozy pivot Phase B — happiness → productivity floor (the signal gets teeth)
 
-Phase B of the [cozy-pivot build order](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
+Phase B of the [cozy-pivot build order](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md)
 shipped — makes the Phase A mood signal **mechanical**, implementing the downside
 rule (#9): every problem is a *throttle toward a floor, never a cliff*. **Gated as a
 single phase** (threat re-pointing → Phase D, decree purge + winter grain floor →
@@ -831,12 +841,12 @@ finding: the playtest driver `play.mjs` still scrapes the **DOM** HUD, which is 
 after the 2026-06-30 in-canvas-UI migration (`pop/happy/tier` log as null; road count
 inflates `buildingCount`) — it should read state from `__citadel`/`currentSnapshot`
 instead. Findings + acceptance in
-[todos/2026-07-01-citadel-phaseA-playtest-verification.md](todos/2026-07-01-citadel-phaseA-playtest-verification.md).
+[todos/closed/2026-07-01-citadel-phaseA-playtest-verification.md](todos/closed/2026-07-01-citadel-phaseA-playtest-verification.md).
 Corpus-only entry (no code changed in this playtest).
 
 ## [2026-06-30] era | Citadel cozy pivot (design rounds 1–7 + Phases A–I) + all-GUI-in-canvas (@engine/ui) + 06-27 playtest fixes + 06-26 gameplay-depth/art + 06-19..22 iso-render foundation
 
-Collapsed the 2026-06-19 → 2026-06-30 Citadel wave (≈75 full-prose entries). Per-brief detail lives in [briefs/](briefs/) + closed todos in [todos/closed/](todos/closed/) + [wiki/status.md](wiki/status.md); **git holds the trimmed prose** (`git log -p -- corpus/log.md`). Design of record for the cozy identity is [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md); synthesis in [wiki/citadel-overview.md](wiki/citadel-overview.md).
+Collapsed the 2026-06-19 → 2026-06-30 Citadel wave (≈75 full-prose entries). Per-brief detail lives in [briefs/](briefs/) + closed todos in [todos/closed/](todos/closed/) + [wiki/status.md](wiki/status.md); **git holds the trimmed prose** (`git log -p -- corpus/log.md`). Design of record for the cozy identity is [todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md); synthesis in [wiki/citadel-overview.md](wiki/citadel-overview.md).
 
 ### The cozy pivot — design (2026-06-28, 7 grilling rounds, no code)
 Resolved **what Citadel is for**: *a cozy placement puzzle you read by watching the town live* — not a pressure/survival sim, not a competitive RTS. Ten locked decisions (see the build order for the full list):

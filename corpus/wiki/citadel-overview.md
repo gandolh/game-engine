@@ -24,7 +24,7 @@ updated: 2026-07-10
 > rule** — every problem is a throttle-to-floor, never a loss (#9); and **terrain is
 > the puzzle** — clustered resources + a solvability guarantee (#10).
 > Full plan + dependency order:
-> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
 > **Where this page contradicts the cozy pivot below (esp. the "fire punishes tight
 > clusters / spacing-vs-density tension is intentional" note), the pivot wins** —
 > that was a pressure-game stance.
@@ -112,7 +112,7 @@ There is no Farm-Valley-style "done brief" archive for Citadel yet; work is trac
 > **⛔ SUPERSEDED by the 2026-06-28 cozy pivot.** The two notes below describe the
 > **pressure-game** design and its tuning. The pivot reframes both — kept here for
 > history, but **do not treat them as current intent.** Current design of record:
-> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
 
 **~~Design — spacing-vs-density tension is intentional (2026-06-22).~~** *(SUPERSEDED —
 **shipped 2026-07-01, Phase D:** fire is now gentle texture — a building smoulders and dents

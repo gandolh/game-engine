@@ -1,7 +1,7 @@
 # Brief 107 — Farm visual verification session (clear the eyeball debt)
 
 status: todo (one interactive session with the user's real GPU; nothing to build unless a check fails)
-source: pending flags in [wiki/status.md](../../../wiki/status.md) ("⚠️ Pending: an in-browser visual pass over 12–16/86/87") + [wiki/animation.md](../../../wiki/animation.md) (brief-85 feel-check) + [todos/2026-07-01-citadel-phaseA-playtest-verification.md](../../../todos/2026-07-01-citadel-phaseA-playtest-verification.md) (warm-glow contrast).
+source: pending flags in [wiki/status.md](../../../wiki/status.md) ("⚠️ Pending: an in-browser visual pass over 12–16/86/87") + [wiki/animation.md](../../../wiki/animation.md) (brief-85 feel-check) + [todos/2026-07-01-citadel-phaseA-playtest-verification.md](../../../todos/closed/2026-07-01-citadel-phaseA-playtest-verification.md) (warm-glow contrast).
 
 ## Checklist (run `npm run dev`, real GPU, `?profile` available)
 

@@ -6,7 +6,7 @@
 > was first built and is still useful for the **mechanical substrate** (command queue,
 > road connectivity, job-driven walkers, footprints — all unchanged). But for **design
 > intent / what Citadel is for**, the current design of record is
-> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+> [todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](../todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
 > Where they disagree (fail-states, threats-as-bite, player decree levers), the pivot wins.
 
 **Status:** ~~Agreed plan of record~~ → **superseded design-of-record** (see banner). Date: 2026-06-18. Owner: gandolh.

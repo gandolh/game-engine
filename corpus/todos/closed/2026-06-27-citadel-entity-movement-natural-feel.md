@@ -1,12 +1,18 @@
 ---
 title: "Citadel — make entities moving through the map feel more natural"
 created: 2026-06-27
-status: partial
+status: closed
+closed: 2026-07-11
 tags: [citadel, render, juice, movement, ux, villagers, raiders]
 ---
 
+> **✅ CLOSED 2026-07-11.** [Brief 104](../../briefs/game/done/104-citadel-movement-feel-polish.md)
+> landed all four items (Wave 1, 2026-07-10, `26deb45`): interpolation + corner-cutting spline
+> were already live; the hysteretic L/R facing flip and walk-cadence gait (incl. ambient-crowd
+> parity) shipped with numeric tests + a real-WebGPU browser pass. Nothing remains.
+
 > **➡️ Promoted 2026-07-03:** the deferred polish (gait, facing, corner-cutting) is now
-> [brief 104](../briefs/game/done/104-citadel-movement-feel-polish.md).
+> [brief 104](../../briefs/game/done/104-citadel-movement-feel-polish.md).
 
 > **Partial — 2026-06-27.** Shipped the biggest win: **render-only position
 > interpolation**. New pure `EntityInterpolator` ([entity-interp.ts](../../games/citadel/client/src/render/entity-interp.ts))

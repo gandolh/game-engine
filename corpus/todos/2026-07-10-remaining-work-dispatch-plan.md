@@ -1,11 +1,19 @@
 # Remaining-work dispatch plan (2026-07-10)
 
-status: **plan — not started.** Resumable: each wave is an independent `plan-split-dispatch`
-run. Tick the checkboxes as waves land; the plan survives a context loss.
+status: **in progress — Waves 1, 2 done; 2.5, 3, 4, 5 open.** Resumable: each wave is an
+independent `plan-split-dispatch` run. Tick the checkboxes as waves land; the plan survives
+a context loss.
 
 Scope: the decision-**#26** queue `{102, 99, 106, 104, 105, 98}` plus the two
 unblocked-but-unstarted briefs **103** and **113**. #26's two gating items, briefs **110**
 and **100**, landed 2026-07-10 (`8e930f3`, `0fd66c0`).
+
+**Rebuilt 2026-07-11 (corpus maintenance pass):** two 2026-07-11 todos joined the queue as
+**Wave 2.5** ([headless JSON run mode](2026-07-11-headless-json-run-for-both-games.md),
+sequenced *before* Wave 3 because it makes every later wave's headless verification cheaper)
+and **Wave 5** ([building silhouette differentiation](2026-07-11-citadel-external-cc0-art-ingest.md),
+render-only, last). The `sack`-drift blocker on 103 was **fixed 2026-07-11**
+(`7c76522`/`36382d2`) — Wave 4 is unblocked.
 
 Out of scope: **96** (living art reference, not a task); **101**, **107** (Farm is in
 maintenance); engine **18**, **19** (parked). See [wiki/status.md](../wiki/status.md).
@@ -112,7 +120,7 @@ the determinism gate can't tell correct from wrong-but-deterministic). Farm base
 design and explains itself; Citadel byte-identical. Brief moved to `done/`. See status.md.
 
 Source detail lives in
-[2026-07-02-full-repo-review-findings.md](2026-07-02-full-repo-review-findings.md).
+[closed/2026-07-02-full-repo-review-findings.md](closed/2026-07-02-full-repo-review-findings.md).
 ⚠️ **Verify every item against current code first — brief 97's two waves moved these lines.**
 
 | Chunk | Items | Model |
@@ -138,7 +146,7 @@ inboxes). 42/36/40 trades close on seeds `0xc0ffee`/`1`/`42`. Determinism MATCH 
 **Wave 2 complete.**
 
 Decision made 2026-07-10: **Option A. Option B (remove it) is dead.** Read
-[review findings item 7](2026-07-02-full-repo-review-findings.md) first — it carries the
+[review findings item 7](closed/2026-07-02-full-repo-review-findings.md) first — it carries the
 verified evidence. The loop is dead end-to-end while still charging AP:
 
 - `BUY_REQUEST` is forwarded to the seller's inbox
@@ -166,6 +174,29 @@ expensive if wrong.
 gold + stock conserved (test); `offersById` bounded; determinism **MATCH ×3**. Update
 [wiki/economy.md](../wiki/economy.md) + [wiki/system-ordering.md](../wiki/system-ordering.md)
 if flows change (they will — a new inbox consumer lands in a scheduler band).
+
+---
+
+### [ ] Wave 2.5 — headless JSON run mode (tooling, added 2026-07-11)
+
+Spec: [2026-07-11-headless-json-run-for-both-games.md](2026-07-11-headless-json-run-for-both-games.md).
+**Read-only reporting scope only** (the scripted-action layer is explicitly separable —
+defer it unless it falls out free). Sequenced before Wave 3 because 102/113/103 all carry
+"prove the behaviour in a headless run" gates, and this makes those runs machine-readable
+instead of console-prose archaeology. Includes the folded-in `play.mjs` driver fix (read HUD
+via `window.__citadel`, not DOM scraping).
+
+Constraints: reporting is an **observer** over `getSnapshot()` / the message bus — never a
+new input to a tick. `CHECK_DETERMINISM=1` must still pass in both tools; same seed →
+byte-identical report. Both games' baselines must be **byte-identical** to pre-wave `main`
+(pure tooling; if a baseline moves, something leaked into the sim).
+
+**Gates:** typecheck + tests green; determinism MATCH ×3 both games (baselines unmoved);
+`npm run sim` and `npm run sim:citadel` each write a report a fresh agent can correctly
+narrate a run from.
+
+Model: controller settles the report shape (the todo's open questions); executor chunks
+Sonnet (tools + client dev-hook are disjoint lanes).
 
 ---
 
@@ -262,9 +293,11 @@ must land *after* 102 reshapes disease and 113 gives the raid a body, or it pres
 whose final shape isn't known.
 
 **Two things to resolve before splitting:**
-- ⚠️ **The `sack` scenario is broken** — see
-  [2026-07-10-citadel-sack-scenario-drift.md](closed/2026-07-10-citadel-sack-scenario-drift.md).
-  103's acceptance ("start→sack-or-survive") cannot be demonstrated until it's fixed.
+- ✅ ~~The `sack` scenario is broken~~ — **FIXED 2026-07-11** (`7c76522`/`36382d2`; see
+  [the closed todo](closed/2026-07-10-citadel-sack-scenario-drift.md)). The `sack` scenario
+  is now a real playthrough (grows honestly, earns Town, raises the keep, sacked day 50,
+  exits 1 on failure) and `sharp-raid-path.test.ts` guards reachability. 103's
+  "start→sack-or-survive" acceptance is demonstrable.
 - ⚠️ **The brief's Acceptance line is stale**: it demands "army/territory active", which the
   2026-07-10 reshape header explicitly reverses (`enableArmy` stays false). Fix the brief.
 
@@ -289,6 +322,30 @@ Dependency note: 97 chunk 4 (ghost workers) is **already satisfied** — brief 9
 
 **Gates:** cozy default path **byte-identical**; regression-guard both modes' baselines ×3;
 challenge run playable in a real browser.
+
+---
+
+### [ ] Wave 5 — building silhouette differentiation (render-only, added 2026-07-11)
+
+Spec: [2026-07-11-citadel-external-cc0-art-ingest.md](2026-07-11-citadel-external-cc0-art-ingest.md)
+(the CC0-ingest spike was **rejected with evidence** — do not re-run it; the todo's "Proposed
+work" section is the task). 8 of 21 `BUILDING_RECIPES` are the same 128×92 box with a
+different roof colour (`house`, `bakery`, `woodcutter`, `market`, `public-square`,
+`watchpost`, `quarry`, `sawmill`, `smith`), contradicting `buildings.ts`'s own
+silhouette-first design goal — and colour is the axis the day/night wash degrades. Give each
+a distinct silhouette by composing existing `iso-draw.ts` primitives; bias roofline +
+attached structure + ground props, not hue. The `composite([...Layer])` path from art-12 is
+the natural vehicle; zero atlas growth (256×4096 is the pow2 ceiling).
+
+Render-only, zero sim impact, could in principle run any time — sequenced last so the
+gameplay waves (raid body, challenge mode) aren't queued behind art polish.
+
+**Gates:** typecheck + tests green (EDG32 palette guard, `@citadel/client` suite); the
+[whole-set critique checklist](../wiki/citadel-asset-critique.md) re-run over the changed
+set; **browser-verified in `?showcase`** (UI/art is not done until seen in a browser).
+
+Model: Sonnet executor chunks (the art-08..12 wave's precedent); opus only if a recipe needs
+a genuinely new primitive.
 
 ---
 

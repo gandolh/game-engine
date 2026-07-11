@@ -1,9 +1,17 @@
 ---
 title: "Build order + dependency graph for Citadel (medieval city/fortress builder)"
 created: 2026-06-18
-status: reference
+status: closed
+closed: 2026-07-11
 tags: [planning, citadel]
 ---
+
+> **✅ CLOSED 2026-07-11 (superseded).** All phases were built, and the game's *identity* was
+> then re-resolved by the [2026-06-28 cozy pivot](2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md),
+> which explicitly reoriented the open work this order sequenced. The design of record is
+> [wiki/citadel-overview.md](../../wiki/citadel-overview.md) +
+> [wiki/citadel-decisions.md](../../wiki/citadel-decisions.md) (MP deprecated by #21).
+> Historical planning record only.
 
 # Build order — Citadel
 

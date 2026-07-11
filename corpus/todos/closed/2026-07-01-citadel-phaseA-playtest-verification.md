@@ -1,9 +1,17 @@
 ---
 title: "Citadel cozy-pivot playtest log — Phase A mood data (live) + Phase C cold-open (live, VERIFIED); driver DOM-scrape stale post in-canvas-UI"
 created: 2026-07-01
-status: partial
+status: closed
+closed: 2026-07-11
 tags: [citadel, playtest, cozy-pivot, phase-a, phase-c, ux, tooling]
 ---
+
+> **✅ CLOSED 2026-07-11.** Historical verification record. The Phase A–D visual re-eyeball it
+> left outstanding was satisfied by the 2026-07-01 Phase E/F playtest (200+ day live run —
+> see [that closed todo](2026-07-01-citadel-phaseEF-playtest.md)); its one live finding, the
+> **stale DOM-scraping `play.mjs` driver**, was extracted 2026-07-11 into
+> [the headless-JSON-run todo](../2026-07-11-headless-json-run-for-both-games.md) (the
+> browser-side sibling of the same "runs must be machine-readable" problem).
 
 > **Run config (reproducible):** client seed fixed `0x1a2b3c4d`, solo Web-Worker
 > sim, system Chrome + WebGPU. Two focused scripts (scratch, under

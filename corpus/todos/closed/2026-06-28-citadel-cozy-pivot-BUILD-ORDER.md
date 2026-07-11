@@ -1,9 +1,17 @@
 ---
 title: "Build order — Citadel cozy pivot: a placement puzzle you read by watching the town live"
 created: 2026-06-28
-status: ready
+status: closed
+closed: 2026-07-11
 tags: [planning, citadel, design, cozy, gameplay]
 ---
+
+> **✅ CLOSED 2026-07-11 — ALL PHASES SHIPPED (A–I, 2026-06-30 → 2026-07-01).** Playtested in
+> a real WebGPU browser: a town stays alive, fed, and fire-recoverable across 200+ days.
+> The locked decisions below remain the design of record — they live on in
+> [wiki/citadel-overview.md](../../wiki/citadel-overview.md) and
+> [wiki/citadel-decisions.md](../../wiki/citadel-decisions.md); per-phase outcomes are in
+> [wiki/status.md](../../wiki/status.md) and [log.md](../../log.md).
 
 # Build order — Citadel cozy pivot
 

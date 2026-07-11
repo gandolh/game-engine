@@ -15,7 +15,7 @@ animation). This page is the *what/why*; the phased work that applies it lives i
 ## The feel
 
 Warm, inviting, lived-in. Golden-hour light, soft shadows, friendly rounded forms, lively
-color, lamplit nights. **Charm over grit.** Matches the [cozy pivot](../todos/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
+color, lamplit nights. **Charm over grit.** Matches the [cozy pivot](../todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md).
 
 ## Foundations (already true in the renderer — don't break)
 
