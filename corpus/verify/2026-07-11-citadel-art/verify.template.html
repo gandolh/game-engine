@@ -1,0 +1,506 @@
+<title>Citadel CC0 art ingest — verification</title>
+
+<style>
+  :root {
+    color-scheme: light dark;
+    /* Palette is EDG32 itself — the subject of the page. */
+    --ground: #dfe4ee;
+    --panel: #ffffff;
+    --panel-2: #f2f4f8;
+    --rule: #b9c2d4;
+    --ink: #262b44;
+    --ink-soft: #5a6988;
+    --ink-faint: #8b9bb4;
+    --accent: #be4a2f;
+    --reject: #a22633;
+    --pass: #3e8948;
+    --sheet-bg: #181425;
+    --shadow: 0 1px 0 rgba(38,43,68,.05), 0 8px 24px -12px rgba(38,43,68,.28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #181425;
+      --panel: #262b44;
+      --panel-2: #1f2338;
+      --rule: #3a4466;
+      --ink: #e4e8f2;
+      --ink-soft: #a8b3cc;
+      --ink-faint: #7a87a6;
+      --accent: #f77622;
+      --reject: #e43b44;
+      --pass: #63c74d;
+      --sheet-bg: #12101c;
+      --shadow: 0 8px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #181425; --panel: #262b44; --panel-2: #1f2338; --rule: #3a4466;
+    --ink: #e4e8f2; --ink-soft: #a8b3cc; --ink-faint: #7a87a6;
+    --accent: #f77622; --reject: #e43b44; --pass: #63c74d; --sheet-bg: #12101c;
+    --shadow: 0 8px 28px -14px rgba(0,0,0,.7);
+  }
+  :root[data-theme="light"] {
+    --ground: #dfe4ee; --panel: #ffffff; --panel-2: #f2f4f8; --rule: #b9c2d4;
+    --ink: #262b44; --ink-soft: #5a6988; --ink-faint: #8b9bb4;
+    --accent: #be4a2f; --reject: #a22633; --pass: #3e8948; --sheet-bg: #181425;
+    --shadow: 0 1px 0 rgba(38,43,68,.05), 0 8px 24px -12px rgba(38,43,68,.28);
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: .69rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 4.4vw, 3rem); line-height: 1.08; letter-spacing: -.022em;
+    font-weight: 800; text-wrap: balance; margin: .5rem 0 0;
+  }
+  .standfirst {
+    max-width: 44ch; color: var(--ink-soft); font-size: 1.08rem; margin: 1rem 0 0;
+  }
+
+  /* ---- verdict ---- */
+  .verdict {
+    margin-top: 2.5rem; display: grid; gap: 0;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    border: 1px solid var(--rule); border-radius: 3px;
+    background: var(--panel); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .v-cell { padding: 1.1rem 1.25rem; border-right: 1px solid var(--rule); }
+  .v-cell:last-child { border-right: 0; }
+  .v-k {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: .66rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .v-v { font-size: 1.02rem; font-weight: 650; margin-top: .3rem; font-variant-numeric: tabular-nums; }
+  .v-v.reject { color: var(--reject); }
+  .v-v.pass { color: var(--pass); }
+
+  /* ---- sections ---- */
+  section { margin-top: 4.5rem; }
+  h2 {
+    font-size: 1.45rem; letter-spacing: -.012em; font-weight: 750; margin: .45rem 0 0;
+    text-wrap: balance;
+  }
+  .lede { color: var(--ink-soft); max-width: 62ch; margin: .7rem 0 0; }
+  p { max-width: 66ch; }
+
+  figure { margin: 1.75rem 0 0; }
+  .sheet {
+    background: var(--sheet-bg); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 1rem; overflow-x: auto; box-shadow: var(--shadow);
+  }
+  .sheet img {
+    display: block; margin: 0 auto; max-width: 100%; height: auto;
+    image-rendering: pixelated;
+  }
+  figcaption {
+    font-size: .85rem; color: var(--ink-soft); margin-top: .75rem; max-width: 66ch;
+  }
+  .cols {
+    display: flex; gap: 1rem; margin-top: .6rem; flex-wrap: wrap;
+  }
+  .col-tag {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-faint); border-left: 2px solid var(--rule); padding-left: .5rem;
+  }
+  .col-tag b { color: var(--ink); font-weight: 650; display: block; letter-spacing: .04em; }
+
+  /* ---- gamut ---- */
+  .plotwrap {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 1.25rem; box-shadow: var(--shadow); overflow-x: auto;
+  }
+  canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+  .legend {
+    display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: .72rem; color: var(--ink-soft);
+  }
+  .legend span { display: flex; align-items: center; gap: .45rem; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-faint); }
+  .sq { width: 9px; height: 9px; outline: 1.5px solid var(--ink); background: #b86f50; }
+
+  .swatches { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 1.25rem; }
+  .sw { width: 26px; height: 26px; border-radius: 2px; position: relative; }
+  .sw[data-neutral="1"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .callout {
+    margin-top: 1.75rem; padding: 1.1rem 1.25rem;
+    border-left: 3px solid var(--accent); background: var(--panel-2);
+    border-radius: 0 3px 3px 0;
+  }
+  .callout p { margin: 0; max-width: 64ch; }
+
+  table { border-collapse: collapse; width: 100%; margin-top: 1.5rem; font-size: .92rem; }
+  th, td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint);
+    border-bottom-color: var(--ink-faint);
+  }
+  td code { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; font-size: .85em; }
+  .no { color: var(--reject); font-weight: 650; }
+  .yes { color: var(--pass); font-weight: 650; }
+  .tblwrap { overflow-x: auto; }
+
+  ul.tight { max-width: 66ch; padding-left: 1.1rem; }
+  ul.tight li { margin: .45rem 0; }
+
+  footer {
+    margin-top: 5rem; padding-top: 1.5rem; border-top: 1px solid var(--rule);
+    font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: .72rem; color: var(--ink-faint); display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: .5rem;
+  }
+  a { color: var(--accent); }
+  a:focus-visible, .sw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Citadel · render · verification spike · 2026-07-11</p>
+    <h1>Free CC0 art can't be baked into Citadel's palette.</h1>
+    <p class="standfirst">
+      The geometry fit perfectly. The colour didn't — and no better quantizer will fix it.
+      Here is the evidence, so you can check the call before the brief starts.
+    </p>
+  </header>
+
+  <div class="verdict">
+    <div class="v-cell">
+      <div class="v-k">Geometry fit</div>
+      <div class="v-v pass">Exact</div>
+    </div>
+    <div class="v-cell">
+      <div class="v-k">Licence</div>
+      <div class="v-v pass">Clean CC0</div>
+    </div>
+    <div class="v-cell">
+      <div class="v-k">Palette fit</div>
+      <div class="v-v reject">Failed ×2</div>
+    </div>
+    <div class="v-cell">
+      <div class="v-k">Recommendation</div>
+      <div class="v-v reject">Do not ingest</div>
+    </div>
+  </div>
+
+  <section>
+    <p class="eyebrow">The candidate</p>
+    <h2>rubberduck's isometric medieval buildings — genuinely CC0, and genuinely the right shape</h2>
+    <p class="lede">
+      Citadel renders 2:1 dimetric on a 32×16 tile, authoring building art at
+      <code>ISO_ART_SCALE = 2</code>. Its real building frames run 64×62 (the well) to 192×186
+      (the keep), typically 128×92. The pack's “64×32” variant trims to about 255×269 and
+      downscales cleanly into that box. Geometry was never the blocker — which is exactly why
+      it was worth testing properly rather than dismissing.
+    </p>
+    <p>
+      The catch that matters is upstream of any of that: these are <strong>photoreal Blender
+      renders</strong>, not pixel art. That single fact is what the two experiments below
+      independently ran into.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Experiment 1 — nearest-colour</p>
+    <h2>Quantizing to the nearest EDG32 swatch turns every building to rust</h2>
+    <p class="lede">
+      The obvious approach, and the one the original plan assumed: map each pixel to its closest
+      EDG32 colour using a weighted RGB distance. Dithering was tried as a rescue.
+    </p>
+    <figure>
+      <div class="sheet"><img src="__IMG_SPIKE1__" alt="Three CC0 buildings shown as raw downscale, EDG32 nearest-colour quantized, and EDG32 dithered. The quantized versions are uniformly rust-red and noisy." width="450" height="450" /></div>
+      <div class="cols">
+        <span class="col-tag"><b>Left</b> Raw downscale — muted olive / grey-brown</span>
+        <span class="col-tag"><b>Middle</b> EDG32 nearest-colour</span>
+        <span class="col-tag"><b>Right</b> EDG32 + Bayer dither</span>
+      </div>
+      <figcaption>
+        Every timber beam and roof shingle snaps to hot rust. Dithering adds noise without moving
+        the hue any closer. The quantizer is behaving correctly — the colours it needs are not in
+        the palette.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">Experiment 2 — material ramps</p>
+    <h2>A smarter restyle fixes the hue story and still fails</h2>
+    <p class="lede">
+      Second attempt, designed specifically to dodge the first failure: classify each pixel into a
+      material (roof, timber, plaster, stone, foliage) by hue and saturation, then map its
+      <em>luminance</em> onto a hand-picked EDG32 ramp for that material. Colour is no longer
+      chosen by proximity, so it cannot snap to rust by accident.
+    </p>
+    <figure>
+      <div class="sheet"><img src="__IMG_SPIKE2__" alt="The same three buildings, raw versus material-ramp restyled. The restyled versions have a better hue story but are covered in per-pixel speckle." width="300" height="450" /></div>
+      <div class="cols">
+        <span class="col-tag"><b>Left</b> Raw downscale</span>
+        <span class="col-tag"><b>Right</b> EDG32 material-ramp restyle</span>
+      </div>
+      <figcaption>
+        Better hues — and unusable. The result is per-pixel speckle. The source's photographic
+        texture (individual shingles, wood grain) survives the downscale as high-frequency noise,
+        and forcing that noise through a five-step ramp quantizes it into confetti.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">Why — the actual mechanism</p>
+    <h2>EDG32 has no warm neutral. The renders are made of almost nothing else.</h2>
+    <p class="lede">
+      Plotting the source art's 60 heaviest colours against all 32 palette entries shows the
+      problem geometrically. Saturation runs up the vertical axis; luminance runs across.
+    </p>
+
+    <div class="plotwrap">
+      <canvas id="plot" width="1000" height="520" role="img"
+        aria-label="Scatter plot of saturation against luminance. The source render's colours cluster in the low-to-mid saturation warm band, where EDG32 has no entries; EDG32's warm colours all sit high in saturation, and its only neutral mid-tones are cool blue-greys."></canvas>
+      <div class="legend">
+        <span><i class="dot"></i> source render colours (60 heaviest)</span>
+        <span><i class="sq"></i> EDG32 swatches</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p>
+        EDG32 contains exactly <strong>two</strong> low-saturation mid-tone swatches —
+        <code>#c0cbdc</code> and <code>#8b9bb4</code> — and <strong>both are cool blue-greys</strong>.
+        The palette has no warm neutral whatsoever. Its warm family leaps straight from a near-black
+        brown (<code>#733e39</code>) to saturated rusts (<code>#b86f50</code>, <code>#be4a2f</code>).
+        A photoreal render's weathered timber and grey-brown thatch land squarely in the hole between
+        them, so the nearest available colour is always a rust.
+      </p>
+    </div>
+
+    <div class="swatches" id="swatches"></div>
+    <p style="font-size:.8rem;color:var(--ink-faint);margin-top:.6rem;">
+      All 32 EDG32 swatches. Ringed: the only two neutral mid-tones — both cool.
+    </p>
+
+    <p style="margin-top:1.75rem;">
+      This is a <strong>gamut and texture-frequency mismatch, not a tuning bug</strong>. EDG32 is a
+      vivid, high-contrast palette that expects flat, deliberate colour fields with intentional
+      dithering. Photographic texture forced into 32 vivid colours at 128 px yields speckle no
+      matter which mapping function you choose. There is no third experiment worth running.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The wider survey</p>
+    <h2>And there is no better pack waiting to be found</h2>
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr><th>Source</th><th>Licence</th><th>Verdict</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="https://opengameart.org/content/isometric-medieval-buildings">rubberduck — iso medieval buildings</a> + <a href="https://opengameart.org/content/isometric-medieval-buildings-2">#2</a></td>
+            <td>CC0, clean</td>
+            <td><span class="no">Reject</span> — photoreal; fails the palette spike. Only <strong>5 buildings</strong> against Citadel's 21 types.</td>
+          </tr>
+          <tr>
+            <td><a href="https://kenney.nl/assets/medieval-rts">Kenney — Medieval RTS</a></td>
+            <td>CC0, clean</td>
+            <td><span class="no">Reject</span> — flat vector art, wrong projection.</td>
+          </tr>
+          <tr>
+            <td><a href="https://opengameart.org/content/cc0-isometric">OpenGameArt — CC0 Isometric</a></td>
+            <td>CC0, per entry</td>
+            <td><span class="no">Reject</span> — overwhelmingly rendered. Useful as <em>reference</em> only.</td>
+          </tr>
+          <tr>
+            <td><a href="https://opengameart.org/content/400-isometric-town-tiles">400+ Isometric Town Tiles</a></td>
+            <td>“CC0”, unverifiable</td>
+            <td><span class="no">Avoid</span> — the page itself admits some tiles are 20+ years old with <em>authors lost to time</em>. That is a real chain-of-title risk, not a formality.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:1.5rem;">
+      The CC0 isometric-medieval ecosystem is dominated by rendered art. Limited-palette isometric
+      <em>pixel</em> art in this genre — the only kind that would convert near-losslessly — is scarce.
+      Your locked <em>“no external art pipeline”</em> decision holds, and no EDG32 amendment is needed.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">What the spike found instead</p>
+    <h2>Eight of Citadel's 21 buildings are the same box</h2>
+    <p class="lede">
+      Baking the current recipes to a contact sheet to compare against the imports turned up a
+      defect worth more than the imports were.
+    </p>
+    <figure>
+      <div class="sheet"><img src="__IMG_CURRENT__" alt="Contact sheet of all 21 Citadel building sprites. Many are near-identical boxes differing only in roof colour." width="900" height="600" /></div>
+      <figcaption>
+        All 21 <code>BUILDING_RECIPES</code>, rasterized. <code>house</code>, <code>bakery</code>,
+        <code>woodcutter</code>, <code>market</code>, <code>public-square</code>,
+        <code>watchpost</code>, <code>quarry</code>, <code>sawmill</code> and <code>smith</code>
+        are near-identical 128×92 cubes separated only by roof hue.
+      </figcaption>
+    </figure>
+    <p style="margin-top:1.75rem;">
+      That contradicts the file's own stated goal. <code>buildings.ts</code> claims each type uses
+      “a distinct FORM … so the <em>silhouette</em> — not just the colour — tells a mill from a mine.”
+      For those eight, it doesn't. Only <code>mill</code>, <code>chapel</code>, <code>keep</code>,
+      <code>tower</code>, <code>garrison</code>, <code>town-hall</code>, <code>well</code> and
+      <code>farm</code> currently read at a glance.
+    </p>
+    <p>
+      Colour is also the <em>worst</em> axis to lean on in this engine, because the day/night wash
+      tints everything — at dusk a red-roofed bakery and an orange-roofed house converge into the
+      same shape. And <code>iso-draw.ts</code> already exposes exactly the primitives needed to fix
+      it, currently unused by these types:
+    </p>
+    <ul class="tight">
+      <li><code>isoAnvil</code>, <code>isoChimney</code> — a forge canopy and an oven bulge</li>
+      <li><code>isoLogPile</code>, <code>isoChoppingBlock</code>, <code>isoWaterWheel</code> — sawmill and woodcutter</li>
+      <li><code>isoQuarryPit</code>, <code>isoShaftMouth</code> — let the pit dominate the read, not the hut</li>
+      <li><code>isoBanner</code>, <code>isoTurret</code>, <code>isoCrates</code> — square, watchpost, market</li>
+    </ul>
+    <p>
+      So the brief now proposes silhouette differentiation, gated on a colour-stripped silhouette
+      test, with the CC0 renders kept as <strong>visual reference only</strong> — no pixels ingested,
+      no licence obligations, no decision amended.
+    </p>
+  </section>
+
+  <footer>
+    <span>Citadel · corpus/todos/2026-07-11-citadel-external-cc0-art-ingest.md</span>
+    <span>Verification spike · 2026-07-11</span>
+  </footer>
+</div>
+
+<script>
+  const DATA = __GAMUT__;
+
+  // ---- swatch strip -------------------------------------------------------
+  const strip = document.getElementById("swatches");
+  for (const p of DATA.palette) {
+    const d = document.createElement("div");
+    d.className = "sw";
+    d.style.background = p.hex;
+    d.title = p.hex + "  sat " + p.s.toFixed(2) + "  lum " + p.l.toFixed(2);
+    // The two neutral mid-tones the callout names.
+    if (p.s < 0.25 && p.l > 0.12 && p.l < 0.9) d.dataset.neutral = "1";
+    strip.appendChild(d);
+  }
+
+  // ---- scatter: saturation (y) vs luminance (x) ---------------------------
+  const cv = document.getElementById("plot");
+  const ctx = cv.getContext("2d");
+
+  function css(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function draw() {
+    const W = cv.width, H = cv.height;
+    const m = { l: 62, r: 22, t: 22, b: 46 };
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const X = (lum) => m.l + lum * pw;
+    const Y = (sat) => m.t + (1 - sat) * ph;
+
+    const rule = css("--rule") || "#3a4466";
+    const faint = css("--ink-faint") || "#7a87a6";
+    const ink = css("--ink") || "#e4e8f2";
+    const accent = css("--accent") || "#f77622";
+
+    ctx.clearRect(0, 0, W, H);
+
+    // grid
+    ctx.strokeStyle = rule;
+    ctx.lineWidth = 1;
+    ctx.font = "11px ui-monospace, Consolas, monospace";
+    ctx.fillStyle = faint;
+    for (let i = 0; i <= 5; i++) {
+      const t = i / 5;
+      const x = X(t), y = Y(t);
+      ctx.globalAlpha = 0.45;
+      ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.textAlign = "center";
+      ctx.fillText(t.toFixed(1), x, m.t + ph + 18);
+      ctx.textAlign = "right";
+      ctx.fillText(t.toFixed(1), m.l - 10, y + 4);
+    }
+
+    // axis labels
+    ctx.fillStyle = ink;
+    ctx.font = "600 11px ui-monospace, Consolas, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("LUMINANCE →", m.l + pw / 2, H - 10);
+    ctx.save();
+    ctx.translate(14, m.t + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("SATURATION →", 0, 0);
+    ctx.restore();
+
+    // The gap: warm, low-to-mid saturation, mid luminance — where the renders live
+    // and where EDG32 has nothing.
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.08;
+    ctx.fillRect(X(0.15), Y(0.45), X(0.62) - X(0.15), Y(0.05) - Y(0.45));
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = accent;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(X(0.15), Y(0.45), X(0.62) - X(0.15), Y(0.05) - Y(0.45));
+    ctx.setLineDash([]);
+    ctx.fillStyle = accent;
+    ctx.font = "600 11px ui-monospace, Consolas, monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("THE GAP — no EDG32 entry here", X(0.155) + 6, Y(0.45) + 16);
+
+    // source colours
+    for (const c of DATA.source) {
+      const r = 3 + Math.sqrt(c.w) * 26;
+      ctx.beginPath();
+      ctx.arc(X(c.l), Y(c.s), r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgb(" + c.r + "," + c.g + "," + c.b + ")";
+      ctx.globalAlpha = 0.9;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(128,128,128,.5)";
+      ctx.stroke();
+    }
+
+    // EDG32 swatches
+    for (const p of DATA.palette) {
+      const x = X(p.l), y = Y(p.s), s = 11;
+      ctx.fillStyle = p.hex;
+      ctx.fillRect(x - s / 2, y - s / 2, s, s);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = ink;
+      ctx.strokeRect(x - s / 2, y - s / 2, s, s);
+    }
+  }
+
+  draw();
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement, {
+    attributes: true, attributeFilter: ["data-theme"],
+  });
+</script>
