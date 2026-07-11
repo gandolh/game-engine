@@ -800,6 +800,11 @@ describe("SnapshotSpriteState (module-state hygiene)", () => {
     expect(second.length).toBeGreaterThan(0);
     // The shared explicit state object is the one actually used (not a fresh
     // default each time) — its internal maps accumulate across both calls.
-    expect(state.lastFacing.size).toBeGreaterThan(0);
+    // Probe `lastIntention`, not `lastFacing`: `resolveFacing` only writes when a
+    // farmer is actually moving (dx/dy !== 0), and a few ticks in they may all be
+    // standing still, so lastFacing is legitimately empty. `lastIntention` is
+    // recorded for every AI farmer the first time it is seen, so it is a
+    // movement-independent witness that THIS object was threaded through.
+    expect(state.lastIntention.size).toBeGreaterThan(0);
   });
 });
