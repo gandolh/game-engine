@@ -23,7 +23,6 @@ import { bfsPath } from "../world/pathfinder";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 interface ScheduledCmd {
   atTick: number;
@@ -62,7 +61,7 @@ function detourLayout(): ScheduledCmd[] {
 type Sim = ReturnType<typeof bootstrapSim>;
 
 function makeSim(cmds: ScheduledCmd[]): { sim: Sim; pending: ScheduledCmd[]; tick: number } {
-  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
   return { sim, pending: [...cmds], tick: 0 };
 }
 

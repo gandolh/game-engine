@@ -37,8 +37,7 @@ function boot() {
   // + the `launchAttack` handler are frozen. These tests are what proves the math is
   // *frozen and intact*, not quietly broken — they must opt in, not inherit.
   const sim = bootstrapSim({
-    seed: 1, ticksPerDay: TPD, maxDays: 50,
-    worldWidth: 96, worldHeight: 96,
+    seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96,
     cozyThreats: false, enableArmy: true,
   });
   sim.state.players.push(makePlayerState(1));
@@ -111,8 +110,7 @@ describe("Citadel — armies are frozen by default (decision #23)", () => {
   /** Same two-player setup as `boot()`, but at the DEFAULT (frozen) enableArmy. */
   function bootFrozen() {
     const sim = bootstrapSim({
-      seed: 1, ticksPerDay: TPD, maxDays: 50,
-      worldWidth: 96, worldHeight: 96,
+      seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96,
       cozyThreats: false, // isolate from the PvE raid, as boot() does
     });
     sim.state.players.push(makePlayerState(1));
@@ -120,7 +118,7 @@ describe("Citadel — armies are frozen by default (decision #23)", () => {
   }
 
   it("enableArmy defaults to false — a bare bootstrap registers no ArmySystem", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD });
     expect(sim.state.armies).toEqual([]);
   });
 
@@ -163,8 +161,7 @@ describe("Citadel — armies are frozen by default (decision #23)", () => {
   it("freezing ArmySystem is byte-identical in a one-player sim", () => {
     const run = (enableArmy: boolean) => {
       const sim = bootstrapSim({
-        seed: 0xc0ffee, ticksPerDay: TPD, maxDays: 20,
-        worldWidth: 96, worldHeight: 96, enableArmy,
+        seed: 0xc0ffee, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96, enableArmy,
       });
       for (let t = 0; t < TPD * 20; t++) sim.scheduler.tick({ tick: t });
       const p = sim.state.players[0]!;

@@ -23,7 +23,7 @@ function types(sim: CitadelSimResult): string[] {
 
 describe("seedTown", () => {
   it("seeds the expected building types after bootstrap", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5, seedTown: true });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
     const present = new Set(types(sim));
     for (const t of ["farm", "mill", "bakery", "house", "storehouse"]) {
       expect(present.has(t)).toBe(true);
@@ -34,7 +34,7 @@ describe("seedTown", () => {
   });
 
   it("marks the whole core connected after one connectivity pass", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5, seedTown: true });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
     sim.scheduler.tick({ tick: 0 });
     const buildings = sim.getBuildings();
     expect(buildings.length).toBeGreaterThan(0);
@@ -44,7 +44,7 @@ describe("seedTown", () => {
   });
 
   it("forms a foundable, worker-slotted bread chain", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5, seedTown: true });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
     for (const t of ["farm", "mill", "bakery"]) {
       const def = getProductionDef(t);
       expect(def).toBeDefined();
@@ -53,7 +53,7 @@ describe("seedTown", () => {
   });
 
   it("spawns a villager within ~1–2 days with NO player commands (deadlock-proof)", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5, seedTown: true });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
     // Run two in-game days. First day boundary establishes the immigration
     // baseline; the second processes it and the pioneer founds the town.
     for (let tick = 0; tick <= TICKS_PER_DAY * 2; tick++) {
@@ -63,10 +63,10 @@ describe("seedTown", () => {
   });
 
   it("default (seedTown false) bootstraps an EMPTY map — baseline unchanged", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     expect(sim.getBuildings().length).toBe(0);
     expect(Array.from(sim.roadGrid).filter((v) => v === 1).length).toBe(0);
-    const explicitFalse = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5, seedTown: false });
+    const explicitFalse = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: false });
     expect(explicitFalse.getBuildings().length).toBe(0);
   });
 
@@ -76,7 +76,6 @@ describe("seedTown", () => {
     const sim = bootstrapSim({
       seed: SEED,
       ticksPerDay: TICKS_PER_DAY,
-      maxDays: 5,
       seedTown: true,
       chargeBuildCost: true,
     });
@@ -89,14 +88,14 @@ describe("seedTown", () => {
   });
 
   it("does NOT record the seed placements into the command log", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5, seedTown: true });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
     const save = sim.serializeSave(0);
     expect(save.commandLog.length).toBe(0);
     expect(save.seedTown).toBe(true);
   });
 
   it("save/load round-trips a seeded town to identical building count + population", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 5, seedTown: true });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
     const RUN_TICKS = TICKS_PER_DAY * 2 + 37;
     for (let tick = 0; tick <= RUN_TICKS; tick++) {
       sim.scheduler.tick({ tick });

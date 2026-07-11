@@ -35,14 +35,14 @@ function buildingAt(sim: CitadelSimResult, x: number, y: number): { type: string
 
 describe("road over water → bridge", () => {
   it("a road placed on a water tile becomes a bridge", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 10 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const w = findWater(sim.terrain);
     placeRoad(sim, [w]);
     expect(buildingAt(sim, w.x, w.y)?.type).toBe("bridge");
   });
 
   it("a road placed on land stays a road", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 10 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     // Find a grass tile.
     let land: { x: number; y: number } | null = null;
     for (let ty = 0; ty < sim.terrain.height && land === null; ty++) {
@@ -56,7 +56,7 @@ describe("road over water → bridge", () => {
   });
 
   it("a bridge tile becomes walkable for villagers (joins the road network)", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 10 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const w = findWater(sim.terrain);
     expect(villagerWalkable(sim.state, w.x, w.y)).toBe(false); // water starts blocked
     placeRoad(sim, [w]);
@@ -65,7 +65,7 @@ describe("road over water → bridge", () => {
   });
 
   it("bridges cannot overlap — a second bridge on the same tile is rejected", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 10 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const w = findWater(sim.terrain);
     placeRoad(sim, [w]);
     placeRoad(sim, [w]); // second drag over the same water tile

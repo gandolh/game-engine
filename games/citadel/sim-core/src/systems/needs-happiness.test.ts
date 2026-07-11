@@ -51,7 +51,7 @@ function runDays(state: SimState, days: number): void {
 
 describe("NeedsHappinessSystem — per-house mood/coverage", () => {
   it("a house inside a chapel radius has lacksFaith=false and higher mood than an uncovered house", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
 
     // Covered house next to a chapel (chapel radius = 8, Manhattan).
@@ -71,7 +71,7 @@ describe("NeedsHappinessSystem — per-house mood/coverage", () => {
   });
 
   it("a fully-uncovered house has mood=40 (base) and all three lacksX=true", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     const id = addBuilding(state, "house", 40, 40, 2, 2);
 
@@ -88,7 +88,7 @@ describe("NeedsHappinessSystem — per-house mood/coverage", () => {
     // Cozy-pivot Phase G: festivals are a spatial placement effect of the public
     // square (SERVICE_RADII 8, Manhattan) — no decree, no command. A home in reach
     // gets a steady mood lift over an otherwise-identical home out of reach.
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
 
     // House next to a public square (square centre (23,21), house centre (21,21) → dist 2 ≤ 8).
@@ -112,7 +112,7 @@ describe("NeedsHappinessSystem — per-house mood/coverage", () => {
   it("a public-square in range raises the town-aggregate happiness", () => {
     // The aggregate happiness mirrors the per-house festival lift (× coverage).
     function settledHappiness(withSquare: boolean): number {
-      const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+      const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
       const state = sim.state;
       addBuilding(state, "house", 20, 20, 2, 2);
       if (withSquare) addBuilding(state, "public-square", 22, 20, 2, 2);
@@ -123,7 +123,7 @@ describe("NeedsHappinessSystem — per-house mood/coverage", () => {
   });
 
   it("a fully-covered house (chapel+safety+market with goods in range) has mood=100 and all lacksX=false", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
 
     // Goods access requires stockpiled bread/grain AND a market in range.
@@ -164,7 +164,7 @@ describe("NeedsHappinessSystem — stateful asymmetric happiness (Phase B Chunk 
   }
 
   it("happiness LAGS toward a sudden drop instead of snapping to the new target", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     const p = state.players[0]!;
 
@@ -186,7 +186,7 @@ describe("NeedsHappinessSystem — stateful asymmetric happiness (Phase B Chunk 
   });
 
   it("recovers a typical dent to within ~1 of target in ~2-3 days (asymmetric)", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     const p = state.players[0]!;
 
@@ -217,7 +217,7 @@ describe("NeedsHappinessSystem — stateful asymmetric happiness (Phase B Chunk 
   });
 
   it("per-house mood is likewise stateful — lags, doesn't snap", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     const id = fullCoverage(state);
 
@@ -234,7 +234,7 @@ describe("NeedsHappinessSystem — stateful asymmetric happiness (Phase B Chunk 
   });
 
   it("happiness and mood stay within 0..100 across many iterations of churn", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     const p = state.players[0]!;
     const id = fullCoverage(state);
@@ -257,7 +257,7 @@ describe("NeedsHappinessSystem — stateful asymmetric happiness (Phase B Chunk 
   });
 
   it("houses-length-0 still eases happiness toward the low (coverage 0) target, not skip", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     const p = state.players[0]!;
     // No houses at all → coverage 0, target = base 40 (no food/decree/festival).

@@ -14,7 +14,6 @@ import { getProductionDef, effectiveOutputPerCycle } from "../entities/building"
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 interface ScheduledCmd {
   atTick: number;
@@ -22,7 +21,7 @@ interface ScheduledCmd {
 }
 
 function run(cmds: ScheduledCmd[], totalTicks: number) {
-  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
   let i = 0;
   for (let tick = 0; tick < totalTicks; tick++) {
     while (i < cmds.length && cmds[i]!.atTick === tick) {
@@ -190,7 +189,7 @@ describe("Citadel Phase 2 — economy", () => {
     // and clamp at the cap — never overflow, never fully halt. Drive ProductionSystem
     // directly with hand-set runtime state (no villagers) so nothing drains the
     // buffer — isolating the pressure rule.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const state = sim.state;
     const entity = state.buildingWorld.spawn({
       building: { type: "farm", x: 14, y: 14, w: 3, h: 3, ownerId: 0 },
@@ -303,7 +302,7 @@ describe("Citadel Phase 2 — economy", () => {
     ];
 
     function runWithStartDay(cmds2: ScheduledCmd[], totalTicks: number, startDay: number) {
-      const sim2 = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS, startDay });
+      const sim2 = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, startDay });
       let i = 0;
       for (let tick = 0; tick < totalTicks; tick++) {
         while (i < cmds2.length && cmds2[i]!.atTick === tick) {

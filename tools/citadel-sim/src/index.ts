@@ -687,7 +687,7 @@ function runOneSim(
   cmds: CitadelCommand[],
   label: string,
 ): { fires: number; deaths: number; finalPop: number; events: string[] } {
-  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
   for (const c of cmds) sim.commands.enqueue(c);
   const totalTicks = MAX_DAYS * TICKS_PER_DAY;
   let fireEvents = 0;
@@ -768,7 +768,7 @@ function main(): void {
   );
 
   const startDay = SCENARIO === "starve" ? 12 : 0;
-  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS, startDay });
+  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, startDay });
   const { scheduler, dayClock, terrain, commands, getSnapshot } = sim;
 
   console.log(`Terrain generated: ${terrain.width}×${terrain.height} tiles`);

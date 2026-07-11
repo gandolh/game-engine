@@ -41,7 +41,7 @@ describe("Citadel 29 — configurable world + town-hall", () => {
   // the CONSTANTS, not literals — the point of the default is that every grid-backed
   // allocation tracks it, whatever it is.
   it("defaults every grid-backed allocation to WORLD_WIDTH × WORLD_HEIGHT", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY });
     expect(sim.state.width).toBe(WORLD_WIDTH);
     expect(sim.state.height).toBe(WORLD_HEIGHT);
     expect(sim.terrain.width).toBe(WORLD_WIDTH);
@@ -57,7 +57,7 @@ describe("Citadel 29 — configurable world + town-hall", () => {
 
   it("sizes every grid-backed allocation + the pathfinder to a configured 256×256 world", () => {
     const W = 256, H = 256;
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H });
     expect(sim.state.width).toBe(W);
     expect(sim.state.height).toBe(H);
     expect(sim.terrain.width).toBe(W);
@@ -85,7 +85,7 @@ describe("Citadel 29 — configurable world + town-hall", () => {
 
   it("town-hall is a non-tier-locked CIVIC building in solo — placeable, NO keep anchor", () => {
     const W = 256, H = 256;
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H });
     const lp = localPlayer(sim.state);
     // Solo: one player, Hamlet tier, no anchor yet.
     expect(sim.state.players.length).toBe(1);
@@ -109,7 +109,7 @@ describe("Citadel 29 — configurable world + town-hall", () => {
 
   it("town-hall sets the owner's keep anchor in MULTIPLAYER (the match anchor)", () => {
     const W = 256, H = 256;
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H, multiplayer: true });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H, multiplayer: true });
     sim.state.players.push(makePlayerState(1));
     const lp = localPlayer(sim.state);
     expect(lp.keepPosition).toBeNull();
@@ -133,7 +133,7 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     // the same predicate every tick, so it flipped to true the moment a second peer joined:
     // the founder was told "Keep: standing" while being permanently raid-immune.
     const W = 256, H = 256;
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H, multiplayer: true });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H, multiplayer: true });
     const lp = localPlayer(sim.state);
     expect(sim.state.players.length).toBe(1); // the founding peer, alone
 
@@ -161,7 +161,7 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     //   world dims     decide bounds (a 256×256 save replayed on the 96×96 default silently DROPS
     //                  every command beyond tile 95 as out-of-bounds — it was unreplayable).
     const W = 256, H = 256;
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H, multiplayer: true });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H, multiplayer: true });
     // Deliberately place BEYOND tile 95, where a 96×96 replay would reject it.
     const spot = findGrass(sim.terrain, 3, 3, Math.floor(W / 2), Math.floor(H / 2));
     expect(spot.x).toBeGreaterThan(95);
@@ -186,7 +186,7 @@ describe("Citadel 29 — configurable world + town-hall", () => {
 
   it("a pre-brief-108 save (no `multiplayer` field) replays as solo — the bootstrap default", () => {
     const W = 96, H = 96;
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, maxDays: 5, worldWidth: W, worldHeight: H });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H });
     const spot = findGrass(sim.terrain, 3, 3, 40, 40);
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });
     sim.scheduler.tick({ tick: 0 });

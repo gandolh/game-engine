@@ -67,7 +67,6 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       simResult = bootstrapSim({
         seed: msg.seed,
         ticksPerDay: msg.ticksPerDay,
-        maxDays: 365,
         // Brief 110: the world size comes from the CLIENT, which generated the terrain it
         // is about to render. Inheriting the shared default here instead would leave the
         // two agreeing only by coincidence — the exact coincidence that stopped holding

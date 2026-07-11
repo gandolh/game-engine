@@ -6,7 +6,6 @@ import type { BuildingRuntimeState } from "../entities/building";
 
 const SEED = 0xf1a7e0;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 10;
 
 function spawnTradingPost(state: SimState, x: number, y: number): number {
   const e = state.buildingWorld.spawn({
@@ -25,7 +24,7 @@ function spawnTradingPost(state: SimState, x: number, y: number): number {
 
 describe("TraderSystem — suppressed Trading Post is not open", () => {
   it("a staffed, connected, suppressed Trading Post reports no open trading post and produces no offers", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const id = spawnTradingPost(sim.state, 14, 14);
     sim.state.buildingState.get(id)!.suppressed = true;
 
@@ -37,7 +36,7 @@ describe("TraderSystem — suppressed Trading Post is not open", () => {
   });
 
   it("clearing the suppressed flag restores the open trading post and its offers", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const id = spawnTradingPost(sim.state, 14, 14);
     sim.state.buildingState.get(id)!.suppressed = true;
 

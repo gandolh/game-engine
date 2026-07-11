@@ -21,7 +21,6 @@ import type { VillagerComponent } from "../entities/villager";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 /** A fully-formed villager component with sensible inert defaults. */
 function makeVillager(over: Partial<VillagerComponent>): VillagerComponent {
@@ -106,13 +105,13 @@ describe("ProductionSystem — happiness scales output to a floor (never 0)", ()
     const base = effectiveOutputPerCycle(def, 1); // 2 wood/cycle at L1
 
     // High happiness via per-player fallback (no villagers → no local signal).
-    const hi = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const hi = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     hi.players[0]!.happiness = 100;
     const hiB = spawnWoodcutter(hi, 14, 14);
     const hiOut = outputAfterOneCycle(hi, hiB);
 
     // Low happiness via the same fallback path.
-    const lo = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const lo = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     lo.players[0]!.happiness = 0;
     const loB = spawnWoodcutter(lo, 14, 14);
     const loOut = outputAfterOneCycle(lo, loB);
@@ -153,7 +152,7 @@ describe("ProductionSystem — autonomous town-hall work-hours output lift (cozy
 
   it("a producer within a town hall's radius outputs MORE than one out of range", () => {
     // WITH a town hall adjacent (its 3×3 centre near the bakery, dist ≤ 10).
-    const covered = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const covered = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     covered.players[0]!.happiness = 100; // isolate the town-hall lift from the throttle
     covered.players[0]!.stockpiles.flour = 100; // keep the converter fed
     const cId = spawnBakeryL3(covered, 20, 20); // centre (21,21)
@@ -161,7 +160,7 @@ describe("ProductionSystem — autonomous town-hall work-hours output lift (cozy
     const cOut = outputAfterOneCycle(covered, cId);
 
     // WITHOUT any town hall.
-    const bare = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const bare = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     bare.players[0]!.happiness = 100;
     bare.players[0]!.stockpiles.flour = 100;
     const bId = spawnBakeryL3(bare, 20, 20);
@@ -175,7 +174,7 @@ describe("ProductionSystem — autonomous town-hall work-hours output lift (cozy
   });
 
   it("a town hall out of range (dist > 10) does NOT lift output", () => {
-    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     state.players[0]!.happiness = 100;
     state.players[0]!.stockpiles.flour = 100;
     const id = spawnBakeryL3(state, 20, 20);   // centre (21,21)
@@ -190,7 +189,7 @@ describe("ProductionSystem — local (home-house mood) preferred over player hap
     const def = getProductionDef("woodcutter")!;
     const base = effectiveOutputPerCycle(def, 1);
 
-    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     state.players[0]!.happiness = 0; // player-wide is miserable...
 
     const farmId = spawnWoodcutter(state, 14, 14);
@@ -229,7 +228,7 @@ describe("ProductionSystem — local (home-house mood) preferred over player hap
     const def = getProductionDef("woodcutter")!;
     const base = effectiveOutputPerCycle(def, 1);
 
-    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     state.players[0]!.happiness = 100; // high player-wide happiness
     // No villager assigned to this building → no local signal → fallback path.
     const farmId = spawnWoodcutter(state, 14, 14);
@@ -242,7 +241,7 @@ describe("ProductionSystem — local (home-house mood) preferred over player hap
     const def = getProductionDef("woodcutter")!;
     const base = effectiveOutputPerCycle(def, 1);
 
-    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+    const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     state.players[0]!.happiness = 100; // player-wide is great...
 
     const farmId = spawnWoodcutter(state, 14, 14);

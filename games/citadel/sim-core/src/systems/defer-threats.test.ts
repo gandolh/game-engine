@@ -62,7 +62,6 @@ describe("deferThreatsUntilBuildings — cold-open threat defer", () => {
     const sim = bootstrapSim({
       seed: SEED,
       ticksPerDay: TICKS_PER_DAY,
-      maxDays: 60,
       seedTown: true,
       deferThreatsUntilBuildings: DEFER,
     });
@@ -102,7 +101,6 @@ describe("deferThreatsUntilBuildings — cold-open threat defer", () => {
     const sim = bootstrapSim({
       seed: SEED,
       ticksPerDay: TICKS_PER_DAY,
-      maxDays: 60,
       deferThreatsUntilBuildings: DEFER,
     });
     const lp = localPlayer(sim.state);
@@ -136,7 +134,6 @@ describe("deferThreatsUntilBuildings — cold-open threat defer", () => {
     const sim = bootstrapSim({
       seed: SEED,
       ticksPerDay: TICKS_PER_DAY,
-      maxDays: 60,
       seedTown: true,
       deferThreatsUntilBuildings: DEFER,
     });
@@ -168,7 +165,6 @@ describe("deferThreatsUntilBuildings default (0) — baseline unchanged", () => 
     const sim = bootstrapSim({
       seed: 0xc17ade1,
       ticksPerDay: TICKS_PER_DAY,
-      maxDays: 100,
       cozyThreats: false,
       deferThreatsUntilBuildings: 0,
     });
@@ -191,7 +187,6 @@ describe("deferThreatsUntilBuildings default (0) — baseline unchanged", () => 
       const sim = bootstrapSim({
         seed: 0xc17ade1,
         ticksPerDay: TICKS_PER_DAY,
-        maxDays: 100,
         cozyThreats: false,
         ...(defer !== undefined ? { deferThreatsUntilBuildings: defer } : {}),
       });

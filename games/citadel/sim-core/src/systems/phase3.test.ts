@@ -11,7 +11,6 @@ import type { CitadelCommand } from "../snapshot/index";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 interface ScheduledCmd {
   atTick: number;
@@ -23,7 +22,7 @@ function run(
   totalTicks: number,
   setup?: (sim: ReturnType<typeof bootstrapSim>) => void,
 ) {
-  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
   if (setup !== undefined) setup(sim);
   let i = 0;
   for (let tick = 0; tick < totalTicks; tick++) {
@@ -63,7 +62,7 @@ function economyCmds(): ScheduledCmd[] {
 // ---------------------------------------------------------------------------
 describe("Phase 3 — happiness", () => {
   it("happiness starts at 40 before any needs buildings are placed", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     // Run 2 full days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
@@ -72,7 +71,7 @@ describe("Phase 3 — happiness", () => {
   });
 
   it("chapel near a house raises faithCoverage and increases happiness", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     // Place house at (10,10), chapel adjacent at (13,10) — within radius 8
     // Run 2 days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",  x: 10, y: 10 } });
@@ -86,7 +85,7 @@ describe("Phase 3 — happiness", () => {
   });
 
   it("watchpost near a house raises safetyCoverage", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",     x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost", x: 13, y: 10 } });
     // Run 2 days so NeedsHappinessSystem fires once.
@@ -97,7 +96,7 @@ describe("Phase 3 — happiness", () => {
   });
 
   it("all three service buildings near a house brings happiness to 80 without goods", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",      x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "chapel",     x: 13, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost",  x: 16, y: 10 } });
@@ -153,7 +152,7 @@ describe("Phase 3 — trader", () => {
   });
 
   it("trade command exchanges goods if trading post is open and goods available", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
 
     // Manually put grain into stockpile so we can trade
     localPlayer(sim.state).stockpiles.grain = 10;
@@ -174,7 +173,7 @@ describe("Phase 3 — trader", () => {
   });
 
   it("trade command is ignored when the trading post is not open", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     localPlayer(sim.state).stockpiles.grain = 10;
     // traderPresent is false by default
 
@@ -190,7 +189,7 @@ describe("Phase 3 — trader", () => {
   });
 
   it("trade command is ignored when not enough goods", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     localPlayer(sim.state).stockpiles.grain = 2; // need 5
     localPlayer(sim.state).traderPresent = true;
     localPlayer(sim.state).traderOffers.push({ give: "grain", giveQty: 5, receive: "bread", receiveQty: 3 });
@@ -206,7 +205,7 @@ describe("Phase 3 — trader", () => {
   });
 
   it("brief 97/21: trade command no-ops when the offer content no longer matches the live menu (daily re-roll race)", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     localPlayer(sim.state).stockpiles.grain = 10;
     localPlayer(sim.state).traderPresent = true;
     // The menu re-rolled to a DIFFERENT offer than what the client captured at click time.
@@ -226,7 +225,7 @@ describe("Phase 3 — trader", () => {
   });
 
   it("brief 97/21: trade command matches by content regardless of position in the live menu", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     localPlayer(sim.state).stockpiles.wood = 10;
     localPlayer(sim.state).traderPresent = true;
     // Two offers; the wanted one sits at index 1, not 0 — content match must find it anyway.
@@ -253,7 +252,7 @@ describe("Phase 3 — snapshot", () => {
     // the `setDecree` lever is gone; the client decree UI is removed in a later
     // chunk). The residual immigration branch is still reachable by mutating the
     // set directly, which the snapshot then surfaces.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     localPlayer(sim.state).activeDecrees.add("tithe");
     sim.scheduler.tick({ tick: 0 });
     const snap = sim.getSnapshot(0);

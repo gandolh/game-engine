@@ -145,7 +145,7 @@ describe("countsTowardTier", () => {
 
 describe("TierSystem", () => {
   it("starts at Hamlet", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     expect(localPlayer(sim.state).tier).toBe("Hamlet");
     const snap = sim.getSnapshot(0);
     expect(snap.tier).toBe("Hamlet");
@@ -154,7 +154,7 @@ describe("TierSystem", () => {
   it("promotes to Village when population crosses threshold (via direct state manipulation)", () => {
     // We bypass command placement (terrain variability) and directly set population
     // to simulate the tier crossing.  The TierSystem reads state.population directly.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     expect(localPlayer(sim.state).tier).toBe("Hamlet");
 
     // Force population to 8 (the Village threshold).
@@ -169,7 +169,7 @@ describe("TierSystem", () => {
   });
 
   it("pushes a promotion event when tier advances", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     localPlayer(sim.state).population = 8;
     runDays(sim, 1);
 
@@ -178,21 +178,21 @@ describe("TierSystem", () => {
   });
 
   it("does not promote when thresholds are not met", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     localPlayer(sim.state).population = 5; // < 8 → stays Hamlet
     runDays(sim, 2);
     expect(localPlayer(sim.state).tier).toBe("Hamlet");
   });
 
   it("promotes to Town when population crosses 20", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     localPlayer(sim.state).population = 20;
     runDays(sim, 1);
     expect(localPlayer(sim.state).tier).toBe("Town");
   });
 
   it("snapshot tier matches state.tier", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     localPlayer(sim.state).population = 50; // → Citadel
     runDays(sim, 1);
     const snap = sim.getSnapshot(TPD);
@@ -203,7 +203,7 @@ describe("TierSystem", () => {
   // audit 38 P2#11 — a demotion must NOT re-lock unlocked buildings, and the
   // event copy must be direction-aware.
   it("demotion lowers tier but never lowers peakTier (high-water mark)", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     const lp = localPlayer(sim.state);
     // Continuous absolute tick — the day clock only advances on tick>0 at a day
     // boundary, so the two tier evaluations must land on distinct days.
@@ -227,7 +227,7 @@ describe("TierSystem", () => {
   });
 
   it("fires a 'risen' event on promotion and a 'fallen' event on demotion", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     const lp = localPlayer(sim.state);
     let t = 0;
     const tickDays = (n: number): void => { for (let i = 0; i < n * TPD; i++) sim.scheduler.tick({ tick: t++ }); };
@@ -269,7 +269,7 @@ describe("TIER_LOCK catalog gating", () => {
 describe("save/load round-trip", () => {
   it("loadFromSave reconstructs an identical snapshot after replaying the command log", () => {
     // Build a citadel with enough commands to be interesting.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     const cx = Math.floor(WORLD_WIDTH / 2);
     const cy = Math.floor(WORLD_HEIGHT / 2);
 
@@ -326,7 +326,7 @@ describe("save/load round-trip", () => {
   });
 
   it("serializeSave returns a JSON-serializable object", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD, maxDays: 10 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     const cx = Math.floor(WORLD_WIDTH / 2);
     const cy = Math.floor(WORLD_HEIGHT / 2);
     sim.commands.enqueue(place("storehouse", cx, cy));

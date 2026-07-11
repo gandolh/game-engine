@@ -56,7 +56,7 @@ function addIdleVillager(state: SimState, ownerId: number, homeX: number, homeY:
 /** Two owners, each with a farm (workplace) + storehouse. Player 0's farm is
  *  deliberately placed NEARER the player-1 villager's home than player 1's farm. */
 function setup(): { state: SimState; p0FarmId: number; p1FarmId: number } {
-  const sim = bootstrapSim({ seed: 1, ticksPerDay: 20, maxDays: 5, worldWidth: 96, worldHeight: 96 });
+  const sim = bootstrapSim({ seed: 1, ticksPerDay: 20, worldWidth: 96, worldHeight: 96 });
   sim.state.players.push(makePlayerState(1));
   // Player 0 economy — NEAR (28,30)..(24,30).
   const p0FarmId = addBuilding(sim.state, "farm", 28, 30, 3, 3, 0); // center (29,31)

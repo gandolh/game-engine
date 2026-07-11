@@ -91,7 +91,7 @@ function firstEntityId(sim: CitadelSimResult, type: string): number | null {
 
 describe("BuildingSnapshot fire fields", () => {
   it("every building snapshot includes onFire and burning boolean fields", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -106,7 +106,7 @@ describe("BuildingSnapshot fire fields", () => {
   });
 
   it("getSnapshot always includes activeFires, sickVillagers, outbreakActive", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const snap = sim.getSnapshot(0);
     expect(typeof snap.activeFires).toBe("number");
     expect(snap.activeFires).toBeGreaterThanOrEqual(0);
@@ -115,7 +115,7 @@ describe("BuildingSnapshot fire fields", () => {
   });
 
   it("buildings have onFire=false and burning=false initially", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -130,13 +130,13 @@ describe("BuildingSnapshot fire fields", () => {
   });
 
   it("fireState is initialized as an empty Map in sim state", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     expect(localPlayer(sim.state).fireState).toBeInstanceOf(Map);
     expect(localPlayer(sim.state).fireState.size).toBe(0);
   });
 
   it("disease fields initialized at zero", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     expect(localPlayer(sim.state).sickVillagers).toBe(0);
     expect(localPlayer(sim.state).outbreakActive).toBe(false);
   });
@@ -148,7 +148,7 @@ describe("BuildingSnapshot fire fields", () => {
 
 describe("Well and Healer building placement", () => {
   it("well and healer buildings are registered in the building registry", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -179,7 +179,7 @@ describe("FireSystem — fire spread", () => {
      * The spread chance is 0.6 per day per qualifying neighbor → ~99.99% chance
      * of spreading within 10 days.
      */
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -228,7 +228,7 @@ describe("FireSystem — fire spread", () => {
   });
 
   it("a burning building is in onFire state in the snapshot", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -265,7 +265,7 @@ describe("FireSystem — firebreaks", () => {
      * Actually spread is checked center-to-center so hA→hB=4 is > 3 → no direct spread.
      * Stone tower also blocks the line check.
      */
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -329,7 +329,7 @@ describe("FireSystem — well mitigation", () => {
       terrain: CitadelSimResult["terrain"],
       withWell: boolean,
     ): CitadelSimResult {
-      const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+      const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
       const cx = Math.floor(terrain.width / 2);
       const cy = Math.floor(terrain.height / 2);
       const items: Array<{ type: string; x: number; y: number }> = [];
@@ -352,7 +352,7 @@ describe("FireSystem — well mitigation", () => {
       return sim;
     }
 
-    const simNoWell = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const simNoWell = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const terrain = simNoWell.terrain;
 
     const denseNoWell  = buildDenseCluster(terrain, false);
@@ -381,14 +381,14 @@ describe("FireSystem — well mitigation", () => {
 
 describe("DiseaseSystem — disease onset", () => {
   it("no disease when population is zero", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const snap = runDays(sim, 10);
     expect(snap.outbreakActive).toBe(false);
     expect(snap.sickVillagers).toBe(0);
   });
 
   it("sickVillagers never exceeds population and never goes negative", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -427,7 +427,7 @@ describe("DiseaseSystem — disease onset", () => {
      *
      * We use a healer-free setup to maximize outbreak probability.
      */
-    const sim = bootstrapSim({ seed: 0xdeadbeef, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: 0xdeadbeef, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -486,7 +486,7 @@ describe("DiseaseSystem — disease onset", () => {
 
 describe("DiseaseSystem — healer mitigation", () => {
   it("healer building can be placed successfully", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -505,7 +505,7 @@ describe("DiseaseSystem — healer mitigation", () => {
     function buildCrowded(withHealer: boolean): CitadelSimResult {
       // Sharp path: this test proves disease CAN kill (mortality path), which is
       // frozen behind cozyThreats:false (cozy default never removes a villager).
-      const sim = bootstrapSim({ seed: 0xdeadbeef, ticksPerDay: TICKS_PER_DAY, maxDays: 40, cozyThreats: false });
+      const sim = bootstrapSim({ seed: 0xdeadbeef, ticksPerDay: TICKS_PER_DAY, cozyThreats: false });
       const { terrain } = sim;
       const cx = Math.floor(terrain.width / 2);
       const cy = Math.floor(terrain.height / 2);
@@ -589,7 +589,7 @@ describe("DiseaseSystem — strict mortality (force-triggered outbreak)", () => 
     // Sharp path: strict mortality proof requires the frozen (non-cozy) disease
     // path — cozy mode never calls removeOneVillager, so these force-triggered
     // outbreak tests need cozyThreats:false to keep proving the old behavior.
-    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 60, cozyThreats: false });
+    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, cozyThreats: false });
     // Road at y=13 from x=10..45.
     const roadTiles: Array<{ x: number; y: number }> = [];
     for (let x = 10; x <= 45; x++) roadTiles.push({ x, y: 13 });
@@ -685,7 +685,7 @@ describe("FireSystem — dense town fires (integration)", () => {
      * Over 60 days: P(at least 1 fire) ≈ near-certain.
      * This is a strict seeded test — with seed 0x1234_5678 + 60 days it MUST fire.
      */
-    const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });
+    const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -729,7 +729,7 @@ describe("FireSystem — dense town fires (integration)", () => {
      * first floor(daysPerYear/4)+2 days, then burn normally once the grace ends.
      * (Spread is unaffected; this only holds off fresh ignition.)
      */
-    const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });
+    const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -768,7 +768,7 @@ describe("FireSystem — dense town fires (integration)", () => {
 
   it("a dense district WITH a well has fewer or equal fires than WITHOUT (same seed)", () => {
     function buildDense(withWell: boolean): CitadelSimResult {
-      const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY, maxDays: 80 });
+      const sim = bootstrapSim({ seed: 0x1234_5678, ticksPerDay: TICKS_PER_DAY });
       const { terrain } = sim;
       const cx = Math.floor(terrain.width / 2);
       const cy = Math.floor(terrain.height / 2);

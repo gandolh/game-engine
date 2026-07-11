@@ -15,10 +15,9 @@ import { bfsPath } from "../world/pathfinder";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 function boot(seed = SEED, cozyThreats = true) {
-  return bootstrapSim({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS, cozyThreats });
+  return bootstrapSim({ seed, ticksPerDay: TICKS_PER_DAY, cozyThreats });
 }
 
 /** Find a clear (grass) tile near the center for placing buildings. */
@@ -358,7 +357,7 @@ describe("Phase 4 — wall reroutes raiders", () => {
       cells: new Uint8Array(W * H).fill(TerrainType.Grass),
     };
 
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     localPlayer(sim.state).tier = "Town"; // keep (Town) + wall (Village) require unlock to place
 
     // Place keep at (18, 28) so raiders target it.

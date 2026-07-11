@@ -16,7 +16,6 @@ import type { CitadelCommand } from "./snapshot/index";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 5;
 
 /** Run a sim with a pre-scripted command log, return the final state. */
 function runWithCommands(
@@ -26,7 +25,7 @@ function runWithCommands(
   buildings: ReturnType<ReturnType<typeof bootstrapSim>["getBuildings"]>;
   walkable: Uint8Array;
 } {
-  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
 
   let cmdIdx = 0;
   for (let tick = 0; tick < totalTicks; tick++) {
@@ -178,7 +177,7 @@ describe("Citadel 97/13 — snapshot carries authoritative pacing defaults", () 
     // getSnapshot knows nothing of hosts / wall-clock pacing, so it emits the headless/solo
     // defaults (local player is trivially host, 1×, unpaused). The server host + solo Worker
     // OVERRIDE these before sending; here we pin the defaults the overrides layer onto.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const snap = sim.getSnapshot(0);
     expect(snap.isHost).toBe(true);
     expect(snap.speed).toBe(1);

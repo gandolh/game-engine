@@ -89,7 +89,7 @@ function findGrass(
 
 describe("cozy fire — recoverable, never razes", () => {
   it("a force-ignited building extinguishes on its own and is never destroyed (popCap intact)", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 }); // cozyThreats default true
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }); // cozyThreats default true
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -136,7 +136,7 @@ describe("cozy fire — recoverable, never razes", () => {
 
 describe("cozy fire — dents nearby mood", () => {
   it("a house near a burning building has measurably lower mood than a far-away house", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
@@ -204,7 +204,7 @@ describe("cozy disease — never kills, always recovers", () => {
    * outbreak ends within a bounded window.
    */
   function buildProvenTown(): CitadelSimResult {
-    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 60 }); // cozy default true
+    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY }); // cozy default true
     const roadTiles: Array<{ x: number; y: number }> = [];
     for (let x = 10; x <= 45; x++) roadTiles.push({ x, y: 13 });
     sim.commands.enqueue({ type: "placeRoad", payload: { tiles: roadTiles } });
@@ -274,7 +274,7 @@ describe("cozy disease — never kills, always recovers", () => {
 
 describe("cozy raids — pilfer goods, never sack", () => {
   it("a resolved raid decreases stockpiled goods but leaves buildings, population, and the keep intact", () => {
-    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 100 }); // cozy default true
+    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY }); // cozy default true
     const lp = localPlayer(sim.state);
     lp.tier = "Town"; // keep requires Town tier to place
     const g = findGrass(sim.terrain, 3, 3, 48, 48);
@@ -333,7 +333,7 @@ describe("cozy-copy contract — threat toasts read tended, never a loss", () =>
   // houses, force-ignite one, run days; the spread to the neighbour emits the
   // toast (~99.99% within 10 days at this seed — see phase45.test.ts).
   function spreadEvents(cozyThreats: boolean): string[] {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 40, cozyThreats });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, cozyThreats });
     const cx = Math.floor(sim.terrain.width / 2);
     const cy = Math.floor(sim.terrain.height / 2);
     const h1 = findClear(sim.terrain, 2, 2, cx, cy);
@@ -368,7 +368,7 @@ describe("cozy-copy contract — threat toasts read tended, never a loss", () =>
 
 describe("cozyThreats:false — the sharp path still bites (regression guard)", () => {
   it("an undefended keep is still sacked -> gameOver with cozyThreats:false", () => {
-    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 100, cozyThreats: false });
+    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, cozyThreats: false });
     const lp = localPlayer(sim.state);
     lp.tier = "Town";
     const g = findGrass(sim.terrain, 3, 3, 48, 48);
@@ -394,7 +394,7 @@ describe("winter grain floor", () => {
   });
 
   it("a farm still produces grain in winter (sim-level, cozy default)", () => {
-    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, maxDays: 100, startDay: 12 }); // winter start
+    const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, startDay: 12 }); // winter start
     const roadTiles: Array<{ x: number; y: number }> = [];
     for (let x = 10; x <= 40; x++) roadTiles.push({ x, y: 13 });
     sim.commands.enqueue({ type: "placeRoad", payload: { tiles: roadTiles } });

@@ -16,7 +16,6 @@ import type { CitadelCommand } from "../snapshot/index";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 function roadRow(y: number, x0: number, x1: number): CitadelCommand {
   const tiles: Array<{ x: number; y: number }> = [];
@@ -40,7 +39,7 @@ function addTestBuilding(state: SimState, type: string, x: number, y: number, ow
 
 describe("villager job snapshot field", () => {
   function bootEconomy() {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const cmds: CitadelCommand[] = [
       { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 10 } },
       { type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 6 } },
@@ -109,7 +108,7 @@ describe("villager job snapshot field", () => {
 
   it("a villager assigned to a bakery has job 'baker'", () => {
     // Drive a full bread chain so a villager staffs the bakery.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const cmds: CitadelCommand[] = [
       { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 10 } },
       { type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 6 } },
@@ -155,7 +154,7 @@ describe("villager job snapshot field", () => {
     // reports the home house's mood (NOT the neutral default). Direct construction
     // (mirrors needs-happiness.test.ts) keeps it deterministic + independent of the
     // organic economy.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     sim.stockpiles.grain = 10; // goods access needs stockpiled grain + market in range
     const homeId = addTestBuilding(state, "house", 30, 30);      // centre (31,31)
@@ -185,7 +184,7 @@ describe("villager job snapshot field", () => {
 
   it("a villager with no resolvable home reports the neutral default mood of 40", () => {
     // Phase E: a villager whose home tile maps to no building defaults to 40.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     sim.state.villagerWorld.spawn({
       villager: {
         id: 9002, ownerId: 0, homeX: 5, homeY: 5, workX: 5, workY: 5,
@@ -201,7 +200,7 @@ describe("villager job snapshot field", () => {
   it("allHomesCovered is false for an empty/uncovered town and true when every home is met", () => {
     // Phase F: pure read over the per-house lacks* flags. An empty town (no houses)
     // is never "content"; it flips true only once every owned house has all needs.
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 1, worldWidth: 96, worldHeight: 96 });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
 
     // Empty town → false (no houses is not "content").

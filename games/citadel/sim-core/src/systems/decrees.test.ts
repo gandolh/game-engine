@@ -24,10 +24,9 @@ import type { RaiderState } from "../sim-state";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 function boot(seed = SEED) {
-  return bootstrapSim({ seed, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+  return bootstrapSim({ seed, ticksPerDay: TICKS_PER_DAY });
 }
 
 /** Tick the scheduler across [from, to). */

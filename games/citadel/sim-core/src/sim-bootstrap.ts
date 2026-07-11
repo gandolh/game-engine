@@ -38,7 +38,6 @@ import { getSeason } from "./world/seasons";
 export interface CitadelSimOptions {
   seed: number;
   ticksPerDay: number;
-  maxDays: number;
   /** Starting day offset (default 0). Used to begin the sim partway through the year. */
   startDay?: number;
   /**
@@ -207,11 +206,9 @@ export interface CitadelSimResult {
  * @returns A fully-bootstrapped CitadelSimResult at the saved tick.
  */
 export function loadFromSave(save: CitadelSave): CitadelSimResult {
-  const maxDays = Math.ceil(save.currentTick / save.ticksPerDay) + 10;
   const sim = bootstrapSim({
     seed: save.seed,
     ticksPerDay: save.ticksPerDay,
-    maxDays,
     startDay: save.startDay,
     // Replay with the saved economy rules so the reconstructed state matches the original.
     chargeBuildCost: save.chargeBuildCost ?? false,

@@ -12,7 +12,7 @@ import { localPlayer, makePlayerState } from "../sim-state";
 import { recomputeTerritory, canBuildAt, tileClaimedBy } from "./territory";
 
 function boot() {
-  return bootstrapSim({ seed: 1, ticksPerDay: 20, maxDays: 5, worldWidth: 64, worldHeight: 64 });
+  return bootstrapSim({ seed: 1, ticksPerDay: 20, worldWidth: 64, worldHeight: 64 });
 }
 
 describe("Citadel 30 — territory", () => {

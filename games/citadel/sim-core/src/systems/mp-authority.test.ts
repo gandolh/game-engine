@@ -45,7 +45,7 @@ function asPlayer(sim: CitadelSimResult, id: number, cmd: Parameters<typeof sim.
 }
 
 function boot2(): CitadelSimResult {
-  const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5, worldWidth: 64, worldHeight: 64, multiplayer: true });
+  const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, worldWidth: 64, worldHeight: 64, multiplayer: true });
   sim.state.players.push(makePlayerState(1));
   return sim;
 }

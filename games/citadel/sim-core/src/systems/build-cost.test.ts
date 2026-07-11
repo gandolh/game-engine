@@ -48,7 +48,7 @@ const houseCount = (sim: ReturnType<typeof bootstrapSim>): number =>
 
 describe("build cost — opt-in flag", () => {
   it("is FREE by default: placing a house debits nothing and starts at 0 wood", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD });
     const lp = localPlayer(sim.state);
     expect(lp.stockpiles.wood).toBe(0);
     placeHouse(sim, 0);
@@ -57,7 +57,7 @@ describe("build cost — opt-in flag", () => {
   });
 
   it("when ON: a house placement DEBITS its BUILD_COST from the stockpile", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5, chargeBuildCost: true, startingStock: { wood: 40 } });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, chargeBuildCost: true, startingStock: { wood: 40 } });
     const lp = localPlayer(sim.state);
     expect(lp.stockpiles.wood).toBe(40); // founding grant
     placeHouse(sim, 0);
@@ -67,7 +67,7 @@ describe("build cost — opt-in flag", () => {
 
   it("REJECTS an unaffordable placement (\"cost\") — not spawned, nothing charged", () => {
     // Grant less than a house costs (house = 4 wood).
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5, chargeBuildCost: true, startingStock: { wood: 1 } });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, chargeBuildCost: true, startingStock: { wood: 1 } });
     const lp = localPlayer(sim.state);
     placeHouse(sim, 0);
     expect(houseCount(sim)).toBe(0);     // not placed
@@ -75,7 +75,7 @@ describe("build cost — opt-in flag", () => {
   });
 
   it("charges stone for late buildings that cost it (smith = wood + stone)", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5, chargeBuildCost: true, startingStock: { wood: 40, stone: 10 } });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, chargeBuildCost: true, startingStock: { wood: 40, stone: 10 } });
     const lp = localPlayer(sim.state);
     lp.peakTier = "Village"; // smith is tier-locked to Village; unlock it so placement isn't a "tier" reject
     const s = findGrass(sim.terrain, 2, 2, 20, 20);
@@ -92,7 +92,7 @@ describe("build cost — opt-in flag", () => {
 
   it("a cost-charged run is deterministic (twice-run deep-equal snapshot)", () => {
     const run = (): unknown => {
-      const sim = bootstrapSim({ seed: 9, ticksPerDay: TPD, maxDays: 5, chargeBuildCost: true, startingStock: { wood: 40 } });
+      const sim = bootstrapSim({ seed: 9, ticksPerDay: TPD, chargeBuildCost: true, startingStock: { wood: 40 } });
       placeHouse(sim, 0);
       const s = findGrass(sim.terrain, 3, 3, 30, 30);
       sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "farm", x: s.x, y: s.y } });
@@ -104,7 +104,7 @@ describe("build cost — opt-in flag", () => {
 
   it("save/load round-trips with costs ON: the save persists the economy options", () => {
     const target = TPD * 2;
-    const sim = bootstrapSim({ seed: 9, ticksPerDay: TPD, maxDays: 5, chargeBuildCost: true, startingStock: { wood: 40 } });
+    const sim = bootstrapSim({ seed: 9, ticksPerDay: TPD, chargeBuildCost: true, startingStock: { wood: 40 } });
     placeHouse(sim, 0);
     for (let t = 1; t < target; t++) sim.scheduler.tick({ tick: t });
     const originalSnap = sim.getSnapshot(target);

@@ -18,7 +18,7 @@ const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
 
 function boot() {
-  return bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: 100 });
+  return bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
 }
 
 function dummyRaider(id: number, strength = 10): RaiderState {

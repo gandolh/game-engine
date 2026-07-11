@@ -32,7 +32,6 @@ export interface CitadelSimHostOptions {
   worldHeight?: number;
   /** MP enables territory build-gating by default. */
   enforceTerritory?: boolean;
-  maxDays?: number;
   /** Run a wall-clock tick interval (production). Tests drive step() instead. */
   realtime?: boolean;
   tickRateHz?: number;
@@ -256,7 +255,6 @@ export class CitadelSimHost {
     this.sim = bootstrapSim({
       seed,
       ticksPerDay,
-      maxDays: this.opts.maxDays ?? 100,
       enforceTerritory: this.opts.enforceTerritory ?? true,
       // Every room this host starts is a match: the town-hall is the keep/raid anchor from
       // the founding peer's very first placement, not once a second peer shows up.

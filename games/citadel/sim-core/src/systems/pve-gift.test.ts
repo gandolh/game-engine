@@ -15,7 +15,7 @@ const TPD = 20;
 
 /** Bootstrap with N players, each given a keep anchor (so raids spawn per player). */
 function bootKeeps(nPlayers: number): CitadelSimResult {
-  const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 40, worldWidth: 96, worldHeight: 96 });
+  const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96 });
   for (let i = 1; i < nPlayers; i++) sim.state.players.push(makePlayerState(i));
   for (const p of sim.state.players) {
     const x = 10 + p.id * 24;
@@ -55,7 +55,7 @@ describe("Citadel 33 — per-player PvE RNG independence", () => {
 
 describe("Citadel 34 — gift / transfer", () => {
   it("moves goods sender→recipient and rejects unaffordable / self gifts", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, maxDays: 5, worldWidth: 64, worldHeight: 64 });
+    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, worldWidth: 64, worldHeight: 64 });
     sim.state.players.push(makePlayerState(1));
     const p0 = sim.state.players[0]!;
     const p1 = sim.state.players[1]!;

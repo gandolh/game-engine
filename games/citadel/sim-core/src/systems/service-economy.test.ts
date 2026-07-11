@@ -31,7 +31,6 @@ import type { SimState } from "../sim-state";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 const FLOOR = 0.6;
 
 /** A staffed, connected woodcutter (output 2/cycle, no seasonal multiplier). */
@@ -50,7 +49,7 @@ function spawnWoodcutter(state: SimState, x: number, y: number): number {
 }
 
 function freshState(): SimState {
-  const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS }).state;
+  const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
   state.players[0]!.happiness = 100; // isolate the service curve from the happiness throttle
   return state;
 }

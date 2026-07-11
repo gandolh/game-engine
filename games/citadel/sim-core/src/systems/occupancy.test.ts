@@ -13,7 +13,6 @@ import type { CitadelCommand } from "../snapshot/index";
 
 const SEED = 0xc17ade1;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 100;
 
 function roadRow(y: number, x0: number, x1: number): CitadelCommand {
   const tiles: Array<{ x: number; y: number }> = [];
@@ -23,7 +22,7 @@ function roadRow(y: number, x0: number, x1: number): CitadelCommand {
 
 describe("snapshot occupancy invariant", () => {
   function bootEconomy() {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, maxDays: MAX_DAYS });
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const cmds: CitadelCommand[] = [
       { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 10 } },
       { type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 6 } },

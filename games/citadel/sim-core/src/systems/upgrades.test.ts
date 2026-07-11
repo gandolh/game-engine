@@ -26,7 +26,7 @@ import {
 const TPD = 20;
 
 function boot() {
-  return bootstrapSim({ seed: 0xabc08, ticksPerDay: TPD, maxDays: 20 });
+  return bootstrapSim({ seed: 0xabc08, ticksPerDay: TPD });
 }
 
 /** Find a clear (grass) WxH region near (sx,sy). */

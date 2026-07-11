@@ -33,7 +33,6 @@ function buildProvenTown(opts: { cozyThreats?: boolean } = {}): CitadelSimResult
   const sim = bootstrapSim({
     seed: 0xc17ade1,
     ticksPerDay: TICKS_PER_DAY,
-    maxDays: 80,
     ...(opts.cozyThreats === undefined ? {} : { cozyThreats: opts.cozyThreats }),
   });
   const roadTiles: Array<{ x: number; y: number }> = [];
