@@ -217,8 +217,13 @@ describe("Phase 4 — raid casualties keep entity count == population", () => {
 describe("Phase 4 — keep sacked", () => {
   it("an undefended keep is eventually sacked → gameOver", () => {
     // Sharp path: keepSacked/gameOver only ever set on the frozen siege path.
+    //
+    // ⚠️ This proves the siege RESOLUTION works once a keep exists. It does NOT prove a
+    // keep can be built: `lp.tier = "Town"` below walks past `TIER_LOCK.keep`, the gate a
+    // real player must earn. `SCENARIO=sack` broke on exactly that gate and this test
+    // never noticed. Reachability is covered by `sharp-raid-path.test.ts`.
     const sim = boot(SEED, false);
-    localPlayer(sim.state).tier = "Town"; // keep requires Town tier to place
+    localPlayer(sim.state).tier = "Town"; // bypasses TIER_LOCK — resolution check, not a reachability check
     const g = findGrass(sim.terrain, 3, 3, 48, 48);
     // Place ONLY a keep — defenseStrength 8, but raids escalate (10,15,20,...).
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });

@@ -366,11 +366,27 @@ describe("cozy-copy contract — threat toasts read tended, never a loss", () =>
 // 5. Regression guard: cozyThreats:false still reproduces the sharp path.
 // ---------------------------------------------------------------------------
 
+/**
+ * ⚠️ SCOPE OF THIS GUARD — read before trusting it.
+ *
+ * This proves the sharp path is UNCHANGED. It does NOT prove the sharp path is
+ * REACHABLE. It hands itself a keep by assigning `lp.tier = "Town"` directly, which
+ * walks straight past `TIER_LOCK.keep` — the gate a real player (and the `sack` headless
+ * fixture) has to clear by actually growing a settlement.
+ *
+ * That distinction is not academic: `SCENARIO=sack` silently stopped sacking for ten days
+ * (2026-07-01 → 07-11) because its keep was TIER_LOCK-rejected and it therefore had
+ * nothing to sack — and this test, and phase4's twin of it, stayed green the entire time.
+ *
+ * The reachability half lives in `sharp-raid-path.test.ts`, which never touches `tier`.
+ * If you are asking "does the sharp raid path still work end to end?", that is the file
+ * you want; this one only answers "did the resolution math move?".
+ */
 describe("cozyThreats:false — the sharp path still bites (regression guard)", () => {
   it("an undefended keep is still sacked -> gameOver with cozyThreats:false", () => {
     const sim = bootstrapSim({ seed: 0xc17ade1, ticksPerDay: TICKS_PER_DAY, cozyThreats: false });
     const lp = localPlayer(sim.state);
-    lp.tier = "Town";
+    lp.tier = "Town"; // bypasses TIER_LOCK — see the scope note above; this is NOT a reachability check
     const g = findGrass(sim.terrain, 3, 3, 48, 48);
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } });
 

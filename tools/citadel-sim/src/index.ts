@@ -16,9 +16,12 @@
  *                     from ~day 5 and are REPELLED by the strong defenses.
  *                     Refining chains (quarry→stone, sawmill→planks, smith→tools)
  *                     are active and produce visible output.
- *   SCENARIO=sack   — keep + minimal defense + healthy economy; escalating
- *                     raids overwhelm the weak defenses → keepSacked=true,
- *                     game-over from the SACK (not starvation).
+ *   SCENARIO=sack   — a REAL PLAYTHROUGH of the sharp raid path: a fire-safe
+ *                     lattice town grows to Town tier, legitimately unlocks and
+ *                     raises a lone keep (defense 8, no walls), and is then ground
+ *                     down by escalating raids → keepSacked=true, game-over from
+ *                     the SACK (not starvation). The ONLY fixture that drives the
+ *                     sharp (cozyThreats:false) raid resolution end to end.
  *   SCENARIO=fire   — dense wooden buildings packed close together → fire
  *                     ignites and spreads. Second half places wells to show
  *                     reduced fire spread. Expect fire events in the log.
@@ -30,17 +33,34 @@
  *   SEED=0xdeadbeef MAX_DAYS=40 npm run sim:citadel
  *   SCENARIO=starve MAX_DAYS=25 npm run sim:citadel
  *   SCENARIO=siege  MAX_DAYS=40 npm run sim:citadel
- *   SCENARIO=sack   MAX_DAYS=40 npm run sim:citadel
+ *   SCENARIO=sack   npm run sim:citadel      # 70-day default — see SACK_MAX_DAYS
  *   SCENARIO=fire   MAX_DAYS=40 npm run sim:citadel
  *   SCENARIO=disease MAX_DAYS=40 npm run sim:citadel
  */
-import { bootstrapSim, isWalkable, TerrainType } from "@citadel/sim-core";
+import { bootstrapSim, isWalkable, TerrainType, tierAtLeast, localPlayer } from "@citadel/sim-core";
 import type { CitadelCommand, TerrainGrid } from "@citadel/sim-core";
 
 const SEED = parseInt(process.env.SEED ?? "0x1a2b3c4d", 16) >>> 0;
-const MAX_DAYS = parseInt(process.env.MAX_DAYS ?? "40", 10);
 const TICKS_PER_DAY = parseInt(process.env.TICKS_PER_DAY ?? "20", 10);
 const SCENARIO = process.env.SCENARIO ?? "grow";
+
+/**
+ * `sack` needs a longer horizon than the other scenarios, and the reason is
+ * geometry, not balance.
+ *
+ * Raiders march one tile every 3 ticks (`MOVE_INTERVAL`, raider-movement.ts) ≈ 6.7
+ * tiles/day, and they spawn on a MAP EDGE. Brief 110 doubled the solo world from
+ * 96×96 to 192×192, which doubled that march: a raid aimed at a keep near the map
+ * centre is now ~15 days in transit, where it used to be ~7. The old scenario's
+ * comment ("raid 4 arrives ~day 27.5 → within 40 days") was arithmetic done on the
+ * 96×96 map and quietly stopped being true when the world grew.
+ *
+ * The honest budget for a REAL playthrough on today's map: ~13 days to grow to Town
+ * and raise the keep, then raids 1..N escalating and each ~15 days in transit. The
+ * keep falls around day 50 at the default seed; 70 leaves headroom.
+ */
+const SACK_MAX_DAYS = 70;
+const MAX_DAYS = parseInt(process.env.MAX_DAYS ?? String(SCENARIO === "sack" ? SACK_MAX_DAYS : 40), 10);
 
 /** Find a clear w×h region of buildable tiles near (preferX, preferY). */
 function findClear(terrain: TerrainGrid, w: number, h: number, sx: number, sy: number): { x: number; y: number } {
@@ -455,83 +475,190 @@ function buildSiegeScenario(
 }
 
 /**
- * "Sack" scenario: a healthy economy with a keep but ZERO extra defenses.
+ * "Sack" scenario — RE-LAID 2026-07-11 as a real playthrough (see below).
  *
- * Worker budget (founding window = 6 days → 6 founders):
- *   Primary types: farm, keep = 2 types → staffed on days 1-2
- *   Converter types: mill, bakery = 2 types → staffed on days 3-4
- *   Days 5-6: extra farm/mill slots → full throughput by day 7
- *   Food chain RUNS from day 4, pop grows steadily.
+ * This is the ONLY fixture that drives the SHARP (`cozyThreats:false`) raid
+ * resolution end to end, so it is the thing brief 103 (Challenge mode) and brief
+ * 113 (raid gets a body) are built on. It must earn its ending, not be handed it.
  *
- * Defense: keep only → defenseStrength = 8.
- * Raid 1 strength = 10 → 8 < 5 (10 × 0.5) → SACKED on first contact!
- * (Actually: 8 >= 5 = 10*0.5 → "damage" tier, not sacked yet on first hit)
- * Wait: resolveSiege: if defense >= raid*1.5 → repelled; >= raid*0.5 → damage;
- * else sacked. defense=8, raid=10: 8 < 15 (repelled threshold), 8 >= 5
- * (damage threshold) → DAMAGE on raid 1. Raid 2 strength=15: 8 < 22.5
- * (repelled), 8 >= 7.5 (damage) → DAMAGE again. Raid 3 strength=20: 8 < 30,
- * 8 >= 10 (damage). Raid 4 strength=25: 8 < 37.5, 8 < 12.5 → SACKED!
- * Raid 4 arrives at day 5 + 8 + 7.5 + 7 = ~27.5 days → within 40 days.
+ * ## Why it stopped sacking (three linked defects, all now designed out)
  *
- * The keep is sacked with economy still alive (popCap 24, bread chain running).
+ * 1. `cozyThreats` defaults to TRUE (cozy pivot Phase D, 2026-07-01) and a cozy
+ *    raid pilfers goods and leaves — it can NEVER sack, by contract. The scenario
+ *    never passed the flag, so from that day it silently asserted nothing.
+ *    (Fixed separately in `main()`: `isSiegeScenario()` now opts into the sharp path.)
+ *
+ * 2. The old layout placed a `keep` on DAY 0 at Hamlet tier. `TIER_LOCK.keep`
+ *    is "Town", so the command was REJECTED — and since raids are gated entirely on
+ *    `keepPosition` (raid-spawn.ts), no keep meant no raid clock, no threat, no
+ *    raiders, nothing to sack. The reject was not even silent: the run logged
+ *    "Day 0: a keep needs Town tier — unlock it first." Nobody read it.
+ *
+ * 3. Turning the sharp path back on (1) also un-gated SHARP FIRE, which DESTROYS
+ *    buildings instead of smouldering. The old layout parked its four houses on a
+ *    3-tile pitch — dense enough that each had ≥3 wooden neighbours within 4 tiles,
+ *    which is exactly the ignition trigger — so fire razed three of them and popCap
+ *    collapsed 24 → 6. The town could then never reach the pop it needed to tier up.
+ *
+ * ## The re-lay (the brief-100 `starve` precedent: build it for a REASON)
+ *
+ * The town is laid out on a LATTICE with a 4-tile column pitch and a 5-tile row
+ * pitch. That is not cosmetic — it is the fire rule inverted:
+ * `FireSystem._checkIgnition` ignites a wooden building only when ≥3 other wooden
+ * buildings sit within Manhattan 4 of its centre. On this lattice an in-row
+ * neighbour is exactly 4 away (counted) and a cross-row neighbour is 5 (not), so
+ * every wooden building has AT MOST 2 wooden neighbours in range and spontaneous
+ * ignition is structurally impossible. The town is fireproof BY LAYOUT — which is
+ * the lesson the sharp fire hazard is there to teach.
+ *
+ * With the town no longer burning down it grows honestly:
+ *   - 20 structures from day 0 (≥15, the Town buildings-path threshold, with 5 to
+ *     spare so a raid or two can raze one without dropping the settlement back).
+ *   - 6 houses → popCap 36, so growth is gated by FOOD, not by housing.
+ *   - 2 farms → 2 mills → 2 bakeries, all within ~9 tiles of the storehouse, so the
+ *     haulers keep up and the service bonus pays (the brief-100 upside).
+ *   - 2 chapels + 1 market + 1 watchpost → needs coverage → happiness stays >40,
+ *     which keeps immigration rolling and keeps disease onset off the amplifier.
+ *   - 1 healer covering the houses → a disease outbreak cannot kill (deathRate 0.05
+ *     with `healerNear`, and no guaranteed minimum death) → pop only ever climbs.
+ *
+ * Population crosses 10 around day 11 → with 20 structures that satisfies Town
+ * (`nonRoadBuildings ≥ 15 AND pop ≥ 10`). ONLY THEN is the keep placed — `main()`
+ * watches the tier and enqueues it the moment the settlement earns it, exactly as a
+ * player would. So the keep now lands through the real `TIER_LOCK` gate.
+ *
+ * The keep stands ALONE — defenseStrength 8, no towers, no garrison, no walls. The
+ * raid clock anchors to it: raid 1 (str 10) ~5 days later, then every ~7-8 days,
+ * escalating +5. `resolveSiege` bands on defence:strength ratio — 8:10 = 0.8 and
+ * 8:15 = 0.53 are the "mid" band (mostly damage, 10% sack), 8:20 = 0.4 drops into
+ * the "weak" band (85% sack). So the town is ground down and the keep falls, with
+ * the economy still alive around it — a sack, not a starvation.
+ *
+ * At the default seed: Town on day 12, keep raised day 13, THE KEEP IS SACKED on day 50.
+ *
+ * NB the town plateaus around pop 17-18 (two bakeries is the bread ceiling; grain and
+ * flour visibly pile up behind them) and you will see the odd "a villager starved" as it
+ * sits on that ceiling. That is an EQUILIBRIUM, not a collapse — pop is still 17 and all
+ * 351 buildings still connected when the keep falls, and `gameOver` is set by
+ * "THE KEEP IS SACKED", never by the town dying out. Don't mistake this for `starve`.
+ *
+ * Returns the keep's site rather than a command: it is placed LATER, on tier-up.
  */
-function buildSackScenario(terrain: TerrainGrid): CitadelCommand[] {
-  const cx = Math.floor(terrain.width / 2) - 10;
-  const cy = Math.floor(terrain.height / 2) - 10;
 
-  const store   = findClear(terrain, 3, 2, cx, cy);
-  const farm1   = findClear(terrain, 3, 3, store.x + 5, store.y - 3);
-  const farm2   = findClear(terrain, 3, 3, store.x + 5, store.y + 2);
-  const mill1   = findClear(terrain, 2, 2, store.x - 1, store.y - 5);
-  const mill2   = findClear(terrain, 2, 2, store.x + 3, store.y - 5);
-  const bakery1 = findClear(terrain, 2, 2, store.x - 5, store.y - 1);
-  const bakery2 = findClear(terrain, 2, 2, store.x - 5, store.y + 2);
-  // 4 houses → popCap 24
-  const house1  = findClear(terrain, 2, 2, store.x - 3, store.y + 4);
-  const house2  = findClear(terrain, 2, 2, store.x,     store.y + 4);
-  const house3  = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
-  const house4  = findClear(terrain, 2, 2, store.x,     store.y + 7);
+/** Column pitch of the sack town's lattice. In-row wooden neighbours land at Manhattan 4 → counted by the fire rule (2 max). */
+const SACK_COL_PITCH = 4;
+/** Row pitch. Cross-row neighbours land at Manhattan 5 → OUTSIDE the fire rule's range-4 window. */
+const SACK_ROW_PITCH = 5;
 
-  // Keep alone — defenseStrength 8, no extra defenses → sacked on raid 4
-  const keep = findClear(terrain, 3, 3, cx + 8, cy + 8);
+/**
+ * The lattice, row-major. Every entry is a slot at
+ * (X + col*SACK_COL_PITCH, Y + row*SACK_ROW_PITCH).
+ *
+ * Widest footprint is 3 (farm, storehouse), so a 4-tile column pitch always leaves a
+ * 1-tile road gap; tallest is 3 (farm), so a 5-tile row pitch leaves 2. Every building
+ * type here has its centre at top-left + (1,1), which is what makes the pitch arithmetic
+ * above hold exactly for the fire rule.
+ *
+ * `well` and `healer` are NOT in FireSystem's WOODEN_TYPES, so they are free real estate
+ * on the lattice — they break up the wooden runs without adding to anyone's neighbour count.
+ */
+const SACK_LATTICE: ReadonlyArray<ReadonlyArray<string>> = [
+  ["mill",   "farm",       "farm",   "mill"],
+  ["bakery", "storehouse", "well",   "bakery"],
+  ["chapel", "house",      "house",  "market"],
+  ["house",  "watchpost",  "healer", "house"],
+  ["well",   "house",      "house",  "chapel"],
+];
 
-  const cmds: CitadelCommand[] = [
-    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,   y: store.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm1.x,   y: farm1.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm2.x,   y: farm2.y } },
-    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill1.x,   y: mill1.y } },
-    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill2.x,   y: mill2.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery1.x, y: bakery1.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery2.x, y: bakery2.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house1.x,  y: house1.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house2.x,  y: house2.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house3.x,  y: house3.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house4.x,  y: house4.y } },
-    // Keep ONLY — no towers, no garrison → easy target.
-    { type: "placeBuilding", payload: { buildingType: "keep",       x: keep.x,    y: keep.y } },
-  ];
+/** Where the sack town's keep goes once the settlement earns Town tier. */
+interface SackPlan {
+  readonly cmds: CitadelCommand[];
+  readonly keep: { x: number; y: number };
+}
 
+function buildSackScenario(terrain: TerrainGrid): SackPlan {
+  const cx = Math.floor(terrain.width / 2);
+  const cy = Math.floor(terrain.height / 2);
+
+  // ONE clear region for the whole town + the keep site below it. Deliberately not
+  // findClear-per-building (as the other scenarios do): a per-building search nudges
+  // individual buildings off the lattice to dodge a rough tile, and any such nudge can
+  // pull a third wooden neighbour inside the range-4 window and re-arm the ignition rule
+  // the layout exists to defeat. One region → the pitch is exact by construction.
+  const REGION_W = 17; // road margin (1) + 3 col pitches + widest footprint (3) + margin (1)
+  const REGION_H = 31; // road margin (1) + 4 row pitches + footprint (2) + spine/keep (8)
+  const region = findClear(terrain, REGION_W, REGION_H, cx - 8, cy - 15);
+  const X = region.x + 1;
+  const Y = region.y + 1;
+
+  const cmds: CitadelCommand[] = [];
+  // Footprint tiles, so the road carpet below can fill only the GAPS (a road command
+  // onto an occupied tile is rejected, which would spam the event log with "N road
+  // tiles blocked — the run has a gap").
+  const footprint = new Set<number>();
+  const claim = (x: number, y: number, w: number, h: number): void => {
+    for (let dy = 0; dy < h; dy++)
+      for (let dx = 0; dx < w; dx++) footprint.add((y + dy) * terrain.width + (x + dx));
+  };
+
+  for (let row = 0; row < SACK_LATTICE.length; row++) {
+    const slots = SACK_LATTICE[row]!;
+    for (let col = 0; col < slots.length; col++) {
+      const type = slots[col]!;
+      const x = X + col * SACK_COL_PITCH;
+      const y = Y + row * SACK_ROW_PITCH;
+      cmds.push({ type: "placeBuilding", payload: { buildingType: type, x, y } });
+      const size = SACK_FOOTPRINTS[type] ?? { w: 2, h: 2 };
+      claim(x, y, size.w, size.h);
+    }
+  }
+
+  // The keep's site: below the town, on the clear region's southern strip. Placed later
+  // (on tier-up), so nothing may be built on these tiles now — the road ring below stops
+  // one tile short of the footprint on every side.
+  const keep = { x: X + 4, y: Y + 25 };
+
+  // ---------- Roads ----------
+  // A carpet over the lattice's gaps: connects every building to the storehouse AND
+  // (bonus) lays a firebreak on the line between most wooden pairs, so even a
+  // raider-set blaze struggles to spread (FireSystem._hasFirebreak treats a road tile
+  // on the centre-to-centre line as a break).
   const roadTiles: Array<{ x: number; y: number }> = [];
-  const storeRight  = store.x + 3;
-  const storeLeft   = store.x - 1;
-  const storeTop    = store.y - 1;
-  const storeBottom = store.y + 2;
-
-  link(roadTiles, farm1.x - 1, farm1.y + 1, storeRight, store.y);
-  link(roadTiles, farm2.x - 1, farm2.y + 1, storeRight, store.y + 1);
-  link(roadTiles, mill1.x + 1, mill1.y + 2, store.x,    storeTop);
-  link(roadTiles, mill2.x,     mill2.y + 2, store.x + 2, storeTop);
-  link(roadTiles, bakery1.x + 2, bakery1.y + 1, storeLeft, store.y);
-  link(roadTiles, bakery2.x + 2, bakery2.y + 1, storeLeft, store.y + 1);
-  link(roadTiles, house1.x + 1, house1.y - 1, store.x - 1, storeBottom);
-  link(roadTiles, house2.x + 1, house2.y - 1, store.x + 1, storeBottom);
-  link(roadTiles, house3.x,     house3.y - 1, store.x + 2, storeBottom);
-  link(roadTiles, house4.x + 1, house4.y - 1, store.x + 1, storeBottom);
-  link(roadTiles, keep.x + 1, keep.y - 1, cx + 1, cy + 1);
+  const push = (x: number, y: number): void => {
+    if (!isWalkable(terrain, x, y)) return;
+    if (footprint.has(y * terrain.width + x)) return;
+    roadTiles.push({ x, y });
+  };
+  const townBottom = Y + (SACK_LATTICE.length - 1) * SACK_ROW_PITCH + 2; // last row's footprint bottom
+  for (let y = Y - 1; y <= townBottom + 1; y++) {
+    for (let x = X - 1; x <= X + 3 * SACK_COL_PITCH + 2; x++) push(x, y);
+  }
+  // Spine down to the keep, then a ring around its 3×3 footprint so it road-connects.
+  for (let y = townBottom + 2; y < keep.y; y++) push(keep.x + 1, y);
+  for (let y = keep.y - 1; y <= keep.y + 3; y++) {
+    for (let x = keep.x - 1; x <= keep.x + 3; x++) {
+      if (x >= keep.x && x < keep.x + 3 && y >= keep.y && y < keep.y + 3) continue; // the keep's own tiles
+      push(x, y);
+    }
+  }
 
   cmds.push({ type: "placeRoad", payload: { tiles: roadTiles } });
-  return cmds;
+  return { cmds, keep };
 }
+
+/** Footprints of the types the sack lattice uses (mirrors BUILDING_DEFS). */
+const SACK_FOOTPRINTS: Readonly<Record<string, { w: number; h: number }>> = {
+  house: { w: 2, h: 2 },
+  farm: { w: 3, h: 3 },
+  mill: { w: 2, h: 2 },
+  bakery: { w: 2, h: 2 },
+  storehouse: { w: 3, h: 2 },
+  chapel: { w: 2, h: 2 },
+  market: { w: 2, h: 2 },
+  watchpost: { w: 2, h: 2 },
+  well: { w: 1, h: 1 },
+  healer: { w: 2, h: 2 },
+};
 
 /**
  * "Fire" scenario: builds a DENSE wooden district.
@@ -786,14 +913,18 @@ function main(): void {
 
   let injectWoodPerDay = 0;
   let injectStonePerDay = 0;
+  // `sack` builds its keep LATE, through the real TIER_LOCK gate — see below.
+  let sackKeep: { x: number; y: number } | null = null;
+  let sackKeepOrdered = false;
   if (SCENARIO === "siege") {
     const result = buildSiegeScenario(terrain);
     for (const c of result.cmds) commands.enqueue(c);
     injectWoodPerDay = result.injectWoodPerDay;
     injectStonePerDay = result.injectStonePerDay;
   } else if (SCENARIO === "sack") {
-    const cmds = buildSackScenario(terrain);
-    for (const c of cmds) commands.enqueue(c);
+    const plan = buildSackScenario(terrain);
+    for (const c of plan.cmds) commands.enqueue(c);
+    sackKeep = plan.keep;
   } else if (SCENARIO === "starve") {
     const cmds = buildStarveScenario(terrain);
     for (const c of cmds) commands.enqueue(c);
@@ -829,6 +960,22 @@ function main(): void {
     if (dayClock.day !== lastDay) {
       lastDay = dayClock.day;
       const snap = getSnapshot(tick);
+
+      // `sack`: the keep is TIER_LOCKed to Town, so it cannot be placed at founding —
+      // the old fixture tried, was rejected, and therefore never had anything to sack.
+      // Order it the moment the settlement EARNS Town, exactly as a player would. The
+      // command drains on the next tick's "commands" stage; the decision is a pure
+      // function of sim state, so the run stays deterministic.
+      // Read `peakTier` off the player rather than `snap.tier`: it is the typed
+      // `SettlementTier` (the snapshot widens it to `string`), and it is the exact field
+      // `placeOne`'s tier gate consults via `unlockTier` — so the fixture asks the same
+      // question the tier-lock will answer.
+      if (sackKeep !== null && !sackKeepOrdered && tierAtLeast(localPlayer(sim.state).peakTier, "Town")) {
+        commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: sackKeep.x, y: sackKeep.y } });
+        sackKeepOrdered = true;
+        console.log(`    >> Day ${snap.day + 1}: Town tier earned — raising the keep (defense 8, no walls).`);
+      }
+
       const connected = snap.buildings.filter((b) => b.connected).length;
       const workers = snap.villagers.length;
       const decreesStr = snap.activeDecrees.length > 0 ? ` [${snap.activeDecrees.join(",")}]` : "";
@@ -890,6 +1037,28 @@ function main(): void {
   if (final.recentEvents.length > 0) {
     console.log("Recent events:");
     for (const e of final.recentEvents.slice(-10)) console.log(`  - ${e}`);
+  }
+
+  // `sack` is the only fixture that drives the SHARP raid resolution end to end, and it
+  // rotted for ten days precisely because nothing ever said so out loud: it kept printing
+  // a cheerful economy summary while asserting nothing. Give it a verdict and a non-zero
+  // exit, so a future regression is a FAILURE and not a paragraph nobody reads.
+  if (SCENARIO === "sack") {
+    if (final.keepSacked && final.gameOver) {
+      console.log("\nSACK: PASS — the sharp raid path reached the `sacked` band: keep sacked, game over.");
+    } else {
+      console.log(
+        "\nSACK: FAIL — the keep was NOT sacked.\n" +
+          `  keepPresent=${final.keepPresent} keepSacked=${final.keepSacked} gameOver=${final.gameOver} ` +
+          `threat=${final.threatLevel} defense=${final.defensiveStrength} tier=${final.tier}\n` +
+          "  This fixture is the ONLY end-to-end check of the sharp (cozyThreats:false) raid\n" +
+          "  resolution. If it is not sacking, the sharp path is unproven — do not sign off\n" +
+          "  Challenge mode or any raid work on top of it. Check, in order: (1) is\n" +
+          "  cozyThreats:false actually reaching bootstrapSim? (2) did the settlement reach\n" +
+          "  Town so the TIER_LOCKed keep could be placed? (3) did a raider ever arrive?",
+      );
+      process.exit(1);
+    }
   }
   process.exit(0);
 }
