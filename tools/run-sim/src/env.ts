@@ -16,8 +16,11 @@ export const PROGRESS_EVERY = Number(process.env["PROGRESS_EVERY"] ?? 10);
 
 export const CHECK_DETERMINISM =
   process.env["CHECK_DETERMINISM"] === "1" || process.argv.includes("--check-determinism");
-export const EXPORT = (process.env["EXPORT"] ?? "").toLowerCase(); 
-export const EXPORT_FILE = process.env["EXPORT_FILE"]; 
+export const EXPORT = (process.env["EXPORT"] ?? "").toLowerCase();
+export const EXPORT_FILE = process.env["EXPORT_FILE"];
+
+export const REPORT_FILE = process.env["REPORT_FILE"];
+export const REPORT = process.env["REPORT"] === "1" || REPORT_FILE !== undefined;
 
 export function determinismSeeds(): number[] {
   const raw = process.env["SEEDS"];

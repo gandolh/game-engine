@@ -5,6 +5,7 @@ import { runOnce, summarize } from "./run-core";
 import { makePathfinder } from "./pathfinder";
 import { runDeterminismCheck } from "./determinism";
 import { printDayLine, printFinalLeaderboard, emitExport } from "./format";
+import { buildFarmRunReport, createFarmEventHarvester, emitReport } from "./report";
 import {
   SEED,
   WORLD_SEED,
@@ -14,6 +15,8 @@ import {
   CHECK_DETERMINISM,
   EXPORT,
   EXPORT_FILE,
+  REPORT,
+  REPORT_FILE,
   determinismSeeds,
 } from "./env";
 
@@ -37,6 +40,22 @@ async function main(): Promise<void> {
       ...WORLD_SEED_OPT,
     });
     emitExport(EXPORT, result, EXPORT_FILE);
+  } else if (REPORT) {
+    const harvester = createFarmEventHarvester();
+    const result = runOnce({
+      seed: SEED,
+      ticksPerDay: TICKS_PER_DAY,
+      maxDays: MAX_DAYS,
+      pathfinder: await makePathfinder(),
+      ...WORLD_SEED_OPT,
+      onTick: (_tick, sim) => harvester.harvest(sim),
+    });
+    const report = buildFarmRunReport(result, harvester.collected(), {
+      seed: SEED,
+      ticksPerDay: TICKS_PER_DAY,
+      ...WORLD_SEED_OPT,
+    });
+    emitReport(report, REPORT_FILE);
   } else {
     const { world, scheduler, dayClock, bus } = bootstrapSim({
       seed: SEED,

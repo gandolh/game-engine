@@ -38,11 +38,31 @@
  *   SCENARIO=disease MAX_DAYS=40 npm run sim:citadel
  */
 import { bootstrapSim, isWalkable, TerrainType, tierAtLeast, localPlayer } from "@citadel/sim-core";
-import type { CitadelCommand, TerrainGrid } from "@citadel/sim-core";
+import type { CitadelCommand, TerrainGrid, RenderSnapshot } from "@citadel/sim-core";
+import type { RunReportEventLog } from "@engine/core/sim";
+import {
+  summarizeDay,
+  summarizeEndState,
+  createCitadelEventCollector,
+  buildCitadelRunReport,
+  buildCitadelComparisonRunReport,
+  emitCitadelReport,
+  type CitadelDaySummary,
+  type CitadelRunReport,
+  type CitadelComparisonRunReport,
+} from "./report";
 
 const SEED = parseInt(process.env.SEED ?? "0x1a2b3c4d", 16) >>> 0;
 const TICKS_PER_DAY = parseInt(process.env.TICKS_PER_DAY ?? "20", 10);
 const SCENARIO = process.env.SCENARIO ?? "grow";
+
+/**
+ * Structured JSON run report (brief 2, chunk 2): `REPORT=1` prints it to
+ * stdout; `REPORT_FILE=path` writes it (and implies REPORT). Neither set →
+ * this tool's behavior is byte-identical to before the report existed.
+ */
+const REPORT_FILE = process.env.REPORT_FILE;
+const REPORT = process.env.REPORT === "1" || REPORT_FILE !== undefined;
 
 /**
  * `sack` needs a longer horizon than the other scenarios, and the reason is
@@ -809,11 +829,29 @@ function buildDiseaseScenario(terrain: TerrainGrid, withHealer = true): CitadelC
   return cmds;
 }
 
-/** Run a single headless sim with the given commands and return fire + event stats. */
+/**
+ * Run a single headless sim with the given commands and return fire + event stats.
+ *
+ * `collect`: when true, also samples `getSnapshot(tick)` on EVERY tick (not just
+ * at day boundaries) to build a complete report timeline + event log via
+ * `createCitadelEventCollector` (see report.ts for why every-tick sampling is the
+ * safe cadence against the 20-entry `recentEvents` cap). When false, behavior —
+ * including the number and arguments of `getSnapshot` calls — is unchanged from
+ * before the report existed.
+ */
 function runOneSim(
   cmds: CitadelCommand[],
   label: string,
-): { fires: number; deaths: number; finalPop: number; events: string[] } {
+  collect: boolean,
+): {
+  fires: number;
+  deaths: number;
+  finalPop: number;
+  events: string[];
+  finalSnapshot: RenderSnapshot;
+  timeline: CitadelDaySummary[];
+  eventLog: RunReportEventLog | null;
+} {
   const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
   for (const c of cmds) sim.commands.enqueue(c);
   const totalTicks = MAX_DAYS * TICKS_PER_DAY;
@@ -821,12 +859,19 @@ function runOneSim(
   let deathEvents = 0;
   let lastDay = -1;
   const allEvents: string[] = [];
+  const timeline: CitadelDaySummary[] = [];
+  const collector = collect ? createCitadelEventCollector() : null;
   console.log(`\n--- ${label} ---`);
   for (let tick = 0; tick < totalTicks; tick++) {
     sim.scheduler.tick({ tick });
+    let tickSnap: RenderSnapshot | undefined;
+    if (collector !== null) {
+      tickSnap = sim.getSnapshot(tick);
+      collector.absorb(tickSnap);
+    }
     if (sim.dayClock.day !== lastDay) {
       lastDay = sim.dayClock.day;
-      const snap = sim.getSnapshot(tick);
+      const snap = tickSnap ?? sim.getSnapshot(tick);
       const hazardStr = (snap.activeFires > 0 || snap.outbreakActive)
         ? ` | fires=${snap.activeFires} sick=${snap.sickVillagers}${snap.outbreakActive ? " [OUTBREAK]" : ""}`
         : "";
@@ -844,45 +889,90 @@ function runOneSim(
           }
         }
       }
+      if (collect) timeline.push(summarizeDay(snap));
     }
     if (sim.gameOver) break;
   }
   const final = sim.getSnapshot(totalTicks);
-  return { fires: fireEvents, deaths: deathEvents, finalPop: final.population, events: allEvents };
+  return {
+    fires: fireEvents,
+    deaths: deathEvents,
+    finalPop: final.population,
+    events: allEvents,
+    finalSnapshot: final,
+    timeline,
+    eventLog: collector !== null ? collector.finish() : null,
+  };
 }
 
-/** Run two disease sims (no-healer vs with-healer) and print a comparison. */
-function runDiseaseComparison(terrain: TerrainGrid): void {
+/**
+ * Run two disease sims (no-healer vs with-healer) and print a comparison.
+ * Report timeline/events cover only the unmitigated (primary) run; `report`
+ * gates BOTH the extra per-tick sampling AND whether a report is built at all
+ * — false is zero behavior/perf change from before the report existed.
+ */
+function runDiseaseComparison(terrain: TerrainGrid, report: boolean): CitadelComparisonRunReport | null {
   console.log(`\n=== DISEASE COMPARISON: crowded housing (seed=0x${SEED.toString(16)}) ===`);
-  const resultCrowded   = runOneSim(buildDiseaseScenario(terrain, false), "CROWDED — no healer (unmitigated)");
-  const resultMitigated = runOneSim(buildDiseaseScenario(terrain, true),  "MITIGATED — healer in range");
+  const resultCrowded   = runOneSim(buildDiseaseScenario(terrain, false), "CROWDED — no healer (unmitigated)", report);
+  const resultMitigated = runOneSim(buildDiseaseScenario(terrain, true),  "MITIGATED — healer in range", false);
   console.log("\n=== DISEASE COMPARISON SUMMARY ===");
   console.log(`  Unmitigated: ${resultCrowded.deaths} disease deaths, final pop ${resultCrowded.finalPop}`);
   console.log(`  Mitigated:   ${resultMitigated.deaths} disease deaths, final pop ${resultMitigated.finalPop}`);
+  let resultLine: string;
   if (resultCrowded.deaths > resultMitigated.deaths) {
-    console.log(`  RESULT: Healer REDUCED deaths (${resultCrowded.deaths} → ${resultMitigated.deaths}). Disease hazard proven!`);
+    resultLine = `Healer REDUCED deaths (${resultCrowded.deaths} → ${resultMitigated.deaths}). Disease hazard proven!`;
   } else if (resultCrowded.deaths > 0) {
-    console.log(`  RESULT: Disease deaths occurred in both runs; healer provided partial mitigation.`);
+    resultLine = `Disease deaths occurred in both runs; healer provided partial mitigation.`;
   } else {
-    console.log(`  RESULT: No disease deaths in this seed/day count — try higher MAX_DAYS or more crowding.`);
+    resultLine = `No disease deaths in this seed/day count — try higher MAX_DAYS or more crowding.`;
   }
+  console.log(`  RESULT: ${resultLine}`);
+  if (!report) return null;
+  return buildCitadelComparisonRunReport(
+    { scenario: SCENARIO, seed: SEED, ticksPerDay: TICKS_PER_DAY, daysSimulated: resultCrowded.finalSnapshot.day },
+    resultCrowded.timeline,
+    resultCrowded.eventLog!,
+    {
+      unmitigated: summarizeEndState(resultCrowded.finalSnapshot),
+      mitigated: summarizeEndState(resultMitigated.finalSnapshot),
+    },
+    { gameOver: resultCrowded.finalSnapshot.gameOver, note: resultLine },
+  );
 }
 
-/** Run two fire sims (no-well vs with-well) and print a comparison. */
-function runFireComparison(terrain: TerrainGrid): void {
+/**
+ * Run two fire sims (no-well vs with-well) and print a comparison.
+ * Report timeline/events cover only the unmitigated (primary) run; `report`
+ * gates BOTH the extra per-tick sampling AND whether a report is built at all
+ * — false is zero behavior/perf change from before the report existed.
+ */
+function runFireComparison(terrain: TerrainGrid, report: boolean): CitadelComparisonRunReport | null {
   console.log(`\n=== FIRE COMPARISON: dense wooden district (seed=0x${SEED.toString(16)}) ===`);
-  const resultDense    = runOneSim(buildFireCommands(terrain, false), "DENSE — no well (unmitigated)");
-  const resultMitigated = runOneSim(buildFireCommands(terrain, true),  "MITIGATED — well inside district");
+  const resultDense    = runOneSim(buildFireCommands(terrain, false), "DENSE — no well (unmitigated)", report);
+  const resultMitigated = runOneSim(buildFireCommands(terrain, true),  "MITIGATED — well inside district", false);
   console.log("\n=== FIRE COMPARISON SUMMARY ===");
   console.log(`  Unmitigated: ${resultDense.fires} fire events, final pop ${resultDense.finalPop}`);
   console.log(`  Mitigated:   ${resultMitigated.fires} fire events, final pop ${resultMitigated.finalPop}`);
+  let resultLine: string;
   if (resultDense.fires > resultMitigated.fires) {
-    console.log(`  RESULT: Well REDUCED fire events (${resultDense.fires} → ${resultMitigated.fires}). Fire hazard proven!`);
+    resultLine = `Well REDUCED fire events (${resultDense.fires} → ${resultMitigated.fires}). Fire hazard proven!`;
   } else if (resultDense.fires > 0) {
-    console.log(`  RESULT: Fire occurred in both runs (hazard proven); well provided partial mitigation.`);
+    resultLine = `Fire occurred in both runs (hazard proven); well provided partial mitigation.`;
   } else {
-    console.log(`  RESULT: No fires in this seed/day count — try a higher MAX_DAYS or denser layout.`);
+    resultLine = `No fires in this seed/day count — try a higher MAX_DAYS or denser layout.`;
   }
+  console.log(`  RESULT: ${resultLine}`);
+  if (!report) return null;
+  return buildCitadelComparisonRunReport(
+    { scenario: SCENARIO, seed: SEED, ticksPerDay: TICKS_PER_DAY, daysSimulated: resultDense.finalSnapshot.day },
+    resultDense.timeline,
+    resultDense.eventLog!,
+    {
+      unmitigated: summarizeEndState(resultDense.finalSnapshot),
+      mitigated: summarizeEndState(resultMitigated.finalSnapshot),
+    },
+    { gameOver: resultDense.finalSnapshot.gameOver, note: resultLine },
+  );
 }
 
 function isSiegeScenario(): boolean {
@@ -931,11 +1021,13 @@ function main(): void {
   } else if (SCENARIO === "fire") {
     // Fire scenario: run two sims — dense WITHOUT well vs dense WITH well.
     // This is a standalone comparison; main loop below is skipped for this branch.
-    runFireComparison(terrain);
+    const rep = runFireComparison(terrain, REPORT);
+    if (rep !== null) emitCitadelReport(rep, REPORT_FILE);
     return;
   } else if (SCENARIO === "disease") {
     // Disease scenario: run two sims — crowded without healer vs with healer.
-    runDiseaseComparison(terrain);
+    const rep = runDiseaseComparison(terrain, REPORT);
+    if (rep !== null) emitCitadelReport(rep, REPORT_FILE);
     return;
   } else {
     const cmds = buildGrowScenario(terrain);
@@ -947,6 +1039,11 @@ function main(): void {
   // Track which events we've already printed to show NEW events each day.
   let printedEventCount = 0;
 
+  // Report collection (only when REPORT is requested — see report.ts for why
+  // every-tick sampling is the safe cadence against the recentEvents cap).
+  const eventCollector = REPORT ? createCitadelEventCollector() : null;
+  const timeline: CitadelDaySummary[] = [];
+
   for (let tick = 0; tick < totalTicks; tick++) {
     // Inject raw materials before each day boundary so converters always have input.
     // Both injections are deterministic: fixed amounts, same every day.
@@ -957,9 +1054,15 @@ function main(): void {
 
     scheduler.tick({ tick });
 
+    let tickSnap: RenderSnapshot | undefined;
+    if (eventCollector !== null) {
+      tickSnap = getSnapshot(tick);
+      eventCollector.absorb(tickSnap);
+    }
+
     if (dayClock.day !== lastDay) {
       lastDay = dayClock.day;
-      const snap = getSnapshot(tick);
+      const snap = tickSnap ?? getSnapshot(tick);
 
       // `sack`: the keep is TIER_LOCKed to Town, so it cannot be placed at founding —
       // the old fixture tried, was rejected, and therefore never had anything to sack.
@@ -1011,6 +1114,7 @@ function main(): void {
           console.log(`    >> ${ev}`);
         }
       }
+      if (REPORT) timeline.push(summarizeDay(snap));
     }
 
     if (sim.gameOver) break;
@@ -1043,22 +1147,48 @@ function main(): void {
   // rotted for ten days precisely because nothing ever said so out loud: it kept printing
   // a cheerful economy summary while asserting nothing. Give it a verdict and a non-zero
   // exit, so a future regression is a FAILURE and not a paragraph nobody reads.
+  const sackPassed = final.keepSacked && final.gameOver;
+  const sackVerdict =
+    "SACK: PASS — the sharp raid path reached the `sacked` band: keep sacked, game over.";
+  const sackFailure =
+    "SACK: FAIL — the keep was NOT sacked.\n" +
+      `  keepPresent=${final.keepPresent} keepSacked=${final.keepSacked} gameOver=${final.gameOver} ` +
+      `threat=${final.threatLevel} defense=${final.defensiveStrength} tier=${final.tier}\n` +
+      "  This fixture is the ONLY end-to-end check of the sharp (cozyThreats:false) raid\n" +
+      "  resolution. If it is not sacking, the sharp path is unproven — do not sign off\n" +
+      "  Challenge mode or any raid work on top of it. Check, in order: (1) is\n" +
+      "  cozyThreats:false actually reaching bootstrapSim? (2) did the settlement reach\n" +
+      "  Town so the TIER_LOCKed keep could be placed? (3) did a raider ever arrive?";
+
+  // Per-scenario one-liner (or, for `sack`, the PASS/FAIL verdict) — goes in both the
+  // console output (unchanged text) and the report's `outcome.note`.
+  let note: string;
   if (SCENARIO === "sack") {
-    if (final.keepSacked && final.gameOver) {
-      console.log("\nSACK: PASS — the sharp raid path reached the `sacked` band: keep sacked, game over.");
-    } else {
-      console.log(
-        "\nSACK: FAIL — the keep was NOT sacked.\n" +
-          `  keepPresent=${final.keepPresent} keepSacked=${final.keepSacked} gameOver=${final.gameOver} ` +
-          `threat=${final.threatLevel} defense=${final.defensiveStrength} tier=${final.tier}\n` +
-          "  This fixture is the ONLY end-to-end check of the sharp (cozyThreats:false) raid\n" +
-          "  resolution. If it is not sacking, the sharp path is unproven — do not sign off\n" +
-          "  Challenge mode or any raid work on top of it. Check, in order: (1) is\n" +
-          "  cozyThreats:false actually reaching bootstrapSim? (2) did the settlement reach\n" +
-          "  Town so the TIER_LOCKed keep could be placed? (3) did a raider ever arrive?",
-      );
-      process.exit(1);
-    }
+    note = sackPassed ? sackVerdict : sackFailure;
+    console.log(`\n${note}`);
+  } else if (SCENARIO === "starve") {
+    note = final.gameOver
+      ? `the town starved out (population reached zero) by day ${final.day + 1}`
+      : `the town survived to day ${final.day + 1} without starving`;
+  } else if (isSiegeScenario()) {
+    note = `pop ${final.population}, tier ${final.tier}, keepSacked=${final.keepSacked}`;
+  } else {
+    note = `pop ${final.population}, tier ${final.tier}`;
+  }
+
+  if (REPORT) {
+    const report: CitadelRunReport = buildCitadelRunReport(
+      { scenario: SCENARIO, seed: SEED, ticksPerDay: TICKS_PER_DAY, daysSimulated: final.day },
+      timeline,
+      eventCollector!.finish(),
+      summarizeEndState(final),
+      { gameOver: final.gameOver, note },
+    );
+    emitCitadelReport(report, REPORT_FILE);
+  }
+
+  if (SCENARIO === "sack" && !sackPassed) {
+    process.exit(1);
   }
   process.exit(0);
 }

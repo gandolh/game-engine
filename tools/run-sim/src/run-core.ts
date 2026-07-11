@@ -29,6 +29,14 @@ export interface RunOptions {
   pathfinder?: PathfinderLike | null;
   /** World-gen seed (brief 92/93). Defaults to the fixed WORLD_GEN_SEED inside bootstrap. */
   worldSeed?: number;
+  /**
+   * Optional per-tick observer, invoked after `scheduler.tick()` with the tick
+   * index and the booted sim. Purely additive: it exists so callers can harvest
+   * data (e.g. the event feed) without growing `RunResult`'s shape, which is the
+   * determinism check's comparator. Default: no-op — zero behavior change when
+   * omitted, and the observer itself must not mutate the sim.
+   */
+  onTick?: (tick: number, sim: ReturnType<typeof bootstrapSim>) => void;
 }
 
 function currentWeather(world: ReturnType<typeof bootstrapSim>["world"]): string {
@@ -45,19 +53,21 @@ export function summarize(
 }
 
 export function runOnce(opts: RunOptions): RunResult {
-  const { world, scheduler, dayClock } = bootstrapSim({
+  const sim = bootstrapSim({
     seed: opts.seed,
     ticksPerDay: opts.ticksPerDay,
     maxDays: opts.maxDays,
     pathfinder: opts.pathfinder ?? null,
     ...(opts.worldSeed !== undefined ? { worldSeed: opts.worldSeed } : {}),
   });
+  const { world, scheduler, dayClock } = sim;
 
   const perDay: DaySnapshot[] = [];
   let lastCaptured = -1;
   const totalTicks = opts.maxDays * opts.ticksPerDay;
   for (let tick = 0; tick < totalTicks; tick++) {
     scheduler.tick({ tick });
+    opts.onTick?.(tick, sim);
     if (dayClock.day !== lastCaptured) {
       const { weather, summaries } = summarize(world);
       perDay.push({ day: dayClock.day, weather, summaries });
