@@ -11,6 +11,7 @@ import {
   type AuctionResultBody,
 } from "../../protocols/shop";
 import { ONT_BOUNTY, type BountyPostedBody } from "../../protocols/bounty";
+import { ONT_MARKET, type OffersListBody } from "../../protocols/market";
 import { isActivePhase, isNightPhase, type DayPhase } from "../day-phase";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../../protocols/travel";
 import { maxApForDay } from "../economy/ap";
@@ -69,6 +70,13 @@ export class PerceiveSystem implements System {
             farmer.beliefs.data.openAuction = undefined;
             farmer.beliefs.revision += 1;
           }
+        } else if (msg.ontology === ONT_MARKET.OFFERS_LIST) {
+          // Brief 98: the wall's reply to READ_OFFERS. Folding it into beliefs is
+          // what makes the buying personalities' `marketOffers` gate fire live —
+          // before this, only test fixtures ever wrote that belief.
+          const list = msg.body as unknown as OffersListBody;
+          farmer.beliefs.data.marketOffers = Array.isArray(list.offers) ? list.offers : [];
+          farmer.beliefs.revision += 1;
         } else if (msg.ontology === ONT_BOUNTY.POSTED) {
           const body = msg.body as unknown as BountyPostedBody;
           farmer.beliefs.data.bounty = body.bounty ?? undefined;

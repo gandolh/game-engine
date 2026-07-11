@@ -1,6 +1,6 @@
 
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
-import { ONT_SIMULATION, type ShockBody } from "@farm/sim-core/protocols";
+import { ONT_SIMULATION, ONT_MARKET, type ShockBody } from "@farm/sim-core/protocols";
 import { runOnce, summarize } from "./run-core";
 import { makePathfinder } from "./pathfinder";
 import { runDeterminismCheck } from "./determinism";
@@ -53,6 +53,23 @@ async function main(): Promise<void> {
       );
     });
 
+    // Brief 98: the market wall's trade loop actually closes now — make it visible.
+    let wallTrades = 0;
+    bus.subscribeOntology(ONT_MARKET.TRADE_COMPLETED, (msg) => {
+      const b = msg.body as unknown as {
+        buyerId?: number;
+        sellerId?: number;
+        crop?: string;
+        quantity?: number;
+        pricePerUnit?: number;
+      };
+      wallTrades += 1;
+      const total = (b.pricePerUnit ?? 0) * (b.quantity ?? 0);
+      console.log(
+        `  [wall] day ${dayClock.day}: farmer ${b.buyerId} bought ${b.quantity} ${b.crop} from farmer ${b.sellerId} @ ${b.pricePerUnit}g (${total}g)`,
+      );
+    });
+
     console.log(
       `Farm Valley headless run — seed=0x${SEED.toString(16)}, ${MAX_DAYS} days @ ${TICKS_PER_DAY} ticks/day`,
     );
@@ -72,6 +89,7 @@ async function main(): Promise<void> {
 
     const { weather, summaries } = summarize(world);
     printFinalLeaderboard(dayClock.day, weather, summaries);
+    console.log(`market wall: ${wallTrades} completed trade(s)`);
   }
 }
 

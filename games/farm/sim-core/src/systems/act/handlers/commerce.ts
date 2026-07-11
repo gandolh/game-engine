@@ -14,6 +14,7 @@ import {
   type PostOfferBody,
   type ReadOffersBody,
   type BuyRequestBody,
+  type CancelOfferBody,
 } from "../../../protocols";
 import {
   ONT_SHOP,
@@ -145,6 +146,37 @@ export function handleReadOffers(
     bus,
     PERFORMATIVE.REQUEST,
     ONT_MARKET.READ_OFFERS,
+    farmer.id,
+    marketWallId,
+    body as unknown as Record<string, unknown>,
+    tick,
+  );
+}
+
+/**
+ * `sell-from-wall` (brief 98): pull one of your own listings back OFF the wall.
+ * The wall escrows a seller's stock at post time, so an unsold listing is real
+ * goods parked outside the seller's inventory; this is the seller's way to take
+ * them back (CANCEL_OFFER → the wall refunds the escrow tier-for-tier) and turn
+ * them into gold through the shopkeeper instead of waiting on a buyer. Used on
+ * the liquidation run-in, which is why the AP table already charged sell-price
+ * (3 AP) for it and `isSellIntent` already treats it as a sell.
+ */
+export function handleSellFromWall(
+  farmer: ActingFarmer,
+  intent: Intention,
+  bus: MessageBus | undefined,
+  marketWallId: number | undefined,
+  tick: number,
+): void {
+  if (!bus || marketWallId === undefined || farmer.id === undefined) return;
+  const offerId = intent.data.offerId as string | undefined;
+  if (!offerId) return;
+  const body: CancelOfferBody = { offerId };
+  sendIntentMessage(
+    bus,
+    PERFORMATIVE.REQUEST,
+    ONT_MARKET.CANCEL_OFFER,
     farmer.id,
     marketWallId,
     body as unknown as Record<string, unknown>,

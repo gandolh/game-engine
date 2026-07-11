@@ -22,6 +22,7 @@ const EXPECTED_STAGES: StageEntry[] = [
   { stage: "SNOOP",      name: "EventFeedSystem" },
   { stage: "SNOOP",      name: "TavernSystem" },
   { stage: "SNOOP",      name: "RunHistorySystem" },
+  { stage: "SNOOP",      name: "WallTradeSystem" },
   { stage: "PERCEIVE",   name: "PerceiveSystem" },
   { stage: "GROW",       name: "CropGrowthSystem" },
   { stage: "GROW",       name: "TileFeatureSystem" },

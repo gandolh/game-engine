@@ -10,7 +10,7 @@ import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateCoralFishing } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSeasonalForage, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateCoralFishing, deliberateWallLiquidation } from "./watering";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
@@ -158,6 +158,8 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
   }
 
   deliberateBean(farmer, 0.9, { resell: false });
+
+  deliberateWallLiquidation(farmer, 3, 0);
 
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 

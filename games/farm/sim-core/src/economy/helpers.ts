@@ -99,14 +99,36 @@ export function fruitInventoryValue(inv: Inventory): number {
  * Returns the quantity actually debited (capped by on-hand `crops[crop]`).
  */
 export function debitCrop(inv: Inventory, crop: CropKind, qty: number, preferQuality?: CropQuality): number {
+  return debitCropDetailed(inv, crop, qty, preferQuality).taken;
+}
+
+/**
+ * The single implementation behind {@link debitCrop}, additionally reporting
+ * WHICH quality tiers the debit consumed. Callers that have to re-credit the
+ * same goods somewhere else (the market wall's escrow, brief 98) need the tier
+ * breakdown so gold/silver/normal stock is conserved across the move instead of
+ * being silently re-minted as `normal`.
+ *
+ * If the inventory has no `cropQuality` map for the crop (untracked stock), the
+ * whole debit is reported as `normal` — the same convention
+ * `cropInventoryValue` already uses to price untracked crops, so no value is
+ * created or destroyed.
+ */
+export function debitCropDetailed(
+  inv: Inventory,
+  crop: CropKind,
+  qty: number,
+  preferQuality?: CropQuality,
+): { taken: number; tiers: CropQualityCounts } {
+  const tiers: CropQualityCounts = { normal: 0, silver: 0, gold: 0 };
   const have = inv.crops[crop];
   const taken = Math.min(qty, have);
-  if (taken <= 0) return 0;
+  if (taken <= 0) return { taken: 0, tiers };
   inv.crops[crop] -= taken;
 
+  let remaining = taken;
   if (inv.cropQuality?.[crop]) {
     const q = inv.cropQuality[crop]!;
-    let remaining = taken;
     const order: CropQuality[] = preferQuality
       ? [preferQuality, "silver", "normal", "gold"].filter((v, i, a) => a.indexOf(v) === i) as CropQuality[]
       : ["silver", "normal", "gold"] as CropQuality[];
@@ -114,10 +136,13 @@ export function debitCrop(inv: Inventory, crop: CropKind, qty: number, preferQua
       if (remaining <= 0) break;
       const d = Math.min(remaining, q[tier]);
       q[tier] -= d;
+      tiers[tier] += d;
       remaining -= d;
     }
   }
-  return taken;
+  // Untracked (or under-tracked) stock counts as `normal`.
+  tiers.normal += remaining;
+  return { taken, tiers };
 }
 
 /**

@@ -10,7 +10,7 @@ import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateWallLiquidation } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -94,6 +94,10 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   deliberateFishing(farmer, 7, 2, 11);
 
   deliberateCoralFishing(farmer, 8, 3, -2, 50);
+
+  // Pull own wall listings back before the clock runs out (escrowed stock is
+  // otherwise never banked) — applies in both the liquidation branch and above it.
+  deliberateWallLiquidation(farmer, 3, 0);
 
   if (daysRemaining !== undefined && daysRemaining <= 2) {
     let anyToSell = false;

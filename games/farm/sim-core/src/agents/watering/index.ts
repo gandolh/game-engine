@@ -32,6 +32,7 @@ export {
   deliberateSellProducts,
   deliberateSellFruit,
   deliberatePeriodicMarketVisit,
+  deliberateWallLiquidation,
 } from "./commerce";
 
 export {

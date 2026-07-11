@@ -238,6 +238,14 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(eventFeed)
     .add(new TavernSystem(world, eventFeed, bus))
     .add(runHistory)
+    // Brief 98 — the market wall's seller-side BUY_REQUEST consumer. It reads the
+    // forwarded request out of the SELLER's inbox, so it must sit after
+    // InboxDispatchSystem (DISPATCH) delivered it and before PerceiveSystem
+    // (PERCEIVE) clears every farmer inbox: SNOOP is the only band that satisfies
+    // both. Its TRADE_COMPLETED lands on the bus and is snooped off the wall inbox
+    // by TrustSystem/EventFeedSystem on the NEXT tick (send → flush → dispatch),
+    // so its position within SNOOP is not load-bearing.
+    .add(marketShop.wallTradeSystem)
     .stage("PERCEIVE")
     .add(new PerceiveSystem(world))
     .stage("GROW")

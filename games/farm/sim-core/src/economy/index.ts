@@ -54,5 +54,6 @@ export {
   productInventoryValue,
   fruitInventoryValue,
   debitCrop,
+  debitCropDetailed,
   deductCrops,
 } from "./helpers";

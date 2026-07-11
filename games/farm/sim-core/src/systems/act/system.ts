@@ -10,6 +10,7 @@ import {
   handlePostOffer,
   handleReadOffers,
   handleBuyFromWall,
+  handleSellFromWall,
   handleAuctionBid,
   handleResaleBean,
   handleBuyTool,
@@ -172,6 +173,10 @@ export class ActSystem implements System {
           }
           case "buy-from-wall": {
             handleBuyFromWall(farmer, intent, this.bus, actCtx.marketWallId, ctx.tick);
+            break;
+          }
+          case "sell-from-wall": {
+            handleSellFromWall(farmer, intent, this.bus, actCtx.marketWallId, ctx.tick);
             break;
           }
           case "auction-bid": {

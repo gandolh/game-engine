@@ -1,6 +1,7 @@
 import type { World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity } from "../components";
 import { MarketSystem } from "../systems/economy/market";
+import { WallTradeSystem } from "../systems/economy/wall-trade";
 import { ShopkeeperSystem } from "../systems/shopkeeper";
 import { AuctionSystem } from "../systems/auction";
 
@@ -22,6 +23,8 @@ export interface MarketShopFeature {
   marketWall: GameEntity;
   shopkeeper: GameEntity;
   marketSystem: MarketSystem;
+  /** Seller-side BUY_REQUEST consumer — must be scheduled in SNOOP (brief 98). */
+  wallTradeSystem: WallTradeSystem;
   shopkeeperSystem: ShopkeeperSystem;
   auctionSystem: AuctionSystem;
 }
@@ -35,7 +38,13 @@ export function setupMarketShopFeature(
   const marketWall = spawnMarketWall(world);
   const shopkeeper = spawnShopkeeper(world);
 
-  const marketSystem = new MarketSystem(bus, world, rng);
+  const marketSystem = new MarketSystem(
+    bus,
+    world,
+    rng,
+    ticksPerDay !== undefined ? { ticksPerDay } : {},
+  );
+  const wallTradeSystem = new WallTradeSystem(world, bus, marketSystem);
   const auctionSystem = new AuctionSystem(bus, world, rng);
 
   const shopkeeperSystem = new ShopkeeperSystem(
@@ -47,5 +56,5 @@ export function setupMarketShopFeature(
       : {},
   );
 
-  return { marketWall, shopkeeper, marketSystem, shopkeeperSystem, auctionSystem };
+  return { marketWall, shopkeeper, marketSystem, wallTradeSystem, shopkeeperSystem, auctionSystem };
 }
