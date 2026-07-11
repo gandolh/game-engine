@@ -768,7 +768,18 @@ function main(): void {
   );
 
   const startDay = SCENARIO === "starve" ? 12 : 0;
-  const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, startDay });
+  // The siege/sack scenarios exist to exercise the SHARP raid resolution
+  // (resolveSiege's repelled/damage/sacked bands). `cozyThreats` defaults to TRUE
+  // (cozy pivot Phase D, 2026-07-01), and under it a raid pilfers goods and leaves —
+  // it can never sack, by contract. So these two scenarios must opt into the sharp
+  // path explicitly, or they silently assert nothing: `sack` ran the cozy path and
+  // stopped sacking the day the pivot landed, and nobody noticed for ten days.
+  const sim = bootstrapSim({
+    seed: SEED,
+    ticksPerDay: TICKS_PER_DAY,
+    startDay,
+    ...(isSiegeScenario() ? { cozyThreats: false } : {}),
+  });
   const { scheduler, dayClock, terrain, commands, getSnapshot } = sim;
 
   console.log(`Terrain generated: ${terrain.width}×${terrain.height} tiles`);
