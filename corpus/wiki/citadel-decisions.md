@@ -202,7 +202,7 @@ Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 
 | [112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | **Superseded** (#23). Moot — there is no cozy MP. The `enableArmy` default flip survives into 110. |
 | [109](../briefs/game/superseded/109-citadel-vps-deploy.md) VPS deploy | **Superseded** (#21). Nothing to deploy. |
 | [99](../briefs/game/done/99-p2-debt-cleanup-batch.md) P2 debt | Keeps the `maxDays` deletion (#18 survives). |
-| [98](../briefs/game/todo/98-farm-market-wall-wire-or-remove.md) Farm market wall | **Option A, wire it.** Farm is in maintenance; this and 99's Farm slice are its whole scope. |
+| [98](../briefs/game/done/98-farm-market-wall-wire-or-remove.md) Farm market wall | **Option A, wire it.** Farm is in maintenance; this and 99's Farm slice are its whole scope. |
 | [101](../briefs/game/todo/101-farm-perishability-distance-pricing.md) · [107](../briefs/game/todo/107-farm-visual-verification-session.md) | Parked. Farm is in maintenance; 101 forbids autonomous execution, 107 needs the user's real GPU. |
 | engine [18](../briefs/engine/todo/18-ui-authored-typography-and-icons.md) · [19](../briefs/engine/todo/19-audio-subsystem.md) | Parked. Net-new subsystems, independent of everything above. |
 

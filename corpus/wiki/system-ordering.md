@@ -1,6 +1,6 @@
 ---
 summary: Why every system in bootstrapSim sits where it does — the ten bands, the inbox lifecycle, cross-cutting invariants, and the system-to-brief provenance map.
-updated: 2026-07-10
+updated: 2026-07-11
 ---
 
 # Scheduler System Ordering
@@ -37,6 +37,7 @@ Everything here must run **after `InboxDispatchSystem` and before `PerceiveSyste
 | `EventFeedSystem` | The central snoop: must observe inboxes + market wall before Perceive clears and Market drains. |
 | `TavernSystem` | **Right after EventFeed** (reads the now-current feed for the barkeep's daily gossip line, picked deterministically), before Perceive clears the tavern's DAY_START (brief 44). |
 | `RunHistorySystem` | Per-day rank/gold collector; snoops DAY_START from the weather-station inbox (same pattern as BubbleSystem). Constructed before `EventFeedSystem`, which takes it as a dep to detect rank-1 changes ("race is on" line) — no mutual dependency. |
+| `WallTradeSystem` | **The only correct band.** The seller-side consumer of the wall's forwarded `BUY_REQUEST` (brief 98): it reads the message out of the **seller's farmer inbox**, so it must run after `InboxDispatchSystem` delivered it (band 2) and before `PerceiveSystem` wipes every farmer inbox (band 4). Unlike the other snoops it *does* consume — it settles the trade out of the wall's escrow — but its `TRADE_COMPLETED` only becomes visible next tick (send → flush → dispatch), so its position **within** the band is not load-bearing. |
 
 ### 4. Perceive
 `PerceiveSystem` — **clears farmer inboxes** and folds messages into beliefs; also clears expired `busyUntilTick` and re-arms deliberation. The hard barrier of the tick: anything needing raw farmer messages runs before; anything needing fresh beliefs runs after. It queries `("inbox","beliefs","fsm")`, so it touches *only* farmers — the non-farmer stations are cleared in band 10, and were cleared nowhere at all before brief 97.
@@ -57,7 +58,18 @@ Everything here must run **after `InboxDispatchSystem` and before `PerceiveSyste
 `FeatureCollisionSystem` → `ChaseSystem` → `TravelSystem`. They share one walkable grid: FeatureCollision blocks tree/stone tiles on it each tick so farmers never path through features. `ChaseSystem` **re-points the pursuit travel intent before TravelSystem steps it** — swap the two and a chaser trails its quarry by a tick. TravelSystem also holds a **separate boat grid** (water lanes dock→reef, brief 48) it swaps to while a farmer is aboard — keeps the land grid and engine pathfinder untouched. Without a pathfinder (legacy tests), farmers stay put.
 
 ### 8. Act & resolve
-`ActSystem` (consumes intentions, sets `busyUntilTick`, queues bus messages) → `MarketSystem` (drains the wall) → `ShopkeeperSystem` → `AuctionSystem` → `CarpenterSystem` (drains ONT_COMMISSION.BUILD orders delivered the tick after a farmer's commission act; escrows cost, delivers after build time — the shopkeeper's order→fulfill twin, brief 44).
+`ActSystem` (consumes intentions, sets `busyUntilTick`, queues bus messages) → `MarketSystem` (drains the wall; also runs the per-tick offer-TTL sweep) → `ShopkeeperSystem` → `AuctionSystem` → `CarpenterSystem` (drains ONT_COMMISSION.BUILD orders delivered the tick after a farmer's commission act; escrows cost, delivers after build time — the shopkeeper's order→fulfill twin, brief 44).
+
+#### The market-wall trade loop (brief 98) — a 4-tick round trip across bands
+
+| tick | band | what happens |
+|---|---|---|
+| T | 8 ACT | buyer's `buy-from-wall` intent → `ActSystem` sends `BUY_REQUEST` to the wall (inflight). |
+| T+1 | 8 ACT | `MarketSystem` drains the wall inbox, looks the offer up, **forwards** `BUY_REQUEST` to the offer's seller. |
+| T+2 | 3 SNOOP | `WallTradeSystem` reads it from the seller's inbox, settles out of escrow, sends `TRADE_COMPLETED` to the wall. |
+| T+3 | 3 SNOOP / 8 ACT | `TrustSystem` + `EventFeedSystem` snoop `TRADE_COMPLETED` off the wall inbox; `MarketSystem` then drains it and retires the offer. |
+
+The seller's `POST_OFFER` (band 8, one tick earlier still) **escrows** the stock: `MarketSystem` debits the seller's crops via `debitCropDetailed` and holds the quality tiers on the offer. So the wall — not the seller — owns listed goods, an offer can never oversell, and two buyers racing one offer cannot both be filled. Unsold offers are swept back to the seller after `OFFER_TTL_DAYS` (3), which is what keeps `offersById` bounded over a 100-day run.
 
 ### 9. Ambient & close
 `NpcDeliberateSystem` (sets each service NPC's `busyFactor` from world state) → `WorkNpcSystem` (scales patrol cadence by it; cosmetic, pure) → `CombatSystem` (resolves the strikes Aggression/Chase set up — the same instance those two hold) → `FinishDaySystem`.
@@ -84,4 +96,4 @@ The shopkeeper's `AUCTION_RESULT` is **not** dropped unconditionally: a result w
 
 ## Provenance map (system → origin brief)
 
-Shock 23 · EncounterTrade registration fix 24 · PlotSense 29 · Rivalry-before-EventFeed 37 · crop quality 41 · Livestock/Orchard 42 · Tavern + Carpenter 44 · Festival 45 · Harbor 46 · boat grid 48 · starting-gold +30 across all archetypes 70 · StationInboxClear / CLEANUP band 97. Per-brief details live in [briefs/game/done/](../briefs/game/done/) and one-liners in [status.md](status.md).
+Shock 23 · EncounterTrade registration fix 24 · PlotSense 29 · Rivalry-before-EventFeed 37 · crop quality 41 · Livestock/Orchard 42 · Tavern + Carpenter 44 · Festival 45 · Harbor 46 · boat grid 48 · starting-gold +30 across all archetypes 70 · StationInboxClear / CLEANUP band 97 · WallTradeSystem (market-wall trade loop wired) 98. Per-brief details live in [briefs/game/done/](../briefs/game/done/) and one-liners in [status.md](status.md).

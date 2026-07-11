@@ -99,7 +99,7 @@ a before/after screenshot showing the crowd no longer over-reads population.
 
 ---
 
-### [ ] Wave 2 — Farm sim-core economy, baseline-moving
+### [x] Wave 2 — Farm sim-core economy, baseline-moving — **DONE 2026-07-11**
 
 Strictly sequential: **99 → 98**. 99 centralizes the crop-debit path that 98's trade loop
 then transfers stock through; doing 98 first means writing the transfer twice.
@@ -130,7 +130,12 @@ the client's hardcoded 96×96 world; it belonged to brief 110, which has landed.
 the baseline and why); **Citadel determinism MATCH ×3**; items 28 and 31 need
 red-before-fix tests.
 
-#### 98 — Farm market wall: wire the trade loop (Option A)
+#### [x] 98 — Farm market wall: wire the trade loop (Option A) — **DONE 2026-07-11** (`490b892`)
+
+Escrow-at-post makes oversell / double-fill / vanished-stock unrepresentable; `WallTradeSystem`
+consumes `BUY_REQUEST` in SNOOP (the only band after dispatch, before PerceiveSystem clears
+inboxes). 42/36/40 trades close on seeds `0xc0ffee`/`1`/`42`. Determinism MATCH ×3.
+**Wave 2 complete.**
 
 Decision made 2026-07-10: **Option A. Option B (remove it) is dead.** Read
 [review findings item 7](2026-07-02-full-repo-review-findings.md) first — it carries the

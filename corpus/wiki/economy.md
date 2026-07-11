@@ -1,6 +1,6 @@
 ---
 summary: The single prices-to-AP-to-initial-gold model the economy constants derive from, the crop g/AP formula, the scoring table, and the re-tune procedure.
-updated: 2026-06-11
+updated: 2026-07-11
 ---
 
 # Economy model (prices ↔ AP ↔ initial gold)
@@ -62,6 +62,15 @@ Not flat: longer-grow, later-season, higher-tier crops keep a **modest** g/AP ed
 - **AP costs / `AP_BASE_MAX=100` / `AP_GROWTH_PER_DAY=2`** ([ap.ts](../../games/farm/sim-core/src/systems/economy/ap.ts)) — the AP table *defines* the unit; keeping it fixed is what lets prices be expressed in it. Growing daily budget + sleep gate + free travel are the intended pacing, not balance outliers.
 - **`startGold` / `minGoldReserve`** — the personality spread (Hannah richest 150/80, Atticus low-reserve gambler 110/10, Cora cautious 80/30, Otto 100/50, Pip 90/0) is *intentional character shape* ([brief 70](../briefs/game/done/70-raise-starting-gold-peer-trade-liquidity.md)). New seed costs are ≈ old (radish 5, wheat 8, etc.), so day-1 affordability (≈ funds several plots + reserve) is unchanged. Left as-is.
 - **Livestock products** (egg 8 / milk 12 / wool 14) and **fruit** (apple 18 / cherry 20) — a *different capital loop*: heavy upfront capital (pen 45–75 + animal 15–35; tree 20–25, 20-day maturation) + ongoing care/decay, then a daily/seasonal trickle. Their higher per-tend g/AP is the intended **premium for sinking capital**, not a crop-loop outlier. Re-tuning them is out of scope for brief 75 (would be a new brief); flagged here so the next balance pass scores them explicitly.
+
+## The market wall — the peer-to-peer goods channel (brief 98, 2026-07-11)
+
+A third crop channel next to the shopkeeper (instant liquidation at ~64% of `P_c`) and the synchronous encounter trade: an **asynchronous** wall where farmers list stock and other farmers buy it, at prices the sellers pick.
+
+- **Prices.** Aggressive lists at `CROP_SELL_PRICE` (`P_c`); opportunist lists at its own `FAIR_PRICE` table. Buyers gate on a multiple of `P_c` — aggressive buys only undercuts (`< 0.9·P_c`), hoarder up to `1.05·P_c`, opportunist up to `1.1·P_c`. So the wall clears **above** the shopkeeper's 64% haircut: it is the better exit for a patient seller, which is exactly the point of the channel.
+- **Escrow.** `POST_OFFER` moves the goods off the seller immediately (`debitCropDetailed`, quality tiers preserved). Listed stock is therefore *not* in inventory and *not* on the net-worth leaderboard until it sells or comes back. That is a real carrying cost of listing, and it is why unsold offers are swept back after **`OFFER_TTL_DAYS = 3`** and why the three wall personalities pull their listings (`sell-from-wall` → `CANCEL_OFFER`) once `daysRemaining ≤ 3`.
+- **Value conservation.** A trade moves gold buyer→seller and stock wall-escrow→buyer at the **offer's** price (never the price the buyer's stale belief claimed). Nothing is minted or burned; asserted in `market.test.ts` ("a wall trade conserves gold and stock").
+- **Baseline.** Wiring this loop **moved the sim baseline by design** (the wall was dead before — offers accumulated, no BUY_REQUEST was ever consumed). A 40-day run closes ~35–50 wall trades per seed.
 
 ## How to re-tune (procedure)
 
