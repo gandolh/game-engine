@@ -52,5 +52,23 @@ maintenance debt into content: cozy stays the default solo experience; Challenge
 
 ## Acceptance
 
+> ⚠️ **Corrected 2026-07-11.** The line below used to demand "**army/territory active**", which
+> the 2026-07-10 reshape header (decisions #23/#24) explicitly reverses — `enableArmy` stays
+> **false** and Challenge does *not* get armies back. That clause was stale; it is struck.
+>
+> ✅ **Unblocked 2026-07-11.** The `sack` fixture that this brief's "start→sack-or-survive"
+> depends on was **inert**, not merely drifting (it could not sack at all: cozy default + a
+> Town-locked keep ordered at Hamlet). Fixed in `7c76522` + `36382d2` — `sack` now reaches
+> `keepSacked=true` through a real playthrough. See
+> [the closed drift todo](../../../todos/closed/2026-07-10-citadel-sack-scenario-drift.md).
+>
+> ⚠️ **And read its lesson before writing this brief's tests.** Two existing sharp-sack tests
+> passed for ten days while the sharp path was unreachable, because they **poke
+> `lp.tier = "Town"`** and bypass `TIER_LOCK`. When Challenge asserts "a raid can sack", assert
+> it through the **reachable** chain (grow → earn Town → keep clears the gate → raid lands), the
+> way `sharp-raid-path.test.ts` does — not by pre-unlocking the tier, which is exactly how this
+> rotted unseen.
+
 - New game offers cozy/challenge; challenge run playable in a real browser (raid can sack,
-  fire can destroy, army/territory active); cozy baseline unmoved; both modes MATCH ×3.
+  fire can destroy; ~~army/territory active~~ — **struck: `enableArmy` stays false per #23/#24**);
+  cozy baseline unmoved; both modes MATCH ×3.

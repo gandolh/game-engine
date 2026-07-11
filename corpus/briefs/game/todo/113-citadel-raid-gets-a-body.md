@@ -62,6 +62,22 @@ leave. No new mechanic — the existing cozy raid, made visible. This is the die
 
 ## Constraints
 
+> ⚠️ **Read this first (added 2026-07-11).** Scope 4 says the sharp resolution must stay
+> "**reachable, byte-identical**" under `cozyThreats:false`. Until 2026-07-11 that criterion was
+> **vacuously satisfiable**: the sharp raid path was *unreachable*, and the only fixture that
+> exercised it (`SCENARIO=sack`) had been inert since the cozy pivot — while **two sharp-sack
+> tests passed the whole time**, because they poke `lp.tier = "Town"` and bypass `TIER_LOCK`.
+> Fixed in `7c76522` + `36382d2`; see
+> [the closed drift todo](../../../todos/closed/2026-07-10-citadel-sack-scenario-drift.md).
+>
+> **Consequences for this brief:** (a) `SCENARIO=sack` and `sharp-raid-path.test.ts` are now
+> your regression guard — a raid body that breaks reachability will be *caught*, which was not
+> true before; (b) note that **raiders march ~6.7 tiles/day from a map edge on the 192×192 world
+> (~15 days in transit)** — that long approach is precisely what makes this brief's "an
+> approaching raid should be readable *before* it arrives" worth doing, and it is also why `sack`
+> now needs 70 days; (c) when you assert the sharp path still works, assert it through the
+> **reachable** chain, never by pre-unlocking the tier.
+
 - **Cozy contract holds.** Nothing you built is taken from you (#9). Raiders take goods, never
   buildings, never lives.
 - **Determinism**: all randomness via `state.rng.fork(label)`. A new fork label, so existing channels

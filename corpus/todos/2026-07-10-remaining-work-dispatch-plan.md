@@ -33,7 +33,7 @@ maintenance); engine **18**, **19** (parked). See [wiki/status.md](../wiki/statu
    (ghost workers)". Brief 97 **closed 2026-07-10** (`c8ee284`); chunk 4 landed in wave 1
    (`releaseWorkersAt` at all four removal sites). Nothing blocks 103 on that axis.
 6. **103 blocks on the `sack` scenario drift** — see the separate todo,
-   [2026-07-10-citadel-sack-scenario-drift.md](2026-07-10-citadel-sack-scenario-drift.md).
+   [2026-07-10-citadel-sack-scenario-drift.md](closed/2026-07-10-citadel-sack-scenario-drift.md).
    Its acceptance is "challenge run playable start→**sack**-or-survive" and the fixture
    that proves a sack no longer sacks.
 7. **103 contradicts itself.** The 2026-07-10 reshape header (decisions #23/#24) says
@@ -263,7 +263,7 @@ whose final shape isn't known.
 
 **Two things to resolve before splitting:**
 - ⚠️ **The `sack` scenario is broken** — see
-  [2026-07-10-citadel-sack-scenario-drift.md](2026-07-10-citadel-sack-scenario-drift.md).
+  [2026-07-10-citadel-sack-scenario-drift.md](closed/2026-07-10-citadel-sack-scenario-drift.md).
   103's acceptance ("start→sack-or-survive") cannot be demonstrated until it's fixed.
 - ⚠️ **The brief's Acceptance line is stale**: it demands "army/territory active", which the
   2026-07-10 reshape header explicitly reverses (`enableArmy` stays false). Fix the brief.
