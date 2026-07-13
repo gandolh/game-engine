@@ -61,3 +61,19 @@ guaranteed floor). What's missing is a *placement* lever and any legibility.
 - A player can point at something they built/placed and say "that's why the outbreak was
   short/never happened"; verified in a live playtest (playtest-citadel) not just tests.
 - sim-core tests green; determinism MATCH ×3; source todo's P3 closed.
+
+## Closeout (2026-07-11, `c22145e`)
+
+Shipped as Wave-3 chunks A (sim) + C (client copy), both junior/Sonnet. The well multiplier
+landed exactly as decided (`onsetChance *= 1 - 0.5 * coveredFraction`, IEEE754-exact no-op at
+zero coverage, one onset draw per day proven by an rng-state-stride test); healer copy on all
+four start/end branches with the sharp `disease outbreak` substring intact. 11 new tests in
+`disease-counterplay.test.ts` (empirical onset-rate halving over 1000 trials, draw-count
+guard, zero-wells bit-identity). Byte-identity vs pre-wave HEAD held on all six headless
+scenarios except one by-design text-only string (`sack`'s day-22 outbreak toast gained
+" A healer is nearby." — its fixture has a healer). **Browser-verified**: the well inspect
+panel shows "Covered homes also fall sick less often", the healer's shows "Homes in reach
+see fewer outbreaks, and the sick recover sooner", and a live cozy outbreak fired on-screen
+("1 villager(s) are under the weather" + hazard HUD "Disease: 1 sick!"). Acceptance's
+"outbreak was short / never happened" pointing is the well ring + copy at placement time;
+the mechanic's magnitude is pinned by tests, not eyeballs.

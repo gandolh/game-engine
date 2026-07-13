@@ -1,9 +1,18 @@
 ---
 title: "Citadel — playtest findings: growth death-spiral, dead service coverage, silent tier-lock cold-open"
 created: 2026-06-22
-status: partial
+status: closed
+closed: 2026-07-11
 tags: [citadel, sim, gameplay, balance, ux, playtest]
 ---
+
+> **✅ CLOSED 2026-07-11.** The last open finding, **P3 disease counterplay**, shipped as
+> [brief 102](../../briefs/game/done/102-citadel-disease-counterplay.md) (Wave 3,
+> `c22145e`): well coverage now reduces outbreak onset, healer effects are legible in
+> event copy and the inspect panel, all browser-verified. Every finding from this pass is
+> now resolved. The 2026-07-11 playtest that closed it surfaced a NEW P1 — solo cozy play
+> cannot reach Town tier — tracked separately in
+> [2026-07-11-citadel-solo-town-tier-unreachable.md](../2026-07-11-citadel-solo-town-tier-unreachable.md).
 
 > **Status 2026-06-22 (partial).** Resolved: **P0 immigration deadlock**, **P1
 > grow death-spiral**, **P1-live silent placement reject**, **P2 tier-lock

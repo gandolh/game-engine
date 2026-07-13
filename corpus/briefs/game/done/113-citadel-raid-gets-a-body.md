@@ -129,3 +129,25 @@ playtest the Acceptance always demanded.
   a behaviour change before assuming.
 - [Brief 103](103-citadel-challenge-mode.md) (Challenge, solo-only per #24) is where the *sharp*
   resolution lives. This brief must not delete it.
+
+## Closeout (2026-07-11, `c22145e`)
+
+The 2026-07-11 grounding correction held: everything but the departure walk already existed
+(since `af31818`, 2026-06-26). Wave-3 chunk B (junior/Sonnet) added `RaiderState.leaving` —
+on cozy arrival the pilfer/happiness/threat/events apply exactly as before, then the raider
+retraces `path.slice(0, pathStep).reverse()` to its spawn edge and is removed; leaving
+raiders are never intercepted, never re-pilfer, never re-route; sharp path untouched
+(`sack` byte-identical, still PASS at day 50). 5 new tests in `raider-departure.test.ts`;
+no save-format change (raiders rebuild via command-log replay). **Browser-verified on real
+WebGPU** (via `?mp`, where the town-hall anchors the raid clock — same client render path,
+same sim systems server-side): raid seen marching in over ~17 in-game days, "found little
+worth taking and left" toast at distance 2, then the distance series retraces smoothly
+2→113 over 16 days and the raider despawns at its spawn edge — screenshots + a 2599-sample
+trajectory in the playtest evidence.
+
+**⚠️ Caveat that spawned a P1:** the verification had to route through `?mp` because **solo
+cozy play cannot reach Town tier at all** (pop equilibrates at 7–9; wood income collapses to
+~0 once services staff; three live attempts stalled at 300–536 days) — so keep/garrison/raids
+are currently unreachable content in solo. Filed as
+[2026-07-11-citadel-solo-town-tier-unreachable.md](../../../todos/2026-07-11-citadel-solo-town-tier-unreachable.md);
+it gates brief 103's live acceptance.

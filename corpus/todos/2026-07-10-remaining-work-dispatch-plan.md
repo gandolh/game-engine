@@ -207,7 +207,16 @@ Sonnet (tools + client dev-hook are disjoint lanes).
 
 ---
 
-### [ ] Wave 3 — Citadel gameplay (design gate, then build)
+### [x] Wave 3 — Citadel gameplay — **DONE 2026-07-11** (`c22145e`)
+
+Landed: **102** (well-coverage onset multiplier + healer legibility + inspect copy) and
+**113** (the cozy raider departs on foot — the design gate found the rest of the raid body
+had existed since 2026-06-26). Three parallel junior/Sonnet chunks; gates green (typecheck 0,
+tests exit 0, determinism MATCH ×3, scenarios byte-identical except one by-design text
+string); browser-verified on real WebGPU. Briefs moved to `done/` with closeouts.
+**⚠️ The playtest surfaced a P1 that reshapes Wave 4:** solo cozy cannot reach Town tier
+([todo](2026-07-11-citadel-solo-town-tier-unreachable.md)) — 103's live acceptance is gated
+on it.
 
 The controller settles the design and **writes it into the brief** before splitting. Neither
 brief can be dispatched cold — 102 says "pick the smallest cozy-consistent set at session
