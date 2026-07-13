@@ -67,6 +67,28 @@ describe("BUILDING_DESCRIPTIONS — coverage", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Disease counterplay legibility (brief 102): the well and healer copy must
+// name the sickness effect the parallel sim chunk lands (well coverage
+// fraction multiplies disease onset down to ×0.5; healer: onset ×0.25, spread
+// slowed, faster recovery), phrased diegetic-cozy rather than as raw numbers.
+// ---------------------------------------------------------------------------
+
+describe("BUILDING_DESCRIPTIONS — disease counterplay copy", () => {
+  it("well's description mentions covered homes getting sick less often", () => {
+    expect(BUILDING_DESCRIPTIONS["well"]).toContain("Covered homes also fall sick less often");
+  });
+
+  it("well's description keeps its existing fire-ignition copy", () => {
+    expect(BUILDING_DESCRIPTIONS["well"]).toContain("Reduces fire ignition in a nearby rectangle");
+  });
+
+  it("healer's description mentions fewer outbreaks and faster recovery", () => {
+    expect(BUILDING_DESCRIPTIONS["healer"]).toContain("fewer outbreaks");
+    expect(BUILDING_DESCRIPTIONS["healer"]).toContain("recover sooner");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // productionRatePerDay — arithmetic derived from PRODUCTION_DEFS
 // ---------------------------------------------------------------------------
 

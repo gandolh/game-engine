@@ -10,6 +10,32 @@ anything to *prevent* or *respond to* an outbreak beyond already-having a healer
 Under the cozy rules (Phase D: disease slows, always recovers, never kills) the dip is
 recoverable by design — but it's also unengaging: nothing to decide, nothing to build.
 
+## Decision (controller, 2026-07-11 — the smallest cozy-consistent set, grounded in disease-system.ts)
+
+What already exists and stays: crowding (`pop/houseCount`) and low happiness drive onset; a
+healer near any home already cuts onset ×0.25, spread ×0.3, and speeds recovery (plus the cozy
+guaranteed floor). What's missing is a *placement* lever and any legibility.
+
+1. **Prevention = well coverage (BUILD).** The fraction of homes whose centre lies inside any
+   well's coverage rect (`WELL_COVERAGE` in entities/building.ts — already the single source of
+   truth for fire + the client overlay) multiplies onset:
+   `onsetChance *= 1 - 0.5 * coveredFraction`. No new RNG draw, no draw reordering — a town
+   with no wells is **byte-identical** (multiplier 1). Applies on BOTH cozy and sharp paths
+   (Challenge inherits the counterplay); the `sack` fixture places no wells, so sharp stays
+   byte-identical — prove it.
+2. **Response legibility = healer visibility (BUILD).** When an outbreak starts or ends with a
+   healer in range, the event copy says so (e.g. "…the healer is tending the sick" / "…thanks
+   to the healer") — cozy-toned under cozy, sharp strings only appended-to (defer-threats.test
+   greps "disease outbreak"; keep that substring intact on the sharp path).
+3. **Placement-time legibility (BUILD, client).** The well's building-info/inspect panel gains
+   a "fewer sick days for covered homes (N homes covered)" row; the healer's coverage row says
+   what it actually does. The coverage ring/overlay already draws the well rect — no new render.
+4. **Spatial crowding (houses-per-area) — CUT.** The existing pop/house crowding is already a
+   player lever (build more homes); spatializing it re-tunes every baseline for a second
+   prevention knob the acceptance doesn't need.
+5. **"Boil water" one-shot town response — CUT.** It's a decree-shaped lever; the decree channel
+   was deliberately purged in Phase G (#8 autonomy). No new command surface.
+
 ## Direction (pick the smallest cozy-consistent set at session start)
 
 - **Prevention levers**: e.g. well coverage reduces onset chance (wells already speed fire

@@ -62,8 +62,8 @@ export const BUILDING_DESCRIPTIONS: Readonly<Record<string, string>> = {
   keep:        "Your citadel's heart. If sacked the game ends. Adds 8 defense strength.",
   "town-hall": "Each player's match anchor in multiplayer. Sacking it ends that player's run.",
   "public-square": "Civic gathering place. Lifts mood for nearby homes with no worker or upkeep.",
-  well:        "Reduces fire ignition in a nearby rectangle. No worker needed.",
-  healer:      "Lowers disease onset and mortality in its coverage area. Needs a worker.",
+  well:        "Reduces fire ignition in a nearby rectangle. Covered homes also fall sick less often. No worker needed.",
+  healer:      "Homes in reach see fewer outbreaks, and the sick recover sooner. Needs a worker.",
 };
 
 // ---------------------------------------------------------------------------

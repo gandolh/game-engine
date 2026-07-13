@@ -339,6 +339,14 @@ export class SiegeResolutionSystem implements System {
         const raider = p.raiders[i]!;
         if (raider.resolved) { toRemove.push(i); continue; }
 
+        // Brief 113 (cozy departure): a raider that has already pilfered and
+        // is walking back off the map is not "at siege" anymore — skip morale
+        // drift and the whole arrival block (no re-pilfer, no interception
+        // here — that's RaiderMovementSystem's job). RaiderMovementSystem
+        // marks it `resolved` when its reversed path is exhausted, and the
+        // resolved-sweep above removes it on a later tick.
+        if (raider.leaving === true) continue;
+
         // Siege-variance: morale decays while the player strengthens defenses
         // mid-march (besiegers lose nerve). Each point of defense gained since the
         // raider last "saw" the wall costs 2 morale; defense decay does not raise it.
@@ -370,7 +378,6 @@ export class SiegeResolutionSystem implements System {
         // is left completely untouched for cozy === false.
         if (this.cozy) {
           const stolen = applyCozyPilfer(state, p, raider, state.rng.fork(`cozy-pilfer-${p.id}-${raider.id}`));
-          raider.resolved = true;
           // Gentle happiness dip (same magnitude as the sharp damage path) —
           // the raid was unsettling even though nothing was destroyed. The
           // Phase B productivity floor picks this up and it self-recovers.
@@ -383,7 +390,28 @@ export class SiegeResolutionSystem implements System {
           } else {
             pushEvent(state, `Day ${state.day + 1}: Raid ${raider.id} found little worth taking and left.`);
           }
-          toRemove.push(i);
+
+          // Brief 113: instead of vanishing at the keep, the raider walks
+          // back off the map along the path it actually walked, reversed.
+          // `path.slice(0, pathStep)` (not `path` itself) because the
+          // `exhaustedAtTarget` arrival branch can have `pathStep >=
+          // path.length` (a raider that ran out of route and stalled near
+          // the target) — slicing to `pathStep` naturally clamps to the
+          // full array in that case, so it always reverses exactly the
+          // walked prefix. Edge case: a raider that arrived with an empty
+          // walked prefix (e.g. spawned already adjacent to the target, so
+          // it never took a step) has nothing to retrace — resolve it
+          // immediately, same as today, rather than leaving it stuck with
+          // an empty path.
+          const walked = raider.path.slice(0, raider.pathStep).reverse();
+          if (walked.length > 0) {
+            raider.leaving = true;
+            raider.path = walked;
+            raider.pathStep = 0;
+          } else {
+            raider.resolved = true;
+            toRemove.push(i);
+          }
           continue;
         }
 

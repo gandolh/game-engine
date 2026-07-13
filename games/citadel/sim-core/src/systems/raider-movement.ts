@@ -37,7 +37,8 @@ export class RaiderMovementSystem implements System {
         // Counterplay: a garrison whose coverage includes the raider's tile sends
         // interceptors that shave raider strength — once per raider (a sortie).
         // Siting a garrison on the likely approach is now a real decision.
-        if (garrisons.length > 0 && raider.intercepted !== true) {
+        // Brief 113: a `leaving` raider is departing, not besieging — no sortie.
+        if (garrisons.length > 0 && raider.intercepted !== true && raider.leaving !== true) {
           for (const g of garrisons) {
             const d = Math.abs(raider.tileX - g.cx) + Math.abs(raider.tileY - g.cy);
             if (d <= g.radius) {
@@ -60,6 +61,12 @@ export class RaiderMovementSystem implements System {
           raider.x = next.x;
           raider.y = next.y;
           raider.pathStep++;
+        } else if (raider.leaving === true) {
+          // Brief 113: a departing raider that has exhausted its reversed
+          // path has walked itself back off the map — despawn it (never
+          // re-route a `leaving` raider toward the target). SiegeResolutionSystem's
+          // existing `if (raider.resolved) toRemove` sweep removes it next tick.
+          raider.resolved = true;
         } else {
           // Reached end of path (or never had one) — recompute toward target.
           const target = findRaiderTarget(this.state, p);

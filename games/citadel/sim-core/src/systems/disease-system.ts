@@ -16,7 +16,7 @@
 import type { System, SimContext } from "@engine/core";
 import type { SimState, PlayerState } from "../sim-state";
 import { pushEvent, removeOneVillager } from "../sim-state";
-import { getProductionDef, SERVICE_RADII } from "../entities/building";
+import { getProductionDef, SERVICE_RADII, coversRect } from "../entities/building";
 import { countNonRoadBuildings } from "./tiers";
 import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
@@ -95,6 +95,12 @@ export class DiseaseSystem implements System {
       }
       onsetChance = Math.min(0.5, onsetChance);
       if (healerNear) onsetChance *= 0.25;
+      // Brief 102: well prevention lever. coveredFraction is 0 with zero wells (or
+      // zero covered homes) so the multiplier is exactly ×1 — byte-identical to
+      // pre-well behavior. No new RNG draw; this only scales the threshold that the
+      // single nextFloat() draw below is compared against.
+      const coveredFraction = this._wellCoveredHomeFraction(p);
+      onsetChance *= 1 - 0.5 * coveredFraction;
 
       if (this.rngFor(p).nextFloat() < onsetChance) {
         p.outbreakActive = true;
@@ -103,9 +109,12 @@ export class DiseaseSystem implements System {
         // recovery below) — the toast reads "under the weather", not an "outbreak"
         // (decisions #3/#5/#9). Sharp string kept verbatim under cozy=false; the
         // Challenge-mode guard matches "disease outbreak" (defer-threats.test.ts).
+        // Brief 102: healer legibility — append healer copy when one is in reach
+        // at the moment the outbreak starts (sharp keeps the "disease outbreak"
+        // substring intact for the Challenge-mode guard).
         pushEvent(state, this.cozy
-          ? `Day ${state.day}: ${p.sickVillagers} villager(s) are under the weather.`
-          : `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.`);
+          ? `Day ${state.day}: ${p.sickVillagers} villager(s) are under the weather.` + (healerNear ? " The healer is tending the sick." : "")
+          : `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.` + (healerNear ? " A healer is nearby." : ""));
       }
     } else {
       // Active outbreak: spread (shared), then mortality + recovery — branched on cozy.
@@ -155,9 +164,14 @@ export class DiseaseSystem implements System {
       if (p.sickVillagers <= 0) {
         p.outbreakActive = false;
         p.sickVillagers = 0;
+        // Brief 102: healer legibility on the END event too. Cozy swaps in a
+        // dedicated thank-you line (not a plain append); sharp appends verbatim,
+        // keeping the "disease outbreak ended" substring intact.
         pushEvent(state, this.cozy
-          ? `Day ${state.day}: the town is back on its feet.`
-          : `Day ${state.day}: disease outbreak ended.`);
+          ? (healerNear
+              ? `Day ${state.day}: the town is back on its feet — thank the healer.`
+              : `Day ${state.day}: the town is back on its feet.`)
+          : `Day ${state.day}: disease outbreak ended.` + (healerNear ? " The healer helped." : ""));
       }
     }
   }
@@ -170,6 +184,39 @@ export class DiseaseSystem implements System {
       if (def?.isHousing === true) count++;
     }
     return count;
+  }
+
+  /**
+   * Brief 102: fraction of p's homes whose centre tile lies inside ANY of p's
+   * wells' rectangular coverage (SERVICE_RECTS.well via {@link coversRect} —
+   * the well's reach is an 8×6 rectangle, not a Manhattan radius; building.ts
+   * is the single source of truth for that geometry). Returns 0 when p has no
+   * wells or no houses, so the onset multiplier this feeds reduces to exactly
+   * ×1 (byte-identical to pre-well behavior) for any town without a well.
+   */
+  private _wellCoveredHomeFraction(p: PlayerState): number {
+    const wells: Array<{ x: number; y: number }> = [];
+    for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      if (entity.building.type !== "well") continue;
+      const b = entity.building;
+      wells.push({ x: b.x + Math.floor(b.w / 2), y: b.y + Math.floor(b.h / 2) });
+    }
+    if (wells.length === 0) return 0;
+
+    let total = 0;
+    let covered = 0;
+    for (const entity of this.state.buildingWorld.query("building")) {
+      if (entity.building.ownerId !== p.id) continue;
+      const def = getProductionDef(entity.building.type);
+      if (def?.isHousing !== true) continue;
+      total++;
+      const b = entity.building;
+      const cx = b.x + Math.floor(b.w / 2);
+      const cy = b.y + Math.floor(b.h / 2);
+      if (wells.some((w) => coversRect("well", w.x, w.y, cx, cy))) covered++;
+    }
+    return total === 0 ? 0 : covered / total;
   }
 
   /** Check if any Healer owned by p covers at least one of p's houses. */

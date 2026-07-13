@@ -26,6 +26,28 @@ So: **give the raid the army's body.** Raiders you watch cross the map, arrive, 
 leave. No new mechanic — the existing cozy raid, made visible. This is the diegetic principle (#8,
 #10) applied to the one threat the player currently cannot see coming.
 
+## Grounding correction (controller, 2026-07-11 — read before building)
+
+**The premise below is stale: the raid already has a body, end to end.** `RaidSpawnSystem`
+spawns a positioned `RaiderState` at `pickEdgeSpawn`'s tile with a BFS path;
+`RaiderMovementSystem` (systems/raider-movement.ts, `af31818`, 2026-06-26) marches it one tile
+per 3 ticks; garrison interception is **already spatial** (sortie when the raider's tile enters
+the garrison's service radius); the snapshot carries `raiders: RaiderSnapshot[]`; the client
+renders them through `entity-interp.ts` with the villagers' interpolation. Scopes 2, 3 and 5
+are **built**; the `ArmySystem` salvage is **moot** (`ArmyState` stays frozen, untouched).
+
+**The one real gap vs. Acceptance:** on the cozy path a raider that reaches the keep is
+resolved and **spliced out the same tick** (siege-resolution.ts `applyCozyPilfer` branch) — it
+pilfers and *vanishes* instead of departing. **Remaining scope = the departure walk:**
+on cozy arrival, apply pilfer/happiness/threat/events **exactly as today** (same tick, same RNG
+forks, same event strings — the event stream must not move), then mark the raider `leaving`
+instead of splicing; it retraces its path toward the edge and is removed when the path is
+exhausted. While `leaving`: no garrison interception (don't shave a departing raid), no
+target-recompute, no re-arrival. The sharp (`cozy === false`) branch is untouched —
+resolve-and-splice as today, `sack` stdout byte-identical. No new RNG anywhere; no new events
+(a despawn toast would move the event stream for no gameplay reason). Plus the browser
+playtest the Acceptance always demanded.
+
 ## Scope
 
 1. ✅ **DONE — landed early in [brief 110](../done/110-citadel-client-world-size.md) (`0fd66c0`).**

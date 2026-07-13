@@ -75,6 +75,18 @@ export interface RaiderState {
   scouted?: boolean;
   /** True once a garrison sortie has intercepted this raider (one shave per raider). */
   intercepted?: boolean;
+  /**
+   * Brief 113 (cozy departure): true once a cozy raider has pilfered at the
+   * keep/defenses and is walking back off the map along its reversed path
+   * instead of vanishing on arrival. While `leaving`, `RaiderMovementSystem`
+   * skips garrison interception and never re-routes it toward the target on
+   * path exhaustion (it resolves instead); `SiegeResolutionSystem` skips its
+   * whole per-raider arrival block (morale drift + arrival handling) for a
+   * `leaving` raider — only the resolved-sweep still applies to it. Optional
+   * for back-compat with inline test constructors and pre-feature saves
+   * (absent ⇒ not leaving, today's behavior for the sharp path).
+   */
+  leaving?: boolean;
 }
 
 /**
