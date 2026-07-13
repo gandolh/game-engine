@@ -9,7 +9,8 @@
  *   5. An unrecognised job string falls back gracefully (white, not a crash).
  */
 import { describe, it, expect } from "vitest";
-import { EDG, rgbOf } from "@engine/core";
+import { rgbOf } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { VillagerSnapshot } from "@citadel/sim-core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import {

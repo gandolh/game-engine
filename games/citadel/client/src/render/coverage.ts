@@ -12,7 +12,7 @@
  */
 import { SERVICE_RADII, SERVICE_RECTS, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 
 /**
  * The world bounds the catchment helpers clamp against. Threaded from the live

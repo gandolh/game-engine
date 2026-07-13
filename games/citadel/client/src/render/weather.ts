@@ -22,7 +22,8 @@
  * satisfied structurally: it is render-side state, fully decoupled from the sim
  * sequence.
  */
-import { EDG, RainField } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
+import { RainField } from "@engine/core";
 import type { WeatherKind } from "@engine/core";
 
 /** Days-per-year used to derive the seasonal/rainy cadence (matches sim seasons: 4 equal seasons). */

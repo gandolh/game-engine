@@ -18,7 +18,7 @@
  *
  * EDG32-only: every colour is an `EDG.*` constant. No DOM, no `any`, deterministic.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";
 import type { BarterOffer, Season, SettlementTier } from "@citadel/sim-core";

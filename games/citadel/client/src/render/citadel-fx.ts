@@ -21,7 +21,7 @@
  * the only stateful piece (it owns a render-side RNG only to jitter emit
  * timing — never the sim RNG, never Math.random in sim-construable code).
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { ParticleSystem, Rng } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";

@@ -21,7 +21,7 @@
  * budget, so recompute-per-frame is fine and avoids cache invalidation on
  * placement commands. (The cost tracks the network's size, not the map's.)
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
 import { packTint, FALLBACK_BUILDING_COLOR } from "./quads";

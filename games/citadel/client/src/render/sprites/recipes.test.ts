@@ -5,8 +5,8 @@
  * mapping covers exactly the wave-1 building set without drift.
  */
 import { describe, it, expect } from "vitest";
-import { EDG32 } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
+import { APOLLO_SET } from "../citadel-palette";
 import { SWATCH, colorOf } from "./palette";
 import { rasterizeRecipe } from "./rasterize";
 import {
@@ -22,17 +22,16 @@ import {
   FRAME_PEDESTRIAN,
 } from "./recipes";
 
-const EDG32_SET = new Set<string>(EDG32);
 const toHex = (r: number, g: number, b: number): string =>
   "#" + [r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("");
 
-describe("sprite palette (EDG32 guard)", () => {
-  it("every opaque swatch is an EDG32 color", () => {
+describe("sprite palette (Apollo guard)", () => {
+  it("every opaque swatch is an Apollo color", () => {
     const bad: string[] = [];
     for (const [ch, [r, g, b, a]] of Object.entries(SWATCH)) {
       if (a === 0) continue; // transparent
       const hex = toHex(r, g, b);
-      if (!EDG32_SET.has(hex)) bad.push(`${ch} → ${hex}`);
+      if (!APOLLO_SET.has(hex)) bad.push(`${ch} → ${hex}`);
     }
     expect(bad, bad.length ? `Off-palette swatches:\n  ${bad.join("\n  ")}` : "").toEqual([]);
   });

@@ -15,7 +15,7 @@
  */
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { packTint } from "./quads";
 import type { QuadSpec } from "./quads";
 import { tileKey } from "./autotile";

@@ -19,7 +19,7 @@
  * means a new game, and every mode flag is persisted in `CitadelSave`, so a load replays under the
  * rules it was saved with).
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { panel, box, label, button } from "@engine/ui";
 import type { ContainerNode } from "@engine/ui";
 

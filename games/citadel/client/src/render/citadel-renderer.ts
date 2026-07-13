@@ -24,8 +24,8 @@
  * fire-damage soot/scorch overlay (`wearFactor`/`wearOverlayQuads`/
  * `pushWearOverlay`) driven by the snapshot's existing `burning`/`onFire`.
  */
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import {
-  EDG,
   Camera2D,
   createRenderer,
 } from "@engine/core";

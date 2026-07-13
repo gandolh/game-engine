@@ -6,7 +6,7 @@
  * exactly (see the DOM block this replaces, formerly in main.ts's `loop()`).
  */
 import { describe, it, expect } from "vitest";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import type { LabelNode, UINode } from "@engine/ui";
 import { createSiegeHud, type SiegeHudState } from "./siege-hud";
 

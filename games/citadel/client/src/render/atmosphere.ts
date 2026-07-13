@@ -18,7 +18,7 @@
  * pool has no native channel, so it is emitted as sprite-batch quads (the
  * proven path in citadel-renderer.ts) layered above terrain/buildings.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
 import { packTint, type QuadSpec } from "./citadel-renderer";

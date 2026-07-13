@@ -4,8 +4,8 @@
  * renderer dependency. Also owns the generated 1×1 atlas id/frame constants and
  * the quadToSprite helper that wraps a QuadSpec for the sprite-batch.
  */
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import {
-  EDG,
   rgbOf,
 } from "@engine/core";
 import type { Canvas2dSprite } from "@engine/core";

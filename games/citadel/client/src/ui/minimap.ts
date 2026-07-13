@@ -31,7 +31,7 @@
  * Render-only: reads snapshots + the camera transform, never the sim clock/RNG.
  * Colours come from the EDG palette (the palette guard scans this .ts file).
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import type { UISurface } from "@engine/ui/render";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import { TerrainType } from "@citadel/sim-core";

@@ -29,7 +29,7 @@
  * The pure helpers (matchesSearch, nextTabIndex) are exported so they can be unit-tested
  * headlessly without a renderer.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { panel, box, label, button, slider, checkbox } from "@engine/ui";
 import type {
   ContainerNode,

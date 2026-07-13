@@ -6,7 +6,7 @@
  * (covered in @engine/ui); here we just prove this consumer drives them correctly.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
 import { createResourceHud, type ResourceHudState } from "./resource-hud";
 

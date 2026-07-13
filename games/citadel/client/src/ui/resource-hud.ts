@@ -17,7 +17,7 @@
  * EDG32-only: every colour is an `EDG.*` constant. Colour thresholds mirror the DOM HUD this
  * replaces (tier: steel/green/cyan/yellow/red; happiness: cyan≥60 / yellow≥40 / red).
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import type { GoodType } from "@citadel/sim-core";
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";

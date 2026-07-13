@@ -21,9 +21,9 @@
  *  - keep: red when sacked, green when standing, steel when there is no keep.
  *  - fire: gold when ≥1 building burning, steel when none.
  *  - disease: mauve during an active outbreak, steel when none.
- *  - mode: static yellow (mirrors the old `#lbl-mode { color: #fee761 }`, i.e. `EDG.yellow`).
+ *  - mode: static yellow (mirrors the old `#lbl-mode` DOM readout's colour, i.e. `EDG.yellow`).
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { box, label, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 

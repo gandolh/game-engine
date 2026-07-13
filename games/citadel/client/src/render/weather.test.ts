@@ -5,7 +5,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { EDG, RainField } from "@engine/core";
+import { RainField } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { seasonToWeather, CitadelWeather } from "./weather";
 
 describe("seasonToWeather", () => {

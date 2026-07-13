@@ -13,7 +13,7 @@
  * loop with the isometry / all-burning / day-phase overlays). Reached via the
  * `?showcase` URL flag in main.ts, gated by import.meta.env.DEV.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { IsoProjection } from "./iso";
 import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, TerrainGrid } from "@citadel/sim-core";
 import {

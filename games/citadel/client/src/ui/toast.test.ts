@@ -5,7 +5,7 @@
  * label colour, toastOpacity, newEventsSince). No real surface — we assert the retained tree.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 import { ToastManager, newEventsSince, toastOpacity } from "./toast";
 

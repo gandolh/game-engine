@@ -16,7 +16,8 @@
  * pedestrians are hidden (count target → 0) for immersion. They return once the
  * siege lifts. (Decision recorded in-brief: "hide during siege".)
  */
-import { EDG, createRng } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
+import { createRng } from "@engine/core";
 import type { Rng } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot, RenderSnapshot } from "@citadel/sim-core";

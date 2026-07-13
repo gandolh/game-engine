@@ -6,7 +6,7 @@
  * framework's own (covered in @engine/ui); here we just prove this consumer drives it right.
  */
 import { describe, it, expect } from "vitest";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
 import type { BarterOffer, BuildingSnapshot } from "@citadel/sim-core";
 import { createInspectPanel, type InspectPanelState } from "./inspect-panel";

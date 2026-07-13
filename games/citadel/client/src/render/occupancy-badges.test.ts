@@ -8,7 +8,7 @@
  * and the `activeChips` iterable directly (pure node assertions, no canvas).
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { resetNodeIds } from "@engine/ui";
 import type { BuildingSnapshot } from "@citadel/sim-core";
 import { OccupancyBadgeLayer } from "./occupancy-badges";

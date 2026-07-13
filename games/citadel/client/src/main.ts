@@ -11,8 +11,9 @@
 import "./style.css";
 import { generateTerrain, findCoreBox, getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, CORE_BOX_W, CORE_BOX_H } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot, BarterOffer } from "@citadel/sim-core";
-import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
+import { ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./render/citadel-palette";
 import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11yMirror, loadFontAtlas, label } from "@engine/ui";
 import type { InputDispatcher, A11yMirror, LabelNode } from "@engine/ui";
 import { createResourceHud } from "./ui/resource-hud";
@@ -88,6 +89,7 @@ import { NewGameModal } from "./ui/new-game-modal";
 import type { GameMode } from "./ui/new-game-modal";
 import { ToastManager, newEventsSince } from "./ui/toast";
 import { CitadelMinimap, MINIMAP_FACE } from "./ui/minimap";
+import { CITADEL_THEME } from "./ui/citadel-theme";
 import type { IsoProjection } from "./render/iso";
 import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 
@@ -1491,7 +1493,7 @@ function loop(): void {
       a11yMirror?.update(hud.root);
     }
     uiSurface.begin();
-    renderTree(uiSurface, hud.root);
+    renderTree(uiSurface, hud.root, CITADEL_THEME);
 
     // Chunk 1A (brief 106): the siege/hazard HUD is a SECOND top-row UI root, anchored directly
     // below the resource HUD's MEASURED bottom edge (its rect is already live this frame — no
@@ -1504,7 +1506,7 @@ function loop(): void {
         computeLayout(siegeHud.root, 8, Math.round(hudBottom + 4));
         siegeMirror?.update(siegeHud.root);
       }
-      renderTree(uiSurface, siegeHud.root);
+      renderTree(uiSurface, siegeHud.root, CITADEL_THEME);
       siegeHudBottom = siegeHud.root.rect.y + siegeHud.root.rect.height;
     }
 
@@ -1540,7 +1542,7 @@ function loop(): void {
           computeLayout(inspectPanel.root, 8, Math.round(siegeHudBottom + 8));
           inspectMirror?.update(inspectPanel.root);
         }
-        renderTree(uiSurface, inspectPanel.root);
+        renderTree(uiSurface, inspectPanel.root, CITADEL_THEME);
       }
     }
 
@@ -1565,7 +1567,7 @@ function loop(): void {
           computeLayout(villagerPanel.root, 8, 380);
           villagerMirror?.update(villagerPanel.root);
         }
-        renderTree(uiSurface, villagerPanel.root);
+        renderTree(uiSurface, villagerPanel.root, CITADEL_THEME);
       }
     }
 
@@ -1589,14 +1591,14 @@ function loop(): void {
       } else if (barChanged) {
         buildBarMirror?.update(buildBar.root); // disabled/active changed → reconcile the AT view
       }
-      renderTree(uiSurface, buildBar.root);
+      renderTree(uiSurface, buildBar.root, CITADEL_THEME);
 
       // Hover-info: the hovered toolbar button's cost/tier text, just above the bar.
       const info = buildBar.hoverInfoFor(buildBarDispatcher?.hitTest(lastUiX, lastUiY) ?? null);
       if (buildBarInfoLabel.text !== info) buildBarInfoLabel.text = info;
       if (info !== "") {
         computeLayout(buildBarInfoLabel, 8, Math.max(8, barTopY - 16));
-        renderTree(uiSurface, buildBarInfoLabel);
+        renderTree(uiSurface, buildBarInfoLabel, CITADEL_THEME);
       }
     }
 
@@ -1608,7 +1610,7 @@ function loop(): void {
     occupancyBadges.update(currentBuildings, localPlayerId, tileToCanvasCss);
     for (const chip of occupancyBadges.activeChips) {
       computeLayout(chip.node, chip.x, chip.y);
-      renderTree(uiSurface, chip.node);
+      renderTree(uiSurface, chip.node, CITADEL_THEME);
     }
 
     // Minimap (top-right): drawn IN-CANVAS via raw UISurface quads (terrain + entity specks +
@@ -1638,7 +1640,7 @@ function loop(): void {
       // let the buttons and toasts overlap. `siegeHudBottom` (computed above, in the same
       // `hud !== undefined` block) is already the measured combined bottom edge.
       computeLayout(toasts.root, cx, Math.round(siegeHudBottom + 8));
-      renderTree(uiSurface, toasts.root);
+      renderTree(uiSurface, toasts.root, CITADEL_THEME);
     }
 
     // Settings modal: a top-most in-canvas UI root, rendered LAST so it overlays everything while
@@ -1657,7 +1659,7 @@ function loop(): void {
       computeLayout(settingsModal.root, sx, sy); // anchor centred
       settingsMirror?.update(settingsModal.root); // reconcile every frame (tab-swap + first open)
       settingsLaidOut = true; // kept for the openSettings() gate (signals boot is past first frame)
-      renderTree(uiSurface, settingsModal.root);
+      renderTree(uiSurface, settingsModal.root, CITADEL_THEME);
     }
 
     // Brief 103: the new-game picker — rendered LAST of all, above even the settings modal, because
@@ -1669,7 +1671,7 @@ function loop(): void {
       const ny = Math.max(8, (canvas.clientHeight - newGameModal.root.rect.height) / 2);
       computeLayout(newGameModal.root, nx, ny); // anchor centred
       newGameMirror?.update(newGameModal.root);
-      renderTree(uiSurface, newGameModal.root);
+      renderTree(uiSurface, newGameModal.root, CITADEL_THEME);
     }
 
     uiSurface.end();

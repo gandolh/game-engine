@@ -1,12 +1,14 @@
 /*
  * Citadel client styles. Extracted from the inline <style> block in index.html
  * so the markup stays lean and the CSS is a first-class, editable file (imported
- * from main.ts the Vite way). Colours are EDG32 hex literals; the palette guard
- * (palette.test.ts) only scans .ts/.js, so CSS hex is outside its scope — same as
- * when these rules lived inline in index.html.
+ * from main.ts the Vite way). Colours are Apollo hex literals mirroring the SAME
+ * CITADEL_PAL roles (render/citadel-palette.ts) that the in-canvas UI uses — CSS
+ * can't import the TS module, so the literal Apollo hex is written here directly.
+ * The palette guard (palette.test.ts) only scans .ts/.js, so CSS hex is outside
+ * its scope — same as when these rules lived inline in index.html.
  */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+body { background: #090a14; overflow: hidden; width: 100vw; height: 100vh; display: flex; flex-direction: column; } /* CITADEL_PAL.black */
 /* min-height: 0 lets flex:1 actually shrink the canvas below its intrinsic
    backing-store size; without it a large (maximized) window grows the
    canvas past 100vh and pushes #build-bar / #hud below the clipped fold. */
@@ -16,16 +18,16 @@ body { background: #181425; overflow: hidden; width: 100vw; height: 100vh; displ
 /* Condensed for laptop screens: single non-wrapping row that scrolls
    horizontally on overflow, so the readout strip keeps a fixed height and
    never grows to shove the canvas up (the old flex-wrap caused that). */
-#hud { background: #262b44; color: #c0cbdc; font-family: monospace; font-size: 12px; display: flex; flex-wrap: nowrap; align-items: center; gap: 7px; padding: 3px 10px; user-select: none; border-top: 1px solid #3a4466; overflow-x: auto; overflow-y: hidden; white-space: nowrap; }
-#hud button { background: #3a4466; color: #c0cbdc; border: 1px solid #5a6988; padding: 1px 8px; cursor: pointer; font-family: monospace; font-size: 12px; white-space: nowrap; }
-#hud button:hover { background: #5a6988; }
+#hud { background: #151d28; color: #c7cfcc; font-family: monospace; font-size: 12px; display: flex; flex-wrap: nowrap; align-items: center; gap: 7px; padding: 3px 10px; user-select: none; border-top: 1px solid #202e37; overflow-x: auto; overflow-y: hidden; white-space: nowrap; } /* ink, silver, navy */
+#hud button { background: #202e37; color: #c7cfcc; border: 1px solid #577277; padding: 1px 8px; cursor: pointer; font-family: monospace; font-size: 12px; white-space: nowrap; } /* navy, silver, slate */
+#hud button:hover { background: #577277; } /* slate */
 /* Citadel 07: tier-locked build buttons — greyed, not hidden (teaches progression). */
 #hud button.tier-locked, #hud button.tier-locked:hover { opacity: 0.4; cursor: not-allowed; }
 
 /* The Citadel build toolbar now renders IN-CANVAS via @engine/ui (src/ui/build-bar.ts);
    its DOM #build-bar + button styles were removed. #ui-a11y-buildbar (its hidden a11y
    mirror) is styled by the shared visually-hidden rule below. */
-#hud .sep { width: 1px; background: #5a6988; align-self: stretch; margin: 0 4px; }
+#hud .sep { width: 1px; background: #577277; align-self: stretch; margin: 0 4px; } /* slate */
 
 /* Event toasts render IN-CANVAS via @engine/ui now (src/ui/toast.ts). #toast-live is the
    visually-hidden aria-live region that announces each new toast to screen readers. */

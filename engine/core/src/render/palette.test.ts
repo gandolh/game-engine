@@ -2,7 +2,40 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { EDG32, EDG32_SET, EDG, isEdg32, nearestEdg32, normalizeHex } from "./palette";
+import { EDG32, EDG32_SET, EDG, isEdg32, nearestEdg32, normalizeHex, rgbOf } from "./palette";
+
+// The palette guard is scoped by path: files under games/citadel/ are Citadel's
+// Apollo palette, everything else is the engine's EDG32. The engine must never
+// import a game (locked convention), and this test lives in @engine/core, so the
+// 46 Apollo colours are inlined here for the scan. They are the SINGLE authoritative
+// list mirrored by games/citadel/client/src/render/citadel-palette.ts, whose own
+// colocated test (citadel-palette.test.ts) pins the module's APOLLO to this exact
+// list and validates CITADEL_PAL against it — so the two cannot silently drift.
+const APOLLO = [
+  "#172038", "#253a5e", "#3c5e8b", "#4f8fba", "#73bed3", "#a4dddb",
+  "#19332d", "#25562e", "#468232", "#75a743", "#a8ca58", "#d0da91",
+  "#4d2b32", "#7a4841", "#ad7757", "#c09473", "#d7b594", "#e7d5b3",
+  "#341c27", "#602c2c", "#884b2b", "#be772b", "#de9e41", "#e8c170",
+  "#241527", "#411d31", "#752438", "#a53030", "#cf573c", "#da863e",
+  "#1e1d39", "#402751", "#7a367b", "#a23e8c", "#c65197", "#df84a5",
+  "#090a14", "#10141f", "#151d28", "#202e37", "#394a50", "#577277",
+  "#819796", "#a8b5b2", "#c7cfcc", "#ebede9",
+] as const;
+const APOLLO_SET: ReadonlySet<string> = new Set(APOLLO);
+function nearestApollo(hex: string): string {
+  const [r, g, b] = rgbOf(hex);
+  let best: string = APOLLO[0];
+  let bestD = Infinity;
+  for (const c of APOLLO) {
+    const [cr, cg, cb] = rgbOf(c);
+    const d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best;
+}
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..", "..");
@@ -11,9 +44,7 @@ const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git"]);
 const SOURCE_EXT = /\.(ts|js|mjs|cjs)$/;
 const SKIP_FILE = /\.(test|spec)\.(ts|js)$/; 
 
-const ALLOWLIST_FILES: Record<string, string> = {
-
-};
+const ALLOWLIST_FILES: Record<string, string> = {};
 
 const HEX_RE = /#[0-9a-fA-F]{6}(?![0-9a-fA-F])|#[0-9a-fA-F]{3}(?![0-9a-fA-F])/g;
 
@@ -41,9 +72,27 @@ describe("EDG32 palette is the single source of truth", () => {
 
   it("isEdg32 / nearestEdg32 behave", () => {
     expect(isEdg32("#63c74d")).toBe(true);
-    expect(isEdg32("#63C74D")).toBe(true); 
+    expect(isEdg32("#63C74D")).toBe(true);
     expect(isEdg32("#123456")).toBe(false);
     expect(nearestEdg32("#63c64c")).toBe("#63c74d");
+  });
+});
+
+// The Apollo scan list (used for games/citadel/ files). The AUTHORITATIVE
+// module-backed integrity checks — CITADEL_PAL ⊆ APOLLO, keys == EDG keys,
+// nearestApollo — live in games/citadel/client/src/render/citadel-palette.test.ts
+// (the engine cannot import a game). These two guard that the inline scan list
+// stays valid and matches Apollo's cardinality.
+describe("Apollo scan list (Citadel scope)", () => {
+  it("has exactly 46 unique colors", () => {
+    expect(APOLLO).toHaveLength(46);
+    expect(new Set(APOLLO).size).toBe(46);
+  });
+
+  it("nearestApollo behaves", () => {
+    expect(nearestApollo("#75a743")).toBe("#75a743");
+    expect(nearestApollo("#75A743")).toBe("#75a743");
+    expect(nearestApollo("#74a642")).toBe("#75a743");
   });
 });
 
@@ -53,18 +102,28 @@ describe("no source file uses an off-palette color literal", () => {
   walk(join(REPO_ROOT, "games"), files);
   walk(join(REPO_ROOT, "tools"), files);
 
+  // Palette is scoped by path: Citadel source (games/citadel/) is validated
+  // against Apollo; everything else (Farm + engine + tools) stays on EDG32.
+  const isCitadel = (rel: string): boolean => rel.startsWith("games/citadel/");
+
   const violations: string[] = [];
   for (const file of files) {
     const rel = relative(REPO_ROOT, file).split(sep).join("/");
     if (ALLOWLIST_FILES[rel]) continue;
+    const citadel = isCitadel(rel);
+    const allowed = citadel ? APOLLO_SET : EDG32_SET;
+    const palName = citadel ? "Apollo" : "EDG32";
     const text = readFileSync(file, "utf8");
     const lines = text.split("\n");
     lines.forEach((line, i) => {
       const matches = line.match(HEX_RE);
       if (!matches) return;
       for (const m of matches) {
-        if (!EDG32_SET.has(normalizeHex(m))) {
-          violations.push(`${rel}:${i + 1}  ${m.toLowerCase()}  →  nearest EDG32 ${nearestEdg32(m)}`);
+        if (!allowed.has(normalizeHex(m))) {
+          const nearest = citadel ? nearestApollo(m) : nearestEdg32(m);
+          violations.push(
+            `${rel}:${i + 1}  ${m.toLowerCase()}  →  expected ${palName}, nearest ${nearest}`,
+          );
         }
       }
     });
@@ -98,8 +157,10 @@ describe("no source file uses an off-palette color literal", () => {
     expect(
       violations,
       violations.length
-        ? `\nOff-palette colors found — replace with an EDG.* constant ` +
-            `(see engine/core/src/render/palette.ts):\n  ${violations.join("\n  ")}\n`
+        ? `\nOff-palette colors found — replace with the role constant for that file's ` +
+            `palette (EDG.* from engine/core/src/render/palette.ts, or CITADEL_PAL.* ` +
+            `from games/citadel/client/src/render/citadel-palette.ts for games/citadel/):` +
+            `\n  ${violations.join("\n  ")}\n`
         : "",
     ).toEqual([]);
   });

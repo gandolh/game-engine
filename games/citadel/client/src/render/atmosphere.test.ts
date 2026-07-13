@@ -3,7 +3,7 @@
  * No GPU — these exercise the pure helpers headlessly.
  */
 import { describe, it, expect } from "vitest";
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import {
   dayFractionOf,
   nightFactorOf,

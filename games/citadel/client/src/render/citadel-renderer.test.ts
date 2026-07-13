@@ -7,7 +7,8 @@
  * that placement-state depends on (the highest-risk surface).
  */
 import { describe, it, expect } from "vitest";
-import { EDG, rgbOf } from "@engine/core";
+import { rgbOf } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { RendererLike, Canvas2dSprite } from "@engine/core";
 import { TerrainType, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
@@ -91,7 +92,8 @@ describe("packTint", () => {
   });
 
   it("returns an unsigned 32-bit int (top bit set stays positive)", () => {
-    // EDG.white = #ffffff → 0xffffffff which would be negative without >>>0.
+    // A fully-opaque white-ish tint packs a top bit set (e.g. 0xebede9ff),
+    // which would read as negative without >>>0.
     expect(packTint(EDG.white)).toBeGreaterThan(0);
   });
 });

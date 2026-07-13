@@ -17,7 +17,7 @@
  * `factor` (0..1) so soot appears to accumulate visually while a fire burns —
  * the ramp is render-side only and never persisted or fed back into the sim.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { RendererLike } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";

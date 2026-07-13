@@ -15,7 +15,7 @@
  * same pooling idiom as the old DOM version, but with `@engine/ui` nodes instead
  * of `<div>`s. Render-only: reads snapshots + the camera transform, never the sim.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { panel, label } from "@engine/ui";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 import type { BuildingSnapshot } from "@citadel/sim-core";

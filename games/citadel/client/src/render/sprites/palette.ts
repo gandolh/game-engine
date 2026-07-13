@@ -11,7 +11,8 @@
  * (`#`→`S`→`l`→`v`) so the per-instance state/strength tint *multiplies* into a
  * shaded colored figure (see `quads.ts`).
  */
-import { EDG, rgbOf } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../citadel-palette";
+import { rgbOf } from "@engine/core";
 
 /** `EDG.x` hex → opaque RGBA tuple. The single point where a color is realized. */
 function rgba(hex: string): readonly [number, number, number, number] {

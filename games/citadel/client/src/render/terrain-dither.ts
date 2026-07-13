@@ -9,7 +9,7 @@
  * Also owns `makeTerrainDecorate`: the static-layer bake callback that paints
  * the terrain grid and applies sub-tile dither clusters.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { Ctx2D } from "@engine/core";
 import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
 import type { TerrainGrid } from "@citadel/sim-core";

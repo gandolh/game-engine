@@ -5,7 +5,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { rasterizeRecipe, packShelf, nextPow2, type PackItem } from "./rasterize";
-import type { PixelRect } from "@engine/core";
+import { rgbOf, type PixelRect } from "@engine/core";
+import { CITADEL_PAL } from "../citadel-palette";
 import type { PixelRecipe } from "./types";
 
 describe("nextPow2", () => {
@@ -24,8 +25,9 @@ describe("rasterizeRecipe", () => {
     const out = rasterizeRecipe(r);
     expect(out.width).toBe(2);
     expect(out.rgba.length).toBe(2 * 2 * 4);
-    // (0,0) = white v → opaque white.
-    expect([out.rgba[0], out.rgba[1], out.rgba[2], out.rgba[3]]).toEqual([255, 255, 255, 255]);
+    // (0,0) = white v → opaque white (Apollo value of the `white` role).
+    const [wr, wg, wb] = rgbOf(CITADEL_PAL.white);
+    expect([out.rgba[0], out.rgba[1], out.rgba[2], out.rgba[3]]).toEqual([wr, wg, wb, 255]);
     // (1,0) = `.` → transparent.
     expect(out.rgba[7]).toBe(0);
     // (1,1) = `#` black → opaque, non-white.

@@ -9,7 +9,7 @@
  * Aging runs on the RENDER clock (an injected `nowMs`, never the sim clock) so it
  * pauses naturally when the tab is backgrounded and never touches determinism.
  */
-import { EDG } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { box, panel, label } from "@engine/ui";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 
