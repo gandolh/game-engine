@@ -1,8 +1,47 @@
 ---
 title: "Citadel P1 (CORRECTED) — the pop 6-7 equilibrium is an unrecoverable attractor: immigration hard-stops at zero bread surplus, so a missed opening locks the town forever"
 created: 2026-07-11
-status: open
+status: closed
 tags: [citadel, sim, balance, gameplay, playtest, tiers, economy, immigration, p1]
+---
+
+# DONE 2026-07-13 (Wave 3.5, `bbca1e9`): the diagnosis was wrong a SECOND time — the blocker is worker allocation, not immigration
+
+> **Outcome.** The "immigration hard-stops at zero bread surplus" narrative below (the
+> *second* root-cause telling on this todo) was **also wrong**, the same way the first
+> ("unreachable") was. A per-day census of the headless deadlock drip shows **25 population
+> increases** over the run — immigration is *not* hard-stopped; arrivals come freely on the
+> ~40 surplus/break-even days. The town churns at pop 6-7 because of **worker allocation**:
+>
+> 1. **`removeOneVillager` dropped the NEWEST villager on starvation** (highest id, LIFO).
+>    So every settler sent to staff the idle second bakery was the very one starvation
+>    culled next — growth was always reversed. This is what made the attractor
+>    *unrecoverable*. The starvation path now passes `{ preferRedundant: true }` and drops a
+>    **redundant** worker (one on a glutted-output producer) instead; disease/raid casualties
+>    still take the newest. **This one change alone reaches Town** (day 99).
+> 2. **Assignment staffed the second farm/mill (gluttng grain/flour to 500+) before the
+>    second bakery** (the bread bottleneck). A **glut-skip** steers a second worker past a
+>    producer whose output is already abundant (≥ 8 days of supply) to the scarce
+>    bottleneck; bounded to already-staffed types (bootstrap untouched) with a no-skip
+>    fallback so nobody idles. Accelerates the escape (**Town day 53** with both).
+> 3. The **immigration trickle floor** (the fix this todo originally scoped) is kept — it is
+>    byte-identical on every baseline and covers the clean single-bakery break-even case —
+>    but it is **NOT** what breaks the deadlock. It was a mis-scoped fix for a mis-diagnosed
+>    cause; the census disproves the "hard-stop" premise it rested on.
+>
+> The headless drip that was pinned at **pop 7/Village forever** now reaches **Town (peak)**,
+> so the downside rule (#9: throttle toward a floor, always recoverable) holds. **Gates:**
+> typecheck 0; full repo tests 0 (citadel sim-core 301, +15 new across immigration.test +
+> deadlock-allocation.test); Citadel determinism **MATCH ×3 seeds**; grow/sack baselines
+> drift **only in grain counts** (redundant-removal drops a grain worker vs the newest) with
+> pop/bread/happiness/tier/outcomes identical; `starve` still `gameOver=true`.
+>
+> **Deferred (P2, not this fix):** the town reaches Town then **oscillates back to Village** —
+> bread sits at exactly break-even and grain/flour still glut, so it never *stably* holds
+> Town. That is the **cadence imbalance** (farms ≫ mills ≫ bakeries) + the happiness throttle
+> (services unstaffed → low happiness → throttled production), a balance pass on
+> mill/bakery cycle rates and service coverage. Filed as the lesson below.
+
 ---
 
 # CORRECTED 2026-07-11 (same day): Town IS reachable — the real P1 is the unrecoverable deadlock
