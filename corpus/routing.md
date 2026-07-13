@@ -51,8 +51,8 @@ before you *act*.
 ## READ / SKIP / SKILLS
 | Task type | READ | SKIP | SKILLS |
 |-----------|------|------|--------|
-| Citadel gameplay (cozy pivot) | the todo/BUILD-ORDER, corpus/wiki/citadel-overview.md, corpus/wiki/decisions.md, games/citadel/sim-core/src/{systems,world,entities} | Farm-only code (games/farm/*), engine renderer internals | playtest-citadel (validate feel) |
-| Citadel UI / @engine/ui | the UI todo, games/citadel/client/src/render, engine/core/src/render, corpus/wiki/decisions.md (palette/EDG32) | Farm sim systems, Citadel sim-core balance | frontend-design, playtest-citadel |
+| Citadel gameplay (cozy pivot) | the todo/BUILD-ORDER, corpus/wiki/citadel-overview.md, corpus/wiki/decisions.md, games/citadel/sim-core/src/{systems,world,entities} | Farm-only code (games/farm/*), engine renderer internals | — (visual/feel checks: user drives the browser + shares screenshots; the playtest-citadel skill was removed 2026-07-13) |
+| Citadel UI / @engine/ui | the UI todo, games/citadel/client/src/render, engine/core/src/render, corpus/wiki/decisions.md (palette/EDG32) | Farm sim systems, Citadel sim-core balance | frontend-design |
 | Engine/core | the todo, engine/core/src/<subsystem>, corpus/wiki/architecture.md | game-specific code | — |
 | Farm gameplay | the todo, games/farm/sim-core/src, corpus/wiki/system-ordering.md | Citadel code | — |
 
