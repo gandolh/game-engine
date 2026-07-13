@@ -1,7 +1,7 @@
 ---
 title: "Citadel art: external CC0 ingest evaluated (REJECTED) — the real work is silhouette differentiation"
 created: 2026-07-11
-status: todo
+status: DONE 2026-07-13 (Wave 5, `0d6c1b3`) — the silhouette-differentiation work below shipped; the CC0-ingest spike stays rejected
 tags: [citadel, client, render, art, assets, atlas, palette, edg32, cc0, spike-result]
 ---
 

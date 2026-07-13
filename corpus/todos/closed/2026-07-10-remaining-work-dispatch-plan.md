@@ -1,8 +1,8 @@
 # Remaining-work dispatch plan (2026-07-10)
 
-status: **in progress — Waves 1, 2, 2.5, 3, 3.5, 4 done; Wave 5 open (last).** Resumable: each wave is an
-independent `plan-split-dispatch` run. Tick the checkboxes as waves land; the plan survives
-a context loss.
+status: **COMPLETE 2026-07-13 — all waves done (1, 2, 2.5, 3, 3.5, 4, 5).** Every wave landed as an
+independent `plan-split-dispatch` run; see `wiki/status.md` for the per-wave closeouts. This todo is
+archived to `closed/`.
 
 Scope: the decision-**#26** queue `{102, 99, 106, 104, 105, 98}` plus the two
 unblocked-but-unstarted briefs **103** and **113**. #26's two gating items, briefs **110**
@@ -357,7 +357,16 @@ challenge run playable in a real browser.
 
 ---
 
-### [ ] Wave 5 — building silhouette differentiation (render-only, added 2026-07-11)
+### [x] Wave 5 — building silhouette differentiation — **DONE 2026-07-13** (`0d6c1b3`)
+
+Landed: the 8 look-alike box-buildings got distinct silhouettes (new `iso-draw` form-styles `cabin`/`forge`,
+hipped-roof+oven bakery, stilted watchpost; house kept as reference; market/public-square/quarry left as
+already-distinct). New `buildings-silhouette.test.ts` proves pairwise distinguishability (min 19, floor 12,
+RED-verified). typecheck 0; palette guard 6/6; @citadel/client 485/485. `?showcase` browser check skipped per
+user. Two chunks (opus pixel-art + Sonnet test). Spec todo → `closed/`. See status.md Wave-5 entry. Original
+plan below.
+
+<details><summary>Original Wave 5 plan (for the record)</summary>
 
 Spec: [2026-07-11-citadel-external-cc0-art-ingest.md](2026-07-11-citadel-external-cc0-art-ingest.md)
 (the CC0-ingest spike was **rejected with evidence** — do not re-run it; the todo's "Proposed
@@ -378,6 +387,8 @@ set; **browser-verified in `?showcase`** (UI/art is not done until seen in a bro
 
 Model: Sonnet executor chunks (the art-08..12 wave's precedent); opus only if a recipe needs
 a genuinely new primitive.
+
+</details>
 
 ---
 

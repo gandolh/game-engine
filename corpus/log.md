@@ -4,6 +4,38 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-13] wave | 5 DONE — distinct silhouettes for the 8 look-alike box-buildings; the dispatch plan is complete
+
+Wave 5, the last wave of the [remaining-work dispatch plan](todos/closed/2026-07-10-remaining-work-dispatch-plan.md)
+(now complete — all of 1, 2, 2.5, 3, 3.5, 4, 5 landed). Brief-less; spec was the
+[art-ingest todo](todos/closed/2026-07-11-citadel-external-cc0-art-ingest.md) whose CC0-ingest spike was
+rejected, leaving silhouette differentiation as the real work. Committed `0d6c1b3` (code) + this corpus change.
+Run via `plan-split-dispatch`: 1 opus chunk (pixel-art) + 1 Sonnet chunk (the independent test).
+
+**The defect:** 8 of 21 `BUILDING_RECIPES` (`house`, `bakery`, `woodcutter`, `market`, `public-square`,
+`watchpost`, `quarry`, `smith`, `sawmill`) rasterized to the same ~128×92 box with only a different roof
+colour — and colour is the axis the day/night wash degrades, so at dusk a bakery and a house converged. This
+contradicted `buildings.ts`'s own long-stated silhouette-first goal.
+
+**The fix:** each now reads with colour stripped, via new `iso-draw.ts` form-styles/primitives (all EDG32,
+within the 128×92 frame → zero atlas growth): `cottageStyle` gained `"cabin"` (woodcutter, reduced footprint)
+and `"forge"` (smith, open-sided canopy on posts + back hearth); bakery got a hipped roof + larger domed oven
+bulge + smoke plume; watchpost became a stilted raised platform that no longer reads as a house. `house` was
+kept as the plain reference the rest diverge from. The opus chunk judged `market`/`public-square`/`quarry`
+already distinct (alpha-mask evidence: market min pairwise 135, quarry's `openPit` already hutless) and left
+them to avoid regression — a defensible narrowing, confirmed by the test.
+
+**The independent test** (`buildings-silhouette.test.ts`, written by a separate chunk so the check stays out of
+the hand that drew the art) proves all 8 pairwise-distinguishable on `silhouette.test.ts`'s bottom-anchored
+alpha-mask Hamming metric: observed min house~bakery=19, floor set at 12, and RED-verified by forcing a
+collision. Scoped to the 8 targets — the pre-existing untouched near-pairs (mine~healer=6,
+storehouse~tradingpost=15) are out of this todo's scope.
+
+Gates: typecheck 0; EDG32 palette guard 6/6; @citadel/client 485/485. Per the user the `?showcase` browser
+verification was **skipped** at closeout (objective silhouette test stands; the visual eyeball is deferred).
+Follow-up filed: a Citadel palette re-evaluation todo (EDG32's gamut lacks the desaturated olive-grey midtones
+muted medieval naturals want — the same gap that sank the CC0-ingest spike).
+
 ## [2026-07-13] wave | 4 DONE — Challenge mode closed out; the dead decree levers re-point to autonomous sharp-mode behaviors
 
 Wave 4 of the [remaining-work dispatch plan](todos/2026-07-10-remaining-work-dispatch-plan.md) — brief 103,
