@@ -1,7 +1,7 @@
 # Brief 102 — Citadel disease counterplay (playtest P3, the last untouched finding)
 
 status: todo
-source: [todos/2026-06-22-citadel-playtest-findings.md](../../../todos/2026-06-22-citadel-playtest-findings.md) §P3 — the only finding from that pass never addressed.
+source: [todos/2026-06-22-citadel-playtest-findings.md](../../../todos/closed/2026-06-22-citadel-playtest-findings.md) §P3 — the only finding from that pass never addressed.
 
 ## Problem
 

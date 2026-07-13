@@ -167,7 +167,7 @@ for bootstrap (the 3-building bread chain produces nothing until all three are
 staffed). See the 2026-06-22 fix log entry.
 
 **Playtest/UX todos (2026-06-22):**
-- [playtest-findings](../todos/2026-06-22-citadel-playtest-findings.md) **(partial)**
+- [playtest-findings](../todos/closed/2026-06-22-citadel-playtest-findings.md) **(partial)**
   — growth death-spiral, silent placement rejects, and tier-lock cold-open spam are
   **fixed**; `grow` now holds pop 10–11/12 through a full year. Root cause was
   goods-vs-service worker priority (above), *not* the service-range hypothesis.
