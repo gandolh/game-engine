@@ -43,6 +43,64 @@ const TITHE_SIPHON_RATE = 0.1;
 const SERVICE_ARRIVAL_WEIGHT = 0.1;
 
 /**
+ * Wave 3.5 — the immigration TRICKLE FLOOR spacing (in-game days between settlers).
+ *
+ * The surplus gate ({@link ImmigrationSystem}'s post-founding branch) needs a positive
+ * daily bread surplus OR a full day's buffer banked. A town whose one staffed bakery
+ * feeds its ~6-7 mouths break-even has NEITHER — surplus sits at ~0 and bread never
+ * banks — so the gate never opens, and the second bakery it built to escape sits
+ * unstaffed forever because staffing it needs the arrival the gate blocks. Left alone
+ * the pop pins at 6-7 for 250+ days (23 buildings placed, bread 0): an UNRECOVERABLE
+ * attractor, which violates the downside rule (#9 — every problem throttles toward a
+ * floor, always recoverable; nothing ever fully stops).
+ *
+ * So the arrival flow throttles instead of halting: a fed town (not in deficit) with
+ * housing to spare and a connected building sitting unstaffed still receives one settler
+ * every N days. Deterministic day-count spacing — NO RNG roll decides it — so a town
+ * with a healthy surplus behaves exactly as before (the surplus branch fires first and
+ * this never engages). See the P1 todo (2026-07-11) for the full reproduction.
+ */
+const IMMIGRATION_TRICKLE_DAYS = 8;
+
+/**
+ * Wave 3.5 — the trickle stays OFF for this many days after a villager departs from
+ * hunger. `fed` (surplus ≥ 0) already blocks it in a deficit; this grace also blocks it
+ * across the oscillation right after a starvation departure, so the trickle can never
+ * feed a dying town back to immortality (the `starve` scenario must still reach
+ * `gameOver=true`).
+ */
+const TRICKLE_STARVE_GRACE_DAYS = 6;
+
+/**
+ * Wave 3.5 — does the immigration trickle floor fire this day? Pure, no RNG.
+ *
+ * Fires only when the normal post-founding arrival gate is STRUCTURALLY blocked
+ * (`!surplusEligible`) yet the town is obviously viable-but-stuck: it is fed (not in
+ * deficit today), has housing free, owns a connected building with no worker, has not
+ * lost anyone to hunger recently, and the spacing has elapsed. Given `fed` and
+ * `hasCapacity`, `!surplusEligible` reduces to "break-even bread with no banked buffer"
+ * — exactly the deadlock signature. A town with real surplus takes the surplus branch
+ * and never reaches here.
+ */
+export function shouldTrickleImmigrant(args: {
+  hasCapacity: boolean;          // population < popCap
+  unstaffedBuildings: number;    // connected producers with zero workers
+  fed: boolean;                  // foodSurplus >= 0 (not in deficit today)
+  surplusEligible: boolean;      // the normal post-founding arrival branch's condition
+  daysSinceStarveDepart: number; // +Infinity if a hunger departure never happened
+  daysSinceLastTrickle: number;  // +Infinity if the trickle has never fired
+}): boolean {
+  return (
+    args.hasCapacity &&
+    args.unstaffedBuildings > 0 &&
+    args.fed &&
+    !args.surplusEligible &&
+    args.daysSinceStarveDepart >= TRICKLE_STARVE_GRACE_DAYS &&
+    args.daysSinceLastTrickle >= IMMIGRATION_TRICKLE_DAYS
+  );
+}
+
+/**
  * The post-founding arrival probability for a town at `happiness` (0..100) whose
  * producers are served at `townService` (0..1). Stays inside the original
  * `0.7 .. 1.0` band at every input: 0.7 baseline, with the top 0.3 split between
@@ -69,6 +127,11 @@ export class ImmigrationSystem implements System {
   // 2026-06-27). In headless tests / replay this is tick-0 day, so behaviour is
   // unchanged; it only differs when building starts late (the live client).
   private readonly foundingAnchorDay = new Map<number, number>();
+  // Wave 3.5 — the immigration trickle floor's two per-player day-count clocks. Both
+  // are pure bookkeeping (no RNG); the trickle decision is a day-count comparison, so
+  // replays stay byte-identical and a town that never trickles is untouched.
+  private readonly lastTrickleDay = new Map<number, number>();       // last day a settler trickled in
+  private readonly lastStarveDepartDay = new Map<number, number>();  // last day a villager left from hunger
   private readonly rng: Rng;
   private readonly cozy: boolean;
 
@@ -236,6 +299,9 @@ export class ImmigrationSystem implements System {
     // alone deadlocked break-even-but-stocked towns (playtest P0).
     const fed = p.foodSurplus >= 0;
     const healthyBuffer = p.stockpiles.bread >= p.population;
+    // The normal post-founding arrival gate. Extracted so the trickle floor below can
+    // fire precisely when this is STRUCTURALLY blocked (not merely when its roll fails).
+    const surplusEligible = p.population < p.popCap && fed && (p.foodSurplus > 0 || healthyBuffer);
 
     if (needsFounder) {
       // Each founder arrives with a small bread ration. This is load-bearing for
@@ -247,7 +313,7 @@ export class ImmigrationSystem implements System {
       this.spawnVillager(p);
       p.stockpiles.bread += 5;
       p.hungerDays = 0;
-    } else if (p.population < p.popCap && fed && (p.foodSurplus > 0 || healthyBuffer)) {
+    } else if (surplusEligible) {
       // Brief 100 scope 2: arrivals track BOTH how happy the town is and how well its
       // producers are served. A well-laid town — goods moving, buffers empty — attracts
       // newcomers reliably; a poorly-connected one, whose goods rot at the door, keeps
@@ -267,7 +333,15 @@ export class ImmigrationSystem implements System {
     } else if (p.foodSurplus < 0) {
       p.hungerDays++;
       if (p.hungerDays >= 3) {
-        if (removeOneVillager(state, p)) {
+        // Wave 3.5: the hungry villager who leaves is a REDUNDANT one (a worker on a
+        // glutted-output producer), never the newest arrival — otherwise a break-even
+        // town's every settler, sent to staff the idle bakery, is the one starvation drops
+        // next, and the pop-6-7 attractor is unrecoverable (the P1 deadlock).
+        if (removeOneVillager(state, p, { preferRedundant: true })) {
+          // Wave 3.5: a hunger departure gates the trickle floor OFF for a few days
+          // (TRICKLE_STARVE_GRACE_DAYS) so it can never nurse a starving town — the
+          // `starve` scenario must still reach gameOver.
+          this.lastStarveDepartDay.set(p.id, state.day);
           // A hungry villager moves on when the larder runs dry. In cozy mode
           // this is a gentle population throttle (an immigrant soon replaces
           // them once food flows), so the toast reads as a nudge to shore up
@@ -283,6 +357,35 @@ export class ImmigrationSystem implements System {
       // Persistent empty bread is still hunger — don't reset the counter.
     } else {
       p.hungerDays = 0;
+    }
+
+    // Wave 3.5 — the immigration trickle floor. Only OUTSIDE the founding window (the
+    // founder path above owns arrivals during it, so this cannot move the seedTown /
+    // grow founding baseline) and only when the surplus gate is structurally blocked:
+    // one settler drips in every IMMIGRATION_TRICKLE_DAYS to a fed-but-break-even town
+    // with housing free and a connected building sitting unstaffed, breaking the pop-6-7
+    // attractor. The new arrival gets the same spin-up ration a founder does so it lives
+    // to staff the idle building. No RNG decides it (a day-count check), so a town that
+    // never trickles is byte-identical; spawnVillager's own draw only fires when a
+    // settler actually arrives — see shouldTrickleImmigrant.
+    if (!foundingWindow) {
+      const daysSinceStarveDepart = state.day - (this.lastStarveDepartDay.get(p.id) ?? -Infinity);
+      const daysSinceLastTrickle = state.day - (this.lastTrickleDay.get(p.id) ?? -Infinity);
+      if (
+        shouldTrickleImmigrant({
+          hasCapacity: p.population < p.popCap,
+          unstaffedBuildings,
+          fed,
+          surplusEligible,
+          daysSinceStarveDepart,
+          daysSinceLastTrickle,
+        })
+      ) {
+        this.spawnVillager(p);
+        this.lastTrickleDay.set(p.id, state.day);
+        p.stockpiles.bread += 5;
+        p.hungerDays = 0;
+      }
     }
 
     // Low happiness: even with food, villagers may leave

@@ -28,6 +28,21 @@ import type { BuildingEntity } from "../entities/building";
 import type { VillagerComponent } from "../entities/villager";
 import type { SimState } from "../sim-state";
 import { villagerWalkable, playerById } from "../sim-state";
+
+/**
+ * Wave 3.5 — the glut threshold, in days-of-supply, above which a producer's OUTPUT
+ * good counts as "already abundant". A SECOND worker on such a producer is wasted
+ * labour — it piles more of a good the town is drowning in while a scarcer good (bread)
+ * goes unproduced. So an arrival is steered PAST a glutted producer toward the scarce
+ * bottleneck (an idle bakery). This is what breaks the pop-6-7 attractor: without it a
+ * town's arrivals staff a second farm/mill (grain/flour glut to 500+) instead of the
+ * second bakery, so bread throughput never rises and every arrival eventually starves
+ * (the P1 deadlock — see immigration.ts). Bounded to already-staffed types (bootstrap's
+ * first-of-type is never skipped) with a no-skip fallback pass (a villager never idles
+ * when every producer is glutted). At pop 7 the threshold is 7×8 = 56, so grain 500 and
+ * flour 74 are skipped while bread 0 is not.
+ */
+const GLUT_WORKER_DAYS = 8;
 import { bfsPath } from "../world/pathfinder";
 
 /** Ticks a villager spends "working" before hauling output to a store. */
@@ -248,6 +263,30 @@ export class VillagerSystem implements System {
       [false, false, false], // service, converter, type already has workers
     ];
 
+    // Wave 3.5: the town's stockpile, for the glut-skip. A SECOND worker is not put on a
+    // producer whose output good the town already has in abundance — the arrival is sent
+    // to the scarce bottleneck instead (see GLUT_WORKER_DAYS). Two passes: the first
+    // skips glutted already-staffed producers; if that leaves the villager unplaced (every
+    // candidate was glutted), the second pass ignores the glut so it never idles for it.
+    const owner = playerById(state, v.ownerId);
+    if (this.tryAssignPass(v, staffedTypes, tiers, owner, true)) return;
+    this.tryAssignPass(v, staffedTypes, tiers, owner, false);
+    // No open slot found anywhere — remain idle.
+  }
+
+  /**
+   * One assignment attempt over the tier ladder. `skipGlut` steers a SECOND worker away
+   * from a producer whose output good is already abundant (bounded to already-staffed
+   * types so bootstrap is untouched). Returns true iff the villager was assigned.
+   */
+  private tryAssignPass(
+    v: VillagerComponent,
+    staffedTypes: Set<string>,
+    tiers: ReadonlyArray<readonly [boolean, boolean, boolean]>,
+    owner: ReturnType<typeof playerById>,
+    skipGlut: boolean,
+  ): boolean {
+    const state = this.state;
     for (const [wantGoods, wantPrimary, wantUnstaffedType] of tiers) {
       let best: BuildingEntity | null = null;
       let bestDist = Infinity;
@@ -267,6 +306,18 @@ export class VillagerSystem implements System {
         if (wantPrimary !== isPrimary) continue;
         const typeStaffed = staffedTypes.has(entity.building.type);
         if (wantUnstaffedType !== !typeStaffed) continue;
+        // Glut-skip: a SECOND worker on an already-stocked producer is wasted labour.
+        // Only for already-staffed types (bootstrap's first-of-type always staffs) and
+        // only on the first pass (the fallback pass ignores it so nobody idles for it).
+        if (
+          skipGlut &&
+          typeStaffed &&
+          def.outputGood !== undefined &&
+          owner !== undefined &&
+          owner.stockpiles[def.outputGood] >= GLUT_WORKER_DAYS * Math.max(1, owner.population)
+        ) {
+          continue;
+        }
         const b = entity.building;
         const cx = b.x + Math.floor(b.w / 2);
         const cy = b.y + Math.floor(b.h / 2);
@@ -278,9 +329,9 @@ export class VillagerSystem implements System {
       }
       if (best !== null) {
         const id = best.id;
-        if (id === undefined) return;
+        if (id === undefined) return false;
         const rs = state.buildingState.get(id);
-        if (rs === undefined) return;
+        if (rs === undefined) return false;
         rs.workerCount++;
         const b = best.building;
         v.workX = b.x + Math.floor(b.w / 2);
@@ -295,10 +346,10 @@ export class VillagerSystem implements System {
         }
         this.planPath(v, v.homeX, v.homeY, v.workX, v.workY);
         v.fsm = "walkToWork";
-        return;
+        return true;
       }
     }
-    // No open slot found anywhere — remain idle.
+    return false;
   }
 
   private firstStore(ownerId: number): { x: number; y: number } | null {

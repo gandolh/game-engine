@@ -19,6 +19,7 @@
 import type { World } from "@engine/core";
 import { OccupancyGrid } from "@engine/core";
 import type { GoodType, BuildingRuntimeState, BuildingEntity } from "./entities/building";
+import { getProductionDef } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
 import type { Rng } from "@engine/core";
 import type { SettlementTier } from "./systems/tiers";
@@ -343,9 +344,35 @@ export function villagerWalkable(state: SimState, tx: number, ty: number): boole
  * `p.population` without going through here (or an equivalent despawn) leaves
  * phantom villagers on the map.
  */
-export function removeOneVillager(state: SimState, p: PlayerState): boolean {
+/** Days-of-supply above which a producer's output good counts as glutted (shared with
+ *  villager-system's glut-skip). A worker on such a producer is redundant labour. */
+const GLUT_WORKER_DAYS = 8;
+
+export function removeOneVillager(state: SimState, p: PlayerState, opts: { preferRedundant?: boolean } = {}): boolean {
+  // Which good-type has a worker on `entity`, and is that good already glutted? A worker
+  // on a glutted-output producer is REDUNDANT — its labour piles a good the town is
+  // drowning in. Used only for the starvation departure (preferRedundant): a villager who
+  // "leaves to find food" should be a redundant one, NOT the newest arrival. Removing the
+  // newest (below) makes the pop-6-7 attractor unrecoverable — every settler sent to staff
+  // the idle bakery is the very one starvation drops next, so bread throughput can never
+  // rise (the P1 deadlock). Disease/raid casualties don't pass the flag, so they still
+  // take the newest.
+  const glutThreshold = GLUT_WORKER_DAYS * Math.max(1, p.population);
+  const isRedundant = (v: VillagerEntity["villager"]): boolean => {
+    for (const be of state.buildingWorld.query("building")) {
+      const b = be.building;
+      if (v.workX >= b.x && v.workX < b.x + b.w && v.workY >= b.y && v.workY < b.y + b.h) {
+        const def = getProductionDef(b.type);
+        return def?.outputGood !== undefined && p.stockpiles[def.outputGood] >= glutThreshold;
+      }
+    }
+    return false;
+  };
+
   let victimId = -1;
   let victim: VillagerEntity | null = null;
+  let redundantId = -1;
+  let redundant: VillagerEntity | null = null;
   for (const entity of state.villagerWorld.query("villager")) {
     if (entity.villager.ownerId !== p.id) continue;
     const vid = entity.villager.id;
@@ -353,7 +380,13 @@ export function removeOneVillager(state: SimState, p: PlayerState): boolean {
       victimId = vid;
       victim = entity;
     }
+    if (opts.preferRedundant === true && isRedundant(entity.villager) && vid > redundantId) {
+      redundantId = vid;
+      redundant = entity;
+    }
   }
+  // Prefer dropping a redundant worker (glutted-output producer) when asked; else the newest.
+  if (redundant !== null) victim = redundant;
   if (victim === null) return false;
   const v = victim.villager;
   // Free the worker slot if this villager was assigned to a workplace building.
