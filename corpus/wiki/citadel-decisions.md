@@ -167,7 +167,7 @@ rules already say. Diegetic feedback (#8, #10), not a new mechanic.
 
 `ArmySystem` + `launchAttack` freeze behind `enableArmy`, **default flipped to `false`**, unreached by
 any caller. ⚠️ Gate the handler in the same change as the flip, or you create the unbounded
-`state.armies` bug #15 warned of. Work: [brief 113](../briefs/game/todo/113-citadel-raid-gets-a-body.md).
+`state.armies` bug #15 warned of. Work: [brief 113](../briefs/game/done/113-citadel-raid-gets-a-body.md).
 
 ### #24 — Challenge mode is solo-only
 See the note on #13. It sheds lethal PvP (#23) and the MP bundle (#21), keeping `cozyThreats:false`,
@@ -195,7 +195,7 @@ Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 
 |---|---|
 | [110](../briefs/game/done/110-citadel-client-world-size.md) world size | **DONE** (`0fd66c0`, after part 1 `8e930f3`). Reshaped: *solo grows to 192*, not *client adopts server*. |
 | [100](../briefs/game/done/100-citadel-economy-growth-pass.md) economy growth | **DONE** 2026-07-10. Curve `0.6 → 1.0 → 1.25` shipped; `grow` 60d pop **12**/18, in the 12–15 target. |
-| [113](../briefs/game/todo/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23). Filed, not built. |
+| [113](../briefs/game/done/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23). Filed, not built. |
 | [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Solo-only (#24). Unblocked, unbuilt. |
 | [105](../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md) crowd honesty | Reshaped: ambient-crowd half only. The MP owner-filter half is deprecated with MP. |
 | [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md) room keys | **Superseded** (#21). Its hazard is real; it is a revival precondition. |

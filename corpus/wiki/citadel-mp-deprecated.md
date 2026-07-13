@@ -83,7 +83,7 @@ design**; that is the intent, not an omission. Say so in the code, not by a sile
 
 - **Armies.** Decision **#23** froze `ArmySystem` and flipped `enableArmy` to default `false`. Its
   marching machinery is being reused as the body of the cozy PvE raid
-  ([brief 113](../briefs/game/todo/113-citadel-raid-gets-a-body.md)). Reviving MP does **not** revive
+  ([brief 113](../briefs/game/done/113-citadel-raid-gets-a-body.md)). Reviving MP does **not** revive
   PvP; that is a separate design question, and #15's argument for it (*"cozy MP has no winner, no
   score, no ending — an army has nothing to be for"*) still stands.
 - **The 256×256 world.** The server ran it because it was typed into
