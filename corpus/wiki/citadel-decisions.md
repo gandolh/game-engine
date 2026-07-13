@@ -43,7 +43,7 @@ set `keepSacked` + `gameOver`) — **two defaults colliding, not a design.**
 outright and `enableArmy` defaults `false`, so the collision is gone at its root.
 
 ### #13 — Challenge mode is the home of every sharp system
-[Brief 103](../briefs/game/todo/103-citadel-challenge-mode.md) is approved and gets built: it owns
+[Brief 103](../briefs/game/done/103-citadel-challenge-mode.md) is approved and gets built: it owns
 `cozyThreats:false` (destructive fire, lethal disease, sacking raids), giving the frozen sharp path a
 real consumer so its two-branch test burden stops being dead weight.
 
@@ -189,6 +189,26 @@ about to quadruple, so the world lands first. Then the tail: 102, 99, 106, 104, 
 
 Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 18, engine 19 (parked).
 
+## 2026-07-13 (brief 103 closeout)
+
+### #27 — Retired decrees re-point to autonomous sharp-mode behaviors, not a resurrected lever
+The Phase-G purge removed the `setDecree` command/UI but left three branches reading `p.activeDecrees` —
+a set nothing writes anymore, so they were dead in real play. Brief 103 scope 2 asked whether Challenge
+should get decrees back or the sharp systems should read something else. **Decision: re-point, don't
+resurrect.** Each former decree becomes an autonomous behavior gated on the sharp path (`cozyThreats:false`),
+so the cozy baseline is byte-identical *by construction* (the branches never execute when `cozy=true`):
+- **conscription** → wall-manning defense term applies during an active raid in sharp mode
+  (`computeDefensiveStrength` gained a `cozy` param).
+- **rationing** → 25% consumption cut auto-engages only in sharp mode *and* only in bread deficit
+  (a reactive famine response, not a standing cut).
+- **tithe → relief-reserve cushion** → siphons **bread only** (`floor(bread·0.10)`/day) into the reserve
+  in sharp mode. Bread-only, not all-goods: the cushion only ever withdraws `reliefReserve.bread`, so
+  taxing tools/wood/stone was a purposeless drag (and silently eroded `army.test.ts`'s exact tool counts).
+
+Follows the same shape as the earlier Phase-G re-points (festival → public-square proximity, work-hours →
+town-hall proximity): a player toggle becomes an autonomous, state-driven effect. `activeDecrees` itself is
+left in place (a harmless always-empty set + snapshot passthrough); removing it is a separate cleanup.
+
 ## Consequences at a glance
 
 | Brief | Status after the second session |
@@ -196,7 +216,7 @@ Deprecated or parked with reasons: 109, 111, 112 (superseded); 101, 107, engine 
 | [110](../briefs/game/done/110-citadel-client-world-size.md) world size | **DONE** (`0fd66c0`, after part 1 `8e930f3`). Reshaped: *solo grows to 192*, not *client adopts server*. |
 | [100](../briefs/game/done/100-citadel-economy-growth-pass.md) economy growth | **DONE** 2026-07-10. Curve `0.6 → 1.0 → 1.25` shipped; `grow` 60d pop **12**/18, in the 12–15 target. |
 | [113](../briefs/game/done/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23). Filed, not built. |
-| [103](../briefs/game/todo/103-citadel-challenge-mode.md) Challenge mode | Solo-only (#24). Unblocked, unbuilt. |
+| [103](../briefs/game/done/103-citadel-challenge-mode.md) Challenge mode | **DONE** 2026-07-13 (`c2caecc`). Solo-only (#24); decrees re-pointed (#27). |
 | [105](../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md) crowd honesty | Reshaped: ambient-crowd half only. The MP owner-filter half is deprecated with MP. |
 | [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md) room keys | **Superseded** (#21). Its hazard is real; it is a revival precondition. |
 | [112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | **Superseded** (#23). Moot — there is no cozy MP. The `enableArmy` default flip survives into 110. |

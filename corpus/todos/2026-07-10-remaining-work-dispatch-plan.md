@@ -1,6 +1,6 @@
 # Remaining-work dispatch plan (2026-07-10)
 
-status: **in progress — Waves 1, 2 done; 2.5, 3, 4, 5 open.** Resumable: each wave is an
+status: **in progress — Waves 1, 2, 2.5, 3, 3.5, 4 done; Wave 5 open (last).** Resumable: each wave is an
 independent `plan-split-dispatch` run. Tick the checkboxes as waves land; the plan survives
 a context loss.
 
@@ -300,7 +300,21 @@ edge is long enough to be readable. On the old 96×96 it would have arrived almo
 
 ---
 
-### [ ] Wave 4 — Challenge mode (last)
+### [x] Wave 4 — Challenge mode — **DONE 2026-07-13** (`c2caecc`)
+
+Landed: **103**. Scope 1 (mode plumbing + in-canvas cozy/challenge picker) was already in code
+(`658bbeb`/`f65112d`) and correct — needed only test coverage (worker `mode→flags` mapping +
+`enableArmy`/`deferThreatsUntilBuildings` round-trips). Scope 2: the three dead decree branches
+(`activeDecrees` unwritten since the Phase-G purge) **re-pointed to autonomous `cozyThreats:false`-gated
+behaviors** (decision #27 — conscription in a sharp raid; rationing only in sharp famine; tithe→relief-reserve
+cushion, **bread-only**). Cozy byte-identical by construction; no new RNG. Scope 3 rests on the passing
+`sharp-raid-path.test.ts` reachability guard. Gates: typecheck 0; @citadel/sim-core 309/309; @citadel/client
+483/483. Determinism ×3 + browser playtest **consciously skipped at closeout** (user call — no RNG change,
+cozy gated off). One junior + one senior chunk (the senior chunk owned the sim re-point + the falsified-test
+rewrite; the collision — tithe eroding `tools` — was resolved by the bread-only design call). Brief moved to
+`done/`. See the status.md Wave-4 entry + [citadel-decisions.md](../wiki/citadel-decisions.md) #27.
+
+<details><summary>Original Wave 4 plan (for the record)</summary>
 
 **103 depends on Wave 3.** Challenge is a solo preset of `cozyThreats:false`, no `seedTown`,
 no threat-defer; `enableArmy` stays **false** (decision #24 — there is no second player to
@@ -338,6 +352,8 @@ Dependency note: 97 chunk 4 (ghost workers) is **already satisfied** — brief 9
 
 **Gates:** cozy default path **byte-identical**; regression-guard both modes' baselines ×3;
 challenge run playable in a real browser.
+
+</details>
 
 ---
 

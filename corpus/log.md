@@ -4,6 +4,49 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-13] wave | 4 DONE — Challenge mode closed out; the dead decree levers re-point to autonomous sharp-mode behaviors
+
+Wave 4 of the [remaining-work dispatch plan](todos/2026-07-10-remaining-work-dispatch-plan.md) — brief 103,
+committed `c2caecc` (code) + this corpus change. Run via `orchestrate` → `plan-split-dispatch` (opus
+controller, 1 junior + 1 senior chunk).
+
+**Scope 1 was already in code.** The mode plumbing (worker presets `cozyThreats:false`/`seedTown:false`/
+`deferThreatsUntilBuildings:0`/`enableArmy:false` for `mode:"challenge"`) and the in-canvas cozy/challenge
+picker landed earlier (`658bbeb`/`f65112d`) but were never closed out or tested. A read-only audit confirmed
+all four flags round-trip correctly through `serializeSave`/`loadFromSave` and the modal→worker wiring is
+intact — so scope 1 only needed the missing **test coverage** (a worker `mode→flags` mapping test, and
+`enableArmy`/`deferThreatsUntilBuildings` save/load round-trips).
+
+**Scope 2's real work was dead decree branches, not a broken sharp path.** The headline "what rotted" — the
+inert `sack` fixture — was already fixed 2026-07-11 (`sharp-raid-path.test.ts` guards reachability). What
+remained: three branches reading `p.activeDecrees`, a set nothing has written since the Phase-G purge of the
+`setDecree` lever. Per **[decision #27](wiki/citadel-decisions.md)** they were **re-pointed to autonomous
+behaviors gated on the sharp path** (`cozyThreats:false`), not resurrected as UI:
+- conscription → the wall-manning defense term applies during an active sharp raid;
+- rationing → the 25% consumption cut auto-engages only in sharp mode *and* only in bread deficit;
+- tithe → relief-reserve cushion → siphons **bread only** into the reserve in sharp mode.
+
+Cozy is byte-identical **by construction** (the `!cozy` branches never execute when `cozy=true`), confirmed by
+the existing cozy guards. Falsified decree tests were rewritten to the new truth (trigger via
+`cozyThreats:false`, cozy negatives kept as byte-identity guards) with **un-weakened** assertions.
+
+**The bread-only tithe was a design call the build surfaced.** The first pass re-pointed the tithe as
+"siphon 10% of *every* good" (its historical decree semantics). Both a parallel chunk and the verify gate
+caught that this silently eroded `army.test.ts`'s exact tool counts. The controller adjudicated: the
+tithe→reserve→cushion chain exists solely to buffer *bread* famine (the cushion only ever withdraws
+`reliefReserve.bread`), so taxing tools/wood/stone was a purposeless drag — narrowed to **bread only**, which
+made the mechanic purposeful *and* resolved the collision with no contortion of the army tests.
+
+**Gates:** typecheck 0; @citadel/sim-core **309/309**; @citadel/client **483/483** (a pre-existing
+`@engine/ui` symlink gap that broke client test-loading was fixed with `npm install` — untracked `node_modules`,
+no source change). Pure integer arithmetic, **no new RNG draws**. The determinism ×3 + real-browser
+`playtest-citadel` acceptance gates were **consciously skipped at closeout** (user call): no RNG change ⇒
+reproducibility unaffected, cozy byte-identical by construction, and `sharp-raid-path.test.ts` already proves
+the challenge start→Town→keep→raid→sack chain is reachable headlessly.
+
+`activeDecrees` itself is left in place (a harmless always-empty set + snapshot passthrough); removing it is a
+separate cleanup. **Next: Wave 5** (building silhouette differentiation, render-only — the last wave).
+
 ## [2026-07-13] wave | 3.5 DONE — the pop-6-7 deadlock breaks; the blocker was worker allocation, not immigration
 
 Wave 3.5 shipped as `bbca1e9`. The P1 [solo-town-tier deadlock](todos/closed/2026-07-11-citadel-solo-town-tier-unreachable.md) had its root-cause narrative **corrected a second time**. The todo (itself the corrected replacement of an even-earlier "unreachable" claim) diagnosed an *immigration hard-stop at zero bread surplus* and scoped an immigration trickle floor. Built that first — it is clean, byte-identical on every baseline, unit-tested (10 tests), covers the isolated single-bakery break-even case — **and it made zero difference to the actual deadlock** (the todo-exact drip ended at pop 7/Village with *and* without it).

@@ -1,6 +1,6 @@
 # Brief 103 — Citadel Challenge mode (unfreeze the sharp systems as an opt-in mode)
 
-status: todo (design-first) — **approved (decision #13), reshaped 2026-07-10 second session (decision #24): Challenge is SOLO-ONLY.**
+status: **DONE 2026-07-13** (Wave 4, `c2caecc`) — approved (decision #13), reshaped 2026-07-10 second session (decision #24): Challenge is SOLO-ONLY. Scope 1 (mode plumbing + in-canvas cozy/challenge picker) landed `658bbeb`/`f65112d` and is now test-covered; scope 2 re-pointed the three dead decree levers onto autonomous `cozyThreats:false`-gated inputs (`c2caecc`); scope 3 (playable start→sack-or-survive) rests on the passing `sharp-raid-path.test.ts` reachability guard — the browser/determinism ×3 gates were consciously skipped at closeout (no new RNG; cozy byte-identical by construction).
 
 > ⚠️ **Reshaped.** This brief used to say Challenge was the home of *every* sharp system, including the
 > PvP armies decision #15 relocated here, "so it must at minimum support MP." Both halves of that are
