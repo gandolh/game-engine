@@ -39,13 +39,14 @@ export class CitadelSimClient {
    * client/sim size disagreement unrepresentable (brief 110). Omit to take the
    * sim's defaults.
    */
-  init(seed: number, ticksPerDay: number, worldWidth?: number, worldHeight?: number): void {
+  init(seed: number, ticksPerDay: number, worldWidth?: number, worldHeight?: number, mode?: "cozy" | "challenge"): void {
     this.send({
       type: "init",
       seed,
       ticksPerDay,
       ...(worldWidth !== undefined ? { worldWidth } : {}),
       ...(worldHeight !== undefined ? { worldHeight } : {}),
+      ...(mode !== undefined ? { mode } : {}),
     });
   }
 

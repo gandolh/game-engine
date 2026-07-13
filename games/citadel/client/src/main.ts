@@ -1767,7 +1767,14 @@ async function boot(): Promise<void> {
   // Hand the sim the dims of the terrain we just baked, so solo cannot desync from
   // its own worker (brief 110). The MP client ignores them — there the server owns
   // the world.
-  client.init(SEED, TICKS_PER_DAY, terrain.width, terrain.height);
+  // Brief 103: `?challenge` selects the sharp ruleset (fire razes, disease kills, raids can
+  // sack; no seeded core, no threat grace). Ignored in MP (?mp) — the server owns the ruleset.
+  // The in-canvas new-game picker (below) is the primary path; this URL flag is the fast one.
+  const soloMode: "cozy" | "challenge" =
+    typeof location !== "undefined" && new URLSearchParams(location.search).has("challenge")
+      ? "challenge"
+      : "cozy";
+  client.init(SEED, TICKS_PER_DAY, terrain.width, terrain.height, soloMode);
   updateModeLabel();
   requestAnimationFrame(loop);
 }

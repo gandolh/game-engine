@@ -64,6 +64,11 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
   switch (msg.type) {
     case "init": {
+      // Brief 103: Challenge is a call-site PRESET of the flat flags (decision #19 — no
+      // mode enum in the sim). Sharp threats, no seeded alive-core, no threat-defer; the
+      // destructive fire/disease/raid path (cozyThreats:false) is byte-identical to the
+      // frozen sharp systems. `enableArmy` stays false either way (no second player — #23).
+      const challenge = msg.mode === "challenge";
       simResult = bootstrapSim({
         seed: msg.seed,
         ticksPerDay: msg.ticksPerDay,
@@ -77,8 +82,9 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         // cold-open can place its first buildings. MP (the @citadel/server bootstrap) keeps
         // placement free for now. See BUILD_COST in @citadel/sim-core.
         chargeBuildCost: true,
-        // Cozy-pivot Phase D: threat demotion on (the default; stated explicitly for clarity).
-        cozyThreats: true,
+        // Cozy-pivot Phase D: threat demotion on for cozy; OFF for challenge (fire razes,
+        // disease kills, a raid can sack — the frozen sharp path, byte-identical).
+        cozyThreats: !challenge,
         // Cozy pivot Phase G: solo is single-player — freeze PvP army resolution (a no-op here
         // already, since the armies list is always empty in solo). MP (@citadel/server) keeps
         // the default (true).
@@ -90,11 +96,13 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
         // Cozy cold-open (Phase C): pre-seed a small connected alive town core (bread chain +
         // house + storehouse + roads at map center) so solo play opens on a living town instead
         // of an empty map. MP (the @citadel/server bootstrap) keeps placement free / no seed.
-        seedTown: true,
+        // Challenge opens on an EMPTY map (no gift core) — the player founds the town under
+        // sharp rules from the first tile; cozy opens on the seeded alive core.
+        seedTown: !challenge,
         // Cozy cold-open (Phase C): defer fire/disease/raids until the town grows past the seeded
-        // core. The seed is 5 non-road buildings, so threats first become possible once the player
-        // adds their 6th — the first ~5 buildings' worth of play is forgiving, threat-free.
-        deferThreatsUntilBuildings: 6,
+        // core (5 non-road buildings → threats begin at the 6th). Challenge has NO grace: threats
+        // from day 0 (deferThreatsUntilBuildings 0).
+        deferThreatsUntilBuildings: challenge ? 0 : 6,
       });
       tick = 0;
       paused = false;

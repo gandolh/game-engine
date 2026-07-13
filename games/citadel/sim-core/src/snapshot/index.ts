@@ -259,7 +259,11 @@ export type WorkerInbound =
   //
   // The deprecated MP server ignores these: there the server owns the world, and
   // decision #14 has it ship the grid to the client rather than trust a peer's size.
-  | { type: "init"; seed: number; ticksPerDay: number; worldWidth?: number; worldHeight?: number }
+  // `mode` (brief 103): the SOLO worker maps this to the flat bootstrap flag bundle —
+  // "challenge" = sharp threats (cozyThreats:false), no seeded alive-core (seedTown:false),
+  // no threat-defer. The SIM never sees a mode enum (decision #19); only the worker
+  // translates it. Omitted ⇒ "cozy" (the forgiving default). The MP server ignores it.
+  | { type: "init"; seed: number; ticksPerDay: number; worldWidth?: number; worldHeight?: number; mode?: "cozy" | "challenge" }
   | { type: "pause" }
   | { type: "resume" }
   | { type: "speed"; multiplier: number }

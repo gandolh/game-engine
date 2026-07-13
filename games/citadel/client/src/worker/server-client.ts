@@ -77,7 +77,8 @@ export class CitadelServerClient {
    * a different world. Decision #14 (unimplemented) fixes that by shipping the grid
    * from the server. See wiki/citadel-mp-deprecated.md before reviving this.
    */
-  init(seed: number, ticksPerDay: number, _worldWidth?: number, _worldHeight?: number): void {
+  init(seed: number, ticksPerDay: number, _worldWidth?: number, _worldHeight?: number, _mode?: "cozy" | "challenge"): void {
+    // MP: the server owns the ruleset; the client's mode preset does not apply here.
     this.send({ type: "init", seed, ticksPerDay });
   }
 
