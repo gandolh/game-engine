@@ -51,6 +51,12 @@
          buttons); the mirror still exposes the live text to screen readers. -->
     <div id="ui-a11y-siege"></div>
 
+    <!-- Brief 103: a SEVENTH hidden a11y-mirror host, for the in-canvas new-game mode picker
+         (src/ui/new-game-modal.ts) — the cozy/challenge choice shown before the solo sim is
+         inited. Two real <button>s in the mirror, so the founding choice is reachable by
+         screen readers + the keyboard. Empty once a mode is chosen (the picker never reopens). -->
+    <div id="ui-a11y-newgame"></div>
+
     <!-- engine-ui chunk 7: the settlement readout (tier/day/pop/bread/wood/happiness) and
          the speed/pause controls are rendered IN-CANVAS via @engine/ui (see
          src/ui/resource-hud.ts). Chunk 1A moved the last gameplay readouts (siege/hazard status

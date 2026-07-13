@@ -9,7 +9,7 @@
  *          + downloadable JSON blob).
  */
 import "./style.css";
-import { generateTerrain, getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
+import { generateTerrain, findCoreBox, getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, CORE_BOX_W, CORE_BOX_H } from "@citadel/sim-core";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, CitadelSave, SettlementTier, RenderSnapshot, BarterOffer } from "@citadel/sim-core";
 import { EDG, ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
@@ -84,6 +84,8 @@ import {
 } from "./render/coverage";
 import { PlacementStateManager } from "./ui/placement-state";
 import { SettingsModal } from "./ui/settings-modal";
+import { NewGameModal } from "./ui/new-game-modal";
+import type { GameMode } from "./ui/new-game-modal";
 import { ToastManager, newEventsSince } from "./ui/toast";
 import { CitadelMinimap, MINIMAP_FACE } from "./ui/minimap";
 import type { IsoProjection } from "./render/iso";
@@ -266,6 +268,20 @@ const settingsA11yMount = document.getElementById("ui-a11y-settings");
 // Tracks whether the settings modal had its post-open layout/mirror reconcile run, so a fresh
 // open re-syncs the (just-mutated) control state into the a11y view exactly once.
 let settingsLaidOut = false;
+
+// New-game mode picker (brief 103): a SEVENTH in-canvas UI root — the cozy/challenge choice, shown
+// at boot BEFORE `client.init()` runs, so the sim starts under the ruleset the player picked. Same
+// shape as the settings modal (centred dialog, own dispatcher + own hidden a11y mount) with one
+// difference: it is NOT dismissable (no Close, no Escape) — until it is answered there is no game.
+// Created in boot() (it needs to know whether a URL flag already answered it); undefined until then.
+let newGameModal: NewGameModal | undefined;
+let newGameDispatcher: InputDispatcher | undefined;
+let newGameMirror: A11yMirror | undefined;
+const newGameA11yMount = document.getElementById("ui-a11y-newgame");
+/** True while the picker is up — the sim has not been inited, so nothing may drive the world. */
+function newGameOpen(): boolean {
+  return newGameModal?.isOpen() ?? false;
+}
 // The bar is laid out at the bottom-left only when first shown or the canvas height changes
 // (labels are fixed → layout depends only on the bottom anchor). `barTopY` is its top edge.
 let barLaidOutH = -1;
@@ -366,6 +382,17 @@ canvas.addEventListener("mousedown", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
   const btn = pointerButtonOf(e);
+  // Brief 103: the new-game picker outranks every other root. While it is up the sim has not been
+  // inited (no snapshot, no world to act on), so it takes the press and NOTHING else sees it — not
+  // the HUD, not the build bar, not the world. Same "truly modal" swallow the settings modal does,
+  // but total: no other dispatcher is even forwarded to.
+  if (newGameOpen()) {
+    newGameDispatcher?.pointerDown(x, y, btn);
+    newGameMirror?.setFocus(newGameDispatcher?.focused()?.id ?? null);
+    uiPressActive = true; // the release belongs to this gesture too (activates the pressed button)
+    e.stopImmediatePropagation();
+    return;
+  }
   // Settings modal: while open it overlays everything, so it gets first refusal on a press —
   // and a press anywhere while it's open should not fall through to the world (it's modal).
   const settingsC = settingsDispatcher?.pointerDown(x, y, btn).consumed ?? false;
@@ -407,6 +434,16 @@ canvas.addEventListener("mouseup", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
   const btn = pointerButtonOf(e);
+  // Brief 103: the picker's release ACTIVATES the pressed mode button, which calls startGame() and
+  // closes the picker — so `newGameOpen()` flips to false inside this very call. Capture it first,
+  // and keep owning the rest of the gesture (the following `click` must not reach the world).
+  if (newGameOpen()) {
+    newGameDispatcher?.pointerUp(x, y, btn);
+    e.stopImmediatePropagation();
+    uiGestureWasUI = true;
+    uiPressActive = false;
+    return;
+  }
   // Always forward to both so a UI press completes/activates, but only block the world when the
   // UI owns this gesture (uiPressActive). A world-owned release — even over the HUD — must reach
   // the world handler so road/wall drags commit.
@@ -428,6 +465,12 @@ canvas.addEventListener("mousemove", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
   const btn = pointerButtonOf(e);
+  // Brief 103: picker up → it owns hover (its buttons still light up), the world sees nothing.
+  if (newGameOpen()) {
+    newGameDispatcher?.pointerMove(x, y, btn);
+    e.stopImmediatePropagation();
+    return;
+  }
   // ALWAYS forward to both so hover visuals update, but only block the world (pan/drag) when the
   // UI owns the active gesture. Mere hover must NOT block world pan/drag.
   uiDispatcher.pointerMove(x, y, btn);
@@ -452,6 +495,12 @@ canvas.addEventListener("click", (e) => {
 canvas.addEventListener("wheel", (e) => {
   if (uiDispatcher === undefined) return;
   const { x, y } = eventToCssPx(e);
+  // Brief 103: picker up → no zooming the (empty) world behind the founding choice.
+  if (newGameOpen()) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
   const hudC = uiDispatcher.wheel(x, y, e.deltaY).consumed;
   const inspectC = inspectDispatcher?.wheel(x, y, e.deltaY).consumed ?? false;
   const villagerC = villagerDispatcher?.wheel(x, y, e.deltaY).consumed ?? false; // FIX B
@@ -478,6 +527,19 @@ canvas.addEventListener("wheel", (e) => {
 window.addEventListener("keydown", (e) => {
   if (uiDispatcher === undefined) return;
   const active = document.activeElement as HTMLElement | null;
+  // Brief 103: while the picker is up it is the ONLY keyboard target — every world/HUD key handler
+  // is blocked (there is no sim to drive yet). When one of its mirror <button>s holds DOM focus,
+  // native Tab/Enter + the mirror's own listeners drive it, so don't fight them (same guard the
+  // other mirrors get); either way the event stops here. No Escape wiring: it is not dismissable.
+  if (newGameOpen()) {
+    const inMirror = active !== null && newGameA11yMount !== null && newGameA11yMount.contains(active);
+    if (!inMirror) {
+      newGameDispatcher?.key({ key: e.key, shiftKey: e.shiftKey });
+      newGameMirror?.setFocus(newGameDispatcher?.focused()?.id ?? null);
+    }
+    e.stopImmediatePropagation();
+    return;
+  }
   if (active !== null && a11yMount !== null && a11yMount.contains(active)) return;
   // Same mirror-focus guard for the inspect panel's own a11y mount: when a real inspect mirror
   // <button> holds DOM focus, native Tab/Enter + the mirror's listeners drive it — don't fight.
@@ -1598,6 +1660,18 @@ function loop(): void {
       renderTree(uiSurface, settingsModal.root);
     }
 
+    // Brief 103: the new-game picker — rendered LAST of all, above even the settings modal, because
+    // until it is answered no game exists. Same centred measure → re-anchor as the modal above; the
+    // mirror is reconciled every frame while open and dropped (update(null)) once a mode is chosen.
+    if (newGameModal !== undefined && newGameModal.isOpen()) {
+      computeLayout(newGameModal.root, 0, 0); // measure → dialog size
+      const nx = Math.max(8, (canvas.clientWidth - newGameModal.root.rect.width) / 2);
+      const ny = Math.max(8, (canvas.clientHeight - newGameModal.root.rect.height) / 2);
+      computeLayout(newGameModal.root, nx, ny); // anchor centred
+      newGameMirror?.update(newGameModal.root);
+      renderTree(uiSurface, newGameModal.root);
+    }
+
     uiSurface.end();
   }
 
@@ -1764,19 +1838,66 @@ async function boot(): Promise<void> {
     camera.setCenter(c.x, c.y);
   });
 
-  // Hand the sim the dims of the terrain we just baked, so solo cannot desync from
-  // its own worker (brief 110). The MP client ignores them — there the server owns
-  // the world.
-  // Brief 103: `?challenge` selects the sharp ruleset (fire razes, disease kills, raids can
-  // sack; no seeded core, no threat grace). Ignored in MP (?mp) — the server owns the ruleset.
-  // The in-canvas new-game picker (below) is the primary path; this URL flag is the fast one.
-  const soloMode: "cozy" | "challenge" =
-    typeof location !== "undefined" && new URLSearchParams(location.search).has("challenge")
-      ? "challenge"
-      : "cozy";
-  client.init(SEED, TICKS_PER_DAY, terrain.width, terrain.height, soloMode);
-  updateModeLabel();
+  // Brief 103: the ruleset is chosen at founding, in-canvas, BEFORE the sim is inited — the
+  // picker is a SEVENTH UI root with its own dispatcher + a11y mirror (mounts wired here, exactly
+  // like the settings modal's). It is not dismissable, so no Escape/close wiring.
+  //
+  // Two paths skip it and start immediately:
+  //   - MP (`?mp`): the server owns the ruleset, so there is nothing for a solo picker to choose.
+  //   - the URL fast-path (`?challenge` / `?cozy`): the dev/playtest shortcut, which is why it
+  //     stays — a scripted browser run must be able to enter a mode without a click.
+  const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
+  const urlMode: GameMode | null = params.has("challenge") ? "challenge" : params.has("cozy") ? "cozy" : null;
+  const preChosen: GameMode | null = useServer ? "cozy" : urlMode;
+  newGameModal = new NewGameModal(
+    { onChoose: (mode) => startGame(mode) },
+    { openAtStart: preChosen === null },
+  );
+  newGameDispatcher = createInputDispatcher(() => (newGameOpen() ? newGameModal?.root ?? null : null));
+  if (newGameA11yMount !== null) {
+    newGameMirror = createA11yMirror(newGameA11yMount, {
+      rootLabel: "New game",
+      onFocusNode: (id) => {
+        if (newGameDispatcher === undefined) return;
+        if (id === null) newGameDispatcher.blur();
+        else newGameDispatcher.focus(id);
+      },
+    });
+  }
+
+  // The loop runs either way: while the picker is up it renders the (unpopulated) world + the
+  // dialog, and the HUD reads its zero-state — no snapshot arrives until `client.init()` is called.
+  if (preChosen !== null) startGame(preChosen);
   requestAnimationFrame(loop);
+}
+
+/**
+ * Start the sim under the chosen ruleset (brief 103). Called either by the in-canvas picker or,
+ * on the `?mp` / `?challenge` / `?cozy` fast-paths, straight from boot(). Runs exactly once.
+ *
+ * Hands the sim the dims of the terrain we just baked, so solo cannot desync from its own worker
+ * (brief 110). The MP client ignores both the dims and the mode — there the server owns the world
+ * AND the ruleset.
+ */
+function startGame(mode: GameMode): void {
+  newGameMirror?.update(null); // the picker never reopens — drop its mirror subtree from the Tab order
+
+  // Challenge has no `seedTown`, so no buildings exist at day 0 and the "frame on the seeded
+  // centroid" opener below (which waits for buildings to appear in a snapshot) would instead fire
+  // on the FIRST BUILDING THE PLAYER PLACES — yanking the camera mid-play. Frame the founding view
+  // on the guaranteed-buildable core box up front and mark the opener spent.
+  if (!useServer && mode === "challenge") {
+    const core = findCoreBox(terrain.cells, terrain.width, terrain.height);
+    const cx = (core?.x ?? Math.floor(terrain.width / 2)) + CORE_BOX_W / 2;
+    const cy = (core?.y ?? Math.floor(terrain.height / 2)) + CORE_BOX_H / 2;
+    const c = iso.tileToIso(cx, cy);
+    camera.setCenter(c.x, c.y);
+    camera.setZoom(clampZoom(MAX_ZOOM));
+    openingFramed = true;
+  }
+
+  client.init(SEED, TICKS_PER_DAY, terrain.width, terrain.height, mode);
+  updateModeLabel();
 }
 
 // art-06: DEV-only all-assets SHOWCASE mode. `?showcase` short-circuits the full
