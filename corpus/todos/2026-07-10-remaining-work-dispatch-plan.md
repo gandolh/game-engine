@@ -9,7 +9,7 @@ unblocked-but-unstarted briefs **103** and **113**. #26's two gating items, brie
 and **100**, landed 2026-07-10 (`8e930f3`, `0fd66c0`).
 
 **Rebuilt 2026-07-11 (corpus maintenance pass):** two 2026-07-11 todos joined the queue as
-**Wave 2.5** ([headless JSON run mode](2026-07-11-headless-json-run-for-both-games.md),
+**Wave 2.5** ([headless JSON run mode](closed/2026-07-11-headless-json-run-for-both-games.md),
 sequenced *before* Wave 3 because it makes every later wave's headless verification cheaper)
 and **Wave 5** ([building silhouette differentiation](2026-07-11-citadel-external-cc0-art-ingest.md),
 render-only, last). The `sack`-drift blocker on 103 was **fixed 2026-07-11**
@@ -177,9 +177,16 @@ if flows change (they will — a new inbox consumer lands in a scheduler band).
 
 ---
 
-### [ ] Wave 2.5 — headless JSON run mode (tooling, added 2026-07-11)
+### [x] Wave 2.5 — headless JSON run mode (tooling, added 2026-07-11) — **DONE 2026-07-11** (`d224b09`)
 
-Spec: [2026-07-11-headless-json-run-for-both-games.md](2026-07-11-headless-json-run-for-both-games.md).
+Landed: generic `RunReport` envelope in `@engine/core/sim` + `REPORT=1`/`REPORT_FILE=` in both
+tools (2 parallel junior/Sonnet chunks on disjoint lanes). Gates green: typecheck 0, full
+repo tests exit 0, Farm determinism MATCH ×3, Citadel double-run byte-identical ×3 seeds and
+byte-identical to pre-change code on grow+sack. The `play.mjs` driver fix was found already
+landed (`__citadel.snapshot()` + snapshot-based `readHud`). Scripted-action layer deliberately
+deferred. Todo moved to `closed/`.
+
+Spec: [closed/2026-07-11-headless-json-run-for-both-games.md](closed/2026-07-11-headless-json-run-for-both-games.md).
 **Read-only reporting scope only** (the scripted-action layer is explicitly separable —
 defer it unless it falls out free). Sequenced before Wave 3 because 102/113/103 all carry
 "prove the behaviour in a headless run" gates, and this makes those runs machine-readable

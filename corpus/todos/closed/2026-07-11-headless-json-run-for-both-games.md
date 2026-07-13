@@ -1,9 +1,22 @@
 ---
 title: "Headless JSON run mode for Farm Valley + Citadel (LLM-readable game state, no browser)"
 created: 2026-07-11
-status: todo
+status: closed
+closed: 2026-07-11
 tags: [tools, headless, citadel, farm, run-sim, citadel-sim, json, llm-context, playtest]
 ---
+
+> **✅ CLOSED 2026-07-11 (`d224b09`) — the read-only reporting scope shipped as Wave 2.5** of
+> the [dispatch plan](../2026-07-10-remaining-work-dispatch-plan.md). A generic
+> `RunReport` envelope lives in `@engine/core/sim` (`run-report.ts`); both tools take
+> `REPORT=1` / `REPORT_FILE=` and emit meta + compact per-day timeline + cumulative event log
+> + full end-state, byte-identical per seed. Farm harvests events per-tick (high-water mark,
+> `missed` always 0); Citadel accounts gaps against `eventsSeq`. All acceptance bullets met
+> (narratability eyeballed on a real `starve` report). **Deliberately not built:** the
+> optional scripted-action layer ("play the game headlessly") — file a fresh todo when a
+> consumer needs it. The folded-in `play.mjs` driver fix turned out to be **already done**
+> (`main.ts` exposes `__citadel.snapshot()` and `readHud()` reads it; DOM scrape is only a
+> fallback) — no work was needed.
 
 # Headless JSON run mode for both games
 
