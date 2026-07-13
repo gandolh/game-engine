@@ -4,6 +4,44 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-14] initiative | Citadel building art rebuilt from scratch as in-code 3D meshes
+
+The 2D ASCII pixel-recipe art (`iso-draw.ts` primitive composition) couldn't reliably produce
+recognizable complex buildings — blind procedural pixel art needs a render→look→adjust loop we kept
+skipping (Wave 5's silhouette forms shipped broken, unseen). After the user asked whether generation
+was "not good enough," the honest answer was: it's the *workflow* (no visual loop) + representational
+pixel art is a weak spot — and their instinct (use a real 3D approach) was right. Two inline research
+passes (how pros make iso art; how to store 3D in memory) landed on: model buildings as **indexed
+triangle meshes** built from parametric primitives, project dimetric, z-buffer + flat-shade. Committed
+`6cc32fb` (Phase 1 pipeline) + `d1e7c7c` (Phase 2 all-21) + corpus here.
+
+**Pipeline** (`games/citadel/client/src/render/sprites/mesh/`): `Mesh {positions:Vec3[]; tris:{a,b,c,material}[]}`
+(the universal indexed face set — not half-edge, we generate-then-render); primitive generators
+`box/cylinder/cone/pyramid/gable` + `translate/scale/rotate/merge` + helpers (crenellation rings,
+spire, windmill sails, water-wheel disc, banner, furrows, terraced pit). `renderMeshModel` projects
+each vertex with the 2:1 dimetric transform matching `iso.ts`, back-face culls, runs a **per-pixel
+z-buffer** (replaced a fragile primitive painter's sort), flat-shades each triangle by face-normal
+onto 3 adjacent **Apollo** ramp steps (top brightest→right darkest), and draws a 1px silhouette/
+depth-crease outline. Output is the existing `RasterizedRecipe`, so `atlas.ts` drops each in via
+`MESH_OVERRIDES` — now all 21 base `bld/*` frames + the mill's 8 animation frames.
+
+**All 21 modeled**, heights matching `BUILDING_HEIGHT_TILES` (keep/tower/mill 3, garrison/chapel/
+town-hall/healer/mine/watchpost 2, rest 1): crenellated keep/tower/garrison, steepled chapel, green-
+roof+cross healer, round-oven bakery, open-forge smith (distinct from bakery), water-wheel sawmill,
+headframe mine, terraced-pit quarry, open-stall market, plaza public-square, cupola town-hall,
+warehouse storehouse/tradingpost, furrowed-field farm, roofed well, log-pile woodcutter, and a
+real **windmill** whose 4 sail blades animate across 8 mesh frames. The watchpost was reworked from a
+"table + bowl" into a raised railed cabin (height bumped 1→2 in `citadel-renderer.ts` + matching
+`showcase.ts`).
+
+**Process worked because it was screenshot-gated:** built incrementally (3-building slice → browser
+eyeball → all 21 → eyeball → fixed the 4 weak reads → eyeball), and the user's "mill still uses old
+assets" catch surfaced the real bug — the mill is *animated*, so overriding only the base frame left
+the renderer cycling old char frames; the fix overrides all 8. Gates every round: typecheck 0; Apollo
+palette guard 8/8; @citadel/client 490/490. **Deferred to [Phase 3](todos/2026-07-14-citadel-mesh-phase3-cleanup.md):**
+`@lit` night frames (4 buildings still char at night), `iso-draw.ts` dead-code removal, and routing
+the silhouette tests through the atlas (they currently test the now-unused char recipes).
+
 ## [2026-07-13] decision | Citadel adopts the Apollo-46 palette; the fixed-palette rule is now per-game
 
 User request ("change the palette for the Citadel assets" → "do apollo for citadel"), acting on the

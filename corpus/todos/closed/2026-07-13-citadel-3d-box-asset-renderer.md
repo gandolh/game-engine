@@ -1,7 +1,7 @@
 ---
 title: "Citadel building art rebuild — in-code 3D-box dimetric renderer (from scratch)"
 created: 2026-07-13
-status: in progress (approach approved 2026-07-13; Phase 1 = core + 3-building slice, pending browser eyeball)
+status: DONE 2026-07-14 (`6cc32fb` Phase 1 + `d1e7c7c` Phase 2) — all 21 buildings rebuilt as meshes, browser-approved. Phase-3 polish (dynamic `@lit`/animation-parity, dead-code cleanup, tests-through-atlas) split out to [2026-07-14-citadel-mesh-phase3-cleanup.md](2026-07-14-citadel-mesh-phase3-cleanup.md).
 tags: [citadel, client, render, art, assets, iso, dimetric, apollo, 3d-box]
 ---
 
