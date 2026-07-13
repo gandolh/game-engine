@@ -1,5 +1,5 @@
 /**
- * Building sprite recipes — TRUE ISOMETRIC, authored at 4× (`ISO_ART_SCALE`) for
+ * Building sprite recipes — TRUE ISOMETRIC, authored at 2× (`ISO_ART_SCALE`) for
  * medieval detail. Each building type uses a distinct FORM (a half-timbered
  * cottage, a tall post-mill, an open fenced field, open market stalls, a steepled
  * church, a long warehouse, a crenellated keep…) from `iso-draw.ts`, so the
@@ -143,7 +143,7 @@ function litFrames(): PixelRecipe[] {
   return [
     cottage("bld/house@lit", 2, 2, 1, PLASTER, { ground: true, glow: true }),
     cottage("bld/bakery@lit", 2, 2, 1, PLASTER, { ground: true, groundSeed: 1, cottageStyle: "oven", glow: true, accent: (g, p, m) => isoChimney(g, p, m, true) }),
-    cottage("bld/smith@lit", 2, 2, 1, STONE, { cottageStyle: "leanto", glow: true, accent: (g, p, m) => { isoChimney(g, p, m, true); isoAnvil(g, m); } }),
+    cottage("bld/smith@lit", 2, 2, 1, STONE, { cottageStyle: "forge", glow: true, accent: (g, p, m) => { isoChimney(g, p, m, true); isoAnvil(g, m); } }),
     cottage("bld/healer@lit", 2, 2, 2, GREENROOF, { ground: true, groundSeed: 1, cottageStyle: "jetty", glow: true, accent: (g, _p, m) => isoCross(g, m, "e") }),
   ];
 }
@@ -165,10 +165,12 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   openField("bld/farm", 3, 3, WOOD),
   // Mill — frame 0 (base `bld/mill`) + rotated sail frames.
   ...millFrames(),
-  // Bakery — cottage + an external domed bread-OVEN bulge + smoking chimney + plot props.
+  // Bakery — a SQUAT cottage dominated by a large external domed bread-OVEN bulge
+  // (breaking the near-left wall/roof line) + a smoke plume + chimney + plot props.
   cottage("bld/bakery", 2, 2, 1, PLASTER, { ground: true, groundSeed: 1, cottageStyle: "oven", accent: (g, p, m) => isoChimney(g, p, m, true) }),
-  // Woodcutter — mono-pitch lean-to timber shed + chopping block + log pile.
-  cottage("bld/woodcutter", 2, 2, 1, WOOD, { cottageStyle: "leanto", accent: (g, _p, m) => { isoLogPile(g, m); isoChoppingBlock(g, m); } }),
+  // Woodcutter — a SMALL compact cabin (skinnier + shorter than the house) +
+  // chopping block + a log pile, so its mask reads as a little hut, not a house.
+  cottage("bld/woodcutter", 2, 2, 1, WOOD, { cottageStyle: "cabin", accent: (g, _p, m) => { isoLogPile(g, m); isoChoppingBlock(g, m); } }),
   // Storehouse — long timber warehouse with barn doors + crates.
   warehouse("bld/storehouse", 3, 2, 1, WOOD, { accent: (g, _p, m) => isoCrates(g, m) }),
   // Chapel — stone church with a bell tower + steeple + cross.
@@ -178,9 +180,10 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   // Public square — cozy-pivot Phase G: open cobblestone plaza with a raised
   // dais + festival banner pole, no walls (a civic gathering place, not a shop).
   plaza("bld/public-square", 2, 2, STONE),
-  // Watchpost — a SMALL, low timber-roofed stone lookout (pitched cap + gallery) +
-  // banner. heightTiles 1 keeps it squat (a modest lookout, distinct from the tall
-  // mine headframe / jettied healer of the same footprint).
+  // Watchpost — a RAISED timber lookout on stilts: open air between the posts, a
+  // railed deck, a small capped cabin on top + banner. The stilted mask never
+  // reads as a house. heightTiles 1 keeps it inside the box envelope (the raised
+  // deck + open bays, not extra height, carry the "lookout tower" read).
   fort("bld/watchpost", 2, 2, 1, WOOD, { fortVariant: "watchpost", accent: (g, _p, m) => isoBanner(g, m, "e") }),
   // Trading post — warehouse with a striped market CANOPY front + crates.
   warehouse("bld/tradingpost", 3, 2, 1, PLASTER, { warehouseStyle: "canopy", accent: (g, _p, m) => isoCrates(g, m) }),
@@ -188,8 +191,9 @@ export const BUILDING_RECIPES: readonly PixelRecipe[] = [
   openPit("bld/quarry", 2, 2, STONE, { accent: (g, _p, m) => isoQuarryPit(g, m) }),
   // Sawmill — mono-pitch lean-to timber shed + water wheel + log pile.
   cottage("bld/sawmill", 2, 2, 1, WOOD, { cottageStyle: "leanto", accent: (g, _p, m) => { isoWaterWheel(g, m); isoLogPile(g, m); } }),
-  // Smith — open lean-to forge + glowing chimney + anvil out front.
-  cottage("bld/smith", 2, 2, 1, STONE, { cottageStyle: "leanto", accent: (g, p, m) => { isoChimney(g, p, m, true); isoAnvil(g, m); } }),
+  // Smith — an OPEN-SIDED forge canopy (roof on posts, open front, back hearth) +
+  // glowing chimney + anvil out front. The open bays make the mask unmistakable.
+  cottage("bld/smith", 2, 2, 1, STONE, { cottageStyle: "forge", accent: (g, p, m) => { isoChimney(g, p, m, true); isoAnvil(g, m); } }),
   // Mine — a low stone pithead DOMINATED by a tall timber winding-tower A-frame
   // breaking the roofline (shaft + headframe + ore spill), so it reads as a
   // machine, not a house. heightTiles 2 lifts the headframe clear of the body.

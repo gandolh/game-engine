@@ -1,6 +1,6 @@
 /**
  * True-isometric pixel-art primitives + per-building FORM builders for Citadel
- * (authored at 4× — `ISO_ART_SCALE` — for medieval detail; see iso.ts).
+ * (authored at 2× — `ISO_ART_SCALE` — for medieval detail; see iso.ts).
  *
  * Buildings are composed from real iso volumes on the 2:1 dimetric grid: a
  * diamond ground footprint, two visible wall faces (a lit left face + a shaded
@@ -613,6 +613,12 @@ export const jettyUpperLayer: Layer = (g, m, pal) => drawJettyUpper(g, m, pal);
 export function ovenBulgeLayer(glow = false): Layer {
   return (g, m, pal) => drawOvenBulge(g, m, pal, glow);
 }
+/** An OPEN-SIDED forge CANOPY on posts (smith), as a `Layer`. */
+export function forgeCanopyLayer(glow = false): Layer {
+  return (g, m, pal) => drawForgeCanopy(g, m, pal, glow);
+}
+/** A SMALL compact half-timber CABIN at a reduced footprint (woodcutter), as a `Layer`. */
+export const cabinLayer: Layer = (g, m, pal) => drawCabin(g, m, pal);
 
 // --- FORT-family detail Layers (art-13) — the ashlar/slits/crenellation/turret/
 // drum sub-pieces extracted so the fort variants compose them explicitly. ---
@@ -627,8 +633,10 @@ export const flatCrenellatedTopLayer: Layer = (g, m, pal) => drawFlatCrenellated
 export const gatehouseLayer: Layer = (g, m, pal) => drawGatehouse(g, m, pal);
 /** Four bristling CORNER TURRETS (keep), as a `Layer`. */
 export const cornerTurretsLayer: Layer = (g, m, pal) => drawCornerTurrets(g, m, pal);
-/** An overhanging timber lookout GALLERY (watchpost), as a `Layer`. */
+/** An overhanging timber lookout GALLERY, as a `Layer`. */
 export const watchGalleryLayer: Layer = (g, m, pal) => drawWatchGallery(g, m, pal);
+/** A raised timber lookout PLATFORM on stilts (watchpost), as a `Layer`. */
+export const watchPostTowerLayer: Layer = (g, m, pal) => drawWatchPostTower(g, m, pal);
 /** The full round stone DRUM body (tower), as a `Layer`. */
 export const roundDrumLayer: Layer = (g, m, pal) => drawRoundDrum(g, m, pal);
 /** A crenellated battlement RING atop the round drum (tower), as a `Layer`. */
@@ -661,14 +669,21 @@ export interface FormOpts {
    *  four fort types read distinctly (watchpost/tower/garrison/keep), not as one
    *  crenellated cube at different sizes. Defaults to "keep" (the prior look). */
   fortVariant?: "watchpost" | "tower" | "garrison" | "keep";
-  /** Cottage silhouette variant (art-04) — breaks the shared cottage box so the
-   *  window-bearing trades read distinctly:
-   *   - "cottage" (default) — the canonical steep-gable half-timber house.
-   *   - "oven"   — bakery: an external domed bread-OVEN bulge on the near side.
-   *   - "leanto" — smith/woodcutter/sawmill: a MONO-PITCH lean-to shed roof (one
-   *                slope, open feel) instead of the symmetric gable.
+  /** Cottage silhouette variant (art-04, extended Wave 5) — breaks the shared
+   *  cottage box so the window-bearing trades read distinctly IN SILHOUETTE
+   *  (alpha mask), not just by roof colour:
+   *   - "cottage" (default) — the canonical tall steep-gable half-timber house
+   *     (the REFERENCE silhouette the others must diverge from).
+   *   - "oven"   — bakery: a SQUAT body + a big external domed bread-OVEN bulge
+   *     breaking the near-left wall/roof line + a smoking chimney.
+   *   - "leanto" — sawmill: a LONG LOW MONO-PITCH lean-to shed (one slope) +
+   *     water wheel; asymmetric/industrial, lower than the house gable.
+   *   - "cabin"  — woodcutter: a SMALL compact hut (narrower + shorter than the
+   *     house) so its mask is skinny + short, flanked by tall log stacks.
+   *   - "forge"  — smith: an OPEN-SIDED forge canopy (roof on posts, open front,
+   *     a back hearth) — a sparse, holed mask, unmistakably not a walled cottage.
    *   - "jetty"  — healer: a JETTIED (overhanging) upper storey, taller + narrower. */
-  cottageStyle?: "cottage" | "oven" | "leanto" | "jetty";
+  cottageStyle?: "cottage" | "oven" | "leanto" | "cabin" | "forge" | "jetty";
   /** Warehouse silhouette variant (art-04) — differentiates the three warehouse
    *  users so storehouse/tradingpost/town-hall don't share a barn:
    *   - "barn"   (default) — the plain hayloft-dormer storehouse.
@@ -741,12 +756,36 @@ export function cottage(name: string, w: number, h: number, heightTiles: number,
   const style = opts.cottageStyle ?? "cottage";
   const glow = opts.glow ?? false;
   const layers: Layer[] = [];
+  // "forge" (smith) is an OPEN structure — no walls/window/door — so it takes a
+  // dedicated single-layer canopy assembly rather than the walled-cottage chain.
+  if (style === "forge") {
+    layers.push(forgeCanopyLayer(glow));
+    if (opts.ground) layers.push(groundApron(opts.groundSeed ?? 0));
+    if (opts.accent) layers.push(accentLayer(opts.accent));
+    return composite(name, w, h, heightTiles, pal, layers);
+  }
+  // "cabin" (woodcutter) is a SMALL compact hut drawn at a reduced footprint so
+  // its whole silhouette is skinny + short (distinct from the full-width house).
+  if (style === "cabin") {
+    layers.push(cabinLayer);
+    if (opts.ground) layers.push(groundApron(opts.groundSeed ?? 0));
+    if (opts.accent) layers.push(accentLayer(opts.accent));
+    return composite(name, w, h, heightTiles, pal, layers);
+  }
   if (style === "jetty") layers.push(jettyUpperLayer); // overhanging storey, drawn UNDER the walls
   layers.push(wallsLayer);
   layers.push(timberFrameLayer("%")); // dark-oak (bark) half-timber framing
+  // Roof per style: the house is a TALL steep gable (2.1) with a narrow high apex;
+  // the bakery is deliberately SQUAT — a low broad HIPPED roof (no tall apex) so
+  // its top-half mask diverges from the house even before the oven dome + smoke
+  // plume take over the read; the healer's jetty uses the mid 1.7; sawmill is
+  // mono-pitch. (A "squat gable" would just clamp its apex to the frame top, same
+  // as the house — the hip is what actually reads as squat here.)
   layers.push(style === "leanto"
     ? leanToRoofLayer                                                       // single mono-pitch slope
-    : gableRoofLayer(R(2 * ISO_ART_SCALE / 4), style === "jetty" ? 1.7 : 2.1)); // steep gable
+    : style === "oven"
+      ? hippedRoofLayer                                                     // low broad squat roof
+      : gableRoofLayer(R(2 * ISO_ART_SCALE / 4), style === "jetty" ? 1.7 : 2.1));
   layers.push(shutteredWindow(glow)); // leaded pane + muntins + sill + board shutters
   layers.push(doorLayer);
   if (style === "oven") layers.push(ovenBulgeLayer(glow)); // bakery bread oven
@@ -806,26 +845,171 @@ function drawJettyUpper(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
   }
 }
 
-/** A domed external bread-OVEN bulge on the near-left of a bakery — a rounded
- *  stone kiln volume + a stoke arch (glowing when lit), so the bakery's
- *  silhouette bulges distinctly from a plain cottage. */
+/** A LARGE domed external bread-OVEN bulge on the near-left of a bakery: a stone
+ *  kiln — a cylindrical body + a rounded clay dome — that juts PAST the wall's
+ *  left silhouette and rises to break the (squat) roofline, a stoke arch (glowing
+ *  embers when lit), and a SMOKE plume curling off the flue as a tall thin anchor
+ *  above the roof. It is the bakery's dominant read, so a red-roofed bakery and an
+ *  orange-roofed house never converge in the alpha mask. */
 function drawOvenBulge(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, glow: boolean): void {
-  const cx = R(m.cx - m.halfW * 0.72);
-  const baseY = m.H - R(3 * ISO_ART_SCALE / 4);
-  const r = R(5 * ISO_ART_SCALE / 4);
-  // domed half-disc kiln
-  for (let dy = -r; dy <= 0; dy++) {
-    for (let dx = -r; dx <= r; dx++) {
-      if (Math.hypot(dx, dy) > r) continue;
-      const x = cx + dx, y = baseY + dy;
-      const f = dx / r;
-      g.set(x, y, f < -0.4 ? "t" : f < 0.3 ? "r" : "R"); // lit clay → shaded rust dome
-    }
+  const r = R(m.halfW * 0.3);                  // big dome radius (~19px at 2×)
+  const bodyH = R(m.wallH * 0.62);             // cylindrical kiln body height
+  const ox = R(m.cx - m.halfW * 0.58);         // near-left of the footprint
+  const t = (ox - (m.cx - m.halfW)) / m.halfW; // where the front-V ground sits at ox
+  const baseY = R(m.yBotMid + (m.diaH / 2) * t) - 1;
+  const domeToneAt = (f: number) => (f < -0.4 ? "t" : f < 0.35 ? "r" : "R"); // lit clay → shaded rust
+  // Cylindrical kiln body.
+  for (let dy = 0; dy < bodyH; dy++) {
+    const y = baseY - dy;
+    for (let dx = -r; dx <= r; dx++) g.set(ox + dx, y, domeToneAt(dx / r));
+    g.set(ox - r, y, pal.outline);
+    g.set(ox + r, y, pal.outline);
   }
-  for (let dx = -r; dx <= r; dx++) if (Math.hypot(dx, -r) <= r) g.set(cx + dx, baseY - r, pal.outline);
-  // stoke arch mouth (glowing embers when lit)
-  span(g, cx - 1, cx + 1, baseY, "#");
-  if (glow) { g.set(cx, baseY - 1, "o"); g.set(cx, baseY - 2, "y"); g.set(cx - 1, baseY - 1, "o"); }
+  // Rounded clay dome cap.
+  const domeBase = baseY - bodyH;
+  for (let dy = 0; dy <= r; dy++) {
+    const half = R(Math.sqrt(Math.max(0, r * r - dy * dy)));
+    for (let dx = -half; dx <= half; dx++) g.set(ox + dx, domeBase - dy, domeToneAt(dx / Math.max(1, r)));
+    g.set(ox - half, domeBase - dy, pal.outline);
+    g.set(ox + half, domeBase - dy, pal.outline);
+  }
+  // Stoke arch mouth (glowing embers when lit).
+  const mouthH = R(5 * ISO_ART_SCALE / 4);
+  for (let dy = 0; dy < mouthH; dy++) span(g, ox - 2, ox + 2, baseY - dy, glow && dy < 2 ? "o" : "#");
+  if (glow) { g.set(ox, baseY - 1, "y"); g.set(ox - 1, baseY - 1, "o"); g.set(ox + 1, baseY - 2, "y"); }
+  // Squat flue + a SMOKE PLUME curling up-right off the dome apex (the anchor).
+  const apexY = domeBase - r;
+  g.set(ox, apexY - 1, "#");
+  g.set(ox + 1, apexY - 1, "#");
+  const puffs: readonly [number, number][] = [[0, 3], [1, 6], [1, 9], [2, 12], [3, 15]];
+  for (const [dx, dy] of puffs) {
+    const sx = ox + dx, sy = apexY - dy;
+    g.set(sx, sy, "l"); g.set(sx + 1, sy, "v"); g.set(sx, sy - 1, "l"); // silver/white smoke
+  }
+}
+
+/** An OPEN-SIDED forge canopy (smith): a pitched canopy roof carried on four
+ *  timber corner POSTS with the front left OPEN (no walls), plus a squat stone
+ *  forge HEARTH at the back-centre (glowing coals when lit). The gaps between the
+ *  posts leave the lower body largely transparent, so a smith's alpha mask reads
+ *  as a workshop shelter — never a walled cottage. Anvil + chimney arrive as
+ *  accents (see buildings.ts). */
+function drawForgeCanopy(g: IsoGrid, m: IsoMetrics, pal: IsoPalette, glow: boolean): void {
+  const { cx, halfW, diaH, yTopMid, yBotMid, wallH } = m;
+  const HHalf = diaH / 2;
+  const postW = Math.max(2, R(3 * ISO_ART_SCALE / 4));
+  const post = (px: number, topY: number, botY: number) => {
+    for (let y = R(topY); y <= R(botY); y++) {
+      g.set(px, y, "#");
+      for (let d = 1; d < postW; d++) g.set(px + d, y, "%");
+    }
+  };
+  // Back HEARTH first (so posts/roof overlay it): a chest-high stone forge block
+  // at the centre with a coal bed on top — the only solid mass under the canopy.
+  const fx = R(cx - halfW * 0.06), fw = R(halfW * 0.3);
+  const forgeTop = R(yBotMid - wallH * 0.45), forgeBot = R(yBotMid + HHalf * 0.18);
+  for (let y = forgeTop; y <= forgeBot; y++) {
+    for (let x = fx - fw; x <= fx + fw; x++) g.set(x, y, x < fx ? pal.wallL : pal.wallR);
+    g.set(fx - fw, y, pal.outline);
+    g.set(fx + fw, y, pal.outline);
+  }
+  span(g, fx - fw, fx + fw, forgeTop, pal.outline);           // hearth lip
+  span(g, fx - fw + 1, fx + fw - 1, forgeTop - 1, glow ? "o" : "%"); // coal bed
+  if (glow) { span(g, fx - 1, fx + 1, forgeTop - 2, "y"); g.set(fx, forgeTop - 3, "o"); }
+  // Four corner POSTS from the ground diamond corners up to the roof eave.
+  post(cx - halfW, yTopMid, yBotMid);                         // left
+  post(cx + halfW - postW + 1, yTopMid, yBotMid);             // right
+  post(cx - R(postW / 2), yTopMid + HHalf, yBotMid + HHalf);  // front (near)
+  // A tie-beam across the two side posts (a little truss read).
+  span(g, cx - halfW, cx + halfW, R(yTopMid + wallH * 0.15), "%");
+  // Pitched canopy roof over the whole footprint.
+  drawGableRoof(g, m, pal, R(2 * ISO_ART_SCALE / 4), 1.5);
+}
+
+/** A SMALL compact CABIN (woodcutter): the half-timber cottage drawn at a REDUCED
+ *  footprint (narrower + shorter) and anchored to the ground front point, so its
+ *  whole silhouette is a skinny little hut with transparent margins to either
+ *  side — clearly smaller than the full-width house. Log stacks + a chopping block
+ *  arrive as accents (see buildings.ts). */
+function drawCabin(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const cw = 0.66;                              // footprint scale
+  const cabDiaH = R(m.diaH * cw);
+  const cabHalfW = R(m.halfW * cw);
+  const wallH2 = R(m.wallH * 0.8);
+  const yBot = R(m.yBotMid + (m.diaH - cabDiaH) / 2); // anchor front point to ground
+  const cabM: IsoMetrics = {
+    ...m, halfW: cabHalfW, diaH: cabDiaH, wallH: wallH2,
+    yBotMid: yBot, yTopMid: yBot - wallH2,
+  };
+  drawWalls(g, cabM, pal);
+  drawTimberFrame(g, cabM, "%");
+  drawGableRoof(g, cabM, pal, R(2 * ISO_ART_SCALE / 4), 1.8);
+  drawDoorFront(g, cabM, pal);
+}
+
+/** A raised timber lookout PLATFORM on stilts (watchpost): four posts carry a
+ *  railed deck a good height off the ground, with a small enclosed cabin + a
+ *  pitched cap on top. The open air BETWEEN the posts leaves the lower body
+ *  transparent, so the mask reads as a stilted lookout — never the solid box of a
+ *  house. Stays within the 1-tile-high frame (no atlas growth); the raised deck +
+ *  gaps carry the "tall, thin lookout" read. */
+function drawWatchPostTower(g: IsoGrid, m: IsoMetrics, pal: IsoPalette): void {
+  const { cx, halfW, diaH, yTopMid, yBotMid, roofH } = m;
+  const HHalf = diaH / 2;
+  const groundMidY = yBotMid;
+  const deckMidY = R(yTopMid + diaH * 0.28);    // raised platform mid-line
+  const postW = Math.max(2, R(3 * ISO_ART_SCALE / 4));
+  const post = (px: number, topY: number, botY: number) => {
+    for (let y = R(topY); y <= R(botY); y++) {
+      g.set(px, y, "#");
+      for (let d = 1; d < postW; d++) g.set(px + d, y, "%");
+    }
+  };
+  // Stilts: left / right / front corner posts from the ground diamond up to deck.
+  post(cx - halfW, deckMidY, groundMidY);
+  post(cx + halfW - postW + 1, deckMidY, groundMidY);
+  post(cx - R(postW / 2), deckMidY + HHalf, groundMidY + HHalf);
+  // Diagonal cross-braces along the two near ground edges (a lookout-tower truss).
+  const brace = (ax: number, ay: number, bx: number, by: number) => {
+    const steps = R(Math.hypot(bx - ax, by - ay));
+    for (let i = 0; i <= steps; i++) { const tt = i / steps; g.set(R(ax + (bx - ax) * tt), R(ay + (by - ay) * tt), "%"); }
+  };
+  brace(cx - halfW + 1, deckMidY, cx, groundMidY + HHalf);
+  brace(cx + halfW - 1, deckMidY, cx, groundMidY + HHalf);
+  // DECK: a thin platform diamond at deckMidY with a dark fascia under the front V.
+  for (let dyAbs = -HHalf; dyAbs <= HHalf; dyAbs++) {
+    const frac = 1 - Math.abs(dyAbs) / HHalf;
+    const half = halfW * frac;
+    const y = R(deckMidY + dyAbs);
+    for (let x = R(cx - half); x <= R(cx + half); x++) g.set(x, y, dyAbs < 0 ? "w" : "%"); // planked floor
+    g.set(R(cx - half), y, pal.outline);
+    g.set(R(cx + half), y, pal.outline);
+  }
+  span(g, cx - halfW, cx + halfW, R(deckMidY + HHalf + 1), pal.outline); // fascia shadow line
+  // Railing around the deck front: short posts + a top rail.
+  const railY = deckMidY;
+  for (let x = R(cx - halfW * 0.8); x <= R(cx + halfW * 0.8); x++) {
+    const edgeDrop = R(Math.abs(x - cx) * HH / HW);
+    g.set(x, railY + edgeDrop - R(4 * ISO_ART_SCALE / 4), "%"); // top rail hugging the front V
+  }
+  // Small enclosed CABIN sitting on the deck (a stubby box), narrower than the deck.
+  const cabHalf = R(halfW * 0.5);
+  const cabBot = deckMidY - R(4 * ISO_ART_SCALE / 4);
+  const cabTop = R(roofH * 0.55);
+  cubeBase(g, { ...m, halfW: cabHalf }, pal, cabTop, cabBot);
+  // A dark lookout window slit on the cabin front.
+  rect(g, cx - 1, R((cabTop + cabBot) / 2), cx + 1, R((cabTop + cabBot) / 2) + R(3 * ISO_ART_SCALE / 4), "#");
+  // Pitched timber CAP over the cabin (peak above cabTop).
+  const capHalf = cabHalf + 1;
+  const peakY = Math.max(1, cabTop - R(roofH * 0.8));
+  for (let dx = -capHalf; dx <= capHalf; dx++) {
+    const tt = Math.abs(dx) / capHalf;
+    const ry = R(cabTop - (cabTop - peakY) * (1 - tt));
+    g.set(cx + dx, ry, dx < 0 ? pal.roofLight : pal.roof);
+    g.set(cx + dx, ry - 1, pal.outline);
+    for (let y = ry + 1; y <= cabTop; y++) g.set(cx + dx, y, dx < 0 ? pal.roof : pal.roofDark);
+  }
+  span(g, cx - capHalf, cx + capHalf, cabTop + 1, pal.outline); // eave lip
 }
 
 /**
@@ -1368,16 +1552,15 @@ export function fort(name: string, w: number, h: number, heightTiles: number, pa
   if (variant === "tower") {
     // Round-drum body replaces the flat wall faces; a battlement ring caps it.
     layers.push(roundDrumLayer, crenellatedRingLayer, doorLayer);
+  } else if (variant === "watchpost") {
+    // A raised timber lookout on stilts: open air between the posts (no walls),
+    // a railed deck, and a small capped cabin on top — never reads as a house.
+    layers.push(watchPostTowerLayer);
   } else {
     layers.push(wallsLayer, ashlarCoursesLayer, arrowSlitsLayer);
-    if (variant === "watchpost") {
-      // A small timber-capped lookout: a low hip roof + an overhanging gallery.
-      layers.push(hippedRoofLayer, watchGalleryLayer);
-    } else {
-      layers.push(flatCrenellatedTopLayer);
-      if (variant === "garrison") layers.push(gatehouseLayer);     // raised front gate block
-      if (variant === "keep") layers.push(cornerTurretsLayer);     // 4 bristling corner turrets
-    }
+    layers.push(flatCrenellatedTopLayer);
+    if (variant === "garrison") layers.push(gatehouseLayer);     // raised front gate block
+    if (variant === "keep") layers.push(cornerTurretsLayer);     // 4 bristling corner turrets
     layers.push(doorLayer); // arched gate
   }
   if (opts.accent) layers.push(accentLayer(opts.accent));
