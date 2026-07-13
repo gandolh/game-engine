@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { localPlayer } from "../sim-state";
 import { bootstrapSim } from "../sim-bootstrap";
+import { ImmigrationSystem } from "./immigration";
 import type { CitadelCommand } from "../snapshot/index";
 
 const SEED = 0xc17ade1;
@@ -115,29 +116,51 @@ describe("Phase 3 — happiness", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Decrees — RETIRED (cozy-pivot Phase G).
+// 2. Decrees — RETIRED lever; the residual RATIONING branch is now autonomous.
 //
 // The `setDecree` player lever is gone: rations/work-hours run autonomously from
 // the town hall and festivals from the public square, both as spatial placement
 // effects (covered by needs-happiness.test.ts + production.test.ts). The happiness
-// penalties and the workHours +30% production block were deleted. The only decree
-// behavior still wired (as a dead code path, no player toggle) is the
-// ImmigrationSystem rationing/tithe branch, which we still exercise by mutating
-// `activeDecrees` directly.
+// penalties and the workHours +30% production block were deleted. Brief 103 scope 2
+// RE-POINTED the residual ImmigrationSystem rationing branch off the retired
+// `rationing` decree onto the SHARP path: the 25% consumption cut auto-engages in
+// `cozyThreats:false` ONLY while in bread deficit (breadNow < population). We trigger
+// it via the ruleset flag now, NOT via `activeDecrees.add(...)`.
 // ---------------------------------------------------------------------------
-describe("Phase 3 — decrees (retired lever; residual immigration branch)", () => {
-  it("a rationing flag reduces bread consumption (dead code path, set directly)", () => {
-    // No player command sets this any more; poke the residual ImmigrationSystem
-    // branch directly to confirm it still consumes 25% less when flagged.
-    const cmds = economyCmds();
-    const simBase   = run(cmds, TICKS_PER_DAY * 30);
-    const simRation = run(cmds, TICKS_PER_DAY * 30, (sim) => {
-      localPlayer(sim.state).activeDecrees.add("rationing");
-    });
+describe("Phase 3 — autonomous rationing (sharp, deficit-gated)", () => {
+  // Drive a STANDALONE ImmigrationSystem (bypassing the scheduler) over one baseline
+  // day + one measured day so no other system perturbs the population the
+  // consumption math reads. With no bakery, production is 0, so
+  // foodSurplus == −(bread consumed) — pinning the exact consumption figure.
+  function rationDay(cozy: boolean, pop: number, bread: number) {
+    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
+    const imm = new ImmigrationSystem(sim.state, { cozy });
+    const p = localPlayer(sim.state);
+    p.happiness = 100; // keep the low-morale departure path from touching population
+    sim.state.day = 0;
+    p.population = pop;
+    p.stockpiles.bread = bread;
+    imm.run({ tick: 0 }); // baseline day → lastDayBreadStart = bread
+    sim.state.day = 1;
+    p.population = pop;
+    p.stockpiles.bread = bread;
+    imm.run({ tick: 1 }); // measured day
+    return p;
+  }
 
-    expect(simBase.population).toBeGreaterThan(0);
-    expect(simRation.population).toBeGreaterThan(0);
-    expect(localPlayer(simRation.state).activeDecrees.has("rationing")).toBe(true);
+  it("sharp mode cuts bread consumption 25% in deficit; cozy does not (byte-identity)", () => {
+    // pop 8 needs 8 bread; only 6 on hand → deficit.
+    // Sharp: floor(8*0.75)=6 consumed → foodSurplus −6. Cozy: full 8 → foodSurplus −8.
+    const sharp = rationDay(false, 8, 6);
+    const cozy  = rationDay(true, 8, 6);
+    expect(sharp.foodSurplus).toBe(-6);
+    expect(cozy.foodSurplus).toBe(-8);
+  });
+
+  it("sharp mode does NOT cut when NOT in deficit", () => {
+    // pop 8, 9 bread → 9 >= 8, no deficit: full 8 consumed, 1 loaf remains.
+    const p = rationDay(false, 8, 9);
+    expect(p.stockpiles.bread).toBe(1);
   });
 });
 

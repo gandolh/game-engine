@@ -23,7 +23,6 @@ import type { VillagerComponent } from "../entities/villager";
 import type { SimState, PlayerState } from "../sim-state";
 import { pushEvent, removeOneVillager } from "../sim-state";
 import type { Rng } from "@engine/core";
-import type { GoodType } from "../entities/building";
 
 /** Citadel 09: fraction of each stored good siphoned to the relief reserve per day under the tithe. */
 const TITHE_SIPHON_RATE = 0.1;
@@ -192,14 +191,20 @@ export class ImmigrationSystem implements System {
     const state = this.state;
 
     // Citadel 09 — TITHE: before consumption, siphon a small % (10%, floored)
-    // of every stored good from the player's pool into its relief reserve.
-    if (p.activeDecrees.has("tithe")) {
+    // of stored BREAD from the player's pool into its relief reserve.
+    // Brief 103 scope 2: re-pointed off the retired `tithe` decree onto the
+    // SHARP path — in Challenge mode the town automatically tithes; the cozy
+    // baseline never runs this branch (byte-identical by construction).
+    // Bread-only: the reserve exists solely to buffer BREAD famine (the
+    // starvation cushion below only ever withdraws reliefReserve.bread), so
+    // tithing tools/wood/stone would bank goods the cushion never spends — a
+    // purposeless tax. Keeping it to bread makes it a purposeful famine buffer.
+    if (!this.cozy) {
       let siphonedAny = false;
-      for (const good of Object.keys(p.stockpiles) as GoodType[]) {
-        const take = Math.floor(p.stockpiles[good] * TITHE_SIPHON_RATE);
-        if (take <= 0) continue;
-        p.stockpiles[good] -= take;
-        p.reliefReserve[good] += take;
+      const take = Math.floor(p.stockpiles.bread * TITHE_SIPHON_RATE);
+      if (take > 0) {
+        p.stockpiles.bread -= take;
+        p.reliefReserve.bread += take;
         siphonedAny = true;
       }
       if (siphonedAny && !this.tithedOnce.has(p.id)) {
@@ -213,8 +218,12 @@ export class ImmigrationSystem implements System {
 
     // Consume bread for the population (1 bread/person/day).
     const consumption = p.population;
-    // Rationing decree: reduce consumption by 25%
-    const actualConsumption = p.activeDecrees.has("rationing")
+    // Brief 103 scope 2: RATIONING re-pointed off the retired `rationing` decree
+    // onto an autonomous SHARP-only famine response — the 25% consumption cut
+    // auto-engages only in Challenge mode AND only while in bread deficit
+    // (breadNow < consumption), i.e. it is a reactive rationing order, not a
+    // permanent cut. Cozy never cuts (byte-identical by construction).
+    const actualConsumption = (!this.cozy && breadNow < consumption)
       ? Math.floor(consumption * 0.75)
       : consumption;
     let afterConsumption = breadNow - actualConsumption;

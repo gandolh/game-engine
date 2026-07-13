@@ -78,12 +78,13 @@ describe("threat consequence — defense pressure", () => {
     const p = localPlayer(sim.state);
     p.population = 20;
     p.raiders.push(dummyRaider(1));
-    p.activeDecrees.add("conscription");
-
+    // Brief 103 scope 2: the conscription term arms on the sharp path (cozy=false)
+    // under an active raid — no decree. It gives a nonzero base for the pressure
+    // bonus to scale.
     p.threatLevel = 0;
-    const calm = computeDefensiveStrength(sim.state, p);
+    const calm = computeDefensiveStrength(sim.state, p, false);
     p.threatLevel = 100;
-    const pressured = computeDefensiveStrength(sim.state, p);
+    const pressured = computeDefensiveStrength(sim.state, p, false);
 
     expect(pressured).toBeGreaterThan(calm); // +20% at threat 100
   });
@@ -98,13 +99,14 @@ describe("disease → conscription interlock", () => {
     const p = localPlayer(sim.state);
     p.population = 20;
     p.raiders.push(dummyRaider(1));
-    p.activeDecrees.add("conscription");
+    // Brief 103 scope 2: conscription arms on the sharp path (cozy=false) under an
+    // active raid; the disease interlock then scales the term down by the sick fraction.
     p.threatLevel = 0; // isolate the disease term from the pressure bonus
 
-    const healthy = computeDefensiveStrength(sim.state, p);
+    const healthy = computeDefensiveStrength(sim.state, p, false);
     p.outbreakActive = true;
     p.sickVillagers = 10; // half sick
-    const sick = computeDefensiveStrength(sim.state, p);
+    const sick = computeDefensiveStrength(sim.state, p, false);
 
     expect(sick).toBeLessThan(healthy);
   });

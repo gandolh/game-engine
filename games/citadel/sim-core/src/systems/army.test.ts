@@ -8,7 +8,7 @@
  * army strength vs the defender's defensiveStrength).
  */
 import { describe, it, expect } from "vitest";
-import { bootstrapSim } from "../sim-bootstrap";
+import { bootstrapSim, loadFromSave } from "../sim-bootstrap";
 import { makePlayerState } from "../sim-state";
 import type { CitadelSimResult } from "../sim-bootstrap";
 
@@ -175,5 +175,78 @@ describe("Citadel — armies are frozen by default (decision #23)", () => {
       });
     };
     expect(run(false)).toBe(run(true));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Chunk 2 (brief 103 scope 1) — enableArmy save/load round-trip. Neither
+// `serializeSave` writing the flag nor `loadFromSave` threading it back into
+// the fresh bootstrap (`save.enableArmy ?? false`) had a dedicated test.
+// ---------------------------------------------------------------------------
+describe("enableArmy — save/load round-trip", () => {
+  it("enableArmy:true survives save/load: the reloaded sim still resolves an attack (not silently frozen)", () => {
+    const sim = bootstrapSim({
+      seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96,
+      cozyThreats: false, enableArmy: true,
+    });
+    const save = sim.serializeSave(0);
+    expect(save.enableArmy).toBe(true);
+
+    const reloaded = loadFromSave(save);
+    // loadFromSave only replays the LOGGED command stream. The two-player setup here is built
+    // the same way `boot()` builds it above — direct world.spawn with an explicit ownerId — which
+    // is not itself a logged command, so it must be rebuilt on the reloaded sim exactly as it was
+    // on the original. What's under test is whether `enableArmy` itself (the ArmySystem
+    // registration + the un-gated launchAttack handler) survived the round trip.
+    reloaded.state.players.push(makePlayerState(1));
+    // Town halls placed TOUCHING (attacker's footprint ends at x=13, defender's starts there),
+    // not the far-apart (10,10)/(40,40) `boot()` uses above — that march spans multiple
+    // in-game days, and this test only needs the army to resolve, not to prove pathfinding
+    // over distance (that's covered by the suites above/below). Kept short and pre-day-boundary
+    // so this test's exact tools-debit figure can't be perturbed by an unrelated per-day economy
+    // system (e.g. a tithe/rationing sweep) — isolation `boot()`'s own comment already asks for,
+    // just carried one step further here since this test races to resolution instead of running
+    // a fixed 400-tick window.
+    placeTownHall(reloaded, 0, 10, 10);
+    placeTownHall(reloaded, 1, 13, 10);
+    const rp0 = reloaded.state.players[0]!;
+    const rp1 = reloaded.state.players[1]!;
+    rp0.stockpiles.tools = 100;
+
+    reloaded.commands.enqueue({ type: "launchAttack", payload: { targetX: 13, targetY: 10, strength: 50 } });
+    for (let t = 0; t < 15; t++) reloaded.scheduler.tick({ tick: t }); // resolves ~tick 3, well before day 1
+
+    // If `enableArmy` had NOT survived the round trip (regressed to the `?? false` default),
+    // this attack would be silently rejected: no tools spent, no army created, rp1 untouched —
+    // exactly the "frozen" behavior the describe block above proves for the false-default case.
+    expect(rp1.keepSacked).toBe(true);
+    expect(rp1.gameOver).toBe(true);
+    expect(reloaded.state.armies.length).toBe(0); // resolved + removed
+    expect(rp0.stockpiles.tools).toBe(50); // 50 tools spent
+  });
+
+  it("enableArmy omitted (default false) survives save/load: the reloaded sim still rejects launchAttack", () => {
+    const sim = bootstrapSim({
+      seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96, cozyThreats: false,
+    });
+    const save = sim.serializeSave(0);
+    expect(save.enableArmy).toBe(false);
+
+    const reloaded = loadFromSave(save);
+    reloaded.state.players.push(makePlayerState(1));
+    placeTownHall(reloaded, 0, 10, 10);
+    placeTownHall(reloaded, 1, 13, 10); // touching, as above — but rejection is immediate anyway
+    const rp0 = reloaded.state.players[0]!;
+    rp0.stockpiles.tools = 100;
+
+    reloaded.commands.enqueue({ type: "launchAttack", payload: { targetX: 13, targetY: 10, strength: 50 } });
+    // Short, pre-day-boundary window (rejection is synchronous on the command tick; no march to
+    // wait out) — keeps the exact tools figure isolated from an unrelated per-day economy sweep.
+    for (let t = 0; t < 15; t++) reloaded.scheduler.tick({ tick: t });
+
+    // If the default had NOT survived (regressed to always-on), this attack would sack rp1 —
+    // exactly the behavior the test above proves for the true case.
+    expect(reloaded.state.armies.length).toBe(0);
+    expect(rp0.stockpiles.tools).toBe(100); // the debit never happened — rejected
   });
 });

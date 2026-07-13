@@ -17,7 +17,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { localPlayer } from "../sim-state";
-import { bootstrapSim } from "../sim-bootstrap";
+import { bootstrapSim, loadFromSave } from "../sim-bootstrap";
 import type { CitadelSimResult } from "../sim-bootstrap";
 import { isWalkable } from "../world/terrain";
 import { countNonRoadBuildings } from "./tiers";
@@ -206,5 +206,44 @@ describe("deferThreatsUntilBuildings default (0) — baseline unchanged", () => 
     expect(omitted).toBeGreaterThan(0);
     // Byte-identical schedule: the sack lands on the exact same tick either way.
     expect(explicitZero).toBe(omitted);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Chunk 2 (brief 103 scope 1) — deferThreatsUntilBuildings save/load round-trip.
+// `seedTown` has a dedicated round-trip test (seed-town.test.ts); this flag
+// didn't, for either `serializeSave` writing it or `loadFromSave` threading it
+// back into the fresh bootstrap (`save.deferThreatsUntilBuildings ?? 0`).
+// ---------------------------------------------------------------------------
+describe("deferThreatsUntilBuildings — save/load round-trip", () => {
+  it("deferThreatsUntilBuildings survives save/load: the reloaded sim still suppresses threats below the gate", () => {
+    const sim = bootstrapSim({
+      seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true, deferThreatsUntilBuildings: DEFER,
+    });
+    const lp = localPlayer(sim.state);
+    const t = runDays(sim, 10, 0);
+    expect(countNonRoadBuildings(sim.state, lp.id)).toBe(SEED_CORE); // still at the seeded core
+    expect(sim.state.events.some((e) => THREAT_RE.test(e))).toBe(false);
+
+    const save = sim.serializeSave(t - 1);
+    expect(save.deferThreatsUntilBuildings).toBe(DEFER);
+
+    const reloaded = loadFromSave(save);
+    const rlp = localPlayer(reloaded.state);
+    // Replay reconstructs identical state. No commands were logged here (pure ticks, no
+    // player commands), so this also proves the seed + defer gate replay byte-identically.
+    expect(countNonRoadBuildings(reloaded.state, rlp.id)).toBe(SEED_CORE);
+    expect(reloaded.state.events.length).toBe(sim.state.events.length);
+
+    // Stress-test the RELOADED sim directly (mirrors the suppression test above): force
+    // conditions favorable to disease onset and run well past the founding grace. If
+    // `deferThreatsUntilBuildings` had NOT survived the round trip (regressed to the `?? 0`
+    // default), a threat would very likely fire in this window — the "default (0) — baseline
+    // unchanged" suite above proves the sharp path reliably fires under analogous unguarded
+    // conditions, so a silently-dropped gate here would not stay this quiet by luck alone.
+    rlp.happiness = 0;
+    runDays(reloaded, 30, t);
+    expect(countNonRoadBuildings(reloaded.state, rlp.id)).toBe(SEED_CORE); // town hasn't grown
+    expect(reloaded.state.events.some((e) => THREAT_RE.test(e))).toBe(false);
   });
 });

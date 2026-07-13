@@ -72,3 +72,42 @@ describe("sim-worker — authoritative pacing on the snapshot", () => {
     expect(lastSnapshot()?.paused).toBe(false);
   });
 });
+
+/** Non-road structures in a snapshot's buildings list (the seeded core's road spine — 12 tiles
+ *  — is itself carried as `type: "road"` entries in `buildings`, so a bare length check would
+ *  count pavement as a building; filter it out to compare the actual structure count). */
+function nonRoadTypes(snap: RenderSnapshot | undefined): string[] {
+  return (snap?.buildings ?? []).filter((b) => b.type !== "road").map((b) => b.type);
+}
+
+describe("sim-worker — mode→flags mapping (brief 103 scope 1)", () => {
+  // The worker never exposes bootstrap options directly, so we read the mapping through an
+  // observable side effect: `seedTown` decides whether the world opens with the seeded alive
+  // core (farm/mill/bakery/house/storehouse + a road spine) or empty, and that core is placed
+  // synchronously at bootstrap (before any tick) — so a snapshot taken right after `init`
+  // (forced via `pause`, which is a synchronous no-tick postSnapshot) already reflects it.
+  it("mode:'challenge' bootstraps an empty map (seedTown:false) — no seeded core", () => {
+    dispatch({ type: "init", seed: 7, ticksPerDay: 20, mode: "challenge" });
+    dispatch({ type: "pause" }); // synchronous snapshot, no ticks advanced
+    const snap = lastSnapshot();
+    expect(snap?.buildings.length).toBe(0);
+  });
+
+  it("mode:'cozy' bootstraps the seeded alive core (seedTown:true) — 5 structures, no tick needed", () => {
+    dispatch({ type: "init", seed: 7, ticksPerDay: 20, mode: "cozy" });
+    dispatch({ type: "pause" });
+    const snap = lastSnapshot();
+    const structures = nonRoadTypes(snap);
+    expect(structures.length).toBe(5);
+    const types = new Set(structures);
+    for (const t of ["farm", "mill", "bakery", "house", "storehouse"]) {
+      expect(types.has(t)).toBe(true);
+    }
+  });
+
+  it("omitting mode defaults to cozy (seeded), matching mode:'cozy' — not challenge's empty map", () => {
+    dispatch({ type: "init", seed: 7, ticksPerDay: 20 });
+    dispatch({ type: "pause" });
+    expect(nonRoadTypes(lastSnapshot()).length).toBe(5);
+  });
+});

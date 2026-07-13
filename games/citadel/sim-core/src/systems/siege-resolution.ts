@@ -37,7 +37,7 @@ type SiegeResult = "repelled" | "damage" | "sacked";
 const CONSCRIPTION_DEFENSE_FACTOR = 0.5;
 
 /** Sum defenseStrength of player `p`'s defended buildings + 1 per wall adjacent to one. */
-export function computeDefensiveStrength(state: SimState, p: PlayerState): number {
+export function computeDefensiveStrength(state: SimState, p: PlayerState, cozy = true): number {
   let total = 0;
   const defendedTiles = new Set<number>();
 
@@ -85,7 +85,12 @@ export function computeDefensiveStrength(state: SimState, p: PlayerState): numbe
   // (see production.ts). Deterministic: pure integer arithmetic on population.
   // Interlock: a disease outbreak makes sick conscripts desert — the conscription
   // term is scaled down by the sick fraction of the population.
-  if (p.activeDecrees.has("conscription") && p.raiders.length > 0) {
+  // Brief 103 scope 2: CONSCRIPTION re-pointed off the retired `conscription`
+  // decree onto the SHARP path — in Challenge mode an active raid automatically
+  // calls up available villagers. Cozy never conscripts (byte-identical; the
+  // `cozy` param defaults to true so any caller that omits it keeps that safe
+  // cozy behavior).
+  if (!cozy && p.raiders.length > 0) {
     let conscripts = Math.floor(p.population * CONSCRIPTION_DEFENSE_FACTOR);
     if (p.outbreakActive && p.population > 0) {
       const sickFrac = Math.min(1, p.sickVillagers / p.population);
@@ -330,7 +335,7 @@ export class SiegeResolutionSystem implements System {
     // Citadel 28: resolve each player's siege independently (stable id order).
     for (const p of state.players) {
       // Defensive strength is always kept current (for HUD even with no raiders).
-      p.defensiveStrength = computeDefensiveStrength(state, p);
+      p.defensiveStrength = computeDefensiveStrength(state, p, this.cozy);
 
       if (p.raiders.length === 0) continue;
 
