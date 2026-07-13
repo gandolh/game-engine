@@ -46,4 +46,10 @@ export const MATERIALS = {
   stone: { top: rgba(EDG.silver), left: rgba(EDG.steel), right: rgba(EDG.slate), outline: rgba(EDG.navy) },
   // A hot clay bread-oven dome — gold → clay → woodDark.
   oven: { top: rgba(EDG.gold), left: rgba(EDG.clay), right: rgba(EDG.woodDark), outline: rgba(EDG.bark) },
+  // Mossy green roof (healer) — the foliage ramp.
+  greenroof: { top: rgba(EDG.green), left: rgba(EDG.greenMid), right: rgba(EDG.greenDark), outline: rgba(EDG.teal) },
+  // Red signal cloth — banners, awnings, the healer cross — warm red ramp.
+  signal: { top: rgba(EDG.rust), left: rgba(EDG.red), right: rgba(EDG.crimson), outline: rgba(EDG.bark) },
+  // Deep-shadow excavated stone (quarry pit floor) — the dark neutral ramp.
+  pit: { top: rgba(EDG.slate), left: rgba(EDG.navy), right: rgba(EDG.ink), outline: rgba(EDG.black) },
 } satisfies Record<string, FaceTones>;

@@ -40,7 +40,7 @@ import { computeWash, nightFactorOf, emittersOf, lightPoolQuads } from "./atmosp
 
 /** Per-type art height in tiles — MUST match the authored recipe heights. */
 const SHOWCASE_HEIGHT_TILES: Record<string, number> = {
-  keep: 3, tower: 3, mill: 3, garrison: 2, chapel: 2, "town-hall": 2, healer: 2, mine: 2,
+  keep: 3, tower: 3, mill: 3, garrison: 2, chapel: 2, "town-hall": 2, healer: 2, mine: 2, watchpost: 2,
 };
 export function showcaseHeightTiles(type: string): number {
   return SHOWCASE_HEIGHT_TILES[type] ?? 1;

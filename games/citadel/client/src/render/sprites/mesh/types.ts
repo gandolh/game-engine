@@ -20,7 +20,10 @@ export type MaterialKey =
   | "darkwood"
   | "tile"
   | "stone"
-  | "oven";
+  | "oven"
+  | "greenroof"
+  | "signal"
+  | "pit";
 
 /** One triangle: three vertex INDICES into the mesh's `positions`, wound CCW as
  *  seen from outside (so the face normal points outward), plus its material. */

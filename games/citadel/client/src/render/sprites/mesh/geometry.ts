@@ -44,6 +44,24 @@ export function rotateZ(m: Mesh, rad: number): Mesh {
   };
 }
 
+/** Rotate about the +x axis (through the origin) by `rad`. New mesh (winding preserved). */
+export function rotateX(m: Mesh, rad: number): Mesh {
+  const c = Math.cos(rad), s = Math.sin(rad);
+  return {
+    positions: m.positions.map((p) => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c] as Vec3),
+    tris: m.tris,
+  };
+}
+
+/** Rotate about the +y axis (through the origin) by `rad`. New mesh (winding preserved). */
+export function rotateY(m: Mesh, rad: number): Mesh {
+  const c = Math.cos(rad), s = Math.sin(rad);
+  return {
+    positions: m.positions.map((p) => [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c] as Vec3),
+    tris: m.tris,
+  };
+}
+
 /** Concatenate meshes into one, offsetting each mesh's triangle indices. */
 export function merge(...meshes: readonly Mesh[]): Mesh {
   const positions: Vec3[] = [];
@@ -199,4 +217,91 @@ export function gable(size: Vec3, ridge: "x" | "y", material: MaterialKey): Mesh
     { a: 0, b: 3, c: 2, material }, { a: 0, b: 2, c: 1, material }, // bottom (-z)
   ];
   return { positions, tris };
+}
+
+// ---------------------------------------------------------------------------
+// Composite helpers (built from the primitives above)
+// ---------------------------------------------------------------------------
+
+/**
+ * A thin vertical DISC (a short cylinder rotated to stand on edge) of `radius`
+ * and axial `thickness`, its axis along +x so it faces east/west — e.g. a
+ * sawmill water wheel. Centred on the origin; translate into place.
+ */
+export function disc(radius: number, thickness: number, segs: number, material: MaterialKey): Mesh {
+  // cylinder runs along +z (0..thickness); rotate about +y so the axis lies
+  // along x, then centre the thickness on the origin.
+  const c = rotateY(cylinder(radius, thickness, segs, material), Math.PI / 2);
+  return translate(c, [thickness / 2, 0, 0]);
+}
+
+/**
+ * A banner: a thin timber pole rising to `poleH` with a rectangular cloth flag
+ * (a thin box, so both sides shade) hanging from the top. Anchored at the pole
+ * base on the origin; translate into place.
+ */
+export function banner(poleH: number, flagMat: MaterialKey): Mesh {
+  const pole = translate(box([0.06, 0.06, poleH], "darkwood"), [-0.03, -0.03, 0]);
+  const flag = translate(box([0.34, 0.04, 0.26], flagMat), [0.03, -0.02, poleH - 0.3]);
+  return merge(pole, flag);
+}
+
+/**
+ * A crenellated rim: a row of merlon boxes (`mw` square, `mh` tall) spaced with
+ * gaps around the top perimeter of a `w×d` footprint at height `z`. Corners are
+ * always placed; the classic castle battlement read.
+ */
+export function merlonRim(w: number, d: number, z: number, mw: number, mh: number, material: MaterialKey): Mesh {
+  const parts: Mesh[] = [];
+  const merlon = (x: number, y: number): void => { parts.push(translate(box([mw, mw, mh], material), [x, y, z])); };
+  const step = mw * 2;
+  for (let x = 0; x <= w - mw + 1e-6; x += step) { merlon(x, 0); merlon(x, d - mw); }
+  for (let y = step; y <= d - mw - step + 1e-6; y += step) { merlon(0, y); merlon(w - mw, y); }
+  return parts.length ? merge(...parts) : { positions: [], tris: [] };
+}
+
+/**
+ * A crenellated RING: merlon boxes spaced evenly around a circle of `radius` at
+ * height `z` — the battlement for a round tower. `count` merlons, each `mw`
+ * square and `mh` tall, oriented tangentially.
+ */
+export function merlonRing(radius: number, z: number, count: number, mw: number, mh: number, material: MaterialKey): Mesh {
+  const parts: Mesh[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2;
+    const m = rotateZ(translate(box([mw, mw, mh], material), [-mw / 2, -mw / 2, 0]), a);
+    parts.push(translate(m, [Math.cos(a) * radius, Math.sin(a) * radius, z]));
+  }
+  return merge(...parts);
+}
+
+/**
+ * Four windmill SAILS as flat blade plates arranged as an X **in the view
+ * plane**, so from the fixed dimetric camera all four arms read undistorted (not
+ * foreshortened to a line). The two in-plane axes are the world directions that
+ * project to pure screen-horizontal (`u`) and pure screen-vertical (`v`); each
+ * blade lies in the u–v plane, whose normal is the view direction (1,1,1) — so
+ * the whole cross faces the camera flat. Hub at the origin; translate onto the
+ * mill's front (proud of the tower so no arm tucks behind the cap). `phase`
+ * spins the cross; the base frame uses phase 0 (a 45° X).
+ */
+export function windmillSails(len: number, phase: number, material: MaterialKey): Mesh {
+  const u = normalize([1, -1, 0]);       // → pure screen +x
+  const v = normalize([1, 1, -2]);       // → pure screen +y (down)
+  const mul = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s];
+  const lin = (s: number, t: number): Vec3 => add(mul(u, s), mul(v, t)); // s·u + t·v
+  const inner = 0.14, halfW = 0.15;
+  const parts: Mesh[] = [];
+  for (let i = 0; i < 4; i++) {
+    const th = phase + Math.PI / 4 + i * (Math.PI / 2);
+    const dc = Math.cos(th), ds = Math.sin(th);
+    // arm direction d and in-plane perpendicular p (both in the u–v view plane)
+    const a = add(lin(dc * inner, ds * inner), lin(-ds * halfW, dc * halfW));
+    const b = add(lin(dc * len, ds * len), lin(-ds * halfW, dc * halfW));
+    const c = add(lin(dc * len, ds * len), lin(ds * halfW, -dc * halfW));
+    const e = add(lin(dc * inner, ds * inner), lin(ds * halfW, -dc * halfW));
+    // wound a→e→c→b so the face normal points toward the camera (+view)
+    parts.push(quad(a, e, c, b, material));
+  }
+  return merge(...parts);
 }

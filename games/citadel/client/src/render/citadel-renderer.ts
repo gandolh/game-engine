@@ -323,7 +323,7 @@ export interface SceneFx {
 // so the sprite art maps 1:1 onto the quad (shared isoSpriteDims).
 const BUILDING_HEIGHT_TILES: Record<string, number> = {
   keep: 3, tower: 3, garrison: 2, chapel: 2, mill: 3,
-  "town-hall": 2, healer: 2, mine: 2,
+  "town-hall": 2, healer: 2, mine: 2, watchpost: 2,
   wall: 1, gate: 1, road: 0,
 };
 function buildingHeightTiles(type: string): number {
