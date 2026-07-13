@@ -1,7 +1,7 @@
 ---
 title: "Citadel palette re-evaluation — is EDG32 the right fit for a cozy medieval town?"
 created: 2026-07-13
-status: todo (design question — capture only; NOT approved to build)
+status: DONE 2026-07-13 (`83efacc`) — user approved "do apollo for citadel"; Citadel migrated to Apollo-46, Farm + engine stay EDG32. See citadel-decisions #28. Follow-up: a `?showcase` browser eyeball to tune the first-pass role→colour picks.
 tags: [citadel, client, render, art, palette, edg32, decisions, design-question]
 ---
 

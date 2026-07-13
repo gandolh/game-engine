@@ -4,6 +4,49 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-13] decision | Citadel adopts the Apollo-46 palette; the fixed-palette rule is now per-game
+
+User request ("change the palette for the Citadel assets" → "do apollo for citadel"), acting on the
+[palette-evaluation todo](todos/closed/2026-07-13-citadel-palette-evaluation.md) I'd filed as a follow-up to
+Wave 5. Committed `83efacc` (code) + this corpus change. Run via `plan-split-dispatch`: 1 opus foundation
+chunk (the palette module + role→colour mapping + the per-scope guard) + 3 Sonnet chunks (art import redirect,
+UI + theme, test-expectation updates).
+
+**Why:** EDG32's gamut has no desaturated olive-grey midtones — its greys are blue-tinted (`#5a6988`,
+`#3a4466`), its mid-browns are rusts (`#be4a2f`) — which the [CC0-ingest spike](todos/closed/2026-07-11-citadel-external-cc0-art-ingest.md)
+already proved is a poor fit for muted medieval naturals, and colour is the axis the day/night wash degrades
+(the same reason Wave 5 leaned on silhouette). Apollo-46 (AdamCYounis) is built around natural material ramps
+with exactly those earthy midtones. **Decision #28** in [citadel-decisions.md](wiki/citadel-decisions.md);
+the repo-wide EDG32 rule in [decisions.md](wiki/decisions.md) is now **per-game** (engine + Farm stay EDG32).
+
+**The migration was cheap because of an existing indirection.** Every Citadel colour already routed through
+named `EDG.*` role constants with **zero raw hex**, so this was an *import redirect*, not a ~200-site rewrite.
+New `games/citadel/client/src/render/citadel-palette.ts` exports `CITADEL_PAL` — the **same 32 role keys** as
+engine `EDG`, remapped to Apollo hex **by role** with luminance ordering preserved within each ramp (verified
+monotonic: neutral black→white, timber bark→cream, greens, blues). Citadel files import it as
+`CITADEL_PAL as EDG`, so `EDG.rust` etc. keep working unchanged. One intentional overlap (`tan` shares
+`yellow`'s swatch — Apollo has no distinct light orange-tan; pigeonhole, documented). Shared `@engine/ui`
+chrome is re-skinned by injecting a Citadel Apollo `Theme` (`ui/citadel-theme.ts`) into the ~10 `renderTree`
+calls — engine defaults untouched, so Farm keeps EDG32. `style.css`'s 5 raw hex → Apollo role equivalents.
+
+**The guard is now per-scope.** `palette.test.ts` validates files under `games/citadel/` against Apollo and
+everything else against EDG32. Because the engine never imports a game (locked dependency rule), the 46 Apollo
+swatches are **inlined** in the engine-side scan and **pinned** to the Citadel module by a colocated Citadel
+test (`citadel-palette.test.ts`) so the two copies cannot drift — the opus chunk caught that an
+`@engine/core`→Citadel import would violate the dependency rule and took this route instead. Also removed a
+stale-doc-comment allowlist entry (`siege-hud.ts` had `#fee761` in a provenance comment).
+
+**Test-expectation fallout, fixed faithfully:** ~15 render/UI `*.test.ts` files built EXPECTED colours from
+EDG32 and broke the instant the source went Apollo. Each was fixed by redirecting its `EDG` import to
+`CITADEL_PAL` (or a raw EDG32 literal → the role reference / `nearestApollo`), preserving assertion intent —
+no matcher weakened, nothing skipped.
+
+Gates: typecheck 0; @engine/core **186/186** (Farm + engine still EDG32-clean under the per-scope guard);
+@citadel/client **490/490**. **Caveat — first-pass colours:** the role→Apollo choices are picked for
+hue/luminance fidelity but **not yet eyeballed in a real browser**; a `?showcase` pass to tune them is the
+natural follow-up (objective per-scope guard + tests already pass, so the migration is sound; only the
+aesthetic tuning is open).
+
 ## [2026-07-13] wave | 5 DONE — distinct silhouettes for the 8 look-alike box-buildings; the dispatch plan is complete
 
 Wave 5, the last wave of the [remaining-work dispatch plan](todos/closed/2026-07-10-remaining-work-dispatch-plan.md)

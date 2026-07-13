@@ -209,6 +209,27 @@ Follows the same shape as the earlier Phase-G re-points (festival → public-squ
 town-hall proximity): a player toggle becomes an autonomous, state-driven effect. `activeDecrees` itself is
 left in place (a harmless always-empty set + snapshot passthrough); removing it is a separate cleanup.
 
+### #28 — Citadel moves to the Apollo-46 palette (Farm + engine stay EDG32)
+The repo-wide "EDG32 is the single palette" rule ([decisions.md](decisions.md)) is now **per-game**. EDG32's
+gamut has no desaturated olive-grey midtones — its greys are blue-tinted, its mid-browns are rusts — which
+the [CC0-ingest spike](../todos/closed/2026-07-11-citadel-external-cc0-art-ingest.md) proved is a poor fit
+for muted medieval naturals, and colour is the axis the day/night wash degrades. **Citadel adopts Apollo-46**
+(AdamCYounis); **engine + Farm stay EDG32**.
+
+Implementation seam (why it was cheap): every Citadel colour already routed through named `EDG.*` role
+constants with **zero raw hex**, so migration is an *import redirect*, not a call-site rewrite.
+[citadel-palette.ts](../../games/citadel/client/src/render/citadel-palette.ts) exports `CITADEL_PAL` — the
+**same 32 role keys** as engine `EDG`, remapped to Apollo hex **by role** with luminance ordering preserved
+per ramp — and Citadel files import it as `CITADEL_PAL as EDG`, leaving ~200 usage sites untouched. Shared
+`@engine/ui` chrome is re-skinned by injecting a Citadel Apollo `Theme`
+([ui/citadel-theme.ts](../../games/citadel/client/src/ui/citadel-theme.ts)) — engine defaults stay EDG32.
+The palette guard is now **per-scope** (`games/citadel/`→Apollo, else EDG32); the engine never imports a
+game, so the 46 Apollo swatches are inlined in the engine-side scan and pinned to the module by a colocated
+Citadel test. Shipped `83efacc` — typecheck 0, @engine/core 186/186 (Farm still EDG32-clean), @citadel/client
+490/490. **The exact role→colour choices are a first pass** picked for hue/luminance fidelity, not yet tuned
+in a real browser — a `?showcase` eyeball + tweak is the natural follow-up (the objective per-scope guard +
+tests already pass). Filed from the [palette-evaluation todo](../todos/closed/2026-07-13-citadel-palette-evaluation.md).
+
 ## Consequences at a glance
 
 | Brief | Status after the second session |

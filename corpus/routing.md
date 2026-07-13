@@ -58,7 +58,7 @@ before you *act*.
 
 ## Conventions (locked — see corpus/wiki/decisions.md)
 - No `.js` import suffixes; pinned versions (no `^`/`~`); TS strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes.
-- EDG32 palette enforced (palette.test guard) — every color from `EDG.*`.
+- Fixed palette enforced per game (palette.test guard, per-scope) — every color from a named role constant, never raw hex: engine + Farm = EDG32 (`EDG.*`); Citadel = Apollo-46 (`CITADEL_PAL as EDG`). See citadel-decisions #28.
 - Engine never imports a game; the two games never import each other.
 - Determinism is load-bearing — no `Math.random`/`Date.now` in sim; all randomness via seeded `Rng.fork(label)`.
 - `npm run typecheck` + `npm run test` before any commit. Commit completed briefs at closeout (code + corpus as separate commits); never push without the user's go.
