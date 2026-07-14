@@ -33,7 +33,7 @@ Design intent for the diegetic-feedback direction lives in the **cozy pivot** ba
 > input while open; live search dropped, no text-input widget). To support the modal, **`@engine/ui`
 > gained `slider` + `checkbox`/`toggle` node kinds** (drag via the dispatcher `onDrag`; a11y
 > `<input type=range>`/`<input type=checkbox>`). Verified in real WebGPU (playtest + modal probe).
-> Open follow-up: [authored-typography-and-icons](../todos/2026-06-30-engine-ui-authored-typography-and-icons.md).
+> Open follow-up: [authored-typography-and-icons](../todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md).
 
 > **2026-06-30 — town-hall is now a placeable civic building (build bar `Services` group).**
 > A `town-hall` toolbar button was added. As a down-payment on cozy-pivot **Phase G**, the

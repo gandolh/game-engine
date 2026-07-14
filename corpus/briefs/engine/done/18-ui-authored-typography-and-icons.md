@@ -24,7 +24,7 @@ status: DONE (2026-07-14)
 > few lines it needs, and stores shades rather than palette chars.
 >
 > Gates: typecheck 0; full suite **2241 green**; both games browser-verified on a real GPU.
-source: [todos/2026-06-30-engine-ui-authored-typography-and-icons.md](../../../todos/2026-06-30-engine-ui-authored-typography-and-icons.md) — that todo is the spec (scope 1–4 + acceptance); this brief promotes it into the engine queue and adds sequencing notes.
+source: [todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md](../../../todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md) — that todo is the spec (scope 1–4 + acceptance); this brief promotes it into the engine queue and adds sequencing notes.
 
 ## Summary
 

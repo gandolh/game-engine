@@ -717,7 +717,7 @@ the same dual-backend `RendererLike` (WebGPU + Canvas2D) and that interface alre
 `beginUI/pushUI/endUI` — Farm just never calls them (all ~16 surfaces are raw DOM). So the
 work is **adopt + port + reinvent**, not build-from-scratch. Locked decisions: full one-pass
 port; pragmatic hybrid (hidden DOM only for seed text-input + a11y mirror); 5×7 bitmap font
-everywhere (icon dependency on the [authored-typography todo](todos/2026-06-30-engine-ui-authored-typography-and-icons.md),
+everywhere (icon dependency on the [authored-typography todo](todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md),
 mitigated by drawing Farm's existing atlas sprites via `UISurface.sprite`); radial dropped;
 reinvent both player + observer surfaces; observer data = diegetic + summon; **client-render-only**
 (reuse `swap-slots` + Pip input, no new sim/protocol → determinism untouched); port the a11y
@@ -1157,7 +1157,7 @@ Resolved **what Citadel is for**: *a cozy placement puzzle you read by watching 
 Grilled "all GUI in-game" into a first-class **cross-game engine subsystem** (not a Citadel task): build the UI layer first; the six Citadel UI panels are *consumers*; a **hidden DOM a11y mirror** is a required deliverable; new game-agnostic + render-backend-agnostic (**WebGPU + Canvas2D fallback**) **`@engine/ui`** package ([brief 17](briefs/engine/done/17-engine-ui-framework.md)).
 - **Framework** (`engine/ui/`): render seam (`RendererLike.beginUI/pushUI/endUI`), deterministic **5×7 bitmap font** (measure/layout/wrap/draw, EDG-tinted), retained-mode widgets (panel/box/label/button, later **slider/checkbox/toggle**), two-pass flex `computeLayout`, EDG32 theme, input dispatcher (hit-test/hover/focus/drag + a `consumed` intercept signal), scroll + injected-time tweens, `opacity` subtree channel, hidden-DOM a11y mirror.
 - **Six Citadel consumers** all shipped: resource HUD (all-goods strip), building inspect+upgrade panel, villager-job panel (villagers tint by job; **placement ⊥ follow-cam**), resource-HUD goods, town-hall build button (+ **solo keep-anchor decouple**: `actsAsKeepAnchor()` — a town-hall is civic-only in solo so raids never start), **build-cost economy** (`BUILD_COST` per type + debit, opt-in `chargeBuildCost`/`startingStock` bootstrap flag so headless/tests stay free & determinism-baseline-identical; solo grants 40 wood).
-- **DOM-overlay removal COMPLETE** (all 5 surfaces): event toasts, build bar (emoji→text labels — see the still-open [authored-typography todo](todos/2026-06-30-engine-ui-authored-typography-and-icons.md)), occupancy badges (world-anchored via `tileToCanvasCss`), minimap (raw-quad draw), settings modal (fully modal). No DOM UI overlays remain over the Citadel world.
+- **DOM-overlay removal COMPLETE** (all 5 surfaces): event toasts, build bar (emoji→text labels — see the still-open [authored-typography todo](todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md)), occupancy badges (world-anchored via `tileToCanvasCss`), minimap (raw-quad draw), settings modal (fully modal). No DOM UI overlays remain over the Citadel world.
 
 ### 2026-06-27 playtest fixes (first live real-GPU passes)
 - **Cold-start P0** — a solo game could never leave pop 0: the ~6-day founding window measured from sim day 0 had already closed during the ~15-day page/WebGPU boot. Fixed by anchoring the window **per-player to the first observed day they have a connected unstaffed production building** (`immigration.ts`); tick-0 builds anchor to baseline → headless/replay founding timing unchanged.
