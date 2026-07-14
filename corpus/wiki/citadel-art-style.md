@@ -1,6 +1,6 @@
 ---
-summary: Citadel's cozy-medieval-storybook iso pixel-art style bible — EDG32 palette roles, shading/form/light rules, the layered-composite authoring path, and the per-recipe checklist.
-updated: 2026-07-02
+summary: Citadel's cozy-medieval-storybook iso pixel-art style bible — palette roles, shading/form/light rules, and the per-recipe checklist. NOTE the layered-composite authoring path applied to the char-recipe buildings, which were replaced by 3D meshes on 2026-07-14.
+updated: 2026-07-14
 ---
 
 # Citadel — Cozy Iso Art Style Bible
@@ -82,7 +82,9 @@ A building recipe can be **hand-composed** (the classic FORM builders — `cotta
 from reusable `Layer` modules** via `composite(...)`. Both bake to ONE atlas frame with
 identical footprint/height/name — the renderer and every caller are untouched, so
 layering is **purely a boot-time authoring convenience with zero runtime cost**. All in
-[iso-draw.ts](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts).
+`iso-draw.ts`. **⚠️ Superseded 2026-07-14:** buildings are authored as 3D meshes now and
+`iso-draw.ts` was deleted — this layered-composite path applied to the char-recipe building
+art. See [citadel-rendering.md](citadel-rendering.md) for the mesh pipeline.
 
 - **`Layer = (g, m, pal) => void`** — one painter pass onto the shared `IsoGrid`.
 - **`composite(name, w, h, heightTiles, pal, layers)`** — stamps the contact shadow

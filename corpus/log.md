@@ -4,6 +4,50 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-14] brief | Citadel mesh Phase 3 — @lit night frames + retire the char-recipe building path
+
+Closes the [Phase-3 follow-up](todos/closed/2026-07-14-citadel-mesh-phase3-cleanup.md) filed the same
+day (`dfd754d`). Items 1–3 shipped; item 4 (mill/smith model tuning) skipped — the todo marked it
+optional and "fine as-is".
+
+- **`@lit` night frames are meshes.** house/bakery/smith/healer kept their OLD char `@lit` frames
+  while their day frames were meshes, so those four visibly reverted to the old art style at dusk.
+  The mesh renderer gained an **emissive material** path (emissive → one flat tone for every face
+  orientation, skipping the normal-quantized ramp) and the four models gained real **window
+  geometry** — dark recessed pane by day, warm `lampGlow` at night; the smith's hearth also runs
+  hotter (`hotEmber`). **Anti-drift by construction:** a lit frame calls the SAME day-frame factory
+  and remaps tri materials, so the two can only differ in which materials emit, never in shape.
+- **Char-recipe building path deleted:** `iso-draw.ts` (1990 lines) + the `BUILDING_RECIPES` bodies +
+  `roof.test.ts`. Net **−1,964 lines**. `recipes/buildings.ts` survives as a frame-NAME-only leaf.
+- **Tests grade what renders:** the silhouette/recipe guards read `BUILDING_RECIPES`, so they passed
+  while covering art the game no longer drew. Re-pointed at `MESH_OVERRIDES`, plus new guards that
+  the renderer's night frame selection resolves to real mesh art, and that burning / non-lit types
+  keep their day frame.
+
+### Load-bearing findings (do not re-derive)
+
+- **`BUILDING_SPRITE_TYPES` is the dangerous seam.** It + the atlas derived from `BUILDING_RECIPES`;
+  deleting the recipes without re-deriving from `MESH_MODELS` would have made every building
+  **silently fall back to a tinted box** — no crash, no failing test. Derive the type set from the
+  thing that actually rasterizes.
+- **Import cycle:** the barrel (`recipes/index.ts`) now imports `MESH_MODELS`, so anything under
+  `mesh/models/` reaching back through the barrel closes a cycle and leaves `MESH_MODELS` **undefined
+  at module-eval time** (it bit `industry.ts`, which wanted `millFrameName`). Mesh models import
+  frame names from the **leaf** `recipes/buildings`, never the barrel.
+- **One threshold moved, deliberately:** the mesh `well` is ~0.198 opaque vs a 0.2 floor. The well is
+  an open form (a well-head on an open plot, not a walled box) and `silhouette.test.ts` **already**
+  classified it as one — the opaque-floor list had simply never been reconciled with it. The 0.06
+  open-form floor still fails a blank frame.
+- **Real-GPU verification still required + still works:** system Chrome + `--enable-unsafe-webgpu`
+  (the Playwright-bundled Chromium still cannot create a WebGPU device here). Driving
+  `?showcase` and mutating `window.__citadelShowcase.toggles.dayFraction` (0.9 ⇒ nightFactor ≈ 0.905,
+  past the 0.45 lit threshold) renders night. **A wide screenshot is a weak instrument** for
+  frame-selection questions — the panes are a few pixels at gameplay zoom; importing
+  `MESH_OVERRIDES` in-page and blitting day-vs-lit frames scaled up is the high-signal check, and the
+  permanent guard belongs in `quads.test.ts`, not a screenshot.
+
+Gates: typecheck clean; full suite **1376 passing**; Apollo palette guard green.
+
 ## [2026-07-14] lint | Fold the mesh renderer into citadel-rendering.md; close the done economy todo
 
 Corpus catch-up after the mesh wave. Three drifts fixed:
