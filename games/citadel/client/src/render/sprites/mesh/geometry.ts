@@ -235,6 +235,36 @@ export function disc(radius: number, thickness: number, segs: number, material: 
   return translate(c, [thickness / 2, 0, 0]);
 }
 
+/** Nudge (tile units) a window pane's outward face sits proud of its wall
+ *  plane by, so the z-buffer resolves it cleanly instead of z-fighting the
+ *  wall behind it. */
+const WINDOW_PROUD = 0.015;
+
+/**
+ * A small window PANE set into a camera-facing wall: a thin box whose outward
+ * face sits `WINDOW_PROUD` beyond the wall plane. `axis` is the wall's
+ * outward-normal axis ("x" for a wall at `wallAt` facing +x, "y" for one
+ * facing +y — the two camera-facing walls in this projection); `u0..u1` spans
+ * the wall's OTHER horizontal axis, `z0..z1` the vertical extent. Shared by
+ * every window-bearing building so the day model and its `@lit` companion
+ * (which only remaps the material) can never disagree on window placement.
+ */
+export function windowPane(
+  axis: "x" | "y",
+  wallAt: number,
+  u0: number,
+  u1: number,
+  z0: number,
+  z1: number,
+  material: MaterialKey,
+): Mesh {
+  const depth = 0.03;
+  const size: Vec3 = axis === "x" ? [depth, u1 - u0, z1 - z0] : [u1 - u0, depth, z1 - z0];
+  const origin: Vec3 =
+    axis === "x" ? [wallAt - depth + WINDOW_PROUD, u0, z0] : [u0, wallAt - depth + WINDOW_PROUD, z0];
+  return translate(box(size, material), origin);
+}
+
 /**
  * A banner: a thin timber pole rising to `poleH` with a rectangular cloth flag
  * (a thin box, so both sides shade) hanging from the top. Anchored at the pole

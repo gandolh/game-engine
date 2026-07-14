@@ -12,6 +12,7 @@ import { storehouse, tradingpost } from "./trade";
 import { mill, millAnimationFrames, quarry, mine } from "./industry";
 import { watchpost, tower, garrison, keep } from "./military";
 import { farm } from "./land";
+import { litMeshModels } from "./lit";
 
 /** Every base building modelled as a mesh (keyed by the `bld/<type>` frame name). */
 export const MESH_MODELS: readonly MeshModel[] = [
@@ -31,3 +32,11 @@ export const MESH_MODELS: readonly MeshModel[] = [
  * MESH_MODELS above.
  */
 export const MILL_ANIMATION_FRAMES: readonly MeshModel[] = millAnimationFrames();
+
+/**
+ * The four dusk-lit `bld/<type>@lit` companion frames (house/bakery/smith/
+ * healer). Render-selected by night factor (`quads.ts`'s `LIT_BUILDING_SET`),
+ * so — like the mill's animation frames — they must ALSO be mesh overrides or
+ * the buildings fall back to the old char-recipe glow at night.
+ */
+export const LIT_MESH_MODELS: readonly MeshModel[] = litMeshModels();

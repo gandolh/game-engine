@@ -1,5 +1,5 @@
 /** Workshop meshes: bakery, woodcutter, sawmill, smith. All 2×2, height 1. */
-import { box, cylinder, cone, gable, disc, rotateX, rotateY, translate, merge } from "../geometry";
+import { box, cylinder, cone, gable, disc, rotateX, rotateY, translate, merge, windowPane } from "../geometry";
 import type { Mesh, MeshModel, Vec3 } from "../types";
 
 /** A short horizontal log (a cylinder laid along +x). Centre at origin; translate. */
@@ -17,7 +17,10 @@ function logPile(at: Vec3): Mesh {
   );
 }
 
-/** Squat cottage with a ROUND oven dome bulging through the near wall + chimney. */
+/**
+ * Squat cottage with a ROUND oven dome bulging through the near wall + chimney
+ * + a window on each camera-facing wall (kept clear of the oven bulge).
+ */
 export function bakery(): MeshModel {
   const body = translate(box([1.4, 1.35, 0.8], "plaster"), [0.25, 0.4, 0]);
   const roof = translate(gable([1.6, 1.65, 0.55], "x", "tile"), [0.1, 0.25, 0.8]);
@@ -25,7 +28,14 @@ export function bakery(): MeshModel {
   const drum = translate(cylinder(0.34, 0.42, 14, "oven"), ovenAt);
   const dome = translate(cone(0.34, 0.3, 14, "oven"), [ovenAt[0], ovenAt[1], 0.42]);
   const chimney = translate(cylinder(0.12, 0.85, 10, "stone"), [0.5, 0.62, 0.75]);
-  return { name: "bld/bakery", footprintW: 2, footprintD: 2, heightTiles: 1, mesh: merge(body, roof, drum, dome, chimney) };
+  // +y wall window, west of the oven bulge; +x wall window, south of it (the
+  // oven's footprint starts at y=0.86, so both stay clear of the dome).
+  const winS = windowPane("y", 1.75, 0.35, 0.65, 0.3, 0.55, "window");
+  const winE = windowPane("x", 1.65, 0.5, 0.75, 0.3, 0.55, "window");
+  return {
+    name: "bld/bakery", footprintW: 2, footprintD: 2, heightTiles: 1,
+    mesh: merge(body, roof, drum, dome, chimney, winS, winE),
+  };
 }
 
 /** A small compact cabin + a stacked log pile + a chopping block (reads as a little hut). */
@@ -74,8 +84,11 @@ export function smith(): MeshModel {
   // An anvil standing in the open front: a stubby dark post + a wider top block.
   const anvilPost = translate(box([0.16, 0.16, 0.26], "darkwood"), [1.3, 1.66, 0]);
   const anvilTop = translate(box([0.36, 0.17, 0.11], "stone"), [1.2, 1.64, 0.26]);
+  // The forge is open-sided, so the only real wall is the low stone backWall;
+  // set one small window into its +x face (clear of the hood/chimney above).
+  const win = windowPane("x", 1.75, 0.25, 0.5, 0.4, 0.75, "window");
   return {
     name: "bld/smith", footprintW: 2, footprintD: 2, heightTiles: 1,
-    mesh: merge(backWall, hearth, ember, hood, chimney, postL, postR, roof, anvilPost, anvilTop),
+    mesh: merge(backWall, hearth, ember, hood, chimney, postL, postR, roof, anvilPost, anvilTop, win),
   };
 }

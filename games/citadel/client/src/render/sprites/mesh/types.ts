@@ -23,7 +23,10 @@ export type MaterialKey =
   | "oven"
   | "greenroof"
   | "signal"
-  | "pit";
+  | "pit"
+  | "window"
+  | "lampGlow"
+  | "hotEmber";
 
 /** One triangle: three vertex INDICES into the mesh's `positions`, wound CCW as
  *  seen from outside (so the face normal points outward), plus its material. */

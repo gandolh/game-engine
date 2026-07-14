@@ -75,7 +75,9 @@ export function renderMeshModel(model: MeshModel): RasterizedRecipe {
     // Back-face cull: skip triangles whose outward normal faces away from camera.
     if (dot(n, VIEWER) <= 0) continue;
     const tones = MATERIALS[t.material];
-    const fill = toneForNormal(normalize(n), tones);
+    // Emissive materials (a lamplit window, a hot ember) emit rather than
+    // reflect: skip normal quantization and use one flat tone for every face.
+    const fill = tones.emissive ? tones.top : toneForNormal(normalize(n), tones);
     const packedOutline = (tones.outline[0] << 16) | (tones.outline[1] << 8) | tones.outline[2];
 
     const s0 = project(v0), s1 = project(v1), s2 = project(v2);

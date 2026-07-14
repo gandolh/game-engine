@@ -19,21 +19,24 @@
  * actually reworked.
  */
 import { describe, it, expect } from "vitest";
-import { BUILDING_RECIPES } from "./buildings";
-import { rasterizeRecipe } from "../rasterize";
-import type { PixelRecipe } from "../types";
+import { MESH_OVERRIDES } from "../mesh";
+import type { RasterizedRecipe } from "../rasterize";
 
-/** Base building type for a recipe (strip `bld/` + any `@frame` suffix). */
+/** Base building type for a frame name (strip `bld/` + any `@frame` suffix). */
 function typeOf(name: string): string {
   return name.slice("bld/".length).split("@")[0]!;
 }
 
-/** One day-frame recipe per building type (skip @lit / @mill animation frames). */
-function dayFrames(): Map<string, PixelRecipe> {
-  const byType = new Map<string, PixelRecipe>();
-  for (const r of BUILDING_RECIPES) {
-    if (r.name.includes("@")) continue; // animation / lit companion frames
-    byType.set(typeOf(r.name), r);
+/**
+ * One day frame per building type, AS RENDERED (straight from `MESH_OVERRIDES`,
+ * the rasters `atlas.ts` bakes). Previously this graded the char `BUILDING_RECIPES`,
+ * which no longer render — so the guard passed without covering the real art.
+ */
+function dayFrames(): Map<string, RasterizedRecipe> {
+  const byType = new Map<string, RasterizedRecipe>();
+  for (const [name, raster] of MESH_OVERRIDES) {
+    if (!name.startsWith("bld/") || name.includes("@")) continue; // animation / lit frames
+    byType.set(typeOf(name), raster);
   }
   return byType;
 }
@@ -44,8 +47,7 @@ const GRID = 48; // matches silhouette.test.ts's normalized silhouette resolutio
  *  Uniform (aspect-preserving) scale + bottom-anchored, X-centred placement —
  *  identical to silhouette.test.ts's silhouetteGrid, reused so both files
  *  agree on what "distinguishable" means. */
-function silhouetteGrid(recipe: PixelRecipe): Uint8Array {
-  const r = rasterizeRecipe(recipe);
+function silhouetteGrid(r: RasterizedRecipe): Uint8Array {
   const cells = new Uint8Array(GRID * GRID);
   const scale = GRID / Math.max(r.width, r.height);
   const usedW = r.width * scale;
@@ -85,9 +87,9 @@ const TARGET_TYPES = [
 function targetGrids(): { type: string; grid: Uint8Array }[] {
   const byType = dayFrames();
   return TARGET_TYPES.map((type) => {
-    const recipe = byType.get(type);
-    if (!recipe) throw new Error(`missing building recipe for Wave-5 target type "${type}"`);
-    return { type, grid: silhouetteGrid(recipe) };
+    const raster = byType.get(type);
+    if (!raster) throw new Error(`missing mesh frame for Wave-5 target type "${type}"`);
+    return { type, grid: silhouetteGrid(raster) };
   });
 }
 

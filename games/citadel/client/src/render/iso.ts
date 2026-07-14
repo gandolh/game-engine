@@ -94,8 +94,8 @@ export function isoDepth(tileX: number, tileY: number, elevation = 0): number {
 
 /**
  * Sprite pixel dimensions for a `w×h`-tile building `heightTiles` tall — the
- * SINGLE source of truth shared by the renderer (`isoFootprintBox`) and the iso
- * sprite generators (`iso-draw.ts`), so the authored art maps 1:1 onto the quad.
+ * SINGLE source of truth shared by the renderer (`isoFootprintBox`) and the mesh
+ * building renderer (`sprites/mesh/render.ts`), so the art maps 1:1 onto the quad.
  *   width  = (w + h) · ISO_HW                  (full footprint diamond width)
  *   height = roof + walls + diamond            (top of roof → bottom diamond point)
  * Pure.
@@ -135,8 +135,9 @@ export function isoSpriteDims(w: number, h: number, heightTiles: number): { widt
 export const ISO_ART_SCALE = 2;
 
 /**
- * Pixel dimensions for AUTHORING a building recipe — `isoSpriteDims` scaled up by
- * `ISO_ART_SCALE`. Used by `iso-draw.ts` so the recipe grid is high-res; the
+ * Pixel dimensions for AUTHORING a building sprite — `isoSpriteDims` scaled up by
+ * `ISO_ART_SCALE`. Used by the mesh renderer (`sprites/mesh/render.ts`) to size the
+ * frame it rasterizes into, so the art is rendered at high-res; the
  * renderer keeps using the unscaled `isoSpriteDims` for the world-px quad, and
  * the proportional scale means the high-res art still maps 1:1 onto the quad.
  * Pure.

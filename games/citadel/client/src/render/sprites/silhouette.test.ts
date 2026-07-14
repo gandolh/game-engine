@@ -11,22 +11,27 @@
  * normalized grid ≥ a threshold).
  */
 import { describe, it, expect } from "vitest";
-import { BUILDING_RECIPES } from "./recipes";
-import { rasterizeRecipe } from "./rasterize";
-import type { PixelRecipe } from "./types";
-import { colorOf } from "./palette";
+import { MESH_OVERRIDES } from "./mesh";
+import type { RasterizedRecipe } from "./rasterize";
 
-/** Base building type for a recipe (strip `bld/` + any `@frame` suffix). */
+/** Base building type for a frame name (strip `bld/` + any `@frame` suffix). */
 function typeOf(name: string): string {
   return name.slice("bld/".length).split("@")[0]!;
 }
 
-/** One day-frame recipe per building type (skip @lit / @mill animation frames). */
-function dayFrames(): Map<string, PixelRecipe> {
-  const byType = new Map<string, PixelRecipe>();
-  for (const r of BUILDING_RECIPES) {
-    if (r.name.includes("@")) continue; // animation / lit companion frames
-    byType.set(typeOf(r.name), r);
+/**
+ * One day frame per building type, AS RENDERED — read straight out of
+ * `MESH_OVERRIDES`, the exact rasters `atlas.ts` bakes into the sheet.
+ *
+ * This used to rasterize the char `BUILDING_RECIPES`, which meant the guard kept
+ * passing while grading art the game no longer draws. Grading the mesh rasters is
+ * the whole point: a silhouette regression in a MESH model now fails headlessly.
+ */
+function dayFrames(): Map<string, RasterizedRecipe> {
+  const byType = new Map<string, RasterizedRecipe>();
+  for (const [name, raster] of MESH_OVERRIDES) {
+    if (!name.startsWith("bld/") || name.includes("@")) continue; // animation / lit frames
+    byType.set(typeOf(name), raster);
   }
   return byType;
 }
@@ -36,10 +41,9 @@ const GRID = 48; // normalized silhouette resolution — fine enough that small
                  // roof cross) registers, so same-footprint types still separate;
                  // still coarse/uniform-scaled enough to be size-independent.
 
-/** Downsample a recipe's opaque mask to a GRID×GRID occupancy grid (0/1). A cell
- *  is "on" if ANY source pixel mapping into it is opaque. Size-independent. */
-function silhouetteGrid(recipe: PixelRecipe): Uint8Array {
-  const r = rasterizeRecipe(recipe);
+/** Downsample a rendered frame's opaque mask to a GRID×GRID occupancy grid (0/1).
+ *  A cell is "on" if ANY source pixel mapping into it is opaque. Size-independent. */
+function silhouetteGrid(r: RasterizedRecipe): Uint8Array {
   const cells = new Uint8Array(GRID * GRID);
   // Uniform (aspect-preserving) scale + BOTTOM-anchored, X-centred placement:
   // stretch-to-fill would erase the very proportion/top-structure differences that
@@ -94,8 +98,7 @@ describe("art-04 depth (not flat)", () => {
     // "Flat" = a face painted one value. Scan the centre column (through the body)
     // and count distinct opaque colours; a hue-shifted 3+ band face clears 3 easily.
     const thin: string[] = [];
-    for (const [type, r] of dayFrames()) {
-      const raster = rasterizeRecipe(r);
+    for (const [type, raster] of dayFrames()) {
       const cx = Math.floor(raster.width / 2);
       const seen = new Set<string>();
       for (let y = 0; y < raster.height; y++) {
@@ -121,7 +124,7 @@ describe("art-04 isometry (base-square, narrowing upward)", () => {
     // footprint diamond + walls) is at least as wide as the roof-apex region
     // (top quarter). Measuring MAX width over a band (not a single row) is robust
     // to the apex being a point and the diamond bottom being a point.
-    const maxWidthInBand = (r: ReturnType<typeof rasterizeRecipe>, y0: number, y1: number): number => {
+    const maxWidthInBand = (r: RasterizedRecipe, y0: number, y1: number): number => {
       let best = 0;
       for (let y = y0; y < y1; y++) {
         let min = -1, max = -1;
@@ -135,9 +138,8 @@ describe("art-04 isometry (base-square, narrowing upward)", () => {
       return best;
     };
     const violations: string[] = [];
-    for (const [type, recipe] of dayFrames()) {
+    for (const [type, r] of dayFrames()) {
       if (OPEN_FORMS.has(type)) continue;
-      const r = rasterizeRecipe(recipe);
       const topQuarter = maxWidthInBand(r, 0, Math.floor(r.height / 4));
       const bottomHalf = maxWidthInBand(r, Math.floor(r.height / 2), r.height);
       if (bottomHalf < topQuarter) violations.push(`${type}: base ${bottomHalf}px < apex-band ${topQuarter}px`);
@@ -145,7 +147,3 @@ describe("art-04 isometry (base-square, narrowing upward)", () => {
     expect(violations, violations.length ? `Not base-heavy:\n  ${violations.join("\n  ")}` : "").toEqual([]);
   });
 });
-
-// keep colorOf referenced so an accidental unused-import lint doesn't fire; it is
-// the palette accessor the rasterizer uses under the hood.
-void colorOf;

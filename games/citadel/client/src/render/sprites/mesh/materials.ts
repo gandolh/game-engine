@@ -15,6 +15,7 @@
  */
 import { CITADEL_PAL as EDG } from "../../citadel-palette";
 import { rgbOf } from "@engine/core";
+import type { MaterialKey } from "./types";
 
 /** Opaque RGBA tuple for an EDG (Apollo) role hex. */
 export type Rgba = readonly [number, number, number, number];
@@ -30,10 +31,25 @@ export interface FaceTones {
   readonly left: Rgba;
   readonly right: Rgba;
   readonly outline: Rgba;
+  /**
+   * Materials that EMIT light rather than reflect it (a lamplit window pane, a
+   * hot ember) don't darken by which way they face. When set, the renderer
+   * fills every visible tri with `top` regardless of face normal — `left`/
+   * `right` are unused but kept equal to `top` so the type stays uniform and a
+   * caller can't observe an unquantized material by accident. `outline` still
+   * applies normally.
+   */
+  readonly emissive?: true;
 }
 
-/** The material palette. Luminance ordering top > left > right, darker outline. */
-export const MATERIALS = {
+/**
+ * The material palette. Luminance ordering top > left > right, darker outline.
+ * Typed as `Record<MaterialKey, FaceTones>` (not `satisfies`) so every entry —
+ * including the ones that omit `emissive` — widens to the full `FaceTones`
+ * shape; that keeps `tones.emissive` a valid read at every access site instead
+ * of only on the (as-written) literal union of entries that set it.
+ */
+export const MATERIALS: Record<MaterialKey, FaceTones> = {
   // Cream half-timbered walls — the browns' light end.
   plaster: { top: rgba(EDG.cream), left: rgba(EDG.skin), right: rgba(EDG.skinMid), outline: rgba(EDG.bark) },
   // Structural oak timber (legs, framing) — mid browns.
@@ -52,4 +68,14 @@ export const MATERIALS = {
   signal: { top: rgba(EDG.rust), left: rgba(EDG.red), right: rgba(EDG.crimson), outline: rgba(EDG.bark) },
   // Deep-shadow excavated stone (quarry pit floor) — the dark neutral ramp.
   pit: { top: rgba(EDG.slate), left: rgba(EDG.navy), right: rgba(EDG.ink), outline: rgba(EDG.black) },
-} satisfies Record<string, FaceTones>;
+  // A dark, recessed window pane by day — cool neutral ramp so it reads as
+  // glass/shadow set into the wall, not a hole punched through it.
+  window: { top: rgba(EDG.slate), left: rgba(EDG.navy), right: rgba(EDG.ink), outline: rgba(EDG.black) },
+  // Warm lamplight glowing through a window at dusk/night — EMISSIVE (flat gold
+  // regardless of face normal), outlined in a warm dark rust rather than a cold
+  // stone outline so the pane still reads warm at its edge.
+  lampGlow: { top: rgba(EDG.gold), left: rgba(EDG.gold), right: rgba(EDG.gold), outline: rgba(EDG.rust), emissive: true },
+  // A hotter ember glow for the smith's hearth at night — brighter than the
+  // day "signal" ramp (the hearth's bright-mouth material) and EMISSIVE.
+  hotEmber: { top: rgba(EDG.yellow), left: rgba(EDG.yellow), right: rgba(EDG.yellow), outline: rgba(EDG.crimson), emissive: true },
+};

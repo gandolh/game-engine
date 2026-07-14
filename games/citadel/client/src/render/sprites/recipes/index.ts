@@ -1,15 +1,21 @@
 /**
- * Barrel for the Citadel sprite recipes. Exposes the full recipe set (consumed
- * by atlas.ts) and the building-type → frame-name mapping (consumed by
- * quads.ts). The set of building types that HAVE a sprite is derived from the
- * recipe names, so the two can't drift (a test re-asserts it).
+ * Barrel for the Citadel sprite recipes. Exposes the CHAR-recipe set (units +
+ * fx — consumed by atlas.ts) and the building-type → frame-name mapping
+ * (consumed by quads.ts).
+ *
+ * Buildings are NOT char recipes any more: every `bld/*` frame comes from the
+ * 3D-mesh pipeline (`../mesh/`). So the set of building types that have a
+ * sprite is derived from `MESH_MODELS` — the thing that actually renders — and
+ * a test re-asserts it against the sim's building-type list, so the two can't
+ * drift.
  */
 import type { PixelRecipe } from "../types";
-import { BUILDING_RECIPES, MILL_FRAME_COUNT, millFrameName } from "./buildings";
+import { MESH_MODELS } from "../mesh/models";
+import { MILL_FRAME_COUNT, millFrameName } from "./buildings";
 import { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN } from "./units";
 import { FX_RECIPES, FRAME_DIAMOND, FLAME_FRAME_COUNT, flameFrameName } from "./fx";
 
-export { BUILDING_RECIPES, MILL_FRAME_COUNT, millFrameName, buildingLitFrameName, LIT_BUILDING_TYPES } from "./buildings";
+export { MILL_FRAME_COUNT, millFrameName, buildingLitFrameName, LIT_BUILDING_TYPES } from "./buildings";
 export {
   UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN,
   UNIT_FRAME_COUNT, unitFrameAt, villagerFrameName, raiderFrameName,
@@ -17,8 +23,11 @@ export {
 } from "./units";
 export { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE, FLAME_FRAME_COUNT, flameFrameName } from "./fx";
 
-/** Every recipe baked into the runtime atlas (buildings + units + fx). */
-export const ALL_RECIPES: readonly PixelRecipe[] = [...BUILDING_RECIPES, ...UNIT_RECIPES, ...FX_RECIPES];
+/**
+ * Every CHAR recipe baked into the runtime atlas (units + fx). Buildings are no
+ * longer here — `atlas.ts` bakes them from `MESH_OVERRIDES` instead.
+ */
+export const ALL_RECIPES: readonly PixelRecipe[] = [...UNIT_RECIPES, ...FX_RECIPES];
 
 /** The frame-name prefix for building sprites. */
 export const BUILDING_FRAME_PREFIX = "bld/";
@@ -29,17 +38,21 @@ export function buildingFrameName(type: string): string {
 }
 
 /**
- * The set of building types that have a sprite recipe (derived from recipe
+ * The set of building types that have a sprite (derived from the MESH MODEL
  * names by stripping the `bld/` prefix). quads.ts checks membership before
  * requesting a frame, so a type without art falls back to a tinted box rather
  * than throwing in GpuAtlasStore.uv().
  *
- * Animation frames like `bld/mill@3` are NOT types — they're extra frames for an
- * existing type (mill) — so `@`-suffixed names are excluded.
+ * Derived from `MESH_MODELS` — the models the atlas actually rasterizes — so
+ * this set cannot claim art that doesn't render (it used to be derived from the
+ * now-deleted char `BUILDING_RECIPES`).
+ *
+ * Animation / lit frames like `bld/mill@3` or `bld/house@lit` are NOT types —
+ * they're extra frames of an existing type — so `@`-suffixed names are excluded.
  */
 export const BUILDING_SPRITE_TYPES: ReadonlySet<string> = new Set(
-  BUILDING_RECIPES
-    .map((r) => r.name.slice(BUILDING_FRAME_PREFIX.length))
+  MESH_MODELS
+    .map((m) => m.name.slice(BUILDING_FRAME_PREFIX.length))
     .filter((type) => !type.includes("@")),
 );
 

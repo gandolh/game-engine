@@ -23,12 +23,12 @@ import { MESH_OVERRIDES } from "./mesh";
  * `createImageBitmap` is async. Throws if a 2D context can't be acquired.
  */
 export async function createCitadelSpriteAtlas(): Promise<LoadedAtlasImage> {
-  // Phase-1 mesh pipeline: three frames (bld/house, bld/bakery, bld/watchpost)
-  // are rendered from in-code 3D triangle meshes (z-buffered) instead of their
-  // char recipe; every other frame keeps its char recipe. Names + the
-  // RasterizedRecipe contract are identical, so packing/renderer/showcase are
-  // unchanged (the other 18 stay on the recipes for A/B comparison).
-  const rasters = ALL_RECIPES.map((r) => MESH_OVERRIDES.get(r.name) ?? rasterizeRecipe(r));
+  // Buildings are rendered from in-code 3D triangle meshes (z-buffered) — every
+  // `bld/*` frame (21 base + the mill's rotated-sail frames + the four `@lit`
+  // dusk companions) comes from MESH_OVERRIDES, already rasterized. Units + fx
+  // are still authored as char recipes and rasterized here. Both satisfy the same
+  // `RasterizedRecipe` contract, so packing / renderer / showcase are unchanged.
+  const rasters = [...MESH_OVERRIDES.values(), ...ALL_RECIPES.map((r) => rasterizeRecipe(r))];
 
   // Pack the recipes + the load-bearing 1×1 white `px` frame (used by every
   // tinted-quad path: ghost, light-pool, wear, autotile, cluster border, crowd).

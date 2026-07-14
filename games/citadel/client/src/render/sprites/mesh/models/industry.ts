@@ -1,6 +1,10 @@
 /** Industry meshes: mill (tower + animated sails), quarry (dug pit), mine (headframe). */
 import { box, cylinder, cone, gable, disc, windmillSails, translate, merge } from "../geometry";
-import { MILL_FRAME_COUNT, millFrameName } from "../../recipes";
+// Import from the LEAF names module, not the `../../recipes` barrel: the barrel
+// derives BUILDING_SPRITE_TYPES from MESH_MODELS, so going through it here would
+// close an import cycle (barrel → mesh/models → industry → barrel), leaving
+// MESH_MODELS undefined at module-eval time.
+import { MILL_FRAME_COUNT, millFrameName } from "../../recipes/buildings";
 import type { Mesh, MeshModel, Vec3, MaterialKey } from "../types";
 
 /**
