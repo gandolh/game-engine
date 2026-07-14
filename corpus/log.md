@@ -4,6 +4,23 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-14] lint | Fold the mesh renderer into citadel-rendering.md; close the done economy todo
+
+Corpus catch-up after the mesh wave. Three drifts fixed:
+- [wiki/citadel-rendering.md](wiki/citadel-rendering.md) (stale since 2026-07-02) presented the
+  `iso-draw.ts` char-recipe form builders as the *current* building-art path. Added a
+  **Mesh building renderer** section (model → software rasterizer → `MESH_OVERRIDES` into the same
+  atlas) and a banner marking the char-recipe building prose as superseded. The char path still runs
+  for the four `@lit` night frames + non-building sprites — that's the Phase-3 cleanup todo.
+- Same page still listed the **flat-box anomaly as open**. It isn't: it was a host-specific artifact
+  of the Playwright-bundled Chromium and does not reproduce on a real GPU. Marked closed, with the
+  system-Chrome requirement for visual checks.
+- `2026-06-22-citadel-two-way-service-economy.md` was `status: done` (shipped as brief 100) but still
+  sat in `todos/`. Moved to `todos/closed/`.
+
+Open todos are now: farm perishability, engine audio, `@engine/ui` typography, OpenTTD influence
+(reference), and the Citadel mesh Phase-3 cleanup (in progress).
+
 ## [2026-07-14] initiative | Citadel building art rebuilt from scratch as in-code 3D meshes
 
 The 2D ASCII pixel-recipe art (`iso-draw.ts` primitive composition) couldn't reliably produce
