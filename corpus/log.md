@@ -4,6 +4,53 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-14] brief | @engine/ui authored typography + icon glyphs (engine brief 18)
+
+Closes engine brief 18 / the [2026-06-30 todo](todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md).
+The in-canvas UI now renders a real pixel font and a real icon set. New wiki page:
+[engine-ui.md](wiki/engine-ui.md).
+
+- **Font: UNSCII (public domain).** The hand-coded 5×7 ASCII font is gone. `.hex` sources vendored
+  ([engine/ui/vendor/](../engine/ui/vendor/)) and converted ONCE into committed glyph tables, so the
+  boot-time atlas bake stays deterministic and asset-free. `BODY_FONT` (8×8, default) +
+  `DISPLAY_FONT` (8×16). ⚠️ `unscii-16-full.*` is Unifont-derived **GPL** — never vendor it; the base
+  files used here are outside that carve-out.
+- **Icons: 34 glyphs at 16×16, as SHADE-INDEX MASKS.** Colour is never baked in; the consumer passes
+  a 3-colour ramp from its own palette. That is the only design that lets ONE icon set serve Citadel
+  (Apollo-46) and Farm (EDG32) while the engine imports neither game. The renderer tints one colour
+  per quad, so each icon bakes to three pixel-disjoint 1-bit masks drawn as three stacked quads — no
+  renderer change needed.
+- **Citadel's build bar is a compact icon grid again** (it had been downgraded to wide text labels
+  precisely because the old font was ASCII-only); the goods strip is iconified.
+
+### Load-bearing findings (do not re-derive)
+
+- **The visual loop is mandatory, and we nearly skipped it AGAIN.** The first icon pass was authored
+  blind at 12×12: `wheat` rendered as mush, `hammer` as a slab on a stick — the exact failure that
+  forced the Citadel building art to be rebuilt as 3D meshes. Fixed by *rendering and looking*
+  ([tools/icon-sheet.ts](../engine/ui/tools/icon-sheet.ts), now committed as the loop) and by moving
+  to 16×16, which 12×12 could not match for `grain`/`flour`/`bread` (needs a readable silhouette AND
+  two shade bands).
+- **Changing a text metric reflows every layout that consumed it — and unit tests will NOT catch it.**
+  5px → 8px glyphs produced four bugs, every one found only in a browser, all the same shape:
+  *positioned by a constant or a guess instead of by the laid-out rect.*
+  1. Fixed pixel widths tuned to the old advance (Farm hotbar/inventory/tooltip/observer/slate/feed).
+  2. A **magic placement fraction** — Farm's DOM seed `<input>` sat at `panel.height * 0.52`; the
+     taller panel made it collide with the Randomize button. Now the canvas row reserves an empty
+     slot and the input is positioned onto *that node's rect*.
+  3. **A container shorter than the theme padding.** The slate's 5px stock-bar track inherited the
+     default 6px padding, laying its fill out at `track.y + 6` — entirely below its own track, on top
+     of the caption. Such containers need an explicit `padding: 0`.
+  4. **A node reserving a text line where a sprite is drawn.** Farm's hotbar painted a 26px item
+     sprite over an empty `label("")`, spilling the art onto the item's own caption.
+- **Labels could not wrap.** `LabelNode` never exposed the text engine's wrap support, so a
+  fixed-width panel full of dynamic sim-authored text overflowed by construction. Added
+  `label({ maxWidth })`; Citadel's inspect panel now wraps instead of running off the side.
+- **The in-canvas font is printable ASCII (0x20–0x7e) only** — `✕` and `·` in labels were rendering
+  as the `?` fallback box. Replaced with ASCII.
+
+Gates: typecheck 0; full suite **2241 green**; both games browser-verified on a real GPU.
+
 ## [2026-07-14] brief | Citadel mesh Phase 3 — @lit night frames + retire the char-recipe building path
 
 Closes the [Phase-3 follow-up](todos/closed/2026-07-14-citadel-mesh-phase3-cleanup.md) filed the same

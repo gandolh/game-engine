@@ -1,21 +1,18 @@
 export {
-  GLYPH_WIDTH,
-  GLYPH_HEIGHT,
   FIRST_CODEPOINT,
   LAST_CODEPOINT,
   FALLBACK_CHAR,
   allChars,
   glyphRows,
-} from "./glyphs";
-export type { GlyphRows } from "./glyphs";
+  fontAtlasId,
+  BODY_FONT,
+  DISPLAY_FONT,
+  DEFAULT_FONT,
+} from "./fonts";
+export type { GlyphRows, FontMetrics, UiFont } from "./fonts";
 
-export {
-  FONT_ATLAS_ID,
-  DEFAULT_FONT_METRICS,
-  bakeFontAtlas,
-  frameNameFor,
-} from "./font";
-export type { FontMetrics, BakedFont } from "./font";
+export { bakeFontAtlas, frameNameFor } from "./font";
+export type { BakedFont } from "./font";
 
 export { makeBakedFontAtlas, loadFontAtlas } from "./font-atlas";
 

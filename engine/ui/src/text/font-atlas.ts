@@ -1,11 +1,13 @@
 import type { LoadedAtlasImage, PixelRect } from "@engine/core/assets";
-import { bakeFontAtlas, type BakedFont, type FontMetrics } from "./font";
+import { bakeFontAtlas, type BakedFont } from "./font";
+import { DEFAULT_FONT, type UiFont } from "./fonts";
 
 /**
  * Turn a {@link BakedFont} (RGBA raster + manifest) into a `LoadedAtlasImage` the renderer
  * can blit, by uploading the raster to an `ImageBitmap`. Register the result with
- * `renderer.addAtlas(...)` once at startup; thereafter `drawText` emits `pushUI` quads that
- * reference `FONT_ATLAS_ID` + the per-glyph frame names.
+ * `renderer.addAtlas(...)` once at startup (per font in use); thereafter `drawText` emits
+ * `pushUI` quads that reference that font's atlas id (`fontAtlasId(font)`, see `./fonts`)
+ * + the per-glyph frame names.
  *
  * Async because `createImageBitmap` is the only portable RGBA→bitmap path; the bake itself
  * (the deterministic part) is synchronous and lives in {@link bakeFontAtlas}.
@@ -29,7 +31,7 @@ export async function makeBakedFontAtlas(
   };
 }
 
-/** Convenience: bake (optionally with custom metrics) and upload in one call. */
-export async function loadFontAtlas(metrics?: FontMetrics): Promise<LoadedAtlasImage> {
-  return makeBakedFontAtlas(bakeFontAtlas(metrics));
+/** Convenience: bake `font` (default {@link DEFAULT_FONT}) and upload in one call. */
+export async function loadFontAtlas(font: UiFont = DEFAULT_FONT): Promise<LoadedAtlasImage> {
+  return makeBakedFontAtlas(bakeFontAtlas(font));
 }

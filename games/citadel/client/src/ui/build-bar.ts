@@ -2,10 +2,11 @@
  * Citadel build bar — the placement toolbar, rendered IN-CANVAS via `@engine/ui`
  * (replacing the DOM `#build-bar`). Part of the "all GUI in-game" DOM-overlay removal.
  *
- * The in-canvas UI font is an ASCII bitmap font (no emoji), so the old emoji icon grid
- * becomes a grid of short TEXT buttons grouped by category (Housing / Food / Refine /
- * Service / Defense / Tools). A follow-up todo authors proper icon glyphs to restore the
- * compact icon look ([authored-typography-and-icons]).
+ * Each button shows its `@engine/ui` icon ([engine/ui/src/icon/icons.ts](../../../../../engine/ui/src/icon/icons.ts))
+ * centered, tinted by the shared `BUILD_ICON_RAMP` (`citadel-theme.ts`) — restoring the
+ * compact icon-grid look the old emoji build bar had. The item's `label` string is kept and
+ * still backs the button's accessible name + the hover-info text (see `hoverInfoFor`); it's
+ * just not painted, since `button({ icon })` draws the icon INSTEAD of the label visually.
  *
  * The bar is a retained `@engine/ui` tree built ONCE; `refresh(state)` re-binds each button's
  * interaction state per frame (active = the selected tool; disabled = tier-locked or, in the
@@ -19,6 +20,7 @@ import { box, panel, button, label } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode, UINode } from "@engine/ui";
 import { TIER_LOCK, tierAtLeast, buildCost } from "@citadel/sim-core";
 import type { SettlementTier } from "@citadel/sim-core";
+import { BUILD_ICON_RAMP } from "./citadel-theme";
 
 /** A standalone tool mode (vs. placing a building type). Mirrors `PlacementMode` minus "place". */
 export type BuildTool = "road" | "wall" | "demolish" | "upgrade" | "none";
@@ -32,8 +34,19 @@ type Item =
 const buildItem = (label: string, type: string): Item => ({ kind: "build", label, type });
 const toolItem = (label: string, tool: BuildTool): Item => ({ kind: "tool", label, tool });
 
-/** The toolbar layout — category groups (mirrors the old DOM `#build-bar`). Labels are short
- *  (the bitmap font is narrow + the bar is icon-less for now). */
+/**
+ * The icon name for a toolbar entry. Every `build` item's `type` string is already one of
+ * `@engine/ui`'s icon names (building types were named to match); every `tool` maps 1:1
+ * EXCEPT `"none"`, which has no "none" icon and instead shows the `cancel` glyph (an X) —
+ * it's the "leave placement mode" action, same as the button's own "Cancel" label.
+ */
+function iconNameFor(item: Item): string {
+  if (isBuild(item)) return item.type;
+  return item.tool === "none" ? "cancel" : item.tool;
+}
+
+/** The toolbar layout — category groups (mirrors the old DOM `#build-bar`). `label` backs the
+ *  button's accessible name + hover text; the button itself renders `iconNameFor(item)`. */
 const GROUPS: ReadonlyArray<{ readonly label: string; readonly items: ReadonlyArray<Item> }> = [
   { label: "Housing", items: [buildItem("House", "house"), buildItem("Store", "storehouse"), buildItem("Well", "well")] },
   { label: "Food", items: [buildItem("Farm", "farm"), buildItem("Mill", "mill"), buildItem("Bakery", "bakery"), buildItem("Wood", "woodcutter")] },
@@ -104,10 +117,22 @@ function canAfford(type: string, stock: Readonly<Record<string, number>>): boole
   return true;
 }
 
+/** Icon buttons per row within a category group — keeps a category with several entries
+ *  (e.g. "Service"'s 7) as a compact block instead of one tall column, like a real icon grid. */
+const ICONS_PER_ROW = 4;
+
+/** Split `items` into chunks of (up to) `size`, in order — drives the icon-grid row wrapping. */
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 /**
  * Build the retained build-bar tree and wire each button to `actions`. Built once; `refresh`
- * mutates button states per frame. The bar reads as a row of category columns (label + its
- * buttons stacked), to be anchored at the bottom-left by the host.
+ * mutates button states per frame. The bar reads as a row of category groups (a muted heading
+ * over an icon grid, wrapped to {@link ICONS_PER_ROW} per row), to be anchored at the
+ * bottom-left by the host.
  */
 export function createBuildBar(actions: BuildBarActions): BuildBar {
   const bound: BoundButton[] = [];
@@ -117,6 +142,7 @@ export function createBuildBar(actions: BuildBarActions): BuildBar {
     const heading: LabelNode = label(g.label, { muted: true });
     const buttons: ButtonNode[] = g.items.map((item) => {
       const node = button(item.label, {
+        icon: { name: iconNameFor(item), ramp: BUILD_ICON_RAMP },
         onActivate: () => {
           if (isBuild(item)) actions.selectBuild(item.type);
           else actions.setTool(item.tool);
@@ -127,7 +153,10 @@ export function createBuildBar(actions: BuildBarActions): BuildBar {
       byNodeId.set(node.id, b);
       return node;
     });
-    return box({ direction: "column", gap: 3, align: "stretch" }, [heading, ...buttons]);
+    const rows = chunk(buttons, ICONS_PER_ROW).map((row) =>
+      box({ direction: "row", gap: 3, align: "center" }, row),
+    );
+    return box({ direction: "column", gap: 3, align: "start" }, [heading, ...rows]);
   });
 
   const root = panel({ direction: "row", gap: 10, align: "start" }, groupColumns);

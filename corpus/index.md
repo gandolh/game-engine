@@ -25,6 +25,7 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 - [wiki/performance.md](wiki/performance.md) — Ranked optimization backlog for the engine, filtered against what the code actually does — tiers 0–3, what is already done, and what is explicitly not worth doing at Farm Valley's scale.
 - [wiki/performance-measurements.md](wiki/performance-measurements.md) — The profiling record: how to measure (`Profiler` + `?profile` + DebugOverlay), plus the 2026-06-05 and 2026-06-10 measured baselines every optimization claim is scored against.
 - [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — The bake principle (assets are code, not images), asset-cooking and atlas research, and the cache-key/incremental-build recommendations that became brief 71.
+- [wiki/engine-ui.md](wiki/engine-ui.md) — The shared in-canvas UI toolkit (@engine/ui): the UNSCII text stack, the palette-agnostic icon pipeline, and the layout traps that bite when text metrics change.
 - [wiki/shader-ideas.md](wiki/shader-ideas.md) — Book-of-Shaders techniques filtered against the WebGPU renderer. Ideas, not committed work.
 
 ### Farm Valley

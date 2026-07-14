@@ -33,8 +33,16 @@ import type { PlayerHotbar, HotbarSlotState } from "@farm/sim-core/snapshot";
 
 const HOTBAR_SLOT_COUNT = 8;
 
-const SLOT_WIDTH = 48;
-const SLOT_HEIGHT = 58;
+// Wide enough for the longest COMMON caption ("Pickaxe"/"Pumpkin", 7 chars) at the body font's
+// 9px advance (62px) + the slot's 4px horizontal padding, with a little breathing room — was 48,
+// sized for the old 5px-glyph font's ~6px advance (41px for the same word). A handful of rare
+// long captions ("Winter Squash", "Golden Beans") still overflow at any reasonable slot width;
+// that's pre-existing (they overflowed the old 48px slot too) and out of scope here.
+const SLOT_WIDTH = 64;
+// badge(10) + icon(26) + caption(10) + count(10) + 3 gaps + 6 vertical padding = 65.
+// Was 58, which was only ever enough because the `glyph` node reserved a single TEXT LINE
+// rather than the icon's real 26px — so the sprite drawn over it spilled onto the caption.
+const SLOT_HEIGHT = 70;
 const ICON_SIZE = 26;
 /** Pixels the pointer must travel from press before a click becomes a drag (so slot clicks/taps
  * and the world tool-use they might overlap are never mistaken for a drag). */
@@ -116,7 +124,14 @@ function hasSpriteFrame(frame: string): boolean {
 
 function buildSlot(index: number): SlotEls {
   const badge = label(`${index + 1}`, { color: EDG.slate, scale: 1 });
-  const glyph = label("", { color: EDG.silver });
+  // The glyph node RESERVES the icon's box (drawIcons paints an ICON_SIZE sprite over its rect).
+  // Without the fixed size it sized to its own empty text — one line tall — and the 26px sprite
+  // drawn on it spilled 16px down onto the caption, printing the item art over its own name.
+  // It still carries the ASCII fallback text for slots with no atlas frame.
+  const glyph = label("", {
+    color: EDG.silver,
+    layout: { width: ICON_SIZE, height: ICON_SIZE },
+  });
   const caption = label("", { color: EDG.steel });
   const count = label("", { color: EDG.silver });
 

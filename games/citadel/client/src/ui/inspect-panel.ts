@@ -35,6 +35,18 @@ import {
 } from "./building-info";
 
 /**
+ * Panel width, and the text column inside it (width minus the theme's left+right padding).
+ *
+ * Widened from 240 when the in-canvas font moved from the old 5x7 bitmap to UNSCII (8px cell):
+ * every glyph got wider, so the sim-authored strings this panel shows — descriptions, and cost
+ * lines like "Cost: 4 planks, 4 stone (Needs Village)" — no longer fit. Width alone is not the
+ * fix, though: the dynamic labels also WRAP to `TEXT_MAX` (see `label({ maxWidth })`), so a
+ * longer string than we anticipated grows the panel downward instead of overflowing sideways.
+ */
+const PANEL_WIDTH = 300;
+const TEXT_MAX = PANEL_WIDTH - 24;
+
+/**
  * The live, per-frame view of the selected building the panel renders. The host fills this
  * from the matched `BuildingSnapshot` (re-found each frame by footprint origin) plus the
  * snapshot-level `season`. `null`-ish absence is handled by the host (it just doesn't refresh
@@ -143,8 +155,10 @@ export interface InspectPanel {
  */
 export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
   const titleLbl = label("Building", { color: EDG.gold });
-  const closeBtn = button("✕", { onActivate: () => actions.close() });
-  // A grow:1 spacer pushes the ✕ to the right edge of the header row.
+  // "X", not "✕": the in-canvas bitmap font covers printable ASCII (0x20–0x7e) only, so a
+  // non-ASCII glyph renders as the '?' fallback box.
+  const closeBtn = button("X", { onActivate: () => actions.close() });
+  // A grow:1 spacer pushes the close button to the right edge of the header row.
   const headerSpacer = box({ grow: 1 });
   const header = box({ direction: "row", align: "center", gap: 8 }, [
     titleLbl,
@@ -152,9 +166,12 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
     closeBtn,
   ]);
 
-  const descLbl = label("", { muted: true });
-  const rateLbl = label("");
-  const throttleLbl = label("", { color: EDG.gold });
+  // Every dynamic line WRAPS to the panel's text column. These labels carry sim-authored text
+  // of unbounded length ("Cost: 4 planks, 4 stone (Needs Village)"), and an unwrapped label is
+  // one long line that runs straight off the side of a pinned-width panel.
+  const descLbl = label("", { muted: true, maxWidth: TEXT_MAX });
+  const rateLbl = label("", { maxWidth: TEXT_MAX });
+  const throttleLbl = label("", { color: EDG.gold, maxWidth: TEXT_MAX });
 
   // Detail rows. Each is a labelled column line; emptied + hidden when not applicable.
   const scopeLbl = label("");
@@ -198,10 +215,12 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
   // (via actions.upgrade); refresh() drives its `state` (enabled only when affordable + below
   // max) and the cost label's text + colour.
   const upgradeBtn = button("Upgrade", { onActivate: () => actions.upgrade() });
-  const costLbl = label("", { color: EDG.silver });
-  const footer = box({ direction: "row", gap: 8, align: "center" }, [upgradeBtn, costLbl]);
+  // The cost line sits BELOW the button, not beside it: it is the longest dynamic string in the
+  // panel and needs the full text column to wrap into.
+  const costLbl = label("", { color: EDG.silver, maxWidth: TEXT_MAX });
+  const footer = box({ direction: "column", gap: 4 }, [upgradeBtn, costLbl]);
 
-  const root = panel({ direction: "column", gap: 6, width: 240 }, [
+  const root = panel({ direction: "column", gap: 6, width: PANEL_WIDTH }, [
     header,
     descLbl,
     rateLbl,

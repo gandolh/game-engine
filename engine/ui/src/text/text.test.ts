@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { EDG } from "@engine/core/render";
 import type { UIQuad } from "@engine/core/render";
 import { UISurface } from "../render/ui-surface";
-import { DEFAULT_FONT_METRICS, bakeFontAtlas, FONT_ATLAS_ID, frameNameFor } from "./font";
-import { allChars } from "./glyphs";
+import { bakeFontAtlas, frameNameFor } from "./font";
+import { allChars, BODY_FONT, DISPLAY_FONT, fontAtlasId, glyphRows } from "./fonts";
 import { measureText, layoutText } from "./layout";
 import { drawText, layoutTextQuads } from "./draw";
 
-const M = DEFAULT_FONT_METRICS;
+const M = BODY_FONT.metrics;
 
 describe("measureText", () => {
   it("is empty for the empty string", () => {
@@ -15,9 +15,9 @@ describe("measureText", () => {
   });
 
   it("measures n glyphs as n*glyphWidth + (n-1)*tracking", () => {
-    // "Hi" = 2 glyphs: 2*5 + 1*1 = 11 at scale 1.
+    // "Hi" = 2 glyphs: 2*8 + 1*1 = 17 at scale 1 (body font: unscii-8, 8px wide).
     expect(measureText("Hi")).toBe(2 * M.glyphWidth + 1 * M.tracking);
-    expect(measureText("Hi")).toBe(11);
+    expect(measureText("Hi")).toBe(17);
   });
 
   it("scales linearly with an integer scale", () => {
@@ -26,6 +26,12 @@ describe("measureText", () => {
 
   it("counts spaces as glyph cells (monospaced advance)", () => {
     expect(measureText("a b")).toBe(measureText("abc"));
+  });
+
+  it("measures against the display font when passed explicitly", () => {
+    // Same advance metrics (8w/1 tracking) as body — unscii-8 and unscii-16 share glyph
+    // width, only the cell height differs — so the width formula is identical.
+    expect(measureText("Hi", { font: DISPLAY_FONT })).toBe(measureText("Hi", { font: BODY_FONT }));
   });
 });
 
@@ -44,30 +50,37 @@ describe("layoutText word-wrap", () => {
   });
 
   it("greedily wraps words to maxWidth", () => {
-    // Each word "aaa" = 3 glyphs = 17px; "aaa aaa" = 7 cells = 41px.
-    // maxWidth 20 fits one word per line.
-    const l = layoutText("aaa aaa aaa", { maxWidth: 20 });
+    // Each word "aaa" = 3 glyphs = 26px; "aaa aaa" = 7 cells = 62px.
+    // maxWidth 30 fits one word per line.
+    const l = layoutText("aaa aaa aaa", { maxWidth: 30 });
     expect(l.lines.map((x) => x.text)).toEqual(["aaa", "aaa", "aaa"]);
-    for (const line of l.lines) expect(line.width).toBeLessThanOrEqual(20);
+    for (const line of l.lines) expect(line.width).toBeLessThanOrEqual(30);
   });
 
   it("packs as many words as fit per line", () => {
-    // "aa bb" = 5 cells = 29px fits in 30; adding " cc" (8 cells) does not.
-    const l = layoutText("aa bb cc", { maxWidth: 30 });
+    // "aa bb" = 5 cells = 41px fits in 45; adding " cc" (8 cells) does not.
+    const l = layoutText("aa bb cc", { maxWidth: 45 });
     expect(l.lines.map((x) => x.text)).toEqual(["aa bb", "cc"]);
   });
 
   it("hard-breaks a single word longer than maxWidth", () => {
-    // "wwwwww" with maxWidth ~ 2 glyphs (11px) must break, never overflow.
-    const l = layoutText("wwwwww", { maxWidth: 11 });
+    // "wwwwww" with maxWidth ~ 2 glyphs (17px) must break, never overflow.
+    const l = layoutText("wwwwww", { maxWidth: 17 });
     expect(l.lines.length).toBeGreaterThan(1);
-    for (const line of l.lines) expect(line.width).toBeLessThanOrEqual(11);
+    for (const line of l.lines) expect(line.width).toBeLessThanOrEqual(17);
     expect(l.lines.map((x) => x.text).join("")).toBe("wwwwww");
   });
 
   it("reports the widest line as the block width", () => {
     const l = layoutText("aaaa\nb", { maxWidth: Infinity });
     expect(l.width).toBe(measureText("aaaa"));
+  });
+
+  it("defaults to the body font, and threads an explicit font through to the layout result", () => {
+    expect(layoutText("hi").font).toBe(BODY_FONT);
+    const l = layoutText("hi", { font: DISPLAY_FONT });
+    expect(l.font).toBe(DISPLAY_FONT);
+    expect(l.lineHeight).toBe(DISPLAY_FONT.metrics.lineHeight);
   });
 });
 
@@ -80,7 +93,7 @@ describe("layoutTextQuads / drawText", () => {
       y: 50,
       width: M.glyphWidth,
       height: M.glyphHeight,
-      atlasId: FONT_ATLAS_ID,
+      atlasId: fontAtlasId(BODY_FONT),
       frame: frameNameFor("H"),
       color: EDG.gold,
     });
@@ -118,13 +131,27 @@ describe("layoutTextQuads / drawText", () => {
     drawText(surface, "Go", 5, 5, { color: EDG.green });
     surface.end();
     expect(pushed).toHaveLength(2);
-    expect(pushed.every((q) => q.color === EDG.green && q.atlasId === FONT_ATLAS_ID)).toBe(true);
+    expect(pushed.every((q) => q.color === EDG.green && q.atlasId === fontAtlasId(BODY_FONT))).toBe(true);
+  });
+
+  it("emits quads sized to the display font, on its own atlas, when selected", () => {
+    const { quads } = layoutTextQuads("Hi", 0, 0, { color: EDG.white, font: DISPLAY_FONT });
+    expect(quads).toHaveLength(2);
+    expect(quads[0]).toMatchObject({
+      width: DISPLAY_FONT.metrics.glyphWidth,
+      height: DISPLAY_FONT.metrics.glyphHeight,
+      atlasId: fontAtlasId(DISPLAY_FONT),
+    });
+    expect(fontAtlasId(DISPLAY_FONT)).not.toBe(fontAtlasId(BODY_FONT));
   });
 });
 
-describe("bakeFontAtlas determinism + coverage", () => {
+describe.each([
+  ["body (unscii-8)", BODY_FONT],
+  ["display (unscii-16)", DISPLAY_FONT],
+] as const)("bakeFontAtlas determinism + coverage — %s", (_label, font) => {
   it("covers all printable ASCII with a frame each", () => {
-    const baked = bakeFontAtlas();
+    const baked = bakeFontAtlas(font);
     for (const ch of allChars()) {
       expect(baked.manifest.frames[frameNameFor(ch)]).toBeDefined();
     }
@@ -132,21 +159,35 @@ describe("bakeFontAtlas determinism + coverage", () => {
   });
 
   it("produces a byte-identical raster on repeated bakes", () => {
-    const a = bakeFontAtlas();
-    const b = bakeFontAtlas();
+    const a = bakeFontAtlas(font);
+    const b = bakeFontAtlas(font);
     expect(a.width).toBe(b.width);
     expect(a.height).toBe(b.height);
     expect(a.rgba.length).toBe(b.rgba.length);
     expect(Array.from(a.rgba)).toEqual(Array.from(b.rgba));
   });
 
-  it("bakes glyphs as opaque white masks (alpha 255, white RGB where lit)", () => {
-    const baked = bakeFontAtlas();
-    // The 'A' glyph (frame g41) has its top-row middle pixels lit; sample a known lit pixel.
-    // Row 0 of 'A' is 0b01110 — columns 1..3 lit. Cell x for 'A' = (0x41-0x20)*glyphWidth.
-    const cellX = (0x41 - 0x20) * baked.metrics.glyphWidth;
-    const litX = cellX + 2; // a lit column on row 0
-    const o = (0 * baked.width + litX) * 4;
+  it("bakes glyphs as opaque white masks (alpha 255, white RGB where lit), space fully transparent", () => {
+    const baked = bakeFontAtlas(font);
+    // The 'A' glyph (frame g41): sample its first lit pixel via the glyph table directly
+    // (rather than hard-coding a row/column, which would silently drift if the source .hex
+    // changes, or if a taller cell like unscii-16 pads blank rows above the glyph).
+    const cellX = (0x41 - 0x20) * font.metrics.glyphWidth;
+    const rows = glyphRows(font, "A");
+    let litRow = -1;
+    let litCol = -1;
+    for (let r = 0; r < font.metrics.glyphHeight && litRow < 0; r += 1) {
+      const mask = rows[r]!;
+      for (let c = 0; c < font.metrics.glyphWidth; c += 1) {
+        if ((mask & (1 << (font.metrics.glyphWidth - 1 - c))) !== 0) {
+          litRow = r;
+          litCol = c;
+          break;
+        }
+      }
+    }
+    expect(litRow).toBeGreaterThanOrEqual(0); // sanity: 'A' does light something
+    const o = (litRow * baked.width + cellX + litCol) * 4;
     expect(baked.rgba[o]).toBe(255);
     expect(baked.rgba[o + 1]).toBe(255);
     expect(baked.rgba[o + 2]).toBe(255);
@@ -154,5 +195,18 @@ describe("bakeFontAtlas determinism + coverage", () => {
     // A space glyph (g20) is fully transparent.
     const spaceO = (0 * baked.width + 2) * 4; // first cell is ' '
     expect(baked.rgba[spaceO + 3]).toBe(0);
+  });
+
+  it("bakes onto that font's own atlas id", () => {
+    const baked = bakeFontAtlas(font);
+    expect(baked.manifest.id).toBe(fontAtlasId(font));
+    expect(baked.font).toBe(font);
+  });
+});
+
+describe("glyphRows fallback", () => {
+  it("falls back to '?' for a character outside printable ASCII", () => {
+    expect(glyphRows(BODY_FONT, "é")).toBe(glyphRows(BODY_FONT, "?"));
+    expect(glyphRows(DISPLAY_FONT, "é")).toBe(glyphRows(DISPLAY_FONT, "?"));
   });
 });

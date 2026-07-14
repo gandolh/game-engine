@@ -1,5 +1,6 @@
 import { layoutText } from "../text/layout";
 import { measureText } from "../text/layout";
+import { ICON_SIZE } from "../icon/icons";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
 import type { UINode } from "../widget/node";
@@ -56,9 +57,26 @@ function paddingOf(node: UINode, theme: Theme): Padding {
 }
 
 /** Intrinsic text size of a label/button's string at its resolved scale. */
-function textSize(text: string, scale: number): Intrinsic {
-  const l = layoutText(text, { scale });
-  return { width: measureText(text, { scale }), height: l.height };
+/**
+ * Intrinsic size of `text`. When `maxWidth` is given the text WRAPS to it, so the box grows
+ * taller instead of running off the side of its panel — the width is then the widest resulting
+ * line (never more than `maxWidth`), not the unwrapped single-line measure.
+ */
+function textSize(text: string, scale: number, maxWidth?: number): Intrinsic {
+  if (maxWidth === undefined) {
+    const l = layoutText(text, { scale });
+    return { width: measureText(text, { scale }), height: l.height };
+  }
+  // Wrapped: `TextLayout.width` is already the widest resulting LINE, so the box takes the
+  // wrapped width (never more than maxWidth) and grows in height instead.
+  const l = layoutText(text, { scale, maxWidth });
+  return { width: Math.min(l.width, maxWidth), height: l.height };
+}
+
+/** Intrinsic size of an icon at its resolved scale: a square `ICON_SIZE * scale` box. */
+function iconSize(scale: number): Intrinsic {
+  const s = ICON_SIZE * scale;
+  return { width: s, height: s };
 }
 
 /** Pass 1: compute and cache each node's intrinsic size; returns this node's. */
@@ -67,11 +85,16 @@ function measureNode(node: UINode, theme: Theme, cache: Map<number, Intrinsic>):
 
   if (node.kind === "label") {
     const scale = node.scale ?? theme.textScale;
-    size = textSize(node.text, scale);
+    size = textSize(node.text, scale, node.maxWidth);
+  } else if (node.kind === "icon") {
+    const scale = node.scale ?? theme.textScale;
+    size = iconSize(scale);
   } else if (node.kind === "button") {
     const scale = node.scale ?? theme.textScale;
     const pad = paddingOf(node, theme);
-    const t = textSize(node.label, scale);
+    // An icon button sizes from the icon's square box instead of the (still-required, but
+    // visually hidden) label text — see `ButtonNode.icon` / the render walk in `../widget/render`.
+    const t = node.icon ? iconSize(scale) : textSize(node.label, scale);
     size = {
       width: t.width + pad.left + pad.right,
       height: t.height + pad.top + pad.bottom,

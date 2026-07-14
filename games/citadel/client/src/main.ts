@@ -14,7 +14,7 @@ import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, C
 import { ParticleSystem, createRng, expSmooth } from "@engine/core";
 import type { Camera2D, RendererLike } from "@engine/core";
 import { CITADEL_PAL as EDG } from "./render/citadel-palette";
-import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11yMirror, loadFontAtlas, label } from "@engine/ui";
+import { UISurface, computeLayout, renderTree, createInputDispatcher, createA11yMirror, loadFontAtlas, loadIconAtlas, label } from "@engine/ui";
 import type { InputDispatcher, A11yMirror, LabelNode } from "@engine/ui";
 import { createResourceHud } from "./ui/resource-hud";
 import type { ResourceHud } from "./ui/resource-hud";
@@ -1714,6 +1714,9 @@ async function boot(): Promise<void> {
   // engine-ui chunk 7: register the bitmap font atlas (once), build the in-canvas HUD,
   // and wire its render/input/a11y plumbing.
   //  - addAtlas(loadFontAtlas()) makes drawText's glyph quads resolvable by the renderer.
+  //  - addAtlas(loadIconAtlas()) does the same for icon() / button({icon}) quads (the build
+  //    bar's icon grid + the resource HUD's goods-strip icons) — without this the icon draw
+  //    calls reference an atlas id the renderer never loaded and paint nothing.
   //  - createResourceHud wires the speed/pause buttons' onActivate to the SAME command
   //    functions the old DOM handlers used (togglePause / setSpeedAndResume).
   //  - the UISurface wraps the renderer's screen-space UI seam.
@@ -1721,6 +1724,7 @@ async function boot(): Promise<void> {
   //  - the a11y mirror reflects the tree into hidden DOM; its focus bridge forwards mirror
   //    focus into the dispatcher (and the loop's setFocus mirrors it back).
   renderer.addAtlas(await loadFontAtlas());
+  renderer.addAtlas(await loadIconAtlas());
   hud = createResourceHud({ togglePause, setSpeed: setSpeedAndResume });
   uiSurface = new UISurface(renderer);
   uiDispatcher = createInputDispatcher(() => hud?.root ?? null);

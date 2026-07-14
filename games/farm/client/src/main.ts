@@ -97,14 +97,20 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   return { renderer, noiseGen, keyboard, uiHost, camera };
 }
 
-/** Anchor the DOM seed input (the one documented DOM exception) over the canvas seed row. */
-function positionSeedInput(canvas: HTMLCanvasElement, input: HTMLInputElement, root: { rect: { x: number; y: number; width: number; height: number } }): void {
+/**
+ * Anchor the DOM seed input (the one documented DOM exception) onto the empty SLOT the canvas
+ * seed row reserves for it (`HomeScreen.seedSlot`).
+ *
+ * This used to guess — centre horizontally, then `panel.height * 0.52` vertically. The guess
+ * was only ever coincidentally right, and it broke visibly the moment the in-canvas font
+ * changed (the panel got taller, so 52% stopped landing on the row and the input collided with
+ * the Randomize button). Position off the laid-out rect, which tracks whatever the text metrics
+ * do, instead of a fraction of the panel.
+ */
+function positionSeedInput(canvas: HTMLCanvasElement, input: HTMLInputElement, slot: { rect: { x: number; y: number; width: number; height: number } }): void {
   const rect = canvas.getBoundingClientRect();
-  // Centre the input horizontally on the panel, just below the panel's vertical midpoint.
-  const cx = rect.left + root.rect.x + root.rect.width / 2 - input.offsetWidth / 2;
-  const cy = rect.top + root.rect.y + root.rect.height * 0.52;
-  input.style.left = `${cx}px`;
-  input.style.top = `${cy}px`;
+  input.style.left = `${rect.left + slot.rect.x}px`;
+  input.style.top = `${rect.top + slot.rect.y}px`;
 }
 
 async function boot(): Promise<void> {
@@ -160,7 +166,7 @@ async function boot(): Promise<void> {
     const hy = Math.max(0, (canvas.clientHeight - home.root.rect.height) / 2);
     computeLayout(home.root, hx, hy);
     homeRoot.mirror?.update(home.root);
-    positionSeedInput(canvas, home.seedInputEl, home.root);
+    positionSeedInput(canvas, home.seedInputEl, home.seedSlot);
     uiHost.surface.begin();
     renderTree(uiHost.surface, home.root);
     uiHost.surface.end();

@@ -16,6 +16,7 @@
  */
 export * from "./render";
 export * from "./text";
+export * from "./icon";
 export * from "./theme";
 export * from "./layout";
 export * from "./widget";

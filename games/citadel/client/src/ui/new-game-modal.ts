@@ -30,7 +30,8 @@ export type GameMode = "cozy" | "challenge";
 interface ModeDef {
   readonly mode: GameMode;
   readonly button: string;
-  /** Two short lines — the bitmap font is narrow, so keep each well under the dialog width. */
+  /** A few short lines — `@engine/ui`'s UNSCII pixel font is 8px/glyph (wider than the old
+   *  5px bitmap font it replaced), so keep each line well under the dialog width. */
   readonly lines: readonly string[];
 }
 

@@ -22,6 +22,7 @@ import type { ButtonState } from "../theme/theme";
  */
 
 import type { LayoutProps } from "../layout/props";
+import type { IconRamp } from "../icon/draw";
 
 /** Computed screen-space rectangle (px, top-left origin), filled in by `computeLayout`. */
 export interface Rect {
@@ -31,7 +32,7 @@ export interface Rect {
   height: number;
 }
 
-export type UINodeKind = "panel" | "box" | "label" | "button" | "slider" | "checkbox";
+export type UINodeKind = "panel" | "box" | "label" | "button" | "slider" | "checkbox" | "icon";
 
 interface BaseNode {
   /** Stable per-node id (unique within a process run). Used for keying/hit-test/a11y. */
@@ -74,13 +75,49 @@ export interface LabelNode extends BaseNode {
   scale?: number;
   /** If true, use the theme's muted text colour (ignored when `color` is set). */
   muted?: boolean;
+  /**
+   * Wrap width in screen pixels. Without it a label is ONE unwrapped line and will happily
+   * run off the side of a fixed-width panel — set this on any label whose text is dynamic
+   * (a description, a cost line) inside a panel with a pinned `width`.
+   */
+  maxWidth?: number;
+}
+
+/** An icon leaf: a named shade-mask icon (see `../icon`), tinted by a caller-supplied ramp. */
+export interface IconNode extends BaseNode {
+  readonly kind: "icon";
+  children: [];
+  /** Icon name, looked up in the icon registry (`../icon`'s `ICONS`) at render time. */
+  icon: string;
+  /** The 3-colour `[dark, mid, light]` ramp tinting the icon's shade masks — the caller's own
+   * palette (`EDG.*` in the engine/Farm, `CITADEL_PAL.*` in Citadel). Never baked in here. */
+  ramp: IconRamp;
+  /** Uniform size multiplier on the icon's native size (`ICON_SIZE`, currently 12px). Default 1. */
+  scale?: number;
+}
+
+/** An icon shown by a {@link ButtonNode} in place of its text label — see {@link button}. */
+export interface ButtonIcon {
+  readonly name: string;
+  readonly ramp: IconRamp;
 }
 
 /** An activatable button leaf with a text label and per-state theming. */
 export interface ButtonNode extends BaseNode {
   readonly kind: "button";
   children: [];
+  /**
+   * The button's text AND its accessible name (the a11y mirror's `<button>` always uses this
+   * as `textContent`, even when {@link icon} is set — an icon-only button still needs a real
+   * name for assistive tech). Pass a short description ("Build house") alongside an icon.
+   */
   label: string;
+  /**
+   * When set, the render walk draws this icon centered in the button INSTEAD OF `label`'s
+   * text (visually) — `label` still backs the accessible name. Compose an icon-only build-bar
+   * button with `button("Build house", { icon: { name: "house", ramp } })`.
+   */
+  icon?: ButtonIcon;
   /**
    * Visual + interaction state. The input chunk drives this; the render walk maps it to
    * theme colours. `disabled` also suppresses activation.
@@ -92,7 +129,7 @@ export interface ButtonNode extends BaseNode {
    * games wire their own dispatch; pass `() => dispatch("my.command")` if you prefer ids.
    */
   onActivate?: () => void;
-  /** Override the theme text scale for this button's label. */
+  /** Override the theme text/icon scale for this button's label/icon. */
   scale?: number;
 }
 
@@ -189,7 +226,7 @@ export interface CheckboxNode extends BaseNode {
   toggle(): boolean;
 }
 
-export type UINode = ContainerNode | LabelNode | ButtonNode | SliderNode | CheckboxNode;
+export type UINode = ContainerNode | LabelNode | ButtonNode | SliderNode | CheckboxNode | IconNode;
 
 let nextId = 1;
 
@@ -218,7 +255,13 @@ export function box(layout: LayoutProps = {}, children: UINode[] = []): Containe
 /** Create a **label** (text leaf). */
 export function label(
   text: string,
-  opts: { layout?: LayoutProps; color?: string; scale?: number; muted?: boolean } = {},
+  opts: {
+    layout?: LayoutProps;
+    color?: string;
+    scale?: number;
+    muted?: boolean;
+    maxWidth?: number;
+  } = {},
 ): LabelNode {
   const node: LabelNode = {
     id: freshId(),
@@ -231,10 +274,12 @@ export function label(
   if (opts.color !== undefined) node.color = opts.color;
   if (opts.scale !== undefined) node.scale = opts.scale;
   if (opts.muted !== undefined) node.muted = opts.muted;
+  if (opts.maxWidth !== undefined) node.maxWidth = opts.maxWidth;
   return node;
 }
 
-/** Create a **button** (activatable leaf), defaulting to the `normal` state. */
+/** Create a **button** (activatable leaf), defaulting to the `normal` state. Pass `opts.icon`
+ * to show an icon instead of `text` visually — `text` still backs the accessible name. */
 export function button(
   text: string,
   opts: {
@@ -242,6 +287,7 @@ export function button(
     onActivate?: () => void;
     state?: ButtonState;
     scale?: number;
+    icon?: ButtonIcon;
   } = {},
 ): ButtonNode {
   const node: ButtonNode = {
@@ -254,6 +300,26 @@ export function button(
     state: opts.state ?? "normal",
   };
   if (opts.onActivate !== undefined) node.onActivate = opts.onActivate;
+  if (opts.scale !== undefined) node.scale = opts.scale;
+  if (opts.icon !== undefined) node.icon = opts.icon;
+  return node;
+}
+
+/** Create an **icon** (shade-mask leaf), tinted by `ramp` (see {@link IconRamp}). */
+export function icon(
+  name: string,
+  ramp: IconRamp,
+  opts: { layout?: LayoutProps; scale?: number } = {},
+): IconNode {
+  const node: IconNode = {
+    id: freshId(),
+    kind: "icon",
+    layout: opts.layout ?? {},
+    children: [],
+    rect: emptyRect(),
+    icon: name,
+    ramp,
+  };
   if (opts.scale !== undefined) node.scale = opts.scale;
   return node;
 }

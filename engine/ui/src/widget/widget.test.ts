@@ -2,7 +2,12 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { EDG } from "@engine/core/render";
 import type { RendererLike, UIQuad } from "@engine/core/render";
 import { UISurface } from "../render/ui-surface";
-import { FONT_ATLAS_ID } from "../text/font";
+import { BODY_FONT, fontAtlasId } from "../text/fonts";
+import { ICON_ATLAS_ID, frameNameForIcon } from "../icon/bake";
+import { ICON_SIZE } from "../icon/icons";
+import type { IconRamp } from "../icon/draw";
+
+const FONT_ATLAS_ID = fontAtlasId(BODY_FONT);
 import { DEFAULT_THEME, makeTheme } from "../theme/theme";
 import { computeLayout } from "../layout/layout";
 import {
@@ -13,6 +18,7 @@ import {
   slider,
   checkbox,
   toggle,
+  icon,
   resetNodeIds,
   SLIDER_DEFAULT_HEIGHT,
   SLIDER_DEFAULT_WIDTH,
@@ -51,20 +57,20 @@ beforeEach(() => resetNodeIds());
 
 describe("computeLayout — column with padding + gap", () => {
   it("places children stacked with gap, offset by padding", () => {
-    const a = label("A"); // 1 glyph: 5w; one text line = lineHeight 9h
-    const b = label("BB"); // 2 glyphs: 11w, 9h
+    const a = label("A"); // 1 glyph: 8w (body font, unscii-8); one text line = lineHeight 10h
+    const b = label("BB"); // 2 glyphs: 17w, 10h
     const root = panel({ direction: "column", padding: 10, gap: 4 }, [a, b]);
     computeLayout(root, 100, 200, DEFAULT_THEME);
 
     // Children sit at padding offset; second is below the first by (height + gap).
-    expect(a.rect).toEqual({ x: 110, y: 210, width: 5, height: 9 });
-    expect(b.rect).toEqual({ x: 110, y: 210 + 9 + 4, width: 11, height: 9 });
+    expect(a.rect).toEqual({ x: 110, y: 210, width: 8, height: 10 });
+    expect(b.rect).toEqual({ x: 110, y: 210 + 10 + 4, width: 17, height: 10 });
 
-    // Root sizes to content: widest child (11) + 2*pad ; sum of heights + gap + 2*pad.
+    // Root sizes to content: widest child (17) + 2*pad ; sum of heights + gap + 2*pad.
     expect(root.rect.x).toBe(100);
     expect(root.rect.y).toBe(200);
-    expect(root.rect.width).toBe(11 + 20);
-    expect(root.rect.height).toBe(9 + 4 + 9 + 20);
+    expect(root.rect.width).toBe(17 + 20);
+    expect(root.rect.height).toBe(10 + 4 + 10 + 20);
   });
 });
 
@@ -74,8 +80,8 @@ describe("computeLayout — row direction", () => {
     const b = label("BB");
     const root = box({ direction: "row", padding: 0, gap: 5 }, [a, b]);
     computeLayout(root, 0, 0, DEFAULT_THEME);
-    expect(a.rect).toEqual({ x: 0, y: 0, width: 5, height: 9 });
-    expect(b.rect).toEqual({ x: 5 + 5, y: 0, width: 11, height: 9 });
+    expect(a.rect).toEqual({ x: 0, y: 0, width: 8, height: 10 });
+    expect(b.rect).toEqual({ x: 8 + 5, y: 0, width: 17, height: 10 });
   });
 });
 
@@ -93,59 +99,59 @@ describe("computeLayout — cross-axis align", () => {
   it("center centers the narrower child in the content width", () => {
     const root = build("center");
     computeLayout(root, 0, 0, DEFAULT_THEME);
-    // content width = widest child "BBBB" = 4 glyphs = 23. "A" = 5 wide.
+    // content width = widest child "BBBB" = 4 glyphs = 35. "A" = 8 wide.
     const a = root.children[0]!;
-    expect(root.rect.width).toBe(23);
-    expect(a.rect.x).toBe((23 - 5) / 2);
+    expect(root.rect.width).toBe(35);
+    expect(a.rect.x).toBe((35 - 8) / 2);
   });
 
   it("end right-aligns the narrower child", () => {
     const root = build("end");
     computeLayout(root, 0, 0, DEFAULT_THEME);
     const a = root.children[0]!;
-    expect(a.rect.x).toBe(23 - 5);
+    expect(a.rect.x).toBe(35 - 8);
   });
 
   it("stretch expands children to the content width", () => {
     const root = build("stretch");
     computeLayout(root, 0, 0, DEFAULT_THEME);
     const a = root.children[0]!;
-    expect(a.rect.width).toBe(23);
+    expect(a.rect.width).toBe(35);
   });
 });
 
 describe("computeLayout — grow distributes leftover main-axis space", () => {
   it("a grow child absorbs the slack to fill a fixed-height column", () => {
-    const head = label("H"); // one text line = 9h
+    const head = label("H"); // one text line = 10h (body font: unscii-8)
     const filler = box({ grow: 1, padding: 0 }); // empty container, intrinsic height 0
     const root = panel({ direction: "column", padding: 0, gap: 0, height: 100 }, [head, filler]);
     computeLayout(root, 0, 0, DEFAULT_THEME);
-    // head keeps intrinsic 9; filler absorbs the leftover so the column fills height 100.
-    expect(head.rect.height).toBe(9);
-    expect(filler.rect.y).toBe(9);
-    expect(filler.rect.height).toBe(91);
+    // head keeps intrinsic 10; filler absorbs the leftover so the column fills height 100.
+    expect(head.rect.height).toBe(10);
+    expect(filler.rect.y).toBe(10);
+    expect(filler.rect.height).toBe(90);
     expect(head.rect.height + filler.rect.height).toBe(100);
   });
 });
 
 describe("button intrinsic size + state", () => {
   it("sizes from label + padding and defaults to normal state", () => {
-    const btn = button("OK", { layout: { padding: 4 } }); // "OK" = 2 glyphs = 11w, 7h
+    const btn = button("OK", { layout: { padding: 4 } }); // "OK" = 2 glyphs = 17w, 10h
     computeLayout(btn, 0, 0, DEFAULT_THEME);
     expect(btn.state).toBe("normal");
-    expect(btn.rect.width).toBe(11 + 8);
-    expect(btn.rect.height).toBe(9 + 8);
+    expect(btn.rect.width).toBe(17 + 8);
+    expect(btn.rect.height).toBe(10 + 8);
   });
 
   it("with no explicit padding, uses the theme padding (measure matches the render walk)", () => {
     // Regression: paddingOf must give a button the theme padding by default, the same value
     // the render walk centres the label within. If they disagree the bg is text-tight and
     // the label overflows / adjacent buttons merge (the Citadel HUD speed/pause bug).
-    const btn = button("OK"); // "OK" = 11w, 9h text; theme.padding default = 6
+    const btn = button("OK"); // "OK" = 17w, 10h text; theme.padding default = 6
     computeLayout(btn, 0, 0, DEFAULT_THEME);
     const p = DEFAULT_THEME.padding;
-    expect(btn.rect.width).toBe(11 + 2 * p);
-    expect(btn.rect.height).toBe(9 + 2 * p);
+    expect(btn.rect.width).toBe(17 + 2 * p);
+    expect(btn.rect.height).toBe(10 + 2 * p);
   });
 });
 
@@ -410,9 +416,9 @@ describe("checkbox / toggle — construction, layout + render", () => {
     const boxOnly = bare.rect.width;
 
     resetNodeIds();
-    const labelled = checkbox({ label: "On" }); // "On" = 11w
+    const labelled = checkbox({ label: "On" }); // "On" = 17w
     computeLayout(labelled, 0, 0, DEFAULT_THEME);
-    expect(labelled.rect.width).toBe(boxOnly + DEFAULT_THEME.gap + 11);
+    expect(labelled.rect.width).toBe(boxOnly + DEFAULT_THEME.gap + 17);
   });
 
   it("renders box + border and a check mark only when checked", () => {
@@ -435,6 +441,92 @@ describe("checkbox / toggle — construction, layout + render", () => {
     renderTree(s2, unchecked, DEFAULT_THEME);
     s2.end();
     expect(rec2.quads.some((q) => q.color === DEFAULT_THEME.checkboxCheck)).toBe(false);
+  });
+});
+
+describe("icon() widget — layout + render", () => {
+  const RAMP: IconRamp = [EDG.bark, EDG.wood, EDG.cream]; // [dark, mid, light]
+
+  it("has intrinsic size ICON_SIZE * scale (default scale 1)", () => {
+    const n = icon("house", RAMP);
+    computeLayout(n, 3, 4, DEFAULT_THEME);
+    expect(n.rect).toEqual({ x: 3, y: 4, width: ICON_SIZE, height: ICON_SIZE });
+  });
+
+  it("scales its intrinsic size", () => {
+    const n = icon("house", RAMP, { scale: 2 });
+    computeLayout(n, 0, 0, DEFAULT_THEME);
+    expect(n.rect.width).toBe(ICON_SIZE * 2);
+    expect(n.rect.height).toBe(ICON_SIZE * 2);
+  });
+
+  it("renderTree emits exactly 3 quads (dark/mid/light) tinted with the caller's ramp", () => {
+    const { surface, rec } = makeSurface();
+    const n = icon("house", RAMP);
+    computeLayout(n, 10, 10, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, n, DEFAULT_THEME);
+    surface.end();
+
+    expect(rec.quads).toHaveLength(3);
+    expect(rec.quads.every((q) => q.atlasId === ICON_ATLAS_ID)).toBe(true);
+    expect(rec.quads.map((q) => q.frame)).toEqual([
+      frameNameForIcon("house", 1),
+      frameNameForIcon("house", 2),
+      frameNameForIcon("house", 3),
+    ]);
+    expect(rec.quads.map((q) => q.color)).toEqual([RAMP[0], RAMP[1], RAMP[2]]);
+    for (const q of rec.quads) expect(q).toMatchObject({ x: 10, y: 10, width: ICON_SIZE, height: ICON_SIZE });
+  });
+
+  it("composes inside a panel/box like any other leaf", () => {
+    const { surface, rec } = makeSurface();
+    const root = box({ padding: 0 }, [icon("wheat", RAMP)]);
+    computeLayout(root, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, root, DEFAULT_THEME);
+    surface.end();
+    expect(rec.quads.filter((q) => q.atlasId === ICON_ATLAS_ID)).toHaveLength(3);
+  });
+});
+
+describe("button() with an icon — composes an icon in place of the text label", () => {
+  const RAMP: IconRamp = [EDG.bark, EDG.wood, EDG.cream];
+
+  it("sizes from the icon's square box + padding, not from the (still-required) label text", () => {
+    const btn = button("Build house", { icon: { name: "house", ramp: RAMP }, layout: { padding: 4 } });
+    computeLayout(btn, 0, 0, DEFAULT_THEME);
+    expect(btn.rect.width).toBe(ICON_SIZE + 8);
+    expect(btn.rect.height).toBe(ICON_SIZE + 8);
+  });
+
+  it("renders the button fill + 3 icon quads, and emits NO text glyph quads", () => {
+    const { surface, rec } = makeSurface();
+    const btn = button("Build house", { icon: { name: "hammer", ramp: RAMP }, state: "hover" });
+    computeLayout(btn, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, btn, DEFAULT_THEME);
+    surface.end();
+
+    // First quad: the button's state-coloured fill.
+    expect(rec.quads[0]).toMatchObject({ color: DEFAULT_THEME.buttonBg.hover });
+    // Then exactly 3 icon quads tinted by the CALLER's ramp (not the button's text colour).
+    const iconQuads = rec.quads.filter((q) => q.atlasId === ICON_ATLAS_ID);
+    expect(iconQuads).toHaveLength(3);
+    expect(iconQuads.map((q) => q.color)).toEqual([RAMP[0], RAMP[1], RAMP[2]]);
+    // No glyph quads — the label text is not drawn when an icon is present.
+    expect(rec.quads.some((q) => q.atlasId === FONT_ATLAS_ID)).toBe(false);
+  });
+
+  it("a plain text button (no icon) is unaffected — still draws its label glyphs", () => {
+    const { surface, rec } = makeSurface();
+    const btn = button("Go");
+    computeLayout(btn, 0, 0, DEFAULT_THEME);
+    surface.begin();
+    renderTree(surface, btn, DEFAULT_THEME);
+    surface.end();
+    expect(rec.quads.some((q) => q.atlasId === FONT_ATLAS_ID)).toBe(true);
+    expect(rec.quads.some((q) => q.atlasId === ICON_ATLAS_ID)).toBe(false);
   });
 });
 

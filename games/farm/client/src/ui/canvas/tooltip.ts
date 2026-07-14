@@ -27,8 +27,14 @@ import { EDG } from "@engine/core";
 import { box, label, layoutText, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 
-/** Max pixel width the description wraps to before breaking to a new line. */
-const DESCRIPTION_MAX_WIDTH = 220;
+/**
+ * Max pixel width the description wraps to before breaking to a new line. Tuned for ~35-40
+ * characters/line at the body font's advance (`BODY_FONT.metrics.advance`, 9px/glyph for the
+ * authored UNSCII font vs. the old 5px-glyph bitmap font's ~6px advance) — 220px was sized for
+ * the old, narrower font (~36 chars/line); kept at the same ratio (`330 = 220 * 9/6`) so the
+ * tooltip doesn't wrap to noticeably shorter, taller blocks now that glyphs are wider.
+ */
+const DESCRIPTION_MAX_WIDTH = 330;
 /** Cursor offset (px) the host should use if it wants the tooltip anchored near the cursor. */
 export const TOOLTIP_CURSOR_OFFSET = { dx: 12, dy: -20 } as const;
 

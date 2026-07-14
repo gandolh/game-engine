@@ -214,10 +214,12 @@ describe("createInspectPanel — trade offers (Phase G, cozy decision #8)", () =
 });
 
 describe("createInspectPanel — close affordance", () => {
-  it("exposes a ✕ button wired to close()", () => {
+  it("exposes an ASCII close button wired to close()", () => {
+    // The label is "X", not "✕": the in-canvas bitmap font covers printable ASCII (0x20–0x7e)
+    // only, so a non-ASCII glyph renders as the '?' fallback. Assert the drawable label.
     let closed = 0;
     const panel = createInspectPanel({ close: () => { closed += 1; }, upgrade: () => {}, trade: () => {} });
-    const closeBtn = buttons(panel.root).find((b) => b.label === "✕");
+    const closeBtn = buttons(panel.root).find((b) => b.label === "X");
     expect(closeBtn).toBeDefined();
     closeBtn?.onActivate?.();
     expect(closed).toBe(1);

@@ -41,7 +41,9 @@ import { frameToAtlasId } from "@farm/sim-core/render-systems";
 import type { PlayerInventory, ItemSlotState } from "@farm/sim-core/snapshot";
 import type { UIHost, UIRootHandle } from "./ui-host";
 
-const SLOT_WIDTH = 52;
+// Kept 4px wider than the hotbar's SLOT_WIDTH (its own slots are a touch roomier), scaled up
+// the same way for the wider body font — see hotbar.ts's SLOT_WIDTH comment.
+const SLOT_WIDTH = 68;
 const SLOT_HEIGHT = 60;
 const SLOT_GAP = 5;
 const ICON_SIZE = 30;

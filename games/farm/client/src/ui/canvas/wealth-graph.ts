@@ -32,8 +32,14 @@ import { personalityColor } from "../colors";
 import { computePoints, detectCrossings } from "../wealth-graph/compute";
 import type { ChartBounds } from "../wealth-graph/compute";
 
-/** Padding (px) inside the chart's `w`×`h` box reserved for axis labels. */
-const PAD_LEFT = 28;
+/**
+ * Padding (px) inside the chart's `w`×`h` box reserved for axis labels. `PAD_LEFT` bounds the
+ * gold-axis labels (`maxGoldText`/`zeroGoldText`, drawn right-aligned via
+ * `bounds.left - 2 - measureText(text)`) — was 28, sized for the old 5px-glyph font (a 4-digit
+ * `"1234g"` label measured ~27px); at the wider UNSCII font the same label measures ~41px, so
+ * bumped to keep 4-5 digit gold totals from spilling past the chart's left edge.
+ */
+const PAD_LEFT = 44;
 const PAD_RIGHT = 6;
 const PAD_TOP = 10;
 const PAD_BOTTOM = 20;

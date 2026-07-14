@@ -31,7 +31,7 @@
  */
 import { EDG } from "@engine/core";
 import { box, label, panel } from "@engine/ui";
-import type { ContainerNode, LabelNode, UISurface } from "@engine/ui";
+import type { ContainerNode, LabelNode, UINode, UISurface } from "@engine/ui";
 import { scroll, computeScrollContent, clampScroll, scrollBy } from "@engine/ui";
 import type { ScrollViewportNode } from "@engine/ui";
 import { frameToAtlasId } from "@farm/sim-core/render-systems";
@@ -41,8 +41,10 @@ export type SlateEntry = Pick<ShopOffer, "offerId" | "crop" | "unitPrice" | "qua
 
 /** Fixed visible height (px) of the scrollable offer list. */
 const LIST_HEIGHT = 200;
-/** Fixed width (px) of the panel (and thus the scroll viewport). */
-const LIST_WIDTH = 260;
+/** Fixed width (px) of the panel (and thus the scroll viewport) — kept in sync with
+ *  `observer-panel.ts`'s `LIST_WIDTH` (see its comment); the two stack in `right-column.ts`
+ *  and read as one consistent-width column. */
+const LIST_WIDTH = 390;
 /** Icon square size (px), matches the DOM slate's 22px icon. */
 const ICON_SIZE = 22;
 /** Reserved icon column width (px) — the row's info block starts after this. */
@@ -63,6 +65,20 @@ function barColor(pct: number): string {
 /** Does an atlas frame exist for this crop's mature icon? */
 function iconFrameFor(crop: string): string {
   return `crop/${crop}/mature`;
+}
+
+/**
+ * Shift `node.rect` by `(dx, dy)` and recurse into every descendant. Unlike `event-feed.ts` /
+ * `observer-panel.ts` (whose scroll rows are a single flat label/button — `children: []`, so
+ * translating just the row itself is enough), a slate row is a real subtree (`root` → `info` →
+ * `topLine` → `nameLbl`/`priceLbl`, plus the stock bar + caption): translating only the row's
+ * own rect left every descendant's rect in CONTENT-SPACE (relative to the scroll content's
+ * (0,0) from `computeScrollContent`) instead of screen space, so `renderTree` painted the name/
+ * price/stock text at the wrong screen position — invisible in practice. Recursing here fixes it.
+ */
+function translateSubtree(node: UINode, dx: number, dy: number): void {
+  node.rect = { x: node.rect.x + dx, y: node.rect.y + dy, width: node.rect.width, height: node.rect.height };
+  for (const child of node.children) translateSubtree(child, dx, dy);
 }
 
 interface OfferRowNodes {
@@ -102,9 +118,13 @@ function buildOfferRow(): OfferRowNodes {
   const priceLbl = label("", { color: EDG.gold });
   const topLine = box({ direction: "row", gap: 6, align: "center" }, [nameLbl, priceLbl]);
 
+  // `padding: 0` on the track is load-bearing. Containers default to the THEME padding, and the
+  // track is only BAR_HEIGHT (5px) tall — so the default 6px top padding laid the fill out at
+  // `track.y + 6`, i.e. entirely BELOW its own 5px track, landing on top of the "N/M left"
+  // caption underneath. The fill must sit exactly on the track it fills.
   const barFill = box({ width: 0, height: BAR_HEIGHT }, []);
   barFill.background = true;
-  const barTrack = box({ width: BAR_WIDTH, height: BAR_HEIGHT }, [barFill]);
+  const barTrack = box({ width: BAR_WIDTH, height: BAR_HEIGHT, padding: 0 }, [barFill]);
   barTrack.background = true;
 
   const stockLbl = label("", { color: EDG.steel, scale: 1 });
@@ -179,7 +199,7 @@ export function createSlateBillboard(): SlateBillboard {
         translated.y < vpY + vpH &&
         translated.y + translated.height > vpY;
       if (!overlaps) continue;
-      child.rect = translated;
+      translateSubtree(child, ox, oy);
       visible.push(child as ContainerNode);
     }
 

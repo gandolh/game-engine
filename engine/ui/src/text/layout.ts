@@ -1,11 +1,12 @@
-import { DEFAULT_FONT_METRICS, type FontMetrics } from "./font";
+import { DEFAULT_FONT, type UiFont } from "./fonts";
 
 /**
- * Text measurement + word-wrap for the `@engine/ui` bitmap font.
+ * Text measurement + word-wrap for the `@engine/ui` bitmap-font stack.
  *
- * All measurements are in screen pixels at a given integer `scale` (default 1). Widths are
- * computed purely from the monospaced advance metric — no platform font involved — so they
- * are deterministic and match what {@link ./draw}.drawText paints exactly.
+ * All measurements are in screen pixels at a given integer `scale` (default 1), for a
+ * given {@link UiFont} (default {@link DEFAULT_FONT}, the body font). Widths are computed
+ * purely from the monospaced advance metric — no platform font involved — so they are
+ * deterministic and match what {@link ./draw}.drawText paints exactly.
  */
 
 export interface TextLayoutOptions {
@@ -13,8 +14,8 @@ export interface TextLayoutOptions {
   scale?: number;
   /** Wrap width in screen pixels. Omit / Infinity for no wrapping. */
   maxWidth?: number;
-  /** Font metrics to measure against. Default {@link DEFAULT_FONT_METRICS}. */
-  metrics?: FontMetrics;
+  /** Font to measure against. Default {@link DEFAULT_FONT} (body, unscii-8). */
+  font?: UiFont;
 }
 
 /** One laid-out line: its text and its pixel width (excluding the trailing tracking gap). */
@@ -32,7 +33,8 @@ export interface TextLayout {
   /** Line advance in screen pixels (lineHeight * scale). */
   lineHeight: number;
   scale: number;
-  metrics: FontMetrics;
+  /** The font this layout was measured against. */
+  font: UiFont;
 }
 
 /**
@@ -41,7 +43,8 @@ export interface TextLayout {
  * here (single line only); use {@link layoutText} for multi-line/wrapped text.
  */
 export function measureText(text: string, opts: TextLayoutOptions = {}): number {
-  const m = opts.metrics ?? DEFAULT_FONT_METRICS;
+  const font = opts.font ?? DEFAULT_FONT;
+  const m = font.metrics;
   const scale = opts.scale ?? 1;
   const n = text.length;
   if (n === 0) return 0;
@@ -54,27 +57,28 @@ export function measureText(text: string, opts: TextLayoutOptions = {}): number 
  * longer than `maxWidth` is hard-broken per character so it never overflows.
  */
 export function layoutText(text: string, opts: TextLayoutOptions = {}): TextLayout {
-  const m = opts.metrics ?? DEFAULT_FONT_METRICS;
+  const font = opts.font ?? DEFAULT_FONT;
+  const m = font.metrics;
   const scale = opts.scale ?? 1;
   const maxWidth = opts.maxWidth ?? Infinity;
   const lineHeight = m.lineHeight * scale;
 
   const lines: TextLine[] = [];
   for (const raw of text.split("\n")) {
-    wrapParagraph(raw, maxWidth, { metrics: m, scale }, lines);
+    wrapParagraph(raw, maxWidth, { font, scale }, lines);
   }
   if (lines.length === 0) lines.push({ text: "", width: 0 });
 
   let width = 0;
   for (const l of lines) if (l.width > width) width = l.width;
 
-  return { lines, width, height: lines.length * lineHeight, lineHeight, scale, metrics: m };
+  return { lines, width, height: lines.length * lineHeight, lineHeight, scale, font };
 }
 
 function wrapParagraph(
   paragraph: string,
   maxWidth: number,
-  opts: { metrics: FontMetrics; scale: number },
+  opts: { font: UiFont; scale: number },
   out: TextLine[],
 ): void {
   if (maxWidth === Infinity) {

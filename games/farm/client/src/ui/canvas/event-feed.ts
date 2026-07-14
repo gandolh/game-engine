@@ -39,8 +39,12 @@ export interface EventFeedRow {
 
 /** Fixed visible height (px) of the scrollable feed. */
 const FEED_HEIGHT = 220;
-/** Fixed width (px) of the panel (and thus the scroll viewport). */
-const FEED_WIDTH = 260;
+/** Fixed width (px) of the panel (and thus the scroll viewport) — kept in sync with
+ *  `observer-panel.ts`'s `LIST_WIDTH` (see its comment); the two stack (with `slate-billboard.ts`)
+ *  in `right-column.ts`'s `align: "stretch"` column, so a mismatched width here would leave this
+ *  panel's content narrower than its stretched chrome. Event lines are free-text sentences that
+ *  can still run past this width regardless (pre-existing, not fixed by any single wrap width). */
+const FEED_WIDTH = 390;
 
 /** The retained event feed: its root node plus refresh() + wheel(). */
 export interface EventFeed {

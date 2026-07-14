@@ -2,6 +2,8 @@ import type { UISurface } from "../render/ui-surface";
 import { drawText } from "../text/draw";
 import { layoutText } from "../text/layout";
 import { measureText } from "../text/layout";
+import { drawIcon } from "../icon/draw";
+import { ICON_SIZE } from "../icon/icons";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
 import { resolvePadding } from "../layout/props";
@@ -9,6 +11,7 @@ import type {
   ButtonNode,
   CheckboxNode,
   ContainerNode,
+  IconNode,
   LabelNode,
   SliderNode,
   UINode,
@@ -49,6 +52,9 @@ function drawNode(surface: UISurface, node: UINode, theme: Theme, alpha: number)
     case "label":
       drawLabel(surface, node, theme, a);
       break;
+    case "icon":
+      drawIconNode(surface, node, theme, a);
+      break;
     case "button":
       drawButton(surface, node, theme, a);
       break;
@@ -77,7 +83,20 @@ function drawContainer(surface: UISurface, node: ContainerNode, theme: Theme, al
 function drawLabel(surface: UISurface, node: LabelNode, theme: Theme, alpha: number): void {
   const scale = node.scale ?? theme.textScale;
   const color = node.color ?? (node.muted ? theme.textMuted : theme.textColor);
-  drawText(surface, node.text, node.rect.x, node.rect.y, { color, scale, alpha });
+  // `maxWidth` wraps (drawText → layoutText); omitted, the label stays one unwrapped line.
+  // Kept as a conditional spread so `exactOptionalPropertyTypes` isn't handed an explicit
+  // `maxWidth: undefined`.
+  drawText(surface, node.text, node.rect.x, node.rect.y, {
+    color,
+    scale,
+    alpha,
+    ...(node.maxWidth === undefined ? {} : { maxWidth: node.maxWidth }),
+  });
+}
+
+function drawIconNode(surface: UISurface, node: IconNode, theme: Theme, alpha: number): void {
+  const scale = node.scale ?? theme.textScale;
+  drawIcon(surface, node.icon, node.rect.x, node.rect.y, { ramp: node.ramp, scale, alpha });
 }
 
 function drawButton(surface: UISurface, node: ButtonNode, theme: Theme, alpha: number): void {
@@ -86,13 +105,26 @@ function drawButton(surface: UISurface, node: ButtonNode, theme: Theme, alpha: n
   const fg = theme.buttonText[node.state];
   surface.rect(x, y, width, height, bg, alpha);
 
-  // Centre the label within the button's padding box.
   const scale = node.scale ?? theme.textScale;
   const pad = resolvePadding(node.layout.padding, theme.padding);
-  const tw = measureText(node.label, { scale });
-  const th = layoutText(node.label, { scale }).height;
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
+
+  if (node.icon) {
+    // Centre the icon (its ramp's "normal" text colour has no analogue here — the caller's
+    // ramp is fixed regardless of button state, same as how a themed icon button would look
+    // in any other pixel-art UI toolkit; state is still legible via the button's own fill).
+    const iw = ICON_SIZE * scale;
+    const ih = ICON_SIZE * scale;
+    const ix = x + pad.left + Math.max(0, (innerW - iw) / 2);
+    const iy = y + pad.top + Math.max(0, (innerH - ih) / 2);
+    drawIcon(surface, node.icon.name, ix, iy, { ramp: node.icon.ramp, scale, alpha });
+    return;
+  }
+
+  // Centre the label within the button's padding box.
+  const tw = measureText(node.label, { scale });
+  const th = layoutText(node.label, { scale }).height;
   const tx = x + pad.left + Math.max(0, (innerW - tw) / 2);
   const ty = y + pad.top + Math.max(0, (innerH - th) / 2);
   drawText(surface, node.label, tx, ty, { color: fg, scale, alpha });

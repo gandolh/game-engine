@@ -43,8 +43,15 @@ import type { ObserverSnapshot } from "@farm/sim-core/snapshot";
 
 /** Fixed visible height (px) of the scrollable farmer list. */
 const LIST_HEIGHT = 280;
-/** Fixed width (px) of the panel (and thus the scroll viewport). */
-const LIST_WIDTH = 260;
+/**
+ * Fixed width (px) of the panel (and thus the scroll viewport) — shared with `slate-billboard.ts`
+ * and `event-feed.ts` (all three stack in `right-column.ts` and read as one consistent-width
+ * column). Was 260, sized for the old 5px-glyph bitmap font; a multi-field row like
+ * `farmerRowText`'s `"State: DELIBERATE  AP: 8/10 (penalty)"` line (38 chars) already nearly
+ * filled 260px at that font's ~6px advance and overflows it outright at the authored UNSCII
+ * font's 9px advance — bumped by the same ratio (`390 = 260 * 9/6`) so regular rows fit again.
+ */
+const LIST_WIDTH = 390;
 
 /** Callbacks into the host's command path — mirrors the old DOM `setOnFarmerClick`. */
 export interface ObserverPanelActions {

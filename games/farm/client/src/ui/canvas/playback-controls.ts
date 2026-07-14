@@ -13,9 +13,11 @@
  * inert, and returns the modal's `ContainerNode` while open. The `?` button toggles it; a Close
  * button and (by convention, wired by the host) Escape close it.
  *
- * ⚠️ Icon note: the DOM version used emoji glyphs (⏸ ⏭ ★) and non-ASCII bullets. The 5x7 bitmap
- * font is ASCII-only (todo decision #4), so button labels drop the glyphs for plain text
- * ("Pause"/"Step"/"Skip") and the help modal's key-binding rows use the literal key names.
+ * ⚠️ Icon note: the DOM version used emoji glyphs (⏸ ⏭ ★) and non-ASCII bullets. `@engine/ui`'s
+ * text stack (now the authored UNSCII pixel font) still only covers printable ASCII, so button
+ * labels stay plain text ("Pause"/"Step"/"Skip") and the help modal's key-binding rows use the
+ * literal key names. The `@engine/ui` icon set has no pause/step/skip glyphs (buildings/tools/
+ * goods only), so there's nothing to swap the labels for yet.
  *
  * EDG32-only: every colour is an `EDG.*` constant.
  */

@@ -136,7 +136,7 @@ const TABS: readonly TabDef[] = [
 /** Width (px) given to the zoom slider — a value range has no intrinsic width. */
 const ZOOM_SLIDER_WIDTH = 160;
 
-/** Format a zoom value as a short label, e.g. 1.4 → "1.4x" (ASCII only). */
+/** Format a zoom value as a short label, e.g. 1.4 → "1.4x". */
 function zoomLabelText(z: number): string {
   return `${z.toFixed(1)}x`;
 }

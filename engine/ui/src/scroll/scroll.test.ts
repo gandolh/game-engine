@@ -44,28 +44,28 @@ beforeEach(() => {
 
 describe("computeScrollContent — content sizing", () => {
   it("measures a single child and stores it as contentSize", () => {
-    // A label "A" = 5w × 9h (from text metrics used in widget tests).
+    // A label "A" = 8w × 10h (body font, unscii-8 — matches the metrics used in widget tests).
     const child = label("A");
     const vp = scroll({ width: 200, height: 80 }, [child]);
     computeScrollContent(vp, DEFAULT_THEME);
 
-    expect(vp.contentSize.width).toBe(5);
-    expect(vp.contentSize.height).toBe(9);
+    expect(vp.contentSize.width).toBe(8);
+    expect(vp.contentSize.height).toBe(10);
     // Child rect is content-space (relative to 0,0).
     expect(child.rect.x).toBe(0);
     expect(child.rect.y).toBe(0);
   });
 
   it("stacks multiple children in a column and accumulates height", () => {
-    // 3 labels of 1 line each → 3 × 9 = 27h (no gap by default).
+    // 3 labels of 1 line each → 3 × 10 = 30h (no gap by default).
     const children = [label("A"), label("B"), label("C")];
     const vp = scroll({ width: 200, height: 20 }, children);
     computeScrollContent(vp, DEFAULT_THEME);
 
-    expect(vp.contentSize.height).toBe(27);
+    expect(vp.contentSize.height).toBe(30);
     expect(children[0]!.rect.y).toBe(0);
-    expect(children[1]!.rect.y).toBe(9);
-    expect(children[2]!.rect.y).toBe(18);
+    expect(children[1]!.rect.y).toBe(10);
+    expect(children[2]!.rect.y).toBe(20);
   });
 
   it("returns zero contentSize for an empty viewport", () => {

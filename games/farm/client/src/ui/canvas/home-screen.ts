@@ -54,8 +54,13 @@ export interface HomeScreenActions {
 
 /** Minimal inline styling for the ONE DOM exception — the seed text input. No EDG32 gradients/
  * shadows; just enough to read as part of the panel. Colors still come from `EDG.*`. */
+/** The seed <input>'s on-screen box. The canvas row reserves exactly this, so the two agree. */
+export const SEED_INPUT_WIDTH = 140;
+export const SEED_INPUT_HEIGHT = 30;
+
 function styleSeedInput(el: HTMLInputElement): void {
   el.style.position = "absolute";
+  el.style.boxSizing = "border-box";
   el.style.padding = "6px 10px";
   el.style.fontSize = "14px";
   el.style.fontFamily = "ui-monospace, monospace";
@@ -63,7 +68,8 @@ function styleSeedInput(el: HTMLInputElement): void {
   el.style.background = EDG.ink;
   el.style.border = `1px solid ${EDG.tan}`;
   el.style.borderRadius = "4px";
-  el.style.width = "140px";
+  el.style.width = `${SEED_INPUT_WIDTH}px`;
+  el.style.height = `${SEED_INPUT_HEIGHT}px`;
   el.style.textAlign = "center";
   el.style.zIndex = "1000";
 }
@@ -78,6 +84,12 @@ export interface HomeScreen {
    * management; this module only creates/styles/reads/writes it.
    */
   readonly seedInputEl: HTMLInputElement;
+  /**
+   * The empty canvas node whose laid-out rect the seed <input> is positioned onto. The host
+   * reads `seedSlot.rect` each frame — that is the ONLY thing that should drive the input's
+   * position (never a fraction of the panel's height).
+   */
+  readonly seedSlot: ContainerNode;
   /** Current parsed seed value from the DOM input (falls back to the configured default). */
   getSeedValue(): number;
   /** Overwrite the DOM input's text (used by the host after a resize/reposition, not required
@@ -137,7 +149,19 @@ export function createHomeScreen(actions: HomeScreenActions, opts: HomeScreenOpt
     },
   });
 
-  const seedRow = box({ direction: "row", gap: 10, align: "center" }, [seedLabelLbl, randomizeBtn]);
+  // The DOM seed <input> is overlaid on the canvas, so the canvas row must RESERVE space for
+  // it: an empty spacer between the label and the button, sized to the input. The host then
+  // positions the input at this node's laid-out rect (see `positionSeedInput` in main.ts).
+  //
+  // This replaces a magic "panel.height * 0.52" placement that guessed where the row was —
+  // which silently broke the moment the font changed and the panel's height moved. Reserving a
+  // slot and reading its rect keeps the input glued to the row whatever the text metrics do.
+  const seedSlot = box({ width: SEED_INPUT_WIDTH, height: SEED_INPUT_HEIGHT });
+  const seedRow = box({ direction: "row", gap: 10, align: "center" }, [
+    seedLabelLbl,
+    seedSlot,
+    randomizeBtn,
+  ]);
 
   const startBtn = button(opts.startLabel ?? "Start", {
     onActivate: () => actions.onStart(currentSeed()),
@@ -168,6 +192,7 @@ export function createHomeScreen(actions: HomeScreenActions, opts: HomeScreenOpt
   return {
     root,
     seedInputEl,
+    seedSlot,
     getSeedValue: currentSeed,
     setSeedText: (text: string) => {
       seedInputEl.value = text;

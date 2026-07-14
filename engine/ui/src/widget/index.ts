@@ -6,6 +6,7 @@ export {
   slider,
   checkbox,
   toggle,
+  icon,
   isContainer,
   resetNodeIds,
   SLIDER_DEFAULT_HEIGHT,
@@ -17,8 +18,10 @@ export type {
   ContainerNode,
   LabelNode,
   ButtonNode,
+  ButtonIcon,
   SliderNode,
   CheckboxNode,
+  IconNode,
   Rect,
 } from "./node";
 export { renderTree } from "./render";

@@ -3,7 +3,7 @@
  *
  * This is the pilot consumer of the `@engine/ui` framework (engine-ui chunk 7): the
  * settlement readout (tier · day/season · population · happiness), a full **goods strip**
- * (one colour-coded chip per tradeable good, in production-chain order), plus the
+ * (one icon + count chip per tradeable good, in production-chain order), plus the
  * speed (1×/2×/4×) and pause controls, built as a retained widget tree instead of DOM. It
  * proves the framework end-to-end — render + bitmap text + per-frame data-binding + mouse +
  * keyboard + screen-reader (the a11y mirror) — against a real game client.
@@ -18,8 +18,9 @@
  * replaces (tier: steel/green/cyan/yellow/red; happiness: cyan≥60 / yellow≥40 / red).
  */
 import { CITADEL_PAL as EDG } from "../render/citadel-palette";
+import { GOOD_ICON_RAMPS } from "./citadel-theme";
 import type { GoodType } from "@citadel/sim-core";
-import { box, button, label, panel } from "@engine/ui";
+import { box, button, icon, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";
 
 /** Tier → readout colour (mirrors the old DOM HUD's `tierColors` map). */
@@ -33,9 +34,11 @@ const TIER_COLORS: Record<string, string> = {
 
 /**
  * The tradeable goods, in **production-chain order** (grain → flour → bread; wood → planks;
- * stone → tools), each with a display name + a distinct EDG32 tint so the chip reads at a
- * glance (the framework has no arbitrary-colour icon swatch, so colour IS the "icon").
- * `bread` is rendered specially — it also carries the daily food surplus `(+N)` annotation.
+ * stone → tools), each with a display name, a good icon ([engine/ui/src/icon/icons.ts](../../../../../engine/ui/src/icon/icons.ts),
+ * tinted via `GOOD_ICON_RAMPS` in `citadel-theme.ts`), and its EDG32 count-label tint (kept
+ * from the pre-icon colour-coded chips — the icon carries shape identity now, but colour still
+ * groups a good with its family at a glance). `bread` is rendered specially — it also carries
+ * the daily food surplus `(+N)` annotation.
  */
 const GOODS: ReadonlyArray<{ good: GoodType; name: string; color: string }> = [
   { good: "grain", name: "Grain", color: EDG.gold },
@@ -112,14 +115,18 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
   const popLbl = label("Pop 0/0");
   const happyLbl = label("Happy: 40", { color: happinessColor(40) });
 
-  // --- One colour-coded chip per good, built once in production-chain order; re-textured per
-  //     frame in refresh(). Bread is flagged so refresh() appends its food-surplus annotation.
-  const goodChips = GOODS.map((g) => ({
-    good: g.good,
-    name: g.name,
-    isBread: g.good === "bread",
-    node: label(`${g.name} 0`, { color: g.color }),
-  }));
+  // --- One chip per good (icon + count label), built once in production-chain order; the
+  //     label is re-textured per frame in refresh(). Bread is flagged so refresh() appends its
+  //     food-surplus annotation. The icon is static (identity never changes), so only the
+  //     count label needs a per-frame handle.
+  const goodChips = GOODS.map((g) => {
+    const textNode = label(`${g.name} 0`, { color: g.color });
+    const chip = box({ direction: "row", gap: 3, align: "center" }, [
+      icon(g.good, GOOD_ICON_RAMPS[g.good]),
+      textNode,
+    ]);
+    return { good: g.good, name: g.name, isBread: g.good === "bread", node: textNode, chip };
+  });
 
   // --- Speed/pause controls as real buttons (exercise click + keyboard + a11y).
   const pauseBtn = button("Pause", { onActivate: () => actions.togglePause() });
@@ -140,7 +147,7 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
   // Goods strip: a named region (leading label → aria-label) listing every good's live count.
   const resources = box({ direction: "row", gap: 10, align: "center" }, [
     label("Goods"),
-    ...goodChips.map((c) => c.node),
+    ...goodChips.map((c) => c.chip),
   ]);
 
   const controls = box({ direction: "row", gap: 6, align: "center" }, [

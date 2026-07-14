@@ -9,9 +9,12 @@
  *
  * It supersedes the old DOM `ui/world-clock.ts` panel (since deleted).
  *
- * ⚠️ Icon note: the DOM clock used non-ASCII season glyphs (✿☀❧❄). The 5×7 bitmap font is
- * ASCII-only, so this panel drops the glyph and shows the season NAME text only (per the
- * todo's decision #4 mitigation — no glyph the font can't render).
+ * ⚠️ Icon note: the DOM clock used non-ASCII season glyphs (✿☀❧❄). `@engine/ui`'s text stack
+ * (now the authored UNSCII pixel font — see `engine/ui/src/text/fonts.ts`) still only covers
+ * printable ASCII (0x20-0x7e), so this panel keeps showing the season NAME text rather than a
+ * glyph the font can't render. No season/weather glyph exists in the `@engine/ui` icon set
+ * ([engine/ui/src/icon/icons.ts](../../../../../../engine/ui/src/icon/icons.ts) — buildings/
+ * tools/goods only) either, so there's nothing to swap the text for yet.
  *
  * EDG32-only: every colour is an `EDG.*` constant (mirrors the DOM clock's phase/season maps).
  */
@@ -89,9 +92,10 @@ export function createWorldClock(): WorldClock {
   const timeLbl = label(fractionToTimeLabel(0), { color: PHASE_COLOR.work });
   const phaseLbl = label(`[${PHASE_LABEL.work}]`, { color: PHASE_COLOR.work });
 
-  // Middot separators, muted, matching the DOM clock's "·" dividers.
-  const dot1 = label("·", { color: EDG.slate });
-  const dot2 = label("·", { color: EDG.slate });
+  // Separators, muted. ASCII "-", not the DOM clock's "·": the in-canvas bitmap font covers
+  // printable ASCII (0x20–0x7e) only, so a middot renders as the '?' fallback box.
+  const dot1 = label("-", { color: EDG.slate });
+  const dot2 = label("-", { color: EDG.slate });
 
   const row = box({ direction: "row", gap: 8, align: "center" }, [
     seasonLbl,

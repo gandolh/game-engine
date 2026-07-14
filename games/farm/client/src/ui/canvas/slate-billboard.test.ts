@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { RendererLike, UIQuad } from "@engine/core/render";
-import { UISurface } from "@engine/ui";
+import { UISurface, computeLayout } from "@engine/ui";
 import { createSlateBillboard } from "./slate-billboard";
 import type { SlateEntry } from "./slate-billboard";
 import type { LabelNode, UINode } from "@engine/ui";
@@ -95,5 +95,41 @@ describe("createSlateBillboard", () => {
     // At least one solid-colour (non-atlas) quad should have been pushed for the bar fill.
     const solidQuads = rec.quads.filter((q) => q.atlasId === undefined);
     expect(solidQuads.length).toBeGreaterThan(0);
+  });
+});
+
+describe("stock bar geometry", () => {
+  it("the bar FILL sits inside its own track, never on the caption below", () => {
+    // Regression: the track is only BAR_HEIGHT (5px) tall, but containers default to the THEME
+    // padding — so the fill was laid out at `track.y + 6`, entirely below its own track and
+    // straight on top of the "N/M left" caption (the fill is painted in a post-pass, so it won
+    // the overlap and hid the text). Assert containment, which the padding: 0 fix guarantees.
+    const slate = createSlateBillboard();
+    const offers: SlateEntry[] = [
+      { offerId: "o1", crop: "pumpkin", unitPrice: 17, quantity: 17, remaining: 17 },
+    ];
+    slate.refresh(offers);
+    computeLayout(slate.root, 0, 0);
+
+    const boxes: UINode[] = [];
+    const walk = (n: UINode): void => {
+      boxes.push(n);
+      for (const c of n.children) walk(c);
+    };
+    walk(slate.root);
+
+    const caption = boxes.find((n) => n.kind === "label" && (n as LabelNode).text.includes("left"));
+    expect(caption, "the N/M left caption exists").toBeDefined();
+
+    // The fill is the only zero-or-more-width box nested directly in a BAR_HEIGHT-tall box.
+    const track = boxes.find((n) => n.kind === "box" && n.rect.height === 5 && n.children.length === 1);
+    expect(track, "the bar track exists").toBeDefined();
+    const fill = track!.children[0]!;
+
+    expect(fill.rect.y, "fill top is on the track").toBe(track!.rect.y);
+    expect(fill.rect.y + fill.rect.height, "fill bottom stays inside the track")
+      .toBeLessThanOrEqual(track!.rect.y + track!.rect.height);
+    expect(fill.rect.y + fill.rect.height, "fill never reaches the caption")
+      .toBeLessThanOrEqual(caption!.rect.y);
   });
 });

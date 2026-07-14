@@ -1,12 +1,31 @@
 ---
 title: "@engine/ui — authored typography + icon assets (replace the minimal 5×7 bitmap font)"
 created: 2026-06-30
-status: todo
+status: done (2026-07-14)
 tags: [engine, ui, render, typography, assets, citadel, farm]
 ---
 
-> **➡️ Promoted 2026-07-03:** now [engine brief 18](../briefs/engine/todo/18-ui-authored-typography-and-icons.md)
-> (this todo stays the spec; the brief adds sequencing notes).
+> **➡️ Promoted 2026-07-03:** was [engine brief 18](../../briefs/engine/done/18-ui-authored-typography-and-icons.md)
+> (this todo stayed the spec; the brief added sequencing notes).
+>
+> **✅ DONE 2026-07-14.** All four scope items shipped, plus the acceptance bar:
+> 1. **Authored font** — UNSCII (public domain), `BODY_FONT` 8×8 + `DISPLAY_FONT` 8×16. The 5×7
+>    mask is **deleted**, not demoted. Deterministic, asset-free bake preserved.
+> 2. **Icon glyphs** — 34 at 16×16 (22 buildings + 5 tools + 7 goods), as **shade-index masks** with
+>    a caller-supplied 3-colour ramp, plus an `icon()` widget. Colour is never baked in, which is
+>    what lets one set serve Citadel (Apollo-46) and Farm (EDG32) with the engine importing neither.
+> 3. **Citadel's build bar is an icon grid again**; the goods strip shows good-icons.
+> 4. Palette guard green; deterministic bake; tests green.
+>
+> **What the todo underestimated:** the font swap (5px → 8px glyphs) **reflowed every layout that
+> consumed it**, and *no unit test caught any of the four resulting bugs* — each needed a browser.
+> That, plus the fact that **labels could not wrap at all** until this work added
+> `label({ maxWidth })`, is the durable lesson. See [wiki/engine-ui.md](../../wiki/engine-ui.md)
+> ("the reflow trap") and the authoring rule: **never author pixel art without rendering and looking
+> at it** (`npx tsx engine/ui/tools/icon-sheet.ts`) — the first icon pass was authored blind and
+> produced mush, repeating the failure that forced Citadel's mesh rebuild.
+>
+> Gates: typecheck 0; full suite **2241 green**; both games browser-verified on a real GPU.
 
 # Author proper typography + icon glyphs as assets for the in-canvas UI
 
