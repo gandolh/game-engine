@@ -42,7 +42,7 @@ caches pre-populated for known colors are the recommended pattern for palette-fi
 Both games' palettes are fixed (EDG32 / Apollo-46), so the cache is small and bounded.
 
 **Ordering interplay:** capture the baseline profile BEFORE brief
-[117](../todo/117-collapsible-hud-panels.md) lands (or run with all panels forced open) — 117 hides
+[117](117-collapsible-hud-panels.md) lands (or run with all panels forced open) — 117 hides
 most glyphs by default and would mask the regression.
 
 ## Files you OWN

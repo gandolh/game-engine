@@ -1,6 +1,6 @@
 ---
-summary: The playable farmer Pip, the in-canvas @engine/ui GUI, hotbar, inventory, fishing, forageables, hover tooltips, and feature collision.
-updated: 2026-07-01
+summary: The playable farmer Pip, the in-canvas @engine/ui GUI, hotbar, inventory, collapsible HUD panels, fishing, forageables, hover tooltips, and feature collision.
+updated: 2026-07-15
 ---
 
 # Player (Pip) & Interaction Systems
@@ -68,6 +68,34 @@ no new sim state or protocol; determinism untouched):
 > overlaps the inspect card; **J** isn't yet in the help-modal key list). See the closed brief
 > [farm-ui-all-rendered-in-canvas](../todos/closed/2026-07-01-farm-ui-all-rendered-in-canvas.md).
 
+### Collapsible HUD panels (brief 117, 2026-07-15)
+
+Five panels are **collapsed by default** behind always-visible labeled toggle buttons: the right
+column's three sub-panels — **Farmers** (observer), **Shop** (slate), **Activity** (event feed) —
+collapse independently, plus **Relations** (matrix) and **Wealth** (graph) bottom-left. Playback,
+help, clock, hotbar, and the pre-existing toggles (Tab/E/J) are unchanged.
+
+- **State** lives in [`ui/canvas/panel-prefs.ts`](../../games/farm/client/src/ui/canvas/panel-prefs.ts)
+  (`createPanelPrefs(storage)`): write-through `localStorage` under `farm.ui.panels.v1`, default
+  closed, in-memory fallback on any storage throw, and a parse **allowlist** (fixed 5-id union,
+  boolean values only — stored JSON is external input; wholesale copying would admit a literal
+  `__proto__` key). One shared instance is built in `main/panels.ts` and injected into the widgets.
+- **Pattern**: each toggle button stays visible in BOTH states (it is the open *and* close
+  affordance); the panel body appears below it while open. A toggle restructures the widget tree
+  synchronously and forces the next `refresh()` to return `true` so the host relayouts. `wheel()`
+  routing is gated on open state (a collapsed panel's last-laid-out rect is stale — never hit-test it).
+- **Shortcuts**: **F** Farmers, **O** Shop, **T** Activity, **R** Relations, **G** Wealth — listed in
+  the help modal (`KEY_BINDINGS`). Esc deliberately does NOT close these (reserved for modals).
+- **Three traps** (all found by review/browser, all fixed in `931694a` — remember them when adding
+  panels): (1) a default-closed panel's first `refresh()` returns `false`, so refresh-gated layout
+  never runs and its button sits at the **zero rect, unclickable** — anchor blocks need a
+  first-frame/resize size-key sentinel (see `matrixLaidOutSize` in `render-loop.ts`); (2) keys typed
+  into the home-screen **seed input** accumulate in `Keyboard.justPressed` (nothing calls
+  `endFrame()` before the game loop) and would fire hotkeys + write-through persist bogus state on
+  frame 1 — the loop drains stale input once at its first frame; (3) the wealth graph clamps its
+  bottom edge above the playback bar's rect — the open matrix pushes the bottom-left strip toward
+  the canvas centre at narrow widths.
+
 ## Pip — a real farmer driven by input
 
 Pip is a normal farmer **entity** in the sim worker with the same components as the four AI farmers, so crop-growth / harvest / market / render / animation all treat it identically. The only difference is the *source of its intentions*: keyboard input instead of an AI personality.
@@ -82,7 +110,7 @@ Pip is a normal farmer **entity** in the sim worker with the same components as 
 
 `render-loop` reads the held axes from `keyboard` each frame → **`client.owner` gate** (only the run owner forwards Pip input; spectators in a shared run may not drive Pip) → resend **only when the held axis changes** (`moveChanged`, avoids per-frame flooding; held key persists server-side) → `SimClient.sendInput()` posts `{ type: "input", moveX, moveY, action, selectSlot }` over the **websocket** → server [`RunRegistry.handleControl`](../../games/farm/server/src/run-registry.ts) forwards it **only if `socket === run.owner`** → [`SimHost.applyInput`](../../games/farm/server/src/sim-host.ts) writes `pendingMoveX/Y` / `pendingAction` / `selectedSlot` onto the single `player` entity → [`PlayerControlSystem`](../../games/farm/sim-core/src/systems/player-control/system.ts) **reads** `pendingMove*` each tick (velocity move + per-axis AABB wall-slide). Note `pendingMove*` is **read but not cleared** (held-direction model); it persists until a keyup sends `null`.
 
-Controls: **WASD/arrows** move, **Space** recenters camera on Pip, **left-click** = action on the clicked/faced tile (brief 79; E is no longer action), **E** = toggle inventory, **number keys 1–8** select a hotbar slot. Speed is set via the sidebar buttons.
+Controls: **WASD/arrows** move, **Space** recenters camera on Pip, **left-click** = action on the clicked/faced tile (brief 79; E is no longer action), **E** = toggle inventory, **number keys 1–8** select a hotbar slot, **F/O/T/R/G** toggle the collapsible HUD panels (brief 117). Speed is set via the sidebar buttons.
 
 > **Brief 78 (2026-06-11):** a reported "Pip doesn't move" was **not reproducible in a clean single-player `npm run dev`** — the full chain (client → registry `owner:true` → host `applyInput` → `PlayerControlSystem`) was verified healthy end-to-end via live instrumentation (Pip moved tile-by-tile, wall-collision intact). Root cause of the live symptom: **duplicate dev processes** (overlapping sessions left extra Vite/server instances running), so a second socket attached to the same run-key as a **spectator** (`owner:false`) and `render-loop` silently swallowed its input. Guarded headlessly by `run-registry.test.ts` ("input from owner IS forwarded" / "from spectator is NOT"). If it recurs in a clean session, the next suspect is keyboard focus, not the transport.
 

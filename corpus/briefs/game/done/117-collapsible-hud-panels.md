@@ -1,5 +1,20 @@
 # Task 117 — Collapsible HUD panels (collapsed by default, behind labeled toggle buttons)
 
+> **DONE 2026-07-15 (`931694a`).** Built via plan-split-dispatch: 3 parallel Sonnet chunks
+> (panel-prefs store / right-column / relations+wealth) + 1 wiring chunk, 2 Sonnet review
+> finders, controller fixes. Keys chosen: **F/O/T/R/G** (R/F/G per the brief's suggestion; O/T
+> for Shop/Activity). **Deviation:** `KEY_BINDINGS` rows were added in `playback-controls.ts`
+> (on the brief's not-touch list) — data-only, controller-authorized, since the help modal the
+> brief requires lives there. Review caught 3 real defects pre-browser: zero-rect unclickable
+> Relations button (first-frame layout), home-screen seed typing firing hotkeys via stale
+> `justPressed` (drained at first frame; also fixes pre-existing E/J/Tab leakage), and a
+> `__proto__` parse hole in panel-prefs; the browser pass caught a 4th (wealth graph vs playback
+> bar overlap at 1280×720 with the matrix open — clamped). Browser-verified per acceptance:
+> default collapsed, each panel via button + hotkey, persistence round-trip, Tab unaffected,
+> no overlap at 1280×720 / 1600×900. Gates: typecheck 14/14, suite green (client 230+).
+> Synthesis: [player-and-interaction.md](../../../wiki/player-and-interaction.md) "Collapsible
+> HUD panels" (the three traps are recorded there).
+
 ## Context
 
 The Farm Valley screen is crowded: the relationships matrix (bottom-left), the right column

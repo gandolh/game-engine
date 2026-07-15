@@ -4,6 +4,38 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-15] brief | 117 DONE — collapsible HUD panels, collapsed by default (`931694a`)
+
+Built via `plan-split-dispatch`: 3 parallel Sonnet chunks on disjoint lanes (panel-prefs store /
+right-column / relations+wealth) + 1 wiring chunk + 2 Sonnet review finders; controller applied
+the fixes inline. Farmers/Shop/Activity (independent right-column sub-panels), Relations, and
+Wealth each sit behind an always-visible labeled toggle button — the button is the open AND
+close affordance, with the panel body below it while open. State persists write-through in
+`localStorage` (`farm.ui.panels.v1`) via the new
+[panel-prefs.ts](../games/farm/client/src/ui/canvas/panel-prefs.ts) (default closed, in-memory
+fallback on storage throws, allowlisted parse). Shortcuts **F/O/T/R/G** (help modal updated —
+the `KEY_BINDINGS` rows live in `playback-controls.ts`, on the brief's not-touch list; data-only
+edit, controller-authorized deviation). Wheel routing is gated on open state, so a collapsed
+panel's stale rect never swallows a zoom.
+
+**The review pass earned its keep — 4 real defects, none visible to the unit suites:**
+(1) a default-closed matrix's first `refresh()` returns `false`, so the refresh-gated layout
+never ran and the Relations button sat at the zero rect — **unclickable**, keyboard-only
+(size-key sentinel added, also covers canvas resize); (2) keys typed into the home-screen
+seed input accumulate in `Keyboard.justPressed` — nothing calls `endFrame()` before the game
+loop's first frame — so typing "frog" as a seed **opened four panels and persisted that state**
+(stale input drained once at first frame; incidentally fixes the pre-existing E/J/Tab leak);
+(3) panel-prefs merged stored JSON wholesale — a literal `__proto__` key reached
+`Object.assign`'s [[Set]] path (allowlist to the 5-id union + boolean values); (4) at 1280×720
+with the matrix open, the wealth graph overlapped the playback bar (bottom edge now clamps
+above the bar's last-laid-out rect). Proofs in the browser pass: fresh load shows only the five
+buttons and a "frogtr" seed leaves prefs null; all-open at 1280×720 + 1600×900 overlap-free;
+persistence round-trips a reload; Tab/E/J unchanged. Gates: typecheck 14/14, full suite green
+(client 230, incl. 36 new/updated widget tests). Side benefit visible live: collapsed-default
+now boots at ~109 fps (118's cache + fewer quads). Synthesis (incl. the three traps for future
+panels): [player-and-interaction.md](wiki/player-and-interaction.md); brief:
+[briefs/game/done/117](briefs/game/done/117-collapsible-hud-panels.md).
+
 ## [2026-07-15] brief | 118 DONE — 5 fps regression: the UI glyph tint composite, cached (`4fd48dc`)
 
 The profile gate ran first and confirmed the filed hypothesis exactly: a new
@@ -48,7 +80,7 @@ position (this file reads newest-first from here down to the era-summary tail).
 
 Two Farm briefs filed from a user session (screenshot showed 5 fps / ~216 ms frame, 583 entities):
 
-- **[117 — Collapsible HUD panels](briefs/game/todo/117-collapsible-hud-panels.md).** Relationships
+- **[117 — Collapsible HUD panels](briefs/game/done/117-collapsible-hud-panels.md).** Relationships
   matrix, the right column's three sub-panels (observer/slate/activity, independently), and the
   wealth graph go behind labeled toggle buttons, **collapsed by default**, with keyboard shortcuts
   + localStorage persistence. Playback controls, help, clock, hotbar, and existing toggles unchanged.
