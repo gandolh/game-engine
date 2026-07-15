@@ -1357,3 +1357,19 @@ which was built:
 The two `todos/` standing notes (the OpenTTD `reference` note and the perishability spec) were
 left in place — they are durable references, not queue items. `engine/todo/` + `game/todo/` are
 now both empty.
+
+## [2026-07-15] todo | Briefs 117 + 118 filed — collapsible HUD panels; 5 fps regression (UI glyph-tint path)
+
+Two Farm briefs filed from a user session (screenshot showed 5 fps / ~216 ms frame, 583 entities):
+
+- **[117 — Collapsible HUD panels](briefs/game/todo/117-collapsible-hud-panels.md).** Relationships
+  matrix, the right column's three sub-panels (observer/slate/activity, independently), and the
+  wealth graph go behind labeled toggle buttons, **collapsed by default**, with keyboard shortcuts
+  + localStorage persistence. Playback controls, help, clock, hotbar, and existing toggles unchanged.
+- **[118 — FPS regression: profile gate + per-glyph tint cache](briefs/game/todo/118-fps-regression-ui-glyph-tint-path.md).**
+  Exploration attributes the regression (99 fps 2026-06-12 → 5 fps 2026-07-15) to the 2026-07-01
+  in-canvas UI migration: one tinted quad per glyph, each paying a 5-op Canvas2D composite in
+  `drawUIQuad` on the Overlay2D flush inside `endFrame`. Plan: profile gate first (new `ui.flush`
+  sub-timer), then a bounded per-(atlasId, frame, rgb) tint cache in `ui-draw.ts`; overlay
+  dirty-skip only if measured necessary. **Ordering:** 118's baseline profile before 117 lands
+  (117 hides most glyphs and would mask the regression).
