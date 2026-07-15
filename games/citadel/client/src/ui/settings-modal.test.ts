@@ -84,6 +84,7 @@ describe("SettingsModal (in-canvas @engine/ui)", () => {
   let lightOn: boolean;
   let zoom: number;
   let speed: number;
+  let muted: boolean;
   let cfg: SettingsModalConfig;
 
   beforeEach(() => {
@@ -91,6 +92,7 @@ describe("SettingsModal (in-canvas @engine/ui)", () => {
     lightOn = false;
     zoom = 1;
     speed = 1;
+    muted = false;
     cfg = {
       toggles: [
         {
@@ -121,6 +123,12 @@ describe("SettingsModal (in-canvas @engine/ui)", () => {
       },
       minZoom: 0.5,
       maxZoom: 6,
+      audioMuted: {
+        get: () => muted,
+        set: (v) => {
+          muted = v;
+        },
+      },
     };
   });
 
@@ -181,6 +189,26 @@ describe("SettingsModal (in-canvas @engine/ui)", () => {
     expect(zoom).toBe(6);
   });
 
+  it("the Display tab's mute checkbox reflects cfg.audioMuted and writes back on toggle", () => {
+    const modal = new SettingsModal(cfg);
+    modal.selectTab(0);
+    const box = collect<CheckboxNode>(modal.root, "checkbox").find((b) => b.label === "Mute sound");
+    expect(box).toBeDefined();
+    expect(box!.checked).toBe(false);
+    box!.toggle();
+    expect(muted).toBe(true);
+    expect(box!.checked).toBe(true);
+  });
+
+  it("show() resyncs the mute checkbox from live audioMuted state", () => {
+    const modal = new SettingsModal(cfg);
+    muted = true;
+    modal.show();
+    modal.selectTab(0);
+    const box = collect<CheckboxNode>(modal.root, "checkbox").find((b) => b.label === "Mute sound");
+    expect(box!.checked).toBe(true);
+  });
+
   it("show() resyncs the slider value + value label from live zoom", () => {
     const modal = new SettingsModal(cfg);
     zoom = 3.5;
@@ -209,7 +237,7 @@ describe("SettingsModal (in-canvas @engine/ui)", () => {
 
     modal.selectTab(0);
     expect(collect<SliderNode>(modal.root, "slider").length).toBe(1); // display has the slider
-    expect(collect<CheckboxNode>(modal.root, "checkbox").length).toBe(0);
+    expect(collect<CheckboxNode>(modal.root, "checkbox").length).toBe(1); // + the mute checkbox
 
     modal.selectTab(1);
     expect(collect<SliderNode>(modal.root, "slider").length).toBe(0);

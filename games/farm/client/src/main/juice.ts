@@ -61,10 +61,25 @@ interface PopupSpec {
   label: string;
 }
 
+/**
+ * Shared text matchers, factored out so the audio layer (audio.ts) can key off exactly the same
+ * "gold trade" / "victory" / "misfortune" predicates as the popups below, instead of duplicating
+ * the regexes/strings and risking drift between what plays a sound and what spawns a popup.
+ */
+export const GOLD_TRADE_RE = /\((\d+)g\)/;
+
+export function isVictoryEvent(t: string): boolean {
+  return (t.includes("overtakes") && t.includes("for 1st")) || t.includes("wins with a");
+}
+
+export function isMisfortuneEvent(t: string): boolean {
+  return t.startsWith("Drought!") || t.includes("missed a harbor contract");
+}
+
 function classifyEvent(ev: SnapshotEvent): PopupSpec | null {
   const t = ev.text;
 
-  const tradePriceMatch = t.match(/\((\d+)g\)/);
+  const tradePriceMatch = t.match(GOLD_TRADE_RE);
   const contractMatch = t.match(/\+(\d+)g/);
   const auctionMatch = t.match(/at (\d+)g/);
 
@@ -93,11 +108,7 @@ function classifyEvent(ev: SnapshotEvent): PopupSpec | null {
     return { kind: "neutral", label: "!" };
   }
 
-  if (t.includes("missed a harbor contract")) {
-    return { kind: "negative", label: "✗" };
-  }
-
-  if (t.startsWith("Drought!")) {
+  if (isMisfortuneEvent(t)) {
     return { kind: "negative", label: "✗" };
   }
 
@@ -115,8 +126,7 @@ function shouldShake(ev: SnapshotEvent): boolean {
   if (ev.drama < 0.4) return false;
   const t = ev.text;
   return (
-    (t.includes("overtakes") && t.includes("for 1st")) ||
-    t.includes("wins with a") ||
+    isVictoryEvent(t) ||
     t.includes("hauled in a coral-reef") ||
     t.startsWith("Final stretch")
   );
@@ -144,6 +154,15 @@ function worldToCss(
   return { cx, cy };
 }
 
+/**
+ * The audio layer's hook into juice's own new-event pass. An interface (not a concrete import of
+ * `FarmAudio`) so `JuiceLayer` stays constructible — in tests and otherwise — with no audio wired;
+ * audio.ts depends on juice.ts (for the shared matchers above), not the other way around.
+ */
+export interface JuiceAudioSink {
+  onEvent(ev: SnapshotEvent): void;
+}
+
 export class JuiceLayer {
 
   private readonly pool: PopupSlot[];
@@ -161,7 +180,10 @@ export class JuiceLayer {
 
   private farmerPositions: ReadonlyMap<number, { x: number; y: number }> = new Map();
 
-  constructor(parent: HTMLElement) {
+  private readonly audioSink: JuiceAudioSink | undefined;
+
+  constructor(parent: HTMLElement, audioSink?: JuiceAudioSink) {
+    this.audioSink = audioSink;
 
     this.overlay = document.createElement("div");
     applyOverlayStyles(this.overlay);
@@ -260,6 +282,10 @@ export class JuiceLayer {
   }
 
   private processEvent(ev: SnapshotEvent): void {
+
+    // Same gating as the popups/shake below: processEvent only runs for new (ev.tick > markBefore)
+    // events while !skipping, so audio automatically inherits the resync-skip guarantee.
+    this.audioSink?.onEvent(ev);
 
     if (shouldShake(ev)) {
 

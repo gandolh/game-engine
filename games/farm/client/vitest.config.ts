@@ -7,6 +7,7 @@ const DOM_FILES = [
   "src/ui/canvas/hotbar.test.ts",
   "src/worker/sim-client/client.visibility.test.ts",
   "src/main/juice.test.ts",
+  "src/main/audio.test.ts",
 ];
 
 export default defineConfig({

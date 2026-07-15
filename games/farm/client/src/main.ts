@@ -34,6 +34,7 @@ import { AmbientLayer } from "./main/ambient";
 import { ParticleDirector } from "./main/particles";
 import { createRenderLoop } from "./main/render-loop";
 import { JuiceLayer } from "./main/juice";
+import { FarmAudio } from "./main/audio";
 import { showFatal } from "./main/fatal";
 
 interface Runtime {
@@ -42,6 +43,7 @@ interface Runtime {
   keyboard: Keyboard;
   uiHost: UIHost;
   camera: Camera2D;
+  audio: FarmAudio;
 }
 
 async function loadNoiseGenerator(): Promise<NoiseGenerator | null> {
@@ -94,7 +96,19 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   // sim exists — the game panels register their own roots into the same host later.
   const uiHost = createUIHost(renderer, canvas);
 
-  return { renderer, noiseGen, keyboard, uiHost, camera };
+  // Audio (client/render concern, never sim-core). Browsers start an AudioContext suspended until
+  // a user gesture — unlock on the first pointer/key press anywhere, one-shot, alongside the other
+  // global input wiring above.
+  const audio = new FarmAudio();
+  const unlockAudio = (): void => {
+    window.removeEventListener("pointerdown", unlockAudio);
+    window.removeEventListener("keydown", unlockAudio);
+    void audio.unlock();
+  };
+  window.addEventListener("pointerdown", unlockAudio, { once: true });
+  window.addEventListener("keydown", unlockAudio, { once: true });
+
+  return { renderer, noiseGen, keyboard, uiHost, camera, audio };
 }
 
 /**
@@ -182,7 +196,7 @@ async function startGame(
   runtime: Runtime,
   run: { seed: number; maxDays: number; ticksPerDay: number },
 ): Promise<void> {
-  const { renderer, noiseGen, keyboard, uiHost } = runtime;
+  const { renderer, noiseGen, keyboard, uiHost, audio } = runtime;
   const { seed, maxDays, ticksPerDay } = run;
 
   // --- Loading screen (in-canvas) ------------------------------------------------------------
@@ -229,7 +243,19 @@ async function startGame(
     const client = new SimClient();
     setSimClient(client);
 
-    const juice = new JuiceLayer(document.body);
+    const juice = new JuiceLayer(document.body, audio);
+
+    // Mute toggle — no dedicated settings surface for audio yet, so a programmatic setter plus one
+    // keybinding ("M"; "P"/"."/"H" are already taken by the playback hotkeys in playback.ts).
+    window.addEventListener("keydown", (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      if (e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        audio.muted = !audio.muted;
+      }
+    });
 
     const { actions: playbackActions, handlers: playbackHandlers } = wirePlayback(client);
 

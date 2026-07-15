@@ -16,7 +16,8 @@
     "./animation": "./src/animation/index.ts",
     "./commands": "./src/commands/index.ts",
     "./placement": "./src/placement/index.ts",
-    "./input": "./src/input/index.ts"
+    "./input": "./src/input/index.ts",
+    "./audio": "./src/audio/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

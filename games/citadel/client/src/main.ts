@@ -88,6 +88,7 @@ import { SettingsModal } from "./ui/settings-modal";
 import { NewGameModal } from "./ui/new-game-modal";
 import type { GameMode } from "./ui/new-game-modal";
 import { ToastManager, newEventsSince } from "./ui/toast";
+import { CitadelAudio } from "./ui/audio";
 import { CitadelMinimap, MINIMAP_FACE } from "./ui/minimap";
 import { CITADEL_THEME } from "./ui/citadel-theme";
 import type { IsoProjection } from "./render/iso";
@@ -131,6 +132,20 @@ const loadFileInput = document.getElementById("load-file-input")! as HTMLInputEl
 const toasts = new ToastManager(document.getElementById("toast-live"));
 // Brief 97/20: sequence-based, not string-based — see newEventsSince's doc comment in toast.ts.
 let lastSeenEventsSeq: number | null = null;
+
+// Brief 19 (Chunk C): the same 3-sound procedural palette, fed one new event at a time from the
+// SAME newEventsSince pass that feeds toasts below — see the loop over snap.eventsSeq.
+const citadelAudio = new CitadelAudio();
+// AudioContext starts browser-suspended until a real user gesture; unlock once on the first
+// pointer or key press, then stop listening (a repeat unlock() on an already-running context is
+// a documented no-op, but there's no reason to keep the listeners attached after that).
+function unlockCitadelAudioOnce(): void {
+  void citadelAudio.unlock();
+  window.removeEventListener("pointerdown", unlockCitadelAudioOnce);
+  window.removeEventListener("keydown", unlockCitadelAudioOnce);
+}
+window.addEventListener("pointerdown", unlockCitadelAudioOnce);
+window.addEventListener("keydown", unlockCitadelAudioOnce);
 // Cozy-pivot Phase F (decision #7): latch for the ONE gentle contentment
 // banner, edge-triggered on `allHomesCovered` flipping false→true. `null`
 // until the first snapshot arrives, so we can initialize the latch from
@@ -1089,6 +1104,10 @@ const settingsModal = new SettingsModal({
   setZoom: (z) => { (camera as Camera2D | undefined)?.setZoom(clampZoom(z)); },
   minZoom: MIN_ZOOM,
   maxZoom: MAX_ZOOM,
+  audioMuted: {
+    get: () => citadelAudio.muted,
+    set: (v) => { citadelAudio.muted = v; },
+  },
 });
 
 // Open/close the in-canvas settings modal. `show()` resyncs the controls from live state but
@@ -1148,7 +1167,10 @@ client.onSnapshot((snap) => {
   events = snap.recentEvents;
   // Toast only the freshly-appended events (the rest is backlog already shown).
   // performance.now() is the render clock — main-thread only, never the sim.
-  for (const e of newEventsSince(lastSeenEventsSeq, snap.eventsSeq, events)) toasts.push(e, performance.now());
+  for (const e of newEventsSince(lastSeenEventsSeq, snap.eventsSeq, events)) {
+    toasts.push(e, performance.now());
+    citadelAudio.onEvent(e);
+  }
   lastSeenEventsSeq = snap.eventsSeq;
   // Cozy-pivot Phase F (decision #7): ONE gentle diegetic banner on the
   // false→true rising edge of `allHomesCovered` — never a nag, never repeats

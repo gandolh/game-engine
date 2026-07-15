@@ -12,7 +12,8 @@
  *
  * Controls, all native `@engine/ui` widgets (theme-coloured, so EDG-clean with no colour
  * literals here except the value label which uses EDG.*):
- *   - Display:    a `slider` bound to camera zoom + a value label ("1.4x") updated on change.
+ *   - Display:    a `slider` bound to camera zoom + a value label ("1.4x") updated on change,
+ *                 plus a "Mute sound" `checkbox` (brief 19, Chunk C) bound to cfg.audioMuted.
  *   - Atmosphere: one `checkbox` per render toggle (label = toggle.label, bound to get/set).
  *   - Simulation: speed `button`s (1x / 2x / 4x) calling cfg.setSpeed(n).
  *
@@ -120,6 +121,8 @@ export interface SettingsModalConfig {
   readonly setZoom: (z: number) => void;
   readonly minZoom: number;
   readonly maxZoom: number;
+  /** Audio mute (brief 19, Chunk C) — wraps CitadelAudio.muted. */
+  readonly audioMuted: { readonly get: () => boolean; readonly set: (v: boolean) => void };
 }
 
 interface TabDef {
@@ -158,6 +161,7 @@ export class SettingsModal {
   private readonly toggleBoxes = new Map<string, CheckboxNode>();
   private readonly zoomSlider: SliderNode;
   private readonly zoomValueLabel: LabelNode;
+  private readonly muteCheckbox: CheckboxNode;
 
   private selected = 0;
   private open = false;
@@ -178,9 +182,15 @@ export class SettingsModal {
         this.zoomValueLabel.text = zoomLabelText(cfg.getZoom());
       },
     });
+    this.muteCheckbox = checkbox({
+      checked: cfg.audioMuted.get(),
+      label: "Mute sound",
+      onChange: (v) => cfg.audioMuted.set(v),
+    });
     const displayPanel = box({ direction: "column", gap: 8, align: "start" }, [
       label("Zoom level", { muted: true }),
       box({ direction: "row", gap: 8, align: "center" }, [this.zoomSlider, this.zoomValueLabel]),
+      this.muteCheckbox,
     ]);
 
     // --- Atmosphere tab: one checkbox per render toggle ------------------
@@ -268,6 +278,7 @@ export class SettingsModal {
     const z = this.cfg.getZoom();
     this.zoomSlider.value = z;
     this.zoomValueLabel.text = zoomLabelText(z);
+    this.muteCheckbox.checked = this.cfg.audioMuted.get();
   }
 
   // -------------------------------------------------------------------------

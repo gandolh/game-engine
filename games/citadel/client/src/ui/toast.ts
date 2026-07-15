@@ -34,8 +34,12 @@ const TONE_COLORS: Record<"danger" | "warn" | "good" | "info", string> = {
  * Event severity → tone. Drives the toast's label colour so a fire/raid reads as
  * urgent and a promotion reads as celebratory. Keyword match is intentionally loose;
  * an uncategorised event falls back to the neutral tone.
+ *
+ * Exported so `CitadelAudio` (brief 19, Chunk C) can key its 3 procedural sounds off the
+ * SAME tone classification as the toast colour — audio and toasts never disagree about
+ * what counts as "danger"/"good"/"neutral".
  */
-function toneOf(msg: string): "danger" | "warn" | "good" | "info" {
+export function toneOf(msg: string): "danger" | "warn" | "good" | "info" {
   const m = msg.toLowerCase();
   if (/fire|burn|raid|sack|starv|died|disease|outbreak|attack|breach/.test(m)) return "danger";
   if (/threat|hungry|sick|shortage|unrest|fled|abandon|low /.test(m)) return "warn";
