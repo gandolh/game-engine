@@ -139,6 +139,15 @@ export interface RendererLike {
   pushUI(quad: UIQuad): void;
   endUI(): void;
 
+  /**
+   * Dev-only profiling seam for the screen-space UI flush. When `profileUi` is set
+   * true by the host, `endFrame()` records the wall-clock ms spent rasterizing the
+   * UI quad list plus the quad count into `lastUiFlush`. Optional: backends may omit
+   * it (zero overhead when unset or false); it must never affect rendered output.
+   */
+  profileUi?: boolean;
+  lastUiFlush?: { ms: number; quads: number };
+
   endFrame(
     wash?: WashOptions,
     particles?: ParticleSystem,

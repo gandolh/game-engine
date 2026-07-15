@@ -20,6 +20,8 @@ interface Op {
   args?: number[];
   // For drawImage: which image was the source (the atlas bitmap vs the tint buffer).
   src?: string;
+  // globalAlpha in effect when the op ran (draw-time alpha must never be baked into the cache).
+  ga?: number;
 }
 
 function makeRecordingCtx(ops: Op[], tag: string): Ctx2D {
@@ -35,7 +37,7 @@ function makeRecordingCtx(ops: Op[], tag: string): Ctx2D {
     },
     drawImage(src: unknown, ...a: number[]): void {
       const srcTag = (src as { __tag?: string }).__tag ?? "unknown";
-      ops.push({ op: "drawImage", src: srcTag, gco: ctx.globalCompositeOperation, args: a });
+      ops.push({ op: "drawImage", src: srcTag, gco: ctx.globalCompositeOperation, args: a, ga: ctx.globalAlpha });
     },
   };
   (ctx as unknown as { __tag: string }).__tag = tag;
@@ -181,5 +183,71 @@ describe("drawUIQuad textured-quad tint", () => {
     const blit = ops.find((o) => o.op === "drawImage");
     // src rect unchanged (5..), dest rect doubled (20,40,10,14).
     expect(blit!.args).toEqual([5, 0, 5, 7, 20, 40, 10, 14]);
+  });
+});
+
+describe("drawUIQuad tint cache (brief 118)", () => {
+  const tinted = (over?: Partial<UIQuad>): UIQuad => ({
+    x: 10, y: 20, width: 5, height: 7, atlasId: "ui-font", frame: "g41", color: EDG.gold, ...over,
+  });
+
+  it("a repeated (frame, colour) draw hits the cache: composite runs once, then plain blits", () => {
+    const ops: Op[] = [];
+    const ctx = makeRecordingCtx(ops, "main");
+    const atlases = makeAtlas();
+
+    drawUIQuad(ctx, atlases, tinted(), 1);
+    const compositeOpsAfterFirst = bufOps.length;
+    expect(compositeOpsAfterFirst).toBeGreaterThan(0); // first draw composites
+
+    drawUIQuad(ctx, atlases, tinted(), 1);
+    drawUIQuad(ctx, atlases, tinted({ x: 50 }), 1); // position doesn't key the cache
+
+    expect(bufOps.length).toBe(compositeOpsAfterFirst); // no new composite work
+    const blits = ops.filter((o) => o.op === "drawImage");
+    expect(blits.length).toBe(3);
+    for (const b of blits) expect(b.src).toBe("tintbuf"); // all from the cached canvas
+    expect(blits[2]!.args).toEqual([0, 0, 5, 7, 50, 20, 5, 7]);
+  });
+
+  it("a different tint colour is a distinct cache entry (composites again)", () => {
+    const ops: Op[] = [];
+    const ctx = makeRecordingCtx(ops, "main");
+    const atlases = makeAtlas();
+
+    drawUIQuad(ctx, atlases, tinted(), 1);
+    const afterFirst = bufOps.length;
+    drawUIQuad(ctx, atlases, tinted({ color: EDG.red }), 1);
+
+    expect(bufOps.length).toBe(2 * afterFirst); // second colour re-ran the same composite
+    const fills = bufOps.filter((o) => o.op === "fillRect" && o.gco === "multiply");
+    expect(fills.map((o) => o.fillStyle)).toEqual([EDG.gold, EDG.red]);
+  });
+
+  it("draw-time alpha rides ctx.globalAlpha on the blit — never baked into the cache", () => {
+    const ops: Op[] = [];
+    const ctx = makeRecordingCtx(ops, "main");
+    const atlases = makeAtlas();
+
+    drawUIQuad(ctx, atlases, tinted({ alpha: 0.5 }), 1);
+    drawUIQuad(ctx, atlases, tinted({ alpha: 0.25 }), 1); // cache hit, different alpha
+
+    const blits = ops.filter((o) => o.op === "drawImage");
+    expect(blits.map((o) => o.ga)).toEqual([0.5, 0.25]);
+    // The cached composite itself ran at full alpha (alpha would otherwise bake in).
+    for (const o of bufOps) expect(o.ga === undefined || o.ga === 1).toBe(true);
+    expect(ctx.globalAlpha).toBe(1); // restored after draw
+  });
+
+  it("a replaced atlas object recomposites (cache keyed by atlas identity, not id)", () => {
+    const ops: Op[] = [];
+    const ctx = makeRecordingCtx(ops, "main");
+
+    drawUIQuad(ctx, makeAtlas(), tinted(), 1);
+    const afterFirst = bufOps.length;
+    // Same atlas id, NEW LoadedAtlasImage object — as after a re-bake/re-add.
+    drawUIQuad(ctx, makeAtlas(), tinted(), 1);
+
+    expect(bufOps.length).toBe(2 * afterFirst);
   });
 });

@@ -195,6 +195,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
   const frameProfiler = new Profiler({ enabled: PROFILE_ENABLED });
   if (PROFILE_ENABLED) {
+    // Ask the renderer to time its screen-space UI flush (brief 118: the glyph-tint
+    // cost hides under render.endFrame, invisible to the panels sub-timer).
+    renderer.profileUi = true;
     client.setProfiling(true);
     client.onProfile((_tick, report) => overlay.setWorkerReport(report));
 
@@ -926,6 +929,10 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     });
 
     frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain, lightOverlay));
+    if (PROFILE_ENABLED && renderer.lastUiFlush !== undefined) {
+      frameProfiler.add("ui.flush", renderer.lastUiFlush.ms);
+      frameProfiler.add("ui.quads", renderer.lastUiFlush.quads);
+    }
 
     overlay.update({ tick: client.tick, alpha: 0, entityCount: client.entityCount });
 

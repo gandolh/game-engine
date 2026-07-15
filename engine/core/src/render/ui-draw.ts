@@ -57,20 +57,10 @@ export function drawUIQuad(
     // White (or no colour) is a no-op, so the common untinted blit skips the buffer.
     const rgb = quad.color !== undefined ? rgbHex(quad.color) : 0xffffff;
     if (rgb !== 0xffffff) {
-      const buf = tintBuffer(r.w, r.h);
-      if (buf) {
-        const bctx = buf.ctx;
-        bctx.globalAlpha = 1;
-        bctx.clearRect(0, 0, r.w, r.h);
-        bctx.globalCompositeOperation = "source-over";
-        bctx.drawImage(atlas.bitmap, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
-        bctx.globalCompositeOperation = "multiply";
-        bctx.fillStyle = `#${rgb.toString(16).padStart(6, "0")}`;
-        bctx.fillRect(0, 0, r.w, r.h);
-        bctx.globalCompositeOperation = "destination-in";
-        bctx.drawImage(atlas.bitmap, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
-        bctx.globalCompositeOperation = "source-over";
-        ctx.drawImage(buf.canvas, 0, 0, r.w, r.h, dx, dy, dw, dh);
+      const tinted = tintedFrame(atlas, quad.frame, r, rgb);
+      if (tinted !== null) {
+        // Alpha stays a draw-time ctx.globalAlpha (set above), never baked into the cache.
+        ctx.drawImage(tinted, 0, 0, r.w, r.h, dx, dy, dw, dh);
         ctx.globalAlpha = 1;
         return;
       }
@@ -100,20 +90,57 @@ function rgbHex(hex: string): number {
   return ((r << 16) | (g << 8) | b) >>> 0;
 }
 
-// Scratch canvas for the multiply-tint composite, grown on demand and reused across
-// quads. Module-local (a separate instance from the world `drawSprite` buffer) so the
-// two draw paths never stomp each other mid-frame.
-let tintCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
-let tintCtx: Ctx2D | null = null;
-function tintBuffer(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: Ctx2D } | null {
-  if (tintCanvas === null || tintCanvas.width < w || tintCanvas.height < h) {
-    try {
-      tintCanvas = createOffscreen(Math.max(w, tintCanvas?.width ?? 0), Math.max(h, tintCanvas?.height ?? 0));
-    } catch {
-      return null;
-    }
-    tintCtx = (tintCanvas.getContext("2d") as Ctx2D | null) ?? null;
+// Tint cache (brief 118). A tinted glyph/icon is identical every frame — the UI tree
+// re-submits every quad per frame by design, so the multiply→destination-in composite
+// used to run per quad per frame (thousands of composite-mode switches under
+// endFrame's overlay flush; the 5 fps regression). Cache the composited result per
+// (atlas, frame, rgb) and pay one plain drawImage per quad thereafter.
+//
+// Keyed by the LoadedAtlasImage OBJECT via WeakMap, so replacing an atlas sheet
+// (same id, new bake) naturally orphans its stale entries to the GC. Both games run
+// fixed palettes (EDG32 / Apollo-46) over small glyph/icon sets, so the per-atlas map
+// stays naturally small; the cap is a safety valve that resets the map rather than
+// evicting piecemeal (a reset just re-pays one composite per live entry).
+const TINT_CACHE_CAP_PER_ATLAS = 4096;
+const tintCaches = new WeakMap<LoadedAtlasImage, Map<string, OffscreenCanvas | HTMLCanvasElement>>();
+
+function tintedFrame(
+  atlas: LoadedAtlasImage,
+  frame: string,
+  r: { x: number; y: number; w: number; h: number },
+  rgb: number,
+): OffscreenCanvas | HTMLCanvasElement | null {
+  let cache = tintCaches.get(atlas);
+  if (cache === undefined) {
+    cache = new Map();
+    tintCaches.set(atlas, cache);
   }
-  if (tintCtx === null) return null;
-  return { canvas: tintCanvas, ctx: tintCtx };
+  const key = `${frame}/${rgb}`;
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+
+  let canvas: OffscreenCanvas | HTMLCanvasElement;
+  try {
+    canvas = createOffscreen(r.w, r.h);
+  } catch {
+    return null; // rare headless path: no offscreen canvas available
+  }
+  const bctx = (canvas.getContext("2d") as Ctx2D | null) ?? null;
+  if (bctx === null) return null;
+
+  // Same composite the per-draw path ran (a fresh canvas starts transparent, so no
+  // clearRect): source × tint (multiply), masked back to the source alpha.
+  bctx.globalAlpha = 1;
+  bctx.globalCompositeOperation = "source-over";
+  bctx.drawImage(atlas.bitmap, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  bctx.globalCompositeOperation = "multiply";
+  bctx.fillStyle = `#${rgb.toString(16).padStart(6, "0")}`;
+  bctx.fillRect(0, 0, r.w, r.h);
+  bctx.globalCompositeOperation = "destination-in";
+  bctx.drawImage(atlas.bitmap, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  bctx.globalCompositeOperation = "source-over";
+
+  if (cache.size >= TINT_CACHE_CAP_PER_ATLAS) cache.clear();
+  cache.set(key, canvas);
+  return canvas;
 }

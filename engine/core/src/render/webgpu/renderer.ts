@@ -94,6 +94,11 @@ export class WebGpuRenderer implements RendererLike {
   private _uiLen = 0;
   private _uiActive = false;
 
+  // Dev-only UI-flush profiling seam (see RendererLike.profileUi). Off by default;
+  // the host flips it when profiling so production frames pay nothing.
+  profileUi = false;
+  lastUiFlush = { ms: 0, quads: 0 };
+
   private _occludableIdx: number[] = [];
 
   private _groups: DrawGroup[] = [];
@@ -551,6 +556,7 @@ export class WebGpuRenderer implements RendererLike {
     // Screen-space UI layer: drawn last, in identity (screen) transform on the
     // Overlay2D canvas which sits one z-index above the GPU canvas. Unaffected by
     // the world camera. drawUIQuad applies DPR scaling internally.
+    const uiFlushT0 = this.profileUi ? performance.now() : 0;
     if (this._uiLen > 0) {
       this._overlay.resetTransform();
       // Force nearest-neighbour: applyWorldTransform (the only per-frame place that sets
@@ -567,6 +573,10 @@ export class WebGpuRenderer implements RendererLike {
         drawUIQuad(overlayCtx, this._atlases, this._uiQueue[i]!, dpr);
       }
       overlayCtx.globalAlpha = 1;
+    }
+    if (this.profileUi) {
+      this.lastUiFlush.ms = performance.now() - uiFlushT0;
+      this.lastUiFlush.quads = this._uiLen;
     }
   }
 }
