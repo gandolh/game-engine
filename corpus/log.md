@@ -4,6 +4,25 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-15] fix | The `sack` regression was decision #27 working — horizon 70 → 90 (`9651a57`)
+
+Closed the [P1 todo](todos/closed/2026-07-15-citadel-sack-regression.md). Bisected over the
+sim-touching candidates: PASS at `bbca1e9` (Wave 3.5) and `f65112d`, **FAIL at `c2caecc`**
+(Wave 4 / brief 103 scope 2) — notably the one closeout that consciously skipped the scenario
+gates, and the fixture is the ONLY end-to-end sharp-raid check. **Adjudication: intentional
+balance change, not a sim bug.** The re-pointed autonomous sharp conscription adds
+~floor(pop/2) defense to every arriving raid, and the same commit's sharp-famine rationing
+lifts the fixture town's pop to ~23 (feeding the conscript count) — so strength 20-45 arrivals
+moved from `resolveSiege`'s weak band (85% sack) into the mid band (10% sack) and the town
+holds out, which is exactly what decision #27 was for. The scenario's designed +5/raid
+escalation still ends it: strength-65+ raids (spotted ~day 58+, ~15-day march) push the ratio
+back under 0.5 and the keep is honestly sacked on **day 71** at the default seed (was day 50).
+Fix: `SACK_MAX_DAYS` 70 → 90 with the original +20 headroom pattern; lattice/keep layout
+untouched (no tier poking); the fixture header's ratio arithmetic re-documented for the
+conscription era. `SCENARIO=sack` exits 0; typecheck 14/14. **Lesson repeated:** a
+sharp-path-touching change must re-run the `sack` scenario at closeout — the 2026-07-11 entry
+below says the same thing about the same fixture.
+
 ## [2026-07-15] brief | 117 DONE — collapsible HUD panels, collapsed by default (`931694a`)
 
 Built via `plan-split-dispatch`: 3 parallel Sonnet chunks on disjoint lanes (panel-prefs store /
@@ -123,7 +142,7 @@ Playwright passes on both games. **Two lessons worth keeping:** (1) the browser 
 boot-killing silent self-import (`import "./main"` in `main.ts` resolves to the file, not the
 directory) that 503 green unit tests and a clean typecheck sailed past — fixed in `99558bd`;
 (2) baselining exposed a pre-existing P1: `sack` fails on main again
-([todo](todos/2026-07-15-citadel-sack-regression.md)). Wiki folded: architecture.md (Sim* names,
+([todo](todos/closed/2026-07-15-citadel-sack-regression.md)). Wiki folded: architecture.md (Sim* names,
 net/ path, workspace map), animation.md (Animator correction). Next: engine 21 (Turborepo).
 
 ## [2026-07-15] todo | Engine brief 21 filed — Turborepo task runner

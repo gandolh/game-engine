@@ -1,7 +1,7 @@
 ---
 title: Citadel `sack` scenario fails again on main (keep never sacked by day 70)
 created: 2026-07-15
-status: open
+status: closed (2026-07-15, `9651a57` — bisected to `c2caecc`; intentional balance change, horizon re-laid)
 tags: [citadel, p1, regression, fixture]
 ---
 
@@ -31,3 +31,15 @@ preserved the failure byte-for-byte — this is **not** from the split).
 - Bisect or reason to the regressing change; either fix the sim regression or (if the balance
   change was intentional) re-lay the fixture honestly (no tier poking, no pre-unlocks) so it
   sacks again; `sack` exits 0; document which it was in the log.
+
+## Resolution (2026-07-15)
+
+Bisected commit-by-commit over the sim-touching candidates: PASS at `bbca1e9` (Wave 3.5), PASS
+at `658bbeb` and `f65112d`, **FAIL at `c2caecc`** (Wave 4 / brief 103 scope 2 — the commit whose
+closeout consciously skipped the scenario gates). **Intentional balance change, not a sim bug:**
+the re-pointed autonomous SHARP conscription adds ~floor(pop/2) defense to every arriving raid
+(and the same commit's sharp-famine rationing raises the fixture town's pop to ~23), so
+strength 20-45 arrivals moved from the weak band (85% sack) into the mid band (10% sack) —
+decision #27 working as designed. The +5/raid escalation still wins: with `MAX_DAYS=110` the
+keep is honestly sacked on **day 71** (was day 50). Fix: `SACK_MAX_DAYS` 70 → 90 (`9651a57`),
+fixture layout untouched, header arithmetic re-documented. `SCENARIO=sack` exits 0 again.

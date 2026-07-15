@@ -48,5 +48,5 @@ currently interleaved in the monolith.
 the controller completed verification: **stdout byte-identical on all five baseline runs**
 (3 seeds × grow + sack + starve) and `sack` still exits 1. NOTE the sack exit-1 is a
 **pre-existing regression on main** (fixture no longer sacks by day 70) — found while capturing
-baselines, filed as [todos/2026-07-15-citadel-sack-regression.md](../../../todos/2026-07-15-citadel-sack-regression.md),
+baselines, filed as [todos/closed/2026-07-15-citadel-sack-regression.md](../../../todos/closed/2026-07-15-citadel-sack-regression.md),
 NOT caused by and not fixed in this brief (byte-identity preserved it exactly).
