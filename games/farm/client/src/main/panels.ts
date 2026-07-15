@@ -23,8 +23,10 @@ import { createPlaybackControls } from "../ui/canvas/playback-controls";
 import type { PlaybackControls, PlaybackActions } from "../ui/canvas/playback-controls";
 import { createRelationshipMatrix } from "../ui/canvas/relationship-matrix";
 import type { RelationshipMatrix } from "../ui/canvas/relationship-matrix";
-import { createWealthGraph } from "../ui/canvas/wealth-graph";
-import type { WealthGraph } from "../ui/canvas/wealth-graph";
+import { createWealthGraph, createWealthToggle } from "../ui/canvas/wealth-graph";
+import type { WealthGraph, WealthToggle } from "../ui/canvas/wealth-graph";
+import { createPanelPrefs } from "../ui/canvas/panel-prefs";
+import type { PanelPrefs } from "../ui/canvas/panel-prefs";
 import { createGameOverPanel } from "../ui/canvas/game-over";
 import type { GameOverPanel } from "../ui/canvas/game-over";
 import { createInventory } from "../ui/canvas/inventory";
@@ -68,6 +70,10 @@ export interface Panels {
   relationshipMatrix: RelationshipMatrix;
   relationshipRoot: UIRootHandle;
   wealthGraph: WealthGraph;
+  wealthToggle: WealthToggle;
+  wealthRoot: UIRootHandle;
+  /** Shared collapsible-panel open/closed store (observer/slate/events/relations/wealth). */
+  panelPrefs: PanelPrefs;
   gameOverPanel: GameOverPanel;
   gameOverRoot: UIRootHandle;
   inventory: Inventory;
@@ -85,6 +91,16 @@ function mount(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
 
+/** `window.localStorage` can itself throw in strict-privacy browser modes (not just on get/set
+ *  item) — guard the access, not just the calls, and fall back to in-memory prefs. */
+function safeLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Build + register every in-canvas panel with the host. Returns the panel handles the render loop
  * drives. `app` still hosts the (dev-only) DebugOverlay; every other surface is now in-canvas.
@@ -96,6 +112,10 @@ export function buildPanels(
   actions: PanelActions,
 ): Panels {
   const overlay = new DebugOverlay(app);
+
+  // Shared collapsible-panel open/closed store (brief 117) — built once, passed into every
+  // collapsible panel factory below.
+  const panelPrefs = createPanelPrefs(safeLocalStorage());
 
   const worldClock = createWorldClock();
   const clockRoot = host.registerRoot({
@@ -118,7 +138,7 @@ export function buildPanels(
   const tooltip = createTooltip();
   const tooltipRoot = host.registerRoot({ getRoot: () => (tooltip.isVisible() ? tooltip.root : null) });
 
-  const rightColumn = createRightColumn({ onSelectFarmer: actions.onSelectFarmer });
+  const rightColumn = createRightColumn({ onSelectFarmer: actions.onSelectFarmer }, panelPrefs);
   const rightColumnRoot = host.registerRoot({
     getRoot: () => rightColumn.root,
     a11yMount: mount("ui-a11y-right"),
@@ -156,7 +176,7 @@ export function buildPanels(
     a11yLabel: "How to play",
   });
 
-  const relationshipMatrix = createRelationshipMatrix();
+  const relationshipMatrix = createRelationshipMatrix(panelPrefs);
   const relationshipRoot = host.registerRoot({
     getRoot: () => relationshipMatrix.root,
     a11yMount: mount("ui-a11y-relationship"),
@@ -164,6 +184,12 @@ export function buildPanels(
   });
 
   const wealthGraph = createWealthGraph();
+  const wealthToggle = createWealthToggle(panelPrefs);
+  const wealthRoot = host.registerRoot({
+    getRoot: () => wealthToggle.root,
+    a11yMount: mount("ui-a11y-wealth"),
+    a11yLabel: "Wealth graph",
+  });
 
   const gameOverPanel = createGameOverPanel({ onShare: actions.onShare });
   let gameOverOpen = false;
@@ -231,6 +257,9 @@ export function buildPanels(
     relationshipMatrix,
     relationshipRoot,
     wealthGraph,
+    wealthToggle,
+    wealthRoot,
+    panelPrefs,
     gameOverPanel,
     gameOverRoot,
     inventory,

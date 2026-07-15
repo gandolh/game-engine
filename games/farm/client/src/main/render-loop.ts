@@ -123,7 +123,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   const {
     overlay, worldClock, clockRoot, hotbar, hotbarRoot, tooltip, rightColumn, rightColumnRoot,
     leaderboard, leaderboardRoot, playback, playbackRoot, helpRoot, relationshipMatrix,
-    relationshipRoot, wealthGraph, gameOverPanel, gameOverRoot, inventory,
+    relationshipRoot, wealthGraph, wealthToggle, wealthRoot, gameOverPanel, gameOverRoot, inventory,
     inspectPanel, inspectRoot, noticeBoard, noticeBoardRoot, standingsPost, standingsPostRoot,
   } = panels;
 
@@ -164,6 +164,13 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   // unchanged (its screen anchor depends on canvas dimensions).
   let rcLaidOutW = -1;
   let hbLaidOutSize = "";
+  let wealthLaidOutSize = "";
+  let matrixLaidOutSize = "";
+  // Keys typed BEFORE the first game frame (home-screen seed input, loading screen) accumulate
+  // in Keyboard.justPressed — nothing calls endFrame() until this loop runs — and would fire
+  // hotkeys (E/J/Tab + the panel toggles) spuriously on frame 1, write-through persisting bogus
+  // panel state. Drained once at the top of the first frame.
+  let staleInputDrained = false;
 
   const spawnRainSplash = (wx: number, wy: number): void => {
     const tx = Math.floor(wx / TILE);
@@ -261,6 +268,10 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   }
 
   function renderFrame(): void {
+    if (!staleInputDrained) {
+      staleInputDrained = true;
+      keyboard.endFrame();
+    }
     const frameStart = performance.now();
     const nowMs = frameStart;
     const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1); 
@@ -615,6 +626,14 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
       if (keyboard.justPressed("Tab")) leaderboardCtl.toggle();
       if (keyboard.justPressed("KeyJ")) hudSummoned = !hudSummoned; // summon/dismiss diegetic HUD
+
+      // Collapsible HUD panels (brief 117) — each toggles its own PanelPrefs entry + restructures
+      // its tree; the layout blocks below react to the next refresh()/toggleOpen() signal.
+      if (keyboard.justPressed("KeyR")) relationshipMatrix.toggleOpen();
+      if (keyboard.justPressed("KeyG")) wealthToggle.toggleOpen();
+      if (keyboard.justPressed("KeyF")) rightColumn.toggleSection("observer");
+      if (keyboard.justPressed("KeyO")) rightColumn.toggleSection("slate");
+      if (keyboard.justPressed("KeyT")) rightColumn.toggleSection("events");
       if (client.owner) {
 
         let selectSlot: number | null = null;
@@ -734,17 +753,49 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         rightColumn.drawIcons(surface);
       }
 
-      // Relationship matrix — pinned bottom-left, above the hotbar row.
-      if (relationshipMatrix.refresh(client.relationships)) {
+      // Relationship matrix — pinned bottom-left, above the hotbar row. The size-key sentinel
+      // forces the FIRST-frame layout (a default-closed matrix's refresh() returns false, which
+      // would leave its root at the zero rect — an unclickable Relations button) and re-anchors
+      // on canvas resize.
+      const matrixChanged = relationshipMatrix.refresh(client.relationships);
+      const matrixSizeKey = `${canvas.clientWidth}x${canvas.clientHeight}`;
+      const matrixRelayout = matrixChanged || matrixLaidOutSize !== matrixSizeKey;
+      if (matrixRelayout) {
         computeLayout(relationshipMatrix.root, 0, 0);
         const ry = Math.max(0, canvas.clientHeight - relationshipMatrix.root.rect.height - 80);
         computeLayout(relationshipMatrix.root, 8, ry);
+        matrixLaidOutSize = matrixSizeKey;
         relationshipRoot.mirror?.update(relationshipMatrix.root);
       }
       renderTree(surface, relationshipMatrix.root);
 
-      // Wealth graph — stateless pure-draw, bottom-left corner below the matrix.
-      wealthGraph.render(surface, 8, canvas.clientHeight - 70, 220, 60, client.wealthSeries);
+      // Wealth toggle button — pinned bottom-left, next to the relationship matrix root (whose
+      // width changes as IT collapses/expands, so re-anchor here on matrixChanged too, not just
+      // the wealth toggle's own state / a canvas resize).
+      const wealthChanged = wealthToggle.refresh();
+      const wealthSizeKey = `${canvas.clientWidth}x${canvas.clientHeight}`;
+      const wealthResized = wealthLaidOutSize !== wealthSizeKey;
+      if (matrixRelayout || wealthChanged || wealthResized) {
+        computeLayout(wealthToggle.root, 0, 0);
+        const wx = 8 + relationshipMatrix.root.rect.width + 8;
+        const wy = Math.max(0, canvas.clientHeight - wealthToggle.root.rect.height - 80);
+        computeLayout(wealthToggle.root, wx, wy);
+        wealthLaidOutSize = wealthSizeKey;
+        wealthRoot.mirror?.update(wealthToggle.root);
+      }
+      renderTree(surface, wealthToggle.root);
+
+      // Wealth graph — stateless pure-draw, anchored ABOVE the Wealth button so it never overlaps
+      // the matrix/button row below; gated on the toggle's open state (brief 117: collapsible
+      // panels default closed). When the OPEN matrix pushes the strip toward the canvas centre
+      // (narrow windows), the graph's x range can reach the playback bar — clamp its bottom edge
+      // above the bar's top (last-laid-out rect; a zero first-frame rect is skipped).
+      if (wealthToggle.isOpen()) {
+        const wx = wealthToggle.root.rect.x;
+        const playbackTop = playback.root.rect.height > 0 ? playback.root.rect.y : Number.POSITIVE_INFINITY;
+        const graphBottom = Math.min(wealthToggle.root.rect.y, playbackTop);
+        wealthGraph.render(surface, wx, graphBottom - 60 - 6, 220, 60, client.wealthSeries);
+      }
 
       // Hotbar — bottom-centre.
       if (hotbar.refresh(client.playerHotbar)) {

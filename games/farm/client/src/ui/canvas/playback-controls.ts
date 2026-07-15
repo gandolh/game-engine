@@ -37,6 +37,11 @@ const KEY_BINDINGS: ReadonlyArray<readonly [string, string]> = [
   ["H", "Skip to next highlight (next high-drama event)"],
   ["Drag", "Pan the camera"],
   ["Scroll", "Zoom in / out"],
+  ["R", "Show/hide relationships"],
+  ["F", "Show/hide farmers panel"],
+  ["O", "Show/hide shop slate"],
+  ["T", "Show/hide activity feed"],
+  ["G", "Show/hide wealth graph"],
 ];
 
 const TOOL_HELP: ReadonlyArray<readonly [string, string]> = [

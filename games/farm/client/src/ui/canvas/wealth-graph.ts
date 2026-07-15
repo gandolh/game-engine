@@ -23,14 +23,24 @@
  * `ctx.fillText` — there is no 2D context here at all.
  *
  * EDG32-only: every colour is an `EDG.*` constant (same palette the old Canvas2D chart used).
+ *
+ * ## Collapsible toggle (brief 117)
+ * `render()` itself stays exactly as it was — stateless pure drawing; the host (chunk 4) decides
+ * whether to call it at all. Collapsing lives entirely in the small retained widget produced by
+ * {@link createWealthToggle}: a single `Wealth` `button()` root that flips a `PanelPrefs` entry.
+ * The host owns the actual show/hide decision (call `render()` only when `isOpen()` is true);
+ * this factory only tracks the button + open-state-changed signal.
  */
 import { EDG } from "@engine/core";
+import { button, panel } from "@engine/ui";
+import type { ContainerNode } from "@engine/ui";
 import type { UISurface } from "@engine/ui/render";
 import { drawText, measureText } from "@engine/ui/text";
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 import { personalityColor } from "../colors";
 import { computePoints, detectCrossings } from "../wealth-graph/compute";
 import type { ChartBounds } from "../wealth-graph/compute";
+import type { PanelPrefs } from "./panel-prefs";
 
 /**
  * Padding (px) inside the chart's `w`×`h` box reserved for axis labels. `PAD_LEFT` bounds the
@@ -172,4 +182,51 @@ function drawLineDots(surface: UISurface, x0: number, y0: number, x1: number, y1
     const py = y0 + dy * t;
     surface.rect(px - DOT_SIZE / 2, py - DOT_SIZE / 2, DOT_SIZE, DOT_SIZE, color);
   }
+}
+
+/** The retained `Wealth` collapse toggle — a tiny widget tree of one button (see module doc). */
+export interface WealthToggle {
+  /** The widget tree root — a single `Wealth` button. Pass to `computeLayout` / `renderTree`. */
+  readonly root: ContainerNode;
+  /**
+   * Consume the pending open/closed-changed flag. Call once per frame; cheap — it's a single
+   * boolean read.
+   * @returns `true` exactly once after the open state changed (button press or `toggleOpen()`);
+   * `false` otherwise (the host gates a relayout on this).
+   */
+  refresh(): boolean;
+  /** Toggle open/closed — identical semantics to pressing the `Wealth` button. */
+  toggleOpen(): void;
+  /** Whether the wealth graph is currently open (`prefs.isOpen("wealth")`). */
+  isOpen(): boolean;
+}
+
+/**
+ * Build the retained `Wealth` toggle-button widget. Defaults to whatever `prefs` already holds
+ * for `"wealth"` (closed unless previously persisted open). The button's press handler and
+ * `toggleOpen()` share one code path.
+ */
+export function createWealthToggle(prefs: PanelPrefs): WealthToggle {
+  let dirty = false;
+
+  function doToggle(): void {
+    prefs.toggle("wealth");
+    dirty = true;
+  }
+
+  const toggleBtn = button("Wealth", { onActivate: () => doToggle() });
+  const root = panel({ direction: "row", gap: 0, align: "center" }, [toggleBtn]);
+
+  function refresh(): boolean {
+    if (!dirty) return false;
+    dirty = false;
+    return true;
+  }
+
+  return {
+    root,
+    refresh,
+    toggleOpen: doToggle,
+    isOpen: () => prefs.isOpen("wealth"),
+  };
 }

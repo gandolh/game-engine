@@ -17,11 +17,24 @@
  *
  * EDG32-only: cell colours mirror the DOM `trustColor` thresds (red <0.35, green >0.65, steel
  * otherwise); header/row-label initials use `personalityColor`.
+ *
+ * ## Collapsible (brief 117)
+ * The panel now defaults CLOSED behind an always-visible `Relations` toggle `button()` — the
+ * root's single registered-root shape is preserved (a smaller root, containing only the button,
+ * is still a valid root; the host's hidden-root/inert-dispatcher handling is unaffected). Pressing
+ * the button (or calling `toggleOpen()`) flips `prefs`, restructures `root.children` immediately
+ * (button-only while closed, full title/caption/legend/grid while open), and marks an internal
+ * `structureDirty` flag so the very next `refresh()` returns `true` regardless of the data
+ * signature (the host gates `computeLayout` on it). While closed, `refresh(data)` skips the grid
+ * signature/rebuild work entirely (just consumes `structureDirty` if set). Reopening clears
+ * `lastSignature` so the first refresh after opening always rebuilds from the latest data, even if
+ * that data was silently stale from being ignored while closed.
  */
 import { EDG } from "@engine/core";
-import { box, label, panel } from "@engine/ui";
+import { box, button, label, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 import { personalityColor } from "../colors";
+import type { PanelPrefs } from "./panel-prefs";
 
 export interface RelationshipMatrixData {
   farmers: Array<{ id: number; name: string; personality: string }>;
@@ -61,17 +74,22 @@ export interface RelationshipMatrix {
   readonly root: ContainerNode;
   /**
    * Rebuild the grid from the latest farmers/trust data. Call once per frame; cheap to call
-   * every frame — it short-circuits via an internal signature when nothing changed.
-   * @returns `true` when the grid was rebuilt (layout-affecting); `false` when unchanged.
+   * every frame — it short-circuits via an internal signature when nothing changed. While the
+   * panel is closed, this skips the grid signature/rebuild work entirely.
+   * @returns `true` when the grid was rebuilt or the open/closed structure just changed
+   * (layout-affecting); `false` when unchanged.
    */
   refresh(data: RelationshipMatrixData): boolean;
+  /** Toggle open/closed — identical semantics to pressing the `Relations` button. */
+  toggleOpen(): void;
 }
 
 /**
  * Build the retained relationship-matrix widget tree. The grid body is rebuilt wholesale on
  * change (small N x N farmer count keeps this cheap), matching the DOM version's `replaceChildren`.
  */
-export function createRelationshipMatrix(): RelationshipMatrix {
+export function createRelationshipMatrix(prefs: PanelPrefs): RelationshipMatrix {
+  const toggleBtn = button("Relations", { onActivate: () => doToggle() });
   const title = label("Relationships", { color: EDG.white });
   const caption = label(
     "Who trusts whom - each row toward each column.",
@@ -84,28 +102,34 @@ export function createRelationshipMatrix(): RelationshipMatrix {
   ]);
   const gridBox = box({ direction: "column", gap: 2, align: "stretch" }, []);
 
-  const root = panel({ direction: "column", gap: 6, align: "stretch" }, [
-    title,
-    caption,
-    legend,
-    gridBox,
-  ]);
+  const root = panel({ direction: "column", gap: 6, align: "stretch" }, [toggleBtn]);
 
   let lastSignature = "";
+  let structureDirty = false;
+
+  function restructure(): void {
+    root.children = prefs.isOpen("relations")
+      ? [toggleBtn, title, caption, legend, gridBox]
+      : [toggleBtn];
+  }
+
+  function doToggle(): void {
+    const nowOpen = prefs.toggle("relations");
+    if (nowOpen) lastSignature = ""; // force a rebuild from current data on the next open refresh
+    restructure();
+    structureDirty = true;
+  }
+
+  restructure();
 
   function buildCell(text: string, color: string): LabelNode {
     return label(text, { color });
   }
 
-  function refresh(data: RelationshipMatrixData): boolean {
-    const { farmers, trust } = data;
-    const signature = computeSignature(farmers, trust);
-    if (signature === lastSignature) return false;
-    lastSignature = signature;
-
+  function rebuildGrid(farmers: RelationshipMatrixData["farmers"], trust: RelationshipMatrixData["trust"]): void {
     if (farmers.length === 0) {
       gridBox.children = [];
-      return true;
+      return;
     }
 
     const headerRow = box({ direction: "row", gap: 4, align: "center" }, [
@@ -128,8 +152,34 @@ export function createRelationshipMatrix(): RelationshipMatrix {
     });
 
     gridBox.children = [headerRow, ...bodyRows];
-    return true;
   }
 
-  return { root, refresh };
+  function refresh(data: RelationshipMatrixData): boolean {
+    if (!prefs.isOpen("relations")) {
+      // Closed: never touch the grid — just consume a pending structural-change flag.
+      if (structureDirty) {
+        structureDirty = false;
+        return true;
+      }
+      return false;
+    }
+
+    let changed = false;
+    if (structureDirty) {
+      structureDirty = false;
+      changed = true;
+    }
+
+    const { farmers, trust } = data;
+    const signature = computeSignature(farmers, trust);
+    if (signature !== lastSignature) {
+      lastSignature = signature;
+      rebuildGrid(farmers, trust);
+      changed = true;
+    }
+
+    return changed;
+  }
+
+  return { root, refresh, toggleOpen: doToggle };
 }
