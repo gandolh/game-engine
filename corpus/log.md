@@ -4,6 +4,34 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-15] brief | 118 DONE — 5 fps regression: the UI glyph tint composite, cached (`4fd48dc`)
+
+The profile gate ran first and confirmed the filed hypothesis exactly: a new
+`PROFILE_ENABLED`-gated `ui.flush` sub-timer (+ `ui.quads` count) around the Overlay2D flush in
+`WebGpuRenderer.endFrame` measured **106.0 ms of the 116.6 ms mean frame (~91%)** in the UI quad
+flush at ~1,950 quads/frame, fps 3.36, on the affected machine (real AMD GPU via ANGLE/D3D11,
+1600×900, all panels open, seed `0xc0ffee`) — `panels` 2.9 ms and `pushSprites` 5.6 ms were
+noise, and F3's `_ghostCovered` fit inside the ~1.3 ms endFrame remainder (dismissed). Every
+tinted glyph quad paid the 5-op multiply→destination-in Canvas2D composite per draw, per frame.
+
+**F1 shipped** ([ui-draw.ts](../engine/core/src/render/ui-draw.ts)): the composite now runs once
+per distinct (atlas, frame, rgb) into a cached canvas — a `WeakMap` keyed by the
+`LoadedAtlasImage` **object** (so a re-baked atlas orphans its entries instead of serving stale
+pixels), per-atlas `Map` with a 4,096-entry reset valve, draw-time `globalAlpha` never baked in,
+white/no-tint and missing-atlas/frame paths byte-unchanged. Re-measured same scene: **fps 57.06,
+`ui.flush` 5.2 ms, `render.endFrame` 6.1 ms, frame 9.4 ms** — ~20× on the flush at the same quad
+count; Citadel inherits the fix through the shared rasterizer. **F2 (overlay dirty-skip) not
+taken** — its gate was "only if F1 leaves the flush hot". Gates: typecheck 14/14, full suite
+green (4 new cache tests + a `ga` recorder extension in `ui-draw.test.ts`), Farm
+`CHECK_DETERMINISM=1` MATCH, panels visually correct in-browser. Also proven while gating: the
+three `@farm/sim-core` "failures" during the first full-suite run were 5 s-timeout flakes from
+CPU contention with the live dev stack + browser (all pass standalone and on clean main;
+`bridge-graph.test.ts`'s multi-seed property runs 3.3 s standalone — borderline under turbo).
+Wiki: [performance.md](wiki/performance.md) new Tier-0 banner,
+[performance-measurements.md](wiki/performance-measurements.md) 2026-07-15 table;
+brief: [briefs/game/done/118](briefs/game/done/118-fps-regression-ui-glyph-tint-path.md).
+**117 is now unblocked.**
+
 ## [2026-07-15] fix | Atlas EOL pinned — a test run no longer dirties the tree (`d4d0222`)
 
 Closed [todos/closed/2026-07-15-atlas-eol-gitattributes.md](todos/closed/2026-07-15-atlas-eol-gitattributes.md)
@@ -24,7 +52,7 @@ Two Farm briefs filed from a user session (screenshot showed 5 fps / ~216 ms fra
   matrix, the right column's three sub-panels (observer/slate/activity, independently), and the
   wealth graph go behind labeled toggle buttons, **collapsed by default**, with keyboard shortcuts
   + localStorage persistence. Playback controls, help, clock, hotbar, and existing toggles unchanged.
-- **[118 — FPS regression: profile gate + per-glyph tint cache](briefs/game/todo/118-fps-regression-ui-glyph-tint-path.md).**
+- **[118 — FPS regression: profile gate + per-glyph tint cache](briefs/game/done/118-fps-regression-ui-glyph-tint-path.md).**
   Exploration attributes the regression (99 fps 2026-06-12 → 5 fps 2026-07-15) to the 2026-07-01
   in-canvas UI migration: one tinted quad per glyph, each paying a 5-op Canvas2D composite in
   `drawUIQuad` on the Overlay2D flush inside `endFrame`. Plan: profile gate first (new `ui.flush`

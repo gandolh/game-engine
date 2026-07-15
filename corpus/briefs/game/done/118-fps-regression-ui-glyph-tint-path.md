@@ -1,5 +1,16 @@
 # Task 118 — FPS regression: profile gate + fix the per-glyph UI tint path
 
+> **DONE 2026-07-15 (`4fd48dc`).** Profile gate CONFIRMED the hypothesis on the affected
+> machine: `ui.flush` (new sub-timer) mean **106.0 ms of `frame` 116.6 ms (~91%)** at ~1,950
+> quads/frame, fps 3.36. **F1 shipped**: per-(atlas, frame, rgb) tint cache in `drawUIQuad`,
+> WeakMap-keyed by the atlas *object* (re-bake self-invalidates), per-atlas 4,096-entry reset
+> valve, alpha draw-time only. Result same scene, panels open: **fps 57.06, `ui.flush` 5.2 ms,
+> `render.endFrame` 6.1 ms**. **F2 not taken** (gate closed — F1 sufficed); **F3 dismissed**
+> (endFrame−ui.flush ≈ 1.3 ms). The 5-ms residual flush is ~1,936 plain drawImage calls.
+> Gates: typecheck 14/14, full suite green (engine/core 194 incl. 4 new cache tests + a
+> recorder `ga` extension), Farm `CHECK_DETERMINISM=1` MATCH, UI visually verified in-browser.
+> Numbers: [performance-measurements.md](../../../wiki/performance-measurements.md) 2026-07-15.
+
 ## Context
 
 Observed 2026-07-15 on the user's real hardware (Windows 11, WebGPU backend — Farm pins
@@ -31,7 +42,7 @@ caches pre-populated for known colors are the recommended pattern for palette-fi
 Both games' palettes are fixed (EDG32 / Apollo-46), so the cache is small and bounded.
 
 **Ordering interplay:** capture the baseline profile BEFORE brief
-[117](117-collapsible-hud-panels.md) lands (or run with all panels forced open) — 117 hides
+[117](../todo/117-collapsible-hud-panels.md) lands (or run with all panels forced open) — 117 hides
 most glyphs by default and would mask the regression.
 
 ## Files you OWN

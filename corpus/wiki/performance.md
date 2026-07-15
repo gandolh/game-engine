@@ -1,6 +1,6 @@
 ---
 summary: Ranked optimization backlog for the engine, filtered against what the code actually does — tiers 0-3, what is already done, and what is explicitly not worth doing at Farm Valley's scale.
-updated: 2026-07-09
+updated: 2026-07-15
 ---
 
 # Performance & Optimization
@@ -9,7 +9,15 @@ Optimization opportunities for the engine, filtered against what the code **actu
 
 > **Determinism guardrail.** Any of these is a refactor of *how* state moves, never *what* it computes. Prove behavior-preservation with multi-seed `EXPORT=json` diffs, not just `CHECK_DETERMINISM=1` (which only proves reproducibility). See [architecture.md](architecture.md) and the root [CLAUDE.md](../../CLAUDE.md).
 
-## Tier 0 — Live FPS regression — **✅ RESOLVED 2026-06-12 (not reproducible on real hardware; brief 84)**
+## Tier 0 — 5 fps regression (in-canvas UI glyph tint) — **✅ RESOLVED 2026-07-15 (brief 118, `4fd48dc`)**
+
+> **➡️ Newest banner — read first.** Observed 2026-07-15 on real hardware: **5 fps / ~216 ms frame** (583 entities) vs the 99 fps baseline below. Regression window: the **2026-07-01 in-canvas UI migration**. A new `PROFILE_ENABLED`-gated **`ui.flush` sub-timer** (+ `ui.quads` count) inside `WebGpuRenderer.endFrame` proved the attribution on the affected machine: **`ui.flush` mean 106.0 ms of `frame` 116.6 ms (~91%)** at ~1,950 UI quads/frame — every glyph is a tinted quad and [ui-draw.ts](../../engine/core/src/render/ui-draw.ts) `drawUIQuad` paid a 5-op Canvas2D composite (multiply→destination-in round-trip) **per quad per draw**. `panels` (2.9 ms) and `pushSprites` (5.6 ms) were noise; `_ghostCovered` (F3) sat inside the ~1.3 ms endFrame remainder — dismissed.
+>
+> **What shipped (F1 only):** a **per-(atlas, frame, rgb) tint cache** in `drawUIQuad` — the composite runs once per distinct tinted glyph into a cached canvas (WeakMap keyed by the `LoadedAtlasImage` *object*, so a re-baked atlas self-invalidates; per-atlas map reset at 4,096 entries as a safety valve; alpha stays draw-time, never baked). Same scene, all panels open: **fps 3.36 → 57.06**, `ui.flush` 106.0 → **5.2 ms**, `render.endFrame` 107.4 → **6.1 ms**. Citadel benefits for free (same rasterizer). **F2 (overlay dirty-skip) was NOT taken** — gated on F1 being insufficient, and it wasn't. Numbers: [performance-measurements.md](performance-measurements.md) 2026-07-15 section.
+>
+> ⚠️ **Lesson:** the per-panel dirty guards never saw this cost — `renderTree` re-submits every glyph quad every frame *by design*, so the cost lands under `render.endFrame`, invisible to the `panels` sub-timer. When endFrame is hot, split the UI flush out (`ui.flush` is now permanent) before blaming the GPU submit.
+
+## Tier 0 (historical) — Live FPS regression — **✅ RESOLVED 2026-06-12 (not reproducible on real hardware; brief 84)**
 
 > **➡️ Read this banner first.** A user-supplied **real-GPU** `?profile` export (`gpu: ANGLE (AMD Radeon …, Direct3D11)` — a genuine GPU, not SwiftShader) shows the live WebGPU game at **fps 99.2, `frame` JS 5.0 ms mean / 7.5 ms p95** (`render.endFrame` 2.7/4.4 ms, `pushSprites` 0.93 ms, `panels` 0.51 ms / `relmatrix` 0.028 ms, `interp` 0.06 ms; server `tick` 1.06 ms). **The "15–30 fps" was a headless-Chromium-on-SwiftShader (CPU-raster) artifact** — exactly the caveat the 2026-06-11 profile flagged. On real hardware there is **no GPU-overdraw problem to fix.**
 >

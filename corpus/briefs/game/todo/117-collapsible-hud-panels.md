@@ -22,7 +22,9 @@ Decisions locked with the user (2026-07-15):
 
 This is pure render/UI work — zero sim impact. Side benefit: collapsed panels emit no glyph
 quads, which directly reduces the per-frame UI-draw cost that brief
-[118](118-fps-regression-ui-glyph-tint-path.md) attacks. **Interplay:** 118's baseline profile
+[118](../done/118-fps-regression-ui-glyph-tint-path.md) attacks (DONE 2026-07-15 — the tint
+cache landed; this brief's glyph reduction is now a bonus, not the fix). **Interplay:** 118's
+baseline profile was captured 2026-07-15 with all panels open, so this brief is unblocked.
 must be captured before this lands (or with all panels forced open), otherwise this brief masks
 the regression 118 measures.
 

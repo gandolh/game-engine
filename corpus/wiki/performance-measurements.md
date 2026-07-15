@@ -1,12 +1,40 @@
 ---
-summary: The Farm Valley profiling record — how to measure (Profiler + ?profile + DebugOverlay), plus the 2026-06-05 and 2026-06-10 measured tick/frame results that every optimization claim is scored against.
-updated: 2026-06-12
+summary: The Farm Valley profiling record — how to measure (Profiler + ?profile + DebugOverlay), plus the 2026-06-05/06-10/07-15 measured tick/frame results that every optimization claim is scored against.
+updated: 2026-07-15
 ---
 
 # Performance — measurement harness & measured results
 
 The **backlog** these numbers justify lives in [performance.md](performance.md).
 This page is the evidence: never promote an optimization here without a before/after number.
+
+## Measured results (2026-07-15, brief 118 — UI glyph-tint regression, before/after)
+
+Machine: the affected Windows 11 box (AMD Radeon iGPU via ANGLE/D3D11, real GPU — not
+SwiftShader), Playwright Chromium, canvas 1600×900 @ DPR 1, seed `0xc0ffee`, day 0–1, **all
+panels open** (pre-117 default), default whole-world zoom. New `PROFILE_ENABLED`-gated
+sub-timers: `ui.flush` (wall-clock of the Overlay2D UI-quad flush inside
+`WebGpuRenderer.endFrame`) + `ui.quads` (count). Baseline = the uncached per-draw tint
+composite; after = the per-(atlas, frame, rgb) tint cache (`4fd48dc`).
+
+| metric (mean / p50 / p95) | baseline (uncached) | after tint cache |
+|---|---|---|
+| overlay fps | **3.36** | **57.06** |
+| `frame` | 116.6 / 64.8 / 320.1 ms | 9.4 / 9.7 / 11.8 ms |
+| `render.endFrame` | 107.4 / 59.5 / 308.1 ms | 6.1 / 6.5 / 7.4 ms |
+| ↳ `ui.flush` | **106.0** / 58.1 / 305.8 ms | **5.2** / 5.6 / 6.4 ms |
+| `ui.quads` (per frame) | ~1,950 | ~1,936 |
+| `panels` (tree refresh/layout) | 2.9 ms | 1.3 ms |
+| `pushSprites` | 5.6 ms | 1.4 ms |
+| entityCount at capture | 693 | 917 |
+
+**Attribution was unambiguous**: `ui.flush` was ~91% of the whole frame — every tinted glyph
+quad paid a 5-op Canvas2D composite per draw. One cached composite per distinct
+(atlas, frame, colour) later, the flush is ~20× faster at the same quad count and the frame is
+back under the 16.6 ms budget with every panel open. `panels`/`pushSprites` improvements are
+secondary (less timer interference at 280 ms frames). Baseline/post-fix exports:
+`farm-valley-profile-seed-c0ffee-2026-07-15T17-09-02` / `…17-11-06` (session scratchpad;
+schema `farm-valley-profile/1`).
 
 ## Measuring (P0 — shipped 2026-06-05)
 
