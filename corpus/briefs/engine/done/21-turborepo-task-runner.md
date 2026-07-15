@@ -64,3 +64,23 @@ Without an explicit `inputs` glob, an atlas change would replay a stale green.
   `games/farm/client/public/atlas/`, confirm `@farm/sim-core`'s test task is a cache MISS.
 - Single-workspace and single-file test invocations from root CLAUDE.md work unchanged.
 - `CHECK_DETERMINISM` runs are demonstrably never cache-served.
+
+---
+
+**Outcome (2026-07-15, DONE — one documented deviation).** `turbo@2.10.5` exact-pinned
+(`a71e6f6`); root `typecheck`/`test` → turbo with **`--continue`** (the load-bearing flag — turbo's
+default cancels siblings on first failure, the exact hidden-red-package behavior this brief
+replaces); everything else (dev/sim/server/determinism) stays outside turbo. **Numbers:** typecheck
+44s serial → ~18-32s cold parallel → **88ms FULL TURBO warm**; test warm ~2-10s. Two-failure
+break-proof passed; atlas-byte cache-MISS proof passed and re-proven.
+**The input sweep found more than the brief knew:** beyond `farmer-frames.test.ts`→atlas, the
+`@engine/core` palette guard **walks the entire repo** (declared repo-wide source-glob inputs),
+`travel.test.ts` + `@farm/server`'s `sim-host.test.ts` read `wasm-modules/dist`, and **no workspace
+declares a dependency on `@engine/wasm-modules` at all** (would be circular for engine/core) — all
+handled via explicit `inputs`. **Deviation:** `test` runs `--concurrency=1` — cross-suite
+parallelism oversubscribes nested vitest pools (~1-in-3 timeout flakes at concurrency=2) and
+`@tool/atlas-builder`'s test *rewrites* the atlas `@farm/sim-core` reads (torn-read race);
+rationale committed in turbo.json. `dependsOn: []` on purpose (JIT packages; topological would
+serialize + re-hide reds). Known smell filed as a todo: the atlas-builder test rewrites
+`index.json` with LF endings, wobbling Windows warm-cache stability
+([todos/2026-07-15-atlas-eol-gitattributes.md](../../../todos/2026-07-15-atlas-eol-gitattributes.md)).

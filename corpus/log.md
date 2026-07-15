@@ -4,6 +4,22 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-15] done | Engine brief 21 — Turborepo task runner (`a71e6f6`)
+
+Wave 2 of the structure backlog; senior/opus executor, controller-verified. `turbo@2.10.5`
+exact-pinned; root `typecheck`/`test` → turbo with `--continue` (the flag that makes every red
+workspace report instead of the first one cancelling the rest — the 2026-07-09 gate-rot
+mechanism is now structurally gone). Typecheck 44s serial → ~18-32s cold / **88ms warm FULL
+TURBO**; atlas-byte cache-MISS proof + two-workspace failure proof both passed. The input sweep
+found three undeclared cross-package reads (engine/core's repo-walking palette guard, Farm's
+atlas, wasm dist ×2) and that nobody declares `@engine/wasm-modules` as a dependency — all
+declared as explicit `inputs`. Deviation: `test` runs `--concurrency=1` (nested-vitest flake +
+an atlas write/read race between atlas-builder and sim-core tests; rationale in turbo.json), so
+the test win is caching, not cross-suite parallelism. Two todos filed:
+[atlas EOL pin](todos/2026-07-15-atlas-eol-gitattributes.md); CLAUDE.md's stale market.test.ts
+path fixed in the same commit. **The 2026-07-15 structure backlog (114-116, engine 20-21) is
+fully landed.**
+
 ## [2026-07-15] done | Structure wave — briefs 114 + 115 + 116 + engine 20 (`e21e5fd`, `99558bd`)
 
 Wave 1 of the structure-survey backlog, built via `plan-split-dispatch` (4 parallel Sonnet
