@@ -4,6 +4,48 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-15] todo | Engine brief 21 filed — Turborepo task runner
+
+Research outcome of "should we add turbo?": yes — filed as
+[engine 21](briefs/engine/todo/21-turborepo-task-runner.md), not built. Measured baseline:
+`npm run typecheck` 44s serial across 14 workspaces, and `--workspaces` stops at the first red
+workspace (the 2026-07-09 gate-rot mechanism). Turbo layers on npm workspaces (the locked
+decision stands); all internal packages are Turbo "JIT packages" (no build step), so the win is
+parallel + cached typecheck/test, not build caching. The brief's load-bearing scope item: sweep
+for undeclared cross-package task inputs — known offender `farmer-frames.test.ts`
+(`@farm/sim-core`) reads the Farm client's atlas without a dependency edge, which would be a
+stale-green cache hit unless declared. Determinism runs stay outside the cache by contract.
+
+## [2026-07-15] todo | Briefs 115, 116 + engine 20 filed — wide structure-survey batch
+
+Second pass of the 2026-07-15 structure survey (checked against external best practice: the
+macro layout — engine/game separation, feature-first sim-cores, per-subsystem engine exports —
+already matches consensus; the wins are one level down). Filed, not built:
+[game 115](briefs/game/todo/115-farm-client-net-rename-and-tool-hygiene.md) (Farm client
+`src/worker/` → `src/net/` — the sim left the Worker in brief 58 — plus the `Worker*` protocol
+type renames and grouping run-sim's 12 fossil `probe-*.ts` diagnostics),
+[game 116](briefs/game/todo/116-citadel-sim-runner-split.md) (split citadel-sim's 1,196-line
+`index.ts` to mirror run-sim's module layout; byte-identical-stdout gate), and
+[engine 20](briefs/engine/todo/20-engine-ghost-subsystems.md) (delete the consumer-less
+`Animator`/`Clip` ghost — keep the easing curves `@engine/ui` re-exports — and adjudicate
+`@engine/core/assets`, whose only consumer is world-preview). Checked-and-fine, recorded so it
+isn't relitigated: `commands`/`placement` are genuinely generic engine primitives; the two
+clients' interp modules solve different problems (sprite lerp vs tile-snap smoothing) and should
+not merge; `@engine/ui/anim` re-exporting core easing is deliberate, not duplication.
+
+## [2026-07-15] todo | Brief 114 filed — Citadel client main.ts decomposition
+
+A 2026-07-15 project-structure survey found `games/citadel/client/src/main.ts` at **1,949 lines**
+(largest source file in the repo), violating the module-directory convention the Farm client
+already follows (`src/main/` split). Filed as
+[brief 114](briefs/game/todo/114-citadel-client-main-decomposition.md): behavior-preserving split
+into `src/main/` along the file's own banner seams, with the known hazards named (boot-gap guard,
+the single `newEventsSince` pass feeding toasts+audio, shared mutable state, the Vite entry).
+Also carries the doc-drift fix: `@engine/ui` is missing from both workspace maps (root CLAUDE.md +
+wiki/architecture.md; the latter also omits `@farm/atlas-recipes` and `@citadel/server`). Sibling
+monoliths (`citadel sim-bootstrap.ts` 1,302, `tools/citadel-sim/index.ts` 1,196) noted out of scope.
+Not implemented — brief only.
+
 ## [2026-07-15] brief | engine audio subsystem + 3 test sounds per game (engine brief 19)
 
 Closes engine brief 19 / the [2026-07-08 todo](todos/closed/2026-07-08-engine-audio-subsystem.md).

@@ -56,8 +56,8 @@ Each brief is the spec that directed a slice of work; once in `done/`/`supersede
 **[status.md](wiki/status.md) is the single source for brief state** — this page deliberately does not
 duplicate the catalog. Number prefixes are stable across directory moves.
 
-- Engine: [briefs/engine/](briefs/engine/) — `done/` 02–19, `superseded/` 01 + the WebGPU wave, `todo/` empty
-- Game: [briefs/game/](briefs/game/) — briefs 01–113; `todo/` holds 96 (living reference), 98–107, 113; `superseded/` gained 109/111/112 (the deprecated-MP arc)
+- Engine: [briefs/engine/](briefs/engine/) — `done/` 02–19, `superseded/` 01 + the WebGPU wave, `todo/` holds 20 (ghost subsystems) + 21 (Turborepo)
+- Game: [briefs/game/](briefs/game/) — briefs 01–116; `todo/` holds 114–116 (the 2026-07-15 structure-survey batch); `superseded/` gained 96/101/107/109/111/112
 - Citadel: [briefs/citadel-apr.md](briefs/citadel-apr.md) plus the `todos/*citadel-*` files
 
 For era-level context read [log.md](log.md).
