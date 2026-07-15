@@ -57,12 +57,23 @@ import { findClear } from "./helpers";
  *
  * The keep stands ALONE — defenseStrength 8, no towers, no garrison, no walls. The
  * raid clock anchors to it: raid 1 (str 10) ~5 days later, then every ~7-8 days,
- * escalating +5. `resolveSiege` bands on defence:strength ratio — 8:10 = 0.8 and
- * 8:15 = 0.53 are the "mid" band (mostly damage, 10% sack), 8:20 = 0.4 drops into
- * the "weak" band (85% sack). So the town is ground down and the keep falls, with
- * the economy still alive around it — a sack, not a starvation.
+ * escalating +5. `resolveSiege` bands on defence:strength ratio.
  *
- * At the default seed: Town on day 12, keep raised day 13, THE KEEP IS SACKED on day 50.
+ * ## The conscription-era arithmetic (2026-07-13, decision #27 / brief 103, `c2caecc`)
+ *
+ * The original ratio math ("8:20 = 0.4 → weak band, 85% sack → keep falls ~day 50")
+ * stopped being true when SHARP conscription became AUTONOMOUS: with raiders on the
+ * map, `computeDefensiveStrength` adds ~floor(pop/2) conscripts (scaled down by the
+ * sick fraction), and sharp-famine rationing (same commit) keeps this town's pop
+ * climbing to ~23 instead of plateauing at 17-18. An arriving raid now faces ~19-30
+ * defense, so strength 20-45 arrivals land in the MID band (mostly damage, 10% sack)
+ * and get repelled/absorbed — the town visibly holds out longer, which is decision
+ * #27 working as designed. The +5 escalation still wins: raids of strength ≥~65
+ * (spotted ~day 58+, arriving after their ~15-day march) push the ratio back under
+ * 0.5 into the weak band, and the keep falls.
+ *
+ * At the default seed: Town on day 12, keep raised day 13, THE KEEP IS SACKED on
+ * day 71 (was day 50 pre-conscription; `SACK_MAX_DAYS` grew 70 → 90 to match).
  *
  * NB the town plateaus around pop 17-18 (two bakeries is the bread ceiling; grain and
  * flour visibly pile up behind them) and you will see the odd "a villager starved" as it

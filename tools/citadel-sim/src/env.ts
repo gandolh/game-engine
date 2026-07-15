@@ -27,9 +27,13 @@ export const REPORT = process.env.REPORT === "1" || REPORT_FILE !== undefined;
  *
  * The honest budget for a REAL playthrough on today's map: ~13 days to grow to Town
  * and raise the keep, then raids 1..N escalating and each ~15 days in transit. The
- * keep falls around day 50 at the default seed; 70 leaves headroom.
+ * keep fell around day 50 until 2026-07-13; brief 103's autonomous SHARP conscription
+ * (decision #27, `c2caecc`) adds ~floor(pop/2) defense to every arriving raid, so the
+ * escalation now needs raids of strength ≥~65 to reach the sacked band — the keep
+ * falls on day 71 at the default seed; 90 leaves headroom (same margin the original
+ * 50→70 budget gave).
  */
-export const SACK_MAX_DAYS = 70;
+export const SACK_MAX_DAYS = 90;
 export const MAX_DAYS = parseInt(process.env.MAX_DAYS ?? String(SCENARIO === "sack" ? SACK_MAX_DAYS : 40), 10);
 
 /** Whether SCENARIO drives the sharp (`cozyThreats:false`) raid-resolution path. */
