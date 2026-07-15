@@ -90,3 +90,17 @@ headless tool, low churn) — are **not** part of this brief. File separately if
   signed off from unit tests alone.
 - Both workspace maps (CLAUDE.md + architecture.md) list `@engine/ui` (and architecture.md the
   other missing packages).
+
+---
+
+**Outcome (2026-07-15, DONE).** Split landed as `src/main/` — 20 modules + barrel, `main.ts` a
+5-line entry; doc maps fixed as specced. **The browser gate caught a boot-killing bug the whole
+test suite missed:** the thin entry's `import "./main"` resolved to `main.ts` ITSELF (file beats
+directory in resolution), a silent self-import no-op — page loaded, nothing booted, zero console
+errors, 503 unit tests green. Fixed to an explicit `./main/index` with a warning comment
+(`99558bd`). Full Playwright pass after the fix: cozy picker → seeded town, right-drag pan +
+wheel zoom, place house (17→18) + demolish (18→17) via build bar with live Mode readouts,
+inspect panel, settings modal (incl. brief-19 mute checkbox), save→download → load→restore
+(tick rewind + resume), toasts live, only console error the pre-existing favicon 404. Executor:
+Sonnet (chunk D of the 2026-07-15 wave); builder run was interrupted by a session limit and its
+work committed mid-flight in `e21e5fd` — gates re-run by the controller after resume.

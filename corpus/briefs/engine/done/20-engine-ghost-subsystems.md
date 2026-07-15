@@ -47,3 +47,16 @@ subpath exports advertise subsystems that have no real consumers.
   PNG via `npm run preview`) or explicitly kept with a one-line rationale added to
   [animation.md](../../../wiki/animation.md)/[architecture.md](../../../wiki/architecture.md).
 - Docs that enumerate engine subpaths match reality.
+
+---
+
+**Outcome (2026-07-15, DONE — scope halved by two wrong premises).** (1) `@engine/core/assets`
+is NOT single-consumer: Farm's client loads its whole atlas via `loadAllAtlasSheets`
+(main.ts) — the survey grep missed the symbol. Adjudicated: **assets stays, untouched.**
+(2) `clip.ts` is NOT dead: `AnimationClip`/`AnimationEvent` power `@farm/sim-core`
+render-systems' cycle animation (forge/waterfall/campfire/walk-step events) — the executor's
+guardrail caught this and BLOCKED before deleting. What actually shipped (`e21e5fd`): only
+`animator.ts` + `animator.test.ts` deleted (the true ghost — zero consumers), barrel updated;
+`AnimationClip` + easing curves keep exporting; engine 190/190, farm client 209/209.
+The wiki's "Animator ghost" phrasing conflated the dead class with the live clip layer —
+[animation.md](../../../wiki/animation.md) corrected at closeout.

@@ -4,6 +4,24 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-15] done | Structure wave — briefs 114 + 115 + 116 + engine 20 (`e21e5fd`, `99558bd`)
+
+Wave 1 of the structure-survey backlog, built via `plan-split-dispatch` (4 parallel Sonnet
+chunks, disjoint lanes, one tree; interrupted mid-run by a session limit — in-flight work landed
+as `e21e5fd  save`, controller re-verified everything after resume). What shipped: **114** the
+Citadel client main.ts split (20-module `src/main/` + barrel, thin entry) + doc-map fix; **115**
+Farm `worker/`→`net/` + 14 `Worker*`→`Sim*` protocol renames + run-sim probes → `probes/`;
+**116** citadel-sim runner split to run-sim's shape, stdout byte-identical ×5; **engine 20**
+`Animator` deleted (only after the executor's BLOCKED report proved `AnimationClip` is live —
+both of the brief's deletion premises were part-wrong; assets stays too, Farm's client loads its
+atlas through it). Gates: typecheck 0, 2,267 tests, Farm determinism MATCH, byte-identity ×5,
+Playwright passes on both games. **Two lessons worth keeping:** (1) the browser gate caught a
+boot-killing silent self-import (`import "./main"` in `main.ts` resolves to the file, not the
+directory) that 503 green unit tests and a clean typecheck sailed past — fixed in `99558bd`;
+(2) baselining exposed a pre-existing P1: `sack` fails on main again
+([todo](todos/2026-07-15-citadel-sack-regression.md)). Wiki folded: architecture.md (Sim* names,
+net/ path, workspace map), animation.md (Animator correction). Next: engine 21 (Turborepo).
+
 ## [2026-07-15] todo | Engine brief 21 filed — Turborepo task runner
 
 Research outcome of "should we add turbo?": yes — filed as

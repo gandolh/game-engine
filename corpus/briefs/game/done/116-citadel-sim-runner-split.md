@@ -39,3 +39,14 @@ currently interleaved in the monolith.
 - Stdout byte-identical to pre-change `main` on 3 seeds + the 3 named scenarios; Citadel
   determinism double-run MATCH; `sack` failure path still exits 1 (prove with a forced-fail run
   or the existing test if one covers it).
+
+---
+
+**Outcome (2026-07-15, DONE).** Monolith split to run-sim's shape: `env.ts` 38, `format.ts` 107,
+`report.ts` 257, `run-core.ts` 164, `scenarios/` (7 files incl. shared `helpers.ts`), `index.ts`
+226 (thin entry). Builder was interrupted mid-run (session limit; work committed in `e21e5fd`) —
+the controller completed verification: **stdout byte-identical on all five baseline runs**
+(3 seeds × grow + sack + starve) and `sack` still exits 1. NOTE the sack exit-1 is a
+**pre-existing regression on main** (fixture no longer sacks by day 70) — found while capturing
+baselines, filed as [todos/2026-07-15-citadel-sack-regression.md](../../../todos/2026-07-15-citadel-sack-regression.md),
+NOT caused by and not fixed in this brief (byte-identity preserved it exactly).

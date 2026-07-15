@@ -52,3 +52,14 @@ a pure rename/move with zero behavior change.
   `probes/`.
 - [architecture.md](../../../wiki/architecture.md)'s "historical Worker* names" caveat and the
   `WorkerInitMsg.pathfinderWasm` mention updated at closeout.
+
+---
+
+**Outcome (2026-07-15, DONE).** All three items landed (`e21e5fd`): `src/worker/` → `src/net/`
+(7 importers), all **14** `Worker*` protocol types → `Sim*` (sim-core protocol + snapshot
+re-exports, client, server; run-sim consumes none of them), 11 probes → `src/probes/` (all kept,
+5 needed relative-path fixes; none bitrotten). Grep-proof zero-hit; typecheck 0; farm suites
+green; determinism MATCH; browser smoke — Farm boots, connects over the renamed transport, full
+HUD + world render at Day 0. Observation for later: with a short-wide viewport the canvas
+overlaps the DOM Start button (needed a programmatic click) — pre-existing screens z-order
+quirk, not from this rename.
