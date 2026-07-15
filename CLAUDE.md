@@ -71,7 +71,7 @@ Single test / single workspace (tests live in the package that owns the code):
 
 ```bash
 npm run test -w @engine/core                                  # one workspace
-npm run test -w @farm/sim-core -- src/systems/market.test.ts  # one file (sim systems live in @farm/sim-core)
+npm run test -w @farm/sim-core -- src/systems/economy/market.test.ts  # one file (sim systems live in @farm/sim-core)
 npm run test -w @farm/sim-core -- -t "name of test"           # by test name
 ```
 

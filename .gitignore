@@ -159,3 +159,7 @@ world-preview.png
 
 # CodeGraph local symbol index (rebuild with `codegraph init`)
 .codegraph/
+
+# Turborepo local cache + logs (per-package .turbo/ dirs too)
+.turbo/
+**/.turbo/

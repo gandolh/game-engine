@@ -1,0 +1,114 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+
+  // ---------------------------------------------------------------------------
+  // Task graph rationale (Engine Brief 21)
+  //
+  // Every internal package exports RAW TS SOURCE ("Just-in-Time packages", no
+  // build step). tsc/vitest read a dependency's .ts directly, so there is NO
+  // upstream build artifact that a task must wait for. Therefore typecheck and
+  // test use `dependsOn: []` (NO `^topological`):
+  //   * Correctness: a downstream package's own typecheck/test reads upstream
+  //     source directly, so it does not need the upstream task to run first.
+  //   * Parallelism: topological deps would serialize the DAG
+  //     (engine/core -> sim-core -> client), killing the parallel speedup that
+  //     is the entire point of adopting turbo here.
+  //   * Independent failure reporting: with `^typecheck`, a failure in an
+  //     upstream package would mark all dependents as "skipped due to failed
+  //     dependency" and never run their own checks -- hiding red packages,
+  //     exactly the past-incident behaviour we are replacing. Flat deps run all
+  //     14 workspaces and report EVERY failure.
+  // ---------------------------------------------------------------------------
+  "tasks": {
+    "typecheck": {
+      "dependsOn": [],
+      "outputs": []
+    },
+
+    // NOTE: the root `test` script pins `--concurrency=1` (see package.json).
+    // Cross-SUITE parallelism is unsafe in this repo, so the flag serializes the
+    // 10 test tasks (each vitest suite still runs its own files in parallel):
+    //   1. Each suite already saturates CPU with intra-suite workers (vitest
+    //      pool). Running several suites at once oversubscribes 16 cores and the
+    //      5s-timeout property / determinism tests (@farm/sim-core world-gen,
+    //      @farm/server byte-identical host runs) flake on timeout.
+    //   2. @tool/atlas-builder's test WRITES games/farm/client/public/atlas while
+    //      @farm/sim-core's farmer-frames test READS it -> torn-read race if the
+    //      two run concurrently. The old serial `npm --workspaces` runner avoided
+    //      both by never overlapping suites; concurrency=1 preserves that.
+    // The turbo win here is the content-hash CACHE (warm run in ms) + `--continue`
+    // (every failing package reported, not first-failure-stops), NOT cross-suite
+    // parallelism. typecheck has no such nesting (tsc is single-process) and runs
+    // fully parallel (14-way).
+    "test": {
+      "dependsOn": [],
+      "outputs": []
+    },
+
+    // --- Cross-package test INPUT overrides -------------------------------------
+    // These packages' test suites read files that live OUTSIDE the package and
+    // are NOT reachable through the declared dependency graph, so turbo would
+    // otherwise serve a stale cache when those files change. $TURBO_DEFAULT$
+    // keeps the package's own files; the extra globs (relative to the package
+    // dir) pull the cross-package reads into the cache key.
+
+    // @engine/core's palette guard (render/palette.test.ts) WALKS THE WHOLE REPO
+    // (engine/, games/, tools/) reading every .ts/.js/.mjs/.cjs source to enforce
+    // the per-scope palette; wasm/pathfinder.test.ts additionally reads the
+    // committed wasm binaries. @engine/core declares no deps, so none of this is
+    // covered by the graph.
+    "@engine/core#test": {
+      "dependsOn": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../engine/**/*.{ts,tsx,js,mjs,cjs}",
+        "../../games/**/*.{ts,tsx,js,mjs,cjs}",
+        "../../tools/**/*.{ts,tsx,js,mjs,cjs}",
+        "!../../games/**/dist/**",
+        "!../../tools/**/dist/**",
+        "../wasm-modules/dist/**"
+      ],
+      "outputs": []
+    },
+
+    // @farm/sim-core reads the committed atlas (render-systems/farmer-frames.test.ts
+    // -> games/farm/client/public/atlas) and the committed wasm binaries
+    // (systems/travel.test.ts). sim-core depends only on @engine/core, so neither
+    // the client atlas nor @engine/wasm-modules is in its dependency graph.
+    "@farm/sim-core#test": {
+      "dependsOn": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../client/public/atlas/**",
+        "../../../engine/wasm-modules/dist/**"
+      ],
+      "outputs": []
+    },
+
+    // @farm/server's sim-host.test.ts reads the committed wasm binaries.
+    // @farm/server depends on @engine/core + @farm/sim-core + ws, NOT on
+    // @engine/wasm-modules.
+    "@farm/server#test": {
+      "dependsOn": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../../engine/wasm-modules/dist/**"
+      ],
+      "outputs": []
+    },
+
+    // build exists only in @farm/client, @tool/atlas-builder, @engine/wasm-modules.
+    // Two of them write CROSS-PACKAGE outputs (atlas-builder -> client/public/atlas,
+    // wasm-modules -> client/public/wasm) that an in-package `outputs` glob cannot
+    // capture, so caching would risk serving an artifact missing its cross-package
+    // side effects. Build is not a value target here (JIT packages have no library
+    // builds to cache; the win is parallel/cached typecheck+test) and the root
+    // build/atlas/build-wasm scripts invoke these directly, NOT through turbo.
+    // So the build task is defined for graph completeness but left uncached.
+    "build": {
+      "dependsOn": [],
+      "cache": false
+    }
+  }
+}

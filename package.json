@@ -8,6 +8,7 @@
     "games/*/*",
     "tools/*"
   ],
+  "packageManager": "npm@11.4.2",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:client": "npm run dev -w @farm/client",
@@ -15,8 +16,8 @@
     "citadel": "node scripts/dev.mjs citadel",
     "farm": "node scripts/dev.mjs farm",
     "build": "npm run build -w @farm/client",
-    "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "turbo run test --continue --concurrency=1",
+    "typecheck": "turbo run typecheck --continue",
     "atlas": "npm run build -w @tool/atlas-builder",
     "sim": "npm start -w @tool/run-sim",
     "sim:citadel": "npm start -w @tool/citadel-sim",
@@ -26,9 +27,10 @@
     "build-wasm": "npm run build -w @engine/wasm-modules"
   },
   "devDependencies": {
+    "@types/node": "25.9.1",
+    "turbo": "2.10.5",
     "typescript": "6.0.3",
     "vite": "8.0.14",
-    "vitest": "4.1.7",
-    "@types/node": "25.9.1"
+    "vitest": "4.1.7"
   }
 }
