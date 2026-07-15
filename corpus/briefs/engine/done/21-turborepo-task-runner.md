@@ -83,4 +83,4 @@ parallelism oversubscribes nested vitest pools (~1-in-3 timeout flakes at concur
 rationale committed in turbo.json. `dependsOn: []` on purpose (JIT packages; topological would
 serialize + re-hide reds). Known smell filed as a todo: the atlas-builder test rewrites
 `index.json` with LF endings, wobbling Windows warm-cache stability
-([todos/2026-07-15-atlas-eol-gitattributes.md](../../../todos/2026-07-15-atlas-eol-gitattributes.md)).
+([todos/closed/2026-07-15-atlas-eol-gitattributes.md](../../../todos/closed/2026-07-15-atlas-eol-gitattributes.md)).

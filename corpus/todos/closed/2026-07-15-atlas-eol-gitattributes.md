@@ -1,7 +1,7 @@
 ---
 title: Pin EOL for the committed Farm atlas (atlas-builder test rewrites it with LF)
 created: 2026-07-15
-status: open
+status: closed (2026-07-15, `d4d0222`)
 tags: [farm, tooling, windows, small]
 ---
 
