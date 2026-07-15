@@ -33,7 +33,7 @@ Off by default (zero overhead). Diagnostic only — measures host timing, never 
 
 ### Measured results (2026-06-10, post-split: Node server, one SimHost per WS connection, 21-farmer world)
 
-Brief-09 close-out re-profile under the real serving architecture. Server side: [probe-perf.ts](../../tools/run-sim/src/probe-perf.ts) (user-approved ramp, 1→5→10 synthetic drain-clients, real browser init: seed `0xc0ffee`, ticksPerDay 1200, 20 Hz, ~45 s sample/phase, WSL2 dev box). Client side: Playwright Chromium on `npm run dev` + `?profile`.
+Brief-09 close-out re-profile under the real serving architecture. Server side: [probe-perf.ts](../../tools/run-sim/src/probes/probe-perf.ts) (user-approved ramp, 1→5→10 synthetic drain-clients, real browser init: seed `0xc0ffee`, ticksPerDay 1200, 20 Hz, ~45 s sample/phase, WSL2 dev box). Client side: Playwright Chromium on `npm run dev` + `?profile`.
 
 | Concurrent sims | Server CPU (of one core) | RSS | Achieved snapshot rate | Raw payload/snap | Wire/client | Deflate |
 |---|---|---|---|---|---|---|

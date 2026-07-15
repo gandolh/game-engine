@@ -39,12 +39,12 @@ stale-green cache hit unless declared. Determinism runs stay outside the cache b
 Second pass of the 2026-07-15 structure survey (checked against external best practice: the
 macro layout — engine/game separation, feature-first sim-cores, per-subsystem engine exports —
 already matches consensus; the wins are one level down). Filed, not built:
-[game 115](briefs/game/todo/115-farm-client-net-rename-and-tool-hygiene.md) (Farm client
+[game 115](briefs/game/done/115-farm-client-net-rename-and-tool-hygiene.md) (Farm client
 `src/worker/` → `src/net/` — the sim left the Worker in brief 58 — plus the `Worker*` protocol
 type renames and grouping run-sim's 12 fossil `probe-*.ts` diagnostics),
-[game 116](briefs/game/todo/116-citadel-sim-runner-split.md) (split citadel-sim's 1,196-line
+[game 116](briefs/game/done/116-citadel-sim-runner-split.md) (split citadel-sim's 1,196-line
 `index.ts` to mirror run-sim's module layout; byte-identical-stdout gate), and
-[engine 20](briefs/engine/todo/20-engine-ghost-subsystems.md) (delete the consumer-less
+[engine 20](briefs/engine/done/20-engine-ghost-subsystems.md) (delete the consumer-less
 `Animator`/`Clip` ghost — keep the easing curves `@engine/ui` re-exports — and adjudicate
 `@engine/core/assets`, whose only consumer is world-preview). Checked-and-fine, recorded so it
 isn't relitigated: `commands`/`placement` are genuinely generic engine primitives; the two
@@ -56,7 +56,7 @@ not merge; `@engine/ui/anim` re-exporting core easing is deliberate, not duplica
 A 2026-07-15 project-structure survey found `games/citadel/client/src/main.ts` at **1,949 lines**
 (largest source file in the repo), violating the module-directory convention the Farm client
 already follows (`src/main/` split). Filed as
-[brief 114](briefs/game/todo/114-citadel-client-main-decomposition.md): behavior-preserving split
+[brief 114](briefs/game/done/114-citadel-client-main-decomposition.md): behavior-preserving split
 into `src/main/` along the file's own banner seams, with the known hazards named (boot-gap guard,
 the single `newEventsSince` pass feeding toasts+audio, shared mutable state, the Vite entry).
 Also carries the doc-drift fix: `@engine/ui` is missing from both workspace maps (root CLAUDE.md +
