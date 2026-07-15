@@ -41,7 +41,7 @@ net/ path, workspace map), animation.md (Animator correction). Next: engine 21 (
 ## [2026-07-15] todo | Engine brief 21 filed — Turborepo task runner
 
 Research outcome of "should we add turbo?": yes — filed as
-[engine 21](briefs/engine/todo/21-turborepo-task-runner.md), not built. Measured baseline:
+[engine 21](briefs/engine/done/21-turborepo-task-runner.md), not built. Measured baseline:
 `npm run typecheck` 44s serial across 14 workspaces, and `--workspaces` stops at the first red
 workspace (the 2026-07-09 gate-rot mechanism). Turbo layers on npm workspaces (the locked
 decision stands); all internal packages are Turbo "JIT packages" (no build step), so the win is
