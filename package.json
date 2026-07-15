@@ -13,6 +13,7 @@
     "dev:client": "npm run dev -w @farm/client",
     "dev:citadel": "npm run dev -w @citadel/client",
     "citadel": "node scripts/dev.mjs citadel",
+    "farm": "node scripts/dev.mjs farm",
     "build": "npm run build -w @farm/client",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
