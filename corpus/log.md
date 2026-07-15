@@ -1262,3 +1262,22 @@ Trimmed to keep this log minimal. **Full entry text is in git history** (`git lo
 - **06-08 → 06-09 — 21 farmers + organic procgen + more islands + radial reorg.** Service NPCs lightly deliberate; scaled to 21 farmers; brief 49 organic procgen (fBm + domain-warp, clustered features, open-water props; Simplex deferred); briefs 50–54 islands (shrine, heritage, waterfall, camping; 53 superseded); spectator-UX audit P1a–d; **the 160×160 radial map reorg.**
 - **06-10 — Client/server split + polish + perf re-measure.** Briefs 55–58 (extract `@farm/sim-core` → Node WS server → renderer-as-WS-client → deploy); brief 59 peer-interaction fix (price-bug + `OFFER_CROP`); briefs 60–65 render-polish wave; brief 70 +30 startgold; brief 71 per-asset atlas recipes + cached builds; edge depth-sorting; perf re-measure; brief 09 closed; the FPS-regression triage that became performance.md Tier 0.
 - **06-22 — Citadel HUD declutter.** Bottom bars were eating laptop vertical space and the HUD reflowed (canvas-shift) whenever an event appeared. Fixes: events → transient top-center toasts (`ui/toast.ts`, out-of-flow overlay); new top-right minimap drawn in tile-space with click-to-recenter (`ui/minimap.ts`); condensed icon-only build bar + `nowrap` HUD row; trader panel floated out of the HUD flex row. See [citadel-overview.md](wiki/citadel-overview.md) "HUD & overlays".
+
+## [2026-07-15] maintenance | Closed the last three open briefs (queue emptied)
+
+Cleared both `todo/` queues by closing the three remaining open game briefs, none of
+which was built:
+
+- **101 — Farm perishability + distance pricing** → `superseded/` (closed unbuilt). Large,
+  balance-sensitive Farm feature; Farm is in maintenance mode. Spec retained in
+  [todos/2026-06-22-farm-perishability-distance-pricing.md](todos/2026-06-22-farm-perishability-distance-pricing.md).
+- **107 — Farm visual verification session** → `superseded/` (closed unbuilt). The eyeball
+  debt is still recorded on the source briefs + the status.md "Pending" banner; run it
+  opportunistically at a real GPU rather than as a tracked task.
+- **96 — Citadel building art-style reference** → `superseded/` (not-a-task). Always a living
+  art-direction reference mis-filed in `todo/`; its reference-asset section should fold into
+  [wiki/citadel-art-style.md](wiki/citadel-art-style.md).
+
+The two `todos/` standing notes (the OpenTTD `reference` note and the perishability spec) were
+left in place — they are durable references, not queue items. `engine/todo/` + `game/todo/` are
+now both empty.

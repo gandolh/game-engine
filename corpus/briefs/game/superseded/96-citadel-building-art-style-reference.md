@@ -1,3 +1,9 @@
+> **CLOSED 2026-07-15 — not scheduled work.** This was always a living art-direction
+> reference mis-filed in `todo/`, never a task. Removed from the queue. Its unique
+> content (the reference-asset section) should be folded into
+> [wiki/citadel-art-style.md](../../../wiki/citadel-art-style.md) by whoever next
+> touches the art pages.
+
 # Brief 96 — Citadel building art-style reference (the look + example assets)
 
 > 📌 **NOT SCHEDULED WORK.** This is a **living reference**, not a task, and it should not be read as

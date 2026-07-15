@@ -1,3 +1,8 @@
+> **CLOSED unbuilt 2026-07-15.** Never implemented. Farm Valley is in maintenance
+> mode and this large, balance-sensitive feature is not being pursued. The full
+> spec survives in [todos/2026-06-22-farm-perishability-distance-pricing.md](../../../todos/2026-06-22-farm-perishability-distance-pricing.md);
+> refile a fresh brief if Farm work resumes.
+
 # Brief 101 — Farm perishability + distance pricing
 
 status: todo (large, balance-sensitive — needs a focused reviewed session, NOT autonomous execution; the source todo records why it was deliberately not auto-shipped)

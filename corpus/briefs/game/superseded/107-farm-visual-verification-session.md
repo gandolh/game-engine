@@ -1,3 +1,8 @@
+> **CLOSED unbuilt 2026-07-15.** The verification session was never run and is no
+> longer queued as scheduled work. The underlying eyeball debt is still recorded on
+> the source briefs and the status.md "Pending" banner; run it opportunistically at
+> a real GPU, or refile if it needs to be a tracked task again.
+
 # Brief 107 — Farm visual verification session (clear the eyeball debt)
 
 status: todo (one interactive session with the user's real GPU; nothing to build unless a check fails)

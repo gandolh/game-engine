@@ -6,8 +6,9 @@ tags: [farm, sim, gameplay, economy, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
 
-> **➡️ Promoted 2026-07-03:** now [brief 101](../briefs/game/todo/101-farm-perishability-distance-pricing.md)
-> (this todo stays the spec; the brief adds the execution-plan skeleton).
+> **➡️ Promoted 2026-07-03 → CLOSED unbuilt 2026-07-15:** was [brief 101](../briefs/game/superseded/101-farm-perishability-distance-pricing.md),
+> now superseded (closed unbuilt — Farm is in maintenance). This todo remains the spec;
+> refile a fresh brief if Farm work resumes.
 
 > **Deliberately NOT auto-implemented (2026-06-27).** Assessed during the autonomous
 > backlog pass and left open on purpose — this is a large, balance-sensitive
