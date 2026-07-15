@@ -1,7 +1,20 @@
 # Engine brief 19 — engine audio subsystem (+ prove it in both games)
 
-status: todo (dispatch-ready)
-source: [todos/2026-07-08-engine-audio-subsystem.md](../../../todos/2026-07-08-engine-audio-subsystem.md) — that todo is the problem statement + design constraints + acceptance; this brief adds the dispatch-ready execution plan (shared API contract, three chunks, model routing, waves, gates). Routed via `orchestrate` 2026-07-08; user approved the plan and deferred execution to a later session.
+status: DONE (2026-07-15)
+source: [todos/closed/2026-07-08-engine-audio-subsystem.md](../../../todos/closed/2026-07-08-engine-audio-subsystem.md) — that todo is the problem statement + design constraints + acceptance; this brief adds the dispatch-ready execution plan (shared API contract, three chunks, model routing, waves, gates). Routed via `orchestrate` 2026-07-08; user approved the plan and deferred execution to a later session.
+
+> **✅ DONE 2026-07-15 (`33f9a38`).** Shipped exactly as planned: `@engine/core/audio` (`AudioEngine`),
+> off the sim path, with the injected-`AudioContextLike`-factory / silent-stub / pre-unlock-no-op
+> design; 3 procedural (zero-asset) test sounds per game. Farm hooks `JuiceLayer`'s new-event pass via
+> an injected `JuiceAudioSink` (inherits the resync-skip guarantee); Citadel keys off `toast.ts`'s
+> `toneOf` from the same `newEventsSince` loop + a settings-modal mute checkbox. Waves ran A(opus) →
+> B+C(Sonnet, parallel). **The brief's Farm hook was corrected before dispatch** — it named a
+> `lastEventCount` cursor that brief 97 had already replaced with a tick high-water mark (the ⚠️ note in
+> Chunk B). Gates: typecheck 0; full suite **2275 green** (+34 audio tests); Farm `CHECK_DETERMINISM` +
+> Citadel headless run both **byte-identical**. `/code-review` (high) found only low-severity cleanup;
+> the one applied was a `pitch<=0` guard on the future buffer path. **Owed: a real-browser audio
+> sign-off** (a code-only session can't hear it) — see [status.md](../../../wiki/status.md) +
+> [architecture.md](../../../wiki/architecture.md) "Audio".
 
 ## Summary
 
@@ -80,10 +93,20 @@ reserve the senior seat for the genuinely novel/risky foundation.
 
 ### Chunk B — Farm Valley wiring · junior (Sonnet 5) · Wave 2 (depends on A)
 - **Hook:** Farm's client already diffs newly-appended `SnapshotEvent[]` (`.text`/`.drama`/
-  `.farmerId`) via a `lastEventCount` cursor in
-  [juice.ts](../../../../games/farm/client/src/main/juice.ts) `JuiceLayer.update`, driven from
-  [render-loop.ts](../../../../games/farm/client/src/main/render-loop.ts). Play sound from the
-  **same new-events pass** — do NOT re-diff independently; feed each new `ev` to the audio layer.
+  `.farmerId`) in [juice.ts](../../../../games/farm/client/src/main/juice.ts) `JuiceLayer.update`,
+  driven from [render-loop.ts](../../../../games/farm/client/src/main/render-loop.ts). Play sound
+  from the **same new-events pass** — do NOT re-diff independently; feed each new `ev` to the audio
+  layer.
+  > ⚠️ **Corrected 2026-07-14 (drift).** This brief was written against a `lastEventCount` cursor
+  > that **no longer exists** — brief 97 replaced it with a **tick high-water mark**: `update()`
+  > tracks `this.highWaterTick` and treats `ev.tick > markBefore` as new (juice.ts ~L216-222), then
+  > calls `processEvent(ev)`. Hook audio into **that** predicate / that same `processEvent` pass.
+  > Two consequences the original brief missed:
+  > - **Respect `pendingSkip` / `signalResync()`.** On a resync juice deliberately *skips* event
+  >   processing (`if (!skipping && ev.tick > markBefore)`) while still advancing the high-water
+  >   mark. Audio must skip identically, or a resync replays the whole event backlog as a burst of
+  >   sound.
+  > - Do not add a second loop over `events`; extend the existing one.
 - **Files:** new `games/farm/client/src/main/audio.ts` (`FarmAudio` wrapping `AudioEngine` + a
   Farm event→SoundSpec map). **3 sounds**, matched off `ev.text` reusing juice.ts's existing
   matchers: (1) gold/trade `(\d+g)` → coin blip; (2) `"overtakes …for 1st"` / `"wins with a"` →

@@ -245,6 +245,6 @@ tests already pass). Filed from the [palette-evaluation todo](../todos/closed/20
 | [99](../briefs/game/done/99-p2-debt-cleanup-batch.md) P2 debt | Keeps the `maxDays` deletion (#18 survives). |
 | [98](../briefs/game/done/98-farm-market-wall-wire-or-remove.md) Farm market wall | **Option A, wire it.** Farm is in maintenance; this and 99's Farm slice are its whole scope. |
 | [101](../briefs/game/todo/101-farm-perishability-distance-pricing.md) · [107](../briefs/game/todo/107-farm-visual-verification-session.md) | Parked. Farm is in maintenance; 101 forbids autonomous execution, 107 needs the user's real GPU. |
-| engine [18](../briefs/engine/done/18-ui-authored-typography-and-icons.md) · [19](../briefs/engine/todo/19-audio-subsystem.md) | Parked. Net-new subsystems, independent of everything above. |
+| engine [18](../briefs/engine/done/18-ui-authored-typography-and-icons.md) · [19](../briefs/engine/done/19-audio-subsystem.md) | **Both DONE** (18: 2026-07-14; 19: 2026-07-15). Net-new subsystems, independent of everything above. |
 
 **Order (#26):** 110 → 100 → {102, 99, 106, 104, 105, 98}.

@@ -9,7 +9,7 @@ tags: [engine, audio, sound, citadel, farm, client, render, juice]
 
 > **➡️ Promoted 2026-07-08:** the dispatch-ready execution plan (shared API contract, three
 > chunks, model routing, waves, gates) is now
-> [engine brief 19](../briefs/engine/todo/19-audio-subsystem.md). This todo remains the
+> [engine brief 19](../briefs/engine/done/19-audio-subsystem.md). This todo remains the
 > problem statement + design constraints + acceptance. Execution deferred to a later session.
 
 ## Problem

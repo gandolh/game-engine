@@ -4,6 +4,47 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-15] brief | engine audio subsystem + 3 test sounds per game (engine brief 19)
+
+Closes engine brief 19 / the [2026-07-08 todo](todos/closed/2026-07-08-engine-audio-subsystem.md).
+Code landed in `33f9a38`; corpus in this commit. New synthesis: the **Audio** section in
+[architecture.md](wiki/architecture.md).
+
+- **New off-sim client subsystem** `@engine/core/audio` (`AudioEngine`) — same layer as
+  particles/toasts/juice, **never on the deterministic sim path** (`sim-core` untouched; both games'
+  determinism runs stay byte-identical, which is the acceptance proof). Signal chain per-voice source →
+  per-voice gain → **master gain** → destination; `muted`/`volume` gate at master; voice cap (16, skips
+  when saturated); voices reaped on `onended` + a scheduled-end backstop.
+- **The unlock rule** (durable): browsers start an `AudioContext` **suspended** until a gesture →
+  `unlock()`; **pre-unlock `play()` is a safe no-op returning false** (no throw, no node, no
+  autoplay-gate error). Headless-testable via an injected `AudioContextLike` factory; **silent stub**
+  where Web Audio is absent (node/jsdom).
+- **v1 sounds are procedural synth — zero committed binary assets.** A `buffer` `SoundSpec` for future
+  real assets exists but is wired to no `.wav`.
+- **Proven per game (3 sounds each):** Farm's `FarmAudio` = an injected `JuiceAudioSink` off
+  `JuiceLayer`'s existing new-event pass (inherits the resync-skip guarantee — do NOT add a second
+  diff); Citadel's `CitadelAudio` keys off `toast.ts`'s `toneOf`, fed from the same `newEventsSince`
+  loop as toasts, + a settings-modal mute checkbox.
+
+### Load-bearing findings (do not re-derive)
+
+- **A wiki-drift catch justified the pre-dispatch code re-grounding.** The brief's Farm hook named a
+  `lastEventCount` cursor that **brief 97 had already replaced** with a tick high-water mark; an
+  executor following the brief literally would have hunted a dead field and likely re-invented its own
+  event diff — the exact double-fire/backlog-replay bug the hook reuse was meant to avoid. Verifying the
+  named hooks against real code *before* dispatch is what caught it.
+- **The determinism gates are the load-bearing acceptance check**, not the unit tests — they're what
+  proves a client/render subsystem didn't leak into the sim. Byte-identical Farm `CHECK_DETERMINISM` +
+  Citadel headless run both passed.
+- **Owed: a real-browser audio sign-off.** A code-only session can't hear the output; the objective
+  gates all pass but "each event makes a distinct, non-annoying sound; mute silences; no console
+  autoplay errors" needs a human at a real GPU — flagged specifically for Citadel's every-warn/info tick
+  frequency.
+
+Dispatch: `plan-split-dispatch`, Wave 1 Chunk A (opus, engine) → Wave 2 Chunks B+C (Sonnet, parallel
+client wiring). `/code-review` (high) surfaced only low-severity cleanup; the one applied was a
+`pitch<=0` guard on the future buffer path.
+
 ## [2026-07-14] brief | @engine/ui authored typography + icon glyphs (engine brief 18)
 
 Closes engine brief 18 / the [2026-06-30 todo](todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md).
@@ -537,7 +578,7 @@ Prior art (a tool benchmark on another TypeScript monorepo) supplied two correct
 Routed a new "add engine audio" request through `orchestrate`. Captured
 [todos/2026-07-08-engine-audio-subsystem.md](todos/2026-07-08-engine-audio-subsystem.md) (problem
 + design constraints + acceptance) and promoted it to a dispatch-ready
-[engine brief 19](briefs/engine/todo/19-audio-subsystem.md). **Design (approved):** audio is a new
+[engine brief 19](briefs/engine/done/19-audio-subsystem.md). **Design (approved):** audio is a new
 generic engine subsystem `@engine/core/audio` (Web Audio `AudioEngine`: register/`play` one-shots →
 per-voice gain → master gain, `volume`/`muted`, voice cap, `unlock()` gesture-resume, injected
 `AudioContextLike` factory for headless tests), consumed only by the **client** packages — **strictly

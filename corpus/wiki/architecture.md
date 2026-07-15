@@ -1,6 +1,6 @@
 ---
-summary: The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, and WASM.
-updated: 2026-07-01
+summary: The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, audio, and WASM.
+updated: 2026-07-15
 ---
 
 # Architecture
@@ -113,6 +113,16 @@ Key render features:
 - **Walk/work/bob animation**: `walk-a`/`walk-b` while `farmer.path` is set, `/work` pose for physical actions, 1.5px idle bob.
 
 Atlas: ~220 hand-crafted 16×16 pixel-art frames split across **6 sheets + an `index.json`** (characters/buildings/terrain/crops/props/items-ui) at `games/farm/client/public/atlas/`; `atlasId` is load-bearing (the renderer maps each frame to its sheet). Sheets are generated from pixel recipes in [games/farm/atlas-recipes/src/](../../games/farm/atlas-recipes/src/) (split into `base-recipes`, `templates`, `palette`, `sheet-map`).
+
+## Audio
+
+[engine/core/src/audio/](../../engine/core/src/audio/) (`@engine/core/audio`, 2026-07-15, engine brief 19) — a **generic, off-sim client subsystem**, same layer as particles/toasts/juice. **Never runs on the deterministic sim path**; `sim-core` is untouched and both games' determinism runs stay byte-identical (that's the acceptance proof audio didn't leak in). Like the rest of the engine it names no game — each game owns its own event→sound map.
+
+- **`AudioEngine`** signal chain: per-voice source → per-voice gain → **master gain** → `destination`; `muted`/`volume` gate at the master. A voice cap (`maxVoices`, default 16) **skips** new voices when saturated (never cuts a playing one); voices are reaped on `onended` plus a scheduled-end backstop so a suspended/stubbed context can't leak them.
+- **The unlock rule:** browsers create an `AudioContext` **suspended** until a user gesture. Clients call `unlock()` on the first pointer/key press; **before that, `play()` is a safe no-op returning `false`** (never throws, builds no node, no autoplay-gate console error). Calling `unlock()` on an already-running context is a no-op, so wiring it to a one-shot listener is safe.
+- **Headless-testable:** the engine takes an injected `AudioContextLike` factory (a narrow Web-Audio subset) and, where Web Audio is absent (node/jsdom), constructs a **silent stub** rather than throwing — so client unit tests build the wrappers with no stubbing.
+- **v1 sounds are procedural synth** (oscillator blips/chimes/buzzes) — **zero committed binary assets**. A `{ kind: "buffer" }` `SoundSpec` for future real assets is built but wired to no `.wav` yet.
+- **Per-game wiring (test palettes, 3 sounds each):** Farm's `FarmAudio` ([games/farm/client/src/main/audio.ts](../../games/farm/client/src/main/audio.ts)) is an injected `JuiceAudioSink` fed from `JuiceLayer`'s existing new-event pass — so it inherits juice's resync-skip guarantee for free (do not add a second event diff). Citadel's `CitadelAudio` ([games/citadel/client/src/ui/audio.ts](../../games/citadel/client/src/ui/audio.ts)) keys off `toast.ts`'s `toneOf` classification, fed from the same `newEventsSince` loop that drives toasts. **Owed:** a real-browser audio sign-off (a code-only session can't hear it) — and specifically a listen for whether Citadel's every-warn/info tick is too frequent.
 
 ## WASM
 
