@@ -1,10 +1,10 @@
 
 import type {
-  WorkerInbound,
-  WorkerOutbound,
-  WorkerInitMsg,
-  WorkerStaticLayerMsg,
-  WorkerSnapshotMsg,
+  SimInbound,
+  SimOutbound,
+  SimInitMsg,
+  SimStaticLayerMsg,
+  SimSnapshotMsg,
 } from "@farm/sim-core/protocol";
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 import type { SimHost, SendFn } from "./sim-host";
@@ -20,8 +20,8 @@ interface Run {
   host: SimHost;
   sockets: Set<ClientSocket>;
   owner: ClientSocket | null;
-  lastStatic: WorkerStaticLayerMsg | null;
-  lastSnapshot: WorkerSnapshotMsg | null;
+  lastStatic: SimStaticLayerMsg | null;
+  lastSnapshot: SimSnapshotMsg | null;
   lastWealthSeries: SnapshotWealthSeries[] | null;
   reapTimer: ReturnType<typeof setTimeout> | null;
 }
@@ -31,7 +31,7 @@ export interface RunRegistryOptions {
   reapGraceMs?: number;
 }
 
-export type MakeHostFn = (send: SendFn, init: WorkerInitMsg) => SimHost;
+export type MakeHostFn = (send: SendFn, init: SimInitMsg) => SimHost;
 
 export class RunRegistry {
   private readonly makeHost: MakeHostFn;
@@ -43,14 +43,14 @@ export class RunRegistry {
     this.reapGraceMs = opts.reapGraceMs ?? 10_000;
   }
 
-  runKeyFor(init: WorkerInitMsg): string {
+  runKeyFor(init: SimInitMsg): string {
     const base = `${init.seed}:${init.ticksPerDay}:${init.maxDays}`;
     // A clientId isolates the connection into its own private run, so every
     // visitor is always the owner of their own Pip. Absent → shared run.
     return init.clientId !== undefined ? `${base}:${init.clientId}` : base;
   }
 
-  attachInit(socket: ClientSocket, init: WorkerInitMsg): void {
+  attachInit(socket: ClientSocket, init: SimInitMsg): void {
     this.detach(socket);
 
     const key = this.runKeyFor(init);
@@ -98,7 +98,7 @@ export class RunRegistry {
       }
       if (existing.lastSnapshot !== null) {
 
-        const replaySnap: WorkerSnapshotMsg =
+        const replaySnap: SimSnapshotMsg =
           existing.lastWealthSeries !== null
             ? {
                 ...existing.lastSnapshot,
@@ -113,7 +113,7 @@ export class RunRegistry {
     }
   }
 
-  handleControl(socket: ClientSocket, msg: WorkerInbound): void {
+  handleControl(socket: ClientSocket, msg: SimInbound): void {
     if (msg.type === "init") {
       this.attachInit(socket, msg);
       return;
@@ -171,7 +171,7 @@ export class RunRegistry {
 
   private makeFanOut(run: Run): SendFn {
     const MAX_BUFFERED = 1_000_000;
-    return (msg: WorkerOutbound): void => {
+    return (msg: SimOutbound): void => {
 
       if (msg.type === "static-layer") {
         run.lastStatic = msg;
@@ -192,7 +192,7 @@ export class RunRegistry {
     };
   }
 
-  private sendDirect(socket: ClientSocket, msg: WorkerOutbound): void {
+  private sendDirect(socket: ClientSocket, msg: SimOutbound): void {
     if (socket.readyState !== socket.OPEN) return;
     socket.send(JSON.stringify(msg));
   }

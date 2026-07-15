@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RunRegistry } from "./run-registry";
 import type { ClientSocket, MakeHostFn } from "./run-registry";
-import type { WorkerInitMsg, WorkerOutbound, WorkerStaticLayerMsg, WorkerSnapshotMsg } from "@farm/sim-core/protocol";
+import type { SimInitMsg, SimOutbound, SimStaticLayerMsg, SimSnapshotMsg } from "@farm/sim-core/protocol";
 import type { SendFn } from "./sim-host";
 
 class FakeSocket implements ClientSocket {
@@ -16,20 +16,20 @@ class FakeSocket implements ClientSocket {
     this.sent.push(data);
   }
 
-  sentParsed(): WorkerOutbound[] {
-    return this.sent.map((s) => JSON.parse(s) as WorkerOutbound);
+  sentParsed(): SimOutbound[] {
+    return this.sent.map((s) => JSON.parse(s) as SimOutbound);
   }
 
-  lastParsed(): WorkerOutbound | undefined {
+  lastParsed(): SimOutbound | undefined {
     const s = this.sent[this.sent.length - 1];
-    return s !== undefined ? (JSON.parse(s) as WorkerOutbound) : undefined;
+    return s !== undefined ? (JSON.parse(s) as SimOutbound) : undefined;
   }
 }
 
 class StubHost {
   stopped = false;
-  inboundLog: WorkerInitMsg[] = [];
-  controlLog: Array<WorkerOutbound | { type: string }> = [];
+  inboundLog: SimInitMsg[] = [];
+  controlLog: Array<SimOutbound | { type: string }> = [];
 
   _send: SendFn;
 
@@ -37,11 +37,11 @@ class StubHost {
     this._send = send;
   }
 
-  handleInbound(msg: WorkerInitMsg | { type: string }): void {
-    if ((msg as WorkerInitMsg).type === "init") {
-      this.inboundLog.push(msg as WorkerInitMsg);
+  handleInbound(msg: SimInitMsg | { type: string }): void {
+    if ((msg as SimInitMsg).type === "init") {
+      this.inboundLog.push(msg as SimInitMsg);
     } else {
-      this.controlLog.push(msg as WorkerOutbound);
+      this.controlLog.push(msg as SimOutbound);
     }
   }
 
@@ -50,11 +50,11 @@ class StubHost {
   }
 }
 
-function makeInit(seed = 1, ticksPerDay = 20, maxDays = 5): WorkerInitMsg {
+function makeInit(seed = 1, ticksPerDay = 20, maxDays = 5): SimInitMsg {
   return { type: "init", seed, ticksPerDay, maxDays, tickRateHz: 20 };
 }
 
-function makeStaticMsg(): WorkerStaticLayerMsg {
+function makeStaticMsg(): SimStaticLayerMsg {
   return {
     type: "static-layer",
     sprites: [],
@@ -63,7 +63,7 @@ function makeStaticMsg(): WorkerStaticLayerMsg {
   };
 }
 
-function makeSnapshotMsg(day = 1): WorkerSnapshotMsg {
+function makeSnapshotMsg(day = 1): SimSnapshotMsg {
   return {
     type: "snapshot",
     snapshot: {
@@ -87,7 +87,7 @@ function makeSnapshotMsg(day = 1): WorkerSnapshotMsg {
       playerHotbar: null,
       playerInventory: null,
       observer: null,
-    } as unknown as WorkerSnapshotMsg["snapshot"],
+    } as unknown as SimSnapshotMsg["snapshot"],
   };
 }
 

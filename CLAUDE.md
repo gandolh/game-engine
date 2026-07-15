@@ -27,6 +27,7 @@ npm workspaces, grouped by the dependency seam (`engine/*`, `games/*/*`, `tools/
 ```
 engine/
   core            @engine/core          generic ECS engine (subpath exports: /ecs /render /sim /runtime /input …)
+  ui              @engine/ui            shared in-canvas UI toolkit (text/icons/widgets/layout/theme), used by both games
   wasm-modules    @engine/wasm-modules  AssemblyScript kernels (pathfinder, noise, rng, floodfill)
 games/
   farm/

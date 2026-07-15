@@ -1,5 +1,5 @@
 import type { PlaybackActions } from "../ui/canvas/playback-controls";
-import type { SimClient } from "../worker/sim-client";
+import type { SimClient } from "../net/sim-client";
 
 let _client: SimClient | null = null;
 

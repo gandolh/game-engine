@@ -17,7 +17,7 @@ const INIT = {
   tickRateHz: 20,
 } as const;
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 interface ProcStat {
   pid: number;

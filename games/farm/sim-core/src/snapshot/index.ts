@@ -12,20 +12,20 @@ export type {
 
 export type { RenderSnapshot } from "./render-snapshot";
 export type {
-  WorkerInitMsg,
-  WorkerStopMsg,
-  WorkerPauseMsg,
-  WorkerSpeedMsg,
-  WorkerStepMsg,
-  WorkerInputMsg,
-  WorkerSwapSlotsMsg,
-  WorkerProfileToggleMsg,
-  WorkerSkipToHighlightMsg,
-  WorkerInbound,
-  WorkerStaticLayerMsg,
-  WorkerSnapshotMsg,
-  WorkerProfileMsg,
-  WorkerOutbound,
+  SimInitMsg,
+  SimStopMsg,
+  SimPauseMsg,
+  SimSpeedMsg,
+  SimStepMsg,
+  SimInputMsg,
+  SimSwapSlotsMsg,
+  SimProfileToggleMsg,
+  SimSkipToHighlightMsg,
+  SimInbound,
+  SimStaticLayerMsg,
+  SimSnapshotMsg,
+  SimProfileMsg,
+  SimOutbound,
 } from "../protocol/messages";
 
 export type { LeaderboardRow, RelationshipMatrixData } from "./ui-types";

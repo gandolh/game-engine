@@ -3,7 +3,7 @@
 import type { Canvas2dSprite, ProfileReport } from "@engine/core";
 import type { RenderSnapshot } from "../snapshot/render-snapshot";
 
-export interface WorkerInitMsg {
+export interface SimInitMsg {
   type: "init";
   seed: number;
   ticksPerDay: number;
@@ -21,25 +21,25 @@ export interface WorkerInitMsg {
   clientId?: string;
 }
 
-export interface WorkerStopMsg {
+export interface SimStopMsg {
   type: "stop";
 }
 
-export interface WorkerPauseMsg {
+export interface SimPauseMsg {
   type: "pause";
   paused: boolean;
 }
 
-export interface WorkerSpeedMsg {
+export interface SimSpeedMsg {
   type: "speed";
   multiplier: number;
 }
 
-export interface WorkerStepMsg {
+export interface SimStepMsg {
   type: "step";
 }
 
-export interface WorkerInputMsg {
+export interface SimInputMsg {
   type: "input";
 
   moveX: "left" | "right" | null;
@@ -51,33 +51,33 @@ export interface WorkerInputMsg {
   actionTile?: { x: number; y: number } | null;
 }
 
-export interface WorkerSwapSlotsMsg {
+export interface SimSwapSlotsMsg {
   type: "swap-slots";
   a: number;
   b: number;
 }
 
-export interface WorkerProfileToggleMsg {
+export interface SimProfileToggleMsg {
   type: "profile";
   enabled: boolean;
 }
 
-export interface WorkerSkipToHighlightMsg {
+export interface SimSkipToHighlightMsg {
   type: "skipToHighlight";
 }
 
-export type WorkerInbound =
-  | WorkerInitMsg
-  | WorkerStopMsg
-  | WorkerPauseMsg
-  | WorkerSpeedMsg
-  | WorkerStepMsg
-  | WorkerInputMsg
-  | WorkerSwapSlotsMsg
-  | WorkerProfileToggleMsg
-  | WorkerSkipToHighlightMsg;
+export type SimInbound =
+  | SimInitMsg
+  | SimStopMsg
+  | SimPauseMsg
+  | SimSpeedMsg
+  | SimStepMsg
+  | SimInputMsg
+  | SimSwapSlotsMsg
+  | SimProfileToggleMsg
+  | SimSkipToHighlightMsg;
 
-export interface WorkerStaticLayerMsg {
+export interface SimStaticLayerMsg {
   type: "static-layer";
 
   sprites: Canvas2dSprite[];
@@ -86,24 +86,24 @@ export interface WorkerStaticLayerMsg {
   season?: import("../protocols/weather").Season;
 }
 
-export interface WorkerSnapshotMsg {
+export interface SimSnapshotMsg {
   type: "snapshot";
   snapshot: RenderSnapshot;
 }
 
-export interface WorkerProfileMsg {
+export interface SimProfileMsg {
   type: "profile";
   tick: number;
   report: ProfileReport;
 }
 
-export interface WorkerAttachMsg {
+export interface SimAttachMsg {
   type: "attach";
   owner: boolean;
 }
 
-export type WorkerOutbound =
-  | WorkerStaticLayerMsg
-  | WorkerSnapshotMsg
-  | WorkerProfileMsg
-  | WorkerAttachMsg;
+export type SimOutbound =
+  | SimStaticLayerMsg
+  | SimSnapshotMsg
+  | SimProfileMsg
+  | SimAttachMsg;

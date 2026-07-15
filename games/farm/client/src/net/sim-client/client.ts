@@ -1,10 +1,10 @@
 
 
 import type {
-  WorkerInbound,
-  WorkerOutbound,
-  WorkerInitMsg,
-  WorkerStaticLayerMsg,
+  SimInbound,
+  SimOutbound,
+  SimInitMsg,
+  SimStaticLayerMsg,
   RenderSnapshot,
   SnapshotSprite,
   SnapshotRivalry,
@@ -32,7 +32,7 @@ function resolveServerUrl(): string {
 export class SimClient {
   private readonly ws: WebSocket;
 
-  private readonly pending: WorkerInbound[] = [];
+  private readonly pending: SimInbound[] = [];
   private conned = false;
   private connectionLostCallback: (() => void) | null = null;
 
@@ -51,7 +51,7 @@ export class SimClient {
     return 2 * this.msPerTick;
   }
 
-  private staticLayerCallback: ((msg: WorkerStaticLayerMsg) => void) | null = null;
+  private staticLayerCallback: ((msg: SimStaticLayerMsg) => void) | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
   private profileCallback: ((tick: number, report: ProfileReport) => void) | null = null;
   private attachCallback: ((owner: boolean) => void) | null = null;
@@ -75,9 +75,9 @@ export class SimClient {
     };
 
     this.ws.onmessage = (event: MessageEvent) => {
-      let msg: WorkerOutbound;
+      let msg: SimOutbound;
       try {
-        msg = JSON.parse(event.data as string) as WorkerOutbound;
+        msg = JSON.parse(event.data as string) as SimOutbound;
       } catch {
         return; 
       }
@@ -138,7 +138,7 @@ export class SimClient {
     }
   }
 
-  private sendMsg(msg: WorkerInbound): void {
+  private sendMsg(msg: SimInbound): void {
     if (this.conned && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
     } else {
@@ -150,7 +150,7 @@ export class SimClient {
     this.connectionLostCallback = cb;
   }
 
-  init(opts: Omit<WorkerInitMsg, "type">): void {
+  init(opts: Omit<SimInitMsg, "type">): void {
     this.msPerTick = 1000 / opts.tickRateHz;
     this.sendMsg({ type: "init", ...opts });
   }
@@ -202,7 +202,7 @@ export class SimClient {
     this.sendMsg({ type: "profile", enabled });
   }
 
-  onStaticLayer(cb: (msg: WorkerStaticLayerMsg) => void): void {
+  onStaticLayer(cb: (msg: SimStaticLayerMsg) => void): void {
     this.staticLayerCallback = cb;
   }
 

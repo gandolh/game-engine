@@ -10,7 +10,7 @@ import {
   setPlayerFarmerId,
   applyFocusAndPan,
 } from "./camera";
-import type { SimClient } from "../worker/sim-client";
+import type { SimClient } from "../net/sim-client";
 
 export class ParticleDirector {
   private readonly particles: ParticleSystem;

@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
-import type { WorkerInbound } from "@farm/sim-core/protocol";
+import type { SimInbound } from "@farm/sim-core/protocol";
 import { SimHost } from "./sim-host";
 import { RunRegistry } from "./run-registry";
 import type { ClientSocket } from "./run-registry";
@@ -60,9 +60,9 @@ async function main(): Promise<void> {
     const socket: ClientSocket = ws;
 
     ws.on("message", (data) => {
-      let msg: WorkerInbound;
+      let msg: SimInbound;
       try {
-        msg = JSON.parse(data.toString()) as WorkerInbound;
+        msg = JSON.parse(data.toString()) as SimInbound;
       } catch {
         console.warn("[server] ignoring non-JSON message from client");
         return;

@@ -10,15 +10,18 @@ updated: 2026-07-15
 ```
 engine/
   core/            @engine/core          — reusable engine
+  ui/              @engine/ui            — shared in-canvas UI toolkit (text/icons/widgets/layout/theme), used by both games
   wasm-modules/    @engine/wasm-modules  — AssemblyScript sources
 games/
   farm/
     sim-core/      @farm/sim-core        — the deterministic sim (Node-safe + browser-safe)
     client/        @farm/client          — the renderer (the game's browser client)
     server/        @farm/server          — Node WebSocket sim host (the Farm sim runs here)
+    atlas-recipes/ @farm/atlas-recipes   — per-asset pixel recipes the atlas-builder bakes
   citadel/
     sim-core/      @citadel/sim-core      — Citadel (settlement/RTS) sim logic
     client/        @citadel/client        — Citadel browser client (sim runs in a Web Worker)
+    server/        @citadel/server        — Node WebSocket sim host for Citadel online MP (solo runs in a Worker)
 tools/
   atlas-builder    @tool/atlas-builder   — runtime sprite atlas
   run-sim          @tool/run-sim         — headless Farm sim driver

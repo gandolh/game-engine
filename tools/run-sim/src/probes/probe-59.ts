@@ -5,7 +5,7 @@ import {
   ONT_ENCOUNTER,
 } from "@farm/sim-core/protocols/encounter";
 import type { AgentMessage } from "@engine/core";
-import { makePathfinder } from "./pathfinder";
+import { makePathfinder } from "../pathfinder";
 
 const SEEDS = [0xc0ffee, 1, 42];
 const TICKS_PER_DAY = 20;

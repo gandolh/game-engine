@@ -4,7 +4,7 @@ import {
   ONT_ENCOUNTER,
 } from "@farm/sim-core/protocols/encounter";
 import type { AgentMessage } from "@engine/core";
-import { makePathfinder } from "./pathfinder";
+import { makePathfinder } from "../pathfinder";
 
 const TICKS_PER_DAY = 20;
 const MAX_DAYS = 20;

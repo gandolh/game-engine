@@ -20,19 +20,22 @@ import {
 } from "./building-info";
 
 // ---------------------------------------------------------------------------
-// TICKS_PER_DAY must stay in lock-step with main.ts (FIX 5b)
+// TICKS_PER_DAY must stay in lock-step with main/constants.ts (FIX 5b)
 // ---------------------------------------------------------------------------
 
-describe("TICKS_PER_DAY — desync guard against main.ts", () => {
-  it("equals the `const TICKS_PER_DAY` literal in main.ts", () => {
-    // building-info.ts hand-copies TICKS_PER_DAY (it can't import main.ts — that's the browser
-    // entry point with side effects). Read main.ts as text and assert the literal matches, so a
-    // future change to one can't silently desync the rate math. Vitest runs with cwd at the
-    // @citadel/client workspace root, so main.ts is at src/main.ts from there.
-    const mainPath = resolve(process.cwd(), "src/main.ts");
-    const src = readFileSync(mainPath, "utf8");
+describe("TICKS_PER_DAY — desync guard against main/constants.ts", () => {
+  it("equals the `const TICKS_PER_DAY` literal in main/constants.ts", () => {
+    // building-info.ts hand-copies TICKS_PER_DAY (it can't import the main/ entry chain — that's
+    // the browser entry point with side effects). Read main/constants.ts as text and assert the
+    // literal matches, so a future change to one can't silently desync the rate math. Vitest runs
+    // with cwd at the @citadel/client workspace root.
+    //
+    // Brief 114: TICKS_PER_DAY moved out of the (now-thin) src/main.ts into src/main/constants.ts
+    // as part of the main.ts module-directory split — this guard follows it there.
+    const constantsPath = resolve(process.cwd(), "src/main/constants.ts");
+    const src = readFileSync(constantsPath, "utf8");
     const m = src.match(/const\s+TICKS_PER_DAY\s*=\s*(\d+)\s*;/);
-    expect(m, "could not find `const TICKS_PER_DAY = N;` in main.ts").not.toBeNull();
+    expect(m, "could not find `const TICKS_PER_DAY = N;` in main/constants.ts").not.toBeNull();
     expect(Number(m![1])).toBe(TICKS_PER_DAY);
   });
 });

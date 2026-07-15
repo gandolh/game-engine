@@ -16,12 +16,12 @@ import {
 } from "@farm/sim-core/protocols";
 import { shouldStopSkip, SKIP_MAX_DAYS } from "@farm/sim-core/sim-worker-skip";
 import type {
-  WorkerInbound,
-  WorkerOutbound,
-  WorkerInitMsg,
-  WorkerStaticLayerMsg,
-  WorkerSnapshotMsg,
-  WorkerProfileMsg,
+  SimInbound,
+  SimOutbound,
+  SimInitMsg,
+  SimStaticLayerMsg,
+  SimSnapshotMsg,
+  SimProfileMsg,
 } from "@farm/sim-core/protocol";
 import type { SnapshotShock } from "@farm/sim-core/snapshot";
 import { createPathfinderFromBytes, Profiler } from "@engine/core";
@@ -33,7 +33,7 @@ const MAX_SPEED_MULTIPLIER = 8;
 const MIN_TICK_RATE_HZ = 1;
 const MAX_TICK_RATE_HZ = 60;
 
-export type SendFn = (msg: WorkerOutbound) => void;
+export type SendFn = (msg: SimOutbound) => void;
 
 export function isValidSwapIndex(i: number, length: number): boolean {
   return Number.isInteger(i) && i >= 0 && i < length;
@@ -87,7 +87,7 @@ export class SimHost {
     this.opts = opts;
   }
 
-  handleInbound(msg: WorkerInbound): void {
+  handleInbound(msg: SimInbound): void {
     switch (msg.type) {
       case "stop":
         this.stop();
@@ -132,7 +132,7 @@ export class SimHost {
   }
 
   private async resolvePathfinder(
-    init: WorkerInitMsg,
+    init: SimInitMsg,
   ): Promise<PathfinderLike | null> {
 
     if (this.opts.pathfinder) return this.opts.pathfinder;
@@ -149,7 +149,7 @@ export class SimHost {
     return null;
   }
 
-  private async start(init: WorkerInitMsg): Promise<void> {
+  private async start(init: SimInitMsg): Promise<void> {
     try {
       await this.startUnsafe(init);
     } catch (err) {
@@ -158,7 +158,7 @@ export class SimHost {
     }
   }
 
-  private async startUnsafe(init: WorkerInitMsg): Promise<void> {
+  private async startUnsafe(init: SimInitMsg): Promise<void> {
     const { seed, ticksPerDay, maxDays, tickRateHz } = init;
     this.ticksPerDay = ticksPerDay;
 
@@ -201,7 +201,7 @@ export class SimHost {
     let lastBakedSeason = seasonForDay(dayClock.day);
     const postStaticLayer = (season: Season): void => {
       const staticSprites = buildStaticLayerSprites(world, season);
-      const staticMsg: WorkerStaticLayerMsg = {
+      const staticMsg: SimStaticLayerMsg = {
         type: "static-layer",
         sprites: staticSprites,
         worldWidthPx: WORLD_WIDTH * TILE,
@@ -267,7 +267,7 @@ export class SimHost {
           this.profiler.add("snapshot.bytes", JSON.stringify(snapshot).length);
         }
 
-        const snapshotMsg: WorkerSnapshotMsg = { type: "snapshot", snapshot };
+        const snapshotMsg: SimSnapshotMsg = { type: "snapshot", snapshot };
         this.send(snapshotMsg);
 
         const seasonNow = seasonForDay(dayClock.day);
@@ -277,7 +277,7 @@ export class SimHost {
         }
 
         if (this.profiler.enabled && tick % PROFILE_REPORT_EVERY === 0) {
-          const profileMsg: WorkerProfileMsg = {
+          const profileMsg: SimProfileMsg = {
             type: "profile",
             tick,
             report: this.profiler.report(),

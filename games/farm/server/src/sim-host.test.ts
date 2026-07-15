@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { AddressInfo } from "node:net";
 import { WebSocketServer, WebSocket } from "ws";
 import { createPathfinderFromBytes } from "@engine/core";
-import type { WorkerOutbound, WorkerInbound } from "@farm/sim-core/protocol";
+import type { SimOutbound, SimInbound } from "@farm/sim-core/protocol";
 import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
 import { SimHost, isValidSwapIndex } from "./sim-host";
 
@@ -25,12 +25,12 @@ async function runHostToCompletion(
   ticksPerDay: number,
   maxDays: number,
   pathfinder: PathfinderLike,
-): Promise<WorkerOutbound[]> {
-  const out: WorkerOutbound[] = [];
+): Promise<SimOutbound[]> {
+  const out: SimOutbound[] = [];
   const host = new SimHost((m) => out.push(m), { pathfinder });
   await new Promise<void>((resolveDone) => {
     const orig = out.push.bind(out);
-    (out as unknown as { push: (m: WorkerOutbound) => number }).push = (m) => {
+    (out as unknown as { push: (m: SimOutbound) => number }).push = (m) => {
       const n = orig(m);
       if (m.type === "snapshot" && m.snapshot.gameOver) {
 
@@ -88,7 +88,7 @@ describe("transport transparency", () => {
       const a = await runHostToCompletion(seed, 20, 3, pfA);
       const b = await runHostToCompletion(seed, 20, 3, pfB);
 
-      const snapsOf = (msgs: WorkerOutbound[]) =>
+      const snapsOf = (msgs: SimOutbound[]) =>
         msgs
           .filter((m) => m.type === "snapshot")
           .map((m) => (m.type === "snapshot" ? JSON.stringify(m.snapshot) : ""));
@@ -113,7 +113,7 @@ describe("WS round-trip (real socket)", () => {
         { pathfinder: pf },
       );
       ws.on("message", (d) =>
-        host.handleInbound(JSON.parse(d.toString()) as WorkerInbound),
+        host.handleInbound(JSON.parse(d.toString()) as SimInbound),
       );
       ws.on("close", () => host.stop());
     });
@@ -139,7 +139,7 @@ describe("WS round-trip (real socket)", () => {
         ),
       );
       client.on("message", (d) => {
-        const m = JSON.parse(d.toString()) as WorkerOutbound;
+        const m = JSON.parse(d.toString()) as SimOutbound;
         if (m.type === "static-layer") staticSeen = true;
         if (m.type === "snapshot") {
           snapCount += 1;
@@ -188,7 +188,7 @@ describe("hostile-input clamps", () => {
     const pf = (await createPathfinderFromBytes(
       wasmBytes,
     )) as unknown as PathfinderLike;
-    const msgs: WorkerOutbound[] = [];
+    const msgs: SimOutbound[] = [];
     const host = new SimHost((m) => msgs.push(m), { pathfinder: pf });
 
     host.handleInbound({
@@ -217,7 +217,7 @@ describe("hostile-input clamps", () => {
     const pf = (await createPathfinderFromBytes(
       wasmBytes,
     )) as unknown as PathfinderLike;
-    const msgs: WorkerOutbound[] = [];
+    const msgs: SimOutbound[] = [];
     const host = new SimHost((m) => msgs.push(m), { pathfinder: pf });
 
     host.handleInbound({

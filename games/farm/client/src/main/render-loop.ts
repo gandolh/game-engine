@@ -39,7 +39,7 @@ import type { ParticleDirector } from "./particles";
 import { hoveredSprite } from "./tooltip";
 import { TOOLTIP_CURSOR_OFFSET } from "../ui/canvas/tooltip";
 import { playbackState } from "./playback";
-import type { SimClient } from "../worker/sim-client";
+import type { SimClient } from "../net/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { setupProfileExport } from "./profile-export";
 

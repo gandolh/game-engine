@@ -14,7 +14,7 @@ import { createUIHost } from "./ui/canvas/ui-host";
 import type { UIHost } from "./ui/canvas/ui-host";
 import { createHomeScreen } from "./ui/canvas/home-screen";
 import { createLoadingScreen } from "./ui/canvas/loading-screen";
-import { SimClient } from "./worker/sim-client";
+import { SimClient } from "./net/sim-client";
 import { parseRun, serializeRun } from "@farm/sim-core/run-descriptor";
 
 import { CONFIG, CAMERA_CONFIG } from "./main/config";

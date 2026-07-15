@@ -4,7 +4,7 @@ import { makeGroundNoiseDecorator, GROUND_NOISE_AMPLITUDE } from "../render/grou
 import { makeWaterDepthDecorator } from "../render/water-depth";
 import { makeShoreDescentDecorator } from "../render/shore-descent";
 import { TILE } from "./config";
-import type { SimClient } from "../worker/sim-client";
+import type { SimClient } from "../net/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { oceanGradientAt } from "@farm/sim-core/render-systems";

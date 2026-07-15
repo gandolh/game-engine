@@ -1,7 +1,7 @@
 
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import type { CropKind } from "@farm/sim-core/components";
-import { makePathfinder } from "./pathfinder";
+import { makePathfinder } from "../pathfinder";
 
 const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;

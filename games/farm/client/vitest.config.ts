@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 const DOM_FILES = [
   "src/ui/canvas/home-screen.test.ts",
   "src/ui/canvas/hotbar.test.ts",
-  "src/worker/sim-client/client.visibility.test.ts",
+  "src/net/sim-client/client.visibility.test.ts",
   "src/main/juice.test.ts",
   "src/main/audio.test.ts",
 ];

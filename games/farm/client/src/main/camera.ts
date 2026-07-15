@@ -2,7 +2,7 @@ import { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { TILE, DEFAULT_ZOOM } from "./config";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
-import type { SimClient } from "../worker/sim-client";
+import type { SimClient } from "../net/sim-client";
 
 export let focusedFarmerId: number | null = null;
 export let panOffset = { x: 0, y: 0 };
