@@ -17,4 +17,7 @@
  * at it directly) and is now just the stylesheet import + the main/ barrel.
  */
 import "./style.css";
-import "./main";
+// NOTE: must be the explicit barrel path — a bare "./main" resolves to THIS file
+// (main.ts beats main/index.ts in resolution order), which is a silent self-import
+// no-op: the page loads, nothing boots, and no error is thrown anywhere.
+import "./main/index";
