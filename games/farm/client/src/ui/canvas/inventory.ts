@@ -117,7 +117,11 @@ function hasSpriteFrame(frame: string): boolean {
 }
 
 function buildSlot(): SlotEls {
-  const glyph = label("", { color: EDG.silver });
+  // The glyph node RESERVES the icon's box (drawIcons paints an ICON_SIZE sprite over its rect,
+  // exactly like hotbar.ts's buildSlot). Without the fixed size it sized to its own empty text —
+  // one line tall (~10px) — and the 30px sprite drawn on it spilled ~20px down onto the caption
+  // AND count labels below, printing the item art over its own name/quantity.
+  const glyph = label("", { color: EDG.silver, layout: { width: ICON_SIZE, height: ICON_SIZE } });
   const caption = label("", { color: EDG.steel });
   const count = label("", { color: EDG.silver });
   const root = box(
