@@ -78,6 +78,7 @@ import {
   CHARGE_BUILD_COST,
 } from "./sim-client";
 import { snapshotPhase, RENDER_DELAY_INTERVALS } from "../render/entity-interp";
+import { debugOverlay } from "./debug-overlay-wiring";
 import { hud, uiSurface, a11yMirror, siegeHud, siegeMirror } from "./hud-panels";
 import { inspectPanel, inspectSelection, inspectMirror, closeInspect } from "./inspect";
 import {
@@ -565,6 +566,16 @@ export function loop(): void {
   renderer.endFrame(wash, particles, weatherField);
 
   toasts.tick(nowMs); // age toasts on the render clock
+
+  // Chunk F (todo 2026-07-15-citadel-fps-debug-overlay.md): feed the corner debug overlay
+  // (undefined outside dev builds — see debug-overlay-wiring.ts). "alpha" maps to the same
+  // render-delay interp phase driving villager/raider glide above (entity-interp.ts); "ents" is
+  // the villager+raider+building counts the renderer already iterates every frame.
+  debugOverlay?.update({
+    tick,
+    alpha: interpPhase,
+    entityCount: currentBuildings.length + currentVillagers.length + currentRaiders.length,
+  });
 
   requestAnimationFrame(loop);
 }

@@ -17,6 +17,25 @@ export interface OverlayExport {
   frame: ProfileReport | null;
 }
 
+/**
+ * Which screen corner the overlay is pinned to. Generic (no game import) — added because a
+ * consuming game's own in-canvas HUD may already occupy the top-left corner Farm Valley uses by
+ * default (e.g. Citadel's resource/siege HUD both anchor at (8,8) too). Defaults to "top-left" so
+ * every existing caller (Farm) keeps its exact pixel position.
+ */
+export type OverlayCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
+export interface OverlayOptions {
+  corner?: OverlayCorner;
+}
+
+const CORNER_CSS: Record<OverlayCorner, string> = {
+  "top-left": "top: 8px;left: 8px",
+  "top-right": "top: 8px;right: 8px",
+  "bottom-left": "bottom: 8px;left: 8px",
+  "bottom-right": "bottom: 8px;right: 8px",
+};
+
 export class DebugOverlay {
   private readonly element: HTMLElement;
   private lastWallMs = performance.now();
@@ -30,12 +49,12 @@ export class DebugOverlay {
   private lastTick = 0;
   private lastEntityCount = 0;
 
-  constructor(parent: HTMLElement) {
+  constructor(parent: HTMLElement, options?: OverlayOptions) {
+    const corner = options?.corner ?? "top-left";
     const el = document.createElement("div");
     el.style.cssText = [
       "position: absolute",
-      "top: 8px",
-      "left: 8px",
+      CORNER_CSS[corner],
       "padding: 6px 8px",
       "font: 12px/1.4 ui-monospace, monospace",
       `color: ${EDG.silver}`,

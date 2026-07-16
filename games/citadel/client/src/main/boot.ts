@@ -12,6 +12,7 @@ import { initInspectPanel } from "./inspect";
 import { initVillagerPanel, initBuildBar, updateModeLabel } from "./build-controls";
 import { initSettingsDispatcher } from "./settings";
 import { initMinimap } from "./minimap-wiring";
+import { initDebugOverlay } from "./debug-overlay-wiring";
 import { initNewGameModal, newGameMirror } from "./new-game";
 import { useServer, client, markOpeningFramed, currentBuildings, currentVillagers, latestSnapshot } from "./sim-client";
 import { loop, windowBakes } from "./render-loop";
@@ -128,6 +129,12 @@ async function boot(): Promise<void> {
 
   // Minimap (top-right): now drawn IN-CANVAS via @engine/ui.
   initMinimap();
+
+  // Chunk F (todo 2026-07-15-citadel-fps-debug-overlay.md): the corner fps/ms/tick/alpha/ents
+  // readout, reusing Farm's engine-hoisted DebugOverlay. Dev-only (see debug-overlay-wiring.ts);
+  // mounted on document.body like Farm's, not the in-canvas UI surface, since it's a raw DOM
+  // overlay element, not an @engine/ui panel.
+  initDebugOverlay(document.body);
 
   // Brief 103: the ruleset is chosen at founding, in-canvas, BEFORE the sim is inited — the
   // picker is a SEVENTH UI root with its own dispatcher + a11y mirror. It is not dismissable, so
