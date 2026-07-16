@@ -98,6 +98,39 @@ describe("createSlateBillboard", () => {
   });
 });
 
+describe("shop window fits its content (regression)", () => {
+  // Regression: `LIST_HEIGHT` (200) fit only 4 of the 5 `SLATE_SIZE` offer rows; the 5th
+  // (whichever crop landed there — pumpkin included) straddled the viewport's bottom edge and,
+  // because `visibleRows` is a plain `box` (no real clipping), was drawn in full — spilling past
+  // the panel's own background. Assert every descendant's bottom edge stays within the panel's
+  // own laid-out height for a full 5-offer slate.
+  it("all 5 offer rows (a full daily slate) render fully inside the panel's own bounds", () => {
+    const slate = createSlateBillboard();
+    const offers: SlateEntry[] = [
+      offer({ offerId: "a", crop: "radish" }),
+      offer({ offerId: "b", crop: "wheat" }),
+      offer({ offerId: "c", crop: "carrot" }),
+      offer({ offerId: "d", crop: "corn" }),
+      offer({ offerId: "e", crop: "pumpkin" }),
+    ];
+    slate.refresh(offers);
+    computeLayout(slate.root, 0, 0);
+
+    let maxBottom = 0;
+    const walk = (n: UINode): void => {
+      const bottom = n.rect.y + n.rect.height;
+      if (bottom > maxBottom) maxBottom = bottom;
+      for (const c of n.children) walk(c);
+    };
+    walk(slate.root);
+
+    expect(maxBottom).toBeLessThanOrEqual(slate.root.rect.height);
+
+    const pumpkinLine = labelTexts(slate.root).find((l) => l.text === "Pumpkin");
+    expect(pumpkinLine, "the pumpkin row rendered").toBeDefined();
+  });
+});
+
 describe("stock bar geometry", () => {
   it("the bar FILL sits inside its own track, never on the caption below", () => {
     // Regression: the track is only BAR_HEIGHT (5px) tall, but containers default to the THEME

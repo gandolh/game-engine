@@ -39,8 +39,16 @@ import type { ShopOffer } from "@farm/sim-core/agents/shop-slate";
 
 export type SlateEntry = Pick<ShopOffer, "offerId" | "crop" | "unitPrice" | "quantity" | "remaining">;
 
-/** Fixed visible height (px) of the scrollable offer list. */
-const LIST_HEIGHT = 200;
+/**
+ * Fixed visible height (px) of the scrollable offer list. Sized to fit all `SLATE_SIZE` (5) rows
+ * at once (5 rows * 49px = 245px + a little slack) so the daily slate never needs to scroll to
+ * see its last offer — was 200, which only fit 4 rows; the 5th (whichever crop landed last,
+ * pumpkin included) straddled the viewport's bottom edge and got drawn in full past the panel's
+ * own background (a plain `box` mirroring the scroll viewport has no real clipping — see
+ * `syncVisibleRows`). Still scrollable (via `wheel`) as a defensive fallback if `SLATE_SIZE` ever
+ * grows past what fits here.
+ */
+const LIST_HEIGHT = 250;
 /** Fixed width (px) of the panel (and thus the scroll viewport) — kept in sync with
  *  `observer-panel.ts`'s `LIST_WIDTH` (see its comment); the two stack in `right-column.ts`
  *  and read as one consistent-width column. */
@@ -154,8 +162,15 @@ export function createSlateBillboard(): SlateBillboard {
   const vp: ScrollViewportNode = scroll({ width: LIST_WIDTH, height: LIST_HEIGHT }, []);
   vp.rect = { x: 0, y: 0, width: LIST_WIDTH, height: LIST_HEIGHT };
 
-  const visibleRows = box({ direction: "column", gap: 0, align: "stretch" }, []);
-  visibleRows.layout = { width: LIST_WIDTH, height: LIST_HEIGHT };
+  // `width`/`height` are folded into the SAME layout object as `align: "stretch"`/`gap: 0` — a
+  // separate `visibleRows.layout = { width, height }` reassignment used to REPLACE the whole
+  // object, silently dropping `gap: 0` back to the theme's default (4px), so every row gained an
+  // extra ~4px of drift (part of why 5 rows overflowed `LIST_HEIGHT`; see its comment) — and would
+  // have dropped `align: "stretch"` too, the same width-jitter bug fixed in `observer-panel.ts`.
+  const visibleRows = box(
+    { direction: "column", gap: 0, align: "stretch", width: LIST_WIDTH, height: LIST_HEIGHT },
+    [],
+  );
 
   const root = panel({ direction: "column", gap: 6, align: "stretch" }, [title, emptyLbl, visibleRows]);
 
@@ -199,6 +214,15 @@ export function createSlateBillboard(): SlateBillboard {
         translated.y < vpY + vpH &&
         translated.y + translated.height > vpY;
       if (!overlaps) continue;
+      // `visibleRows` is a plain `box`, not a real `ScrollViewportNode` — the host's next
+      // `computeLayout` flow-arranges its children WITHOUT clipping to `visibleRows`'s own
+      // declared `height` (containers never clip overflow children in `@engine/ui`'s layout
+      // model). A row straddling the viewport's bottom edge would therefore render IN FULL,
+      // spilling past the panel's own background (the exact "pumpkin renders outside the
+      // window" bug) — so, unlike the top edge (safe to bleed a little, the same tradeoff the
+      // real scroll viewport documents), a bottom-straddling row is EXCLUDED. Always keep at
+      // least one row so a single oversized row doesn't vanish entirely.
+      if (translated.y + translated.height > vpY + vpH && visible.length > 0) break;
       translateSubtree(child, ox, oy);
       visible.push(child as ContainerNode);
     }
