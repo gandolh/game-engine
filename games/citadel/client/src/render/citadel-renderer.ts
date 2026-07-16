@@ -77,6 +77,7 @@ export * from "./autotile";
 export * from "./clustering";
 export * from "./transform";
 export * from "./terrain-dither";
+export * from "./hillshade";
 export * from "./window-controller";
 
 import type { TerrainGrid } from "@citadel/sim-core";
@@ -155,13 +156,14 @@ export function cloudOptionsFor(
 }
 
 // Sprite layers — higher draws on top. Terrain is the baked static layer
-// (below everything); these stack buildings < villagers < raiders < ghost.
+// (below everything); these stack coverage < buildings < villagers < raiders
+// < disconnect pip < ghost.
 const LAYER_SHADOW = 8;
 // Isometric: buildings, villagers, and raiders share ONE entity layer so they
 // inter-sort back-to-front by their iso depth (set as each sprite's `sortY`),
 // which is what makes a villager in front correctly occlude a building behind.
-const LAYER_ENTITY = 10;
-const LAYER_GHOST = 40;
+export const LAYER_ENTITY = 10;
+export const LAYER_GHOST = 40;
 /** Atmosphere layers (brief 15/18). The light pool sits on the GROUND (just
  *  above the drop-shadow, BELOW buildings) so the warm glow pools around each
  *  emitter's base like lamplight on the ground, instead of washing a hard tint
@@ -169,15 +171,19 @@ const LAYER_GHOST = 40;
  *  but above buildings. */
 const LAYER_LIGHT_POOL = 9;
 const LAYER_AMBIENT_CROWD = 15;
-// Service catchment tints (placement ring + coverage overlay, 2026-06-22). Sits
-// just below the ghost (40) and above everything else, so the coverage wash
-// reads ON TOP of buildings like an OpenTTD catchment highlight rather than
-// hiding under them.
-const LAYER_COVERAGE = 38;
+// Service catchment tints (placement ring + coverage overlay, 2026-06-22).
+// Sits above the terrain but BELOW the entity layer (10) — a building/road
+// network sitting inside the highlighted area stays clearly visible on top of
+// the wash, like a real-world catchment map with the buildings printed over
+// it, rather than the highlight papering over them (2026-07-15 fix: this used
+// to sit at 38, just under the ghost, which buried every building inside the
+// coverage area under the tint).
+export const LAYER_COVERAGE = 6;
 // Disconnected-building "no road" marker — floats above its building, just under
-// the ghost/coverage so it reads as a HUD pip over the world (road-builder
-// feedback, 2026-06-27).
-const LAYER_DISCONNECT = 39;
+// the ghost so it reads as a HUD pip over the world (road-builder feedback,
+// 2026-06-27). Stays above the entity layer — unlike the coverage wash, this is
+// a per-building HUD pip meant to sit on top of its building, not under it.
+export const LAYER_DISCONNECT = 39;
 
 // Re-import LAYER_NETWORK for use in pushNetworks.
 import { LAYER_NETWORK } from "./autotile";

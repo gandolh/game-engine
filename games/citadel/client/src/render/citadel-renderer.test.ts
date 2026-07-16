@@ -44,7 +44,6 @@ import {
   ditherAccents,
   DITHER_ACCENTS,
   elevationField,
-  elevationFill,
   ELEVATION_SCALE,
   type QuadSpec,
   wearFactor,
@@ -55,6 +54,12 @@ import {
   pushScene,
   pushAmbientCrowd,
   AMBIENT_CROWD_ALPHA,
+  pushCatchment,
+  pushDisconnectedMarkers,
+  LAYER_COVERAGE,
+  LAYER_ENTITY,
+  LAYER_GHOST,
+  LAYER_DISCONNECT,
 } from "./citadel-renderer";
 
 /** Brief 110: tests run against the solo 96×96 world's projection. */
@@ -595,39 +600,6 @@ describe("ditherClusters", () => {
   });
 });
 
-describe("elevationFill (elevation-banded base diamond fill)", () => {
-  const allTypes: TerrainType[] = [
-    TerrainType.Grass, TerrainType.Water, TerrainType.Forest, TerrainType.Stone, TerrainType.Rough,
-  ];
-
-  it("is deterministic and always an EDG swatch", () => {
-    for (const t of allTypes) {
-      for (let i = 0; i < 60; i++) {
-        const a = elevationFill(t, i, i * 2);
-        expect(elevationFill(t, i, i * 2)).toBe(a); // deterministic
-        expect(EDG_HEXES.has(a.toLowerCase())).toBe(true); // on-palette
-      }
-    }
-  });
-
-  it("bands grass by elevation: valleys dark, highs light, middle base", () => {
-    // Sweep a grid; assert all three bands appear (dark/base/light) for grass.
-    const seen = new Set<string>();
-    for (let ty = 0; ty < 40; ty++) for (let tx = 0; tx < 40; tx++) {
-      seen.add(elevationFill(TerrainType.Grass, tx, ty));
-    }
-    expect(seen.has(DITHER_ACCENTS[TerrainType.Grass].dark)).toBe(true);
-    expect(seen.has(DITHER_ACCENTS[TerrainType.Grass].light)).toBe(true);
-    expect(seen.size).toBeGreaterThanOrEqual(2);
-  });
-
-  it("leaves water unbanded (its own shimmer handles it)", () => {
-    for (let i = 0; i < 30; i++) {
-      expect(elevationFill(TerrainType.Water, i, i)).toBe(TERRAIN_COLORS[TerrainType.Water]);
-    }
-  });
-});
-
 describe("elevationField (relief, ported from tiny-world-builder strata)", () => {
   it("is deterministic and stays in [0,1]", () => {
     for (let i = 0; i < 60; i++) {
@@ -1033,5 +1005,54 @@ describe("pushAmbientCrowd (brief 105 crowd honesty)", () => {
     expect(pushed).toHaveLength(2);
     expect(AMBIENT_CROWD_ALPHA).toBeLessThan(1);
     for (const s of pushed) expect(s.alpha).toBe(AMBIENT_CROWD_ALPHA);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2026-07-15 fix — placement coverage highlight must draw UNDER buildings.
+// ---------------------------------------------------------------------------
+
+describe("service catchment layering (placement coverage draws under buildings)", () => {
+  it("pins LAYER_COVERAGE below the shared building/villager/raider entity layer", () => {
+    // The whole bug was the coverage wash sitting ABOVE the entity layer (it
+    // used to be 38, just under the ghost at 40). Buildings must now win.
+    expect(LAYER_COVERAGE).toBeLessThan(LAYER_ENTITY);
+  });
+
+  it("leaves the ghost and the disconnect HUD pip above the entity layer, unaffected by the coverage fix", () => {
+    expect(LAYER_ENTITY).toBeLessThan(LAYER_DISCONNECT);
+    expect(LAYER_DISCONNECT).toBeLessThan(LAYER_GHOST);
+  });
+
+  it("pushCatchment stamps tiles strictly below pushScene's building sprites", () => {
+    const pushed: Canvas2dSprite[] = [];
+    const fakeRenderer: RendererLike = {
+      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+    } as unknown as RendererLike;
+
+    // A chapel (has a service radius) sitting inside its own catchment.
+    const chapel = building({ type: "chapel", x: 5, y: 5, w: 1, h: 1 });
+    pushScene(fakeRenderer, iso, { buildings: [chapel], villagers: [], raiders: [] });
+    expect(pushed.length).toBeGreaterThan(0);
+    for (const s of pushed) expect(s.layer).toBe(LAYER_ENTITY);
+
+    pushed.length = 0;
+    pushCatchment(fakeRenderer, iso, [{ tx: 5, ty: 5, edge: true }], EDG.mauve);
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]!.layer).toBe(LAYER_COVERAGE);
+    expect(pushed[0]!.layer).toBeLessThan(LAYER_ENTITY);
+  });
+
+  it("pushDisconnectedMarkers still stamps its HUD pip above the entity layer", () => {
+    const pushed: Canvas2dSprite[] = [];
+    const fakeRenderer: RendererLike = {
+      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+    } as unknown as RendererLike;
+
+    const disconnected = building({ type: "market", x: 3, y: 3, w: 1, h: 1, connected: false });
+    pushDisconnectedMarkers(fakeRenderer, iso, [disconnected]);
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]!.layer).toBe(LAYER_DISCONNECT);
+    expect(pushed[0]!.layer).toBeGreaterThan(LAYER_ENTITY);
   });
 });

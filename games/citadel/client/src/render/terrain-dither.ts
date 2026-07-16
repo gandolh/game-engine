@@ -17,6 +17,8 @@ import { TERRAIN_COLORS } from "./quads";
 import type { TileWindow } from "./render-window";
 import { ISO_HW, ISO_HH } from "./iso";
 import type { IsoProjection } from "./iso";
+import { landformHeight, hillshade, shadeBand } from "./hillshade";
+import type { HeightSampler } from "./hillshade";
 
 // ---------------------------------------------------------------------------
 // makeTerrainDecorate (static-layer bake callback)
@@ -43,6 +45,10 @@ export function makeTerrainDecorate(
   const minTy = window ? Math.max(0, window.minTy) : 0;
   const maxTx = window ? Math.min(grid.width - 1, window.maxTx) : grid.width - 1;
   const maxTy = window ? Math.min(grid.height - 1, window.maxTy) : grid.height - 1;
+  // ONE memoized heightfield sampler for the whole bake — the hillshade below
+  // probes each cell's four neighbours, so a shared cache means every cell's
+  // height (a handful of fBm octaves) is computed once, not up to five times.
+  const sampler = makeHeightSampler(grid);
   return (ctx: Ctx2D): void => {
     // Paint each terrain cell as an ISO DIAMOND at its projected position, back
     // (top) to front (bottom) so a tiny diamond-edge overlap covers seams. The
@@ -54,22 +60,22 @@ export function makeTerrainDecorate(
     // `isoToTile` pick — lives at elevation 0, so a per-tile relief LIFT here
     // (which we used to apply) desynced the ground from all of them: lifted tiles
     // floated a road/bridge below their own terrain and opened dark seams at
-    // elevation steps. The elevation field still tints the dither (light highs /
-    // dark valleys, computed inside `ditherClusters`) for a flat-2D sense of
-    // relief — just no geometric offset.
+    // elevation steps. Relief is therefore conveyed purely by VALUE (hillshading),
+    // not geometry: a NW-lit shade of a heightfield derived from the terrain kind
+    // (`hillshade.ts`) picks the darker/base/lighter EDG swatch per cell, so
+    // ridges show a lit + shadowed face, shorelines fall into shade, and flats
+    // stay even — the landform reads at a glance. The dither specks layer on top.
     for (let ty = minTy; ty <= maxTy; ty++) {
       for (let tx = minTx; tx <= maxTx; tx++) {
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
         const [top, right, bottom, left] = iso.tileDiamond(tx, ty) as [
           { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
         ];
-        // Elevation-banded base fill: instead of one flat color per terrain type,
-        // pick a darker/base/lighter EDG swatch by the cell's coarse elevation so
-        // the ground reads as gently rolling land (sun-lit highs, shaded valleys)
-        // — broad cohesive value variation, not just sparse specks. Fully EDG32
-        // (the dark/light come from DITHER_ACCENTS, all EDG swatches), and the
-        // wavelength matches the dither's so band and specks agree.
-        ctx.fillStyle = elevationFill(t, tx, ty);
+        // Hillshaded base fill: pick a darker/base/lighter EDG swatch by the cell's
+        // NW-lit slope band (see `landformFill`) so the ground reads as shaped
+        // relief. Fully on-palette (the dark/light come from DITHER_ACCENTS, all
+        // EDG swatches); water stays its own shimmer hue (unbanded).
+        ctx.fillStyle = landformFill(sampler, t, tx, ty);
         ctx.beginPath();
         ctx.moveTo(top.x, top.y);
         ctx.lineTo(right.x, right.y);
@@ -219,22 +225,61 @@ export function ditherAccents(type: TerrainType): DitherAccents {
   return DITHER_ACCENTS[type] ?? FALLBACK_ACCENTS;
 }
 
+// ---------------------------------------------------------------------------
+// Hillshaded landform fill (the shaped-relief base, replaces flat elevation bands)
+// ---------------------------------------------------------------------------
+
 /**
- * Base diamond fill for a cell, banded by coarse elevation: deep valleys take the
- * type's DARK accent, high ground the LIGHT accent, the broad middle the base hue.
- * Thresholds are conservative (most cells stay the base colour) so the field reads
- * as gently rolling, not stripy. Pure + EDG32 (every branch is an EDG swatch). The
- * elevation source + wavelength match `ditherClusters`, so band and specks agree.
+ * The terrain KIND at (tx, ty), clamped to the grid edge so a neighbour probe at
+ * the border reads the border cell (no wrap, no out-of-bounds). Pure.
  */
-export function elevationFill(type: TerrainType, tx: number, ty: number): string {
+function terrainTypeAt(grid: TerrainGrid, tx: number, ty: number): TerrainType {
+  const cx = tx < 0 ? 0 : tx >= grid.width ? grid.width - 1 : tx;
+  const cy = ty < 0 ? 0 : ty >= grid.height ? grid.height - 1 : ty;
+  return grid.cells[cy * grid.width + cx] as TerrainType;
+}
+
+/**
+ * Build a memoized {@link HeightSampler} over a terrain grid: each cell's height
+ * is `landformHeight(fBm-relief, terrain-kind)` (see `hillshade.ts`) — the fBm
+ * rolling blended with the kind's pseudo-elevation, so water sits low (valleys /
+ * shores) and stone high (ridges). Coordinates are edge-clamped, so the cache key
+ * (the clamped grid index) dedupes border probes too. Pure; render-only.
+ */
+export function makeHeightSampler(grid: TerrainGrid): HeightSampler {
+  const cache = new Map<number, number>();
+  return (tx: number, ty: number): number => {
+    const cx = tx < 0 ? 0 : tx >= grid.width ? grid.width - 1 : tx;
+    const cy = ty < 0 ? 0 : ty >= grid.height ? grid.height - 1 : ty;
+    const key = cy * grid.width + cx;
+    const hit = cache.get(key);
+    if (hit !== undefined) return hit;
+    const h = landformHeight(elevationField(cx, cy), grid.cells[key] as TerrainType);
+    cache.set(key, h);
+    return h;
+  };
+}
+
+/**
+ * Base diamond fill for a cell, chosen by its HILLSHADE band: a NW-facing (lit)
+ * slope takes the type's LIGHT accent, a SE-facing (shadowed) slope the DARK
+ * accent, and locally-flat ground the base hue. Because the height that is shaded
+ * folds in the terrain KIND (via {@link makeHeightSampler}), the shading traces
+ * the map's real landforms — stone ridges get a lit + shadowed face, land draining
+ * into a river/lake falls into shore-shadow, broad grass stays mostly base.
+ *
+ * Pure + on-palette (every branch is an EDG swatch from DITHER_ACCENTS / the base
+ * TERRAIN_COLORS). Water is returned unbanded — its own shimmer reads as a flat
+ * water surface, and hillshading a body of water would only add noise.
+ */
+export function landformFill(sampler: HeightSampler, type: TerrainType, tx: number, ty: number): string {
   const base = TERRAIN_COLORS[type] ?? EDG.green;
-  // Water bands by its own shimmer rather than terrain height — keep it as-is.
   if (type === TerrainType.Water) return base;
-  const elev = elevationField(tx, ty); // [0,1]
   const acc = ditherAccents(type);
-  if (elev < 0.30) return acc.dark;   // shaded valley floor
-  if (elev > 0.74) return acc.light;  // sun-lit high ground
-  return base;
+  const band = shadeBand(hillshade(sampler, tx, ty));
+  if (band < 0) return acc.dark;  // shadowed (SE-facing) slope
+  if (band > 0) return acc.light; // lit (NW-facing) slope
+  return base;                    // locally flat
 }
 
 /** A single dither cluster: a small filled square at (x,y) within the cell. */
