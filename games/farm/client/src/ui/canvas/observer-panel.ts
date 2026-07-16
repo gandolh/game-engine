@@ -132,9 +132,17 @@ export function createObserverPanel(actions: ObserverPanelActions): ObserverPane
   // have real dimensions to clip against before the first `refresh`.
   vp.rect = { x: 0, y: 0, width: LIST_WIDTH, height: LIST_HEIGHT };
   // The tree-visible mirror of `vp`'s currently-visible rows, translated to screen space — see
-  // module doc "Scrolling". Sits where the scroll viewport would visually be.
-  const visibleRows = box({ direction: "column", gap: 0, align: "stretch" }, []);
-  visibleRows.layout = { width: LIST_WIDTH, height: LIST_HEIGHT };
+  // module doc "Scrolling". Sits where the scroll viewport would visually be. `width`/`height`
+  // are folded into the SAME layout object as `align: "stretch"` — a later `visibleRows.layout =
+  // { width, height }` REASSIGNMENT (dropping `direction`/`gap`/`align` entirely) was the root
+  // cause of the "Farmers window flickers" bug: without `align: "stretch"`, each row `ButtonNode`
+  // fell back to its own intrinsic width (the widest line of its multi-line label), which changes
+  // almost every tick as a farmer's gold/state/AP text updates — so the row visibly grew/shrank in
+  // width on nearly every refresh instead of staying pinned to `LIST_WIDTH`.
+  const visibleRows = box(
+    { direction: "column", gap: 0, align: "stretch", width: LIST_WIDTH, height: LIST_HEIGHT },
+    [],
+  );
 
   const root = panel({ direction: "column", gap: 6, align: "stretch" }, [
     headerLbl,
@@ -198,6 +206,15 @@ export function createObserverPanel(actions: ObserverPanelActions): ObserverPane
         translated.y < vpY + vpH &&
         translated.y + translated.height > vpY;
       if (!overlaps) continue;
+      // `visibleRows` is a plain `box`, not a real `ScrollViewportNode` — when the host's next
+      // `computeLayout` flow-arranges its children it does NOT clip to `visibleRows`'s own
+      // declared `height` (containers never clip overflow in `@engine/ui`'s layout model). A row
+      // whose bottom edge straddles past the viewport would therefore be drawn IN FULL, spilling
+      // past the panel's own background — so, unlike the top edge (safe to bleed a little, same
+      // "conservative cull" tradeoff the real scroll viewport makes), a bottom-straddling row is
+      // EXCLUDED rather than included. Always keep at least one row so a single oversized row
+      // (taller than the whole viewport) doesn't vanish entirely.
+      if (translated.y + translated.height > vpY + vpH && visible.length > 0) break;
       child.rect = translated;
       visible.push(child as ButtonNode);
     }

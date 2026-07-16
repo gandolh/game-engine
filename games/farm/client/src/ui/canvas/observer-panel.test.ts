@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { computeLayout } from "@engine/ui";
 import { createObserverPanel } from "./observer-panel";
 import type { ObserverPanelActions } from "./observer-panel";
 import type { UINode, ButtonNode } from "@engine/ui";
@@ -159,5 +160,45 @@ describe("createObserverPanel", () => {
     const panel = createObserverPanel(makeActions());
     panel.refresh(makeSnapshot());
     expect(() => panel.wheel(50)).not.toThrow();
+  });
+
+  describe("layout stability (flicker regression)", () => {
+    // Regression: `visibleRows.layout = { width, height }` used to REPLACE the whole layout
+    // object (dropping `align: "stretch"`), so each farmer row fell back to its own intrinsic
+    // width — the widest line of its multi-line label. That text changes almost every tick, so
+    // the row (and, transitively, the panel) visibly grew/shrank in width on nearly every
+    // refresh — the reported "Farmers window flickers when changes are applied".
+    it("the panel's width stays pinned regardless of how long a farmer's row text is", () => {
+      const panel = createObserverPanel(makeActions());
+      panel.refresh(makeSnapshot());
+      computeLayout(panel.root, 0, 0);
+      const shortWidth = panel.root.rect.width;
+
+      const longSnap = makeSnapshot({
+        farmers: [
+          {
+            ...makeSnapshot().farmers[0]!,
+            name: "A Farmer With An Extremely Long Name That Would Widen An Unstretched Row",
+          },
+          makeSnapshot().farmers[1]!,
+        ],
+      });
+      panel.refresh(longSnap);
+      computeLayout(panel.root, 0, 0);
+      const longWidth = panel.root.rect.width;
+
+      expect(longWidth).toBe(shortWidth);
+    });
+
+    it("every farmer row is stretched to the panel's fixed list width", () => {
+      const panel = createObserverPanel(makeActions());
+      panel.refresh(makeSnapshot());
+      computeLayout(panel.root, 0, 0);
+
+      const rows = buttons(panel.root).filter((b) => b.label.includes("Pip") || b.label.includes("Ada"));
+      expect(rows.length).toBe(2);
+      const widths = new Set(rows.map((r) => r.rect.width));
+      expect(widths.size).toBe(1);
+    });
   });
 });
