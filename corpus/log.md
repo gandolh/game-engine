@@ -4,6 +4,17 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-16] hygiene | Todo queue emptied — the two 2026-06-22 stragglers closed
+
+[farm-perishability-distance-pricing](todos/closed/2026-06-22-farm-perishability-distance-pricing.md)
+closed as **parked, not built** (its double deferral stands: 2026-06-27 deliberate skip + brief 101
+closed unbuilt 2026-07-15 with Farm in maintenance; the file remains the spec of record — refile a
+fresh brief if Farm resumes).
+[openttd-art-and-gameplay-influence](todos/closed/2026-06-22-openttd-art-and-gameplay-influence.md)
+closed as **absorbed** (all concrete children shipped or parked; rationale lives in
+citadel-art-style + the shipped briefs). Inbound links repaired (superseded brief 101, an old log
+entry, citadel-road-builder-ux). **`corpus/todos/` now has zero open items.**
+
 ## [2026-07-16] wave | 2026-07-15 todo batch wave 2 — final 3 todos closed; batch complete 10/10 (`43617b9`, `d3952ad`, `96ec2f0`)
 
 Wave 2 of the same `plan-split-dispatch` run: {debug overlay (Sonnet) ∥ farm art (opus)} → status
@@ -255,7 +266,7 @@ which was built:
 
 - **101 — Farm perishability + distance pricing** → `superseded/` (closed unbuilt). Large,
   balance-sensitive Farm feature; Farm is in maintenance mode. Spec retained in
-  [todos/2026-06-22-farm-perishability-distance-pricing.md](todos/2026-06-22-farm-perishability-distance-pricing.md).
+  [todos/closed/2026-06-22-farm-perishability-distance-pricing.md](todos/closed/2026-06-22-farm-perishability-distance-pricing.md).
 - **107 — Farm visual verification session** → `superseded/` (closed unbuilt). The eyeball
   debt is still recorded on the source briefs + the status.md "Pending" banner; run it
   opportunistically at a real GPU rather than as a tracked task.

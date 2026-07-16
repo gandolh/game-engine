@@ -160,7 +160,7 @@ Items 4–5 (snap/auto-extend, undo) are noted there as deferred follow-ups.
 ## Sources
 
 - OpenTTD wiki — building/drag tools, cost tooltips, Ctrl modifiers
-  (https://wiki.openttd.org/). Ties into [openttd-art-and-gameplay-influence](../todos/2026-06-22-openttd-art-and-gameplay-influence.md).
+  (https://wiki.openttd.org/). Ties into [openttd-art-and-gameplay-influence](../todos/closed/2026-06-22-openttd-art-and-gameplay-influence.md).
 - Cities: Skylines road tool — drag preview, red/green legality, snapping/straight
   modes (Paradox/Colossal Order official manual + community wiki).
 - Factorio — drag-build, drag-back-to-remove, ghost planning (wiki.factorio.com).

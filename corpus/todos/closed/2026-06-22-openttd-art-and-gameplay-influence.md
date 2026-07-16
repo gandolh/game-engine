@@ -1,7 +1,7 @@
 ---
 title: "OpenTTD art-style & gameplay-feel influence (research note for both games)"
 created: 2026-06-22
-status: reference
+status: closed (2026-07-16 — research absorbed; children all shipped or parked)
 tags: [citadel, farm, art, ux, research, openttd-influence]
 source: "OpenTTD research, 2026-06-22"
 ---
@@ -40,7 +40,7 @@ disciplined isometric volumes reads cleanly at every zoom**, and detail is layer
 
 Citadel already commits to **true 2:1 dimetric iso, warm terracotta roofs, a
 multi-step EDG32 palette, silhouette-first forms** (see the standing art reference
-[briefs/game/todo/96-citadel-building-art-style-reference.md](../briefs/game/todo/96-citadel-building-art-style-reference.md)).
+[briefs/game/todo/96-citadel-building-art-style-reference.md](../../briefs/game/superseded/96-citadel-building-art-style-reference.md)).
 OpenTTD validates that direction. Concrete borrowables:
 
 - **Read-at-any-zoom discipline.** OpenGFX keeps types distinguishable by silhouette
@@ -90,7 +90,7 @@ Takeaways for us:
 
 - **EDG32 only** (guard test walks engine/games/tools); all art via `EDG.*` / the
   `SWATCH` roles in
-  [palette.ts](../../games/citadel/client/src/render/sprites/palette.ts).
+  [palette.ts](../../../games/citadel/client/src/render/sprites/palette.ts).
 - Recipes stay **render-only / deterministic** — no sim impact, no import of external
   art (we *evoke*, never import; keeps "assets are code" + the licensing posture in
   brief 96).
@@ -104,3 +104,12 @@ Takeaways for us:
   [Cargo income & decay](https://wiki.openttd.org/en/Manual/Game%20Mechanics/Cargo%20income) ·
   [Production delivery](https://wiki.openttd.org/en/Manual/Production%20delivery)
 - [Gameplay-feel discussion](https://steamcommunity.com/app/1536610/discussions/0/3171072251342172865/)
+
+## Closed (2026-07-16)
+
+Closed as **absorbed** — every concrete child shipped (coverage overlay, road-connectivity
+feedback, Citadel two-way stockpile pressure) or is parked with its own spec (Farm perishability,
+closed alongside this file). The durable "why OpenTTD" rationale it carried now lives where it is
+acted on: palette/zoom discipline in [citadel-art-style.md](../../wiki/citadel-art-style.md) and the
+show-cause-and-effect feedback principle in the shipped briefs. Kept verbatim above as the research
+record.
