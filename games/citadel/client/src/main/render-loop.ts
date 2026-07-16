@@ -77,7 +77,7 @@ import {
   tick,
   CHARGE_BUILD_COST,
 } from "./sim-client";
-import { snapshotAlpha } from "../render/entity-interp";
+import { snapshotPhase, RENDER_DELAY_INTERVALS } from "../render/entity-interp";
 import { hud, uiSurface, a11yMirror, siegeHud, siegeMirror } from "./hud-panels";
 import { inspectPanel, inspectSelection, inspectMirror, closeInspect } from "./inspect";
 import {
@@ -140,6 +140,15 @@ export function loop(): void {
   const dt = lastFrameMs === 0 ? 0 : Math.min(0.1, (nowMs - lastFrameMs) / 1000);
   lastFrameMs = nowMs;
 
+  // Render-only movement interpolation phase: elapsed fraction of the measured
+  // inter-snapshot interval since the newest snapshot. positionOf renders a fixed
+  // RENDER_DELAY_INTERVALS behind the newest (a jitter buffer) so units glide
+  // between two already-arrived snapshots instead of racing the newest and holding
+  // when it's late — see entity-interp.ts. When paused there are no new snapshots,
+  // so we pass the full delay (⇒ drawn at the current tile, at rest). Computed here
+  // (before the follow-cam) so both the cam target and pushScene share it.
+  const interpPhase = paused ? RENDER_DELAY_INTERVALS : snapshotPhase(nowMs, lastSnapshotMs, snapshotIntervalMs);
+
   // --- Brief 17 placement ease-in: diff the building set against the appear map
   // (records first-seen render-clock ms per x,y,type; drops demolished keys).
   syncAppearMap(appearAt, currentBuildings, nowMs);
@@ -161,13 +170,16 @@ export function loop(): void {
   }
 
   // --- Brief 19 follow-cam glide: lerp the camera centre toward the followed
-  // villager's world position with expSmooth (a smooth glide, not a snap). The
-  // villager dot tile-steps (no interpolation yet), so the cam is the smoothing.
+  // villager's world position with expSmooth (a smooth glide, not a snap). Target
+  // the villager's INTERPOLATED position (the same render-delayed position it's
+  // drawn at), so the followed figure stays centred instead of trailing the cam by
+  // the buffer's ~2-tile latency.
   if (followId !== null) {
     const fv = villagerById(currentVillagers, followId);
     if (fv !== null) {
-      const targetX = fv.x * TILE_SIZE + TILE_SIZE / 2;
-      const targetY = fv.y * TILE_SIZE + TILE_SIZE / 2;
+      const fp = villagerInterp.positionOf(followId, interpPhase, fv.x, fv.y);
+      const targetX = fp.x * TILE_SIZE + TILE_SIZE / 2;
+      const targetY = fp.y * TILE_SIZE + TILE_SIZE / 2;
       camera.setCenter(
         expSmooth(camera.centerX, targetX, 6, dt),
         expSmooth(camera.centerY, targetY, 6, dt),
@@ -186,12 +198,6 @@ export function loop(): void {
   // re-bake). Live since brief 110 grew the solo world to 192×192 — below the
   // windowing threshold this is a no-op and the whole world is baked once.
   if (windowController.update(camera)) windowBakes++;
-
-  // Render-only movement interpolation: fraction through the gap between the two
-  // latest snapshots, from the measured inter-snapshot interval. Units glide to
-  // their new tile instead of snapping. When paused there are no new snapshots,
-  // so alpha pins to 1 (entities rest at their current tile).
-  const interpAlpha = paused ? 1 : snapshotAlpha(nowMs, lastSnapshotMs, snapshotIntervalMs);
 
   // Brief 17 FX hooks: placement ease-in (building scale/alpha) + idle bob
   // (villager Y) + render-only position interpolation (villager/raider glide).
@@ -220,8 +226,8 @@ export function loop(): void {
       // Movement-aware gait: walking villagers get a springy step hop, idle ones
       // keep the gentle sway. `isMoving` comes from the interpolator (prev≠cur).
       villagerYOffset: (v) => gaitOffset(timeSec, v.id, villagerInterp.isMoving(v.id)),
-      villagerPos: (v) => villagerInterp.positionOf(v.id, interpAlpha, v.x, v.y),
-      raiderPos: (r) => raiderInterp.positionOf(r.id, interpAlpha, r.x, r.y),
+      villagerPos: (v) => villagerInterp.positionOf(v.id, interpPhase, v.x, v.y),
+      raiderPos: (r) => raiderInterp.positionOf(r.id, interpPhase, r.x, r.y),
     },
     // Render clock drives render-only animation (the mill's rotating sails,
     // villager/raider walk cycles). performance.now — main-thread only, never sim.

@@ -17,24 +17,47 @@
  *     a despawn+respawn reusing an id) → snap to current;
  *   - an id absent from the latest snapshot → dropped (the caller won't ask).
  *
+ * Render-delay JITTER BUFFER (2026-07-16). The Worker does NOT deliver snapshots
+ * on a clean 50ms metronome: measured in-browser over ~700 arrivals the interval
+ * ranged 0.2ms→88ms around a 50ms mean (p90=64, p99=76) — setInterval coalescing +
+ * postMessage/serialization batches them into bursts and gaps. The earlier scheme
+ * raced `alpha` from prev→cur straight at the NEWEST snapshot with no buffer, so on
+ * the ~41% of gaps where the next snapshot arrived later than the smoothed interval,
+ * a unit reached its target tile and HELD there (avg ~11ms, up to ~38ms) until the
+ * late snapshot landed, then jumped — that per-tile hold-then-jump is the visible
+ * tile-stepping. The fix (matching Farm Valley's client, which buffers identically
+ * over its jittery WebSocket) is to render `RENDER_DELAY_INTERVALS` snapshots BEHIND
+ * the newest, so we only ever interpolate between snapshots that have BOTH already
+ * arrived — a late or bursty next snapshot never gates the current glide. The cost
+ * is a fixed ~2-interval (~100ms at 1×) latency, uniform across every entity, which
+ * is invisible in a watch-it-play sim (Farm carries the same 2-tick delay).
+ *
+ * `phase` (supplied by the caller) is the elapsed fraction of the *measured*
+ * interval since the newest snapshot arrived — 0 just as it lands, 1 as the next is
+ * due, and it keeps climbing past 1 during a gap. It maps to how far BEHIND the
+ * newest we draw: `behind = RENDER_DELAY_INTERVALS - phase`, where the newest tile
+ * sits at behind 0, `prev` at 1, `prevPrev` at 2. We interpolate the two history
+ * tiles bracketing `behind`, so as `phase` runs 0→1 the unit glides prevPrev→prev,
+ * and only if a gap stretches past the whole buffer (phase>2, i.e. >~100ms) does it
+ * clamp/hold at the newest tile. Measuring the interval (rather than assuming a
+ * fixed period) still keeps the glide correct across 1×/2×/4× and jitter.
+ *
  * Corner smoothing (brief 104). Sim paths are 4-connected, so a diagonal walk
  * comes down the wire as a staircase (E, S, E, S, …). Straight linear interp
  * turns that into a sharp zig-zag with a 90° flick at every tile — the "moves
- * unnatural on the road" read. To fix it WITHOUT touching the sim, we keep one
- * extra history tile (`prevPrev`) and drive the current `prev → cur` segment with
- * a Catmull-Rom / Hermite spline whose start tangent leans on `prevPrev` — so a
- * unit rounds the corner instead of snapping around it. The spline is exactly
- * linear on a straight run (collinear points ⇒ chord tangents ⇒ a straight line)
- * and only bends where the path actually turns; the end tangent is clamped to the
- * segment direction because we render one snapshot behind and do NOT know the
- * NEXT tile yet. Only enabled when the preceding segment was a real, non-snap
- * walked step (`histValid`); the first step out of rest, and any segment after a
- * teleport, stay linear so nothing curves off a stale pre-teleport tile.
- *
- * `alpha` is supplied by the caller from the *measured* interval between the last
- * two snapshot arrivals (snapshots pace at 1000/(20·speed) ms, so the interval
- * shrinks as the player speeds up); measuring rather than assuming a fixed period
- * keeps the glide correct across 1×/2×/4× and snapshot jitter.
+ * unnatural on the road" read. To fix it WITHOUT touching the sim we drive each
+ * segment with a Catmull-Rom / Hermite spline whose tangents lean on the
+ * neighbouring tiles, so a unit rounds the corner instead of snapping around it.
+ * The spline is exactly linear on a straight run (collinear points ⇒ chord
+ * tangents ⇒ a straight line) and only bends where the path actually turns.
+ * Because the render-delay buffer draws one segment behind, the buffered
+ * `prevPrev → prev` segment now knows BOTH its neighbours (`prevPrev-1` is absent so
+ * its start tangent is the chord, but `cur` — the tile AFTER `prev` — supplies a
+ * true Catmull end tangent), so the corner at `prev` rounds from both sides.
+ * Reaching back into that buffered segment is gated on the preceding step being a
+ * real, non-snap walked step (`histValid`); the first step out of rest, and any
+ * segment after a teleport, keep the shallow (prev→cur only) buffer so nothing
+ * curves off a stale pre-teleport tile.
  */
 
 /** Minimal shape this module needs from an entity snapshot. */
@@ -56,6 +79,24 @@ export interface InterpPos {
  * anything beyond a small slack is a reset/respawn, never a real step.
  */
 export const MAX_LERP_TILES = 2;
+
+/**
+ * How many snapshots BEHIND the newest we render (the jitter-buffer depth), in
+ * interval units. Drawing in the past lets every segment interpolate between two
+ * snapshots that have ALREADY arrived, so a late/bursty next snapshot can't force
+ * a hold (the tile-stepping). It reads from the three history tiles the
+ * interpolator keeps: newest at behind 0, `prev` at 1, `prevPrev` at 2.
+ *
+ * 1.5 is tuned for the MEASURED worker jitter (interval mean 50ms, p99 76ms): a
+ * hold only recurs when a gap exceeds 1.5× the interval (~75ms), which dropped the
+ * hold rate from ~41% to ~2% in the diagnosis. It also keeps the latency close to
+ * the pre-buffer scheme — a hair under one interval on average (behind ∈ [0.5,1.5]
+ * across a steady interval) — so villagers don't vanish into buildings a couple of
+ * tiles early on Citadel's short cozy-town paths (Farm uses 2 over its jittery
+ * WebSocket, but its paths are longer). Larger = smoother under worse jitter but
+ * more latency; smaller reintroduces the hold-then-jump stepping.
+ */
+export const RENDER_DELAY_INTERVALS = 1.5;
 
 interface Track {
   /** Tile one step BEFORE `prev` — the incoming direction for corner smoothing. */
@@ -125,42 +166,54 @@ export class EntityInterpolator {
   }
 
   /**
-   * Interpolated tile position for `id` at render fraction `alpha` (0..1 through
-   * the gap between the two latest snapshots). Falls back to `(fx, fy)` if the id
-   * is unknown (it should be present after `ingest`). Snaps to current when the
-   * last step was a teleport or the id is fresh.
+   * Interpolated tile position for `id` at render `phase` (elapsed fraction of the
+   * measured interval since the newest snapshot; 0 as it lands, ~1 as the next is
+   * due, climbing past 1 during a gap). Falls back to `(fx, fy)` if the id is
+   * unknown (it should be present after `ingest`). Snaps to current when the last
+   * step was a teleport or the id is fresh.
+   *
+   * Renders `RENDER_DELAY_INTERVALS` snapshots behind the newest (the jitter
+   * buffer): `behind = RENDER_DELAY_INTERVALS - phase` is how far back we draw, so
+   * we interpolate whichever pair of history tiles brackets `behind` — always two
+   * that have already arrived. `behind` is clamped into the tiles we actually hold
+   * (newest=0, prev=1, prevPrev=2), and only reaches into the buffered
+   * `prevPrev → prev` segment when that step was a real walked one (`histValid`).
    */
-  positionOf(id: number, alpha: number, fx: number, fy: number): InterpPos {
+  positionOf(id: number, phase: number, fx: number, fy: number): InterpPos {
     const t = this.tracks.get(id);
     if (t === undefined) return { x: fx, y: fy };
     if (t.snap) return { x: t.curX, y: t.curY };
-    const a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
 
-    // Segment (chord) direction — also the END tangent (we don't know the next
-    // tile yet, so the segment arrives heading straight along itself).
-    const dx = t.curX - t.prevX;
-    const dy = t.curY - t.prevY;
+    const p = phase < 0 ? 0 : phase;
+    // Only reach back into the prevPrev→prev segment on a clean walked step;
+    // otherwise a teleport/spawn sits at prevPrev and extending into it would
+    // smear, so keep the shallow prev→cur-only buffer (depth 1).
+    const maxBehind = t.histValid ? 2 : 1;
+    let behind = RENDER_DELAY_INTERVALS - p;
+    if (behind < 0) behind = 0;
+    if (behind > maxBehind) behind = maxBehind;
 
-    // Start tangent. With trustworthy history it's the Catmull-Rom tangent
-    // (prevPrev → cur)/2, which bends the exit off a corner; otherwise it's the
-    // chord itself, so the segment stays exactly linear (no curve off a stale or
-    // just-spawned tile). Collinear points make both tangents the chord ⇒ the
-    // Hermite reduces to a straight line on open road.
-    const m1x = t.histValid ? (t.curX - t.prevPrevX) * 0.5 : dx;
-    const m1y = t.histValid ? (t.curY - t.prevPrevY) * 0.5 : dy;
-
-    // Cubic Hermite basis on [0,1]. h01/h11 fold in so the result is p1 + a·chord
-    // when both tangents equal the chord (the straight-road / no-history case).
-    const a2 = a * a;
-    const a3 = a2 * a;
-    const h00 = 2 * a3 - 3 * a2 + 1;
-    const h10 = a3 - 2 * a2 + a;
-    const h01 = -2 * a3 + 3 * a2;
-    const h11 = a3 - a2;
-    return {
-      x: h00 * t.prevX + h10 * m1x + h01 * t.curX + h11 * dx,
-      y: h00 * t.prevY + h10 * m1y + h01 * t.curY + h11 * dy,
-    };
+    if (behind <= 1) {
+      // Segment prev → cur, local fraction a = 1 - behind (0 at prev, 1 at cur).
+      // End tangent is the chord (the tile after cur is unknown); start tangent
+      // leans on prevPrev (Catmull) with trustworthy history, else the chord.
+      const dx = t.curX - t.prevX;
+      const dy = t.curY - t.prevY;
+      const m0x = t.histValid ? (t.curX - t.prevPrevX) * 0.5 : dx;
+      const m0y = t.histValid ? (t.curY - t.prevPrevY) * 0.5 : dy;
+      return hermite(t.prevX, t.prevY, t.curX, t.curY, m0x, m0y, dx, dy, 1 - behind);
+    }
+    // Buffered segment prevPrev → prev, local fraction a = 2 - behind (0 at
+    // prevPrev, 1 at prev). Start tangent is the chord (no tile before prevPrev);
+    // end tangent is the Catmull tangent (cur − prevPrev)/2 — `cur` is the KNOWN
+    // tile after `prev` (and prev→cur is a non-snap step, checked above), so the
+    // corner at `prev` rounds from both sides. Collinear ⇒ both tangents are the
+    // chord ⇒ a straight line.
+    const chordX = t.prevX - t.prevPrevX;
+    const chordY = t.prevY - t.prevPrevY;
+    const m1x = (t.curX - t.prevPrevX) * 0.5;
+    const m1y = (t.curY - t.prevPrevY) * 0.5;
+    return hermite(t.prevPrevX, t.prevPrevY, t.prevX, t.prevY, chordX, chordY, m1x, m1y, 2 - behind);
   }
 
   /**
@@ -181,20 +234,47 @@ export class EntityInterpolator {
 }
 
 /**
- * Compute the render fraction `alpha` (0..1) through the gap between the two most
- * recent snapshots, from the render clock. Pure.
+ * Cubic Hermite interpolation of a 2D point on the segment p0→p1 with endpoint
+ * tangents (m0, m1), at local parameter a∈[0,1]. Pure. h01/h11 fold in so the
+ * result is p0 + a·(p1−p0) when both tangents equal the chord (the straight-road
+ * case), i.e. the spline reduces to a straight line on open road.
+ */
+function hermite(
+  p0x: number, p0y: number, p1x: number, p1y: number,
+  m0x: number, m0y: number, m1x: number, m1y: number,
+  a: number,
+): InterpPos {
+  const a2 = a * a;
+  const a3 = a2 * a;
+  const h00 = 2 * a3 - 3 * a2 + 1;
+  const h10 = a3 - 2 * a2 + a;
+  const h01 = -2 * a3 + 3 * a2;
+  const h11 = a3 - a2;
+  return {
+    x: h00 * p0x + h10 * m0x + h01 * p1x + h11 * m1x,
+    y: h00 * p0y + h10 * m0y + h01 * p1y + h11 * m1y,
+  };
+}
+
+/**
+ * Compute the render `phase` for {@link EntityInterpolator.positionOf}: the
+ * elapsed fraction of the measured interval since the newest snapshot arrived.
+ * Pure. NOT clamped above 1 — during a gap it keeps climbing, and positionOf's
+ * render-delay buffer turns that into "how far behind the newest to draw", only
+ * holding once the gap outlasts the whole buffer.
  *
  * @param nowMs           current render clock (performance.now)
  * @param lastSnapshotMs  render clock when the latest snapshot arrived
  * @param intervalMs      measured ms between the last two snapshot arrivals
  *
- * Returns 1 (fully at the latest snapshot) when the interval is unknown/zero, so
- * a single snapshot or a stall draws the entity at rest rather than mid-lerp.
+ * Returns {@link RENDER_DELAY_INTERVALS} (⇒ drawn at the newest tile, at rest)
+ * when the interval is unknown/zero, so a single snapshot or a stall draws the
+ * entity at its current tile rather than mid-lerp.
  */
-export function snapshotAlpha(nowMs: number, lastSnapshotMs: number, intervalMs: number): number {
-  if (intervalMs <= 0) return 1;
-  const a = (nowMs - lastSnapshotMs) / intervalMs;
-  return a < 0 ? 0 : a > 1 ? 1 : a;
+export function snapshotPhase(nowMs: number, lastSnapshotMs: number, intervalMs: number): number {
+  if (intervalMs <= 0) return RENDER_DELAY_INTERVALS;
+  const p = (nowMs - lastSnapshotMs) / intervalMs;
+  return p < 0 ? 0 : p;
 }
 
 /**

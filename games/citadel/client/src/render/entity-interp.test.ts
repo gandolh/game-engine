@@ -1,63 +1,77 @@
 /**
  * Tests for the render-only entity position interpolator. Pure logic (no GPU,
  * no DOM), so these run headlessly: ingest snapshots, then assert the
- * interpolated position at various render fractions, including the snap edge
+ * interpolated position at various render phases, including the snap edge
  * cases (new id, teleport) that must NOT smear across the map.
+ *
+ * Since 2026-07-16 positionOf renders a RENDER_DELAY_INTERVALS (=1.5) jitter
+ * buffer BEHIND the newest snapshot (see entity-interp.ts's header): `phase` is
+ * the elapsed fraction of the measured interval since the newest snapshot, and the
+ * drawn position lags by `behind = RENDER_DELAY_INTERVALS - phase` intervals
+ * (newest tile at behind 0, prev at 1, prevPrev at 2). So on a clean 3-tile
+ * straight run, phase 0 sits halfway prevPrev→prev, phase 0.5 at prev, and phase
+ * 1.5 at cur.
  */
 import { describe, it, expect } from "vitest";
-import { EntityInterpolator, snapshotAlpha, shouldIngestSnapshot, MAX_LERP_TILES } from "./entity-interp";
+import {
+  EntityInterpolator,
+  snapshotPhase,
+  shouldIngestSnapshot,
+  MAX_LERP_TILES,
+  RENDER_DELAY_INTERVALS,
+} from "./entity-interp";
 
 describe("EntityInterpolator", () => {
   it("a fresh id draws at its position (no history → no lerp)", () => {
     const interp = new EntityInterpolator();
     interp.ingest([{ id: 1, x: 5, y: 7 }]);
-    // Even mid-alpha, a brand-new id sits at its current tile (prev == cur).
-    expect(interp.positionOf(1, 0.5, 5, 7)).toEqual({ x: 5, y: 7 });
+    // Even mid-phase, a brand-new id sits at its current tile (snap flag set).
+    expect(interp.positionOf(1, 1, 5, 7)).toEqual({ x: 5, y: 7 });
   });
 
-  it("interpolates linearly between the previous and current snapshot tile", () => {
+  it("renders the jitter buffer behind the newest: prevPrev→prev→cur as phase runs 0→2", () => {
     const interp = new EntityInterpolator();
-    interp.ingest([{ id: 1, x: 0, y: 0 }]); // first: prev==cur==(0,0)
-    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step east: prev=(0,0) cur=(1,0)
-    expect(interp.positionOf(1, 0, 1, 0)).toEqual({ x: 0, y: 0 });   // start of gap
-    expect(interp.positionOf(1, 0.5, 1, 0)).toEqual({ x: 0.5, y: 0 }); // halfway
-    expect(interp.positionOf(1, 1, 1, 0)).toEqual({ x: 1, y: 0 });   // end of gap
+    interp.ingest([{ id: 1, x: 0, y: 0 }]); // fresh
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step E (first move)
+    interp.ingest([{ id: 1, x: 2, y: 0 }]); // step E again — history now valid (3 tiles)
+    // phase 0: the deepest we render (behind = RENDER_DELAY_INTERVALS = 1.5) →
+    // halfway along the buffered prevPrev→prev segment.
+    expect(interp.positionOf(1, 0, 2, 0)).toEqual({ x: 0.5, y: 0 });
+    // phase 0.5: one interval behind → exactly prev (1,0).
+    expect(interp.positionOf(1, 0.5, 2, 0)).toEqual({ x: 1, y: 0 });
+    // phase 1.5: caught up to the newest → cur (2,0).
+    expect(interp.positionOf(1, 1.5, 2, 0)).toEqual({ x: 2, y: 0 });
   });
 
-  it("clamps alpha outside [0,1]", () => {
+  it("holds at the newest tile (does not extrapolate) once a gap outlasts the buffer", () => {
     const interp = new EntityInterpolator();
     interp.ingest([{ id: 1, x: 0, y: 0 }]);
-    interp.ingest([{ id: 1, x: 2, y: 0 }]); // delta 2 == MAX_LERP_TILES → still lerps
-    expect(interp.positionOf(1, -1, 2, 0)).toEqual({ x: 0, y: 0 });
+    interp.ingest([{ id: 1, x: 1, y: 0 }]);
+    interp.ingest([{ id: 1, x: 2, y: 0 }]);
+    // phase beyond RENDER_DELAY_INTERVALS: clamps at cur, never past it.
     expect(interp.positionOf(1, 5, 2, 0)).toEqual({ x: 2, y: 0 });
-  });
-
-  it("snaps (does not lerp) on a teleport beyond MAX_LERP_TILES", () => {
-    const interp = new EntityInterpolator();
-    interp.ingest([{ id: 1, x: 0, y: 0 }]);
-    interp.ingest([{ id: 1, x: 0, y: 0 }]); // establish prev==cur, snap clears
-    interp.ingest([{ id: 1, x: MAX_LERP_TILES + 5, y: 0 }]); // big jump (load/replay)
-    // Mid-alpha must show the CURRENT tile, not a smear across the map.
-    expect(interp.positionOf(1, 0.5, MAX_LERP_TILES + 5, 0)).toEqual({ x: MAX_LERP_TILES + 5, y: 0 });
-  });
-
-  it("a one-tile diagonal step interpolates on both axes", () => {
-    const interp = new EntityInterpolator();
-    interp.ingest([{ id: 9, x: 10, y: 10 }]);
-    interp.ingest([{ id: 9, x: 11, y: 11 }]);
-    expect(interp.positionOf(9, 0.25, 11, 11)).toEqual({ x: 10.25, y: 10.25 });
+    // Negative phase clamps to the deepest buffered position (behind = 1.5).
+    expect(interp.positionOf(1, -3, 2, 0)).toEqual({ x: 0.5, y: 0 });
   });
 
   it("stays exactly linear on a straight multi-tile run (collinear ⇒ no wobble)", () => {
     const interp = new EntityInterpolator();
     interp.ingest([{ id: 1, x: 0, y: 0 }]); // fresh
-    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step E (first move — linear)
-    interp.ingest([{ id: 1, x: 2, y: 0 }]); // step E again — history now valid
-    // Even with a trustworthy incoming direction, three collinear tiles must
-    // interpolate as a straight line (the Hermite reduces to the chord).
-    expect(interp.positionOf(1, 0.25, 2, 0)).toEqual({ x: 1.25, y: 0 });
-    expect(interp.positionOf(1, 0.5, 2, 0)).toEqual({ x: 1.5, y: 0 });
-    expect(interp.positionOf(1, 0.75, 2, 0)).toEqual({ x: 1.75, y: 0 });
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step E (first move)
+    interp.ingest([{ id: 1, x: 2, y: 0 }]); // step E again — 3-tile history
+    // Buffered prevPrev→prev half (behind ∈ [1,1.5]): straight line, no wobble.
+    expect(interp.positionOf(1, 0.25, 2, 0)).toEqual({ x: 0.75, y: 0 });
+    // prev→cur half (behind ∈ [0,1]): straight line continues.
+    expect(interp.positionOf(1, 1, 2, 0)).toEqual({ x: 1.5, y: 0 });
+    expect(interp.positionOf(1, 1.25, 2, 0)).toEqual({ x: 1.75, y: 0 });
+  });
+
+  it("a one-tile diagonal first step interpolates on both axes (shallow buffer)", () => {
+    const interp = new EntityInterpolator();
+    interp.ingest([{ id: 9, x: 10, y: 10 }]);
+    interp.ingest([{ id: 9, x: 11, y: 11 }]); // first move → histValid false → buffer depth 1
+    // Only prev→cur is buffered (depth 1): phase 0.75 ⇒ behind 0.75 ⇒ a=0.25.
+    expect(interp.positionOf(9, 0.75, 11, 11)).toEqual({ x: 10.25, y: 10.25 });
   });
 
   it("rounds a staircase corner instead of interpolating straight through it", () => {
@@ -65,27 +79,36 @@ describe("EntityInterpolator", () => {
     interp.ingest([{ id: 1, x: 0, y: 0 }]); // fresh
     interp.ingest([{ id: 1, x: 1, y: 0 }]); // step E
     interp.ingest([{ id: 1, x: 1, y: 1 }]); // step S — a 90° corner at (1,0)
-    // Endpoints are pinned to the real tiles (no drift off the road).
-    expect(interp.positionOf(1, 0, 1, 1)).toEqual({ x: 1, y: 0 });
-    expect(interp.positionOf(1, 1, 1, 1)).toEqual({ x: 1, y: 1 });
-    // Mid-segment the path bends: it carries a little of the incoming E heading
-    // (x eases past the tile line) rather than snapping straight down like a
-    // linear lerp (which would sit exactly at {1, 0.5}).
-    const mid = interp.positionOf(1, 0.5, 1, 1);
+    // The corner tile (prev) is pinned exactly at behind = 1 (phase 0.5).
+    expect(interp.positionOf(1, 0.5, 1, 1)).toEqual({ x: 1, y: 0 });
+    // Leaving the corner on the prev→cur half (behind 0.5, phase 1.0), the path
+    // carries a little of the incoming E heading (x eases past the tile line)
+    // rather than snapping straight down like a linear lerp (which would sit at
+    // {1, 0.5}).
+    const mid = interp.positionOf(1, 1.0, 1, 1);
     expect(mid.x).toBeGreaterThan(1);
     expect(mid.y).toBeLessThan(0.5);
     expect(mid.x).toBeCloseTo(1.0625, 6);
     expect(mid.y).toBeCloseTo(0.4375, 6);
   });
 
-  it("does not curve off a stale tile after a teleport (segment stays linear)", () => {
+  it("snaps (does not lerp) on a teleport beyond MAX_LERP_TILES", () => {
+    const interp = new EntityInterpolator();
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]); // establish prev==cur, snap clears
+    interp.ingest([{ id: 1, x: MAX_LERP_TILES + 5, y: 0 }]); // big jump (load/replay)
+    // Any phase must show the CURRENT tile, not a smear across the map.
+    expect(interp.positionOf(1, 1, MAX_LERP_TILES + 5, 0)).toEqual({ x: MAX_LERP_TILES + 5, y: 0 });
+  });
+
+  it("does not curve off a stale tile after a teleport (buffer stays shallow + linear)", () => {
     const interp = new EntityInterpolator();
     interp.ingest([{ id: 1, x: 0, y: 0 }]);
     interp.ingest([{ id: 1, x: 50, y: 0 }]); // teleport → this segment snaps
     interp.ingest([{ id: 1, x: 51, y: 0 }]); // first post-teleport step
-    // The prior segment was a snap, so histValid is false → plain linear, not a
-    // Catmull tangent leaning on the pre-teleport tile at x=0.
-    expect(interp.positionOf(1, 0.5, 51, 0)).toEqual({ x: 50.5, y: 0 });
+    // The prior segment was a snap, so histValid is false → buffer depth 1, plain
+    // linear on prev→cur, never a Catmull tangent leaning on the pre-teleport tile.
+    expect(interp.positionOf(1, 1.0, 51, 0)).toEqual({ x: 50.5, y: 0 });
   });
 
   it("prunes ids absent from the latest snapshot", () => {
@@ -95,7 +118,7 @@ describe("EntityInterpolator", () => {
     interp.ingest([{ id: 1, x: 1, y: 0 }]); // id 2 despawned
     expect(interp.size).toBe(1);
     // An unknown id falls back to its passed-in position.
-    expect(interp.positionOf(2, 0.5, 99, 99)).toEqual({ x: 99, y: 99 });
+    expect(interp.positionOf(2, 1, 99, 99)).toEqual({ x: 99, y: 99 });
   });
 
   it("an id that despawns then respawns is snapped, not smeared", () => {
@@ -103,7 +126,7 @@ describe("EntityInterpolator", () => {
     interp.ingest([{ id: 1, x: 0, y: 0 }]);
     interp.ingest([]);                       // despawn → pruned
     interp.ingest([{ id: 1, x: 40, y: 40 }]); // reused id, far away → fresh, snap
-    expect(interp.positionOf(1, 0.5, 40, 40)).toEqual({ x: 40, y: 40 });
+    expect(interp.positionOf(1, 1, 40, 40)).toEqual({ x: 40, y: 40 });
   });
 
   describe("isMoving", () => {
@@ -152,16 +175,16 @@ describe("shouldIngestSnapshot — correction snapshots must not re-ingest a sam
   });
 });
 
-describe("snapshotAlpha", () => {
-  it("is 1 when the interval is unknown (single snapshot / stall)", () => {
-    expect(snapshotAlpha(1000, 900, 0)).toBe(1);
+describe("snapshotPhase", () => {
+  it("returns the full render delay (⇒ drawn at rest at the newest tile) when the interval is unknown", () => {
+    expect(snapshotPhase(1000, 900, 0)).toBe(RENDER_DELAY_INTERVALS);
   });
 
-  it("is the elapsed fraction of the interval, clamped to [0,1]", () => {
-    expect(snapshotAlpha(1000, 1000, 50)).toBe(0);   // just arrived
-    expect(snapshotAlpha(1025, 1000, 50)).toBe(0.5); // halfway
-    expect(snapshotAlpha(1050, 1000, 50)).toBe(1);   // at next
-    expect(snapshotAlpha(1200, 1000, 50)).toBe(1);   // overshoot clamps
-    expect(snapshotAlpha(990, 1000, 50)).toBe(0);    // negative clamps
+  it("is the elapsed fraction of the interval, NOT clamped above 1 (the buffer absorbs a gap)", () => {
+    expect(snapshotPhase(1000, 1000, 50)).toBe(0);   // just arrived
+    expect(snapshotPhase(1025, 1000, 50)).toBe(0.5); // halfway
+    expect(snapshotPhase(1050, 1000, 50)).toBe(1);   // one interval elapsed
+    expect(snapshotPhase(1150, 1000, 50)).toBe(3);   // long gap → keeps climbing
+    expect(snapshotPhase(990, 1000, 50)).toBe(0);    // negative clamps to 0
   });
 });
