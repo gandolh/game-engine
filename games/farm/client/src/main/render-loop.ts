@@ -21,6 +21,7 @@ import {
   playerFarmerId,
   lastPlayerMoveX,
   lastPlayerMoveY,
+  zoom,
   _camera,
   mousePos,
   setFocusedFarmerId,
@@ -31,6 +32,7 @@ import {
   applyFocusAndPan,
 } from "./camera";
 import { screenToTile, worldToCanvasCss } from "./screen-to-tile";
+import { drawPipFarmMarker } from "./pip-farm-marker";
 import { pushWaterDecor } from "../render/water-decor";
 import { pushFishSchools } from "../render/fish-decor";
 import { frameDataUrl } from "./sprite-icon";
@@ -942,6 +944,14 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         if (standingsChanged) standingsPostRoot.mirror?.update(standingsPost.root);
         renderTree(surface, noticeBoard.root);
         renderTree(surface, standingsPost.root);
+      }
+
+      // Pip's-farm marker — a screen-space pin above Pip's home plot, shown only once the camera
+      // is zoomed out enough that the 21 farms are otherwise indistinguishable (todo
+      // pip-farm-zoom-out-highlight). World-anchored like the diegetic HUD above; raw quads, not a
+      // panel, so it draws every frame regardless of any panel's refresh() gating.
+      if (_camera !== null) {
+        drawPipFarmMarker(surface, _camera, canvas, zoom, nowMs);
       }
 
       // Help modal — centred, top-most non-terminal overlay.
