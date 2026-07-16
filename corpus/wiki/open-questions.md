@@ -24,10 +24,19 @@ the same day — see below.)*
 > that **every mode-affecting option must be persisted in `CitadelSave`** — an invariant two fields
 > were already violating.
 
-### Live-drama spare capacity (deliberately not pursued)
-Harbor contracts (46) — mostly only the hoarder reaches the commit gate. Skills (43) — lopsided to farming. Festival (45) — physical podium gathering thin. Early-game peer trades — gated by **encounter cadence + seller stock, NOT gold**: brief [70](../briefs/game/done/70-raise-starting-gold-peer-trade-liquidity.md) lifted the cash constraint (zero `would-breach-reserve` declines) but the 15-day-close target stayed unmet because the binding constraint is `no-stock` + farmers barely meeting early. The lever (if it matters) is encounter frequency / early surplus, not liquidity.
+> **Resolved 2026-07-16 — the "live-drama spare capacity" cluster got its decisions.** All four
+> items were adjudicated by the user and filed as open todos: early peer trades → a **starting crop
+> surplus** (attacks the measured `no-stock` cause; if trades still don't close, the question closes
+> as cadence-bound/accepted); harbor contracts → **tiered contract sizes** (the perishability
+> redesign stays parked); skills → **skill-gated intentions** (behavioral diversity, not XP rates);
+> festival → **priority bump on festival days**. See `todos/2026-07-16-farm-*.md`.
 
 ## Settled premises — don't re-litigate
+
+- **Both games are in active development as of 2026-07-16 — the focus is polish, improvements, and
+  fixes toward a stable version.** The earlier "Farm is in maintenance" framing (used to park brief
+  101 on 2026-07-15) is stale; don't cite it to decline Farm work. Large new *systems* still need
+  an explicit user call (perishability remains parked by choice, not by maintenance status).
 
 - **Leader-runaway / peer-interaction.** The old "one farmer runs away wire-to-wire, field stays flat, peer layer inert" story is **STALE**. The current 21-farmer radial field self-distributes (post-day-20 lead crossings on all 3 standard seeds); peer trades close over harvested-crop surplus after brief 59 fixed the price-reference bug (`CROP_SELL_PRICE` vs `SEED_COST`) + added the `OFFER_CROP` path. Re-probe before citing any old runaway numbers.
 - **Pathfinder gotcha.** A headless `bootstrapSim` check **must** pass a `pathfinder`, or `TravelSystem` is omitted and every travel-gated action silently no-ops (false "dormant"). JS and WASM pathfinders are **not route-equivalent** — use WASM to match the determinism baseline. See [decisions.md](decisions.md).

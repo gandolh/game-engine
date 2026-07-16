@@ -4,6 +4,18 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-16] decisions | Direction call + fresh 7-todo queue (both games active, polish phase)
+
+User adjudicated the open-questions variants and set direction: **both games are in active
+development; focus = polish, improvements, fixes toward a stable version** (the "Farm is in
+maintenance" premise is retired — recorded in open-questions.md settled premises). Filed 7 todos:
+four Farm sim items (starting crop surplus, tiered harbor contracts, skill-gated intentions,
+festival priority bump), Citadel pace slowdown (with the ticks-per-day-is-a-balance-lever trap
+note), the Citadel UI-pass batch file (Status-toggle Tab reachability), and the dither-specks/
+hillshade unification (fold into next terrain pass). Terrain relief approved as-is at 1x eyeball;
+perishability stays parked by explicit choice. The live-drama spare-capacity cluster in
+open-questions.md is resolved into these todos.
+
 ## [2026-07-16] hygiene | Todo queue emptied — the two 2026-06-22 stragglers closed
 
 [farm-perishability-distance-pricing](todos/closed/2026-06-22-farm-perishability-distance-pricing.md)
