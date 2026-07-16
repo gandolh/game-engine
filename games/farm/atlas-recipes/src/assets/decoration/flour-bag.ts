@@ -1,5 +1,7 @@
 import { type PixelRecipe } from "../../types";
 
+// A folded paper flour sack: creased fold at the top, rectangular body shaded from
+// a cream sunlit left face to a tan SE side, with a small gold miller's mark.
 const recipe: PixelRecipe =
   {
     name: "decoration/flour-bag",
@@ -7,17 +9,17 @@ const recipe: PixelRecipe =
     pixels: [
       "................",
       "................",
-      "......dd........",
-      ".....WWWW.......",
-      "....WWWWWW......",
-      "....WWWWWW......",
-      "....WWoWWW......",
-      "....WoyoWW......",
-      "....WWoWWW......",
-      "....WWWWWW......",
-      "....WWWWWW......",
-      "....WWWWWW......",
-      "....WWWWWW......",
+      "....wwwwww......",
+      "....wDDDDw......",
+      "...wwwwwWWW.....",
+      "...wwwwwWWW.....",
+      "...wwwooWWW.....",
+      "...wwoyoWWW.....",
+      "...wwwooWWW.....",
+      "...wwwwwWWW.....",
+      "...wwwwwWWW.....",
+      "...wwwwWWWW.....",
+      "...WWWWWWpp.....",
       "................",
       "................",
       "................",

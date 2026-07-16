@@ -1,5 +1,8 @@
 import { type PixelRecipe } from "../../types";
 
+// A scarecrow on a cross frame: a straw sun-hat (gold brim, yellow crown), a
+// burlap head, and a red tunic shaded NW->SE (red lit face, crimson shadow) with
+// straw tufts poking from the sleeves. Cleaner read and proper shading.
 const recipe: PixelRecipe =
   {
     name: "decoration/scarecrow",
@@ -7,19 +10,19 @@ const recipe: PixelRecipe =
     pixels: [
       "................",
       "......yyy.......",
-      ".....yyyyo......",
-      "....yyyyyyo.....",
+      ".....yyyoo......",
+      "....ooooooo.....",
       "......hhH.......",
-      ".....hNhNH..k...",
-      "......hhH..kkf..",
-      "..mmmrrrrrmmmm..",
-      "..W...rxrr..W...",
-      "......rrrr......",
-      "......rxrr......",
-      "......WWW.......",
-      ".......M........",
-      ".......M........",
-      "................",
+      ".....hNhNH......",
+      "......hhH.......",
+      "..yy.RRRR.yy....",
+      ".yy.RRRRRx.yy...",
+      "....RRxRRx......",
+      "....RRRRxx......",
+      "....RRRxxx......",
+      ".....mMM........",
+      ".....mMM........",
+      "....mmMMM.......",
       "................",
     ],
   }
