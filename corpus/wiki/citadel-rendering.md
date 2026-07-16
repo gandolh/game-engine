@@ -1,6 +1,6 @@
 ---
 summary: Citadel's WebGPU-only render path — sprite-batch quads, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
-updated: 2026-07-14
+updated: 2026-07-16
 ---
 
 # Citadel — rendering & assets
@@ -92,6 +92,20 @@ via `rgbOf`, so it's EDG32-clean by construction (a test re-asserts it). Rasteri
 pack are pure (deterministic, headlessly tested); only the canvas/`createImageBitmap`
 step is browser-only. **Phase 2 (not done):** textured terrain tiles, road/wall autotile
 sprites, a gate sprite, MP owner-color differentiation.
+
+**Runtime layer scheme + landform/motion pass (2026-07-16, `b389832`/`4bc3a4b`).** The quad
+layer order is now export-pinned in `citadel-renderer.ts` (tests assert it): roads 5 <
+**coverage 6** (placement ring + catchment wash — moved from 38 so buildings stay visible on
+top of it) < light pools 9 < **entities 10** (buildings/villagers/raiders, iso-sorted) <
+ambient crowd 15 < no-road pip 39 < ghost 40; baked terrain sits below all of them. Terrain
+relief is a **hillshade** ([render/hillshade.ts](../../games/citadel/client/src/render/hillshade.ts)):
+a heightfield derived from terrain KIND (water→stone) + fBm, lit from the NW sun, choosing each
+type's LIGHT/DARK `DITHER_ACCENTS` per slope — `elevationFill` is retired for `landformFill`
+(open-grass relief is deliberately subtle; tune `SLOPE_GAIN`/`HEIGHT_GAIN`). Walker motion uses a
+**render-delay jitter buffer** in [entity-interp.ts](../../games/citadel/client/src/render/entity-interp.ts):
+snapshot arrivals jitter 0.2–88ms around the 50ms cadence, so drawing `RENDER_DELAY_INTERVALS = 1.5`
+snapshots behind the newest (unclamped `snapshotPhase`, Farm's approach) cut hold-then-jump
+stepping from ~41% of gaps to ~2%. All render-only; sim byte-untouched.
 
 **Visual polish (2026-06-21).** Render-only ideas borrowed from `tiny-world-builder`:
 elevation-biased terrain dither, a directional NW-sun building drop-shadow

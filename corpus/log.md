@@ -4,6 +4,41 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-16] wave | 2026-07-15 todo batch wave 1 — 5 UI/render todos closed (`0cae160`…`b389832`)
+
+Orchestrated via `plan-split-dispatch` in waves: {farm panel trio ∥ pip marker ∥ citadel placement}
+→ citadel walkers → citadel terrain (the three citadel chunks serialized on the `citadel-renderer.ts`
+hub after recon showed they'd collide). Five chunks, 3 Sonnet + 2 opus; one opus chunk (walkers) was
+killed mid-edit by a session limit and resumed from its own transcript cleanly.
+
+- **Farm panel trio** ([flicker](todos/closed/2026-07-15-farmers-window-flicker.md),
+  [shop height](todos/closed/2026-07-15-shop-window-too-short.md),
+  [inventory overlap](todos/closed/2026-07-15-inventory-items-overlap-labels.md)) — three caller-side
+  misuses of the `@engine/ui` layout model, no engine defect; the reusable rules (never reassign
+  `.layout`; box-mirror lists need their own bottom-edge cull; icon-over-label needs the label to
+  reserve icon size) are in [player-and-interaction.md](wiki/player-and-interaction.md).
+- **[Pip's-farm marker](todos/closed/2026-07-15-pip-farm-zoom-out-highlight.md)** — screen-space pin
+  at zoom ≤ 1.2, anchored to the static `farm-pip` region (stable under `WORLD_GEN_SEED`), not to Pip.
+- **[Citadel walker stepping](todos/closed/2026-07-15-citadel-smooth-walker-movement.md)** — the
+  diagnosis overturned the todo's premise (interp already existed; sim moves 1 tile/tick cleanly):
+  live measurement showed snapshot-arrival jitter (p99 76ms on a 50ms cadence) causing hold-then-jump
+  on 41% of gaps; fixed with a 1.5-interval render-delay buffer, hold rate → ~2%.
+- **[Placement coverage under buildings](todos/closed/2026-07-15-citadel-placement-highlight-under-buildings.md)**
+  — `LAYER_COVERAGE` 38 → 6; layer ordering now export-pinned by tests.
+- **[Terrain landforms](todos/closed/2026-07-15-citadel-terrain-landform-readability.md)** — key
+  finding: no elevation channel exists in sim data and the old "relief" was fBm uncorrelated with the
+  map; new `hillshade.ts` shades a terrain-kind-derived heightfield under the NW sun, on-palette via
+  `DITHER_ACCENTS`. Render machinery notes: [citadel-rendering.md](wiki/citadel-rendering.md).
+
+Gates run by the controller on the integrated tree: typecheck 14/14; farm-client 246, engine-core
+194, citadel-client 519 tests green; real-browser Playwright pass on both games (panel stability
+under live data churn, 5-offer shop, inventory grid, zoom-out marker, place-well coverage under
+buildings, hillshaded town map). **Machine note:** full `@citadel/client` vitest fails to start at
+default concurrency on this machine — use `--maxWorkers=2` (pre-existing, not from this wave).
+Open follow-ups: open-grass relief may want a `SLOPE_GAIN` tune after a human eyeball; walkers render
+~1 tile behind the sim (vanish-into-door slightly early — raise toward 2.0 only if stepping is still
+reported); `ditherClusters` specks still bias by the retired absolute-fBm field.
+
 ## [2026-07-15] fix | The `sack` regression was decision #27 working — horizon 70 → 90 (`9651a57`)
 
 Closed the [P1 todo](todos/closed/2026-07-15-citadel-sack-regression.md). Bisected over the

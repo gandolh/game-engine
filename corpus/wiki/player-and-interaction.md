@@ -1,6 +1,6 @@
 ---
 summary: The playable farmer Pip, the in-canvas @engine/ui GUI, hotbar, inventory, collapsible HUD panels, fishing, forageables, hover tooltips, and feature collision.
-updated: 2026-07-15
+updated: 2026-07-16
 ---
 
 # Player (Pip) & Interaction Systems
@@ -95,6 +95,26 @@ help, clock, hotbar, and the pre-existing toggles (Tab/E/J) are unchanged.
   frame 1 — the loop drains stale input once at its first frame; (3) the wealth graph clamps its
   bottom edge above the playback bar's rect — the open matrix pushes the bottom-left strip toward
   the canvas centre at narrow widths.
+
+### Panel-layout traps (2026-07-15 trio — flicker / shop overflow / inventory overlap)
+
+Three caller-side misuses of the `@engine/ui` layout model, fixed `0cae160`/`8de2572`/`9744207`
+(closed todos have the full stories). The rules to carry forward: (1) **never reassign `.layout`**
+on a node after construction — a partial `{ width, height }` literal silently drops
+`align`/`gap` back to theme defaults (the Farmers flicker: row width tracked per-tick text);
+(2) **the box-mirror scroll pattern has no clipping** — `computeLayout` never clips children to a
+container's height, so any plain-box list needs its own bottom-edge cull in `syncVisibleRows`
+(pattern now in `observer-panel.ts` + `slate-billboard.ts`) or content spills past the panel
+(the Shop pumpkin row); (3) **a label an icon is painted over must reserve the icon's real size**
+(`layout: { width: ICON_SIZE, height: ICON_SIZE }`), not its text metrics — `hotbar.ts` had it,
+`inventory.ts` didn't.
+
+### Pip's-farm marker (2026-07-16)
+
+At zoom ≤ 1.2, [`main/pip-farm-marker.ts`](../../games/farm/client/src/main/pip-farm-marker.ts)
+draws a constant-size screen-space pin (gold diamond + "PIP'S FARM" label) anchored above the
+static `farm-pip` region — region-anchored, not Pip-tracking, so it's stable while Pip wanders
+(`528bd4d`).
 
 ## Pip — a real farmer driven by input
 
