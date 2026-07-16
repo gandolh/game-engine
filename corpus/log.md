@@ -4,6 +4,32 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-16] wave | 2026-07-15 todo batch wave 2 — final 3 todos closed; batch complete 10/10 (`43617b9`, `d3952ad`, `96ec2f0`)
+
+Wave 2 of the same `plan-split-dispatch` run: {debug overlay (Sonnet) ∥ farm art (opus)} → status
+panel (Sonnet). The overlay chunk was demoted senior→junior after recon showed the engine hoist
+already existed — the reference-pattern rule paying off.
+
+- **[Citadel debug overlay](todos/closed/2026-07-15-citadel-fps-debug-overlay.md)** (`43617b9`) —
+  pure reuse of `engine/core/src/debug/overlay.ts`; dev-only, bottom-right (top-left is the
+  resource/siege corner) via a new additive `OverlayCorner` engine option, Farm pixel-identical.
+- **[Citadel collapsible Status](todos/closed/2026-07-15-citadel-status-collapsible-panel.md)**
+  (`d3952ad`) — brief-117 pattern + `citadel.ui.panels.v1` prefs port; **defaults OPEN** (siege
+  warning signal); the 117 zero-rect trap pre-empted with a size-key sentinel. **Follow-up worth a
+  todo if it bites:** `input.ts` doesn't forward keydown to `siegeDispatcher`, so the toggle isn't
+  canvas-Tab reachable (pre-existing; mouse + a11y-mirror paths work).
+- **[Farm big-asset art](todos/closed/2026-07-15-farm-big-asset-quality.md)** (`96ec2f0`) — 23
+  recipes (5 cottages, 4 trees, stones/cairn, 12 props) to Citadel's technique bar strictly on
+  EDG32; frames unchanged; committed atlas artifacts regenerated in-commit; before/after =
+  `npm run preview` at `96ec2f0` vs parent.
+
+Gates on the integrated tree: typecheck 14/14; farm-client 246, citadel-client 535 (+16 from the
+panel chunk), engine-core 194, atlas-builder 7, atlas-recipes 8; integrated browser pass (Status
+toggle open-by-default + overlay bottom-right in one Citadel session; Farm world loads the new art;
+bonus — the day's shop slate led with Pumpkin, re-confirming wave 1's height fix on the original
+offending item). Citadel client vitest hit the documented default-concurrency flake once mid-wave;
+`--maxWorkers=2` remains the rule on this machine.
+
 ## [2026-07-16] wave | 2026-07-15 todo batch wave 1 — 5 UI/render todos closed (`0cae160`…`b389832`)
 
 Orchestrated via `plan-split-dispatch` in waves: {farm panel trio ∥ pip marker ∥ citadel placement}

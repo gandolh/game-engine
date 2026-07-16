@@ -96,6 +96,14 @@ help, clock, hotbar, and the pre-existing toggles (Tab/E/J) are unchanged.
   bottom edge above the playback bar's rect — the open matrix pushes the bottom-left strip toward
   the canvas centre at narrow widths.
 
+**Citadel counterpart (2026-07-16, `d3952ad`):** Citadel's Status strip uses the same pattern via
+its own `main/panel-prefs.ts` + `main/status-panel.ts` (`citadel.ui.panels.v1`; a from-scratch port —
+games never import each other). Its Status panel defaults **OPEN** (it's the siege warning signal,
+not an opt-in data dive) and `status-panel.ts` is kept separate from `hud-panels.ts` so it
+unit-tests without `sim-client.ts`'s import-time live client. The engine `DebugOverlay` also grew an
+additive `OverlayCorner` option (`43617b9`) — Farm's default is unchanged; Citadel mounts it
+bottom-right (top-left is the resource/siege HUD corner).
+
 ### Panel-layout traps (2026-07-15 trio — flicker / shop overflow / inventory overlap)
 
 Three caller-side misuses of the `@engine/ui` layout model, fixed `0cae160`/`8de2572`/`9744207`
