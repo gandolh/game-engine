@@ -2,8 +2,9 @@ import { UISurface, createInputDispatcher, createA11yMirror } from "@engine/ui";
 import type { InputDispatcher, A11yMirror } from "@engine/ui";
 import { createResourceHud } from "../ui/resource-hud";
 import type { ResourceHud } from "../ui/resource-hud";
-import { createSiegeHud } from "../ui/siege-hud";
 import type { SiegeHud } from "../ui/siege-hud";
+import { createStatusPanel } from "./status-panel";
+import { createPanelPrefs } from "./panel-prefs";
 import { renderer } from "./renderer-state";
 import { a11yMount, siegeA11yMount } from "./dom";
 import { togglePause, setSpeedAndResume } from "./sim-client";
@@ -46,21 +47,37 @@ export function initResourceHud(): void {
 
 // Chunk 1A (brief 106): the siege/hazard HUD — a SECOND top-row in-canvas UI root, anchored
 // directly below the resource HUD (see the dynamic `hudBottom`/`siegeHudBottom` anchoring in
-// render-loop.ts's loop()). Read-only (no buttons), so — like the villager panel — it needs no
-// input dispatcher for ACTIVATION, but it gets one anyway purely for CLICK CONSUMPTION (mirrors
-// villagerDispatcher's "FIX B": without it, a stray click on the readout would fall through to
-// world build/pan). It keeps its own a11y mirror (a sixth hidden mount) so screen-reader users
-// still get the threat/defense/keep/fire/disease/mode readout.
+// render-loop.ts's loop()). It keeps its own a11y mirror (a sixth hidden mount) so screen-reader
+// users still get the threat/defense/keep/fire/disease/mode readout.
 export let siegeHud: SiegeHud | undefined;
 export let siegeDispatcher: InputDispatcher | undefined;
 export let siegeMirror: A11yMirror | undefined;
 
+/** `window.localStorage` can itself throw in strict-privacy browser modes (not just on get/set
+ *  item) — guard the access, not just the calls, and fall back to in-memory prefs. Mirrors
+ *  Farm Valley's `main/panels.ts::safeLocalStorage`. */
+function safeLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+// Todo 2026-07-15-citadel-status-collapsible-panel: shared collapsible-panel open/closed store,
+// built once. Currently backs only status-panel.ts's "status" section, but lives at module scope
+// (like Farm's `panelPrefs` in `main/panels.ts`) so a future collapsible panel can share the same
+// store instead of inventing a second one.
+const panelPrefs = createPanelPrefs(safeLocalStorage());
+
 /**
- * Chunk 1A (brief 106): the siege/hazard HUD as a SECOND top-row UI root. Called once from
- * boot.ts, after initResourceHud().
+ * Chunk 1A (brief 106) + todo 2026-07-15-citadel-status-collapsible-panel: the siege/hazard HUD
+ * as a SECOND top-row UI root, now collapsible behind its "Status" toggle (built in
+ * `status-panel.ts` — see that module's doc for the collapse structure + the default-OPEN
+ * rationale). Called once from boot.ts, after initResourceHud().
  */
 export function initSiegeHud(): void {
-  siegeHud = createSiegeHud();
+  siegeHud = createStatusPanel(panelPrefs);
   siegeDispatcher = createInputDispatcher(() => siegeHud?.root ?? null);
   if (siegeA11yMount !== null) {
     siegeMirror = createA11yMirror(siegeA11yMount, { rootLabel: "Siege & hazards" });

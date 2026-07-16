@@ -101,6 +101,16 @@ import { coverageOverlay, lastUiX, lastUiY } from "./input";
 let barLaidOutH = -1;
 let barTopY = 0;
 
+// Todo 2026-07-15-citadel-status-collapsible-panel: the siege/hazard HUD's "Status" toggle is
+// now collapsible and may start CLOSED (a returning player who previously collapsed it — see
+// panel-prefs.ts). A closed panel's first refresh() returns `false` (see hud-panels.ts's
+// createStatusPanel), which would leave its root at the zero rect on load — an unclickable
+// toggle button (the exact trap Farm's brief 117 hit; see player-and-interaction.md). This
+// size-key sentinel mirrors Farm's `matrixLaidOutSize`/`rcLaidOutW`: starting at "" guarantees a
+// mismatch on the very first frame, forcing that first layout regardless of `siegeContentChanged`,
+// and re-anchoring on canvas resize thereafter.
+let siegeLaidOutSizeKey = "";
+
 let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT sim)
 
 /** Count of windowed re-bakes since boot. Diagnostic only — read by the boot.ts dev hook. */
@@ -374,9 +384,14 @@ export function loop(): void {
     const hudBottom = hud.root.rect.y + hud.root.rect.height;
     let siegeHudBottom = hudBottom;
     if (siegeHud !== undefined) {
-      if (siegeContentChanged) {
+      // Todo 2026-07-15-citadel-status-collapsible-panel: `siegeSizeKey` mismatching on the
+      // first frame (and on resize) forces the layout pass even when the "Status" panel starts
+      // collapsed and `siegeContentChanged` is `false` — see the sentinel's doc above.
+      const siegeSizeKey = `${canvas.clientWidth}x${canvas.clientHeight}`;
+      if (siegeContentChanged || siegeLaidOutSizeKey !== siegeSizeKey) {
         computeLayout(siegeHud.root, 8, Math.round(hudBottom + 4));
         siegeMirror?.update(siegeHud.root);
+        siegeLaidOutSizeKey = siegeSizeKey;
       }
       renderTree(uiSurface, siegeHud.root, CITADEL_THEME);
       siegeHudBottom = siegeHud.root.rect.y + siegeHud.root.rect.height;
