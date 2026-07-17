@@ -1,25 +1,29 @@
 import type { SimContext, System, World } from "@engine/core";
+import { createDeliberateSystem } from "@engine/core/agent";
 import type { GameEntity } from "../../components";
-import { getDeliberate } from "../../agents/registry";
+import { personalityRegistry } from "../../agents/registry";
 
+/**
+ * Farm's deliberation loop is the engine's generic PERCEIVE → ACT dispatch,
+ * wired to Farm's personality registry and its human-player skip. Behavior is
+ * identical to the previous hand-rolled loop; kept as a class so the scheduler
+ * registration (`new DeliberateSystem(world)`) and the system name are unchanged.
+ */
 export class DeliberateSystem implements System {
   readonly name = "DeliberateSystem";
+  private readonly inner: System;
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.inner = createDeliberateSystem(world, {
+      name: "DeliberateSystem",
+      registry: personalityRegistry,
+      perceiveState: "PERCEIVE",
+      actState: "ACT",
+      shouldSkip: (agent) => agent.player !== undefined,
+    });
+  }
 
   run(ctx: SimContext): void {
-    const farmers = this.world.query("fsm", "personality", "intentions", "beliefs", "desires");
-    for (const farmer of farmers) {
-      if (farmer.fsm.current !== "PERCEIVE") continue;
-
-      if (farmer.player !== undefined) continue;
-      const fn = getDeliberate(farmer.personality.kind);
-      if (fn) {
-        fn(farmer, { tick: ctx.tick });
-      } else {
-        farmer.intentions.queue.length = 0;
-      }
-      farmer.fsm.current = "ACT";
-    }
+    this.inner.run(ctx);
   }
 }

@@ -1,6 +1,7 @@
 
 
 import type { SimContext, System, World } from "@engine/core";
+import { applyRelationshipDelta } from "@engine/core/agent";
 import type { GameEntity } from "../../components";
 import { ONT_ENCOUNTER } from "../../protocols/encounter";
 import { ONT_MARKET } from "../../protocols/market";
@@ -78,7 +79,6 @@ export function applyTrustDelta(farmer: GameEntity, peerId: number, delta: numbe
   if (!farmer.trust) {
     farmer.trust = { byId: new Map<number, number>() };
   }
-  const current = farmer.trust.byId.get(peerId) ?? 0.5;
-  const next = Math.max(0, Math.min(1, current + delta));
-  farmer.trust.byId.set(peerId, next);
+  // Engine relationship ledger, unit-trust scale (0..1, neutral 0.5).
+  applyRelationshipDelta(farmer.trust, peerId, delta);
 }

@@ -1,4 +1,5 @@
-
+// Canonical pair/directed keys are the engine's relationship primitives.
+export { pairKey, directedKey } from "@engine/core/agent";
 
 export const RIVAL_CUTOFF = 0.25;
 
@@ -24,14 +25,4 @@ export interface FreshRivalry {
   bId: number;
   score: number;
   kind: "rivalry" | "alliance";
-}
-
-export function pairKey(a: number, b: number): string {
-  const lo = a < b ? a : b;
-  const hi = a < b ? b : a;
-  return `${lo}:${hi}`;
-}
-
-export function directedKey(from: number, to: number): string {
-  return `${from}->${to}`;
 }

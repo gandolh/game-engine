@@ -1,3 +1,4 @@
+import { createRegistry } from "@engine/core/agent";
 import type { GameEntity } from "../components";
 import type { MeetBody, OfferSeedBody, OfferBeanBody } from "../protocols/encounter";
 
@@ -34,16 +35,16 @@ interface PeerTradeHooks {
   respondCrop?: RespondPeerOfferFn;
 }
 
-const registry = new Map<string, PeerTradeHooks>();
+// A second personality-keyed registry (peer-trade hooks), built on the engine's
+// generic registry. The stored value is the hooks bundle rather than a
+// deliberator fn. Label preserves the original duplicate-registration message.
+const registry = createRegistry<PeerTradeHooks>("Peer-trade hooks");
 
 export function registerPeerTradeHooks(
   personality: string,
   hooks: PeerTradeHooks,
 ): void {
-  if (registry.has(personality)) {
-    throw new Error(`Peer-trade hooks already registered: ${personality}`);
-  }
-  registry.set(personality, hooks);
+  registry.register(personality, hooks);
 }
 
 export function getPeerTradeHooks(personality: string): PeerTradeHooks | undefined {

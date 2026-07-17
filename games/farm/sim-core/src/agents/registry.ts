@@ -1,20 +1,16 @@
+import { createPersonalityRegistry, type DeliberationContext } from "@engine/core/agent";
 import type { GameEntity } from "../components";
+
+export type DeliberateContext = DeliberationContext;
 
 export type DeliberateFn = (farmer: GameEntity, ctx: DeliberateContext) => void;
 
-export interface DeliberateContext {
-  tick: number;
-}
-
-const registry = new Map<string, DeliberateFn>();
+export const personalityRegistry = createPersonalityRegistry<GameEntity>();
 
 export function registerPersonality(name: string, fn: DeliberateFn): void {
-  if (registry.has(name)) {
-    throw new Error(`Personality already registered: ${name}`);
-  }
-  registry.set(name, fn);
+  personalityRegistry.register(name, fn);
 }
 
 export function getDeliberate(name: string): DeliberateFn | undefined {
-  return registry.get(name);
+  return personalityRegistry.get(name);
 }

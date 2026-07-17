@@ -4,6 +4,7 @@ import type {
   World,
   AgentMessage,
 } from "@engine/core";
+import { OfferLedger } from "@engine/core/agent";
 import type { GameEntity, CropKind } from "../../components";
 import { findById } from "../entity-helpers";
 import { debitCrop, bankHarvest } from "../../economy";
@@ -26,40 +27,31 @@ interface PendingOffer {
   offer: OfferSeedBody;
   senderId: number;
   recipientId: number;
-  tick: number;
-  commodity: TradeCommodity; 
+  commodity: TradeCommodity;
 }
 
 export class EncounterTradeSystem implements System {
   readonly name = "EncounterTradeSystem";
 
-  private readonly pendingOffers = new Map<string, PendingOffer>();
-  private readonly resolvedHandshakes = new Set<string>(); 
+  // Contract-net handshake bookkeeping (in-flight offers + TTL + reply dedup)
+  // is the engine's generic OfferLedger; the payload carries Farm's trade data.
+  private readonly ledger = new OfferLedger<PendingOffer>(OFFER_TTL_TICKS);
 
   constructor(private readonly world: World<GameEntity>) {}
 
   _resetForTests(): void {
-    this.pendingOffers.clear();
-    this.resolvedHandshakes.clear();
+    this.ledger.clear();
   }
 
   run(ctx: SimContext): void {
-    this.expireOffers(ctx.tick);
+    this.ledger.expire(ctx.tick);
 
-    this.resolvedHandshakes.clear();
+    this.ledger.beginHandshakeRound();
     let didWork = true;
     let safety = 0;
-    while (didWork && safety < 8) { 
+    while (didWork && safety < 8) {
       didWork = this.processInboxes(ctx);
       safety += 1;
-    }
-  }
-
-  private expireOffers(tick: number): void {
-    for (const [id, p] of this.pendingOffers) {
-      if (tick - p.tick > OFFER_TTL_TICKS) {
-        this.pendingOffers.delete(id);
-      }
     }
   }
 
@@ -94,8 +86,7 @@ export class EncounterTradeSystem implements System {
         } else {
           const body = msg.body as { offerId?: string };
           const offerId = body.offerId;
-          if (typeof offerId === "string" && !this.resolvedHandshakes.has(offerId)) {
-            this.resolvedHandshakes.add(offerId);
+          if (typeof offerId === "string" && this.ledger.claimHandshake(offerId)) {
             this.dispatch(farmer, msg, ctx);
           }
         }
@@ -191,18 +182,16 @@ export class EncounterTradeSystem implements System {
     commodity: TradeCommodity,
     tick: number,
   ): void {
-    if (this.pendingOffers.has(offer.offerId)) return; 
+    if (this.ledger.has(offer.offerId)) return;
 
     const peer = findById(this.world, toId, "farmer", "inbox");
     if (!peer || !peer.inbox) return;
 
-    this.pendingOffers.set(offer.offerId, {
-      offer,
-      senderId: fromId,
-      recipientId: toId,
+    this.ledger.add(
+      offer.offerId,
+      { offer, senderId: fromId, recipientId: toId, commodity },
       tick,
-      commodity,
-    });
+    );
 
     peer.inbox.messages.push({
       performative: PERFORMATIVE.PROPOSE,
@@ -223,33 +212,31 @@ export class EncounterTradeSystem implements System {
     if (farmer.id === undefined) return;
     if (sender === "world" || typeof sender !== "number") return;
 
-    if (!this.pendingOffers.has(offer.offerId)) {
-      this.pendingOffers.set(offer.offerId, {
-        offer,
-        senderId: sender,
-        recipientId: farmer.id,
-        tick: ctx.tick,
-        commodity,
-      });
+    if (!this.ledger.has(offer.offerId)) {
+      this.ledger.add(
+        offer.offerId,
+        { offer, senderId: sender, recipientId: farmer.id, commodity },
+        ctx.tick,
+      );
     }
 
     const personality = farmer.personality?.kind;
     if (!personality) {
       this.sendDecline(farmer.id, sender, offer.offerId, "no-personality", ctx.tick);
-      this.pendingOffers.delete(offer.offerId);
+      this.ledger.remove(offer.offerId);
       return;
     }
     const hooks = getPeerTradeHooks(personality);
     if (!hooks) {
       this.sendDecline(farmer.id, sender, offer.offerId, "no-hooks", ctx.tick);
-      this.pendingOffers.delete(offer.offerId);
+      this.ledger.remove(offer.offerId);
       return;
     }
 
     const responder = commodity === "crop" ? hooks.respondCrop : hooks.respond;
     if (!responder) {
       this.sendDecline(farmer.id, sender, offer.offerId, "no-crop-responder", ctx.tick);
-      this.pendingOffers.delete(offer.offerId);
+      this.ledger.remove(offer.offerId);
       return;
     }
     const result = responder(farmer, offer, sender, { tick: ctx.tick });
@@ -264,7 +251,7 @@ export class EncounterTradeSystem implements System {
         result.reason ?? "declined",
         ctx.tick,
       );
-      this.pendingOffers.delete(offer.offerId);
+      this.ledger.remove(offer.offerId);
     }
   }
 
@@ -291,15 +278,15 @@ export class EncounterTradeSystem implements System {
     body: AcceptBody,
     sender: number | "world",
   ): void {
-    const pending = this.pendingOffers.get(body.offerId);
+    const pending = this.ledger.get(body.offerId);
     if (!pending) return;
     if (farmer.id === undefined) return;
-    if (sender !== pending.recipientId) return; 
-    if (farmer.id !== pending.senderId) return; 
+    if (sender !== pending.recipientId) return;
+    if (farmer.id !== pending.senderId) return;
 
     const initiator = findById(this.world, pending.senderId, "farmer", "inbox");
     const acceptor = findById(this.world, pending.recipientId, "farmer", "inbox");
-    this.pendingOffers.delete(body.offerId);
+    this.ledger.remove(body.offerId);
     if (!initiator || !acceptor) return;
     if (!initiator.inventory || !acceptor.inventory) return;
 
@@ -307,7 +294,7 @@ export class EncounterTradeSystem implements System {
   }
 
   private handleDecline(body: DeclineBody): void {
-    this.pendingOffers.delete(body.offerId);
+    this.ledger.remove(body.offerId);
   }
 
   private applyTransfer(
@@ -395,11 +382,11 @@ export class EncounterTradeSystem implements System {
   }
 
   _pendingOfferCount(): number {
-    return this.pendingOffers.size;
+    return this.ledger.size;
   }
 
   _hasPendingOffer(offerId: string): boolean {
-    return this.pendingOffers.has(offerId);
+    return this.ledger.has(offerId);
   }
 
   _seedPendingForTests(p: {
@@ -409,12 +396,15 @@ export class EncounterTradeSystem implements System {
     tick: number;
     offer: OfferSeedBody;
   }): void {
-    this.pendingOffers.set(p.offerId, {
-      offer: p.offer,
-      senderId: p.senderId,
-      recipientId: p.recipientId,
-      tick: p.tick,
-      commodity: "seed",
-    });
+    this.ledger.add(
+      p.offerId,
+      {
+        offer: p.offer,
+        senderId: p.senderId,
+        recipientId: p.recipientId,
+        commodity: "seed",
+      },
+      p.tick,
+    );
   }
 }

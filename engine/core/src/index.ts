@@ -3,6 +3,7 @@ export * from "./commands";
 export * from "./placement";
 export * from "./ecs";
 export * from "./sim";
+export * from "./agent";
 export * from "./render";
 export * from "./assets";
 export * from "./debug";

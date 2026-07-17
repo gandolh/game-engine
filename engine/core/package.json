@@ -9,6 +9,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./agent": "./src/agent/index.ts",
     "./runtime": "./src/runtime/index.ts",
     "./ecs": "./src/ecs/index.ts",
     "./sim": "./src/sim/index.ts",
@@ -34,6 +35,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./agent": {
+        "types": "./dist/agent/index.d.ts",
+        "default": "./dist/agent/index.js"
       },
       "./runtime": {
         "types": "./dist/runtime/index.d.ts",
