@@ -1,0 +1,16 @@
+{
+  "name": "library-consumer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Out-of-workspace acceptance fixture: installs the @engine/* npm-pack tarballs via file: and runs a Node smoke against the built dist/, proving zero resolution back into the monorepo source.",
+  "type": "module",
+  "scripts": {
+    "smoke": "node smoke.mjs",
+    "test": "node smoke.mjs"
+  },
+  "dependencies": {
+    "@engine/core": "file:./tarballs/engine-core-0.1.0.tgz",
+    "@engine/ui": "file:./tarballs/engine-ui-0.1.0.tgz",
+    "@engine/wasm-modules": "file:./tarballs/engine-wasm-modules-0.1.0.tgz"
+  }
+}
