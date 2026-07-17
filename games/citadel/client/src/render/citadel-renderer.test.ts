@@ -559,17 +559,21 @@ describe("ditherClusters", () => {
   const allTypes: TerrainType[] = [
     TerrainType.Grass, TerrainType.Water, TerrainType.Forest, TerrainType.Stone, TerrainType.Rough,
   ];
+  // Structural (count/color/bounds) properties don't depend on the hillshade
+  // bias, so a flat sampler is enough here — the bias itself is exercised on a
+  // synthetic ridge in hillshade.test.ts (agreement with `landformFill`).
+  const flatSampler = (): number => 0.5;
 
   it("is deterministic: identical cluster set across calls", () => {
-    const a = ditherClusters(8, 8, TerrainType.Grass);
-    const b = ditherClusters(8, 8, TerrainType.Grass);
+    const a = ditherClusters(flatSampler, 8, 8, TerrainType.Grass);
+    const b = ditherClusters(flatSampler, 8, 8, TerrainType.Grass);
     expect(b).toEqual(a);
   });
 
   it("emits 1-3 clusters per cell", () => {
     for (const t of allTypes) {
       for (let i = 0; i < 50; i++) {
-        const n = ditherClusters(i, i * 2, t).length;
+        const n = ditherClusters(flatSampler, i, i * 2, t).length;
         expect(n).toBeGreaterThanOrEqual(1);
         expect(n).toBeLessThanOrEqual(3);
       }
@@ -579,7 +583,7 @@ describe("ditherClusters", () => {
   it("every cluster color is a valid EDG swatch, for every terrain type", () => {
     for (const t of allTypes) {
       for (let i = 0; i < 40; i++) {
-        for (const c of ditherClusters(i * 3, i, t)) {
+        for (const c of ditherClusters(flatSampler, i * 3, i, t)) {
           expect(EDG_HEXES.has(c.hex.toLowerCase())).toBe(true);
         }
       }
@@ -589,7 +593,7 @@ describe("ditherClusters", () => {
   it("clusters stay inside the tile bounds", () => {
     for (const t of allTypes) {
       for (let i = 0; i < 30; i++) {
-        for (const c of ditherClusters(i, i + 5, t)) {
+        for (const c of ditherClusters(flatSampler, i, i + 5, t)) {
           expect(c.x).toBeGreaterThanOrEqual(0);
           expect(c.y).toBeGreaterThanOrEqual(0);
           expect(c.x + c.size).toBeLessThanOrEqual(TILE_SIZE);
@@ -619,35 +623,6 @@ describe("elevationField (relief, ported from tiny-world-builder strata)", () =>
       farDelta += Math.abs(elevationField(i, 5) - elevationField(i + ELEVATION_SCALE, 5));
     }
     expect(adjacentDelta).toBeLessThan(farDelta);
-  });
-
-  it("biases the dither light/dark mix by elevation: highs skew lighter than valleys", () => {
-    // Find a clearly-high and a clearly-low cell, then compare light-speck share.
-    const lightShare = (tx: number, ty: number): number => {
-      const cs = ditherClusters(tx, ty, TerrainType.Grass);
-      const lightHex = ditherAccents(TerrainType.Grass).light;
-      return cs.filter((c) => c.hex === lightHex).length / cs.length;
-    };
-    let highShare = 0;
-    let lowShare = 0;
-    let n = 0;
-    for (let tx = 0; tx < 60; tx++) {
-      for (let ty = 0; ty < 4; ty++) {
-        const e = elevationField(tx, ty);
-        if (e > 0.7) { highShare += lightShare(tx, ty); n++; }
-      }
-    }
-    let m = 0;
-    for (let tx = 0; tx < 60; tx++) {
-      for (let ty = 0; ty < 4; ty++) {
-        const e = elevationField(tx, ty);
-        if (e < 0.3) { lowShare += lightShare(tx, ty); m++; }
-      }
-    }
-    // Sanity: we sampled both bands, and high ground is on-average lighter.
-    expect(n).toBeGreaterThan(0);
-    expect(m).toBeGreaterThan(0);
-    expect(highShare / n).toBeGreaterThan(lowShare / m);
   });
 });
 

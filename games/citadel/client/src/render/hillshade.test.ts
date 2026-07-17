@@ -19,7 +19,7 @@ import {
   SHADE_BAND_THRESHOLD,
   type HeightSampler,
 } from "./hillshade";
-import { makeHeightSampler, landformFill, DITHER_ACCENTS } from "./terrain-dither";
+import { makeHeightSampler, landformFill, ditherClusters, DITHER_ACCENTS } from "./terrain-dither";
 
 const EDG_HEXES = new Set(Object.values(EDG).map((h) => String(h).toLowerCase()));
 
@@ -166,5 +166,53 @@ describe("landformFill (hillshaded base diamond fill)", () => {
     }
     expect(seen.has(DITHER_ACCENTS[TerrainType.Stone].dark)).toBe(true);
     expect(seen.has(DITHER_ACCENTS[TerrainType.Stone].light)).toBe(true);
+  });
+});
+
+describe("ditherClusters speck bias (unified with hillshade, brief 2026-07-16)", () => {
+  // Same stone-ridge-flanked-by-water grid as the landformFill test above: the
+  // west flank (tx 5..7) is shadowed, the east flank (tx 8..10) is lit.
+  const kind = (tx: number): TerrainType =>
+    tx < 5 || tx >= 11 ? TerrainType.Water : TerrainType.Stone;
+  const grid = makeGrid(16, 16, kind);
+  const sample = makeHeightSampler(grid);
+  const accents = DITHER_ACCENTS[TerrainType.Stone];
+
+  it("skews specks light on the lit flank and dark on the shadowed flank", () => {
+    let litShare = 0, litN = 0;
+    let shadowShare = 0, shadowN = 0;
+    for (let ty = 2; ty < 14; ty++) {
+      for (let tx = 5; tx < 11; tx++) {
+        const band = shadeBand(hillshade(sample, tx, ty));
+        if (band === 0) continue; // only compare cells the base fill actually bands
+        const cs = ditherClusters(sample, tx, ty, TerrainType.Stone);
+        const share = cs.filter((c) => c.hex === accents.light).length / cs.length;
+        if (band > 0) { litShare += share; litN++; } else { shadowShare += share; shadowN++; }
+      }
+    }
+    expect(litN).toBeGreaterThan(0);
+    expect(shadowN).toBeGreaterThan(0);
+    expect(litShare / litN).toBeGreaterThan(shadowShare / shadowN);
+  });
+
+  it("agrees with landformFill's dark/light choice cell-by-cell most of the time", () => {
+    // Where the base fill picks the light accent, the specks on that same cell
+    // should also mostly skew light (and dark ↔ dark) — the point of the
+    // unification. "Mostly", not "always": the per-cluster hash still adds its
+    // own texture on top of the shared bias.
+    let agree = 0, total = 0;
+    for (let ty = 2; ty < 14; ty++) {
+      for (let tx = 5; tx < 11; tx++) {
+        const fill = landformFill(sample, TerrainType.Stone, tx, ty);
+        if (fill !== accents.dark && fill !== accents.light) continue; // skip neutral cells
+        const cs = ditherClusters(sample, tx, ty, TerrainType.Stone);
+        const lightCount = cs.filter((c) => c.hex === accents.light).length;
+        const speckLeansLight = lightCount * 2 >= cs.length;
+        if (speckLeansLight === (fill === accents.light)) agree++;
+        total++;
+      }
+    }
+    expect(total).toBeGreaterThan(0);
+    expect(agree / total).toBeGreaterThan(0.5);
   });
 });

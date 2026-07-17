@@ -87,7 +87,7 @@ export function makeTerrainDecorate(
         // centre (kept inside the diamond by scaling their tile-space offset to
         // the diamond's half extents).
         const c0 = iso.tileCenterToIso(tx, ty);
-        for (const c of ditherClusters(tx, ty, t)) {
+        for (const c of ditherClusters(sampler, tx, ty, t)) {
           // Map the cluster's in-tile (x,y)∈[0,TILE_SIZE) to a diamond-local
           // offset: shrink toward centre so specks stay on the diamond face.
           const fx = (c.x + c.size / 2) / TILE_SIZE - 0.5; // [-0.5,0.5]
@@ -180,9 +180,15 @@ export function fbm3(px: number, py: number): number {
  * `fbm3` sample so neighbouring cells share a smooth "height" that drifts in
  * large soft blobs (the fBm gives more organic, breathing variation than a
  * single value-noise octave did). The `ELEVATION_SCALE` divisor sets the
- * wavelength — larger = broader hills. 0 ≈ shaded valley, 1 ≈ sun-lit high
- * ground. Pure, render-only — never persisted, never touches the sim. This is
- * the palette-snapped fBm the ground fill quantizes against (see `elevationFill`).
+ * wavelength — larger = broader hills. 0 ≈ low ground, 1 ≈ high ground. Pure,
+ * render-only — never persisted, never touches the sim.
+ *
+ * This is no longer consumed directly by the base fill or the dither specks —
+ * both now read {@link hillshade}, which is a SLOPE (directional) signal, not
+ * an absolute height. This `elevationField` sample only survives as the
+ * `baseNoise` term `makeHeightSampler` feeds into `landformHeight`, giving the
+ * heightfield within-kind undulation (see hillshade.ts's module doc for why
+ * absolute-elevation banding was retired as the shading signal).
  */
 export const ELEVATION_SCALE = 11;
 
@@ -295,10 +301,30 @@ export interface DitherCluster {
 }
 
 /**
+ * Shade magnitude (either side of 0) that fully saturates the speck light/dark
+ * bias below. Same order of magnitude as the swings `hillshade()` produces
+ * across a real ridge (see hillshade.test.ts); values beyond this just clamp,
+ * they don't get "more lit/shadowed" than fully biased.
+ */
+export const SPECK_SHADE_RANGE = 1;
+
+/**
+ * Normalize a signed {@link hillshade} sample into [0,1] for the speck bias:
+ * 0 = fully shadowed-biased, 1 = fully lit-biased, 0.5 = neutral. Continuous
+ * (not the 3-band `shadeBand` quantization) so the cluster mix grades smoothly
+ * across a slope instead of snapping at the tile edge. Pure.
+ */
+export function speckLightBias(shade: number): number {
+  const norm = 0.5 + shade / (SPECK_SHADE_RANGE * 2);
+  return norm < 0 ? 0 : norm > 1 ? 1 : norm;
+}
+
+/**
  * Deterministically derive the 1–3 dither clusters for a cell from the pure
  * coordinate hash. Cluster count, positions (snapped to a 4px sub-grid so they
  * stay crisp at TILE_SIZE=16), sizes, and dark/light choice all come from
- * disjoint bit-fields of the hash → identical every call. Pure.
+ * disjoint bit-fields of the hash → identical every call. Pure (given the same
+ * `sampler`).
  *
  * CLUSTER-not-SPECKLE (cozy fidelity pass): each stamp is a chunky 2–3px block,
  * not a lone 1px pixel — the style bible wants "clusters over lone-pixel
@@ -306,7 +332,7 @@ export interface DitherCluster {
  * A single crisp 1px dot only survives on the sun-lit-high / deep-valley edges
  * where the tiny highlight/shadow accent still reads well.
  */
-export function ditherClusters(tx: number, ty: number, type: TerrainType): DitherCluster[] {
+export function ditherClusters(sampler: HeightSampler, tx: number, ty: number, type: TerrainType): DitherCluster[] {
   const accents = ditherAccents(type);
   const h = ditherHash(tx, ty, type);
   // Bias toward FEWER stamps (mostly 1) so the field reads as a calm surface
@@ -315,13 +341,15 @@ export function ditherClusters(tx: number, ty: number, type: TerrainType): Dithe
   const clusters: DitherCluster[] = [];
   // 4px sub-grid → 4 columns/rows of cells at TILE_SIZE=16, keeps stamps inset.
   const cells = TILE_SIZE / 4; // 4
-  // Coarse elevation tilts the light/dark mix: sun-lit high ground gets more
-  // light highlights, shaded low ground more dark clusters — a flat-2D echo of
-  // tiny-world-builder's height-banded terrain. The threshold the per-cluster
-  // bits race against slides with elevation (high elev → low threshold → almost
-  // always light; low elev → high threshold → more dark).
-  const elev = elevationField(tx, ty); // [0,1]
-  const lightThreshold = Math.round(3 - elev * 3); // 3 (low) … 0 (high), over a 0..3 field
+  // The same NW-lit `hillshade` signal that picks the base fill's dark/base/
+  // light band now tilts the speck mix too, so specks agree with the slope
+  // shading instead of the old absolute-fBm `elevationField` bias (which was
+  // uncorrelated with the terrain-kind-aware heightfield the base fill reads).
+  // The threshold the per-cluster bits race against slides with the bias
+  // (lit slope → low threshold → almost always light; shadowed → high
+  // threshold → more dark).
+  const bias = speckLightBias(hillshade(sampler, tx, ty)); // [0,1]
+  const lightThreshold = Math.round(3 - bias * 3); // 3 (shadowed) … 0 (lit), over a 0..3 field
   for (let i = 0; i < count; i++) {
     // Each cluster consumes a fresh 8-bit slice of the hash.
     const slice = (h >>> (i * 8)) & 0xff;
@@ -333,8 +361,9 @@ export function ditherClusters(tx: number, ty: number, type: TerrainType): Dithe
     const baseX = gx * cells;
     const baseY = gy * cells;
     size = Math.min(size, TILE_SIZE - baseX, TILE_SIZE - baseY);
-    // Elevation-biased light/dark choice — a 2-bit field (0..3) compared against
-    // the elevation-derived threshold. Highs skew light, valleys skew dark.
+    // Hillshade-biased light/dark choice — a 2-bit field (0..3) compared
+    // against the slope-derived threshold. Lit faces skew light, shadowed
+    // faces skew dark.
     const light = ((slice >>> 5) & 0x3) >= lightThreshold;
     clusters.push({
       x: baseX,
