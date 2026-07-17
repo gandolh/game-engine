@@ -12,6 +12,7 @@ import { MINIMAP_FACE } from "../ui/minimap";
 import {
   canvas,
   a11yMount,
+  siegeA11yMount,
   inspectA11yMount,
   buildBarA11yMount,
   settingsA11yMount,
@@ -22,7 +23,7 @@ import { placementState } from "./placement-wiring";
 import { terrain } from "./terrain";
 import { toasts } from "./hud-wiring";
 import { currentBuildings, currentVillagers, client } from "./sim-client";
-import { uiDispatcher, a11yMirror, siegeDispatcher } from "./hud-panels";
+import { uiDispatcher, a11yMirror, siegeDispatcher, siegeMirror } from "./hud-panels";
 import { inspectDispatcher, inspectMirror, inspectOpen, closeInspect, openInspectAtTile } from "./inspect";
 import {
   villagerPanel,
@@ -233,6 +234,11 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (active !== null && a11yMount !== null && a11yMount.contains(active)) return;
+  // Same mirror-focus guard for the siege/status panel's own a11y mount: when a real siege mirror
+  // <button> (the "Status" toggle) holds DOM focus, native Tab/Enter + the mirror's listeners
+  // drive it — don't fight them. (This is the todo-2026-07-16 fix: siegeDispatcher was missing
+  // from this whole chain, so the collapsible Status toggle was unreachable by keyboard alone.)
+  if (active !== null && siegeA11yMount !== null && siegeA11yMount.contains(active)) return;
   // Same mirror-focus guard for the inspect panel's own a11y mount: when a real inspect mirror
   // <button> holds DOM focus, native Tab/Enter + the mirror's listeners drive it — don't fight.
   if (active !== null && inspectA11yMount !== null && inspectA11yMount.contains(active)) return;
@@ -244,15 +250,19 @@ window.addEventListener("keydown", (e) => {
   if (active !== null && settingsA11yMount !== null && settingsA11yMount.contains(active)) return;
   if (active !== null && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
   const hudConsumed = uiDispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
+  // Todo 2026-07-16: forward to the siege/status dispatcher too, consistent with every other
+  // in-canvas root below — this is what makes the collapsible "Status" toggle Tab-reachable.
+  const siegeConsumed = siegeDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
   // Forward to the inspect dispatcher too (inert/null root while closed → not consumed).
   const inspectConsumed = inspectDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
   const barConsumed = buildBarDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
   // Settings modal: route Tab/Enter/Space/Arrow into the modal while it's open (null root → inert).
   const settingsConsumed = settingsDispatcher?.key({ key: e.key, shiftKey: e.shiftKey }).consumed ?? false;
-  if (hudConsumed || inspectConsumed || barConsumed || settingsConsumed) {
+  if (hudConsumed || siegeConsumed || inspectConsumed || barConsumed || settingsConsumed) {
     e.preventDefault();
     e.stopImmediatePropagation();
     a11yMirror?.setFocus(uiDispatcher.focused()?.id ?? null);
+    siegeMirror?.setFocus(siegeDispatcher?.focused()?.id ?? null);
     inspectMirror?.setFocus(inspectDispatcher?.focused()?.id ?? null);
     buildBarMirror?.setFocus(buildBarDispatcher?.focused()?.id ?? null);
     settingsMirror?.setFocus(settingsDispatcher?.focused()?.id ?? null);
