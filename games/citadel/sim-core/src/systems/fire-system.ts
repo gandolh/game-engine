@@ -24,6 +24,7 @@ import { getProductionDef, coversRect, effectiveHousingCapacity } from "../entit
 import { countNonRoadBuildings } from "./tiers";
 import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
+import { scaleTicks } from "../pacing";
 
 /** Building types that are wooden (can burn). Stone/defensive types cannot. */
 const WOODEN_TYPES = new Set([
@@ -48,7 +49,13 @@ interface FireDailyIndex {
   readonly stoneTiles: ReadonlySet<number>;
 }
 
-/** Ticks a building burns before being destroyed (at ticksPerDay=20 → 3 days). */
+/**
+ * Ticks a building burns before being destroyed/extinguished, authored at
+ * BASELINE_TICKS_PER_DAY (60 ticks = 3 days at 20 ticks/day). Re-denominated per
+ * {@link scaleTicks} at the sim's ticksPerDay so a fire always burns ~3 DAYS
+ * regardless of day length. The per-tick decay (−1/tick, +COZY_WELL_EXTINGUISH_BONUS
+ * near a well) scales WITH it, so the well's "burns out ~3× faster" ratio holds.
+ */
 const BURN_TICKS = 60;
 
 /** Interlock: a burning building suppresses output of neighbours within this radius. */
@@ -421,7 +428,7 @@ export class FireSystem implements System {
     }
     if (fs.burning || fs.destroyed) return;
     fs.burning = true;
-    fs.burnTicksLeft = BURN_TICKS;
+    fs.burnTicksLeft = scaleTicks(BURN_TICKS, state.ticksPerDay);
     // Copy branches on cozy (mechanics already do): in cozy mode a fire is a
     // tended, self-settling hearth (it smoulders, never razes — see burn-out
     // path above), so the toast reads as a recoverable nudge toward a well, not
@@ -560,7 +567,7 @@ export function igniteBuildingById(state: SimState, p: PlayerState, id: number, 
   }
   if (fs.burning || fs.destroyed) return false;
   fs.burning = true;
-  fs.burnTicksLeft = BURN_TICKS;
+  fs.burnTicksLeft = scaleTicks(BURN_TICKS, state.ticksPerDay);
   pushEvent(state, `Day ${state.day + 1}: raiders set a ${type} ablaze!`);
   return true;
 }

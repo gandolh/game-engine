@@ -13,8 +13,18 @@ import { pushEvent } from "../sim-state";
 import type { TerrainGrid } from "../world/terrain";
 import { SERVICE_RADII } from "../entities/building";
 import { computeRaiderPath, findRaiderTarget } from "./raid-spawn";
+import { scaleTicks } from "../pacing";
 
-const MOVE_INTERVAL = 3; // one tile every 3 ticks
+/**
+ * Raider march cadence: one tile every MOVE_INTERVAL ticks, authored at
+ * BASELINE_TICKS_PER_DAY. Re-denominated per {@link scaleTicks} at the sim's
+ * ticksPerDay so raiders cover the SAME tiles-per-DAY at any day length — the
+ * spawn→impact approach still takes ~days (the reaction window the scout lead +
+ * garrison sorties are balanced against), instead of collapsing to an instant
+ * rush when the day is longer. (Unlike villagers, whose 1-tile/tick glide is left
+ * unscaled, a raider's days-to-cross is a balance/telegraph property.)
+ */
+const MOVE_INTERVAL = 3;
 /** Fraction of strength a garrison sortie shaves off an intercepted raider. */
 const INTERCEPT_SHAVE = 0.25;
 
@@ -24,7 +34,7 @@ export class RaiderMovementSystem implements System {
   constructor(private readonly state: SimState, private readonly terrain: TerrainGrid) {}
 
   run(ctx: SimContext): void {
-    if (ctx.tick % MOVE_INTERVAL !== 0) return;
+    if (ctx.tick % scaleTicks(MOVE_INTERVAL, this.state.ticksPerDay) !== 0) return;
 
     // Citadel 28: per-player raiders, marching on their target player's keep
     // through that player's walls. Stable player-id order.

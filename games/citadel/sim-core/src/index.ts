@@ -30,9 +30,11 @@ export {
   buildCost,
   tierNameRequiredForLevel,
   effectiveOutputPerCycle,
+  effectiveTicksPerCycle,
   effectiveHousingCapacity,
   effectiveDefenseStrength,
 } from "./entities/building";
+export { BASELINE_TICKS_PER_DAY, scaleTicks } from "./pacing";
 export type { VillagerComponent, VillagerEntity, VillagerFsm } from "./entities/villager";
 export type { VillagerJob } from "./entities/building";
 export { isTravellingFsm } from "./entities/villager";

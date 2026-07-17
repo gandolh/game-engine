@@ -6,6 +6,7 @@
  * (Phase 2) mutable runtime economy state lives in a separate state map.
  */
 import type { EngineEntity } from "@engine/core";
+import { scaleTicks } from "../pacing";
 
 /** Goods that flow through the Citadel economy. */
 export type GoodType = "grain" | "flour" | "bread" | "wood" | "stone" | "planks" | "tools";
@@ -614,6 +615,19 @@ function outputMultiplierForLevel(level: number): number {
 /** Effective per-cycle output for a building at `level` (floored). */
 export function effectiveOutputPerCycle(def: BuildingProductionDef, level: number): number {
   return Math.floor(def.outputPerCycle * outputMultiplierForLevel(level));
+}
+
+/**
+ * Effective production-cycle length in ticks at the sim's `ticksPerDay`.
+ *
+ * `def.ticksPerCycle` is authored against {@link BASELINE_TICKS_PER_DAY} (e.g. 10
+ * ticks = 2 cycles/day at 20 ticks/day). Re-denominated with {@link scaleTicks} so
+ * a building still fires the SAME number of cycles PER DAY at any `ticksPerDay`
+ * (2 cycles/day whether the day is 20 ticks or 1200). Pure; identity at the
+ * baseline (so every headless run + test is byte-identical).
+ */
+export function effectiveTicksPerCycle(def: BuildingProductionDef, ticksPerDay: number): number {
+  return scaleTicks(def.ticksPerCycle, ticksPerDay);
 }
 
 /** Effective housing capacity for a housing building at `level` (+3 per level above 1). */

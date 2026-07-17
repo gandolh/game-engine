@@ -17,21 +17,25 @@ import {
   SERVICE_RECTS,
   effectiveOutputPerCycle,
   outputBufferCap,
+  BASELINE_TICKS_PER_DAY,
   type BuildingProductionDef,
 } from "@citadel/sim-core";
 import { grainMultiplier, type Season } from "@citadel/sim-core";
 
 // ---------------------------------------------------------------------------
-// TICKS_PER_DAY — must match games/citadel/client/src/main.ts
+// Cycle-display baseline
 // ---------------------------------------------------------------------------
 
 /**
- * The number of sim ticks per in-game day (mirrors the constant in main.ts; main.ts is the
- * browser entry point and can't be imported here without its side effects). A guard test in
- * building-info.test.ts reads main.ts's literal and asserts it equals this, so the two can't
- * silently desync.
+ * The ticks/day the production `ticksPerCycle` values are AUTHORED against — the
+ * sim's {@link BASELINE_TICKS_PER_DAY}. cycles/day is computed off THIS, not the
+ * game's live ticksPerDay: the sim scales `ticksPerCycle` by `ticksPerDay/BASELINE`
+ * (see effectiveTicksPerCycle), so actual cycles/day = ticksPerDay ÷ (ticksPerCycle
+ * × ticksPerDay/BASELINE) = BASELINE ÷ ticksPerCycle — invariant to how long the
+ * day is. Re-exported (was a hand-copied literal) so the panel and the sim can
+ * never disagree on the denominator.
  */
-export const TICKS_PER_DAY = 20;
+export const TICKS_PER_DAY = BASELINE_TICKS_PER_DAY;
 
 // ---------------------------------------------------------------------------
 // Per-type descriptions

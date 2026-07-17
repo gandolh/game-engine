@@ -23,8 +23,12 @@ import { pushEvent, playerById, releaseWorkersAt } from "../sim-state";
 import { getProductionDef, effectiveHousingCapacity } from "../entities/building";
 import type { BuildingEntity } from "../entities/building";
 import { computeDefensiveStrength, resolveSiege } from "./siege-resolution";
+import { scaleTicks } from "../pacing";
 
-const MOVE_INTERVAL = 3; // one tile every 3 ticks (matches raiders)
+// One tile every 3 ticks (matches raiders), authored at BASELINE_TICKS_PER_DAY and
+// re-denominated to the sim's ticksPerDay (see raider-movement.ts). Frozen path
+// (armies are off by default, decision #23) — scaled for consistency with raiders.
+const MOVE_INTERVAL = 3;
 
 /** On or orthogonally adjacent to the (footprint expanded by 1) rectangle. */
 function tileTouchesFootprint(tx: number, ty: number, bx: number, by: number, bw: number, bh: number): boolean {
@@ -79,7 +83,7 @@ export class ArmySystem implements System {
     const state = this.state;
     if (state.armies.length === 0) return; // solo no-op
 
-    const move = ctx.tick % MOVE_INTERVAL === 0;
+    const move = ctx.tick % scaleTicks(MOVE_INTERVAL, state.ticksPerDay) === 0;
     const toRemove: number[] = [];
 
     for (let i = 0; i < state.armies.length; i++) {

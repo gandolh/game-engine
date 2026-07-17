@@ -36,7 +36,7 @@
  * Stage: "economy" (after connectivity).
  */
 import type { System, SimContext } from "@engine/core";
-import { getProductionDef, effectiveOutputPerCycle, SERVICE_RADII, manhattanDist } from "../entities/building";
+import { getProductionDef, effectiveOutputPerCycle, effectiveTicksPerCycle, SERVICE_RADII, manhattanDist } from "../entities/building";
 import type { SimState, PlayerState } from "../sim-state";
 import { getSeason, grainMultiplier } from "../world/seasons";
 
@@ -272,8 +272,10 @@ export class ProductionSystem implements System {
           outputFactor = bufferServiceFactor(rs.outputBuffer, bufferCap, rs.serviceEma ?? 0);
         }
 
-        // Cycle timer — first fire after a full cycle has elapsed.
-        if (ctx.tick - rs.productionTick < def.ticksPerCycle) continue;
+        // Cycle timer — first fire after a full cycle has elapsed. The cycle
+        // length is re-denominated to the sim's ticksPerDay so cycles-per-DAY are
+        // invariant (identity at the baseline → byte-identical there).
+        if (ctx.tick - rs.productionTick < effectiveTicksPerCycle(def, state.ticksPerDay)) continue;
         rs.productionTick = ctx.tick;
 
         // Converters draw their input good from the owner's stockpile (goods

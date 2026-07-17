@@ -28,6 +28,7 @@ import type { BuildingEntity } from "../entities/building";
 import type { VillagerComponent } from "../entities/villager";
 import type { SimState } from "../sim-state";
 import { villagerWalkable, playerById } from "../sim-state";
+import { scaleTicks } from "../pacing";
 
 /**
  * Wave 3.5 — the glut threshold, in days-of-supply, above which a producer's OUTPUT
@@ -45,7 +46,15 @@ import { villagerWalkable, playerById } from "../sim-state";
 const GLUT_WORKER_DAYS = 8;
 import { bfsPath } from "../world/pathfinder";
 
-/** Ticks a villager spends "working" before hauling output to a store. */
+/**
+ * Ticks a villager spends "working" before hauling output to a store, authored at
+ * BASELINE_TICKS_PER_DAY. Re-denominated per {@link scaleTicks} at the sim's
+ * ticksPerDay so the hauler's dwell keeps the SAME fraction of a day — otherwise a
+ * longer day would make haulers cycle far more often relative to production,
+ * emptying buffers unnaturally and inflating the sustained-service bonus (brief
+ * 100). Villager MOVEMENT stays 1 tile/tick (walks just become a smaller slice of
+ * the scaled dwell — haulers reach work/store comfortably within a day).
+ */
 const WORK_TICKS = 5;
 
 /**
@@ -178,7 +187,7 @@ export class VillagerSystem implements System {
         break;
       case "work":
         v.ticksAtWork++;
-        if (v.ticksAtWork >= WORK_TICKS) {
+        if (v.ticksAtWork >= scaleTicks(WORK_TICKS, this.state.ticksPerDay)) {
           // Pick up the workplace's accumulated output buffer.
           const wb = this.buildingAt(v.workX, v.workY);
           if (wb !== null) {

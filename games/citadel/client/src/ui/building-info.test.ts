@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
-import { PRODUCTION_DEFS, SERVICE_RADII, SERVICE_RECTS } from "@citadel/sim-core";
+import { PRODUCTION_DEFS, SERVICE_RADII, SERVICE_RECTS, BASELINE_TICKS_PER_DAY } from "@citadel/sim-core";
 import {
   BUILDING_DESCRIPTIONS,
   TICKS_PER_DAY,
@@ -20,23 +20,30 @@ import {
 } from "./building-info";
 
 // ---------------------------------------------------------------------------
-// TICKS_PER_DAY must stay in lock-step with main/constants.ts (FIX 5b)
+// Cycle-display baseline must equal the sim's scaling baseline
 // ---------------------------------------------------------------------------
 
-describe("TICKS_PER_DAY — desync guard against main/constants.ts", () => {
-  it("equals the `const TICKS_PER_DAY` literal in main/constants.ts", () => {
-    // building-info.ts hand-copies TICKS_PER_DAY (it can't import the main/ entry chain — that's
-    // the browser entry point with side effects). Read main/constants.ts as text and assert the
-    // literal matches, so a future change to one can't silently desync the rate math. Vitest runs
-    // with cwd at the @citadel/client workspace root.
-    //
-    // Brief 114: TICKS_PER_DAY moved out of the (now-thin) src/main.ts into src/main/constants.ts
-    // as part of the main.ts module-directory split — this guard follows it there.
+describe("TICKS_PER_DAY — cycle-display baseline", () => {
+  it("equals @citadel/sim-core's BASELINE_TICKS_PER_DAY", () => {
+    // The panel's cycles/day is computed off the AUTHORING baseline (BASELINE_TICKS_PER_DAY),
+    // NOT the game's live ticksPerDay: the sim scales ticksPerCycle by ticksPerDay/BASELINE
+    // (effectiveTicksPerCycle), so actual cycles/day = BASELINE/ticksPerCycle, invariant to day
+    // length. Slowing the day (main/constants.ts TICKS_PER_DAY, now 1200) must therefore NOT move
+    // the display denominator — that is exactly this baseline, so it stays pinned to the sim's.
+    expect(TICKS_PER_DAY).toBe(BASELINE_TICKS_PER_DAY);
+  });
+
+  it("the game's day length (main/constants.ts) is a whole multiple of the baseline", () => {
+    // scaleTicks re-denominates with Math.round; keeping the game ticksPerDay an integer multiple
+    // of BASELINE means every per-tick constant scales to a whole number (no rounding drift), and
+    // cycles/day stays exact. Guards against a future ticksPerDay that isn't a clean multiple.
     const constantsPath = resolve(process.cwd(), "src/main/constants.ts");
     const src = readFileSync(constantsPath, "utf8");
     const m = src.match(/const\s+TICKS_PER_DAY\s*=\s*(\d+)\s*;/);
     expect(m, "could not find `const TICKS_PER_DAY = N;` in main/constants.ts").not.toBeNull();
-    expect(Number(m![1])).toBe(TICKS_PER_DAY);
+    const gameTicksPerDay = Number(m![1]);
+    expect(gameTicksPerDay % BASELINE_TICKS_PER_DAY).toBe(0);
+    expect(gameTicksPerDay).toBeGreaterThanOrEqual(BASELINE_TICKS_PER_DAY);
   });
 });
 
