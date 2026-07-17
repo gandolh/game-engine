@@ -4,6 +4,39 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-17] wave | 2026-07-16 build queue DONE — 5 todos built, 2 premises overturned (`b89c317`…`bbf6e43`)
+
+Two-wave `plan-split-dispatch` run ({surplus ∥ citadel-pace ∥ skill-gating} → tiered-contracts →
+festival). The opus skill-gating chunk was killed twice by session limits; the controller finished
+it inline (tests, WASM-pathfinder evidence probe, economy.md model). Two todo premises were
+overturned by measurement — the wave's most valuable output:
+
+- **Brief 70's "no-stock" was a probe artifact** ([surplus closeout](todos/closed/2026-07-16-farm-starting-crop-surplus.md)):
+  probe-70 hardcoded 20 t/d, at which EncounterSystem yields ZERO meets; at the real 1200 t/d peer
+  trades already closed by day 4-10. Surplus kept as flavor by user call (`b89c317`).
+- **"The festival venue is fine" is false** ([festival closeout](todos/closed/2026-07-16-farm-festival-priority-bump.md)):
+  3 real deliberation bugs fixed (`bbf6e43` — ap<40 gate on a 0-AP travel, tavern-first stable-sort
+  tie, deliberateSleep same-tick podium eviction) but farms are 200+ tiles from the podium at
+  8 t/tile vs a 1200-tick day → majority attendance is geometry-bound. Reopened in
+  [open-questions.md](wiki/open-questions.md) (venue / travel speed / multi-day).
+- **Citadel pace** (`186dc5e`): 60 s/day at 1×, browser-measured; per-day outcomes invariant via
+  `pacing.ts` re-denomination; sack day 71 + starve + determinism green at BOTH tick rates; old
+  saves replay byte-identically (saves carry ticksPerDay). Watch: haul efficiency ×60 → starve
+  fixture survives at real pace; Challenge raiders hop visually (~1 tile/9 s) — render follow-up.
+- **Skill-gating** (`4649bd1`): shared g/AP valuation derived from live tables; 10/10/9 of 21
+  farmers lean non-farm (19/20/15 distinct sheets), farming still #1 every seed. Foraging is the
+  dominant lean (~8/seed) — tuning note. Synthesis in [economy.md](wiki/economy.md).
+- **Harbor tiers** (`7d8bc7e`): size axis at the normal reputation tier only; zero personality-file
+  edits needed (the have≥quantity gate was already size-agnostic). All 3 non-hoarder kinds commit
+  on every seed; hoarder niche intact.
+
+**Standing methodology rule** (now in status.md + probes): behavior probes run at 1200 t/d with the
+WASM pathfinder — 20 t/d under-reports every travel-gated behavior; the JS pathfinder cannot route
+some excursion targets. Gates on the integrated tree: typecheck 14/14; farm sim-core 866 (with the
+3 world-gen property tests confirmed as pre-existing load-flaky — pass on re-run/isolation);
+citadel 309+536; farm client 246; sack/starve exit 0; Farm determinism MATCH; Citadel determinism
+byte-identical at 20 and 1200 t/d; pace verified live in-browser (20.0 ticks/s → 60 s/day).
+
 ## [2026-07-16] decisions | Direction call + fresh 7-todo queue (both games active, polish phase)
 
 User adjudicated the open-questions variants and set direction: **both games are in active

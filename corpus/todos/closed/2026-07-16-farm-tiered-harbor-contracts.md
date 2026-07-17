@@ -1,7 +1,7 @@
 ---
 title: "Farm — tiered harbor contract sizes so mid-wealth farmers can commit"
 created: 2026-07-16
-status: open
+status: closed (2026-07-17, `7d8bc7e` — size axis small/medium/large; non-hoarders commit on all seeds)
 tags: [farm, sim, economy, harbor]
 ---
 
@@ -37,3 +37,15 @@ tweaks; the full distance×freshness redesign (perishability, closed todo
 - Big-tier frequency and payoff unchanged enough that the hoarder's niche
   survives (compare hoarder gold trajectory before/after via EXPORT=json).
 - Economy page updated if the g/AP baseline moves; determinism green.
+
+## Resolution (2026-07-17)
+
+Additive `size` axis on HarborContract (small qty 2-3 ×1.3 / medium 3-5 ×1.6 / large = the
+existing tier economics, formula-unchanged), rolled only at the always-available normal reputation
+tier; silver/gold stay single-size large — the hoarder-shaped hauls. Zero personality-file changes
+needed: the `have >= quantity` eligibility gate was already size-agnostic, so shrinking the ask is
+what opens the gate. Evidence (probe-harbor-tiers.ts, 3×100d @1200 t/d WASM): conservative +
+aggressive + opportunist commit on every seed across all three sizes; silver/gold commits remain
+exclusively large; hoarder trajectory keeps rank. 856 tests green; deterministic (one extra
+Rng.pick shifts which contracts draw — by design). Nits left: `deliberateHarborContract`'s dead
+`reserve` param (pre-existing); medium rounds to large's rep at normal tier (cosmetic).

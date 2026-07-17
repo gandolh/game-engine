@@ -1,7 +1,7 @@
 ---
 title: "Farm — festival-day priority bump so farmers actually gather at the podium"
 created: 2026-07-16
-status: open
+status: closed — PARTIAL (2026-07-17, `bbf6e43` — 3 deliberation bugs fixed; majority attendance blocked by world geography)
 tags: [farm, sim, agents, festival]
 ---
 
@@ -32,3 +32,18 @@ relocating the festival — the venue is fine, the deliberation weight isn't.
   podium region during festival hours (assert via region occupancy in a test).
 - Farm output dips on festival days only marginally (no economy cliff).
 - Determinism green.
+
+## Resolution (2026-07-17)
+
+Three real bugs diagnosed via live decisionTrace reads and fixed: (1) a copy-pasted `ap<40`
+gate though travel costs 0 AP; (2) festival/tavern both at -2 with a stable sort and tavern always
+called first — tavern silently won every tie; (3) `deliberateSleep`'s head-home pull evicted podium
+arrivals the same tick. Fixes: gate removed, FESTIVAL_TEMPERAMENT dry-tolerance,
+FESTIVAL_FRONT_PRIORITY=-2 called before tavern (NOT -3 — regresses committed skill excursions,
+verified), `isLingeringAtFestival` guard (social types linger to evening). Non-festival days
+unchanged by construction; determinism green. **Acceptance NOT met and cannot be from the
+deliberation layer**: farms sit 200+ tiles from the podium at 8 ticks/tile vs a 1200-tick day (a
+traced farmer converged 152→24 tiles in a full day without arriving). The todo's adjudicated
+premise "the venue is fine, the deliberation weight isn't" is contradicted by measurement —
+reopened as an Open design question ([open-questions.md](../../wiki/open-questions.md)): venue
+location vs travel speed vs multi-day festival. probe-festival.ts kept as the evidence tool.

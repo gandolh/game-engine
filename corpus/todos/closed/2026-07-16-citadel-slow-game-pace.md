@@ -1,7 +1,7 @@
 ---
 title: "Citadel — slow the default pace so a day feels like Farm Valley's"
 created: 2026-07-16
-status: open
+status: closed (2026-07-17, `186dc5e` — 60 s/day at 1×, per-day balance invariant, old saves safe)
 tags: [citadel, sim, pacing, ux]
 ---
 
@@ -39,3 +39,18 @@ rescaling per-tick rates so per-DAY outcomes stay roughly invariant; keep the
   unchanged; walkers still glide (render-delay buffer keeps working at the new
   cadence — check `snapshotIntervalMs` assumptions in entity-interp/sim-client).
 - MP + save/load unaffected (tick counts in saves still line up).
+
+## Resolution (2026-07-17)
+
+Client default ticksPerDay 20 → 1200 (Farm's exact value) at the unchanged 20 ticks/s pacing →
+60 s/day at 1× (browser-measured live: 20.0 t/s). New sim-core `pacing.ts` (`scaleTicks`,
+BASELINE_TICKS_PER_DAY=20) re-denominates the five tick-authored constants (production cycles,
+hauler dwell, fire burn-out, raider/army march — unscaled, raiders cross the map in ~0.1 days);
+everything day-gated was already invariant. Same-day-horizon runs track (pop ±1, Village day 5 both)
+vs ~60× stockpile blowup unscaled; sack PASS day 71 at both rates; starve PASS at baseline;
+determinism byte-identical at 20 AND 1200; saves carry their own ticksPerDay (old saves k=1 →
+byte-identical replay). Headless tool stays at 20 (determinism harness; TICKS_PER_DAY env for
+game pace). Watch items: hauling is ~60× more trip-efficient per day → stockpiles run richer and
+the knife-edge starve fixture survives at 1200 (Challenge slightly softer at real pace — future
+knob OUTPUT_BUFFER_CYCLES); raiders visually hop 1 tile/~9 s in Challenge (render-interp follow-up
+candidate).

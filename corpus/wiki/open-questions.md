@@ -1,6 +1,6 @@
 ---
 summary: Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
-updated: 2026-07-10
+updated: 2026-07-17
 ---
 
 # Open Questions & Gaps
@@ -9,8 +9,14 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-*(No Citadel design questions are currently blocking. The two opened on 2026-07-10 were both closed
-the same day — see below.)*
+### Festival attendance is geography-bound — venue, travel speed, or multi-day? (opened 2026-07-17)
+The 2026-07-16 "priority bump" call fixed three real deliberation bugs (`bbf6e43`) but measurement
+contradicted its premise ("the venue is fine"): farms sit 200+ tiles from the podium at 8 ticks/tile
+against a 1200-tick day — a traced farmer converged 152→24 tiles across a FULL day without arriving,
+so a podium majority is physically unreachable no matter the priority. Options, all design-level:
+move the festival to a location farmers already pass (market plaza), speed travel (`STEP_TICKS` —
+touches everything), make the festival multi-day (arrive day 1, celebrate day 2), or accept thin
+gatherings as ambient. Needs a user call; `probe-festival.ts` measures any candidate.
 
 > **Resolved 2026-07-10 — "what does a cozy PvP army attack do?"** Answer: *there isn't one.*
 > Decision **#15** removes `ArmySystem`/`launchAttack` from cozy MP entirely rather than softening
@@ -24,12 +30,14 @@ the same day — see below.)*
 > that **every mode-affecting option must be persisted in `CitadelSave`** — an invariant two fields
 > were already violating.
 
-> **Resolved 2026-07-16 — the "live-drama spare capacity" cluster got its decisions.** All four
-> items were adjudicated by the user and filed as open todos: early peer trades → a **starting crop
-> surplus** (attacks the measured `no-stock` cause; if trades still don't close, the question closes
-> as cadence-bound/accepted); harbor contracts → **tiered contract sizes** (the perishability
-> redesign stays parked); skills → **skill-gated intentions** (behavioral diversity, not XP rates);
-> festival → **priority bump on festival days**. See `todos/2026-07-16-farm-*.md`.
+> **Resolved 2026-07-16→17 — the "live-drama spare capacity" cluster: built, with two premises
+> overturned by measurement.** Skills → skill-gated intentions DONE (`4649bd1`, divergence proven).
+> Harbor → tiered sizes DONE (`7d8bc7e`, non-hoarders commit on all seeds). Early peer trades →
+> **the "no-stock" premise was FALSE**: probe-70's 20 t/d hardcode produced zero encounters; at the
+> real 1200 t/d trades already closed by day 4-10 (surplus kept as flavor, `b89c317`). Festival →
+> priority bump landed 3 real bug fixes (`bbf6e43`) but **"the venue is fine" was FALSE** — the gap
+> is world-scale travel distance, reopened as the Open question above. Methodology rule from both:
+> behavior probes MUST run at 1200 t/d with the WASM pathfinder.
 
 ## Settled premises — don't re-litigate
 

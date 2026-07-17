@@ -1,7 +1,7 @@
 ---
 title: "Farm — skill-gated intentions so personalities diversify beyond farming"
 created: 2026-07-16
-status: open
+status: closed (2026-07-17, `4649bd1` — shared g/AP valuation; 10/10/9 leaners, no dominance)
 tags: [farm, sim, agents, skills]
 ---
 
@@ -42,3 +42,18 @@ diversity, not faster numbers.
 
 - All randomness via `Rng.fork`. This is balance-sensitive — do NOT auto-tune
   numbers without recording the before/after model in the economy page.
+
+## Resolution (2026-07-17)
+
+New `agents/skill-valuation.ts`: every non-farm line scored in the economy model's g/AP unit,
+DERIVED from the live tables + the act handlers' own skill curves (no agent-layer payoff
+constants). Affinity from owned geography (stone vein → mining, bushes → foraging, else
+deterministic name-hash); TEMPERAMENT diversify scalars (conservative 0.25 → opportunist 1.0 +
+chase-best); commit rises with tier — the flywheel. Cadence through the ONE existing gather call
+(gatherBias) + `deliberateSkilledNonFarm` excursions, replacing hardcoded per-personality
+fishing/forage calls. Mining capped below farming as a support line. Evidence (probe-skill-diverge,
+3×100d @1200 WASM): 10/10/9 of 21 lean non-farm, 19/20/15 distinct skill sheets, farming-focused
+farmers hold #1 on every seed, leaners ≤2 of wealth top-5. 14 new tests; determinism byte-identical;
+model recorded in [economy.md](../../wiki/economy.md). Moves the behavior baseline by design.
+Tuning note: foraging is ~8 of 10 leans/seed, fishing rare — revisit weights if more fishing color
+is wanted. (Chunk finished inline by the controller after two session-limit interruptions.)

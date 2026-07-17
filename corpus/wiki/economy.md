@@ -1,6 +1,6 @@
 ---
 summary: The single prices-to-AP-to-initial-gold model the economy constants derive from, the crop g/AP formula, the scoring table, and the re-tune procedure.
-updated: 2026-07-11
+updated: 2026-07-16
 ---
 
 # Economy model (prices ↔ AP ↔ initial gold)
@@ -71,6 +71,34 @@ A third crop channel next to the shopkeeper (instant liquidation at ~64% of `P_c
 - **Escrow.** `POST_OFFER` moves the goods off the seller immediately (`debitCropDetailed`, quality tiers preserved). Listed stock is therefore *not* in inventory and *not* on the net-worth leaderboard until it sells or comes back. That is a real carrying cost of listing, and it is why unsold offers are swept back after **`OFFER_TTL_DAYS = 3`** and why the three wall personalities pull their listings (`sell-from-wall` → `CANCEL_OFFER`) once `daysRemaining ≤ 3`.
 - **Value conservation.** A trade moves gold buyer→seller and stock wall-escrow→buyer at the **offer's** price (never the price the buyer's stale belief claimed). Nothing is minted or burned; asserted in `market.test.ts` ("a wall trade conserves gold and stock").
 - **Baseline.** Wiring this loop **moved the sim baseline by design** (the wall was dead before — offers accumulated, no BUY_REQUEST was ever consumed). A 40-day run closes ~35–50 wall trades per seed.
+
+## Skill-gated non-farm valuation (2026-07-16 todo — skill-gated intentions)
+
+The deliberation layer now scores non-farm lines in the SAME g/AP unit via
+[agents/skill-valuation.ts](../../games/farm/sim-core/src/agents/skill-valuation.ts). **No economy
+constant changed** — every marginal is *derived* from the live tables + the act handlers' own skill
+curves, so a price re-tune moves the agent valuations automatically:
+
+- **Farming baseline** `FARM_BASELINE_GPA` = mean `g_c` over the table above (≈4.26 post-brief-75);
+  a farmer's own farming marginal scales up with `farmingQualityBonus` (max +25%).
+- **Fishing** = expected coral value at the farmer's tier (`applyCoralRarityBonus` ×
+  `fishingRarityBonus`, the exact handler math) / `AP_COST["fish-coral"]` — the one non-farm line
+  that can *beat* the farm baseline at high tier, which is what makes chasing it rational.
+- **Foraging** = max(local bush-gather support ≈ `0.85→1.25×` baseline with tier, seasonal
+  autumn/winter zone gold × `foragingGoldMultiplier` / `AP_COST.forage`).
+- **Mining** = support proxy `0.85→1.0×` baseline with tier (ore/geodes feed upgrades, not gold) —
+  deliberately capped **below** farming so a mining-leaner specialises without topping the wealth
+  board.
+
+Behavioural layer on top: `nonFarmAffinity` (owned stone/bush endowment ≥3, else a deterministic
+name-hash bucket), `TEMPERAMENT` diversify scalars (conservative 0.25 → opportunist 1.0 +
+chase-best), and `nonFarmFocus.commit` rising with tier — the divergence flywheel. Cadence is
+applied via `gatherBias` (boosted owned-vein gathering for mining/foraging) and
+`deliberateSkilledNonFarm` (front-priority fishing/forage-zone excursions), replacing the old
+per-personality hardcoded fishing/forage calls. Baseline-shift note: this moves the deterministic
+sim baseline for a given seed (behavioural change, reproducibility untouched) — divergence evidence
+lives in `tools/run-sim/src/probes/probe-skill-diverge.ts` (run with `PATHFINDER=wasm`; the JS
+fallback cannot route some excursion targets).
 
 ## How to re-tune (procedure)
 

@@ -1,11 +1,13 @@
 ---
 summary: The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
-updated: 2026-07-16
+updated: 2026-07-17
 ---
 
 # Project Status
 
-Current-state **snapshot** (2026-07-16).
+Current-state **snapshot** (2026-07-17).
+
+> **2026-07-17 The 2026-07-16 build queue is DONE — 5 of 7 todos built and closed (`b89c317`, `186dc5e`, `4649bd1`, `7d8bc7e`, `bbf6e43`); 2 remain as deliberate batch files (Tab-reachability → next UI pass, dither-specks → next terrain pass).** Via `plan-split-dispatch` in two waves (2 opus + 3 Sonnet; the skill-gating chunk survived two session-limit kills and was finished inline by the controller). **Citadel pace**: 1× = 60 s/day (was ~1 s/day), ticksPerDay 20→1200 with per-day rates re-denominated via new `pacing.ts`; sack/starve/determinism green at both rates; old saves safe; watch: hauling ~60× more trip-efficient (starve fixture now survives at real pace — Challenge slightly softer), raiders hop visually in Challenge. **Skill-gating**: shared g/AP valuation (`skill-valuation.ts`), 10/10/9 of 21 farmers lean non-farm with farming still #1 — details in [economy.md](economy.md). **Harbor tiers**: small/medium open the commit gate to conservative/aggressive/opportunist on every seed; silver/gold stay hoarder-large. **Starting surplus**: kept as flavor — its premise (brief 70 "no-stock") was falsified as a 20 t/d probe artifact. **Festival**: 3 deliberation bugs fixed, but majority attendance is blocked by world geography (200+ tiles at 8 t/tile vs a 1200-tick day) — REOPENED as an Open design question in [open-questions.md](open-questions.md). **Methodology rule now standing: behavior probes run at 1200 t/d + WASM pathfinder** (the JS fallback can't route some excursion targets; 20 t/d produces zero encounters). Machine note: the world-gen property tests (bridge-graph / generate-world.property / walkable-grid) are timeout-flaky under load on this box — re-run before trusting a red.
 
 > **2026-07-16 Direction call: BOTH games are in active development — focus is polish, improvements, and fixes toward a stable version** (the "Farm is in maintenance" framing is retired; see [open-questions.md](open-questions.md) settled premises). The live-drama cluster got its decisions and a fresh 7-todo queue was filed (`todos/2026-07-16-*`): Farm — starting crop surplus (early peer-trade stock), tiered harbor contracts, skill-gated intentions (the big one — all `deliberate*` helpers), festival priority bump; Citadel — slow the 1× pace to Farm's feel (ticks-per-day is a BALANCE lever, see the todo's trap note), Status-toggle Tab reachability (+ batched UI nits), dither-specks/hillshade unification (fold into next terrain pass). Terrain relief strength was eyeballed and approved as-is. Perishability stays parked by explicit choice.
 
