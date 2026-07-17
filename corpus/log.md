@@ -4,6 +4,50 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-17] stable-point | Engine library extraction DONE + 4 stability items — todo queue EMPTY (`7212575`…`c67d6d8`)
+
+The engine-library-extraction todo — the declared **stable point** — is closed, emptying the todo
+queue. Build work had been committed across an earlier session (`7212575` `@engine/core` packaging,
+`4297341` `@engine/ui`+`@engine/wasm-modules`, `ff6322f` consumer fixture, `98f66d0` festival multi-day,
+`4822ecc` connectivity world-swap reset, `821d304` raider glide, `1aba7c0` dither/hillshade, `e3660fa`
+Tab-reachability); this session ran the closeout: verify gate → the one fix it surfaced → corpus.
+
+**The reusable seam.** `@engine/core` + `@engine/ui` + `@engine/wasm-modules` are MIT libraries at
+v0.1.0, **not published** (games stay as in-repo reference consumers). Dual resolution: monorepo dev
+resolves raw TS source; tarballs resolve emitted `dist/` via a **prepack/postpack manifest swap**
+(`pack-swap.mjs`) — `publishConfig.exports` was empirically proven **not to work on npm** (dead end).
+`postbuild.mjs` rewrites extensionless imports→`.js` and copies `.wgsl`; `@engine/wasm-modules` ships
+its wasm in-package with no tsc. `examples/library-consumer` (outside the workspaces list) installs the
+three `npm pack` tarballs via `file:` and drives them green in plain Node — proving external
+consumption with no monorepo reference. Only game-leak found (repo-walking palette test) is excluded
+from the tarball. Full mechanics in [wiki/architecture.md](wiki/architecture.md) "Library packaging".
+
+**Four stability items** landed with the packaging: festival made **multi-day** (`FESTIVAL_DAYS=2`) —
+the venue was already the market plaza, so multi-day was the real lever; cumulative attendance rose
+0/12→8/12 across seeds and **simultaneous same-day majority is physically impossible** (open-question
+resolved). Citadel **raider-march glide** (`EntityInterpolator` segment intervals), **dither-specks
+biased by `hillshade()`**, and **Status-toggle Tab-reachability** (`siegeDispatcher` in the keydown
+chain). **Starve-softness** at the new 1× pace is **accepted as intended** (documented, fixture
+unchanged).
+
+**Trap (wiki-worthy):** measure festival attendance **cumulatively over the window, not same-day** —
+150–360-tile trips at 8 ticks/tile against a 1200-tick day cap same-day gatherings at ~5/20 even at
+forced top priority. Probes MUST run at 1200 t/d with the WASM pathfinder (20 t/d yields zero
+encounters; JS pathfinder can't route some excursion targets).
+
+**Closeout fix (`c67d6d8`).** The todo's "deferred, harmless in-workspace" flag for the stale
+`@engine/core@0.0.0` consumer pins was **wrong**: with the engine bumped to 0.1.0, a clean `npm install`
+can't satisfy `0.0.0` and 404s the registry (it only looked harmless because node_modules symlinks were
+already present, and turbo wasn't even installed). Bumped all 9 consumer manifests to 0.1.0 (exact-pin
+convention). **Lesson: on any engine version bump, keep consumer pins in lockstep** — the symlinked dev
+tree hides the break until a fresh install.
+
+**Verify (medium+determinism, user-chosen):** typecheck 14/14; touched-workspace tests green
+(engine/core 194, engine/ui 166, farm/sim-core 867, citadel/client 549 `--maxWorkers=2`); Farm
+determinism MATCH (30d, covers the festival window); Citadel grow stdout byte-identical ×2, `sack` PASS
+(keep sacked day 71), `starve` gameOver. Deferred-by-choice: siegeMirror `onFocusNode` (inert), `?raw`
+.wgsl keeps `@engine/ui` bundler-only in bare Node, raider glide not yet live-verified in a raid.
+
 ## [2026-07-17] wave | 2026-07-16 build queue DONE — 5 todos built, 2 premises overturned (`b89c317`…`bbf6e43`)
 
 Two-wave `plan-split-dispatch` run ({surplus ∥ citadel-pace ∥ skill-gating} → tiered-contracts →

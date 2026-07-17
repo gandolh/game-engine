@@ -1,6 +1,6 @@
 ---
-summary: The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, audio, and WASM.
-updated: 2026-07-15
+summary: The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, audio, WASM, and the library-packaging seam.
+updated: 2026-07-17
 ---
 
 # Architecture
@@ -139,3 +139,13 @@ Atlas: ~220 hand-crafted 16×16 pixel-art frames split across **6 sheets + an `i
 | `floodfill.wasm` | 836 B | BFS flood-fill, returns reachable tile coordinates |
 
 All kernels export via `@engine/core`. The pathfinder bytes are transferred to the sim host at init time (`SimInitMsg.pathfinderWasm` — `WorkerInitMsg` until brief 115) so the host can instantiate its own `Pathfinder` without sharing memory.
+
+## Library packaging (the reusable seam)
+
+2026-07-17 (engine-library-extraction todo). `@engine/core` + `@engine/ui` + `@engine/wasm-modules` are the **reusable seam** — packaged as **MIT libraries, version 0.1.0, without publishing** (the two games stay in-repo as reference consumers). The public npm name is deferred to publish time (one rename commit then).
+
+- **Dual resolution.** Inside the monorepo the packages still resolve **raw TS source** (`exports` → `./src/*.ts`) so Vite/tsx/vitest compile it with zero dev churn. Tarball consumers must resolve emitted `dist/` (ESM `.js` + `.d.ts`). The swap is done by a **prepack/postpack manifest swap** ([scripts/pack-swap.mjs](../../engine/core/scripts/pack-swap.mjs)), **not** `publishConfig.exports` — that field was empirically proven **not to work on npm** and is a dead end; don't reach for it again.
+- **Build.** `tsconfig.build.json` emits `dist/` per package; [scripts/postbuild.mjs](../../engine/core/scripts/postbuild.mjs) rewrites extensionless imports → `.js` (our no-`.js`-suffix convention is a source-only rule) and copies the `.wgsl` shaders. `@engine/wasm-modules` diverges deliberately: no `tsc`, `prepack: npm run build` (asc), and `exports` maps the raw `.wasm` from `dist/` — it ships its wasm artifacts in-package (the games keep their own committed copies as consumers).
+- **Pin discipline.** Consumer manifests pin the engine packages at the **exact** current version (0.1.0). A stale `0.0.0` pin does **not** fail while node_modules symlinks exist but **breaks a clean `npm install`** (the range can't be satisfied, npm 404s the registry) — keep consumer pins in lockstep with the engine version on any bump. (Bit us at closeout, `c67d6d8`.)
+- **Acceptance fixture.** [examples/library-consumer](../../examples/library-consumer/) is **outside the npm workspaces list** and installs the three `npm pack` tarballs via `file:` — a Node smoke (ECS world+scheduler tick, seeded `Rng.fork`, message bus, wasm pathfinder from in-package bytes, UI layout under jsdom) proves external consumption with no reference back into monorepo source. `tarballs/` + its node_modules are gitignored; the fixture README documents regeneration (`npm pack --pack-destination` ×3).
+- **Game-leakage audit.** The only leak found was the repo-walking palette guard test — excluded from the tarball via the `files` allowlist (tests never ship). Per-package READMEs document the reusable seam.

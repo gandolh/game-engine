@@ -9,14 +9,21 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-### Festival attendance is geography-bound — venue, travel speed, or multi-day? (opened 2026-07-17)
-The 2026-07-16 "priority bump" call fixed three real deliberation bugs (`bbf6e43`) but measurement
-contradicted its premise ("the venue is fine"): farms sit 200+ tiles from the podium at 8 ticks/tile
-against a 1200-tick day — a traced farmer converged 152→24 tiles across a FULL day without arriving,
-so a podium majority is physically unreachable no matter the priority. Options, all design-level:
-move the festival to a location farmers already pass (market plaza), speed travel (`STEP_TICKS` —
-touches everything), make the festival multi-day (arrive day 1, celebrate day 2), or accept thin
-gatherings as ambient. Needs a user call; `probe-festival.ts` measures any candidate.
+_None currently open. The 2026-07-17 stable point closed the queue._
+
+> **Resolved 2026-07-17 — festival attendance is geography-bound: fixed by making the festival
+> multi-day.** The venue was already the market plaza (`festivalPodiumTile()` = `AUCTION_PODIUM_TILE`
+> = `snapNear('village',0,0)`), so "move the venue" was a non-op. The lever was **`FESTIVAL_DAYS = 2`**
+> ([protocols/festival.ts](../../games/farm/sim-core/src/protocols/festival.ts); 3 works too — window
+> fits its season at offset 12 + DAYS ≤ 25): announce once on the start day, accumulate submissions
+> across the window, resolve the day after the last day. Measured **cumulative** attendance (1200 t/d,
+> WASM pathfinder, one seed per process) rose **0/12 → 8/12** across seeds — 0xc0ffee 4/4, seed 1 3/4,
+> seed 42 1/4 (geometry-capped). **Simultaneous same-day majority is physically impossible** (~5/20
+> ceiling even at forced top priority — 150–360-tile trips at 8 ticks/tile vs a 1200-tick day), so
+> "cumulative over the window, not same-day" is the correct metric — see the trap in [log.md](../log.md).
+> Priorities were left untouched (a −3 bump breaks the coral-excursion integration test). Residual
+> levers (`STEP_TICKS`, world scale) are a separate call, not needed. `probe-festival.ts` rewritten as
+> the region-attendance evidence probe (honors `SEED=`).
 
 > **Resolved 2026-07-10 — "what does a cozy PvP army attack do?"** Answer: *there isn't one.*
 > Decision **#15** removes `ArmySystem`/`launchAttack` from cozy MP entirely rather than softening
@@ -41,6 +48,11 @@ gatherings as ambient. Needs a user call; `probe-festival.ts` measures any candi
 
 ## Settled premises — don't re-litigate
 
+- **Citadel starve-softness at real pace is accepted as intended (user decision 2026-07-17).** After
+  the 1× pace change (ticksPerDay 20→1200, `pacing.ts`), hauling is ~60× more trip-efficient per day,
+  so the `starve` fixture survives slightly longer and Challenge is a touch softer. This is the design
+  we want — **cozy stays forgiving, Challenge is only slightly softer** — not a regression. The starve
+  fixture is unchanged by choice; don't "fix" it. See [status.md](status.md).
 - **Both games are in active development as of 2026-07-16 — the focus is polish, improvements, and
   fixes toward a stable version.** The earlier "Farm is in maintenance" framing (used to park brief
   101 on 2026-07-15) is stale; don't cite it to decline Farm work. Large new *systems* still need
