@@ -6,7 +6,8 @@ import {
 } from "./peer-trade-registry";
 import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateCoralFishing } from "./watering";
+import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateSkilledNonFarm } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -74,7 +75,11 @@ export function deliberateConservative(farmer: GameEntity): void {
   }
 
   const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
-  deliberateResourceGather(farmer, features, 1, 8);
+  // Skill-gated non-farm lean (shared valuation): conservative sticks to farming
+  // longest — only leans when a line's skilled marginal clearly beats farming.
+  const focus = nonFarmFocus(farmer, TEMPERAMENT.conservative!);
+  const gb = gatherBias(focus, 1, 8);
+  deliberateResourceGather(farmer, features, gb.maxActions, gb.priority, gb.preferKind);
 
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   deliberateDecoration(farmer, decorations, 9);
@@ -179,7 +184,7 @@ export function deliberateConservative(farmer: GameEntity): void {
     deliberateHarborContract(farmer, openContracts, harborTolerance, reserve, 5, -2);
   }
 
-  deliberateCoralFishing(farmer, 12, 2, -2, 70);
+  deliberateSkilledNonFarm(farmer, focus, features, 6);
 
   deliberateTavernGather(farmer, -2);
   deliberateFestivalGather(farmer, -2);

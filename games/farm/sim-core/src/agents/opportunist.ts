@@ -10,7 +10,8 @@ import {
 import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSeasonalForage, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateShrineVisit, deliberatePortHop, deliberateWallLiquidation } from "./watering";
+import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateShrineVisit, deliberatePortHop, deliberateWallLiquidation } from "./watering";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
@@ -90,16 +91,18 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     deliberateTill(farmer, occupied, 2, 4);
   }
   const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
-  deliberateResourceGather(farmer, features, 1, 8);
+  // Skill-gated non-farm lean (shared valuation): opportunist chases whichever
+  // line's marginal g/AP best beats farming at its current tier.
+  const focus = nonFarmFocus(farmer, TEMPERAMENT.opportunist!);
+  const gb = gatherBias(focus, 1, 8);
+  deliberateResourceGather(farmer, features, gb.maxActions, gb.priority, gb.preferKind);
 
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   deliberateDecoration(farmer, decorations, 8);
 
   deliberateMillVisit(farmer, 8, 6);
-  deliberateSeasonalForage(farmer, 7);
-  deliberateFishing(farmer, 5, 3, 13);
 
-  deliberateCoralFishing(farmer, 6, 3, -2, 40);
+  deliberateSkilledNonFarm(farmer, focus, features, 5);
 
   deliberateEarlyVillageVisit(farmer, 5);
 

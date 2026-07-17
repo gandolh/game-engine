@@ -10,7 +10,8 @@ import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateFishing, deliberateCoralFishing, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateWallLiquidation } from "./watering";
+import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateWallLiquidation } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -74,7 +75,10 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     deliberateTill(farmer, occupied, 3, 3);
   }
   const features = (farmer.beliefs.data.tileFeatures as TileFeature[] | undefined) ?? [];
-  deliberateResourceGather(farmer, features, 2, 7);
+  // Skill-gated non-farm lean (shared valuation).
+  const nonFarm = nonFarmFocus(farmer, TEMPERAMENT.aggressive!);
+  const gb = gatherBias(nonFarm, 2, 7);
+  deliberateResourceGather(farmer, features, gb.maxActions, gb.priority, gb.preferKind);
 
   const decorations = (farmer.beliefs.data.decorations as FarmDecoration[] | undefined) ?? [];
   const plotsUrgentAggr = (sense?.maxDrySoFar ?? 0) >= 2;
@@ -91,9 +95,8 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
   deliberateUpgrade(farmer, "hoe", 8);
   deliberateResourceZoneVisit(farmer, features, "tree", 9);
   deliberateResourceZoneVisit(farmer, features, "stone", 10);
-  deliberateFishing(farmer, 7, 2, 11);
 
-  deliberateCoralFishing(farmer, 8, 3, -2, 50);
+  deliberateSkilledNonFarm(farmer, nonFarm, features, 5);
 
   // Pull own wall listings back before the clock runs out (escrowed stock is
   // otherwise never banked) — applies in both the liquidation branch and above it.

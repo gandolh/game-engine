@@ -47,4 +47,6 @@ export {
 
 export { deliberateHarborContract, deliberateDeliverContract } from "./harbor";
 
+export { deliberateSkilledNonFarm } from "./skilled";
+
 export { deliberateSleep } from "./misc";

@@ -11,6 +11,13 @@ export function deliberateResourceGather(
   tileFeatures: Array<{ kind: "tree" | "stone" | "bush"; tileX: number; tileY: number; ownerId: number }>,
   maxActions: number,
   priority: number,
+  /**
+   * Skill-gated bias (2026-07-16): when set, gatherable features of this kind are
+   * mined/gathered FIRST, so a focus farmer's action budget builds the skill it
+   * is leaning into — `stone` → mining xp, `bush` → foraging xp. Undefined keeps
+   * the historical y,x scan order (behaviour-preserving for existing callers).
+   */
+  preferKind?: "tree" | "stone" | "bush",
 ): void {
   if (!farmer.intentions || farmer.id === undefined) return;
   const tools = farmer.inventory?.tools ?? [];
@@ -29,7 +36,14 @@ export function deliberateResourceGather(
 
     .filter(f => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick) || f.kind === "bush")
     .slice()
-    .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
+    .sort((a, b) => {
+      if (preferKind) {
+        const ap = a.kind === preferKind ? 0 : 1;
+        const bp = b.kind === preferKind ? 0 : 1;
+        if (ap !== bp) return ap - bp;
+      }
+      return a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX;
+    });
 
   if (gatherable.length === 0) return;
 
@@ -140,9 +154,16 @@ export function deliberateResourceZoneVisit(
   ownFarmFeatures: readonly TileFeature[],
   preferKind: "tree" | "stone",
   priority: number,
+  /**
+   * Skill-gated (2026-07-16): a mining/forestry leaner travels to the owned zone
+   * (quarry/forest, ~20 features) to work it EVEN when a stray feature sits on
+   * their farm — otherwise a single farm stone suppresses the whole line. Default
+   * false preserves the historical "only when the farm has none" upkeep behaviour.
+   */
+  force = false,
 ): void {
   if (!farmer.intentions || !farmer.farmer) return;
-  if (ownFarmFeatures.some((f) => f.kind === preferKind)) return;
+  if (!force && ownFarmFeatures.some((f) => f.kind === preferKind)) return;
 
   const homeRegion = farmer.farmer.homeRegion as RegionId | undefined;
   const farmCenter = homeRegion ? getRegion(homeRegion).center : { x: 0, y: 0 };
