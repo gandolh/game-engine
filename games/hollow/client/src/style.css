@@ -1,0 +1,20 @@
+/*
+ * Hollow client styles — chunk hollow-01 scaffolding (no renderer yet).
+ * Colours are Apollo hex literals mirroring HOLLOW_PAL roles (see
+ * src/render/hollow-palette.ts) — CSS can't import the TS module, so the
+ * literal Apollo hex is written here directly. The palette guard
+ * (engine/core/src/render/palette.test.ts) only scans .ts/.js/.mjs/.cjs, so
+ * CSS hex is outside its scope, same precedent as Citadel's style.css.
+ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #090a14; /* HOLLOW_PAL.black */
+  color: #ebede9; /* HOLLOW_PAL.white */
+  font-family: monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}

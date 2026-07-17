@@ -1,0 +1,18 @@
+{
+  "name": "@tool/hollow-sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@engine/core": "0.1.0",
+    "@hollow/sim-core": "0.0.0"
+  },
+  "devDependencies": {
+    "@webgpu/types": "0.1.70",
+    "tsx": "4.22.3"
+  }
+}

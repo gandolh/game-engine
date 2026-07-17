@@ -78,12 +78,16 @@ describe("EDG32 palette is the single source of truth", () => {
   });
 });
 
-// The Apollo scan list (used for games/citadel/ files). The AUTHORITATIVE
-// module-backed integrity checks — CITADEL_PAL ⊆ APOLLO, keys == EDG keys,
-// nearestApollo — live in games/citadel/client/src/render/citadel-palette.test.ts
-// (the engine cannot import a game). These two guard that the inline scan list
+// The Apollo scan list (used for games/citadel/ AND games/hollow/ files —
+// Hollow reuses the same Apollo-46 palette as Citadel, via its own
+// HOLLOW_PAL module rather than a shared import — games can't import each
+// other). The AUTHORITATIVE module-backed integrity checks — CITADEL_PAL /
+// HOLLOW_PAL ⊆ APOLLO, keys == EDG keys, nearestApollo — live in
+// games/citadel/client/src/render/citadel-palette.test.ts and
+// games/hollow/client/src/render/hollow-palette.test.ts respectively (the
+// engine cannot import a game). These two guard that the inline scan list
 // stays valid and matches Apollo's cardinality.
-describe("Apollo scan list (Citadel scope)", () => {
+describe("Apollo scan list (Citadel + Hollow scope)", () => {
   it("has exactly 46 unique colors", () => {
     expect(APOLLO).toHaveLength(46);
     expect(new Set(APOLLO).size).toBe(46);
@@ -102,17 +106,25 @@ describe("no source file uses an off-palette color literal", () => {
   walk(join(REPO_ROOT, "games"), files);
   walk(join(REPO_ROOT, "tools"), files);
 
-  // Palette is scoped by path: Citadel source (games/citadel/) is validated
-  // against Apollo; everything else (Farm + engine + tools) stays on EDG32.
-  const isCitadel = (rel: string): boolean => rel.startsWith("games/citadel/");
+  // Palette is scoped by path: Citadel source (games/citadel/) and Hollow
+  // source (games/hollow/) are both validated against Apollo; everything
+  // else (Farm + engine + tools) stays on EDG32.
+  type Scope = "citadel" | "hollow" | "default";
+  const scopeOf = (rel: string): Scope => {
+    if (rel.startsWith("games/citadel/")) return "citadel";
+    if (rel.startsWith("games/hollow/")) return "hollow";
+    return "default";
+  };
 
   const violations: string[] = [];
   for (const file of files) {
     const rel = relative(REPO_ROOT, file).split(sep).join("/");
     if (ALLOWLIST_FILES[rel]) continue;
-    const citadel = isCitadel(rel);
-    const allowed = citadel ? APOLLO_SET : EDG32_SET;
-    const palName = citadel ? "Apollo" : "EDG32";
+    const scope = scopeOf(rel);
+    const usesApollo = scope !== "default";
+    const allowed = usesApollo ? APOLLO_SET : EDG32_SET;
+    const palName =
+      scope === "citadel" ? "Apollo (Citadel)" : scope === "hollow" ? "Apollo (Hollow)" : "EDG32";
     const text = readFileSync(file, "utf8");
     const lines = text.split("\n");
     lines.forEach((line, i) => {
@@ -120,7 +132,7 @@ describe("no source file uses an off-palette color literal", () => {
       if (!matches) return;
       for (const m of matches) {
         if (!allowed.has(normalizeHex(m))) {
-          const nearest = citadel ? nearestApollo(m) : nearestEdg32(m);
+          const nearest = usesApollo ? nearestApollo(m) : nearestEdg32(m);
           violations.push(
             `${rel}:${i + 1}  ${m.toLowerCase()}  →  expected ${palName}, nearest ${nearest}`,
           );
@@ -158,8 +170,9 @@ describe("no source file uses an off-palette color literal", () => {
       violations,
       violations.length
         ? `\nOff-palette colors found — replace with the role constant for that file's ` +
-            `palette (EDG.* from engine/core/src/render/palette.ts, or CITADEL_PAL.* ` +
-            `from games/citadel/client/src/render/citadel-palette.ts for games/citadel/):` +
+            `palette (EDG.* from engine/core/src/render/palette.ts, CITADEL_PAL.* from ` +
+            `games/citadel/client/src/render/citadel-palette.ts for games/citadel/, or ` +
+            `HOLLOW_PAL.* from games/hollow/client/src/render/hollow-palette.ts for games/hollow/):` +
             `\n  ${violations.join("\n  ")}\n`
         : "",
     ).toEqual([]);
