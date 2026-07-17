@@ -1,7 +1,11 @@
 import { buildWalkableGrid } from './walkable-grid';
-import { WORLD_WIDTH, WORLD_HEIGHT } from './regions';
+import { WORLD_WIDTH, WORLD_HEIGHT, onWorldSwap } from './regions';
 
 let componentMap: Int32Array | undefined;
+
+// Rebuild connectivity from the new walkable grid whenever the world is swapped —
+// otherwise a second seed in the same process reuses the first seed's components.
+onWorldSwap(_resetComponentMap);
 
 function buildComponentMap(): Int32Array {
   const { cells } = buildWalkableGrid();
