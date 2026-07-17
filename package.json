@@ -24,7 +24,9 @@
     "server": "npm start -w @farm/server",
     "server:citadel": "npm start -w @citadel/server",
     "preview": "npm start -w @tool/world-preview",
-    "build-wasm": "npm run build -w @engine/wasm-modules"
+    "build-wasm": "npm run build -w @engine/wasm-modules",
+    "build-engine": "npm run build -w @engine/core",
+    "build-ui": "npm run build -w @engine/ui"
   },
   "devDependencies": {
     "@types/node": "25.9.1",

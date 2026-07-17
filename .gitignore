@@ -62,6 +62,23 @@ web_modules/
 # Output of 'npm pack'
 *.tgz
 
+# Engine library build output (NOT committed — unlike the wasm artifacts).
+# The generic `dist` rule above already ignores these; listed explicitly so the
+# packaging intent is discoverable.
+engine/core/dist/
+engine/ui/dist/
+# Transient dev-manifest backup written by engine/core / engine/ui pack-swap
+# during npm pack.
+engine/core/.package.json.dev
+engine/ui/.package.json.dev
+
+# @engine/wasm-modules/dist/ is NOT listed here on purpose: it already has its
+# own package-local .gitignore (engine/wasm-modules/.gitignore -> `dist/`).
+# That package has no src/dist manifest swap (its dist/ already IS both the
+# dev truth and the pack truth — see package.json `exports`), so there is no
+# separate pack-only output directory and no .package.json.dev backup to
+# ignore for it.
+
 # Yarn Integrity file
 .yarn-integrity
 

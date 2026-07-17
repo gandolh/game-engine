@@ -1,7 +1,10 @@
 {
   "name": "@engine/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Generic, deterministic TypeScript ECS game engine — in-house ECS, seeded RNG, fixed-tick scheduler, snapshot/interp render boundary, FIPA-style message bus, canvas2d/WebGPU render, and asset/animation/input toolkits. Game-agnostic.",
+  "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -19,7 +22,73 @@
     "./input": "./src/input/index.ts",
     "./audio": "./src/audio/index.ts"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./runtime": {
+        "types": "./dist/runtime/index.d.ts",
+        "default": "./dist/runtime/index.js"
+      },
+      "./ecs": {
+        "types": "./dist/ecs/index.d.ts",
+        "default": "./dist/ecs/index.js"
+      },
+      "./sim": {
+        "types": "./dist/sim/index.d.ts",
+        "default": "./dist/sim/index.js"
+      },
+      "./render": {
+        "types": "./dist/render/index.d.ts",
+        "default": "./dist/render/index.js"
+      },
+      "./assets": {
+        "types": "./dist/assets/index.d.ts",
+        "default": "./dist/assets/index.js"
+      },
+      "./debug": {
+        "types": "./dist/debug/index.d.ts",
+        "default": "./dist/debug/index.js"
+      },
+      "./wasm": {
+        "types": "./dist/wasm/index.d.ts",
+        "default": "./dist/wasm/index.js"
+      },
+      "./animation": {
+        "types": "./dist/animation/index.d.ts",
+        "default": "./dist/animation/index.js"
+      },
+      "./commands": {
+        "types": "./dist/commands/index.d.ts",
+        "default": "./dist/commands/index.js"
+      },
+      "./placement": {
+        "types": "./dist/placement/index.d.ts",
+        "default": "./dist/placement/index.js"
+      },
+      "./input": {
+        "types": "./dist/input/index.d.ts",
+        "default": "./dist/input/index.js"
+      },
+      "./audio": {
+        "types": "./dist/audio/index.d.ts",
+        "default": "./dist/audio/index.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/postbuild.mjs",
+    "prepack": "npm run build && node scripts/pack-swap.mjs --to-dist",
+    "postpack": "node scripts/pack-swap.mjs --restore",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
