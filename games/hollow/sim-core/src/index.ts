@@ -14,3 +14,4 @@ export * from "./protocols";
 export * from "./agents";
 export { spawnPopulation, type SpawnPopulationOptions } from "./population";
 export * from "./systems";
+export * from "./community";

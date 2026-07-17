@@ -7,6 +7,14 @@
  * independently and neither draw order depends on population size in a
  * surprising way (each agent draws exactly one position pair and one jitter
  * value in a fixed loop order).
+ *
+ * Chunk hollow-04 additively seeds two more fields on every spawned agent:
+ * an empty `relationships` ledger (trust accrues from proximity/shared
+ * activity as the sim runs — see community/trust-accrual-system.ts) and
+ * `communityId: null` (unaffiliated until the community system crystallizes
+ * a cluster around it). Neither draws any randomness — both are fixed
+ * starting values, not seeded state — so this doesn't disturb the existing
+ * position/rate Rng forks or their draw order.
  */
 import type { Rng, World } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
@@ -61,6 +69,8 @@ export function spawnPopulation(world: World<HollowEntity>, rng: Rng, opts: Spaw
       intentions: { queue: [] },
       personality: { kind: VILLAGER_KIND },
       inbox: { messages: [] },
+      relationships: { byId: new Map() },
+      communityId: null,
     } satisfies HollowEntity);
 
     // Self-ownership (see components/ownership.ts) — needs the id `world.spawn`
