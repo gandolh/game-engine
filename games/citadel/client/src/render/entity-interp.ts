@@ -58,6 +58,29 @@
  * real, non-snap walked step (`histValid`); the first step out of rest, and any
  * segment after a teleport, keep the shallow (prev→cur only) buffer so nothing
  * curves off a stale pre-teleport tile.
+ *
+ * Long-segment sets — raider march glide (2026-07-17). Villagers and raiders both
+ * post an integer tile position once per snapshot, but they don't share a cadence:
+ * villagers step every tick, while a raider steps once every scaled MOVE_INTERVAL
+ * ticks (Challenge's pacing change made this ~180 ticks, ~9s at 1×) and otherwise
+ * reports the SAME tile snapshot after snapshot. The buffer above is tuned for a
+ * segment that IS one snapshot interval (villagers) — applied unchanged to a
+ * ~180-interval segment it only smooths the last ~1.5 intervals (~75ms) of a
+ * ~9000ms march, so the raider stands still and then hops. `EntityInterpolator`
+ * takes an optional `segmentIntervals` (construct one interpolator per entity SET,
+ * as today, e.g. `new EntityInterpolator(scaleTicks(MOVE_INTERVAL, ticksPerDay))`
+ * for raiders): when it's >1, `positionOf` switches to a separate glide that
+ * ignores the jitter buffer entirely and instead tracks, per track, `sinceChange` —
+ * the count of `ingest()` calls (one per sim tick, so immune to the WORKER's
+ * wall-clock jitter) since `cur` last took a new value — and glides prev→cur
+ * FORWARD across `segmentIntervals` of them, reaching `cur` exactly as the next
+ * real step's snapshot lands (which resets `sinceChange` to 0 for the new segment,
+ * so the handoff is seamless: no snap, no hold). A snapshot that repeats the same
+ * tile mid-march just increments `sinceChange` without touching prev/cur, so the
+ * glide already in flight is untouched. This needs no render-delay cushion — one
+ * tick of jitter is <1% of a multi-hundred-tick march — so it reuses the SAME
+ * Catmull-vs-chord tangent choice as the buffer's prev→cur branch (leaning on
+ * `prevPrev` when `histValid`) rather than inventing a second scheme.
  */
 
 /** Minimal shape this module needs from an entity snapshot. */
@@ -115,6 +138,15 @@ interface Track {
    * segments interpolate linearly (no corner curve off a stale tile).
    */
   histValid: boolean;
+  /**
+   * Count of `ingest()` calls since `cur` last took a new value (0 the ingest it
+   * changed, incrementing on every later ingest that repeats the same tile). Drives
+   * the long-segment glide (`segmentIntervals > 1`): local progress through
+   * prev→cur is `sinceChange / segmentIntervals`, so it climbs 0→1 across the
+   * entity's real march interval instead of the short jitter-buffer window.
+   * Unused (but still maintained) when `segmentIntervals === 1`.
+   */
+  sinceChange: number;
 }
 
 /**
@@ -123,6 +155,18 @@ interface Track {
  */
 export class EntityInterpolator {
   private readonly tracks = new Map<number, Track>();
+
+  /**
+   * @param segmentIntervals How many snapshot intervals (~sim ticks, since a
+   * snapshot is posted once per tick) a real step spans for this entity set.
+   * Default 1 matches an entity that steps every tick (villagers) — `positionOf`
+   * uses the render-delay jitter buffer described in this module's header. Pass a
+   * larger value (e.g. a raider's scaled march `MOVE_INTERVAL`) for a set whose
+   * sim-side position only advances once every N ticks — see the "long-segment
+   * sets" section of the header for why that switches `positionOf` to a different
+   * glide.
+   */
+  constructor(private readonly segmentIntervals: number = 1) {}
 
   /**
    * Ingest a new snapshot's entities: shift each known id's current→previous and
@@ -141,8 +185,43 @@ export class EntityInterpolator {
           prevPrevX: e.x, prevPrevY: e.y,
           prevX: e.x, prevY: e.y,
           curX: e.x, curY: e.y,
-          snap: true, histValid: false,
+          snap: true, histValid: false, sinceChange: 0,
         });
+        continue;
+      }
+      // A long-segment set (segmentIntervals > 1, e.g. raiders) reports the SAME
+      // tile for many consecutive ingests between real steps. The shift below runs
+      // on EVERY ingest — if it ran unconditionally here too, the very next ingest
+      // after a real step would shift `prev` up to equal the just-set `cur` (both
+      // still reporting the same unchanged tile), collapsing the (prev,cur) pair
+      // the whole march needs to interpolate against back to a single point after
+      // just one tick. So for these sets, skip the shift entirely on a no-op
+      // ingest (tile unchanged) and just age `sinceChange` — prev/cur/prevPrev
+      // (and histValid/snap, which are derived from them) stay exactly as they
+      // were from the last real step until the NEXT one arrives. A normal-cadence
+      // set (segmentIntervals <= 1, villagers) never takes this branch, so its
+      // shift-every-ingest behaviour (including for a genuinely idle entity, where
+      // prev/cur/prevPrev collapsing to the same resting tile is correct) is
+      // unchanged.
+      if (this.segmentIntervals > 1 && e.x === t.curX && e.y === t.curY) {
+        t.sinceChange += 1;
+        // Once the entity has sat at this tile for a FULL march interval with no
+        // further step (e.g. a raider walled off with no path — see
+        // RaiderMovementSystem's "waits in place"), it's genuinely at rest, not
+        // mid-glide: `positionOf` is already clamping to `cur` at this point
+        // (sinceChange >= segmentIntervals), so collapsing prev/prevPrev up to
+        // `cur` here moves nothing on screen — it only retires the stale pair so
+        // `isMoving()` (which reads prev !== cur) correctly reports idle instead
+        // of leaving the walk-cycle gait running forever, and so a step whenever
+        // it eventually resumes doesn't lean a Catmull tangent on a now-ancient
+        // tile (`histValid` resets false, same as any first step out of rest).
+        if (t.sinceChange >= this.segmentIntervals) {
+          t.prevPrevX = t.prevX;
+          t.prevPrevY = t.prevY;
+          t.prevX = t.curX;
+          t.prevY = t.curY;
+          t.histValid = false;
+        }
         continue;
       }
       // The OLD prev→cur segment becomes the new prevPrev→prev segment; capture
@@ -159,6 +238,11 @@ export class EntityInterpolator {
       const d = Math.max(Math.abs(t.curX - t.prevX), Math.abs(t.curY - t.prevY));
       t.snap = d > MAX_LERP_TILES;
       t.histValid = oldMoved && !oldSnap;
+      // `d > 0` means `cur` took a new value on THIS ingest (a real step or a
+      // teleport) → the long-segment glide's segment just started (or, for a
+      // normal-cadence set, is irrelevant — see the field's own doc comment).
+      // `d === 0` here only happens for a normal-cadence set standing still.
+      t.sinceChange = d > 0 ? 0 : t.sinceChange + 1;
     }
     for (const id of this.tracks.keys()) {
       if (!present.has(id)) this.tracks.delete(id);
@@ -178,6 +262,11 @@ export class EntityInterpolator {
    * that have already arrived. `behind` is clamped into the tiles we actually hold
    * (newest=0, prev=1, prevPrev=2), and only reaches into the buffered
    * `prevPrev → prev` segment when that step was a real walked one (`histValid`).
+   *
+   * When this instance was constructed with `segmentIntervals > 1` (a long-segment
+   * set, e.g. raiders), the jitter buffer above is skipped entirely in favour of
+   * the forward glide described in the module header's "long-segment sets"
+   * section — see the branch below.
    */
   positionOf(id: number, phase: number, fx: number, fy: number): InterpPos {
     const t = this.tracks.get(id);
@@ -185,6 +274,24 @@ export class EntityInterpolator {
     if (t.snap) return { x: t.curX, y: t.curY };
 
     const p = phase < 0 ? 0 : phase;
+
+    if (this.segmentIntervals > 1) {
+      // Forward glide: `sinceChange` (ticks since `cur` last took a new value,
+      // counted by ingest — immune to wall-clock jitter) plus the sub-tick `p`
+      // gives elapsed progress through the CURRENT prev→cur segment; dividing by
+      // the entity's real march length spreads it across the whole step instead of
+      // the short buffer window. Clamped to [0,1]: never overshoots `cur` even
+      // through a stalled/paused gap, never undershoots `prev` on a fresh segment.
+      let a = (t.sinceChange + p) / this.segmentIntervals;
+      if (a < 0) a = 0;
+      else if (a > 1) a = 1;
+      const dx = t.curX - t.prevX;
+      const dy = t.curY - t.prevY;
+      const m0x = t.histValid ? (t.curX - t.prevPrevX) * 0.5 : dx;
+      const m0y = t.histValid ? (t.curY - t.prevPrevY) * 0.5 : dy;
+      return hermite(t.prevX, t.prevY, t.curX, t.curY, m0x, m0y, dx, dy, a);
+    }
+
     // Only reach back into the prevPrev→prev segment on a clean walked step;
     // otherwise a teleport/spawn sits at prevPrev and extending into it would
     // smear, so keep the shallow prev→cur-only buffer (depth 1).

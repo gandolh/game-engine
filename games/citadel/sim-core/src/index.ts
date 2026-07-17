@@ -59,5 +59,5 @@ export { ProductionSystem, outputBufferCap } from "./systems/production";
 export { VillagerSystem } from "./systems/villager-system";
 export { ImmigrationSystem } from "./systems/immigration";
 export { RaidSpawnSystem } from "./systems/raid-spawn";
-export { RaiderMovementSystem } from "./systems/raider-movement";
+export { RaiderMovementSystem, MOVE_INTERVAL as RAIDER_MOVE_INTERVAL_TICKS } from "./systems/raider-movement";
 export { SiegeResolutionSystem } from "./systems/siege-resolution";

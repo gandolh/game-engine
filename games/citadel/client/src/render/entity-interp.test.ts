@@ -151,6 +151,128 @@ describe("EntityInterpolator", () => {
   });
 });
 
+describe("EntityInterpolator — long-segment glide (segmentIntervals > 1, e.g. raider march)", () => {
+  it("glides prev→cur across the WHOLE segment, not just the jitter-buffer window", () => {
+    const S = 180;
+    const interp = new EntityInterpolator(S);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]); // fresh → snap
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // real step E: sinceChange resets to 0 here
+    // Immediately after the step lands (sinceChange=0, phase=0): still at prev.
+    expect(interp.positionOf(1, 0, 1, 0)).toEqual({ x: 0, y: 0 });
+    // Repeat the SAME tile for many ticks (the sim hasn't stepped again yet) —
+    // each ingest ages sinceChange without touching prev/cur.
+    for (let i = 0; i < 89; i++) interp.ingest([{ id: 1, x: 1, y: 0 }]);
+    // sinceChange is now 89 (0 at the step + 89 repeats); a = 89/180.
+    const mid = interp.positionOf(1, 0, 1, 0);
+    expect(mid.x).toBeCloseTo(89 / 180, 6);
+    expect(mid.y).toBe(0);
+    // Advance to the tick right before the NEXT real step (sinceChange = S-1).
+    for (let i = 0; i < 90; i++) interp.ingest([{ id: 1, x: 1, y: 0 }]);
+    const nearEnd = interp.positionOf(1, 0, 1, 0);
+    expect(nearEnd.x).toBeCloseTo(179 / 180, 6);
+  });
+
+  it("reaches cur exactly as the next real step's snapshot lands (seamless handoff)", () => {
+    const S = 10;
+    const interp = new EntityInterpolator(S);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step 1: sinceChange=0
+    for (let i = 0; i < 9; i++) interp.ingest([{ id: 1, x: 1, y: 0 }]); // sinceChange -> 9
+    expect(interp.positionOf(1, 0, 1, 0)).toEqual({ x: 0.9, y: 0 });
+    interp.ingest([{ id: 1, x: 2, y: 0 }]); // step 2 lands: sinceChange resets to 0
+    // The new segment starts exactly where the old one was heading (1,0) — no snap.
+    expect(interp.positionOf(1, 0, 2, 0)).toEqual({ x: 1, y: 0 });
+  });
+
+  it("a mid-march snapshot repeating the SAME tile does not reset the glide", () => {
+    const S = 20;
+    const interp = new EntityInterpolator(S);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step: sinceChange=0
+    for (let i = 0; i < 10; i++) interp.ingest([{ id: 1, x: 1, y: 0 }]); // repeats, sinceChange -> 10
+    const before = interp.positionOf(1, 0, 1, 0);
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // one more repeat — must AGE, not reset
+    const after = interp.positionOf(1, 0, 1, 0);
+    expect(after.x).toBeGreaterThan(before.x);
+    expect(after.x).toBeCloseTo(11 / 20, 6);
+  });
+
+  it("still snaps (does not lerp) on a teleport beyond MAX_LERP_TILES", () => {
+    const interp = new EntityInterpolator(180);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: MAX_LERP_TILES + 5, y: 0 }]); // teleport
+    expect(interp.positionOf(1, 1, MAX_LERP_TILES + 5, 0)).toEqual({ x: MAX_LERP_TILES + 5, y: 0 });
+  });
+
+  it("drops an id that despawns mid-march (pruned, not stuck mid-glide)", () => {
+    const interp = new EntityInterpolator(180);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // step, now marching
+    for (let i = 0; i < 50; i++) interp.ingest([{ id: 1, x: 1, y: 0 }]); // mid-march
+    expect(interp.size).toBe(1);
+    interp.ingest([]); // despawned mid-march (e.g. resolved/sacked)
+    expect(interp.size).toBe(0);
+    expect(interp.positionOf(1, 0, 42, 42)).toEqual({ x: 42, y: 42 });
+  });
+
+  it("isMoving stays true for the entire march, not just at the step tick", () => {
+    const interp = new EntityInterpolator(180);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // real step
+    expect(interp.isMoving(1)).toBe(true);
+    for (let i = 0; i < 179; i++) {
+      interp.ingest([{ id: 1, x: 1, y: 0 }]); // still marching toward the next step
+      expect(interp.isMoving(1)).toBe(true);
+    }
+  });
+
+  it("a stationary raider (walled off, waiting) reads as not moving", () => {
+    const interp = new EntityInterpolator(180);
+    interp.ingest([{ id: 1, x: 5, y: 5 }]); // fresh
+    interp.ingest([{ id: 1, x: 5, y: 5 }]); // no path — sits in place
+    expect(interp.isMoving(1)).toBe(false);
+    expect(interp.positionOf(1, 0, 5, 5)).toEqual({ x: 5, y: 5 });
+  });
+
+  it("a raider that gets walled off AFTER marching settles (isMoving goes false again, not stuck true)", () => {
+    const S = 5; // small S keeps the test fast; the settle logic is size-independent
+    const interp = new EntityInterpolator(S);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 1, y: 0 }]); // real step: now marching, isMoving() true
+    expect(interp.isMoving(1)).toBe(true);
+    // No further step ever arrives (walled off, no path) — sit at (1,0) well past
+    // one full march interval (S=5).
+    for (let i = 0; i < S + 3; i++) interp.ingest([{ id: 1, x: 1, y: 0 }]);
+    // Settled: prev has caught up to cur, so isMoving() correctly reports idle
+    // again instead of leaving the walk-cycle gait running forever.
+    expect(interp.isMoving(1)).toBe(false);
+    // Position is unaffected by the settle (it was already clamped at cur).
+    expect(interp.positionOf(1, 0, 1, 0)).toEqual({ x: 1, y: 0 });
+    // If it resumes marching later (a path opens up), the step out of this
+    // rest is treated like any first step — no Catmull tangent off the stale
+    // pre-siege tile.
+    interp.ingest([{ id: 1, x: 2, y: 0 }]);
+    expect(interp.isMoving(1)).toBe(true);
+    const mid = interp.positionOf(1, 0.5 * S, 2, 0); // halfway through the new step
+    expect(mid.x).toBeCloseTo(1.5, 6); // plain linear, not curved
+    expect(mid.y).toBe(0);
+  });
+
+  it("segmentIntervals=1 (default) is byte-identical to the pre-existing villager behaviour", () => {
+    // Sanity check that the default constructor arg reproduces the exact assertions
+    // from the jitter-buffer describe block above, guarding against the branch
+    // accidentally being taken for the default (villager) case.
+    const interp = new EntityInterpolator(1);
+    interp.ingest([{ id: 1, x: 0, y: 0 }]);
+    interp.ingest([{ id: 1, x: 1, y: 0 }]);
+    interp.ingest([{ id: 1, x: 2, y: 0 }]);
+    expect(interp.positionOf(1, 0, 2, 0)).toEqual({ x: 0.5, y: 0 });
+    expect(interp.positionOf(1, 0.5, 2, 0)).toEqual({ x: 1, y: 0 });
+    expect(interp.positionOf(1, 1.5, 2, 0)).toEqual({ x: 2, y: 0 });
+  });
+});
+
 describe("shouldIngestSnapshot — correction snapshots must not re-ingest a same-tick glide", () => {
   it("always ingests the first snapshot (null sentinel), regardless of its tick", () => {
     expect(shouldIngestSnapshot(null, 0)).toBe(true);

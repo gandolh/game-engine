@@ -1,8 +1,10 @@
 import { ParticleSystem, createRng } from "@engine/core";
+import { scaleTicks, RAIDER_MOVE_INTERVAL_TICKS } from "@citadel/sim-core";
 import { CitadelSmoke, CitadelFire } from "../render/citadel-fx";
 import { CitadelWeather } from "../render/weather";
 import { CitadelAmbientCrowd } from "../render/ambient-crowd";
 import { EntityInterpolator } from "../render/entity-interp";
+import { TICKS_PER_DAY } from "./constants";
 
 // Brief 25: render-feature toggles (all default ON), driven by the settings
 // modal. Each gates its layer in render-loop.ts's loop() — purely cosmetic, zero sim impact.
@@ -26,7 +28,14 @@ export const ambientCrowd = new CitadelAmbientCrowd();
 // by the measured interval between snapshot arrivals — ingested from sim-client.ts's
 // onSnapshot handler, sampled from render-loop.ts's loop().
 export const villagerInterp = new EntityInterpolator();
-export const raiderInterp = new EntityInterpolator();
+// Raiders step once every scaled MOVE_INTERVAL ticks (Challenge pacing), not every
+// tick like villagers — passing that segment length (in snapshot intervals, since a
+// snapshot is posted once per tick) switches positionOf to the long-segment forward
+// glide (see entity-interp.ts's header) instead of the short jitter buffer, so a
+// raider's step glides across its whole march instead of hopping at the very end of
+// it. Derived (never hardcoded 180) from the sim's own constants so it stays correct
+// if either MOVE_INTERVAL or the client's TICKS_PER_DAY ever change.
+export const raiderInterp = new EntityInterpolator(scaleTicks(RAIDER_MOVE_INTERVAL_TICKS, TICKS_PER_DAY));
 
 // Render-side juice (briefs 17 + 19). All off-sim:
 //  - particles: chimney smoke, rendered by the WebGPU particle pass via endFrame

@@ -23,8 +23,13 @@ import { scaleTicks } from "../pacing";
  * garrison sorties are balanced against), instead of collapsing to an instant
  * rush when the day is longer. (Unlike villagers, whose 1-tile/tick glide is left
  * unscaled, a raider's days-to-cross is a balance/telegraph property.)
+ *
+ * Exported (render-side march-glide fix) so the client can derive its render-only
+ * interpolation segment length as `scaleTicks(MOVE_INTERVAL, ticksPerDay)` instead
+ * of hardcoding the scaled tick count. Purely a visibility change — the value and
+ * every sim-side use of it are unchanged.
  */
-const MOVE_INTERVAL = 3;
+export const MOVE_INTERVAL = 3;
 /** Fraction of strength a garrison sortie shaves off an intercepted raider. */
 const INTERCEPT_SHAVE = 0.25;
 
