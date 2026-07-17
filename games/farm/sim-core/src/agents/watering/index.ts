@@ -43,6 +43,9 @@ export {
   deliberateFestivalGather,
   deliberateCommissionBuild,
   deliberateShrineVisit,
+  FESTIVAL_FRONT_PRIORITY,
+  FESTIVAL_TEMPERAMENT,
+  isLingeringAtFestival,
 } from "./social";
 
 export { deliberateHarborContract, deliberateDeliverContract } from "./harbor";

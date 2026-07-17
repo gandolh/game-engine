@@ -3,6 +3,7 @@ import {
   deliberateShrineVisit,
   deliberateTavernGather,
   deliberateFestivalGather,
+  FESTIVAL_FRONT_PRIORITY,
 } from "./social";
 import { _resetComponentMap } from "../../world/connectivity";
 import type { GameEntity } from "../../components";
@@ -27,6 +28,8 @@ function makeFarmer(overrides: {
   apMax?: number;
   aboard?: boolean;
   id?: number;
+  personality?: string;
+  maxDrySoFar?: number;
 }): GameEntity {
   const tx = overrides.tx ?? VILLAGE.x;
   const ty = overrides.ty ?? VILLAGE.y;
@@ -42,13 +45,18 @@ function makeFarmer(overrides: {
       data: {
         currentDay: overrides.day ?? 5,
         phase: overrides.phase ?? "morning",
-
+        ...(overrides.maxDrySoFar !== undefined
+          ? { plotWater: { planted: 1, due: 0, maxDrySoFar: overrides.maxDrySoFar, duePlots: [], emptyPlots: [] } }
+          : {}),
       },
       revision: 0,
     },
     intentions: { queue: [] },
     ap: { current: overrides.ap ?? 30, max: overrides.apMax ?? 100, penaltyPending: false, penaltyCapacity: 0, away: false },
     inventory: { gold: 100, crops: {} as never, seeds: {} as never },
+    ...(overrides.personality !== undefined
+      ? { personality: { kind: overrides.personality as never } }
+      : {}),
   };
 }
 
@@ -177,5 +185,91 @@ describe("deliberateFestivalGather — reachability guard", () => {
 
     deliberateFestivalGather(farmer, -2);
     expect(farmer.intentions!.queue).toHaveLength(0);
+  });
+
+  // 2026-07-16 festival-priority-bump: root-cause regression coverage. The
+  // measured bug wasn't the call-site priority (-2) — it was inside this
+  // function's own gating (see social.ts's doc comment on FESTIVAL_FRONT_PRIORITY
+  // and DEFAULT_FESTIVAL_DRY_TOLERANCE for the full story).
+
+  it("queues festival travel even with LOW AP (attending is free — travel costs 0 AP)", () => {
+    // Previously gated on `ap.current < 40`, copy-pasted from the tavern's
+    // discretionary-luxury heuristic. That wrongly excluded any farmer whose
+    // morning chores had already spent them below 40 AP by the time they
+    // reconsidered — the dominant measured cause of thin gatherings.
+    const farm = getRegion("farm-pip").center;
+    const farmer = makeFarmer({ tx: farm.x, ty: farm.y, region: "farm-pip", ap: 0 });
+    addFestival(farmer);
+    deliberateFestivalGather(farmer, -2);
+    const travel = farmer.intentions!.queue.find(
+      (i) => i.kind === "travel" && i.data.festivalGather === true,
+    );
+    expect(travel).toBeDefined();
+  });
+
+  it("does NOT queue festival travel when a plot has reached the personality's dry tolerance", () => {
+    // conservative's tolerance is 2 (unchanged baseline) — urgent watering still
+    // outranks the festival for a cautious personality.
+    const farm = getRegion("farm-pip").center;
+    const farmer = makeFarmer({
+      tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50,
+      personality: "conservative", maxDrySoFar: 2,
+    });
+    addFestival(farmer);
+    deliberateFestivalGather(farmer, -2);
+    const travel = farmer.intentions!.queue.find((i) => i.data.festivalGather === true);
+    expect(travel).toBeUndefined();
+  });
+
+  it("a social personality (aggressive) tolerates more dryness before abandoning the festival", () => {
+    // Same dryness (2) that bails a conservative farmer is still fine for
+    // aggressive/opportunist (dryTolerance 3) — personality-flavored "stay
+    // longer" per the brief.
+    const farm = getRegion("farm-pip").center;
+    const farmer = makeFarmer({
+      tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50,
+      personality: "aggressive", maxDrySoFar: 2,
+    });
+    addFestival(farmer);
+    deliberateFestivalGather(farmer, -2);
+    const travel = farmer.intentions!.queue.find((i) => i.data.festivalGather === true);
+    expect(travel).toBeDefined();
+  });
+
+  it("even a social personality bails once dryness reaches ITS OWN tolerance (3)", () => {
+    const farm = getRegion("farm-pip").center;
+    const farmer = makeFarmer({
+      tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50,
+      personality: "aggressive", maxDrySoFar: 3,
+    });
+    addFestival(farmer);
+    deliberateFestivalGather(farmer, -2);
+    const travel = farmer.intentions!.queue.find((i) => i.data.festivalGather === true);
+    expect(travel).toBeUndefined();
+  });
+
+  it("festival wins the queue-front TIE against tavern gather when pushed first (both -2)", () => {
+    // The measured bug: tavern gather and festival gather both push at -2, and
+    // `Array.prototype.sort` is stable, so whichever was pushed first into the
+    // queue wins the front slot. Every personality file now calls
+    // deliberateFestivalGather() BEFORE deliberateTavernGather() specifically so
+    // festival wins this tie (see FESTIVAL_FRONT_PRIORITY's doc comment — going
+    // lower than -2 instead would ALSO out-rank committed skilled excursions,
+    // which regressed coral-fishing.integration.test.ts).
+    expect(FESTIVAL_FRONT_PRIORITY).toBe(-2);
+
+    const farm = getRegion("farm-pip").center;
+    const farmer = makeFarmer({ tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50 });
+    addFestival(farmer);
+    // Festival pushed FIRST (matches the fixed call order)...
+    deliberateFestivalGather(farmer, FESTIVAL_FRONT_PRIORITY);
+    // ...then a competing -2 "front" intent pushed after (e.g. tavern gather).
+    farmer.intentions!.queue.push({
+      kind: "travel",
+      data: { targetTile: { x: VILLAGE.x, y: VILLAGE.y }, tavernGather: true },
+      priority: -2,
+    });
+    farmer.intentions!.queue.sort((a, b) => a.priority - b.priority);
+    expect(farmer.intentions!.queue[0]!.data.festivalGather).toBe(true);
   });
 });

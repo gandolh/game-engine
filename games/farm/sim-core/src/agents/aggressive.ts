@@ -11,7 +11,7 @@ import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateWallLiquidation } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, FESTIVAL_FRONT_PRIORITY, deliberateHarborContract, deliberateWallLiquidation } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -256,8 +256,11 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
     deliberateHarborContract(farmer, openContracts, tol, reserve, 4, -2);
   }
 
+  // Festival is pushed BEFORE tavern (both -2, stable sort) so a farmer whose
+  // tavern-visit day coincides with a festival heads to the podium, not the
+  // tavern — see FESTIVAL_FRONT_PRIORITY's doc comment in watering/social.ts.
+  deliberateFestivalGather(farmer, FESTIVAL_FRONT_PRIORITY);
   deliberateTavernGather(farmer, -2);
-  deliberateFestivalGather(farmer, -2);
 
   deliberateSleep(farmer);
 

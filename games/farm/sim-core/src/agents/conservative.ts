@@ -7,7 +7,7 @@ import {
 import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateSkilledNonFarm } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, FESTIVAL_FRONT_PRIORITY, deliberateHarborContract, deliberateSkilledNonFarm } from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -186,8 +186,11 @@ export function deliberateConservative(farmer: GameEntity): void {
 
   deliberateSkilledNonFarm(farmer, focus, features, 6);
 
+  // Festival is pushed BEFORE tavern (both -2, stable sort) so a farmer whose
+  // tavern-visit day coincides with a festival heads to the podium, not the
+  // tavern — see FESTIVAL_FRONT_PRIORITY's doc comment in watering/social.ts.
+  deliberateFestivalGather(farmer, FESTIVAL_FRONT_PRIORITY);
   deliberateTavernGather(farmer, -2);
-  deliberateFestivalGather(farmer, -2);
   deliberateSleep(farmer);
   farmer.intentions.queue.sort((a, b) => a.priority - b.priority);
 }

@@ -11,7 +11,7 @@ import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, deliberateHarborContract, deliberateShrineVisit, deliberatePortHop, deliberateWallLiquidation } from "./watering";
+import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, FESTIVAL_FRONT_PRIORITY, deliberateHarborContract, deliberateShrineVisit, deliberatePortHop, deliberateWallLiquidation } from "./watering";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
@@ -259,8 +259,11 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     deliberateHarborContract(farmer, openContracts, tol, reserve, 5, -2);
   }
 
+  // Festival is pushed BEFORE tavern (both -2, stable sort) so a farmer whose
+  // tavern-visit day coincides with a festival heads to the podium, not the
+  // tavern — see FESTIVAL_FRONT_PRIORITY's doc comment in watering/social.ts.
+  deliberateFestivalGather(farmer, FESTIVAL_FRONT_PRIORITY);
   deliberateTavernGather(farmer, -2);
-  deliberateFestivalGather(farmer, -2);
 
   deliberatePortHop(farmer, 9, 6, 140);
   deliberateSleep(farmer);

@@ -197,6 +197,82 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   recordReason(farmer, "visit the tavern (gathering beat)");
 }
 
+/**
+ * Front-of-queue priority for festival attendance (2026-07-16 brief:
+ * festival-day priority bump). Stays at the SAME -2 "front" tier as tavern
+ * gather / harbor / greenhouse / pen travelPriority / deliberateSkilledNonFarm's
+ * FRONT — `Array.prototype.sort` is stable, so among ties whichever intent was
+ * PUSHED FIRST in the personality file's call order wins the queue-front slot.
+ * That tie was the measured root cause of thin festival gatherings: on a
+ * farmer's tavern-visit day, the tavern push (called just before festival in
+ * every personality file) silently won the front slot every time. The fix is
+ * ordering, not a lower number: every personality file now calls
+ * `deliberateFestivalGather` BEFORE `deliberateTavernGather`, so festival wins
+ * that specific tie.
+ *
+ * Deliberately did NOT go lower (e.g. -3, which would also out-rank
+ * `deliberateSkilledNonFarm`'s FRONT=-2 fishing/coral/forage excursions) — a
+ * flat "beats everything" bump measurably regressed
+ * `coral-fishing.integration.test.ts` (a day-13 festival collision starved the
+ * only coral trip that clears its 30-day window). Skilled excursions are
+ * committed, high-value trips (see skilled.ts), not the "marginal chores" this
+ * brief targets — tavern is the correct (and sufficient, per the measured
+ * cause) target for the tie-break.
+ */
+export const FESTIVAL_FRONT_PRIORITY = -2;
+
+/**
+ * Per-personality festival temperament — a purely social knob, deliberately
+ * NOT routed through skill-valuation.ts's economic g/AP model (this is not an
+ * economic decision):
+ * - `dryTolerance`: how much crop neglect (consecutive unwatered days) a
+ *   farmer accepts before abandoning the festival for urgent watering.
+ * - `staysEvening`: whether the farmer lingers at the podium into the evening
+ *   phase (see `isLingeringAtFestival`) or heads home once evening starts —
+ *   the "social personalities... stay longer" half of the brief.
+ * The front-of-queue bump itself (`FESTIVAL_FRONT_PRIORITY`) is uniform — the
+ * brief calls for a baseline that applies to everyone, with personality
+ * flavor as a welcome extra, not a substitute.
+ */
+export const FESTIVAL_TEMPERAMENT: Record<string, { dryTolerance: number; staysEvening: boolean }> = {
+  conservative: { dryTolerance: 2, staysEvening: false },
+  hoarder: { dryTolerance: 2, staysEvening: false },
+  aggressive: { dryTolerance: 3, staysEvening: true },
+  opportunist: { dryTolerance: 3, staysEvening: true },
+};
+const DEFAULT_FESTIVAL_TEMPERAMENT = { dryTolerance: 2, staysEvening: false };
+
+function festivalTemperament(farmer: GameEntity): { dryTolerance: number; staysEvening: boolean } {
+  return FESTIVAL_TEMPERAMENT[farmer.personality?.kind ?? ""] ?? DEFAULT_FESTIVAL_TEMPERAMENT;
+}
+
+/**
+ * True while a farmer should linger at the festival podium rather than being
+ * pulled home for the night by `deliberateSleep` (misc.ts).
+ *
+ * Root cause this covers: `deliberateFestivalGather` only pushes a NEW travel
+ * intent while the farmer is NOT yet at the podium — once arrived, it's a
+ * no-op every re-deliberation (correctly; there's nothing further to queue).
+ * But `deliberateSleep` fires on ANY idle re-deliberation during "work" or
+ * "evening" phase and unconditionally pulls a farmer who isn't home back
+ * toward `homeRegion`. Since re-deliberation happens virtually every idle
+ * tick (see PerceiveSystem's WAIT_DAY→PERCEIVE flip), an arrived farmer was
+ * evicted the SAME tick they arrived (or the moment evening phase began) —
+ * the gathering was never actually visible. `deliberateSleep` calls this
+ * before queuing "head home" and skips if it returns true.
+ */
+export function isLingeringAtFestival(farmer: GameEntity): boolean {
+  if (!farmer.beliefs || !farmer.transform) return false;
+  const festival = farmer.beliefs.data.festivalToday as
+    | { name: string; contestCrop: string } | null | undefined;
+  if (!festival) return false;
+  const phase = farmer.beliefs.data.phase as string | undefined;
+  if (phase === "evening" && !festivalTemperament(farmer).staysEvening) return false;
+  if (phase !== "work" && phase !== "evening") return false;
+  const podium = festivalPodiumTile();
+  return isWithinReach(farmer.transform, podium.x, podium.y);
+}
+
 export function deliberateFestivalGather(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || !farmer.beliefs) return;
   const festival = farmer.beliefs.data.festivalToday as
@@ -204,9 +280,17 @@ export function deliberateFestivalGather(farmer: GameEntity, priority: number): 
   if (!festival) return;
   const phase = farmer.beliefs.data.phase as string | undefined;
   if (phase !== "morning" && phase !== "work") return;
-  if ((farmer.ap?.current ?? 0) < 40) return;
+  // NO AP gate here (deliberately removed — was `ap.current < 40`): travel
+  // itself costs 0 AP (see AP_COST.travel), so requiring 40 AP of spare
+  // capacity was a copy-paste of deliberateTavernGather's "is this luxury
+  // worth it" heuristic, wrongly applied to a free trip. AP is spent down by
+  // chores over the course of the day, so that gate was silently excluding
+  // any farmer whose morning chores had already dropped them below 40 AP by
+  // the time they reconsidered attending — the other measured cause of thin
+  // gatherings (see probe-festival.ts).
+  const dryTolerance = festivalTemperament(farmer).dryTolerance;
   const sense = farmer.beliefs.data.plotWater as import("../../systems/farming/plot-sense").PlotWaterSense | undefined;
-  if (sense && sense.maxDrySoFar >= 2) return;
+  if (sense && sense.maxDrySoFar >= dryTolerance) return;
   const podium = festivalPodiumTile();
   if (isWithinReach(farmer.transform, podium.x, podium.y)) return;
   if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.festivalGather)) return;
