@@ -4,6 +4,22 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-17] build | Hollow — M1 waves 01–04 done (branch `hollow`), paused before hollow-05
+
+Building the Hollow backlog via plan-split-dispatch (backlog/wave mode; opus controller,
+Sonnet executors except hollow-02 on opus). On branch **`hollow`** (local, unpushed). **Done +
+verify-gate-green + committed:** hollow-01 skeleton (`411a561`), hollow-02 engine agent-kernel
+promotion + Farm refactor (`a9d2a5f`), hollow-03 needs/economy/scarcity (`1790d59`), hollow-04
+relationships/emergent-communities (`9bbc90f`). Each passed typecheck 17/17 + narrow Hollow
+tests. hollow-02's Farm behavior-preservation was gated on unit tests only (byte-identity diff
+skipped per user; fallback = revert the encounter-trade `OfferLedger` swap).
+
+**Paused before hollow-05** (lifecycle/genetics) at the quota limit. Its partial WIP (mid
+pair-bonding, non-compiling) is in `git stash@{0}`, NOT committed — plan is to DROP it and
+re-dispatch hollow-05 fresh. Full resume state + the 01–04 API handoffs are in
+`corpus/todos/2026-07-17-hollow-BUILD-STATE.md` (the live tracker). Remaining M1: 05 → 06 → 07 →
+**M1 exit-bar gate** before M2/3D.
+
 ## [2026-07-17] plan | Hollow — third game: multi-generational social sim (full M1–M4 briefs queued)
 
 New game **Hollow** designed via a two-round grill-me interview and queued as
