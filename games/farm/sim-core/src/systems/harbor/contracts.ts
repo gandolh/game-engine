@@ -6,10 +6,13 @@ import {
   CONTRACT_REP_REWARD,
   CONTRACT_DEADLINE_DAYS,
   HARBOR_REP_THRESHOLD,
+  CONTRACT_SIZE_QTY,
+  CONTRACT_SIZE_MULT,
+  CONTRACT_SIZE_REP_SCALE,
 } from "../../economy";
 import { CROP_SELL_PRICE } from "../../economy";
 import type { CropKind, CropQuality } from "../../components";
-import type { HarborContract } from "../../protocols/harbor";
+import type { HarborContract, ContractSize } from "../../protocols/harbor";
 
 export const CONTRACT_CROPS: readonly CropKind[] = [
   "radish", "wheat", "carrot", "tomato", "corn",
@@ -32,6 +35,11 @@ export const TIER_QTY: Record<"normal" | "silver" | "gold", [number, number]> = 
   gold:   [8,  16],
 };
 
+// Size is only rolled within the "normal" tier (always available, rep 0) —
+// silver/gold stay single-size ("large"), i.e. today's rare, hoarder-shaped
+// big hauls, untouched by this brief. See ContractSize's doc comment.
+export const CONTRACT_SIZES: readonly ContractSize[] = ["small", "medium", "large"];
+
 export function generateContracts(
   day: number,
   count: number,
@@ -51,11 +59,15 @@ export function generateContracts(
     const tier = rng.pick(availableTiers);
     const crops = tier === "gold" ? CONTRACT_CROPS_HIGH : CONTRACT_CROPS;
     const crop = rng.pick(crops);
-    const [minQty, maxQty] = TIER_QTY[tier];
+    const size: ContractSize = tier === "normal" ? rng.pick(CONTRACT_SIZES) : "large";
+    const [minQty, maxQty] = size === "large" ? TIER_QTY[tier] : CONTRACT_SIZE_QTY[size];
     const quantity = rng.int(minQty, maxQty + 1);
     const baseSell = CROP_SELL_PRICE[crop];
-    const reward = Math.round(baseSell * CONTRACT_REWARD_MULT[tier] * quantity);
-    const reputationReward = CONTRACT_REP_REWARD[tier];
+    const rewardMult = size === "large" ? CONTRACT_REWARD_MULT[tier] : CONTRACT_SIZE_MULT[size];
+    const reward = Math.round(baseSell * rewardMult * quantity);
+    const reputationReward = size === "large"
+      ? CONTRACT_REP_REWARD[tier]
+      : Math.max(1, Math.round(CONTRACT_REP_REWARD[tier] * CONTRACT_SIZE_REP_SCALE[size]));
     const deadlineDay = day + CONTRACT_DEADLINE_DAYS[tier];
     const minReputation = HARBOR_REP_THRESHOLD[tier];
     const minQuality = TIER_MIN_QUALITY[tier];
@@ -69,6 +81,7 @@ export function generateContracts(
       deadlineDay,
       minReputation,
       tier,
+      size,
     });
   }
   return contracts;

@@ -3,7 +3,7 @@ import { createRng, World, MessageBus } from "@engine/core";
 import { generateContracts, canFulfillContract, HarborSystem } from "./harbor";
 import { bootstrapSim } from "../sim-bootstrap";
 import { JsPathfinder } from "../world/js-pathfinder";
-import { ZERO_CROPS } from "../economy";
+import { ZERO_CROPS, CROP_SELL_PRICE } from "../economy";
 import { ONT_HARBOR, type HarborContract, type ContractDeliveredBody } from "../protocols/harbor";
 import type { GameEntity } from "../components";
 
@@ -38,15 +38,66 @@ describe("generateContracts (pure, deterministic)", () => {
     expect(contracts[1]?.id).toBe("contract-9-1");
   });
 
-  it("normal tier contracts have quantity in [4,8]", () => {
+  it("normal tier contracts have quantity in [2,8] (small/medium/large size bands)", () => {
 
     const rng = createRng(77).fork("harbor");
     const contracts = generateContracts(3, 10, rng, [0]);
     for (const c of contracts) {
       expect(c.tier).toBe("normal");
-      expect(c.goods.quantity).toBeGreaterThanOrEqual(4);
+      expect(c.goods.quantity).toBeGreaterThanOrEqual(2);
       expect(c.goods.quantity).toBeLessThanOrEqual(8);
     }
+  });
+
+  it("normal tier offers all three sizes over enough draws, each with the right quantity band", () => {
+    const rng = createRng(77).fork("harbor");
+    const contracts = generateContracts(3, 60, rng, [0]);
+    const bySize = new Map<string, typeof contracts>();
+    for (const c of contracts) {
+      const arr = bySize.get(c.size) ?? [];
+      arr.push(c);
+      bySize.set(c.size, arr);
+    }
+    expect(bySize.get("small")?.length ?? 0).toBeGreaterThan(0);
+    expect(bySize.get("medium")?.length ?? 0).toBeGreaterThan(0);
+    expect(bySize.get("large")?.length ?? 0).toBeGreaterThan(0);
+    for (const c of bySize.get("small") ?? []) {
+      expect(c.goods.quantity).toBeGreaterThanOrEqual(2);
+      expect(c.goods.quantity).toBeLessThanOrEqual(3);
+    }
+    for (const c of bySize.get("medium") ?? []) {
+      expect(c.goods.quantity).toBeGreaterThanOrEqual(3);
+      expect(c.goods.quantity).toBeLessThanOrEqual(5);
+    }
+    for (const c of bySize.get("large") ?? []) {
+      // "large" ≡ today's pre-brief normal-tier economics exactly.
+      expect(c.goods.quantity).toBeGreaterThanOrEqual(4);
+      expect(c.goods.quantity).toBeLessThanOrEqual(8);
+      expect(c.reward).toBe(Math.round(CROP_SELL_PRICE[c.goods.crop] * 2.0 * c.goods.quantity));
+    }
+  });
+
+  it("small/medium reward multiplier is smaller than large's but still > 1x sell price", () => {
+    const rng = createRng(7).fork("harbor");
+    const contracts = generateContracts(3, 60, rng, [0]);
+    const sizeMult: Record<string, number> = { small: 1.3, medium: 1.6, large: 2.0 };
+    for (const c of contracts) {
+      const unitPrice = CROP_SELL_PRICE[c.goods.crop];
+      expect(c.reward).toBeGreaterThan(unitPrice * c.goods.quantity);
+      expect(c.reward).toBe(Math.round(unitPrice * sizeMult[c.size]! * c.goods.quantity));
+    }
+  });
+
+  it("silver/gold tiers are always size 'large' (rare, hoarder-shaped hauls unchanged)", () => {
+    const rng = createRng(99).fork("harbor");
+    const contracts = generateContracts(6, 40, rng, [20]);
+    for (const c of contracts) {
+      if (c.tier === "silver" || c.tier === "gold") {
+        expect(c.size).toBe("large");
+      }
+    }
+    const hasSilverOrGold = contracts.some((c) => c.tier === "silver" || c.tier === "gold");
+    expect(hasSilverOrGold).toBe(true);
   });
 
   it("silver tier available when max rep >= 5", () => {
@@ -120,6 +171,7 @@ describe("canFulfillContract (pure)", () => {
       deadlineDay: 9,
       minReputation: 5,
       tier: "silver" as const,
+      size: "large" as const,
     };
 
     const invNormal = makeInv({
@@ -252,6 +304,7 @@ describe("HarborSystem deliveryDay uses injected ticksPerDay", () => {
       deadlineDay: 99,
       minReputation: 0,
       tier: "normal",
+      size: "large",
       ...overrides,
     };
   }

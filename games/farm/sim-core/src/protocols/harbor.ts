@@ -21,6 +21,18 @@ export interface ContractGoods {
   quantity: number;
 }
 
+/**
+ * Contract size band (2026-07-16 brief: tiered harbor contracts). Orthogonal
+ * to `tier` (which gates reputation + crop pool): only the always-available
+ * "normal" tier is offered across all three sizes — "silver"/"gold" stay
+ * single-size ("large"), preserving them as the rare, hoarder-shaped big
+ * hauls. "large" is byte-for-byte today's pre-brief economics (same qty
+ * range, same `CONTRACT_REWARD_MULT`); "small"/"medium" are new, smaller,
+ * proportionally-lower-multiplier bands so a mid-wealth non-hoarder can
+ * plausibly commit with normal mid-game holdings.
+ */
+export type ContractSize = "small" | "medium" | "large";
+
 export interface HarborContract {
 
   id: string;
@@ -38,6 +50,8 @@ export interface HarborContract {
   minReputation: number;
 
   tier: "normal" | "silver" | "gold";
+
+  size: ContractSize;
 }
 
 export interface ContractPostedBody {
