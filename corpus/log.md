@@ -4,6 +4,54 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-17] plan | Hollow — third game: multi-generational social sim (full M1–M4 briefs queued)
+
+New game **Hollow** designed via a two-round grill-me interview and queued as
+`todos/2026-07-17-hollow-*`: a `00-BUILD-ORDER` design-of-record + **fourteen briefs `01`–`13`**
+covering all four milestones (M1 `01`–`07`, M2 `08`–`09`, M3 `10`–`11`, M4 `12`–`13`). No code
+yet — planning only.
+
+**What it is.** A director/observer **multi-generational social simulation** on the shared engine.
+User authors personas + seeds a ~30–60-agent, ~64² town, then observes/perturbs (no player avatar).
+BDI substrate, **no LLM in v1** (genome trait-vector is the LLM plug-in seam). Motivated by the
+user's prior LLM agent-society study (github.com/gandolh/agent-society), where unanchored agents
+hallucinated — so Hollow's thesis is that **decisions must have weight**: needs + scarce located
+resources + a real economy anchor every choice; scarcity regulates population.
+
+**Locked decisions of record** (full list in the BUILD-ORDER):
+- Rendering = **true 3D, raw WebGPU, promoted into `@engine/core`**; cozy = flat-shade-by-normal +
+  AO + warm Apollo-46 ramps; meshes **baked from parametric primitives** (Citadel's mesh generators,
+  rendered live not rasterized). M2 work.
+- **Emergent** communities (crystallize from trust ties; grow/split/merge/dissolve) — not authored.
+- **Multi-generational**: aging, death (age/starvation/violence), pair-bond→children, open-ended run.
+- **Genome = behavior(BDI) + aptitude + appearance**, heritable + *visible* in 3D; crossover+mutation.
+  `Personality` = genome (fixed); `Beliefs/Desires` = lived (not inherited).
+- Social verbs: cooperative + antagonistic + kinship in v1; governance in M4.
+- **Isolation answer**: promote Farm's generic agent kernel (needs, FSM, deliberate-registry, CNP
+  trade, trust) into `@engine/core`, refactor Farm to consume it (behavior-preserving via multi-seed
+  `EXPORT=json` diffs) — shared mechanics leave Farm's package, so the two games get *more* isolated.
+- Output: timeline + metrics dashboard + CSV/JSON export + headless `@tool/hollow-sim`. Web-Worker
+  transport (Citadel-style). Packages `@hollow/sim-core`, `@hollow/client`, `@tool/hollow-sim`.
+
+**Phasing (headless-first):** M1 sim vertical slice (prove emergence in exported data) → M2 WebGPU 3D
+cozy view → M3 client research surfaces → M4 governance + LLM-rationalizer seam. M1 exit bar: a seed
+run over ≥5 generations shows communities forming/dissolving, seed-dependent coop-vs-sabotage
+divergence, ≥3-gen lineages with trait drift, scarcity-stable population — deterministic.
+
+**M2–M4 locked decisions** (round 2): camera = free orbit+pan+zoom perspective god-cam (ray-pick);
+legibility = subtle-diegetic (action glyph + territory tint + kid-scale) with a `[T]` name/need-bar
+toggle, full detail on click; fidelity = living cozy town (gene-driven low-poly humanoids w/ walk +
+action poses, per-household homes, readable nodes, day/night). Timeline = **live chronicle +
+camera-jump, NO world rewind** (deep analysis via export). Authoring = guided archetypes+sliders
+writing the CLI-shared persona-seed. Perturbation = **time controls + environmental shocks only**
+(logged → seed+persona+intervention-log reproduces a run); agent-edits/rule-tuning deferred.
+Governance = emergent leaders (standing→contestable) + votable norms + collective sanctions + splits.
+**LLM seam = bounded**: BDI yields the grounded feasible candidates, LLM *chooses among them +
+narrates why* (cannot invent actions — anchoring enforced by schema, the fix for the prior study's
+hallucination); **event-triggered, async, BDI fallback**; **off by default = byte-deterministic**, on
+= labeled non-deterministic live mode with a prompt-keyed cache for reproducible replay; pluggable
+provider, default Claude Haiku 4.5, stub impl is the CI default.
+
 ## [2026-07-17] stable-point | Engine library extraction DONE + 4 stability items — todo queue EMPTY (`7212575`…`c67d6d8`)
 
 The engine-library-extraction todo — the declared **stable point** — is closed, emptying the todo
