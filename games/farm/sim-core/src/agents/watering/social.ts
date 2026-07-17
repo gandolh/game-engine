@@ -260,6 +260,11 @@ function festivalTemperament(farmer: GameEntity): { dryTolerance: number; staysE
  * evicted the SAME tick they arrived (or the moment evening phase began) —
  * the gathering was never actually visible. `deliberateSleep` calls this
  * before queuing "head home" and skips if it returns true.
+ *
+ * Multi-day (FESTIVAL_DAYS, 2026-07-17): `festivalToday` is written every day of
+ * the window, so this returns true on day 2 as well — a farmer who reached the
+ * plaza (typically by travelling in on day 1) keeps celebrating there rather
+ * than being pulled home, honouring the same per-personality evening flavour.
  */
 export function isLingeringAtFestival(farmer: GameEntity): boolean {
   if (!farmer.beliefs || !farmer.transform) return false;

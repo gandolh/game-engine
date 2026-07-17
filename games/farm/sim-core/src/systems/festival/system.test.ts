@@ -8,6 +8,7 @@ import { ONT_SIMULATION, PERFORMATIVE } from "../../protocols";
 import {
   ONT_FESTIVAL,
   festivalForDay,
+  isFestivalLastDay,
   type FestivalResultBody,
 } from "../../protocols/festival";
 
@@ -56,16 +57,23 @@ function runTiedFestival(seed: number): number {
 
   const sys = new FestivalSystem(bus, world, createRng(seed), TICKS_PER_DAY);
 
-  // Festival day: capture submissions.
-  pushDayStart(station, D);
-  sys.run({ tick: D * TICKS_PER_DAY });
-  station.inbox!.messages.length = 0;
-  bus.flush();
-  bus.drain();
+  // Run every festival day so submissions are captured across the whole
+  // (multi-day) window, then one more day to trigger the single resolution.
+  let cursor = D;
+  while (festivalForDay(cursor) !== null) {
+    pushDayStart(station, cursor);
+    sys.run({ tick: cursor * TICKS_PER_DAY });
+    station.inbox!.messages.length = 0;
+    bus.flush();
+    bus.drain();
+    if (isFestivalLastDay(cursor)) break;
+    cursor += 1;
+  }
 
-  // Next day: resolve the previous day's contest.
-  pushDayStart(station, D + 1);
-  sys.run({ tick: (D + 1) * TICKS_PER_DAY });
+  // Day after the last festival day: resolve the contest.
+  const resolveDay = cursor + 1;
+  pushDayStart(station, resolveDay);
+  sys.run({ tick: resolveDay * TICKS_PER_DAY });
 
   bus.flush();
   for (const m of bus.drain()) {

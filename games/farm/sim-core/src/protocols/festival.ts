@@ -33,6 +33,23 @@ export interface FestivalDef {
 
 export const FESTIVAL_OFFSET_IN_SEASON = Math.floor(SEASON_LENGTH / 2);
 
+/**
+ * How many consecutive days a festival runs (2026-07-17 user decision resolving
+ * the "festival attendance is geography-bound" open question). Farms sit 200+
+ * tiles from the market-plaza podium at 8 ticks/tile against a 1200-tick day, so
+ * a farmer who spends most of day 1 travelling still arrives to celebrate on
+ * day 2. The window is FESTIVAL_DAYS days beginning at
+ * `festivalDayForSeason(season)`.
+ *
+ * Default 2; **3 works by changing only this constant** — the window is
+ * guaranteed to stay inside its season (never crossing a season/year boundary)
+ * as long as `FESTIVAL_OFFSET_IN_SEASON + FESTIVAL_DAYS <= SEASON_LENGTH`
+ * (with SEASON_LENGTH=25 that allows up to 13). All the multi-day plumbing
+ * (announce-once, capture-across-days, resolve-once-at-the-end) is derived from
+ * this constant, so no other file needs editing to widen the window.
+ */
+export const FESTIVAL_DAYS = 2;
+
 export const FESTIVALS: Readonly<Record<Season, FestivalDef>> = {
   spring: {
     id: "spring-planting-fair",
@@ -78,9 +95,37 @@ export function festivalForDay(day: number): FestivalDef | null {
   const yearLength = SEASON_LENGTH * SEASON_ORDER.length;
   const dayInYear = ((day - 1) % yearLength) + 1;
   for (const season of SEASON_ORDER) {
-    if (festivalDayForSeason(season) === dayInYear) return FESTIVALS[season];
+    const start = festivalDayForSeason(season);
+    // Multi-day window [start, start + FESTIVAL_DAYS) — see FESTIVAL_DAYS. The
+    // window never crosses a season boundary (guaranteed by the offset/length
+    // invariant documented on FESTIVAL_DAYS), so a single per-season start
+    // check is sufficient.
+    if (dayInYear >= start && dayInYear < start + FESTIVAL_DAYS) return FESTIVALS[season];
   }
   return null;
+}
+
+/**
+ * The absolute day the festival CONTAINING `day` began on, or null if `day` is
+ * not a festival day. Multi-day submissions and the single end-of-festival
+ * contest resolution are both keyed by this start day so the whole window
+ * counts as one festival.
+ */
+export function festivalStartDayForDay(day: number): number | null {
+  if (festivalForDay(day) === null) return null;
+  let start = day;
+  while (start > 1 && festivalForDay(start - 1) !== null) start -= 1;
+  return start;
+}
+
+/** True iff `day` is the FIRST day of its festival window (announce once). */
+export function isFestivalStartDay(day: number): boolean {
+  return festivalForDay(day) !== null && festivalForDay(day - 1) === null;
+}
+
+/** True iff `day` is the LAST day of its festival window (resolve once). */
+export function isFestivalLastDay(day: number): boolean {
+  return festivalForDay(day) !== null && festivalForDay(day + 1) === null;
 }
 
 export function daysUntilFestival(day: number): number {

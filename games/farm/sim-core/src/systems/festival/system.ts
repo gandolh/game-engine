@@ -7,6 +7,9 @@ import {
   ONT_FESTIVAL,
   PERFORMATIVE,
   festivalForDay,
+  festivalStartDayForDay,
+  isFestivalStartDay,
+  isFestivalLastDay,
   daysUntilFestival as daysUntilFestivalForDay,
   type FestivalDef,
   type FestivalAnnounceBody,
@@ -47,16 +50,25 @@ export class FestivalSystem implements System {
     }
 
     if (newDay !== null) {
+      // Multi-day festival (FESTIVAL_DAYS): resolve the contest ONCE, the day
+      // after the festival's LAST day, keyed on the festival's start day so the
+      // whole window counts as one festival. (Pre-multi-day this fired the day
+      // after the single festival day; isFestivalLastDay(prevDay) is true then
+      // too, so 1-day festivals are unchanged.)
       const prevDay = newDay - 1;
       const prevFestival = festivalForDay(prevDay);
-      if (prevFestival !== null && !this.resolved.has(prevDay)) {
-        this.resolved.add(prevDay);
-        this.resolveContest(prevFestival, prevDay, ctx.tick);
-        this.submissions.delete(prevDay);
+      if (prevFestival !== null && isFestivalLastDay(prevDay)) {
+        const startDay = festivalStartDayForDay(prevDay) ?? prevDay;
+        if (!this.resolved.has(startDay)) {
+          this.resolved.add(startDay);
+          this.resolveContest(prevFestival, startDay, ctx.tick);
+          this.submissions.delete(startDay);
+        }
       }
 
+      // Announce ONCE, on the festival's first day.
       const todays = festivalForDay(newDay);
-      if (todays !== null && !this.announced.has(newDay)) {
+      if (todays !== null && isFestivalStartDay(newDay) && !this.announced.has(newDay)) {
         this.announced.add(newDay);
         this.announce(todays, newDay, ctx.tick);
       }
@@ -75,10 +87,14 @@ export class FestivalSystem implements System {
   }
 
   private captureSubmissions(day: number, crop: import("../../components").CropKind): void {
-    let dayMap = this.submissions.get(day);
+    // Accumulate every festival day's holdings into ONE map keyed by the
+    // festival's start day (multi-day window), so a farmer's best submission
+    // across the whole festival is what the end-of-festival resolution ranks.
+    const key = festivalStartDayForDay(day) ?? day;
+    let dayMap = this.submissions.get(key);
     if (!dayMap) {
       dayMap = new Map<number, Submission>();
-      this.submissions.set(day, dayMap);
+      this.submissions.set(key, dayMap);
     }
     for (const f of this.world.query("farmer", "inventory")) {
       if (f.id === undefined) continue;

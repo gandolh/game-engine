@@ -70,7 +70,17 @@ export function tavernGatherTile(): { x: number; y: number } {
 /** How often (in days) a farmer makes a tavern gathering trip (a periodic luxury). */
 export const TAVERN_VISIT_PERIOD = 12;
 
-/** The festival gathering tile: the auction podium in the town square. */
+/**
+ * The festival gathering tile: the auction podium at the centre of the village
+ * market plaza (`AUCTION_PODIUM_TILE = snapNear('village', 0, 0)`). This is the
+ * SAME plaza farmers already route to for the periodic market visit and to sell
+ * produce (`deliberatePeriodicMarketVisit`, `deliberateSellProducts`) — the
+ * venue half of the 2026-07-17 "festival attendance is geography-bound"
+ * decision: hold the festival where farmers already pass rather than at an
+ * out-of-the-way podium. Combined with the multi-day window (see FESTIVAL_DAYS),
+ * a farmer who spends day 1 travelling in for market/festival is on the plaza to
+ * celebrate on day 2.
+ */
 export function festivalPodiumTile(): { x: number; y: number } {
   return AUCTION_PODIUM_TILE;
 }

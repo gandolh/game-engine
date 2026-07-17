@@ -57,7 +57,11 @@ export {
   ONT_FESTIVAL,
   FESTIVALS,
   FESTIVAL_OFFSET_IN_SEASON,
+  FESTIVAL_DAYS,
   festivalForDay,
+  festivalStartDayForDay,
+  isFestivalStartDay,
+  isFestivalLastDay,
   festivalDayForSeason,
   daysUntilFestival,
 } from "./festival";
