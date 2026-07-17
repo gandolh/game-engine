@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@engine/core": "0.0.0"
+    "@engine/core": "0.1.0"
   },
   "devDependencies": {
     "@types/jsdom": "21.1.7",

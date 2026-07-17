@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@engine/core": "0.0.0",
+    "@engine/core": "0.1.0",
     "@farm/sim-core": "0.0.0"
   },
   "devDependencies": {

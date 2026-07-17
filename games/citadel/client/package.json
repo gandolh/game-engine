@@ -11,8 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@engine/core": "0.0.0",
-    "@engine/ui": "0.0.0",
+    "@engine/core": "0.1.0",
+    "@engine/ui": "0.1.0",
     "@citadel/sim-core": "0.0.0"
   },
   "devDependencies": {
