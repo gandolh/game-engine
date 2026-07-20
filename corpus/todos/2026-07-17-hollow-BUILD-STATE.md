@@ -1,7 +1,7 @@
 # Hollow — BUILD STATE / RESUME (live tracker)
 
 status: in-progress
-updated: 2026-07-17
+updated: 2026-07-20
 
 **Read this first to resume the Hollow build.** Design-of-record + all brief specs are in
 `corpus/todos/2026-07-17-hollow-00-BUILD-ORDER.md` and `…-hollow-01..13-*.md`. This file is the
@@ -43,29 +43,70 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | hollow-02 engine agent-kernel promotion (+Farm refactor) | ✅ done, verified | `a9d2a5f` |
 | hollow-03 needs / economy / scarcity | ✅ done, verified | `1790d59` |
 | hollow-04 relationships / emergent communities | ✅ done, verified | `9bbc90f` |
-| **hollow-05 lifecycle / pair-bonding / genetics** | ⏸ **partial → stashed** | — |
+| **hollow-05 lifecycle / pair-bonding / genetics** | ✅ **done, verified** | `c8c3c2b` |
 | hollow-06 social verbs | ⬜ not started | — |
 | hollow-07 headless CLI + export → **M1 EXIT-BAR GATE** | ⬜ not started | — |
 | M2–M4 (hollow-08..13) | ⬜ specs written, queued | — |
 
-## The stashed partial (hollow-05)
-`git stash@{0}` = "hollow-05 WIP (incomplete — mid pair-bonding; re-dispatch fresh)". It touched
-`components/entity.ts`, `population.ts`, `protocols/index.ts` and added `family/`, `genome/`,
-`lifecycle/`, `protocols/family.ts`, `protocols/lethal.ts` — but stopped mid pair-bonding and is
-likely non-compiling.
+## hollow-05 — how it went (2026-07-20)
+Re-dispatched FRESH on a Sonnet executor (the old `stash@{0}` partial was NOT salvaged). Implementation
+was scope-clean (all in `games/hollow/sim-core/`, no engine edits) and typechecked first try — but the
+controller (opus) caught a **population-dynamics defect the green unit tests hid**: the executor's
+full-sim `FAST_LIFECYCLE` used *ample* food + high fertility, which removed the only carrying-capacity
+mechanism → the 3000-tick dynasties test ran the population to thousands and the O(n²) community pass
+made the suite effectively hang (looked like green tests, was actually a near-hang).
+
+**Root finding (design-level):** food-scarcity alone can't bound the population at test timescales.
+The per-partner food-security birth gate is *bimodal* (villager AI keeps everyone fed until food
+crashes), and pairbonding is a *positive* feedback (more agents → denser → more trust → more bonds →
+more births), so the system is **bistable**: any fertility high enough to survive the founder die-off
+lets lucky seeds explode; any low enough to cap growth lets unlucky seeds go extinct. Confirmed over 5
+parameter sweeps (see scratchpad diag runs) — no fertility/food setting is bounded-and-surviving
+across seeds.
+
+**Fix (user-approved):** added a **density-dependent birth brake** — `BIRTH_PERCAPITA_FOOD_TARGET`
+(family/constants.ts) scales effective birth chance by per-capita food supply
+(`sum(food-node regen)/aliveCount`), turning the bimodal gate into a smooth logistic brake →
+self-limiting, seed-robust plateau. Swept the target: T=6 is bounded (~15–65) and never-extinct across
+seeds {1,7,33,101,202}; T≥15 over-throttles to extinction. New opt: `birthPerCapitaFoodTarget`.
+Rewrote `sim-bootstrap.family.test.ts` around a stable `STABLE_LIFECYCLE` profile with modest tick
+budgets (≤1200) + a real scarcity-coupling A/B test. Suite: **95/95 green in ~4s**; whole-workspace
+typecheck **17/17**.
+
+**Lesson filed:** `gestationTicks` defaults to 250 — omitting it from a compressed test profile
+silently defaults gestation to 250 ticks → no birth completes before founders die → extinction. When
+building a FAST_* profile, copy EVERY compressed knob; a missing one silently reverts to the
+production default and can invert the dynamics.
+
+## Note: the old stash is still present
+`git stash drop stash@{0}` was **blocked by the permission classifier** this session — the WIP stash
+"hollow-05 WIP (incomplete…)" is harmless dead weight and was NOT used. Drop it manually when
+convenient: `git stash drop stash@{0}`.
+
+## HANDOFF from hollow-05 (feed to hollow-06 / 07)
+- `BootedHollowSim` now also exposes `households: HouseholdRegistry` and `lineage: LineageRegistry`.
+- New Hollow components on `HollowEntity`: `genome` (behavior/aptitude/appearance — appearance tones
+  are HOLLOW_PAL role strings), `lifecycle` (birthTick/ageTicks/stage), `householdId:number|null`.
+- Family ontology `ONT_FAMILY.{BONDED,BIRTH,DEATH,STAGE_CHANGED}` (protocols/family.ts); the
+  bootstrap subscribes BIRTH/DEATH to keep `bornCount`/`diedCount` on the snapshot.
+- Death seam for **hollow-06 violence**: `HollowLifecycleSystem.evaluateDeath` already reads
+  `beliefs.data.violentDeath === true` (nothing sets it yet) — hollow-06's resolved-attack signal
+  sets that flag to cause a "violence" death (inheritance/lineage/despawn all already handle it).
+- Snapshot extended additively: agents carry `ageTicks/stage/householdId/appearance`; top-level
+  `bornCount/diedCount/householdCount`. New subpath exports `./family`, `./lineage`.
+- Scheduler order now: …→ BELONGING → **PAIRBOND → REPRODUCTION → LIFECYCLE** → NEEDS-DECAY →
+  RESOURCE-REGEN.
 
 ## ▶ NEXT ACTION (resume here)
-1. **Drop the stash** (`git stash drop stash@{0}`) — re-dispatch hollow-05 FRESH, don't salvage the
-   partial (it was too incomplete to trust). *(Only inspect/pop it if you specifically want to
-   reuse a piece — verify the stash message matches first.)*
-2. Confirm clean tree + green baseline: `npm run typecheck` and `npm run test -w @hollow/sim-core`
-   (should be 54/54 at the hollow-04 checkpoint).
-3. Re-dispatch **hollow-05** on Sonnet using the spec in `…-hollow-05-lifecycle-pairbond-genetics.md`
-   + the handoffs below. Then continue `06 → 07 → M1 exit-bar gate`.
-4. **M1 exit-bar gate** (after 07, before any M2/3D work): a headless seed run over ≥5 generations
+1. Confirm green baseline: `npm run test -w @hollow/sim-core` (should be **95/95**) + whole-workspace
+   `npm run typecheck` (17/17).
+2. Dispatch **hollow-06 social verbs** on a Sonnet executor using
+   `…-hollow-06-social-verbs.md` + the hollow-05 handoff above (wire the violence death seam). Then
+   `07 → M1 exit-bar gate`.
+3. **M1 exit-bar gate** (after 07, before any M2/3D work): a headless seed run over ≥5 generations
    must show — communities forming + ≥1 dissolving; seed-dependent cooperation-vs-sabotage
-   divergence; ≥3-gen lineages with heritable trait drift; scarcity-stable population;
-   deterministic. This is the go/no-go for M2.
+   divergence; ≥3-gen lineages with heritable trait drift; scarcity-stable population (now delivered
+   by the density brake); deterministic. Go/no-go for M2.
 
 ---
 
