@@ -15,7 +15,11 @@
  * can decide.
  */
 import type { Community, CommunityNorms, CommunityTile } from "./community";
-import { COMMUNITY_DEFAULT_SHARE_RATE, COMMUNITY_DEFAULT_COOPERATION_EXPECTATION } from "./constants";
+import {
+  COMMUNITY_DEFAULT_SHARE_RATE,
+  COMMUNITY_DEFAULT_COOPERATION_EXPECTATION,
+  COMMUNITY_DEFAULT_ADMISSION_POLICY,
+} from "./constants";
 
 export class CommunityRegistry {
   private readonly byId = new Map<number, Community>();
@@ -42,8 +46,14 @@ export class CommunityRegistry {
       norms: {
         shareRate: norms?.shareRate ?? COMMUNITY_DEFAULT_SHARE_RATE,
         cooperationExpectation: norms?.cooperationExpectation ?? COMMUNITY_DEFAULT_COOPERATION_EXPECTATION,
+        admissionPolicy: norms?.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY,
       },
       formedTick: tick,
+      // Governance state (chunk hollow-12a) — always starts empty/null; the
+      // next `HollowGovernanceSystem` pass fills both in for every extant
+      // community, this brand-new one included.
+      leaderId: null,
+      standing: {},
     };
     this.byId.set(community.id, community);
     return community;

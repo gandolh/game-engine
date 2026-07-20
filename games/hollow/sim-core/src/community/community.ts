@@ -37,6 +37,19 @@ export interface CommunityNorms {
    * per-community norm tuning can't accidentally destabilize detection.
    */
   cooperationExpectation: number;
+  /**
+   * How selective the community is about admitting new members (chunk
+   * hollow-12a) — 0 = fully open, 1 = fully closed. Purely a governance
+   * signal in this chunk (nothing in `crystallize-system.ts`'s GROW pass
+   * reads it yet — that would re-tune hollow-04's join-trust calibration
+   * ahead of a brief that actually wires the coupling; see
+   * `governance/governance-system.ts`'s header). Votable like the other two
+   * norms — see `HollowGovernanceSystem`'s norm-vote sub-pass. Optional only
+   * for back-compat with hand-built `Community`/`CommunityNorms` literals
+   * that predate this field (`CommunityRegistry.form` always fills a
+   * default — see registry.ts).
+   */
+  admissionPolicy?: number;
 }
 
 export interface Community {
@@ -63,4 +76,22 @@ export interface Community {
   norms: CommunityNorms;
   /** Tick this community was formed (or re-formed via a SPLIT). */
   readonly formedTick: number;
+  /**
+   * Current emergent leader (chunk hollow-12a) — the highest-standing
+   * member, tie-broken by lowest agent id. CONTESTABLE: recomputed by
+   * `HollowGovernanceSystem` every governance pass, so it can (and, per the
+   * acceptance, must be able to) change as standing shifts — this is never
+   * a fixed "founder is leader forever" slot. `null` only before this
+   * community's first governance pass has ever run (or if it currently has
+   * no members at all — see registry.ts's `form`).
+   */
+  leaderId: number | null;
+  /**
+   * Per-member standing score (chunk hollow-12a), keyed by agent id — see
+   * `governance/governance-system.ts`'s weighted formula (contribution +
+   * help given + trust held + tenure). Replaced wholesale every governance
+   * pass (never merged), so a member who left never lingers with a stale
+   * entry. Empty until this community's first governance pass runs.
+   */
+  standing: Record<number, number>;
 }

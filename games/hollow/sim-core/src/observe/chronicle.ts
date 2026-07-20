@@ -3,9 +3,14 @@
  * `@hollow/sim-core/observe` by chunk hollow-10a from the research CLI's
  * original `tools/hollow-sim/src/chronicle.ts`, chunk hollow-07).
  * Subscribes to `sim.bus` for every ontology the brief calls out
- * (ONT_FAMILY.*, ONT_COMMUNITY.*, ONT_SOCIAL.*, ONT_STARVATION.ONSET) and
- * buffers each as a flat, stably-keyed `ChronicleEvent` in dispatch order —
- * the input to `events.jsonl` and to the browser client's chronicle feed.
+ * (ONT_FAMILY.*, ONT_COMMUNITY.*, ONT_SOCIAL.*, ONT_STARVATION.ONSET,
+ * ONT_GOVERNANCE.* — chunk hollow-12a's leader-changed/norm-changed/
+ * sanctioned events) and buffers each as a flat, stably-keyed
+ * `ChronicleEvent` in dispatch order — the input to `events.jsonl` and to
+ * the browser client's chronicle feed (which falls back to a generic
+ * ontology/body rendering for anything it has no dedicated formatter for
+ * yet — see hollow-12a's brief for why a nicer governance-specific line is
+ * a later chunk's job, not this one's).
  *
  * Read-only / off-sim-path: `bus.subscribeOntology` only registers a
  * listener the sim already calls from its own `notifySubscribers()` (see
@@ -21,7 +26,7 @@
  * the whole event buffer every sample.
  */
 import type { MessageBus } from "@engine/core";
-import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION } from "../protocols";
+import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE } from "../protocols";
 
 /** One flattened chronicle line: `{ tick, ontology, ...body }` — `tick` is
  *  read from the body (every Hollow event body carries its own `tick`
@@ -50,6 +55,7 @@ export interface Chronicle {
 const ALL_SOCIAL_ONTOLOGIES: readonly string[] = Object.values(ONT_SOCIAL);
 const ALL_FAMILY_ONTOLOGIES: readonly string[] = Object.values(ONT_FAMILY);
 const ALL_COMMUNITY_ONTOLOGIES: readonly string[] = Object.values(ONT_COMMUNITY);
+const ALL_GOVERNANCE_ONTOLOGIES: readonly string[] = Object.values(ONT_GOVERNANCE);
 
 function bodyTick(body: Record<string, unknown>): number {
   const t = body["tick"];
@@ -74,6 +80,9 @@ export function createChronicle(bus: MessageBus): Chronicle {
     bus.subscribeOntology(ontology, capture(ontology));
   }
   for (const ontology of ALL_SOCIAL_ONTOLOGIES) {
+    bus.subscribeOntology(ontology, capture(ontology));
+  }
+  for (const ontology of ALL_GOVERNANCE_ONTOLOGIES) {
     bus.subscribeOntology(ontology, capture(ontology));
   }
   bus.subscribeOntology(ONT_STARVATION.ONSET, capture(ONT_STARVATION.ONSET));

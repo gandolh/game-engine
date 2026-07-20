@@ -16,8 +16,8 @@
  * boundary convention — see CLAUDE.md's "Architecture essentials").
  *
  * Scheduler order — SHOCK → PERCEIVE → DELIBERATE → ACT → TRUST-ACCRUAL →
- * COMMUNITY → BELONGING → PAIRBOND → REPRODUCTION → LIFECYCLE → NEEDS-DECAY
- * → RESOURCE-REGEN:
+ * GOVERNANCE → COMMUNITY → BELONGING → PAIRBOND → REPRODUCTION → LIFECYCLE →
+ * NEEDS-DECAY → RESOURCE-REGEN:
  *  0. SHOCK (HollowShockSystem, chunk hollow-11a): applies any environmental
  *     shock (famine/boom/disaster/plague) scheduled for THIS tick, and
  *     recomputes the resource world's regen multiplier / drains any active
@@ -55,42 +55,52 @@
  *     proximity/shared-activity are only knowable once this tick's movement
  *     has happened (see systems/act.ts's `stepToward`) — running it any
  *     earlier would read stale (pre-move) positions.
- *  5. COMMUNITY (HollowCommunitySystem, chunk hollow-04): the PERIODIC
+ *  5. GOVERNANCE (HollowGovernanceSystem, chunk hollow-12a): the PERIODIC
+ *     (mirrors COMMUNITY's own cadence by default) standing/leader/norm-
+ *     vote/sanctions/norm-clash pass. Runs right after TRUST-ACCRUAL (so
+ *     the trust-held standing ingredient and sanction targeting both read
+ *     this tick's up-to-date ledger) and — the load-bearing placement —
+ *     BEFORE COMMUNITY, so a sanction's trust penalty and a norm clash's
+ *     trust/belonging erosion are visible to THIS SAME TICK's LEAVE/SPLIT
+ *     dynamics rather than a tick late. See governance/governance-system.ts's
+ *     header for the four sub-passes' fixed order.
+ *  6. COMMUNITY (HollowCommunitySystem, chunk hollow-04): the PERIODIC
  *     (not every-tick) community-detection + dynamics pass — leave, split,
  *     merge, grow, form — over the CURRENT trust ledger. Runs immediately
- *     after TRUST-ACCRUAL so it always reads this tick's up-to-date scores,
- *     and BEFORE BELONGING so belonging replenish/decay reflects any
- *     join/leave/split/merge/dissolve that just happened this tick, not
- *     last tick's stale membership.
- *  6. BELONGING (HollowBelongingSystem, chunk hollow-04): couples
+ *     after GOVERNANCE (see above) so it always reads this tick's up-to-date
+ *     scores (trust AND any governance-driven erosion), and BEFORE BELONGING
+ *     so belonging replenish/decay reflects any join/leave/split/merge/
+ *     dissolve/exclusion that just happened this tick, not last tick's stale
+ *     membership.
+ *  7. BELONGING (HollowBelongingSystem, chunk hollow-04): couples
  *     `communityId` to the `belonging` need — members replenish, non-
- *     members (never-joined, defected, or dissolved-out) decay. Must run
- *     AFTER COMMUNITY (see above) and BEFORE NEEDS-DECAY (whose generic
- *     `decayPerTick` for `belonging` is a no-op stub — see
- *     economy/constants.ts — so it doesn't fight this system).
- *  7. PAIRBOND (HollowPairBondSystem, chunk hollow-05): bonds eligible
+ *     members (never-joined, defected, dissolved-out, or governance-
+ *     excluded) decay. Must run AFTER COMMUNITY (see above) and BEFORE
+ *     NEEDS-DECAY (whose generic `decayPerTick` for `belonging` is a no-op
+ *     stub — see economy/constants.ts — so it doesn't fight this system).
+ *  8. PAIRBOND (HollowPairBondSystem, chunk hollow-05): bonds eligible
  *     unattached adult pairs into new households. Runs AFTER BELONGING so
  *     it reads this tick's up-to-date trust/community state, and BEFORE
  *     REPRODUCTION (a household must exist before it can roll for a birth).
- *  8. REPRODUCTION (HollowReproductionSystem, chunk hollow-05): rolls each
+ *  9. REPRODUCTION (HollowReproductionSystem, chunk hollow-05): rolls each
  *     eligible household for a new pregnancy (gated by food security) and
  *     spawns any child whose gestation just completed. Runs BEFORE
  *     LIFECYCLE so a same-tick birth isn't aged or evaluated for death the
  *     same tick it spawns.
- *  9. LIFECYCLE (HollowLifecycleSystem, chunk hollow-05): ages every agent,
+ * 10. LIFECYCLE (HollowLifecycleSystem, chunk hollow-05): ages every agent,
  *     recomputes life stage, and evaluates death (starvation/old-age/
  *     violence-seam), handling inheritance/household/community cleanup and
  *     `world.despawn`. Runs AFTER PAIRBOND/REPRODUCTION (see above) and
  *     BEFORE NEEDS-DECAY so we don't decay needs on agents that die this
  *     tick.
- * 10. NEEDS-DECAY (engine's `createNeedsDecaySystem`): drains every need by
+ * 11. NEEDS-DECAY (engine's `createNeedsDecaySystem`): drains every need by
  *     its `decayPerTick`. Runs AFTER perceive/deliberate/act (and hollow-04's
- *     trust/community/belonging systems, and hollow-05's pairbond/
- *     reproduction/lifecycle systems) so this tick's harvesting/resting/
- *     eating/belonging is reflected before decay applies — an agent that
- *     just topped off `food` this tick shouldn't also lose ground to decay
- *     in the same tick.
- * 11. RESOURCE-REGEN (`createResourceRegenSystem`): advances every node's
+ *     trust/community/belonging systems, hollow-12a's governance pass, and
+ *     hollow-05's pairbond/reproduction/lifecycle systems) so this tick's
+ *     harvesting/resting/eating/belonging is reflected before decay applies
+ *     — an agent that just topped off `food` this tick shouldn't also lose
+ *     ground to decay in the same tick.
+ * 12. RESOURCE-REGEN (`createResourceRegenSystem`): advances every node's
  *     stock by one tick of regeneration. Runs last so a node fully drained
  *     by this tick's harvesting still gets its regen tick rather than being
  *     skipped for the tick it hit zero.
@@ -139,6 +149,7 @@ import {
   COMMUNITY_LEAVE_TRUST_THRESHOLD,
   COMMUNITY_MERGE_CROSS_TRUST_THRESHOLD,
   COMMUNITY_MERGE_TERRITORY_RADIUS,
+  COMMUNITY_DEFAULT_ADMISSION_POLICY,
   BELONGING_MEMBER_REPLENISH_PER_TICK,
   BELONGING_NONMEMBER_DECAY_PER_TICK,
 } from "./community";
@@ -172,6 +183,18 @@ import {
   SABOTAGE_DETECTION_PROB,
 } from "./social";
 import { HollowShockSystem } from "./shock";
+import {
+  HollowGovernanceSystem,
+  GOVERNANCE_INTERVAL_TICKS,
+  STANDING_CONTRIBUTION_WEIGHT,
+  STANDING_HELP_WEIGHT,
+  STANDING_TRUST_WEIGHT,
+  STANDING_TENURE_WEIGHT,
+  NORM_VOTE_STEP,
+  LEADER_VOTE_WEIGHT_MULTIPLIER,
+  SANCTION_EXCLUSION_SEVERITY_THRESHOLD,
+  NORM_CLASH_THRESHOLD,
+} from "./governance";
 
 export type { HollowEntity } from "./components";
 
@@ -275,6 +298,31 @@ export interface HollowSimOptions {
   attackLethalityProb?: number;
   /** Probability a `sabotage` is detected. */
   sabotageDetectionProb?: number;
+
+  // Governance (chunk hollow-12a) knobs — each defaults to its
+  // governance/constants.ts constant, same override pattern as above (e.g.
+  // for a faster governance cadence in a narrow test).
+  /** How often (in ticks) the governance pass (standing/leader/norm-vote/
+   *  sanctions/norm-clash) runs. */
+  governanceIntervalTicks?: number;
+  /** Standing-formula weight for lifetime stockpile contribution. */
+  governanceStandingContributionWeight?: number;
+  /** Standing-formula weight for lifetime help given to fellow members. */
+  governanceStandingHelpWeight?: number;
+  /** Standing-formula weight for trust HELD from fellow members. */
+  governanceStandingTrustWeight?: number;
+  /** Standing-formula weight for tenure (ticks since joining). */
+  governanceStandingTenureWeight?: number;
+  /** Bounded per-pass step a norm can drift toward the vote's target. */
+  governanceNormVoteStep?: number;
+  /** Multiplier on the leader's own vote weight in the norm vote. */
+  governanceLeaderVoteWeightMultiplier?: number;
+  /** Accumulated violation severity at/above which a sanction is exclusion
+   *  rather than a fine + trust penalty. */
+  governanceSanctionExclusionSeverityThreshold?: number;
+  /** Norm-vs-genome clash fraction at/above which a member's outgoing trust
+   *  toward fellow members (and belonging need) erodes. */
+  governanceNormClashThreshold?: number;
 }
 
 export interface HollowAppearanceSnapshot {
@@ -327,6 +375,10 @@ export interface HollowResourceNodeSnapshot {
 export interface HollowCommunityNormsSnapshot {
   readonly shareRate: number;
   readonly cooperationExpectation: number;
+  /** Votable admission selectivity (chunk hollow-12a) — 0 open, 1 closed.
+   *  Optional only for back-compat with pre-hollow-12a snapshot literals
+   *  (e.g. observe/metrics.test.ts's hand-built fixtures). */
+  readonly admissionPolicy?: number;
 }
 
 /** Data-only snapshot of one emergent community (chunk hollow-04) — see
@@ -338,6 +390,13 @@ export interface HollowCommunitySnapshot {
   readonly territory: readonly { readonly gx: number; readonly gy: number }[];
   readonly stockpile: Readonly<Record<string, number>>;
   readonly norms: HollowCommunityNormsSnapshot;
+  /** Current emergent (contestable) leader (chunk hollow-12a), or `null`
+   *  before this community's first governance pass. Optional only for
+   *  back-compat with pre-hollow-12a snapshot literals. */
+  readonly leaderId?: number | null;
+  /** Per-member standing score (chunk hollow-12a), keyed by agent id.
+   *  Optional only for back-compat with pre-hollow-12a snapshot literals. */
+  readonly standing?: Readonly<Record<number, number>>;
 }
 
 /** Data-only snapshot for a headless observer (no render state — see CLAUDE.md's sim↔render boundary). */
@@ -584,6 +643,21 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         decayRate: opts.trustDecayRate ?? TRUST_DECAY_TOWARD_NEUTRAL_RATE,
       }),
     )
+    .stage("GOVERNANCE")
+    .add(
+      new HollowGovernanceSystem(world, communities, bus, {
+        intervalTicks: opts.governanceIntervalTicks ?? GOVERNANCE_INTERVAL_TICKS,
+        standingContributionWeight: opts.governanceStandingContributionWeight ?? STANDING_CONTRIBUTION_WEIGHT,
+        standingHelpWeight: opts.governanceStandingHelpWeight ?? STANDING_HELP_WEIGHT,
+        standingTrustWeight: opts.governanceStandingTrustWeight ?? STANDING_TRUST_WEIGHT,
+        standingTenureWeight: opts.governanceStandingTenureWeight ?? STANDING_TENURE_WEIGHT,
+        normVoteStep: opts.governanceNormVoteStep ?? NORM_VOTE_STEP,
+        leaderVoteWeightMultiplier: opts.governanceLeaderVoteWeightMultiplier ?? LEADER_VOTE_WEIGHT_MULTIPLIER,
+        sanctionExclusionSeverityThreshold:
+          opts.governanceSanctionExclusionSeverityThreshold ?? SANCTION_EXCLUSION_SEVERITY_THRESHOLD,
+        normClashThreshold: opts.governanceNormClashThreshold ?? NORM_CLASH_THRESHOLD,
+      }),
+    )
     .stage("COMMUNITY")
     .add(
       new HollowCommunitySystem(world, communities, bus, {
@@ -728,7 +802,13 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         members: [...c.members],
         territory: c.territory.map((t) => ({ gx: t.gx, gy: t.gy })),
         stockpile: { ...c.stockpile },
-        norms: { shareRate: c.norms.shareRate, cooperationExpectation: c.norms.cooperationExpectation },
+        norms: {
+          shareRate: c.norms.shareRate,
+          cooperationExpectation: c.norms.cooperationExpectation,
+          admissionPolicy: c.norms.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY,
+        },
+        leaderId: c.leaderId,
+        standing: { ...c.standing },
       }));
       return {
         tick: tickCount,

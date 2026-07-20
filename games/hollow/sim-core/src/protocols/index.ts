@@ -32,6 +32,15 @@ export type {
   RumorBody,
   AttackBody,
 } from "./social";
+export { ONT_GOVERNANCE } from "./governance";
+export type {
+  GovernanceOntology,
+  GovernanceNormKind,
+  GovernanceSanctionAction,
+  LeaderChangedBody,
+  NormChangedBody,
+  SanctionedBody,
+} from "./governance";
 export { ONT_SHOCK, shockOntology } from "./shock";
 export type {
   ShockKind,

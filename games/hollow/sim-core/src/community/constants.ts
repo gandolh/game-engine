@@ -107,6 +107,11 @@ export const COMMUNITY_MERGE_TERRITORY_RADIUS = 2;
 export const COMMUNITY_DEFAULT_SHARE_RATE = 0.1;
 export const COMMUNITY_DEFAULT_COOPERATION_EXPECTATION = COMMUNITY_TRUST_THRESHOLD;
 
+/** Default `admissionPolicy` (chunk hollow-12a) for a newly-formed/split
+ *  community — a neutral midpoint (neither wide-open nor closed) for the
+ *  votable norm `HollowGovernanceSystem` drifts every governance pass. */
+export const COMMUNITY_DEFAULT_ADMISSION_POLICY = 0.5;
+
 // --- belonging need coupling ----------------------------------------------
 
 /** Per-tick replenishment applied to a MEMBER's `belonging` need. */
