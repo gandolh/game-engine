@@ -28,6 +28,8 @@ import {
   translation,
   scaling,
   identity,
+  rayFromScreen,
+  pickNearest,
   type Mat4,
   type Vec3,
   type Mesh,
@@ -64,11 +66,23 @@ import {
   type PoseKey,
 } from "./humanoid";
 import { AgentFacingTracker, poseForAgent, walkBob, agentModelMatrix } from "./agent-anim";
+import { selectedTint } from "./selection";
 
 export interface HollowAppOptions {
   /** Must match the seed the worker was `init`ed with (only used here to
    *  derive the day/night phase — see day-night.ts). */
   readonly ticksPerDay: number;
+  /** Chunk hollow-09c: fired after a canvas click resolves a ray-pick over
+   *  the current frame's agent AABBs (`getAgentRenderState()`'s `bounds`) —
+   *  `agentId` is the picked agent, or `null` if the click hit nothing. The
+   *  app already applies its own 3D highlight for the pick before calling
+   *  this; the caller (`main.ts`) uses it to fire the `"inspect"` worker
+   *  round-trip and show the panel. */
+  onAgentClicked?(agentId: number | null): void;
+  /** Chunk hollow-09c: fired when an active follow-cam gets cancelled by a
+   *  manual pan (see `setFollow`'s doc) — lets the caller keep its own
+   *  "is following" UI state (the panel's follow button) in sync. */
+  onFollowCancelled?(): void;
 }
 
 /** Per-agent render outputs, recomputed every frame — the SEAM chunk
@@ -97,12 +111,32 @@ export interface HollowApp {
    *  `headWorld` to project agent glyphs/tags to screen space. `null`
    *  before the first frame renders. */
   getViewProj(): Mat4 | null;
+  /** Sets (or clears, `null`) which agent gets the picked-instance
+   *  highlight (`selection.ts`'s `selectedTint`) — called by `main.ts` both
+   *  right after a click-resolved pick and when the inspect panel's close
+   *  button clears the selection. Idempotent; takes effect next frame. */
+  setSelectedAgent(agentId: number | null): void;
+  /** Turns follow-cam on (an agent id) or off (`null`) — while on, the
+   *  camera's `target` is re-set every frame to that agent's INTERPOLATED
+   *  position (`SnapshotBuffer`), preserving yaw/pitch/distance so the
+   *  player can keep orbiting/zooming around the followed agent. A manual
+   *  pan cancels it (see `HollowAppOptions.onFollowCancelled`); so does the
+   *  followed agent no longer being alive next frame. */
+  setFollow(agentId: number | null): void;
+  /** The agent currently being followed, or `null`. */
+  getFollowedAgentId(): number | null;
 }
 
 interface Instance {
   readonly model: Mat4;
   readonly tint: readonly [number, number, number, number];
 }
+
+/** Follow-cam's camera-target z offset above ground — matches the initial
+ *  camera's own `target: [.., .., 1]` (roughly chest/head height on the
+ *  64x64 grid's scale), so following doesn't suddenly point the camera at
+ *  an agent's feet. */
+const FOLLOW_EYE_HEIGHT = 1;
 
 /** Boot the 3D town against `canvas`, fed by `worker`'s snapshot stream.
  *  Returns immediately (WebGPU device creation is async); the render loop
@@ -118,6 +152,13 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   let lastAgentRenderState: Map<number, AgentRenderState> | null = null;
   let lastViewProj: Mat4 | null = null;
   const facingTracker = new AgentFacingTracker();
+
+  // Chunk hollow-09c: the picked-agent highlight + follow-cam state. Both
+  // are plain client-side UI state (never fed into the sim, never affect
+  // determinism) — see this file's `HollowApp.setSelectedAgent`/`setFollow`
+  // doc.
+  let selectedAgentId: number | null = null;
+  let followAgentId: number | null = null;
 
   const onMessage = (event: MessageEvent<WorkerOutbound>): void => {
     const msg = event.data;
@@ -203,7 +244,36 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       minDistance: 4,
       maxDistance: GRID_SIZE * 3,
     });
-    cameraInput = wireOrbitCameraInput(canvas, camera);
+    cameraInput = wireOrbitCameraInput(canvas, camera, {
+      // Chunk hollow-09c: click-to-inspect's ray-pick, over the agent AABBs
+      // the previous frame published (`lastAgentRenderState`) — the exact
+      // `rayFromScreen`/`pickNearest` idiom `render3d-demo.ts` already
+      // proves out. Sets the highlight immediately (no round trip needed
+      // for that) and hands the pick off to the caller for the worker
+      // "inspect" round trip + panel.
+      onClick(sx, sy) {
+        let pickedId: number | null = null;
+        if (lastViewProj && lastAgentRenderState) {
+          const rect = canvas.getBoundingClientRect();
+          const ray = rayFromScreen(sx, sy, rect.width, rect.height, lastViewProj);
+          const items = [...lastAgentRenderState.entries()].map(([id, state]) => ({
+            bounds: state.bounds,
+            value: id,
+          }));
+          pickedId = pickNearest(ray, items);
+        }
+        selectedAgentId = pickedId;
+        opts.onAgentClicked?.(pickedId);
+      },
+      // A manual pan means the player wants to look elsewhere — cancel any
+      // active follow-cam (see `setFollow`'s doc).
+      onPan() {
+        if (followAgentId !== null) {
+          followAgentId = null;
+          opts.onFollowCancelled?.();
+        }
+      },
+    });
 
     // --- resize -----------------------------------------------------------
     function resize(): void {
@@ -328,6 +398,25 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         // uses for its own picked-instance highlight (`PICKED_TINT`).
         // ---------------------------------------------------------------
         const agentPositions = snapshotBuffer.interpolatedAgentPositions(nowMs);
+
+        // Follow-cam (chunk hollow-09c): re-target the camera to the
+        // followed agent's INTERPOLATED position every frame, preserving
+        // yaw/pitch/distance (only `target` is touched) — the player can
+        // keep orbiting/zooming around it. Cancels itself if the followed
+        // agent is no longer alive this frame (despawned — death, in
+        // practice); a manual pan cancels it too (see the `onPan` callback
+        // above).
+        if (followAgentId !== null) {
+          const followPos = agentPositions.get(followAgentId);
+          if (followPos) {
+            const z = groundHeightAt(Math.round(followPos.x), Math.round(followPos.y));
+            camera.target = [followPos.x, followPos.y, z + FOLLOW_EYE_HEIGHT];
+          } else {
+            followAgentId = null;
+            opts.onFollowCancelled?.();
+          }
+        }
+
         const agentRenderState = new Map<number, AgentRenderState>();
         const byAgentVariant = new Map<MeshHandle, Instance[]>();
         const aliveAgentIds = new Set<number>();
@@ -353,7 +442,12 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
             bobOffset: bob,
           });
 
-          const inst: Instance = { model, tint: humanoidTint(agent.id) };
+          // Picked-agent highlight (chunk hollow-09c seam) — same tint-
+          // multiply mechanism `render3d-demo.ts`'s `PICKED_TINT` uses, see
+          // `selection.ts`'s header.
+          const baseTint = humanoidTint(agent.id);
+          const tint = agent.id === selectedAgentId ? selectedTint(baseTint) : baseTint;
+          const inst: Instance = { model, tint };
           const list = byAgentVariant.get(variant.handle);
           if (list) list.push(inst);
           else byAgentVariant.set(variant.handle, [inst]);
@@ -406,6 +500,15 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     },
     getViewProj(): Mat4 | null {
       return lastViewProj;
+    },
+    setSelectedAgent(agentId: number | null): void {
+      selectedAgentId = agentId;
+    },
+    setFollow(agentId: number | null): void {
+      followAgentId = agentId;
+    },
+    getFollowedAgentId(): number | null {
+      return followAgentId;
     },
   };
 }

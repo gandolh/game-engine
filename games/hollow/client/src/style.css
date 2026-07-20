@@ -1,19 +1,15 @@
 /*
  * Hollow client styles — chunk hollow-09a: a full-bleed canvas for the 3D
- * town (no more centered text placeholder). Colours are Apollo hex literals
- * mirroring HOLLOW_PAL roles (see src/render/hollow-palette.ts) — CSS can't
- * import the TS module, so the literal Apollo hex is written here directly.
- * The palette guard (engine/core/src/render/palette.test.ts) only scans
- * .ts/.js/.mjs/.cjs, so CSS hex is outside its scope, same precedent as
- * Citadel's style.css.
+ * town (no more centered text placeholder). Layout/sizing only — CSS can't
+ * import the TS palette module, so palette purity (CLAUDE.md) is upheld by
+ * setting `body`'s background/color from `HOLLOW_PAL` in `main.ts` instead
+ * of a hex literal here (chunk hollow-09c; see `main.ts`'s header).
  */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #090a14; /* HOLLOW_PAL.black */
-  color: #ebede9; /* HOLLOW_PAL.white */
   font-family: monospace;
 }
 #app {
