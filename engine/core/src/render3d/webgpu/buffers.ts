@@ -35,13 +35,16 @@ export const FLOATS_PER_VERTEX = 4;
  *  {@link Mat4}) + an rgba tint (4). */
 export const FLOATS_PER_INSTANCE = 20;
 
-/** Floats packed per material entry. A `{color: vec3, emissive: f32}` struct
- *  is only 4 floats wide, but WGSL's std140-style array-of-struct layout
- *  rounds each element's stride up to a 16-byte (4-float) multiple of the
- *  struct's own base alignment; padding to 8 floats (32 bytes) here mirrors
- *  the `array<Material>` stride used by `scene3d.wgsl` and leaves headroom
- *  for a future field (e.g. roughness/rim) without a stride change. */
-export const FLOATS_PER_MATERIAL = 8;
+/** Floats packed per material entry. `scene3d.wgsl` reads the material table
+ *  as a `var<storage> array<{color: vec3<f32>, emissive: f32}>`, which uses
+ *  the **std430** layout: `color` (offset 0, align 16, size 12) + `emissive`
+ *  (offset 12) → a 16-byte struct with NO trailing padding, i.e. a 4-float
+ *  stride. Packing MUST match that stride exactly — an earlier 8-float
+ *  ("std140") padding made the shader read every ODD material index from the
+ *  previous entry's padding (zeros → black), so half the palette rendered
+ *  black. If a future field is added, grow this to the new std430 stride AND
+ *  the WGSL struct together. */
+export const FLOATS_PER_MATERIAL = 4;
 
 /**
  * Resolve an ORDERED list of material-key strings into a `(key) => index`
@@ -149,7 +152,7 @@ export function packInstances(list: readonly InstanceInput[]): Float32Array {
 }
 
 /** Pack an ordered material list into the GPU-side material table (see
- *  {@link FLOATS_PER_MATERIAL} for the padding rationale). Index `i` in the
+ *  {@link FLOATS_PER_MATERIAL} for the std430 stride it must match). Index `i` in the
  *  returned array's rows == `materials[i]` == the material any `packMesh`
  *  caller's `materialIndexOf(key) === i` resolves to (see the module-level
  *  ordering-contract doc comment). */
@@ -161,7 +164,6 @@ export function packMaterials(materials: readonly Material[]): Float32Array {
     out[base + 1] = mat.color[1];
     out[base + 2] = mat.color[2];
     out[base + 3] = mat.emissive ? 1 : 0;
-    // out[base + 4..7] left as zero padding — see FLOATS_PER_MATERIAL.
   });
   return out;
 }

@@ -102,20 +102,21 @@ describe("packInstance / packInstances", () => {
 });
 
 describe("packMaterials", () => {
-  it("packs color + emissive flag at the right stride, zero-padded", () => {
+  it("packs color + emissive flag at the std430 4-float stride (no padding)", () => {
+    // The stride MUST equal scene3d.wgsl's std430 `{vec3 color, f32 emissive}`
+    // (16 bytes = 4 floats). An 8-float padded stride made the shader read
+    // odd material indices from the previous entry's zero padding → black.
+    expect(FLOATS_PER_MATERIAL).toBe(4);
+
     const packed = packMaterials([
       { color: [1, 0, 0] },
       { color: [0, 1, 0], emissive: true },
     ]);
     expect(packed.length).toBe(2 * FLOATS_PER_MATERIAL);
 
-    // Material 0: red, not emissive.
-    expect([...packed.slice(0, 4)]).toEqual([1, 0, 0, 0]);
-    expect([...packed.slice(4, 8)]).toEqual([0, 0, 0, 0]);
-
-    // Material 1: green, emissive.
-    expect([...packed.slice(8, 12)]).toEqual([0, 1, 0, 1]);
-    expect([...packed.slice(12, 16)]).toEqual([0, 0, 0, 0]);
+    // Material 0: red, not emissive; Material 1: green, emissive — packed
+    // back-to-back with nothing between them.
+    expect([...packed]).toEqual([1, 0, 0, 0, 0, 1, 0, 1]);
   });
 });
 
