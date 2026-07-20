@@ -65,6 +65,26 @@ describe("createChroniclePanel", () => {
     expect(visible[0]!.textContent).toContain("Community");
   });
 
+  it("caps the live DOM as a long run streams events (the freeze fix)", () => {
+    const panel = createChroniclePanel({ ticksPerDay: TICKS_PER_DAY, onSelectAgent: vi.fn() });
+    const lastRowText = (): string => {
+      const rows = panel.el.querySelectorAll<HTMLElement>(".hollow-chronicle-row");
+      return rows[rows.length - 1]?.textContent ?? "";
+    };
+    // Stream well past the row cap (the "app freezes after a minute" bug was
+    // unbounded DOM growth — see chronicle-panel.ts's MAX_ROWS note).
+    for (let i = 0; i < 1000; i++) {
+      ingestEvents([{ tick: i, ontology: ONT_FAMILY.DEATH, agentId: i, cause: "oldAge" }]);
+    }
+    const rows = panel.el.querySelectorAll<HTMLElement>(".hollow-chronicle-row");
+    // Bounded (not ~1000), and the newest event is still the last mounted row.
+    expect(rows.length).toBeLessThan(1000);
+    expect(rows.length).toBeGreaterThan(0);
+    const newest = lastRowText();
+    ingestEvents([{ tick: 1000, ontology: ONT_FAMILY.DEATH, agentId: 4242, cause: "violence" }]);
+    expect(lastRowText()).not.toBe(newest); // the latest line is always appended live
+  });
+
   it("dispose() stops further events from being appended", () => {
     const panel = createChroniclePanel({ ticksPerDay: TICKS_PER_DAY, onSelectAgent: vi.fn() });
     panel.dispose();

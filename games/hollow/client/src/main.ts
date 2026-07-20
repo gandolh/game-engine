@@ -68,6 +68,7 @@ import type {
   WorkerOutbound,
 } from "./worker/sim-worker";
 import { startHollowApp } from "./render3d/app";
+import { DebugOverlay } from "@engine/core";
 import { HOLLOW_PAL } from "./render/hollow-palette";
 import { createOverlayCanvas, resizeOverlayCanvas, drawAgentOverlay, type OverlayAgentInput } from "./render3d/overlay";
 import { renderInspectPanel, type InspectPanelCallbacks } from "./inspect-panel";
@@ -242,6 +243,34 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
     worker.postMessage(inspect);
   }
 
+  /**
+   * Shows a centered, palette-styled message over the scene when the WebGPU
+   * renderer can't start (see `app.ts`'s `onRendererUnavailable`) — so the
+   * user sees an explanation instead of a blank canvas, while the sim +
+   * chronicle + dashboard keep running behind it. Idempotent.
+   */
+  function showRendererUnavailable(message: string): void {
+    if (document.getElementById("hollow-renderer-unavailable")) return;
+    const box = document.createElement("div");
+    box.id = "hollow-renderer-unavailable";
+    box.textContent = message;
+    box.style.position = "fixed";
+    box.style.top = "50%";
+    box.style.left = "50%";
+    box.style.transform = "translate(-50%, -50%)";
+    box.style.maxWidth = "32rem";
+    box.style.padding = "16px 20px";
+    box.style.textAlign = "center";
+    box.style.font = "14px/1.5 ui-monospace, monospace";
+    box.style.color = HOLLOW_PAL.cream;
+    box.style.background = HOLLOW_PAL.ink;
+    box.style.border = `1px solid ${HOLLOW_PAL.rust}`;
+    box.style.borderRadius = "6px";
+    box.style.zIndex = "50";
+    box.style.pointerEvents = "none";
+    appEl.appendChild(box);
+  }
+
   // -------------------------------------------------------------------------
   // Boot the 3D app
   // -------------------------------------------------------------------------
@@ -257,6 +286,7 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
       followingAgentId = null;
       if (currentDetail) showPanel(currentDetail);
     },
+    onRendererUnavailable: showRendererUnavailable,
   });
 
   // Chunk hollow-10b: the `"requestLineage"`/`"lineage"` round trip backing
@@ -389,11 +419,25 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   // `[T]` tag toggle / `F` follow toggle
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // Perf HUD (fps / ms / tick / agent-count + scene-frame mean·p95) — the
+  // engine's generic `DebugOverlay`, same one Farm Valley uses. Pinned
+  // bottom-right (top-left is the chronicle rail, top-right the director
+  // bar). Backtick (`) toggles it. `update()` is called once per overlay rAF
+  // below, so its fps/ms track the real display-frame cadence; the scene's
+  // own build+submit CPU cost comes from `app.getRenderReport()`.
+  // -------------------------------------------------------------------------
+  const debugOverlay = new DebugOverlay(appEl, { corner: "bottom-right" });
+  let showPerfHud = true;
+
   window.addEventListener("keydown", (e) => {
     if (e.key === "t" || e.key === "T") {
       showTags = !showTags;
     } else if (e.key === "f" || e.key === "F") {
       toggleFollow();
+    } else if (e.key === "`") {
+      showPerfHud = !showPerfHud;
+      debugOverlay.setVisible(showPerfHud);
     }
   });
 
@@ -414,6 +458,19 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   }
 
   function overlayFrame(): void {
+    // Perf HUD — updated every display frame (its fps/ms come from the
+    // wall-clock delta between these calls). Runs even before the first
+    // snapshot / when WebGPU is absent, so it's always a live readout.
+    if (showPerfHud) {
+      const frameReport = app.getRenderReport();
+      if (frameReport) debugOverlay.setFrameReport(frameReport);
+      debugOverlay.update({
+        tick: latestSnapshot?.tick ?? 0,
+        alpha: 0,
+        entityCount: latestSnapshot?.agents.length ?? 0,
+      });
+    }
+
     if (overlayCtx) {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();

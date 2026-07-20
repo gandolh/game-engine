@@ -119,6 +119,13 @@ export class DebugOverlay {
     };
   }
 
+  /** Show or hide the overlay element without destroying it (keeps
+   *  accumulating fps/frame stats while hidden, so re-showing is instant).
+   *  Generic — a consuming game may want a hotkey to toggle the HUD. */
+  setVisible(visible: boolean): void {
+    this.element.style.display = visible ? "" : "none";
+  }
+
   setWorkerReport(report: ProfileReport): void {
     this.workerReport = report;
   }

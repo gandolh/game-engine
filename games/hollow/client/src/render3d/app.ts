@@ -36,6 +36,7 @@ import {
   type MeshHandle,
   type DrawCall3d,
 } from "@engine/core/render3d";
+import { Profiler, type ProfileReport } from "@engine/core";
 import type { WorkerOutbound } from "../worker/sim-worker";
 import { HOLLOW_PAL } from "../render/hollow-palette";
 import { GRID_SIZE } from "@hollow/sim-core/world";
@@ -84,6 +85,14 @@ export interface HollowAppOptions {
    *  manual pan (see `setFollow`'s doc) — lets the caller keep its own
    *  "is following" UI state (the panel's follow button) in sync. */
   onFollowCancelled?(): void;
+  /** Fired if the WebGPU renderer cannot start — no `navigator.gpu`, OR
+   *  `requestAdapter()` returned null / device creation threw (the sandbox /
+   *  a non-WebGPU browser). The caller (`main.ts`) shows a user-facing
+   *  message; everything else (worker sim, research rail, glyph overlay,
+   *  perf HUD) keeps running. Without this, `createDevice3d`'s throw would
+   *  surface as an UNHANDLED promise rejection with a blank canvas and no
+   *  on-screen explanation. */
+  onRendererUnavailable?(message: string): void;
 }
 
 /** Per-agent render outputs, recomputed every frame — the SEAM chunk
@@ -126,6 +135,12 @@ export interface HollowApp {
   setFollow(agentId: number | null): void;
   /** The agent currently being followed, or `null`. */
   getFollowedAgentId(): number | null;
+  /** Latest render-loop profile (scene-build + submit CPU cost, keyed
+   *  `"frame"`/`"interp"`) for the perf HUD (`main.ts` feeds it to the
+   *  engine `DebugOverlay.setFrameReport`). `null` before the first frame or
+   *  when the renderer never started (no WebGPU). Refreshed periodically,
+   *  not every frame, to keep the stats-scan cost off the hot path. */
+  getRenderReport(): ProfileReport | null;
 }
 
 interface Instance {
@@ -154,6 +169,16 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   let lastViewProj: Mat4 | null = null;
   const facingTracker = new AgentFacingTracker();
 
+  // Perf HUD (mirrors Farm's render-loop Profiler): times the per-frame
+  // scene build+submit under "frame" and the interpolation sub-step under
+  // "interp". `renderReport` is refreshed every `REPORT_EVERY_FRAMES` (the
+  // stats scan walks 240-sample rings, so recomputing it every frame would
+  // itself show up in the numbers) and read by `getRenderReport()`.
+  const profiler = new Profiler({ enabled: true });
+  let renderReport: ProfileReport | null = null;
+  let frameCounter = 0;
+  const REPORT_EVERY_FRAMES = 30;
+
   // Chunk hollow-09c: the picked-agent highlight + follow-cam state. Both
   // are plain client-side UI state (never fed into the sim, never affect
   // determinism) — see this file's `HollowApp.setSelectedAgent`/`setFollow`
@@ -170,17 +195,28 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   void bootRenderer();
 
   async function bootRenderer(): Promise<void> {
+    const NO_WEBGPU_MSG =
+      "WebGPU is not available in this browser. Open in a WebGPU-capable Chrome " +
+      "(chrome://flags → Unsafe WebGPU, or Chrome 113+ which ships it by default).";
     if (!navigator.gpu) {
-      // eslint-disable-next-line no-console -- surfaced to the dev console;
-      // there is no in-canvas HUD text path yet (09b's overlay owns that).
-      console.error(
-        "[hollow] WebGPU is not available in this browser. Open in a WebGPU-capable Chrome " +
-          "(chrome://flags -> Unsafe WebGPU, or Chrome 113+ which ships it by default).",
-      );
+      opts.onRendererUnavailable?.(NO_WEBGPU_MSG);
       return;
     }
 
-    const device3d = await createDevice3d(canvas);
+    // `createDevice3d` throws when `requestAdapter()` returns null (a browser
+    // that exposes `navigator.gpu` but has no usable GPU adapter — the
+    // headless sandbox, some VMs). Catch it so it becomes an on-screen
+    // message, not an unhandled promise rejection + blank canvas.
+    let device3d: Awaited<ReturnType<typeof createDevice3d>>;
+    try {
+      device3d = await createDevice3d(canvas);
+    } catch {
+      opts.onRendererUnavailable?.(
+        "WebGPU could not start — no GPU adapter was found. Try a hardware-accelerated " +
+          "Chrome 113+ (chrome://flags → Unsafe WebGPU). The simulation and chronicle keep running.",
+      );
+      return;
+    }
     if (disposed) return;
 
     const renderer = new SceneRenderer3D(device3d, {
@@ -312,6 +348,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     // --- render loop --------------------------------------------------------
     function frame(nowMs: number): void {
       if (disposed) return;
+      const frameStart = performance.now();
       resize();
 
       const latest = snapshotBuffer.getLatest();
@@ -421,7 +458,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         // factor before `packInstances` — same mechanism render3d-demo.ts
         // uses for its own picked-instance highlight (`PICKED_TINT`).
         // ---------------------------------------------------------------
-        const agentPositions = snapshotBuffer.interpolatedAgentPositions(nowMs);
+        const agentPositions = profiler.time("interp", () => snapshotBuffer.interpolatedAgentPositions(nowMs));
 
         // Follow-cam (chunk hollow-09c): re-target the camera to the
         // followed agent's INTERPOLATED position every frame, preserving
@@ -506,6 +543,10 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         });
       }
 
+      profiler.add("frame", performance.now() - frameStart);
+      frameCounter += 1;
+      if (frameCounter % REPORT_EVERY_FRAMES === 0) renderReport = profiler.report();
+
       rafHandle = requestAnimationFrame(frame);
     }
     rafHandle = requestAnimationFrame(frame);
@@ -535,6 +576,9 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     },
     getFollowedAgentId(): number | null {
       return followAgentId;
+    },
+    getRenderReport(): ProfileReport | null {
+      return renderReport;
     },
   };
 }

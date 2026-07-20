@@ -130,6 +130,29 @@ export function createChroniclePanel(opts: ChroniclePanelOptions): ChroniclePane
     for (const r of rows) applyVisibility(r.el, r.category);
   }
 
+  // Cap the LIVE DOM at the most recent `MAX_ROWS` rows. The full history
+  // still lives in `research-store.ts` (and the export) — this only bounds
+  // what's mounted. Without it, a long or fast-forwarded run appends tens of
+  // thousands of `<div>`s (cooperation events alone fire hundreds per
+  // sim-year), and the old per-event `scrollTop = scrollHeight` forced a
+  // synchronous reflow on EVERY event — together, the "app freezes after a
+  // minute" main-thread jam (chunk hollow-perf).
+  const MAX_ROWS = 300;
+
+  function trimToCap(): void {
+    while (rows.length > MAX_ROWS) {
+      const oldest = rows.shift();
+      if (oldest) list.removeChild(oldest.el);
+    }
+  }
+
+  /** Was the list scrolled (near) the bottom before this batch? If so we
+   *  re-pin to the latest line after appending; if the user has scrolled up
+   *  to read history, we leave their position alone. */
+  function isPinnedToBottom(): boolean {
+    return list.scrollHeight - list.scrollTop - list.clientHeight < 24;
+  }
+
   function appendEvent(ev: ChronicleEvent): void {
     const category = chronicleCategory(ev.ontology);
     const rowEl = el("div", "hollow-chronicle-row");
@@ -145,14 +168,19 @@ export function createChroniclePanel(opts: ChroniclePanelOptions): ChroniclePane
     rows.push({ el: rowEl, category });
     applyVisibility(rowEl, category);
     list.appendChild(rowEl);
-    // Newest-at-bottom (a live log) — keep the view pinned to the latest line.
-    list.scrollTop = list.scrollHeight;
   }
 
-  for (const existing of getEvents()) appendEvent(existing);
-  const unsubscribe = onEvents((delta) => {
-    for (const newEvent of delta) appendEvent(newEvent);
-  });
+  /** Append a whole batch, trim to the row cap, then re-pin ONCE (a single
+   *  reflow per batch instead of one per event). */
+  function appendBatch(batch: Iterable<ChronicleEvent>): void {
+    const wasPinned = isPinnedToBottom();
+    for (const ev of batch) appendEvent(ev);
+    trimToCap();
+    if (wasPinned) list.scrollTop = list.scrollHeight;
+  }
+
+  appendBatch(getEvents());
+  const unsubscribe = onEvents((delta) => appendBatch(delta));
 
   return {
     el: root,
