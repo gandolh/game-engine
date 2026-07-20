@@ -1,6 +1,7 @@
 /**
  * Hollow sim worker — chunk hollow-01 scaffolding, extended by chunk
- * hollow-09c with a click-to-inspect round trip.
+ * hollow-09c with a click-to-inspect round trip, and by chunk hollow-10a
+ * with the chronicle-event + per-year-metrics feed.
  *
  * Drives `bootstrapHollowSim()` at 20 ticks/sec and posts a snapshot after
  * each tick, mirroring @citadel/client's src/worker/sim-worker.ts (the
@@ -15,9 +16,26 @@
  * `worker/inspect.ts`'s header for the sim/render determinism boundary this
  * upholds). The actual assembly lives in `worker/inspect.ts` (kept out of
  * this file so it's unit-testable without a Worker global).
+ *
+ * `"events"`/`"metrics"` (chunk hollow-10a): the sim runs IN this worker, so
+ * this is the only place with `bus`/`world` access for the research CLI's
+ * promoted observability layer (`@hollow/sim-core/observe`, chunk
+ * hollow-10a) — a `Chronicle` (subscribed once at `"init"`, same
+ * `createChronicle(sim.bus)` the CLI's `run-core.ts` calls) and a
+ * `MetricsSampler` (the exact per-year row builder `run-core.ts` uses,
+ * promoted so the client's numbers are byte-identical to the CLI's). Both
+ * are read-only/off-sim-path — see `@hollow/sim-core/observe`'s header —
+ * so plumbing them through changes nothing about tick determinism.
+ * `"events"` posts only the NEW chronicle events since the last post (a
+ * delta, not the whole growing buffer); `"metrics"` posts one row per
+ * `tick % ticksPerDay === 0` boundary, matching the CLI's per-year cadence
+ * (`ticksPerDay` doubles as the worker's sampling window — there's no
+ * separate `ticksPerYear` knob here), plus one baseline row right after
+ * init (mirroring the CLI's own "year 0" pre-tick sample).
  */
 import { bootstrapHollowSim } from "@hollow/sim-core/sim-bootstrap";
 import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
+import { createChronicle, MetricsSampler, type ChronicleEvent, type MetricsRow } from "@hollow/sim-core/observe";
 import type { InspectDetail } from "../inspect-detail";
 import { buildInspectDetail } from "./inspect";
 
@@ -37,17 +55,52 @@ export type WorkerInbound = WorkerInitMessage | WorkerInspectMessage;
 export type WorkerOutbound =
   | { type: "ready" }
   | { type: "snapshot"; snapshot: HollowSnapshot }
-  | { type: "inspectResult"; agentId: number; detail: InspectDetail | null };
+  | { type: "inspectResult"; agentId: number; detail: InspectDetail | null }
+  /** New chronicle events since the LAST `"events"` post — a delta, not
+   *  the full accumulated buffer (see this file's header). */
+  | { type: "events"; events: ChronicleEvent[] }
+  /** One per-year(-boundary) metrics sample — see this file's header for
+   *  the `tick % ticksPerDay === 0` cadence. */
+  | { type: "metrics"; row: MetricsRow };
 
 const TICK_HZ = 20;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let simResult: ReturnType<typeof bootstrapHollowSim> | null = null;
+let chronicle: ReturnType<typeof createChronicle> | null = null;
+let metricsSampler: MetricsSampler | null = null;
+let ticksPerDay = 0;
+/** Count of chronicle events already posted — `chronicle.events()` is a
+ *  monotonically-growing buffer; slicing from this index each tick yields
+ *  exactly the new-since-last-post delta. */
+let postedEventCount = 0;
 
 function postSnapshot(): void {
   if (simResult === null) return;
   const snapshot = simResult.getSnapshot();
   self.postMessage({ type: "snapshot", snapshot } satisfies WorkerOutbound);
+}
+
+/** Posts only the chronicle events appended since the last call — a plain
+ *  read of `chronicle.events()` (never mutates the world, draws no `Rng`;
+ *  see this file's header). No-op (no message) when nothing new happened
+ *  this tick, so quiet ticks don't spam empty-array messages. */
+function postNewEvents(): void {
+  if (chronicle === null) return;
+  const events = chronicle.events();
+  if (events.length <= postedEventCount) return;
+  const delta = events.slice(postedEventCount);
+  postedEventCount = events.length;
+  self.postMessage({ type: "events", events: delta } satisfies WorkerOutbound);
+}
+
+/** Samples + posts one `MetricsRow` at `tick` via the shared
+ *  `MetricsSampler` (same class/numbers `@tool/hollow-sim`'s `run-core.ts`
+ *  uses) — read-only, see `@hollow/sim-core/observe`'s header. */
+function sampleAndPostMetrics(year: number): void {
+  if (simResult === null || chronicle === null || metricsSampler === null) return;
+  const row = metricsSampler.sample(simResult, chronicle, year);
+  self.postMessage({ type: "metrics", row } satisfies WorkerOutbound);
 }
 
 function startLoop(): void {
@@ -58,6 +111,11 @@ function startLoop(): void {
   intervalId = setInterval(() => {
     result.tick();
     postSnapshot();
+    postNewEvents();
+    const tick = result.getSnapshot().tick;
+    if (ticksPerDay > 0 && tick % ticksPerDay === 0) {
+      sampleAndPostMetrics(tick / ticksPerDay);
+    }
   }, msPerTick);
 }
 
@@ -66,8 +124,15 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   switch (msg.type) {
     case "init": {
       simResult = bootstrapHollowSim({ seed: msg.seed, ticksPerDay: msg.ticksPerDay });
+      ticksPerDay = msg.ticksPerDay;
+      chronicle = createChronicle(simResult.bus);
+      metricsSampler = new MetricsSampler();
+      postedEventCount = 0;
       const ready: WorkerOutbound = { type: "ready" };
       self.postMessage(ready);
+      // Year-0 baseline sample (post-bootstrap, pre-tick) — mirrors
+      // `run-core.ts`'s own baseline `sampleRow(0)` call.
+      sampleAndPostMetrics(0);
       startLoop();
       break;
     }

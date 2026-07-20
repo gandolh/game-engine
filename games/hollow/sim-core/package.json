@@ -18,7 +18,8 @@
     "./community": "./src/community/index.ts",
     "./family": "./src/family/index.ts",
     "./lineage": "./src/lineage/index.ts",
-    "./social": "./src/social/index.ts"
+    "./social": "./src/social/index.ts",
+    "./observe": "./src/observe/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

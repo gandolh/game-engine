@@ -27,6 +27,7 @@ import { HOLLOW_PAL } from "./render/hollow-palette";
 import { createOverlayCanvas, resizeOverlayCanvas, drawAgentOverlay, type OverlayAgentInput } from "./render3d/overlay";
 import { renderInspectPanel, type InspectPanelCallbacks } from "./inspect-panel";
 import type { InspectDetail } from "./inspect-detail";
+import { ingestEvents, ingestMetricsRow } from "./research-store";
 
 // Deterministic seed — every sim entry point threads one through from the
 // start (determinism is load-bearing; see CLAUDE.md), even though nothing
@@ -160,6 +161,15 @@ worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
     if (msg.agentId !== selectedAgentId) return;
     if (msg.detail) showPanel(msg.detail);
     else removePanel();
+  } else if (msg.type === "events") {
+    // Research/chronicle feed (chunk hollow-10a) — accumulated into
+    // `research-store.ts` for a future chronicle list (chunk hollow-10b);
+    // no UI consumes this yet.
+    ingestEvents(msg.events);
+  } else if (msg.type === "metrics") {
+    // Per-year metrics sample (chunk hollow-10a) — same store, future
+    // dashboard charts/export buttons are hollow-10b's job.
+    ingestMetricsRow(msg.row);
   }
 });
 
