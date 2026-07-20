@@ -29,3 +29,5 @@ export type { Skills } from "./skills";
 export { makeSkills, practiceSkill } from "./skills";
 export type { Feud } from "./feud";
 export { makeFeud } from "./feud";
+export type { Occupation, JobRole } from "./occupation";
+export { JOB_ROLES, makeOccupation } from "./occupation";

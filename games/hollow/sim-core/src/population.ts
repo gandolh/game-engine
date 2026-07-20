@@ -41,7 +41,7 @@ import type { Rng, World } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import { GRID_SIZE } from "./world";
 import type { HollowEntity } from "./components";
-import { makeSkills, makeFeud } from "./components";
+import { makeSkills, makeFeud, makeOccupation } from "./components";
 import { VILLAGER_KIND } from "./agents";
 import { randomGenome } from "./family/genetics";
 import { STAGE_CHILD_ADULT_TICKS, STAGE_ADULT_ELDER_TICKS } from "./family/constants";
@@ -136,6 +136,10 @@ export function spawnPopulation(world: World<HollowEntity>, rng: Rng, opts: Spaw
       // with no grudge against anyone (components/feud.ts's `makeFeud()`).
       // No `Rng` draw, so this doesn't disturb the forks above either.
       feud: makeFeud(),
+      // Leader-assigned job role (chunk hollow-14b) — every founder starts
+      // "unassigned" (components/occupation.ts's `makeOccupation()`); the
+      // periodic JOBS-stage assignment pass sets a real role. No `Rng` draw.
+      occupation: makeOccupation(),
     } satisfies HollowEntity);
 
     // Self-ownership (see components/ownership.ts) — needs the id `world.spawn`

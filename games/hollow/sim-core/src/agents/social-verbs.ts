@@ -56,6 +56,13 @@ import type { HollowDeliberationContext, NeighborView } from "./registry";
 import { NEED_FOOD, NEED_WEALTH, GOOD_FOOD, GOOD_MATERIALS } from "../economy";
 import { SKILL_MATERIAL } from "../social/constants";
 import {
+  ROLE_SHARE_BIAS,
+  ROLE_TEACH_BIAS,
+  ROLE_TEACH_COMMUNITY_BONUS,
+  ROLE_CARETAKER_BIAS,
+  ROLE_CARETAKER_NEEDY_SELECTION_WEIGHT,
+} from "../jobs/constants";
+import {
   SOCIAL_CANDIDATE_RADIUS_TILES,
   SURPLUS_MATERIAL_THRESHOLD,
   SURPLUS_FOOD_THRESHOLD,
@@ -309,17 +316,29 @@ function deliberateRumor(agent: SocialAgent, candidates: readonly NeighborView[]
 // --- cooperative verbs ---------------------------------------------------------
 
 /** Surplus goods + high loyalty/sociability + HIGH trust toward a nearby
- *  peer — targets the MOST trusted candidate in range. */
+ *  peer — targets the MOST trusted candidate in range.
+ *
+ *  hollow-14b: a CARETAKER additionally biases target SELECTION toward
+ *  whoever looks neediest (poorest materials — same proxy `help_labor` uses)
+ *  among trusted candidates, and gets a bounded score bump — see
+ *  jobs/constants.ts's `ROLE_CARETAKER_*` header. With no caretaker role
+ *  both bias terms are exactly 0, so selection/score are byte-identical to
+ *  pre-hollow-14b (pure `trust`-max selection). */
 function deliberateGift(agent: SocialAgent, candidates: readonly NeighborView[]): ScoredChoice | null {
   if (gene(agent, "loyalty") < GIFT_LOYALTY_GATE) return null; // hard gate
   const surplus = bestSurplusGood(agent);
   if (!surplus) return null;
+  const isCaretaker = agent.occupation?.role === "caretaker";
 
   let best: NeighborView | null = null;
   let bestTrust = -Infinity;
+  let bestEffective = -Infinity;
   for (const c of candidates) {
     const trust = relationshipScore(agent.relationships, c.id);
-    if (trust > bestTrust) {
+    const poorer = 1 - Math.min(c.materials / RIVAL_MATERIAL_SCALE, 1);
+    const effective = trust + (isCaretaker ? ROLE_CARETAKER_NEEDY_SELECTION_WEIGHT * poorer : 0);
+    if (effective > bestEffective) {
+      bestEffective = effective;
       bestTrust = trust;
       best = c;
     }
@@ -328,13 +347,23 @@ function deliberateGift(agent: SocialAgent, candidates: readonly NeighborView[])
 
   const w = GIFT_WEIGHTS;
   const ownSurplus = Math.min(surplus.have / (surplus.threshold * 2), 1);
-  const score = w.ownSurplus * ownSurplus + w.loyalty * gene(agent, "loyalty") + w.sociability * gene(agent, "sociability") + w.trust * bestTrust;
+  let score = w.ownSurplus * ownSurplus + w.loyalty * gene(agent, "loyalty") + w.sociability * gene(agent, "sociability") + w.trust * bestTrust;
+  if (isCaretaker) score += ROLE_CARETAKER_BIAS;
   const amount = Math.min(surplus.have, surplus.threshold);
   return { score, kind: "gift", data: { targetId: best.id, good: surplus.good, amount } };
 }
 
 /** Surplus + high loyalty + the actor actually belongs to a community
- *  (a hard gate, not a graded factor — nowhere to share into otherwise). */
+ *  (a hard gate, not a graded factor — nowhere to share into otherwise).
+ *
+ *  hollow-14b: a gatherer/crafter sharing THEIR OWN role's produced good
+ *  (food-gatherer sharing food; material-gatherer/crafter sharing
+ *  materials — crafter is, for now, just a material specialist, see
+ *  jobs/constants.ts's header for the documented real-crafting seam) gets a
+ *  bounded score bump so specialization visibly flows into the stockpile
+ *  rather than waiting on loyalty/surplus alone. No role match (including
+ *  "unassigned" or a missing `occupation`) leaves the score byte-identical
+ *  to pre-hollow-14b. */
 function deliberateShare(agent: SocialAgent): ScoredChoice | null {
   if (agent.communityId == null) return null;
   if (gene(agent, "loyalty") < SHARE_LOYALTY_GATE) return null; // hard gate
@@ -343,49 +372,79 @@ function deliberateShare(agent: SocialAgent): ScoredChoice | null {
 
   const w = SHARE_WEIGHTS;
   const ownSurplus = Math.min(surplus.have / (surplus.threshold * 2), 1);
-  const score = w.ownSurplus * ownSurplus + w.loyalty * gene(agent, "loyalty");
+  let score = w.ownSurplus * ownSurplus + w.loyalty * gene(agent, "loyalty");
+
+  const role = agent.occupation?.role;
+  const producesSharedGood =
+    (role === "food-gatherer" && surplus.good === GOOD_FOOD) ||
+    ((role === "material-gatherer" || role === "crafter") && surplus.good === GOOD_MATERIALS);
+  if (producesSharedGood) score += ROLE_SHARE_BIAS;
+
   const amount = Math.min(surplus.have, surplus.threshold);
   return { score, kind: "share", data: { good: surplus.good, amount } };
 }
 
 /** High sociability/loyalty + a nearby community-mate (or, absent that, a
- *  trusted peer) who looks materially poorer. */
+ *  trusted peer) who looks materially poorer.
+ *
+ *  hollow-14b: a CARETAKER additionally biases target SELECTION toward the
+ *  neediest (poorest-looking) candidate — weighted onto the SAME `poorer`
+ *  factor already computed per-candidate, so it shifts WHO gets helped, not
+ *  just whether help fires — plus a bounded score bump. No caretaker role
+ *  leaves both selection and score byte-identical to pre-hollow-14b. */
 function deliberateHelpLabor(agent: SocialAgent, candidates: readonly NeighborView[]): ScoredChoice | null {
   const sociability = gene(agent, "sociability");
   if (sociability < HELP_LABOR_SOCIABILITY_GATE) return null; // hard gate
   const w = HELP_LABOR_WEIGHTS;
   const loyalty = gene(agent, "loyalty");
+  const isCaretaker = agent.occupation?.role === "caretaker";
 
   let best: NeighborView | null = null;
   let bestScore = -Infinity;
+  let bestEffective = -Infinity;
   for (const c of candidates) {
     const poorer = 1 - Math.min(c.materials / RIVAL_MATERIAL_SCALE, 1);
     const trust = relationshipScore(agent.relationships, c.id);
     const sameCommunity = agent.communityId != null && c.communityId === agent.communityId;
     const affinity = sameCommunity ? 1 : trust;
     const score = w.sociability * sociability + w.loyalty * loyalty + w.poorer * poorer + w.affinity * affinity;
-    if (score > bestScore) {
+    const effective = score + (isCaretaker ? ROLE_CARETAKER_NEEDY_SELECTION_WEIGHT * poorer : 0);
+    if (effective > bestEffective) {
+      bestEffective = effective;
       bestScore = score;
       best = c;
     }
   }
   if (!best) return null;
-  return { score: bestScore, kind: "help_labor", data: { targetId: best.id } };
+  const finalScore = isCaretaker ? bestScore + ROLE_CARETAKER_BIAS : bestScore;
+  return { score: finalScore, kind: "help_labor", data: { targetId: best.id } };
 }
 
 /** High curiosity/sociability + the actor's `material` skill actually
  *  exceeding a nearby peer's (gated — teaching only means something if the
- *  teacher is genuinely better; picks the peer with the LARGEST gap). */
+ *  teacher is genuinely better; picks the peer with the LARGEST gap).
+ *
+ *  hollow-14b: a TEACHER additionally biases target SELECTION toward a
+ *  fellow COMMUNITY member (per the brief's "toward a lower-skilled
+ *  community member") — added to the gap for selection purposes only, so a
+ *  same-community lower-skilled peer can win over a larger-gap outsider —
+ *  plus a bounded score bump. No teacher role leaves both selection and
+ *  score byte-identical to pre-hollow-14b (pure largest-gap selection). */
 function deliberateTeach(agent: SocialAgent, candidates: readonly NeighborView[]): ScoredChoice | null {
   if (gene(agent, "curiosity") < TEACH_CURIOSITY_GATE) return null; // hard gate
   const actorSkill = agent.skills.byKind[SKILL_MATERIAL] ?? 0;
+  const isTeacher = agent.occupation?.role === "teacher";
 
   let best: NeighborView | null = null;
   let bestGap = 0;
+  let bestEffective = 0;
   for (const c of candidates) {
     const gap = actorSkill - c.materialSkill;
     if (gap <= 0) continue;
-    if (gap > bestGap) {
+    const sameCommunity = agent.communityId != null && c.communityId === agent.communityId;
+    const effective = gap + (isTeacher && sameCommunity ? ROLE_TEACH_COMMUNITY_BONUS : 0);
+    if (effective > bestEffective) {
+      bestEffective = effective;
       bestGap = gap;
       best = c;
     }
@@ -393,7 +452,8 @@ function deliberateTeach(agent: SocialAgent, candidates: readonly NeighborView[]
   if (!best) return null;
 
   const w = TEACH_WEIGHTS;
-  const score = w.curiosity * gene(agent, "curiosity") + w.sociability * gene(agent, "sociability") + w.skillGap * bestGap;
+  let score = w.curiosity * gene(agent, "curiosity") + w.sociability * gene(agent, "sociability") + w.skillGap * bestGap;
+  if (isTeacher) score += ROLE_TEACH_BIAS;
   return { score, kind: "teach", data: { targetId: best.id, skill: SKILL_MATERIAL } };
 }
 

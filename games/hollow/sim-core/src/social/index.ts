@@ -7,6 +7,7 @@ export type { FeudSystemOptions } from "./feud-system";
 export {
   SOCIAL_VERB_KINDS,
   SKILL_MATERIAL,
+  SKILL_FOOD,
   SKILL_YIELD_BONUS,
   PRACTICE_RATE,
   TEACH_RATE,

@@ -48,6 +48,8 @@ export type {
   FeudEscalatedBody,
   FeudReconciledBody,
 } from "./feud";
+export { ONT_JOBS } from "./jobs";
+export type { JobsOntology, RoleChangedBody } from "./jobs";
 export { ONT_SHOCK, shockOntology } from "./shock";
 export type {
   ShockKind,

@@ -20,10 +20,16 @@
  * ── skill (lived state, not genome) ──────────────────────────────────────
  * `SKILL_MATERIAL` names the one skill domain this dispatch wires a real
  * production effect for. `components/genome.ts`'s `APTITUDE_SKILLS` also
- * lists "food" — deliberately left alone: food harvest yield drives
+ * lists "food" — deliberately left alone THEN: food harvest yield drives
  * population stability (economy/constants.ts's carefully-swept supply/
  * demand calibration), and this chunk's job is to prove the LEVEL-vs-CAP
- * split matters, not to re-open that calibration.
+ * split matters, not to re-open that calibration. `SKILL_FOOD` (below) is
+ * the same pre-declared "food" aptitude key, finally activated by chunk
+ * hollow-14b for a food-gatherer's NEW work-a-food-node production path
+ * (systems/act.ts's `runWorkFood`) — that path is additive (a fresh
+ * inventory-banking flow, never wired into `runSeekFood`'s existing
+ * harvest-and-eat survival mechanic), so it still doesn't re-open the
+ * hollow-03 supply/demand calibration this header originally protected.
  * `SKILL_YIELD_BONUS` = 0.5 — a maxed-out worker (skill == aptitude cap ==
  *   1) harvests 1.5x `MATERIAL_HARVEST_PER_TICK`; modest by design so a
  *   fully-practiced agent is noticeably, not absurdly, more productive.
@@ -59,6 +65,8 @@ export const SOCIAL_VERB_KINDS: ReadonlySet<string> = new Set([
 // --- skill (see header) -----------------------------------------------------
 
 export const SKILL_MATERIAL = "material";
+/** The "food" aptitude skill (chunk hollow-14b) — see header. */
+export const SKILL_FOOD = "food";
 export const SKILL_YIELD_BONUS = 0.5;
 export const PRACTICE_RATE = 0.05;
 export const TEACH_RATE = 0.25;

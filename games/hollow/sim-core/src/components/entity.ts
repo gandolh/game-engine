@@ -14,6 +14,7 @@ import type { Genome } from "./genome";
 import type { Lifecycle } from "./lifecycle";
 import type { Skills } from "./skills";
 import type { Feud } from "./feud";
+import type { Occupation } from "./occupation";
 
 /**
  * Hollow's FSM states for chunk hollow-03. Mirrors Farm's simplest loop
@@ -99,5 +100,15 @@ export interface HollowEntity {
    * `skills`/`genome` above.
    */
   feud?: Feud;
+  /**
+   * The leader-assigned JOB role (chunk hollow-14b) — see
+   * components/occupation.ts. Present on every spawned agent (founders in
+   * population.ts, children in family/reproduction-system.ts), starting
+   * `"unassigned"` until the periodic JOBS-stage assignment pass sets a real
+   * role; optional only because the type is shared with pre-hollow-14b
+   * hand-built test harnesses that construct entities without it — same
+   * rationale as `skills`/`genome`/`feud` above.
+   */
+  occupation?: Occupation;
   [key: string]: unknown;
 }

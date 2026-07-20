@@ -6,7 +6,10 @@
  *   2. else rest need at/below REST_SEEK_THRESHOLD_FRACTION → rest in place
  *   3. else a genome-driven SOCIAL VERB (chunk hollow-06b, see
  *      `agents/social-verbs.ts`) if one scores above `SOCIAL_ACTION_MIN_SCORE`
- *   4. else → work the nearest material node (produces goods → wealth)
+ *   4. else → work the nearest material node (produces goods → wealth), OR
+ *      the nearest FOOD node if the agent's leader-assigned `occupation.role`
+ *      (chunk hollow-14b, components/occupation.ts) is "food-gatherer" — see
+ *      `fallbackWorkNodeKind` below.
  *
  * The survival ladder (1-2) is UNCHANGED from hollow-03/05 and always wins —
  * social choice is only even consulted once neither fires. Two behavior
@@ -72,6 +75,19 @@ function tryChooseSocialAction(
   return chooseSocialAction(agent as SocialAgent, ctx);
 }
 
+/**
+ * hollow-14b: which resource-node KIND the fallback `work` step (step 4,
+ * below) targets, biased by the agent's leader-assigned `occupation.role`.
+ * A food-gatherer works a FOOD node (see systems/act.ts's `runWorkFood`);
+ * every other role — including "unassigned" (the default before the JOBS
+ * assignment pass has ever run) and a missing `occupation` altogether
+ * (hand-built test harnesses) — falls back to "material", byte-identical to
+ * pre-hollow-14b behavior.
+ */
+function fallbackWorkNodeKind(agent: HollowEntity): "food" | "material" {
+  return agent.occupation?.role === "food-gatherer" ? "food" : "material";
+}
+
 function villagerDeliberate(agent: HollowEntity, ctx: HollowDeliberationContext): void {
   const needs = agent.needs;
   const pos = agent.agent;
@@ -103,7 +119,7 @@ function villagerDeliberate(agent: HollowEntity, ctx: HollowDeliberationContext)
     return;
   }
 
-  const workNode = ctx.resources.nearestNode("material", pos.gx, pos.gy);
+  const workNode = ctx.resources.nearestNode(fallbackWorkNodeKind(agent), pos.gx, pos.gy);
   if (workNode) {
     intentions.queue.push({ kind: "work", data: { nodeId: workNode.id }, priority: 10 });
   }

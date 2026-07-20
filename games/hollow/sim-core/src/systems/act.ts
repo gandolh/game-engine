@@ -51,7 +51,8 @@ import {
   WEALTH_PER_MATERIAL_UNIT,
 } from "../economy";
 import type { ResourceWorld } from "../world";
-import { SOCIAL_VERB_KINDS, SKILL_MATERIAL, SKILL_YIELD_BONUS, PRACTICE_RATE } from "../social/constants";
+import { SOCIAL_VERB_KINDS, SKILL_MATERIAL, SKILL_FOOD, SKILL_YIELD_BONUS, PRACTICE_RATE } from "../social/constants";
+import { JOBS_PRODUCTION_SURPLUS_FRACTION, JOBS_FOOD_WORK_SESSION_TARGET } from "../jobs/constants";
 
 const ACT_STATE: HollowFsmState = "ACT";
 
@@ -151,6 +152,18 @@ export class HollowActSystem implements System {
     }
     entity.agent.currentAction = "work"; // render-only (chunk hollow-09a)
 
+    // hollow-14b: a food-gatherer's fallback work choice (agents/villager.ts)
+    // can target a FOOD node — a genuinely separate production path (see
+    // `runWorkFood` below), since this material path's harvest-straight-to-
+    // need-and-consume mechanic doesn't generalize to food (there's no
+    // "food need" analog to convert into here; food need replenishment stays
+    // exclusively `runSeekFood`'s job). Everything below this branch is
+    // byte-identical to pre-hollow-14b behavior.
+    if (node.kind === "food") {
+      this.runWorkFood(entity, node.id);
+      return;
+    }
+
     // Skill-scaled yield (chunk hollow-06a) — see this file's header and
     // social/constants.ts's SKILL_YIELD_BONUS derivation. Food harvest
     // (runSeekFood, above) is deliberately NOT given this treatment.
@@ -171,8 +184,46 @@ export class HollowActSystem implements System {
       practiceSkill(entity.skills, cap, SKILL_MATERIAL, PRACTICE_RATE);
     }
 
+    // hollow-14b: a material-gatherer/crafter ADDITIONALLY banks a bounded
+    // fraction of this tick's harvest as literal, un-consumed inventory
+    // surplus, layered ON TOP of the unchanged wealth-need conversion above
+    // — the production→stockpile seam the jobs feature needs (see
+    // jobs/constants.ts's JOBS_PRODUCTION_SURPLUS_FRACTION header). An agent
+    // with no `occupation` (or any other role) never takes this branch, so
+    // its behavior/tests stay byte-identical to pre-hollow-14b.
+    if (harvested > 0 && (entity.occupation?.role === "material-gatherer" || entity.occupation?.role === "crafter")) {
+      addGoods(entity.inventory, GOOD_MATERIALS, harvested * JOBS_PRODUCTION_SURPLUS_FRACTION);
+    }
+
     const full = wealth ? wealth.value >= wealth.max : true;
     if (full || harvested === 0) entity.intentions.queue.shift();
+  }
+
+  /**
+   * hollow-14b's food-production path: harvests a FOOD node's stock,
+   * skill-scaled by the (previously-unused — see social/constants.ts's
+   * `SKILL_FOOD` header) "food" aptitude skill, and banks it as literal,
+   * un-consumed inventory surplus — this agent's own hunger is NEVER
+   * touched here (that stays exclusively `runSeekFood`'s job on the
+   * survival ladder). Completes once the node comes up dry OR the banked
+   * surplus reaches `JOBS_FOOD_WORK_SESSION_TARGET` (mirrors material
+   * work's own "complete when the need is full" rule — a session must end
+   * SOMEWHERE so the agent periodically re-plans instead of working one
+   * node forever).
+   */
+  private runWorkFood(entity: ActingAgent, nodeId: number): void {
+    const skillLevel = entity.skills?.byKind[SKILL_FOOD] ?? 0;
+    const yieldMultiplier = 1 + SKILL_YIELD_BONUS * skillLevel;
+    const harvested = this.resources.harvest(nodeId, FOOD_HARVEST_PER_TICK * yieldMultiplier);
+    addGoods(entity.inventory, GOOD_FOOD, harvested);
+
+    if (harvested > 0 && entity.skills) {
+      const cap = entity.genome?.aptitude[SKILL_FOOD] ?? GENE_MAX;
+      practiceSkill(entity.skills, cap, SKILL_FOOD, PRACTICE_RATE);
+    }
+
+    const banked = entity.inventory.goods[GOOD_FOOD] ?? 0;
+    if (harvested === 0 || banked >= JOBS_FOOD_WORK_SESSION_TARGET) entity.intentions.queue.shift();
   }
 
   private runRest(entity: ActingAgent): void {

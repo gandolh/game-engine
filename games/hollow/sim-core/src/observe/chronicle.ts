@@ -6,7 +6,8 @@
  * (ONT_FAMILY.*, ONT_COMMUNITY.*, ONT_SOCIAL.*, ONT_STARVATION.ONSET,
  * ONT_GOVERNANCE.* — chunk hollow-12a's leader-changed/norm-changed/
  * sanctioned events, ONT_FEUD.* — chunk hollow-12b's started/escalated/
- * reconciled grudge-arc events) and buffers each as a flat, stably-keyed
+ * reconciled grudge-arc events, ONT_JOBS.* — chunk hollow-14b's
+ * role-changed events) and buffers each as a flat, stably-keyed
  * `ChronicleEvent` in dispatch order — the input to `events.jsonl` and to
  * the browser client's chronicle feed (which falls back to a generic
  * ontology/body rendering for anything it has no dedicated formatter for
@@ -27,7 +28,7 @@
  * the whole event buffer every sample.
  */
 import type { MessageBus } from "@engine/core";
-import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE, ONT_FEUD } from "../protocols";
+import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE, ONT_FEUD, ONT_JOBS } from "../protocols";
 
 /** One flattened chronicle line: `{ tick, ontology, ...body }` — `tick` is
  *  read from the body (every Hollow event body carries its own `tick`
@@ -58,6 +59,7 @@ const ALL_FAMILY_ONTOLOGIES: readonly string[] = Object.values(ONT_FAMILY);
 const ALL_COMMUNITY_ONTOLOGIES: readonly string[] = Object.values(ONT_COMMUNITY);
 const ALL_GOVERNANCE_ONTOLOGIES: readonly string[] = Object.values(ONT_GOVERNANCE);
 const ALL_FEUD_ONTOLOGIES: readonly string[] = Object.values(ONT_FEUD);
+const ALL_JOBS_ONTOLOGIES: readonly string[] = Object.values(ONT_JOBS);
 
 function bodyTick(body: Record<string, unknown>): number {
   const t = body["tick"];
@@ -88,6 +90,9 @@ export function createChronicle(bus: MessageBus): Chronicle {
     bus.subscribeOntology(ontology, capture(ontology));
   }
   for (const ontology of ALL_FEUD_ONTOLOGIES) {
+    bus.subscribeOntology(ontology, capture(ontology));
+  }
+  for (const ontology of ALL_JOBS_ONTOLOGIES) {
     bus.subscribeOntology(ontology, capture(ontology));
   }
   bus.subscribeOntology(ONT_STARVATION.ONSET, capture(ONT_STARVATION.ONSET));

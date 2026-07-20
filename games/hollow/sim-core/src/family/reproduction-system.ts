@@ -24,7 +24,7 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { PERFORMATIVE, needFraction, makeNeed } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
-import { makeSkills, makeFeud } from "../components";
+import { makeSkills, makeFeud, makeOccupation } from "../components";
 import type { ResourceWorld } from "../world";
 import { VILLAGER_KIND } from "../agents";
 import {
@@ -199,6 +199,10 @@ export class HollowReproductionSystem implements System {
       // no grudge against anyone, same as a founder (population.ts) — see
       // components/feud.ts's header.
       feud: makeFeud(),
+      // Leader-assigned job role (chunk hollow-14b) — a newborn starts
+      // "unassigned", same as a founder (population.ts) — see
+      // components/occupation.ts's header.
+      occupation: makeOccupation(),
     } satisfies HollowEntity);
 
     if (spawned.ownership && spawned.id !== undefined) {

@@ -16,8 +16,8 @@
  * boundary convention — see CLAUDE.md's "Architecture essentials").
  *
  * Scheduler order — SHOCK → PERCEIVE → DELIBERATE → ACT → TRUST-ACCRUAL →
- * GOVERNANCE → COMMUNITY → BELONGING → PAIRBOND → REPRODUCTION → LIFECYCLE →
- * NEEDS-DECAY → RESOURCE-REGEN:
+ * GOVERNANCE → JOBS → COMMUNITY → BELONGING → PAIRBOND → REPRODUCTION →
+ * LIFECYCLE → NEEDS-DECAY → RESOURCE-REGEN:
  *  0. SHOCK (HollowShockSystem, chunk hollow-11a): applies any environmental
  *     shock (famine/boom/disaster/plague) scheduled for THIS tick, and
  *     recomputes the resource world's regen multiplier / drains any active
@@ -70,6 +70,17 @@
  *     trust/belonging erosion are visible to THIS SAME TICK's LEAVE/SPLIT
  *     dynamics rather than a tick late. See governance/governance-system.ts's
  *     header for the four sub-passes' fixed order.
+ *  5b. JOBS (HollowJobAssignmentSystem, chunk hollow-14b): the PERIODIC
+ *     (mirrors GOVERNANCE's own cadence by default) leader-assigned (or
+ *     loner-self-assigned) occupation pass. Runs immediately after
+ *     GOVERNANCE so it always reads THIS SAME TICK's freshly-computed
+ *     `community.leaderId` (a community that just got its first leader this
+ *     tick already has its members assigned by that leader's policy this
+ *     same tick, not a tick late) — see jobs/assignment-system.ts's header.
+ *     Placed BEFORE COMMUNITY/BELONGING since role assignment doesn't
+ *     depend on (and shouldn't be delayed by) this tick's join/leave/split
+ *     dynamics; it only reads `communityId`/`leaderId`/stockpile, all
+ *     already current from GOVERNANCE's pass moments ago.
  *  6. COMMUNITY (HollowCommunitySystem, chunk hollow-04): the PERIODIC
  *     (not every-tick) community-detection + dynamics pass — leave, split,
  *     merge, grow, form — over the CURRENT trust ledger. Runs immediately
@@ -211,6 +222,7 @@ import {
   SANCTION_EXCLUSION_SEVERITY_THRESHOLD,
   NORM_CLASH_THRESHOLD,
 } from "./governance";
+import { HollowJobAssignmentSystem, JOBS_ASSIGN_INTERVAL_TICKS } from "./jobs";
 
 export type { HollowEntity } from "./components";
 
@@ -340,6 +352,13 @@ export interface HollowSimOptions {
    *  toward fellow members (and belonging need) erodes. */
   governanceNormClashThreshold?: number;
 
+  // Jobs (chunk hollow-14b) knobs — each defaults to its jobs/constants.ts
+  // constant, same override pattern as above (e.g. for a faster assignment
+  // cadence in a narrow test).
+  /** How often (in ticks) the JOBS assignment pass (leader-assigned or
+   *  loner-self-assigned occupation) runs. */
+  jobsAssignIntervalTicks?: number;
+
   // Feud (chunk hollow-12b) knobs — each defaults to its
   // social/feud-constants.ts constant, same override pattern as above (e.g.
   // for a faster/slower decay or a lower start threshold in a narrow test).
@@ -404,6 +423,9 @@ export interface HollowAgentSnapshot {
    * only produces this field, it doesn't render agents yet.
    */
   readonly action: string;
+  /** Leader-assigned (or loner-self-assigned) job role (chunk hollow-14b) —
+   *  see components/occupation.ts. */
+  readonly occupation: string;
 }
 
 export interface HollowResourceNodeSnapshot {
@@ -717,6 +739,12 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         normClashThreshold: opts.governanceNormClashThreshold ?? NORM_CLASH_THRESHOLD,
       }),
     )
+    .stage("JOBS")
+    .add(
+      new HollowJobAssignmentSystem(world, communities, bus, {
+        intervalTicks: opts.jobsAssignIntervalTicks ?? JOBS_ASSIGN_INTERVAL_TICKS,
+      }),
+    )
     .stage("COMMUNITY")
     .add(
       new HollowCommunitySystem(world, communities, bus, {
@@ -822,6 +850,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         "lifecycle",
         "genome",
         "householdId",
+        "occupation",
       )) {
         const needs: Record<string, number> = {};
         for (const [kind, need] of Object.entries(entity.needs.byKind)) {
@@ -846,6 +875,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
             hairTone: entity.genome.appearance.hairTone,
           },
           action: entity.agent.currentAction ?? "idle",
+          occupation: entity.occupation.role,
         });
       }
       const resourceNodes: HollowResourceNodeSnapshot[] = resources.nodes.map((node) => ({

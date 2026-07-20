@@ -22,6 +22,10 @@ describe("bootstrapHollowSim — real substrate behavior (chunk hollow-03)", () 
       // economy/constants.ts's derivation) to stay ample under many
       // simultaneous harvesters, which would otherwise mask depletion here.
       foodNodeRegenPerTick: 1,
+      // hollow-14b: pushes any RE-assignment past this test's tick budget
+      // (a fresh sim's tick-0 pass always fires once regardless — see the
+      // comment on the final assertion below for why).
+      jobsAssignIntervalTicks: 10_000,
     });
 
     const foodNode = sim.resources.nodes[0]!;
@@ -63,9 +67,19 @@ describe("bootstrapHollowSim — real substrate behavior (chunk hollow-03)", () 
     expect(snapshot.aliveCount).toBe(1);
     expect(snapshot.resourceNodes).toHaveLength(1);
     expect(snapshot.agents).toHaveLength(1);
-    // Each tick's harvested food is fully consumed the same tick (see
-    // systems/act.ts) — the good is transient, so inventory settles at 0.
-    expect(snapshot.agents[0]!.inventory.food ?? 0).toBe(0);
+    // hollow-14b RE-BASELINE: pre-hollow-14b, `work`'s only path was the
+    // material one (harvest straight into a need, consumed same tick — the
+    // good was always transient, settling at 0). A lone agent still
+    // self-assigns a JOB role at tick 0 of every run (loners self-assign by
+    // aptitude even with no community — jobs/assignment-system.ts), and this
+    // seed's genome happens to land on "food-gatherer": once not hungry, it
+    // ALSO works the food node OUTSIDE the survival ladder (systems/act.ts's
+    // `runWorkFood`), which banks literal, un-consumed surplus — the whole
+    // point of jobs (solo production now flows into inventory, ready to
+    // `share` into a stockpile), not a bug. The old "always exactly 0"
+    // invariant no longer holds universally; what's still invariant is that
+    // inventory is never negative.
+    expect(snapshot.agents[0]!.inventory.food ?? 0).toBeGreaterThanOrEqual(0);
   });
 
   it("needs decay every tick for an agent with nothing to do (no nodes at all)", () => {
