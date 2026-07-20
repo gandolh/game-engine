@@ -38,11 +38,27 @@ outcomes and re-baselines the sim tests (expected, not a regression). It ABSORBS
 
 ## Scope — sim-core chunks (dispatch in this dependency order; verify + commit each)
 
-### 14a — Day-cycle + rescale (FOUNDATION; re-baselines everything)
-- A deterministic day-phase clock: `dayPhase(tick, ticksPerDay)` → `{ phase: "commute"|"work"|"gather"|"sleep", dayOfRun, fractionThroughPhase }` (pure, unit-tested). Pick a default `ticksPerDay` long enough for legible phases (propose ~200; tune).
-- Rescale every tick-based life constant so the generational dynamics survive the longer day: express them in DAYS × ticksPerDay (or scale by the day-length factor) and **re-tune for population stability**. Targets (see `family/constants.ts`, `economy/constants.ts`, `community/constants.ts`, `governance/constants.ts`, `social/feud-constants.ts`): `STAGE_CHILD_ADULT_TICKS`, `STAGE_ADULT_ELDER_TICKS`, `OLD_AGE_HAZARD_PER_TICK`, `STARVATION_DEATH_TICKS`, `GESTATION_TICKS`, `BIRTH_WINDOW_TICKS`, needs `decayPerTick`, density-brake, `COMMUNITY_CHECK_INTERVAL_TICKS`, `GOVERNANCE_INTERVAL_TICKS`, `FEUD_DECAY_PER_TICK`.
-- **Determinism:** deterministic (phase is pure arithmetic on tick). No new `Rng`/`fork` unless appended-last + unconditional (see the hollow-12 lesson). Re-baseline the existing sim tests deliberately.
-- **Acceptance:** a small headless run shows population stays bounded and never-extinct across seeds over MULTIPLE generations at the new scale (the density-brake still works); determinism byte-identical same-seed.
+### 14a — Day-cycle clock (FOUNDATION; makes `ticksPerDay` load-bearing)
+**Key fact (de-risks this chunk): life constants are RAW ticks, independent of `ticksPerDay`** (see
+`family/constants.ts`'s header). So making the day longer (a bigger `ticksPerDay`) does NOT change how
+many ticks a life or generation takes — **the saga is preserved automatically, and the bistable
+population dynamics are UNTOUCHED.** Do NOT rescale the proven population constants (lifespan/aging/
+gestation/hazard/density-brake) — the hollow-05 lesson is that retuning them is a bistability trap.
+- Add a deterministic, pure day-phase clock: `dayPhase(tick, ticksPerDay)` → `{ phase:
+  "commute"|"work"|"gather"|"sleep", dayOfRun, fractionThroughPhase }`, phase boundaries as fixed
+  fractions of the day (propose commute 0–.15 · work .15–.7 · gather .7–.9 · sleep .9–1). Pure,
+  unit-tested. Nothing consumes it yet in 14a beyond a smoke wiring — 14b/14c are the consumers.
+- Make `ticksPerDay` meaningful: set the default to ~200 (a life ~45 days — long enough for legible
+  phases). This is a LABEL change in effect (dynamics are raw-tick), so population behavior is
+  unchanged; the breakage is only in code/tests that DERIVE day-counts from `ticksPerDay` (e.g. the
+  chronicle `Y<year>` prefix, run-sim's day budget). Re-baseline those deliberately.
+- **OPTIONAL, only with a stability proof:** a couple of constants read as absurd day-counts at
+  tpd=200 (gestation ~1.25 days, child→adult ~1 day). You MAY bump ONLY those toward a few days IF you
+  prove population stays bounded + never-extinct across seeds {1,7,33,101,202} — otherwise LEAVE them
+  and note as a follow-up. Default: leave them, ship the clock.
+- **Determinism:** phase is pure arithmetic on tick. No new `Rng`/`fork`.
+- **Acceptance:** `dayPhase` unit-tested; population bounded + never-extinct across seeds over multiple
+  generations (should match today, since dynamics constants are unchanged); byte-identical same-seed.
 
 ### 14b — Jobs (needs 14a's work phase + hollow-12 leader)
 - An `occupation` component (role enum). Aptitude→role scoring; leader assignment pass (demand-adjusted); loner self-assignment fallback. Job work happens in the WORK phase: gatherers path to nearest food/material node and produce into the community stockpile; crafter/teacher/caretaker act at/near home or hearth. Emit chronicle events for role assignment/change.
