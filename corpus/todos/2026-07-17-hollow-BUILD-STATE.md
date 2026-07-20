@@ -50,7 +50,10 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | **hollow-08 engine WebGPU 3D renderer** | ✅ **done, verified** (split 8a+8b) | `b5f146e` + `575b9d0` |
 | **hollow-09 cozy 3D town scene** | ✅ **done, verified** (split 9a+9b+9c) | `0848664` + `c3b8441` + `4bd5994` |
 | **M2 GATE** | ✅ headless-verified; **live 3D image Chrome-gated** (not self-verifiable) | — |
-| M3–M4 (hollow-10..13) | ⬜ specs written, queued | — |
+| **hollow-10 chronicle + dashboard** | ✅ **done, verified** (split 10a+10b) | `d71f372` + `e2fbdc7` |
+| **hollow-11 authoring + perturbation** | ✅ **done, verified** (split 11a+11b) | `66444c2` + `4716203` |
+| **M3 GATE** | ✅ headless + DOM-flow verified; **live 3D image Chrome-gated** | — |
+| M4 (hollow-12..13) | ⬜ specs written, queued | — |
 
 ## hollow-05 — how it went (2026-07-20)
 Re-dispatched FRESH on a Sonnet executor (the old `stash@{0}` partial was NOT salvaged). Implementation
@@ -173,33 +176,65 @@ windows. Overlay: action glyphs over active agents; press **T** for name+need ba
 agent → gold highlight + side panel (genome/needs/mind/relationships/kin/community); **F** to
 follow-cam. Engine-only sanity: `npm run demo3d -w @hollow/client` (static primitive scene).
 
-## ▶ NEXT ACTION (resume here) — M1 + M2 COMPLETE; this is now the M3 entry point
-**M1 (hollow-01..07) + M2 (hollow-08..09) are done (2026-07-20).** Findings + the full emergence
-story + the M2 3D layer are in [../wiki/hollow-overview.md](../wiki/hollow-overview.md). Green:
-`@hollow/sim-core` 124 + `@tool/hollow-sim` 26 + `@hollow/client` 143 + `@engine/core` 269; whole-
-workspace typecheck clean (18 pkgs, Farm/Citadel untouched). Everything local on `hollow`, unpushed.
-Commits are only-my-paths each slice (no concurrent-session files committed).
+## M3 — how it went (2026-07-20)
+Four slices. **10a** promoted the metrics/chronicle/export serializers into a browser-safe
+`@hollow/sim-core/observe` (single source of truth; the CLI's tests stayed UNCHANGED = byte-identity
+proof) + worker forwards event/metric streams to a client research-store. **10b** built the live
+chronicle (click→camera-jump), dashboard charts, and in-app export. **11a** (determinism-critical) added
+`@hollow/sim-core/persona` (archetype presets + counts + per-gene lock + deterministic applyPersonaSeed)
+and `ONT_SHOCK` shocks via a SHOCK stage first in the tick + a replayable interventionLog — headline
+replay test byte-identical. **11b** added the authoring screen, time controls, shock buttons, and a
+URL-hash run descriptor.
+
+**Determinism audit (controller, by hand — not just the green test):** `Rng.fork(label)` DOES consume
+one parent draw (`this.nextU32() ^ hash(label)`), so fork ORDER matters. 11a's two new forks
+(`persona-authoring`, `shock`) are appended AFTER all existing forks and created UNCONDITIONALLY, so
+every existing derived stream keeps its position and existing behavior is byte-preserved. Shocks only
+enter via `scheduleShock` → applied in the tick-boundary SHOCK stage → logged. Verified: client 253 +
+sim-core 170 + tool 26 green; whole-workspace typecheck clean.
+
+**Browser reality (still true):** the sandbox Chrome has **no WebGPU adapter** — the 3D image is
+Chrome-gated. BUT the M3 features are mostly DOM + worker (no GPU), so the full interaction flow
+(author → start → pause/step → fire famine → chronicle reacts → Share link → identical replay) WAS
+verified headless via agent-browser. Only the literal 3D scene needs a human in a GPU Chrome.
+
+## ▶ NEXT ACTION (resume here) — M1 + M2 + M3 COMPLETE; this is now the M4 entry point
+**M1 (hollow-01..07) + M2 (hollow-08..09) + M3 (hollow-10..11) are done (2026-07-20).** Findings +
+the full story are in [../wiki/hollow-overview.md](../wiki/hollow-overview.md). Green: `@hollow/sim-core`
+170 + `@tool/hollow-sim` 26 + `@hollow/client` 253 + `@engine/core` 269; whole-workspace typecheck
+clean (Farm/Citadel untouched). Everything local on `hollow`, unpushed. Commits are only-my-paths each
+slice.
 
 **⚠ Carried-forward, still open (M2 did NOT close these):**
 - **M2's live 3D image is human-unverified** (WebGPU headless unavailable). Someone must run the
   Chrome checklist above before trusting the *visual* acceptance — the headless surface is all green
   but a shader/camera/scene bug that only shows on-screen would not have been caught here.
 
-To resume (M3):
-1. Confirm baseline: `npm run test -w @hollow/client` (143) + `npm run test -w @hollow/sim-core`
-   (124) + whole-workspace `npm run typecheck`. For the visual: run the Chrome checklist above.
-2. **Still recommended before/alongside M3:** an **economy-deepening brief** (persistent inventory /
-   real scarcity) so `steal`/`trade` stop being dormant — built + unit-tested but never chosen in the
-   current fed-cooperative economy (see hollow-overview.md "Known limitations").
-3. **M3 (hollow-10, 11)** specs are queued in `corpus/todos/`: 10 client chronicle/dashboard (live
-   event feed + camera-jump + live metric charts + in-app export), 11 authoring/perturbation (persona
-   authoring + time controls + environmental shocks, logged for reproducibility). Then **M4**
-   (hollow-12 governance/politics, hollow-13 LLM rationalizer seam). Dispatch on Sonnet executors,
-   same verify-gate discipline; hollow-10/11 are client-heavy so expect the same "visual gate is
-   Chrome-only" caveat.
-4. Housekeeping: the stale `git stash@{0}` (hollow-05 WIP) may still be present — `git stash drop
-   stash@{0}` when convenient. `hollow-out/` (the tool's default EXPORT_DIR) should be in `.gitignore`
-   if not already.
+To resume (M4):
+1. Confirm baseline: `npm run test -w @hollow/client` (253) + `npm run test -w @hollow/sim-core`
+   (170) + `npm run test -w @tool/hollow-sim` (26) + whole-workspace `npm run typecheck`. For the
+   visual + interaction: run the Chrome checklist below.
+2. **Still recommended before/alongside M4:** an **economy-deepening brief** (persistent inventory /
+   real scarcity) so `steal`/`trade` stop being dormant (see hollow-overview.md "Known limitations").
+   Note M3's shocks give a lever to stress the economy now.
+3. **M4 (hollow-12, 13)** specs are queued in `corpus/todos/`: 12 governance/politics (emergent
+   leaders, votable norms, collective sanctions, feud/reconciliation), 13 LLM rationalizer seam
+   (bounded choose-and-narrate within BDI candidates, event-triggered + async + off-by-default
+   deterministic, Haiku default). Dispatch on Sonnet executors, same verify-gate discipline. 12 is
+   sim-core (fully headless-verifiable); 13 introduces a NON-deterministic live mode gated behind an
+   off-by-default flag — keep M1–M3 byte-deterministic when it's off.
+4. Housekeeping: stale `git stash@{0}` (if present) — drop when convenient; ensure `hollow-out/`
+   (CLI EXPORT_DIR) is gitignored.
+
+### Human Chrome-verify checklist — M3 (interaction + visual)
+`npm run hollow` in a WebGPU Chrome. **Authoring:** the setup screen lists archetype presets; add rows
++ counts, tune gene sliders, lock a gene + Randomize (locked holds), set seed/density → Start boots a
+town whose founders match. **Research:** the left rail chronicle fills with readable lines and clicking
+one jumps the camera; the dashboard charts update per year; the three export buttons download files.
+**Perturbation:** pause/step/1–8× pace the sim; fire Famine/Boom/Disaster/Plague → they appear in the
+chronicle and move the dashboard. **Share:** the Share button writes a URL hash; opening it in a fresh
+tab replays the identical town. (The DOM half of all this was verified headless; the 3D scene needs your
+GPU Chrome.)
 
 ---
 

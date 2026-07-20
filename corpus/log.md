@@ -4,6 +4,40 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-20] build | Hollow — M3 COMPLETE (research surfaces: chronicle, dashboard, authoring, perturbation)
+
+Continued into M3 on branch **`hollow`** after the M2 render fixes were confirmed in real Chrome.
+Four Sonnet-executor slices, controller-verified + committed per slice; folded into
+[wiki/hollow-overview.md](wiki/hollow-overview.md) "M3".
+
+- **hollow-10a shared observe** (`d71f372`) — promoted the metrics/chronicle/export serializers out of
+  `@tool/hollow-sim` into a browser-safe **`@hollow/sim-core/observe`** (single source of truth). The
+  CLI consumes it via shims with its tests UNCHANGED (byte-identity proof). Node-fs helpers stay in the
+  tool. Worker forwards `{events}` deltas + per-year `{metrics}` rows into a client research-store.
+- **hollow-10b chronicle + dashboard + export** (`e2fbdc7`) — live filterable chronicle (click →
+  camera jump, dead-actor lineage fallback), live canvas dashboard charts (per sim-year), in-app
+  metrics.csv/events.jsonl/lineage.json export (byte-identical to the CLI). Read-only.
+- **hollow-11a persona + shocks + replay** (`66444c2`) — determinism-critical: `@hollow/sim-core/persona`
+  (extended PersonaSeed: archetypes+counts+per-gene lock, ARCHETYPE_PRESETS, deterministic
+  applyPersonaSeed) + `ONT_SHOCK` famine/boom/disaster/plague via a `HollowShockSystem` in a new SHOCK
+  stage **first in the tick** (tick-boundary only) + a replayable `interventionLog`. Headline test:
+  `seed + persona-seed + interventionLog` replays **byte-identical** (180 ticks, 4 interleaved shocks).
+- **hollow-11b authoring + perturbation UI** (`4716203`) — persona authoring screen
+  (archetypes/sliders/randomize-with-lock/seed/density → the CLI's PersonaSeed), time controls
+  (pause/step/1–8×, pure pacing), shock buttons (→ scheduleShock, surfaced in chronicle), and a
+  URL-hash **run descriptor** (seed + persona + interventionLog) that replays a shared run identically.
+
+**Verified:** `@hollow/client` 253 + `@hollow/sim-core` 170 + `@tool/hollow-sim` 26 tests green,
+whole-workspace typecheck clean. **Determinism audited by hand** (fork discipline: `Rng.fork()`
+consumes a parent draw, so the new persona/shock forks are appended AFTER all existing forks and
+created unconditionally → existing draw order byte-preserved; SHOCK stage at the tick boundary;
+byte-identical replay). **Browser reality:** the sandbox Chrome has **no WebGPU adapter**
+(`requestAdapter()` → null), so the 3D image can't be self-verified here — but the **DOM/interaction
+flow** (author → start → pause/step → fire famine → chronicle reacts → Share → identical replay in a
+fresh tab) WAS verified headless via agent-browser (DOM + worker need no GPU). Lesson reinforced: split
+each render milestone so the non-visual majority (data, determinism, DOM) is fully verified and only
+the literal GPU image is human-gated.
+
 ## [2026-07-20] build | Hollow — M2 COMPLETE (engine WebGPU 3D renderer + cozy gene-driven town)
 
 Continued straight into M2 on branch **`hollow`** (local, unpushed) after M1's exit-bar. M2 adds the

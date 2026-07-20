@@ -1,5 +1,5 @@
 ---
-summary: What Hollow is (generational social-emergence sim on the shared engine), its M1 architecture (needs → communities → lifecycle/genetics → social verbs → headless research CLI) with the M1 exit-bar PASSED, and its M2 3D layer (engine WebGPU renderer + gene-driven cozy town), the load-bearing decisions + known limitations.
+summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (shared observe module + live chronicle/dashboard + persona authoring + deterministic shocks/replay), plus the load-bearing decisions + known limitations.
 updated: 2026-07-20
 ---
 
@@ -23,7 +23,9 @@ executors). Milestone **M1 is complete** — see the exit-bar results below.
   engine WebGPU renderer, reads the Worker snapshot stream, and draws the cozy scene
   (`src/render3d/` + `src/main.ts`, worker `src/worker/`). `npm run hollow`.
 - **`@tool/hollow-sim`** — the headless research CLI (hollow-07): drives `bootstrapHollowSim` on the
-  main thread, samples metrics, captures the event chronicle, exports for offline study.
+  main thread, samples metrics, captures the event chronicle, exports for offline study. Since M3 it
+  consumes the shared `@hollow/sim-core/observe` serializers (one source of truth with the client) and
+  accepts `PERSONA_SEED` + `INTERVENTION_LOG` for authored/replayed runs.
 
 Layering obeys the monorepo rule: `@engine/core` → `@hollow/sim-core` → `@hollow/client` /
 `@tool/hollow-sim`. The engine never imports a game; Hollow imports only `@engine/*`. hollow-02
@@ -146,6 +148,42 @@ WebGPU cannot render headless in this environment (the established Citadel findi
 acceptance (a lit walking town, gene-visible lineage, glyphs/tags/inspect) is **gated on a human
 opening `npm run hollow` in a WebGPU Chrome**. Engine example: `npm run demo3d -w @hollow/client`.
 
+## M3 — research surfaces: chronicle, dashboard, authoring, perturbation (2026-07-20)
+M3 turns the 3D viewer into a usable research instrument and makes the director role real.
+Built in four slices, all committed on `hollow`:
+
+- **hollow-10a — shared observe module** (`d71f372`). Promoted the metrics/chronicle/export
+  serializers out of `@tool/hollow-sim` into a browser-safe **`@hollow/sim-core/observe`** (metrics:
+  gini/wealthGini/meanPairwiseTrust/meanGenes/communityStats/social sums; `createChronicle` over the
+  bus; the CSV/JSONL serializers + `METRICS_COLUMNS`; a `MetricsSampler`). The CLI now consumes it via
+  thin shims — its tests are **unchanged** (byte-identity proof). Node-fs export helpers stay in the
+  tool. The Worker forwards `{events}` deltas + per-year `{metrics}` rows into a client `research-store`.
+- **hollow-10b — chronicle + dashboard + export** (`e2fbdc7`). Client research UI (read-only): a live,
+  filterable, human-readable event **chronicle** (click an event → camera jumps/selects the actor,
+  dead actors fall back to the lineage inspect record); a live **metrics dashboard** (canvas charts,
+  redrawn per sim-year); **in-app export** of metrics.csv / events.jsonl / lineage.json (same
+  serializers → byte-identical to the CLI).
+- **hollow-11a — persona-seed + shocks + replay** (`66444c2`). The determinism-critical substrate:
+  **`@hollow/sim-core/persona`** (extended `PersonaSeed`: seed, resource density, `archetypes` with
+  counts + per-gene overrides + lock; built-in `ARCHETYPE_PRESETS` cooperator/opportunist/hoarder/
+  loner/nurturer; `applyPersonaSeed` sets founder genomes deterministically from a dedicated fork).
+  **Environmental shocks** (`ONT_SHOCK` famine/boom/disaster/plague) applied by a `HollowShockSystem`
+  in a new **SHOCK stage first in the tick** (tick-boundary only); `scheduleShock` logs to a replayable
+  `interventionLog`. Headline test: `seed + persona-seed + interventionLog` replays **byte-identical**.
+- **hollow-11b — authoring + perturbation UI** (`4716203`). The director UI: a **persona authoring
+  screen** (archetype rows + counts, gene sliders with randomize-with-lock, seed + density → the same
+  `PersonaSeed` the CLI eats); **time controls** (pause/step/1–8× — pure pacing, batches ticks per fixed
+  interval, tick logic untouched); **shock buttons** (→ `scheduleShock`, surfaced in the chronicle);
+  and a **shareable run descriptor** (`seed + persona + interventionLog` → URL-hash; loading it skips
+  authoring and replays the town identically).
+
+**M3 verification.** `@hollow/client` 253 + `@hollow/sim-core` 170 + `@tool/hollow-sim` 26 tests green;
+whole-workspace typecheck clean; determinism audited by hand (fork ordering appended-after-existing +
+unconditional, SHOCK stage at the tick boundary, byte-identical replay). The **DOM/interaction flow**
+(author → start → pause/step → fire famine → chronicle reacts → Share → identical replay in a fresh
+tab) was verified in a headless browser; only the **3D image** stays real-Chrome-gated (no WebGPU
+adapter in the sandbox).
+
 ## Known limitations (carried forward)
 - **`steal` and `trade` are dormant (count 0) in natural play.** A fed, cooperative town has no
   needy+greedy+low-trust actor next to a stealable holder, and solo agents' inventories net to ~0
@@ -166,6 +204,12 @@ opening `npm run hollow` in a WebGPU Chrome**. Engine example: `npm run demo3d -
   registry + genetics + constants), `lineage/`, `social/` (act + witness + constants), `protocols/`.
 - Tool: [tools/hollow-sim/src/](../../tools/hollow-sim/src/) — `env.ts` (research profile),
   `metrics.ts`, `chronicle.ts`, `export.ts`, `run-core.ts`, `determinism.ts`.
+- Observe / research (M3): [games/hollow/sim-core/src/observe/](../../games/hollow/sim-core/src/observe/)
+  (`@hollow/sim-core/observe` — metrics/chronicle/serializers/sampler, shared with the CLI),
+  `src/persona/` (`@hollow/sim-core/persona` — PersonaSeed + presets + applyPersonaSeed),
+  `src/shock/` + `src/protocols/shock.ts` (shock system + ONT_SHOCK), and client research surfaces
+  under `games/hollow/client/src/` (`research-store.ts`, `chronicle-*`, `dashboard-panel.ts`,
+  `export-panel.ts`, `persona-setup-panel.ts`, `time-control*`, `shock-*`, `run-descriptor.ts`).
 - Engine 3D (M2): [engine/core/src/render3d/](../../engine/core/src/render3d/) — `geometry.ts`,
   `mat4.ts`, `camera3d.ts`, `pick.ts`, `webgpu/` (`device3d`/`pipeline-cache`/`renderer3d`/
   `buffers` + `shaders/scene3d.wgsl`). Generic; names no game.
@@ -175,10 +219,9 @@ opening `npm run hollow` in a WebGPU Chrome**. Engine example: `npm run demo3d -
   `inspect-panel.ts`, `main.ts`.
 - Live build tracker / handoffs: [../todos/2026-07-17-hollow-BUILD-STATE.md](../todos/2026-07-17-hollow-BUILD-STATE.md).
 
-## Next (M3+)
-**M1 (hollow-01..07) and M2 (hollow-08..09) are complete.** M3 is the research surfaces:
-hollow-10 client chronicle/dashboard (live event feed with camera-jump + live metric charts +
-in-app CSV/JSON export), hollow-11 authoring/perturbation (guided persona authoring + time controls
-+ environmental shocks, logged for reproducibility). M4 depth: hollow-12 governance/politics,
-hollow-13 LLM rationalizer seam. All specs are written + queued in `corpus/todos/`. The economy
-deepening that activates the dormant steal/trade verbs should still slot in before or alongside M3.
+## Next (M4)
+**M1 (hollow-01..07), M2 (hollow-08..09), and M3 (hollow-10..11) are complete.** M4 is depth:
+hollow-12 governance/politics (emergent leaders, votable norms, collective sanctions, feuds),
+hollow-13 LLM rationalizer seam (bounded choose-and-narrate within BDI candidates, event-triggered +
+async + off-by-default deterministic). Both specs are written + queued in `corpus/todos/`. The economy
+deepening that activates the dormant steal/trade verbs should still slot in before or alongside M4.

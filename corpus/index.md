@@ -52,7 +52,7 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 
 ### Hollow
 
-- [wiki/hollow-overview.md](wiki/hollow-overview.md) — What Hollow is (generational social-emergence sim / research instrument on the shared engine), its M1 architecture (needs → communities → lifecycle/genetics → social verbs → headless CLI) with the **M1 exit-bar PASSED**, its **M2 3D layer** (engine WebGPU renderer in `@engine/core/render3d` + the gene-driven cozy town in `@hollow/client`; live image Chrome-gated), the density-brake population stabilizer, and known limitations (steal/trade dormancy). Live build tracker: [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md).
+- [wiki/hollow-overview.md](wiki/hollow-overview.md) — What Hollow is (generational social-emergence sim / research instrument on the shared engine): **M1** headless sim (exit-bar PASSED), **M2** 3D layer (engine WebGPU renderer in `@engine/core/render3d` + gene-driven cozy town in `@hollow/client`), **M3** research surfaces (shared `@hollow/sim-core/observe`, live chronicle/dashboard, persona authoring + deterministic shocks/replay). Plus the density-brake population stabilizer and known limitations (steal/trade dormancy; live 3D image Chrome-gated). Live build tracker: [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md).
 
 ## Briefs — historical task specs (immutable archives)
 
