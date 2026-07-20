@@ -153,7 +153,7 @@ import {
   GESTATION_TICKS,
 } from "./family";
 import { LineageRegistry } from "./lineage";
-import { ONT_FAMILY } from "./protocols";
+import { ONT_FAMILY, ONT_SOCIAL } from "./protocols";
 import {
   HollowSocialActSystem,
   HollowSocialWitnessSystem,
@@ -334,6 +334,19 @@ export interface HollowSnapshot {
   readonly diedCount: number;
   /** Current number of pair-bonded households (chunk hollow-05). */
   readonly householdCount: number;
+  /** Running total of each CONSUMMATED social verb since sim start (chunk
+   *  hollow-06b) — keyed by "gift"/"share"/"help"/"teach"/"trade"/"steal"/
+   *  "sabotage"/"rumor"/"attack" (mirrors `ONT_SOCIAL`'s vocabulary, minus
+   *  the internal `STEAL_DETECTED` sub-event). "Consummated" means the verb
+   *  actually executed its effect this tick, not merely that an intention
+   *  was queued: gift/share/steal/help_labor/teach only fire their
+   *  `ONT_SOCIAL.*` event when something real happened (see
+   *  social/act-system.ts's per-verb guards); sabotage/rumor/attack always
+   *  emit once dispatched (no "nothing happened" branch); trade counts only
+   *  the ACCEPTED branch (a rejected offer isn't a consummated trade). The
+   *  observable feed for hollow-06b's anti-inert/flip tests, and the data
+   *  hollow-07's export will surface. */
+  readonly socialCounts: Readonly<Record<string, number>>;
 }
 
 export interface BootedHollowSim {
@@ -425,6 +438,51 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   });
   bus.subscribeOntology(ONT_FAMILY.DEATH, () => {
     diedCount++;
+  });
+
+  // Running per-verb social-action totals (chunk hollow-06b) — same
+  // subscription pattern as bornCount/diedCount above. See HollowSnapshot's
+  // `socialCounts` field doc for the "consummated" definition per verb.
+  const socialCounts: Record<string, number> = {
+    gift: 0,
+    share: 0,
+    help: 0,
+    teach: 0,
+    trade: 0,
+    steal: 0,
+    sabotage: 0,
+    rumor: 0,
+    attack: 0,
+  };
+  bus.subscribeOntology(ONT_SOCIAL.GIFT, () => {
+    socialCounts["gift"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.SHARE, () => {
+    socialCounts["share"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.HELP, () => {
+    socialCounts["help"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.TEACH, () => {
+    socialCounts["teach"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.TRADE, (msg) => {
+    // Only the ACCEPTED branch is a consummated trade (see HollowSnapshot's
+    // `socialCounts` doc) — a rejected offer still emits `ONT_SOCIAL.TRADE`
+    // (social/act-system.ts's `runTrade`) but moved nothing.
+    if (msg.body.accepted === true) socialCounts["trade"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.STEAL, () => {
+    socialCounts["steal"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.SABOTAGE, () => {
+    socialCounts["sabotage"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.RUMOR, () => {
+    socialCounts["rumor"]!++;
+  });
+  bus.subscribeOntology(ONT_SOCIAL.ATTACK, () => {
+    socialCounts["attack"]!++;
   });
 
   const scheduler = new Scheduler();
@@ -601,6 +659,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         bornCount,
         diedCount,
         householdCount: households.all().length,
+        socialCounts: { ...socialCounts },
       };
     },
   };

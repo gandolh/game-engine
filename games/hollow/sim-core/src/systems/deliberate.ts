@@ -3,11 +3,21 @@
  * (`createDeliberateSystem`), wired to Hollow's personality registry and its
  * resource-world-aware deliberation context. Same thin-wrapper shape as
  * `@farm/sim-core/systems/cognition/deliberate.ts`.
+ *
+ * Chunk hollow-06b additionally builds the per-tick NEIGHBOR index
+ * (agents/registry.ts's `NeighborView`/`buildNeighborIndex`) that social-verb
+ * deliberation reads to find candidates. It's built HERE, in `run()`, rather
+ * than inside the `makeContext` callback passed to `createDeliberateSystem`
+ * below — the engine kernel calls `makeContext(ctx)` once PER AGENT (see
+ * `@engine/core/agent/deliberate-system.ts`), so building an O(n) index
+ * there would rebuild it n times a tick. Building it once in `run()`
+ * (before delegating to the wrapped system) and having `makeContext` just
+ * read the already-built array via closure keeps the whole pass O(n).
  */
 import type { SimContext, System, World } from "@engine/core";
 import { createDeliberateSystem } from "@engine/core/agent";
 import type { HollowEntity, HollowFsmState } from "../components";
-import { personalityRegistry } from "../agents";
+import { personalityRegistry, buildNeighborIndex, type NeighborView } from "../agents";
 import type { ResourceWorld } from "../world";
 
 const PERCEIVE_STATE: HollowFsmState = "PERCEIVE";
@@ -16,18 +26,23 @@ const ACT_STATE: HollowFsmState = "ACT";
 export class HollowDeliberateSystem implements System {
   readonly name = "HollowDeliberateSystem";
   private readonly inner: System;
+  private neighbors: readonly NeighborView[] = [];
 
-  constructor(world: World<HollowEntity>, resources: ResourceWorld) {
+  constructor(
+    private readonly world: World<HollowEntity>,
+    resources: ResourceWorld,
+  ) {
     this.inner = createDeliberateSystem(world, {
       name: "HollowDeliberateSystem",
       registry: personalityRegistry,
       perceiveState: PERCEIVE_STATE,
       actState: ACT_STATE,
-      makeContext: (ctx: SimContext) => ({ tick: ctx.tick, resources }),
+      makeContext: (ctx: SimContext) => ({ tick: ctx.tick, resources, neighbors: this.neighbors }),
     });
   }
 
   run(ctx: SimContext): void {
+    this.neighbors = buildNeighborIndex(this.world);
     this.inner.run(ctx);
   }
 }
