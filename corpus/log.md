@@ -4,6 +4,28 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-20] fix | Hollow client — perf HUD + chronicle-freeze + graceful no-WebGPU (`8aa7922`)
+
+Pre-deeper-dive stability pass on `@hollow/client`, driven by an agent-browser run (the sandbox
+Chrome still has **no GPU adapter** — `requestAdapter()` → null — so the 3D scene stays human-Chrome-
+gated, but the DOM/worker surface IS verifiable, and that's where the bugs were).
+- **fps/ms perf HUD**: reused the engine `DebugOverlay` (the same counter Farm uses), pinned
+  bottom-right, backtick toggle; shows fps/ms/tick/agent-count, fed the render loop's own scene
+  build+submit profile (new `Profiler` in `render3d/app.ts` → `getRenderReport()`). Added a generic
+  `DebugOverlay.setVisible`. The scene `frame` mean/p95 line only appears in a real-GPU Chrome (here
+  the render loop never starts, so `getRenderReport()` is null and only fps/ms/tick/ents show).
+- **Chronicle freeze (headline)**: the chronicle appended an UNBOUNDED DOM row per event AND forced a
+  synchronous reflow (`scrollTop = scrollHeight`) on EVERY event; cooperation events flood in, so the
+  DOM ballooned and the main thread locked ("freezes after a minute" — reproduced: screenshots/evals
+  started timing out). Fixed: live list caps at 300 rows (full history stays in `research-store` +
+  export), re-pin once per batch. Verified headless: held at 300 rows, tick kept advancing, page
+  responsive. `research-store.events` itself is still unbounded (needed for full-history export) — a
+  memory-only concern, on the improvement list.
+- **Graceful no-WebGPU**: `app.ts` caught `createDevice3d`'s null-adapter throw (was an unhandled
+  promise rejection + blank canvas) via a new `onRendererUnavailable` callback; `main.ts` shows an
+  on-screen message while sim/chronicle/dashboard/HUD keep running.
+`@hollow/client` 254 + `@engine/core` debug 7 green; client + engine typecheck clean.
+
 ## [2026-07-20] build | Hollow — hollow-12 COMPLETE (governance + emergent politics + antagonism arcs)
 
 First M4 brief, both slices sim-core + fully headless-verifiable (no Chrome gate), controller-verified
