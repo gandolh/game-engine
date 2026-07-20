@@ -50,6 +50,10 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 - [wiki/citadel-asset-verdicts.md](wiki/citadel-asset-verdicts.md) — Historical grading record for the art-04..07 wave (baseline, re-grade, final verdicts).
 - [wiki/citadel-road-builder-ux.md](wiki/citadel-road-builder-ux.md) — Road/wall drawing UX: what OpenTTD, Skylines, Factorio and Anno do, mapped onto Citadel's drag-build, with the connectivity-feedback gap.
 
+### Hollow
+
+- [wiki/hollow-overview.md](wiki/hollow-overview.md) — What Hollow is (generational social-emergence sim / research instrument on the shared engine), its M1 architecture (needs → communities → lifecycle/genetics → social verbs → headless CLI), the **M1 exit-bar PASSED** results, the density-brake population stabilizer, and known limitations (steal/trade dormancy). Live build tracker: [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md).
+
 ## Briefs — historical task specs (immutable archives)
 
 Each brief is the spec that directed a slice of work; once in `done/`/`superseded/` it is immutable.

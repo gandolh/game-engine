@@ -4,6 +4,33 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-20] build | Hollow — M1 COMPLETE (05–07 done, exit-bar PASSED); new wiki/hollow-overview.md
+
+Resumed the Hollow backlog and finished M1 on branch **`hollow`** (local, unpushed). New synthesis
+page [wiki/hollow-overview.md](wiki/hollow-overview.md) is the durable Hollow entry point + M1
+exit-bar findings; live tracker stays [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md).
+
+- **hollow-05 lifecycle/pair-bonding/genetics** (`c8c3c2b`) — re-dispatched fresh (old stash
+  dropped/ignored). Controller caught a population-dynamics defect the green unit tests hid (ample
+  food removed the carrying-capacity brake → 3000-tick test near-hang). Root finding: food scarcity
+  alone is **bistable** at test timescales. Fix (user-approved): a **density-dependent birth brake**
+  (`BIRTH_PERCAPITA_FOOD_TARGET`) → seed-robust plateau. Lesson: compressed test profiles must copy
+  EVERY knob — a dropped `gestationTicks` silently reverts to the 250 default and inverts dynamics.
+- **hollow-06 social verbs** — split 6a mechanics (`5bd92c5`: 9 verb effects + `Skills` + witness
+  fan-out) + 6b deliberation (`b802738`: deterministic genome-gated verb choice). Verified in real
+  headless runs: cooperation AND antagonism emerge, diverge ~10× by seed, population stays bounded.
+  Known limitation logged: `steal`/`trade` dormant in the current economy (correct + unit-tested;
+  activate under persistent-inventory/scarcer economy).
+- **hollow-07 headless research CLI** (`@tool/hollow-sim`) — metrics.csv + events.jsonl +
+  lineage.json + `CHECK_DETERMINISM`; defaults to the validated compressed-stable research profile.
+- **M1 EXIT-BAR PASSED** — read real exports (seeds 7 & 101, 1200 ticks): communities form+dissolve,
+  cooperation-vs-sabotage diverges by seed (27% vs 7% antag), 16-generation lineages with trait
+  drift, bounded population, deterministic. Details in wiki/hollow-overview.md.
+
+Note: a **concurrent session** is building an Astro docs site (`docs/` + root config +
+`package-lock.json` churn) in the same tree — those paths are NOT part of the Hollow commits (shared-
+tree rule: commit only your own paths).
+
 ## [2026-07-17] build | Hollow — M1 waves 01–04 done (branch `hollow`), paused before hollow-05
 
 Building the Hollow backlog via plan-split-dispatch (backlog/wave mode; opus controller,

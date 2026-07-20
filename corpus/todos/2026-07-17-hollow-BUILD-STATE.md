@@ -45,7 +45,8 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | hollow-04 relationships / emergent communities | ✅ done, verified | `9bbc90f` |
 | **hollow-05 lifecycle / pair-bonding / genetics** | ✅ **done, verified** | `c8c3c2b` |
 | **hollow-06 social verbs** | ✅ **done, verified** (split 6a+6b) | `5bd92c5` + `b802738` |
-| hollow-07 headless CLI + export → **M1 EXIT-BAR GATE** | ⬜ not started | — |
+| **hollow-07 headless CLI + export** | ✅ **done, verified** | (this wave) |
+| **M1 EXIT-BAR GATE** | ✅ **PASSED** (2026-07-20) — see wiki/hollow-overview.md | — |
 | M2–M4 (hollow-08..13) | ⬜ specs written, queued | — |
 
 ## hollow-05 — how it went (2026-07-20)
@@ -140,17 +141,27 @@ rumor). Flag this to hollow-07's export/metrics work and revisit in the economy 
   scenario-authoring; genome cohorts can be biased in tests by mutating `genome.behavior[gene]`
   post-bootstrap.
 
-## ▶ NEXT ACTION (resume here)
-1. Confirm green baseline: `npm run test -w @hollow/sim-core` (should be **120/120**) + whole-
-   workspace `npm run typecheck` (17/17).
-2. Dispatch **hollow-07 headless CLI + metrics export** on a Sonnet executor using
-   `…-hollow-07-headless-cli-metrics-export.md` + the handoff above. This is the tool (`@tool/
-   hollow-sim`, already skeletoned) that produces the data the M1 exit-bar is judged on.
-3. **M1 EXIT-BAR GATE** (after 07, before any M2/3D work): a headless seed run over ≥5 generations
-   must show — communities forming + ≥1 dissolving; seed-dependent cooperation-vs-sabotage
-   divergence (delivered by hollow-06 — verify in exported data); ≥3-gen lineages with heritable
-   trait drift; scarcity-stable population (density brake); deterministic. Go/no-go for M2. NOTE the
-   steal/trade dormancy above when reading the exported verb mix — it's expected, not a gap.
+## ▶ NEXT ACTION (resume here) — M1 IS COMPLETE; this is now the M2 entry point
+**M1 (hollow-01..07) is done and the exit-bar PASSED (2026-07-20).** Findings + the full emergence
+story are in [../wiki/hollow-overview.md](../wiki/hollow-overview.md). `@hollow/sim-core` 120/120 +
+`@tool/hollow-sim` 26/26 green; whole-workspace typecheck 17/17. Everything local on `hollow`,
+unpushed. **The hollow-07 tool commit is `tools/hollow-sim/` ONLY** — a concurrent session's Astro
+docs site (`docs/` + root package.json/turbo.json/.gitignore + package-lock churn) shares the tree;
+those are NOT Hollow's and were left uncommitted by this wave.
+
+To resume:
+1. Confirm baseline: `npm run test -w @hollow/sim-core` (120/120) + `npm run test -w @tool/hollow-sim`
+   (26/26) + whole-workspace `npm run typecheck` (17/17). Optionally `npm run sim:hollow` to eyeball.
+2. **Before M2**, strongly consider an **economy-deepening brief** (persistent inventory / real
+   scarcity) so `steal`/`trade` stop being dormant — they're built + unit-tested but never chosen in
+   the current fed-cooperative economy (see hollow-overview.md "Known limitations").
+3. **M2 (hollow-08..13)** specs are written + queued in `corpus/todos/`: 08 WebGPU 3D renderer,
+   09 cozy-town scene, 10 client chronicle/dashboard, 11 authoring/perturbation, 12 governance/
+   politics, 13 LLM rationalizer seam. Dispatch on Sonnet executors, same verify-gate discipline.
+4. Housekeeping: the stale `git stash@{0}` (hollow-05 WIP) is still present (drop blocked by the
+   classifier this session) — `git stash drop stash@{0}` when convenient. Add `hollow-out/` to
+   `.gitignore` (the tool's default EXPORT_DIR) — deferred this wave because `.gitignore` is being
+   edited by the concurrent docs session.
 
 ---
 
