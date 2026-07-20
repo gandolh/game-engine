@@ -42,7 +42,8 @@ import { GRID_SIZE } from "@hollow/sim-core/world";
 import { SnapshotBuffer } from "./interp";
 import { groundHeightAt } from "./terrain";
 import { buildGroundMesh, buildTerritoryTileMesh, TERRITORY_TINT_Z_OFFSET } from "./world-meshes";
-import { householdLayout, householdMemberCounts, homeMeshFor, type HouseholdPosition } from "./household-layout";
+import { householdLayout, householdMemberCounts, homeMeshFor, MAX_HOME_FOOTPRINT, type HouseholdPosition } from "./household-layout";
+import { findFreePlacement, footprintRect, HOME_MARGIN, type Rect } from "./home-placement";
 import { baseNodeMeshFor, fullnessScale, resourceNodeFullness } from "./node-mesh";
 import { dayNightPhase, dayNightFromPhase, RENDER_DAY_TICKS } from "./day-night";
 import { wireOrbitCameraInput, type CameraInputHandle } from "./camera-input";
@@ -225,6 +226,11 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     // that jump is the "houses teleport" artifact. A dwelling is fixed: once
     // placed, it stays put for the life of the run.
     const homePosByHousehold = new Map<number, HouseholdPosition>();
+    // The reserved footprint ("hitbox") of every home placed so far — new homes
+    // are nudged outward from their community anchor until they clear these, so
+    // houses never overlap (home-placement.ts). Each reserves its MAX-growth
+    // footprint up front so growing a family never causes a late overlap.
+    const placedHomeRects: Rect[] = [];
 
     // Agent humanoid mesh-variants (skin x hair x pose), memoized — each
     // distinct variant is built + uploaded exactly once (see humanoid.ts's
@@ -346,10 +352,14 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         const byHomeMesh = new Map<MeshHandle, Instance[]>();
         for (const [householdId, freshPos] of layout) {
           // Freeze position on first sighting; reuse it forever (anti-teleport).
+          // On first placement, nudge outward from the community anchor until
+          // the home's footprint clears every already-placed home (anti-overlap).
           let pos = homePosByHousehold.get(householdId);
           if (!pos) {
-            pos = freshPos;
+            const { w, d } = MAX_HOME_FOOTPRINT;
+            pos = findFreePlacement(freshPos, w, d, HOME_MARGIN, placedHomeRects);
             homePosByHousehold.set(householdId, pos);
+            placedHomeRects.push(footprintRect(pos.x, pos.y, w, d, HOME_MARGIN));
           }
           const count = memberCounts.get(householdId) ?? 1;
           const handle = homeMeshHandleFor(count);

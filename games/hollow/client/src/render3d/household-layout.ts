@@ -133,6 +133,29 @@ function growthFactorFor(memberCount: number): number {
   return 1 + (n - 1) * GROWTH_PER_MEMBER;
 }
 
+/** The ground XY footprint of the home mesh `homeMeshFor(memberCount)` builds,
+ *  in tile units. `box()` is corner-anchored (spans `[0,w]x[0,d]`), so a home
+ *  drawn at `translate([x,y,z])` occupies `[x, x+w] x [y, y+d]`. Past 5 members
+ *  an attached wing extends the footprint further in +x (see `homeMeshFor`).
+ *  Used by the collision-aware placement (home-placement.ts) so homes don't
+ *  overlap. */
+export function homeFootprint(memberCount: number): { readonly w: number; readonly d: number } {
+  const g = growthFactorFor(memberCount);
+  const w = BASE_W * g;
+  const d = BASE_D * g;
+  // Wing (memberCount >= 5) sits at local x = w + 0.2 with width w * 0.55, so
+  // the total +x extent becomes 1.55*w + 0.2 (see homeMeshFor's wing branch).
+  const totalW = memberCount >= 5 ? 1.55 * w + 0.2 : w;
+  return { w: totalW, d };
+}
+
+/** The largest footprint any home can ever grow to. A home's ground position
+ *  is frozen on first sighting (see app.ts) but its mesh grows with the family,
+ *  so its reserved hitbox must cover the MAX size up front — otherwise a home
+ *  that grows later could overlap a neighbour placed against its smaller
+ *  initial footprint. */
+export const MAX_HOME_FOOTPRINT: { readonly w: number; readonly d: number } = homeFootprint(MAX_GROWTH_MEMBERS);
+
 /** A small glowing window quad on the house's -y wall face, centered at
  *  local x-offset `dx`, mirroring the render3d-demo's window idiom. */
 function windowQuad(wallH: number, dx: number): Mesh {
