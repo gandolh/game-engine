@@ -4,6 +4,23 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-20] feat | Engine — generic dynamic-collision module + Hollow render adoption (`ef57246`)
+
+New `@engine/core/collision` subpath (generic, deterministic, no game/WebGPU import) — the
+moving-body complement to the STATIC `placement/OccupancyGrid`: `SpatialHash` broad-phase
+(ascending-id `queryRadius`), `circlesOverlap`/`aabbOverlap` narrow-phase, and `separateCircles`
+(iterative relaxation that pushes overlapping circular bodies apart; caller-order-independent via
+id-sort; the coincident-center degenerate case — two agents on the same tile — fans out along a
+golden-angle axis keyed on the lower id, deterministic + no RNG). Motivated by 3D humanoids clipping
+(user saw agents stacking on one tile — the sim steps `gx`/`gy` with no per-agent exclusion).
+**Decision (user, 2026-07-20):** build it as a REUSABLE ENGINE module (not a one-off render hack, not
+a sim change) — chosen over render-only-hack and sim-side-collision options. Adopted in Hollow
+**render-only** (`agent-collision.ts`, radius 0.5 tile): `app.ts` de-overlaps interpolated positions
+each frame and draws + pick-bounds off those; never fed back to sim/worker/snapshot, so
+byte-determinism is untouched. **Sim-side adoption (agents physically can't share a tile) is a
+deliberate future gameplay change — NOT done** (it would break byte-identity + need deadlock handling;
+the solver is ready for it). engine 287 + client 258 green; the visual de-clump is WebGPU-Chrome-gated.
+
 ## [2026-07-20] fix | Hollow client — perf HUD + chronicle-freeze + graceful no-WebGPU (`8aa7922`)
 
 Pre-deeper-dive stability pass on `@hollow/client`, driven by an agent-browser run (the sandbox
