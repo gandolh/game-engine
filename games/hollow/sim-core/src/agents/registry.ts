@@ -4,6 +4,7 @@ import type { HollowEntity } from "../components";
 import type { ResourceWorld } from "../world";
 import { GOOD_FOOD, GOOD_MATERIALS } from "../economy";
 import { SKILL_MATERIAL } from "../social/constants";
+import type { CommunityRegistry } from "../community";
 
 /**
  * A plain-data snapshot of ONE agent, as seen by every OTHER agent's social
@@ -47,6 +48,23 @@ export interface HollowDeliberationContext {
   /** Every living agent (including the reader itself — callers filter out
    *  their own id), sorted ascending by id (determinism, CLAUDE.md). */
   readonly neighbors: readonly NeighborView[];
+  /**
+   * The run's day length in ticks (chunk hollow-14c) — threaded through so a
+   * deliberator can compute `dayPhase(ctx.tick, ctx.ticksPerDay)`
+   * (`world/day-cycle.ts`) and gate its ROUTINE (commute/work/gather/sleep)
+   * without reaching into `HollowSimOptions` itself. Same value as
+   * `HollowSimOptions.ticksPerDay` — see systems/deliberate.ts for how it's
+   * threaded from `sim-bootstrap.ts`.
+   */
+  readonly ticksPerDay: number;
+  /**
+   * Read-only handle on the community registry (chunk hollow-14c) — lets a
+   * deliberator resolve its own `communityId` to a `Community.territory`
+   * centroid (the SLEEP-phase "go home" anchor for members; see
+   * `agents/villager.ts`'s `homeAnchorFor`). Mirrors `resources` above: a
+   * plain-data registry handle, never mutated by deliberation.
+   */
+  readonly communities: CommunityRegistry;
 }
 
 /**

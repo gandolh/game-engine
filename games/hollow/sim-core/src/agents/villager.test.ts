@@ -19,6 +19,7 @@ import type { HollowEntity } from "../components";
 import { makeSkills, GENE_MAX, GENE_MIN } from "../components";
 import { NEED_FOOD, NEED_REST, NEED_WEALTH, SEEK_THRESHOLD_FRACTION } from "../economy";
 import { ResourceWorld } from "../world";
+import { CommunityRegistry } from "../community";
 
 // Side-effecting import (mirrors agents/index.ts) so "villager" is
 // registered even though this test imports registry.ts/villager.ts directly
@@ -40,7 +41,13 @@ function makeCtx(): HollowDeliberationContext {
   const neighbors: readonly NeighborView[] = [
     { id: 2, gx: 5, gy: 5, communityId: null, materials: 80, food: 80, materialSkill: 0.9 },
   ];
-  return { tick: 0, resources, neighbors };
+  // tick 0 is always the day-cycle's "commute" phase regardless of
+  // `ticksPerDay` (fraction-of-day 0 falls in `DAY_PHASE_BOUNDARIES`'s
+  // `[0, 0.15)` "commute" span) — chunk hollow-14c's routine gate
+  // (agents/villager.ts's `applyRoutine`) falls through unchanged for
+  // "commute", so this fixture stays a pure test of the survival-vs-social
+  // ladder, untouched by the routine.
+  return { tick: 0, resources, neighbors, ticksPerDay: 20, communities: new CommunityRegistry() };
 }
 
 function makeAgent(): HollowEntity & { id: number } {

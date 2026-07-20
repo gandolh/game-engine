@@ -12,6 +12,11 @@
  *    this tick — otherwise it stays queued and keeps harvesting next tick.
  *  - "rest": no node, no movement — replenishes the `rest` need in place
  *    each tick until full.
+ *  - "goto" (chunk hollow-14c): the day-cycle ROUTINE's bare movement
+ *    intention (GATHER-phase hearth convergence, SLEEP-phase home
+ *    dispersal — see agents/villager.ts's `applyRoutine`) — `stepToward`
+ *    with no node/harvest side effect at all, completing the instant it
+ *    arrives. See `runGoto` below.
  *
  * "work"'s material yield is scaled by the agent's `material` SKILL LEVEL
  * (chunk hollow-06a, components/skills.ts) — see `SKILL_YIELD_BONUS`'s
@@ -98,6 +103,9 @@ export class HollowActSystem implements System {
           break;
         case "rest":
           this.runRest(entity as ActingAgent);
+          break;
+        case "goto":
+          this.runGoto(entity as ActingAgent, intention);
           break;
         default:
           // Social verbs (chunk hollow-06a) belong to the sibling
@@ -232,5 +240,26 @@ export class HollowActSystem implements System {
     if (rest) replenishNeed(rest, REST_RECOVER_PER_TICK);
     const full = rest ? rest.value >= rest.max : true;
     if (full) entity.intentions.queue.shift();
+  }
+
+  /**
+   * hollow-14c's day-cycle ROUTINE movement — GATHER-phase convergence on
+   * the hearth and SLEEP-phase dispersal to a home anchor (agents/
+   * villager.ts's `applyRoutine`/`homeAnchor`) both queue this same "goto"
+   * intention, a bare `stepToward` with no node/harvest side effect (unlike
+   * "seek_food"/"work" above). Completes (pops) the instant it arrives —
+   * `villager.ts` only ever pushes this when NOT already there, but the
+   * arrival check is repeated here defensively (harmless no-op movement +
+   * immediate completion if it's ever pushed already-arrived).
+   */
+  private runGoto(entity: ActingAgent, intention: Intention): void {
+    const gx = intention.data.gx as number;
+    const gy = intention.data.gy as number;
+    if (!stepToward(entity.agent, gx, gy)) {
+      entity.agent.currentAction = "walk"; // render-only (chunk hollow-09a)
+      return;
+    }
+    entity.agent.currentAction = "idle"; // render-only (chunk hollow-09a) — arrived, co-presence/home
+    entity.intentions.queue.shift();
   }
 }

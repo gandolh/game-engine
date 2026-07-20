@@ -45,7 +45,11 @@
  *  2. DELIBERATE (HollowDeliberateSystem): the engine's generic PERCEIVE→ACT
  *     dispatch — runs the "villager" deliberator for every agent PERCEIVE
  *     just re-armed (or that started the tick already in "PERCEIVE"),
- *     filling its intention queue, then flips it to "ACT".
+ *     filling its intention queue, then flips it to "ACT". Chunk hollow-14c:
+ *     the deliberation context also carries `ticksPerDay` (so a deliberator
+ *     can compute `dayPhase(ctx.tick, ctx.ticksPerDay)`) and a read-only
+ *     `communities` handle (for the SLEEP-phase home-anchor lookup) — see
+ *     systems/deliberate.ts and agents/villager.ts's routine logic.
  *  3. ACT (HollowActSystem): executes the top intention of every "ACT"-state
  *     agent — including ones DELIBERATE just filled THIS tick, so a
  *     newly-planned intention starts executing the same tick it's chosen,
@@ -89,12 +93,15 @@
  *     so belonging replenish/decay reflects any join/leave/split/merge/
  *     dissolve/exclusion that just happened this tick, not last tick's stale
  *     membership.
- *  7. BELONGING (HollowBelongingSystem, chunk hollow-04): couples
- *     `communityId` to the `belonging` need — members replenish, non-
- *     members (never-joined, defected, dissolved-out, or governance-
- *     excluded) decay. Must run AFTER COMMUNITY (see above) and BEFORE
- *     NEEDS-DECAY (whose generic `decayPerTick` for `belonging` is a no-op
- *     stub — see economy/constants.ts — so it doesn't fight this system).
+ *  7. BELONGING (HollowBelongingSystem, chunk hollow-04, reworked hollow-14c):
+ *     couples HEARTH ATTENDANCE (not raw membership) to the `belonging`
+ *     need — an agent near the hearth during the GATHER phase replenishes
+ *     (attended the nightly gathering), everyone else (mid-routine, asleep,
+ *     or a loner who skips) decays. Must run AFTER COMMUNITY (see above,
+ *     though membership itself is no longer the source — position + phase
+ *     are) and BEFORE NEEDS-DECAY (whose generic `decayPerTick` for
+ *     `belonging` is a no-op stub — see economy/constants.ts — so it
+ *     doesn't fight this system).
  *  8. PAIRBOND (HollowPairBondSystem, chunk hollow-05): bonds eligible
  *     unattached adult pairs into new households. Runs AFTER BELONGING so
  *     it reads this tick's up-to-date trust/community state, and BEFORE
@@ -136,7 +143,7 @@ import { MessageBus, Scheduler, World, createRng, type Rng } from "@engine/core"
 import { createNeedsDecaySystem } from "@engine/core/agent";
 import type { HollowEntity } from "./components";
 import { spawnPopulation } from "./population";
-import { ResourceWorld, createResourceRegenSystem } from "./world";
+import { ResourceWorld, createResourceRegenSystem, HEARTH_TILE } from "./world";
 import { HollowPerceiveSystem } from "./systems/perceive";
 import { HollowDeliberateSystem } from "./systems/deliberate";
 import { HollowActSystem } from "./systems/act";
@@ -167,8 +174,8 @@ import {
   COMMUNITY_MERGE_CROSS_TRUST_THRESHOLD,
   COMMUNITY_MERGE_TERRITORY_RADIUS,
   COMMUNITY_DEFAULT_ADMISSION_POLICY,
-  BELONGING_MEMBER_REPLENISH_PER_TICK,
-  BELONGING_NONMEMBER_DECAY_PER_TICK,
+  BELONGING_ATTENDANCE_REPLENISH_PER_TICK,
+  BELONGING_ABSENCE_DECAY_PER_TICK,
 } from "./community";
 import {
   HouseholdRegistry,
@@ -274,10 +281,12 @@ export interface HollowSimOptions {
   communityMergeCrossTrustThreshold?: number;
   /** Territory-overlap tile radius for the MERGE rule. */
   communityMergeTerritoryRadius?: number;
-  /** Per-tick `belonging` replenishment for community members. */
-  belongingMemberReplenishPerTick?: number;
-  /** Per-tick `belonging` decay for non-members. */
-  belongingNonMemberDecayPerTick?: number;
+  /** Per-tick `belonging` replenishment while attending the hearth during
+   *  the GATHER phase (chunk hollow-14c — was community membership). */
+  belongingAttendanceReplenishPerTick?: number;
+  /** Per-tick `belonging` decay for every tick NOT attending the hearth
+   *  during the GATHER phase (chunk hollow-14c — was non-membership). */
+  belongingAbsenceDecayPerTick?: number;
 
   // Lifecycle / genetics / pair-bonding / reproduction (chunk hollow-05)
   // knobs — each defaults to its family/constants.ts constant, same
@@ -492,6 +501,15 @@ export interface HollowSnapshot {
    *  observable feed for hollow-06b's anti-inert/flip tests, and the data
    *  hollow-07's export will surface. */
   readonly socialCounts: Readonly<Record<string, number>>;
+  /**
+   * The hearth — chunk hollow-14c's fixed, authored central world feature
+   * (`world/grid.ts`'s `HEARTH_TILE`) every agent converges on during the
+   * day-cycle's GATHER phase. Additive/optional so any pre-14c snapshot
+   * literal (hand-built test fixtures) still typechecks without it; a live
+   * `bootstrapHollowSim` snapshot always fills it in — see `getSnapshot`
+   * below. Surfaced for chunk hollow-14d's renderer.
+   */
+  readonly hearth?: { readonly gx: number; readonly gy: number };
 }
 
 export interface BootedHollowSim {
@@ -702,7 +720,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
       }),
     )
     .stage("DELIBERATE")
-    .add(new HollowDeliberateSystem(world, resources))
+    .add(new HollowDeliberateSystem(world, resources, communities, opts.ticksPerDay))
     .stage("ACT")
     .add(new HollowActSystem(world, resources))
     // hollow-06a's social-verb effects (gift/share/help_labor/teach/trade/
@@ -763,8 +781,9 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     .stage("BELONGING")
     .add(
       new HollowBelongingSystem(world, {
-        memberReplenishPerTick: opts.belongingMemberReplenishPerTick ?? BELONGING_MEMBER_REPLENISH_PER_TICK,
-        nonMemberDecayPerTick: opts.belongingNonMemberDecayPerTick ?? BELONGING_NONMEMBER_DECAY_PER_TICK,
+        attendanceReplenishPerTick: opts.belongingAttendanceReplenishPerTick ?? BELONGING_ATTENDANCE_REPLENISH_PER_TICK,
+        absenceDecayPerTick: opts.belongingAbsenceDecayPerTick ?? BELONGING_ABSENCE_DECAY_PER_TICK,
+        ticksPerDay: opts.ticksPerDay,
       }),
     )
     .stage("PAIRBOND")
@@ -909,6 +928,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         diedCount,
         householdCount: households.all().length,
         socialCounts: { ...socialCounts },
+        hearth: { gx: HEARTH_TILE.gx, gy: HEARTH_TILE.gy },
       };
     },
   };

@@ -16,6 +16,7 @@ import { STEAL_GREED_GATE } from "../social/deliberation-constants";
 import { FEUD_DELIBERATION_WEIGHT } from "../social/feud-constants";
 import { chooseSocialAction, type SocialAgent } from "./social-verbs";
 import type { NeighborView, HollowDeliberationContext } from "./registry";
+import { CommunityRegistry } from "../community";
 
 function flatGenome(overrides: Partial<Genome["behavior"]> = {}): Genome {
   return {
@@ -55,7 +56,11 @@ function makeContext(neighbors: readonly NeighborView[]): HollowDeliberationCont
     materialNodeMaxStock: 0,
     materialNodeRegenPerTick: 0,
   });
-  return { tick: 0, resources, neighbors };
+  // `ticksPerDay`/`communities` (chunk hollow-14c) are unused by
+  // `chooseSocialAction` itself (only `agents/villager.ts`'s
+  // `applyRoutine` reads them) — present only so this fixture satisfies
+  // `HollowDeliberationContext`'s shape.
+  return { tick: 0, resources, neighbors, ticksPerDay: 20, communities: new CommunityRegistry() };
 }
 
 describe("grudge amplification (chunk hollow-12b)", () => {

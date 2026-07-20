@@ -112,15 +112,42 @@ export const COMMUNITY_DEFAULT_COOPERATION_EXPECTATION = COMMUNITY_TRUST_THRESHO
  *  votable norm `HollowGovernanceSystem` drifts every governance pass. */
 export const COMMUNITY_DEFAULT_ADMISSION_POLICY = 0.5;
 
-// --- belonging need coupling ----------------------------------------------
+// --- belonging need coupling (reworked hollow-14c: hearth ATTENDANCE, not
+// raw community membership, is the source — see belonging-system.ts) -------
 
-/** Per-tick replenishment applied to a MEMBER's `belonging` need. */
-export const BELONGING_MEMBER_REPLENISH_PER_TICK = 0.6;
+/**
+ * Per-tick replenishment applied to an agent's `belonging` need while it is
+ * ATTENDING the hearth (near `HEARTH_TILE`, within `HEARTH_ATTENDANCE_
+ * RADIUS`) DURING THE GATHER PHASE (`world/day-cycle.ts`'s `dayPhase`) — see
+ * `DAY_PHASE_BOUNDARIES`, `[0.7, 0.9)` of the day, i.e. only ~20% of every
+ * day's ticks. Sized well above `BELONGING_ABSENCE_DECAY_PER_TICK` (below)
+ * so a FULL attender still nets POSITIVE over a whole day despite the short
+ * attendance window: `gatherTicks * this - (dayTicks - gatherTicks) *
+ * ABSENCE_DECAY > 0` at the 20%-of-day gather fraction requires this value
+ * to exceed `ABSENCE_DECAY * 4` (the 80%/20% ratio) — 2.0 vs. 0.3 clears
+ * that with comfortable margin, so "attend every gathering" reads as
+ * unambiguously socially-satisfying, not a wash.
+ */
+export const BELONGING_ATTENDANCE_REPLENISH_PER_TICK = 2.0;
 
-/** Per-tick drain applied to a NON-member's (never-joined, excluded, or
- *  dissolved/defected-out) `belonging` need. Applied via `replenishNeed`
- *  with a negative amount (a clamped add) rather than the generic per-need
- *  `decayPerTick` — that stays 0 for `belonging` (economy/constants.ts),
- *  since the generic engine decay system can't condition on community
- *  membership; all the real dynamics live in HollowBelongingSystem. */
-export const BELONGING_NONMEMBER_DECAY_PER_TICK = 0.3;
+/** Per-tick drain applied to `belonging` for every tick an agent is NOT
+ *  attending the hearth during the GATHER phase — mid-routine, asleep,
+ *  working, or a loner who skips the gathering entirely. Applied via
+ *  `replenishNeed` with a negative amount (a clamped add) rather than the
+ *  generic per-need `decayPerTick` — that stays 0 for `belonging`
+ *  (economy/constants.ts), since the generic engine decay system can't
+ *  condition on position/day-phase; all the real dynamics live in
+ *  HollowBelongingSystem. */
+export const BELONGING_ABSENCE_DECAY_PER_TICK = 0.3;
+
+/**
+ * Chebyshev-tile radius (same "proximity" convention as
+ * `COMMUNITY_MERGE_TERRITORY_RADIUS`/`family/constants.ts`'s
+ * `PAIRBOND_PROXIMITY_TILES`) within which an agent counts as "at the
+ * hearth" for belonging-by-attendance purposes (chunk hollow-14c) — see
+ * `belonging-system.ts`. Deliberately a small buffer around the exact
+ * `world/grid.ts`'s `HEARTH_TILE` rather than requiring the literal tile,
+ * since many agents converging from different directions won't all land on
+ * the single center tile the same GATHER phase.
+ */
+export const HEARTH_ATTENDANCE_RADIUS = 3;

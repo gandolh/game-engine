@@ -8,6 +8,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { bootstrapHollowSim, type HollowSnapshot } from "./sim-bootstrap";
+import { dayPhase, HEARTH_TILE } from "./world";
+import { HEARTH_ATTENDANCE_RADIUS } from "./community";
 
 /** Every community's membership must agree with each member's own
  *  `communityId`, and every non-null `communityId` must point at a
@@ -73,17 +75,38 @@ describe("communities emerge from the real villager-driven sim (chunk hollow-04)
     expect(new Set(signatures).size).toBe(3);
   });
 
-  it("community membership couples to belonging: affiliated agents trend toward a higher belonging need than unaffiliated ones", () => {
+  it("HEARTH ATTENDANCE (not raw community membership) couples to belonging: agents who frequently attend the GATHER-phase hearth gathering trend toward higher belonging than rare/no-show agents (reworked chunk hollow-14c — was membership-coupled, hollow-04; verified this run: a LONER with the highest attendance rate has the highest belonging of anyone, while several COMMUNITY MEMBERS who rarely attend sit near zero — membership no longer predicts belonging at all, attendance does)", () => {
     const sim = bootstrapHollowSim({ seed: 1, ticksPerDay: 20, population: 20 });
-    for (let i = 0; i < 600; i++) sim.tick();
-    const snapshot = sim.getSnapshot();
-    const affiliated = snapshot.agents.filter((a) => a.communityId !== null);
-    const unaffiliated = snapshot.agents.filter((a) => a.communityId === null);
-    expect(affiliated.length).toBeGreaterThan(0);
-    expect(unaffiliated.length).toBeGreaterThan(0);
-    const avg = (agents: typeof affiliated): number =>
+    // Per-agent: how many GATHER-phase ticks it lived through, and how many
+    // of those it was near the hearth for ("attended"). A rate rather than
+    // a raw count so agents born partway through the run aren't penalized
+    // for having fewer GATHER windows available.
+    const gatherTicks = new Map<number, number>();
+    const attendTicks = new Map<number, number>();
+    for (let i = 0; i < 600; i++) {
+      sim.tick();
+      const snapshot = sim.getSnapshot();
+      if (dayPhase(snapshot.tick, 20).phase !== "gather") continue;
+      for (const a of snapshot.agents) {
+        gatherTicks.set(a.id, (gatherTicks.get(a.id) ?? 0) + 1);
+        const nearHearth =
+          Math.max(Math.abs(a.gx - HEARTH_TILE.gx), Math.abs(a.gy - HEARTH_TILE.gy)) <= HEARTH_ATTENDANCE_RADIUS;
+        if (nearHearth) attendTicks.set(a.id, (attendTicks.get(a.id) ?? 0) + 1);
+      }
+    }
+    const finalSnapshot = sim.getSnapshot();
+    const attendanceRate = (id: number): number => (attendTicks.get(id) ?? 0) / Math.max(1, gatherTicks.get(id) ?? 1);
+
+    const sortedRates = finalSnapshot.agents.map((a) => attendanceRate(a.id)).sort((x, y) => x - y);
+    const median = sortedRates[Math.floor(sortedRates.length / 2)]!;
+    const frequent = finalSnapshot.agents.filter((a) => attendanceRate(a.id) > median);
+    const rare = finalSnapshot.agents.filter((a) => attendanceRate(a.id) <= median);
+    expect(frequent.length).toBeGreaterThan(0);
+    expect(rare.length).toBeGreaterThan(0);
+
+    const avg = (agents: typeof frequent): number =>
       agents.reduce((sum, a) => sum + (a.needs.belonging ?? 0), 0) / agents.length;
-    expect(avg(affiliated)).toBeGreaterThan(avg(unaffiliated));
+    expect(avg(frequent)).toBeGreaterThan(avg(rare));
   });
 });
 

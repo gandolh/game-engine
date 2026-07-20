@@ -14,11 +14,12 @@ import { World, MessageBus, type SimContext } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
 import { NEED_BELONGING } from "../economy";
+import { HEARTH_TILE } from "../world";
 import { ONT_COMMUNITY, type CommunityFormedBody, type CommunitySplitBody } from "../protocols";
 import { CommunityRegistry } from "./registry";
 import { HollowTrustAccrualSystem } from "./trust-accrual-system";
 import { HollowCommunitySystem, type CommunitySystemOptions } from "./crystallize-system";
-import { HollowBelongingSystem } from "./belonging-system";
+import { HollowBelongingSystem, type BelongingSystemOptions } from "./belonging-system";
 
 type Agent = HollowEntity & { id: number };
 
@@ -39,13 +40,18 @@ interface RecordedEvent {
   body: Record<string, unknown>;
 }
 
-function makeHarness(opts?: CommunitySystemOptions) {
+/** Test-scale day length (mirrors sim-bootstrap.test.ts's convention) — the
+ *  GATHER phase (`DAY_PHASE_BOUNDARIES`, `[0.7, 0.9)` of the day) spans
+ *  ticks [14, 18) of every 20-tick day. */
+const TEST_TICKS_PER_DAY = 20;
+
+function makeHarness(opts?: CommunitySystemOptions, belongingOpts?: BelongingSystemOptions) {
   const world = new World<HollowEntity>();
   const bus = new MessageBus();
   const registry = new CommunityRegistry();
   const trust = new HollowTrustAccrualSystem(world);
   const community = new HollowCommunitySystem(world, registry, bus, opts);
-  const belonging = new HollowBelongingSystem(world);
+  const belonging = new HollowBelongingSystem(world, { ticksPerDay: TEST_TICKS_PER_DAY, ...belongingOpts });
   const events: RecordedEvent[] = [];
   for (const ontology of Object.values(ONT_COMMUNITY)) {
     bus.subscribeOntology(ontology, (msg) => events.push({ ontology: msg.ontology, body: msg.body }));
@@ -102,22 +108,41 @@ describe("community FORM — crystallizes from a real high-trust cluster", () =>
     expect(body.communityId).toBe(communities[0]!.id);
   });
 
-  it("belonging replenishes for members and decays for the never-affiliated", () => {
+  it("belonging replenishes for an agent AT THE HEARTH during GATHER, and decays for one that never attends — regardless of community membership (reworked chunk hollow-14c: hearth attendance, not raw membership, is the source)", () => {
     const h = makeHarness({ checkIntervalTicks: 50 });
-    const clustered = [1, 2, 3].map(() => spawnAgent(h.world, 8, 8));
-    const outsider = spawnAgent(h.world, 60, 60);
+    // The attendee sits ON the hearth tile the whole run (a stand-in for
+    // "arrives every GATHER phase") — deliberately given NO community (this
+    // is the "hearth is the trust engine for loners too" case the brief
+    // calls out) to prove attendance alone drives replenishment, not
+    // membership. The skipper sits far away the whole run and never attends.
+    const attendee = spawnAgent(h.world, HEARTH_TILE.gx, HEARTH_TILE.gy);
+    const skipper = spawnAgent(h.world, 60, 60);
 
-    expect(clustered.every((a) => belongingOf(a) === 50)).toBe(true);
-    expect(belongingOf(outsider)).toBe(50);
+    expect(belongingOf(attendee)).toBe(50);
+    expect(belongingOf(skipper)).toBe(50);
+
+    h.run(300); // 15 full 20-tick days — several GATHER windows each
+
+    expect(attendee.communityId).toBeNull();
+    expect(skipper.communityId).toBeNull();
+    expect(belongingOf(attendee)).toBeGreaterThan(50);
+    expect(belongingOf(skipper)).toBeLessThan(50);
+  });
+
+  it("even a COMMUNITY MEMBER decays if it skips the hearth during GATHER — membership alone no longer replenishes", () => {
+    const h = makeHarness({ checkIntervalTicks: 50 });
+    // Co-located far from the hearth so this trio still crystallizes into a
+    // community (proving membership itself still emerges from proximity/
+    // trust, unaffected by hollow-14c) — but since they never attend the
+    // hearth, their belonging decays exactly like a loner's.
+    const clustered = [1, 2, 3].map(() => spawnAgent(h.world, 8, 8));
 
     h.run(300);
 
     for (const a of clustered) {
-      expect(a.communityId).not.toBeNull();
-      expect(belongingOf(a)).toBeGreaterThan(50);
+      expect(a.communityId).not.toBeNull(); // membership still forms
+      expect(belongingOf(a)).toBeLessThan(50); // but belonging still decays
     }
-    expect(outsider.communityId).toBeNull();
-    expect(belongingOf(outsider)).toBeLessThan(50);
   });
 });
 
