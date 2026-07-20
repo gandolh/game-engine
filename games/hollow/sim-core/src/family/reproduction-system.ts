@@ -24,6 +24,7 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { PERFORMATIVE, needFraction, makeNeed } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
+import { makeSkills } from "../components";
 import type { ResourceWorld } from "../world";
 import { VILLAGER_KIND } from "../agents";
 import {
@@ -191,6 +192,9 @@ export class HollowReproductionSystem implements System {
       genome,
       lifecycle: { birthTick: tick, ageTicks: 0, stage: "child" },
       householdId: household.id,
+      // Lived skill LEVELS (chunk hollow-06a) — a newborn starts at 0, same
+      // as a founder (population.ts) — see components/skills.ts's header.
+      skills: makeSkills(),
     } satisfies HollowEntity);
 
     if (spawned.ownership && spawned.id !== undefined) {

@@ -21,7 +21,11 @@
  *  1. PERCEIVE (HollowPerceiveSystem): folds needs into the starvation
  *     belief/signal, and re-arms any agent that finished its last intention
  *     last tick (empty queue, still in "ACT") back to "PERCEIVE" so it gets
- *     re-planned THIS tick.
+ *     re-planned THIS tick. HollowSocialWitnessSystem (chunk hollow-06a)
+ *     runs right after it, in the same stage: it folds the PRIOR tick's
+ *     rumor/steal-detected broadcasts into bystanders' relationship
+ *     ledgers — see social/witness-system.ts's header for the one-tick
+ *     delivery-delay rationale.
  *  2. DELIBERATE (HollowDeliberateSystem): the engine's generic PERCEIVE→ACT
  *     dispatch — runs the "villager" deliberator for every agent PERCEIVE
  *     just re-armed (or that started the tick already in "PERCEIVE"),
@@ -29,7 +33,11 @@
  *  3. ACT (HollowActSystem): executes the top intention of every "ACT"-state
  *     agent — including ones DELIBERATE just filled THIS tick, so a
  *     newly-planned intention starts executing the same tick it's chosen,
- *     not the next one.
+ *     not the next one. HollowSocialActSystem (chunk hollow-06a) runs right
+ *     after it, in the same stage: it executes the nine social-verb
+ *     intention kinds (gift/share/help_labor/teach/trade/steal/sabotage/
+ *     rumor/attack) that HollowActSystem's own switch whitelists through
+ *     rather than dropping — see systems/act.ts's default-case comment.
  *  4. TRUST-ACCRUAL (HollowTrustAccrualSystem, chunk hollow-04): decays
  *     every known relationship-ledger entry toward neutral, then accrues
  *     mild mutual trust for agents co-located or sharing a resource-node
@@ -146,6 +154,13 @@ import {
 } from "./family";
 import { LineageRegistry } from "./lineage";
 import { ONT_FAMILY } from "./protocols";
+import {
+  HollowSocialActSystem,
+  HollowSocialWitnessSystem,
+  STEAL_DETECTION_PROB,
+  ATTACK_LETHALITY_PROB,
+  SABOTAGE_DETECTION_PROB,
+} from "./social";
 
 export type { HollowEntity } from "./components";
 
@@ -236,6 +251,19 @@ export interface HollowSimOptions {
   birthPerCapitaFoodTarget?: number;
   /** Ticks between a successful conception roll and the child spawning. */
   gestationTicks?: number;
+
+  // Social-verb (chunk hollow-06a) knobs — each defaults to its
+  // social/constants.ts constant. Only the three probability-gated verb
+  // outcomes are exposed here (per the brief: force each to 0/1 so a test
+  // can deterministically pick the detected/undetected or lethal/non-lethal
+  // branch); every other social tunable is a plain constant (no override
+  // demand from any test).
+  /** Probability a `steal` is detected. */
+  stealDetectionProb?: number;
+  /** Probability an `attack` is lethal. */
+  attackLethalityProb?: number;
+  /** Probability a `sabotage` is detected. */
+  sabotageDetectionProb?: number;
 }
 
 export interface HollowAppearanceSnapshot {
@@ -379,6 +407,13 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   const lifecycleRng = rng.fork("lifecycle");
   const reproductionRng = rng.fork("reproduction");
 
+  // hollow-06a's three named forks (steal/attack/sabotage's detection and
+  // lethality rolls) — constructed AFTER hollow-05's three forks above, for
+  // the same "don't disturb existing draw order" reason spelled out there.
+  const stealDetectionRng = rng.fork("steal-detection");
+  const attackRng = rng.fork("attack");
+  const sabotageDetectionRng = rng.fork("sabotage-detection");
+
   // Running birth/death totals (chunk hollow-05) — maintained by
   // subscribing to the family ontology rather than re-deriving from
   // `lineage` at snapshot time, mirroring how a later consumer (hollow-07's
@@ -396,10 +431,27 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   scheduler
     .stage("PERCEIVE")
     .add(new HollowPerceiveSystem(world, bus))
+    // hollow-06a's third-party trust folding (rumor/steal-detected
+    // fan-out) — runs in the same "world/message -> belief/relationship
+    // fold" stage as HollowPerceiveSystem, right after it. See
+    // social/witness-system.ts's header for the one-tick delivery-delay
+    // rationale (it processes messages the PRIOR tick's ACT stage sent).
+    .add(new HollowSocialWitnessSystem(world, bus))
     .stage("DELIBERATE")
     .add(new HollowDeliberateSystem(world, resources))
     .stage("ACT")
     .add(new HollowActSystem(world, resources))
+    // hollow-06a's social-verb effects (gift/share/help_labor/teach/trade/
+    // steal/sabotage/rumor/attack) — a sibling of HollowActSystem in the
+    // SAME "ACT" stage (see social/act-system.ts's header for why it's a
+    // separate class rather than more `case`s on HollowActSystem).
+    .add(
+      new HollowSocialActSystem(world, resources, communities, bus, stealDetectionRng, attackRng, sabotageDetectionRng, {
+        stealDetectionProb: opts.stealDetectionProb ?? STEAL_DETECTION_PROB,
+        attackLethalityProb: opts.attackLethalityProb ?? ATTACK_LETHALITY_PROB,
+        sabotageDetectionProb: opts.sabotageDetectionProb ?? SABOTAGE_DETECTION_PROB,
+      }),
+    )
     .stage("TRUST-ACCRUAL")
     .add(
       new HollowTrustAccrualSystem(world, {

@@ -20,6 +20,10 @@
  * forks in the SAME fixed per-agent loop order, so hollow-03/04's existing
  * draw order/values stay undisturbed.
  *
+ * Chunk hollow-06a additively seeds a fresh, all-zero `skills` component
+ * (components/skills.ts's `makeSkills()`) — lived state, not drawn from any
+ * `Rng`, so it doesn't disturb any fork above either.
+ *
  * The starting age is drawn from only the FIRST HALF of the adult band
  * (`[childAdultTicks, childAdultTicks + (adultElderTicks-childAdultTicks)/2)`),
  * not the full band — a deliberate, load-bearing choice: it guarantees
@@ -33,6 +37,7 @@ import type { Rng, World } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import { GRID_SIZE } from "./world";
 import type { HollowEntity } from "./components";
+import { makeSkills } from "./components";
 import { VILLAGER_KIND } from "./agents";
 import { randomGenome } from "./family/genetics";
 import { STAGE_CHILD_ADULT_TICKS, STAGE_ADULT_ELDER_TICKS } from "./family/constants";
@@ -118,6 +123,11 @@ export function spawnPopulation(world: World<HollowEntity>, rng: Rng, opts: Spaw
       genome,
       lifecycle: { birthTick: 0, ageTicks, stage: "adult" },
       householdId: null,
+      // Lived skill LEVELS (chunk hollow-06a) — every founder starts at 0
+      // (nobody starts already good at anything, only heritably capable of
+      // becoming good at it — see components/skills.ts's header). No `Rng`
+      // draw, so this doesn't disturb the forks above.
+      skills: makeSkills(),
     } satisfies HollowEntity);
 
     // Self-ownership (see components/ownership.ts) — needs the id `world.spawn`

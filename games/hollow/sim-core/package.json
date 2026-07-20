@@ -17,7 +17,8 @@
     "./population": "./src/population.ts",
     "./community": "./src/community/index.ts",
     "./family": "./src/family/index.ts",
-    "./lineage": "./src/lineage/index.ts"
+    "./lineage": "./src/lineage/index.ts",
+    "./social": "./src/social/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

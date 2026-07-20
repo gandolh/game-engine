@@ -25,3 +25,5 @@ export {
 } from "./genome";
 export type { Lifecycle, Stage, StageThresholds } from "./lifecycle";
 export { stageForAge } from "./lifecycle";
+export type { Skills } from "./skills";
+export { makeSkills, practiceSkill } from "./skills";

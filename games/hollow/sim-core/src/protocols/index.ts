@@ -18,3 +18,17 @@ export type {
   FamilyDeathBody,
   FamilyStageChangedBody,
 } from "./family";
+export { ONT_SOCIAL } from "./social";
+export type {
+  SocialOntology,
+  GiftBody,
+  ShareBody,
+  HelpLaborBody,
+  TeachBody,
+  TradeBody,
+  StealBody,
+  StealDetectedBody,
+  SabotageBody,
+  RumorBody,
+  AttackBody,
+} from "./social";

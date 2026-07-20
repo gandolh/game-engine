@@ -12,6 +12,7 @@ import type { Inventory } from "./inventory";
 import type { Ownership } from "./ownership";
 import type { Genome } from "./genome";
 import type { Lifecycle } from "./lifecycle";
+import type { Skills } from "./skills";
 
 /**
  * Hollow's FSM states for chunk hollow-03. Mirrors Farm's simplest loop
@@ -77,5 +78,14 @@ export interface HollowEntity {
    * initialized to `null` (population.ts / family/reproduction-system.ts).
    */
   householdId?: number | null;
+  /**
+   * Lived skill LEVELS (chunk hollow-06a) — see components/skills.ts for the
+   * level-vs-aptitude-cap split. Present on every spawned agent (founders in
+   * population.ts, children in family/reproduction-system.ts); optional
+   * only because the type is shared with pre-hollow-06a hand-built test
+   * harnesses (e.g. community/dynamics.test.ts) that construct entities
+   * without it — same rationale as `genome` above.
+   */
+  skills?: Skills;
   [key: string]: unknown;
 }

@@ -1,0 +1,28 @@
+export { HollowSocialActSystem } from "./act-system";
+export type { SocialActSystemOptions } from "./act-system";
+export { HollowSocialWitnessSystem } from "./witness-system";
+export type { SocialWitnessSystemOptions } from "./witness-system";
+export {
+  SOCIAL_VERB_KINDS,
+  SKILL_MATERIAL,
+  SKILL_YIELD_BONUS,
+  PRACTICE_RATE,
+  TEACH_RATE,
+  GIFT_TRUST_DELTA,
+  HELP_TRUST_DELTA,
+  TEACH_TRUST_DELTA,
+  TRADE_TRUST_DELTA,
+  STEAL_DETECTION_PROB,
+  STEAL_DETECTED_TRUST_DELTA,
+  STEAL_WITNESS_TRUST_DELTA,
+  SABOTAGE_DETECTION_PROB,
+  SABOTAGE_DETECTED_TRUST_DELTA,
+  SABOTAGE_DESTROY_FRACTION,
+  SABOTAGE_SKILL_PENALTY,
+  RUMOR_TRUST_DELTA,
+  RUMOR_CONNECTED_FACTOR,
+  WITNESS_PROXIMITY_TILES,
+  ATTACK_LETHALITY_PROB,
+  ATTACK_TRUST_DELTA,
+  TRADE_OFFER_TTL_TICKS,
+} from "./constants";
