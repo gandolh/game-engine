@@ -55,7 +55,21 @@ describe("jobs (chunk hollow-14b) wiring — real bootstrapHollowSim", () => {
       foodNodeCount: 4,
       materialNodeCount: 4,
       governanceIntervalTicks: 10,
-      communityCheckIntervalTicks: 10,
+      // Chunk hollow-14c-2: freeze membership (mirrors this file's OWN
+      // second test's "freeze membership -- isolate the DEMAND mechanic"
+      // rationale) — the hearth's GATHER phase is now a genuine public stage
+      // where a stranger's cheap `rumor` can dent ANY nearby bystander's
+      // trust toward the rumored-about agent (social/witness-system.ts),
+      // occasionally enough to tip one of these manually-seeded founders
+      // below the LEAVE threshold and out of the community before its
+      // leader-assigned specialty role (crafter/teacher/caretaker) has a
+      // chance to stick. That's hollow-12b's "feud drama surfaces at the
+      // hearth" working as intended elsewhere (see
+      // sim-bootstrap.governance.test.ts's own note) — but THIS test is
+      // about jobs/demand wiring, not organic community churn, so it
+      // isolates itself from LEAVE/SPLIT/MERGE/GROW/FORM the same way the
+      // second test already does.
+      communityCheckIntervalTicks: 100_000,
       jobsAssignIntervalTicks: 10,
     });
     const chronicle = createChronicle(sim.bus);

@@ -127,6 +127,16 @@ describe("cause -> effect through deliberation, end-to-end (chunk hollow-06b)", 
     target.agent!.gx = 10;
     target.agent!.gy = 10;
 
+    // Chunk hollow-14c-2: tick 0 is the day-cycle's WORK/COMMUTE-era
+    // "commute" phase, which now restricts social-verb candidates to
+    // household-mates + high-trust close ties. Make actor/target
+    // household-mates so this stays a pure test of "deliberation-chosen
+    // sabotage has a real effect", independent of that throttle (household
+    // membership is eligible at ANY trust level -- see social-verbs.ts's
+    // `isCloseTie`).
+    actor.householdId = 1;
+    target.householdId = 1;
+
     // Force the ACTOR's genome so sabotage is the clear winner of its OWN
     // deliberation this tick: aggression clears SABOTAGE_AGGRESSION_GATE
     // (0.6) but deliberately stays BELOW rumor's (0.8) and attack's (0.99)
@@ -173,6 +183,11 @@ describe("cause -> effect through deliberation, end-to-end (chunk hollow-06b)", 
     actor.agent!.gy = 20;
     target.agent!.gx = 20;
     target.agent!.gy = 20;
+
+    // Chunk hollow-14c-2: same household-mate setup as the sabotage test
+    // above, for the same "commute-phase throttle" reason.
+    actor.householdId = 1;
+    target.householdId = 1;
 
     // Force the ACTOR's genome so teach is the clear winner: curiosity
     // clears teach's gate; every OTHER verb's hard gate is floored out

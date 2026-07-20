@@ -26,7 +26,9 @@ import { CommunityRegistry } from "../community";
 // rather than through agents/index.ts.
 import "./villager";
 
-function makeCtx(): HollowDeliberationContext {
+const TICKS_PER_DAY = 20;
+
+function makeCtx(tick = 0): HollowDeliberationContext {
   const resources = new ResourceWorld(createRng(1), {
     foodNodeCount: 2,
     materialNodeCount: 2,
@@ -39,15 +41,17 @@ function makeCtx(): HollowDeliberationContext {
   // trust toward the actor's beliefs about it — exactly the profile that
   // (absent a food crisis) would make `steal`/`sabotage` score highly.
   const neighbors: readonly NeighborView[] = [
-    { id: 2, gx: 5, gy: 5, communityId: null, materials: 80, food: 80, materialSkill: 0.9 },
+    // Same householdId as `makeAgent()`'s actor (chunk hollow-14c-2) -- see
+    // that function's doc for why.
+    { id: 2, gx: 5, gy: 5, communityId: null, householdId: 1, materials: 80, food: 80, materialSkill: 0.9 },
   ];
   // tick 0 is always the day-cycle's "commute" phase regardless of
   // `ticksPerDay` (fraction-of-day 0 falls in `DAY_PHASE_BOUNDARIES`'s
   // `[0, 0.15)` "commute" span) — chunk hollow-14c's routine gate
-  // (agents/villager.ts's `applyRoutine`) falls through unchanged for
-  // "commute", so this fixture stays a pure test of the survival-vs-social
-  // ladder, untouched by the routine.
-  return { tick: 0, resources, neighbors, ticksPerDay: 20, communities: new CommunityRegistry() };
+  // (agents/villager.ts's `applyGatherOrSleepRoutine`) is only consulted for
+  // GATHER/SLEEP, so this fixture stays a pure test of the survival-vs-social
+  // ladder for WORK/COMMUTE ticks, untouched by the routine.
+  return { tick, resources, neighbors, ticksPerDay: TICKS_PER_DAY, communities: new CommunityRegistry() };
 }
 
 function makeAgent(): HollowEntity & { id: number } {
@@ -81,6 +85,13 @@ function makeAgent(): HollowEntity & { id: number } {
     relationships: { byId: new Map([[2, 0.05]]) }, // very low trust toward the neighbor
     skills: makeSkills(),
     communityId: null,
+    // Same household as neighbor id 2 (chunk hollow-14c-2) -- a household
+    // member is always an eligible RESTRICTED-mode candidate regardless of
+    // trust, so the WORK/COMMUTE-phase social layer below still considers
+    // this (very-low-trust) neighbor rather than filtering it out as a
+    // stranger. Irrelevant to the first test below (the food-crisis case
+    // never reaches the social layer at all).
+    householdId: 1,
   };
 }
 

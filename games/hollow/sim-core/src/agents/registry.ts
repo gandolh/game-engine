@@ -26,6 +26,16 @@ export interface NeighborView {
   readonly gx: number;
   readonly gy: number;
   readonly communityId: number | null;
+  /**
+   * The household (see `family/`) this neighbor currently belongs to, or
+   * `null` if unattached (chunk hollow-14c-2) — read from `HollowEntity.
+   * householdId`. Lets a restricted-mode social deliberation (`agents/
+   * social-verbs.ts`'s `chooseSocialAction` `restrictToCloseTies` option)
+   * recognize a household-mate as a valid "rare, private" target regardless
+   * of its current trust reading, alongside the trust-threshold close-tie
+   * test.
+   */
+  readonly householdId: number | null;
   readonly materials: number;
   readonly food: number;
   readonly materialSkill: number;
@@ -86,6 +96,7 @@ export function buildNeighborIndex(world: World<HollowEntity>): readonly Neighbo
       gx: entity.agent.gx,
       gy: entity.agent.gy,
       communityId: entity.communityId ?? null,
+      householdId: entity.householdId ?? null,
       materials: entity.inventory.goods[GOOD_MATERIALS] ?? 0,
       food: entity.inventory.goods[GOOD_FOOD] ?? 0,
       materialSkill: entity.skills?.byKind[SKILL_MATERIAL] ?? 0,

@@ -1,44 +1,59 @@
 /**
  * "villager" — the single Hollow personality kind. Maps need pressure,
- * genome, and (chunk hollow-14c) the day-cycle ROUTINE to a prioritized
- * intention queue:
+ * genome, and the day-cycle ROUTINE (chunk hollow-14c, re-textured by
+ * hollow-14c-2's rare/private throttle) to a prioritized intention queue:
  *
  *   1. food need at/below SEEK_THRESHOLD_FRACTION → seek + consume a food node
  *   2. else rest need at/below REST_SEEK_THRESHOLD_FRACTION → rest in place
- *   3. else the day-cycle ROUTINE (chunk hollow-14c, `world/day-cycle.ts`'s
- *      `dayPhase`) gates movement:
+ *   3. else the day-cycle ROUTINE (`world/day-cycle.ts`'s `dayPhase`) branches
+ *      by phase:
  *        - GATHER → path toward the hearth (`world/grid.ts`'s `HEARTH_TILE`)
- *          — the dusk convergence. Once there, idle (co-presence; nothing
- *          further queued THIS phase — see `routineIntention` below).
+ *          — the dusk convergence. Once there (arrived, nothing left to path
+ *          toward), this is the town's ONE PUBLIC social window (chunk
+ *          hollow-14c-2): an UNRESTRICTED (cross-family) social-verb attempt,
+ *          still gated by the per-agent cooldown (below) — see step 4. If no
+ *          verb fires, idle (nothing else queued this phase).
  *        - SLEEP → disperse toward the agent's home anchor (its community's
  *          territory centroid, or its own current tile if it's a loner —
- *          see `homeAnchor`) so it doesn't sleep on the hearth. Once there,
- *          idle.
- *        - WORK / COMMUTE → no special routing here; falls through to steps
- *          4-5 below UNCHANGED (a "commute" is just the start of that same
- *          work-node pathing — see the brief's "keep simple" note).
- *   4. else a genome-driven SOCIAL VERB (chunk hollow-06b, see
- *      `agents/social-verbs.ts`) if one scores above `SOCIAL_ACTION_MIN_SCORE`
- *   5. else → work the nearest material node (produces goods → wealth), OR
- *      the nearest FOOD node if the agent's leader-assigned `occupation.role`
- *      (chunk hollow-14b, components/occupation.ts) is "food-gatherer" — see
- *      `fallbackWorkNodeKind` below.
+ *          see `homeAnchor`) so it doesn't sleep on the hearth. Once there, a
+ *          RESTRICTED (household/close-tie only) social-verb attempt, same
+ *          cooldown gate — a quiet exchange before turning in, per the
+ *          brief's "rare, private" instruction covering every phase but
+ *          GATHER. If no verb fires, idle.
+ *        - WORK / COMMUTE → a RESTRICTED social-verb attempt (same gate),
+ *          falling back to work (step 5) if nothing fires — this is the
+ *          brief's "day-to-day cooperation is rare and private" case: most
+ *          of the day, most attempts are suppressed by the household/
+ *          close-tie candidate filter and the cooldown, so the bulk of what
+ *          used to be constant public helping simply doesn't fire anymore.
+ *   4. RESTRICTED vs UNRESTRICTED social-verb attempt (chunk hollow-06b,
+ *      `agents/social-verbs.ts`'s `chooseSocialAction`), gated by BOTH:
+ *        - the per-agent cooldown (`SOCIAL_COOLDOWN_TICKS`,
+ *          `HollowAgent.lastSocialActTick`) — an agent may INITIATE at most
+ *          one social verb per that many ticks, tick arithmetic only, no
+ *          `Rng` (chunk hollow-14c-2);
+ *        - the day-phase gate above: GATHER passes `restrictToCloseTies:
+ *          false` (the public window); WORK/COMMUTE/SLEEP pass `true` (the
+ *          candidate set is filtered to household-mates + high-trust close
+ *          ties — see social-verbs.ts's `isCloseTie`).
+ *      Only fires if the winning verb also clears `SOCIAL_ACTION_MIN_SCORE`.
+ *   5. else (WORK/COMMUTE only) → work the nearest material node (produces
+ *      goods → wealth), OR the nearest FOOD node if the agent's
+ *      leader-assigned `occupation.role` (chunk hollow-14b,
+ *      components/occupation.ts) is "food-gatherer" — see
+ *      `fallbackWorkNodeKind` below. GATHER/SLEEP never fall through to work
+ *      — an agent that skips its one social roll there just idles in place
+ *      (still AT the hearth/home), not wander off to a work node.
  *
  * The survival ladder (1-2) is UNCHANGED from hollow-03/05 and always wins —
- * everything below, including the hollow-14c routine, is only even
- * consulted once neither fires (a hungry/exhausted agent ignores the
- * gathering/going-home routine entirely — survival always interrupts it).
- * Two behavior genes are wired directly into the ladder itself:
- * `industriousness` shifts the rest-seek threshold (chunk hollow-05,
- * `restSeekThreshold` below); the REST of the behavior genes (sociability/
- * risk/aggression/loyalty/greed/curiosity) drive the social-verb scoring in
- * step 4 (chunk hollow-06b) — see social-verbs.ts and
+ * everything below is only even consulted once neither fires (a hungry/
+ * exhausted agent ignores the routine/social/work ladder entirely — survival
+ * always interrupts it). Two behavior genes are wired directly into the
+ * ladder itself: `industriousness` shifts the rest-seek threshold (chunk
+ * hollow-05, `restSeekThreshold` below); the REST of the behavior genes
+ * (sociability/risk/aggression/loyalty/greed/curiosity) drive the
+ * social-verb scoring in step 4 (chunk hollow-06b) — see social-verbs.ts and
  * social/deliberation-constants.ts for the exact couplings.
- *
- * hollow-14c does NOT gate step 4/5 by phase or relationship (rare/private
- * interaction + hearth-only cross-family mixing is chunk hollow-14c-2) — the
- * existing social-verb/work behavior during WORK/COMMUTE is byte-identical
- * to pre-hollow-14c.
  */
 import { needFraction } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
@@ -49,6 +64,7 @@ import {
   REST_SEEK_THRESHOLD_FRACTION,
 } from "../economy";
 import { INDUSTRIOUSNESS_REST_INFLUENCE } from "../family/constants";
+import { SOCIAL_COOLDOWN_TICKS } from "../social/deliberation-constants";
 import { dayPhase, HEARTH_TILE } from "../world";
 import { registerPersonality, type HollowDeliberationContext } from "./registry";
 import { chooseSocialAction, type SocialAgent } from "./social-verbs";
@@ -88,40 +104,73 @@ function homeAnchor(agent: HollowEntity, ctx: HollowDeliberationContext): { gx: 
 }
 
 /**
- * Chunk hollow-14c's day-cycle ROUTINE gate: consulted after the survival
- * ladder (steps 1-2) and before the social-verb/work ladder (steps 4-5) —
- * see this file's header. Returns `true` if it queued a routine intention
- * (GATHER/SLEEP movement, or nothing — already there, idling) and the
- * caller should stop deliberating this tick; `false` (WORK/COMMUTE) means
- * "fall through to the unchanged social-verb/work ladder".
+ * Chunk hollow-14c-2's per-agent social-verb cooldown gate: `true` when the
+ * agent is free to even ATTEMPT a social verb this tick — either it has
+ * never initiated one (`lastSocialActTick === undefined`) or at least
+ * `SOCIAL_COOLDOWN_TICKS` have elapsed since its last initiation. Pure tick
+ * arithmetic (no `Rng`) over `HollowAgent.lastSocialActTick`
+ * (components/agent.ts). Defensive `agent.agent` narrowing mirrors this
+ * file's other helpers (a caller always has `pos` narrowed already, but this
+ * is also called from `tryQueueSocialAction` below which re-checks).
  */
-function applyRoutine(agent: HollowEntity, ctx: HollowDeliberationContext): boolean {
+function offSocialCooldown(agent: HollowEntity, ctx: HollowDeliberationContext): boolean {
+  const last = agent.agent?.lastSocialActTick;
+  return last === undefined || ctx.tick - last >= SOCIAL_COOLDOWN_TICKS;
+}
+
+/**
+ * Attempts ONE social-verb intention this tick, gated by BOTH the cooldown
+ * above and `restrictToCloseTies` (chunk hollow-14c-2 — see this file's
+ * header and social-verbs.ts's `ChooseSocialActionOptions`). On success,
+ * queues the verb's intention AND stamps `lastSocialActTick` (marking the
+ * cooldown from the moment of INITIATION, not consummation — see
+ * components/agent.ts's field doc) before returning `true`; the caller
+ * should stop deliberating this tick. Returns `false` (nothing queued, no
+ * cooldown stamped) if the agent is on cooldown, is missing a hollow-06
+ * component (see `tryChooseSocialAction`), or no verb clears
+ * `SOCIAL_ACTION_MIN_SCORE` under the given restriction.
+ */
+function tryQueueSocialAction(
+  agent: HollowEntity,
+  ctx: HollowDeliberationContext,
+  restrictToCloseTies: boolean,
+): boolean {
+  if (!offSocialCooldown(agent, ctx)) return false;
+  const social = tryChooseSocialAction(agent, ctx, restrictToCloseTies);
+  if (!social) return false;
+  agent.intentions!.queue.push({ kind: social.kind, data: social.data, priority: 50 });
+  agent.agent!.lastSocialActTick = ctx.tick;
+  return true;
+}
+
+/**
+ * Chunk hollow-14c's day-cycle ROUTINE for the GATHER/SLEEP phases,
+ * reworked by hollow-14c-2 to also drive the social-verb attempt once the
+ * agent has ARRIVED — see this file's header for the full step-3/4
+ * narrative. Consulted after the survival ladder (steps 1-2); always
+ * returns `true` for these two phases (WORK/COMMUTE never call this — see
+ * `villagerDeliberate` below), having queued EITHER the routine "goto" (still
+ * traveling), a social-verb intention (arrived, a roll succeeded), or
+ * nothing at all (arrived, idling — no verb fired, and GATHER/SLEEP never
+ * fall back to `work`).
+ */
+function applyGatherOrSleepRoutine(agent: HollowEntity, ctx: HollowDeliberationContext, phase: "gather" | "sleep"): true {
   const pos = agent.agent!;
   const intentions = agent.intentions!;
-  const phase = dayPhase(ctx.tick, ctx.ticksPerDay).phase;
+  const target = phase === "gather" ? HEARTH_TILE : homeAnchor(agent, ctx);
 
-  if (phase === "gather") {
-    if (pos.gx !== HEARTH_TILE.gx || pos.gy !== HEARTH_TILE.gy) {
-      intentions.queue.push({
-        kind: "goto",
-        data: { gx: HEARTH_TILE.gx, gy: HEARTH_TILE.gy },
-        priority: ROUTINE_GOTO_PRIORITY,
-      });
-    }
-    // else: already at the hearth — idle in place (co-presence); nothing
-    // queued, so ACT does nothing and the agent just stands there this tick.
+  if (pos.gx !== target.gx || pos.gy !== target.gy) {
+    intentions.queue.push({ kind: "goto", data: { gx: target.gx, gy: target.gy }, priority: ROUTINE_GOTO_PRIORITY });
     return true;
   }
 
-  if (phase === "sleep") {
-    const anchor = homeAnchor(agent, ctx);
-    if (pos.gx !== anchor.gx || pos.gy !== anchor.gy) {
-      intentions.queue.push({ kind: "goto", data: { gx: anchor.gx, gy: anchor.gy }, priority: ROUTINE_GOTO_PRIORITY });
-    }
-    return true;
-  }
-
-  return false; // "work" | "commute" — unchanged ladder handles it
+  // Arrived. GATHER is the town's one PUBLIC social window (unrestricted
+  // candidates); SLEEP stays restricted to household/close ties like every
+  // other non-GATHER phase (the brief's "rare, private" rule covers it too).
+  // Either way: no `work` fallback here — a missed roll just means idling in
+  // place (still at the hearth/home), not wandering off to a work node.
+  tryQueueSocialAction(agent, ctx, /* restrictToCloseTies */ phase !== "gather");
+  return true;
 }
 
 export const VILLAGER_KIND = "villager";
@@ -152,6 +201,7 @@ function restSeekThreshold(agent: HollowEntity): number {
 function tryChooseSocialAction(
   agent: HollowEntity,
   ctx: HollowDeliberationContext,
+  restrictToCloseTies: boolean,
 ): ReturnType<typeof chooseSocialAction> {
   if (
     agent.id === undefined ||
@@ -164,7 +214,7 @@ function tryChooseSocialAction(
   ) {
     return null;
   }
-  return chooseSocialAction(agent as SocialAgent, ctx);
+  return chooseSocialAction(agent as SocialAgent, ctx, { restrictToCloseTies });
 }
 
 /**
@@ -203,20 +253,22 @@ function villagerDeliberate(agent: HollowEntity, ctx: HollowDeliberationContext)
     return;
   }
 
-  // hollow-14c: the day-cycle routine (GATHER→hearth, SLEEP→home) — only
+  // The day-cycle routine (chunk hollow-14c, reworked hollow-14c-2) — only
   // consulted once the survival ladder above found nothing urgent (see this
-  // file's header). Returns `true` (having queued a routine "goto", or
-  // nothing if already there) for GATHER/SLEEP; `false` for WORK/COMMUTE,
-  // which fall through to the unchanged social-verb/work ladder below.
-  if (applyRoutine(agent, ctx)) return;
-
-  // hollow-06b: genome-driven social-verb choice — only consulted once the
-  // survival ladder above found nothing urgent (see this file's header).
-  const social = tryChooseSocialAction(agent, ctx);
-  if (social) {
-    intentions.queue.push({ kind: social.kind, data: social.data, priority: 50 });
+  // file's header). GATHER/SLEEP: path to the hearth/home, then (arrived) at
+  // most one social-verb roll — public/unrestricted at the hearth, private/
+  // restricted at home — never falling back to `work`.
+  const phase = dayPhase(ctx.tick, ctx.ticksPerDay).phase;
+  if (phase === "gather" || phase === "sleep") {
+    applyGatherOrSleepRoutine(agent, ctx, phase);
     return;
   }
+
+  // WORK / COMMUTE: chunk hollow-14c-2's "rare, private" rule — a RESTRICTED
+  // (household/close-tie-only) social-verb attempt, gated by the same
+  // cooldown, falling back to `work` (unchanged from hollow-03/14b) if
+  // nothing fires.
+  if (tryQueueSocialAction(agent, ctx, /* restrictToCloseTies */ true)) return;
 
   const workNode = ctx.resources.nearestNode(fallbackWorkNodeKind(agent), pos.gx, pos.gy);
   if (workNode) {

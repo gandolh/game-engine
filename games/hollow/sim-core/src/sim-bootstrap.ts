@@ -64,7 +64,13 @@
  *     target THIS tick. Runs right after ACT specifically because
  *     proximity/shared-activity are only knowable once this tick's movement
  *     has happened (see systems/act.ts's `stepToward`) — running it any
- *     earlier would read stale (pre-move) positions.
+ *     earlier would read stale (pre-move) positions. Chunk hollow-14c-2: the
+ *     hearth-tile group gets the much smaller `trustGatheringDelta` instead
+ *     of the normal proximity delta whenever this tick is in the GATHER
+ *     phase (needs `ticksPerDay`, now threaded into this system too) — see
+ *     community/constants.ts's `TRUST_GATHERING_DELTA` header for why (the
+ *     anti-homogenization mechanism: the nightly hearth convergence must not
+ *     alone crystallize the whole town into one community).
  *  5. GOVERNANCE (HollowGovernanceSystem, chunk hollow-12a): the PERIODIC
  *     (mirrors COMMUNITY's own cadence by default) standing/leader/norm-
  *     vote/sanctions/norm-clash pass. Runs right after TRUST-ACCRUAL (so
@@ -164,6 +170,7 @@ import {
   TRUST_PROXIMITY_DELTA,
   TRUST_SHARED_NODE_DELTA,
   TRUST_DECAY_TOWARD_NEUTRAL_RATE,
+  TRUST_GATHERING_DELTA,
   COMMUNITY_CHECK_INTERVAL_TICKS,
   COMMUNITY_MIN_SIZE,
   COMMUNITY_MIN_MEMBERS,
@@ -263,6 +270,11 @@ export interface HollowSimOptions {
   trustSharedNodeDelta?: number;
   /** Fraction of the gap to neutral trust closed per tick. */
   trustDecayRate?: number;
+  /** The much-smaller trust nudge applied to the hearth-tile group
+   *  specifically during the GATHER phase (chunk hollow-14c-2's
+   *  anti-homogenization mechanism — see community/constants.ts's
+   *  `TRUST_GATHERING_DELTA` header). */
+  trustGatheringDelta?: number;
   /** How often (in ticks) the community detection/dynamics pass runs. */
   communityCheckIntervalTicks?: number;
   /** Minimum cluster size to crystallize/remain a community. */
@@ -740,6 +752,8 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         proximityDelta: opts.trustProximityDelta ?? TRUST_PROXIMITY_DELTA,
         sharedNodeDelta: opts.trustSharedNodeDelta ?? TRUST_SHARED_NODE_DELTA,
         decayRate: opts.trustDecayRate ?? TRUST_DECAY_TOWARD_NEUTRAL_RATE,
+        gatheringDelta: opts.trustGatheringDelta ?? TRUST_GATHERING_DELTA,
+        ticksPerDay: opts.ticksPerDay,
       }),
     )
     .stage("GOVERNANCE")

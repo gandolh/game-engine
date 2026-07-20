@@ -29,6 +29,38 @@ export const TRUST_PROXIMITY_DELTA = 0.02;
  *  physically arrived on the same tile. */
 export const TRUST_SHARED_NODE_DELTA = 0.02;
 
+/**
+ * The ANTI-HOMOGENIZATION dial (chunk hollow-14c-2). `HollowTrustAccrualSystem`
+ * normally applies `TRUST_PROXIMITY_DELTA` to EVERY pair sharing a tile —
+ * but chunk hollow-14c's dusk convergence paths most of the town onto the
+ * exact SAME `HEARTH_TILE` during the GATHER phase (`world/day-cycle.ts`'s
+ * `dayPhase`), so unmodified proximity accrual would give every
+ * attender-PAIR the full proximity delta every gather tick, homogenizing
+ * the whole town's trust graph into one mega-community within a handful of
+ * gatherings — erasing the distinct communities hollow-12's governance and
+ * hollow-12b's feuds need to operate over.
+ *
+ * `HollowTrustAccrualSystem` therefore uses THIS much smaller delta instead
+ * of `TRUST_PROXIMITY_DELTA` specifically for the hearth-tile group during
+ * the GATHER phase (see trust-accrual-system.ts's `accrueProximity`) —
+ * every other co-located pair, anywhere else, any other phase (including
+ * agents who happen to be AT the hearth's coordinates outside GATHER, and
+ * agents sharing a tile elsewhere during GATHER) still gets the full
+ * `TRUST_PROXIMITY_DELTA`. The gathering therefore still builds real,
+ * town-wide WEAK acquaintance-level trust (everyone meets everyone — the
+ * belonging/governance/feud "public stage" the brief asks for) without it
+ * alone being enough to crystallize a town-wide community: sustained WORK/
+ * HOME proximity (a household, a shared work node, day after day) remains
+ * the only path to `COMMUNITY_TRUST_THRESHOLD` (0.6) — the strong-tie path
+ * distinct communities actually form over. Set to 1/10th of
+ * `TRUST_PROXIMITY_DELTA` — small enough that gathering alone, even every
+ * night for the whole brief's acceptance-run window, never single-handedly
+ * clears the community FORM/GROW/MERGE thresholds; tuned empirically
+ * against the hollow-14c-2 acceptance gate (real headless runs — see that
+ * chunk's report) rather than derived analytically.
+ */
+export const TRUST_GATHERING_DELTA = 0.002;
+
 /** Fraction of the gap to `UNIT_TRUST_SCALE.neutral` closed per tick for
  *  every KNOWN peer relation (an entry that already exists in the ledger) —
  *  the "decays toward neutral over time" half of the rule. Applied BEFORE

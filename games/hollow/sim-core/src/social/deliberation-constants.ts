@@ -128,6 +128,33 @@ export const NEUTRAL_TRUST = 0.5;
 export const LOW_TRUST_THRESHOLD = 0.3;
 export const VERY_LOW_TRUST_THRESHOLD = 0.05;
 
+// --- rare/private throttle (chunk hollow-14c-2) ------------------------------
+//
+// Daily life is legible only if cooperative/antagonistic interaction is RARE
+// and mostly PRIVATE (brief: "each agent has a home, a job, and a diurnal
+// routine... day-to-day cooperation becomes rare and private"), with the
+// hearth's dusk GATHER phase as the one public mixing window. Two dials do
+// this (both consumed by `agents/villager.ts`, not by `chooseSocialAction`
+// itself — see that file's header):
+//
+//  - `SOCIAL_COOLDOWN_TICKS` — a flat per-agent cooldown: an agent may
+//    INITIATE at most one social verb (of any kind) per this many ticks,
+//    tracked as `HollowAgent.lastSocialActTick` (tick arithmetic only, no
+//    `Rng` — see components/agent.ts). Sized as a meaningful FRACTION of a
+//    day (`DAY_PHASE_BOUNDARIES`'s WORK span alone is 0.55 of a day) so it
+//    visibly throttles per-capita volume rather than being a no-op at the
+//    day's own tick scale, while still being far shorter than a full day so
+//    the SAME agent can plausibly act again on a LATER day.
+//  - `CLOSE_TIE_TRUST_THRESHOLD` — during WORK/COMMUTE/SLEEP (every phase
+//    except GATHER), a candidate is only eligible at all if it's a
+//    HOUSEHOLD member (any trust level — family is family) OR its mutual
+//    trust reading clears this threshold (a "few high-trust close ties").
+//    Set well above `COMMUNITY_TRUST_THRESHOLD` (0.6, community/
+//    constants.ts) so "close tie" reads as genuinely closer than mere
+//    community membership, not a near-freebie every community-mate clears.
+export const SOCIAL_COOLDOWN_TICKS = 40;
+export const CLOSE_TIE_TRUST_THRESHOLD = 0.75;
+
 // --- the gate -----------------------------------------------------------------
 
 export const SOCIAL_ACTION_MIN_SCORE = 0.6;

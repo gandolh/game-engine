@@ -44,7 +44,7 @@ function makeActor(): SocialAgent {
 }
 
 function candidate(id: number, gx: number, gy: number, materials: number): NeighborView {
-  return { id, gx, gy, communityId: null, materials, food: 20, materialSkill: 0 };
+  return { id, gx, gy, communityId: null, householdId: null, materials, food: 20, materialSkill: 0 };
 }
 
 function makeContext(neighbors: readonly NeighborView[]): HollowDeliberationContext {

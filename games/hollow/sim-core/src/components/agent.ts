@@ -37,4 +37,16 @@ export interface HollowAgent {
    * it still typecheck.
    */
   currentAction?: string;
+  /**
+   * The tick this agent last INITIATED a social verb (chunk hollow-14c-2's
+   * per-agent cooldown) — written by `agents/villager.ts` the moment a
+   * `chooseSocialAction` result is actually queued (whether or not the verb
+   * ends up "consummating" its effect — see `HollowSnapshot.socialCounts`'s
+   * doc on that distinction; cooldown gates on INITIATION, not outcome).
+   * `undefined` means "never initiated one yet" and never blocks — see
+   * `villager.ts`'s `offSocialCooldown`. Optional so pre-hollow-14c-2
+   * hand-built test harnesses that construct a `HollowAgent` literal without
+   * it still typecheck (same convention as `currentAction` above).
+   */
+  lastSocialActTick?: number;
 }

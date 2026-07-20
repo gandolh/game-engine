@@ -49,7 +49,7 @@ function makeHarness(opts?: CommunitySystemOptions, belongingOpts?: BelongingSys
   const world = new World<HollowEntity>();
   const bus = new MessageBus();
   const registry = new CommunityRegistry();
-  const trust = new HollowTrustAccrualSystem(world);
+  const trust = new HollowTrustAccrualSystem(world, { ticksPerDay: TEST_TICKS_PER_DAY });
   const community = new HollowCommunitySystem(world, registry, bus, opts);
   const belonging = new HollowBelongingSystem(world, { ticksPerDay: TEST_TICKS_PER_DAY, ...belongingOpts });
   const events: RecordedEvent[] = [];

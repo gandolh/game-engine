@@ -12,6 +12,17 @@
  * the highest score, gated by `SOCIAL_ACTION_MIN_SCORE` (falls back to
  * `work` below the gate — see villager.ts).
  *
+ * ── rare/private throttle (chunk hollow-14c-2) ────────────────────────────
+ * `chooseSocialAction`'s optional `restrictToCloseTies` (see
+ * `ChooseSocialActionOptions` below) filters the candidate set down to
+ * household-mates + high-trust close ties (`isCloseTie`) BEFORE any
+ * `deliberate*` helper runs, whenever the caller is in a day-phase other
+ * than GATHER — see `villager.ts`'s `villagerDeliberate` for the phase
+ * gate and its own per-agent cooldown. This file's nine `deliberate*`
+ * helpers themselves are UNCHANGED by that throttle — they simply see a
+ * smaller (or, at the hearth, the same as always) candidate list.
+ *
+
  * ── determinism ───────────────────────────────────────────────────────────
  * No `Rng` anywhere in this file — every score is a pure function of THIS
  * tick's genome/needs/inventory/skills/relationships/neighbor-index state
@@ -70,6 +81,7 @@ import {
   NEUTRAL_TRUST,
   LOW_TRUST_THRESHOLD,
   VERY_LOW_TRUST_THRESHOLD,
+  CLOSE_TIE_TRUST_THRESHOLD,
   SOCIAL_ACTION_MIN_SCORE,
   STEAL_GREED_GATE,
   SABOTAGE_AGGRESSION_GATE,
@@ -131,6 +143,23 @@ function nearbyCandidates(agent: SocialAgent, ctx: HollowDeliberationContext): r
     out.push(n);
   }
   return out;
+}
+
+/**
+ * hollow-14c-2's "rare, private" candidate filter — a candidate is eligible
+ * for a RESTRICTED-mode `chooseSocialAction` call (every day-phase except
+ * GATHER — see `agents/villager.ts`'s `villagerDeliberate`) only if it's a
+ * HOUSEHOLD member (any trust level at all — family stays a valid target
+ * regardless of the ledger, mirroring how antagonistic verbs still need to
+ * reach a genuinely low-trust household-mate) OR the actor's mutual trust
+ * toward it clears `CLOSE_TIE_TRUST_THRESHOLD`. Unrestricted (GATHER, the
+ * hearth's public mixing window) never calls this at all — see
+ * `chooseSocialAction`'s `restrictToCloseTies` option below.
+ */
+function isCloseTie(agent: SocialAgent, candidate: NeighborView): boolean {
+  const householdId = agent.householdId ?? null;
+  if (householdId != null && candidate.householdId === householdId) return true;
+  return relationshipScore(agent.relationships, candidate.id) >= CLOSE_TIE_TRUST_THRESHOLD;
 }
 
 /** Reads a behavior gene, defaulting to the neutral midpoint (0.5) if
@@ -530,14 +559,35 @@ const VERB_ORDER: ReadonlyArray<
   deliberateTrade,
 ];
 
+/** Options for `chooseSocialAction` (chunk hollow-14c-2). */
+export interface ChooseSocialActionOptions {
+  /**
+   * When `true`, the candidate set is filtered to household-mates + high-
+   * trust close ties (`isCloseTie`) BEFORE any `deliberate*` helper runs —
+   * every day-phase except GATHER passes this (see `agents/villager.ts`).
+   * `false`/omitted is the unrestricted, pre-hollow-14c-2 behavior (every
+   * nearby agent is a candidate) — GATHER's public hearth window, and every
+   * existing direct caller of this function (hand-built unit tests) that
+   * doesn't pass `opts` at all.
+   */
+  readonly restrictToCloseTies?: boolean;
+}
+
 /**
  * Runs every `deliberate*` helper above once and returns the single
  * highest-scoring feasible verb, gated by `SOCIAL_ACTION_MIN_SCORE` — or
  * `null` if nothing clears the gate (the caller, `agents/villager.ts`,
  * falls back to `work`).
  */
-export function chooseSocialAction(agent: SocialAgent, ctx: HollowDeliberationContext): ScoredChoice | null {
-  const candidates = nearbyCandidates(agent, ctx);
+export function chooseSocialAction(
+  agent: SocialAgent,
+  ctx: HollowDeliberationContext,
+  opts: ChooseSocialActionOptions = {},
+): ScoredChoice | null {
+  let candidates = nearbyCandidates(agent, ctx);
+  if (opts.restrictToCloseTies) {
+    candidates = candidates.filter((c) => isCloseTie(agent, c));
+  }
 
   let best: ScoredChoice | null = null;
   for (const fn of VERB_ORDER) {
