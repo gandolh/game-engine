@@ -21,6 +21,7 @@
     "./animation": "./src/animation/index.ts",
     "./commands": "./src/commands/index.ts",
     "./placement": "./src/placement/index.ts",
+    "./collision": "./src/collision/index.ts",
     "./input": "./src/input/index.ts",
     "./audio": "./src/audio/index.ts"
   },
@@ -84,6 +85,10 @@
       "./placement": {
         "types": "./dist/placement/index.d.ts",
         "default": "./dist/placement/index.js"
+      },
+      "./collision": {
+        "types": "./dist/collision/index.d.ts",
+        "default": "./dist/collision/index.js"
       },
       "./input": {
         "types": "./dist/input/index.d.ts",

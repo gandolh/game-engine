@@ -69,6 +69,7 @@ import {
 } from "./humanoid";
 import { AgentFacingTracker, poseForAgent, walkBob, agentModelMatrix } from "./agent-anim";
 import { selectedTint } from "./selection";
+import { separatedAgentPositions } from "./agent-collision";
 
 export interface HollowAppOptions {
   /** Must match the seed the worker was `init`ed with (only used here to
@@ -460,15 +461,28 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         // ---------------------------------------------------------------
         const agentPositions = profiler.time("interp", () => snapshotBuffer.interpolatedAgentPositions(nowMs));
 
+        // RENDER-ONLY de-overlap (agent-collision.ts, backed by the generic
+        // `@engine/core/collision` module): the sim moves agents on an
+        // integer tile grid with nothing stopping two of them from landing
+        // on the same tile, which without this would draw them on top of
+        // each other. This adjusts ONLY where agents are drawn — the
+        // adjusted positions are never fed back into the sim/worker/
+        // snapshot, so determinism is unaffected (see agent-collision.ts's
+        // header). Both the model matrix below AND `AgentRenderState`
+        // (headWorld/bounds — picking, glyphs, follow-cam) use these
+        // separated positions, so the visible body, its hitbox, and the
+        // camera all agree.
+        const renderPositions = profiler.time("collision", () => separatedAgentPositions(agentPositions));
+
         // Follow-cam (chunk hollow-09c): re-target the camera to the
-        // followed agent's INTERPOLATED position every frame, preserving
-        // yaw/pitch/distance (only `target` is touched) — the player can
-        // keep orbiting/zooming around it. Cancels itself if the followed
-        // agent is no longer alive this frame (despawned — death, in
-        // practice); a manual pan cancels it too (see the `onPan` callback
-        // above).
+        // followed agent's INTERPOLATED (and de-overlapped) position every
+        // frame, preserving yaw/pitch/distance (only `target` is touched) —
+        // the player can keep orbiting/zooming around it. Cancels itself if
+        // the followed agent is no longer alive this frame (despawned —
+        // death, in practice); a manual pan cancels it too (see the
+        // `onPan` callback above).
         if (followAgentId !== null) {
-          const followPos = agentPositions.get(followAgentId);
+          const followPos = renderPositions.get(followAgentId);
           if (followPos) {
             const z = groundHeightAt(Math.round(followPos.x), Math.round(followPos.y));
             camera.target = [followPos.x, followPos.y, z + FOLLOW_EYE_HEIGHT];
@@ -483,7 +497,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         const aliveAgentIds = new Set<number>();
 
         for (const agent of latest.agents) {
-          const pos = agentPositions.get(agent.id);
+          const pos = renderPositions.get(agent.id);
           if (!pos) continue; // defensive — positions are built from latest.agents itself
           aliveAgentIds.add(agent.id);
 
