@@ -30,6 +30,7 @@ import {
   meanGenes,
   communityStats,
   sumSocialCounts,
+  activeFeudCount,
   COOP_VERBS,
   ANTAG_VERBS,
 } from "./metrics";
@@ -82,6 +83,7 @@ export class MetricsSampler {
       wealth_gini: wealthGini(agents),
       coop_window: coopCum - prevCoopCum,
       antag_window: antagCum - prevAntagCum,
+      feud_active_dyads: activeFeudCount(agents),
       genes: meanGenes(agents),
     };
 

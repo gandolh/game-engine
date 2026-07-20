@@ -14,6 +14,7 @@
  * file directly, so the numbers are identical wherever they're computed.
  */
 import { BEHAVIOR_GENES } from "../components";
+import { FEUD_START_THRESHOLD } from "../social";
 import type { BootedHollowSim, HollowSnapshot } from "../sim-bootstrap";
 
 /** One living agent's trait/relationship/wealth reading, used by every
@@ -24,6 +25,13 @@ export interface LivingAgentRead {
   readonly behavior: Readonly<Record<string, number>>;
   /** This agent's OWN relationship-ledger scores (one per known peer). */
   readonly relationshipScores: readonly number[];
+  /** This agent's OWN held grudges (chunk hollow-12b), one per resented
+   *  peer. Optional (defaults to `[]` at every read site — see
+   *  `activeFeudCount`) rather than required, so pre-hollow-12b
+   *  `LivingAgentRead` fixtures elsewhere in the monorepo (e.g.
+   *  `@tool/hollow-sim`'s own `metrics.test.ts`, outside this chunk's edit
+   *  surface) keep typechecking unchanged. */
+  readonly feudScores?: readonly number[];
 }
 
 /**
@@ -43,6 +51,13 @@ export function readLivingAgents(sim: BootedHollowSim): LivingAgentRead[] {
       wealth: wealthNeed ? wealthNeed.value : 0,
       behavior: e.genome.behavior,
       relationshipScores: [...e.relationships.byId.values()],
+      // `feud` is NOT part of this query's required component set (unlike
+      // `genome`/`relationships`/`needs`) — deliberately, so a hand-built
+      // test harness that predates chunk hollow-12b (or omits `feud` on
+      // purpose) still appears in this read; a missing ledger just reads as
+      // "resents no one" (defensive default `[]`, same convention as
+      // `relationshipScores` above).
+      feudScores: e.feud ? [...e.feud.byId.values()] : [],
     });
   }
   out.sort((a, b) => a.id - b.id);
@@ -113,6 +128,27 @@ export function meanGenes(agents: readonly LivingAgentRead[]): Readonly<Record<s
     out[gene] = mean(values);
   }
   return out;
+}
+
+/** Count of directed grudges at/above `startThreshold` across all living
+ *  agents (chunk hollow-12b) — "how many active feuds exist right now",
+ *  snapshot-time (not a windowed/cumulative count — a feud can be active for
+ *  many samples in a row, so summing window-deltas the way `coop_window`/
+ *  `antag_window` do would double-count a still-ongoing feud). A directed
+ *  A->B and B->A grudge (a genuinely MUTUAL feud) count as two entries here,
+ *  matching the ledger's own directed shape (components/feud.ts) rather than
+ *  collapsing to unique dyads. */
+export function activeFeudCount(
+  agents: readonly LivingAgentRead[],
+  startThreshold: number = FEUD_START_THRESHOLD,
+): number {
+  let n = 0;
+  for (const a of agents) {
+    for (const grudge of a.feudScores ?? []) {
+      if (grudge >= startThreshold) n++;
+    }
+  }
+  return n;
 }
 
 export interface CommunityStats {

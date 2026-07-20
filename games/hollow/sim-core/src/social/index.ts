@@ -2,6 +2,8 @@ export { HollowSocialActSystem } from "./act-system";
 export type { SocialActSystemOptions } from "./act-system";
 export { HollowSocialWitnessSystem } from "./witness-system";
 export type { SocialWitnessSystemOptions } from "./witness-system";
+export { HollowFeudSystem } from "./feud-system";
+export type { FeudSystemOptions } from "./feud-system";
 export {
   SOCIAL_VERB_KINDS,
   SKILL_MATERIAL,
@@ -26,6 +28,18 @@ export {
   ATTACK_TRUST_DELTA,
   TRADE_OFFER_TTL_TICKS,
 } from "./constants";
+export {
+  FEUD_MAX,
+  FEUD_INCREMENT_ATTACK,
+  FEUD_INCREMENT_SABOTAGE,
+  FEUD_INCREMENT_STEAL,
+  FEUD_INCREMENT_RUMOR,
+  FEUD_DECAY_PER_TICK,
+  FEUD_RECONCILE_REDUCTION,
+  FEUD_START_THRESHOLD,
+  FEUD_RECONCILE_THRESHOLD,
+  FEUD_DELIBERATION_WEIGHT,
+} from "./feud-constants";
 export {
   SOCIAL_CANDIDATE_RADIUS_TILES,
   SURPLUS_MATERIAL_THRESHOLD,

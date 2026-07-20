@@ -26,6 +26,7 @@ function agent(overrides: Partial<LivingAgentRead> & { id: number }): LivingAgen
     wealth: 0,
     behavior: {},
     relationshipScores: [],
+    feudScores: [],
     ...overrides,
   };
 }

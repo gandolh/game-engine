@@ -13,6 +13,7 @@ import type { Ownership } from "./ownership";
 import type { Genome } from "./genome";
 import type { Lifecycle } from "./lifecycle";
 import type { Skills } from "./skills";
+import type { Feud } from "./feud";
 
 /**
  * Hollow's FSM states for chunk hollow-03. Mirrors Farm's simplest loop
@@ -87,5 +88,16 @@ export interface HollowEntity {
    * without it — same rationale as `genome` above.
    */
   skills?: Skills;
+  /**
+   * Persistent, directed grudge ledger (chunk hollow-12b) — see
+   * components/feud.ts for the full rationale (a Hollow-specific
+   * antagonism-arc concept, deliberately separate from the generic
+   * `relationships` trust ledger above). Present on every spawned agent
+   * (founders in population.ts, children in family/reproduction-system.ts);
+   * optional only because the type is shared with pre-hollow-12b hand-built
+   * test harnesses that construct entities without it — same rationale as
+   * `skills`/`genome` above.
+   */
+  feud?: Feud;
   [key: string]: unknown;
 }

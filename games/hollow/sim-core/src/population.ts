@@ -24,6 +24,10 @@
  * (components/skills.ts's `makeSkills()`) — lived state, not drawn from any
  * `Rng`, so it doesn't disturb any fork above either.
  *
+ * Chunk hollow-12b additively seeds a fresh, empty `feud` component
+ * (components/feud.ts's `makeFeud()`) — nobody starts holding a grudge
+ * against anyone. Also no `Rng` draw.
+ *
  * The starting age is drawn from only the FIRST HALF of the adult band
  * (`[childAdultTicks, childAdultTicks + (adultElderTicks-childAdultTicks)/2)`),
  * not the full band — a deliberate, load-bearing choice: it guarantees
@@ -37,7 +41,7 @@ import type { Rng, World } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import { GRID_SIZE } from "./world";
 import type { HollowEntity } from "./components";
-import { makeSkills } from "./components";
+import { makeSkills, makeFeud } from "./components";
 import { VILLAGER_KIND } from "./agents";
 import { randomGenome } from "./family/genetics";
 import { STAGE_CHILD_ADULT_TICKS, STAGE_ADULT_ELDER_TICKS } from "./family/constants";
@@ -128,6 +132,10 @@ export function spawnPopulation(world: World<HollowEntity>, rng: Rng, opts: Spaw
       // becoming good at it — see components/skills.ts's header). No `Rng`
       // draw, so this doesn't disturb the forks above.
       skills: makeSkills(),
+      // Persistent grudge ledger (chunk hollow-12b) — every founder starts
+      // with no grudge against anyone (components/feud.ts's `makeFeud()`).
+      // No `Rng` draw, so this doesn't disturb the forks above either.
+      feud: makeFeud(),
     } satisfies HollowEntity);
 
     // Self-ownership (see components/ownership.ts) — needs the id `world.spawn`

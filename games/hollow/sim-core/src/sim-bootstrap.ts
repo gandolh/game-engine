@@ -35,7 +35,13 @@
  *     runs right after it, in the same stage: it folds the PRIOR tick's
  *     rumor/steal-detected broadcasts into bystanders' relationship
  *     ledgers — see social/witness-system.ts's header for the one-tick
- *     delivery-delay rationale.
+ *     delivery-delay rationale. HollowFeudSystem (chunk hollow-12b) runs
+ *     right after THAT, still the same stage: it folds the PRIOR tick's
+ *     harm (detected steal/sabotage, attack, rumor) into the VICTIM's
+ *     persistent grudge ledger (escalation), reconciles grudges via
+ *     cooperative gestures or passive decay, and emits `ONT_FEUD.*` — see
+ *     social/feud-system.ts's header for the full sub-pass order and the
+ *     same one-tick delivery-delay rationale as the witness system.
  *  2. DELIBERATE (HollowDeliberateSystem): the engine's generic PERCEIVE→ACT
  *     dispatch — runs the "villager" deliberator for every agent PERCEIVE
  *     just re-armed (or that started the tick already in "PERCEIVE"),
@@ -181,6 +187,16 @@ import {
   STEAL_DETECTION_PROB,
   ATTACK_LETHALITY_PROB,
   SABOTAGE_DETECTION_PROB,
+  HollowFeudSystem,
+  FEUD_MAX,
+  FEUD_INCREMENT_ATTACK,
+  FEUD_INCREMENT_SABOTAGE,
+  FEUD_INCREMENT_STEAL,
+  FEUD_INCREMENT_RUMOR,
+  FEUD_DECAY_PER_TICK,
+  FEUD_RECONCILE_REDUCTION,
+  FEUD_START_THRESHOLD,
+  FEUD_RECONCILE_THRESHOLD,
 } from "./social";
 import { HollowShockSystem } from "./shock";
 import {
@@ -323,6 +339,33 @@ export interface HollowSimOptions {
   /** Norm-vs-genome clash fraction at/above which a member's outgoing trust
    *  toward fellow members (and belonging need) erodes. */
   governanceNormClashThreshold?: number;
+
+  // Feud (chunk hollow-12b) knobs — each defaults to its
+  // social/feud-constants.ts constant, same override pattern as above (e.g.
+  // for a faster/slower decay or a lower start threshold in a narrow test).
+  /** Upper clamp on any directed grudge. */
+  feudMax?: number;
+  /** Grudge increment on a (non-lethal or lethal) `attack`. */
+  feudIncrementAttack?: number;
+  /** Grudge increment on a DETECTED `sabotage`. */
+  feudIncrementSabotage?: number;
+  /** Grudge increment on a DETECTED `steal`. */
+  feudIncrementSteal?: number;
+  /** Grudge increment on a `rumor` spread about the holder. */
+  feudIncrementRumor?: number;
+  /** Flat per-tick passive decay applied to every held grudge. */
+  feudDecayPerTick?: number;
+  /** Sharp reduction applied when a genuine cooperative gesture (GIFT/HELP/
+   *  TEACH toward the holder, or either side of an ACCEPTED TRADE) lands
+   *  from the resented peer. */
+  feudReconcileReduction?: number;
+  /** Grudge value at/above which a directed feud becomes "active" (emits
+   *  `ONT_FEUD.STARTED`/`ESCALATED`). */
+  feudStartThreshold?: number;
+  /** Grudge value BELOW which an active feud is considered reconciled
+   *  (emits `ONT_FEUD.RECONCILED`) — deliberately lower than
+   *  `feudStartThreshold`, a hysteresis band (see social/feud-constants.ts). */
+  feudReconcileThreshold?: number;
 }
 
 export interface HollowAppearanceSnapshot {
@@ -620,6 +663,22 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     // social/witness-system.ts's header for the one-tick delivery-delay
     // rationale (it processes messages the PRIOR tick's ACT stage sent).
     .add(new HollowSocialWitnessSystem(world, bus))
+    // hollow-12b's persistent grudge escalation/reconciliation pass — same
+    // "PERCEIVE" stage, right after the witness system (see this file's
+    // scheduler-order comment above and social/feud-system.ts's header).
+    .add(
+      new HollowFeudSystem(world, bus, {
+        feudMax: opts.feudMax ?? FEUD_MAX,
+        feudIncrementAttack: opts.feudIncrementAttack ?? FEUD_INCREMENT_ATTACK,
+        feudIncrementSabotage: opts.feudIncrementSabotage ?? FEUD_INCREMENT_SABOTAGE,
+        feudIncrementSteal: opts.feudIncrementSteal ?? FEUD_INCREMENT_STEAL,
+        feudIncrementRumor: opts.feudIncrementRumor ?? FEUD_INCREMENT_RUMOR,
+        feudDecayPerTick: opts.feudDecayPerTick ?? FEUD_DECAY_PER_TICK,
+        feudReconcileReduction: opts.feudReconcileReduction ?? FEUD_RECONCILE_REDUCTION,
+        feudStartThreshold: opts.feudStartThreshold ?? FEUD_START_THRESHOLD,
+        feudReconcileThreshold: opts.feudReconcileThreshold ?? FEUD_RECONCILE_THRESHOLD,
+      }),
+    )
     .stage("DELIBERATE")
     .add(new HollowDeliberateSystem(world, resources))
     .stage("ACT")

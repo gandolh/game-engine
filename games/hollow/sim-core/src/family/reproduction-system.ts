@@ -24,7 +24,7 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { PERFORMATIVE, needFraction, makeNeed } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
-import { makeSkills } from "../components";
+import { makeSkills, makeFeud } from "../components";
 import type { ResourceWorld } from "../world";
 import { VILLAGER_KIND } from "../agents";
 import {
@@ -195,6 +195,10 @@ export class HollowReproductionSystem implements System {
       // Lived skill LEVELS (chunk hollow-06a) — a newborn starts at 0, same
       // as a founder (population.ts) — see components/skills.ts's header.
       skills: makeSkills(),
+      // Persistent grudge ledger (chunk hollow-12b) — a newborn starts with
+      // no grudge against anyone, same as a founder (population.ts) — see
+      // components/feud.ts's header.
+      feud: makeFeud(),
     } satisfies HollowEntity);
 
     if (spawned.ownership && spawned.id !== undefined) {

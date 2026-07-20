@@ -16,6 +16,7 @@ export {
   meanGenes,
   communityStats,
   sumSocialCounts,
+  activeFeudCount,
   COOP_VERBS,
   ANTAG_VERBS,
   type LivingAgentRead,

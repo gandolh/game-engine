@@ -41,6 +41,13 @@ export type {
   NormChangedBody,
   SanctionedBody,
 } from "./governance";
+export { ONT_FEUD } from "./feud";
+export type {
+  FeudOntology,
+  FeudStartedBody,
+  FeudEscalatedBody,
+  FeudReconciledBody,
+} from "./feud";
 export { ONT_SHOCK, shockOntology } from "./shock";
 export type {
   ShockKind,

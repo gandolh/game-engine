@@ -42,6 +42,11 @@ export interface MetricsRow {
   readonly wealth_gini: number;
   readonly coop_window: number;
   readonly antag_window: number;
+  /** Count of directed grudges at/above the feud start threshold, at THIS
+   *  sample's tick (chunk hollow-12b) — see `metrics.ts`'s `activeFeudCount`.
+   *  Optional (defaults to 0 via `flattenMetricsRow`) for back-compat with
+   *  pre-hollow-12b `MetricsRow` fixtures. */
+  readonly feud_active_dyads?: number;
   readonly genes: Readonly<Record<string, number>>;
 }
 
@@ -67,6 +72,7 @@ export const METRICS_COLUMNS: readonly string[] = [
   "wealth_gini",
   "coop_window",
   "antag_window",
+  "feud_active_dyads",
   ...BEHAVIOR_GENES.map((gene) => `mean_gene_${gene}`),
 ];
 
@@ -86,6 +92,7 @@ const INTEGER_COLUMNS: ReadonlySet<string> = new Set([
   "community_count",
   "coop_window",
   "antag_window",
+  "feud_active_dyads",
 ]);
 
 /** Flattens one `MetricsRow` into a `METRICS_COLUMNS`-keyed plain map. */
@@ -106,6 +113,7 @@ export function flattenMetricsRow(row: MetricsRow): Record<string, number> {
     wealth_gini: row.wealth_gini,
     coop_window: row.coop_window,
     antag_window: row.antag_window,
+    feud_active_dyads: row.feud_active_dyads ?? 0,
   };
   for (const gene of BEHAVIOR_GENES) {
     flat[`mean_gene_${gene}`] = row.genes[gene] ?? 0;

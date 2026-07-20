@@ -27,3 +27,5 @@ export type { Lifecycle, Stage, StageThresholds } from "./lifecycle";
 export { stageForAge } from "./lifecycle";
 export type { Skills } from "./skills";
 export { makeSkills, practiceSkill } from "./skills";
+export type { Feud } from "./feud";
+export { makeFeud } from "./feud";

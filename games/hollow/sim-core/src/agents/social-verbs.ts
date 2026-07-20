@@ -31,6 +31,24 @@
  * `gift`/`share`/`trade` all need to answer "which good, if any, does the
  * actor have surplus of" — `bestSurplusGood` is the one shared helper for
  * that (favors materials on a tie, arbitrarily but consistently).
+ *
+ * ── grudge amplification (chunk hollow-12b) ──────────────────────────────
+ * The four antagonistic helpers (`deliberateSteal`/`deliberateSabotage`/
+ * `deliberateAttack`/`deliberateRumor`) each read the actor's OWN persistent
+ * grudge toward a candidate via `grudgeToward` (`agent.feud?.byId.get(id) ?? 0`
+ * — components/feud.ts) — no extra context plumbing, since the grudge ledger
+ * already lives on the entity the deliberator is handed. A held grudge does
+ * two things, both bounded by the same `FEUD_DELIBERATION_WEIGHT` dial
+ * (social/feud-constants.ts): it biases target SELECTION (a candidate
+ * already resented reads as more "distrusted" than the trust ledger alone
+ * says, so a grudge-holder keeps re-targeting the same peer rather than
+ * picking a fresh one each tick), and it adds a small ADDITIVE bonus on top
+ * of (not folded into) the verb's own weighted-average score — nudging a
+ * borderline case over `SOCIAL_ACTION_MIN_SCORE` without being large enough
+ * to force action on its own (see feud-constants.ts's header for the exact
+ * bound). This is still a PURE function of already-deterministic state (the
+ * grudge ledger, like genome/trust, is arithmetic over deterministic prior
+ * events) — no `Rng` anywhere here, same as the rest of this file.
  */
 import { needFraction, relationshipScore } from "@engine/core/agent";
 import type { HollowEntity, BehaviorGene } from "../components";
@@ -64,6 +82,7 @@ import {
   TEACH_WEIGHTS,
   TRADE_WEIGHTS,
 } from "../social/deliberation-constants";
+import { FEUD_DELIBERATION_WEIGHT } from "../social/feud-constants";
 
 /** What `chooseSocialAction` (and every `deliberate*` helper) returns for a
  *  feasible verb: a score (comparable across verbs — see the constants
@@ -121,6 +140,15 @@ function needDeficit(agent: SocialAgent, kind: string): number {
   return need ? 1 - needFraction(need) : 0;
 }
 
+/** The actor's OWN persistent grudge toward `peerId` (chunk hollow-12b),
+ *  `[0, FEUD_MAX]`, defaulting to 0 for a peer never wronged the actor (or a
+ *  hand-built test harness with no `feud` component at all — see
+ *  components/feud.ts's header). Shared by every antagonistic `deliberate*`
+ *  helper below (see this file's "grudge amplification" header). */
+function grudgeToward(agent: SocialAgent, peerId: number): number {
+  return agent.feud?.byId.get(peerId) ?? 0;
+}
+
 /** The actor's own best surplus good right now — `{ good, have, threshold }`
  *  or `null` if neither good clears its threshold. Favors materials on a
  *  tie (arbitrary but consistent — see header). Shared by gift/share/trade. */
@@ -154,12 +182,21 @@ function deliberateSteal(agent: SocialAgent, candidates: readonly NeighborView[]
 
   let best: NeighborView | null = null;
   let bestTrust = Infinity;
+  let bestBiasedTrust = Infinity;
+  let bestGrudge = 0;
   for (const c of candidates) {
     const holding = wantFood ? c.food : c.materials;
     if (holding < threshold) continue;
     const trust = relationshipScore(agent.relationships, c.id);
-    if (trust < bestTrust) {
+    const grudge = grudgeToward(agent, c.id);
+    // A held grudge biases target SELECTION toward this peer — reads as
+    // "more distrusted than the ledger alone says" for picking whom to
+    // steal from (see this file's "grudge amplification" header).
+    const biasedTrust = trust - FEUD_DELIBERATION_WEIGHT * grudge;
+    if (biasedTrust < bestBiasedTrust) {
+      bestBiasedTrust = biasedTrust;
       bestTrust = trust;
+      bestGrudge = grudge;
       best = c;
     }
   }
@@ -172,7 +209,8 @@ function deliberateSteal(agent: SocialAgent, candidates: readonly NeighborView[]
     w.greed * gene(agent, "greed") +
     w.aggression * gene(agent, "aggression") +
     w.risk * gene(agent, "risk") +
-    w.distrust * distrust;
+    w.distrust * distrust +
+    FEUD_DELIBERATION_WEIGHT * bestGrudge;
 
   const holding = wantFood ? best.food : best.materials;
   const amount = Math.min(holding, threshold);
@@ -191,7 +229,8 @@ function deliberateSabotage(agent: SocialAgent, candidates: readonly NeighborVie
   for (const c of candidates) {
     const distrust = 1 - relationshipScore(agent.relationships, c.id);
     const rivalry = Math.min(c.materials / RIVAL_MATERIAL_SCALE, 1);
-    const score = w.aggression * aggression + w.distrust * distrust + w.rivalry * rivalry;
+    const grudge = grudgeToward(agent, c.id);
+    const score = w.aggression * aggression + w.distrust * distrust + w.rivalry * rivalry + FEUD_DELIBERATION_WEIGHT * grudge;
     if (score > bestScore) {
       bestScore = score;
       best = c;
@@ -208,11 +247,21 @@ function deliberateAttack(agent: SocialAgent, candidates: readonly NeighborView[
   if (gene(agent, "aggression") < ATTACK_AGGRESSION_GATE) return null; // hard gate — see header (rarity)
   let best: NeighborView | null = null;
   let bestTrust = Infinity;
+  let bestBiasedTrust = Infinity;
+  let bestGrudge = 0;
   for (const c of candidates) {
     const trust = relationshipScore(agent.relationships, c.id);
+    // The rarity gate stays on RAW trust (a grudge alone must never bypass
+    // "genuinely curdled relationship" — see deliberation-constants.ts's
+    // header on ATTACK_AGGRESSION_GATE/VERY_LOW_TRUST_THRESHOLD); grudge only
+    // biases WHICH already-gate-passing candidate gets picked.
     if (trust >= VERY_LOW_TRUST_THRESHOLD) continue;
-    if (trust < bestTrust) {
+    const grudge = grudgeToward(agent, c.id);
+    const biasedTrust = trust - FEUD_DELIBERATION_WEIGHT * grudge;
+    if (biasedTrust < bestBiasedTrust) {
+      bestBiasedTrust = biasedTrust;
       bestTrust = trust;
+      bestGrudge = grudge;
       best = c;
     }
   }
@@ -220,7 +269,7 @@ function deliberateAttack(agent: SocialAgent, candidates: readonly NeighborView[
 
   const w = ATTACK_WEIGHTS;
   const distrust = 1 - bestTrust;
-  const score = w.aggression * gene(agent, "aggression") + w.distrust * distrust;
+  const score = w.aggression * gene(agent, "aggression") + w.distrust * distrust + FEUD_DELIBERATION_WEIGHT * bestGrudge;
   return { score, kind: "attack", data: { targetId: best.id } };
 }
 
@@ -231,11 +280,17 @@ function deliberateRumor(agent: SocialAgent, candidates: readonly NeighborView[]
   if (aggression < RUMOR_AGGRESSION_GATE) return null; // hard gate
   let best: NeighborView | null = null;
   let bestTrust = Infinity;
+  let bestBiasedTrust = Infinity;
+  let bestGrudge = 0;
   for (const c of candidates) {
     const trust = relationshipScore(agent.relationships, c.id);
-    if (trust >= LOW_TRUST_THRESHOLD) continue;
-    if (trust < bestTrust) {
+    if (trust >= LOW_TRUST_THRESHOLD) continue; // gate stays on RAW trust, same rationale as attack
+    const grudge = grudgeToward(agent, c.id);
+    const biasedTrust = trust - FEUD_DELIBERATION_WEIGHT * grudge;
+    if (biasedTrust < bestBiasedTrust) {
+      bestBiasedTrust = biasedTrust;
       bestTrust = trust;
+      bestGrudge = grudge;
       best = c;
     }
   }
@@ -243,7 +298,11 @@ function deliberateRumor(agent: SocialAgent, candidates: readonly NeighborView[]
 
   const w = RUMOR_WEIGHTS;
   const distrust = 1 - bestTrust;
-  const score = w.distrust * distrust + w.lowSociability * (1 - gene(agent, "sociability")) + w.aggression * gene(agent, "aggression");
+  const score =
+    w.distrust * distrust +
+    w.lowSociability * (1 - gene(agent, "sociability")) +
+    w.aggression * gene(agent, "aggression") +
+    FEUD_DELIBERATION_WEIGHT * bestGrudge;
   return { score, kind: "rumor", data: { targetId: best.id } };
 }
 
