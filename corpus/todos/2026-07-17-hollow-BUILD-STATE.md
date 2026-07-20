@@ -53,7 +53,8 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | **hollow-10 chronicle + dashboard** | ✅ **done, verified** (split 10a+10b) | `d71f372` + `e2fbdc7` |
 | **hollow-11 authoring + perturbation** | ✅ **done, verified** (split 11a+11b) | `66444c2` + `4716203` |
 | **M3 GATE** | ✅ headless + DOM-flow verified; **live 3D image Chrome-gated** | — |
-| M4 (hollow-12..13) | ⬜ specs written, queued | — |
+| **hollow-12 governance & antagonism arcs** | ✅ **done, verified** (split 12a+12b) | `96f0bf5` + `1b32909` |
+| hollow-13 LLM rationalizer seam | ⬜ spec written, queued | — |
 
 ## hollow-05 — how it went (2026-07-20)
 Re-dispatched FRESH on a Sonnet executor (the old `stash@{0}` partial was NOT salvaged). Implementation
@@ -198,12 +199,51 @@ Chrome-gated. BUT the M3 features are mostly DOM + worker (no GPU), so the full 
 (author → start → pause/step → fire famine → chronicle reacts → Share link → identical replay) WAS
 verified headless via agent-browser. Only the literal 3D scene needs a human in a GPU Chrome.
 
-## ▶ NEXT ACTION (resume here) — M1 + M2 + M3 COMPLETE; this is now the M4 entry point
-**M1 (hollow-01..07) + M2 (hollow-08..09) + M3 (hollow-10..11) are done (2026-07-20).** Findings +
-the full story are in [../wiki/hollow-overview.md](../wiki/hollow-overview.md). Green: `@hollow/sim-core`
-170 + `@tool/hollow-sim` 26 + `@hollow/client` 253 + `@engine/core` 269; whole-workspace typecheck
-clean (Farm/Citadel untouched). Everything local on `hollow`, unpushed. Commits are only-my-paths each
-slice.
+## hollow-12 — how it went (2026-07-20)
+Split into two sequential Sonnet dispatches, both fully headless-verifiable (no Chrome gate) —
+sim-core only.
+- **12a governance core** (`96f0bf5`): new **GOVERNANCE stage between TRUST-ACCRUAL and COMMUNITY**
+  (`HollowGovernanceSystem`). Per-member **standing** = `0.30·contribution + 0.20·help +
+  0.35·trustHeld + 0.15·tenure`; highest standing = contestable **leader** (argmax, lowest-id
+  tie-break). **Votable norms** (shareRate/cooperationExpectation/**admissionPolicy** — new) drift
+  ≤`NORM_VOTE_STEP`/pass toward a standing+genome-weighted target (leader vote ×2, not dictatorial).
+  **Sanctions**: hoarding or antisocial-act severity → fine + trust penalty, or **exclusion** above a
+  threshold. **Norm-clash** erodes an outlier's outgoing trust + belonging, feeding the EXISTING
+  COMMUNITY LEAVE/SPLIT for factional splits. `ONT_GOVERNANCE.{LEADER_CHANGED,NORM_CHANGED,SANCTIONED}`
+  → chronicle. Leader/standing/admissionPolicy surfaced additively (optional) on the snapshot.
+- **12b antagonism arcs** (`1b32909`): the missing persistent memory so hostility has ARCS, not a
+  stateless recompute. New `Feud` component (directed grudge `[0,MAX]` per peer); `HollowFeudSystem`
+  in the **PERCEIVE stage after witness** (same "world/message → relationship fold", one-tick lag).
+  Harm (detected steal/sabotage, attack, rumor) escalates the victim's grudge toward the actor;
+  cooperative acts + flat passive decay reconcile it, with a **hysteresis band** (start 0.25 >
+  reconcile 0.10) so `ONT_FEUD.{STARTED,ESCALATED,RECONCILED}` each fire once per real transition.
+  Grudge feeds back into the four antagonistic deliberators (biases target SELECTION + a bounded
+  additive score bonus) so A keeps re-targeting B and mutual harm spirals — but the rarity gates
+  (attack 0.99 / rumor) stay on **RAW** trust so a grudge can bias *which* eligible target is picked,
+  never manufacture hostility. `feud_active_dyads` metric added.
+
+**Determinism (controller-audited, by hand):** NEITHER slice adds an `Rng` or a new `rng.fork(...)` —
+all governance/feud decisions are pure arithmetic over already-deterministic inputs (trust ledger,
+genome floats, harm/coop events), every tie broken by lowest id, every sweep id-sorted (never raw
+`Map`/`World.query` order). The existing fork block is byte-unchanged (grep-confirmed) and both
+determinism tests include an `rng.nextU32()` continuation check proving the root stream is undisturbed.
+
+**Emergence verification (the integration guardrail):** cross-seed divergence test shows leaders /
+share-rate / sanctions / feuds genuinely diverge across seeds (not a scripted constant); a greedy vs
+loyal cohort diverges **directionally** (greedy → shareRate→0, 143–215 antag acts, 21–26 feuds
+started, and the greedy town self-culls 20→6–9 survivors; loyal → shareRate 0.6, ~zero antagonism).
+Real-run emergence: full STARTED→ESCALATED→RECONCILED arcs appear from **undirected** deliberation at
+an aggressive cohort/scale — but an HONEST NEGATIVE was recorded: a MILD greedy skew (0.85) at
+300–400t produced ZERO antisocial acts (antagonism gates are tuned for rarity + are needPressure-
+dominated), so feud arcs are a **tail phenomenon** needing an aggressive population + longer runs
+(700t) to manifest. Green: `@hollow/sim-core` **193** (was 170) + `@tool/hollow-sim` 26; typecheck clean.
+
+## ▶ NEXT ACTION (resume here) — M1 + M2 + M3 + hollow-12 COMPLETE; hollow-13 is the last M4 brief
+**M1 (hollow-01..07) + M2 (hollow-08..09) + M3 (hollow-10..11) + hollow-12 (governance + antagonism
+arcs) are done (2026-07-20).** Findings + the full story are in
+[../wiki/hollow-overview.md](../wiki/hollow-overview.md). Green: `@hollow/sim-core` **193** +
+`@tool/hollow-sim` 26 + `@hollow/client` 253 + `@engine/core` 269; whole-workspace typecheck clean
+(Farm/Citadel untouched). Everything local on `hollow`, unpushed. Commits are only-my-paths each slice.
 
 **⚠ Carried-forward, still open (M2 did NOT close these):**
 - **M2's live 3D image is human-unverified** (WebGPU headless unavailable). Someone must run the
@@ -212,17 +252,21 @@ slice.
 
 To resume (M4):
 1. Confirm baseline: `npm run test -w @hollow/client` (253) + `npm run test -w @hollow/sim-core`
-   (170) + `npm run test -w @tool/hollow-sim` (26) + whole-workspace `npm run typecheck`. For the
+   (193) + `npm run test -w @tool/hollow-sim` (26) + whole-workspace `npm run typecheck`. For the
    visual + interaction: run the Chrome checklist below.
-2. **Still recommended before/alongside M4:** an **economy-deepening brief** (persistent inventory /
-   real scarcity) so `steal`/`trade` stop being dormant (see hollow-overview.md "Known limitations").
-   Note M3's shocks give a lever to stress the economy now.
-3. **M4 (hollow-12, 13)** specs are queued in `corpus/todos/`: 12 governance/politics (emergent
-   leaders, votable norms, collective sanctions, feud/reconciliation), 13 LLM rationalizer seam
-   (bounded choose-and-narrate within BDI candidates, event-triggered + async + off-by-default
-   deterministic, Haiku default). Dispatch on Sonnet executors, same verify-gate discipline. 12 is
-   sim-core (fully headless-verifiable); 13 introduces a NON-deterministic live mode gated behind an
-   off-by-default flag — keep M1–M3 byte-deterministic when it's off.
+2. **Recommended before/alongside hollow-13:** an **economy-deepening brief** (persistent inventory /
+   real scarcity) so `steal`/`trade` stop being dormant AND so hollow-12's feud arcs stop being a
+   tail phenomenon (they need an aggressive cohort to fire today — see hollow-overview.md "Known
+   limitations"). M3's shocks give a lever to stress the economy now.
+3. **Governance/feuds are NOT surfaced in the 3D client / research UI yet** — 12a+12b are sim-core +
+   observe (chronicle events + a metric) only. A follow-up client brief could render leader/standing,
+   norm state, sanctions, and active feuds in the inspect panel / dashboard (headless-unverifiable
+   visual, Chrome-gated like the rest of M2/M3).
+4. **hollow-13 LLM rationalizer seam** (last M4 brief) spec queued in `corpus/todos/`: bounded
+   choose-and-narrate within BDI candidates, event-triggered + async + off-by-default deterministic,
+   Haiku default. Dispatch on a Sonnet executor, same verify-gate discipline. It introduces a
+   NON-deterministic live mode gated behind an off-by-default flag — keep M1–M3 + hollow-12
+   byte-deterministic when it's off (the determinism tests + `rng.nextU32()` continuation are the guard).
 4. Housekeeping: stale `git stash@{0}` (if present) — drop when convenient; ensure `hollow-out/`
    (CLI EXPORT_DIR) is gitignored.
 

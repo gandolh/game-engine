@@ -1,5 +1,5 @@
 ---
-summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (shared observe module + live chronicle/dashboard + persona authoring + deterministic shocks/replay), plus the load-bearing decisions + known limitations.
+summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (shared observe module + live chronicle/dashboard + persona authoring + deterministic shocks/replay), M4 hollow-12 governance (emergent leaders/votable norms/sanctions) + antagonism arcs (persistent grudge escalation/reconciliation), plus the load-bearing decisions + known limitations.
 updated: 2026-07-20
 ---
 
@@ -106,60 +106,40 @@ Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12
 
 ## M2 — engine 3D renderer + cozy town (2026-07-20)
 The first true-3D path in the repo (old WebGPU renderer deleted; Citadel's is 2D sprite-batch). Five
-slices (details in log.md + commits):
-- **08a `@engine/core/render3d` core** (`b5f146e`) — promoted Citadel's generic primitive→mesh
-  generators (material key generalized to `string`; engine ships **no palette**) + the 3D math that
-  didn't exist: `mat4` (column-major, `perspective` at **WebGPU clip z∈[0,1]**), `OrbitCamera`, ray
-  `pick`. Pure, 37 tests.
-- **08b WebGPU layer** (`575b9d0`) — standalone device/pipeline-cache/instanced `drawIndexed`;
-  `scene3d.wgsl` cozy shading. All CPU packing factored into pure tests; only GPU orchestration is
-  untestable-here.
-- **09a town shell** (`0848664`) — ground+relief, territory tints, family-growing clustered homes,
-  stock-scaled nodes, god-cam, day/night. Added the render-only per-agent **`action`** snapshot field
-  (determinism-safe: written by ACT, read only by the snapshot builder).
-- **09b gene-driven humanoids** (`c3b8441`) — appearance-colored via the **mesh-variant scheme**
-  (skin×hair×pose, instanced); gene/stage scale + walk cycle + action poses on the render clock.
-- **09c legibility + interaction** (`4bd5994`) — 2D overlay glyphs, `[T]` tags, click→read-only
-  worker `inspect` → DOM panel, follow-cam.
+slices (full detail in log.md + BUILD-STATE): **08a** `@engine/core/render3d` core (promoted mesh
+generators, engine ships **no palette**; new `mat4` at **WebGPU clip z∈[0,1]**, `OrbitCamera`, ray
+`pick`; pure, 37 tests) + **08b** WebGPU device/pipeline/instanced `drawIndexed` + `scene3d.wgsl`
+(CPU packing pure-tested, only GPU orchestration untestable-here). **09a** town shell (ground/relief,
+territory tints, family-growing homes, stock-scaled nodes, day/night, + a determinism-safe render-only
+per-agent `action` field) + **09b** gene-driven humanoids via the **mesh-variant scheme** (skin×hair×
+pose, instanced) + **09c** overlay glyphs / `[T]` tags / click→read-only-worker `inspect` → DOM panel
+/ follow-cam.
 
-**Post-Chrome fixes** (from the first real-GPU view): the material buffer used an 8-float ("std140")
-stride while the WGSL `var<storage>` array is **std430 = 4-float** → the shader read every odd
-material index from zero-padding → houses/rocks/half the palette rendered black (`53bc26c`, the key
-bug); plus smoother half-Lambert lighting with a floor so no face is ever black + a slower day cycle
-(`01beb9c`); and footprint-hitbox non-overlapping home placement (`f1d1991`). Note **`Rng.fork()`
-consumes a parent draw** — appended forks must go after existing ones (see M3 audit).
+**Post-Chrome fixes** (the headline: `53bc26c`) — the material buffer used an 8-float ("std140") stride
+but the WGSL `var<storage>` array is **std430 = 4-float**, so the shader read every odd material index
+from zero-padding → half the palette rendered black; plus smoother half-Lambert lighting with a floor +
+slower day (`01beb9c`) and footprint-hitbox home placement (`f1d1991`).
 
-## M2 verification
-Headless-testable all green (`@hollow/client` + `@engine/core` incl. the WebGPU-z trap + all packing,
-whole-workspace typecheck, palette guard, Farm/Citadel untouched). The **live 3D image is NOT
-self-verified** — the sandbox Chrome has no WebGPU adapter (`requestAdapter()` → null), so the visual
-acceptance is **gated on a human at `npm run hollow`** (engine example: `npm run demo3d -w
-@hollow/client`).
+**M2 verification.** Headless-testable all green; the **live 3D image is NOT self-verified** — the
+sandbox Chrome has no WebGPU adapter (`requestAdapter()` → null), so visual acceptance is **human-gated
+at `npm run hollow`** (engine example: `npm run demo3d -w @hollow/client`).
 
 ## M3 — research surfaces + director role (2026-07-20)
-Turns the viewer into a research instrument. Four slices (details in log.md + commits):
-- **10a shared observe** (`d71f372`) — promoted the metrics/chronicle/export serializers into a
-  browser-safe **`@hollow/sim-core/observe`** (single source of truth; the CLI's tests stayed
-  UNCHANGED = byte-identity proof). Worker forwards `{events}` deltas + per-year `{metrics}` rows to a
-  client `research-store`.
-- **10b chronicle + dashboard + export** (`e2fbdc7`) — live filterable chronicle (click→camera-jump,
-  dead-actor lineage fallback), live canvas dashboard, in-app metrics.csv/events.jsonl/lineage.json
-  (byte-identical to the CLI). Read-only.
-- **11a persona + shocks + replay** (`66444c2`) — determinism-critical: **`@hollow/sim-core/persona`**
-  (extended `PersonaSeed`: archetypes+counts+per-gene lock; `ARCHETYPE_PRESETS`; deterministic
-  `applyPersonaSeed`) + **`ONT_SHOCK`** famine/boom/disaster/plague via a `HollowShockSystem` in a new
-  **SHOCK stage first in the tick** + a replayable `interventionLog`. Headline test: `seed +
-  persona-seed + interventionLog` replays **byte-identical**.
-- **11b authoring + perturbation UI** (`4716203`) — persona authoring screen (sliders + randomize-
-  with-lock), time controls (pause/step/1–8×, pure pacing), shock buttons, and a URL-hash **run
-  descriptor** that replays a shared run identically.
+Turns the viewer into a research instrument. Four slices (detail in log.md + BUILD-STATE): **10a**
+promoted the metrics/chronicle/export serializers into a browser-safe **`@hollow/sim-core/observe`**
+(single source of truth; the CLI's tests stayed UNCHANGED = byte-identity proof; worker forwards
+`{events}`/`{metrics}` to a client `research-store`) + **10b** live chronicle (click→camera-jump),
+dashboard, and in-app export byte-identical to the CLI (read-only). **11a** (determinism-critical)
+**`@hollow/sim-core/persona`** (archetypes+counts+per-gene lock; deterministic `applyPersonaSeed`) +
+**`ONT_SHOCK`** famine/boom/disaster/plague via a `HollowShockSystem` in a new **SHOCK stage first in
+the tick** + a replayable `interventionLog` (headline test: replays byte-identical) + **11b** the
+authoring screen, time controls (pure pacing), shock buttons, and a URL-hash **run descriptor**.
 
-**M3 verification.** client 253 + sim-core 170 + tool 26 green; whole-workspace typecheck clean.
-Determinism audited by hand: **`Rng.fork()` consumes a parent draw**, so 11a's new forks are appended
-after all existing forks and created unconditionally → existing draw order byte-preserved; shocks only
-at the tick boundary. The **DOM/interaction flow** (author→start→pause/step→famine→chronicle→Share→
-identical replay in a fresh tab) was verified headless via agent-browser (DOM + worker need no GPU);
-only the **3D image** stays real-Chrome-gated.
+**M3 verification.** client 253 + sim-core 170 + tool 26 green; typecheck clean. Determinism audited by
+hand: **`Rng.fork()` consumes a parent draw**, so 11a's new forks are appended after all existing forks
++ created unconditionally → existing draw order byte-preserved; shocks only at the tick boundary. The
+**DOM/interaction flow** was verified headless via agent-browser (DOM + worker need no GPU); only the
+**3D image** stays real-Chrome-gated.
 
 ## Known limitations (carried forward)
 - **`steal` and `trade` are dormant (count 0) in natural play.** A fed, cooperative town has no
@@ -170,6 +150,10 @@ only the **3D image** stays real-Chrome-gated.
   divergence is delivered by gift/share/help/sabotage/rumor.
 - **`attack` is intentionally rare** (aggression gate 0.99) to keep the population stable under
   random genomes; it does fire (0–39/seed) and feeds the violence-death seam.
+- **hollow-12 feud arcs are a tail phenomenon.** Because the antagonism gates are tuned for rarity and
+  the scoring is needPressure-dominated, a *mild* greedy skew (0.85) fires ZERO antisocial acts in
+  300–400t — grudge escalation/reconciliation only manifests at an aggressive cohort + longer runs
+  (700t). The economy-deepening brief that makes steal/trade emergent will also make feuds everyday.
 - **`betray` and `exclude`** verbs from the hollow-06 spec are deferred (documented seams).
 - **Farm behavior-preservation for hollow-02** was gated on unit tests only (the byte-identity
   `EXPORT=json` diff was skipped per user); residual risk lives in the encounter-trade `OfferLedger`
@@ -177,8 +161,10 @@ only the **3D image** stays real-Chrome-gated.
 
 ## Where things live
 - Sim: [games/hollow/sim-core/src/](../../games/hollow/sim-core/src/) — `sim-bootstrap.ts`,
-  `agents/` (villager + social-verbs), `community/`, `family/` (lifecycle/pairbond/reproduction +
-  registry + genetics + constants), `lineage/`, `social/` (act + witness + constants), `protocols/`.
+  `agents/` (villager + social-verbs), `community/`, `governance/` (hollow-12a standing/leader/norms/
+  sanctions), `family/` (lifecycle/pairbond/reproduction + registry + genetics + constants),
+  `lineage/`, `social/` (act + witness + **feud** + constants), `protocols/` (incl. `governance.ts`,
+  `feud.ts`).
 - Tool: [tools/hollow-sim/src/](../../tools/hollow-sim/src/) — `env.ts` (research profile),
   `metrics.ts`, `chronicle.ts`, `export.ts`, `run-core.ts`, `determinism.ts`.
 - Observe / research (M3): [games/hollow/sim-core/src/observe/](../../games/hollow/sim-core/src/observe/)
@@ -196,9 +182,21 @@ only the **3D image** stays real-Chrome-gated.
   `inspect-panel.ts`, `main.ts`.
 - Live build tracker / handoffs: [../todos/2026-07-17-hollow-BUILD-STATE.md](../todos/2026-07-17-hollow-BUILD-STATE.md).
 
-## Next (M4)
-**M1 (hollow-01..07), M2 (hollow-08..09), and M3 (hollow-10..11) are complete.** M4 is depth:
-hollow-12 governance/politics (emergent leaders, votable norms, collective sanctions, feuds),
-hollow-13 LLM rationalizer seam (bounded choose-and-narrate within BDI candidates, event-triggered +
-async + off-by-default deterministic). Both specs are written + queued in `corpus/todos/`. The economy
-deepening that activates the dormant steal/trade verbs should still slot in before or alongside M4.
+## M4 — governance & antagonism arcs (hollow-12, done)
+Depth on the emergent society, both slices sim-core + fully headless-verifiable (`96f0bf5` + `1b32909`):
+- **12a governance** — a `GOVERNANCE` stage (between TRUST-ACCRUAL and COMMUNITY) gives each community
+  per-member **standing** (contribution/help/trust-held/tenure), a contestable **leader** (argmax,
+  lowest-id tie-break), **votable norms** (shareRate/cooperationExpectation/admissionPolicy drift on a
+  standing+genome-weighted vote), and **sanctions** (fine + trust penalty, or exclusion). Norm-clash
+  erodes an outlier's trust/belonging, feeding the existing LEAVE/SPLIT for factional splits.
+  `ONT_GOVERNANCE.{LEADER_CHANGED,NORM_CHANGED,SANCTIONED}` → chronicle.
+- **12b antagonism arcs** — a persistent directed `Feud` grudge (was: hostility was a stateless
+  per-tick recompute) escalated by harm and reconciled by cooperation + decay, with a hysteresis band
+  so `ONT_FEUD.{STARTED,ESCALATED,RECONCILED}` fire once per transition. Grudge biases the antagonistic
+  deliberators' target selection (spirals) but rarity gates stay on raw trust.
+- **Determinism**: neither slice adds an `Rng`/fork — pure arithmetic over deterministic inputs, id-sorted
+  ties; `rng.nextU32()` continuation tests prove the root stream is undisturbed. Cross-seed divergence +
+  greedy-vs-loyal directional tests prove the dynamics emerge, not scripted (sim-core **193** green).
+
+## Next (hollow-13 + economy)
+hollow-13 LLM rationalizer seam (bounded choose-and-narrate within BDI candidates, event-triggered + async + off-by-default deterministic) is the last M4 brief — spec queued in `corpus/todos/`. An economy deepening (persistent inventory / real scarcity) should slot in first: it activates the dormant steal/trade verbs AND turns hollow-12's feuds from a tail phenomenon into everyday play.

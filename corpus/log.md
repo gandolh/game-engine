@@ -4,6 +4,43 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-20] build | Hollow — hollow-12 COMPLETE (governance + emergent politics + antagonism arcs)
+
+First M4 brief, both slices sim-core + fully headless-verifiable (no Chrome gate), controller-verified
++ committed per slice; folded into [wiki/hollow-overview.md](wiki/hollow-overview.md) "M4" and the
+BUILD-STATE tracker.
+
+- **hollow-12a governance core** (`96f0bf5`) — new `GOVERNANCE` stage between TRUST-ACCRUAL and
+  COMMUNITY (`HollowGovernanceSystem`). Per-member standing (contribution/help/trust-held/tenure) →
+  contestable leader (argmax, lowest-id tie-break); votable norms (shareRate/cooperationExpectation/
+  new admissionPolicy) drift ≤step toward a standing+genome-weighted target (leader vote ×2);
+  sanctions (fine + trust penalty, or exclusion above a severity threshold); norm-clash erodes an
+  outlier's trust/belonging → feeds the existing COMMUNITY LEAVE/SPLIT for factional splits.
+  `ONT_GOVERNANCE.{LEADER_CHANGED,NORM_CHANGED,SANCTIONED}` → chronicle; leader/standing/admissionPolicy
+  surfaced additively (optional) on the snapshot.
+- **hollow-12b antagonism arcs** (`1b32909`) — persistent directed `Feud` grudge component (hostility
+  was a stateless per-tick recompute; now it has memory). `HollowFeudSystem` in the PERCEIVE stage
+  after witness: harm (detected steal/sabotage, attack, rumor) escalates the victim's grudge toward the
+  actor; cooperative acts + flat passive decay reconcile it; a hysteresis band (start 0.25 > reconcile
+  0.10) makes `ONT_FEUD.{STARTED,ESCALATED,RECONCILED}` fire once per transition. Grudge biases the four
+  antagonistic deliberators' target selection (A keeps targeting B → spirals) + a bounded score bonus,
+  but rarity gates (attack 0.99 / rumor) stay on RAW trust. `feud_active_dyads` metric.
+
+**Determinism (controller-audited by hand, per the 11a lesson):** NEITHER slice adds an `Rng` or a new
+`rng.fork(...)` — all decisions are pure arithmetic over already-deterministic inputs (trust ledger,
+genome floats, harm/coop events), ties broken by lowest id, sweeps id-sorted (never raw Map/query
+order). Existing fork block byte-unchanged (grep-confirmed); both determinism tests include an
+`rng.nextU32()` continuation check proving the root stream is undisturbed.
+
+**Emergence (the integration guardrail, not just green tests):** cross-seed divergence test shows
+leaders/share-rate/sanctions/feuds genuinely diverge across seeds; greedy-vs-loyal cohorts diverge
+directionally (greedy → shareRate→0, 143–215 antag acts, 21–26 feuds, self-culls 20→6–9 survivors;
+loyal → shareRate 0.6, ~zero antagonism). Real-run STARTED→ESCALATED→RECONCILED arcs emerge from
+UNDIRECTED deliberation at an aggressive cohort. **Honest negative recorded:** a MILD greedy skew
+(0.85) fires zero antisocial acts in 300–400t — feud arcs are a TAIL phenomenon (gates tuned for
+rarity + needPressure-dominated scoring), to be made everyday by the economy-deepening brief. Green:
+`@hollow/sim-core` **193** (was 170) + `@tool/hollow-sim` 26; typecheck clean.
+
 ## [2026-07-20] build | Hollow — M3 COMPLETE (research surfaces: chronicle, dashboard, authoring, perturbation)
 
 Continued into M3 on branch **`hollow`** after the M2 render fixes were confirmed in real Chrome.
