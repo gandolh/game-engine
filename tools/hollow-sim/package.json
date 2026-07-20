@@ -5,14 +5,18 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "check-determinism": "tsx src/index.ts --check-determinism",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@engine/core": "0.1.0",
     "@hollow/sim-core": "0.0.0"
   },
   "devDependencies": {
+    "@types/node": "25.9.1",
     "@webgpu/types": "0.1.70",
-    "tsx": "4.22.3"
+    "tsx": "4.22.3",
+    "vitest": "4.1.7"
   }
 }
