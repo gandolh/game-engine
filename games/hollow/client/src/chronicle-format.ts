@@ -14,9 +14,17 @@
  * falls back to a plain "Event: <ontology>" line / "other" category / no
  * actors, rather than throwing — a `ChronicleEvent`'s body shape is only as
  * trustworthy as whatever ontology the sim happens to be emitting today.
+ *
+ * Chunk hollow-11b adds `ONT_SHOCK.*` (famine/boom/disaster/plague,
+ * `@hollow/sim-core/protocols`'s environmental-shock ontology, hollow-11a).
+ * A shock event has no single agent actor (`chronicleEventActors` returns
+ * `[]`, same as any other non-agent-scoped event) and buckets into the
+ * existing `"famine"` category (broadened from "starvation onset only" to
+ * "environmental shock" — see `chronicleCategory`'s doc).
  */
 import { agentName } from "./agent-name";
-import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION } from "@hollow/sim-core/protocols";
+import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_SHOCK } from "@hollow/sim-core/protocols";
+import type { Shock, FamineShock, BoomShock, DisasterShock, PlagueShock } from "@hollow/sim-core/protocols";
 import type { ChronicleEvent } from "@hollow/sim-core/observe";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +51,18 @@ function bool(ev: ChronicleEvent, key: string): boolean | undefined {
 function numArr(ev: ChronicleEvent, key: string): number[] {
   const v = ev[key];
   return Array.isArray(v) ? v.filter((x): x is number => typeof x === "number") : [];
+}
+
+/** The nested `Shock` payload of an `ONT_SHOCK.*` event's body (see
+ *  `protocols/shock.ts`'s `ShockAppliedBody` — the worker's chronicle
+ *  capture spreads that body straight onto the `ChronicleEvent`, so `shock`
+ *  is a nested object field, unlike every other flat field this module
+ *  reads). Defensive, like every other reader here — a `ChronicleEvent`'s
+ *  body shape is only as trustworthy as whatever the sim emits. */
+function shockField(ev: ChronicleEvent): Shock | undefined {
+  const s = ev["shock"];
+  if (s !== null && typeof s === "object" && "kind" in s) return s as Shock;
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +97,9 @@ const ANTAG_ONTOLOGIES: ReadonlySet<string> = new Set([
   ONT_SOCIAL.RUMOR,
   ONT_SOCIAL.ATTACK,
 ]);
+/** Every environmental-shock ontology (chunk hollow-11b) — buckets into the
+ *  same `"famine"` category as starvation-onset, see `chronicleCategory`. */
+const SHOCK_ONTOLOGIES: ReadonlySet<string> = new Set(Object.values(ONT_SHOCK));
 
 /** Buckets an ontology string into one of `CHRONICLE_CATEGORIES` — pure,
  *  total (every input maps to SOME category; `family.stage-changed` and any
@@ -89,6 +112,7 @@ export function chronicleCategory(ontology: string): ChronicleCategory {
   if (COOP_ONTOLOGIES.has(ontology)) return "cooperation";
   if (ANTAG_ONTOLOGIES.has(ontology)) return "antagonism";
   if (ontology === ONT_STARVATION.ONSET) return "famine";
+  if (SHOCK_ONTOLOGIES.has(ontology)) return "famine";
   return "other";
 }
 
@@ -297,6 +321,22 @@ function bodyLine(ev: ChronicleEvent): string {
     case ONT_STARVATION.ONSET: {
       const id = num(ev, "agentId");
       return `${agentOrFallback(id)} begins starving`;
+    }
+    case ONT_SHOCK.FAMINE: {
+      const shock = shockField(ev) as FamineShock | undefined;
+      return `Famine strikes: ${shock?.resourceKind ?? "resource"} regen x${shock ? shock.factor.toFixed(2) : "?"} for ${shock?.durationTicks ?? "?"} ticks`;
+    }
+    case ONT_SHOCK.BOOM: {
+      const shock = shockField(ev) as BoomShock | undefined;
+      return `Boom: ${shock?.resourceKind ?? "resource"} regen x${shock ? shock.factor.toFixed(2) : "?"} for ${shock?.durationTicks ?? "?"} ticks`;
+    }
+    case ONT_SHOCK.DISASTER: {
+      const shock = shockField(ev) as DisasterShock | undefined;
+      return `Disaster destroys a ${shock?.resourceKind ?? "resource"} node`;
+    }
+    case ONT_SHOCK.PLAGUE: {
+      const shock = shockField(ev) as PlagueShock | undefined;
+      return `Plague drains ${shock?.need ?? "a need"} (${shock ? shock.amountPerTick : "?"}/tick for ${shock?.durationTicks ?? "?"} ticks)`;
     }
     default:
       return `Event: ${o}`;

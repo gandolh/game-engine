@@ -50,7 +50,7 @@ const CATEGORY_LABEL: Readonly<Record<ChronicleCategory, string>> = {
   community: "Community",
   cooperation: "Cooperation",
   antagonism: "Antagonism",
-  famine: "Famine",
+  famine: "Famine/Shock",
   other: "Other",
 };
 

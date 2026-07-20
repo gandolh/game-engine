@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION } from "@hollow/sim-core/protocols";
+import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_SHOCK } from "@hollow/sim-core/protocols";
 import type { ChronicleEvent } from "@hollow/sim-core/observe";
 import { agentName } from "./agent-name";
 import { formatChronicleEvent, chronicleEventActors, chronicleCategory, CHRONICLE_CATEGORIES } from "./chronicle-format";
@@ -253,5 +253,68 @@ describe("chronicleCategory", () => {
   it("categorizes stage-changed and unknown ontologies as other", () => {
     expect(chronicleCategory(ONT_FAMILY.STAGE_CHANGED)).toBe("other");
     expect(chronicleCategory("made.up")).toBe("other");
+  });
+
+  it("categorizes every ONT_SHOCK ontology as famine (chunk hollow-11b)", () => {
+    for (const ontology of Object.values(ONT_SHOCK)) {
+      expect(chronicleCategory(ontology)).toBe("famine");
+    }
+  });
+});
+
+describe("ONT_SHOCK formatting (chunk hollow-11b)", () => {
+  it("formats a famine shock with resource/factor/duration", () => {
+    const line = formatChronicleEvent(
+      ev({
+        tick: 20,
+        ontology: ONT_SHOCK.FAMINE,
+        seq: 0,
+        shock: { kind: "famine", resourceKind: "food", factor: 0.3, durationTicks: 120 },
+      }),
+      FMT,
+    );
+    expect(line).toBe("Y1  Famine strikes: food regen x0.30 for 120 ticks");
+  });
+
+  it("formats a boom shock", () => {
+    const line = formatChronicleEvent(
+      ev({
+        tick: 40,
+        ontology: ONT_SHOCK.BOOM,
+        seq: 1,
+        shock: { kind: "boom", resourceKind: "material", factor: 2.5, durationTicks: 60 },
+      }),
+      FMT,
+    );
+    expect(line).toBe("Y2  Boom: material regen x2.50 for 60 ticks");
+  });
+
+  it("formats a disaster shock", () => {
+    const line = formatChronicleEvent(
+      ev({ tick: 60, ontology: ONT_SHOCK.DISASTER, seq: 2, shock: { kind: "disaster", resourceKind: "food" } }),
+      FMT,
+    );
+    expect(line).toBe("Y3  Disaster destroys a food node");
+  });
+
+  it("formats a plague shock", () => {
+    const line = formatChronicleEvent(
+      ev({
+        tick: 80,
+        ontology: ONT_SHOCK.PLAGUE,
+        seq: 3,
+        shock: { kind: "plague", need: "rest", amountPerTick: 2, durationTicks: 100 },
+      }),
+      FMT,
+    );
+    expect(line).toBe("Y4  Plague drains rest (2/tick for 100 ticks)");
+  });
+
+  it("has no single agent actor (chronicleEventActors returns [])", () => {
+    expect(
+      chronicleEventActors(
+        ev({ tick: 20, ontology: ONT_SHOCK.FAMINE, seq: 0, shock: { kind: "famine", resourceKind: "food", factor: 0.3, durationTicks: 120 } }),
+      ),
+    ).toEqual([]);
   });
 });
