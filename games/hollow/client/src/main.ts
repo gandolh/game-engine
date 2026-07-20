@@ -1,5 +1,6 @@
 /**
- * Hollow — browser entry point (chunk hollow-09a, extended by hollow-09c).
+ * Hollow — browser entry point (chunk hollow-09a, extended by hollow-09c and
+ * hollow-10b).
  *
  * Boots the sim worker and the cozy 3D town app shell (`render3d/app.ts`)
  * against the `#scene` canvas, then wires chunk hollow-09c's legibility +
@@ -14,20 +15,40 @@
  *    into the side panel (`inspect-panel.ts`);
  *  - `T` toggles tags, `F` toggles follow-cam for the current selection.
  *
+ * Chunk hollow-10b adds the research-instrument UI — a fixed-position LEFT
+ * rail (`#hollow-left-rail`) stacking the live chronicle (`chronicle-panel.ts`),
+ * live metrics dashboard (`dashboard-panel.ts`), and export buttons
+ * (`export-panel.ts`) as DOM overlays alongside (never wrapping) the
+ * `#scene` canvas — the canvas keeps filling the FULL viewport exactly as
+ * before, so `app.ts`'s `ResizeObserver` is untouched. A chronicle row click
+ * jumps the camera via `handleChronicleClick` below (selection + a
+ * dead-actor-safe follow, distinct from `handleAgentClicked`'s canvas-pick
+ * path, which deliberately never auto-follows).
+ *
  * Sim/render boundary (CLAUDE.md): this file, like `app.ts`, only reads
  * `HollowSnapshot`s off `worker`'s `message` events and the render clock —
- * nothing here ever mutates sim state; the `"inspect"` request is a
- * READ-ONLY query (see `worker/inspect.ts`'s header).
+ * nothing here ever mutates sim state; the `"inspect"`/`"requestLineage"`
+ * requests are READ-ONLY queries (see `worker/inspect.ts`'s and
+ * `worker/sim-worker.ts`'s headers).
  */
 import "./style.css";
 import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
-import type { WorkerInitMessage, WorkerInspectMessage, WorkerOutbound } from "./worker/sim-worker";
+import type { LineageEntry } from "@hollow/sim-core/lineage";
+import type {
+  WorkerInitMessage,
+  WorkerInspectMessage,
+  WorkerRequestLineageMessage,
+  WorkerOutbound,
+} from "./worker/sim-worker";
 import { startHollowApp } from "./render3d/app";
 import { HOLLOW_PAL } from "./render/hollow-palette";
 import { createOverlayCanvas, resizeOverlayCanvas, drawAgentOverlay, type OverlayAgentInput } from "./render3d/overlay";
 import { renderInspectPanel, type InspectPanelCallbacks } from "./inspect-panel";
 import type { InspectDetail } from "./inspect-detail";
 import { ingestEvents, ingestMetricsRow } from "./research-store";
+import { createChroniclePanel } from "./chronicle-panel";
+import { createDashboardPanel } from "./dashboard-panel";
+import { createExportPanel } from "./export-panel";
 
 // Deterministic seed — every sim entry point threads one through from the
 // start (determinism is load-bearing; see CLAUDE.md), even though nothing
@@ -111,6 +132,35 @@ function toggleFollow(): void {
   if (currentDetail) showPanel(currentDetail); // re-render for the button's label/state
 }
 
+/**
+ * Chunk hollow-10b: a chronicle-row click's camera jump. Distinct from
+ * `handleAgentClicked` (the canvas ray-pick callback, which never
+ * auto-follows — follow-cam there is only ever an explicit `F`/panel-button
+ * toggle) — a chronicle click is a request to GO SEE this agent, so it
+ * engages follow-cam immediately, unless the agent is no longer alive this
+ * frame (`getAgentRenderState()` won't have it — e.g. clicking a decades-old
+ * death event), in which case selection still resolves (the "inspect" round
+ * trip falls back to the permanent lineage record for a dead agent — see
+ * `worker/inspect.ts`'s header) but there's nothing live to follow.
+ */
+function handleChronicleClick(agentId: number): void {
+  if (followingAgentId !== null) {
+    followingAgentId = null;
+    app.setFollow(null);
+  }
+  selectedAgentId = agentId;
+  currentDetail = null;
+  app.setSelectedAgent(agentId);
+  const inspect: WorkerInspectMessage = { type: "inspect", agentId };
+  worker.postMessage(inspect);
+
+  const renderState = app.getAgentRenderState();
+  if (renderState !== null && renderState.has(agentId)) {
+    followingAgentId = agentId;
+    app.setFollow(agentId);
+  }
+}
+
 function handleAgentClicked(agentId: number | null): void {
   // Any new click — a different agent, or empty space — cancels an active
   // follow (see `render3d/app.ts`'s `setFollow` doc: an explicit re-press of
@@ -150,6 +200,20 @@ const app = startHollowApp(canvas, worker, {
 const init: WorkerInitMessage = { type: "init", seed: SEED, ticksPerDay: TICKS_PER_DAY };
 worker.postMessage(init);
 
+// Chunk hollow-10b: the `"requestLineage"`/`"lineage"` round trip backing
+// the export panel's `lineage.json` button (see `worker/sim-worker.ts`'s
+// header). At most one request is ever in flight per click, but a FIFO
+// queue costs nothing and tolerates a future double-click without
+// misattributing a reply.
+const pendingLineageResolvers: ((entries: LineageEntry[]) => void)[] = [];
+function requestLineage(): Promise<LineageEntry[]> {
+  return new Promise((resolve) => {
+    pendingLineageResolvers.push(resolve);
+    const req: WorkerRequestLineageMessage = { type: "requestLineage" };
+    worker.postMessage(req);
+  });
+}
+
 worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
   const msg = event.data;
   if (msg.type === "snapshot") {
@@ -163,15 +227,36 @@ worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
     else removePanel();
   } else if (msg.type === "events") {
     // Research/chronicle feed (chunk hollow-10a) — accumulated into
-    // `research-store.ts` for a future chronicle list (chunk hollow-10b);
-    // no UI consumes this yet.
+    // `research-store.ts`; rendered live by `chronicle-panel.ts` (chunk
+    // hollow-10b, mounted below).
     ingestEvents(msg.events);
   } else if (msg.type === "metrics") {
-    // Per-year metrics sample (chunk hollow-10a) — same store, future
-    // dashboard charts/export buttons are hollow-10b's job.
+    // Per-year metrics sample (chunk hollow-10a) — same store, rendered
+    // live by `dashboard-panel.ts` (chunk hollow-10b, mounted below).
     ingestMetricsRow(msg.row);
+  } else if (msg.type === "lineage") {
+    pendingLineageResolvers.shift()?.(msg.entries);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Research-instrument UI (chunk hollow-10b) — a fixed-position left rail
+// stacking the live chronicle, live metrics dashboard, and export buttons as
+// DOM overlays. Purely additive: the `#scene` canvas's own size/resize
+// handling (`app.ts`) is untouched — see this file's header.
+// ---------------------------------------------------------------------------
+
+const leftRail = document.createElement("div");
+leftRail.id = "hollow-left-rail";
+
+const chronicle = createChroniclePanel({ ticksPerDay: TICKS_PER_DAY, onSelectAgent: handleChronicleClick });
+const dashboard = createDashboardPanel();
+const exportPanel = createExportPanel({ requestLineage });
+
+leftRail.appendChild(chronicle.el);
+leftRail.appendChild(dashboard.el);
+leftRail.appendChild(exportPanel);
+appEl.appendChild(leftRail);
 
 // ---------------------------------------------------------------------------
 // `[T]` tag toggle / `F` follow toggle

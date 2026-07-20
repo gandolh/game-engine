@@ -32,10 +32,20 @@
  * (`ticksPerDay` doubles as the worker's sampling window — there's no
  * separate `ticksPerYear` knob here), plus one baseline row right after
  * init (mirroring the CLI's own "year 0" pre-tick sample).
+ *
+ * `"requestLineage"` (chunk hollow-10b): a READ-ONLY query mirroring
+ * `"inspect"`'s own round-trip contract — `sim.lineage.all()` is a plain
+ * read of the permanent `LineageRegistry` (see `@hollow/sim-core/lineage`'s
+ * header), never mutated here. Exists because `lineage.json`'s export data
+ * (chunk hollow-10b's export panel) isn't in the client-side research store
+ * (only the chronicle/metrics streams are) — the registry itself lives in
+ * this worker's `simResult`, so a request/response round trip is the only
+ * way for the client to read it.
  */
 import { bootstrapHollowSim } from "@hollow/sim-core/sim-bootstrap";
 import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import { createChronicle, MetricsSampler, type ChronicleEvent, type MetricsRow } from "@hollow/sim-core/observe";
+import type { LineageEntry } from "@hollow/sim-core/lineage";
 import type { InspectDetail } from "../inspect-detail";
 import { buildInspectDetail } from "./inspect";
 
@@ -50,7 +60,14 @@ export interface WorkerInspectMessage {
   agentId: number;
 }
 
-export type WorkerInbound = WorkerInitMessage | WorkerInspectMessage;
+/** Chunk hollow-10b: request every ever-recorded lineage entry (living or
+ *  dead) for the export panel's `lineage.json` button — see this file's
+ *  header. */
+export interface WorkerRequestLineageMessage {
+  type: "requestLineage";
+}
+
+export type WorkerInbound = WorkerInitMessage | WorkerInspectMessage | WorkerRequestLineageMessage;
 
 export type WorkerOutbound =
   | { type: "ready" }
@@ -61,7 +78,10 @@ export type WorkerOutbound =
   | { type: "events"; events: ChronicleEvent[] }
   /** One per-year(-boundary) metrics sample — see this file's header for
    *  the `tick % ticksPerDay === 0` cadence. */
-  | { type: "metrics"; row: MetricsRow };
+  | { type: "metrics"; row: MetricsRow }
+  /** Reply to `"requestLineage"` — every entry `sim.lineage.all()` has ever
+   *  recorded, sorted ascending by id (see that method's own doc). */
+  | { type: "lineage"; entries: LineageEntry[] };
 
 const TICK_HZ = 20;
 
@@ -144,6 +164,13 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       const currentTick = simResult.getSnapshot().tick;
       const detail = buildInspectDetail(simResult, currentTick, msg.agentId);
       self.postMessage({ type: "inspectResult", agentId: msg.agentId, detail } satisfies WorkerOutbound);
+      break;
+    }
+    case "requestLineage": {
+      if (simResult === null) break;
+      // Read-only — see this file's header.
+      const entries = simResult.lineage.all();
+      self.postMessage({ type: "lineage", entries } satisfies WorkerOutbound);
       break;
     }
   }

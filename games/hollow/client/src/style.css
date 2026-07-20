@@ -4,6 +4,16 @@
  * import the TS palette module, so palette purity (CLAUDE.md) is upheld by
  * setting `body`'s background/color from `HOLLOW_PAL` in `main.ts` instead
  * of a hex literal here (chunk hollow-09c; see `main.ts`'s header).
+ *
+ * Chunk hollow-10b adds the research-instrument left rail
+ * (`#hollow-left-rail`, holding the chronicle/dashboard/export panels —
+ * `main.ts`, `chronicle-panel.ts`, `dashboard-panel.ts`, `export-panel.ts`).
+ * It's a fixed-position OVERLAY, not a flex sibling of `canvas#scene` —
+ * `#scene` keeps its own `width:100%; height:100%` of `#app` untouched, so
+ * `app.ts`'s `ResizeObserver` (which reads `canvas.clientWidth/Height`)
+ * never sees a shrunk canvas. Every color below is set inline from
+ * `HOLLOW_PAL` by each panel's own TS module (same convention as this
+ * file's header note) — nothing here is a color rule.
  */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
@@ -21,4 +31,118 @@ canvas#scene {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+#hollow-left-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 42vw;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.hollow-chronicle-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 45%;
+  min-height: 0;
+  padding: 8px;
+}
+.hollow-chronicle-title {
+  flex: none;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.hollow-chronicle-filters {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.hollow-chronicle-chip {
+  flex: none;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.hollow-chronicle-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hollow-chronicle-row {
+  flex: none;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.hollow-dashboard-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 55%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  gap: 4px;
+}
+.hollow-dashboard-title {
+  flex: none;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.hollow-dashboard-chart {
+  flex: none;
+  margin-bottom: 8px;
+}
+.hollow-dashboard-chart-title {
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.hollow-dashboard-canvas {
+  display: block;
+  width: 100%;
+  height: 70px;
+}
+.hollow-dashboard-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10px;
+  margin-top: 2px;
+}
+.hollow-dashboard-legend-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 2px;
+}
+
+.hollow-export-panel {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+}
+.hollow-export-button {
+  flex: 1 1 0;
+  padding: 4px;
+  font-size: 10px;
+  font-family: inherit;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
 }
