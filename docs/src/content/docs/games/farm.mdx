@@ -1,0 +1,76 @@
+---
+title: Farm Valley
+description: 21 BDI farmers (20 AI + the playable Pip) compete over 100 in-game days — a watch-it-play sim that runs server-side and streams snapshots to the browser.
+---
+
+import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components'
+import Metrics from '../../../components/Metrics.astro'
+
+A top-down farming sim where **you don't play so much as watch AI farmers play**.
+A field of BDI-driven farmers plant, harvest, fish, forage, and trade across 100
+in-game days, chasing gold. You *can* step in as **Pip** — but the drama is
+emergent, not scripted.
+
+<Metrics
+  items={[
+    { v: '21', k: 'farmers (20 AI + Pip)' },
+    { v: '100', k: 'in-game days' },
+    { v: '4', k: 'personality archetypes' },
+    { v: '240', unit: '²', k: 'world tiles' },
+    { v: '8', k: 'crops, radish→grape' },
+  ]}
+/>
+
+## The cast
+
+Four named archetypes are the protagonists, each a distinct deliberation
+strategy; the rest of the field are archetype clones (`Cora-0`, `Atticus-1`, …)
+on procedurally-generated farm islands.
+
+<CardGrid>
+  <Card title="Cora — conservative">Low risk appetite, steady crop loops. Temperament scalar 0.25.</Card>
+  <Card title="Atticus — aggressive">Pushes margins, undercuts on the market wall.</Card>
+  <Card title="Hannah — hoarder">Deep reserves (starts 150 gold / 80 held back).</Card>
+  <Card title="Otto — opportunist">Chases the richest channel of the moment. Scalar 1.0.</Card>
+</CardGrid>
+
+## How a farmer thinks
+
+Each farmer is a **Belief–Desire–Intention** agent on a daily action-point
+budget, running a per-tick `PERCEIVE → ACT` FSM. `DeliberateSystem` scores every
+option — farming *and* non-farm work (fishing, foraging, mining) — in the same
+**gold-per-AP** unit, emitting an `Intention` queue that `ActSystem` drains.
+Skill-gated scoring means ~10 of 21 farmers lean non-farm while farming stays the
+most common #1 choice — diversity without hand-authoring.
+
+<Aside type="tip" title="The economy in one line">
+  A crop's score is `g_c = (2·P_c − S_c) / (G_c + 2)` — profit per plot over labour.
+  The market wall is an async peer-to-peer channel with escrowed offers
+  (`OFFER_TTL_DAYS = 3`) and per-personality price gates. Full math on
+  [Patterns](/patterns/) and [Economy](/wiki/economy/).
+</Aside>
+
+## Pip, the playable farmer
+
+Pip is a real farmer entity — same components as the AI — tagged
+`personality.kind: "pip"` plus a `player` component. The only difference:
+intentions come from the keyboard, not the deliberator. `PlayerControlSystem`
+runs before `ActSystem`; **movement is free** (not AP-gated), but actions still
+obey AP, tool, and proximity (Chebyshev ≤1) rules. The whole GUI — inspect card,
+drag-from-world hotbar, diegetic HUD — renders through the game-agnostic
+`@engine/ui` toolkit.
+
+## How it runs
+
+<Badge text="server-side sim" variant="success" /> &nbsp; <Badge text="WebSocket transport" variant="note" />
+
+Uniquely among the three games, Farm Valley runs its sim **server-side** in a
+Node `SimHost`. The browser client opens a WebSocket, receives one
+`RenderSnapshot` per tick, and interpolates between the latest two. Input crosses
+the socket behind an owner gate — spectators can watch, but can't drive Pip.
+
+<Aside type="note">
+  Deep detail lives in the corpus: [Overview](/wiki/overview/),
+  [World generation](/wiki/world-generation/),
+  [Player & interaction](/wiki/player-and-interaction/).
+</Aside>

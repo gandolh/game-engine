@@ -1,0 +1,85 @@
+---
+title: Hollow (work in progress)
+description: A director's-eye multi-generational social sim — needs, scarcity, emergent communities, and heritable genomes on the engine's promoted agent kernel.
+---
+
+import { Card, CardGrid, Aside, Badge, Steps } from '@astrojs/starlight/components'
+import Metrics from '../../../components/Metrics.astro'
+
+<Badge text="work in progress" variant="caution" /> &nbsp; <Badge text="branch: hollow, local" variant="note" />
+
+Hollow is the third game — and the strongest test that the engine is really
+generic. It's a **director/observer multi-generational social simulation**: no
+player avatar. You author personas, seed a small town, then observe and perturb
+it as it lives, reproduces, and dies across generations.
+
+<Metrics
+  items={[
+    { v: '30–60', k: 'agents (seeded)' },
+    { v: '64', unit: '²', k: 'town grid' },
+    { v: '~15–65', k: 'stable population plateau' },
+    { v: '0', k: 'LLM calls in v1' },
+  ]}
+/>
+
+## The thesis: decisions must have weight
+
+Hollow grew out of an earlier LLM agent-society experiment where unanchored
+agents simply hallucinated their lives. The corrective premise here: **every
+choice must be anchored** — by needs (`food` / `rest` / `wealth` / `belonging`),
+by scarce *located* resources, and by a real economy. Scarcity, in turn,
+regulates population. The BDI substrate is the same one Farm Valley uses,
+promoted into `@engine/core/agent` so both games share it — which makes the two
+games *more* isolated, not less.
+
+<CardGrid>
+  <Card title="Emergent communities" icon="star">
+    Communities crystallize from trust ties and grow / split / merge / dissolve on
+    their own — never authored.
+  </Card>
+  <Card title="Multi-generational" icon="seti:clock">
+    Aging, death (age / starvation / violence), pair-bonding, children — open-ended
+    lineages, not a fixed cast.
+  </Card>
+  <Card title="Genome = behaviour" icon="puzzle">
+    A genome carries behaviour (BDI), aptitude, and appearance — heritable via
+    crossover + mutation, and visible in 3D. Personality is inherited; lived
+    beliefs and desires are not.
+  </Card>
+  <Card title="A bounded LLM seam" icon="rocket">
+    v1 has no LLM (byte-deterministic). Later milestones let an LLM only *choose
+    among* BDI-generated feasible actions and narrate why — it can't invent actions,
+    and it's off by default.
+  </Card>
+</CardGrid>
+
+## Build state
+
+Built via a plan-split-dispatch orchestration (an Opus controller, Sonnet
+executors), M1 is a serial chain of briefs. As of 2026-07-20 (local, unpushed):
+
+<Steps>
+
+1. **hollow-01 – 06 ✅** — workspace skeleton; engine agent-kernel promotion +
+   Farm refactor; needs / economy / scarcity; relationships & emergent
+   communities; lifecycle, pair-bonding & genetics; social verbs (cooperative,
+   antagonistic, kinship + a violence-death seam).
+
+2. **hollow-07 ⬜** — headless CLI + export, then the **M1 exit-bar gate**.
+
+3. **M2 – M4 ⬜** — true-3D WebGPU rendering promoted into the engine, plus the
+   bounded LLM seam. Specs written and queued.
+
+</Steps>
+
+<Aside type="caution" title="A war story worth keeping">
+  Lifecycle first showed population **bistability** — food scarcity alone couldn't
+  bound it. The fix was a **density-dependent birth brake**
+  (`BIRTH_PERCAPITA_FOOD_TARGET`), giving a bounded, never-extinct ~15–65 plateau
+  across seeds. Instrument the real run; re-derive the premise.
+</Aside>
+
+<Aside type="note">
+  Hollow doesn't have dedicated corpus wiki pages yet — its state lives in the
+  build tracker and [Status](/wiki/status/). This page will grow as M1 closes.
+</Aside>

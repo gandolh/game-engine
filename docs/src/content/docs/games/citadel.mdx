@@ -1,0 +1,92 @@
+---
+title: Citadel
+description: A cozy settlement sim — a placement puzzle you read by watching the town live. Threats dent happiness, never destroy. WebGPU 3D meshes, sim in a Web Worker.
+---
+
+import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components'
+import Metrics from '../../../components/Metrics.astro'
+
+Citadel is the second game on the shared engine: grow a town's economy through
+settlement tiers, keep villagers fed and happy. It began as a settlement/light-RTS
+with sharp raids and sieges — then took a **cozy pivot** that became the design of
+record.
+
+<Metrics
+  items={[
+    { v: '2.08', unit: '×', k: 'thriving vs starved' },
+    { v: '60–70', unit: '%', k: 'productivity floor' },
+    { v: '21', k: 'building types (3D)' },
+    { v: '192', unit: '²', k: 'solo world tiles' },
+    { v: '46', k: 'Apollo palette colours' },
+  ]}
+/>
+
+## The cozy contract
+
+> *A cozy placement puzzle you read by watching the town live.*
+
+The rule of record — **nothing you built is taken from you**. Threats don't
+destroy; they dent local happiness, which taxes productivity down to a ~60–70%
+floor (never zero), so recovery is always guaranteed and there's no death spiral.
+
+<CardGrid>
+  <Card title="Fire">Smoulders, then extinguishes — never razes.</Card>
+  <Card title="Disease">Slows a district, then recovers — never kills.</Card>
+  <Card title="Raids">Pilfer the stockpile, then leave — never sack.</Card>
+  <Card title="Cold-open grace">Threats are suppressed until ≥6 non-road buildings — the gate short-circuits before any RNG draw.</Card>
+</CardGrid>
+
+The old destructive behaviour isn't gone — it's frozen byte-identical behind
+`cozyThreats: false` and re-pointed to autonomous sharp-mode systems, powering a
+solo-only **Challenge mode**.
+
+## The two-way service loop
+
+The economy hangs on one curve, `bufferServiceFactor`, sampled on an EWMA of
+service:
+
+```text
+0.6  ─────────▶  1.0  ─────────▶  1.25
+stockpile-pressure   neutral      service-bonus
+throttle (floor)                  (a building clearing
+                                   the 0.75 service band)
+```
+
+Producers are single-slot; happiness alone tops out at 0.9, and service carries
+the last 0.1 of the immigration roll — so a well-served town measurably
+out-produces a starved one (~2.08×) without anything ever hitting zero.
+
+<Aside type="tip" title="A mode is a call-site preset, never sim state">
+  The sim only takes flat, independent options (`cozyThreats`, `enableArmy`,
+  `seedTown`, `chargeBuildCost`, …). "Cozy" and "Challenge" are just *bundles* of
+  those — and every mode-affecting option must be persisted in the save, or a
+  replay runs under the wrong rules.
+</Aside>
+
+## Rendering: meshes, not sprites
+
+<Badge text="WebGPU-only" variant="success" /> &nbsp; <Badge text="true 2:1 dimetric" variant="note" />
+
+Terrain is drawn flat on a 32×16 dimetric grid with `x+y` painter's depth;
+relief is a hillshade over a heightfield + fBm. Buildings, though, are **in-code
+3D meshes** (2026-07-14) — indexed triangle primitives fed to a software
+rasterizer with back-face culling, a per-pixel z-buffer, and flat-shading onto
+three adjacent Apollo palette steps. Deleting the old 2D ASCII-recipe path
+removed **1,964 lines**. Night adds emissive window glow via the same day
+factory, so lit and unlit frames can't drift.
+
+## How it runs
+
+Unlike Farm Valley, Citadel runs its sim in an **in-browser Web Worker**, posting
+snapshots to the main thread over `postMessage` — same transport-agnostic
+`bootstrapSim()`, different pipe. (Multiplayer was deprecated, not deleted, in
+2026-07-10 — kept compiling as a revival target; solo is the product.)
+
+<Aside type="note" title="Why a different palette">
+  Citadel moved from EDG32 to **Apollo-46**: EDG32's gamut had no desaturated
+  olive-grey midtones for muted medieval naturals. Because every colour already
+  routed through named role constants with zero raw hex, the migration was an
+  *import redirect* across ~200 sites, not a rewrite. See
+  [Citadel decisions](/wiki/citadel-decisions/) and
+  [Citadel rendering](/wiki/citadel-rendering/).
+</Aside>

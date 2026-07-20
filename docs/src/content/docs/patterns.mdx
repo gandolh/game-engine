@@ -1,0 +1,256 @@
+---
+title: Patterns & techniques
+description: The formulas, patterns, and techniques the engine and games are built from — determinism, agent deliberation, procedural worlds, economy math, and rendering.
+---
+
+import { Card, CardGrid, Aside, Badge, Steps } from '@astrojs/starlight/components'
+import Metrics from '../../components/Metrics.astro'
+
+A tour of the load-bearing ideas — the ones worth stealing. Each links into the
+[design corpus](/wiki/architecture/) for the full derivation.
+
+## BDI agents as ECS components
+
+Every farmer (and villager) is a **Belief–Desire–Intention** agent whose mental
+state *is* ECS data: `Beliefs` / `Desires` / `Intentions` / `FsmState` /
+`Personality` components, cycled by a per-tick FSM (`PERCEIVE → ACT`).
+Deliberation dispatches by `personality.kind` through a registry — each
+personality file self-registers, then composes shared `deliberate*` helpers into
+a prioritized intention queue.
+
+<Aside type="tip">
+  The lineage is a Python **SPADE** multi-agent prototype (XMPP + FIPA-ACL + BDI +
+  FSM). The Python design is treated as the gameplay spec; the TypeScript is the
+  implementation.
+</Aside>
+
+## Everything is priced in one unit
+
+Farm Valley scores every possible action in **gold per action-point (g/AP)** — so
+farming, fishing, foraging, and mining compete on one axis. A crop's loop score:
+
+```text
+g_c = π_c / L_c = (2·P_c − S_c) / (G_c + 2)
+
+  π_c = profit per plot   P_c = sell price   S_c = seed cost
+  L_c = labour = 1 (plant) + w_c (waters = growth days) + 1 (harvest)
+  yield Y = 2 units/plot   ·   quality mult: silver ×1.25, gold ×1.5
+```
+
+A balance pass compressed the radish→grape spread from **2.64× → 1.59×** (target
+≈1.5×) while holding the seed-payback ratio `ρ = S_c / (2·P_c) ≈ 0.25`, re-solving
+each price as `P_c = g_c · L_c / (1 − ρ)`.
+
+<Metrics
+  items={[
+    { v: '1.59', unit: '×', k: 'crop g/AP spread' },
+    { v: '~64', unit: '%', k: 'shop buy vs sell' },
+    { v: '100', k: 'AP base / day' },
+    { v: '35–50', k: 'wall trades / seed' },
+  ]}
+/>
+
+## Cozy economics: throttle to a floor, never to zero
+
+Citadel's rule of record — *the downside rule* — is that every problem is a
+throttle, never a loss. One curve, `bufferServiceFactor`, scales output:
+
+```text
+0.6  ──▶  1.0  ──▶  1.25      productivity multiplier
+floor    neutral   ceiling
+
+thriving vs starved  =  1.25 / 0.6  ≈  2.08×
+nothing ever returns 0  →  recovery is always guaranteed
+```
+
+Threats (fire, disease, raids) are *cozy-demoted*: they dent local happiness,
+taxing productivity to that ~60–70% floor, then pass — nothing you built is ever
+taken from you. The destructive path still exists, frozen byte-identical behind
+`cozyThreats: false` for Challenge mode.
+
+## Procedural worlds, fully seeded
+
+<CardGrid>
+  <Card title="Farm: BSP → MST → loops">
+    A 240×240 map, ~73 regions, generated per seed with integer-only math: BSP
+    placement → side-overlap-filtered graph → **MST + δ-loops** for bridges (loop
+    edge probability `0.18`). A 30-seed property test guards it.
+  </Card>
+  <Card title="Citadel: solvability by construction">
+    `repairSolvability` is a pure, RNG-free function guaranteeing a 12×6 buildable
+    core box plus a reachable Forest and Stone (4-connected flood-fill) — verified
+    **100/100 seeds**. Resources are blob patches, so you "build toward" them.
+  </Card>
+  <Card title="Noise: fBm + domain warping">
+    Ground texture is 4-octave fBm with Inigo-Quilez domain warping over smoothstep
+    value noise — render-only, so it never touches determinism. Coastal depth is a
+    seeded multi-source BFS.
+  </Card>
+  <Card title="Assets are recipes">
+    Each sprite is a `PixelRecipe` (ASCII grid + palette chars) baked to an atlas at
+    build time; incremental cook keyed on a **SHA-256 content fingerprint**, not
+    mtimes, for byte-stable committed PNGs.
+  </Card>
+</CardGrid>
+
+### In depth — Farm layout: BSP → MST → loops
+
+`generateWorld(seed)` is a single pure funnel that lays out the whole 240×240
+archipelago — ~73 regions (a village, ~25 services, 21 farms, 21 ranches) — with
+integer-only math so the same seed reproduces the same map byte-for-byte. It runs
+in three acts, each drawing from its own `rng.fork(label)` so streams never
+interfere.
+
+<Steps>
+
+1. **Partition — carve the map into one cell per region (BSP).** Start with the
+   whole map as a single leaf, then repeatedly split the *largest splittable* leaf
+   along its **longer axis**, at a seeded cut in the **central third** (avoiding
+   slivers). A leaf stops splitting once both dimensions would fall below
+   `MIN_LEAF = 16`. Splitting continues until there's one leaf per region.
+
+   ```ts
+   // pick the cut for a vertical (left/right) split of a leaf of width w:
+   const cut = clampInt(lo, hi, b.minX + Math.floor(w / 3) + splitRng.int(0, w / 3))
+   // each split forks its own stream:  rng.fork("bsp-" + n++)
+   ```
+
+2. **Size & place — assign biggest regions to biggest leaves.** Sort regions by
+   footprint (area-descending) and pair them with the leaves in the same order.
+   Then size each island *inside* its leaf and drop it at a seeded interior offset
+   **≥ `GAP` (= 2)** from every leaf wall — so the ≥2-tile ocean channel between any
+   two islands holds **by construction**, not by rejection.
+
+   - **Farms** keep a **fixed area** but a seed-chosen integer `(w, h)` factoring
+     (aspect ≤ 2.5) — same size, varied silhouette.
+   - **Everything else** takes a *target* area that a coverage feedback loop scales
+     (start `scale = 1.8`, up to 24 attempts) until total land lands in the
+     **`[0.55, 0.65]` band** (target `0.60`). A `<50%` placement is rejected and the
+     seed-salt loop retries a fresh partition.
+
+3. **Connect — MST, then δ-loops.** For every island pair, in each cardinal
+   direction, a candidate **straight, 2-wide** bridge exists *iff* the facing sides
+   are clear and their perpendicular ranges overlap by ≥ the bridge width; its
+   weight is the ocean gap. Candidates crossing a third island are dropped up front.
+   Sort by gap ascending (with fully deterministic tiebreaks) and run **Kruskal +
+   union-find** for a spanning tree — guaranteed connectivity. Then walk the leftover
+   candidates and admit each as a **loop** edge with probability `BRIDGE_LOOP_DELTA
+   = 0.18`, skipping any that would cross an already-placed bridge.
+
+   ```ts
+   // spanning tree (connectivity skeleton)
+   for (const c of candidatesSortedByGap)
+     if (uf.find(c.a) !== uf.find(c.b) && !crossesBridge(c)) uf.union(c.a, c.b), keep(c)
+   if (components !== 1) return null          // can't connect → caller retries the seed
+
+   // δ extra edges → cycles, so the map isn't a pure tree
+   for (const c of leftovers)
+     if (rng.nextFloat() < 0.18 && !crossesBridge(c)) keep(c)
+   ```
+
+</Steps>
+
+A light corner-carve (notch depth ≤ 3) keeps islands from reading as perfect
+rectangles, and a **30-seed property test** is the accept gate: never throws, ≥2
+gap everywhere, BFS-connected from the village, forced cores on land, in-bounds,
+full roster, coverage in band.
+
+<Aside type="note">
+  There's no L-bend fallback for bridges: BSP siblings reliably share an overlap
+  window, so if a partition can't be connected with straight bridges the generator
+  just **re-salts and retries** — simpler than a bent-bridge special case.
+</Aside>
+
+### In depth — ground noise: fBm + domain warping
+
+The mottled ground texture is **render-only** coherent noise (it never touches the
+sim, so determinism is free). It's built bottom-up in
+[`ground-noise.ts`](https://github.com/gandolh/game-engine/blob/main/games/farm/client/src/render/ground-noise.ts):
+
+<Steps>
+
+1. **Value noise — a smooth lattice.** Integer grid corners are hashed to `[0,1)`
+   (an `Math.imul` bit-mix, `hash2`), then bilinearly interpolated using the
+   **smoothstep** weight `u = f²·(3 − 2f)` on each axis. Smoothstep kills the
+   first-derivative discontinuity you'd get from linear interpolation — no grid
+   creases.
+
+   ```ts
+   const ux = fx * fx * (3 - 2 * fx)   // smoothstep on x  (same for uy)
+   const top    = c00 + (c10 - c00) * ux
+   const bottom = c01 + (c11 - c01) * ux
+   return top + (bottom - top) * uy
+   ```
+
+2. **fBm — stack octaves for fractal detail.** Sum **4 octaves** of value noise,
+   each at double the frequency (`lacunarity = 2`) and half the amplitude
+   (`gain = 0.5`), each seeded independently (`base + i·0x9e3779b1`), then normalize
+   by the amplitude sum. This is the classic `1/f` fractal — broad shapes plus fine
+   grain in one field.
+
+   ```ts
+   for (let i = 0; i < 4; i++) {
+     sum += amp * valueNoise2d(x * freq, y * freq, base + Math.imul(i, 0x9e3779b1))
+     ampSum += amp;  freq *= 2 /*lacunarity*/;  amp *= 0.5 /*gain*/
+   }
+   return sum / ampSum
+   ```
+
+3. **Domain warp — bend the field so it stops looking like noise (Inigo-Quilez).**
+   Before sampling, displace the sample point by *another* fBm field:
+   `p' = p + strength · (2·fbm(p) − 1)`, with `strength = 1.5` and separate seeds
+   for the x and y offsets (plus a constant `WARP_OFFSET = 5.2` so the two axes
+   decorrelate). Warping is what turns bland fractal noise into swirled, organic
+   terrain — the grid-aligned tells disappear.
+
+   ```ts
+   const dx = (fbm(p, seed ^ WARP_SEED_X) * 2 - 1) * 1.5   // WARP_STRENGTH
+   const dy = (fbm(p + WARP_OFFSET, seed ^ WARP_SEED_Y) * 2 - 1) * 1.5
+   return [x + dx, y + dy]
+   ```
+
+4. **Brightness — apply as a gentle wash.** Sample the warped fBm at base frequency
+   `1/8` and map it to a brightness multiplier around 1:
+
+   ```text
+   b = 1 + (2·fbm(warp(p)) − 1) · amplitude        amplitude = 0.12
+   ```
+
+   Tiles with `b > 1` are drawn white with a `screen` blend; `b < 1` draws black
+   with `multiply` — a subtle ±12% mottle over the flat ground, with `b === 1`
+   skipped entirely.
+
+</Steps>
+
+<Aside type="tip">
+  The committed `noise.wasm` kernel (~8× faster than JS) is still the old *hash*
+  noise; this fBm+warp path is the JS upgrade that drives the ground pass. The same
+  coherent field is the intended source if organic *island shapes* (noise-threshold
+  masks) are ever pursued — see [World generation](/wiki/world-generation/).
+</Aside>
+
+## Rendering techniques
+
+- **Y-sort with a pseudo-3D height axis** — depth by `(layer, y)`; a `z` height
+  lifts the draw (`screenY = y − z`) while the sort key stays the ground `y`.
+- **Citadel: true 2:1 dimetric, meshes not sprites** — buildings are in-code
+  indexed triangle meshes fed to a software rasterizer (back-face cull, per-pixel
+  z-buffer, flat-shade onto 3 adjacent palette steps). The old ASCII-recipe path
+  was deleted, −1,964 lines.
+- **Bitmap UI font baked at boot** — the vendored UNSCII font bakes to an atlas on
+  startup: byte-identical text everywhere, no runtime font load or measurement.
+
+<Aside type="note" title="A performance war story">
+  A per-`(atlas, frame, rgb)` glyph-tint cache turned a 5-fps regression around:
+  `ui.flush` **106.0 → 5.2 ms**, fps **3.36 → 57.06**. Small caches, load-bearing
+  results — see [Performance](/wiki/performance/).
+</Aside>
+
+## When the sim fights back
+
+Emergent systems misbehave in instructive ways. Hollow's population showed
+**bistability** — food scarcity alone couldn't bound it (either extinction or
+explosion). The fix was a **density-dependent birth brake**
+(`BIRTH_PERCAPITA_FOOD_TARGET`), which produced a bounded, never-extinct ~15–65
+plateau across seeds. The lesson recurs: instrument the real run and re-derive
+the premise before trusting a feature.

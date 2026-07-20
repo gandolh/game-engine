@@ -180,3 +180,9 @@ world-preview.png
 # Turborepo local cache + logs (per-package .turbo/ dirs too)
 .turbo/
 **/.turbo/
+
+# Docs site (@game-engine/docs-site) — generated artifacts. The corpus is the
+# source of truth; src/content/docs/wiki/ is re-synced from corpus/ every build.
+docs/dist/
+docs/.astro/
+docs/src/content/docs/wiki/

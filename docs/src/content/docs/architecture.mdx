@@ -1,0 +1,116 @@
+---
+title: The engine
+description: The load-bearing map — the four-layer dependency rule, deterministic fixed-step sim, the sim↔render snapshot boundary, ECS, and WASM kernels.
+---
+
+import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components'
+import Metrics from '../../components/Metrics.astro'
+import LayerStack from '../../components/LayerStack.astro'
+
+`@engine/core` is an in-house, game-agnostic TypeScript engine: an ECS, a
+fixed-step deterministic sim loop, a dual-backend renderer, input, animation, a
+spatial index, audio, and WASM bindings. It is consumed by three games and knows
+about none of them.
+
+## The four-layer dependency rule
+
+Every arrow points **downward**. A layer may depend only on the layers beneath
+it — and the two games are siblings that never touch. This isn't a convention
+you hope holds; a palette guard and the workspace graph enforce it.
+
+<LayerStack />
+
+<Aside type="note">
+  Inside the monorepo, packages resolve **raw TypeScript source** via subpath
+  `exports` — there's no build step for the engine. The same packages are also
+  shippable as MIT libraries (v0.1.0) that resolve emitted `dist/` for external
+  consumers, via a prepack manifest swap. Read the full map in
+  [Architecture](/wiki/architecture/).
+</Aside>
+
+## Determinism is the foundation
+
+<Metrics
+  items={[
+    { v: '20', unit: 'Hz', k: 'fixed sim tick' },
+    { v: '~100', unit: 'ms', k: 'render delay buffer' },
+    { v: 'mulberry32', k: 'seeded RNG + forks' },
+    { v: 'byte', k: 'identical replays' },
+  ]}
+/>
+
+Every source of randomness flows through a seeded `Rng` (mulberry32) with named
+`fork(label)` derivation. **No `Math.random`. No `Date.now`.** A tick's output
+depends only on the tick count — the host's `setInterval` is wall-clock *pacing*,
+nothing more. The consequence is powerful and cheap: a run is fully described by
+its **seed + params**, round-tripped through the URL hash, and reproduces
+byte-for-byte. There is no snapshot-save or input-log model because there
+doesn't need to be one.
+
+<CardGrid>
+  <Card title="Fixed step, interpolated render" icon="seti:clock">
+    The sim ticks at a fixed 20 Hz (`FixedStepClock`). The renderer interpolates
+    between the **latest two snapshots** with `smoothstep(alpha)`, drawing ~2 ticks
+    behind latest to absorb dropped frames — logic and framerate fully decoupled.
+  </Card>
+  <Card title="Interpolate position, snap frames" icon="seti:image">
+    Animation is render-side and wall-clock-driven (zero determinism risk). The
+    rule: **never interpolate frames** — interpolate position via `alpha`, snap the
+    sprite frame. A semantic snapshot (`moving`/`facing`/`action`) lets render
+    resolve the frame.
+  </Card>
+</CardGrid>
+
+## The sim↔render boundary
+
+The ECS world and scheduler always run **off the render path**, behind a
+snapshot stream. The transport differs per game — but `bootstrapSim()` stays
+transport-agnostic, so the same sim runs in a server, a Worker, or a bare test.
+
+<CardGrid>
+  <Card title="Farm Valley → server">
+    Sim runs in a Node `SimHost`; the browser opens a **WebSocket** and receives
+    one `RenderSnapshot` per tick as JSON. Drop-stale backpressure + `permessage-deflate`
+    (~70–80% shrink) keep the wire honest.
+  </Card>
+  <Card title="Citadel → Web Worker">
+    Sim runs in an **in-browser Web Worker**, posting snapshots over `postMessage`.
+    No SharedArrayBuffer, so no COOP/COEP headers required.
+  </Card>
+  <Card title="Headless → main thread">
+    The run-sim tools and every test drive the scheduler directly — no server, no
+    Worker. This is the canonical way to exercise sim behavior.
+  </Card>
+</CardGrid>
+
+## Under the hood
+
+<CardGrid>
+  <Card title="In-house ECS" icon="setting">
+    Replaced miniplex while keeping `spawn`/`query`/`despawn`. Queries are cached by
+    component-key set; `for…of` borrows a pooled scratch buffer, so steady-state
+    iteration allocates **zero** arrays and despawn-mid-loop is safe.
+  </Card>
+  <Card title="Message bus (FIPA-ACL)" icon="email">
+    Generic pub/sub with a buffer-swap (`inflight`↔`deliverable`, no realloc).
+    Messages carry `performative` + `ontology` + body — mirroring the Python SPADE
+    prototype the gameplay descends from.
+  </Card>
+  <Card title="Scheduler in 10 bands" icon="list-format">
+    Systems register in a deliberate order that encodes real data dependencies —
+    e.g. an event feed must snoop the inbox before `PerceiveSystem` clears it. A
+    clear placed too early is a correctness bug, not a perf one.
+  </Card>
+  <Card title="WASM kernels" icon="rocket">
+    AssemblyScript, artifacts committed: pathfinder (A*), noise (~8× faster than
+    JS), rng, floodfill. A pure-JS pathfinder is a tested fallback — but the two
+    aren't route-equivalent, so the server uses WASM to preserve what players see.
+  </Card>
+</CardGrid>
+
+<Aside type="caution" title="Palette discipline">
+  A fixed palette is enforced **per game, with no raw hex anywhere** — every color
+  is a named role constant. Engine + Farm use **EDG32**; Citadel uses **Apollo-46**
+  under the same 32 role keys. A per-scope guard test scans every source file to
+  keep it true. See [Decisions](/wiki/decisions/).
+</Aside>

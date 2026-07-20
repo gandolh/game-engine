@@ -109,6 +109,21 @@
     "build": {
       "dependsOn": [],
       "cache": false
+    },
+
+    // The docs site (@game-engine/docs-site) syncs corpus/ into its content tree
+    // then runs `astro build`. Its inputs live both inside the package and in
+    // corpus/ at the repo root (read by scripts/sync-corpus.mjs) — neither is
+    // reachable through a package dependency, so declare both to keep the cache
+    // key honest. Output is dist/**; the synced wiki/ tree is gitignored and
+    // regenerated, so it is not a declared output.
+    "docs": {
+      "dependsOn": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../corpus/**"
+      ],
+      "outputs": ["dist/**"]
     }
   }
 }

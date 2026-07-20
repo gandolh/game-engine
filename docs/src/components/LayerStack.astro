@@ -1,0 +1,102 @@
+---
+// The four-layer dependency rule, drawn. Each layer depends only downward; the
+// engine never imports a game and the two games never import each other.
+// Light-only, literal colors (not Starlight's contrast-relative tokens),
+// scoped <style>. Greens are EDG32 roles.
+const layers = [
+  {
+    tag: 'clients / servers',
+    pkgs: '@farm/client · @farm/server · @citadel/client · @hollow/client',
+    note: 'Renderer + transport. Never touched by sim logic.',
+    depth: 3,
+  },
+  {
+    tag: 'game sim-cores',
+    pkgs: '@farm/sim-core · @citadel/sim-core · @hollow/sim-core',
+    note: 'Deterministic sim. Node + browser safe. Never imports a renderer.',
+    depth: 2,
+  },
+  {
+    tag: 'engine',
+    pkgs: '@engine/core · @engine/ui',
+    note: 'Generic ECS, sim loop, renderer, UI. Never imports a game.',
+    depth: 1,
+  },
+  {
+    tag: 'kernels',
+    pkgs: '@engine/wasm-modules',
+    note: 'AssemblyScript: pathfinder · noise · rng · floodfill.',
+    depth: 0,
+  },
+]
+---
+
+<div class="layerstack not-content">
+  {
+    layers.map((l) => (
+      <div class={`layer depth-${l.depth}`}>
+        <div class="tag">{l.tag}</div>
+        <div class="body">
+          <div class="pkgs">{l.pkgs}</div>
+          <div class="note">{l.note}</div>
+        </div>
+      </div>
+    ))
+  }
+  <div class="rule">↑ imports only ever point downward &nbsp;·&nbsp; the two games never import each other</div>
+</div>
+
+<style>
+  .layerstack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1.5rem 0 1rem;
+  }
+  .layer {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid #e6e6ea;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  .tag {
+    flex: 0 0 8.5rem;
+    display: flex;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #fff;
+  }
+  .body {
+    padding: 0.75rem 1rem;
+    min-width: 0;
+  }
+  .pkgs {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.85rem;
+    color: #17171a;
+    word-break: break-word;
+  }
+  .note {
+    font-size: 0.78rem;
+    color: #6a6a72;
+    margin-top: 0.3rem;
+  }
+  /* EDG32 green ramp: lighter at the top, deepest at the load-bearing kernel. */
+  .depth-3 .tag { background: #8fd98a; color: #17171a; }
+  .depth-2 .tag { background: #63c74d; color: #17171a; }
+  .depth-1 .tag { background: #3e8948; }
+  .depth-0 .tag { background: #265c42; }
+  .rule {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #6a6a72;
+    margin-top: 0.35rem;
+  }
+</style>

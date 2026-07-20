@@ -1,0 +1,18 @@
+{
+  "name": "@game-engine/docs-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-corpus": "node scripts/sync-corpus.mjs",
+    "predev": "npm run sync-corpus",
+    "dev": "astro dev",
+    "docs": "npm run sync-corpus && astro build",
+    "preview": "astro preview"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "0.41.3",
+    "astro": "7.1.1",
+    "sharp": "0.35.3"
+  }
+}

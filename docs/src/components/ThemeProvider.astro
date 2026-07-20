@@ -1,0 +1,9 @@
+---
+// Light-only. Override of Starlight's ThemeProvider: force the light theme and
+// ignore localStorage / system preference entirely. Paired with an empty
+// ThemeSelect so there is no toggle.
+---
+
+<script is:inline>
+  document.documentElement.dataset.theme = 'light'
+</script>

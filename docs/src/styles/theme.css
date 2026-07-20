@@ -1,0 +1,21 @@
+/* Light theme only, single accent — farm green from the EDG32 palette
+   (green #63c74d / greenMid #3e8948 / greenDark #265c42). The site is forced
+   to light (ThemeProvider override), so these tokens apply on the default
+   :root; no dark palette is defined. Change the four accent values to rebrand. */
+:root,
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d4eccd;
+  --sl-color-accent: #3e8948;
+  --sl-color-accent-high: #265c42;
+  --sl-color-text-accent: #265c42;
+}
+
+/* Crisper asides on white. */
+.sl-markdown-content .starlight-aside {
+  border-radius: 10px;
+}
+
+/* No ligatures in inline code — reads more like a terminal. */
+.sl-markdown-content code:not(:where(.expressive-code *)) {
+  font-variant-ligatures: none;
+}

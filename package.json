@@ -6,7 +6,8 @@
   "workspaces": [
     "engine/*",
     "games/*/*",
-    "tools/*"
+    "tools/*",
+    "docs"
   ],
   "packageManager": "npm@11.4.2",
   "scripts": {
@@ -28,7 +29,9 @@
     "preview": "npm start -w @tool/world-preview",
     "build-wasm": "npm run build -w @engine/wasm-modules",
     "build-engine": "npm run build -w @engine/core",
-    "build-ui": "npm run build -w @engine/ui"
+    "build-ui": "npm run build -w @engine/ui",
+    "docs": "turbo run docs",
+    "docs:dev": "npm run dev -w @game-engine/docs-site"
   },
   "devDependencies": {
     "@types/node": "25.9.1",

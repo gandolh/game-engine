@@ -1,0 +1,86 @@
+---
+title: Game Engine
+description: Two-and-a-bit games on one shared TypeScript ECS engine — deterministic sim, BDI agents, procedural pixel art.
+template: splash
+hero:
+  tagline: One in-house TypeScript ECS engine. A deterministic simulation you watch play itself. Three games proving the engine is really generic.
+  actions:
+    - text: How the engine works
+      link: /architecture/
+      icon: right-arrow
+      variant: primary
+    - text: Patterns & techniques
+      link: /patterns/
+      icon: open-book
+      variant: minimal
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components'
+import Metrics from '../../components/Metrics.astro'
+
+<Metrics
+  items={[
+    { v: '3', k: 'games, one engine' },
+    { v: '20', unit: 'Hz', k: 'deterministic tick' },
+    { v: '4', k: 'WASM kernels' },
+    { v: '0', k: 'raw hex literals' },
+    { v: 'seed', k: 'is the whole save file' },
+  ]}
+/>
+
+A monorepo where the interesting part isn't any one game — it's the **shared,
+generic ECS engine** underneath, and the discipline that keeps it honest:
+determinism you can prove, a dependency rule the build enforces, and a corpus
+that records *why* every decision was made.
+
+## The core ideas
+
+<CardGrid>
+  <Card title="You watch, mostly" icon="star">
+    The sim runs itself. Farm Valley is 21 BDI farmers competing over 100 days;
+    Hollow is a multi-generational town you seed and observe. The player's hand is
+    light — placement and intent, not micromanagement.
+  </Card>
+  <Card title="Determinism is load-bearing" icon="approve-check">
+    All randomness flows through a seeded `mulberry32` RNG with named forks. No
+    `Math.random`, no `Date.now` in sim code. A run is fully described by **seed +
+    params** and reproduces byte-for-byte.
+  </Card>
+  <Card title="The engine never knows the game" icon="puzzle">
+    A four-layer dependency rule — enforced, not aspirational: kernels → engine →
+    game sim-cores → clients. The engine imports no game; the games never import
+    each other.
+  </Card>
+  <Card title="Assets are code" icon="pencil">
+    Sprites are ASCII `PixelRecipe` grids baked to an atlas at build time; the UI
+    font is a vendored bitmap baked at boot. Byte-identical art on every machine,
+    no binary blobs to drift.
+  </Card>
+</CardGrid>
+
+## Three games, one seam
+
+<CardGrid>
+  <Card title="Farm Valley 🌾">
+    21 farmers (20 AI archetypes + the playable **Pip**) plant, harvest, and trade
+    over 100 in-game days. The sim runs **server-side**; the browser is a thin
+    WebSocket client interpolating snapshots. → [Read more](/games/farm/)
+  </Card>
+  <Card title="Citadel 🏰">
+    A cozy settlement sim — a placement puzzle you read by watching the town live.
+    Threats dent happiness, never destroy. Runs the sim in an **in-browser Web
+    Worker**; true-3D meshes on WebGPU. → [Read more](/games/citadel/)
+  </Card>
+  <Card title="Hollow 🌙 (WIP)">
+    A director's-eye, multi-generational social sim: needs, scarcity, emergent
+    communities, heritable genomes. The engine's agent kernel, promoted and reused.
+    → [Read more](/games/hollow/)
+  </Card>
+</CardGrid>
+
+<Aside type="tip" title="Two kinds of page here">
+  The **authored** pages (Overview, The engine, Patterns, and each game) are the
+  showcase. The **Design corpus** section renders durable pages straight from the
+  project's `corpus/` wiki — the source of truth — so the deep detail can't drift
+  from what the site claims.
+</Aside>
