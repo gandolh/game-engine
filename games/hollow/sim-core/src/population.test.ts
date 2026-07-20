@@ -6,11 +6,14 @@ import type { HollowEntity } from "./components";
 import { GRID_SIZE } from "./world";
 import { NEED_FOOD, NEED_REST, NEED_WEALTH, NEED_SAFETY, NEED_BELONGING, FOOD_DECAY_PER_TICK } from "./economy";
 import { VILLAGER_KIND } from "./agents";
+import { LineageRegistry } from "./lineage";
+import { BEHAVIOR_GENES, APTITUDE_SKILLS, GENE_MIN, GENE_MAX } from "./components";
+import { STAGE_CHILD_ADULT_TICKS, STAGE_ADULT_ELDER_TICKS } from "./family/constants";
 
 describe("spawnPopulation", () => {
   it("spawns exactly `population` agents with in-bounds positions, full needs, self-owned empty inventory, and the villager kind", () => {
     const world = new World<HollowEntity>();
-    spawnPopulation(world, createRng(11), { population: 12 });
+    spawnPopulation(world, createRng(11), { population: 12, lineage: new LineageRegistry() });
 
     const agents = [...world.query("agent", "needs", "inventory", "ownership", "personality", "fsm")];
     expect(agents).toHaveLength(12);
@@ -39,7 +42,7 @@ describe("spawnPopulation", () => {
 
   it("jitters each agent's active decay rates (not all identical) but keeps them within the documented range", () => {
     const world = new World<HollowEntity>();
-    spawnPopulation(world, createRng(22), { population: 20 });
+    spawnPopulation(world, createRng(22), { population: 20, lineage: new LineageRegistry() });
     const rates = [...world.query("needs")].map((a) => a.needs.byKind[NEED_FOOD]!.decayPerTick);
 
     // Not every agent got the exact same rate (jitter is real, not a no-op).
@@ -52,13 +55,53 @@ describe("spawnPopulation", () => {
 
   it("is deterministic: same seed -> identical positions and rates", () => {
     const worldA = new World<HollowEntity>();
-    spawnPopulation(worldA, createRng(99), { population: 15 });
+    spawnPopulation(worldA, createRng(99), { population: 15, lineage: new LineageRegistry() });
     const worldB = new World<HollowEntity>();
-    spawnPopulation(worldB, createRng(99), { population: 15 });
+    spawnPopulation(worldB, createRng(99), { population: 15, lineage: new LineageRegistry() });
 
     const snap = (w: World<HollowEntity>): unknown[] =>
       [...w.query("agent", "needs")].map((a) => [a.agent.gx, a.agent.gy, a.needs.byKind[NEED_FOOD]!.decayPerTick]);
 
     expect(snap(worldA)).toEqual(snap(worldB));
+  });
+
+  it("seeds every founder with a genome (genes in range), an adult Lifecycle, householdId:null, and a generation-0 lineage record (chunk hollow-05)", () => {
+    const world = new World<HollowEntity>();
+    const lineage = new LineageRegistry();
+    spawnPopulation(world, createRng(33), { population: 10, lineage });
+
+    const agents = [...world.query("agent", "genome", "lifecycle", "householdId")];
+    expect(agents).toHaveLength(10);
+
+    for (const agent of agents) {
+      for (const gene of BEHAVIOR_GENES) {
+        const v = agent.genome.behavior[gene]!;
+        expect(v).toBeGreaterThanOrEqual(GENE_MIN);
+        expect(v).toBeLessThanOrEqual(GENE_MAX);
+      }
+      for (const skill of APTITUDE_SKILLS) {
+        const v = agent.genome.aptitude[skill]!;
+        expect(v).toBeGreaterThanOrEqual(GENE_MIN);
+        expect(v).toBeLessThanOrEqual(GENE_MAX);
+      }
+      expect(agent.lifecycle.stage).toBe("adult");
+      expect(agent.lifecycle.birthTick).toBe(0);
+      expect(agent.lifecycle.ageTicks).toBeGreaterThanOrEqual(STAGE_CHILD_ADULT_TICKS);
+      // Only the FIRST HALF of the adult band (population.ts's header) —
+      // a stronger bound than the full band, proving the safety-margin
+      // restriction is real, not just "somewhere before elder".
+      const halfBand = STAGE_CHILD_ADULT_TICKS + (STAGE_ADULT_ELDER_TICKS - STAGE_CHILD_ADULT_TICKS) / 2;
+      expect(agent.lifecycle.ageTicks).toBeLessThan(halfBand);
+      expect(agent.householdId).toBeNull();
+
+      const lineageEntry = lineage.get(agent.id!);
+      expect(lineageEntry).toBeDefined();
+      expect(lineageEntry!.parents).toBeNull();
+      expect(lineageEntry!.genome).toBe(agent.genome);
+    }
+
+    // Not every founder got the exact same genome (real randomness).
+    const heights = agents.map((a) => a.genome.appearance.height);
+    expect(new Set(heights).size).toBeGreaterThan(1);
   });
 });

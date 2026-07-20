@@ -15,7 +15,9 @@
     "./agents": "./src/agents/index.ts",
     "./systems": "./src/systems/index.ts",
     "./population": "./src/population.ts",
-    "./community": "./src/community/index.ts"
+    "./community": "./src/community/index.ts",
+    "./family": "./src/family/index.ts",
+    "./lineage": "./src/lineage/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

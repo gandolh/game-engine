@@ -10,3 +10,11 @@ export type {
   CommunityMergedBody,
   CommunityDissolvedBody,
 } from "./community";
+export { ONT_FAMILY } from "./family";
+export type {
+  FamilyOntology,
+  FamilyBondedBody,
+  FamilyBirthBody,
+  FamilyDeathBody,
+  FamilyStageChangedBody,
+} from "./family";

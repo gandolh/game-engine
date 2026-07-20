@@ -10,6 +10,8 @@ import type { Needs, RelationshipLedger } from "@engine/core/agent";
 import type { HollowAgent } from "./agent";
 import type { Inventory } from "./inventory";
 import type { Ownership } from "./ownership";
+import type { Genome } from "./genome";
+import type { Lifecycle } from "./lifecycle";
 
 /**
  * Hollow's FSM states for chunk hollow-03. Mirrors Farm's simplest loop
@@ -56,5 +58,24 @@ export interface HollowEntity {
    * in practice it is always present once spawned.
    */
   communityId?: number | null;
+  /**
+   * Heritable traits (chunk hollow-05) — see components/genome.ts. Present
+   * on every spawned agent (founders in population.ts, children in
+   * family/reproduction-system.ts); optional only because the type is
+   * shared with pre-genome hand-built test harnesses (e.g.
+   * community/dynamics.test.ts) that construct entities without it.
+   */
+  genome?: Genome;
+  /** Age + life stage (chunk hollow-05) — see components/lifecycle.ts. */
+  lifecycle?: Lifecycle;
+  /**
+   * The household (see `family/`) this agent currently belongs to — either
+   * as one of its two partners or as a co-resident child — or `null` if
+   * unattached. Nullable (not optional-absent) so systems can clear
+   * membership with a plain assignment under `exactOptionalPropertyTypes`
+   * — same rationale as `communityId` above. Every spawned agent gets this
+   * initialized to `null` (population.ts / family/reproduction-system.ts).
+   */
+  householdId?: number | null;
   [key: string]: unknown;
 }

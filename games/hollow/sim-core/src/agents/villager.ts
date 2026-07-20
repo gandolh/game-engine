@@ -6,9 +6,10 @@
  *   2. else rest need at/below REST_SEEK_THRESHOLD_FRACTION → rest in place
  *   3. else → work the nearest material node (produces goods → wealth)
  *
- * No social/antagonistic verbs (hollow-06) and no genome-driven variety
- * beyond the per-agent decay-rate jitter applied at seeding time
- * (population.ts) — every agent runs this same, simple priority ladder.
+ * No social/antagonistic verbs (hollow-06). One behavior gene IS wired in
+ * (chunk hollow-05, "genome must not be dead data"): `industriousness`
+ * shifts the effective rest-seek threshold — see `restSeekThreshold` below.
+ * Every other genome effect is left for later briefs.
  */
 import { needFraction } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
@@ -18,9 +19,25 @@ import {
   SEEK_THRESHOLD_FRACTION,
   REST_SEEK_THRESHOLD_FRACTION,
 } from "../economy";
+import { INDUSTRIOUSNESS_REST_INFLUENCE } from "../family/constants";
 import { registerPersonality, type HollowDeliberationContext } from "./registry";
 
 export const VILLAGER_KIND = "villager";
+
+/**
+ * The rest-seek threshold, shifted by the agent's `industriousness`
+ * behavior gene (chunk hollow-05, family/constants.ts's
+ * `INDUSTRIOUSNESS_REST_INFLUENCE`): a highly industrious agent (gene near
+ * 1) tolerates a LOWER rest need before working on; a lazy agent (gene near
+ * 0) seeks rest SOONER. Defensive for agents without a genome (e.g.
+ * hand-built test harnesses) — falls back to the un-shifted baseline.
+ */
+function restSeekThreshold(agent: HollowEntity): number {
+  const industriousness = agent.genome?.behavior["industriousness"];
+  if (industriousness === undefined) return REST_SEEK_THRESHOLD_FRACTION;
+  const factor = 1 - (industriousness - 0.5) * INDUSTRIOUSNESS_REST_INFLUENCE;
+  return Math.max(0, Math.min(1, REST_SEEK_THRESHOLD_FRACTION * factor));
+}
 
 function villagerDeliberate(agent: HollowEntity, ctx: HollowDeliberationContext): void {
   const needs = agent.needs;
@@ -40,7 +57,7 @@ function villagerDeliberate(agent: HollowEntity, ctx: HollowDeliberationContext)
   }
 
   const rest = needs.byKind[NEED_REST];
-  if (rest && needFraction(rest) <= REST_SEEK_THRESHOLD_FRACTION) {
+  if (rest && needFraction(rest) <= restSeekThreshold(agent)) {
     intentions.queue.push({ kind: "rest", data: {}, priority: 80 });
     return;
   }

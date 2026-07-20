@@ -6,8 +6,7 @@
  * renewing stock, and a minimal BDI loop (perceive → deliberate → act) that
  * turns need pressure into travel + harvest + consumption. See
  * `economy/constants.ts` for the tuning derivation and `protocols/starvation.ts`
- * for the scarcity → population-regulation signal (mechanism only — this
- * chunk never despawns an agent; that's hollow-05).
+ * for the scarcity → population-regulation signal.
  *
  * `bootstrapHollowSim` must stay usable from:
  *   - a headless Node script (tools/hollow-sim) — no Worker, no DOM;
@@ -17,7 +16,8 @@
  * boundary convention — see CLAUDE.md's "Architecture essentials").
  *
  * Scheduler order — PERCEIVE → DELIBERATE → ACT → TRUST-ACCRUAL → COMMUNITY
- * → BELONGING → NEEDS-DECAY → RESOURCE-REGEN:
+ * → BELONGING → PAIRBOND → REPRODUCTION → LIFECYCLE → NEEDS-DECAY →
+ * RESOURCE-REGEN:
  *  1. PERCEIVE (HollowPerceiveSystem): folds needs into the starvation
  *     belief/signal, and re-arms any agent that finished its last intention
  *     last tick (empty queue, still in "ACT") back to "PERCEIVE" so it gets
@@ -50,13 +50,29 @@
  *     AFTER COMMUNITY (see above) and BEFORE NEEDS-DECAY (whose generic
  *     `decayPerTick` for `belonging` is a no-op stub — see
  *     economy/constants.ts — so it doesn't fight this system).
- *  7. NEEDS-DECAY (engine's `createNeedsDecaySystem`): drains every need by
+ *  7. PAIRBOND (HollowPairBondSystem, chunk hollow-05): bonds eligible
+ *     unattached adult pairs into new households. Runs AFTER BELONGING so
+ *     it reads this tick's up-to-date trust/community state, and BEFORE
+ *     REPRODUCTION (a household must exist before it can roll for a birth).
+ *  8. REPRODUCTION (HollowReproductionSystem, chunk hollow-05): rolls each
+ *     eligible household for a new pregnancy (gated by food security) and
+ *     spawns any child whose gestation just completed. Runs BEFORE
+ *     LIFECYCLE so a same-tick birth isn't aged or evaluated for death the
+ *     same tick it spawns.
+ *  9. LIFECYCLE (HollowLifecycleSystem, chunk hollow-05): ages every agent,
+ *     recomputes life stage, and evaluates death (starvation/old-age/
+ *     violence-seam), handling inheritance/household/community cleanup and
+ *     `world.despawn`. Runs AFTER PAIRBOND/REPRODUCTION (see above) and
+ *     BEFORE NEEDS-DECAY so we don't decay needs on agents that die this
+ *     tick.
+ * 10. NEEDS-DECAY (engine's `createNeedsDecaySystem`): drains every need by
  *     its `decayPerTick`. Runs AFTER perceive/deliberate/act (and hollow-04's
- *     trust/community/belonging systems) so this tick's harvesting/resting/
+ *     trust/community/belonging systems, and hollow-05's pairbond/
+ *     reproduction/lifecycle systems) so this tick's harvesting/resting/
  *     eating/belonging is reflected before decay applies — an agent that
  *     just topped off `food` this tick shouldn't also lose ground to decay
  *     in the same tick.
- *  8. RESOURCE-REGEN (`createResourceRegenSystem`): advances every node's
+ * 11. RESOURCE-REGEN (`createResourceRegenSystem`): advances every node's
  *     stock by one tick of regeneration. Runs last so a node fully drained
  *     by this tick's harvesting still gets its regen tick rather than being
  *     skipped for the tick it hit zero.
@@ -108,6 +124,28 @@ import {
   BELONGING_MEMBER_REPLENISH_PER_TICK,
   BELONGING_NONMEMBER_DECAY_PER_TICK,
 } from "./community";
+import {
+  HouseholdRegistry,
+  HollowPairBondSystem,
+  HollowReproductionSystem,
+  HollowLifecycleSystem,
+  STAGE_CHILD_ADULT_TICKS,
+  STAGE_ADULT_ELDER_TICKS,
+  OLD_AGE_HAZARD_BASE,
+  OLD_AGE_HAZARD_PER_TICK,
+  OLD_AGE_HAZARD_MAX,
+  STARVATION_DEATH_TICKS,
+  PAIRBOND_TRUST_THRESHOLD,
+  PAIRBOND_COMPAT_THRESHOLD,
+  PAIRBOND_PROXIMITY_TILES,
+  BIRTH_WINDOW_TICKS,
+  BIRTH_CHANCE,
+  BIRTH_FOOD_SECURITY_FRACTION,
+  BIRTH_PERCAPITA_FOOD_TARGET,
+  GESTATION_TICKS,
+} from "./family";
+import { LineageRegistry } from "./lineage";
+import { ONT_FAMILY } from "./protocols";
 
 export type { HollowEntity } from "./components";
 
@@ -163,6 +201,48 @@ export interface HollowSimOptions {
   belongingMemberReplenishPerTick?: number;
   /** Per-tick `belonging` decay for non-members. */
   belongingNonMemberDecayPerTick?: number;
+
+  // Lifecycle / genetics / pair-bonding / reproduction (chunk hollow-05)
+  // knobs — each defaults to its family/constants.ts constant, same
+  // override pattern as above (e.g. for shrinking stage/gestation ticks so
+  // a test can force a scenario without a huge tick budget).
+  /** Age (ticks) below which an agent is a "child". */
+  childAdultTicks?: number;
+  /** Age (ticks) below which an agent is an "adult" (at/above: "elder"). */
+  adultElderTicks?: number;
+  /** Per-tick old-age death hazard right at the elder threshold. */
+  oldAgeHazardBase?: number;
+  /** Added to the old-age hazard per tick spent past the elder threshold. */
+  oldAgeHazardPerTick?: number;
+  /** Clamp on the old-age hazard, however old an elder gets. */
+  oldAgeHazardMax?: number;
+  /** Consecutive `foodDepletedTicks` before starvation actually kills. */
+  starvationDeathTicks?: number;
+  /** Mutual-trust floor (both directions) for pair-bonding. */
+  pairbondTrustThreshold?: number;
+  /** Trait-compatibility floor for pair-bonding. */
+  pairbondCompatThreshold?: number;
+  /** Chebyshev-tile proximity radius required to pair-bond. */
+  pairbondProximityTiles?: number;
+  /** How often (in ticks) each household rolls for a new pregnancy. */
+  birthWindowTicks?: number;
+  /** Chance of conceiving on a birth-window roll that clears food security. */
+  birthChance?: number;
+  /** `food`-need fraction floor (and not-`starving`) for a partner to be food-secure. */
+  birthFoodSecurityFraction?: number;
+  /** Per-capita food-regen target for the density-dependent birth brake — the
+   *  load-bearing population stabilizer (see BIRTH_PERCAPITA_FOOD_TARGET).
+   *  Lower ⇒ births throttle at a lower carrying capacity. */
+  birthPerCapitaFoodTarget?: number;
+  /** Ticks between a successful conception roll and the child spawning. */
+  gestationTicks?: number;
+}
+
+export interface HollowAppearanceSnapshot {
+  readonly height: number;
+  readonly build: number;
+  readonly skinTone: string;
+  readonly hairTone: string;
 }
 
 export interface HollowAgentSnapshot {
@@ -176,6 +256,14 @@ export interface HollowAgentSnapshot {
   readonly starving: boolean;
   /** The community (chunk hollow-04) this agent belongs to, or `null`. */
   readonly communityId: number | null;
+  /** Age in ticks since birth (chunk hollow-05). */
+  readonly ageTicks: number;
+  /** Life stage — "child" | "adult" | "elder" (chunk hollow-05). */
+  readonly stage: string;
+  /** The household (chunk hollow-05) this agent belongs to, or `null`. */
+  readonly householdId: number | null;
+  /** Heritable appearance genes, for the M2 renderer (chunk hollow-05). */
+  readonly appearance: HollowAppearanceSnapshot;
 }
 
 export interface HollowResourceNodeSnapshot {
@@ -211,6 +299,13 @@ export interface HollowSnapshot {
   readonly resourceNodes: readonly HollowResourceNodeSnapshot[];
   /** Emergent communities (chunk hollow-04), sorted ascending by id. */
   readonly communities: readonly HollowCommunitySnapshot[];
+  /** Running total of births since sim start (chunk hollow-05) — does NOT
+   *  count the seeded founding population. */
+  readonly bornCount: number;
+  /** Running total of deaths since sim start (chunk hollow-05). */
+  readonly diedCount: number;
+  /** Current number of pair-bonded households (chunk hollow-05). */
+  readonly householdCount: number;
 }
 
 export interface BootedHollowSim {
@@ -223,6 +318,13 @@ export interface BootedHollowSim {
    *  `resources` above (see world/resources.ts's header for why communities,
    *  like resource nodes, are NOT ECS entities). */
   communities: CommunityRegistry;
+  /** The household registry (chunk hollow-05) — plain-data, same rationale
+   *  as `communities` above. */
+  households: HouseholdRegistry;
+  /** The permanent ancestry record (chunk hollow-05) — every agent ever
+   *  spawned, living or dead. See lineage/registry.ts's header for why this
+   *  outlives the ECS world's own despawn-on-death bookkeeping. */
+  lineage: LineageRegistry;
   /** Advances the sim by exactly one tick. */
   tick(): void;
   /** Returns a snapshot of the current sim state (render/transport boundary). */
@@ -254,7 +356,41 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   // flip (see community/trust.ts's header).
   const communities = new CommunityRegistry();
 
-  spawnPopulation(world, rng, { population: opts.population ?? DEFAULT_POPULATION });
+  // Household + lineage registries (chunk hollow-05) — same plain-data
+  // rationale as `communities` above. `lineage` is threaded into
+  // `spawnPopulation` below so founders get a permanent generation-0 record.
+  const households = new HouseholdRegistry();
+  const lineage = new LineageRegistry();
+
+  spawnPopulation(world, rng, {
+    population: opts.population ?? DEFAULT_POPULATION,
+    lineage,
+    childAdultTicks: opts.childAdultTicks ?? STAGE_CHILD_ADULT_TICKS,
+    adultElderTicks: opts.adultElderTicks ?? STAGE_ADULT_ELDER_TICKS,
+  });
+
+  // hollow-05's three new named forks — constructed AFTER spawnPopulation
+  // (which itself forks "population-genomes"/"population-lifecycle" off the
+  // root `rng`), so none of hollow-03/04's or spawnPopulation's own draws
+  // are disturbed. `reproductionRng` (the birth-window roll) and
+  // `geneticsRng` (crossover/mutation) are kept SEPARATE — see
+  // family/reproduction-system.ts's header for why.
+  const geneticsRng = rng.fork("genetics");
+  const lifecycleRng = rng.fork("lifecycle");
+  const reproductionRng = rng.fork("reproduction");
+
+  // Running birth/death totals (chunk hollow-05) — maintained by
+  // subscribing to the family ontology rather than re-deriving from
+  // `lineage` at snapshot time, mirroring how a later consumer (hollow-07's
+  // CLI export) would hook the same events.
+  let bornCount = 0;
+  let diedCount = 0;
+  bus.subscribeOntology(ONT_FAMILY.BIRTH, () => {
+    bornCount++;
+  });
+  bus.subscribeOntology(ONT_FAMILY.DEATH, () => {
+    diedCount++;
+  });
 
   const scheduler = new Scheduler();
   scheduler
@@ -294,6 +430,35 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         nonMemberDecayPerTick: opts.belongingNonMemberDecayPerTick ?? BELONGING_NONMEMBER_DECAY_PER_TICK,
       }),
     )
+    .stage("PAIRBOND")
+    .add(
+      new HollowPairBondSystem(world, bus, households, lineage, {
+        trustThreshold: opts.pairbondTrustThreshold ?? PAIRBOND_TRUST_THRESHOLD,
+        compatThreshold: opts.pairbondCompatThreshold ?? PAIRBOND_COMPAT_THRESHOLD,
+        proximityTiles: opts.pairbondProximityTiles ?? PAIRBOND_PROXIMITY_TILES,
+      }),
+    )
+    .stage("REPRODUCTION")
+    .add(
+      new HollowReproductionSystem(world, bus, households, lineage, resources, reproductionRng, geneticsRng, {
+        birthWindowTicks: opts.birthWindowTicks ?? BIRTH_WINDOW_TICKS,
+        birthChance: opts.birthChance ?? BIRTH_CHANCE,
+        foodSecurityFraction: opts.birthFoodSecurityFraction ?? BIRTH_FOOD_SECURITY_FRACTION,
+        perCapitaFoodTarget: opts.birthPerCapitaFoodTarget ?? BIRTH_PERCAPITA_FOOD_TARGET,
+        gestationTicks: opts.gestationTicks ?? GESTATION_TICKS,
+      }),
+    )
+    .stage("LIFECYCLE")
+    .add(
+      new HollowLifecycleSystem(world, bus, households, communities, lineage, lifecycleRng, {
+        childAdultTicks: opts.childAdultTicks ?? STAGE_CHILD_ADULT_TICKS,
+        adultElderTicks: opts.adultElderTicks ?? STAGE_ADULT_ELDER_TICKS,
+        oldAgeHazardBase: opts.oldAgeHazardBase ?? OLD_AGE_HAZARD_BASE,
+        oldAgeHazardPerTick: opts.oldAgeHazardPerTick ?? OLD_AGE_HAZARD_PER_TICK,
+        oldAgeHazardMax: opts.oldAgeHazardMax ?? OLD_AGE_HAZARD_MAX,
+        starvationDeathTicks: opts.starvationDeathTicks ?? STARVATION_DEATH_TICKS,
+      }),
+    )
     .stage("NEEDS-DECAY")
     .add(createNeedsDecaySystem(world, { component: "needs", needsOf: (a) => a.needs }))
     .stage("RESOURCE-REGEN")
@@ -308,6 +473,8 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     rng,
     resources,
     communities,
+    households,
+    lineage,
     tick(): void {
       scheduler.tick({ tick: tickCount });
       // Host-level message delivery (mirrors @farm/server/sim-host.ts calling
@@ -330,6 +497,9 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         "personality",
         "beliefs",
         "communityId",
+        "lifecycle",
+        "genome",
+        "householdId",
       )) {
         const needs: Record<string, number> = {};
         for (const [kind, need] of Object.entries(entity.needs.byKind)) {
@@ -344,6 +514,15 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
           inventory: { ...entity.inventory.goods },
           starving: entity.beliefs.data.starving === true,
           communityId: entity.communityId,
+          ageTicks: entity.lifecycle.ageTicks,
+          stage: entity.lifecycle.stage,
+          householdId: entity.householdId,
+          appearance: {
+            height: entity.genome.appearance.height,
+            build: entity.genome.appearance.build,
+            skinTone: entity.genome.appearance.skinTone,
+            hairTone: entity.genome.appearance.hairTone,
+          },
         });
       }
       const resourceNodes: HollowResourceNodeSnapshot[] = resources.nodes.map((node) => ({
@@ -367,6 +546,9 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         agents,
         resourceNodes,
         communities: communitiesSnapshot,
+        bornCount,
+        diedCount,
+        householdCount: households.all().length,
       };
     },
   };
