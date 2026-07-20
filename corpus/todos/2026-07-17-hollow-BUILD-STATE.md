@@ -47,7 +47,10 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | **hollow-06 social verbs** | ✅ **done, verified** (split 6a+6b) | `5bd92c5` + `b802738` |
 | **hollow-07 headless CLI + export** | ✅ **done, verified** | (this wave) |
 | **M1 EXIT-BAR GATE** | ✅ **PASSED** (2026-07-20) — see wiki/hollow-overview.md | — |
-| M2–M4 (hollow-08..13) | ⬜ specs written, queued | — |
+| **hollow-08 engine WebGPU 3D renderer** | ✅ **done, verified** (split 8a+8b) | `b5f146e` + `575b9d0` |
+| **hollow-09 cozy 3D town scene** | ✅ **done, verified** (split 9a+9b+9c) | `0848664` + `c3b8441` + `4bd5994` |
+| **M2 GATE** | ✅ headless-verified; **live 3D image Chrome-gated** (not self-verifiable) | — |
+| M3–M4 (hollow-10..13) | ⬜ specs written, queued | — |
 
 ## hollow-05 — how it went (2026-07-20)
 Re-dispatched FRESH on a Sonnet executor (the old `stash@{0}` partial was NOT salvaged). Implementation
@@ -141,27 +144,62 @@ rumor). Flag this to hollow-07's export/metrics work and revisit in the economy 
   scenario-authoring; genome cohorts can be biased in tests by mutating `genome.behavior[gene]`
   post-bootstrap.
 
-## ▶ NEXT ACTION (resume here) — M1 IS COMPLETE; this is now the M2 entry point
-**M1 (hollow-01..07) is done and the exit-bar PASSED (2026-07-20).** Findings + the full emergence
-story are in [../wiki/hollow-overview.md](../wiki/hollow-overview.md). `@hollow/sim-core` 120/120 +
-`@tool/hollow-sim` 26/26 green; whole-workspace typecheck 17/17. Everything local on `hollow`,
-unpushed. **The hollow-07 tool commit is `tools/hollow-sim/` ONLY** — a concurrent session's Astro
-docs site (`docs/` + root package.json/turbo.json/.gitignore + package-lock churn) shares the tree;
-those are NOT Hollow's and were left uncommitted by this wave.
+## M2 — how it went (2026-07-20)
+Continued straight into M2. **08** (engine renderer) split 8a (pure core: mesh promotion + mat4/
+camera/pick, 37 tests) + 8b (WebGPU device/pipeline/instanced draw + `scene3d.wgsl` cozy flat-shade;
+CPU packing pure-tested, GPU thin). **09** (town) split 9a (world/homes/nodes/cam/day-night + a
+determinism-safe render-only `action` snapshot field) + 9b (gene-driven instanced humanoids via the
+skin×hair×pose mesh-variant scheme + walk cycle/poses) + 9c (glyph/`[T]`-tag overlay + click→
+read-only worker `inspect` → DOM panel + follow-cam). Every slice controller-verified (typecheck +
+narrow tests + layering/palette/scope + determinism where relevant) and committed only-my-paths.
 
-To resume:
-1. Confirm baseline: `npm run test -w @hollow/sim-core` (120/120) + `npm run test -w @tool/hollow-sim`
-   (26/26) + whole-workspace `npm run typecheck` (17/17). Optionally `npm run sim:hollow` to eyeball.
-2. **Before M2**, strongly consider an **economy-deepening brief** (persistent inventory / real
-   scarcity) so `steal`/`trade` stop being dormant — they're built + unit-tested but never chosen in
-   the current fed-cooperative economy (see hollow-overview.md "Known limitations").
-3. **M2 (hollow-08..13)** specs are written + queued in `corpus/todos/`: 08 WebGPU 3D renderer,
-   09 cozy-town scene, 10 client chronicle/dashboard, 11 authoring/perturbation, 12 governance/
-   politics, 13 LLM rationalizer seam. Dispatch on Sonnet executors, same verify-gate discipline.
-4. Housekeeping: the stale `git stash@{0}` (hollow-05 WIP) is still present (drop blocked by the
-   classifier this session) — `git stash drop stash@{0}` when convenient. Add `hollow-out/` to
-   `.gitignore` (the tool's default EXPORT_DIR) — deferred this wave because `.gitignore` is being
-   edited by the concurrent docs session.
+**The load-bearing M2 reality:** WebGPU cannot render headless in this environment (Citadel finding),
+so the *visual* acceptance gates (08b's lit scene, 09's walking gene-visible town, glyphs/tags/
+inspect) are **NOT self-verified** — they need a human in a WebGPU Chrome. Mitigation applied: all
+CPU-side logic (mesh geometry, mat4, camera, ray-pick, buffer/instance/material packing, screen
+projection, humanoid builder, pose/anim math, inspect assembly, name/glyph mapping) was factored
+into **pure functions with unit tests**, so ~everything except the thin GPU/DOM orchestration is
+verified. `@hollow/client` 143 + `@engine/core` 269 green; whole-workspace typecheck clean (18 pkgs,
+Farm/Citadel untouched). **Human Chrome checklist** is in the controller's M2 handoff (below) + the
+per-slice commit messages.
+
+### Human Chrome-verify checklist (the ONLY unverified part of M2)
+`npm run hollow` (repo root) → open the Vite URL (port per `games/hollow/client/vite.config.ts`) in
+Chrome 113+ (or enable `chrome://flags` → "Unsafe WebGPU"). Expect: grassy 64² ground w/ gentle
+relief; soft community territory tints; clustered homes that grow with family size; distinct
+crop-bush vs rock nodes shrinking as depleted; **humanoids that walk, strike action poses, and whose
+skin/hair colors visibly track lineage** (children resemble parents); golden day↔night with glowing
+windows. Overlay: action glyphs over active agents; press **T** for name+need bars; **click** an
+agent → gold highlight + side panel (genome/needs/mind/relationships/kin/community); **F** to
+follow-cam. Engine-only sanity: `npm run demo3d -w @hollow/client` (static primitive scene).
+
+## ▶ NEXT ACTION (resume here) — M1 + M2 COMPLETE; this is now the M3 entry point
+**M1 (hollow-01..07) + M2 (hollow-08..09) are done (2026-07-20).** Findings + the full emergence
+story + the M2 3D layer are in [../wiki/hollow-overview.md](../wiki/hollow-overview.md). Green:
+`@hollow/sim-core` 124 + `@tool/hollow-sim` 26 + `@hollow/client` 143 + `@engine/core` 269; whole-
+workspace typecheck clean (18 pkgs, Farm/Citadel untouched). Everything local on `hollow`, unpushed.
+Commits are only-my-paths each slice (no concurrent-session files committed).
+
+**⚠ Carried-forward, still open (M2 did NOT close these):**
+- **M2's live 3D image is human-unverified** (WebGPU headless unavailable). Someone must run the
+  Chrome checklist above before trusting the *visual* acceptance — the headless surface is all green
+  but a shader/camera/scene bug that only shows on-screen would not have been caught here.
+
+To resume (M3):
+1. Confirm baseline: `npm run test -w @hollow/client` (143) + `npm run test -w @hollow/sim-core`
+   (124) + whole-workspace `npm run typecheck`. For the visual: run the Chrome checklist above.
+2. **Still recommended before/alongside M3:** an **economy-deepening brief** (persistent inventory /
+   real scarcity) so `steal`/`trade` stop being dormant — built + unit-tested but never chosen in the
+   current fed-cooperative economy (see hollow-overview.md "Known limitations").
+3. **M3 (hollow-10, 11)** specs are queued in `corpus/todos/`: 10 client chronicle/dashboard (live
+   event feed + camera-jump + live metric charts + in-app export), 11 authoring/perturbation (persona
+   authoring + time controls + environmental shocks, logged for reproducibility). Then **M4**
+   (hollow-12 governance/politics, hollow-13 LLM rationalizer seam). Dispatch on Sonnet executors,
+   same verify-gate discipline; hollow-10/11 are client-heavy so expect the same "visual gate is
+   Chrome-only" caveat.
+4. Housekeeping: the stale `git stash@{0}` (hollow-05 WIP) may still be present — `git stash drop
+   stash@{0}` when convenient. `hollow-out/` (the tool's default EXPORT_DIR) should be in `.gitignore`
+   if not already.
 
 ---
 

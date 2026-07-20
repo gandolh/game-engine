@@ -4,6 +4,39 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-20] build | Hollow — M2 COMPLETE (engine WebGPU 3D renderer + cozy gene-driven town)
+
+Continued straight into M2 on branch **`hollow`** (local, unpushed) after M1's exit-bar. M2 adds the
+first true-3D path in the repo. Built in five Sonnet-executor slices, controller-verified + committed
+per slice; details folded into [wiki/hollow-overview.md](wiki/hollow-overview.md) "M2".
+
+- **hollow-08a engine render3d core** (`b5f146e`) — promoted Citadel's generic primitive→mesh
+  generators into `@engine/core/render3d` (material key generalized to `string`; engine ships no
+  palette) + the 3D math that did not exist: column-major `mat4` (`perspective` targets WebGPU clip
+  z∈[0,1]), `OrbitCamera`, ray-`pick`. Pure, 37 headless tests (incl. the WebGPU-z trap).
+- **hollow-08b WebGPU render layer** (`575b9d0`) — standalone (not the 2D sprite-batch path):
+  device/pipeline-cache/instanced drawIndexed + `scene3d.wgsl` (flat-shade via dpdx/dpdy → 3-step
+  warm toon ramp + hemispheric ambient + day/night + emissive glow). All CPU packing factored into
+  pure unit-tested fns; GPU orchestration is the only untestable-here part.
+- **hollow-09a town shell** (`0848664`) — `@hollow/client` 3D app off the Worker snapshot stream:
+  ground+relief, community territory tints, family-growing clustered homes, stock-scaled resource
+  nodes, orbit god-cam, day/night. Added a render-only per-agent **`action`** snapshot field
+  (determinism-safe — written by ACT, read only by the snapshot builder; proven byte-identical).
+- **hollow-09b gene-driven humanoids** (`c3b8441`) — low-poly humanoids colored by appearance genes
+  via the **mesh-variant scheme** (skin×hair×pose, instanced), gene/stage scale + walk cycle +
+  action poses on the render clock.
+- **hollow-09c legibility + interaction** (`4bd5994`) — 2D overlay glyphs, `[T]` name/need tags,
+  click ray-pick → read-only worker `inspect` round-trip → DOM inspect panel (BDI/genome/needs/
+  relationships/kin/community), follow-cam.
+
+**Verified:** `@hollow/client` 143 + `@engine/core` 269 tests green, whole-workspace typecheck clean
+(all 18 packages, Farm/Citadel untouched), palette guard green. **NOT self-verified:** the live 3D
+image — WebGPU can't render headless here (Citadel finding), so M2's visual acceptance is
+**Chrome-gated** (`npm run hollow`; engine demo `npm run demo3d -w @hollow/client`). **Lesson
+reinforced:** for a milestone whose value is visual + un-headless-verifiable, maximize the
+headless-testable surface (all CPU packing/mesh/math/projection factored into pure tested fns) and
+hand the human a precise open-in-Chrome checklist rather than claim a visual pass.
+
 ## [2026-07-20] build | Hollow — M1 COMPLETE (05–07 done, exit-bar PASSED); new wiki/hollow-overview.md
 
 Resumed the Hollow backlog and finished M1 on branch **`hollow`** (local, unpushed). New synthesis

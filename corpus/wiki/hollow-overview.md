@@ -1,5 +1,5 @@
 ---
-summary: What Hollow is (generational social-emergence sim on the shared engine), its M1 architecture (needs → communities → lifecycle/genetics → social verbs → headless research CLI), the M1 exit-bar results, and the load-bearing decisions + known limitations.
+summary: What Hollow is (generational social-emergence sim on the shared engine), its M1 architecture (needs → communities → lifecycle/genetics → social verbs → headless research CLI) with the M1 exit-bar PASSED, and its M2 3D layer (engine WebGPU renderer + gene-driven cozy town), the load-bearing decisions + known limitations.
 updated: 2026-07-20
 ---
 
@@ -19,7 +19,9 @@ executors). Milestone **M1 is complete** — see the exit-bar results below.
 ## Packages
 - **`@hollow/sim-core`** — the transport-agnostic, deterministic sim (systems, agents, world,
   economy, community, family, lineage, social protocols). Render-free.
-- **`@hollow/client`** — browser client (skeleton; the M2 WebGPU 3D renderer is queued as hollow-08+).
+- **`@hollow/client`** — browser client. **M2 landed** the living 3D town: it consumes the
+  engine WebGPU renderer, reads the Worker snapshot stream, and draws the cozy scene
+  (`src/render3d/` + `src/main.ts`, worker `src/worker/`). `npm run hollow`.
 - **`@tool/hollow-sim`** — the headless research CLI (hollow-07): drives `bootstrapHollowSim` on the
   main thread, samples metrics, captures the event chronicle, exports for offline study.
 
@@ -100,6 +102,50 @@ Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12
   antagonism years 1–3: ~400 antag/window) settling into a cooperative equilibrium (antag →~0) as
   trust rises and communities consolidate. ✓
 
+## M2 — engine 3D renderer + cozy town (2026-07-20)
+M2 is the first true-3D path in the repo (the old WebGPU renderer was deleted; Citadel's WebGPU
+use is 2D sprite-batch). Built in five slices, all committed on `hollow`:
+
+- **hollow-08a — engine render3d core** (`b5f146e`, `@engine/core/render3d`, *pure, 37 headless
+  tests*). Promoted Citadel's generic primitive→mesh generators (box/cylinder/cone/pyramid/gable/
+  disc/quad + transforms/merge/boundsOf) into the engine, generalizing the material key to a plain
+  `string` (engine ships **no palette**). Added the 3D math that did not exist anywhere: `mat4`
+  (column-major `Float32Array`, GPU-upload-ready; `perspective` targets **WebGPU clip z∈[0,1]**,
+  right-handed), `OrbitCamera` (orbit/pan/zoom god-cam), and `pick` (screen→world ray, ray∩AABB,
+  ray∩triangle, `pickNearest`).
+- **hollow-08b — WebGPU render layer** (`575b9d0`). Standalone (does NOT touch the 2D sprite-batch
+  path): `device3d`, memoized `pipeline-cache` (depth24plus/less, back-cull, ccw), instanced
+  `drawIndexed`, per-frame + per-material bind groups, an instance vertex buffer. `scene3d.wgsl`
+  does the **cozy look**: flat shading via `dpdx/dpdy` face normal → 3-step warm toon ramp +
+  hemispheric ambient + day/night dim + emissive window-glow. **All CPU-side packing is factored
+  into pure unit-tested functions** (`buffers.ts`: packMesh/packInstance/packMaterials/instanceAABB)
+  so the only untestable-here part is the thin GPU orchestration.
+- **hollow-09a — town shell** (`0848664`). The `@hollow/client` app: 64² ground with gentle sine
+  relief, soft community territory tints, household homes that grow with family size and cluster by
+  community, distinct crop-bush/rock resource nodes scaled by stock, the orbit god-cam, and a
+  sim-clock day/night wash. Added a render-only per-agent **`action`** field to the snapshot
+  (`walk/eat/work/rest` + the 9 social verbs) — **determinism-safe** (written by the ACT stage, read
+  only by the snapshot builder; proven byte-identical by `sim-bootstrap.action.test.ts`).
+- **hollow-09b — gene-driven humanoids** (`c3b8441`). Low-poly humanoids built from primitives,
+  colored by appearance genes. Because the renderer gives one tint per instance, per-agent skin AND
+  hair color are made correct via the **mesh-variant scheme** (variants keyed by skin×hair×pose,
+  ≤5×5×7, built lazily once each, instanced); height/build/life-stage + walk-bob/facing ride the
+  per-instance model matrix; poses map from `action`. Walk cycle uses the render clock + interp
+  buffer (no lockstep).
+- **hollow-09c — legibility + interaction** (`4bd5994`). A 2D overlay over the WebGPU canvas: subtle
+  action glyphs by default; **`[T]`** toggles name + need/stress bar. Click ray-picks an agent →
+  gold highlight + a **worker `inspect` round-trip** (read-only `world.query` + community/household/
+  lineage registries → `InspectDetail`: identity/genome/needs/BDI/relationships/kin/community; dead
+  agents fall back to the lineage record) → a DOM side panel. **Follow-cam** (`F`) locks the camera
+  target to the selected agent.
+
+**M2 verification.** Everything headless-testable is green: `@hollow/client` 143 tests, `@engine/
+core` 269 (incl. the WebGPU-z trap + all packing), whole-workspace typecheck clean across all 18
+packages, palette guard green, Farm/Citadel untouched. **The live 3D image is NOT self-verified** —
+WebGPU cannot render headless in this environment (the established Citadel finding), so M2's visual
+acceptance (a lit walking town, gene-visible lineage, glyphs/tags/inspect) is **gated on a human
+opening `npm run hollow` in a WebGPU Chrome**. Engine example: `npm run demo3d -w @hollow/client`.
+
 ## Known limitations (carried forward)
 - **`steal` and `trade` are dormant (count 0) in natural play.** A fed, cooperative town has no
   needy+greedy+low-trust actor next to a stealable holder, and solo agents' inventories net to ~0
@@ -120,10 +166,19 @@ Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12
   registry + genetics + constants), `lineage/`, `social/` (act + witness + constants), `protocols/`.
 - Tool: [tools/hollow-sim/src/](../../tools/hollow-sim/src/) — `env.ts` (research profile),
   `metrics.ts`, `chronicle.ts`, `export.ts`, `run-core.ts`, `determinism.ts`.
+- Engine 3D (M2): [engine/core/src/render3d/](../../engine/core/src/render3d/) — `geometry.ts`,
+  `mat4.ts`, `camera3d.ts`, `pick.ts`, `webgpu/` (`device3d`/`pipeline-cache`/`renderer3d`/
+  `buffers` + `shaders/scene3d.wgsl`). Generic; names no game.
+- Client 3D (M2): [games/hollow/client/src/](../../games/hollow/client/src/) — `render3d/`
+  (`app.ts` render loop, `humanoid.ts`, `agent-anim.ts`, `world-meshes.ts`, `overlay.ts`,
+  `screen-project.ts`, `materials.ts`, `interp.ts`, …), `worker/` (`sim-worker.ts` + `inspect.ts`),
+  `inspect-panel.ts`, `main.ts`.
 - Live build tracker / handoffs: [../todos/2026-07-17-hollow-BUILD-STATE.md](../todos/2026-07-17-hollow-BUILD-STATE.md).
 
-## Next (M2+)
-hollow-08 WebGPU 3D renderer, hollow-09 cozy-town scene, hollow-10 client chronicle/dashboard,
-hollow-11 authoring/perturbation, hollow-12 governance/politics, hollow-13 LLM rationalizer seam —
-all specs written and queued in `corpus/todos/`. The economy deepening that activates steal/trade
-should slot in before or alongside these.
+## Next (M3+)
+**M1 (hollow-01..07) and M2 (hollow-08..09) are complete.** M3 is the research surfaces:
+hollow-10 client chronicle/dashboard (live event feed with camera-jump + live metric charts +
+in-app CSV/JSON export), hollow-11 authoring/perturbation (guided persona authoring + time controls
++ environmental shocks, logged for reproducibility). M4 depth: hollow-12 governance/politics,
+hollow-13 LLM rationalizer seam. All specs are written + queued in `corpus/todos/`. The economy
+deepening that activates the dormant steal/trade verbs should still slot in before or alongside M3.
