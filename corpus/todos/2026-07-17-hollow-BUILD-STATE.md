@@ -54,7 +54,8 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | **hollow-11 authoring + perturbation** | ✅ **done, verified** (split 11a+11b) | `66444c2` + `4716203` |
 | **M3 GATE** | ✅ headless + DOM-flow verified; **live 3D image Chrome-gated** | — |
 | **hollow-12 governance & antagonism arcs** | ✅ **done, verified** (split 12a+12b) | `96f0bf5` + `1b32909` |
-| hollow-13 LLM rationalizer seam | ⬜ spec written, queued | — |
+| **hollow-14 Daily Life (jobs/routine/hearth)** | 🔨 spec written; BUILDING (14a foundation first) | — |
+| hollow-13 LLM rationalizer seam | ⬜ spec written, queued (after 14) | — |
 
 ## hollow-05 — how it went (2026-07-20)
 Re-dispatched FRESH on a Sonnet executor (the old `stash@{0}` partial was NOT salvaged). Implementation
