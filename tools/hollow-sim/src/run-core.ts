@@ -15,6 +15,13 @@
  * browser client's sim worker uses for its own per-year sampling — so the
  * numbers/columns produced here are guaranteed identical to whatever the
  * client shows, not just parallel re-implementations of the same math.
+ *
+ * Chunk hollow-11a additionally lets a persona seed's own `seed`/density
+ * fields (`personaSeedToSimOptions`) flow INTO `simOptions` before bootstrap
+ * (a persona seed can now fully describe a scenario, not just gene biases),
+ * and lets an optional recorded `interventionLog` replay onto the fresh sim
+ * before the tick loop starts — see `intervention-log.ts` and
+ * `sim-bootstrap.ts`'s `loadInterventionLog`.
  */
 import { bootstrapHollowSim } from "@hollow/sim-core/sim-bootstrap";
 import type { HollowSimOptions } from "@hollow/sim-core/sim-bootstrap";
@@ -31,7 +38,8 @@ import {
   type DeathsByCause,
   type MetricsRow,
 } from "@hollow/sim-core/observe";
-import { loadPersonaSeed, applyPersonaSeed } from "./persona";
+import { loadPersonaSeed, applyPersonaSeed, personaSeedToSimOptions } from "./persona";
+import { loadInterventionLog } from "./intervention-log";
 
 export interface RunOptions {
   simOptions: HollowSimOptions;
@@ -41,6 +49,9 @@ export interface RunOptions {
   maxYears: number;
   /** Optional path to a JSON persona/genome-seed file (see `persona.ts`). */
   personaSeedPath?: string;
+  /** Optional path to a JSON `Intervention[]` log to REPLAY (chunk
+   *  hollow-11a) — see `intervention-log.ts`. */
+  interventionLogPath?: string;
 }
 
 export interface RunSummary {
@@ -64,14 +75,29 @@ export interface RunResult {
 }
 
 export function runResearch(opts: RunOptions): RunResult {
-  const sim = bootstrapHollowSim(opts.simOptions);
+  // Persona seed (if any) is loaded FIRST so its seed/density fields can
+  // flow into `simOptions` before `bootstrapHollowSim` — see this file's
+  // header. A legacy-only seed (no `seed`/density fields) contributes
+  // nothing here (`personaSeedToSimOptions` returns `{}`), so `simOptions`
+  // is unchanged from before this brief in that case.
+  const personaSeed = opts.personaSeedPath !== undefined ? loadPersonaSeed(opts.personaSeedPath) : undefined;
+  const simOptions: HollowSimOptions = personaSeed
+    ? { ...opts.simOptions, ...personaSeedToSimOptions(personaSeed) }
+    : opts.simOptions;
+
+  const sim = bootstrapHollowSim(simOptions);
   const chronicle = createChronicle(sim.bus);
 
-  // Persona seed (if any) is applied BEFORE the first tick — see
+  // Gene overrides (if any) are applied BEFORE the first tick — see
   // `persona.ts`'s header for why this stays deterministic.
-  if (opts.personaSeedPath !== undefined) {
-    const seed = loadPersonaSeed(opts.personaSeedPath);
-    applyPersonaSeed(sim, seed);
+  if (personaSeed) applyPersonaSeed(sim, personaSeed);
+
+  // Intervention-log REPLAY (chunk hollow-11a) — also seeded before the
+  // first tick so every logged shock applies at its recorded tick boundary,
+  // same as it did the first time (`shockSystem`'s pending queue is fresh on
+  // a brand-new sim, so there's no "already past" entry to skip here).
+  if (opts.interventionLogPath !== undefined) {
+    sim.loadInterventionLog(loadInterventionLog(opts.interventionLogPath));
   }
 
   const metricsRows: MetricsRow[] = [];
@@ -99,7 +125,7 @@ export function runResearch(opts: RunOptions): RunResult {
     events,
     lineage: sim.lineage.all(),
     summary: {
-      seed: opts.simOptions.seed,
+      seed: simOptions.seed,
       ticksRun: finalSnap.tick,
       generationsOfDescent: sim.lineage.generationsOfDescent(),
       finalPopulation: finalSnap.aliveCount,

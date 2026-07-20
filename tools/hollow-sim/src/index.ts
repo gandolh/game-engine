@@ -13,6 +13,7 @@
  *   SEED=7 MAX_YEARS=12 npm run sim:hollow           # a specific seed/run length
  *   EXPORT=json EXPORT_DIR=./out npm run sim:hollow  # JSON metrics instead of CSV, custom output dir
  *   PERSONA_SEED=./founders.json npm run sim:hollow  # founder genome overrides (see persona.ts)
+ *   INTERVENTION_LOG=./shocks.json npm run sim:hollow  # replay a recorded shock log (see intervention-log.ts)
  *   npm run check-determinism -w @tool/hollow-sim    # same seed(s) twice, byte-identical assertion
  *
  * See `env.ts` for every knob + the default RESEARCH_PROFILE and why it
@@ -30,6 +31,7 @@ import {
   EXPORT,
   EXPORT_DIR,
   PERSONA_SEED,
+  INTERVENTION_LOG,
   CHECK_DETERMINISM,
   buildSimOptions,
   determinismSeeds,
@@ -77,6 +79,7 @@ function main(): void {
     ticksPerYear: TICKS_PER_YEAR,
     maxYears: MAX_YEARS,
     ...(PERSONA_SEED !== undefined ? { personaSeedPath: PERSONA_SEED } : {}),
+    ...(INTERVENTION_LOG !== undefined ? { interventionLogPath: INTERVENTION_LOG } : {}),
   });
 
   const metricsIsJson = EXPORT === "json";

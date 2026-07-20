@@ -12,6 +12,13 @@
  * Regeneration is a fixed `+regenPerTick` per tick — no further random draws
  * — so two `ResourceWorld`s built from the same parent `Rng` and options
  * produce byte-identical stock trajectories forever.
+ *
+ * Chunk hollow-11a additively seeds a per-kind `regenMultiplier` (default 1)
+ * — the ONLY writer is `HollowShockSystem`, which recomputes it every tick
+ * from currently-active famine/boom shock windows (see shock/system.ts's
+ * header). It's a plain number, not drawn from any `Rng`, so it doesn't
+ * disturb the determinism note above; `destroyNode` (the "disaster" shock's
+ * effect) is likewise a direct, non-random write.
  */
 import type { Rng } from "@engine/core";
 import { GRID_SIZE } from "./grid";
@@ -40,6 +47,8 @@ export interface ResourceWorldOptions {
 export class ResourceWorld {
   readonly nodes: ResourceNode[] = [];
   private readonly byId = new Map<number, ResourceNode>();
+  /** Per-kind regen multiplier (chunk hollow-11a) — see this file's header. */
+  private readonly regenMultiplier: Record<ResourceKind, number> = { food: 1, material: 1 };
 
   constructor(rng: Rng, opts: ResourceWorldOptions) {
     const placementRng = rng.fork("resource-node-placement");
@@ -113,12 +122,34 @@ export class ResourceWorld {
     return taken;
   }
 
-  /** Advances every node's stock by one tick of regeneration. */
+  /** Advances every node's stock by one tick of regeneration, scaled by that
+   *  node's kind's `regenMultiplier` (1 unless a famine/boom shock is
+   *  currently active — chunk hollow-11a). Clamped to `[0, maxStock]` (the
+   *  lower clamp only matters for a pathological negative multiplier; every
+   *  built-in shock kind uses a non-negative `factor`). */
   regenTick(): void {
     for (const node of this.nodes) {
-      if (node.stock < node.maxStock) {
-        node.stock = Math.min(node.maxStock, node.stock + node.regenPerTick);
+      const effectiveRegen = node.regenPerTick * this.regenMultiplier[node.kind];
+      if (node.stock < node.maxStock || effectiveRegen < 0) {
+        node.stock = Math.max(0, Math.min(node.maxStock, node.stock + effectiveRegen));
       }
     }
+  }
+
+  /** Sets the per-tick regen multiplier for every node of `kind` (chunk
+   *  hollow-11a's famine/boom shocks). `regenTick` reads this every tick; it
+   *  does NOT retroactively touch any node's current `stock`. */
+  setRegenMultiplier(kind: ResourceKind, multiplier: number): void {
+    this.regenMultiplier[kind] = multiplier;
+  }
+
+  /** Zeros a node's stock — the "disaster" shock's concrete effect (chunk
+   *  hollow-11a). The node itself is never removed (so `nearestNode`/id
+   *  lookups stay stable and existing callers never see a hole in
+   *  `resources.nodes`); it simply regenerates from empty like any other
+   *  depleted node. A no-op if `id` is unknown. */
+  destroyNode(id: number): void {
+    const node = this.byId.get(id);
+    if (node) node.stock = 0;
   }
 }

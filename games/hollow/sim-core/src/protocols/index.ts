@@ -32,3 +32,15 @@ export type {
   RumorBody,
   AttackBody,
 } from "./social";
+export { ONT_SHOCK, shockOntology } from "./shock";
+export type {
+  ShockKind,
+  ShockOntology,
+  Shock,
+  FamineShock,
+  BoomShock,
+  DisasterShock,
+  PlagueShock,
+  Intervention,
+  ShockAppliedBody,
+} from "./shock";

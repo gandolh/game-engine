@@ -19,7 +19,9 @@
     "./family": "./src/family/index.ts",
     "./lineage": "./src/lineage/index.ts",
     "./social": "./src/social/index.ts",
-    "./observe": "./src/observe/index.ts"
+    "./observe": "./src/observe/index.ts",
+    "./persona": "./src/persona/index.ts",
+    "./shock": "./src/shock/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -59,6 +59,12 @@ export const EXPORT_DIR = strEnv("EXPORT_DIR") ?? "./hollow-out";
 /** Optional path to a JSON founder-genome-seed file — see `persona.ts`. */
 export const PERSONA_SEED = strEnv("PERSONA_SEED");
 
+/** Optional path to a JSON `Intervention[]` log (chunk hollow-11a) — see
+ *  `intervention-log.ts`. When set, the run REPLAYS these shocks instead of
+ *  (or alongside) any live scheduling, reproducing a prior run's
+ *  interventions exactly — see `sim-bootstrap.ts`'s `loadInterventionLog`. */
+export const INTERVENTION_LOG = strEnv("INTERVENTION_LOG");
+
 export const CHECK_DETERMINISM =
   process.env["CHECK_DETERMINISM"] === "1" || process.argv.includes("--check-determinism");
 

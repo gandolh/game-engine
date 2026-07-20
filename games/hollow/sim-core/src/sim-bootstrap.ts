@@ -15,9 +15,19 @@
  * Nothing Worker- or DOM-specific belongs in this file (the sim ↔ render
  * boundary convention — see CLAUDE.md's "Architecture essentials").
  *
- * Scheduler order — PERCEIVE → DELIBERATE → ACT → TRUST-ACCRUAL → COMMUNITY
- * → BELONGING → PAIRBOND → REPRODUCTION → LIFECYCLE → NEEDS-DECAY →
- * RESOURCE-REGEN:
+ * Scheduler order — SHOCK → PERCEIVE → DELIBERATE → ACT → TRUST-ACCRUAL →
+ * COMMUNITY → BELONGING → PAIRBOND → REPRODUCTION → LIFECYCLE → NEEDS-DECAY
+ * → RESOURCE-REGEN:
+ *  0. SHOCK (HollowShockSystem, chunk hollow-11a): applies any environmental
+ *     shock (famine/boom/disaster/plague) scheduled for THIS tick, and
+ *     recomputes the resource world's regen multiplier / drains any active
+ *     plague. Runs FIRST — before PERCEIVE — for two reasons: (a) shocks
+ *     must apply at a tick BOUNDARY only, never mid-tick, and stage 0 is the
+ *     one unambiguous boundary every tick has; (b) putting it before
+ *     PERCEIVE means this tick's agents already perceive the POST-shock
+ *     world (reduced food regen, a zeroed node, a drained need) rather than
+ *     perceiving it a tick late. See `shock/system.ts`'s header for the
+ *     full determinism/replay contract.
  *  1. PERCEIVE (HollowPerceiveSystem): folds needs into the starvation
  *     belief/signal, and re-arms any agent that finished its last intention
  *     last tick (empty queue, still in "ACT") back to "PERCEIVE" so it gets
@@ -153,7 +163,7 @@ import {
   GESTATION_TICKS,
 } from "./family";
 import { LineageRegistry } from "./lineage";
-import { ONT_FAMILY, ONT_SOCIAL } from "./protocols";
+import { ONT_FAMILY, ONT_SOCIAL, type Shock, type Intervention } from "./protocols";
 import {
   HollowSocialActSystem,
   HollowSocialWitnessSystem,
@@ -161,6 +171,7 @@ import {
   ATTACK_LETHALITY_PROB,
   SABOTAGE_DETECTION_PROB,
 } from "./social";
+import { HollowShockSystem } from "./shock";
 
 export type { HollowEntity } from "./components";
 
@@ -376,6 +387,35 @@ export interface BootedHollowSim {
    *  spawned, living or dead. See lineage/registry.ts's header for why this
    *  outlives the ECS world's own despawn-on-death bookkeeping. */
   lineage: LineageRegistry;
+  /**
+   * Dedicated `Rng` fork for founder-genome authoring (chunk hollow-11a,
+   * `@hollow/sim-core/persona`'s `applyPersonaSeed`) — `rng.fork("persona-authoring")`,
+   * carved out UNCONDITIONALLY right after hollow-06a's three forks (see
+   * `bootstrapHollowSim`'s body), so whether or not a persona seed is ever
+   * applied never shifts any other system's draw order. Exposed here (not
+   * re-derived lazily inside `applyPersonaSeed`) so that fork always sits at
+   * the exact same fixed point in the root `Rng`'s fork sequence.
+   */
+  personaRng: Rng;
+  /**
+   * Schedules `shock` to apply at the NEXT tick boundary (chunk hollow-11a)
+   * and appends the resulting `Intervention` to `interventionLog`. See
+   * `shock/system.ts`'s header for the stage placement + fork-keying
+   * determinism contract.
+   */
+  scheduleShock(shock: Shock): Intervention;
+  /**
+   * Seeds the shock system's pending queue from a PRIOR run's exact
+   * `interventionLog` (same tick/seq pairs, same order) — the replay path:
+   * bootstrap a fresh sim with the same seed + persona seed, call this
+   * once before ticking, then `tick()` forward; each logged intervention
+   * applies at its recorded tick exactly as it did the first time.
+   */
+  loadInterventionLog(entries: readonly Intervention[]): void;
+  /** Every intervention scheduled so far (live `scheduleShock` calls plus
+   *  any `loadInterventionLog`-seeded ones), in schedule order — the
+   *  replayable record (chunk hollow-11a). */
+  readonly interventionLog: readonly Intervention[];
   /** Advances the sim by exactly one tick. */
   tick(): void;
   /** Returns a snapshot of the current sim state (render/transport boundary). */
@@ -437,6 +477,16 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   const attackRng = rng.fork("attack");
   const sabotageDetectionRng = rng.fork("sabotage-detection");
 
+  // hollow-11a's two new forks — constructed AFTER hollow-06a's three forks
+  // above, for the same "don't disturb existing draw order" reason spelled
+  // out there. Carved out UNCONDITIONALLY (not lazily inside
+  // applyPersonaSeed/scheduleShock) so their fixed position in the root
+  // `Rng`'s fork sequence never depends on whether a persona seed is applied
+  // or any shock is ever scheduled — see `BootedHollowSim.personaRng`'s doc
+  // and `shock/system.ts`'s header for the full determinism contract.
+  const personaRng = rng.fork("persona-authoring");
+  const shockRng = rng.fork("shock");
+
   // Running birth/death totals (chunk hollow-05) — maintained by
   // subscribing to the family ontology rather than re-deriving from
   // `lineage` at snapshot time, mirroring how a later consumer (hollow-07's
@@ -495,8 +545,14 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     socialCounts["attack"]!++;
   });
 
+  // chunk hollow-11a's environmental-shock engine — see shock/system.ts's
+  // header for the full stage-placement + determinism/replay contract.
+  const shockSystem = new HollowShockSystem(world, resources, bus, shockRng);
+
   const scheduler = new Scheduler();
   scheduler
+    .stage("SHOCK")
+    .add(shockSystem)
     .stage("PERCEIVE")
     .add(new HollowPerceiveSystem(world, bus))
     // hollow-06a's third-party trust folding (rumor/steal-detected
@@ -595,6 +651,19 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     communities,
     households,
     lineage,
+    personaRng,
+    scheduleShock(shock: Shock): Intervention {
+      // `tickCount` (not yet incremented — see `tick()` below) is exactly
+      // the tick number the NEXT `tick()` call will run, i.e. the next tick
+      // boundary — see BootedHollowSim.scheduleShock's doc.
+      return shockSystem.schedule(shock, tickCount);
+    },
+    loadInterventionLog(entries: readonly Intervention[]): void {
+      shockSystem.loadLog(entries, tickCount);
+    },
+    get interventionLog(): readonly Intervention[] {
+      return shockSystem.interventionLog;
+    },
     tick(): void {
       scheduler.tick({ tick: tickCount });
       // Host-level message delivery (mirrors @farm/server/sim-host.ts calling
