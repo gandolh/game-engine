@@ -105,84 +105,61 @@ Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12
   trust rises and communities consolidate. ✓
 
 ## M2 — engine 3D renderer + cozy town (2026-07-20)
-M2 is the first true-3D path in the repo (the old WebGPU renderer was deleted; Citadel's WebGPU
-use is 2D sprite-batch). Built in five slices, all committed on `hollow`:
+The first true-3D path in the repo (old WebGPU renderer deleted; Citadel's is 2D sprite-batch). Five
+slices (details in log.md + commits):
+- **08a `@engine/core/render3d` core** (`b5f146e`) — promoted Citadel's generic primitive→mesh
+  generators (material key generalized to `string`; engine ships **no palette**) + the 3D math that
+  didn't exist: `mat4` (column-major, `perspective` at **WebGPU clip z∈[0,1]**), `OrbitCamera`, ray
+  `pick`. Pure, 37 tests.
+- **08b WebGPU layer** (`575b9d0`) — standalone device/pipeline-cache/instanced `drawIndexed`;
+  `scene3d.wgsl` cozy shading. All CPU packing factored into pure tests; only GPU orchestration is
+  untestable-here.
+- **09a town shell** (`0848664`) — ground+relief, territory tints, family-growing clustered homes,
+  stock-scaled nodes, god-cam, day/night. Added the render-only per-agent **`action`** snapshot field
+  (determinism-safe: written by ACT, read only by the snapshot builder).
+- **09b gene-driven humanoids** (`c3b8441`) — appearance-colored via the **mesh-variant scheme**
+  (skin×hair×pose, instanced); gene/stage scale + walk cycle + action poses on the render clock.
+- **09c legibility + interaction** (`4bd5994`) — 2D overlay glyphs, `[T]` tags, click→read-only
+  worker `inspect` → DOM panel, follow-cam.
 
-- **hollow-08a — engine render3d core** (`b5f146e`, `@engine/core/render3d`, *pure, 37 headless
-  tests*). Promoted Citadel's generic primitive→mesh generators (box/cylinder/cone/pyramid/gable/
-  disc/quad + transforms/merge/boundsOf) into the engine, generalizing the material key to a plain
-  `string` (engine ships **no palette**). Added the 3D math that did not exist anywhere: `mat4`
-  (column-major `Float32Array`, GPU-upload-ready; `perspective` targets **WebGPU clip z∈[0,1]**,
-  right-handed), `OrbitCamera` (orbit/pan/zoom god-cam), and `pick` (screen→world ray, ray∩AABB,
-  ray∩triangle, `pickNearest`).
-- **hollow-08b — WebGPU render layer** (`575b9d0`). Standalone (does NOT touch the 2D sprite-batch
-  path): `device3d`, memoized `pipeline-cache` (depth24plus/less, back-cull, ccw), instanced
-  `drawIndexed`, per-frame + per-material bind groups, an instance vertex buffer. `scene3d.wgsl`
-  does the **cozy look**: flat shading via `dpdx/dpdy` face normal → 3-step warm toon ramp +
-  hemispheric ambient + day/night dim + emissive window-glow. **All CPU-side packing is factored
-  into pure unit-tested functions** (`buffers.ts`: packMesh/packInstance/packMaterials/instanceAABB)
-  so the only untestable-here part is the thin GPU orchestration.
-- **hollow-09a — town shell** (`0848664`). The `@hollow/client` app: 64² ground with gentle sine
-  relief, soft community territory tints, household homes that grow with family size and cluster by
-  community, distinct crop-bush/rock resource nodes scaled by stock, the orbit god-cam, and a
-  sim-clock day/night wash. Added a render-only per-agent **`action`** field to the snapshot
-  (`walk/eat/work/rest` + the 9 social verbs) — **determinism-safe** (written by the ACT stage, read
-  only by the snapshot builder; proven byte-identical by `sim-bootstrap.action.test.ts`).
-- **hollow-09b — gene-driven humanoids** (`c3b8441`). Low-poly humanoids built from primitives,
-  colored by appearance genes. Because the renderer gives one tint per instance, per-agent skin AND
-  hair color are made correct via the **mesh-variant scheme** (variants keyed by skin×hair×pose,
-  ≤5×5×7, built lazily once each, instanced); height/build/life-stage + walk-bob/facing ride the
-  per-instance model matrix; poses map from `action`. Walk cycle uses the render clock + interp
-  buffer (no lockstep).
-- **hollow-09c — legibility + interaction** (`4bd5994`). A 2D overlay over the WebGPU canvas: subtle
-  action glyphs by default; **`[T]`** toggles name + need/stress bar. Click ray-picks an agent →
-  gold highlight + a **worker `inspect` round-trip** (read-only `world.query` + community/household/
-  lineage registries → `InspectDetail`: identity/genome/needs/BDI/relationships/kin/community; dead
-  agents fall back to the lineage record) → a DOM side panel. **Follow-cam** (`F`) locks the camera
-  target to the selected agent.
+**Post-Chrome fixes** (from the first real-GPU view): the material buffer used an 8-float ("std140")
+stride while the WGSL `var<storage>` array is **std430 = 4-float** → the shader read every odd
+material index from zero-padding → houses/rocks/half the palette rendered black (`53bc26c`, the key
+bug); plus smoother half-Lambert lighting with a floor so no face is ever black + a slower day cycle
+(`01beb9c`); and footprint-hitbox non-overlapping home placement (`f1d1991`). Note **`Rng.fork()`
+consumes a parent draw** — appended forks must go after existing ones (see M3 audit).
 
-**M2 verification.** Everything headless-testable is green: `@hollow/client` 143 tests, `@engine/
-core` 269 (incl. the WebGPU-z trap + all packing), whole-workspace typecheck clean across all 18
-packages, palette guard green, Farm/Citadel untouched. **The live 3D image is NOT self-verified** —
-WebGPU cannot render headless in this environment (the established Citadel finding), so M2's visual
-acceptance (a lit walking town, gene-visible lineage, glyphs/tags/inspect) is **gated on a human
-opening `npm run hollow` in a WebGPU Chrome**. Engine example: `npm run demo3d -w @hollow/client`.
+## M2 verification
+Headless-testable all green (`@hollow/client` + `@engine/core` incl. the WebGPU-z trap + all packing,
+whole-workspace typecheck, palette guard, Farm/Citadel untouched). The **live 3D image is NOT
+self-verified** — the sandbox Chrome has no WebGPU adapter (`requestAdapter()` → null), so the visual
+acceptance is **gated on a human at `npm run hollow`** (engine example: `npm run demo3d -w
+@hollow/client`).
 
-## M3 — research surfaces: chronicle, dashboard, authoring, perturbation (2026-07-20)
-M3 turns the 3D viewer into a usable research instrument and makes the director role real.
-Built in four slices, all committed on `hollow`:
+## M3 — research surfaces + director role (2026-07-20)
+Turns the viewer into a research instrument. Four slices (details in log.md + commits):
+- **10a shared observe** (`d71f372`) — promoted the metrics/chronicle/export serializers into a
+  browser-safe **`@hollow/sim-core/observe`** (single source of truth; the CLI's tests stayed
+  UNCHANGED = byte-identity proof). Worker forwards `{events}` deltas + per-year `{metrics}` rows to a
+  client `research-store`.
+- **10b chronicle + dashboard + export** (`e2fbdc7`) — live filterable chronicle (click→camera-jump,
+  dead-actor lineage fallback), live canvas dashboard, in-app metrics.csv/events.jsonl/lineage.json
+  (byte-identical to the CLI). Read-only.
+- **11a persona + shocks + replay** (`66444c2`) — determinism-critical: **`@hollow/sim-core/persona`**
+  (extended `PersonaSeed`: archetypes+counts+per-gene lock; `ARCHETYPE_PRESETS`; deterministic
+  `applyPersonaSeed`) + **`ONT_SHOCK`** famine/boom/disaster/plague via a `HollowShockSystem` in a new
+  **SHOCK stage first in the tick** + a replayable `interventionLog`. Headline test: `seed +
+  persona-seed + interventionLog` replays **byte-identical**.
+- **11b authoring + perturbation UI** (`4716203`) — persona authoring screen (sliders + randomize-
+  with-lock), time controls (pause/step/1–8×, pure pacing), shock buttons, and a URL-hash **run
+  descriptor** that replays a shared run identically.
 
-- **hollow-10a — shared observe module** (`d71f372`). Promoted the metrics/chronicle/export
-  serializers out of `@tool/hollow-sim` into a browser-safe **`@hollow/sim-core/observe`** (metrics:
-  gini/wealthGini/meanPairwiseTrust/meanGenes/communityStats/social sums; `createChronicle` over the
-  bus; the CSV/JSONL serializers + `METRICS_COLUMNS`; a `MetricsSampler`). The CLI now consumes it via
-  thin shims — its tests are **unchanged** (byte-identity proof). Node-fs export helpers stay in the
-  tool. The Worker forwards `{events}` deltas + per-year `{metrics}` rows into a client `research-store`.
-- **hollow-10b — chronicle + dashboard + export** (`e2fbdc7`). Client research UI (read-only): a live,
-  filterable, human-readable event **chronicle** (click an event → camera jumps/selects the actor,
-  dead actors fall back to the lineage inspect record); a live **metrics dashboard** (canvas charts,
-  redrawn per sim-year); **in-app export** of metrics.csv / events.jsonl / lineage.json (same
-  serializers → byte-identical to the CLI).
-- **hollow-11a — persona-seed + shocks + replay** (`66444c2`). The determinism-critical substrate:
-  **`@hollow/sim-core/persona`** (extended `PersonaSeed`: seed, resource density, `archetypes` with
-  counts + per-gene overrides + lock; built-in `ARCHETYPE_PRESETS` cooperator/opportunist/hoarder/
-  loner/nurturer; `applyPersonaSeed` sets founder genomes deterministically from a dedicated fork).
-  **Environmental shocks** (`ONT_SHOCK` famine/boom/disaster/plague) applied by a `HollowShockSystem`
-  in a new **SHOCK stage first in the tick** (tick-boundary only); `scheduleShock` logs to a replayable
-  `interventionLog`. Headline test: `seed + persona-seed + interventionLog` replays **byte-identical**.
-- **hollow-11b — authoring + perturbation UI** (`4716203`). The director UI: a **persona authoring
-  screen** (archetype rows + counts, gene sliders with randomize-with-lock, seed + density → the same
-  `PersonaSeed` the CLI eats); **time controls** (pause/step/1–8× — pure pacing, batches ticks per fixed
-  interval, tick logic untouched); **shock buttons** (→ `scheduleShock`, surfaced in the chronicle);
-  and a **shareable run descriptor** (`seed + persona + interventionLog` → URL-hash; loading it skips
-  authoring and replays the town identically).
-
-**M3 verification.** `@hollow/client` 253 + `@hollow/sim-core` 170 + `@tool/hollow-sim` 26 tests green;
-whole-workspace typecheck clean; determinism audited by hand (fork ordering appended-after-existing +
-unconditional, SHOCK stage at the tick boundary, byte-identical replay). The **DOM/interaction flow**
-(author → start → pause/step → fire famine → chronicle reacts → Share → identical replay in a fresh
-tab) was verified in a headless browser; only the **3D image** stays real-Chrome-gated (no WebGPU
-adapter in the sandbox).
+**M3 verification.** client 253 + sim-core 170 + tool 26 green; whole-workspace typecheck clean.
+Determinism audited by hand: **`Rng.fork()` consumes a parent draw**, so 11a's new forks are appended
+after all existing forks and created unconditionally → existing draw order byte-preserved; shocks only
+at the tick boundary. The **DOM/interaction flow** (author→start→pause/step→famine→chronicle→Share→
+identical replay in a fresh tab) was verified headless via agent-browser (DOM + worker need no GPU);
+only the **3D image** stays real-Chrome-gated.
 
 ## Known limitations (carried forward)
 - **`steal` and `trade` are dormant (count 0) in natural play.** A fed, cooperative town has no
