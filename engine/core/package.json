@@ -14,6 +14,7 @@
     "./ecs": "./src/ecs/index.ts",
     "./sim": "./src/sim/index.ts",
     "./render": "./src/render/index.ts",
+    "./render3d": "./src/render3d/index.ts",
     "./assets": "./src/assets/index.ts",
     "./debug": "./src/debug/index.ts",
     "./wasm": "./src/wasm/index.ts",
@@ -55,6 +56,10 @@
       "./render": {
         "types": "./dist/render/index.d.ts",
         "default": "./dist/render/index.js"
+      },
+      "./render3d": {
+        "types": "./dist/render3d/index.d.ts",
+        "default": "./dist/render3d/index.js"
       },
       "./assets": {
         "types": "./dist/assets/index.d.ts",
