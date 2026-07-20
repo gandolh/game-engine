@@ -17,8 +17,20 @@ export interface DayNightState {
   readonly ambient: number;
 }
 
-const NIGHT_AMBIENT = 0.12;
-const DAY_AMBIENT = 0.32;
+const NIGHT_AMBIENT = 0.22;
+const DAY_AMBIENT = 0.42;
+
+/**
+ * Length (in sim ticks) of ONE full visual day↔night cycle for the render
+ * wash. **Deliberately decoupled from the sim's `ticksPerDay`** — the sim's
+ * day is a compressed gameplay cadence (as short as 20 ticks), which at the
+ * client's 20 Hz would strobe a full day every ~1 second. The atmosphere
+ * cycle is a purely cosmetic render concern, so it runs on its own long
+ * period: 1800 ticks ≈ 90 s at 20 Hz (≈45 s of daylight, 45 s of night).
+ * Phase still derives from the (render-smoothed) sim tick, so any two
+ * viewers of the same tick see the same time of day.
+ */
+export const RENDER_DAY_TICKS = 1800;
 
 /** Fractional phase in `[0, 1)` through the current in-game day. Pure;
  *  accepts a fractional `tick` (render-clock-smoothed) as well as an

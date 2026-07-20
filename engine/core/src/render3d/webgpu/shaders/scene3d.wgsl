@@ -66,28 +66,26 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
   // exact for flat-faceted low-poly geometry and needs no extra vertex data.
   let faceNormal = normalize(cross(dpdx(input.worldPos), dpdy(input.worldPos)));
 
-  let ndl = clamp(dot(faceNormal, normalize(frame.sunDir)), 0.0, 1.0);
-
-  // 3-step warm toon ramp: hard bands rather than a continuous multiply, the
-  // hallmark of cel/toon shading. Mid + dark bands are nudged warm (their
-  // red channel sits a hair above green/blue) so shadowed faces read as
-  // "cozy dusk" rather than flat neutral grey.
-  //   DEFERRED SEAM: a TOON_STEPS uniform to swap in a harder 2-step or
-  //   softer 4-step ramp would be a cheap follow-up (the shader would just
-  //   branch on an extra frame-uniform int); not implemented here because
-  //   the fixed 3-step ramp below already reads as toon-ish and there is no
-  //   way to screenshot-compare knob values in this headless pass anyway.
-  var ramp: vec3<f32>;
-  if (ndl > 0.66) {
-    ramp = vec3<f32>(1.0, 1.0, 1.0);
-  } else if (ndl > 0.33) {
-    ramp = vec3<f32>(0.76, 0.72, 0.68);
-  } else {
-    ramp = vec3<f32>(0.56, 0.50, 0.46);
-  }
+  // Smooth wrapped ("half-Lambert") diffuse instead of a hard toon ramp: the
+  // raw dot in [-1,1] is remapped to [0,1] and softened, so light falls off
+  // GRADUALLY across every face (no banding) and faces angled away from the
+  // sun still receive a gentle gradient rather than snapping to a flat shadow
+  // band. A shadow FLOOR then lifts the darkest faces to a cozy dim — this is
+  // what guarantees "lighting is applied to every asset": no surface is ever
+  // crushed to pure black, whatever its orientation.
+  //   DEFERRED SEAM: a TOON_STEPS uniform to quantize this smooth curve back
+  //   into hard cel bands would be a cheap follow-up; the pipeline cache
+  //   already keys on a toon-steps value so it can slot in without touching
+  //   call sites.
+  let ndl = dot(faceNormal, normalize(frame.sunDir));
+  let wrapped = ndl * 0.5 + 0.5;      // [0,1], smooth across the terminator
+  let diffuse = wrapped * wrapped;    // half-Lambert softening
+  let shadowFloor = 0.45;             // darkest a directional face may get
+  let shade = mix(shadowFloor, 1.0, diffuse);
 
   // Cheap hemispheric "AO-ish" ambient term: upward-facing faces (roofs,
   // ground) read a touch brighter than vertical walls, at zero extra cost.
+  // Added ON TOP of the directional term so shadowed sides never fall to black.
   //   DEFERRED SEAM: true vertex-baked AO / SSAO is intentionally NOT
   //   implemented in this pass (too heavy/risky for a first WebGPU cut) —
   //   this hemispheric term is the documented cheap stand-in.
@@ -96,11 +94,13 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
   let upFactor = 0.5 + 0.5 * clamp(faceNormal.z, 0.0, 1.0);
   let ambientTerm = frame.ambient * upFactor;
 
-  // Night dims lit (non-emissive) surfaces toward a dim floor as dayNight -> 0.
-  let nightFloor = 0.18;
+  // Night dims the DIRECTIONAL term toward a lifted floor (never 0) as
+  // dayNight -> 0, for a cozy dim night rather than a black-out. Ambient is
+  // applied outside this so even full night keeps every surface readable.
+  let nightFloor = 0.35;
   let dayFactor = mix(nightFloor, 1.0, frame.dayNight);
 
-  var lit = base * ramp * dayFactor + base * ambientTerm;
+  var lit = base * (shade * dayFactor + ambientTerm);
 
   if (entry.emissive > 0.5) {
     // Emissive surfaces (glowing windows) ignore lighting entirely and

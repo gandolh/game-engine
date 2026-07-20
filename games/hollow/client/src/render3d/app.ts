@@ -42,9 +42,9 @@ import { GRID_SIZE } from "@hollow/sim-core/world";
 import { SnapshotBuffer } from "./interp";
 import { groundHeightAt } from "./terrain";
 import { buildGroundMesh, buildTerritoryTileMesh, TERRITORY_TINT_Z_OFFSET } from "./world-meshes";
-import { householdLayout, householdMemberCounts, homeMeshFor } from "./household-layout";
+import { householdLayout, householdMemberCounts, homeMeshFor, type HouseholdPosition } from "./household-layout";
 import { baseNodeMeshFor, fullnessScale, resourceNodeFullness } from "./node-mesh";
-import { dayNightPhase, dayNightFromPhase } from "./day-night";
+import { dayNightPhase, dayNightFromPhase, RENDER_DAY_TICKS } from "./day-night";
 import { wireOrbitCameraInput, type CameraInputHandle } from "./camera-input";
 import {
   WORLD_MATERIAL_KEYS,
@@ -218,6 +218,14 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       return handle;
     }
 
+    // A home's ground position is FROZEN on first sighting of its household
+    // (keyed by household id). `householdLayout` re-derives an anchor from the
+    // community territory centroid every frame, which JUMPS when a community
+    // forms/splits/merges/dissolves or the household's community vote flips —
+    // that jump is the "houses teleport" artifact. A dwelling is fixed: once
+    // placed, it stays put for the life of the run.
+    const homePosByHousehold = new Map<number, HouseholdPosition>();
+
     // Agent humanoid mesh-variants (skin x hair x pose), memoized — each
     // distinct variant is built + uploaded exactly once (see humanoid.ts's
     // `VariantCache`/`variantKey` header). Cloth is a single fixed role
@@ -336,7 +344,13 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         const memberCounts = householdMemberCounts(latest);
         const layout = householdLayout(latest);
         const byHomeMesh = new Map<MeshHandle, Instance[]>();
-        for (const [householdId, pos] of layout) {
+        for (const [householdId, freshPos] of layout) {
+          // Freeze position on first sighting; reuse it forever (anti-teleport).
+          let pos = homePosByHousehold.get(householdId);
+          if (!pos) {
+            pos = freshPos;
+            homePosByHousehold.set(householdId, pos);
+          }
           const count = memberCounts.get(householdId) ?? 1;
           const handle = homeMeshHandleFor(count);
           const z = groundHeightAt(Math.round(pos.x), Math.round(pos.y));
@@ -465,7 +479,9 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         lastAgentRenderState = agentRenderState;
 
         const tickEstimate = snapshotBuffer.interpolatedTick(nowMs);
-        const dayNight = dayNightFromPhase(dayNightPhase(tickEstimate, opts.ticksPerDay));
+        // Visual day/night runs on RENDER_DAY_TICKS (a long cosmetic period),
+        // NOT the sim's compressed `ticksPerDay` — see day-night.ts's header.
+        const dayNight = dayNightFromPhase(dayNightPhase(tickEstimate, RENDER_DAY_TICKS));
         const aspect = canvas.width / Math.max(1, canvas.height);
         const viewProj = multiply(camera.projMatrix(aspect), camera.viewMatrix());
         lastViewProj = viewProj;
