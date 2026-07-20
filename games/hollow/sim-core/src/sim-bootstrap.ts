@@ -292,6 +292,16 @@ export interface HollowAgentSnapshot {
   readonly householdId: number | null;
   /** Heritable appearance genes, for the M2 renderer (chunk hollow-05). */
   readonly appearance: HollowAppearanceSnapshot;
+  /**
+   * RENDER-ONLY coarse action label for the CURRENT tick (chunk hollow-09a) —
+   * "idle" | "walk" | "eat" | "work" | "rest", a social-verb name ("gift" |
+   * "share" | "help" | "teach" | "trade" | "steal" | "sabotage" | "rumor" |
+   * "attack"). Mirrors `HollowAgent.currentAction` (components/agent.ts) —
+   * see that field's doc for the write-only determinism guard. Consumed by
+   * the client renderer to pose/glyph agents (chunk hollow-09b); 09a itself
+   * only produces this field, it doesn't render agents yet.
+   */
+  readonly action: string;
 }
 
 export interface HollowResourceNodeSnapshot {
@@ -633,6 +643,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
             skinTone: entity.genome.appearance.skinTone,
             hairTone: entity.genome.appearance.hairTone,
           },
+          action: entity.agent.currentAction ?? "idle",
         });
       }
       const resourceNodes: HollowResourceNodeSnapshot[] = resources.nodes.map((node) => ({

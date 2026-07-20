@@ -99,7 +99,7 @@ export function spawnPopulation(world: World<HollowEntity>, rng: Rng, opts: Spaw
     const ageTicks = lifecycleRng.int(childAdultTicks, halfBandCeiling);
 
     const spawned = world.spawn({
-      agent: { gx, gy, moveTarget: null },
+      agent: { gx, gy, moveTarget: null, currentAction: "idle" },
       needs: {
         byKind: {
           [NEED_FOOD]: makeNeed({ decayPerTick: FOOD_DECAY_PER_TICK * jitter() }),

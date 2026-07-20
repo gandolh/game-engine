@@ -203,6 +203,7 @@ export class HollowSocialActSystem implements System {
   // --- cooperative verbs -----------------------------------------------------
 
   private runGift(entity: SocialAgent, intention: Intention, byId: Map<number, SocialAgent>, tick: number): void {
+    entity.agent.currentAction = "gift"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift(); // always resolves (or no-ops) in one tick
     const targetId = intention.data.targetId as number;
     if (targetId === entity.id) return;
@@ -221,6 +222,7 @@ export class HollowSocialActSystem implements System {
   }
 
   private runShare(entity: SocialAgent, intention: Intention, tick: number): void {
+    entity.agent.currentAction = "share"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift();
     const communityId = entity.communityId;
     if (communityId == null) return; // unaffiliated -- nowhere to share into
@@ -264,7 +266,11 @@ export class HollowSocialActSystem implements System {
       entity.intentions.queue.shift();
       return;
     }
-    if (!stepToward(entity.agent, node.gx, node.gy)) return; // still travelling
+    if (!stepToward(entity.agent, node.gx, node.gy)) {
+      entity.agent.currentAction = "walk"; // render-only (chunk hollow-09a)
+      return;
+    }
+    entity.agent.currentAction = "help"; // render-only (chunk hollow-09a)
 
     const actorSkill = entity.skills?.byKind[SKILL_MATERIAL] ?? 0;
     const harvested = this.resources.harvest(node.id, MATERIAL_HARVEST_PER_TICK * (1 + SKILL_YIELD_BONUS * actorSkill));
@@ -291,6 +297,7 @@ export class HollowSocialActSystem implements System {
    *  own aptitude — a strict no-op (still popped, no event) if the actor
    *  isn't actually better than the learner. */
   private runTeach(entity: SocialAgent, intention: Intention, byId: Map<number, SocialAgent>, tick: number): void {
+    entity.agent.currentAction = "teach"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift();
     const targetId = intention.data.targetId as number;
     if (targetId === entity.id) return;
@@ -343,6 +350,7 @@ export class HollowSocialActSystem implements System {
     const offerAmount = intention.data.offerAmount as number;
     const wantGood = intention.data.wantGood as string;
     const wantAmount = intention.data.wantAmount as number;
+    entity.agent.currentAction = "trade"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift(); // always settles (accept or reject) this tick
 
     if (targetId === entity.id) return;
@@ -384,6 +392,7 @@ export class HollowSocialActSystem implements System {
   // --- antagonistic verbs ------------------------------------------------------
 
   private runSteal(entity: SocialAgent, intention: Intention, byId: Map<number, SocialAgent>, tick: number): void {
+    entity.agent.currentAction = "steal"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift();
     const targetId = intention.data.targetId as number;
     if (targetId === entity.id) return;
@@ -422,6 +431,7 @@ export class HollowSocialActSystem implements System {
    *  social/constants.ts's header for why this verb only affects the direct
    *  target->actor trust score, and only on detection. */
   private runSabotage(entity: SocialAgent, intention: Intention, byId: Map<number, SocialAgent>, tick: number): void {
+    entity.agent.currentAction = "sabotage"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift();
     const targetId = intention.data.targetId as number;
     if (targetId === entity.id) return;
@@ -456,6 +466,7 @@ export class HollowSocialActSystem implements System {
    *  is folded by `social/witness-system.ts`, which subscribes to
    *  `ONT_SOCIAL.RUMOR`. */
   private runRumor(entity: SocialAgent, intention: Intention, byId: Map<number, SocialAgent>, tick: number): void {
+    entity.agent.currentAction = "rumor"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift();
     const targetId = intention.data.targetId as number;
     if (targetId === entity.id) return;
@@ -477,6 +488,7 @@ export class HollowSocialActSystem implements System {
    *  pass kills the target with cause "violence". Otherwise, a hard direct
    *  trust hit (no death). */
   private runAttack(entity: SocialAgent, intention: Intention, byId: Map<number, SocialAgent>, tick: number): void {
+    entity.agent.currentAction = "attack"; // render-only (chunk hollow-09a)
     entity.intentions.queue.shift();
     const targetId = intention.data.targetId as number;
     if (targetId === entity.id) return;

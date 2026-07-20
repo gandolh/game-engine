@@ -119,11 +119,18 @@ export class HollowActSystem implements System {
       entity.intentions.queue.shift();
       return;
     }
-    if (!stepToward(entity.agent, node.gx, node.gy)) return; // still travelling
+    if (!stepToward(entity.agent, node.gx, node.gy)) {
+      entity.agent.currentAction = "walk"; // render-only (chunk hollow-09a)
+      return;
+    }
 
     const harvested = this.resources.harvest(node.id, FOOD_HARVEST_PER_TICK);
     addGoods(entity.inventory, GOOD_FOOD, harvested);
     const consumed = takeGoods(entity.inventory, GOOD_FOOD, harvested);
+    // Render-only (chunk hollow-09a) — foraging and eating are fused into
+    // this one ACT-tick, so "eat" is the coarse label for the visible
+    // outcome (as opposed to "work"'s material harvest below).
+    entity.agent.currentAction = "eat";
 
     const food = entity.needs.byKind[NEED_FOOD];
     if (food) replenishNeed(food, consumed * FOOD_VALUE_PER_UNIT);
@@ -138,7 +145,11 @@ export class HollowActSystem implements System {
       entity.intentions.queue.shift();
       return;
     }
-    if (!stepToward(entity.agent, node.gx, node.gy)) return; // still travelling
+    if (!stepToward(entity.agent, node.gx, node.gy)) {
+      entity.agent.currentAction = "walk"; // render-only (chunk hollow-09a)
+      return;
+    }
+    entity.agent.currentAction = "work"; // render-only (chunk hollow-09a)
 
     // Skill-scaled yield (chunk hollow-06a) — see this file's header and
     // social/constants.ts's SKILL_YIELD_BONUS derivation. Food harvest
@@ -165,6 +176,7 @@ export class HollowActSystem implements System {
   }
 
   private runRest(entity: ActingAgent): void {
+    entity.agent.currentAction = "rest"; // render-only (chunk hollow-09a)
     const rest = entity.needs.byKind[NEED_REST];
     if (rest) replenishNeed(rest, REST_RECOVER_PER_TICK);
     const full = rest ? rest.value >= rest.max : true;

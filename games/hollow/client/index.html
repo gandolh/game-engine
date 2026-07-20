@@ -6,9 +6,11 @@
     <title>Hollow</title>
   </head>
   <body>
-    <!-- Chunk hollow-01 scaffolding: no renderer yet. main.ts drives the sim
-         worker and writes a plain-text tick readout into this element. -->
-    <div id="app">Hollow — starting…</div>
+    <!-- Chunk hollow-09a: the cozy 3D town. main.ts boots the sim worker and
+         render3d/app.ts's render loop draws the scene into #scene. -->
+    <div id="app">
+      <canvas id="scene"></canvas>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

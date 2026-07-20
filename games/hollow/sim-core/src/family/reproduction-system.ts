@@ -169,7 +169,7 @@ export class HollowReproductionSystem implements System {
 
     const genome = crossoverGenomes(a.genome, b.genome, this.geneticsRng);
     const spawned = this.world.spawn({
-      agent: { gx: a.agent.gx, gy: a.agent.gy, moveTarget: null },
+      agent: { gx: a.agent.gx, gy: a.agent.gy, moveTarget: null, currentAction: "idle" },
       needs: {
         byKind: {
           [NEED_FOOD]: makeNeed({ decayPerTick: FOOD_DECAY_PER_TICK }),

@@ -36,6 +36,13 @@ export class HollowPerceiveSystem implements System {
 
   run(ctx: SimContext): void {
     for (const entity of this.world.query("needs", "fsm", "beliefs", "intentions")) {
+      // Render-only action label (chunk hollow-09a) — reset to the default
+      // at the START of every tick so `HollowAgentSnapshot.action` always
+      // reflects what happened THIS tick, not a stale label from whenever an
+      // ACT-stage system last set it. See components/agent.ts's
+      // `currentAction` doc for the determinism guard (write-only, never
+      // read by any deliberation/valuation/RNG path).
+      if (entity.agent) entity.agent.currentAction = "idle";
       this.updateStarvation(entity, ctx);
 
       if (entity.fsm.current === ACT_STATE && entity.intentions.queue.length === 0) {

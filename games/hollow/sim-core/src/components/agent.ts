@@ -20,4 +20,21 @@ export interface HollowAgent {
   gx: number;
   gy: number;
   moveTarget: MoveTarget | null;
+  /**
+   * RENDER-ONLY coarse action label for the CURRENT tick (chunk hollow-09a) —
+   * e.g. "idle" | "walk" | "eat" | "work" | "rest" | a social-verb name
+   * ("gift"/"share"/"help"/"teach"/"trade"/"steal"/"sabotage"/"rumor"/
+   * "attack"). Written by `HollowPerceiveSystem` (reset to "idle" at the
+   * START of every tick) and the ACT-stage systems (`systems/act.ts`,
+   * `social/act-system.ts`), surfaced via `HollowAgentSnapshot.action` for
+   * the client renderer to pose/glyph agents (chunk hollow-09b).
+   *
+   * DETERMINISM GUARD: this field must be WRITE-ONLY from the sim's point of
+   * view — no deliberation, valuation, or RNG-gated logic may ever read it
+   * (grepped and confirmed at hollow-09a time: only PERCEIVE/ACT-stage
+   * systems assign it; nothing branches on it). Optional so pre-hollow-09a
+   * hand-built test harnesses that construct a `HollowAgent` literal without
+   * it still typecheck.
+   */
+  currentAction?: string;
 }
