@@ -83,7 +83,12 @@ import { createTimeControlPanel } from "./time-control-panel";
 import { createShockPanel } from "./shock-panel";
 import { encodeRunDescriptor, decodeRunDescriptor, type RunDescriptor } from "./run-descriptor";
 
-const TICKS_PER_DAY = 20;
+// hollow-14a: bumped from 20 to 200 so a day has room for the
+// commute/work/gather/sleep phases (`@hollow/sim-core/world`'s `dayPhase`) —
+// a life is now ~45 in-game days rather than ~450. Life constants
+// (family/constants.ts) are RAW ticks, independent of ticksPerDay, so this
+// is a display/legibility change only: it does NOT retune population pace.
+const TICKS_PER_DAY = 200;
 
 const appElRaw = document.getElementById("app");
 if (!(appElRaw instanceof HTMLElement)) {
