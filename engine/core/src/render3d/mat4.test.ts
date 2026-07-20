@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { identity, invert, lookAt, multiply, perspective, transformPoint } from "./mat4";
+import { identity, invert, lookAt, multiply, perspective, rotationZ, transformPoint, translation } from "./mat4";
 import type { Vec3 } from "./types";
 
 function expectMatClose(a: Float32Array, b: Float32Array, eps = 1e-4): void {
@@ -61,6 +61,32 @@ describe("lookAt", () => {
     expect(eyeInView[0]).toBeCloseTo(0, 4);
     expect(eyeInView[1]).toBeCloseTo(0, 4);
     expect(eyeInView[2]).toBeCloseTo(0, 4);
+  });
+});
+
+describe("rotationZ", () => {
+  it("rotates a point 90° about +z (x-axis point -> y-axis point)", () => {
+    const m = rotationZ(Math.PI / 2);
+    const p = transformPoint(m, [1, 0, 0]);
+    expect(p[0]).toBeCloseTo(0, 5);
+    expect(p[1]).toBeCloseTo(1, 5);
+    expect(p[2]).toBeCloseTo(0, 5);
+  });
+
+  it("leaves z unchanged and composes with translation as a model matrix", () => {
+    const m = multiply(translation([5, 0, 0]), rotationZ(Math.PI));
+    // A point at the local origin rotates in place, then translates.
+    const p = transformPoint(m, [1, 0, 2]);
+    expect(p[0]).toBeCloseTo(4, 5); // 5 + (-1)
+    expect(p[1]).toBeCloseTo(0, 5);
+    expect(p[2]).toBeCloseTo(2, 5);
+  });
+
+  it("rotationZ(0) is the identity", () => {
+    const m = rotationZ(0);
+    for (let i = 0; i < 16; i++) {
+      expect(m[i]).toBeCloseTo((identity() as Float32Array)[i] as number, 6);
+    }
   });
 });
 

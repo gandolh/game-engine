@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hollow — 3D render3d demo</title>
+    <style>
+      /* Layout only — no color values here. The canvas background and any
+         on-page text color come from HOLLOW_PAL.* roles set at runtime in
+         render3d-demo.ts, per the palette-purity rule (no raw hex in
+         games/hollow/client/). */
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      #app {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+      canvas#scene {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #hud {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font: 12px/1.4 monospace;
+        pointer-events: none;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Standalone demo harness for the 08b WebGPU 3D render layer
+      (@engine/core/render3d). NOT wired into the main Hollow app (main.ts /
+      sim-worker) — this is a screenshot/smoke-test target for a human with a
+      WebGPU-capable Chrome, exercising the pure render3d core plus the
+      engine's new WebGPU orchestration (device3d/pipeline-cache/renderer3d)
+      end to end: primitives -> palette-resolved materials -> instanced draw
+      -> orbit camera -> click-to-pick via ray/AABB.
+    -->
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="hud"></div>
+    </div>
+    <script type="module" src="/src/render3d-demo.ts"></script>
+  </body>
+</html>

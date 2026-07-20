@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "demo3d": "vite --open /render3d-demo.html",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

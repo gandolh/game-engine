@@ -114,6 +114,22 @@ export function scaling(v: Vec3): Mat4 {
   return out;
 }
 
+/** Build a rotation matrix about the world +z axis (through the origin) by
+ *  `rad`, for the z-up world convention this module assumes throughout
+ *  (matches `geometry.ts#rotateZ`'s per-mesh rotation, but as a composable
+ *  `Mat4` for building instance MODEL matrices instead of baking the
+ *  rotation into vertex positions). */
+export function rotationZ(rad: number): Mat4 {
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  const out = identity();
+  out[0] = c;
+  out[1] = s;
+  out[4] = -s;
+  out[5] = c;
+  return out;
+}
+
 /**
  * Full 4x4 inverse via cofactor expansion (classic adjugate/determinant
  * method — the standard approach used by gl-matrix's `mat4.invert`). Needed
