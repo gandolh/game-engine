@@ -44,7 +44,7 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | hollow-03 needs / economy / scarcity | ✅ done, verified | `1790d59` |
 | hollow-04 relationships / emergent communities | ✅ done, verified | `9bbc90f` |
 | **hollow-05 lifecycle / pair-bonding / genetics** | ✅ **done, verified** | `c8c3c2b` |
-| hollow-06 social verbs | ⬜ not started | — |
+| **hollow-06 social verbs** | ✅ **done, verified** (split 6a+6b) | `5bd92c5` + `b802738` |
 | hollow-07 headless CLI + export → **M1 EXIT-BAR GATE** | ⬜ not started | — |
 | M2–M4 (hollow-08..13) | ⬜ specs written, queued | — |
 
@@ -97,16 +97,60 @@ convenient: `git stash drop stash@{0}`.
 - Scheduler order now: …→ BELONGING → **PAIRBOND → REPRODUCTION → LIFECYCLE** → NEEDS-DECAY →
   RESOURCE-REGEN.
 
+## hollow-06 — how it went (2026-07-20)
+Split into TWO sequential Sonnet dispatches (the brief itself flags this as "exactly where green
+tests / inert feature has bitten us") — controller verified real behavior between them:
+- **6a mechanics** (`5bd92c5`): ACT-stage effects for all 9 verbs (gift/share/help_labor/teach/
+  trade/steal/sabotage/rumor/attack), each with a real effect + `ONT_SOCIAL.*` event; new `Skills`
+  component (lived level, aptitude-capped, scales MATERIAL harvest + practiced by work/teach);
+  third-party fan-out (rumor + detected-steal lower bystanders' trust with distance decay) via a
+  PERCEIVE-stage `HollowSocialWitnessSystem`. `attack` sets the hollow-05 `violentDeath` seam. New
+  opts `stealDetectionProb/attackLethalityProb/sabotageDetectionProb`; forks `steal-detection/
+  attack/sabotage-detection`; export `./social`. **trade settles synchronously** (multi-tick CNP
+  negotiation = documented seam); **betray + exclude deferred** (documented seams).
+- **6b deliberation** (`b802738`): villagers CHOOSE verbs via a DETERMINISTIC genome-gated
+  weighted-average scorer (no rng). Survival ladder (food/rest) unchanged + always wins; then
+  hard per-gene gates (greed→steal, aggression→sabotage/attack, loyalty→gift/share, sociability→
+  help, curiosity→teach) + weighted factors; else `work`. Neighbor index added to the deliberation
+  context (built once/tick, O(n)). Additive snapshot field `socialCounts` (per-verb running totals,
+  via `ONT_SOCIAL` subscriptions) — feeds hollow-07 export.
+
+**Controller verification (real headless runs, stable profile + random genomes, 5 seeds, 800t):**
+cooperation AND antagonism both emerge on every seed; antag/coop ratio diverges strongly by seed
+(seed 7 ~10× more antagonistic than 101); **population stays bounded (21–61) — the social layer did
+NOT break hollow-05 stability**. Flip test: aggressive/disloyal cohort = antagonism-only, loyal/
+sociable = cooperation-only. `@hollow/sim-core` 120/120 green; typecheck clean.
+
+**KNOWN LIMITATION (logged for hollow-07 / a later economy brief):** `steal` and `trade` stay
+DORMANT (count 0) in natural play — a fed, cooperative town has no needy+greedy+low-trust actor
+next to a stealable holder, and solo agents' inventories net to ~zero (harvest self-consumes). The
+mechanics are correct + unit-tested (6a); they'll become emergent under a persistent-inventory /
+scarcer economy. `attack` is intentionally rare (gate 0.99) but does fire (0–39/seed). NOT a blocker
+for the M1 exit-bar (cooperation-vs-sabotage divergence is delivered by gift/share/help/sabotage/
+rumor). Flag this to hollow-07's export/metrics work and revisit in the economy deepening.
+
+## HANDOFF from hollow-06 (feed to hollow-07)
+- Snapshot now additionally carries `socialCounts: Readonly<Record<string,number>>` (keys
+  gift/share/help/teach/trade/steal/sabotage/rumor/attack) alongside `bornCount/diedCount/
+  householdCount` (hollow-05). hollow-07's CSV/JSON export should surface these + the community/
+  lineage/needs data already on the snapshot.
+- `ONT_SOCIAL.*` events (protocols/social.ts) are broadcast per consummated verb — hollow-07 can
+  subscribe for per-event export instead of (or in addition to) the running counts.
+- Every stochastic verb outcome has a `*Prob` option knob (steal/attack/sabotage) for
+  scenario-authoring; genome cohorts can be biased in tests by mutating `genome.behavior[gene]`
+  post-bootstrap.
+
 ## ▶ NEXT ACTION (resume here)
-1. Confirm green baseline: `npm run test -w @hollow/sim-core` (should be **95/95**) + whole-workspace
-   `npm run typecheck` (17/17).
-2. Dispatch **hollow-06 social verbs** on a Sonnet executor using
-   `…-hollow-06-social-verbs.md` + the hollow-05 handoff above (wire the violence death seam). Then
-   `07 → M1 exit-bar gate`.
-3. **M1 exit-bar gate** (after 07, before any M2/3D work): a headless seed run over ≥5 generations
+1. Confirm green baseline: `npm run test -w @hollow/sim-core` (should be **120/120**) + whole-
+   workspace `npm run typecheck` (17/17).
+2. Dispatch **hollow-07 headless CLI + metrics export** on a Sonnet executor using
+   `…-hollow-07-headless-cli-metrics-export.md` + the handoff above. This is the tool (`@tool/
+   hollow-sim`, already skeletoned) that produces the data the M1 exit-bar is judged on.
+3. **M1 EXIT-BAR GATE** (after 07, before any M2/3D work): a headless seed run over ≥5 generations
    must show — communities forming + ≥1 dissolving; seed-dependent cooperation-vs-sabotage
-   divergence; ≥3-gen lineages with heritable trait drift; scarcity-stable population (now delivered
-   by the density brake); deterministic. Go/no-go for M2.
+   divergence (delivered by hollow-06 — verify in exported data); ≥3-gen lineages with heritable
+   trait drift; scarcity-stable population (density brake); deterministic. Go/no-go for M2. NOTE the
+   steal/trade dormancy above when reading the exported verb mix — it's expected, not a gap.
 
 ---
 
