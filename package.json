@@ -17,6 +17,7 @@
     "citadel": "node scripts/dev.mjs citadel",
     "farm": "node scripts/dev.mjs farm",
     "hollow": "npm run dev -w @hollow/client",
+    "mathquest": "npm run dev -w @mathquest/client",
     "build": "npm run build -w @farm/client",
     "test": "turbo run test --continue --concurrency=1",
     "typecheck": "turbo run typecheck --continue",

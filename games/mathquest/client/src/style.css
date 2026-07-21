@@ -1,0 +1,24 @@
+/*
+ * MateQuest client styles — M0 scaffold: a full-bleed canvas, nothing more.
+ * Layout/sizing only — CSS can't import the TS palette module, so palette
+ * purity (root CLAUDE.md) is upheld by setting `body`'s background/color
+ * from `MATE_PAL` in `main.ts` instead of a hex literal here (same
+ * convention as Hollow's style.css).
+ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: monospace;
+}
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+canvas#scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

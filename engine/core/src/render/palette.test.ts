@@ -37,6 +37,39 @@ function nearestApollo(hex: string): string {
   return best;
 }
 
+// The Resurrect-64 scan list (used for games/mathquest/ files — MateQuest's own
+// dedicated 64-colour palette, distinct from EDG32 and Apollo). The
+// AUTHORITATIVE module-backed integrity checks — MATE_PAL ⊆ RESURRECT64, keys
+// == EDG keys, nearestResurrect64 — live in
+// games/mathquest/client/src/render/mate-palette.test.ts (the engine cannot
+// import a game). This inline copy just guards the scan list itself stays
+// valid and matches Resurrect-64's cardinality (mirrors the Apollo scan
+// list's own precedent above).
+const RESURRECT64 = [
+  "#2e222f", "#3e3546", "#625565", "#966c6c", "#ab947a", "#694f62", "#7f708a", "#9babb2", "#c7dcd0", "#ffffff",
+  "#6e2727", "#b33831", "#ea4f36", "#f57d4a", "#ae2334", "#e83b3b", "#fb6b1d", "#f79617", "#f9c22b", "#7a3045",
+  "#9e4539", "#cd683d", "#e6904e", "#fbb954", "#4c3e24", "#676633", "#a2a947", "#d5e04b", "#fbff86", "#165a4c",
+  "#239063", "#1ebc73", "#91db69", "#cddf6c", "#313638", "#374e4a", "#547e64", "#92a984", "#b2ba90", "#0b5e65",
+  "#0b8a8f", "#0eaf9b", "#30e1b9", "#8ff8e2", "#323353", "#484a77", "#4d65b4", "#4d9be6", "#8fd3ff", "#45293f",
+  "#6b3e75", "#905ea9", "#a884f3", "#eaaded", "#753c54", "#a24b6f", "#cf657f", "#ed8099", "#831c5d", "#c32454",
+  "#f04f78", "#f68181", "#fca790", "#fdcbb0",
+] as const;
+const RESURRECT64_SET: ReadonlySet<string> = new Set(RESURRECT64);
+function nearestResurrect64(hex: string): string {
+  const [r, g, b] = rgbOf(hex);
+  let best: string = RESURRECT64[0];
+  let bestD = Infinity;
+  for (const c of RESURRECT64) {
+    const [cr, cg, cb] = rgbOf(c);
+    const d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best;
+}
+
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..", "..");
 
@@ -100,6 +133,21 @@ describe("Apollo scan list (Citadel + Hollow scope)", () => {
   });
 });
 
+// The Resurrect-64 scan list (MateQuest scope) — same guard shape as the
+// Apollo scan list above.
+describe("Resurrect-64 scan list (MateQuest scope)", () => {
+  it("has exactly 64 unique colors", () => {
+    expect(RESURRECT64).toHaveLength(64);
+    expect(new Set(RESURRECT64).size).toBe(64);
+  });
+
+  it("nearestResurrect64 behaves", () => {
+    expect(nearestResurrect64("#91db69")).toBe("#91db69");
+    expect(nearestResurrect64("#91DB69")).toBe("#91db69");
+    expect(nearestResurrect64("#90da68")).toBe("#91db69");
+  });
+});
+
 describe("no source file uses an off-palette color literal", () => {
   const files: string[] = [];
   walk(join(REPO_ROOT, "engine"), files);
@@ -107,12 +155,14 @@ describe("no source file uses an off-palette color literal", () => {
   walk(join(REPO_ROOT, "tools"), files);
 
   // Palette is scoped by path: Citadel source (games/citadel/) and Hollow
-  // source (games/hollow/) are both validated against Apollo; everything
-  // else (Farm + engine + tools) stays on EDG32.
-  type Scope = "citadel" | "hollow" | "default";
+  // source (games/hollow/) are validated against Apollo; MateQuest source
+  // (games/mathquest/) is validated against Resurrect-64; everything else
+  // (Farm + engine + tools) stays on EDG32.
+  type Scope = "citadel" | "hollow" | "mathquest" | "default";
   const scopeOf = (rel: string): Scope => {
     if (rel.startsWith("games/citadel/")) return "citadel";
     if (rel.startsWith("games/hollow/")) return "hollow";
+    if (rel.startsWith("games/mathquest/")) return "mathquest";
     return "default";
   };
 
@@ -121,10 +171,17 @@ describe("no source file uses an off-palette color literal", () => {
     const rel = relative(REPO_ROOT, file).split(sep).join("/");
     if (ALLOWLIST_FILES[rel]) continue;
     const scope = scopeOf(rel);
-    const usesApollo = scope !== "default";
-    const allowed = usesApollo ? APOLLO_SET : EDG32_SET;
+    const usesApollo = scope === "citadel" || scope === "hollow";
+    const usesResurrect = scope === "mathquest";
+    const allowed = usesApollo ? APOLLO_SET : usesResurrect ? RESURRECT64_SET : EDG32_SET;
     const palName =
-      scope === "citadel" ? "Apollo (Citadel)" : scope === "hollow" ? "Apollo (Hollow)" : "EDG32";
+      scope === "citadel"
+        ? "Apollo (Citadel)"
+        : scope === "hollow"
+          ? "Apollo (Hollow)"
+          : scope === "mathquest"
+            ? "Resurrect-64 (MateQuest)"
+            : "EDG32";
     const text = readFileSync(file, "utf8");
     const lines = text.split("\n");
     lines.forEach((line, i) => {
@@ -132,7 +189,7 @@ describe("no source file uses an off-palette color literal", () => {
       if (!matches) return;
       for (const m of matches) {
         if (!allowed.has(normalizeHex(m))) {
-          const nearest = usesApollo ? nearestApollo(m) : nearestEdg32(m);
+          const nearest = usesApollo ? nearestApollo(m) : usesResurrect ? nearestResurrect64(m) : nearestEdg32(m);
           violations.push(
             `${rel}:${i + 1}  ${m.toLowerCase()}  →  expected ${palName}, nearest ${nearest}`,
           );
@@ -171,8 +228,9 @@ describe("no source file uses an off-palette color literal", () => {
       violations.length
         ? `\nOff-palette colors found — replace with the role constant for that file's ` +
             `palette (EDG.* from engine/core/src/render/palette.ts, CITADEL_PAL.* from ` +
-            `games/citadel/client/src/render/citadel-palette.ts for games/citadel/, or ` +
-            `HOLLOW_PAL.* from games/hollow/client/src/render/hollow-palette.ts for games/hollow/):` +
+            `games/citadel/client/src/render/citadel-palette.ts for games/citadel/, ` +
+            `HOLLOW_PAL.* from games/hollow/client/src/render/hollow-palette.ts for games/hollow/, or ` +
+            `MATE_PAL.* from games/mathquest/client/src/render/mate-palette.ts for games/mathquest/):` +
             `\n  ${violations.join("\n  ")}\n`
         : "",
     ).toEqual([]);
