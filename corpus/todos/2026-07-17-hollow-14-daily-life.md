@@ -1,6 +1,6 @@
 # hollow-14 — Daily Life (jobs, routine, the hearth)
 
-status: todo
+status: done (2026-07-21; commits 19fa2dc·48240fd·d404d3e·53f78fd·8382a8e)
 milestone: M5
 depends-on: hollow-04 (communities/belonging), hollow-05 (lifecycle/needs/pairbond), hollow-06 (deliberation + social verbs), hollow-12 (leader/standing/norms/feuds)
 created: 2026-07-20

@@ -4,6 +4,34 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-21] build | Hollow — hollow-14 "Daily Life" COMPLETE (jobs, routine, hearth, rare interaction)
+
+A deliberate GAMEPLAY pivot re-texturing the social sim, designed with the user via two grilling rounds
+(design-of-record in `todos/2026-07-17-hollow-14-daily-life.md`): **leader-assigned jobs · diurnal day ·
+rare/private interaction · one central hearth everyone gathers at**. Five Sonnet chunks, controller-
+verified + committed each; folded into `wiki/hollow-overview.md` "M5" + BUILD-STATE.
+- **14a** (`19fa2dc`) pure `dayPhase` clock + in-game day 20→200. De-risk: life constants are RAW ticks,
+  so a longer day preserves the saga WITHOUT retuning the bistable population constants.
+- **14b** (`48240fd`) `occupation` component + a JOBS stage where the hollow-12 leader assigns roles by
+  aptitude+demand (loners self-assign); gatherers produce into the community stockpile. Population-
+  stability test still passes with jobs active.
+- **14c-1** (`d404d3e`) `HEARTH_TILE` + phase-gated routine (gather→hearth, sleep→disperse) via tick/
+  ticksPerDay threaded into deliberation; belonging renews by HEARTH ATTENDANCE not membership.
+- **14c-2** (`53f78fd`) — make-or-break: rare/private social throttle (cooldown + household/close-tie
+  gate; broad mixing only at the hearth). Insight: **trust is proximity-driven, not verb-driven**, so
+  the throttle is safe for community formation; a weak `TRUST_GATHERING_DELTA` (1/10th) stops the hearth
+  from fusing the town into one community.
+- **14d** (`8382a8e`) render-only: glowing emissive hearth, day/night wash synced to the SIM day so dusk
+  coincides with the convergence, `J`-toggle job cues. Visual Chrome-gated.
+
+**Controller's independent emergence verification** (own headless run, seeds 1/33, 2000t): interaction
+volume down ~6–66×; governance (635–674 events) + feuds (start AND reconcile) still fire; communities
+always emerge. Green: sim-core 212 + tool 26 + client 279 + palette guard; whole-workspace typecheck 17/17.
+**User-accepted KNOWN TRAITS (not bugs):** (1) communities tend to MERGE into one cohesive village over
+time (inherent to one shared hearth) — accepted as on-theme; (2) bounded non-lethal chronic hunger on some
+seeds (routine funnels foraging) — a food-economy balance item. Next: hollow-13 (LLM rationalizer seam);
+the hearth gives it a natural stage.
+
 ## [2026-07-20] feat | Engine — generic dynamic-collision module + Hollow render adoption (`ef57246`)
 
 New `@engine/core/collision` subpath (generic, deterministic, no game/WebGPU import) — the

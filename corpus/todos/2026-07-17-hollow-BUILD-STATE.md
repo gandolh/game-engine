@@ -54,8 +54,8 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | **hollow-11 authoring + perturbation** | ✅ **done, verified** (split 11a+11b) | `66444c2` + `4716203` |
 | **M3 GATE** | ✅ headless + DOM-flow verified; **live 3D image Chrome-gated** | — |
 | **hollow-12 governance & antagonism arcs** | ✅ **done, verified** (split 12a+12b) | `96f0bf5` + `1b32909` |
-| **hollow-14 Daily Life (jobs/routine/hearth)** | 🔨 spec written; BUILDING (14a foundation first) | — |
-| hollow-13 LLM rationalizer seam | ⬜ spec written, queued (after 14) | — |
+| **hollow-14 Daily Life (jobs/routine/hearth)** | ✅ **done, verified** (14a·14b·14c-1·14c-2·14d) | `19fa2dc`·`48240fd`·`d404d3e`·`53f78fd`·`8382a8e` |
+| hollow-13 LLM rationalizer seam | ⬜ spec written, queued (next) | — |
 
 ## hollow-05 — how it went (2026-07-20)
 Re-dispatched FRESH on a Sonnet executor (the old `stash@{0}` partial was NOT salvaged). Implementation
@@ -239,12 +239,52 @@ an aggressive cohort/scale — but an HONEST NEGATIVE was recorded: a MILD greed
 dominated), so feud arcs are a **tail phenomenon** needing an aggressive population + longer runs
 (700t) to manifest. Green: `@hollow/sim-core` **193** (was 170) + `@tool/hollow-sim` 26; typecheck clean.
 
-## ▶ NEXT ACTION (resume here) — M1 + M2 + M3 + hollow-12 COMPLETE; hollow-13 is the last M4 brief
-**M1 (hollow-01..07) + M2 (hollow-08..09) + M3 (hollow-10..11) + hollow-12 (governance + antagonism
-arcs) are done (2026-07-20).** Findings + the full story are in
-[../wiki/hollow-overview.md](../wiki/hollow-overview.md). Green: `@hollow/sim-core` **193** +
-`@tool/hollow-sim` 26 + `@hollow/client` 253 + `@engine/core` 269; whole-workspace typecheck clean
-(Farm/Citadel untouched). Everything local on `hollow`, unpushed. Commits are only-my-paths each slice.
+## hollow-14 Daily Life — how it went (2026-07-21)
+A deliberate GAMEPLAY pivot (re-textured the social sim), five Sonnet-executor chunks, controller-
+verified + committed each. Design settled with the user via two rounds of grilling (see the brief's
+"Design of record"): **leader-assigned jobs · diurnal day · rare/private interaction · one central
+hearth all gather at**.
+- **14a** (`19fa2dc`): pure `dayPhase(tick, ticksPerDay)` clock (`@hollow/sim-core/world`,
+  commute/work/gather/sleep) + client sim-day 20→200. KEY de-risk: life constants are RAW ticks so a
+  longer day preserves the saga automatically — the bistable population constants were NOT retuned.
+- **14b** (`48240fd`): `occupation` component + `HollowJobAssignmentSystem` (new JOBS stage after
+  GOVERNANCE) — leader assigns by aptitude+demand, loners self-assign; role-biased deliberation; a new
+  `runWorkFood` path banks surplus into the community stockpile. Population-stability test still passes
+  WITH jobs active (the food path didn't destabilize the density-brake).
+- **14c-1** (`d404d3e`): `HEARTH_TILE` (map center) + phase-gated routine (gather→walk to hearth,
+  sleep→disperse) via tick/ticksPerDay threaded into the deliberation ctx; belonging now renews by
+  HEARTH ATTENDANCE not membership. Convergence proven by signed per-tick hearth-distance.
+- **14c-2** (`53f78fd`) — the make-or-break: rare/private social throttle (per-agent cooldown +
+  household/close-tie gate; broad mixing only at the hearth during GATHER). **Trust is proximity-driven
+  (not verb-driven)**, so the throttle is safe for community formation; the real risk was the hearth
+  homogenizing everyone into one community, fixed with a weak `TRUST_GATHERING_DELTA` (1/10th) so
+  distinct groups still crystallize from work/home proximity.
+- **14d** (`8382a8e`): render-only — glowing emissive hearth, day/night wash synced to the SIM day so
+  dusk coincides with the convergence, job-cue badges (`J` toggle). Visual is WebGPU-Chrome-gated.
+
+**Controller's independent emergence verification** (own headless run, seeds 1/33, 2000t): interaction
+volume down ~6–66× (the chronicle flood is gone); governance (635–674 events) + feuds (start AND
+reconcile) still fire robustly; communities always emerge. Green: `@hollow/sim-core` 212 + `@tool/hollow-sim`
+26 + `@hollow/client` 279 + palette guard; whole-workspace typecheck 17/17.
+
+**KNOWN TRAITS (user-accepted, logged — not bugs):**
+1. **Communities tend to MERGE into one cohesive village over time** (seed-dependent). Even the weak
+   hearth ties slowly accumulate cross-group trust past the MERGE threshold — inherent to "one central
+   hearth everyone attends." User chose to ACCEPT this as on-theme (a cohesive village with internal
+   jobs/politics/feuds still delivers drama). A future balance pass (home 'neighborhoods', or excluding
+   hearth ties from MERGE) could restore plurality if wanted.
+2. **Bounded, non-lethal chronic hunger on some seeds** — the routine funnels foraging into WORK + the
+   hearth choke-point, so ~up to 50% can be "starving" (low food need) on unlucky seeds, but population
+   never dies from it (stays at cap). A balance item; fixing needs food-economy tuning (deferred).
+
+## ▶ NEXT ACTION (resume here) — M1 + M2 + M3 + hollow-12 + hollow-14 COMPLETE; hollow-13 is next
+**M1 (01..07) + M2 (08..09) + M3 (10..11) + hollow-12 (governance) + hollow-14 (Daily Life:
+jobs/routine/hearth) are done.** hollow-14 also shipped a generic engine collision module
+(`@engine/core/collision`, adopted render-side in Hollow) + a Farm-style perf HUD + a chronicle-freeze
+fix. Findings + the full story are in [../wiki/hollow-overview.md](../wiki/hollow-overview.md). Green:
+`@hollow/sim-core` **212** + `@tool/hollow-sim` 26 + `@hollow/client` **279** + `@engine/core` (287);
+whole-workspace typecheck **17/17** (Farm/Citadel untouched). Everything local on `hollow`, unpushed.
+Commits are only-my-paths each slice.
 
 **⚠ Carried-forward, still open (M2 did NOT close these):**
 - **M2's live 3D image is human-unverified** (WebGPU headless unavailable). Someone must run the

@@ -1,5 +1,5 @@
 ---
-summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (shared observe module + live chronicle/dashboard + persona authoring + deterministic shocks/replay), M4 hollow-12 governance (emergent leaders/votable norms/sanctions) + antagonism arcs (persistent grudge escalation/reconciliation), plus the load-bearing decisions + known limitations.
+summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth all gather at + rare/private interaction), plus load-bearing decisions + known traits.
 updated: 2026-07-20
 ---
 
@@ -105,49 +105,32 @@ Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12
   trust rises and communities consolidate. ✓
 
 ## M2 — engine 3D renderer + cozy town (2026-07-20)
-The first true-3D path in the repo (old WebGPU renderer deleted; Citadel's is 2D sprite-batch). Five
-slices (full detail in log.md + BUILD-STATE): **08a** `@engine/core/render3d` core (promoted mesh
-generators, engine ships **no palette**; new `mat4` at **WebGPU clip z∈[0,1]**, `OrbitCamera`, ray
-`pick`; pure, 37 tests) + **08b** WebGPU device/pipeline/instanced `drawIndexed` + `scene3d.wgsl`
-(CPU packing pure-tested, only GPU orchestration untestable-here). **09a** town shell (ground/relief,
-territory tints, family-growing homes, stock-scaled nodes, day/night, + a determinism-safe render-only
-per-agent `action` field) + **09b** gene-driven humanoids via the **mesh-variant scheme** (skin×hair×
-pose, instanced) + **09c** overlay glyphs / `[T]` tags / click→read-only-worker `inspect` → DOM panel
-/ follow-cam.
-
-**Post-Chrome fixes** (the headline: `53bc26c`) — the material buffer used an 8-float ("std140") stride
-but the WGSL `var<storage>` array is **std430 = 4-float**, so the shader read every odd material index
-from zero-padding → half the palette rendered black; plus smoother half-Lambert lighting with a floor +
-slower day (`01beb9c`) and footprint-hitbox home placement (`f1d1991`).
-
-**M2 verification.** Headless-testable all green; the **live 3D image is NOT self-verified** — the
-sandbox Chrome has no WebGPU adapter (`requestAdapter()` → null), so visual acceptance is **human-gated
-at `npm run hollow`** (engine example: `npm run demo3d -w @hollow/client`).
+The first true-3D path in the repo. **08** `@engine/core/render3d` (promoted mesh generators — engine
+ships **no palette**; `mat4` at **WebGPU clip z∈[0,1]**, `OrbitCamera`, ray `pick`) + WebGPU
+device/pipeline/instanced draw + `scene3d.wgsl`. **09** the cozy town: ground/territory tints/
+family-growing homes/stock-scaled nodes/day-night, gene-driven humanoids via the **mesh-variant
+scheme** (skin×hair×pose), overlay glyphs/tags/click-inspect/follow-cam. Headline post-Chrome fix
+(`53bc26c`): the material buffer used an 8-float stride but the WGSL `var<storage>` array is **std430 =
+4-float** → half the palette rendered black. **The live 3D image is human-Chrome-gated** — the sandbox
+has no WebGPU adapter (`requestAdapter()` → null), so only the visual acceptance is unverified here.
+Full slice-by-slice detail in log.md + BUILD-STATE.
 
 ## M3 — research surfaces + director role (2026-07-20)
-Turns the viewer into a research instrument. Four slices (detail in log.md + BUILD-STATE): **10a**
-promoted the metrics/chronicle/export serializers into a browser-safe **`@hollow/sim-core/observe`**
-(single source of truth; the CLI's tests stayed UNCHANGED = byte-identity proof; worker forwards
-`{events}`/`{metrics}` to a client `research-store`) + **10b** live chronicle (click→camera-jump),
-dashboard, and in-app export byte-identical to the CLI (read-only). **11a** (determinism-critical)
-**`@hollow/sim-core/persona`** (archetypes+counts+per-gene lock; deterministic `applyPersonaSeed`) +
-**`ONT_SHOCK`** famine/boom/disaster/plague via a `HollowShockSystem` in a new **SHOCK stage first in
-the tick** + a replayable `interventionLog` (headline test: replays byte-identical) + **11b** the
-authoring screen, time controls (pure pacing), shock buttons, and a URL-hash **run descriptor**.
-
-**M3 verification.** client 253 + sim-core 170 + tool 26 green; typecheck clean. Determinism audited by
-hand: **`Rng.fork()` consumes a parent draw**, so 11a's new forks are appended after all existing forks
-+ created unconditionally → existing draw order byte-preserved; shocks only at the tick boundary. The
-**DOM/interaction flow** was verified headless via agent-browser (DOM + worker need no GPU); only the
-**3D image** stays real-Chrome-gated.
+Turns the viewer into a research instrument. **10** promoted the metrics/chronicle/export serializers
+into a browser-safe **`@hollow/sim-core/observe`** (single source of truth; CLI tests unchanged =
+byte-identity proof) + a live chronicle (click→camera-jump), dashboard, and in-app export. **11**
+(determinism-critical) **`@hollow/sim-core/persona`** (archetypes + per-gene lock + deterministic
+`applyPersonaSeed`) + **`ONT_SHOCK`** famine/boom/disaster/plague via a SHOCK stage + a replayable
+`interventionLog` (byte-identical replay), plus the authoring screen, time controls, shock buttons, and
+a URL-hash run descriptor. Determinism lesson: **`Rng.fork()` consumes a parent draw** → new forks must
+be appended after existing ones + created unconditionally. DOM/interaction flow verified headless; the
+3D image stays Chrome-gated.
 
 ## Known limitations (carried forward)
-- **`steal` and `trade` are dormant (count 0) in natural play.** A fed, cooperative town has no
-  needy+greedy+low-trust actor next to a stealable holder, and solo agents' inventories net to ~0
-  (harvest self-consumes), so there is little to steal or trade. The mechanics are correct and
-  unit-tested (hollow-06a); they will become emergent under a **persistent-inventory / scarcer
-  economy** (a future economy-deepening brief). Not an M1 blocker — cooperation-vs-sabotage
-  divergence is delivered by gift/share/help/sabotage/rumor.
+- **`steal`/`trade` are largely dormant in natural play** (a fed town has no needy+greedy+low-trust
+  actor next to a stealable holder). Mechanics are correct + unit-tested (hollow-06a); hollow-14's
+  jobs→stockpile deepened the economy, but full emergence still wants scarcer per-agent inventory.
+  See also M5's known traits (community-merge + chronic-hunger).
 - **`attack` is intentionally rare** (aggression gate 0.99) to keep the population stable under
   random genomes; it does fire (0–39/seed) and feeds the violence-death seam.
 - **hollow-12 feud arcs are a tail phenomenon.** Because the antagonism gates are tuned for rarity and
@@ -183,20 +166,39 @@ hand: **`Rng.fork()` consumes a parent draw**, so 11a's new forks are appended a
 - Live build tracker / handoffs: [../todos/2026-07-17-hollow-BUILD-STATE.md](../todos/2026-07-17-hollow-BUILD-STATE.md).
 
 ## M4 — governance & antagonism arcs (hollow-12, done)
-Depth on the emergent society, both slices sim-core + fully headless-verifiable (`96f0bf5` + `1b32909`):
-- **12a governance** — a `GOVERNANCE` stage (between TRUST-ACCRUAL and COMMUNITY) gives each community
-  per-member **standing** (contribution/help/trust-held/tenure), a contestable **leader** (argmax,
-  lowest-id tie-break), **votable norms** (shareRate/cooperationExpectation/admissionPolicy drift on a
-  standing+genome-weighted vote), and **sanctions** (fine + trust penalty, or exclusion). Norm-clash
-  erodes an outlier's trust/belonging, feeding the existing LEAVE/SPLIT for factional splits.
-  `ONT_GOVERNANCE.{LEADER_CHANGED,NORM_CHANGED,SANCTIONED}` → chronicle.
-- **12b antagonism arcs** — a persistent directed `Feud` grudge (was: hostility was a stateless
-  per-tick recompute) escalated by harm and reconciled by cooperation + decay, with a hysteresis band
-  so `ONT_FEUD.{STARTED,ESCALATED,RECONCILED}` fire once per transition. Grudge biases the antagonistic
-  deliberators' target selection (spirals) but rarity gates stay on raw trust.
-- **Determinism**: neither slice adds an `Rng`/fork — pure arithmetic over deterministic inputs, id-sorted
-  ties; `rng.nextU32()` continuation tests prove the root stream is undisturbed. Cross-seed divergence +
-  greedy-vs-loyal directional tests prove the dynamics emerge, not scripted (sim-core **193** green).
+Depth on the emergent society, both slices sim-core + headless-verifiable (`96f0bf5` + `1b32909`).
+**12a governance** — a `GOVERNANCE` stage gives each community per-member **standing**, a contestable
+**leader** (argmax standing), **votable norms** (shareRate/cooperation/admission drift on a
+standing+genome vote), and **sanctions** (fine / trust penalty / exclusion); norm-clash feeds the
+existing LEAVE/SPLIT. **12b antagonism arcs** — a persistent directed `Feud` grudge (hostility was
+stateless before) escalated by harm, reconciled by cooperation + decay, with a hysteresis band; it
+biases antagonistic target-selection (spirals) but rarity gates stay on raw trust. Neither slice adds
+an `Rng`/fork (pure arithmetic, id-sorted ties; `nextU32` continuation proves the stream is
+undisturbed); cross-seed + greedy-vs-loyal tests prove the dynamics emerge, not scripted.
 
-## Next (hollow-13 + economy)
-hollow-13 LLM rationalizer seam (bounded choose-and-narrate within BDI candidates, event-triggered + async + off-by-default deterministic) is the last M4 brief — spec queued in `corpus/todos/`. An economy deepening (persistent inventory / real scarcity) should slot in first: it activates the dormant steal/trade verbs AND turns hollow-12's feuds from a tail phenomenon into everyday play.
+## M5 — Daily Life (hollow-14, done)
+Re-textured the social sim into a legible daily life (design settled with the user; brief has the full
+design-of-record). Five chunks, sim-core then a render pass (`19fa2dc`·`48240fd`·`d404d3e`·`53f78fd`·`8382a8e`):
+- **Day-cycle** — a pure `dayPhase(tick, ticksPerDay)` clock (commute/work/gather/sleep); in-game day
+  20→200 ticks. Life constants are RAW ticks, so a longer day preserves the generational saga WITHOUT
+  retuning the bistable population constants.
+- **Jobs** — `occupation` component + a JOBS stage where the hollow-12 leader assigns roles by
+  aptitude+demand (loners self-assign); gatherers produce into the community stockpile.
+- **Hearth + routine** — one authored central `HEARTH_TILE`; agents commute to work, converge on the
+  hearth at dusk, disperse home at night; **belonging renews by hearth attendance**, not membership.
+- **Social throttle** — interaction is now rare + private (per-agent cooldown + household/close-tie
+  gate); broad mixing only at the hearth during GATHER. Trust is proximity-driven, so a weak
+  `TRUST_GATHERING_DELTA` keeps the nightly gathering from fusing the town into one community.
+- **Render** — glowing emissive hearth; the day/night wash is synced to the SIM day so dusk coincides
+  with the convergence; `J` toggles job-cue badges.
+- **Verified** (controller's own headless run): interaction volume down ~6–66×, governance + feuds
+  still fire, communities always emerge; population stable; 17/17 whole-workspace typecheck.
+- **Known traits (accepted, not bugs):** (1) communities tend to MERGE into one cohesive village over
+  time — inherent to one shared hearth; user accepted it as on-theme. (2) bounded, non-lethal chronic
+  hunger on some seeds (the routine funnels foraging) — a food-economy balance item.
+
+## Next (hollow-13)
+hollow-13 LLM rationalizer seam (bounded choose-and-narrate within BDI candidates, event-triggered +
+async + off-by-default deterministic) is the last queued brief — and the hearth now gives it a natural
+stage to narrate. The economy-deepening idea is largely **absorbed by hollow-14** (jobs → stockpile);
+what remains is optional food-economy balancing (the chronic-hunger + community-merge traits above).
