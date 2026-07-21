@@ -4,7 +4,13 @@ import starlight from '@astrojs/starlight'
 // Light-only Starlight over the game-engine corpus. The authored pages (index,
 // architecture, patterns, games/*) are the showcase; the /wiki/* pages are
 // synced from corpus/ (see scripts/sync-corpus.mjs) as browsable depth.
+//
+// Sub-path base for a Caddy sub-path deploy (e.g. /game-engine-docs/). Left at
+// "/" for `astro preview` and local dev; the vps-deploy build sets DOCS_BASE.
+const base = process.env.DOCS_BASE ?? '/'
+
 export default defineConfig({
+  base,
   integrations: [
     starlight({
       title: 'Game Engine',
