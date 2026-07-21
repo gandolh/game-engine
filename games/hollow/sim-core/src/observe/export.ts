@@ -36,6 +36,10 @@ export interface MetricsRow {
   readonly deaths_oldAge_window: number;
   readonly deaths_starvation_window: number;
   readonly deaths_violence_window: number;
+  /** Disease deaths this window (chunk hollow-15). Optional (defaults to 0 via
+   *  `flattenMetricsRow`) for back-compat with pre-hollow-15 fixtures, same
+   *  convention as `feud_active_dyads`. */
+  readonly deaths_disease_window?: number;
   readonly community_count: number;
   readonly community_mean_size: number;
   readonly mean_pairwise_trust: number;
@@ -66,6 +70,7 @@ export const METRICS_COLUMNS: readonly string[] = [
   "deaths_oldAge_window",
   "deaths_starvation_window",
   "deaths_violence_window",
+  "deaths_disease_window",
   "community_count",
   "community_mean_size",
   "mean_pairwise_trust",
@@ -89,6 +94,7 @@ const INTEGER_COLUMNS: ReadonlySet<string> = new Set([
   "deaths_oldAge_window",
   "deaths_starvation_window",
   "deaths_violence_window",
+  "deaths_disease_window",
   "community_count",
   "coop_window",
   "antag_window",
@@ -107,6 +113,7 @@ export function flattenMetricsRow(row: MetricsRow): Record<string, number> {
     deaths_oldAge_window: row.deaths_oldAge_window,
     deaths_starvation_window: row.deaths_starvation_window,
     deaths_violence_window: row.deaths_violence_window,
+    deaths_disease_window: row.deaths_disease_window ?? 0,
     community_count: row.community_count,
     community_mean_size: row.community_mean_size,
     mean_pairwise_trust: row.mean_pairwise_trust,

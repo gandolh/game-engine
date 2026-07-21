@@ -58,6 +58,7 @@ import {
 import type { ResourceWorld } from "../world";
 import { SOCIAL_VERB_KINDS, SKILL_MATERIAL, SKILL_FOOD, SKILL_YIELD_BONUS, PRACTICE_RATE } from "../social/constants";
 import { JOBS_PRODUCTION_SURPLUS_FRACTION, JOBS_FOOD_WORK_SESSION_TARGET } from "../jobs/constants";
+import { CARE_ACT_KINDS } from "../mortality";
 
 const ACT_STATE: HollowFsmState = "ACT";
 
@@ -115,7 +116,12 @@ export class HollowActSystem implements System {
           // before that system finishes it. Anything ELSE unrecognized is
           // still dropped, as before, so a genuinely bad intention can't
           // stall an agent forever.
-          if (!SOCIAL_VERB_KINDS.has(intention.kind)) {
+          // chunk hollow-15: the grave-digger/medic care intentions
+          // (collect_corpse/bury_corpse/treat) belong to the sibling
+          // HollowCareActSystem, also registered after this one in the "ACT"
+          // stage — whitelist them through too, same rationale as the social
+          // verbs above.
+          if (!SOCIAL_VERB_KINDS.has(intention.kind) && !CARE_ACT_KINDS.has(intention.kind)) {
             entity.intentions.queue.shift();
           }
       }

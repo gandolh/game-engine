@@ -50,6 +50,14 @@ export type {
 } from "./feud";
 export { ONT_JOBS } from "./jobs";
 export type { JobsOntology, RoleChangedBody } from "./jobs";
+export { ONT_MORTALITY } from "./mortality";
+export type {
+  MortalityOntology,
+  InfectedBody,
+  RecoveredBody,
+  TreatedBody,
+  BuriedBody,
+} from "./mortality";
 export { ONT_SHOCK, shockOntology } from "./shock";
 export type {
   ShockKind,

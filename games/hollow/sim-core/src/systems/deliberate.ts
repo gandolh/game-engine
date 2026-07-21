@@ -24,9 +24,18 @@
 import type { SimContext, System, World } from "@engine/core";
 import { createDeliberateSystem } from "@engine/core/agent";
 import type { HollowEntity, HollowFsmState } from "../components";
-import { personalityRegistry, buildNeighborIndex, type NeighborView } from "../agents";
+import {
+  personalityRegistry,
+  buildNeighborIndex,
+  buildCorpseIndex,
+  buildSickIndex,
+  type NeighborView,
+  type CorpseTargetView,
+  type SickTargetView,
+} from "../agents";
 import type { ResourceWorld } from "../world";
 import type { CommunityRegistry } from "../community";
+import { MEDIC_MAX_TREATMENTS_PER_DAY } from "../mortality";
 
 const PERCEIVE_STATE: HollowFsmState = "PERCEIVE";
 const ACT_STATE: HollowFsmState = "ACT";
@@ -35,12 +44,15 @@ export class HollowDeliberateSystem implements System {
   readonly name = "HollowDeliberateSystem";
   private readonly inner: System;
   private neighbors: readonly NeighborView[] = [];
+  private corpses: readonly CorpseTargetView[] = [];
+  private sick: readonly SickTargetView[] = [];
 
   constructor(
     private readonly world: World<HollowEntity>,
     resources: ResourceWorld,
     communities: CommunityRegistry,
     ticksPerDay: number,
+    medicMaxTreatmentsPerDay: number = MEDIC_MAX_TREATMENTS_PER_DAY,
   ) {
     this.inner = createDeliberateSystem(world, {
       name: "HollowDeliberateSystem",
@@ -53,12 +65,20 @@ export class HollowDeliberateSystem implements System {
         neighbors: this.neighbors,
         ticksPerDay,
         communities,
+        corpses: this.corpses,
+        sick: this.sick,
+        medicMaxTreatmentsPerDay,
       }),
     });
   }
 
   run(ctx: SimContext): void {
+    // Built once per tick (NOT in makeContext, which the engine calls once per
+    // agent) — chunk hollow-06b's neighbor index plus chunk hollow-15's corpse
+    // + sick target indexes, all read via closure by makeContext.
     this.neighbors = buildNeighborIndex(this.world);
+    this.corpses = buildCorpseIndex(this.world);
+    this.sick = buildSickIndex(this.world);
     this.inner.run(ctx);
   }
 }

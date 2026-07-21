@@ -1,5 +1,11 @@
-export { personalityRegistry, registerPersonality, buildNeighborIndex } from "./registry";
-export type { HollowDeliberationContext, HollowDeliberator, NeighborView } from "./registry";
+export { personalityRegistry, registerPersonality, buildNeighborIndex, buildCorpseIndex, buildSickIndex } from "./registry";
+export type {
+  HollowDeliberationContext,
+  HollowDeliberator,
+  NeighborView,
+  CorpseTargetView,
+  SickTargetView,
+} from "./registry";
 export { VILLAGER_KIND } from "./villager";
 export { chooseSocialAction } from "./social-verbs";
 export type { ScoredChoice, SocialAgent } from "./social-verbs";

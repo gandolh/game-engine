@@ -48,7 +48,7 @@ function printSummary(result: RunResult): void {
   console.log(`  final population:       ${s.finalPopulation}`);
   console.log(`  total births:           ${s.totalBirths}`);
   console.log(
-    `  deaths — oldAge: ${s.deathsByCause.oldAge}, starvation: ${s.deathsByCause.starvation}, violence: ${s.deathsByCause.violence}`,
+    `  deaths — oldAge: ${s.deathsByCause.oldAge}, starvation: ${s.deathsByCause.starvation}, violence: ${s.deathsByCause.violence}, disease: ${s.deathsByCause.disease}`,
   );
   console.log(`  cooperative events:     ${s.totalCoopEvents}`);
   console.log(`  antagonistic events:    ${s.totalAntagEvents}`);

@@ -61,7 +61,12 @@ const TERRITORY_TINT_MIX = 0.4;
  *  `"hearthFire"` (chunk hollow-14d) is the hearth's glowing flame material —
  *  EMISSIVE, same mechanism as `"window"` — see `hearth-mesh.ts`'s header;
  *  the hearth's stone base reuses the existing non-emissive `"rock"` key
- *  rather than adding a second new key. */
+ *  rather than adding a second new key.
+ *
+ *  `"headstone"` and `"corpseShroud"` (chunk hollow-15) are this chunk's two
+ *  new non-emissive keys — see `graveyard-mesh.ts`/`corpse-mesh.ts`'s
+ *  headers. The graveyard's perimeter fence reuses the existing `"woodDark"`
+ *  key rather than adding a third. */
 export const WORLD_MATERIAL_KEYS = [
   "grass",
   "wood",
@@ -73,6 +78,8 @@ export const WORLD_MATERIAL_KEYS = [
   "rock",
   "territoryTile",
   "hearthFire",
+  "headstone",
+  "corpseShroud",
 ] as const;
 
 export type WorldMaterialKey = (typeof WORLD_MATERIAL_KEYS)[number];
@@ -92,6 +99,16 @@ const WORLD_MATERIALS: Readonly<Record<WorldMaterialKey, Material>> = {
   // glows on its own, distinct from `window`'s gold glow (a communal fire
   // reads differently from a lit window).
   hearthFire: { color: toFloatRgb(HOLLOW_PAL.orange), emissive: true },
+  // The graveyard's headstones (graveyard-mesh.ts) — a pale stone role,
+  // distinct from the hearth's darker `"rock"` base so a headstone reads as
+  // its own kind of stone rather than reused rubble.
+  headstone: { color: toFloatRgb(HOLLOW_PAL.silver) },
+  // A corpse's shroud (corpse-mesh.ts) — a pale cloth role. Reads as a
+  // normal shrouded body under the default `WHITE_TINT`; a rotting corpse
+  // recolors this SAME material per-instance via `corpseTint`/`disease-tint.
+  // ts`'s `sicklyTint`, same "neutral material + per-instance tint" idiom
+  // `"territoryTile"` above already establishes.
+  corpseShroud: { color: toFloatRgb(HOLLOW_PAL.cream) },
 };
 
 /** The `Material[]` to pass to `SceneRenderer3D.setMaterials`, in the SAME

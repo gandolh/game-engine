@@ -1,7 +1,7 @@
 # Hollow — BUILD STATE / RESUME (live tracker)
 
 status: in-progress
-updated: 2026-07-20
+updated: 2026-07-21 (hollow-15 Mortality & Care sim-core done)
 
 **Read this first to resume the Hollow build.** Design-of-record + all brief specs are in
 `corpus/todos/2026-07-17-hollow-00-BUILD-ORDER.md` and `…-hollow-01..13-*.md`. This file is the
@@ -55,6 +55,7 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | **M3 GATE** | ✅ headless + DOM-flow verified; **live 3D image Chrome-gated** | — |
 | **hollow-12 governance & antagonism arcs** | ✅ **done, verified** (split 12a+12b) | `96f0bf5` + `1b32909` |
 | **hollow-14 Daily Life (jobs/routine/hearth)** | ✅ **done, verified** (14a·14b·14c-1·14c-2·14d) | `19fa2dc`·`48240fd`·`d404d3e`·`53f78fd`·`8382a8e` |
+| **hollow-15 Mortality & Care (starve-death/corpses/graveyard/disease/medic)** | ✅ **sim-core done, headless-verified** (opus-built, not split); render dispatched to Sonnet | (uncommitted — see below) |
 | hollow-13 LLM rationalizer seam | ⬜ spec written, queued (next) | — |
 
 ## hollow-05 — how it went (2026-07-20)

@@ -50,7 +50,7 @@ describe("createChronicle", () => {
     );
     dispatchTick(bus);
 
-    expect(chronicle.deathsByCause()).toEqual({ oldAge: 1, starvation: 1, violence: 0 });
+    expect(chronicle.deathsByCause()).toEqual({ oldAge: 1, starvation: 1, violence: 0, disease: 0 });
     expect(chronicle.events().length).toBe(3); // 2 deaths + 1 gift
   });
 

@@ -41,6 +41,25 @@ export interface NeighborView {
   readonly materialSkill: number;
 }
 
+/** A plain-data view of one burial candidate (chunk hollow-15) — an unburied,
+ *  un-carried corpse a grave-digger can head for. Built once per tick
+ *  (`buildCorpseIndex`), like `NeighborView`. */
+export interface CorpseTargetView {
+  readonly id: number;
+  readonly gx: number;
+  readonly gy: number;
+  readonly rotting: boolean;
+}
+
+/** A plain-data view of one treatment candidate (chunk hollow-15) — a
+ *  currently-sick, as-yet-untreated agent a medic can head for. Built once per
+ *  tick (`buildSickIndex`). */
+export interface SickTargetView {
+  readonly id: number;
+  readonly gx: number;
+  readonly gy: number;
+}
+
 /**
  * The deliberation context handed to every Hollow deliberator: the tick, a
  * read-only handle on the resource world (for nearest-node lookups), and the
@@ -75,6 +94,20 @@ export interface HollowDeliberationContext {
    * plain-data registry handle, never mutated by deliberation.
    */
   readonly communities: CommunityRegistry;
+  /** Unburied, un-carried corpses (chunk hollow-15), sorted ascending by id —
+   *  the grave-digger routine's target set (agents/villager.ts). Built once
+   *  per tick in `HollowDeliberateSystem.run`, same O(n) pattern as
+   *  `neighbors`. */
+  readonly corpses: readonly CorpseTargetView[];
+  /** Currently-sick, untreated agents (chunk hollow-15), sorted ascending by
+   *  id — the medic routine's target set. Built once per tick, like
+   *  `corpses`. */
+  readonly sick: readonly SickTargetView[];
+  /** The medic's per-in-game-day treatment cap (chunk hollow-15) — threaded
+   *  from `HollowSimOptions.medicMaxTreatmentsPerDay` so the deliberator's
+   *  "any budget left today?" check agrees with the `treat` care-act's
+   *  authoritative spend (mortality/care-act-system.ts). */
+  readonly medicMaxTreatmentsPerDay: number;
 }
 
 /**
@@ -101,6 +134,34 @@ export function buildNeighborIndex(world: World<HollowEntity>): readonly Neighbo
       food: entity.inventory.goods[GOOD_FOOD] ?? 0,
       materialSkill: entity.skills?.byKind[SKILL_MATERIAL] ?? 0,
     });
+  }
+  out.sort((a, b) => a.id - b.id);
+  return out;
+}
+
+/** This tick's grave-digger target set (chunk hollow-15): unburied, un-carried
+ *  corpses (`world.query("corpse")`), sorted ascending by id. Built once per
+ *  tick (see `buildNeighborIndex`'s header). */
+export function buildCorpseIndex(world: World<HollowEntity>): readonly CorpseTargetView[] {
+  const out: CorpseTargetView[] = [];
+  for (const entity of world.query("corpse")) {
+    if (entity.id === undefined) continue;
+    const c = entity.corpse;
+    if (!c || c.buried || c.carriedBy != null) continue;
+    out.push({ id: entity.id, gx: c.gx, gy: c.gy, rotting: c.rotting });
+  }
+  out.sort((a, b) => a.id - b.id);
+  return out;
+}
+
+/** This tick's medic target set (chunk hollow-15): currently-sick, untreated
+ *  agents (`world.query("disease", "agent")`), sorted ascending by id. */
+export function buildSickIndex(world: World<HollowEntity>): readonly SickTargetView[] {
+  const out: SickTargetView[] = [];
+  for (const entity of world.query("disease", "agent")) {
+    if (entity.id === undefined) continue;
+    if (entity.disease.treated) continue; // already treated — not a target
+    out.push({ id: entity.id, gx: entity.agent.gx, gy: entity.agent.gy });
   }
   out.sort((a, b) => a.id - b.id);
   return out;

@@ -23,6 +23,12 @@ export const JOB_ROLES = [
   "crafter",
   "teacher",
   "caretaker",
+  // chunk hollow-15's two care roles: a grave-digger buries corpses (before
+  // they rot + spread disease); a medic treats the sick (speeding recovery).
+  // Both are demand-driven (the corpse backlog / sick count nudges the
+  // assignment pass toward them — see jobs/assignment-system.ts).
+  "grave-digger",
+  "medic",
   "unassigned",
 ] as const;
 export type JobRole = (typeof JOB_ROLES)[number];

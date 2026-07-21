@@ -23,6 +23,7 @@ function makeAgent(
     appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBrown" },
     action: "idle",
     occupation: "unassigned",
+    diseased: false,
   };
 }
 

@@ -18,6 +18,7 @@ function makeAgent(id: number, gx: number, gy: number): HollowAgentSnapshot {
     appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBrown" },
     action: "idle",
     occupation: "unassigned",
+    diseased: false,
   };
 }
 

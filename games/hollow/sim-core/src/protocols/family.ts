@@ -35,11 +35,12 @@ export interface FamilyBirthBody {
 }
 
 /** An agent died. `cause` mirrors `lineage.LineageEntry.deathCause` —
- *  "violence" is a SEAM ONLY in this chunk (no combat system exists yet;
- *  see family/lifecycle-system.ts's class doc). */
+ *  "violence" is a SEAM ONLY (no combat system exists yet; see
+ *  family/lifecycle-system.ts's class doc); "disease" was added by chunk
+ *  hollow-15 (a real, firing cause). */
 export interface FamilyDeathBody {
   agentId: number;
-  cause: "oldAge" | "starvation" | "violence";
+  cause: "oldAge" | "starvation" | "violence" | "disease";
   tick: number;
 }
 

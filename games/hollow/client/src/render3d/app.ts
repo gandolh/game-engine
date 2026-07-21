@@ -47,6 +47,9 @@ import { householdLayout, householdMemberCounts, homeMeshFor, MAX_HOME_FOOTPRINT
 import { findFreePlacement, footprintRect, HOME_MARGIN, type Rect } from "./home-placement";
 import { baseNodeMeshFor, fullnessScale, resourceNodeFullness } from "./node-mesh";
 import { buildHearthMesh } from "./hearth-mesh";
+import { buildGraveyardMesh } from "./graveyard-mesh";
+import { buildCorpseMesh, corpseTint } from "./corpse-mesh";
+import { sicklyTint } from "./disease-tint";
 import { dayNightFromPhase, simDayPhaseWash } from "./day-night";
 import { wireOrbitCameraInput, type CameraInputHandle } from "./camera-input";
 import {
@@ -247,6 +250,15 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     // at `latest.hearth` each frame (guarded: optional on the snapshot, see
     // hearth-mesh.ts's header).
     const hearthMesh = renderer.uploadMesh(buildHearthMesh(), combinedMaterialIndexOf);
+    // The graveyard (chunk hollow-15) — same "one static mesh, one instance"
+    // idiom as the hearth above, placed at `latest.graveyard` each frame
+    // (also optional on the snapshot — see graveyard-mesh.ts's header).
+    const graveyardMesh = renderer.uploadMesh(buildGraveyardMesh(), combinedMaterialIndexOf);
+    // Corpses (chunk hollow-15) — ONE static mesh, one instance PER live
+    // `HollowCorpseSnapshot`, tinted per-instance by `corpseTint` (rotting or
+    // not) — same "one mesh, many tinted instances" idiom the resource nodes
+    // and territory tiles above already use (see corpse-mesh.ts's header).
+    const corpseMesh = renderer.uploadMesh(buildCorpseMesh(), combinedMaterialIndexOf);
 
     // Home meshes are grown lazily as new household member-counts are seen
     // (a small, bounded set — see household-layout.ts's `growthFactorFor`
@@ -403,6 +415,38 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
           });
         }
 
+        // The graveyard (chunk hollow-15) — the town's one authored burial
+        // ground, the anchor a grave-digger carries bodies to. Optional on
+        // the snapshot (older/hand-built fixtures) — skip cleanly if absent,
+        // same convention as the hearth above.
+        if (latest.graveyard) {
+          const { gx, gy } = latest.graveyard;
+          const z = groundHeightAt(gx, gy);
+          const model = translation([gx + 0.5, gy + 0.5, z]);
+          draws.push({
+            mesh: graveyardMesh,
+            instances: packInstances([{ model, tint: WHITE_TINT }]),
+            instanceCount: 1,
+          });
+        }
+
+        // Corpses (chunk hollow-15) — every currently-live body (a carried
+        // corpse's `gx`/`gy` already track its carrier's tile — see
+        // corpse-mesh.ts's header), tinted sickly-green once `rotting`.
+        // Additive/optional on the snapshot — defaults to an empty list.
+        const corpseInstances: Instance[] = (latest.corpses ?? []).map((corpse) => {
+          const z = groundHeightAt(corpse.gx, corpse.gy);
+          const model = translation([corpse.gx + 0.5, corpse.gy + 0.5, z]);
+          return { model, tint: corpseTint(corpse.rotting) };
+        });
+        if (corpseInstances.length > 0) {
+          draws.push({
+            mesh: corpseMesh,
+            instances: packInstances(corpseInstances),
+            instanceCount: corpseInstances.length,
+          });
+        }
+
         // Households — clustered by community, sized by member count (see
         // household-layout.ts). Grouped by mesh handle so each distinct
         // house size gets exactly one instanced draw call.
@@ -540,9 +584,14 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
 
           // Picked-agent highlight (chunk hollow-09c seam) — same tint-
           // multiply mechanism `render3d-demo.ts`'s `PICKED_TINT` uses, see
-          // `selection.ts`'s header.
+          // `selection.ts`'s header. Chunk hollow-15's disease tint
+          // (`disease-tint.ts`) composes UNDER the selection highlight — a
+          // diseased agent reads sickly-green; if ALSO selected, the gold
+          // highlight still brightens from that sickly base rather than
+          // being masked by it.
           const baseTint = humanoidTint(agent.id);
-          const tint = agent.id === selectedAgentId ? selectedTint(baseTint) : baseTint;
+          const healthTint = agent.diseased ? sicklyTint(baseTint) : baseTint;
+          const tint = agent.id === selectedAgentId ? selectedTint(healthTint) : healthTint;
           const inst: Instance = { model, tint };
           const list = byAgentVariant.get(variant.handle);
           if (list) list.push(inst);

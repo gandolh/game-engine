@@ -67,8 +67,10 @@ export interface InspectCommunity {
 /** A dead agent's ever-recorded cause (see `@hollow/sim-core/lineage`'s
  *  `DeathCause`) — duplicated here (a string literal union, not an import)
  *  since this module must stay import-free of sim-core's internal types to
- *  guarantee postMessage-safety; kept in lockstep by convention. */
-export type InspectDeathCause = "oldAge" | "starvation" | "violence";
+ *  guarantee postMessage-safety; kept in lockstep by convention. `"disease"`
+ *  (chunk hollow-15) mirrors sim-core's `DeathCause` gaining the same
+ *  variant for a death from an untreated illness. */
+export type InspectDeathCause = "oldAge" | "starvation" | "violence" | "disease";
 
 export interface InspectDetail {
   readonly id: number;

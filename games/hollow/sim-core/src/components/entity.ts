@@ -15,6 +15,8 @@ import type { Lifecycle } from "./lifecycle";
 import type { Skills } from "./skills";
 import type { Feud } from "./feud";
 import type { Occupation } from "./occupation";
+import type { Disease } from "./disease";
+import type { Corpse } from "./corpse";
 
 /**
  * Hollow's FSM states for chunk hollow-03. Mirrors Farm's simplest loop
@@ -110,5 +112,20 @@ export interface HollowEntity {
    * rationale as `skills`/`genome`/`feud` above.
    */
   occupation?: Occupation;
+  /**
+   * An active illness (chunk hollow-15) — see components/disease.ts. Present
+   * ONLY while an agent is sick (added by `mortality/corpse-system.ts` on
+   * infection, removed by `mortality/disease-system.ts` on recovery or by
+   * death), so `world.query("disease")` yields exactly the currently-sick.
+   */
+  disease?: Disease;
+  /**
+   * A DEAD villager's body (chunk hollow-15) — see components/corpse.ts. This
+   * is the ONE component that lives on its own dedicated entity rather than a
+   * living agent: a `{ id, corpse }` entity carries none of the agent
+   * components above, so every existing agent query keeps seeing only the
+   * living. Corpse-aware systems use the distinct `world.query("corpse")`.
+   */
+  corpse?: Corpse;
   [key: string]: unknown;
 }

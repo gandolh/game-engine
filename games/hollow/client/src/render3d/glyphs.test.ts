@@ -2,7 +2,15 @@ import { describe, it, expect } from "vitest";
 import { glyphForAction, glyphForOccupation } from "./glyphs";
 
 const SOCIAL_VERBS = ["gift", "share", "help", "teach", "trade", "steal", "sabotage", "rumor", "attack"] as const;
-const JOB_ROLES = ["food-gatherer", "material-gatherer", "crafter", "teacher", "caretaker"] as const;
+const JOB_ROLES = [
+  "food-gatherer",
+  "material-gatherer",
+  "crafter",
+  "teacher",
+  "caretaker",
+  "grave-digger",
+  "medic",
+] as const;
 
 describe("glyphForAction", () => {
   it("draws nothing for idle/walk (the uncluttered default)", () => {
@@ -55,5 +63,10 @@ describe("glyphForOccupation", () => {
 
   it("is pure — repeated calls return the same result", () => {
     expect(glyphForOccupation("crafter")).toBe(glyphForOccupation("crafter"));
+  });
+
+  it("gives the two hollow-15 care roles their own dig/cross glyphs", () => {
+    expect(glyphForOccupation("grave-digger")).toBe("⛏");
+    expect(glyphForOccupation("medic")).toBe("+");
   });
 });

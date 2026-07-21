@@ -11,7 +11,15 @@ function runFor(
   opts: Parameters<typeof bootstrapHollowSim>[0],
   ticks: number,
 ): ReturnType<typeof bootstrapHollowSim> {
-  const sim = bootstrapHollowSim(opts);
+  // chunk hollow-15 made starvation LETHAL after 3 in-game days (60 ticks at
+  // ticksPerDay=20). This test predates that and deliberately measures the
+  // starvation-ONSET SIGNAL over a 600-tick run — it expects a resource-poor
+  // population to be alive-and-STARVING at the end, not dead and despawned. So
+  // it pins `starvationDeathTicks` far beyond the run window: the onset signal
+  // (`beliefs.data.starving`, economy/constants.ts's STARVATION_TICKS=60) still
+  // fires exactly as before, but nobody actually dies of it here. hollow-15's
+  // OWN mortality.test.ts covers the lethal 3-day threshold.
+  const sim = bootstrapHollowSim({ starvationDeathTicks: 1_000_000, ...opts });
   for (let i = 0; i < ticks; i++) sim.tick();
   return sim;
 }

@@ -51,7 +51,16 @@ function makeCtx(tick = 0): HollowDeliberationContext {
   // (agents/villager.ts's `applyGatherOrSleepRoutine`) is only consulted for
   // GATHER/SLEEP, so this fixture stays a pure test of the survival-vs-social
   // ladder for WORK/COMMUTE ticks, untouched by the routine.
-  return { tick, resources, neighbors, ticksPerDay: TICKS_PER_DAY, communities: new CommunityRegistry() };
+  return {
+    tick,
+    resources,
+    neighbors,
+    ticksPerDay: TICKS_PER_DAY,
+    communities: new CommunityRegistry(),
+    corpses: [],
+    sick: [],
+    medicMaxTreatmentsPerDay: 3,
+  };
 }
 
 function makeAgent(): HollowEntity & { id: number } {

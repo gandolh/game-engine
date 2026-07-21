@@ -1,6 +1,6 @@
 ---
-summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth all gather at + rare/private interaction), plus load-bearing decisions + known traits.
-updated: 2026-07-20
+summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth + rare/private interaction), M6 hollow-15 Mortality & Care (3-day starvation death + persistent corpses + graveyard/grave-digger burial + rot→disease + medic), plus load-bearing decisions + known traits.
+updated: 2026-07-21
 ---
 
 # Hollow — overview
@@ -36,9 +36,12 @@ promoted the generic agent kernel (needs, deliberation registry, relationship le
 `bootstrapHollowSim()` registers systems in this deliberate order (each has an inline data-dep
 rationale in [sim-bootstrap.ts](../../games/hollow/sim-core/src/sim-bootstrap.ts)):
 
-**PERCEIVE** (+social witness fan-out) → **DELIBERATE** → **ACT** (+social verbs) → **TRUST-ACCRUAL**
-→ **COMMUNITY** → **BELONGING** → **PAIRBOND** → **REPRODUCTION** → **LIFECYCLE** → **NEEDS-DECAY**
-→ **RESOURCE-REGEN**.
+**SHOCK** → **PERCEIVE** (+social witness fan-out +feud) → **DELIBERATE** → **ACT** (+social verbs
++care verbs collect/bury/treat) → **TRUST-ACCRUAL** → **GOVERNANCE** → **JOBS** → **COMMUNITY** →
+**BELONGING** → **PAIRBOND** → **REPRODUCTION** → **DISEASE** (hollow-15 daily mortality/recovery) →
+**LIFECYCLE** → **CORPSE** (hollow-15 rot + disease spread) → **NEEDS-DECAY** → **RESOURCE-REGEN**.
+(sim-bootstrap.ts is authoritative; DISEASE sits right before LIFECYCLE so a disease death flows
+through LIFECYCLE's single corpse-spawning death path, and CORPSE right after it.)
 
 Determinism is load-bearing: all randomness flows through the seeded `Rng` via named `fork(label)`
 (no `Math.random`/`Date.now`); a tick's output depends solely on the tick count. The social
@@ -146,8 +149,10 @@ be appended after existing ones + created unconditionally. DOM/interaction flow 
 - Sim: [games/hollow/sim-core/src/](../../games/hollow/sim-core/src/) — `sim-bootstrap.ts`,
   `agents/` (villager + social-verbs), `community/`, `governance/` (hollow-12a standing/leader/norms/
   sanctions), `family/` (lifecycle/pairbond/reproduction + registry + genetics + constants),
-  `lineage/`, `social/` (act + witness + **feud** + constants), `protocols/` (incl. `governance.ts`,
-  `feud.ts`).
+  `lineage/`, `social/` (act + witness + **feud** + constants), `mortality/` (hollow-15
+  disease-system/corpse-system/care-act-system + constants + medic-capacity helper),
+  `protocols/` (incl. `governance.ts`, `feud.ts`, `mortality.ts`). Corpse/Disease are Hollow
+  components (`components/corpse.ts`, `components/disease.ts`); `GRAVEYARD_TILE` in `world/grid.ts`.
 - Tool: [tools/hollow-sim/src/](../../tools/hollow-sim/src/) — `env.ts` (research profile),
   `metrics.ts`, `chronicle.ts`, `export.ts`, `run-core.ts`, `determinism.ts`.
 - Observe / research (M3): [games/hollow/sim-core/src/observe/](../../games/hollow/sim-core/src/observe/)
@@ -197,8 +202,46 @@ design-of-record). Five chunks, sim-core then a render pass (`19fa2dc`·`48240fd
   time — inherent to one shared hearth; user accepted it as on-theme. (2) bounded, non-lethal chronic
   hunger on some seeds (the routine funnels foraging) — a food-economy balance item.
 
+## M6 — Mortality & Care (hollow-15, done 2026-07-21)
+Gave death consequences and a care economy. Sim-core complete + headless-verified; render dispatched
+separately (Chrome-gated visual). Brief: [../todos/2026-07-21-hollow-15-mortality-and-care.md](../todos/2026-07-21-hollow-15-mortality-and-care.md).
+- **Starvation is lethal in 3 in-game days.** A starvation-death path already existed
+  (`family/lifecycle-system.ts`) but defaulted to a huge 3000 raw ticks; the bootstrap default is now
+  day-derived (`STARVATION_DEATH_DAYS * ticksPerDay`), still overridable via `starvationDeathTicks`
+  (the legacy scarcity + family tests pin a large value / disable disease to isolate what they test).
+- **Corpses persist (architectural change).** Death no longer silently despawns — `handleDeath` spawns
+  a **`Corpse` on its own entity** (`{ id, corpse }`, no agent/needs → invisible to every living-agent
+  query) at the death tile, and releases any body the deceased was carrying. New DeathCause `"disease"`.
+- **Graveyard + grave-digger.** One authored `GRAVEYARD_TILE` (like the hearth, but offset +12,+12 so
+  its disease radius never touches the hearth crowd). New leader/demand-assigned `grave-digger`
+  occupation: collect nearest unburied body → carry to graveyard → bury (corpse despawns, `buriedCount++`).
+- **Rot → disease.** An unburied body rots after `CORPSE_ROT_DELAY_DAYS` (2) and infects uninfected
+  agents within `DISEASE_SPREAD_RADIUS` (2) at `DISEASE_INFECT_PROB_PER_TICK` (0.008/tick). Disease is a
+  per-agent `Disease` component.
+- **Disease outcome + medic.** Each in-game day a sick agent rolls `DISEASE_MORTALITY_PROB_PER_DAY`
+  (0.10) to die (cause "disease"), REGARDLESS of treatment; a survivor recovers after 5 days on its own
+  or 2 once a **medic** (new role, treats ≤3 patients/day, nearest sick-untreated first) has treated it.
+  Compounded per-illness lethality is steep by design (untreated ≈41%, treated ≈19%) — which is why the
+  INFECTION rate is kept low.
+- **Two new stages** around LIFECYCLE: `DISEASE` (before — daily mortality/recovery, sets
+  `beliefs.data.pendingDeathCause` for the one death path) and `CORPSE` (after — rot + spread +
+  carried-corpse follow). Care verbs (collect/bury/treat) run in a new `HollowCareActSystem` sibling in
+  the ACT stage. Two new **unconditional** rng forks appended after `shock` (`disease-spread`,
+  `disease-mortality`) — determinism preserved (byte-identical replay test passes).
+- **Emergent balance (headless-verified, seeds 7/101, 2000t):** grave-diggers emerge via a
+  backlog-proportional demand nudge and bury the dead; disease becomes a controlled endemic
+  (~7–10 disease deaths vs ~370 old-age), infections + treatments + recoveries all fire, population
+  stays bounded (no collapse, no runaway). Key tuning: **burial demand out-prioritizes medic demand**
+  (grave-digger bias 0.7 vs medic 0.6, corpse-demand target 4 so routine churn leaves work for medics) —
+  because burial removes the disease SOURCE while treatment only mitigates. A far-corner graveyard +
+  short rot delay was measured to turn every death into a town-wiping plague; the current placement +
+  2-day grace is what makes it survivable.
+- **Known trait (accepted):** a poorly-organized town (leaderless/fragmented during an outbreak) can
+  still suffer a heavier disease toll than a well-organized one — seed-dependent divergence, on-theme
+  for the emergence sim, not a bug.
+
 ## Next (hollow-13)
 hollow-13 LLM rationalizer seam (bounded choose-and-narrate within BDI candidates, event-triggered +
-async + off-by-default deterministic) is the last queued brief — and the hearth now gives it a natural
-stage to narrate. The economy-deepening idea is largely **absorbed by hollow-14** (jobs → stockpile);
-what remains is optional food-economy balancing (the chronic-hunger + community-merge traits above).
+async + off-by-default deterministic) is the last queued brief — and the hearth (and now a funeral /
+outbreak) gives it natural drama to narrate. The economy-deepening idea is largely **absorbed by
+hollow-14** (jobs → stockpile); what remains is optional food-economy balancing.

@@ -99,6 +99,13 @@ export const ASSIGNABLE_JOB_ROLES: readonly JobRole[] = [
   "crafter",
   "teacher",
   "caretaker",
+  // chunk hollow-15's two care roles. Pure-aptitude fit alone keeps them rare
+  // (their blends are middling for most genomes); the corpse-backlog / sick-
+  // count demand nudge below is what actually staffs them when the town needs
+  // them (assignment-system.ts). Listed AFTER the productive roles so a strict
+  // fit tie still prefers a productive role (fixed-order tie-break).
+  "grave-digger",
+  "medic",
 ];
 
 // --- role-fit weights (see header; each blend sums to 1.0) -------------------
@@ -109,11 +116,65 @@ export const ROLE_TEACHER_CURIOSITY_WEIGHT = 0.6;
 export const ROLE_TEACHER_SOCIABILITY_WEIGHT = 0.4;
 export const ROLE_CARETAKER_LOYALTY_WEIGHT = 0.6;
 export const ROLE_CARETAKER_SOCIABILITY_WEIGHT = 0.4;
+// chunk hollow-15 care roles (blends sum to 1.0):
+//   grave-digger — a dutiful, industrious worker for a grim job.
+//   medic — a caring knowledge-worker (curiosity + loyalty, distinct from the
+//     teacher's curiosity+sociability blend so the two don't perfectly tie).
+export const ROLE_GRAVEDIGGER_INDUSTRIOUSNESS_WEIGHT = 0.6;
+export const ROLE_GRAVEDIGGER_LOYALTY_WEIGHT = 0.4;
+export const ROLE_MEDIC_CURIOSITY_WEIGHT = 0.6;
+export const ROLE_MEDIC_LOYALTY_WEIGHT = 0.4;
 
 // --- demand nudge (see header) -----------------------------------------------
 
 export const JOBS_DEMAND_PERCAPITA_TARGET = 5;
 export const JOBS_DEMAND_BIAS_WEIGHT = 0.3;
+
+// --- care-role demand nudge (chunk hollow-15) --------------------------------
+//
+// A town-wide backlog signal (NOT per-community stockpile like the gatherer
+// demand above): the count of unburied corpses drives grave-digger demand, the
+// count of sick agents drives medic demand, each clamped to [0,1] against its
+// target (a small backlog already means "we need someone"). The bias weight is
+// larger than JOBS_DEMAND_BIAS_WEIGHT so a genuine backlog reliably flips the
+// best-fit LED-community member into the role (an unstaffed graveyard/clinic is
+// a fast-compounding problem — rot → disease → more corpses), while still
+// bounded so it can't override a strong aptitude mismatch across the board.
+// Demand ramps PROPORTIONALLY to backlog size (corpse count / target, clamped):
+// a target of 4 means routine death-churn (~1-3 unburied at a time) yields only
+// a MODERATE grave-digger pull — leaving room for medics to win for the sick —
+// while a genuine backlog (an outbreak's bodies piling up) saturates it and
+// floods grave-diggers. Tuned empirically (headless, seeds 7/101): too low a
+// target (1, "saturate on the first body") flipped the whole town to
+// grave-diggers and starved the medic role of any patient; too high let corpses
+// accumulate into a runaway plague. At target 4 both roles stay active and the
+// population is bounded across seeds.
+export const JOBS_CORPSE_DEMAND_TARGET = 4;
+export const JOBS_SICK_DEMAND_TARGET = 2;
+/** Grave-digger's demand bias is slightly STRONGER than the medic's so that,
+ *  when a corpse backlog and an outbreak saturate both demands at once, burial
+ *  (which removes the disease SOURCE) edges out treatment (downstream
+ *  mitigation) — without a strong tilt a high-curiosity town flips everyone to
+ *  medic, never buries its dead, and the outbreak self-perpetuates (observed).
+ *  The margin is deliberately SMALL (0.7 vs 0.6, paired with the proportional
+ *  corpse target above) so medics still win when the corpse backlog is light
+ *  but people are sick — keeping BOTH roles active rather than one dominating.
+ *  Over-staffing grave-diggers is harmless anyway: the survival ladder
+ *  (food/rest) always pre-empts the job routine, so a grave-digger still feeds
+ *  itself; a gatherer job only adds STOCKPILE surplus. */
+export const JOBS_GRAVEDIGGER_DEMAND_BIAS_WEIGHT = 0.7;
+export const JOBS_MEDIC_DEMAND_BIAS_WEIGHT = 0.6;
+
+/** Care roles' pure-aptitude fit is scaled DOWN by this factor so that, with
+ *  NO backlog (demand 0), a care role never out-scores a genuine productive
+ *  specialist — the roles stay dormant until the corpse/sick demand nudge
+ *  lifts them (the design intent: "demand-driven, rare without demand"). With
+ *  the scale at 0.5 a care role tops out near 0.5 on fit alone, below any real
+ *  specialist's 0.7+, but a full demand nudge (JOBS_CARE_DEMAND_BIAS_WEIGHT)
+ *  reliably lifts the best-fit member above the productive roles when bodies
+ *  pile up or an outbreak spreads. Keeps the pre-hollow-15 5-role routing
+ *  byte-identical for any demand-free assignment (sim-bootstrap.jobs.test.ts). */
+export const ROLE_CARE_FIT_SCALE = 0.5;
 
 // --- production (see header) -------------------------------------------------
 

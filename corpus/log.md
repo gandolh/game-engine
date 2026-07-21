@@ -4,6 +4,39 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-21] build | Hollow — hollow-15 "Mortality & Care" COMPLETE (starvation death · corpses · graveyard/grave-digger · disease · medic)
+
+Death now has consequences + a care economy (design-of-record + decisions in
+`todos/2026-07-21-hollow-15-mortality-and-care.md`; folded into `wiki/hollow-overview.md` "M6").
+Sim-core complete + headless-verified by the controller (opus); render dispatched to a Sonnet subagent
+(Chrome-gated visual). Designed with the user via one `AskUserQuestion` round (3-day starve = 3 in-game
+days; disease 10%/day recoverable; authored graveyard tile + new job roles) + a mid-turn medic addition.
+- **Starvation lethal in 3 in-game days.** The death path already existed (`family/lifecycle-system.ts`)
+  but defaulted to a huge 3000 raw ticks; bootstrap default is now `STARVATION_DEATH_DAYS(3) *
+  ticksPerDay`, overridable via `starvationDeathTicks`. Legacy `scarcity` test pinned high, `family`
+  test pins `diseaseInfectProbPerTick:0` — both isolate what they measure (the user accepted this).
+- **Corpses persist (architectural change).** `handleDeath` spawns a `Corpse` on its OWN entity
+  (`{id, corpse}`, no agent/needs → invisible to every living-agent query) instead of a silent despawn,
+  and releases a body a dying grave-digger was carrying. New DeathCause `"disease"`.
+- **Graveyard + grave-digger + rot→disease + medic.** Authored `GRAVEYARD_TILE` (offset +12,+12 from
+  hearth). New `grave-digger` role (collect→carry→bury, `buriedCount++`) and `medic` role (treats ≤3
+  patients/day, nearest sick-untreated; drops recovery 5→2 days). Unburied body rots after 2 days,
+  infects within radius 2 at 0.008/tick; 10%/day mortality (treatment-independent). Two new stages
+  `DISEASE` (before LIFECYCLE, sets `pendingDeathCause` so disease deaths use the one corpse-spawn path)
+  + `CORPSE` (after); care verbs in a new `HollowCareActSystem`. Two unconditional rng forks appended
+  after `shock` (`disease-spread`, `disease-mortality`) — byte-determinism preserved (test passes).
+- **Emergent balance tuning (headless probe, seeds 7/101, 2000t).** First cut nearly wiped seed 7
+  (leaderless-during-outbreak → 0 grave-diggers → 171 unburied → runaway plague). Fixes: (1) care demand
+  reaches EVERYONE (loners too — burial is survival, not politics); (2) grave-digger demand out-bids
+  medic (bias 0.7 vs 0.6, corpse target 4 so routine churn still leaves medics work — burial removes the
+  SOURCE, treatment only mitigates); (3) softer infection + graveyard moved out of the far corner. Result:
+  both seeds bounded, disease a controlled endemic (~7–10 deaths vs ~370 old-age), grave-diggers +
+  medics + infections + recoveries all fire. This is the "verify integration, not just green tests" step.
+- **sim-core: 228 tests green** (40 files; +15 `mortality.test.ts`, +1 `mortality-emergence.test.ts`;
+  guarded `scarcity`/`family`; observe `deaths_disease_window` column + `ONT_MORTALITY` chronicle events).
+  Whole-package typecheck clean. ⚠️ full-parallel vitest flaps on this constrained hardware — run
+  `--no-file-parallelism`.
+
 ## [2026-07-21] build | Hollow — hollow-14 "Daily Life" COMPLETE (jobs, routine, hearth, rare interaction)
 
 A deliberate GAMEPLAY pivot re-texturing the social sim, designed with the user via two grilling rounds

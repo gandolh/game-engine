@@ -49,4 +49,28 @@ export interface HollowAgent {
    * it still typecheck (same convention as `currentAction` above).
    */
   lastSocialActTick?: number;
+  /**
+   * The corpse entity id a `grave-digger` (components/occupation.ts) is
+   * currently carrying to the graveyard (chunk hollow-15), or `null`/absent
+   * when empty-handed. Written by the `collect_corpse`/`bury_corpse` care-acts
+   * (`mortality/care-act-system.ts`) and read by the grave-digger routine
+   * (`agents/villager.ts`) to decide "carry to graveyard" vs "find the next
+   * body". Cleared (with the corpse's own `carriedBy`) if the digger dies
+   * mid-carry — see `family/lifecycle-system.ts`'s `handleDeath`. Optional so
+   * pre-hollow-15 hand-built harnesses still typecheck (same convention as
+   * `lastSocialActTick`).
+   */
+  carryingCorpseId?: number | null;
+  /**
+   * A `medic`'s daily treatment budget bookkeeping (chunk hollow-15): the
+   * count of patients treated on `medicTreatDay`. Reset lazily to 0 whenever
+   * the current `dayPhase(...).dayOfRun` no longer matches `medicTreatDay`
+   * (see the `treat` care-act) so a medic treats at most
+   * `MEDIC_MAX_TREATMENTS_PER_DAY` (3) agents per in-game day. Pure tick
+   * arithmetic, no `Rng`. Optional, same convention as above.
+   */
+  medicTreatsToday?: number;
+  /** The `dayOfRun` (`world/day-cycle.ts`) `medicTreatsToday` was last counted
+   *  against — a mismatch means a new day has begun and the budget resets. */
+  medicTreatDay?: number;
 }

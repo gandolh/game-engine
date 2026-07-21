@@ -149,7 +149,7 @@ import { MessageBus, Scheduler, World, createRng, type Rng } from "@engine/core"
 import { createNeedsDecaySystem } from "@engine/core/agent";
 import type { HollowEntity } from "./components";
 import { spawnPopulation } from "./population";
-import { ResourceWorld, createResourceRegenSystem, HEARTH_TILE } from "./world";
+import { ResourceWorld, createResourceRegenSystem, HEARTH_TILE, GRAVEYARD_TILE } from "./world";
 import { HollowPerceiveSystem } from "./systems/perceive";
 import { HollowDeliberateSystem } from "./systems/deliberate";
 import { HollowActSystem } from "./systems/act";
@@ -194,7 +194,6 @@ import {
   OLD_AGE_HAZARD_BASE,
   OLD_AGE_HAZARD_PER_TICK,
   OLD_AGE_HAZARD_MAX,
-  STARVATION_DEATH_TICKS,
   PAIRBOND_TRUST_THRESHOLD,
   PAIRBOND_COMPAT_THRESHOLD,
   PAIRBOND_PROXIMITY_TILES,
@@ -205,7 +204,21 @@ import {
   GESTATION_TICKS,
 } from "./family";
 import { LineageRegistry } from "./lineage";
-import { ONT_FAMILY, ONT_SOCIAL, type Shock, type Intervention } from "./protocols";
+import { ONT_FAMILY, ONT_SOCIAL, ONT_MORTALITY, type Shock, type Intervention } from "./protocols";
+import {
+  HollowDiseaseSystem,
+  HollowCorpseSystem,
+  HollowCareActSystem,
+  STARVATION_DEATH_DAYS,
+  CORPSE_ROT_DELAY_DAYS,
+  DISEASE_SPREAD_RADIUS,
+  DISEASE_INFECT_PROB_PER_TICK,
+  DISEASE_MORTALITY_PROB_PER_DAY,
+  DISEASE_SELF_RECOVERY_DAYS,
+  DISEASE_MEDIC_RECOVERY_DAYS,
+  MEDIC_MAX_TREATMENTS_PER_DAY,
+  daysToTicks,
+} from "./mortality";
 import {
   HollowSocialActSystem,
   HollowSocialWitnessSystem,
@@ -380,6 +393,28 @@ export interface HollowSimOptions {
    *  loner-self-assigned occupation) runs. */
   jobsAssignIntervalTicks?: number;
 
+  // Mortality & Care (chunk hollow-15) knobs — each defaults to its
+  // mortality/constants.ts constant. The probability knobs let a test force a
+  // deterministic branch (same pattern as the social-verb prob knobs above).
+  /** In-game days of continuous starvation before death. Overrides the
+   *  day-derived default (`STARVATION_DEATH_DAYS * ticksPerDay`) — mutually
+   *  exclusive with the raw `starvationDeathTicks` below (which, if set, wins). */
+  starvationDeathDays?: number;
+  /** In-game days an unburied corpse lies inert before it starts rotting. */
+  corpseRotDelayDays?: number;
+  /** Chebyshev-tile radius within which a rotting corpse can infect. */
+  diseaseSpreadRadius?: number;
+  /** Per-tick probability a rotting corpse infects each uninfected agent in range. */
+  diseaseInfectProbPerTick?: number;
+  /** Per-in-game-day probability a diseased agent dies (treatment-independent). */
+  diseaseMortalityProbPerDay?: number;
+  /** In-game days a diseased agent must survive to recover on its own. */
+  diseaseSelfRecoveryDays?: number;
+  /** In-game days a medic-treated diseased agent must survive to recover. */
+  diseaseMedicRecoveryDays?: number;
+  /** Max patients a medic can treat per in-game day. */
+  medicMaxTreatmentsPerDay?: number;
+
   // Feud (chunk hollow-12b) knobs — each defaults to its
   // social/feud-constants.ts constant, same override pattern as above (e.g.
   // for a faster/slower decay or a lower start threshold in a narrow test).
@@ -447,6 +482,22 @@ export interface HollowAgentSnapshot {
   /** Leader-assigned (or loner-self-assigned) job role (chunk hollow-14b) —
    *  see components/occupation.ts. */
   readonly occupation: string;
+  /** Whether this agent currently carries a disease (chunk hollow-15) — for
+   *  the renderer's sick tint. */
+  readonly diseased: boolean;
+}
+
+/** Data-only snapshot of one corpse (chunk hollow-15) — see
+ *  components/corpse.ts. Surfaced for the hollow-15 renderer (bodies +
+ *  graveyard) and any headless observer counting the burial backlog. */
+export interface HollowCorpseSnapshot {
+  readonly id: number;
+  readonly deceasedId: number;
+  readonly gx: number;
+  readonly gy: number;
+  readonly buried: boolean;
+  readonly rotting: boolean;
+  readonly carriedBy: number | null;
 }
 
 export interface HollowResourceNodeSnapshot {
@@ -522,6 +573,15 @@ export interface HollowSnapshot {
    * below. Surfaced for chunk hollow-14d's renderer.
    */
   readonly hearth?: { readonly gx: number; readonly gy: number };
+  /** Every corpse currently in the world (chunk hollow-15), ascending by id —
+   *  unburied bodies awaiting a grave-digger (a rotting one spreads disease).
+   *  Additive/optional so pre-hollow-15 snapshot literals still typecheck. */
+  readonly corpses?: readonly HollowCorpseSnapshot[];
+  /** The authored graveyard tile (chunk hollow-15, `world/grid.ts`'s
+   *  `GRAVEYARD_TILE`) — the render anchor a grave-digger carries bodies to. */
+  readonly graveyard?: { readonly gx: number; readonly gy: number };
+  /** Running total of corpses buried since sim start (chunk hollow-15). */
+  readonly buriedCount?: number;
 }
 
 export interface BootedHollowSim {
@@ -641,6 +701,18 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   const personaRng = rng.fork("persona-authoring");
   const shockRng = rng.fork("shock");
 
+  // hollow-15's two new forks — constructed AFTER hollow-11a's two forks
+  // above, for the same "don't disturb existing draw order" reason (the
+  // `Rng.fork` consumes-a-parent-draw rule — see personaRng/shockRng and
+  // memory's determinism gotcha). Carved out UNCONDITIONALLY (a run with zero
+  // deaths still creates them) so their fixed position in the fork sequence
+  // never depends on whether anyone gets sick or dies. `disease-spread` keys
+  // the per-tick infection rolls (mortality/corpse-system.ts); `disease-
+  // mortality` keys the per-day death/recovery rolls (mortality/disease-system.ts)
+  // — kept SEPARATE so infection frequency can't shift the mortality stream.
+  const diseaseSpreadRng = rng.fork("disease-spread");
+  const diseaseMortalityRng = rng.fork("disease-mortality");
+
   // Running birth/death totals (chunk hollow-05) — maintained by
   // subscribing to the family ontology rather than re-deriving from
   // `lineage` at snapshot time, mirroring how a later consumer (hollow-07's
@@ -652,6 +724,13 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   });
   bus.subscribeOntology(ONT_FAMILY.DEATH, () => {
     diedCount++;
+  });
+
+  // Running total of corpses buried (chunk hollow-15) — same subscription
+  // pattern as bornCount/diedCount above.
+  let buriedCount = 0;
+  bus.subscribeOntology(ONT_MORTALITY.BURIED, () => {
+    buriedCount++;
   });
 
   // Running per-verb social-action totals (chunk hollow-06b) — same
@@ -732,7 +811,15 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
       }),
     )
     .stage("DELIBERATE")
-    .add(new HollowDeliberateSystem(world, resources, communities, opts.ticksPerDay))
+    .add(
+      new HollowDeliberateSystem(
+        world,
+        resources,
+        communities,
+        opts.ticksPerDay,
+        opts.medicMaxTreatmentsPerDay ?? MEDIC_MAX_TREATMENTS_PER_DAY,
+      ),
+    )
     .stage("ACT")
     .add(new HollowActSystem(world, resources))
     // hollow-06a's social-verb effects (gift/share/help_labor/teach/trade/
@@ -744,6 +831,16 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         stealDetectionProb: opts.stealDetectionProb ?? STEAL_DETECTION_PROB,
         attackLethalityProb: opts.attackLethalityProb ?? ATTACK_LETHALITY_PROB,
         sabotageDetectionProb: opts.sabotageDetectionProb ?? SABOTAGE_DETECTION_PROB,
+      }),
+    )
+    // hollow-15's care verbs (collect_corpse/bury_corpse/treat) — a sibling of
+    // HollowActSystem/HollowSocialActSystem in the SAME "ACT" stage, right
+    // after them (HollowActSystem whitelists these kinds through — see its
+    // default case + mortality/CARE_ACT_KINDS).
+    .add(
+      new HollowCareActSystem(world, bus, {
+        ticksPerDay: opts.ticksPerDay,
+        medicMaxTreatmentsPerDay: opts.medicMaxTreatmentsPerDay ?? MEDIC_MAX_TREATMENTS_PER_DAY,
       }),
     )
     .stage("TRUST-ACCRUAL")
@@ -818,6 +915,20 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         gestationTicks: opts.gestationTicks ?? GESTATION_TICKS,
       }),
     )
+    // DISEASE (chunk hollow-15) — the per-in-game-day illness outcome pass
+    // (10%/day mortality + recovery). Placed AFTER REPRODUCTION and
+    // immediately BEFORE LIFECYCLE so a disease death decided here sets
+    // `beliefs.data.pendingDeathCause` for LIFECYCLE to turn into a real death
+    // (with a corpse) THIS same tick — one death path, not two.
+    .stage("DISEASE")
+    .add(
+      new HollowDiseaseSystem(world, bus, diseaseMortalityRng, {
+        ticksPerDay: opts.ticksPerDay,
+        mortalityProbPerDay: opts.diseaseMortalityProbPerDay ?? DISEASE_MORTALITY_PROB_PER_DAY,
+        selfRecoveryDays: opts.diseaseSelfRecoveryDays ?? DISEASE_SELF_RECOVERY_DAYS,
+        medicRecoveryDays: opts.diseaseMedicRecoveryDays ?? DISEASE_MEDIC_RECOVERY_DAYS,
+      }),
+    )
     .stage("LIFECYCLE")
     .add(
       new HollowLifecycleSystem(world, bus, households, communities, lineage, lifecycleRng, {
@@ -826,7 +937,28 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         oldAgeHazardBase: opts.oldAgeHazardBase ?? OLD_AGE_HAZARD_BASE,
         oldAgeHazardPerTick: opts.oldAgeHazardPerTick ?? OLD_AGE_HAZARD_PER_TICK,
         oldAgeHazardMax: opts.oldAgeHazardMax ?? OLD_AGE_HAZARD_MAX,
-        starvationDeathTicks: opts.starvationDeathTicks ?? STARVATION_DEATH_TICKS,
+        // chunk hollow-15: starvation death is now DAY-based (the user's "3
+        // days" spec). Precedence: an explicit raw `starvationDeathTicks` wins
+        // (the legacy scarcity test passes a large one to keep measuring onset,
+        // not death); else `starvationDeathDays * ticksPerDay`; else the
+        // default `STARVATION_DEATH_DAYS`. `STARVATION_DEATH_TICKS` (the old
+        // huge raw default) is retained in family/constants.ts for any test
+        // that still imports it, but is no longer the bootstrap default.
+        starvationDeathTicks:
+          opts.starvationDeathTicks ??
+          daysToTicks(opts.starvationDeathDays ?? STARVATION_DEATH_DAYS, opts.ticksPerDay),
+      }),
+    )
+    // CORPSE (chunk hollow-15) — corpse rot + disease spread + carried-corpse
+    // follow. Placed immediately AFTER LIFECYCLE (so a body spawned by a death
+    // this tick is tracked from the same tick) and before NEEDS-DECAY.
+    .stage("CORPSE")
+    .add(
+      new HollowCorpseSystem(world, bus, diseaseSpreadRng, {
+        ticksPerDay: opts.ticksPerDay,
+        rotDelayDays: opts.corpseRotDelayDays ?? CORPSE_ROT_DELAY_DAYS,
+        spreadRadius: opts.diseaseSpreadRadius ?? DISEASE_SPREAD_RADIUS,
+        infectProbPerTick: opts.diseaseInfectProbPerTick ?? DISEASE_INFECT_PROB_PER_TICK,
       }),
     )
     .stage("NEEDS-DECAY")
@@ -909,8 +1041,23 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
           },
           action: entity.agent.currentAction ?? "idle",
           occupation: entity.occupation.role,
+          diseased: entity.disease !== undefined,
         });
       }
+      const corpses: HollowCorpseSnapshot[] = [];
+      for (const entity of world.query("corpse")) {
+        const c = entity.corpse;
+        corpses.push({
+          id: entity.id ?? -1,
+          deceasedId: c.deceasedId,
+          gx: c.gx,
+          gy: c.gy,
+          buried: c.buried,
+          rotting: c.rotting,
+          carriedBy: c.carriedBy,
+        });
+      }
+      corpses.sort((a, b) => a.id - b.id);
       const resourceNodes: HollowResourceNodeSnapshot[] = resources.nodes.map((node) => ({
         id: node.id,
         kind: node.kind,
@@ -943,6 +1090,9 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         householdCount: households.all().length,
         socialCounts: { ...socialCounts },
         hearth: { gx: HEARTH_TILE.gx, gy: HEARTH_TILE.gy },
+        corpses,
+        graveyard: { gx: GRAVEYARD_TILE.gx, gy: GRAVEYARD_TILE.gy },
+        buriedCount,
       };
     },
   };

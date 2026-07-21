@@ -49,8 +49,17 @@ import {
   ROLE_TEACHER_SOCIABILITY_WEIGHT,
   ROLE_CARETAKER_LOYALTY_WEIGHT,
   ROLE_CARETAKER_SOCIABILITY_WEIGHT,
+  ROLE_GRAVEDIGGER_INDUSTRIOUSNESS_WEIGHT,
+  ROLE_GRAVEDIGGER_LOYALTY_WEIGHT,
+  ROLE_MEDIC_CURIOSITY_WEIGHT,
+  ROLE_MEDIC_LOYALTY_WEIGHT,
+  ROLE_CARE_FIT_SCALE,
   JOBS_DEMAND_PERCAPITA_TARGET,
   JOBS_DEMAND_BIAS_WEIGHT,
+  JOBS_CORPSE_DEMAND_TARGET,
+  JOBS_SICK_DEMAND_TARGET,
+  JOBS_GRAVEDIGGER_DEMAND_BIAS_WEIGHT,
+  JOBS_MEDIC_DEMAND_BIAS_WEIGHT,
 } from "./constants";
 
 export interface JobAssignmentSystemOptions {
@@ -67,6 +76,13 @@ type JobsEntity = HollowEntity & {
 interface Demand {
   readonly food: number;
   readonly material: number;
+}
+
+/** The town-wide care backlog (chunk hollow-15), computed once per pass and
+ *  applied to EVERY agent (not gated on community membership — see `run`). */
+interface CareDemand {
+  readonly gravedigger: number;
+  readonly medic: number;
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -100,6 +116,11 @@ export class HollowJobAssignmentSystem implements System {
     // this file's header). Communities iterated ascending id, though the
     // demand computation itself doesn't depend on that order (no shared
     // mutable state across communities).
+    // Town-wide care backlog (chunk hollow-15) — one count of unburied corpses
+    // (every live corpse entity is unburied; burial despawns it) and sick
+    // agents, shared across every LED community.
+    const careDemand = this.computeCareDemand();
+
     const demandByCommunity = new Map<number, Demand>();
     for (const community of this.communities.all()) {
       if (community.leaderId == null) continue;
@@ -112,7 +133,14 @@ export class HollowJobAssignmentSystem implements System {
       if (!member) continue;
       const communityId = member.communityId;
       const demand = communityId != null ? demandByCommunity.get(communityId) : undefined;
-      const newRole = this.pickRole(member.genome, demand);
+      // Care demand (chunk hollow-15) applies to EVERYONE — including loners
+      // and members of a not-yet-led community — not just led-community
+      // members like the food/material stockpile demand. Burial is a survival
+      // reflex, not a political luxury: an epidemic that kills a community's
+      // leader must not also switch off the town's ability to staff a
+      // grave-digger (the exact runaway-collapse failure mode observed when
+      // care demand was leader-gated).
+      const newRole = this.pickRole(member.genome, demand, careDemand);
       const oldRole = member.occupation.role;
       if (newRole === oldRole) continue;
       member.occupation.role = newRole;
@@ -132,6 +160,20 @@ export class HollowJobAssignmentSystem implements System {
     };
   }
 
+  /** Town-wide care backlog (chunk hollow-15): unburied-corpse count → grave-
+   *  digger demand, sick-agent count → medic demand, each clamped to [0,1]
+   *  against its target. Rng-free (plain counts over `world.query`). */
+  private computeCareDemand(): CareDemand {
+    let corpseCount = 0;
+    for (const _e of this.world.query("corpse")) corpseCount++;
+    let sickCount = 0;
+    for (const _e of this.world.query("disease")) sickCount++;
+    return {
+      gravedigger: clamp(corpseCount / JOBS_CORPSE_DEMAND_TARGET, 0, 1),
+      medic: clamp(sickCount / JOBS_SICK_DEMAND_TARGET, 0, 1),
+    };
+  }
+
   // ---- role fit -------------------------------------------------------------
 
   private roleFit(genome: Genome, role: JobRole): number {
@@ -140,6 +182,7 @@ export class HollowJobAssignmentSystem implements System {
     const loyalty = genome.behavior["loyalty"] ?? 0.5;
     const sociability = genome.behavior["sociability"] ?? 0.5;
     const curiosity = genome.behavior["curiosity"] ?? 0.5;
+    const industriousness = genome.behavior["industriousness"] ?? 0.5;
     switch (role) {
       case "food-gatherer":
         return foodApt;
@@ -151,20 +194,28 @@ export class HollowJobAssignmentSystem implements System {
         return ROLE_TEACHER_CURIOSITY_WEIGHT * curiosity + ROLE_TEACHER_SOCIABILITY_WEIGHT * sociability;
       case "caretaker":
         return ROLE_CARETAKER_LOYALTY_WEIGHT * loyalty + ROLE_CARETAKER_SOCIABILITY_WEIGHT * sociability;
+      case "grave-digger":
+        return ROLE_CARE_FIT_SCALE * (ROLE_GRAVEDIGGER_INDUSTRIOUSNESS_WEIGHT * industriousness + ROLE_GRAVEDIGGER_LOYALTY_WEIGHT * loyalty);
+      case "medic":
+        return ROLE_CARE_FIT_SCALE * (ROLE_MEDIC_CURIOSITY_WEIGHT * curiosity + ROLE_MEDIC_LOYALTY_WEIGHT * loyalty);
       case "unassigned":
         return -Infinity; // never the argmax outcome — not in ASSIGNABLE_JOB_ROLES anyway
     }
   }
 
-  private pickRole(genome: Genome, demand: Demand | undefined): JobRole {
+  private pickRole(genome: Genome, demand: Demand | undefined, care: CareDemand): JobRole {
     let best: JobRole = ASSIGNABLE_JOB_ROLES[0]!;
     let bestScore = -Infinity;
     for (const role of ASSIGNABLE_JOB_ROLES) {
       let score = this.roleFit(genome, role);
+      // Food/material demand is per-LED-community (undefined for loners /
+      // leaderless); care demand is town-wide and applies to everyone.
       if (demand) {
         if (role === "food-gatherer") score += JOBS_DEMAND_BIAS_WEIGHT * demand.food;
         else if (role === "material-gatherer") score += JOBS_DEMAND_BIAS_WEIGHT * demand.material;
       }
+      if (role === "grave-digger") score += JOBS_GRAVEDIGGER_DEMAND_BIAS_WEIGHT * care.gravedigger;
+      else if (role === "medic") score += JOBS_MEDIC_DEMAND_BIAS_WEIGHT * care.medic;
       // Strict `>` so the FIRST role (ASSIGNABLE_JOB_ROLES's fixed order)
       // to reach a given score keeps it — the deterministic tie-break.
       if (score > bestScore) {

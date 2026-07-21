@@ -31,3 +31,7 @@ export type { Feud } from "./feud";
 export { makeFeud } from "./feud";
 export type { Occupation, JobRole } from "./occupation";
 export { JOB_ROLES, makeOccupation } from "./occupation";
+export type { Disease } from "./disease";
+export { makeDisease } from "./disease";
+export type { Corpse } from "./corpse";
+export { makeCorpse } from "./corpse";

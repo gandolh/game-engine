@@ -27,3 +27,21 @@ export const HEARTH_TILE: { readonly gx: number; readonly gy: number } = {
   gx: Math.floor(GRID_SIZE / 2),
   gy: Math.floor(GRID_SIZE / 2),
 };
+
+/**
+ * The graveyard — chunk hollow-15's ONE central, AUTHORED burial ground (same
+ * "fixed authored world feature, not emergent" convention as `HEARTH_TILE`
+ * above). A grave-digger carries each corpse here to bury it
+ * (`mortality/care-act-system.ts`). Placed a MODERATE distance from the center
+ * hearth (offset +12,+12 → the disease-radius-3 zone around it never reaches
+ * the hearth crowd) rather than a far corner: burial must keep pace with rot
+ * (`CORPSE_ROT_DELAY_DAYS`) or an epidemic spirals, and deaths cluster near the
+ * town center, so the grave-digger's body→graveyard round trip has to be
+ * walkable within the rot grace window. A far-corner graveyard made burial
+ * hopeless and turned every death into an outbreak. Surfaced on
+ * `HollowSnapshot.graveyard` (sim-bootstrap.ts) for the hollow-15 renderer.
+ */
+export const GRAVEYARD_TILE: { readonly gx: number; readonly gy: number } = {
+  gx: Math.floor(GRID_SIZE / 2) + 12,
+  gy: Math.floor(GRID_SIZE / 2) + 12,
+};

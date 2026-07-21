@@ -28,7 +28,7 @@
  * the whole event buffer every sample.
  */
 import type { MessageBus } from "@engine/core";
-import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE, ONT_FEUD, ONT_JOBS } from "../protocols";
+import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE, ONT_FEUD, ONT_JOBS, ONT_MORTALITY } from "../protocols";
 
 /** One flattened chronicle line: `{ tick, ontology, ...body }` — `tick` is
  *  read from the body (every Hollow event body carries its own `tick`
@@ -43,6 +43,9 @@ export interface DeathsByCause {
   oldAge: number;
   starvation: number;
   violence: number;
+  /** Disease deaths (chunk hollow-15) — a real, firing cause (unlike the
+   *  violence seam). */
+  disease: number;
 }
 
 export interface Chronicle {
@@ -60,6 +63,7 @@ const ALL_COMMUNITY_ONTOLOGIES: readonly string[] = Object.values(ONT_COMMUNITY)
 const ALL_GOVERNANCE_ONTOLOGIES: readonly string[] = Object.values(ONT_GOVERNANCE);
 const ALL_FEUD_ONTOLOGIES: readonly string[] = Object.values(ONT_FEUD);
 const ALL_JOBS_ONTOLOGIES: readonly string[] = Object.values(ONT_JOBS);
+const ALL_MORTALITY_ONTOLOGIES: readonly string[] = Object.values(ONT_MORTALITY);
 
 function bodyTick(body: Record<string, unknown>): number {
   const t = body["tick"];
@@ -71,7 +75,7 @@ function bodyTick(body: Record<string, unknown>): number {
  *  `bootstrapHollowSim`, before the first `tick()`. */
 export function createChronicle(bus: MessageBus): Chronicle {
   const buffer: ChronicleEvent[] = [];
-  const deaths: DeathsByCause = { oldAge: 0, starvation: 0, violence: 0 };
+  const deaths: DeathsByCause = { oldAge: 0, starvation: 0, violence: 0, disease: 0 };
 
   const capture = (ontology: string) => (msg: { body: Record<string, unknown> }): void => {
     buffer.push({ tick: bodyTick(msg.body), ontology, ...msg.body });
@@ -95,16 +99,20 @@ export function createChronicle(bus: MessageBus): Chronicle {
   for (const ontology of ALL_JOBS_ONTOLOGIES) {
     bus.subscribeOntology(ontology, capture(ontology));
   }
+  for (const ontology of ALL_MORTALITY_ONTOLOGIES) {
+    bus.subscribeOntology(ontology, capture(ontology));
+  }
   bus.subscribeOntology(ONT_STARVATION.ONSET, capture(ONT_STARVATION.ONSET));
 
   // Cause-specific death tally — ONT_FAMILY.DEATH's body carries `cause`
-  // ("oldAge" | "starvation" | "violence"); every death is one of the three,
-  // so no "unknown cause" bucket is needed.
+  // ("oldAge" | "starvation" | "violence" | "disease"); every death is one of
+  // the four, so no "unknown cause" bucket is needed.
   bus.subscribeOntology(ONT_FAMILY.DEATH, (msg) => {
     const cause = (msg.body as Record<string, unknown>)["cause"];
     if (cause === "oldAge") deaths.oldAge++;
     else if (cause === "starvation") deaths.starvation++;
     else if (cause === "violence") deaths.violence++;
+    else if (cause === "disease") deaths.disease++;
   });
 
   return {

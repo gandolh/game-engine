@@ -67,11 +67,12 @@ export function needBarColorRole(fraction: number, starving: boolean): keyof typ
 
 /**
  * The badge background `HOLLOW_PAL` role for an agent's job-cue letter
- * (chunk hollow-14d — mirrors sim-core's `JOB_ROLES`). Five distinct, already
- * palette-pure roles so the five real jobs stay visually distinguishable at
- * a glance; `"unassigned"`/unrecognized fall back to a neutral `"steel"`
- * (never drawn in practice — `glyphForOccupation` returns `null` for those,
- * so `drawAgentOverlay` never calls this with them, but this stays total).
+ * (chunk hollow-14d — mirrors sim-core's `JOB_ROLES`; chunk hollow-15 adds
+ * the two care roles below). Seven distinct, already palette-pure roles so
+ * every real job stays visually distinguishable at a glance;
+ * `"unassigned"`/unrecognized fall back to a neutral `"steel"` (never drawn
+ * in practice — `glyphForOccupation` returns `null` for those, so
+ * `drawAgentOverlay` never calls this with them, but this stays total).
  */
 export function occupationColorRole(occupation: string): keyof typeof HOLLOW_PAL {
   switch (occupation) {
@@ -85,6 +86,13 @@ export function occupationColorRole(occupation: string): keyof typeof HOLLOW_PAL
       return "cyan";
     case "caretaker":
       return "salmon";
+    // chunk hollow-15's two care roles — earthy "woodDark" for digging a
+    // grave, alarm-adjacent "crimson" for a medic's cross (distinct from
+    // every role above).
+    case "grave-digger":
+      return "woodDark";
+    case "medic":
+      return "crimson";
     default:
       return "steel";
   }

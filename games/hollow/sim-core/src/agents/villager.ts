@@ -65,7 +65,8 @@ import {
 } from "../economy";
 import { INDUSTRIOUSNESS_REST_INFLUENCE } from "../family/constants";
 import { SOCIAL_COOLDOWN_TICKS } from "../social/deliberation-constants";
-import { dayPhase, HEARTH_TILE } from "../world";
+import { dayPhase, HEARTH_TILE, GRAVEYARD_TILE } from "../world";
+import { medicTreatsRemaining } from "../mortality";
 import { registerPersonality, type HollowDeliberationContext } from "./registry";
 import { chooseSocialAction, type SocialAgent } from "./social-verbs";
 
@@ -230,6 +231,88 @@ function fallbackWorkNodeKind(agent: HollowEntity): "food" | "material" {
   return agent.occupation?.role === "food-gatherer" ? "food" : "material";
 }
 
+/** Priority for the care-verb intentions (chunk hollow-15) — documentary only
+ *  (nothing sorts the queue; a deliberator pushes at most one intention per
+ *  tick), placed just below the routine "goto" band. */
+const CARE_ACT_PRIORITY = 40;
+
+function chebyshev(ax: number, ay: number, bx: number, by: number): number {
+  return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+}
+
+/**
+ * chunk hollow-15 grave-digger routine (WORK/COMMUTE only). If carrying a
+ * body → head to the graveyard, bury on arrival. Otherwise → head to the
+ * nearest unburied, un-carried corpse (`ctx.corpses`, ascending-id tie-break),
+ * collect it on arrival. Returns `false` (nothing queued) only when there is
+ * NOTHING to do — no body carried and no corpse anywhere — so the caller falls
+ * through to ordinary work; otherwise returns `true` (queued a goto or a care
+ * verb).
+ */
+function applyGraveDiggerRoutine(agent: HollowEntity, ctx: HollowDeliberationContext): boolean {
+  const pos = agent.agent!;
+  const intentions = agent.intentions!;
+
+  if (pos.carryingCorpseId != null) {
+    if (pos.gx !== GRAVEYARD_TILE.gx || pos.gy !== GRAVEYARD_TILE.gy) {
+      intentions.queue.push({ kind: "goto", data: { gx: GRAVEYARD_TILE.gx, gy: GRAVEYARD_TILE.gy }, priority: ROUTINE_GOTO_PRIORITY });
+    } else {
+      intentions.queue.push({ kind: "bury_corpse", data: {}, priority: CARE_ACT_PRIORITY });
+    }
+    return true;
+  }
+
+  let target: { id: number; gx: number; gy: number } | null = null;
+  let bestDist = Infinity;
+  for (const corpse of ctx.corpses) {
+    const d = chebyshev(pos.gx, pos.gy, corpse.gx, corpse.gy);
+    if (d < bestDist) {
+      bestDist = d;
+      target = corpse;
+    }
+  }
+  if (!target) return false; // no bodies to bury — fall through to normal work
+
+  if (pos.gx !== target.gx || pos.gy !== target.gy) {
+    intentions.queue.push({ kind: "goto", data: { gx: target.gx, gy: target.gy }, priority: ROUTINE_GOTO_PRIORITY });
+  } else {
+    intentions.queue.push({ kind: "collect_corpse", data: { corpseId: target.id }, priority: CARE_ACT_PRIORITY });
+  }
+  return true;
+}
+
+/**
+ * chunk hollow-15 medic routine (WORK/COMMUTE only). If any daily treatment
+ * budget is left, head to the nearest sick+untreated agent (`ctx.sick`) and
+ * treat it once adjacent. Returns `false` (nothing queued) when out of daily
+ * budget or there is no untreated patient — so the caller falls through to
+ * ordinary work; otherwise `true`.
+ */
+function applyMedicRoutine(agent: HollowEntity, ctx: HollowDeliberationContext): boolean {
+  const pos = agent.agent!;
+  const intentions = agent.intentions!;
+  const dayOfRun = dayPhase(ctx.tick, ctx.ticksPerDay).dayOfRun;
+  if (medicTreatsRemaining(agent, dayOfRun, ctx.medicMaxTreatmentsPerDay) <= 0) return false;
+
+  let target: { id: number; gx: number; gy: number } | null = null;
+  let bestDist = Infinity;
+  for (const patient of ctx.sick) {
+    const d = chebyshev(pos.gx, pos.gy, patient.gx, patient.gy);
+    if (d < bestDist) {
+      bestDist = d;
+      target = patient;
+    }
+  }
+  if (!target) return false; // no untreated patients — fall through to normal work
+
+  if (bestDist > 1) {
+    intentions.queue.push({ kind: "goto", data: { gx: target.gx, gy: target.gy }, priority: ROUTINE_GOTO_PRIORITY });
+  } else {
+    intentions.queue.push({ kind: "treat", data: { patientId: target.id }, priority: CARE_ACT_PRIORITY });
+  }
+  return true;
+}
+
 function villagerDeliberate(agent: HollowEntity, ctx: HollowDeliberationContext): void {
   const needs = agent.needs;
   const pos = agent.agent;
@@ -263,6 +346,15 @@ function villagerDeliberate(agent: HollowEntity, ctx: HollowDeliberationContext)
     applyGatherOrSleepRoutine(agent, ctx, phase);
     return;
   }
+
+  // WORK / COMMUTE — chunk hollow-15: a grave-digger/medic does its care duty
+  // here (their "job", same slot ordinary roles work a node in). Each routine
+  // returns false when there's nothing to do (no bodies / no patients / out of
+  // daily budget), falling through to the ordinary social+work ladder below so
+  // an idle care worker still contributes.
+  const role = agent.occupation?.role;
+  if (role === "grave-digger" && applyGraveDiggerRoutine(agent, ctx)) return;
+  if (role === "medic" && applyMedicRoutine(agent, ctx)) return;
 
   // WORK / COMMUTE: chunk hollow-14c-2's "rare, private" rule — a RESTRICTED
   // (household/close-tie-only) social-verb attempt, gated by the same

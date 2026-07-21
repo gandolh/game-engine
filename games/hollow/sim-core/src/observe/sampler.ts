@@ -38,7 +38,7 @@ import {
 export class MetricsSampler {
   private prevSocialCounts: Readonly<Record<string, number>> = {};
   private prevBornCum = 0;
-  private prevDeathsCause: DeathsByCause = { oldAge: 0, starvation: 0, violence: 0 };
+  private prevDeathsCause: DeathsByCause = { oldAge: 0, starvation: 0, violence: 0, disease: 0 };
 
   /**
    * Samples one `MetricsRow` at `sim`'s CURRENT tick/snapshot, diffing
@@ -61,9 +61,13 @@ export class MetricsSampler {
     const prevCoopCum = sumSocialCounts(this.prevSocialCounts, COOP_VERBS);
     const prevAntagCum = sumSocialCounts(this.prevSocialCounts, ANTAG_VERBS);
 
-    const deathsCumNow = deathsCause.oldAge + deathsCause.starvation + deathsCause.violence;
+    const deathsCumNow =
+      deathsCause.oldAge + deathsCause.starvation + deathsCause.violence + deathsCause.disease;
     const deathsCumPrev =
-      this.prevDeathsCause.oldAge + this.prevDeathsCause.starvation + this.prevDeathsCause.violence;
+      this.prevDeathsCause.oldAge +
+      this.prevDeathsCause.starvation +
+      this.prevDeathsCause.violence +
+      this.prevDeathsCause.disease;
 
     const community = communityStats(snap);
 
@@ -77,6 +81,7 @@ export class MetricsSampler {
       deaths_oldAge_window: deathsCause.oldAge - this.prevDeathsCause.oldAge,
       deaths_starvation_window: deathsCause.starvation - this.prevDeathsCause.starvation,
       deaths_violence_window: deathsCause.violence - this.prevDeathsCause.violence,
+      deaths_disease_window: deathsCause.disease - this.prevDeathsCause.disease,
       community_count: community.count,
       community_mean_size: community.meanSize,
       mean_pairwise_trust: meanPairwiseTrust(agents),

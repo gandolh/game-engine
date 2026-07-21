@@ -12,7 +12,7 @@
  *     than being permanently stuck as a "child resident" forever.
  *
  *  2. DEATH — evaluated in ASCENDING id order (determinism — CLAUDE.md),
- *     one of three causes:
+ *     one of four causes (chunk hollow-15 added "disease"):
  *       - "starvation": `beliefs.data.foodDepletedTicks` (tracked by
  *         HollowPerceiveSystem, hollow-03) has held at/above
  *         `starvationDeathTicks` — a strictly larger threshold than the
@@ -27,20 +27,28 @@
  *         already died of starvation this tick, so the `Rng` draw sequence
  *         never depends on which agents happen to be starving — a
  *         determinism simplification, not a correctness requirement).
+ *       - "disease": chunk hollow-15 — reads `beliefs.data.pendingDeathCause
+ *         === "disease"`, set THIS tick by the DISEASE stage
+ *         (mortality/disease-system.ts) when a sick agent loses its 10%/day
+ *         mortality roll on an in-game-day boundary. Routed here (rather than
+ *         despawning in the disease system) so a disease death shares the ONE
+ *         corpse-spawn + inheritance + cleanup path.
  *       - "violence": a SEAM ONLY for hollow-06 (no combat system exists
  *         yet) — reads an optional `beliefs.data.violentDeath` flag that
  *         nothing in this brief ever sets, so this branch is dead code
  *         today, by design.
  *     Priority when multiple causes would apply the same tick: starvation,
- *     then violence, then old age (starvation/violence are both terminal
+ *     then disease, then violence, then old age (the first three are terminal
  *     "something specific killed this agent" signals; old age is a
  *     background hazard that only matters when nothing more specific did).
  *
  *     On death, `handleDeath` runs, in order: inheritance (owned inventory
  *     -> a co-resident household kin's shared stock, else the community
  *     stockpile, else dropped), `lineage.markDeath`, household
- *     dissolve/demember, `communityId` clear, then `world.despawn` — see
- *     `handleDeath`/`inherit`/`leaveHousehold` for the exact rules.
+ *     dissolve/demember, `communityId` clear, release any corpse the deceased
+ *     was carrying (chunk hollow-15), spawn a corpse entity at the death tile
+ *     (chunk hollow-15), then `world.despawn` — see `handleDeath`/`inherit`/
+ *     `leaveHousehold`/`spawnCorpse` for the exact rules.
  *
  * Runs in its own "LIFECYCLE" stage, after PAIRBOND/REPRODUCTION (so a
  * birth this tick isn't aged or evaluated for death the same tick it
@@ -50,7 +58,7 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { PERFORMATIVE } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
-import { stageForAge, addGoods } from "../components";
+import { stageForAge, addGoods, makeCorpse } from "../components";
 import { ONT_FAMILY, type FamilyDeathBody, type FamilyStageChangedBody } from "../protocols";
 import type { HouseholdRegistry } from "./registry";
 import type { LineageRegistry, DeathCause } from "../lineage";
@@ -179,6 +187,13 @@ export class HollowLifecycleSystem implements System {
     const foodDepletedTicks = (entity.beliefs.data.foodDepletedTicks as number | undefined) ?? 0;
     const starved = foodDepletedTicks >= this.starvationDeathTicks;
 
+    // chunk hollow-15: the DISEASE stage (mortality/disease-system.ts, runs
+    // just before LIFECYCLE) sets this flag on the day-boundary tick a sick
+    // agent loses its 10%/day mortality roll, so a disease death flows through
+    // this ONE death path (corpse spawn + inheritance + cleanup) rather than a
+    // second despawn site.
+    const diseased = entity.beliefs.data.pendingDeathCause === "disease";
+
     // Seam only (hollow-06) -- never set by anything in this brief.
     const violent = entity.beliefs.data.violentDeath === true;
 
@@ -195,6 +210,7 @@ export class HollowLifecycleSystem implements System {
     }
 
     if (starved) return "starvation";
+    if (diseased) return "disease";
     if (violent) return "violence";
     if (oldAge) return "oldAge";
     return null;
@@ -213,10 +229,41 @@ export class HollowLifecycleSystem implements System {
       this.communities.removeMember(entity.communityId, entity.id);
       entity.communityId = null;
     }
+    // chunk hollow-15: a grave-digger that dies mid-carry drops the body it
+    // was hauling (so another digger can collect it) BEFORE we despawn the
+    // digger — otherwise the corpse would follow a despawned carrier forever.
+    this.releaseCarriedCorpse(entity);
+    // chunk hollow-15: every death leaves a body — a corpse entity at the
+    // death tile (see components/corpse.ts). It's a DISTINCT entity (no
+    // agent/needs), so it's invisible to every living-agent system; the
+    // CORPSE stage (mortality/corpse-system.ts, right after LIFECYCLE) takes
+    // over its rot/spread lifecycle this same tick.
+    this.spawnCorpse(entity, tick);
     this.world.despawn(entity);
 
     const body: FamilyDeathBody = { agentId: entity.id, cause, tick };
     this.emit(ONT_FAMILY.DEATH, body as unknown as Record<string, unknown>, tick);
+  }
+
+  /** Spawns a fresh corpse entity at the deceased's tile (chunk hollow-15). */
+  private spawnCorpse(entity: LifecycleEntity, tick: number): void {
+    this.world.spawn({
+      corpse: makeCorpse(entity.id, tick, entity.agent.gx, entity.agent.gy),
+    } as HollowEntity);
+  }
+
+  /** If the deceased was a grave-digger carrying a corpse, clears that
+   *  corpse's `carriedBy` so it lies where the digger fell and can be
+   *  re-collected (chunk hollow-15). No-op for everyone else. */
+  private releaseCarriedCorpse(entity: LifecycleEntity): void {
+    const carried = entity.agent.carryingCorpseId;
+    if (carried == null) return;
+    for (const e of this.world.query("corpse")) {
+      if (e.id === carried && e.corpse) {
+        e.corpse.carriedBy = null;
+        break;
+      }
+    }
   }
 
   /** Owned inventory goods pass to a co-resident household kin's shared

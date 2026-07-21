@@ -37,14 +37,18 @@ export function glyphForAction(action: string): string | null {
 
 /**
  * Job-cue letter for `occupation` (chunk hollow-14d — mirrors sim-core's
- * `JOB_ROLES`, `components/occupation.ts`). Deliberately a plain single
- * uppercase LETTER, not a color emoji — the canvas/pixel font this overlay
- * draws with may not render color-emoji glyphs reliably (see this module's
- * header on why `ACTION_GLYPHS` sticks to simple symbols), and a crowd of
- * agents needs the cue to stay legible at a glance. `"unassigned"` (every
- * agent starts here until a leader/self-assignment pass runs) and any
- * unrecognized role draw nothing — same "draw nothing rather than a
- * confusing default" convention as `glyphForAction`'s idle/walk.
+ * `JOB_ROLES`, `components/occupation.ts`). Deliberately a single plain
+ * character (a letter for the original five roles), not a color emoji — the
+ * canvas/pixel font this overlay draws with may not render color-emoji
+ * glyphs reliably (see this module's header on why `ACTION_GLYPHS` sticks to
+ * simple symbols), and a crowd of agents needs the cue to stay legible at a
+ * glance. Chunk hollow-15's two care roles keep the same "single character"
+ * contract (`.length === 1`) but reach for a symbol closer to the role's
+ * tool/purpose (a dig glyph, a cross) rather than an initial letter — see
+ * their own inline comments below. `"unassigned"` (every agent starts here
+ * until a leader/self-assignment pass runs) and any unrecognized role draw
+ * nothing — same "draw nothing rather than a confusing default" convention
+ * as `glyphForAction`'s idle/walk.
  */
 const OCCUPATION_GLYPHS: Readonly<Record<string, string>> = {
   "food-gatherer": "F",
@@ -52,6 +56,12 @@ const OCCUPATION_GLYPHS: Readonly<Record<string, string>> = {
   crafter: "C",
   teacher: "T",
   caretaker: "K",
+  // chunk hollow-15's two care roles — a pickaxe-ish dig glyph for the
+  // grave-digger (a single BMP code point, `.length === 1` like every other
+  // cue here) and a plain "+" cross for the medic (unmistakably medical,
+  // and a single character too).
+  "grave-digger": "⛏",
+  medic: "+",
 };
 
 /** The job-cue letter for `occupation`, or `null` to draw nothing

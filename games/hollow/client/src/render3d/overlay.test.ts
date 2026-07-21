@@ -43,9 +43,15 @@ describe("needBarColorRole", () => {
 
 describe("occupationColorRole", () => {
   it("gives every real job role a distinct color role", () => {
-    const roles = ["food-gatherer", "material-gatherer", "crafter", "teacher", "caretaker"].map((r) =>
-      occupationColorRole(r),
-    );
+    const roles = [
+      "food-gatherer",
+      "material-gatherer",
+      "crafter",
+      "teacher",
+      "caretaker",
+      "grave-digger",
+      "medic",
+    ].map((r) => occupationColorRole(r));
     expect(new Set(roles).size).toBe(roles.length);
   });
 
@@ -240,6 +246,18 @@ describe("drawAgentOverlay", () => {
     });
     expect(ctx.fillTexts).toHaveLength(0);
     expect(ctx.calls.filter((c) => c === "fillRect")).toHaveLength(0);
+  });
+
+  it("draws a job-cue badge for the hollow-15 grave-digger/medic roles too", () => {
+    drawAgentOverlay(ctx, [makeAgent({ id: 11, occupation: "medic" })], {
+      viewProj: overheadViewProj(WIDTH, HEIGHT),
+      width: WIDTH,
+      height: HEIGHT,
+      showTags: false,
+      showJobs: true,
+      selectedAgentId: null,
+    });
+    expect(ctx.fillTexts).toContain("+");
   });
 
   it("showJobs and showTags are independent — both can render together without clobbering each other", () => {

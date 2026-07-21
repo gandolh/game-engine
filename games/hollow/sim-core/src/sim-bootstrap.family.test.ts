@@ -57,6 +57,15 @@ const STABLE_LIFECYCLE: Partial<HollowSimOptions> = {
   foodNodeCount: 10,
   foodNodeMaxStock: 200,
   foodNodeRegenPerTick: 12,
+  // chunk hollow-15 added a NEW mortality source — rotting unburied corpses
+  // spread a disease with its own 10%/day death roll. That's orthogonal to
+  // what THIS test isolates (the hollow-05 density-dependent BIRTH BRAKE's
+  // bounded-vs-extinct/runaway plateau), and in a tiny closed population where
+  // no grave-digger keeps pace it can trigger an epidemic die-off that has
+  // nothing to do with the birth brake. Pin infection OFF here so the test
+  // stays a clean probe of the brake; hollow-15's mortality.test.ts +
+  // sim-bootstrap.mortality-emergence.test.ts cover disease + burial dynamics.
+  diseaseInfectProbPerTick: 0,
 };
 
 const START_POP = 16;

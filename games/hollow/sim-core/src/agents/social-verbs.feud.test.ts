@@ -60,7 +60,16 @@ function makeContext(neighbors: readonly NeighborView[]): HollowDeliberationCont
   // `chooseSocialAction` itself (only `agents/villager.ts`'s
   // `applyRoutine` reads them) — present only so this fixture satisfies
   // `HollowDeliberationContext`'s shape.
-  return { tick: 0, resources, neighbors, ticksPerDay: 20, communities: new CommunityRegistry() };
+  return {
+    tick: 0,
+    resources,
+    neighbors,
+    ticksPerDay: 20,
+    communities: new CommunityRegistry(),
+    corpses: [],
+    sick: [],
+    medicMaxTreatmentsPerDay: 3,
+  };
 }
 
 describe("grudge amplification (chunk hollow-12b)", () => {

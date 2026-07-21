@@ -18,7 +18,7 @@
  */
 import type { Genome } from "../components";
 
-export type DeathCause = "oldAge" | "starvation" | "violence";
+export type DeathCause = "oldAge" | "starvation" | "violence" | "disease";
 
 export interface LineageEntry {
   readonly id: number;
