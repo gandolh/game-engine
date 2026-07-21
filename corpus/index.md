@@ -54,6 +54,10 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 
 - [wiki/hollow-overview.md](wiki/hollow-overview.md) — What Hollow is (generational social-emergence sim / research instrument on the shared engine): **M1** headless sim (exit-bar PASSED), **M2** 3D layer (engine WebGPU renderer in `@engine/core/render3d` + gene-driven cozy town in `@hollow/client`), **M3** research surfaces (shared `@hollow/sim-core/observe`, live chronicle/dashboard, persona authoring + deterministic shocks/replay), **M4/hollow-12** governance (emergent leaders/votable norms/sanctions) + antagonism arcs (persistent grudge escalation/reconciliation), **M5/hollow-14** Daily Life (leader-assigned jobs + diurnal routine + one central hearth all gather at + rare/private interaction). Plus the density-brake population stabilizer and known traits (community-merge into one village; steal/trade dormancy; live 3D image Chrome-gated). Live build tracker: [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md).
 
+### MateQuest
+
+- [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, grades I–VIII, math roguelike where **solving a problem IS the combat action**): **design-of-record v0.1, PRE-BUILD** (settled 2026-07-21). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
+
 ## Briefs — historical task specs (immutable archives)
 
 Each brief is the spec that directed a slice of work; once in `done/`/`superseded/` it is immutable.

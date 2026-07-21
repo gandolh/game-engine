@@ -4,6 +4,31 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-21] design | MateQuest — new (FOURTH) game: Romanian-curriculum math roguelike (design-of-record v0.1, pre-build)
+
+A new game seeded this session: **MateQuest** — an educational math roguelike on the shared engine,
+aligned to the Romanian *programa școlară* (grades I–VIII). Design settled via a `grill-me` interview
+after a short web-research pass; **no code yet**. Design-of-record: [wiki/mathquest-overview.md](wiki/mathquest-overview.md);
+build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
+- **Pillar:** *solving the problem IS the combat action* (Raizada's "we need better math games" — avoid
+  the Prodigy toll-gate failure mode). Pokémon-style Attack/Heal/Shield menu + Slay-the-Spire turn
+  stakes: choose an action, solve a curriculum problem to make it land (wrong = fizzle), enemies
+  telegraph & hit on their turn, HP bar, enough wrong answers = death.
+- **Locked design:** party of 3 (Warrior = you & only solver in v1; Archer + Mage auto-battle); mixed
+  input (typed for computation, MC for concept/geometry); wrong → teach-card + re-queue; branching
+  node map with easy/hard bifurcations; two-layer progression (in-run XP + persistent per-topic
+  **mastery**); soft-roguelike (wipe → home, keep mastery + blueprints); loot = combat bonuses **+ math
+  lifelines** (hint/50-50/show-step/skip/+time); **bilingual RO/EN**; **Romanian-folklore** theme
+  (Zmeu/Balaur/Muma Pădurii). Difficulty = grade, player-chosen via hard branches.
+- **Considered & dropped:** Mewgenics-style breeding/genetics (replaced by fixed 3-class party + loot);
+  reusing EDG32 (chose a bespoke palette instead).
+- **Tech:** new `games/mathquest/{sim-core, client}`, sim in a Web Worker (Citadel pattern), no server;
+  **deterministic procedural problem generators** via seeded `Rng`; reuses `@engine/core` + `@engine/ui`;
+  **fourth palette scope — Resurrect 64** (`MATE_PAL.*`, per-scope palette-guard test).
+- **Next:** confirm name/branch, then `plan-split-dispatch` from M0 (scaffold) → M1 (turn-combat loop,
+  one hardcoded problem) → M2 (problem-generator seam, grades I–IV) → M3 (map/runs) → M4 (mastery/loot)
+  → M5 (folklore art + RO/EN).
+
 ## [2026-07-21] build | Hollow — hollow-15 "Mortality & Care" COMPLETE (starvation death · corpses · graveyard/grave-digger · disease · medic)
 
 Death now has consequences + a care economy (design-of-record + decisions in
