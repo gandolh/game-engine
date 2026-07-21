@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: design-locked, pre-build (no code yet)
-updated: 2026-07-21 (design settled via grill-me; build not started)
+status: in-progress (M0 scaffold done, verified)
+updated: 2026-07-21 (M0 scaffold complete on branch `mathquest`)
 
 **Read this first to resume the MateQuest build.** Design-of-record is
 [corpus/wiki/mathquest-overview.md](../wiki/mathquest-overview.md) — read it before any brief.
@@ -53,16 +53,37 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 
 | Milestone | State | Commit |
 |---|---|---|
-| Design (grill-me + research) | ✅ settled 2026-07-21 | (this session — corpus only) |
-| M0 scaffold | ⬜ not started | — |
+| Design (grill-me + research) | ✅ settled 2026-07-21 | `3fff5e0` |
+| M0 scaffold | ✅ **done, controller-verified** (Sonnet executor) | (this session — see below) |
 | M1 turn-combat loop | ⬜ not started | — |
 | M2 problem-generator seam (I–IV) | ⬜ not started | — |
 | M3 map & runs | ⬜ not started | — |
 | M4 progression & loot | ⬜ not started | — |
 | M5 theme, art, i18n | ⬜ not started | — |
 
-## Open decisions to confirm before M0
-- **Name** — codename *MateQuest* / package `@mathquest/*`; RO title *Cetatea Cifrelor* (provisional).
-- **Branch name** — proposed `mathquest`.
-- **Grade order** — I–IV first (recommended), V–VIII after the loop is proven.
+## M0 — how it went (2026-07-21)
+Dispatched fresh to a **Sonnet executor** (brief: `2026-07-21-mathquest-M0-scaffold.md`), templated on
+`games/hollow/*`. Controller (opus) verified independently (not just trusting the report): re-ran the
+gate green, confirmed `git status` touched only allowed paths, grepped clean of `Math.random`/`Date.now`
+and stray hex, and read the bootstrap to confirm the determinism seam is **real** (uses `createRng`/
+`World`/`Scheduler` from `@engine/core`, a real system mutating a real entity; the test asserts matching
+RNG streams, not a weak stub).
+- **Shape delivered:** `games/mathquest/{sim-core, client}`; `bootstrapMathquestSim({seed})` →
+  `{world, scheduler, rng, step(), getSnapshot()}`; Web-Worker (20 Hz pacing) → `{tick}` snapshot →
+  Canvas2D `@engine/ui` render of the title + live tick. `npm run mathquest` on **:5176**.
+- **Palette:** `MATE_PAL` (32 EDG role names → hand-tuned Resurrect-64) + colocated integrity test;
+  `engine/core/src/render/palette.test.ts` gained a `mathquest`→Resurrect-64 scope (the one engine edit).
+- **Executor deviations (accepted):** forced `createRenderer(..., {backend:"canvas2d"})` (no WebGPU adapter
+  in this sandbox — matches the known constraint); added `wgsl.d.ts` ambient decls (Hollow has the same —
+  `@engine/core` barrel transitively imports `*.wgsl?raw`); bootstrap wrapper named `step()` per brief.
+- **Not self-verifiable:** the browser visual (`npm run mathquest` on :5176) — **user eyeballs it**.
+- Verify gate: `npm run typecheck` (19/19), `@mathquest/sim-core` (3), `@mathquest/client` (4),
+  `@engine/core` palette test (10) — all green.
+
+**Next: M1 — turn-combat loop** (one hardcoded problem, end-to-end). See milestone table above.
+
+## Open decisions (resolved / carried)
+- **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
+  (RO title *Cetatea Cifrelor*, provisional, in the boot title).
+- **Grade order** — I–IV first (recommended), V–VIII after the loop is proven. (Confirm at M2.)
 - **Art** — placeholder shapes through M4, real pixel art at M5 (recommended).
