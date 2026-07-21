@@ -56,7 +56,12 @@ const TERRITORY_TINT_MIX = 0.4;
 /** Ground/building/prop material keys used by this brief's world geometry
  *  (ground, houses, windows, resource nodes, the territory-tint tile).
  *  Agent-only keys (skin/hair) are chunk hollow-09b's addition — see this
- *  module's header seam note. */
+ *  module's header seam note.
+ *
+ *  `"hearthFire"` (chunk hollow-14d) is the hearth's glowing flame material —
+ *  EMISSIVE, same mechanism as `"window"` — see `hearth-mesh.ts`'s header;
+ *  the hearth's stone base reuses the existing non-emissive `"rock"` key
+ *  rather than adding a second new key. */
 export const WORLD_MATERIAL_KEYS = [
   "grass",
   "wood",
@@ -67,6 +72,7 @@ export const WORLD_MATERIAL_KEYS = [
   "cropFruit",
   "rock",
   "territoryTile",
+  "hearthFire",
 ] as const;
 
 export type WorldMaterialKey = (typeof WORLD_MATERIAL_KEYS)[number];
@@ -82,6 +88,10 @@ const WORLD_MATERIALS: Readonly<Record<WorldMaterialKey, Material>> = {
   rock: { color: toFloatRgb(HOLLOW_PAL.slate) },
   // Neutral white — recolored per-instance by `territoryTintColor` below.
   territoryTile: { color: [1, 1, 1] },
+  // The hearth's flame cluster (hearth-mesh.ts) — warm + emissive so it
+  // glows on its own, distinct from `window`'s gold glow (a communal fire
+  // reads differently from a lit window).
+  hearthFire: { color: toFloatRgb(HOLLOW_PAL.orange), emissive: true },
 };
 
 /** The `Material[]` to pass to `SceneRenderer3D.setMaterials`, in the SAME

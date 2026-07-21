@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { glyphForAction } from "./glyphs";
+import { glyphForAction, glyphForOccupation } from "./glyphs";
 
 const SOCIAL_VERBS = ["gift", "share", "help", "teach", "trade", "steal", "sabotage", "rumor", "attack"] as const;
+const JOB_ROLES = ["food-gatherer", "material-gatherer", "crafter", "teacher", "caretaker"] as const;
 
 describe("glyphForAction", () => {
   it("draws nothing for idle/walk (the uncluttered default)", () => {
@@ -29,5 +30,30 @@ describe("glyphForAction", () => {
 
   it("is pure — repeated calls return the same result", () => {
     expect(glyphForAction("gift")).toBe(glyphForAction("gift"));
+  });
+});
+
+describe("glyphForOccupation", () => {
+  it("draws nothing for unassigned (no job yet)", () => {
+    expect(glyphForOccupation("unassigned")).toBeNull();
+  });
+
+  it("has a distinct single-letter cue for every real job role", () => {
+    const glyphs = JOB_ROLES.map((r) => glyphForOccupation(r));
+    for (const g of glyphs) {
+      expect(g).not.toBeNull();
+      expect(g!.length).toBe(1);
+    }
+    // Every role gets its OWN letter — no accidental collisions.
+    expect(new Set(glyphs).size).toBe(glyphs.length);
+  });
+
+  it("falls back to null for an unrecognized occupation label", () => {
+    expect(glyphForOccupation("not-a-real-role")).toBeNull();
+    expect(glyphForOccupation("")).toBeNull();
+  });
+
+  it("is pure — repeated calls return the same result", () => {
+    expect(glyphForOccupation("crafter")).toBe(glyphForOccupation("crafter"));
   });
 });

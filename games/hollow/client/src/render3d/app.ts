@@ -46,7 +46,8 @@ import { buildGroundMesh, buildTerritoryTileMesh, TERRITORY_TINT_Z_OFFSET } from
 import { householdLayout, householdMemberCounts, homeMeshFor, MAX_HOME_FOOTPRINT, type HouseholdPosition } from "./household-layout";
 import { findFreePlacement, footprintRect, HOME_MARGIN, type Rect } from "./home-placement";
 import { baseNodeMeshFor, fullnessScale, resourceNodeFullness } from "./node-mesh";
-import { dayNightPhase, dayNightFromPhase, RENDER_DAY_TICKS } from "./day-night";
+import { buildHearthMesh } from "./hearth-mesh";
+import { dayNightFromPhase, simDayPhaseWash } from "./day-night";
 import { wireOrbitCameraInput, type CameraInputHandle } from "./camera-input";
 import {
   WORLD_MATERIAL_KEYS,
@@ -242,6 +243,10 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     const territoryTileMesh = renderer.uploadMesh(buildTerritoryTileMesh(), combinedMaterialIndexOf);
     const foodNodeMesh = renderer.uploadMesh(baseNodeMeshFor("food"), combinedMaterialIndexOf);
     const materialNodeMesh = renderer.uploadMesh(baseNodeMeshFor("material"), combinedMaterialIndexOf);
+    // The hearth (chunk hollow-14d) — one static mesh, one instance, placed
+    // at `latest.hearth` each frame (guarded: optional on the snapshot, see
+    // hearth-mesh.ts's header).
+    const hearthMesh = renderer.uploadMesh(buildHearthMesh(), combinedMaterialIndexOf);
 
     // Home meshes are grown lazily as new household member-counts are seen
     // (a small, bounded set — see household-layout.ts's `growthFactorFor`
@@ -379,6 +384,22 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
             mesh: territoryTileMesh,
             instances: packInstances(territoryInstances),
             instanceCount: territoryInstances.length,
+          });
+        }
+
+        // The hearth (chunk hollow-14d) — the town's one authored central
+        // feature everyone converges on at dusk (day/night wash below is now
+        // synced to the SAME sim day-phase clock, so this glows right as it
+        // gets dark). Optional on the snapshot (older/hand-built fixtures) —
+        // skip cleanly if absent.
+        if (latest.hearth) {
+          const { gx, gy } = latest.hearth;
+          const z = groundHeightAt(gx, gy);
+          const model = translation([gx + 0.5, gy + 0.5, z]);
+          draws.push({
+            mesh: hearthMesh,
+            instances: packInstances([{ model, tint: WHITE_TINT }]),
+            instanceCount: 1,
           });
         }
 
@@ -540,9 +561,12 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         lastAgentRenderState = agentRenderState;
 
         const tickEstimate = snapshotBuffer.interpolatedTick(nowMs);
-        // Visual day/night runs on RENDER_DAY_TICKS (a long cosmetic period),
-        // NOT the sim's compressed `ticksPerDay` — see day-night.ts's header.
-        const dayNight = dayNightFromPhase(dayNightPhase(tickEstimate, RENDER_DAY_TICKS));
+        // Chunk hollow-14d: the visual day/night wash now tracks the SIM's
+        // own day-phase clock (`opts.ticksPerDay`, the same clock jobs/hearth
+        // gating run on) instead of a decoupled cosmetic period — dusk now
+        // visibly coincides with the GATHER phase's hearth convergence. See
+        // day-night.ts's `simDayPhaseWash` header for the phase->wash mapping.
+        const dayNight = dayNightFromPhase(simDayPhaseWash(tickEstimate, opts.ticksPerDay));
         const aspect = canvas.width / Math.max(1, canvas.height);
         const viewProj = multiply(camera.projMatrix(aspect), camera.viewMatrix());
         lastViewProj = viewProj;

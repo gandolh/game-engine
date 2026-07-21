@@ -13,7 +13,8 @@
  *  - click-to-inspect: `app.ts`'s `onAgentClicked` callback fires the
  *    worker's `"inspect"` round trip; the resolved `InspectDetail` renders
  *    into the side panel (`inspect-panel.ts`);
- *  - `T` toggles tags, `F` toggles follow-cam for the current selection.
+ *  - `T` toggles tags, `J` toggles job-cue badges (chunk hollow-14d), `F`
+ *    toggles follow-cam for the current selection.
  *
  * Chunk hollow-10b adds the research-instrument UI — a fixed-position LEFT
  * rail (`#hollow-left-rail`) stacking the live chronicle (`chronicle-panel.ts`),
@@ -159,6 +160,10 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   let currentDetail: InspectDetail | null = null;
   let panelEl: HTMLElement | null = null;
   let showTags = false;
+  // Chunk hollow-14d: job-cue toggle — deliberately independent of `showTags`
+  // (its own legibility control; not always-on clutter, but not bundled with
+  // the name/need-bar tags either).
+  let showJobs = false;
 
   function removePanel(): void {
     if (panelEl) {
@@ -438,6 +443,8 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   window.addEventListener("keydown", (e) => {
     if (e.key === "t" || e.key === "T") {
       showTags = !showTags;
+    } else if (e.key === "j" || e.key === "J") {
+      showJobs = !showJobs;
     } else if (e.key === "f" || e.key === "F") {
       toggleFollow();
     } else if (e.key === "`") {
@@ -495,6 +502,7 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
             action: agent.action,
             needs: agent.needs,
             starving: agent.starving,
+            occupation: agent.occupation,
           });
         }
         drawAgentOverlay(overlayCtx, agents, {
@@ -502,6 +510,7 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
           width: rect.width,
           height: rect.height,
           showTags,
+          showJobs,
           selectedAgentId,
         });
       } else {

@@ -3,6 +3,7 @@ import { lookAt, multiply, perspective, type Mat4 } from "@engine/core/render3d"
 import {
   mostDepletedNeed,
   needBarColorRole,
+  occupationColorRole,
   drawAgentOverlay,
   createOverlayCanvas,
   resizeOverlayCanvas,
@@ -37,6 +38,24 @@ describe("needBarColorRole", () => {
     expect(needBarColorRole(0.1, false)).toBe("orange");
     expect(needBarColorRole(0.45, false)).toBe("gold");
     expect(needBarColorRole(0.9, false)).toBe("green");
+  });
+});
+
+describe("occupationColorRole", () => {
+  it("gives every real job role a distinct color role", () => {
+    const roles = ["food-gatherer", "material-gatherer", "crafter", "teacher", "caretaker"].map((r) =>
+      occupationColorRole(r),
+    );
+    expect(new Set(roles).size).toBe(roles.length);
+  });
+
+  it("falls back to a neutral role for unassigned/unrecognized", () => {
+    expect(occupationColorRole("unassigned")).toBe("steel");
+    expect(occupationColorRole("not-a-real-role")).toBe("steel");
+  });
+
+  it("is pure — repeated calls return the same result", () => {
+    expect(occupationColorRole("crafter")).toBe(occupationColorRole("crafter"));
   });
 });
 
@@ -94,6 +113,7 @@ function makeAgent(overrides: Partial<OverlayAgentInput> = {}): OverlayAgentInpu
     action: "idle",
     needs: { food: 80, rest: 90 },
     starving: false,
+    occupation: "unassigned",
     ...overrides,
   };
 }
@@ -105,7 +125,14 @@ describe("drawAgentOverlay", () => {
   });
 
   it("always clears the canvas first", () => {
-    drawAgentOverlay(ctx, [], { viewProj: overheadViewProj(WIDTH, HEIGHT), width: WIDTH, height: HEIGHT, showTags: false, selectedAgentId: null });
+    drawAgentOverlay(ctx, [], {
+      viewProj: overheadViewProj(WIDTH, HEIGHT),
+      width: WIDTH,
+      height: HEIGHT,
+      showTags: false,
+      showJobs: false,
+      selectedAgentId: null,
+    });
     expect(ctx.calls[0]).toBe("clearRect");
   });
 
@@ -115,6 +142,7 @@ describe("drawAgentOverlay", () => {
       width: WIDTH,
       height: HEIGHT,
       showTags: false,
+      showJobs: false,
       selectedAgentId: null,
     });
     expect(ctx.fillTexts).toHaveLength(0);
@@ -126,6 +154,7 @@ describe("drawAgentOverlay", () => {
       width: WIDTH,
       height: HEIGHT,
       showTags: false,
+      showJobs: false,
       selectedAgentId: null,
     });
     expect(ctx.fillTexts.length).toBe(1);
@@ -138,6 +167,7 @@ describe("drawAgentOverlay", () => {
       width: WIDTH,
       height: HEIGHT,
       showTags: true,
+      showJobs: false,
       selectedAgentId: null,
     });
     // name text drawn
@@ -152,6 +182,7 @@ describe("drawAgentOverlay", () => {
       width: WIDTH,
       height: HEIGHT,
       showTags: false,
+      showJobs: false,
       selectedAgentId: 3,
     });
     expect(ctx.calls).toContain("arc");
@@ -164,10 +195,65 @@ describe("drawAgentOverlay", () => {
       width: WIDTH,
       height: HEIGHT,
       showTags: true,
+      showJobs: false,
       selectedAgentId: null,
     });
     expect(ctx.fillTexts).toHaveLength(0);
     expect(ctx.calls.filter((c) => c === "fillRect")).toHaveLength(0);
+  });
+
+  it("draws no job-cue badge when showJobs is off, even for an agent with a real job", () => {
+    drawAgentOverlay(ctx, [makeAgent({ occupation: "crafter" })], {
+      viewProj: overheadViewProj(WIDTH, HEIGHT),
+      width: WIDTH,
+      height: HEIGHT,
+      showTags: false,
+      showJobs: false,
+      selectedAgentId: null,
+    });
+    expect(ctx.fillTexts).not.toContain("C");
+  });
+
+  it("draws a job-cue badge (colored square + letter) when showJobs is on", () => {
+    drawAgentOverlay(ctx, [makeAgent({ occupation: "crafter" })], {
+      viewProj: overheadViewProj(WIDTH, HEIGHT),
+      width: WIDTH,
+      height: HEIGHT,
+      showTags: false,
+      showJobs: true,
+      selectedAgentId: null,
+    });
+    expect(ctx.fillTexts).toContain("C");
+    // The badge's colored background is an extra fillRect beyond the
+    // idle/tags-off baseline (which draws none).
+    expect(ctx.calls.filter((c) => c === "fillRect").length).toBeGreaterThan(0);
+  });
+
+  it("draws no job-cue badge for an unassigned agent even with showJobs on", () => {
+    drawAgentOverlay(ctx, [makeAgent({ occupation: "unassigned" })], {
+      viewProj: overheadViewProj(WIDTH, HEIGHT),
+      width: WIDTH,
+      height: HEIGHT,
+      showTags: false,
+      showJobs: true,
+      selectedAgentId: null,
+    });
+    expect(ctx.fillTexts).toHaveLength(0);
+    expect(ctx.calls.filter((c) => c === "fillRect")).toHaveLength(0);
+  });
+
+  it("showJobs and showTags are independent — both can render together without clobbering each other", () => {
+    drawAgentOverlay(ctx, [makeAgent({ id: 9, occupation: "teacher", needs: { food: 20, rest: 90 } })], {
+      viewProj: overheadViewProj(WIDTH, HEIGHT),
+      width: WIDTH,
+      height: HEIGHT,
+      showTags: true,
+      showJobs: true,
+      selectedAgentId: null,
+    });
+    // Job letter + agent name = two distinct fillText calls.
+    expect(ctx.fillTexts).toContain("T");
+    expect(ctx.fillTexts.length).toBe(2);
   });
 });
 

@@ -22,6 +22,7 @@ function makeAgent(
     householdId,
     appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBrown" },
     action: "idle",
+    occupation: "unassigned",
   };
 }
 

@@ -34,3 +34,28 @@ const ACTION_GLYPHS: Readonly<Record<string, string>> = {
 export function glyphForAction(action: string): string | null {
   return ACTION_GLYPHS[action] ?? null;
 }
+
+/**
+ * Job-cue letter for `occupation` (chunk hollow-14d — mirrors sim-core's
+ * `JOB_ROLES`, `components/occupation.ts`). Deliberately a plain single
+ * uppercase LETTER, not a color emoji — the canvas/pixel font this overlay
+ * draws with may not render color-emoji glyphs reliably (see this module's
+ * header on why `ACTION_GLYPHS` sticks to simple symbols), and a crowd of
+ * agents needs the cue to stay legible at a glance. `"unassigned"` (every
+ * agent starts here until a leader/self-assignment pass runs) and any
+ * unrecognized role draw nothing — same "draw nothing rather than a
+ * confusing default" convention as `glyphForAction`'s idle/walk.
+ */
+const OCCUPATION_GLYPHS: Readonly<Record<string, string>> = {
+  "food-gatherer": "F",
+  "material-gatherer": "M",
+  crafter: "C",
+  teacher: "T",
+  caretaker: "K",
+};
+
+/** The job-cue letter for `occupation`, or `null` to draw nothing
+ *  (`"unassigned"`, or any unrecognized label). Pure. */
+export function glyphForOccupation(occupation: string): string | null {
+  return OCCUPATION_GLYPHS[occupation] ?? null;
+}
