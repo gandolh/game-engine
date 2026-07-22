@@ -1,19 +1,16 @@
 /**
- * MateQuest balance constants. Combat tuning is fixed since M1 — one hardcoded fight (warrior vs
- * "Zmeu pui"), tuned so repeated wrong answers are genuinely lethal (no block/heal ⇒ dead in ~4-5
- * turns). M2 (corpus/todos/2026-07-22-mathquest-M2-problem-generators.md) adds the per-grade
- * operand/product ranges the problem generators (`combat/generators.ts`) draw from.
+ * MateQuest balance constants. Combat tuning is fixed since M1, tuned so repeated wrong answers
+ * are genuinely lethal (no block/heal ⇒ dead in ~4-5 turns). M2
+ * (corpus/todos/2026-07-22-mathquest-M2-problem-generators.md) adds the per-grade operand/product
+ * ranges the problem generators (`combat/generators.ts`) draw from. M3
+ * (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md) SUPERSEDES the M1/M2 single hardcoded
+ * enemy (`ENEMY_NAME`/`ENEMY_MAX_HP`/`ENEMY_INTENT_BASE`/`ENEMY_INTENT_ROLL`, removed) with
+ * per-node-type `EnemyArchetype`s — see `run/enemies.ts`.
  */
 import type { Grade } from "./types";
 
-/** Warrior's max HP. */
+/** Warrior's max HP — the run's `warriorMaxHp`, unchanged by M3 (per-run HP upgrades are M4). */
 export const WARRIOR_MAX_HP = 30;
-
-/** The M1 enemy's display name — a baby Zmeu (Romanian-folklore dragon-adjacent creature). */
-export const ENEMY_NAME = "Zmeu pui";
-
-/** The M1 enemy's max HP. */
-export const ENEMY_MAX_HP = 24;
 
 /** Correct "attack" deals this much damage to the enemy. */
 export const ATTACK_DAMAGE = 8;
@@ -24,13 +21,8 @@ export const HEAL_AMOUNT = 8;
 /** Correct "shield" grants this much block (absorbs the next enemy hit, then resets to 0). */
 export const SHIELD_BLOCK = 8;
 
-/** Enemy intent (next-turn telegraphed damage) base: `ENEMY_INTENT_BASE + rng.int(0, ENEMY_INTENT_ROLL)`. */
-export const ENEMY_INTENT_BASE = 5;
-
-/** Exclusive upper bound of the enemy intent's random roll — `rng.int(0, ENEMY_INTENT_ROLL)` ⇒ 0..3, so intent is 5..8. */
-export const ENEMY_INTENT_ROLL = 4;
-
-/** The grade the sim starts in (before any `setGrade` command). */
+/** The grade a fresh `Combat` falls back to if a caller ever omits `CombatOpts.grade` in a test —
+ * the run driver always supplies the chosen node's own grade explicitly (M3). */
 export const DEFAULT_GRADE: Grade = 1;
 
 /** Inclusive operand bounds a generator draws `a`/`b` from. */

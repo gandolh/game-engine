@@ -49,7 +49,6 @@ interface Calls {
   submit: number;
   submitChoice: number[];
   acknowledgeTeach: number;
-  setGrade: number[];
   restart: number;
 }
 
@@ -61,7 +60,6 @@ function makeScreen(): { screen: ReturnType<typeof createCombatScreen>; calls: C
     submit: 0,
     submitChoice: [],
     acknowledgeTeach: 0,
-    setGrade: [],
     restart: 0,
   };
   const actions: CombatScreenActions = {
@@ -77,7 +75,6 @@ function makeScreen(): { screen: ReturnType<typeof createCombatScreen>; calls: C
     acknowledgeTeach: () => {
       calls.acknowledgeTeach++;
     },
-    setGrade: (g) => calls.setGrade.push(g),
     restart: () => {
       calls.restart++;
     },
@@ -120,8 +117,8 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
     screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "");
     const btnLabels = buttons(screen.root).map((b) => b.label);
     expect(btnLabels).toEqual(expect.arrayContaining(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]));
-    // 4 grade buttons + 12 keypad buttons (10 digits + backspace + enter); no action menu/choices.
-    expect(buttons(screen.root).length).toBe(16);
+    // 12 keypad buttons (10 digits + backspace + enter); no grade selector (M3), no action menu/choices.
+    expect(buttons(screen.root).length).toBe(12);
   });
 
   it("a choice problem renders exactly problem.choices as buttons, no keypad", () => {
@@ -137,8 +134,8 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
     const btnLabels = buttons(screen.root).map((b) => b.label);
     expect(btnLabels).toEqual(expect.arrayContaining([">", "=", "<"]));
     expect(btnLabels).not.toContain("0"); // no keypad digit present
-    // 4 grade buttons + 3 choice buttons; no keypad, no action menu.
-    expect(buttons(screen.root).length).toBe(7);
+    // 3 choice buttons; no grade selector (M3), no keypad, no action menu.
+    expect(buttons(screen.root).length).toBe(3);
   });
 
   it("clicking a choice button submits ITS index (tracks the choice order shown)", () => {
@@ -217,25 +214,15 @@ describe("createCombatScreen — M2 teach card", () => {
   });
 });
 
-describe("createCombatScreen — grade selector", () => {
-  it("highlights the current snapshot.grade and clears the others", () => {
+describe("createCombatScreen — grade readout (M3: read-only, no selector)", () => {
+  it("shows the fight's fixed grade as text, with no grade BUTTONS anywhere", () => {
     const { screen } = makeScreen();
     screen.refresh(baseSnapshot({ grade: 1 }), "");
-    expect(byLabel(screen.root, "I").state).toBe("active");
-    expect(byLabel(screen.root, "II").state).toBe("normal");
-    expect(byLabel(screen.root, "III").state).toBe("normal");
-    expect(byLabel(screen.root, "IV").state).toBe("normal");
+    expect(labels(screen.root).map((l) => l.text)).toContain("Grade: I");
+    expect(buttons(screen.root).map((b) => b.label)).not.toContain("I");
 
     screen.refresh(baseSnapshot({ grade: 3 }), "");
-    expect(byLabel(screen.root, "I").state).toBe("normal");
-    expect(byLabel(screen.root, "III").state).toBe("active");
-  });
-
-  it("clicking a grade button calls setGrade with that grade, regardless of phase", () => {
-    const { screen, calls } = makeScreen();
-    screen.refresh(baseSnapshot({ phase: "won" }), "");
-    byLabel(screen.root, "IV").onActivate?.();
-    expect(calls.setGrade).toEqual([4]);
+    expect(labels(screen.root).map((l) => l.text)).toContain("Grade: III");
   });
 });
 

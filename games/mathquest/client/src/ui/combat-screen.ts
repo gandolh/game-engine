@@ -16,20 +16,21 @@
  *  - the problem panel's input area swaps between the numeric keypad (`problem.kind==="typed"`)
  *    and a row of choice buttons (`problem.kind==="choice"`) — both built once, never rebuilt;
  *  - a teach card (phase `"teach"`) shows the worked step + the fizzle cue + a Continue button;
- *  - a grade selector (I/II/III/IV) is ALWAYS visible (not phase-gated) so the player can pick
- *    difficulty mid-run, per the brief;
  *  - the single M1 `last` cue is split into TWO always-separate lines, `lastPlayer`/`lastEnemy`
  *    (the M1 known-minor fold-in — the player's own result no longer gets overwritten).
+ *
+ * M3 (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md, Part B) REMOVES the M2 grade
+ * selector — difficulty now comes from which map node the player chose (`ui/map-screen.ts`), not
+ * a manual picker mid-fight — and shows the fight's fixed grade as a READ-ONLY label instead.
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode, UISurface } from "@engine/ui";
-import type { CombatAction, CombatSnapshot, Grade } from "@mathquest/sim-core";
+import type { CombatAction, CombatSnapshot } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import { STRINGS } from "../strings";
 
 const HP_BAR_WIDTH = 200;
 const HP_BAR_HEIGHT = 12;
-const GRADES: readonly Grade[] = [1, 2, 3, 4];
 /** Comparison always generates exactly 3 choices (`<`, `>`, `=`) — see the M2 brief. */
 const CHOICE_SLOTS = 3;
 
@@ -43,8 +44,6 @@ export interface CombatScreenActions {
   submitChoice(index: number): void;
   /** Posts `acknowledge-teach` — advances past the teach card into the enemy's (deferred) turn. */
   acknowledgeTeach(): void;
-  /** Posts `set-grade` — changes the player's chosen difficulty. */
-  setGrade(grade: Grade): void;
   restart(): void;
 }
 
@@ -97,14 +96,9 @@ export interface CombatScreen {
 }
 
 export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
-  // --- Grade selector (always visible — how the player picks difficulty until M3's map) --------
-  const gradeBtns: ButtonNode[] = GRADES.map((g) =>
-    button(STRINGS.gradeLabel[g], { onActivate: () => actions.setGrade(g) }),
-  );
-  const gradeRow = box({ direction: "row", gap: 4, align: "center" }, [
-    label(STRINGS.gradeSelectorLabel, { color: MATE_PAL.steel }),
-    ...gradeBtns,
-  ]);
+  // --- Grade (M3: READ-ONLY — difficulty now comes from the map node the player chose; the M2
+  // manual selector is gone) ---------------------------------------------------------------------
+  const gradeLbl = label("", { color: MATE_PAL.steel });
 
   // --- Enemy area -----------------------------------------------------------------------------
   const enemyNameLbl = label("", { color: MATE_PAL.cream, scale: 2 });
@@ -186,7 +180,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   const titleLbl = label(STRINGS.title, { color: MATE_PAL.gold });
   const root = box({ direction: "column", gap: 12, padding: 16 }, [
     titleLbl,
-    gradeRow,
+    gradeLbl,
     enemyArea,
     warriorArea,
     turnLbl,
@@ -218,15 +212,8 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     if (setText(playerCueLbl, STRINGS.playerResultCue(snapshot.lastPlayer))) changed = true;
     if (setText(enemyCueLbl, STRINGS.enemyResultCue(snapshot.lastEnemy, snapshot.enemy.name))) changed = true;
 
-    // Grade selector: highlight the current grade (mirrors createBuildBar's selected/active pattern).
-    for (let i = 0; i < GRADES.length; i++) {
-      const btn = gradeBtns[i]!;
-      const nextState = GRADES[i] === snapshot.grade ? "active" : "normal";
-      if (btn.state !== nextState) {
-        btn.state = nextState;
-        changed = true;
-      }
-    }
+    // Grade (M3: read-only — set by the map node this fight came from, not a mid-fight picker).
+    if (setText(gradeLbl, STRINGS.gradeReadout(snapshot.grade))) changed = true;
 
     if (snapshot.phase === "await_answer" && snapshot.problem !== null) {
       const problem = snapshot.problem;

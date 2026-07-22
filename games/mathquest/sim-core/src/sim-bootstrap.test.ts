@@ -1,20 +1,29 @@
+/**
+ * MateQuest M3 — run-layer tests (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md, Part A5).
+ * The M1/M2 combat-loop tests moved to `combat/combat.test.ts` (adapted to drive `createCombat`
+ * directly, per the brief); `run/map.test.ts` covers `generateMap`'s invariants directly. This
+ * file covers the RUN state machine `bootstrapMathquestSim` now drives: `chooseNode`/
+ * `chooseAction`/`submitAnswer`/`acknowledgeTeach`/`newRun`, HP persistence, and determinism.
+ */
 import { describe, it, expect } from "vitest";
-import { bootstrapMathquestSim } from "./sim-bootstrap";
-import { ATTACK_DAMAGE, ENEMY_MAX_HP, WARRIOR_MAX_HP } from "./combat/constants";
-import type { AnswerResponse, CombatSnapshot, ProblemView } from "./combat/types";
+import { bootstrapMathquestSim, type BootedMathquestSim, type GameSnapshot } from "./sim-bootstrap";
+import { REST_HEAL } from "./run/constants";
+import { WARRIOR_MAX_HP } from "./combat/constants";
+import type { AnswerResponse, ProblemView } from "./combat/types";
+import type { RunMap } from "./run/map";
 
-/** Parse the two numbers embedded in ANY problem's prompt (works across all four M2 topics). */
+// --- shared helpers (mirror combat/combat.test.ts's — kept local since this file drives the
+// RUN's GameSnapshot, not a bare CombatSnapshot) --------------------------------------------
+
 function numbersIn(text: string): number[] {
   return (text.match(/-?\d+/g) ?? []).map(Number);
 }
 
-/** Independently compute the CORRECT `AnswerResponse` for a `ProblemView` — never trusts the
- * sim's internal `answer`/`answerIndex` (which never crosses the boundary anyway). */
 function correctResponseFor(view: ProblemView): AnswerResponse {
   const [x, y] = numbersIn(view.prompt);
   if (view.kind === "typed") {
     const value =
-      view.topic === "addition" ? x! + y! : view.topic === "subtraction" ? x! - y! : x! * y!; // multiplication
+      view.topic === "addition" ? x! + y! : view.topic === "subtraction" ? x! - y! : x! * y!;
     return { kind: "typed", value };
   }
   const relation = x! < y! ? "<" : x! > y! ? ">" : "=";
@@ -22,282 +31,392 @@ function correctResponseFor(view: ProblemView): AnswerResponse {
   return { kind: "choice", index };
 }
 
-/** A deliberately WRONG response derived from the correct one (never accidentally matches it). */
 function wrongResponse(correct: AnswerResponse): AnswerResponse {
   if (correct.kind === "typed") return { kind: "typed", value: correct.value + 1_000_000 };
   return { kind: "choice", index: (correct.index + 1) % 3 };
 }
 
-/** Drive `chooseAction` + `submitAnswer` with the CORRECT answer for the pending problem. */
-function actCorrectly(sim: ReturnType<typeof bootstrapMathquestSim>, action: "attack" | "heal" | "shield"): void {
-  sim.chooseAction(action);
-  const snap = sim.getSnapshot();
-  expect(snap.phase).toBe("await_answer");
-  expect(snap.problem).not.toBeNull();
-  sim.submitAnswer(correctResponseFor(snap.problem!));
-}
-
-/** Drive `chooseAction` + `submitAnswer` with a deliberately WRONG answer, landing in `"teach"`. */
-function actWrong(sim: ReturnType<typeof bootstrapMathquestSim>, action: "attack" | "heal" | "shield"): void {
-  sim.chooseAction(action);
-  const snap = sim.getSnapshot();
-  sim.submitAnswer(wrongResponse(correctResponseFor(snap.problem!)));
-}
-
-/** Find a fresh sim (some seed in `[1, limit]`) whose FIRST problem is of the given `kind`. */
-function findFirstProblemOfKind(
-  kind: "typed" | "choice",
-  limit = 200,
-): { sim: ReturnType<typeof bootstrapMathquestSim>; view: ProblemView } {
-  for (let seed = 1; seed <= limit; seed++) {
-    const sim = bootstrapMathquestSim({ seed });
-    sim.chooseAction("attack");
-    const view = sim.getSnapshot().problem;
-    if (view !== null && view.kind === kind) return { sim, view };
+/** Drives the CURRENT fight to its conclusion (win or lose) with a telegraphed-intent-aware,
+ * always-correct strategy: heal when critically low, shield when the CURRENT telegraphed intent
+ * is dangerous (mitigates up to `SHIELD_BLOCK`), else attack — the same "read the intent, react"
+ * play the design pillar wants a human player to do (corpus/wiki/mathquest-overview.md). Stops
+ * as soon as `mode` leaves `"combat"` (the run driver resolves win/loss synchronously — see
+ * `sim-bootstrap.ts`'s `resolveCombatIfOver`). */
+function driveCombat(sim: BootedMathquestSim, healThreshold = 14): void {
+  let guard = 0;
+  while (guard++ < 300) {
+    const snap = sim.getSnapshot();
+    if (snap.mode !== "combat") return;
+    const c = snap.combat;
+    if (c.phase === "await_action") {
+      const hp = c.warrior.hp;
+      const intent = c.enemy.intent;
+      let action: "attack" | "heal" | "shield";
+      if (hp <= healThreshold) action = "heal";
+      else if (hp - intent <= 6) action = "shield"; // mitigate a hit that would leave us critical
+      else action = "attack";
+      sim.chooseAction(action);
+    } else if (c.phase === "await_answer") {
+      sim.submitAnswer(correctResponseFor(c.problem!));
+    } else if (c.phase === "teach") {
+      sim.acknowledgeTeach();
+    }
   }
-  throw new Error(`no ${kind} problem found in ${limit} seeds — generator regression?`);
 }
 
-describe("bootstrapMathquestSim — combat loop (M2: generators + teach + re-queue + cue split)", () => {
-  it("starts in await_action, grade 1, full HP, a telegraphed enemy intent, no pending problem", () => {
+/** Drives the CURRENT fight toward a GUARANTEED loss: always attack + always answer WRONG, so
+ * the enemy never takes damage and the warrior takes every hit unmitigated. */
+function driveCombatToLoss(sim: BootedMathquestSim): void {
+  let guard = 0;
+  while (guard++ < 300) {
+    const snap = sim.getSnapshot();
+    if (snap.mode !== "combat") return;
+    const c = snap.combat;
+    if (c.phase === "await_action") sim.chooseAction("attack");
+    else if (c.phase === "await_answer") sim.submitAnswer(wrongResponse(correctResponseFor(c.problem!)));
+    else if (c.phase === "teach") sim.acknowledgeTeach();
+  }
+}
+
+/** BFS shortest path (as node ids, start-id-first, `targetId`-last) from ANY start id to
+ * `targetId`, following `MapNode.next` — the map is a connected DAG (`run/map.test.ts`), so a
+ * path always exists. */
+function pathTo(map: RunMap, targetId: number): number[] {
+  const byId = new Map(map.nodes.map((n) => [n.id, n]));
+  const parent = new Map<number, number | null>();
+  const queue: number[] = [];
+  for (const s of map.startIds) {
+    parent.set(s, null);
+    queue.push(s);
+  }
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (id === targetId) break;
+    for (const next of byId.get(id)!.next) {
+      if (!parent.has(next)) {
+        parent.set(next, id);
+        queue.push(next);
+      }
+    }
+  }
+  if (!parent.has(targetId)) throw new Error(`pathTo: node ${targetId} is unreachable`);
+  const path: number[] = [];
+  let cur: number | null = targetId;
+  while (cur !== null) {
+    path.unshift(cur);
+    cur = parent.get(cur) ?? null;
+  }
+  return path;
+}
+
+/** Walks `sim` along the shortest path to `targetId`, winning every intervening fight (heal-
+ * priority strategy) and resolving every rest node. Returns `"lost"` the instant any fight along
+ * the way ends the run; `"reached"` once `targetId` itself has been chosen and resolved. */
+function walkTo(sim: BootedMathquestSim, targetId: number): "reached" | "lost" {
+  const snap0 = sim.getSnapshot();
+  if (snap0.mode !== "map") throw new Error("walkTo: sim must be in map mode");
+  const path = pathTo(snap0.run.map, targetId);
+  for (const id of path) {
+    sim.chooseNode(id);
+    if (sim.getSnapshot().mode === "combat") driveCombat(sim);
+    if (sim.getSnapshot().mode === "run_lost") return "lost";
+  }
+  return "reached";
+}
+
+describe("bootstrapMathquestSim — run bootstrap (M3)", () => {
+  it("starts in map mode with a full-HP warrior, no current node, reachable = the map's startIds", () => {
     const sim = bootstrapMathquestSim({ seed: 1 });
     const snap = sim.getSnapshot();
-    expect(snap.phase).toBe("await_action");
-    expect(snap.grade).toBe(1);
-    expect(snap.warrior).toEqual({ hp: WARRIOR_MAX_HP, maxHp: WARRIOR_MAX_HP, block: 0 });
-    expect(snap.enemy.hp).toBe(ENEMY_MAX_HP);
-    expect(snap.enemy.intent).toBeGreaterThanOrEqual(5);
-    expect(snap.enemy.intent).toBeLessThanOrEqual(8);
-    expect(snap.problem).toBeNull();
-    expect(snap.teach).toBeNull();
-    expect(snap.turn).toBe(1);
-    expect(snap.lastPlayer).toEqual({ kind: "none" });
-    expect(snap.lastEnemy).toEqual({ kind: "none" });
+    expect(snap.mode).toBe("map");
+    expect(snap.run.warriorHp).toBe(WARRIOR_MAX_HP);
+    expect(snap.run.warriorMaxHp).toBe(WARRIOR_MAX_HP);
+    expect(snap.run.currentId).toBeNull();
+    expect(snap.run.visitedIds).toEqual([]);
+    expect([...snap.run.reachableIds].sort((a, b) => a - b)).toEqual(
+      [...snap.run.map.startIds].sort((a, b) => a - b),
+    );
   });
 
-  it("chooseAction moves to await_answer and exposes a well-formed ProblemView for grade 1's topics", () => {
-    const sim = bootstrapMathquestSim({ seed: 2 });
-    sim.chooseAction("attack");
+  it("world and scheduler are freshly constructed per bootstrap call (no shared state leaks)", () => {
+    const a = bootstrapMathquestSim({ seed: 1 });
+    const b = bootstrapMathquestSim({ seed: 1 });
+    expect(a.world).not.toBe(b.world);
+    expect(a.scheduler).not.toBe(b.scheduler);
+  });
+
+  it("step() never mutates run/combat state (event-driven only)", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+    const before = sim.getSnapshot();
+    for (let i = 0; i < 50; i++) sim.step();
+    expect(sim.getSnapshot()).toEqual(before);
+  });
+});
+
+describe("bootstrapMathquestSim — chooseNode", () => {
+  it("choosing a reachable combat/elite node starts a fight (mode='combat') with that node's grade + archetype", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
     const snap = sim.getSnapshot();
-    expect(snap.phase).toBe("await_answer");
-    expect(snap.problem).not.toBeNull();
-    expect(["addition", "subtraction", "comparison"]).toContain(snap.problem!.topic); // grade 1 excludes ×
-    expect(snap.problem!.grade).toBe(1);
-    if (snap.problem!.kind === "choice") expect(snap.problem!.choices.length).toBe(3);
-  });
+    const startId = snap.run.reachableIds[0]!;
+    const node = snap.run.map.nodes.find((n) => n.id === startId)!;
+    expect(["combat", "elite"]).toContain(node.type); // row 0 is never "rest"
 
-  it("chooseAction is ignored outside await_action", () => {
-    const sim = bootstrapMathquestSim({ seed: 3 });
-    sim.chooseAction("attack");
-    expect(sim.getSnapshot().phase).toBe("await_answer");
-    const before = sim.getSnapshot().problem;
-    sim.chooseAction("heal"); // no-op — still await_answer, same pending problem
-    expect(sim.getSnapshot().phase).toBe("await_answer");
-    expect(sim.getSnapshot().problem).toEqual(before);
-  });
-
-  it("submitAnswer is ignored outside await_answer", () => {
-    const sim = bootstrapMathquestSim({ seed: 4 });
-    expect(sim.getSnapshot().phase).toBe("await_action");
-    sim.submitAnswer({ kind: "typed", value: 42 }); // no pending problem — must be a no-op
-    const snap = sim.getSnapshot();
-    expect(snap.phase).toBe("await_action");
-    expect(snap.warrior.hp).toBe(WARRIOR_MAX_HP);
-    expect(snap.enemy.hp).toBe(ENEMY_MAX_HP);
-  });
-
-  it("acknowledgeTeach is ignored outside the teach phase", () => {
-    const sim = bootstrapMathquestSim({ seed: 5 });
-    expect(sim.getSnapshot().phase).toBe("await_action");
-    sim.acknowledgeTeach();
-    expect(sim.getSnapshot().phase).toBe("await_action");
-    expect(sim.getSnapshot().warrior.hp).toBe(WARRIOR_MAX_HP);
-  });
-
-  it("(1) a correct attack reduces enemy HP by ATTACK_DAMAGE (8)", () => {
-    const sim = bootstrapMathquestSim({ seed: 5 });
-    actCorrectly(sim, "attack");
-    expect(sim.getSnapshot().enemy.hp).toBe(ENEMY_MAX_HP - ATTACK_DAMAGE);
-  });
-
-  it("(2) a wrong answer fizzles → teach phase with non-null teach, NO enemy damage yet", () => {
-    const sim = bootstrapMathquestSim({ seed: 6 });
-    actWrong(sim, "attack");
-    const snap = sim.getSnapshot();
-    expect(snap.phase).toBe("teach");
-    expect(snap.teach).not.toBeNull();
-    expect(snap.teach!.length).toBeGreaterThan(0);
-    expect(snap.lastPlayer.kind).toBe("fizzle");
-    expect(snap.enemy.hp).toBe(ENEMY_MAX_HP); // fizzle — the attack never landed
-    expect(snap.warrior.hp).toBe(WARRIOR_MAX_HP); // enemy turn deferred — no hit yet
-    expect(snap.problem).toBeNull(); // the missed problem left await_answer, not shown mid-teach
-  });
-
-  it("acknowledgeTeach() then applies the deferred enemy hit and clears teach", () => {
-    const sim = bootstrapMathquestSim({ seed: 6 });
-    const intent = sim.getSnapshot().enemy.intent;
-    actWrong(sim, "attack");
-    expect(sim.getSnapshot().phase).toBe("teach");
-    sim.acknowledgeTeach();
+    sim.chooseNode(startId);
     const after = sim.getSnapshot();
-    expect(after.teach).toBeNull();
-    expect(after.warrior.hp).toBe(WARRIOR_MAX_HP - intent); // the hit lands only now
-    expect(after.lastEnemy).toEqual({ kind: "enemy_hit", amount: intent, blocked: 0 });
-    expect(after.phase).toBe("await_action");
+    expect(after.mode).toBe("combat");
+    if (after.mode !== "combat") throw new Error("unreachable");
+    expect(after.combat.grade).toBe(node.grade);
+    expect(after.combat.warrior.hp).toBe(WARRIOR_MAX_HP); // fresh run, full HP going in
+    expect(after.run.currentId).toBe(startId);
   });
 
-  it("(re-queue) the missed problem returns UNCHANGED on a later turn", () => {
-    const sim = bootstrapMathquestSim({ seed: 42 });
+  it("choosing an id NOT in reachableIds is rejected — no state change", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const before = sim.getSnapshot();
+    const bossId = before.run.map.bossId;
+    expect(before.run.reachableIds).not.toContain(bossId); // the boss is never reachable turn 1
+    sim.chooseNode(bossId);
+    expect(sim.getSnapshot()).toEqual(before);
+  });
+
+  it("chooseAction/submitAnswer/acknowledgeTeach are ignored while mode is 'map'", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const before = sim.getSnapshot();
     sim.chooseAction("attack");
-    const missed = sim.getSnapshot().problem!;
-    sim.submitAnswer(wrongResponse(correctResponseFor(missed)));
-    expect(sim.getSnapshot().phase).toBe("teach");
+    sim.submitAnswer({ kind: "typed", value: 0 });
     sim.acknowledgeTeach();
-    expect(sim.getSnapshot().phase).toBe("await_action"); // WARRIOR_MAX_HP (30) survives one 5-8 hit easily
-
-    sim.chooseAction("attack");
-    const requeued = sim.getSnapshot().problem!;
-    expect(requeued).toEqual(missed); // the SAME problem (topic/grade/prompt[/choices]), not a fresh draw
+    expect(sim.getSnapshot()).toEqual(before);
   });
 
-  it("(re-queue) a re-queued problem answered RIGHT is not re-queued again", () => {
-    const sim = bootstrapMathquestSim({ seed: 42 });
-    sim.chooseAction("attack");
-    const missed = sim.getSnapshot().problem!;
-    sim.submitAnswer(wrongResponse(correctResponseFor(missed)));
-    sim.acknowledgeTeach();
-
-    sim.chooseAction("attack");
-    const requeued = sim.getSnapshot().problem!;
-    expect(requeued).toEqual(missed);
-    sim.submitAnswer(correctResponseFor(requeued)); // answer it correctly this time
-    expect(sim.getSnapshot().lastPlayer.kind).toBe("landed");
-
-    // Next turn's problem must NOT be the same missed problem again (queue was drained).
-    if (sim.getSnapshot().phase === "await_action") {
-      sim.chooseAction("attack");
-      expect(sim.getSnapshot().problem).not.toEqual(missed);
-    }
-  });
-
-  it("setGrade(3) shows grade:3 in the snapshot, and the NEXT problem carries grade:3", () => {
-    const sim = bootstrapMathquestSim({ seed: 7 });
-    sim.setGrade(3);
-    expect(sim.getSnapshot().grade).toBe(3);
-    sim.chooseAction("attack");
-    expect(sim.getSnapshot().problem!.grade).toBe(3);
-  });
-
-  it("(cue split) a correct non-killing heal shows lastPlayer=landed AND lastEnemy=enemy_hit in the SAME snapshot", () => {
-    const sim = bootstrapMathquestSim({ seed: 8 });
-    actCorrectly(sim, "heal"); // heal never risks ending the fight early
-    const snap = sim.getSnapshot();
-    expect(snap.lastPlayer.kind).toBe("landed");
-    if (snap.lastPlayer.kind === "landed") expect(snap.lastPlayer.action).toBe("heal");
-    expect(snap.lastEnemy.kind).toBe("enemy_hit"); // the M1 overwrite bug is gone — both survive together
-  });
-
-  it("chooseAction resets lastEnemy to none so a stale enemy line doesn't linger into the next problem", () => {
-    const sim = bootstrapMathquestSim({ seed: 8 });
-    actCorrectly(sim, "heal");
-    expect(sim.getSnapshot().lastEnemy.kind).toBe("enemy_hit");
-    sim.chooseAction("attack");
-    expect(sim.getSnapshot().lastEnemy).toEqual({ kind: "none" });
-  });
-
-  it("a correct multiple-choice comparison lands (no teach card)", () => {
-    const { sim, view } = findFirstProblemOfKind("choice");
-    if (view.kind !== "choice") throw new Error("expected a choice problem");
-    expect(view.choices.length).toBe(3);
-    sim.submitAnswer(correctResponseFor(view));
-    const snap = sim.getSnapshot();
-    expect(snap.lastPlayer.kind).toBe("landed");
-    expect(snap.teach).toBeNull();
-    expect(snap.phase).not.toBe("teach");
-  });
-
-  it("a wrong multiple-choice comparison shows the teach card", () => {
-    const { sim, view } = findFirstProblemOfKind("choice");
-    sim.submitAnswer(wrongResponse(correctResponseFor(view)));
-    const snap = sim.getSnapshot();
-    expect(snap.phase).toBe("teach");
-    expect(snap.teach).not.toBeNull();
-    expect(snap.lastPlayer.kind).toBe("fizzle");
-  });
-
-  it("the typed path still works end to end (addition/subtraction)", () => {
-    const { sim, view } = findFirstProblemOfKind("typed");
-    sim.submitAnswer(correctResponseFor(view));
-    expect(sim.getSnapshot().lastPlayer.kind).toBe("landed");
-  });
-
-  it("(4a) enemy HP -> 0 ends the fight as won (no further enemy turn)", () => {
-    const sim = bootstrapMathquestSim({ seed: 9 });
-    // ENEMY_MAX_HP (24) / ATTACK_DAMAGE (8) = exactly 3 correct attacks.
-    actCorrectly(sim, "attack");
-    actCorrectly(sim, "attack");
-    expect(sim.getSnapshot().phase).toBe("await_action"); // still going after 2 hits (24-16=8 left)
-    actCorrectly(sim, "attack");
-    const snap = sim.getSnapshot();
-    expect(snap.phase).toBe("won");
-    expect(snap.enemy.hp).toBe(0);
-    expect(snap.lastPlayer).toEqual({ kind: "landed", action: "attack", amount: ATTACK_DAMAGE });
-  });
-
-  it("(4b) warrior HP -> 0 (via the teach-gated enemy turn) ends the fight as lost", () => {
-    const sim = bootstrapMathquestSim({ seed: 10 });
-    let snap: CombatSnapshot = sim.getSnapshot();
-    let guard = 0;
-    while (snap.phase !== "lost" && guard < 40) {
-      if (snap.phase === "await_action") actWrong(sim, "attack");
-      else if (snap.phase === "teach") sim.acknowledgeTeach();
-      snap = sim.getSnapshot();
-      guard += 1;
-    }
-    expect(snap.phase).toBe("lost");
-    expect(snap.warrior.hp).toBe(0);
-    expect(guard).toBeLessThan(40);
-  });
-
-  it("chooseAction/submitAnswer/acknowledgeTeach are no-ops once the fight is over", () => {
-    const sim = bootstrapMathquestSim({ seed: 9 });
-    actCorrectly(sim, "attack");
-    actCorrectly(sim, "attack");
-    actCorrectly(sim, "attack");
-    expect(sim.getSnapshot().phase).toBe("won");
-    sim.chooseAction("heal");
-    expect(sim.getSnapshot().phase).toBe("won");
-    sim.acknowledgeTeach();
-    expect(sim.getSnapshot().phase).toBe("won");
-  });
-
-  it("(5) determinism: same seed + same scripted command sequence -> identical snapshot sequence", () => {
-    const seed = 12345;
-    const script: Array<{ action: "attack" | "heal" | "shield"; correct: boolean }> = [
-      { action: "attack", correct: true },
-      { action: "shield", correct: true },
-      { action: "heal", correct: false },
-      { action: "attack", correct: true },
-      { action: "attack", correct: false },
-      { action: "heal", correct: true },
-      { action: "attack", correct: true },
-    ];
-
-    function run(): CombatSnapshot[] {
+  it("a rest node heals +REST_HEAL (capped at warriorMaxHp) and returns to 'map' with reachableIds = its next — no fight", () => {
+    // Search for a seed+path that reaches a rest node without dying en route (any intervening
+    // fights are won via `driveCombat`'s heal-priority strategy); capture HP immediately before
+    // the rest resolves so the heal amount is checked precisely.
+    for (let seed = 1; seed <= 50; seed++) {
       const sim = bootstrapMathquestSim({ seed });
-      const snapshots: CombatSnapshot[] = [sim.getSnapshot()];
-      for (const step of script) {
-        if (sim.getSnapshot().phase !== "await_action") break;
-        sim.chooseAction(step.action);
+      const map = sim.getSnapshot().run.map;
+      const rest = map.nodes.find((n) => n.type === "rest");
+      if (rest === undefined) continue;
+      const path = pathTo(map, rest.id);
+      let lost = false;
+      for (const id of path.slice(0, -1)) {
+        sim.chooseNode(id);
+        if (sim.getSnapshot().mode === "combat") driveCombat(sim);
+        if (sim.getSnapshot().mode === "run_lost") {
+          lost = true;
+          break;
+        }
+      }
+      if (lost) continue;
+      const hpBefore = sim.getSnapshot().run.warriorHp;
+      sim.chooseNode(rest.id);
+      const after = sim.getSnapshot();
+      expect(after.mode).toBe("map");
+      expect(after.run.warriorHp).toBe(Math.min(WARRIOR_MAX_HP, hpBefore + REST_HEAL));
+      expect(after.run.visitedIds).toContain(rest.id);
+      expect([...after.run.reachableIds].sort((a, b) => a - b)).toEqual([...rest.next].sort((a, b) => a - b));
+      return; // found one — done
+    }
+    throw new Error("no seed reached a rest node without dying in 50 tries");
+  });
+});
+
+describe("bootstrapMathquestSim — winning persists HP onto the map", () => {
+  it("winning a fight returns to 'map' with warriorHp reduced by the damage taken, and reachableIds = the node's next", () => {
+    // Row 0 is never "rest"; find a seed whose FIRST start node is plain "combat" (guaranteed
+    // safe to win via always-attack from full HP: combat archetype's max 2 return hits, 8 each,
+    // never exceeds 30 — see run/enemies.ts).
+    let sim: BootedMathquestSim | undefined;
+    let startId = -1;
+    let startNext: readonly number[] = [];
+    for (let seed = 1; seed <= 50; seed++) {
+      const candidate = bootstrapMathquestSim({ seed });
+      const snap = candidate.getSnapshot();
+      const id = snap.run.reachableIds[0]!;
+      const node = snap.run.map.nodes.find((n) => n.id === id)!;
+      if (node.type === "combat") {
+        sim = candidate;
+        startId = id;
+        startNext = node.next;
+        break;
+      }
+    }
+    if (sim === undefined) throw new Error("no seed's start node was plain combat in 50 tries");
+
+    sim.chooseNode(startId);
+    driveCombat(sim); // always-attack-when-safe strategy — see driveCombat
+
+    const after = sim.getSnapshot();
+    expect(after.mode).toBe("map");
+    expect(after.run.warriorHp).toBeLessThan(WARRIOR_MAX_HP); // the fight cost SOME HP
+    expect(after.run.warriorHp).toBeGreaterThan(0);
+    expect(after.run.visitedIds).toEqual([startId]);
+    expect([...after.run.reachableIds].sort((a, b) => a - b)).toEqual([...startNext].sort((a, b) => a - b));
+
+    // The NEXT fight starts with the PERSISTED (lower) HP, not a fresh full bar.
+    const nextId = after.run.reachableIds[0]!;
+    sim.chooseNode(nextId);
+    const combatSnap = sim.getSnapshot();
+    expect(combatSnap.mode).toBe("combat");
+    if (combatSnap.mode !== "combat") throw new Error("unreachable");
+    expect(combatSnap.combat.warrior.hp).toBe(after.run.warriorHp);
+  });
+});
+
+describe("bootstrapMathquestSim — losing a fight ends the run", () => {
+  it("a fight lost (always wrong, always attacked back) sets mode='run_lost'", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const startId = sim.getSnapshot().run.reachableIds[0]!;
+    sim.chooseNode(startId);
+    expect(sim.getSnapshot().mode).toBe("combat");
+    driveCombatToLoss(sim);
+    const after = sim.getSnapshot();
+    expect(after.mode).toBe("run_lost");
+    expect(after.run.warriorHp).toBe(0);
+  });
+
+  it("chooseNode/chooseAction/submitAnswer/acknowledgeTeach are all ignored once run_lost", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+    driveCombatToLoss(sim);
+    const before = sim.getSnapshot();
+    expect(before.mode).toBe("run_lost");
+    sim.chooseNode(before.run.map.startIds[0]!);
+    sim.chooseAction("attack");
+    sim.submitAnswer({ kind: "typed", value: 0 });
+    sim.acknowledgeTeach();
+    expect(sim.getSnapshot()).toEqual(before);
+  });
+});
+
+describe("bootstrapMathquestSim — the hard branch is actually harder", () => {
+  it("an elite node's fight uses the elite archetype at a higher grade than its row's plain combat sibling", () => {
+    // Search for a seed whose branching row IS row 0 (the elite sits at a start id, so we can
+    // choose it directly without first winning our way there).
+    let sim: BootedMathquestSim | undefined;
+    let eliteId = -1;
+    let siblingGrade = -1;
+    for (let seed = 1; seed <= 200; seed++) {
+      const candidate = bootstrapMathquestSim({ seed });
+      const map = candidate.getSnapshot().run.map;
+      const row0 = map.nodes.filter((n) => n.row === 0);
+      const elite = row0.find((n) => n.type === "elite");
+      const combatSibling = row0.find((n) => n.type === "combat");
+      if (elite !== undefined && combatSibling !== undefined) {
+        sim = candidate;
+        eliteId = elite.id;
+        siblingGrade = combatSibling.grade;
+        break;
+      }
+    }
+    if (sim === undefined) throw new Error("no seed's row 0 branched into an elite in 200 tries");
+
+    sim.chooseNode(eliteId);
+    const snap = sim.getSnapshot();
+    expect(snap.mode).toBe("combat");
+    if (snap.mode !== "combat") throw new Error("unreachable");
+    expect(snap.combat.enemy.name).toBe("Balaur");
+    expect(snap.combat.enemy.maxHp).toBe(26);
+    expect(snap.combat.grade).toBeGreaterThan(siblingGrade);
+  });
+});
+
+describe("bootstrapMathquestSim — beating the boss wins the run", () => {
+  it("walking to and winning the boss fight sets mode='run_won'", () => {
+    let sim: BootedMathquestSim | undefined;
+    for (let seed = 1; seed <= 300; seed++) {
+      const candidate = bootstrapMathquestSim({ seed });
+      const bossId = candidate.getSnapshot().run.map.bossId;
+      if (walkTo(candidate, bossId) === "reached" && candidate.getSnapshot().mode === "run_won") {
+        sim = candidate;
+        break;
+      }
+    }
+    if (sim === undefined) throw new Error("no seed reached+beat the boss in 300 tries");
+    const snap = sim.getSnapshot();
+    expect(snap.mode).toBe("run_won");
+    expect(snap.run.warriorHp).toBeGreaterThan(0);
+  });
+});
+
+describe("bootstrapMathquestSim — newRun", () => {
+  it("is ignored while mode is 'map' or 'combat'", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const before = sim.getSnapshot();
+    sim.newRun();
+    expect(sim.getSnapshot()).toEqual(before);
+
+    sim.chooseNode(before.run.reachableIds[0]!);
+    const inCombat = sim.getSnapshot();
+    expect(inCombat.mode).toBe("combat");
+    sim.newRun();
+    expect(sim.getSnapshot()).toEqual(inCombat);
+  });
+
+  it("after a loss, newRun() resets warriorHp to full and generates a fresh map, back in 'map' mode", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+    driveCombatToLoss(sim);
+    expect(sim.getSnapshot().mode).toBe("run_lost");
+
+    sim.newRun();
+    const after = sim.getSnapshot();
+    expect(after.mode).toBe("map");
+    expect(after.run.warriorHp).toBe(WARRIOR_MAX_HP);
+    expect(after.run.visitedIds).toEqual([]);
+    expect(after.run.currentId).toBeNull();
+    expect([...after.run.reachableIds].sort((a, b) => a - b)).toEqual(
+      [...after.run.map.startIds].sort((a, b) => a - b),
+    );
+    // A fresh, validly-shaped map (run/map.test.ts covers the full invariant set — spot-check here).
+    const nonBoss = after.run.map.nodes.filter((n) => n.type !== "boss");
+    expect(nonBoss.length).toBeGreaterThanOrEqual(10);
+    expect(nonBoss.length).toBeLessThanOrEqual(14);
+  });
+
+  it("two successive newRuns produce two DIFFERENT maps (distinct `run:${n}` forks)", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+    driveCombatToLoss(sim);
+    sim.newRun();
+    const map1 = sim.getSnapshot().run.map;
+
+    sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+    driveCombatToLoss(sim);
+    sim.newRun();
+    const map2 = sim.getSnapshot().run.map;
+
+    expect(map1).not.toEqual(map2);
+  });
+});
+
+describe("bootstrapMathquestSim — determinism", () => {
+  it("the SAME seed + the SAME command script -> an IDENTICAL GameSnapshot sequence", () => {
+    const seed = 777;
+
+    function run(): GameSnapshot[] {
+      const sim = bootstrapMathquestSim({ seed });
+      const snapshots: GameSnapshot[] = [sim.getSnapshot()];
+      for (let fight = 0; fight < 4; fight++) {
+        const snap = sim.getSnapshot();
+        if (snap.mode !== "map") break;
+        sim.chooseNode(snap.run.reachableIds[0]!);
         snapshots.push(sim.getSnapshot());
-        const view = sim.getSnapshot().problem!;
-        const correct = correctResponseFor(view);
-        sim.submitAnswer(step.correct ? correct : wrongResponse(correct));
-        snapshots.push(sim.getSnapshot());
-        if (sim.getSnapshot().phase === "teach") {
-          sim.acknowledgeTeach();
+        let guard = 0;
+        while (sim.getSnapshot().mode === "combat" && guard++ < 300) {
+          const combatSnap = sim.getSnapshot();
+          if (combatSnap.mode !== "combat") break;
+          if (combatSnap.combat.phase === "await_action") {
+            sim.chooseAction(combatSnap.combat.warrior.hp <= 15 ? "heal" : "attack");
+          } else if (combatSnap.combat.phase === "await_answer") {
+            sim.submitAnswer(correctResponseFor(combatSnap.combat.problem!));
+          } else if (combatSnap.combat.phase === "teach") {
+            sim.acknowledgeTeach();
+          }
           snapshots.push(sim.getSnapshot());
         }
+        if (sim.getSnapshot().mode === "run_won" || sim.getSnapshot().mode === "run_lost") break;
       }
       return snapshots;
     }
@@ -308,69 +427,19 @@ describe("bootstrapMathquestSim — combat loop (M2: generators + teach + re-que
     expect(a).toEqual(b);
   });
 
-  it("determinism holds across setGrade + re-queue too (fuller script)", () => {
-    const seed = 555;
-    function run(): CombatSnapshot[] {
-      const sim = bootstrapMathquestSim({ seed });
-      const snapshots: CombatSnapshot[] = [sim.getSnapshot()];
-      sim.setGrade(3);
-      const actions: Array<"attack" | "heal" | "shield"> = ["attack", "heal", "attack", "shield", "attack"];
-      const wrongFlags = [true, false, true, false, true];
-      for (let i = 0; i < actions.length; i++) {
-        if (sim.getSnapshot().phase !== "await_action") break;
-        sim.chooseAction(actions[i]!);
-        const view = sim.getSnapshot().problem!;
-        const correct = correctResponseFor(view);
-        sim.submitAnswer(wrongFlags[i] ? wrongResponse(correct) : correct);
-        snapshots.push(sim.getSnapshot());
-        if (sim.getSnapshot().phase === "teach") {
-          sim.acknowledgeTeach();
-          snapshots.push(sim.getSnapshot());
-        }
-      }
+  it("determinism holds across a rest node + newRun too", () => {
+    function run(): GameSnapshot[] {
+      const sim = bootstrapMathquestSim({ seed: 2 });
+      const snapshots: GameSnapshot[] = [sim.getSnapshot()];
+      sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+      driveCombatToLoss(sim);
+      snapshots.push(sim.getSnapshot());
+      sim.newRun();
+      snapshots.push(sim.getSnapshot());
+      sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+      snapshots.push(sim.getSnapshot());
       return snapshots;
     }
     expect(run()).toEqual(run());
-  });
-
-  it("world and scheduler are freshly constructed per bootstrap call (no shared state leaks)", () => {
-    const a = bootstrapMathquestSim({ seed: 1 });
-    const b = bootstrapMathquestSim({ seed: 1 });
-    expect(a.world).not.toBe(b.world);
-    expect(a.scheduler).not.toBe(b.scheduler);
-  });
-
-  it("step() never mutates combat state (event-driven only)", () => {
-    const sim = bootstrapMathquestSim({ seed: 11 });
-    const before = sim.getSnapshot();
-    for (let i = 0; i < 50; i++) sim.step();
-    expect(sim.getSnapshot()).toEqual(before);
-  });
-
-  it("NEVER exposes answer/answerIndex on the projected snapshot, for both typed and choice problems", () => {
-    let sawTyped = false;
-    let sawChoice = false;
-    for (let seed = 1; seed <= 60 && !(sawTyped && sawChoice); seed++) {
-      const sim = bootstrapMathquestSim({ seed });
-      sim.chooseAction("attack");
-      const snap = sim.getSnapshot();
-      const json = JSON.stringify(snap);
-      expect(json).not.toContain('"answer"');
-      expect(json).not.toContain('"answerIndex"');
-      expect(Object.prototype.hasOwnProperty.call(snap.problem, "answer")).toBe(false);
-      expect(Object.prototype.hasOwnProperty.call(snap.problem, "answerIndex")).toBe(false);
-      if (snap.problem?.kind === "typed") sawTyped = true;
-      if (snap.problem?.kind === "choice") sawChoice = true;
-
-      // Also check the teach-phase snapshot (wrong answer) for the same leak.
-      const wrong = sim.getSnapshot().problem!;
-      sim.submitAnswer(wrongResponse(correctResponseFor(wrong)));
-      const teachSnap = sim.getSnapshot();
-      const teachJson = JSON.stringify(teachSnap);
-      expect(teachJson).not.toContain('"answer"');
-      expect(teachJson).not.toContain('"answerIndex"');
-    }
-    expect(sawTyped).toBe(true);
-    expect(sawChoice).toBe(true);
   });
 });
