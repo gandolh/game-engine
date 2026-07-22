@@ -9,6 +9,7 @@ import { describe, it, expect } from "vitest";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
 import type { CombatSnapshot, ProblemView } from "@mathquest/sim-core";
 import { createCombatScreen, type CombatScreenActions } from "./combat-screen";
+import { STRINGS } from "../strings";
 
 function walk(node: UINode, out: UINode[] = []): UINode[] {
   out.push(node);
@@ -86,27 +87,29 @@ describe("createCombatScreen — action menu / banner (unchanged M1 shapes)", ()
   it("shows Attack/Heal/Shield only in await_action", () => {
     const { screen } = makeScreen();
     screen.refresh(baseSnapshot({ phase: "await_action" }), "");
-    expect(buttons(screen.root).map((b) => b.label)).toEqual(expect.arrayContaining(["Attack", "Heal", "Shield"]));
+    expect(buttons(screen.root).map((b) => b.label)).toEqual(
+      expect.arrayContaining([STRINGS.actionLabel.attack, STRINGS.actionLabel.heal, STRINGS.actionLabel.shield]),
+    );
     screen.refresh(baseSnapshot({ phase: "won" }), "");
-    expect(buttons(screen.root).map((b) => b.label)).not.toContain("Attack");
+    expect(buttons(screen.root).map((b) => b.label)).not.toContain(STRINGS.actionLabel.attack);
   });
 
   it("clicking Attack calls chooseAction('attack')", () => {
     const { screen, calls } = makeScreen();
     screen.refresh(baseSnapshot({ phase: "await_action" }), "");
-    byLabel(screen.root, "Attack").onActivate?.();
+    byLabel(screen.root, STRINGS.actionLabel.attack).onActivate?.();
     expect(calls.chooseAction).toEqual(["attack"]);
   });
 
   it("won/lost shows the banner text + a working Restart button", () => {
     const { screen, calls } = makeScreen();
     screen.refresh(baseSnapshot({ phase: "won" }), "");
-    expect(labels(screen.root).map((l) => l.text)).toContain("Victory!");
-    byLabel(screen.root, "Restart").onActivate?.();
+    expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.won);
+    byLabel(screen.root, STRINGS.restart).onActivate?.();
     expect(calls.restart).toBe(1);
 
     screen.refresh(baseSnapshot({ phase: "lost" }), "");
-    expect(labels(screen.root).map((l) => l.text)).toContain("Defeat");
+    expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.lost);
   });
 });
 
@@ -176,8 +179,8 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
     const problem: ProblemView = { kind: "typed", topic: "addition", grade: 1, prompt: "3 + 4 = ?" };
     screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "3");
     byLabel(screen.root, "7").onActivate?.();
-    byLabel(screen.root, "←").onActivate?.();
-    byLabel(screen.root, "Enter").onActivate?.();
+    byLabel(screen.root, STRINGS.backspace).onActivate?.();
+    byLabel(screen.root, STRINGS.submit).onActivate?.();
     expect(calls.digits).toEqual([7]);
     expect(calls.backspace).toBe(1);
     expect(calls.submit).toBe(1);
@@ -197,10 +200,10 @@ describe("createCombatScreen — M2 teach card", () => {
     );
     const text = labels(screen.root).map((l) => l.text);
     expect(text).toContain("7 + 8: 7 + 3 = 10, apoi + 5 = 15");
-    expect(text).toContain("Fizzle!");
-    expect(() => byLabel(screen.root, "Continue")).not.toThrow();
+    expect(text).toContain(STRINGS.playerResultCue({ kind: "fizzle", action: "attack" }));
+    expect(() => byLabel(screen.root, STRINGS.continueLabel)).not.toThrow();
     // No action menu, no problem panel while in "teach".
-    expect(buttons(screen.root).map((b) => b.label)).not.toContain("Attack");
+    expect(buttons(screen.root).map((b) => b.label)).not.toContain(STRINGS.actionLabel.attack);
   });
 
   it("clicking Continue calls acknowledgeTeach", () => {
@@ -209,7 +212,7 @@ describe("createCombatScreen — M2 teach card", () => {
       baseSnapshot({ phase: "teach", teach: "x", lastPlayer: { kind: "fizzle", action: "heal" } }),
       "",
     );
-    byLabel(screen.root, "Continue").onActivate?.();
+    byLabel(screen.root, STRINGS.continueLabel).onActivate?.();
     expect(calls.acknowledgeTeach).toBe(1);
   });
 });
@@ -218,11 +221,11 @@ describe("createCombatScreen — grade readout (M3: read-only, no selector)", ()
   it("shows the fight's fixed grade as text, with no grade BUTTONS anywhere", () => {
     const { screen } = makeScreen();
     screen.refresh(baseSnapshot({ grade: 1 }), "");
-    expect(labels(screen.root).map((l) => l.text)).toContain("Grade: I");
+    expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.gradeReadout(1));
     expect(buttons(screen.root).map((b) => b.label)).not.toContain("I");
 
     screen.refresh(baseSnapshot({ grade: 3 }), "");
-    expect(labels(screen.root).map((l) => l.text)).toContain("Grade: III");
+    expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.gradeReadout(3));
   });
 });
 

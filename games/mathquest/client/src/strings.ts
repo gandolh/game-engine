@@ -1,9 +1,11 @@
 /**
- * MateQuest — centralized user-facing strings (EN only for now). Full RO/EN i18n is a later
- * milestone (M5, per corpus/wiki/mathquest-overview.md); keeping every string here now means M5
- * can swap this module for a locale-aware lookup without touching any widget code. Generator-
- * produced `prompt`/`teach` text (in `@mathquest/sim-core/combat/generators.ts`) is inline for the
- * same reason (M2 brief note) — it isn't UI chrome, it's curriculum content.
+ * MateQuest — centralized user-facing strings. **Romanian is the default language** (per the user
+ * directive 2026-07-22); a locale toggle is a later milestone (M5), at which point this module
+ * becomes a locale-aware lookup with RO as the default entry — keeping every string here now means
+ * that swap touches no widget code. Generator-produced `prompt`/`teach` text (in
+ * `@mathquest/sim-core/combat/generators.ts`) is Romanian inline for the same reason (it's
+ * curriculum content, not UI chrome). All Romanian diacritics render (the @engine/ui font carries
+ * them, incl. comma-below ș/ț).
  */
 import type { CombatAction, EnemyResult, Grade, NodeType, PlayerResult } from "@mathquest/sim-core";
 
@@ -11,24 +13,24 @@ export const STRINGS = {
   title: "MateQuest — Cetatea Cifrelor",
 
   actionLabel: {
-    attack: "Attack",
-    heal: "Heal",
-    shield: "Shield",
+    attack: "Atacă",
+    heal: "Vindecă",
+    shield: "Scut",
   } satisfies Record<CombatAction, string>,
 
   enemyIntentPrefix: "†",
   warriorBlockPrefix: "◆",
 
-  submit: "Enter",
+  submit: "Trimite",
   backspace: "←",
   typedPlaceholder: "?",
 
-  won: "Victory!",
-  lost: "Defeat",
-  restart: "Restart",
+  won: "Victorie!",
+  lost: "Înfrângere",
+  restart: "Din nou",
 
-  continueLabel: "Continue",
-  teachTitle: "Learn:",
+  continueLabel: "Mai departe",
+  teachTitle: "Învață:",
 
   gradeLabel: {
     1: "I",
@@ -37,28 +39,27 @@ export const STRINGS = {
     4: "IV",
   } satisfies Record<Grade, string>,
 
-  /** M3: the combat screen's READ-ONLY grade line (the fight's difficulty came from the chosen
-   * map node — see `ui/map-screen.ts` — not a mid-fight selector). */
+  /** The combat screen's READ-ONLY class line (the fight's difficulty came from the chosen map node
+   * — see `ui/map-screen.ts` — not a mid-fight selector). */
   gradeReadout(grade: Grade): string {
-    return `Grade: ${STRINGS.gradeLabel[grade]}`;
+    return `Clasa: ${STRINGS.gradeLabel[grade]}`;
   },
 
-  turnLabel: (turn: number): string => `Turn ${turn}`,
+  turnLabel: (turn: number): string => `Tura ${turn}`,
 
   /** The PLAYER's own result-cue line, rendered from `CombatSnapshot.lastPlayer`. Kept on its OWN
-   * line — separate from `enemyResultCue` — so it is never overwritten by the enemy's hit
-   * (M2 fold-in of the M1 known-minor). */
+   * line — separate from `enemyResultCue` — so it is never overwritten by the enemy's hit. */
   playerResultCue(last: PlayerResult): string {
     switch (last.kind) {
       case "none":
         return "";
       case "landed": {
-        if (last.action === "attack") return `Hit! -${last.amount}`;
-        if (last.action === "heal") return `Heal! +${last.amount}`;
-        return `Shield up! +${last.amount} block`;
+        if (last.action === "attack") return `Lovitură! -${last.amount}`;
+        if (last.action === "heal") return `Vindecare! +${last.amount}`;
+        return `Scut! +${last.amount} blocaj`;
       }
       case "fizzle":
-        return "Fizzle!";
+        return "Ratat!";
     }
   },
 
@@ -69,46 +70,47 @@ export const STRINGS = {
         return "";
       case "enemy_hit":
         return last.blocked > 0
-          ? `${enemyName} hits for ${last.amount} (${last.blocked} blocked)`
-          : `${enemyName} hits for ${last.amount}`;
+          ? `${enemyName} lovește cu ${last.amount} (${last.blocked} blocat)`
+          : `${enemyName} lovește cu ${last.amount}`;
     }
   },
 
-  // --- M3: map screen (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md, Part B) -----------
+  // --- map screen ------------------------------------------------------------------------------
 
-  mapTitle: "Choose your path",
-  warriorHpLabel: "Warrior",
+  mapTitle: "Alege-ți drumul",
+  warriorHpLabel: "Războinic",
 
-  /** A map node's label: type glyph + grade (e.g. "† G2", "★ Elite G3", "♥ Rest", "♠ Boss G4").
-   * Glyphs are limited to what the @engine/ui bitmap font covers (ASCII + Romanian diacritics +
-   * the symbol set incl. † ★ ♥ ♠) — ⚔/☾/☠ aren't in UNSCII, so daggers/hearts/spades stand in.
-   * `"rest"` carries no grade (ignored, per `run/map.ts`'s `MapNode` doc). */
+  /** The four zone banners along the horizontal journey, indexed by zone (left→right). The last is
+   * the boss zone. Purely cosmetic (see `ui/map-screen.ts`'s `ZONES`). */
+  zoneName: ["Pădurea Adâncă", "Satul", "Munții Carpați", "Bârlogul Zmeului"] as const,
+
+  /** A map node's one-line label (glyph + class), still used by the legend + any text fallback.
+   * Glyphs are limited to the @engine/ui font's symbol set († ★ ♥ ♠ — ⚔/☾/☠ aren't in UNSCII). */
   nodeLabel(type: NodeType, grade: Grade): string {
     switch (type) {
       case "combat":
-        return `† G${grade}`;
+        return `† ${STRINGS.gradeLabel[grade]}`;
       case "elite":
-        return `★ Elite G${grade}`;
+        return `★ Elită ${STRINGS.gradeLabel[grade]}`;
       case "rest":
-        return `♥ Rest`;
+        return `♥ Odihnă`;
       case "boss":
-        return `♠ Boss G${grade}`;
+        return `♠ Boss ${STRINGS.gradeLabel[grade]}`;
     }
   },
 
-  /** Prefixed onto an already-visited node's label so a resolved node reads differently from a
-   * merely-unreachable one (both end up `state: "disabled"` — see `ui/map-screen.ts`). */
-  visitedPrefix: "✓ ",
+  /** Prefixed onto an already-visited node so a cleared node reads differently. */
+  visitedPrefix: "✓",
 
-  legendTitle: "Legend:",
+  legendTitle: "Legendă:",
   legendLabel: {
-    combat: "Combat",
-    elite: "Elite (harder)",
-    rest: "Rest (heals)",
+    combat: "Luptă",
+    elite: "Elită (greu)",
+    rest: "Odihnă (vindecă)",
     boss: "Boss",
   } satisfies Record<NodeType, string>,
 
-  // --- M3: run-over screen ------------------------------------------------------------------
+  // --- run-over screen ------------------------------------------------------------------------
 
   runWon: "Ai învins!",
   runLost: "Ai pierdut",
