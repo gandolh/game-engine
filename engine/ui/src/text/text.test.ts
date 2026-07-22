@@ -150,12 +150,18 @@ describe.each([
   ["body (unscii-8)", BODY_FONT],
   ["display (unscii-16)", DISPLAY_FONT],
 ] as const)("bakeFontAtlas determinism + coverage — %s", (_label, font) => {
-  it("covers all printable ASCII with a frame each", () => {
+  it("covers every allChars() glyph (printable ASCII + Romanian diacritics) with a frame each", () => {
     const baked = bakeFontAtlas(font);
     for (const ch of allChars()) {
       expect(baked.manifest.frames[frameNameFor(ch)]).toBeDefined();
     }
-    expect(Object.keys(baked.manifest.frames)).toHaveLength(0x7e - 0x20 + 1);
+    // One frame per covered char, no more, no fewer — guards the codepoint→frame mapping against
+    // the contiguous-range assumption that broke when diacritics were appended after ASCII.
+    expect(Object.keys(baked.manifest.frames)).toHaveLength(allChars().length);
+    // The Romanian diacritics specifically must be present (comma-below ș/ț included).
+    for (const ch of ["ă", "â", "î", "ș", "ț", "Ă", "Â", "Î", "Ș", "Ț"]) {
+      expect(baked.manifest.frames[frameNameFor(ch)], `missing frame for ${ch}`).toBeDefined();
+    }
   });
 
   it("produces a byte-identical raster on repeated bakes", () => {

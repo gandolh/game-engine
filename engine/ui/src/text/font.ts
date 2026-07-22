@@ -1,6 +1,6 @@
 import type { AtlasManifest } from "@engine/core/assets";
 import { EDG, rgbOf } from "@engine/core/render";
-import { allChars, DEFAULT_FONT, fontAtlasId, FIRST_CODEPOINT, glyphRows, type UiFont } from "./fonts";
+import { allChars, DEFAULT_FONT, fontAtlasId, glyphRows, type UiFont } from "./fonts";
 
 /**
  * Deterministic bitmap-font baking for `@engine/ui`.
@@ -54,7 +54,6 @@ export function bakeFontAtlas(font: UiFont = DEFAULT_FONT): BakedFont {
   const frames: AtlasManifest["frames"] = {};
   for (let i = 0; i < cols; i += 1) {
     const char = chars[i]!;
-    const cp = FIRST_CODEPOINT + i;
     const rows = glyphRows(font, char);
     const cellX = i * glyphWidth;
     for (let ry = 0; ry < glyphHeight; ry += 1) {
@@ -70,7 +69,9 @@ export function bakeFontAtlas(font: UiFont = DEFAULT_FONT): BakedFont {
         rgba[o + 3] = 255;
       }
     }
-    frames[frameNameFor(String.fromCharCode(cp))] = {
+    // Name the frame from the ACTUAL char, not `FIRST_CODEPOINT + i` — `allChars()` is no longer
+    // a contiguous codepoint range (it appends the Romanian diacritics after ASCII).
+    frames[frameNameFor(char)] = {
       x: cellX,
       y: 0,
       w: glyphWidth,

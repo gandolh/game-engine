@@ -30,16 +30,33 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const UI_ROOT = join(HERE, ".."); // engine/ui
 
-/** First / last code points kept (inclusive). Printable ASCII — matches the old font's coverage. */
+/** First / last code points kept (inclusive). Printable ASCII — the base coverage. */
 const FIRST_CODEPOINT = 0x20;
 const LAST_CODEPOINT = 0x7e;
+
+/**
+ * Extra non-ASCII code points emitted beyond printable ASCII: the Romanian diacritics.
+ * UNSCII carries the CORRECT comma-below ș/ț (U+0218..U+021B), not the Turkish cedilla forms.
+ * Ă ă  Â â  Î î  Ș ș  Ț ț. Kept in sync with `EXTRA_CODEPOINTS` in `src/text/fonts.ts`
+ * (that list drives which glyphs the atlas bakes + lays out; this one drives which get emitted).
+ */
+const EXTRA_CODEPOINTS = [0x102, 0x103, 0x0c2, 0x0e2, 0x0ce, 0x0ee, 0x218, 0x219, 0x21a, 0x21b];
+
+/** All code points this generator emits, ascending — printable ASCII plus `EXTRA_CODEPOINTS`. */
+const KEPT_CODEPOINTS: number[] = (() => {
+  const s = new Set<number>();
+  for (let cp = FIRST_CODEPOINT; cp <= LAST_CODEPOINT; cp += 1) s.add(cp);
+  for (const cp of EXTRA_CODEPOINTS) s.add(cp);
+  return [...s].sort((a, b) => a - b);
+})();
+const KEPT_SET = new Set(KEPT_CODEPOINTS);
 
 interface ParsedFont {
   /** codepoint -> row bytes (one element per row, each 0..255, MSB = leftmost of 8 columns). */
   readonly rows: ReadonlyMap<number, readonly number[]>;
 }
 
-/** Parse a `.hex` bitmap font, keeping only printable-ASCII (0x20..0x7e) glyphs. */
+/** Parse a `.hex` bitmap font, keeping only the `KEPT_CODEPOINTS` (ASCII + Romanian diacritics). */
 function parseHexFont(path: string): ParsedFont {
   const text = readFileSync(path, "utf8");
   const rows = new Map<number, readonly number[]>();
@@ -53,7 +70,7 @@ function parseHexFont(path: string): ParsedFont {
 
     const cp = Number.parseInt(line.slice(0, sep), 16);
     if (Number.isNaN(cp)) throw new Error(`${path}: bad codepoint field: ${JSON.stringify(line)}`);
-    if (cp < FIRST_CODEPOINT || cp > LAST_CODEPOINT) continue; // only printable ASCII
+    if (!KEPT_SET.has(cp)) continue; // printable ASCII + Romanian diacritics only
 
     const bitmap = line.slice(sep + 1);
     if (bitmap.length === 0 || bitmap.length % 2 !== 0) {
@@ -71,8 +88,8 @@ function parseHexFont(path: string): ParsedFont {
     rows.set(cp, rowBytes);
   }
 
-  // Every printable-ASCII codepoint must be present, exactly once each.
-  for (let cp = FIRST_CODEPOINT; cp <= LAST_CODEPOINT; cp += 1) {
+  // Every kept codepoint (ASCII + Romanian diacritics) must be present, exactly once each.
+  for (const cp of KEPT_CODEPOINTS) {
     if (!rows.has(cp)) throw new Error(`${path}: missing codepoint 0x${cp.toString(16)}`);
   }
 
@@ -110,7 +127,8 @@ function generate(opts: {
   lines.push(` * Produced by \`engine/ui/tools/hex-to-glyphs.ts\` from \`engine/ui/${opts.hexFile}\`.`);
   lines.push(` * Regenerate: npx tsx engine/ui/tools/hex-to-glyphs.ts`);
   lines.push(` *`);
-  lines.push(` * ${opts.glyphWidth}x${glyphHeight} pixel-font glyph cells for printable ASCII (0x20..0x7e),`);
+  lines.push(` * ${opts.glyphWidth}x${glyphHeight} pixel-font glyph cells for printable ASCII (0x20..0x7e)`);
+  lines.push(` * plus Romanian diacritics (Ă ă Â â Î î Ș ș Ț ț — comma-below ș/ț),`);
   lines.push(` * from UNSCII (public domain / CC-0 — see engine/ui/vendor/LICENSE.md). Glyphs are`);
   lines.push(` * white/alpha masks: this table carries no colour, only lit/unlit bits, so it stays`);
   lines.push(` * palette-agnostic (both games tint at draw time).`);
@@ -121,7 +139,7 @@ function generate(opts: {
   lines.push(`export const ${opts.constPrefix}_HEIGHT = ${glyphHeight};`);
   lines.push("");
   lines.push(`export const ${opts.constPrefix}_GLYPHS: Record<string, GlyphRows> = {`);
-  for (let cp = FIRST_CODEPOINT; cp <= LAST_CODEPOINT; cp += 1) {
+  for (const cp of KEPT_CODEPOINTS) {
     const rowBytes = font.rows.get(cp)!;
     const key = JSON.stringify(String.fromCharCode(cp));
     lines.push(`  ${key}: ${rowsLiteral(rowBytes)},`);

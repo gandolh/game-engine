@@ -16,15 +16,26 @@ export type { GlyphRows } from "./glyph-types";
  *  - {@link DISPLAY_FONT} (unscii-16, 8x16 cell) — opt in via `{ font: DISPLAY_FONT }` for
  *    headings/large text.
  *
- * Both cover printable ASCII (0x20..0x7e) only, with `"?"` as the fallback glyph for any
- * other character (see {@link glyphRows}). Glyph data is a white/alpha bitmask — colour
- * never appears here, so this module stays clean under the repo-wide palette guard; the
- * caller's `color` tints the mask at draw time (see `./draw`).
+ * Both cover printable ASCII (0x20..0x7e) plus the Romanian diacritics in
+ * {@link EXTRA_CODEPOINTS}, with `"?"` as the fallback glyph for any other character (see
+ * {@link glyphRows}). Glyph data is a white/alpha bitmask — colour never appears here, so this
+ * module stays clean under the repo-wide palette guard; the caller's `color` tints the mask at
+ * draw time (see `./draw`).
  */
 
-/** First / last code points covered (inclusive) by every `@engine/ui` font. Printable ASCII. */
+/** First / last code points of the base ASCII coverage (inclusive) for every `@engine/ui` font. */
 export const FIRST_CODEPOINT = 0x20;
 export const LAST_CODEPOINT = 0x7e;
+
+/**
+ * Non-ASCII code points also covered: the Romanian diacritics (UNSCII carries the correct
+ * comma-below ș/ț, U+0218..U+021B, not the Turkish cedilla forms). Ă ă  Â â  Î î  Ș ș  Ț ț.
+ * Kept in sync with `EXTRA_CODEPOINTS` in `engine/ui/tools/hex-to-glyphs.ts` (the generator that
+ * bakes these into the glyph tables). Extending this list requires re-running that generator.
+ */
+export const EXTRA_CODEPOINTS: readonly number[] = [
+  0x102, 0x103, 0x0c2, 0x0e2, 0x0ce, 0x0ee, 0x218, 0x219, 0x21a, 0x21b,
+];
 
 /** Character substituted for any code point outside a font's coverage. */
 export const FALLBACK_CHAR = "?";
@@ -94,11 +105,11 @@ export function glyphRows(font: UiFont, char: string): GlyphRows {
   return font.glyphs[char] ?? font.glyphs[FALLBACK_CHAR]!;
 }
 
-/** Every covered character in code-point order — drives the deterministic atlas layout. */
+/** Every covered character in code-point order — drives the deterministic atlas layout.
+ * Printable ASCII followed by the Romanian {@link EXTRA_CODEPOINTS}, both ascending. */
 export function allChars(): string[] {
-  const out: string[] = [];
-  for (let cp = FIRST_CODEPOINT; cp <= LAST_CODEPOINT; cp += 1) {
-    out.push(String.fromCharCode(cp));
-  }
-  return out;
+  const cps = new Set<number>();
+  for (let cp = FIRST_CODEPOINT; cp <= LAST_CODEPOINT; cp += 1) cps.add(cp);
+  for (const cp of EXTRA_CODEPOINTS) cps.add(cp);
+  return [...cps].sort((a, b) => a - b).map((cp) => String.fromCharCode(cp));
 }
