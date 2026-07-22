@@ -1,25 +1,37 @@
 /**
- * MateQuest M1 — the combat screen, a retained `@engine/ui` widget tree built ONCE
+ * MateQuest — the combat screen, a retained `@engine/ui` widget tree built ONCE
  * (`createCombatScreen`) and mutated per frame by `refresh(snapshot, typedValue)` from the
  * latest `CombatSnapshot` — mirrors Citadel's `resource-hud.ts` (`createResourceHud` +
  * per-frame `refresh`) and Farm's `slate-billboard.ts` (the bg-track/fg-fill HP-bar pattern,
  * whose custom fill colour is painted in a SEPARATE `drawBars` pass after `renderTree`, since
  * `ContainerNode` has no per-instance fill colour — only the shared theme `panelBg`).
  *
- * Phase-conditional content (the action menu vs. the problem panel vs. the win/lose banner) is
- * modelled by SWAPPING which built-once subtree is a CHILD of its slot each refresh, not by
- * fading it to `opacity: 0` — `hitTest`/`focusables` don't consult opacity, so a button merely
- * faded out would still be clickable/Tab-reachable. Removing it from `children` makes it truly
- * inert (and the a11y mirror correctly drops/re-adds its DOM entry by node id).
+ * Phase-conditional content (the action menu vs. the problem panel vs. the teach card vs. the
+ * win/lose banner) is modelled by SWAPPING which built-once subtree is a CHILD of its slot each
+ * refresh, not by fading it to `opacity: 0` — `hitTest`/`focusables` don't consult opacity, so a
+ * button merely faded out would still be clickable/Tab-reachable. Removing it from `children`
+ * makes it truly inert (and the a11y mirror correctly drops/re-adds its DOM entry by node id).
+ *
+ * M2 additions (corpus/todos/2026-07-22-mathquest-M2-problem-generators.md, Part B):
+ *  - the problem panel's input area swaps between the numeric keypad (`problem.kind==="typed"`)
+ *    and a row of choice buttons (`problem.kind==="choice"`) — both built once, never rebuilt;
+ *  - a teach card (phase `"teach"`) shows the worked step + the fizzle cue + a Continue button;
+ *  - a grade selector (I/II/III/IV) is ALWAYS visible (not phase-gated) so the player can pick
+ *    difficulty mid-run, per the brief;
+ *  - the single M1 `last` cue is split into TWO always-separate lines, `lastPlayer`/`lastEnemy`
+ *    (the M1 known-minor fold-in — the player's own result no longer gets overwritten).
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode, UISurface } from "@engine/ui";
-import type { CombatAction, CombatSnapshot } from "@mathquest/sim-core";
+import type { CombatAction, CombatSnapshot, Grade } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import { STRINGS } from "../strings";
 
 const HP_BAR_WIDTH = 200;
 const HP_BAR_HEIGHT = 12;
+const GRADES: readonly Grade[] = [1, 2, 3, 4];
+/** Comparison always generates exactly 3 choices (`<`, `>`, `=`) — see the M2 brief. */
+const CHOICE_SLOTS = 3;
 
 /** Actions the screen's buttons invoke — wired once at creation (mirrors `ResourceHudActions`). */
 export interface CombatScreenActions {
@@ -27,6 +39,12 @@ export interface CombatScreenActions {
   appendDigit(digit: number): void;
   backspace(): void;
   submit(): void;
+  /** Submits `{kind:"choice", index}` for the pending choice problem. */
+  submitChoice(index: number): void;
+  /** Posts `acknowledge-teach` — advances past the teach card into the enemy's (deferred) turn. */
+  acknowledgeTeach(): void;
+  /** Posts `set-grade` — changes the player's chosen difficulty. */
+  setGrade(grade: Grade): void;
   restart(): void;
 }
 
@@ -58,6 +76,10 @@ function setText(lbl: LabelNode, text: string): boolean {
   return true;
 }
 
+function sameChildren(container: ContainerNode, next: readonly ContainerNode[]): boolean {
+  return container.children.length === next.length && container.children.every((c, i) => c === next[i]);
+}
+
 /** The retained combat screen: its root node plus `refresh()` + the deferred `drawBars()` pass. */
 export interface CombatScreen {
   readonly root: ContainerNode;
@@ -75,6 +97,15 @@ export interface CombatScreen {
 }
 
 export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
+  // --- Grade selector (always visible — how the player picks difficulty until M3's map) --------
+  const gradeBtns: ButtonNode[] = GRADES.map((g) =>
+    button(STRINGS.gradeLabel[g], { onActivate: () => actions.setGrade(g) }),
+  );
+  const gradeRow = box({ direction: "row", gap: 4, align: "center" }, [
+    label(STRINGS.gradeSelectorLabel, { color: MATE_PAL.steel }),
+    ...gradeBtns,
+  ]);
+
   // --- Enemy area -----------------------------------------------------------------------------
   const enemyNameLbl = label("", { color: MATE_PAL.cream, scale: 2 });
   const enemyHpBar = makeHpBar(MATE_PAL.red);
@@ -97,8 +128,9 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     warriorBlockLbl,
   ]);
 
-  // --- Result cue + turn counter -----------------------------------------------------------------
-  const cueLbl = label("", { color: MATE_PAL.yellow });
+  // --- Result cues (M2: two SEPARATE lines — the player's own result never overwritten) + turn --
+  const playerCueLbl = label("", { color: MATE_PAL.yellow });
+  const enemyCueLbl = label("", { color: MATE_PAL.salmon });
   const turnLbl = label("", { color: MATE_PAL.steel });
 
   // --- Action menu (await_action) -----------------------------------------------------------------
@@ -107,7 +139,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   const shieldBtn = button(STRINGS.actionLabel.shield, { onActivate: () => actions.chooseAction("shield") });
   const actionMenu = box({ direction: "row", gap: 8 }, [attackBtn, healBtn, shieldBtn]);
 
-  // --- Problem panel (await_answer): prompt + typed buffer + numeric keypad ----------------------
+  // --- Problem panel (await_answer): prompt + EITHER typed keypad OR choice buttons --------------
   const promptLbl = label("", { color: MATE_PAL.white, scale: 2 });
   const typedLbl = label(STRINGS.typedPlaceholder, { color: MATE_PAL.cyan, scale: 2 });
 
@@ -123,9 +155,26 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     box({ direction: "row", gap: 4 }, [digitBtns[6]!, digitBtns[7]!, digitBtns[8]!]),
     box({ direction: "row", gap: 4 }, [backspaceBtn, digitBtns[9]!, enterBtn]),
   ]);
-  const problemPanel = panel({ direction: "column", gap: 8 }, [promptLbl, typedLbl, keypad]);
+  const typedGroup = box({ direction: "column", gap: 4 }, [typedLbl, keypad]);
 
-  // --- dynamicArea: swaps between actionMenu / problemPanel / nothing (won/lost) ------------------
+  // Choice buttons: built ONCE (fixed count — comparison always emits exactly 3 relations); their
+  // `label` text is rebound each refresh from `problem.choices[i]`.
+  const choiceBtns: ButtonNode[] = Array.from({ length: CHOICE_SLOTS }, (_, i) =>
+    button("", { onActivate: () => actions.submitChoice(i) }),
+  );
+  const choiceRow = box({ direction: "row", gap: 8 }, choiceBtns);
+
+  const inputArea = box({ direction: "column", gap: 4 }, []);
+  const problemPanel = panel({ direction: "column", gap: 8 }, [promptLbl, inputArea]);
+
+  // --- Teach card (phase "teach"): worked step + the fizzle cue + Continue -----------------------
+  const teachTitleLbl = label(STRINGS.teachTitle, { color: MATE_PAL.gold });
+  const teachFizzleLbl = label("", { color: MATE_PAL.yellow });
+  const teachTextLbl = label("", { color: MATE_PAL.cream, maxWidth: 320 });
+  const continueBtn = button(STRINGS.continueLabel, { onActivate: () => actions.acknowledgeTeach() });
+  const teachCard = panel({ direction: "column", gap: 8 }, [teachTitleLbl, teachFizzleLbl, teachTextLbl, continueBtn]);
+
+  // --- dynamicArea: swaps between actionMenu / problemPanel / teachCard / nothing (won/lost) ------
   const dynamicArea = box({ direction: "column", gap: 8 }, []);
 
   // --- Banner (won/lost) --------------------------------------------------------------------------
@@ -137,10 +186,12 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   const titleLbl = label(STRINGS.title, { color: MATE_PAL.gold });
   const root = box({ direction: "column", gap: 12, padding: 16 }, [
     titleLbl,
+    gradeRow,
     enemyArea,
     warriorArea,
     turnLbl,
-    cueLbl,
+    playerCueLbl,
+    enemyCueLbl,
     dynamicArea,
     bannerArea,
   ]);
@@ -164,33 +215,69 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     if (setText(warriorBlockLbl, blockText)) changed = true;
 
     if (setText(turnLbl, STRINGS.turnLabel(snapshot.turn))) changed = true;
-    if (setText(cueLbl, STRINGS.resultCue(snapshot.last, snapshot.enemy.name))) changed = true;
+    if (setText(playerCueLbl, STRINGS.playerResultCue(snapshot.lastPlayer))) changed = true;
+    if (setText(enemyCueLbl, STRINGS.enemyResultCue(snapshot.lastEnemy, snapshot.enemy.name))) changed = true;
 
-    if (snapshot.phase === "await_answer") {
-      if (setText(promptLbl, snapshot.prompt ?? "")) changed = true;
-      const shown = typedValue.length > 0 ? typedValue : STRINGS.typedPlaceholder;
-      if (setText(typedLbl, shown)) changed = true;
+    // Grade selector: highlight the current grade (mirrors createBuildBar's selected/active pattern).
+    for (let i = 0; i < GRADES.length; i++) {
+      const btn = gradeBtns[i]!;
+      const nextState = GRADES[i] === snapshot.grade ? "active" : "normal";
+      if (btn.state !== nextState) {
+        btn.state = nextState;
+        changed = true;
+      }
+    }
+
+    if (snapshot.phase === "await_answer" && snapshot.problem !== null) {
+      const problem = snapshot.problem;
+      if (setText(promptLbl, problem.prompt)) changed = true;
+
+      if (problem.kind === "typed") {
+        if (!sameChildren(inputArea, [typedGroup])) {
+          inputArea.children = [typedGroup];
+          changed = true;
+        }
+        const shown = typedValue.length > 0 ? typedValue : STRINGS.typedPlaceholder;
+        if (setText(typedLbl, shown)) changed = true;
+      } else {
+        if (!sameChildren(inputArea, [choiceRow])) {
+          inputArea.children = [choiceRow];
+          changed = true;
+        }
+        for (let i = 0; i < CHOICE_SLOTS; i++) {
+          const nextLabel = problem.choices[i] ?? "";
+          if (choiceBtns[i]!.label !== nextLabel) {
+            choiceBtns[i]!.label = nextLabel;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    if (snapshot.phase === "teach") {
+      if (setText(teachTextLbl, snapshot.teach ?? "")) changed = true;
+      if (setText(teachFizzleLbl, STRINGS.playerResultCue(snapshot.lastPlayer))) changed = true;
     }
 
     // Swap dynamicArea's content by PHASE (removing the inactive subtree from the tree entirely —
     // see the module doc on why opacity alone would leave hidden buttons hittable/focusable).
-    const nextDynamicChildren =
-      snapshot.phase === "await_action" ? [actionMenu] : snapshot.phase === "await_answer" ? [problemPanel] : [];
-    if (
-      dynamicArea.children.length !== nextDynamicChildren.length ||
-      dynamicArea.children.some((c, i) => c !== nextDynamicChildren[i])
-    ) {
+    const nextDynamicChildren: ContainerNode[] =
+      snapshot.phase === "await_action"
+        ? [actionMenu]
+        : snapshot.phase === "await_answer"
+          ? [problemPanel]
+          : snapshot.phase === "teach"
+            ? [teachCard]
+            : [];
+    if (!sameChildren(dynamicArea, nextDynamicChildren)) {
       dynamicArea.children = nextDynamicChildren;
       changed = true;
     }
 
     const isOver = snapshot.phase === "won" || snapshot.phase === "lost";
     if (isOver) setText(bannerLbl, snapshot.phase === "won" ? STRINGS.won : STRINGS.lost);
-    const nextBannerChildren = isOver ? [bannerBox] : [];
-    if (
-      bannerArea.children.length !== nextBannerChildren.length ||
-      bannerArea.children.some((c, i) => c !== nextBannerChildren[i])
-    ) {
+    const nextBannerChildren: ContainerNode[] = isOver ? [bannerBox] : [];
+    if (!sameChildren(bannerArea, nextBannerChildren)) {
       bannerArea.children = nextBannerChildren;
       changed = true;
     }

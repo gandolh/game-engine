@@ -29,7 +29,7 @@ import {
   type InputDispatcher,
   type A11yMirror,
 } from "@engine/ui";
-import type { CombatSnapshot } from "@mathquest/sim-core";
+import type { AnswerResponse, CombatSnapshot, Grade } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
 import { MATE_THEME } from "./render/mate-theme";
 import { createCombatScreen, type CombatScreenActions } from "./ui/combat-screen";
@@ -38,9 +38,10 @@ import type { WorkerInbound, WorkerOutbound } from "./worker/sim-worker";
 // M1 has no run/seed-select screen yet — a fixed seed proves the deterministic-seed seam and
 // gives a repeatable fight; Restart re-inits with the same seed.
 const SEED = 1;
-// The math answers in M1 are a+b with a,b ∈ 2..9 (max 18), so two digits suffice; cap at 3 to
-// keep the typed buffer from growing without bound if the player mashes the keypad.
-const MAX_ANSWER_DIGITS = 3;
+// M2's grade-4 typed answers can run up to 4 digits (e.g. a 2-digit × 2-digit product up to
+// 9801, or a grade-4 sum up to ~9998) — 5 digits leaves headroom without letting the buffer grow
+// unbounded if the player mashes the keypad.
+const MAX_ANSWER_DIGITS = 5;
 
 const canvasRaw = document.getElementById("scene");
 if (!(canvasRaw instanceof HTMLCanvasElement)) {
@@ -90,8 +91,19 @@ async function main(): Promise<void> {
     },
     submit() {
       if (typedValue.length === 0) return;
-      post({ type: "submit-answer", value: Number(typedValue) });
+      const response: AnswerResponse = { kind: "typed", value: Number(typedValue) };
+      post({ type: "submit-answer", response });
       typedValue = "";
+    },
+    submitChoice(index) {
+      const response: AnswerResponse = { kind: "choice", index };
+      post({ type: "submit-answer", response });
+    },
+    acknowledgeTeach() {
+      post({ type: "acknowledge-teach" });
+    },
+    setGrade(grade: Grade) {
+      post({ type: "set-grade", grade });
     },
     restart() {
       typedValue = "";

@@ -1,17 +1,17 @@
 /**
- * MateQuest sim worker — M1: extends the M0 scaffold worker with the combat command channel.
- * Mirrors `@citadel/client`'s `src/worker/sim-worker.ts` `self.onmessage` command-channel shape
- * (a Web-Worker solo sim, no server) and Hollow's equivalent worker.
+ * MateQuest sim worker — extends the M0/M1 scaffold worker with the M2 command channel (teach +
+ * re-queue + grade select). Mirrors `@citadel/client`'s `src/worker/sim-worker.ts` `self.onmessage`
+ * command-channel shape (a Web-Worker solo sim, no server) and Hollow's equivalent worker.
  *
  * Drives `bootstrapMathquestSim()` at a fixed 20 Hz base cadence and posts a snapshot after each
- * paced tick (cheap — keeps the view fresh) AND immediately after every `choose-action`/
- * `submit-answer` command, so the client sees the combat resolution the instant it happens
- * rather than waiting for the next tick. `step()` itself never changes combat state (see
- * `sim-bootstrap.ts`'s module doc) — the 20 Hz real-time cadence is this transport's OWN pacing,
- * never the sim's (determinism is load-bearing — root CLAUDE.md).
+ * paced tick (cheap — keeps the view fresh) AND immediately after every command, so the client
+ * sees the combat resolution the instant it happens rather than waiting for the next tick.
+ * `step()` itself never changes combat state (see `sim-bootstrap.ts`'s module doc) — the 20 Hz
+ * real-time cadence is this transport's OWN pacing, never the sim's (determinism is load-bearing —
+ * root CLAUDE.md).
  */
 import { bootstrapMathquestSim } from "@mathquest/sim-core/sim-bootstrap";
-import type { CombatAction, CombatSnapshot } from "@mathquest/sim-core/sim-bootstrap";
+import type { AnswerResponse, CombatAction, CombatSnapshot, Grade } from "@mathquest/sim-core/sim-bootstrap";
 
 export interface WorkerInitMessage {
   type: "init";
@@ -23,12 +23,29 @@ export interface WorkerChooseActionMessage {
   action: CombatAction;
 }
 
+/** M2: carries a full `AnswerResponse` (typed value OR choice index) — supersedes M1's `{value}`. */
 export interface WorkerSubmitAnswerMessage {
   type: "submit-answer";
-  value: number;
+  response: AnswerResponse;
 }
 
-export type WorkerInbound = WorkerInitMessage | WorkerChooseActionMessage | WorkerSubmitAnswerMessage;
+/** M2: advances past the teach card into the (deferred) enemy turn. */
+export interface WorkerAcknowledgeTeachMessage {
+  type: "acknowledge-teach";
+}
+
+/** M2: sets the player's chosen difficulty (I–IV). */
+export interface WorkerSetGradeMessage {
+  type: "set-grade";
+  grade: Grade;
+}
+
+export type WorkerInbound =
+  | WorkerInitMessage
+  | WorkerChooseActionMessage
+  | WorkerSubmitAnswerMessage
+  | WorkerAcknowledgeTeachMessage
+  | WorkerSetGradeMessage;
 
 export type WorkerOutbound =
   | { type: "ready" }
@@ -71,7 +88,17 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       break;
     }
     case "submit-answer": {
-      sim?.submitAnswer(msg.value);
+      sim?.submitAnswer(msg.response);
+      postSnapshot();
+      break;
+    }
+    case "acknowledge-teach": {
+      sim?.acknowledgeTeach();
+      postSnapshot();
+      break;
+    }
+    case "set-grade": {
+      sim?.setGrade(msg.grade);
       postSnapshot();
       break;
     }
