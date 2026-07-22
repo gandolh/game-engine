@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M3 map & runs done, verified)
-updated: 2026-07-22 (M3 branching map + run layer complete on branch `mathquest`)
+status: in-progress (M3 + M3.1 spatial map + RO diacritics done, verified)
+updated: 2026-07-22 (M3.1 Mewgenics-style map + Romanian-diacritics font on branch `mathquest`)
 
 **Read this first to resume the MateQuest build.** Design-of-record is
 [corpus/wiki/mathquest-overview.md](../wiki/mathquest-overview.md) — read it before any brief.
@@ -57,7 +57,8 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M0 scaffold | ✅ **done, controller-verified** (Sonnet executor) | `db20d58` (+corpus `a93e96c`) |
 | M1 turn-combat loop | ✅ **done, controller-verified** (Sonnet executor + opus finished `main.ts`) | `2101098` (+corpus `f67388c`) |
 | M2 problem-generator seam (I–IV) | ✅ **done, controller-verified** (Sonnet executor) | `97f5c97` (+corpus `fa696ba`) |
-| M3 map & runs | ✅ **done, controller-verified** (Sonnet executor) | (this session — see below) |
+| M3 map & runs | ✅ **done, controller-verified** (Sonnet executor) | `273b3c0` (+corpus `16c66a9`) |
+| M3.1 spatial map + RO diacritics font | ✅ **done, controller-verified** (opus font + Sonnet map) | (this session — see below) |
 | M4 progression & loot | ⬜ not started | — |
 | M5 theme, art, i18n | ⬜ not started | — |
 
@@ -173,6 +174,31 @@ reachability + incoming-edge + escalation invariants; run: a telegraph-aware **w
 - **Not self-verifiable:** browser playtest (:5176) — **user plays it**.
 - Verify gate: typecheck 19/19; `@mathquest/sim-core` **142**; `@mathquest/client` **27**; engine
   palette **10** — all green; determinism/hex sweep clean.
+
+## M3.1 — spatial map + Romanian diacritics (2026-07-22, from user playtest feedback)
+User playtested M3 and asked for (a) Romanian diacritic support (font dropped "Compară"→"Compar",
+"și"→"i") and (b) a Mewgenics-style progressive/spatial map (attached a Mewgenics "The Alley" map).
+- **Diacritics (opus, engine change):** the vendored UNSCII `.hex` already carries every Romanian
+  glyph incl. the CORRECT comma-below ș/ț (U+0218..U+021B, not cedilla). Extended
+  `engine/ui/tools/hex-to-glyphs.ts` + `fonts.ts` `EXTRA_CODEPOINTS`, regenerated `unscii8/16.ts`
+  (95→**113** glyphs). **Fixed a latent `bakeFontAtlas` bug** it surfaced — frames were named from
+  `FIRST_CODEPOINT + i` (contiguous-range assumption), wrong once non-ASCII codepoints append; now
+  named from the actual char (test guards it). Commit `8a0999a`.
+- **Symbols (opus, engine change):** the font also lacked `×` (so `3 × 4` rendered `3 ? 4`!) and the
+  map/combat glyphs. Added a symbol set present in UNSCII — `× † ★ ♥ ♠ ✓ ◆ ←` — and swapped the
+  MateQuest strings/map for the 3 glyphs UNSCII does NOT have (⚔→†, ☾→♥, ☠→♠) + 🛡→◆, ⌫→←.
+- **Spatial map (Sonnet executor, client-only):** rewrote `ui/map-screen.ts` from flexbox buttons to a
+  CUSTOM-DRAWN screen (`UISurface.rect` + `drawText`/`measureText`): nodes at absolute positions on a
+  vertical winding trail (row 0 bottom → boss top, `sin(row)` phase offset), dotted connector trails
+  (brightened from the current node), type-colored markers with glyph + `G{grade}`, reachable/visited/
+  locked styling, and a party token that MOVES as you advance. `main.ts` is mode-aware: map mode uses a
+  custom `nodeAt` hit-test (+ `1..9`/Enter keyboard) and sets the widget dispatcher root to `null`;
+  combat/run-over keep their widget tree + a11y mirror. **Deviation (sound):** `run.currentId` is null
+  on the map (only set inside a fight), so the token position derives as `currentId ?? last(visitedIds)`.
+  **Known follow-up:** no a11y DOM mirror for the spatial map yet (combat/run-over still have one).
+  Interface: `createMapScreen(): { render(surface,run,hoverId), nodeAt(x,y), reachableOrder(run) }`.
+- Verify gate: `@engine/ui` **166**; typecheck 19/19; `@mathquest/client` **26**; `@mathquest/sim-core`
+  **142**; palette **10** — all green. Browser playtest is the user's.
 
 **Next: M4 — progression & loot.** In-run XP/level-up choice + persistent per-topic mastery (survives
 death, gates hard branches, unlocks blueprints) + equipment with combat bonuses AND math lifelines
