@@ -57,11 +57,20 @@ const COL_WAVE = 34; // vertical wobble per column so the top-down trail snakes
 
 const TILE = 28; // ground-tile size (Farm bakes 16px; we redraw per frame so go coarser for perf)
 const SEAM = 46; // half-width of the dithered zone-boundary transition
-const HEIGHT_FREQ = 0.16; // fBm sample frequency over tile coords
-const SLOPE_GAIN = 1.4; // hillshade slope weight (Citadel uses 1.3)
+const HEIGHT_FREQ = 0.09; // fBm sample frequency (lower ⇒ larger, smoother landforms)
+const SLOPE_GAIN = 1.2; // hillshade slope weight (Citadel uses 1.3)
 const HEIGHT_GAIN = 0.55; // hypsometric weight
-const SHADE_THRESHOLD = 0.055; // dark/base/light band cutoff
+const TERRAIN_RANGE = 0.34; // maps the shade signal onto the 3-tone ramp; wider ⇒ calmer, mostly-base
 const SHADOW_OFF = 3; // SE drop-shadow offset (Citadel's fake-height trick)
+
+// 4×4 ordered-dither (Bayer) matrix — dithers between adjacent ground tones so the solid-colour
+// bands blend smoothly instead of forming hard patches (the classic pixel-art gradient trick).
+const BAYER4: readonly (readonly number[])[] = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
 
 const PROP_CELL = 96; // scatter grid: at most one prop per cell
 const PROP_DENSITY = 0.5; // fraction of cells that spawn a prop
@@ -169,15 +178,12 @@ function fbm(x: number, y: number, seed: number): number {
 function heightAt(tx: number, ty: number, seed: number): number {
   return fbm(tx * HEIGHT_FREQ, ty * HEIGHT_FREQ, seed);
 }
-/** Citadel's hillshade: central-difference gradient under a fixed NW sun → dark(-1)/base(0)/light(1). */
-function shadeBand(tx: number, ty: number, seed: number): -1 | 0 | 1 {
+/** Continuous hillshade signal: Citadel's central-difference gradient under a fixed NW sun. */
+function terrainShade(tx: number, ty: number, seed: number): number {
   const c = heightAt(tx, ty, seed);
   const gx = heightAt(tx + 1, ty, seed) - heightAt(tx - 1, ty, seed);
   const gy = heightAt(tx, ty + 1, seed) - heightAt(tx, ty - 1, seed);
-  const shade = -(gx + gy) * SLOPE_GAIN + (c - 0.5) * HEIGHT_GAIN;
-  if (shade < -SHADE_THRESHOLD) return -1;
-  if (shade > SHADE_THRESHOLD) return 1;
-  return 0;
+  return -(gx + gy) * SLOPE_GAIN + (c - 0.5) * HEIGHT_GAIN;
 }
 
 function computeMapLayout(map: RunMap, viewW: number, viewH: number): MapLayout {
@@ -360,18 +366,20 @@ function drawGroundTiles(P: GroundPainter, L: MapLayout): void {
       else if (band.index < ZONE_THEMES.length - 1 && dEnd < SEAM && rand01(ix, iy) < 0.5 * (1 - dEnd / SEAM)) zi = band.index + 1;
       const theme = ZONE_THEMES[zi]!;
       const seed = (zi + 1) * 1013;
-      const b = shadeBand(ix, iy, seed);
-      const base = b < 0 ? theme.gDark : b > 0 ? theme.gLight : theme.gBase;
+      // continuous shade → dithered pick across the [dark, base, light] ramp (smooth, not banded)
+      const idxF = clamp(((terrainShade(ix, iy, seed) + TERRAIN_RANGE) / (2 * TERRAIN_RANGE)) * 2, 0, 2);
+      const lvl = Math.floor(idxF);
+      const th = (BAYER4[iy & 3]![ix & 3]! + 0.5) / 16;
+      const pick = idxF - lvl > th ? Math.min(lvl + 1, 2) : lvl;
+      const base = pick <= 0 ? theme.gDark : pick >= 2 ? theme.gLight : theme.gBase;
       P.rect(x, y, TILE + 1, TILE + 1, base, 1); // +1 avoids hairline seams
-      // zone-signature flecks + grain (Farm's hash-scattered specks, but opaque)
+      // sparse zone-signature flecks (snow / ember / tilled earth / underbrush) for identity
       const r = rand01(ix * 7 + seed, iy * 13);
-      if (theme.kind === "village" && r > 0.9) P.rect(x + 4, y + 6, 7, 4, theme.fleck, 1); // tilled earth
-      else if (theme.kind === "mountains" && b > 0 && r > 0.86) P.rect(x + 6, y + 4, 5, 3, theme.fleck, 1); // snow
-      else if (theme.kind === "mountains" && r > 0.94) P.rect(x + 3, y + TILE - 8, 6, 4, MATE_PAL.steel, 1); // scree
-      else if (theme.kind === "lair" && r > 0.9) P.rect(x + 8, y + 9, 3, 3, theme.fleck, 1); // ember
-      else if (theme.kind === "forest" && r > 0.92) P.rect(x + 5, y + 6, 4, 4, theme.gDark, 1); // underbrush
-      if (r > 0.5 && r < 0.55) P.rect(x + 3, y + 3, 3, 3, theme.gDark, 1); // dark grain
-      else if (r > 0.72 && r < 0.77) P.rect(x + TILE - 7, y + 5, 3, 3, theme.gLight, 1); // light grain
+      if (theme.kind === "village" && r > 0.93) P.rect(x + 4, y + 6, 7, 4, theme.fleck, 1); // tilled earth
+      else if (theme.kind === "mountains" && pick >= 2 && r > 0.9) P.rect(x + 6, y + 4, 5, 3, theme.fleck, 1); // snow
+      else if (theme.kind === "mountains" && r > 0.95) P.rect(x + 3, y + TILE - 8, 6, 4, MATE_PAL.steel, 1); // scree
+      else if (theme.kind === "lair" && r > 0.93) P.rect(x + 8, y + 9, 3, 3, theme.fleck, 1); // ember
+      else if (theme.kind === "forest" && r > 0.94) P.rect(x + 5, y + 6, 4, 4, theme.gDark, 1); // underbrush
     }
   }
 }
@@ -403,6 +411,19 @@ function collectProps(L: MapLayout): Prop[] {
     }
   }
   return props;
+}
+
+/** Draw `fn` with a 1px dark keyline (silhouette outline) so props pop against any terrain. */
+function outlineDraw(P: Painter, fn: (p: Painter) => void): void {
+  const stamp = (dx: number, dy: number): Painter => ({
+    rect: (x, y, w, h) => P.rect(x + dx, y + dy, w, h, MATE_PAL.black, 0.9),
+    text: () => {},
+    ctext: () => {},
+    visible: (x, w) => P.visible(x, w),
+  });
+  const offsets: readonly (readonly [number, number])[] = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+  for (const [dx, dy] of offsets) fn(stamp(dx, dy));
+  fn(P);
 }
 
 function drawProp(P: Painter, pr: Prop): void {
@@ -482,6 +503,7 @@ function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, h
   // signpost + drop shadow (raised off the map — Citadel's fake-height trick)
   P.rect(cx - 3, cy, 6, h / 2 + 10, MATE_PAL.woodDark, 1);
   P.rect(x + SHADOW_OFF, y + SHADOW_OFF, w, h, MATE_PAL.ink, 0.32);
+  P.rect(x - NODE_BORDER - 1, y - NODE_BORDER - 1, w + NODE_BORDER * 2 + 2, h + NODE_BORDER * 2 + 2, MATE_PAL.black, 0.9); // dark keyline
   const border = state === "reachable" ? (hovered ? MATE_PAL.yellow : MATE_PAL.gold) : state === "visited" ? MATE_PAL.steel : MATE_PAL.navy;
   P.rect(x - NODE_BORDER, y - NODE_BORDER, w + NODE_BORDER * 2, h + NODE_BORDER * 2, border, 1);
   // SOLID fill (always opaque — never see-through). State darkens over the opaque base.
@@ -584,7 +606,7 @@ export function createMapScreen(): MapScreen {
     const props = collectProps(L)
       .filter((pr) => P.visible(pr.x - 30, 60))
       .sort((a, b) => a.baseY - b.baseY); // painter's order: farther (up) first
-    for (const pr of props) drawProp(P, pr);
+    for (const pr of props) outlineDraw(P, (pp) => drawProp(pp, pr));
 
     for (const node of run.map.nodes) {
       const from = L.nodes.get(node.id);
@@ -609,9 +631,9 @@ export function createMapScreen(): MapScreen {
     }
     if (current !== null) {
       const rect = L.nodes.get(current);
-      if (rect !== undefined) drawHero(P, rect.cx, rect.cy, rect.h);
+      if (rect !== undefined) outlineDraw(P, (pp) => drawHero(pp, rect.cx, rect.cy, rect.h));
     } else {
-      drawHero(P, L.anchor.cx, L.anchor.cy, 0);
+      outlineDraw(P, (pp) => drawHero(pp, L.anchor.cx, L.anchor.cy, 0));
     }
     for (const band of L.zones) drawZoneBanner(P, band);
 
