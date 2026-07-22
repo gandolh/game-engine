@@ -6,11 +6,16 @@
     <title>MateQuest</title>
   </head>
   <body>
-    <!-- M0 scaffold: main.ts boots the sim worker and draws a placeholder
-         title + live tick count into #scene via @engine/ui. -->
+    <!-- M1: main.ts boots the sim worker and renders the combat screen (enemy/warrior HP,
+         action menu, math-problem keypad, result cues, win/lose banner) into #scene via
+         @engine/ui — see src/ui/combat-screen.ts. -->
     <div id="app">
       <canvas id="scene"></canvas>
     </div>
+    <!-- Hidden a11y mirror mount for the in-canvas combat screen (see @engine/ui's
+         createA11yMirror) — a visually-hidden, screen-reader-visible DOM subtree that
+         structurally mirrors the widget tree, same pattern as Citadel's #ui-a11y-mirror. -->
+    <div id="ui-a11y-mirror"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

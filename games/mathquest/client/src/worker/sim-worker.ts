@@ -1,28 +1,38 @@
 /**
- * MateQuest sim worker — M0 scaffolding, mirroring `@hollow/client`'s
- * `src/worker/sim-worker.ts` shape (a Web-Worker solo sim, Citadel-style, no
- * server).
+ * MateQuest sim worker — M1: extends the M0 scaffold worker with the combat command channel.
+ * Mirrors `@citadel/client`'s `src/worker/sim-worker.ts` `self.onmessage` command-channel shape
+ * (a Web-Worker solo sim, no server) and Hollow's equivalent worker.
  *
- * Drives `bootstrapMathquestSim()` at a fixed 20 Hz base cadence and posts a
- * snapshot after each tick. `@engine/core` has no `FixedStepClock`
- * abstraction — the 20 Hz real-time cadence is this transport's OWN pacing (a
- * `setInterval`), never the sim's: `step()` itself only advances a tick
- * counter, so a tick's output depends solely on the tick count, never on
- * wall-clock time (determinism is load-bearing — root CLAUDE.md).
+ * Drives `bootstrapMathquestSim()` at a fixed 20 Hz base cadence and posts a snapshot after each
+ * paced tick (cheap — keeps the view fresh) AND immediately after every `choose-action`/
+ * `submit-answer` command, so the client sees the combat resolution the instant it happens
+ * rather than waiting for the next tick. `step()` itself never changes combat state (see
+ * `sim-bootstrap.ts`'s module doc) — the 20 Hz real-time cadence is this transport's OWN pacing,
+ * never the sim's (determinism is load-bearing — root CLAUDE.md).
  */
 import { bootstrapMathquestSim } from "@mathquest/sim-core/sim-bootstrap";
-import type { MathquestSnapshot } from "@mathquest/sim-core/sim-bootstrap";
+import type { CombatAction, CombatSnapshot } from "@mathquest/sim-core/sim-bootstrap";
 
 export interface WorkerInitMessage {
   type: "init";
   seed: number;
 }
 
-export type WorkerInbound = WorkerInitMessage;
+export interface WorkerChooseActionMessage {
+  type: "choose-action";
+  action: CombatAction;
+}
+
+export interface WorkerSubmitAnswerMessage {
+  type: "submit-answer";
+  value: number;
+}
+
+export type WorkerInbound = WorkerInitMessage | WorkerChooseActionMessage | WorkerSubmitAnswerMessage;
 
 export type WorkerOutbound =
   | { type: "ready" }
-  | { type: "snapshot"; snapshot: MathquestSnapshot };
+  | { type: "snapshot"; snapshot: CombatSnapshot };
 
 const BASE_TICK_HZ = 20;
 const BASE_MS_PER_TICK = 1000 / BASE_TICK_HZ;
@@ -53,6 +63,16 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       self.postMessage({ type: "ready" } satisfies WorkerOutbound);
       postSnapshot();
       startLoop();
+      break;
+    }
+    case "choose-action": {
+      sim?.chooseAction(msg.action);
+      postSnapshot();
+      break;
+    }
+    case "submit-answer": {
+      sim?.submitAnswer(msg.value);
+      postSnapshot();
       break;
     }
   }
