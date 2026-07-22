@@ -33,9 +33,9 @@
  * `wheel` routes a wheel event to whichever OPEN panel's LAST-LAID-OUT rect contains the pointer.
  * A collapsed panel is never hit-tested even if its `rect` is still sitting on stale (pre-collapse)
  * coordinates — `containsPoint` alone can't tell a real hit from a stale one, so every hit test is
- * additionally guarded by that panel's current open state. `drawIcons` forwards to the slate
- * billboard's own icon pass only while the slate section is open (same staleness concern: a
- * collapsed slate panel's rows are not part of the laid-out tree).
+ * additionally guarded by that panel's current open state. (The slate billboard's crop-icon +
+ * stock-bar pass now paints via an OVERLAY custom node inside its own subtree, drawn during
+ * `renderTree`, so this module no longer forwards a separate `drawIcons` pass.)
  *
  * This module does NOT wire the panels' actions to real host commands — the integration chunk
  * (which owns the focus-farmer command + the UI host) passes fully-formed
@@ -45,7 +45,7 @@
  * override) — the theme already colours button states, matching `playback-controls.ts`'s usage.
  */
 import { box, button, panel } from "@engine/ui";
-import type { ButtonNode, ContainerNode, UISurface } from "@engine/ui";
+import type { ButtonNode, ContainerNode } from "@engine/ui";
 import type { ObserverSnapshot } from "@farm/sim-core/snapshot";
 import { createObserverPanel } from "./observer-panel";
 import type { ObserverPanel, ObserverPanelActions } from "./observer-panel";
@@ -77,7 +77,7 @@ export interface RightColumnState {
   events: readonly EventFeedRow[];
 }
 
-/** The retained right column: its root node plus refresh() + wheel() + drawIcons() + collapse. */
+/** The retained right column: its root node plus refresh() + wheel() + collapse. */
 export interface RightColumn {
   /** The SINGLE widget tree root for the whole column — register ONE root with the UI host. */
   readonly root: ContainerNode;
@@ -97,9 +97,6 @@ export interface RightColumn {
    * over a panel that is currently collapsed (even if its stale rect would otherwise match).
    */
   wheel(x: number, y: number, dy: number): boolean;
-  /** Forward to the slate billboard's icon pass — call AFTER `renderTree`, before `surface.end()`.
-   *  No-op while the slate section is collapsed. */
-  drawIcons(surface: UISurface): void;
   /** Flip one section's open/closed state in `prefs` and restructure the tree immediately (the
    *  same effect as pressing that section's toggle button). */
   toggleSection(id: RightColumnSectionId): void;
@@ -251,15 +248,10 @@ export function createRightColumn(actions: ObserverPanelActions, prefs: PanelPre
     return false;
   }
 
-  function drawIcons(surface: UISurface): void {
-    if (masterOpen() && isOpen("slate")) slateBillboard.drawIcons(surface);
-  }
-
   return {
     root,
     refresh,
     wheel,
-    drawIcons,
     toggleSection,
     observerPanel,
     slateBillboard,

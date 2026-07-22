@@ -30,7 +30,7 @@
  * thresholds).
  */
 import { EDG } from "@engine/core";
-import { box, label, panel } from "@engine/ui";
+import { box, custom, label, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode, UINode, UISurface } from "@engine/ui";
 import { scroll, computeScrollContent, clampScroll, scrollBy } from "@engine/ui";
 import type { ScrollViewportNode } from "@engine/ui";
@@ -100,9 +100,11 @@ interface OfferRowNodes {
   iconCrop: string;
 }
 
-/** The retained slate billboard: its root node plus refresh() + wheel() + drawIcons(). */
+/** The retained slate billboard: its root node plus refresh() + wheel(). */
 export interface SlateBillboard {
-  /** The widget tree root — pass to `computeLayout` / `renderTree` / `mirror.update`. */
+  /** The widget tree root — pass to `computeLayout` / `renderTree` / `mirror.update`. The row crop
+   *  icons + stock-bar fills paint via an OVERLAY {@link custom} node inside this tree (drawn on
+   *  top of the rows during `renderTree`), so there is no separate post-`renderTree` icon pass. */
   readonly root: ContainerNode;
   /**
    * Re-bind all offer rows from the latest slate. Call once per frame.
@@ -113,12 +115,6 @@ export interface SlateBillboard {
   refresh(offers: ReadonlyArray<SlateEntry>): boolean;
   /** Scroll the offer list by `dy` px (e.g. from a mouse-wheel event over the panel). */
   wheel(dy: number): void;
-  /**
-   * Draw each visible row's crop icon over its reserved icon column. Call AFTER `computeLayout` +
-   * `renderTree` (needs up-to-date `rect`s) and BEFORE `surface.end()` — mirrors the hotbar's
-   * `drawIcons` pass.
-   */
-  drawIcons(surface: UISurface): void;
 }
 
 function buildOfferRow(): OfferRowNodes {
@@ -176,7 +172,16 @@ export function createSlateBillboard(): SlateBillboard {
     [],
   );
 
-  const root = panel({ direction: "column", gap: 6, align: "stretch" }, [title, emptyLbl, visibleRows]);
+  // The crop icons + stock-bar fills paint via an OVERLAY custom node (last child → drawn on top of
+  // the rows during `renderTree`, filling the panel's inner box without joining its flow). This
+  // folds the old separate `drawIcons` post-pass into the widget tree (engine-ui backlog item 1).
+  const iconsOverlay = custom((surface) => drawIconsInto(surface), { overlay: true });
+  const root = panel({ direction: "column", gap: 6, align: "stretch" }, [
+    title,
+    emptyLbl,
+    visibleRows,
+    iconsOverlay,
+  ]);
 
   // Per-node fill colour overrides for the stock bars — keyed by the bar-fill container's id,
   // since `ContainerNode` has no colour field of its own (see `drawIcons`). Rows are also
@@ -301,7 +306,9 @@ export function createSlateBillboard(): SlateBillboard {
     syncVisibleRows();
   }
 
-  function drawIcons(surface: UISurface): void {
+  /** Paint each visible row's crop icon + stock-bar fill. Runs as the `iconsOverlay` node's draw
+   *  during `renderTree` (needs the rows' up-to-date `rect`s, already laid out this frame). */
+  function drawIconsInto(surface: UISurface): void {
     for (const row of visibleRows.children as ContainerNode[]) {
       const nodes = rowsByRootId.get(row.id);
       if (nodes === undefined) continue;
@@ -325,5 +332,5 @@ export function createSlateBillboard(): SlateBillboard {
     }
   }
 
-  return { root, refresh, wheel, drawIcons };
+  return { root, refresh, wheel };
 }

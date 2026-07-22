@@ -15,18 +15,18 @@
  * ## Icons + selection highlight
  * The widget tree has no "sprite" node kind (only panel/box/label/button/slider/checkbox), and
  * containers have no per-node colour override (background colour is theme-global) — so both the
- * tool/crop/fish icon AND the selected-slot highlight are drawn as raw quads directly through the
- * `UISurface`, positioned from each slot's computed `rect` (filled in by `computeLayout`), as a
- * render pass that runs AFTER `renderTree` (so the highlight/icon paint over the slot's themed
- * background). {@link Hotbar.drawIcons} is that pass; the host calls it once per frame, after
- * laying out and rendering `root`, passing the same `UISurface`, before `surface.end()`. A slot
- * with no sprite frame (`frame === ""`, e.g. an empty slot) falls back to the ASCII `glyph` text
- * already baked into a label — no icon draw call for that slot.
+ * tool/crop/fish icon AND the selected-slot highlight are drawn as raw quads through the
+ * `UISurface`, positioned from each slot's computed `rect` (filled in by `computeLayout`). That
+ * drawing lives in an OVERLAY `custom` node appended last to `root` (see `createHotbar`): it fills
+ * the panel's inner box out of flow and paints during `renderTree`, on top of the slots — so there
+ * is no separate post-`renderTree` pass and no layout disturbance. A slot with no sprite frame
+ * (`frame === ""`, e.g. an empty slot) falls back to the ASCII `glyph` text already baked into a
+ * label — no icon draw for that slot.
  *
  * EDG32-only: every colour is an `EDG.*` constant (mirrors the DOM hotbar's selected/dim states).
  */
 import { EDG } from "@engine/core";
-import { box, label, panel } from "@engine/ui";
+import { box, custom, label, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode, UISurface } from "@engine/ui";
 import { frameToAtlasId } from "@farm/sim-core/render-systems";
 import type { PlayerHotbar, HotbarSlotState } from "@farm/sim-core/snapshot";
@@ -89,15 +89,6 @@ export interface Hotbar {
    * always returns `true` (initial layout). `renderTree`/`surface` must still run every frame.
    */
   refresh(state: PlayerHotbar | null): boolean;
-  /**
-   * Draw each slot's atlas-sprite icon over its glyph area. Call AFTER `computeLayout` +
-   * `renderTree` (needs up-to-date `rect`s) and BEFORE `surface.end()` — see the module doc.
-   * Only slots whose latest `refresh()` resolved a sprite frame draw anything; slots with no
-   * sprite frame keep their ASCII `glyph` text (already painted by `renderTree`).
-   */
-  drawIcons(surface: UISurface): void;
-  /** Draw the drag ghost (the picked-up slot's icon following the cursor). Call AFTER drawIcons. */
-  drawGhost(surface: UISurface): void;
   /** Remove the capture-phase drag listeners (call when dismounting). */
   destroy(): void;
 }
@@ -161,9 +152,18 @@ export function createHotbar(actions: HotbarActions): Hotbar {
   const slots: SlotEls[] = [];
   for (let i = 0; i < HOTBAR_SLOT_COUNT; i++) slots.push(buildSlot(i));
 
+  // Slot icons, the selected-slot border, and the drag ghost paint via an OVERLAY custom node
+  // (last child → drawn on top of the slots during `renderTree`, filling the panel's inner box
+  // without joining its row flow). Folds the old separate drawIcons/drawGhost post-passes into the
+  // widget tree (engine-ui backlog item 1). The ghost draws at the live cursor position, which may
+  // fall outside the panel box — fine, custom-node draws aren't clipped.
+  const overlay = custom((surface) => {
+    drawIconsInto(surface);
+    drawGhostInto(surface);
+  }, { overlay: true });
   const root = panel(
     { direction: "row", align: "end", gap: 5, padding: 6 },
-    slots.map((s) => s.root),
+    [...slots.map((s) => s.root), overlay],
   );
 
   let changed = false;
@@ -230,7 +230,7 @@ export function createHotbar(actions: HotbarActions): Hotbar {
     return result;
   }
 
-  function drawIcons(surface: UISurface): void {
+  function drawIconsInto(surface: UISurface): void {
     const SELECTED_BORDER = 2;
     for (const s of slots) {
       if (s.root.opacity === 0) continue;
@@ -275,8 +275,8 @@ export function createHotbar(actions: HotbarActions): Hotbar {
     return null;
   }
 
-  /** Draw the dragged slot's icon following the cursor (call AFTER drawIcons). */
-  function drawGhost(surface: UISurface): void {
+  /** Draw the dragged slot's icon following the cursor (runs after the icon pass in the overlay). */
+  function drawGhostInto(surface: UISurface): void {
     if (!dragActive || dragFrom === null) return;
     const s = slots[dragFrom];
     if (s === undefined || s.iconFrame === "") return;
@@ -339,5 +339,5 @@ export function createHotbar(actions: HotbarActions): Hotbar {
     window.removeEventListener("mouseup", onMouseUp, { capture: true } as EventListenerOptions);
   }
 
-  return { root, refresh, drawIcons, drawGhost, destroy };
+  return { root, refresh, destroy };
 }

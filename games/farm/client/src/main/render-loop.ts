@@ -752,7 +752,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           rightColumnRoot.mirror?.update(rightColumn.root);
         }
         renderTree(surface, rightColumn.root);
-        rightColumn.drawIcons(surface);
+        // (Slate crop icons + stock-bar fills now paint via an overlay custom node inside the tree,
+        // so `renderTree` above already drew them — no separate icon pass here.)
       }
 
       // Relationship matrix — pinned bottom-left, above the hotbar row. The size-key sentinel
@@ -819,8 +820,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         hbLaidOutSize = `${canvas.clientWidth}x${canvas.clientHeight}`;
       }
       renderTree(surface, hotbar.root);
-      hotbar.drawIcons(surface);
-      hotbar.drawGhost(surface);
+      // (Slot icons, selected border, and drag ghost paint via the hotbar's overlay custom node,
+      // already drawn by renderTree above — no separate icon/ghost pass here.)
       applyToolCursor();
 
       // Playback controls — bottom-right (owner only; the a11y root is inert while hidden).
@@ -858,8 +859,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           inventory.rootHandle.mirror?.update(invRoot);
         }
         renderTree(surface, invRoot);
-        inventory.drawIcons(surface);
-        inventory.drawGhost(surface);
+        // (Slot icons, selected borders, and drag ghost paint via the inventory's overlay custom
+        // node, already drawn by renderTree above — no separate icon/ghost pass here.)
       }
 
       // Hover tooltip — anchored near the cursor, drawn late so it sits over other panels.

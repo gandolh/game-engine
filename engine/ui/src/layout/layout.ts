@@ -130,7 +130,10 @@ function measureNode(node: UINode, theme: Theme, cache: Map<number, Intrinsic>):
     let cross = 0;
     let count = 0;
     for (const child of node.children) {
+      // Always measure (fills the cache for `arrange`), but overlay children are OUT of flow — they
+      // contribute nothing to the parent's intrinsic size (see `LayoutProps.overlay`).
       const c = measureNode(child, theme, cache);
+      if (child.layout.overlay) continue;
       const cMain = dir === "row" ? c.width : c.height;
       const cCross = dir === "row" ? c.height : c.width;
       main += cMain;
@@ -180,11 +183,15 @@ function arrange(
   const mainAvail = dir === "row" ? innerW : innerH;
   const crossAvail = dir === "row" ? innerH : innerW;
 
-  // Sum intrinsic main sizes + total grow weight.
+  // Split flow (normal) children from overlay children. Overlay children are placed separately
+  // (filling the inner box) and never enter the main-axis packing / gap accounting.
+  const flow = node.children.filter((c) => !c.layout.overlay);
+
+  // Sum intrinsic main sizes + total grow weight (flow children only).
   let usedMain = 0;
   let totalGrow = 0;
-  const n = node.children.length;
-  for (const child of node.children) {
+  const n = flow.length;
+  for (const child of flow) {
     const ci = cache.get(child.id)!;
     usedMain += dir === "row" ? ci.width : ci.height;
     totalGrow += child.layout.grow ?? 0;
@@ -194,7 +201,7 @@ function arrange(
 
   let cursor = dir === "row" ? innerX : innerY;
   for (let i = 0; i < n; i += 1) {
-    const child = node.children[i]!;
+    const child = flow[i]!;
     const ci = cache.get(child.id)!;
     const grow = child.layout.grow ?? 0;
 
@@ -231,6 +238,17 @@ function arrange(
 
     arrange(child, cx, cy, cw, ch, theme, cache);
     cursor += childMain + gap;
+  }
+
+  // Overlay children: out of flow — fill the parent's inner content box (honouring any pinned
+  // width/height), so they can paint over the flow siblings without shifting them. Arranged after
+  // the flow pass; `renderTree` paints children in array order, so an overlay declared LAST draws
+  // on top.
+  for (const child of node.children) {
+    if (!child.layout.overlay) continue;
+    const ow = child.layout.width ?? innerW;
+    const oh = child.layout.height ?? innerH;
+    arrange(child, innerX, innerY, ow, oh, theme, cache);
   }
 }
 

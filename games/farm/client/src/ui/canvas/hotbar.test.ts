@@ -60,10 +60,13 @@ describe("createHotbar", () => {
     for (const h of built) h.destroy();
   });
 
-  it("builds a tree with 8 slots regardless of input size", () => {
+  it("builds a tree with 8 slots (+ 1 overlay draw node) regardless of input size", () => {
     const hotbar = createHotbarT();
-    // 8 slot roots directly under the panel root.
-    expect(hotbar.root.children.length).toBe(8);
+    // 8 slot roots directly under the panel root, plus the trailing overlay custom node that
+    // paints the icons/selected-border/drag-ghost on top (out of flow — see createHotbar).
+    expect(hotbar.root.children.length).toBe(9);
+    expect(hotbar.root.children.filter((c) => c.kind === "box").length).toBe(8);
+    expect(hotbar.root.children[8]!.kind).toBe("custom");
   });
 
   it("first refresh reports changed and sets slot caption/count", () => {
@@ -93,12 +96,13 @@ describe("createHotbar", () => {
     hotbar.refresh(makeHotbar([makeSlot()]));
     const changed = hotbar.refresh(null);
     expect(changed).toBe(true);
-    for (const slotRoot of hotbar.root.children) {
+    // Only the slot boxes carry opacity; the trailing overlay custom node is not a slot.
+    for (const slotRoot of hotbar.root.children.filter((c) => c.kind === "box")) {
       expect(slotRoot.opacity).toBe(0);
     }
   });
 
-  it("selected slot is tracked (drawIcons draws a gold border for it) without affecting layout", () => {
+  it("selected slot is tracked (the overlay draws a gold border for it) without affecting layout", () => {
     const hotbar = createHotbarT();
     hotbar.refresh(makeHotbar([makeSlot(), makeSlot()], 1));
     // Selection alone is not layout-affecting: a second refresh with the same selection index

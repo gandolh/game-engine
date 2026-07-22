@@ -14,10 +14,9 @@
  * capture-phase mouse listeners on the canvas that implement: mousedown on a filled slot →
  * drag ghost follows the cursor → mouseup on a target slot → `swapSlots(from, to)` (which the
  * host wires to `SimClient.swapSlots`, owner-gated). Slot hit-testing is done against each slot
- * box's laid-out `rect`. The drag ghost is drawn as a raw sprite/label through the `UISurface`
- * in {@link Inventory.drawGhost} (an extra pass after `renderTree`, like the hotbar's icons).
- * No new protocol / sim state — the swap is authoritative on the sim; the next snapshot reflects
- * the new layout.
+ * box's laid-out `rect`. The drag ghost is drawn as a raw sprite through the `UISurface` from the
+ * modal's OVERLAY custom node (see below). No new protocol / sim state — the swap is authoritative
+ * on the sim; the next snapshot reflects the new layout.
  *
  * The modal registers a UI root with the host so the grid is a11y-mirrored. Pointer handling is
  * done by the inventory's OWN capture-phase listeners on `window` (which fire BEFORE the host's
@@ -28,14 +27,16 @@
  *
  * ## Icons
  * A slot's atlas-sprite icon has no widget-tree "sprite" node kind, so — mirroring the hotbar —
- * icons are drawn via `UISurface.sprite` from each slot's computed `rect` in {@link Inventory.drawIcons}
- * (AFTER `renderTree`). Slots with no sprite frame keep their ASCII glyph (a real label).
+ * icons (and the selected border + drag ghost) paint via an OVERLAY `custom` node appended last to
+ * the modal: it fills the modal's inner box out of flow and draws on top of the slots during
+ * `renderTree`, so there is no separate post-`renderTree` pass. Slots with no sprite frame keep
+ * their ASCII glyph (a real label).
  *
  * EDG32-only: every colour is an `EDG.*` constant (mirrors the DOM inventory's selected/hotbar/
  * empty states).
  */
 import { EDG } from "@engine/core";
-import { box, label, panel } from "@engine/ui";
+import { box, custom, label, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode, UINode, UISurface } from "@engine/ui";
 import { frameToAtlasId } from "@farm/sim-core/render-systems";
 import type { PlayerInventory, ItemSlotState } from "@farm/sim-core/snapshot";
@@ -77,7 +78,8 @@ export interface InventoryOptions {
   isOwner(): boolean;
 }
 
-/** The retained inventory modal: root/refresh/toggle + the extra icon/ghost draw passes. */
+/** The retained inventory modal: root/refresh/toggle. Icons + drag ghost paint via an overlay
+ *  custom node inside the modal tree (no separate draw pass — see the module doc). */
 export interface Inventory {
   /** The modal root while open, or `null` while closed (its registered dispatcher is inert). */
   getRoot(): ContainerNode | null;
@@ -89,10 +91,6 @@ export interface Inventory {
    * host can gate `computeLayout` + a11y-mirror reconcile behind it.
    */
   refresh(inv: PlayerInventory | null): boolean;
-  /** Draw each visible slot's atlas icon over its glyph area. Call AFTER `renderTree`. */
-  drawIcons(surface: UISurface): void;
-  /** Draw the drag ghost (dragged slot's icon following the cursor). Call AFTER `drawIcons`. */
-  drawGhost(surface: UISurface): void;
   isOpen(): boolean;
   setOpen(v: boolean): void;
   toggle(): void;
@@ -158,10 +156,18 @@ export function createInventory(opts: InventoryOptions): Inventory {
     { color: EDG.slate },
   );
   const gridBox = box({ direction: "column", gap: SLOT_GAP, align: "center" }, []);
+  // Slot icons, selected borders, and the drag ghost paint via an OVERLAY custom node (last child →
+  // on top of the grid during `renderTree`, filling the modal's inner box out of flow). Folds the
+  // old separate drawIcons/drawGhost post-passes into the widget tree (engine-ui backlog item 1).
+  const iconsOverlay = custom((surface) => {
+    drawIconsInto(surface);
+    drawGhostInto(surface);
+  }, { overlay: true });
   const modal = panel({ direction: "column", gap: 8, align: "center", padding: 16 }, [
     title,
     gridBox,
     hint,
+    iconsOverlay,
   ]);
 
   let open = false;
@@ -264,7 +270,7 @@ export function createInventory(opts: InventoryOptions): Inventory {
     return result;
   }
 
-  function drawIcons(surface: UISurface): void {
+  function drawIconsInto(surface: UISurface): void {
     if (!open) return;
     const SELECTED_BORDER = 2;
     for (const s of slots) {
@@ -293,7 +299,7 @@ export function createInventory(opts: InventoryOptions): Inventory {
     }
   }
 
-  function drawGhost(surface: UISurface): void {
+  function drawGhostInto(surface: UISurface): void {
     if (!open || !dragActive || dragFrom === null) return;
     const s = slots[dragFrom];
     if (s === undefined || s.iconFrame === "") return;
@@ -384,8 +390,6 @@ export function createInventory(opts: InventoryOptions): Inventory {
     getRoot,
     rootHandle,
     refresh,
-    drawIcons,
-    drawGhost,
     isOpen: () => open,
     setOpen,
     toggle: () => setOpen(!open),

@@ -56,6 +56,28 @@ describe("custom node (escape hatch)", () => {
     expect(seenAlpha).toBeCloseTo(0.5, 6); // parent opacity multiplied down to the leaf
   });
 
+  it("as an overlay child, fills the parent's inner box and does NOT shift flow siblings", () => {
+    // Two fixed-size flow boxes in a column + an overlay custom node LAST. The overlay must not
+    // consume a slot/gap (siblings stay where they'd be without it) and must fill the inner box.
+    const a = box({ height: 20 }, []);
+    const b = box({ height: 20 }, []);
+    let overlayRect: Rect | null = null;
+    const ov = custom((_s, rect) => void (overlayRect = { ...rect }), { overlay: true });
+
+    const root = panel({ direction: "column", align: "stretch", gap: 4, padding: 6, width: 100 }, [a, b, ov]);
+    computeLayout(root, 0, 0);
+
+    // Flow siblings: first at inner top, second one height+gap below — unaffected by the overlay.
+    expect(a.rect).toEqual({ x: 6, y: 6, width: 88, height: 20 });
+    expect(b.rect).toEqual({ x: 6, y: 30, width: 88, height: 20 });
+    // Parent height = padding + 20 + gap + 20 + padding = 56 (overlay contributes nothing).
+    expect(root.rect.height).toBe(56);
+
+    // Overlay fills the inner content box (padding-inset).
+    renderTree(fakeSurface(), root);
+    expect(overlayRect).toEqual({ x: 6, y: 6, width: 88, height: 44 });
+  });
+
   it("is skipped entirely when an ancestor is fully transparent (alpha 0 prunes the subtree)", () => {
     const draw = vi.fn();
     const cust = custom(draw, { width: 10, height: 10 });

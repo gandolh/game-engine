@@ -211,31 +211,4 @@ describe("createRightColumn", () => {
     expect(col.wheel(10, 60, 5)).toBe(true);
   });
 
-  it("drawIcons does not throw (column + slate open)", () => {
-    const prefs = makeFakePrefs({ column: true, slate: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
-    col.refresh(makeState());
-    const surface = {
-      begin: () => {},
-      push: () => {},
-      rect: () => {},
-      sprite: () => {},
-      end: () => {},
-    };
-    expect(() => col.drawIcons(surface as unknown as Parameters<typeof col.drawIcons>[0])).not.toThrow();
-  });
-
-  it("drawIcons does not throw while the column is collapsed", () => {
-    const prefs = makeFakePrefs(); // all closed
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
-    col.refresh(makeState());
-    const surface = {
-      begin: () => {},
-      push: () => {},
-      rect: () => {},
-      sprite: () => {},
-      end: () => {},
-    };
-    expect(() => col.drawIcons(surface as unknown as Parameters<typeof col.drawIcons>[0])).not.toThrow();
-  });
 });

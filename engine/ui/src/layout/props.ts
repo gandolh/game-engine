@@ -42,6 +42,18 @@ export interface LayoutProps {
    * container's leftover main-axis space proportional to the weight.
    */
   grow?: number;
+  /**
+   * **Overlay** (absolute-ish) positioning. An overlay child is REMOVED from its parent's flow:
+   * it adds nothing to the parent's intrinsic size, consumes no main-axis slot or `gap`, and does
+   * not shift its siblings. Instead it is laid out to FILL the parent's inner content box (the
+   * padding-inset rect), then painted in normal child order — so an overlay child declared LAST
+   * draws on top of its siblings. This is the escape hatch for on-top decorations (icon passes,
+   * drag ghosts, selection borders) that read sibling rects and draw over them, without the
+   * layout disturbance a normal flow child would cause. `width`/`height` still pin its size if set;
+   * otherwise it takes the full inner box. Ignored on a root passed straight to `computeLayout`
+   * (a root has no parent to overlay — it just uses its own size there).
+   */
+  overlay?: boolean;
 }
 
 /** Resolve a `padding` prop (number | per-side | undefined) into a full {@link Padding}. */
