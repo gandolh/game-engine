@@ -343,22 +343,77 @@ function zoneAtX(bands: readonly ZoneBand[], x: number): ZoneBand {
   return bands[bands.length - 1] ?? bands[0]!;
 }
 
-/** The ground: a grid of OPAQUE tiles over the whole plane, hillshade-banded, with dithered seams. */
-function drawGroundTiles(P: GroundPainter, L: MapLayout): void {
-  const top = CHROME_TOP - 2;
-  const bottom = L.worldH;
-  const ix0 = Math.floor(Math.max(0, P.visibleLeft()) / TILE);
-  const ix1 = Math.ceil(P.visibleRight() / TILE);
-  const iy0 = Math.floor(top / TILE);
-  const iy1 = Math.ceil(bottom / TILE);
-  for (let ix = ix0; ix <= ix1; ix++) {
+/** A precomputed opaque ground quad in WORLD space (built once, cached, replayed each frame). */
+interface GroundQuad {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly c: string;
+}
+
+const SUB = TILE / 4; // 7px sub-cell for fine ordered dithering + floor detail
+
+/** Sparse, zone-specific floor detail stamped into a tile (grass tufts, tilled rows, scree, embers…). */
+function pushDetail(out: GroundQuad[], theme: ZoneTheme, seed: number, ix: number, iy: number, x: number, y: number, lit: boolean): void {
+  const r = rand01(ix * 7 + seed, iy * 13);
+  switch (theme.kind) {
+    case "forest":
+      if (r > 0.9) {
+        out.push({ x: x + 8, y: y + 15, w: 1, h: 5, c: theme.gLight }, { x: x + 10, y: y + 16, w: 1, h: 4, c: theme.gLight }, { x: x + 9, y: y + 19, w: 3, h: 1, c: theme.gDark }); // grass tuft
+      } else if (r < 0.05) {
+        out.push({ x: x + 14, y: y + 14, w: 3, h: 2, c: MATE_PAL.red }, { x: x + 15, y: y + 16, w: 1, h: 2, c: MATE_PAL.cream }); // tiny mushroom
+      } else if (r > 0.82 && r < 0.85) {
+        out.push({ x: x + 18, y: y + 9, w: 2, h: 2, c: MATE_PAL.clay }); // fallen leaf
+      }
+      break;
+    case "village":
+      if (r > 0.9) {
+        out.push({ x: x + 4, y: y + 10, w: 18, h: 2, c: MATE_PAL.clay }, { x: x + 4, y: y + 16, w: 18, h: 2, c: MATE_PAL.wood }); // tilled rows
+      } else if (r < 0.06) {
+        out.push({ x: x + 12, y: y + 12, w: 2, h: 2, c: MATE_PAL.woodDark }); // pebble
+      } else if (r > 0.8 && r < 0.83) {
+        out.push({ x: x + 6, y: y + 6, w: 1, h: 4, c: theme.gLight }); // stray grass
+      }
+      break;
+    case "mountains":
+      if (lit && r > 0.85) {
+        out.push({ x: x + 6, y: y + 4, w: 5, h: 3, c: MATE_PAL.white }); // snow patch
+      } else if (r > 0.9) {
+        out.push({ x: x + 4, y: y + 18, w: 4, h: 3, c: MATE_PAL.silver }, { x: x + 9, y: y + 20, w: 3, h: 2, c: MATE_PAL.steel }); // scree
+      } else if (r < 0.06) {
+        out.push({ x: x + 16, y: y + 10, w: 3, h: 2, c: MATE_PAL.slate }); // rock chip
+      }
+      break;
+    case "lair":
+      if (r > 0.9) {
+        out.push({ x: x + 8, y: y + 9, w: 3, h: 3, c: MATE_PAL.red }); // ember
+      } else if (r < 0.06) {
+        out.push({ x: x + 14, y: y + 16, w: 5, h: 1, c: MATE_PAL.black }); // crack
+      }
+      break;
+  }
+}
+
+/**
+ * Build the whole ground plane as opaque quads (WORLD space), once. Within a zone the base tone is
+ * the NEAREST of [dark, base, light] (so broad regions stay a single solid colour), and the seam to
+ * the next tone is smoothed by a fine 4×4 ordered dither of 7px sub-cells — a gradient made of solid
+ * pixels, no hard checkerboard. Zone seams borrow the neighbour palette with a probabilistic dither.
+ */
+function buildGroundQuads(L: MapLayout): GroundQuad[] {
+  const out: GroundQuad[] = [];
+  const iy0 = Math.floor((CHROME_TOP - 2) / TILE);
+  const iy1 = Math.ceil(L.worldH / TILE);
+  const ix1 = Math.ceil(L.worldW / TILE);
+  for (let ix = 0; ix <= ix1; ix++) {
     const x = ix * TILE;
     if (x > L.worldW) break;
     const cxT = x + TILE / 2;
     const band = zoneAtX(L.zones, cxT);
     for (let iy = iy0; iy <= iy1; iy++) {
       const y = iy * TILE;
-      // dithered seam: near a boundary, sometimes borrow the neighbour zone's palette
+      // dithered ZONE seam: near a boundary, sometimes borrow the neighbour zone's palette
       let zi = band.index;
       const dStart = cxT - band.startX;
       const dEnd = band.endX - cxT;
@@ -366,22 +421,26 @@ function drawGroundTiles(P: GroundPainter, L: MapLayout): void {
       else if (band.index < ZONE_THEMES.length - 1 && dEnd < SEAM && rand01(ix, iy) < 0.5 * (1 - dEnd / SEAM)) zi = band.index + 1;
       const theme = ZONE_THEMES[zi]!;
       const seed = (zi + 1) * 1013;
-      // continuous shade → dithered pick across the [dark, base, light] ramp (smooth, not banded)
+      const ramp = [theme.gDark, theme.gBase, theme.gLight];
       const idxF = clamp(((terrainShade(ix, iy, seed) + TERRAIN_RANGE) / (2 * TERRAIN_RANGE)) * 2, 0, 2);
-      const lvl = Math.floor(idxF);
-      const th = (BAYER4[iy & 3]![ix & 3]! + 0.5) / 16;
-      const pick = idxF - lvl > th ? Math.min(lvl + 1, 2) : lvl;
-      const base = pick <= 0 ? theme.gDark : pick >= 2 ? theme.gLight : theme.gBase;
-      P.rect(x, y, TILE + 1, TILE + 1, base, 1); // +1 avoids hairline seams
-      // sparse zone-signature flecks (snow / ember / tilled earth / underbrush) for identity
-      const r = rand01(ix * 7 + seed, iy * 13);
-      if (theme.kind === "village" && r > 0.93) P.rect(x + 4, y + 6, 7, 4, theme.fleck, 1); // tilled earth
-      else if (theme.kind === "mountains" && pick >= 2 && r > 0.9) P.rect(x + 6, y + 4, 5, 3, theme.fleck, 1); // snow
-      else if (theme.kind === "mountains" && r > 0.95) P.rect(x + 3, y + TILE - 8, 6, 4, MATE_PAL.steel, 1); // scree
-      else if (theme.kind === "lair" && r > 0.93) P.rect(x + 8, y + 9, 3, 3, theme.fleck, 1); // ember
-      else if (theme.kind === "forest" && r > 0.94) P.rect(x + 5, y + 6, 4, 4, theme.gDark, 1); // underbrush
+      const lvl = Math.round(idxF); // NEAREST tone ⇒ broad solid regions, not a per-tile checkerboard
+      out.push({ x, y, w: TILE + 1, h: TILE + 1, c: ramp[lvl]! }); // +1 avoids hairline seams
+      // smooth the tone boundary: ordered 4×4 dither of the neighbour tone across 7px sub-cells
+      const frac = idxF - lvl; // −0.5..0.5 — how far toward the neighbour tone
+      const nb = lvl + (frac > 0 ? 1 : -1);
+      if (Math.abs(frac) > 0.1 && nb >= 0 && nb <= 2) {
+        const neighbour = ramp[nb]!;
+        const density = clamp((Math.abs(frac) - 0.1) / 0.4, 0, 1);
+        for (let sy = 0; sy < 4; sy++) {
+          for (let sx = 0; sx < 4; sx++) {
+            if ((BAYER4[sy]![sx]! + 0.5) / 16 < density) out.push({ x: x + sx * SUB, y: y + sy * SUB, w: SUB + 1, h: SUB + 1, c: neighbour });
+          }
+        }
+      }
+      pushDetail(out, theme, seed, ix, iy, x, y, lvl >= 2);
     }
   }
+  return out;
 }
 
 // --- prop scatter --------------------------------------------------------------------------------
@@ -452,41 +511,79 @@ function drawProp(P: Painter, pr: Prop): void {
   }
 }
 
-// --- road (continuous footpath) ------------------------------------------------------------------
-function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number; cy: number }, bright: boolean, seed: number): void {
+// --- road (continuous footpath, styled per zone) -------------------------------------------------
+// Each zone paves its trail differently: forest dirt track, village cobbles, mountain wooden
+// boardwalk (planks + rails), lair obsidian with ember cracks. Style is chosen PER STAMP from the
+// zone the stamp sits in, so a trail crossing a seam changes surface mid-way.
+const COBBLE_STONES: readonly string[] = [MATE_PAL.slate, MATE_PAL.steel, MATE_PAL.silver];
+
+function stampDirt(P: Painter, x: number, y: number, w: number, i: number, seed: number): void {
+  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.clay, 1);
+  if (i % 2 === 0) P.rect(x - 1.5, y - 1.5, 3, 3, MATE_PAL.tan, 0.85); // trodden dust
+  if (i % 6 === 3 && rand01(seed, i) > 0.6) P.rect(x + (rand01(i, seed) - 0.5) * w, y + (rand01(seed, i * 3) - 0.5) * w, 2, 2, MATE_PAL.woodDark, 0.6);
+}
+function stampCobble(P: Painter, x: number, y: number, w: number, i: number, seed: number): void {
+  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.woodDark, 1); // dark mortar
+  const stone = COBBLE_STONES[Math.floor(rand01(seed + i, i * 3) * COBBLE_STONES.length)] ?? MATE_PAL.slate;
+  const jx = (rand01(i, seed) - 0.5) * (w * 0.4);
+  const jy = (rand01(seed, i) - 0.5) * (w * 0.4);
+  P.rect(x + jx - 2.5, y + jy - 2.5, 5, 5, stone, 1); // a rounded cobble
+}
+function stampPlank(P: Painter, x: number, y: number, w: number, nx: number, ny: number, i: number): void {
+  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.wood, 1); // plank fill
+  if (i % 4 === 0) P.rect(x - w * 0.4, y - w * 0.4, w * 0.8, w * 0.8, MATE_PAL.woodDark, 0.55); // cross-seam
+  // side rails (a continuous dark edge run down both verges → a boardwalk/bridge)
+  P.rect(x + nx * (w / 2) - 1.5, y + ny * (w / 2) - 1.5, 3, 3, MATE_PAL.woodDark, 1);
+  P.rect(x - nx * (w / 2) - 1.5, y - ny * (w / 2) - 1.5, 3, 3, MATE_PAL.woodDark, 1);
+}
+function stampObsidian(P: Painter, x: number, y: number, w: number, i: number, seed: number): void {
+  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.bark, 1);
+  P.rect(x - 2, y - 2, 4, 4, MATE_PAL.black, 1); // dark stone
+  if (rand01(seed + 7, i) > 0.7) P.rect(x + (rand01(i, seed) - 0.5) * w, y + (rand01(seed, i) - 0.5) * w, 2, 2, MATE_PAL.red, 0.9); // ember crack
+}
+
+function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number; cy: number }, bright: boolean, seed: number, zones: readonly ZoneBand[]): void {
   const dx = to.cx - from.cx;
   const dy = to.cy - from.cy;
   const dist = Math.hypot(dx, dy) || 1;
   if (!P.visible(Math.min(from.cx, to.cx) - ROAD_CORE, Math.abs(dx) + ROAD_CORE * 2)) return;
   const steps = Math.max(6, Math.round(dist / ROAD_STEP));
   const nx = -dy / dist;
-  const ny = dx / dist; // unit perpendicular (for verge scatter)
-  const edge = MATE_PAL.woodDark;
-  const fill = bright ? MATE_PAL.gold : MATE_PAL.clay;
-  const dust = bright ? MATE_PAL.yellow : MATE_PAL.tan;
-  const edgeA = bright ? 0.7 : 0.55;
-  // Pass 1: the trodden dark rim (draw all rims first so overlap doesn't muddy the dirt fill).
+  const ny = dx / dist; // unit perpendicular
+  const rim = bright ? MATE_PAL.gold : MATE_PAL.woodDark;
+  const rimA = bright ? 0.6 : 0.5;
+  // Pass 1: the dark (or gold, when reachable) rim under everything.
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const x = from.cx + dx * t;
     const y = from.cy + dy * t;
     const w = ROAD_CORE + (rand01(seed, i >> 1) - 0.5) * 2.5 + 3;
-    P.rect(x + SHADOW_OFF - w / 2, y + SHADOW_OFF - w / 2, w, w, edge, edgeA);
+    P.rect(x + SHADOW_OFF - w / 2, y + SHADOW_OFF - w / 2, w, w, rim, rimA);
   }
-  // Pass 2: dirt fill + trodden dust centreline + verge pebbles/flowers.
+  // Pass 2: the zone-specific paving surface + reachable-route markers + verge dressing.
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const x = from.cx + dx * t;
     const y = from.cy + dy * t;
     const w = ROAD_CORE + (rand01(seed, i >> 1) - 0.5) * 2.5;
-    P.rect(x - w / 2, y - w / 2, w, w, fill, 1);
-    if (i % 2 === 0) P.rect(x - 1.5, y - 1.5, 3, 3, dust, 0.85);
-    if (i % 7 === 0 && rand01(seed + 3, i) > 0.55) {
-      const off = w / 2 + 3 + rand01(seed, i) * 4;
-      const side = rand01(seed + 9, i) > 0.5 ? 1 : -1;
-      P.rect(x + nx * off * side, y + ny * off * side, 2, 2, MATE_PAL.woodDark, 0.7);
+    const kind = ZONE_THEMES[zoneAtX(zones, x).index]!.kind;
+    switch (kind) {
+      case "forest":
+        stampDirt(P, x, y, w, i, seed);
+        break;
+      case "village":
+        stampCobble(P, x, y, w, i, seed);
+        break;
+      case "mountains":
+        stampPlank(P, x, y, w, nx, ny, i);
+        break;
+      case "lair":
+        stampObsidian(P, x, y, w, i, seed);
+        break;
     }
-    if (i % 11 === 5 && rand01(seed + 5, i) > 0.5) {
+    if (bright && i % 4 === 0) P.rect(x - 1.5, y - 1.5, 3, 3, MATE_PAL.gold, 0.95); // reachable-route marker
+    // grassy verge flowers only alongside the soft-ground zones
+    if ((kind === "forest" || kind === "village") && i % 11 === 5 && rand01(seed + 5, i) > 0.5) {
       const off = w / 2 + 7 + rand01(seed + 2, i) * 4;
       drawFlower(P, x + nx * off, y + ny * off, seed * 7 + i);
     }
@@ -547,12 +644,6 @@ export interface MapScreen {
   reachableOrder(run: RunView): number[];
 }
 
-/** Painter with the ground-tile viewport helpers used by `drawGroundTiles`. */
-interface GroundPainter extends Painter {
-  visibleLeft(): number;
-  visibleRight(): number;
-}
-
 export function createMapScreen(): MapScreen {
   let layout: ReadonlyMap<number, NodeRect> = new Map();
   let camX = 0;
@@ -562,6 +653,10 @@ export function createMapScreen(): MapScreen {
   let viewW = 0;
   let viewH = 0;
   let lastCurrent: number | null | undefined = undefined;
+  // Cached ground plane — the noise/dither is expensive, so build it once per (map, worldW, worldH)
+  // and just replay the opaque quads (with camera offset + horizontal cull) every frame.
+  let groundQuads: readonly GroundQuad[] = [];
+  let groundKey = "";
 
   function clampCam(): void {
     camX = clamp(camX, 0, Math.max(0, worldW - viewW));
@@ -587,7 +682,7 @@ export function createMapScreen(): MapScreen {
 
     const ox = -camX;
     const oy = -camY;
-    const P: GroundPainter = {
+    const P: Painter = {
       rect: (x, y, w, h, color, alpha = 1) => surface.rect(x + ox, y + oy, w, h, color, alpha),
       text: (t, x, y, color, alpha = 1, scale = 1) => {
         drawText(surface, t, x + ox, y + oy, { color, alpha, scale });
@@ -596,12 +691,15 @@ export function createMapScreen(): MapScreen {
         if (t.length > 0) drawText(surface, t, cx - measureText(t) / 2 + ox, y + oy, { color, alpha });
       },
       visible: (x, w) => x + w >= camX - CULL_PAD && x <= camX + viewW + CULL_PAD,
-      visibleLeft: () => camX - CULL_PAD,
-      visibleRight: () => camX + viewW + CULL_PAD,
     };
 
-    // WORLD: ground → props (depth-sorted) → footpaths → nodes → hero → zone banners
-    drawGroundTiles(P, L);
+    // WORLD: ground (cached) → props (depth-sorted) → footpaths → nodes → hero → zone banners
+    const key = `${L.worldW}x${L.worldH}:${L.zones.map((z) => `${z.index}@${Math.round(z.startX)}`).join(",")}`;
+    if (key !== groundKey) {
+      groundQuads = buildGroundQuads(L);
+      groundKey = key;
+    }
+    for (const q of groundQuads) if (P.visible(q.x, q.w)) P.rect(q.x, q.y, q.w, q.h, q.c, 1);
 
     const props = collectProps(L)
       .filter((pr) => P.visible(pr.x - 30, 60))
@@ -613,12 +711,12 @@ export function createMapScreen(): MapScreen {
       if (from === undefined) continue;
       for (const targetId of node.next) {
         const to = L.nodes.get(targetId);
-        if (to !== undefined) drawRoad(P, from, to, node.id === current, node.id * 131 + targetId);
+        if (to !== undefined) drawRoad(P, from, to, node.id === current, node.id * 131 + targetId, L.zones);
       }
     }
     if (current === null) for (const id of run.map.startIds) {
       const to = L.nodes.get(id);
-      if (to !== undefined) drawRoad(P, L.anchor, to, true, id * 131);
+      if (to !== undefined) drawRoad(P, L.anchor, to, true, id * 131, L.zones);
     }
 
     const reachable = new Set(run.reachableIds);
