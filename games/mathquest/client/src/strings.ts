@@ -16,11 +16,11 @@ export const STRINGS = {
     shield: "Shield",
   } satisfies Record<CombatAction, string>,
 
-  enemyIntentPrefix: "⚔",
-  warriorBlockPrefix: "🛡",
+  enemyIntentPrefix: "†",
+  warriorBlockPrefix: "◆",
 
   submit: "Enter",
-  backspace: "⌫",
+  backspace: "←",
   typedPlaceholder: "?",
 
   won: "Victory!",
@@ -79,18 +79,20 @@ export const STRINGS = {
   mapTitle: "Choose your path",
   warriorHpLabel: "Warrior",
 
-  /** A map node's button label: type + grade, exactly the brief's examples ("⚔ G2", "★ Elite G3",
-   * "☾ Rest", "☠ Boss G4"). `"rest"` carries no grade (ignored, per `run/map.ts`'s `MapNode` doc). */
+  /** A map node's label: type glyph + grade (e.g. "† G2", "★ Elite G3", "♥ Rest", "♠ Boss G4").
+   * Glyphs are limited to what the @engine/ui bitmap font covers (ASCII + Romanian diacritics +
+   * the symbol set incl. † ★ ♥ ♠) — ⚔/☾/☠ aren't in UNSCII, so daggers/hearts/spades stand in.
+   * `"rest"` carries no grade (ignored, per `run/map.ts`'s `MapNode` doc). */
   nodeLabel(type: NodeType, grade: Grade): string {
     switch (type) {
       case "combat":
-        return `⚔ G${grade}`;
+        return `† G${grade}`;
       case "elite":
         return `★ Elite G${grade}`;
       case "rest":
-        return `☾ Rest`;
+        return `♥ Rest`;
       case "boss":
-        return `☠ Boss G${grade}`;
+        return `♠ Boss G${grade}`;
     }
   },
 

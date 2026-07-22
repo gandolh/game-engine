@@ -2,21 +2,24 @@
  * MateQuest — browser entry point.
  *
  * M1 booted the sim worker and rendered ONE screen (the combat loop) every frame. M3
- * (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md, Part B) wraps that fight in a RUN: this
- * file now switches which retained `@engine/ui` screen it renders by the latest `GameSnapshot`'s
- * `mode` — `"map"` -> `ui/map-screen.ts`, `"combat"` -> the existing `ui/combat-screen.ts`
- * (reused, its M2 grade selector removed), `"run_won"`/`"run_lost"` -> `ui/run-over-screen.ts`.
- * ONE `InputDispatcher` + a11y mirror still cover whichever screen's root is current — the root
- * PROVIDER swaps by mode, the same way `combat-screen.ts` swaps its own dynamic subtree by phase.
+ * (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md, Part B) wrapped that fight in a RUN,
+ * switching which screen it renders by the latest `GameSnapshot`'s `mode`. M3.1
+ * (corpus/todos/2026-07-22-mathquest-M3.1-spatial-map.md) replaces the `"map"` mode's screen with
+ * a CUSTOM-DRAWN spatial map (`ui/map-screen.ts`) instead of a retained `@engine/ui` widget tree —
+ * so this file is now genuinely MODE-AWARE, not just root-swapping, for input:
  *
- * Wiring (mirrors Citadel's `main/hud-panels.ts` + `main/input.ts`, stripped to ONE UI root at a
- * time since MateQuest has no world layer underneath the UI):
- *   - a single `InputDispatcher` hit-tests the CURRENT screen's tree; canvas pointer events are
- *     forwarded to it in CSS-logical px (clientX − rect.left; NOT device px).
- *   - a hidden a11y mirror reflects the CURRENT tree into DOM and bridges focus both ways.
- *   - physical-keyboard entry (digits / Backspace / Enter) edits the SAME typed-answer buffer the
- *     on-screen keypad does, ONLY while `mode === "combat"` — it's meaningless on the map/run-over
- *     screens.
+ *   - **`"map"`**: `mapScreen.render()` draws the whole screen directly each frame (no
+ *     `computeLayout`/`renderTree`). Canvas clicks hit-test via `mapScreen.nodeAt` and post
+ *     `choose-node` directly (bypassing the widget `InputDispatcher` entirely); `1`..`9`/Enter
+ *     select among `mapScreen.reachableOrder`. The widget dispatcher's root-provider
+ *     (`currentWidgetRoot`) returns `null` in this mode so a stray widget hit-test can't fire, and
+ *     the a11y mirror is cleared (a full DOM mirror for the spatial map is a known follow-up —
+ *     see `ui/map-screen.ts`'s module doc).
+ *   - **`"combat"`/`"run_won"`/`"run_lost"`**: UNCHANGED from M3 — the existing
+ *     `ui/combat-screen.ts`/`ui/run-over-screen.ts` retained widget trees, laid out via
+ *     `computeLayout`/`renderTree`, hit-tested by the ONE `InputDispatcher`, mirrored into the
+ *     hidden a11y DOM. Physical-keyboard digit/Backspace/Enter entry still edits the typed-answer
+ *     buffer only while `mode === "combat"`.
  *
  * Sim/render boundary (root CLAUDE.md): this file only ever READS `GameSnapshot`s off the worker
  * and POSTS commands to it — it never mutates sim state directly. All run/combat logic +
@@ -39,7 +42,7 @@ import type { AnswerResponse, GameSnapshot } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
 import { MATE_THEME } from "./render/mate-theme";
 import { createCombatScreen, type CombatScreenActions } from "./ui/combat-screen";
-import { createMapScreen, type MapScreenActions } from "./ui/map-screen";
+import { createMapScreen } from "./ui/map-screen";
 import { createRunOverScreen, type RunOverScreenActions } from "./ui/run-over-screen";
 import type { WorkerInbound, WorkerOutbound } from "./worker/sim-worker";
 
@@ -122,12 +125,11 @@ async function main(): Promise<void> {
   };
   const combatScreen = createCombatScreen(combatActions);
 
-  const mapActions: MapScreenActions = {
-    chooseNode(id) {
-      post({ type: "choose-node", id });
-    },
-  };
-  const mapScreen = createMapScreen(mapActions);
+  // M3.1: the map screen is custom-drawn (no widget tree, no actions) — `main.ts` owns
+  // click/keyboard → `choose-node` directly (see below) instead of an `onActivate` callback.
+  const mapScreen = createMapScreen();
+  /** Hover target for the map's reachable-node highlight, tracked from `mousemove` in map mode. */
+  let hoverId: number | null = null;
 
   const runOverActions: RunOverScreenActions = {
     newRun() {
@@ -136,14 +138,15 @@ async function main(): Promise<void> {
   };
   const runOverScreen = createRunOverScreen(runOverActions);
 
-  /** Which retained screen is current, by the latest snapshot's `mode`. Defaults to the map
-   * screen before the first snapshot arrives (there is nothing meaningful to show/hit-test yet,
-   * but the dispatcher/mirror need SOME root). */
-  function currentRoot(): ContainerNode {
-    if (latest === null) return mapScreen.root;
+  /** Which WIDGET screen root is current, by the latest snapshot's `mode` — `null` in `"map"`
+   * mode (the spatial map has no widget tree) and before the first snapshot arrives. Used both as
+   * the `InputDispatcher`'s root-provider (so stray widget hit-tests never fire on the map) and by
+   * `frame()` to decide whether to run the widget `computeLayout`/`renderTree` path at all. */
+  function currentWidgetRoot(): ContainerNode | null {
+    if (latest === null) return null;
     switch (latest.mode) {
       case "map":
-        return mapScreen.root;
+        return null;
       case "combat":
         return combatScreen.root;
       case "run_won":
@@ -152,8 +155,9 @@ async function main(): Promise<void> {
     }
   }
 
-  // --- Input: ONE dispatcher over whichever screen root is CURRENT + a focus-bridged a11y mirror
-  const dispatcher: InputDispatcher = createInputDispatcher(currentRoot);
+  // --- Input: ONE dispatcher over whichever WIDGET screen root is CURRENT (null on the map) + a
+  // focus-bridged a11y mirror.
+  const dispatcher: InputDispatcher = createInputDispatcher(currentWidgetRoot);
   let mirror: A11yMirror | undefined;
   if (a11yMount !== null) {
     mirror = createA11yMirror(a11yMount, {
@@ -169,26 +173,55 @@ async function main(): Promise<void> {
   };
   canvas.addEventListener("mousedown", (e) => {
     const { x, y } = cssPx(e);
+    // Map mode: bypass the widget dispatcher entirely — hit-test the spatial layout directly and
+    // post `choose-node` only for a reachable target (brief: "unreachable node rejected").
+    if (latest !== null && latest.mode === "map") {
+      const id = mapScreen.nodeAt(x, y);
+      if (id !== null && latest.run.reachableIds.includes(id)) {
+        post({ type: "choose-node", id });
+      }
+      return;
+    }
     dispatcher.pointerDown(x, y);
     syncFocus();
   });
   canvas.addEventListener("mouseup", (e) => {
+    if (latest !== null && latest.mode === "map") return; // map clicks resolve on mousedown, no drag/release semantics
     const { x, y } = cssPx(e);
     dispatcher.pointerUp(x, y);
   });
   canvas.addEventListener("mousemove", (e) => {
     const { x, y } = cssPx(e);
+    if (latest !== null && latest.mode === "map") {
+      hoverId = mapScreen.nodeAt(x, y);
+      return;
+    }
     dispatcher.pointerMove(x, y);
   });
 
-  // Keyboard: let the dispatcher have first refusal (Tab traversal, Enter/Space on a focused
-  // button). If it didn't consume the key AND we're mid-fight, treat digits/Backspace/Enter as
-  // answer entry — meaningless on the map/run-over screens, so gated on `mode === "combat"`.
+  // Keyboard. Map mode gets its OWN accessible-fallback handling (`1`..`9` / Enter select among
+  // the reachable nodes) and returns early — it never reaches the widget dispatcher (whose root is
+  // `null` there anyway) or the combat typed-answer path. Combat/run-over keyboard handling below
+  // is UNCHANGED from M3: the dispatcher gets first refusal (Tab traversal, Enter/Space on a
+  // focused button), then un-consumed digits/Backspace/Enter feed the typed-answer buffer while
+  // `mode === "combat"`.
   window.addEventListener("keydown", (e) => {
     // When a real mirror <button> holds DOM focus, native Tab/Enter + the mirror's own listeners
     // drive activation — don't fight them (same guard Citadel's input.ts uses).
     const active = document.activeElement;
     if (active !== null && a11yMount !== null && a11yMount.contains(active)) return;
+
+    if (latest !== null && latest.mode === "map") {
+      const order = mapScreen.reachableOrder(latest.run);
+      let id: number | undefined;
+      if (/^[1-9]$/.test(e.key)) id = order[Number(e.key) - 1];
+      else if (e.key === "Enter") id = order[0];
+      if (id !== undefined) {
+        post({ type: "choose-node", id });
+        e.preventDefault();
+      }
+      return;
+    }
 
     const consumed = dispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
     if (consumed) {
@@ -217,30 +250,38 @@ async function main(): Promise<void> {
     renderer.beginFrame();
     if (latest !== null) {
       const snapshot = latest;
-      const root = currentRoot();
-      let changed: boolean;
-      switch (snapshot.mode) {
-        case "map":
-          changed = mapScreen.refresh(snapshot.run);
-          break;
-        case "combat":
-          changed = combatScreen.refresh(snapshot.combat, typedValue);
-          break;
-        case "run_won":
-        case "run_lost":
-          changed = runOverScreen.refresh(snapshot.mode, snapshot.run);
-          break;
+      if (snapshot.mode === "map") {
+        // Custom-drawn: one pass, no widget tree, no computeLayout/renderTree.
+        surface.begin();
+        mapScreen.render(surface, snapshot.run, hoverId);
+        surface.end();
+        // No DOM mirror for the spatial map yet (known follow-up — see ui/map-screen.ts's module
+        // doc); clear it so a stale combat/run-over mirror never lingers into map mode.
+        mirror?.update(null);
+      } else {
+        const root = currentWidgetRoot();
+        if (root !== null) {
+          let changed: boolean;
+          switch (snapshot.mode) {
+            case "combat":
+              changed = combatScreen.refresh(snapshot.combat, typedValue);
+              break;
+            case "run_won":
+            case "run_lost":
+              changed = runOverScreen.refresh(snapshot.mode, snapshot.run);
+              break;
+          }
+          // computeLayout must run every frame AFTER refresh: refresh mutates layout specs
+          // (HP-bar fill widths, swapped subtrees), and drawBars + hit-testing read the resulting
+          // rects.
+          computeLayout(root, 24, 24, MATE_THEME);
+          surface.begin();
+          renderTree(surface, root, MATE_THEME);
+          if (snapshot.mode === "combat") combatScreen.drawBars(surface);
+          surface.end();
+          if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
+        }
       }
-      // computeLayout must run every frame AFTER refresh: refresh mutates layout specs (HP-bar
-      // fill widths, swapped subtrees), and drawBars/drawChips + hit-testing read the resulting
-      // rects.
-      computeLayout(root, 24, 24, MATE_THEME);
-      surface.begin();
-      renderTree(surface, root, MATE_THEME);
-      if (snapshot.mode === "map") mapScreen.drawChips(surface);
-      else if (snapshot.mode === "combat") combatScreen.drawBars(surface);
-      surface.end();
-      if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
     }
     renderer.endFrame();
     requestAnimationFrame(frame);

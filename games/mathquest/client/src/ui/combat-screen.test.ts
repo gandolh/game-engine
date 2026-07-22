@@ -176,7 +176,7 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
     const problem: ProblemView = { kind: "typed", topic: "addition", grade: 1, prompt: "3 + 4 = ?" };
     screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "3");
     byLabel(screen.root, "7").onActivate?.();
-    byLabel(screen.root, "⌫").onActivate?.();
+    byLabel(screen.root, "←").onActivate?.();
     byLabel(screen.root, "Enter").onActivate?.();
     expect(calls.digits).toEqual([7]);
     expect(calls.backspace).toBe(1);
