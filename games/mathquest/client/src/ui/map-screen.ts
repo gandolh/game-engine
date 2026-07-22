@@ -55,7 +55,6 @@ const BOSS_H = 50;
 const NODE_BORDER = 3;
 const COL_WAVE = 34; // vertical wobble per column so the top-down trail snakes
 
-const TILE = 28; // ground-tile size (Farm bakes 16px; we redraw per frame so go coarser for perf)
 const SEAM = 46; // half-width of the dithered zone-boundary transition
 const HEIGHT_FREQ = 0.09; // fBm sample frequency (lower ⇒ larger, smoother landforms)
 const WARP_STRENGTH = 1.1; // domain-warp amount (Quilez): swirls noise contours ⇒ organic, not gridded
@@ -64,7 +63,9 @@ const MOIST_WEIGHT = 0.22; // how much moisture shifts tone independently of slo
 const BOUNDARY_WAVE = 34; // px: wavy zone-seam displacement so band borders aren't dead-straight
 const SLOPE_GAIN = 1.2; // hillshade slope weight (Citadel uses 1.3)
 const HEIGHT_GAIN = 0.55; // hypsometric weight
-const TERRAIN_RANGE = 0.36; // maps the shade+moisture signal onto the 3-tone ramp; wider ⇒ calmer
+const GTILE = 24; // ground shading cell (finer than the 28px node grid ⇒ smoother band contours)
+const BAND_T = 0.13; // |shade| beyond which a cell takes the dark/light band (else base) — Citadel-style
+const SPECK_RANGE = 0.3; // shade range that saturates the per-cell speck light/dark bias
 const SHADOW_OFF = 3; // SE drop-shadow offset (Citadel's fake-height trick)
 
 const PROP_CELL = 96; // scatter grid: at most one prop per cell
@@ -183,15 +184,6 @@ function heightAt(tx: number, ty: number, seed: number): number {
  * ground reads as varied land rather than one gradient dyed three colours. */
 function moistureAt(tx: number, ty: number, seed: number): number {
   return fbm(tx * MOIST_FREQ + 40.5, ty * MOIST_FREQ + 17.2, seed + 101);
-}
-/** Interleaved gradient noise (Jiménez) — a low-discrepancy per-cell threshold in [0,1). Unlike a
- * Bayer matrix it has no short repeat, so dithered tone boundaries read as organic grain rather than
- * a regular checkerboard. Safe here because the ground is baked once (IGN needn't be frame-stable). */
-function ign(x: number, y: number): number {
-  const v = 0.06711056 * x + 0.00583715 * y;
-  const f = v - Math.floor(v);
-  const p = 52.9829189 * f;
-  return p - Math.floor(p);
 }
 /** Continuous hillshade signal: Citadel's central-difference gradient under a fixed NW sun. */
 function terrainShade(tx: number, ty: number, seed: number): number {
@@ -367,82 +359,57 @@ interface GroundQuad {
   readonly c: string;
 }
 
-const SUB = TILE / 4; // 7px sub-cell for fine ordered dithering + floor detail
-
 /**
- * Sparse, LOW-CONTRAST, in-hue floor detail stamped into a tile. Kept deliberately rare and mostly
- * same-family tones so it reads as ground texture, not as random stray pixels (an earlier pass was
- * too dense + too high-contrast — long horizontal rows, bright-red embers everywhere).
- */
-function pushDetail(out: GroundQuad[], theme: ZoneTheme, seed: number, ix: number, iy: number, x: number, y: number, lit: boolean): void {
-  const r = rand01(ix * 7 + seed, iy * 13);
-  switch (theme.kind) {
-    case "forest":
-      if (r > 0.94) out.push({ x: x + 9, y: y + 15, w: 1, h: 5, c: theme.gLight }, { x: x + 11, y: y + 16, w: 1, h: 4, c: theme.gLight }); // grass blades
-      else if (r < 0.02) out.push({ x: x + 14, y: y + 15, w: 3, h: 2, c: MATE_PAL.red }, { x: x + 15, y: y + 17, w: 1, h: 1, c: MATE_PAL.cream }); // rare mushroom
-      break;
-    case "village":
-      if (r > 0.94) out.push({ x: x + 9, y: y + 15, w: 1, h: 5, c: theme.gLight }, { x: x + 11, y: y + 16, w: 1, h: 4, c: theme.gDark }); // meadow grass
-      else if (r < 0.02) out.push({ x: x + 13, y: y + 14, w: 2, h: 2, c: MATE_PAL.gold }); // rare wildflower
-      break;
-    case "mountains":
-      if (lit && r > 0.93) out.push({ x: x + 6, y: y + 5, w: 5, h: 3, c: MATE_PAL.white }); // snow patch on lit slope
-      else if (r > 0.95) out.push({ x: x + 5, y: y + 18, w: 4, h: 3, c: MATE_PAL.silver }); // scree
-      break;
-    case "lair":
-      if (r > 0.96) out.push({ x: x + 8, y: y + 10, w: 2, h: 2, c: MATE_PAL.orange }); // rare ember (small, dim)
-      else if (r > 0.9 && r < 0.93) out.push({ x: x + 14, y: y + 13, w: 3, h: 3, c: MATE_PAL.plum }); // in-hue dark rock
-      break;
-  }
-}
-
-/**
- * Build the whole ground plane as opaque quads (WORLD space), once. Within a zone the base tone is
- * the NEAREST of [dark, base, light] (so broad regions stay a single solid colour), and the seam to
- * the next tone is smoothed by an interleaved-gradient-noise dither of 7px sub-cells — a gradient of
- * solid pixels, no checkerboard. Zone seams are wavy and borrow the neighbour palette by distance.
+ * Build the whole ground plane as opaque quads (WORLD space), once — composed the way Farm/Citadel
+ * compose terrain, not as a dither field:
+ *  - Each cell is ONE solid hillshade-banded tone. A gentle NW-lit slope (hillshade + an independent
+ *    moisture field) takes the light tone, a shadowed slope the dark tone, and locally-flat ground
+ *    stays base — and BAND_T is set so most ground reads as base (broad calm regions, not patchwork).
+ *  - On top, just 1 (rarely 2) CHUNKY 2–3px specks per cell (Citadel's `ditherClusters`), dark/light
+ *    biased by the same slope — soft tonal texture, never a dense scatter of stray pixels.
+ * Zone seams are wavy (per-row noise displacement) and borrow the neighbour palette by distance. The
+ * finer GTILE cell (24px vs the 28px node grid) keeps band contours smooth without any sub-dither.
  */
 function buildGroundQuads(L: MapLayout): GroundQuad[] {
   const out: GroundQuad[] = [];
-  const iy0 = Math.floor((CHROME_TOP - 2) / TILE);
-  const iy1 = Math.ceil(L.worldH / TILE);
-  const ix1 = Math.ceil(L.worldW / TILE);
-  for (let ix = 0; ix <= ix1; ix++) {
-    const x = ix * TILE;
+  const sub = GTILE / 4;
+  const gy0 = Math.floor((CHROME_TOP - 2) / GTILE);
+  const gy1 = Math.ceil(L.worldH / GTILE);
+  const gx1 = Math.ceil(L.worldW / GTILE);
+  for (let gx = 0; gx <= gx1; gx++) {
+    const x = gx * GTILE;
     if (x > L.worldW) break;
-    const cxT = x + TILE / 2;
-    for (let iy = iy0; iy <= iy1; iy++) {
-      const y = iy * TILE;
+    const cxT = x + GTILE / 2;
+    for (let gy = gy0; gy <= gy1; gy++) {
+      const y = gy * GTILE;
       // Wavy zone seam: displace the boundary sample by a low-freq per-row noise so band borders are
       // irregular, not a dead-straight x=const line; then borrow the neighbour palette by distance.
-      const sampleX = cxT + (fbm(iy * 0.16 + 3.1, 0.7, 1777) - 0.5) * 2 * BOUNDARY_WAVE;
+      const sampleX = cxT + (fbm(gy * 0.11 + 3.1, 0.7, 1777) - 0.5) * 2 * BOUNDARY_WAVE;
       const band = zoneAtX(L.zones, sampleX);
       let zi = band.index;
       const dStart = sampleX - band.startX;
       const dEnd = band.endX - sampleX;
-      if (zi > 0 && dStart < SEAM && rand01(ix, iy) < 0.5 * (1 - dStart / SEAM)) zi -= 1;
-      else if (zi < ZONE_THEMES.length - 1 && dEnd < SEAM && rand01(ix, iy) < 0.5 * (1 - dEnd / SEAM)) zi += 1;
+      if (zi > 0 && dStart < SEAM && rand01(gx, gy) < 0.5 * (1 - dStart / SEAM)) zi -= 1;
+      else if (zi < ZONE_THEMES.length - 1 && dEnd < SEAM && rand01(gx, gy) < 0.5 * (1 - dEnd / SEAM)) zi += 1;
       const theme = ZONE_THEMES[zi]!;
       const seed = (zi + 1) * 1013;
-      const ramp = [theme.gDark, theme.gBase, theme.gLight];
-      // tone from hillshade + an independent moisture field (varied land, not one tri-tone gradient)
-      const signal = terrainShade(ix, iy, seed) + (moistureAt(ix, iy, seed) - 0.5) * MOIST_WEIGHT;
-      const idxF = clamp(((signal + TERRAIN_RANGE) / (2 * TERRAIN_RANGE)) * 2, 0, 2);
-      const lvl = Math.round(idxF); // NEAREST tone ⇒ broad solid regions, not a per-tile checkerboard
-      out.push({ x, y, w: TILE + 1, h: TILE + 1, c: ramp[lvl]! }); // +1 avoids hairline seams
-      // smooth the tone boundary: IGN-dither the neighbour tone across 7px sub-cells (no checkerboard)
-      const frac = idxF - lvl; // −0.5..0.5 — how far toward the neighbour tone
-      const nb = lvl + (frac > 0 ? 1 : -1);
-      if (Math.abs(frac) > 0.1 && nb >= 0 && nb <= 2) {
-        const neighbour = ramp[nb]!;
-        const density = clamp((Math.abs(frac) - 0.1) / 0.4, 0, 1);
-        for (let sy = 0; sy < 4; sy++) {
-          for (let sx = 0; sx < 4; sx++) {
-            if (ign(ix * 4 + sx, iy * 4 + sy) < density) out.push({ x: x + sx * SUB, y: y + sy * SUB, w: SUB + 1, h: SUB + 1, c: neighbour });
-          }
-        }
+      // ONE banded tone per cell: hillshade + moisture, thresholded so base dominates (Citadel-style).
+      const shade = terrainShade(gx, gy, seed) + (moistureAt(gx, gy, seed) - 0.5) * MOIST_WEIGHT;
+      const baseTone = shade < -BAND_T ? theme.gDark : shade > BAND_T ? theme.gLight : theme.gBase;
+      out.push({ x, y, w: GTILE + 1, h: GTILE + 1, c: baseTone }); // +1 avoids hairline seams
+      // 1 (rarely 2) chunky specks, slope-biased dark/light — calm tonal texture, not a scatter.
+      const bias = clamp(0.5 + shade / (2 * SPECK_RANGE), 0, 1); // 0 shadowed .. 1 lit
+      const count = rand01(gx * 3 + zi, gy * 7) > 0.86 ? 2 : 1;
+      for (let i = 0; i < count; i++) {
+        const sgx = Math.floor(rand01(gx * 13 + i * 97 + zi, gy * 17 + i * 31) * 4);
+        const sgy = Math.floor(rand01(gy * 13 + i * 57 + zi, gx * 29 + i * 19) * 4);
+        const size = rand01(gx * 7 + i, gy * 11 + i) > 0.5 ? 3 : 2;
+        const light = rand01(gx * 5 + i * 3, gy * 23 + i) < bias;
+        let c = light ? theme.gLight : theme.gDark;
+        if (theme.kind === "mountains" && light && rand01(gx + i, gy * 3) > 0.65) c = MATE_PAL.white; // snow glint
+        else if (theme.kind === "lair" && !light && rand01(gx * 2 + i, gy) > 0.92) c = MATE_PAL.orange; // rare ember
+        out.push({ x: x + sgx * sub, y: y + sgy * sub, w: size, h: size, c });
       }
-      pushDetail(out, theme, seed, ix, iy, x, y, lvl >= 2);
     }
   }
   return out;
