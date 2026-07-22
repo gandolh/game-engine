@@ -229,6 +229,32 @@ journey**) and built it INLINE (not dispatched).
 - **Known follow-ups:** map still has no a11y DOM mirror (1..9/Enter keyboard only); scenery is
   procedurally-placed pixel art (M5 can upgrade to authored atlas art).
 
+## M3.3 — full-screen map + pan/scroll camera + rich Canvas2D textures (2026-07-22, opus inline)
+User (with a screenshot) asked to make the map full-screen, add in-game scrolling, and richer
+"realistic" textures / continuous decorated roads. Grilled two calls: **texture approach → rich
+Canvas2D** (user then explicitly said **no WebGPU — device compatibility**, so no shaders) and
+**scrolling → build now**.
+- **Full-screen:** the render pipeline draws UI in CSS px = the full canvas; the map had hardcoded
+  960×540. Now `map-screen.render(surface, run, hover, viewW, viewH)` takes the live
+  `canvas.clientWidth/clientHeight` and lays out against it. World is WIDER than the viewport
+  (`COLUMN_SPACING=260`) ⇒ horizontal scroll.
+- **Pan/scroll camera** (owned by map-screen): auto-centers on the hero's node on each advance, then
+  the player pans freely — **drag** (press→drag past a 5px threshold = pan; a press that doesn't =
+  node click on release), **mouse wheel** (→ horizontal), **arrow keys**; clamped to the world.
+  New interface: `render(…viewW,viewH)`, `nodeAtScreen(sx,sy)` (camera-aware), `panBy(dx,dy)`,
+  `reachableOrder`. `main.ts` wires it; HUD (title/HP/legend/‹›scroll hints) stays fixed screen-space.
+- **Rich textures (Canvas2D only, palette-pure via alpha over palette colors):** layered-alpha sky
+  gradient (haze toward horizon), a darker ground stratum, grass-tuft + pebble ground texture, soft
+  **biome-blend seams** between zones (linear-alpha crossfade), and a **continuous decorated road**
+  (finer stamps + edge + dashed centerline + pebbles + **flowers along the verge** in palette accents).
+  Perf: everything culled to the visible x-range.
+- Determinism: layout + all scatter are a pure function of `RunView` + an integer hash (no rng).
+- Verify: typecheck 19/19; `@mathquest/client` **26**; `@mathquest/sim-core` **142**; `@engine/ui`
+  **166**; palette **10** — all green; no raw hex. Browser playtest is the user's.
+- **Known follow-ups:** still no a11y mirror for the spatial map (drag + 1..9/Enter/arrows only);
+  vertical scroll is a no-op (world height = viewport; journey is horizontal); scenery is procedural
+  pixel-art (authored atlas art remains a possible M5 upgrade).
+
 **Next: M4 — progression & loot.** In-run XP/level-up choice + persistent per-topic mastery (survives
 death, gates hard branches, unlocks blueprints) + equipment with combat bonuses AND math lifelines
 (hint / 50-50 on MC / show-step / skip / +time). This is where the loot economy the design promised
