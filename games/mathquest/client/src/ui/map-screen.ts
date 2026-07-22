@@ -58,19 +58,14 @@ const COL_WAVE = 34; // vertical wobble per column so the top-down trail snakes
 const TILE = 28; // ground-tile size (Farm bakes 16px; we redraw per frame so go coarser for perf)
 const SEAM = 46; // half-width of the dithered zone-boundary transition
 const HEIGHT_FREQ = 0.09; // fBm sample frequency (lower ⇒ larger, smoother landforms)
+const WARP_STRENGTH = 1.1; // domain-warp amount (Quilez): swirls noise contours ⇒ organic, not gridded
+const MOIST_FREQ = 0.05; // second, broader "moisture" field frequency (Red Blob Games elevation+moisture)
+const MOIST_WEIGHT = 0.22; // how much moisture shifts tone independently of slope
+const BOUNDARY_WAVE = 34; // px: wavy zone-seam displacement so band borders aren't dead-straight
 const SLOPE_GAIN = 1.2; // hillshade slope weight (Citadel uses 1.3)
 const HEIGHT_GAIN = 0.55; // hypsometric weight
-const TERRAIN_RANGE = 0.34; // maps the shade signal onto the 3-tone ramp; wider ⇒ calmer, mostly-base
+const TERRAIN_RANGE = 0.36; // maps the shade+moisture signal onto the 3-tone ramp; wider ⇒ calmer
 const SHADOW_OFF = 3; // SE drop-shadow offset (Citadel's fake-height trick)
-
-// 4×4 ordered-dither (Bayer) matrix — dithers between adjacent ground tones so the solid-colour
-// bands blend smoothly instead of forming hard patches (the classic pixel-art gradient trick).
-const BAYER4: readonly (readonly number[])[] = [
-  [0, 8, 2, 10],
-  [12, 4, 14, 6],
-  [3, 11, 1, 9],
-  [15, 7, 13, 5],
-];
 
 const PROP_CELL = 96; // scatter grid: at most one prop per cell
 const PROP_DENSITY = 0.5; // fraction of cells that spawn a prop
@@ -175,8 +170,28 @@ function fbm(x: number, y: number, seed: number): number {
   }
   return sum / norm;
 }
+/** Domain-warped fBm height (Quilez): sample the noise at a coordinate that is itself offset by
+ * noise, so contours swirl organically instead of reading as axis-aligned fBm blobs. */
 function heightAt(tx: number, ty: number, seed: number): number {
-  return fbm(tx * HEIGHT_FREQ, ty * HEIGHT_FREQ, seed);
+  const nx = tx * HEIGHT_FREQ;
+  const ny = ty * HEIGHT_FREQ;
+  const qx = fbm(nx + 5.2, ny + 1.3, seed + 17) - 0.5;
+  const qy = fbm(nx + 8.3, ny + 2.8, seed + 31) - 0.5;
+  return fbm(nx + WARP_STRENGTH * qx, ny + WARP_STRENGTH * qy, seed);
+}
+/** A second, broader noise field (Red Blob Games): tone leans on elevation AND moisture, so the
+ * ground reads as varied land rather than one gradient dyed three colours. */
+function moistureAt(tx: number, ty: number, seed: number): number {
+  return fbm(tx * MOIST_FREQ + 40.5, ty * MOIST_FREQ + 17.2, seed + 101);
+}
+/** Interleaved gradient noise (Jiménez) — a low-discrepancy per-cell threshold in [0,1). Unlike a
+ * Bayer matrix it has no short repeat, so dithered tone boundaries read as organic grain rather than
+ * a regular checkerboard. Safe here because the ground is baked once (IGN needn't be frame-stable). */
+function ign(x: number, y: number): number {
+  const v = 0.06711056 * x + 0.00583715 * y;
+  const f = v - Math.floor(v);
+  const p = 52.9829189 * f;
+  return p - Math.floor(p);
 }
 /** Continuous hillshade signal: Citadel's central-difference gradient under a fixed NW sun. */
 function terrainShade(tx: number, ty: number, seed: number): number {
@@ -384,8 +399,8 @@ function pushDetail(out: GroundQuad[], theme: ZoneTheme, seed: number, ix: numbe
 /**
  * Build the whole ground plane as opaque quads (WORLD space), once. Within a zone the base tone is
  * the NEAREST of [dark, base, light] (so broad regions stay a single solid colour), and the seam to
- * the next tone is smoothed by a fine 4×4 ordered dither of 7px sub-cells — a gradient made of solid
- * pixels, no hard checkerboard. Zone seams borrow the neighbour palette with a probabilistic dither.
+ * the next tone is smoothed by an interleaved-gradient-noise dither of 7px sub-cells — a gradient of
+ * solid pixels, no checkerboard. Zone seams are wavy and borrow the neighbour palette by distance.
  */
 function buildGroundQuads(L: MapLayout): GroundQuad[] {
   const out: GroundQuad[] = [];
@@ -396,22 +411,26 @@ function buildGroundQuads(L: MapLayout): GroundQuad[] {
     const x = ix * TILE;
     if (x > L.worldW) break;
     const cxT = x + TILE / 2;
-    const band = zoneAtX(L.zones, cxT);
     for (let iy = iy0; iy <= iy1; iy++) {
       const y = iy * TILE;
-      // dithered ZONE seam: near a boundary, sometimes borrow the neighbour zone's palette
+      // Wavy zone seam: displace the boundary sample by a low-freq per-row noise so band borders are
+      // irregular, not a dead-straight x=const line; then borrow the neighbour palette by distance.
+      const sampleX = cxT + (fbm(iy * 0.16 + 3.1, 0.7, 1777) - 0.5) * 2 * BOUNDARY_WAVE;
+      const band = zoneAtX(L.zones, sampleX);
       let zi = band.index;
-      const dStart = cxT - band.startX;
-      const dEnd = band.endX - cxT;
-      if (band.index > 0 && dStart < SEAM && rand01(ix, iy) < 0.5 * (1 - dStart / SEAM)) zi = band.index - 1;
-      else if (band.index < ZONE_THEMES.length - 1 && dEnd < SEAM && rand01(ix, iy) < 0.5 * (1 - dEnd / SEAM)) zi = band.index + 1;
+      const dStart = sampleX - band.startX;
+      const dEnd = band.endX - sampleX;
+      if (zi > 0 && dStart < SEAM && rand01(ix, iy) < 0.5 * (1 - dStart / SEAM)) zi -= 1;
+      else if (zi < ZONE_THEMES.length - 1 && dEnd < SEAM && rand01(ix, iy) < 0.5 * (1 - dEnd / SEAM)) zi += 1;
       const theme = ZONE_THEMES[zi]!;
       const seed = (zi + 1) * 1013;
       const ramp = [theme.gDark, theme.gBase, theme.gLight];
-      const idxF = clamp(((terrainShade(ix, iy, seed) + TERRAIN_RANGE) / (2 * TERRAIN_RANGE)) * 2, 0, 2);
+      // tone from hillshade + an independent moisture field (varied land, not one tri-tone gradient)
+      const signal = terrainShade(ix, iy, seed) + (moistureAt(ix, iy, seed) - 0.5) * MOIST_WEIGHT;
+      const idxF = clamp(((signal + TERRAIN_RANGE) / (2 * TERRAIN_RANGE)) * 2, 0, 2);
       const lvl = Math.round(idxF); // NEAREST tone ⇒ broad solid regions, not a per-tile checkerboard
       out.push({ x, y, w: TILE + 1, h: TILE + 1, c: ramp[lvl]! }); // +1 avoids hairline seams
-      // smooth the tone boundary: ordered 4×4 dither of the neighbour tone across 7px sub-cells
+      // smooth the tone boundary: IGN-dither the neighbour tone across 7px sub-cells (no checkerboard)
       const frac = idxF - lvl; // −0.5..0.5 — how far toward the neighbour tone
       const nb = lvl + (frac > 0 ? 1 : -1);
       if (Math.abs(frac) > 0.1 && nb >= 0 && nb <= 2) {
@@ -419,7 +438,7 @@ function buildGroundQuads(L: MapLayout): GroundQuad[] {
         const density = clamp((Math.abs(frac) - 0.1) / 0.4, 0, 1);
         for (let sy = 0; sy < 4; sy++) {
           for (let sx = 0; sx < 4; sx++) {
-            if ((BAYER4[sy]![sx]! + 0.5) / 16 < density) out.push({ x: x + sx * SUB, y: y + sy * SUB, w: SUB + 1, h: SUB + 1, c: neighbour });
+            if (ign(ix * 4 + sx, iy * 4 + sy) < density) out.push({ x: x + sx * SUB, y: y + sy * SUB, w: SUB + 1, h: SUB + 1, c: neighbour });
           }
         }
       }
