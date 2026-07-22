@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M2 problem-generator seam done, verified)
-updated: 2026-07-22 (M2 generators + mixed input + teach/re-queue complete on branch `mathquest`)
+status: in-progress (M3 map & runs done, verified)
+updated: 2026-07-22 (M3 branching map + run layer complete on branch `mathquest`)
 
 **Read this first to resume the MateQuest build.** Design-of-record is
 [corpus/wiki/mathquest-overview.md](../wiki/mathquest-overview.md) — read it before any brief.
@@ -56,8 +56,8 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | Design (grill-me + research) | ✅ settled 2026-07-21 | `3fff5e0` |
 | M0 scaffold | ✅ **done, controller-verified** (Sonnet executor) | `db20d58` (+corpus `a93e96c`) |
 | M1 turn-combat loop | ✅ **done, controller-verified** (Sonnet executor + opus finished `main.ts`) | `2101098` (+corpus `f67388c`) |
-| M2 problem-generator seam (I–IV) | ✅ **done, controller-verified** (Sonnet executor) | (this session — see below) |
-| M3 map & runs | ⬜ not started | — |
+| M2 problem-generator seam (I–IV) | ✅ **done, controller-verified** (Sonnet executor) | `97f5c97` (+corpus `fa696ba`) |
+| M3 map & runs | ✅ **done, controller-verified** (Sonnet executor) | (this session — see below) |
 | M4 progression & loot | ⬜ not started | — |
 | M5 theme, art, i18n | ⬜ not started | — |
 
@@ -141,6 +141,43 @@ FIFO re-queue before generating; `acknowledgeTeach` runs the deferred enemy turn
 **Next: M3 — map & runs.** Branching node map (Slay-the-Spire / Mewgenics) with easy/hard bifurcations;
 a run = ~12 nodes + boss; soft-roguelike wipe → home. Combat becomes one node type; hard branches raise
 the grade/enemy. (Then M4 progression/loot, M5 folklore art + RO/EN.)
+
+## M3 — how it went (2026-07-22)
+Dispatched to a **Sonnet executor** (brief: `2026-07-22-mathquest-M3-map-and-runs.md`); ran to
+completion in the background. Controller (opus) verified independently: re-ran the gate, **read
+`run/map.ts` and confirmed a genuinely connected DAG** (every non-boss node ≥1 outgoing; a cover pass
+gives every row-r+1 node ≥1 incoming; last row → boss ⇒ boss reachable from every start), read the run
+driver (`chooseNode`/`resolveCombatIfOver`/`newRun` — HP persists via `combat.result().warriorHp`,
+boss-win→`run_won`, wipe→`run_lost`), and confirmed the tests are strong (map: multi-seed BFS
+reachability + incoming-edge + escalation invariants; run: a telegraph-aware **winnability search over
+300 seeds** + HP-persist + careless-loses).
+- **Refactor:** combat extracted to `combat/combat.ts` `createCombat(opts): Combat` (M1/M2 behavior +
+  the no-answer-leak invariant preserved; combat tests moved to `combat/combat.test.ts`).
+- **Run layer:** `run/map.ts` `generateMap` (6 rows ×2–3 + boss, ≈12–14 nodes, ≥1 elite fork, **2**
+  rest rows, grades escalate `[1,2,2,3,3,4]`, elite +1, boss 4), `run/enemies.ts` archetypes, and a run
+  state machine in `sim-bootstrap.ts`. Warrior HP persists across fights (`WARRIOR_MAX_HP=30`); rest
+  heals `REST_HEAL=20`; wipe→home; boss→win; `newRun()` regenerates + resets.
+- **Snapshot:** `getSnapshot()` now returns a `GameSnapshot` discriminated by `mode`
+  (`map`/`combat`/`run_won`/`run_lost`); `combat` mode nests the unchanged M2 `CombatSnapshot`.
+- **Client:** `main.ts` swaps the rendered root by `mode`; new `ui/map-screen.ts` (node grid, reachable
+  enabled, colored type chips via a `drawChips` pass, click→`choose-node`) + `ui/run-over-screen.ts`
+  (banner + New-run). Combat screen reused; **manual grade selector removed** (grade now from the node).
+- **Accepted executor deviations (all sound):** (1) **retuned enemy balance** — the brief's example
+  numbers (elite 34/boss 44) are *mathematically unwinnable* given locked warrior-30/attack-8 (a
+  non-lethal attack always eats a full return hit); executor brute-forced (0/300 wins) then retuned to
+  combat 24 / elite 26 / boss 32 HP, intents ~5–8, `REST_HEAL=20`, **2** rest rows, and added
+  winnability tests (300/300 skilled wins, careless reliably loses). (2) **No drawn map edges** —
+  `@engine/ui` is flexbox-only (no absolute positioning), so reachability is shown via enabled/disabled
+  + row/col layout (brief allowed this fallback). (3) combat screen's own won/lost banner is now dead
+  code (the run driver resolves fights atomically) — left in, `restart()` posts `new-run`.
+- **Not self-verifiable:** browser playtest (:5176) — **user plays it**.
+- Verify gate: typecheck 19/19; `@mathquest/sim-core` **142**; `@mathquest/client` **27**; engine
+  palette **10** — all green; determinism/hex sweep clean.
+
+**Next: M4 — progression & loot.** In-run XP/level-up choice + persistent per-topic mastery (survives
+death, gates hard branches, unlocks blueprints) + equipment with combat bonuses AND math lifelines
+(hint / 50-50 on MC / show-step / skip / +time). This is where the loot economy the design promised
+lands. (Then M5 folklore art + full RO/EN.)
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
