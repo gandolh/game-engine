@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M1 turn-combat loop done, verified)
-updated: 2026-07-21 (M1 combat loop complete on branch `mathquest`)
+status: in-progress (M2 problem-generator seam done, verified)
+updated: 2026-07-22 (M2 generators + mixed input + teach/re-queue complete on branch `mathquest`)
 
 **Read this first to resume the MateQuest build.** Design-of-record is
 [corpus/wiki/mathquest-overview.md](../wiki/mathquest-overview.md) — read it before any brief.
@@ -55,8 +55,8 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 |---|---|---|
 | Design (grill-me + research) | ✅ settled 2026-07-21 | `3fff5e0` |
 | M0 scaffold | ✅ **done, controller-verified** (Sonnet executor) | `db20d58` (+corpus `a93e96c`) |
-| M1 turn-combat loop | ✅ **done, controller-verified** (Sonnet executor + opus finished `main.ts`) | (this session — see below) |
-| M2 problem-generator seam (I–IV) | ⬜ not started | — |
+| M1 turn-combat loop | ✅ **done, controller-verified** (Sonnet executor + opus finished `main.ts`) | `2101098` (+corpus `f67388c`) |
+| M2 problem-generator seam (I–IV) | ✅ **done, controller-verified** (Sonnet executor) | (this session — see below) |
 | M3 map & runs | ⬜ not started | — |
 | M4 progression & loot | ⬜ not started | — |
 | M5 theme, art, i18n | ⬜ not started | — |
@@ -110,6 +110,37 @@ focus-bridged a11y mirror + typed-answer buffer + physical-keyboard entry, mirro
 **Next: M2 — problem-generator seam (grades I–IV).** Replace the hardcoded `generateProblem` with a
 `ProblemGenerator` keyed by (grade, topic); add mixed input (typed + MC w/ distractors), teach-card +
 re-queue. Also fold in the M1 cue-sequencing polish.
+
+## M2 — how it went (2026-07-22)
+Dispatched to a **Sonnet executor** (brief: `2026-07-22-mathquest-M2-problem-generators.md`); ran to
+completion in the background, all green. Controller (opus) verified independently: re-ran the gate,
+**read `generators.ts` and recomputed the math** (subtraction draws `b∈[min,a]` ⇒ never negative;
+multiplication grade-branched, grade 1 throws + is excluded by `TOPICS_FOR_GRADE`; comparison computes
+the true relation and the shuffled `answerIndex` indexing is correct), and read the bootstrap to confirm
+teach/re-queue/no-leak are real (`toProblemView` strips `answer`/`answerIndex`; `nextProblem` pops the
+FIFO re-queue before generating; `acknowledgeTeach` runs the deferred enemy turn).
+- **Seam:** `GENERATORS: Record<MathTopic, (rng,grade)=>Problem>` + `TOPICS_FOR_GRADE`. 4 topics —
+  addition/subtraction/multiplication (typed) + comparison (choice `<`/`>`/`=`), difficulty-scaled per
+  grade via `ADD_SUB_RANGE`/`MULT_G*` constants. **Deferred (not built):** word-problems, fractions,
+  geometry, grades V–VIII.
+- **Mixed input:** internal `Problem` (carries answer) → `ProblemView` (no answer) crosses the boundary;
+  client submits `AnswerResponse = {kind:"typed",value} | {kind:"choice",index}`.
+- **Teach-card + re-queue:** new `"teach"` phase; wrong ⇒ fizzle + push problem to FIFO `requeue` +
+  show worked-step `teach`; `acknowledgeTeach()` then runs the enemy turn; `nextProblem` pops requeue.
+- **Cue split (M1 nit fixed):** `lastPlayer` + `lastEnemy` both on the snapshot, rendered as 2 lines.
+- **Grade selector** (I/II/III/IV) in the client posts `set-grade`; `MAX_ANSWER_DIGITS` bumped 3→5.
+- **Contract:** worker inbound `init`/`choose-action`/`submit-answer{response}`/`acknowledge-teach`/
+  `set-grade`; outbound `ready`/`snapshot`. `CombatSnapshot`: phase, warrior, enemy, `problem:
+  ProblemView|null`, grade, `teach:string|null`, turn, lastPlayer, lastEnemy.
+- **Accepted executor deviations:** comparison prompt is `"Compară: {a} și {b}"` (RO); grade-4 add/sub
+  range `100–4999` (keeps `2·max ≤ 9999`, no clamp); `setGrade` has no phase restriction. All in spirit.
+- **Not self-verifiable:** browser playtest (:5176) — **user plays it**.
+- Verify gate: typecheck 19/19; `@mathquest/sim-core` **71**; `@mathquest/client` **17**; engine palette
+  **10** — all green; determinism/hex sweep clean.
+
+**Next: M3 — map & runs.** Branching node map (Slay-the-Spire / Mewgenics) with easy/hard bifurcations;
+a run = ~12 nodes + boss; soft-roguelike wipe → home. Combat becomes one node type; hard branches raise
+the grade/enemy. (Then M4 progression/loot, M5 folklore art + RO/EN.)
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
