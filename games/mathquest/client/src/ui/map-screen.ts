@@ -1,23 +1,36 @@
 /**
- * MateQuest — the spatial folklore-JOURNEY map (2026-07-22 designer pass v2): a HORIZONTAL trail
- * through four themed zones (Pădurea Adâncă → Satul → Munții Carpați → Bârlogul Zmeului), now
- * **full-viewport** with a **pan/scroll camera** (the world is wider than the screen) and a richer,
- * more-textured Canvas2D look — a CONTINUOUS dirt road with flowers/pebbles/grass tufts scattered
- * alongside, layered-alpha sky gradients, and soft biome blends across zone seams. Drawn entirely
- * from Resurrect-64 `UISurface.rect` + `drawText` (no WebGPU / no shaders — Canvas2D keeps the game
- * running on any device, per the user directive).
+ * MateQuest — the spatial folklore-JOURNEY map (2026-07-22 designer pass v3): a HORIZONTAL trail
+ * through four themed zones (Pădurea Adâncă → Satul → Munții Carpați → Bârlogul Zmeului),
+ * **full-viewport** with a **pan/scroll camera** (the world is wider than the screen).
+ *
+ * ## v3 look — SOLID colours + faked depth (Farm + Citadel techniques, rect-only)
+ * The engine's two other games bake terrain into a static Canvas2D layer and decorate it with
+ * `ctx` primitives + blend modes; we only have axis-aligned `UISurface.rect`, so we adapt the
+ * *ideas* to opaque quads (no washed-out alpha gradients any more — the user asked for solid
+ * colours):
+ *  - **Ground is a grid of opaque tiles** (Farm's per-tile ground-noise loop), each tile's shade
+ *    picked by a **hillshade band** over a domain-free fBm height field (Citadel's dark/base/light
+ *    banding) — so flat solid colours still read as rolling relief.
+ *  - Each zone has a **distinct opaque palette** (deep-green woods → bright farmland → grey alps →
+ *    volcanic lair) plus **zone-specific ground flecks** (tilled earth / snow / embers) and its own
+ *    scenery mix, for a unique peisage.
+ *  - **Depth** comes from: a distant **ridge silhouette** at each horizon (parallax layer), a solid
+ *    horizon rim-light, and **SE drop-shadow skirts** under nodes/scenery (Citadel's building-shadow
+ *    trick), not from transparency.
+ *  - The trail is a **continuous footpath** — many small overlapping dirt stamps with an organic
+ *    wobbling width and a trodden dust centreline — not a chain of big concatenated squares.
+ * All colours are Resurrect-64 `MATE_PAL` roles (no raw hex, no WebGPU/shaders — Canvas2D runs on
+ * any device, per the user directive).
  *
  * ## Camera / coordinates
- * The map is laid out in a WORLD space (`worldW × worldH`); `worldW` exceeds the viewport when there
- * are enough columns, so the player scrolls horizontally. The camera (`camX,camY`, clamped to the
- * world) is owned here. `render(surface, run, hoverId, viewW, viewH)` takes the live viewport size
- * (the canvas's CSS px — full screen). WORLD elements are drawn through a small offset painter
- * (`-camX,-camY`); HUD chrome (title / HP / legend / scroll hints) is drawn in fixed SCREEN space.
- * The camera auto-centers on the hero's node whenever it changes (advance), then the player may pan
- * freely (drag / wheel / arrows — wired in `main.ts`) until the next advance.
+ * The map is laid out in WORLD space (`worldW × worldH`); `worldW` exceeds the viewport so the
+ * player scrolls horizontally. The camera (`camX,camY`, clamped) is owned here.
+ * `render(surface, run, hoverId, viewW, viewH)` takes the live viewport size (canvas CSS px). WORLD
+ * elements draw through an offset painter (`-camX,-camY`); HUD chrome is fixed SCREEN space. The
+ * camera auto-centers on the hero on any advance, then the player pans freely (drag/wheel/arrows).
  *
  * ## Determinism
- * Layout + all scatter (grass, flowers, pebbles) are a PURE function of `RunView` + an integer hash
+ * Layout, the height field, and all scatter are a PURE function of `RunView` + an integer hash
  * (`rand01`) — never `Math.random`/`Date.now`.
  *
  * Public shape: `createMapScreen(): { render, nodeAtScreen, panBy, reachableOrder }`.
@@ -40,8 +53,15 @@ const BOSS_H = 50;
 const NODE_BORDER = 3;
 const COL_WAVE = 30;
 
-const ROAD_W = 13;
-const ROAD_STEP = 7;
+const TILE = 28; // ground-tile size (Farm bakes 16px; we redraw per frame so go coarser for perf)
+const HEIGHT_FREQ = 0.16; // fBm sample frequency over tile coords
+const SLOPE_GAIN = 1.4; // hillshade slope weight (Citadel uses 1.3)
+const HEIGHT_GAIN = 0.55; // hypsometric weight
+const SHADE_THRESHOLD = 0.055; // dark/base/light band cutoff
+const SHADOW_OFF = 3; // SE drop-shadow offset (Citadel's fake-height trick)
+
+const ROAD_CORE = 9; // footpath width
+const ROAD_STEP = 3; // fine stamp spacing → overlapping stamps read as a continuous trail
 
 const HP_BAR_X = 250;
 const HP_BAR_Y = 30;
@@ -63,16 +83,22 @@ const FLOWER_COLORS: readonly string[] = [MATE_PAL.gold, MATE_PAL.red, MATE_PAL.
 type ZoneKind = "forest" | "village" | "mountains" | "lair";
 interface ZoneTheme {
   readonly kind: ZoneKind;
-  readonly sky: string;
-  readonly ground: string;
-  readonly groundHi: string;
-  readonly groundDark: string;
+  readonly sky: string; // solid sky fill
+  readonly ridge: string; // distant hill silhouette (parallax depth)
+  readonly gBase: string; // ground base shade (flat cells)
+  readonly gDark: string; // ground shadow band (SE-facing slope)
+  readonly gLight: string; // ground lit band (NW-facing slope)
+  readonly fleck: string; // zone-signature ground fleck (tilled earth / snow / ember …)
 }
 const ZONE_THEMES: readonly ZoneTheme[] = [
-  { kind: "forest", sky: MATE_PAL.skyBlue, ground: MATE_PAL.greenDark, groundHi: MATE_PAL.greenMid, groundDark: MATE_PAL.teal },
-  { kind: "village", sky: MATE_PAL.cyan, ground: MATE_PAL.greenMid, groundHi: MATE_PAL.green, groundDark: MATE_PAL.greenDark },
-  { kind: "mountains", sky: MATE_PAL.silver, ground: MATE_PAL.slate, groundHi: MATE_PAL.steel, groundDark: MATE_PAL.navy },
-  { kind: "lair", sky: MATE_PAL.bark, ground: MATE_PAL.black, groundHi: MATE_PAL.plum, groundDark: MATE_PAL.ink },
+  // forest — cool deep woods
+  { kind: "forest", sky: MATE_PAL.skyBlue, ridge: MATE_PAL.greenDark, gBase: MATE_PAL.greenMid, gDark: MATE_PAL.greenDark, gLight: MATE_PAL.green, fleck: MATE_PAL.teal },
+  // village — bright open farmland
+  { kind: "village", sky: MATE_PAL.cyan, ridge: MATE_PAL.greenDark, gBase: MATE_PAL.green, gDark: MATE_PAL.greenMid, gLight: MATE_PAL.green, fleck: MATE_PAL.clay },
+  // mountains — grey alpine
+  { kind: "mountains", sky: MATE_PAL.steel, ridge: MATE_PAL.navy, gBase: MATE_PAL.slate, gDark: MATE_PAL.navy, gLight: MATE_PAL.steel, fleck: MATE_PAL.white },
+  // lair — volcanic dark
+  { kind: "lair", sky: MATE_PAL.plum, ridge: MATE_PAL.black, gBase: MATE_PAL.bark, gDark: MATE_PAL.black, gLight: MATE_PAL.plum, fleck: MATE_PAL.red },
 ];
 
 interface NodeRect {
@@ -104,6 +130,55 @@ function rand01(a: number, b: number): number {
   let h = (Math.imul(a, 374761393) + Math.imul(b, 668265263)) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
   return (h >>> 0) / 4294967296;
+}
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+function smooth(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+// --- height field (Farm fBm + Citadel hillshade, adapted to tile coords) -------------------------
+/** Bilinear value noise on an integer lattice, cubic-Hermite smoothed (Farm's `valueNoise2d`). */
+function valueNoise(x: number, y: number, seed: number): number {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const xf = x - xi;
+  const yf = y - yi;
+  const tl = rand01(xi + seed * 101, yi + seed * 131);
+  const tr = rand01(xi + 1 + seed * 101, yi + seed * 131);
+  const bl = rand01(xi + seed * 101, yi + 1 + seed * 131);
+  const br = rand01(xi + 1 + seed * 101, yi + 1 + seed * 131);
+  const u = smooth(xf);
+  const v = smooth(yf);
+  return lerp(lerp(tl, tr, u), lerp(bl, br, u), v);
+}
+/** 3-octave fBm (Farm uses 4; 3 is plenty at this scale). */
+function fbm(x: number, y: number, seed: number): number {
+  let amp = 0.5;
+  let freq = 1;
+  let sum = 0;
+  let norm = 0;
+  for (let o = 0; o < 3; o++) {
+    sum += amp * valueNoise(x * freq, y * freq, seed + o * 1013);
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return sum / norm;
+}
+function heightAt(tx: number, ty: number, seed: number): number {
+  return fbm(tx * HEIGHT_FREQ, ty * HEIGHT_FREQ, seed);
+}
+/** Citadel's hillshade: central-difference gradient under a fixed NW sun → dark(-1)/base(0)/light(1). */
+function shadeBand(tx: number, ty: number, seed: number): -1 | 0 | 1 {
+  const c = heightAt(tx, ty, seed);
+  const gx = heightAt(tx + 1, ty, seed) - heightAt(tx - 1, ty, seed);
+  const gy = heightAt(tx, ty + 1, seed) - heightAt(tx, ty - 1, seed);
+  const shade = -(gx + gy) * SLOPE_GAIN + (c - 0.5) * HEIGHT_GAIN;
+  if (shade < -SHADE_THRESHOLD) return -1;
+  if (shade > SHADE_THRESHOLD) return 1;
+  return 0;
 }
 
 function computeMapLayout(map: RunMap, viewW: number, viewH: number): MapLayout {
@@ -174,123 +249,185 @@ function drawTriangle(P: Painter, cx: number, baseY: number, halfBase: number, h
   }
 }
 
+/** Soft ground shadow under a scenery object (Citadel's SE-offset height cue). */
+function drawGroundShadow(P: Painter, cx: number, baseY: number, halfW: number): void {
+  P.rect(cx - halfW + SHADOW_OFF, baseY - 2, halfW * 2, 4, MATE_PAL.ink, 0.28);
+}
+
 // --- scenery -------------------------------------------------------------------------------------
 function drawPine(P: Painter, x: number, baseY: number, s: number, theme: ZoneTheme): void {
-  P.rect(x - 2 * s, baseY - 6 * s, 4 * s, 6 * s, MATE_PAL.woodDark, 0.95);
-  drawTriangle(P, x, baseY - 5 * s, 9 * s, 12 * s, theme.groundDark, 0.95);
-  drawTriangle(P, x, baseY - 11 * s, 7 * s, 10 * s, theme.ground, 1);
-  drawTriangle(P, x, baseY - 17 * s, 5 * s, 8 * s, theme.groundHi, 1);
+  drawGroundShadow(P, x, baseY, 8 * s);
+  P.rect(x - 2 * s, baseY - 6 * s, 4 * s, 6 * s, MATE_PAL.woodDark, 1);
+  drawTriangle(P, x, baseY - 5 * s, 9 * s, 12 * s, theme.gDark, 1);
+  drawTriangle(P, x, baseY - 11 * s, 7 * s, 10 * s, theme.gBase, 1);
+  drawTriangle(P, x, baseY - 17 * s, 5 * s, 8 * s, theme.gLight, 1);
+}
+function drawFern(P: Painter, x: number, baseY: number, s: number): void {
+  drawTriangle(P, x, baseY, 5 * s, 8 * s, MATE_PAL.greenMid, 1);
+  drawTriangle(P, x - 3 * s, baseY, 3 * s, 5 * s, MATE_PAL.greenDark, 1);
+  drawTriangle(P, x + 3 * s, baseY, 3 * s, 5 * s, MATE_PAL.greenDark, 1);
+}
+function drawMushroom(P: Painter, x: number, baseY: number, s: number): void {
+  P.rect(x - 1 * s, baseY - 4 * s, 2 * s, 4 * s, MATE_PAL.cream, 1); // stalk
+  P.rect(x - 3 * s, baseY - 6 * s, 6 * s, 3 * s, MATE_PAL.red, 1); // cap
+  P.rect(x - 1 * s, baseY - 5 * s, 1 * s, 1 * s, MATE_PAL.white, 1); // spot
 }
 function drawCottage(P: Painter, x: number, baseY: number, s: number): void {
   const w = 22 * s;
   const h = 15 * s;
+  drawGroundShadow(P, x, baseY, w / 2 + 2 * s);
   P.rect(x - w / 2, baseY - h, w, h, MATE_PAL.tan, 1);
+  P.rect(x - w / 2, baseY - h + h * 0.6, w, h * 0.4, MATE_PAL.clay, 1); // shaded lower wall (depth)
   drawTriangle(P, x, baseY - h, w / 2 + 3 * s, 11 * s, MATE_PAL.rust, 1);
-  P.rect(x - 3 * s, baseY - 8 * s, 6 * s, 8 * s, MATE_PAL.woodDark, 1);
-  P.rect(x + 3 * s, baseY - h + 3 * s, 4 * s, 4 * s, MATE_PAL.gold, 0.95);
+  P.rect(x - 3 * s, baseY - 8 * s, 6 * s, 8 * s, MATE_PAL.woodDark, 1); // door
+  P.rect(x + 3 * s, baseY - h + 3 * s, 4 * s, 4 * s, MATE_PAL.gold, 1); // window
+}
+function drawWell(P: Painter, x: number, baseY: number, s: number): void {
+  drawGroundShadow(P, x, baseY, 7 * s);
+  P.rect(x - 6 * s, baseY - 7 * s, 12 * s, 7 * s, MATE_PAL.slate, 1);
+  P.rect(x - 6 * s, baseY - 7 * s, 12 * s, 2 * s, MATE_PAL.steel, 1); // rim lip (top light)
+  P.rect(x - 3 * s, baseY - 5 * s, 6 * s, 3 * s, MATE_PAL.navy, 1); // water shadow
+  P.rect(x - 5 * s, baseY - 16 * s, 2 * s, 9 * s, MATE_PAL.woodDark, 1); // posts
+  P.rect(x + 3 * s, baseY - 16 * s, 2 * s, 9 * s, MATE_PAL.woodDark, 1);
+  drawTriangle(P, x, baseY - 16 * s, 8 * s, 6 * s, MATE_PAL.rust, 1); // little roof
+}
+function drawFence(P: Painter, x: number, baseY: number, s: number): void {
+  for (let i = 0; i < 4; i++) P.rect(x + i * 5 * s, baseY - 6 * s, 1.5 * s, 6 * s, MATE_PAL.wood, 1);
+  P.rect(x, baseY - 5 * s, 15 * s, 1.5 * s, MATE_PAL.wood, 1); // rail
 }
 function drawPeak(P: Painter, x: number, baseY: number, s: number): void {
+  drawGroundShadow(P, x, baseY, 22 * s);
+  drawTriangle(P, x + 4 * s, baseY, 22 * s, 44 * s, MATE_PAL.navy, 1); // back ridge (depth)
   drawTriangle(P, x, baseY, 24 * s, 46 * s, MATE_PAL.slate, 1);
-  drawTriangle(P, x, baseY, 15 * s, 33 * s, MATE_PAL.steel, 0.95);
-  drawTriangle(P, x, baseY - 24 * s, 6 * s, 11 * s, MATE_PAL.white, 1);
+  drawTriangle(P, x - 3 * s, baseY, 15 * s, 33 * s, MATE_PAL.steel, 1); // NW-lit face
+  drawTriangle(P, x, baseY - 24 * s, 6 * s, 11 * s, MATE_PAL.white, 1); // snowcap
+}
+function drawRock(P: Painter, x: number, baseY: number, s: number): void {
+  P.rect(x - 4 * s, baseY - 5 * s, 8 * s, 5 * s, MATE_PAL.slate, 1);
+  P.rect(x - 4 * s, baseY - 5 * s, 8 * s, 2 * s, MATE_PAL.steel, 1); // top light
+}
+function drawDeadTree(P: Painter, x: number, baseY: number, s: number): void {
+  drawGroundShadow(P, x, baseY, 4 * s);
+  P.rect(x - 1.5 * s, baseY - 16 * s, 3 * s, 16 * s, MATE_PAL.black, 1);
+  P.rect(x - 6 * s, baseY - 13 * s, 5 * s, 1.5 * s, MATE_PAL.black, 1); // bare branches
+  P.rect(x + 1 * s, baseY - 10 * s, 5 * s, 1.5 * s, MATE_PAL.black, 1);
 }
 function drawLair(P: Painter, x: number, baseY: number, s: number): void {
+  drawGroundShadow(P, x, baseY, 26 * s);
   drawTriangle(P, x, baseY, 28 * s, 48 * s, MATE_PAL.bark, 1);
-  drawTriangle(P, x, baseY, 19 * s, 32 * s, MATE_PAL.plum, 0.9);
-  P.rect(x - 6 * s, baseY - 15 * s, 12 * s, 15 * s, MATE_PAL.black, 1);
-  P.rect(x - 4 * s, baseY - 10 * s, 3 * s, 3 * s, MATE_PAL.red, 1);
+  drawTriangle(P, x, baseY, 19 * s, 32 * s, MATE_PAL.plum, 1); // NW face
+  P.rect(x - 6 * s, baseY - 15 * s, 12 * s, 15 * s, MATE_PAL.black, 1); // maw
+  P.rect(x - 4 * s, baseY - 10 * s, 3 * s, 3 * s, MATE_PAL.red, 1); // eyes
   P.rect(x + 1 * s, baseY - 10 * s, 3 * s, 3 * s, MATE_PAL.red, 1);
 }
 
 /** A small flower: stem + a few petals in a deterministic palette accent. */
 function drawFlower(P: Painter, x: number, baseY: number, seed: number): void {
   const c = FLOWER_COLORS[Math.floor(rand01(seed, 5) * FLOWER_COLORS.length)] ?? MATE_PAL.gold;
-  P.rect(x, baseY - 5, 1, 5, MATE_PAL.greenMid, 0.9); // stem
+  P.rect(x, baseY - 5, 1, 5, MATE_PAL.greenMid, 1); // stem
   P.rect(x - 2, baseY - 7, 2, 2, c, 1);
   P.rect(x + 1, baseY - 7, 2, 2, c, 1);
   P.rect(x - 1, baseY - 9, 2, 2, c, 1);
   P.rect(x - 1, baseY - 6, 2, 2, MATE_PAL.yellow, 1); // center
 }
 
-function drawZoneBackdrop(P: Painter, band: ZoneBand, L: MapLayout): void {
+function zoneAtX(bands: readonly ZoneBand[], x: number): ZoneBand {
+  for (const b of bands) if (x >= b.startX && x < b.endX) return b;
+  return bands[bands.length - 1] ?? bands[0]!;
+}
+
+/** Solid sky + a distant ridge silhouette (parallax depth) + a rim-light along the horizon. */
+function drawSky(P: Painter, band: ZoneBand, L: MapLayout): void {
   const theme = ZONE_THEMES[band.index]!;
   const w = band.endX - band.startX;
   if (!P.visible(band.startX, w)) return;
   const skyTop = CHROME_TOP - 4;
-  // sky: base tint + a layered-alpha vertical gradient (haze thickening toward the horizon)
-  P.rect(band.startX, skyTop, w, L.horizon - skyTop, theme.sky, 0.4);
-  const gradBands = 6;
-  for (let i = 0; i < gradBands; i++) {
-    const yy = L.horizon - ((i + 1) / gradBands) * (L.horizon - skyTop);
-    const bh = (L.horizon - skyTop) / gradBands + 1;
-    P.rect(band.startX, yy, w, bh, MATE_PAL.cream, 0.05 * (i + 1));
+  P.rect(band.startX, skyTop, w, L.horizon - skyTop, theme.sky, 1); // solid sky
+  // distant hills — a row of low triangles just under the horizon (a far, static parallax layer)
+  const step = 46;
+  for (let x = band.startX; x < band.endX; x += step) {
+    if (!P.visible(x - step, step * 2)) continue;
+    const hgt = 14 + rand01(band.index * 71 + Math.round(x / step), 3) * 20;
+    drawTriangle(P, x + step / 2, L.horizon, step * 0.7, hgt, theme.ridge, 1);
   }
-  // ground: base + a darker lower stratum for depth
-  P.rect(band.startX, L.horizon, w, L.playBottom + LEGEND_H + 40 - L.horizon, theme.ground, 0.9);
-  P.rect(band.startX, L.horizon + (L.worldH - L.horizon) * 0.55, w, L.worldH - L.horizon, theme.groundDark, 0.35);
-  P.rect(band.startX, L.horizon - 3, w, 5, theme.groundHi, 0.9); // grassy horizon rim
+  P.rect(band.startX, L.horizon - 2, w, 3, theme.gLight, 1); // sunlit horizon rim
 }
 
-/** Soft biome blend across a seam: overlay each neighbour's colour with a linear-alpha falloff. */
-function drawBiomeSeam(P: Painter, left: ZoneBand, right: ZoneBand, L: MapLayout): void {
-  const x = right.startX;
-  const half = 46;
-  const slices = 10;
-  const lt = ZONE_THEMES[left.index]!;
-  const rt = ZONE_THEMES[right.index]!;
-  for (let i = 0; i < slices; i++) {
-    const t = i / (slices - 1); // 0 at left edge of seam → 1 at right
-    const sx = x - half + (2 * half * i) / slices;
-    const sw = (2 * half) / slices + 1;
-    // right zone bleeds left (alpha rises L→R); left zone bleeds right (alpha falls L→R)
-    P.rect(sx, L.horizon, sw, L.worldH - L.horizon, rt.ground, 0.5 * t);
-    P.rect(sx, CHROME_TOP - 4, sw, L.horizon - (CHROME_TOP - 4), rt.sky, 0.3 * t);
-    P.rect(sx, L.horizon, sw, L.worldH - L.horizon, lt.ground, 0.5 * (1 - t));
-  }
-}
-
-function drawGroundTexture(P: Painter, band: ZoneBand, L: MapLayout): void {
-  const theme = ZONE_THEMES[band.index]!;
-  const groundY = L.playBottom + 8;
-  const step = 26;
-  for (let x = band.startX + 8; x < band.endX - 8; x += step) {
-    if (!P.visible(x, step)) continue;
-    for (let k = 0; k < 2; k++) {
-      const jx = x + rand01(band.index * 91 + Math.round(x), k) * step;
-      const jy = L.horizon + 12 + rand01(k, Math.round(x)) * (groundY - L.horizon - 12);
-      // grass tuft: a couple of tiny vertical blades
-      P.rect(jx, jy, 1, 3, theme.groundHi, 0.7);
-      P.rect(jx + 2, jy - 1, 1, 4, theme.groundHi, 0.6);
-      if (rand01(Math.round(jx), band.index) > 0.82) P.rect(jx - 1, jy + 3, 2, 2, theme.groundDark, 0.6); // pebble
+/** The ground: a grid of OPAQUE tiles, each shaded by a hillshade band (solid dark/base/light). */
+function drawGroundTiles(P: GroundPainter, L: MapLayout): void {
+  const top = L.horizon;
+  const bottom = L.worldH;
+  const ix0 = Math.floor(Math.max(0, P.visibleLeft()) / TILE);
+  const ix1 = Math.ceil(P.visibleRight() / TILE);
+  const iy0 = Math.floor(top / TILE);
+  const iy1 = Math.ceil(bottom / TILE);
+  for (let ix = ix0; ix <= ix1; ix++) {
+    const x = ix * TILE;
+    if (x > L.worldW) break;
+    const band = zoneAtX(L.zones, x + TILE / 2);
+    const theme = ZONE_THEMES[band.index]!;
+    const seed = (band.index + 1) * 1013;
+    for (let iy = iy0; iy <= iy1; iy++) {
+      const y = iy * TILE;
+      const b = shadeBand(ix, iy, seed);
+      const base = b < 0 ? theme.gDark : b > 0 ? theme.gLight : theme.gBase;
+      P.rect(x, y, TILE + 1, TILE + 1, base, 1); // +1 avoids hairline seams
+      // zone-signature flecks + grain (Farm's hash-scattered specks, but opaque)
+      const r = rand01(ix * 7 + seed, iy * 13);
+      if (theme.kind === "village" && r > 0.9) {
+        P.rect(x + 4, y + 5, 7, 4, theme.fleck, 1); // tilled-earth patch
+      } else if (theme.kind === "mountains" && b > 0 && r > 0.86) {
+        P.rect(x + 6, y + 4, 5, 3, theme.fleck, 1); // snow on lit slope
+      } else if (theme.kind === "mountains" && r > 0.94) {
+        P.rect(x + 3, y + TILE - 8, 6, 4, MATE_PAL.steel, 1); // scree
+      } else if (theme.kind === "lair" && r > 0.9) {
+        P.rect(x + 8, y + 9, 3, 3, theme.fleck, 1); // ember
+      } else if (theme.kind === "forest" && r > 0.92) {
+        P.rect(x + 5, y + 6, 4, 4, theme.gDark, 1); // underbrush clump
+      }
+      if (r > 0.5 && r < 0.55) P.rect(x + 3, y + 3, 3, 3, theme.gDark, 1); // dark grain
+      else if (r > 0.72 && r < 0.77) P.rect(x + TILE - 7, y + 5, 3, 3, theme.gLight, 1); // light grain
     }
   }
 }
 
-// --- road ----------------------------------------------------------------------------------------
+// --- road (continuous footpath) ------------------------------------------------------------------
 function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number; cy: number }, bright: boolean, seed: number): void {
   const dx = to.cx - from.cx;
   const dy = to.cy - from.cy;
-  const dist = Math.hypot(dx, dy);
-  if (!P.visible(Math.min(from.cx, to.cx), Math.abs(dx) + ROAD_W * 2)) return;
-  const steps = Math.max(4, Math.round(dist / ROAD_STEP));
-  const base = bright ? MATE_PAL.gold : MATE_PAL.tan;
-  const outline = bright ? MATE_PAL.orange : MATE_PAL.woodDark;
-  const a = bright ? 1 : 0.9;
-  const nx = -dy / (dist || 1);
-  const ny = dx / (dist || 1); // unit perpendicular, for flowers along the verge
+  const dist = Math.hypot(dx, dy) || 1;
+  if (!P.visible(Math.min(from.cx, to.cx) - ROAD_CORE, Math.abs(dx) + ROAD_CORE * 2)) return;
+  const steps = Math.max(6, Math.round(dist / ROAD_STEP));
+  const nx = -dy / dist;
+  const ny = dx / dist; // unit perpendicular (for verge scatter)
+  const edge = MATE_PAL.woodDark;
+  const fill = bright ? MATE_PAL.gold : MATE_PAL.clay;
+  const dust = bright ? MATE_PAL.yellow : MATE_PAL.tan;
+  const edgeA = bright ? 0.7 : 0.55;
+  // Pass 1: the trodden dark rim (draw all rims first so overlap doesn't muddy the dirt fill).
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const x = from.cx + dx * t;
     const y = from.cy + dy * t;
-    P.rect(x - (ROAD_W + 4) / 2, y - (ROAD_W + 4) / 2, ROAD_W + 4, ROAD_W + 4, outline, a * 0.75); // edge
-    P.rect(x - ROAD_W / 2, y - ROAD_W / 2, ROAD_W, ROAD_W, base, a); // fill
-    if (i % 4 === 0) P.rect(x - 2, y - 2, 4, 4, bright ? MATE_PAL.yellow : MATE_PAL.cream, 0.85); // dashed centerline
-    if (i % 5 === 0 && rand01(seed, i) > 0.55) P.rect(x + (rand01(i, seed) - 0.5) * 6, y + (rand01(seed, i * 3) - 0.5) * 6, 2, 2, MATE_PAL.woodDark, 0.5); // pebbles
-    // flowers along the verge (both sides), off the road surface
-    if (i % 6 === 3) {
-      const off = ROAD_W / 2 + 6 + rand01(seed, i) * 5;
-      if (rand01(seed + 1, i) > 0.4) drawFlower(P, x + nx * off, y + ny * off, seed * 7 + i);
-      if (rand01(seed + 2, i) > 0.5) drawFlower(P, x - nx * off, y - ny * off, seed * 11 + i);
+    const w = ROAD_CORE + (rand01(seed, i >> 1) - 0.5) * 2.5 + 3; // organic width wobble
+    P.rect(x + SHADOW_OFF - w / 2, y + SHADOW_OFF - w / 2, w, w, edge, edgeA);
+  }
+  // Pass 2: dirt fill + trodden dust centreline + verge pebbles/flowers.
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const x = from.cx + dx * t;
+    const y = from.cy + dy * t;
+    const w = ROAD_CORE + (rand01(seed, i >> 1) - 0.5) * 2.5;
+    P.rect(x - w / 2, y - w / 2, w, w, fill, 1);
+    if (i % 2 === 0) P.rect(x - 1.5, y - 1.5, 3, 3, dust, 0.85); // worn dust down the middle
+    if (i % 7 === 0 && rand01(seed + 3, i) > 0.55) {
+      const off = w / 2 + 3 + rand01(seed, i) * 4;
+      const side = rand01(seed + 9, i) > 0.5 ? 1 : -1;
+      P.rect(x + nx * off * side, y + ny * off * side, 2, 2, MATE_PAL.woodDark, 0.7); // verge pebble
+    }
+    if (i % 11 === 5 && rand01(seed + 5, i) > 0.5) {
+      const off = w / 2 + 7 + rand01(seed + 2, i) * 4;
+      drawFlower(P, x + nx * off, y + ny * off, seed * 7 + i); // occasional roadside flower
     }
   }
 }
@@ -302,42 +439,26 @@ function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, h
   if (!P.visible(cx - w, w * 2)) return;
   const x = cx - w / 2;
   const y = cy - h / 2;
-  let fillA: number;
-  let textA: number;
-  let border: string;
-  let borderA: number;
-  switch (state) {
-    case "reachable":
-      fillA = 1;
-      textA = 1;
-      border = hovered ? MATE_PAL.yellow : MATE_PAL.gold;
-      borderA = 1;
-      break;
-    case "visited":
-      fillA = 0.62;
-      textA = 0.9;
-      border = MATE_PAL.steel;
-      borderA = 0.75;
-      break;
-    case "locked":
-      fillA = 0.34;
-      textA = 0.55;
-      border = MATE_PAL.slate;
-      borderA = 0.5;
-      break;
-  }
-  P.rect(cx - 3, cy, 6, h / 2 + 10, MATE_PAL.woodDark, 0.5 * fillA); // signpost
-  P.rect(x - NODE_BORDER, y - NODE_BORDER, w + NODE_BORDER * 2, h + NODE_BORDER * 2, border, borderA);
-  P.rect(x, y, w, h, NODE_TYPE_COLOR[node.type], fillA);
-  P.rect(x + 2, y + 2, w - 4, 3, MATE_PAL.white, 0.25 * fillA); // top highlight
-  P.ctext((state === "visited" ? STRINGS.visitedPrefix : "") + NODE_GLYPH[node.type], cx, cy - 10, MATE_PAL.white, textA);
-  if (node.type !== "rest") P.ctext(STRINGS.gradeLabel[node.grade], cx, cy + 2, MATE_PAL.cream, textA);
+  // signpost + drop shadow (raised off the map — Citadel's fake-height trick)
+  P.rect(cx - 3, cy, 6, h / 2 + 10, MATE_PAL.woodDark, 1);
+  P.rect(x + SHADOW_OFF, y + SHADOW_OFF, w, h, MATE_PAL.ink, 0.32);
+  // border
+  const border = state === "reachable" ? (hovered ? MATE_PAL.yellow : MATE_PAL.gold) : state === "visited" ? MATE_PAL.steel : MATE_PAL.navy;
+  P.rect(x - NODE_BORDER, y - NODE_BORDER, w + NODE_BORDER * 2, h + NODE_BORDER * 2, border, 1);
+  // SOLID fill (always opaque — never see-through). State darkens over the opaque base.
+  P.rect(x, y, w, h, NODE_TYPE_COLOR[node.type], 1);
+  if (state === "visited") P.rect(x, y, w, h, MATE_PAL.ink, 0.45);
+  else if (state === "locked") P.rect(x, y, w, h, MATE_PAL.ink, 0.6);
+  if (state !== "locked") P.rect(x + 2, y + 2, w - 4, 3, MATE_PAL.white, 0.35); // top highlight
+  const textColor = state === "locked" ? MATE_PAL.steel : MATE_PAL.white;
+  P.ctext((state === "visited" ? STRINGS.visitedPrefix : "") + NODE_GLYPH[node.type], cx, cy - 10, textColor, 1);
+  if (node.type !== "rest") P.ctext(STRINGS.gradeLabel[node.grade], cx, cy + 2, state === "locked" ? MATE_PAL.slate : MATE_PAL.cream, 1);
 }
 
 function drawHero(P: Painter, cx: number, cyNode: number, h: number): void {
   const feetY = cyNode - h / 2 - 4;
   P.rect(cx - 6, feetY - 3, 12, 3, MATE_PAL.black, 0.3); // shadow
-  P.rect(cx - 5, feetY - 4, 10, 4, MATE_PAL.woodDark, 0.95);
+  P.rect(cx - 5, feetY - 4, 10, 4, MATE_PAL.woodDark, 1);
   P.rect(cx - 5, feetY - 12, 10, 8, MATE_PAL.red, 1);
   P.rect(cx - 3, feetY - 17, 6, 6, MATE_PAL.skin, 1);
   P.rect(cx - 4, feetY - 19, 8, 3, MATE_PAL.gold, 1);
@@ -351,8 +472,8 @@ function drawZoneBanner(P: Painter, band: ZoneBand): void {
   const tw = measureText(name);
   const bw = tw + 22;
   if (!P.visible(cx - bw / 2, bw)) return;
-  P.rect(cx - bw / 2, CHROME_TOP - 2, bw, 18, MATE_PAL.ink, 0.82);
-  P.rect(cx - bw / 2, CHROME_TOP - 2, bw, 2, MATE_PAL.gold, 0.9);
+  P.rect(cx - bw / 2, CHROME_TOP - 2, bw, 18, MATE_PAL.ink, 1);
+  P.rect(cx - bw / 2, CHROME_TOP - 2, bw, 2, MATE_PAL.gold, 1);
   P.ctext(name, cx, CHROME_TOP + 1, MATE_PAL.cream, 1);
 }
 
@@ -363,6 +484,12 @@ export interface MapScreen {
   /** Pan the camera by a screen-px delta (clamped to the world). */
   panBy(dx: number, dy: number): void;
   reachableOrder(run: RunView): number[];
+}
+
+/** Painter with the ground-tile viewport helpers used by `drawGroundTiles`. */
+interface GroundPainter extends Painter {
+  visibleLeft(): number;
+  visibleRight(): number;
 }
 
 export function createMapScreen(): MapScreen {
@@ -400,7 +527,7 @@ export function createMapScreen(): MapScreen {
 
     const ox = -camX;
     const oy = -camY;
-    const P: Painter = {
+    const P: GroundPainter = {
       rect: (x, y, w, h, color, alpha = 1) => surface.rect(x + ox, y + oy, w, h, color, alpha),
       text: (t, x, y, color, alpha = 1, scale = 1) => {
         drawText(surface, t, x + ox, y + oy, { color, alpha, scale });
@@ -409,12 +536,13 @@ export function createMapScreen(): MapScreen {
         if (t.length > 0) drawText(surface, t, cx - measureText(t) / 2 + ox, y + oy, { color, alpha });
       },
       visible: (x, w) => x + w >= camX - CULL_PAD && x <= camX + viewW + CULL_PAD,
+      visibleLeft: () => camX - CULL_PAD,
+      visibleRight: () => camX + viewW + CULL_PAD,
     };
 
-    // WORLD: backdrops → biome seams → ground texture → scenery → roads → nodes → hero → banners
-    for (const band of L.zones) drawZoneBackdrop(P, band, L);
-    for (let i = 1; i < L.zones.length; i++) drawBiomeSeam(P, L.zones[i - 1]!, L.zones[i]!, L);
-    for (const band of L.zones) drawGroundTexture(P, band, L);
+    // WORLD: sky (per band) → ground tiles → scenery → footpaths → nodes → hero → banners
+    for (const band of L.zones) drawSky(P, band, L);
+    drawGroundTiles(P, L);
     for (const band of L.zones) drawScenery(P, band, L);
 
     for (const node of run.map.nodes) {
@@ -488,25 +616,31 @@ export function createMapScreen(): MapScreen {
 function drawScenery(P: Painter, band: ZoneBand, L: MapLayout): void {
   const theme = ZONE_THEMES[band.index]!;
   const groundY = L.playBottom + 10;
-  const count = theme.kind === "lair" ? 2 : 4;
+  const count = theme.kind === "lair" ? 3 : theme.kind === "mountains" ? 5 : 6;
   const usable = band.endX - band.startX;
   for (let i = 0; i < count; i++) {
     const x = band.startX + 30 + rand01(band.index * 31 + i, 7) * Math.max(1, usable - 60);
-    if (!P.visible(x - 30, 60)) continue;
-    const jitter = rand01(band.index + i, 3);
+    if (!P.visible(x - 34, 68)) continue;
+    const j = rand01(band.index + i, 3);
     switch (theme.kind) {
       case "forest":
-        drawPine(P, x, groundY, 1.2 + jitter * 0.6, theme);
+        if (i % 3 === 0) drawFern(P, x, groundY, 1 + j * 0.5);
+        else if (i % 5 === 4) drawMushroom(P, x, groundY, 1 + j * 0.4);
+        else drawPine(P, x, groundY, 1.2 + j * 0.7, theme);
         break;
       case "village":
-        if (i % 2 === 0) drawCottage(P, x, groundY, 1.1 + jitter * 0.4);
+        if (i % 3 === 0) drawCottage(P, x, groundY, 1.1 + j * 0.4);
+        else if (i % 3 === 1) drawFence(P, x, groundY, 1 + j * 0.3);
+        else if (i === 2) drawWell(P, x, groundY, 1 + j * 0.3);
         else drawPine(P, x, groundY, 1, ZONE_THEMES[0]!);
         break;
       case "mountains":
-        drawPeak(P, x, groundY, 0.9 + jitter * 0.5);
+        if (i % 4 === 3) drawRock(P, x, groundY, 1 + j * 0.6);
+        else drawPeak(P, x, groundY, 0.85 + j * 0.6);
         break;
       case "lair":
-        drawLair(P, x, groundY, 1.1 + jitter * 0.3);
+        if (i === 0) drawLair(P, x, groundY, 1.1 + j * 0.3);
+        else drawDeadTree(P, x, groundY, 1 + j * 0.5);
         break;
     }
   }
