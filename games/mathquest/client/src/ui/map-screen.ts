@@ -354,43 +354,29 @@ interface GroundQuad {
 
 const SUB = TILE / 4; // 7px sub-cell for fine ordered dithering + floor detail
 
-/** Sparse, zone-specific floor detail stamped into a tile (grass tufts, tilled rows, scree, embers…). */
+/**
+ * Sparse, LOW-CONTRAST, in-hue floor detail stamped into a tile. Kept deliberately rare and mostly
+ * same-family tones so it reads as ground texture, not as random stray pixels (an earlier pass was
+ * too dense + too high-contrast — long horizontal rows, bright-red embers everywhere).
+ */
 function pushDetail(out: GroundQuad[], theme: ZoneTheme, seed: number, ix: number, iy: number, x: number, y: number, lit: boolean): void {
   const r = rand01(ix * 7 + seed, iy * 13);
   switch (theme.kind) {
     case "forest":
-      if (r > 0.9) {
-        out.push({ x: x + 8, y: y + 15, w: 1, h: 5, c: theme.gLight }, { x: x + 10, y: y + 16, w: 1, h: 4, c: theme.gLight }, { x: x + 9, y: y + 19, w: 3, h: 1, c: theme.gDark }); // grass tuft
-      } else if (r < 0.05) {
-        out.push({ x: x + 14, y: y + 14, w: 3, h: 2, c: MATE_PAL.red }, { x: x + 15, y: y + 16, w: 1, h: 2, c: MATE_PAL.cream }); // tiny mushroom
-      } else if (r > 0.82 && r < 0.85) {
-        out.push({ x: x + 18, y: y + 9, w: 2, h: 2, c: MATE_PAL.clay }); // fallen leaf
-      }
+      if (r > 0.94) out.push({ x: x + 9, y: y + 15, w: 1, h: 5, c: theme.gLight }, { x: x + 11, y: y + 16, w: 1, h: 4, c: theme.gLight }); // grass blades
+      else if (r < 0.02) out.push({ x: x + 14, y: y + 15, w: 3, h: 2, c: MATE_PAL.red }, { x: x + 15, y: y + 17, w: 1, h: 1, c: MATE_PAL.cream }); // rare mushroom
       break;
     case "village":
-      if (r > 0.9) {
-        out.push({ x: x + 4, y: y + 10, w: 18, h: 2, c: MATE_PAL.clay }, { x: x + 4, y: y + 16, w: 18, h: 2, c: MATE_PAL.wood }); // tilled rows
-      } else if (r < 0.06) {
-        out.push({ x: x + 12, y: y + 12, w: 2, h: 2, c: MATE_PAL.woodDark }); // pebble
-      } else if (r > 0.8 && r < 0.83) {
-        out.push({ x: x + 6, y: y + 6, w: 1, h: 4, c: theme.gLight }); // stray grass
-      }
+      if (r > 0.94) out.push({ x: x + 9, y: y + 15, w: 1, h: 5, c: theme.gLight }, { x: x + 11, y: y + 16, w: 1, h: 4, c: theme.gDark }); // meadow grass
+      else if (r < 0.02) out.push({ x: x + 13, y: y + 14, w: 2, h: 2, c: MATE_PAL.gold }); // rare wildflower
       break;
     case "mountains":
-      if (lit && r > 0.85) {
-        out.push({ x: x + 6, y: y + 4, w: 5, h: 3, c: MATE_PAL.white }); // snow patch
-      } else if (r > 0.9) {
-        out.push({ x: x + 4, y: y + 18, w: 4, h: 3, c: MATE_PAL.silver }, { x: x + 9, y: y + 20, w: 3, h: 2, c: MATE_PAL.steel }); // scree
-      } else if (r < 0.06) {
-        out.push({ x: x + 16, y: y + 10, w: 3, h: 2, c: MATE_PAL.slate }); // rock chip
-      }
+      if (lit && r > 0.93) out.push({ x: x + 6, y: y + 5, w: 5, h: 3, c: MATE_PAL.white }); // snow patch on lit slope
+      else if (r > 0.95) out.push({ x: x + 5, y: y + 18, w: 4, h: 3, c: MATE_PAL.silver }); // scree
       break;
     case "lair":
-      if (r > 0.9) {
-        out.push({ x: x + 8, y: y + 9, w: 3, h: 3, c: MATE_PAL.red }); // ember
-      } else if (r < 0.06) {
-        out.push({ x: x + 14, y: y + 16, w: 5, h: 1, c: MATE_PAL.black }); // crack
-      }
+      if (r > 0.96) out.push({ x: x + 8, y: y + 10, w: 2, h: 2, c: MATE_PAL.orange }); // rare ember (small, dim)
+      else if (r > 0.9 && r < 0.93) out.push({ x: x + 14, y: y + 13, w: 3, h: 3, c: MATE_PAL.plum }); // in-hue dark rock
       break;
   }
 }
@@ -515,31 +501,27 @@ function drawProp(P: Painter, pr: Prop): void {
 // Each zone paves its trail differently: forest dirt track, village cobbles, mountain wooden
 // boardwalk (planks + rails), lair obsidian with ember cracks. Style is chosen PER STAMP from the
 // zone the stamp sits in, so a trail crossing a seam changes surface mid-way.
-const COBBLE_STONES: readonly string[] = [MATE_PAL.slate, MATE_PAL.steel, MATE_PAL.silver];
-
-function stampDirt(P: Painter, x: number, y: number, w: number, i: number, seed: number): void {
+// Every zone lays a SOLID continuous fill first (so diagonals read as a smooth ribbon, not scattered
+// per-stamp bits), then a little restrained, low-contrast texture on top.
+function stampDirt(P: Painter, x: number, y: number, w: number, i: number): void {
   P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.clay, 1);
-  if (i % 2 === 0) P.rect(x - 1.5, y - 1.5, 3, 3, MATE_PAL.tan, 0.85); // trodden dust
-  if (i % 6 === 3 && rand01(seed, i) > 0.6) P.rect(x + (rand01(i, seed) - 0.5) * w, y + (rand01(seed, i * 3) - 0.5) * w, 2, 2, MATE_PAL.woodDark, 0.6);
+  if (i % 2 === 0) P.rect(x - 1.5, y - 1.5, 3, 3, MATE_PAL.tan, 0.8); // trodden dust
 }
-function stampCobble(P: Painter, x: number, y: number, w: number, i: number, seed: number): void {
-  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.woodDark, 1); // dark mortar
-  const stone = COBBLE_STONES[Math.floor(rand01(seed + i, i * 3) * COBBLE_STONES.length)] ?? MATE_PAL.slate;
-  const jx = (rand01(i, seed) - 0.5) * (w * 0.4);
-  const jy = (rand01(seed, i) - 0.5) * (w * 0.4);
-  P.rect(x + jx - 2.5, y + jy - 2.5, 5, 5, stone, 1); // a rounded cobble
+function stampCobble(P: Painter, x: number, y: number, w: number, i: number): void {
+  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.slate, 1); // smooth stone ribbon
+  if (i % 3 === 0) P.rect(x - 2, y - 2, 4, 4, MATE_PAL.woodDark, 0.5); // mortar seam
+  else if (i % 3 === 1) P.rect(x - 2, y - 2.5, 4, 3, MATE_PAL.steel, 0.85); // stone highlight
 }
 function stampPlank(P: Painter, x: number, y: number, w: number, nx: number, ny: number, i: number): void {
   P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.wood, 1); // plank fill
-  if (i % 4 === 0) P.rect(x - w * 0.4, y - w * 0.4, w * 0.8, w * 0.8, MATE_PAL.woodDark, 0.55); // cross-seam
-  // side rails (a continuous dark edge run down both verges → a boardwalk/bridge)
-  P.rect(x + nx * (w / 2) - 1.5, y + ny * (w / 2) - 1.5, 3, 3, MATE_PAL.woodDark, 1);
+  if (i % 4 === 0) P.rect(x - w * 0.4, y - w * 0.4, w * 0.8, w * 0.8, MATE_PAL.woodDark, 0.5); // cross-seam
+  P.rect(x + nx * (w / 2) - 1.5, y + ny * (w / 2) - 1.5, 3, 3, MATE_PAL.woodDark, 1); // side rails
   P.rect(x - nx * (w / 2) - 1.5, y - ny * (w / 2) - 1.5, 3, 3, MATE_PAL.woodDark, 1);
 }
-function stampObsidian(P: Painter, x: number, y: number, w: number, i: number, seed: number): void {
-  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.bark, 1);
-  P.rect(x - 2, y - 2, 4, 4, MATE_PAL.black, 1); // dark stone
-  if (rand01(seed + 7, i) > 0.7) P.rect(x + (rand01(i, seed) - 0.5) * w, y + (rand01(seed, i) - 0.5) * w, 2, 2, MATE_PAL.red, 0.9); // ember crack
+function stampObsidian(P: Painter, x: number, y: number, w: number, i: number): void {
+  P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.bark, 1); // smooth dark ribbon
+  if (i % 3 === 0) P.rect(x - 2, y - 2, 4, 4, MATE_PAL.black, 0.7); // stone joint
+  else if (i % 5 === 2) P.rect(x - 1.5, y - 1.5, 3, 3, MATE_PAL.plum, 0.6); // faint sheen
 }
 
 function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number; cy: number }, bright: boolean, seed: number, zones: readonly ZoneBand[]): void {
@@ -569,16 +551,16 @@ function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number
     const kind = ZONE_THEMES[zoneAtX(zones, x).index]!.kind;
     switch (kind) {
       case "forest":
-        stampDirt(P, x, y, w, i, seed);
+        stampDirt(P, x, y, w, i);
         break;
       case "village":
-        stampCobble(P, x, y, w, i, seed);
+        stampCobble(P, x, y, w, i);
         break;
       case "mountains":
         stampPlank(P, x, y, w, nx, ny, i);
         break;
       case "lair":
-        stampObsidian(P, x, y, w, i, seed);
+        stampObsidian(P, x, y, w, i);
         break;
     }
     if (bright && i % 4 === 0) P.rect(x - 1.5, y - 1.5, 3, 3, MATE_PAL.gold, 0.95); // reachable-route marker
