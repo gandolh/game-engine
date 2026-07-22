@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M0 scaffold done, verified)
-updated: 2026-07-21 (M0 scaffold complete on branch `mathquest`)
+status: in-progress (M1 turn-combat loop done, verified)
+updated: 2026-07-21 (M1 combat loop complete on branch `mathquest`)
 
 **Read this first to resume the MateQuest build.** Design-of-record is
 [corpus/wiki/mathquest-overview.md](../wiki/mathquest-overview.md) — read it before any brief.
@@ -54,8 +54,8 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | Milestone | State | Commit |
 |---|---|---|
 | Design (grill-me + research) | ✅ settled 2026-07-21 | `3fff5e0` |
-| M0 scaffold | ✅ **done, controller-verified** (Sonnet executor) | (this session — see below) |
-| M1 turn-combat loop | ⬜ not started | — |
+| M0 scaffold | ✅ **done, controller-verified** (Sonnet executor) | `db20d58` (+corpus `a93e96c`) |
+| M1 turn-combat loop | ✅ **done, controller-verified** (Sonnet executor + opus finished `main.ts`) | (this session — see below) |
 | M2 problem-generator seam (I–IV) | ⬜ not started | — |
 | M3 map & runs | ⬜ not started | — |
 | M4 progression & loot | ⬜ not started | — |
@@ -81,6 +81,35 @@ RNG streams, not a weak stub).
   `@engine/core` palette test (10) — all green.
 
 **Next: M1 — turn-combat loop** (one hardcoded problem, end-to-end). See milestone table above.
+
+## M1 — how it went (2026-07-21)
+Dispatched to a **Sonnet executor** (brief: `2026-07-21-mathquest-M1-combat-loop.md`). The user
+**paused mid-run**; on resume the controller (opus) found the executor had been stopped right at
+"write main.ts" — everything else was complete and typechecking, so the controller **salvaged** the
+partial (≈730 lines, sim-core 14 tests green, `combat-screen.ts`/worker/theme/strings done) and
+**finished the one missing file, `main.ts`, inline** (renderer + UISurface + single InputDispatcher +
+focus-bridged a11y mirror + typed-answer buffer + physical-keyboard entry, mirroring Citadel's
+`main/hud-panels.ts` + `main/input.ts` stripped to one UI root).
+- **Combat model (sim-core):** deterministic, event-driven — state changes ONLY in
+  `chooseAction`/`submitAnswer`, never in `step()`. `rng.fork("problem")` (a+b, operands 2..9) +
+  `rng.fork("intent")` (5..8). Warrior 30 HP vs "Zmeu pui" 24 HP; attack 8 / heal 8 / shield 8 block.
+  Killing blow skips the enemy turn; block absorbs-then-consumes; `Problem.answer` NEVER crosses the
+  snapshot boundary (only `prompt`). Verified by reading the code, not just the green tests.
+- **Client:** combat screen via `@engine/ui` (enemy/warrior HP bars painted in a `drawBars` pass,
+  intent telegraph, Attack/Heal/Shield menu, math prompt + numeric keypad, result cue, win/lose banner
+  + restart). Canvas2D backend (no WebGPU adapter here). Worker command channel:
+  `init`/`choose-action`/`submit-answer` → `ready`/`snapshot`.
+- **Known-minor (defer to M2 polish):** single `last` result field ⇒ on a non-killing action the
+  enemy-hit cue overwrites the "Hit! −8"/"Fizzle!" cue (player's own action text only shows on a kill).
+  HP-bar change still conveys success/whiff, so the loop reads fine. Fix later by splitting `last`
+  into player-result + enemy-result.
+- **Not self-verifiable:** the browser playtest (`npm run mathquest` :5176) — **user plays it**.
+- Verify gate: `npm run typecheck` (19/19), `@mathquest/sim-core` (14), `@mathquest/client` (4),
+  `@engine/core` palette (10) — all green; grep clean of `Math.random`/`Date.now` in code.
+
+**Next: M2 — problem-generator seam (grades I–IV).** Replace the hardcoded `generateProblem` with a
+`ProblemGenerator` keyed by (grade, topic); add mixed input (typed + MC w/ distractors), teach-card +
+re-queue. Also fold in the M1 cue-sequencing polish.
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
