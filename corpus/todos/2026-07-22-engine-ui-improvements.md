@@ -4,17 +4,25 @@ Status: in progress (captured 2026-07-22; item 1 foundation shipped + item 3 don
 
 ## Progress (2026-07-22)
 
-- **Item 1 — foundation SHIPPED.** Added a `custom` node kind to `@engine/ui`
-  ([widget/node.ts](../../engine/ui/src/widget/node.ts) `custom()`/`CustomNode`): a
+- **Item 1 — SHIPPED (foundation + overlay + 4 consumers).** Added a `custom` node kind to
+  `@engine/ui` ([widget/node.ts](../../engine/ui/src/widget/node.ts) `custom()`/`CustomNode`): a
   layout-participating leaf whose `draw(surface, rect, alpha)` runs during `renderTree` in tree
   order + under inherited opacity. Non-interactive (hit-test pass-through via `isHittable`; inert
-  in the a11y mirror alongside `icon`). Unit tests: [widget/custom.test.ts](../../engine/ui/src/widget/custom.test.ts).
-  **First consumer folded in:** `wealth-graph.ts` now exposes a `custom` node (`root` + `setSeries`)
-  and flows through `computeLayout`→`renderTree` instead of a bespoke `render(surface,x,y,w,h,…)`
-  post-pass. **Remaining consumers (still raw post-passes, migrate when next touched):** `minimap.ts`,
-  `hotbar.ts`, `inventory.ts`, `slate-billboard.ts`. Note: `pip-farm-marker.ts` and the drag-ghosts
-  in hotbar/inventory are cursor-following / world-space overlays with no laid-out rect — a `custom`
-  node is a poor fit there; leave them as post-passes.
+  in the a11y mirror alongside `icon`). **Also added `LayoutProps.overlay`** ([layout/props.ts](../../engine/ui/src/layout/props.ts),
+  [layout/layout.ts](../../engine/ui/src/layout/layout.ts)): an out-of-flow child that fills its
+  parent's inner box without consuming a slot/gap or shifting siblings — the missing piece that lets
+  an on-top overlay fold into a panel's tree instead of a separate post-`renderTree` pass. Tests:
+  [widget/custom.test.ts](../../engine/ui/src/widget/custom.test.ts).
+  **Consumers folded in:** `wealth-graph.ts` (standalone `custom` node), and — via overlay custom
+  nodes appended to their panels — `slate-billboard.ts` (crop icons + stock-bar fills), `hotbar.ts`
+  (slot icons + selected border + drag ghost), `inventory.ts` (icons + border + ghost). The
+  per-panel `drawIcons`/`drawGhost` methods + the host's separate draw passes are gone. All verified
+  in a real browser.
+  **Intentionally NOT folded:** `minimap.ts` is an *interactive* `CitadelMinimap` (click-to-recenter
+  via `onSeek`) — a `custom` node is pass-through, so folding it needs its click wiring preserved
+  separately; deferred. `pip-farm-marker.ts` is a world-space screen overlay drawn as its own pass;
+  a `custom` node's rect would be vestigial (draw uses the camera), so a fold is pure ceremony — left
+  as-is.
 - **Item 3 — DONE.** `villager-panel.ts` fixed width `200`→`288`: the scale-2 `jobLbl`
   ("Job: Woodcutter" ≈ 268px) overran 200 at the wider UNSCII font and spilled past the panel bg
   (containers don't clip). All other rows are scale-1 and fit easily.
