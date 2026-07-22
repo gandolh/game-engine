@@ -1,7 +1,13 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M3 + M3.1 spatial map + RO diacritics done, verified)
-updated: 2026-07-22 (M3.1 Mewgenics-style map + Romanian-diacritics font on branch `mathquest`)
+status: in-progress (M3 + M3.1/M3.2 scenic map + RO default done, verified)
+updated: 2026-07-22 (M3.2 horizontal zoned journey map + Romanian-default UI on branch `mathquest`)
+
+## Locked convention: Romanian is the DEFAULT language
+Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
+the user change it. `strings.ts` holds RO values; generator `prompt`/`teach` text is RO inline. The
+@engine/ui font now renders all RO diacritics + a symbol set (see M3.1/M3.2 below), so RO is fully
+legible in-canvas.
 
 **Read this first to resume the MateQuest build.** Design-of-record is
 [corpus/wiki/mathquest-overview.md](../wiki/mathquest-overview.md) — read it before any brief.
@@ -199,6 +205,29 @@ User playtested M3 and asked for (a) Romanian diacritic support (font dropped "C
   Interface: `createMapScreen(): { render(surface,run,hoverId), nodeAt(x,y), reachableOrder(run) }`.
 - Verify gate: `@engine/ui` **166**; typecheck 19/19; `@mathquest/client` **26**; `@mathquest/sim-core`
   **142**; palette **10** — all green. Browser playtest is the user's.
+
+## M3.2 — scenic horizontal map + RO default (2026-07-22, designer pass, opus inline)
+User asked (with a Mewgenics "The Alley" reference) to make the map more appealing: horizontal path,
+decorative scenery, zone design, emphasis on roads. Did a design brainstorm + web research (StS/FTL
+maps are deliberately abstract "no physical space"; the appeal upgrade is a sense of PLACE — a road
+that leads the eye through themed regions), then grilled one call (theme/vibe → **cozy folklore
+journey**) and built it INLINE (not dispatched).
+- **`ui/map-screen.ts` rewritten** to a HORIZONTAL journey (left→right; row→column, col→vertical, with
+  a `sin` per-column wave). Columns grouped into **4 zones** drawn as tinted sky+ground bands with a
+  name banner: **Pădurea Adâncă → Satul → Munții Carpați → Bârlogul Zmeului**. Each zone has themed
+  **pixel-art scenery** drawn from Resurrect-64 rects (pines / cottages / snowy peaks / the Zmeu's
+  lair with glowing eyes), a **dirt ROAD ribbon** (outline + fill + dashed centerline, brightened
+  along reachable routes), **signpost-style node markers** (post + plate + glyph + class numeral), and
+  a **hero token** (little figure w/ sword) that walks the road. Public interface unchanged
+  (`render`/`nodeAt`/`reachableOrder`) so `main.ts` needed no edit. Layout stays a pure function of
+  `RunView` (deterministic scatter via an integer hash, no `Math.random`).
+- **Romanian default:** `strings.ts` fully translated to RO (Atacă/Vindecă/Scut, Alege-ți drumul,
+  Lovitură!/Ratat!, Clasa: N, etc.). Combat-screen tests made locale-robust (assert via `STRINGS.*`,
+  not EN literals).
+- Verify: typecheck 19/19; `@mathquest/client` **26**; `@mathquest/sim-core` **142**; `@engine/ui`
+  **166**; palette **10** — all green. Browser playtest is the user's.
+- **Known follow-ups:** map still has no a11y DOM mirror (1..9/Enter keyboard only); scenery is
+  procedurally-placed pixel art (M5 can upgrade to authored atlas art).
 
 **Next: M4 — progression & loot.** In-run XP/level-up choice + persistent per-topic mastery (survives
 death, gates hard branches, unlocks blueprints) + equipment with combat bonuses AND math lifelines
