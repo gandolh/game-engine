@@ -1,52 +1,47 @@
 /**
- * MateQuest — the spatial, "Mewgenics/Slay-the-Spire"-style progressive map, redesigned as a
- * HORIZONTAL folklore JOURNEY (2026-07-22 designer pass). You travel left→right along a dirt ROAD
- * that winds through four themed ZONES (Pădurea Adâncă → Satul → Munții Carpați → Bârlogul Zmeului),
- * each a tinted band of sky + ground with its own pixel-art scenery (pines / cottages / snowy peaks
- * / the Zmeu's lair) and a name banner, past signpost-style node markers, with the hero token
- * walking the road. All drawn deterministically from Resurrect-64 `UISurface.rect` + `drawText` —
- * no external art. `combat-screen.ts`/`run-over-screen.ts` are unchanged widget screens.
+ * MateQuest — the spatial folklore-JOURNEY map (2026-07-22 designer pass v2): a HORIZONTAL trail
+ * through four themed zones (Pădurea Adâncă → Satul → Munții Carpați → Bârlogul Zmeului), now
+ * **full-viewport** with a **pan/scroll camera** (the world is wider than the screen) and a richer,
+ * more-textured Canvas2D look — a CONTINUOUS dirt road with flowers/pebbles/grass tufts scattered
+ * alongside, layered-alpha sky gradients, and soft biome blends across zone seams. Drawn entirely
+ * from Resurrect-64 `UISurface.rect` + `drawText` (no WebGPU / no shaders — Canvas2D keeps the game
+ * running on any device, per the user directive).
  *
- * Public shape is UNCHANGED from the previous version so `main.ts` needs no edits:
- *   createMapScreen(): { render(surface, run, hoverId), nodeAt(x,y), reachableOrder(run) }
+ * ## Camera / coordinates
+ * The map is laid out in a WORLD space (`worldW × worldH`); `worldW` exceeds the viewport when there
+ * are enough columns, so the player scrolls horizontally. The camera (`camX,camY`, clamped to the
+ * world) is owned here. `render(surface, run, hoverId, viewW, viewH)` takes the live viewport size
+ * (the canvas's CSS px — full screen). WORLD elements are drawn through a small offset painter
+ * (`-camX,-camY`); HUD chrome (title / HP / legend / scroll hints) is drawn in fixed SCREEN space.
+ * The camera auto-centers on the hero's node whenever it changes (advance), then the player may pan
+ * freely (drag / wheel / arrows — wired in `main.ts`) until the next advance.
  *
- * ## Layout — a pure function of `RunView.map` (no rng; determinism rule applies to layout too)
- *  - **horizontal climb:** each distinct `MapNode.row` is a COLUMN, spread left→right (row 0 at the
- *    far left, boss at the far right). Within a column, `MapNode.col` spreads the branch nodes
- *    vertically, with a gentle per-column `sin` wave so the road snakes up/down as it advances.
- *  - **zones:** the columns are grouped into four zones (the non-boss columns into three, the boss
- *    into its own), each a contiguous x-band drawn with a themed sky/ground + scenery + banner.
+ * ## Determinism
+ * Layout + all scatter (grass, flowers, pebbles) are a PURE function of `RunView` + an integer hash
+ * (`rand01`) — never `Math.random`/`Date.now`.
  *
- * ## Token position
- * `run.currentId` is `null` the whole time `mode === "map"` (it's only set inside an active fight),
- * so the hero position derives as `currentId ?? last(visitedIds)`, falling back to a start anchor at
- * the far left only at a true run start.
+ * Public shape: `createMapScreen(): { render, nodeAtScreen, panBy, reachableOrder }`.
  */
 import { drawText, measureText, type UISurface } from "@engine/ui";
 import type { MapNode, NodeType, RunMap, RunView } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import { STRINGS } from "../strings";
 
-// Fixed logical canvas the layout is authored against (matches main.ts's Camera2D design resolution;
-// UISurface draws in screen px — same implicit-fixed-size convention combat-screen.ts uses).
-const MAP_W = 960;
-const MAP_H = 540;
+const COLUMN_SPACING = 260; // world px between progression columns (wider than a screen ⇒ scroll)
+const MARGIN_X = 130; // world left/right margin
+const CHROME_TOP = 64; // reserved screen band for title + HP
+const LEGEND_H = 30; // reserved screen band for the legend
+const CULL_PAD = 80; // draw margin around the viewport (perf)
 
-const PLAY_TOP = 70; // below the title + HP chrome
-const PLAY_BOTTOM = MAP_H - 44; // above the legend
-const PLAY_LEFT = 60;
-const PLAY_RIGHT = MAP_W - 60;
-const HORIZON = PLAY_TOP + (PLAY_BOTTOM - PLAY_TOP) * 0.5;
-
-const NODE_W = 46;
-const NODE_H = 34;
-const BOSS_W = 60;
-const BOSS_H = 44;
+const NODE_W = 50;
+const NODE_H = 38;
+const BOSS_W = 66;
+const BOSS_H = 50;
 const NODE_BORDER = 3;
-const COL_WAVE = 26; // per-column vertical winding amplitude (px)
+const COL_WAVE = 30;
 
-const ROAD_W = 12;
-const ROAD_STEP = 9; // px between road ribbon stamps
+const ROAD_W = 13;
+const ROAD_STEP = 7;
 
 const HP_BAR_X = 250;
 const HP_BAR_Y = 30;
@@ -59,24 +54,25 @@ const NODE_TYPE_COLOR: Record<NodeType, string> = {
   rest: MATE_PAL.green,
   boss: MATE_PAL.red,
 };
-
-/** Font-covered glyphs per node type (⚔/☾/☠ aren't in UNSCII — see strings.ts). */
 const NODE_GLYPH: Record<NodeType, string> = { combat: "†", elite: "★", rest: "♥", boss: "♠" };
 const LEGEND_ORDER: readonly NodeType[] = ["combat", "elite", "rest", "boss"];
 
-/** A zone's cosmetic theme (drawn per x-band). `kind` selects the scenery drawer. */
+/** Palette accents used for flower petals (all Resurrect-64 roles) — picked deterministically. */
+const FLOWER_COLORS: readonly string[] = [MATE_PAL.gold, MATE_PAL.red, MATE_PAL.mauve, MATE_PAL.white, MATE_PAL.salmon, MATE_PAL.skyBlue];
+
 type ZoneKind = "forest" | "village" | "mountains" | "lair";
 interface ZoneTheme {
   readonly kind: ZoneKind;
   readonly sky: string;
   readonly ground: string;
   readonly groundHi: string;
+  readonly groundDark: string;
 }
 const ZONE_THEMES: readonly ZoneTheme[] = [
-  { kind: "forest", sky: MATE_PAL.skyBlue, ground: MATE_PAL.greenDark, groundHi: MATE_PAL.greenMid },
-  { kind: "village", sky: MATE_PAL.cyan, ground: MATE_PAL.greenMid, groundHi: MATE_PAL.green },
-  { kind: "mountains", sky: MATE_PAL.silver, ground: MATE_PAL.slate, groundHi: MATE_PAL.steel },
-  { kind: "lair", sky: MATE_PAL.bark, ground: MATE_PAL.black, groundHi: MATE_PAL.plum },
+  { kind: "forest", sky: MATE_PAL.skyBlue, ground: MATE_PAL.greenDark, groundHi: MATE_PAL.greenMid, groundDark: MATE_PAL.teal },
+  { kind: "village", sky: MATE_PAL.cyan, ground: MATE_PAL.greenMid, groundHi: MATE_PAL.green, groundDark: MATE_PAL.greenDark },
+  { kind: "mountains", sky: MATE_PAL.silver, ground: MATE_PAL.slate, groundHi: MATE_PAL.steel, groundDark: MATE_PAL.navy },
+  { kind: "lair", sky: MATE_PAL.bark, ground: MATE_PAL.black, groundHi: MATE_PAL.plum, groundDark: MATE_PAL.ink },
 ];
 
 interface NodeRect {
@@ -86,29 +82,31 @@ interface NodeRect {
   readonly h: number;
 }
 interface ZoneBand {
-  readonly index: number; // 0..3
+  readonly index: number;
   readonly startX: number;
   readonly endX: number;
 }
 interface MapLayout {
   readonly nodes: ReadonlyMap<number, NodeRect>;
   readonly zones: readonly ZoneBand[];
+  readonly worldW: number;
+  readonly worldH: number;
+  readonly horizon: number;
+  readonly playTop: number;
+  readonly playBottom: number;
   readonly anchor: { readonly cx: number; readonly cy: number };
 }
 
-function clamp01(v: number): number {
-  return Math.max(0, Math.min(1, v));
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }
-
-/** Small deterministic hash → [0,1), for scenery scatter (never Math.random — layout is pure). */
 function rand01(a: number, b: number): number {
   let h = (Math.imul(a, 374761393) + Math.imul(b, 668265263)) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
   return (h >>> 0) / 4294967296;
 }
 
-/** Every node's pixel centre + the four zone x-bands, purely from `map`'s row/col shape. */
-function computeMapLayout(map: RunMap): MapLayout {
+function computeMapLayout(map: RunMap, viewW: number, viewH: number): MapLayout {
   const rowNumbers = [...new Set(map.nodes.map((n) => n.row))].sort((a, b) => a - b);
   const colCount = rowNumbers.length;
   const colIndexOf = new Map(rowNumbers.map((r, i) => [r, i]));
@@ -117,8 +115,12 @@ function computeMapLayout(map: RunMap): MapLayout {
   const rowSizeOf = new Map<number, number>();
   for (const n of map.nodes) rowSizeOf.set(n.row, (rowSizeOf.get(n.row) ?? 0) + 1);
 
-  const columnX = (i: number): number =>
-    colCount <= 1 ? (PLAY_LEFT + PLAY_RIGHT) / 2 : PLAY_LEFT + (i / (colCount - 1)) * (PLAY_RIGHT - PLAY_LEFT);
+  const columnX = (i: number): number => MARGIN_X + i * COLUMN_SPACING;
+  const worldW = Math.max(viewW, MARGIN_X * 2 + (colCount - 1) * COLUMN_SPACING);
+  const worldH = viewH; // fits vertically ⇒ scroll is horizontal only
+  const playTop = CHROME_TOP + 46;
+  const playBottom = worldH - LEGEND_H - 24;
+  const horizon = playTop + (playBottom - playTop) * 0.5;
 
   const nodes = new Map<number, NodeRect>();
   for (const n of map.nodes) {
@@ -127,35 +129,26 @@ function computeMapLayout(map: RunMap): MapLayout {
     const isBoss = n.id === map.bossId;
     const cx = columnX(i);
     const t = size <= 1 ? 0.5 : (n.col + 0.5) / size;
-    const bandTop = PLAY_TOP + 46;
-    const bandBottom = PLAY_BOTTOM - 30;
-    const cy = bandTop + t * (bandBottom - bandTop) + Math.sin(i * 0.9) * COL_WAVE;
+    const cy = playTop + 34 + t * (playBottom - playTop - 60) + Math.sin(i * 0.9) * COL_WAVE;
     nodes.set(n.id, { cx, cy, w: isBoss ? BOSS_W : NODE_W, h: isBoss ? BOSS_H : NODE_H });
   }
 
-  // Zone assignment: non-boss columns split into 3 groups, boss column is zone 3.
   const bossColIndex = colIndexOf.get(bossRow) ?? colCount - 1;
-  const nonBossCols = colCount - 1;
-  const colsPerZone = Math.max(1, Math.ceil(nonBossCols / 3));
+  const colsPerZone = Math.max(1, Math.ceil((colCount - 1) / 3));
   const zoneOfCol = (i: number): number => (i >= bossColIndex ? 3 : Math.min(2, Math.floor(i / colsPerZone)));
-
-  // Contiguous zone x-bands covering [0, MAP_W]; boundaries at midpoints between adjacent columns
-  // whose zone differs. Guarantees full coverage with no gaps.
   const bands: ZoneBand[] = [];
-  const presentZones = [...new Set(rowNumbers.map((_, i) => zoneOfCol(i)))].sort((a, b) => a - b);
-  for (const z of presentZones) {
-    const colsInZone = rowNumbers.map((_, i) => i).filter((i) => zoneOfCol(i) === z);
-    const firstI = colsInZone[0]!;
-    const lastI = colsInZone[colsInZone.length - 1]!;
+  for (const z of [...new Set(rowNumbers.map((_, i) => zoneOfCol(i)))].sort((a, b) => a - b)) {
+    const cols = rowNumbers.map((_, i) => i).filter((i) => zoneOfCol(i) === z);
+    const firstI = cols[0]!;
+    const lastI = cols[cols.length - 1]!;
     const startX = firstI === 0 ? 0 : (columnX(firstI - 1) + columnX(firstI)) / 2;
-    const endX = lastI >= colCount - 1 ? MAP_W : (columnX(lastI) + columnX(lastI + 1)) / 2;
+    const endX = lastI >= colCount - 1 ? worldW : (columnX(lastI) + columnX(lastI + 1)) / 2;
     bands.push({ index: z, startX, endX });
   }
 
   const startRects = map.startIds.map((id) => nodes.get(id)!).filter(Boolean);
-  const anchorCy =
-    startRects.length > 0 ? startRects.reduce((s, r) => s + r.cy, 0) / startRects.length : HORIZON;
-  return { nodes, zones: bands, anchor: { cx: PLAY_LEFT - 34, cy: anchorCy } };
+  const anchorCy = startRects.length > 0 ? startRects.reduce((s, r) => s + r.cy, 0) / startRects.length : horizon;
+  return { nodes, zones: bands, worldW, worldH, horizon, playTop, playBottom, anchor: { cx: MARGIN_X - 46, cy: anchorCy } };
 }
 
 function currentNodeId(run: RunView): number | null {
@@ -164,199 +157,373 @@ function currentNodeId(run: RunView): number | null {
   return v.length > 0 ? v[v.length - 1]! : null;
 }
 
-// --- primitive: a chunky pixel triangle (stacked narrowing rects), point up or down --------------
-function drawTriangle(
-  surface: UISurface,
-  cx: number,
-  baseY: number,
-  halfBase: number,
-  height: number,
-  color: string,
-  alpha = 1,
-): void {
+/** Offset painter: world coords → screen, applying the camera. */
+interface Painter {
+  rect(x: number, y: number, w: number, h: number, color: string, alpha?: number): void;
+  text(t: string, x: number, y: number, color: string, alpha?: number, scale?: number): void;
+  ctext(t: string, cx: number, y: number, color: string, alpha?: number): void;
+  visible(x: number, w: number): boolean;
+}
+
+function drawTriangle(P: Painter, cx: number, baseY: number, halfBase: number, height: number, color: string, alpha = 1): void {
   const rows = Math.max(3, Math.round(height / 3));
   const rh = height / rows;
   for (let i = 0; i < rows; i++) {
     const w = halfBase * 2 * (1 - i / rows);
-    const y = baseY - (i + 1) * rh;
-    surface.rect(cx - w / 2, y, Math.max(2, w), rh + 1, color, alpha);
+    P.rect(cx - w / 2, baseY - (i + 1) * rh, Math.max(2, w), rh + 1, color, alpha);
   }
 }
 
-// --- scenery drawers -----------------------------------------------------------------------------
-function drawPine(surface: UISurface, x: number, baseY: number, s: number, theme: ZoneTheme): void {
-  surface.rect(x - 2 * s, baseY - 6 * s, 4 * s, 6 * s, MATE_PAL.woodDark, 0.9); // trunk
-  drawTriangle(surface, x, baseY - 5 * s, 9 * s, 12 * s, theme.ground, 0.95);
-  drawTriangle(surface, x, baseY - 11 * s, 7 * s, 10 * s, theme.groundHi, 0.95);
-  drawTriangle(surface, x, baseY - 17 * s, 5 * s, 8 * s, theme.groundHi, 1);
+// --- scenery -------------------------------------------------------------------------------------
+function drawPine(P: Painter, x: number, baseY: number, s: number, theme: ZoneTheme): void {
+  P.rect(x - 2 * s, baseY - 6 * s, 4 * s, 6 * s, MATE_PAL.woodDark, 0.95);
+  drawTriangle(P, x, baseY - 5 * s, 9 * s, 12 * s, theme.groundDark, 0.95);
+  drawTriangle(P, x, baseY - 11 * s, 7 * s, 10 * s, theme.ground, 1);
+  drawTriangle(P, x, baseY - 17 * s, 5 * s, 8 * s, theme.groundHi, 1);
+}
+function drawCottage(P: Painter, x: number, baseY: number, s: number): void {
+  const w = 22 * s;
+  const h = 15 * s;
+  P.rect(x - w / 2, baseY - h, w, h, MATE_PAL.tan, 1);
+  drawTriangle(P, x, baseY - h, w / 2 + 3 * s, 11 * s, MATE_PAL.rust, 1);
+  P.rect(x - 3 * s, baseY - 8 * s, 6 * s, 8 * s, MATE_PAL.woodDark, 1);
+  P.rect(x + 3 * s, baseY - h + 3 * s, 4 * s, 4 * s, MATE_PAL.gold, 0.95);
+}
+function drawPeak(P: Painter, x: number, baseY: number, s: number): void {
+  drawTriangle(P, x, baseY, 24 * s, 46 * s, MATE_PAL.slate, 1);
+  drawTriangle(P, x, baseY, 15 * s, 33 * s, MATE_PAL.steel, 0.95);
+  drawTriangle(P, x, baseY - 24 * s, 6 * s, 11 * s, MATE_PAL.white, 1);
+}
+function drawLair(P: Painter, x: number, baseY: number, s: number): void {
+  drawTriangle(P, x, baseY, 28 * s, 48 * s, MATE_PAL.bark, 1);
+  drawTriangle(P, x, baseY, 19 * s, 32 * s, MATE_PAL.plum, 0.9);
+  P.rect(x - 6 * s, baseY - 15 * s, 12 * s, 15 * s, MATE_PAL.black, 1);
+  P.rect(x - 4 * s, baseY - 10 * s, 3 * s, 3 * s, MATE_PAL.red, 1);
+  P.rect(x + 1 * s, baseY - 10 * s, 3 * s, 3 * s, MATE_PAL.red, 1);
 }
 
-function drawCottage(surface: UISurface, x: number, baseY: number, s: number): void {
-  const w = 20 * s;
-  const h = 14 * s;
-  surface.rect(x - w / 2, baseY - h, w, h, MATE_PAL.tan, 1); // wall
-  drawTriangle(surface, x, baseY - h, w / 2 + 3 * s, 10 * s, MATE_PAL.rust, 1); // roof
-  surface.rect(x - 3 * s, baseY - 8 * s, 6 * s, 8 * s, MATE_PAL.woodDark, 1); // door
-  surface.rect(x + 3 * s, baseY - h + 3 * s, 4 * s, 4 * s, MATE_PAL.gold, 0.9); // window
+/** A small flower: stem + a few petals in a deterministic palette accent. */
+function drawFlower(P: Painter, x: number, baseY: number, seed: number): void {
+  const c = FLOWER_COLORS[Math.floor(rand01(seed, 5) * FLOWER_COLORS.length)] ?? MATE_PAL.gold;
+  P.rect(x, baseY - 5, 1, 5, MATE_PAL.greenMid, 0.9); // stem
+  P.rect(x - 2, baseY - 7, 2, 2, c, 1);
+  P.rect(x + 1, baseY - 7, 2, 2, c, 1);
+  P.rect(x - 1, baseY - 9, 2, 2, c, 1);
+  P.rect(x - 1, baseY - 6, 2, 2, MATE_PAL.yellow, 1); // center
 }
 
-function drawPeak(surface: UISurface, x: number, baseY: number, s: number): void {
-  drawTriangle(surface, x, baseY, 22 * s, 40 * s, MATE_PAL.slate, 1);
-  drawTriangle(surface, x, baseY, 14 * s, 30 * s, MATE_PAL.steel, 0.9);
-  drawTriangle(surface, x, baseY - 22 * s, 6 * s, 10 * s, MATE_PAL.white, 1); // snow cap
-}
-
-function drawLair(surface: UISurface, x: number, baseY: number, s: number): void {
-  drawTriangle(surface, x, baseY, 26 * s, 44 * s, MATE_PAL.bark, 1); // dark mound
-  drawTriangle(surface, x, baseY, 18 * s, 30 * s, MATE_PAL.plum, 0.9);
-  surface.rect(x - 6 * s, baseY - 14 * s, 12 * s, 14 * s, MATE_PAL.black, 1); // cave mouth
-  surface.rect(x - 3 * s, baseY - 9 * s, 3 * s, 3 * s, MATE_PAL.red, 1); // glowing eyes
-  surface.rect(x + 1 * s, baseY - 9 * s, 3 * s, 3 * s, MATE_PAL.red, 1);
-}
-
-function drawScenery(surface: UISurface, band: ZoneBand): void {
+function drawZoneBackdrop(P: Painter, band: ZoneBand, L: MapLayout): void {
   const theme = ZONE_THEMES[band.index]!;
-  const groundY = PLAY_BOTTOM - 6;
-  const count = theme.kind === "lair" ? 2 : 4;
-  const usable = band.endX - band.startX;
-  for (let i = 0; i < count; i++) {
-    const x = band.startX + 24 + rand01(band.index * 31 + i, 7) * Math.max(1, usable - 48);
-    const jitter = rand01(band.index + i, 3);
-    switch (theme.kind) {
-      case "forest":
-        drawPine(surface, x, groundY, 1.1 + jitter * 0.5, theme);
-        break;
-      case "village":
-        if (i % 2 === 0) drawCottage(surface, x, groundY, 1 + jitter * 0.4);
-        else drawPine(surface, x, groundY, 0.9, ZONE_THEMES[0]!);
-        break;
-      case "mountains":
-        drawPeak(surface, x, groundY, 0.8 + jitter * 0.5);
-        break;
-      case "lair":
-        drawLair(surface, x, groundY, 1 + jitter * 0.3);
-        break;
+  const w = band.endX - band.startX;
+  if (!P.visible(band.startX, w)) return;
+  const skyTop = CHROME_TOP - 4;
+  // sky: base tint + a layered-alpha vertical gradient (haze thickening toward the horizon)
+  P.rect(band.startX, skyTop, w, L.horizon - skyTop, theme.sky, 0.4);
+  const gradBands = 6;
+  for (let i = 0; i < gradBands; i++) {
+    const yy = L.horizon - ((i + 1) / gradBands) * (L.horizon - skyTop);
+    const bh = (L.horizon - skyTop) / gradBands + 1;
+    P.rect(band.startX, yy, w, bh, MATE_PAL.cream, 0.05 * (i + 1));
+  }
+  // ground: base + a darker lower stratum for depth
+  P.rect(band.startX, L.horizon, w, L.playBottom + LEGEND_H + 40 - L.horizon, theme.ground, 0.9);
+  P.rect(band.startX, L.horizon + (L.worldH - L.horizon) * 0.55, w, L.worldH - L.horizon, theme.groundDark, 0.35);
+  P.rect(band.startX, L.horizon - 3, w, 5, theme.groundHi, 0.9); // grassy horizon rim
+}
+
+/** Soft biome blend across a seam: overlay each neighbour's colour with a linear-alpha falloff. */
+function drawBiomeSeam(P: Painter, left: ZoneBand, right: ZoneBand, L: MapLayout): void {
+  const x = right.startX;
+  const half = 46;
+  const slices = 10;
+  const lt = ZONE_THEMES[left.index]!;
+  const rt = ZONE_THEMES[right.index]!;
+  for (let i = 0; i < slices; i++) {
+    const t = i / (slices - 1); // 0 at left edge of seam → 1 at right
+    const sx = x - half + (2 * half * i) / slices;
+    const sw = (2 * half) / slices + 1;
+    // right zone bleeds left (alpha rises L→R); left zone bleeds right (alpha falls L→R)
+    P.rect(sx, L.horizon, sw, L.worldH - L.horizon, rt.ground, 0.5 * t);
+    P.rect(sx, CHROME_TOP - 4, sw, L.horizon - (CHROME_TOP - 4), rt.sky, 0.3 * t);
+    P.rect(sx, L.horizon, sw, L.worldH - L.horizon, lt.ground, 0.5 * (1 - t));
+  }
+}
+
+function drawGroundTexture(P: Painter, band: ZoneBand, L: MapLayout): void {
+  const theme = ZONE_THEMES[band.index]!;
+  const groundY = L.playBottom + 8;
+  const step = 26;
+  for (let x = band.startX + 8; x < band.endX - 8; x += step) {
+    if (!P.visible(x, step)) continue;
+    for (let k = 0; k < 2; k++) {
+      const jx = x + rand01(band.index * 91 + Math.round(x), k) * step;
+      const jy = L.horizon + 12 + rand01(k, Math.round(x)) * (groundY - L.horizon - 12);
+      // grass tuft: a couple of tiny vertical blades
+      P.rect(jx, jy, 1, 3, theme.groundHi, 0.7);
+      P.rect(jx + 2, jy - 1, 1, 4, theme.groundHi, 0.6);
+      if (rand01(Math.round(jx), band.index) > 0.82) P.rect(jx - 1, jy + 3, 2, 2, theme.groundDark, 0.6); // pebble
     }
   }
 }
 
-function drawZones(surface: UISurface, zones: readonly ZoneBand[]): void {
-  // Backdrop bands: sky (down to horizon) + ground (horizon to bottom), per zone.
-  for (const band of zones) {
-    const theme = ZONE_THEMES[band.index]!;
-    const w = band.endX - band.startX;
-    surface.rect(band.startX, PLAY_TOP - 8, w, HORIZON - (PLAY_TOP - 8), theme.sky, 0.45);
-    surface.rect(band.startX, HORIZON, w, PLAY_BOTTOM - HORIZON, theme.ground, 0.85);
-    surface.rect(band.startX, HORIZON - 3, w, 4, theme.groundHi, 0.9); // grassy horizon rim
-    // faint zone divider
-    if (band.index > 0) surface.rect(band.startX - 1, PLAY_TOP - 8, 2, PLAY_BOTTOM - PLAY_TOP + 8, MATE_PAL.ink, 0.35);
-  }
-  // scenery on top of the ground band
-  for (const band of zones) drawScenery(surface, band);
-  // zone name banners along the top
-  for (const band of zones) {
-    const name = STRINGS.zoneName[band.index] ?? "";
-    if (name.length === 0) continue;
-    const cx = (band.startX + band.endX) / 2;
-    const tw = measureText(name);
-    const bw = tw + 20;
-    surface.rect(cx - bw / 2, PLAY_TOP - 4, bw, 18, MATE_PAL.ink, 0.8);
-    surface.rect(cx - bw / 2, PLAY_TOP - 4, bw, 2, MATE_PAL.gold, 0.9);
-    drawText(surface, name, cx - tw / 2, PLAY_TOP - 1, { color: MATE_PAL.cream });
-  }
-}
-
-// --- road ribbon ---------------------------------------------------------------------------------
-function drawRoad(surface: UISurface, from: { cx: number; cy: number }, to: { cx: number; cy: number }, bright: boolean): void {
+// --- road ----------------------------------------------------------------------------------------
+function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number; cy: number }, bright: boolean, seed: number): void {
   const dx = to.cx - from.cx;
   const dy = to.cy - from.cy;
   const dist = Math.hypot(dx, dy);
+  if (!P.visible(Math.min(from.cx, to.cx), Math.abs(dx) + ROAD_W * 2)) return;
   const steps = Math.max(4, Math.round(dist / ROAD_STEP));
   const base = bright ? MATE_PAL.gold : MATE_PAL.tan;
   const outline = bright ? MATE_PAL.orange : MATE_PAL.woodDark;
-  const baseAlpha = bright ? 1 : 0.85;
+  const a = bright ? 1 : 0.9;
+  const nx = -dy / (dist || 1);
+  const ny = dx / (dist || 1); // unit perpendicular, for flowers along the verge
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const x = from.cx + dx * t;
     const y = from.cy + dy * t;
-    surface.rect(x - (ROAD_W + 4) / 2, y - (ROAD_W + 4) / 2, ROAD_W + 4, ROAD_W + 4, outline, baseAlpha * 0.7);
-    surface.rect(x - ROAD_W / 2, y - ROAD_W / 2, ROAD_W, ROAD_W, base, baseAlpha);
-    if (i % 3 === 0) surface.rect(x - 2, y - 2, 4, 4, bright ? MATE_PAL.yellow : MATE_PAL.cream, 0.9); // dashed centerline
+    P.rect(x - (ROAD_W + 4) / 2, y - (ROAD_W + 4) / 2, ROAD_W + 4, ROAD_W + 4, outline, a * 0.75); // edge
+    P.rect(x - ROAD_W / 2, y - ROAD_W / 2, ROAD_W, ROAD_W, base, a); // fill
+    if (i % 4 === 0) P.rect(x - 2, y - 2, 4, 4, bright ? MATE_PAL.yellow : MATE_PAL.cream, 0.85); // dashed centerline
+    if (i % 5 === 0 && rand01(seed, i) > 0.55) P.rect(x + (rand01(i, seed) - 0.5) * 6, y + (rand01(seed, i * 3) - 0.5) * 6, 2, 2, MATE_PAL.woodDark, 0.5); // pebbles
+    // flowers along the verge (both sides), off the road surface
+    if (i % 6 === 3) {
+      const off = ROAD_W / 2 + 6 + rand01(seed, i) * 5;
+      if (rand01(seed + 1, i) > 0.4) drawFlower(P, x + nx * off, y + ny * off, seed * 7 + i);
+      if (rand01(seed + 2, i) > 0.5) drawFlower(P, x - nx * off, y - ny * off, seed * 11 + i);
+    }
   }
 }
 
 type NodeState = "reachable" | "visited" | "locked";
 
-function drawCenteredText(surface: UISurface, text: string, cx: number, y: number, color: string, alpha: number): void {
-  if (text.length === 0) return;
-  drawText(surface, text, cx - measureText(text) / 2, y, { color, alpha });
-}
-
-function drawNode(surface: UISurface, rect: NodeRect, node: MapNode, state: NodeState, hovered: boolean): void {
+function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, hovered: boolean): void {
   const { cx, cy, w, h } = rect;
+  if (!P.visible(cx - w, w * 2)) return;
   const x = cx - w / 2;
   const y = cy - h / 2;
-
-  let fillAlpha: number;
-  let textAlpha: number;
-  let borderColor: string;
-  let borderAlpha: number;
+  let fillA: number;
+  let textA: number;
+  let border: string;
+  let borderA: number;
   switch (state) {
     case "reachable":
-      fillAlpha = 1;
-      textAlpha = 1;
-      borderColor = hovered ? MATE_PAL.yellow : MATE_PAL.gold;
-      borderAlpha = 1;
+      fillA = 1;
+      textA = 1;
+      border = hovered ? MATE_PAL.yellow : MATE_PAL.gold;
+      borderA = 1;
       break;
     case "visited":
-      fillAlpha = 0.6;
-      textAlpha = 0.9;
-      borderColor = MATE_PAL.steel;
-      borderAlpha = 0.75;
+      fillA = 0.62;
+      textA = 0.9;
+      border = MATE_PAL.steel;
+      borderA = 0.75;
       break;
     case "locked":
-      fillAlpha = 0.35;
-      textAlpha = 0.55;
-      borderColor = MATE_PAL.slate;
-      borderAlpha = 0.5;
+      fillA = 0.34;
+      textA = 0.55;
+      border = MATE_PAL.slate;
+      borderA = 0.5;
       break;
   }
-
-  // a post/shadow under the marker so it reads as a signpost standing on the road
-  surface.rect(cx - 2, cy, 4, h / 2 + 8, MATE_PAL.woodDark, 0.5 * fillAlpha);
-  surface.rect(x - NODE_BORDER, y - NODE_BORDER, w + NODE_BORDER * 2, h + NODE_BORDER * 2, borderColor, borderAlpha);
-  surface.rect(x, y, w, h, NODE_TYPE_COLOR[node.type], fillAlpha);
-  surface.rect(x + 2, y + 2, w - 4, 3, MATE_PAL.white, 0.25 * fillAlpha); // top highlight
-
-  const glyph = (state === "visited" ? STRINGS.visitedPrefix : "") + NODE_GLYPH[node.type];
-  drawCenteredText(surface, glyph, cx, cy - 9, MATE_PAL.white, textAlpha);
-  if (node.type !== "rest") {
-    drawCenteredText(surface, STRINGS.gradeLabel[node.grade], cx, cy + 2, MATE_PAL.cream, textAlpha);
-  }
+  P.rect(cx - 3, cy, 6, h / 2 + 10, MATE_PAL.woodDark, 0.5 * fillA); // signpost
+  P.rect(x - NODE_BORDER, y - NODE_BORDER, w + NODE_BORDER * 2, h + NODE_BORDER * 2, border, borderA);
+  P.rect(x, y, w, h, NODE_TYPE_COLOR[node.type], fillA);
+  P.rect(x + 2, y + 2, w - 4, 3, MATE_PAL.white, 0.25 * fillA); // top highlight
+  P.ctext((state === "visited" ? STRINGS.visitedPrefix : "") + NODE_GLYPH[node.type], cx, cy - 10, MATE_PAL.white, textA);
+  if (node.type !== "rest") P.ctext(STRINGS.gradeLabel[node.grade], cx, cy + 2, MATE_PAL.cream, textA);
 }
 
-/** The hero token: a tiny figure standing on the current node. */
-function drawHero(surface: UISurface, cx: number, cyNode: number, h: number): void {
+function drawHero(P: Painter, cx: number, cyNode: number, h: number): void {
   const feetY = cyNode - h / 2 - 4;
-  surface.rect(cx - 5, feetY - 4, 10, 4, MATE_PAL.woodDark, 0.9); // legs
-  surface.rect(cx - 5, feetY - 12, 10, 8, MATE_PAL.red, 1); // tunic
-  surface.rect(cx - 3, feetY - 17, 6, 6, MATE_PAL.skin, 1); // head
-  surface.rect(cx - 4, feetY - 19, 8, 3, MATE_PAL.gold, 1); // hat/crown
-  surface.rect(cx + 5, feetY - 14, 3, 12, MATE_PAL.silver, 1); // sword
+  P.rect(cx - 6, feetY - 3, 12, 3, MATE_PAL.black, 0.3); // shadow
+  P.rect(cx - 5, feetY - 4, 10, 4, MATE_PAL.woodDark, 0.95);
+  P.rect(cx - 5, feetY - 12, 10, 8, MATE_PAL.red, 1);
+  P.rect(cx - 3, feetY - 17, 6, 6, MATE_PAL.skin, 1);
+  P.rect(cx - 4, feetY - 19, 8, 3, MATE_PAL.gold, 1);
+  P.rect(cx + 5, feetY - 14, 3, 12, MATE_PAL.silver, 1);
+}
+
+function drawZoneBanner(P: Painter, band: ZoneBand): void {
+  const name = STRINGS.zoneName[band.index] ?? "";
+  if (name.length === 0) return;
+  const cx = (band.startX + band.endX) / 2;
+  const tw = measureText(name);
+  const bw = tw + 22;
+  if (!P.visible(cx - bw / 2, bw)) return;
+  P.rect(cx - bw / 2, CHROME_TOP - 2, bw, 18, MATE_PAL.ink, 0.82);
+  P.rect(cx - bw / 2, CHROME_TOP - 2, bw, 2, MATE_PAL.gold, 0.9);
+  P.ctext(name, cx, CHROME_TOP + 1, MATE_PAL.cream, 1);
+}
+
+export interface MapScreen {
+  render(surface: UISurface, run: RunView, hoverId: number | null, viewW: number, viewH: number): void;
+  /** Screen-px → node id (accounts for the camera). */
+  nodeAtScreen(sx: number, sy: number): number | null;
+  /** Pan the camera by a screen-px delta (clamped to the world). */
+  panBy(dx: number, dy: number): void;
+  reachableOrder(run: RunView): number[];
+}
+
+export function createMapScreen(): MapScreen {
+  let layout: ReadonlyMap<number, NodeRect> = new Map();
+  let camX = 0;
+  let camY = 0;
+  let worldW = 0;
+  let worldH = 0;
+  let viewW = 0;
+  let viewH = 0;
+  let lastCurrent: number | null | undefined = undefined;
+
+  function clampCam(): void {
+    camX = clamp(camX, 0, Math.max(0, worldW - viewW));
+    camY = clamp(camY, 0, Math.max(0, worldH - viewH));
+  }
+
+  function render(surface: UISurface, run: RunView, hoverId: number | null, vw: number, vh: number): void {
+    viewW = vw;
+    viewH = vh;
+    const L = computeMapLayout(run.map, vw, vh);
+    layout = L.nodes;
+    worldW = L.worldW;
+    worldH = L.worldH;
+
+    const current = currentNodeId(run);
+    if (current !== lastCurrent) {
+      // auto-center on the hero's node on any advance (then the player may pan freely)
+      const focus = current !== null ? L.nodes.get(current) : undefined;
+      const fx = focus?.cx ?? L.anchor.cx;
+      camX = fx - viewW / 2;
+      lastCurrent = current;
+    }
+    clampCam();
+
+    const ox = -camX;
+    const oy = -camY;
+    const P: Painter = {
+      rect: (x, y, w, h, color, alpha = 1) => surface.rect(x + ox, y + oy, w, h, color, alpha),
+      text: (t, x, y, color, alpha = 1, scale = 1) => {
+        drawText(surface, t, x + ox, y + oy, { color, alpha, scale });
+      },
+      ctext: (t, cx, y, color, alpha = 1) => {
+        if (t.length > 0) drawText(surface, t, cx - measureText(t) / 2 + ox, y + oy, { color, alpha });
+      },
+      visible: (x, w) => x + w >= camX - CULL_PAD && x <= camX + viewW + CULL_PAD,
+    };
+
+    // WORLD: backdrops → biome seams → ground texture → scenery → roads → nodes → hero → banners
+    for (const band of L.zones) drawZoneBackdrop(P, band, L);
+    for (let i = 1; i < L.zones.length; i++) drawBiomeSeam(P, L.zones[i - 1]!, L.zones[i]!, L);
+    for (const band of L.zones) drawGroundTexture(P, band, L);
+    for (const band of L.zones) drawScenery(P, band, L);
+
+    for (const node of run.map.nodes) {
+      const from = L.nodes.get(node.id);
+      if (from === undefined) continue;
+      for (const targetId of node.next) {
+        const to = L.nodes.get(targetId);
+        if (to !== undefined) drawRoad(P, from, to, node.id === current, node.id * 131 + targetId);
+      }
+    }
+    if (current === null) for (const id of run.map.startIds) {
+      const to = L.nodes.get(id);
+      if (to !== undefined) drawRoad(P, L.anchor, to, true, id * 131);
+    }
+
+    const reachable = new Set(run.reachableIds);
+    const visited = new Set(run.visitedIds);
+    for (const node of run.map.nodes) {
+      const rect = L.nodes.get(node.id);
+      if (rect === undefined) continue;
+      const state: NodeState = visited.has(node.id) ? "visited" : reachable.has(node.id) ? "reachable" : "locked";
+      drawNode(P, rect, node, state, hoverId === node.id);
+    }
+    if (current !== null) {
+      const rect = L.nodes.get(current);
+      if (rect !== undefined) drawHero(P, rect.cx, rect.cy, rect.h);
+    } else {
+      drawHero(P, L.anchor.cx, L.anchor.cy, 0);
+    }
+    for (const band of L.zones) drawZoneBanner(P, band);
+
+    // HUD (fixed screen space) — title, HP, legend, scroll hints.
+    drawChrome(surface, run);
+    drawLegendAt(surface, viewH);
+    drawScrollHints(surface);
+  }
+
+  function drawScrollHints(surface: UISurface): void {
+    if (camX > 2) drawText(surface, "‹", 8, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
+    if (camX < worldW - viewW - 2) drawText(surface, "›", viewW - 22, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
+  }
+
+  function nodeAtScreen(sx: number, sy: number): number | null {
+    const wx = sx + camX;
+    const wy = sy + camY;
+    for (const [id, r] of layout) {
+      if (wx >= r.cx - r.w / 2 && wx <= r.cx + r.w / 2 && wy >= r.cy - r.h / 2 && wy <= r.cy + r.h / 2) return id;
+    }
+    return null;
+  }
+
+  function panBy(dx: number, dy: number): void {
+    camX += dx;
+    camY += dy;
+    clampCam();
+  }
+
+  function reachableOrder(run: RunView): number[] {
+    const byId = new Map(run.map.nodes.map((n) => [n.id, n] as const));
+    return [...run.reachableIds].sort((a, b) => {
+      const na = byId.get(a)!;
+      const nb = byId.get(b)!;
+      if (na.row !== nb.row) return na.row - nb.row;
+      return na.col - nb.col;
+    });
+  }
+
+  return { render, nodeAtScreen, panBy, reachableOrder };
+}
+
+function drawScenery(P: Painter, band: ZoneBand, L: MapLayout): void {
+  const theme = ZONE_THEMES[band.index]!;
+  const groundY = L.playBottom + 10;
+  const count = theme.kind === "lair" ? 2 : 4;
+  const usable = band.endX - band.startX;
+  for (let i = 0; i < count; i++) {
+    const x = band.startX + 30 + rand01(band.index * 31 + i, 7) * Math.max(1, usable - 60);
+    if (!P.visible(x - 30, 60)) continue;
+    const jitter = rand01(band.index + i, 3);
+    switch (theme.kind) {
+      case "forest":
+        drawPine(P, x, groundY, 1.2 + jitter * 0.6, theme);
+        break;
+      case "village":
+        if (i % 2 === 0) drawCottage(P, x, groundY, 1.1 + jitter * 0.4);
+        else drawPine(P, x, groundY, 1, ZONE_THEMES[0]!);
+        break;
+      case "mountains":
+        drawPeak(P, x, groundY, 0.9 + jitter * 0.5);
+        break;
+      case "lair":
+        drawLair(P, x, groundY, 1.1 + jitter * 0.3);
+        break;
+    }
+  }
 }
 
 function drawChrome(surface: UISurface, run: RunView): void {
   drawText(surface, STRINGS.mapTitle, 24, 10, { color: MATE_PAL.gold, scale: 2 });
   drawText(surface, STRINGS.warriorHpLabel, 24, HP_BAR_Y, { color: MATE_PAL.cream });
   surface.rect(HP_BAR_X, HP_BAR_Y, HP_BAR_W, HP_BAR_H, MATE_PAL.navy);
-  const pct = run.warriorMaxHp > 0 ? clamp01(run.warriorHp / run.warriorMaxHp) : 0;
+  const pct = run.warriorMaxHp > 0 ? clamp(run.warriorHp / run.warriorMaxHp, 0, 1) : 0;
   const fillW = Math.round(HP_BAR_W * pct);
   if (fillW > 0) surface.rect(HP_BAR_X, HP_BAR_Y, fillW, HP_BAR_H, MATE_PAL.green);
   drawText(surface, `${run.warriorHp}/${run.warriorMaxHp}`, HP_BAR_X + HP_BAR_W + 10, HP_BAR_Y, { color: MATE_PAL.cream });
 }
 
-function drawLegend(surface: UISurface): void {
-  const y = MAP_H - 26;
+function drawLegendAt(surface: UISurface, viewH: number): void {
+  const y = viewH - 22;
   let x = 24;
   drawText(surface, STRINGS.legendTitle, x, y, { color: MATE_PAL.steel });
   x += measureText(STRINGS.legendTitle) + 12;
@@ -365,79 +532,4 @@ function drawLegend(surface: UISurface): void {
     drawText(surface, text, x, y, { color: NODE_TYPE_COLOR[type] });
     x += measureText(text) + 16;
   }
-}
-
-export interface MapScreen {
-  render(surface: UISurface, run: RunView, hoverId: number | null): void;
-  nodeAt(x: number, y: number): number | null;
-  reachableOrder(run: RunView): number[];
-}
-
-export function createMapScreen(): MapScreen {
-  let layout: ReadonlyMap<number, NodeRect> = new Map();
-
-  function render(surface: UISurface, run: RunView, hoverId: number | null): void {
-    const computed = computeMapLayout(run.map);
-    layout = computed.nodes;
-
-    drawZones(surface, computed.zones);
-    drawChrome(surface, run);
-
-    const reachable = new Set(run.reachableIds);
-    const visited = new Set(run.visitedIds);
-    const current = currentNodeId(run);
-
-    // Roads FIRST, under the nodes (brightened leaving the current node / the start anchor).
-    for (const node of run.map.nodes) {
-      const from = computed.nodes.get(node.id);
-      if (from === undefined) continue;
-      for (const targetId of node.next) {
-        const to = computed.nodes.get(targetId);
-        if (to !== undefined) drawRoad(surface, from, to, node.id === current);
-      }
-    }
-    if (current === null) {
-      for (const startId of run.map.startIds) {
-        const to = computed.nodes.get(startId);
-        if (to !== undefined) drawRoad(surface, computed.anchor, to, true);
-      }
-    }
-
-    // Nodes.
-    for (const node of run.map.nodes) {
-      const rect = computed.nodes.get(node.id);
-      if (rect === undefined) continue;
-      const state: NodeState = visited.has(node.id) ? "visited" : reachable.has(node.id) ? "reachable" : "locked";
-      drawNode(surface, rect, node, state, hoverId === node.id);
-    }
-
-    // Hero token on the current node (or the start anchor).
-    if (current !== null) {
-      const rect = computed.nodes.get(current);
-      if (rect !== undefined) drawHero(surface, rect.cx, rect.cy, rect.h);
-    } else {
-      drawHero(surface, computed.anchor.cx, computed.anchor.cy, 0);
-    }
-
-    drawLegend(surface);
-  }
-
-  function nodeAt(x: number, y: number): number | null {
-    for (const [id, r] of layout) {
-      if (x >= r.cx - r.w / 2 && x <= r.cx + r.w / 2 && y >= r.cy - r.h / 2 && y <= r.cy + r.h / 2) return id;
-    }
-    return null;
-  }
-
-  function reachableOrder(run: RunView): number[] {
-    const byId = new Map(run.map.nodes.map((n) => [n.id, n] as const));
-    return [...run.reachableIds].sort((a, b) => {
-      const na = byId.get(a)!;
-      const nb = byId.get(b)!;
-      if (na.row !== nb.row) return na.row - nb.row; // progression (left→right)
-      return na.col - nb.col; // then vertical
-    });
-  }
-
-  return { render, nodeAt, reachableOrder };
 }

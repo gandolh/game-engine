@@ -42,6 +42,12 @@ function fakeSurface(): UISurface {
   return new UISurface(fakeRenderer as never);
 }
 
+// Viewport the tests render against. At a fresh run (currentId null, no visited) the camera clamps
+// to camX=0, so screen coords 0..VIEW_W map 1:1 to the leftmost world columns (where the start
+// nodes sit) — the sweeps below hit them without needing to know the camera.
+const VIEW_W = 960;
+const VIEW_H = 540;
+
 describe("createMapScreen — nodeAt hit-test", () => {
   it("returns the node id for a point inside its marker, and null outside every marker", () => {
     const map = testMap(1);
@@ -50,7 +56,7 @@ describe("createMapScreen — nodeAt hit-test", () => {
     const run = baseRun(map);
 
     surface.begin();
-    screen.render(surface, run, null);
+    screen.render(surface, run, null, VIEW_W, VIEW_H);
     surface.end();
 
     // Probe every start-row node's own centre — `render()` just computed their layout, so each
@@ -65,7 +71,7 @@ describe("createMapScreen — nodeAt hit-test", () => {
       let found: { x: number; y: number } | null = null;
       for (let x = 0; x <= 960 && found === null; x += 8) {
         for (let y = 0; y <= 540; y += 8) {
-          if (screen.nodeAt(x, y) === id) {
+          if (screen.nodeAtScreen(x, y) === id) {
             found = { x, y };
             break;
           }
@@ -75,8 +81,8 @@ describe("createMapScreen — nodeAt hit-test", () => {
     }
 
     // A point in the far corner, well outside the play area's margins, hits nothing.
-    expect(screen.nodeAt(0, 0)).toBeNull();
-    expect(screen.nodeAt(959, 0)).toBeNull();
+    expect(screen.nodeAtScreen(0, 0)).toBeNull();
+    expect(screen.nodeAtScreen(959, 0)).toBeNull();
   });
 
   it("a point strictly inside a specific known marker resolves to that node, one outside it does not", () => {
@@ -86,7 +92,7 @@ describe("createMapScreen — nodeAt hit-test", () => {
     const run = baseRun(map);
 
     surface.begin();
-    screen.render(surface, run, null);
+    screen.render(surface, run, null, VIEW_W, VIEW_H);
     surface.end();
 
     // Sweep the whole canvas once (8px grid — see the previous test's note) to build id -> a
@@ -94,21 +100,21 @@ describe("createMapScreen — nodeAt hit-test", () => {
     const hitPoints = new Map<number, { x: number; y: number }>();
     for (let x = 0; x <= 960; x += 8) {
       for (let y = 0; y <= 540; y += 8) {
-        const id = screen.nodeAt(x, y);
+        const id = screen.nodeAtScreen(x, y);
         if (id !== null && !hitPoints.has(id)) hitPoints.set(id, { x, y });
       }
     }
     expect(hitPoints.size).toBeGreaterThan(0);
 
     const [someId, point] = [...hitPoints.entries()][0]!;
-    expect(screen.nodeAt(point.x, point.y)).toBe(someId);
+    expect(screen.nodeAtScreen(point.x, point.y)).toBe(someId);
     // Far outside any node's box.
-    expect(screen.nodeAt(2, 2)).toBeNull();
+    expect(screen.nodeAtScreen(2, 2)).toBeNull();
   });
 });
 
 describe("createMapScreen — reachableOrder", () => {
-  it("returns exactly the reachable ids (as a set), sorted by col then row", () => {
+  it("returns exactly the reachable ids (as a set), sorted by row (progression) then col", () => {
     const map = testMap(3);
     const screen = createMapScreen();
     const run = baseRun(map);
@@ -121,7 +127,7 @@ describe("createMapScreen — reachableOrder", () => {
     for (let i = 1; i < order.length; i++) {
       const prev = byId.get(order[i - 1]!)!;
       const cur = byId.get(order[i]!)!;
-      expect(prev.col < cur.col || (prev.col === cur.col && prev.row <= cur.row)).toBe(true);
+      expect(prev.row < cur.row || (prev.row === cur.row && prev.col <= cur.col)).toBe(true);
     }
   });
 
@@ -152,7 +158,7 @@ describe("createMapScreen — render() smoke test", () => {
 
     const fresh = baseRun(map);
     surface.begin();
-    expect(() => screen.render(surface, fresh, null)).not.toThrow();
+    expect(() => screen.render(surface, fresh, null, VIEW_W, VIEW_H)).not.toThrow();
     surface.end();
 
     const startId = map.startIds[0]!;
@@ -164,7 +170,7 @@ describe("createMapScreen — render() smoke test", () => {
       warriorHp: 12,
     });
     surface.begin();
-    expect(() => screen.render(surface, midRun, startNode.next[0] ?? null)).not.toThrow();
+    expect(() => screen.render(surface, midRun, startNode.next[0] ?? null, VIEW_W, VIEW_H)).not.toThrow();
     surface.end();
   });
 });

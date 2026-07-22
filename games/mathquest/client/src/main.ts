@@ -130,6 +130,16 @@ async function main(): Promise<void> {
   const mapScreen = createMapScreen();
   /** Hover target for the map's reachable-node highlight, tracked from `mousemove` in map mode. */
   let hoverId: number | null = null;
+  // Map-mode camera drag: a press becomes a PAN once the pointer moves past a small threshold;
+  // a press that never crosses it is a node CLICK on release (so panning never mis-selects a node).
+  let panDown = false;
+  let panDragging = false;
+  let panLastX = 0;
+  let panLastY = 0;
+  let panStartX = 0;
+  let panStartY = 0;
+  const PAN_THRESHOLD = 5; // px of movement before a press is treated as a drag
+  const KEY_PAN_STEP = 90; // px per arrow-key press
 
   const runOverActions: RunOverScreenActions = {
     newRun() {
@@ -173,31 +183,66 @@ async function main(): Promise<void> {
   };
   canvas.addEventListener("mousedown", (e) => {
     const { x, y } = cssPx(e);
-    // Map mode: bypass the widget dispatcher entirely — hit-test the spatial layout directly and
-    // post `choose-node` only for a reachable target (brief: "unreachable node rejected").
+    // Map mode: a press starts a potential camera PAN (resolved as a click on release if it never
+    // crosses PAN_THRESHOLD). Bypasses the widget dispatcher entirely.
     if (latest !== null && latest.mode === "map") {
-      const id = mapScreen.nodeAt(x, y);
-      if (id !== null && latest.run.reachableIds.includes(id)) {
-        post({ type: "choose-node", id });
-      }
+      panDown = true;
+      panDragging = false;
+      panStartX = x;
+      panStartY = y;
+      panLastX = x;
+      panLastY = y;
       return;
     }
     dispatcher.pointerDown(x, y);
     syncFocus();
   });
   canvas.addEventListener("mouseup", (e) => {
-    if (latest !== null && latest.mode === "map") return; // map clicks resolve on mousedown, no drag/release semantics
     const { x, y } = cssPx(e);
+    if (latest !== null && latest.mode === "map") {
+      // A press that never became a drag is a node click; a reachable node advances the run.
+      if (panDown && !panDragging) {
+        const id = mapScreen.nodeAtScreen(x, y);
+        if (id !== null && latest.run.reachableIds.includes(id)) post({ type: "choose-node", id });
+      }
+      panDown = false;
+      panDragging = false;
+      return;
+    }
     dispatcher.pointerUp(x, y);
+  });
+  canvas.addEventListener("mouseleave", () => {
+    panDown = false;
+    panDragging = false;
   });
   canvas.addEventListener("mousemove", (e) => {
     const { x, y } = cssPx(e);
     if (latest !== null && latest.mode === "map") {
-      hoverId = mapScreen.nodeAt(x, y);
+      if (panDown) {
+        if (Math.abs(x - panStartX) + Math.abs(y - panStartY) > PAN_THRESHOLD) panDragging = true;
+        if (panDragging) {
+          mapScreen.panBy(panLastX - x, panLastY - y); // world moves opposite the drag
+          panLastX = x;
+          panLastY = y;
+          hoverId = null;
+        }
+      } else {
+        hoverId = mapScreen.nodeAtScreen(x, y);
+      }
       return;
     }
     dispatcher.pointerMove(x, y);
   });
+  // Map-mode wheel → horizontal scroll (vertical wheel maps to horizontal, the journey's main axis).
+  canvas.addEventListener(
+    "wheel",
+    (e) => {
+      if (latest === null || latest.mode !== "map") return;
+      mapScreen.panBy((Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY), 0);
+      e.preventDefault();
+    },
+    { passive: false },
+  );
 
   // Keyboard. Map mode gets its OWN accessible-fallback handling (`1`..`9` / Enter select among
   // the reachable nodes) and returns early — it never reaches the widget dispatcher (whose root is
@@ -212,6 +257,27 @@ async function main(): Promise<void> {
     if (active !== null && a11yMount !== null && a11yMount.contains(active)) return;
 
     if (latest !== null && latest.mode === "map") {
+      // Arrow keys pan the camera; 1..9 / Enter select among reachable nodes.
+      if (e.key === "ArrowLeft") {
+        mapScreen.panBy(-KEY_PAN_STEP, 0);
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        mapScreen.panBy(KEY_PAN_STEP, 0);
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        mapScreen.panBy(0, -KEY_PAN_STEP);
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        mapScreen.panBy(0, KEY_PAN_STEP);
+        e.preventDefault();
+        return;
+      }
       const order = mapScreen.reachableOrder(latest.run);
       let id: number | undefined;
       if (/^[1-9]$/.test(e.key)) id = order[Number(e.key) - 1];
@@ -251,9 +317,10 @@ async function main(): Promise<void> {
     if (latest !== null) {
       const snapshot = latest;
       if (snapshot.mode === "map") {
-        // Custom-drawn: one pass, no widget tree, no computeLayout/renderTree.
+        // Custom-drawn: one pass, no widget tree. Full-viewport: the map lays out + scrolls within
+        // the live canvas CSS size (UI is drawn in CSS px; see the render pipeline).
         surface.begin();
-        mapScreen.render(surface, snapshot.run, hoverId);
+        mapScreen.render(surface, snapshot.run, hoverId, canvas.clientWidth, canvas.clientHeight);
         surface.end();
         // No DOM mirror for the spatial map yet (known follow-up — see ui/map-screen.ts's module
         // doc); clear it so a stale combat/run-over mirror never lingers into map mode.
