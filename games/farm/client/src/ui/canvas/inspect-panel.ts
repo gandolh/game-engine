@@ -30,7 +30,7 @@ export interface InspectState {
   currentIntention: string | null;
 }
 
-/** The retained inspect panel: its root node plus refresh(). */
+/** The retained inspect panel: its root node plus refresh() + setScale(). */
 export interface InspectPanel {
   /** The widget tree root — pass to `computeLayout` / `renderTree` / `mirror.update`. */
   readonly root: ContainerNode;
@@ -40,6 +40,15 @@ export interface InspectPanel {
    * computeLayout + a11y-mirror reconcile behind it); the first call always returns `true`.
    */
   refresh(state: InspectState): boolean;
+  /**
+   * Set the card's overall size multiplier (text scale + proportional padding/gap), so a
+   * world-anchored card can track the camera zoom and stay proportional to its subject sprite
+   * instead of sitting at a fixed screen size (huge over a tiny zoomed-out farmer, per the
+   * "inspect card too big / offset" report). The host derives `k` from the zoom and calls this
+   * BEFORE the per-frame `computeLayout`, which is what actually re-lays the card at the new size.
+   * Idempotent — a repeated `k` is a no-op.
+   */
+  setScale(k: number): void;
 }
 
 function setText(lbl: LabelNode, text: string): boolean {
@@ -73,6 +82,27 @@ export function createInspectPanel(): InspectPanel {
     intentionLbl,
   ]);
 
+  const allLabels: LabelNode[] = [nameLbl, personalityLbl, goldLbl, stateLbl, regionLbl, intentionLbl];
+
+  // Base (k = 1) spacing, matching the literals above — scaled proportionally in `setScale`.
+  const BASE_ROOT_PADDING = 6;
+  const BASE_ROOT_GAP = 2;
+  const BASE_HEADER_GAP = 6;
+  let scale = 1;
+
+  function setScale(k: number): void {
+    if (k === scale) return;
+    scale = k;
+    for (const lbl of allLabels) lbl.scale = k;
+    // Round spacing so the bitmap grid stays crisp; keep ≥1 so nothing collapses at small k.
+    root.layout = {
+      ...root.layout,
+      padding: Math.max(1, Math.round(BASE_ROOT_PADDING * k)),
+      gap: Math.max(1, Math.round(BASE_ROOT_GAP * k)),
+    };
+    header.layout = { ...header.layout, gap: Math.max(1, Math.round(BASE_HEADER_GAP * k)) };
+  }
+
   let changed = false;
   let firstRefresh = true;
 
@@ -94,5 +124,5 @@ export function createInspectPanel(): InspectPanel {
     return result;
   }
 
-  return { root, refresh };
+  return { root, refresh, setScale };
 }

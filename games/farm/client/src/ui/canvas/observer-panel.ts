@@ -139,8 +139,15 @@ export function createObserverPanel(actions: ObserverPanelActions): ObserverPane
   // fell back to its own intrinsic width (the widest line of its multi-line label), which changes
   // almost every tick as a farmer's gold/state/AP text updates — so the row visibly grew/shrank in
   // width on nearly every refresh instead of staying pinned to `LIST_WIDTH`.
+  // `padding: 0` is load-bearing (the LAST member of the same family of `visibleRows`-layout
+  // bugs documented above): a container defaults to the THEME padding (6px), which `computeLayout`
+  // applies to a CHANGED frame (rows arranged at `visibleRows.y + 6`) but `syncVisibleRows`' manual
+  // translate does NOT (rows at `visibleRows.y + 0`). As `refresh()` flips between "content changed"
+  // (relayout runs) and "unchanged" (only the manual translate positions the rows), every row visibly
+  // bounced ±6px on both axes — the "Farmers rows jitter / move quickly" glitch. Pinning padding to 0
+  // makes both positioning paths agree (rows fill the viewport exactly, as a scroll mirror should).
   const visibleRows = box(
-    { direction: "column", gap: 0, align: "stretch", width: LIST_WIDTH, height: LIST_HEIGHT },
+    { direction: "column", gap: 0, align: "stretch", padding: 0, width: LIST_WIDTH, height: LIST_HEIGHT },
     [],
   );
 

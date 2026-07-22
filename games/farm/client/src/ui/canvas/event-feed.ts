@@ -82,8 +82,17 @@ export function createEventFeed(): EventFeed {
   const vp: ScrollViewportNode = scroll({ width: FEED_WIDTH, height: FEED_HEIGHT }, []);
   vp.rect = { x: 0, y: 0, width: FEED_WIDTH, height: FEED_HEIGHT };
 
-  const visibleRows = box({ direction: "column", gap: 0, align: "stretch" }, []);
-  visibleRows.layout = { width: FEED_WIDTH, height: FEED_HEIGHT };
+  // Fold width/height into the SAME layout object as direction/gap/align/padding — a separate
+  // `visibleRows.layout = { width, height }` reassignment (the old form) REPLACED the object, silently
+  // dropping `align: "stretch"`, `gap: 0`, AND leaving `padding` to fall back to the theme's 6px. The
+  // padding mismatch is the "feed lines jitter / move quickly" glitch: `computeLayout` places lines at
+  // `visibleRows.y + 6` on a changed frame while `syncVisibleRows`' manual translate places them at
+  // `visibleRows.y + 0` — so lines bounce ±6px as `refresh()` flips changed/unchanged. `padding: 0`
+  // makes both paths agree (see the twin comment in `observer-panel.ts`).
+  const visibleRows = box(
+    { direction: "column", gap: 0, align: "stretch", padding: 0, width: FEED_WIDTH, height: FEED_HEIGHT },
+    [],
+  );
 
   const root = panel({ direction: "column", gap: 6, align: "stretch" }, [title, visibleRows]);
 

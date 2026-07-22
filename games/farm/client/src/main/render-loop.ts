@@ -13,7 +13,7 @@ import { washFor, nightnessFor } from "../render/day-night";
 import { makeLightOverlay } from "../render/lights";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SIZE } from "@farm/sim-core/systems/player-control";
-import { TILE, PROFILE_ENABLED } from "./config";
+import { TILE, DEFAULT_ZOOM, PROFILE_ENABLED } from "./config";
 import {
   focusedFarmerId,
   panOffset,
@@ -889,12 +889,20 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
             region: farmerRow.region,
             currentIntention: farmerRow.currentIntention,
           });
-          // Anchor above the farmer's head: measure, then place centred over the world point, offset
-          // up by the card height + a gap so it floats above the sprite (and tracks it as it moves).
+          // Scale the card with the camera zoom so it stays proportional to its subject sprite —
+          // a fixed screen-size card dwarfs a tiny zoomed-out farmer and reads as detached (the
+          // "inspect card too big / offset" report). `k = 1` at the default zoom; clamped to a
+          // legibility floor and a not-gigantic ceiling.
+          const k = Math.max(0.6, Math.min(1.35, zoom / DEFAULT_ZOOM));
+          inspectPanel.setScale(k);
+          // Anchor above the farmer's head: measure, then place centred over the subject. The
+          // vertical gap is expressed in WORLD units (converted through the SAME worldToCanvasCss
+          // as the anchor), so the card hugs the sprite's head at every zoom instead of floating a
+          // fixed pixel gap that detaches when zoomed out.
           computeLayout(inspectPanel.root, 0, 0);
-          const anchor = worldToCanvasCss(_camera, canvas, followed.x, followed.y);
-          const ax = anchor.x - inspectPanel.root.rect.width / 2;
-          const ay = anchor.y - inspectPanel.root.rect.height - TILE * 1.2;
+          const headAnchor = worldToCanvasCss(_camera, canvas, followed.x, followed.y - TILE * 1.3);
+          const ax = headAnchor.x - inspectPanel.root.rect.width / 2;
+          const ay = headAnchor.y - inspectPanel.root.rect.height;
           computeLayout(inspectPanel.root, ax, ay);
           if (changed) inspectRoot.mirror?.update(inspectPanel.root);
           renderTree(surface, inspectPanel.root);

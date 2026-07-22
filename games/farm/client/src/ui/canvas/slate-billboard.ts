@@ -167,8 +167,12 @@ export function createSlateBillboard(): SlateBillboard {
   // object, silently dropping `gap: 0` back to the theme's default (4px), so every row gained an
   // extra ~4px of drift (part of why 5 rows overflowed `LIST_HEIGHT`; see its comment) — and would
   // have dropped `align: "stretch"` too, the same width-jitter bug fixed in `observer-panel.ts`.
+  // `padding: 0` is load-bearing (see the twin comment in `observer-panel.ts`): without it the box
+  // inherits the theme's 6px padding, which `computeLayout` applies on a changed frame but the manual
+  // `syncVisibleRows` translate does not — so rows bounce ±6px whenever `refresh()` flips changed/
+  // unchanged. Both paths must place rows at the viewport origin.
   const visibleRows = box(
-    { direction: "column", gap: 0, align: "stretch", width: LIST_WIDTH, height: LIST_HEIGHT },
+    { direction: "column", gap: 0, align: "stretch", padding: 0, width: LIST_WIDTH, height: LIST_HEIGHT },
     [],
   );
 
