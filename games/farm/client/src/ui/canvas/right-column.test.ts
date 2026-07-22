@@ -49,33 +49,63 @@ function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = {}): PanelP
   };
 }
 
+/** The inner box that holds the three section boxes — present in `root.children` only while the
+ *  master column is expanded (alongside the master tab button). */
+function innerSectionsBox(col: ReturnType<typeof createRightColumn>) {
+  return col.root.children.find((n) => n.kind === "box");
+}
+
 /** All section boxes' direct children, flattened — where toggle buttons and (when open) sub-panel
- *  roots live in the tree. */
+ *  roots live in the tree. Empty while the whole column is collapsed. */
 function sectionChildren(col: ReturnType<typeof createRightColumn>) {
-  return col.root.children.flatMap((sectionBox) => sectionBox.children);
+  const inner = innerSectionsBox(col);
+  return inner ? inner.children.flatMap((sectionBox) => sectionBox.children) : [];
 }
 
 function toggleButtons(col: ReturnType<typeof createRightColumn>): ButtonNode[] {
   return sectionChildren(col).filter((n): n is ButtonNode => n.kind === "button");
 }
 
+/** The master collapse/expand tab — always `root.children[0]`. */
+function masterButton(col: ReturnType<typeof createRightColumn>): ButtonNode {
+  return col.root.children[0] as ButtonNode;
+}
+
 describe("createRightColumn", () => {
-  it("defaults every section closed: sub-panel roots absent, toggle buttons present top-to-bottom", () => {
+  it("defaults collapsed: root shows ONLY the master tab, no sub-sections", () => {
     const prefs = makeFakePrefs();
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
 
-    expect(col.root.children.length).toBe(3);
+    expect(col.root.children.length).toBe(1);
+    expect(masterButton(col).label).toBe("+ Panels");
+    expect(innerSectionsBox(col)).toBeUndefined();
+    expect(sectionChildren(col)).toEqual([]);
+  });
+
+  it("pressing the master tab flips the 'column' pref and reveals the section toggles", () => {
+    const prefs = makeFakePrefs();
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+
+    masterButton(col).onActivate!();
+
+    expect(prefs.toggleCalls).toContain("column");
+    expect(masterButton(col).label).toBe("- Panels");
+    expect(toggleButtons(col).map((b) => b.label)).toEqual(["Farmers", "Shop", "Activity"]);
+  });
+
+  it("with the column expanded, sections still default closed: toggles present, sub-panel roots absent", () => {
+    const prefs = makeFakePrefs({ column: true });
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
 
     const descendants = sectionChildren(col);
     expect(descendants).not.toContain(col.observerPanel.root);
     expect(descendants).not.toContain(col.slateBillboard.root);
     expect(descendants).not.toContain(col.eventFeed.root);
-
     expect(toggleButtons(col).map((b) => b.label)).toEqual(["Farmers", "Shop", "Activity"]);
   });
 
-  it("toggleSection('slate') makes the slate panel's root appear in the tree", () => {
-    const prefs = makeFakePrefs();
+  it("toggleSection('slate') (column expanded) makes the slate panel's root appear in the tree", () => {
+    const prefs = makeFakePrefs({ column: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
 
     col.toggleSection("slate");
@@ -84,7 +114,7 @@ describe("createRightColumn", () => {
   });
 
   it("refresh() returns true right after ANY toggle even when sub-panel content is unchanged", () => {
-    const prefs = makeFakePrefs({ observer: true, slate: true, events: true });
+    const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
 
     col.refresh(makeState()); // spend each sub-panel's own "first refresh" changed flag
@@ -95,8 +125,21 @@ describe("createRightColumn", () => {
     expect(col.refresh(makeState())).toBe(false); // dirty flag consumed
   });
 
-  it("pressing a toggle button flips prefs via prefs.toggle and restructures the tree", () => {
-    const prefs = makeFakePrefs();
+  it("while collapsed, refresh does NOT fan out to sub-panels and stays false when settled", () => {
+    const prefs = makeFakePrefs({ observer: true, slate: true, events: true }); // sections open, column CLOSED
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+
+    // Even on the very first call — the sub-panels aren't in the tree, so their first-refresh
+    // changed flags are never spent and never reported.
+    expect(col.refresh(makeState())).toBe(false);
+
+    // Expanding the column is a structural change → next refresh reports true once.
+    masterButton(col).onActivate!();
+    expect(col.refresh(makeState())).toBe(true);
+  });
+
+  it("pressing a section toggle button flips prefs via prefs.toggle and restructures the tree", () => {
+    const prefs = makeFakePrefs({ column: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
 
     const shopBtn = toggleButtons(col).find((b) => b.label === "Shop");
@@ -108,14 +151,14 @@ describe("createRightColumn", () => {
   });
 
   it("refresh fans out to every OPEN sub-panel and reports changed on first call", () => {
-    const prefs = makeFakePrefs({ observer: true, slate: true, events: true });
+    const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
     const changed = col.refresh(makeState());
     expect(changed).toBe(true);
   });
 
   it("refresh returns false once nothing layout-affecting changed anywhere (all open)", () => {
-    const prefs = makeFakePrefs({ observer: true, slate: true, events: true });
+    const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
     col.refresh(makeState());
     const again = col.refresh(makeState());
@@ -123,7 +166,7 @@ describe("createRightColumn", () => {
   });
 
   it("routes a wheel event to whichever OPEN sub-panel is under the pointer", () => {
-    const prefs = makeFakePrefs({ observer: true, slate: true, events: true });
+    const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
     col.refresh(makeState());
 
@@ -138,7 +181,7 @@ describe("createRightColumn", () => {
   });
 
   it("wheel does NOT route to a collapsed sub-panel even over its stale last-laid-out rect", () => {
-    const prefs = makeFakePrefs(); // all closed
+    const prefs = makeFakePrefs({ column: true }); // column open, all sections closed
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
     col.refresh(makeState());
 
@@ -148,8 +191,18 @@ describe("createRightColumn", () => {
     expect(col.wheel(10, 60, 5)).toBe(false);
   });
 
-  it("wheel still routes to an OPEN sub-panel under the pointer", () => {
-    const prefs = makeFakePrefs({ slate: true });
+  it("wheel does NOT route while the WHOLE column is collapsed, even over an open section's rect", () => {
+    const prefs = makeFakePrefs({ slate: true }); // slate 'open' but column CLOSED
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    col.refresh(makeState());
+
+    col.slateBillboard.root.rect = { x: 0, y: 50, width: 100, height: 50 };
+
+    expect(col.wheel(10, 60, 5)).toBe(false);
+  });
+
+  it("wheel still routes to an OPEN sub-panel under the pointer (column expanded)", () => {
+    const prefs = makeFakePrefs({ column: true, slate: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
     col.refresh(makeState());
 
@@ -158,8 +211,8 @@ describe("createRightColumn", () => {
     expect(col.wheel(10, 60, 5)).toBe(true);
   });
 
-  it("drawIcons does not throw (slate open)", () => {
-    const prefs = makeFakePrefs({ slate: true });
+  it("drawIcons does not throw (column + slate open)", () => {
+    const prefs = makeFakePrefs({ column: true, slate: true });
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
     col.refresh(makeState());
     const surface = {
@@ -172,7 +225,7 @@ describe("createRightColumn", () => {
     expect(() => col.drawIcons(surface as unknown as Parameters<typeof col.drawIcons>[0])).not.toThrow();
   });
 
-  it("drawIcons does not throw while slate is collapsed", () => {
+  it("drawIcons does not throw while the column is collapsed", () => {
     const prefs = makeFakePrefs(); // all closed
     const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
     col.refresh(makeState());

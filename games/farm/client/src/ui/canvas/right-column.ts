@@ -7,9 +7,15 @@
  * ({@link createObserverPanel}, {@link createSlateBillboard}, {@link createEventFeed}), so this
  * module stacks their roots in one `box` (matching the old wrapper's one-element contract, so the
  * integration chunk registers a SINGLE root for the whole column instead of three independent
- * roots) — AND, per brief 117, each sub-panel now collapses independently behind an
- * ALWAYS-VISIBLE toggle `button()` (labels "Farmers" / "Shop" / "Activity"), so this module also
- * owns the collapse/expand structure, not just composition.
+ * roots) — AND, per brief 117, each sub-panel collapses independently behind an ALWAYS-VISIBLE
+ * toggle `button()` (labels "Farmers" / "Shop" / "Activity"), so this module also owns the
+ * collapse/expand structure, not just composition.
+ *
+ * On top of the per-section toggles, the WHOLE column sits behind ONE master collapse (`masterBtn`,
+ * persisted under the `"column"` `PanelId`, default CLOSED): collapsed, `root` holds just that one
+ * tab so the column shrinks to a small button parked at the screen's right edge; expanded, `root`
+ * shows the tab plus the three sub-sections (which keep their own independent collapse). This
+ * replaces three always-visible header bars with a single edge tab the player opts into.
  *
  * Each sub-panel lives in its own section `box`: `[toggleBtn]` while collapsed, or
  * `[toggleBtn, subPanelRoot]` while open — rebuilt via `children = [...]` on toggle, mirroring how
@@ -38,7 +44,7 @@
  * EDG32: the toggle buttons are built via `@engine/ui`'s `button()` and left themed (no `EDG.*`
  * override) — the theme already colours button states, matching `playback-controls.ts`'s usage.
  */
-import { box, button } from "@engine/ui";
+import { box, button, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, UISurface } from "@engine/ui";
 import type { ObserverSnapshot } from "@farm/sim-core/snapshot";
 import { createObserverPanel } from "./observer-panel";
@@ -149,7 +155,7 @@ export function createRightColumn(actions: ObserverPanelActions, prefs: PanelPre
         structureDirty = true;
       },
     });
-    const sectionBox = box({ direction: "column", gap: 8, align: "stretch" }, [toggleBtn]);
+    const sectionBox = box({ direction: "column", gap: 0, align: "stretch" }, [toggleBtn]);
     const section: Section = {
       sectionBox,
       toggleBtn,
@@ -167,11 +173,46 @@ export function createRightColumn(actions: ObserverPanelActions, prefs: PanelPre
     events: makeSection("events"),
   };
 
-  const root = box({ direction: "column", gap: 8, align: "stretch" }, [
+  // The three sub-sections live in their own inner box; the outer `root` shows it only while the
+  // WHOLE column is expanded (the master collapse, added per user request: one edge tab instead of
+  // three always-visible header bars). Collapsed, `root` holds JUST `masterBtn`, so it shrinks to a
+  // single small tab that the host's right-edge anchor parks against the screen edge.
+  //
+  // `gap: 0` so the section tabs sit FLUSH — with the enclosing background panel (`root` below) the
+  // world no longer shows through inter-tab gaps; the sections read as one continuous boxed panel.
+  const sectionsBox = box({ direction: "column", gap: 0, align: "stretch" }, [
     sections.observer.sectionBox,
     sections.slate.sectionBox,
     sections.events.sectionBox,
   ]);
+
+  const MASTER_ID: PanelId = "column";
+  function masterOpen(): boolean {
+    return prefs.isOpen(MASTER_ID);
+  }
+  // ASCII markers only — the `@engine/ui` fonts cover printable ASCII, so `▸/▾` would render as `?`.
+  function masterLabel(): string {
+    return masterOpen() ? "- Panels" : "+ Panels";
+  }
+  const masterBtn = button(masterLabel(), {
+    onActivate: () => {
+      prefs.toggle(MASTER_ID);
+      syncMaster();
+      structureDirty = true;
+    },
+  });
+
+  // The whole column is ONE enclosing box: a `panel()` (background + border) rather than a bare
+  // `box`, so the master tab and the sub-sections sit inside a single framed container. A container
+  // sizes to its children, so the content can never exceed this box — the box IS its content's
+  // bounds. `gap: 0` keeps the tab/sub-panel stack flush against that frame.
+  const root = panel({ direction: "column", gap: 0, align: "stretch", padding: 0 }, []);
+
+  function syncMaster(): void {
+    masterBtn.label = masterLabel();
+    root.children = masterOpen() ? [masterBtn, sectionsBox] : [masterBtn];
+  }
+  syncMaster();
 
   function toggleSection(id: RightColumnSectionId): void {
     prefs.toggle(SECTION_PANEL_ID[id]);
@@ -183,6 +224,10 @@ export function createRightColumn(actions: ObserverPanelActions, prefs: PanelPre
     const dirty = structureDirty;
     structureDirty = false;
 
+    // While the whole column is collapsed, its sub-panels aren't in the tree — refreshing them
+    // would be wasted work (they re-sync on expand). Only the master tab is laid out.
+    if (!masterOpen()) return dirty;
+
     const a = isOpen("observer") ? observerPanel.refresh(state.observer) : false;
     const b = isOpen("slate") ? slateBillboard.refresh(state.slate) : false;
     const c = isOpen("events") ? eventFeed.refresh(state.events) : false;
@@ -190,6 +235,7 @@ export function createRightColumn(actions: ObserverPanelActions, prefs: PanelPre
   }
 
   function wheel(x: number, y: number, dy: number): boolean {
+    if (!masterOpen()) return false;
     if (isOpen("observer") && containsPoint(observerPanel.root, x, y)) {
       observerPanel.wheel(dy);
       return true;
@@ -206,7 +252,7 @@ export function createRightColumn(actions: ObserverPanelActions, prefs: PanelPre
   }
 
   function drawIcons(surface: UISurface): void {
-    if (isOpen("slate")) slateBillboard.drawIcons(surface);
+    if (masterOpen() && isOpen("slate")) slateBillboard.drawIcons(surface);
   }
 
   return {

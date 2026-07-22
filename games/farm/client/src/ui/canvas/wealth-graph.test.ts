@@ -1,20 +1,34 @@
 /**
  * Tests for the in-canvas wealth graph (wealth-graph.ts) — pure drawing, no real 2D context.
  *
- * `createWealthGraph().render()` takes a `UISurface`; rather than standing up a real
- * renderer (as `ui-surface.test.ts` does), we hand it a minimal fake that just records every
- * `rect`/`push` call. This asserts the module never reaches for a Canvas2D context (there
- * isn't one to reach for) and that it emits the expected primitives for a sample series —
- * mirroring the geometry-only style of `minimap.test.ts` and the label style of
- * `world-clock.test.ts`.
+ * The chart is now a {@link custom} escape-hatch node: bind the series with `setSeries`, lay the
+ * node out with `computeLayout`, then `renderTree` invokes its draw callback against a `UISurface`.
+ * Rather than standing up a real renderer (as `ui-surface.test.ts` does), we hand it a minimal fake
+ * that records every `rect`/`push` call. This asserts the module never reaches for a Canvas2D
+ * context (there isn't one) and emits the expected primitives for a sample series — mirroring the
+ * geometry-only style of `minimap.test.ts` and the label style of `world-clock.test.ts`.
  */
 import { describe, it, expect } from "vitest";
 import type { UIQuad } from "@engine/core/render";
 import { EDG } from "@engine/core";
+import { computeLayout, renderTree } from "@engine/ui";
 import type { ButtonNode, UINode } from "@engine/ui";
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 import { createWealthGraph, createWealthToggle } from "./wealth-graph";
 import type { PanelId, PanelPrefs } from "./panel-prefs";
+
+/** Bind `series`, lay the node out at (`x`,`y`), and render it into `surface` — the new draw path. */
+function drawGraph(
+  graph: ReturnType<typeof createWealthGraph>,
+  surface: FakeSurface,
+  series: SnapshotWealthSeries[],
+  x = 0,
+  y = 0,
+): void {
+  graph.setSeries(series);
+  computeLayout(graph.root, x, y);
+  renderTree(surface as never, graph.root);
+}
 
 /** Records every `rect`/`push` submission. Matches the subset of `UISurface`'s API used here. */
 class FakeSurface {
@@ -40,11 +54,19 @@ function series(rows: { day: number; gold: number }[], overrides: Partial<Snapsh
 }
 
 describe("createWealthGraph", () => {
+  it("is a custom-draw node sized by its baked layout (width/height)", () => {
+    const graph = createWealthGraph();
+    expect(graph.root.kind).toBe("custom");
+    computeLayout(graph.root, 0, 0);
+    expect(graph.root.rect.width).toBeGreaterThan(0);
+    expect(graph.root.rect.height).toBeGreaterThan(0);
+  });
+
   it("draws a 'no data yet' label (via text quads) and nothing else when series is empty", () => {
     const graph = createWealthGraph();
     const surface = new FakeSurface();
 
-    graph.render(surface as never, 0, 0, 200, 100, []);
+    drawGraph(graph, surface, []);
 
     // Backing panel only.
     expect(surface.rects.length).toBe(1);
@@ -63,7 +85,7 @@ describe("createWealthGraph", () => {
       { farmerId: 2, name: "Amara", personality: "aggressive" },
     );
 
-    graph.render(surface as never, 0, 0, 200, 100, [s1, s2]);
+    drawGraph(graph, surface, [s1, s2]);
 
     // Backing panel + 2 axis rects + many line-dot rects + 2 crossing markers (lines cross).
     expect(surface.rects.length).toBeGreaterThan(3);
@@ -81,7 +103,7 @@ describe("createWealthGraph", () => {
   it("renders without a 2D canvas context (surface is the only draw target)", () => {
     const graph = createWealthGraph();
     const surface = new FakeSurface();
-    expect(() => graph.render(surface as never, 10, 10, 276, 120, [series([{ day: 1, gold: 5 }])])).not.toThrow();
+    expect(() => drawGraph(graph, surface, [series([{ day: 1, gold: 5 }])], 10, 10)).not.toThrow();
   });
 });
 

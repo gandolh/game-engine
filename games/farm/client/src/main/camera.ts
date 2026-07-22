@@ -146,9 +146,11 @@ export function setupCameraListeners(
   window.addEventListener("mousemove", (e: MouseEvent) => {
     if (!isDragging) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
-    const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
+    // CSS-px → world scale (no dpr — see `screen-to-tile.ts`; the renderer's backing-store dpr
+    // cancels against the browser's display down-scale, so a drag of N CSS px pans N * this world
+    // units at every device-pixel-ratio).
+    const scaleX = camera.worldUnitsX / canvas.clientWidth;
+    const scaleY = camera.worldUnitsY / canvas.clientHeight;
     panOffset = {
       x: camStartX - (e.clientX - dragStartX) * scaleX,
       y: camStartY - (e.clientY - dragStartY) * scaleY,

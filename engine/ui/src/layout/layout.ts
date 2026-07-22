@@ -99,6 +99,10 @@ function measureNode(node: UINode, theme: Theme, cache: Map<number, Intrinsic>):
       width: t.width + pad.left + pad.right,
       height: t.height + pad.top + pad.bottom,
     };
+  } else if (node.kind === "custom") {
+    // A custom-draw leaf has no intrinsic content size — it is sized entirely by `layout.width`/
+    // `height` (applied by the fixed-size override below) or by a parent `grow`/`align:"stretch"`.
+    size = { width: 0, height: 0 };
   } else if (node.kind === "slider") {
     // A slider has no intrinsic *width* (a value range is dimensionless) — fall back to a sensible
     // default unless pinned via `width`/`grow`. Its intrinsic height is the default track height.

@@ -1,4 +1,4 @@
-import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
+import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth, MAX_ZOOM } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike, Camera2D } from "@engine/core";
 import { computeLayout, renderTree } from "@engine/ui";
@@ -796,7 +796,12 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         const wx = wealthToggle.root.rect.x;
         const playbackTop = playback.root.rect.height > 0 ? playback.root.rect.y : Number.POSITIVE_INFINITY;
         const graphBottom = Math.min(wealthToggle.root.rect.y, playbackTop);
-        wealthGraph.render(surface, wx, graphBottom - 60 - 6, 220, 60, client.wealthSeries);
+        // The chart is now a custom escape-hatch node — bind its series, then lay it out at the
+        // bespoke anchor (above the Wealth toggle, clamped off the playback bar) and render it
+        // through the standard path. Size (220×60) is baked into the node's layout.
+        wealthGraph.setSeries(client.wealthSeries);
+        computeLayout(wealthGraph.root, wx, graphBottom - 60 - 6);
+        renderTree(surface, wealthGraph.root);
       }
 
       // Hotbar — bottom-centre.
@@ -877,7 +882,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         const obsData = client.observer;
         const followed = focusedFarmerId !== null ? farmerPositions.get(focusedFarmerId) : undefined;
         const farmerRow = obsData?.farmers.find((f) => f.id === focusedFarmerId);
-        if (_camera !== null && followed !== undefined && farmerRow !== undefined) {
+        // The floating inspect card only reads well when the subject sprite is large, so show it
+        // ONLY near the max zoom-in (within 5% of MAX_ZOOM); at any wider zoom it's hidden. Below
+        // that threshold the farmer detail still lives in the (openable) Farmers panel.
+        const nearMaxZoom = zoom >= MAX_ZOOM * 0.95;
+        if (_camera !== null && followed !== undefined && farmerRow !== undefined && nearMaxZoom) {
           inspectCtl.setVisible(true);
           const changed = inspectPanel.refresh({
             name: farmerRow.name,
@@ -893,7 +902,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           // a fixed screen-size card dwarfs a tiny zoomed-out farmer and reads as detached (the
           // "inspect card too big / offset" report). `k = 1` at the default zoom; clamped to a
           // legibility floor and a not-gigantic ceiling.
-          const k = Math.max(0.6, Math.min(1.35, zoom / DEFAULT_ZOOM));
+          const k = Math.max(0.6, Math.min(1.2, 0.85 * (zoom / DEFAULT_ZOOM)));
           inspectPanel.setScale(k);
           // Anchor above the farmer's head: measure, then place centred over the subject. The
           // vertical gap is expressed in WORLD units (converted through the SAME worldToCanvasCss
