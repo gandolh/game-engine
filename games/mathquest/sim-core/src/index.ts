@@ -8,6 +8,27 @@ export {
   type GameSnapshot,
 } from "./sim-bootstrap";
 
+export {
+  describeUpgrade,
+  offerUpgrades,
+  xpForSolve,
+  xpToNext,
+  UPGRADES,
+  ZERO_STATS,
+  type StatBonuses,
+  type UpgradeKind,
+  type UpgradeOffer,
+} from "./run/progression";
+
+export {
+  rollLoot,
+  toItemView,
+  foldItemBonus,
+  type Item,
+  type ItemView,
+  type LootTier,
+} from "./run/loot";
+
 export type {
   AnswerResponse,
   ChoiceProblem,

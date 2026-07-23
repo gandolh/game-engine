@@ -276,7 +276,8 @@ describe("createCombat — combat loop (M3: extracted factory, M1/M2 behavior pr
     expect(snap.lastPlayer).toEqual({ kind: "landed", action: "attack", amount: ATTACK_DAMAGE });
     // Two non-lethal attacks each drew a return hit (5-8 each) before the 3rd, lethal one — so
     // warriorHp is reduced, never negative, and matches the snapshot's own warrior.hp exactly.
-    expect(combat.result()).toEqual({ outcome: "won", warriorHp: snap.warrior.hp });
+    // xpEarned (M4a): 3 correct attacks at grade 1 -> xpForSolve(1) * 3 = 3.
+    expect(combat.result()).toEqual({ outcome: "won", warriorHp: snap.warrior.hp, xpEarned: 3 });
     expect(snap.warrior.hp).toBeLessThan(WARRIOR_MAX_HP);
     expect(snap.warrior.hp).toBeGreaterThan(0);
   });
@@ -294,7 +295,8 @@ describe("createCombat — combat loop (M3: extracted factory, M1/M2 behavior pr
     expect(snap.phase).toBe("lost");
     expect(snap.warrior.hp).toBe(0);
     expect(guard).toBeLessThan(40);
-    expect(combat.result()).toEqual({ outcome: "lost", warriorHp: 0 });
+    // Always wrong (M4a): no correct solves -> xpEarned stays 0.
+    expect(combat.result()).toEqual({ outcome: "lost", warriorHp: 0, xpEarned: 0 });
   });
 
   it("chooseAction/submitAnswer/acknowledgeTeach are no-ops once the fight is over", () => {

@@ -3,7 +3,9 @@
  * fight (`choose-action`/`submit-answer`/`acknowledge-teach`/`set-grade`) to a full RUN
  * (`init`/`choose-node`/`choose-action`/`submit-answer`/`acknowledge-teach`/`new-run`) — see
  * corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md, Part B. `set-grade` is GONE: difficulty
- * now comes from the chosen map node, not a manual selector. Mirrors `@citadel/client`'s
+ * now comes from the chosen map node, not a manual selector. M4a
+ * (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md) adds `choose-level-up`/`choose-loot`,
+ * forwarded 1:1 to `sim.chooseLevelUp`/`sim.chooseLoot`. Mirrors `@citadel/client`'s
  * `src/worker/sim-worker.ts` `self.onmessage` command-channel shape (a Web-Worker solo sim, no
  * server) and Hollow's equivalent worker.
  *
@@ -44,6 +46,18 @@ export interface WorkerAcknowledgeTeachMessage {
   type: "acknowledge-teach";
 }
 
+/** M4a: picks one of the current `"level_up"` offers (`sim.chooseLevelUp(index)`). */
+export interface WorkerChooseLevelUpMessage {
+  type: "choose-level-up";
+  index: number;
+}
+
+/** M4a: picks one of the current `"loot"` offers, or `-1` to skip (`sim.chooseLoot(index)`). */
+export interface WorkerChooseLootMessage {
+  type: "choose-loot";
+  index: number;
+}
+
 /** M3: starts a fresh run (new map, full HP) after `"run_won"`/`"run_lost"` — replaces M1/M2's
  * `"init"`-with-the-same-seed restart. */
 export interface WorkerNewRunMessage {
@@ -56,6 +70,8 @@ export type WorkerInbound =
   | WorkerChooseActionMessage
   | WorkerSubmitAnswerMessage
   | WorkerAcknowledgeTeachMessage
+  | WorkerChooseLevelUpMessage
+  | WorkerChooseLootMessage
   | WorkerNewRunMessage;
 
 export type WorkerOutbound =
@@ -110,6 +126,16 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     }
     case "acknowledge-teach": {
       sim?.acknowledgeTeach();
+      postSnapshot();
+      break;
+    }
+    case "choose-level-up": {
+      sim?.chooseLevelUp(msg.index);
+      postSnapshot();
+      break;
+    }
+    case "choose-loot": {
+      sim?.chooseLoot(msg.index);
       postSnapshot();
       break;
     }

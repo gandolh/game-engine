@@ -4,11 +4,20 @@
  * directly, per the brief); `run/map.test.ts` covers `generateMap`'s invariants directly. This
  * file covers the RUN state machine `bootstrapMathquestSim` now drives: `chooseNode`/
  * `chooseAction`/`submitAnswer`/`acknowledgeTeach`/`newRun`, HP persistence, and determinism.
+ *
+ * M4a (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md) adds the "XP + level" / "Level-
+ * up applies" / "Loot" / "Flow" / "Determinism guard" describe blocks at the bottom of this file —
+ * see each block's own doc for how it scripts a deterministic win (`run/progression.ts`'s
+ * `xpForSolve`/`xpToNext` and `combat/constants.ts`'s fixed numbers compose into an exact,
+ * seed-independent XP total for a `"combat"`-type node).
  */
 import { describe, it, expect } from "vitest";
-import { bootstrapMathquestSim, type BootedMathquestSim, type GameSnapshot } from "./sim-bootstrap";
+import { bootstrapMathquestSim, type BootedMathquestSim, type GameSnapshot, type RunMode } from "./sim-bootstrap";
 import { REST_HEAL } from "./run/constants";
-import { WARRIOR_MAX_HP } from "./combat/constants";
+import { ATTACK_DAMAGE, WARRIOR_MAX_HP } from "./combat/constants";
+import { ENEMY_ARCHETYPES } from "./run/enemies";
+import { xpToNext, ZERO_STATS } from "./run/progression";
+import { foldItemBonus } from "./run/loot";
 import type { AnswerResponse, ProblemView } from "./combat/types";
 import type { RunMap } from "./run/map";
 
@@ -36,17 +45,48 @@ function wrongResponse(correct: AnswerResponse): AnswerResponse {
   return { kind: "choice", index: (correct.index + 1) % 3 };
 }
 
+/** Drains the M4a post-win detour (`"level_up"` then `"loot"`) until `mode` leaves both — a
+ * no-op if neither applies. Skips loot (`-1`) and, on a level-up, picks the first offer that is
+ * NOT `"hp"` (falling back to index 0 if every offer happens to be `"hp"` — never happens today,
+ * since `offerUpgrades`'s distinct-kinds guarantee means at most one of 2 offers can be `"hp"`) —
+ * an `"hp"` pick also HEALS the warrior (by design, M4a), which would push `warriorHp` back above
+ * the pre-M4a fixed `WARRIOR_MAX_HP` some of these callers assert against. So this keeps the
+ * pre-M4a run-flow invariants (HP persistence, reachability, boss win, …) intact: the run lands
+ * back in `"map"`/`"run_won"` exactly like before M4a, just with a couple of extra ticks in
+ * between. Progression's OWN behavior (offer application, loot pickup, the `"hp"` heal) is
+ * covered by `run/progression.test.ts`/`run/loot.test.ts`, not here. */
+function resolvePostCombat(sim: BootedMathquestSim): void {
+  let guard = 0;
+  while (guard++ < 20) {
+    const snap = sim.getSnapshot();
+    if (snap.mode === "level_up") {
+      const nonHp = snap.offers.findIndex((o) => o.kind !== "hp");
+      sim.chooseLevelUp(nonHp === -1 ? 0 : nonHp);
+    } else if (snap.mode === "loot") {
+      sim.chooseLoot(-1);
+    } else {
+      return;
+    }
+  }
+  throw new Error("resolvePostCombat: stuck in level_up/loot after 20 iterations");
+}
+
 /** Drives the CURRENT fight to its conclusion (win or lose) with a telegraphed-intent-aware,
  * always-correct strategy: heal when critically low, shield when the CURRENT telegraphed intent
  * is dangerous (mitigates up to `SHIELD_BLOCK`), else attack — the same "read the intent, react"
  * play the design pillar wants a human player to do (corpus/wiki/mathquest-overview.md). Stops
  * as soon as `mode` leaves `"combat"` (the run driver resolves win/loss synchronously — see
- * `sim-bootstrap.ts`'s `resolveCombatIfOver`). */
+ * `sim-bootstrap.ts`'s `resolveCombatIfOver`) — a WIN additionally drains the M4a `"level_up"`/
+ * `"loot"` detour (`resolvePostCombat`) before returning, so callers see the same `"map"`/
+ * `"run_won"` landing they did pre-M4a. */
 function driveCombat(sim: BootedMathquestSim, healThreshold = 14): void {
   let guard = 0;
   while (guard++ < 300) {
     const snap = sim.getSnapshot();
-    if (snap.mode !== "combat") return;
+    if (snap.mode !== "combat") {
+      resolvePostCombat(sim);
+      return;
+    }
     const c = snap.combat;
     if (c.phase === "await_action") {
       const hp = c.warrior.hp;
@@ -122,6 +162,73 @@ function walkTo(sim: BootedMathquestSim, targetId: number): "reached" | "lost" {
     if (sim.getSnapshot().mode === "run_lost") return "lost";
   }
   return "reached";
+}
+
+// --- M4a helpers (progression/loot flow tests below) -----------------------------------------
+
+/** Finds a `"combat"`-type node among the CURRENT `reachableIds` — a `"combat"` node's fight is
+ * ALWAYS against the fixed `Zmeu pui` archetype (`run/enemies.ts`'s `ENEMY_ARCHETYPES.combat` —
+ * maxHp 24, intent 5-8) at grade 1, regardless of seed, which is what lets `scriptExactWin` below
+ * compute an EXACT, seed-independent XP total. */
+function findCombatNodeId(sim: BootedMathquestSim): number | undefined {
+  const snap = sim.getSnapshot();
+  const byId = new Map(snap.run.map.nodes.map((n) => [n.id, n]));
+  return snap.run.reachableIds.find((id) => byId.get(id)?.type === "combat");
+}
+
+/** Scripts an EXACT win against a `"combat"`-type node: `shieldPadding` correct `"shield"` turns
+ * (each fully self-mitigating — `SHIELD_BLOCK` (8) covers the archetype's max intent (8), so
+ * padding is risk-free) followed by exactly 3 correct `"attack"` turns (`ENEMY_ARCHETYPES.combat`'s
+ * 24 maxHp / `ATTACK_DAMAGE` (8) = exactly 3 — the 3rd is always lethal, ending the fight with no
+ * further enemy turn). Total correct solves = `shieldPadding + 3`, each worth `xpForSolve(1) = 1`
+ * xp — an exact, seed-independent XP total (only the 2 NON-killing attacks ever take an unblocked
+ * hit, worst case `2 * 8 = 16` damage, safely under `WARRIOR_MAX_HP` (30) even from full health).
+ * Must be called with `sim` in `"map"` mode and `nodeId` a currently-reachable `"combat"` node
+ * (see `findCombatNodeId`). Leaves `sim` wherever `resolveCombatIfOver`'s M4a `proceed()` landed
+ * (`"level_up"` if any threshold was crossed, else `"loot"`). */
+function scriptExactWin(sim: BootedMathquestSim, nodeId: number, shieldPadding: number): void {
+  sim.chooseNode(nodeId);
+  const act = (action: "attack" | "shield"): void => {
+    const before = sim.getSnapshot();
+    if (before.mode !== "combat") throw new Error("scriptExactWin: fight already over — bad shieldPadding?");
+    sim.chooseAction(action);
+    const pending = sim.getSnapshot();
+    if (pending.mode !== "combat") throw new Error("scriptExactWin: unreachable — chooseAction alone can't end a fight");
+    sim.submitAnswer(correctResponseFor(pending.combat.problem!));
+  };
+  for (let i = 0; i < shieldPadding; i++) act("shield");
+  act("attack");
+  act("attack");
+  act("attack");
+}
+
+/** Drives the CURRENT fight to its conclusion like `driveCombat`, but WITHOUT auto-draining
+ * `"loot"` — it only drains `"level_up"` (a fight can't finish resolving otherwise) — and returns
+ * every `mode` observed along the way, so a caller can assert `"loot"` never appeared (the boss
+ * win's "no loot" invariant). Uses the same always-correct, heal-priority strategy as
+ * `driveCombat`. */
+function driveFightCapturingModes(sim: BootedMathquestSim): RunMode[] {
+  const seen: RunMode[] = [];
+  let guard = 0;
+  while (guard++ < 300) {
+    const snap = sim.getSnapshot();
+    seen.push(snap.mode);
+    if (snap.mode === "combat") {
+      const c = snap.combat;
+      if (c.phase === "await_action") {
+        sim.chooseAction(c.warrior.hp <= 14 ? "heal" : "attack");
+      } else if (c.phase === "await_answer") {
+        sim.submitAnswer(correctResponseFor(c.problem!));
+      } else if (c.phase === "teach") {
+        sim.acknowledgeTeach();
+      }
+    } else if (snap.mode === "level_up") {
+      sim.chooseLevelUp(0);
+    } else {
+      return seen; // "loot" / "run_won" / "run_lost" / "map" — done; caller inspects `seen`
+    }
+  }
+  throw new Error("driveFightCapturingModes: guard exceeded");
 }
 
 describe("bootstrapMathquestSim — run bootstrap (M3)", () => {
@@ -441,5 +548,261 @@ describe("bootstrapMathquestSim — determinism", () => {
       return snapshots;
     }
     expect(run()).toEqual(run());
+  });
+});
+
+// =================================================================================================
+// M4a — in-run progression + loot (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md)
+// =================================================================================================
+
+describe("bootstrapMathquestSim — M4a XP + level", () => {
+  it("N correct solves at grade 1 accrue exactly N xp; crossing 5 queues exactly 1 level-up", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    scriptExactWin(sim, nodeId, 2); // 2 shields + 3 attacks = 5 correct solves = 5 xp
+    const snap = sim.getSnapshot();
+    expect(snap.mode).toBe("level_up");
+    expect(snap.run.level).toBe(2);
+    expect(snap.run.xp).toBe(0); // 5 - xpToNext(1)=5 -> exactly consumed
+    expect(snap.run.xpToNext).toBe(xpToNext(2));
+    if (snap.mode !== "level_up") throw new Error("unreachable");
+    expect(snap.offers.length).toBe(2);
+    expect(new Set(snap.offers.map((o) => o.kind)).size).toBe(2); // distinct kinds
+  });
+
+  it("a big enough win crosses MULTIPLE thresholds in one fight, queuing that many level-ups", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    scriptExactWin(sim, nodeId, 12); // 12 shields + 3 attacks = 15 correct solves = 15 xp
+    // 15 -> (-5) level2, 10 left -> (-10) level3, 0 left. Two thresholds crossed in ONE fight.
+    let snap = sim.getSnapshot();
+    expect(snap.mode).toBe("level_up");
+    expect(snap.run.level).toBe(3);
+    expect(snap.run.xp).toBe(0);
+    expect(snap.run.xpToNext).toBe(xpToNext(3));
+
+    sim.chooseLevelUp(0); // resolves the 1st of the 2 pending level-ups
+    snap = sim.getSnapshot();
+    expect(snap.mode).toBe("level_up"); // the 2nd is still due — proceed() doesn't skip ahead
+
+    sim.chooseLevelUp(0); // resolves the 2nd
+    snap = sim.getSnapshot();
+    expect(snap.mode).toBe("loot"); // NOW (and only now) it proceeds to loot (non-boss win)
+  });
+});
+
+describe("bootstrapMathquestSim — M4a level-up applies", () => {
+  it("choosing 'atk' raises the NEXT fight's attack damage (ATTACK_DAMAGE + 2, not the baseline)", () => {
+    let found = false;
+    for (let seed = 1; seed <= 60 && !found; seed++) {
+      const sim = bootstrapMathquestSim({ seed });
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) continue;
+      scriptExactWin(sim, nodeId, 2);
+      const levelUpSnap = sim.getSnapshot();
+      if (levelUpSnap.mode !== "level_up") continue;
+      const atkIndex = levelUpSnap.offers.findIndex((o) => o.kind === "atk");
+      if (atkIndex === -1) continue; // this seed's offers didn't include atk — try another
+
+      sim.chooseLevelUp(atkIndex);
+      expect(sim.getSnapshot().mode).toBe("loot");
+      sim.chooseLoot(-1);
+      expect(sim.getSnapshot().mode).toBe("map");
+
+      const nextId = findCombatNodeId(sim);
+      if (nextId === undefined) continue; // no combat node reachable next — try another seed
+      sim.chooseNode(nextId);
+      const combatSnap = sim.getSnapshot();
+      if (combatSnap.mode !== "combat") continue;
+      const enemyHpBefore = combatSnap.combat.enemy.hp;
+      sim.chooseAction("attack");
+      const pending = sim.getSnapshot();
+      if (pending.mode !== "combat") continue;
+      sim.submitAnswer(correctResponseFor(pending.combat.problem!));
+      const afterAnswer = sim.getSnapshot();
+      if (afterAnswer.mode !== "combat") continue; // (never happens: 24 maxHp > ATTACK_DAMAGE+2)
+
+      // ENEMY_ARCHETYPES.combat's 24 maxHp is untouched by mods — only the DAMAGE per attack is.
+      expect(ENEMY_ARCHETYPES.combat.maxHp).toBe(24);
+      expect(enemyHpBefore - afterAnswer.combat.enemy.hp).toBe(ATTACK_DAMAGE + 2);
+      found = true;
+    }
+    expect(found).toBe(true);
+  });
+
+  it("choosing 'hp' raises maxHp by 6 AND heals the warrior by the same amount (capped at the new max)", () => {
+    let found = false;
+    for (let seed = 1; seed <= 60 && !found; seed++) {
+      const sim = bootstrapMathquestSim({ seed });
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) continue;
+      scriptExactWin(sim, nodeId, 2);
+      const levelUpSnap = sim.getSnapshot();
+      if (levelUpSnap.mode !== "level_up") continue;
+      const hpIndex = levelUpSnap.offers.findIndex((o) => o.kind === "hp");
+      if (hpIndex === -1) continue; // this seed's offers didn't include hp — try another
+
+      const before = levelUpSnap.run;
+      sim.chooseLevelUp(hpIndex);
+      const after = sim.getSnapshot().run;
+      expect(after.warriorMaxHp).toBe(before.warriorMaxHp + 6);
+      expect(after.warriorHp).toBe(Math.min(after.warriorMaxHp, before.warriorHp + 6));
+      expect(after.stats.maxHp).toBe(before.stats.maxHp + 6);
+      found = true;
+    }
+    expect(found).toBe(true);
+  });
+});
+
+describe("bootstrapMathquestSim — M4a loot", () => {
+  it("a win below the first XP threshold skips level_up, offers 3 distinct items, and taking one folds its bonus into stats (healing if it's a maxHp bonus)", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    scriptExactWin(sim, nodeId, 0); // 3 correct solves = 3 xp < xpToNext(1)=5 -> straight to loot
+    const lootSnap = sim.getSnapshot();
+    expect(lootSnap.mode).toBe("loot");
+    if (lootSnap.mode !== "loot") throw new Error("unreachable");
+    expect(lootSnap.offers.length).toBe(3);
+    expect(new Set(lootSnap.offers.map((o) => o.id)).size).toBe(3); // distinct
+
+    const item = lootSnap.offers[0]!;
+    const before = lootSnap.run;
+    sim.chooseLoot(0);
+    const after = sim.getSnapshot();
+    expect(after.mode).toBe("map"); // no pending level-ups, non-boss win, loot now resolved
+    expect(after.run.stats).toEqual(foldItemBonus(ZERO_STATS, item.bonus));
+    expect(after.run.inventory).toEqual([item]);
+    const maxHpBonus = item.bonus.maxHp ?? 0;
+    expect(after.run.warriorMaxHp).toBe(before.warriorMaxHp + maxHpBonus);
+    expect(after.run.warriorHp).toBe(Math.min(after.run.warriorMaxHp, before.warriorHp + maxHpBonus));
+  });
+
+  it("skipping loot (-1) changes nothing but still advances the mode", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    scriptExactWin(sim, nodeId, 0);
+    const before = sim.getSnapshot();
+    expect(before.mode).toBe("loot");
+    sim.chooseLoot(-1);
+    const after = sim.getSnapshot();
+    expect(after.mode).toBe("map");
+    expect(after.run.stats).toEqual(ZERO_STATS);
+    expect(after.run.inventory).toEqual([]);
+    expect(after.run.warriorHp).toBe(before.run.warriorHp); // no heal from skipping
+  });
+});
+
+describe("bootstrapMathquestSim — M4a flow order", () => {
+  it("a win that crosses exactly one threshold visits level_up THEN loot THEN map, in that order", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    scriptExactWin(sim, nodeId, 2);
+    expect(sim.getSnapshot().mode).toBe("level_up");
+    sim.chooseLevelUp(0);
+    expect(sim.getSnapshot().mode).toBe("loot");
+    sim.chooseLoot(-1);
+    expect(sim.getSnapshot().mode).toBe("map");
+  });
+
+  it("a win below the first threshold skips level_up entirely, straight to loot", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    scriptExactWin(sim, nodeId, 0);
+    expect(sim.getSnapshot().mode).toBe("loot");
+  });
+
+  it("beating the boss goes straight to run_won, never visiting 'loot'", () => {
+    let sim: BootedMathquestSim | undefined;
+    let bossId = -1;
+    for (let seed = 1; seed <= 300 && sim === undefined; seed++) {
+      const candidate = bootstrapMathquestSim({ seed });
+      bossId = candidate.getSnapshot().run.map.bossId;
+      const path = pathTo(candidate.getSnapshot().run.map, bossId);
+      let lost = false;
+      for (const id of path.slice(0, -1)) {
+        candidate.chooseNode(id);
+        if (candidate.getSnapshot().mode === "combat") driveCombat(candidate);
+        if (candidate.getSnapshot().mode === "run_lost") {
+          lost = true;
+          break;
+        }
+      }
+      if (lost || candidate.getSnapshot().mode !== "map") continue;
+      sim = candidate;
+    }
+    if (sim === undefined) throw new Error("no seed reached the boss's doorstep in 300 tries");
+
+    sim.chooseNode(bossId);
+    const modes = driveFightCapturingModes(sim);
+    expect(modes).not.toContain("loot");
+    expect(sim.getSnapshot().mode).toBe("run_won");
+  });
+
+  it("chooseLevelUp/chooseLoot are no-ops outside their own mode", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const mapSnap = sim.getSnapshot();
+    sim.chooseLevelUp(0);
+    sim.chooseLoot(0);
+    expect(sim.getSnapshot()).toEqual(mapSnap);
+
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    sim.chooseNode(nodeId);
+    const combatSnap = sim.getSnapshot();
+    expect(combatSnap.mode).toBe("combat");
+    sim.chooseLevelUp(0);
+    sim.chooseLoot(0);
+    expect(sim.getSnapshot()).toEqual(combatSnap);
+  });
+
+  it("chooseNode/chooseAction are ignored while mode is 'level_up' or 'loot'", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+    scriptExactWin(sim, nodeId, 2); // exactly crosses 1 threshold -> mode "level_up"
+    const levelUpSnap = sim.getSnapshot();
+    expect(levelUpSnap.mode).toBe("level_up");
+    sim.chooseNode(nodeId);
+    sim.chooseAction("attack");
+    sim.chooseLoot(0);
+    expect(sim.getSnapshot()).toEqual(levelUpSnap);
+
+    sim.chooseLevelUp(0);
+    const lootSnap = sim.getSnapshot();
+    expect(lootSnap.mode).toBe("loot");
+    sim.chooseNode(nodeId);
+    sim.chooseAction("attack");
+    sim.chooseLevelUp(0);
+    expect(sim.getSnapshot()).toEqual(lootSnap);
+  });
+});
+
+describe("bootstrapMathquestSim — M4a determinism guard", () => {
+  it("the SAME seed + the SAME command script (including chooseLevelUp/chooseLoot) yields an IDENTICAL snapshot sequence", () => {
+    function run(): GameSnapshot[] {
+      const sim = bootstrapMathquestSim({ seed: 1 });
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) throw new Error("seed 1's reachable ids have no combat node");
+      const snapshots: GameSnapshot[] = [sim.getSnapshot()];
+      scriptExactWin(sim, nodeId, 12); // multi-level win
+      snapshots.push(sim.getSnapshot());
+      sim.chooseLevelUp(0);
+      snapshots.push(sim.getSnapshot());
+      sim.chooseLevelUp(0);
+      snapshots.push(sim.getSnapshot());
+      sim.chooseLoot(0);
+      snapshots.push(sim.getSnapshot());
+      return snapshots;
+    }
+    const a = run();
+    const b = run();
+    expect(a.length).toBeGreaterThan(1);
+    expect(a).toEqual(b);
   });
 });

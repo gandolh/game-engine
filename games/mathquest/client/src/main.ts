@@ -15,11 +15,12 @@
  *     (`currentWidgetRoot`) returns `null` in this mode so a stray widget hit-test can't fire, and
  *     the a11y mirror is cleared (a full DOM mirror for the spatial map is a known follow-up —
  *     see `ui/map-screen.ts`'s module doc).
- *   - **`"combat"`/`"run_won"`/`"run_lost"`**: UNCHANGED from M3 — the existing
- *     `ui/combat-screen.ts`/`ui/run-over-screen.ts` retained widget trees, laid out via
- *     `computeLayout`/`renderTree`, hit-tested by the ONE `InputDispatcher`, mirrored into the
- *     hidden a11y DOM. Physical-keyboard digit/Backspace/Enter entry still edits the typed-answer
- *     buffer only while `mode === "combat"`.
+ *   - **`"combat"`/`"level_up"`/`"loot"`/`"run_won"`/`"run_lost"`**: retained widget trees (M3's
+ *     `ui/combat-screen.ts`/`ui/run-over-screen.ts`, plus M4a's
+ *     (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md) `ui/levelup-screen.ts`/
+ *     `ui/loot-screen.ts`), laid out via `computeLayout`/`renderTree`, hit-tested by the ONE
+ *     `InputDispatcher`, mirrored into the hidden a11y DOM. Physical-keyboard digit/Backspace/
+ *     Enter entry still edits the typed-answer buffer only while `mode === "combat"`.
  *
  * Sim/render boundary (root CLAUDE.md): this file only ever READS `GameSnapshot`s off the worker
  * and POSTS commands to it — it never mutates sim state directly. All run/combat logic +
@@ -42,6 +43,8 @@ import type { AnswerResponse, GameSnapshot } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
 import { MATE_THEME } from "./render/mate-theme";
 import { createCombatScreen, type CombatScreenActions } from "./ui/combat-screen";
+import { createLevelUpScreen, type LevelUpScreenActions } from "./ui/levelup-screen";
+import { createLootScreen, type LootScreenActions } from "./ui/loot-screen";
 import { createMapScreen } from "./ui/map-screen";
 import { createRunOverScreen, type RunOverScreenActions } from "./ui/run-over-screen";
 import type { WorkerInbound, WorkerOutbound } from "./worker/sim-worker";
@@ -148,6 +151,24 @@ async function main(): Promise<void> {
   };
   const runOverScreen = createRunOverScreen(runOverActions);
 
+  // M4a: the level-up + loot screens, same build-once-tree/per-frame-refresh shape as the above.
+  const levelUpActions: LevelUpScreenActions = {
+    chooseUpgrade(index) {
+      post({ type: "choose-level-up", index });
+    },
+  };
+  const levelUpScreen = createLevelUpScreen(levelUpActions);
+
+  const lootActions: LootScreenActions = {
+    chooseLoot(index) {
+      post({ type: "choose-loot", index });
+    },
+    skipLoot() {
+      post({ type: "choose-loot", index: -1 });
+    },
+  };
+  const lootScreen = createLootScreen(lootActions);
+
   /** Which WIDGET screen root is current, by the latest snapshot's `mode` — `null` in `"map"`
    * mode (the spatial map has no widget tree) and before the first snapshot arrives. Used both as
    * the `InputDispatcher`'s root-provider (so stray widget hit-tests never fire on the map) and by
@@ -159,6 +180,10 @@ async function main(): Promise<void> {
         return null;
       case "combat":
         return combatScreen.root;
+      case "level_up":
+        return levelUpScreen.root;
+      case "loot":
+        return lootScreen.root;
       case "run_won":
       case "run_lost":
         return runOverScreen.root;
@@ -332,6 +357,12 @@ async function main(): Promise<void> {
           switch (snapshot.mode) {
             case "combat":
               changed = combatScreen.refresh(snapshot.combat, typedValue);
+              break;
+            case "level_up":
+              changed = levelUpScreen.refresh(snapshot.offers);
+              break;
+            case "loot":
+              changed = lootScreen.refresh(snapshot.offers);
               break;
             case "run_won":
             case "run_lost":

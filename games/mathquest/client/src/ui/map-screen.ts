@@ -751,7 +751,20 @@ function drawChrome(surface: UISurface, run: RunView, viewW: number): void {
   const pct = run.warriorMaxHp > 0 ? clamp(run.warriorHp / run.warriorMaxHp, 0, 1) : 0;
   const fillW = Math.round(HP_BAR_W * pct);
   if (fillW > 0) surface.rect(HP_BAR_X, HP_BAR_Y + 6, fillW, HP_BAR_H, MATE_PAL.green);
-  drawText(surface, `${run.warriorHp}/${run.warriorMaxHp}`, HP_BAR_X + HP_BAR_W + 10, HP_BAR_Y + 6, { color: MATE_PAL.cream });
+  const hpText = `${run.warriorHp}/${run.warriorMaxHp}`;
+  drawText(surface, hpText, HP_BAR_X + HP_BAR_W + 10, HP_BAR_Y + 6, { color: MATE_PAL.cream });
+
+  // M4a: a compact level/XP + (non-zero) stat-bonus readout, packed onto the SAME HUD line right
+  // after the HP value — stays inside the fixed CHROME_TOP strip, no extra row.
+  let x = HP_BAR_X + HP_BAR_W + 10 + measureText(hpText) + 20;
+  const levelText = STRINGS.levelLabel(run.level);
+  drawText(surface, levelText, x, HP_BAR_Y + 6, { color: MATE_PAL.gold });
+  x += measureText(levelText) + 12;
+  const xpText = STRINGS.xpLabel(run.xp, run.xpToNext);
+  drawText(surface, xpText, x, HP_BAR_Y + 6, { color: MATE_PAL.cream });
+  x += measureText(xpText) + 16;
+  const statsText = STRINGS.bonusSummary(run.stats);
+  if (statsText.length > 0) drawText(surface, statsText, x, HP_BAR_Y + 6, { color: MATE_PAL.cyan });
 }
 
 function drawLegendAt(surface: UISurface, viewW: number, viewH: number): void {

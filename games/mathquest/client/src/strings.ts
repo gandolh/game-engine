@@ -7,7 +7,7 @@
  * curriculum content, not UI chrome). All Romanian diacritics render (the @engine/ui font carries
  * them, incl. comma-below ș/ț).
  */
-import type { CombatAction, EnemyResult, Grade, NodeType, PlayerResult } from "@mathquest/sim-core";
+import type { CombatAction, EnemyResult, Grade, NodeType, PlayerResult, StatBonuses } from "@mathquest/sim-core";
 
 export const STRINGS = {
   title: "MateQuest — Cetatea Cifrelor",
@@ -115,4 +115,43 @@ export const STRINGS = {
   runWon: "Ai învins!",
   runLost: "Ai pierdut",
   newRun: "Rulare nouă",
+
+  // --- M4a: level-up screen ---------------------------------------------------------------------
+
+  levelUpTitle: "Ai avansat!",
+
+  // --- M4a: loot screen --------------------------------------------------------------------------
+
+  lootTitle: "Pradă!",
+  lootSkip: "Sari peste",
+
+  // --- M4a: stat bonuses (loot item cards + the map HUD's readout) -------------------------------
+
+  statLabel: {
+    atk: "Atac",
+    maxHp: "PS",
+    block: "Blocaj",
+    heal: "Vindecare",
+  } satisfies Record<keyof StatBonuses, string>,
+
+  /** "+2 Atac, +3 Blocaj" style summary of every non-zero stat in a (possibly partial) bonus
+   * object, in a FIXED atk/maxHp/block/heal order — used by loot item cards AND the map HUD's
+   * stat readout (`ui/map-screen.ts`'s `drawChrome`). Empty string when every stat is 0/absent. */
+  bonusSummary(bonus: Partial<StatBonuses>): string {
+    const parts: string[] = [];
+    if ((bonus.atk ?? 0) !== 0) parts.push(`+${bonus.atk} ${STRINGS.statLabel.atk}`);
+    if ((bonus.maxHp ?? 0) !== 0) parts.push(`+${bonus.maxHp} ${STRINGS.statLabel.maxHp}`);
+    if ((bonus.block ?? 0) !== 0) parts.push(`+${bonus.block} ${STRINGS.statLabel.block}`);
+    if ((bonus.heal ?? 0) !== 0) parts.push(`+${bonus.heal} ${STRINGS.statLabel.heal}`);
+    return parts.join(", ");
+  },
+
+  // --- M4a: map HUD progression readout ------------------------------------------------------------
+
+  levelLabel(level: number): string {
+    return `Nivel ${level}`;
+  },
+  xpLabel(xp: number, xpNext: number): string {
+    return `XP ${xp}/${xpNext}`;
+  },
 } as const;

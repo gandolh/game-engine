@@ -7,35 +7,51 @@
  * problem-generator seam. M3 (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md) wraps that
  * combat loop in a RUN: this file no longer owns a fight's internals directly — `combat/combat.ts`
  * (extracted, `createCombat`) does — it owns the branching `RunMap` (`run/map.ts`), which node the
- * player currently can/has reached, and warriorHp persisting across fights. `bootstrapMathquestSim`
- * keeps its M0/M1/M2 signature/shape (still hands back `world`/`scheduler`/`rng`/`step()`), so it
- * stays usable from:
+ * player currently can/has reached, and warriorHp persisting across fights. M4a
+ * (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md) adds in-run XP/level-up and
+ * loot/equipment stat bonuses, both resetting per run — see `proceed()` below for the exact
+ * win → (level_up)* → (loot | run_won) → map sequencing. `bootstrapMathquestSim` keeps its
+ * M0-M3 signature/shape (still hands back `world`/`scheduler`/`rng`/`step()`), so it stays usable
+ * from:
  *   - a headless test, driving `chooseNode`/`chooseAction`/`submitAnswer`/`acknowledgeTeach`/
- *     `newRun` directly (this package's own `sim-bootstrap.test.ts`);
+ *     `chooseLevelUp`/`chooseLoot`/`newRun` directly (this package's own `sim-bootstrap.test.ts`);
  *   - a browser Web Worker (`@mathquest/client`'s `src/worker/sim-worker.ts`), which paces
  *     `step()` on a wall-clock `setInterval` — pacing only. Run/combat state changes ONLY inside
- *     the five commands below, never inside `step()`, so a run's outcome depends solely on the
+ *     the commands below, never inside `step()`, so a run's outcome depends solely on the
  *     (seed, command sequence) pair, never on wall-clock timing (determinism is load-bearing;
  *     see root CLAUDE.md's "Architecture essentials").
  *
  * No ECS gameplay (no entities to query/despawn) — `world`/`scheduler` are kept, empty, purely
  * for shape-compatibility with every other game's sim-core bootstrap and so a later milestone
- * (loot, mastery) has somewhere to hang systems without reshaping this file's return type.
+ * (persistence, mastery) has somewhere to hang systems without reshaping this file's return type.
  *
  * Determinism: ALL randomness flows through the seeded `rng` (`createRng`, `@engine/core`)
  * forked per named label — `rng.fork("map")` for the FIRST run's map, `rng.fork(`run:${n}`)` for
  * every `newRun()` after, `rng.fork(`node:${id}`)` for the child `Rng` handed to `createCombat`
- * at each chosen fight — never `Math.random()`/`Date.now()`. `Rng.fork` consumes a parent draw,
- * so the ORDER these forks happen in must stay identical run-to-run for the same command script
- * (it does — see `chooseNode`/`newRun` below).
+ * at each chosen fight, `rng.fork("levelup")`/`rng.fork("loot")` (M4a, new — added AFTER those
+ * three, never reordering them) for each level-up/loot offer roll — never
+ * `Math.random()`/`Date.now()`. `Rng.fork` consumes a parent draw, so the ORDER these forks
+ * happen in must stay identical run-to-run for the same command script (it does — see
+ * `chooseNode`/`newRun`/`proceed` below).
  */
 import { World, Scheduler, createRng, type Rng, type System, type SimContext } from "@engine/core";
 import { createCombat, type Combat } from "./combat/combat";
 import { WARRIOR_MAX_HP } from "./combat/constants";
 import type { AnswerResponse, CombatAction, CombatSnapshot } from "./combat/types";
 import { ENEMY_ARCHETYPES } from "./run/enemies";
-import { generateMap, type MapNode, type RunMap } from "./run/map";
+import { generateMap, type MapNode, type NodeType, type RunMap } from "./run/map";
 import { REST_HEAL } from "./run/constants";
+import { rollLoot, toItemView, foldItemBonus, type Item, type ItemView, type LootTier } from "./run/loot";
+import {
+  describeUpgrade,
+  offerUpgrades,
+  xpToNext,
+  UPGRADES,
+  ZERO_STATS,
+  type StatBonuses,
+  type UpgradeKind,
+  type UpgradeOffer,
+} from "./run/progression";
 
 export type {
   AnswerResponse,
@@ -56,6 +72,8 @@ export type {
 } from "./combat/types";
 export type { EnemyArchetype, EnemyKind } from "./run/enemies";
 export type { MapNode, NodeType, RunMap } from "./run/map";
+export type { Item, ItemView, LootTier } from "./run/loot";
+export type { StatBonuses, UpgradeKind, UpgradeOffer } from "./run/progression";
 
 /**
  * MateQuest's entity shape. No entities are spawned yet (the run/combat model is plain
@@ -73,10 +91,12 @@ export interface MathquestSimOptions {
   seed: number;
 }
 
-/** The run's current top-level mode (M3 brief, Part A3/A4). */
-export type RunMode = "map" | "combat" | "run_won" | "run_lost";
+/** The run's current top-level mode (M3 brief, Part A3/A4; M4a adds `"level_up"`/`"loot"`, both
+ * interposed between a combat win and the run returning to `"map"` — see `proceed()`). */
+export type RunMode = "map" | "combat" | "level_up" | "loot" | "run_won" | "run_lost";
 
-/** The run's state, exposed on every `GameSnapshot` variant (M3 brief, Part A4). */
+/** The run's state, exposed on every `GameSnapshot` variant (M3 brief, Part A4; M4a adds
+ * `level`/`xp`/`xpToNext`/`stats`/`inventory`). */
 export interface RunView {
   readonly map: RunMap;
   /** The id of the node the active `Combat` (if any) is being fought at; `null` outside combat. */
@@ -87,15 +107,29 @@ export interface RunView {
   readonly visitedIds: readonly number[];
   /** Persists across fights within a run; resets to `warriorMaxHp` on `newRun()`. */
   readonly warriorHp: number;
+  /** Already includes the run's `stats.maxHp` bonus (M4a) — `WARRIOR_MAX_HP + stats.maxHp`. */
   readonly warriorMaxHp: number;
+  /** Starts at 1, resets on `newRun()` (M4a). */
+  readonly level: number;
+  /** Cumulative XP toward the CURRENT level (already consumed past thresholds), resets to 0 on
+   * `newRun()` (M4a). */
+  readonly xp: number;
+  /** `xpToNext(level)` for the CURRENT level — how much `xp` needs to reach to level up again. */
+  readonly xpToNext: number;
+  /** Accumulated combat stat bonuses from level-ups + loot this run; all-zero on `newRun()`. */
+  readonly stats: StatBonuses;
+  /** Items taken this run, in pickup order; empty on `newRun()`. */
+  readonly inventory: readonly ItemView[];
 }
 
-/** The top-level sim/render boundary snapshot (M3 brief, Part A4) — discriminated by `mode`. The
- * M2 `answer`/`answerIndex` non-leak invariant still holds: `combat` is the unchanged M2
- * `CombatSnapshot`. */
+/** The top-level sim/render boundary snapshot (M3 brief, Part A4; M4a adds `"level_up"`/`"loot"`)
+ * — discriminated by `mode`. The M2 `answer`/`answerIndex` non-leak invariant still holds:
+ * `combat` is the unchanged M2 `CombatSnapshot`. */
 export type GameSnapshot =
   | { readonly mode: "map"; readonly run: RunView }
   | { readonly mode: "combat"; readonly run: RunView; readonly combat: CombatSnapshot }
+  | { readonly mode: "level_up"; readonly run: RunView; readonly offers: readonly UpgradeOffer[] }
+  | { readonly mode: "loot"; readonly run: RunView; readonly offers: readonly ItemView[] }
   | { readonly mode: "run_won"; readonly run: RunView }
   | { readonly mode: "run_lost"; readonly run: RunView };
 
@@ -117,17 +151,25 @@ export interface BootedMathquestSim {
    */
   chooseNode(id: number): void;
   /** Forwarded to the active `Combat` while `mode === "combat"`; ignored otherwise. Resolves the
-   * run's state after (see `resolveCombatIfOver`) — a win persists `warriorHp` and (boss ⇒
-   * `"run_won"`, else back to `"map"` with `reachableIds` = the node's `next`); a loss ⇒
-   * `"run_lost"`. */
+   * run's state after (see `resolveCombatIfOver`) — a win accrues `xpEarned`, then hands off to
+   * `proceed()` (M4a: `"level_up"` while any threshold was crossed, else `"loot"` for a non-boss
+   * win, else `"run_won"` for the boss, else back to `"map"`); a loss ⇒ `"run_lost"`. */
   chooseAction(action: CombatAction): void;
   /** Forwarded to the active `Combat` while `mode === "combat"`; ignored otherwise. */
   submitAnswer(response: AnswerResponse): void;
   /** Forwarded to the active `Combat` while `mode === "combat"`; ignored otherwise. */
   acknowledgeTeach(): void;
+  /** Valid only in `"level_up"`; ignored otherwise (M4a). Applies `UPGRADES[offers[index].kind]`
+   * to `stats` (an `"hp"` pick also heals the warrior by the same delta, capped at the new max),
+   * decrements `pendingLevelUps`, clears the offers, then calls `proceed()`. */
+  chooseLevelUp(index: number): void;
+  /** Valid only in `"loot"`; ignored otherwise (M4a). `index === -1` skips (no state change
+   * beyond advancing); otherwise adds `offers[index]` to `inventory` and folds its `bonus` into
+   * `stats` (a `maxHp` bonus also heals by that amount), then calls `proceed()`. */
+  chooseLoot(index: number): void;
   /** Valid only in `"run_won"`/`"run_lost"`; ignored otherwise. Regenerates the map from a fresh
-   * fork (`rng.fork(`run:${n}`)`), resets `warriorHp` to full, and returns to `"map"`. M3 carries
-   * no meta-progression yet (that's M4) — a clean restart. */
+   * fork (`rng.fork(`run:${n}`)`), resets `warriorHp` to full and ALL M4a progression (xp/level/
+   * stats/inventory) to zero, and returns to `"map"` — a clean restart. */
   newRun(): void;
 }
 
@@ -144,6 +186,15 @@ class NoopSystem implements System {
   }
 }
 
+/** `run/map.ts`'s `NodeType` minus `"rest"` (which never fights, so never drops loot) is exactly
+ * `run/loot.ts`'s `LootTier`. Only ever called on a `pendingWinNode` (a node a fight was just WON
+ * at — `chooseNode` never starts a `Combat` for a `"rest"` node, so this can never see one in
+ * practice); the runtime check turns "never happens" into a loud failure instead of a silent cast. */
+function tierForNodeType(type: NodeType): LootTier {
+  if (type === "rest") throw new Error("tierForNodeType: a 'rest' node never wins a fight");
+  return type;
+}
+
 export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathquestSim {
   const rng = createRng(opts.seed);
   const world = new World<MathquestEntity>();
@@ -151,17 +202,42 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
   const scheduler = new Scheduler();
   scheduler.stage("TICK").add(new NoopSystem());
 
-  const warriorMaxHp = WARRIOR_MAX_HP;
-
   let runCount = 0;
   let map: RunMap = generateMap(rng.fork("map"));
-  let warriorHp = warriorMaxHp;
   let currentId: number | null = null;
   let reachableIds: readonly number[] = map.startIds;
   let visitedIds: readonly number[] = [];
   let mode: RunMode = "map";
   let combat: Combat | null = null;
   let frameCount = 0;
+
+  // --- M4a progression/loot state — plain closed-over state, like everything else here; all
+  // reset to these same initial values on `newRun()`. ------------------------------------------
+  let level = 1;
+  let xp = 0;
+  let stats: StatBonuses = ZERO_STATS;
+  let inventory: Item[] = [];
+  let pendingLevelUps = 0;
+  let levelUpOffers: UpgradeKind[] | null = null;
+  let lootOffers: Item[] | null = null;
+  /** The node a just-finished fight was won at, kept alive across the `"level_up"`/`"loot"`
+   * detour so `proceed()` knows the win's tier (for `rollLoot`) and destination (for the eventual
+   * `visitedIds`/`reachableIds` advance) without re-deriving it from `currentId` (already cleared
+   * by `resolveCombatIfOver` by the time `proceed()` runs). `null` whenever no win is pending. */
+  let pendingWinNode: MapNode | null = null;
+  /** Whether THIS win's loot has already been resolved (taken or skipped) — a multi-level-up win
+   * must not re-roll loot once level-ups are done; `proceed()` checks this before entering
+   * `"loot"`. Meaningless while `pendingWinNode` is `null`. */
+  let winLootResolved = false;
+
+  /** `WARRIOR_MAX_HP + stats.maxHp` — the run's CURRENT effective max, recomputed on every read
+   * so it always reflects the latest level-up/loot pickup (M4a); `WARRIOR_MAX_HP` alone would be
+   * stale the instant `stats.maxHp` changes. */
+  function maxHp(): number {
+    return WARRIOR_MAX_HP + stats.maxHp;
+  }
+
+  let warriorHp = maxHp();
 
   function nodeById(id: number): MapNode | undefined {
     return map.nodes.find((n) => n.id === id);
@@ -174,7 +250,7 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     if (node === undefined) return;
 
     if (node.type === "rest") {
-      warriorHp = Math.min(warriorMaxHp, warriorHp + REST_HEAL);
+      warriorHp = Math.min(maxHp(), warriorHp + REST_HEAL);
       visitedIds = [...visitedIds, id];
       reachableIds = node.next;
       return; // stays in "map"
@@ -185,10 +261,44 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       rng: rng.fork(`node:${id}`),
       grade: node.grade,
       warriorHp,
-      warriorMaxHp,
+      warriorMaxHp: maxHp(),
       enemy: ENEMY_ARCHETYPES[node.type],
+      mods: stats,
     });
     mode = "combat";
+  }
+
+  /**
+   * The M4a post-win state machine (brief's "Run flow" section) — called once right after a win
+   * is detected (`resolveCombatIfOver`) and again after EVERY `chooseLevelUp`/`chooseLoot`, so a
+   * fight that crosses several XP thresholds cycles through `"level_up"` once per threshold
+   * before ever reaching `"loot"`, and the boss's win skips `"loot"` entirely (no gear after the
+   * run is already over). Idempotent to call when `pendingWinNode` is `null` (a rest node, or any
+   * mode that isn't mid-win) — becomes a no-op `mode = "map"` in that case, which is only ever
+   * reached from within THIS module (never exposed as its own command).
+   */
+  function proceed(): void {
+    if (pendingLevelUps > 0) {
+      mode = "level_up";
+      levelUpOffers = offerUpgrades(rng.fork("levelup"));
+      return;
+    }
+    if (pendingWinNode !== null && pendingWinNode.type === "boss") {
+      pendingWinNode = null;
+      mode = "run_won";
+      return;
+    }
+    if (pendingWinNode !== null && !winLootResolved) {
+      mode = "loot";
+      lootOffers = rollLoot(rng.fork("loot"), tierForNodeType(pendingWinNode.type));
+      return;
+    }
+    if (pendingWinNode !== null) {
+      visitedIds = [...visitedIds, pendingWinNode.id];
+      reachableIds = pendingWinNode.next;
+      pendingWinNode = null;
+    }
+    mode = "map";
   }
 
   /** After forwarding a command to `combat`, resolve the run's state if the fight just ended.
@@ -208,16 +318,17 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       return;
     }
 
-    // won
-    if (node !== undefined && node.type === "boss") {
-      mode = "run_won";
-      return;
+    // won (M4a): accrue XP, queue every threshold crossed (a single fight can cross several —
+    // hence the `while`, not an `if`), then hand off to `proceed()`.
+    xp += result.xpEarned;
+    while (xp >= xpToNext(level)) {
+      xp -= xpToNext(level);
+      level += 1;
+      pendingLevelUps += 1;
     }
-    if (node !== undefined) {
-      visitedIds = [...visitedIds, node.id];
-      reachableIds = node.next;
-    }
-    mode = "map";
+    pendingWinNode = node ?? null;
+    winLootResolved = false;
+    proceed();
   }
 
   function chooseAction(action: CombatAction): void {
@@ -238,25 +349,86 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     resolveCombatIfOver();
   }
 
+  function chooseLevelUp(index: number): void {
+    if (mode !== "level_up" || levelUpOffers === null) return; // ignore off-mode commands
+    const kind = levelUpOffers[index];
+    if (kind === undefined) return; // out-of-range index — no state change
+    const before = stats;
+    stats = UPGRADES[kind].apply(stats);
+    if (kind === "hp") {
+      const healedBy = stats.maxHp - before.maxHp; // the upgrade's own HP_UPGRADE_AMOUNT
+      warriorHp = Math.min(maxHp(), warriorHp + healedBy);
+    }
+    pendingLevelUps -= 1;
+    levelUpOffers = null;
+    proceed();
+  }
+
+  function chooseLoot(index: number): void {
+    if (mode !== "loot" || lootOffers === null) return; // ignore off-mode commands
+    if (index !== -1) {
+      const item = lootOffers[index];
+      if (item === undefined) return; // out-of-range index (and not the -1 skip) — no state change
+      inventory = [...inventory, item];
+      const before = stats;
+      stats = foldItemBonus(stats, item.bonus);
+      const healedBy = stats.maxHp - before.maxHp; // 0 unless the item carried a maxHp bonus
+      if (healedBy !== 0) warriorHp = Math.min(maxHp(), warriorHp + healedBy);
+    }
+    winLootResolved = true;
+    lootOffers = null;
+    proceed();
+  }
+
   function newRun(): void {
     if (mode !== "run_won" && mode !== "run_lost") return; // ignore off-mode commands
     runCount += 1;
     map = generateMap(rng.fork(`run:${runCount}`));
-    warriorHp = warriorMaxHp;
     currentId = null;
     reachableIds = map.startIds;
     visitedIds = [];
     combat = null;
+    // M4a: every run-scoped progression field resets to its fresh-boot value.
+    level = 1;
+    xp = 0;
+    stats = ZERO_STATS;
+    inventory = [];
+    pendingLevelUps = 0;
+    levelUpOffers = null;
+    lootOffers = null;
+    pendingWinNode = null;
+    winLootResolved = false;
+    warriorHp = maxHp(); // recompute AFTER stats resets to ZERO_STATS above
     mode = "map";
   }
 
   function getSnapshot(): GameSnapshot {
-    const run: RunView = { map, currentId, reachableIds, visitedIds, warriorHp, warriorMaxHp };
+    const run: RunView = {
+      map,
+      currentId,
+      reachableIds,
+      visitedIds,
+      warriorHp,
+      warriorMaxHp: maxHp(),
+      level,
+      xp,
+      xpToNext: xpToNext(level),
+      stats,
+      inventory: inventory.map(toItemView),
+    };
     switch (mode) {
       case "combat":
         // Invariant: mode is "combat" iff combat is non-null (set together in chooseNode, both
         // cleared together in resolveCombatIfOver) — see those two functions.
         return { mode: "combat", run, combat: combat!.snapshot() };
+      case "level_up":
+        // Invariant: mode is "level_up" iff levelUpOffers is non-null (set together in `proceed`,
+        // cleared together in `chooseLevelUp`).
+        return { mode: "level_up", run, offers: levelUpOffers!.map(describeUpgrade) };
+      case "loot":
+        // Invariant: mode is "loot" iff lootOffers is non-null (set together in `proceed`,
+        // cleared together in `chooseLoot`).
+        return { mode: "loot", run, offers: lootOffers!.map(toItemView) };
       case "map":
         return { mode: "map", run };
       case "run_won":
@@ -279,6 +451,8 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     chooseAction,
     submitAnswer,
     acknowledgeTeach,
+    chooseLevelUp,
+    chooseLoot,
     newRun,
   };
 }

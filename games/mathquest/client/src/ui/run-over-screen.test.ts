@@ -28,7 +28,22 @@ function byLabel(root: UINode, text: string): ButtonNode {
 
 function testRun(over: Partial<RunView> = {}): RunView {
   const map = generateMap(createRng(1).fork("map"));
-  return { map, currentId: null, reachableIds: map.startIds, visitedIds: [], warriorHp: 30, warriorMaxHp: 30, ...over };
+  return {
+    map,
+    currentId: null,
+    reachableIds: map.startIds,
+    visitedIds: [],
+    warriorHp: 30,
+    warriorMaxHp: 30,
+    // M4a additions (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md) — a fresh run's
+    // defaults (`sim-bootstrap.ts`'s `newRun()`/initial state).
+    level: 1,
+    xp: 0,
+    xpToNext: 5,
+    stats: { atk: 0, maxHp: 0, block: 0, heal: 0 },
+    inventory: [],
+    ...over,
+  };
 }
 
 describe("createRunOverScreen", () => {

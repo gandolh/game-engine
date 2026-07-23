@@ -14,6 +14,13 @@
  * Determinism (root CLAUDE.md): `createCombat` consumes ONLY the `Rng` it's handed — the run
  * layer forks a per-node child (`rng.fork(`node:${id}`)`) before calling this — never
  * `Math.random()`/`Date.now()`.
+ *
+ * M4a (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md) adds two things, both opt-in
+ * via `CombatOpts.mods` (defaults to all-zero — M1-M3 behaviour is byte-identical when omitted):
+ * the run's accumulated `StatBonuses` now pad attack/heal/shield (`warriorMaxHp` itself already
+ * carries the run's maxHp bonus — the driver folds that in before calling `createCombat`), and
+ * every fight now reports `CombatResult.xpEarned` (sum of `xpForSolve(grade)` per CORRECT
+ * `submitAnswer`) for the driver's level-up bookkeeping.
  */
 import type { Rng } from "@engine/core";
 import { ATTACK_DAMAGE, HEAL_AMOUNT, SHIELD_BLOCK } from "./constants";
@@ -32,8 +39,9 @@ import type {
   ProblemView,
 } from "./types";
 import type { EnemyArchetype } from "../run/enemies";
+import { xpForSolve, ZERO_STATS, type StatBonuses } from "../run/progression";
 
-/** Options the run hands `createCombat` for ONE fight (M3 brief, Part A0). */
+/** Options the run hands `createCombat` for ONE fight (M3 brief, Part A0; M4a adds `mods`). */
 export interface CombatOpts {
   /** Per-fight child Rng — the run forks this (`rng.fork(`node:${id}`)`) before calling. */
   readonly rng: Rng;
@@ -42,15 +50,23 @@ export interface CombatOpts {
   readonly grade: Grade;
   /** Warrior HP carried in from the run — persists across fights. */
   readonly warriorHp: number;
+  /** Already includes the run's `stats.maxHp` bonus — the driver computes the effective max
+   * before calling `createCombat`; this module never adds `mods.maxHp` itself. */
   readonly warriorMaxHp: number;
   /** The enemy this fight is against — see `run/enemies.ts`'s `ENEMY_ARCHETYPES`. */
   readonly enemy: EnemyArchetype;
+  /** Accumulated run stat bonuses (M4a — `run/progression.ts`'s `StatBonuses`). Optional,
+   * defaulting to all-zero, so M1-M3 call sites (and their tests) see byte-identical behaviour. */
+  readonly mods?: StatBonuses;
 }
 
 /** `null` while the fight is ongoing; set exactly once, the instant it ends. */
 export interface CombatResult {
   readonly outcome: "won" | "lost";
   readonly warriorHp: number;
+  /** Sum of `xpForSolve(grade)` per CORRECT `submitAnswer` this fight (M4a) — a wrong answer
+   * earns 0, regardless of action. */
+  readonly xpEarned: number;
 }
 
 /** One fight, created fresh per map node. Same command surface as the M1/M2 sim (renamed
@@ -97,6 +113,8 @@ interface CombatState {
   turn: number;
   lastPlayer: PlayerResult;
   lastEnemy: EnemyResult;
+  /** Running total of `xpForSolve(grade)` over every CORRECT `submitAnswer` this fight (M4a). */
+  xpEarned: number;
 }
 
 /** Narrows a `Problem` (which carries the answer) down to its boundary-safe `ProblemView` — the
@@ -109,6 +127,7 @@ function toProblemView(problem: Problem): ProblemView {
 
 export function createCombat(opts: CombatOpts): Combat {
   const { rng, grade, warriorMaxHp, enemy } = opts;
+  const mods: StatBonuses = opts.mods ?? ZERO_STATS;
 
   const state: CombatState = {
     phase: "await_action",
@@ -123,6 +142,7 @@ export function createCombat(opts: CombatOpts): Combat {
     turn: 1,
     lastPlayer: { kind: "none" },
     lastEnemy: { kind: "none" },
+    xpEarned: 0,
   };
 
   /** Pop the re-queue's FRONT, or generate a fresh problem for the fight's fixed `grade`. */
@@ -140,17 +160,18 @@ export function createCombat(opts: CombatOpts): Combat {
   function applyAction(action: CombatAction): number {
     switch (action) {
       case "attack": {
-        state.enemyHp = Math.max(0, state.enemyHp - ATTACK_DAMAGE);
-        return ATTACK_DAMAGE;
+        const damage = ATTACK_DAMAGE + mods.atk;
+        state.enemyHp = Math.max(0, state.enemyHp - damage);
+        return damage;
       }
       case "heal": {
         const before = state.warriorHp;
-        state.warriorHp = Math.min(warriorMaxHp, state.warriorHp + HEAL_AMOUNT);
+        state.warriorHp = Math.min(warriorMaxHp, state.warriorHp + HEAL_AMOUNT + mods.heal);
         return state.warriorHp - before;
       }
       case "shield": {
-        state.warriorBlock = SHIELD_BLOCK;
-        return SHIELD_BLOCK;
+        state.warriorBlock = SHIELD_BLOCK + mods.block;
+        return state.warriorBlock;
       }
     }
   }
@@ -197,6 +218,7 @@ export function createCombat(opts: CombatOpts): Combat {
     state.pendingAction = null;
 
     if (correct) {
+      state.xpEarned += xpForSolve(grade);
       const amount = applyAction(action);
       state.lastPlayer = { kind: "landed", action, amount };
       state.pendingProblem = null;
@@ -251,7 +273,7 @@ export function createCombat(opts: CombatOpts): Combat {
 
   function result(): CombatResult | null {
     if (state.phase === "won" || state.phase === "lost") {
-      return { outcome: state.phase, warriorHp: state.warriorHp };
+      return { outcome: state.phase, warriorHp: state.warriorHp, xpEarned: state.xpEarned };
     }
     return null;
   }
