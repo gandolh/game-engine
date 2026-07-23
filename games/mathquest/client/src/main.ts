@@ -532,17 +532,23 @@ async function main(): Promise<void> {
               break;
           }
           // computeLayout must run every frame AFTER refresh: refresh mutates layout specs
-          // (HP-bar fill widths, swapped subtrees), and drawBars + hit-testing read the resulting
-          // rects.
-          computeLayout(root, 24, 24, MATE_THEME);
-          surface.begin();
-          renderTree(surface, root, MATE_THEME);
+          // (HP-bar fill widths, swapped subtrees), and drawScene/drawBars + hit-testing read the
+          // resulting rects. Combat lays out FULL-VIEWPORT (a Pokémon-style battle scene — the
+          // enemy HP window pins top-left, the hero's mid-right, the command box spans the bottom;
+          // see ui/combat-screen.ts); the other widget screens keep the plain top-left inset.
           if (snapshot.mode === "combat") {
-            combatScreen.drawBars(surface);
-            // M5 slice 3: folklore creature + hero sprites, painted over the widget layer as a
-            // right-of-screen battle scene (screen-space — needs the live canvas size).
-            combatScreen.drawSprites(surface, snapshot.combat, canvas.clientWidth, canvas.clientHeight);
+            computeLayout(root, 0, 0, MATE_THEME, { width: canvas.clientWidth, height: canvas.clientHeight });
+          } else {
+            computeLayout(root, 24, 24, MATE_THEME);
           }
+          surface.begin();
+          if (snapshot.mode === "combat") {
+            // Battle backdrop + the two combatant sprites go DOWN FIRST so the HP windows +
+            // command box (renderTree) paint over them; the HP-bar coloured fills go on top AFTER.
+            combatScreen.drawScene(surface, snapshot.combat, canvas.clientWidth, canvas.clientHeight);
+          }
+          renderTree(surface, root, MATE_THEME);
+          if (snapshot.mode === "combat") combatScreen.drawBars(surface);
           surface.end();
           if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
         }

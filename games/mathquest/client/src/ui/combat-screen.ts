@@ -12,6 +12,24 @@
  * button merely faded out would still be clickable/Tab-reachable. Removing it from `children`
  * makes it truly inert (and the a11y mirror correctly drops/re-adds its DOM entry by node id).
  *
+ * ## Pokémon-style battle layout (2026-07-23)
+ * The tree is laid out to FILL the viewport (`computeLayout(root, 0, 0, theme, {width,height})`
+ * in `main.ts`, root `align:"stretch"`) as a top-down battle scene, like the classic Pokémon
+ * fight framing in the reference the user gave:
+ *   - the ENEMY HP window pins to the TOP-LEFT, its creature sprite stands upper-RIGHT;
+ *   - the HERO (Făt-Frumos) HP window pins mid-RIGHT just above the command box, his sprite
+ *     stands lower-LEFT — the two diagonally opposed, facing each other;
+ *   - a full-width dark COMMAND BOX sits along the bottom holding the turn/result message line
+ *     plus the phase content (action menu / problem panel / teach card / banner).
+ * A grow spacer (`midGrow`) between the enemy row and the hero row opens the sky region the
+ * sprites + platforms are painted into. The scene BACKGROUND (sky, ground, platforms) and the
+ * two sprites are drawn in `drawScene` — a post-pass called BEFORE `renderTree` so the HP
+ * windows + command box paint OVER it — exactly the map screen's "custom-drawn scenery, chrome
+ * on top" idiom (`ui/map-screen.ts`), rect-only + `MATE_PAL` (no WebGPU/shaders, no raw hex).
+ * The HP-bar coloured fills are still a `drawBars` pass AFTER `renderTree` (they read the laid-out
+ * bar rects). So the per-frame order in `main.ts` is: computeLayout → begin → drawScene →
+ * renderTree → drawBars → end.
+ *
  * M2 additions (corpus/todos/2026-07-22-mathquest-M2-problem-generators.md, Part B):
  *  - the problem panel's input area swaps between the numeric keypad (`problem.kind==="typed"`)
  *    and a row of choice buttons (`problem.kind==="choice"`) — both built once, never rebuilt;
@@ -83,6 +101,12 @@ function setHpBar(bar: HpBar, hp: number, maxHp: number): boolean {
   return true;
 }
 
+/** HP-bar fill colour by fraction remaining — the classic green→amber→red battle cue. */
+function hpColor(hp: number, maxHp: number): string {
+  const pct = maxHp > 0 ? hp / maxHp : 0;
+  return pct > 0.5 ? MATE_PAL.green : pct > 0.2 ? MATE_PAL.gold : MATE_PAL.red;
+}
+
 function setText(lbl: LabelNode, text: string): boolean {
   if (lbl.text === text) return false;
   lbl.text = text;
@@ -100,7 +124,7 @@ function sameChildren(container: ContainerNode, next: readonly UINode[]): boolea
   return container.children.length === next.length && container.children.every((c, i) => c === next[i]);
 }
 
-/** The retained combat screen: its root node plus `refresh()` + the deferred `drawBars()` pass. */
+/** The retained combat screen: its root node plus `refresh()` + the deferred draw passes. */
 export interface CombatScreen {
   readonly root: ContainerNode;
   /**
@@ -110,25 +134,26 @@ export interface CombatScreen {
    */
   refresh(snapshot: CombatSnapshot, typedValue: string, lifelines: LifelineCharges): boolean;
   /**
+   * Paint the battle scene BACKGROUND + the two combatant sprites (sky, ground, the two grass
+   * platforms, the enemy creature upper-right, Făt-Frumos lower-left). Screen-space (needs the
+   * live viewport) and reads the laid-out `midGrow`/dialog rects, so call it AFTER `computeLayout`
+   * and BEFORE `renderTree` (so the HP windows + command box paint over it). Purely cosmetic —
+   * reads `snapshot.enemy.sprite`, draws nothing sim-affecting.
+   */
+  drawScene(surface: UISurface, snapshot: CombatSnapshot, viewW: number, viewH: number): void;
+  /**
    * Paint the HP bars' coloured fills. Call AFTER `computeLayout` + `renderTree` (needs
    * up-to-date `rect`s) and BEFORE `surface.end()` — mirrors the slate billboard's `drawIcons`.
    */
   drawBars(surface: UISurface): void;
-  /**
-   * Paint the folklore creature + hero (Făt-Frumos) sprites (M5 slice 3) as a right-of-screen
-   * battle scene — the enemy up-and-right, the hero lower-and-left, facing each other. Screen-space
-   * (needs the live viewport), so call it with the canvas CSS size AFTER `drawBars`, before
-   * `surface.end()`. Purely cosmetic — reads `snapshot.enemy.sprite`, draws nothing sim-affecting.
-   */
-  drawSprites(surface: UISurface, snapshot: CombatSnapshot, viewW: number, viewH: number): void;
 }
 
 export function createCombatScreen(actions: CombatScreenActions, strings: Strings): CombatScreen {
   // --- Grade (M3: READ-ONLY — difficulty now comes from the map node the player chose; the M2
   // manual selector is gone) ---------------------------------------------------------------------
-  const gradeLbl = label("", { color: MATE_PAL.steel });
+  const gradeLbl = label("", { color: MATE_PAL.gold });
 
-  // --- Enemy area -----------------------------------------------------------------------------
+  // --- Enemy area (pins TOP-LEFT as a Pokémon HP window) --------------------------------------
   const enemyNameLbl = label("", { color: MATE_PAL.cream, scale: 2 });
   // M5 folklore theming: the zone-flavored epithet under the enemy's name (`EnemyView.title`) —
   // a muted line, always rebound alongside the name (build-once, like every other label here).
@@ -136,25 +161,37 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   const enemyHpBar = makeHpBar(MATE_PAL.red);
   const enemyHpLbl = label("", { color: MATE_PAL.cream });
   const enemyIntentLbl = label("", { color: MATE_PAL.gold });
-  const enemyArea = box({ direction: "column", gap: 4 }, [
+  const enemyBox = panel({ direction: "column", gap: 4 }, [
     enemyNameLbl,
     enemyTitleLbl,
     box({ direction: "row", gap: 8, align: "center" }, [enemyHpBar.track, enemyHpLbl]),
     enemyIntentLbl,
   ]);
+  const enemyRow = box({ direction: "row", padding: { top: 12, left: 16, right: 16, bottom: 0 } }, [
+    enemyBox,
+    box({ grow: 1 }, []),
+  ]);
 
-  // --- Warrior area ----------------------------------------------------------------------------
+  // --- Warrior area (pins mid-RIGHT above the command box) --------------------------------------
   // M5 folklore theming: the hero's proper name (strings.heroName, "Făt-Frumos") — fixes the old
   // hardcoded EN "Warrior" literal. Fixed text (never rebound per refresh), like `titleLbl` below.
   const warriorNameLbl = label(strings.heroName, { color: MATE_PAL.cream, scale: 2 });
   const warriorHpBar = makeHpBar(MATE_PAL.green);
   const warriorHpLbl = label("", { color: MATE_PAL.cream });
   const warriorBlockLbl = label("", { color: MATE_PAL.skyBlue });
-  const warriorArea = box({ direction: "column", gap: 4 }, [
+  const warriorBox = panel({ direction: "column", gap: 4 }, [
     warriorNameLbl,
     box({ direction: "row", gap: 8, align: "center" }, [warriorHpBar.track, warriorHpLbl]),
     warriorBlockLbl,
   ]);
+  const warriorRow = box({ direction: "row", padding: { top: 0, left: 16, right: 16, bottom: 6 } }, [
+    box({ grow: 1 }, []),
+    warriorBox,
+  ]);
+
+  // The open sky/ground region the sprites + platforms are painted into (grows to fill the gap
+  // between the enemy row and the hero row).
+  const midGrow = box({ grow: 1 }, []);
 
   // --- Result cues (M2: two SEPARATE lines — the player's own result never overwritten) + turn --
   const playerCueLbl = label("", { color: MATE_PAL.yellow });
@@ -198,7 +235,7 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   const hintArea = box({ direction: "column", gap: 0 }, []);
 
   const inputArea = box({ direction: "column", gap: 4 }, []);
-  const problemPanel = panel({ direction: "column", gap: 8 }, [promptLbl, inputArea, hintArea]);
+  const problemPanel = box({ direction: "column", gap: 8 }, [promptLbl, inputArea, hintArea]);
 
   // --- Lifeline bar (M4b): built ONCE (fixed 3 kinds), mutated per refresh — mirrors the keypad's
   // build-once-mutate-label/state convention. ------------------------------------------------------
@@ -217,7 +254,7 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   const teachFizzleLbl = label("", { color: MATE_PAL.yellow });
   const teachTextLbl = label("", { color: MATE_PAL.cream, maxWidth: 320 });
   const continueBtn = button(strings.continueLabel, { onActivate: () => actions.acknowledgeTeach() });
-  const teachCard = panel({ direction: "column", gap: 8 }, [teachTitleLbl, teachFizzleLbl, teachTextLbl, continueBtn]);
+  const teachCard = box({ direction: "column", gap: 8 }, [teachTitleLbl, teachFizzleLbl, teachTextLbl, continueBtn]);
 
   // --- answerArea (M4b): the problem panel PLUS the lifeline bar underneath it — shown together
   // in `"await_answer"`. -----------------------------------------------------------------------
@@ -229,20 +266,25 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   // --- Banner (won/lost) --------------------------------------------------------------------------
   const bannerLbl = label("", { color: MATE_PAL.gold, scale: 3 });
   const restartBtn = button(strings.restart, { onActivate: () => actions.restart() });
-  const bannerBox = panel({ direction: "column", gap: 12, align: "center" }, [bannerLbl, restartBtn]);
+  const bannerBox = box({ direction: "column", gap: 12, align: "center" }, [bannerLbl, restartBtn]);
   const bannerArea = box({ direction: "column", gap: 0 }, []);
 
+  // The bottom command box: turn/result message line + phase content, full width (root stretches).
+  const messageLine = box({ direction: "row", gap: 16, align: "center" }, [turnLbl, playerCueLbl, enemyCueLbl]);
+  const commandBox = panel({ direction: "column", gap: 8, padding: 14 }, [messageLine, dynamicArea, bannerArea]);
+
   const titleLbl = label(strings.title, { color: MATE_PAL.gold });
-  const root = box({ direction: "column", gap: 12, padding: 16 }, [
+  const topBar = box({ direction: "row", align: "center", padding: { top: 8, left: 16, right: 16, bottom: 4 } }, [
     titleLbl,
+    box({ grow: 1 }, []),
     gradeLbl,
-    enemyArea,
-    warriorArea,
-    turnLbl,
-    playerCueLbl,
-    enemyCueLbl,
-    dynamicArea,
-    bannerArea,
+  ]);
+  const root = box({ direction: "column", align: "stretch", gap: 0, padding: 0 }, [
+    topBar,
+    enemyRow,
+    midGrow,
+    warriorRow,
+    commandBox,
   ]);
 
   let changed = false;
@@ -254,12 +296,14 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
     if (setText(enemyNameLbl, snapshot.enemy.name)) changed = true;
     if (setText(enemyTitleLbl, snapshot.enemy.title)) changed = true;
     if (setHpBar(enemyHpBar, snapshot.enemy.hp, snapshot.enemy.maxHp)) changed = true;
+    enemyHpBar.fillColor = hpColor(snapshot.enemy.hp, snapshot.enemy.maxHp);
     if (setText(enemyHpLbl, `${snapshot.enemy.hp}/${snapshot.enemy.maxHp}`)) changed = true;
     const intentText =
       snapshot.phase === "await_action" ? `${strings.enemyIntentPrefix} ${snapshot.enemy.intent}` : "";
     if (setText(enemyIntentLbl, intentText)) changed = true;
 
     if (setHpBar(warriorHpBar, snapshot.warrior.hp, snapshot.warrior.maxHp)) changed = true;
+    warriorHpBar.fillColor = hpColor(snapshot.warrior.hp, snapshot.warrior.maxHp);
     if (setText(warriorHpLbl, `${snapshot.warrior.hp}/${snapshot.warrior.maxHp}`)) changed = true;
     const blockText = snapshot.warrior.block > 0 ? `${strings.warriorBlockPrefix} ${snapshot.warrior.block}` : "";
     if (setText(warriorBlockLbl, blockText)) changed = true;
@@ -382,13 +426,75 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
     drawOne(warriorHpBar);
   }
 
-  function drawSprites(surface: UISurface, snapshot: CombatSnapshot, viewW: number, viewH: number): void {
-    // Bigger, tougher enemies loom larger: scale the creature by its maxHp (combat 24 → 2.2,
-    // boss 32 → ~2.6). The hero (Făt-Frumos) is a fixed size.
-    const enemyU = 2.9 + ((snapshot.enemy.maxHp - 24) / 8) * 0.5;
-    ENEMY_SPRITE_DRAW[snapshot.enemy.sprite](surface, viewW * 0.64, viewH * 0.5, enemyU);
-    drawHero(surface, viewW * 0.46, viewH * 0.85, 3);
+  function drawScene(surface: UISurface, snapshot: CombatSnapshot, viewW: number, viewH: number): void {
+    // The play region is the band between the top HUD strip and the top of the command box; the
+    // sprites stand on two grass platforms within it (enemy upper-right, hero lower-left).
+    const skyTop = topBar.rect.height > 0 ? topBar.rect.y + topBar.rect.height : 40;
+    const groundTop = commandBox.rect.height > 0 ? commandBox.rect.y : viewH * 0.7;
+    const playH = Math.max(80, groundTop - skyTop);
+    const horizonY = skyTop + playH * 0.6;
+
+    // --- sky ---------------------------------------------------------------------------------
+    surface.rect(0, 0, viewW, viewH, MATE_PAL.skyBlue);
+    surface.rect(0, skyTop, viewW, playH * 0.6, MATE_PAL.skyBlue);
+    // a faint haze toward the horizon + a few soft cloud puffs
+    surface.rect(0, skyTop + playH * 0.44, viewW, playH * 0.16, MATE_PAL.silver, 0.1);
+    drawCloud(surface, viewW * 0.2, skyTop + playH * 0.16, playH * 0.05);
+    drawCloud(surface, viewW * 0.78, skyTop + playH * 0.1, playH * 0.045);
+    drawCloud(surface, viewW * 0.52, skyTop + playH * 0.26, playH * 0.04);
+
+    // --- ground ------------------------------------------------------------------------------
+    surface.rect(0, horizonY, viewW, groundTop - horizonY, MATE_PAL.greenMid);
+    surface.rect(0, horizonY, viewW, Math.max(2, playH * 0.02), MATE_PAL.green); // lit horizon rim
+    surface.rect(0, groundTop - Math.max(3, playH * 0.06), viewW, Math.max(3, playH * 0.06), MATE_PAL.greenDark);
+
+    // --- platforms + sprites -----------------------------------------------------------------
+    const enemyCx = viewW * 0.7;
+    const enemyCy = skyTop + playH * 0.44;
+    const heroCx = viewW * 0.28;
+    const heroCy = groundTop - playH * 0.12;
+    const platRx = Math.min(viewW * 0.15, 150);
+
+    drawPlatform(surface, enemyCx, enemyCy, platRx * 0.9, platRx * 0.28);
+    drawPlatform(surface, heroCx, heroCy, platRx, platRx * 0.3);
+
+    // Bigger, tougher enemies loom larger: scale the base unit by playH, nudged up by maxHp
+    // (combat 24 → base, boss 32 → a touch larger).
+    const enemyU = Math.max(2.4, (playH * 0.4) / 22) * (1 + (snapshot.enemy.maxHp - 24) / 90);
+    const heroU = Math.max(2.4, (playH * 0.34) / 28);
+    ENEMY_SPRITE_DRAW[snapshot.enemy.sprite](surface, enemyCx, enemyCy + platRx * 0.14, enemyU);
+    drawHero(surface, heroCx, heroCy + platRx * 0.16, heroU);
+
+    // A subtle dark strip behind the top HUD so the title/grade stay legible over the sky.
+    surface.rect(0, 0, viewW, skyTop, MATE_PAL.ink, 0.5);
   }
 
-  return { root, refresh, drawBars, drawSprites };
+  return { root, refresh, drawScene, drawBars };
+}
+
+/** A flat elliptical grass platform (stacked rows), with a shadow skirt + a lit top rim — the
+ * ground the combatants stand on, matching the map screen's rect-only prop idiom. */
+function drawPlatform(surface: UISurface, cx: number, cy: number, rx: number, ry: number): void {
+  ellipse(surface, cx, cy + ry * 0.18, rx * 0.98, ry * 0.9, MATE_PAL.ink, 0.22); // shadow skirt
+  ellipse(surface, cx, cy, rx, ry, MATE_PAL.greenDark);
+  ellipse(surface, cx, cy - ry * 0.25, rx * 0.94, ry * 0.6, MATE_PAL.green); // lit top
+}
+
+/** Fill an axis-aligned ellipse as stacked horizontal rows (rect-only; no canvas arc). */
+function ellipse(surface: UISurface, cx: number, cy: number, rx: number, ry: number, color: string, alpha = 1): void {
+  const rows = Math.max(4, Math.round(ry * 2));
+  const rh = (ry * 2) / rows;
+  for (let i = 0; i < rows; i++) {
+    const yy = cy - ry + i * rh;
+    const t = (yy + rh / 2 - cy) / ry; // -1..1 at the row centre
+    const w = 2 * rx * Math.sqrt(Math.max(0, 1 - t * t));
+    if (w > 1) surface.rect(cx - w / 2, yy, w, rh + 1, color, alpha);
+  }
+}
+
+/** A small soft cloud puff (a few overlapping pale rects). */
+function drawCloud(surface: UISurface, cx: number, cy: number, r: number): void {
+  surface.rect(cx - r * 2, cy - r * 0.5, r * 4, r, MATE_PAL.white, 0.5);
+  surface.rect(cx - r * 1.2, cy - r, r * 2.4, r * 1.6, MATE_PAL.white, 0.5);
+  surface.rect(cx + r * 0.4, cy - r * 1.2, r * 1.6, r * 1.4, MATE_PAL.white, 0.45);
 }
