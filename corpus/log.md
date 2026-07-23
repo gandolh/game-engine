@@ -4,6 +4,28 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | MateQuest M4b — math lifelines (hint / 50-50 / skip)
+
+Second M4 slice. Dispatched to a Sonnet executor from brief `todos/2026-07-23-mathquest-M4b-lifelines.md`,
+controller-verified (gate re-run + code read for the two load-bearing invariants + a full in-browser
+drive of all three lifelines via the agent-browser MCP). Three consumables spent during `await_answer`
+on the current problem: **hint** (reveal the existing `teach` worked step; still solve + earn XP),
+**fifty** (disable one WRONG choice on a comparison problem, 3→2; no-op + no-charge on typed), **skip**
+(auto-land the pending action as if correct but for 0 XP; a killing skip-Attack ends the fight with no
+enemy turn). Charges start from `STARTING_LIFELINES = {hint:1,fifty:1,skip:1}` and top up from 3 new
+pure-lifeline loot items; all reset on `newRun()`. New `run/lifelines.ts`; `Combat.useLifeline(kind):boolean`
+(driver spends a charge only when it returns true); `CombatSnapshot.hint`; choice `ProblemView.disabledChoices`
+(only ever NON-answer indices — non-leak holds); `Item.lifeline?`; driver `useLifeline` command +
+`RunView.lifelines`; worker `use-lifeline`; combat-screen lifeline bar + hint line + choice greying.
+**Determinism:** the only new fork is `rng.fork("fifty")` on the COMBAT rng inside `useLifeline` — the
+driver fork order is untouched; a fight that never uses a lifeline is byte-identical to M4a (never
+consumes `"fifty"`, `disabledChoices:[]`, `hint:null`). **In-browser:** hint revealed "Indiciu: 5 - 2 = 3";
+skip dropped Zmeu pui 24→16 with no solve; on "Compară: 10 și 7", 50-50 greyed `=` (a wrong option),
+leaving `<`/`>` — answer `>` preserved; per-kind disable logic (out-of-charges / fifty-on-typed /
+already-used) all correct. Gate: typecheck 19/19, sim-core **214**, client **39**, palette **10**; scope
+`games/mathquest/**` only. Full detail: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md)
+(M4b section). Next: **M4c — persistent per-topic mastery** (first cross-run localStorage persistence).
+
 ## [2026-07-23] build | MateQuest M4a — in-run progression + loot/equipment
 
 M4 (progression & loot) sliced into **M4a** (in-run XP/level-up + loot stat bonuses), **M4b** (math

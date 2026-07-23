@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M4a in-run progression + loot done, controller-verified; next M4b lifelines)
-updated: 2026-07-23 (M4a XP/level-up + loot/equipment on branch `mathquest`)
+status: in-progress (M4b math lifelines done, controller-verified; next M4c persistent mastery)
+updated: 2026-07-23 (M4b hint/50-50/skip lifelines on branch `mathquest`)
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -67,7 +67,7 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M3.1 spatial map + RO diacritics font | ✅ **done, controller-verified** (opus font + Sonnet map) | see M3.1 below |
 | M3.2–M3.4 map polish (scenic → top-down 2.5D → Farm/Citadel terrain) | ✅ **done, in-browser verified** (opus inline) | `fbc475e` |
 | M4a in-run progression + loot/equipment (stat bonuses) | ✅ **done, controller-verified** (Sonnet executor) | `8c9f722` (+brief `fcae576`) |
-| M4b math lifelines (hint / 50-50 / skip) | ⬜ not started | — |
+| M4b math lifelines (hint / 50-50 / skip) | ✅ **done, controller-verified in-browser** (Sonnet executor) | (uncommitted at write time — see log) |
 | M4c persistent mastery + gating + blueprints | ⬜ not started | — |
 | M5 theme, art, i18n | ⬜ not started | — |
 
@@ -319,10 +319,50 @@ canvas-coord clicks + physical-keyboard answers).
 - **Known-minor (defer):** level-up card desc text wraps to 2 lines (cosmetic); loot "better pool"
   skew test is sampled (300 seeds), not exact.
 
-**Next: M4b — math lifelines.** The signature "loot grants math lifelines" (Who-Wants-to-Be-a-
-Millionaire items): **hint** (reveal the worked step), **50-50** (drop wrong MC choices), **skip**
-(auto-land the action). Equipment grants charges; usable in combat during `await_answer`. The `Item`
-type already has a `// M4b:` hook for `lifeline?`/`charges`. (Then M4c persistent mastery, M5 art+i18n.)
+## M4b — how it went (2026-07-23, Sonnet executor, controller-verified in-browser)
+Brief: `2026-07-23-mathquest-M4b-lifelines.md`. Dispatched to a Sonnet executor; controller (opus)
+verified independently — re-ran the gate, READ `combat.ts`/`sim-bootstrap.ts`/`loot.ts` to confirm the
+two load-bearing invariants, then **played it in-browser** (drove all three lifelines with the
+agent-browser MCP).
+- **Mechanics (locked in the brief):** three consumables spent during `await_answer` on the CURRENT
+  problem. **hint** = reveal the problem's existing `teach` worked step (still solve it, still earn XP;
+  works on any problem). **fifty** = disable ONE wrong choice on a comparison (choice) problem (3→2);
+  no-op + no charge on a typed problem. **skip** = auto-land the pending action as if correct but for
+  **0 XP** (a skip-Attack that kills ends the fight with no enemy turn). Charges start from a kit
+  (`STARTING_LIFELINES = {hint:1,fifty:1,skip:1}`) AND are topped up by 3 new pure-lifeline loot items
+  (`pergament-indicii`+2 hint, `ochi-ager`+1 fifty in COMMON; `clopotel-fermecat`+1 skip in BETTER).
+  All reset on `newRun()`.
+- **Seam:** `run/lifelines.ts` (`LifelineKind`/`LifelineCharges`/`STARTING_LIFELINES`); `Combat.useLifeline(kind):boolean`
+  (spends a charge only when it returns true); `CombatSnapshot.hint:string|null`; choice `ProblemView`
+  gains `disabledChoices:readonly number[]` (empty in the base case); `Item.lifeline?:{kind,charges}`;
+  driver `useLifeline(kind)` command + `RunView.lifelines`; worker `use-lifeline`; combat screen
+  lifeline bar (3 build-once buttons, per-kind disable logic) + hint line + choice greying via
+  `state:"disabled"`.
+- **Determinism:** the new fork is `rng.fork("fifty")` on the COMBAT rng (inside `useLifeline`), NOT a
+  driver-level fork — the driver fork order (`map`/`run:${n}`/`node:${id}`/`levelup`/`loot`) is
+  untouched. Zero-behaviour-change guarantee: a fight that never uses a lifeline has `disabledChoices:[]`
+  + `hint:null` throughout and never consumes the `"fifty"` fork ⇒ byte-identical to M4a (all prior
+  tests pass unchanged).
+- **Non-leak:** `disabledChoices` lists only NON-answer indices; `toProblemView` still never emits
+  `answer`/`answerIndex`. Verified in-browser: "Compară: 10 și 7" → 50-50 greyed **`=`** (a wrong
+  option), leaving `<`/`>` — the answer `>` preserved.
+- **Verified in-browser (agent-browser MCP, mirror-click drives the real `onActivate` command path):**
+  lifeline bar shows correct labels+counts; 50-50 disabled on a typed problem, ENABLED on a choice
+  problem; **hint** revealed "Indiciu: 5 - 2 = 3" + went (1)→(0)+disabled; **skip** landed the Attack
+  (Zmeu pui 24→16 HP) with no solve; **50-50** greyed exactly one wrong choice + went (1)→(0). (The
+  MCP viewport is 577px so the lifeline bar sits below the fold — read it via `getImageData` + an
+  overlay-canvas crop; screenshots alone miss below-fold canvas rows.)
+- **Gate:** typecheck 19/19; `@mathquest/sim-core` **214**; `@mathquest/client` **39**; palette **10**
+  — all green; determinism/hex sweep clean; git scope = `games/mathquest/**` only.
+- **Accepted executor deviations (all sound, documented in the tests):** widened `loot.test.ts`'s
+  "every offer carries a non-empty bonus" to "non-empty bonus OR a lifeline grant" (pure-lifeline items
+  have `bonus:{}`); bumped two `combat-screen.test.ts` button-count assertions (the lifeline bar is now
+  always in the `await_answer` tree). Loot GRANTING lifelines is covered by unit tests + a driver code
+  read (offering a lifeline item in-browser is probabilistic), not eyeballed.
+
+**Next: M4c — persistent per-topic mastery.** localStorage save/load that SURVIVES death; per-topic
+mastery gates hard branches + unlocks gear blueprints. First cross-run persistence in the game — decide
+the storage key/schema + migration story. (Then M5 folklore art + full RO/EN i18n toggle.)
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
