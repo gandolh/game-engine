@@ -14,7 +14,7 @@
  * name/title onto `ENEMY_ARCHETYPES[kind]`'s EXACT hp/intentBase/intentRoll; balance is LOCKED and
  * untouched by this addition (see `enemies.test.ts`'s exhaustive stat-equality assertion).
  */
-import type { Grade } from "../combat/types";
+import type { EnemySprite, Grade } from "../combat/types";
 import type { Zone } from "./map";
 
 /** The three node types a fight can happen at (`"rest"` — `run/map.ts`'s `NodeType` — has none). */
@@ -29,8 +29,11 @@ export interface EnemyArchetype {
   readonly intentRoll: number;
   /** M5: a short RO folklore epithet shown under the enemy's name (e.g. "puiul balaurului").
    * `ENEMY_ARCHETYPES`'s own entries carry a default (matching their pre-M5 name's zone);
-   * `enemyFor` overrides both `name`/`title` per the roster below. */
+   * `enemyFor` overrides `name`/`title`/`sprite` per the roster below. */
   readonly title: string;
+  /** M5 slice 3: which folklore creature the client draws (`@mathquest/client`'s `ui/sprites.ts`).
+   * `ENEMY_ARCHETYPES` defaults match the pre-M5 name; `enemyFor` overrides per zone. */
+  readonly sprite: EnemySprite;
 }
 
 /**
@@ -52,12 +55,12 @@ export interface EnemyArchetype {
 export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
   // A baby Zmeu (Romanian-folklore dragon-adjacent creature) — the M1/M2 enemy, unchanged stats.
   // Default name/title match the zone-0 (forest) roster row below — `enemyFor` overrides per zone.
-  combat: { name: "Zmeu pui", maxHp: 24, intentBase: 5, intentRoll: 4, title: "puiul balaurului" }, // intent 5..8; 3 hits, 2 unavoidable (10-16 dmg)
+  combat: { name: "Zmeu pui", maxHp: 24, intentBase: 5, intentRoll: 4, title: "puiul balaurului", sprite: "dragon" }, // intent 5..8; 3 hits, 2 unavoidable (10-16 dmg)
   // A Balaur (a multi-headed dragon of Romanian folklore) — the branching-map "hard branch" fight.
   // Default name/title match the zone-2 (mountains) roster row below — `enemyFor` overrides per zone.
-  elite: { name: "Balaur", maxHp: 26, intentBase: 5, intentRoll: 3, title: "balaurul cu multe capete" }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
+  elite: { name: "Balaur", maxHp: 26, intentBase: 5, intentRoll: 3, title: "balaurul cu multe capete", sprite: "balaur" }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
   // An elder Zmeu — the run's boss, always grade 4, always in the lair (zone-independent).
-  boss: { name: "Zmeu bătrân", maxHp: 32, intentBase: 5, intentRoll: 3, title: "stăpânul bârlogului" }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
+  boss: { name: "Zmeu bătrân", maxHp: 32, intentBase: 5, intentRoll: 3, title: "stăpânul bârlogului", sprite: "dragon" }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
 } as const;
 
 /** The boss's fixed fight grade (`run/map.ts`'s `generateMap` also pins the boss node's own
@@ -71,20 +74,20 @@ export const BOSS_GRADE: Grade = 4;
  * non-boss node there — keeps `enemyFor` TOTAL over all 4 zones, future-proofing a wider map.
  */
 const ROSTER: {
-  readonly combat: Readonly<Record<Zone, readonly [name: string, title: string]>>;
-  readonly elite: Readonly<Record<Zone, readonly [name: string, title: string]>>;
+  readonly combat: Readonly<Record<Zone, readonly [name: string, title: string, sprite: EnemySprite]>>;
+  readonly elite: Readonly<Record<Zone, readonly [name: string, title: string, sprite: EnemySprite]>>;
 } = {
   combat: {
-    0: ["Zmeu pui", "puiul balaurului"], // forest
-    1: ["Strigoi", "mortul viu"], // village
-    2: ["Căpcăun", "uriașul munților"], // mountains
-    3: ["Slugă de Zmeu", "sluga stăpânului"], // lair
+    0: ["Zmeu pui", "puiul balaurului", "dragon"], // forest
+    1: ["Strigoi", "mortul viu", "strigoi"], // village
+    2: ["Căpcăun", "uriașul munților", "capcaun"], // mountains
+    3: ["Slugă de Zmeu", "sluga stăpânului", "dragon"], // lair
   },
   elite: {
-    0: ["Muma Pădurii", "vrăjitoarea codrului"], // forest
-    1: ["Vârcolac", "fiara lunii"], // village
-    2: ["Balaur", "balaurul cu multe capete"], // mountains
-    3: ["Zmeu", "zmeul din bârlog"], // lair
+    0: ["Muma Pădurii", "vrăjitoarea codrului", "muma"], // forest
+    1: ["Vârcolac", "fiara lunii", "varcolac"], // village
+    2: ["Balaur", "balaurul cu multe capete", "balaur"], // mountains
+    3: ["Zmeu", "zmeul din bârlog", "dragon"], // lair
   },
 };
 
@@ -98,6 +101,6 @@ const ROSTER: {
 export function enemyFor(kind: EnemyKind, zone: Zone): EnemyArchetype {
   const base = ENEMY_ARCHETYPES[kind];
   if (kind === "boss") return base; // one boss, always "Zmeu bătrân" — zone-independent
-  const [name, title] = ROSTER[kind][zone];
-  return { ...base, name, title };
+  const [name, title, sprite] = ROSTER[kind][zone];
+  return { ...base, name, title, sprite };
 }

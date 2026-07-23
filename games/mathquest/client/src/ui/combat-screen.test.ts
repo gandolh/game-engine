@@ -36,7 +36,7 @@ function baseSnapshot(over: Partial<CombatSnapshot> = {}): CombatSnapshot {
   return {
     phase: "await_action",
     warrior: { hp: 30, maxHp: 30, block: 0 },
-    enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", title: "puiul balaurului", intent: 6 },
+    enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", title: "puiul balaurului", sprite: "dragon", intent: 6 },
     problem: null,
     grade: 1,
     teach: null,
@@ -259,10 +259,10 @@ describe("createCombatScreen — M5 folklore theming", () => {
 
   it("renders the enemy's epithet (snapshot.enemy.title) as its own label, rebound on refresh", () => {
     const { screen } = makeScreen();
-    screen.refresh(baseSnapshot({ enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", title: "puiul balaurului", intent: 6 } }), "", DEFAULT_LIFELINES);
+    screen.refresh(baseSnapshot({ enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", title: "puiul balaurului", sprite: "dragon", intent: 6 } }), "", DEFAULT_LIFELINES);
     expect(labels(screen.root).map((l) => l.text)).toContain("puiul balaurului");
 
-    screen.refresh(baseSnapshot({ enemy: { hp: 26, maxHp: 26, block: 0, name: "Balaur", title: "balaurul cu multe capete", intent: 6 } }), "", DEFAULT_LIFELINES);
+    screen.refresh(baseSnapshot({ enemy: { hp: 26, maxHp: 26, block: 0, name: "Balaur", title: "balaurul cu multe capete", sprite: "balaur", intent: 6 } }), "", DEFAULT_LIFELINES);
     const text = labels(screen.root).map((l) => l.text);
     expect(text).toContain("balaurul cu multe capete");
     expect(text).not.toContain("puiul balaurului");

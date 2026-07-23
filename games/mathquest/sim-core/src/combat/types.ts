@@ -88,12 +88,19 @@ export interface CombatantView {
   readonly block: number;
 }
 
+/** Which folklore creature sprite the client draws for an enemy (M5 slice 3). A stable id keyed off
+ * the enemy's identity in `run/enemies.ts`, mapped to a `draw*` fn in `@mathquest/client`'s
+ * `ui/sprites.ts` — display metadata only (no non-leak concern). Kept sim-side so it is the single
+ * source of the id set (the client's sprite registry is keyed by this exact union). */
+export type EnemySprite = "dragon" | "balaur" | "strigoi" | "varcolac" | "capcaun" | "muma";
+
 /** The enemy additionally carries a display name and its telegraphed next-turn intent (damage).
- * M5 folklore theming adds `title` — a short RO epithet (`run/enemies.ts`'s `EnemyArchetype`),
- * display text only, no non-leak concern (unlike `answer`/`answerIndex`). */
+ * M5 folklore theming adds `title` — a short RO epithet (`run/enemies.ts`'s `EnemyArchetype`) — and
+ * `sprite` — its creature-art id; both display-only, no non-leak concern (unlike `answer`/`answerIndex`). */
 export interface EnemyView extends CombatantView {
   readonly name: string;
   readonly title: string;
+  readonly sprite: EnemySprite;
   readonly intent: number;
 }
 

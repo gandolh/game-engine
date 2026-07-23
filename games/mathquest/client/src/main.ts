@@ -428,7 +428,12 @@ async function main(): Promise<void> {
           computeLayout(root, 24, 24, MATE_THEME);
           surface.begin();
           renderTree(surface, root, MATE_THEME);
-          if (snapshot.mode === "combat") combatScreen.drawBars(surface);
+          if (snapshot.mode === "combat") {
+            combatScreen.drawBars(surface);
+            // M5 slice 3: folklore creature + hero sprites, painted over the widget layer as a
+            // right-of-screen battle scene (screen-space — needs the live canvas size).
+            combatScreen.drawSprites(surface, snapshot.combat, canvas.clientWidth, canvas.clientHeight);
+          }
           surface.end();
           if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
         }

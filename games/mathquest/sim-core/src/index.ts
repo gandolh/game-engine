@@ -37,6 +37,7 @@ export type {
   CombatSnapshot,
   CombatantView,
   EnemyResult,
+  EnemySprite,
   EnemyView,
   Grade,
   MathTopic,

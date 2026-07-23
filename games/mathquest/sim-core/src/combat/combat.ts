@@ -386,6 +386,7 @@ export function createCombat(opts: CombatOpts): Combat {
       block: 0, // the enemy never blocks
       name: enemy.name,
       title: enemy.title, // M5 folklore theming — copied straight from the archetype
+      sprite: enemy.sprite, // M5 slice 3 — creature-art id, drawn client-side (ui/sprites.ts)
       intent: state.enemyIntent,
     };
     return {

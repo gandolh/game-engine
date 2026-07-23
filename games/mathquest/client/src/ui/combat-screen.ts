@@ -33,6 +33,7 @@ import type { CombatAction, CombatSnapshot, LifelineCharges, LifelineKind } from
 import { LIFELINE_KINDS } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import { STRINGS } from "../strings";
+import { ENEMY_SPRITE_DRAW, drawHero } from "./sprites";
 
 const HP_BAR_WIDTH = 200;
 const HP_BAR_HEIGHT = 12;
@@ -107,6 +108,13 @@ export interface CombatScreen {
    * up-to-date `rect`s) and BEFORE `surface.end()` — mirrors the slate billboard's `drawIcons`.
    */
   drawBars(surface: UISurface): void;
+  /**
+   * Paint the folklore creature + hero (Făt-Frumos) sprites (M5 slice 3) as a right-of-screen
+   * battle scene — the enemy up-and-right, the hero lower-and-left, facing each other. Screen-space
+   * (needs the live viewport), so call it with the canvas CSS size AFTER `drawBars`, before
+   * `surface.end()`. Purely cosmetic — reads `snapshot.enemy.sprite`, draws nothing sim-affecting.
+   */
+  drawSprites(surface: UISurface, snapshot: CombatSnapshot, viewW: number, viewH: number): void;
 }
 
 export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
@@ -368,5 +376,13 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     drawOne(warriorHpBar);
   }
 
-  return { root, refresh, drawBars };
+  function drawSprites(surface: UISurface, snapshot: CombatSnapshot, viewW: number, viewH: number): void {
+    // Bigger, tougher enemies loom larger: scale the creature by its maxHp (combat 24 → 2.2,
+    // boss 32 → ~2.6). The hero (Făt-Frumos) is a fixed size.
+    const enemyU = 2.9 + ((snapshot.enemy.maxHp - 24) / 8) * 0.5;
+    ENEMY_SPRITE_DRAW[snapshot.enemy.sprite](surface, viewW * 0.64, viewH * 0.5, enemyU);
+    drawHero(surface, viewW * 0.46, viewH * 0.85, 3);
+  }
+
+  return { root, refresh, drawBars, drawSprites };
 }
