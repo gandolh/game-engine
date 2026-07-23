@@ -4,6 +4,31 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | MateQuest M4c — persistent per-topic mastery (M4 COMPLETE)
+
+Final M4 slice + the game's FIRST cross-run persistence. Dispatched to a Sonnet executor from brief
+`todos/2026-07-23-mathquest-M4c-persistent-mastery.md`, controller-verified (gate re-run + code read
+for the persistence-boundary/fold/gate invariants + an in-browser localStorage round-trip across a page
+reload — the real proof). **Load-bearing architecture:** the sim runs in a Web Worker with NO
+`localStorage`, so the MAIN THREAD owns persistence — `main.ts` reads the save → `parseMasteryStore` →
+posts `init {seed, mastery}`; the sim echoes `RunView.mastery` per snapshot; `main.ts` writes it back
+on change (try/catch, private-mode-safe). New `run/mastery.ts`: `MasteryStore {version, topics, blueprints}`
+(v1, key `mathquest.mastery.v1`), per-topic tiers at [5,15,30] correct → 0..3, `overallMasteryTier`
+(0..12), pure `foldTopicOutcomes`/`parseMasteryStore` (validate-or-reset), 4 blueprints (one/topic,
+unlocked at tier 2). Combat reports `CombatResult.topicOutcomes` (skip adds nothing); driver folds on
+EVERY fight end (win OR loss — survives death) before the loss-return, and does NOT reset mastery in
+`newRun()`. **Elite gate:** `generateMap(rng,{eliteUnlocked})` — the hard fork only generates at
+`overallMasteryTier >= ELITE_UNLOCK_TIER(2)` (default true keeps map tests byte-identical; gate is at
+GENERATION so a run is never soft-locked). **Blueprints** widen `rollLoot`'s BETTER pool
+(`rollLoot(rng,tier,extraPool=[])`). Determinism: NO new fork — mastery changes fork INPUTS only;
+contract is now (seed, mastery, commands). **In-browser:** fresh player → "Măiestrie: 0/12" + no elite;
+solved 1 subtraction + 2 comparisons → won → `localStorage` held EXACTLY those per-topic counts; seeded
+a high store + reloaded → HUD "8/12" AND the elite node appeared on the same seed (mastery drives map
+gen). Gate: typecheck 19/19; sim-core **267**; client **41**; palette **10**; scope `games/mathquest/**`.
+**M4 is COMPLETE** (M4a stats + M4b lifelines + M4c mastery). Full detail:
+[todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) (M4c section).
+Next: **M5 — theme, art, i18n** (the last milestone: folklore skin + authored pixel art + RO/EN toggle).
+
 ## [2026-07-23] build | MateQuest M4b — math lifelines (hint / 50-50 / skip)
 
 Second M4 slice. Dispatched to a Sonnet executor from brief `todos/2026-07-23-mathquest-M4b-lifelines.md`,

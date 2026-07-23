@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M4b math lifelines done, controller-verified; next M4c persistent mastery)
-updated: 2026-07-23 (M4b hint/50-50/skip lifelines on branch `mathquest`)
+status: in-progress (M4 COMPLETE — M4c persistent mastery done, controller-verified; next M5 art + i18n)
+updated: 2026-07-23 (M4c persistent per-topic mastery on branch `mathquest`)
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -68,7 +68,7 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M3.2–M3.4 map polish (scenic → top-down 2.5D → Farm/Citadel terrain) | ✅ **done, in-browser verified** (opus inline) | `fbc475e` |
 | M4a in-run progression + loot/equipment (stat bonuses) | ✅ **done, controller-verified** (Sonnet executor) | `8c9f722` (+brief `fcae576`) |
 | M4b math lifelines (hint / 50-50 / skip) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `f1a435a` (+corpus `21f40b9`) |
-| M4c persistent mastery + gating + blueprints | ⬜ not started | — |
+| M4c persistent mastery + gating + blueprints | ✅ **done, controller-verified in-browser** (Sonnet executor) | (see log — committed after tracker) |
 | M5 theme, art, i18n | ⬜ not started | — |
 
 ## M0 — how it went (2026-07-21)
@@ -360,9 +360,49 @@ agent-browser MCP).
   always in the `await_answer` tree). Loot GRANTING lifelines is covered by unit tests + a driver code
   read (offering a lifeline item in-browser is probabilistic), not eyeballed.
 
-**Next: M4c — persistent per-topic mastery.** localStorage save/load that SURVIVES death; per-topic
-mastery gates hard branches + unlocks gear blueprints. First cross-run persistence in the game — decide
-the storage key/schema + migration story. (Then M5 folklore art + full RO/EN i18n toggle.)
+## M4c — how it went (2026-07-23, Sonnet executor, controller-verified in-browser)
+Brief: `2026-07-23-mathquest-M4c-persistent-mastery.md`. The game's FIRST cross-run persistence.
+Dispatched to a Sonnet executor; controller (opus) verified independently — re-ran the gate, READ
+`run/mastery.ts`/`sim-bootstrap.ts`/`combat.ts` for the load-bearing invariants, then **played it
+in-browser incl. a localStorage round-trip across a page reload** (the real persistence proof).
+- **The load-bearing architecture:** the sim runs in a **Web Worker, which has NO `localStorage`**, so
+  the **main thread owns persistence** — `main.ts` reads `localStorage[MASTERY_STORAGE_KEY]` →
+  `parseMasteryStore` → posts `init {seed, mastery}`; the sim echoes `RunView.mastery` in every
+  snapshot; `main.ts` writes it back on change (try/catch, private-mode-safe). The sim/worker never
+  touch storage/DOM. (Matches Citadel/Farm's main-thread-only localStorage pattern.)
+- **Mechanics (locked in the brief):** persistent `MasteryStore {version, topics:Record<MathTopic,
+  {correct,attempts}>, blueprints:string[]}` (v1, key `mathquest.mastery.v1`). Per-topic tiers at
+  correct-solve counts **[5,15,30]** → tier 0..3; `overallMasteryTier` (0..12). Combat reports
+  `CombatResult.topicOutcomes` (attempts on any answer, correct on right; **skip** adds nothing); the
+  driver `foldTopicOutcomes` on EVERY fight end (win OR loss — mastery survives death) BEFORE the
+  loss-return. **Elite gate:** `generateMap(rng,{eliteUnlocked})` — elite (hard fork) only generates
+  when `overallMasteryTier >= ELITE_UNLOCK_TIER(2)`; default `true` keeps `map.test.ts` byte-identical;
+  the map is always a valid DAG (gate at GENERATION, never soft-locks). **Blueprints:** reaching a
+  topic's tier 2 unlocks a persistent gear blueprint (4 distinct RO items, one per topic — incl. a
+  lifeline-granting one for comparison) that widens `rollLoot`'s BETTER pool for future runs
+  (`rollLoot(rng,tier,extraPool=[])`). `newRun()` does NOT reset mastery.
+- **Determinism:** NO new fork — mastery changes fork INPUTS (`generateMap`'s `eliteUnlocked`,
+  `rollLoot`'s `extraPool`), never the sequence. Contract is now **(seed, mastery, commands)**.
+- **Verified in-browser:** (1) fresh player (cleared save) → HUD "Măiestrie: 0/12" + the seed-1 map's
+  ★ elite is ABSENT (gate closed); (2) **write path** — solved 1 subtraction + 2 comparisons, won →
+  loot; `localStorage` held EXACTLY `{subtraction:1/1, comparison:2/2, …}`; (3) **load path across a
+  page reload** — seeded a high store (overall 8), reloaded → HUD "Măiestrie: 8/12" AND the ★ elite
+  node now PRESENT on the same seed-1 map (mastery drives map gen end-to-end). Run-over per-topic
+  readout + blueprint-in-loot are covered by the new tests (surfacing already-proven data).
+- **Gate:** typecheck 19/19; `@mathquest/sim-core` **267**; `@mathquest/client` **41**; palette **10**
+  — all green; determinism/hex sweep clean; git scope `games/mathquest/**` only.
+- **Accepted executor deviations:** (1) fixed the ONE pre-existing bootstrap test that assumed an elite
+  is always present — now boots with an explicit high-mastery store (empty store closes the gate, the
+  intended new behavior), commented honestly; (2) changed 6 combat `toEqual(result())` sites to
+  `toMatchObject` (still exact on outcome/warriorHp/xpEarned) since `CombatResult` gained
+  `topicOutcomes`; (3) RO-ified the pre-existing EN run-over summary literal via `STRINGS.runSummary`.
+
+**M4 is COMPLETE** (M4a stat bonuses + M4b lifelines + M4c persistent mastery). **Next: M5 — theme,
+art, i18n** (the last milestone): Romanian-folklore skin (Zmeu/Balaur/Muma Pădurii bosses + hero
+trio), authored pixel art via the atlas-recipe pipeline (placeholders until now), and a full RO/EN i18n
+toggle (`strings.ts` becomes locale-aware; word-problem + teach-card text bilingual). Also outstanding:
+grades V–VIII generators (post-M5 or an M2.5), and "unlock NEW problem types" via mastery (deferred
+from M4c — needs V–VIII content to exist first). See the milestone table for the M5 verify bar.
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
