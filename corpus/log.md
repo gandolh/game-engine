@@ -4,6 +4,22 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | MateQuest M3.4 — top-down 2.5D map + Farm/Citadel-style terrain
+
+Map visual polish arc (all `games/mathquest/client/src/ui/map-screen.ts`, opus inline, each pass
+verified in-browser via the agent-browser MCP). The map went from a side-view scenic diorama to a
+**top-down 2.5D** plane (footpath lies ON the terrain and winds; upright billboard scenery with
+shadows) after a **projection-study artifact** let the user choose top-down over isometric (iso fights
+the axis-aligned-rect-only `UISurface` — no polygon/diamond fills). Added **zone-specific paths**
+(dirt / cobble / wooden boardwalk / obsidian). Terrain composition, after a "too random-pixelated"
+correction, now **matches how Farm/Citadel actually compose terrain**: one solid hillshade-banded tone
+per 24px cell (base dominates) + ~1 chunky slope-biased speck — NOT a per-tile dither field. Kept
+domain-warped height + a moisture field + wavy zone seams from a terrain-gen research pass (Red Blob
+Games / Quilez / Jiménez / noiseposti.ng). Ground is built once and cached (no per-frame noise cost);
+the engine-idiomatic `renderer.bakeStaticLayer` offscreen bake is noted as the future perf lever but
+not wired (UISurface exposes no raw ctx / image blit). Commits `8ba5b40` → `36ff94f` → `15da63f` →
+`2cbb7fa` → `1715b08` → `fbc475e`. Full detail: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) (M3.4 section). Next: **M4 — progression & loot**.
+
 ## [2026-07-21] design | MateQuest — new (FOURTH) game: Romanian-curriculum math roguelike (design-of-record v0.1, pre-build)
 
 A new game seeded this session: **MateQuest** — an educational math roguelike on the shared engine,

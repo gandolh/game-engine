@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M3 + M3.1/M3.2 scenic map + RO default done, verified)
-updated: 2026-07-22 (M3.2 horizontal zoned journey map + Romanian-default UI on branch `mathquest`)
+status: in-progress (M3 + M3.1–M3.4 map polish done, verified; starting M4)
+updated: 2026-07-23 (M3.4 top-down 2.5D map + Farm/Citadel-style terrain on branch `mathquest`)
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -64,8 +64,9 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M1 turn-combat loop | ✅ **done, controller-verified** (Sonnet executor + opus finished `main.ts`) | `2101098` (+corpus `f67388c`) |
 | M2 problem-generator seam (I–IV) | ✅ **done, controller-verified** (Sonnet executor) | `97f5c97` (+corpus `fa696ba`) |
 | M3 map & runs | ✅ **done, controller-verified** (Sonnet executor) | `273b3c0` (+corpus `16c66a9`) |
-| M3.1 spatial map + RO diacritics font | ✅ **done, controller-verified** (opus font + Sonnet map) | (this session — see below) |
-| M4 progression & loot | ⬜ not started | — |
+| M3.1 spatial map + RO diacritics font | ✅ **done, controller-verified** (opus font + Sonnet map) | see M3.1 below |
+| M3.2–M3.4 map polish (scenic → top-down 2.5D → Farm/Citadel terrain) | ✅ **done, in-browser verified** (opus inline) | `fbc475e` (latest) |
+| M4 progression & loot | 🟡 starting | — |
 | M5 theme, art, i18n | ⬜ not started | — |
 
 ## M0 — how it went (2026-07-21)
@@ -254,6 +255,43 @@ Canvas2D** (user then explicitly said **no WebGPU — device compatibility**, so
 - **Known follow-ups:** still no a11y mirror for the spatial map (drag + 1..9/Enter/arrows only);
   vertical scroll is a no-op (world height = viewport; journey is horizontal); scenery is procedural
   pixel-art (authored atlas art remains a possible M5 upgrade).
+
+## M3.4 — top-down 2.5D map + Farm/Citadel-style terrain (2026-07-23, opus inline, several passes)
+User iterated on the map look across a session (all `ui/map-screen.ts`, client-only, opus inline,
+each pass verified in-browser via the agent-browser MCP + green gate). Arc:
+1. **Solid colours + faked depth** (`8ba5b40`): dropped alpha-washed zones for opaque Resurrect-64
+   fills; adapted Farm's per-tile ground-noise + Citadel's hillshade banding to the rect-only painter;
+   SE drop-shadow skirts under nodes/scenery; solid stage boxes (state via border+darken, not
+   transparency); footpath as overlapping stamps not concatenated squares.
+2. **Projection decision → top-down 2.5D** (`36ff94f`): built a **projection-study artifact** (top-down
+   vs isometric, same map, in-palette) — user chose **top-down** (iso fights our axis-aligned-rect-only
+   `UISurface`; no polygon/diamond fills). Rewrote to one flat top-down ground plane; footpath lies ON
+   the terrain and winds; scenery are **upright billboard props** with shadows, depth-sorted by baseY.
+3. **Zone-specific paths** (`15da63f`): forest **dirt** / village **cobble** / mountains **wooden
+   boardwalk (planks+rails)** / lair **obsidian+embers**, chosen per stamp by the zone the trail
+   crosses. Plus floor detail + smoother terrain.
+4. **Artifact-noise fix** (`2cbb7fa`): removed dense/high-contrast floor flecks (village horizontal
+   "tilled rows", 10%-of-tiles red lair embers, 70%-of-stamps red on the obsidian ROAD) that read as
+   random pixels; every path now lays a SOLID fill first so diagonals are clean ribbons.
+5. **Terrain-generation research pass** (`1715b08`): applied Red Blob Games / Quilez / Jiménez /
+   noiseposti.ng — **domain-warped** height, a second **moisture** noise field, **wavy zone seams**,
+   IGN dithering (later dropped).
+6. **Compose like Farm/Citadel** (`fbc475e`, current): user said it was "too random-pixelated". Read
+   the sibling games' actual terrain (Farm's ~5%-sparse grass-tile flecks; Citadel's `landformFill` =
+   one hillshade-banded tone per cell + `ditherClusters` = ~1 chunky 2–3px speck). Rewrote the ground
+   to match: **one solid banded tone per 24px cell (base dominates) + 1 (rarely 2) slope-biased chunky
+   specks** — calm broad regions, not a dither field. Kept domain-warp + moisture + wavy seams.
+- **Terrain technique is now documented** — see the composition notes above; the model is "banded tone
+  + sparse chunky specks", NOT per-tile dithering. Tunable dials: `GTILE` (24), `BAND_T` (0.13),
+  `SPECK_RANGE`, `MOIST_WEIGHT`, `BOUNDARY_WAVE`, `WARP_STRENGTH`.
+- **Perf note (carry to M5/anytime):** the ground is built ONCE and cached (keyed on map+viewport),
+  replayed per frame. The engine-idiomatic fix (Farm/Citadel bake to an offscreen static layer via
+  `renderer.bakeStaticLayer(sprites, w, h, decorate)`) is NOT wired here — `UISurface` exposes no raw
+  ctx / image-blit and the map uses its own screen-space camera, not the world `Camera2D`. Baking is
+  the lever if a low-end device ever struggles (would need either the world camera or a new
+  `UISurface.image()` seam).
+- **Known follow-ups:** still no a11y DOM mirror for the spatial map (drag + wheel + 1..9/Enter/arrows
+  only); scenery is procedural pixel-art (authored atlas art remains an M5 option).
 
 **Next: M4 — progression & loot.** In-run XP/level-up choice + persistent per-topic mastery (survives
 death, gates hard branches, unlocks blueprints) + equipment with combat bonuses AND math lifelines
