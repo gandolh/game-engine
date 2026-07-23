@@ -4,6 +4,24 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | MateQuest M5 slice 1 — Romanian-folklore theming (zone enemy roster + Făt-Frumos)
+
+M5 (theme/art/i18n, the last milestone) sliced 3 ways — user picked **folklore theming first**.
+Dispatched to a Sonnet executor from brief `todos/2026-07-23-mathquest-M5-folklore-theming.md`,
+controller-verified (gate + code read for balance-preservation & zone-mapping invariants + an in-browser
+fight). Made the enemy roster vary by the map's 4 zones with authentic RO-folklore names + epithets and
+named the hero **Făt-Frumos** — **flavor only, balance byte-identical**. `run/map.ts` gained `Zone` +
+`zoneForRow` (reproduces the client's rows→thirds+boss split exactly) + `MapNode.zone`; `run/enemies.ts`
+gained a name/epithet `ROSTER` (kind × zone) + `enemyFor(kind, zone)` that spreads
+`ENEMY_ARCHETYPES[kind]`'s exact stats (hp/intent unchanged → winnability tests pass unchanged) and
+adds a `title` epithet; `chooseNode` calls `enemyFor(node.type, node.zone)`. Roster: combat Zmeu
+pui/Strigoi/Căpcăun, elite Muma Pădurii/Vârcolac/Balaur, boss Zmeu bătrân. Client: hardcoded "Warrior"
+→ `STRINGS.heroName`; enemy epithet line under the name. No new fork (pure functions of kind/row).
+In-browser: forest fight showed "Zmeu pui" + "puiul balaurului" + hero "Făt-Frumos". Gate: typecheck
+19/19; sim-core **280**; client **43**; palette **10**; scope `games/mathquest/**`. Full detail:
+[todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) (M5 slice 1
+section). Next: **M5 slice 2 — RO/EN i18n toggle**, then slice 3 (authored pixel art).
+
 ## [2026-07-23] build | MateQuest M4c — persistent per-topic mastery (M4 COMPLETE)
 
 Final M4 slice + the game's FIRST cross-run persistence. Dispatched to a Sonnet executor from brief

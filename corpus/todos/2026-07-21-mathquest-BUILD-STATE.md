@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M4 COMPLETE — M4c persistent mastery done, controller-verified; next M5 art + i18n)
-updated: 2026-07-23 (M4c persistent per-topic mastery on branch `mathquest`)
+status: in-progress (M5 sliced 3 ways; slice 1 folklore theming DONE, controller-verified; next M5 i18n + art)
+updated: 2026-07-23 (M5 folklore theming — zone-flavored enemy roster + Făt-Frumos — on branch `mathquest`)
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -69,7 +69,10 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M4a in-run progression + loot/equipment (stat bonuses) | ✅ **done, controller-verified** (Sonnet executor) | `8c9f722` (+brief `fcae576`) |
 | M4b math lifelines (hint / 50-50 / skip) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `f1a435a` (+corpus `21f40b9`) |
 | M4c persistent mastery + gating + blueprints | ✅ **done, controller-verified in-browser** (Sonnet executor) | `3566037` (+corpus `3beb2e7`) |
-| M5 theme, art, i18n | ⬜ not started | — |
+| M5 theme, art, i18n | 🔶 **sliced 3 ways; slice 1 (folklore theming) done** | see M5 slice-1 below |
+| ↳ M5 slice 1 — folklore theming (zone enemy roster + Făt-Frumos) | ✅ **done, controller-verified in-browser** (Sonnet executor) | (committed after tracker — see log) |
+| ↳ M5 slice 2 — RO/EN i18n toggle | ⬜ not started | — |
+| ↳ M5 slice 3 — authored pixel art (needs a UISurface image/blit seam first) | ⬜ not started | — |
 
 ## M0 — how it went (2026-07-21)
 Dispatched fresh to a **Sonnet executor** (brief: `2026-07-21-mathquest-M0-scaffold.md`), templated on
@@ -397,12 +400,51 @@ in-browser incl. a localStorage round-trip across a page reload** (the real pers
   `toMatchObject` (still exact on outcome/warriorHp/xpEarned) since `CombatResult` gained
   `topicOutcomes`; (3) RO-ified the pre-existing EN run-over summary literal via `STRINGS.runSummary`.
 
-**M4 is COMPLETE** (M4a stat bonuses + M4b lifelines + M4c persistent mastery). **Next: M5 — theme,
-art, i18n** (the last milestone): Romanian-folklore skin (Zmeu/Balaur/Muma Pădurii bosses + hero
-trio), authored pixel art via the atlas-recipe pipeline (placeholders until now), and a full RO/EN i18n
-toggle (`strings.ts` becomes locale-aware; word-problem + teach-card text bilingual). Also outstanding:
-grades V–VIII generators (post-M5 or an M2.5), and "unlock NEW problem types" via mastery (deferred
-from M4c — needs V–VIII content to exist first). See the milestone table for the M5 verify bar.
+**M4 is COMPLETE** (M4a stat bonuses + M4b lifelines + M4c persistent mastery).
+
+## M5 — the last milestone, SLICED 3 ways (user picked theming first, 2026-07-23)
+M5 (theme, art, i18n) is large + multi-natured, so it's sliced like M4: **(1) folklore theming**
+(content, done), **(2) RO/EN i18n toggle** (i18n plumbing), **(3) authored pixel art** (the big art
+lift — needs a new image/blit seam in the Canvas2D `UISurface`, which doesn't exist yet; MateQuest's
+map/combat are rect + font-atlas only). Order chosen by the user.
+
+### M5 slice 1 — folklore theming — how it went (2026-07-23, Sonnet executor, controller-verified in-browser)
+Brief: `2026-07-23-mathquest-M5-folklore-theming.md`. Made the enemy roster vary by the map's 4 zones
+with authentic RO-folklore names + epithets, and named the hero **Făt-Frumos** — **flavor only, balance
+byte-identical**. Controller (opus) verified: re-ran the gate, READ `enemies.ts`/`map.ts` to confirm
+the balance-preservation + zone-mapping invariants, then played a fight in-browser.
+- **Zone is now a sim concept:** `run/map.ts` gained `Zone = 0|1|2|3` + `zoneForRow(row)`
+  (`row<2?0:<4?1:<6?2:3` — reproduces the client's rows→thirds+boss split EXACTLY so the enemy matches
+  the zone you're standing in) + `MapNode.zone` (set for every node; boss row → zone 3).
+- **Roster (`run/enemies.ts`):** `ENEMY_ARCHETYPES` (the STATS) unchanged; new `ROSTER` name/epithet
+  table keyed by (kind × zone) + `enemyFor(kind, zone)` that returns `{...ENEMY_ARCHETYPES[kind], name,
+  title}` — stats ALWAYS spread from the base archetype, so hp/intent are provably identical (an
+  exhaustive stat-equality test asserts this for every (kind, zone)). Roster: combat forest **Zmeu
+  pui** / village **Strigoi** / mountains **Căpcăun**; elite forest **Muma Pădurii** / village
+  **Vârcolac** / mountains **Balaur**; boss (any zone) **Zmeu bătrân**. Each has a short RO epithet.
+  `EnemyArchetype`/`EnemyView` gained `title`; `chooseNode` now calls `enemyFor(node.type, node.zone)`.
+- **Client:** the hardcoded `"Warrior"` combat label → `STRINGS.heroName = "Făt-Frumos"`; a muted
+  epithet line renders under the enemy name from `snapshot.enemy.title`.
+- **Determinism:** NO new fork — name/title/zone are pure functions of (kind, row); balance/winnability
+  tests pass UNCHANGED (stats identical).
+- **Verified in-browser:** forest fight showed "**Zmeu pui**" + epithet "**puiul balaurului**" + hero
+  "**Făt-Frumos**" — the new `title` field + hero name cross the boundary and render. Cross-zone variety
+  (village/mountains/boss) + elite theming are exhaustively unit-tested (driver-theming test across
+  zones 0/1/2 + boss); elites need the M4c mastery gate open to appear in a real map, so they're
+  covered by tests not eyeballed.
+- **Gate:** typecheck 19/19; `@mathquest/sim-core` **280**; `@mathquest/client` **43**; palette **10**
+  — all green; determinism/hex sweep clean; scope `games/mathquest/**` only.
+- **Accepted executor updates (honest):** the one bootstrap test asserting an elite is "Balaur" now
+  derives the expected name from the chosen elite node's ZONE via `enemyFor` (not weakened); `MapNode`
+  `toEqual`s got `zone` added; enemy `toEqual`s got `title`; a `chooseNodeFresh` test helper observes a
+  target fight in-progress.
+
+**Next: M5 slice 2 — RO/EN i18n toggle.** Make `client/src/strings.ts` a locale-aware lookup (RO
+default + EN), add an in-game toggle (button/hotkey) persisted to localStorage (reuse the M4c
+main-thread storage pattern), and translate the sim-side RO content (generator `prompt`/`teach` text in
+`combat/generators.ts`, enemy names/epithets in `run/enemies.ts`) — that sim content will need a
+locale seam too (the sim gets a locale, or the client maps ids→strings). Then M5 slice 3 (pixel art).
+Also still outstanding post-M5: grades V–VIII generators + "unlock NEW problem types" via mastery.
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
