@@ -70,7 +70,7 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M4b math lifelines (hint / 50-50 / skip) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `f1a435a` (+corpus `21f40b9`) |
 | M4c persistent mastery + gating + blueprints | ✅ **done, controller-verified in-browser** (Sonnet executor) | `3566037` (+corpus `3beb2e7`) |
 | M5 theme, art, i18n | 🔶 **sliced 3 ways; slice 1 (folklore theming) done** | see M5 slice-1 below |
-| ↳ M5 slice 1 — folklore theming (zone enemy roster + Făt-Frumos) | ✅ **done, controller-verified in-browser** (Sonnet executor) | (committed after tracker — see log) |
+| ↳ M5 slice 1 — folklore theming (zone enemy roster + Făt-Frumos) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `7990f67` (+corpus `9bc86b6`) |
 | ↳ M5 slice 2 — RO/EN i18n toggle | ⬜ not started | — |
 | ↳ M5 slice 3 — authored pixel art (needs a UISurface image/blit seam first) | ⬜ not started | — |
 
