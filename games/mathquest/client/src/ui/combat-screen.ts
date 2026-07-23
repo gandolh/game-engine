@@ -52,8 +52,8 @@
  * labels in place — see `strings.ts`'s module doc for the rationale.
  */
 import { box, button, label, panel } from "@engine/ui";
-import type { ButtonNode, ButtonState, ContainerNode, LabelNode, UINode, UISurface } from "@engine/ui";
-import type { CombatAction, CombatSnapshot, LifelineCharges, LifelineKind } from "@mathquest/sim-core";
+import type { ButtonNode, ButtonState, ContainerNode, LabelNode, Rect, UINode, UISurface } from "@engine/ui";
+import type { CombatAction, CombatSnapshot, LifelineCharges, LifelineKind, MathTopic } from "@mathquest/sim-core";
 import { LIFELINE_KINDS } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import type { Strings } from "../strings";
@@ -63,6 +63,17 @@ const HP_BAR_WIDTH = 200;
 const HP_BAR_HEIGHT = 12;
 /** Comparison always generates exactly 3 choices (`<`, `>`, `=`) — see the M2 brief. */
 const CHOICE_SLOTS = 3;
+
+/** Triviador/Conquiztador-style quiz theming for the problem window: each math TOPIC gets a
+ * category colour (paints the question banner's header strip + the topic chip), and each answer
+ * TILE gets a distinct colour frame (the quiz-show A/B/C/D-tile identity cue). All `MATE_PAL`. */
+const TOPIC_ACCENT: Record<MathTopic, string> = {
+  addition: MATE_PAL.green,
+  subtraction: MATE_PAL.skyBlue,
+  multiplication: MATE_PAL.gold,
+  comparison: MATE_PAL.hotPink,
+};
+const TILE_COLORS: readonly string[] = [MATE_PAL.skyBlue, MATE_PAL.gold, MATE_PAL.green];
 
 /** Actions the screen's buttons invoke — wired once at creation (mirrors `ResourceHudActions`). */
 export interface CombatScreenActions {
@@ -146,6 +157,14 @@ export interface CombatScreen {
    * up-to-date `rect`s) and BEFORE `surface.end()` — mirrors the slate billboard's `drawIcons`.
    */
   drawBars(surface: UISurface): void;
+  /**
+   * Paint the Triviador-style quiz accents that a plain widget can't express: the topic-coloured
+   * header strip over the question banner, and the A/B/C colour frames (with a drop shadow, and a
+   * red "eliminated" cross on a 50-50'd tile) around the choice buttons. Reads the laid-out banner
+   * + choice-button rects, so call it AFTER `renderTree` (paints over the tiles' own chrome),
+   * BEFORE `surface.end()`. No-op outside `await_answer`. Purely cosmetic.
+   */
+  drawFx(surface: UISurface, snapshot: CombatSnapshot): void;
 }
 
 export function createCombatScreen(actions: CombatScreenActions, strings: Strings): CombatScreen {
@@ -204,38 +223,48 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   const shieldBtn = button(strings.actionLabel.shield, { onActivate: () => actions.chooseAction("shield") });
   const actionMenu = box({ direction: "row", gap: 8 }, [attackBtn, healBtn, shieldBtn]);
 
-  // --- Problem panel (await_answer): prompt + EITHER typed keypad OR choice buttons --------------
-  const promptLbl = label("", { color: MATE_PAL.white, scale: 2 });
-  const typedLbl = label(strings.typedPlaceholder, { color: MATE_PAL.cyan, scale: 2 });
+  // --- Problem panel (await_answer): a Triviador-style quiz card — a category chip, a big framed
+  // question banner, then EITHER a big numeric answer display + keypad OR big colour-framed choice
+  // tiles (the coloured frames are painted in `drawFx`, since a widget button has no per-instance
+  // colour). ------------------------------------------------------------------------------------
+  const topicChip = label("", { color: MATE_PAL.cream });
+  const promptLbl = label("", { color: MATE_PAL.white, scale: 3 });
+  // The framed question banner. A colour header strip (by topic) is painted over its top edge in
+  // `drawFx`; its rect is read there, so keep the reference.
+  const promptBanner = panel({ direction: "column", align: "center", padding: { top: 14, left: 20, right: 20, bottom: 12 } }, [promptLbl]);
+
+  const typedLbl = label(strings.typedPlaceholder, { color: MATE_PAL.cyan, scale: 3 });
+  const answerDisplay = panel({ direction: "row", align: "center", padding: { top: 6, left: 24, right: 24, bottom: 6 } }, [typedLbl]);
 
   function digitBtn(d: number): ButtonNode {
-    return button(String(d), { onActivate: () => actions.appendDigit(d) });
+    return button(String(d), { onActivate: () => actions.appendDigit(d), scale: 2 });
   }
-  const backspaceBtn = button(strings.backspace, { onActivate: () => actions.backspace() });
-  const enterBtn = button(strings.submit, { onActivate: () => actions.submit() });
+  const backspaceBtn = button(strings.backspace, { onActivate: () => actions.backspace(), scale: 2 });
+  const enterBtn = button(strings.submit, { onActivate: () => actions.submit(), scale: 2 });
   const digitBtns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(digitBtn);
-  const keypad = box({ direction: "column", gap: 4 }, [
-    box({ direction: "row", gap: 4 }, [digitBtns[0]!, digitBtns[1]!, digitBtns[2]!]),
-    box({ direction: "row", gap: 4 }, [digitBtns[3]!, digitBtns[4]!, digitBtns[5]!]),
-    box({ direction: "row", gap: 4 }, [digitBtns[6]!, digitBtns[7]!, digitBtns[8]!]),
-    box({ direction: "row", gap: 4 }, [backspaceBtn, digitBtns[9]!, enterBtn]),
+  const keypad = box({ direction: "column", gap: 6, align: "center" }, [
+    box({ direction: "row", gap: 6 }, [digitBtns[0]!, digitBtns[1]!, digitBtns[2]!]),
+    box({ direction: "row", gap: 6 }, [digitBtns[3]!, digitBtns[4]!, digitBtns[5]!]),
+    box({ direction: "row", gap: 6 }, [digitBtns[6]!, digitBtns[7]!, digitBtns[8]!]),
+    box({ direction: "row", gap: 6 }, [backspaceBtn, digitBtns[9]!, enterBtn]),
   ]);
-  const typedGroup = box({ direction: "column", gap: 4 }, [typedLbl, keypad]);
+  const typedGroup = box({ direction: "column", gap: 10, align: "center" }, [answerDisplay, keypad]);
 
   // Choice buttons: built ONCE (fixed count — comparison always emits exactly 3 relations); their
-  // `label` text is rebound each refresh from `problem.choices[i]`.
+  // `label` text is rebound each refresh from `problem.choices[i]`. Big quiz tiles (scale 3), their
+  // A/B/C colour frames painted in `drawFx`.
   const choiceBtns: ButtonNode[] = Array.from({ length: CHOICE_SLOTS }, (_, i) =>
-    button("", { onActivate: () => actions.submitChoice(i) }),
+    button("", { onActivate: () => actions.submitChoice(i), scale: 3 }),
   );
-  const choiceRow = box({ direction: "row", gap: 8 }, choiceBtns);
+  const choiceRow = box({ direction: "row", gap: 16, align: "center" }, choiceBtns);
 
   // --- Hint line (M4b): visible only once `snapshot.hint !== null`, removed otherwise (mirrors
   // the module doc's "removed from children, not just blanked" rule for inert content). ----------
-  const hintLbl = label("", { color: MATE_PAL.gold, maxWidth: 320 });
-  const hintArea = box({ direction: "column", gap: 0 }, []);
+  const hintLbl = label("", { color: MATE_PAL.gold, maxWidth: 420 });
+  const hintArea = box({ direction: "column", gap: 0, align: "center" }, []);
 
-  const inputArea = box({ direction: "column", gap: 4 }, []);
-  const problemPanel = box({ direction: "column", gap: 8 }, [promptLbl, inputArea, hintArea]);
+  const inputArea = box({ direction: "column", gap: 4, align: "center" }, []);
+  const problemPanel = box({ direction: "column", gap: 10, align: "center" }, [topicChip, promptBanner, inputArea, hintArea]);
 
   // --- Lifeline bar (M4b): built ONCE (fixed 3 kinds), mutated per refresh — mirrors the keypad's
   // build-once-mutate-label/state convention. ------------------------------------------------------
@@ -258,7 +287,7 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
 
   // --- answerArea (M4b): the problem panel PLUS the lifeline bar underneath it — shown together
   // in `"await_answer"`. -----------------------------------------------------------------------
-  const answerArea = box({ direction: "column", gap: 8 }, [problemPanel, lifelineBar]);
+  const answerArea = box({ direction: "column", gap: 10, align: "center" }, [problemPanel, lifelineBar]);
 
   // --- dynamicArea: swaps between actionMenu / answerArea / teachCard / nothing (won/lost) --------
   const dynamicArea = box({ direction: "column", gap: 8 }, []);
@@ -269,9 +298,10 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   const bannerBox = box({ direction: "column", gap: 12, align: "center" }, [bannerLbl, restartBtn]);
   const bannerArea = box({ direction: "column", gap: 0 }, []);
 
-  // The bottom command box: turn/result message line + phase content, full width (root stretches).
+  // The bottom command box: turn/result message line + phase content, full width (root stretches),
+  // its content centred like a quiz-show panel.
   const messageLine = box({ direction: "row", gap: 16, align: "center" }, [turnLbl, playerCueLbl, enemyCueLbl]);
-  const commandBox = panel({ direction: "column", gap: 8, padding: 14 }, [messageLine, dynamicArea, bannerArea]);
+  const commandBox = panel({ direction: "column", gap: 8, padding: 14, align: "center" }, [messageLine, dynamicArea, bannerArea]);
 
   const titleLbl = label(strings.title, { color: MATE_PAL.gold });
   const topBar = box({ direction: "row", align: "center", padding: { top: 8, left: 16, right: 16, bottom: 4 } }, [
@@ -318,6 +348,9 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
     if (snapshot.phase === "await_answer" && snapshot.problem !== null) {
       const problem = snapshot.problem;
       if (setText(promptLbl, problem.prompt)) changed = true;
+      // Triviador-style category chip, coloured by topic (the header strip is painted in drawFx).
+      if (setText(topicChip, strings.topicName[problem.topic])) changed = true;
+      topicChip.color = TOPIC_ACCENT[problem.topic];
 
       if (problem.kind === "typed") {
         if (!sameChildren(inputArea, [typedGroup])) {
@@ -469,7 +502,41 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
     surface.rect(0, 0, viewW, skyTop, MATE_PAL.ink, 0.5);
   }
 
-  return { root, refresh, drawScene, drawBars };
+  function drawFx(surface: UISurface, snapshot: CombatSnapshot): void {
+    if (snapshot.phase !== "await_answer" || snapshot.problem === null) return;
+    const problem = snapshot.problem;
+    const accent = TOPIC_ACCENT[problem.topic];
+    // Category header strip along the top of the question banner (inside its border).
+    const br = promptBanner.rect;
+    if (br.width > 0) surface.rect(br.x + 1, br.y + 1, br.width - 2, 5, accent);
+    // A/B/C colour frames around the choice tiles (a plain button carries no per-instance colour).
+    if (problem.kind === "choice") {
+      for (let i = 0; i < CHOICE_SLOTS; i++) {
+        const btn = choiceBtns[i]!;
+        if (btn.label.length === 0 || btn.rect.width === 0) continue;
+        const eliminated = problem.disabledChoices.includes(i);
+        drawTileFrame(surface, btn.rect, eliminated ? MATE_PAL.crimson : TILE_COLORS[i % TILE_COLORS.length]!, eliminated);
+      }
+    }
+  }
+
+  return { root, refresh, drawScene, drawBars, drawFx };
+}
+
+/** A quiz-tile frame: a drop shadow + a thick coloured ring hugging the button's rect. A 50-50'd
+ * ("eliminated") tile also gets a dim overlay + a red bar so it reads as struck out. */
+function drawTileFrame(surface: UISurface, rect: Rect, color: string, eliminated: boolean): void {
+  const { x, y, width: w, height: h } = rect;
+  const t = 3; // ring thickness (drawn OUTSIDE the button so it never covers the label)
+  surface.rect(x - t + 3, y - t + 4, w + 2 * t, h + 2 * t, MATE_PAL.ink, 0.3); // drop shadow
+  surface.rect(x - t, y - t, w + 2 * t, t, color); // top
+  surface.rect(x - t, y + h, w + 2 * t, t, color); // bottom
+  surface.rect(x - t, y - t, t, h + 2 * t, color); // left
+  surface.rect(x + w, y - t, t, h + 2 * t, color); // right
+  if (eliminated) {
+    surface.rect(x, y, w, h, MATE_PAL.ink, 0.5); // dim the struck-out tile
+    surface.rect(x, y + h / 2 - 2, w, 4, MATE_PAL.crimson, 0.9); // strike bar
+  }
 }
 
 /** A flat elliptical grass platform (stacked rows), with a shadow skirt + a lit top rim — the

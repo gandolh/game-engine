@@ -548,7 +548,12 @@ async function main(): Promise<void> {
             combatScreen.drawScene(surface, snapshot.combat, canvas.clientWidth, canvas.clientHeight);
           }
           renderTree(surface, root, MATE_THEME);
-          if (snapshot.mode === "combat") combatScreen.drawBars(surface);
+          if (snapshot.mode === "combat") {
+            combatScreen.drawBars(surface);
+            // Triviador-style quiz accents (question-banner category strip + colour-framed answer
+            // tiles) — over the tiles' own chrome, so after renderTree.
+            combatScreen.drawFx(surface, snapshot.combat);
+          }
           surface.end();
           if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
         }
