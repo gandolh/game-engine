@@ -42,9 +42,44 @@ const FEED_HEIGHT = 220;
 /** Fixed width (px) of the panel (and thus the scroll viewport) — kept in sync with
  *  `observer-panel.ts`'s `LIST_WIDTH` (see its comment); the two stack (with `slate-billboard.ts`)
  *  in `right-column.ts`'s `align: "stretch"` column, so a mismatched width here would leave this
- *  panel's content narrower than its stretched chrome. Event lines are free-text sentences that
- *  can still run past this width regardless (pre-existing, not fixed by any single wrap width). */
-const FEED_WIDTH = 390;
+ *  panel's content narrower than its stretched chrome, or (if wider) re-widen the shared column. */
+const FEED_WIDTH = 340;
+
+/**
+ * Max characters per wrapped line, sized so a full line (`~9px` advance) fits inside
+ * {@link FEED_WIDTH}. Event lines are free-text sentences; `@engine/ui` labels neither auto-wrap
+ * nor clip, so a long sentence would paint straight past the panel background (the "panels exceed
+ * their box" report). {@link wrapLine} greedily word-wraps each line to this instead.
+ */
+const MAX_FEED_CHARS = 37;
+
+/**
+ * Greedy word-wrap `text` to {@link MAX_FEED_CHARS}-char lines, `\n`-joined (the bitmap font's
+ * native line break). Continuation lines are indented two spaces so a wrapped sentence reads as one
+ * entry. A single word longer than the limit is hard-split so it still can't overrun the box.
+ */
+function wrapLine(text: string): string {
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const indent = out.length === 0 ? "" : "  ";
+    const candidate = line === "" ? indent + word : `${line} ${word}`;
+    if (candidate.length <= MAX_FEED_CHARS) {
+      line = candidate;
+      continue;
+    }
+    if (line !== "") out.push(line);
+    // Hard-split a lone word that itself exceeds the limit.
+    let rest = out.length === 0 ? word : `  ${word}`;
+    while (rest.length > MAX_FEED_CHARS) {
+      out.push(rest.slice(0, MAX_FEED_CHARS));
+      rest = `  ${rest.slice(MAX_FEED_CHARS)}`;
+    }
+    line = rest;
+  }
+  if (line !== "") out.push(line);
+  return out.join("\n");
+}
 
 /** The retained event feed: its root node plus refresh() + wheel(). */
 export interface EventFeed {
@@ -64,7 +99,8 @@ export interface EventFeed {
 function lineText(row: EventFeedRow): string {
   const isHighDrama = (row.drama ?? 0) >= 0.7;
   const prefix = isHighDrama ? "★ " : "";
-  return `${prefix}Day ${row.day} — ${row.text}`;
+  // Word-wrapped to the box width so long sentences don't paint past the panel background.
+  return wrapLine(`${prefix}Day ${row.day} — ${row.text}`);
 }
 
 function lineColor(row: EventFeedRow): string {

@@ -46,12 +46,30 @@ const LIST_HEIGHT = 280;
 /**
  * Fixed width (px) of the panel (and thus the scroll viewport) — shared with `slate-billboard.ts`
  * and `event-feed.ts` (all three stack in `right-column.ts` and read as one consistent-width
- * column). Was 260, sized for the old 5px-glyph bitmap font; a multi-field row like
- * `farmerRowText`'s `"State: DELIBERATE  AP: 8/10 (penalty)"` line (38 chars) already nearly
- * filled 260px at that font's ~6px advance and overflows it outright at the authored UNSCII
- * font's 9px advance — bumped by the same ratio (`390 = 260 * 9/6`) so regular rows fit again.
+ * column). Was 390, which fit the widest possible single row line
+ * (`"State: DELIBERATE  AP: 100/100 (penalty)"`, ~40 chars ≈ 360px at the UNSCII 9px advance) but
+ * left the whole right column ~440px wide — too much of the screen (the "panels occupy too much
+ * space" / "farmers exceeds width" reports). Narrowed to 340 now that the row text is bounded to
+ * fit it: the state/AP field is split across two lines (neither approaches 340 on its own) and the
+ * open-ended lines (crop list, focus reason) are truncated to {@link MAX_ROW_CHARS} — see
+ * `farmerRowText`. The forecast (formerly one ~414px line that alone pinned the column wide) now
+ * wraps one entry per line (see `refresh`), so nothing outside the row list drives the width.
  */
-const LIST_WIDTH = 390;
+const LIST_WIDTH = 340;
+
+/**
+ * Max characters per row line, sized so a full-width line (`MAX_ROW_CHARS * ~9px` advance) fits
+ * inside {@link LIST_WIDTH} with a little right margin. `@engine/ui` labels neither wrap nor clip,
+ * so an over-long line would paint straight past the panel background — every open-ended line
+ * (crop summary, focus reason) is truncated to this. ASCII-only font (no `…`), so the marker is a
+ * plain ".." tail.
+ */
+const MAX_ROW_CHARS = 36;
+
+/** Hard-truncate `s` to {@link MAX_ROW_CHARS}, marking a cut with a trailing "..". */
+function clampLine(s: string): string {
+  return s.length <= MAX_ROW_CHARS ? s : `${s.slice(0, MAX_ROW_CHARS - 2)}..`;
+}
 
 /** Callbacks into the host's command path — mirrors the old DOM `setOnFarmerClick`. */
 export interface ObserverPanelActions {
@@ -85,7 +103,12 @@ function cropSummary(crops: ObserverSnapshot["farmers"][number]["crops"]): strin
   return parts.length > 0 ? parts.join(" ") : "-";
 }
 
-/** Compose one farmer's row text (multi-line; the `\n`-joined lines the bitmap font wraps natively). */
+/**
+ * Compose one farmer's row text (multi-line; the `\n`-joined lines the bitmap font wraps natively).
+ * Every line is bounded to {@link LIST_WIDTH}: the state/AP field is split across two lines (so the
+ * long `"DELIBERATE" + "100/100 (penalty)"` combination never lands on one over-wide line) and the
+ * open-ended lines (crop summary, focus reason) are {@link clampLine}-truncated.
+ */
 function farmerRowText(farmer: ObserverSnapshot["farmers"][number], focused: boolean): string {
   const gh = farmer.hasGreenhouse ? " [GH]" : "";
   const s = farmer.skills;
@@ -94,8 +117,9 @@ function farmerRowText(farmer: ObserverSnapshot["farmers"][number], focused: boo
     : `AP: ${farmer.apCurrent}/${farmer.apMax}`;
   const lines = [
     `${farmer.name} (${farmer.personality})`,
-    `Gold: ${farmer.gold}  Crops: ${cropSummary(farmer.crops)}`,
-    `State: ${farmer.fsm}  ${apText}`,
+    clampLine(`Gold: ${farmer.gold}  Crops: ${cropSummary(farmer.crops)}`),
+    `State: ${farmer.fsm}`,
+    apText,
     `Region: ${farmer.region}`,
     `Skills: Fa${s.farming} Fo${s.foraging} Fi${s.fishing} Mi${s.mining}${gh}`,
   ];
@@ -103,7 +127,9 @@ function farmerRowText(farmer: ObserverSnapshot["farmers"][number], focused: boo
     const current = farmer.currentIntention ?? "(idle)";
     const next = farmer.nextIntention ?? "(none)";
     const reasonLines = farmer.reasons.length > 0 ? farmer.reasons.join("; ") : "(no reason)";
-    lines.push(`Now: ${current} | Next: ${next} | ${reasonLines}`);
+    lines.push(clampLine(`Now: ${current}`));
+    lines.push(clampLine(`Next: ${next}`));
+    lines.push(clampLine(reasonLines));
   }
   return lines.join("\n");
 }
@@ -244,10 +270,16 @@ export function createObserverPanel(actions: ObserverPanelActions): ObserverPane
       weatherLbl,
       `Weather: ${snapshot.weather.condition} (x${snapshot.weather.multiplier.toFixed(2)})`,
     );
-    const forecastLines = snapshot.forecast
-      .map((f) => `${f.condition} ~${Math.round(f.confidence * 100)}%`)
-      .join(", ");
-    setText(forecastLbl, forecastLines.length > 0 ? `Forecast: ${forecastLines}` : "Forecast: -");
+    // One forecast entry per line (indented under a "Forecast:" heading). Was a single comma-joined
+    // line that, at ~46 chars, alone pinned the whole column ~414px wide; wrapping it keeps the
+    // column width driven only by the (bounded) farmer rows.
+    const forecastEntries = snapshot.forecast.map(
+      (f) => `  ${f.condition} ~${Math.round(f.confidence * 100)}%`,
+    );
+    setText(
+      forecastLbl,
+      forecastEntries.length > 0 ? `Forecast:\n${forecastEntries.join("\n")}` : "Forecast: -",
+    );
 
     const focused = focusedId !== null ? snapshot.farmers.find((f) => f.id === focusedId) : undefined;
     if (focusedId !== null && focused === undefined) {

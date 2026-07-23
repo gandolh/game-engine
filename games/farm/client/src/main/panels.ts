@@ -67,11 +67,12 @@ export interface Panels {
   playback: PlaybackControls;
   playbackRoot: UIRootHandle;
   helpRoot: UIRootHandle;
+  /** Relationship matrix + wealth graph/toggle — DOCKED inside `rightColumn` (they render + a11y
+   *  through its root), but kept here so the R/G hotkeys in the render loop can drive their own
+   *  collapse toggles. */
   relationshipMatrix: RelationshipMatrix;
-  relationshipRoot: UIRootHandle;
   wealthGraph: WealthGraph;
   wealthToggle: WealthToggle;
-  wealthRoot: UIRootHandle;
   /** Shared collapsible-panel open/closed store (observer/slate/events/relations/wealth). */
   panelPrefs: PanelPrefs;
   gameOverPanel: GameOverPanel;
@@ -138,7 +139,20 @@ export function buildPanels(
   const tooltip = createTooltip();
   const tooltipRoot = host.registerRoot({ getRoot: () => (tooltip.isVisible() ? tooltip.root : null) });
 
-  const rightColumn = createRightColumn({ onSelectFarmer: actions.onSelectFarmer }, panelPrefs);
+  // Relationship matrix + wealth graph/toggle are DOCKED inside the right column (user request:
+  // "put the relationship and wealth in that sidebar"), so they're built here FIRST and handed to
+  // `createRightColumn` as extras. They keep their own `Relations`/`Wealth` collapse toggles (the
+  // R/G hotkeys still drive them) and no longer register separate a11y roots — the right column's
+  // root mirror covers them.
+  const relationshipMatrix = createRelationshipMatrix(panelPrefs);
+  const wealthGraph = createWealthGraph();
+  const wealthToggle = createWealthToggle(panelPrefs);
+
+  const rightColumn = createRightColumn({ onSelectFarmer: actions.onSelectFarmer }, panelPrefs, {
+    relationshipMatrix,
+    wealthToggle,
+    wealthGraph,
+  });
   const rightColumnRoot = host.registerRoot({
     getRoot: () => rightColumn.root,
     a11yMount: mount("ui-a11y-right"),
@@ -174,21 +188,6 @@ export function buildPanels(
     getRoot: () => playback.getHelpRoot(),
     a11yMount: mount("ui-a11y-help"),
     a11yLabel: "How to play",
-  });
-
-  const relationshipMatrix = createRelationshipMatrix(panelPrefs);
-  const relationshipRoot = host.registerRoot({
-    getRoot: () => relationshipMatrix.root,
-    a11yMount: mount("ui-a11y-relationship"),
-    a11yLabel: "Relationships",
-  });
-
-  const wealthGraph = createWealthGraph();
-  const wealthToggle = createWealthToggle(panelPrefs);
-  const wealthRoot = host.registerRoot({
-    getRoot: () => wealthToggle.root,
-    a11yMount: mount("ui-a11y-wealth"),
-    a11yLabel: "Wealth graph",
   });
 
   const gameOverPanel = createGameOverPanel({ onShare: actions.onShare });
@@ -255,10 +254,8 @@ export function buildPanels(
     playbackRoot,
     helpRoot,
     relationshipMatrix,
-    relationshipRoot,
     wealthGraph,
     wealthToggle,
-    wealthRoot,
     panelPrefs,
     gameOverPanel,
     gameOverRoot,

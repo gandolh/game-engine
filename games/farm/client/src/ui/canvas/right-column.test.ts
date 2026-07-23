@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createRightColumn } from "./right-column";
-import type { RightColumnState } from "./right-column";
+import type { RightColumnState, RightColumnExtras } from "./right-column";
+import { createRelationshipMatrix } from "./relationship-matrix";
+import { createWealthGraph, createWealthToggle } from "./wealth-graph";
 import type { ObserverSnapshot } from "@farm/sim-core/snapshot";
-import type { ButtonNode } from "@engine/ui";
+import type { ButtonNode, UINode } from "@engine/ui";
 import type { PanelId, PanelPrefs } from "./panel-prefs";
 
 function makeSnapshot(): ObserverSnapshot {
@@ -20,7 +22,19 @@ function makeState(overrides: Partial<RightColumnState> = {}): RightColumnState 
     observer: makeSnapshot(),
     slate: [],
     events: [],
+    relationships: { farmers: [], trust: {} },
+    wealthSeries: [],
     ...overrides,
+  };
+}
+
+/** The docked Relations + Wealth panels the host builds and hands to the column. They share the
+ *  same `prefs` as the column (their own `relations`/`wealth` ids). */
+function makeExtras(prefs: PanelPrefs): RightColumnExtras {
+  return {
+    relationshipMatrix: createRelationshipMatrix(prefs),
+    wealthToggle: createWealthToggle(prefs),
+    wealthGraph: createWealthGraph(),
   };
 }
 
@@ -74,7 +88,7 @@ function masterButton(col: ReturnType<typeof createRightColumn>): ButtonNode {
 describe("createRightColumn", () => {
   it("defaults collapsed: root shows ONLY the master tab, no sub-sections", () => {
     const prefs = makeFakePrefs();
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
 
     expect(col.root.children.length).toBe(1);
     expect(masterButton(col).label).toBe("+ Panels");
@@ -84,29 +98,29 @@ describe("createRightColumn", () => {
 
   it("pressing the master tab flips the 'column' pref and reveals the section toggles", () => {
     const prefs = makeFakePrefs();
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
 
     masterButton(col).onActivate!();
 
     expect(prefs.toggleCalls).toContain("column");
     expect(masterButton(col).label).toBe("- Panels");
-    expect(toggleButtons(col).map((b) => b.label)).toEqual(["Farmers", "Shop", "Activity"]);
+    expect(toggleButtons(col).map((b) => b.label)).toEqual(["Farmers", "Shop", "Activity", "Relations"]);
   });
 
   it("with the column expanded, sections still default closed: toggles present, sub-panel roots absent", () => {
     const prefs = makeFakePrefs({ column: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
 
     const descendants = sectionChildren(col);
     expect(descendants).not.toContain(col.observerPanel.root);
     expect(descendants).not.toContain(col.slateBillboard.root);
     expect(descendants).not.toContain(col.eventFeed.root);
-    expect(toggleButtons(col).map((b) => b.label)).toEqual(["Farmers", "Shop", "Activity"]);
+    expect(toggleButtons(col).map((b) => b.label)).toEqual(["Farmers", "Shop", "Activity", "Relations"]);
   });
 
   it("toggleSection('slate') (column expanded) makes the slate panel's root appear in the tree", () => {
     const prefs = makeFakePrefs({ column: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
 
     col.toggleSection("slate");
 
@@ -115,7 +129,7 @@ describe("createRightColumn", () => {
 
   it("refresh() returns true right after ANY toggle even when sub-panel content is unchanged", () => {
     const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
 
     col.refresh(makeState()); // spend each sub-panel's own "first refresh" changed flag
     expect(col.refresh(makeState())).toBe(false); // settled: nothing changed anywhere
@@ -127,7 +141,7 @@ describe("createRightColumn", () => {
 
   it("while collapsed, refresh does NOT fan out to sub-panels and stays false when settled", () => {
     const prefs = makeFakePrefs({ observer: true, slate: true, events: true }); // sections open, column CLOSED
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
 
     // Even on the very first call — the sub-panels aren't in the tree, so their first-refresh
     // changed flags are never spent and never reported.
@@ -140,7 +154,7 @@ describe("createRightColumn", () => {
 
   it("pressing a section toggle button flips prefs via prefs.toggle and restructures the tree", () => {
     const prefs = makeFakePrefs({ column: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
 
     const shopBtn = toggleButtons(col).find((b) => b.label === "Shop");
     expect(shopBtn).toBeDefined();
@@ -152,14 +166,14 @@ describe("createRightColumn", () => {
 
   it("refresh fans out to every OPEN sub-panel and reports changed on first call", () => {
     const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
     const changed = col.refresh(makeState());
     expect(changed).toBe(true);
   });
 
   it("refresh returns false once nothing layout-affecting changed anywhere (all open)", () => {
     const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
     col.refresh(makeState());
     const again = col.refresh(makeState());
     expect(again).toBe(false);
@@ -167,7 +181,7 @@ describe("createRightColumn", () => {
 
   it("routes a wheel event to whichever OPEN sub-panel is under the pointer", () => {
     const prefs = makeFakePrefs({ column: true, observer: true, slate: true, events: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
     col.refresh(makeState());
 
     // Force known rects so hit-testing is deterministic in this unit test.
@@ -182,7 +196,7 @@ describe("createRightColumn", () => {
 
   it("wheel does NOT route to a collapsed sub-panel even over its stale last-laid-out rect", () => {
     const prefs = makeFakePrefs({ column: true }); // column open, all sections closed
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
     col.refresh(makeState());
 
     // Simulate a rect left over from before the panel collapsed (containsPoint alone would hit).
@@ -193,7 +207,7 @@ describe("createRightColumn", () => {
 
   it("wheel does NOT route while the WHOLE column is collapsed, even over an open section's rect", () => {
     const prefs = makeFakePrefs({ slate: true }); // slate 'open' but column CLOSED
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
     col.refresh(makeState());
 
     col.slateBillboard.root.rect = { x: 0, y: 50, width: 100, height: 50 };
@@ -203,12 +217,54 @@ describe("createRightColumn", () => {
 
   it("wheel still routes to an OPEN sub-panel under the pointer (column expanded)", () => {
     const prefs = makeFakePrefs({ column: true, slate: true });
-    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, makeExtras(prefs));
     col.refresh(makeState());
 
     col.slateBillboard.root.rect = { x: 0, y: 50, width: 100, height: 50 };
 
     expect(col.wheel(10, 60, 5)).toBe(true);
+  });
+
+  // --- Docked Relations + Wealth (moved out of the floating bottom-left panels) ---
+
+  it("docks the relationship matrix + wealth toggle into the expanded column", () => {
+    const prefs = makeFakePrefs({ column: true });
+    const extras = makeExtras(prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, extras);
+
+    const inner = innerSectionsBox(col);
+    expect(inner).toBeDefined();
+    // The matrix root sits directly in the sections stack (it carries its own Relations toggle);
+    // the wealth toggle's root lives inside the wealth section box.
+    expect(inner!.children).toContain(extras.relationshipMatrix.root);
+    const wealthSection = inner!.children.find((c) => (c.children as UINode[]).includes(extras.wealthToggle.root));
+    expect(wealthSection).toBeDefined();
+  });
+
+  it("shows the wealth chart in the wealth section only while the wealth toggle is open", () => {
+    const prefs = makeFakePrefs({ column: true, wealth: true });
+    const extras = makeExtras(prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, extras);
+    col.refresh(makeState());
+
+    const inner = innerSectionsBox(col)!;
+    const wealthSection = inner.children.find((c) => (c.children as UINode[]).includes(extras.wealthToggle.root))!;
+    expect(wealthSection.children).toContain(extras.wealthGraph.root);
+  });
+
+  it("refresh reports changed right after the wealth toggle flips (G hotkey / button)", () => {
+    const prefs = makeFakePrefs({ column: true });
+    const extras = makeExtras(prefs);
+    const col = createRightColumn({ onSelectFarmer: () => {} }, prefs, extras);
+    col.refresh(makeState());
+    expect(col.refresh(makeState())).toBe(false); // settled
+
+    extras.wealthToggle.toggleOpen(); // as the G hotkey would
+    expect(col.refresh(makeState())).toBe(true); // toggle picked up
+    // ...and the chart is now docked in the wealth section.
+    const inner = innerSectionsBox(col)!;
+    const wealthSection = inner.children.find((c) => (c.children as UINode[]).includes(extras.wealthToggle.root))!;
+    expect(wealthSection.children).toContain(extras.wealthGraph.root);
   });
 
 });

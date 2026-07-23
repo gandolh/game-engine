@@ -51,8 +51,9 @@ export type SlateEntry = Pick<ShopOffer, "offerId" | "crop" | "unitPrice" | "qua
 const LIST_HEIGHT = 250;
 /** Fixed width (px) of the panel (and thus the scroll viewport) — kept in sync with
  *  `observer-panel.ts`'s `LIST_WIDTH` (see its comment); the two stack in `right-column.ts`
- *  and read as one consistent-width column. */
-const LIST_WIDTH = 390;
+ *  and read as one consistent-width column, so both must narrow together or the wider one
+ *  re-widens the shared column. */
+const LIST_WIDTH = 340;
 /** Icon square size (px), matches the DOM slate's 22px icon. */
 const ICON_SIZE = 22;
 /** Reserved icon column width (px) — the row's info block starts after this. */

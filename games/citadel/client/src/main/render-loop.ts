@@ -500,17 +500,20 @@ export function loop(): void {
       renderTree(uiSurface, chip.node, CITADEL_THEME);
     }
 
-    // Minimap (top-right): drawn IN-CANVAS via raw UISurface quads (terrain + entity specks +
-    // camera viewport). Anchored 8px from the top-right corner. Reads snapshots + the camera
-    // transform only (render-only).
+    // Minimap (top-right): raw UISurface quads (terrain + entity specks + camera viewport), now
+    // folded into the widget tree as a custom escape-hatch node — laid out at the top-right origin
+    // and rendered like every other panel. Reads snapshots + the camera transform only (render-only).
+    // Clicks are routed separately to minimap.trySeek in input.ts with this same origin.
     if (minimap !== null) {
       const mx = canvas.clientWidth - MINIMAP_FACE - 8;
-      minimap.draw(uiSurface, mx, 8, {
+      minimap.setFrame({
         buildings: currentBuildings,
         villagers: currentVillagers,
         raiders: currentRaiders,
         transform: transformOf(camera, canvas.width, canvas.height),
       });
+      computeLayout(minimap.node(), mx, 8);
+      renderTree(uiSurface, minimap.node(), CITADEL_THEME);
     }
 
     // Event toasts: a top-CENTRE in-canvas UI root (toast.ts), rendered after the badges/minimap

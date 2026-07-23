@@ -1,5 +1,4 @@
 import { layoutText } from "../text/layout";
-import { measureText } from "../text/layout";
 import { ICON_SIZE } from "../icon/icons";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
@@ -64,8 +63,14 @@ function paddingOf(node: UINode, theme: Theme): Padding {
  */
 function textSize(text: string, scale: number, maxWidth?: number): Intrinsic {
   if (maxWidth === undefined) {
+    // `layoutText` splits on explicit `\n`; its `width` is the WIDEST resulting line and its
+    // `height` covers every line. A multi-line label/button (e.g. an observer farmer row, or the
+    // wrapped weather forecast) must be measured by that per-line width — NOT `measureText`, which
+    // ignores `\n` and counts the whole string as one line, inflating a 6-line row to ~6× its true
+    // width and dragging the whole panel wider (the "Farmers panel exceeds width" report). Height
+    // already used `layoutText`; this makes width agree.
     const l = layoutText(text, { scale });
-    return { width: measureText(text, { scale }), height: l.height };
+    return { width: l.width, height: l.height };
   }
   // Wrapped: `TextLayout.width` is already the widest resulting LINE, so the box takes the
   // wrapped width (never more than maxWidth) and grows in height instead.
