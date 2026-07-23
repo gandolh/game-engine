@@ -1,6 +1,6 @@
 ---
-summary: The shared in-canvas UI toolkit (@engine/ui) — the UNSCII text stack, the palette-agnostic icon pipeline, the widget vocabulary, and the layout traps that bite when text metrics change.
-updated: 2026-07-14
+summary: The shared in-canvas UI toolkit (@engine/ui) — the UNSCII text stack, the palette-agnostic icon pipeline, the widget vocabulary, the custom-draw escape hatch, and the layout traps that bite when text metrics change.
+updated: 2026-07-23
 ---
 
 # @engine/ui — the in-canvas UI toolkit
@@ -81,9 +81,19 @@ bugs, and **not one was caught by a unit test** — every one needed a browser. 
    sprite over an empty `label("")` — one text line tall — so the art spilled onto the item's own
    caption. A node that a sprite is painted over must reserve the **sprite's** box.
 
+5. **A multi-line label/button measured as one giant line.** `layout.ts` `textSize()` once measured
+   WIDTH with `measureText` (which counts `\n` as a glyph — the whole string as a single line) while
+   measuring HEIGHT with `layoutText`. So an N-line label/button (e.g. a 6-line observer farmer row,
+   or the wrapped weather forecast) measured ~N× too wide, and `align:"stretch"` dragged its whole
+   column wider (the "Farmers panel exceeds width" report — the right column probed at 485px vs a
+   ~374px fix). Fixed 2026-07-23: width now uses `layoutText(text).width` (the widest resulting line).
+   Lesson: any node whose intrinsic size comes from text with `\n` must measure per-line, not with
+   `measureText` (which is single-line by contract — see its doc).
+
 **Labels do not wrap unless you ask them to.** `label(text, { maxWidth })` wraps; without it a label
 is one unwrapped line that will run straight off a fixed-width panel. Any label carrying dynamic,
-sim-authored text inside a pinned-width panel needs `maxWidth`.
+sim-authored text inside a pinned-width panel needs `maxWidth` — OR pre-wrap/pre-truncate the string
+yourself with explicit `\n` (what the observer/event-feed rows do), which now measures correctly.
 
 ## Accessibility
 
@@ -91,7 +101,21 @@ An icon-only button still passes its **text label** as the accessible name — t
 ([src/a11y/mirror.ts](../../engine/ui/src/a11y/mirror.ts)) always mirrors text, never icons. Do not
 "optimise away" a button's label because the icon replaced it visually.
 
+## Custom-draw escape hatch (all raw-draw folded into the tree)
+
+`custom(draw, layout)` ([src/widget/node.ts](../../engine/ui/src/widget/node.ts)) is a
+layout-participating, non-interactive leaf whose `draw(surface, rect, alpha)` runs during
+`renderTree` in tree order under inherited opacity — the escape hatch for raw-quad/sprite draws that
+have no widget kind. Paired with `LayoutProps.overlay` (an out-of-flow child that fills its parent's
+inner box without shifting siblings) it also folds *on-top* passes into a panel's subtree. As of
+2026-07-23 all six one-time raw-draw sites are folded: `wealth-graph`, and via overlay nodes
+`slate-billboard`/`hotbar`/`inventory`; plus `pip-farm-marker` (Farm, `createPipFarmMarker()` — draws
+absolute screen-space, rect vestigial) and Citadel `minimap` (`node()`/`setFrame()` — draws at its
+laid-out rect origin; clicks stay separate via `trySeek`, since a custom node is non-interactive).
+There is no longer any bespoke `drawX(surface, …)` pass beside `renderTree` in either render loop.
+
 ## Known gap
 
-Citadel's `inspect-panel` wraps now, but **`villager-panel.ts` (`width: 200`) has not been audited**
-for the wider font. Nothing is known-broken; it simply wasn't in scope.
+`villager-panel.ts` was audited + fixed (`width: 200`→`288`) for the wider font on 2026-07-22.
+No known text-metric gaps remain; the grid/tabular layout (backlog item 2) is still unbuilt (no
+panel demands it yet).

@@ -1,31 +1,42 @@
 # engine-ui — incremental improvements (not a rewrite)
 
-Status: in progress (captured 2026-07-22; item 1 foundation shipped + item 3 done, 2026-07-22)
+Status: in progress (item 1 COMPLETE — all 6 consumers folded, 2026-07-23; item 3 done; item 2 deferred)
 
-## Progress (2026-07-22)
+## Progress (2026-07-23) — Farmers width fix + last two folds + Relations/Wealth docking
 
-- **Item 1 — SHIPPED (foundation + overlay + 4 consumers).** Added a `custom` node kind to
-  `@engine/ui` ([widget/node.ts](../../engine/ui/src/widget/node.ts) `custom()`/`CustomNode`): a
-  layout-participating leaf whose `draw(surface, rect, alpha)` runs during `renderTree` in tree
-  order + under inherited opacity. Non-interactive (hit-test pass-through via `isHittable`; inert
-  in the a11y mirror alongside `icon`). **Also added `LayoutProps.overlay`** ([layout/props.ts](../../engine/ui/src/layout/props.ts),
-  [layout/layout.ts](../../engine/ui/src/layout/layout.ts)): an out-of-flow child that fills its
-  parent's inner box without consuming a slot/gap or shifting siblings — the missing piece that lets
-  an on-top overlay fold into a panel's tree instead of a separate post-`renderTree` pass. Tests:
-  [widget/custom.test.ts](../../engine/ui/src/widget/custom.test.ts).
-  **Consumers folded in:** `wealth-graph.ts` (standalone `custom` node), and — via overlay custom
-  nodes appended to their panels — `slate-billboard.ts` (crop icons + stock-bar fills), `hotbar.ts`
-  (slot icons + selected border + drag ghost), `inventory.ts` (icons + border + ghost). The
-  per-panel `drawIcons`/`drawGhost` methods + the host's separate draw passes are gone. All verified
-  in a real browser.
-  **Intentionally NOT folded:** `minimap.ts` is an *interactive* `CitadelMinimap` (click-to-recenter
-  via `onSeek`) — a `custom` node is pass-through, so folding it needs its click wiring preserved
-  separately; deferred. `pip-farm-marker.ts` is a world-space screen overlay drawn as its own pass;
-  a `custom` node's rect would be vestigial (draw uses the camera), so a fold is pure ceremony — left
-  as-is.
-- **Item 3 — DONE.** `villager-panel.ts` fixed width `200`→`288`: the scale-2 `jobLbl`
-  ("Job: Woodcutter" ≈ 268px) overran 200 at the wider UNSCII font and spilled past the panel bg
-  (containers don't clip). All other rows are scale-1 and fit easily.
+- **Multi-line label/button width bug (engine-level, load-bearing) — FIXED.**
+  [layout/layout.ts](../../engine/ui/src/layout/layout.ts) `textSize()` measured a multi-line
+  label/button's WIDTH with `measureText` (which counts `\n` as a glyph and treats the whole string
+  as one line), while measuring HEIGHT correctly via `layoutText`. So an N-line row (e.g. a 6-line
+  observer farmer row) was measured ~N× too wide, dragging its panel — and the whole right column,
+  via `align:"stretch"` — far wider than its content ("Farmers panel exceeds width" report). Now
+  width uses `layoutText(text).width` (the widest resulting LINE). One line; affects every multi-line
+  label/button in both games (all correct-direction: narrower). All UI suites green.
+- **Farmers panel bounded + narrowed.** With the engine fix in place: the weather forecast now wraps
+  one entry per line, the farmer row's State/AP field is split across two lines (so the longest single
+  line — `DELIBERATE` + `100/100 (penalty)` — no longer lands together), and open-ended lines (crop
+  list, focus reason) are truncated. `LIST_WIDTH` 390→340 in `observer-panel.ts` +
+  `slate-billboard.ts` + `event-feed.ts` (all three share the stacked column, so they must narrow
+  together); event lines are now word-wrapped to the box. Right column measured 485px→374px in-browser.
+- **Item 1 — now COMPLETE: the last two consumers folded (the ones previously left as ceremony/blocked).**
+  - `pip-farm-marker.ts` → `createPipFarmMarker()` returns a `custom` node; `setFrame(camera,canvas,zoom,nowMs)`
+    binds the frame, the node draws in absolute screen-space (rect vestigial), host does
+    `computeLayout`+`renderTree`. The bespoke `drawPipFarmMarker(...)` pass in the Farm render loop is gone.
+    Verified in-browser (marker shows zoomed-out).
+  - `minimap.ts` (`CitadelMinimap`) → `node()`/`setFrame()`: the raw-quad draw folds into a face-sized
+    `custom` node (draws at its laid-out rect origin). Interactivity stays separate — the host still
+    routes clicks to `trySeek(x,y,originX,originY)` with the SAME top-right origin (a `custom` node is
+    non-interactive). Verified in-browser: minimap renders AND click-to-recenter still works.
+  - (Earlier consumers: `wealth-graph.ts`, and overlay nodes in `slate-billboard.ts`/`hotbar.ts`/`inventory.ts`.)
+  So **all 6 files named in the backlog below are now folded**; the "last real by-hand pixel math" is gone.
+- **Relations + Wealth docked into the right column (user request).** They were floating bottom-left
+  panels; now they're two more sections in the `Panels` sidebar ([right-column.ts](../../games/farm/client/src/ui/canvas/right-column.ts)
+  `RightColumnExtras`), built in `panels.ts` and handed in. They keep their OWN `Relations`/`Wealth`
+  collapse toggles (same tab styling; R/G hotkeys still drive them); their separate a11y roots +
+  bottom-left render/anchor passes in the Farm render loop are removed (they render + a11y through the
+  column root). Trade-off: opening the 21×21 matrix widens the (collapsible, default-closed) column —
+  inherent to the grid. Verified in-browser (docked, flush tabs, chart renders, bottom-left clean).
+- **Item 3 — DONE.** `villager-panel.ts` fixed width `200`→`288` (scale-2 `jobLbl` overran).
 - **Item 2 — still deferred** (no panel demands grid yet).
 
 ## Intent

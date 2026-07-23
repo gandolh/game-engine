@@ -4,6 +4,31 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | Farm UI — Farmers width fix (engine multi-line measure bug) + last two custom-node folds + Relations/Wealth docked
+
+Continuation of the 2026-07-22 engine-ui polish (see `todos/2026-07-22-engine-ui-improvements.md`).
+Browser-driven (Playwright), all UI suites green (`@engine/ui` 171, `@farm/client` 252, `@citadel/client` 549),
+full typecheck clean.
+- **Root-caused the "Farmers panel exceeds width" report to an engine-level bug.** `@engine/ui`
+  `layout.ts` `textSize()` measured a multi-line label/button's WIDTH with `measureText` (counts `\n`
+  as a glyph → whole string as one line) while measuring HEIGHT correctly via `layoutText`. A 6-line
+  farmer row measured ~6× too wide; `align:"stretch"` propagated that to the whole right column (probed
+  in-browser: 485px). Fixed to `layoutText(text).width` (widest line). One line, blast radius = every
+  multi-line label/button in both games, all in the correct (narrower) direction.
+- **Farmers panel bounded.** Forecast wraps per-entry; row State/AP split across two lines; open-ended
+  lines (crops, focus reason) truncated; `LIST_WIDTH` 390→340 across observer/slate/event-feed (shared
+  column); event lines word-wrapped. Column 485px→374px in-browser.
+- **engine-ui backlog item 1 now COMPLETE — folded the last two consumers** previously left as
+  ceremony/blocked: `pip-farm-marker.ts` (`createPipFarmMarker()` → `custom` node + `setFrame`;
+  absolute screen-space draw, vestigial rect) and Citadel `minimap.ts` (`node()`/`setFrame()`; draws at
+  its laid-out rect origin, clicks still routed to `trySeek` with the same origin — a custom node is
+  non-interactive). Both verified in-browser (pip marker zoomed-out; minimap renders + click-recenter).
+  All 6 backlog files are now inside the widget tree.
+- **Relations + Wealth docked into the `Panels` sidebar** (user request): two more sections in
+  `right-column.ts` (`RightColumnExtras`), keeping their own `Relations`/`Wealth` toggles (R/G hotkeys
+  intact); removed their floating bottom-left render/anchor passes + separate a11y roots. Verified
+  docked in-browser; bottom-left now clean.
+
 ## [2026-07-21] build | Hollow — hollow-15 "Mortality & Care" COMPLETE (starvation death · corpses · graveyard/grave-digger · disease · medic)
 
 Death now has consequences + a care economy (design-of-record + decisions in
