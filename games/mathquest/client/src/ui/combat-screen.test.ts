@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
 import { NO_LIFELINES, STARTING_LIFELINES, type CombatSnapshot, type LifelineCharges, type ProblemView } from "@mathquest/sim-core";
 import { createCombatScreen, type CombatScreenActions } from "./combat-screen";
-import { STRINGS } from "../strings";
+import { STRINGS_EN, STRINGS_RO as STRINGS, type Strings } from "../strings";
 
 /** Every `screen.refresh` call below defaults to the full starting kit unless a test overrides it
  * — mirrors a fresh run's `RunView.lifelines` (M4b). */
@@ -59,7 +59,7 @@ interface Calls {
   restart: number;
 }
 
-function makeScreen(): { screen: ReturnType<typeof createCombatScreen>; calls: Calls } {
+function makeScreen(strings: Strings = STRINGS): { screen: ReturnType<typeof createCombatScreen>; calls: Calls } {
   const calls: Calls = {
     chooseAction: [],
     digits: [],
@@ -88,7 +88,7 @@ function makeScreen(): { screen: ReturnType<typeof createCombatScreen>; calls: C
       calls.restart++;
     },
   };
-  return { screen: createCombatScreen(actions), calls };
+  return { screen: createCombatScreen(actions, strings), calls };
 }
 
 describe("createCombatScreen — action menu / banner (unchanged M1 shapes)", () => {
@@ -414,5 +414,37 @@ describe("createCombatScreen — M4b 50-50 choice rendering", () => {
     expect(byLabel(screen.root, ">").state).toBe("normal");
     expect(byLabel(screen.root, "=").state).toBe("normal");
     expect(byLabel(screen.root, "<").state).toBe("normal");
+  });
+});
+
+// =================================================================================================
+// M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) — the screen reads whatever
+// `Strings` it was CONSTRUCTED with, never a hardcoded import.
+// =================================================================================================
+
+describe("createCombatScreen — M5 slice 2 locale (constructed with STRINGS_EN)", () => {
+  it("action buttons + banner + teach card read STRINGS_EN, not the RO bundle", () => {
+    const { screen } = makeScreen(STRINGS_EN);
+    screen.refresh(baseSnapshot({ phase: "await_action" }), "", DEFAULT_LIFELINES);
+    const btnLabels = buttons(screen.root).map((b) => b.label);
+    expect(btnLabels).toEqual(expect.arrayContaining([STRINGS_EN.actionLabel.attack, STRINGS_EN.actionLabel.heal, STRINGS_EN.actionLabel.shield]));
+    expect(btnLabels).not.toContain(STRINGS.actionLabel.attack);
+
+    screen.refresh(baseSnapshot({ phase: "won" }), "", DEFAULT_LIFELINES);
+    expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS_EN.won);
+    expect(labels(screen.root).map((l) => l.text)).not.toContain(STRINGS.won);
+  });
+
+  it("heroName is the SAME folklore proper name regardless of which Strings bundle it was built with", () => {
+    const { screen } = makeScreen(STRINGS_EN);
+    screen.refresh(baseSnapshot(), "", DEFAULT_LIFELINES);
+    expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS_EN.heroName);
+    expect(STRINGS_EN.heroName).toBe(STRINGS.heroName); // "Făt-Frumos" either way
+  });
+
+  it("a screen built with STRINGS_RO never shows an EN-only label", () => {
+    const { screen } = makeScreen(STRINGS);
+    screen.refresh(baseSnapshot({ phase: "await_action" }), "", DEFAULT_LIFELINES);
+    expect(buttons(screen.root).map((b) => b.label)).not.toContain(STRINGS_EN.actionLabel.attack);
   });
 });

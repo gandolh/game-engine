@@ -8,6 +8,7 @@ import { createRng } from "@engine/core";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
 import { EMPTY_MASTERY_STORE, generateMap, STARTING_LIFELINES, type RunView } from "@mathquest/sim-core";
 import { createRunOverScreen, type RunOverScreenActions } from "./run-over-screen";
+import { STRINGS_EN, STRINGS_RO } from "../strings";
 
 function walk(node: UINode, out: UINode[] = []): UINode[] {
   out.push(node);
@@ -57,7 +58,7 @@ describe("createRunOverScreen", () => {
   it("run_won builds the 'Ai învins!' banner + a New run button", () => {
     let calls = 0;
     const actions: RunOverScreenActions = { newRun: () => calls++ };
-    const screen = createRunOverScreen(actions);
+    const screen = createRunOverScreen(actions, STRINGS_RO);
     screen.refresh("run_won", testRun());
     expect(labels(screen.root).map((l) => l.text)).toContain("Ai învins!");
     byLabel(screen.root, "Rulare nouă").onActivate?.();
@@ -66,7 +67,7 @@ describe("createRunOverScreen", () => {
 
   it("run_lost builds the 'Ai pierdut' banner + a New run button", () => {
     const actions: RunOverScreenActions = { newRun: () => {} };
-    const screen = createRunOverScreen(actions);
+    const screen = createRunOverScreen(actions, STRINGS_RO);
     screen.refresh("run_lost", testRun());
     expect(labels(screen.root).map((l) => l.text)).toContain("Ai pierdut");
     expect(() => byLabel(screen.root, "Rulare nouă")).not.toThrow();
@@ -74,14 +75,14 @@ describe("createRunOverScreen", () => {
 
   it("shows a summary line with the visited count and final HP", () => {
     const actions: RunOverScreenActions = { newRun: () => {} };
-    const screen = createRunOverScreen(actions);
+    const screen = createRunOverScreen(actions, STRINGS_RO);
     screen.refresh("run_lost", testRun({ visitedIds: [0, 1, 2], warriorHp: 0, warriorMaxHp: 30 }));
     expect(labels(screen.root).map((l) => l.text).some((t) => t.includes("3") && t.includes("0/30"))).toBe(true);
   });
 
   it("refresh() reports true on first call, false when nothing changed, true when the mode flips", () => {
     const actions: RunOverScreenActions = { newRun: () => {} };
-    const screen = createRunOverScreen(actions);
+    const screen = createRunOverScreen(actions, STRINGS_RO);
     const run = testRun();
     expect(screen.refresh("run_won", run)).toBe(true);
     expect(screen.refresh("run_won", run)).toBe(false);
@@ -91,7 +92,7 @@ describe("createRunOverScreen", () => {
   // M4c: mastery readout (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md).
   it("shows one line per topic with its correct/attempts and tier — e.g. Adunare: 12/15 · Nivel 2", () => {
     const actions: RunOverScreenActions = { newRun: () => {} };
-    const screen = createRunOverScreen(actions);
+    const screen = createRunOverScreen(actions, STRINGS_RO);
     const run = testRun({
       mastery: {
         ...EMPTY_MASTERY_STORE,
@@ -105,8 +106,8 @@ describe("createRunOverScreen", () => {
 
   it("the mastery readout is IDENTICAL on run_lost as run_won for the SAME store (mastery survives death)", () => {
     const actions: RunOverScreenActions = { newRun: () => {} };
-    const wonScreen = createRunOverScreen(actions);
-    const lostScreen = createRunOverScreen(actions);
+    const wonScreen = createRunOverScreen(actions, STRINGS_RO);
+    const lostScreen = createRunOverScreen(actions, STRINGS_RO);
     const run = testRun({
       mastery: {
         ...EMPTY_MASTERY_STORE,
@@ -119,5 +120,36 @@ describe("createRunOverScreen", () => {
       labels(root).map((l) => l.text).find((t) => t.includes("Comparare"));
     expect(masteryLine(wonScreen.root)).toBe(masteryLine(lostScreen.root));
     expect(masteryLine(wonScreen.root)).toContain("20/25");
+  });
+});
+
+// =================================================================================================
+// M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) — constructed with STRINGS_EN.
+// =================================================================================================
+
+describe("createRunOverScreen — M5 slice 2 locale (constructed with STRINGS_EN)", () => {
+  it("run_won builds the EN 'You won!' banner + an EN 'New run' button, never the RO text", () => {
+    const actions: RunOverScreenActions = { newRun: () => {} };
+    const screen = createRunOverScreen(actions, STRINGS_EN);
+    screen.refresh("run_won", testRun());
+    const text = labels(screen.root).map((l) => l.text);
+    expect(text).toContain("You won!");
+    expect(text).not.toContain("Ai învins!");
+    expect(() => byLabel(screen.root, "New run")).not.toThrow();
+  });
+
+  it("the EN mastery readout uses topicName.addition ('Addition'), not the RO 'Adunare'", () => {
+    const actions: RunOverScreenActions = { newRun: () => {} };
+    const screen = createRunOverScreen(actions, STRINGS_EN);
+    const run = testRun({
+      mastery: {
+        ...EMPTY_MASTERY_STORE,
+        topics: { ...EMPTY_MASTERY_STORE.topics, addition: { correct: 12, attempts: 15 } },
+      },
+    });
+    screen.refresh("run_won", run);
+    const text = labels(screen.root).map((l) => l.text);
+    expect(text.some((t) => t.includes("Addition") && t.includes("12/15"))).toBe(true);
+    expect(text.some((t) => t.includes("Adunare"))).toBe(false);
   });
 });

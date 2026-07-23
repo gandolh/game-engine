@@ -9,6 +9,13 @@ export {
 } from "./sim-bootstrap";
 
 export {
+  DEFAULT_LOCALE,
+  LOCALE_STORAGE_KEY,
+  parseLocale,
+  type Locale,
+} from "./i18n";
+
+export {
   describeUpgrade,
   offerUpgrades,
   xpForSolve,

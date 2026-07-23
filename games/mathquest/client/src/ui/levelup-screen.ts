@@ -4,12 +4,19 @@
  * text straight from the sim's `UpgradeOffer` — see `run/progression.ts`'s `describeUpgrade`), one
  * per `chooseLevelUp` index. A retained `@engine/ui` tree built ONCE (`createLevelUpScreen`),
  * mirroring `run-over-screen.ts`'s build-once + per-frame `refresh()` shape.
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) adds `createLevelUpScreen`'s
+ * `strings` param for this screen's OWN chrome (the banner title) — rebuilt on a locale toggle,
+ * like every other widget screen (see `strings.ts`'s module doc). `UpgradeOffer.label`/`.desc`
+ * are display-ready RO text straight from `run/progression.ts` (out of this slice's scope — the
+ * brief's locked file list localizes generator prompts/teach text + enemy name/title only; upgrade
+ * offer text stays RO in both locales until a future slice widens the sim-emitted-text seam).
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";
 import type { UpgradeOffer } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
-import { STRINGS } from "../strings";
+import type { Strings } from "../strings";
 
 /** The sim always calls `offerUpgrades` with its default `count` (2) — see `sim-bootstrap.ts`'s
  * `proceed()`. Fixed slot count mirrors `combat-screen.ts`'s `CHOICE_SLOTS` convention. */
@@ -42,8 +49,8 @@ function makeOfferCard(index: number, actions: LevelUpScreenActions): OfferCard 
   return { card, btn, descLbl };
 }
 
-export function createLevelUpScreen(actions: LevelUpScreenActions): LevelUpScreen {
-  const titleLbl = label(STRINGS.levelUpTitle, { color: MATE_PAL.gold, scale: 3 });
+export function createLevelUpScreen(actions: LevelUpScreenActions, strings: Strings): LevelUpScreen {
+  const titleLbl = label(strings.levelUpTitle, { color: MATE_PAL.gold, scale: 3 });
   const cards: readonly OfferCard[] = Array.from({ length: OFFER_SLOTS }, (_, i) => makeOfferCard(i, actions));
   const offerRow = box({ direction: "row", gap: 16 }, cards.map((c) => c.card));
   const root = panel({ direction: "column", gap: 16, align: "center", padding: 24 }, [titleLbl, offerRow]);

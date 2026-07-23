@@ -47,11 +47,21 @@
  * loss). **This module never touches `localStorage`/DOM** — the sim runs in a Web Worker, which
  * has no such access; persistence is owned entirely by the main thread (`client/src/main.ts`),
  * which reads/writes `localStorage` and only ever hands this module a plain `MasteryStore` value.
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) adds `MathquestSimOptions.locale`
+ * (default `"ro"`, see `./i18n`) — the LOCKED architecture is "the sim is locale-aware via an init
+ * option", exactly like `seed`/`mastery`. `locale` is captured ONCE into this closure's state (never
+ * changes during a run — the client re-inits the WHOLE sim to switch languages, see `./i18n`'s
+ * module doc) and threaded to the two places this module produces user-facing text:
+ * `enemyFor(node.type, node.zone, locale)` in `chooseNode`, and `createCombat({..., locale})`
+ * (which forwards it to the generators). Adds NO new fork — `locale` only changes which WORDS a
+ * generator/`enemyFor` emits, never an `Rng` draw (determinism — root CLAUDE.md, `./i18n`'s doc).
  */
 import { World, Scheduler, createRng, type Rng, type System, type SimContext } from "@engine/core";
 import { createCombat, type Combat } from "./combat/combat";
 import { WARRIOR_MAX_HP } from "./combat/constants";
 import type { AnswerResponse, CombatAction, CombatSnapshot } from "./combat/types";
+import { DEFAULT_LOCALE, type Locale } from "./i18n";
 import { enemyFor } from "./run/enemies";
 import { generateMap, type MapNode, type NodeType, type RunMap } from "./run/map";
 import { REST_HEAL } from "./run/constants";
@@ -101,6 +111,8 @@ export type { LifelineCharges, LifelineKind } from "./run/lifelines";
 export type { MasteryStore, TopicMastery } from "./run/mastery";
 export { MASTERY_STORAGE_KEY, parseMasteryStore, EMPTY_MASTERY_STORE } from "./run/mastery";
 export type { StatBonuses, UpgradeKind, UpgradeOffer } from "./run/progression";
+export type { Locale } from "./i18n";
+export { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, parseLocale } from "./i18n";
 
 /**
  * MateQuest's entity shape. No entities are spawned yet (the run/combat model is plain
@@ -120,6 +132,11 @@ export interface MathquestSimOptions {
    * `localStorage`, see `run/mastery.ts`'s module doc) — the sim itself never touches storage.
    * Defaults to `EMPTY_MASTERY_STORE` so every pre-M4c call site/test stays byte-identical. */
   mastery?: MasteryStore;
+  /** M5 slice 2: which language every generated `prompt`/`teach`/enemy `name`/`title` is formatted
+   * in — ferried in by the main thread (read from `localStorage`, see `./i18n`'s module doc).
+   * Defaults to `"ro"` so every pre-slice-2 call site/test stays byte-identical. Fixed for the
+   * WHOLE run (toggling it re-inits the sim — see `./i18n`'s module doc). */
+  locale?: Locale;
 }
 
 /** The run's current top-level mode (M3 brief, Part A3/A4; M4a adds `"level_up"`/`"loot"`, both
@@ -251,6 +268,10 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
   // rollLoot call (the blueprint-widened pool); written by resolveCombatIfOver on every fight end.
   let masteryStore: MasteryStore = opts.mastery ?? EMPTY_MASTERY_STORE;
 
+  // M5 slice 2: fixed for the WHOLE run (a locale change re-inits the sim — see ./i18n's module
+  // doc) — never reassigned, unlike the other `let`s below that reset on `newRun()`.
+  const locale: Locale = opts.locale ?? DEFAULT_LOCALE;
+
   let runCount = 0;
   let map: RunMap = generateMap(rng.fork("map"), { eliteUnlocked: overallMasteryTier(masteryStore) >= ELITE_UNLOCK_TIER });
   let currentId: number | null = null;
@@ -315,9 +336,11 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       warriorHp,
       warriorMaxHp: maxHp(),
       // M5 folklore theming: the same stats as ENEMY_ARCHETYPES[node.type], zone-flavored
-      // name/title only (see run/enemies.ts's enemyFor) — a pure function of (type, zone), no fork.
-      enemy: enemyFor(node.type, node.zone),
+      // name/title only (see run/enemies.ts's enemyFor) — a pure function of (type, zone, locale),
+      // no fork. M5 slice 2 adds `locale` (the run's own, fixed — see the module doc).
+      enemy: enemyFor(node.type, node.zone, locale),
       mods: stats,
+      locale,
     });
     mode = "combat";
   }
@@ -496,7 +519,7 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       xp,
       xpToNext: xpToNext(level),
       stats,
-      inventory: inventory.map(toItemView),
+      inventory: inventory.map((it) => toItemView(it, locale)),
       lifelines: { ...lifelines },
       mastery: masteryStore,
     };
@@ -508,11 +531,11 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       case "level_up":
         // Invariant: mode is "level_up" iff levelUpOffers is non-null (set together in `proceed`,
         // cleared together in `chooseLevelUp`).
-        return { mode: "level_up", run, offers: levelUpOffers!.map(describeUpgrade) };
+        return { mode: "level_up", run, offers: levelUpOffers!.map((k) => describeUpgrade(k, locale)) };
       case "loot":
         // Invariant: mode is "loot" iff lootOffers is non-null (set together in `proceed`,
         // cleared together in `chooseLoot`).
-        return { mode: "loot", run, offers: lootOffers!.map(toItemView) };
+        return { mode: "loot", run, offers: lootOffers!.map((it) => toItemView(it, locale)) };
       case "map":
         return { mode: "map", run };
       case "run_won":

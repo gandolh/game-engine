@@ -136,6 +136,81 @@ describe("multiplication ranges per grade", () => {
   });
 });
 
+// =================================================================================================
+// M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) — locale localizes WORDS only.
+// =================================================================================================
+
+describe("GENERATORS — locale localizes words only, never numbers/rng consumption", () => {
+  it("omitting locale is byte-identical to explicitly passing 'ro' (default), for every topic", () => {
+    for (const grade of GRADES) {
+      for (const topic of TOPICS_FOR_GRADE[grade]) {
+        const withoutLocale = GENERATORS[topic](createRng(42), grade);
+        const withRo = GENERATORS[topic](createRng(42), grade, "ro");
+        expect(withoutLocale).toEqual(withRo);
+      }
+    }
+  });
+
+  it("the SAME seed under 'ro' vs 'en' draws the IDENTICAL operands/answer/answerIndex, only the words differ", () => {
+    for (const grade of GRADES) {
+      for (const topic of TOPICS_FOR_GRADE[grade]) {
+        const ro = GENERATORS[topic](createRng(7000 + grade), grade, "ro");
+        const en = GENERATORS[topic](createRng(7000 + grade), grade, "en");
+
+        // Same numbers embedded in the prompt (operands are drawn BEFORE locale ever formats text).
+        expect(numbersIn(en.prompt)).toEqual(numbersIn(ro.prompt));
+
+        if (ro.kind === "typed" && en.kind === "typed") {
+          expect(en.answer).toBe(ro.answer); // locale-independent (never crosses the boundary anyway)
+        } else if (ro.kind === "choice" && en.kind === "choice") {
+          expect(en.answerIndex).toBe(ro.answerIndex);
+          expect(en.choices).toEqual(ro.choices); // "<"/">"/"=" are symbolic, not translated
+        } else {
+          throw new Error("locale must never change a problem's kind");
+        }
+      }
+    }
+  });
+
+  it("comparison's EN prompt says 'Compare'/'and'; RO says 'Compară'/'și'", () => {
+    const ro = GENERATORS.comparison(createRng(11), 2, "ro");
+    const en = GENERATORS.comparison(createRng(11), 2, "en");
+    expect(ro.prompt).toContain("Compară");
+    expect(ro.prompt).toContain("și");
+    expect(en.prompt).toContain("Compare");
+    expect(en.prompt).toContain("and");
+    expect(en.prompt).not.toContain("Compară");
+  });
+
+  it("addition/subtraction/comparison EN teach text differs from RO at least once per grade (a real translation)", () => {
+    // Multiplication's teach text is ONLY locale-dependent in its "times table" branch (both
+    // operands <=10) — exercised separately below, since grades 3/4's operand ranges rarely/never
+    // land there (see `multiplicationTeach`'s doc), so it's excluded from this generic sweep.
+    const topics: readonly MathTopic[] = ["addition", "subtraction", "comparison"];
+    for (const grade of GRADES) {
+      for (const topic of topics) {
+        if (!TOPICS_FOR_GRADE[grade].includes(topic)) continue;
+        let sawADifference = false;
+        for (let seed = 1; seed <= 30; seed++) {
+          const ro = GENERATORS[topic](createRng(seed * 13 + grade), grade, "ro");
+          const en = GENERATORS[topic](createRng(seed * 13 + grade), grade, "en");
+          if (ro.teach !== en.teach) sawADifference = true;
+        }
+        expect(sawADifference, `${topic} @ grade ${grade}: RO and EN teach text never differ`).toBe(true);
+      }
+    }
+  });
+
+  it("multiplication's 'times table' teach tag is locale-specific ('tabla înmulțirii' vs 'times table')", () => {
+    // Grade 2 with small operands (<=10 and <=10) always hits the "table fact" branch.
+    const ro = GENERATORS.multiplication(createRng(1), 2, "ro");
+    const en = GENERATORS.multiplication(createRng(1), 2, "en");
+    expect(ro.teach).toContain("tabla înmulțirii");
+    expect(en.teach).toContain("times table");
+    expect(en.teach).not.toContain("tabla înmulțirii");
+  });
+});
+
 describe("comparison — choices + answerIndex", () => {
   it("choices are always exactly the 3 relations, possibly reordered", () => {
     for (let seed = 1; seed <= 30; seed++) {

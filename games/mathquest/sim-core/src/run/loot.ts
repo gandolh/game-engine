@@ -20,16 +20,20 @@
  * `rng.nextFloat()`-then-`rng.pick()` shape runs regardless of `extraPool`'s size.
  */
 import type { Rng } from "@engine/core";
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
 import type { LifelineKind } from "./lifelines";
 import type { StatBonuses } from "./progression";
 
 /** A lootable item: a flat, permanent `StatBonuses` delta once taken, and/or (M4b) a lifeline
  * charge grant. A pure-lifeline item has `bonus: {}` and a non-undefined `lifeline`; a pure-stat
  * item (M4a) has no `lifeline` key at all — never assign `lifeline: undefined`
- * (`exactOptionalPropertyTypes`), omit the key instead. */
+ * (`exactOptionalPropertyTypes`), omit the key instead. M5 slice 2: `name` is the RO name; `nameEn`
+ * its English translation — `toItemView` picks by locale (item NAMES are sim-side content that DOES
+ * translate, unlike the folklore enemy proper-names). */
 export interface Item {
   readonly id: string;
   readonly name: string;
+  readonly nameEn: string;
   readonly bonus: Partial<StatBonuses>;
   readonly lifeline?: { readonly kind: LifelineKind; readonly charges: number };
 }
@@ -49,8 +53,13 @@ export interface ItemView {
  * `combat/combat.ts`'s `toProblemView`). `lifeline` is copied through only when present (an
  * unconditional spread would assign `lifeline: undefined` under `exactOptionalPropertyTypes` when
  * absent — the conditional spread below omits the key entirely instead). */
-export function toItemView(item: Item): ItemView {
-  return { id: item.id, name: item.name, bonus: item.bonus, ...(item.lifeline !== undefined ? { lifeline: item.lifeline } : {}) };
+export function toItemView(item: Item, locale: Locale = DEFAULT_LOCALE): ItemView {
+  return {
+    id: item.id,
+    name: locale === "en" ? item.nameEn : item.name,
+    bonus: item.bonus,
+    ...(item.lifeline !== undefined ? { lifeline: item.lifeline } : {}),
+  };
 }
 
 /** Which node type a win came from decides the loot pool's odds. Matches `run/enemies.ts`'s
@@ -59,21 +68,21 @@ export type LootTier = "combat" | "elite" | "boss";
 
 /** ~4 common stat items + 2 common lifeline items (M4b): small, single-stat/single-lifeline grants. */
 const COMMON_POOL: readonly Item[] = [
-  { id: "sabie-ascutita", name: "Sabie ascuțită", bonus: { atk: 2 } },
-  { id: "scut-de-stejar", name: "Scut de stejar", bonus: { block: 3 } },
-  { id: "potiune-de-viata", name: "Poțiune de viață", bonus: { maxHp: 6 } },
-  { id: "amuleta", name: "Amuletă", bonus: { heal: 2 } },
-  { id: "pergament-indicii", name: "Pergament cu indicii", bonus: {}, lifeline: { kind: "hint", charges: 2 } },
-  { id: "ochi-ager", name: "Ochi ager", bonus: {}, lifeline: { kind: "fifty", charges: 1 } },
+  { id: "sabie-ascutita", name: "Sabie ascuțită", nameEn: "Sharp Sword", bonus: { atk: 2 } },
+  { id: "scut-de-stejar", name: "Scut de stejar", nameEn: "Oak Shield", bonus: { block: 3 } },
+  { id: "potiune-de-viata", name: "Poțiune de viață", nameEn: "Life Potion", bonus: { maxHp: 6 } },
+  { id: "amuleta", name: "Amuletă", nameEn: "Amulet", bonus: { heal: 2 } },
+  { id: "pergament-indicii", name: "Pergament cu indicii", nameEn: "Scroll of Hints", bonus: {}, lifeline: { kind: "hint", charges: 2 } },
+  { id: "ochi-ager", name: "Ochi ager", nameEn: "Keen Eye", bonus: {}, lifeline: { kind: "fifty", charges: 1 } },
 ];
 
 /** ~3 better stat items + 1 better lifeline item (M4b, elite/boss-weighted): two-stat bonuses, or
  * a scarcer lifeline grant. */
 const BETTER_POOL: readonly Item[] = [
-  { id: "coif-de-fier", name: "Coif de fier", bonus: { maxHp: 4, block: 2 } },
-  { id: "manusi-de-jar", name: "Mănuși de jar", bonus: { atk: 3, heal: 1 } },
-  { id: "talisman-vechi", name: "Talisman vechi", bonus: { block: 2, heal: 2 } },
-  { id: "clopotel-fermecat", name: "Clopoțel fermecat", bonus: {}, lifeline: { kind: "skip", charges: 1 } },
+  { id: "coif-de-fier", name: "Coif de fier", nameEn: "Iron Helm", bonus: { maxHp: 4, block: 2 } },
+  { id: "manusi-de-jar", name: "Mănuși de jar", nameEn: "Ember Gloves", bonus: { atk: 3, heal: 1 } },
+  { id: "talisman-vechi", name: "Talisman vechi", nameEn: "Old Talisman", bonus: { block: 2, heal: 2 } },
+  { id: "clopotel-fermecat", name: "Clopoțel fermecat", nameEn: "Enchanted Bell", bonus: {}, lifeline: { kind: "skip", charges: 1 } },
 ];
 
 /** Probability a single draw comes from `BETTER_POOL` rather than `COMMON_POOL`, by tier —

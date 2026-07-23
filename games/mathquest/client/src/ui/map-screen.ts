@@ -35,13 +35,22 @@
  * Layout, the height field, and all scatter are a PURE function of `RunView` + an integer hash
  * (`rand01`) — never `Math.random`/`Date.now`.
  *
- * Public shape: `createMapScreen(): { render, nodeAtScreen, panBy, reachableOrder }`.
+ * Public shape: `createMapScreen(): { render, nodeAtScreen, panBy, reachableOrder, localeToggleRect }`.
+ *
+ * ## M5 slice 2 — locale (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md)
+ * Unlike the retained widget screens (`combat-screen.ts` et al.), this screen is custom-drawn —
+ * there is no tree to rebuild on a locale toggle. Instead `render(...)` takes the CURRENT resolved
+ * `Strings` bundle (+ the current `Locale`, for the HUD's clickable "RO | EN" indicator) as
+ * arguments and reads them fresh every frame; `main.ts` just passes whatever it currently holds,
+ * no rebuild needed. `localeToggleRect(viewW, viewH)` is a PURE function of the viewport (the
+ * indicator's fixed screen-space hit region, independent of the camera/`Strings`/`Locale`) that
+ * `main.ts` uses to hit-test a click against — see its own doc below.
  */
 import { drawText, measureText, type UISurface } from "@engine/ui";
 import { overallMasteryTier } from "@mathquest/sim-core";
-import type { MapNode, NodeType, RunMap, RunView } from "@mathquest/sim-core";
+import type { Locale, MapNode, NodeType, RunMap, RunView } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
-import { STRINGS } from "../strings";
+import type { Strings } from "../strings";
 
 const COLUMN_SPACING = 260; // world px between progression columns (wider than a screen ⇒ scroll)
 const MARGIN_X = 130; // world left/right margin
@@ -561,7 +570,7 @@ function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number
 
 type NodeState = "reachable" | "visited" | "locked";
 
-function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, hovered: boolean): void {
+function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, hovered: boolean, strings: Strings): void {
   const { cx, cy, w, h } = rect;
   if (!P.visible(cx - w, w * 2)) return;
   const x = cx - w / 2;
@@ -578,8 +587,8 @@ function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, h
   else if (state === "locked") P.rect(x, y, w, h, MATE_PAL.ink, 0.6);
   if (state !== "locked") P.rect(x + 2, y + 2, w - 4, 3, MATE_PAL.white, 0.35); // top highlight
   const textColor = state === "locked" ? MATE_PAL.steel : MATE_PAL.white;
-  P.ctext((state === "visited" ? STRINGS.visitedPrefix : "") + NODE_GLYPH[node.type], cx, cy - 10, textColor, 1);
-  if (node.type !== "rest") P.ctext(STRINGS.gradeLabel[node.grade], cx, cy + 2, state === "locked" ? MATE_PAL.slate : MATE_PAL.cream, 1);
+  P.ctext((state === "visited" ? strings.visitedPrefix : "") + NODE_GLYPH[node.type], cx, cy - 10, textColor, 1);
+  if (node.type !== "rest") P.ctext(strings.gradeLabel[node.grade], cx, cy + 2, state === "locked" ? MATE_PAL.slate : MATE_PAL.cream, 1);
 }
 
 function drawHero(P: Painter, cx: number, cyNode: number, h: number): void {
@@ -592,8 +601,8 @@ function drawHero(P: Painter, cx: number, cyNode: number, h: number): void {
   P.rect(cx + 5, feetY - 14, 3, 12, MATE_PAL.silver, 1);
 }
 
-function drawZoneBanner(P: Painter, band: ZoneBand): void {
-  const name = STRINGS.zoneName[band.index] ?? "";
+function drawZoneBanner(P: Painter, band: ZoneBand, strings: Strings): void {
+  const name = strings.zoneName[band.index] ?? "";
   if (name.length === 0) return;
   const cx = (band.startX + band.endX) / 2;
   const tw = measureText(name);
@@ -605,12 +614,24 @@ function drawZoneBanner(P: Painter, band: ZoneBand): void {
 }
 
 export interface MapScreen {
-  render(surface: UISurface, run: RunView, hoverId: number | null, viewW: number, viewH: number): void;
+  render(
+    surface: UISurface,
+    run: RunView,
+    hoverId: number | null,
+    viewW: number,
+    viewH: number,
+    locale: Locale,
+    strings: Strings,
+  ): void;
   /** Screen-px → node id (accounts for the camera). */
   nodeAtScreen(sx: number, sy: number): number | null;
   /** Pan the camera by a screen-px delta (clamped to the world). */
   panBy(dx: number, dy: number): void;
   reachableOrder(run: RunView): number[];
+  /** M5 slice 2: the clickable "RO | EN" HUD indicator's fixed screen-space hit region — a PURE
+   * function of the viewport (independent of the camera/locale/strings, so `main.ts` can hit-test
+   * a click against it without needing to know which one is active first). */
+  localeToggleRect(viewW: number, viewH: number): { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
 }
 
 export function createMapScreen(): MapScreen {
@@ -632,7 +653,15 @@ export function createMapScreen(): MapScreen {
     camY = clamp(camY, 0, Math.max(0, worldH - viewH));
   }
 
-  function render(surface: UISurface, run: RunView, hoverId: number | null, vw: number, vh: number): void {
+  function render(
+    surface: UISurface,
+    run: RunView,
+    hoverId: number | null,
+    vw: number,
+    vh: number,
+    locale: Locale,
+    strings: Strings,
+  ): void {
     viewW = vw;
     viewH = vh;
     const L = computeMapLayout(run.map, vw, vh);
@@ -694,7 +723,7 @@ export function createMapScreen(): MapScreen {
       const rect = L.nodes.get(node.id);
       if (rect === undefined) continue;
       const state: NodeState = visited.has(node.id) ? "visited" : reachable.has(node.id) ? "reachable" : "locked";
-      drawNode(P, rect, node, state, hoverId === node.id);
+      drawNode(P, rect, node, state, hoverId === node.id, strings);
     }
     if (current !== null) {
       const rect = L.nodes.get(current);
@@ -702,11 +731,12 @@ export function createMapScreen(): MapScreen {
     } else {
       outlineDraw(P, (pp) => drawHero(pp, L.anchor.cx, L.anchor.cy, 0));
     }
-    for (const band of L.zones) drawZoneBanner(P, band);
+    for (const band of L.zones) drawZoneBanner(P, band, strings);
 
-    // HUD (fixed screen space) — title, HP, legend, scroll hints.
-    drawChrome(surface, run, viewW);
-    drawLegendAt(surface, viewW, viewH);
+    // HUD (fixed screen space) — title, HP, legend, scroll hints, locale toggle.
+    drawChrome(surface, run, viewW, strings);
+    drawLegendAt(surface, viewW, viewH, strings);
+    drawLocaleToggle(surface, viewW, viewH, locale, strings);
     drawScrollHints(surface);
   }
 
@@ -740,18 +770,50 @@ export function createMapScreen(): MapScreen {
     });
   }
 
-  return { render, nodeAtScreen, panBy, reachableOrder };
+  return { render, nodeAtScreen, panBy, reachableOrder, localeToggleRect: computeLocaleToggleRect };
 }
 
-function drawChrome(surface: UISurface, run: RunView, viewW: number): void {
+/** The "RO | EN" HUD indicator's fixed screen-space rect (bottom-right corner of the legend
+ * strip) — a PURE function of the viewport, since "RO | EN" is always the SAME two language
+ * codes regardless of which is active (only the styling — bold/dim — changes per `drawLocaleToggle`
+ * below). Shared by `drawLocaleToggle` (paints it) and `MapScreen.localeToggleRect` (hit-tests it),
+ * so the two can never drift apart. */
+function computeLocaleToggleRect(viewW: number, viewH: number): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } {
+  const label = "RO | EN"; // measurement only — "|" is a layout glyph, not translated prose
+  const w = measureText(label) + 16;
+  const h = LEGEND_H - 8;
+  const x = viewW - w - 16;
+  const y = viewH - LEGEND_H + 4;
+  return { x, y, w, h };
+}
+
+/** Paints the "RO | EN" indicator, bolding whichever `locale` is CURRENTLY active — clicking
+ * anywhere in `computeLocaleToggleRect`'s bounds (wired in `main.ts`) toggles it. Both codes are
+ * always shown so the OTHER language is always visible as the thing you'd switch TO. */
+function drawLocaleToggle(surface: UISurface, viewW: number, viewH: number, locale: Locale, strings: Strings): void {
+  const rect = computeLocaleToggleRect(viewW, viewH);
+  const roText = strings.languageCode.ro;
+  const enText = strings.languageCode.en;
+  const roColor = locale === "ro" ? MATE_PAL.gold : MATE_PAL.steel;
+  const enColor = locale === "en" ? MATE_PAL.gold : MATE_PAL.steel;
+  let x = rect.x + 8;
+  const y = rect.y + 4;
+  drawText(surface, roText, x, y, { color: roColor });
+  x += measureText(roText) + 6;
+  drawText(surface, "|", x, y, { color: MATE_PAL.steel });
+  x += measureText("|") + 6;
+  drawText(surface, enText, x, y, { color: enColor });
+}
+
+function drawChrome(surface: UISurface, run: RunView, viewW: number, strings: Strings): void {
   surface.rect(0, 0, viewW, CHROME_TOP, MATE_PAL.ink, 1); // solid top HUD strip
   surface.rect(0, CHROME_TOP, viewW, 2, MATE_PAL.gold, 1);
-  drawText(surface, STRINGS.mapTitle, 24, 8, { color: MATE_PAL.gold, scale: 2 });
+  drawText(surface, strings.mapTitle, 24, 8, { color: MATE_PAL.gold, scale: 2 });
   // M4c: a compact overall-mastery readout, right-aligned on the title row — small, doesn't touch
   // the terrain/camera code or the HP/level/xp/stats row below it.
-  const masteryText = STRINGS.masteryHudLabel(overallMasteryTier(run.mastery));
+  const masteryText = strings.masteryHudLabel(overallMasteryTier(run.mastery));
   drawText(surface, masteryText, viewW - measureText(masteryText) - 24, 8, { color: MATE_PAL.cyan });
-  drawText(surface, STRINGS.warriorHpLabel, 24, HP_BAR_Y + 6, { color: MATE_PAL.cream });
+  drawText(surface, strings.warriorHpLabel, 24, HP_BAR_Y + 6, { color: MATE_PAL.cream });
   surface.rect(HP_BAR_X, HP_BAR_Y + 6, HP_BAR_W, HP_BAR_H, MATE_PAL.navy);
   const pct = run.warriorMaxHp > 0 ? clamp(run.warriorHp / run.warriorMaxHp, 0, 1) : 0;
   const fillW = Math.round(HP_BAR_W * pct);
@@ -762,26 +824,26 @@ function drawChrome(surface: UISurface, run: RunView, viewW: number): void {
   // M4a: a compact level/XP + (non-zero) stat-bonus readout, packed onto the SAME HUD line right
   // after the HP value — stays inside the fixed CHROME_TOP strip, no extra row.
   let x = HP_BAR_X + HP_BAR_W + 10 + measureText(hpText) + 20;
-  const levelText = STRINGS.levelLabel(run.level);
+  const levelText = strings.levelLabel(run.level);
   drawText(surface, levelText, x, HP_BAR_Y + 6, { color: MATE_PAL.gold });
   x += measureText(levelText) + 12;
-  const xpText = STRINGS.xpLabel(run.xp, run.xpToNext);
+  const xpText = strings.xpLabel(run.xp, run.xpToNext);
   drawText(surface, xpText, x, HP_BAR_Y + 6, { color: MATE_PAL.cream });
   x += measureText(xpText) + 16;
-  const statsText = STRINGS.bonusSummary(run.stats);
+  const statsText = strings.bonusSummary(run.stats);
   if (statsText.length > 0) drawText(surface, statsText, x, HP_BAR_Y + 6, { color: MATE_PAL.cyan });
 }
 
-function drawLegendAt(surface: UISurface, viewW: number, viewH: number): void {
+function drawLegendAt(surface: UISurface, viewW: number, viewH: number, strings: Strings): void {
   const stripY = viewH - LEGEND_H;
   surface.rect(0, stripY, viewW, LEGEND_H, MATE_PAL.ink, 1); // solid bottom HUD strip
   surface.rect(0, stripY, viewW, 2, MATE_PAL.gold, 1);
   const y = stripY + 8;
   let x = 24;
-  drawText(surface, STRINGS.legendTitle, x, y, { color: MATE_PAL.steel });
-  x += measureText(STRINGS.legendTitle) + 12;
+  drawText(surface, strings.legendTitle, x, y, { color: MATE_PAL.steel });
+  x += measureText(strings.legendTitle) + 12;
   for (const type of LEGEND_ORDER) {
-    const text = `${NODE_GLYPH[type]} ${STRINGS.legendLabel[type]}`;
+    const text = `${NODE_GLYPH[type]} ${strings.legendLabel[type]}`;
     drawText(surface, text, x, y, { color: NODE_TYPE_COLOR[type] });
     x += measureText(text) + 16;
   }

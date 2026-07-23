@@ -9,6 +9,7 @@
  */
 import type { Rng } from "@engine/core";
 import type { Grade } from "../combat/types";
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
 
 /** Accumulated combat stat bonuses, folded in from level-ups (`hp`/`atk`/`block`/`heal` upgrades)
  * and loot (`run/loot.ts`'s `Item.bonus`). All start at 0; reset to 0 on `newRun()`. */
@@ -66,8 +67,17 @@ const UPGRADE_TEXT: Record<UpgradeKind, { readonly label: string; readonly desc:
   heal: { label: "Meditație tămăduitoare", desc: `+${HEAL_UPGRADE_AMOUNT} vindecare la Vindecă` },
 };
 
-export function describeUpgrade(kind: UpgradeKind): UpgradeOffer {
-  return { kind, ...UPGRADE_TEXT[kind] };
+/** M5 slice 2: the English translation of `UPGRADE_TEXT` (RO stays the default — see `i18n.ts`).
+ * Action words match `strings.ts`'s `STRINGS_EN.actionLabel` (Attack/Shield/Heal). */
+const UPGRADE_TEXT_EN: Record<UpgradeKind, { readonly label: string; readonly desc: string }> = {
+  hp: { label: "Life Elixir", desc: `+${HP_UPGRADE_AMOUNT} max HP (heals now)` },
+  atk: { label: "Combat Training", desc: `+${ATK_UPGRADE_AMOUNT} damage to Attack` },
+  block: { label: "Defense Technique", desc: `+${BLOCK_UPGRADE_AMOUNT} block to Shield` },
+  heal: { label: "Healing Meditation", desc: `+${HEAL_UPGRADE_AMOUNT} healing to Heal` },
+};
+
+export function describeUpgrade(kind: UpgradeKind, locale: Locale = DEFAULT_LOCALE): UpgradeOffer {
+  return { kind, ...(locale === "en" ? UPGRADE_TEXT_EN : UPGRADE_TEXT)[kind] };
 }
 
 /** `count` DISTINCT upgrade kinds, deterministic — a Fisher-Yates shuffle of the fixed 4, capped

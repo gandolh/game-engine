@@ -34,6 +34,17 @@
  * `persistMasteryIfChanged()` writes it back only when it actually changed (cheap: the store is
  * tiny, but a per-tick unconditional write would still be wasteful). The sim/worker itself never
  * touches `localStorage`/DOM.
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) makes THIS FILE the LOCALE
+ * owner too, mirroring the M4c mastery pattern exactly: `loadLocale()`/`saveLocale()` read/write
+ * `localStorage[LOCALE_STORAGE_KEY]` (same try/catch — private-mode-safe). `locale` + the resolved
+ * `strings` (`getStrings(locale)`) are held in `let`s; every widget screen (`combatScreen`,
+ * `runOverScreen`, `levelUpScreen`, `lootScreen`) is built via `buildScreens()`, which `toggleLocale()`
+ * calls again on every toggle to REBUILD them with the new `Strings` (the LOCKED architecture: a
+ * locale toggle RE-INITS the whole sim in the new language — see `@mathquest/sim-core`'s `i18n.ts`
+ * module doc — so the client's screens must be rebuilt in lockstep, never left reading a stale
+ * bundle). `ui/map-screen.ts` needs no rebuild — it's custom-drawn and reads `strings`/`locale`
+ * fresh every frame via `render(...)`'s own arguments.
  */
 import "./style.css";
 import { Camera2D, createRenderer, type RendererLike } from "@engine/core";
@@ -48,15 +59,16 @@ import {
   type InputDispatcher,
   type A11yMirror,
 } from "@engine/ui";
-import { EMPTY_MASTERY_STORE, MASTERY_STORAGE_KEY, parseMasteryStore } from "@mathquest/sim-core";
-import type { AnswerResponse, GameSnapshot, MasteryStore } from "@mathquest/sim-core";
+import { EMPTY_MASTERY_STORE, LOCALE_STORAGE_KEY, MASTERY_STORAGE_KEY, parseLocale, parseMasteryStore } from "@mathquest/sim-core";
+import type { AnswerResponse, GameSnapshot, Locale, MasteryStore } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
 import { MATE_THEME } from "./render/mate-theme";
-import { createCombatScreen, type CombatScreenActions } from "./ui/combat-screen";
-import { createLevelUpScreen, type LevelUpScreenActions } from "./ui/levelup-screen";
-import { createLootScreen, type LootScreenActions } from "./ui/loot-screen";
+import { getStrings, type Strings } from "./strings";
+import { createCombatScreen, type CombatScreen, type CombatScreenActions } from "./ui/combat-screen";
+import { createLevelUpScreen, type LevelUpScreen, type LevelUpScreenActions } from "./ui/levelup-screen";
+import { createLootScreen, type LootScreen, type LootScreenActions } from "./ui/loot-screen";
 import { createMapScreen } from "./ui/map-screen";
-import { createRunOverScreen, type RunOverScreenActions } from "./ui/run-over-screen";
+import { createRunOverScreen, type RunOverScreen, type RunOverScreenActions } from "./ui/run-over-screen";
 import type { WorkerInbound, WorkerOutbound } from "./worker/sim-worker";
 
 // M3 has no run/seed-select screen yet — a fixed seed proves the deterministic-seed seam and
@@ -98,6 +110,26 @@ function saveMastery(serialized: string): void {
   }
 }
 
+/** M5 slice 2: mirrors `loadMastery` exactly — the ONLY place this file reads the locale from
+ * `localStorage`; `parseLocale` itself already tolerates null/garbage, but the `getItem` call
+ * itself can throw (private-mode browsers, storage disabled by policy). */
+function loadLocale(): Locale {
+  try {
+    return parseLocale(localStorage.getItem(LOCALE_STORAGE_KEY));
+  } catch {
+    return "ro";
+  }
+}
+
+/** M5 slice 2: mirrors `saveMastery` exactly — the ONLY place this file writes the locale. */
+function saveLocale(locale: Locale): void {
+  try {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  } catch {
+    // Storage unavailable/full — degrade silently, same as `saveMastery`.
+  }
+}
+
 // Palette-sourced page chrome (CSS can't import MATE_PAL — keeps every colour on the palette
 // contract, root CLAUDE.md).
 document.body.style.background = MATE_PAL.black;
@@ -110,6 +142,12 @@ async function main(): Promise<void> {
   renderer.addAtlas(await loadFontAtlas());
   const surface = new UISurface(renderer);
 
+  // --- Locale (M5 slice 2) ----------------------------------------------------------------------
+  // The sim's OWN language, re-init'd on every toggle — see the module doc. `strings` is the
+  // CLIENT UI chrome bundle resolved from the SAME `locale`, kept in lockstep.
+  let locale: Locale = loadLocale();
+  let strings: Strings = getStrings(locale);
+
   // --- Worker ---------------------------------------------------------------------------------
   const worker = new Worker(new URL("./worker/sim-worker", import.meta.url), { type: "module" });
   const post = (msg: WorkerInbound): void => worker.postMessage(msg);
@@ -119,10 +157,15 @@ async function main(): Promise<void> {
   // since the last write never re-serializes/re-writes it (the sim posts a snapshot after every
   // command AND on every paced tick — most of those don't touch mastery at all).
   let lastPersistedMastery = JSON.stringify(EMPTY_MASTERY_STORE);
+  // M5 slice 2: the run's CURRENT mastery store, kept in lockstep with every snapshot — `toggleLocale`
+  // hands this straight back into the re-`init`'d sim so mastery survives the language switch
+  // (only the run's POSITION is lost, per the module doc — never progression).
+  let currentMastery: MasteryStore = loadMastery();
   worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
     const msg = event.data;
     if (msg.type === "snapshot") {
       latest = msg.snapshot;
+      currentMastery = msg.snapshot.run.mastery;
       const serialized = JSON.stringify(msg.snapshot.run.mastery);
       if (serialized !== lastPersistedMastery) {
         lastPersistedMastery = serialized;
@@ -178,10 +221,10 @@ async function main(): Promise<void> {
       post({ type: "new-run" });
     },
   };
-  const combatScreen = createCombatScreen(combatActions);
-
   // M3.1: the map screen is custom-drawn (no widget tree, no actions) — `main.ts` owns
-  // click/keyboard → `choose-node` directly (see below) instead of an `onActivate` callback.
+  // click/keyboard → `choose-node` directly (see below) instead of an `onActivate` callback. It
+  // needs no rebuild on a locale toggle (see the module doc) — built ONCE, unlike the widget
+  // screens below.
   const mapScreen = createMapScreen();
   /** Hover target for the map's reachable-node highlight, tracked from `mousemove` in map mode. */
   let hoverId: number | null = null;
@@ -201,15 +244,14 @@ async function main(): Promise<void> {
       post({ type: "new-run" });
     },
   };
-  const runOverScreen = createRunOverScreen(runOverActions);
 
-  // M4a: the level-up + loot screens, same build-once-tree/per-frame-refresh shape as the above.
+  // M4a: the level-up + loot screens, same build-once-tree/per-frame-refresh shape as combat/
+  // run-over.
   const levelUpActions: LevelUpScreenActions = {
     chooseUpgrade(index) {
       post({ type: "choose-level-up", index });
     },
   };
-  const levelUpScreen = createLevelUpScreen(levelUpActions);
 
   const lootActions: LootScreenActions = {
     chooseLoot(index) {
@@ -219,12 +261,30 @@ async function main(): Promise<void> {
       post({ type: "choose-loot", index: -1 });
     },
   };
-  const lootScreen = createLootScreen(lootActions);
+
+  // M5 slice 2: the 4 retained WIDGET screens are `let`s, REBUILT (fresh instances, fresh node
+  // ids) by `buildScreens()` — called once at boot and again on every locale toggle. Actions never
+  // change (they only post worker commands); only the `Strings` bundle handed to each constructor
+  // does — see `strings.ts`'s module doc for why a rebuild (not a re-bind) is the chosen shape.
+  let combatScreen: CombatScreen;
+  let runOverScreen: RunOverScreen;
+  let levelUpScreen: LevelUpScreen;
+  let lootScreen: LootScreen;
+
+  function buildScreens(): void {
+    combatScreen = createCombatScreen(combatActions, strings);
+    runOverScreen = createRunOverScreen(runOverActions, strings);
+    levelUpScreen = createLevelUpScreen(levelUpActions, strings);
+    lootScreen = createLootScreen(lootActions, strings);
+  }
+  buildScreens();
 
   /** Which WIDGET screen root is current, by the latest snapshot's `mode` — `null` in `"map"`
    * mode (the spatial map has no widget tree) and before the first snapshot arrives. Used both as
    * the `InputDispatcher`'s root-provider (so stray widget hit-tests never fire on the map) and by
-   * `frame()` to decide whether to run the widget `computeLayout`/`renderTree` path at all. */
+   * `frame()` to decide whether to run the widget `computeLayout`/`renderTree` path at all. Reads
+   * `combatScreen`/etc by CLOSURE, so it always sees whichever instance `buildScreens()` most
+   * recently produced (M5 slice 2). */
   function currentWidgetRoot(): ContainerNode | null {
     if (latest === null) return null;
     switch (latest.mode) {
@@ -254,6 +314,31 @@ async function main(): Promise<void> {
   }
   const syncFocus = (): void => mirror?.setFocus(dispatcher.focused()?.id ?? null);
 
+  /**
+   * M5 slice 2 — the locale toggle. Flips RO⇄EN, persists it, REBUILDS the widget screens with
+   * the new `Strings`, clears any in-flight local UI state (typed answer buffer, focus, a11y
+   * mirror, a stray in-progress map-mode camera drag), then RE-INITS the whole sim: a fresh
+   * `"init"` with the SAME `SEED` + the CURRENT `currentMastery` + the NEW `locale` — a genuinely
+   * fresh run in the new language, mastery intact (the LOCKED architecture — see
+   * `@mathquest/sim-core`'s `i18n.ts` module doc). `latest` is cleared immediately so `frame()`
+   * never renders the OLD run's structure against the NEW `strings` for even one frame.
+   */
+  function toggleLocale(): void {
+    locale = locale === "ro" ? "en" : "ro";
+    saveLocale(locale);
+    strings = getStrings(locale);
+    buildScreens();
+
+    typedValue = "";
+    panDown = false;
+    panDragging = false;
+    dispatcher.blur();
+    mirror?.update(null);
+    latest = null;
+
+    post({ type: "init", seed: SEED, mastery: currentMastery, locale });
+  }
+
   const cssPx = (e: MouseEvent): { x: number; y: number } => {
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -274,13 +359,26 @@ async function main(): Promise<void> {
     dispatcher.pointerDown(x, y);
     syncFocus();
   });
+  /** M5 slice 2: is screen-px `(x, y)` inside the map HUD's clickable "RO | EN" indicator?
+   * (`ui/map-screen.ts`'s `localeToggleRect` — a fixed screen-space rect, independent of the
+   * camera, so no pan/world adjustment is needed here, unlike `nodeAtScreen`.) */
+  function inLocaleToggle(x: number, y: number): boolean {
+    const r = mapScreen.localeToggleRect(canvas.clientWidth, canvas.clientHeight);
+    return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+  }
   canvas.addEventListener("mouseup", (e) => {
     const { x, y } = cssPx(e);
     if (latest !== null && latest.mode === "map") {
-      // A press that never became a drag is a node click; a reachable node advances the run.
+      // A press that never became a drag is either the locale toggle or a node click (a reachable
+      // node advances the run) — the toggle takes priority since it sits over the HUD, never over
+      // a node marker.
       if (panDown && !panDragging) {
-        const id = mapScreen.nodeAtScreen(x, y);
-        if (id !== null && latest.run.reachableIds.includes(id)) post({ type: "choose-node", id });
+        if (inLocaleToggle(x, y)) {
+          toggleLocale();
+        } else {
+          const id = mapScreen.nodeAtScreen(x, y);
+          if (id !== null && latest.run.reachableIds.includes(id)) post({ type: "choose-node", id });
+        }
       }
       panDown = false;
       panDragging = false;
@@ -332,6 +430,16 @@ async function main(): Promise<void> {
     // drive activation — don't fight them (same guard Citadel's input.ts uses).
     const active = document.activeElement;
     if (active !== null && a11yMount !== null && a11yMount.contains(active)) return;
+
+    // M5 slice 2: the locale toggle, checked FIRST (before the map-mode branch and the widget
+    // dispatcher) so it works in EVERY mode and is never double-handled — `L` is never a digit, a
+    // map-mode arrow/number/Enter, or a widget navigation key, so intercepting it here steals
+    // nothing from any other handler below.
+    if (e.key.toLowerCase() === "l") {
+      toggleLocale();
+      e.preventDefault();
+      return;
+    }
 
     if (latest !== null && latest.mode === "map") {
       // Arrow keys pan the camera; 1..9 / Enter select among reachable nodes.
@@ -386,8 +494,9 @@ async function main(): Promise<void> {
   });
 
   // Boot the run. M4c: the persistent mastery store is read from localStorage HERE (main thread
-  // only — the worker has no such access) and ferried in on `init`.
-  post({ type: "init", seed: SEED, mastery: loadMastery() });
+  // only — the worker has no such access) and ferried in on `init`. M5 slice 2: `locale` is read
+  // the same way (see `loadLocale`) and ferried in alongside it.
+  post({ type: "init", seed: SEED, mastery: currentMastery, locale });
 
   // --- Render loop ----------------------------------------------------------------------------
   function frame(): void {
@@ -398,7 +507,7 @@ async function main(): Promise<void> {
         // Custom-drawn: one pass, no widget tree. Full-viewport: the map lays out + scrolls within
         // the live canvas CSS size (UI is drawn in CSS px; see the render pipeline).
         surface.begin();
-        mapScreen.render(surface, snapshot.run, hoverId, canvas.clientWidth, canvas.clientHeight);
+        mapScreen.render(surface, snapshot.run, hoverId, canvas.clientWidth, canvas.clientHeight, locale, strings);
         surface.end();
         // No DOM mirror for the spatial map yet (known follow-up — see ui/map-screen.ts's module
         // doc); clear it so a stale combat/run-over mirror never lingers into map mode.

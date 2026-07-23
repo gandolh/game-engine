@@ -110,21 +110,22 @@ export const ELITE_UNLOCK_TIER = 2;
 export const BLUEPRINTS: Record<MathTopic, { readonly id: string; readonly item: Item }> = {
   addition: {
     id: "bp-adunare",
-    item: { id: "sabie-de-maestru", name: "Sabie de maestru", bonus: { atk: 4 } },
+    item: { id: "sabie-de-maestru", name: "Sabie de maestru", nameEn: "Master's Sword", bonus: { atk: 4 } },
   },
   subtraction: {
     id: "bp-scadere",
-    item: { id: "platosa-de-fier", name: "Platoșă de fier", bonus: { block: 4, maxHp: 4 } },
+    item: { id: "platosa-de-fier", name: "Platoșă de fier", nameEn: "Iron Plate", bonus: { block: 4, maxHp: 4 } },
   },
   multiplication: {
     id: "bp-inmultire",
-    item: { id: "ciocan-de-razboi", name: "Ciocan de război", bonus: { atk: 4, heal: 3 } },
+    item: { id: "ciocan-de-razboi", name: "Ciocan de război", nameEn: "War Hammer", bonus: { atk: 4, heal: 3 } },
   },
   comparison: {
     id: "bp-comparare",
     item: {
       id: "ochelarii-intelepciunii",
       name: "Ochelarii înțelepciunii",
+      nameEn: "Spectacles of Wisdom",
       bonus: {},
       lifeline: { kind: "hint", charges: 3 },
     },

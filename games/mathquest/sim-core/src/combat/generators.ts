@@ -11,6 +11,14 @@
  * `Math.random()`/`Date.now()`. The caller (`sim-bootstrap.ts`) forks a fresh child `Rng` per call
  * (`rng.fork("problem")`); comparison additionally forks its own `rng.fork("shuffle")` child for
  * the choice-order permutation, per the brief.
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) adds a `locale` parameter,
+ * defaulting to `"ro"` (so every pre-slice-2 call site is byte-identical). **`locale` changes only
+ * WORDS, never numbers**: every generator draws its operands FIRST (identical rng consumption
+ * regardless of locale), THEN formats the `prompt`/`teach` text for the chosen locale — see
+ * `additionTeach`/`subtractionTeach`/`multiplicationTeach`/`comparisonTeach` below and
+ * `generateComparison`'s prompt. `answer`/`answerIndex` are locale-independent by construction
+ * (the non-leak invariant never crosses this boundary anyway — see `combat/types.ts`).
  */
 import type { Rng } from "@engine/core";
 import {
@@ -24,35 +32,44 @@ import {
   MULT_G4_MAX,
   MULT_G4_MIN,
 } from "./constants";
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
 import type { Grade, MathTopic, Problem } from "./types";
 
-/** A topic's problem generator: draws whatever it needs from `rng`, scaled by `grade`. */
-export type ProblemGenerator = (rng: Rng, grade: Grade) => Problem;
+/** A topic's problem generator: draws whatever it needs from `rng`, scaled by `grade`, formats its
+ * `prompt`/`teach` text for `locale` (default `"ro"`). */
+export type ProblemGenerator = (rng: Rng, grade: Grade, locale?: Locale) => Problem;
 
-// --- teach-text helpers (short worked-step strings; RO/EN i18n is M5 — see the M2 brief) --------
+// --- teach-text helpers (short worked-step strings, localized RO/EN — M5 slice 2) ----------------
 
-/** Bridge-to-ten decomposition, e.g. "7 + 8: 7 + 3 = 10, apoi + 5 = 15". Falls back to the bare
- * fact when `a` is already a multiple of ten (nothing to bridge) or the bridge would exceed `b`. */
-function additionTeach(a: number, b: number, sum: number): string {
+/** Bridge-to-ten decomposition, e.g. RO "7 + 8: 7 + 3 = 10, apoi + 5 = 15" / EN "7 + 8: 7 + 3 =
+ * 10, then + 5 = 15". Falls back to the bare fact when `a` is already a multiple of ten (nothing
+ * to bridge) or the bridge would exceed `b`. */
+function additionTeach(a: number, b: number, sum: number, locale: Locale): string {
   const toTen = (10 - (a % 10)) % 10;
   if (toTen === 0 || toTen > b) return `${a} + ${b} = ${sum}`;
   const remainder = b - toTen;
   const bridged = a + toTen;
-  return `${a} + ${b}: ${a} + ${toTen} = ${bridged}, apoi + ${remainder} = ${sum}`;
+  const then = locale === "en" ? "then" : "apoi";
+  return `${a} + ${b}: ${a} + ${toTen} = ${bridged}, ${then} + ${remainder} = ${sum}`;
 }
 
-/** Borrow-to-ten decomposition, e.g. "15 - 8: 15 - 5 = 10, apoi - 3 = 7". */
-function subtractionTeach(a: number, b: number, diff: number): string {
+/** Borrow-to-ten decomposition, e.g. RO "15 - 8: 15 - 5 = 10, apoi - 3 = 7" / EN "... then - 3 = 7". */
+function subtractionTeach(a: number, b: number, diff: number, locale: Locale): string {
   const toTen = a % 10;
   if (toTen === 0 || toTen > b) return `${a} - ${b} = ${diff}`;
   const remainder = b - toTen;
   const bridged = a - toTen;
-  return `${a} - ${b}: ${a} - ${toTen} = ${bridged}, apoi - ${remainder} = ${diff}`;
+  const then = locale === "en" ? "then" : "apoi";
+  return `${a} - ${b}: ${a} - ${toTen} = ${bridged}, ${then} - ${remainder} = ${diff}`;
 }
 
-/** Table fact (small operands) or a partial-products hint (tens/ones split of `b`). */
-function multiplicationTeach(a: number, b: number, product: number): string {
-  if (a <= 10 && b <= 10) return `${a} × ${b} = ${product} (tabla înmulțirii)`;
+/** Table fact (small operands) or a partial-products hint (tens/ones split of `b`). RO "tabla
+ * înmulțirii" / EN "times table". */
+function multiplicationTeach(a: number, b: number, product: number, locale: Locale): string {
+  if (a <= 10 && b <= 10) {
+    const tag = locale === "en" ? "times table" : "tabla înmulțirii";
+    return `${a} × ${b} = ${product} (${tag})`;
+  }
   const tens = Math.floor(b / 10) * 10;
   const ones = b % 10;
   if (tens === 0) return `${a} × ${b} = ${product}`;
@@ -61,38 +78,57 @@ function multiplicationTeach(a: number, b: number, product: number): string {
   return `${a} × ${b}: ${a} × ${tens} = ${p1}, ${a} × ${ones} = ${p2}, ${p1} + ${p2} = ${product}`;
 }
 
-/** Place-value reasoning, e.g. "12 > 9: 12 are mai multe cifre decât 9." */
-function comparisonTeach(a: number, b: number, relation: "<" | ">" | "="): string {
-  if (relation === "=") return `${a} = ${b}: sunt egale`;
+/** Place-value reasoning, e.g. RO "12 > 9: 12 are mai multe cifre decât 9" / EN "12 > 9: 12 has
+ * more digits than 9". */
+function comparisonTeach(a: number, b: number, relation: "<" | ">" | "=", locale: Locale): string {
+  if (relation === "=") return locale === "en" ? `${a} = ${b}: they are equal` : `${a} = ${b}: sunt egale`;
   const [big, small] = relation === ">" ? [a, b] : [b, a];
   if (String(big).length !== String(small).length) {
-    return `${a} ${relation} ${b}: ${big} are mai multe cifre decât ${small}`;
+    return locale === "en"
+      ? `${a} ${relation} ${b}: ${big} has more digits than ${small}`
+      : `${a} ${relation} ${b}: ${big} are mai multe cifre decât ${small}`;
   }
-  return `${a} ${relation} ${b}: compară cifrele de la stânga la dreapta`;
+  return locale === "en"
+    ? `${a} ${relation} ${b}: compare the digits from left to right`
+    : `${a} ${relation} ${b}: compară cifrele de la stânga la dreapta`;
 }
 
 // --- generators -----------------------------------------------------------------------------
 
-function generateAddition(rng: Rng, grade: Grade): Problem {
+function generateAddition(rng: Rng, grade: Grade, locale: Locale = DEFAULT_LOCALE): Problem {
   const range = ADD_SUB_RANGE[grade];
   const a = rng.int(range.min, range.max + 1);
   const b = rng.int(range.min, range.max + 1);
   const answer = a + b;
-  return { topic: "addition", grade, kind: "typed", prompt: `${a} + ${b} = ?`, answer, teach: additionTeach(a, b, answer) };
+  return {
+    topic: "addition",
+    grade,
+    kind: "typed",
+    prompt: `${a} + ${b} = ?`,
+    answer,
+    teach: additionTeach(a, b, answer, locale),
+  };
 }
 
-function generateSubtraction(rng: Rng, grade: Grade): Problem {
+function generateSubtraction(rng: Rng, grade: Grade, locale: Locale = DEFAULT_LOCALE): Problem {
   const range = ADD_SUB_RANGE[grade];
   const a = rng.int(range.min, range.max + 1);
   // b drawn from [range.min, a] — guarantees a >= b (never negative) by construction.
   const b = rng.int(range.min, a + 1);
   const answer = a - b;
-  return { topic: "subtraction", grade, kind: "typed", prompt: `${a} - ${b} = ?`, answer, teach: subtractionTeach(a, b, answer) };
+  return {
+    topic: "subtraction",
+    grade,
+    kind: "typed",
+    prompt: `${a} - ${b} = ?`,
+    answer,
+    teach: subtractionTeach(a, b, answer, locale),
+  };
 }
 
 /** Not valid for grade 1 (Romanian curriculum introduces multiplication in clasa a II-a) — the
  * caller must never dispatch this generator for `grade === 1` (`TOPICS_FOR_GRADE[1]` excludes it). */
-function generateMultiplication(rng: Rng, grade: Grade): Problem {
+function generateMultiplication(rng: Rng, grade: Grade, locale: Locale = DEFAULT_LOCALE): Problem {
   let a: number;
   let b: number;
   switch (grade) {
@@ -112,7 +148,14 @@ function generateMultiplication(rng: Rng, grade: Grade): Problem {
       break;
   }
   const answer = a * b;
-  return { topic: "multiplication", grade, kind: "typed", prompt: `${a} × ${b} = ?`, answer, teach: multiplicationTeach(a, b, answer) };
+  return {
+    topic: "multiplication",
+    grade,
+    kind: "typed",
+    prompt: `${a} × ${b} = ?`,
+    answer,
+    teach: multiplicationTeach(a, b, answer, locale),
+  };
 }
 
 const RELATIONS = ["<", ">", "="] as const;
@@ -129,26 +172,28 @@ function shuffledIndices(length: number, rng: Rng): number[] {
   return idx;
 }
 
-function generateComparison(rng: Rng, grade: Grade): Problem {
+function generateComparison(rng: Rng, grade: Grade, locale: Locale = DEFAULT_LOCALE): Problem {
   const range = ADD_SUB_RANGE[grade];
   const a = rng.int(range.min, range.max + 1);
   const b = rng.int(range.min, range.max + 1);
   const relation: "<" | ">" | "=" = a < b ? "<" : a > b ? ">" : "=";
 
   // Fixed relation order [<, >, =] by author intent, shuffled deterministically per the brief
-  // ("you MAY shuffle... as long as answerIndex tracks the shuffle").
+  // ("you MAY shuffle... as long as answerIndex tracks the shuffle"). The shuffle consumes `rng`
+  // BEFORE locale ever touches formatting, so `locale` cannot affect it (determinism — module doc).
   const order = shuffledIndices(RELATIONS.length, rng.fork("shuffle"));
   const choices = order.map((i) => RELATIONS[i]!);
   const answerIndex = order.indexOf(RELATIONS.indexOf(relation));
 
+  const prompt = locale === "en" ? `Compare: ${a} and ${b}` : `Compară: ${a} și ${b}`;
   return {
     topic: "comparison",
     grade,
     kind: "choice",
-    prompt: `Compară: ${a} și ${b}`,
+    prompt,
     choices,
     answerIndex,
-    teach: comparisonTeach(a, b, relation),
+    teach: comparisonTeach(a, b, relation, locale),
   };
 }
 

@@ -17,6 +17,13 @@
  * forwards it straight into `bootstrapMathquestSim`. This worker never reads/writes storage
  * itself — it only ferries the store in on `init` and back out on every `GameSnapshot.run.mastery`.
  *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) adds `locale` to the `init`
+ * message, mirroring `mastery`'s exact pattern: the main thread reads it from `localStorage` (this
+ * worker has no such access — see `./main.ts`'s `loadLocale`) and forwards it straight into
+ * `bootstrapMathquestSim`. Toggling the locale RE-INITS the sim (a fresh `"init"` message with the
+ * SAME seed + the CURRENT mastery + the NEW locale) — this worker doesn't distinguish a "first"
+ * init from a "re-init", it just always (re)boots `bootstrapMathquestSim` fresh on any `"init"`.
+ *
  * Drives `bootstrapMathquestSim()` at a fixed 20 Hz base cadence and posts a snapshot after each
  * paced tick (cheap — keeps the view fresh) AND immediately after every command, so the client
  * sees the run's resolution the instant it happens rather than waiting for the next tick.
@@ -25,7 +32,14 @@
  * load-bearing — root CLAUDE.md).
  */
 import { bootstrapMathquestSim } from "@mathquest/sim-core/sim-bootstrap";
-import type { AnswerResponse, CombatAction, GameSnapshot, LifelineKind, MasteryStore } from "@mathquest/sim-core/sim-bootstrap";
+import type {
+  AnswerResponse,
+  CombatAction,
+  GameSnapshot,
+  LifelineKind,
+  Locale,
+  MasteryStore,
+} from "@mathquest/sim-core/sim-bootstrap";
 
 export interface WorkerInitMessage {
   type: "init";
@@ -33,6 +47,9 @@ export interface WorkerInitMessage {
   /** M4c: the persistent mastery store, read from `localStorage` by the main thread (this worker
    * has no such access) — see the module doc. */
   mastery: MasteryStore;
+  /** M5 slice 2: which language every generated `prompt`/`teach`/enemy `name`/`title` is
+   * formatted in, read from `localStorage` by the main thread — see the module doc. */
+  locale: Locale;
 }
 
 /** M3: choose a map node (a fight, or a rest) — replaces M1/M2's implicit single fight. */
@@ -121,7 +138,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
   switch (msg.type) {
     case "init": {
-      sim = bootstrapMathquestSim({ seed: msg.seed, mastery: msg.mastery });
+      sim = bootstrapMathquestSim({ seed: msg.seed, mastery: msg.mastery, locale: msg.locale });
       self.postMessage({ type: "ready" } satisfies WorkerOutbound);
       postSnapshot();
       startLoop();

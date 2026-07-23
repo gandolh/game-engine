@@ -39,10 +39,18 @@
  * (M4b's `useLifeline("skip")`) explicitly bypasses `submitAnswer` — it was never SOLVED, so it adds
  * no attempt either. No new fork, no new snapshot field — `topicOutcomes` is exposed ONLY on
  * `CombatResult` (via `result()`), never on `CombatSnapshot`.
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) adds `CombatOpts.locale`
+ * (default `"ro"`), forwarded straight into `GENERATORS[topic](rng, grade, locale)` in
+ * `nextProblem` — the ONLY place this fight produces a `Problem`. `locale` is fixed for the WHOLE
+ * fight (like `grade`), never changes an `Rng` draw, and the passed-in `enemy` (`EnemyArchetype`)
+ * is ALREADY localized by the caller (`sim-bootstrap.ts`'s `enemyFor(node.type, node.zone, locale)`
+ * before `createCombat` is even called) — this module never calls `enemyFor` itself.
  */
 import type { Rng } from "@engine/core";
 import { ATTACK_DAMAGE, HEAL_AMOUNT, SHIELD_BLOCK } from "./constants";
 import { GENERATORS, TOPICS_FOR_GRADE } from "./generators";
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
 import { rollEnemyIntent } from "./logic";
 import type {
   AnswerResponse,
@@ -91,6 +99,10 @@ export interface CombatOpts {
   /** Accumulated run stat bonuses (M4a — `run/progression.ts`'s `StatBonuses`). Optional,
    * defaulting to all-zero, so M1-M3 call sites (and their tests) see byte-identical behaviour. */
   readonly mods?: StatBonuses;
+  /** M5 slice 2: which language `nextProblem`'s generated `prompt`/`teach` text is formatted in.
+   * Optional, defaulting to `"ro"`, so every pre-slice-2 call site (and their tests) stays
+   * byte-identical. Fixed for the whole fight, like `grade` — never changes an `Rng` draw. */
+  readonly locale?: Locale;
 }
 
 /** `null` while the fight is ongoing; set exactly once, the instant it ends. */
@@ -189,6 +201,7 @@ function toProblemView(problem: Problem, disabledChoices: readonly number[]): Pr
 export function createCombat(opts: CombatOpts): Combat {
   const { rng, grade, warriorMaxHp, enemy } = opts;
   const mods: StatBonuses = opts.mods ?? ZERO_STATS;
+  const locale: Locale = opts.locale ?? DEFAULT_LOCALE;
 
   const state: CombatState = {
     phase: "await_action",
@@ -215,7 +228,7 @@ export function createCombat(opts: CombatOpts): Combat {
     if (requeued !== undefined) return requeued;
     const topics = TOPICS_FOR_GRADE[grade];
     const topic = rng.fork("topic").pick(topics);
-    return GENERATORS[topic](rng.fork("problem"), grade);
+    return GENERATORS[topic](rng.fork("problem"), grade, locale);
   }
 
   /** Apply a CORRECT action's effect to `state`, returning the "amount" reported on the

@@ -70,6 +70,18 @@ describe("describeUpgrade", () => {
       expect(offer.desc.length).toBeGreaterThan(0);
     }
   });
+
+  it("(M5 i18n) localizes to EN, differs from RO, and defaults to RO", () => {
+    for (const kind of ALL_KINDS) {
+      const ro = describeUpgrade(kind, "ro");
+      const en = describeUpgrade(kind, "en");
+      expect(describeUpgrade(kind)).toEqual(ro); // default = RO
+      expect(en.kind).toBe(kind);
+      expect(en.label.length).toBeGreaterThan(0);
+      expect(en.desc.length).toBeGreaterThan(0);
+      expect(en.label).not.toBe(ro.label); // every label genuinely translated
+    }
+  });
 });
 
 describe("offerUpgrades", () => {

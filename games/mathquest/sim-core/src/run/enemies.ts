@@ -13,8 +13,16 @@
  * always in the lair). This is FLAVOR ONLY — `enemyFor` always composes the zone-flavored
  * name/title onto `ENEMY_ARCHETYPES[kind]`'s EXACT hp/intentBase/intentRoll; balance is LOCKED and
  * untouched by this addition (see `enemies.test.ts`'s exhaustive stat-equality assertion).
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) adds a `locale` parameter to
+ * `enemyFor`, defaulting to `"ro"` (every pre-slice-2 call site — including every existing test —
+ * is byte-identical). **Folklore proper NAMES stay identical in both locales** (Zmeu, Balaur, Muma
+ * Pădurii, Strigoi, Vârcolac, Căpcăun — they are the theme, not translated); only the `title`
+ * epithet translates (e.g. "puiul balaurului" → "the dragon's whelp"). `enemyFor` remains a PURE
+ * function of `(kind, zone, locale)` — no `Rng`, so determinism is untouched (module doc above).
  */
 import type { EnemySprite, Grade } from "../combat/types";
+import { DEFAULT_LOCALE, type Locale } from "../i18n";
 import type { Zone } from "./map";
 
 /** The three node types a fight can happen at (`"rest"` — `run/map.ts`'s `NodeType` — has none). */
@@ -72,35 +80,50 @@ export const BOSS_GRADE: Grade = 4;
  * `Zone` (`run/map.ts`). LOCKED per the brief (RO folklore names + short epithets); zone 3 (lair)
  * rows are defined even though the current 6-row map (`map.ts`'s `zoneForRow`) never places a
  * non-boss node there — keeps `enemyFor` TOTAL over all 4 zones, future-proofing a wider map.
+ *
+ * M5 slice 2 adds an EN epithet column (`titleEn`) alongside the LOCKED RO `title` — the folklore
+ * `name` (and `sprite`) stay identical across locales; only the epithet translates (module doc).
  */
 const ROSTER: {
-  readonly combat: Readonly<Record<Zone, readonly [name: string, title: string, sprite: EnemySprite]>>;
-  readonly elite: Readonly<Record<Zone, readonly [name: string, title: string, sprite: EnemySprite]>>;
+  readonly combat: Readonly<
+    Record<Zone, readonly [name: string, title: string, titleEn: string, sprite: EnemySprite]>
+  >;
+  readonly elite: Readonly<
+    Record<Zone, readonly [name: string, title: string, titleEn: string, sprite: EnemySprite]>
+  >;
 } = {
   combat: {
-    0: ["Zmeu pui", "puiul balaurului", "dragon"], // forest
-    1: ["Strigoi", "mortul viu", "strigoi"], // village
-    2: ["Căpcăun", "uriașul munților", "capcaun"], // mountains
-    3: ["Slugă de Zmeu", "sluga stăpânului", "dragon"], // lair
+    0: ["Zmeu pui", "puiul balaurului", "the dragon's whelp", "dragon"], // forest
+    1: ["Strigoi", "mortul viu", "the walking dead", "strigoi"], // village
+    2: ["Căpcăun", "uriașul munților", "giant of the mountains", "capcaun"], // mountains
+    3: ["Slugă de Zmeu", "sluga stăpânului", "the master's servant", "dragon"], // lair
   },
   elite: {
-    0: ["Muma Pădurii", "vrăjitoarea codrului", "muma"], // forest
-    1: ["Vârcolac", "fiara lunii", "varcolac"], // village
-    2: ["Balaur", "balaurul cu multe capete", "balaur"], // mountains
-    3: ["Zmeu", "zmeul din bârlog", "dragon"], // lair
+    0: ["Muma Pădurii", "vrăjitoarea codrului", "witch of the forest", "muma"], // forest
+    1: ["Vârcolac", "fiara lunii", "beast of the moon", "varcolac"], // village
+    2: ["Balaur", "balaurul cu multe capete", "the many-headed dragon", "balaur"], // mountains
+    3: ["Zmeu", "zmeul din bârlog", "the dragon of the lair", "dragon"], // lair
   },
 };
 
+/** The boss's EN epithet — RO "stăpânul bârlogului" → EN "lord of the lair" (name "Zmeu bătrân"
+ * stays identical, see the module doc). */
+const BOSS_TITLE_EN = "lord of the lair";
+
 /**
  * Composes a zone-flavored `name`/`title` onto `ENEMY_ARCHETYPES[kind]`'s EXACT stats — a PURE
- * function of `(kind, zone)`, no `Rng` involved, so the same `(kind, zone)` always returns the
- * same archetype (determinism is load-bearing — see the module doc). The boss ignores `zone`
- * (there is one boss, always in the lair) but the function stays total: every `(kind, zone)` pair
- * returns a value, including boss's four (identical) results.
+ * function of `(kind, zone, locale)`, no `Rng` involved, so the same `(kind, zone, locale)` always
+ * returns the same archetype (determinism is load-bearing — see the module doc). The boss ignores
+ * `zone` (there is one boss, always in the lair) but the function stays total: every
+ * `(kind, zone, locale)` triple returns a value, including boss's eight (per-locale-identical)
+ * results. `locale` defaults to `"ro"` — every pre-slice-2 call site is unchanged.
  */
-export function enemyFor(kind: EnemyKind, zone: Zone): EnemyArchetype {
+export function enemyFor(kind: EnemyKind, zone: Zone, locale: Locale = DEFAULT_LOCALE): EnemyArchetype {
   const base = ENEMY_ARCHETYPES[kind];
-  if (kind === "boss") return base; // one boss, always "Zmeu bătrân" — zone-independent
-  const [name, title, sprite] = ROSTER[kind][zone];
-  return { ...base, name, title, sprite };
+  if (kind === "boss") {
+    // One boss, always "Zmeu bătrân" — zone-independent; only its epithet translates.
+    return locale === "en" ? { ...base, title: BOSS_TITLE_EN } : base;
+  }
+  const [name, titleRo, titleEn, sprite] = ROSTER[kind][zone];
+  return { ...base, name, title: locale === "en" ? titleEn : titleRo, sprite };
 }

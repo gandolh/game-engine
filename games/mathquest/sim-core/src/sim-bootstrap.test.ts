@@ -1318,3 +1318,123 @@ describe("bootstrapMathquestSim — M4c determinism guard", () => {
     expect(empty.run.map).not.toEqual(high.run.map); // the elite slot differs
   });
 });
+
+// =================================================================================================
+// M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) — locale threading + the
+// determinism guard: (seed, mastery, locale, command script) reproduces identical snapshots, and
+// switching ONLY locale changes words, never structure (same map, same enemy identity, same
+// answers/answerIndex — never an Rng draw).
+// =================================================================================================
+
+describe("bootstrapMathquestSim — M5 slice 2 locale", () => {
+  it("omitting locale is byte-identical to explicitly passing locale: 'ro' (the default)", () => {
+    function run(locale?: "ro" | "en"): GameSnapshot {
+      const sim = bootstrapMathquestSim(locale === undefined ? { seed: 5 } : { seed: 5, locale });
+      const nodeId = findCombatNodeId(sim) ?? sim.getSnapshot().run.reachableIds[0]!;
+      sim.chooseNode(nodeId);
+      return sim.getSnapshot();
+    }
+    expect(run(undefined)).toEqual(run("ro"));
+  });
+
+  it("run.mastery round-trips a passed-in store IDENTICALLY regardless of locale (mastery is locale-independent)", () => {
+    const mastery = highMasteryStore();
+    const ro = bootstrapMathquestSim({ seed: 3, mastery, locale: "ro" });
+    const en = bootstrapMathquestSim({ seed: 3, mastery, locale: "en" });
+    expect(ro.getSnapshot().run.mastery).toEqual(en.getSnapshot().run.mastery);
+    expect(ro.getSnapshot().run.mastery).toEqual(mastery);
+  });
+
+  it("locale never changes the MAP (structure is a pure function of seed+mastery, not locale)", () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const ro = bootstrapMathquestSim({ seed, locale: "ro" }).getSnapshot().run.map;
+      const en = bootstrapMathquestSim({ seed, locale: "en" }).getSnapshot().run.map;
+      expect(ro).toEqual(en);
+    }
+  });
+
+  it("entering a fight: RO vs EN keep the SAME enemy name/stats/prompt numbers/answerIndex — only title + prompt/teach WORDS differ", () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 40 && checked < 15; seed++) {
+      const roSim = bootstrapMathquestSim({ seed, locale: "ro" });
+      const enSim = bootstrapMathquestSim({ seed, locale: "en" });
+      const nodeId = findCombatNodeId(roSim);
+      if (nodeId === undefined) continue;
+      roSim.chooseNode(nodeId);
+      enSim.chooseNode(nodeId);
+      const roSnap = roSim.getSnapshot();
+      const enSnap = enSim.getSnapshot();
+      expect(roSnap.mode).toBe("combat");
+      expect(enSnap.mode).toBe("combat");
+      if (roSnap.mode !== "combat" || enSnap.mode !== "combat") throw new Error("unreachable");
+
+      // Enemy identity/stats/sprite are locale-independent; only the epithet translates.
+      expect(enSnap.combat.enemy.name).toBe(roSnap.combat.enemy.name);
+      expect(enSnap.combat.enemy.sprite).toBe(roSnap.combat.enemy.sprite);
+      expect(enSnap.combat.enemy.maxHp).toBe(roSnap.combat.enemy.maxHp);
+      expect(enSnap.combat.enemy.intent).toBe(roSnap.combat.enemy.intent); // same rng draw
+      expect(enSnap.combat.enemy.title).not.toBe(roSnap.combat.enemy.title);
+      expect(enSnap.combat.grade).toBe(roSnap.combat.grade);
+      expect(enSnap.combat.warrior).toEqual(roSnap.combat.warrior);
+
+      // Entering combat doesn't itself deal a pending problem (that's chooseAction) — both null.
+      expect(enSnap.combat.problem).toBeNull();
+      expect(roSnap.combat.problem).toBeNull();
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("the SAME (seed, mastery, locale, command script) -> an IDENTICAL GameSnapshot sequence, for locale 'en' too (not just the RO default)", () => {
+    function run(): GameSnapshot[] {
+      const sim = bootstrapMathquestSim({ seed: 777, locale: "en" });
+      const snapshots: GameSnapshot[] = [sim.getSnapshot()];
+      for (let fight = 0; fight < 4; fight++) {
+        const snap = sim.getSnapshot();
+        if (snap.mode !== "map") break;
+        sim.chooseNode(snap.run.reachableIds[0]!);
+        snapshots.push(sim.getSnapshot());
+        let guard = 0;
+        while (sim.getSnapshot().mode === "combat" && guard++ < 300) {
+          const combatSnap = sim.getSnapshot();
+          if (combatSnap.mode !== "combat") break;
+          if (combatSnap.combat.phase === "await_action") {
+            sim.chooseAction(combatSnap.combat.warrior.hp <= 15 ? "heal" : "attack");
+          } else if (combatSnap.combat.phase === "await_answer") {
+            sim.submitAnswer(correctResponseFor(combatSnap.combat.problem!));
+          } else if (combatSnap.combat.phase === "teach") {
+            sim.acknowledgeTeach();
+          }
+          snapshots.push(sim.getSnapshot());
+        }
+        if (sim.getSnapshot().mode === "run_won" || sim.getSnapshot().mode === "run_lost") break;
+      }
+      return snapshots;
+    }
+    const a = run();
+    const b = run();
+    expect(a.length).toBeGreaterThan(1);
+    expect(a).toEqual(b);
+  });
+
+  it("switching ONLY locale (same seed) answers the SAME correctResponseFor-computed answer correctly in both — the non-leak invariant (answer/answerIndex) holds under either locale", () => {
+    for (const locale of ["ro", "en"] as const) {
+      const sim = bootstrapMathquestSim({ seed: 9, locale });
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) continue;
+      sim.chooseNode(nodeId);
+      sim.chooseAction("attack");
+      const snap = sim.getSnapshot();
+      expect(snap.mode).toBe("combat");
+      if (snap.mode !== "combat") throw new Error("unreachable");
+      const problem = snap.combat.problem;
+      expect(problem).not.toBeNull();
+      if (problem === null) throw new Error("unreachable");
+      sim.submitAnswer(correctResponseFor(problem));
+      const after = sim.getSnapshot();
+      expect(after.mode).toBe("combat");
+      if (after.mode !== "combat") throw new Error("unreachable");
+      expect(after.combat.lastPlayer.kind).toBe("landed"); // the independently-derived answer was accepted
+    }
+  });
+});

@@ -5,14 +5,20 @@
  * (`createLootScreen`), mirroring `run-over-screen.ts`'s build-once + per-frame `refresh()` shape.
  *
  * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds a lifeline line
- * (`STRINGS.lifelineSummary`) to each card so a pure-lifeline item (empty `bonus`) isn't left
+ * (`strings.lifelineSummary`) to each card so a pure-lifeline item (empty `bonus`) isn't left
  * blank.
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) adds `createLootScreen`'s
+ * `strings` param for this screen's OWN chrome (title/skip button/`bonusSummary`/
+ * `lifelineSummary`) — rebuilt on a locale toggle, like every other widget screen. `ItemView.name`
+ * (`run/loot.ts`) is display-ready RO text and stays RO in both locales (out of this slice's
+ * scope — see `ui/levelup-screen.ts`'s doc for the same note on upgrade offers).
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";
 import type { ItemView } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
-import { STRINGS } from "../strings";
+import type { Strings } from "../strings";
 
 /** `rollLoot` always returns exactly 3 offers — see `run/loot.ts`. Fixed slot count mirrors
  * `combat-screen.ts`'s `CHOICE_SLOTS` convention. */
@@ -51,11 +57,11 @@ function makeItemCard(index: number, actions: LootScreenActions): ItemCard {
   return { card, btn, bonusLbl, lifelineLbl };
 }
 
-export function createLootScreen(actions: LootScreenActions): LootScreen {
-  const titleLbl = label(STRINGS.lootTitle, { color: MATE_PAL.gold, scale: 3 });
+export function createLootScreen(actions: LootScreenActions, strings: Strings): LootScreen {
+  const titleLbl = label(strings.lootTitle, { color: MATE_PAL.gold, scale: 3 });
   const cards: readonly ItemCard[] = Array.from({ length: OFFER_SLOTS }, (_, i) => makeItemCard(i, actions));
   const offerRow = box({ direction: "row", gap: 16 }, cards.map((c) => c.card));
-  const skipBtn = button(STRINGS.lootSkip, { onActivate: () => actions.skipLoot() });
+  const skipBtn = button(strings.lootSkip, { onActivate: () => actions.skipLoot() });
   const root = panel({ direction: "column", gap: 16, align: "center", padding: 24 }, [titleLbl, offerRow, skipBtn]);
 
   let changed = false;
@@ -66,8 +72,8 @@ export function createLootScreen(actions: LootScreenActions): LootScreen {
     for (let i = 0; i < OFFER_SLOTS; i++) {
       const item = offers[i];
       const nextLabel = item?.name ?? "";
-      const nextBonus = item !== undefined ? STRINGS.bonusSummary(item.bonus) : "";
-      const nextLifeline = item !== undefined ? STRINGS.lifelineSummary(item.lifeline) : "";
+      const nextBonus = item !== undefined ? strings.bonusSummary(item.bonus) : "";
+      const nextLifeline = item !== undefined ? strings.lifelineSummary(item.lifeline) : "";
       const c = cards[i]!;
       if (c.btn.label !== nextLabel) {
         c.btn.label = nextLabel;

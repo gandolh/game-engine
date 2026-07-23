@@ -64,3 +64,69 @@ describe("enemyFor — the RO folklore roster (LOCKED names/epithets)", () => {
     }
   });
 });
+
+// =================================================================================================
+// M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) — enemyFor(kind, zone, locale)
+// =================================================================================================
+
+describe("enemyFor — locale (M5 slice 2)", () => {
+  it("omitting locale is byte-identical to explicitly passing 'ro' (default)", () => {
+    for (const kind of KINDS) {
+      for (const zone of ZONES) {
+        expect(enemyFor(kind, zone)).toEqual(enemyFor(kind, zone, "ro"));
+      }
+    }
+  });
+
+  it("'en' keeps the EXACT same folklore NAME as 'ro' for every (kind, zone) — names are the theme, not translated", () => {
+    for (const kind of KINDS) {
+      for (const zone of ZONES) {
+        expect(enemyFor(kind, zone, "en").name).toBe(enemyFor(kind, zone, "ro").name);
+        expect(enemyFor(kind, zone, "en").sprite).toBe(enemyFor(kind, zone, "ro").sprite);
+      }
+    }
+  });
+
+  it("'en' gives a DIFFERENT (translated) title than 'ro' for every (kind, zone)", () => {
+    for (const kind of KINDS) {
+      for (const zone of ZONES) {
+        const ro = enemyFor(kind, zone, "ro");
+        const en = enemyFor(kind, zone, "en");
+        expect(en.title).not.toBe(ro.title);
+        expect(en.title.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("'en' stats EXACTLY equal ENEMY_ARCHETYPES[kind] too — balance is locked in BOTH locales", () => {
+    for (const kind of KINDS) {
+      for (const zone of ZONES) {
+        const themed = enemyFor(kind, zone, "en");
+        const base = ENEMY_ARCHETYPES[kind];
+        expect(themed.maxHp).toBe(base.maxHp);
+        expect(themed.intentBase).toBe(base.intentBase);
+        expect(themed.intentRoll).toBe(base.intentRoll);
+      }
+    }
+  });
+
+  it("specific EN epithets — the dragon's whelp / lord of the lair / the many-headed dragon", () => {
+    expect(enemyFor("combat", 0, "en")).toMatchObject({ name: "Zmeu pui", title: "the dragon's whelp" });
+    expect(enemyFor("elite", 2, "en")).toMatchObject({ name: "Balaur", title: "the many-headed dragon" });
+    expect(enemyFor("boss", 3, "en")).toMatchObject({ name: "Zmeu bătrân", title: "lord of the lair" });
+  });
+
+  it("boss's EN title is the SAME regardless of zone (zone-independent, like the RO title)", () => {
+    for (const zone of ZONES) {
+      expect(enemyFor("boss", zone, "en").title).toBe("lord of the lair");
+    }
+  });
+
+  it("is a PURE function: repeated calls with the same (kind, zone, locale) return the identical archetype", () => {
+    for (const kind of KINDS) {
+      for (const zone of ZONES) {
+        expect(enemyFor(kind, zone, "en")).toEqual(enemyFor(kind, zone, "en"));
+      }
+    }
+  });
+});

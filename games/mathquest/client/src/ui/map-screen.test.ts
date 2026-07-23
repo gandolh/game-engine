@@ -12,6 +12,7 @@ import type { UIQuad } from "@engine/core/render";
 import { UISurface } from "@engine/ui";
 import { EMPTY_MASTERY_STORE, generateMap, STARTING_LIFELINES, type RunMap, type RunView } from "@mathquest/sim-core";
 import { createMapScreen } from "./map-screen";
+import { STRINGS_EN, STRINGS_RO } from "../strings";
 
 /** A real, deterministically-generated map (M3's `generateMap`) — exercising the screen against
  * an actual `RunMap` shape rather than a hand-rolled fixture. */
@@ -68,7 +69,7 @@ describe("createMapScreen — nodeAt hit-test", () => {
     const run = baseRun(map);
 
     surface.begin();
-    screen.render(surface, run, null, VIEW_W, VIEW_H);
+    screen.render(surface, run, null, VIEW_W, VIEW_H, "ro", STRINGS_RO);
     surface.end();
 
     // Probe every start-row node's own centre — `render()` just computed their layout, so each
@@ -104,7 +105,7 @@ describe("createMapScreen — nodeAt hit-test", () => {
     const run = baseRun(map);
 
     surface.begin();
-    screen.render(surface, run, null, VIEW_W, VIEW_H);
+    screen.render(surface, run, null, VIEW_W, VIEW_H, "ro", STRINGS_RO);
     surface.end();
 
     // Sweep the whole canvas once (8px grid — see the previous test's note) to build id -> a
@@ -170,7 +171,7 @@ describe("createMapScreen — render() smoke test", () => {
 
     const fresh = baseRun(map);
     surface.begin();
-    expect(() => screen.render(surface, fresh, null, VIEW_W, VIEW_H)).not.toThrow();
+    expect(() => screen.render(surface, fresh, null, VIEW_W, VIEW_H, "ro", STRINGS_RO)).not.toThrow();
     surface.end();
 
     const startId = map.startIds[0]!;
@@ -182,7 +183,50 @@ describe("createMapScreen — render() smoke test", () => {
       warriorHp: 12,
     });
     surface.begin();
-    expect(() => screen.render(surface, midRun, startNode.next[0] ?? null, VIEW_W, VIEW_H)).not.toThrow();
+    expect(() => screen.render(surface, midRun, startNode.next[0] ?? null, VIEW_W, VIEW_H, "ro", STRINGS_RO)).not.toThrow();
     surface.end();
+  });
+
+  it("draws without throwing when built with 'en' + STRINGS_EN too", () => {
+    const map = testMap(5);
+    const screen = createMapScreen();
+    const surface = fakeSurface();
+    const run = baseRun(map);
+    surface.begin();
+    expect(() => screen.render(surface, run, null, VIEW_W, VIEW_H, "en", STRINGS_EN)).not.toThrow();
+    surface.end();
+  });
+});
+
+// =================================================================================================
+// M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md) — the clickable "RO | EN" HUD
+// indicator's hit region.
+// =================================================================================================
+
+describe("createMapScreen — localeToggleRect", () => {
+  it("is a PURE function of the viewport — identical across locale/strings, and across separate calls", () => {
+    const screen = createMapScreen();
+    const a = screen.localeToggleRect(VIEW_W, VIEW_H);
+    const b = screen.localeToggleRect(VIEW_W, VIEW_H);
+    expect(a).toEqual(b);
+  });
+
+  it("sits within the viewport, near the bottom-right corner (the legend strip)", () => {
+    const screen = createMapScreen();
+    const rect = screen.localeToggleRect(VIEW_W, VIEW_H);
+    expect(rect.x).toBeGreaterThan(0);
+    expect(rect.x + rect.w).toBeLessThanOrEqual(VIEW_W);
+    expect(rect.y).toBeGreaterThan(0);
+    expect(rect.y + rect.h).toBeLessThanOrEqual(VIEW_H);
+    // Bottom-right quadrant: past the horizontal midpoint, in the bottom half.
+    expect(rect.x).toBeGreaterThan(VIEW_W / 2);
+    expect(rect.y).toBeGreaterThan(VIEW_H / 2);
+  });
+
+  it("a different viewport moves the rect (it tracks the viewport, not a fixed absolute position)", () => {
+    const screen = createMapScreen();
+    const small = screen.localeToggleRect(400, 300);
+    const large = screen.localeToggleRect(1200, 800);
+    expect(small).not.toEqual(large);
   });
 });

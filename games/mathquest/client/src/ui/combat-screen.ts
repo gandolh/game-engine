@@ -26,13 +26,19 @@
  * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds a lifeline bar (3 buttons, built
  * ONCE like the keypad) under the problem panel, a hint line inside the problem panel, and
  * disables the matching choice buttons from `problem.disabledChoices` — see `refresh`'s doc.
+ *
+ * M5 slice 2 (corpus/todos/2026-07-23-mathquest-M5-i18n-toggle.md): `createCombatScreen` now takes
+ * a resolved `Strings` bundle as its 2nd argument, used ONCE at construction for every fixed label
+ * (button text, the hero name, the teach-card title, …). A locale toggle REBUILDS this screen
+ * (`main.ts` calls `createCombatScreen` again with the new `Strings`) rather than re-binding these
+ * labels in place — see `strings.ts`'s module doc for the rationale.
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ButtonState, ContainerNode, LabelNode, UINode, UISurface } from "@engine/ui";
 import type { CombatAction, CombatSnapshot, LifelineCharges, LifelineKind } from "@mathquest/sim-core";
 import { LIFELINE_KINDS } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
-import { STRINGS } from "../strings";
+import type { Strings } from "../strings";
 import { ENEMY_SPRITE_DRAW, drawHero } from "./sprites";
 
 const HP_BAR_WIDTH = 200;
@@ -117,7 +123,7 @@ export interface CombatScreen {
   drawSprites(surface: UISurface, snapshot: CombatSnapshot, viewW: number, viewH: number): void;
 }
 
-export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
+export function createCombatScreen(actions: CombatScreenActions, strings: Strings): CombatScreen {
   // --- Grade (M3: READ-ONLY — difficulty now comes from the map node the player chose; the M2
   // manual selector is gone) ---------------------------------------------------------------------
   const gradeLbl = label("", { color: MATE_PAL.steel });
@@ -138,9 +144,9 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   ]);
 
   // --- Warrior area ----------------------------------------------------------------------------
-  // M5 folklore theming: the hero's proper name (STRINGS.heroName, "Făt-Frumos") — fixes the old
+  // M5 folklore theming: the hero's proper name (strings.heroName, "Făt-Frumos") — fixes the old
   // hardcoded EN "Warrior" literal. Fixed text (never rebound per refresh), like `titleLbl` below.
-  const warriorNameLbl = label(STRINGS.heroName, { color: MATE_PAL.cream, scale: 2 });
+  const warriorNameLbl = label(strings.heroName, { color: MATE_PAL.cream, scale: 2 });
   const warriorHpBar = makeHpBar(MATE_PAL.green);
   const warriorHpLbl = label("", { color: MATE_PAL.cream });
   const warriorBlockLbl = label("", { color: MATE_PAL.skyBlue });
@@ -156,20 +162,20 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   const turnLbl = label("", { color: MATE_PAL.steel });
 
   // --- Action menu (await_action) -----------------------------------------------------------------
-  const attackBtn = button(STRINGS.actionLabel.attack, { onActivate: () => actions.chooseAction("attack") });
-  const healBtn = button(STRINGS.actionLabel.heal, { onActivate: () => actions.chooseAction("heal") });
-  const shieldBtn = button(STRINGS.actionLabel.shield, { onActivate: () => actions.chooseAction("shield") });
+  const attackBtn = button(strings.actionLabel.attack, { onActivate: () => actions.chooseAction("attack") });
+  const healBtn = button(strings.actionLabel.heal, { onActivate: () => actions.chooseAction("heal") });
+  const shieldBtn = button(strings.actionLabel.shield, { onActivate: () => actions.chooseAction("shield") });
   const actionMenu = box({ direction: "row", gap: 8 }, [attackBtn, healBtn, shieldBtn]);
 
   // --- Problem panel (await_answer): prompt + EITHER typed keypad OR choice buttons --------------
   const promptLbl = label("", { color: MATE_PAL.white, scale: 2 });
-  const typedLbl = label(STRINGS.typedPlaceholder, { color: MATE_PAL.cyan, scale: 2 });
+  const typedLbl = label(strings.typedPlaceholder, { color: MATE_PAL.cyan, scale: 2 });
 
   function digitBtn(d: number): ButtonNode {
     return button(String(d), { onActivate: () => actions.appendDigit(d) });
   }
-  const backspaceBtn = button(STRINGS.backspace, { onActivate: () => actions.backspace() });
-  const enterBtn = button(STRINGS.submit, { onActivate: () => actions.submit() });
+  const backspaceBtn = button(strings.backspace, { onActivate: () => actions.backspace() });
+  const enterBtn = button(strings.submit, { onActivate: () => actions.submit() });
   const digitBtns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(digitBtn);
   const keypad = box({ direction: "column", gap: 4 }, [
     box({ direction: "row", gap: 4 }, [digitBtns[0]!, digitBtns[1]!, digitBtns[2]!]),
@@ -207,10 +213,10 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   );
 
   // --- Teach card (phase "teach"): worked step + the fizzle cue + Continue -----------------------
-  const teachTitleLbl = label(STRINGS.teachTitle, { color: MATE_PAL.gold });
+  const teachTitleLbl = label(strings.teachTitle, { color: MATE_PAL.gold });
   const teachFizzleLbl = label("", { color: MATE_PAL.yellow });
   const teachTextLbl = label("", { color: MATE_PAL.cream, maxWidth: 320 });
-  const continueBtn = button(STRINGS.continueLabel, { onActivate: () => actions.acknowledgeTeach() });
+  const continueBtn = button(strings.continueLabel, { onActivate: () => actions.acknowledgeTeach() });
   const teachCard = panel({ direction: "column", gap: 8 }, [teachTitleLbl, teachFizzleLbl, teachTextLbl, continueBtn]);
 
   // --- answerArea (M4b): the problem panel PLUS the lifeline bar underneath it — shown together
@@ -222,11 +228,11 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
 
   // --- Banner (won/lost) --------------------------------------------------------------------------
   const bannerLbl = label("", { color: MATE_PAL.gold, scale: 3 });
-  const restartBtn = button(STRINGS.restart, { onActivate: () => actions.restart() });
+  const restartBtn = button(strings.restart, { onActivate: () => actions.restart() });
   const bannerBox = panel({ direction: "column", gap: 12, align: "center" }, [bannerLbl, restartBtn]);
   const bannerArea = box({ direction: "column", gap: 0 }, []);
 
-  const titleLbl = label(STRINGS.title, { color: MATE_PAL.gold });
+  const titleLbl = label(strings.title, { color: MATE_PAL.gold });
   const root = box({ direction: "column", gap: 12, padding: 16 }, [
     titleLbl,
     gradeLbl,
@@ -250,20 +256,20 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     if (setHpBar(enemyHpBar, snapshot.enemy.hp, snapshot.enemy.maxHp)) changed = true;
     if (setText(enemyHpLbl, `${snapshot.enemy.hp}/${snapshot.enemy.maxHp}`)) changed = true;
     const intentText =
-      snapshot.phase === "await_action" ? `${STRINGS.enemyIntentPrefix} ${snapshot.enemy.intent}` : "";
+      snapshot.phase === "await_action" ? `${strings.enemyIntentPrefix} ${snapshot.enemy.intent}` : "";
     if (setText(enemyIntentLbl, intentText)) changed = true;
 
     if (setHpBar(warriorHpBar, snapshot.warrior.hp, snapshot.warrior.maxHp)) changed = true;
     if (setText(warriorHpLbl, `${snapshot.warrior.hp}/${snapshot.warrior.maxHp}`)) changed = true;
-    const blockText = snapshot.warrior.block > 0 ? `${STRINGS.warriorBlockPrefix} ${snapshot.warrior.block}` : "";
+    const blockText = snapshot.warrior.block > 0 ? `${strings.warriorBlockPrefix} ${snapshot.warrior.block}` : "";
     if (setText(warriorBlockLbl, blockText)) changed = true;
 
-    if (setText(turnLbl, STRINGS.turnLabel(snapshot.turn))) changed = true;
-    if (setText(playerCueLbl, STRINGS.playerResultCue(snapshot.lastPlayer))) changed = true;
-    if (setText(enemyCueLbl, STRINGS.enemyResultCue(snapshot.lastEnemy, snapshot.enemy.name))) changed = true;
+    if (setText(turnLbl, strings.turnLabel(snapshot.turn))) changed = true;
+    if (setText(playerCueLbl, strings.playerResultCue(snapshot.lastPlayer))) changed = true;
+    if (setText(enemyCueLbl, strings.enemyResultCue(snapshot.lastEnemy, snapshot.enemy.name))) changed = true;
 
     // Grade (M3: read-only — set by the map node this fight came from, not a mid-fight picker).
-    if (setText(gradeLbl, STRINGS.gradeReadout(snapshot.grade))) changed = true;
+    if (setText(gradeLbl, strings.gradeReadout(snapshot.grade))) changed = true;
 
     if (snapshot.phase === "await_answer" && snapshot.problem !== null) {
       const problem = snapshot.problem;
@@ -274,7 +280,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
           inputArea.children = [typedGroup];
           changed = true;
         }
-        const shown = typedValue.length > 0 ? typedValue : STRINGS.typedPlaceholder;
+        const shown = typedValue.length > 0 ? typedValue : strings.typedPlaceholder;
         if (setText(typedLbl, shown)) changed = true;
       } else {
         if (!sameChildren(inputArea, [choiceRow])) {
@@ -302,7 +308,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
         changed = true;
       }
       if (snapshot.hint !== null) {
-        if (setText(hintLbl, `${STRINGS.hintPrefix} ${snapshot.hint}`)) changed = true;
+        if (setText(hintLbl, `${strings.hintPrefix} ${snapshot.hint}`)) changed = true;
       }
     } else if (hintArea.children.length > 0) {
       // Left await_answer entirely (e.g. a killing skip) — drop any lingering hint line.
@@ -320,7 +326,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
       const fiftyAppliesToTyped = problem !== null && problem.kind === "typed";
       for (const kind of LIFELINE_KINDS) {
         const btn = lifelineBtns[kind];
-        const nextLabel = STRINGS.lifelineLabel(kind, lifelines[kind]);
+        const nextLabel = strings.lifelineLabel(kind, lifelines[kind]);
         if (btn.label !== nextLabel) {
           btn.label = nextLabel;
           changed = true;
@@ -334,7 +340,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
 
     if (snapshot.phase === "teach") {
       if (setText(teachTextLbl, snapshot.teach ?? "")) changed = true;
-      if (setText(teachFizzleLbl, STRINGS.playerResultCue(snapshot.lastPlayer))) changed = true;
+      if (setText(teachFizzleLbl, strings.playerResultCue(snapshot.lastPlayer))) changed = true;
     }
 
     // Swap dynamicArea's content by PHASE (removing the inactive subtree from the tree entirely —
@@ -353,7 +359,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     }
 
     const isOver = snapshot.phase === "won" || snapshot.phase === "lost";
-    if (isOver) setText(bannerLbl, snapshot.phase === "won" ? STRINGS.won : STRINGS.lost);
+    if (isOver) setText(bannerLbl, snapshot.phase === "won" ? strings.won : strings.lost);
     const nextBannerChildren: ContainerNode[] = isOver ? [bannerBox] : [];
     if (!sameChildren(bannerArea, nextBannerChildren)) {
       bannerArea.children = nextBannerChildren;
