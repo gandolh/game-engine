@@ -517,6 +517,27 @@ Făt-Frumos) with combat pixel-art sprites and a full RO/EN i18n toggle (M5). Al
   rect-based sprites are the shipped look). Idle/hit sprite animation.
 - Sound/music (never in scope). A start/settings menu; more zones/bosses; balance tuning from playtests.
 
+## Post-plan polish log
+
+- **2026-07-23 — Pokémon-style combat battle scene** (`c2327fe`, opus inline visual work). Reworked
+  `ui/combat-screen.ts` + `main.ts`'s combat branch from the old top-left text column into a
+  full-viewport battle scene (per a user reference image): enemy HP window top-left + creature sprite
+  upper-right; Făt-Frumos's HP window mid-right + his sprite lower-left (diagonally opposed, facing);
+  full-width command box along the bottom (turn/result line + phase content). **Key technique:** the
+  widget tree lays out full-viewport — `computeLayout(root, 0, 0, theme, {width,height})` with root
+  `align:"stretch"` and `grow`-spacer rows pin the HP windows and open a sky region — instead of the
+  inset `(24,24)`. A `drawScene` post-pass paints backdrop (sky/clouds/ground/two grass platforms) +
+  both sprites BEFORE `renderTree` (windows/command box paint over it); HP-bar fills stay a `drawBars`
+  pass AFTER `renderTree` and now tint green→amber→red by fraction. **Why this shape:** `hitTest`
+  bails if the point is outside `root.rect`, so a single root laid out from one origin is required —
+  hence "custom-draw the scene, keep the interactive tree as the bottom command box." Every DISPLAY
+  label stayed a real widget node, so the a11y mirror + ALL `combat-screen.test.ts` cases passed
+  **unchanged** (32 combat/sprite, 67 client, 10 palette; typecheck clean). Rect-only + `MATE_PAL`
+  (no WebGPU, no raw hex). Verified in-browser: action-menu phase + answer phase (keypad/lifelines)
+  + map regression, all good. Note: on a SHORT viewport the tall keypad command box squishes the sky
+  region (enemy shrinks); fine on a normal desktop window — a future refinement could fix the scene
+  height and lay the keypad text-left/keys-right.
+
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
   (RO title *Cetatea Cifrelor*, provisional, in the boot title).

@@ -4,6 +4,27 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] polish | MateQuest — Pokémon-style combat battle scene
+
+Post-plan visual rework (opus inline, from a user reference image showing the classic Pokémon fight
+framing). `ui/combat-screen.ts` + `main.ts`'s combat branch went from a top-left text column to a
+full-viewport battle scene: enemy HP window top-left + creature sprite upper-right; Făt-Frumos's HP
+window mid-right + his sprite lower-left (diagonally opposed, facing); a full-width command box along
+the bottom (turn/result line + action menu / problem+keypad / lifelines / teach / banner). **Key
+technique:** the widget tree now lays out FULL-VIEWPORT — `computeLayout(root, 0, 0, theme,
+{width,height})`, root `align:"stretch"`, `grow`-spacer rows pinning the HP windows and opening a sky
+region — instead of the inset `(24,24)`. A `drawScene` post-pass paints backdrop (sky/clouds/ground/two
+grass platforms) + both sprites BEFORE `renderTree` (windows/command box paint over it); HP-bar fills
+stay a `drawBars` pass AFTER `renderTree`, now tinting green→amber→red by fraction. **Why a single
+full-viewport root (not multi-anchored subtrees):** `hitTest` bails when the point is outside
+`root.rect`, so all interactive widgets must live under one root laid out from one origin — hence
+"custom-draw the scene, keep the interactive tree as the bottom command box." Every DISPLAY label
+stayed a real widget node → a11y mirror + ALL `combat-screen.test.ts` cases passed UNCHANGED (32
+combat/sprite, 67 client, 10 palette; typecheck clean). Rect-only + `MATE_PAL` (no WebGPU, no raw
+hex). Verified in-browser (action-menu + answer phases + map regression). Commit `c2327fe`. Detail:
+[todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) ("Post-plan
+polish log").
+
 ## [2026-07-23] build | MateQuest M5 slice 2 — RO/EN i18n toggle (M5 + the whole M0–M5 plan COMPLETE)
 
 The final slice — makes the whole game bilingual (RO default + EN). Dispatched to a Sonnet executor
