@@ -538,6 +538,22 @@ Făt-Frumos) with combat pixel-art sprites and a full RO/EN i18n toggle (M5). Al
   region (enemy shrinks); fine on a normal desktop window — a future refinement could fix the scene
   height and lay the keypad text-left/keys-right.
 
+- **2026-07-23 — Triviador-style quiz problem window** (`8465e38`, opus inline, follow-up to the
+  battle scene at the user's request to draw on Triviador/Conquiztador). Reworked the `await_answer`
+  content in `ui/combat-screen.ts` into a quiz-show card: a topic category chip + a big framed
+  question banner with a topic-coloured header strip (addition=green, subtraction=sky,
+  multiplication=gold, comparison=pink); choice problems render as big colour-framed answer tiles
+  (A/B/C identity, blue/gold/green) with a **red strike-through on a 50-50'd tile**; typed problems
+  get a big framed answer readout + a larger tappable keypad; command box centred. **Technique for
+  the per-tile / per-topic colour a widget button can't carry:** a new `drawFx` post-pass (after
+  `renderTree`) reads the laid-out banner + choice-button rects and paints the header strip + tile
+  frames/shadows/strike over them — the tiles stay real widget buttons, so a11y/focus + all
+  `combat-screen.test.ts` pass unchanged. No timer was added (a wall-clock countdown would break the
+  determinism contract, and a purely-cosmetic one would be dishonest — the game is turn-based/
+  untimed by design). Verified in-browser (typed + choice windows + the 50-50 elimination) via a
+  temporary `window.__mq` QA hook that auto-solved forward to a comparison fight, removed before
+  commit. Gate: typecheck clean, client 67, palette 10.
+
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
   (RO title *Cetatea Cifrelor*, provisional, in the boot title).

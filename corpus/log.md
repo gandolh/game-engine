@@ -4,6 +4,22 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] polish | MateQuest — Triviador-style quiz problem window
+
+Follow-up to the battle scene (user asked to draw on Triviador/Conquiztador). Reworked the
+`await_answer` content in `ui/combat-screen.ts` into a quiz-show card: a topic category chip + a big
+framed question banner with a topic-coloured header strip (addition=green, subtraction=sky,
+multiplication=gold, comparison=pink); choice problems → big colour-framed answer tiles (A/B/C blue/
+gold/green) with a **red strike-through on a 50-50'd tile**; typed problems → a big framed answer
+readout + a larger tappable keypad; command box centred. **Technique:** a widget button carries no
+per-instance colour, so a new `drawFx` post-pass (after `renderTree`) reads the laid-out banner +
+choice-button rects and paints the header strip + tile frames/shadows/strike over them — tiles stay
+real widget buttons, so a11y/focus + all `combat-screen.test.ts` pass unchanged. **No timer** (a
+wall-clock countdown would break determinism; a cosmetic one would be dishonest — the game is
+turn-based/untimed). Verified in-browser (typed + choice + 50-50 elimination) via a temporary
+`window.__mq` QA hook (auto-solved forward to a comparison fight, removed before commit). Commit
+`8465e38`. Gate: typecheck clean, client 67, palette 10.
+
 ## [2026-07-23] polish | MateQuest — Pokémon-style combat battle scene
 
 Post-plan visual rework (opus inline, from a user reference image showing the classic Pokémon fight
