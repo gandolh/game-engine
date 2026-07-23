@@ -22,10 +22,15 @@
  * M3 (corpus/todos/2026-07-22-mathquest-M3-map-and-runs.md, Part B) REMOVES the M2 grade
  * selector — difficulty now comes from which map node the player chose (`ui/map-screen.ts`), not
  * a manual picker mid-fight — and shows the fight's fixed grade as a READ-ONLY label instead.
+ *
+ * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds a lifeline bar (3 buttons, built
+ * ONCE like the keypad) under the problem panel, a hint line inside the problem panel, and
+ * disables the matching choice buttons from `problem.disabledChoices` — see `refresh`'s doc.
  */
 import { box, button, label, panel } from "@engine/ui";
-import type { ButtonNode, ContainerNode, LabelNode, UISurface } from "@engine/ui";
-import type { CombatAction, CombatSnapshot } from "@mathquest/sim-core";
+import type { ButtonNode, ButtonState, ContainerNode, LabelNode, UINode, UISurface } from "@engine/ui";
+import type { CombatAction, CombatSnapshot, LifelineCharges, LifelineKind } from "@mathquest/sim-core";
+import { LIFELINE_KINDS } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import { STRINGS } from "../strings";
 
@@ -44,6 +49,8 @@ export interface CombatScreenActions {
   submitChoice(index: number): void;
   /** Posts `acknowledge-teach` — advances past the teach card into the enemy's (deferred) turn. */
   acknowledgeTeach(): void;
+  /** M4b: posts `use-lifeline` with the given kind. */
+  useLifeline(kind: LifelineKind): void;
   restart(): void;
 }
 
@@ -75,7 +82,14 @@ function setText(lbl: LabelNode, text: string): boolean {
   return true;
 }
 
-function sameChildren(container: ContainerNode, next: readonly ContainerNode[]): boolean {
+/** M4b: rebind a button's `state` only when it actually changed (mirrors `setText`). */
+function setState(btn: ButtonNode, state: ButtonState): boolean {
+  if (btn.state === state) return false;
+  btn.state = state;
+  return true;
+}
+
+function sameChildren(container: ContainerNode, next: readonly UINode[]): boolean {
   return container.children.length === next.length && container.children.every((c, i) => c === next[i]);
 }
 
@@ -87,7 +101,7 @@ export interface CombatScreen {
    * Call once per frame. Returns `true` when layout-affecting content changed (gates the host's
    * `computeLayout` + a11y-mirror reconcile), mirroring `ResourceHud.refresh`.
    */
-  refresh(snapshot: CombatSnapshot, typedValue: string): boolean;
+  refresh(snapshot: CombatSnapshot, typedValue: string, lifelines: LifelineCharges): boolean;
   /**
    * Paint the HP bars' coloured fills. Call AFTER `computeLayout` + `renderTree` (needs
    * up-to-date `rect`s) and BEFORE `surface.end()` — mirrors the slate billboard's `drawIcons`.
@@ -158,8 +172,25 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   );
   const choiceRow = box({ direction: "row", gap: 8 }, choiceBtns);
 
+  // --- Hint line (M4b): visible only once `snapshot.hint !== null`, removed otherwise (mirrors
+  // the module doc's "removed from children, not just blanked" rule for inert content). ----------
+  const hintLbl = label("", { color: MATE_PAL.gold, maxWidth: 320 });
+  const hintArea = box({ direction: "column", gap: 0 }, []);
+
   const inputArea = box({ direction: "column", gap: 4 }, []);
-  const problemPanel = panel({ direction: "column", gap: 8 }, [promptLbl, inputArea]);
+  const problemPanel = panel({ direction: "column", gap: 8 }, [promptLbl, inputArea, hintArea]);
+
+  // --- Lifeline bar (M4b): built ONCE (fixed 3 kinds), mutated per refresh — mirrors the keypad's
+  // build-once-mutate-label/state convention. ------------------------------------------------------
+  const lifelineBtns: Record<LifelineKind, ButtonNode> = {
+    hint: button("", { onActivate: () => actions.useLifeline("hint") }),
+    fifty: button("", { onActivate: () => actions.useLifeline("fifty") }),
+    skip: button("", { onActivate: () => actions.useLifeline("skip") }),
+  };
+  const lifelineBar = box(
+    { direction: "row", gap: 8 },
+    LIFELINE_KINDS.map((kind) => lifelineBtns[kind]),
+  );
 
   // --- Teach card (phase "teach"): worked step + the fizzle cue + Continue -----------------------
   const teachTitleLbl = label(STRINGS.teachTitle, { color: MATE_PAL.gold });
@@ -168,7 +199,11 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   const continueBtn = button(STRINGS.continueLabel, { onActivate: () => actions.acknowledgeTeach() });
   const teachCard = panel({ direction: "column", gap: 8 }, [teachTitleLbl, teachFizzleLbl, teachTextLbl, continueBtn]);
 
-  // --- dynamicArea: swaps between actionMenu / problemPanel / teachCard / nothing (won/lost) ------
+  // --- answerArea (M4b): the problem panel PLUS the lifeline bar underneath it — shown together
+  // in `"await_answer"`. -----------------------------------------------------------------------
+  const answerArea = box({ direction: "column", gap: 8 }, [problemPanel, lifelineBar]);
+
+  // --- dynamicArea: swaps between actionMenu / answerArea / teachCard / nothing (won/lost) --------
   const dynamicArea = box({ direction: "column", gap: 8 }, []);
 
   // --- Banner (won/lost) --------------------------------------------------------------------------
@@ -193,7 +228,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
   let changed = false;
   let firstRefresh = true;
 
-  function refresh(snapshot: CombatSnapshot, typedValue: string): boolean {
+  function refresh(snapshot: CombatSnapshot, typedValue: string, lifelines: LifelineCharges): boolean {
     changed = false;
 
     if (setText(enemyNameLbl, snapshot.enemy.name)) changed = true;
@@ -237,7 +272,48 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
             choiceBtns[i]!.label = nextLabel;
             changed = true;
           }
+          // M4b: a "fifty" lifeline disables one wrong choice — @engine/ui's "disabled" state is
+          // already inert + Tab-skipped + a11y-reflected, so no extra guard is needed here (but
+          // `main.ts`'s `submitChoice` is ALSO hardened against a disabled index, belt-and-braces).
+          const nextState: ButtonState = problem.disabledChoices.includes(i) ? "disabled" : "normal";
+          if (setState(choiceBtns[i]!, nextState)) changed = true;
         }
+      }
+
+      // M4b: the hint line, shown only once a hint has been used on THIS problem.
+      const nextHintChildren: UINode[] = snapshot.hint !== null ? [hintLbl] : [];
+      if (!sameChildren(hintArea, nextHintChildren)) {
+        hintArea.children = nextHintChildren;
+        changed = true;
+      }
+      if (snapshot.hint !== null) {
+        if (setText(hintLbl, `${STRINGS.hintPrefix} ${snapshot.hint}`)) changed = true;
+      }
+    } else if (hintArea.children.length > 0) {
+      // Left await_answer entirely (e.g. a killing skip) — drop any lingering hint line.
+      hintArea.children = [];
+      changed = true;
+    }
+
+    // M4b: the lifeline bar — disabled when out of charges, when "fifty" targets a typed problem,
+    // or when hint/fifty was already applied to the CURRENT problem (idempotent-per-problem, so a
+    // second press can't waste a charge the sim would refuse anyway).
+    {
+      const problem = snapshot.problem;
+      const fiftyAlreadyUsed = problem !== null && problem.kind === "choice" && problem.disabledChoices.length > 0;
+      const hintAlreadyUsed = snapshot.hint !== null;
+      const fiftyAppliesToTyped = problem !== null && problem.kind === "typed";
+      for (const kind of LIFELINE_KINDS) {
+        const btn = lifelineBtns[kind];
+        const nextLabel = STRINGS.lifelineLabel(kind, lifelines[kind]);
+        if (btn.label !== nextLabel) {
+          btn.label = nextLabel;
+          changed = true;
+        }
+        const outOfCharges = lifelines[kind] <= 0;
+        const alreadyUsed = (kind === "hint" && hintAlreadyUsed) || (kind === "fifty" && fiftyAlreadyUsed);
+        const disabled = outOfCharges || alreadyUsed || (kind === "fifty" && fiftyAppliesToTyped);
+        if (setState(btn, disabled ? "disabled" : "normal")) changed = true;
       }
     }
 
@@ -252,7 +328,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
       snapshot.phase === "await_action"
         ? [actionMenu]
         : snapshot.phase === "await_answer"
-          ? [problemPanel]
+          ? [answerArea]
           : snapshot.phase === "teach"
             ? [teachCard]
             : [];

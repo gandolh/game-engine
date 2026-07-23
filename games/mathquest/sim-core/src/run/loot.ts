@@ -6,50 +6,67 @@
  *
  * Determinism (root CLAUDE.md): `rollLoot` consumes ONLY the `Rng` it's handed — the driver forks
  * a named child (`rng.fork("loot")`) before calling it — never `Math.random()`/`Date.now()`.
+ *
+ * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds an OPTIONAL `lifeline` grant to
+ * `Item`/`ItemView` — a pure-lifeline item carries `bonus: {}` and a `lifeline` field instead
+ * (three such items added to the pools below). `lifeline` is display-relevant (the loot card
+ * shows it), so `toItemView` copies it through verbatim — it is not a secret like `Problem.answer`.
  */
 import type { Rng } from "@engine/core";
+import type { LifelineKind } from "./lifelines";
 import type { StatBonuses } from "./progression";
 
-/** A lootable item: a flat, permanent `StatBonuses` delta once taken. */
+/** A lootable item: a flat, permanent `StatBonuses` delta once taken, and/or (M4b) a lifeline
+ * charge grant. A pure-lifeline item has `bonus: {}` and a non-undefined `lifeline`; a pure-stat
+ * item (M4a) has no `lifeline` key at all — never assign `lifeline: undefined`
+ * (`exactOptionalPropertyTypes`), omit the key instead. */
 export interface Item {
   readonly id: string;
   readonly name: string;
   readonly bonus: Partial<StatBonuses>;
-  // M4b: add optional lifeline?: LifelineKind + charges here
+  readonly lifeline?: { readonly kind: LifelineKind; readonly charges: number };
 }
 
-/** The sim/render-boundary-safe projection of an `Item` — identical shape today (an `Item` has no
- * secret fields yet), kept as its OWN type so a later `lifeline`/`charges` field (M4b) can be
- * stripped here without reshaping every call site (mirrors `combat/types.ts`'s `ProblemView`). */
+/** The sim/render-boundary-safe projection of an `Item` — identical shape (an `Item` has no secret
+ * fields — `lifeline` is display-relevant, not hidden, unlike `Problem.answer`). Kept as its OWN
+ * type mirroring `combat/types.ts`'s `ProblemView` pattern, in case a later milestone needs to
+ * strip something here without reshaping every call site. */
 export interface ItemView {
   readonly id: string;
   readonly name: string;
   readonly bonus: Partial<StatBonuses>;
+  readonly lifeline?: { readonly kind: LifelineKind; readonly charges: number };
 }
 
 /** Narrows an `Item` to its boundary-safe `ItemView` — the ONE place this happens (mirrors
- * `combat/combat.ts`'s `toProblemView`). */
+ * `combat/combat.ts`'s `toProblemView`). `lifeline` is copied through only when present (an
+ * unconditional spread would assign `lifeline: undefined` under `exactOptionalPropertyTypes` when
+ * absent — the conditional spread below omits the key entirely instead). */
 export function toItemView(item: Item): ItemView {
-  return { id: item.id, name: item.name, bonus: item.bonus };
+  return { id: item.id, name: item.name, bonus: item.bonus, ...(item.lifeline !== undefined ? { lifeline: item.lifeline } : {}) };
 }
 
 /** Which node type a win came from decides the loot pool's odds. Matches `run/enemies.ts`'s
  * `EnemyKind` shape (every fight-bearing `NodeType` except `"rest"`, which never drops loot). */
 export type LootTier = "combat" | "elite" | "boss";
 
-/** ~4 common items: small, single-stat bonuses. */
+/** ~4 common stat items + 2 common lifeline items (M4b): small, single-stat/single-lifeline grants. */
 const COMMON_POOL: readonly Item[] = [
   { id: "sabie-ascutita", name: "Sabie ascuțită", bonus: { atk: 2 } },
   { id: "scut-de-stejar", name: "Scut de stejar", bonus: { block: 3 } },
   { id: "potiune-de-viata", name: "Poțiune de viață", bonus: { maxHp: 6 } },
   { id: "amuleta", name: "Amuletă", bonus: { heal: 2 } },
+  { id: "pergament-indicii", name: "Pergament cu indicii", bonus: {}, lifeline: { kind: "hint", charges: 2 } },
+  { id: "ochi-ager", name: "Ochi ager", bonus: {}, lifeline: { kind: "fifty", charges: 1 } },
 ];
 
-/** ~3 better items (elite/boss-weighted): two-stat bonuses. */
+/** ~3 better stat items + 1 better lifeline item (M4b, elite/boss-weighted): two-stat bonuses, or
+ * a scarcer lifeline grant. */
 const BETTER_POOL: readonly Item[] = [
   { id: "coif-de-fier", name: "Coif de fier", bonus: { maxHp: 4, block: 2 } },
   { id: "manusi-de-jar", name: "Mănuși de jar", bonus: { atk: 3, heal: 1 } },
   { id: "talisman-vechi", name: "Talisman vechi", bonus: { block: 2, heal: 2 } },
+  { id: "clopotel-fermecat", name: "Clopoțel fermecat", bonus: {}, lifeline: { kind: "skip", charges: 1 } },
 ];
 
 /** Probability a single draw comes from `BETTER_POOL` rather than `COMMON_POOL`, by tier —

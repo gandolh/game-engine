@@ -9,6 +9,9 @@
  * `src/worker/sim-worker.ts` `self.onmessage` command-channel shape (a Web-Worker solo sim, no
  * server) and Hollow's equivalent worker.
  *
+ * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds `use-lifeline`, forwarded 1:1 to
+ * `sim.useLifeline`.
+ *
  * Drives `bootstrapMathquestSim()` at a fixed 20 Hz base cadence and posts a snapshot after each
  * paced tick (cheap — keeps the view fresh) AND immediately after every command, so the client
  * sees the run's resolution the instant it happens rather than waiting for the next tick.
@@ -17,7 +20,7 @@
  * load-bearing — root CLAUDE.md).
  */
 import { bootstrapMathquestSim } from "@mathquest/sim-core/sim-bootstrap";
-import type { AnswerResponse, CombatAction, GameSnapshot } from "@mathquest/sim-core/sim-bootstrap";
+import type { AnswerResponse, CombatAction, GameSnapshot, LifelineKind } from "@mathquest/sim-core/sim-bootstrap";
 
 export interface WorkerInitMessage {
   type: "init";
@@ -58,6 +61,12 @@ export interface WorkerChooseLootMessage {
   index: number;
 }
 
+/** M4b: spends a lifeline charge on the CURRENT pending problem (`sim.useLifeline(kind)`). */
+export interface WorkerUseLifelineMessage {
+  type: "use-lifeline";
+  kind: LifelineKind;
+}
+
 /** M3: starts a fresh run (new map, full HP) after `"run_won"`/`"run_lost"` — replaces M1/M2's
  * `"init"`-with-the-same-seed restart. */
 export interface WorkerNewRunMessage {
@@ -72,6 +81,7 @@ export type WorkerInbound =
   | WorkerAcknowledgeTeachMessage
   | WorkerChooseLevelUpMessage
   | WorkerChooseLootMessage
+  | WorkerUseLifelineMessage
   | WorkerNewRunMessage;
 
 export type WorkerOutbound =
@@ -136,6 +146,11 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     }
     case "choose-loot": {
       sim?.chooseLoot(msg.index);
+      postSnapshot();
+      break;
+    }
+    case "use-lifeline": {
+      sim?.useLifeline(msg.kind);
       postSnapshot();
       break;
     }

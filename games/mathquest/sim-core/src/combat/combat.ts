@@ -21,6 +21,15 @@
  * carries the run's maxHp bonus — the driver folds that in before calling `createCombat`), and
  * every fight now reports `CombatResult.xpEarned` (sum of `xpForSolve(grade)` per CORRECT
  * `submitAnswer`) for the driver's level-up bookkeeping.
+ *
+ * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds `useLifeline(kind)`: a `hint`
+ * reveals the pending problem's worked step early (`state.hintText`), a `fifty` disables one
+ * WRONG choice on a comparison problem (`state.fiftyDisabled`, via a NEW `rng.fork("fifty")` —
+ * added AFTER the existing `intent`/`topic`/`problem` forks, never reordering them), and a `skip`
+ * auto-lands the pending action for 0 XP (reusing `applyAction`/`runEnemyTurn` verbatim). Both
+ * `hintText`/`fiftyDisabled` reset to `null` whenever a NEW problem is set (`chooseAction`), so a
+ * fight that never calls `useLifeline` stays byte-identical to M4a: `disabledChoices` is always
+ * `[]`, `hint` is always `null`, and the `"fifty"` fork is never consumed.
  */
 import type { Rng } from "@engine/core";
 import { ATTACK_DAMAGE, HEAL_AMOUNT, SHIELD_BLOCK } from "./constants";
@@ -39,6 +48,7 @@ import type {
   ProblemView,
 } from "./types";
 import type { EnemyArchetype } from "../run/enemies";
+import type { LifelineKind } from "../run/lifelines";
 import { xpForSolve, ZERO_STATS, type StatBonuses } from "../run/progression";
 
 /** Options the run hands `createCombat` for ONE fight (M3 brief, Part A0; M4a adds `mods`). */
@@ -80,6 +90,12 @@ export interface Combat {
   submitAnswer(response: AnswerResponse): void;
   /** Valid only in `"teach"`; ignored otherwise. */
   acknowledgeTeach(): void;
+  /** M4b: applies `kind`'s effect to the CURRENT pending problem while `"await_answer"`. Returns
+   * `true` iff a state change actually happened (so the run driver knows whether to spend a
+   * charge) — `false` (no-op) when off-phase, when `fifty` targets a typed problem, or when
+   * `hint`/`fifty` was already applied to THIS problem (idempotent per problem). See the module
+   * doc for the exact per-kind logic. */
+  useLifeline(kind: LifelineKind): boolean;
   /** Returns a snapshot of the current fight (render/transport boundary; the M2 `CombatSnapshot`
    * shape, unchanged). */
   snapshot(): CombatSnapshot;
@@ -115,14 +131,28 @@ interface CombatState {
   lastEnemy: EnemyResult;
   /** Running total of `xpForSolve(grade)` over every CORRECT `submitAnswer` this fight (M4a). */
   xpEarned: number;
+  /** M4b: the CURRENT pending problem's worked step, revealed by a "hint" lifeline. Reset to
+   * `null` whenever a NEW problem is set (`chooseAction`) — see the module doc. */
+  hintText: string | null;
+  /** M4b: the non-answer choice index(es) a "fifty" lifeline disabled for the CURRENT pending
+   * choice problem; `null` until used, reset to `null` whenever a NEW problem is set. */
+  fiftyDisabled: number[] | null;
 }
 
 /** Narrows a `Problem` (which carries the answer) down to its boundary-safe `ProblemView` — the
- * ONE place this happens. Never spread a `Problem` directly onto a snapshot. */
-function toProblemView(problem: Problem): ProblemView {
+ * ONE place this happens. Never spread a `Problem` directly onto a snapshot. `disabledChoices`
+ * (M4b) is only meaningful for the choice branch — a typed problem has no such field. */
+function toProblemView(problem: Problem, disabledChoices: readonly number[]): ProblemView {
   return problem.kind === "typed"
     ? { kind: "typed", topic: problem.topic, grade: problem.grade, prompt: problem.prompt }
-    : { kind: "choice", topic: problem.topic, grade: problem.grade, prompt: problem.prompt, choices: problem.choices };
+    : {
+        kind: "choice",
+        topic: problem.topic,
+        grade: problem.grade,
+        prompt: problem.prompt,
+        choices: problem.choices,
+        disabledChoices,
+      };
 }
 
 export function createCombat(opts: CombatOpts): Combat {
@@ -143,6 +173,8 @@ export function createCombat(opts: CombatOpts): Combat {
     lastPlayer: { kind: "none" },
     lastEnemy: { kind: "none" },
     xpEarned: 0,
+    hintText: null,
+    fiftyDisabled: null,
   };
 
   /** Pop the re-queue's FRONT, or generate a fresh problem for the fight's fixed `grade`. */
@@ -201,6 +233,10 @@ export function createCombat(opts: CombatOpts): Combat {
     state.pendingAction = action;
     state.lastEnemy = { kind: "none" }; // don't let a stale enemy line linger
     state.pendingProblem = nextProblem();
+    // M4b: a fresh problem starts with no lifeline applied yet, even if the PREVIOUS problem had
+    // one (a re-queued problem after a wrong answer is a genuinely new `nextProblem()` call here).
+    state.hintText = null;
+    state.fiftyDisabled = null;
     state.phase = "await_answer";
   }
 
@@ -249,6 +285,58 @@ export function createCombat(opts: CombatOpts): Combat {
     runEnemyTurn();
   }
 
+  /** M4b — see the `Combat.useLifeline` doc + the module doc for the per-kind rules; the run
+   * driver (`sim-bootstrap.ts`) only spends a charge when this returns `true`. */
+  function useLifeline(kind: LifelineKind): boolean {
+    switch (kind) {
+      case "hint": {
+        if (state.phase !== "await_answer" || state.pendingProblem === null) return false;
+        if (state.hintText !== null) return false; // already hinted this problem
+        state.hintText = state.pendingProblem.teach;
+        return true;
+      }
+      case "fifty": {
+        if (state.phase !== "await_answer" || state.pendingProblem === null) return false;
+        const problem = state.pendingProblem;
+        if (problem.kind !== "choice") return false; // no-op on a typed problem
+        if (state.fiftyDisabled !== null) return false; // already used this problem
+        const wrongIndices = problem.choices
+          .map((_, i) => i)
+          .filter((i) => i !== problem.answerIndex);
+        // Comparison always emits exactly 3 choices (1 answer + 2 wrong) — dropping exactly one
+        // wrong index leaves the correct one + one wrong one, a true 50-50. A hypothetical topic
+        // with MORE choices would need `count - 2` drops to keep this a true 50-50; not needed
+        // today (see the brief).
+        const disabledIndex = rng.fork("fifty").pick(wrongIndices);
+        state.fiftyDisabled = [disabledIndex];
+        return true;
+      }
+      case "skip": {
+        if (state.phase !== "await_answer" || state.pendingAction === null || state.pendingProblem === null) {
+          return false;
+        }
+        const action = state.pendingAction;
+        // Reuse the exact correct-branch effect sequencing (applyAction -> "landed" -> won/enemy
+        // turn), minus the xpEarned accrual — a skip was not SOLVED, so it earns 0 xp.
+        const amount = applyAction(action);
+        state.lastPlayer = { kind: "landed", action, amount };
+        state.pendingAction = null;
+        state.pendingProblem = null;
+        state.hintText = null;
+        state.fiftyDisabled = null;
+
+        if (state.enemyHp <= 0) {
+          state.phase = "won";
+          state.turn += 1;
+          return true;
+        }
+
+        runEnemyTurn();
+        return true;
+      }
+    }
+  }
+
   function snapshot(): CombatSnapshot {
     const enemyView: EnemyView = {
       hp: state.enemyHp,
@@ -262,9 +350,11 @@ export function createCombat(opts: CombatOpts): Combat {
       warrior: { hp: state.warriorHp, maxHp: warriorMaxHp, block: state.warriorBlock },
       enemy: enemyView,
       // Load-bearing: only the display-safe `ProblemView` crosses this boundary.
-      problem: state.pendingProblem !== null ? toProblemView(state.pendingProblem) : null,
+      problem:
+        state.pendingProblem !== null ? toProblemView(state.pendingProblem, state.fiftyDisabled ?? []) : null,
       grade,
       teach: state.teach,
+      hint: state.hintText,
       turn: state.turn,
       lastPlayer: state.lastPlayer,
       lastEnemy: state.lastEnemy,
@@ -278,5 +368,5 @@ export function createCombat(opts: CombatOpts): Combat {
     return null;
   }
 
-  return { chooseAction, submitAnswer, acknowledgeTeach, snapshot, result };
+  return { chooseAction, submitAnswer, acknowledgeTeach, useLifeline, snapshot, result };
 }

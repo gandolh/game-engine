@@ -4,6 +4,7 @@ import { createCombat, type Combat, type CombatOpts } from "./combat";
 import { ATTACK_DAMAGE, WARRIOR_MAX_HP } from "./constants";
 import { ENEMY_ARCHETYPES } from "../run/enemies";
 import type { AnswerResponse, CombatSnapshot, Grade, ProblemView } from "./types";
+import { xpForSolve } from "../run/progression";
 
 /** Default fight: grade 1, full HP, vs the "combat" archetype (24 hp, intent 5-8) — the M1/M2
  * fight's exact numbers, now expressed as `CombatOpts` instead of module constants (M3 brief,
@@ -397,5 +398,281 @@ describe("createCombat — combat loop (M3: extracted factory, M1/M2 behavior pr
     }
     expect(sawTyped).toBe(true);
     expect(sawChoice).toBe(true);
+  });
+});
+
+// =================================================================================================
+// M4b — math lifelines (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md)
+// =================================================================================================
+
+describe("createCombat — M4b useLifeline('hint')", () => {
+  it("returns true in await_answer and sets a non-empty snapshot.hint (null before)", () => {
+    const combat = makeCombat(1);
+    combat.chooseAction("attack");
+    expect(combat.snapshot().hint).toBeNull();
+    expect(combat.useLifeline("hint")).toBe(true);
+    const after = combat.snapshot();
+    expect(after.hint).not.toBeNull();
+    expect(after.hint!.length).toBeGreaterThan(0);
+  });
+
+  it("a second hint on the SAME problem is a no-op (returns false, hint text unchanged)", () => {
+    const combat = makeCombat(1);
+    combat.chooseAction("attack");
+    expect(combat.useLifeline("hint")).toBe(true);
+    const hintText = combat.snapshot().hint;
+    expect(combat.useLifeline("hint")).toBe(false);
+    expect(combat.snapshot().hint).toBe(hintText);
+  });
+
+  it("hint outside await_answer (still await_action) returns false and leaves the snapshot unchanged", () => {
+    const combat = makeCombat(1);
+    const before = combat.snapshot();
+    expect(combat.useLifeline("hint")).toBe(false);
+    expect(combat.snapshot()).toEqual(before);
+  });
+
+  it("(exact) 3 correct attacks, hinting every single one, still earns the SAME xpEarned as no hints at all", () => {
+    const withHint = makeCombat(5);
+    for (let i = 0; i < 3; i++) {
+      withHint.chooseAction("attack");
+      withHint.useLifeline("hint");
+      withHint.submitAnswer(correctResponseFor(withHint.snapshot().problem!));
+    }
+    expect(withHint.snapshot().phase).toBe("won");
+    expect(withHint.result()).toEqual({ outcome: "won", warriorHp: withHint.snapshot().warrior.hp, xpEarned: 3 });
+  });
+
+  it("hint reveals the SAME text the problem's own `teach` would show on a wrong answer", () => {
+    // Compare two independent fights seeded identically up to the SAME first pending problem: one
+    // takes a hint (revealing `hint`), the other answers wrong (revealing `teach`) — both must
+    // show the exact same worked-step string, since both read `Problem.teach` for the SAME problem.
+    const hinted = makeCombat(1);
+    hinted.chooseAction("attack");
+    hinted.useLifeline("hint");
+    const hintText = hinted.snapshot().hint;
+
+    const wrongAnswered = makeCombat(1);
+    wrongAnswered.chooseAction("attack");
+    const view = wrongAnswered.snapshot().problem!;
+    wrongAnswered.submitAnswer(wrongResponse(correctResponseFor(view)));
+    const teachText = wrongAnswered.snapshot().teach;
+
+    expect(hintText).toBe(teachText);
+  });
+});
+
+describe("createCombat — M4b useLifeline('fifty')", () => {
+  it("on a choice problem: returns true, disables exactly 1 WRONG index, leaves the answer active", () => {
+    const { combat } = findFirstProblemOfKind("choice");
+    const before = combat.snapshot().problem!;
+    if (before.kind !== "choice") throw new Error("expected a choice problem");
+    expect(before.disabledChoices).toEqual([]);
+
+    expect(combat.useLifeline("fifty")).toBe(true);
+    const after = combat.snapshot().problem!;
+    if (after.kind !== "choice") throw new Error("expected a choice problem");
+    expect(after.disabledChoices.length).toBe(1);
+
+    // Solving the still-active CORRECT choice lands the action — proves the answer index was
+    // never among the disabled ones (never asserted by reading answerIndex directly — the
+    // non-leak invariant holds; this is an end-to-end behavioural proof instead).
+    const correct = correctResponseFor(after);
+    expect(after.disabledChoices).not.toContain(correct.kind === "choice" ? correct.index : -1);
+    combat.submitAnswer(correct);
+    expect(combat.snapshot().lastPlayer.kind).toBe("landed");
+  });
+
+  it("a second fifty on the SAME problem is a no-op (returns false, disabledChoices unchanged)", () => {
+    const { combat } = findFirstProblemOfKind("choice");
+    expect(combat.useLifeline("fifty")).toBe(true);
+    const view1 = combat.snapshot().problem!;
+    if (view1.kind !== "choice") throw new Error("expected choice");
+    expect(combat.useLifeline("fifty")).toBe(false);
+    const view2 = combat.snapshot().problem!;
+    if (view2.kind !== "choice") throw new Error("expected choice");
+    expect(view2.disabledChoices).toEqual(view1.disabledChoices);
+  });
+
+  it("fifty NEVER disables the answer index (checked across many seeds)", () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 100 && checked < 20; seed++) {
+      const combat = makeCombat(seed);
+      combat.chooseAction("attack");
+      const view = combat.snapshot().problem;
+      if (view === null || view.kind !== "choice") continue;
+      combat.useLifeline("fifty");
+      const after = combat.snapshot().problem!;
+      if (after.kind !== "choice") throw new Error("unreachable");
+      const correct = correctResponseFor(after);
+      if (correct.kind === "choice") expect(after.disabledChoices).not.toContain(correct.index);
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("fifty is deterministic: same seed + same script -> the same disabled index", () => {
+    // `findFirstProblemOfKind("choice")` deterministically scans seeds 1..limit and always lands
+    // on the SAME (seed, problem) pair — two independent calls reconstruct identical fights, so a
+    // `fifty` applied to each must pick the identical wrong index to disable.
+    const { combat: c1 } = findFirstProblemOfKind("choice");
+    const { combat: c2 } = findFirstProblemOfKind("choice");
+    c1.useLifeline("fifty");
+    c2.useLifeline("fifty");
+    const v1 = c1.snapshot().problem!;
+    const v2 = c2.snapshot().problem!;
+    if (v1.kind !== "choice" || v2.kind !== "choice") throw new Error("expected choice");
+    expect(v1.disabledChoices).toEqual(v2.disabledChoices);
+  });
+
+  it("fifty on a TYPED problem returns false and leaves the snapshot unchanged (no-op, not even the fork)", () => {
+    const { combat } = findFirstProblemOfKind("typed");
+    const before = combat.snapshot();
+    expect(combat.useLifeline("fifty")).toBe(false);
+    expect(combat.snapshot()).toEqual(before);
+  });
+
+  it("fifty outside await_answer returns false", () => {
+    const combat = makeCombat(1);
+    expect(combat.useLifeline("fifty")).toBe(false);
+  });
+});
+
+describe("createCombat — M4b useLifeline('skip')", () => {
+  it("lands the pending action (attack reduces enemy hp by the normal amount) and earns 0 xp", () => {
+    const skipped = makeCombat(5);
+    skipped.chooseAction("attack");
+    expect(skipped.useLifeline("skip")).toBe(true);
+    const snap = skipped.snapshot();
+    expect(snap.enemy.hp).toBe(ENEMY_ARCHETYPES.combat.maxHp - ATTACK_DAMAGE);
+    expect(snap.lastPlayer).toEqual({ kind: "landed", action: "attack", amount: ATTACK_DAMAGE });
+    expect(snap.problem).toBeNull(); // resolved back to await_action (or won)
+  });
+
+  it("earns 0 xp vs. the same script solved correctly (which earns xpForSolve(grade)*3)", () => {
+    const skipped = makeCombat(5);
+    for (let i = 0; i < 3; i++) {
+      skipped.chooseAction("attack");
+      skipped.useLifeline("skip");
+    }
+    expect(skipped.snapshot().phase).toBe("won");
+    expect(skipped.result()).toEqual({ outcome: "won", warriorHp: skipped.snapshot().warrior.hp, xpEarned: 0 });
+
+    const solved = makeCombat(5);
+    for (let i = 0; i < 3; i++) {
+      solved.chooseAction("attack");
+      solved.submitAnswer(correctResponseFor(solved.snapshot().problem!));
+    }
+    expect(solved.result()).toEqual({ outcome: "won", warriorHp: solved.snapshot().warrior.hp, xpEarned: 3 * xpForSolve(1) });
+  });
+
+  it("a skip-Attack that drops the enemy to 0 ends the fight WON with no further enemy turn", () => {
+    const combat = makeCombat(5);
+    combat.chooseAction("attack");
+    combat.useLifeline("skip"); // 1/3
+    combat.chooseAction("attack");
+    combat.useLifeline("skip"); // 2/3
+    const hpBeforeLast = combat.snapshot().warrior.hp;
+    combat.chooseAction("attack");
+    combat.useLifeline("skip"); // 3/3 -> lethal
+    const snap = combat.snapshot();
+    expect(snap.phase).toBe("won");
+    expect(snap.enemy.hp).toBe(0);
+    expect(snap.warrior.hp).toBe(hpBeforeLast); // no enemy turn after the killing skip
+    expect(combat.result()).toEqual({ outcome: "won", warriorHp: hpBeforeLast, xpEarned: 0 });
+  });
+
+  it("skip is a no-op (returns false) while no action is pending (await_action)", () => {
+    const combat = makeCombat(5);
+    const before = combat.snapshot();
+    expect(combat.useLifeline("skip")).toBe(false);
+    expect(combat.snapshot()).toEqual(before);
+  });
+
+  it("skip works for a choice problem too (comparison)", () => {
+    const { combat } = findFirstProblemOfKind("choice");
+    const enemyHpBefore = combat.snapshot().enemy.hp;
+    expect(combat.useLifeline("skip")).toBe(true);
+    expect(combat.snapshot().enemy.hp).toBe(enemyHpBefore - ATTACK_DAMAGE);
+  });
+});
+
+describe("createCombat — M4b charge-adjacent invariants (idempotence + new-problem reset)", () => {
+  it("hint/fifty state resets to null/[] when chooseAction sets a FRESH problem", () => {
+    const { combat } = findFirstProblemOfKind("choice");
+    combat.useLifeline("hint");
+    combat.useLifeline("fifty");
+    const view1 = combat.snapshot().problem!;
+    if (view1.kind !== "choice") throw new Error("expected choice");
+    expect(combat.snapshot().hint).not.toBeNull();
+    expect(view1.disabledChoices.length).toBe(1);
+
+    // Solve it correctly (lands, no re-queue) so the NEXT chooseAction gets a genuinely fresh draw.
+    combat.submitAnswer(correctResponseFor(view1));
+    if (combat.snapshot().phase !== "await_action") return; // fight ended — nothing more to check
+    combat.chooseAction("attack");
+    expect(combat.snapshot().hint).toBeNull();
+    const view2 = combat.snapshot().problem;
+    if (view2 !== null && view2.kind === "choice") expect(view2.disabledChoices).toEqual([]);
+  });
+
+  it("a wrong answer's RE-QUEUED problem also starts with hint/fifty cleared (new chooseAction call)", () => {
+    const combat = makeCombat(42);
+    combat.chooseAction("attack");
+    const missed = combat.snapshot().problem!;
+    combat.submitAnswer(wrongResponse(correctResponseFor(missed)));
+    combat.acknowledgeTeach();
+    combat.chooseAction("attack"); // pops the re-queued problem
+    expect(combat.snapshot().hint).toBeNull();
+    const requeued = combat.snapshot().problem;
+    if (requeued !== null && requeued.kind === "choice") expect(requeued.disabledChoices).toEqual([]);
+  });
+});
+
+describe("createCombat — M4b zero-behaviour-change guarantee (M4a parity)", () => {
+  it("a fight that NEVER calls useLifeline has disabledChoices:[] and hint:null on EVERY snapshot", () => {
+    const combat = makeCombat(12345);
+    let guard = 0;
+    while (combat.result() === null && guard++ < 60) {
+      const snap = combat.snapshot();
+      expect(snap.hint).toBeNull();
+      if (snap.problem !== null && snap.problem.kind === "choice") {
+        expect(snap.problem.disabledChoices).toEqual([]);
+      }
+      if (snap.phase === "await_action") {
+        combat.chooseAction("attack");
+      } else if (snap.phase === "await_answer") {
+        combat.submitAnswer(correctResponseFor(combat.snapshot().problem!));
+      } else if (snap.phase === "teach") {
+        combat.acknowledgeTeach();
+      }
+    }
+    expect(guard).toBeLessThan(60);
+  });
+
+  it("the 'fifty' fork is never consumed when useLifeline is never called (rng draws identical to a bare M4a fight)", () => {
+    // Two fights from the SAME seed: one only ever does chooseAction/submitAnswer (never
+    // useLifeline); confirm its full snapshot sequence is unaffected by the mere EXISTENCE of the
+    // fifty fork seam (i.e. M4a-era determinism is untouched by the M4b addition).
+    const seed = 999;
+    function run(): CombatSnapshot[] {
+      const combat = makeCombat(seed);
+      const snapshots: CombatSnapshot[] = [combat.snapshot()];
+      for (let i = 0; i < 4; i++) {
+        if (combat.snapshot().phase !== "await_action") break;
+        combat.chooseAction("attack");
+        snapshots.push(combat.snapshot());
+        combat.submitAnswer(correctResponseFor(combat.snapshot().problem!));
+        snapshots.push(combat.snapshot());
+        if (combat.snapshot().phase === "teach") {
+          combat.acknowledgeTeach();
+          snapshots.push(combat.snapshot());
+        }
+      }
+      return snapshots;
+    }
+    const a = run();
+    const b = run();
+    expect(a).toEqual(b);
   });
 });

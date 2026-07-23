@@ -111,11 +111,19 @@ async function main(): Promise<void> {
       typedValue = "";
     },
     submitChoice(index) {
+      // M4b: harden against a keyboard/edge path submitting a "fifty"-disabled choice — the
+      // widget itself already refuses to hit-test/focus a disabled button, but this is the ONE
+      // place a raw index reaches the sim, so check it here too (belt-and-braces).
+      const problem = latest !== null && latest.mode === "combat" ? latest.combat.problem : null;
+      if (problem !== null && problem.kind === "choice" && problem.disabledChoices.includes(index)) return;
       const response: AnswerResponse = { kind: "choice", index };
       post({ type: "submit-answer", response });
     },
     acknowledgeTeach() {
       post({ type: "acknowledge-teach" });
+    },
+    useLifeline(kind) {
+      post({ type: "use-lifeline", kind });
     },
     restart() {
       // Dead in practice (see the module doc — the run driver resolves a fight's win/loss into
@@ -356,7 +364,7 @@ async function main(): Promise<void> {
           let changed: boolean;
           switch (snapshot.mode) {
             case "combat":
-              changed = combatScreen.refresh(snapshot.combat, typedValue);
+              changed = combatScreen.refresh(snapshot.combat, typedValue, snapshot.run.lifelines);
               break;
             case "level_up":
               changed = levelUpScreen.refresh(snapshot.offers);

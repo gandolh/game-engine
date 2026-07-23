@@ -3,6 +3,10 @@
  * banner ("Pradă!"), 3 item cards (name + a `bonusSummary` line), and a "Sari peste" (skip) button
  * that posts `choose-loot` with `-1`. A retained `@engine/ui` tree built ONCE
  * (`createLootScreen`), mirroring `run-over-screen.ts`'s build-once + per-frame `refresh()` shape.
+ *
+ * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds a lifeline line
+ * (`STRINGS.lifelineSummary`) to each card so a pure-lifeline item (empty `bonus`) isn't left
+ * blank.
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ContainerNode, LabelNode } from "@engine/ui";
@@ -26,6 +30,8 @@ interface ItemCard {
   readonly card: ContainerNode;
   readonly btn: ButtonNode;
   readonly bonusLbl: LabelNode;
+  /** M4b: the item's lifeline grant summary, e.g. "+2 Indiciu" — blank for a pure-stat item. */
+  readonly lifelineLbl: LabelNode;
 }
 
 /** The retained loot screen: its root node plus `refresh()`. */
@@ -40,8 +46,9 @@ export interface LootScreen {
 function makeItemCard(index: number, actions: LootScreenActions): ItemCard {
   const btn = button("", { onActivate: () => actions.chooseLoot(index) });
   const bonusLbl = label("", { color: MATE_PAL.green, maxWidth: 200 });
-  const card = panel({ direction: "column", gap: 6, align: "center", padding: 12 }, [btn, bonusLbl]);
-  return { card, btn, bonusLbl };
+  const lifelineLbl = label("", { color: MATE_PAL.cyan, maxWidth: 200 });
+  const card = panel({ direction: "column", gap: 6, align: "center", padding: 12 }, [btn, bonusLbl, lifelineLbl]);
+  return { card, btn, bonusLbl, lifelineLbl };
 }
 
 export function createLootScreen(actions: LootScreenActions): LootScreen {
@@ -60,6 +67,7 @@ export function createLootScreen(actions: LootScreenActions): LootScreen {
       const item = offers[i];
       const nextLabel = item?.name ?? "";
       const nextBonus = item !== undefined ? STRINGS.bonusSummary(item.bonus) : "";
+      const nextLifeline = item !== undefined ? STRINGS.lifelineSummary(item.lifeline) : "";
       const c = cards[i]!;
       if (c.btn.label !== nextLabel) {
         c.btn.label = nextLabel;
@@ -67,6 +75,10 @@ export function createLootScreen(actions: LootScreenActions): LootScreen {
       }
       if (c.bonusLbl.text !== nextBonus) {
         c.bonusLbl.text = nextBonus;
+        changed = true;
+      }
+      if (c.lifelineLbl.text !== nextLifeline) {
+        c.lifelineLbl.text = nextLifeline;
         changed = true;
       }
     }

@@ -1,10 +1,12 @@
 /**
  * MateQuest M4a — `run/loot.ts` unit tests
- * (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md).
+ * (corpus/todos/2026-07-23-mathquest-M4a-progression-loot.md). M4b
+ * (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) extends this with lifeline-grant coverage
+ * at the bottom of the file.
  */
 import { describe, it, expect } from "vitest";
 import { createRng } from "@engine/core";
-import { foldItemBonus, rollLoot, toItemView, type LootTier } from "./loot";
+import { foldItemBonus, rollLoot, toItemView, type Item, type LootTier } from "./loot";
 import { ZERO_STATS } from "./progression";
 
 const TIERS: readonly LootTier[] = ["combat", "elite", "boss"];
@@ -34,11 +36,16 @@ describe("rollLoot", () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it("every offered item carries a non-empty bonus", () => {
+  it("every offered item carries a non-empty bonus OR a lifeline grant (M4b: pure-lifeline items have bonus:{})", () => {
+    // Pre-M4b every item had a non-empty stat bonus. M4b intentionally adds pure-lifeline items
+    // (bonus:{}, a lifeline grant instead) to both pools — so the invariant widens to "carries
+    // SOME grant" rather than "carries a stat bonus", without weakening into a tautology (an item
+    // with neither would still fail this).
     for (const tier of TIERS) {
       const items = rollLoot(createRng(3).fork(`b:${tier}`), tier);
       for (const item of items) {
-        expect(Object.keys(item.bonus).length).toBeGreaterThan(0);
+        const hasBonus = Object.keys(item.bonus).length > 0;
+        expect(hasBonus || item.lifeline !== undefined).toBe(true);
       }
     }
   });
@@ -65,10 +72,25 @@ describe("rollLoot", () => {
 });
 
 describe("toItemView", () => {
-  it("projects id/name/bonus verbatim (an Item has no secret fields yet)", () => {
+  it("projects id/name/bonus verbatim (an Item has no OTHER secret fields)", () => {
     const [item] = rollLoot(createRng(1), "combat");
     const view = toItemView(item!);
-    expect(view).toEqual({ id: item!.id, name: item!.name, bonus: item!.bonus });
+    const expected: ReturnType<typeof toItemView> =
+      item!.lifeline !== undefined
+        ? { id: item!.id, name: item!.name, bonus: item!.bonus, lifeline: item!.lifeline }
+        : { id: item!.id, name: item!.name, bonus: item!.bonus };
+    expect(view).toEqual(expected);
+  });
+
+  it("(M4b) carries a lifeline grant through verbatim when the item has one", () => {
+    const item: Item = { id: "test-item", name: "Test", bonus: {}, lifeline: { kind: "hint", charges: 2 } };
+    expect(toItemView(item)).toEqual({ id: "test-item", name: "Test", bonus: {}, lifeline: { kind: "hint", charges: 2 } });
+  });
+
+  it("(M4b) omits the lifeline key entirely (not `lifeline: undefined`) when the item has none", () => {
+    const item: Item = { id: "test-item2", name: "Test2", bonus: { atk: 1 } };
+    const view = toItemView(item);
+    expect(Object.prototype.hasOwnProperty.call(view, "lifeline")).toBe(false);
   });
 });
 

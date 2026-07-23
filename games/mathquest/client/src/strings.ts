@@ -7,7 +7,7 @@
  * curriculum content, not UI chrome). All Romanian diacritics render (the @engine/ui font carries
  * them, incl. comma-below ș/ț).
  */
-import type { CombatAction, EnemyResult, Grade, NodeType, PlayerResult, StatBonuses } from "@mathquest/sim-core";
+import type { CombatAction, EnemyResult, Grade, LifelineKind, NodeType, PlayerResult, StatBonuses } from "@mathquest/sim-core";
 
 export const STRINGS = {
   title: "MateQuest — Cetatea Cifrelor",
@@ -153,5 +153,27 @@ export const STRINGS = {
   },
   xpLabel(xp: number, xpNext: number): string {
     return `XP ${xp}/${xpNext}`;
+  },
+
+  // --- M4b: lifelines (hint / 50-50 / skip) -------------------------------------------------------
+
+  lifelineName: {
+    hint: "Indiciu",
+    fifty: "50-50",
+    skip: "Sări",
+  } satisfies Record<LifelineKind, string>,
+
+  /** A lifeline button's label, e.g. "Indiciu (1)" — `ui/combat-screen.ts`'s lifeline bar. */
+  lifelineLabel(kind: LifelineKind, n: number): string {
+    return `${STRINGS.lifelineName[kind]} (${n})`;
+  },
+
+  hintPrefix: "Indiciu:",
+
+  /** "+2 Indiciu" style summary of a loot item's lifeline grant — `ui/loot-screen.ts`'s card, so a
+   * pure-lifeline item (empty `bonus`) isn't left with a blank line. `undefined` (no grant) -> "". */
+  lifelineSummary(lifeline: { readonly kind: LifelineKind; readonly charges: number } | undefined): string {
+    if (lifeline === undefined) return "";
+    return `+${lifeline.charges} ${STRINGS.lifelineName[lifeline.kind]}`;
   },
 } as const;

@@ -32,7 +32,10 @@
  * three, never reordering them) for each level-up/loot offer roll — never
  * `Math.random()`/`Date.now()`. `Rng.fork` consumes a parent draw, so the ORDER these forks
  * happen in must stay identical run-to-run for the same command script (it does — see
- * `chooseNode`/`newRun`/`proceed` below).
+ * `chooseNode`/`newRun`/`proceed` below). M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md)
+ * adds NO new fork here — `useLifeline` forwards straight to `Combat.useLifeline`, which forks
+ * `"fifty"` on the fight's OWN rng (never a driver-level fork), so the driver-level fork order
+ * (`map`/`run:${n}`/`node:${id}`/`levelup`/`loot`) is completely unchanged.
  */
 import { World, Scheduler, createRng, type Rng, type System, type SimContext } from "@engine/core";
 import { createCombat, type Combat } from "./combat/combat";
@@ -42,6 +45,7 @@ import { ENEMY_ARCHETYPES } from "./run/enemies";
 import { generateMap, type MapNode, type NodeType, type RunMap } from "./run/map";
 import { REST_HEAL } from "./run/constants";
 import { rollLoot, toItemView, foldItemBonus, type Item, type ItemView, type LootTier } from "./run/loot";
+import { STARTING_LIFELINES, type LifelineCharges, type LifelineKind } from "./run/lifelines";
 import {
   describeUpgrade,
   offerUpgrades,
@@ -73,6 +77,7 @@ export type {
 export type { EnemyArchetype, EnemyKind } from "./run/enemies";
 export type { MapNode, NodeType, RunMap } from "./run/map";
 export type { Item, ItemView, LootTier } from "./run/loot";
+export type { LifelineCharges, LifelineKind } from "./run/lifelines";
 export type { StatBonuses, UpgradeKind, UpgradeOffer } from "./run/progression";
 
 /**
@@ -120,6 +125,9 @@ export interface RunView {
   readonly stats: StatBonuses;
   /** Items taken this run, in pickup order; empty on `newRun()`. */
   readonly inventory: readonly ItemView[];
+  /** M4b: remaining lifeline charges per kind — starts at `STARTING_LIFELINES` (1 of each),
+   * topped up by lifeline loot, resets on `newRun()`. */
+  readonly lifelines: LifelineCharges;
 }
 
 /** The top-level sim/render boundary snapshot (M3 brief, Part A4; M4a adds `"level_up"`/`"loot"`)
@@ -167,6 +175,12 @@ export interface BootedMathquestSim {
    * beyond advancing); otherwise adds `offers[index]` to `inventory` and folds its `bonus` into
    * `stats` (a `maxHp` bonus also heals by that amount), then calls `proceed()`. */
   chooseLoot(index: number): void;
+  /** M4b: forwarded to the active `Combat` while `mode === "combat"` and `lifelines[kind] > 0`;
+   * ignored otherwise. Spends exactly one charge of `kind` ONLY when `Combat.useLifeline` reports
+   * it actually applied (a `fifty` on a typed problem, or a repeat hint/fifty, spends nothing). A
+   * `skip` may end the fight — `resolveCombatIfOver()` runs after, same as every other combat
+   * command. */
+  useLifeline(kind: LifelineKind): void;
   /** Valid only in `"run_won"`/`"run_lost"`; ignored otherwise. Regenerates the map from a fresh
    * fork (`rng.fork(`run:${n}`)`), resets `warriorHp` to full and ALL M4a progression (xp/level/
    * stats/inventory) to zero, and returns to `"map"` — a clean restart. */
@@ -217,6 +231,9 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
   let xp = 0;
   let stats: StatBonuses = ZERO_STATS;
   let inventory: Item[] = [];
+  // M4b: the run's lifeline charge kit — spread (never alias) `STARTING_LIFELINES`, since it is
+  // this run's OWN mutable record, not a shared default.
+  let lifelines: LifelineCharges = { ...STARTING_LIFELINES };
   let pendingLevelUps = 0;
   let levelUpOffers: UpgradeKind[] | null = null;
   let lootOffers: Item[] | null = null;
@@ -349,6 +366,17 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     resolveCombatIfOver();
   }
 
+  /** M4b: forwards to the active `Combat`; spends a charge ONLY when it actually applied. A
+   * `skip` may end the fight, so `resolveCombatIfOver()` runs after, same as every other combat
+   * command. */
+  function useLifeline(kind: LifelineKind): void {
+    if (mode !== "combat" || combat === null) return; // ignore off-mode commands
+    if (lifelines[kind] <= 0) return; // no charges — no-op
+    const applied = combat.useLifeline(kind);
+    if (applied) lifelines = { ...lifelines, [kind]: lifelines[kind] - 1 };
+    resolveCombatIfOver();
+  }
+
   function chooseLevelUp(index: number): void {
     if (mode !== "level_up" || levelUpOffers === null) return; // ignore off-mode commands
     const kind = levelUpOffers[index];
@@ -374,6 +402,12 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       stats = foldItemBonus(stats, item.bonus);
       const healedBy = stats.maxHp - before.maxHp; // 0 unless the item carried a maxHp bonus
       if (healedBy !== 0) warriorHp = Math.min(maxHp(), warriorHp + healedBy);
+      // M4b: a lifeline-granting item adds charges (not stats) — pure-lifeline items have
+      // bonus:{} so the fold above is a no-op for them, and this is the ONLY effect they have.
+      if (item.lifeline !== undefined) {
+        const { kind, charges } = item.lifeline;
+        lifelines = { ...lifelines, [kind]: lifelines[kind] + charges };
+      }
     }
     winLootResolved = true;
     lootOffers = null;
@@ -393,6 +427,7 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     xp = 0;
     stats = ZERO_STATS;
     inventory = [];
+    lifelines = { ...STARTING_LIFELINES };
     pendingLevelUps = 0;
     levelUpOffers = null;
     lootOffers = null;
@@ -415,6 +450,7 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       xpToNext: xpToNext(level),
       stats,
       inventory: inventory.map(toItemView),
+      lifelines: { ...lifelines },
     };
     switch (mode) {
       case "combat":
@@ -451,6 +487,7 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     chooseAction,
     submitAnswer,
     acknowledgeTeach,
+    useLifeline,
     chooseLevelUp,
     chooseLoot,
     newRun,

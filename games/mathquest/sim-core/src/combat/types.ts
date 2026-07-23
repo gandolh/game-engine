@@ -72,6 +72,10 @@ export type ProblemView =
       readonly grade: Grade;
       readonly prompt: string;
       readonly choices: readonly string[];
+      /** M4b: non-answer indices a "fifty" lifeline disabled — empty when no fifty was used on
+       * this problem. NEVER contains the answer index (the non-leak invariant — see the module
+       * doc); `toProblemView` fills this from `CombatState.fiftyDisabled ?? []`. */
+      readonly disabledChoices: readonly number[];
     };
 
 /** The client's answer to the pending problem, submitted via `submitAnswer`. */
@@ -115,6 +119,10 @@ export interface CombatSnapshot {
   readonly grade: Grade;
   /** The worked-step text for the missed problem, non-null ONLY in `"teach"` phase. */
   readonly teach: string | null;
+  /** M4b: the worked step for the CURRENT pending problem, revealed by a "hint" lifeline. `null`
+   * outside `"await_answer"`, or when no hint has been used on the current problem yet. Distinct
+   * from `teach` (which is the POST-mistake worked step shown in `"teach"` phase). */
+  readonly hint: string | null;
   readonly turn: number;
   readonly lastPlayer: PlayerResult;
   readonly lastEnemy: EnemyResult;

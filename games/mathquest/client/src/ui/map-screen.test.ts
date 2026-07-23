@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { createRng } from "@engine/core";
 import type { UIQuad } from "@engine/core/render";
 import { UISurface } from "@engine/ui";
-import { generateMap, type RunMap, type RunView } from "@mathquest/sim-core";
+import { generateMap, STARTING_LIFELINES, type RunMap, type RunView } from "@mathquest/sim-core";
 import { createMapScreen } from "./map-screen";
 
 /** A real, deterministically-generated map (M3's `generateMap`) — exercising the screen against
@@ -34,6 +34,8 @@ function baseRun(map: RunMap, over: Partial<RunView> = {}): RunView {
     xpToNext: 5,
     stats: { atk: 0, maxHp: 0, block: 0, heal: 0 },
     inventory: [],
+    // M4b addition (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) — a fresh run's default kit.
+    lifelines: { ...STARTING_LIFELINES },
     ...over,
   };
 }

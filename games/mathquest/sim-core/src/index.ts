@@ -77,3 +77,11 @@ export {
 } from "./run/enemies";
 
 export { REST_HEAL } from "./run/constants";
+
+export {
+  LIFELINE_KINDS,
+  STARTING_LIFELINES,
+  NO_LIFELINES,
+  type LifelineKind,
+  type LifelineCharges,
+} from "./run/lifelines";

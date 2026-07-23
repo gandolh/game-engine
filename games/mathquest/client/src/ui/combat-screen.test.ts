@@ -7,9 +7,13 @@
  */
 import { describe, it, expect } from "vitest";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
-import type { CombatSnapshot, ProblemView } from "@mathquest/sim-core";
+import { NO_LIFELINES, STARTING_LIFELINES, type CombatSnapshot, type LifelineCharges, type ProblemView } from "@mathquest/sim-core";
 import { createCombatScreen, type CombatScreenActions } from "./combat-screen";
 import { STRINGS } from "../strings";
+
+/** Every `screen.refresh` call below defaults to the full starting kit unless a test overrides it
+ * — mirrors a fresh run's `RunView.lifelines` (M4b). */
+const DEFAULT_LIFELINES: LifelineCharges = STARTING_LIFELINES;
 
 function walk(node: UINode, out: UINode[] = []): UINode[] {
   out.push(node);
@@ -36,6 +40,7 @@ function baseSnapshot(over: Partial<CombatSnapshot> = {}): CombatSnapshot {
     problem: null,
     grade: 1,
     teach: null,
+    hint: null,
     turn: 1,
     lastPlayer: { kind: "none" },
     lastEnemy: { kind: "none" },
@@ -50,6 +55,7 @@ interface Calls {
   submit: number;
   submitChoice: number[];
   acknowledgeTeach: number;
+  useLifeline: string[];
   restart: number;
 }
 
@@ -61,6 +67,7 @@ function makeScreen(): { screen: ReturnType<typeof createCombatScreen>; calls: C
     submit: 0,
     submitChoice: [],
     acknowledgeTeach: 0,
+    useLifeline: [],
     restart: 0,
   };
   const actions: CombatScreenActions = {
@@ -76,6 +83,7 @@ function makeScreen(): { screen: ReturnType<typeof createCombatScreen>; calls: C
     acknowledgeTeach: () => {
       calls.acknowledgeTeach++;
     },
+    useLifeline: (kind) => calls.useLifeline.push(kind),
     restart: () => {
       calls.restart++;
     },
@@ -86,29 +94,29 @@ function makeScreen(): { screen: ReturnType<typeof createCombatScreen>; calls: C
 describe("createCombatScreen — action menu / banner (unchanged M1 shapes)", () => {
   it("shows Attack/Heal/Shield only in await_action", () => {
     const { screen } = makeScreen();
-    screen.refresh(baseSnapshot({ phase: "await_action" }), "");
+    screen.refresh(baseSnapshot({ phase: "await_action" }), "", DEFAULT_LIFELINES);
     expect(buttons(screen.root).map((b) => b.label)).toEqual(
       expect.arrayContaining([STRINGS.actionLabel.attack, STRINGS.actionLabel.heal, STRINGS.actionLabel.shield]),
     );
-    screen.refresh(baseSnapshot({ phase: "won" }), "");
+    screen.refresh(baseSnapshot({ phase: "won" }), "", DEFAULT_LIFELINES);
     expect(buttons(screen.root).map((b) => b.label)).not.toContain(STRINGS.actionLabel.attack);
   });
 
   it("clicking Attack calls chooseAction('attack')", () => {
     const { screen, calls } = makeScreen();
-    screen.refresh(baseSnapshot({ phase: "await_action" }), "");
+    screen.refresh(baseSnapshot({ phase: "await_action" }), "", DEFAULT_LIFELINES);
     byLabel(screen.root, STRINGS.actionLabel.attack).onActivate?.();
     expect(calls.chooseAction).toEqual(["attack"]);
   });
 
   it("won/lost shows the banner text + a working Restart button", () => {
     const { screen, calls } = makeScreen();
-    screen.refresh(baseSnapshot({ phase: "won" }), "");
+    screen.refresh(baseSnapshot({ phase: "won" }), "", DEFAULT_LIFELINES);
     expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.won);
     byLabel(screen.root, STRINGS.restart).onActivate?.();
     expect(calls.restart).toBe(1);
 
-    screen.refresh(baseSnapshot({ phase: "lost" }), "");
+    screen.refresh(baseSnapshot({ phase: "lost" }), "", DEFAULT_LIFELINES);
     expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.lost);
   });
 });
@@ -117,11 +125,12 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
   it("a typed problem renders the numeric keypad, no choice buttons", () => {
     const { screen } = makeScreen();
     const problem: ProblemView = { kind: "typed", topic: "addition", grade: 1, prompt: "3 + 4 = ?" };
-    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "");
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "", DEFAULT_LIFELINES);
     const btnLabels = buttons(screen.root).map((b) => b.label);
     expect(btnLabels).toEqual(expect.arrayContaining(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]));
-    // 12 keypad buttons (10 digits + backspace + enter); no grade selector (M3), no action menu/choices.
-    expect(buttons(screen.root).length).toBe(12);
+    // 12 keypad buttons (10 digits + backspace + enter) + 3 lifeline buttons (M4b, always shown
+    // alongside the problem panel in await_answer); no grade selector (M3), no action menu/choices.
+    expect(buttons(screen.root).length).toBe(15);
   });
 
   it("a choice problem renders exactly problem.choices as buttons, no keypad", () => {
@@ -132,13 +141,15 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
       grade: 2,
       prompt: "Compară: 5 și 9",
       choices: [">", "=", "<"],
+      disabledChoices: [],
     };
-    screen.refresh(baseSnapshot({ phase: "await_answer", problem, grade: 2 }), "");
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem, grade: 2 }), "", DEFAULT_LIFELINES);
     const btnLabels = buttons(screen.root).map((b) => b.label);
     expect(btnLabels).toEqual(expect.arrayContaining([">", "=", "<"]));
     expect(btnLabels).not.toContain("0"); // no keypad digit present
-    // 3 choice buttons; no grade selector (M3), no keypad, no action menu.
-    expect(buttons(screen.root).length).toBe(3);
+    // 3 choice buttons + 3 lifeline buttons (M4b, always shown alongside the problem panel in
+    // await_answer); no grade selector (M3), no keypad, no action menu.
+    expect(buttons(screen.root).length).toBe(6);
   });
 
   it("clicking a choice button submits ITS index (tracks the choice order shown)", () => {
@@ -149,8 +160,9 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
       grade: 1,
       prompt: "Compară: 5 și 9",
       choices: [">", "=", "<"],
+      disabledChoices: [],
     };
-    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "");
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "", DEFAULT_LIFELINES);
     byLabel(screen.root, "<").onActivate?.();
     expect(calls.submitChoice).toEqual([2]); // "<" sits at index 2 in this shuffle
   });
@@ -163,12 +175,13 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
       grade: 1,
       prompt: "Compară: 5 și 9",
       choices: [">", "=", "<"],
+      disabledChoices: [],
     };
-    screen.refresh(baseSnapshot({ phase: "await_answer", problem: choiceProblem }), "");
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: choiceProblem }), "", DEFAULT_LIFELINES);
     expect(buttons(screen.root).map((b) => b.label)).toContain(">");
 
     const typedProblem: ProblemView = { kind: "typed", topic: "subtraction", grade: 1, prompt: "9 - 5 = ?" };
-    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblem }), "");
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblem }), "", DEFAULT_LIFELINES);
     const btnLabels = buttons(screen.root).map((b) => b.label);
     expect(btnLabels).toContain("0");
     expect(btnLabels).not.toContain(">");
@@ -177,7 +190,7 @@ describe("createCombatScreen — M2 mixed input: typed keypad vs choice buttons"
   it("typed mode: digit/backspace/enter buttons call appendDigit/backspace/submit", () => {
     const { screen, calls } = makeScreen();
     const problem: ProblemView = { kind: "typed", topic: "addition", grade: 1, prompt: "3 + 4 = ?" };
-    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "3");
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "3", DEFAULT_LIFELINES);
     byLabel(screen.root, "7").onActivate?.();
     byLabel(screen.root, STRINGS.backspace).onActivate?.();
     byLabel(screen.root, STRINGS.submit).onActivate?.();
@@ -197,6 +210,7 @@ describe("createCombatScreen — M2 teach card", () => {
         lastPlayer: { kind: "fizzle", action: "attack" },
       }),
       "",
+      DEFAULT_LIFELINES,
     );
     const text = labels(screen.root).map((l) => l.text);
     expect(text).toContain("7 + 8: 7 + 3 = 10, apoi + 5 = 15");
@@ -211,6 +225,7 @@ describe("createCombatScreen — M2 teach card", () => {
     screen.refresh(
       baseSnapshot({ phase: "teach", teach: "x", lastPlayer: { kind: "fizzle", action: "heal" } }),
       "",
+      DEFAULT_LIFELINES,
     );
     byLabel(screen.root, STRINGS.continueLabel).onActivate?.();
     expect(calls.acknowledgeTeach).toBe(1);
@@ -220,11 +235,11 @@ describe("createCombatScreen — M2 teach card", () => {
 describe("createCombatScreen — grade readout (M3: read-only, no selector)", () => {
   it("shows the fight's fixed grade as text, with no grade BUTTONS anywhere", () => {
     const { screen } = makeScreen();
-    screen.refresh(baseSnapshot({ grade: 1 }), "");
+    screen.refresh(baseSnapshot({ grade: 1 }), "", DEFAULT_LIFELINES);
     expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.gradeReadout(1));
     expect(buttons(screen.root).map((b) => b.label)).not.toContain("I");
 
-    screen.refresh(baseSnapshot({ grade: 3 }), "");
+    screen.refresh(baseSnapshot({ grade: 3 }), "", DEFAULT_LIFELINES);
     expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.gradeReadout(3));
   });
 });
@@ -232,8 +247,147 @@ describe("createCombatScreen — grade readout (M3: read-only, no selector)", ()
 describe("createCombatScreen — refresh() change reporting", () => {
   it("reports true on the first refresh, false when nothing changed, true again on a real change", () => {
     const { screen } = makeScreen();
-    expect(screen.refresh(baseSnapshot(), "")).toBe(true);
-    expect(screen.refresh(baseSnapshot(), "")).toBe(false);
-    expect(screen.refresh(baseSnapshot({ turn: 2 }), "")).toBe(true);
+    expect(screen.refresh(baseSnapshot(), "", DEFAULT_LIFELINES)).toBe(true);
+    expect(screen.refresh(baseSnapshot(), "", DEFAULT_LIFELINES)).toBe(false);
+    expect(screen.refresh(baseSnapshot({ turn: 2 }), "", DEFAULT_LIFELINES)).toBe(true);
+  });
+});
+
+// =================================================================================================
+// M4b — lifeline bar / hint line / 50-50 rendering
+// =================================================================================================
+
+const typedProblemView: ProblemView = { kind: "typed", topic: "addition", grade: 1, prompt: "3 + 4 = ?" };
+const choiceProblemView: ProblemView = {
+  kind: "choice",
+  topic: "comparison",
+  grade: 1,
+  prompt: "Compară: 5 și 9",
+  choices: [">", "=", "<"],
+  disabledChoices: [],
+};
+
+describe("createCombatScreen — M4b lifeline bar", () => {
+  it("shows 3 lifeline buttons labelled with STRINGS.lifelineLabel, only in await_answer", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblemView }), "", DEFAULT_LIFELINES);
+    const btnLabels = buttons(screen.root).map((b) => b.label);
+    expect(btnLabels).toContain(STRINGS.lifelineLabel("hint", 1));
+    expect(btnLabels).toContain(STRINGS.lifelineLabel("fifty", 1));
+    expect(btnLabels).toContain(STRINGS.lifelineLabel("skip", 1));
+
+    screen.refresh(baseSnapshot({ phase: "await_action" }), "", DEFAULT_LIFELINES);
+    expect(buttons(screen.root).map((b) => b.label)).not.toContain(STRINGS.lifelineLabel("hint", 1));
+  });
+
+  it("reflects the CURRENT charge count in each button's label", () => {
+    const { screen } = makeScreen();
+    const lifelines = { hint: 2, fifty: 0, skip: 1 };
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblemView }), "", lifelines);
+    const btnLabels = buttons(screen.root).map((b) => b.label);
+    expect(btnLabels).toContain(STRINGS.lifelineLabel("hint", 2));
+    expect(btnLabels).toContain(STRINGS.lifelineLabel("fifty", 0));
+    expect(btnLabels).toContain(STRINGS.lifelineLabel("skip", 1));
+  });
+
+  it("clicking a lifeline button calls useLifeline(kind)", () => {
+    const { screen, calls } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblemView }), "", DEFAULT_LIFELINES);
+    byLabel(screen.root, STRINGS.lifelineLabel("hint", 1)).onActivate?.();
+    expect(calls.useLifeline).toEqual(["hint"]);
+  });
+
+  it("disables a lifeline button at 0 charges", () => {
+    const { screen } = makeScreen();
+    // A choice problem (not typed) so "fifty" isn't ALSO disabled by the typed-problem rule —
+    // isolates the "0 charges" case from the "wrong input kind" case tested separately below.
+    screen.refresh(
+      baseSnapshot({ phase: "await_answer", problem: choiceProblemView }),
+      "",
+      { hint: 0, fifty: 1, skip: 1 },
+    );
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("hint", 0)).state).toBe("disabled");
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("fifty", 1)).state).toBe("normal");
+  });
+
+  it("disables 'fifty' on a TYPED problem even with charges available", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblemView }), "", DEFAULT_LIFELINES);
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("fifty", 1)).state).toBe("disabled");
+  });
+
+  it("enables 'fifty' on a CHOICE problem with charges available", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: choiceProblemView }), "", DEFAULT_LIFELINES);
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("fifty", 1)).state).toBe("normal");
+  });
+
+  it("disables 'hint' once a hint was already used on the current problem (snapshot.hint !== null)", () => {
+    const { screen } = makeScreen();
+    screen.refresh(
+      baseSnapshot({ phase: "await_answer", problem: typedProblemView, hint: "3+4: count on from 4" }),
+      "",
+      DEFAULT_LIFELINES,
+    );
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("hint", 1)).state).toBe("disabled");
+  });
+
+  it("disables 'fifty' once already used on the current problem (disabledChoices non-empty)", () => {
+    const { screen } = makeScreen();
+    const problem: ProblemView = { ...choiceProblemView, disabledChoices: [1] };
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "", DEFAULT_LIFELINES);
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("fifty", 1)).state).toBe("disabled");
+  });
+
+  it("all three lifeline buttons are disabled when NO_LIFELINES (a fresh depleted kit)", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblemView }), "", NO_LIFELINES);
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("hint", 0)).state).toBe("disabled");
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("fifty", 0)).state).toBe("disabled");
+    expect(byLabel(screen.root, STRINGS.lifelineLabel("skip", 0)).state).toBe("disabled");
+  });
+});
+
+describe("createCombatScreen — M4b hint line", () => {
+  it("shows the hint text (prefixed) when snapshot.hint is set, absent when null", () => {
+    const { screen } = makeScreen();
+    screen.refresh(
+      baseSnapshot({ phase: "await_answer", problem: typedProblemView, hint: "3+4: count on from 4" }),
+      "",
+      DEFAULT_LIFELINES,
+    );
+    expect(labels(screen.root).map((l) => l.text)).toContain(`${STRINGS.hintPrefix} 3+4: count on from 4`);
+
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblemView, hint: null }), "", DEFAULT_LIFELINES);
+    expect(labels(screen.root).map((l) => l.text)).not.toContain(`${STRINGS.hintPrefix} 3+4: count on from 4`);
+  });
+
+  it("never shows a hint line outside await_answer (e.g. teach)", () => {
+    const { screen } = makeScreen();
+    screen.refresh(
+      baseSnapshot({ phase: "teach", teach: "x", hint: null, lastPlayer: { kind: "fizzle", action: "attack" } }),
+      "",
+      DEFAULT_LIFELINES,
+    );
+    expect(labels(screen.root).map((l) => l.text).some((t) => t.startsWith(STRINGS.hintPrefix))).toBe(false);
+  });
+});
+
+describe("createCombatScreen — M4b 50-50 choice rendering", () => {
+  it("marks the disabled choice button's state='disabled', others stay 'normal'", () => {
+    const { screen } = makeScreen();
+    const problem: ProblemView = { ...choiceProblemView, disabledChoices: [1] };
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem }), "", DEFAULT_LIFELINES);
+    expect(byLabel(screen.root, "=").state).toBe("disabled"); // index 1
+    expect(byLabel(screen.root, ">").state).toBe("normal");
+    expect(byLabel(screen.root, "<").state).toBe("normal");
+  });
+
+  it("no choice is disabled when disabledChoices is empty (the M4a baseline)", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: choiceProblemView }), "", DEFAULT_LIFELINES);
+    expect(byLabel(screen.root, ">").state).toBe("normal");
+    expect(byLabel(screen.root, "=").state).toBe("normal");
+    expect(byLabel(screen.root, "<").state).toBe("normal");
   });
 });

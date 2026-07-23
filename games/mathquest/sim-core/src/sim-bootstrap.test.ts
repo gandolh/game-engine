@@ -18,6 +18,7 @@ import { ATTACK_DAMAGE, WARRIOR_MAX_HP } from "./combat/constants";
 import { ENEMY_ARCHETYPES } from "./run/enemies";
 import { xpToNext, ZERO_STATS } from "./run/progression";
 import { foldItemBonus } from "./run/loot";
+import { STARTING_LIFELINES } from "./run/lifelines";
 import type { AnswerResponse, ProblemView } from "./combat/types";
 import type { RunMap } from "./run/map";
 
@@ -797,6 +798,230 @@ describe("bootstrapMathquestSim — M4a determinism guard", () => {
       sim.chooseLevelUp(0);
       snapshots.push(sim.getSnapshot());
       sim.chooseLoot(0);
+      snapshots.push(sim.getSnapshot());
+      return snapshots;
+    }
+    const a = run();
+    const b = run();
+    expect(a.length).toBeGreaterThan(1);
+    expect(a).toEqual(b);
+  });
+});
+
+// =================================================================================================
+// M4b — math lifelines (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md)
+// =================================================================================================
+
+/** Enters combat at a `"combat"`-type node (see `findCombatNodeId`) and advances to `"await_answer"`
+ * via a fixed `"attack"` action — the minimal setup every M4b driver-level test needs before
+ * calling `sim.useLifeline`. */
+function enterAwaitAnswer(sim: BootedMathquestSim, nodeId: number): void {
+  sim.chooseNode(nodeId);
+  const snap = sim.getSnapshot();
+  if (snap.mode !== "combat") throw new Error("enterAwaitAnswer: chooseNode didn't start a fight");
+  sim.chooseAction("attack");
+}
+
+/** Searches seeds for a combat node whose FIRST pending problem is of the given `kind` — mirrors
+ * `combat/combat.test.ts`'s `findFirstProblemOfKind`, but through the RUN driver. */
+function findRunWithProblemKind(
+  kind: "typed" | "choice",
+  limit = 100,
+): { sim: BootedMathquestSim; nodeId: number; view: ProblemView } {
+  for (let seed = 1; seed <= limit; seed++) {
+    const sim = bootstrapMathquestSim({ seed });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) continue;
+    enterAwaitAnswer(sim, nodeId);
+    const snap = sim.getSnapshot();
+    if (snap.mode !== "combat") continue;
+    const view = snap.combat.problem;
+    if (view !== null && view.kind === kind) return { sim, nodeId, view };
+  }
+  throw new Error(`findRunWithProblemKind: no ${kind} problem found in ${limit} seeds`);
+}
+
+describe("bootstrapMathquestSim — M4b starting kit + charge economy", () => {
+  it("a fresh run starts with STARTING_LIFELINES ({hint:1,fifty:1,skip:1})", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    expect(sim.getSnapshot().run.lifelines).toEqual(STARTING_LIFELINES);
+  });
+
+  it("a successful hint decrements exactly hint by 1, leaving fifty/skip untouched", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+    enterAwaitAnswer(sim, nodeId);
+    sim.useLifeline("hint");
+    const snap = sim.getSnapshot();
+    expect(snap.run.lifelines).toEqual({ ...STARTING_LIFELINES, hint: 0 });
+    if (snap.mode === "combat") expect(snap.combat.hint).not.toBeNull();
+  });
+
+  it("a repeat hint on the SAME problem spends NO further charge (stays at 0, not negative)", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+    enterAwaitAnswer(sim, nodeId);
+    sim.useLifeline("hint");
+    expect(sim.getSnapshot().run.lifelines.hint).toBe(0);
+    sim.useLifeline("hint"); // charges already 0 -> the driver's own `lifelines[kind] <= 0` guard fires
+    expect(sim.getSnapshot().run.lifelines.hint).toBe(0);
+  });
+
+  it("useLifeline at 0 charges is a no-op: combat is untouched (no hint applied)", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+    enterAwaitAnswer(sim, nodeId);
+    sim.useLifeline("hint"); // spend the only hint charge
+    expect(sim.getSnapshot().run.lifelines.hint).toBe(0);
+    const before = sim.getSnapshot();
+    sim.useLifeline("hint"); // 0 charges -> driver returns before ever calling combat.useLifeline
+    expect(sim.getSnapshot()).toEqual(before);
+  });
+
+  it("fifty on a TYPED problem is a no-op at the driver level too: charge unchanged, combat unchanged", () => {
+    const { sim, view } = findRunWithProblemKind("typed");
+    expect(view.kind).toBe("typed");
+    const before = sim.getSnapshot();
+    sim.useLifeline("fifty");
+    const after = sim.getSnapshot();
+    expect(after).toEqual(before);
+    expect(after.run.lifelines.fifty).toBe(STARTING_LIFELINES.fifty); // no charge spent
+  });
+
+  it("fifty on a CHOICE problem spends exactly 1 charge and disables one wrong choice", () => {
+    const { sim, view } = findRunWithProblemKind("choice");
+    expect(view.kind).toBe("choice");
+    sim.useLifeline("fifty");
+    const snap = sim.getSnapshot();
+    expect(snap.run.lifelines.fifty).toBe(STARTING_LIFELINES.fifty - 1);
+    if (snap.mode !== "combat" || snap.combat.problem === null || snap.combat.problem.kind !== "choice") {
+      throw new Error("unreachable");
+    }
+    expect(snap.combat.problem.disabledChoices.length).toBe(1);
+  });
+
+  it("skip spends exactly 1 charge, lands the action, and a fight-ending skip resolves the run (resolveCombatIfOver runs)", () => {
+    const sim = bootstrapMathquestSim({ seed: 5 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 5 has no combat node");
+    // ENEMY_ARCHETYPES.combat's 24 maxHp / ATTACK_DAMAGE (8) = exactly 3 skips to kill.
+    enterAwaitAnswer(sim, nodeId);
+    sim.useLifeline("skip");
+    expect(sim.getSnapshot().mode).toBe("combat"); // 2 hits left — fight still going
+    expect(sim.getSnapshot().run.lifelines.skip).toBe(0); // the run's ONLY skip charge, now spent
+
+    // Second skip attempt: 0 charges left -> driver no-ops (never calls combat.useLifeline again).
+    if (sim.getSnapshot().mode === "combat") {
+      const before = sim.getSnapshot();
+      sim.useLifeline("skip");
+      expect(sim.getSnapshot()).toEqual(before);
+    }
+  });
+
+  it("skip earns 0 xp relative to a solved fight (driver-level xp check)", () => {
+    const sim = bootstrapMathquestSim({ seed: 5 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 5 has no combat node");
+    enterAwaitAnswer(sim, nodeId);
+    const before = sim.getSnapshot().run.xp;
+    sim.useLifeline("skip");
+    expect(sim.getSnapshot().run.xp).toBe(before); // 0 xp earned by a skip
+  });
+});
+
+describe("bootstrapMathquestSim — M4b loot grants charges (not stats)", () => {
+  it("taking a lifeline-granting loot item adds its charges to run.lifelines and leaves stats untouched by that item's (empty) bonus", () => {
+    let found = false;
+    for (let seed = 1; seed <= 200 && !found; seed++) {
+      const sim = bootstrapMathquestSim({ seed });
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) continue;
+      scriptExactWin(sim, nodeId, 0); // straight to loot (below the first xp threshold)
+      const lootSnap = sim.getSnapshot();
+      if (lootSnap.mode !== "loot") continue;
+      const idx = lootSnap.offers.findIndex((o) => o.lifeline !== undefined);
+      if (idx === -1) continue; // this seed's 3 offers had no lifeline item — try another
+
+      const item = lootSnap.offers[idx]!;
+      const before = lootSnap.run.lifelines;
+      sim.chooseLoot(idx);
+      const after = sim.getSnapshot().run;
+      const kind = item.lifeline!.kind;
+      expect(after.lifelines[kind]).toBe(before[kind] + item.lifeline!.charges);
+      // A pure-lifeline item's bonus is {} — stats must be unaffected by THIS pickup.
+      expect(after.stats).toEqual(foldItemBonus(lootSnap.run.stats, item.bonus));
+      found = true;
+    }
+    expect(found).toBe(true);
+  });
+});
+
+describe("bootstrapMathquestSim — M4b off-mode + reset", () => {
+  it("useLifeline is ignored while mode is 'map'", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const before = sim.getSnapshot();
+    sim.useLifeline("hint");
+    sim.useLifeline("fifty");
+    sim.useLifeline("skip");
+    expect(sim.getSnapshot()).toEqual(before);
+  });
+
+  it("useLifeline is ignored while mode is 'level_up' or 'loot'", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+    scriptExactWin(sim, nodeId, 2); // crosses exactly 1 threshold -> "level_up"
+    const levelUpSnap = sim.getSnapshot();
+    expect(levelUpSnap.mode).toBe("level_up");
+    sim.useLifeline("hint");
+    expect(sim.getSnapshot()).toEqual(levelUpSnap);
+
+    sim.chooseLevelUp(0);
+    const lootSnap = sim.getSnapshot();
+    expect(lootSnap.mode).toBe("loot");
+    sim.useLifeline("hint");
+    expect(sim.getSnapshot()).toEqual(lootSnap);
+  });
+
+  it("newRun() resets lifelines to STARTING_LIFELINES, even after charges were spent/granted", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+    enterAwaitAnswer(sim, nodeId);
+    sim.useLifeline("hint"); // spend a charge, so the reset actually has to do something
+    expect(sim.getSnapshot().run.lifelines.hint).toBe(0);
+
+    // Drive to a loss (always wrong, always attack) to reach newRun-eligible mode.
+    let guard = 0;
+    while (sim.getSnapshot().mode === "combat" && guard++ < 300) {
+      const snap = sim.getSnapshot();
+      if (snap.mode !== "combat") break;
+      if (snap.combat.phase === "await_action") sim.chooseAction("attack");
+      else if (snap.combat.phase === "await_answer") {
+        sim.submitAnswer({ kind: "typed", value: -999999 }); // always wrong regardless of kind
+      } else if (snap.combat.phase === "teach") sim.acknowledgeTeach();
+    }
+    expect(sim.getSnapshot().mode).toBe("run_lost");
+    sim.newRun();
+    expect(sim.getSnapshot().run.lifelines).toEqual(STARTING_LIFELINES);
+  });
+});
+
+describe("bootstrapMathquestSim — M4b determinism guard", () => {
+  it("the SAME seed + the SAME command script (including useLifeline) yields an IDENTICAL snapshot sequence", () => {
+    function run(): GameSnapshot[] {
+      const sim = bootstrapMathquestSim({ seed: 1 });
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+      const snapshots: GameSnapshot[] = [sim.getSnapshot()];
+      enterAwaitAnswer(sim, nodeId);
+      snapshots.push(sim.getSnapshot());
+      sim.useLifeline("hint");
+      snapshots.push(sim.getSnapshot());
+      sim.useLifeline("fifty"); // no-op on a typed problem, or applies on a choice one — either way, deterministic
       snapshots.push(sim.getSnapshot());
       return snapshots;
     }
