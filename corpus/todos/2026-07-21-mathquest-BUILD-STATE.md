@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M5 slices 1+3 DONE, controller-verified; next/last M5 slice 2 = RO/EN i18n toggle)
-updated: 2026-07-23 (M5 slice 3 combat pixel-art sprites on branch `mathquest`)
+status: **M0–M5 COMPLETE** — the whole milestone plan is done (all controller-verified in-browser) on branch `mathquest`
+updated: 2026-07-23 (M5 slice 2 RO/EN i18n toggle — the final slice)
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -69,10 +69,10 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M4a in-run progression + loot/equipment (stat bonuses) | ✅ **done, controller-verified** (Sonnet executor) | `8c9f722` (+brief `fcae576`) |
 | M4b math lifelines (hint / 50-50 / skip) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `f1a435a` (+corpus `21f40b9`) |
 | M4c persistent mastery + gating + blueprints | ✅ **done, controller-verified in-browser** (Sonnet executor) | `3566037` (+corpus `3beb2e7`) |
-| M5 theme, art, i18n | 🔶 **sliced 3 ways; slice 1 (folklore theming) done** | see M5 slice-1 below |
+| M5 theme, art, i18n | ✅ **COMPLETE (all 3 slices done, controller-verified)** | see M5 slices below |
 | ↳ M5 slice 1 — folklore theming (zone enemy roster + Făt-Frumos) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `7990f67` (+corpus `9bc86b6`) |
 | ↳ M5 slice 3 — combat pixel-art sprites (folklore creatures + Făt-Frumos) | ✅ **done, controller-verified in-browser** (opus inline) | `647435d` |
-| ↳ M5 slice 2 — RO/EN i18n toggle | ⬜ not started (LAST) | — |
+| ↳ M5 slice 2 — RO/EN i18n toggle | ✅ **done, controller-verified in-browser** (Sonnet + opus loot/upgrade extension) | `80205d1` |
 
 ## M0 — how it went (2026-07-21)
 Dispatched fresh to a **Sonnet executor** (brief: `2026-07-21-mathquest-M0-scaffold.md`), templated on
@@ -470,13 +470,52 @@ not a fire-and-forget executor). Turned the combat screen from bars+text into a 
   are still the M3.4 procedural set (fine). An atlas pipeline remains possible later if higher-fidelity
   art is ever wanted, but would need the `UISurface` image seam.
 
-**Next: M5 slice 2 — RO/EN i18n toggle (the LAST slice → completes the milestone plan).** Make
-`client/src/strings.ts` a locale-aware lookup (RO default + EN), add an in-game toggle (button/hotkey)
-persisted to localStorage (reuse the M4c main-thread storage pattern), and translate the sim-side RO
-content (generator `prompt`/`teach` text in `combat/generators.ts`, enemy names/epithets in
-`run/enemies.ts`) — that sim content needs a locale seam too (the sim gets a locale, or the client maps
-ids→strings; the latter keeps the sim locale-agnostic — decide in the brief). Also still outstanding
-post-M5: grades V–VIII generators + "unlock NEW problem types" via mastery.
+### M5 slice 2 — RO/EN i18n toggle — how it went (2026-07-23, Sonnet executor + opus extension, browser-verified)
+Brief: `2026-07-23-mathquest-M5-i18n-toggle.md`. The last slice — makes the whole game bilingual.
+Dispatched to a Sonnet executor; controller (opus) verified + EXTENDED it (the executor correctly
+scoped level-up/loot text out per the brief, but the controller judged that leaving RO on those screens
+undercut "i18n complete", so folded them in inline).
+- **LOCKED architecture:** the sim is locale-aware via an `init` option (like seed/mastery); it emits
+  localized text; **toggling re-inits the run** in the new language (mastery preserved via M4c's
+  persisted store). Chosen over a client-renders-structured-data refactor — deterministic, low-risk.
+  `Locale = "ro"|"en"` (default ro) in `sim-core/src/i18n.ts` + `parseLocale` (validate-or-default,
+  mirrors `parseMasteryStore`); key `mathquest.locale.v1`.
+- **Client:** `strings.ts` → `Strings` interface + `STRINGS_RO`/`STRINGS_EN` + `getStrings(locale)`;
+  every widget screen takes the resolved `Strings` at CONSTRUCTION and is REBUILT on toggle (`main.ts`
+  `buildScreens()`); `map-screen` (custom-drawn) reads `strings`/`locale` per `render`. `main.ts` owns
+  the locale in localStorage (M4c pattern), the `L` key + a clickable "RO | EN" HUD rect toggle →
+  persist → rebuild → re-init (same seed + current mastery + new locale).
+- **Sim content:** generators localize `prompt`/`teach` (operands drawn BEFORE formatting → locale
+  never changes an rng draw — asserted); `enemyFor(kind,zone,locale)` keeps folklore NAMES identical,
+  translates epithets, stats still `ENEMY_ARCHETYPES[kind]` (balance locked in BOTH locales).
+- **Controller extension (beyond the executor):** `Item.nameEn` + `toItemView(item, locale)` and
+  `describeUpgrade(kind, locale)` + `UPGRADE_TEXT_EN` — so loot item names AND level-up upgrade text
+  also translate (they were the last RO-leaking sim-emitted text). Threaded `locale` into
+  `getSnapshot`'s `toItemView`/`describeUpgrade` calls (also fixed a latent `.map(fn)`-passes-index bug
+  the new 2nd param would have hit). Added loot/progression i18n tests.
+- **Determinism:** contract is now **(seed, mastery, locale, commands)** — locale changes only words.
+- **Verified in-browser:** RO default; `L` flips the WHOLE game to EN (map "Choose your path"/legend,
+  combat "Citadel of Numbers"/Grade/Turn/Attack-Heal-Shield/Submit, "Compare: 10 and 7", loot "Scroll
+  of Hints"/"Keen Eye"/"Ember Gloves"/"Skip"); the enemy stays "Zmeu pui" but its epithet becomes "the
+  dragon's whelp"; hero stays "Făt-Frumos"; sprites render; **persists across a page reload**.
+- **Gate:** typecheck 19/19; `@mathquest/sim-core` **306**; `@mathquest/client` **67**; palette **10**
+  — all green; determinism/hex sweep clean; scope `games/mathquest/**` only.
+
+## 🏁 MILESTONE PLAN COMPLETE (2026-07-23)
+**M0–M5 are all done and controller-verified in-browser.** MateQuest is a complete, playable
+Romanian-curriculum math roguelike: turn-combat where solving IS the action (M1) with deterministic
+grade I–IV generators (M2), a branching run map with a top-down 2.5D folklore world (M3 + M3.1–3.4),
+two-layer progression — in-run XP/level-up + loot/equipment + math lifelines + persistent per-topic
+mastery with a hard-branch gate & blueprints (M4a/b/c), and a folklore skin (zone enemy roster +
+Făt-Frumos) with combat pixel-art sprites and a full RO/EN i18n toggle (M5). All on branch `mathquest`.
+
+**Still outstanding (post-plan, OPTIONAL future work — NOT part of M0–M5):**
+- Grades V–VIII problem generators (an "M2.5"; the ladder + `TOPICS_FOR_GRADE` are ready to extend).
+- "Unlock NEW problem types" via mastery (deferred from M4c — needs V–VIII content to exist first).
+- Companion Archer/Mage party members (design has them as auto-battlers; only the Warrior solves in v1).
+- Higher-fidelity art via a real atlas pipeline (would need a `UISurface` image/blit seam; the current
+  rect-based sprites are the shipped look). Idle/hit sprite animation.
+- Sound/music (never in scope). A start/settings menu; more zones/bosses; balance tuning from playtests.
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`

@@ -4,6 +4,27 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | MateQuest M5 slice 2 — RO/EN i18n toggle (M5 + the whole M0–M5 plan COMPLETE)
+
+The final slice — makes the whole game bilingual (RO default + EN). Dispatched to a Sonnet executor
+from brief `todos/2026-07-23-mathquest-M5-i18n-toggle.md`; controller verified + EXTENDED it (the
+executor scoped level-up/loot text out per the brief; the controller folded them in so no RO leaks in
+EN mode). **LOCKED architecture:** the sim is locale-aware via an `init` option (like seed/mastery),
+emits localized text, and toggling RE-INITS the run in the new language (mastery preserved via M4c). New
+`sim-core/src/i18n.ts` (`Locale`, `DEFAULT_LOCALE`, `parseLocale`, key `mathquest.locale.v1`). Client
+`strings.ts` → `Strings` interface + `STRINGS_RO`/`STRINGS_EN` + `getStrings`; screens take resolved
+`Strings` at construction (rebuilt on toggle), map-screen reads it per render; `main.ts` owns the locale
+in localStorage, `L` key + a clickable "RO|EN" HUD toggle → persist → rebuild → re-init. Sim content:
+generators localize prompt/teach (operands drawn before formatting → locale never changes an rng draw);
+`enemyFor(kind,zone,locale)` keeps folklore NAMES, translates epithets, stats unchanged (balance locked
+both locales). Controller extension: `Item.nameEn`+`toItemView(item,locale)` and
+`describeUpgrade(kind,locale)`+`UPGRADE_TEXT_EN` (loot item names + upgrade text translate too; also
+fixed a latent `.map(fn)`-passes-index bug). Determinism contract now (seed, mastery, locale, commands).
+In-browser: RO default, `L` flips the whole game to EN (map/combat/loot), "Zmeu pui" stays but epithet →
+"the dragon's whelp", persists across reload. Gate: typecheck 19/19; sim-core 306; client 67; palette
+10. **🏁 M0–M5 COMPLETE** — MateQuest is a complete playable Romanian-curriculum math roguelike (see the
+tracker's "MILESTONE PLAN COMPLETE" section for the full recap + the optional post-plan backlog).
+
 ## [2026-07-23] build | MateQuest M5 slice 3 — combat pixel-art sprites (folklore creatures + hero)
 
 Done opus-inline (art needs browser iteration, like all the map visual work). Combat is now a battle
