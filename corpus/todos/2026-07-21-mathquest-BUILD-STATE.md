@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M3 + M3.1–M3.4 map polish done, verified; starting M4)
-updated: 2026-07-23 (M3.4 top-down 2.5D map + Farm/Citadel-style terrain on branch `mathquest`)
+status: in-progress (M4a in-run progression + loot done, controller-verified; next M4b lifelines)
+updated: 2026-07-23 (M4a XP/level-up + loot/equipment on branch `mathquest`)
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -65,8 +65,10 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M2 problem-generator seam (I–IV) | ✅ **done, controller-verified** (Sonnet executor) | `97f5c97` (+corpus `fa696ba`) |
 | M3 map & runs | ✅ **done, controller-verified** (Sonnet executor) | `273b3c0` (+corpus `16c66a9`) |
 | M3.1 spatial map + RO diacritics font | ✅ **done, controller-verified** (opus font + Sonnet map) | see M3.1 below |
-| M3.2–M3.4 map polish (scenic → top-down 2.5D → Farm/Citadel terrain) | ✅ **done, in-browser verified** (opus inline) | `fbc475e` (latest) |
-| M4 progression & loot | 🟡 starting | — |
+| M3.2–M3.4 map polish (scenic → top-down 2.5D → Farm/Citadel terrain) | ✅ **done, in-browser verified** (opus inline) | `fbc475e` |
+| M4a in-run progression + loot/equipment (stat bonuses) | ✅ **done, controller-verified** (Sonnet executor) | `8c9f722` (+brief `fcae576`) |
+| M4b math lifelines (hint / 50-50 / skip) | ⬜ not started | — |
+| M4c persistent mastery + gating + blueprints | ⬜ not started | — |
 | M5 theme, art, i18n | ⬜ not started | — |
 
 ## M0 — how it went (2026-07-21)
@@ -293,10 +295,34 @@ each pass verified in-browser via the agent-browser MCP + green gate). Arc:
 - **Known follow-ups:** still no a11y DOM mirror for the spatial map (drag + wheel + 1..9/Enter/arrows
   only); scenery is procedural pixel-art (authored atlas art remains an M5 option).
 
-**Next: M4 — progression & loot.** In-run XP/level-up choice + persistent per-topic mastery (survives
-death, gates hard branches, unlocks blueprints) + equipment with combat bonuses AND math lifelines
-(hint / 50-50 on MC / show-step / skip / +time). This is where the loot economy the design promised
-lands. (Then M5 folklore art + full RO/EN.)
+## M4a — how it went (2026-07-23, Sonnet executor, controller-verified)
+M4 was sliced into **M4a** (in-run XP/level-up + loot/equipment stat bonuses), **M4b** (math
+lifelines), **M4c** (persistent mastery). Brief: `2026-07-23-mathquest-M4a-progression-loot.md`.
+Dispatched to a Sonnet executor; controller (opus) verified independently — re-ran the gate, READ
+`progression.ts`/`loot.ts`/`combat.ts`/`sim-bootstrap.ts` to confirm determinism (new `levelup`/`loot`
+forks added strictly AFTER the existing `map`/`run:${n}`/`node:${id}` forks ⇒ fork order preserved),
+the answer non-leak (`toItemView` mirrors `toProblemView`; combat still narrows via `toProblemView`),
+and the `proceed()` sequencing — then **played a full run in-browser** (drove two fights via
+canvas-coord clicks + physical-keyboard answers).
+- **Mechanics (locked in the brief):** `xpForSolve(grade)=grade`; `xpToNext(L)=5*L`; level-up offers 2
+  of 4 upgrades (hp+6/atk+2/block+3/heal+3), one pick; loot after each non-boss win offers 3 distinct
+  items (tier-weighted common/better pools) with flat `StatBonuses`, or skip. `CombatOpts.mods`
+  (defaults `ZERO_STATS` ⇒ M1–M3 byte-identical); `CombatResult.xpEarned`. Flow: win → `level_up`
+  (once per threshold crossed) → boss `run_won` | else `loot` → `map`. All resets on `newRun()`.
+- **Snapshot:** `RunView` +`level/xp/xpToNext/stats/inventory`; `GameSnapshot` +`level_up`/`loot`
+  variants; worker +`choose-level-up`/`choose-loot`; two new widget-tree screens (a11y-mirrored) +
+  HUD readout (Nivel/XP + non-zero stats).
+- **Verified in-browser:** XP scales by grade (grade-1 fight +3, grade-2 fight +6 → crossed 5 → Nivel
+  2, XP 4/10), level-up + loot screens render (RO/palette-clean), stat bonuses fold in + show in HUD
+  (+10 PS/+2 Blocaj), maxHp bonus raises max + heals, win→level_up→loot→map sequencing correct, skip
+  works. Gate: typecheck 19/19; sim-core **179**; client **26**; palette **10**.
+- **Known-minor (defer):** level-up card desc text wraps to 2 lines (cosmetic); loot "better pool"
+  skew test is sampled (300 seeds), not exact.
+
+**Next: M4b — math lifelines.** The signature "loot grants math lifelines" (Who-Wants-to-Be-a-
+Millionaire items): **hint** (reveal the worked step), **50-50** (drop wrong MC choices), **skip**
+(auto-land the action). Equipment grants charges; usable in combat during `await_answer`. The `Item`
+type already has a `// M4b:` hook for `lifeline?`/`charges`. (Then M4c persistent mastery, M5 art+i18n.)
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`

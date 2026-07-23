@@ -4,6 +4,20 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | MateQuest M4a — in-run progression + loot/equipment
+
+M4 (progression & loot) sliced into **M4a** (in-run XP/level-up + loot stat bonuses), **M4b** (math
+lifelines), **M4c** (persistent mastery). **M4a done** — dispatched to a Sonnet executor from brief
+`todos/2026-07-23-mathquest-M4a-progression-loot.md`, controller-verified (gate re-run + code read for
+determinism/non-leak + a full in-browser playthrough driving two fights). Added `run/progression.ts`
+(XP curve + 4-upgrade pool) and `run/loot.ts` (tier-weighted item pools, `StatBonuses`); combat gained
+`mods` (zero-default ⇒ M1–M3 parity) + `xpEarned`; the driver gained `level_up`/`loot` modes and a
+`proceed()` win→level-up→loot→map state machine; client got two widget-tree screens + a HUD readout.
+Determinism preserved (new `levelup`/`loot` forks placed after the existing ones). Verified in-browser:
+XP scales by grade, level-up + loot screens render, stat bonuses fold in + display, sequencing correct.
+Gate: typecheck 19/19, sim-core 179, client 26, palette 10. Commit `8c9f722` (+brief `fcae576`,
++corpus `2f2760c` for the M3.4 log). Next: **M4b — math lifelines** (hint / 50-50 / skip).
+
 ## [2026-07-23] build | MateQuest M3.4 — top-down 2.5D map + Farm/Citadel-style terrain
 
 Map visual polish arc (all `games/mathquest/client/src/ui/map-screen.ts`, opus inline, each pass
