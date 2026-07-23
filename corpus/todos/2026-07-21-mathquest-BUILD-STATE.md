@@ -67,7 +67,7 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M3.1 spatial map + RO diacritics font | ✅ **done, controller-verified** (opus font + Sonnet map) | see M3.1 below |
 | M3.2–M3.4 map polish (scenic → top-down 2.5D → Farm/Citadel terrain) | ✅ **done, in-browser verified** (opus inline) | `fbc475e` |
 | M4a in-run progression + loot/equipment (stat bonuses) | ✅ **done, controller-verified** (Sonnet executor) | `8c9f722` (+brief `fcae576`) |
-| M4b math lifelines (hint / 50-50 / skip) | ✅ **done, controller-verified in-browser** (Sonnet executor) | (uncommitted at write time — see log) |
+| M4b math lifelines (hint / 50-50 / skip) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `f1a435a` (+corpus `21f40b9`) |
 | M4c persistent mastery + gating + blueprints | ⬜ not started | — |
 | M5 theme, art, i18n | ⬜ not started | — |
 
