@@ -88,9 +88,12 @@ export interface CombatantView {
   readonly block: number;
 }
 
-/** The enemy additionally carries a display name and its telegraphed next-turn intent (damage). */
+/** The enemy additionally carries a display name and its telegraphed next-turn intent (damage).
+ * M5 folklore theming adds `title` — a short RO epithet (`run/enemies.ts`'s `EnemyArchetype`),
+ * display text only, no non-leak concern (unlike `answer`/`answerIndex`). */
 export interface EnemyView extends CombatantView {
   readonly name: string;
+  readonly title: string;
   readonly intent: number;
 }
 

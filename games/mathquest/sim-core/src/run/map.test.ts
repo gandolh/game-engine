@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createRng } from "@engine/core";
-import { generateMap, type MapNode, type RunMap } from "./map";
+import { generateMap, zoneForRow, type MapNode, type RunMap, type Zone } from "./map";
+
+/** M5 folklore theming's `ROW_COUNT` — duplicated as a literal here (mirrors `map.ts`'s own
+ * `BOSS_NODE_GRADE` comment) so this test file has no dependency on the module's private const. */
+const ROW_COUNT = 6;
 
 function byId(map: RunMap): Map<number, MapNode> {
   return new Map(map.nodes.map((n) => [n.id, n]));
@@ -242,6 +246,60 @@ describe("generateMap — M4c eliteUnlocked gate", () => {
       const a = generateMap(createRng(4).fork("map"), { eliteUnlocked });
       const b = generateMap(createRng(4).fork("map"), { eliteUnlocked });
       expect(a).toEqual(b);
+    }
+  });
+});
+
+// =================================================================================================
+// M5 folklore theming, slice 1 (corpus/todos/2026-07-23-mathquest-M5-folklore-theming.md) — zone
+// as a sim concept: `zoneForRow` + `MapNode.zone`.
+// =================================================================================================
+
+describe("zoneForRow", () => {
+  it("returns 0/0/1/1/2/2 for rows 0..5 and 3 for the boss row (ROW_COUNT) — the thirds+boss split", () => {
+    const expected: Zone[] = [0, 0, 1, 1, 2, 2];
+    for (let row = 0; row < ROW_COUNT; row++) {
+      expect(zoneForRow(row)).toBe(expected[row]);
+    }
+    expect(zoneForRow(ROW_COUNT)).toBe(3);
+  });
+
+  /** Pins `zoneForRow` to `client/src/ui/map-screen.ts`'s `zoneOfCol` — reproduced here (not
+   * imported, sim-core has no dependency on the client) — for THIS map's fixed shape: 6 rows + 1
+   * boss row = 7 "columns", `colsPerZone = ceil((colCount-1)/3) = ceil(6/3) = 2`. */
+  it("agrees with the client's rows->thirds+boss column split for every row 0..ROW_COUNT", () => {
+    const colCount = ROW_COUNT + 1; // 6 regular rows + 1 boss row, read as "columns" client-side
+    const bossColIndex = colCount - 1;
+    const colsPerZone = Math.max(1, Math.ceil((colCount - 1) / 3));
+    const zoneOfCol = (i: number): number => (i >= bossColIndex ? 3 : Math.min(2, Math.floor(i / colsPerZone)));
+    for (let row = 0; row <= ROW_COUNT; row++) {
+      expect(zoneForRow(row)).toBe(zoneOfCol(row));
+    }
+  });
+});
+
+describe("generateMap — M5 folklore theming: MapNode.zone", () => {
+  it("every node's zone === zoneForRow(node.row); the boss node is zone 3", () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      const map = generateMap(createRng(seed).fork("map"));
+      for (const node of map.nodes) {
+        expect(node.zone).toBe(zoneForRow(node.row));
+      }
+      const boss = map.nodes.find((n) => n.id === map.bossId)!;
+      expect(boss.zone).toBe(3);
+    }
+  });
+
+  it("adding zone didn't disturb the connected-DAG invariants (reuses the existing helpers)", () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const map = generateMap(createRng(seed).fork("map"));
+      for (const node of map.nodes) {
+        if (node.type === "boss") expect(node.next.length).toBe(0);
+        else expect(node.next.length).toBeGreaterThanOrEqual(1);
+      }
+      for (const startId of map.startIds) {
+        expect(reachableFrom(map, startId).has(map.bossId)).toBe(true);
+      }
     }
   });
 });

@@ -23,6 +23,11 @@ import type {
 export const STRINGS = {
   title: "MateQuest — Cetatea Cifrelor",
 
+  /** The playable hero's proper name (M5 folklore theming, slice 1) — the classic Făt-Frumos of
+   * Romanian folklore. Shown on the combat screen's warrior-name label (`ui/combat-screen.ts`),
+   * replacing the old hardcoded EN "Warrior" literal. */
+  heroName: "Făt-Frumos",
+
   actionLabel: {
     attack: "Atacă",
     heal: "Vindecă",

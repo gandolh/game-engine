@@ -15,7 +15,7 @@ import { describe, it, expect } from "vitest";
 import { bootstrapMathquestSim, type BootedMathquestSim, type GameSnapshot, type RunMode } from "./sim-bootstrap";
 import { REST_HEAL } from "./run/constants";
 import { ATTACK_DAMAGE, WARRIOR_MAX_HP } from "./combat/constants";
-import { ENEMY_ARCHETYPES } from "./run/enemies";
+import { ENEMY_ARCHETYPES, enemyFor } from "./run/enemies";
 import { xpToNext, ZERO_STATS } from "./run/progression";
 import { foldItemBonus } from "./run/loot";
 import { STARTING_LIFELINES } from "./run/lifelines";
@@ -27,7 +27,7 @@ import {
   type MasteryStore,
 } from "./run/mastery";
 import type { AnswerResponse, ProblemView } from "./combat/types";
-import type { RunMap } from "./run/map";
+import type { RunMap, Zone } from "./run/map";
 
 // --- M4c helpers (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) -----------------
 
@@ -434,6 +434,7 @@ describe("bootstrapMathquestSim — the hard branch is actually harder", () => {
     // choose it directly without first winning our way there).
     let sim: BootedMathquestSim | undefined;
     let eliteId = -1;
+    let eliteZone: Zone = 0;
     let siblingGrade = -1;
     for (let seed = 1; seed <= 200; seed++) {
       const candidate = bootstrapMathquestSim({ seed, mastery: highMasteryStore() });
@@ -444,6 +445,7 @@ describe("bootstrapMathquestSim — the hard branch is actually harder", () => {
       if (elite !== undefined && combatSibling !== undefined) {
         sim = candidate;
         eliteId = elite.id;
+        eliteZone = elite.zone;
         siblingGrade = combatSibling.grade;
         break;
       }
@@ -454,9 +456,96 @@ describe("bootstrapMathquestSim — the hard branch is actually harder", () => {
     const snap = sim.getSnapshot();
     expect(snap.mode).toBe("combat");
     if (snap.mode !== "combat") throw new Error("unreachable");
-    expect(snap.combat.enemy.name).toBe("Balaur");
+    // M5 folklore theming: the elite's name is now ZONE-flavored (row 0 is always zone 0 forest,
+    // per `zoneForRow`, but derive it from the roster rather than a bare literal — see the brief).
+    expect(snap.combat.enemy.name).toBe(enemyFor("elite", eliteZone).name);
+    expect(snap.combat.enemy.title).toBe(enemyFor("elite", eliteZone).title);
     expect(snap.combat.enemy.maxHp).toBe(26);
     expect(snap.combat.grade).toBeGreaterThan(siblingGrade);
+  });
+});
+
+// =================================================================================================
+// M5 folklore theming, slice 1 of 3 (corpus/todos/2026-07-23-mathquest-M5-folklore-theming.md) —
+// the driver (`chooseNode`) wires `enemyFor(node.type, node.zone)`, so the fight's enemy matches
+// the chosen node's zone. Balance is untouched (see `run/enemies.test.ts`'s exhaustive stat check);
+// this describe block covers ONLY that the DRIVER actually picks the zone-correct name/title.
+// =================================================================================================
+
+/**
+ * Walks a FRESH sim from a start id to `targetId` (via `pathTo`), fully resolving every fight
+ * ALONG THE WAY (`driveCombat`) but stopping right after `chooseNode(targetId)` — so the returned
+ * snapshot is the target's OWN just-started fight, not something `resolveCombatIfOver` has
+ * already folded away (unlike `walkTo`, which drives the TARGET's fight to completion too).
+ * Returns `undefined` if the walk died (a "run_lost") before ever reaching `targetId`.
+ */
+function chooseNodeFresh(sim: BootedMathquestSim, targetId: number): GameSnapshot | undefined {
+  const map = sim.getSnapshot().run.map;
+  const path = pathTo(map, targetId);
+  for (const id of path.slice(0, -1)) {
+    sim.chooseNode(id);
+    if (sim.getSnapshot().mode === "combat") driveCombat(sim);
+    if (sim.getSnapshot().mode !== "map") return undefined; // died en route
+  }
+  sim.chooseNode(targetId);
+  return sim.getSnapshot();
+}
+
+describe("bootstrapMathquestSim — M5 driver theming (zone-flavored enemy roster)", () => {
+  it("a combat node's fight uses ITS zone's combat name/title (searched across seeds+zones)", () => {
+    const seenZones = new Set<Zone>();
+    for (const targetZone of [0, 1, 2] as const) {
+      let confirmed = false;
+      for (let seed = 1; seed <= 60 && !confirmed; seed++) {
+        const sim = bootstrapMathquestSim({ seed });
+        const map = sim.getSnapshot().run.map;
+        const node = map.nodes.find((n) => n.type === "combat" && n.zone === targetZone);
+        if (node === undefined) continue;
+        const snap = chooseNodeFresh(sim, node.id);
+        if (snap === undefined) continue; // died en route to this node this seed — try another
+        expect(snap.mode).toBe("combat");
+        if (snap.mode !== "combat") throw new Error("unreachable");
+        expect(snap.combat.enemy.name).toBe(enemyFor("combat", targetZone).name);
+        expect(snap.combat.enemy.title).toBe(enemyFor("combat", targetZone).title);
+        seenZones.add(targetZone);
+        confirmed = true;
+      }
+    }
+    // Rows 0-5 only ever produce zones 0/1/2 (zone 3 is boss-only in the current 6-row map) — all
+    // three must have been confirmed by at least one seed.
+    expect(seenZones).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("an elite node's fight uses ITS zone's elite name/title (mastery gate opened so an elite exists)", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const sim = bootstrapMathquestSim({ seed, mastery: highMasteryStore() });
+      const map = sim.getSnapshot().run.map;
+      const elite = map.nodes.find((n) => n.type === "elite");
+      if (elite === undefined) continue;
+      const snap = chooseNodeFresh(sim, elite.id);
+      if (snap === undefined) continue; // died en route this seed — try another
+      expect(snap.mode).toBe("combat");
+      if (snap.mode !== "combat") throw new Error("unreachable");
+      expect(snap.combat.enemy.name).toBe(enemyFor("elite", elite.zone).name);
+      expect(snap.combat.enemy.title).toBe(enemyFor("elite", elite.zone).title);
+      return;
+    }
+    throw new Error("no seed produced a reachable elite fight in 200 tries");
+  });
+
+  it("the boss fight is always 'Zmeu bătrân', regardless of seed", () => {
+    for (let seed = 1; seed <= 300; seed++) {
+      const sim = bootstrapMathquestSim({ seed });
+      const bossId = sim.getSnapshot().run.map.bossId;
+      const snap = chooseNodeFresh(sim, bossId);
+      if (snap === undefined) continue; // died en route — try the next seed
+      expect(snap.mode).toBe("combat");
+      if (snap.mode !== "combat") throw new Error("unreachable");
+      expect(snap.combat.enemy.name).toBe("Zmeu bătrân");
+      expect(snap.combat.enemy.title).toBe(enemyFor("boss", 3).title);
+      return; // one confirmed instance is enough — this is a determinism/wiring check, not a search
+    }
+    throw new Error("no seed reached the boss fight in 300 tries");
   });
 });
 

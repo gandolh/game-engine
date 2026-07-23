@@ -64,14 +64,17 @@ export {
 
 export {
   generateMap,
+  zoneForRow,
   type NodeType,
   type MapNode,
   type RunMap,
+  type Zone,
 } from "./run/map";
 
 export {
   ENEMY_ARCHETYPES,
   BOSS_GRADE,
+  enemyFor,
   type EnemyArchetype,
   type EnemyKind,
 } from "./run/enemies";

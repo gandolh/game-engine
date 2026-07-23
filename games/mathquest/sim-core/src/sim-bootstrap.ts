@@ -52,7 +52,7 @@ import { World, Scheduler, createRng, type Rng, type System, type SimContext } f
 import { createCombat, type Combat } from "./combat/combat";
 import { WARRIOR_MAX_HP } from "./combat/constants";
 import type { AnswerResponse, CombatAction, CombatSnapshot } from "./combat/types";
-import { ENEMY_ARCHETYPES } from "./run/enemies";
+import { enemyFor } from "./run/enemies";
 import { generateMap, type MapNode, type NodeType, type RunMap } from "./run/map";
 import { REST_HEAL } from "./run/constants";
 import { rollLoot, toItemView, foldItemBonus, type Item, type ItemView, type LootTier } from "./run/loot";
@@ -94,7 +94,7 @@ export type {
   TypedProblem,
 } from "./combat/types";
 export type { EnemyArchetype, EnemyKind } from "./run/enemies";
-export type { MapNode, NodeType, RunMap } from "./run/map";
+export type { MapNode, NodeType, RunMap, Zone } from "./run/map";
 export type { Item, ItemView, LootTier } from "./run/loot";
 export type { LifelineCharges, LifelineKind } from "./run/lifelines";
 export type { MasteryStore, TopicMastery } from "./run/mastery";
@@ -313,7 +313,9 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       grade: node.grade,
       warriorHp,
       warriorMaxHp: maxHp(),
-      enemy: ENEMY_ARCHETYPES[node.type],
+      // M5 folklore theming: the same stats as ENEMY_ARCHETYPES[node.type], zone-flavored
+      // name/title only (see run/enemies.ts's enemyFor) — a pure function of (type, zone), no fork.
+      enemy: enemyFor(node.type, node.zone),
       mods: stats,
     });
     mode = "combat";

@@ -385,6 +385,7 @@ export function createCombat(opts: CombatOpts): Combat {
       maxHp: enemy.maxHp,
       block: 0, // the enemy never blocks
       name: enemy.name,
+      title: enemy.title, // M5 folklore theming — copied straight from the archetype
       intent: state.enemyIntent,
     };
     return {

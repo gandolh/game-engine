@@ -36,7 +36,7 @@ function baseSnapshot(over: Partial<CombatSnapshot> = {}): CombatSnapshot {
   return {
     phase: "await_action",
     warrior: { hp: 30, maxHp: 30, block: 0 },
-    enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", intent: 6 },
+    enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", title: "puiul balaurului", intent: 6 },
     problem: null,
     grade: 1,
     teach: null,
@@ -241,6 +241,31 @@ describe("createCombatScreen — grade readout (M3: read-only, no selector)", ()
 
     screen.refresh(baseSnapshot({ grade: 3 }), "", DEFAULT_LIFELINES);
     expect(labels(screen.root).map((l) => l.text)).toContain(STRINGS.gradeReadout(3));
+  });
+});
+
+// =================================================================================================
+// M5 folklore theming (slice 1 of 3) — hero name + enemy epithet line
+// =================================================================================================
+
+describe("createCombatScreen — M5 folklore theming", () => {
+  it("shows STRINGS.heroName ('Făt-Frumos'), never the old hardcoded 'Warrior' literal", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot(), "", DEFAULT_LIFELINES);
+    const text = labels(screen.root).map((l) => l.text);
+    expect(text).toContain(STRINGS.heroName);
+    expect(text).not.toContain("Warrior");
+  });
+
+  it("renders the enemy's epithet (snapshot.enemy.title) as its own label, rebound on refresh", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", title: "puiul balaurului", intent: 6 } }), "", DEFAULT_LIFELINES);
+    expect(labels(screen.root).map((l) => l.text)).toContain("puiul balaurului");
+
+    screen.refresh(baseSnapshot({ enemy: { hp: 26, maxHp: 26, block: 0, name: "Balaur", title: "balaurul cu multe capete", intent: 6 } }), "", DEFAULT_LIFELINES);
+    const text = labels(screen.root).map((l) => l.text);
+    expect(text).toContain("balaurul cu multe capete");
+    expect(text).not.toContain("puiul balaurului");
   });
 });
 

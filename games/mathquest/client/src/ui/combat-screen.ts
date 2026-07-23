@@ -116,17 +116,23 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
 
   // --- Enemy area -----------------------------------------------------------------------------
   const enemyNameLbl = label("", { color: MATE_PAL.cream, scale: 2 });
+  // M5 folklore theming: the zone-flavored epithet under the enemy's name (`EnemyView.title`) —
+  // a muted line, always rebound alongside the name (build-once, like every other label here).
+  const enemyTitleLbl = label("", { color: MATE_PAL.steel });
   const enemyHpBar = makeHpBar(MATE_PAL.red);
   const enemyHpLbl = label("", { color: MATE_PAL.cream });
   const enemyIntentLbl = label("", { color: MATE_PAL.gold });
   const enemyArea = box({ direction: "column", gap: 4 }, [
     enemyNameLbl,
+    enemyTitleLbl,
     box({ direction: "row", gap: 8, align: "center" }, [enemyHpBar.track, enemyHpLbl]),
     enemyIntentLbl,
   ]);
 
   // --- Warrior area ----------------------------------------------------------------------------
-  const warriorNameLbl = label("Warrior", { color: MATE_PAL.cream, scale: 2 });
+  // M5 folklore theming: the hero's proper name (STRINGS.heroName, "Făt-Frumos") — fixes the old
+  // hardcoded EN "Warrior" literal. Fixed text (never rebound per refresh), like `titleLbl` below.
+  const warriorNameLbl = label(STRINGS.heroName, { color: MATE_PAL.cream, scale: 2 });
   const warriorHpBar = makeHpBar(MATE_PAL.green);
   const warriorHpLbl = label("", { color: MATE_PAL.cream });
   const warriorBlockLbl = label("", { color: MATE_PAL.skyBlue });
@@ -232,6 +238,7 @@ export function createCombatScreen(actions: CombatScreenActions): CombatScreen {
     changed = false;
 
     if (setText(enemyNameLbl, snapshot.enemy.name)) changed = true;
+    if (setText(enemyTitleLbl, snapshot.enemy.title)) changed = true;
     if (setHpBar(enemyHpBar, snapshot.enemy.hp, snapshot.enemy.maxHp)) changed = true;
     if (setText(enemyHpLbl, `${snapshot.enemy.hp}/${snapshot.enemy.maxHp}`)) changed = true;
     const intentText =

@@ -26,6 +26,28 @@ import type { Grade } from "../combat/types";
  * `run/enemies.ts`'s `EnemyKind`. */
 export type NodeType = "combat" | "elite" | "rest" | "boss";
 
+/**
+ * M5 folklore theming (corpus/todos/2026-07-23-mathquest-M5-folklore-theming.md, slice 1 of 3) —
+ * the map's four visual/thematic bands: 0 forest, 1 village, 2 mountains, 3 lair (boss-only). Pure
+ * flavor — carries no stats of its own; `run/enemies.ts`'s `enemyFor` reads it to pick a
+ * zone-flavored name/epithet, never a stat.
+ */
+export type Zone = 0 | 1 | 2 | 3;
+
+/**
+ * Deterministic function of `row` alone — no `Rng` involved, so the same map always yields the
+ * same zone for the same row. MUST reproduce `client/src/ui/map-screen.ts`'s `zoneOfCol` exactly
+ * for the current shape (`ROW_COUNT = 6` non-boss rows + one boss row): that function derives 4
+ * zones from `colsPerZone = ceil((colCount-1)/3)` over 7 "columns" (6 rows + boss), which for this
+ * map's fixed shape works out to EXACTLY rows 0-1 -> zone 0, 2-3 -> zone 1, 4-5 -> zone 2, and the
+ * boss row -> zone 3 — the same thirds-plus-boss split hardcoded below. Pinned by a test in
+ * `map.test.ts` that asserts the two agree for every row `0..ROW_COUNT`. If `ROW_COUNT` ever
+ * changes, this function and `zoneOfCol` must be re-derived TOGETHER.
+ */
+export function zoneForRow(row: number): Zone {
+  return row < 2 ? 0 : row < 4 ? 1 : row < 6 ? 2 : 3;
+}
+
 export interface MapNode {
   readonly id: number;
   readonly type: NodeType;
@@ -36,6 +58,9 @@ export interface MapNode {
   readonly col: number;
   /** Fight difficulty. Ignored for `"rest"` (no fight happens there). */
   readonly grade: Grade;
+  /** M5: this node's visual/thematic zone — always `zoneForRow(row)`; purely additive, never
+   * consulted by the DAG/edge logic below. */
+  readonly zone: Zone;
   /** Node ids reachable from this node. Empty ONLY for the boss (the map's unique terminal). */
   readonly next: readonly number[];
 }
@@ -133,13 +158,21 @@ export function generateMap(rng: Rng, opts?: { readonly eliteUnlocked?: boolean 
       // else (M4c, eliteUnlocked===false, col===eliteCol): stays plain "combat" at the row's base
       // grade — the `elite-col:${row}` fork above was still consumed (fork sequence unchanged),
       // its result just isn't ACTED on while the gate is closed.
-      nodes.push({ id, type, row, col, grade, next: [] }); // `next` filled in below
+      nodes.push({ id, type, row, col, grade, zone: zoneForRow(row), next: [] }); // `next` filled in below
     }
     rowIds.push(ids);
   }
 
   const bossId = nextId++;
-  nodes.push({ id: bossId, type: "boss", row: ROW_COUNT, col: 0, grade: BOSS_NODE_GRADE, next: [] });
+  nodes.push({
+    id: bossId,
+    type: "boss",
+    row: ROW_COUNT,
+    col: 0,
+    grade: BOSS_NODE_GRADE,
+    zone: zoneForRow(ROW_COUNT), // always 3 (the lair) — the boss ignores zone anyway (one boss)
+    next: [],
+  });
 
   // --- Edges: every row-r node gets 1-2 outgoing edges into row r+1; a cover pass then wires any
   // row-r+1 node that ended up with NO incoming edge from a random row-r source, so every node
