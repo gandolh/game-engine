@@ -1,7 +1,7 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: in-progress (M5 sliced 3 ways; slice 1 folklore theming DONE, controller-verified; next M5 i18n + art)
-updated: 2026-07-23 (M5 folklore theming — zone-flavored enemy roster + Făt-Frumos — on branch `mathquest`)
+status: in-progress (M5 slices 1+3 DONE, controller-verified; next/last M5 slice 2 = RO/EN i18n toggle)
+updated: 2026-07-23 (M5 slice 3 combat pixel-art sprites on branch `mathquest`)
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -71,8 +71,8 @@ Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is 
 | M4c persistent mastery + gating + blueprints | ✅ **done, controller-verified in-browser** (Sonnet executor) | `3566037` (+corpus `3beb2e7`) |
 | M5 theme, art, i18n | 🔶 **sliced 3 ways; slice 1 (folklore theming) done** | see M5 slice-1 below |
 | ↳ M5 slice 1 — folklore theming (zone enemy roster + Făt-Frumos) | ✅ **done, controller-verified in-browser** (Sonnet executor) | `7990f67` (+corpus `9bc86b6`) |
-| ↳ M5 slice 2 — RO/EN i18n toggle | ⬜ not started | — |
-| ↳ M5 slice 3 — authored pixel art (needs a UISurface image/blit seam first) | ⬜ not started | — |
+| ↳ M5 slice 3 — combat pixel-art sprites (folklore creatures + Făt-Frumos) | ✅ **done, controller-verified in-browser** (opus inline) | `647435d` |
+| ↳ M5 slice 2 — RO/EN i18n toggle | ⬜ not started (LAST) | — |
 
 ## M0 — how it went (2026-07-21)
 Dispatched fresh to a **Sonnet executor** (brief: `2026-07-21-mathquest-M0-scaffold.md`), templated on
@@ -439,12 +439,44 @@ the balance-preservation + zone-mapping invariants, then played a fight in-brows
   `toEqual`s got `zone` added; enemy `toEqual`s got `title`; a `chooseNodeFresh` test helper observes a
   target fight in-progress.
 
-**Next: M5 slice 2 — RO/EN i18n toggle.** Make `client/src/strings.ts` a locale-aware lookup (RO
-default + EN), add an in-game toggle (button/hotkey) persisted to localStorage (reuse the M4c
-main-thread storage pattern), and translate the sim-side RO content (generator `prompt`/`teach` text in
-`combat/generators.ts`, enemy names/epithets in `run/enemies.ts`) — that sim content will need a
-locale seam too (the sim gets a locale, or the client maps ids→strings). Then M5 slice 3 (pixel art).
-Also still outstanding post-M5: grades V–VIII generators + "unlock NEW problem types" via mastery.
+### M5 slice 3 — combat pixel-art sprites — how it went (2026-07-23, opus INLINE, browser-iterated)
+Done opus-inline (like all the map visual work — art needs the controller's eye + browser iteration,
+not a fire-and-forget executor). Turned the combat screen from bars+text into a battle scene.
+- **Approach decision (noted, not asked):** the design's "atlas-recipe pipeline" would need a new
+  image/blit seam in the shared Canvas2D `UISurface` (used by Farm+Citadel too) + a new tools pipeline
+  — a big engine change. MateQuest's ACTUAL art idiom is **rect-based procedural pixel art** (the whole
+  map is drawn that way and the user liked it), so combat sprites are composed the same way: rects +
+  triangles + SE shadow + shading, painted in a `drawSprites` post-pass exactly like `drawBars`. **No
+  engine change, no atlas.**
+- **`client/src/ui/sprites.ts` (new):** `drawHero` (Făt-Frumos: blue tunic, red shield, raised silver
+  sword) + 6 folklore creatures — `dragon` (Zmeu family), `balaur` (3-headed), `strigoi`, `varcolac`,
+  `capcaun`, `muma`; `ENEMY_SPRITE_DRAW` registry keyed by `EnemySprite`. All `MATE_PAL`-pure.
+- **Sim seam:** `combat/types.ts` `EnemySprite` union + `EnemyView.sprite`; `run/enemies.ts` roster/
+  archetype carry a sprite id (`enemyFor` returns it — stats still spread from `ENEMY_ARCHETYPES`, so
+  balance is STILL untouched); `combat.ts` snapshot copies it; re-exported from index/sim-bootstrap.
+- **Client:** `combat-screen.ts` `drawSprites(surface, snapshot, viewW, viewH)` — enemy upper-right
+  (scaled by maxHp so the boss looms), hero lower-left; `main.ts` calls it after `drawBars`.
+- **QA:** built a dev-only `window.__mqSprites` hook (REMOVED before commit) to render all 7 sprites
+  onto an overlay canvas via a fake `{rect}` surface (the draw fns only call `surface.rect`) — a
+  one-shot sprite sheet. First pass: dragon read like a bush + balaur's 3 heads didn't read → redrew
+  both (horizontal dragon body + smaller wing; 3 clearly-fanned balaur necks). Then verified the real
+  in-combat scene (Zmeu pui dragon + Făt-Frumos), bumped sprite sizes for presence. Added
+  `sprites.test.ts` (registry completeness + palette-purity: every sprite paints only `MATE_PAL`).
+- **Determinism unaffected** (sprite id is a pure function of the enemy; drawing is render-only). Gate:
+  typecheck 19/19; sim-core **280**; client **45**; palette **10**. Reusable technique: **rect-based
+  sprites drawn in a post-pass + the fake-`{rect}`-surface overlay QA sheet** — the way to add more
+  MateQuest art (map props already use the same idiom).
+- **Known follow-up:** no idle animation (sprites are static); no death/hit sprite states; map props
+  are still the M3.4 procedural set (fine). An atlas pipeline remains possible later if higher-fidelity
+  art is ever wanted, but would need the `UISurface` image seam.
+
+**Next: M5 slice 2 — RO/EN i18n toggle (the LAST slice → completes the milestone plan).** Make
+`client/src/strings.ts` a locale-aware lookup (RO default + EN), add an in-game toggle (button/hotkey)
+persisted to localStorage (reuse the M4c main-thread storage pattern), and translate the sim-side RO
+content (generator `prompt`/`teach` text in `combat/generators.ts`, enemy names/epithets in
+`run/enemies.ts`) — that sim content needs a locale seam too (the sim gets a locale, or the client maps
+ids→strings; the latter keeps the sim locale-agnostic — decide in the brief). Also still outstanding
+post-M5: grades V–VIII generators + "unlock NEW problem types" via mastery.
 
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`

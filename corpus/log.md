@@ -4,6 +4,26 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-07-23] build | MateQuest M5 slice 3 — combat pixel-art sprites (folklore creatures + hero)
+
+Done opus-inline (art needs browser iteration, like all the map visual work). Combat is now a battle
+scene instead of bars+text: the enemy creature + the hero (Făt-Frumos) are drawn as procedural
+pixel-art. **Approach decision:** the design's "atlas-recipe pipeline" would need a new image/blit seam
+in the shared `UISurface` (Farm+Citadel use it) + a tools pipeline — too big; MateQuest's real art
+idiom is rect-based procedural pixel art (the whole map is drawn that way), so combat sprites are
+composed the same way (rects + triangles + shadow/shading) in a `drawSprites` post-pass like `drawBars`
+— NO engine change, NO atlas. New `client/src/ui/sprites.ts`: `drawHero` + 6 folklore creatures
+(dragon/balaur/strigoi/varcolac/capcaun/muma), `ENEMY_SPRITE_DRAW` registry, all `MATE_PAL`-pure.
+`combat/types.ts` `EnemySprite`+`EnemyView.sprite`; `run/enemies.ts` roster/archetype carry a sprite id
+(`enemyFor` returns it; stats still spread from `ENEMY_ARCHETYPES` so balance is untouched);
+`combat.ts` copies it into the snapshot; `combat-screen.ts` `drawSprites` (enemy upper-right scaled by
+maxHp, hero lower-left), called from `main.ts` after `drawBars`. QA via a dev-only `window.__mqSprites`
+overlay sprite-sheet (removed before commit) — redrew dragon+balaur after first pass, then verified the
+real in-combat scene. Added `sprites.test.ts` (registry completeness + palette purity). Determinism
+unaffected. Gate: typecheck 19/19; sim-core 280; client 45; palette 10. Reusable technique noted in the
+tracker (rect-sprites post-pass + fake-`{rect}`-surface QA sheet). Next: **M5 slice 2 — RO/EN i18n
+toggle** (the last slice → completes the milestone plan).
+
 ## [2026-07-23] build | MateQuest M5 slice 1 — Romanian-folklore theming (zone enemy roster + Făt-Frumos)
 
 M5 (theme/art/i18n, the last milestone) sliced 3 ways — user picked **folklore theming first**.
